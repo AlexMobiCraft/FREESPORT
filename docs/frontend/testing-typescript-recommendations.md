@@ -27,7 +27,7 @@ render(<Button variant={variant as ButtonVariant}>Кнопка</Button>)
 Для корректной работы TypeScript с матчерами из `@testing-library/jest-dom`, необходимо расширить глобальные типы Jest:
 
 ```typescript
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 
 // Расширяем типы Jest для включения матчеров из @testing-library/jest-dom
 declare global {
@@ -48,14 +48,14 @@ declare global {
 
 ```typescript
 // Плохо
-expect(button).toHaveClass('opacity-50', 'cursor-not-allowed');
+expect(button).toHaveClass("opacity-50", "cursor-not-allowed");
 
 // Хорошо
-expect(button).toHaveClass('opacity-50');
-expect(button).toHaveClass('cursor-not-allowed');
+expect(button).toHaveClass("opacity-50");
+expect(button).toHaveClass("cursor-not-allowed");
 
 // Или альтернативно
-expect(button).toHaveClass(['opacity-50', 'cursor-not-allowed']);
+expect(button).toHaveClass(["opacity-50", "cursor-not-allowed"]);
 ```
 
 ## Рекомендации для проекта
@@ -65,7 +65,7 @@ expect(button).toHaveClass(['opacity-50', 'cursor-not-allowed']);
 Рекомендуется создать файл `types/jest.d.ts` в корне проекта с определением типов для Jest:
 
 ```typescript
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 
 declare global {
   namespace jest {
@@ -81,7 +81,10 @@ declare global {
       toHaveFocus(): R;
       toBeChecked(): R;
       toHaveFormValues(values: Record<string, any>): R;
-      toHaveTextContent(text: string | RegExp, options?: { normalizeWhitespace: boolean }): R;
+      toHaveTextContent(
+        text: string | RegExp,
+        options?: { normalizeWhitespace: boolean },
+      ): R;
       toHaveValue(value: string | string[] | number): R;
       toHaveDisplayValue(value: string | RegExp): R;
       toBeRequired(): R;

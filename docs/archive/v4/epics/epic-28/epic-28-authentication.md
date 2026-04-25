@@ -2,9 +2,9 @@
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-12-10 | 1.0 | Initial Epic Draft based on Frontend Plan | John (PM) |
+| Date       | Version | Description                               | Author    |
+| ---------- | ------- | ----------------------------------------- | --------- |
+| 2025-12-10 | 1.0     | Initial Epic Draft based on Frontend Plan | John (PM) |
 
 ---
 
@@ -30,7 +30,7 @@
 
 - **Plan:** `docs/epics/frontend-epics-10-19-plan.md` (Epic 14)
 - **Design System:** `frontend/docs/design-system.json` (Input, Button, Modal, InfoPanel)
-- **API Spec:** `docs/api-spec.yaml` (/auth/* endpoints)
+- **API Spec:** `docs/api-spec.yaml` (/auth/\* endpoints)
 - **UX Spec:** `docs/front-end-spec.md` (B2B Client Verification, Registration, Onboarding)
 - **Testing Standards:**
   - Backend/General: `docs/architecture/10-testing-strategy.md`
@@ -156,7 +156,7 @@
 ## Next Steps
 
 ### PO/Architect Handover
->
+
 > Используйте этот Эпик для создания детальных User Stories. Убедитесь, что API для B2B регистрации полностью готов и соответствует полям формы.
 
 ### Dependencies

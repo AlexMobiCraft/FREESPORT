@@ -95,6 +95,7 @@ curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/script
 ```
 
 ### Пошаговое развертывание
+
 ```bash
 # 1. Установка Docker
 curl -fsSL https://raw.githubusercontent.com/AlexMobiCraft/FREESPORT/main/scripts/deploy/install-docker.sh | sudo bash
@@ -109,11 +110,13 @@ nano .env.prod  # Изменить пароли!
 ```
 
 ### Директория проекта
+
 - **Расположение**: `/freesport` (в корне файловой системы)
 - **Пользователь**: `freesport`
 - **Права доступа**: `freesport:freesport`
 
 ### Управление платформой
+
 ```bash
 # Статус
 ./scripts/deploy/deploy.sh status
@@ -131,6 +134,7 @@ nano .env.prod  # Изменить пароли!
 ## Совместимость
 
 Новая структура полностью обратимо совместима с предыдущей версией:
+
 - Все скрипты обновлены для работы с новыми путями
 - Документация обновлена с учетом новой структуры
 - Docker конфигурации работают с новыми относительными путями

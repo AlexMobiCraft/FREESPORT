@@ -36,16 +36,19 @@ cd /home/freesport/freesport
 **3. Запустите скрипт развертывания**
 
 Для развертывания ветки `develop` (ветка по умолчанию):
+
 ```bash
 ./scripts/deploy/deploy.sh
 ```
 
 Для развертывания конкретной ветки (например, `feature/new-logic`):
+
 ```bash
 ./scripts/deploy/deploy.sh feature/new-logic
 ```
 
 Или так:
+
 ```bash
 BRANCH=feature/new-logic ./scripts/deploy/deploy.sh
 ```
@@ -53,6 +56,7 @@ BRANCH=feature/new-logic ./scripts/deploy/deploy.sh
 ## Что делает скрипт `deploy.sh`
 
 Скрипт выполняет все необходимые шаги в правильном порядке:
+
 1.  **Обновляет код** из указанной ветки в Git.
 2.  **Собирает новые Docker образы** (`backend` и `frontend`), используя `docker-compose.build.yml`.
 3.  **Останавливает и удаляет старые контейнеры.**
@@ -64,17 +68,18 @@ BRANCH=feature/new-logic ./scripts/deploy/deploy.sh
 ## Первоначальная настройка сервера
 
 Если вы настраиваете сервер с нуля, убедитесь, что:
--   Установлен `git`, `docker` и `docker-compose`.
--   Репозиторий проекта склонирован в `/home/freesport/freesport`.
--   Создан файл `.env.prod` с необходимыми переменными окружения.
+
+- Установлен `git`, `docker` и `docker-compose`.
+- Репозиторий проекта склонирован в `/home/freesport/freesport`.
+- Создан файл `.env.prod` с необходимыми переменными окружения.
 
 ## Устранение неполадок на сервере
 
--   **Ошибка `permission denied` для `./scripts/deploy/deploy.sh`:**
-    -   Выполните `chmod +x ./scripts/deploy/deploy.sh`.
--   **Ошибка `permission denied` для Docker:**
-    -   Убедитесь, что ваш пользователь добавлен в группу `docker`: `sudo usermod -aG docker $USER`. После этого может потребоваться перелогиниться.
--   **Ошибка сборки образов:**
-    -   Проверьте логи сборки на наличие ошибок в `Dockerfile` или проблем с зависимостями.
+- **Ошибка `permission denied` для `./scripts/deploy/deploy.sh`:**
+  - Выполните `chmod +x ./scripts/deploy/deploy.sh`.
+- **Ошибка `permission denied` для Docker:**
+  - Убедитесь, что ваш пользователь добавлен в группу `docker`: `sudo usermod -aG docker $USER`. После этого может потребоваться перелогиниться.
+- **Ошибка сборки образов:**
+  - Проверьте логи сборки на наличие ошибок в `Dockerfile` или проблем с зависимостями.
 
 Этот подход значительно упрощает процесс развертывания и делает его более предсказуемым и надежным.

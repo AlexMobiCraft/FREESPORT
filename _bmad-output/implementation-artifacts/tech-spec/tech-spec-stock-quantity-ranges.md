@@ -1,69 +1,76 @@
 ---
-title: 'Stock Quantity Ranges'
-slug: 'stock-quantity-ranges'
-created: '2026-02-19'
-status: 'complete'
+title: "Stock Quantity Ranges"
+slug: "stock-quantity-ranges"
+created: "2026-02-19"
+status: "complete"
 # Review Notes:
 # - Fixed magic numbers in backend serializer (F1)
 # - Fixed exact stock quantity leak in frontend fallback (F2)
 stepsCompleted: [1, 2, 3, 4]
-tech_stack: ['Django', 'React', 'TypeScript']
-files_to_modify: 
-  - 'backend/apps/products/serializers.py'
-  - 'backend/apps/products/tests/test_serializers.py'
-  - 'frontend/src/types/api.ts'
-  - 'frontend/src/components/product/ProductSummary.tsx'
-code_patterns: ['SerializerMethodField', 'Computed Frontend Logic']
-test_patterns: ['pytest']
+tech_stack: ["Django", "React", "TypeScript"]
+files_to_modify:
+  - "backend/apps/products/serializers.py"
+  - "backend/apps/products/tests/test_serializers.py"
+  - "frontend/src/types/api.ts"
+  - "frontend/src/components/product/ProductSummary.tsx"
+code_patterns: ["SerializerMethodField", "Computed Frontend Logic"]
+test_patterns: ["pytest"]
 ---
 
 # Overview
 
 ## Problem Statement
+
 The user wants to display product stock quantities as ranges (e.g., "1-5", "50+") instead of exact numbers in the product variant details on the Product Page. This prevents exposing exact stock levels while still informing the user about availability.
 
 ## Solution
+
 1.  **Backend**: Add a `stock_range` computed field to `ProductVariantSerializer` that maps `available_quantity` to the defined ranges (`1-5`, `6-19`, `20-49`, `50 и более`).
 2.  **Frontend**: Update `ProductVariant` type definition to include `stock_range`.
 3.  **Frontend**: Update `ProductSummary` component to display this range string instead of "N шт." when a variant is selected.
 4.  **Tests**: Update `test_serializers.py` to verify the new field.
 
 ## Scope
+
 - **In Scope**:
-    - Backend: `ProductVariantSerializer` modification.
-    - Test: `test_serializers.py` update.
-    - Frontend: Type update in `api.ts`.
-    - Frontend: UI update in `ProductSummary.tsx`.
+  - Backend: `ProductVariantSerializer` modification.
+  - Test: `test_serializers.py` update.
+  - Frontend: Type update in `api.ts`.
+  - Frontend: UI update in `ProductSummary.tsx`.
 - **Out of Scope**:
-    - Catalog list view (quantity/ranges should NOT be shown there).
-    - Changes to how "is_in_stock" boolean works.
+  - Catalog list view (quantity/ranges should NOT be shown there).
+  - Changes to how "is_in_stock" boolean works.
 
 # Context for Development
 
 ## Codebase Patterns
+
 - **Backend**: Use `SerializerMethodField` in DRF serializers for computed presentation logic.
 - **Frontend**: TypeScript interfaces in `types/api.ts` must match API response. UI components use `selectedVariant` object to render details.
 
 ## Files to Reference
-| File | Purpose |
-| ---- | ------- |
-| `backend/apps/products/serializers.py` | Add `get_stock_range` method to `ProductVariantSerializer`. |
-| `backend/apps/products/tests/test_serializers.py` | Add unit tests for `stock_range`. |
-| `frontend/src/types/api.ts` | Add `stock_range` to `ProductVariant` interface. |
-| `frontend/src/components/product/ProductSummary.tsx` | Use `stock_range` for display. |
+
+| File                                                 | Purpose                                                     |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| `backend/apps/products/serializers.py`               | Add `get_stock_range` method to `ProductVariantSerializer`. |
+| `backend/apps/products/tests/test_serializers.py`    | Add unit tests for `stock_range`.                           |
+| `frontend/src/types/api.ts`                          | Add `stock_range` to `ProductVariant` interface.            |
+| `frontend/src/components/product/ProductSummary.tsx` | Use `stock_range` for display.                              |
 
 ## Technical Decisions
+
 - **Range Logic**:
-    - 0: (Handled by `is_in_stock=False` logic) -> "Нет в наличии" (Frontend handles this status label separately)
-    - 1 - 5: "1 - 5"
-    - 6 - 19: "6 - 19"
-    - 20 - 49: "20 - 49"
-    - 50+: "50 и более"
+  - 0: (Handled by `is_in_stock=False` logic) -> "Нет в наличии" (Frontend handles this status label separately)
+  - 1 - 5: "1 - 5"
+  - 6 - 19: "6 - 19"
+  - 20 - 49: "20 - 49"
+  - 50+: "50 и более"
 - **Field Name**: `stock_range` (string).
 
 # Implementation Plan
 
 ## Backend Tasks
+
 - [x] Task 1: Update ProductVariantSerializer
   - File: `backend/apps/products/serializers.py`
   - Action: Add `stock_range` field with `SerializerMethodField`. Implement `get_stock_range` using the logic (1-5, 6-19, 20-49, 50+). Use `available_quantity` for calculation.
@@ -72,6 +79,7 @@ The user wants to display product stock quantities as ranges (e.g., "1-5", "50+"
   - Action: Add `test_stock_range` cases covering all ranges (0, 3, 10, 30, 60).
 
 ## Frontend Tasks
+
 - [x] Task 3: Update Types
   - File: `frontend/src/types/api.ts`
   - Action: Add `stock_range?: string` to `ProductVariant` interface.

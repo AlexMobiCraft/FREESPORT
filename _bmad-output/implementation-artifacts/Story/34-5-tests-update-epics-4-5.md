@@ -92,11 +92,13 @@ so that **тестовое покрытие полностью отражает 
 ### Архитектурный контекст
 
 **Из `sprint-change-proposal-2026-04-16.md` (раздел 5, Story 34-5):**
+
 - Story 34-5 — финальная story Epic 34, зависит от 34-2, 34-3, 34-4.
 - Цель: обновить фикстуры Epic 4 и Epic 5, добавить cross-epic E2E тест.
 - После Stories 34-1..34-4: `OrderExportService.handle_query` экспортирует только `is_master=False` субзаказы; `OrderStatusImportService` обновляет субзаказ и агрегирует master.status.
 
 **Что уже сделано в предыдущих stories:**
+
 - **Story 34-1** — поля `Order.parent_order/is_master/vat_group`, `OrderItem.vat_rate`, `OrderItem.build_snapshot()`.
 - **Story 34-2** — `OrderCreateService` (master+sub из корзины), API фильтрация `is_master=True`, cascade cancel.
 - **Story 34-3** — `OrderExportService` работает с субзаказами, `_aggregate_master_sent_to_1c`, queryset `is_master=False` в `handle_query`. Fixture `order_for_export` и `_create_master_with_sub` в E2E тестах уже мигрированы.
@@ -104,15 +106,15 @@ so that **тестовое покрытие полностью отражает 
 
 ### Текущее состояние тестовых файлов
 
-| Файл | Текущее состояние | Что нужно |
-|------|-------------------|-----------|
-| `tests/unit/test_order_export_service.py` | Legacy-тесты Epic 4 используют **inline master-only** `Order.objects.create(...)` без `is_master=False`. Тесты Story 34-3 добавили новые классы с master+sub. | Мигрировать **legacy** классы на master+sub. |
-| `tests/integration/test_onec_export.py` | `order_for_export` **уже** master+sub (Story 34-3). Тесты Story 34-3 добавили `TestModeQuerySubOrders`, `TestModeSuccessAggregation`. | Верифицировать, зафиксировать legacy regression test. |
-| `tests/integration/test_onec_export_e2e.py` | `_create_master_with_sub` уже корректен (Story 34-3). | Верифицировать. |
-| `tests/unit/test_order_status_import.py` | Legacy-тесты Epic 5 используют **single Order** без master/sub. Тесты Story 34-4 добавили `TestMasterStatusAggregation`, `TestMasterGuardInImport`. | Добавить modern-flow тесты. Legacy оставить как regression. |
-| `tests/integration/test_order_status_import_db.py` | Legacy `setUp()` создаёт single Order. Тесты Story 34-4 добавили `TestMasterAggregationDB`. | Обновить legacy setUp на master+sub. |
-| `tests/integration/test_orders_xml_mode_file.py` | `test_successful_status_update` создаёт single Order **без** master/sub. | Мигрировать на master+sub. |
-| `tests/integration/test_order_exchange_import_e2e.py` | `_create_order_with_item` **уже** master+sub (Story 34-3). | Добавить cross-epic E2E тест AC5. |
+| Файл                                                  | Текущее состояние                                                                                                                                             | Что нужно                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `tests/unit/test_order_export_service.py`             | Legacy-тесты Epic 4 используют **inline master-only** `Order.objects.create(...)` без `is_master=False`. Тесты Story 34-3 добавили новые классы с master+sub. | Мигрировать **legacy** классы на master+sub.                |
+| `tests/integration/test_onec_export.py`               | `order_for_export` **уже** master+sub (Story 34-3). Тесты Story 34-3 добавили `TestModeQuerySubOrders`, `TestModeSuccessAggregation`.                         | Верифицировать, зафиксировать legacy regression test.       |
+| `tests/integration/test_onec_export_e2e.py`           | `_create_master_with_sub` уже корректен (Story 34-3).                                                                                                         | Верифицировать.                                             |
+| `tests/unit/test_order_status_import.py`              | Legacy-тесты Epic 5 используют **single Order** без master/sub. Тесты Story 34-4 добавили `TestMasterStatusAggregation`, `TestMasterGuardInImport`.           | Добавить modern-flow тесты. Legacy оставить как regression. |
+| `tests/integration/test_order_status_import_db.py`    | Legacy `setUp()` создаёт single Order. Тесты Story 34-4 добавили `TestMasterAggregationDB`.                                                                   | Обновить legacy setUp на master+sub.                        |
+| `tests/integration/test_orders_xml_mode_file.py`      | `test_successful_status_update` создаёт single Order **без** master/sub.                                                                                      | Мигрировать на master+sub.                                  |
+| `tests/integration/test_order_exchange_import_e2e.py` | `_create_order_with_item` **уже** master+sub (Story 34-3).                                                                                                    | Добавить cross-epic E2E тест AC5.                           |
 
 ### Shared Helper — точный API
 
@@ -234,6 +236,7 @@ def create_single_sub_order(
 ### Паттерн миграции legacy-теста (пошаговый)
 
 **До (legacy):**
+
 ```python
 order = Order.objects.create(
     user=user,
@@ -246,6 +249,7 @@ xml_str = service.generate_xml(Order.objects.filter(id=order.id))
 ```
 
 **После (master+sub):**
+
 ```python
 master = Order.objects.create(
     user=user, total_amount=Decimal("3000.00"), delivery_address="...",
@@ -264,6 +268,7 @@ xml_str = service.generate_xml(Order.objects.filter(id=sub.id))
 ### Паттерн миграции legacy import-теста
 
 **До (legacy):**
+
 ```python
 order = Order.objects.create(order_number="FS-001", status="pending", ...)
 xml = build_test_xml(order_id=f"order-{order.pk}", order_number="FS-001", status="Отгружен")
@@ -273,6 +278,7 @@ assert order.status == "shipped"
 ```
 
 **После (master+sub) — modern flow:**
+
 ```python
 master = Order.objects.create(order_number="FS-M-001", status="pending", is_master=True, ...)
 sub = Order.objects.create(order_number="FS-S-001", status="pending", is_master=False,
@@ -287,20 +293,20 @@ assert master.status == "shipped"  # агрегация: все sub одинак
 
 ### Матрица агрегации master.status (из Story 34-4)
 
-| Sub-statuses | Master result |
-|---|---|
-| `[shipped, shipped]` | `shipped` |
-| `[shipped, confirmed]` | `confirmed` (min priority) |
-| `[pending, shipped]` | `pending` |
-| `[delivered, delivered]` | `delivered` |
-| `[cancelled, shipped]` | `shipped` (non-terminal wins) |
+| Sub-statuses             | Master result                 |
+| ------------------------ | ----------------------------- |
+| `[shipped, shipped]`     | `shipped`                     |
+| `[shipped, confirmed]`   | `confirmed` (min priority)    |
+| `[pending, shipped]`     | `pending`                     |
+| `[delivered, delivered]` | `delivered`                   |
+| `[cancelled, shipped]`   | `shipped` (non-terminal wins) |
 
 ### VAT-группы и организации (из Story 34-3)
 
-| vat_group | Организация | Склад |
-|---|---|---|
-| `5.00` | ИП Терещенко Л.В. | 2 ТЛВ склад |
-| `22.00` | ИП Семерюк Д. В. | 1 СДВ склад |
+| vat_group | Организация       | Склад       |
+| --------- | ----------------- | ----------- |
+| `5.00`    | ИП Терещенко Л.В. | 2 ТЛВ склад |
+| `22.00`   | ИП Семерюк Д. В.  | 1 СДВ склад |
 
 ### Тестовые паттерны проекта
 
@@ -381,11 +387,13 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py backend/test
 - **Верифицированы** `test_onec_export.py` и `test_onec_export_e2e.py` (Task 6) — уже master+sub из Story 34-3.
 
 **Прогон тестов:**
+
 - `pytest -m unit` (159 passed, 0 failed)
 - `pytest -m integration` (48 passed, 0 failed) — import/mode=file/E2E
 - `pytest -m integration` (57 passed, 0 failed) — export E2E
 
 **Review Findings закрыты (7/7) — все resolved:**
+
 - `create_single_sub_order` → исправлен return type `(master, sub)` (одиночный Order вместо списка)
 - `create_master_with_subs` → добавлена валидация пустого списка и дублирования variant в VAT-группе
 - E2E `test_full_vat_split_export_import_cycle`: `vat_group=22.00`, `len(documents)==2`, проверка org names (ИП Терещенко/ИП Семерюк), `settings.ONEC_EXCHANGE` настроен
@@ -395,6 +403,7 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py backend/test
 - ✅ Resolved review finding [Patch]: E2E — добавлены assertions `<Склад>` (2 ТЛВ склад / 1 СДВ склад) для обоих sub
 
 **Финальный прогон тестов (2026-04-21):**
+
 - `pytest tests/integration/test_order_exchange_import_e2e.py tests/unit/test_order_export_service.py tests/unit/test_order_status_import.py tests/integration/test_order_status_import_db.py tests/integration/test_orders_xml_mode_file.py` — 207 passed, 0 failed
 
 ### File List

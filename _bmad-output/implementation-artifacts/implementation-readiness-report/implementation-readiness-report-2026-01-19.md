@@ -6,25 +6,33 @@
 ## 1. Document Discovery Inventory
 
 ### A. PRD Documents
+
 **Whole Documents:**
+
 - `docs/prd/1c-http-exchange.md` (Main PRD for current task)
 - `docs/prd/brownfield-1c-properties.md` (Contextual PRD)
 
 **Sharded Documents:**
+
 - `docs/prd/index.md` (General PRD sharded structure, seems less relevant for specific 1C task but good context)
 
 ### B. Architecture Documents
+
 **Whole Documents:**
+
 - `docs/integrations/1c/architecture.md` (Specific Architecture for 1C Integration)
 - `docs/architecture/architecture-backend.md` (General Backend Arch)
 
 ### C. Epics & Stories Documents
-- *Not yet generated for this specific task (Will be output of this process)*
+
+- _Not yet generated for this specific task (Will be output of this process)_
 
 ### D. UX Design Documents
-- *Not required for 1C backend integration*
+
+- _Not required for 1C backend integration_
 
 ### Issues Found
+
 - **Protocol Conflict:** `1c-http-exchange.md` specifies HTTP push from 1C. `architecture.md` (in its intro) mentions SFTP/Folder monitoring, but the Appendix A details the HTTP structure. **Resolution:** We will treat `1c-http-exchange.md` + `architecture.md` (Appendix A) as the source of truth for the HTTP protocol implementation.
 
 ## 2. PRD Analysis
@@ -45,23 +53,25 @@
 - **NFR3 (Security):** Доступ к эндпоинту только для пользователей с соответствующими правами (1С-юзер).
 
 ### Additional Requirements
+
 - **Structure Logic:** Необходимо реализовать логику, которая при распаковке ZIP архива или сохранении файлов сохраняет структуру папок (`goods/`, `propertiesGoods/` и т.д.) согласно `architecture.md` Appendix A.
 
 ### PRD Completeness Assessment
+
 PRD is clear and technically specific. The main complexity lies in **FR4** (Correctly reconstructing the 1C directory structure from the ZIP) and **NFR1** (Strict iterative approach).
 
 ## 3. Epic Coverage Validation
 
 ### Coverage Matrix
 
-| FR Number | PRD Requirement | Epic Coverage  | Status    |
-| --------- | --------------- | -------------- | --------- |
-| FR1       | Endpoint        | **NOT FOUND**  | ❌ MISSING (No Epics) |
-| FR2       | Auth (checkauth)| **NOT FOUND**  | ❌ MISSING (No Epics) |
-| FR3       | Init parameters | **NOT FOUND**  | ❌ MISSING (No Epics) |
-| FR4       | Upload & Sort   | **NOT FOUND**  | ❌ MISSING (No Epics) |
-| FR5       | Import Workflow | **NOT FOUND**  | ❌ MISSING (No Epics) |
-| FR6       | Logging         | **NOT FOUND**  | ❌ MISSING (No Epics) |
+| FR Number | PRD Requirement  | Epic Coverage | Status                |
+| --------- | ---------------- | ------------- | --------------------- |
+| FR1       | Endpoint         | **NOT FOUND** | ❌ MISSING (No Epics) |
+| FR2       | Auth (checkauth) | **NOT FOUND** | ❌ MISSING (No Epics) |
+| FR3       | Init parameters  | **NOT FOUND** | ❌ MISSING (No Epics) |
+| FR4       | Upload & Sort    | **NOT FOUND** | ❌ MISSING (No Epics) |
+| FR5       | Import Workflow  | **NOT FOUND** | ❌ MISSING (No Epics) |
+| FR6       | Logging          | **NOT FOUND** | ❌ MISSING (No Epics) |
 
 ### Missing Requirements
 

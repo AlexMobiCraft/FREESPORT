@@ -30,6 +30,7 @@ docker compose -f docker/docker-compose.yml ps
 ## 📋 Основные команды
 
 ### Управление контейнерами
+
 ```bash
 # Запуск всех сервисов
 docker compose -f docker/docker-compose.yml up -d
@@ -48,6 +49,7 @@ docker compose -f docker/docker-compose.yml logs -f
 ```
 
 ### Работа с Django
+
 ```bash
 # Выполнение миграций
 docker compose -f docker/docker-compose.yml exec backend python manage.py migrate
@@ -63,6 +65,7 @@ docker compose -f docker/docker-compose.yml exec backend python manage.py shell
 ```
 
 ### Работа с базой данных
+
 ```bash
 # Подключение к PostgreSQL
 docker compose -f docker/docker-compose.yml exec db psql -U postgres -d freesport
@@ -75,6 +78,7 @@ docker compose -f docker/docker-compose.yml exec -T db psql -U postgres freespor
 ```
 
 ### Работа с Redis
+
 ```bash
 # Подключение к Redis CLI
 docker compose -f docker/docker-compose.yml exec redis redis-cli -a redis123
@@ -86,6 +90,7 @@ docker compose -f docker/docker-compose.yml exec redis redis-cli -a redis123 pin
 ## 🔧 Разработка
 
 ### Пересборка образов
+
 ```bash
 # Пересборка всех образов
 docker compose -f docker/docker-compose.yml build --no-cache
@@ -95,6 +100,7 @@ docker compose -f docker/docker-compose.yml build backend
 ```
 
 ### Отладка
+
 ```bash
 # Вход в контейнер backend
 docker compose -f docker/docker-compose.yml exec backend bash
@@ -154,6 +160,7 @@ docker compose -f docker/docker-compose.yml exec backend python manage.py collec
 ## 🌐 Доступ к сервисам
 
 После запуска сервисы доступны по адресам:
+
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8001/api/v1
 - Nginx (прокси): http://localhost:80
@@ -163,6 +170,7 @@ docker compose -f docker/docker-compose.yml exec backend python manage.py collec
 ## 🚨 Решение проблем
 
 ### Конфликт имен контейнеров
+
 ```bash
 # Остановка и удаление всех контейнеров
 docker compose -f docker/docker-compose.yml down -v
@@ -177,6 +185,7 @@ docker compose -f docker/docker-compose.yml up -d
 ### Проблема: Отсутствуют SSL сертификаты
 
 **Для Linux/macOS:**
+
 ```bash
 # Создание самоподписанных SSL сертификатов
 ./scripts/server/create-ssl-certs.sh
@@ -189,6 +198,7 @@ ls -la docker/nginx/ssl/
 ```
 
 **Для Windows:**
+
 ```powershell
 # Создание самоподписанных SSL сертификатов
 .\scripts\server\create-ssl-certs.ps1
@@ -201,6 +211,7 @@ dir docker\nginx\ssl
 ```
 
 ### Проблема с Nginx (постоянно перезапускается)
+
 ```bash
 # Проверка логов Nginx
 docker compose -f docker/docker-compose.yml logs nginx
@@ -213,6 +224,7 @@ docker compose -f docker/docker-compose.yml restart backend frontend
 ```
 
 ### Просмотр логов
+
 ```bash
 # Все логи
 docker compose -f docker/docker-compose.yml logs
@@ -224,6 +236,7 @@ docker compose -f docker/docker-compose.yml logs db
 ```
 
 ### Перезапуск с очисткой
+
 ```bash
 # Полная перезагрузка с очисткой данных
 docker compose -f docker/docker-compose.yml down -v
@@ -233,7 +246,9 @@ docker compose -f docker/docker-compose.yml up -d
 ---
 
 **Подсказка:** Для удобства можно создать алиасы в shell:
+
 ```bash
 alias dc='docker compose -f docker/docker-compose.yml'
 alias dcb='dc exec backend'
 alias dcf='dc exec frontend'
+```

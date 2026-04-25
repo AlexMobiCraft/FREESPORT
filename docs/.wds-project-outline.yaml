@@ -34,7 +34,7 @@ phases:
     intent: |
       Существующий бриф проекта определяет видение, цели и критерии успеха.
       Документ: docs/Brief.md
-      
+
       Ключевые элементы:
       - B2B/B2C платформа для 5 торговых марок
       - API-First (Headless) архитектура
@@ -56,7 +56,7 @@ phases:
     intent: |
       Анализ психологии B2B и B2C пользователей.
       Необходимо формализовать персоны и триггеры для редизайна.
-      
+
       Целевые группы (из Brief.md):
       - Оптовые покупатели (3 уровня)
       - Тренеры (фитнес-клубы)
@@ -82,7 +82,7 @@ phases:
       - Next.js 15 + TypeScript
       - PostgreSQL, Redis, Celery
       - Интеграция с 1С работает
-      
+
       Документация: docs/PRD.md, docs/architecture/
     artifacts:
       - "docs/PRD.md"
@@ -102,18 +102,18 @@ phases:
     intent: |
       РЕДИЗАЙН существующих страниц на новую дизайн-систему Electric Orange.
       Сохранение содержания, обновление визуального оформления.
-      
+
       Источники:
       - Текущий UX Design: docs/front-end-spec.md (v2.1)
       - Дизайн-система: frontend/public/electric-orange/design_v2.3.0.json
-      
+
       Задача редизайна:
       - Миграция страниц на Electric Orange стиль
       - Digital Brutalism & Kinetic Energy
       - Skewed typography (-12deg)
       - Dark theme (#0F0F0F background)
       - Primary accent: Electric Orange (#FF6B00)
-    
+
     scenarios:
       - id: "00-design-system-migration"
         name: "Design System Migration Plan"
@@ -129,7 +129,7 @@ phases:
           - "docs/4-ux-design/00-design-system-migration/01-color-mapping.md"
           - "docs/4-ux-design/00-design-system-migration/02-component-specs.md"
           - "docs/4-ux-design/00-design-system-migration/03-page-specs.md"
-        
+
       - id: "01-homepage"
         name: "Главная страница"
         status: "not_started"
@@ -140,7 +140,7 @@ phases:
         completed_date: null
         intent: "Редизайн главной страницы с Hero-баннерами"
         artifacts: []
-        
+
       - id: "02-catalog"
         name: "Каталог товаров"
         status: "not_started"
@@ -151,7 +151,7 @@ phases:
         completed_date: null
         intent: "Редизайн страницы каталога, фильтров, карточки товара"
         artifacts: []
-        
+
       - id: "03-cart-checkout"
         name: "Корзина и оформление заказа"
         status: "not_started"
@@ -162,7 +162,7 @@ phases:
         completed_date: null
         intent: "Редизайн корзины, чекаута, подтверждения заказа"
         artifacts: []
-        
+
       - id: "04-account"
         name: "Личный кабинет"
         status: "not_started"
@@ -173,7 +173,7 @@ phases:
         completed_date: null
         intent: "Редизайн профиля, истории заказов, адресов, B2B-функций"
         artifacts: []
-        
+
       - id: "05-static-pages"
         name: "Информационные страницы"
         status: "not_started"
@@ -204,11 +204,11 @@ phases:
     completed_by: "UX Expert Team"
     intent: |
       Дизайн-система Electric Orange уже создана.
-      
+
       Источники:
       - design_v2.3.0.json — токены и правила
       - front-end-spec.md — полная спецификация UI/UX
-      
+
       Ключевые принципы:
       - Digital Brutalism & Kinetic Energy
       - Skew angle: -12deg / counter-skew: 12deg
@@ -300,20 +300,20 @@ notes: |
   ПРОЕКТ РЕДИЗАЙНА
   ================
   Цель: Миграция существующего сайта FREESPORT на новую дизайн-систему Electric Orange.
-  
+
   Особенности:
   - Сохранение функционала и содержания
   - Полная визуальная трансформация
   - Digital Brutalism стиль
   - Dark theme с оранжевыми акцентами
-  
+
   Приоритеты редизайна:
   1. Главная страница (Hero-баннеры, категории)
   2. Каталог и карточка товара
   3. Корзина и чекаут
   4. Личный кабинет (B2B функции)
   5. Информационные страницы
-  
+
   Ключевые ресурсы:
   - Brief.md — миссия и vision
   - front-end-spec.md — текущая UX спецификация

@@ -28,10 +28,20 @@ evidence:
     ac_gaps: []
 
 nfr_validation:
-  security: { status: PASS, notes: "Нет работы с чувствительными данными; UI-уровень." }
-  performance: { status: PASS, notes: "Легковесные компоненты, Skeleton без тяжёлых зависимостей." }
-  reliability: { status: PASS, notes: "Обработаны loading/error/empty, retry доступен." }
-  maintainability: { status: PASS, notes: "Структура модульная, тесты покрывают ключевые состояния." }
+  security:
+    { status: PASS, notes: "Нет работы с чувствительными данными; UI-уровень." }
+  performance:
+    {
+      status: PASS,
+      notes: "Легковесные компоненты, Skeleton без тяжёлых зависимостей.",
+    }
+  reliability:
+    { status: PASS, notes: "Обработаны loading/error/empty, retry доступен." }
+  maintainability:
+    {
+      status: PASS,
+      notes: "Структура модульная, тесты покрывают ключевые состояния.",
+    }
 
 recommendations:
   immediate: []

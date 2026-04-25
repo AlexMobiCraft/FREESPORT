@@ -4,11 +4,11 @@
 **Дата:** 2026-01-09  
 **Статус:** Draft  
 **URL:** `/electric`  
-**Связанный код:**  
+**Связанный код:**
 
 - Оригинал: `frontend/src/app/test/page.tsx`
 - Electric: `frontend/src/app/electric/page.tsx`  
-**Связанные docs:** `docs/front-end-spec.md` (Section 4. Главная страница)
+  **Связанные docs:** `docs/front-end-spec.md` (Section 4. Главная страница)
 
 ---
 
@@ -20,17 +20,17 @@
 
 ## 2. Структура страницы (из `/test/page.tsx`)
 
-| # | Секция | Компонент | Компонент Electric | Статус |
-|---|--------|-----------|-------------------|--------|
-| 1 | Hero Баннер | `HeroSection` | `ElectricHeroSection` | ✅ Создан |
-| 2 | Хиты продаж | `HitsSection` | `HitsSection variant="electric"` | ✅ Рефакторнут |
-| 3 | Новинки | `NewArrivalsSection` | `ElectricProductSection` | ✅ Временно |
-| 4 | **Акция** | `PromoSection` | `ElectricProductSection` | ✅ Временно |
-| 5 | Распродажа | `SaleSection` | `ElectricProductSection` | ✅ Временно |
-| 6 | Категории | `CategoriesSection` | `ElectricCategorySection` | ✅ Создан |
-| 7 | Новости | `NewsSection` | `NewsSection variant="electric"` | ✅ Рефакторнут |
-| 8 | **Блог** | `BlogSection` | `BlogSection variant="electric"` | ✅ Рефакторнут |
-| 9 | Подписка | `SubscribeNewsSection` | `SubscribeNewsSection variant="electric"` | ⏳ Pending |
+| #   | Секция      | Компонент              | Компонент Electric                        | Статус         |
+| --- | ----------- | ---------------------- | ----------------------------------------- | -------------- |
+| 1   | Hero Баннер | `HeroSection`          | `ElectricHeroSection`                     | ✅ Создан      |
+| 2   | Хиты продаж | `HitsSection`          | `HitsSection variant="electric"`          | ✅ Рефакторнут |
+| 3   | Новинки     | `NewArrivalsSection`   | `ElectricProductSection`                  | ✅ Временно    |
+| 4   | **Акция**   | `PromoSection`         | `ElectricProductSection`                  | ✅ Временно    |
+| 5   | Распродажа  | `SaleSection`          | `ElectricProductSection`                  | ✅ Временно    |
+| 6   | Категории   | `CategoriesSection`    | `ElectricCategorySection`                 | ✅ Создан      |
+| 7   | Новости     | `NewsSection`          | `NewsSection variant="electric"`          | ✅ Рефакторнут |
+| 8   | **Блог**    | `BlogSection`          | `BlogSection variant="electric"`          | ✅ Рефакторнут |
+| 9   | Подписка    | `SubscribeNewsSection` | `SubscribeNewsSection variant="electric"` | ⏳ Pending     |
 
 ---
 
@@ -111,12 +111,12 @@
 
 ### Токены
 
-| Токен | Значение |
-|-------|----------|
-| `--bg-body` | `#0F0F0F` |
-| `--bg-card` | `#1A1A1A` |
-| `--color-primary` | `#FF6B00` |
-| `--color-text-primary` | `#FFFFFF` |
+| Токен                    | Значение  |
+| ------------------------ | --------- |
+| `--bg-body`              | `#0F0F0F` |
+| `--bg-card`              | `#1A1A1A` |
+| `--color-primary`        | `#FF6B00` |
+| `--color-text-primary`   | `#FFFFFF` |
 | `--color-text-secondary` | `#A0A0A0` |
 
 ### Геометрия
@@ -127,10 +127,10 @@
 
 ### Типографика
 
-| Элемент | Font | Weight |
-|---------|------|--------|
+| Элемент         | Font             | Weight                 |
+| --------------- | ---------------- | ---------------------- |
 | Section Headers | Roboto Condensed | 900 (Black), Uppercase |
-| Body | Inter | 400 |
+| Body            | Inter            | 400                    |
 
 ---
 
@@ -150,12 +150,12 @@
 
 ### План работ
 
-| Компонент | Приоритет | Сложность |
-|-----------|-----------|-----------|
-| HitsSection | ✅ Done | — |
-| NewArrivalsSection | P1 | Low (copy HitsSection pattern) |
-| SaleSection | P1 | Low |
-| PromoSection | P2 | Low |
-| CategoriesSection | P2 | Medium |
-| NewsSection | P3 | Medium |
-| SubscribeNewsSection | P3 | Medium |
+| Компонент            | Приоритет | Сложность                      |
+| -------------------- | --------- | ------------------------------ |
+| HitsSection          | ✅ Done   | —                              |
+| NewArrivalsSection   | P1        | Low (copy HitsSection pattern) |
+| SaleSection          | P1        | Low                            |
+| PromoSection         | P2        | Low                            |
+| CategoriesSection    | P2        | Medium                         |
+| NewsSection          | P3        | Medium                         |
+| SubscribeNewsSection | P3        | Medium                         |

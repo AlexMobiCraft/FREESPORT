@@ -29,7 +29,7 @@ evidence:
     files_processed: 22
   risks_identified: 0
   trace:
-    ac_covered: [1, 2, 3, 4, 5]  # All 5 ACs fully covered
+    ac_covered: [1, 2, 3, 4, 5] # All 5 ACs fully covered
     ac_gaps: []
 
 # NFR Validation
@@ -76,7 +76,7 @@ standards_compliance:
 
 # Recommendations
 recommendations:
-  immediate: []  # No blocking issues
+  immediate: [] # No blocking issues
   future:
     - action: "Consider adding defusedxml to requirements.txt verification in CI/CD"
       refs: ["backend/requirements.txt"]

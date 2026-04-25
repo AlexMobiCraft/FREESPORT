@@ -2,23 +2,23 @@
  * React Component - Реальный пример из проекта FREESPORT
  * Демонстрирует паттерны TypeScript, Tailwind CSS, состояния loading
  */
-import React from 'react';
-import type { BaseComponentProps } from '@/types';
+import React from "react";
+import type { BaseComponentProps } from "@/types";
 
 // ✅ ПАТТЕРН: TypeScript интерфейсы для props с расширением базовых
 interface ButtonProps extends BaseComponentProps {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
   disabled?: boolean;
   loading?: boolean;
-  type?: 'button' | 'submit' | 'reset';
+  type?: "button" | "submit" | "reset";
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**
- * ✅ РЕАЛЬНЫЙ ПРИМЕР: Базовый компонент Button 
+ * ✅ РЕАЛЬНЫЙ ПРИМЕР: Базовый компонент Button
  * Из frontend/src/components/ui/Button.tsx
- * 
+ *
  * КЛЮЧЕВЫЕ ПАТТЕРНЫ:
  * - TypeScript типизация всех props
  * - Tailwind CSS для стилизации
@@ -28,43 +28,47 @@ interface ButtonProps extends BaseComponentProps {
  */
 const Button: React.FC<ButtonProps> = ({
   children,
-  className = '',
-  variant = 'primary',
-  size = 'md',
+  className = "",
+  variant = "primary",
+  size = "md",
   disabled = false,
   loading = false,
-  type = 'button',
+  type = "button",
   onClick,
-  ...props  // ✅ ПАТТЕРН: Spread остальных props
+  ...props // ✅ ПАТТЕРН: Spread остальных props
 }) => {
   // ✅ ПАТТЕРН: Базовые стили с Tailwind CSS
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
-  
+  const baseStyles =
+    "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+
   // ✅ ПАТТЕРН: Объект с вариантами стилей
   const variantStyles = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-    secondary: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500',
-    outline: 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500',
-    ghost: 'text-gray-700 bg-transparent hover:bg-gray-100 focus:ring-gray-500',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
+    secondary: "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500",
+    outline:
+      "border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500",
+    ghost: "text-gray-700 bg-transparent hover:bg-gray-100 focus:ring-gray-500",
+    danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
   };
-  
+
   // ✅ ПАТТЕРН: Размеры компонента
   const sizeStyles = {
-    sm: 'px-3 py-2 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    sm: "px-3 py-2 text-sm",
+    md: "px-4 py-2 text-base",
+    lg: "px-6 py-3 text-lg",
   };
-  
+
   // ✅ ПАТТЕРН: Динамическая сборка классов с фильтрацией
   const buttonClasses = [
     baseStyles,
     variantStyles[variant],
     sizeStyles[size],
-    loading && 'cursor-wait',
+    loading && "cursor-wait",
     className,
-  ].filter(Boolean).join(' ');
-  
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <button
       type={type}
@@ -118,15 +122,15 @@ interface ProductCardProps extends BaseComponentProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({
   product,
-  userRole = 'retail',
+  userRole = "retail",
   onAddToCart,
-  className = '',
+  className = "",
 }) => {
   const [loading, setLoading] = React.useState(false);
 
   const handleAddToCart = async () => {
     if (!onAddToCart) return;
-    
+
     setLoading(true);
     try {
       await onAddToCart(product.id);
@@ -136,22 +140,24 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 ${className}`}>
+    <div
+      className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200 ${className}`}
+    >
       <img
         src={product.image}
         alt={product.name}
         className="w-full h-48 object-cover"
       />
-      
+
       <div className="p-4">
         <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
         <p className="text-gray-600 mb-2">{product.brand}</p>
-        
+
         <div className="flex items-center justify-between">
           <span className="text-xl font-bold text-blue-600">
-            {product.price.toLocaleString('ru-RU')} ₽
+            {product.price.toLocaleString("ru-RU")} ₽
           </span>
-          
+
           <Button
             variant="primary"
             size="sm"
@@ -177,7 +183,7 @@ interface YourComponentProps extends BaseComponentProps {
 }
 
 const YourComponent: React.FC<YourComponentProps> = ({
-  className = '',
+  className = "",
   children,
   title,
   description,
@@ -195,23 +201,21 @@ const YourComponent: React.FC<YourComponentProps> = ({
 
   // ✅ ПАТТЕРН: Вычисляемые стили
   const containerClasses = [
-    'your-base-classes',
-    'p-4',
-    'rounded-lg',
-    loading && 'opacity-50',
+    "your-base-classes",
+    "p-4",
+    "rounded-lg",
+    loading && "opacity-50",
     className,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={containerClasses} {...props}>
-      {title && (
-        <h2 className="text-xl font-semibold mb-2">{title}</h2>
-      )}
-      
-      {description && (
-        <p className="text-gray-600 mb-4">{description}</p>
-      )}
-      
+      {title && <h2 className="text-xl font-semibold mb-2">{title}</h2>}
+
+      {description && <p className="text-gray-600 mb-4">{description}</p>}
+
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -219,7 +223,7 @@ const YourComponent: React.FC<YourComponentProps> = ({
       ) : (
         children
       )}
-      
+
       {onAction && (
         <Button onClick={onAction} className="mt-4">
           Действие

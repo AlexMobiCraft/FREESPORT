@@ -99,7 +99,7 @@ print('Удаление завершено.')
 # Через Django management command
 docker compose -f docker/docker-compose.yml run --rm backend python manage.py import_attributes
 
-# Или через Admin UI: 
+# Или через Admin UI:
 # /admin/integrations/import-from-1c/ → "Загрузить атрибуты (справочники)"
 ```
 
@@ -228,15 +228,15 @@ AttributeValue1CMapping.objects.all().delete()
 
 ## Timeline
 
-| Этап | Примерное время |
-|------|-----------------|
-| Pre-migration checklist | 15 мин |
-| Резервное копирование | 5-10 мин |
-| Миграции Django | 1-2 мин |
-| Clean Slate (удаление) | 1 мин |
-| Импорт атрибутов | 5-15 мин |
-| Post-migration validation | 10 мин |
-| **Итого** | **~45 мин** |
+| Этап                      | Примерное время |
+| ------------------------- | --------------- |
+| Pre-migration checklist   | 15 мин          |
+| Резервное копирование     | 5-10 мин        |
+| Миграции Django           | 1-2 мин         |
+| Clean Slate (удаление)    | 1 мин           |
+| Импорт атрибутов          | 5-15 мин        |
+| Post-migration validation | 10 мин          |
+| **Итого**                 | **~45 мин**     |
 
 ---
 

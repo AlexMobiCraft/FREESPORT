@@ -1,5 +1,5 @@
 ---
-main_config: '{project-root}/_bmad/bmm/config.yaml'
+main_config: "{project-root}/_bmad/bmm/config.yaml"
 ---
 
 # Quick Dev New Preview Workflow
@@ -7,7 +7,6 @@ main_config: '{project-root}/_bmad/bmm/config.yaml'
 **Goal:** Turn user intent into a hardened, reviewable artifact.
 
 **CRITICAL:** If a step says "read fully and follow step-XX", you read and follow step-XX. No exceptions.
-
 
 ## READY FOR DEVELOPMENT STANDARD
 
@@ -18,7 +17,6 @@ A specification is "Ready for Development" when:
 - **Testable**: All ACs use Given/When/Then.
 - **Complete**: No placeholders or TBDs.
 
-
 ## SCOPE STANDARD
 
 A specification should target a **single user-facing goal** within **900–1600 tokens**:
@@ -28,7 +26,6 @@ A specification should target a **single user-facing goal** within **900–1600 
   - Don't split: "add validation and display errors" / "support drag-and-drop AND paste AND retry"
 - **900–1600 tokens**: Optimal range for LLM consumption. Below 900 risks ambiguity; above 1600 risks context-rot in implementation agents.
 - **Neither limit is a gate.** Both are proposals with user override.
-
 
 ## WORKFLOW ARCHITECTURE
 
@@ -54,7 +51,6 @@ This uses **step-file architecture** for disciplined execution:
 - **NEVER** skip steps or optimize the sequence
 - **ALWAYS** follow the exact instructions in the step file
 - **ALWAYS** halt at checkpoints and wait for human input
-
 
 ## INITIALIZATION SEQUENCE
 

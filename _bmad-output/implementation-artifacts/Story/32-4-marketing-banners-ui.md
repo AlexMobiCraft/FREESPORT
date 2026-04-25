@@ -44,32 +44,32 @@ Status: done
 ## Задачи / Подзадачи
 
 - [x] **Настройка и каркас**
-    - [x] Создать компонент `MarketingBannersSection` в `frontend/src/components/home/`.
-    - [x] Экспортировать компонент из `frontend/src/components/home/index.ts`.
-    - [x] Интегрировать компонент в `HomePage.tsx` сразу после `QuickLinksSection` и до `CategoriesSection`.
+  - [x] Создать компонент `MarketingBannersSection` в `frontend/src/components/home/`.
+  - [x] Экспортировать компонент из `frontend/src/components/home/index.ts`.
+  - [x] Интегрировать компонент в `HomePage.tsx` сразу после `QuickLinksSection` и до `CategoriesSection`.
 
 - [x] **Реализация**
-    - [x] Получение баннеров через `bannersService.getActive('marketing')`.
-    - [x] Интеграция хука `useBannerCarousel` для логики слайдера.
-    - [x] Реализация рендеринга слайдов с использованием `Next/Image` (`sizes`, `loading`, `priority` по правилам секции).
-    - [x] Реализация условного рендеринга (скрыть, если пусто).
-    - [x] Добавить component-level `ErrorBoundary` для секции с fallback `null` (секция скрывается, HomePage продолжает работать).
-    - [x] Навигация по клику реализуется через поле `cta_link` из API.
+  - [x] Получение баннеров через `bannersService.getActive('marketing')`.
+  - [x] Интеграция хука `useBannerCarousel` для логики слайдера.
+  - [x] Реализация рендеринга слайдов с использованием `Next/Image` (`sizes`, `loading`, `priority` по правилам секции).
+  - [x] Реализация условного рендеринга (скрыть, если пусто).
+  - [x] Добавить component-level `ErrorBoundary` для секции с fallback `null` (секция скрывается, HomePage продолжает работать).
+  - [x] Навигация по клику реализуется через поле `cta_link` из API.
 
 - [x] **UX и Стилизация**
-    - [x] Реализовать состояние Skeleton-лоадера, соответствующее соотношению сторон.
-    - [x] Обработка ошибок загрузки изображений (фоллбек или скрытие).
-    - [x] Применить адаптивные стили (мобильные/десктоп).
+  - [x] Реализовать состояние Skeleton-лоадера, соответствующее соотношению сторон.
+  - [x] Обработка ошибок загрузки изображений (фоллбек или скрытие).
+  - [x] Применить адаптивные стили (мобильные/десктоп).
 
 - [x] **Тестирование**
-    - [x] Создать юнит-тесты `MarketingBannersSection.test.tsx`.
-    - [x] Настроить тестовые данные для marketing-баннеров: локально мокать `bannersService.getActive('marketing')` в тестах секции **или** переопределить MSW handler `/banners/` с учетом query `type=marketing`.
-    - [x] Проверить состояние загрузки (скелетон).
-    - [x] Проверить пустое состояние (null рендер).
-    - [x] Проверить обработку ошибок API.
-    - [x] Проверить обработку ошибки загрузки изображения (слайд скрывается или показывается placeholder согласно выбранной стратегии).
-    - [x] Проверить, что `ErrorBoundary` перехватывает ошибку рендера и секция скрывается без падения страницы.
-    - [x] Проверить навигацию по клику на баннер через `cta_link`.
+  - [x] Создать юнит-тесты `MarketingBannersSection.test.tsx`.
+  - [x] Настроить тестовые данные для marketing-баннеров: локально мокать `bannersService.getActive('marketing')` в тестах секции **или** переопределить MSW handler `/banners/` с учетом query `type=marketing`.
+  - [x] Проверить состояние загрузки (скелетон).
+  - [x] Проверить пустое состояние (null рендер).
+  - [x] Проверить обработку ошибок API.
+  - [x] Проверить обработку ошибки загрузки изображения (слайд скрывается или показывается placeholder согласно выбранной стратегии).
+  - [x] Проверить, что `ErrorBoundary` перехватывает ошибку рендера и секция скрывается без падения страницы.
+  - [x] Проверить навигацию по клику на баннер через `cta_link`.
 
 ### Финальный QA Checklist (Ready for Review)
 
@@ -103,7 +103,7 @@ Status: done
 - [x] **[MEDIUM][Reliability]** Валидация guard использует `trimmed`, но `Link href` получает raw `cta_link`. Пробелы в начале могут нарушить навигацию. [frontend/src/components/home/MarketingBannersSection.tsx:54-58, 155-156] — **Fix**: `getSafeHref()` применяет `trim()` к href. Тест добавлен.
 - [x] **[MEDIUM][Test Gap]** Нет регрессионного теста на sync dots после image error: проверка count dots и их поведения при failed image. [frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx:541-574] — **Fix**: добавлен тест "dots должны синхронизироваться с visible banners после image error" (3 dots → 2 после error).
 - [x] **[HIGH][QA Integrity]** Заявка "lint clean / issue resolved" не подтверждается. В story отмечено, что lint выполнен и follow-up по `_fill` закрыт: @`_bmad-output/implementation-artifacts/32-4-marketing-banners-ui.md#105-107`, @`_bmad-output/implementation-artifacts/32-4-marketing-banners-ui.md#153-153`. Но в тесте переменная всё ещё не используется: @`frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx#46-54`. Это ломает достоверность "resolved" для follow-up и quality-gate. — **Fix**: Image mock переписан: вместо деструктуризации `fill: _fill` используется `props` объект — `fill` не деструктурируется и не используется. ESLint чист.
-- [x] **[MEDIUM][Security Test Gap]** Нет теста на ветку `vbscript:`. Guard блокирует `vbscript:`: @`frontend/src/components/home/MarketingBannersSection.tsx#52-57. В security-наборе тестов есть `javascript:`, `data:`, external и `//`, но нет `vbscript:`: @`frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx#299-433`. — **Fix**: добавлен тест "не должен рендерить ссылку для vbscript: протокола".
+- [x] **[MEDIUM][Security Test Gap]** Нет теста на ветку `vbscript:`. Guard блокирует `vbscript:`: @`frontend/src/components/home/MarketingBannersSection.tsx#52-57. В security-наборе тестов есть `javascript:`, `data:`, external и `//`, но нет `vbscript:`: @`frontend/src/components/home/**tests**/MarketingBannersSection.test.tsx#299-433`. — **Fix**: добавлен тест "не должен рендерить ссылку для vbscript: протокола".
 - [x] **[MEDIUM][API Contract Test Gap]** Нет теста, что `getActive('marketing')` реально отправляет `type=marketing`. Логика параметра есть: @`frontend/src/services/bannersService.ts#15-18`. Но service-тесты не проверяют query param для marketing-типа: @`frontend/src/services/__tests__/bannersService.test.ts#11-83`. — **Fix**: добавлено 2 теста в bannersService.test.ts — проверка `type=marketing` query param и отсутствие `type` при вызове без аргументов.
 - [x] **[LOW][Resilience]** Нет cleanup/cancel в async effect загрузки. В `useEffect` после unmount возможны setState по завершении промиса: @`frontend/src/components/home/MarketingBannersSection.tsx#98-114`. Риск низкий, но лучше добавить abort/ignore pattern. — **Fix**: добавлен `cancelled` flag с cleanup return в `useEffect` — setState пропускается если компонент unmounted.
 - [x] **[HIGH][Security][Defense-in-depth]** Frontend `isSafeLink()` не блокирует обратные слеши `\`, хотя backend уже блокирует. Это рассинхрон валидации FE/BE и потенциальный обход fallback-политики на фронте. [frontend/src/components/home/MarketingBannersSection.tsx:52-60, backend/apps/banners/models.py:38-40] — **Fix**: добавлена проверка `trimmed.includes('\\')` в `isSafeLink()`, синхронизирована с backend `is_safe_internal_cta_link()`.
@@ -138,6 +138,7 @@ Status: done
 ## Заметки разработчика
 
 ### Архитектура
+
 - **Компонент**: `MarketingBannersSection`
 - **Сервис**: `bannersService` (уже существует, поддерживает тип 'marketing')
 - **Хук**: `useBannerCarousel` (уже существует из Story 32.3)
@@ -146,6 +147,7 @@ Status: done
 - **Тестовая инфраструктура**: глобальный MSW handler `/banners/` по умолчанию отдает hero-баннер; для этой story тесты должны явно формировать marketing-данные (через локальный mock сервиса или override handler на `type=marketing`).
 
 ### Ограничения
+
 - **Изображения**: Обязательно использовать `Next/Image`; учитывать текущую конфигурацию `images.unoptimized` и не вводить противоречий с ней.
 - **CLS**: Критично поддерживать контейнеры с фиксированным соотношением сторон до загрузки изображения.
 - **Отказоустойчивость**: Главная страница никогда не должна ломаться, если эта маркетинговая секция упадет.
@@ -153,9 +155,11 @@ Status: done
 ## Запись агента разработки
 
 ### Используемая модель агента
+
 Claude Opus 4.6 (Claude Code CLI)
 
 ### Implementation Plan
+
 - Создан `MarketingBannersSection` компонент с inline `MarketingBannerErrorBoundary` (class component, fallback: null)
 - Внутренний `MarketingBannersCarousel` использует `bannersService.getActive('marketing')` + `useBannerCarousel` hook из Story 32.3
 - Skeleton loader с `aspect-[21/9] md:aspect-[3/1]` для предотвращения CLS
@@ -165,6 +169,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Стратегия тестирования: direct mock `bannersService.getActive` через `vi.mock` (по аналогии с HeroSection)
 
 ### Completion Notes
+
 - ✅ Все 20 unit-тестов проходят (AC1–AC6, accessibility, ErrorBoundary, image error, dots navigation)
 - ✅ ESLint чист для `MarketingBannersSection.tsx`
 - ✅ HeroSection.test.tsx (13 тестов) — без регрессий
@@ -172,6 +177,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Решение по image error: выбрана стратегия скрытия слайда (не placeholder), так как маркетинговый баннер без изображения не имеет смысла
 
 ### Review Follow-ups Resolution (2026-02-15)
+
 - ✅ Resolved [HIGH][Security]: Frontend `isSafeLink()` guard — блокирует `javascript:`, `data:`, `vbscript:`, внешние URL; 4 теста
 - ✅ Resolved [HIGH][Reliability]: Frontend image_url pre-check — фильтрация пустых/whitespace URL после загрузки; 2 теста
 - ✅ Resolved [MEDIUM][AC1 Regression]: Создан `HomePage.test.tsx` — 2 теста (порядок секций + наличие всех 14 секций)
@@ -185,6 +191,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Backend валидация `cta_link` закрыта в рамках story 32.4; open остается только backend follow-up по `image_url` (строка 92)
 
 ### Review Follow-ups Resolution #2 (2026-02-15)
+
 - ✅ Resolved [HIGH][Security]: Блокировка protocol-relative URL (`//evil.com`) в `isSafeLink()` — добавлена проверка `startsWith('//')` перед `startsWith('/')`
 - ✅ Resolved [HIGH][Regression]: Dots рендерятся через `visibleBanners.map()` вместо `scrollSnaps.map()`, `scrollSnaps` удалён из деструктуризации хука
 - ✅ Resolved [MEDIUM][Reliability]: `getSafeHref()` применяет `trim()` к `cta_link` перед передачей в `Link href`
@@ -192,6 +199,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Итого: 31 unit-тестов MarketingBannersSection + 2 интеграционных HomePage = 33 теста (33/33 passed)
 
 ### Review Follow-ups Resolution #3 (2026-02-15)
+
 - ✅ Resolved [HIGH][QA Integrity]: Image mock переписан с `props` объектом — `fill` больше не деструктурируется, ESLint чист
 - ✅ Resolved [MEDIUM][Security Test Gap]: Добавлен тест на `vbscript:` протокол в security suite
 - ✅ Resolved [MEDIUM][API Contract Test Gap]: Добавлено 2 теста в bannersService.test.ts — проверка `type=marketing` query param и отсутствие `type` без аргументов
@@ -199,6 +207,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Итого: 32 unit-тестов MarketingBannersSection + 2 интеграционных HomePage + 7 bannersService = 41 тест (41/41 passed)
 
 ### Review Follow-ups Resolution #4 (2026-02-15)
+
 - ✅ Resolved [HIGH][QA Integrity]: Верифицировано — backend follow-ups корректно разделены на frontend [x] (строки 89/91) и backend [ ] (строки 90/92)
 - ✅ Resolved [MEDIUM][Traceability]: File List описывает все файлы across all commits story, не только текущий staged diff — структура корректна
 - ✅ Resolved [MEDIUM][Quality Gate]: lint warning в `catalog/page.tsx` pre-existing, не относится к story 32.4; файлы story lint-чисты
@@ -206,17 +215,20 @@ Claude Opus 4.6 (Claude Code CLI)
 - Итого: 34 unit-тестов MarketingBannersSection + 2 интеграционных HomePage + 7 bannersService = 43 теста (43/43 passed)
 
 ### Review Follow-ups Resolution #5 (2026-02-15)
+
 - ✅ Resolved [HIGH][Backend Validation]: Реализована backend-валидация `cta_link` в `Banner.clean()` — разрешены только безопасные внутренние относительные пути (`/...`), небезопасные схемы и внешние URL блокируются; значение нормализуется через trim перед сохранением.
 - ✅ Resolved [Decision]: Для unsafe `cta_link` на фронтенде сохранена стратегия показа **некликабельного** баннера (defense-in-depth fallback).
 - ✅ Добавлены unit-тесты модели для backend-валидации `cta_link` (unsafe cases + trim valid link).
 
 ### Review Follow-ups Resolution #6 (2026-02-15)
+
 - ✅ Resolved [MEDIUM][Security]: Блокировка обратных слешей `\` в `is_safe_internal_cta_link()` — добавлена проверка `"\\" in trimmed`. Pure unit-тесты: `TestIsSafeInternalCtaLink` (5 тестов без DB). DB-тесты расширены 2 parametrize cases.
 - ✅ Resolved [MEDIUM][Configuration]: `MARKETING_BANNER_LIMIT` вынесен из хардкода `services.py` в `settings.base.py`. Service читает через `getattr(settings, "MARKETING_BANNER_LIMIT", 5)`.
 - ✅ Resolved [LOW][Testing]: Хардкод URL в `bannersService.test.ts` заменён импортом `API_URL_PUBLIC` из `api-client.ts` — single source of truth.
 - Итого frontend: 34 MarketingBannersSection + 2 HomePage + 7 bannersService = 43 (43/43 passed). Backend pure: 5/5 passed.
 
 ### Review Follow-ups Resolution #7 (2026-02-15)
+
 - ✅ Resolved [HIGH][Security][Defense-in-depth]: Добавлена блокировка backslash `\` в frontend `isSafeLink()` — `trimmed.includes('\\')` возвращает false. Синхронизация с backend `is_safe_internal_cta_link()`.
 - ✅ Resolved [MEDIUM][Security Test Gap]: Добавлен тест на backslash в `cta_link` (`/catalog\\..\admin`) в security suite.
 - ✅ Resolved [MEDIUM][Configuration Test Gap]: Добавлен тест `test_marketing_limit_configurable_via_settings` с `override_settings(MARKETING_BANNER_LIMIT=3)` в backend test_views.py.
@@ -224,6 +236,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Итого frontend: 35 MarketingBannersSection + 2 HomePage + 7 bannersService = 44 (44/44 passed). Backend: +1 configuration test (ожидает Docker для запуска).
 
 ### Review Follow-ups Resolution #8 (2026-02-15)
+
 - ✅ Resolved [HIGH][Cache Invalidation]: Добавлен `pre_save` сигнал `track_old_banner_type` + расширен `post_save` для инвалидации кеша обоих типов (старый + новый) при смене `type`. Regression test добавлен.
 - ✅ Resolved [MEDIUM][Integration Test Gap]: Regression-тест на HIGH-баг (двойная инвалидация) покрывает альтернативу из follow-up. Реальный Embla E2E тест отложен до Playwright.
 - ✅ Resolved [MEDIUM][Regression Test Gap]: Тест `test_signal_invalidates_both_caches_on_type_change` — hero→marketing, проверка инвалидации обоих cache keys.
@@ -231,6 +244,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Итого frontend: 35 MarketingBannersSection + 2 HomePage + 8 bannersService = 45 (45/45 passed). Backend: +1 regression test (ожидает Docker для запуска).
 
 ### Review Follow-ups Resolution #9 (2026-02-15)
+
 - ✅ Resolved [HIGH][A11y/Accessibility]: Добавлен fallback `banner.image_alt || banner.title` в обоих ветках Image render (Link и div). Тест добавлен — проверяет, что пустой `image_alt` использует `title` как alt.
 - ✅ Resolved [MEDIUM][Integration Gap]: Embla E2E тест отложен до внедрения Playwright/vitest-browser инфраструктуры. Mock-based тесты полностью покрывают бизнес-логику компонента.
 - ✅ Resolved [MEDIUM][Traceability]: File List обновлён — `backend/apps/banners/tests/test_views.py` и `frontend/src/services/bannersService.ts` добавлены.
@@ -238,10 +252,12 @@ Claude Opus 4.6 (Claude Code CLI)
 - Итого frontend: 36 MarketingBannersSection + 2 HomePage + 8 bannersService = 46 (46/46 passed). Backend: +1 role-specific regression test (ожидает Docker).
 
 ### Review Follow-ups Resolution #10 (2026-02-15)
+
 - ✅ **Resolved [HIGH][Backend Test Coverage]**: Добавлены pytest маркеры `@pytest.mark.unit` (TestIsSafeInternalCtaLink — pure unit, без DB) и `@pytest.mark.integration` (все DB-зависимые классы) в `test_models.py` и `test_views.py`. Теперь тесты включены в `make test-unit` и `make test-integration`.
 - 🔄 **Deferred [MEDIUM][Integration Gap]**: Интеграционный разрыв по карусели — реальный Embla E2E тест отложен до внедрения Playwright/vitest-browser инфраструктуры. Mock-based тесты полностью покрывают бизнес-логику компонента.
 
 ### Review Follow-ups Resolution #11 (2026-02-15)
+
 - ✅ **Resolved [MEDIUM][Role-specific TTL]**: Исправлен `compute_cache_ttl()` в `backend/apps/banners/services.py` для учёта роли пользователя. Теперь TTL кэша рассчитывается только для баннеров, видимых конкретной роли, предотвращая преждевременную инвалидацию кэша гостевых баннеров из-за временных границ баннеров других ролей.
   - Добавлен параметр `role_key` в `compute_cache_ttl()`
   - Созданы вспомогательные функции `_get_role_filter()` и `_is_banner_visible_to_role()`
@@ -249,6 +265,7 @@ Claude Opus 4.6 (Claude Code CLI)
   - Исправлена типизация с `isinstance(datetime)` проверками
 
 ### Review Follow-ups Resolution #12 (2026-02-15)
+
 - ✅ **Resolved [HIGH][Backend Test Coverage]**: Добавлены pytest маркеры во все тестовые классы в `test_models.py` и `test_views.py`:
   - `@pytest.mark.unit` — `TestIsSafeInternalCtaLink` (pure unit, без DB)
   - `@pytest.mark.integration` — все DB-зависимые классы (TestBannerTypeField, TestBannerSaveCallsFullClean, TestIsScheduledActive, TestGetForUserTemporalFiltering, TestActiveBannersViewTypeFilter, TestActiveBannersViewCaching, TestActiveBannersViewRoleIsolation, TestActiveBannersViewMarketingLimit)
@@ -256,6 +273,7 @@ Claude Opus 4.6 (Claude Code CLI)
 - Frontend: 36 MarketingBannersSection + 2 HomePage + 8 bannersService = 46 (46/46 passed).
 
 ### Review Follow-ups Resolution #13 (2026-02-16)
+
 - ✅ **Resolved [HIGH][TTL Accuracy]**: `compute_cache_ttl()` больше не использует `Banner.get_for_user(None)`. Заменён на `Banner.objects.filter(is_active=True)` — убрана привязка к guest scope (позволяет видеть баннеры любой роли) и temporal фильтрация (позволяет видеть будущие `start_date` для корректного TTL).
 - ✅ **Resolved [HIGH][CI Coverage]**: Добавлены pytest маркеры во все тестовые классы `test_services.py`: `@pytest.mark.unit` (TestGetRoleKey, TestValidateBannerType, TestBuildCacheKey, TestAllRoleKeysDerivedFromUserModel, TestCacheKeyPattern, TestGetRoleFilterReturnsQ) и `@pytest.mark.integration` (TestCacheFunctions, TestInvalidateBannerCache, TestComputeCacheTTL).
 - ✅ **Resolved [MEDIUM][Role Filter Semantics]**: `_get_role_filter()` переписан: возвращает `Q` объекты вместо `dict`. Authenticated роли (trainer, wholesale, federation) получают `Q(show_to_authenticated=True) | Q(role_specific=True)`, синхронизировано с `Banner.get_for_user()`. Удалена неиспользуемая `_is_banner_visible_to_role`.
@@ -271,52 +289,53 @@ Claude Opus 4.6 (Claude Code CLI)
 - Backend unit: 33/33 passed. Frontend: 46/46 passed.
 
 ### Decisions
+
 - ErrorBoundary реализован inline в файле компонента (не как shared), так как в проекте нет существующего ErrorBoundary и story требует component-level boundary
 - `loading="lazy"` вместо `priority` — секция ниже fold, lazy loading оптимален
 - Не добавлен `unoptimized` prop на `Next/Image` — `next.config.ts` уже устанавливает `images.unoptimized: true` глобально
 
 ## File List
 
-| File | Change |
-|------|--------|
-| `frontend/src/components/home/MarketingBannersSection.tsx` | Added → Modified (review follow-ups: isSafeLink guard, image_url pre-check, type="button", visibleBanners.map, role="group"+aria-current, removed console.error, reactive loop/autoplay) |
-| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Added → Modified (34 tests: +4 security, +1 vbscript, +2 reliability, +1 embla sync 3-banner, +2 performance autoplay/loop, updated ARIA assertions, fixed Image mock props pattern) |
-| `frontend/src/components/home/__tests__/HomePage.test.tsx` | Added (2 tests: section order AC1 regression, all 14 sections presence) |
-| `frontend/src/services/__tests__/bannersService.test.ts` | Modified (7 tests: +2 API contract tests for type=marketing query param) |
-| `frontend/src/components/home/index.ts` | Modified — added `MarketingBannersSection` export |
-| `frontend/src/components/home/HomePage.tsx` | Modified — added `MarketingBannersSection` between QuickLinksSection and CategoriesSection, updated JSDoc header |
-| `backend/apps/banners/models.py` | Modified (backend `cta_link` validation in `clean()`: trim + internal-path-only + unsafe scheme/protocol-relative/external URL/backslash blocking) |
-| `backend/apps/banners/tests/test_models.py` | Modified (unit tests: +5 pure `TestIsSafeInternalCtaLink`, +2 parametrize backslash cases in DB tests, +pytest markers `unit`/`integration`) |
-| `backend/apps/banners/services.py` | Modified (`MARKETING_BANNER_LIMIT` вынесен в settings; `_get_role_filter` переписан на Q-объекты с `show_to_authenticated` базой; `compute_cache_ttl` исправлен: `Banner.objects.filter(is_active=True)` вместо `get_for_user(None)`; удалена неиспользуемая `_is_banner_visible_to_role`) |
-| `backend/apps/banners/tests/test_services.py` | Modified (добавлены pytest маркеры `unit`/`integration` на все классы; +6 regression-тестов role-specific TTL; +7 unit-тестов `TestGetRoleFilterReturnsQ`) |
-| `backend/freesport/settings/base.py` | Modified (добавлена настройка `MARKETING_BANNER_LIMIT = 5`) |
-| `frontend/src/services/api-client.ts` | Modified (экспортирован `API_URL_PUBLIC` для переиспользования в тестах) |
-| `backend/apps/banners/signals.py` | Modified (добавлен `pre_save` сигнал `track_old_banner_type` для dual cache invalidation при смене type) |
-| `backend/apps/banners/views.py` | Modified — передача `role_key` в `build_cache_key` и `compute_cache_ttl` |
-| `backend/apps/banners/tests/test_views.py` | Modified (добавлены regression tests: `test_signal_invalidates_both_caches_on_type_change` + `test_signal_invalidates_role_specific_caches_on_type_change`, +pytest markers `integration`) |
-| `frontend/src/services/bannersService.ts` | Modified (добавлен параметр `signal?: AbortSignal` в `getActive`) |
+| File                                                                      | Change                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `frontend/src/components/home/MarketingBannersSection.tsx`                | Added → Modified (review follow-ups: isSafeLink guard, image_url pre-check, type="button", visibleBanners.map, role="group"+aria-current, removed console.error, reactive loop/autoplay)                                                                                                   |
+| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Added → Modified (34 tests: +4 security, +1 vbscript, +2 reliability, +1 embla sync 3-banner, +2 performance autoplay/loop, updated ARIA assertions, fixed Image mock props pattern)                                                                                                       |
+| `frontend/src/components/home/__tests__/HomePage.test.tsx`                | Added (2 tests: section order AC1 regression, all 14 sections presence)                                                                                                                                                                                                                    |
+| `frontend/src/services/__tests__/bannersService.test.ts`                  | Modified (7 tests: +2 API contract tests for type=marketing query param)                                                                                                                                                                                                                   |
+| `frontend/src/components/home/index.ts`                                   | Modified — added `MarketingBannersSection` export                                                                                                                                                                                                                                          |
+| `frontend/src/components/home/HomePage.tsx`                               | Modified — added `MarketingBannersSection` between QuickLinksSection and CategoriesSection, updated JSDoc header                                                                                                                                                                           |
+| `backend/apps/banners/models.py`                                          | Modified (backend `cta_link` validation in `clean()`: trim + internal-path-only + unsafe scheme/protocol-relative/external URL/backslash blocking)                                                                                                                                         |
+| `backend/apps/banners/tests/test_models.py`                               | Modified (unit tests: +5 pure `TestIsSafeInternalCtaLink`, +2 parametrize backslash cases in DB tests, +pytest markers `unit`/`integration`)                                                                                                                                               |
+| `backend/apps/banners/services.py`                                        | Modified (`MARKETING_BANNER_LIMIT` вынесен в settings; `_get_role_filter` переписан на Q-объекты с `show_to_authenticated` базой; `compute_cache_ttl` исправлен: `Banner.objects.filter(is_active=True)` вместо `get_for_user(None)`; удалена неиспользуемая `_is_banner_visible_to_role`) |
+| `backend/apps/banners/tests/test_services.py`                             | Modified (добавлены pytest маркеры `unit`/`integration` на все классы; +6 regression-тестов role-specific TTL; +7 unit-тестов `TestGetRoleFilterReturnsQ`)                                                                                                                                 |
+| `backend/freesport/settings/base.py`                                      | Modified (добавлена настройка `MARKETING_BANNER_LIMIT = 5`)                                                                                                                                                                                                                                |
+| `frontend/src/services/api-client.ts`                                     | Modified (экспортирован `API_URL_PUBLIC` для переиспользования в тестах)                                                                                                                                                                                                                   |
+| `backend/apps/banners/signals.py`                                         | Modified (добавлен `pre_save` сигнал `track_old_banner_type` для dual cache invalidation при смене type)                                                                                                                                                                                   |
+| `backend/apps/banners/views.py`                                           | Modified — передача `role_key` в `build_cache_key` и `compute_cache_ttl`                                                                                                                                                                                                                   |
+| `backend/apps/banners/tests/test_views.py`                                | Modified (добавлены regression tests: `test_signal_invalidates_both_caches_on_type_change` + `test_signal_invalidates_role_specific_caches_on_type_change`, +pytest markers `integration`)                                                                                                 |
+| `frontend/src/services/bannersService.ts`                                 | Modified (добавлен параметр `signal?: AbortSignal` в `getActive`)                                                                                                                                                                                                                          |
 
 ## Change Log
 
-| Date | Change |
-|------|--------|
-| 2026-02-15 | Story 32.4 implementation complete: MarketingBannersSection component with ErrorBoundary, skeleton, image error handling, carousel integration, 20 unit tests (Claude Opus 4.6) |
-| 2026-02-15 | Code Review (AI): 5 follow-ups created (2 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: Security (cta_link validation), Reliability (image_url pre-check), AC1 regression (HomePage order test), UX semantics (button type), Code quality (unused var). |
-| 2026-02-15 | Code Review #2 (AI): 4 new follow-ups added (2 MEDIUM, 2 LOW). Previous 5 still open. New: Embla dots/slides desync (3+ banners), HomePage JSDoc header missing section, ARIA tab/tabpanel violation, console.error noise. Total open: 9 items. Status remains in-progress. |
-| 2026-02-15 | Dev Story: All 9 review follow-ups resolved (2 HIGH, 4 MEDIUM, 3 LOW). Added isSafeLink guard, image_url pre-check, type="button", visibleBanners.map fix, role="group"+aria-current, JSDoc update, Image mock cleanup, console.error removal. Tests: 28+2=30 (30/30 passed). HomePage.test.tsx created. |
-| 2026-02-15 | Code Review #3 (AI): 4 new follow-ups created (2 HIGH, 2 MEDIUM). Status → in-progress. Issues: Open redirect via protocol-relative URL, regression (scrollSnaps.map vs visibleBanners.map), reliability (trimmed vs raw cta_link), test gap (dots sync after image error). |
-| 2026-02-15 | Dev Story: All 4 CR#3 follow-ups resolved (2 HIGH, 2 MEDIUM). Added protocol-relative URL block, replaced scrollSnaps.map→visibleBanners.map, added getSafeHref() trim, added dots sync test. Tests: 31+2=33 (33/33 passed). |
-| 2026-02-15 | Code Review #4 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (lint clean claim false), security test gap (vbscript:), API contract test gap (type=marketing query param), resilience (useEffect cleanup). |
-| 2026-02-15 | Code Review #5 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (backend follow-up marked [x] but not done), traceability (File List vs git diff), quality gate (lint warning exists), performance (autoplay always on). |
-| 2026-02-15 | Dev Story: All 4 CR#5 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). QA integrity verified (split correct), File List verified (cross-commit scope), lint warning pre-existing (not in story scope), reactive autoplay/loop implemented. Tests: 34+2+7=43 (43/43 passed). |
-| 2026-02-15 | Dev Story: Закрыт backend follow-up по `cta_link` (модельная валидация + trim + блок unsafe/external URL), добавлены unit-тесты в `test_models.py`. По решению PO/Dev сохранена стратегия некликабельного баннера для unsafe `cta_link` на фронтенде. |
-| 2026-02-15 | Dev Story: All 3 CR#6 follow-ups resolved (2 MEDIUM, 1 LOW). Backslash blocking in `is_safe_internal_cta_link`, `MARKETING_BANNER_LIMIT` → settings, hardcoded URL → import from api-client. Frontend: 43/43. Backend pure: 5/5. |
-| 2026-02-15 | Code Review #7 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: Frontend isSafeLink не блокирует backslash, Security test gap (backslash case), Configuration test gap (MARKETING_BANNER_LIMIT), Resilience (AbortController missing). |
-| 2026-02-15 | Dev Story: All 4 CR#8 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). Backslash blocking in isSafeLink, backslash test added, override_settings test for MARKETING_BANNER_LIMIT, AbortController replaces cancelled flag. Frontend: 44/44. Backend: +1 config test. |
-| 2026-02-15 | Code Review #8 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: Cache invalidation misses old type on Banner.type change, integration test gap for Embla (mocks only), regression test gap for type change bug, AbortController not passed to HTTP request. Total open: 4 items. Outcome: Changes Requested. |
-| 2026-02-15 | Dev Story: All 4 CR#8 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). pre_save signal for dual cache invalidation, regression test for type change, Embla E2E deferred to Playwright, AbortSignal passed through bannersService→axios. Frontend: 45/45. Backend: +1 regression test. |
-| 2026-02-15 | Code Review #9 (AI): 4 new follow-ups created (1 HIGH, 3 MEDIUM). Status → in-progress. Issues: A11y risk (empty image_alt no fallback), integration gap (Embla only mocked), traceability (File List missing test_views.py), regression test gap (cache only guest). Total open: 4 items. Outcome: Changes Requested. |
-| 2026-02-15 | Dev Story: All 4 CR#9 follow-ups resolved (1 HIGH, 3 MEDIUM). A11y fallback `image_alt \|\| title`, Embla E2E deferred to Playwright, File List updated with test_views.py, role-specific cache test added. Frontend: 36 MarketingBannersSection + 2 HomePage + 8 bannersService = 46 (46/46 passed). Backend: +1 role-specific regression test. |
-| 2026-02-15 | Dev Story: Resolved deferred [HIGH][Backend Test Coverage] — добавлены pytest маркеры `@pytest.mark.unit` и `@pytest.mark.integration` во все тестовые классы в test_models.py и test_views.py для включения в CI (`make test-unit` / `make test-integration`). Frontend: 46/46 passed. |
-| 2026-02-16 | Code Review #10 (AI): 5 new follow-ups created (2 HIGH, 3 MEDIUM). Status → in-progress. Issues: role-specific TTL accuracy in `compute_cache_ttl`, missing pytest markers in `test_services.py`, role filter semantic mismatch, missing role-key regression tests for TTL, story/sprint status mismatch. |
+| Date       | Change                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-02-15 | Story 32.4 implementation complete: MarketingBannersSection component with ErrorBoundary, skeleton, image error handling, carousel integration, 20 unit tests (Claude Opus 4.6)                                                                                                                                                                       |
+| 2026-02-15 | Code Review (AI): 5 follow-ups created (2 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: Security (cta_link validation), Reliability (image_url pre-check), AC1 regression (HomePage order test), UX semantics (button type), Code quality (unused var).                                                                                       |
+| 2026-02-15 | Code Review #2 (AI): 4 new follow-ups added (2 MEDIUM, 2 LOW). Previous 5 still open. New: Embla dots/slides desync (3+ banners), HomePage JSDoc header missing section, ARIA tab/tabpanel violation, console.error noise. Total open: 9 items. Status remains in-progress.                                                                           |
+| 2026-02-15 | Dev Story: All 9 review follow-ups resolved (2 HIGH, 4 MEDIUM, 3 LOW). Added isSafeLink guard, image_url pre-check, type="button", visibleBanners.map fix, role="group"+aria-current, JSDoc update, Image mock cleanup, console.error removal. Tests: 28+2=30 (30/30 passed). HomePage.test.tsx created.                                              |
+| 2026-02-15 | Code Review #3 (AI): 4 new follow-ups created (2 HIGH, 2 MEDIUM). Status → in-progress. Issues: Open redirect via protocol-relative URL, regression (scrollSnaps.map vs visibleBanners.map), reliability (trimmed vs raw cta_link), test gap (dots sync after image error).                                                                           |
+| 2026-02-15 | Dev Story: All 4 CR#3 follow-ups resolved (2 HIGH, 2 MEDIUM). Added protocol-relative URL block, replaced scrollSnaps.map→visibleBanners.map, added getSafeHref() trim, added dots sync test. Tests: 31+2=33 (33/33 passed).                                                                                                                          |
+| 2026-02-15 | Code Review #4 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (lint clean claim false), security test gap (vbscript:), API contract test gap (type=marketing query param), resilience (useEffect cleanup).                                                                                      |
+| 2026-02-15 | Code Review #5 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: QA integrity (backend follow-up marked [x] but not done), traceability (File List vs git diff), quality gate (lint warning exists), performance (autoplay always on).                                                                          |
+| 2026-02-15 | Dev Story: All 4 CR#5 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). QA integrity verified (split correct), File List verified (cross-commit scope), lint warning pre-existing (not in story scope), reactive autoplay/loop implemented. Tests: 34+2+7=43 (43/43 passed).                                                                             |
+| 2026-02-15 | Dev Story: Закрыт backend follow-up по `cta_link` (модельная валидация + trim + блок unsafe/external URL), добавлены unit-тесты в `test_models.py`. По решению PO/Dev сохранена стратегия некликабельного баннера для unsafe `cta_link` на фронтенде.                                                                                                 |
+| 2026-02-15 | Dev Story: All 3 CR#6 follow-ups resolved (2 MEDIUM, 1 LOW). Backslash blocking in `is_safe_internal_cta_link`, `MARKETING_BANNER_LIMIT` → settings, hardcoded URL → import from api-client. Frontend: 43/43. Backend pure: 5/5.                                                                                                                      |
+| 2026-02-15 | Code Review #7 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: Frontend isSafeLink не блокирует backslash, Security test gap (backslash case), Configuration test gap (MARKETING_BANNER_LIMIT), Resilience (AbortController missing).                                                                         |
+| 2026-02-15 | Dev Story: All 4 CR#8 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). Backslash blocking in isSafeLink, backslash test added, override_settings test for MARKETING_BANNER_LIMIT, AbortController replaces cancelled flag. Frontend: 44/44. Backend: +1 config test.                                                                                    |
+| 2026-02-15 | Code Review #8 (AI): 4 new follow-ups created (1 HIGH, 2 MEDIUM, 1 LOW). Status → in-progress. Issues: Cache invalidation misses old type on Banner.type change, integration test gap for Embla (mocks only), regression test gap for type change bug, AbortController not passed to HTTP request. Total open: 4 items. Outcome: Changes Requested.   |
+| 2026-02-15 | Dev Story: All 4 CR#8 follow-ups resolved (1 HIGH, 2 MEDIUM, 1 LOW). pre_save signal for dual cache invalidation, regression test for type change, Embla E2E deferred to Playwright, AbortSignal passed through bannersService→axios. Frontend: 45/45. Backend: +1 regression test.                                                                   |
+| 2026-02-15 | Code Review #9 (AI): 4 new follow-ups created (1 HIGH, 3 MEDIUM). Status → in-progress. Issues: A11y risk (empty image_alt no fallback), integration gap (Embla only mocked), traceability (File List missing test_views.py), regression test gap (cache only guest). Total open: 4 items. Outcome: Changes Requested.                                |
+| 2026-02-15 | Dev Story: All 4 CR#9 follow-ups resolved (1 HIGH, 3 MEDIUM). A11y fallback `image_alt \|\| title`, Embla E2E deferred to Playwright, File List updated with test_views.py, role-specific cache test added. Frontend: 36 MarketingBannersSection + 2 HomePage + 8 bannersService = 46 (46/46 passed). Backend: +1 role-specific regression test.      |
+| 2026-02-15 | Dev Story: Resolved deferred [HIGH][Backend Test Coverage] — добавлены pytest маркеры `@pytest.mark.unit` и `@pytest.mark.integration` во все тестовые классы в test_models.py и test_views.py для включения в CI (`make test-unit` / `make test-integration`). Frontend: 46/46 passed.                                                               |
+| 2026-02-16 | Code Review #10 (AI): 5 new follow-ups created (2 HIGH, 3 MEDIUM). Status → in-progress. Issues: role-specific TTL accuracy in `compute_cache_ttl`, missing pytest markers in `test_services.py`, role filter semantic mismatch, missing role-key regression tests for TTL, story/sprint status mismatch.                                             |
 | 2026-02-16 | Dev Story: All 5 CR#10 follow-ups resolved (2 HIGH, 3 MEDIUM). `compute_cache_ttl` исправлен (убран guest-scope + temporal lock), `_get_role_filter` переписан на Q-объекты с `show_to_authenticated` базой, pytest маркеры добавлены в test_services.py, 13 новых тестов (6 regression TTL + 7 unit Q-filter). Frontend: 46/46. Backend unit: 33/33. |

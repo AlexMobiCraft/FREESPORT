@@ -19,7 +19,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d freesport" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freesport"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -36,7 +36,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -75,7 +75,7 @@ services:
     networks:
       - freesport-network
     healthcheck:
-      test: [ "CMD", "python", "manage.py", "check" ]
+      test: ["CMD", "python", "manage.py", "check"]
       interval: 30s
       timeout: 10s
       retries: 5

@@ -12,9 +12,9 @@ top_issues: []
 
 # Quality assessment for infrastructure story
 quality_assessment:
-  infrastructure_setup: excellent  # Git repo properly configured
-  branching_strategy: excellent  # Main/develop branching implemented
-  project_organization: excellent  # Proper directory structure
+  infrastructure_setup: excellent # Git repo properly configured
+  branching_strategy: excellent # Main/develop branching implemented
+  project_organization: excellent # Proper directory structure
 
 strengths:
   - Git repository initialized with proper configuration

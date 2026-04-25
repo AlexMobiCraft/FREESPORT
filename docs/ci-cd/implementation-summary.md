@@ -8,18 +8,18 @@
 
 ### 1. Основные workflow файлы
 
-| Файл | Назначение | Ключевые функции |
-|------|------------|------------------|
-| [`.github/workflows/merge-branches.yml`](../../.github/workflows/merge-branches.yml) | Автоматическое слияние веток | Проверка готовности, создание PR, слияние |
-| [`.github/workflows/setup-branch-protection.yml`](../../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты | Автоматическая настройка branch protection |
-| [`.github/workflows/pre-merge-checks.yml`](../../.github/workflows/pre-merge-checks.yml) | Проверки перед слиянием | Анализ качества, безопасность, тесты |
+| Файл                                                                                                   | Назначение                   | Ключевые функции                           |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------- | ------------------------------------------ |
+| [`.github/workflows/merge-branches.yml`](../../.github/workflows/merge-branches.yml)                   | Автоматическое слияние веток | Проверка готовности, создание PR, слияние  |
+| [`.github/workflows/setup-branch-protection.yml`](../../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты      | Автоматическая настройка branch protection |
+| [`.github/workflows/pre-merge-checks.yml`](../../.github/workflows/pre-merge-checks.yml)               | Проверки перед слиянием      | Анализ качества, безопасность, тесты       |
 
 ### 2. Вспомогательные компоненты
 
-| Компонент | Назначение |
-|-----------|------------|
+| Компонент                                                                                        | Назначение                           |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------ |
 | [`.github/scripts/setup-branch-protection.sh`](../../.github/scripts/setup-branch-protection.sh) | Скрипт настройки правил защиты веток |
-| [`docs/ci-cd/`](./) | Документация процесса |
+| [`docs/ci-cd/`](./)                                                                              | Документация процесса                |
 
 ## 🔄 Процесс слияния
 
@@ -168,6 +168,6 @@ graph LR
 
 ---
 
-*Реализация завершена: $(date +%Y-%m-%d)*
-*Версия решения: 1.0*
-*Автор: Alex, DevOps Infrastructure Specialist Platform Engineer*
+_Реализация завершена: $(date +%Y-%m-%d)_
+_Версия решения: 1.0_
+_Автор: Alex, DevOps Infrastructure Specialist Platform Engineer_

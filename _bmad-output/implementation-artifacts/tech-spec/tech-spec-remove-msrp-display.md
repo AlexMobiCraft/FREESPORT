@@ -1,48 +1,53 @@
 ---
-title: 'Remove MSRP Display'
-slug: 'remove-msrp-display'
-created: '2026-01-20'
-status: 'implementation-complete'
+title: "Remove MSRP Display"
+slug: "remove-msrp-display"
+created: "2026-01-20"
+status: "implementation-complete"
 stepsCompleted: [1, 2, 3, 4]
-tech_stack: 
+tech_stack:
   - Next.js
   - React
   - TypeScript
-files_to_modify: 
+files_to_modify:
   - frontend/src/components/business/ProductCard/ProductCard.tsx
   - frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx
   - frontend/src/components/ui/ProductCard/ElectricProductCard.tsx
   - frontend/src/components/product/ProductInfo.tsx
   - frontend/src/components/product/ProductSummary.tsx
-code_patterns: 
-  - 'Conditional rendering with canSeeRrpMsrp logic'
-  - 'Props showMSRP in ProductCard'
-  - 'Props msrp in ElectricProductCard'
-test_patterns: 
-  - 'Existing component tests in __tests__ folders'
+code_patterns:
+  - "Conditional rendering with canSeeRrpMsrp logic"
+  - "Props showMSRP in ProductCard"
+  - "Props msrp in ElectricProductCard"
+test_patterns:
+  - "Existing component tests in __tests__ folders"
 ---
 
 # Overview
 
 ## Problem Statement
+
 Отображение цены МРЦ (Максимальная Розничная Цена / MSRP) в интерфейсе фронтенда создает нежелательный визуальный шум или противоречит новым бизнес-требованиям. Необходимо полностью скрыть это поле для всех пользователей B2B.
 
 ## Solution
+
 Удалить условный рендеринг поля `msrp` (МРЦ) и соответствующие пропсы из всех компонентов отображения товара (карточки, детальные страницы, списки). Поле `rrp` (РРЦ) оставить без изменений.
 
 ## Scope
 
 ### In Scope
+
 - Компонент `ProductCard` + Тесты
 - Компонент `ElectricProductCard`
 - Компонент `ProductInfo`
 - Компонент `ProductSummary`
 
 ### Out of Scope
+
 - Backend / Database changes
 - RRP logic changes
 
 # Context for Development
+
 - **ProductCard.tsx**: Условный рендеринг и проп `showMSRP`. Тесты в `ProductCard.test.tsx`.
 - **ElectricProductCard.tsx**: Проп `msrp` и рендеринг.
 - **ProductInfo.tsx** / **ProductSummary.tsx**: Использование переменных `canSeeRrpMsrp` и смешанных условий.
@@ -51,7 +56,7 @@ test_patterns:
 
 - [x] Task 1: Update `ProductCard` Component
   - File: `frontend/src/components/business/ProductCard/ProductCard.tsx`
-  - Action: 
+  - Action:
     - Remove `showMSRP` from `ProductCardProps`.
     - Remove default value `showMSRP = false` from component arguments.
     - Remove the conditional rendering block `{product.msrp && product.msrp > 0 && ...}` inside the B2B price block.
@@ -61,13 +66,13 @@ test_patterns:
 
 - [x] Task 2: Update `ProductCard` Tests
   - File: `frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx`
-  - Action: 
+  - Action:
     - Remove the test case `'displays MSRP for B2B users when showMSRP is true'`.
     - Ensure other tests (specifically RRP) pass.
 
 - [x] Task 3: Update `ElectricProductCard` Component
   - File: `frontend/src/components/ui/ProductCard/ElectricProductCard.tsx`
-  - Action: 
+  - Action:
     - Remove `msrp` from `ElectricProductCardProps` interface.
     - Remove destructuring of `msrp`.
     - Remove rendering of `{msrp && <div>МРЦ: {formatPrice(msrp)} ₽</div>}`.
@@ -76,14 +81,14 @@ test_patterns:
 
 - [x] Task 4: Update `ProductInfo` Component
   - File: `frontend/src/components/product/ProductInfo.tsx`
-  - Action: 
+  - Action:
     - Inside `render()`: Remove the conditional block checking for `msrp` inside the `canSeeRrpMsrp` area.
     - **Refactor**: Rename variable `canSeeRrpMsrp` to `canSeeRrp` to reflect new reality.
     - Update all usages to `canSeeRrp`.
 
 - [x] Task 5: Update `ProductSummary` Component
   - File: `frontend/src/components/product/ProductSummary.tsx`
-  - Action: 
+  - Action:
     - Remove the JSX block rendering "МРЦ" inside the selected variant info section.
     - **Refactor**: Rename `canSeeRrpMsrp` to `canSeeRrp` here as well.
     - Keep "РРЦ" rendering intact, using the new variable name.
@@ -109,6 +114,7 @@ test_patterns:
 # Verification Plan
 
 ### Automated Tests
+
 - Run `ProductCard` tests to ensure no regressions:
   ```bash
   cd frontend
@@ -121,6 +127,7 @@ test_patterns:
   ```
 
 ### Manual Verification
+
 1.  Set `NEXT_PUBLIC_API_MOCKING=enabled` (if needed) or use real data.
 2.  Log in as a B2B user (e.g., `wholesale_level1`).
 3.  Navigate to Catalog (Blue Theme).
@@ -142,4 +149,3 @@ test_patterns:
 # Technical Debt
 
 - [ ] **Refactor B2B role logic**: Extract `canSeeRrp(userRole)` utility to `utils/pricing.ts`. Currently duplicated in `ProductInfo.tsx` and `ProductSummary.tsx`.
-

@@ -64,7 +64,7 @@ architecture_assessment:
     - "Расширяемая архитектура с поддержкой новых типов операций"
     - "Обратная совместимость с legacy полями"
     - "Оптимизированные индексы для производительности"
-  
+
   design_patterns:
     - "Service Layer Pattern для бизнес-логики"
     - "Factory Pattern для генерации correlation_id"

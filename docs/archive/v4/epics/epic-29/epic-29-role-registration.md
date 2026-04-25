@@ -2,13 +2,13 @@
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-12-11 | 1.0 | Initial Epic Draft | John (PM) |
-| 2025-12-12 | 1.1 | Синхронизация с Risk Analysis: SMTP rate limits, API Spec requirements, Monitoring examples | Sarah (PO) |
-| 2025-12-12 | 1.2 | Синхронизация с кодом модели User: точные ссылки на существующие поля, подтверждение что миграция НЕ требуется | Sarah (PO) |
-| 2025-12-12 | 1.3 | PO Checklist Should-Fix: Accessibility, API Spec task, Feature Flags | Sarah (PO) |
-| 2025-12-12 | 1.4 | PO Master Checklist: ссылки на существующий код, README task в DoD | Sarah (PO) |
+| Date       | Version | Description                                                                                                    | Author     |
+| ---------- | ------- | -------------------------------------------------------------------------------------------------------------- | ---------- |
+| 2025-12-11 | 1.0     | Initial Epic Draft                                                                                             | John (PM)  |
+| 2025-12-12 | 1.1     | Синхронизация с Risk Analysis: SMTP rate limits, API Spec requirements, Monitoring examples                    | Sarah (PO) |
+| 2025-12-12 | 1.2     | Синхронизация с кодом модели User: точные ссылки на существующие поля, подтверждение что миграция НЕ требуется | Sarah (PO) |
+| 2025-12-12 | 1.3     | PO Checklist Should-Fix: Accessibility, API Spec task, Feature Flags                                           | Sarah (PO) |
+| 2025-12-12 | 1.4     | PO Master Checklist: ссылки на существующий код, README task в DoD                                             | Sarah (PO) |
 
 ---
 
@@ -172,12 +172,12 @@
 
 **Существующие поля модели User (миграция НЕ требуется):**
 
-| Поле | Расположение | Значения |
-|------|--------------|----------|
-| `role` | [L87-92](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L87-L92) | `retail`, `wholesale_level1`, `trainer`, `federation_rep`, ... |
-| `verification_status` | [L190-196](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L190-L196) | `unverified` (default), `verified`, `pending` |
-| `is_active` | AbstractUser | `True`/`False` (Django built-in) |
-| `is_verified` | [L118-122](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L118-L122) | `BooleanField` (legacy, не использовать) |
+| Поле                  | Расположение                                                                                | Значения                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `role`                | [L87-92](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L87-L92)     | `retail`, `wholesale_level1`, `trainer`, `federation_rep`, ... |
+| `verification_status` | [L190-196](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L190-L196) | `unverified` (default), `verified`, `pending`                  |
+| `is_active`           | AbstractUser                                                                                | `True`/`False` (Django built-in)                               |
+| `is_verified`         | [L118-122](file:///c:/Users/tkachenko/DEV/FREESPORT/backend/apps/users/models.py#L118-L122) | `BooleanField` (legacy, не использовать)                       |
 
 **Логика установки статусов при регистрации:**
 
@@ -202,13 +202,13 @@ if user.verification_status == 'pending':
     )
 ```
 
-
 **API SPEC UPDATE REQUIRED:**
 
 > [!IMPORTANT]
 > **Обязательный deliverable:** Обновить `docs/api-spec.yaml` (OpenAPI/Swagger)
 
 **Task:** Добавить в Acceptance Criteria или Tasks:
+
 - [ ] Обновить `docs/api-spec.yaml` с новым параметром `role` для `/api/auth/register/`
 - [ ] Добавить новый error response `403 account_pending_verification`
 
@@ -309,14 +309,14 @@ responses:
    EMAIL_USE_TLS=True
    EMAIL_HOST_USER=your-dev-email@gmail.com
    EMAIL_HOST_PASSWORD=your-16-digit-app-password
-   
+
    # Production (Yandex)
    EMAIL_HOST=smtp.yandex.ru
    EMAIL_PORT=587
    EMAIL_USE_TLS=True
    EMAIL_HOST_USER=noreply@freesport.ru
    EMAIL_HOST_PASSWORD=your-yandex-password
-   
+
    # Admin emails (через запятую)
    ADMIN_EMAILS=admin1@freesport.ru,admin2@freesport.ru
    ```
@@ -344,7 +344,7 @@ responses:
   EMAIL_HOST_USER=noreply@freesport.ru
   EMAIL_HOST_PASSWORD=your-password
   DEFAULT_FROM_EMAIL=noreply@freesport.ru
-  
+
   # Список email администраторов для уведомлений (через запятую)
   ADMIN_EMAILS=admin1@freesport.ru,admin2@freesport.ru
   ```
@@ -354,8 +354,8 @@ responses:
   ```python
   # Parse ADMIN_EMAILS from environment
   ADMINS = [
-      ('Admin', email.strip()) 
-      for email in config('ADMIN_EMAILS', default='').split(',') 
+      ('Admin', email.strip())
+      for email in config('ADMIN_EMAILS', default='').split(',')
       if email.strip()
   ]
   ```
@@ -365,14 +365,14 @@ responses:
 > [!WARNING]
 > Учитывать лимиты SMTP провайдеров:
 
-| Provider | Лимит | Рекомендация |
-|----------|-------|--------------|
-| Gmail | 500 emails/день | Только для development |
-| Yandex Mail | 100-500/день* | Уточнить с провайдером |
-| SendGrid Free | 100/день | Альтернатива для production |
-| SendGrid Paid | 40,000+/месяц | Рекомендуется для scale |
+| Provider      | Лимит           | Рекомендация                |
+| ------------- | --------------- | --------------------------- |
+| Gmail         | 500 emails/день | Только для development      |
+| Yandex Mail   | 100-500/день\*  | Уточнить с провайдером      |
+| SendGrid Free | 100/день        | Альтернатива для production |
+| SendGrid Paid | 40,000+/месяц   | Рекомендуется для scale     |
 
-*Для freesport.ru domain рекомендуется Yandex Mail для домена или SendGrid.
+\*Для freesport.ru domain рекомендуется Yandex Mail для домена или SendGrid.
 
 **Rate Limiting (опционально):**
 
@@ -381,7 +381,7 @@ responses:
 @shared_task(rate_limit='10/m')  # max 10 emails/minute
 def send_verification_email(user_id):
     ...
-  ```
+```
 
 **Testing:**
 
@@ -519,12 +519,12 @@ def monitor_pending_verification_queue():
     """Check if pending verification queue is too high"""
     threshold = 10
     time_window = timezone.now() - timedelta(hours=24)
-    
+
     pending_count = User.objects.filter(
         verification_status='pending',
         created_at__gte=time_window
     ).count()
-    
+
     if pending_count > threshold:
         logger.warning(
             f"⚠️ High pending verification queue: {pending_count} users",
@@ -624,6 +624,7 @@ FEATURE_ROLE_BASED_REGISTRATION=False
 ```
 
 **Преимущества feature flags:**
+
 - Мгновенный откат без деплоя
 - A/B тестирование для части пользователей
 - Постепенный rollout (10% → 50% → 100%)

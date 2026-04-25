@@ -59,8 +59,8 @@ evidence:
   tests_passing: true
   risks_identified: 4
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  # Все ACs кроме 12 частично покрыты
-    ac_gaps: [12]  # AC 12: Тесты созданы но неполное покрытие
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # Все ACs кроме 12 частично покрыты
+    ac_gaps: [12] # AC 12: Тесты созданы но неполное покрытие
 
 # Requirements Traceability Matrix (Given-When-Then)
 requirements_trace:
@@ -269,7 +269,7 @@ risk_summary:
     high: 0
     medium: 3
     low: 1
-  highest_risk_score: 6  # ASSET-001 + TEST-001 комбинация
+  highest_risk_score: 6 # ASSET-001 + TEST-001 комбинация
   recommendations:
     must_fix:
       - "Создать Footer.test.tsx перед merge в main"
@@ -280,7 +280,7 @@ risk_summary:
 
 # Actionable Recommendations
 recommendations:
-  immediate:  # Must fix before marking as Done
+  immediate: # Must fix before marking as Done
     - action: "Создать Footer.test.tsx с минимум 10 тестами"
       priority: P0
       refs: ["frontend/src/components/layout/__tests__/Footer.test.tsx"]
@@ -298,7 +298,7 @@ recommendations:
       refs: ["docs/technical-debt-epic-12.md"]
       estimated_effort: "30 минут"
 
-  future:  # Can be addressed in follow-up stories
+  future: # Can be addressed in follow-up stories
     - action: "Настроить Lighthouse CI для автоматического performance monitoring"
       priority: P2
       refs: [".github/workflows/lighthouse-ci.yml"]

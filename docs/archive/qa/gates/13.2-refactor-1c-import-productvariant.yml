@@ -14,11 +14,11 @@ updated: "2025-12-02T09:00:00Z"
 waiver:
   active: false
 
-top_issues: []  # Все issues устранены в финальной проверке
+top_issues: [] # Все issues устранены в финальной проверке
 
 # Quality metrics
-quality_score: 98  # Отличное качество после устранения всех issues
-expires: "2025-12-16T00:00:00Z"  # 2 weeks validity
+quality_score: 98 # Отличное качество после устранения всех issues
+expires: "2025-12-16T00:00:00Z" # 2 weeks validity
 
 # Test evidence
 evidence:
@@ -28,8 +28,8 @@ evidence:
   risks_identified: 0
   coverage_percent: 63
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9]  # All 9 ACs fully covered
-    ac_gaps: []  # No gaps after final fixes
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9] # All 9 ACs fully covered
+    ac_gaps: [] # No gaps after final fixes
 
 # NFR validation results
 nfr_validation:
@@ -173,11 +173,12 @@ acceptance_criteria:
   - id: "AC6"
     description: "Hybrid images (base_images + variant images)"
     status: PASS
-    tests: [
-      "TestHybridImagesLogic::test_base_images_saved_to_product",
-      "TestHybridImagesLogic::test_variant_images_saved_to_main_and_gallery",
-      "TestHybridImagesLogic::test_default_variant_without_images_uses_base_images"
-    ]
+    tests:
+      [
+        "TestHybridImagesLogic::test_base_images_saved_to_product",
+        "TestHybridImagesLogic::test_variant_images_saved_to_main_and_gallery",
+        "TestHybridImagesLogic::test_default_variant_without_images_uses_base_images",
+      ]
     evidence: "variant_import.py:458-493, 700-740"
     notes: "Добавлено 3 integration теста в final review (TEST-GAP-1 resolved)"
 
@@ -218,7 +219,7 @@ integration_verification:
 
 # Recommendations for production
 recommendations:
-  immediate: []  # Нет критичных действий - всё готово для production
+  immediate: [] # Нет критичных действий - всё готово для production
 
   future:
     - action: "Мониторить WARNING логи первые 48 часов после deploy"

@@ -13,6 +13,7 @@ So that I can display them on the homepage in a high-performance carousel.
 ## Acceptance Criteria
 
 ### 1. Endpoint Implementation
+
 - **Given** an unauthenticated or authenticated user,
 - **When** they request `GET /api/v1/products/brands/featured/` (Recommended over query param for specific caching),
 - **Then** the API returns a JSON list of brands where `is_featured=True`.
@@ -20,6 +21,7 @@ So that I can display them on the homepage in a high-performance carousel.
 - **And** the list is ordered by `name` (or `sort_order` if available).
 
 ### 2. Performance & Caching (Critical)
+
 - **Given** the featured brands endpoint,
 - **When** accessed,
 - **Then** the response is **cached for 1 hour (3600 seconds)** in Redis to minimize database hits.
@@ -27,6 +29,7 @@ So that I can display them on the homepage in a high-performance carousel.
 - **And** if the list of featured brands is updated (in Admin), the cache should ideally be invalidated (or just expire).
 
 ### 3. Response Structure
+
 - **Given** the API response,
 - **When** serialized,
 - **Then** field names are in `snake_case`.
@@ -36,10 +39,10 @@ So that I can display them on the homepage in a high-performance carousel.
 
 - [x] Task 1: Update `BrandViewSet` in `apps/products/views.py`
   - [x] Implement `featured` action (via `@action(detail=False)`) OR optimize `list` with caching.
-    - *Recommendation*: Use `@action(detail=False, url_path='featured')` to isolate the homepage logic and caching policy from the general catalog filtering.
+    - _Recommendation_: Use `@action(detail=False, url_path='featured')` to isolate the homepage logic and caching policy from the general catalog filtering.
   - [x] Decorate the view with `@method_decorator(cache_page(60*60))`.
   - [x] Ensure `pagination_class=None` (or specific large limit) for this action to return a simple list for the carousel (if desired) or standard paginated response.
-    - *Decision*: Keep standard pagination but ensure page size is sufficient (100 is likely enough).
+    - _Decision_: Keep standard pagination but ensure page size is sufficient (100 is likely enough).
 - [x] Task 2: Caching Configuration
   - [x] Verify `CACHES` setting in `settings.py` (Redis).
   - [x] Ensure `django.views.decorators.cache.cache_page` is working with DRF (may need `vary_on_cookie` if auth varies, but here it shouldn't).
@@ -75,12 +78,10 @@ So that I can display them on the homepage in a high-performance carousel.
 - [x] [AI-Review][LOW] Code Style: Move imports from lines 27-45 to the top of the file. [backend/apps/products/views.py]
 - [x] [AI-Review][LOW] Scope Creep: Django 6.0 compatibility fix in `apps/cart/models.py` should ideally be in a separate technical task. [backend/apps/cart/models.py]
 
-
-
 - [x] [AI-Review][MEDIUM] Refactor `BrandFeaturedSerializer` to inherit from `BrandSerializer` or a common mixin to eliminate code duplication in `get_image`. [backend/apps/products/serializers.py]
 - [x] [AI-Review][MEDIUM] Refactor `BrandSerializer.validate` to avoid side-effects (modifying `self.instance` directly) during validation. Use `Brand(**attrs)` for validation check instead. [backend/apps/products/serializers.py]
 - [x] [AI-Review][LOW] Clarify `featured` action filtering behavior. Document that global `filter_backends` (SearchFilter) are intentionally bypassed due to fixed caching key strategy. [backend/apps/products/views.py]
-- [x] [AI-Review][MEDIUM] Missing Image Validation in QuerySet (Resilience): The featured action filters only by is_featured=True. Added exclude(Q(image="") | Q(image__isnull=True)) to prevent nulled images breaking frontend. [apps/products/views.py]
+- [x] [AI-Review][MEDIUM] Missing Image Validation in QuerySet (Resilience): The featured action filters only by is_featured=True. Added exclude(Q(image="") | Q(image\_\_isnull=True)) to prevent nulled images breaking frontend. [apps/products/views.py]
 - [x] [AI-Review][LOW] Implicit Search Ignoring (Testing): Added test_featured_ignores_search_param to verify featured endpoint ignores search parameter to protect cache key. [apps/products/tests/test_brand_api.py]
 - [x] [AI-Review][TRIVIAL] Redundant Import (Code Style): Moved Sum import to top-level in serializers.py. [apps/products/serializers.py]
 

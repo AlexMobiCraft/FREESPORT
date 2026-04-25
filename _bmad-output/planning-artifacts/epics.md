@@ -65,11 +65,13 @@ FR-10: Epic 1 - API provides featured brands
 ## Epic List
 
 ### Epic 33: Brands Block Implementation
+
 Enable users to quickly navigate to popular brand catalogs from the homepage and allow admins to manage this content.
 **FRs covered:** FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-07, FR-08, FR-09, FR-10.
 **NFRs covered:** NFR-1 to NFR-8.
 
 ## Epic 133: Brands Block Implementation
+
 **Goal:** Enable users to quickly navigate to popular brand catalogs from the homepage and allow admins to manage this content.
 
 ### Story 33.1: Brand Model & Admin Updates

@@ -18,7 +18,7 @@ top_issues: []
 
 # Quality metrics
 quality_score: 95
-expires: "2025-12-08T18:37:00+01:00"  # 2 weeks from review
+expires: "2025-12-08T18:37:00+01:00" # 2 weeks from review
 
 # Test evidence
 evidence:
@@ -27,8 +27,8 @@ evidence:
   tests_failed: 0
   risks_identified: 0
   trace:
-    ac_covered: [1, 2, 3, 4, 5]  # All ACs have test coverage
-    ac_gaps: []  # No gaps in coverage
+    ac_covered: [1, 2, 3, 4, 5] # All ACs have test coverage
+    ac_gaps: [] # No gaps in coverage
 
 # Non-Functional Requirements validation
 nfr_validation:
@@ -51,7 +51,7 @@ risk_summary:
     critical: 0
     high: 0
     medium: 0
-    low: 1  # Потенциальная оптимизация для экстремальных объёмов (>100K брендов)
+    low: 1 # Потенциальная оптимизация для экстремальных объёмов (>100K брендов)
   recommendations:
     must_fix: []
     monitor:
@@ -59,13 +59,14 @@ risk_summary:
 
 # Recommendations
 recommendations:
-  immediate: []  # No immediate actions required
+  immediate: [] # No immediate actions required
   future:
     - action: "Рассмотреть использование bulk_create для маппингов при очень больших объёмах (>100K брендов)"
       refs: ["backend/apps/products/services/processor.py::process_brands"]
       priority: low
     - action: "Мониторинг производительности импорта в продакшене для выявления потенциальных узких мест"
-      refs: ["backend/apps/products/management/commands/import_catalog_from_1c.py"]
+      refs:
+        ["backend/apps/products/management/commands/import_catalog_from_1c.py"]
       priority: low
 
 # Compliance checklist
@@ -140,11 +141,11 @@ notes: |
   Story 13.3 демонстрирует отличное качество реализации. Код чистый, хорошо протестирован
   и соответствует всем стандартам проекта. Дедупликация брендов реализована корректно
   с использованием нормализованных названий. Идемпотентность импорта гарантирована.
-  
+
   Особо отмечается:
   - Комплексное тестовое покрытие (10 тестов, 100% критичных путей)
   - Структурированное логирование с полным контекстом операций
   - Обработка всех edge cases (пустые данные, конфликты slug, кириллица)
   - Полное соответствие стандартам кодирования (типизация, docstrings, форматирование)
-  
+
   Рекомендуется к переводу в статус Done.

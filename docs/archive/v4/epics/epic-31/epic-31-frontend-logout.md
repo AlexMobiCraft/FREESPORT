@@ -2,9 +2,9 @@
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-12-13 | 1.0 | Initial Epic Draft for Frontend Logout | John (PM) |
+| Date       | Version | Description                            | Author    |
+| ---------- | ------- | -------------------------------------- | --------- |
+| 2025-12-13 | 1.0     | Initial Epic Draft for Frontend Logout | John (PM) |
 
 ---
 
@@ -186,12 +186,14 @@ Epic 28 реализовал систему аутентификации с ре
 **Primary Risk:** Backend logout endpoint недоступен или возвращает ошибку, пользователь застревает в авторизованном состоянии.
 
 **Mitigation:**
+
 1. **Fail-safe подход:** Локальная очистка происходит в любом случае
 2. **Optimistic update:** UI обновляется немедленно, API вызов в фоне
 3. **Error handling:** Логирование ошибок, но не блокировка logout
 4. **Timeout:** API запрос с timeout 5 секунд, после чего локальная очистка
 
 **Rollback Plan:**
+
 1. Удалить кнопку "Выйти" из Header компонента
 2. Откатить изменения в `authStore.logout()` до версии Epic 28
 3. Удалить метод `authService.logout()`
@@ -223,7 +225,7 @@ Epic 28 реализовал систему аутентификации с ре
 
 ```typescript
 // frontend/src/services/authService.ts
-import axios from 'axios';
+import axios from "axios";
 
 export const authService = {
   // ... существующие методы (login, register, etc.)
@@ -236,12 +238,15 @@ export const authService = {
    */
   async logout(refreshToken: string): Promise<void> {
     try {
-      await axios.post('/api/v1/auth/logout/', {
+      await axios.post("/api/v1/auth/logout/", {
         refresh: refreshToken,
       });
     } catch (error) {
       // Логируем ошибку, но не пробрасываем - fail-safe подход
-      console.error('Backend logout failed, proceeding with local cleanup:', error);
+      console.error(
+        "Backend logout failed, proceeding with local cleanup:",
+        error,
+      );
       // Можно добавить error tracking (Sentry, etc.)
     }
   },
@@ -252,16 +257,16 @@ export const authService = {
 
 ```typescript
 // frontend/src/stores/authStore.ts
-import { authService } from '@/services/authService';
+import { authService } from "@/services/authService";
 
 export const useAuthStore = create<AuthState>()(
   devtools(
-    set => ({
+    (set) => ({
       // ... существующие методы
 
       logout: async () => {
         // Получить refresh token перед очисткой
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = localStorage.getItem("refreshToken");
 
         // Попытаться инвалидировать на сервере
         if (refreshToken) {
@@ -269,13 +274,13 @@ export const useAuthStore = create<AuthState>()(
             await authService.logout(refreshToken);
           } catch (error) {
             // Логируем, но продолжаем локальную очистку (fail-safe)
-            console.error('Server logout failed:', error);
+            console.error("Server logout failed:", error);
           }
         }
 
         // Локальная очистка ВСЕГДА происходит
-        localStorage.removeItem('refreshToken');
-        deleteCookie('refreshToken');
+        localStorage.removeItem("refreshToken");
+        deleteCookie("refreshToken");
 
         set({
           accessToken: null,
@@ -286,8 +291,8 @@ export const useAuthStore = create<AuthState>()(
 
       // ... остальные методы
     }),
-    { name: 'AuthStore' }
-  )
+    { name: "AuthStore" },
+  ),
 );
 ```
 
@@ -375,21 +380,21 @@ const Header: React.FC = () => {
 
 ```typescript
 // frontend/src/__mocks__/handlers.ts
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from "msw";
 
 export const handlers = [
   // ... существующие handlers
 
   // Logout endpoint - успех
-  http.post('/api/v1/auth/logout/', () => {
+  http.post("/api/v1/auth/logout/", () => {
     return new HttpResponse(null, { status: 204 });
   }),
 
   // Logout endpoint - ошибка (invalid token)
-  http.post('/api/v1/auth/logout/', () => {
+  http.post("/api/v1/auth/logout/", () => {
     return HttpResponse.json(
-      { error: 'Invalid or expired token' },
-      { status: 400 }
+      { error: "Invalid or expired token" },
+      { status: 400 },
     );
   }),
 ];

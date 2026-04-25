@@ -58,7 +58,7 @@ freesport/
 ├── Makefile                    # Команды автоматизации
 ├── backend/
 │   ├── Dockerfile              # Production образ Django
-│   ├── Dockerfile.test         # Тестовый образ Django  
+│   ├── Dockerfile.test         # Тестовый образ Django
 │   └── .dockerignore          # Игнорируемые файлы
 ├── docker/
 │   └── nginx/
@@ -87,7 +87,7 @@ freesport/
 **Решение:** Добавлена полная тестовая среда с:
 
 - PostgreSQL с оптимизацией для тестов (tmpfs, shm_size)
-- Redis без персистентности (tmpfs)  
+- Redis без персистентности (tmpfs)
 - Изолированная сеть freesport-test-network
 - Отдельные порты (5433, 6380)
 
@@ -107,27 +107,27 @@ freesport/
 **Решение:** Django сервер теперь доступен на порту 8001:
 
 - Обновлены все docker-compose файлы
-- Исправлены frontend конфигурации  
+- Исправлены frontend конфигурации
 - Обновлена документация и CI/CD
 
 ## Конфигурация портов
 
 ### Основная среда
 
-| Сервис   | Внутренний | Внешний | Описание |
-|----------|------------|---------|----------|
+| Сервис   | Внутренний | Внешний | Описание         |
+| -------- | ---------- | ------- | ---------------- |
 | nginx    | 80, 443    | 80, 443 | HTTP/HTTPS proxy |
-| backend  | 8000       | 8001    | Django API |
-| frontend | 3000       | 3000    | Next.js app |
-| db       | 5432       | 5432    | PostgreSQL |  
-| redis    | 6379       | 6379    | Redis cache |
+| backend  | 8000       | 8001    | Django API       |
+| frontend | 3000       | 3000    | Next.js app      |
+| db       | 5432       | 5432    | PostgreSQL       |
+| redis    | 6379       | 6379    | Redis cache      |
 
 ### Тестовая среда
 
-| Сервис     | Внутренний | Внешний | Описание |
-|------------|------------|---------|----------|
+| Сервис     | Внутренний | Внешний | Описание         |
+| ---------- | ---------- | ------- | ---------------- |
 | test-db    | 5432       | 5433    | PostgreSQL тесты |
-| test-redis | 6379       | 6380    | Redis тесты |
+| test-redis | 6379       | 6380    | Redis тесты      |
 
 ## Команды использования
 
@@ -141,7 +141,7 @@ make down           # Остановить среду
 make logs           # Показать логи
 make clean          # Очистить volumes и образы
 
-# Тестирование  
+# Тестирование
 make test           # Все тесты в Docker
 make test-unit      # Unit тесты
 make test-integration # Интеграционные тесты
@@ -163,7 +163,7 @@ make migrate        # Миграции БД
 
 ```cmd
 scripts\test.bat
-scripts\test-unit.bat  
+scripts\test-unit.bat
 scripts\test-integration.bat
 ```
 
@@ -181,7 +181,7 @@ scripts\test-integration.bat
 # Дополнительные тестовые инструменты
 RUN pip install --no-cache-dir \
     pytest-xdist \
-    pytest-mock \  
+    pytest-mock \
     pytest-env \
     pytest-sugar \
     pytest-clarity
@@ -190,8 +190,8 @@ RUN pip install --no-cache-dir \
 RUN mkdir -p /app/test-reports /app/htmlcov /app/test-logs
 
 # Команда по умолчанию с покрытием кода
-CMD ["pytest", "-v", "--tb=short", "--cov=apps", 
-     "--cov-report=html", "--cov-report=term-missing", 
+CMD ["pytest", "-v", "--tb=short", "--cov=apps",
+     "--cov-report=html", "--cov-report=term-missing",
      "--cov-fail-under=70"]
 ```
 
@@ -204,7 +204,7 @@ db:
     - /tmp
   shm_size: 256mb
   healthcheck:
-    interval: 10s  # Быстрее чем в основной среде
+    interval: 10s # Быстрее чем в основной среде
     timeout: 5s
     retries: 5
 ```
@@ -215,7 +215,7 @@ db:
 redis:
   command: redis-server --appendonly no --save "" --requirepass redis123
   tmpfs:
-    - /data  # В памяти для скорости
+    - /data # В памяти для скорости
 ```
 
 ## Переменные окружения
@@ -230,7 +230,7 @@ DB_HOST=db
 DB_NAME=freesport
 REDIS_URL=redis://:redis123@redis:6379/0
 
-# Frontend  
+# Frontend
 NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
 NODE_ENV=development
 ```
@@ -242,7 +242,7 @@ NODE_ENV=development
 DJANGO_SETTINGS_MODULE=freesport.settings.test
 SECRET_KEY=test-secret-key-for-testing-only
 DB_HOST=db
-DB_NAME=freesport_test  
+DB_NAME=freesport_test
 REDIS_URL=redis://:redis123@redis:6379/1
 PYTEST_CURRENT_TEST=1
 ```
@@ -341,7 +341,7 @@ USER freesport
 ```nginx
 # Базовые заголовки безопасности
 add_header X-Frame-Options "SAMEORIGIN" always;
-add_header X-XSS-Protection "1; mode=block" always;  
+add_header X-XSS-Protection "1; mode=block" always;
 add_header X-Content-Type-Options "nosniff" always;
 ```
 
@@ -361,9 +361,9 @@ docker-compose down
 docker stop $(docker ps -aq)
 ```
 
-**2. Ошибки разрешений**  
+**2. Ошибки разрешений**
 
-```bash  
+```bash
 # Исправить права на папки
 sudo chown -R $USER:$USER .
 chmod -R 755 scripts/
@@ -380,7 +380,7 @@ docker compose exec db pg_isready -U postgres
 **4. Проблемы с Redis**
 
 ```bash
-# Проверить Redis подключение  
+# Проверить Redis подключение
 docker compose exec redis redis-cli -a redis123 ping
 ```
 

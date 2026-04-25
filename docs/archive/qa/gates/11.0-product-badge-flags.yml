@@ -25,7 +25,12 @@ top_issues:
     severity: medium
     finding: "3 файла требуют форматирования через Black"
     impact: "Нарушение coding standards, затруднение code review"
-    refs: ["backend/apps/products/admin.py", "backend/apps/products/views.py", "backend/apps/products/filters.py"]
+    refs:
+      [
+        "backend/apps/products/admin.py",
+        "backend/apps/products/views.py",
+        "backend/apps/products/filters.py",
+      ]
     suggested_action: "Запустить black apps/products/"
     suggested_owner: "dev"
 
@@ -33,7 +38,13 @@ top_issues:
     severity: medium
     finding: "Нарушения Flake8 linting в admin.py (4 ошибки)"
     impact: "Несоответствие style guide проекта"
-    refs: ["backend/apps/products/admin.py:233", "backend/apps/products/admin.py:239", "backend/apps/products/admin.py:245", "backend/apps/products/admin.py:254"]
+    refs:
+      [
+        "backend/apps/products/admin.py:233",
+        "backend/apps/products/admin.py:239",
+        "backend/apps/products/admin.py:245",
+        "backend/apps/products/admin.py:254",
+      ]
     suggested_action: "Сократить длинные строки и удалить пустую строку в конце файла"
     suggested_owner: "dev"
 
@@ -58,7 +69,7 @@ evidence:
   trace:
     ac_covered: [1, 2, 3, 4, 5, 6, 7, 8]
     ac_gaps: []
-    ac_concerns: [3]  # AC#3 требует composite indexes
+    ac_concerns: [3] # AC#3 требует composite indexes
 
 nfr_validation:
   security:
@@ -113,8 +124,8 @@ recommendations:
 risk_summary:
   totals:
     critical: 0
-    high: 1     # PERF-001
-    medium: 3   # CODE-001, CODE-002, TEST-001
+    high: 1 # PERF-001
+    medium: 3 # CODE-001, CODE-002, TEST-001
     low: 0
   highest:
     score: 8

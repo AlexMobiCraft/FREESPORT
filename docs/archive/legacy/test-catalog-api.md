@@ -88,7 +88,7 @@ backend/
 apps/
 ├── users/
 │   └── tests.py                     # Unit тесты для users app
-├── products/  
+├── products/
 │   └── tests.py                     # Unit тесты для products app
 ├── cart/
 │   └── tests.py                     # Unit тесты для cart app
@@ -125,6 +125,7 @@ pytest tests/unit/ -v
 - **Статус коды**: 200, 201, 400, 401, 403, 404
 
 **Запуск:**
+
 ```bash
 pytest tests/functional/ -v
 ```
@@ -152,6 +153,7 @@ pytest tests/integration/ -v
 - **Memory usage**: Потребление памяти
 
 **Запуск:**
+
 ```bash
 pytest tests/performance/ -v -s
 ```
@@ -159,14 +161,16 @@ pytest tests/performance/ -v -s
 ## 📋 Соглашения по именованию
 
 ### Файлы тестов
+
 - **Префикс**: Все файлы начинаются с `test_`
 - **Модули**: `test_{app_name}_{component_type}.py`
-- **Примеры**: 
+- **Примеры**:
   - `test_user_models.py`
   - `test_catalog_api.py`
   - `test_cart_order_integration.py`
 
 ### Классы тестов
+
 ```python
 class TestUserModel:          # Тестирование модели User
 class TestProductAPI:         # Тестирование Product API
@@ -174,6 +178,7 @@ class TestB2BWorkflow:        # Тестирование B2B workflow
 ```
 
 ### Методы тестов
+
 ```python
 def test_user_creation_with_valid_data(self):
 def test_product_api_returns_role_based_prices(self):
@@ -183,10 +188,11 @@ def test_cart_to_order_conversion_preserves_data(self):
 ## 🔧 Конфигурация pytest
 
 ### pytest.ini
+
 ```ini
 [tool:pytest]
 DJANGO_SETTINGS_MODULE = freesport.settings.test
-addopts = 
+addopts =
     --verbose
     --tb=short
     --strict-markers
@@ -209,6 +215,7 @@ markers =
 ```
 
 ### conftest.py (главный)
+
 ```python
 import pytest
 from django.test import Client
@@ -253,16 +260,18 @@ def b2b_user():
 ## 🚀 Команды запуска тестов
 
 ### Все тесты
+
 ```bash
 pytest
 ```
 
 ### По типам
+
 ```bash
 # Unit тесты
 pytest tests/unit/ -v
 
-# Functional тесты  
+# Functional тесты
 pytest tests/functional/ -v
 
 # Integration тесты
@@ -273,6 +282,7 @@ pytest tests/performance/ -v -s
 ```
 
 ### По маркерам
+
 ```bash
 # Только быстрые тесты
 pytest -m "not slow"
@@ -285,6 +295,7 @@ pytest tests/functional/test_order_api.py -v
 ```
 
 ### С покрытием кода
+
 ```bash
 # HTML отчет в htmlcov/
 pytest --cov=apps --cov-report=html
@@ -299,12 +310,14 @@ pytest --cov=apps --cov-fail-under=80
 ## 📊 Метрики качества тестов
 
 ### Целевые показатели
+
 - **Unit тесты**: > 90% покрытие кода
 - **Functional тесты**: 100% покрытие API endpoints
 - **Integration тесты**: Все критические user workflows
 - **Performance тесты**: Базовые бенчмарки
 
 ### Обязательное покрытие
+
 - ✅ Все API endpoints (GET, POST, PUT, PATCH, DELETE)
 - ✅ Все модели Django (создание, валидация, методы)
 - ✅ Все сериализаторы DRF (валидация, трансформации)
@@ -313,6 +326,7 @@ pytest --cov=apps --cov-fail-under=80
 - ✅ Ролевые различия B2B/B2C
 
 ### Мониторинг качества
+
 ```bash
 # Генерация отчета о покрытии
 pytest --cov=apps --cov-report=html
@@ -329,18 +343,20 @@ pytest -n auto
 ## 🔄 CI/CD интеграция
 
 ### GitHub Actions
+
 ```yaml
 - name: Run Tests
   run: |
     pytest tests/ --cov=apps --cov-report=xml
-    
-- name: Upload Coverage  
+
+- name: Upload Coverage
   uses: codecov/codecov-action@v3
   with:
     file: ./coverage.xml
 ```
 
 ### Pre-commit hooks
+
 ```yaml
 repos:
   - repo: local
@@ -356,18 +372,21 @@ repos:
 ## 📝 Лучшие практики
 
 ### Организация тестов
+
 1. **Один файл = один модуль/компонент**
 2. **Четкое разделение по типам тестов**
 3. **Переиспользование fixtures**
 4. **Параметризованные тесты для множественных сценариев**
 
 ### Качество тестов
+
 1. **Описательные имена тестов**
 2. **Arrange-Act-Assert структура**
 3. **Изоляция тестов (независимость)**
 4. **Тестирование граничных случаев**
 
 ### Производительность
+
 1. **Mock внешние зависимости**
 2. **Использование pytest-django для БД**
 3. **Параллельный запуск тестов**
@@ -378,11 +397,12 @@ repos:
 ## 🔄 Текущее состояние vs Целевая структура
 
 ### Текущая структура тестов
+
 ```
 backend/
 ├── apps/                            # Django приложения с unit тестами
 │   ├── cart/tests.py                # ✅ Unit тесты cart app
-│   ├── common/tests.py              # ✅ Unit тесты common app  
+│   ├── common/tests.py              # ✅ Unit тесты common app
 │   ├── orders/tests.py              # ✅ Unit тесты orders app
 │   ├── products/tests.py            # ✅ Unit тесты products app
 │   └── users/                       # ❌ НЕТ tests.py (нужно создать)
@@ -407,13 +427,14 @@ backend/
 ### Необходимые изменения для соответствия документации:
 
 #### 1. Создать недостающие файлы
+
 ```bash
 # Создать tests.py для users app
 touch backend/apps/users/tests.py
 
 # Создать целевую структуру unit тестов
 mkdir -p backend/tests/unit/test_models
-mkdir -p backend/tests/unit/test_serializers  
+mkdir -p backend/tests/unit/test_serializers
 mkdir -p backend/tests/unit/test_utils
 mkdir -p backend/tests/unit/test_services
 mkdir -p backend/tests/integration
@@ -422,6 +443,7 @@ mkdir -p backend/tests/fixtures
 ```
 
 #### 2. Перенести существующие unit тесты
+
 ```bash
 # Переместить test_models в правильную структуру
 mv backend/tests/test_cart/test_models.py backend/tests/unit/test_models/test_cart_models.py
@@ -432,13 +454,14 @@ mv backend/tests/test_users/test_models.py backend/tests/unit/test_models/test_u
 
 # Удалить пустые каталоги
 rmdir backend/tests/test_cart
-rmdir backend/tests/test_common  
+rmdir backend/tests/test_common
 rmdir backend/tests/test_orders
 rmdir backend/tests/test_products
 rmdir backend/tests/test_users
 ```
 
 #### 3. Создать отсутствующие тестовые файлы
+
 ```bash
 # Functional тесты для оставшихся Stories
 touch backend/tests/functional/test_cart_api.py
@@ -460,6 +483,7 @@ touch backend/tests/performance/test_order_creation_performance.py
 ```
 
 ### Статус соответствия документации:
+
 - ✅ **Functional тесты**: Полностью соответствуют (все основные Stories покрыты)
 - ✅ **Unit тесты**: Реорганизованы в правильную структуру
 - ✅ **Integration тесты**: Созданы базовые тесты для всех workflow
@@ -469,12 +493,13 @@ touch backend/tests/performance/test_order_creation_performance.py
 ## ✅ ВЫПОЛНЕННАЯ РЕОРГАНИЗАЦИЯ
 
 ### Реализованная структура тестов (август 2025)
+
 ```
 backend/
 ├── apps/                            # Django приложения
 │   ├── cart/tests.py                # ✅ Unit тесты cart app
 │   ├── users/tests.py               # ✅ СОЗДАН - Unit тесты users app
-│   ├── common/tests.py              # ✅ Unit тесты common app  
+│   ├── common/tests.py              # ✅ Unit тесты common app
 │   ├── orders/tests.py              # ✅ Unit тесты orders app
 │   └── products/tests.py            # ✅ Unit тесты products app
 │

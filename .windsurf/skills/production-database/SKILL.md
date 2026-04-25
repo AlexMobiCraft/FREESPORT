@@ -9,12 +9,12 @@ description: Используй этот навык для выполнения 
 
 ## Параметры подключения
 
-*   **Host:** `5.35.124.149`
-*   **SSH User:** `root`
-*   **SSH Аутентификация:** SSH ключ (без пароля)
-*   **Database:** `freesport`
-*   **DB User:** `postgres`
-*   **Project Path:** `/home/freesport/freesport/`
+- **Host:** `5.35.124.149`
+- **SSH User:** `root`
+- **SSH Аутентификация:** SSH ключ (без пароля)
+- **Database:** `freesport`
+- **DB User:** `postgres`
+- **Project Path:** `/home/freesport/freesport/`
 
 ## Базовая команда для SQL-запросов
 
@@ -34,94 +34,94 @@ ssh root@5.35.124.149 "cd /home/freesport/freesport/ && docker compose --env-fil
 
 ### 🛒 Products (Товары)
 
-| Таблица | Описание |
-|---------|----------|
-| `products` | Товары |
-| `product_variants` | Варианты товаров (SKU) |
-| `product_variants_attributes` | Связь вариантов с атрибутами |
-| `product_attributes` | Атрибуты товаров (размер, цвет) |
-| `product_attribute_values` | Значения атрибутов |
-| `product_images` | Изображения товаров |
-| `products_attributes` | Связь товаров с атрибутами |
-| `categories` | Категории товаров |
-| `brands` | Бренды |
-| `price_types` | Типы цен (розница, опт) |
-| `favorites` | Избранные товары |
+| Таблица                       | Описание                        |
+| ----------------------------- | ------------------------------- |
+| `products`                    | Товары                          |
+| `product_variants`            | Варианты товаров (SKU)          |
+| `product_variants_attributes` | Связь вариантов с атрибутами    |
+| `product_attributes`          | Атрибуты товаров (размер, цвет) |
+| `product_attribute_values`    | Значения атрибутов              |
+| `product_images`              | Изображения товаров             |
+| `products_attributes`         | Связь товаров с атрибутами      |
+| `categories`                  | Категории товаров               |
+| `brands`                      | Бренды                          |
+| `price_types`                 | Типы цен (розница, опт)         |
+| `favorites`                   | Избранные товары                |
 
 ### 📦 Orders (Заказы)
 
-| Таблица | Описание |
-|---------|----------|
-| `orders` | Заказы |
-| `order_items` | Позиции заказов |
+| Таблица                   | Описание         |
+| ------------------------- | ---------------- |
+| `orders`                  | Заказы           |
+| `order_items`             | Позиции заказов  |
 | `delivery_deliverymethod` | Способы доставки |
 
 ### 🛍️ Cart (Корзина)
 
-| Таблица | Описание |
-|---------|----------|
-| `carts` | Корзины пользователей |
-| `cart_items` | Товары в корзине |
+| Таблица      | Описание              |
+| ------------ | --------------------- |
+| `carts`      | Корзины пользователей |
+| `cart_items` | Товары в корзине      |
 
 ### 👤 Users (Пользователи)
 
-| Таблица | Описание |
-|---------|----------|
-| `users` | Пользователи |
-| `users_groups` | Связь пользователей с группами |
-| `users_user_permissions` | Права пользователей |
-| `addresses` | Адреса доставки |
-| `companies` | Компании (B2B) |
+| Таблица                  | Описание                       |
+| ------------------------ | ------------------------------ |
+| `users`                  | Пользователи                   |
+| `users_groups`           | Связь пользователей с группами |
+| `users_user_permissions` | Права пользователей            |
+| `addresses`              | Адреса доставки                |
+| `companies`              | Компании (B2B)                 |
 
 ### 📰 Common (Контент и логи)
 
-| Таблица | Описание |
-|---------|----------|
-| `common_news` | Новости |
-| `common_blogpost` | Блог-посты |
-| `common_category` | Категории контента |
-| `common_newsletter` | Подписки на рассылку |
-| `common_notificationrecipient` | Получатели уведомлений |
-| `common_auditlog` | Лог аудита |
-| `common_synclog` | Лог синхронизации |
-| `common_syncconflict` | Конфликты синхронизации |
-| `common_customersynclog` | Лог синхронизации клиентов |
+| Таблица                        | Описание                   |
+| ------------------------------ | -------------------------- |
+| `common_news`                  | Новости                    |
+| `common_blogpost`              | Блог-посты                 |
+| `common_category`              | Категории контента         |
+| `common_newsletter`            | Подписки на рассылку       |
+| `common_notificationrecipient` | Получатели уведомлений     |
+| `common_auditlog`              | Лог аудита                 |
+| `common_synclog`               | Лог синхронизации          |
+| `common_syncconflict`          | Конфликты синхронизации    |
+| `common_customersynclog`       | Лог синхронизации клиентов |
 
 ### 🏷️ Banners
 
-| Таблица | Описание |
-|---------|----------|
+| Таблица   | Описание            |
+| --------- | ------------------- |
 | `banners` | Баннеры Hero-секции |
 
 ### 📄 Pages
 
-| Таблица | Описание |
-|---------|----------|
+| Таблица      | Описание             |
+| ------------ | -------------------- |
 | `pages_page` | Статические страницы |
 
 ### 🔄 1C Import (Интеграция с 1С)
 
-| Таблица | Описание |
-|---------|----------|
-| `import_sessions` | Сессии импорта из 1С |
-| `products_brand_1c_mapping` | Маппинг брендов 1С |
-| `product_attribute_1c_mappings` | Маппинг атрибутов 1С |
+| Таблица                               | Описание                      |
+| ------------------------------------- | ----------------------------- |
+| `import_sessions`                     | Сессии импорта из 1С          |
+| `products_brand_1c_mapping`           | Маппинг брендов 1С            |
+| `product_attribute_1c_mappings`       | Маппинг атрибутов 1С          |
 | `product_attribute_value_1c_mappings` | Маппинг значений атрибутов 1С |
-| `color_mappings` | Маппинг цветов |
+| `color_mappings`                      | Маппинг цветов                |
 
 ### 🔐 Auth & Django
 
-| Таблица | Описание |
-|---------|----------|
-| `auth_group` | Группы пользователей |
-| `auth_group_permissions` | Права групп |
-| `auth_permission` | Разрешения |
-| `django_admin_log` | Лог админки |
-| `django_content_type` | Типы контента |
-| `django_migrations` | Миграции |
-| `django_session` | Сессии Django |
-| `token_blacklist_blacklistedtoken` | Чёрный список JWT |
-| `token_blacklist_outstandingtoken` | Активные JWT токены |
+| Таблица                            | Описание             |
+| ---------------------------------- | -------------------- |
+| `auth_group`                       | Группы пользователей |
+| `auth_group_permissions`           | Права групп          |
+| `auth_permission`                  | Разрешения           |
+| `django_admin_log`                 | Лог админки          |
+| `django_content_type`              | Типы контента        |
+| `django_migrations`                | Миграции             |
+| `django_session`                   | Сессии Django        |
+| `token_blacklist_blacklistedtoken` | Чёрный список JWT    |
+| `token_blacklist_outstandingtoken` | Активные JWT токены  |
 
 ## Готовые SQL-запросы
 
@@ -169,6 +169,7 @@ ssh root@5.35.124.149 "cd /home/freesport/freesport/ && docker compose --env-fil
 > PowerShell интерпретирует специальные символы (`$`, `%`, кавычки). Используйте **одинарные кавычки** для SQL-запросов внутри SSH-команды.
 
 ### Избегайте в SQL:
+
 - Двойных кавычек `"` — заменяйте на escape или используйте только одинарные
 - Символ `%` для LIKE — при необходимости используйте функцию `chr(37)`:
   ```sql

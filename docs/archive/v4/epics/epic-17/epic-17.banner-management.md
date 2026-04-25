@@ -66,13 +66,13 @@
 
 **Целевые группы пользователей:**
 
-| Группа | Описание | Условие отображения |
-|--------|----------|---------------------|
-| `show_to_guests` | Неавторизованные пользователи | `user === null` |
-| `show_to_authenticated` | Любой авторизованный пользователь | `user !== null` |
-| `show_to_trainers` | Тренеры/Фитнес-клубы | `user.role === 'trainer'` |
-| `show_to_wholesale` | Оптовики (все уровни) | `user.role.startsWith('wholesale')` |
-| `show_to_federation` | Представители федераций | `user.role === 'federation_rep'` |
+| Группа                  | Описание                          | Условие отображения                 |
+| ----------------------- | --------------------------------- | ----------------------------------- |
+| `show_to_guests`        | Неавторизованные пользователи     | `user === null`                     |
+| `show_to_authenticated` | Любой авторизованный пользователь | `user !== null`                     |
+| `show_to_trainers`      | Тренеры/Фитнес-клубы              | `user.role === 'trainer'`           |
+| `show_to_wholesale`     | Оптовики (все уровни)             | `user.role.startsWith('wholesale')` |
+| `show_to_federation`    | Представители федераций           | `user.role === 'federation_rep'`    |
 
 > [!IMPORTANT]
 > Один баннер может быть нацелен на несколько групп одновременно. Например: баннер "Скидка 10%" показывается и неавторизованным, и авторизованным B2C пользователям.
@@ -188,14 +188,14 @@
 
 ### Обязательные обновления
 
-| Документ | Что добавить | Приоритет |
-|----------|-------------|-----------|
-| [api-spec.yaml](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/api-spec.yaml) | Endpoint `/api/banners/active/`, схема `Banner` | HIGH |
-| [source-tree.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/source-tree.md) | Директория `apps/banners/` в структуре backend | HIGH |
-| [02-data-models.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/02-data-models.md) | Модель `Banner` с ER-диаграммой | HIGH |
-| [03-api-specification.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/03-api-specification.md) | Раздел "Banners API" с описанием эндпоинтов | MEDIUM |
-| [09-database-schema.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/09-database-schema.md) | Таблица `banners` со всеми полями | MEDIUM |
-| [GEMINI.md](file:///c:/Users/tkachenko/DEV/FREESPORT/GEMINI.md) | Описание `apps/banners/` в разделе "Django App Structure" | LOW |
+| Документ                                                                                                      | Что добавить                                              | Приоритет |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------- |
+| [api-spec.yaml](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/api-spec.yaml)                                  | Endpoint `/api/banners/active/`, схема `Banner`           | HIGH      |
+| [source-tree.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/source-tree.md)                   | Директория `apps/banners/` в структуре backend            | HIGH      |
+| [02-data-models.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/02-data-models.md)             | Модель `Banner` с ER-диаграммой                           | HIGH      |
+| [03-api-specification.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/03-api-specification.md) | Раздел "Banners API" с описанием эндпоинтов               | MEDIUM    |
+| [09-database-schema.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/architecture/09-database-schema.md)     | Таблица `banners` со всеми полями                         | MEDIUM    |
+| [GEMINI.md](file:///c:/Users/tkachenko/DEV/FREESPORT/GEMINI.md)                                               | Описание `apps/banners/` в разделе "Django App Structure" | LOW       |
 
 ### Пример изменений для api-spec.yaml
 
@@ -208,14 +208,14 @@
     description: |
       Возвращает список активных баннеров, отфильтрованных по роли пользователя.
       Для неавторизованных пользователей возвращаются баннеры с show_to_guests=true.
-    security: []  # Опциональная авторизация
+    security: [] # Опциональная авторизация
     responses:
-      '200':
+      "200":
         description: Список баннеров
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BannerList'
+              $ref: "#/components/schemas/BannerList"
 
 # Добавить в components/schemas:
 Banner:
@@ -243,7 +243,7 @@ BannerList:
     results:
       type: array
       items:
-        $ref: '#/components/schemas/Banner'
+        $ref: "#/components/schemas/Banner"
 ```
 
 ### Пример изменений для 02-data-models.md
@@ -287,7 +287,7 @@ class Banner(models.Model):
     Модель баннера для Hero-секции главной страницы.
     Поддерживает таргетинг по группам пользователей.
     """
-    
+
     # Контент
     title = models.CharField("Заголовок", max_length=200)
     subtitle = models.CharField("Подзаголовок", max_length=500, blank=True)
@@ -298,7 +298,7 @@ class Banner(models.Model):
     )
     cta_text = models.CharField("Текст кнопки", max_length=50)
     cta_link = models.CharField("Ссылка кнопки", max_length=200)
-    
+
     # Таргетинг по группам
     show_to_guests = models.BooleanField(
         "Показывать гостям",
@@ -325,7 +325,7 @@ class Banner(models.Model):
         default=False,
         help_text="Роль: federation_rep"
     )
-    
+
     # Управление
     is_active = models.BooleanField("Активен", default=True)
     priority = models.IntegerField(
@@ -345,20 +345,20 @@ class Banner(models.Model):
         blank=True,
         help_text="Оставьте пустым для бессрочного показа"
     )
-    
+
     # Метаданные
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
     updated_at = models.DateTimeField("Дата обновления", auto_now=True)
-    
+
     class Meta:
         verbose_name = "Баннер"
         verbose_name_plural = "Баннеры"
         db_table = "banners"
         ordering = ["-priority", "-created_at"]
-    
+
     def __str__(self) -> str:
         return f"{self.title} (priority: {self.priority})"
-    
+
     @property
     def is_scheduled_active(self) -> bool:
         """Проверка активности с учётом дат публикации"""
@@ -370,43 +370,43 @@ class Banner(models.Model):
         if self.end_date and now > self.end_date:
             return False
         return True
-    
+
     @classmethod
     def get_for_user(cls, user=None):
         """
         Получить баннеры для пользователя с учётом его роли.
-        
+
         Args:
             user: User instance или None для гостя
-        
+
         Returns:
             QuerySet баннеров, отсортированных по приоритету
         """
         from django.db.models import Q
-        
+
         now = timezone.now()
         base_qs = cls.objects.filter(is_active=True).filter(
             Q(start_date__isnull=True) | Q(start_date__lte=now)
         ).filter(
             Q(end_date__isnull=True) | Q(end_date__gte=now)
         )
-        
+
         if user is None or not user.is_authenticated:
             # Гость
             return base_qs.filter(show_to_guests=True)
-        
+
         # Авторизованный пользователь
         role = user.role
-        
+
         filters = Q(show_to_authenticated=True)
-        
+
         if role == "trainer":
             filters |= Q(show_to_trainers=True)
         elif role in ("wholesale_level1", "wholesale_level2", "wholesale_level3"):
             filters |= Q(show_to_wholesale=True)
         elif role == "federation_rep":
             filters |= Q(show_to_federation=True)
-        
+
         return base_qs.filter(filters)
 ```
 
@@ -416,9 +416,9 @@ class Banner(models.Model):
 
 ### Endpoints
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/banners/active/` | Получить активные баннеры для текущего пользователя | Optional |
+| Method | Endpoint               | Description                                         | Auth     |
+| ------ | ---------------------- | --------------------------------------------------- | -------- |
+| GET    | `/api/banners/active/` | Получить активные баннеры для текущего пользователя | Optional |
 
 ### Response Schema
 
@@ -548,17 +548,17 @@ from .models import Banner
 @admin.register(Banner)
 class BannerAdmin(admin.ModelAdmin):
     list_display = [
-        "title", 
-        "image_preview", 
-        "is_active", 
-        "priority", 
+        "title",
+        "image_preview",
+        "is_active",
+        "priority",
         "target_groups_display",
-        "start_date", 
+        "start_date",
         "end_date"
     ]
     list_filter = [
-        "is_active", 
-        "show_to_guests", 
+        "is_active",
+        "show_to_guests",
         "show_to_authenticated",
         "show_to_trainers",
         "show_to_wholesale",
@@ -566,7 +566,7 @@ class BannerAdmin(admin.ModelAdmin):
     ]
     search_fields = ["title", "subtitle"]
     ordering = ["-priority", "-created_at"]
-    
+
     fieldsets = (
         ("Контент", {
             "fields": ("title", "subtitle", "image", "cta_text", "cta_link")
@@ -574,7 +574,7 @@ class BannerAdmin(admin.ModelAdmin):
         ("Таргетинг", {
             "fields": (
                 "show_to_guests",
-                "show_to_authenticated", 
+                "show_to_authenticated",
                 "show_to_trainers",
                 "show_to_wholesale",
                 "show_to_federation"
@@ -585,16 +585,16 @@ class BannerAdmin(admin.ModelAdmin):
             "fields": ("is_active", "priority", "start_date", "end_date")
         }),
     )
-    
+
     def image_preview(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" width="100" height="30" style="object-fit: cover;" />', 
+                '<img src="{}" width="100" height="30" style="object-fit: cover;" />',
                 obj.image.url
             )
         return "-"
     image_preview.short_description = "Превью"
-    
+
     def target_groups_display(self, obj):
         groups = []
         if obj.show_to_guests:
@@ -640,9 +640,9 @@ class BannerAdmin(admin.ModelAdmin):
 
 ## Change Log
 
-| Date       | Version | Description                  | Author     |
-|------------|---------|------------------------------|------------|
-| 2025-12-19 | 1.0     | Initial epic creation        | Sarah (PO) |
+| Date       | Version | Description                                                                              | Author     |
+| ---------- | ------- | ---------------------------------------------------------------------------------------- | ---------- |
+| 2025-12-19 | 1.0     | Initial epic creation                                                                    | Sarah (PO) |
 | 2025-12-19 | 1.1     | Added Story 17.4 for documentation updates, added Documentation Updates Required section | Sarah (PO) |
 
 ---

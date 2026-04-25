@@ -68,10 +68,10 @@ findings:
     - "Корректная интеграция с CustomerDataProcessor (Story 3.2.1.0)"
     - "Structured logging для audit trail"
     - "Полная типизация с Type Hints и comprehensive docstrings"
-  
+
   weaknesses:
     - "Email валидация базовая (проверка @ и .), можно усилить (приоритет Low)"
-  
+
   test_coverage:
     - "AC 1 (CustomerIdentityResolver): 100% покрытие, 50+ тестов"
     - "AC 2 (B2B по ИНН): 100% покрытие, 6 тестов"
@@ -80,7 +80,7 @@ findings:
     - "AC 5 (Нормализация): 100% покрытие, 15 тестов"
     - "AC 6 (Логирование): 100% покрытие, 3 теста"
     - "AC 7 (Все сценарии): 100% покрытие, 50+ тестов"
-  
+
   integration:
     - "Корректная интеграция с CustomerDataProcessor из Story 3.2.1.0"
     - "Использует существующую модель CustomerSyncLog"

@@ -22,7 +22,7 @@ evidence:
   tests_reviewed: 19
   risks_identified: 0
   trace:
-    ac_covered: [1, 2, 3, 4, 5]  # Все AC покрыты тестами
+    ac_covered: [1, 2, 3, 4, 5] # Все AC покрыты тестами
     ac_gaps: []
 
 nfr_validation:
@@ -57,14 +57,22 @@ nfr_validation:
       Note: Эти concerns минорные и не блокируют продакшн
 
 recommendations:
-  immediate: []  # Нет критических рекомендаций
+  immediate: [] # Нет критических рекомендаций
   future:
     - action: "Добавить типизацию аргументов для методов в authentication.py (get_client_ip, post в views)"
-      refs: ["backend/apps/users/views/authentication.py:440", "backend/apps/users/views/authentication.py:517"]
+      refs:
+        [
+          "backend/apps/users/views/authentication.py:440",
+          "backend/apps/users/views/authentication.py:517",
+        ]
       priority: low
       note: "mypy warnings: Function is missing a type annotation for one or more arguments"
     - action: "Мигрировать CheckConstraint.check на .condition API (Django 6.0 deprecation)"
-      refs: ["backend/apps/cart/models.py:55", "backend/apps/common/migrations/0009_*.py:226"]
+      refs:
+        [
+          "backend/apps/cart/models.py:55",
+          "backend/apps/common/migrations/0009_*.py:226",
+        ]
       priority: low
       note: "Только 5 warnings, Django 6.0 еще далеко"
     - action: "Рассмотреть Redis кэширование для blacklist проверок при высокой нагрузке"

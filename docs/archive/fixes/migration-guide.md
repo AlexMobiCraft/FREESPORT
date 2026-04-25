@@ -7,16 +7,18 @@
 ## Проблема
 
 ### Исходное состояние
+
 - Нестандартная структура виртуального окружения (`backend/venv/Script/` вместо `Scripts/`)
 - Дублирование зависимостей между локальным venv и Docker
 - Ошибки при запуске утилит кодирования
 - Отсутствие единой стратегии разработки
 
 ### Симптомы
+
 ```
-Fatal error in launcher: Unable to create process using 
-"C:\Users\tkachenko\DEV\FREESPORT\backend\venv\Scripts\python.exe"  
-"C:\Users\tkachenko\DEV\FREESPORT\backend\venv\Script\black.exe" .': 
+Fatal error in launcher: Unable to create process using
+"C:\Users\tkachenko\DEV\FREESPORT\backend\venv\Scripts\python.exe"
+"C:\Users\tkachenko\DEV\FREESPORT\backend\venv\Script\black.exe" .':
 The system cannot find the file specified.
 ```
 
@@ -76,21 +78,25 @@ powershell -ExecutionPolicy Bypass -File scripts/migration/migrate-to-unified-en
 ### Ручная миграция
 
 #### Шаг 1: Резервное копирование
+
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/migration/backup-current-env.ps1
 ```
 
 #### Шаг 2: Создание нового окружения
+
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/migration/create-new-venv.ps1
 ```
 
 #### Шаг 3: Сборка Docker образа
+
 ```bash
 docker build -f docker/Dockerfile.dev-tools -t freesport-dev-tools ./backend
 ```
 
 #### Шаг 4: Валидация
+
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts/migration/check-env-consistency.ps1
 ```
@@ -163,6 +169,7 @@ powershell -ExecutionPolicy Bypass -File scripts/migration/check-env-consistency
 ### Устранение неполадок
 
 #### Проблема: "black не найден"
+
 ```bash
 # Решение 1: Через python -m
 backend/venv/Scripts/python.exe -m black .
@@ -177,6 +184,7 @@ black .
 ```
 
 #### Проблема: Docker утилиты не работают
+
 ```bash
 # Пересборка образа
 docker build -f docker/Dockerfile.dev-tools -t freesport-dev-tools ./backend
@@ -186,6 +194,7 @@ docker run --rm freesport-dev-tools black --version
 ```
 
 #### Проблема: Версии пакетов не совпадают
+
 ```bash
 # Обновление локального окружения
 cd backend
@@ -211,18 +220,21 @@ Move-Item 'backend/venv.backup.20251027-101500' 'backend/venv' -Force
 ## Преимущества новой архитектуры
 
 ### Для разработчиков
+
 - ✅ Быстрый доступ к утилитам локально
 - ✅ Стандартная структура виртуального окружения
 - ✅ Сохранение преимуществ Docker
 - ✅ Минимальные изменения в рабочих процессах
 
 ### Для проекта
+
 - ✅ Унификация зависимостей
 - ✅ Автоматическая проверка согласованности
 - ✅ Улучшенная документация
 - ✅ Снижение риска ошибок окружения
 
 ### Для CI/CD
+
 - ✅ Предсказуемые окружения
 - ✅ Быстрые проверки кода
 - ✅ Унифицированные версии пакетов
@@ -239,6 +251,7 @@ Move-Item 'backend/venv.backup.20251027-101500' 'backend/venv' -Force
 ## Поддержка
 
 При возникновении проблем:
+
 1. Проверьте логи миграции в `scripts/migration/`
 2. Запустите `make check-env-consistency` для диагностики
 3. Обратитесь к документации в `docs/development-environment.md`

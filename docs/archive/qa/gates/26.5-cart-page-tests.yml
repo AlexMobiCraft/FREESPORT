@@ -31,10 +31,16 @@ evidence:
     ac_gaps: []
 
 nfr_validation:
-  security: { status: PASS, notes: "MSW моки изолируют API от внешних зависимостей" }
+  security:
+    { status: PASS, notes: "MSW моки изолируют API от внешних зависимостей" }
   performance: { status: PASS, notes: "Тесты выполняются за ~5 секунд" }
-  reliability: { status: PASS, notes: "Полное покрытие error states и edge cases" }
-  maintainability: { status: PASS, notes: "JSDoc комментарии, модульные test utilities в setup.ts" }
+  reliability:
+    { status: PASS, notes: "Полное покрытие error states и edge cases" }
+  maintainability:
+    {
+      status: PASS,
+      notes: "JSDoc комментарии, модульные test utilities в setup.ts",
+    }
 
 test_coverage:
   CartItemCard: 28

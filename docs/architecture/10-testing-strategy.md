@@ -206,7 +206,7 @@ describe('ProductCard', () => {
 
     // Показывает оптовую цену как основную
     expect(screen.getByText('1 000 ₽')).toBeInTheDocument();
-    
+
     // Показывает RRP и MSRP для B2B пользователей (FR5)
     expect(screen.getByText('РРЦ: 1 300 ₽')).toBeInTheDocument();
     expect(screen.getByText('Макс. цена: 1 400 ₽')).toBeInTheDocument();
@@ -239,7 +239,7 @@ from apps.products.factories import ProductFactory
 @pytest.mark.django_db
 class TestProductAPI:
     """Тестирование Product API с ролевым ценообразованием"""
-    
+
     def setup_method(self):
         self.client = APIClient()
         self.product = ProductFactory(
@@ -252,60 +252,60 @@ class TestProductAPI:
             stock_quantity=50
         )
         self.url = reverse('products-detail', kwargs={'pk': self.product.pk})
-    
+
     def test_retail_user_sees_retail_pricing(self):
         """B2C пользователь видит только розничные цены"""
         user = UserFactory(role='retail')
         self.client.force_authenticate(user=user)
-        
+
         response = self.client.get(self.url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        
+
         # Видит розничную цену
         assert data['current_user_price'] == '1200.00'
-        
+
         # Не видит оптовые цены
         assert 'opt1_price' not in data
         assert 'opt2_price' not in data
         assert 'trainer_price' not in data
-        
+
         # Не видит RRP/MSRP (только для B2B)
         assert 'recommended_retail_price' not in data
         assert 'max_suggested_retail_price' not in data
-    
+
     def test_wholesale_user_sees_wholesale_pricing_and_rrp_msrp(self):
         """B2B пользователь видит свои цены + RRP/MSRP (FR5)"""
         user = UserFactory(role='wholesale_level2')
         self.client.force_authenticate(user=user)
-        
+
         response = self.client.get(self.url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        
+
         # Видит свою оптовую цену
         assert data['current_user_price'] == '950.00'
-        
+
         # Видит RRP и MSRP для принятия решений (FR5)
         assert data['recommended_retail_price'] == '1300.00'
         assert data['max_suggested_retail_price'] == '1400.00'
-        
+
         # Видит все уровни оптовых цен для сравнения
         assert data['opt1_price'] == '1000.00'
         assert data['opt2_price'] == '950.00'
-    
+
     def test_trainer_sees_trainer_pricing(self):
         """Тренер видит специальную цену"""
         user = UserFactory(role='trainer')
         self.client.force_authenticate(user=user)
-        
+
         response = self.client.get(self.url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        
+
         # Видит тренерскую цену
         assert data['current_user_price'] == '900.00'
         assert data['trainer_price'] == '900.00'
@@ -313,11 +313,11 @@ class TestProductAPI:
 @pytest.mark.django_db
 class TestCustomerSyncAPI:
     """Тестирование API синхронизации покупателей с 1С"""
-    
+
     def setup_method(self):
         self.client = APIClient()
         self.sync_url = reverse('onec-customers-list')
-    
+
     def test_import_customers_from_1c(self):
         """Тестирование импорта покупателей из 1С"""
         # Подготовка данных как от 1С
@@ -335,23 +335,23 @@ class TestCustomerSyncAPI:
                 }
             ]
         }
-        
+
         # Имитируем вызов от 1С системы
         self.client.credentials(HTTP_X_API_KEY='test-1c-api-key')
         response = self.client.post(self.sync_url, customers_data, format='json')
-        
+
         assert response.status_code == status.HTTP_202_ACCEPTED
         data = response.json()
         assert data['imported_count'] == 1
         assert data['conflicts_count'] == 0
-        
+
         # Проверяем что пользователь создался
         from apps.users.models import User
         user = User.objects.get(email='client@example.com')
         assert user.onec_id == 'CLIENT_001'
         assert user.role == 'wholesale_level2'
         assert user.company_name == 'ООО Спорт'
-    
+
     def test_import_handles_conflicts(self):
         """Тестирование обработки конфликтов при импорте"""
         # Создаем существующего пользователя
@@ -360,7 +360,7 @@ class TestCustomerSyncAPI:
             company_name='ООО Старая компания',
             tax_id='1111111111'
         )
-        
+
         # Импортируем того же пользователя с другими данными
         customers_data = {
             'customers': [
@@ -375,14 +375,14 @@ class TestCustomerSyncAPI:
                 }
             ]
         }
-        
+
         self.client.credentials(HTTP_X_API_KEY='test-1c-api-key')
         response = self.client.post(self.sync_url, customers_data, format='json')
-        
+
         assert response.status_code == status.HTTP_202_ACCEPTED
         data = response.json()
         assert data['conflicts_count'] == 1
-        
+
         # Проверяем что создалась запись о конфликте
         from apps.common.models import SyncConflict
         conflict = SyncConflict.objects.filter(customer=existing_user).first()
@@ -406,10 +406,10 @@ from apps.users.factories import UserFactory
 @pytest.mark.django_db
 class TestOneCCustomerSync:
     """Интеграционные тесты синхронизации покупателей с 1С"""
-    
+
     def setup_method(self):
         self.sync_service = OneCCustomerSyncService()
-    
+
     @patch('apps.common.services.OneCCircuitBreaker.call_1c_api')
     def test_successful_customer_export_to_1c(self, mock_1c_call):
         """Тестирование успешного экспорта покупателя в 1С"""
@@ -419,7 +419,7 @@ class TestOneCCustomerSync:
             'onec_id': 'CLIENT_NEW_001',
             'message': 'Customer created successfully'
         }
-        
+
         # Создаем B2B пользователя для экспорта
         user = UserFactory(
             role='wholesale_level2',
@@ -427,19 +427,19 @@ class TestOneCCustomerSync:
             tax_id='1234567890',
             is_verified_b2b=True
         )
-        
+
         # Экспортируем в 1С
         result = self.sync_service.export_customer_to_1c(user)
-        
+
         # Проверяем результат
         assert result['status'] == 'success'
         assert result['onec_id'] == 'CLIENT_NEW_001'
-        
+
         # Проверяем что пользователь обновился
         user.refresh_from_db()
         assert user.onec_id == 'CLIENT_NEW_001'
         assert user.last_sync_to_1c is not None
-        
+
         # Проверяем что создался лог
         from apps.common.models import CustomerSyncLog
         sync_log = CustomerSyncLog.objects.filter(
@@ -448,7 +448,7 @@ class TestOneCCustomerSync:
         ).first()
         assert sync_log is not None
         assert sync_log.status == 'success'
-    
+
     @patch('apps.common.services.OneCCircuitBreaker.call_1c_api')
     def test_fallback_to_file_exchange_when_1c_unavailable(self, mock_1c_call):
         """Тестирование fallback к файловому обмену при недоступности 1С"""
@@ -458,15 +458,15 @@ class TestOneCCustomerSync:
             'method': 'file',
             'message': 'Exported to XML file for manual processing'
         }
-        
+
         user = UserFactory(role='wholesale_level1')
-        
+
         result = self.sync_service.export_customer_to_1c(user)
-        
+
         # Проверяем что сработал fallback
         assert result['status'] == 'fallback_success'
         assert result['method'] == 'file'
-        
+
         # Проверяем что создался соответствующий лог
         from apps.common.models import CustomerSyncLog
         sync_log = CustomerSyncLog.objects.filter(customer=user).first()
@@ -480,25 +480,25 @@ class TestOneCCustomerSync:
             'tax_id': '1111111111',
             'phone': '+7900123456'
         }
-        
+
         onec_data = {
             'email': 'test@example.com',
             'company_name': 'ООО 1С Система',  # Конфликт!
             'tax_id': '2222222222',  # Конфликт!
             'phone': '+7900123456'
         }
-        
+
         from apps.common.services import CustomerSyncConflictResolver
         resolver = CustomerSyncConflictResolver()
-        
+
         conflicts = resolver._detect_conflicts(platform_data, onec_data)
-        
+
         # Проверяем обнаружение конфликтов
         assert len(conflicts) == 2
         conflict_fields = [c['field'] for c in conflicts]
         assert 'company_name' in conflict_fields
         assert 'tax_id' in conflict_fields
-        
+
         # Проверяем определение серьезности
         tax_id_conflict = next(c for c in conflicts if c['field'] == 'tax_id')
         assert tax_id_conflict['severity'] == 'high'
@@ -506,13 +506,13 @@ class TestOneCCustomerSync:
 @pytest.mark.django_db
 class TestOneCMetricsCollection:
     """Тестирование сбора метрик интеграции с 1С"""
-    
+
     def test_metrics_collection(self):
         """Тестирование сбора основных метрик"""
         # Создаем тестовые данные для метрик
         from apps.common.models import ImportLog, SyncConflict
         from apps.users.factories import UserFactory
-        
+
         # Создаем логи импорта
         ImportLog.objects.create(
             import_type='customers',
@@ -521,7 +521,7 @@ class TestOneCMetricsCollection:
             successful_records=8,
             failed_records=2
         )
-        
+
         # Создаем конфликт
         user = UserFactory()
         SyncConflict.objects.create(
@@ -531,12 +531,12 @@ class TestOneCMetricsCollection:
             onec_data={'test': 'other_data'},
             conflicting_fields=['company_name']
         )
-        
+
         from apps.common.services import OneCMetricsCollector
         collector = OneCMetricsCollector()
-        
+
         metrics = collector.collect_sync_metrics()
-        
+
         # Проверяем собранные метрики
         assert metrics['total_sync_operations'] == 1
         assert metrics['successful_syncs'] == 1
@@ -554,44 +554,44 @@ import json
 
 class OneCMockServer:
     """Mock сервер для имитации 1С API в тестах"""
-    
+
     def __init__(self):
         self.customers_db = {}
         self.orders_db = {}
         self.call_count = 0
-        
+
     def create_customer(self, customer_data: dict) -> dict:
         """Имитация создания покупателя в 1С"""
         self.call_count += 1
         onec_id = f"MOCK_CLIENT_{self.call_count:03d}"
-        
+
         self.customers_db[onec_id] = customer_data
-        
+
         return {
             'status': 'success',
             'onec_id': onec_id,
             'message': 'Customer created successfully'
         }
-    
+
     def get_customers(self, modified_since: str = None) -> dict:
         """Имитация получения списка покупателей из 1С"""
         customers = list(self.customers_db.values())
-        
+
         # Фильтрация по дате при необходимости
         if modified_since:
             # В реальной системе здесь была бы фильтрация по дате
             pass
-            
+
         return {
             'status': 'success',
             'customers': customers,
             'total_count': len(customers)
         }
-    
+
     def simulate_network_error(self):
         """Имитация сетевой ошибки"""
         raise ConnectionError("Mock network error for testing")
-    
+
     def simulate_timeout(self):
         """Имитация таймаута"""
         raise TimeoutError("Mock timeout error for testing")
@@ -612,14 +612,14 @@ def test_1c_integration_with_mock(mock_post, mock_onec_server):
     })
     mock_response.status_code = 200
     mock_post.return_value = mock_response
-    
+
     # Выполняем тест
     from apps.common.services import OneCCustomerSyncService
     service = OneCCustomerSyncService()
-    
+
     user = UserFactory(email='test@example.com')
     result = service.export_customer_to_1c(user)
-    
+
     assert result['status'] == 'success'
     assert 'MOCK_CLIENT' in result['onec_id']
 ```
@@ -628,65 +628,73 @@ def test_1c_integration_with_mock(mock_post, mock_onec_server):
 
 ```typescript
 // e2e/tests/integration/b2b-customer-sync.spec.ts
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test.describe('B2B Customer Sync Flow', () => {
-  test('B2B registration triggers 1C export after verification', async ({ page }) => {
+test.describe("B2B Customer Sync Flow", () => {
+  test("B2B registration triggers 1C export after verification", async ({
+    page,
+  }) => {
     // Регистрация B2B пользователя
-    await page.goto('/register');
-    await page.selectOption('#role', 'wholesale_level2');
-    
-    await page.fill('#email', 'b2b-test@example.com');
-    await page.fill('#company_name', 'ООО Тест Интеграция');
-    await page.fill('#tax_id', '1234567890');
-    await page.fill('#password', 'SecurePassword123!');
-    
+    await page.goto("/register");
+    await page.selectOption("#role", "wholesale_level2");
+
+    await page.fill("#email", "b2b-test@example.com");
+    await page.fill("#company_name", "ООО Тест Интеграция");
+    await page.fill("#tax_id", "1234567890");
+    await page.fill("#password", "SecurePassword123!");
+
     await page.click('button[type="submit"]');
-    
+
     // Проверяем что показывается статус ожидания верификации
-    await expect(page.locator('.verification-pending')).toBeVisible();
-    await expect(page.locator('.verification-pending')).toContainText('На проверке');
-    
+    await expect(page.locator(".verification-pending")).toBeVisible();
+    await expect(page.locator(".verification-pending")).toContainText(
+      "На проверке",
+    );
+
     // Имитируем верификацию администратором
     // (в реальном тесте это было бы через API или админ панель)
-    await page.goto('/admin/verify-b2b-user/test@example.com');
-    await page.click('#approve-user');
-    
+    await page.goto("/admin/verify-b2b-user/test@example.com");
+    await page.click("#approve-user");
+
     // Проверяем что пользователь получил уведомление
-    await page.goto('/profile');
-    await expect(page.locator('.verification-status')).toContainText('Верифицирован');
-    
+    await page.goto("/profile");
+    await expect(page.locator(".verification-status")).toContainText(
+      "Верифицирован",
+    );
+
     // Проверяем что запустилась синхронизация с 1С
-    await expect(page.locator('.sync-status')).toContainText('Синхронизация с 1С');
-    
+    await expect(page.locator(".sync-status")).toContainText(
+      "Синхронизация с 1С",
+    );
+
     // В реальном тесте здесь проверялся бы лог синхронизации через API
   });
-  
-  test('B2B user sees correct pricing after sync', async ({ page }) => {
+
+  test("B2B user sees correct pricing after sync", async ({ page }) => {
     // Авторизуемся как B2B пользователь
-    await page.goto('/login');
-    await page.fill('#email', 'wholesale@example.com');
-    await page.fill('#password', 'password');
+    await page.goto("/login");
+    await page.fill("#email", "wholesale@example.com");
+    await page.fill("#password", "password");
     await page.click('button[type="submit"]');
-    
+
     // Идем в каталог
-    await page.goto('/catalog');
-    await page.click('.product-card:first-child');
-    
+    await page.goto("/catalog");
+    await page.click(".product-card:first-child");
+
     // Проверяем что отображаются B2B цены
-    await expect(page.locator('.wholesale-price')).toBeVisible();
-    await expect(page.locator('.rrp-price')).toBeVisible(); // RRP для B2B (FR5)
-    await expect(page.locator('.msrp-price')).toBeVisible(); // MSRP для B2B (FR5)
-    
+    await expect(page.locator(".wholesale-price")).toBeVisible();
+    await expect(page.locator(".rrp-price")).toBeVisible(); // RRP для B2B (FR5)
+    await expect(page.locator(".msrp-price")).toBeVisible(); // MSRP для B2B (FR5)
+
     // Проверяем что не отображается розничная цена
-    await expect(page.locator('.retail-price')).not.toBeVisible();
-    
+    await expect(page.locator(".retail-price")).not.toBeVisible();
+
     // Проверяем корректность отображения информационных цен
-    const rrpText = await page.locator('.rrp-price').textContent();
-    const msrpText = await page.locator('.msrp-price').textContent();
-    
-    expect(rrpText).toContain('РРЦ:');
-    expect(msrpText).toContain('Макс. цена:');
+    const rrpText = await page.locator(".rrp-price").textContent();
+    const msrpText = await page.locator(".msrp-price").textContent();
+
+    expect(rrpText).toContain("РРЦ:");
+    expect(msrpText).toContain("Макс. цена:");
   });
 });
 ```
@@ -700,22 +708,22 @@ test.describe('B2B Customer Sync Flow', () => {
 coverage_targets:
   overall: 70%
   critical_modules: 90%
-  
+
 critical_modules:
   - apps.users.models
   - apps.users.serializers
   - apps.products.models
   - apps.orders.models
-  - apps.common.services  # Включая 1С интеграцию
-  - apps.common.models    # CustomerSyncLog, ImportLog, SyncConflict
+  - apps.common.services # Включая 1С интеграцию
+  - apps.common.models # CustomerSyncLog, ImportLog, SyncConflict
 
 integration_modules:
   required_coverage: 85%
   modules:
     - apps.common.services.onec_sync
     - apps.common.services.conflict_resolver
-    - apps.users.serializers  # B2B/B2C разделение
-    - apps.products.views     # Ролевое ценообразование
+    - apps.users.serializers # B2B/B2C разделение
+    - apps.products.views # Ролевое ценообразование
 ```
 
 #### Обязательные тестовые сценарии
@@ -745,17 +753,17 @@ test_matrix:
   unit_tests:
     - backend_unit_tests
     - frontend_unit_tests
-    
+
   integration_tests:
     - api_integration_tests
     - 1c_integration_mocks
     - database_integration_tests
-    
+
   e2e_tests:
     - critical_user_flows
     - b2b_registration_flow
     - pricing_verification_flow
-    
+
   performance_tests:
     - 1c_sync_performance
     - api_response_times
@@ -777,35 +785,35 @@ from coverage import Coverage
 
 class TestCoverageRequirements:
     """Проверка соблюдения требований к покрытию тестами"""
-    
+
     def test_critical_modules_coverage_above_90_percent(self):
         """Критичные модули должны иметь покрытие >= 90%"""
         cov = Coverage()
         cov.load()
-        
+
         critical_modules = [
             'apps.users.models',
             'apps.common.services.onec_sync',
             'apps.common.models'
         ]
-        
+
         for module in critical_modules:
             coverage_percent = cov.report(include=[module], show_missing=False)
             assert coverage_percent >= 90, f"{module} coverage is {coverage_percent}%, required 90%+"
-    
+
     def test_integration_endpoints_have_tests(self):
         """Все endpoints интеграции с 1С должны быть покрыты тестами"""
         from django.urls import reverse
         from django.test import Client
-        
+
         integration_endpoints = [
             'onec-customers-list',
-            'onec-orders-list', 
+            'onec-orders-list',
             'onec-sync-conflicts-list'
         ]
-        
+
         client = Client()
-        
+
         for endpoint_name in integration_endpoints:
             url = reverse(endpoint_name)
             # Проверяем что существует тест для этого endpoint
@@ -846,17 +854,17 @@ def enable_db_access_for_all_tests(db):
     """Автоматически включает доступ к базе данных для всех тестов"""
     pass
 
-@pytest.fixture(autouse=True) 
+@pytest.fixture(autouse=True)
 def clear_db_before_test(transactional_db):
     """Очищает базу данных перед каждым тестом для полной изоляции"""
     from django.core.cache import cache
     from django.db import connection
     from django.apps import apps
     from django.db import transaction
-    
+
     # Очищаем кэши Django
     cache.clear()
-    
+
     # Принудительная очистка всех таблиц перед тестом
     with connection.cursor() as cursor:
         models = apps.get_models()
@@ -866,7 +874,7 @@ def clear_db_before_test(transactional_db):
                 cursor.execute(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
             except Exception:
                 pass  # Игнорируем ошибки для системных таблиц
-    
+
     # Используем транзакционную изоляцию
     with transaction.atomic():
         yield
@@ -895,7 +903,7 @@ def get_unique_suffix():
 class BrandFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Brand
-    
+
     name = factory.LazyFunction(lambda: f"Brand-{get_unique_suffix()}")  # ✅ Правильно
     # name = factory.Sequence(lambda n: f"Brand-{n}")  # ❌ Может дублироваться
 ```
@@ -907,7 +915,7 @@ class BrandFactory(factory.django.DjangoModelFactory):
 ```ini
 [tool:pytest]
 DJANGO_SETTINGS_MODULE = freesport.settings.test
-addopts = 
+addopts =
     --verbose
     --create-db        # ✅ Создавать чистую БД
     --nomigrations     # ✅ Не выполнять миграции для скорости
@@ -948,7 +956,7 @@ pytest --ignore=tests/legacy
 ```bash
 # Тестирование в Docker (рекомендуется)
 make test                    # Все тесты с PostgreSQL + Redis
-make test-unit               # Только unit-тесты  
+make test-unit               # Только unit-тесты
 make test-integration        # Только интеграционные тесты
 make test-fast               # Без пересборки образов
 ```
@@ -964,7 +972,7 @@ make test-fast               # Без пересборки образов
 class ProductFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Product
-    
+
     name = factory.LazyFunction(lambda: f"Product-{get_unique_suffix()}")
     sku = factory.LazyFunction(lambda: f"SKU-{get_unique_suffix().upper()}")
     slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(' ', '-'))
@@ -996,7 +1004,7 @@ from rest_framework.test import APIClient
 # Маркировка для всего модуля
 pytestmark = pytest.mark.django_db
 
-@pytest.mark.integration 
+@pytest.mark.integration
 class TestProductAPI:
     def test_product_list_returns_200(self, api_client):
         response = api_client.get('/api/products/')
@@ -1013,12 +1021,12 @@ def test_order_creation_calculates_total_correctly():
     user = UserFactory.create()
     product1 = ProductFactory.create(retail_price=100)
     product2 = ProductFactory.create(retail_price=200)
-    
+
     # ACT - выполнение действия
     order = Order.objects.create(user=user)
     OrderItem.objects.create(order=order, product=product1, quantity=1)
     OrderItem.objects.create(order=order, product=product2, quantity=2)
-    
+
     # ASSERT - проверка результата
     assert order.calculate_total() == 500  # 100*1 + 200*2
 ```
@@ -1039,7 +1047,7 @@ def test_order_creation_calculates_total_correctly():
 
 ```python
 def test_user_registration_creates_inactive_user():
-def test_product_search_filters_by_brand():  
+def test_product_search_filters_by_brand():
 def test_order_calculation_includes_delivery_cost():
 def test_unauthorized_user_cannot_access_profile():
 
@@ -1068,7 +1076,7 @@ class TestOrderCalculationService:
 **Критерии успеха:**
 
 - `unit_tests`: 100% pass
-- `integration_tests`: 100% pass  
+- `integration_tests`: 100% pass
 - `e2e_tests`: 95% pass (допустимы flaky tests)
 - `coverage`: >= 70% overall, >= 90% critical modules
 

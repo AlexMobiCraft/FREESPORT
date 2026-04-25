@@ -23,30 +23,31 @@
 6. Если findings нет, напиши `No findings`.
 
 Spec/context для чтения при необходимости:
+
 - `C:\Users\1\DEV\FREESPORT\_bmad-output\implementation-artifacts\Story\34-2-sub-order-creation-logic-and-api.md`
 - `C:\Users\1\DEV\FREESPORT\project-context.md`
 - `C:\Users\1\DEV\FREESPORT\CLAUDE.md`
 
 Snapshot diff (`git diff HEAD`):
 
-```diff
+````diff
 diff --git a/_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md b/_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md
 index c5fe838d..f8b745fd 100644
 --- a/_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md
 +++ b/_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md
 @@ -230,6 +230,8 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
- 
+
  - [x] [Review][Patch] Восстановить явный input-контракт `discount_amount` и валидацию вместо silent-ignore неизвестного поля: текущий diff убрал поле из `OrderCreateSerializer.Meta.fields`, а новый unit-тест закрепляет это поведение, хотя frontend/MSW/OpenAPI по-прежнему трактуют `discount_amount` как допустимый create-параметр; так invalid payload больше не получает 4xx, а schema drift остаётся незамеченным. [backend/apps/orders/serializers.py:158]
  - [x] [Review][Patch] Усилить regression-тест конкурентного checkout: сейчас он проверяет только наличие одного `201` и одного master-order, поэтому пропускает случаи, где проигравший запрос возвращает `500`/другую ошибку вместо ожидаемого `400`, а сбои внутри потоков маскируются слабой диагностикой. [backend/tests/integration/test_cart_order_integration.py:816]
 +- [x] [Review][Patch] Заменить `discount_amount` на backend-authoritative `promo_code` stub в checkout-контракте: пользователь должен передавать промокод/фразу, backend — проверять код по БД действующих кодов и сам вычислять скидку; на текущем этапе нужна заглушка под будущую реализацию и синхронизация frontend/tests/docs, чтобы заказ не показывал скидку в UI и не сохранялся без неё молча. [backend/apps/orders/services/order_create.py:45]
 +- [x] [Review][Defer] Определить consume-snapshot контракт корзины во время checkout [backend/apps/orders/services/order_create.py:35] — deferred, pre-existing. Причина: в дальнейшем создать отдельную спеку для реализации этой функции.
- 
+
  ## Dev Agent Record
- 
+
 @@ -239,6 +241,27 @@ claude-sonnet-4-6
- 
+
  ### Debug Log References
- 
+
 +**Thirty-Second Follow-up (2026-04-19) — подтверждённые результаты:**
 +
 +Backend (orders area):
@@ -69,20 +70,20 @@ index c5fe838d..f8b745fd 100644
 +```
 +
  **Thirty-First Follow-up (2026-04-19) — подтверждённые результаты:**
- 
+
  Backend regression (pytest, orders area):
 @@ -300,6 +323,7 @@ pytest -m integration tests/integration/test_cart_order_integration.py
  - ✅ Resolved review finding [Medium]: добавлен `ConcurrentCartCheckoutTests(TransactionTestCase)` с реальным concurrent тестом `test_concurrent_double_submit_creates_only_one_order` — два потока с `threading.Barrier` + `TransactionTestCase` (реальные транзакции). Тест подтверждает, что `select_for_update()` гарантирует создание ровно одного мастер-заказа при параллельных запросах.
  - ✅ Resolved [Patch] Восстановлен explicit input-контракт `discount_amount` в `OrderCreateSerializer`: поле добавлено обратно в `Meta.fields` с `min_value=0`; отрицательные значения явно отклоняются с 400 (не silent-ignore). Сервер по-прежнему выставляет `discount_amount=0` через service (promo-система TODO). Тест переименован в `test_discount_amount_negative_rejected_with_validation_error`.
  - ✅ Resolved [Patch] Усилен concurrent-тест `test_concurrent_double_submit_creates_only_one_order`: добавлен захват исключений потоков, явная проверка что проигравший поток возвращает HTTP 400 (не 500), информативные сообщения при провале.
 +- ✅ Resolved [Patch] `promo_code` stub реализован в checkout-контракте (Story 34-2 Thirty-Second Follow-up): `OrderCreateSerializer` принимает optional `promo_code` CharField; `OrderCreateService` поп-ает поле (discount=0, promo-система TODO); `CreateOrderPayload` в frontend типах расширен; `mapFormDataToPayload`/`createOrder` принимают `promoCode`; MSW handler синхронизирован; 2 backend unit-теста + 2 frontend regression-теста добавлены. Backend: 114 passed, lint clean. Frontend: 2251 passed, tsc clean.
- 
+
  ### File List
- 
+
 @@ -319,6 +343,17 @@ pytest -m integration tests/integration/test_cart_order_integration.py
  - `frontend/src/components/checkout/__tests__/OrderSuccessView.test.tsx` — добавлены 2 regression-теста на локализацию `transport_company`/`transport_schedule`.
  - `frontend/src/components/business/OrderDetail/OrderDetail.test.tsx` — добавлены 2 regression-теста на локализацию `transport_company`/`transport_schedule`.
- 
+
 +**Изменённые файлы (Thirty-Second Follow-up, 2026-04-19):**
 +
 +- `backend/apps/orders/serializers.py` — добавлен `promo_code` CharField (optional, nullable, max_length=100) в `OrderCreateSerializer`; добавлен в `Meta.fields`.
@@ -95,7 +96,7 @@ index c5fe838d..f8b745fd 100644
 +- `_bmad-output/implementation-artifacts/Story/34-2-sub-order-creation-logic-and-api.md` — Review Findings [x], File List, Completion Notes, Debug Log, Change Log, Status → review.
 +
  **Изменённые файлы (Thirty-First Follow-up, 2026-04-19):**
- 
+
  - `backend/apps/orders/serializers.py` — `discount_amount` возвращён в `OrderCreateSerializer.Meta.fields` с явным `DecimalField(min_value=0)`; отрицательные значения получают 400; сервер по-прежнему выставляет 0 через service.
 @@ -500,3 +535,4 @@ Changes Requested
  | 2026-04-18 | Twenty-Ninth follow-up code review (AI): выявлено, что security fix по `discount_amount` сломал AC4/business-contract скидок, а новый test на double-submit не доказывает конкурентный сценарий для `select_for_update()`. Status → in-progress. Outcome: Changes Requested. |
@@ -131,7 +132,7 @@ index c9fbe438..71b8882e 100644
 @@ -163,6 +163,16 @@ class OrderCreateSerializer(serializers.ModelSerializer):
          default=Decimal("0"),
      )
- 
+
 +    # promo_code — заглушка под будущую promo-систему (Story 34-2 [Review][Patch]).
 +    # Поле принимается от клиента, но на текущем этапе игнорируется сервером;
 +    # discount_amount остаётся 0 до реализации PromoCode.validate(cart, user).
@@ -144,14 +145,14 @@ index c9fbe438..71b8882e 100644
 +
      class Meta:
          """Мета-класс для OrderCreateSerializer"""
- 
+
 @@ -177,6 +187,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
              "customer_email",
              "customer_phone",
              "discount_amount",
 +            "promo_code",
          ]
- 
+
      def validate(self, attrs):
 diff --git a/backend/apps/orders/services/order_create.py b/backend/apps/orders/services/order_create.py
 index b37d9166..ae92b279 100644
@@ -160,7 +161,7 @@ index b37d9166..ae92b279 100644
 @@ -42,10 +42,11 @@ class OrderCreateService:
                  "Корзина пуста или уже используется для создания заказа. " "Обновите корзину и попробуйте снова."
              )
- 
+
 -        # discount_amount is server-authoritative; client field removed from input contract.
 -        # Currently 0: promo system not implemented.
 -        # Future: replace with PromoCode.calculate(cart, user) or similar server-side logic.
@@ -170,7 +171,7 @@ index b37d9166..ae92b279 100644
          validated_data.pop("discount_amount", None)
 +        validated_data.pop("promo_code", None)
          discount_amount: Decimal = Decimal("0")
- 
+
          # 1. Сгруппировать позиции корзины по variant.vat_rate
 diff --git a/backend/tests/unit/test_serializers/test_order_serializers.py b/backend/tests/unit/test_serializers/test_order_serializers.py
 index fdc32405..13a5ae13 100644
@@ -285,7 +286,7 @@ index 7e35eaca..804b48f8 100644
        discount_amount?: string;
 +      promo_code?: string | null; // stub Story 34-2 [Review][Patch]
      };
- 
+
      if (!body.customer_email) {
 diff --git a/frontend/src/services/__tests__/ordersService.test.ts b/frontend/src/services/__tests__/ordersService.test.ts
 index 5e500d98..0925b603 100644
@@ -309,7 +310,7 @@ index 5e500d98..0925b603 100644
 +      expect((payloadUndefined as unknown as Record<string, unknown>)['promo_code']).toBeUndefined();
 +    });
    });
- 
+
    describe('parseApiError', () => {
 diff --git a/frontend/src/services/ordersService.ts b/frontend/src/services/ordersService.ts
 index 8e8cffb3..e891d6ac 100644
@@ -339,7 +340,7 @@ index 8e8cffb3..e891d6ac 100644
 +  }
    return payload;
  }
- 
+
 @@ -117,17 +122,19 @@ class OrdersService {
    /**
     * Создать новый заказ
@@ -356,10 +357,10 @@ index 8e8cffb3..e891d6ac 100644
      if (!cartItems || cartItems.length === 0) {
        throw new Error('Корзина пуста, невозможно оформить заказ');
      }
- 
+
 -    const payload = mapFormDataToPayload(formData, cartItems, discountAmount);
 +    const payload = mapFormDataToPayload(formData, cartItems, discountAmount, promoCode);
- 
+
      try {
        const response = await apiClient.post<CreateOrderResponse>('/orders/', payload);
 diff --git a/frontend/src/types/order.ts b/frontend/src/types/order.ts
@@ -367,7 +368,7 @@ index 409c4762..c2f4c37a 100644
 --- a/frontend/src/types/order.ts
 +++ b/frontend/src/types/order.ts
 @@ -140,6 +140,10 @@ export interface CreateOrderPayload {
- 
+
    // Сумма скидки (только на мастер-заказе, AC4 Story 34-2)
    discount_amount?: string; // Decimal как строка, например "500.00"
 +
@@ -375,6 +376,6 @@ index 409c4762..c2f4c37a 100644
 +  // Когда promo-система появится, backend будет проверять код и вычислять скидку.
 +  promo_code?: string | null;
  }
- 
+
  /**
-```
+````

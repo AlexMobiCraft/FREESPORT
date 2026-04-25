@@ -1,6 +1,7 @@
 # CSS Variables Mapping для FREESPORT Design System v2.1.0
 
 ## Цель документа
+
 Этот документ определяет mapping между hardcoded HEX цветами и CSS переменными для обеспечения консистентности дизайн-системы.
 
 ---
@@ -8,11 +9,13 @@
 ## Primary Colors (Синяя палитра - основные акценты)
 
 ### ❌ НЕПРАВИЛЬНО (Hardcoded):
+
 ```tsx
 <button className="bg-[#0060FF] hover:bg-[#0047CC] active:bg-[#0037A6]">
 ```
 
 ### ✅ ПРАВИЛЬНО (CSS Variables):
+
 ```tsx
 <button className="bg-primary hover:bg-primary-hover active:bg-primary-active">
 ```
@@ -30,11 +33,13 @@
 ## Secondary Colors (Голубая палитра - вторичные акценты)
 
 ### ❌ НЕПРАВИЛЬНО:
+
 ```tsx
 <div className="bg-[#00B7FF] border-[#0095D6]">
 ```
 
 ### ✅ ПРАВИЛЬНО:
+
 ```tsx
 <div className="bg-secondary border-secondary-hover">
 ```
@@ -52,39 +57,45 @@
 ## Accent Colors (Семантические цвета)
 
 ### Success (Зеленый)
-| HEX Code | CSS Variable | Tailwind Class | Usage |
-|----------|--------------|----------------|-------|
-| `#00AA5B` | `var(--color-success)` | `text-success` / `bg-success` | Успех, в наличии |
-| `#E0F5E8` | `var(--color-success-bg)` | `bg-success-bg` | Фон success badge |
+
+| HEX Code  | CSS Variable              | Tailwind Class                | Usage             |
+| --------- | ------------------------- | ----------------------------- | ----------------- |
+| `#00AA5B` | `var(--color-success)`    | `text-success` / `bg-success` | Успех, в наличии  |
+| `#E0F5E8` | `var(--color-success-bg)` | `bg-success-bg`               | Фон success badge |
 
 ### Warning (Оранжевый)
-| HEX Code | CSS Variable | Tailwind Class | Usage |
-|----------|--------------|----------------|-------|
-| `#F5A623` | `var(--color-warning)` | `text-warning` / `bg-warning` | Предупреждение, под заказ |
-| `#FFF1CC` | `var(--color-warning-bg)` | `bg-warning-bg` | Фон warning badge |
+
+| HEX Code  | CSS Variable              | Tailwind Class                | Usage                     |
+| --------- | ------------------------- | ----------------------------- | ------------------------- |
+| `#F5A623` | `var(--color-warning)`    | `text-warning` / `bg-warning` | Предупреждение, под заказ |
+| `#FFF1CC` | `var(--color-warning-bg)` | `bg-warning-bg`               | Фон warning badge         |
 
 ### Danger (Красный)
-| HEX Code | CSS Variable | Tailwind Class | Usage |
-|----------|--------------|----------------|-------|
-| `#E53935` | `var(--color-danger)` | `text-danger` / `bg-danger` | Ошибка, нет в наличии |
-| `#FFE1E8` | `var(--color-danger-bg)` | `bg-danger-bg` | Фон danger badge |
+
+| HEX Code  | CSS Variable             | Tailwind Class              | Usage                 |
+| --------- | ------------------------ | --------------------------- | --------------------- |
+| `#E53935` | `var(--color-danger)`    | `text-danger` / `bg-danger` | Ошибка, нет в наличии |
+| `#FFE1E8` | `var(--color-danger-bg)` | `bg-danger-bg`              | Фон danger badge      |
 
 ### Promo (Розовый)
-| HEX Code | CSS Variable | Tailwind Class | Usage |
-|----------|--------------|----------------|-------|
-| `#FF2E93` | `var(--color-promo)` | `text-promo` / `bg-promo` | Промо-акции |
-| `#FFF0F5` | `var(--color-promo-bg)` | `bg-promo-bg` | Фон promo badge |
+
+| HEX Code  | CSS Variable            | Tailwind Class            | Usage           |
+| --------- | ----------------------- | ------------------------- | --------------- |
+| `#FF2E93` | `var(--color-promo)`    | `text-promo` / `bg-promo` | Промо-акции     |
+| `#FFF0F5` | `var(--color-promo-bg)` | `bg-promo-bg`             | Фон promo badge |
 
 ---
 
 ## Neutral Colors (Серо-голубая палитра)
 
 ### ❌ НЕПРАВИЛЬНО:
+
 ```tsx
 <div className="bg-[#FFFFFF] border-[#E3E8F2] text-[#1F2A44]">
 ```
 
 ### ✅ ПРАВИЛЬНО:
+
 ```tsx
 <div className="bg-neutral-100 border-neutral-300 text-neutral-900">
 ```
@@ -107,12 +118,14 @@
 ## Text Colors (Типографика)
 
 ### ❌ НЕПРАВИЛЬНО:
+
 ```tsx
 <h1 className="text-[#1F2A44]">Заголовок</h1>
 <p className="text-[#4B5C7A]">Вторичный текст</p>
 ```
 
 ### ✅ ПРАВИЛЬНО:
+
 ```tsx
 <h1 className="text-primary">Заголовок</h1>
 <p className="text-secondary">Вторичный текст</p>
@@ -131,20 +144,18 @@
 ## Canvas & Backgrounds
 
 ### ❌ НЕПРАВИЛЬНО:
+
 ```tsx
-<div style={{ background: '#F5F7FB' }}>
-  <div style={{ background: '#FFFFFF' }}>
-    Content
-  </div>
+<div style={{ background: "#F5F7FB" }}>
+  <div style={{ background: "#FFFFFF" }}>Content</div>
 </div>
 ```
 
 ### ✅ ПРАВИЛЬНО:
+
 ```tsx
-<div style={{ background: 'var(--bg-canvas)' }}>
-  <div style={{ background: 'var(--bg-panel)' }}>
-    Content
-  </div>
+<div style={{ background: "var(--bg-canvas)" }}>
+  <div style={{ background: "var(--bg-panel)" }}>Content</div>
 </div>
 ```
 
@@ -159,11 +170,13 @@
 ## Shadows (Тени)
 
 ### ❌ НЕПРАВИЛЬНО:
+
 ```tsx
 <div style={{ boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)' }}>
 ```
 
 ### ✅ ПРАВИЛЬНО:
+
 ```tsx
 <div className="shadow-default">
 ```
@@ -182,12 +195,14 @@
 ## Badge Variants (Специальные варианты)
 
 ### ❌ НЕПРАВИЛЬНО:
+
 ```tsx
 <span className="bg-[#E0F5E8] text-[#00AA5B]">Hit</span>
 <span className="bg-[#E7F3FF] text-[#0060FF]">New</span>
 ```
 
 ### ✅ ПРАВИЛЬНО:
+
 ```tsx
 <Badge variant="hit">Hit</Badge>
 <Badge variant="new">New</Badge>
@@ -210,6 +225,7 @@
 ### Пример 1: Кнопка "В корзину"
 
 ❌ **До (hardcoded):**
+
 ```tsx
 <button
   className="h-14 bg-[#0060FF] hover:bg-[#0047CC] text-white rounded-lg"
@@ -220,6 +236,7 @@
 ```
 
 ✅ **После (CSS variables):**
+
 ```tsx
 <button
   className="h-14 bg-primary hover:bg-primary-hover text-inverse rounded-lg"
@@ -232,6 +249,7 @@
 ### Пример 2: ProductGallery thumbnail border
 
 ❌ **До:**
+
 ```tsx
 <button
   className={`
@@ -242,6 +260,7 @@
 ```
 
 ✅ **После:**
+
 ```tsx
 <button
   className={`
@@ -254,6 +273,7 @@
 ### Пример 3: Toast уведомления
 
 ❌ **До:**
+
 ```tsx
 // Success toast
 <div className="bg-[#E0F5E8] border-l-4 border-[#00AA5B]">
@@ -269,6 +289,7 @@
 ```
 
 ✅ **После:**
+
 ```tsx
 // Success toast
 <div className="bg-success-bg border-l-4 border-success">
@@ -286,6 +307,7 @@
 ### Пример 4: Lightbox компонент
 
 ❌ **До:**
+
 ```tsx
 <div className="fixed inset-0 bg-black/80">
   <button className="bg-[#E3E8F2] hover:bg-[#B9C3D6]">
@@ -295,6 +317,7 @@
 ```
 
 ✅ **После:**
+
 ```tsx
 <div className="fixed inset-0 bg-black/80">
   <button className="bg-neutral-300 hover:bg-neutral-400">
@@ -311,52 +334,52 @@
 
 ```typescript
 // tailwind.config.ts
-import type { Config } from 'tailwindcss';
+import type { Config } from "tailwindcss";
 
 const config: Config = {
   theme: {
     extend: {
       colors: {
         primary: {
-          DEFAULT: 'var(--color-primary)',
-          hover: 'var(--color-primary-hover)',
-          active: 'var(--color-primary-active)',
-          subtle: 'var(--color-primary-subtle)',
+          DEFAULT: "var(--color-primary)",
+          hover: "var(--color-primary-hover)",
+          active: "var(--color-primary-active)",
+          subtle: "var(--color-primary-subtle)",
         },
         secondary: {
-          DEFAULT: 'var(--color-secondary)',
-          hover: 'var(--color-secondary-hover)',
-          active: 'var(--color-secondary-active)',
-          subtle: 'var(--color-secondary-subtle)',
+          DEFAULT: "var(--color-secondary)",
+          hover: "var(--color-secondary-hover)",
+          active: "var(--color-secondary-active)",
+          subtle: "var(--color-secondary-subtle)",
         },
-        success: 'var(--color-success)',
-        'success-bg': 'var(--color-success-bg)',
-        warning: 'var(--color-warning)',
-        'warning-bg': 'var(--color-warning-bg)',
-        danger: 'var(--color-danger)',
-        'danger-bg': 'var(--color-danger-bg)',
-        promo: 'var(--color-promo)',
-        'promo-bg': 'var(--color-promo-bg)',
+        success: "var(--color-success)",
+        "success-bg": "var(--color-success-bg)",
+        warning: "var(--color-warning)",
+        "warning-bg": "var(--color-warning-bg)",
+        danger: "var(--color-danger)",
+        "danger-bg": "var(--color-danger-bg)",
+        promo: "var(--color-promo)",
+        "promo-bg": "var(--color-promo-bg)",
         neutral: {
-          100: 'var(--color-neutral-100)',
-          200: 'var(--color-neutral-200)',
-          300: 'var(--color-neutral-300)',
-          400: 'var(--color-neutral-400)',
-          500: 'var(--color-neutral-500)',
-          600: 'var(--color-neutral-600)',
-          700: 'var(--color-neutral-700)',
-          800: 'var(--color-neutral-800)',
-          900: 'var(--color-neutral-900)',
+          100: "var(--color-neutral-100)",
+          200: "var(--color-neutral-200)",
+          300: "var(--color-neutral-300)",
+          400: "var(--color-neutral-400)",
+          500: "var(--color-neutral-500)",
+          600: "var(--color-neutral-600)",
+          700: "var(--color-neutral-700)",
+          800: "var(--color-neutral-800)",
+          900: "var(--color-neutral-900)",
         },
-        canvas: 'var(--bg-canvas)',
-        panel: 'var(--bg-panel)',
+        canvas: "var(--bg-canvas)",
+        panel: "var(--bg-panel)",
       },
       boxShadow: {
-        default: 'var(--shadow-default)',
-        hover: 'var(--shadow-hover)',
-        primary: 'var(--shadow-primary)',
-        secondary: 'var(--shadow-secondary)',
-        modal: 'var(--shadow-modal)',
+        default: "var(--shadow-default)",
+        hover: "var(--shadow-hover)",
+        primary: "var(--shadow-primary)",
+        secondary: "var(--shadow-secondary)",
+        modal: "var(--shadow-modal)",
       },
     },
   },
@@ -378,47 +401,47 @@ export default config;
 @layer base {
   :root {
     /* Primary Colors */
-    --color-primary: #0060FF;
-    --color-primary-hover: #0047CC;
-    --color-primary-active: #0037A6;
-    --color-primary-subtle: #E7F3FF;
+    --color-primary: #0060ff;
+    --color-primary-hover: #0047cc;
+    --color-primary-active: #0037a6;
+    --color-primary-subtle: #e7f3ff;
 
     /* Secondary Colors */
-    --color-secondary: #00B7FF;
-    --color-secondary-hover: #0095D6;
-    --color-secondary-active: #0078B3;
-    --color-secondary-subtle: #E1F5FF;
+    --color-secondary: #00b7ff;
+    --color-secondary-hover: #0095d6;
+    --color-secondary-active: #0078b3;
+    --color-secondary-subtle: #e1f5ff;
 
     /* Accent Colors */
-    --color-success: #00AA5B;
-    --color-success-bg: #E0F5E8;
-    --color-warning: #F5A623;
-    --color-warning-bg: #FFF1CC;
-    --color-danger: #E53935;
-    --color-danger-bg: #FFE1E8;
-    --color-promo: #FF2E93;
-    --color-promo-bg: #FFF0F5;
+    --color-success: #00aa5b;
+    --color-success-bg: #e0f5e8;
+    --color-warning: #f5a623;
+    --color-warning-bg: #fff1cc;
+    --color-danger: #e53935;
+    --color-danger-bg: #ffe1e8;
+    --color-promo: #ff2e93;
+    --color-promo-bg: #fff0f5;
 
     /* Neutral Colors */
-    --color-neutral-100: #FFFFFF;
-    --color-neutral-200: #F5F7FB;
-    --color-neutral-300: #E3E8F2;
-    --color-neutral-400: #B9C3D6;
-    --color-neutral-500: #8F9BB3;
-    --color-neutral-600: #6B7A99;
-    --color-neutral-700: #4B5C7A;
-    --color-neutral-800: #2D3A52;
-    --color-neutral-900: #1F2A44;
+    --color-neutral-100: #ffffff;
+    --color-neutral-200: #f5f7fb;
+    --color-neutral-300: #e3e8f2;
+    --color-neutral-400: #b9c3d6;
+    --color-neutral-500: #8f9bb3;
+    --color-neutral-600: #6b7a99;
+    --color-neutral-700: #4b5c7a;
+    --color-neutral-800: #2d3a52;
+    --color-neutral-900: #1f2a44;
 
     /* Text Colors */
-    --color-text-primary: #1F2A44;
-    --color-text-secondary: #4B5C7A;
-    --color-text-muted: #7F8CA8;
-    --color-text-inverse: #FFFFFF;
+    --color-text-primary: #1f2a44;
+    --color-text-secondary: #4b5c7a;
+    --color-text-muted: #7f8ca8;
+    --color-text-inverse: #ffffff;
 
     /* Backgrounds */
-    --bg-canvas: #F5F7FB;
-    --bg-panel: #FFFFFF;
+    --bg-canvas: #f5f7fb;
+    --bg-panel: #ffffff;
 
     /* Shadows */
     --shadow-default: 0 8px 24px rgba(15, 23, 42, 0.08);

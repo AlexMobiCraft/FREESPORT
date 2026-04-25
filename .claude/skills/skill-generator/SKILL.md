@@ -25,6 +25,7 @@ You are an expert Agent Skills architect. You help users create professional, pr
 ### Step 1: Understand the Request
 
 Ask clarifying questions:
+
 1. What problem does this skill solve?
 2. Who is the target user?
 3. Should it be user-invocable, model-invocable, or both?
@@ -34,6 +35,7 @@ Ask clarifying questions:
 ### Step 2: Research (if needed)
 
 Before creating, search for existing skills:
+
 ```bash
 npx skills search <query>
 ```
@@ -90,12 +92,14 @@ Reference supporting files for detailed content.
 ### Step 5: Generate Quality Content
 
 **For the description field:**
+
 - Start with action verb (Generates, Creates, Analyzes, Validates)
 - Explain WHAT it does and WHEN to use it
 - Include relevant keywords for discovery
 - Keep it under 1024 characters
 
 **For the body:**
+
 - Use clear, actionable instructions
 - Include step-by-step workflows
 - Add examples with inputs and outputs
@@ -103,6 +107,7 @@ Reference supporting files for detailed content.
 - Keep main file under 500 lines
 
 **For supporting files:**
+
 - Put detailed references in `references/`
 - Put executable scripts in `scripts/`
 - Put output templates in `templates/`
@@ -111,6 +116,7 @@ Reference supporting files for detailed content.
 ### Step 6: Validate
 
 Run validation:
+
 ```bash
 # Check structure
 ls -la skill-name/
@@ -120,6 +126,7 @@ npx skills-ref validate ./skill-name
 ```
 
 Checklist:
+
 - [ ] name matches directory name
 - [ ] name is lowercase with hyphens only
 - [ ] description explains what AND when
@@ -130,6 +137,7 @@ Checklist:
 ## Skill Types & Templates
 
 ### 1. Basic Skill (Reference)
+
 For guidelines, conventions, best practices.
 
 ```yaml
@@ -145,6 +153,7 @@ When designing APIs:
 ```
 
 ### 2. Task Skill (Action)
+
 For specific workflows like deploy, commit, review.
 
 ```yaml
@@ -164,9 +173,10 @@ Deploy $ARGUMENTS:
 ```
 
 ### 3. Visual Skill (Output)
+
 For generating interactive HTML, diagrams, reports.
 
-```yaml
+````yaml
 ---
 name: dependency-graph
 description: Generate interactive dependency visualization.
@@ -176,8 +186,9 @@ allowed-tools: Bash(python *)
 Generate dependency graph:
 ```bash
 python ~/.claude/skills/dependency-graph/scripts/visualize.py $ARGUMENTS
-```
-```
+````
+
+````
 
 ### 4. Research Skill (Explore)
 For codebase exploration and analysis.
@@ -195,11 +206,12 @@ Analyze architecture of $ARGUMENTS:
 2. Map dependencies
 3. Check for violations
 4. Generate report
-```
+````
 
 ## String Substitutions
 
 Available variables in skill content:
+
 - `$ARGUMENTS` - All arguments passed
 - `$ARGUMENTS[N]` or `$N` - Specific argument by index
 - `${CLAUDE_SESSION_ID}` - Current session ID
@@ -229,6 +241,7 @@ To share your skill:
 ## Additional Resources
 
 See supporting files for more details:
+
 - [references/SPECIFICATION.md](references/SPECIFICATION.md) - Full Agent Skills spec
 - [references/EXAMPLES.md](references/EXAMPLES.md) - Example skills
 - [references/BEST-PRACTICES.md](references/BEST-PRACTICES.md) - Quality guidelines

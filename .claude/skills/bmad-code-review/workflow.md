@@ -1,5 +1,5 @@
 ---
-main_config: '{project-root}/_bmad/bmm/config.yaml'
+main_config: "{project-root}/_bmad/bmm/config.yaml"
 ---
 
 # Code Review Workflow
@@ -7,7 +7,6 @@ main_config: '{project-root}/_bmad/bmm/config.yaml'
 **Goal:** Review code changes adversarially using parallel review layers and structured triage.
 
 **Your Role:** You are an elite code reviewer. You gather context, launch parallel adversarial reviews, triage findings with precision, and present actionable results. No noise, no filler.
-
 
 ## WORKFLOW ARCHITECTURE
 
@@ -33,7 +32,6 @@ This uses **step-file architecture** for disciplined execution:
 - **NEVER** skip steps or optimize the sequence
 - **ALWAYS** follow the exact instructions in the step file
 - **ALWAYS** halt at checkpoints and wait for human input
-
 
 ## INITIALIZATION SEQUENCE
 

@@ -9,26 +9,42 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
+var __commonJS = (cb, mod) =>
+  function __require() {
+    return (
+      mod ||
+        (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod),
+      mod.exports
+    );
+  };
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
+  if ((from && typeof from === "object") || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
       if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+        __defProp(to, key, {
+          get: () => from[key],
+          enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable,
+        });
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target, mod));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+var __toESM = (mod, isNodeMode, target) => (
+  (target = mod != null ? __create(__getProtoOf(mod)) : {}),
+  __copyProps(
+    isNodeMode || !mod || !mod.__esModule
+      ? __defProp(target, "default", { value: mod, enumerable: true })
+      : target,
+    mod,
+  )
+);
+var __toCommonJS = (mod) =>
+  __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var __accessCheck = (obj, member, msg) => {
-  if (!member.has(obj))
-    throw TypeError("Cannot " + msg);
+  if (!member.has(obj)) throw TypeError("Cannot " + msg);
 };
 var __privateGet = (obj, member, getter) => {
   __accessCheck(obj, member, "read from private field");
@@ -51,7 +67,7 @@ var __privateWrapper = (obj, member, setter, getter) => {
     },
     get _() {
       return __privateGet(obj, member, getter);
-    }
+    },
   };
 };
 var __privateMethod = (obj, member, method) => {
@@ -73,25 +89,50 @@ var require_main = __commonJS({
     function shouldUsePeriodicNotesSettings(periodicity) {
       var _a, _b;
       const periodicNotes = window.app.plugins.getPlugin("periodic-notes");
-      return periodicNotes && ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a[periodicity]) == null ? void 0 : _b.enabled);
+      return (
+        periodicNotes &&
+        ((_b =
+          (_a = periodicNotes.settings) == null ? void 0 : _a[periodicity]) ==
+        null
+          ? void 0
+          : _b.enabled)
+      );
     }
     function getDailyNoteSettings() {
       var _a, _b, _c, _d;
       try {
         const { internalPlugins, plugins } = window.app;
         if (shouldUsePeriodicNotesSettings("daily")) {
-          const { format: format3, folder: folder2, template: template2 } = ((_b = (_a = plugins.getPlugin("periodic-notes")) == null ? void 0 : _a.settings) == null ? void 0 : _b.daily) || {};
+          const {
+            format: format3,
+            folder: folder2,
+            template: template2,
+          } = ((_b =
+            (_a = plugins.getPlugin("periodic-notes")) == null
+              ? void 0
+              : _a.settings) == null
+            ? void 0
+            : _b.daily) || {};
           return {
             format: format3 || DEFAULT_DAILY_NOTE_FORMAT,
             folder: (folder2 == null ? void 0 : folder2.trim()) || "",
-            template: (template2 == null ? void 0 : template2.trim()) || ""
+            template: (template2 == null ? void 0 : template2.trim()) || "",
           };
         }
-        const { folder, format: format2, template } = ((_d = (_c = internalPlugins.getPluginById("daily-notes")) == null ? void 0 : _c.instance) == null ? void 0 : _d.options) || {};
+        const {
+          folder,
+          format: format2,
+          template,
+        } = ((_d =
+          (_c = internalPlugins.getPluginById("daily-notes")) == null
+            ? void 0
+            : _c.instance) == null
+          ? void 0
+          : _d.options) || {};
         return {
           format: format2 || DEFAULT_DAILY_NOTE_FORMAT,
           folder: (folder == null ? void 0 : folder.trim()) || "",
-          template: (template == null ? void 0 : template.trim()) || ""
+          template: (template == null ? void 0 : template.trim()) || "",
         };
       } catch (err) {
         console.info("No custom daily note settings found!", err);
@@ -101,20 +142,40 @@ var require_main = __commonJS({
       var _a, _b, _c, _d, _e, _f, _g;
       try {
         const pluginManager = window.app.plugins;
-        const calendarSettings = (_a = pluginManager.getPlugin("calendar")) == null ? void 0 : _a.options;
-        const periodicNotesSettings = (_c = (_b = pluginManager.getPlugin("periodic-notes")) == null ? void 0 : _b.settings) == null ? void 0 : _c.weekly;
+        const calendarSettings =
+          (_a = pluginManager.getPlugin("calendar")) == null
+            ? void 0
+            : _a.options;
+        const periodicNotesSettings =
+          (_c =
+            (_b = pluginManager.getPlugin("periodic-notes")) == null
+              ? void 0
+              : _b.settings) == null
+            ? void 0
+            : _c.weekly;
         if (shouldUsePeriodicNotesSettings("weekly")) {
           return {
             format: periodicNotesSettings.format || DEFAULT_WEEKLY_NOTE_FORMAT,
-            folder: ((_d = periodicNotesSettings.folder) == null ? void 0 : _d.trim()) || "",
-            template: ((_e = periodicNotesSettings.template) == null ? void 0 : _e.trim()) || ""
+            folder:
+              ((_d = periodicNotesSettings.folder) == null
+                ? void 0
+                : _d.trim()) || "",
+            template:
+              ((_e = periodicNotesSettings.template) == null
+                ? void 0
+                : _e.trim()) || "",
           };
         }
         const settings2 = calendarSettings || {};
         return {
           format: settings2.weeklyNoteFormat || DEFAULT_WEEKLY_NOTE_FORMAT,
-          folder: ((_f = settings2.weeklyNoteFolder) == null ? void 0 : _f.trim()) || "",
-          template: ((_g = settings2.weeklyNoteTemplate) == null ? void 0 : _g.trim()) || ""
+          folder:
+            ((_f = settings2.weeklyNoteFolder) == null ? void 0 : _f.trim()) ||
+            "",
+          template:
+            ((_g = settings2.weeklyNoteTemplate) == null
+              ? void 0
+              : _g.trim()) || "",
         };
       } catch (err) {
         console.info("No custom weekly note settings found!", err);
@@ -124,11 +185,20 @@ var require_main = __commonJS({
       var _a, _b, _c, _d;
       const pluginManager = window.app.plugins;
       try {
-        const settings2 = shouldUsePeriodicNotesSettings("monthly") && ((_b = (_a = pluginManager.getPlugin("periodic-notes")) == null ? void 0 : _a.settings) == null ? void 0 : _b.monthly) || {};
+        const settings2 =
+          (shouldUsePeriodicNotesSettings("monthly") &&
+            ((_b =
+              (_a = pluginManager.getPlugin("periodic-notes")) == null
+                ? void 0
+                : _a.settings) == null
+              ? void 0
+              : _b.monthly)) ||
+          {};
         return {
           format: settings2.format || DEFAULT_MONTHLY_NOTE_FORMAT,
           folder: ((_c = settings2.folder) == null ? void 0 : _c.trim()) || "",
-          template: ((_d = settings2.template) == null ? void 0 : _d.trim()) || ""
+          template:
+            ((_d = settings2.template) == null ? void 0 : _d.trim()) || "",
         };
       } catch (err) {
         console.info("No custom monthly note settings found!", err);
@@ -138,11 +208,20 @@ var require_main = __commonJS({
       var _a, _b, _c, _d;
       const pluginManager = window.app.plugins;
       try {
-        const settings2 = shouldUsePeriodicNotesSettings("quarterly") && ((_b = (_a = pluginManager.getPlugin("periodic-notes")) == null ? void 0 : _a.settings) == null ? void 0 : _b.quarterly) || {};
+        const settings2 =
+          (shouldUsePeriodicNotesSettings("quarterly") &&
+            ((_b =
+              (_a = pluginManager.getPlugin("periodic-notes")) == null
+                ? void 0
+                : _a.settings) == null
+              ? void 0
+              : _b.quarterly)) ||
+          {};
         return {
           format: settings2.format || DEFAULT_QUARTERLY_NOTE_FORMAT,
           folder: ((_c = settings2.folder) == null ? void 0 : _c.trim()) || "",
-          template: ((_d = settings2.template) == null ? void 0 : _d.trim()) || ""
+          template:
+            ((_d = settings2.template) == null ? void 0 : _d.trim()) || "",
         };
       } catch (err) {
         console.info("No custom quarterly note settings found!", err);
@@ -152,11 +231,20 @@ var require_main = __commonJS({
       var _a, _b, _c, _d;
       const pluginManager = window.app.plugins;
       try {
-        const settings2 = shouldUsePeriodicNotesSettings("yearly") && ((_b = (_a = pluginManager.getPlugin("periodic-notes")) == null ? void 0 : _a.settings) == null ? void 0 : _b.yearly) || {};
+        const settings2 =
+          (shouldUsePeriodicNotesSettings("yearly") &&
+            ((_b =
+              (_a = pluginManager.getPlugin("periodic-notes")) == null
+                ? void 0
+                : _a.settings) == null
+              ? void 0
+              : _b.yearly)) ||
+          {};
         return {
           format: settings2.format || DEFAULT_YEARLY_NOTE_FORMAT,
           folder: ((_c = settings2.folder) == null ? void 0 : _c.trim()) || "",
-          template: ((_d = settings2.template) == null ? void 0 : _d.trim()) || ""
+          template:
+            ((_d = settings2.template) == null ? void 0 : _d.trim()) || "",
         };
       } catch (err) {
         console.info("No custom yearly note settings found!", err);
@@ -170,13 +258,10 @@ var require_main = __commonJS({
       const newParts = [];
       for (let i = 0, l = parts.length; i < l; i++) {
         const part = parts[i];
-        if (!part || part === ".")
-          continue;
-        else
-          newParts.push(part);
+        if (!part || part === ".") continue;
+        else newParts.push(part);
       }
-      if (parts[0] === "")
-        newParts.unshift("");
+      if (parts[0] === "") newParts.unshift("");
       return newParts.join("/");
     }
     function basename(fullPath) {
@@ -210,12 +295,18 @@ var require_main = __commonJS({
         return Promise.resolve(["", null]);
       }
       try {
-        const templateFile = metadataCache.getFirstLinkpathDest(templatePath, "");
+        const templateFile = metadataCache.getFirstLinkpathDest(
+          templatePath,
+          "",
+        );
         const contents = await vault.cachedRead(templateFile);
         const IFoldInfo = window.app.foldManager.load(templateFile);
         return [contents, IFoldInfo];
       } catch (err) {
-        console.error(`Failed to read the daily note template '${templatePath}'`, err);
+        console.error(
+          `Failed to read the daily note template '${templatePath}'`,
+          err,
+        );
         new obsidian.Notice("Failed to read the daily note template");
         return ["", null];
       }
@@ -230,7 +321,10 @@ var require_main = __commonJS({
     function isFormatAmbiguous(format2, granularity) {
       if (granularity === "week") {
         const cleanFormat = removeEscapedCharacters(format2);
-        return /w{1,2}/i.test(cleanFormat) && (/M{1,4}/.test(cleanFormat) || /D{1,4}/.test(cleanFormat));
+        return (
+          /w{1,2}/i.test(cleanFormat) &&
+          (/M{1,4}/.test(cleanFormat) || /D{1,4}/.test(cleanFormat))
+        );
       }
       return false;
     }
@@ -246,7 +340,7 @@ var require_main = __commonJS({
         week: getWeeklyNoteSettings,
         month: getMonthlyNoteSettings,
         quarter: getQuarterlyNoteSettings,
-        year: getYearlyNoteSettings
+        year: getYearlyNoteSettings,
       };
       const format2 = getSettings[granularity]().format.split("/").pop();
       const noteDate = window.moment(filename, format2, true);
@@ -257,14 +351,17 @@ var require_main = __commonJS({
         if (granularity === "week") {
           const cleanFormat = removeEscapedCharacters(format2);
           if (/w{1,2}/i.test(cleanFormat)) {
-            return window.moment(filename, format2.replace(/M{1,4}/g, "").replace(/D{1,4}/g, ""), false);
+            return window.moment(
+              filename,
+              format2.replace(/M{1,4}/g, "").replace(/D{1,4}/g, ""),
+              false,
+            );
           }
         }
       }
       return noteDate;
     }
-    var DailyNotesFolderMissingError = class extends Error {
-    };
+    var DailyNotesFolderMissingError = class extends Error {};
     async function createDailyNote2(date) {
       const app = window.app;
       const { vault } = app;
@@ -274,21 +371,39 @@ var require_main = __commonJS({
       const filename = date.format(format2);
       const normalizedPath = await getNotePath(folder, filename);
       try {
-        const createdFile = await vault.create(normalizedPath, templateContents.replace(/{{\s*date\s*}}/gi, filename).replace(/{{\s*time\s*}}/gi, moment().format("HH:mm")).replace(/{{\s*title\s*}}/gi, filename).replace(/{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi, (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
-          const now2 = moment();
-          const currentDate = date.clone().set({
-            hour: now2.get("hour"),
-            minute: now2.get("minute"),
-            second: now2.get("second")
-          });
-          if (calc) {
-            currentDate.add(parseInt(timeDelta, 10), unit);
-          }
-          if (momentFormat) {
-            return currentDate.format(momentFormat.substring(1).trim());
-          }
-          return currentDate.format(format2);
-        }).replace(/{{\s*yesterday\s*}}/gi, date.clone().subtract(1, "day").format(format2)).replace(/{{\s*tomorrow\s*}}/gi, date.clone().add(1, "d").format(format2)));
+        const createdFile = await vault.create(
+          normalizedPath,
+          templateContents
+            .replace(/{{\s*date\s*}}/gi, filename)
+            .replace(/{{\s*time\s*}}/gi, moment().format("HH:mm"))
+            .replace(/{{\s*title\s*}}/gi, filename)
+            .replace(
+              /{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi,
+              (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
+                const now2 = moment();
+                const currentDate = date.clone().set({
+                  hour: now2.get("hour"),
+                  minute: now2.get("minute"),
+                  second: now2.get("second"),
+                });
+                if (calc) {
+                  currentDate.add(parseInt(timeDelta, 10), unit);
+                }
+                if (momentFormat) {
+                  return currentDate.format(momentFormat.substring(1).trim());
+                }
+                return currentDate.format(format2);
+              },
+            )
+            .replace(
+              /{{\s*yesterday\s*}}/gi,
+              date.clone().subtract(1, "day").format(format2),
+            )
+            .replace(
+              /{{\s*tomorrow\s*}}/gi,
+              date.clone().add(1, "d").format(format2),
+            ),
+        );
         app.foldManager.save(createdFile, IFoldInfo);
         return createdFile;
       } catch (err) {
@@ -303,9 +418,13 @@ var require_main = __commonJS({
     function getAllDailyNotes2() {
       const { vault } = window.app;
       const { folder } = getDailyNoteSettings();
-      const dailyNotesFolder = vault.getAbstractFileByPath(obsidian.normalizePath(folder));
+      const dailyNotesFolder = vault.getAbstractFileByPath(
+        obsidian.normalizePath(folder),
+      );
       if (!dailyNotesFolder) {
-        throw new DailyNotesFolderMissingError("Failed to find daily notes folder");
+        throw new DailyNotesFolderMissingError(
+          "Failed to find daily notes folder",
+        );
       }
       const dailyNotes = {};
       obsidian.Vault.recurseChildren(dailyNotesFolder, (note) => {
@@ -319,8 +438,7 @@ var require_main = __commonJS({
       });
       return dailyNotes;
     }
-    var WeeklyNotesFolderMissingError = class extends Error {
-    };
+    var WeeklyNotesFolderMissingError = class extends Error {};
     function getDaysOfWeek() {
       const { moment } = window;
       let weekStart = moment.localeData()._week.dow;
@@ -331,7 +449,7 @@ var require_main = __commonJS({
         "wednesday",
         "thursday",
         "friday",
-        "saturday"
+        "saturday",
       ];
       while (weekStart) {
         daysOfWeek.push(daysOfWeek.shift());
@@ -349,24 +467,37 @@ var require_main = __commonJS({
       const filename = date.format(format2);
       const normalizedPath = await getNotePath(folder, filename);
       try {
-        const createdFile = await vault.create(normalizedPath, templateContents.replace(/{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi, (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
-          const now2 = window.moment();
-          const currentDate = date.clone().set({
-            hour: now2.get("hour"),
-            minute: now2.get("minute"),
-            second: now2.get("second")
-          });
-          if (calc) {
-            currentDate.add(parseInt(timeDelta, 10), unit);
-          }
-          if (momentFormat) {
-            return currentDate.format(momentFormat.substring(1).trim());
-          }
-          return currentDate.format(format2);
-        }).replace(/{{\s*title\s*}}/gi, filename).replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm")).replace(/{{\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s*:(.*?)}}/gi, (_, dayOfWeek, momentFormat) => {
-          const day = getDayOfWeekNumericalValue(dayOfWeek);
-          return date.weekday(day).format(momentFormat.trim());
-        }));
+        const createdFile = await vault.create(
+          normalizedPath,
+          templateContents
+            .replace(
+              /{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi,
+              (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
+                const now2 = window.moment();
+                const currentDate = date.clone().set({
+                  hour: now2.get("hour"),
+                  minute: now2.get("minute"),
+                  second: now2.get("second"),
+                });
+                if (calc) {
+                  currentDate.add(parseInt(timeDelta, 10), unit);
+                }
+                if (momentFormat) {
+                  return currentDate.format(momentFormat.substring(1).trim());
+                }
+                return currentDate.format(format2);
+              },
+            )
+            .replace(/{{\s*title\s*}}/gi, filename)
+            .replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm"))
+            .replace(
+              /{{\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s*:(.*?)}}/gi,
+              (_, dayOfWeek, momentFormat) => {
+                const day = getDayOfWeekNumericalValue(dayOfWeek);
+                return date.weekday(day).format(momentFormat.trim());
+              },
+            ),
+        );
         window.app.foldManager.save(createdFile, IFoldInfo);
         return createdFile;
       } catch (err) {
@@ -385,9 +516,13 @@ var require_main = __commonJS({
       }
       const { vault } = window.app;
       const { folder } = getWeeklyNoteSettings();
-      const weeklyNotesFolder = vault.getAbstractFileByPath(obsidian.normalizePath(folder));
+      const weeklyNotesFolder = vault.getAbstractFileByPath(
+        obsidian.normalizePath(folder),
+      );
       if (!weeklyNotesFolder) {
-        throw new WeeklyNotesFolderMissingError("Failed to find weekly notes folder");
+        throw new WeeklyNotesFolderMissingError(
+          "Failed to find weekly notes folder",
+        );
       }
       obsidian.Vault.recurseChildren(weeklyNotesFolder, (note) => {
         if (note instanceof obsidian.TFile) {
@@ -400,8 +535,7 @@ var require_main = __commonJS({
       });
       return weeklyNotes;
     }
-    var MonthlyNotesFolderMissingError = class extends Error {
-    };
+    var MonthlyNotesFolderMissingError = class extends Error {};
     async function createMonthlyNote(date) {
       const { vault } = window.app;
       const { template, format: format2, folder } = getMonthlyNoteSettings();
@@ -409,21 +543,31 @@ var require_main = __commonJS({
       const filename = date.format(format2);
       const normalizedPath = await getNotePath(folder, filename);
       try {
-        const createdFile = await vault.create(normalizedPath, templateContents.replace(/{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi, (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
-          const now2 = window.moment();
-          const currentDate = date.clone().set({
-            hour: now2.get("hour"),
-            minute: now2.get("minute"),
-            second: now2.get("second")
-          });
-          if (calc) {
-            currentDate.add(parseInt(timeDelta, 10), unit);
-          }
-          if (momentFormat) {
-            return currentDate.format(momentFormat.substring(1).trim());
-          }
-          return currentDate.format(format2);
-        }).replace(/{{\s*date\s*}}/gi, filename).replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm")).replace(/{{\s*title\s*}}/gi, filename));
+        const createdFile = await vault.create(
+          normalizedPath,
+          templateContents
+            .replace(
+              /{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi,
+              (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
+                const now2 = window.moment();
+                const currentDate = date.clone().set({
+                  hour: now2.get("hour"),
+                  minute: now2.get("minute"),
+                  second: now2.get("second"),
+                });
+                if (calc) {
+                  currentDate.add(parseInt(timeDelta, 10), unit);
+                }
+                if (momentFormat) {
+                  return currentDate.format(momentFormat.substring(1).trim());
+                }
+                return currentDate.format(format2);
+              },
+            )
+            .replace(/{{\s*date\s*}}/gi, filename)
+            .replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm"))
+            .replace(/{{\s*title\s*}}/gi, filename),
+        );
         window.app.foldManager.save(createdFile, IFoldInfo);
         return createdFile;
       } catch (err) {
@@ -442,9 +586,13 @@ var require_main = __commonJS({
       }
       const { vault } = window.app;
       const { folder } = getMonthlyNoteSettings();
-      const monthlyNotesFolder = vault.getAbstractFileByPath(obsidian.normalizePath(folder));
+      const monthlyNotesFolder = vault.getAbstractFileByPath(
+        obsidian.normalizePath(folder),
+      );
       if (!monthlyNotesFolder) {
-        throw new MonthlyNotesFolderMissingError("Failed to find monthly notes folder");
+        throw new MonthlyNotesFolderMissingError(
+          "Failed to find monthly notes folder",
+        );
       }
       obsidian.Vault.recurseChildren(monthlyNotesFolder, (note) => {
         if (note instanceof obsidian.TFile) {
@@ -457,8 +605,7 @@ var require_main = __commonJS({
       });
       return monthlyNotes;
     }
-    var QuarterlyNotesFolderMissingError = class extends Error {
-    };
+    var QuarterlyNotesFolderMissingError = class extends Error {};
     async function createQuarterlyNote(date) {
       const { vault } = window.app;
       const { template, format: format2, folder } = getQuarterlyNoteSettings();
@@ -466,21 +613,31 @@ var require_main = __commonJS({
       const filename = date.format(format2);
       const normalizedPath = await getNotePath(folder, filename);
       try {
-        const createdFile = await vault.create(normalizedPath, templateContents.replace(/{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi, (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
-          const now2 = window.moment();
-          const currentDate = date.clone().set({
-            hour: now2.get("hour"),
-            minute: now2.get("minute"),
-            second: now2.get("second")
-          });
-          if (calc) {
-            currentDate.add(parseInt(timeDelta, 10), unit);
-          }
-          if (momentFormat) {
-            return currentDate.format(momentFormat.substring(1).trim());
-          }
-          return currentDate.format(format2);
-        }).replace(/{{\s*date\s*}}/gi, filename).replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm")).replace(/{{\s*title\s*}}/gi, filename));
+        const createdFile = await vault.create(
+          normalizedPath,
+          templateContents
+            .replace(
+              /{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi,
+              (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
+                const now2 = window.moment();
+                const currentDate = date.clone().set({
+                  hour: now2.get("hour"),
+                  minute: now2.get("minute"),
+                  second: now2.get("second"),
+                });
+                if (calc) {
+                  currentDate.add(parseInt(timeDelta, 10), unit);
+                }
+                if (momentFormat) {
+                  return currentDate.format(momentFormat.substring(1).trim());
+                }
+                return currentDate.format(format2);
+              },
+            )
+            .replace(/{{\s*date\s*}}/gi, filename)
+            .replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm"))
+            .replace(/{{\s*title\s*}}/gi, filename),
+        );
         window.app.foldManager.save(createdFile, IFoldInfo);
         return createdFile;
       } catch (err) {
@@ -499,9 +656,13 @@ var require_main = __commonJS({
       }
       const { vault } = window.app;
       const { folder } = getQuarterlyNoteSettings();
-      const quarterlyFolder = vault.getAbstractFileByPath(obsidian.normalizePath(folder));
+      const quarterlyFolder = vault.getAbstractFileByPath(
+        obsidian.normalizePath(folder),
+      );
       if (!quarterlyFolder) {
-        throw new QuarterlyNotesFolderMissingError("Failed to find quarterly notes folder");
+        throw new QuarterlyNotesFolderMissingError(
+          "Failed to find quarterly notes folder",
+        );
       }
       obsidian.Vault.recurseChildren(quarterlyFolder, (note) => {
         if (note instanceof obsidian.TFile) {
@@ -514,8 +675,7 @@ var require_main = __commonJS({
       });
       return quarterly;
     }
-    var YearlyNotesFolderMissingError = class extends Error {
-    };
+    var YearlyNotesFolderMissingError = class extends Error {};
     async function createYearlyNote(date) {
       const { vault } = window.app;
       const { template, format: format2, folder } = getYearlyNoteSettings();
@@ -523,21 +683,31 @@ var require_main = __commonJS({
       const filename = date.format(format2);
       const normalizedPath = await getNotePath(folder, filename);
       try {
-        const createdFile = await vault.create(normalizedPath, templateContents.replace(/{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi, (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
-          const now2 = window.moment();
-          const currentDate = date.clone().set({
-            hour: now2.get("hour"),
-            minute: now2.get("minute"),
-            second: now2.get("second")
-          });
-          if (calc) {
-            currentDate.add(parseInt(timeDelta, 10), unit);
-          }
-          if (momentFormat) {
-            return currentDate.format(momentFormat.substring(1).trim());
-          }
-          return currentDate.format(format2);
-        }).replace(/{{\s*date\s*}}/gi, filename).replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm")).replace(/{{\s*title\s*}}/gi, filename));
+        const createdFile = await vault.create(
+          normalizedPath,
+          templateContents
+            .replace(
+              /{{\s*(date|time)\s*(([+-]\d+)([yqmwdhs]))?\s*(:.+?)?}}/gi,
+              (_, _timeOrDate, calc, timeDelta, unit, momentFormat) => {
+                const now2 = window.moment();
+                const currentDate = date.clone().set({
+                  hour: now2.get("hour"),
+                  minute: now2.get("minute"),
+                  second: now2.get("second"),
+                });
+                if (calc) {
+                  currentDate.add(parseInt(timeDelta, 10), unit);
+                }
+                if (momentFormat) {
+                  return currentDate.format(momentFormat.substring(1).trim());
+                }
+                return currentDate.format(format2);
+              },
+            )
+            .replace(/{{\s*date\s*}}/gi, filename)
+            .replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm"))
+            .replace(/{{\s*title\s*}}/gi, filename),
+        );
         window.app.foldManager.save(createdFile, IFoldInfo);
         return createdFile;
       } catch (err) {
@@ -556,9 +726,13 @@ var require_main = __commonJS({
       }
       const { vault } = window.app;
       const { folder } = getYearlyNoteSettings();
-      const yearlyNotesFolder = vault.getAbstractFileByPath(obsidian.normalizePath(folder));
+      const yearlyNotesFolder = vault.getAbstractFileByPath(
+        obsidian.normalizePath(folder),
+      );
       if (!yearlyNotesFolder) {
-        throw new YearlyNotesFolderMissingError("Failed to find yearly notes folder");
+        throw new YearlyNotesFolderMissingError(
+          "Failed to find yearly notes folder",
+        );
       }
       obsidian.Vault.recurseChildren(yearlyNotesFolder, (note) => {
         if (note instanceof obsidian.TFile) {
@@ -579,7 +753,13 @@ var require_main = __commonJS({
         return true;
       }
       const periodicNotes = app.plugins.getPlugin("periodic-notes");
-      return periodicNotes && ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.daily) == null ? void 0 : _b.enabled);
+      return (
+        periodicNotes &&
+        ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.daily) ==
+        null
+          ? void 0
+          : _b.enabled)
+      );
     }
     function appHasWeeklyNotesPluginLoaded2() {
       var _a, _b;
@@ -588,25 +768,49 @@ var require_main = __commonJS({
         return true;
       }
       const periodicNotes = app.plugins.getPlugin("periodic-notes");
-      return periodicNotes && ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.weekly) == null ? void 0 : _b.enabled);
+      return (
+        periodicNotes &&
+        ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.weekly) ==
+        null
+          ? void 0
+          : _b.enabled)
+      );
     }
     function appHasMonthlyNotesPluginLoaded() {
       var _a, _b;
       const { app } = window;
       const periodicNotes = app.plugins.getPlugin("periodic-notes");
-      return periodicNotes && ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.monthly) == null ? void 0 : _b.enabled);
+      return (
+        periodicNotes &&
+        ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.monthly) ==
+        null
+          ? void 0
+          : _b.enabled)
+      );
     }
     function appHasQuarterlyNotesPluginLoaded() {
       var _a, _b;
       const { app } = window;
       const periodicNotes = app.plugins.getPlugin("periodic-notes");
-      return periodicNotes && ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.quarterly) == null ? void 0 : _b.enabled);
+      return (
+        periodicNotes &&
+        ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.quarterly) ==
+        null
+          ? void 0
+          : _b.enabled)
+      );
     }
     function appHasYearlyNotesPluginLoaded() {
       var _a, _b;
       const { app } = window;
       const periodicNotes = app.plugins.getPlugin("periodic-notes");
-      return periodicNotes && ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.yearly) == null ? void 0 : _b.enabled);
+      return (
+        periodicNotes &&
+        ((_b = (_a = periodicNotes.settings) == null ? void 0 : _a.yearly) ==
+        null
+          ? void 0
+          : _b.enabled)
+      );
     }
     function getPeriodicNoteSettings(granularity) {
       const getSettings = {
@@ -614,7 +818,7 @@ var require_main = __commonJS({
         week: getWeeklyNoteSettings,
         month: getMonthlyNoteSettings,
         quarter: getQuarterlyNoteSettings,
-        year: getYearlyNoteSettings
+        year: getYearlyNoteSettings,
       }[granularity];
       return getSettings();
     }
@@ -622,7 +826,7 @@ var require_main = __commonJS({
       const createFn = {
         day: createDailyNote2,
         month: createMonthlyNote,
-        week: createWeeklyNote2
+        week: createWeeklyNote2,
       };
       return createFn[granularity](date);
     }
@@ -662,7 +866,7 @@ var require_main = __commonJS({
     exports.getWeeklyNoteSettings = getWeeklyNoteSettings;
     exports.getYearlyNote = getYearlyNote;
     exports.getYearlyNoteSettings = getYearlyNoteSettings;
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/graph.js
@@ -672,7 +876,25 @@ var require_graph = __commonJS({
     var DEFAULT_EDGE_NAME = "\0";
     var GRAPH_NODE = "\0";
     var EDGE_KEY_DELIM = "";
-    var _isDirected, _isMultigraph, _isCompound, _label, _defaultNodeLabelFn, _defaultEdgeLabelFn, _nodes, _in, _preds, _out, _sucs, _edgeObjs, _edgeLabels, _nodeCount, _edgeCount, _parent, _children, _removeFromParentsChildList, removeFromParentsChildList_fn;
+    var _isDirected,
+      _isMultigraph,
+      _isCompound,
+      _label,
+      _defaultNodeLabelFn,
+      _defaultEdgeLabelFn,
+      _nodes,
+      _in,
+      _preds,
+      _out,
+      _sucs,
+      _edgeObjs,
+      _edgeLabels,
+      _nodeCount,
+      _edgeCount,
+      _parent,
+      _children,
+      _removeFromParentsChildList,
+      removeFromParentsChildList_fn;
     var Graph = class {
       constructor(opts) {
         __privateAdd(this, _removeFromParentsChildList);
@@ -694,9 +916,21 @@ var require_graph = __commonJS({
         __privateAdd(this, _parent, void 0);
         __privateAdd(this, _children, void 0);
         if (opts) {
-          __privateSet(this, _isDirected, opts.hasOwnProperty("directed") ? opts.directed : true);
-          __privateSet(this, _isMultigraph, opts.hasOwnProperty("multigraph") ? opts.multigraph : false);
-          __privateSet(this, _isCompound, opts.hasOwnProperty("compound") ? opts.compound : false);
+          __privateSet(
+            this,
+            _isDirected,
+            opts.hasOwnProperty("directed") ? opts.directed : true,
+          );
+          __privateSet(
+            this,
+            _isMultigraph,
+            opts.hasOwnProperty("multigraph") ? opts.multigraph : false,
+          );
+          __privateSet(
+            this,
+            _isCompound,
+            opts.hasOwnProperty("compound") ? opts.compound : false,
+          );
         }
         if (__privateGet(this, _isCompound)) {
           __privateSet(this, _parent, {});
@@ -735,16 +969,20 @@ var require_graph = __commonJS({
       }
       sources() {
         var self = this;
-        return this.nodes().filter((v) => Object.keys(__privateGet(self, _in)[v]).length === 0);
+        return this.nodes().filter(
+          (v) => Object.keys(__privateGet(self, _in)[v]).length === 0,
+        );
       }
       sinks() {
         var self = this;
-        return this.nodes().filter((v) => Object.keys(__privateGet(self, _out)[v]).length === 0);
+        return this.nodes().filter(
+          (v) => Object.keys(__privateGet(self, _out)[v]).length === 0,
+        );
       }
       setNodes(vs, value) {
         var args = arguments;
         var self = this;
-        vs.forEach(function(v) {
+        vs.forEach(function (v) {
           if (args.length > 1) {
             self.setNode(v, value);
           } else {
@@ -760,7 +998,10 @@ var require_graph = __commonJS({
           }
           return this;
         }
-        __privateGet(this, _nodes)[v] = arguments.length > 1 ? value : __privateGet(this, _defaultNodeLabelFn).call(this, v);
+        __privateGet(this, _nodes)[v] =
+          arguments.length > 1
+            ? value
+            : __privateGet(this, _defaultNodeLabelFn).call(this, v);
         if (__privateGet(this, _isCompound)) {
           __privateGet(this, _parent)[v] = GRAPH_NODE;
           __privateGet(this, _children)[v] = {};
@@ -782,12 +1023,17 @@ var require_graph = __commonJS({
       removeNode(v) {
         var self = this;
         if (__privateGet(this, _nodes).hasOwnProperty(v)) {
-          var removeEdge = (e) => self.removeEdge(__privateGet(self, _edgeObjs)[e]);
+          var removeEdge = (e) =>
+            self.removeEdge(__privateGet(self, _edgeObjs)[e]);
           delete __privateGet(this, _nodes)[v];
           if (__privateGet(this, _isCompound)) {
-            __privateMethod(this, _removeFromParentsChildList, removeFromParentsChildList_fn).call(this, v);
+            __privateMethod(
+              this,
+              _removeFromParentsChildList,
+              removeFromParentsChildList_fn,
+            ).call(this, v);
             delete __privateGet(this, _parent)[v];
-            this.children(v).forEach(function(child) {
+            this.children(v).forEach(function (child) {
               self.setParent(child);
             });
             delete __privateGet(this, _children)[v];
@@ -810,15 +1056,29 @@ var require_graph = __commonJS({
           parent = GRAPH_NODE;
         } else {
           parent += "";
-          for (var ancestor = parent; ancestor !== void 0; ancestor = this.parent(ancestor)) {
+          for (
+            var ancestor = parent;
+            ancestor !== void 0;
+            ancestor = this.parent(ancestor)
+          ) {
             if (ancestor === v) {
-              throw new Error("Setting " + parent + " as parent of " + v + " would create a cycle");
+              throw new Error(
+                "Setting " +
+                  parent +
+                  " as parent of " +
+                  v +
+                  " would create a cycle",
+              );
             }
           }
           this.setNode(parent);
         }
         this.setNode(v);
-        __privateMethod(this, _removeFromParentsChildList, removeFromParentsChildList_fn).call(this, v);
+        __privateMethod(
+          this,
+          _removeFromParentsChildList,
+          removeFromParentsChildList_fn,
+        ).call(this, v);
         __privateGet(this, _parent)[v] = parent;
         __privateGet(this, _children)[parent][v] = true;
         return this;
@@ -878,16 +1138,19 @@ var require_graph = __commonJS({
         var copy = new this.constructor({
           directed: __privateGet(this, _isDirected),
           multigraph: __privateGet(this, _isMultigraph),
-          compound: __privateGet(this, _isCompound)
+          compound: __privateGet(this, _isCompound),
         });
         copy.setGraph(this.graph());
         var self = this;
-        Object.entries(__privateGet(this, _nodes)).forEach(function([v, value]) {
+        Object.entries(__privateGet(this, _nodes)).forEach(function ([
+          v,
+          value,
+        ]) {
           if (filter(v)) {
             copy.setNode(v, value);
           }
         });
-        Object.values(__privateGet(this, _edgeObjs)).forEach(function(e) {
+        Object.values(__privateGet(this, _edgeObjs)).forEach(function (e) {
           if (copy.hasNode(e.v) && copy.hasNode(e.w)) {
             copy.setEdge(e, self.edge(e));
           }
@@ -925,7 +1188,7 @@ var require_graph = __commonJS({
       setPath(vs, value) {
         var self = this;
         var args = arguments;
-        vs.reduce(function(v, w) {
+        vs.reduce(function (v, w) {
           if (args.length > 1) {
             self.setEdge(v, w, value);
           } else {
@@ -973,8 +1236,15 @@ var require_graph = __commonJS({
         }
         this.setNode(v);
         this.setNode(w);
-        __privateGet(this, _edgeLabels)[e] = valueSpecified ? value : __privateGet(this, _defaultEdgeLabelFn).call(this, v, w, name);
-        var edgeObj = edgeArgsToObj(__privateGet(this, _isDirected), v, w, name);
+        __privateGet(this, _edgeLabels)[e] = valueSpecified
+          ? value
+          : __privateGet(this, _defaultEdgeLabelFn).call(this, v, w, name);
+        var edgeObj = edgeArgsToObj(
+          __privateGet(this, _isDirected),
+          v,
+          w,
+          name,
+        );
         v = edgeObj.v;
         w = edgeObj.w;
         Object.freeze(edgeObj);
@@ -987,7 +1257,10 @@ var require_graph = __commonJS({
         return this;
       }
       edge(v, w, name) {
-        var e = arguments.length === 1 ? edgeObjToId(__privateGet(this, _isDirected), arguments[0]) : edgeArgsToId(__privateGet(this, _isDirected), v, w, name);
+        var e =
+          arguments.length === 1
+            ? edgeObjToId(__privateGet(this, _isDirected), arguments[0])
+            : edgeArgsToId(__privateGet(this, _isDirected), v, w, name);
         return __privateGet(this, _edgeLabels)[e];
       }
       edgeAsObj() {
@@ -998,11 +1271,17 @@ var require_graph = __commonJS({
         return edge;
       }
       hasEdge(v, w, name) {
-        var e = arguments.length === 1 ? edgeObjToId(__privateGet(this, _isDirected), arguments[0]) : edgeArgsToId(__privateGet(this, _isDirected), v, w, name);
+        var e =
+          arguments.length === 1
+            ? edgeObjToId(__privateGet(this, _isDirected), arguments[0])
+            : edgeArgsToId(__privateGet(this, _isDirected), v, w, name);
         return __privateGet(this, _edgeLabels).hasOwnProperty(e);
       }
       removeEdge(v, w, name) {
-        var e = arguments.length === 1 ? edgeObjToId(__privateGet(this, _isDirected), arguments[0]) : edgeArgsToId(__privateGet(this, _isDirected), v, w, name);
+        var e =
+          arguments.length === 1
+            ? edgeObjToId(__privateGet(this, _isDirected), arguments[0])
+            : edgeArgsToId(__privateGet(this, _isDirected), v, w, name);
         var edge = __privateGet(this, _edgeObjs)[e];
         if (edge) {
           v = edge.v;
@@ -1062,7 +1341,7 @@ var require_graph = __commonJS({
     _parent = new WeakMap();
     _children = new WeakMap();
     _removeFromParentsChildList = new WeakSet();
-    removeFromParentsChildList_fn = function(v) {
+    removeFromParentsChildList_fn = function (v) {
       delete __privateGet(this, _children)[__privateGet(this, _parent)[v]][v];
     };
     function incrementOrInitEntry(map, k) {
@@ -1085,7 +1364,13 @@ var require_graph = __commonJS({
         v = w;
         w = tmp;
       }
-      return v + EDGE_KEY_DELIM + w + EDGE_KEY_DELIM + (name === void 0 ? DEFAULT_EDGE_NAME : name);
+      return (
+        v +
+        EDGE_KEY_DELIM +
+        w +
+        EDGE_KEY_DELIM +
+        (name === void 0 ? DEFAULT_EDGE_NAME : name)
+      );
     }
     function edgeArgsToObj(isDirected, v_, w_, name) {
       var v = "" + v_;
@@ -1105,14 +1390,14 @@ var require_graph = __commonJS({
       return edgeArgsToId(isDirected, edgeObj.v, edgeObj.w, edgeObj.name);
     }
     module2.exports = Graph;
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/version.js
 var require_version = __commonJS({
   "node_modules/@dagrejs/graphlib/lib/version.js"(exports, module2) {
     module2.exports = "2.1.13";
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/index.js
@@ -1120,9 +1405,9 @@ var require_lib = __commonJS({
   "node_modules/@dagrejs/graphlib/lib/index.js"(exports, module2) {
     module2.exports = {
       Graph: require_graph(),
-      version: require_version()
+      version: require_version(),
     };
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/json.js
@@ -1131,17 +1416,17 @@ var require_json = __commonJS({
     var Graph = require_graph();
     module2.exports = {
       write: write2,
-      read: read2
+      read: read2,
     };
     function write2(g) {
       var json = {
         options: {
           directed: g.isDirected(),
           multigraph: g.isMultigraph(),
-          compound: g.isCompound()
+          compound: g.isCompound(),
         },
         nodes: writeNodes(g),
-        edges: writeEdges(g)
+        edges: writeEdges(g),
       };
       if (g.graph() !== void 0) {
         json.value = structuredClone(g.graph());
@@ -1149,7 +1434,7 @@ var require_json = __commonJS({
       return json;
     }
     function writeNodes(g) {
-      return g.nodes().map(function(v) {
+      return g.nodes().map(function (v) {
         var nodeValue = g.node(v);
         var parent = g.parent(v);
         var node = { v };
@@ -1163,7 +1448,7 @@ var require_json = __commonJS({
       });
     }
     function writeEdges(g) {
-      return g.edges().map(function(e) {
+      return g.edges().map(function (e) {
         var edgeValue = g.edge(e);
         var edge = { v: e.v, w: e.w };
         if (e.name !== void 0) {
@@ -1177,18 +1462,18 @@ var require_json = __commonJS({
     }
     function read2(json) {
       var g = new Graph(json.options).setGraph(json.value);
-      json.nodes.forEach(function(entry) {
+      json.nodes.forEach(function (entry) {
         g.setNode(entry.v, entry.value);
         if (entry.parent) {
           g.setParent(entry.v, entry.parent);
         }
       });
-      json.edges.forEach(function(entry) {
+      json.edges.forEach(function (entry) {
         g.setEdge({ v: entry.v, w: entry.w, name: entry.name }, entry.value);
       });
       return g;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/components.js
@@ -1200,14 +1485,13 @@ var require_components = __commonJS({
       var cmpts = [];
       var cmpt;
       function dfs(v) {
-        if (visited.hasOwnProperty(v))
-          return;
+        if (visited.hasOwnProperty(v)) return;
         visited[v] = true;
         cmpt.push(v);
         g.successors(v).forEach(dfs);
         g.predecessors(v).forEach(dfs);
       }
-      g.nodes().forEach(function(v) {
+      g.nodes().forEach(function (v) {
         cmpt = [];
         dfs(v);
         if (cmpt.length) {
@@ -1216,13 +1500,23 @@ var require_components = __commonJS({
       });
       return cmpts;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/data/priority-queue.js
 var require_priority_queue = __commonJS({
-  "node_modules/@dagrejs/graphlib/lib/data/priority-queue.js"(exports, module2) {
-    var _arr, _keyIndices, _heapify, heapify_fn, _decrease, decrease_fn, _swap, swap_fn;
+  "node_modules/@dagrejs/graphlib/lib/data/priority-queue.js"(
+    exports,
+    module2,
+  ) {
+    var _arr,
+      _keyIndices,
+      _heapify,
+      heapify_fn,
+      _decrease,
+      decrease_fn,
+      _swap,
+      swap_fn;
     var PriorityQueue = class {
       constructor() {
         __privateAdd(this, _heapify);
@@ -1235,7 +1529,7 @@ var require_priority_queue = __commonJS({
         return __privateGet(this, _arr).length;
       }
       keys() {
-        return __privateGet(this, _arr).map(function(x) {
+        return __privateGet(this, _arr).map(function (x) {
           return x.key;
         });
       }
@@ -1268,7 +1562,11 @@ var require_priority_queue = __commonJS({
         return false;
       }
       removeMin() {
-        __privateMethod(this, _swap, swap_fn).call(this, 0, __privateGet(this, _arr).length - 1);
+        __privateMethod(this, _swap, swap_fn).call(
+          this,
+          0,
+          __privateGet(this, _arr).length - 1,
+        );
         var min2 = __privateGet(this, _arr).pop();
         delete __privateGet(this, _keyIndices)[min2.key];
         __privateMethod(this, _heapify, heapify_fn).call(this, 0);
@@ -1277,7 +1575,14 @@ var require_priority_queue = __commonJS({
       decrease(key, priority) {
         var index = __privateGet(this, _keyIndices)[key];
         if (priority > __privateGet(this, _arr)[index].priority) {
-          throw new Error("New priority is greater than current priority. Key: " + key + " Old: " + __privateGet(this, _arr)[index].priority + " New: " + priority);
+          throw new Error(
+            "New priority is greater than current priority. Key: " +
+              key +
+              " Old: " +
+              __privateGet(this, _arr)[index].priority +
+              " New: " +
+              priority,
+          );
         }
         __privateGet(this, _arr)[index].priority = priority;
         __privateMethod(this, _decrease, decrease_fn).call(this, index);
@@ -1286,7 +1591,7 @@ var require_priority_queue = __commonJS({
     _arr = new WeakMap();
     _keyIndices = new WeakMap();
     _heapify = new WeakSet();
-    heapify_fn = function(i) {
+    heapify_fn = function (i) {
       var arr = __privateGet(this, _arr);
       var l = 2 * i;
       var r = l + 1;
@@ -1303,7 +1608,7 @@ var require_priority_queue = __commonJS({
       }
     };
     _decrease = new WeakSet();
-    decrease_fn = function(index) {
+    decrease_fn = function (index) {
       var arr = __privateGet(this, _arr);
       var priority = arr[index].priority;
       var parent;
@@ -1317,7 +1622,7 @@ var require_priority_queue = __commonJS({
       }
     };
     _swap = new WeakSet();
-    swap_fn = function(i, j) {
+    swap_fn = function (i, j) {
       var arr = __privateGet(this, _arr);
       var keyIndices = __privateGet(this, _keyIndices);
       var origArrI = arr[i];
@@ -1328,7 +1633,7 @@ var require_priority_queue = __commonJS({
       keyIndices[origArrI.key] = j;
     };
     module2.exports = PriorityQueue;
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/dijkstra.js
@@ -1338,21 +1643,32 @@ var require_dijkstra = __commonJS({
     module2.exports = dijkstra;
     var DEFAULT_WEIGHT_FUNC = () => 1;
     function dijkstra(g, source, weightFn, edgeFn) {
-      return runDijkstra(g, String(source), weightFn || DEFAULT_WEIGHT_FUNC, edgeFn || function(v) {
-        return g.outEdges(v);
-      });
+      return runDijkstra(
+        g,
+        String(source),
+        weightFn || DEFAULT_WEIGHT_FUNC,
+        edgeFn ||
+          function (v) {
+            return g.outEdges(v);
+          },
+      );
     }
     function runDijkstra(g, source, weightFn, edgeFn) {
       var results = {};
       var pq = new PriorityQueue();
       var v, vEntry;
-      var updateNeighbors = function(edge) {
+      var updateNeighbors = function (edge) {
         var w = edge.v !== v ? edge.v : edge.w;
         var wEntry = results[w];
         var weight = weightFn(edge);
         var distance = vEntry.distance + weight;
         if (weight < 0) {
-          throw new Error("dijkstra does not allow negative edge weights. Bad edge: " + edge + " Weight: " + weight);
+          throw new Error(
+            "dijkstra does not allow negative edge weights. Bad edge: " +
+              edge +
+              " Weight: " +
+              weight,
+          );
         }
         if (distance < wEntry.distance) {
           wEntry.distance = distance;
@@ -1360,7 +1676,7 @@ var require_dijkstra = __commonJS({
           pq.decrease(w, distance);
         }
       };
-      g.nodes().forEach(function(v2) {
+      g.nodes().forEach(function (v2) {
         var distance = v2 === source ? 0 : Number.POSITIVE_INFINITY;
         results[v2] = { distance };
         pq.add(v2, distance);
@@ -1375,7 +1691,7 @@ var require_dijkstra = __commonJS({
       }
       return results;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/dijkstra-all.js
@@ -1384,12 +1700,12 @@ var require_dijkstra_all = __commonJS({
     var dijkstra = require_dijkstra();
     module2.exports = dijkstraAll;
     function dijkstraAll(g, weightFunc, edgeFunc) {
-      return g.nodes().reduce(function(acc, v) {
+      return g.nodes().reduce(function (acc, v) {
         acc[v] = dijkstra(g, v, weightFunc, edgeFunc);
         return acc;
       }, {});
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/tarjan.js
@@ -1402,13 +1718,13 @@ var require_tarjan = __commonJS({
       var visited = {};
       var results = [];
       function dfs(v) {
-        var entry = visited[v] = {
+        var entry = (visited[v] = {
           onStack: true,
           lowlink: index,
-          index: index++
-        };
+          index: index++,
+        });
         stack.push(v);
-        g.successors(v).forEach(function(w2) {
+        g.successors(v).forEach(function (w2) {
           if (!visited.hasOwnProperty(w2)) {
             dfs(w2);
             entry.lowlink = Math.min(entry.lowlink, visited[w2].lowlink);
@@ -1427,14 +1743,14 @@ var require_tarjan = __commonJS({
           results.push(cmpt);
         }
       }
-      g.nodes().forEach(function(v) {
+      g.nodes().forEach(function (v) {
         if (!visited.hasOwnProperty(v)) {
           dfs(v);
         }
       });
       return results;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/find-cycles.js
@@ -1443,11 +1759,13 @@ var require_find_cycles = __commonJS({
     var tarjan = require_tarjan();
     module2.exports = findCycles;
     function findCycles(g) {
-      return tarjan(g).filter(function(cmpt) {
-        return cmpt.length > 1 || cmpt.length === 1 && g.hasEdge(cmpt[0], cmpt[0]);
+      return tarjan(g).filter(function (cmpt) {
+        return (
+          cmpt.length > 1 || (cmpt.length === 1 && g.hasEdge(cmpt[0], cmpt[0]))
+        );
       });
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/floyd-warshall.js
@@ -1456,32 +1774,37 @@ var require_floyd_warshall = __commonJS({
     module2.exports = floydWarshall;
     var DEFAULT_WEIGHT_FUNC = () => 1;
     function floydWarshall(g, weightFn, edgeFn) {
-      return runFloydWarshall(g, weightFn || DEFAULT_WEIGHT_FUNC, edgeFn || function(v) {
-        return g.outEdges(v);
-      });
+      return runFloydWarshall(
+        g,
+        weightFn || DEFAULT_WEIGHT_FUNC,
+        edgeFn ||
+          function (v) {
+            return g.outEdges(v);
+          },
+      );
     }
     function runFloydWarshall(g, weightFn, edgeFn) {
       var results = {};
       var nodes = g.nodes();
-      nodes.forEach(function(v) {
+      nodes.forEach(function (v) {
         results[v] = {};
         results[v][v] = { distance: 0 };
-        nodes.forEach(function(w) {
+        nodes.forEach(function (w) {
           if (v !== w) {
             results[v][w] = { distance: Number.POSITIVE_INFINITY };
           }
         });
-        edgeFn(v).forEach(function(edge) {
+        edgeFn(v).forEach(function (edge) {
           var w = edge.v === v ? edge.w : edge.v;
           var d = weightFn(edge);
           results[v][w] = { distance: d, predecessor: v };
         });
       });
-      nodes.forEach(function(k) {
+      nodes.forEach(function (k) {
         var rowK = results[k];
-        nodes.forEach(function(i) {
+        nodes.forEach(function (i) {
           var rowI = results[i];
-          nodes.forEach(function(j) {
+          nodes.forEach(function (j) {
             var ik = rowI[k];
             var kj = rowK[j];
             var ij = rowI[j];
@@ -1495,7 +1818,7 @@ var require_floyd_warshall = __commonJS({
       });
       return results;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/topsort.js
@@ -1530,7 +1853,7 @@ var require_topsort = __commonJS({
     };
     module2.exports = topsort;
     topsort.CycleException = CycleException;
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/is-acyclic.js
@@ -1549,7 +1872,7 @@ var require_is_acyclic = __commonJS({
       }
       return true;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/dfs.js
@@ -1560,7 +1883,9 @@ var require_dfs = __commonJS({
       if (!Array.isArray(vs)) {
         vs = [vs];
       }
-      var navigation = g.isDirected() ? (v) => g.successors(v) : (v) => g.neighbors(v);
+      var navigation = g.isDirected()
+        ? (v) => g.successors(v)
+        : (v) => g.neighbors(v);
       var orderFunc = order2 === "post" ? postOrderDfs : preOrderDfs;
       var acc = [];
       var visited = {};
@@ -1605,7 +1930,7 @@ var require_dfs = __commonJS({
       }
       return array;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/postorder.js
@@ -1616,7 +1941,7 @@ var require_postorder = __commonJS({
     function postorder(g, vs) {
       return dfs(g, vs, "post");
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/preorder.js
@@ -1627,7 +1952,7 @@ var require_preorder = __commonJS({
     function preorder(g, vs) {
       return dfs(g, vs, "pre");
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/prim.js
@@ -1655,7 +1980,7 @@ var require_prim = __commonJS({
       if (g.nodeCount() === 0) {
         return result;
       }
-      g.nodes().forEach(function(v2) {
+      g.nodes().forEach(function (v2) {
         pq.add(v2, Number.POSITIVE_INFINITY);
         result.setNode(v2);
       });
@@ -1674,7 +1999,7 @@ var require_prim = __commonJS({
       }
       return result;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/lib/alg/index.js
@@ -1691,9 +2016,9 @@ var require_alg = __commonJS({
       preorder: require_preorder(),
       prim: require_prim(),
       tarjan: require_tarjan(),
-      topsort: require_topsort()
+      topsort: require_topsort(),
     };
-  }
+  },
 });
 
 // node_modules/@dagrejs/graphlib/index.js
@@ -1704,9 +2029,9 @@ var require_graphlib = __commonJS({
       Graph: lib.Graph,
       json: require_json(),
       alg: require_alg(),
-      version: lib.version
+      version: lib.version,
     };
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/data/list.js
@@ -1718,7 +2043,7 @@ var require_list = __commonJS({
       sentinel._next = sentinel._prev = sentinel;
       this._sentinel = sentinel;
     }
-    List.prototype.dequeue = function() {
+    List.prototype.dequeue = function () {
       var sentinel = this._sentinel;
       var entry = sentinel._prev;
       if (entry !== sentinel) {
@@ -1726,7 +2051,7 @@ var require_list = __commonJS({
         return entry;
       }
     };
-    List.prototype.enqueue = function(entry) {
+    List.prototype.enqueue = function (entry) {
       var sentinel = this._sentinel;
       if (entry._prev && entry._next) {
         unlink(entry);
@@ -1736,7 +2061,7 @@ var require_list = __commonJS({
       sentinel._next = entry;
       entry._prev = sentinel;
     };
-    List.prototype.toString = function() {
+    List.prototype.toString = function () {
       var strs = [];
       var sentinel = this._sentinel;
       var curr = sentinel._prev;
@@ -1757,7 +2082,7 @@ var require_list = __commonJS({
         return v;
       }
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/greedy-fas.js
@@ -1781,17 +2106,19 @@ var require_greedy_fas = __commonJS({
       var sinks = buckets[0];
       var entry;
       while (g.nodeCount()) {
-        while (entry = sinks.dequeue()) {
+        while ((entry = sinks.dequeue())) {
           removeNode(g, buckets, zeroIdx, entry);
         }
-        while (entry = sources.dequeue()) {
+        while ((entry = sources.dequeue())) {
           removeNode(g, buckets, zeroIdx, entry);
         }
         if (g.nodeCount()) {
           for (var i = buckets.length - 2; i > 0; --i) {
             entry = buckets[i].dequeue();
             if (entry) {
-              results = results.concat(removeNode(g, buckets, zeroIdx, entry, true));
+              results = results.concat(
+                removeNode(g, buckets, zeroIdx, entry, true),
+              );
               break;
             }
           }
@@ -1801,7 +2128,7 @@ var require_greedy_fas = __commonJS({
     }
     function removeNode(g, buckets, zeroIdx, entry, collectPredecessors) {
       var results = collectPredecessors ? [] : void 0;
-      g.inEdges(entry.v).forEach(function(edge) {
+      g.inEdges(entry.v).forEach(function (edge) {
         var weight = g.edge(edge);
         var uEntry = g.node(edge.v);
         if (collectPredecessors) {
@@ -1810,7 +2137,7 @@ var require_greedy_fas = __commonJS({
         uEntry.out -= weight;
         assignBucket(buckets, zeroIdx, uEntry);
       });
-      g.outEdges(entry.v).forEach(function(edge) {
+      g.outEdges(entry.v).forEach(function (edge) {
         var weight = g.edge(edge);
         var w = edge.w;
         var wEntry = g.node(w);
@@ -1824,20 +2151,20 @@ var require_greedy_fas = __commonJS({
       var fasGraph = new Graph();
       var maxIn = 0;
       var maxOut = 0;
-      g.nodes().forEach(function(v) {
-        fasGraph.setNode(v, { v, "in": 0, out: 0 });
+      g.nodes().forEach(function (v) {
+        fasGraph.setNode(v, { v, in: 0, out: 0 });
       });
-      g.edges().forEach(function(e) {
+      g.edges().forEach(function (e) {
         var prevWeight = fasGraph.edge(e.v, e.w) || 0;
         var weight = weightFn(e);
         var edgeWeight = prevWeight + weight;
         fasGraph.setEdge(e.v, e.w, edgeWeight);
-        maxOut = Math.max(maxOut, fasGraph.node(e.v).out += weight);
-        maxIn = Math.max(maxIn, fasGraph.node(e.w)["in"] += weight);
+        maxOut = Math.max(maxOut, (fasGraph.node(e.v).out += weight));
+        maxIn = Math.max(maxIn, (fasGraph.node(e.w)["in"] += weight));
       });
       var buckets = range(maxOut + maxIn + 3).map(() => new List());
       var zeroIdx = maxIn + 1;
-      fasGraph.nodes().forEach(function(v) {
+      fasGraph.nodes().forEach(function (v) {
         assignBucket(buckets, zeroIdx, fasGraph.node(v));
       });
       return { graph: fasGraph, buckets, zeroIdx };
@@ -1858,7 +2185,7 @@ var require_greedy_fas = __commonJS({
       }
       return range2;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/util.js
@@ -1885,7 +2212,7 @@ var require_util = __commonJS({
       successorWeights,
       time,
       uniqueId,
-      zipObject
+      zipObject,
     };
     function addDummyNode(g, type, attrs, name) {
       var v;
@@ -1904,13 +2231,15 @@ var require_util = __commonJS({
         var label = g.edge(e);
         simplified.setEdge(e.v, e.w, {
           weight: simpleLabel.weight + label.weight,
-          minlen: Math.max(simpleLabel.minlen, label.minlen)
+          minlen: Math.max(simpleLabel.minlen, label.minlen),
         });
       });
       return simplified;
     }
     function asNonCompoundGraph(g) {
-      var simplified = new Graph({ multigraph: g.isMultigraph() }).setGraph(g.graph());
+      var simplified = new Graph({ multigraph: g.isMultigraph() }).setGraph(
+        g.graph(),
+      );
       g.nodes().forEach((v) => {
         if (!g.children(v).length) {
           simplified.setNode(v, g.node(v));
@@ -1949,21 +2278,23 @@ var require_util = __commonJS({
       var w = rect.width / 2;
       var h = rect.height / 2;
       if (!dx && !dy) {
-        throw new Error("Not possible to find intersection inside of the rectangle");
+        throw new Error(
+          "Not possible to find intersection inside of the rectangle",
+        );
       }
       var sx, sy;
       if (Math.abs(dy) * w > Math.abs(dx) * h) {
         if (dy < 0) {
           h = -h;
         }
-        sx = h * dx / dy;
+        sx = (h * dx) / dy;
         sy = h;
       } else {
         if (dx < 0) {
           w = -w;
         }
         sx = w;
-        sy = w * dy / dx;
+        sy = (w * dy) / dx;
       }
       return { x: x + sx, y: y + sy };
     }
@@ -1979,13 +2310,15 @@ var require_util = __commonJS({
       return layering;
     }
     function normalizeRanks(g) {
-      var min2 = Math.min(...g.nodes().map((v) => {
-        var rank = g.node(v).rank;
-        if (rank === void 0) {
-          return Number.MAX_VALUE;
-        }
-        return rank;
-      }));
+      var min2 = Math.min(
+        ...g.nodes().map((v) => {
+          var rank = g.node(v).rank;
+          if (rank === void 0) {
+            return Number.MAX_VALUE;
+          }
+          return rank;
+        }),
+      );
       g.nodes().forEach((v) => {
         var node = g.node(v);
         if (node.hasOwnProperty("rank")) {
@@ -2009,14 +2342,14 @@ var require_util = __commonJS({
         if (vs === void 0 && i % nodeRankFactor !== 0) {
           --delta;
         } else if (vs !== void 0 && delta) {
-          vs.forEach((v) => g.node(v).rank += delta);
+          vs.forEach((v) => (g.node(v).rank += delta));
         }
       });
     }
     function addBorderNode(g, prefix, rank, order2) {
       var node = {
         width: 0,
-        height: 0
+        height: 0,
       };
       if (arguments.length >= 4) {
         node.rank = rank;
@@ -2025,13 +2358,15 @@ var require_util = __commonJS({
       return addDummyNode(g, "border", node, prefix);
     }
     function maxRank(g) {
-      return Math.max(...g.nodes().map((v) => {
-        var rank = g.node(v).rank;
-        if (rank === void 0) {
-          return Number.MIN_VALUE;
-        }
-        return rank;
-      }));
+      return Math.max(
+        ...g.nodes().map((v) => {
+          var rank = g.node(v).rank;
+          if (rank === void 0) {
+            return Number.MIN_VALUE;
+          }
+          return rank;
+        }),
+      );
     }
     function partition(collection, fn2) {
       var result = { lhs: [], rhs: [] };
@@ -2100,7 +2435,7 @@ var require_util = __commonJS({
         return acc;
       }, {});
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/acyclic.js
@@ -2111,11 +2446,14 @@ var require_acyclic = __commonJS({
     var uniqueId = require_util().uniqueId;
     module2.exports = {
       run: run2,
-      undo
+      undo,
     };
     function run2(g) {
-      var fas = g.graph().acyclicer === "greedy" ? greedyFAS(g, weightFn(g)) : dfsFAS(g);
-      fas.forEach(function(e) {
+      var fas =
+        g.graph().acyclicer === "greedy"
+          ? greedyFAS(g, weightFn(g))
+          : dfsFAS(g);
+      fas.forEach(function (e) {
         var label = g.edge(e);
         g.removeEdge(e);
         label.forwardName = e.name;
@@ -2123,7 +2461,7 @@ var require_acyclic = __commonJS({
         g.setEdge(e.w, e.v, label, uniqueId("rev"));
       });
       function weightFn(g2) {
-        return function(e) {
+        return function (e) {
           return g2.edge(e).weight;
         };
       }
@@ -2138,7 +2476,7 @@ var require_acyclic = __commonJS({
         }
         visited[v] = true;
         stack[v] = true;
-        g.outEdges(v).forEach(function(e) {
+        g.outEdges(v).forEach(function (e) {
           if (stack.hasOwnProperty(e.w)) {
             fas.push(e);
           } else {
@@ -2151,7 +2489,7 @@ var require_acyclic = __commonJS({
       return fas;
     }
     function undo(g) {
-      g.edges().forEach(function(e) {
+      g.edges().forEach(function (e) {
         var label = g.edge(e);
         if (label.reversed) {
           g.removeEdge(e);
@@ -2162,7 +2500,7 @@ var require_acyclic = __commonJS({
         }
       });
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/normalize.js
@@ -2172,7 +2510,7 @@ var require_normalize = __commonJS({
     var util = require_util();
     module2.exports = {
       run: run2,
-      undo
+      undo,
     };
     function run2(g) {
       g.graph().dummyChains = [];
@@ -2186,8 +2524,7 @@ var require_normalize = __commonJS({
       var name = e.name;
       var edgeLabel = g.edge(e);
       var labelRank = edgeLabel.labelRank;
-      if (wRank === vRank + 1)
-        return;
+      if (wRank === vRank + 1) return;
       g.removeEdge(e);
       var dummy, attrs, i;
       for (i = 0, ++vRank; vRank < wRank; ++i, ++vRank) {
@@ -2197,7 +2534,7 @@ var require_normalize = __commonJS({
           height: 0,
           edgeLabel,
           edgeObj: e,
-          rank: vRank
+          rank: vRank,
         };
         dummy = util.addDummyNode(g, "edge", attrs, "_d");
         if (vRank === labelRank) {
@@ -2215,7 +2552,7 @@ var require_normalize = __commonJS({
       g.setEdge(v, w, { weight: edgeLabel.weight }, name);
     }
     function undo(g) {
-      g.graph().dummyChains.forEach(function(v) {
+      g.graph().dummyChains.forEach(function (v) {
         var node = g.node(v);
         var origLabel = node.edgeLabel;
         var w;
@@ -2235,7 +2572,7 @@ var require_normalize = __commonJS({
         }
       });
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/rank/util.js
@@ -2244,7 +2581,7 @@ var require_util2 = __commonJS({
     "use strict";
     module2.exports = {
       longestPath,
-      slack
+      slack,
     };
     function longestPath(g) {
       var visited = {};
@@ -2254,23 +2591,25 @@ var require_util2 = __commonJS({
           return label.rank;
         }
         visited[v] = true;
-        var rank = Math.min(...g.outEdges(v).map((e) => {
-          if (e == null) {
-            return Number.POSITIVE_INFINITY;
-          }
-          return dfs(e.w) - g.edge(e).minlen;
-        }));
+        var rank = Math.min(
+          ...g.outEdges(v).map((e) => {
+            if (e == null) {
+              return Number.POSITIVE_INFINITY;
+            }
+            return dfs(e.w) - g.edge(e).minlen;
+          }),
+        );
         if (rank === Number.POSITIVE_INFINITY) {
           rank = 0;
         }
-        return label.rank = rank;
+        return (label.rank = rank);
       }
       g.sources().forEach(dfs);
     }
     function slack(g, e) {
       return g.node(e.w).rank - g.node(e.v).rank - g.edge(e).minlen;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/rank/feasible-tree.js
@@ -2295,8 +2634,9 @@ var require_feasible_tree = __commonJS({
     }
     function tightTree(t, g) {
       function dfs(v) {
-        g.nodeEdges(v).forEach(function(e) {
-          var edgeV = e.v, w = v === edgeV ? e.w : edgeV;
+        g.nodeEdges(v).forEach(function (e) {
+          var edgeV = e.v,
+            w = v === edgeV ? e.w : edgeV;
           if (!t.hasNode(w) && !slack(g, e)) {
             t.setNode(w, {});
             t.setEdge(v, w, {});
@@ -2309,21 +2649,24 @@ var require_feasible_tree = __commonJS({
     }
     function findMinSlackEdge(t, g) {
       const edges = g.edges();
-      return edges.reduce((acc, edge) => {
-        let edgeSlack = Number.POSITIVE_INFINITY;
-        if (t.hasNode(edge.v) !== t.hasNode(edge.w)) {
-          edgeSlack = slack(g, edge);
-        }
-        if (edgeSlack < acc[0]) {
-          return [edgeSlack, edge];
-        }
-        return acc;
-      }, [Number.POSITIVE_INFINITY, null])[1];
+      return edges.reduce(
+        (acc, edge) => {
+          let edgeSlack = Number.POSITIVE_INFINITY;
+          if (t.hasNode(edge.v) !== t.hasNode(edge.w)) {
+            edgeSlack = slack(g, edge);
+          }
+          if (edgeSlack < acc[0]) {
+            return [edgeSlack, edge];
+          }
+          return acc;
+        },
+        [Number.POSITIVE_INFINITY, null],
+      )[1];
     }
     function shiftRanks(t, g, delta) {
-      t.nodes().forEach((v) => g.node(v).rank += delta);
+      t.nodes().forEach((v) => (g.node(v).rank += delta));
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/rank/network-simplex.js
@@ -2350,7 +2693,7 @@ var require_network_simplex = __commonJS({
       initLowLimValues(t);
       initCutValues(t, g);
       var e, f;
-      while (e = leaveEdge(t)) {
+      while ((e = leaveEdge(t))) {
         f = enterEdge(t, g, e);
         exchangeEdges(t, g, e, f);
       }
@@ -2376,10 +2719,12 @@ var require_network_simplex = __commonJS({
         graphEdge = g.edge(parent, child);
       }
       cutValue = graphEdge.weight;
-      g.nodeEdges(child).forEach(function(e) {
-        var isOutEdge = e.v === child, other = isOutEdge ? e.w : e.v;
+      g.nodeEdges(child).forEach(function (e) {
+        var isOutEdge = e.v === child,
+          other = isOutEdge ? e.w : e.v;
         if (other !== parent) {
-          var pointsToHead = isOutEdge === childIsTail, otherWeight = g.edge(e).weight;
+          var pointsToHead = isOutEdge === childIsTail,
+            otherWeight = g.edge(e).weight;
           cutValue += pointsToHead ? otherWeight : -otherWeight;
           if (isTreeEdge(t, child, other)) {
             var otherCutValue = t.edge(child, other).cutvalue;
@@ -2399,7 +2744,7 @@ var require_network_simplex = __commonJS({
       var low = nextLim;
       var label = tree.node(v);
       visited[v] = true;
-      tree.neighbors(v).forEach(function(w) {
+      tree.neighbors(v).forEach(function (w) {
         if (!visited.hasOwnProperty(w)) {
           nextLim = dfsAssignLowLim(tree, visited, nextLim, w, v);
         }
@@ -2431,8 +2776,11 @@ var require_network_simplex = __commonJS({
         tailLabel = wLabel;
         flip2 = true;
       }
-      var candidates = g.edges().filter(function(edge2) {
-        return flip2 === isDescendant(t, t.node(edge2.v), tailLabel) && flip2 !== isDescendant(t, t.node(edge2.w), tailLabel);
+      var candidates = g.edges().filter(function (edge2) {
+        return (
+          flip2 === isDescendant(t, t.node(edge2.v), tailLabel) &&
+          flip2 !== isDescendant(t, t.node(edge2.w), tailLabel)
+        );
       });
       return candidates.reduce((acc, edge2) => {
         if (slack(g, edge2) < slack(g, acc)) {
@@ -2454,13 +2802,16 @@ var require_network_simplex = __commonJS({
       var root = t.nodes().find((v) => !g.node(v).parent);
       var vs = preorder(t, root);
       vs = vs.slice(1);
-      vs.forEach(function(v) {
-        var parent = t.node(v).parent, edge = g.edge(v, parent), flipped = false;
+      vs.forEach(function (v) {
+        var parent = t.node(v).parent,
+          edge = g.edge(v, parent),
+          flipped = false;
         if (!edge) {
           edge = g.edge(parent, v);
           flipped = true;
         }
-        g.node(v).rank = g.node(parent).rank + (flipped ? edge.minlen : -edge.minlen);
+        g.node(v).rank =
+          g.node(parent).rank + (flipped ? edge.minlen : -edge.minlen);
       });
     }
     function isTreeEdge(tree, u, v) {
@@ -2469,7 +2820,7 @@ var require_network_simplex = __commonJS({
     function isDescendant(tree, vLabel, rootLabel) {
       return rootLabel.low <= vLabel.lim && vLabel.lim <= rootLabel.lim;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/rank/index.js
@@ -2504,7 +2855,7 @@ var require_rank = __commonJS({
     function networkSimplexRanker(g) {
       networkSimplex(g);
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/parent-dummy-chains.js
@@ -2513,7 +2864,7 @@ var require_parent_dummy_chains = __commonJS({
     module2.exports = parentDummyChains;
     function parentDummyChains(g) {
       var postorderNums = postorder(g);
-      g.graph().dummyChains.forEach(function(v) {
+      g.graph().dummyChains.forEach(function (v) {
         var node = g.node(v);
         var edgeObj = node.edgeObj;
         var pathData = findPath(g, postorderNums, edgeObj.v, edgeObj.w);
@@ -2525,7 +2876,10 @@ var require_parent_dummy_chains = __commonJS({
         while (v !== edgeObj.w) {
           node = g.node(v);
           if (ascending) {
-            while ((pathV = path[pathIdx]) !== lca && g.node(pathV).maxRank < node.rank) {
+            while (
+              (pathV = path[pathIdx]) !== lca &&
+              g.node(pathV).maxRank < node.rank
+            ) {
               pathIdx++;
             }
             if (pathV === lca) {
@@ -2533,7 +2887,10 @@ var require_parent_dummy_chains = __commonJS({
             }
           }
           if (!ascending) {
-            while (pathIdx < path.length - 1 && g.node(pathV = path[pathIdx + 1]).minRank <= node.rank) {
+            while (
+              pathIdx < path.length - 1 &&
+              g.node((pathV = path[pathIdx + 1])).minRank <= node.rank
+            ) {
               pathIdx++;
             }
             pathV = path[pathIdx];
@@ -2554,7 +2911,10 @@ var require_parent_dummy_chains = __commonJS({
       do {
         parent = g.parent(parent);
         vPath.push(parent);
-      } while (parent && (postorderNums[parent].low > low || lim > postorderNums[parent].lim));
+      } while (
+        parent &&
+        (postorderNums[parent].low > low || lim > postorderNums[parent].lim)
+      );
       lca = parent;
       parent = w;
       while ((parent = g.parent(parent)) !== lca) {
@@ -2573,7 +2933,7 @@ var require_parent_dummy_chains = __commonJS({
       g.children().forEach(dfs);
       return result;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/nesting-graph.js
@@ -2582,7 +2942,7 @@ var require_nesting_graph = __commonJS({
     var util = require_util();
     module2.exports = {
       run: run2,
-      cleanup
+      cleanup,
     };
     function run2(g) {
       var root = util.addDummyNode(g, "root", {}, "_root");
@@ -2590,9 +2950,9 @@ var require_nesting_graph = __commonJS({
       var height = Math.max(...Object.values(depths)) - 1;
       var nodeSep = 2 * height + 1;
       g.graph().nestingRoot = root;
-      g.edges().forEach((e) => g.edge(e).minlen *= nodeSep);
+      g.edges().forEach((e) => (g.edge(e).minlen *= nodeSep));
       var weight = sumWeights(g) + 1;
-      g.children().forEach(function(child) {
+      g.children().forEach(function (child) {
         dfs(g, root, nodeSep, weight, height, depths, child);
       });
       g.graph().nodeRankFactor = nodeSep;
@@ -2612,22 +2972,24 @@ var require_nesting_graph = __commonJS({
       label.borderTop = top2;
       g.setParent(bottom2, v);
       label.borderBottom = bottom2;
-      children2.forEach(function(child) {
+      children2.forEach(function (child) {
         dfs(g, root, nodeSep, weight, height, depths, child);
         var childNode = g.node(child);
         var childTop = childNode.borderTop ? childNode.borderTop : child;
-        var childBottom = childNode.borderBottom ? childNode.borderBottom : child;
+        var childBottom = childNode.borderBottom
+          ? childNode.borderBottom
+          : child;
         var thisWeight = childNode.borderTop ? weight : 2 * weight;
         var minlen = childTop !== childBottom ? 1 : height - depths[v] + 1;
         g.setEdge(top2, childTop, {
           weight: thisWeight,
           minlen,
-          nestingEdge: true
+          nestingEdge: true,
         });
         g.setEdge(childBottom, bottom2, {
           weight: thisWeight,
           minlen,
-          nestingEdge: true
+          nestingEdge: true,
         });
       });
       if (!g.parent(v)) {
@@ -2660,7 +3022,7 @@ var require_nesting_graph = __commonJS({
         }
       });
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/add-border-segments.js
@@ -2678,7 +3040,11 @@ var require_add_border_segments = __commonJS({
         if (node.hasOwnProperty("minRank")) {
           node.borderLeft = [];
           node.borderRight = [];
-          for (var rank = node.minRank, maxRank = node.maxRank + 1; rank < maxRank; ++rank) {
+          for (
+            var rank = node.minRank, maxRank = node.maxRank + 1;
+            rank < maxRank;
+            ++rank
+          ) {
             addBorderNode(g, "borderLeft", "_bl", v, node, rank);
             addBorderNode(g, "borderRight", "_br", v, node, rank);
           }
@@ -2696,7 +3062,7 @@ var require_add_border_segments = __commonJS({
         g.setEdge(prev, curr, { weight: 1 });
       }
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/coordinate-system.js
@@ -2705,7 +3071,7 @@ var require_coordinate_system = __commonJS({
     "use strict";
     module2.exports = {
       adjust,
-      undo
+      undo,
     };
     function adjust(g) {
       var rankDir = g.graph().rankdir.toLowerCase();
@@ -2734,7 +3100,7 @@ var require_coordinate_system = __commonJS({
     }
     function reverseY(g) {
       g.nodes().forEach((v) => reverseYOne(g.node(v)));
-      g.edges().forEach(function(e) {
+      g.edges().forEach(function (e) {
         var edge = g.edge(e);
         edge.points.forEach(reverseYOne);
         if (edge.hasOwnProperty("y")) {
@@ -2747,7 +3113,7 @@ var require_coordinate_system = __commonJS({
     }
     function swapXY(g) {
       g.nodes().forEach((v) => swapXYOne(g.node(v)));
-      g.edges().forEach(function(e) {
+      g.edges().forEach(function (e) {
         var edge = g.edge(e);
         edge.points.forEach(swapXYOne);
         if (edge.hasOwnProperty("x")) {
@@ -2760,7 +3126,7 @@ var require_coordinate_system = __commonJS({
       attrs.x = attrs.y;
       attrs.y = x;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/init-order.js
@@ -2775,18 +3141,19 @@ var require_init_order = __commonJS({
       var maxRank = Math.max(...simpleNodes.map((v) => g.node(v).rank));
       var layers = util.range(maxRank + 1).map(() => []);
       function dfs(v) {
-        if (visited[v])
-          return;
+        if (visited[v]) return;
         visited[v] = true;
         var node = g.node(v);
         layers[node.rank].push(v);
         g.successors(v).forEach(dfs);
       }
-      var orderedVs = simpleNodes.sort((a, b) => g.node(a).rank - g.node(b).rank);
+      var orderedVs = simpleNodes.sort(
+        (a, b) => g.node(a).rank - g.node(b).rank,
+      );
       orderedVs.forEach(dfs);
       return layers;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/cross-count.js
@@ -2803,15 +3170,20 @@ var require_cross_count = __commonJS({
       return cc;
     }
     function twoLayerCrossCount(g, northLayer, southLayer) {
-      var southPos = zipObject(southLayer, southLayer.map((v, i) => i));
+      var southPos = zipObject(
+        southLayer,
+        southLayer.map((v, i) => i),
+      );
       var southEntries = northLayer.flatMap((v) => {
-        return g.outEdges(v).map((e) => {
-          return { pos: southPos[e.w], weight: g.edge(e).weight };
-        }).sort((a, b) => a.pos - b.pos);
+        return g
+          .outEdges(v)
+          .map((e) => {
+            return { pos: southPos[e.w], weight: g.edge(e).weight };
+          })
+          .sort((a, b) => a.pos - b.pos);
       });
       var firstIndex = 1;
-      while (firstIndex < southLayer.length)
-        firstIndex <<= 1;
+      while (firstIndex < southLayer.length) firstIndex <<= 1;
       var treeSize = 2 * firstIndex - 1;
       firstIndex -= 1;
       var tree = new Array(treeSize).fill(0);
@@ -2824,14 +3196,14 @@ var require_cross_count = __commonJS({
           if (index % 2) {
             weightSum += tree[index + 1];
           }
-          index = index - 1 >> 1;
+          index = (index - 1) >> 1;
           tree[index] += entry.weight;
         }
         cc += entry.weight * weightSum;
       });
       return cc;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/barycenter.js
@@ -2844,40 +3216,47 @@ var require_barycenter = __commonJS({
         if (!inV.length) {
           return { v };
         } else {
-          var result = inV.reduce((acc, e) => {
-            var edge = g.edge(e), nodeU = g.node(e.v);
-            return {
-              sum: acc.sum + edge.weight * nodeU.order,
-              weight: acc.weight + edge.weight
-            };
-          }, { sum: 0, weight: 0 });
+          var result = inV.reduce(
+            (acc, e) => {
+              var edge = g.edge(e),
+                nodeU = g.node(e.v);
+              return {
+                sum: acc.sum + edge.weight * nodeU.order,
+                weight: acc.weight + edge.weight,
+              };
+            },
+            { sum: 0, weight: 0 },
+          );
           return {
             v,
             barycenter: result.sum / result.weight,
-            weight: result.weight
+            weight: result.weight,
           };
         }
       });
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/resolve-conflicts.js
 var require_resolve_conflicts = __commonJS({
-  "node_modules/@dagrejs/dagre/lib/order/resolve-conflicts.js"(exports, module2) {
+  "node_modules/@dagrejs/dagre/lib/order/resolve-conflicts.js"(
+    exports,
+    module2,
+  ) {
     "use strict";
     var util = require_util();
     module2.exports = resolveConflicts;
     function resolveConflicts(entries, cg) {
       var mappedEntries = {};
       entries.forEach((entry, i) => {
-        var tmp = mappedEntries[entry.v] = {
+        var tmp = (mappedEntries[entry.v] = {
           indegree: 0,
-          "in": [],
+          in: [],
           out: [],
           vs: [entry.v],
-          i
-        };
+          i,
+        });
         if (entry.barycenter !== void 0) {
           tmp.barycenter = entry.barycenter;
           tmp.weight = entry.weight;
@@ -2891,23 +3270,29 @@ var require_resolve_conflicts = __commonJS({
           entryV.out.push(mappedEntries[e.w]);
         }
       });
-      var sourceSet = Object.values(mappedEntries).filter((entry) => !entry.indegree);
+      var sourceSet = Object.values(mappedEntries).filter(
+        (entry) => !entry.indegree,
+      );
       return doResolveConflicts(sourceSet);
     }
     function doResolveConflicts(sourceSet) {
       var entries = [];
       function handleIn(vEntry) {
-        return function(uEntry) {
+        return function (uEntry) {
           if (uEntry.merged) {
             return;
           }
-          if (uEntry.barycenter === void 0 || vEntry.barycenter === void 0 || uEntry.barycenter >= vEntry.barycenter) {
+          if (
+            uEntry.barycenter === void 0 ||
+            vEntry.barycenter === void 0 ||
+            uEntry.barycenter >= vEntry.barycenter
+          ) {
             mergeEntries(vEntry, uEntry);
           }
         };
       }
       function handleOut(vEntry) {
-        return function(wEntry) {
+        return function (wEntry) {
           wEntry["in"].push(vEntry);
           if (--wEntry.indegree === 0) {
             sourceSet.push(wEntry);
@@ -2920,9 +3305,11 @@ var require_resolve_conflicts = __commonJS({
         entry["in"].reverse().forEach(handleIn(entry));
         entry.out.forEach(handleOut(entry));
       }
-      return entries.filter((entry2) => !entry2.merged).map((entry2) => {
-        return util.pick(entry2, ["vs", "i", "barycenter", "weight"]);
-      });
+      return entries
+        .filter((entry2) => !entry2.merged)
+        .map((entry2) => {
+          return util.pick(entry2, ["vs", "i", "barycenter", "weight"]);
+        });
     }
     function mergeEntries(target, source) {
       var sum = 0;
@@ -2941,7 +3328,7 @@ var require_resolve_conflicts = __commonJS({
       target.i = Math.min(source.i, target.i);
       source.merged = true;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/sort.js
@@ -2950,13 +3337,18 @@ var require_sort = __commonJS({
     var util = require_util();
     module2.exports = sort;
     function sort(entries, biasRight) {
-      var parts = util.partition(entries, function(entry) {
+      var parts = util.partition(entries, function (entry) {
         return entry.hasOwnProperty("barycenter");
       });
-      var sortable = parts.lhs, unsortable = parts.rhs.sort((a, b) => b.i - a.i), vs = [], sum = 0, weight = 0, vsIndex = 0;
+      var sortable = parts.lhs,
+        unsortable = parts.rhs.sort((a, b) => b.i - a.i),
+        vs = [],
+        sum = 0,
+        weight = 0,
+        vsIndex = 0;
       sortable.sort(compareWithBias(!!biasRight));
       vsIndex = consumeUnsortable(vs, unsortable, vsIndex);
-      sortable.forEach(function(entry) {
+      sortable.forEach(function (entry) {
         vsIndex += entry.vs.length;
         vs.push(entry.vs);
         sum += entry.barycenter * entry.weight;
@@ -2972,7 +3364,10 @@ var require_sort = __commonJS({
     }
     function consumeUnsortable(vs, unsortable, index) {
       var last;
-      while (unsortable.length && (last = unsortable[unsortable.length - 1]).i <= index) {
+      while (
+        unsortable.length &&
+        (last = unsortable[unsortable.length - 1]).i <= index
+      ) {
         unsortable.pop();
         vs.push(last.vs);
         index++;
@@ -2980,7 +3375,7 @@ var require_sort = __commonJS({
       return index;
     }
     function compareWithBias(bias) {
-      return function(entryV, entryW) {
+      return function (entryV, entryW) {
         if (entryV.barycenter < entryW.barycenter) {
           return -1;
         } else if (entryV.barycenter > entryW.barycenter) {
@@ -2989,7 +3384,7 @@ var require_sort = __commonJS({
         return !bias ? entryV.i - entryW.i : entryW.i - entryV.i;
       };
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/sort-subgraph.js
@@ -3009,7 +3404,7 @@ var require_sort_subgraph = __commonJS({
         movable = movable.filter((w) => w !== bl && w !== br);
       }
       var barycenters = barycenter(g, movable);
-      barycenters.forEach(function(entry) {
+      barycenters.forEach(function (entry) {
         if (g.children(entry.v).length) {
           var subgraphResult = sortSubgraph(g, entry.v, cg, biasRight);
           subgraphs[entry.v] = subgraphResult;
@@ -3024,20 +3419,23 @@ var require_sort_subgraph = __commonJS({
       if (bl) {
         result.vs = [bl, result.vs, br].flat(true);
         if (g.predecessors(bl).length) {
-          var blPred = g.node(g.predecessors(bl)[0]), brPred = g.node(g.predecessors(br)[0]);
+          var blPred = g.node(g.predecessors(bl)[0]),
+            brPred = g.node(g.predecessors(br)[0]);
           if (!result.hasOwnProperty("barycenter")) {
             result.barycenter = 0;
             result.weight = 0;
           }
-          result.barycenter = (result.barycenter * result.weight + blPred.order + brPred.order) / (result.weight + 2);
+          result.barycenter =
+            (result.barycenter * result.weight + blPred.order + brPred.order) /
+            (result.weight + 2);
           result.weight += 2;
         }
       }
       return result;
     }
     function expandSubgraphs(entries, subgraphs) {
-      entries.forEach(function(entry) {
-        entry.vs = entry.vs.flatMap(function(v) {
+      entries.forEach(function (entry) {
+        entry.vs = entry.vs.flatMap(function (v) {
           if (subgraphs[v]) {
             return subgraphs[v].vs;
           }
@@ -3047,39 +3445,54 @@ var require_sort_subgraph = __commonJS({
     }
     function mergeBarycenters(target, other) {
       if (target.barycenter !== void 0) {
-        target.barycenter = (target.barycenter * target.weight + other.barycenter * other.weight) / (target.weight + other.weight);
+        target.barycenter =
+          (target.barycenter * target.weight +
+            other.barycenter * other.weight) /
+          (target.weight + other.weight);
         target.weight += other.weight;
       } else {
         target.barycenter = other.barycenter;
         target.weight = other.weight;
       }
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/build-layer-graph.js
 var require_build_layer_graph = __commonJS({
-  "node_modules/@dagrejs/dagre/lib/order/build-layer-graph.js"(exports, module2) {
+  "node_modules/@dagrejs/dagre/lib/order/build-layer-graph.js"(
+    exports,
+    module2,
+  ) {
     var Graph = require_graphlib().Graph;
     var util = require_util();
     module2.exports = buildLayerGraph;
     function buildLayerGraph(g, rank, relationship) {
-      var root = createRootNode2(g), result = new Graph({ compound: true }).setGraph({ root }).setDefaultNodeLabel(function(v) {
-        return g.node(v);
-      });
-      g.nodes().forEach(function(v) {
-        var node = g.node(v), parent = g.parent(v);
-        if (node.rank === rank || node.minRank <= rank && rank <= node.maxRank) {
+      var root = createRootNode2(g),
+        result = new Graph({ compound: true })
+          .setGraph({ root })
+          .setDefaultNodeLabel(function (v) {
+            return g.node(v);
+          });
+      g.nodes().forEach(function (v) {
+        var node = g.node(v),
+          parent = g.parent(v);
+        if (
+          node.rank === rank ||
+          (node.minRank <= rank && rank <= node.maxRank)
+        ) {
           result.setNode(v);
           result.setParent(v, parent || root);
-          g[relationship](v).forEach(function(e) {
-            var u = e.v === v ? e.w : e.v, edge = result.edge(u, v), weight = edge !== void 0 ? edge.weight : 0;
+          g[relationship](v).forEach(function (e) {
+            var u = e.v === v ? e.w : e.v,
+              edge = result.edge(u, v),
+              weight = edge !== void 0 ? edge.weight : 0;
             result.setEdge(u, v, { weight: g.edge(e).weight + weight });
           });
           if (node.hasOwnProperty("minRank")) {
             result.setNode(v, {
               borderLeft: node.borderLeft[rank],
-              borderRight: node.borderRight[rank]
+              borderRight: node.borderRight[rank],
             });
           }
         }
@@ -3088,21 +3501,26 @@ var require_build_layer_graph = __commonJS({
     }
     function createRootNode2(g) {
       var v;
-      while (g.hasNode(v = util.uniqueId("_root")))
-        ;
+      while (g.hasNode((v = util.uniqueId("_root"))));
       return v;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/add-subgraph-constraints.js
 var require_add_subgraph_constraints = __commonJS({
-  "node_modules/@dagrejs/dagre/lib/order/add-subgraph-constraints.js"(exports, module2) {
+  "node_modules/@dagrejs/dagre/lib/order/add-subgraph-constraints.js"(
+    exports,
+    module2,
+  ) {
     module2.exports = addSubgraphConstraints;
     function addSubgraphConstraints(g, cg, vs) {
-      var prev = {}, rootPrev;
-      vs.forEach(function(v) {
-        var child = g.parent(v), parent, prevChild;
+      var prev = {},
+        rootPrev;
+      vs.forEach(function (v) {
+        var child = g.parent(v),
+          parent,
+          prevChild;
         while (child) {
           parent = g.parent(child);
           if (parent) {
@@ -3120,7 +3538,7 @@ var require_add_subgraph_constraints = __commonJS({
         }
       });
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/order/index.js
@@ -3136,10 +3554,21 @@ var require_order = __commonJS({
     var util = require_util();
     module2.exports = order2;
     function order2(g) {
-      var maxRank = util.maxRank(g), downLayerGraphs = buildLayerGraphs(g, util.range(1, maxRank + 1), "inEdges"), upLayerGraphs = buildLayerGraphs(g, util.range(maxRank - 1, -1, -1), "outEdges");
+      var maxRank = util.maxRank(g),
+        downLayerGraphs = buildLayerGraphs(
+          g,
+          util.range(1, maxRank + 1),
+          "inEdges",
+        ),
+        upLayerGraphs = buildLayerGraphs(
+          g,
+          util.range(maxRank - 1, -1, -1),
+          "outEdges",
+        );
       var layering = initOrder(g);
       assignOrder(g, layering);
-      var bestCC = Number.POSITIVE_INFINITY, best;
+      var bestCC = Number.POSITIVE_INFINITY,
+        best;
       for (var i = 0, lastBest = 0; lastBest < 4; ++i, ++lastBest) {
         sweepLayerGraphs(i % 2 ? downLayerGraphs : upLayerGraphs, i % 4 >= 2);
         layering = util.buildLayerMatrix(g);
@@ -3153,23 +3582,25 @@ var require_order = __commonJS({
       assignOrder(g, best);
     }
     function buildLayerGraphs(g, ranks, relationship) {
-      return ranks.map(function(rank) {
+      return ranks.map(function (rank) {
         return buildLayerGraph(g, rank, relationship);
       });
     }
     function sweepLayerGraphs(layerGraphs, biasRight) {
       var cg = new Graph();
-      layerGraphs.forEach(function(lg) {
+      layerGraphs.forEach(function (lg) {
         var root = lg.graph().root;
         var sorted = sortSubgraph(lg, root, cg, biasRight);
-        sorted.vs.forEach((v, i) => lg.node(v).order = i);
+        sorted.vs.forEach((v, i) => (lg.node(v).order = i));
         addSubgraphConstraints(lg, cg, sorted.vs);
       });
     }
     function assignOrder(g, layering) {
-      Object.values(layering).forEach((layer) => layer.forEach((v, i) => g.node(v).order = i));
+      Object.values(layering).forEach((layer) =>
+        layer.forEach((v, i) => (g.node(v).order = i)),
+      );
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/position/bk.js
@@ -3188,19 +3619,27 @@ var require_bk = __commonJS({
       horizontalCompaction,
       alignCoordinates,
       findSmallestWidthAlignment,
-      balance
+      balance,
     };
     function findType1Conflicts(g, layering) {
       var conflicts = {};
       function visitLayer(prevLayer, layer) {
-        var k0 = 0, scanPos = 0, prevLayerLength = prevLayer.length, lastNode = layer[layer.length - 1];
-        layer.forEach(function(v, i) {
-          var w = findOtherInnerSegmentNode(g, v), k1 = w ? g.node(w).order : prevLayerLength;
+        var k0 = 0,
+          scanPos = 0,
+          prevLayerLength = prevLayer.length,
+          lastNode = layer[layer.length - 1];
+        layer.forEach(function (v, i) {
+          var w = findOtherInnerSegmentNode(g, v),
+            k1 = w ? g.node(w).order : prevLayerLength;
           if (w || v === lastNode) {
-            layer.slice(scanPos, i + 1).forEach(function(scanNode) {
-              g.predecessors(scanNode).forEach(function(u) {
-                var uLabel = g.node(u), uPos = uLabel.order;
-                if ((uPos < k0 || k1 < uPos) && !(uLabel.dummy && g.node(scanNode).dummy)) {
+            layer.slice(scanPos, i + 1).forEach(function (scanNode) {
+              g.predecessors(scanNode).forEach(function (u) {
+                var uLabel = g.node(u),
+                  uPos = uLabel.order;
+                if (
+                  (uPos < k0 || k1 < uPos) &&
+                  !(uLabel.dummy && g.node(scanNode).dummy)
+                ) {
                   addConflict(conflicts, u, scanNode);
                 }
               });
@@ -3216,14 +3655,23 @@ var require_bk = __commonJS({
     }
     function findType2Conflicts(g, layering) {
       var conflicts = {};
-      function scan(south, southPos, southEnd, prevNorthBorder, nextNorthBorder) {
+      function scan(
+        south,
+        southPos,
+        southEnd,
+        prevNorthBorder,
+        nextNorthBorder,
+      ) {
         var v;
-        util.range(southPos, southEnd).forEach(function(i) {
+        util.range(southPos, southEnd).forEach(function (i) {
           v = south[i];
           if (g.node(v).dummy) {
-            g.predecessors(v).forEach(function(u) {
+            g.predecessors(v).forEach(function (u) {
               var uNode = g.node(u);
-              if (uNode.dummy && (uNode.order < prevNorthBorder || uNode.order > nextNorthBorder)) {
+              if (
+                uNode.dummy &&
+                (uNode.order < prevNorthBorder || uNode.order > nextNorthBorder)
+              ) {
                 addConflict(conflicts, u, v);
               }
             });
@@ -3231,8 +3679,10 @@ var require_bk = __commonJS({
         });
       }
       function visitLayer(north, south) {
-        var prevNorthPos = -1, nextNorthPos, southPos = 0;
-        south.forEach(function(v, southLookahead) {
+        var prevNorthPos = -1,
+          nextNorthPos,
+          southPos = 0;
+        south.forEach(function (v, southLookahead) {
           if (g.node(v).dummy === "border") {
             var predecessors = g.predecessors(v);
             if (predecessors.length) {
@@ -3275,24 +3725,30 @@ var require_bk = __commonJS({
       return !!conflicts[v] && conflicts[v].hasOwnProperty(w);
     }
     function verticalAlignment(g, layering, conflicts, neighborFn) {
-      var root = {}, align = {}, pos = {};
-      layering.forEach(function(layer) {
-        layer.forEach(function(v, order2) {
+      var root = {},
+        align = {},
+        pos = {};
+      layering.forEach(function (layer) {
+        layer.forEach(function (v, order2) {
           root[v] = v;
           align[v] = v;
           pos[v] = order2;
         });
       });
-      layering.forEach(function(layer) {
+      layering.forEach(function (layer) {
         var prevIdx = -1;
-        layer.forEach(function(v) {
+        layer.forEach(function (v) {
           var ws = neighborFn(v);
           if (ws.length) {
             ws = ws.sort((a, b) => pos[a] - pos[b]);
             var mp = (ws.length - 1) / 2;
             for (var i = Math.floor(mp), il = Math.ceil(mp); i <= il; ++i) {
               var w = ws[i];
-              if (align[v] === v && prevIdx < pos[w] && !hasConflict(conflicts, v, w)) {
+              if (
+                align[v] === v &&
+                prevIdx < pos[w] &&
+                !hasConflict(conflicts, v, w)
+              ) {
                 align[w] = v;
                 align[v] = root[v] = root[w];
                 prevIdx = pos[w];
@@ -3304,7 +3760,9 @@ var require_bk = __commonJS({
       return { root, align };
     }
     function horizontalCompaction(g, layering, root, align, reverseSep) {
-      var xs = {}, blockG = buildBlockGraph(g, layering, root, reverseSep), borderType = reverseSep ? "borderLeft" : "borderRight";
+      var xs = {},
+        blockG = buildBlockGraph(g, layering, root, reverseSep),
+        borderType = reverseSep ? "borderLeft" : "borderRight";
       function iterate(setXsFunc, nextNodesFunc) {
         var stack = blockG.nodes();
         var elem = stack.pop();
@@ -3321,34 +3779,44 @@ var require_bk = __commonJS({
         }
       }
       function pass1(elem) {
-        xs[elem] = blockG.inEdges(elem).reduce(function(acc, e) {
+        xs[elem] = blockG.inEdges(elem).reduce(function (acc, e) {
           return Math.max(acc, xs[e.v] + blockG.edge(e));
         }, 0);
       }
       function pass2(elem) {
-        var min2 = blockG.outEdges(elem).reduce(function(acc, e) {
+        var min2 = blockG.outEdges(elem).reduce(function (acc, e) {
           return Math.min(acc, xs[e.w] - blockG.edge(e));
         }, Number.POSITIVE_INFINITY);
         var node = g.node(elem);
-        if (min2 !== Number.POSITIVE_INFINITY && node.borderType !== borderType) {
+        if (
+          min2 !== Number.POSITIVE_INFINITY &&
+          node.borderType !== borderType
+        ) {
           xs[elem] = Math.max(xs[elem], min2);
         }
       }
       iterate(pass1, blockG.predecessors.bind(blockG));
       iterate(pass2, blockG.successors.bind(blockG));
-      Object.keys(align).forEach((v) => xs[v] = xs[root[v]]);
+      Object.keys(align).forEach((v) => (xs[v] = xs[root[v]]));
       return xs;
     }
     function buildBlockGraph(g, layering, root, reverseSep) {
-      var blockGraph = new Graph(), graphLabel = g.graph(), sepFn = sep(graphLabel.nodesep, graphLabel.edgesep, reverseSep);
-      layering.forEach(function(layer) {
+      var blockGraph = new Graph(),
+        graphLabel = g.graph(),
+        sepFn = sep(graphLabel.nodesep, graphLabel.edgesep, reverseSep);
+      layering.forEach(function (layer) {
         var u;
-        layer.forEach(function(v) {
+        layer.forEach(function (v) {
           var vRoot = root[v];
           blockGraph.setNode(vRoot);
           if (u) {
-            var uRoot = root[u], prevMax = blockGraph.edge(uRoot, vRoot);
-            blockGraph.setEdge(uRoot, vRoot, Math.max(sepFn(g, v, u), prevMax || 0));
+            var uRoot = root[u],
+              prevMax = blockGraph.edge(uRoot, vRoot);
+            blockGraph.setEdge(
+              uRoot,
+              vRoot,
+              Math.max(sepFn(g, v, u), prevMax || 0),
+            );
           }
           u = v;
         });
@@ -3356,28 +3824,33 @@ var require_bk = __commonJS({
       return blockGraph;
     }
     function findSmallestWidthAlignment(g, xss) {
-      return Object.values(xss).reduce((currentMinAndXs, xs) => {
-        var max2 = Number.NEGATIVE_INFINITY;
-        var min2 = Number.POSITIVE_INFINITY;
-        Object.entries(xs).forEach(([v, x]) => {
-          var halfWidth = width(g, v) / 2;
-          max2 = Math.max(x + halfWidth, max2);
-          min2 = Math.min(x - halfWidth, min2);
-        });
-        const newMin = max2 - min2;
-        if (newMin < currentMinAndXs[0]) {
-          currentMinAndXs = [newMin, xs];
-        }
-        return currentMinAndXs;
-      }, [Number.POSITIVE_INFINITY, null])[1];
+      return Object.values(xss).reduce(
+        (currentMinAndXs, xs) => {
+          var max2 = Number.NEGATIVE_INFINITY;
+          var min2 = Number.POSITIVE_INFINITY;
+          Object.entries(xs).forEach(([v, x]) => {
+            var halfWidth = width(g, v) / 2;
+            max2 = Math.max(x + halfWidth, max2);
+            min2 = Math.min(x - halfWidth, min2);
+          });
+          const newMin = max2 - min2;
+          if (newMin < currentMinAndXs[0]) {
+            currentMinAndXs = [newMin, xs];
+          }
+          return currentMinAndXs;
+        },
+        [Number.POSITIVE_INFINITY, null],
+      )[1];
     }
     function alignCoordinates(xss, alignTo) {
-      var alignToVals = Object.values(alignTo), alignToMin = Math.min(...alignToVals), alignToMax = Math.max(...alignToVals);
-      ["u", "d"].forEach(function(vert) {
-        ["l", "r"].forEach(function(horiz) {
-          var alignment = vert + horiz, xs = xss[alignment];
-          if (xs === alignTo)
-            return;
+      var alignToVals = Object.values(alignTo),
+        alignToMin = Math.min(...alignToVals),
+        alignToMax = Math.max(...alignToVals);
+      ["u", "d"].forEach(function (vert) {
+        ["l", "r"].forEach(function (horiz) {
+          var alignment = vert + horiz,
+            xs = xss[alignment];
+          if (xs === alignTo) return;
           var xsVals = Object.values(xs);
           let delta = alignToMin - Math.min(...xsVals);
           if (horiz !== "l") {
@@ -3390,31 +3863,50 @@ var require_bk = __commonJS({
       });
     }
     function balance(xss, align) {
-      return util.mapValues(xss.ul, function(num, v) {
+      return util.mapValues(xss.ul, function (num, v) {
         if (align) {
           return xss[align.toLowerCase()][v];
         } else {
-          var xs = Object.values(xss).map((xs2) => xs2[v]).sort((a, b) => a - b);
+          var xs = Object.values(xss)
+            .map((xs2) => xs2[v])
+            .sort((a, b) => a - b);
           return (xs[1] + xs[2]) / 2;
         }
       });
     }
     function positionX(g) {
       var layering = util.buildLayerMatrix(g);
-      var conflicts = Object.assign(findType1Conflicts(g, layering), findType2Conflicts(g, layering));
+      var conflicts = Object.assign(
+        findType1Conflicts(g, layering),
+        findType2Conflicts(g, layering),
+      );
       var xss = {};
       var adjustedLayering;
-      ["u", "d"].forEach(function(vert) {
-        adjustedLayering = vert === "u" ? layering : Object.values(layering).reverse();
-        ["l", "r"].forEach(function(horiz) {
+      ["u", "d"].forEach(function (vert) {
+        adjustedLayering =
+          vert === "u" ? layering : Object.values(layering).reverse();
+        ["l", "r"].forEach(function (horiz) {
           if (horiz === "r") {
             adjustedLayering = adjustedLayering.map((inner) => {
               return Object.values(inner).reverse();
             });
           }
-          var neighborFn = (vert === "u" ? g.predecessors : g.successors).bind(g);
-          var align = verticalAlignment(g, adjustedLayering, conflicts, neighborFn);
-          var xs = horizontalCompaction(g, adjustedLayering, align.root, align.align, horiz === "r");
+          var neighborFn = (vert === "u" ? g.predecessors : g.successors).bind(
+            g,
+          );
+          var align = verticalAlignment(
+            g,
+            adjustedLayering,
+            conflicts,
+            neighborFn,
+          );
+          var xs = horizontalCompaction(
+            g,
+            adjustedLayering,
+            align.root,
+            align.align,
+            horiz === "r",
+          );
           if (horiz === "r") {
             xs = util.mapValues(xs, (x) => -x);
           }
@@ -3426,7 +3918,7 @@ var require_bk = __commonJS({
       return balance(xss, g.graph().align);
     }
     function sep(nodeSep, edgeSep, reverseSep) {
-      return function(g, v, w) {
+      return function (g, v, w) {
         var vLabel = g.node(v);
         var wLabel = g.node(w);
         var sum = 0;
@@ -3469,7 +3961,7 @@ var require_bk = __commonJS({
     function width(g, v) {
       return g.node(v).width;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/position/index.js
@@ -3482,13 +3974,13 @@ var require_position = __commonJS({
     function position(g) {
       g = util.asNonCompoundGraph(g);
       positionY(g);
-      Object.entries(positionX(g)).forEach(([v, x]) => g.node(v).x = x);
+      Object.entries(positionX(g)).forEach(([v, x]) => (g.node(v).x = x));
     }
     function positionY(g) {
       var layering = util.buildLayerMatrix(g);
       var rankSep = g.graph().ranksep;
       var prevY = 0;
-      layering.forEach(function(layer) {
+      layering.forEach(function (layer) {
         const maxHeight = layer.reduce((acc, v) => {
           const height = g.node(v).height;
           if (acc > height) {
@@ -3497,11 +3989,11 @@ var require_position = __commonJS({
             return height;
           }
         }, 0);
-        layer.forEach((v) => g.node(v).y = prevY + maxHeight / 2);
+        layer.forEach((v) => (g.node(v).y = prevY + maxHeight / 2));
         prevY += maxHeight + rankSep;
       });
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/layout.js
@@ -3524,98 +4016,98 @@ var require_layout = __commonJS({
     module2.exports = layout;
     function layout(g, opts) {
       var time = opts && opts.debugTiming ? util.time : util.notime;
-      time("layout", function() {
-        var layoutGraph = time("  buildLayoutGraph", function() {
+      time("layout", function () {
+        var layoutGraph = time("  buildLayoutGraph", function () {
           return buildLayoutGraph(g);
         });
-        time("  runLayout", function() {
+        time("  runLayout", function () {
           runLayout(layoutGraph, time);
         });
-        time("  updateInputGraph", function() {
+        time("  updateInputGraph", function () {
           updateInputGraph(g, layoutGraph);
         });
       });
     }
     function runLayout(g, time) {
-      time("    makeSpaceForEdgeLabels", function() {
+      time("    makeSpaceForEdgeLabels", function () {
         makeSpaceForEdgeLabels(g);
       });
-      time("    removeSelfEdges", function() {
+      time("    removeSelfEdges", function () {
         removeSelfEdges(g);
       });
-      time("    acyclic", function() {
+      time("    acyclic", function () {
         acyclic.run(g);
       });
-      time("    nestingGraph.run", function() {
+      time("    nestingGraph.run", function () {
         nestingGraph.run(g);
       });
-      time("    rank", function() {
+      time("    rank", function () {
         rank(util.asNonCompoundGraph(g));
       });
-      time("    injectEdgeLabelProxies", function() {
+      time("    injectEdgeLabelProxies", function () {
         injectEdgeLabelProxies(g);
       });
-      time("    removeEmptyRanks", function() {
+      time("    removeEmptyRanks", function () {
         removeEmptyRanks(g);
       });
-      time("    nestingGraph.cleanup", function() {
+      time("    nestingGraph.cleanup", function () {
         nestingGraph.cleanup(g);
       });
-      time("    normalizeRanks", function() {
+      time("    normalizeRanks", function () {
         normalizeRanks(g);
       });
-      time("    assignRankMinMax", function() {
+      time("    assignRankMinMax", function () {
         assignRankMinMax(g);
       });
-      time("    removeEdgeLabelProxies", function() {
+      time("    removeEdgeLabelProxies", function () {
         removeEdgeLabelProxies(g);
       });
-      time("    normalize.run", function() {
+      time("    normalize.run", function () {
         normalize.run(g);
       });
-      time("    parentDummyChains", function() {
+      time("    parentDummyChains", function () {
         parentDummyChains(g);
       });
-      time("    addBorderSegments", function() {
+      time("    addBorderSegments", function () {
         addBorderSegments(g);
       });
-      time("    order", function() {
+      time("    order", function () {
         order2(g);
       });
-      time("    insertSelfEdges", function() {
+      time("    insertSelfEdges", function () {
         insertSelfEdges(g);
       });
-      time("    adjustCoordinateSystem", function() {
+      time("    adjustCoordinateSystem", function () {
         coordinateSystem.adjust(g);
       });
-      time("    position", function() {
+      time("    position", function () {
         position(g);
       });
-      time("    positionSelfEdges", function() {
+      time("    positionSelfEdges", function () {
         positionSelfEdges(g);
       });
-      time("    removeBorderNodes", function() {
+      time("    removeBorderNodes", function () {
         removeBorderNodes(g);
       });
-      time("    normalize.undo", function() {
+      time("    normalize.undo", function () {
         normalize.undo(g);
       });
-      time("    fixupEdgeLabelCoords", function() {
+      time("    fixupEdgeLabelCoords", function () {
         fixupEdgeLabelCoords(g);
       });
-      time("    undoCoordinateSystem", function() {
+      time("    undoCoordinateSystem", function () {
         coordinateSystem.undo(g);
       });
-      time("    translateGraph", function() {
+      time("    translateGraph", function () {
         translateGraph(g);
       });
-      time("    assignNodeIntersects", function() {
+      time("    assignNodeIntersects", function () {
         assignNodeIntersects(g);
       });
-      time("    reversePoints", function() {
+      time("    reversePoints", function () {
         reversePointsForReversedEdges(g);
       });
-      time("    acyclic.undo", function() {
+      time("    acyclic.undo", function () {
         acyclic.undo(g);
       });
     }
@@ -3646,7 +4138,12 @@ var require_layout = __commonJS({
       inputGraph.graph().height = layoutGraph.graph().height;
     }
     var graphNumAttrs = ["nodesep", "edgesep", "ranksep", "marginx", "marginy"];
-    var graphDefaults = { ranksep: 50, edgesep: 20, nodesep: 50, rankdir: "tb" };
+    var graphDefaults = {
+      ranksep: 50,
+      edgesep: 20,
+      nodesep: 50,
+      rankdir: "tb",
+    };
     var graphAttrs = ["acyclicer", "ranker", "rankdir", "align"];
     var nodeNumAttrs = ["width", "height"];
     var nodeDefaults = { width: 0, height: 0 };
@@ -3657,13 +4154,20 @@ var require_layout = __commonJS({
       width: 0,
       height: 0,
       labeloffset: 10,
-      labelpos: "r"
+      labelpos: "r",
     };
     var edgeAttrs = ["labelpos"];
     function buildLayoutGraph(inputGraph) {
       var g = new Graph({ multigraph: true, compound: true });
       var graph = canonicalize(inputGraph.graph());
-      g.setGraph(Object.assign({}, graphDefaults, selectNumberAttrs(graph, graphNumAttrs), util.pick(graph, graphAttrs)));
+      g.setGraph(
+        Object.assign(
+          {},
+          graphDefaults,
+          selectNumberAttrs(graph, graphNumAttrs),
+          util.pick(graph, graphAttrs),
+        ),
+      );
       inputGraph.nodes().forEach((v) => {
         var node = canonicalize(inputGraph.node(v));
         const newNode = selectNumberAttrs(node, nodeNumAttrs);
@@ -3677,7 +4181,15 @@ var require_layout = __commonJS({
       });
       inputGraph.edges().forEach((e) => {
         var edge = canonicalize(inputGraph.edge(e));
-        g.setEdge(e, Object.assign({}, edgeDefaults, selectNumberAttrs(edge, edgeNumAttrs), util.pick(edge, edgeAttrs)));
+        g.setEdge(
+          e,
+          Object.assign(
+            {},
+            edgeDefaults,
+            selectNumberAttrs(edge, edgeNumAttrs),
+            util.pick(edge, edgeAttrs),
+          ),
+        );
       });
       return g;
     }
@@ -3860,14 +4372,19 @@ var require_layout = __commonJS({
           var node = g.node(v);
           node.order = i + orderShift;
           (node.selfEdges || []).forEach((selfEdge) => {
-            util.addDummyNode(g, "selfedge", {
-              width: selfEdge.label.width,
-              height: selfEdge.label.height,
-              rank: node.rank,
-              order: i + ++orderShift,
-              e: selfEdge.e,
-              label: selfEdge.label
-            }, "_se");
+            util.addDummyNode(
+              g,
+              "selfedge",
+              {
+                width: selfEdge.label.width,
+                height: selfEdge.label.height,
+                rank: node.rank,
+                order: i + ++orderShift,
+                e: selfEdge.e,
+                label: selfEdge.label,
+              },
+              "_se",
+            );
           });
           delete node.selfEdges;
         });
@@ -3885,11 +4402,11 @@ var require_layout = __commonJS({
           g.setEdge(node.e, node.label);
           g.removeNode(v);
           node.label.points = [
-            { x: x + 2 * dx / 3, y: y - dy },
-            { x: x + 5 * dx / 6, y: y - dy },
+            { x: x + (2 * dx) / 3, y: y - dy },
+            { x: x + (5 * dx) / 6, y: y - dy },
             { x: x + dx, y },
-            { x: x + 5 * dx / 6, y: y + dy },
-            { x: x + 2 * dx / 3, y: y + dy }
+            { x: x + (5 * dx) / 6, y: y + dy },
+            { x: x + (2 * dx) / 3, y: y + dy },
           ];
           node.label.x = node.x;
           node.label.y = node.y;
@@ -3911,7 +4428,7 @@ var require_layout = __commonJS({
       }
       return newAttrs;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/debug.js
@@ -3920,36 +4437,36 @@ var require_debug = __commonJS({
     var util = require_util();
     var Graph = require_graphlib().Graph;
     module2.exports = {
-      debugOrdering
+      debugOrdering,
     };
     function debugOrdering(g) {
       var layerMatrix = util.buildLayerMatrix(g);
       var h = new Graph({ compound: true, multigraph: true }).setGraph({});
-      g.nodes().forEach(function(v) {
+      g.nodes().forEach(function (v) {
         h.setNode(v, { label: v });
         h.setParent(v, "layer" + g.node(v).rank);
       });
-      g.edges().forEach(function(e) {
+      g.edges().forEach(function (e) {
         h.setEdge(e.v, e.w, {}, e.name);
       });
-      layerMatrix.forEach(function(layer, i) {
+      layerMatrix.forEach(function (layer, i) {
         var layerV = "layer" + i;
         h.setNode(layerV, { rank: "same" });
-        layer.reduce(function(u, v) {
+        layer.reduce(function (u, v) {
           h.setEdge(u, v, { style: "invis" });
           return v;
         });
       });
       return h;
     }
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/lib/version.js
 var require_version2 = __commonJS({
   "node_modules/@dagrejs/dagre/lib/version.js"(exports, module2) {
     module2.exports = "1.0.2";
-  }
+  },
 });
 
 // node_modules/@dagrejs/dagre/index.js
@@ -3961,17 +4478,17 @@ var require_dagre = __commonJS({
       debug: require_debug(),
       util: {
         time: require_util().time,
-        notime: require_util().notime
+        notime: require_util().notime,
       },
-      version: require_version2()
+      version: require_version2(),
     };
-  }
+  },
 });
 
 // src/main.ts
 var main_exports = {};
 __export(main_exports, {
-  default: () => ObsidianClipperPlugin
+  default: () => ObsidianClipperPlugin,
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian7 = require("obsidian");
@@ -3979,10 +4496,10 @@ var import_obsidian7 = require("obsidian");
 // node_modules/deepmerge-ts/dist/node/index.mjs
 var actions = {
   defaultMerge: Symbol("deepmerge-ts: default merge"),
-  skip: Symbol("deepmerge-ts: skip")
+  skip: Symbol("deepmerge-ts: skip"),
 };
 var actionsInto = {
-  defaultMerge: actions.defaultMerge
+  defaultMerge: actions.defaultMerge,
 };
 function defaultMetaDataUpdater(previousMeta, metaMeta) {
   return metaMeta;
@@ -4010,7 +4527,7 @@ function getKeys(objects) {
   for (const object of objects) {
     for (const key of [
       ...Object.keys(object),
-      ...Object.getOwnPropertySymbols(object)
+      ...Object.getOwnPropertySymbols(object),
     ]) {
       keys.add(key);
     }
@@ -4018,7 +4535,10 @@ function getKeys(objects) {
   return keys;
 }
 function objectHasProperty(object, property) {
-  return typeof object === "object" && Object.prototype.propertyIsEnumerable.call(object, property);
+  return (
+    typeof object === "object" &&
+    Object.prototype.propertyIsEnumerable.call(object, property)
+  );
 }
 function getIterableOfIterables(iterables) {
   return {
@@ -4028,12 +4548,12 @@ function getIterableOfIterables(iterables) {
           yield value;
         }
       }
-    }
+    },
   };
 }
 var validRecordToStringValues = /* @__PURE__ */ new Set([
   "[object Object]",
-  "[object Module]"
+  "[object Module]",
 ]);
 function isRecord(value) {
   if (!validRecordToStringValues.has(Object.prototype.toString.call(value))) {
@@ -4044,7 +4564,11 @@ function isRecord(value) {
     return true;
   }
   const prototype = constructor.prototype;
-  if (prototype === null || typeof prototype !== "object" || !validRecordToStringValues.has(Object.prototype.toString.call(prototype))) {
+  if (
+    prototype === null ||
+    typeof prototype !== "object" ||
+    !validRecordToStringValues.has(Object.prototype.toString.call(prototype))
+  ) {
     return false;
   }
   if (!prototype.hasOwnProperty("isPrototypeOf")) {
@@ -4066,7 +4590,7 @@ function mergeRecords$2(values, utils, meta) {
     }
     const updatedMeta = utils.metaDataUpdater(meta, {
       key,
-      parents: values
+      parents: values,
     });
     const propertyResult = mergeUnknowns(propValues, utils, updatedMeta);
     if (propertyResult === actions.skip) {
@@ -4077,7 +4601,7 @@ function mergeRecords$2(values, utils, meta) {
         value: propertyResult,
         configurable: true,
         enumerable: true,
-        writable: true
+        writable: true,
       });
     } else {
       result[key] = propertyResult;
@@ -4103,7 +4627,7 @@ var defaultMergeFunctions = /* @__PURE__ */ Object.freeze({
   mergeArrays: mergeArrays$2,
   mergeSets: mergeSets$2,
   mergeMaps: mergeMaps$2,
-  mergeOthers: mergeOthers$2
+  mergeOthers: mergeOthers$2,
 });
 function deepmerge(...objects) {
   return deepmergeCustom({})(...objects);
@@ -4121,12 +4645,26 @@ function getUtils(options, customizedDeepmerge) {
     defaultMergeFunctions,
     mergeFunctions: {
       ...defaultMergeFunctions,
-      ...Object.fromEntries(Object.entries(options).filter(([key, option]) => Object.prototype.hasOwnProperty.call(defaultMergeFunctions, key)).map(([key, option]) => option === false ? [key, mergeOthers$2] : [key, option]))
+      ...Object.fromEntries(
+        Object.entries(options)
+          .filter(([key, option]) =>
+            Object.prototype.hasOwnProperty.call(defaultMergeFunctions, key),
+          )
+          .map(([key, option]) =>
+            option === false ? [key, mergeOthers$2] : [key, option],
+          ),
+      ),
     },
-    metaDataUpdater: (_a = options.metaDataUpdater) !== null && _a !== void 0 ? _a : defaultMetaDataUpdater,
+    metaDataUpdater:
+      (_a = options.metaDataUpdater) !== null && _a !== void 0
+        ? _a
+        : defaultMetaDataUpdater,
     deepmerge: customizedDeepmerge,
-    useImplicitDefaultMerging: (_b = options.enableImplicitDefaultMerging) !== null && _b !== void 0 ? _b : false,
-    actions
+    useImplicitDefaultMerging:
+      (_b = options.enableImplicitDefaultMerging) !== null && _b !== void 0
+        ? _b
+        : false,
+    actions,
   };
 }
 function mergeUnknowns(values, utils, meta) {
@@ -4165,35 +4703,63 @@ function mergeUnknowns(values, utils, meta) {
 }
 function mergeRecords$1(values, utils, meta) {
   const result = utils.mergeFunctions.mergeRecords(values, utils, meta);
-  if (result === actions.defaultMerge || utils.useImplicitDefaultMerging && result === void 0 && utils.mergeFunctions.mergeRecords !== utils.defaultMergeFunctions.mergeRecords) {
+  if (
+    result === actions.defaultMerge ||
+    (utils.useImplicitDefaultMerging &&
+      result === void 0 &&
+      utils.mergeFunctions.mergeRecords !==
+        utils.defaultMergeFunctions.mergeRecords)
+  ) {
     return utils.defaultMergeFunctions.mergeRecords(values, utils, meta);
   }
   return result;
 }
 function mergeArrays$1(values, utils, meta) {
   const result = utils.mergeFunctions.mergeArrays(values, utils, meta);
-  if (result === actions.defaultMerge || utils.useImplicitDefaultMerging && result === void 0 && utils.mergeFunctions.mergeArrays !== utils.defaultMergeFunctions.mergeArrays) {
+  if (
+    result === actions.defaultMerge ||
+    (utils.useImplicitDefaultMerging &&
+      result === void 0 &&
+      utils.mergeFunctions.mergeArrays !==
+        utils.defaultMergeFunctions.mergeArrays)
+  ) {
     return utils.defaultMergeFunctions.mergeArrays(values);
   }
   return result;
 }
 function mergeSets$1(values, utils, meta) {
   const result = utils.mergeFunctions.mergeSets(values, utils, meta);
-  if (result === actions.defaultMerge || utils.useImplicitDefaultMerging && result === void 0 && utils.mergeFunctions.mergeSets !== utils.defaultMergeFunctions.mergeSets) {
+  if (
+    result === actions.defaultMerge ||
+    (utils.useImplicitDefaultMerging &&
+      result === void 0 &&
+      utils.mergeFunctions.mergeSets !== utils.defaultMergeFunctions.mergeSets)
+  ) {
     return utils.defaultMergeFunctions.mergeSets(values);
   }
   return result;
 }
 function mergeMaps$1(values, utils, meta) {
   const result = utils.mergeFunctions.mergeMaps(values, utils, meta);
-  if (result === actions.defaultMerge || utils.useImplicitDefaultMerging && result === void 0 && utils.mergeFunctions.mergeMaps !== utils.defaultMergeFunctions.mergeMaps) {
+  if (
+    result === actions.defaultMerge ||
+    (utils.useImplicitDefaultMerging &&
+      result === void 0 &&
+      utils.mergeFunctions.mergeMaps !== utils.defaultMergeFunctions.mergeMaps)
+  ) {
     return utils.defaultMergeFunctions.mergeMaps(values);
   }
   return result;
 }
 function mergeOthers$1(values, utils, meta) {
   const result = utils.mergeFunctions.mergeOthers(values, utils, meta);
-  if (result === actions.defaultMerge || utils.useImplicitDefaultMerging && result === void 0 && utils.mergeFunctions.mergeOthers !== utils.defaultMergeFunctions.mergeOthers) {
+  if (
+    result === actions.defaultMerge ||
+    (utils.useImplicitDefaultMerging &&
+      result === void 0 &&
+      utils.mergeFunctions.mergeOthers !==
+        utils.defaultMergeFunctions.mergeOthers)
+  ) {
     return utils.defaultMergeFunctions.mergeOthers(values);
   }
   return result;
@@ -4202,7 +4768,7 @@ function mergeOthers$1(values, utils, meta) {
 // src/settings/types.ts
 var SectionPosition = {
   PREPEND: "prepend",
-  APPEND: "append"
+  APPEND: "append",
 };
 var DEFAULT_SETTINGS = {
   dailyNoteHeading: "",
@@ -4227,39 +4793,65 @@ var DEFAULT_SETTINGS = {
     h3: "###",
     h4: "####",
     h5: "#####",
-    h6: "######"
+    h6: "######",
   },
   advanced: false,
   advancedStorageFolder: "clippings",
   captureComments: false,
   experimentalCanvas: false,
-  experimentalBookmarkletComment: false
+  experimentalBookmarkletComment: false,
 };
 
 // src/utils/templateutils.ts
 var import_obsidian = require("obsidian");
 async function getTemplateContents(app, templatePath) {
   const { metadataCache, vault } = app;
-  const normalizedTemplatePath = (0, import_obsidian.normalizePath)(templatePath != null ? templatePath : "");
+  const normalizedTemplatePath = (0, import_obsidian.normalizePath)(
+    templatePath != null ? templatePath : "",
+  );
   if (templatePath === "/") {
     return Promise.resolve("");
   }
   let templateContents = "";
   try {
-    const templateFile = metadataCache.getFirstLinkpathDest(normalizedTemplatePath, "");
+    const templateFile = metadataCache.getFirstLinkpathDest(
+      normalizedTemplatePath,
+      "",
+    );
     if (templateFile) {
       templateContents = await vault.cachedRead(templateFile);
     }
     return `${templateContents}
 `;
   } catch (err) {
-    console.error(`Failed to read the clipper entry template '${normalizedTemplatePath}'`, err);
-    new import_obsidian.Notice("Failed to read the Obsidian Clipper daily note entry template configured in Settings");
+    console.error(
+      `Failed to read the clipper entry template '${normalizedTemplatePath}'`,
+      err,
+    );
+    new import_obsidian.Notice(
+      "Failed to read the Obsidian Clipper daily note entry template configured in Settings",
+    );
     throw Error("Template File Missing");
   }
 }
-function applyTemplateTransformations(title, url, tags, time, date, content = "", comment = "", rawTemplateContents) {
-  const templateContents = rawTemplateContents.replace(/{{\s*title\s*}}/gi, title).replace(/{{\s*url\s*}}/gi, url).replace(/{{\s*tags\s*}}/gi, tags).replace(/{{\s*content\s*}}/gi, content).replace(/{{\s*comment\s*}}/gi, comment).replace(/{{\s*time\s*}}/gi, time).replace(/{{\s*date\s*}}/gi, date);
+function applyTemplateTransformations(
+  title,
+  url,
+  tags,
+  time,
+  date,
+  content = "",
+  comment = "",
+  rawTemplateContents,
+) {
+  const templateContents = rawTemplateContents
+    .replace(/{{\s*title\s*}}/gi, title)
+    .replace(/{{\s*url\s*}}/gi, url)
+    .replace(/{{\s*tags\s*}}/gi, tags)
+    .replace(/{{\s*content\s*}}/gi, content)
+    .replace(/{{\s*comment\s*}}/gi, comment)
+    .replace(/{{\s*time\s*}}/gi, time)
+    .replace(/{{\s*date\s*}}/gi, date);
   return templateContents;
 }
 
@@ -4288,7 +4880,16 @@ var ClippedData = class {
     let formattedData = "";
     if (template && template != "") {
       const rawTemplateContents = await getTemplateContents(this.app, template);
-      formattedData = applyTemplateTransformations(this.title, this.url, this.tags, this.timeStamp, this.date, this.data, this.comment, rawTemplateContents);
+      formattedData = applyTemplateTransformations(
+        this.title,
+        this.url,
+        this.tags,
+        this.timeStamp,
+        this.date,
+        this.data,
+        this.comment,
+        rawTemplateContents,
+      );
     } else {
       if (!this.data) {
         formattedData = `- [ ] [${this.title}](${this.url}) ${this.tags}
@@ -4331,10 +4932,12 @@ var import_obsidian3 = require("obsidian");
 var import_obsidian2 = require("obsidian");
 
 // node_modules/parse-domain/serialized-tries/icann.js
-var icann_default = "ac>com,edu,gov,net,mil,org<ad>nom<ae>co,net,org,sch,ac,gov,mil<aero>accident-investigation,accident-prevention,aerobatic,aeroclub,aerodrome,agents,aircraft,airline,airport,air-surveillance,airtraffic,air-traffic-control,ambulance,amusement,association,author,ballooning,broker,caa,cargo,catering,certification,championship,charter,civilaviation,club,conference,consultant,consulting,control,council,crew,design,dgca,educator,emergency,engine,engineer,entertainment,equipment,exchange,express,federation,flight,fuel,gliding,government,groundhandling,group,hanggliding,homebuilt,insurance,journal,journalist,leasing,logistics,magazine,maintenance,media,microlight,modelling,navigation,parachuting,paragliding,passenger-association,pilot,press,production,recreation,repbody,res,research,rotorcraft,safety,scientist,services,show,skydiving,software,student,trader,trading,trainer,union,workinggroup,works<af>gov,com,org,net,edu<ag>com,org,net,co,nom<ai>off,com,net,org<al>com,edu,gov,mil,net,org<am>co,com,commune,net,org<ao>ed,gv,og,co,pb,it<aq,ar>bet,com,coop,edu,gob,gov,int,mil,musica,mutual,net,org,senasa,tur<arpa>e164,in-addr,ip6,iris,uri,urn<as>gov<asia,at>ac>sth<co,gv,or<au>com,net,org,edu>act,catholic,nsw>schools<nt,qld,sa,tas,vic,wa<gov>qld,sa,tas,vic,wa<asn,id,info,conf,oz,act,nsw,nt,qld,sa,tas,vic,wa<aw>com<ax,az>com,net,int,gov,org,edu,info,pp,mil,name,pro,biz<ba>com,edu,gov,mil,net,org<bb>biz,co,com,edu,gov,info,net,org,store,tv<bd>*<be>ac<bf>gov<bg>a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,0,1,2,3,4,5,6,7,8,9<bh>com,edu,net,org,gov<bi>co,com,edu,or,org<biz,bj>asso,barreau,gouv<bm>com,edu,gov,net,org<bn>com,edu,gov,net,org<bo>com,edu,gob,int,org,net,mil,tv,web,academia,agro,arte,blog,bolivia,ciencia,cooperativa,democracia,deporte,ecologia,economia,empresa,indigena,industria,info,medicina,movimiento,musica,natural,nombre,noticias,patria,politica,profesional,plurinacional,pueblo,revista,salud,tecnologia,tksat,transporte,wiki<br>9guacu,abc,adm,adv,agr,aju,am,anani,aparecida,app,arq,art,ato,b,barueri,belem,bhz,bib,bio,blog,bmd,boavista,bsb,campinagrande,campinas,caxias,cim,cng,cnt,com,contagem,coop,coz,cri,cuiaba,curitiba,def,des,det,dev,ecn,eco,edu,emp,enf,eng,esp,etc,eti,far,feira,flog,floripa,fm,fnd,fortal,fot,foz,fst,g12,geo,ggf,goiania,gov>ac,al,am,ap,ba,ce,df,es,go,ma,mg,ms,mt,pa,pb,pe,pi,pr,rj,rn,ro,rr,rs,sc,se,sp,to<gru,imb,ind,inf,jab,jampa,jdf,joinville,jor,jus,leg,lel,log,londrina,macapa,maceio,manaus,maringa,mat,med,mil,morena,mp,mus,natal,net,niteroi,nom>*<not,ntr,odo,ong,org,osasco,palmas,poa,ppg,pro,psc,psi,pvh,qsl,radio,rec,recife,rep,ribeirao,rio,riobranco,riopreto,salvador,sampa,santamaria,santoandre,saobernardo,saogonca,seg,sjc,slg,slz,sorocaba,srv,taxi,tc,tec,teo,the,tmp,trd,tur,tv,udi,vet,vix,vlog,wiki,zlg<bs>com,net,org,edu,gov<bt>com,edu,gov,net,org<bv,bw>co,org<by>gov,mil,com,of<bz>com,net,org,edu,gov<ca>ab,bc,mb,nb,nf,nl,ns,nt,nu,on,pe,qc,sk,yk,gc<cat,cc,cd>gov<cf,cg,ch,ci>org,or,com,co,edu,ed,ac,net,go,asso,xn--aroport-bya,int,presse,md,gouv<ck>*,!www<cl>co,gob,gov,mil<cm>co,com,gov,net<cn>ac,com,edu,gov,net,org,mil,xn--55qx5d,xn--io0a7i,xn--od0alg,ah,bj,cq,fj,gd,gs,gz,gx,ha,hb,he,hi,hl,hn,jl,js,jx,ln,nm,nx,qh,sc,sd,sh,sn,sx,tj,xj,xz,yn,zj,hk,mo,tw<co>arts,com,edu,firm,gov,info,int,mil,net,nom,org,rec,web<com,coop,cr>ac,co,ed,fi,go,or,sa<cu>com,edu,org,net,gov,inf<cv>com,edu,int,nome,org<cw>com,edu,net,org<cx>gov<cy>ac,biz,com,ekloges,gov,ltd,mil,net,org,press,pro,tm<cz,de,dj,dk,dm>com,net,org,edu,gov<do>art,com,edu,gob,gov,mil,net,org,sld,web<dz>art,asso,com,edu,gov,org,net,pol,soc,tm<ec>com,info,net,fin,k12,med,pro,org,edu,gov,gob,mil<edu,ee>edu,gov,riik,lib,med,com,pri,aip,org,fie<eg>com,edu,eun,gov,mil,name,net,org,sci<er>*<es>com,nom,org,gob,edu<et>com,gov,org,edu,biz,name,info,net<eu,fi>aland<fj>ac,biz,com,gov,info,mil,name,net,org,pro<fk>*<fm>com,edu,net,org<fo,fr>asso,com,gouv,nom,prd,tm,aeroport,avocat,avoues,cci,chambagri,chirurgiens-dentistes,experts-comptables,geometre-expert,greta,huissier-justice,medecin,notaires,pharmacien,port,veterinaire<ga,gb,gd>edu,gov<ge>com,edu,gov,org,mil,net,pvt<gf,gg>co,net,org<gh>com,edu,gov,org,mil<gi>com,ltd,gov,mod,edu,org<gl>co,com,edu,net,org<gm,gn>ac,com,edu,gov,org,net<gov,gp>com,net,mobi,edu,org,asso<gq,gr>com,edu,net,org,gov<gs,gt>com,edu,gob,ind,mil,net,org<gu>com,edu,gov,guam,info,net,org,web<gw,gy>co,com,edu,gov,net,org<hk>com,edu,gov,idv,net,org,xn--55qx5d,xn--wcvs22d,xn--lcvr32d,xn--mxtq1m,xn--gmqw5a,xn--ciqpn,xn--gmq050i,xn--zf0avx,xn--io0a7i,xn--mk0axi,xn--od0alg,xn--od0aq3b,xn--tn0ag,xn--uc0atv,xn--uc0ay4a<hm,hn>com,edu,org,net,mil,gob<hr>iz,from,name,com<ht>com,shop,firm,info,adult,net,pro,org,med,art,coop,pol,asso,edu,rel,gouv,perso<hu>co,info,org,priv,sport,tm,2000,agrar,bolt,casino,city,erotica,erotika,film,forum,games,hotel,ingatlan,jogasz,konyvelo,lakas,media,news,reklam,sex,shop,suli,szex,tozsde,utazas,video<id>ac,biz,co,desa,go,mil,my,net,or,ponpes,sch,web<ie>gov<il>ac,co,gov,idf,k12,muni,net,org<im>ac,co>ltd,plc<com,net,org,tt,tv<in>co,firm,net,org,gen,ind,nic,ac,edu,res,gov,mil<info,int>eu<io>com<iq>gov,edu,mil,com,org,net<ir>ac,co,gov,id,net,org,sch,xn--mgba3a4f16a,xn--mgba3a4fra<is>net,com,edu,gov,org,int<it>gov,edu,abr,abruzzo,aosta-valley,aostavalley,bas,basilicata,cal,calabria,cam,campania,emilia-romagna,emiliaromagna,emr,friuli-v-giulia,friuli-ve-giulia,friuli-vegiulia,friuli-venezia-giulia,friuli-veneziagiulia,friuli-vgiulia,friuliv-giulia,friulive-giulia,friulivegiulia,friulivenezia-giulia,friuliveneziagiulia,friulivgiulia,fvg,laz,lazio,lig,liguria,lom,lombardia,lombardy,lucania,mar,marche,mol,molise,piedmont,piemonte,pmn,pug,puglia,sar,sardegna,sardinia,sic,sicilia,sicily,taa,tos,toscana,trentin-sud-tirol,xn--trentin-sd-tirol-rzb,trentin-sudtirol,xn--trentin-sdtirol-7vb,trentin-sued-tirol,trentin-suedtirol,trentino-a-adige,trentino-aadige,trentino-alto-adige,trentino-altoadige,trentino-s-tirol,trentino-stirol,trentino-sud-tirol,xn--trentino-sd-tirol-c3b,trentino-sudtirol,xn--trentino-sdtirol-szb,trentino-sued-tirol,trentino-suedtirol,trentino,trentinoa-adige,trentinoaadige,trentinoalto-adige,trentinoaltoadige,trentinos-tirol,trentinostirol,trentinosud-tirol,xn--trentinosd-tirol-rzb,trentinosudtirol,xn--trentinosdtirol-7vb,trentinosued-tirol,trentinosuedtirol,trentinsud-tirol,xn--trentinsd-tirol-6vb,trentinsudtirol,xn--trentinsdtirol-nsb,trentinsued-tirol,trentinsuedtirol,tuscany,umb,umbria,val-d-aosta,val-daosta,vald-aosta,valdaosta,valle-aosta,valle-d-aosta,valle-daosta,valleaosta,valled-aosta,valledaosta,vallee-aoste,xn--valle-aoste-ebb,vallee-d-aoste,xn--valle-d-aoste-ehb,valleeaoste,xn--valleaoste-e7a,valleedaoste,xn--valledaoste-ebb,vao,vda,ven,veneto,ag,agrigento,al,alessandria,alto-adige,altoadige,an,ancona,andria-barletta-trani,andria-trani-barletta,andriabarlettatrani,andriatranibarletta,ao,aosta,aoste,ap,aq,aquila,ar,arezzo,ascoli-piceno,ascolipiceno,asti,at,av,avellino,ba,balsan-sudtirol,xn--balsan-sdtirol-nsb,balsan-suedtirol,balsan,bari,barletta-trani-andria,barlettatraniandria,belluno,benevento,bergamo,bg,bi,biella,bl,bn,bo,bologna,bolzano-altoadige,bolzano,bozen-sudtirol,xn--bozen-sdtirol-2ob,bozen-suedtirol,bozen,br,brescia,brindisi,bs,bt,bulsan-sudtirol,xn--bulsan-sdtirol-nsb,bulsan-suedtirol,bulsan,bz,ca,cagliari,caltanissetta,campidano-medio,campidanomedio,campobasso,carbonia-iglesias,carboniaiglesias,carrara-massa,carraramassa,caserta,catania,catanzaro,cb,ce,cesena-forli,xn--cesena-forl-mcb,cesenaforli,xn--cesenaforl-i8a,ch,chieti,ci,cl,cn,co,como,cosenza,cr,cremona,crotone,cs,ct,cuneo,cz,dell-ogliastra,dellogliastra,en,enna,fc,fe,fermo,ferrara,fg,fi,firenze,florence,fm,foggia,forli-cesena,xn--forl-cesena-fcb,forlicesena,xn--forlcesena-c8a,fr,frosinone,ge,genoa,genova,go,gorizia,gr,grosseto,iglesias-carbonia,iglesiascarbonia,im,imperia,is,isernia,kr,la-spezia,laquila,laspezia,latina,lc,le,lecce,lecco,li,livorno,lo,lodi,lt,lu,lucca,macerata,mantova,massa-carrara,massacarrara,matera,mb,mc,me,medio-campidano,mediocampidano,messina,mi,milan,milano,mn,mo,modena,monza-brianza,monza-e-della-brianza,monza,monzabrianza,monzaebrianza,monzaedellabrianza,ms,mt,na,naples,napoli,no,novara,nu,nuoro,og,ogliastra,olbia-tempio,olbiatempio,or,oristano,ot,pa,padova,padua,palermo,parma,pavia,pc,pd,pe,perugia,pesaro-urbino,pesarourbino,pescara,pg,pi,piacenza,pisa,pistoia,pn,po,pordenone,potenza,pr,prato,pt,pu,pv,pz,ra,ragusa,ravenna,rc,re,reggio-calabria,reggio-emilia,reggiocalabria,reggioemilia,rg,ri,rieti,rimini,rm,rn,ro,roma,rome,rovigo,sa,salerno,sassari,savona,si,siena,siracusa,so,sondrio,sp,sr,ss,suedtirol,xn--sdtirol-n2a,sv,ta,taranto,te,tempio-olbia,tempioolbia,teramo,terni,tn,to,torino,tp,tr,trani-andria-barletta,trani-barletta-andria,traniandriabarletta,tranibarlettaandria,trapani,trento,treviso,trieste,ts,turin,tv,ud,udine,urbino-pesaro,urbinopesaro,va,varese,vb,vc,ve,venezia,venice,verbania,vercelli,verona,vi,vibo-valentia,vibovalentia,vicenza,viterbo,vr,vs,vt,vv<je>co,net,org<jm>*<jo>com,org,net,edu,sch,gov,mil,name<jobs,jp>ac,ad,co,ed,go,gr,lg,ne,or,aichi>aisai,ama,anjo,asuke,chiryu,chita,fuso,gamagori,handa,hazu,hekinan,higashiura,ichinomiya,inazawa,inuyama,isshiki,iwakura,kanie,kariya,kasugai,kira,kiyosu,komaki,konan,kota,mihama,miyoshi,nishio,nisshin,obu,oguchi,oharu,okazaki,owariasahi,seto,shikatsu,shinshiro,shitara,tahara,takahama,tobishima,toei,togo,tokai,tokoname,toyoake,toyohashi,toyokawa,toyone,toyota,tsushima,yatomi<akita>akita,daisen,fujisato,gojome,hachirogata,happou,higashinaruse,honjo,honjyo,ikawa,kamikoani,kamioka,katagami,kazuno,kitaakita,kosaka,kyowa,misato,mitane,moriyoshi,nikaho,noshiro,odate,oga,ogata,semboku,yokote,yurihonjo<aomori>aomori,gonohe,hachinohe,hashikami,hiranai,hirosaki,itayanagi,kuroishi,misawa,mutsu,nakadomari,noheji,oirase,owani,rokunohe,sannohe,shichinohe,shingo,takko,towada,tsugaru,tsuruta<chiba>abiko,asahi,chonan,chosei,choshi,chuo,funabashi,futtsu,hanamigawa,ichihara,ichikawa,ichinomiya,inzai,isumi,kamagaya,kamogawa,kashiwa,katori,katsuura,kimitsu,kisarazu,kozaki,kujukuri,kyonan,matsudo,midori,mihama,minamiboso,mobara,mutsuzawa,nagara,nagareyama,narashino,narita,noda,oamishirasato,omigawa,onjuku,otaki,sakae,sakura,shimofusa,shirako,shiroi,shisui,sodegaura,sosa,tako,tateyama,togane,tohnosho,tomisato,urayasu,yachimata,yachiyo,yokaichiba,yokoshibahikari,yotsukaido<ehime>ainan,honai,ikata,imabari,iyo,kamijima,kihoku,kumakogen,masaki,matsuno,matsuyama,namikata,niihama,ozu,saijo,seiyo,shikokuchuo,tobe,toon,uchiko,uwajima,yawatahama<fukui>echizen,eiheiji,fukui,ikeda,katsuyama,mihama,minamiechizen,obama,ohi,ono,sabae,sakai,takahama,tsuruga,wakasa<fukuoka>ashiya,buzen,chikugo,chikuho,chikujo,chikushino,chikuzen,chuo,dazaifu,fukuchi,hakata,higashi,hirokawa,hisayama,iizuka,inatsuki,kaho,kasuga,kasuya,kawara,keisen,koga,kurate,kurogi,kurume,minami,miyako,miyama,miyawaka,mizumaki,munakata,nakagawa,nakama,nishi,nogata,ogori,okagaki,okawa,oki,omuta,onga,onojo,oto,saigawa,sasaguri,shingu,shinyoshitomi,shonai,soeda,sue,tachiarai,tagawa,takata,toho,toyotsu,tsuiki,ukiha,umi,usui,yamada,yame,yanagawa,yukuhashi<fukushima>aizubange,aizumisato,aizuwakamatsu,asakawa,bandai,date,fukushima,furudono,futaba,hanawa,higashi,hirata,hirono,iitate,inawashiro,ishikawa,iwaki,izumizaki,kagamiishi,kaneyama,kawamata,kitakata,kitashiobara,koori,koriyama,kunimi,miharu,mishima,namie,nango,nishiaizu,nishigo,okuma,omotego,ono,otama,samegawa,shimogo,shirakawa,showa,soma,sukagawa,taishin,tamakawa,tanagura,tenei,yabuki,yamato,yamatsuri,yanaizu,yugawa<gifu>anpachi,ena,gifu,ginan,godo,gujo,hashima,hichiso,hida,higashishirakawa,ibigawa,ikeda,kakamigahara,kani,kasahara,kasamatsu,kawaue,kitagata,mino,minokamo,mitake,mizunami,motosu,nakatsugawa,ogaki,sakahogi,seki,sekigahara,shirakawa,tajimi,takayama,tarui,toki,tomika,wanouchi,yamagata,yaotsu,yoro<gunma>annaka,chiyoda,fujioka,higashiagatsuma,isesaki,itakura,kanna,kanra,katashina,kawaba,kiryu,kusatsu,maebashi,meiwa,midori,minakami,naganohara,nakanojo,nanmoku,numata,oizumi,ora,ota,shibukawa,shimonita,shinto,showa,takasaki,takayama,tamamura,tatebayashi,tomioka,tsukiyono,tsumagoi,ueno,yoshioka<hiroshima>asaminami,daiwa,etajima,fuchu,fukuyama,hatsukaichi,higashihiroshima,hongo,jinsekikogen,kaita,kui,kumano,kure,mihara,miyoshi,naka,onomichi,osakikamijima,otake,saka,sera,seranishi,shinichi,shobara,takehara<hokkaido>abashiri,abira,aibetsu,akabira,akkeshi,asahikawa,ashibetsu,ashoro,assabu,atsuma,bibai,biei,bifuka,bihoro,biratori,chippubetsu,chitose,date,ebetsu,embetsu,eniwa,erimo,esan,esashi,fukagawa,fukushima,furano,furubira,haboro,hakodate,hamatonbetsu,hidaka,higashikagura,higashikawa,hiroo,hokuryu,hokuto,honbetsu,horokanai,horonobe,ikeda,imakane,ishikari,iwamizawa,iwanai,kamifurano,kamikawa,kamishihoro,kamisunagawa,kamoenai,kayabe,kembuchi,kikonai,kimobetsu,kitahiroshima,kitami,kiyosato,koshimizu,kunneppu,kuriyama,kuromatsunai,kushiro,kutchan,kyowa,mashike,matsumae,mikasa,minamifurano,mombetsu,moseushi,mukawa,muroran,naie,nakagawa,nakasatsunai,nakatombetsu,nanae,nanporo,nayoro,nemuro,niikappu,niki,nishiokoppe,noboribetsu,numata,obihiro,obira,oketo,okoppe,otaru,otobe,otofuke,otoineppu,oumu,ozora,pippu,rankoshi,rebun,rikubetsu,rishiri,rishirifuji,saroma,sarufutsu,shakotan,shari,shibecha,shibetsu,shikabe,shikaoi,shimamaki,shimizu,shimokawa,shinshinotsu,shintoku,shiranuka,shiraoi,shiriuchi,sobetsu,sunagawa,taiki,takasu,takikawa,takinoue,teshikaga,tobetsu,tohma,tomakomai,tomari,toya,toyako,toyotomi,toyoura,tsubetsu,tsukigata,urakawa,urausu,uryu,utashinai,wakkanai,wassamu,yakumo,yoichi<hyogo>aioi,akashi,ako,amagasaki,aogaki,asago,ashiya,awaji,fukusaki,goshiki,harima,himeji,ichikawa,inagawa,itami,kakogawa,kamigori,kamikawa,kasai,kasuga,kawanishi,miki,minamiawaji,nishinomiya,nishiwaki,ono,sanda,sannan,sasayama,sayo,shingu,shinonsen,shiso,sumoto,taishi,taka,takarazuka,takasago,takino,tamba,tatsuno,toyooka,yabu,yashiro,yoka,yokawa<ibaraki>ami,asahi,bando,chikusei,daigo,fujishiro,hitachi,hitachinaka,hitachiomiya,hitachiota,ibaraki,ina,inashiki,itako,iwama,joso,kamisu,kasama,kashima,kasumigaura,koga,miho,mito,moriya,naka,namegata,oarai,ogawa,omitama,ryugasaki,sakai,sakuragawa,shimodate,shimotsuma,shirosato,sowa,suifu,takahagi,tamatsukuri,tokai,tomobe,tone,toride,tsuchiura,tsukuba,uchihara,ushiku,yachiyo,yamagata,yawara,yuki<ishikawa>anamizu,hakui,hakusan,kaga,kahoku,kanazawa,kawakita,komatsu,nakanoto,nanao,nomi,nonoichi,noto,shika,suzu,tsubata,tsurugi,uchinada,wajima<iwate>fudai,fujisawa,hanamaki,hiraizumi,hirono,ichinohe,ichinoseki,iwaizumi,iwate,joboji,kamaishi,kanegasaki,karumai,kawai,kitakami,kuji,kunohe,kuzumaki,miyako,mizusawa,morioka,ninohe,noda,ofunato,oshu,otsuchi,rikuzentakata,shiwa,shizukuishi,sumita,tanohata,tono,yahaba,yamada<kagawa>ayagawa,higashikagawa,kanonji,kotohira,manno,marugame,mitoyo,naoshima,sanuki,tadotsu,takamatsu,tonosho,uchinomi,utazu,zentsuji<kagoshima>akune,amami,hioki,isa,isen,izumi,kagoshima,kanoya,kawanabe,kinko,kouyama,makurazaki,matsumoto,minamitane,nakatane,nishinoomote,satsumasendai,soo,tarumizu,yusui<kanagawa>aikawa,atsugi,ayase,chigasaki,ebina,fujisawa,hadano,hakone,hiratsuka,isehara,kaisei,kamakura,kiyokawa,matsuda,minamiashigara,miura,nakai,ninomiya,odawara,oi,oiso,sagamihara,samukawa,tsukui,yamakita,yamato,yokosuka,yugawara,zama,zushi<kochi>aki,geisei,hidaka,higashitsuno,ino,kagami,kami,kitagawa,kochi,mihara,motoyama,muroto,nahari,nakamura,nankoku,nishitosa,niyodogawa,ochi,okawa,otoyo,otsuki,sakawa,sukumo,susaki,tosa,tosashimizu,toyo,tsuno,umaji,yasuda,yusuhara<kumamoto>amakusa,arao,aso,choyo,gyokuto,kamiamakusa,kikuchi,kumamoto,mashiki,mifune,minamata,minamioguni,nagasu,nishihara,oguni,ozu,sumoto,takamori,uki,uto,yamaga,yamato,yatsushiro<kyoto>ayabe,fukuchiyama,higashiyama,ide,ine,joyo,kameoka,kamo,kita,kizu,kumiyama,kyotamba,kyotanabe,kyotango,maizuru,minami,minamiyamashiro,miyazu,muko,nagaokakyo,nakagyo,nantan,oyamazaki,sakyo,seika,tanabe,uji,ujitawara,wazuka,yamashina,yawata<mie>asahi,inabe,ise,kameyama,kawagoe,kiho,kisosaki,kiwa,komono,kumano,kuwana,matsusaka,meiwa,mihama,minamiise,misugi,miyama,nabari,shima,suzuka,tado,taiki,taki,tamaki,toba,tsu,udono,ureshino,watarai,yokkaichi<miyagi>furukawa,higashimatsushima,ishinomaki,iwanuma,kakuda,kami,kawasaki,marumori,matsushima,minamisanriku,misato,murata,natori,ogawara,ohira,onagawa,osaki,rifu,semine,shibata,shichikashuku,shikama,shiogama,shiroishi,tagajo,taiwa,tome,tomiya,wakuya,watari,yamamoto,zao<miyazaki>aya,ebino,gokase,hyuga,kadogawa,kawaminami,kijo,kitagawa,kitakata,kitaura,kobayashi,kunitomi,kushima,mimata,miyakonojo,miyazaki,morotsuka,nichinan,nishimera,nobeoka,saito,shiiba,shintomi,takaharu,takanabe,takazaki,tsuno<nagano>achi,agematsu,anan,aoki,asahi,azumino,chikuhoku,chikuma,chino,fujimi,hakuba,hara,hiraya,iida,iijima,iiyama,iizuna,ikeda,ikusaka,ina,karuizawa,kawakami,kiso,kisofukushima,kitaaiki,komagane,komoro,matsukawa,matsumoto,miasa,minamiaiki,minamimaki,minamiminowa,minowa,miyada,miyota,mochizuki,nagano,nagawa,nagiso,nakagawa,nakano,nozawaonsen,obuse,ogawa,okaya,omachi,omi,ookuwa,ooshika,otaki,otari,sakae,sakaki,saku,sakuho,shimosuwa,shinanomachi,shiojiri,suwa,suzaka,takagi,takamori,takayama,tateshina,tatsuno,togakushi,togura,tomi,ueda,wada,yamagata,yamanouchi,yasaka,yasuoka<nagasaki>chijiwa,futsu,goto,hasami,hirado,iki,isahaya,kawatana,kuchinotsu,matsuura,nagasaki,obama,omura,oseto,saikai,sasebo,seihi,shimabara,shinkamigoto,togitsu,tsushima,unzen<nara>ando,gose,heguri,higashiyoshino,ikaruga,ikoma,kamikitayama,kanmaki,kashiba,kashihara,katsuragi,kawai,kawakami,kawanishi,koryo,kurotaki,mitsue,miyake,nara,nosegawa,oji,ouda,oyodo,sakurai,sango,shimoichi,shimokitayama,shinjo,soni,takatori,tawaramoto,tenkawa,tenri,uda,yamatokoriyama,yamatotakada,yamazoe,yoshino<niigata>aga,agano,gosen,itoigawa,izumozaki,joetsu,kamo,kariwa,kashiwazaki,minamiuonuma,mitsuke,muika,murakami,myoko,nagaoka,niigata,ojiya,omi,sado,sanjo,seiro,seirou,sekikawa,shibata,tagami,tainai,tochio,tokamachi,tsubame,tsunan,uonuma,yahiko,yoita,yuzawa<oita>beppu,bungoono,bungotakada,hasama,hiji,himeshima,hita,kamitsue,kokonoe,kuju,kunisaki,kusu,oita,saiki,taketa,tsukumi,usa,usuki,yufu<okayama>akaiwa,asakuchi,bizen,hayashima,ibara,kagamino,kasaoka,kibichuo,kumenan,kurashiki,maniwa,misaki,nagi,niimi,nishiawakura,okayama,satosho,setouchi,shinjo,shoo,soja,takahashi,tamano,tsuyama,wake,yakage<okinawa>aguni,ginowan,ginoza,gushikami,haebaru,higashi,hirara,iheya,ishigaki,ishikawa,itoman,izena,kadena,kin,kitadaito,kitanakagusuku,kumejima,kunigami,minamidaito,motobu,nago,naha,nakagusuku,nakijin,nanjo,nishihara,ogimi,okinawa,onna,shimoji,taketomi,tarama,tokashiki,tomigusuku,tonaki,urasoe,uruma,yaese,yomitan,yonabaru,yonaguni,zamami<osaka>abeno,chihayaakasaka,chuo,daito,fujiidera,habikino,hannan,higashiosaka,higashisumiyoshi,higashiyodogawa,hirakata,ibaraki,ikeda,izumi,izumiotsu,izumisano,kadoma,kaizuka,kanan,kashiwara,katano,kawachinagano,kishiwada,kita,kumatori,matsubara,minato,minoh,misaki,moriguchi,neyagawa,nishi,nose,osakasayama,sakai,sayama,sennan,settsu,shijonawate,shimamoto,suita,tadaoka,taishi,tajiri,takaishi,takatsuki,tondabayashi,toyonaka,toyono,yao<saga>ariake,arita,fukudomi,genkai,hamatama,hizen,imari,kamimine,kanzaki,karatsu,kashima,kitagata,kitahata,kiyama,kouhoku,kyuragi,nishiarita,ogi,omachi,ouchi,saga,shiroishi,taku,tara,tosu,yoshinogari<saitama>arakawa,asaka,chichibu,fujimi,fujimino,fukaya,hanno,hanyu,hasuda,hatogaya,hatoyama,hidaka,higashichichibu,higashimatsuyama,honjo,ina,iruma,iwatsuki,kamiizumi,kamikawa,kamisato,kasukabe,kawagoe,kawaguchi,kawajima,kazo,kitamoto,koshigaya,kounosu,kuki,kumagaya,matsubushi,minano,misato,miyashiro,miyoshi,moroyama,nagatoro,namegawa,niiza,ogano,ogawa,ogose,okegawa,omiya,otaki,ranzan,ryokami,saitama,sakado,satte,sayama,shiki,shiraoka,soka,sugito,toda,tokigawa,tokorozawa,tsurugashima,urawa,warabi,yashio,yokoze,yono,yorii,yoshida,yoshikawa,yoshimi<shiga>aisho,gamo,higashiomi,hikone,koka,konan,kosei,koto,kusatsu,maibara,moriyama,nagahama,nishiazai,notogawa,omihachiman,otsu,ritto,ryuoh,takashima,takatsuki,torahime,toyosato,yasu<shimane>akagi,ama,gotsu,hamada,higashiizumo,hikawa,hikimi,izumo,kakinoki,masuda,matsue,misato,nishinoshima,ohda,okinoshima,okuizumo,shimane,tamayu,tsuwano,unnan,yakumo,yasugi,yatsuka<shizuoka>arai,atami,fuji,fujieda,fujikawa,fujinomiya,fukuroi,gotemba,haibara,hamamatsu,higashiizu,ito,iwata,izu,izunokuni,kakegawa,kannami,kawanehon,kawazu,kikugawa,kosai,makinohara,matsuzaki,minamiizu,mishima,morimachi,nishiizu,numazu,omaezaki,shimada,shimizu,shimoda,shizuoka,susono,yaizu,yoshida<tochigi>ashikaga,bato,haga,ichikai,iwafune,kaminokawa,kanuma,karasuyama,kuroiso,mashiko,mibu,moka,motegi,nasu,nasushiobara,nikko,nishikata,nogi,ohira,ohtawara,oyama,sakura,sano,shimotsuke,shioya,takanezawa,tochigi,tsuga,ujiie,utsunomiya,yaita<tokushima>aizumi,anan,ichiba,itano,kainan,komatsushima,matsushige,mima,minami,miyoshi,mugi,nakagawa,naruto,sanagochi,shishikui,tokushima,wajiki<tokyo>adachi,akiruno,akishima,aogashima,arakawa,bunkyo,chiyoda,chofu,chuo,edogawa,fuchu,fussa,hachijo,hachioji,hamura,higashikurume,higashimurayama,higashiyamato,hino,hinode,hinohara,inagi,itabashi,katsushika,kita,kiyose,kodaira,koganei,kokubunji,komae,koto,kouzushima,kunitachi,machida,meguro,minato,mitaka,mizuho,musashimurayama,musashino,nakano,nerima,ogasawara,okutama,ome,oshima,ota,setagaya,shibuya,shinagawa,shinjuku,suginami,sumida,tachikawa,taito,tama,toshima<tottori>chizu,hino,kawahara,koge,kotoura,misasa,nanbu,nichinan,sakaiminato,tottori,wakasa,yazu,yonago<toyama>asahi,fuchu,fukumitsu,funahashi,himi,imizu,inami,johana,kamiichi,kurobe,nakaniikawa,namerikawa,nanto,nyuzen,oyabe,taira,takaoka,tateyama,toga,tonami,toyama,unazuki,uozu,yamada<wakayama>arida,aridagawa,gobo,hashimoto,hidaka,hirogawa,inami,iwade,kainan,kamitonda,katsuragi,kimino,kinokawa,kitayama,koya,koza,kozagawa,kudoyama,kushimoto,mihama,misato,nachikatsuura,shingu,shirahama,taiji,tanabe,wakayama,yuasa,yura<yamagata>asahi,funagata,higashine,iide,kahoku,kaminoyama,kaneyama,kawanishi,mamurogawa,mikawa,murayama,nagai,nakayama,nanyo,nishikawa,obanazawa,oe,oguni,ohkura,oishida,sagae,sakata,sakegawa,shinjo,shirataka,shonai,takahata,tendo,tozawa,tsuruoka,yamagata,yamanobe,yonezawa,yuza<yamaguchi>abu,hagi,hikari,hofu,iwakuni,kudamatsu,mitou,nagato,oshima,shimonoseki,shunan,tabuse,tokuyama,toyota,ube,yuu<yamanashi>chuo,doshi,fuefuki,fujikawa,fujikawaguchiko,fujiyoshida,hayakawa,hokuto,ichikawamisato,kai,kofu,koshu,kosuge,minami-alps,minobu,nakamichi,nanbu,narusawa,nirasaki,nishikatsura,oshino,otsuki,showa,tabayama,tsuru,uenohara,yamanakako,yamanashi<xn--4pvxs,xn--vgu402c,xn--c3s14m,xn--f6qx53a,xn--8pvr4u,xn--uist22h,xn--djrs72d6uy,xn--mkru45i,xn--0trq7p7nn,xn--8ltr62k,xn--2m4a15e,xn--efvn9s,xn--32vp30h,xn--4it797k,xn--1lqs71d,xn--5rtp49c,xn--5js045d,xn--ehqz56n,xn--1lqs03n,xn--qqqt11m,xn--kbrq7o,xn--pssu33l,xn--ntsq17g,xn--uisz3g,xn--6btw5a,xn--1ctwo,xn--6orx2r,xn--rht61e,xn--rht27z,xn--djty4k,xn--nit225k,xn--rht3d,xn--klty5x,xn--kltx9a,xn--kltp7d,xn--uuwu58a,xn--zbx025d,xn--ntso0iqx3a,xn--elqq16h,xn--4it168d,xn--klt787d,xn--rny31h,xn--7t0a264c,xn--5rtq34k,xn--k7yn95e,xn--tor131o,xn--d5qv7z876c,kawasaki>*,!city<kitakyushu>*,!city<kobe>*,!city<nagoya>*,!city<sapporo>*,!city<sendai>*,!city<yokohama>*,!city<<ke>ac,co,go,info,me,mobi,ne,or,sc<kg>org,net,com,edu,gov,mil<kh>*<ki>edu,biz,net,org,gov,info,com<km>org,nom,gov,prd,tm,edu,mil,ass,com,coop,asso,presse,medecin,notaires,pharmaciens,veterinaire,gouv<kn>net,org,edu,gov<kp>com,edu,gov,org,rep,tra<kr>ac,co,es,go,hs,kg,mil,ms,ne,or,pe,re,sc,busan,chungbuk,chungnam,daegu,daejeon,gangwon,gwangju,gyeongbuk,gyeonggi,gyeongnam,incheon,jeju,jeonbuk,jeonnam,seoul,ulsan<kw>com,edu,emb,gov,ind,net,org<ky>com,edu,net,org<kz>org,edu,net,gov,mil,com<la>int,net,info,edu,gov,per,com,org<lb>com,edu,gov,net,org<lc>com,net,co,org,edu,gov<li,lk>gov,sch,net,int,com,org,edu,ngo,soc,web,ltd,assn,grp,hotel,ac<lr>com,edu,gov,org,net<ls>ac,biz,co,edu,gov,info,net,org,sc<lt>gov<lu,lv>com,edu,gov,org,mil,id,net,asn,conf<ly>com,net,gov,plc,edu,sch,med,org,id<ma>co,net,gov,org,ac,press<mc>tm,asso<md,me>co,net,org,edu,ac,gov,its,priv<mg>org,nom,gov,prd,tm,edu,mil,com,co<mh,mil,mk>com,org,net,edu,gov,inf,name<ml>com,edu,gouv,gov,net,org,presse<mm>*<mn>gov,edu,org<mo>com,net,org,edu,gov<mobi,mp,mq,mr>gov<ms>com,edu,gov,net,org<mt>com,edu,net,org<mu>com,net,org,gov,ac,co,or<museum>academy,agriculture,air,airguard,alabama,alaska,amber,ambulance,american,americana,americanantiques,americanart,amsterdam,and,annefrank,anthro,anthropology,antiques,aquarium,arboretum,archaeological,archaeology,architecture,art,artanddesign,artcenter,artdeco,arteducation,artgallery,arts,artsandcrafts,asmatart,assassination,assisi,association,astronomy,atlanta,austin,australia,automotive,aviation,axis,badajoz,baghdad,bahn,bale,baltimore,barcelona,baseball,basel,baths,bauern,beauxarts,beeldengeluid,bellevue,bergbau,berkeley,berlin,bern,bible,bilbao,bill,birdart,birthplace,bonn,boston,botanical,botanicalgarden,botanicgarden,botany,brandywinevalley,brasil,bristol,british,britishcolumbia,broadcast,brunel,brussel,brussels,bruxelles,building,burghof,bus,bushey,cadaques,california,cambridge,can,canada,capebreton,carrier,cartoonart,casadelamoneda,castle,castres,celtic,center,chattanooga,cheltenham,chesapeakebay,chicago,children,childrens,childrensgarden,chiropractic,chocolate,christiansburg,cincinnati,cinema,circus,civilisation,civilization,civilwar,clinton,clock,coal,coastaldefence,cody,coldwar,collection,colonialwilliamsburg,coloradoplateau,columbia,columbus,communication,communications,community,computer,computerhistory,xn--comunicaes-v6a2o,contemporary,contemporaryart,convent,copenhagen,corporation,xn--correios-e-telecomunicaes-ghc29a,corvette,costume,countryestate,county,crafts,cranbrook,creation,cultural,culturalcenter,culture,cyber,cymru,dali,dallas,database,ddr,decorativearts,delaware,delmenhorst,denmark,depot,design,detroit,dinosaur,discovery,dolls,donostia,durham,eastafrica,eastcoast,education,educational,egyptian,eisenbahn,elburg,elvendrell,embroidery,encyclopedic,england,entomology,environment,environmentalconservation,epilepsy,essex,estate,ethnology,exeter,exhibition,family,farm,farmequipment,farmers,farmstead,field,figueres,filatelia,film,fineart,finearts,finland,flanders,florida,force,fortmissoula,fortworth,foundation,francaise,frankfurt,franziskaner,freemasonry,freiburg,fribourg,frog,fundacio,furniture,gallery,garden,gateway,geelvinck,gemological,geology,georgia,giessen,glas,glass,gorge,grandrapids,graz,guernsey,halloffame,hamburg,handson,harvestcelebration,hawaii,health,heimatunduhren,hellas,helsinki,hembygdsforbund,heritage,histoire,historical,historicalsociety,historichouses,historisch,historisches,history,historyofscience,horology,house,humanities,illustration,imageandsound,indian,indiana,indianapolis,indianmarket,intelligence,interactive,iraq,iron,isleofman,jamison,jefferson,jerusalem,jewelry,jewish,jewishart,jfk,journalism,judaica,judygarland,juedisches,juif,karate,karikatur,kids,koebenhavn,koeln,kunst,kunstsammlung,kunstunddesign,labor,labour,lajolla,lancashire,landes,lans,xn--lns-qla,larsson,lewismiller,lincoln,linz,living,livinghistory,localhistory,london,losangeles,louvre,loyalist,lucerne,luxembourg,luzern,mad,madrid,mallorca,manchester,mansion,mansions,manx,marburg,maritime,maritimo,maryland,marylhurst,media,medical,medizinhistorisches,meeres,memorial,mesaverde,michigan,midatlantic,military,mill,miners,mining,minnesota,missile,missoula,modern,moma,money,monmouth,monticello,montreal,moscow,motorcycle,muenchen,muenster,mulhouse,muncie,museet,museumcenter,museumvereniging,music,national,nationalfirearms,nationalheritage,nativeamerican,naturalhistory,naturalhistorymuseum,naturalsciences,nature,naturhistorisches,natuurwetenschappen,naumburg,naval,nebraska,neues,newhampshire,newjersey,newmexico,newport,newspaper,newyork,niepce,norfolk,north,nrw,nyc,nyny,oceanographic,oceanographique,omaha,online,ontario,openair,oregon,oregontrail,otago,oxford,pacific,paderborn,palace,paleo,palmsprings,panama,paris,pasadena,pharmacy,philadelphia,philadelphiaarea,philately,phoenix,photography,pilots,pittsburgh,planetarium,plantation,plants,plaza,portal,portland,portlligat,posts-and-telecommunications,preservation,presidio,press,project,public,pubol,quebec,railroad,railway,research,resistance,riodejaneiro,rochester,rockart,roma,russia,saintlouis,salem,salvadordali,salzburg,sandiego,sanfrancisco,santabarbara,santacruz,santafe,saskatchewan,satx,savannahga,schlesisches,schoenbrunn,schokoladen,school,schweiz,science,scienceandhistory,scienceandindustry,sciencecenter,sciencecenters,science-fiction,sciencehistory,sciences,sciencesnaturelles,scotland,seaport,settlement,settlers,shell,sherbrooke,sibenik,silk,ski,skole,society,sologne,soundandvision,southcarolina,southwest,space,spy,square,stadt,stalbans,starnberg,state,stateofdelaware,station,steam,steiermark,stjohn,stockholm,stpetersburg,stuttgart,suisse,surgeonshall,surrey,svizzera,sweden,sydney,tank,tcm,technology,telekommunikation,television,texas,textile,theater,time,timekeeping,topology,torino,touch,town,transport,tree,trolley,trust,trustee,uhren,ulm,undersea,university,usa,usantiques,usarts,uscountryestate,usculture,usdecorativearts,usgarden,ushistory,ushuaia,uslivinghistory,utah,uvic,valley,vantaa,versailles,viking,village,virginia,virtual,virtuel,vlaanderen,volkenkunde,wales,wallonie,war,washingtondc,watchandclock,watch-and-clock,western,westfalen,whaling,wildlife,williamsburg,windmill,workshop,york,yorkshire,yosemite,youth,zoological,zoology,xn--9dbhblg6di,xn--h1aegh<mv>aero,biz,com,coop,edu,gov,info,int,mil,museum,name,net,org,pro<mw>ac,biz,co,com,coop,edu,gov,int,museum,net,org<mx>com,org,gob,edu,net<my>biz,com,edu,gov,mil,name,net,org<mz>ac,adv,co,edu,gov,mil,net,org<na>info,pro,name,school,or,dr,us,mx,ca,in,cc,tv,ws,mobi,co,com,org<name,nc>asso,nom<ne,net,nf>com,net,per,rec,web,arts,firm,info,other,store<ng>com,edu,gov,i,mil,mobi,name,net,org,sch<ni>ac,biz,co,com,edu,gob,in,info,int,mil,net,nom,org,web<nl,no>fhs,vgs,fylkesbibl,folkebibl,museum,idrett,priv,mil,stat,dep,kommune,herad,aa>gs<ah>gs<bu>gs<fm>gs<hl>gs<hm>gs<jan-mayen>gs<mr>gs<nl>gs<nt>gs<of>gs<ol>gs<oslo>gs<rl>gs<sf>gs<st>gs<svalbard>gs<tm>gs<tr>gs<va>gs<vf>gs<akrehamn,xn--krehamn-dxa,algard,xn--lgrd-poac,arna,brumunddal,bryne,bronnoysund,xn--brnnysund-m8ac,drobak,xn--drbak-wua,egersund,fetsund,floro,xn--flor-jra,fredrikstad,hokksund,honefoss,xn--hnefoss-q1a,jessheim,jorpeland,xn--jrpeland-54a,kirkenes,kopervik,krokstadelva,langevag,xn--langevg-jxa,leirvik,mjondalen,xn--mjndalen-64a,mo-i-rana,mosjoen,xn--mosjen-eya,nesoddtangen,orkanger,osoyro,xn--osyro-wua,raholt,xn--rholt-mra,sandnessjoen,xn--sandnessjen-ogb,skedsmokorset,slattum,spjelkavik,stathelle,stavern,stjordalshalsen,xn--stjrdalshalsen-sqb,tananger,tranby,vossevangen,afjord,xn--fjord-lra,agdenes,al,xn--l-1fa,alesund,xn--lesund-hua,alstahaug,alta,xn--lt-liac,alaheadju,xn--laheadju-7ya,alvdal,amli,xn--mli-tla,amot,xn--mot-tla,andebu,andoy,xn--andy-ira,andasuolo,ardal,xn--rdal-poa,aremark,arendal,xn--s-1fa,aseral,xn--seral-lra,asker,askim,askvoll,askoy,xn--asky-ira,asnes,xn--snes-poa,audnedaln,aukra,aure,aurland,aurskog-holand,xn--aurskog-hland-jnb,austevoll,austrheim,averoy,xn--avery-yua,balestrand,ballangen,balat,xn--blt-elab,balsfjord,bahccavuotna,xn--bhccavuotna-k7a,bamble,bardu,beardu,beiarn,bajddar,xn--bjddar-pta,baidar,xn--bidr-5nac,berg,bergen,berlevag,xn--berlevg-jxa,bearalvahki,xn--bearalvhki-y4a,bindal,birkenes,bjarkoy,xn--bjarky-fya,bjerkreim,bjugn,bodo,xn--bod-2na,badaddja,xn--bdddj-mrabd,budejju,bokn,bremanger,bronnoy,xn--brnny-wuac,bygland,bykle,barum,xn--brum-voa,telemark>bo,xn--b-5ga<nordland>bo,xn--b-5ga,heroy,xn--hery-ira<bievat,xn--bievt-0qa,bomlo,xn--bmlo-gra,batsfjord,xn--btsfjord-9za,bahcavuotna,xn--bhcavuotna-s4a,dovre,drammen,drangedal,dyroy,xn--dyry-ira,donna,xn--dnna-gra,eid,eidfjord,eidsberg,eidskog,eidsvoll,eigersund,elverum,enebakk,engerdal,etne,etnedal,evenes,evenassi,xn--eveni-0qa01ga,evje-og-hornnes,farsund,fauske,fuossko,fuoisku,fedje,fet,finnoy,xn--finny-yua,fitjar,fjaler,fjell,flakstad,flatanger,flekkefjord,flesberg,flora,fla,xn--fl-zia,folldal,forsand,fosnes,frei,frogn,froland,frosta,frana,xn--frna-woa,froya,xn--frya-hra,fusa,fyresdal,forde,xn--frde-gra,gamvik,gangaviika,xn--ggaviika-8ya47h,gaular,gausdal,gildeskal,xn--gildeskl-g0a,giske,gjemnes,gjerdrum,gjerstad,gjesdal,gjovik,xn--gjvik-wua,gloppen,gol,gran,grane,granvin,gratangen,grimstad,grong,kraanghke,xn--kranghke-b0a,grue,gulen,hadsel,halden,halsa,hamar,hamaroy,habmer,xn--hbmer-xqa,hapmir,xn--hpmir-xqa,hammerfest,hammarfeasta,xn--hmmrfeasta-s4ac,haram,hareid,harstad,hasvik,aknoluokta,xn--koluokta-7ya57h,hattfjelldal,aarborte,haugesund,hemne,hemnes,hemsedal,more-og-romsdal>heroy,sande<xn--mre-og-romsdal-qqb>xn--hery-ira,sande<hitra,hjartdal,hjelmeland,hobol,xn--hobl-ira,hof,hol,hole,holmestrand,holtalen,xn--holtlen-hxa,hornindal,horten,hurdal,hurum,hvaler,hyllestad,hagebostad,xn--hgebostad-g3a,hoyanger,xn--hyanger-q1a,hoylandet,xn--hylandet-54a,ha,xn--h-2fa,ibestad,inderoy,xn--indery-fya,iveland,jevnaker,jondal,jolster,xn--jlster-bya,karasjok,karasjohka,xn--krjohka-hwab49j,karlsoy,galsa,xn--gls-elac,karmoy,xn--karmy-yua,kautokeino,guovdageaidnu,klepp,klabu,xn--klbu-woa,kongsberg,kongsvinger,kragero,xn--krager-gya,kristiansand,kristiansund,krodsherad,xn--krdsherad-m8a,kvalsund,rahkkeravju,xn--rhkkervju-01af,kvam,kvinesdal,kvinnherad,kviteseid,kvitsoy,xn--kvitsy-fya,kvafjord,xn--kvfjord-nxa,giehtavuoatna,kvanangen,xn--kvnangen-k0a,navuotna,xn--nvuotna-hwa,kafjord,xn--kfjord-iua,gaivuotna,xn--givuotna-8ya,larvik,lavangen,lavagis,loabat,xn--loabt-0qa,lebesby,davvesiida,leikanger,leirfjord,leka,leksvik,lenvik,leangaviika,xn--leagaviika-52b,lesja,levanger,lier,lierne,lillehammer,lillesand,lindesnes,lindas,xn--linds-pra,lom,loppa,lahppi,xn--lhppi-xqa,lund,lunner,luroy,xn--lury-ira,luster,lyngdal,lyngen,ivgu,lardal,lerdal,xn--lrdal-sra,lodingen,xn--ldingen-q1a,lorenskog,xn--lrenskog-54a,loten,xn--lten-gra,malvik,masoy,xn--msy-ula0h,muosat,xn--muost-0qa,mandal,marker,marnardal,masfjorden,meland,meldal,melhus,meloy,xn--mely-ira,meraker,xn--merker-kua,moareke,xn--moreke-jua,midsund,midtre-gauldal,modalen,modum,molde,moskenes,moss,mosvik,malselv,xn--mlselv-iua,malatvuopmi,xn--mlatvuopmi-s4a,namdalseid,aejrie,namsos,namsskogan,naamesjevuemie,xn--nmesjevuemie-tcba,laakesvuemie,nannestad,narvik,narviika,naustdal,nedre-eiker,akershus>nes<buskerud>nes<nesna,nesodden,nesseby,unjarga,xn--unjrga-rta,nesset,nissedal,nittedal,nord-aurdal,nord-fron,nord-odal,norddal,nordkapp,davvenjarga,xn--davvenjrga-y4a,nordre-land,nordreisa,raisa,xn--risa-5na,nore-og-uvdal,notodden,naroy,xn--nry-yla5g,notteroy,xn--nttery-byae,odda,oksnes,xn--ksnes-uua,oppdal,oppegard,xn--oppegrd-ixa,orkdal,orland,xn--rland-uua,orskog,xn--rskog-uua,orsta,xn--rsta-fra,hedmark>os,valer,xn--vler-qoa<hordaland>os<osen,osteroy,xn--ostery-fya,ostre-toten,xn--stre-toten-zcb,overhalla,ovre-eiker,xn--vre-eiker-k8a,oyer,xn--yer-zna,oygarden,xn--ygarden-p1a,oystre-slidre,xn--ystre-slidre-ujb,porsanger,porsangu,xn--porsgu-sta26f,porsgrunn,radoy,xn--rady-ira,rakkestad,rana,ruovat,randaberg,rauma,rendalen,rennebu,rennesoy,xn--rennesy-v1a,rindal,ringebu,ringerike,ringsaker,rissa,risor,xn--risr-ira,roan,rollag,rygge,ralingen,xn--rlingen-mxa,rodoy,xn--rdy-0nab,romskog,xn--rmskog-bya,roros,xn--rros-gra,rost,xn--rst-0na,royken,xn--ryken-vua,royrvik,xn--ryrvik-bya,rade,xn--rde-ula,salangen,siellak,saltdal,salat,xn--slt-elab,xn--slat-5na,samnanger,vestfold>sande<sandefjord,sandnes,sandoy,xn--sandy-yua,sarpsborg,sauda,sauherad,sel,selbu,selje,seljord,sigdal,siljan,sirdal,skaun,skedsmo,ski,skien,skiptvet,skjervoy,xn--skjervy-v1a,skierva,xn--skierv-uta,skjak,xn--skjk-soa,skodje,skanland,xn--sknland-fxa,skanit,xn--sknit-yqa,smola,xn--smla-hra,snillfjord,snasa,xn--snsa-roa,snoasa,snaase,xn--snase-nra,sogndal,sokndal,sola,solund,songdalen,sortland,spydeberg,stange,stavanger,steigen,steinkjer,stjordal,xn--stjrdal-s1a,stokke,stor-elvdal,stord,stordal,storfjord,omasvuotna,strand,stranda,stryn,sula,suldal,sund,sunndal,surnadal,sveio,svelvik,sykkylven,sogne,xn--sgne-gra,somna,xn--smna-gra,sondre-land,xn--sndre-land-0cb,sor-aurdal,xn--sr-aurdal-l8a,sor-fron,xn--sr-fron-q1a,sor-odal,xn--sr-odal-q1a,sor-varanger,xn--sr-varanger-ggb,matta-varjjat,xn--mtta-vrjjat-k7af,sorfold,xn--srfold-bya,sorreisa,xn--srreisa-q1a,sorum,xn--srum-gra,tana,deatnu,time,tingvoll,tinn,tjeldsund,dielddanuorri,tjome,xn--tjme-hra,tokke,tolga,torsken,tranoy,xn--trany-yua,tromso,xn--troms-zua,tromsa,romsa,trondheim,troandin,trysil,trana,xn--trna-woa,trogstad,xn--trgstad-r1a,tvedestrand,tydal,tynset,tysfjord,divtasvuodna,divttasvuotna,tysnes,tysvar,xn--tysvr-vra,tonsberg,xn--tnsberg-q1a,ullensaker,ullensvang,ulvik,utsira,vadso,xn--vads-jra,cahcesuolo,xn--hcesuolo-7ya35b,vaksdal,valle,vang,vanylven,vardo,xn--vard-jra,varggat,xn--vrggt-xqad,vefsn,vaapste,vega,vegarshei,xn--vegrshei-c0a,vennesla,verdal,verran,vestby,vestnes,vestre-slidre,vestre-toten,vestvagoy,xn--vestvgy-ixa6o,vevelstad,vik,vikna,vindafjord,volda,voss,varoy,xn--vry-yla5g,vagan,xn--vgan-qoa,voagat,vagsoy,xn--vgsy-qoa0j,vaga,xn--vg-yiab,ostfold>valer<xn--stfold-9xa>xn--vler-qoa<<np>*<nr>biz,info,gov,edu,org,net,com<nu,nz>ac,co,cri,geek,gen,govt,health,iwi,kiwi,maori,mil,xn--mori-qsa,net,org,parliament,school<om>co,com,edu,gov,med,museum,net,org,pro<onion,org,pa>ac,gob,com,org,sld,edu,net,ing,abo,med,nom<pe>edu,gob,nom,mil,org,com,net<pf>com,org,edu<pg>*<ph>com,net,org,gov,edu,ngo,mil,i<pk>com,net,edu,org,fam,biz,web,gov,gob,gok,gon,gop,gos,info<pl>com,net,org,aid,agro,atm,auto,biz,edu,gmina,gsm,info,mail,miasta,media,mil,nieruchomosci,nom,pc,powiat,priv,realestate,rel,sex,shop,sklep,sos,szkola,targi,tm,tourism,travel,turystyka,gov>ap,ic,is,us,kmpsp,kppsp,kwpsp,psp,wskr,kwp,mw,ug,um,umig,ugim,upow,uw,starostwo,pa,po,psse,pup,rzgw,sa,so,sr,wsa,sko,uzs,wiih,winb,pinb,wios,witd,wzmiuw,piw,wiw,griw,wif,oum,sdn,zp,uppo,mup,wuoz,konsulat,oirm<augustow,babia-gora,bedzin,beskidy,bialowieza,bialystok,bielawa,bieszczady,boleslawiec,bydgoszcz,bytom,cieszyn,czeladz,czest,dlugoleka,elblag,elk,glogow,gniezno,gorlice,grajewo,ilawa,jaworzno,jelenia-gora,jgora,kalisz,kazimierz-dolny,karpacz,kartuzy,kaszuby,katowice,kepno,ketrzyn,klodzko,kobierzyce,kolobrzeg,konin,konskowola,kutno,lapy,lebork,legnica,lezajsk,limanowa,lomza,lowicz,lubin,lukow,malbork,malopolska,mazowsze,mazury,mielec,mielno,mragowo,naklo,nowaruda,nysa,olawa,olecko,olkusz,olsztyn,opoczno,opole,ostroda,ostroleka,ostrowiec,ostrowwlkp,pila,pisz,podhale,podlasie,polkowice,pomorze,pomorskie,prochowice,pruszkow,przeworsk,pulawy,radom,rawa-maz,rybnik,rzeszow,sanok,sejny,slask,slupsk,sosnowiec,stalowa-wola,skoczow,starachowice,stargard,suwalki,swidnica,swiebodzin,swinoujscie,szczecin,szczytno,tarnobrzeg,tgory,turek,tychy,ustka,walbrzych,warmia,warszawa,waw,wegrow,wielun,wlocl,wloclawek,wodzislaw,wolomin,wroclaw,zachpomor,zagan,zarow,zgora,zgorzelec<pm,pn>gov,co,org,edu,net<post,pr>com,net,org,gov,edu,isla,pro,biz,info,name,est,prof,ac<pro>aaa,aca,acct,avocat,bar,cpa,eng,jur,law,med,recht<ps>edu,gov,sec,plo,com,org,net<pt>net,gov,org,edu,int,publ,com,nome<pw>co,ne,or,ed,go,belau<py>com,coop,edu,gov,mil,net,org<qa>com,edu,gov,mil,name,net,org,sch<re>asso,com,nom<ro>arts,com,firm,info,nom,nt,org,rec,store,tm,www<rs>ac,co,edu,gov,in,org<ru,rw>ac,co,coop,gov,mil,net,org<sa>com,net,org,gov,med,pub,edu,sch<sb>com,edu,gov,net,org<sc>com,gov,net,org,edu<sd>com,net,org,edu,med,tv,gov,info<se>a,ac,b,bd,brand,c,d,e,f,fh,fhsk,fhv,g,h,i,k,komforb,kommunalforbund,komvux,l,lanbib,m,n,naturbruksgymn,o,org,p,parti,pp,press,r,s,t,tm,u,w,x,y,z<sg>com,net,org,gov,edu,per<sh>com,net,gov,org,mil<si,sj,sk,sl>com,net,edu,gov,org<sm,sn>art,com,edu,gouv,org,perso,univ<so>com,edu,gov,me,net,org<sr,ss>biz,com,edu,gov,me,net,org,sch<st>co,com,consulado,edu,embaixada,mil,net,org,principe,saotome,store<su,sv>com,edu,gob,org,red<sx>gov<sy>edu,gov,net,mil,com,org<sz>co,ac,org<tc,td,tel,tf,tg,th>ac,co,go,in,mi,net,or<tj>ac,biz,co,com,edu,go,gov,int,mil,name,net,nic,org,test,web<tk,tl>gov<tm>com,co,org,net,nom,gov,mil,edu<tn>com,ens,fin,gov,ind,info,intl,mincom,nat,net,org,perso,tourism<to>com,gov,net,org,edu,mil<tr>av,bbs,bel,biz,com,dr,edu,gen,gov,info,mil,k12,kep,name,net,org,pol,tel,tsk,tv,web,nc>gov<<tt>co,com,org,net,biz,info,pro,int,coop,jobs,mobi,travel,museum,aero,name,gov,edu<tv,tw>edu,gov,mil,com,net,org,idv,game,ebiz,club,xn--zf0ao64a,xn--uc0atv,xn--czrw28b<tz>ac,co,go,hotel,info,me,mil,mobi,ne,or,sc,tv<ua>com,edu,gov,in,net,org,cherkassy,cherkasy,chernigov,chernihiv,chernivtsi,chernovtsy,ck,cn,cr,crimea,cv,dn,dnepropetrovsk,dnipropetrovsk,donetsk,dp,if,ivano-frankivsk,kh,kharkiv,kharkov,kherson,khmelnitskiy,khmelnytskyi,kiev,kirovograd,km,kr,krym,ks,kv,kyiv,lg,lt,lugansk,lutsk,lv,lviv,mk,mykolaiv,nikolaev,od,odesa,odessa,pl,poltava,rivne,rovno,rv,sb,sebastopol,sevastopol,sm,sumy,te,ternopil,uz,uzhgorod,vinnica,vinnytsia,vn,volyn,yalta,zaporizhzhe,zaporizhzhia,zhitomir,zhytomyr,zp,zt<ug>co,or,ac,sc,go,ne,com,org<uk>ac,co,gov,ltd,me,net,nhs,org,plc,police,sch>*<<us>dni,fed,isa,kids,nsn,ak>k12,cc,lib<al>k12,cc,lib<ar>k12,cc,lib<as>k12,cc,lib<az>k12,cc,lib<ca>k12,cc,lib<co>k12,cc,lib<ct>k12,cc,lib<dc>k12,cc,lib<de>k12,cc<fl>k12,cc,lib<ga>k12,cc,lib<gu>k12,cc,lib<hi>cc,lib<ia>k12,cc,lib<id>k12,cc,lib<il>k12,cc,lib<in>k12,cc,lib<ks>k12,cc,lib<ky>k12,cc,lib<la>k12,cc,lib<ma>k12>pvt,chtr,paroch<cc,lib<md>k12,cc,lib<me>k12,cc,lib<mi>k12,cc,lib,ann-arbor,cog,dst,eaton,gen,mus,tec,washtenaw<mn>k12,cc,lib<mo>k12,cc,lib<ms>k12,cc,lib<mt>k12,cc,lib<nc>k12,cc,lib<nd>cc,lib<ne>k12,cc,lib<nh>k12,cc,lib<nj>k12,cc,lib<nm>k12,cc,lib<nv>k12,cc,lib<ny>k12,cc,lib<oh>k12,cc,lib<ok>k12,cc,lib<or>k12,cc,lib<pa>k12,cc,lib<pr>k12,cc,lib<ri>cc,lib<sc>k12,cc,lib<sd>cc,lib<tn>k12,cc,lib<tx>k12,cc,lib<ut>k12,cc,lib<vi>k12,cc,lib<vt>k12,cc,lib<va>k12,cc,lib<wa>k12,cc,lib<wi>k12,cc,lib<wv>cc<wy>k12,cc,lib<<uy>com,edu,gub,mil,net,org<uz>co,com,net,org<va,vc>com,net,org,gov,mil,edu<ve>arts,bib,co,com,e12,edu,firm,gob,gov,info,int,mil,net,nom,org,rar,rec,store,tec,web<vg,vi>co,com,k12,net,org<vn>com,net,org,edu,gov,int,ac,biz,info,name,pro,health<vu>com,edu,net,org<wf,ws>com,net,org,gov,edu<yt,xn--mgbaam7a8h,xn--y9a3aq,xn--54b7fta0cc,xn--90ae,xn--mgbcpq6gpa1a,xn--90ais,xn--fiqs8s,xn--fiqz9s,xn--lgbbat1ad8j,xn--wgbh1c,xn--e1a4c,xn--qxa6a,xn--mgbah1a3hjkrd,xn--node,xn--qxam,xn--j6w193g>xn--55qx5d,xn--wcvs22d,xn--mxtq1m,xn--gmqw5a,xn--od0alg,xn--uc0atv<xn--2scrj9c,xn--3hcrj9c,xn--45br5cyl,xn--h2breg3eve,xn--h2brj9c8c,xn--mgbgu82a,xn--rvc1e0am3e,xn--h2brj9c,xn--mgbbh1a,xn--mgbbh1a71e,xn--fpcrj9c3d,xn--gecrj9c,xn--s9brj9c,xn--45brj9c,xn--xkc2dl3a5ee0h,xn--mgba3a4f16a,xn--mgba3a4fra,xn--mgbtx2b,xn--mgbayh7gpa,xn--3e0b707e,xn--80ao21a,xn--q7ce6a,xn--fzc2c9e2c,xn--xkc2al3hye2a,xn--mgbc0a9azcg,xn--d1alf,xn--l1acc,xn--mix891f,xn--mix082f,xn--mgbx4cd0ab,xn--mgb9awbf,xn--mgbai9azgqp6j,xn--mgbai9a5eva00b,xn--ygbi2ammx,xn--90a3ac>xn--o1ac,xn--c1avg,xn--90azh,xn--d1at,xn--o1ach,xn--80au<xn--p1ai,xn--wgbl6a,xn--mgberp4a5d4ar,xn--mgberp4a5d4a87g,xn--mgbqly7c0a67fbc,xn--mgbqly7cvafr,xn--mgbpl2fh,xn--yfro4i67o,xn--clchc0ea0b2g2a9gcd,xn--ogbpf8fl,xn--mgbtf8fl,xn--o3cw4h>xn--12c1fe0br,xn--12co0c3b4eva,xn--h3cuzk1di,xn--o3cyx2a,xn--m3ch0j3a,xn--12cfi8ixb8l<xn--pgbs0dh,xn--kpry57d,xn--kprw13d,xn--nnx388a,xn--j1amh,xn--mgb2ddes,xxx,ye>com,edu,gov,net,mil,org<za>ac,agric,alt,co,edu,gov,grondar,law,mil,net,ngo,nic,nis,nom,org,school,tm,web<zm>ac,biz,co,com,edu,gov,info,mil,net,org,sch<zw>ac,co,gov,mil,org<aaa,aarp,abarth,abb,abbott,abbvie,abc,able,abogado,abudhabi,academy,accenture,accountant,accountants,aco,actor,adac,ads,adult,aeg,aetna,afl,africa,agakhan,agency,aig,airbus,airforce,airtel,akdn,alfaromeo,alibaba,alipay,allfinanz,allstate,ally,alsace,alstom,amazon,americanexpress,americanfamily,amex,amfam,amica,amsterdam,analytics,android,anquan,anz,aol,apartments,app,apple,aquarelle,arab,aramco,archi,army,art,arte,asda,associates,athleta,attorney,auction,audi,audible,audio,auspost,author,auto,autos,avianca,aws,axa,azure,baby,baidu,banamex,bananarepublic,band,bank,bar,barcelona,barclaycard,barclays,barefoot,bargains,baseball,basketball,bauhaus,bayern,bbc,bbt,bbva,bcg,bcn,beats,beauty,beer,bentley,berlin,best,bestbuy,bet,bharti,bible,bid,bike,bing,bingo,bio,black,blackfriday,blockbuster,blog,bloomberg,blue,bms,bmw,bnpparibas,boats,boehringer,bofa,bom,bond,boo,book,booking,bosch,bostik,boston,bot,boutique,box,bradesco,bridgestone,broadway,broker,brother,brussels,bugatti,build,builders,business,buy,buzz,bzh,cab,cafe,cal,call,calvinklein,cam,camera,camp,cancerresearch,canon,capetown,capital,capitalone,car,caravan,cards,care,career,careers,cars,casa,case,cash,casino,catering,catholic,cba,cbn,cbre,cbs,center,ceo,cern,cfa,cfd,chanel,channel,charity,chase,chat,cheap,chintai,christmas,chrome,church,cipriani,circle,cisco,citadel,citi,citic,city,cityeats,claims,cleaning,click,clinic,clinique,clothing,cloud,club,clubmed,coach,codes,coffee,college,cologne,comcast,commbank,community,company,compare,computer,comsec,condos,construction,consulting,contact,contractors,cooking,cookingchannel,cool,corsica,country,coupon,coupons,courses,cpa,credit,creditcard,creditunion,cricket,crown,crs,cruise,cruises,cuisinella,cymru,cyou,dabur,dad,dance,data,date,dating,datsun,day,dclk,dds,deal,dealer,deals,degree,delivery,dell,deloitte,delta,democrat,dental,dentist,desi,design,dev,dhl,diamonds,diet,digital,direct,directory,discount,discover,dish,diy,dnp,docs,doctor,dog,domains,dot,download,drive,dtv,dubai,dunlop,dupont,durban,dvag,dvr,earth,eat,eco,edeka,education,email,emerck,energy,engineer,engineering,enterprises,epson,equipment,ericsson,erni,esq,estate,etisalat,eurovision,eus,events,exchange,expert,exposed,express,extraspace,fage,fail,fairwinds,faith,family,fan,fans,farm,farmers,fashion,fast,fedex,feedback,ferrari,ferrero,fiat,fidelity,fido,film,final,finance,financial,fire,firestone,firmdale,fish,fishing,fit,fitness,flickr,flights,flir,florist,flowers,fly,foo,food,foodnetwork,football,ford,forex,forsale,forum,foundation,fox,free,fresenius,frl,frogans,frontdoor,frontier,ftr,fujitsu,fun,fund,furniture,futbol,fyi,gal,gallery,gallo,gallup,game,games,gap,garden,gay,gbiz,gdn,gea,gent,genting,george,ggee,gift,gifts,gives,giving,glass,gle,global,globo,gmail,gmbh,gmo,gmx,godaddy,gold,goldpoint,golf,goo,goodyear,goog,google,gop,got,grainger,graphics,gratis,green,gripe,grocery,group,guardian,gucci,guge,guide,guitars,guru,hair,hamburg,hangout,haus,hbo,hdfc,hdfcbank,health,healthcare,help,helsinki,here,hermes,hgtv,hiphop,hisamitsu,hitachi,hiv,hkt,hockey,holdings,holiday,homedepot,homegoods,homes,homesense,honda,horse,hospital,host,hosting,hot,hoteles,hotels,hotmail,house,how,hsbc,hughes,hyatt,hyundai,ibm,icbc,ice,icu,ieee,ifm,ikano,imamat,imdb,immo,immobilien,inc,industries,infiniti,ing,ink,institute,insurance,insure,international,intuit,investments,ipiranga,irish,ismaili,ist,istanbul,itau,itv,jaguar,java,jcb,jeep,jetzt,jewelry,jio,jll,jmp,jnj,joburg,jot,joy,jpmorgan,jprs,juegos,juniper,kaufen,kddi,kerryhotels,kerrylogistics,kerryproperties,kfh,kia,kids,kim,kinder,kindle,kitchen,kiwi,koeln,komatsu,kosher,kpmg,kpn,krd,kred,kuokgroup,kyoto,lacaixa,lamborghini,lamer,lancaster,lancia,land,landrover,lanxess,lasalle,lat,latino,latrobe,law,lawyer,lds,lease,leclerc,lefrak,legal,lego,lexus,lgbt,lidl,life,lifeinsurance,lifestyle,lighting,like,lilly,limited,limo,lincoln,linde,link,lipsy,live,living,llc,llp,loan,loans,locker,locus,loft,lol,london,lotte,lotto,love,lpl,lplfinancial,ltd,ltda,lundbeck,luxe,luxury,macys,madrid,maif,maison,makeup,man,management,mango,map,market,marketing,markets,marriott,marshalls,maserati,mattel,mba,mckinsey,med,media,meet,melbourne,meme,memorial,men,menu,merckmsd,miami,microsoft,mini,mint,mit,mitsubishi,mlb,mls,mma,mobile,moda,moe,moi,mom,monash,money,monster,mormon,mortgage,moscow,moto,motorcycles,mov,movie,msd,mtn,mtr,music,mutual,nab,nagoya,natura,navy,nba,nec,netbank,netflix,network,neustar,new,news,next,nextdirect,nexus,nfl,ngo,nhk,nico,nike,nikon,ninja,nissan,nissay,nokia,northwesternmutual,norton,now,nowruz,nowtv,nra,nrw,ntt,nyc,obi,observer,office,okinawa,olayan,olayangroup,oldnavy,ollo,omega,one,ong,onl,online,ooo,open,oracle,orange,organic,origins,osaka,otsuka,ott,ovh,page,panasonic,paris,pars,partners,parts,party,passagens,pay,pccw,pet,pfizer,pharmacy,phd,philips,phone,photo,photography,photos,physio,pics,pictet,pictures,pid,pin,ping,pink,pioneer,pizza,place,play,playstation,plumbing,plus,pnc,pohl,poker,politie,porn,pramerica,praxi,press,prime,prod,productions,prof,progressive,promo,properties,property,protection,pru,prudential,pub,pwc,qpon,quebec,quest,racing,radio,read,realestate,realtor,realty,recipes,red,redstone,redumbrella,rehab,reise,reisen,reit,reliance,ren,rent,rentals,repair,report,republican,rest,restaurant,review,reviews,rexroth,rich,richardli,ricoh,ril,rio,rip,rocher,rocks,rodeo,rogers,room,rsvp,rugby,ruhr,run,rwe,ryukyu,saarland,safe,safety,sakura,sale,salon,samsclub,samsung,sandvik,sandvikcoromant,sanofi,sap,sarl,sas,save,saxo,sbi,sbs,sca,scb,schaeffler,schmidt,scholarships,school,schule,schwarz,science,scot,search,seat,secure,security,seek,select,sener,services,ses,seven,sew,sex,sexy,sfr,shangrila,sharp,shaw,shell,shia,shiksha,shoes,shop,shopping,shouji,show,showtime,silk,sina,singles,site,ski,skin,sky,skype,sling,smart,smile,sncf,soccer,social,softbank,software,sohu,solar,solutions,song,sony,soy,spa,space,sport,spot,srl,stada,staples,star,statebank,statefarm,stc,stcgroup,stockholm,storage,store,stream,studio,study,style,sucks,supplies,supply,support,surf,surgery,suzuki,swatch,swiss,sydney,systems,tab,taipei,talk,taobao,target,tatamotors,tatar,tattoo,tax,taxi,tci,tdk,team,tech,technology,temasek,tennis,teva,thd,theater,theatre,tiaa,tickets,tienda,tiffany,tips,tires,tirol,tjmaxx,tjx,tkmaxx,tmall,today,tokyo,tools,top,toray,toshiba,total,tours,town,toyota,toys,trade,trading,training,travel,travelchannel,travelers,travelersinsurance,trust,trv,tube,tui,tunes,tushu,tvs,ubank,ubs,unicom,university,uno,uol,ups,vacations,vana,vanguard,vegas,ventures,verisign,versicherung,vet,viajes,video,vig,viking,villas,vin,vip,virgin,visa,vision,viva,vivo,vlaanderen,vodka,volkswagen,volvo,vote,voting,voto,voyage,vuelos,wales,walmart,walter,wang,wanggou,watch,watches,weather,weatherchannel,webcam,weber,website,wedding,weibo,weir,whoswho,wien,wiki,williamhill,win,windows,wine,winners,wme,wolterskluwer,woodside,work,works,world,wow,wtc,wtf,xbox,xerox,xfinity,xihuan,xin,xn--11b4c3d,xn--1ck2e1b,xn--1qqw23a,xn--30rr7y,xn--3bst00m,xn--3ds443g,xn--3pxu8k,xn--42c2d9a,xn--45q11c,xn--4gbrim,xn--55qw42g,xn--55qx5d,xn--5su34j936bgsg,xn--5tzm5g,xn--6frz82g,xn--6qq986b3xl,xn--80adxhks,xn--80aqecdr1a,xn--80asehdb,xn--80aswg,xn--8y0a063a,xn--9dbq2a,xn--9et52u,xn--9krt00a,xn--b4w605ferd,xn--bck1b9a5dre4c,xn--c1avg,xn--c2br7g,xn--cck2b3b,xn--cckwcxetd,xn--cg4bki,xn--czr694b,xn--czrs0t,xn--czru2d,xn--d1acj3b,xn--eckvdtc9d,xn--efvy88h,xn--fct429k,xn--fhbei,xn--fiq228c5hs,xn--fiq64b,xn--fjq720a,xn--flw351e,xn--fzys8d69uvgm,xn--g2xx48c,xn--gckr3f0f,xn--gk3at1e,xn--hxt814e,xn--i1b6b1a6a2e,xn--imr513n,xn--io0a7i,xn--j1aef,xn--jlq480n2rg,xn--jlq61u9w7b,xn--jvr189m,xn--kcrx77d1x4a,xn--kput3i,xn--mgba3a3ejt,xn--mgba7c0bbn0a,xn--mgbaakc7dvf,xn--mgbab2bd,xn--mgbca7dzdo,xn--mgbi4ecexp,xn--mgbt3dhd,xn--mk1bu44c,xn--mxtq1m,xn--ngbc5azd,xn--ngbe9e0a,xn--ngbrx,xn--nqv7f,xn--nqv7fs00ema,xn--nyqy26a,xn--otu796d,xn--p1acf,xn--pssy2u,xn--q9jyb4c,xn--qcka1pmc,xn--rhqv96g,xn--rovu88b,xn--ses554g,xn--t60b56a,xn--tckwe,xn--tiq49xqyj,xn--unup4y,xn--vermgensberater-ctb,xn--vermgensberatung-pwb,xn--vhquv,xn--vuq861b,xn--w4r85el8fhu5dnra,xn--w4rs40l,xn--xhq521b,xn--zfr164b,xyz,yachts,yahoo,yamaxun,yandex,yodobashi,yoga,yokohama,you,youtube,yun,zappos,zara,zero,zip,zone,zuerich";
+var icann_default =
+  "ac>com,edu,gov,net,mil,org<ad>nom<ae>co,net,org,sch,ac,gov,mil<aero>accident-investigation,accident-prevention,aerobatic,aeroclub,aerodrome,agents,aircraft,airline,airport,air-surveillance,airtraffic,air-traffic-control,ambulance,amusement,association,author,ballooning,broker,caa,cargo,catering,certification,championship,charter,civilaviation,club,conference,consultant,consulting,control,council,crew,design,dgca,educator,emergency,engine,engineer,entertainment,equipment,exchange,express,federation,flight,fuel,gliding,government,groundhandling,group,hanggliding,homebuilt,insurance,journal,journalist,leasing,logistics,magazine,maintenance,media,microlight,modelling,navigation,parachuting,paragliding,passenger-association,pilot,press,production,recreation,repbody,res,research,rotorcraft,safety,scientist,services,show,skydiving,software,student,trader,trading,trainer,union,workinggroup,works<af>gov,com,org,net,edu<ag>com,org,net,co,nom<ai>off,com,net,org<al>com,edu,gov,mil,net,org<am>co,com,commune,net,org<ao>ed,gv,og,co,pb,it<aq,ar>bet,com,coop,edu,gob,gov,int,mil,musica,mutual,net,org,senasa,tur<arpa>e164,in-addr,ip6,iris,uri,urn<as>gov<asia,at>ac>sth<co,gv,or<au>com,net,org,edu>act,catholic,nsw>schools<nt,qld,sa,tas,vic,wa<gov>qld,sa,tas,vic,wa<asn,id,info,conf,oz,act,nsw,nt,qld,sa,tas,vic,wa<aw>com<ax,az>com,net,int,gov,org,edu,info,pp,mil,name,pro,biz<ba>com,edu,gov,mil,net,org<bb>biz,co,com,edu,gov,info,net,org,store,tv<bd>*<be>ac<bf>gov<bg>a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,0,1,2,3,4,5,6,7,8,9<bh>com,edu,net,org,gov<bi>co,com,edu,or,org<biz,bj>asso,barreau,gouv<bm>com,edu,gov,net,org<bn>com,edu,gov,net,org<bo>com,edu,gob,int,org,net,mil,tv,web,academia,agro,arte,blog,bolivia,ciencia,cooperativa,democracia,deporte,ecologia,economia,empresa,indigena,industria,info,medicina,movimiento,musica,natural,nombre,noticias,patria,politica,profesional,plurinacional,pueblo,revista,salud,tecnologia,tksat,transporte,wiki<br>9guacu,abc,adm,adv,agr,aju,am,anani,aparecida,app,arq,art,ato,b,barueri,belem,bhz,bib,bio,blog,bmd,boavista,bsb,campinagrande,campinas,caxias,cim,cng,cnt,com,contagem,coop,coz,cri,cuiaba,curitiba,def,des,det,dev,ecn,eco,edu,emp,enf,eng,esp,etc,eti,far,feira,flog,floripa,fm,fnd,fortal,fot,foz,fst,g12,geo,ggf,goiania,gov>ac,al,am,ap,ba,ce,df,es,go,ma,mg,ms,mt,pa,pb,pe,pi,pr,rj,rn,ro,rr,rs,sc,se,sp,to<gru,imb,ind,inf,jab,jampa,jdf,joinville,jor,jus,leg,lel,log,londrina,macapa,maceio,manaus,maringa,mat,med,mil,morena,mp,mus,natal,net,niteroi,nom>*<not,ntr,odo,ong,org,osasco,palmas,poa,ppg,pro,psc,psi,pvh,qsl,radio,rec,recife,rep,ribeirao,rio,riobranco,riopreto,salvador,sampa,santamaria,santoandre,saobernardo,saogonca,seg,sjc,slg,slz,sorocaba,srv,taxi,tc,tec,teo,the,tmp,trd,tur,tv,udi,vet,vix,vlog,wiki,zlg<bs>com,net,org,edu,gov<bt>com,edu,gov,net,org<bv,bw>co,org<by>gov,mil,com,of<bz>com,net,org,edu,gov<ca>ab,bc,mb,nb,nf,nl,ns,nt,nu,on,pe,qc,sk,yk,gc<cat,cc,cd>gov<cf,cg,ch,ci>org,or,com,co,edu,ed,ac,net,go,asso,xn--aroport-bya,int,presse,md,gouv<ck>*,!www<cl>co,gob,gov,mil<cm>co,com,gov,net<cn>ac,com,edu,gov,net,org,mil,xn--55qx5d,xn--io0a7i,xn--od0alg,ah,bj,cq,fj,gd,gs,gz,gx,ha,hb,he,hi,hl,hn,jl,js,jx,ln,nm,nx,qh,sc,sd,sh,sn,sx,tj,xj,xz,yn,zj,hk,mo,tw<co>arts,com,edu,firm,gov,info,int,mil,net,nom,org,rec,web<com,coop,cr>ac,co,ed,fi,go,or,sa<cu>com,edu,org,net,gov,inf<cv>com,edu,int,nome,org<cw>com,edu,net,org<cx>gov<cy>ac,biz,com,ekloges,gov,ltd,mil,net,org,press,pro,tm<cz,de,dj,dk,dm>com,net,org,edu,gov<do>art,com,edu,gob,gov,mil,net,org,sld,web<dz>art,asso,com,edu,gov,org,net,pol,soc,tm<ec>com,info,net,fin,k12,med,pro,org,edu,gov,gob,mil<edu,ee>edu,gov,riik,lib,med,com,pri,aip,org,fie<eg>com,edu,eun,gov,mil,name,net,org,sci<er>*<es>com,nom,org,gob,edu<et>com,gov,org,edu,biz,name,info,net<eu,fi>aland<fj>ac,biz,com,gov,info,mil,name,net,org,pro<fk>*<fm>com,edu,net,org<fo,fr>asso,com,gouv,nom,prd,tm,aeroport,avocat,avoues,cci,chambagri,chirurgiens-dentistes,experts-comptables,geometre-expert,greta,huissier-justice,medecin,notaires,pharmacien,port,veterinaire<ga,gb,gd>edu,gov<ge>com,edu,gov,org,mil,net,pvt<gf,gg>co,net,org<gh>com,edu,gov,org,mil<gi>com,ltd,gov,mod,edu,org<gl>co,com,edu,net,org<gm,gn>ac,com,edu,gov,org,net<gov,gp>com,net,mobi,edu,org,asso<gq,gr>com,edu,net,org,gov<gs,gt>com,edu,gob,ind,mil,net,org<gu>com,edu,gov,guam,info,net,org,web<gw,gy>co,com,edu,gov,net,org<hk>com,edu,gov,idv,net,org,xn--55qx5d,xn--wcvs22d,xn--lcvr32d,xn--mxtq1m,xn--gmqw5a,xn--ciqpn,xn--gmq050i,xn--zf0avx,xn--io0a7i,xn--mk0axi,xn--od0alg,xn--od0aq3b,xn--tn0ag,xn--uc0atv,xn--uc0ay4a<hm,hn>com,edu,org,net,mil,gob<hr>iz,from,name,com<ht>com,shop,firm,info,adult,net,pro,org,med,art,coop,pol,asso,edu,rel,gouv,perso<hu>co,info,org,priv,sport,tm,2000,agrar,bolt,casino,city,erotica,erotika,film,forum,games,hotel,ingatlan,jogasz,konyvelo,lakas,media,news,reklam,sex,shop,suli,szex,tozsde,utazas,video<id>ac,biz,co,desa,go,mil,my,net,or,ponpes,sch,web<ie>gov<il>ac,co,gov,idf,k12,muni,net,org<im>ac,co>ltd,plc<com,net,org,tt,tv<in>co,firm,net,org,gen,ind,nic,ac,edu,res,gov,mil<info,int>eu<io>com<iq>gov,edu,mil,com,org,net<ir>ac,co,gov,id,net,org,sch,xn--mgba3a4f16a,xn--mgba3a4fra<is>net,com,edu,gov,org,int<it>gov,edu,abr,abruzzo,aosta-valley,aostavalley,bas,basilicata,cal,calabria,cam,campania,emilia-romagna,emiliaromagna,emr,friuli-v-giulia,friuli-ve-giulia,friuli-vegiulia,friuli-venezia-giulia,friuli-veneziagiulia,friuli-vgiulia,friuliv-giulia,friulive-giulia,friulivegiulia,friulivenezia-giulia,friuliveneziagiulia,friulivgiulia,fvg,laz,lazio,lig,liguria,lom,lombardia,lombardy,lucania,mar,marche,mol,molise,piedmont,piemonte,pmn,pug,puglia,sar,sardegna,sardinia,sic,sicilia,sicily,taa,tos,toscana,trentin-sud-tirol,xn--trentin-sd-tirol-rzb,trentin-sudtirol,xn--trentin-sdtirol-7vb,trentin-sued-tirol,trentin-suedtirol,trentino-a-adige,trentino-aadige,trentino-alto-adige,trentino-altoadige,trentino-s-tirol,trentino-stirol,trentino-sud-tirol,xn--trentino-sd-tirol-c3b,trentino-sudtirol,xn--trentino-sdtirol-szb,trentino-sued-tirol,trentino-suedtirol,trentino,trentinoa-adige,trentinoaadige,trentinoalto-adige,trentinoaltoadige,trentinos-tirol,trentinostirol,trentinosud-tirol,xn--trentinosd-tirol-rzb,trentinosudtirol,xn--trentinosdtirol-7vb,trentinosued-tirol,trentinosuedtirol,trentinsud-tirol,xn--trentinsd-tirol-6vb,trentinsudtirol,xn--trentinsdtirol-nsb,trentinsued-tirol,trentinsuedtirol,tuscany,umb,umbria,val-d-aosta,val-daosta,vald-aosta,valdaosta,valle-aosta,valle-d-aosta,valle-daosta,valleaosta,valled-aosta,valledaosta,vallee-aoste,xn--valle-aoste-ebb,vallee-d-aoste,xn--valle-d-aoste-ehb,valleeaoste,xn--valleaoste-e7a,valleedaoste,xn--valledaoste-ebb,vao,vda,ven,veneto,ag,agrigento,al,alessandria,alto-adige,altoadige,an,ancona,andria-barletta-trani,andria-trani-barletta,andriabarlettatrani,andriatranibarletta,ao,aosta,aoste,ap,aq,aquila,ar,arezzo,ascoli-piceno,ascolipiceno,asti,at,av,avellino,ba,balsan-sudtirol,xn--balsan-sdtirol-nsb,balsan-suedtirol,balsan,bari,barletta-trani-andria,barlettatraniandria,belluno,benevento,bergamo,bg,bi,biella,bl,bn,bo,bologna,bolzano-altoadige,bolzano,bozen-sudtirol,xn--bozen-sdtirol-2ob,bozen-suedtirol,bozen,br,brescia,brindisi,bs,bt,bulsan-sudtirol,xn--bulsan-sdtirol-nsb,bulsan-suedtirol,bulsan,bz,ca,cagliari,caltanissetta,campidano-medio,campidanomedio,campobasso,carbonia-iglesias,carboniaiglesias,carrara-massa,carraramassa,caserta,catania,catanzaro,cb,ce,cesena-forli,xn--cesena-forl-mcb,cesenaforli,xn--cesenaforl-i8a,ch,chieti,ci,cl,cn,co,como,cosenza,cr,cremona,crotone,cs,ct,cuneo,cz,dell-ogliastra,dellogliastra,en,enna,fc,fe,fermo,ferrara,fg,fi,firenze,florence,fm,foggia,forli-cesena,xn--forl-cesena-fcb,forlicesena,xn--forlcesena-c8a,fr,frosinone,ge,genoa,genova,go,gorizia,gr,grosseto,iglesias-carbonia,iglesiascarbonia,im,imperia,is,isernia,kr,la-spezia,laquila,laspezia,latina,lc,le,lecce,lecco,li,livorno,lo,lodi,lt,lu,lucca,macerata,mantova,massa-carrara,massacarrara,matera,mb,mc,me,medio-campidano,mediocampidano,messina,mi,milan,milano,mn,mo,modena,monza-brianza,monza-e-della-brianza,monza,monzabrianza,monzaebrianza,monzaedellabrianza,ms,mt,na,naples,napoli,no,novara,nu,nuoro,og,ogliastra,olbia-tempio,olbiatempio,or,oristano,ot,pa,padova,padua,palermo,parma,pavia,pc,pd,pe,perugia,pesaro-urbino,pesarourbino,pescara,pg,pi,piacenza,pisa,pistoia,pn,po,pordenone,potenza,pr,prato,pt,pu,pv,pz,ra,ragusa,ravenna,rc,re,reggio-calabria,reggio-emilia,reggiocalabria,reggioemilia,rg,ri,rieti,rimini,rm,rn,ro,roma,rome,rovigo,sa,salerno,sassari,savona,si,siena,siracusa,so,sondrio,sp,sr,ss,suedtirol,xn--sdtirol-n2a,sv,ta,taranto,te,tempio-olbia,tempioolbia,teramo,terni,tn,to,torino,tp,tr,trani-andria-barletta,trani-barletta-andria,traniandriabarletta,tranibarlettaandria,trapani,trento,treviso,trieste,ts,turin,tv,ud,udine,urbino-pesaro,urbinopesaro,va,varese,vb,vc,ve,venezia,venice,verbania,vercelli,verona,vi,vibo-valentia,vibovalentia,vicenza,viterbo,vr,vs,vt,vv<je>co,net,org<jm>*<jo>com,org,net,edu,sch,gov,mil,name<jobs,jp>ac,ad,co,ed,go,gr,lg,ne,or,aichi>aisai,ama,anjo,asuke,chiryu,chita,fuso,gamagori,handa,hazu,hekinan,higashiura,ichinomiya,inazawa,inuyama,isshiki,iwakura,kanie,kariya,kasugai,kira,kiyosu,komaki,konan,kota,mihama,miyoshi,nishio,nisshin,obu,oguchi,oharu,okazaki,owariasahi,seto,shikatsu,shinshiro,shitara,tahara,takahama,tobishima,toei,togo,tokai,tokoname,toyoake,toyohashi,toyokawa,toyone,toyota,tsushima,yatomi<akita>akita,daisen,fujisato,gojome,hachirogata,happou,higashinaruse,honjo,honjyo,ikawa,kamikoani,kamioka,katagami,kazuno,kitaakita,kosaka,kyowa,misato,mitane,moriyoshi,nikaho,noshiro,odate,oga,ogata,semboku,yokote,yurihonjo<aomori>aomori,gonohe,hachinohe,hashikami,hiranai,hirosaki,itayanagi,kuroishi,misawa,mutsu,nakadomari,noheji,oirase,owani,rokunohe,sannohe,shichinohe,shingo,takko,towada,tsugaru,tsuruta<chiba>abiko,asahi,chonan,chosei,choshi,chuo,funabashi,futtsu,hanamigawa,ichihara,ichikawa,ichinomiya,inzai,isumi,kamagaya,kamogawa,kashiwa,katori,katsuura,kimitsu,kisarazu,kozaki,kujukuri,kyonan,matsudo,midori,mihama,minamiboso,mobara,mutsuzawa,nagara,nagareyama,narashino,narita,noda,oamishirasato,omigawa,onjuku,otaki,sakae,sakura,shimofusa,shirako,shiroi,shisui,sodegaura,sosa,tako,tateyama,togane,tohnosho,tomisato,urayasu,yachimata,yachiyo,yokaichiba,yokoshibahikari,yotsukaido<ehime>ainan,honai,ikata,imabari,iyo,kamijima,kihoku,kumakogen,masaki,matsuno,matsuyama,namikata,niihama,ozu,saijo,seiyo,shikokuchuo,tobe,toon,uchiko,uwajima,yawatahama<fukui>echizen,eiheiji,fukui,ikeda,katsuyama,mihama,minamiechizen,obama,ohi,ono,sabae,sakai,takahama,tsuruga,wakasa<fukuoka>ashiya,buzen,chikugo,chikuho,chikujo,chikushino,chikuzen,chuo,dazaifu,fukuchi,hakata,higashi,hirokawa,hisayama,iizuka,inatsuki,kaho,kasuga,kasuya,kawara,keisen,koga,kurate,kurogi,kurume,minami,miyako,miyama,miyawaka,mizumaki,munakata,nakagawa,nakama,nishi,nogata,ogori,okagaki,okawa,oki,omuta,onga,onojo,oto,saigawa,sasaguri,shingu,shinyoshitomi,shonai,soeda,sue,tachiarai,tagawa,takata,toho,toyotsu,tsuiki,ukiha,umi,usui,yamada,yame,yanagawa,yukuhashi<fukushima>aizubange,aizumisato,aizuwakamatsu,asakawa,bandai,date,fukushima,furudono,futaba,hanawa,higashi,hirata,hirono,iitate,inawashiro,ishikawa,iwaki,izumizaki,kagamiishi,kaneyama,kawamata,kitakata,kitashiobara,koori,koriyama,kunimi,miharu,mishima,namie,nango,nishiaizu,nishigo,okuma,omotego,ono,otama,samegawa,shimogo,shirakawa,showa,soma,sukagawa,taishin,tamakawa,tanagura,tenei,yabuki,yamato,yamatsuri,yanaizu,yugawa<gifu>anpachi,ena,gifu,ginan,godo,gujo,hashima,hichiso,hida,higashishirakawa,ibigawa,ikeda,kakamigahara,kani,kasahara,kasamatsu,kawaue,kitagata,mino,minokamo,mitake,mizunami,motosu,nakatsugawa,ogaki,sakahogi,seki,sekigahara,shirakawa,tajimi,takayama,tarui,toki,tomika,wanouchi,yamagata,yaotsu,yoro<gunma>annaka,chiyoda,fujioka,higashiagatsuma,isesaki,itakura,kanna,kanra,katashina,kawaba,kiryu,kusatsu,maebashi,meiwa,midori,minakami,naganohara,nakanojo,nanmoku,numata,oizumi,ora,ota,shibukawa,shimonita,shinto,showa,takasaki,takayama,tamamura,tatebayashi,tomioka,tsukiyono,tsumagoi,ueno,yoshioka<hiroshima>asaminami,daiwa,etajima,fuchu,fukuyama,hatsukaichi,higashihiroshima,hongo,jinsekikogen,kaita,kui,kumano,kure,mihara,miyoshi,naka,onomichi,osakikamijima,otake,saka,sera,seranishi,shinichi,shobara,takehara<hokkaido>abashiri,abira,aibetsu,akabira,akkeshi,asahikawa,ashibetsu,ashoro,assabu,atsuma,bibai,biei,bifuka,bihoro,biratori,chippubetsu,chitose,date,ebetsu,embetsu,eniwa,erimo,esan,esashi,fukagawa,fukushima,furano,furubira,haboro,hakodate,hamatonbetsu,hidaka,higashikagura,higashikawa,hiroo,hokuryu,hokuto,honbetsu,horokanai,horonobe,ikeda,imakane,ishikari,iwamizawa,iwanai,kamifurano,kamikawa,kamishihoro,kamisunagawa,kamoenai,kayabe,kembuchi,kikonai,kimobetsu,kitahiroshima,kitami,kiyosato,koshimizu,kunneppu,kuriyama,kuromatsunai,kushiro,kutchan,kyowa,mashike,matsumae,mikasa,minamifurano,mombetsu,moseushi,mukawa,muroran,naie,nakagawa,nakasatsunai,nakatombetsu,nanae,nanporo,nayoro,nemuro,niikappu,niki,nishiokoppe,noboribetsu,numata,obihiro,obira,oketo,okoppe,otaru,otobe,otofuke,otoineppu,oumu,ozora,pippu,rankoshi,rebun,rikubetsu,rishiri,rishirifuji,saroma,sarufutsu,shakotan,shari,shibecha,shibetsu,shikabe,shikaoi,shimamaki,shimizu,shimokawa,shinshinotsu,shintoku,shiranuka,shiraoi,shiriuchi,sobetsu,sunagawa,taiki,takasu,takikawa,takinoue,teshikaga,tobetsu,tohma,tomakomai,tomari,toya,toyako,toyotomi,toyoura,tsubetsu,tsukigata,urakawa,urausu,uryu,utashinai,wakkanai,wassamu,yakumo,yoichi<hyogo>aioi,akashi,ako,amagasaki,aogaki,asago,ashiya,awaji,fukusaki,goshiki,harima,himeji,ichikawa,inagawa,itami,kakogawa,kamigori,kamikawa,kasai,kasuga,kawanishi,miki,minamiawaji,nishinomiya,nishiwaki,ono,sanda,sannan,sasayama,sayo,shingu,shinonsen,shiso,sumoto,taishi,taka,takarazuka,takasago,takino,tamba,tatsuno,toyooka,yabu,yashiro,yoka,yokawa<ibaraki>ami,asahi,bando,chikusei,daigo,fujishiro,hitachi,hitachinaka,hitachiomiya,hitachiota,ibaraki,ina,inashiki,itako,iwama,joso,kamisu,kasama,kashima,kasumigaura,koga,miho,mito,moriya,naka,namegata,oarai,ogawa,omitama,ryugasaki,sakai,sakuragawa,shimodate,shimotsuma,shirosato,sowa,suifu,takahagi,tamatsukuri,tokai,tomobe,tone,toride,tsuchiura,tsukuba,uchihara,ushiku,yachiyo,yamagata,yawara,yuki<ishikawa>anamizu,hakui,hakusan,kaga,kahoku,kanazawa,kawakita,komatsu,nakanoto,nanao,nomi,nonoichi,noto,shika,suzu,tsubata,tsurugi,uchinada,wajima<iwate>fudai,fujisawa,hanamaki,hiraizumi,hirono,ichinohe,ichinoseki,iwaizumi,iwate,joboji,kamaishi,kanegasaki,karumai,kawai,kitakami,kuji,kunohe,kuzumaki,miyako,mizusawa,morioka,ninohe,noda,ofunato,oshu,otsuchi,rikuzentakata,shiwa,shizukuishi,sumita,tanohata,tono,yahaba,yamada<kagawa>ayagawa,higashikagawa,kanonji,kotohira,manno,marugame,mitoyo,naoshima,sanuki,tadotsu,takamatsu,tonosho,uchinomi,utazu,zentsuji<kagoshima>akune,amami,hioki,isa,isen,izumi,kagoshima,kanoya,kawanabe,kinko,kouyama,makurazaki,matsumoto,minamitane,nakatane,nishinoomote,satsumasendai,soo,tarumizu,yusui<kanagawa>aikawa,atsugi,ayase,chigasaki,ebina,fujisawa,hadano,hakone,hiratsuka,isehara,kaisei,kamakura,kiyokawa,matsuda,minamiashigara,miura,nakai,ninomiya,odawara,oi,oiso,sagamihara,samukawa,tsukui,yamakita,yamato,yokosuka,yugawara,zama,zushi<kochi>aki,geisei,hidaka,higashitsuno,ino,kagami,kami,kitagawa,kochi,mihara,motoyama,muroto,nahari,nakamura,nankoku,nishitosa,niyodogawa,ochi,okawa,otoyo,otsuki,sakawa,sukumo,susaki,tosa,tosashimizu,toyo,tsuno,umaji,yasuda,yusuhara<kumamoto>amakusa,arao,aso,choyo,gyokuto,kamiamakusa,kikuchi,kumamoto,mashiki,mifune,minamata,minamioguni,nagasu,nishihara,oguni,ozu,sumoto,takamori,uki,uto,yamaga,yamato,yatsushiro<kyoto>ayabe,fukuchiyama,higashiyama,ide,ine,joyo,kameoka,kamo,kita,kizu,kumiyama,kyotamba,kyotanabe,kyotango,maizuru,minami,minamiyamashiro,miyazu,muko,nagaokakyo,nakagyo,nantan,oyamazaki,sakyo,seika,tanabe,uji,ujitawara,wazuka,yamashina,yawata<mie>asahi,inabe,ise,kameyama,kawagoe,kiho,kisosaki,kiwa,komono,kumano,kuwana,matsusaka,meiwa,mihama,minamiise,misugi,miyama,nabari,shima,suzuka,tado,taiki,taki,tamaki,toba,tsu,udono,ureshino,watarai,yokkaichi<miyagi>furukawa,higashimatsushima,ishinomaki,iwanuma,kakuda,kami,kawasaki,marumori,matsushima,minamisanriku,misato,murata,natori,ogawara,ohira,onagawa,osaki,rifu,semine,shibata,shichikashuku,shikama,shiogama,shiroishi,tagajo,taiwa,tome,tomiya,wakuya,watari,yamamoto,zao<miyazaki>aya,ebino,gokase,hyuga,kadogawa,kawaminami,kijo,kitagawa,kitakata,kitaura,kobayashi,kunitomi,kushima,mimata,miyakonojo,miyazaki,morotsuka,nichinan,nishimera,nobeoka,saito,shiiba,shintomi,takaharu,takanabe,takazaki,tsuno<nagano>achi,agematsu,anan,aoki,asahi,azumino,chikuhoku,chikuma,chino,fujimi,hakuba,hara,hiraya,iida,iijima,iiyama,iizuna,ikeda,ikusaka,ina,karuizawa,kawakami,kiso,kisofukushima,kitaaiki,komagane,komoro,matsukawa,matsumoto,miasa,minamiaiki,minamimaki,minamiminowa,minowa,miyada,miyota,mochizuki,nagano,nagawa,nagiso,nakagawa,nakano,nozawaonsen,obuse,ogawa,okaya,omachi,omi,ookuwa,ooshika,otaki,otari,sakae,sakaki,saku,sakuho,shimosuwa,shinanomachi,shiojiri,suwa,suzaka,takagi,takamori,takayama,tateshina,tatsuno,togakushi,togura,tomi,ueda,wada,yamagata,yamanouchi,yasaka,yasuoka<nagasaki>chijiwa,futsu,goto,hasami,hirado,iki,isahaya,kawatana,kuchinotsu,matsuura,nagasaki,obama,omura,oseto,saikai,sasebo,seihi,shimabara,shinkamigoto,togitsu,tsushima,unzen<nara>ando,gose,heguri,higashiyoshino,ikaruga,ikoma,kamikitayama,kanmaki,kashiba,kashihara,katsuragi,kawai,kawakami,kawanishi,koryo,kurotaki,mitsue,miyake,nara,nosegawa,oji,ouda,oyodo,sakurai,sango,shimoichi,shimokitayama,shinjo,soni,takatori,tawaramoto,tenkawa,tenri,uda,yamatokoriyama,yamatotakada,yamazoe,yoshino<niigata>aga,agano,gosen,itoigawa,izumozaki,joetsu,kamo,kariwa,kashiwazaki,minamiuonuma,mitsuke,muika,murakami,myoko,nagaoka,niigata,ojiya,omi,sado,sanjo,seiro,seirou,sekikawa,shibata,tagami,tainai,tochio,tokamachi,tsubame,tsunan,uonuma,yahiko,yoita,yuzawa<oita>beppu,bungoono,bungotakada,hasama,hiji,himeshima,hita,kamitsue,kokonoe,kuju,kunisaki,kusu,oita,saiki,taketa,tsukumi,usa,usuki,yufu<okayama>akaiwa,asakuchi,bizen,hayashima,ibara,kagamino,kasaoka,kibichuo,kumenan,kurashiki,maniwa,misaki,nagi,niimi,nishiawakura,okayama,satosho,setouchi,shinjo,shoo,soja,takahashi,tamano,tsuyama,wake,yakage<okinawa>aguni,ginowan,ginoza,gushikami,haebaru,higashi,hirara,iheya,ishigaki,ishikawa,itoman,izena,kadena,kin,kitadaito,kitanakagusuku,kumejima,kunigami,minamidaito,motobu,nago,naha,nakagusuku,nakijin,nanjo,nishihara,ogimi,okinawa,onna,shimoji,taketomi,tarama,tokashiki,tomigusuku,tonaki,urasoe,uruma,yaese,yomitan,yonabaru,yonaguni,zamami<osaka>abeno,chihayaakasaka,chuo,daito,fujiidera,habikino,hannan,higashiosaka,higashisumiyoshi,higashiyodogawa,hirakata,ibaraki,ikeda,izumi,izumiotsu,izumisano,kadoma,kaizuka,kanan,kashiwara,katano,kawachinagano,kishiwada,kita,kumatori,matsubara,minato,minoh,misaki,moriguchi,neyagawa,nishi,nose,osakasayama,sakai,sayama,sennan,settsu,shijonawate,shimamoto,suita,tadaoka,taishi,tajiri,takaishi,takatsuki,tondabayashi,toyonaka,toyono,yao<saga>ariake,arita,fukudomi,genkai,hamatama,hizen,imari,kamimine,kanzaki,karatsu,kashima,kitagata,kitahata,kiyama,kouhoku,kyuragi,nishiarita,ogi,omachi,ouchi,saga,shiroishi,taku,tara,tosu,yoshinogari<saitama>arakawa,asaka,chichibu,fujimi,fujimino,fukaya,hanno,hanyu,hasuda,hatogaya,hatoyama,hidaka,higashichichibu,higashimatsuyama,honjo,ina,iruma,iwatsuki,kamiizumi,kamikawa,kamisato,kasukabe,kawagoe,kawaguchi,kawajima,kazo,kitamoto,koshigaya,kounosu,kuki,kumagaya,matsubushi,minano,misato,miyashiro,miyoshi,moroyama,nagatoro,namegawa,niiza,ogano,ogawa,ogose,okegawa,omiya,otaki,ranzan,ryokami,saitama,sakado,satte,sayama,shiki,shiraoka,soka,sugito,toda,tokigawa,tokorozawa,tsurugashima,urawa,warabi,yashio,yokoze,yono,yorii,yoshida,yoshikawa,yoshimi<shiga>aisho,gamo,higashiomi,hikone,koka,konan,kosei,koto,kusatsu,maibara,moriyama,nagahama,nishiazai,notogawa,omihachiman,otsu,ritto,ryuoh,takashima,takatsuki,torahime,toyosato,yasu<shimane>akagi,ama,gotsu,hamada,higashiizumo,hikawa,hikimi,izumo,kakinoki,masuda,matsue,misato,nishinoshima,ohda,okinoshima,okuizumo,shimane,tamayu,tsuwano,unnan,yakumo,yasugi,yatsuka<shizuoka>arai,atami,fuji,fujieda,fujikawa,fujinomiya,fukuroi,gotemba,haibara,hamamatsu,higashiizu,ito,iwata,izu,izunokuni,kakegawa,kannami,kawanehon,kawazu,kikugawa,kosai,makinohara,matsuzaki,minamiizu,mishima,morimachi,nishiizu,numazu,omaezaki,shimada,shimizu,shimoda,shizuoka,susono,yaizu,yoshida<tochigi>ashikaga,bato,haga,ichikai,iwafune,kaminokawa,kanuma,karasuyama,kuroiso,mashiko,mibu,moka,motegi,nasu,nasushiobara,nikko,nishikata,nogi,ohira,ohtawara,oyama,sakura,sano,shimotsuke,shioya,takanezawa,tochigi,tsuga,ujiie,utsunomiya,yaita<tokushima>aizumi,anan,ichiba,itano,kainan,komatsushima,matsushige,mima,minami,miyoshi,mugi,nakagawa,naruto,sanagochi,shishikui,tokushima,wajiki<tokyo>adachi,akiruno,akishima,aogashima,arakawa,bunkyo,chiyoda,chofu,chuo,edogawa,fuchu,fussa,hachijo,hachioji,hamura,higashikurume,higashimurayama,higashiyamato,hino,hinode,hinohara,inagi,itabashi,katsushika,kita,kiyose,kodaira,koganei,kokubunji,komae,koto,kouzushima,kunitachi,machida,meguro,minato,mitaka,mizuho,musashimurayama,musashino,nakano,nerima,ogasawara,okutama,ome,oshima,ota,setagaya,shibuya,shinagawa,shinjuku,suginami,sumida,tachikawa,taito,tama,toshima<tottori>chizu,hino,kawahara,koge,kotoura,misasa,nanbu,nichinan,sakaiminato,tottori,wakasa,yazu,yonago<toyama>asahi,fuchu,fukumitsu,funahashi,himi,imizu,inami,johana,kamiichi,kurobe,nakaniikawa,namerikawa,nanto,nyuzen,oyabe,taira,takaoka,tateyama,toga,tonami,toyama,unazuki,uozu,yamada<wakayama>arida,aridagawa,gobo,hashimoto,hidaka,hirogawa,inami,iwade,kainan,kamitonda,katsuragi,kimino,kinokawa,kitayama,koya,koza,kozagawa,kudoyama,kushimoto,mihama,misato,nachikatsuura,shingu,shirahama,taiji,tanabe,wakayama,yuasa,yura<yamagata>asahi,funagata,higashine,iide,kahoku,kaminoyama,kaneyama,kawanishi,mamurogawa,mikawa,murayama,nagai,nakayama,nanyo,nishikawa,obanazawa,oe,oguni,ohkura,oishida,sagae,sakata,sakegawa,shinjo,shirataka,shonai,takahata,tendo,tozawa,tsuruoka,yamagata,yamanobe,yonezawa,yuza<yamaguchi>abu,hagi,hikari,hofu,iwakuni,kudamatsu,mitou,nagato,oshima,shimonoseki,shunan,tabuse,tokuyama,toyota,ube,yuu<yamanashi>chuo,doshi,fuefuki,fujikawa,fujikawaguchiko,fujiyoshida,hayakawa,hokuto,ichikawamisato,kai,kofu,koshu,kosuge,minami-alps,minobu,nakamichi,nanbu,narusawa,nirasaki,nishikatsura,oshino,otsuki,showa,tabayama,tsuru,uenohara,yamanakako,yamanashi<xn--4pvxs,xn--vgu402c,xn--c3s14m,xn--f6qx53a,xn--8pvr4u,xn--uist22h,xn--djrs72d6uy,xn--mkru45i,xn--0trq7p7nn,xn--8ltr62k,xn--2m4a15e,xn--efvn9s,xn--32vp30h,xn--4it797k,xn--1lqs71d,xn--5rtp49c,xn--5js045d,xn--ehqz56n,xn--1lqs03n,xn--qqqt11m,xn--kbrq7o,xn--pssu33l,xn--ntsq17g,xn--uisz3g,xn--6btw5a,xn--1ctwo,xn--6orx2r,xn--rht61e,xn--rht27z,xn--djty4k,xn--nit225k,xn--rht3d,xn--klty5x,xn--kltx9a,xn--kltp7d,xn--uuwu58a,xn--zbx025d,xn--ntso0iqx3a,xn--elqq16h,xn--4it168d,xn--klt787d,xn--rny31h,xn--7t0a264c,xn--5rtq34k,xn--k7yn95e,xn--tor131o,xn--d5qv7z876c,kawasaki>*,!city<kitakyushu>*,!city<kobe>*,!city<nagoya>*,!city<sapporo>*,!city<sendai>*,!city<yokohama>*,!city<<ke>ac,co,go,info,me,mobi,ne,or,sc<kg>org,net,com,edu,gov,mil<kh>*<ki>edu,biz,net,org,gov,info,com<km>org,nom,gov,prd,tm,edu,mil,ass,com,coop,asso,presse,medecin,notaires,pharmaciens,veterinaire,gouv<kn>net,org,edu,gov<kp>com,edu,gov,org,rep,tra<kr>ac,co,es,go,hs,kg,mil,ms,ne,or,pe,re,sc,busan,chungbuk,chungnam,daegu,daejeon,gangwon,gwangju,gyeongbuk,gyeonggi,gyeongnam,incheon,jeju,jeonbuk,jeonnam,seoul,ulsan<kw>com,edu,emb,gov,ind,net,org<ky>com,edu,net,org<kz>org,edu,net,gov,mil,com<la>int,net,info,edu,gov,per,com,org<lb>com,edu,gov,net,org<lc>com,net,co,org,edu,gov<li,lk>gov,sch,net,int,com,org,edu,ngo,soc,web,ltd,assn,grp,hotel,ac<lr>com,edu,gov,org,net<ls>ac,biz,co,edu,gov,info,net,org,sc<lt>gov<lu,lv>com,edu,gov,org,mil,id,net,asn,conf<ly>com,net,gov,plc,edu,sch,med,org,id<ma>co,net,gov,org,ac,press<mc>tm,asso<md,me>co,net,org,edu,ac,gov,its,priv<mg>org,nom,gov,prd,tm,edu,mil,com,co<mh,mil,mk>com,org,net,edu,gov,inf,name<ml>com,edu,gouv,gov,net,org,presse<mm>*<mn>gov,edu,org<mo>com,net,org,edu,gov<mobi,mp,mq,mr>gov<ms>com,edu,gov,net,org<mt>com,edu,net,org<mu>com,net,org,gov,ac,co,or<museum>academy,agriculture,air,airguard,alabama,alaska,amber,ambulance,american,americana,americanantiques,americanart,amsterdam,and,annefrank,anthro,anthropology,antiques,aquarium,arboretum,archaeological,archaeology,architecture,art,artanddesign,artcenter,artdeco,arteducation,artgallery,arts,artsandcrafts,asmatart,assassination,assisi,association,astronomy,atlanta,austin,australia,automotive,aviation,axis,badajoz,baghdad,bahn,bale,baltimore,barcelona,baseball,basel,baths,bauern,beauxarts,beeldengeluid,bellevue,bergbau,berkeley,berlin,bern,bible,bilbao,bill,birdart,birthplace,bonn,boston,botanical,botanicalgarden,botanicgarden,botany,brandywinevalley,brasil,bristol,british,britishcolumbia,broadcast,brunel,brussel,brussels,bruxelles,building,burghof,bus,bushey,cadaques,california,cambridge,can,canada,capebreton,carrier,cartoonart,casadelamoneda,castle,castres,celtic,center,chattanooga,cheltenham,chesapeakebay,chicago,children,childrens,childrensgarden,chiropractic,chocolate,christiansburg,cincinnati,cinema,circus,civilisation,civilization,civilwar,clinton,clock,coal,coastaldefence,cody,coldwar,collection,colonialwilliamsburg,coloradoplateau,columbia,columbus,communication,communications,community,computer,computerhistory,xn--comunicaes-v6a2o,contemporary,contemporaryart,convent,copenhagen,corporation,xn--correios-e-telecomunicaes-ghc29a,corvette,costume,countryestate,county,crafts,cranbrook,creation,cultural,culturalcenter,culture,cyber,cymru,dali,dallas,database,ddr,decorativearts,delaware,delmenhorst,denmark,depot,design,detroit,dinosaur,discovery,dolls,donostia,durham,eastafrica,eastcoast,education,educational,egyptian,eisenbahn,elburg,elvendrell,embroidery,encyclopedic,england,entomology,environment,environmentalconservation,epilepsy,essex,estate,ethnology,exeter,exhibition,family,farm,farmequipment,farmers,farmstead,field,figueres,filatelia,film,fineart,finearts,finland,flanders,florida,force,fortmissoula,fortworth,foundation,francaise,frankfurt,franziskaner,freemasonry,freiburg,fribourg,frog,fundacio,furniture,gallery,garden,gateway,geelvinck,gemological,geology,georgia,giessen,glas,glass,gorge,grandrapids,graz,guernsey,halloffame,hamburg,handson,harvestcelebration,hawaii,health,heimatunduhren,hellas,helsinki,hembygdsforbund,heritage,histoire,historical,historicalsociety,historichouses,historisch,historisches,history,historyofscience,horology,house,humanities,illustration,imageandsound,indian,indiana,indianapolis,indianmarket,intelligence,interactive,iraq,iron,isleofman,jamison,jefferson,jerusalem,jewelry,jewish,jewishart,jfk,journalism,judaica,judygarland,juedisches,juif,karate,karikatur,kids,koebenhavn,koeln,kunst,kunstsammlung,kunstunddesign,labor,labour,lajolla,lancashire,landes,lans,xn--lns-qla,larsson,lewismiller,lincoln,linz,living,livinghistory,localhistory,london,losangeles,louvre,loyalist,lucerne,luxembourg,luzern,mad,madrid,mallorca,manchester,mansion,mansions,manx,marburg,maritime,maritimo,maryland,marylhurst,media,medical,medizinhistorisches,meeres,memorial,mesaverde,michigan,midatlantic,military,mill,miners,mining,minnesota,missile,missoula,modern,moma,money,monmouth,monticello,montreal,moscow,motorcycle,muenchen,muenster,mulhouse,muncie,museet,museumcenter,museumvereniging,music,national,nationalfirearms,nationalheritage,nativeamerican,naturalhistory,naturalhistorymuseum,naturalsciences,nature,naturhistorisches,natuurwetenschappen,naumburg,naval,nebraska,neues,newhampshire,newjersey,newmexico,newport,newspaper,newyork,niepce,norfolk,north,nrw,nyc,nyny,oceanographic,oceanographique,omaha,online,ontario,openair,oregon,oregontrail,otago,oxford,pacific,paderborn,palace,paleo,palmsprings,panama,paris,pasadena,pharmacy,philadelphia,philadelphiaarea,philately,phoenix,photography,pilots,pittsburgh,planetarium,plantation,plants,plaza,portal,portland,portlligat,posts-and-telecommunications,preservation,presidio,press,project,public,pubol,quebec,railroad,railway,research,resistance,riodejaneiro,rochester,rockart,roma,russia,saintlouis,salem,salvadordali,salzburg,sandiego,sanfrancisco,santabarbara,santacruz,santafe,saskatchewan,satx,savannahga,schlesisches,schoenbrunn,schokoladen,school,schweiz,science,scienceandhistory,scienceandindustry,sciencecenter,sciencecenters,science-fiction,sciencehistory,sciences,sciencesnaturelles,scotland,seaport,settlement,settlers,shell,sherbrooke,sibenik,silk,ski,skole,society,sologne,soundandvision,southcarolina,southwest,space,spy,square,stadt,stalbans,starnberg,state,stateofdelaware,station,steam,steiermark,stjohn,stockholm,stpetersburg,stuttgart,suisse,surgeonshall,surrey,svizzera,sweden,sydney,tank,tcm,technology,telekommunikation,television,texas,textile,theater,time,timekeeping,topology,torino,touch,town,transport,tree,trolley,trust,trustee,uhren,ulm,undersea,university,usa,usantiques,usarts,uscountryestate,usculture,usdecorativearts,usgarden,ushistory,ushuaia,uslivinghistory,utah,uvic,valley,vantaa,versailles,viking,village,virginia,virtual,virtuel,vlaanderen,volkenkunde,wales,wallonie,war,washingtondc,watchandclock,watch-and-clock,western,westfalen,whaling,wildlife,williamsburg,windmill,workshop,york,yorkshire,yosemite,youth,zoological,zoology,xn--9dbhblg6di,xn--h1aegh<mv>aero,biz,com,coop,edu,gov,info,int,mil,museum,name,net,org,pro<mw>ac,biz,co,com,coop,edu,gov,int,museum,net,org<mx>com,org,gob,edu,net<my>biz,com,edu,gov,mil,name,net,org<mz>ac,adv,co,edu,gov,mil,net,org<na>info,pro,name,school,or,dr,us,mx,ca,in,cc,tv,ws,mobi,co,com,org<name,nc>asso,nom<ne,net,nf>com,net,per,rec,web,arts,firm,info,other,store<ng>com,edu,gov,i,mil,mobi,name,net,org,sch<ni>ac,biz,co,com,edu,gob,in,info,int,mil,net,nom,org,web<nl,no>fhs,vgs,fylkesbibl,folkebibl,museum,idrett,priv,mil,stat,dep,kommune,herad,aa>gs<ah>gs<bu>gs<fm>gs<hl>gs<hm>gs<jan-mayen>gs<mr>gs<nl>gs<nt>gs<of>gs<ol>gs<oslo>gs<rl>gs<sf>gs<st>gs<svalbard>gs<tm>gs<tr>gs<va>gs<vf>gs<akrehamn,xn--krehamn-dxa,algard,xn--lgrd-poac,arna,brumunddal,bryne,bronnoysund,xn--brnnysund-m8ac,drobak,xn--drbak-wua,egersund,fetsund,floro,xn--flor-jra,fredrikstad,hokksund,honefoss,xn--hnefoss-q1a,jessheim,jorpeland,xn--jrpeland-54a,kirkenes,kopervik,krokstadelva,langevag,xn--langevg-jxa,leirvik,mjondalen,xn--mjndalen-64a,mo-i-rana,mosjoen,xn--mosjen-eya,nesoddtangen,orkanger,osoyro,xn--osyro-wua,raholt,xn--rholt-mra,sandnessjoen,xn--sandnessjen-ogb,skedsmokorset,slattum,spjelkavik,stathelle,stavern,stjordalshalsen,xn--stjrdalshalsen-sqb,tananger,tranby,vossevangen,afjord,xn--fjord-lra,agdenes,al,xn--l-1fa,alesund,xn--lesund-hua,alstahaug,alta,xn--lt-liac,alaheadju,xn--laheadju-7ya,alvdal,amli,xn--mli-tla,amot,xn--mot-tla,andebu,andoy,xn--andy-ira,andasuolo,ardal,xn--rdal-poa,aremark,arendal,xn--s-1fa,aseral,xn--seral-lra,asker,askim,askvoll,askoy,xn--asky-ira,asnes,xn--snes-poa,audnedaln,aukra,aure,aurland,aurskog-holand,xn--aurskog-hland-jnb,austevoll,austrheim,averoy,xn--avery-yua,balestrand,ballangen,balat,xn--blt-elab,balsfjord,bahccavuotna,xn--bhccavuotna-k7a,bamble,bardu,beardu,beiarn,bajddar,xn--bjddar-pta,baidar,xn--bidr-5nac,berg,bergen,berlevag,xn--berlevg-jxa,bearalvahki,xn--bearalvhki-y4a,bindal,birkenes,bjarkoy,xn--bjarky-fya,bjerkreim,bjugn,bodo,xn--bod-2na,badaddja,xn--bdddj-mrabd,budejju,bokn,bremanger,bronnoy,xn--brnny-wuac,bygland,bykle,barum,xn--brum-voa,telemark>bo,xn--b-5ga<nordland>bo,xn--b-5ga,heroy,xn--hery-ira<bievat,xn--bievt-0qa,bomlo,xn--bmlo-gra,batsfjord,xn--btsfjord-9za,bahcavuotna,xn--bhcavuotna-s4a,dovre,drammen,drangedal,dyroy,xn--dyry-ira,donna,xn--dnna-gra,eid,eidfjord,eidsberg,eidskog,eidsvoll,eigersund,elverum,enebakk,engerdal,etne,etnedal,evenes,evenassi,xn--eveni-0qa01ga,evje-og-hornnes,farsund,fauske,fuossko,fuoisku,fedje,fet,finnoy,xn--finny-yua,fitjar,fjaler,fjell,flakstad,flatanger,flekkefjord,flesberg,flora,fla,xn--fl-zia,folldal,forsand,fosnes,frei,frogn,froland,frosta,frana,xn--frna-woa,froya,xn--frya-hra,fusa,fyresdal,forde,xn--frde-gra,gamvik,gangaviika,xn--ggaviika-8ya47h,gaular,gausdal,gildeskal,xn--gildeskl-g0a,giske,gjemnes,gjerdrum,gjerstad,gjesdal,gjovik,xn--gjvik-wua,gloppen,gol,gran,grane,granvin,gratangen,grimstad,grong,kraanghke,xn--kranghke-b0a,grue,gulen,hadsel,halden,halsa,hamar,hamaroy,habmer,xn--hbmer-xqa,hapmir,xn--hpmir-xqa,hammerfest,hammarfeasta,xn--hmmrfeasta-s4ac,haram,hareid,harstad,hasvik,aknoluokta,xn--koluokta-7ya57h,hattfjelldal,aarborte,haugesund,hemne,hemnes,hemsedal,more-og-romsdal>heroy,sande<xn--mre-og-romsdal-qqb>xn--hery-ira,sande<hitra,hjartdal,hjelmeland,hobol,xn--hobl-ira,hof,hol,hole,holmestrand,holtalen,xn--holtlen-hxa,hornindal,horten,hurdal,hurum,hvaler,hyllestad,hagebostad,xn--hgebostad-g3a,hoyanger,xn--hyanger-q1a,hoylandet,xn--hylandet-54a,ha,xn--h-2fa,ibestad,inderoy,xn--indery-fya,iveland,jevnaker,jondal,jolster,xn--jlster-bya,karasjok,karasjohka,xn--krjohka-hwab49j,karlsoy,galsa,xn--gls-elac,karmoy,xn--karmy-yua,kautokeino,guovdageaidnu,klepp,klabu,xn--klbu-woa,kongsberg,kongsvinger,kragero,xn--krager-gya,kristiansand,kristiansund,krodsherad,xn--krdsherad-m8a,kvalsund,rahkkeravju,xn--rhkkervju-01af,kvam,kvinesdal,kvinnherad,kviteseid,kvitsoy,xn--kvitsy-fya,kvafjord,xn--kvfjord-nxa,giehtavuoatna,kvanangen,xn--kvnangen-k0a,navuotna,xn--nvuotna-hwa,kafjord,xn--kfjord-iua,gaivuotna,xn--givuotna-8ya,larvik,lavangen,lavagis,loabat,xn--loabt-0qa,lebesby,davvesiida,leikanger,leirfjord,leka,leksvik,lenvik,leangaviika,xn--leagaviika-52b,lesja,levanger,lier,lierne,lillehammer,lillesand,lindesnes,lindas,xn--linds-pra,lom,loppa,lahppi,xn--lhppi-xqa,lund,lunner,luroy,xn--lury-ira,luster,lyngdal,lyngen,ivgu,lardal,lerdal,xn--lrdal-sra,lodingen,xn--ldingen-q1a,lorenskog,xn--lrenskog-54a,loten,xn--lten-gra,malvik,masoy,xn--msy-ula0h,muosat,xn--muost-0qa,mandal,marker,marnardal,masfjorden,meland,meldal,melhus,meloy,xn--mely-ira,meraker,xn--merker-kua,moareke,xn--moreke-jua,midsund,midtre-gauldal,modalen,modum,molde,moskenes,moss,mosvik,malselv,xn--mlselv-iua,malatvuopmi,xn--mlatvuopmi-s4a,namdalseid,aejrie,namsos,namsskogan,naamesjevuemie,xn--nmesjevuemie-tcba,laakesvuemie,nannestad,narvik,narviika,naustdal,nedre-eiker,akershus>nes<buskerud>nes<nesna,nesodden,nesseby,unjarga,xn--unjrga-rta,nesset,nissedal,nittedal,nord-aurdal,nord-fron,nord-odal,norddal,nordkapp,davvenjarga,xn--davvenjrga-y4a,nordre-land,nordreisa,raisa,xn--risa-5na,nore-og-uvdal,notodden,naroy,xn--nry-yla5g,notteroy,xn--nttery-byae,odda,oksnes,xn--ksnes-uua,oppdal,oppegard,xn--oppegrd-ixa,orkdal,orland,xn--rland-uua,orskog,xn--rskog-uua,orsta,xn--rsta-fra,hedmark>os,valer,xn--vler-qoa<hordaland>os<osen,osteroy,xn--ostery-fya,ostre-toten,xn--stre-toten-zcb,overhalla,ovre-eiker,xn--vre-eiker-k8a,oyer,xn--yer-zna,oygarden,xn--ygarden-p1a,oystre-slidre,xn--ystre-slidre-ujb,porsanger,porsangu,xn--porsgu-sta26f,porsgrunn,radoy,xn--rady-ira,rakkestad,rana,ruovat,randaberg,rauma,rendalen,rennebu,rennesoy,xn--rennesy-v1a,rindal,ringebu,ringerike,ringsaker,rissa,risor,xn--risr-ira,roan,rollag,rygge,ralingen,xn--rlingen-mxa,rodoy,xn--rdy-0nab,romskog,xn--rmskog-bya,roros,xn--rros-gra,rost,xn--rst-0na,royken,xn--ryken-vua,royrvik,xn--ryrvik-bya,rade,xn--rde-ula,salangen,siellak,saltdal,salat,xn--slt-elab,xn--slat-5na,samnanger,vestfold>sande<sandefjord,sandnes,sandoy,xn--sandy-yua,sarpsborg,sauda,sauherad,sel,selbu,selje,seljord,sigdal,siljan,sirdal,skaun,skedsmo,ski,skien,skiptvet,skjervoy,xn--skjervy-v1a,skierva,xn--skierv-uta,skjak,xn--skjk-soa,skodje,skanland,xn--sknland-fxa,skanit,xn--sknit-yqa,smola,xn--smla-hra,snillfjord,snasa,xn--snsa-roa,snoasa,snaase,xn--snase-nra,sogndal,sokndal,sola,solund,songdalen,sortland,spydeberg,stange,stavanger,steigen,steinkjer,stjordal,xn--stjrdal-s1a,stokke,stor-elvdal,stord,stordal,storfjord,omasvuotna,strand,stranda,stryn,sula,suldal,sund,sunndal,surnadal,sveio,svelvik,sykkylven,sogne,xn--sgne-gra,somna,xn--smna-gra,sondre-land,xn--sndre-land-0cb,sor-aurdal,xn--sr-aurdal-l8a,sor-fron,xn--sr-fron-q1a,sor-odal,xn--sr-odal-q1a,sor-varanger,xn--sr-varanger-ggb,matta-varjjat,xn--mtta-vrjjat-k7af,sorfold,xn--srfold-bya,sorreisa,xn--srreisa-q1a,sorum,xn--srum-gra,tana,deatnu,time,tingvoll,tinn,tjeldsund,dielddanuorri,tjome,xn--tjme-hra,tokke,tolga,torsken,tranoy,xn--trany-yua,tromso,xn--troms-zua,tromsa,romsa,trondheim,troandin,trysil,trana,xn--trna-woa,trogstad,xn--trgstad-r1a,tvedestrand,tydal,tynset,tysfjord,divtasvuodna,divttasvuotna,tysnes,tysvar,xn--tysvr-vra,tonsberg,xn--tnsberg-q1a,ullensaker,ullensvang,ulvik,utsira,vadso,xn--vads-jra,cahcesuolo,xn--hcesuolo-7ya35b,vaksdal,valle,vang,vanylven,vardo,xn--vard-jra,varggat,xn--vrggt-xqad,vefsn,vaapste,vega,vegarshei,xn--vegrshei-c0a,vennesla,verdal,verran,vestby,vestnes,vestre-slidre,vestre-toten,vestvagoy,xn--vestvgy-ixa6o,vevelstad,vik,vikna,vindafjord,volda,voss,varoy,xn--vry-yla5g,vagan,xn--vgan-qoa,voagat,vagsoy,xn--vgsy-qoa0j,vaga,xn--vg-yiab,ostfold>valer<xn--stfold-9xa>xn--vler-qoa<<np>*<nr>biz,info,gov,edu,org,net,com<nu,nz>ac,co,cri,geek,gen,govt,health,iwi,kiwi,maori,mil,xn--mori-qsa,net,org,parliament,school<om>co,com,edu,gov,med,museum,net,org,pro<onion,org,pa>ac,gob,com,org,sld,edu,net,ing,abo,med,nom<pe>edu,gob,nom,mil,org,com,net<pf>com,org,edu<pg>*<ph>com,net,org,gov,edu,ngo,mil,i<pk>com,net,edu,org,fam,biz,web,gov,gob,gok,gon,gop,gos,info<pl>com,net,org,aid,agro,atm,auto,biz,edu,gmina,gsm,info,mail,miasta,media,mil,nieruchomosci,nom,pc,powiat,priv,realestate,rel,sex,shop,sklep,sos,szkola,targi,tm,tourism,travel,turystyka,gov>ap,ic,is,us,kmpsp,kppsp,kwpsp,psp,wskr,kwp,mw,ug,um,umig,ugim,upow,uw,starostwo,pa,po,psse,pup,rzgw,sa,so,sr,wsa,sko,uzs,wiih,winb,pinb,wios,witd,wzmiuw,piw,wiw,griw,wif,oum,sdn,zp,uppo,mup,wuoz,konsulat,oirm<augustow,babia-gora,bedzin,beskidy,bialowieza,bialystok,bielawa,bieszczady,boleslawiec,bydgoszcz,bytom,cieszyn,czeladz,czest,dlugoleka,elblag,elk,glogow,gniezno,gorlice,grajewo,ilawa,jaworzno,jelenia-gora,jgora,kalisz,kazimierz-dolny,karpacz,kartuzy,kaszuby,katowice,kepno,ketrzyn,klodzko,kobierzyce,kolobrzeg,konin,konskowola,kutno,lapy,lebork,legnica,lezajsk,limanowa,lomza,lowicz,lubin,lukow,malbork,malopolska,mazowsze,mazury,mielec,mielno,mragowo,naklo,nowaruda,nysa,olawa,olecko,olkusz,olsztyn,opoczno,opole,ostroda,ostroleka,ostrowiec,ostrowwlkp,pila,pisz,podhale,podlasie,polkowice,pomorze,pomorskie,prochowice,pruszkow,przeworsk,pulawy,radom,rawa-maz,rybnik,rzeszow,sanok,sejny,slask,slupsk,sosnowiec,stalowa-wola,skoczow,starachowice,stargard,suwalki,swidnica,swiebodzin,swinoujscie,szczecin,szczytno,tarnobrzeg,tgory,turek,tychy,ustka,walbrzych,warmia,warszawa,waw,wegrow,wielun,wlocl,wloclawek,wodzislaw,wolomin,wroclaw,zachpomor,zagan,zarow,zgora,zgorzelec<pm,pn>gov,co,org,edu,net<post,pr>com,net,org,gov,edu,isla,pro,biz,info,name,est,prof,ac<pro>aaa,aca,acct,avocat,bar,cpa,eng,jur,law,med,recht<ps>edu,gov,sec,plo,com,org,net<pt>net,gov,org,edu,int,publ,com,nome<pw>co,ne,or,ed,go,belau<py>com,coop,edu,gov,mil,net,org<qa>com,edu,gov,mil,name,net,org,sch<re>asso,com,nom<ro>arts,com,firm,info,nom,nt,org,rec,store,tm,www<rs>ac,co,edu,gov,in,org<ru,rw>ac,co,coop,gov,mil,net,org<sa>com,net,org,gov,med,pub,edu,sch<sb>com,edu,gov,net,org<sc>com,gov,net,org,edu<sd>com,net,org,edu,med,tv,gov,info<se>a,ac,b,bd,brand,c,d,e,f,fh,fhsk,fhv,g,h,i,k,komforb,kommunalforbund,komvux,l,lanbib,m,n,naturbruksgymn,o,org,p,parti,pp,press,r,s,t,tm,u,w,x,y,z<sg>com,net,org,gov,edu,per<sh>com,net,gov,org,mil<si,sj,sk,sl>com,net,edu,gov,org<sm,sn>art,com,edu,gouv,org,perso,univ<so>com,edu,gov,me,net,org<sr,ss>biz,com,edu,gov,me,net,org,sch<st>co,com,consulado,edu,embaixada,mil,net,org,principe,saotome,store<su,sv>com,edu,gob,org,red<sx>gov<sy>edu,gov,net,mil,com,org<sz>co,ac,org<tc,td,tel,tf,tg,th>ac,co,go,in,mi,net,or<tj>ac,biz,co,com,edu,go,gov,int,mil,name,net,nic,org,test,web<tk,tl>gov<tm>com,co,org,net,nom,gov,mil,edu<tn>com,ens,fin,gov,ind,info,intl,mincom,nat,net,org,perso,tourism<to>com,gov,net,org,edu,mil<tr>av,bbs,bel,biz,com,dr,edu,gen,gov,info,mil,k12,kep,name,net,org,pol,tel,tsk,tv,web,nc>gov<<tt>co,com,org,net,biz,info,pro,int,coop,jobs,mobi,travel,museum,aero,name,gov,edu<tv,tw>edu,gov,mil,com,net,org,idv,game,ebiz,club,xn--zf0ao64a,xn--uc0atv,xn--czrw28b<tz>ac,co,go,hotel,info,me,mil,mobi,ne,or,sc,tv<ua>com,edu,gov,in,net,org,cherkassy,cherkasy,chernigov,chernihiv,chernivtsi,chernovtsy,ck,cn,cr,crimea,cv,dn,dnepropetrovsk,dnipropetrovsk,donetsk,dp,if,ivano-frankivsk,kh,kharkiv,kharkov,kherson,khmelnitskiy,khmelnytskyi,kiev,kirovograd,km,kr,krym,ks,kv,kyiv,lg,lt,lugansk,lutsk,lv,lviv,mk,mykolaiv,nikolaev,od,odesa,odessa,pl,poltava,rivne,rovno,rv,sb,sebastopol,sevastopol,sm,sumy,te,ternopil,uz,uzhgorod,vinnica,vinnytsia,vn,volyn,yalta,zaporizhzhe,zaporizhzhia,zhitomir,zhytomyr,zp,zt<ug>co,or,ac,sc,go,ne,com,org<uk>ac,co,gov,ltd,me,net,nhs,org,plc,police,sch>*<<us>dni,fed,isa,kids,nsn,ak>k12,cc,lib<al>k12,cc,lib<ar>k12,cc,lib<as>k12,cc,lib<az>k12,cc,lib<ca>k12,cc,lib<co>k12,cc,lib<ct>k12,cc,lib<dc>k12,cc,lib<de>k12,cc<fl>k12,cc,lib<ga>k12,cc,lib<gu>k12,cc,lib<hi>cc,lib<ia>k12,cc,lib<id>k12,cc,lib<il>k12,cc,lib<in>k12,cc,lib<ks>k12,cc,lib<ky>k12,cc,lib<la>k12,cc,lib<ma>k12>pvt,chtr,paroch<cc,lib<md>k12,cc,lib<me>k12,cc,lib<mi>k12,cc,lib,ann-arbor,cog,dst,eaton,gen,mus,tec,washtenaw<mn>k12,cc,lib<mo>k12,cc,lib<ms>k12,cc,lib<mt>k12,cc,lib<nc>k12,cc,lib<nd>cc,lib<ne>k12,cc,lib<nh>k12,cc,lib<nj>k12,cc,lib<nm>k12,cc,lib<nv>k12,cc,lib<ny>k12,cc,lib<oh>k12,cc,lib<ok>k12,cc,lib<or>k12,cc,lib<pa>k12,cc,lib<pr>k12,cc,lib<ri>cc,lib<sc>k12,cc,lib<sd>cc,lib<tn>k12,cc,lib<tx>k12,cc,lib<ut>k12,cc,lib<vi>k12,cc,lib<vt>k12,cc,lib<va>k12,cc,lib<wa>k12,cc,lib<wi>k12,cc,lib<wv>cc<wy>k12,cc,lib<<uy>com,edu,gub,mil,net,org<uz>co,com,net,org<va,vc>com,net,org,gov,mil,edu<ve>arts,bib,co,com,e12,edu,firm,gob,gov,info,int,mil,net,nom,org,rar,rec,store,tec,web<vg,vi>co,com,k12,net,org<vn>com,net,org,edu,gov,int,ac,biz,info,name,pro,health<vu>com,edu,net,org<wf,ws>com,net,org,gov,edu<yt,xn--mgbaam7a8h,xn--y9a3aq,xn--54b7fta0cc,xn--90ae,xn--mgbcpq6gpa1a,xn--90ais,xn--fiqs8s,xn--fiqz9s,xn--lgbbat1ad8j,xn--wgbh1c,xn--e1a4c,xn--qxa6a,xn--mgbah1a3hjkrd,xn--node,xn--qxam,xn--j6w193g>xn--55qx5d,xn--wcvs22d,xn--mxtq1m,xn--gmqw5a,xn--od0alg,xn--uc0atv<xn--2scrj9c,xn--3hcrj9c,xn--45br5cyl,xn--h2breg3eve,xn--h2brj9c8c,xn--mgbgu82a,xn--rvc1e0am3e,xn--h2brj9c,xn--mgbbh1a,xn--mgbbh1a71e,xn--fpcrj9c3d,xn--gecrj9c,xn--s9brj9c,xn--45brj9c,xn--xkc2dl3a5ee0h,xn--mgba3a4f16a,xn--mgba3a4fra,xn--mgbtx2b,xn--mgbayh7gpa,xn--3e0b707e,xn--80ao21a,xn--q7ce6a,xn--fzc2c9e2c,xn--xkc2al3hye2a,xn--mgbc0a9azcg,xn--d1alf,xn--l1acc,xn--mix891f,xn--mix082f,xn--mgbx4cd0ab,xn--mgb9awbf,xn--mgbai9azgqp6j,xn--mgbai9a5eva00b,xn--ygbi2ammx,xn--90a3ac>xn--o1ac,xn--c1avg,xn--90azh,xn--d1at,xn--o1ach,xn--80au<xn--p1ai,xn--wgbl6a,xn--mgberp4a5d4ar,xn--mgberp4a5d4a87g,xn--mgbqly7c0a67fbc,xn--mgbqly7cvafr,xn--mgbpl2fh,xn--yfro4i67o,xn--clchc0ea0b2g2a9gcd,xn--ogbpf8fl,xn--mgbtf8fl,xn--o3cw4h>xn--12c1fe0br,xn--12co0c3b4eva,xn--h3cuzk1di,xn--o3cyx2a,xn--m3ch0j3a,xn--12cfi8ixb8l<xn--pgbs0dh,xn--kpry57d,xn--kprw13d,xn--nnx388a,xn--j1amh,xn--mgb2ddes,xxx,ye>com,edu,gov,net,mil,org<za>ac,agric,alt,co,edu,gov,grondar,law,mil,net,ngo,nic,nis,nom,org,school,tm,web<zm>ac,biz,co,com,edu,gov,info,mil,net,org,sch<zw>ac,co,gov,mil,org<aaa,aarp,abarth,abb,abbott,abbvie,abc,able,abogado,abudhabi,academy,accenture,accountant,accountants,aco,actor,adac,ads,adult,aeg,aetna,afl,africa,agakhan,agency,aig,airbus,airforce,airtel,akdn,alfaromeo,alibaba,alipay,allfinanz,allstate,ally,alsace,alstom,amazon,americanexpress,americanfamily,amex,amfam,amica,amsterdam,analytics,android,anquan,anz,aol,apartments,app,apple,aquarelle,arab,aramco,archi,army,art,arte,asda,associates,athleta,attorney,auction,audi,audible,audio,auspost,author,auto,autos,avianca,aws,axa,azure,baby,baidu,banamex,bananarepublic,band,bank,bar,barcelona,barclaycard,barclays,barefoot,bargains,baseball,basketball,bauhaus,bayern,bbc,bbt,bbva,bcg,bcn,beats,beauty,beer,bentley,berlin,best,bestbuy,bet,bharti,bible,bid,bike,bing,bingo,bio,black,blackfriday,blockbuster,blog,bloomberg,blue,bms,bmw,bnpparibas,boats,boehringer,bofa,bom,bond,boo,book,booking,bosch,bostik,boston,bot,boutique,box,bradesco,bridgestone,broadway,broker,brother,brussels,bugatti,build,builders,business,buy,buzz,bzh,cab,cafe,cal,call,calvinklein,cam,camera,camp,cancerresearch,canon,capetown,capital,capitalone,car,caravan,cards,care,career,careers,cars,casa,case,cash,casino,catering,catholic,cba,cbn,cbre,cbs,center,ceo,cern,cfa,cfd,chanel,channel,charity,chase,chat,cheap,chintai,christmas,chrome,church,cipriani,circle,cisco,citadel,citi,citic,city,cityeats,claims,cleaning,click,clinic,clinique,clothing,cloud,club,clubmed,coach,codes,coffee,college,cologne,comcast,commbank,community,company,compare,computer,comsec,condos,construction,consulting,contact,contractors,cooking,cookingchannel,cool,corsica,country,coupon,coupons,courses,cpa,credit,creditcard,creditunion,cricket,crown,crs,cruise,cruises,cuisinella,cymru,cyou,dabur,dad,dance,data,date,dating,datsun,day,dclk,dds,deal,dealer,deals,degree,delivery,dell,deloitte,delta,democrat,dental,dentist,desi,design,dev,dhl,diamonds,diet,digital,direct,directory,discount,discover,dish,diy,dnp,docs,doctor,dog,domains,dot,download,drive,dtv,dubai,dunlop,dupont,durban,dvag,dvr,earth,eat,eco,edeka,education,email,emerck,energy,engineer,engineering,enterprises,epson,equipment,ericsson,erni,esq,estate,etisalat,eurovision,eus,events,exchange,expert,exposed,express,extraspace,fage,fail,fairwinds,faith,family,fan,fans,farm,farmers,fashion,fast,fedex,feedback,ferrari,ferrero,fiat,fidelity,fido,film,final,finance,financial,fire,firestone,firmdale,fish,fishing,fit,fitness,flickr,flights,flir,florist,flowers,fly,foo,food,foodnetwork,football,ford,forex,forsale,forum,foundation,fox,free,fresenius,frl,frogans,frontdoor,frontier,ftr,fujitsu,fun,fund,furniture,futbol,fyi,gal,gallery,gallo,gallup,game,games,gap,garden,gay,gbiz,gdn,gea,gent,genting,george,ggee,gift,gifts,gives,giving,glass,gle,global,globo,gmail,gmbh,gmo,gmx,godaddy,gold,goldpoint,golf,goo,goodyear,goog,google,gop,got,grainger,graphics,gratis,green,gripe,grocery,group,guardian,gucci,guge,guide,guitars,guru,hair,hamburg,hangout,haus,hbo,hdfc,hdfcbank,health,healthcare,help,helsinki,here,hermes,hgtv,hiphop,hisamitsu,hitachi,hiv,hkt,hockey,holdings,holiday,homedepot,homegoods,homes,homesense,honda,horse,hospital,host,hosting,hot,hoteles,hotels,hotmail,house,how,hsbc,hughes,hyatt,hyundai,ibm,icbc,ice,icu,ieee,ifm,ikano,imamat,imdb,immo,immobilien,inc,industries,infiniti,ing,ink,institute,insurance,insure,international,intuit,investments,ipiranga,irish,ismaili,ist,istanbul,itau,itv,jaguar,java,jcb,jeep,jetzt,jewelry,jio,jll,jmp,jnj,joburg,jot,joy,jpmorgan,jprs,juegos,juniper,kaufen,kddi,kerryhotels,kerrylogistics,kerryproperties,kfh,kia,kids,kim,kinder,kindle,kitchen,kiwi,koeln,komatsu,kosher,kpmg,kpn,krd,kred,kuokgroup,kyoto,lacaixa,lamborghini,lamer,lancaster,lancia,land,landrover,lanxess,lasalle,lat,latino,latrobe,law,lawyer,lds,lease,leclerc,lefrak,legal,lego,lexus,lgbt,lidl,life,lifeinsurance,lifestyle,lighting,like,lilly,limited,limo,lincoln,linde,link,lipsy,live,living,llc,llp,loan,loans,locker,locus,loft,lol,london,lotte,lotto,love,lpl,lplfinancial,ltd,ltda,lundbeck,luxe,luxury,macys,madrid,maif,maison,makeup,man,management,mango,map,market,marketing,markets,marriott,marshalls,maserati,mattel,mba,mckinsey,med,media,meet,melbourne,meme,memorial,men,menu,merckmsd,miami,microsoft,mini,mint,mit,mitsubishi,mlb,mls,mma,mobile,moda,moe,moi,mom,monash,money,monster,mormon,mortgage,moscow,moto,motorcycles,mov,movie,msd,mtn,mtr,music,mutual,nab,nagoya,natura,navy,nba,nec,netbank,netflix,network,neustar,new,news,next,nextdirect,nexus,nfl,ngo,nhk,nico,nike,nikon,ninja,nissan,nissay,nokia,northwesternmutual,norton,now,nowruz,nowtv,nra,nrw,ntt,nyc,obi,observer,office,okinawa,olayan,olayangroup,oldnavy,ollo,omega,one,ong,onl,online,ooo,open,oracle,orange,organic,origins,osaka,otsuka,ott,ovh,page,panasonic,paris,pars,partners,parts,party,passagens,pay,pccw,pet,pfizer,pharmacy,phd,philips,phone,photo,photography,photos,physio,pics,pictet,pictures,pid,pin,ping,pink,pioneer,pizza,place,play,playstation,plumbing,plus,pnc,pohl,poker,politie,porn,pramerica,praxi,press,prime,prod,productions,prof,progressive,promo,properties,property,protection,pru,prudential,pub,pwc,qpon,quebec,quest,racing,radio,read,realestate,realtor,realty,recipes,red,redstone,redumbrella,rehab,reise,reisen,reit,reliance,ren,rent,rentals,repair,report,republican,rest,restaurant,review,reviews,rexroth,rich,richardli,ricoh,ril,rio,rip,rocher,rocks,rodeo,rogers,room,rsvp,rugby,ruhr,run,rwe,ryukyu,saarland,safe,safety,sakura,sale,salon,samsclub,samsung,sandvik,sandvikcoromant,sanofi,sap,sarl,sas,save,saxo,sbi,sbs,sca,scb,schaeffler,schmidt,scholarships,school,schule,schwarz,science,scot,search,seat,secure,security,seek,select,sener,services,ses,seven,sew,sex,sexy,sfr,shangrila,sharp,shaw,shell,shia,shiksha,shoes,shop,shopping,shouji,show,showtime,silk,sina,singles,site,ski,skin,sky,skype,sling,smart,smile,sncf,soccer,social,softbank,software,sohu,solar,solutions,song,sony,soy,spa,space,sport,spot,srl,stada,staples,star,statebank,statefarm,stc,stcgroup,stockholm,storage,store,stream,studio,study,style,sucks,supplies,supply,support,surf,surgery,suzuki,swatch,swiss,sydney,systems,tab,taipei,talk,taobao,target,tatamotors,tatar,tattoo,tax,taxi,tci,tdk,team,tech,technology,temasek,tennis,teva,thd,theater,theatre,tiaa,tickets,tienda,tiffany,tips,tires,tirol,tjmaxx,tjx,tkmaxx,tmall,today,tokyo,tools,top,toray,toshiba,total,tours,town,toyota,toys,trade,trading,training,travel,travelchannel,travelers,travelersinsurance,trust,trv,tube,tui,tunes,tushu,tvs,ubank,ubs,unicom,university,uno,uol,ups,vacations,vana,vanguard,vegas,ventures,verisign,versicherung,vet,viajes,video,vig,viking,villas,vin,vip,virgin,visa,vision,viva,vivo,vlaanderen,vodka,volkswagen,volvo,vote,voting,voto,voyage,vuelos,wales,walmart,walter,wang,wanggou,watch,watches,weather,weatherchannel,webcam,weber,website,wedding,weibo,weir,whoswho,wien,wiki,williamhill,win,windows,wine,winners,wme,wolterskluwer,woodside,work,works,world,wow,wtc,wtf,xbox,xerox,xfinity,xihuan,xin,xn--11b4c3d,xn--1ck2e1b,xn--1qqw23a,xn--30rr7y,xn--3bst00m,xn--3ds443g,xn--3pxu8k,xn--42c2d9a,xn--45q11c,xn--4gbrim,xn--55qw42g,xn--55qx5d,xn--5su34j936bgsg,xn--5tzm5g,xn--6frz82g,xn--6qq986b3xl,xn--80adxhks,xn--80aqecdr1a,xn--80asehdb,xn--80aswg,xn--8y0a063a,xn--9dbq2a,xn--9et52u,xn--9krt00a,xn--b4w605ferd,xn--bck1b9a5dre4c,xn--c1avg,xn--c2br7g,xn--cck2b3b,xn--cckwcxetd,xn--cg4bki,xn--czr694b,xn--czrs0t,xn--czru2d,xn--d1acj3b,xn--eckvdtc9d,xn--efvy88h,xn--fct429k,xn--fhbei,xn--fiq228c5hs,xn--fiq64b,xn--fjq720a,xn--flw351e,xn--fzys8d69uvgm,xn--g2xx48c,xn--gckr3f0f,xn--gk3at1e,xn--hxt814e,xn--i1b6b1a6a2e,xn--imr513n,xn--io0a7i,xn--j1aef,xn--jlq480n2rg,xn--jlq61u9w7b,xn--jvr189m,xn--kcrx77d1x4a,xn--kput3i,xn--mgba3a3ejt,xn--mgba7c0bbn0a,xn--mgbaakc7dvf,xn--mgbab2bd,xn--mgbca7dzdo,xn--mgbi4ecexp,xn--mgbt3dhd,xn--mk1bu44c,xn--mxtq1m,xn--ngbc5azd,xn--ngbe9e0a,xn--ngbrx,xn--nqv7f,xn--nqv7fs00ema,xn--nyqy26a,xn--otu796d,xn--p1acf,xn--pssy2u,xn--q9jyb4c,xn--qcka1pmc,xn--rhqv96g,xn--rovu88b,xn--ses554g,xn--t60b56a,xn--tckwe,xn--tiq49xqyj,xn--unup4y,xn--vermgensberater-ctb,xn--vermgensberatung-pwb,xn--vhquv,xn--vuq861b,xn--w4r85el8fhu5dnra,xn--w4rs40l,xn--xhq521b,xn--zfr164b,xyz,yachts,yahoo,yamaxun,yandex,yodobashi,yoga,yokohama,you,youtube,yun,zappos,zara,zero,zip,zone,zuerich";
 
 // node_modules/parse-domain/serialized-tries/private.js
-var private_default = "ua>cc,inf,ltd,cx,biz,co,pp,v<to>611,oya,rdv,vpnplus,quickconnect>direct<nyan<us>graphox,cloudns,drud,is-by,land-4-sale,stuff-4-sale,enscaled>phx<mircloud,freeddns,golffan,noip,pointto,platterp,de>lib<<com>devcdnaccesso>*<adobeaemcloud>dev>*<<airkitapps,airkitapps-au,aivencloud,kasserver,amazonaws>compute>*<compute-1>*<us-east-1>dualstack>s3<<elb>*<s3,s3-ap-northeast-1,s3-ap-northeast-2,s3-ap-south-1,s3-ap-southeast-1,s3-ap-southeast-2,s3-ca-central-1,s3-eu-central-1,s3-eu-west-1,s3-eu-west-2,s3-eu-west-3,s3-external-1,s3-fips-us-gov-west-1,s3-sa-east-1,s3-us-gov-west-1,s3-us-east-2,s3-us-west-1,s3-us-west-2,ap-northeast-2>s3,dualstack>s3<s3-website<ap-south-1>s3,dualstack>s3<s3-website<ca-central-1>s3,dualstack>s3<s3-website<eu-central-1>s3,dualstack>s3<s3-website<eu-west-2>s3,dualstack>s3<s3-website<eu-west-3>s3,dualstack>s3<s3-website<us-east-2>s3,dualstack>s3<s3-website<ap-northeast-1>dualstack>s3<<ap-southeast-1>dualstack>s3<<ap-southeast-2>dualstack>s3<<eu-west-1>dualstack>s3<<sa-east-1>dualstack>s3<<s3-website-us-east-1,s3-website-us-west-1,s3-website-us-west-2,s3-website-ap-northeast-1,s3-website-ap-southeast-1,s3-website-ap-southeast-2,s3-website-eu-west-1,s3-website-sa-east-1<elasticbeanstalk>ap-northeast-1,ap-northeast-2,ap-northeast-3,ap-south-1,ap-southeast-1,ap-southeast-2,ca-central-1,eu-central-1,eu-west-1,eu-west-2,eu-west-3,sa-east-1,us-east-1,us-east-2,us-gov-west-1,us-west-1,us-west-2<awsglobalaccelerator,siiites,appspacehosted,appspaceusercontent,on-aptible,myasustor,balena-devices,betainabox,boutir,bplaced,cafjs,br,cn,de,eu,jpn,mex,ru,sa,uk,us,za,ar,hu,kr,no,qc,uy,africa,gr,co,jdevcloud,wpdevcloud,cloudcontrolled,cloudcontrolapp,trycloudflare,customer-oci>*,oci>*<ocp>*<ocs>*<<dattolocal,dattorelay,dattoweb,mydatto,builtwithdark,datadetect>demo,instance<ddns5,discordsays,discordsez,drayddns,dreamhosters,mydrobo,dyndns-at-home,dyndns-at-work,dyndns-blog,dyndns-free,dyndns-home,dyndns-ip,dyndns-mail,dyndns-office,dyndns-pics,dyndns-remote,dyndns-server,dyndns-web,dyndns-wiki,dyndns-work,blogdns,cechire,dnsalias,dnsdojo,doesntexist,dontexist,doomdns,dyn-o-saur,dynalias,est-a-la-maison,est-a-la-masion,est-le-patron,est-mon-blogueur,from-ak,from-al,from-ar,from-ca,from-ct,from-dc,from-de,from-fl,from-ga,from-hi,from-ia,from-id,from-il,from-in,from-ks,from-ky,from-ma,from-md,from-mi,from-mn,from-mo,from-ms,from-mt,from-nc,from-nd,from-ne,from-nh,from-nj,from-nm,from-nv,from-oh,from-ok,from-or,from-pa,from-pr,from-ri,from-sc,from-sd,from-tn,from-tx,from-ut,from-va,from-vt,from-wa,from-wi,from-wv,from-wy,getmyip,gotdns,hobby-site,homelinux,homeunix,iamallama,is-a-anarchist,is-a-blogger,is-a-bookkeeper,is-a-bulls-fan,is-a-caterer,is-a-chef,is-a-conservative,is-a-cpa,is-a-cubicle-slave,is-a-democrat,is-a-designer,is-a-doctor,is-a-financialadvisor,is-a-geek,is-a-green,is-a-guru,is-a-hard-worker,is-a-hunter,is-a-landscaper,is-a-lawyer,is-a-liberal,is-a-libertarian,is-a-llama,is-a-musician,is-a-nascarfan,is-a-nurse,is-a-painter,is-a-personaltrainer,is-a-photographer,is-a-player,is-a-republican,is-a-rockstar,is-a-socialist,is-a-student,is-a-teacher,is-a-techie,is-a-therapist,is-an-accountant,is-an-actor,is-an-actress,is-an-anarchist,is-an-artist,is-an-engineer,is-an-entertainer,is-certified,is-gone,is-into-anime,is-into-cars,is-into-cartoons,is-into-games,is-leet,is-not-certified,is-slick,is-uberleet,is-with-theband,isa-geek,isa-hockeynut,issmarterthanyou,likes-pie,likescandy,neat-url,saves-the-whales,selfip,sells-for-less,sells-for-u,servebbs,simple-url,space-to-rent,teaches-yoga,writesthisblog,digitaloceanspaces>*<ddnsfree,ddnsgeek,giize,gleeze,kozow,loseyourip,ooguy,theworkpc,mytuleap,tuleap-partners,encoreapi,evennode>eu-1,eu-2,eu-3,eu-4,us-1,us-2,us-3,us-4<onfabrica,fbsbx>apps<fastly-terrarium,fastvps-server,mydobiss,firebaseapp,fldrv,forgeblocks,framercanvas,freebox-os,freeboxos,freemyip,gentapps,gentlentapis,githubusercontent,0emm>*<appspot>r>*<<codespot,googleapis,googlecode,pagespeedmobilizer,publishproxy,withgoogle,withyoutube,blogspot,awsmppl,herokuapp,herokussl,myravendb,impertrixcdn,impertrix,smushcdn,wphostedmail,wpmucdn,pixolino,amscompute,clicketcloud,dopaas,hidora,hosted-by-previder>paas<hosteur>rag-cloud,rag-cloud-ch<ik-server>jcloud,jcloud-ver-jpc<jelastic>demo<kilatiron,massivegrid>paas<wafaicloud>jed,lon,ryd<joyent>cns>*<<ktistory,lpusercontent,lmpm>app<linode>members,nodebalancer>*<<linodeobjects>*<linodeusercontent>ip<barsycenter,barsyonline,mazeplay,miniserver,meteorapp>eu<hostedpi,mythic-beasts>customer,caracal,fentiger,lynx,ocelot,oncilla,onza,sphinx,vs,x,yali<nospamproxy>cloud<4u,nfshost,001www,ddnslive,myiphost,blogsyte,ciscofreak,damnserver,ditchyourip,dnsiskinky,dynns,geekgalaxy,health-carereform,homesecuritymac,homesecuritypc,myactivedirectory,mysecuritycamera,net-freaks,onthewifi,point2this,quicksytes,securitytactics,serveexchange,servehumour,servep2p,servesarcasm,stufftoread,unusualperson,workisboring,3utilities,ddnsking,myvnc,servebeer,servecounterstrike,serveftp,servegame,servehalflife,servehttp,serveirc,servemp3,servepics,servequake,observableusercontent>static<orsites,operaunite,authgear-staging,authgearapps,skygearapp,outsystemscloud,ownprovider,pgfog,pagefrontapp,pagexl,paywhirl>*<gotpantheon,platter-app,pleskns,postman-echo,prgmr>xen<pythonanywhere>eu<qualifioapp,qbuser,qa2,dev-myqnapcloud,alpha-myqnapcloud,myqnapcloud,quipelements>*<rackmaze,rhcloud,render>app<onrender,code>builder>*<dev-builder>*<stg-builder>*<<logoip,scrysec,firewall-gateway,myshopblocks,myshopify,shopitsite,1kapp,appchizi,applinzi,sinaapp,vipsinaapp,bounty-full>alpha,beta<try-snowplow,stackhero-network,playstation-cloud,myspreadshop,stdlib>api<temp-dns,dsmynas,familyds,tb-hosting>site<reservd,thingdustdata,bloxcms,townnews-staging,typeform>pro<hk,vultrobjects>*<wafflecell,reserve-online,hotelwithflight,remotewd,wiardweb>pages<messwithdns,woltlab-demo,wpenginepowered>js<wixsite,xnbay>u2,u2-local<yolasite<live>hlx<net>adobeaemcloud,alwaysdata,cloudfront,t3l3p0rt,appudo,atlassian-dev>prod>cdn<<myfritz,onavstack,shopselect,blackbaudcdn,boomla,bplaced,square7,gb,hu,jp,se,uk,in,clickrising,cloudaccess,cdn77-ssl,cdn77>r<feste-ip,knx-server,static-access,cryptonomic>*<dattolocal,mydatto,debian,bitbridge,at-band-camp,blogdns,broke-it,buyshouses,dnsalias,dnsdojo,does-it,dontexist,dynalias,dynathome,endofinternet,from-az,from-co,from-la,from-ny,gets-it,ham-radio-op,homeftp,homeip,homelinux,homeunix,in-the-band,is-a-chef,is-a-geek,isa-geek,kicks-ass,office-on-the,podzone,scrapper-site,selfip,sells-it,servebbs,serveftp,thruhere,webhop,definima,casacam,dynu,dynv6,twmail,ru,channelsdvr>u<fastlylb>map<fastly>freetls,map,prod>a,global<ssl>a,b,global<<edgeapp,flynnhosting,cdn-edges,heteml,cloudfunctions,moonscale,in-dsl,in-vpn,ipifony,iobb,cloudjiffy>fra1-de,west1-us<elastx>jls-sto1,jls-sto2,jls-sto3<faststacks,massivegrid>paas>fr-1,lon-1,lon-2,ny-1,ny-2,sg-1<<saveincloud>jelastic,nordeste-idc<scaleforce>j<tsukaeru>jelastic<kinghost,uni5,krellian,barsy,memset,azurewebsites,azure-mobile,cloudapp,azurestaticapps>1,centralus,eastasia,eastus2,westeurope,westus2<dnsup,hicam,now-dns,ownip,vpndns,eating-organic,mydissent,myeffect,mymediapc,mypsx,mysecuritycamera,nhlfan,no-ip,pgafan,privatizehealthinsurance,bounceme,ddns,redirectme,serveblog,serveminecraft,sytes,cloudycluster,ovh>webpaas>*<hosting>*<<bar0,bar1,bar2,rackmaze,schokokeks,firewall-gateway,seidat,senseering,siteleaf,vps-host>jelastic>atl,njs,ric<<myspreadshop,srcf>soc,user<supabase,dsmynas,familyds,tailscale>beta<ts,torproject>pages<reserve-online,community-pro,meinforum,yandexcloud>storage,website<za<page>hlx,hlx3,translated,codeberg,pdns,plesk,prvcy,rocky,magnet<pl>beep,ecommerce-shop,shoparena,homesklep,sdscloud,unicloud,krasnik,leczna,lubartow,lublin,poniatowa,swidnik,co,art,gliwice,krakow,poznan,wroc,zakopane,myspreadshop,gda,gdansk,gdynia,med,sopot<eu>airkitapps,mycd,cloudns,dogado>jelastic<barsy,wellbeingzone,spdns,transurl>*<diskstation<ca>barsy,awdev>*<co,blogspot,no-ip,myspreadshop<estate>compute>*<<network>alces>*<co,arvo,azimuth,tlon<org>altervista,amune>tele<pimienta,poivron,potager,sweetpepper,ae,us,certmgr,cdn77>c,rsc<cdn77-secure>origin>ssl<<cloudns,duckdns,tunk,dyndns>go,home<blogdns,blogsite,boldlygoingnowhere,dnsalias,dnsdojo,doesntexist,dontexist,doomdns,dvrdns,dynalias,endofinternet,endoftheinternet,from-me,game-host,gotdns,hobby-site,homedns,homeftp,homelinux,homeunix,is-a-bruinsfan,is-a-candidate,is-a-celticsfan,is-a-chef,is-a-geek,is-a-knight,is-a-linux-user,is-a-patsfan,is-a-soxfan,is-found,is-lost,is-saved,is-very-bad,is-very-evil,is-very-good,is-very-nice,is-very-sweet,isa-geek,kicks-ass,misconfused,podzone,readmyblog,selfip,sellsyourhome,servebbs,serveftp,servegame,stuff-4-sale,webhop,ddnss,accesscam,camdvr,freeddns,mywire,webredirect,eu>al,asso,at,au,be,bg,ca,cd,ch,cn,cy,cz,de,dk,edu,ee,es,fi,fr,gr,hr,hu,ie,il,in,int,is,it,jp,kr,lt,lu,lv,mc,me,mk,mt,my,net,ng,nl,no,nz,paris,pl,pt,q-a,ro,ru,se,si,sk,tr,uk,us<twmail,fedorainfracloud,fedorapeople,fedoraproject>cloud,os>app<stg>os>app<<<freedesktop,hepforge,in-dsl,in-vpn,js,barsy,mayfirst,mozilla-iot,bmoattachments,dynserv,now-dns,cable-modem,collegefan,couchpotatofries,mlbfan,mysecuritycamera,nflfan,read-books,ufcfan,hopto,myftp,no-ip,zapto,httpbin,pubtls,my-firewall,myfirewall,spdns,small-web,dsmynas,familyds,teckids>s3<tuxfamily,diskstation,hk,wmflabs,toolforge,wmcloud,za<cn>com>amazonaws>compute>*<eb>cn-north-1,cn-northwest-1<elb>*<cn-north-1>s3<<<instantcloud,quickconnect>direct<<io>apigee,b-data,backplaneapp,banzaicloud>app,backyards>*<<bitbucket,bluebite,boxfuse,browsersafetymark,bigv>uk0<cleverapps,dappnode>dyndns<dedyn,drud,definima,fh-muenster,shw,forgerock>id<ghost,github,gitlab,lolipop,hasura-app,hostyhosting,moonscale>*<beebyte>paas<beebyteapp>sekd1<jele,unispace>cloud-fr1<webthings,loginline,barsy,azurecontainer>*<ngrok,nodeart>stage<nid,pantheonsite,dyn53,pstmn>mock<protonet,qoto,qcx>sys>*<<vaporcloud,vbrplsbx>g<on-k3s>*<on-rio>*<readthedocs,resindevice,resinstaging>devices<hzc,sandcats,shiftcrypto,shiftedit,mo-siemens,musician,lair>apps<stolos>*<spacekit,utwente,s5y>*<edugit,telebit,thingdust>dev>cust,reservd<disrec>cust,reservd<prod>cust<testing>cust,reservd<<tickets,upli,2038,wedeploy,editorx,basicserver,virtualserver<jp>ne>aseinet>user<gehirn<buyshop,fashionstore,handcrafted,kawaiishop,supersale,theshop,usercontent,angry,babyblue,babymilk,backdrop,bambina,bitter,blush,boo,boy,boyfriend,but,candypop,capoo,catfood,cheap,chicappa,chillout,chips,chowder,chu,ciao,cocotte,coolblog,cranky,cutegirl,daa,deca,deci,digick,egoism,fakefur,fem,flier,floppy,fool,frenchkiss,girlfriend,girly,gloomy,gonna,greater,hacca,heavy,her,hiho,hippy,holy,hungry,icurus,itigo,jellybean,kikirara,kill,kilo,kuron,littlestar,lolipopmc,lolitapunk,lomo,lovepop,lovesick,main,mods,mond,mongolian,moo,namaste,nikita,nobushi,noor,oops,parallel,parasite,pecori,peewee,penne,pepper,perma,pigboat,pinoko,punyu,pupu,pussycat,pya,raindrop,readymade,sadist,schoolbus,secret,staba,stripper,sub,sunnyday,thick,tonkotsu,under,upper,velvet,verse,versus,vivian,watson,weblike,whitesnow,zombie,blogspot<vc>gv>d<0e<eus>party>user<<ws>advisor>*<cloud66,dyndns,mypets<ba>rs,blogspot<cloud>banzai>*<elementor,encoway>eu<statics>*<ravendb,axarnet>es-1<diadem,jelastic>vip<jele,jenv-aruba>aruba>eur>it1<<it1<keliweb>cs<oxa>tn,uk<primetel>uk<reclaim>ca,uk,us<trendhosting>ch,de<jotelulu,kuleuven,linkyard,magentosite>*<perspecta,vapor,on-rancher>*<scw>baremetal>fr-par-1,fr-par-2,nl-ams-1<fr-par>fnc>functions<k8s>nodes<s3,s3-website,whm<instances>priv,pub<k8s,nl-ams>k8s>nodes<s3,s3-website,whm<pl-waw>k8s>nodes<s3,s3-website<scalebook,smartlabeling<sensiosite>*<trafficplex,urown,voorloper<ec>base,official<shop>base,hoplix,barsy<app>beget>*<clerk,clerkstage,wnext,platform0,deta,ondigitalocean,encr,edgecompute,fireweb,onflashdrive,framer,run>a<web,hasura,loginline,messerli,netlify,developer>*<noop,northflank>*<telebit,typedream,vercel,bookonline<la>bnr,c<je>of<ch>square7,blogspot,flow>ae>alp1<appengine<linkyard-cloud,dnsking,gotdns,myspreadshop,firenet>*,svc>*<<12hp,2ix,4lima,lima-city<de>bplaced,square7,com,cosidns>dyn<dynamisches-dns,dnsupdater,internet-dns,l-o-g-i-n,dnshome,fuettertdasnetz,isteingeek,istmein,lebtimnetz,leitungsen,traeumtgerade,ddnss>dyn,dyndns<dyndns1,dyn-ip24,home-webserver>dyn<myhome-server,frusky>*<goip,blogspot,xn--gnstigbestellen-zvb,xn--gnstigliefern-wob,hs-heilbronn>it>pages<<dyn-berlin,in-berlin,in-brb,in-butter,in-dsl,in-vpn,iservschule,mein-iserv,schulplattform,schulserver,test-iserv,keymachine,git-repos,lcube-server,svn-repos,barsy,logoip,firewall-gateway,my-gateway,my-router,spdns,speedpartner>customer<myspreadshop,taifun-dns,12hp,2ix,4lima,lima-city,dd-dns,dray-dns,draydns,dyn-vpn,dynvpn,mein-vigor,my-vigor,my-wan,syno-ds,synology-diskstation,synology-ds,uberspace>*<virtualuser,virtual-user,community-pro,diskussionsbereich<rs>brendly>shop<blogspot,ua,ox<uk>co>bytemark>dh,vm<blogspot,layershift>j<barsy,barsyonline,retrosnub>cust<nh-serv,no-ip,wellbeingzone,adimo,myspreadshop,gwiddle<conn,copro,hosp,independent-commission,independent-inquest,independent-inquiry,independent-panel,independent-review,public-inquiry,royal-commission,gov>campaign,service,api,homeoffice<pymnt,org>glug,lug,lugs,affinitylottery,raffleentry,weeklylottery<barsy<ac>drr<ai>uwu<co>carrd,crd,otap>*<com>blogspot<leadpages,lpages,mypi,n4t,repl>id<supabase<mp>ju<se>com,blogspot,conf,iopsys,itcouldbewor,myspreadshop,paba>su<<bz>za,gsj<in>web,cloudns,blogspot,barsy,supabase<basketball>aus,nz<am>radio,blogspot,neko,nyaa<fm>radio<group>discourse<team>discourse,jelastic<dev>lcl>*<lclstage>*<stg>*<stgstage>*<pages,workers,curv,deno,deno-staging,deta,fly,githubpreview,gateway>*<iserv,localcert>user>*<<loginline,mediatech,platter-app,shiftcrypto,vercel,webhare>*<<me>c66,daplie>localhost<edgestack,filegear,filegear-au,filegear-de,filegear-gb,filegear-ie,filegear-jp,filegear-sg,glitch,ravendb,lohmus,barsy,mcpe,mcdir,soundcast,tcp4,brasilia,ddns,dnsfor,hopto,loginto,noip,webhop,vp4,diskstation,dscloud,i234,myds,synology,tbits,transip>site<wedeploy,yombo,nohost<zone>cloud66,hs,triton>*<lima<host>cloudaccess,freesite,fastvps,myfast,tempurl,wpmudev,jele,mircloud,pcloud,half<site>cloudera>*<cyon,fnwk,folionetwork,fastvps,jele,lelux,loginline,barsy,mintere,omniwe,opensocial,platformsh>*<tst>*<byen,srht,novecore<cz>co,realm,e4,blogspot,metacentrum>cloud>*<custom<muni>cloud>flt,usr<<<asia>cloudns<biz>cloudns,jozi,dyndns,for-better,for-more,for-some,for-the,selfip,webhop,orx,mmafan,myftp,no-ip,dscloud<club>cloudns,jele,barsy,pony<cc>cloudns,ftpaccess,game-server,myphotos,scrapping,twmail,csx,fantasyleague,spawn>instances<<info>cloudns,dynamic-dns,dyndns,barrel-of-knowledge,barrell-of-knowledge,for-our,groks-the,groks-this,here-for-more,knowsitall,selfip,webhop,barsy,mayfirst,forumz,nsupdate,dvrcam,ilovecollege,no-ip,dnsupdate,v-info<pro>cloudns,dnstrace>bci<barsy<pw>cloudns,x443<gdn>cnpy<nl>co,hosting-cluster,blogspot,gov,khplay,myspreadshop,transurl>*<cistron,demon<no>co,blogspot,myspreadshop<be>webhosting,blogspot,interhostsolutions>cloud<kuleuven>ezproxy<myspreadshop,transurl>*<<ru>ac,edu,gov,int,mil,test,eurodir,adygeya,bashkiria,bir,cbg,com,dagestan,grozny,kalmykia,kustanai,marine,mordovia,msk,mytis,nalchik,nov,pyatigorsk,spb,vladikavkaz,vladimir,blogspot,na4u,mircloud,regruhosting>jelastic<myjino>hosting>*<landing>*<spectrum>*<vps>*<<cldmail>hb<mcdir>vps<mcpre,net,org,pp,lk3,ras<is>cupcake,blogspot<link>cyon,mypep,dweb>*<<dk>biz,co,firm,reg,store,blogspot,myspreadshop<earth>dapps>*,bzz>*<<<id>my>rss>*<<flap,co>blogspot<forte<solutions>diher>*<<th>online,shop<sh>bip,hashbang,platform>bc,ent,eu,us<now,vxl,wedeploy<fi>dy,blogspot,xn--hkkinen-5wa,iki,cloudplatform>fi<datacenter>demo,paas<kapsi,myspreadshop<tv>dyndns,better-than,on-the-web,worse-than<cx>ath,info<name>her>forgot<his>forgot<<nu>merseine,mine,shacknet,enterprisecloud<rocks>myddns,lima-city,webspace<xyz>blogsite,localzone,crafting,zapto,telebit>*<<online>eero,eero-stage,barsy<cool>elementor,de<fr>en-root,fbx-os,fbxos,freebox-os,freeboxos,blogspot,goupile,on-web,chirurgiens-dentistes-en-france,dedibox,myspreadshop,ynh<one>onred>staging<for,under,service,homelink<tw>com>mymailer<url,blogspot<su>abkhazia,adygeya,aktyubinsk,arkhangelsk,armenia,ashgabad,azerbaijan,balashov,bashkiria,bryansk,bukhara,chimkent,dagestan,east-kazakhstan,exnet,georgia,grozny,ivanovo,jambyl,kalmykia,kaluga,karacol,karaganda,karelia,khakassia,krasnodar,kurgan,kustanai,lenug,mangyshlak,mordovia,msk,murmansk,nalchik,navoi,north-kazakhstan,nov,obninsk,penza,pokrovsk,sochi,spb,tashkent,termez,togliatti,troitsk,tselinograd,tula,tuva,vladikavkaz,vladimir,vologda<space>myfast,uber,xs4all<il>co>ravpage,blogspot,tabitorder<<at>funkfeuer>wien<futurecms>*,ex>*<in>*<<futurehosting,futuremailing,ortsinfo>ex>*<kunden>*<<co>blogspot<biz,info,priv,myspreadshop,12hp,2ix,4lima,lima-city<ms>lab,minisite<si>gitapp,gitpage,blogspot<community>nog,ravendb,myforum<ro>co,shop,blogspot,barsy<digital>cloudapps>london<<im>ro<goog>cloud,translate,usercontent>*<<ae>blogspot<al>blogspot<bg>blogspot,barsy<bj>blogspot<cf>blogspot<cl>blogspot<ke>co>blogspot<<nz>co>blogspot<<za>co>blogspot<<ar>com>blogspot<<au>com>blogspot,cloudlets>mel<myspreadshop<<br>com>blogspot,virtualcloud>scale>users<<<leg>ac,al,am,ap,ba,ce,df,es,go,ma,mg,ms,mt,pa,pb,pe,pi,pr,rj,rn,ro,rr,rs,sc,se,sp,to<<by>com>blogspot<mycloud,mediatech<cy>com>blogspot,scaleforce>j<<<ee>com>blogspot<<eg>com>blogspot<<es>com>blogspot<myspreadshop<mt>com>blogspot<<ng>com>blogspot<col,firm,gen,ltd,ngo<tr>com>blogspot<<uy>com>blogspot<<cv>blogspot<gr>blogspot<hk>blogspot,secaas,ltd,inc<hr>blogspot,free<hu>blogspot<ie>blogspot,myspreadshop<it>blogspot,ibxos,iliadboxos,neen>jc<tim>open>jelastic>cloud<<<16-b,32-b,64-b,myspreadshop,syncloud<kr>blogspot<li>blogspot,caa<lt>blogspot<lu>blogspot<md>blogspot,at,de,jp,to<mk>blogspot<mr>blogspot<mx>blogspot<my>blogspot<pe>blogspot<pt>blogspot<qa>blogspot<re>blogspot<sg>blogspot,enscaled<sk>blogspot<sn>blogspot<td>blogspot<ug>blogspot<vn>blogspot<ci>fin,nl<run>hs,development,ravendb,servers,build>*<code>*<database>*<migration>*<onporter,repl<gl>biz,xx<scot>edu,gov>service<<so>sch<kz>jcloud,kazteleport>upaas<<tn>orangecloud<gg>kaas,cya,panel>daemon<<systems>knightpoint<events>koobin,co<krd>co,edu<business>co<education>co<financial>co<place>co<technology>co<bs>we<services>loginline<menu>barsy<mobi>barsy,dscloud<pub>barsy<support>barsy<vu>cn,blog,dev,me<health>hra<casa>nabu>ui<<fashion>of<london>in,of<marketing>from,with<men>for,repair<mom>and,for<sale>for<win>that<work>from,to<news>noticeable<top>now-dns,ntdll<ovh>nerdpol<mn>nyc<lol>omg<hosting>opencraft<orange>tech<pm>own,name<codes>owo>*<<lc>oy<bn>co<today>prequalifyme<builders>cloudsite<edu>rit>git-pages<<xn--p1acf>xn--90amc,xn--j1aef,xn--j1ael8b,xn--h1ahn,xn--j1adp,xn--c1avg,xn--80aaa0cvac,xn--h1aliz,xn--90a1af,xn--41a<store>sellfy,shopware,storebase<land>static>dev,sites<<farm>storj<pictures>1337<rip>clan<tf>sch<wf>biz,sch<yt>org<management>router<ax>be,cat,es,eu,gg,mc,us,xy<gp>app<gt>blog,de,to<gy>be<hn>cc<kg>blog,io,jp,tv,uk,us<ls>de<porn>indie<tc>ch,me,we<vg>at<academy>official<faith>ybo<party>ybo<review>ybo<science>ybo<trade>ybo<st>noho<design>bss";
+var private_default =
+  "ua>cc,inf,ltd,cx,biz,co,pp,v<to>611,oya,rdv,vpnplus,quickconnect>direct<nyan<us>graphox,cloudns,drud,is-by,land-4-sale,stuff-4-sale,enscaled>phx<mircloud,freeddns,golffan,noip,pointto,platterp,de>lib<<com>devcdnaccesso>*<adobeaemcloud>dev>*<<airkitapps,airkitapps-au,aivencloud,kasserver,amazonaws>compute>*<compute-1>*<us-east-1>dualstack>s3<<elb>*<s3,s3-ap-northeast-1,s3-ap-northeast-2,s3-ap-south-1,s3-ap-southeast-1,s3-ap-southeast-2,s3-ca-central-1,s3-eu-central-1,s3-eu-west-1,s3-eu-west-2,s3-eu-west-3,s3-external-1,s3-fips-us-gov-west-1,s3-sa-east-1,s3-us-gov-west-1,s3-us-east-2,s3-us-west-1,s3-us-west-2,ap-northeast-2>s3,dualstack>s3<s3-website<ap-south-1>s3,dualstack>s3<s3-website<ca-central-1>s3,dualstack>s3<s3-website<eu-central-1>s3,dualstack>s3<s3-website<eu-west-2>s3,dualstack>s3<s3-website<eu-west-3>s3,dualstack>s3<s3-website<us-east-2>s3,dualstack>s3<s3-website<ap-northeast-1>dualstack>s3<<ap-southeast-1>dualstack>s3<<ap-southeast-2>dualstack>s3<<eu-west-1>dualstack>s3<<sa-east-1>dualstack>s3<<s3-website-us-east-1,s3-website-us-west-1,s3-website-us-west-2,s3-website-ap-northeast-1,s3-website-ap-southeast-1,s3-website-ap-southeast-2,s3-website-eu-west-1,s3-website-sa-east-1<elasticbeanstalk>ap-northeast-1,ap-northeast-2,ap-northeast-3,ap-south-1,ap-southeast-1,ap-southeast-2,ca-central-1,eu-central-1,eu-west-1,eu-west-2,eu-west-3,sa-east-1,us-east-1,us-east-2,us-gov-west-1,us-west-1,us-west-2<awsglobalaccelerator,siiites,appspacehosted,appspaceusercontent,on-aptible,myasustor,balena-devices,betainabox,boutir,bplaced,cafjs,br,cn,de,eu,jpn,mex,ru,sa,uk,us,za,ar,hu,kr,no,qc,uy,africa,gr,co,jdevcloud,wpdevcloud,cloudcontrolled,cloudcontrolapp,trycloudflare,customer-oci>*,oci>*<ocp>*<ocs>*<<dattolocal,dattorelay,dattoweb,mydatto,builtwithdark,datadetect>demo,instance<ddns5,discordsays,discordsez,drayddns,dreamhosters,mydrobo,dyndns-at-home,dyndns-at-work,dyndns-blog,dyndns-free,dyndns-home,dyndns-ip,dyndns-mail,dyndns-office,dyndns-pics,dyndns-remote,dyndns-server,dyndns-web,dyndns-wiki,dyndns-work,blogdns,cechire,dnsalias,dnsdojo,doesntexist,dontexist,doomdns,dyn-o-saur,dynalias,est-a-la-maison,est-a-la-masion,est-le-patron,est-mon-blogueur,from-ak,from-al,from-ar,from-ca,from-ct,from-dc,from-de,from-fl,from-ga,from-hi,from-ia,from-id,from-il,from-in,from-ks,from-ky,from-ma,from-md,from-mi,from-mn,from-mo,from-ms,from-mt,from-nc,from-nd,from-ne,from-nh,from-nj,from-nm,from-nv,from-oh,from-ok,from-or,from-pa,from-pr,from-ri,from-sc,from-sd,from-tn,from-tx,from-ut,from-va,from-vt,from-wa,from-wi,from-wv,from-wy,getmyip,gotdns,hobby-site,homelinux,homeunix,iamallama,is-a-anarchist,is-a-blogger,is-a-bookkeeper,is-a-bulls-fan,is-a-caterer,is-a-chef,is-a-conservative,is-a-cpa,is-a-cubicle-slave,is-a-democrat,is-a-designer,is-a-doctor,is-a-financialadvisor,is-a-geek,is-a-green,is-a-guru,is-a-hard-worker,is-a-hunter,is-a-landscaper,is-a-lawyer,is-a-liberal,is-a-libertarian,is-a-llama,is-a-musician,is-a-nascarfan,is-a-nurse,is-a-painter,is-a-personaltrainer,is-a-photographer,is-a-player,is-a-republican,is-a-rockstar,is-a-socialist,is-a-student,is-a-teacher,is-a-techie,is-a-therapist,is-an-accountant,is-an-actor,is-an-actress,is-an-anarchist,is-an-artist,is-an-engineer,is-an-entertainer,is-certified,is-gone,is-into-anime,is-into-cars,is-into-cartoons,is-into-games,is-leet,is-not-certified,is-slick,is-uberleet,is-with-theband,isa-geek,isa-hockeynut,issmarterthanyou,likes-pie,likescandy,neat-url,saves-the-whales,selfip,sells-for-less,sells-for-u,servebbs,simple-url,space-to-rent,teaches-yoga,writesthisblog,digitaloceanspaces>*<ddnsfree,ddnsgeek,giize,gleeze,kozow,loseyourip,ooguy,theworkpc,mytuleap,tuleap-partners,encoreapi,evennode>eu-1,eu-2,eu-3,eu-4,us-1,us-2,us-3,us-4<onfabrica,fbsbx>apps<fastly-terrarium,fastvps-server,mydobiss,firebaseapp,fldrv,forgeblocks,framercanvas,freebox-os,freeboxos,freemyip,gentapps,gentlentapis,githubusercontent,0emm>*<appspot>r>*<<codespot,googleapis,googlecode,pagespeedmobilizer,publishproxy,withgoogle,withyoutube,blogspot,awsmppl,herokuapp,herokussl,myravendb,impertrixcdn,impertrix,smushcdn,wphostedmail,wpmucdn,pixolino,amscompute,clicketcloud,dopaas,hidora,hosted-by-previder>paas<hosteur>rag-cloud,rag-cloud-ch<ik-server>jcloud,jcloud-ver-jpc<jelastic>demo<kilatiron,massivegrid>paas<wafaicloud>jed,lon,ryd<joyent>cns>*<<ktistory,lpusercontent,lmpm>app<linode>members,nodebalancer>*<<linodeobjects>*<linodeusercontent>ip<barsycenter,barsyonline,mazeplay,miniserver,meteorapp>eu<hostedpi,mythic-beasts>customer,caracal,fentiger,lynx,ocelot,oncilla,onza,sphinx,vs,x,yali<nospamproxy>cloud<4u,nfshost,001www,ddnslive,myiphost,blogsyte,ciscofreak,damnserver,ditchyourip,dnsiskinky,dynns,geekgalaxy,health-carereform,homesecuritymac,homesecuritypc,myactivedirectory,mysecuritycamera,net-freaks,onthewifi,point2this,quicksytes,securitytactics,serveexchange,servehumour,servep2p,servesarcasm,stufftoread,unusualperson,workisboring,3utilities,ddnsking,myvnc,servebeer,servecounterstrike,serveftp,servegame,servehalflife,servehttp,serveirc,servemp3,servepics,servequake,observableusercontent>static<orsites,operaunite,authgear-staging,authgearapps,skygearapp,outsystemscloud,ownprovider,pgfog,pagefrontapp,pagexl,paywhirl>*<gotpantheon,platter-app,pleskns,postman-echo,prgmr>xen<pythonanywhere>eu<qualifioapp,qbuser,qa2,dev-myqnapcloud,alpha-myqnapcloud,myqnapcloud,quipelements>*<rackmaze,rhcloud,render>app<onrender,code>builder>*<dev-builder>*<stg-builder>*<<logoip,scrysec,firewall-gateway,myshopblocks,myshopify,shopitsite,1kapp,appchizi,applinzi,sinaapp,vipsinaapp,bounty-full>alpha,beta<try-snowplow,stackhero-network,playstation-cloud,myspreadshop,stdlib>api<temp-dns,dsmynas,familyds,tb-hosting>site<reservd,thingdustdata,bloxcms,townnews-staging,typeform>pro<hk,vultrobjects>*<wafflecell,reserve-online,hotelwithflight,remotewd,wiardweb>pages<messwithdns,woltlab-demo,wpenginepowered>js<wixsite,xnbay>u2,u2-local<yolasite<live>hlx<net>adobeaemcloud,alwaysdata,cloudfront,t3l3p0rt,appudo,atlassian-dev>prod>cdn<<myfritz,onavstack,shopselect,blackbaudcdn,boomla,bplaced,square7,gb,hu,jp,se,uk,in,clickrising,cloudaccess,cdn77-ssl,cdn77>r<feste-ip,knx-server,static-access,cryptonomic>*<dattolocal,mydatto,debian,bitbridge,at-band-camp,blogdns,broke-it,buyshouses,dnsalias,dnsdojo,does-it,dontexist,dynalias,dynathome,endofinternet,from-az,from-co,from-la,from-ny,gets-it,ham-radio-op,homeftp,homeip,homelinux,homeunix,in-the-band,is-a-chef,is-a-geek,isa-geek,kicks-ass,office-on-the,podzone,scrapper-site,selfip,sells-it,servebbs,serveftp,thruhere,webhop,definima,casacam,dynu,dynv6,twmail,ru,channelsdvr>u<fastlylb>map<fastly>freetls,map,prod>a,global<ssl>a,b,global<<edgeapp,flynnhosting,cdn-edges,heteml,cloudfunctions,moonscale,in-dsl,in-vpn,ipifony,iobb,cloudjiffy>fra1-de,west1-us<elastx>jls-sto1,jls-sto2,jls-sto3<faststacks,massivegrid>paas>fr-1,lon-1,lon-2,ny-1,ny-2,sg-1<<saveincloud>jelastic,nordeste-idc<scaleforce>j<tsukaeru>jelastic<kinghost,uni5,krellian,barsy,memset,azurewebsites,azure-mobile,cloudapp,azurestaticapps>1,centralus,eastasia,eastus2,westeurope,westus2<dnsup,hicam,now-dns,ownip,vpndns,eating-organic,mydissent,myeffect,mymediapc,mypsx,mysecuritycamera,nhlfan,no-ip,pgafan,privatizehealthinsurance,bounceme,ddns,redirectme,serveblog,serveminecraft,sytes,cloudycluster,ovh>webpaas>*<hosting>*<<bar0,bar1,bar2,rackmaze,schokokeks,firewall-gateway,seidat,senseering,siteleaf,vps-host>jelastic>atl,njs,ric<<myspreadshop,srcf>soc,user<supabase,dsmynas,familyds,tailscale>beta<ts,torproject>pages<reserve-online,community-pro,meinforum,yandexcloud>storage,website<za<page>hlx,hlx3,translated,codeberg,pdns,plesk,prvcy,rocky,magnet<pl>beep,ecommerce-shop,shoparena,homesklep,sdscloud,unicloud,krasnik,leczna,lubartow,lublin,poniatowa,swidnik,co,art,gliwice,krakow,poznan,wroc,zakopane,myspreadshop,gda,gdansk,gdynia,med,sopot<eu>airkitapps,mycd,cloudns,dogado>jelastic<barsy,wellbeingzone,spdns,transurl>*<diskstation<ca>barsy,awdev>*<co,blogspot,no-ip,myspreadshop<estate>compute>*<<network>alces>*<co,arvo,azimuth,tlon<org>altervista,amune>tele<pimienta,poivron,potager,sweetpepper,ae,us,certmgr,cdn77>c,rsc<cdn77-secure>origin>ssl<<cloudns,duckdns,tunk,dyndns>go,home<blogdns,blogsite,boldlygoingnowhere,dnsalias,dnsdojo,doesntexist,dontexist,doomdns,dvrdns,dynalias,endofinternet,endoftheinternet,from-me,game-host,gotdns,hobby-site,homedns,homeftp,homelinux,homeunix,is-a-bruinsfan,is-a-candidate,is-a-celticsfan,is-a-chef,is-a-geek,is-a-knight,is-a-linux-user,is-a-patsfan,is-a-soxfan,is-found,is-lost,is-saved,is-very-bad,is-very-evil,is-very-good,is-very-nice,is-very-sweet,isa-geek,kicks-ass,misconfused,podzone,readmyblog,selfip,sellsyourhome,servebbs,serveftp,servegame,stuff-4-sale,webhop,ddnss,accesscam,camdvr,freeddns,mywire,webredirect,eu>al,asso,at,au,be,bg,ca,cd,ch,cn,cy,cz,de,dk,edu,ee,es,fi,fr,gr,hr,hu,ie,il,in,int,is,it,jp,kr,lt,lu,lv,mc,me,mk,mt,my,net,ng,nl,no,nz,paris,pl,pt,q-a,ro,ru,se,si,sk,tr,uk,us<twmail,fedorainfracloud,fedorapeople,fedoraproject>cloud,os>app<stg>os>app<<<freedesktop,hepforge,in-dsl,in-vpn,js,barsy,mayfirst,mozilla-iot,bmoattachments,dynserv,now-dns,cable-modem,collegefan,couchpotatofries,mlbfan,mysecuritycamera,nflfan,read-books,ufcfan,hopto,myftp,no-ip,zapto,httpbin,pubtls,my-firewall,myfirewall,spdns,small-web,dsmynas,familyds,teckids>s3<tuxfamily,diskstation,hk,wmflabs,toolforge,wmcloud,za<cn>com>amazonaws>compute>*<eb>cn-north-1,cn-northwest-1<elb>*<cn-north-1>s3<<<instantcloud,quickconnect>direct<<io>apigee,b-data,backplaneapp,banzaicloud>app,backyards>*<<bitbucket,bluebite,boxfuse,browsersafetymark,bigv>uk0<cleverapps,dappnode>dyndns<dedyn,drud,definima,fh-muenster,shw,forgerock>id<ghost,github,gitlab,lolipop,hasura-app,hostyhosting,moonscale>*<beebyte>paas<beebyteapp>sekd1<jele,unispace>cloud-fr1<webthings,loginline,barsy,azurecontainer>*<ngrok,nodeart>stage<nid,pantheonsite,dyn53,pstmn>mock<protonet,qoto,qcx>sys>*<<vaporcloud,vbrplsbx>g<on-k3s>*<on-rio>*<readthedocs,resindevice,resinstaging>devices<hzc,sandcats,shiftcrypto,shiftedit,mo-siemens,musician,lair>apps<stolos>*<spacekit,utwente,s5y>*<edugit,telebit,thingdust>dev>cust,reservd<disrec>cust,reservd<prod>cust<testing>cust,reservd<<tickets,upli,2038,wedeploy,editorx,basicserver,virtualserver<jp>ne>aseinet>user<gehirn<buyshop,fashionstore,handcrafted,kawaiishop,supersale,theshop,usercontent,angry,babyblue,babymilk,backdrop,bambina,bitter,blush,boo,boy,boyfriend,but,candypop,capoo,catfood,cheap,chicappa,chillout,chips,chowder,chu,ciao,cocotte,coolblog,cranky,cutegirl,daa,deca,deci,digick,egoism,fakefur,fem,flier,floppy,fool,frenchkiss,girlfriend,girly,gloomy,gonna,greater,hacca,heavy,her,hiho,hippy,holy,hungry,icurus,itigo,jellybean,kikirara,kill,kilo,kuron,littlestar,lolipopmc,lolitapunk,lomo,lovepop,lovesick,main,mods,mond,mongolian,moo,namaste,nikita,nobushi,noor,oops,parallel,parasite,pecori,peewee,penne,pepper,perma,pigboat,pinoko,punyu,pupu,pussycat,pya,raindrop,readymade,sadist,schoolbus,secret,staba,stripper,sub,sunnyday,thick,tonkotsu,under,upper,velvet,verse,versus,vivian,watson,weblike,whitesnow,zombie,blogspot<vc>gv>d<0e<eus>party>user<<ws>advisor>*<cloud66,dyndns,mypets<ba>rs,blogspot<cloud>banzai>*<elementor,encoway>eu<statics>*<ravendb,axarnet>es-1<diadem,jelastic>vip<jele,jenv-aruba>aruba>eur>it1<<it1<keliweb>cs<oxa>tn,uk<primetel>uk<reclaim>ca,uk,us<trendhosting>ch,de<jotelulu,kuleuven,linkyard,magentosite>*<perspecta,vapor,on-rancher>*<scw>baremetal>fr-par-1,fr-par-2,nl-ams-1<fr-par>fnc>functions<k8s>nodes<s3,s3-website,whm<instances>priv,pub<k8s,nl-ams>k8s>nodes<s3,s3-website,whm<pl-waw>k8s>nodes<s3,s3-website<scalebook,smartlabeling<sensiosite>*<trafficplex,urown,voorloper<ec>base,official<shop>base,hoplix,barsy<app>beget>*<clerk,clerkstage,wnext,platform0,deta,ondigitalocean,encr,edgecompute,fireweb,onflashdrive,framer,run>a<web,hasura,loginline,messerli,netlify,developer>*<noop,northflank>*<telebit,typedream,vercel,bookonline<la>bnr,c<je>of<ch>square7,blogspot,flow>ae>alp1<appengine<linkyard-cloud,dnsking,gotdns,myspreadshop,firenet>*,svc>*<<12hp,2ix,4lima,lima-city<de>bplaced,square7,com,cosidns>dyn<dynamisches-dns,dnsupdater,internet-dns,l-o-g-i-n,dnshome,fuettertdasnetz,isteingeek,istmein,lebtimnetz,leitungsen,traeumtgerade,ddnss>dyn,dyndns<dyndns1,dyn-ip24,home-webserver>dyn<myhome-server,frusky>*<goip,blogspot,xn--gnstigbestellen-zvb,xn--gnstigliefern-wob,hs-heilbronn>it>pages<<dyn-berlin,in-berlin,in-brb,in-butter,in-dsl,in-vpn,iservschule,mein-iserv,schulplattform,schulserver,test-iserv,keymachine,git-repos,lcube-server,svn-repos,barsy,logoip,firewall-gateway,my-gateway,my-router,spdns,speedpartner>customer<myspreadshop,taifun-dns,12hp,2ix,4lima,lima-city,dd-dns,dray-dns,draydns,dyn-vpn,dynvpn,mein-vigor,my-vigor,my-wan,syno-ds,synology-diskstation,synology-ds,uberspace>*<virtualuser,virtual-user,community-pro,diskussionsbereich<rs>brendly>shop<blogspot,ua,ox<uk>co>bytemark>dh,vm<blogspot,layershift>j<barsy,barsyonline,retrosnub>cust<nh-serv,no-ip,wellbeingzone,adimo,myspreadshop,gwiddle<conn,copro,hosp,independent-commission,independent-inquest,independent-inquiry,independent-panel,independent-review,public-inquiry,royal-commission,gov>campaign,service,api,homeoffice<pymnt,org>glug,lug,lugs,affinitylottery,raffleentry,weeklylottery<barsy<ac>drr<ai>uwu<co>carrd,crd,otap>*<com>blogspot<leadpages,lpages,mypi,n4t,repl>id<supabase<mp>ju<se>com,blogspot,conf,iopsys,itcouldbewor,myspreadshop,paba>su<<bz>za,gsj<in>web,cloudns,blogspot,barsy,supabase<basketball>aus,nz<am>radio,blogspot,neko,nyaa<fm>radio<group>discourse<team>discourse,jelastic<dev>lcl>*<lclstage>*<stg>*<stgstage>*<pages,workers,curv,deno,deno-staging,deta,fly,githubpreview,gateway>*<iserv,localcert>user>*<<loginline,mediatech,platter-app,shiftcrypto,vercel,webhare>*<<me>c66,daplie>localhost<edgestack,filegear,filegear-au,filegear-de,filegear-gb,filegear-ie,filegear-jp,filegear-sg,glitch,ravendb,lohmus,barsy,mcpe,mcdir,soundcast,tcp4,brasilia,ddns,dnsfor,hopto,loginto,noip,webhop,vp4,diskstation,dscloud,i234,myds,synology,tbits,transip>site<wedeploy,yombo,nohost<zone>cloud66,hs,triton>*<lima<host>cloudaccess,freesite,fastvps,myfast,tempurl,wpmudev,jele,mircloud,pcloud,half<site>cloudera>*<cyon,fnwk,folionetwork,fastvps,jele,lelux,loginline,barsy,mintere,omniwe,opensocial,platformsh>*<tst>*<byen,srht,novecore<cz>co,realm,e4,blogspot,metacentrum>cloud>*<custom<muni>cloud>flt,usr<<<asia>cloudns<biz>cloudns,jozi,dyndns,for-better,for-more,for-some,for-the,selfip,webhop,orx,mmafan,myftp,no-ip,dscloud<club>cloudns,jele,barsy,pony<cc>cloudns,ftpaccess,game-server,myphotos,scrapping,twmail,csx,fantasyleague,spawn>instances<<info>cloudns,dynamic-dns,dyndns,barrel-of-knowledge,barrell-of-knowledge,for-our,groks-the,groks-this,here-for-more,knowsitall,selfip,webhop,barsy,mayfirst,forumz,nsupdate,dvrcam,ilovecollege,no-ip,dnsupdate,v-info<pro>cloudns,dnstrace>bci<barsy<pw>cloudns,x443<gdn>cnpy<nl>co,hosting-cluster,blogspot,gov,khplay,myspreadshop,transurl>*<cistron,demon<no>co,blogspot,myspreadshop<be>webhosting,blogspot,interhostsolutions>cloud<kuleuven>ezproxy<myspreadshop,transurl>*<<ru>ac,edu,gov,int,mil,test,eurodir,adygeya,bashkiria,bir,cbg,com,dagestan,grozny,kalmykia,kustanai,marine,mordovia,msk,mytis,nalchik,nov,pyatigorsk,spb,vladikavkaz,vladimir,blogspot,na4u,mircloud,regruhosting>jelastic<myjino>hosting>*<landing>*<spectrum>*<vps>*<<cldmail>hb<mcdir>vps<mcpre,net,org,pp,lk3,ras<is>cupcake,blogspot<link>cyon,mypep,dweb>*<<dk>biz,co,firm,reg,store,blogspot,myspreadshop<earth>dapps>*,bzz>*<<<id>my>rss>*<<flap,co>blogspot<forte<solutions>diher>*<<th>online,shop<sh>bip,hashbang,platform>bc,ent,eu,us<now,vxl,wedeploy<fi>dy,blogspot,xn--hkkinen-5wa,iki,cloudplatform>fi<datacenter>demo,paas<kapsi,myspreadshop<tv>dyndns,better-than,on-the-web,worse-than<cx>ath,info<name>her>forgot<his>forgot<<nu>merseine,mine,shacknet,enterprisecloud<rocks>myddns,lima-city,webspace<xyz>blogsite,localzone,crafting,zapto,telebit>*<<online>eero,eero-stage,barsy<cool>elementor,de<fr>en-root,fbx-os,fbxos,freebox-os,freeboxos,blogspot,goupile,on-web,chirurgiens-dentistes-en-france,dedibox,myspreadshop,ynh<one>onred>staging<for,under,service,homelink<tw>com>mymailer<url,blogspot<su>abkhazia,adygeya,aktyubinsk,arkhangelsk,armenia,ashgabad,azerbaijan,balashov,bashkiria,bryansk,bukhara,chimkent,dagestan,east-kazakhstan,exnet,georgia,grozny,ivanovo,jambyl,kalmykia,kaluga,karacol,karaganda,karelia,khakassia,krasnodar,kurgan,kustanai,lenug,mangyshlak,mordovia,msk,murmansk,nalchik,navoi,north-kazakhstan,nov,obninsk,penza,pokrovsk,sochi,spb,tashkent,termez,togliatti,troitsk,tselinograd,tula,tuva,vladikavkaz,vladimir,vologda<space>myfast,uber,xs4all<il>co>ravpage,blogspot,tabitorder<<at>funkfeuer>wien<futurecms>*,ex>*<in>*<<futurehosting,futuremailing,ortsinfo>ex>*<kunden>*<<co>blogspot<biz,info,priv,myspreadshop,12hp,2ix,4lima,lima-city<ms>lab,minisite<si>gitapp,gitpage,blogspot<community>nog,ravendb,myforum<ro>co,shop,blogspot,barsy<digital>cloudapps>london<<im>ro<goog>cloud,translate,usercontent>*<<ae>blogspot<al>blogspot<bg>blogspot,barsy<bj>blogspot<cf>blogspot<cl>blogspot<ke>co>blogspot<<nz>co>blogspot<<za>co>blogspot<<ar>com>blogspot<<au>com>blogspot,cloudlets>mel<myspreadshop<<br>com>blogspot,virtualcloud>scale>users<<<leg>ac,al,am,ap,ba,ce,df,es,go,ma,mg,ms,mt,pa,pb,pe,pi,pr,rj,rn,ro,rr,rs,sc,se,sp,to<<by>com>blogspot<mycloud,mediatech<cy>com>blogspot,scaleforce>j<<<ee>com>blogspot<<eg>com>blogspot<<es>com>blogspot<myspreadshop<mt>com>blogspot<<ng>com>blogspot<col,firm,gen,ltd,ngo<tr>com>blogspot<<uy>com>blogspot<<cv>blogspot<gr>blogspot<hk>blogspot,secaas,ltd,inc<hr>blogspot,free<hu>blogspot<ie>blogspot,myspreadshop<it>blogspot,ibxos,iliadboxos,neen>jc<tim>open>jelastic>cloud<<<16-b,32-b,64-b,myspreadshop,syncloud<kr>blogspot<li>blogspot,caa<lt>blogspot<lu>blogspot<md>blogspot,at,de,jp,to<mk>blogspot<mr>blogspot<mx>blogspot<my>blogspot<pe>blogspot<pt>blogspot<qa>blogspot<re>blogspot<sg>blogspot,enscaled<sk>blogspot<sn>blogspot<td>blogspot<ug>blogspot<vn>blogspot<ci>fin,nl<run>hs,development,ravendb,servers,build>*<code>*<database>*<migration>*<onporter,repl<gl>biz,xx<scot>edu,gov>service<<so>sch<kz>jcloud,kazteleport>upaas<<tn>orangecloud<gg>kaas,cya,panel>daemon<<systems>knightpoint<events>koobin,co<krd>co,edu<business>co<education>co<financial>co<place>co<technology>co<bs>we<services>loginline<menu>barsy<mobi>barsy,dscloud<pub>barsy<support>barsy<vu>cn,blog,dev,me<health>hra<casa>nabu>ui<<fashion>of<london>in,of<marketing>from,with<men>for,repair<mom>and,for<sale>for<win>that<work>from,to<news>noticeable<top>now-dns,ntdll<ovh>nerdpol<mn>nyc<lol>omg<hosting>opencraft<orange>tech<pm>own,name<codes>owo>*<<lc>oy<bn>co<today>prequalifyme<builders>cloudsite<edu>rit>git-pages<<xn--p1acf>xn--90amc,xn--j1aef,xn--j1ael8b,xn--h1ahn,xn--j1adp,xn--c1avg,xn--80aaa0cvac,xn--h1aliz,xn--90a1af,xn--41a<store>sellfy,shopware,storebase<land>static>dev,sites<<farm>storj<pictures>1337<rip>clan<tf>sch<wf>biz,sch<yt>org<management>router<ax>be,cat,es,eu,gg,mc,us,xy<gp>app<gt>blog,de,to<gy>be<hn>cc<kg>blog,io,jp,tv,uk,us<ls>de<porn>indie<tc>ch,me,we<vg>at<academy>official<faith>ybo<party>ybo<review>ybo<science>ybo<trade>ybo<st>noho<design>bss";
 
 // node_modules/parse-domain/build/trie/characters.js
 var UP = "<";
@@ -4370,8 +4973,12 @@ var lookUpTldsInTrie = (labels, trie) => {
 
 // node_modules/ip-regex/index.js
 var word = "[a-fA-F\\d:]";
-var boundry = (options) => options && options.includeBoundaries ? `(?:(?<=\\s|^)(?=${word})|(?<=${word})(?=\\s|$))` : "";
-var v4 = "(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)(?:\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)){3}";
+var boundry = (options) =>
+  options && options.includeBoundaries
+    ? `(?:(?<=\\s|^)(?=${word})|(?<=${word})(?=\\s|$))`
+    : "";
+var v4 =
+  "(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)(?:\\.(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]\\d|\\d)){3}";
 var v6segment = "[a-fA-F\\d]{1,4}";
 var v6 = `
 (?:
@@ -4384,13 +4991,28 @@ var v6 = `
 (?:${v6segment}:){1}(?:(?::${v6segment}){0,4}:${v4}|(?::${v6segment}){1,6}|:)| // 1::              1::3:4:5:6:7:8   1::8            1::3:4:5:6:7:1.2.3.4
 (?::(?:(?::${v6segment}){0,5}:${v4}|(?::${v6segment}){1,7}|:))             // ::2:3:4:5:6:7:8  ::2:3:4:5:6:7:8  ::8             ::1.2.3.4
 )(?:%[0-9a-zA-Z]{1,})?                                             // %eth0            %1
-`.replace(/\s*\/\/.*$/gm, "").replace(/\n/g, "").trim();
+`
+  .replace(/\s*\/\/.*$/gm, "")
+  .replace(/\n/g, "")
+  .trim();
 var v46Exact = new RegExp(`(?:^${v4}$)|(?:^${v6}$)`);
 var v4exact = new RegExp(`^${v4}$`);
 var v6exact = new RegExp(`^${v6}$`);
-var ipRegex = (options) => options && options.exact ? v46Exact : new RegExp(`(?:${boundry(options)}${v4}${boundry(options)})|(?:${boundry(options)}${v6}${boundry(options)})`, "g");
-ipRegex.v4 = (options) => options && options.exact ? v4exact : new RegExp(`${boundry(options)}${v4}${boundry(options)}`, "g");
-ipRegex.v6 = (options) => options && options.exact ? v6exact : new RegExp(`${boundry(options)}${v6}${boundry(options)}`, "g");
+var ipRegex = (options) =>
+  options && options.exact
+    ? v46Exact
+    : new RegExp(
+        `(?:${boundry(options)}${v4}${boundry(options)})|(?:${boundry(options)}${v6}${boundry(options)})`,
+        "g",
+      );
+ipRegex.v4 = (options) =>
+  options && options.exact
+    ? v4exact
+    : new RegExp(`${boundry(options)}${v4}${boundry(options)}`, "g");
+ipRegex.v6 = (options) =>
+  options && options.exact
+    ? v6exact
+    : new RegExp(`${boundry(options)}${v6}${boundry(options)}`, "g");
 var ip_regex_default = ipRegex;
 
 // node_modules/is-ip/index.js
@@ -4401,7 +5023,7 @@ function isIPv6(string) {
   return ip_regex_default.v6({ exact: true }).test(string);
 }
 function ipVersion(string) {
-  return isIP(string) ? isIPv6(string) ? 6 : 4 : void 0;
+  return isIP(string) ? (isIPv6(string) ? 6 : 4) : void 0;
 }
 
 // node_modules/parse-domain/build/sanitize.js
@@ -4411,12 +5033,12 @@ var LABEL_LENGTH_MAX = 63;
 var DOMAIN_LENGTH_MAX = 253;
 var textEncoder = new TextEncoder();
 var Validation;
-(function(Validation2) {
+(function (Validation2) {
   Validation2["Lax"] = "LAX";
   Validation2["Strict"] = "STRICT";
 })(Validation || (Validation = {}));
 var ValidationErrorType;
-(function(ValidationErrorType2) {
+(function (ValidationErrorType2) {
   ValidationErrorType2["NoHostname"] = "NO_HOSTNAME";
   ValidationErrorType2["DomainMaxLength"] = "DOMAIN_MAX_LENGTH";
   ValidationErrorType2["LabelMinLength"] = "LABEL_MIN_LENGTH";
@@ -4425,7 +5047,7 @@ var ValidationErrorType;
   ValidationErrorType2["LastLabelInvalid"] = "LAST_LABEL_INVALID";
 })(ValidationErrorType || (ValidationErrorType = {}));
 var SanitizationResultType;
-(function(SanitizationResultType2) {
+(function (SanitizationResultType2) {
   SanitizationResultType2["ValidIp"] = "VALID_IP";
   SanitizationResultType2["ValidDomain"] = "VALID_DOMAIN";
   SanitizationResultType2["Error"] = "ERROR";
@@ -4434,14 +5056,14 @@ var createNoHostnameError = (input) => {
   return {
     type: ValidationErrorType.NoHostname,
     message: `The given input ${String(input)} does not look like a hostname.`,
-    column: 1
+    column: 1,
   };
 };
 var createDomainMaxLengthError = (domain, length) => {
   return {
     type: ValidationErrorType.DomainMaxLength,
     message: `Domain "${domain}" is too long. Domain is ${length} octets long but should not be longer than ${DOMAIN_LENGTH_MAX}.`,
-    column: length
+    column: length,
   };
 };
 var createLabelMinLengthError = (label, column) => {
@@ -4449,7 +5071,7 @@ var createLabelMinLengthError = (label, column) => {
   return {
     type: ValidationErrorType.LabelMinLength,
     message: `Label "${label}" is too short. Label is ${length} octets long but should be at least ${LABEL_LENGTH_MIN}.`,
-    column
+    column,
   };
 };
 var createLabelMaxLengthError = (label, column) => {
@@ -4457,35 +5079,35 @@ var createLabelMaxLengthError = (label, column) => {
   return {
     type: ValidationErrorType.LabelMaxLength,
     message: `Label "${label}" is too long. Label is ${length} octets long but should not be longer than ${LABEL_LENGTH_MAX}.`,
-    column
+    column,
   };
 };
 var createLabelInvalidCharacterError = (label, invalidCharacter, column) => {
   return {
     type: ValidationErrorType.LabelInvalidCharacter,
     message: `Label "${label}" contains invalid character "${invalidCharacter}" at column ${column}.`,
-    column
+    column,
   };
 };
 var createLastLabelInvalidError = (label, column) => {
   return {
     type: ValidationErrorType.LabelInvalidCharacter,
     message: `Last label "${label}" must not be all-numeric.`,
-    column
+    column,
   };
 };
 var sanitize = (input, options = {}) => {
   if (typeof input !== "string") {
     return {
       type: SanitizationResultType.Error,
-      errors: [createNoHostnameError(input)]
+      errors: [createNoHostnameError(input)],
     };
   }
   if (input === "") {
     return {
       type: SanitizationResultType.ValidDomain,
       domain: input,
-      labels: []
+      labels: [],
     };
   }
   const inputTrimmedAsIp = input.replace(/^\[|]$/g, "");
@@ -4494,16 +5116,17 @@ var sanitize = (input, options = {}) => {
     return {
       type: SanitizationResultType.ValidIp,
       ip: inputTrimmedAsIp,
-      ipVersion: ipVersionOfInput
+      ipVersion: ipVersionOfInput,
     };
   }
   const lastChar = input.charAt(input.length - 1);
-  const canonicalInput = lastChar === LABEL_SEPARATOR ? input.slice(0, -1) : input;
+  const canonicalInput =
+    lastChar === LABEL_SEPARATOR ? input.slice(0, -1) : input;
   const octets = new TextEncoder().encode(canonicalInput);
   if (octets.length > DOMAIN_LENGTH_MAX) {
     return {
       type: SanitizationResultType.Error,
-      errors: [createDomainMaxLengthError(input, octets.length)]
+      errors: [createDomainMaxLengthError(input, octets.length)],
     };
   }
   const labels = canonicalInput.split(LABEL_SEPARATOR);
@@ -4512,13 +5135,13 @@ var sanitize = (input, options = {}) => {
   if (labelValidationErrors.length > 0) {
     return {
       type: SanitizationResultType.Error,
-      errors: labelValidationErrors
+      errors: labelValidationErrors,
     };
   }
   return {
     type: SanitizationResultType.ValidDomain,
     domain: input,
-    labels
+    labels,
   };
 };
 var validateLabels = {
@@ -4543,12 +5166,26 @@ var validateLabels = {
     for (const label of labels) {
       const invalidCharacter = /[^\da-z-]/i.exec(label);
       if (invalidCharacter) {
-        labelValidationErrors.push(createLabelInvalidCharacterError(label, invalidCharacter[0], invalidCharacter.index + 1));
+        labelValidationErrors.push(
+          createLabelInvalidCharacterError(
+            label,
+            invalidCharacter[0],
+            invalidCharacter.index + 1,
+          ),
+        );
       }
       if (label.startsWith("-")) {
-        labelValidationErrors.push(createLabelInvalidCharacterError(label, "-", column));
+        labelValidationErrors.push(
+          createLabelInvalidCharacterError(label, "-", column),
+        );
       } else if (label.endsWith("-")) {
-        labelValidationErrors.push(createLabelInvalidCharacterError(label, "-", column + label.length - 1));
+        labelValidationErrors.push(
+          createLabelInvalidCharacterError(
+            label,
+            "-",
+            column + label.length - 1,
+          ),
+        );
       }
       if (label.length < LABEL_LENGTH_MIN) {
         labelValidationErrors.push(createLabelMinLengthError(label, column));
@@ -4559,10 +5196,15 @@ var validateLabels = {
       lastLabel = label;
     }
     if (lastLabel !== void 0 && /[a-z-]/iu.test(lastLabel) === false) {
-      labelValidationErrors.push(createLastLabelInvalidError(lastLabel, column - lastLabel.length - LABEL_SEPARATOR.length));
+      labelValidationErrors.push(
+        createLastLabelInvalidError(
+          lastLabel,
+          column - lastLabel.length - LABEL_SEPARATOR.length,
+        ),
+      );
     }
     return labelValidationErrors;
-  }
+  },
 };
 
 // node_modules/parse-domain/build/trie/nodes.js
@@ -4571,7 +5213,7 @@ var NODE_TYPE_CHILD = Symbol("CHILD");
 var createRootNode = () => {
   return {
     type: NODE_TYPE_ROOT,
-    children: /* @__PURE__ */ new Map()
+    children: /* @__PURE__ */ new Map(),
   };
 };
 var createOrGetChild = (parent, label) => {
@@ -4581,7 +5223,7 @@ var createOrGetChild = (parent, label) => {
       type: NODE_TYPE_CHILD,
       label,
       children: /* @__PURE__ */ new Map(),
-      parent
+      parent,
     };
     parent.children.set(label, child);
   }
@@ -4617,7 +5259,9 @@ var parseTrie = (serializedTrie) => {
       }
       case UP: {
         if (parentNode.type === NODE_TYPE_ROOT) {
-          throw new Error(`Error in serialized trie at position ${i}: Cannot go up, current parent node is already root`);
+          throw new Error(
+            `Error in serialized trie at position ${i}: Cannot go up, current parent node is already root`,
+          );
         }
         addDomain();
         parentNode = parentNode.parent;
@@ -4638,10 +5282,10 @@ var RESERVED_TOP_LEVEL_DOMAINS = [
   "local",
   "example",
   "invalid",
-  "test"
+  "test",
 ];
 var ParseResultType;
-(function(ParseResultType2) {
+(function (ParseResultType2) {
   ParseResultType2["Invalid"] = "INVALID";
   ParseResultType2["Ip"] = "IP";
   ParseResultType2["Reserved"] = "RESERVED";
@@ -4655,7 +5299,7 @@ var splitLabelsIntoDomains = (labels, index) => {
   return {
     subDomains: labels.slice(0, Math.max(0, index)),
     domain: getAtIndex(labels, index),
-    topLevelDomains: labels.slice(index + 1)
+    topLevelDomains: labels.slice(index + 1),
   };
 };
 var parsedIcannTrie;
@@ -4666,52 +5310,79 @@ var parseDomain = (hostname, options) => {
     return {
       type: ParseResultType.Invalid,
       hostname,
-      errors: sanitizationResult.errors
+      errors: sanitizationResult.errors,
     };
   }
   if (sanitizationResult.type === SanitizationResultType.ValidIp) {
     return {
       type: ParseResultType.Ip,
       hostname: sanitizationResult.ip,
-      ipVersion: sanitizationResult.ipVersion
+      ipVersion: sanitizationResult.ipVersion,
     };
   }
   const { labels, domain } = sanitizationResult;
-  if (hostname === "" || RESERVED_TOP_LEVEL_DOMAINS.includes(labels[labels.length - 1])) {
+  if (
+    hostname === "" ||
+    RESERVED_TOP_LEVEL_DOMAINS.includes(labels[labels.length - 1])
+  ) {
     return {
       type: ParseResultType.Reserved,
       hostname: domain,
-      labels
+      labels,
     };
   }
-  parsedIcannTrie = parsedIcannTrie !== null && parsedIcannTrie !== void 0 ? parsedIcannTrie : parseTrie(icann_default);
-  parsedPrivateTrie = parsedPrivateTrie !== null && parsedPrivateTrie !== void 0 ? parsedPrivateTrie : parseTrie(private_default);
+  parsedIcannTrie =
+    parsedIcannTrie !== null && parsedIcannTrie !== void 0
+      ? parsedIcannTrie
+      : parseTrie(icann_default);
+  parsedPrivateTrie =
+    parsedPrivateTrie !== null && parsedPrivateTrie !== void 0
+      ? parsedPrivateTrie
+      : parseTrie(private_default);
   const icannTlds = lookUpTldsInTrie(labels, parsedIcannTrie);
   const privateTlds = lookUpTldsInTrie(labels, parsedPrivateTrie);
   if (icannTlds.length === 0 && privateTlds.length === 0) {
     return {
       type: ParseResultType.NotListed,
       hostname: domain,
-      labels
+      labels,
     };
   }
-  const indexOfPublicSuffixDomain = labels.length - Math.max(privateTlds.length, icannTlds.length) - 1;
+  const indexOfPublicSuffixDomain =
+    labels.length - Math.max(privateTlds.length, icannTlds.length) - 1;
   const indexOfIcannDomain = labels.length - icannTlds.length - 1;
-  return Object.assign({ type: ParseResultType.Listed, hostname: domain, labels, icann: splitLabelsIntoDomains(labels, indexOfIcannDomain) }, splitLabelsIntoDomains(labels, indexOfPublicSuffixDomain));
+  return Object.assign(
+    {
+      type: ParseResultType.Listed,
+      hostname: domain,
+      labels,
+      icann: splitLabelsIntoDomains(labels, indexOfIcannDomain),
+    },
+    splitLabelsIntoDomains(labels, indexOfPublicSuffixDomain),
+  );
 };
 
 // node_modules/parse-domain/build/from-url.js
 var urlPattern = /^[a-z][*+.a-z-]+:\/\//i;
-var invalidIpv6Pattern = /^([a-z][*+.a-z-]+:\/\/)([^[][^/?]*:[^/?]*:[^/?]*)(.*)/i;
+var invalidIpv6Pattern =
+  /^([a-z][*+.a-z-]+:\/\/)([^[][^/?]*:[^/?]*:[^/?]*)(.*)/i;
 var NO_HOSTNAME = Symbol("NO_HOSTNAME");
 var fromUrl = (urlLike) => {
   if (typeof URL !== "function") {
-    throw new Error("Looks like the new URL() constructor is not globally available in your environment. Please make sure to use a polyfill.");
+    throw new Error(
+      "Looks like the new URL() constructor is not globally available in your environment. Please make sure to use a polyfill.",
+    );
   }
   if (typeof urlLike !== "string") {
     return NO_HOSTNAME;
   }
-  let url = urlLike.startsWith("//") ? `http:${urlLike}` : urlLike.startsWith("/") ? urlLike : urlPattern.test(urlLike) ? urlLike : `http://${urlLike}`;
+  let url = urlLike.startsWith("//")
+    ? `http:${urlLike}`
+    : urlLike.startsWith("/")
+      ? urlLike
+      : urlPattern.test(urlLike)
+        ? urlLike
+        : `http://${urlLike}`;
   url = url.replace(invalidIpv6Pattern, "$1[$2]$3");
   try {
     return new URL(url).hostname;
@@ -4750,11 +5421,14 @@ var FileWriter = class {
     const fileLines = fileData.split("\n");
     if (!heading) {
       const startLine = this.getEndOfFrontmatter(file);
-      return this.writeAndOpenFile(file.path, this.positionDataWithNoHeader(fileData, clippedData, startLine));
+      return this.writeAndOpenFile(
+        file.path,
+        this.positionDataWithNoHeader(fileData, clippedData, startLine),
+      );
     } else {
       let insertSection = {
         firstLine: 0,
-        lastLine: 0
+        lastLine: 0,
       };
       try {
         insertSection = this.getEndAndBeginningOfHeading(file, heading);
@@ -4762,7 +5436,10 @@ var FileWriter = class {
         throw Error("Missing Expected Heading");
       }
       const preSectionContent = fileLines.slice(0, insertSection.firstLine);
-      let targetSection = fileLines.slice(insertSection.firstLine, insertSection.lastLine);
+      let targetSection = fileLines.slice(
+        insertSection.firstLine,
+        insertSection.lastLine,
+      );
       targetSection = this.positionDataWithHeader(targetSection, clippedData);
       let lines = [];
       if (insertSection.lastLine !== -1) {
@@ -4781,12 +5458,22 @@ var FileWriter = class {
     } else {
       const parts = outputFileName.split("/");
       const dir = parts.slice(0, parts.length - 1).join("/");
-      if (parts.length > 1 && !(this.app.vault.getAbstractFileByPath(dir) instanceof import_obsidian2.TFolder)) {
+      if (
+        parts.length > 1 &&
+        !(
+          this.app.vault.getAbstractFileByPath(dir) instanceof
+          import_obsidian2.TFolder
+        )
+      ) {
         await this.app.vault.createFolder(dir);
       }
-      const base64regex = /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/;
+      const base64regex =
+        /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/;
       if (base64regex.test(text2)) {
-        await this.app.vault.createBinary(outputFileName, (0, import_obsidian2.base64ToArrayBuffer)(text2));
+        await this.app.vault.createBinary(
+          outputFileName,
+          (0, import_obsidian2.base64ToArrayBuffer)(text2),
+        );
       } else {
         await this.app.vault.create(outputFileName, text2);
       }
@@ -4795,7 +5482,9 @@ var FileWriter = class {
       let fileIsAlreadyOpened = false;
       this.app.workspace.iterateAllLeaves((leaf) => {
         var _a;
-        if (((_a = leaf.view.file) == null ? void 0 : _a.path) === outputFileName) {
+        if (
+          ((_a = leaf.view.file) == null ? void 0 : _a.path) === outputFileName
+        ) {
           fileIsAlreadyOpened = true;
           this.app.workspace.setActiveLeaf(leaf, { focus: true });
         }
@@ -4818,7 +5507,11 @@ var FileWriter = class {
       if (foundHeadingIndex !== -1) {
         const foundHeading = cachedHeadings[foundHeadingIndex];
         let nextHeading = null;
-        for (let i = foundHeadingIndex + 1; i < (cachedHeadings == null ? void 0 : cachedHeadings.length); i++) {
+        for (
+          let i = foundHeadingIndex + 1;
+          i < (cachedHeadings == null ? void 0 : cachedHeadings.length);
+          i++
+        ) {
           const cachedHeading = cachedHeadings[i];
           if (cachedHeading.level === 1) {
             nextHeading = cachedHeading;
@@ -4845,10 +5538,14 @@ var FileWriter = class {
     if (file) {
       const cache = this.app.metadataCache;
       if (cache) {
-        const sections = (_a = cache.getFileCache(file)) == null ? void 0 : _a.sections;
-        const frontmatter = sections == null ? void 0 : sections.find((item) => {
-          return item.type === "yaml";
-        });
+        const sections =
+          (_a = cache.getFileCache(file)) == null ? void 0 : _a.sections;
+        const frontmatter =
+          sections == null
+            ? void 0
+            : sections.find((item) => {
+                return item.type === "yaml";
+              });
         if (frontmatter) {
           endLine = frontmatter.position.end.line;
         }
@@ -4895,12 +5592,22 @@ var NoteEntry = class {
     const file = this.app.vault.getAbstractFileByPath(noteFilePath);
     if (file instanceof import_obsidian3.TFile) {
       if (this.sectionPosition === SectionPosition.PREPEND) {
-        new PrependWriter(this.app, this.openFileOnWrite).write(file, data, heading);
+        new PrependWriter(this.app, this.openFileOnWrite).write(
+          file,
+          data,
+          heading,
+        );
       } else {
-        new AppendWriter(this.app, this.openFileOnWrite).write(file, data, heading);
+        new AppendWriter(this.app, this.openFileOnWrite).write(
+          file,
+          data,
+          heading,
+        );
       }
     } else {
-      new import_obsidian3.Notice(`Obsidian Clipper couldn't find the note to ${this.sectionPosition} to`);
+      new import_obsidian3.Notice(
+        `Obsidian Clipper couldn't find the note to ${this.sectionPosition} to`,
+      );
     }
   }
 };
@@ -4917,7 +5624,11 @@ var PeriodicNoteEntry = class extends NoteEntry {
       return;
     }
     const note = await this.getNote();
-    this.handleWrite(note.path, await noteEntry.formattedEntry(this.template), heading);
+    this.handleWrite(
+      note.path,
+      await noteEntry.formattedEntry(this.template),
+      heading,
+    );
   }
   async getNote() {
     const now2 = globalThis.moment();
@@ -4934,16 +5645,22 @@ var PeriodicNoteEntry = class extends NoteEntry {
 var DailyPeriodicNoteEntry = class extends PeriodicNoteEntry {
   constructor(app, openFileOnWrite, sectionPosition, template) {
     super(app, openFileOnWrite, sectionPosition, template);
-    this.notice = "To use a daily note with Obsidian Clipper the daily note needs to be enabled from the periodic-notes plugin";
+    this.notice =
+      "To use a daily note with Obsidian Clipper the daily note needs to be enabled from the periodic-notes plugin";
   }
   getPeriodicNote(moment, allNotes) {
-    return (0, import_obsidian_daily_notes_interface.getDailyNote)(moment, allNotes);
+    return (0, import_obsidian_daily_notes_interface.getDailyNote)(
+      moment,
+      allNotes,
+    );
   }
   hasPeriodicNoteEnabled() {
-    return (0, import_obsidian_daily_notes_interface.appHasDailyNotesPluginLoaded)();
+    return (0,
+    import_obsidian_daily_notes_interface.appHasDailyNotesPluginLoaded)();
   }
   async waitForNoteCreation(moment) {
-    const dailyNote = await (0, import_obsidian_daily_notes_interface.createDailyNote)(moment);
+    const dailyNote = await (0,
+    import_obsidian_daily_notes_interface.createDailyNote)(moment);
     await new Promise((r) => setTimeout(r, 50));
     return dailyNote;
   }
@@ -4957,16 +5674,22 @@ var import_obsidian_daily_notes_interface2 = __toESM(require_main());
 var WeeklyPeriodicNoteEntry = class extends PeriodicNoteEntry {
   constructor(app, openFileOnWrite, sectionPosition, template) {
     super(app, openFileOnWrite, sectionPosition, template);
-    this.notice = "To use a weekly note with Obsidian Clipper the weekly note needs to be enabled from the periodic-notes plugin";
+    this.notice =
+      "To use a weekly note with Obsidian Clipper the weekly note needs to be enabled from the periodic-notes plugin";
   }
   getPeriodicNote(moment, allNotes) {
-    return (0, import_obsidian_daily_notes_interface2.getWeeklyNote)(moment, allNotes);
+    return (0, import_obsidian_daily_notes_interface2.getWeeklyNote)(
+      moment,
+      allNotes,
+    );
   }
   hasPeriodicNoteEnabled() {
-    return (0, import_obsidian_daily_notes_interface2.appHasWeeklyNotesPluginLoaded)();
+    return (0,
+    import_obsidian_daily_notes_interface2.appHasWeeklyNotesPluginLoaded)();
   }
   async waitForNoteCreation(moment) {
-    const weeklyNote = await (0, import_obsidian_daily_notes_interface2.createWeeklyNote)(moment);
+    const weeklyNote = await (0,
+    import_obsidian_daily_notes_interface2.createWeeklyNote)(moment);
     await new Promise((r) => setTimeout(r, 50));
     return weeklyNote;
   }
@@ -4976,12 +5699,10 @@ var WeeklyPeriodicNoteEntry = class extends PeriodicNoteEntry {
 };
 
 // node_modules/svelte/internal/index.mjs
-function noop() {
-}
+function noop() {}
 var identity = (x) => x;
 function assign(tar, src) {
-  for (const k in src)
-    tar[k] = src[k];
+  for (const k in src) tar[k] = src[k];
   return tar;
 }
 function run(fn2) {
@@ -4997,7 +5718,9 @@ function is_function(thing) {
   return typeof thing === "function";
 }
 function safe_not_equal(a, b) {
-  return a != a ? b == b : a !== b || (a && typeof a === "object" || typeof a === "function");
+  return a != a
+    ? b == b
+    : a !== b || (a && typeof a === "object") || typeof a === "function";
 }
 function is_empty(obj) {
   return Object.keys(obj).length === 0;
@@ -5019,7 +5742,9 @@ function create_slot(definition, ctx, $$scope, fn2) {
   }
 }
 function get_slot_context(definition, ctx, $$scope, fn2) {
-  return definition[1] && fn2 ? assign($$scope.ctx.slice(), definition[1](fn2(ctx))) : $$scope.ctx;
+  return definition[1] && fn2
+    ? assign($$scope.ctx.slice(), definition[1](fn2(ctx)))
+    : $$scope.ctx;
 }
 function get_slot_changes(definition, $$scope, dirty, fn2) {
   if (definition[2] && fn2) {
@@ -5039,9 +5764,21 @@ function get_slot_changes(definition, $$scope, dirty, fn2) {
   }
   return $$scope.dirty;
 }
-function update_slot_base(slot, slot_definition, ctx, $$scope, slot_changes, get_slot_context_fn) {
+function update_slot_base(
+  slot,
+  slot_definition,
+  ctx,
+  $$scope,
+  slot_changes,
+  get_slot_context_fn,
+) {
   if (slot_changes) {
-    const slot_context = get_slot_context(slot_definition, ctx, $$scope, get_slot_context_fn);
+    const slot_context = get_slot_context(
+      slot_definition,
+      ctx,
+      $$scope,
+      get_slot_context_fn,
+    );
     slot.p(slot_context, slot_changes);
   }
 }
@@ -5064,7 +5801,9 @@ function set_store_value(store, ret, value) {
   return ret;
 }
 function action_destroyer(action_result) {
-  return action_result && is_function(action_result.destroy) ? action_result.destroy : noop;
+  return action_result && is_function(action_result.destroy)
+    ? action_result.destroy
+    : noop;
 }
 var is_client = typeof window !== "undefined";
 var now = is_client ? () => window.performance.now() : () => Date.now();
@@ -5077,20 +5816,18 @@ function run_tasks(now2) {
       task.f();
     }
   });
-  if (tasks.size !== 0)
-    raf(run_tasks);
+  if (tasks.size !== 0) raf(run_tasks);
 }
 function loop(callback) {
   let task;
-  if (tasks.size === 0)
-    raf(run_tasks);
+  if (tasks.size === 0) raf(run_tasks);
   return {
     promise: new Promise((fulfill) => {
-      tasks.add(task = { c: callback, f: fulfill });
+      tasks.add((task = { c: callback, f: fulfill }));
     }),
     abort() {
       tasks.delete(task);
-    }
+    },
   };
 }
 var is_hydrating = false;
@@ -5113,8 +5850,7 @@ function append_styles(target, style_sheet_id, styles) {
   }
 }
 function get_root_for_style(node) {
-  if (!node)
-    return document;
+  if (!node) return document;
   const root = node.getRootNode ? node.getRootNode() : node.ownerDocument;
   if (root && root.host) {
     return root;
@@ -5140,8 +5876,7 @@ function detach(node) {
 }
 function destroy_each(iterations, detaching) {
   for (let i = 0; i < iterations.length; i += 1) {
-    if (iterations[i])
-      iterations[i].d(detaching);
+    if (iterations[i]) iterations[i].d(detaching);
   }
 }
 function element(name) {
@@ -5161,8 +5896,7 @@ function listen(node, event, handler, options) {
   return () => node.removeEventListener(event, handler, options);
 }
 function attr(node, attribute, value) {
-  if (value == null)
-    node.removeAttribute(attribute);
+  if (value == null) node.removeAttribute(attribute);
   else if (node.getAttribute(attribute) !== value)
     node.setAttribute(attribute, value);
 }
@@ -5171,8 +5905,7 @@ function children(element2) {
 }
 function set_data(text2, data) {
   data = "" + data;
-  if (text2.wholeText !== data)
-    text2.data = data;
+  if (text2.wholeText !== data) text2.data = data;
 }
 function set_input_value(input, value) {
   input.value = value == null ? "" : value;
@@ -5201,7 +5934,11 @@ function select_value(select) {
 function toggle_class(element2, name, toggle) {
   element2.classList[toggle ? "add" : "remove"](name);
 }
-function custom_event(type, detail, { bubbles = false, cancelable = false } = {}) {
+function custom_event(
+  type,
+  detail,
+  { bubbles = false, cancelable = false } = {},
+) {
   const e = document.createEvent("CustomEvent");
   e.initCustomEvent(type, bubbles, cancelable, detail);
   return e;
@@ -5214,8 +5951,7 @@ var active = 0;
 function hash(str) {
   let hash4 = 5381;
   let i = str.length;
-  while (i--)
-    hash4 = (hash4 << 5) - hash4 ^ str.charCodeAt(i);
+  while (i--) hash4 = ((hash4 << 5) - hash4) ^ str.charCodeAt(i);
   return hash4 >>> 0;
 }
 function create_style_information(doc, node) {
@@ -5228,17 +5964,25 @@ function create_rule(node, a, b, duration, delay, ease, fn2, uid = 0) {
   let keyframes = "{\n";
   for (let p = 0; p <= 1; p += step) {
     const t = a + (b - a) * ease(p);
-    keyframes += p * 100 + `%{${fn2(t, 1 - t)}}
+    keyframes +=
+      p * 100 +
+      `%{${fn2(t, 1 - t)}}
 `;
   }
-  const rule = keyframes + `100% {${fn2(b, 1 - b)}}
+  const rule =
+    keyframes +
+    `100% {${fn2(b, 1 - b)}}
 }`;
   const name = `__svelte_${hash(rule)}_${uid}`;
   const doc = get_root_for_style(node);
-  const { stylesheet, rules } = managed_styles.get(doc) || create_style_information(doc, node);
+  const { stylesheet, rules } =
+    managed_styles.get(doc) || create_style_information(doc, node);
   if (!rules[name]) {
     rules[name] = true;
-    stylesheet.insertRule(`@keyframes ${name} ${rule}`, stylesheet.cssRules.length);
+    stylesheet.insertRule(
+      `@keyframes ${name} ${rule}`,
+      stylesheet.cssRules.length,
+    );
   }
   const animation = node.style.animation || "";
   node.style.animation = `${animation ? `${animation}, ` : ""}${name} ${duration}ms linear ${delay}ms 1 both`;
@@ -5247,23 +5991,24 @@ function create_rule(node, a, b, duration, delay, ease, fn2, uid = 0) {
 }
 function delete_rule(node, name) {
   const previous = (node.style.animation || "").split(", ");
-  const next = previous.filter(name ? (anim) => anim.indexOf(name) < 0 : (anim) => anim.indexOf("__svelte") === -1);
+  const next = previous.filter(
+    name
+      ? (anim) => anim.indexOf(name) < 0
+      : (anim) => anim.indexOf("__svelte") === -1,
+  );
   const deleted = previous.length - next.length;
   if (deleted) {
     node.style.animation = next.join(", ");
     active -= deleted;
-    if (!active)
-      clear_rules();
+    if (!active) clear_rules();
   }
 }
 function clear_rules() {
   raf(() => {
-    if (active)
-      return;
+    if (active) return;
     managed_styles.forEach((info) => {
       const { ownerNode } = info.stylesheet;
-      if (ownerNode)
-        detach(ownerNode);
+      if (ownerNode) detach(ownerNode);
     });
     managed_styles.clear();
   });
@@ -5324,8 +6069,7 @@ function flush() {
     set_current_component(null);
     dirty_components.length = 0;
     flushidx = 0;
-    while (binding_callbacks.length)
-      binding_callbacks.pop()();
+    while (binding_callbacks.length) binding_callbacks.pop()();
     for (let i = 0; i < render_callbacks.length; i += 1) {
       const callback = render_callbacks[i];
       if (!seen_callbacks.has(callback)) {
@@ -5371,7 +6115,7 @@ function group_outros() {
   outros = {
     r: 0,
     c: [],
-    p: outros
+    p: outros,
   };
 }
 function check_outros() {
@@ -5388,14 +6132,12 @@ function transition_in(block, local) {
 }
 function transition_out(block, local, detach2, callback) {
   if (block && block.o) {
-    if (outroing.has(block))
-      return;
+    if (outroing.has(block)) return;
     outroing.add(block);
     outros.c.push(() => {
       outroing.delete(block);
       if (callback) {
-        if (detach2)
-          block.d(1);
+        if (detach2) block.d(1);
         callback();
       }
     });
@@ -5413,18 +6155,31 @@ function create_in_transition(node, fn2, params) {
   let task;
   let uid = 0;
   function cleanup() {
-    if (animation_name)
-      delete_rule(node, animation_name);
+    if (animation_name) delete_rule(node, animation_name);
   }
   function go() {
-    const { delay = 0, duration = 300, easing = identity, tick: tick2 = noop, css } = config || null_transition;
+    const {
+      delay = 0,
+      duration = 300,
+      easing = identity,
+      tick: tick2 = noop,
+      css,
+    } = config || null_transition;
     if (css)
-      animation_name = create_rule(node, 0, 1, duration, delay, easing, css, uid++);
+      animation_name = create_rule(
+        node,
+        0,
+        1,
+        duration,
+        delay,
+        easing,
+        css,
+        uid++,
+      );
     tick2(0, 1);
     const start_time = now() + delay;
     const end_time = start_time + duration;
-    if (task)
-      task.abort();
+    if (task) task.abort();
     running = true;
     add_render_callback(() => dispatch(node, true, "start"));
     task = loop((now2) => {
@@ -5433,7 +6188,7 @@ function create_in_transition(node, fn2, params) {
           tick2(1, 0);
           dispatch(node, true, "end");
           cleanup();
-          return running = false;
+          return (running = false);
         }
         if (now2 >= start_time) {
           const t = easing((now2 - start_time) / duration);
@@ -5446,8 +6201,7 @@ function create_in_transition(node, fn2, params) {
   let started = false;
   return {
     start() {
-      if (started)
-        return;
+      if (started) return;
       started = true;
       delete_rule(node);
       if (is_function(config)) {
@@ -5465,7 +6219,7 @@ function create_in_transition(node, fn2, params) {
         cleanup();
         running = false;
       }
-    }
+    },
   };
 }
 function create_out_transition(node, fn2, params) {
@@ -5476,7 +6230,13 @@ function create_out_transition(node, fn2, params) {
   const group = outros;
   group.r += 1;
   function go() {
-    const { delay = 0, duration = 300, easing = identity, tick: tick2 = noop, css } = config || null_transition;
+    const {
+      delay = 0,
+      duration = 300,
+      easing = identity,
+      tick: tick2 = noop,
+      css,
+    } = config || null_transition;
     if (css)
       animation_name = create_rule(node, 1, 0, duration, delay, easing, css);
     const start_time = now() + delay;
@@ -5514,14 +6274,18 @@ function create_out_transition(node, fn2, params) {
         config.tick(1, 0);
       }
       if (running) {
-        if (animation_name)
-          delete_rule(node, animation_name);
+        if (animation_name) delete_rule(node, animation_name);
         running = false;
       }
-    }
+    },
   };
 }
-var globals = typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : global;
+var globals =
+  typeof window !== "undefined"
+    ? window
+    : typeof globalThis !== "undefined"
+      ? globalThis
+      : global;
 function get_spread_update(levels, updates) {
   const update2 = {};
   const to_null_out = {};
@@ -5532,8 +6296,7 @@ function get_spread_update(levels, updates) {
     const n = updates[i];
     if (n) {
       for (const key in o) {
-        if (!(key in n))
-          to_null_out[key] = 1;
+        if (!(key in n)) to_null_out[key] = 1;
       }
       for (const key in n) {
         if (!accounted_for[key]) {
@@ -5549,13 +6312,14 @@ function get_spread_update(levels, updates) {
     }
   }
   for (const key in to_null_out) {
-    if (!(key in update2))
-      update2[key] = void 0;
+    if (!(key in update2)) update2[key] = void 0;
   }
   return update2;
 }
 function get_spread_object(spread_props) {
-  return typeof spread_props === "object" && spread_props !== null ? spread_props : {};
+  return typeof spread_props === "object" && spread_props !== null
+    ? spread_props
+    : {};
 }
 function create_component(block) {
   block && block.c();
@@ -5591,12 +6355,21 @@ function make_dirty(component, i) {
     schedule_update();
     component.$$.dirty.fill(0);
   }
-  component.$$.dirty[i / 31 | 0] |= 1 << i % 31;
+  component.$$.dirty[(i / 31) | 0] |= 1 << (i % 31);
 }
-function init(component, options, instance16, create_fragment16, not_equal, props, append_styles2, dirty = [-1]) {
+function init(
+  component,
+  options,
+  instance16,
+  create_fragment16,
+  not_equal,
+  props,
+  append_styles2,
+  dirty = [-1],
+) {
   const parent_component = current_component;
   set_current_component(component);
-  const $$ = component.$$ = {
+  const $$ = (component.$$ = {
     fragment: null,
     ctx: [],
     props,
@@ -5608,24 +6381,26 @@ function init(component, options, instance16, create_fragment16, not_equal, prop
     on_disconnect: [],
     before_update: [],
     after_update: [],
-    context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
+    context: new Map(
+      options.context || (parent_component ? parent_component.$$.context : []),
+    ),
     callbacks: blank_object(),
     dirty,
     skip_bound: false,
-    root: options.target || parent_component.$$.root
-  };
+    root: options.target || parent_component.$$.root,
+  });
   append_styles2 && append_styles2($$.root);
   let ready = false;
-  $$.ctx = instance16 ? instance16(component, options.props || {}, (i, ret, ...rest) => {
-    const value = rest.length ? rest[0] : ret;
-    if ($$.ctx && not_equal($$.ctx[i], $$.ctx[i] = value)) {
-      if (!$$.skip_bound && $$.bound[i])
-        $$.bound[i](value);
-      if (ready)
-        make_dirty(component, i);
-    }
-    return ret;
-  }) : [];
+  $$.ctx = instance16
+    ? instance16(component, options.props || {}, (i, ret, ...rest) => {
+        const value = rest.length ? rest[0] : ret;
+        if ($$.ctx && not_equal($$.ctx[i], ($$.ctx[i] = value))) {
+          if (!$$.skip_bound && $$.bound[i]) $$.bound[i](value);
+          if (ready) make_dirty(component, i);
+        }
+        return ret;
+      })
+    : [];
   $$.update();
   ready = true;
   run_all($$.before_update);
@@ -5639,9 +6414,13 @@ function init(component, options, instance16, create_fragment16, not_equal, prop
     } else {
       $$.fragment && $$.fragment.c();
     }
-    if (options.intro)
-      transition_in(component.$$.fragment);
-    mount_component(component, options.target, options.anchor, options.customElement);
+    if (options.intro) transition_in(component.$$.fragment);
+    mount_component(
+      component,
+      options.target,
+      options.anchor,
+      options.customElement,
+    );
     end_hydrating();
     flush();
   }
@@ -5675,12 +6454,12 @@ if (typeof HTMLElement === "function") {
       if (!is_function(callback)) {
         return noop;
       }
-      const callbacks = this.$$.callbacks[type] || (this.$$.callbacks[type] = []);
+      const callbacks =
+        this.$$.callbacks[type] || (this.$$.callbacks[type] = []);
       callbacks.push(callback);
       return () => {
         const index = callbacks.indexOf(callback);
-        if (index !== -1)
-          callbacks.splice(index, 1);
+        if (index !== -1) callbacks.splice(index, 1);
       };
     }
     $set($$props) {
@@ -5705,8 +6484,7 @@ var SvelteComponent = class {
     callbacks.push(callback);
     return () => {
       const index = callbacks.indexOf(callback);
-      if (index !== -1)
-        callbacks.splice(index, 1);
+      if (index !== -1) callbacks.splice(index, 1);
     };
   }
   $set($$props) {
@@ -5739,7 +6517,8 @@ function slide(node, { delay = 0, duration = 400, easing = cubicOut } = {}) {
     delay,
     duration,
     easing,
-    css: (t) => `overflow: hidden;opacity: ${Math.min(t * 20, 1) * opacity};height: ${t * height}px;padding-top: ${t * padding_top}px;padding-bottom: ${t * padding_bottom}px;margin-top: ${t * margin_top}px;margin-bottom: ${t * margin_bottom}px;border-top-width: ${t * border_top_width}px;border-bottom-width: ${t * border_bottom_width}px;`
+    css: (t) =>
+      `overflow: hidden;opacity: ${Math.min(t * 20, 1) * opacity};height: ${t * height}px;padding-top: ${t * padding_top}px;padding-bottom: ${t * padding_bottom}px;margin-top: ${t * margin_top}px;margin-bottom: ${t * margin_bottom}px;border-top-width: ${t * border_top_width}px;border-bottom-width: ${t * border_bottom_width}px;`,
   };
 }
 
@@ -5756,12 +6535,21 @@ var clippingParents = "clippingParents";
 var viewport = "viewport";
 var popper = "popper";
 var reference = "reference";
-var variationPlacements = /* @__PURE__ */ basePlacements.reduce(function(acc, placement) {
+var variationPlacements = /* @__PURE__ */ basePlacements.reduce(function (
+  acc,
+  placement,
+) {
   return acc.concat([placement + "-" + start, placement + "-" + end]);
 }, []);
-var placements = /* @__PURE__ */ [].concat(basePlacements, [auto]).reduce(function(acc, placement) {
-  return acc.concat([placement, placement + "-" + start, placement + "-" + end]);
-}, []);
+var placements = /* @__PURE__ */ []
+  .concat(basePlacements, [auto])
+  .reduce(function (acc, placement) {
+    return acc.concat([
+      placement,
+      placement + "-" + start,
+      placement + "-" + end,
+    ]);
+  }, []);
 var beforeRead = "beforeRead";
 var read = "read";
 var afterRead = "afterRead";
@@ -5771,7 +6559,17 @@ var afterMain = "afterMain";
 var beforeWrite = "beforeWrite";
 var write = "write";
 var afterWrite = "afterWrite";
-var modifierPhases = [beforeRead, read, afterRead, beforeMain, main, afterMain, beforeWrite, write, afterWrite];
+var modifierPhases = [
+  beforeRead,
+  read,
+  afterRead,
+  beforeMain,
+  main,
+  afterMain,
+  beforeWrite,
+  write,
+  afterWrite,
+];
 
 // node_modules/@popperjs/core/lib/dom-utils/getNodeName.js
 function getNodeName(element2) {
@@ -5810,7 +6608,7 @@ function isShadowRoot(node) {
 // node_modules/@popperjs/core/lib/modifiers/applyStyles.js
 function applyStyles(_ref) {
   var state = _ref.state;
-  Object.keys(state.elements).forEach(function(name) {
+  Object.keys(state.elements).forEach(function (name) {
     var style = state.styles[name] || {};
     var attributes = state.attributes[name] || {};
     var element2 = state.elements[name];
@@ -5818,7 +6616,7 @@ function applyStyles(_ref) {
       return;
     }
     Object.assign(element2.style, style);
-    Object.keys(attributes).forEach(function(name2) {
+    Object.keys(attributes).forEach(function (name2) {
       var value = attributes[name2];
       if (value === false) {
         element2.removeAttribute(name2);
@@ -5835,24 +6633,28 @@ function effect(_ref2) {
       position: state.options.strategy,
       left: "0",
       top: "0",
-      margin: "0"
+      margin: "0",
     },
     arrow: {
-      position: "absolute"
+      position: "absolute",
     },
-    reference: {}
+    reference: {},
   };
   Object.assign(state.elements.popper.style, initialStyles.popper);
   state.styles = initialStyles;
   if (state.elements.arrow) {
     Object.assign(state.elements.arrow.style, initialStyles.arrow);
   }
-  return function() {
-    Object.keys(state.elements).forEach(function(name) {
+  return function () {
+    Object.keys(state.elements).forEach(function (name) {
       var element2 = state.elements[name];
       var attributes = state.attributes[name] || {};
-      var styleProperties = Object.keys(state.styles.hasOwnProperty(name) ? state.styles[name] : initialStyles[name]);
-      var style = styleProperties.reduce(function(style2, property) {
+      var styleProperties = Object.keys(
+        state.styles.hasOwnProperty(name)
+          ? state.styles[name]
+          : initialStyles[name],
+      );
+      var style = styleProperties.reduce(function (style2, property) {
         style2[property] = "";
         return style2;
       }, {});
@@ -5860,7 +6662,7 @@ function effect(_ref2) {
         return;
       }
       Object.assign(element2.style, style);
-      Object.keys(attributes).forEach(function(attribute) {
+      Object.keys(attributes).forEach(function (attribute) {
         element2.removeAttribute(attribute);
       });
     });
@@ -5872,7 +6674,7 @@ var applyStyles_default = {
   phase: "write",
   fn: applyStyles,
   effect,
-  requires: ["computeStyles"]
+  requires: ["computeStyles"],
 };
 
 // node_modules/@popperjs/core/lib/utils/getBasePlacement.js
@@ -5889,9 +6691,11 @@ var round = Math.round;
 function getUAString() {
   var uaData = navigator.userAgentData;
   if (uaData != null && uaData.brands) {
-    return uaData.brands.map(function(item) {
-      return item.brand + "/" + item.version;
-    }).join(" ");
+    return uaData.brands
+      .map(function (item) {
+        return item.brand + "/" + item.version;
+      })
+      .join(" ");
   }
   return navigator.userAgent;
 }
@@ -5913,13 +6717,26 @@ function getBoundingClientRect(element2, includeScale, isFixedStrategy) {
   var scaleX = 1;
   var scaleY = 1;
   if (includeScale && isHTMLElement(element2)) {
-    scaleX = element2.offsetWidth > 0 ? round(clientRect.width) / element2.offsetWidth || 1 : 1;
-    scaleY = element2.offsetHeight > 0 ? round(clientRect.height) / element2.offsetHeight || 1 : 1;
+    scaleX =
+      element2.offsetWidth > 0
+        ? round(clientRect.width) / element2.offsetWidth || 1
+        : 1;
+    scaleY =
+      element2.offsetHeight > 0
+        ? round(clientRect.height) / element2.offsetHeight || 1
+        : 1;
   }
-  var _ref = isElement(element2) ? getWindow(element2) : window, visualViewport = _ref.visualViewport;
+  var _ref = isElement(element2) ? getWindow(element2) : window,
+    visualViewport = _ref.visualViewport;
   var addVisualOffsets = !isLayoutViewport() && isFixedStrategy;
-  var x = (clientRect.left + (addVisualOffsets && visualViewport ? visualViewport.offsetLeft : 0)) / scaleX;
-  var y = (clientRect.top + (addVisualOffsets && visualViewport ? visualViewport.offsetTop : 0)) / scaleY;
+  var x =
+    (clientRect.left +
+      (addVisualOffsets && visualViewport ? visualViewport.offsetLeft : 0)) /
+    scaleX;
+  var y =
+    (clientRect.top +
+      (addVisualOffsets && visualViewport ? visualViewport.offsetTop : 0)) /
+    scaleY;
   var width = clientRect.width / scaleX;
   var height = clientRect.height / scaleY;
   return {
@@ -5930,7 +6747,7 @@ function getBoundingClientRect(element2, includeScale, isFixedStrategy) {
     bottom: y + height,
     left: x,
     x,
-    y
+    y,
   };
 }
 
@@ -5949,7 +6766,7 @@ function getLayoutRect(element2) {
     x: element2.offsetLeft,
     y: element2.offsetTop,
     width,
-    height
+    height,
   };
 }
 
@@ -5982,7 +6799,10 @@ function isTableElement(element2) {
 
 // node_modules/@popperjs/core/lib/dom-utils/getDocumentElement.js
 function getDocumentElement(element2) {
-  return ((isElement(element2) ? element2.ownerDocument : element2.document) || window.document).documentElement;
+  return (
+    (isElement(element2) ? element2.ownerDocument : element2.document) ||
+    window.document
+  ).documentElement;
 }
 
 // node_modules/@popperjs/core/lib/dom-utils/getParentNode.js
@@ -5990,12 +6810,20 @@ function getParentNode(element2) {
   if (getNodeName(element2) === "html") {
     return element2;
   }
-  return element2.assignedSlot || element2.parentNode || (isShadowRoot(element2) ? element2.host : null) || getDocumentElement(element2);
+  return (
+    element2.assignedSlot ||
+    element2.parentNode ||
+    (isShadowRoot(element2) ? element2.host : null) ||
+    getDocumentElement(element2)
+  );
 }
 
 // node_modules/@popperjs/core/lib/dom-utils/getOffsetParent.js
 function getTrueOffsetParent(element2) {
-  if (!isHTMLElement(element2) || getComputedStyle2(element2).position === "fixed") {
+  if (
+    !isHTMLElement(element2) ||
+    getComputedStyle2(element2).position === "fixed"
+  ) {
     return null;
   }
   return element2.offsetParent;
@@ -6013,9 +6841,19 @@ function getContainingBlock(element2) {
   if (isShadowRoot(currentNode)) {
     currentNode = currentNode.host;
   }
-  while (isHTMLElement(currentNode) && ["html", "body"].indexOf(getNodeName(currentNode)) < 0) {
+  while (
+    isHTMLElement(currentNode) &&
+    ["html", "body"].indexOf(getNodeName(currentNode)) < 0
+  ) {
     var css = getComputedStyle2(currentNode);
-    if (css.transform !== "none" || css.perspective !== "none" || css.contain === "paint" || ["transform", "perspective"].indexOf(css.willChange) !== -1 || isFirefox && css.willChange === "filter" || isFirefox && css.filter && css.filter !== "none") {
+    if (
+      css.transform !== "none" ||
+      css.perspective !== "none" ||
+      css.contain === "paint" ||
+      ["transform", "perspective"].indexOf(css.willChange) !== -1 ||
+      (isFirefox && css.willChange === "filter") ||
+      (isFirefox && css.filter && css.filter !== "none")
+    ) {
       return currentNode;
     } else {
       currentNode = currentNode.parentNode;
@@ -6026,10 +6864,19 @@ function getContainingBlock(element2) {
 function getOffsetParent(element2) {
   var window2 = getWindow(element2);
   var offsetParent = getTrueOffsetParent(element2);
-  while (offsetParent && isTableElement(offsetParent) && getComputedStyle2(offsetParent).position === "static") {
+  while (
+    offsetParent &&
+    isTableElement(offsetParent) &&
+    getComputedStyle2(offsetParent).position === "static"
+  ) {
     offsetParent = getTrueOffsetParent(offsetParent);
   }
-  if (offsetParent && (getNodeName(offsetParent) === "html" || getNodeName(offsetParent) === "body" && getComputedStyle2(offsetParent).position === "static")) {
+  if (
+    offsetParent &&
+    (getNodeName(offsetParent) === "html" ||
+      (getNodeName(offsetParent) === "body" &&
+        getComputedStyle2(offsetParent).position === "static"))
+  ) {
     return window2;
   }
   return offsetParent || getContainingBlock(element2) || window2;
@@ -6055,7 +6902,7 @@ function getFreshSideObject() {
     top: 0,
     right: 0,
     bottom: 0,
-    left: 0
+    left: 0,
   };
 }
 
@@ -6066,7 +6913,7 @@ function mergePaddingObject(paddingObject) {
 
 // node_modules/@popperjs/core/lib/utils/expandToHashMap.js
 function expandToHashMap(value, keys) {
-  return keys.reduce(function(hashMap, key) {
+  return keys.reduce(function (hashMap, key) {
     hashMap[key] = value;
     return hashMap;
   }, {});
@@ -6074,14 +6921,25 @@ function expandToHashMap(value, keys) {
 
 // node_modules/@popperjs/core/lib/modifiers/arrow.js
 var toPaddingObject = function toPaddingObject2(padding, state) {
-  padding = typeof padding === "function" ? padding(Object.assign({}, state.rects, {
-    placement: state.placement
-  })) : padding;
-  return mergePaddingObject(typeof padding !== "number" ? padding : expandToHashMap(padding, basePlacements));
+  padding =
+    typeof padding === "function"
+      ? padding(
+          Object.assign({}, state.rects, {
+            placement: state.placement,
+          }),
+        )
+      : padding;
+  return mergePaddingObject(
+    typeof padding !== "number"
+      ? padding
+      : expandToHashMap(padding, basePlacements),
+  );
 };
 function arrow(_ref) {
   var _state$modifiersData$;
-  var state = _ref.state, name = _ref.name, options = _ref.options;
+  var state = _ref.state,
+    name = _ref.name,
+    options = _ref.options;
   var arrowElement = state.elements.arrow;
   var popperOffsets2 = state.modifiersData.popperOffsets;
   var basePlacement = getBasePlacement(state.placement);
@@ -6095,21 +6953,36 @@ function arrow(_ref) {
   var arrowRect = getLayoutRect(arrowElement);
   var minProp = axis === "y" ? top : left;
   var maxProp = axis === "y" ? bottom : right;
-  var endDiff = state.rects.reference[len] + state.rects.reference[axis] - popperOffsets2[axis] - state.rects.popper[len];
+  var endDiff =
+    state.rects.reference[len] +
+    state.rects.reference[axis] -
+    popperOffsets2[axis] -
+    state.rects.popper[len];
   var startDiff = popperOffsets2[axis] - state.rects.reference[axis];
   var arrowOffsetParent = getOffsetParent(arrowElement);
-  var clientSize = arrowOffsetParent ? axis === "y" ? arrowOffsetParent.clientHeight || 0 : arrowOffsetParent.clientWidth || 0 : 0;
+  var clientSize = arrowOffsetParent
+    ? axis === "y"
+      ? arrowOffsetParent.clientHeight || 0
+      : arrowOffsetParent.clientWidth || 0
+    : 0;
   var centerToReference = endDiff / 2 - startDiff / 2;
   var min2 = paddingObject[minProp];
   var max2 = clientSize - arrowRect[len] - paddingObject[maxProp];
   var center = clientSize / 2 - arrowRect[len] / 2 + centerToReference;
   var offset2 = within(min2, center, max2);
   var axisProp = axis;
-  state.modifiersData[name] = (_state$modifiersData$ = {}, _state$modifiersData$[axisProp] = offset2, _state$modifiersData$.centerOffset = offset2 - center, _state$modifiersData$);
+  state.modifiersData[name] =
+    ((_state$modifiersData$ = {}),
+    (_state$modifiersData$[axisProp] = offset2),
+    (_state$modifiersData$.centerOffset = offset2 - center),
+    _state$modifiersData$);
 }
 function effect2(_ref2) {
-  var state = _ref2.state, options = _ref2.options;
-  var _options$element = options.element, arrowElement = _options$element === void 0 ? "[data-popper-arrow]" : _options$element;
+  var state = _ref2.state,
+    options = _ref2.options;
+  var _options$element = options.element,
+    arrowElement =
+      _options$element === void 0 ? "[data-popper-arrow]" : _options$element;
   if (arrowElement == null) {
     return;
   }
@@ -6121,12 +6994,23 @@ function effect2(_ref2) {
   }
   if (true) {
     if (!isHTMLElement(arrowElement)) {
-      console.error(['Popper: "arrow" element must be an HTMLElement (not an SVGElement).', "To use an SVG arrow, wrap it in an HTMLElement that will be used as", "the arrow."].join(" "));
+      console.error(
+        [
+          'Popper: "arrow" element must be an HTMLElement (not an SVGElement).',
+          "To use an SVG arrow, wrap it in an HTMLElement that will be used as",
+          "the arrow.",
+        ].join(" "),
+      );
     }
   }
   if (!contains(state.elements.popper, arrowElement)) {
     if (true) {
-      console.error(['Popper: "arrow" modifier\'s `element` must be a child of the popper', "element."].join(" "));
+      console.error(
+        [
+          'Popper: "arrow" modifier\'s `element` must be a child of the popper',
+          "element.",
+        ].join(" "),
+      );
     }
     return;
   }
@@ -6139,7 +7023,7 @@ var arrow_default = {
   fn: arrow,
   effect: effect2,
   requires: ["popperOffsets"],
-  requiresIfExists: ["preventOverflow"]
+  requiresIfExists: ["preventOverflow"],
 };
 
 // node_modules/@popperjs/core/lib/utils/getVariation.js
@@ -6152,28 +7036,44 @@ var unsetSides = {
   top: "auto",
   right: "auto",
   bottom: "auto",
-  left: "auto"
+  left: "auto",
 };
 function roundOffsetsByDPR(_ref) {
-  var x = _ref.x, y = _ref.y;
+  var x = _ref.x,
+    y = _ref.y;
   var win = window;
   var dpr = win.devicePixelRatio || 1;
   return {
     x: round(x * dpr) / dpr || 0,
-    y: round(y * dpr) / dpr || 0
+    y: round(y * dpr) / dpr || 0,
   };
 }
 function mapToStyles(_ref2) {
   var _Object$assign2;
-  var popper2 = _ref2.popper, popperRect = _ref2.popperRect, placement = _ref2.placement, variation = _ref2.variation, offsets = _ref2.offsets, position = _ref2.position, gpuAcceleration = _ref2.gpuAcceleration, adaptive = _ref2.adaptive, roundOffsets = _ref2.roundOffsets, isFixed = _ref2.isFixed;
-  var _offsets$x = offsets.x, x = _offsets$x === void 0 ? 0 : _offsets$x, _offsets$y = offsets.y, y = _offsets$y === void 0 ? 0 : _offsets$y;
-  var _ref3 = typeof roundOffsets === "function" ? roundOffsets({
-    x,
-    y
-  }) : {
-    x,
-    y
-  };
+  var popper2 = _ref2.popper,
+    popperRect = _ref2.popperRect,
+    placement = _ref2.placement,
+    variation = _ref2.variation,
+    offsets = _ref2.offsets,
+    position = _ref2.position,
+    gpuAcceleration = _ref2.gpuAcceleration,
+    adaptive = _ref2.adaptive,
+    roundOffsets = _ref2.roundOffsets,
+    isFixed = _ref2.isFixed;
+  var _offsets$x = offsets.x,
+    x = _offsets$x === void 0 ? 0 : _offsets$x,
+    _offsets$y = offsets.y,
+    y = _offsets$y === void 0 ? 0 : _offsets$y;
+  var _ref3 =
+    typeof roundOffsets === "function"
+      ? roundOffsets({
+          x,
+          y,
+        })
+      : {
+          x,
+          y,
+        };
   x = _ref3.x;
   y = _ref3.y;
   var hasX = offsets.hasOwnProperty("x");
@@ -6187,52 +7087,117 @@ function mapToStyles(_ref2) {
     var widthProp = "clientWidth";
     if (offsetParent === getWindow(popper2)) {
       offsetParent = getDocumentElement(popper2);
-      if (getComputedStyle2(offsetParent).position !== "static" && position === "absolute") {
+      if (
+        getComputedStyle2(offsetParent).position !== "static" &&
+        position === "absolute"
+      ) {
         heightProp = "scrollHeight";
         widthProp = "scrollWidth";
       }
     }
     offsetParent = offsetParent;
-    if (placement === top || (placement === left || placement === right) && variation === end) {
+    if (
+      placement === top ||
+      ((placement === left || placement === right) && variation === end)
+    ) {
       sideY = bottom;
-      var offsetY = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.height : offsetParent[heightProp];
+      var offsetY =
+        isFixed && offsetParent === win && win.visualViewport
+          ? win.visualViewport.height
+          : offsetParent[heightProp];
       y -= offsetY - popperRect.height;
       y *= gpuAcceleration ? 1 : -1;
     }
-    if (placement === left || (placement === top || placement === bottom) && variation === end) {
+    if (
+      placement === left ||
+      ((placement === top || placement === bottom) && variation === end)
+    ) {
       sideX = right;
-      var offsetX = isFixed && offsetParent === win && win.visualViewport ? win.visualViewport.width : offsetParent[widthProp];
+      var offsetX =
+        isFixed && offsetParent === win && win.visualViewport
+          ? win.visualViewport.width
+          : offsetParent[widthProp];
       x -= offsetX - popperRect.width;
       x *= gpuAcceleration ? 1 : -1;
     }
   }
-  var commonStyles = Object.assign({
-    position
-  }, adaptive && unsetSides);
-  var _ref4 = roundOffsets === true ? roundOffsetsByDPR({
-    x,
-    y
-  }) : {
-    x,
-    y
-  };
+  var commonStyles = Object.assign(
+    {
+      position,
+    },
+    adaptive && unsetSides,
+  );
+  var _ref4 =
+    roundOffsets === true
+      ? roundOffsetsByDPR({
+          x,
+          y,
+        })
+      : {
+          x,
+          y,
+        };
   x = _ref4.x;
   y = _ref4.y;
   if (gpuAcceleration) {
     var _Object$assign;
-    return Object.assign({}, commonStyles, (_Object$assign = {}, _Object$assign[sideY] = hasY ? "0" : "", _Object$assign[sideX] = hasX ? "0" : "", _Object$assign.transform = (win.devicePixelRatio || 1) <= 1 ? "translate(" + x + "px, " + y + "px)" : "translate3d(" + x + "px, " + y + "px, 0)", _Object$assign));
+    return Object.assign(
+      {},
+      commonStyles,
+      ((_Object$assign = {}),
+      (_Object$assign[sideY] = hasY ? "0" : ""),
+      (_Object$assign[sideX] = hasX ? "0" : ""),
+      (_Object$assign.transform =
+        (win.devicePixelRatio || 1) <= 1
+          ? "translate(" + x + "px, " + y + "px)"
+          : "translate3d(" + x + "px, " + y + "px, 0)"),
+      _Object$assign),
+    );
   }
-  return Object.assign({}, commonStyles, (_Object$assign2 = {}, _Object$assign2[sideY] = hasY ? y + "px" : "", _Object$assign2[sideX] = hasX ? x + "px" : "", _Object$assign2.transform = "", _Object$assign2));
+  return Object.assign(
+    {},
+    commonStyles,
+    ((_Object$assign2 = {}),
+    (_Object$assign2[sideY] = hasY ? y + "px" : ""),
+    (_Object$assign2[sideX] = hasX ? x + "px" : ""),
+    (_Object$assign2.transform = ""),
+    _Object$assign2),
+  );
 }
 function computeStyles(_ref5) {
-  var state = _ref5.state, options = _ref5.options;
-  var _options$gpuAccelerat = options.gpuAcceleration, gpuAcceleration = _options$gpuAccelerat === void 0 ? true : _options$gpuAccelerat, _options$adaptive = options.adaptive, adaptive = _options$adaptive === void 0 ? true : _options$adaptive, _options$roundOffsets = options.roundOffsets, roundOffsets = _options$roundOffsets === void 0 ? true : _options$roundOffsets;
+  var state = _ref5.state,
+    options = _ref5.options;
+  var _options$gpuAccelerat = options.gpuAcceleration,
+    gpuAcceleration =
+      _options$gpuAccelerat === void 0 ? true : _options$gpuAccelerat,
+    _options$adaptive = options.adaptive,
+    adaptive = _options$adaptive === void 0 ? true : _options$adaptive,
+    _options$roundOffsets = options.roundOffsets,
+    roundOffsets =
+      _options$roundOffsets === void 0 ? true : _options$roundOffsets;
   if (true) {
-    var transitionProperty = getComputedStyle2(state.elements.popper).transitionProperty || "";
-    if (adaptive && ["transform", "top", "right", "bottom", "left"].some(function(property) {
-      return transitionProperty.indexOf(property) >= 0;
-    })) {
-      console.warn(["Popper: Detected CSS transitions on at least one of the following", 'CSS properties: "transform", "top", "right", "bottom", "left".', "\n\n", 'Disable the "computeStyles" modifier\'s `adaptive` option to allow', "for smooth transitions, or remove these properties from the CSS", "transition declaration on the popper element if only transitioning", "opacity or background-color for example.", "\n\n", "We recommend using the popper element as a wrapper around an inner", "element that can have any CSS property transitioned for animations."].join(" "));
+    var transitionProperty =
+      getComputedStyle2(state.elements.popper).transitionProperty || "";
+    if (
+      adaptive &&
+      ["transform", "top", "right", "bottom", "left"].some(function (property) {
+        return transitionProperty.indexOf(property) >= 0;
+      })
+    ) {
+      console.warn(
+        [
+          "Popper: Detected CSS transitions on at least one of the following",
+          'CSS properties: "transform", "top", "right", "bottom", "left".',
+          "\n\n",
+          'Disable the "computeStyles" modifier\'s `adaptive` option to allow',
+          "for smooth transitions, or remove these properties from the CSS",
+          "transition declaration on the popper element if only transitioning",
+          "opacity or background-color for example.",
+          "\n\n",
+          "We recommend using the popper element as a wrapper around an inner",
+          "element that can have any CSS property transitioned for animations.",
+        ].join(" "),
+      );
     }
   }
   var commonStyles = {
@@ -6241,26 +7206,38 @@ function computeStyles(_ref5) {
     popper: state.elements.popper,
     popperRect: state.rects.popper,
     gpuAcceleration,
-    isFixed: state.options.strategy === "fixed"
+    isFixed: state.options.strategy === "fixed",
   };
   if (state.modifiersData.popperOffsets != null) {
-    state.styles.popper = Object.assign({}, state.styles.popper, mapToStyles(Object.assign({}, commonStyles, {
-      offsets: state.modifiersData.popperOffsets,
-      position: state.options.strategy,
-      adaptive,
-      roundOffsets
-    })));
+    state.styles.popper = Object.assign(
+      {},
+      state.styles.popper,
+      mapToStyles(
+        Object.assign({}, commonStyles, {
+          offsets: state.modifiersData.popperOffsets,
+          position: state.options.strategy,
+          adaptive,
+          roundOffsets,
+        }),
+      ),
+    );
   }
   if (state.modifiersData.arrow != null) {
-    state.styles.arrow = Object.assign({}, state.styles.arrow, mapToStyles(Object.assign({}, commonStyles, {
-      offsets: state.modifiersData.arrow,
-      position: "absolute",
-      adaptive: false,
-      roundOffsets
-    })));
+    state.styles.arrow = Object.assign(
+      {},
+      state.styles.arrow,
+      mapToStyles(
+        Object.assign({}, commonStyles, {
+          offsets: state.modifiersData.arrow,
+          position: "absolute",
+          adaptive: false,
+          roundOffsets,
+        }),
+      ),
+    );
   }
   state.attributes.popper = Object.assign({}, state.attributes.popper, {
-    "data-popper-placement": state.placement
+    "data-popper-placement": state.placement,
   });
 }
 var computeStyles_default = {
@@ -6268,29 +7245,37 @@ var computeStyles_default = {
   enabled: true,
   phase: "beforeWrite",
   fn: computeStyles,
-  data: {}
+  data: {},
 };
 
 // node_modules/@popperjs/core/lib/modifiers/eventListeners.js
 var passive = {
-  passive: true
+  passive: true,
 };
 function effect3(_ref) {
-  var state = _ref.state, instance16 = _ref.instance, options = _ref.options;
-  var _options$scroll = options.scroll, scroll = _options$scroll === void 0 ? true : _options$scroll, _options$resize = options.resize, resize = _options$resize === void 0 ? true : _options$resize;
+  var state = _ref.state,
+    instance16 = _ref.instance,
+    options = _ref.options;
+  var _options$scroll = options.scroll,
+    scroll = _options$scroll === void 0 ? true : _options$scroll,
+    _options$resize = options.resize,
+    resize = _options$resize === void 0 ? true : _options$resize;
   var window2 = getWindow(state.elements.popper);
-  var scrollParents = [].concat(state.scrollParents.reference, state.scrollParents.popper);
+  var scrollParents = [].concat(
+    state.scrollParents.reference,
+    state.scrollParents.popper,
+  );
   if (scroll) {
-    scrollParents.forEach(function(scrollParent) {
+    scrollParents.forEach(function (scrollParent) {
       scrollParent.addEventListener("scroll", instance16.update, passive);
     });
   }
   if (resize) {
     window2.addEventListener("resize", instance16.update, passive);
   }
-  return function() {
+  return function () {
     if (scroll) {
-      scrollParents.forEach(function(scrollParent) {
+      scrollParents.forEach(function (scrollParent) {
         scrollParent.removeEventListener("scroll", instance16.update, passive);
       });
     }
@@ -6303,10 +7288,9 @@ var eventListeners_default = {
   name: "eventListeners",
   enabled: true,
   phase: "write",
-  fn: function fn() {
-  },
+  fn: function fn() {},
   effect: effect3,
-  data: {}
+  data: {},
 };
 
 // node_modules/@popperjs/core/lib/utils/getOppositePlacement.js
@@ -6314,10 +7298,10 @@ var hash2 = {
   left: "right",
   right: "left",
   bottom: "top",
-  top: "bottom"
+  top: "bottom",
 };
 function getOppositePlacement(placement) {
-  return placement.replace(/left|right|bottom|top/g, function(matched) {
+  return placement.replace(/left|right|bottom|top/g, function (matched) {
     return hash2[matched];
   });
 }
@@ -6325,10 +7309,10 @@ function getOppositePlacement(placement) {
 // node_modules/@popperjs/core/lib/utils/getOppositeVariationPlacement.js
 var hash3 = {
   start: "end",
-  end: "start"
+  end: "start",
 };
 function getOppositeVariationPlacement(placement) {
-  return placement.replace(/start|end/g, function(matched) {
+  return placement.replace(/start|end/g, function (matched) {
     return hash3[matched];
   });
 }
@@ -6340,13 +7324,16 @@ function getWindowScroll(node) {
   var scrollTop = win.pageYOffset;
   return {
     scrollLeft,
-    scrollTop
+    scrollTop,
   };
 }
 
 // node_modules/@popperjs/core/lib/dom-utils/getWindowScrollBarX.js
 function getWindowScrollBarX(element2) {
-  return getBoundingClientRect(getDocumentElement(element2)).left + getWindowScroll(element2).scrollLeft;
+  return (
+    getBoundingClientRect(getDocumentElement(element2)).left +
+    getWindowScroll(element2).scrollLeft
+  );
 }
 
 // node_modules/@popperjs/core/lib/dom-utils/getViewportRect.js
@@ -6362,7 +7349,7 @@ function getViewportRect(element2, strategy) {
     width = visualViewport.width;
     height = visualViewport.height;
     var layoutViewport = isLayoutViewport();
-    if (layoutViewport || !layoutViewport && strategy === "fixed") {
+    if (layoutViewport || (!layoutViewport && strategy === "fixed")) {
       x = visualViewport.offsetLeft;
       y = visualViewport.offsetTop;
     }
@@ -6371,7 +7358,7 @@ function getViewportRect(element2, strategy) {
     width,
     height,
     x: x + getWindowScrollBarX(element2),
-    y
+    y,
   };
 }
 
@@ -6380,9 +7367,22 @@ function getDocumentRect(element2) {
   var _element$ownerDocumen;
   var html = getDocumentElement(element2);
   var winScroll = getWindowScroll(element2);
-  var body = (_element$ownerDocumen = element2.ownerDocument) == null ? void 0 : _element$ownerDocumen.body;
-  var width = max(html.scrollWidth, html.clientWidth, body ? body.scrollWidth : 0, body ? body.clientWidth : 0);
-  var height = max(html.scrollHeight, html.clientHeight, body ? body.scrollHeight : 0, body ? body.clientHeight : 0);
+  var body =
+    (_element$ownerDocumen = element2.ownerDocument) == null
+      ? void 0
+      : _element$ownerDocumen.body;
+  var width = max(
+    html.scrollWidth,
+    html.clientWidth,
+    body ? body.scrollWidth : 0,
+    body ? body.clientWidth : 0,
+  );
+  var height = max(
+    html.scrollHeight,
+    html.clientHeight,
+    body ? body.scrollHeight : 0,
+    body ? body.clientHeight : 0,
+  );
   var x = -winScroll.scrollLeft + getWindowScrollBarX(element2);
   var y = -winScroll.scrollTop;
   if (getComputedStyle2(body || html).direction === "rtl") {
@@ -6392,13 +7392,16 @@ function getDocumentRect(element2) {
     width,
     height,
     x,
-    y
+    y,
   };
 }
 
 // node_modules/@popperjs/core/lib/dom-utils/isScrollParent.js
 function isScrollParent(element2) {
-  var _getComputedStyle = getComputedStyle2(element2), overflow = _getComputedStyle.overflow, overflowX = _getComputedStyle.overflowX, overflowY = _getComputedStyle.overflowY;
+  var _getComputedStyle = getComputedStyle2(element2),
+    overflow = _getComputedStyle.overflow,
+    overflowX = _getComputedStyle.overflowX,
+    overflowY = _getComputedStyle.overflowY;
   return /auto|scroll|overlay|hidden/.test(overflow + overflowY + overflowX);
 }
 
@@ -6420,11 +7423,22 @@ function listScrollParents(element2, list) {
     list = [];
   }
   var scrollParent = getScrollParent(element2);
-  var isBody = scrollParent === ((_element$ownerDocumen = element2.ownerDocument) == null ? void 0 : _element$ownerDocumen.body);
+  var isBody =
+    scrollParent ===
+    ((_element$ownerDocumen = element2.ownerDocument) == null
+      ? void 0
+      : _element$ownerDocumen.body);
   var win = getWindow(scrollParent);
-  var target = isBody ? [win].concat(win.visualViewport || [], isScrollParent(scrollParent) ? scrollParent : []) : scrollParent;
+  var target = isBody
+    ? [win].concat(
+        win.visualViewport || [],
+        isScrollParent(scrollParent) ? scrollParent : [],
+      )
+    : scrollParent;
   var updatedList = list.concat(target);
-  return isBody ? updatedList : updatedList.concat(listScrollParents(getParentNode(target)));
+  return isBody
+    ? updatedList
+    : updatedList.concat(listScrollParents(getParentNode(target)));
 }
 
 // node_modules/@popperjs/core/lib/utils/rectToClientRect.js
@@ -6433,7 +7447,7 @@ function rectToClientRect(rect) {
     left: rect.x,
     top: rect.y,
     right: rect.x + rect.width,
-    bottom: rect.y + rect.height
+    bottom: rect.y + rect.height,
   });
 }
 
@@ -6451,31 +7465,49 @@ function getInnerBoundingClientRect(element2, strategy) {
   return rect;
 }
 function getClientRectFromMixedType(element2, clippingParent, strategy) {
-  return clippingParent === viewport ? rectToClientRect(getViewportRect(element2, strategy)) : isElement(clippingParent) ? getInnerBoundingClientRect(clippingParent, strategy) : rectToClientRect(getDocumentRect(getDocumentElement(element2)));
+  return clippingParent === viewport
+    ? rectToClientRect(getViewportRect(element2, strategy))
+    : isElement(clippingParent)
+      ? getInnerBoundingClientRect(clippingParent, strategy)
+      : rectToClientRect(getDocumentRect(getDocumentElement(element2)));
 }
 function getClippingParents(element2) {
   var clippingParents2 = listScrollParents(getParentNode(element2));
-  var canEscapeClipping = ["absolute", "fixed"].indexOf(getComputedStyle2(element2).position) >= 0;
-  var clipperElement = canEscapeClipping && isHTMLElement(element2) ? getOffsetParent(element2) : element2;
+  var canEscapeClipping =
+    ["absolute", "fixed"].indexOf(getComputedStyle2(element2).position) >= 0;
+  var clipperElement =
+    canEscapeClipping && isHTMLElement(element2)
+      ? getOffsetParent(element2)
+      : element2;
   if (!isElement(clipperElement)) {
     return [];
   }
-  return clippingParents2.filter(function(clippingParent) {
-    return isElement(clippingParent) && contains(clippingParent, clipperElement) && getNodeName(clippingParent) !== "body";
+  return clippingParents2.filter(function (clippingParent) {
+    return (
+      isElement(clippingParent) &&
+      contains(clippingParent, clipperElement) &&
+      getNodeName(clippingParent) !== "body"
+    );
   });
 }
 function getClippingRect(element2, boundary, rootBoundary, strategy) {
-  var mainClippingParents = boundary === "clippingParents" ? getClippingParents(element2) : [].concat(boundary);
+  var mainClippingParents =
+    boundary === "clippingParents"
+      ? getClippingParents(element2)
+      : [].concat(boundary);
   var clippingParents2 = [].concat(mainClippingParents, [rootBoundary]);
   var firstClippingParent = clippingParents2[0];
-  var clippingRect = clippingParents2.reduce(function(accRect, clippingParent) {
-    var rect = getClientRectFromMixedType(element2, clippingParent, strategy);
-    accRect.top = max(rect.top, accRect.top);
-    accRect.right = min(rect.right, accRect.right);
-    accRect.bottom = min(rect.bottom, accRect.bottom);
-    accRect.left = max(rect.left, accRect.left);
-    return accRect;
-  }, getClientRectFromMixedType(element2, firstClippingParent, strategy));
+  var clippingRect = clippingParents2.reduce(
+    function (accRect, clippingParent) {
+      var rect = getClientRectFromMixedType(element2, clippingParent, strategy);
+      accRect.top = max(rect.top, accRect.top);
+      accRect.right = min(rect.right, accRect.right);
+      accRect.bottom = min(rect.bottom, accRect.bottom);
+      accRect.left = max(rect.left, accRect.left);
+      return accRect;
+    },
+    getClientRectFromMixedType(element2, firstClippingParent, strategy),
+  );
   clippingRect.width = clippingRect.right - clippingRect.left;
   clippingRect.height = clippingRect.bottom - clippingRect.top;
   clippingRect.x = clippingRect.left;
@@ -6485,7 +7517,9 @@ function getClippingRect(element2, boundary, rootBoundary, strategy) {
 
 // node_modules/@popperjs/core/lib/utils/computeOffsets.js
 function computeOffsets(_ref) {
-  var reference2 = _ref.reference, element2 = _ref.element, placement = _ref.placement;
+  var reference2 = _ref.reference,
+    element2 = _ref.element,
+    placement = _ref.placement;
   var basePlacement = placement ? getBasePlacement(placement) : null;
   var variation = placement ? getVariation(placement) : null;
   var commonX = reference2.x + reference2.width / 2 - element2.width / 2;
@@ -6495,31 +7529,31 @@ function computeOffsets(_ref) {
     case top:
       offsets = {
         x: commonX,
-        y: reference2.y - element2.height
+        y: reference2.y - element2.height,
       };
       break;
     case bottom:
       offsets = {
         x: commonX,
-        y: reference2.y + reference2.height
+        y: reference2.y + reference2.height,
       };
       break;
     case right:
       offsets = {
         x: reference2.x + reference2.width,
-        y: commonY
+        y: commonY,
       };
       break;
     case left:
       offsets = {
         x: reference2.x - element2.width,
-        y: commonY
+        y: commonY,
       };
       break;
     default:
       offsets = {
         x: reference2.x,
-        y: reference2.y
+        y: reference2.y,
       };
   }
   var mainAxis = basePlacement ? getMainAxisFromPlacement(basePlacement) : null;
@@ -6527,10 +7561,12 @@ function computeOffsets(_ref) {
     var len = mainAxis === "y" ? "height" : "width";
     switch (variation) {
       case start:
-        offsets[mainAxis] = offsets[mainAxis] - (reference2[len] / 2 - element2[len] / 2);
+        offsets[mainAxis] =
+          offsets[mainAxis] - (reference2[len] / 2 - element2[len] / 2);
         break;
       case end:
-        offsets[mainAxis] = offsets[mainAxis] + (reference2[len] / 2 - element2[len] / 2);
+        offsets[mainAxis] =
+          offsets[mainAxis] + (reference2[len] / 2 - element2[len] / 2);
         break;
       default:
     }
@@ -6543,31 +7579,69 @@ function detectOverflow(state, options) {
   if (options === void 0) {
     options = {};
   }
-  var _options = options, _options$placement = _options.placement, placement = _options$placement === void 0 ? state.placement : _options$placement, _options$strategy = _options.strategy, strategy = _options$strategy === void 0 ? state.strategy : _options$strategy, _options$boundary = _options.boundary, boundary = _options$boundary === void 0 ? clippingParents : _options$boundary, _options$rootBoundary = _options.rootBoundary, rootBoundary = _options$rootBoundary === void 0 ? viewport : _options$rootBoundary, _options$elementConte = _options.elementContext, elementContext = _options$elementConte === void 0 ? popper : _options$elementConte, _options$altBoundary = _options.altBoundary, altBoundary = _options$altBoundary === void 0 ? false : _options$altBoundary, _options$padding = _options.padding, padding = _options$padding === void 0 ? 0 : _options$padding;
-  var paddingObject = mergePaddingObject(typeof padding !== "number" ? padding : expandToHashMap(padding, basePlacements));
+  var _options = options,
+    _options$placement = _options.placement,
+    placement =
+      _options$placement === void 0 ? state.placement : _options$placement,
+    _options$strategy = _options.strategy,
+    strategy =
+      _options$strategy === void 0 ? state.strategy : _options$strategy,
+    _options$boundary = _options.boundary,
+    boundary =
+      _options$boundary === void 0 ? clippingParents : _options$boundary,
+    _options$rootBoundary = _options.rootBoundary,
+    rootBoundary =
+      _options$rootBoundary === void 0 ? viewport : _options$rootBoundary,
+    _options$elementConte = _options.elementContext,
+    elementContext =
+      _options$elementConte === void 0 ? popper : _options$elementConte,
+    _options$altBoundary = _options.altBoundary,
+    altBoundary =
+      _options$altBoundary === void 0 ? false : _options$altBoundary,
+    _options$padding = _options.padding,
+    padding = _options$padding === void 0 ? 0 : _options$padding;
+  var paddingObject = mergePaddingObject(
+    typeof padding !== "number"
+      ? padding
+      : expandToHashMap(padding, basePlacements),
+  );
   var altContext = elementContext === popper ? reference : popper;
   var popperRect = state.rects.popper;
   var element2 = state.elements[altBoundary ? altContext : elementContext];
-  var clippingClientRect = getClippingRect(isElement(element2) ? element2 : element2.contextElement || getDocumentElement(state.elements.popper), boundary, rootBoundary, strategy);
+  var clippingClientRect = getClippingRect(
+    isElement(element2)
+      ? element2
+      : element2.contextElement || getDocumentElement(state.elements.popper),
+    boundary,
+    rootBoundary,
+    strategy,
+  );
   var referenceClientRect = getBoundingClientRect(state.elements.reference);
   var popperOffsets2 = computeOffsets({
     reference: referenceClientRect,
     element: popperRect,
     strategy: "absolute",
-    placement
+    placement,
   });
-  var popperClientRect = rectToClientRect(Object.assign({}, popperRect, popperOffsets2));
-  var elementClientRect = elementContext === popper ? popperClientRect : referenceClientRect;
+  var popperClientRect = rectToClientRect(
+    Object.assign({}, popperRect, popperOffsets2),
+  );
+  var elementClientRect =
+    elementContext === popper ? popperClientRect : referenceClientRect;
   var overflowOffsets = {
     top: clippingClientRect.top - elementClientRect.top + paddingObject.top,
-    bottom: elementClientRect.bottom - clippingClientRect.bottom + paddingObject.bottom,
+    bottom:
+      elementClientRect.bottom -
+      clippingClientRect.bottom +
+      paddingObject.bottom,
     left: clippingClientRect.left - elementClientRect.left + paddingObject.left,
-    right: elementClientRect.right - clippingClientRect.right + paddingObject.right
+    right:
+      elementClientRect.right - clippingClientRect.right + paddingObject.right,
   };
   var offsetData = state.modifiersData.offset;
   if (elementContext === popper && offsetData) {
     var offset2 = offsetData[placement];
-    Object.keys(overflowOffsets).forEach(function(key) {
+    Object.keys(overflowOffsets).forEach(function (key) {
       var multiply = [right, bottom].indexOf(key) >= 0 ? 1 : -1;
       var axis = [top, bottom].indexOf(key) >= 0 ? "y" : "x";
       overflowOffsets[key] += offset2[axis] * multiply;
@@ -6581,30 +7655,50 @@ function computeAutoPlacement(state, options) {
   if (options === void 0) {
     options = {};
   }
-  var _options = options, placement = _options.placement, boundary = _options.boundary, rootBoundary = _options.rootBoundary, padding = _options.padding, flipVariations = _options.flipVariations, _options$allowedAutoP = _options.allowedAutoPlacements, allowedAutoPlacements = _options$allowedAutoP === void 0 ? placements : _options$allowedAutoP;
+  var _options = options,
+    placement = _options.placement,
+    boundary = _options.boundary,
+    rootBoundary = _options.rootBoundary,
+    padding = _options.padding,
+    flipVariations = _options.flipVariations,
+    _options$allowedAutoP = _options.allowedAutoPlacements,
+    allowedAutoPlacements =
+      _options$allowedAutoP === void 0 ? placements : _options$allowedAutoP;
   var variation = getVariation(placement);
-  var placements2 = variation ? flipVariations ? variationPlacements : variationPlacements.filter(function(placement2) {
-    return getVariation(placement2) === variation;
-  }) : basePlacements;
-  var allowedPlacements = placements2.filter(function(placement2) {
+  var placements2 = variation
+    ? flipVariations
+      ? variationPlacements
+      : variationPlacements.filter(function (placement2) {
+          return getVariation(placement2) === variation;
+        })
+    : basePlacements;
+  var allowedPlacements = placements2.filter(function (placement2) {
     return allowedAutoPlacements.indexOf(placement2) >= 0;
   });
   if (allowedPlacements.length === 0) {
     allowedPlacements = placements2;
     if (true) {
-      console.error(["Popper: The `allowedAutoPlacements` option did not allow any", "placements. Ensure the `placement` option matches the variation", "of the allowed placements.", 'For example, "auto" cannot be used to allow "bottom-start".', 'Use "auto-start" instead.'].join(" "));
+      console.error(
+        [
+          "Popper: The `allowedAutoPlacements` option did not allow any",
+          "placements. Ensure the `placement` option matches the variation",
+          "of the allowed placements.",
+          'For example, "auto" cannot be used to allow "bottom-start".',
+          'Use "auto-start" instead.',
+        ].join(" "),
+      );
     }
   }
-  var overflows = allowedPlacements.reduce(function(acc, placement2) {
+  var overflows = allowedPlacements.reduce(function (acc, placement2) {
     acc[placement2] = detectOverflow(state, {
       placement: placement2,
       boundary,
       rootBoundary,
-      padding
+      padding,
     })[getBasePlacement(placement2)];
     return acc;
   }, {});
-  return Object.keys(overflows).sort(function(a, b) {
+  return Object.keys(overflows).sort(function (a, b) {
     return overflows[a] - overflows[b];
   });
 }
@@ -6615,28 +7709,56 @@ function getExpandedFallbackPlacements(placement) {
     return [];
   }
   var oppositePlacement = getOppositePlacement(placement);
-  return [getOppositeVariationPlacement(placement), oppositePlacement, getOppositeVariationPlacement(oppositePlacement)];
+  return [
+    getOppositeVariationPlacement(placement),
+    oppositePlacement,
+    getOppositeVariationPlacement(oppositePlacement),
+  ];
 }
 function flip(_ref) {
-  var state = _ref.state, options = _ref.options, name = _ref.name;
+  var state = _ref.state,
+    options = _ref.options,
+    name = _ref.name;
   if (state.modifiersData[name]._skip) {
     return;
   }
-  var _options$mainAxis = options.mainAxis, checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis, _options$altAxis = options.altAxis, checkAltAxis = _options$altAxis === void 0 ? true : _options$altAxis, specifiedFallbackPlacements = options.fallbackPlacements, padding = options.padding, boundary = options.boundary, rootBoundary = options.rootBoundary, altBoundary = options.altBoundary, _options$flipVariatio = options.flipVariations, flipVariations = _options$flipVariatio === void 0 ? true : _options$flipVariatio, allowedAutoPlacements = options.allowedAutoPlacements;
+  var _options$mainAxis = options.mainAxis,
+    checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
+    _options$altAxis = options.altAxis,
+    checkAltAxis = _options$altAxis === void 0 ? true : _options$altAxis,
+    specifiedFallbackPlacements = options.fallbackPlacements,
+    padding = options.padding,
+    boundary = options.boundary,
+    rootBoundary = options.rootBoundary,
+    altBoundary = options.altBoundary,
+    _options$flipVariatio = options.flipVariations,
+    flipVariations =
+      _options$flipVariatio === void 0 ? true : _options$flipVariatio,
+    allowedAutoPlacements = options.allowedAutoPlacements;
   var preferredPlacement = state.options.placement;
   var basePlacement = getBasePlacement(preferredPlacement);
   var isBasePlacement = basePlacement === preferredPlacement;
-  var fallbackPlacements = specifiedFallbackPlacements || (isBasePlacement || !flipVariations ? [getOppositePlacement(preferredPlacement)] : getExpandedFallbackPlacements(preferredPlacement));
-  var placements2 = [preferredPlacement].concat(fallbackPlacements).reduce(function(acc, placement2) {
-    return acc.concat(getBasePlacement(placement2) === auto ? computeAutoPlacement(state, {
-      placement: placement2,
-      boundary,
-      rootBoundary,
-      padding,
-      flipVariations,
-      allowedAutoPlacements
-    }) : placement2);
-  }, []);
+  var fallbackPlacements =
+    specifiedFallbackPlacements ||
+    (isBasePlacement || !flipVariations
+      ? [getOppositePlacement(preferredPlacement)]
+      : getExpandedFallbackPlacements(preferredPlacement));
+  var placements2 = [preferredPlacement]
+    .concat(fallbackPlacements)
+    .reduce(function (acc, placement2) {
+      return acc.concat(
+        getBasePlacement(placement2) === auto
+          ? computeAutoPlacement(state, {
+              placement: placement2,
+              boundary,
+              rootBoundary,
+              padding,
+              flipVariations,
+              allowedAutoPlacements,
+            })
+          : placement2,
+      );
+    }, []);
   var referenceRect = state.rects.reference;
   var popperRect = state.rects.popper;
   var checksMap = /* @__PURE__ */ new Map();
@@ -6653,9 +7775,15 @@ function flip(_ref) {
       boundary,
       rootBoundary,
       altBoundary,
-      padding
+      padding,
     });
-    var mainVariationSide = isVertical ? isStartVariation ? right : left : isStartVariation ? bottom : top;
+    var mainVariationSide = isVertical
+      ? isStartVariation
+        ? right
+        : left
+      : isStartVariation
+        ? bottom
+        : top;
     if (referenceRect[len] > popperRect[len]) {
       mainVariationSide = getOppositePlacement(mainVariationSide);
     }
@@ -6665,11 +7793,16 @@ function flip(_ref) {
       checks.push(overflow[_basePlacement] <= 0);
     }
     if (checkAltAxis) {
-      checks.push(overflow[mainVariationSide] <= 0, overflow[altVariationSide] <= 0);
+      checks.push(
+        overflow[mainVariationSide] <= 0,
+        overflow[altVariationSide] <= 0,
+      );
     }
-    if (checks.every(function(check) {
-      return check;
-    })) {
+    if (
+      checks.every(function (check) {
+        return check;
+      })
+    ) {
       firstFittingPlacement = placement;
       makeFallbackChecks = false;
       break;
@@ -6679,10 +7812,10 @@ function flip(_ref) {
   if (makeFallbackChecks) {
     var numberOfChecks = flipVariations ? 3 : 1;
     var _loop = function _loop2(_i2) {
-      var fittingPlacement = placements2.find(function(placement2) {
+      var fittingPlacement = placements2.find(function (placement2) {
         var checks2 = checksMap.get(placement2);
         if (checks2) {
-          return checks2.slice(0, _i2).every(function(check) {
+          return checks2.slice(0, _i2).every(function (check) {
             return check;
           });
         }
@@ -6694,8 +7827,7 @@ function flip(_ref) {
     };
     for (var _i = numberOfChecks; _i > 0; _i--) {
       var _ret = _loop(_i);
-      if (_ret === "break")
-        break;
+      if (_ret === "break") break;
     }
   }
   if (state.placement !== firstFittingPlacement) {
@@ -6711,8 +7843,8 @@ var flip_default = {
   fn: flip,
   requiresIfExists: ["offset"],
   data: {
-    _skip: false
-  }
+    _skip: false,
+  },
 };
 
 // node_modules/@popperjs/core/lib/modifiers/hide.js
@@ -6720,45 +7852,53 @@ function getSideOffsets(overflow, rect, preventedOffsets) {
   if (preventedOffsets === void 0) {
     preventedOffsets = {
       x: 0,
-      y: 0
+      y: 0,
     };
   }
   return {
     top: overflow.top - rect.height - preventedOffsets.y,
     right: overflow.right - rect.width + preventedOffsets.x,
     bottom: overflow.bottom - rect.height + preventedOffsets.y,
-    left: overflow.left - rect.width - preventedOffsets.x
+    left: overflow.left - rect.width - preventedOffsets.x,
   };
 }
 function isAnySideFullyClipped(overflow) {
-  return [top, right, bottom, left].some(function(side) {
+  return [top, right, bottom, left].some(function (side) {
     return overflow[side] >= 0;
   });
 }
 function hide(_ref) {
-  var state = _ref.state, name = _ref.name;
+  var state = _ref.state,
+    name = _ref.name;
   var referenceRect = state.rects.reference;
   var popperRect = state.rects.popper;
   var preventedOffsets = state.modifiersData.preventOverflow;
   var referenceOverflow = detectOverflow(state, {
-    elementContext: "reference"
+    elementContext: "reference",
   });
   var popperAltOverflow = detectOverflow(state, {
-    altBoundary: true
+    altBoundary: true,
   });
-  var referenceClippingOffsets = getSideOffsets(referenceOverflow, referenceRect);
-  var popperEscapeOffsets = getSideOffsets(popperAltOverflow, popperRect, preventedOffsets);
+  var referenceClippingOffsets = getSideOffsets(
+    referenceOverflow,
+    referenceRect,
+  );
+  var popperEscapeOffsets = getSideOffsets(
+    popperAltOverflow,
+    popperRect,
+    preventedOffsets,
+  );
   var isReferenceHidden = isAnySideFullyClipped(referenceClippingOffsets);
   var hasPopperEscaped = isAnySideFullyClipped(popperEscapeOffsets);
   state.modifiersData[name] = {
     referenceClippingOffsets,
     popperEscapeOffsets,
     isReferenceHidden,
-    hasPopperEscaped
+    hasPopperEscaped,
   };
   state.attributes.popper = Object.assign({}, state.attributes.popper, {
     "data-popper-reference-hidden": isReferenceHidden,
-    "data-popper-escaped": hasPopperEscaped
+    "data-popper-escaped": hasPopperEscaped,
   });
 }
 var hide_default = {
@@ -6766,34 +7906,48 @@ var hide_default = {
   enabled: true,
   phase: "main",
   requiresIfExists: ["preventOverflow"],
-  fn: hide
+  fn: hide,
 };
 
 // node_modules/@popperjs/core/lib/modifiers/offset.js
 function distanceAndSkiddingToXY(placement, rects, offset2) {
   var basePlacement = getBasePlacement(placement);
   var invertDistance = [left, top].indexOf(basePlacement) >= 0 ? -1 : 1;
-  var _ref = typeof offset2 === "function" ? offset2(Object.assign({}, rects, {
-    placement
-  })) : offset2, skidding = _ref[0], distance = _ref[1];
+  var _ref =
+      typeof offset2 === "function"
+        ? offset2(
+            Object.assign({}, rects, {
+              placement,
+            }),
+          )
+        : offset2,
+    skidding = _ref[0],
+    distance = _ref[1];
   skidding = skidding || 0;
   distance = (distance || 0) * invertDistance;
-  return [left, right].indexOf(basePlacement) >= 0 ? {
-    x: distance,
-    y: skidding
-  } : {
-    x: skidding,
-    y: distance
-  };
+  return [left, right].indexOf(basePlacement) >= 0
+    ? {
+        x: distance,
+        y: skidding,
+      }
+    : {
+        x: skidding,
+        y: distance,
+      };
 }
 function offset(_ref2) {
-  var state = _ref2.state, options = _ref2.options, name = _ref2.name;
-  var _options$offset = options.offset, offset2 = _options$offset === void 0 ? [0, 0] : _options$offset;
-  var data = placements.reduce(function(acc, placement) {
+  var state = _ref2.state,
+    options = _ref2.options,
+    name = _ref2.name;
+  var _options$offset = options.offset,
+    offset2 = _options$offset === void 0 ? [0, 0] : _options$offset;
+  var data = placements.reduce(function (acc, placement) {
     acc[placement] = distanceAndSkiddingToXY(placement, state.rects, offset2);
     return acc;
   }, {});
-  var _data$state$placement = data[state.placement], x = _data$state$placement.x, y = _data$state$placement.y;
+  var _data$state$placement = data[state.placement],
+    x = _data$state$placement.x,
+    y = _data$state$placement.y;
   if (state.modifiersData.popperOffsets != null) {
     state.modifiersData.popperOffsets.x += x;
     state.modifiersData.popperOffsets.y += y;
@@ -6805,17 +7959,18 @@ var offset_default = {
   enabled: true,
   phase: "main",
   requires: ["popperOffsets"],
-  fn: offset
+  fn: offset,
 };
 
 // node_modules/@popperjs/core/lib/modifiers/popperOffsets.js
 function popperOffsets(_ref) {
-  var state = _ref.state, name = _ref.name;
+  var state = _ref.state,
+    name = _ref.name;
   state.modifiersData[name] = computeOffsets({
     reference: state.rects.reference,
     element: state.rects.popper,
     strategy: "absolute",
-    placement: state.placement
+    placement: state.placement,
   });
 }
 var popperOffsets_default = {
@@ -6823,7 +7978,7 @@ var popperOffsets_default = {
   enabled: true,
   phase: "read",
   fn: popperOffsets,
-  data: {}
+  data: {},
 };
 
 // node_modules/@popperjs/core/lib/utils/getAltAxis.js
@@ -6833,13 +7988,26 @@ function getAltAxis(axis) {
 
 // node_modules/@popperjs/core/lib/modifiers/preventOverflow.js
 function preventOverflow(_ref) {
-  var state = _ref.state, options = _ref.options, name = _ref.name;
-  var _options$mainAxis = options.mainAxis, checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis, _options$altAxis = options.altAxis, checkAltAxis = _options$altAxis === void 0 ? false : _options$altAxis, boundary = options.boundary, rootBoundary = options.rootBoundary, altBoundary = options.altBoundary, padding = options.padding, _options$tether = options.tether, tether = _options$tether === void 0 ? true : _options$tether, _options$tetherOffset = options.tetherOffset, tetherOffset = _options$tetherOffset === void 0 ? 0 : _options$tetherOffset;
+  var state = _ref.state,
+    options = _ref.options,
+    name = _ref.name;
+  var _options$mainAxis = options.mainAxis,
+    checkMainAxis = _options$mainAxis === void 0 ? true : _options$mainAxis,
+    _options$altAxis = options.altAxis,
+    checkAltAxis = _options$altAxis === void 0 ? false : _options$altAxis,
+    boundary = options.boundary,
+    rootBoundary = options.rootBoundary,
+    altBoundary = options.altBoundary,
+    padding = options.padding,
+    _options$tether = options.tether,
+    tether = _options$tether === void 0 ? true : _options$tether,
+    _options$tetherOffset = options.tetherOffset,
+    tetherOffset = _options$tetherOffset === void 0 ? 0 : _options$tetherOffset;
   var overflow = detectOverflow(state, {
     boundary,
     rootBoundary,
     padding,
-    altBoundary
+    altBoundary,
   });
   var basePlacement = getBasePlacement(state.placement);
   var variation = getVariation(state.placement);
@@ -6849,20 +8017,33 @@ function preventOverflow(_ref) {
   var popperOffsets2 = state.modifiersData.popperOffsets;
   var referenceRect = state.rects.reference;
   var popperRect = state.rects.popper;
-  var tetherOffsetValue = typeof tetherOffset === "function" ? tetherOffset(Object.assign({}, state.rects, {
-    placement: state.placement
-  })) : tetherOffset;
-  var normalizedTetherOffsetValue = typeof tetherOffsetValue === "number" ? {
-    mainAxis: tetherOffsetValue,
-    altAxis: tetherOffsetValue
-  } : Object.assign({
-    mainAxis: 0,
-    altAxis: 0
-  }, tetherOffsetValue);
-  var offsetModifierState = state.modifiersData.offset ? state.modifiersData.offset[state.placement] : null;
+  var tetherOffsetValue =
+    typeof tetherOffset === "function"
+      ? tetherOffset(
+          Object.assign({}, state.rects, {
+            placement: state.placement,
+          }),
+        )
+      : tetherOffset;
+  var normalizedTetherOffsetValue =
+    typeof tetherOffsetValue === "number"
+      ? {
+          mainAxis: tetherOffsetValue,
+          altAxis: tetherOffsetValue,
+        }
+      : Object.assign(
+          {
+            mainAxis: 0,
+            altAxis: 0,
+          },
+          tetherOffsetValue,
+        );
+  var offsetModifierState = state.modifiersData.offset
+    ? state.modifiersData.offset[state.placement]
+    : null;
   var data = {
     x: 0,
-    y: 0
+    y: 0,
   };
   if (!popperOffsets2) {
     return;
@@ -6879,22 +8060,59 @@ function preventOverflow(_ref) {
     var minLen = variation === start ? referenceRect[len] : popperRect[len];
     var maxLen = variation === start ? -popperRect[len] : -referenceRect[len];
     var arrowElement = state.elements.arrow;
-    var arrowRect = tether && arrowElement ? getLayoutRect(arrowElement) : {
-      width: 0,
-      height: 0
-    };
-    var arrowPaddingObject = state.modifiersData["arrow#persistent"] ? state.modifiersData["arrow#persistent"].padding : getFreshSideObject();
+    var arrowRect =
+      tether && arrowElement
+        ? getLayoutRect(arrowElement)
+        : {
+            width: 0,
+            height: 0,
+          };
+    var arrowPaddingObject = state.modifiersData["arrow#persistent"]
+      ? state.modifiersData["arrow#persistent"].padding
+      : getFreshSideObject();
     var arrowPaddingMin = arrowPaddingObject[mainSide];
     var arrowPaddingMax = arrowPaddingObject[altSide];
     var arrowLen = within(0, referenceRect[len], arrowRect[len]);
-    var minOffset = isBasePlacement ? referenceRect[len] / 2 - additive - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis : minLen - arrowLen - arrowPaddingMin - normalizedTetherOffsetValue.mainAxis;
-    var maxOffset = isBasePlacement ? -referenceRect[len] / 2 + additive + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis : maxLen + arrowLen + arrowPaddingMax + normalizedTetherOffsetValue.mainAxis;
-    var arrowOffsetParent = state.elements.arrow && getOffsetParent(state.elements.arrow);
-    var clientOffset = arrowOffsetParent ? mainAxis === "y" ? arrowOffsetParent.clientTop || 0 : arrowOffsetParent.clientLeft || 0 : 0;
-    var offsetModifierValue = (_offsetModifierState$ = offsetModifierState == null ? void 0 : offsetModifierState[mainAxis]) != null ? _offsetModifierState$ : 0;
+    var minOffset = isBasePlacement
+      ? referenceRect[len] / 2 -
+        additive -
+        arrowLen -
+        arrowPaddingMin -
+        normalizedTetherOffsetValue.mainAxis
+      : minLen -
+        arrowLen -
+        arrowPaddingMin -
+        normalizedTetherOffsetValue.mainAxis;
+    var maxOffset = isBasePlacement
+      ? -referenceRect[len] / 2 +
+        additive +
+        arrowLen +
+        arrowPaddingMax +
+        normalizedTetherOffsetValue.mainAxis
+      : maxLen +
+        arrowLen +
+        arrowPaddingMax +
+        normalizedTetherOffsetValue.mainAxis;
+    var arrowOffsetParent =
+      state.elements.arrow && getOffsetParent(state.elements.arrow);
+    var clientOffset = arrowOffsetParent
+      ? mainAxis === "y"
+        ? arrowOffsetParent.clientTop || 0
+        : arrowOffsetParent.clientLeft || 0
+      : 0;
+    var offsetModifierValue =
+      (_offsetModifierState$ =
+        offsetModifierState == null ? void 0 : offsetModifierState[mainAxis]) !=
+      null
+        ? _offsetModifierState$
+        : 0;
     var tetherMin = offset2 + minOffset - offsetModifierValue - clientOffset;
     var tetherMax = offset2 + maxOffset - offsetModifierValue;
-    var preventedOffset = within(tether ? min(min2, tetherMin) : min2, offset2, tether ? max(max2, tetherMax) : max2);
+    var preventedOffset = within(
+      tether ? min(min2, tetherMin) : min2,
+      offset2,
+      tether ? max(max2, tetherMax) : max2,
+    );
     popperOffsets2[mainAxis] = preventedOffset;
     data[mainAxis] = preventedOffset - offset2;
   }
@@ -6907,10 +8125,34 @@ function preventOverflow(_ref) {
     var _min = _offset + overflow[_mainSide];
     var _max = _offset - overflow[_altSide];
     var isOriginSide = [top, left].indexOf(basePlacement) !== -1;
-    var _offsetModifierValue = (_offsetModifierState$2 = offsetModifierState == null ? void 0 : offsetModifierState[altAxis]) != null ? _offsetModifierState$2 : 0;
-    var _tetherMin = isOriginSide ? _min : _offset - referenceRect[_len] - popperRect[_len] - _offsetModifierValue + normalizedTetherOffsetValue.altAxis;
-    var _tetherMax = isOriginSide ? _offset + referenceRect[_len] + popperRect[_len] - _offsetModifierValue - normalizedTetherOffsetValue.altAxis : _max;
-    var _preventedOffset = tether && isOriginSide ? withinMaxClamp(_tetherMin, _offset, _tetherMax) : within(tether ? _tetherMin : _min, _offset, tether ? _tetherMax : _max);
+    var _offsetModifierValue =
+      (_offsetModifierState$2 =
+        offsetModifierState == null ? void 0 : offsetModifierState[altAxis]) !=
+      null
+        ? _offsetModifierState$2
+        : 0;
+    var _tetherMin = isOriginSide
+      ? _min
+      : _offset -
+        referenceRect[_len] -
+        popperRect[_len] -
+        _offsetModifierValue +
+        normalizedTetherOffsetValue.altAxis;
+    var _tetherMax = isOriginSide
+      ? _offset +
+        referenceRect[_len] +
+        popperRect[_len] -
+        _offsetModifierValue -
+        normalizedTetherOffsetValue.altAxis
+      : _max;
+    var _preventedOffset =
+      tether && isOriginSide
+        ? withinMaxClamp(_tetherMin, _offset, _tetherMax)
+        : within(
+            tether ? _tetherMin : _min,
+            _offset,
+            tether ? _tetherMax : _max,
+          );
     popperOffsets2[altAxis] = _preventedOffset;
     data[altAxis] = _preventedOffset - _offset;
   }
@@ -6921,14 +8163,14 @@ var preventOverflow_default = {
   enabled: true,
   phase: "main",
   fn: preventOverflow,
-  requiresIfExists: ["offset"]
+  requiresIfExists: ["offset"],
 };
 
 // node_modules/@popperjs/core/lib/dom-utils/getHTMLElementScroll.js
 function getHTMLElementScroll(element2) {
   return {
     scrollLeft: element2.scrollLeft,
-    scrollTop: element2.scrollTop
+    scrollTop: element2.scrollTop,
   };
 }
 
@@ -6953,19 +8195,27 @@ function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
     isFixed = false;
   }
   var isOffsetParentAnElement = isHTMLElement(offsetParent);
-  var offsetParentIsScaled = isHTMLElement(offsetParent) && isElementScaled(offsetParent);
+  var offsetParentIsScaled =
+    isHTMLElement(offsetParent) && isElementScaled(offsetParent);
   var documentElement = getDocumentElement(offsetParent);
-  var rect = getBoundingClientRect(elementOrVirtualElement, offsetParentIsScaled, isFixed);
+  var rect = getBoundingClientRect(
+    elementOrVirtualElement,
+    offsetParentIsScaled,
+    isFixed,
+  );
   var scroll = {
     scrollLeft: 0,
-    scrollTop: 0
+    scrollTop: 0,
   };
   var offsets = {
     x: 0,
-    y: 0
+    y: 0,
   };
-  if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
-    if (getNodeName(offsetParent) !== "body" || isScrollParent(documentElement)) {
+  if (isOffsetParentAnElement || (!isOffsetParentAnElement && !isFixed)) {
+    if (
+      getNodeName(offsetParent) !== "body" ||
+      isScrollParent(documentElement)
+    ) {
       scroll = getNodeScroll(offsetParent);
     }
     if (isHTMLElement(offsetParent)) {
@@ -6980,7 +8230,7 @@ function getCompositeRect(elementOrVirtualElement, offsetParent, isFixed) {
     x: rect.left + scroll.scrollLeft - offsets.x,
     y: rect.top + scroll.scrollTop - offsets.y,
     width: rect.width,
-    height: rect.height
+    height: rect.height,
   };
 }
 
@@ -6989,13 +8239,16 @@ function order(modifiers) {
   var map = /* @__PURE__ */ new Map();
   var visited = /* @__PURE__ */ new Set();
   var result = [];
-  modifiers.forEach(function(modifier) {
+  modifiers.forEach(function (modifier) {
     map.set(modifier.name, modifier);
   });
   function sort(modifier) {
     visited.add(modifier.name);
-    var requires = [].concat(modifier.requires || [], modifier.requiresIfExists || []);
-    requires.forEach(function(dep) {
+    var requires = [].concat(
+      modifier.requires || [],
+      modifier.requiresIfExists || [],
+    );
+    requires.forEach(function (dep) {
       if (!visited.has(dep)) {
         var depModifier = map.get(dep);
         if (depModifier) {
@@ -7005,7 +8258,7 @@ function order(modifiers) {
     });
     result.push(modifier);
   }
-  modifiers.forEach(function(modifier) {
+  modifiers.forEach(function (modifier) {
     if (!visited.has(modifier.name)) {
       sort(modifier);
     }
@@ -7014,20 +8267,22 @@ function order(modifiers) {
 }
 function orderModifiers(modifiers) {
   var orderedModifiers = order(modifiers);
-  return modifierPhases.reduce(function(acc, phase) {
-    return acc.concat(orderedModifiers.filter(function(modifier) {
-      return modifier.phase === phase;
-    }));
+  return modifierPhases.reduce(function (acc, phase) {
+    return acc.concat(
+      orderedModifiers.filter(function (modifier) {
+        return modifier.phase === phase;
+      }),
+    );
   }, []);
 }
 
 // node_modules/@popperjs/core/lib/utils/debounce.js
 function debounce(fn2) {
   var pending;
-  return function() {
+  return function () {
     if (!pending) {
-      pending = new Promise(function(resolve) {
-        Promise.resolve().then(function() {
+      pending = new Promise(function (resolve) {
+        Promise.resolve().then(function () {
           pending = void 0;
           resolve(fn2());
         });
@@ -7039,82 +8294,181 @@ function debounce(fn2) {
 
 // node_modules/@popperjs/core/lib/utils/format.js
 function format(str) {
-  for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+  for (
+    var _len = arguments.length,
+      args = new Array(_len > 1 ? _len - 1 : 0),
+      _key = 1;
+    _key < _len;
+    _key++
+  ) {
     args[_key - 1] = arguments[_key];
   }
-  return [].concat(args).reduce(function(p, c) {
+  return [].concat(args).reduce(function (p, c) {
     return p.replace(/%s/, c);
   }, str);
 }
 
 // node_modules/@popperjs/core/lib/utils/validateModifiers.js
-var INVALID_MODIFIER_ERROR = 'Popper: modifier "%s" provided an invalid %s property, expected %s but got %s';
-var MISSING_DEPENDENCY_ERROR = 'Popper: modifier "%s" requires "%s", but "%s" modifier is not available';
-var VALID_PROPERTIES = ["name", "enabled", "phase", "fn", "effect", "requires", "options"];
+var INVALID_MODIFIER_ERROR =
+  'Popper: modifier "%s" provided an invalid %s property, expected %s but got %s';
+var MISSING_DEPENDENCY_ERROR =
+  'Popper: modifier "%s" requires "%s", but "%s" modifier is not available';
+var VALID_PROPERTIES = [
+  "name",
+  "enabled",
+  "phase",
+  "fn",
+  "effect",
+  "requires",
+  "options",
+];
 function validateModifiers(modifiers) {
-  modifiers.forEach(function(modifier) {
-    [].concat(Object.keys(modifier), VALID_PROPERTIES).filter(function(value, index, self) {
-      return self.indexOf(value) === index;
-    }).forEach(function(key) {
-      switch (key) {
-        case "name":
-          if (typeof modifier.name !== "string") {
-            console.error(format(INVALID_MODIFIER_ERROR, String(modifier.name), '"name"', '"string"', '"' + String(modifier.name) + '"'));
-          }
-          break;
-        case "enabled":
-          if (typeof modifier.enabled !== "boolean") {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"enabled"', '"boolean"', '"' + String(modifier.enabled) + '"'));
-          }
-          break;
-        case "phase":
-          if (modifierPhases.indexOf(modifier.phase) < 0) {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"phase"', "either " + modifierPhases.join(", "), '"' + String(modifier.phase) + '"'));
-          }
-          break;
-        case "fn":
-          if (typeof modifier.fn !== "function") {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"fn"', '"function"', '"' + String(modifier.fn) + '"'));
-          }
-          break;
-        case "effect":
-          if (modifier.effect != null && typeof modifier.effect !== "function") {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"effect"', '"function"', '"' + String(modifier.fn) + '"'));
-          }
-          break;
-        case "requires":
-          if (modifier.requires != null && !Array.isArray(modifier.requires)) {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"requires"', '"array"', '"' + String(modifier.requires) + '"'));
-          }
-          break;
-        case "requiresIfExists":
-          if (!Array.isArray(modifier.requiresIfExists)) {
-            console.error(format(INVALID_MODIFIER_ERROR, modifier.name, '"requiresIfExists"', '"array"', '"' + String(modifier.requiresIfExists) + '"'));
-          }
-          break;
-        case "options":
-        case "data":
-          break;
-        default:
-          console.error('PopperJS: an invalid property has been provided to the "' + modifier.name + '" modifier, valid properties are ' + VALID_PROPERTIES.map(function(s) {
-            return '"' + s + '"';
-          }).join(", ") + '; but "' + key + '" was provided.');
-      }
-      modifier.requires && modifier.requires.forEach(function(requirement) {
-        if (modifiers.find(function(mod) {
-          return mod.name === requirement;
-        }) == null) {
-          console.error(format(MISSING_DEPENDENCY_ERROR, String(modifier.name), requirement, requirement));
+  modifiers.forEach(function (modifier) {
+    []
+      .concat(Object.keys(modifier), VALID_PROPERTIES)
+      .filter(function (value, index, self) {
+        return self.indexOf(value) === index;
+      })
+      .forEach(function (key) {
+        switch (key) {
+          case "name":
+            if (typeof modifier.name !== "string") {
+              console.error(
+                format(
+                  INVALID_MODIFIER_ERROR,
+                  String(modifier.name),
+                  '"name"',
+                  '"string"',
+                  '"' + String(modifier.name) + '"',
+                ),
+              );
+            }
+            break;
+          case "enabled":
+            if (typeof modifier.enabled !== "boolean") {
+              console.error(
+                format(
+                  INVALID_MODIFIER_ERROR,
+                  modifier.name,
+                  '"enabled"',
+                  '"boolean"',
+                  '"' + String(modifier.enabled) + '"',
+                ),
+              );
+            }
+            break;
+          case "phase":
+            if (modifierPhases.indexOf(modifier.phase) < 0) {
+              console.error(
+                format(
+                  INVALID_MODIFIER_ERROR,
+                  modifier.name,
+                  '"phase"',
+                  "either " + modifierPhases.join(", "),
+                  '"' + String(modifier.phase) + '"',
+                ),
+              );
+            }
+            break;
+          case "fn":
+            if (typeof modifier.fn !== "function") {
+              console.error(
+                format(
+                  INVALID_MODIFIER_ERROR,
+                  modifier.name,
+                  '"fn"',
+                  '"function"',
+                  '"' + String(modifier.fn) + '"',
+                ),
+              );
+            }
+            break;
+          case "effect":
+            if (
+              modifier.effect != null &&
+              typeof modifier.effect !== "function"
+            ) {
+              console.error(
+                format(
+                  INVALID_MODIFIER_ERROR,
+                  modifier.name,
+                  '"effect"',
+                  '"function"',
+                  '"' + String(modifier.fn) + '"',
+                ),
+              );
+            }
+            break;
+          case "requires":
+            if (
+              modifier.requires != null &&
+              !Array.isArray(modifier.requires)
+            ) {
+              console.error(
+                format(
+                  INVALID_MODIFIER_ERROR,
+                  modifier.name,
+                  '"requires"',
+                  '"array"',
+                  '"' + String(modifier.requires) + '"',
+                ),
+              );
+            }
+            break;
+          case "requiresIfExists":
+            if (!Array.isArray(modifier.requiresIfExists)) {
+              console.error(
+                format(
+                  INVALID_MODIFIER_ERROR,
+                  modifier.name,
+                  '"requiresIfExists"',
+                  '"array"',
+                  '"' + String(modifier.requiresIfExists) + '"',
+                ),
+              );
+            }
+            break;
+          case "options":
+          case "data":
+            break;
+          default:
+            console.error(
+              'PopperJS: an invalid property has been provided to the "' +
+                modifier.name +
+                '" modifier, valid properties are ' +
+                VALID_PROPERTIES.map(function (s) {
+                  return '"' + s + '"';
+                }).join(", ") +
+                '; but "' +
+                key +
+                '" was provided.',
+            );
         }
+        modifier.requires &&
+          modifier.requires.forEach(function (requirement) {
+            if (
+              modifiers.find(function (mod) {
+                return mod.name === requirement;
+              }) == null
+            ) {
+              console.error(
+                format(
+                  MISSING_DEPENDENCY_ERROR,
+                  String(modifier.name),
+                  requirement,
+                  requirement,
+                ),
+              );
+            }
+          });
       });
-    });
   });
 }
 
 // node_modules/@popperjs/core/lib/utils/uniqueBy.js
 function uniqueBy(arr, fn2) {
   var identifiers = /* @__PURE__ */ new Set();
-  return arr.filter(function(item) {
+  return arr.filter(function (item) {
     var identifier = fn2(item);
     if (!identifiers.has(identifier)) {
       identifiers.add(identifier);
@@ -7125,32 +8479,40 @@ function uniqueBy(arr, fn2) {
 
 // node_modules/@popperjs/core/lib/utils/mergeByName.js
 function mergeByName(modifiers) {
-  var merged = modifiers.reduce(function(merged2, current) {
+  var merged = modifiers.reduce(function (merged2, current) {
     var existing = merged2[current.name];
-    merged2[current.name] = existing ? Object.assign({}, existing, current, {
-      options: Object.assign({}, existing.options, current.options),
-      data: Object.assign({}, existing.data, current.data)
-    }) : current;
+    merged2[current.name] = existing
+      ? Object.assign({}, existing, current, {
+          options: Object.assign({}, existing.options, current.options),
+          data: Object.assign({}, existing.data, current.data),
+        })
+      : current;
     return merged2;
   }, {});
-  return Object.keys(merged).map(function(key) {
+  return Object.keys(merged).map(function (key) {
     return merged[key];
   });
 }
 
 // node_modules/@popperjs/core/lib/createPopper.js
-var INVALID_ELEMENT_ERROR = "Popper: Invalid reference or popper argument provided. They must be either a DOM element or virtual element.";
-var INFINITE_LOOP_ERROR = "Popper: An infinite loop in the modifiers cycle has been detected! The cycle has been interrupted to prevent a browser crash.";
+var INVALID_ELEMENT_ERROR =
+  "Popper: Invalid reference or popper argument provided. They must be either a DOM element or virtual element.";
+var INFINITE_LOOP_ERROR =
+  "Popper: An infinite loop in the modifiers cycle has been detected! The cycle has been interrupted to prevent a browser crash.";
 var DEFAULT_OPTIONS = {
   placement: "bottom",
   modifiers: [],
-  strategy: "absolute"
+  strategy: "absolute",
 };
 function areValidElements() {
-  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+  for (
+    var _len = arguments.length, args = new Array(_len), _key = 0;
+    _key < _len;
+    _key++
+  ) {
     args[_key] = arguments[_key];
   }
-  return !args.some(function(element2) {
+  return !args.some(function (element2) {
     return !(element2 && typeof element2.getBoundingClientRect === "function");
   });
 }
@@ -7158,7 +8520,15 @@ function popperGenerator(generatorOptions) {
   if (generatorOptions === void 0) {
     generatorOptions = {};
   }
-  var _generatorOptions = generatorOptions, _generatorOptions$def = _generatorOptions.defaultModifiers, defaultModifiers2 = _generatorOptions$def === void 0 ? [] : _generatorOptions$def, _generatorOptions$def2 = _generatorOptions.defaultOptions, defaultOptions = _generatorOptions$def2 === void 0 ? DEFAULT_OPTIONS : _generatorOptions$def2;
+  var _generatorOptions = generatorOptions,
+    _generatorOptions$def = _generatorOptions.defaultModifiers,
+    defaultModifiers2 =
+      _generatorOptions$def === void 0 ? [] : _generatorOptions$def,
+    _generatorOptions$def2 = _generatorOptions.defaultOptions,
+    defaultOptions =
+      _generatorOptions$def2 === void 0
+        ? DEFAULT_OPTIONS
+        : _generatorOptions$def2;
   return function createPopper2(reference2, popper2, options) {
     if (options === void 0) {
       options = defaultOptions;
@@ -7170,47 +8540,85 @@ function popperGenerator(generatorOptions) {
       modifiersData: {},
       elements: {
         reference: reference2,
-        popper: popper2
+        popper: popper2,
       },
       attributes: {},
-      styles: {}
+      styles: {},
     };
     var effectCleanupFns = [];
     var isDestroyed = false;
     var instance16 = {
       state,
       setOptions: function setOptions(setOptionsAction) {
-        var options2 = typeof setOptionsAction === "function" ? setOptionsAction(state.options) : setOptionsAction;
+        var options2 =
+          typeof setOptionsAction === "function"
+            ? setOptionsAction(state.options)
+            : setOptionsAction;
         cleanupModifierEffects();
-        state.options = Object.assign({}, defaultOptions, state.options, options2);
+        state.options = Object.assign(
+          {},
+          defaultOptions,
+          state.options,
+          options2,
+        );
         state.scrollParents = {
-          reference: isElement(reference2) ? listScrollParents(reference2) : reference2.contextElement ? listScrollParents(reference2.contextElement) : [],
-          popper: listScrollParents(popper2)
+          reference: isElement(reference2)
+            ? listScrollParents(reference2)
+            : reference2.contextElement
+              ? listScrollParents(reference2.contextElement)
+              : [],
+          popper: listScrollParents(popper2),
         };
-        var orderedModifiers = orderModifiers(mergeByName([].concat(defaultModifiers2, state.options.modifiers)));
-        state.orderedModifiers = orderedModifiers.filter(function(m) {
+        var orderedModifiers = orderModifiers(
+          mergeByName([].concat(defaultModifiers2, state.options.modifiers)),
+        );
+        state.orderedModifiers = orderedModifiers.filter(function (m) {
           return m.enabled;
         });
         if (true) {
-          var modifiers = uniqueBy([].concat(orderedModifiers, state.options.modifiers), function(_ref) {
-            var name = _ref.name;
-            return name;
-          });
+          var modifiers = uniqueBy(
+            [].concat(orderedModifiers, state.options.modifiers),
+            function (_ref) {
+              var name = _ref.name;
+              return name;
+            },
+          );
           validateModifiers(modifiers);
           if (getBasePlacement(state.options.placement) === auto) {
-            var flipModifier = state.orderedModifiers.find(function(_ref2) {
+            var flipModifier = state.orderedModifiers.find(function (_ref2) {
               var name = _ref2.name;
               return name === "flip";
             });
             if (!flipModifier) {
-              console.error(['Popper: "auto" placements require the "flip" modifier be', "present and enabled to work."].join(" "));
+              console.error(
+                [
+                  'Popper: "auto" placements require the "flip" modifier be',
+                  "present and enabled to work.",
+                ].join(" "),
+              );
             }
           }
-          var _getComputedStyle = getComputedStyle2(popper2), marginTop = _getComputedStyle.marginTop, marginRight = _getComputedStyle.marginRight, marginBottom = _getComputedStyle.marginBottom, marginLeft = _getComputedStyle.marginLeft;
-          if ([marginTop, marginRight, marginBottom, marginLeft].some(function(margin) {
-            return parseFloat(margin);
-          })) {
-            console.warn(['Popper: CSS "margin" styles cannot be used to apply padding', "between the popper and its reference element or boundary.", "To replicate margin, use the `offset` modifier, as well as", "the `padding` option in the `preventOverflow` and `flip`", "modifiers."].join(" "));
+          var _getComputedStyle = getComputedStyle2(popper2),
+            marginTop = _getComputedStyle.marginTop,
+            marginRight = _getComputedStyle.marginRight,
+            marginBottom = _getComputedStyle.marginBottom,
+            marginLeft = _getComputedStyle.marginLeft;
+          if (
+            [marginTop, marginRight, marginBottom, marginLeft].some(
+              function (margin) {
+                return parseFloat(margin);
+              },
+            )
+          ) {
+            console.warn(
+              [
+                'Popper: CSS "margin" styles cannot be used to apply padding',
+                "between the popper and its reference element or boundary.",
+                "To replicate margin, use the `offset` modifier, as well as",
+                "the `padding` option in the `preventOverflow` and `flip`",
+                "modifiers.",
+              ].join(" "),
+            );
           }
         }
         runModifierEffects();
@@ -7220,7 +8628,9 @@ function popperGenerator(generatorOptions) {
         if (isDestroyed) {
           return;
         }
-        var _state$elements = state.elements, reference3 = _state$elements.reference, popper3 = _state$elements.popper;
+        var _state$elements = state.elements,
+          reference3 = _state$elements.reference,
+          popper3 = _state$elements.popper;
         if (!areValidElements(reference3, popper3)) {
           if (true) {
             console.error(INVALID_ELEMENT_ERROR);
@@ -7228,13 +8638,20 @@ function popperGenerator(generatorOptions) {
           return;
         }
         state.rects = {
-          reference: getCompositeRect(reference3, getOffsetParent(popper3), state.options.strategy === "fixed"),
-          popper: getLayoutRect(popper3)
+          reference: getCompositeRect(
+            reference3,
+            getOffsetParent(popper3),
+            state.options.strategy === "fixed",
+          ),
+          popper: getLayoutRect(popper3),
         };
         state.reset = false;
         state.placement = state.options.placement;
-        state.orderedModifiers.forEach(function(modifier) {
-          return state.modifiersData[modifier.name] = Object.assign({}, modifier.data);
+        state.orderedModifiers.forEach(function (modifier) {
+          return (state.modifiersData[modifier.name] = Object.assign(
+            {},
+            modifier.data,
+          ));
         });
         var __debug_loops__ = 0;
         for (var index = 0; index < state.orderedModifiers.length; index++) {
@@ -7250,19 +8667,25 @@ function popperGenerator(generatorOptions) {
             index = -1;
             continue;
           }
-          var _state$orderedModifie = state.orderedModifiers[index], fn2 = _state$orderedModifie.fn, _state$orderedModifie2 = _state$orderedModifie.options, _options = _state$orderedModifie2 === void 0 ? {} : _state$orderedModifie2, name = _state$orderedModifie.name;
+          var _state$orderedModifie = state.orderedModifiers[index],
+            fn2 = _state$orderedModifie.fn,
+            _state$orderedModifie2 = _state$orderedModifie.options,
+            _options =
+              _state$orderedModifie2 === void 0 ? {} : _state$orderedModifie2,
+            name = _state$orderedModifie.name;
           if (typeof fn2 === "function") {
-            state = fn2({
-              state,
-              options: _options,
-              name,
-              instance: instance16
-            }) || state;
+            state =
+              fn2({
+                state,
+                options: _options,
+                name,
+                instance: instance16,
+              }) || state;
           }
         }
       },
-      update: debounce(function() {
-        return new Promise(function(resolve) {
+      update: debounce(function () {
+        return new Promise(function (resolve) {
           instance16.forceUpdate();
           resolve(state);
         });
@@ -7270,7 +8693,7 @@ function popperGenerator(generatorOptions) {
       destroy: function destroy() {
         cleanupModifierEffects();
         isDestroyed = true;
-      }
+      },
     };
     if (!areValidElements(reference2, popper2)) {
       if (true) {
@@ -7278,29 +8701,31 @@ function popperGenerator(generatorOptions) {
       }
       return instance16;
     }
-    instance16.setOptions(options).then(function(state2) {
+    instance16.setOptions(options).then(function (state2) {
       if (!isDestroyed && options.onFirstUpdate) {
         options.onFirstUpdate(state2);
       }
     });
     function runModifierEffects() {
-      state.orderedModifiers.forEach(function(_ref3) {
-        var name = _ref3.name, _ref3$options = _ref3.options, options2 = _ref3$options === void 0 ? {} : _ref3$options, effect4 = _ref3.effect;
+      state.orderedModifiers.forEach(function (_ref3) {
+        var name = _ref3.name,
+          _ref3$options = _ref3.options,
+          options2 = _ref3$options === void 0 ? {} : _ref3$options,
+          effect4 = _ref3.effect;
         if (typeof effect4 === "function") {
           var cleanupFn = effect4({
             state,
             name,
             instance: instance16,
-            options: options2
+            options: options2,
           });
-          var noopFn = function noopFn2() {
-          };
+          var noopFn = function noopFn2() {};
           effectCleanupFns.push(cleanupFn || noopFn);
         }
       });
     }
     function cleanupModifierEffects() {
-      effectCleanupFns.forEach(function(fn2) {
+      effectCleanupFns.forEach(function (fn2) {
         return fn2();
       });
       effectCleanupFns = [];
@@ -7310,9 +8735,19 @@ function popperGenerator(generatorOptions) {
 }
 
 // node_modules/@popperjs/core/lib/popper.js
-var defaultModifiers = [eventListeners_default, popperOffsets_default, computeStyles_default, applyStyles_default, offset_default, flip_default, preventOverflow_default, arrow_default, hide_default];
+var defaultModifiers = [
+  eventListeners_default,
+  popperOffsets_default,
+  computeStyles_default,
+  applyStyles_default,
+  offset_default,
+  flip_default,
+  preventOverflow_default,
+  arrow_default,
+  hide_default,
+];
 var createPopper = /* @__PURE__ */ popperGenerator({
-  defaultModifiers
+  defaultModifiers,
 });
 
 // node_modules/svelte-popperjs/dist/index.es.js
@@ -7342,7 +8777,7 @@ function createPopperActions(initOptions) {
       return {
         destroy() {
           deinitPopper();
-        }
+        },
       };
     }
   };
@@ -7369,7 +8804,7 @@ function createPopperActions(initOptions) {
       },
       destroy() {
         deinitPopper();
-      }
+      },
     };
   };
   return [referenceAction, contentAction, () => popperInstance];
@@ -7377,7 +8812,11 @@ function createPopperActions(initOptions) {
 
 // src/settings/components/TemplateSuggest.svelte
 function add_css(target) {
-  append_styles(target, "svelte-153zjst", ".search_input.svelte-153zjst{width:calc(100% - 20px)}.suggestion-container.svelte-153zjst{text-align:left}");
+  append_styles(
+    target,
+    "svelte-153zjst",
+    ".search_input.svelte-153zjst{width:calc(100% - 20px)}.suggestion-container.svelte-153zjst{text-align:left}",
+  );
 }
 function get_each_context(ctx, list, i) {
   const child_ctx = ctx.slice();
@@ -7427,7 +8866,9 @@ function create_if_block(ctx) {
           listen(div0, "click", ctx[20]),
           listen(div0, "mouseover", ctx[8]),
           listen(div0, "mouseout", ctx[9]),
-          action_destroyer(popperContent_action = ctx[5].call(null, div2, ctx[6]))
+          action_destroyer(
+            (popperContent_action = ctx[5].call(null, div2, ctx[6])),
+          ),
         ];
         mounted = true;
       }
@@ -7453,12 +8894,11 @@ function create_if_block(ctx) {
       }
     },
     d(detaching) {
-      if (detaching)
-        detach(div2);
+      if (detaching) detach(div2);
       destroy_each(each_blocks, detaching);
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function create_each_block(ctx) {
@@ -7489,7 +8929,7 @@ function create_each_block(ctx) {
           listen(div, "blur", ctx[15]),
           listen(div, "click", click_handler_1),
           listen(div, "mouseover", ctx[8]),
-          listen(div, "mouseout", ctx[9])
+          listen(div, "mouseout", ctx[9]),
         ];
         mounted = true;
       }
@@ -7500,11 +8940,10 @@ function create_each_block(ctx) {
         set_data(t0, t0_value);
     },
     d(detaching) {
-      if (detaching)
-        detach(div);
+      if (detaching) detach(div);
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function create_fragment(ctx) {
@@ -7545,11 +8984,14 @@ function create_fragment(ctx) {
       div4 = element("div");
       input = element("input");
       t6 = space();
-      if (if_block)
-        if_block.c();
+      if (if_block) if_block.c();
       attr(div0, "class", "setting-item-name");
       attr(div1, "class", "setting-item-description");
-      attr(a, "href", "https://raw.githubusercontent.com/jgchristopher/obsidian-clipper/main/docs/example-template.md");
+      attr(
+        a,
+        "href",
+        "https://raw.githubusercontent.com/jgchristopher/obsidian-clipper/main/docs/example-template.md",
+      );
       attr(div2, "class", "setting-item-info");
       attr(div3, "class", "setting-item align-start");
       attr(input, "type", "text");
@@ -7576,23 +9018,20 @@ function create_fragment(ctx) {
       append(div4, input);
       set_input_value(input, ctx[0]);
       append(div5, t6);
-      if (if_block)
-        if_block.m(div5, null);
+      if (if_block) if_block.m(div5, null);
       if (!mounted) {
         dispose = [
-          action_destroyer(popperRef_action = ctx[4].call(null, input)),
+          action_destroyer((popperRef_action = ctx[4].call(null, input))),
           listen(input, "input", ctx[19]),
           listen(input, "input", ctx[10]),
-          listen(input, "focusin", ctx[10])
+          listen(input, "focusin", ctx[10]),
         ];
         mounted = true;
       }
     },
     p(ctx2, [dirty]) {
-      if (dirty & 2)
-        set_data(t0, ctx2[1]);
-      if (dirty & 4)
-        set_data(t2, ctx2[2]);
+      if (dirty & 2) set_data(t0, ctx2[1]);
+      if (dirty & 4) set_data(t2, ctx2[2]);
       if (dirty & 1 && input.value !== ctx2[0]) {
         set_input_value(input, ctx2[0]);
       }
@@ -7612,17 +9051,13 @@ function create_fragment(ctx) {
     i: noop,
     o: noop,
     d(detaching) {
-      if (detaching)
-        detach(div3);
-      if (detaching)
-        detach(t5);
-      if (detaching)
-        detach(div6);
-      if (if_block)
-        if_block.d();
+      if (detaching) detach(div3);
+      if (detaching) detach(t5);
+      if (detaching) detach(div6);
+      if (if_block) if_block.d();
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function instance($$self, $$props, $$invalidate) {
@@ -7633,13 +9068,13 @@ function instance($$self, $$props, $$invalidate) {
   let { dataProvider } = $$props;
   const [popperRef, popperContent] = createPopperActions({
     placement: "bottom-start",
-    strategy: "fixed"
+    strategy: "fixed",
   });
   const extraOpts = {
     modifiers: [
       {
         name: "offset",
-        options: { offset: [0, 5] }
+        options: { offset: [0, 5] },
       },
       {
         name: "sameWidth",
@@ -7653,14 +9088,14 @@ function instance($$self, $$props, $$invalidate) {
           instance16.update();
         },
         phase: "beforeWrite",
-        requires: ["computeStyles"]
-      }
-    ]
+        requires: ["computeStyles"],
+      },
+    ],
   };
   let templateOptions = [];
   const setInputVal = (templateOption) => {
-    $$invalidate(3, templateOptions = []);
-    $$invalidate(0, initialValue = templateOption);
+    $$invalidate(3, (templateOptions = []));
+    $$invalidate(0, (initialValue = templateOption));
     onChange(templateOption);
   };
   const handleMouseOver = (e) => {
@@ -7686,7 +9121,7 @@ function instance($$self, $$props, $$invalidate) {
         storageArr = [...storageArr, file.path];
       }
     });
-    $$invalidate(3, templateOptions = storageArr);
+    $$invalidate(3, (templateOptions = storageArr));
   };
   function keydown_handler_1(event) {
     bubble.call(this, $$self, event);
@@ -7713,23 +9148,21 @@ function instance($$self, $$props, $$invalidate) {
   const click_handler = () => setInputVal("");
   const click_handler_1 = (templateOption) => setInputVal(templateOption);
   $$self.$$set = ($$props2) => {
-    if ("name" in $$props2)
-      $$invalidate(1, name = $$props2.name);
+    if ("name" in $$props2) $$invalidate(1, (name = $$props2.name));
     if ("description" in $$props2)
-      $$invalidate(2, description = $$props2.description);
+      $$invalidate(2, (description = $$props2.description));
     if ("initialValue" in $$props2)
-      $$invalidate(0, initialValue = $$props2.initialValue);
+      $$invalidate(0, (initialValue = $$props2.initialValue));
     if ("onChange" in $$props2)
-      $$invalidate(11, onChange = $$props2.onChange);
+      $$invalidate(11, (onChange = $$props2.onChange));
     if ("dataProvider" in $$props2)
-      $$invalidate(12, dataProvider = $$props2.dataProvider);
+      $$invalidate(12, (dataProvider = $$props2.dataProvider));
   };
   $$self.$$.update = () => {
     if ($$self.$$.dirty & 1) {
-      $:
-        if (!initialValue) {
-          $$invalidate(3, templateOptions = []);
-        }
+      $: if (!initialValue) {
+        $$invalidate(3, (templateOptions = []));
+      }
     }
   };
   return [
@@ -7754,19 +9187,27 @@ function instance($$self, $$props, $$invalidate) {
     blur_handler,
     input_input_handler,
     click_handler,
-    click_handler_1
+    click_handler_1,
   ];
 }
 var TemplateSuggest = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance, create_fragment, safe_not_equal, {
-      name: 1,
-      description: 2,
-      initialValue: 0,
-      onChange: 11,
-      dataProvider: 12
-    }, add_css);
+    init(
+      this,
+      options,
+      instance,
+      create_fragment,
+      safe_not_equal,
+      {
+        name: 1,
+        description: 2,
+        initialValue: 0,
+        onChange: 11,
+        dataProvider: 12,
+      },
+      add_css,
+    );
   }
 };
 var TemplateSuggest_default = TemplateSuggest;
@@ -7821,14 +9262,18 @@ function init2(plugin) {
   if (settings) {
     return;
   }
-  const { subscribe: subscribe2, set, update: update2 } = writable(plugin.settings);
+  const {
+    subscribe: subscribe2,
+    set,
+    update: update2,
+  } = writable(plugin.settings);
   settings = {
     subscribe: subscribe2,
     update: update2,
     set: (value) => {
       set(value);
       plugin.saveSettings();
-    }
+    },
   };
 }
 
@@ -7868,11 +9313,12 @@ function create_if_block2(ctx) {
   suggest = new TemplateSuggest_default({
     props: {
       name: "Clipped Entry Template - Daily",
-      description: "Choose the template to use as for the clipped entry in the daily \n			periodic note",
+      description:
+        "Choose the template to use as for the clipped entry in the daily \n			periodic note",
       initialValue: ctx[1].dailyEntryTemplateLocation,
       dataProvider: ctx[7],
-      onChange: ctx[2]
-    }
+      onChange: ctx[2],
+    },
   });
   return {
     c() {
@@ -7972,7 +9418,7 @@ function create_if_block2(ctx) {
         dispose = [
           listen(input, "input", ctx[4]),
           listen(select0, "change", ctx[5]),
-          listen(select1, "change", ctx[6])
+          listen(select1, "change", ctx[6]),
         ];
         mounted = true;
       }
@@ -7990,18 +9436,15 @@ function create_if_block2(ctx) {
       const suggest_changes = {};
       if (dirty & 2)
         suggest_changes.initialValue = ctx2[1].dailyEntryTemplateLocation;
-      if (dirty & 1)
-        suggest_changes.dataProvider = ctx2[7];
+      if (dirty & 1) suggest_changes.dataProvider = ctx2[7];
       suggest.$set(suggest_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(suggest.$$.fragment, local);
       if (local) {
         add_render_callback(() => {
-          if (div15_outro)
-            div15_outro.end(1);
+          if (div15_outro) div15_outro.end(1);
           div15_intro = create_in_transition(div15, slide, { duration: 300 });
           div15_intro.start();
         });
@@ -8010,22 +9453,19 @@ function create_if_block2(ctx) {
     },
     o(local) {
       transition_out(suggest.$$.fragment, local);
-      if (div15_intro)
-        div15_intro.invalidate();
+      if (div15_intro) div15_intro.invalidate();
       if (local) {
         div15_outro = create_out_transition(div15, slide, { duration: 300 });
       }
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div15);
+      if (detaching) detach(div15);
       destroy_component(suggest);
-      if (detaching && div15_outro)
-        div15_outro.end();
+      if (detaching && div15_outro) div15_outro.end();
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function create_fragment2(ctx) {
@@ -8052,8 +9492,7 @@ function create_fragment2(ctx) {
       label = element("label");
       input = element("input");
       t2 = space();
-      if (if_block)
-        if_block.c();
+      if (if_block) if_block.c();
       attr(div0, "class", "setting-item-info");
       attr(input, "type", "checkbox");
       attr(label, "class", "checkbox-container");
@@ -8072,8 +9511,7 @@ function create_fragment2(ctx) {
       append(label, input);
       input.checked = ctx[1].useDailyNote;
       append(div3, t2);
-      if (if_block)
-        if_block.m(div3, null);
+      if (if_block) if_block.m(div3, null);
       current = true;
       if (!mounted) {
         dispose = listen(input, "change", ctx[3]);
@@ -8108,8 +9546,7 @@ function create_fragment2(ctx) {
       }
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(if_block);
       current = true;
     },
@@ -8118,21 +9555,25 @@ function create_fragment2(ctx) {
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div3);
-      if (if_block)
-        if_block.d();
+      if (detaching) detach(div3);
+      if (if_block) if_block.d();
       mounted = false;
       dispose();
-    }
+    },
   };
 }
 function instance2($$self, $$props, $$invalidate) {
   let $settings;
-  component_subscribe($$self, settings, ($$value) => $$invalidate(1, $settings = $$value));
+  component_subscribe($$self, settings, ($$value) =>
+    $$invalidate(1, ($settings = $$value)),
+  );
   let { app } = $$props;
   const onChange = (entry) => {
-    set_store_value(settings, $settings.dailyEntryTemplateLocation = entry, $settings);
+    set_store_value(
+      settings,
+      ($settings.dailyEntryTemplateLocation = entry),
+      $settings,
+    );
   };
   function input_change_handler() {
     $settings.useDailyNote = this.checked;
@@ -8152,8 +9593,7 @@ function instance2($$self, $$props, $$invalidate) {
   }
   const func = () => app.vault.getMarkdownFiles();
   $$self.$$set = ($$props2) => {
-    if ("app" in $$props2)
-      $$invalidate(0, app = $$props2.app);
+    if ("app" in $$props2) $$invalidate(0, (app = $$props2.app));
   };
   return [
     app,
@@ -8163,13 +9603,15 @@ function instance2($$self, $$props, $$invalidate) {
     input_input_handler,
     select0_change_handler,
     select1_change_handler,
-    func
+    func,
   ];
 }
 var DailySettingsGroup = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance2, create_fragment2, safe_not_equal, { app: 0 });
+    init(this, options, instance2, create_fragment2, safe_not_equal, {
+      app: 0,
+    });
   }
 };
 var DailySettingsGroup_default = DailySettingsGroup;
@@ -8210,11 +9652,12 @@ function create_if_block3(ctx) {
   suggest = new TemplateSuggest_default({
     props: {
       name: "Clipped Entry Template - Weekly",
-      description: "Choose the template to use as for the clipped entry in the weekly\n			periodic note",
+      description:
+        "Choose the template to use as for the clipped entry in the weekly\n			periodic note",
       initialValue: ctx[1].weeklyEntryTemplateLocation,
       dataProvider: ctx[7],
-      onChange: ctx[2]
-    }
+      onChange: ctx[2],
+    },
   });
   return {
     c() {
@@ -8314,7 +9757,7 @@ function create_if_block3(ctx) {
         dispose = [
           listen(input, "input", ctx[4]),
           listen(select0, "change", ctx[5]),
-          listen(select1, "change", ctx[6])
+          listen(select1, "change", ctx[6]),
         ];
         mounted = true;
       }
@@ -8332,18 +9775,15 @@ function create_if_block3(ctx) {
       const suggest_changes = {};
       if (dirty & 2)
         suggest_changes.initialValue = ctx2[1].weeklyEntryTemplateLocation;
-      if (dirty & 1)
-        suggest_changes.dataProvider = ctx2[7];
+      if (dirty & 1) suggest_changes.dataProvider = ctx2[7];
       suggest.$set(suggest_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(suggest.$$.fragment, local);
       if (local) {
         add_render_callback(() => {
-          if (div15_outro)
-            div15_outro.end(1);
+          if (div15_outro) div15_outro.end(1);
           div15_intro = create_in_transition(div15, slide, { duration: 300 });
           div15_intro.start();
         });
@@ -8352,22 +9792,19 @@ function create_if_block3(ctx) {
     },
     o(local) {
       transition_out(suggest.$$.fragment, local);
-      if (div15_intro)
-        div15_intro.invalidate();
+      if (div15_intro) div15_intro.invalidate();
       if (local) {
         div15_outro = create_out_transition(div15, slide, { duration: 300 });
       }
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div15);
+      if (detaching) detach(div15);
       destroy_component(suggest);
-      if (detaching && div15_outro)
-        div15_outro.end();
+      if (detaching && div15_outro) div15_outro.end();
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function create_fragment3(ctx) {
@@ -8394,8 +9831,7 @@ function create_fragment3(ctx) {
       label = element("label");
       input = element("input");
       t2 = space();
-      if (if_block)
-        if_block.c();
+      if (if_block) if_block.c();
       attr(div0, "class", "setting-item-info");
       attr(input, "type", "checkbox");
       attr(label, "class", "checkbox-container");
@@ -8414,8 +9850,7 @@ function create_fragment3(ctx) {
       append(label, input);
       input.checked = ctx[1].useWeeklyNote;
       append(div3, t2);
-      if (if_block)
-        if_block.m(div3, null);
+      if (if_block) if_block.m(div3, null);
       current = true;
       if (!mounted) {
         dispose = listen(input, "change", ctx[3]);
@@ -8450,8 +9885,7 @@ function create_fragment3(ctx) {
       }
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(if_block);
       current = true;
     },
@@ -8460,20 +9894,25 @@ function create_fragment3(ctx) {
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div3);
-      if (if_block)
-        if_block.d();
+      if (detaching) detach(div3);
+      if (if_block) if_block.d();
       mounted = false;
       dispose();
-    }
+    },
   };
 }
 function instance3($$self, $$props, $$invalidate) {
   let $settings;
-  component_subscribe($$self, settings, ($$value) => $$invalidate(1, $settings = $$value));
+  component_subscribe($$self, settings, ($$value) =>
+    $$invalidate(1, ($settings = $$value)),
+  );
   let { app } = $$props;
-  const onChange = (entry) => set_store_value(settings, $settings.weeklyEntryTemplateLocation = entry, $settings);
+  const onChange = (entry) =>
+    set_store_value(
+      settings,
+      ($settings.weeklyEntryTemplateLocation = entry),
+      $settings,
+    );
   function input_change_handler() {
     $settings.useWeeklyNote = this.checked;
     settings.set($settings);
@@ -8492,8 +9931,7 @@ function instance3($$self, $$props, $$invalidate) {
   }
   const func = () => app.vault.getMarkdownFiles();
   $$self.$$set = ($$props2) => {
-    if ("app" in $$props2)
-      $$invalidate(0, app = $$props2.app);
+    if ("app" in $$props2) $$invalidate(0, (app = $$props2.app));
   };
   return [
     app,
@@ -8503,13 +9941,15 @@ function instance3($$self, $$props, $$invalidate) {
     input_input_handler,
     select0_change_handler,
     select1_change_handler,
-    func
+    func,
   ];
 }
 var WeeklySettingsGroup = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance3, create_fragment3, safe_not_equal, { app: 0 });
+    init(this, options, instance3, create_fragment3, safe_not_equal, {
+      app: 0,
+    });
   }
 };
 var WeeklySettingsGroup_default = WeeklySettingsGroup;
@@ -8619,7 +10059,7 @@ function create_fragment4(ctx) {
         dispose = [
           listen(input0, "input", ctx[1]),
           listen(input1, "input", ctx[2]),
-          listen(input2, "input", ctx[3])
+          listen(input2, "input", ctx[3]),
         ];
         mounted = true;
       }
@@ -8638,16 +10078,17 @@ function create_fragment4(ctx) {
     i: noop,
     o: noop,
     d(detaching) {
-      if (detaching)
-        detach(div17);
+      if (detaching) detach(div17);
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function instance4($$self, $$props, $$invalidate) {
   let $settings;
-  component_subscribe($$self, settings, ($$value) => $$invalidate(0, $settings = $$value));
+  component_subscribe($$self, settings, ($$value) =>
+    $$invalidate(0, ($settings = $$value)),
+  );
   function input0_input_handler() {
     $settings.tags = this.value;
     settings.set($settings);
@@ -8660,7 +10101,12 @@ function instance4($$self, $$props, $$invalidate) {
     $settings.dateFormat = this.value;
     settings.set($settings);
   }
-  return [$settings, input0_input_handler, input1_input_handler, input2_input_handler];
+  return [
+    $settings,
+    input0_input_handler,
+    input1_input_handler,
+    input2_input_handler,
+  ];
 }
 var CommonSettingsGroup = class extends SvelteComponent {
   constructor(options) {
@@ -8678,8 +10124,12 @@ function create_fragment5(ctx) {
   let t1;
   let commonsettingsgroup;
   let current;
-  dailysettingsgroup = new DailySettingsGroup_default({ props: { app: ctx[0] } });
-  weeklysettingsgroup = new WeeklySettingsGroup_default({ props: { app: ctx[0] } });
+  dailysettingsgroup = new DailySettingsGroup_default({
+    props: { app: ctx[0] },
+  });
+  weeklysettingsgroup = new WeeklySettingsGroup_default({
+    props: { app: ctx[0] },
+  });
   commonsettingsgroup = new CommonSettingsGroup_default({});
   return {
     c() {
@@ -8699,17 +10149,14 @@ function create_fragment5(ctx) {
     },
     p(ctx2, [dirty]) {
       const dailysettingsgroup_changes = {};
-      if (dirty & 1)
-        dailysettingsgroup_changes.app = ctx2[0];
+      if (dirty & 1) dailysettingsgroup_changes.app = ctx2[0];
       dailysettingsgroup.$set(dailysettingsgroup_changes);
       const weeklysettingsgroup_changes = {};
-      if (dirty & 1)
-        weeklysettingsgroup_changes.app = ctx2[0];
+      if (dirty & 1) weeklysettingsgroup_changes.app = ctx2[0];
       weeklysettingsgroup.$set(weeklysettingsgroup_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(dailysettingsgroup.$$.fragment, local);
       transition_in(weeklysettingsgroup.$$.fragment, local);
       transition_in(commonsettingsgroup.$$.fragment, local);
@@ -8723,34 +10170,37 @@ function create_fragment5(ctx) {
     },
     d(detaching) {
       destroy_component(dailysettingsgroup, detaching);
-      if (detaching)
-        detach(t0);
+      if (detaching) detach(t0);
       destroy_component(weeklysettingsgroup, detaching);
-      if (detaching)
-        detach(t1);
+      if (detaching) detach(t1);
       destroy_component(commonsettingsgroup, detaching);
-    }
+    },
   };
 }
 function instance5($$self, $$props, $$invalidate) {
   let { app } = $$props;
   $$self.$$set = ($$props2) => {
-    if ("app" in $$props2)
-      $$invalidate(0, app = $$props2.app);
+    if ("app" in $$props2) $$invalidate(0, (app = $$props2.app));
   };
   return [app];
 }
 var BaseSettingsTab = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance5, create_fragment5, safe_not_equal, { app: 0 });
+    init(this, options, instance5, create_fragment5, safe_not_equal, {
+      app: 0,
+    });
   }
 };
 var BaseSettingsTab_default = BaseSettingsTab;
 
 // src/settings/Tabs.svelte
 function add_css2(target) {
-  append_styles(target, "svelte-126qfyk", ".obs_clp_box.svelte-126qfyk.svelte-126qfyk{margin-bottom:10px;padding:40px;border:1px solid var(--tab-divider-color);border-radius:0 0 0.5rem 0.5rem;border-top:0}ul.svelte-126qfyk.svelte-126qfyk{display:flex;flex-wrap:wrap;padding-left:0;margin-bottom:0;list-style:none;border-bottom:1px solid var(--tab-divider-color)}span.svelte-126qfyk.svelte-126qfyk{border:1px solid var(--tab-divider-color);border-top-left-radius:0.25rem;border-top-right-radius:0.25rem;display:block;padding:0.5rem 1rem;cursor:pointer;color:var(--tab-text-color)}span.svelte-126qfyk.svelte-126qfyk:hover{border-color:#e9ecef #e9ecef #dee2e6;background-color:var(--background-modifier-hover);color:var(--tab-text-color-active)}li.svelte-126qfyk.svelte-126qfyk:hover{background-color:var(--background-modifier-hover)}li.active.svelte-126qfyk>span.svelte-126qfyk{background-color:var(--tab-background-active);border-color:#e9ecef #e9ecef #dee2e6;color:var(--tab-text-color-active)}");
+  append_styles(
+    target,
+    "svelte-126qfyk",
+    ".obs_clp_box.svelte-126qfyk.svelte-126qfyk{margin-bottom:10px;padding:40px;border:1px solid var(--tab-divider-color);border-radius:0 0 0.5rem 0.5rem;border-top:0}ul.svelte-126qfyk.svelte-126qfyk{display:flex;flex-wrap:wrap;padding-left:0;margin-bottom:0;list-style:none;border-bottom:1px solid var(--tab-divider-color)}span.svelte-126qfyk.svelte-126qfyk{border:1px solid var(--tab-divider-color);border-top-left-radius:0.25rem;border-top-right-radius:0.25rem;display:block;padding:0.5rem 1rem;cursor:pointer;color:var(--tab-text-color)}span.svelte-126qfyk.svelte-126qfyk:hover{border-color:#e9ecef #e9ecef #dee2e6;background-color:var(--background-modifier-hover);color:var(--tab-text-color-active)}li.svelte-126qfyk.svelte-126qfyk:hover{background-color:var(--background-modifier-hover)}li.active.svelte-126qfyk>span.svelte-126qfyk{background-color:var(--tab-background-active);border-color:#e9ecef #e9ecef #dee2e6;color:var(--tab-text-color-active)}",
+  );
 }
 function get_each_context2(ctx, list, i) {
   const child_ctx = ctx.slice();
@@ -8784,7 +10234,13 @@ function create_each_block_1(ctx) {
       t0 = text(t0_value);
       t1 = space();
       attr(span, "class", "svelte-126qfyk");
-      attr(li, "class", li_class_value = null_to_empty(ctx[0] === ctx[5].value ? "active" : "") + " svelte-126qfyk");
+      attr(
+        li,
+        "class",
+        (li_class_value =
+          null_to_empty(ctx[0] === ctx[5].value ? "active" : "") +
+          " svelte-126qfyk"),
+      );
     },
     m(target, anchor) {
       insert(target, li, anchor);
@@ -8794,7 +10250,7 @@ function create_each_block_1(ctx) {
       if (!mounted) {
         dispose = [
           listen(span, "keypress", keypress_handler),
-          listen(span, "click", click_handler)
+          listen(span, "click", click_handler),
         ];
         mounted = true;
       }
@@ -8803,16 +10259,21 @@ function create_each_block_1(ctx) {
       ctx = new_ctx;
       if (dirty & 2 && t0_value !== (t0_value = ctx[5].label + ""))
         set_data(t0, t0_value);
-      if (dirty & 3 && li_class_value !== (li_class_value = null_to_empty(ctx[0] === ctx[5].value ? "active" : "") + " svelte-126qfyk")) {
+      if (
+        dirty & 3 &&
+        li_class_value !==
+          (li_class_value =
+            null_to_empty(ctx[0] === ctx[5].value ? "active" : "") +
+            " svelte-126qfyk")
+      ) {
         attr(li, "class", li_class_value);
       }
     },
     d(detaching) {
-      if (detaching)
-        detach(li);
+      if (detaching) detach(li);
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function create_if_block4(ctx) {
@@ -8825,30 +10286,39 @@ function create_if_block4(ctx) {
   function switch_props(ctx2) {
     let switch_instance_props = {};
     for (let i = 0; i < switch_instance_spread_levels.length; i += 1) {
-      switch_instance_props = assign(switch_instance_props, switch_instance_spread_levels[i]);
+      switch_instance_props = assign(
+        switch_instance_props,
+        switch_instance_spread_levels[i],
+      );
     }
     return { props: switch_instance_props };
   }
   if (switch_value) {
-    switch_instance = construct_svelte_component(switch_value, switch_props(ctx));
+    switch_instance = construct_svelte_component(
+      switch_value,
+      switch_props(ctx),
+    );
   }
   return {
     c() {
       div = element("div");
-      if (switch_instance)
-        create_component(switch_instance.$$.fragment);
+      if (switch_instance) create_component(switch_instance.$$.fragment);
       t = space();
       attr(div, "class", "obs_clp_box svelte-126qfyk");
     },
     m(target, anchor) {
       insert(target, div, anchor);
-      if (switch_instance)
-        mount_component(switch_instance, div, null);
+      if (switch_instance) mount_component(switch_instance, div, null);
       append(div, t);
       current = true;
     },
     p(ctx2, dirty) {
-      const switch_instance_changes = dirty & 2 ? get_spread_update(switch_instance_spread_levels, [get_spread_object(ctx2[5].props)]) : {};
+      const switch_instance_changes =
+        dirty & 2
+          ? get_spread_update(switch_instance_spread_levels, [
+              get_spread_object(ctx2[5].props),
+            ])
+          : {};
       if (switch_value !== (switch_value = ctx2[5].component)) {
         if (switch_instance) {
           group_outros();
@@ -8859,7 +10329,10 @@ function create_if_block4(ctx) {
           check_outros();
         }
         if (switch_value) {
-          switch_instance = construct_svelte_component(switch_value, switch_props(ctx2));
+          switch_instance = construct_svelte_component(
+            switch_value,
+            switch_props(ctx2),
+          );
           create_component(switch_instance.$$.fragment);
           transition_in(switch_instance.$$.fragment, 1);
           mount_component(switch_instance, div, t);
@@ -8871,23 +10344,18 @@ function create_if_block4(ctx) {
       }
     },
     i(local) {
-      if (current)
-        return;
-      if (switch_instance)
-        transition_in(switch_instance.$$.fragment, local);
+      if (current) return;
+      if (switch_instance) transition_in(switch_instance.$$.fragment, local);
       current = true;
     },
     o(local) {
-      if (switch_instance)
-        transition_out(switch_instance.$$.fragment, local);
+      if (switch_instance) transition_out(switch_instance.$$.fragment, local);
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div);
-      if (switch_instance)
-        destroy_component(switch_instance);
-    }
+      if (detaching) detach(div);
+      if (switch_instance) destroy_component(switch_instance);
+    },
   };
 }
 function create_each_block2(ctx) {
@@ -8896,13 +10364,11 @@ function create_each_block2(ctx) {
   let if_block = ctx[0] == ctx[5].value && create_if_block4(ctx);
   return {
     c() {
-      if (if_block)
-        if_block.c();
+      if (if_block) if_block.c();
       if_block_anchor = empty();
     },
     m(target, anchor) {
-      if (if_block)
-        if_block.m(target, anchor);
+      if (if_block) if_block.m(target, anchor);
       insert(target, if_block_anchor, anchor);
       current = true;
     },
@@ -8928,8 +10394,7 @@ function create_each_block2(ctx) {
       }
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(if_block);
       current = true;
     },
@@ -8938,11 +10403,9 @@ function create_each_block2(ctx) {
       current = false;
     },
     d(detaching) {
-      if (if_block)
-        if_block.d(detaching);
-      if (detaching)
-        detach(if_block_anchor);
-    }
+      if (if_block) if_block.d(detaching);
+      if (detaching) detach(if_block_anchor);
+    },
   };
 }
 function create_fragment6(ctx) {
@@ -8954,16 +10417,19 @@ function create_fragment6(ctx) {
   let each_value_1 = ctx[1];
   let each_blocks_1 = [];
   for (let i = 0; i < each_value_1.length; i += 1) {
-    each_blocks_1[i] = create_each_block_1(get_each_context_1(ctx, each_value_1, i));
+    each_blocks_1[i] = create_each_block_1(
+      get_each_context_1(ctx, each_value_1, i),
+    );
   }
   let each_value = ctx[1];
   let each_blocks = [];
   for (let i = 0; i < each_value.length; i += 1) {
     each_blocks[i] = create_each_block2(get_each_context2(ctx, each_value, i));
   }
-  const out = (i) => transition_out(each_blocks[i], 1, 1, () => {
-    each_blocks[i] = null;
-  });
+  const out = (i) =>
+    transition_out(each_blocks[i], 1, 1, () => {
+      each_blocks[i] = null;
+    });
   return {
     c() {
       div1 = element("div");
@@ -9033,8 +10499,7 @@ function create_fragment6(ctx) {
       }
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       for (let i = 0; i < each_value.length; i += 1) {
         transition_in(each_blocks[i]);
       }
@@ -9048,31 +10513,38 @@ function create_fragment6(ctx) {
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div1);
+      if (detaching) detach(div1);
       destroy_each(each_blocks_1, detaching);
       destroy_each(each_blocks, detaching);
-    }
+    },
   };
 }
 function instance6($$self, $$props, $$invalidate) {
   let { tabs } = $$props;
   let { activeTabValue = 1 } = $$props;
-  const handleClick = (tabValue) => $$invalidate(0, activeTabValue = tabValue);
+  const handleClick = (tabValue) =>
+    $$invalidate(0, (activeTabValue = tabValue));
   const keypress_handler = (tab) => handleClick(tab.value);
   const click_handler = (tab) => handleClick(tab.value);
   $$self.$$set = ($$props2) => {
-    if ("tabs" in $$props2)
-      $$invalidate(1, tabs = $$props2.tabs);
+    if ("tabs" in $$props2) $$invalidate(1, (tabs = $$props2.tabs));
     if ("activeTabValue" in $$props2)
-      $$invalidate(0, activeTabValue = $$props2.activeTabValue);
+      $$invalidate(0, (activeTabValue = $$props2.activeTabValue));
   };
   return [activeTabValue, tabs, handleClick, keypress_handler, click_handler];
 }
 var Tabs = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance6, create_fragment6, safe_not_equal, { tabs: 1, activeTabValue: 0 }, add_css2);
+    init(
+      this,
+      options,
+      instance6,
+      create_fragment6,
+      safe_not_equal,
+      { tabs: 1, activeTabValue: 0 },
+      add_css2,
+    );
   }
 };
 var Tabs_default = Tabs;
@@ -9093,9 +10565,8 @@ function fallback_block(ctx) {
     },
     p: noop,
     d(detaching) {
-      if (detaching)
-        detach(span);
-    }
+      if (detaching) detach(span);
+    },
   };
 }
 function create_fragment7(ctx) {
@@ -9109,10 +10580,20 @@ function create_fragment7(ctx) {
   let p1;
   let current;
   const noticeText_slot_template = ctx[1].noticeText;
-  const noticeText_slot = create_slot(noticeText_slot_template, ctx, ctx[0], get_noticeText_slot_context);
+  const noticeText_slot = create_slot(
+    noticeText_slot_template,
+    ctx,
+    ctx[0],
+    get_noticeText_slot_context,
+  );
   const noticeText_slot_or_fallback = noticeText_slot || fallback_block(ctx);
   const calloutLink_slot_template = ctx[1].calloutLink;
-  const calloutLink_slot = create_slot(calloutLink_slot_template, ctx, ctx[0], get_calloutLink_slot_context);
+  const calloutLink_slot = create_slot(
+    calloutLink_slot_template,
+    ctx,
+    ctx[0],
+    get_calloutLink_slot_context,
+  );
   return {
     c() {
       div3 = element("div");
@@ -9122,12 +10603,10 @@ function create_fragment7(ctx) {
       t0 = space();
       div1 = element("div");
       p0 = element("p");
-      if (noticeText_slot_or_fallback)
-        noticeText_slot_or_fallback.c();
+      if (noticeText_slot_or_fallback) noticeText_slot_or_fallback.c();
       t1 = space();
       p1 = element("p");
-      if (calloutLink_slot)
-        calloutLink_slot.c();
+      if (calloutLink_slot) calloutLink_slot.c();
       attr(div0, "class", "flex-shrink-0");
       attr(p0, "class", "text-sm text-blue-700");
       attr(p1, "class", "mt-3 text-sm md:mt-0 md:ml-6");
@@ -9155,18 +10634,45 @@ function create_fragment7(ctx) {
     p(ctx2, [dirty]) {
       if (noticeText_slot) {
         if (noticeText_slot.p && (!current || dirty & 1)) {
-          update_slot_base(noticeText_slot, noticeText_slot_template, ctx2, ctx2[0], !current ? get_all_dirty_from_scope(ctx2[0]) : get_slot_changes(noticeText_slot_template, ctx2[0], dirty, get_noticeText_slot_changes), get_noticeText_slot_context);
+          update_slot_base(
+            noticeText_slot,
+            noticeText_slot_template,
+            ctx2,
+            ctx2[0],
+            !current
+              ? get_all_dirty_from_scope(ctx2[0])
+              : get_slot_changes(
+                  noticeText_slot_template,
+                  ctx2[0],
+                  dirty,
+                  get_noticeText_slot_changes,
+                ),
+            get_noticeText_slot_context,
+          );
         }
       }
       if (calloutLink_slot) {
         if (calloutLink_slot.p && (!current || dirty & 1)) {
-          update_slot_base(calloutLink_slot, calloutLink_slot_template, ctx2, ctx2[0], !current ? get_all_dirty_from_scope(ctx2[0]) : get_slot_changes(calloutLink_slot_template, ctx2[0], dirty, get_calloutLink_slot_changes), get_calloutLink_slot_context);
+          update_slot_base(
+            calloutLink_slot,
+            calloutLink_slot_template,
+            ctx2,
+            ctx2[0],
+            !current
+              ? get_all_dirty_from_scope(ctx2[0])
+              : get_slot_changes(
+                  calloutLink_slot_template,
+                  ctx2[0],
+                  dirty,
+                  get_calloutLink_slot_changes,
+                ),
+            get_calloutLink_slot_context,
+          );
         }
       }
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(noticeText_slot_or_fallback, local);
       transition_in(calloutLink_slot, local);
       current = true;
@@ -9177,20 +10683,16 @@ function create_fragment7(ctx) {
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div3);
-      if (noticeText_slot_or_fallback)
-        noticeText_slot_or_fallback.d(detaching);
-      if (calloutLink_slot)
-        calloutLink_slot.d(detaching);
-    }
+      if (detaching) detach(div3);
+      if (noticeText_slot_or_fallback) noticeText_slot_or_fallback.d(detaching);
+      if (calloutLink_slot) calloutLink_slot.d(detaching);
+    },
   };
 }
 function instance7($$self, $$props, $$invalidate) {
   let { $$slots: slots = {}, $$scope } = $$props;
   $$self.$$set = ($$props2) => {
-    if ("$$scope" in $$props2)
-      $$invalidate(0, $$scope = $$props2.$$scope);
+    if ("$$scope" in $$props2) $$invalidate(0, ($$scope = $$props2.$$scope));
   };
   return [$$scope, slots];
 }
@@ -9230,11 +10732,12 @@ function create_fragment8(ctx) {
   suggest = new TemplateSuggest_default({
     props: {
       name: "Clipped Entry Template",
-      description: "Choose the template to use for the clipped entry in a topic note",
+      description:
+        "Choose the template to use for the clipped entry in a topic note",
       initialValue: ctx[1].topicEntryTemplateLocation,
       dataProvider: ctx[5],
-      onChange: ctx[2]
-    }
+      onChange: ctx[2],
+    },
   });
   return {
     c() {
@@ -9311,7 +10814,7 @@ function create_fragment8(ctx) {
       if (!mounted) {
         dispose = [
           listen(select0, "change", ctx[3]),
-          listen(select1, "change", ctx[4])
+          listen(select1, "change", ctx[4]),
         ];
         mounted = true;
       }
@@ -9326,13 +10829,11 @@ function create_fragment8(ctx) {
       const suggest_changes = {};
       if (dirty & 2)
         suggest_changes.initialValue = ctx2[1].topicEntryTemplateLocation;
-      if (dirty & 1)
-        suggest_changes.dataProvider = ctx2[5];
+      if (dirty & 1) suggest_changes.dataProvider = ctx2[5];
       suggest.$set(suggest_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(suggest.$$.fragment, local);
       current = true;
     },
@@ -9341,20 +10842,25 @@ function create_fragment8(ctx) {
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div10);
+      if (detaching) detach(div10);
       destroy_component(suggest);
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function instance8($$self, $$props, $$invalidate) {
   let $settings;
-  component_subscribe($$self, settings, ($$value) => $$invalidate(1, $settings = $$value));
+  component_subscribe($$self, settings, ($$value) =>
+    $$invalidate(1, ($settings = $$value)),
+  );
   let { app } = $$props;
   const onChange = (entry) => {
-    set_store_value(settings, $settings.topicEntryTemplateLocation = entry, $settings);
+    set_store_value(
+      settings,
+      ($settings.topicEntryTemplateLocation = entry),
+      $settings,
+    );
   };
   function select0_change_handler() {
     $settings.topicPosition = select_value(this);
@@ -9366,15 +10872,23 @@ function instance8($$self, $$props, $$invalidate) {
   }
   const func = () => app.vault.getMarkdownFiles();
   $$self.$$set = ($$props2) => {
-    if ("app" in $$props2)
-      $$invalidate(0, app = $$props2.app);
+    if ("app" in $$props2) $$invalidate(0, (app = $$props2.app));
   };
-  return [app, $settings, onChange, select0_change_handler, select1_change_handler, func];
+  return [
+    app,
+    $settings,
+    onChange,
+    select0_change_handler,
+    select1_change_handler,
+    func,
+  ];
 }
 var TopicSettingsGroup = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance8, create_fragment8, safe_not_equal, { app: 0 });
+    init(this, options, instance8, create_fragment8, safe_not_equal, {
+      app: 0,
+    });
   }
 };
 var TopicSettingsGroup_default = TopicSettingsGroup;
@@ -9383,7 +10897,9 @@ var TopicSettingsGroup_default = TopicSettingsGroup;
 function create_fragment9(ctx) {
   let topicsettingsgroup;
   let current;
-  topicsettingsgroup = new TopicSettingsGroup_default({ props: { app: ctx[0] } });
+  topicsettingsgroup = new TopicSettingsGroup_default({
+    props: { app: ctx[0] },
+  });
   return {
     c() {
       create_component(topicsettingsgroup.$$.fragment);
@@ -9394,13 +10910,11 @@ function create_fragment9(ctx) {
     },
     p(ctx2, [dirty]) {
       const topicsettingsgroup_changes = {};
-      if (dirty & 1)
-        topicsettingsgroup_changes.app = ctx2[0];
+      if (dirty & 1) topicsettingsgroup_changes.app = ctx2[0];
       topicsettingsgroup.$set(topicsettingsgroup_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(topicsettingsgroup.$$.fragment, local);
       current = true;
     },
@@ -9410,21 +10924,22 @@ function create_fragment9(ctx) {
     },
     d(detaching) {
       destroy_component(topicsettingsgroup, detaching);
-    }
+    },
   };
 }
 function instance9($$self, $$props, $$invalidate) {
   let { app } = $$props;
   $$self.$$set = ($$props2) => {
-    if ("app" in $$props2)
-      $$invalidate(0, app = $$props2.app);
+    if ("app" in $$props2) $$invalidate(0, (app = $$props2.app));
   };
   return [app];
 }
 var TopicSettingsTab = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance9, create_fragment9, safe_not_equal, { app: 0 });
+    init(this, options, instance9, create_fragment9, safe_not_equal, {
+      app: 0,
+    });
   }
 };
 var TopicSettingsTab_default = TopicSettingsTab;
@@ -9469,7 +10984,8 @@ function create_fragment10(ctx) {
       div2 = element("div");
       div1 = element("div");
       div0 = element("div");
-      div0.textContent = "You can drag or copy the link below to your browser bookmark bar. This\n				bookmarklet will allow you to highlight information on the web and send\n				it to obsidian";
+      div0.textContent =
+        "You can drag or copy the link below to your browser bookmark bar. This\n				bookmarklet will allow you to highlight information on the web and send\n				it to obsidian";
       t1 = space();
       a = element("a");
       t2 = text("Obsidian Clipper (");
@@ -9492,8 +11008,7 @@ function create_fragment10(ctx) {
       append(a, t4);
     },
     p(ctx2, [dirty]) {
-      if (dirty & 2)
-        set_data(t3, ctx2[1]);
+      if (dirty & 2) set_data(t3, ctx2[1]);
       if (dirty & 1) {
         attr(a, "href", ctx2[0]);
       }
@@ -9501,9 +11016,8 @@ function create_fragment10(ctx) {
     i: noop,
     o: noop,
     d(detaching) {
-      if (detaching)
-        detach(div3);
-    }
+      if (detaching) detach(div3);
+    },
   };
 }
 function instance10($$self, $$props, $$invalidate) {
@@ -9511,16 +11025,19 @@ function instance10($$self, $$props, $$invalidate) {
   let { noteOrVault } = $$props;
   $$self.$$set = ($$props2) => {
     if ("clipperHref" in $$props2)
-      $$invalidate(0, clipperHref = $$props2.clipperHref);
+      $$invalidate(0, (clipperHref = $$props2.clipperHref));
     if ("noteOrVault" in $$props2)
-      $$invalidate(1, noteOrVault = $$props2.noteOrVault);
+      $$invalidate(1, (noteOrVault = $$props2.noteOrVault));
   };
   return [clipperHref, noteOrVault];
 }
 var BookmarkletSettingsGroup = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance10, create_fragment10, safe_not_equal, { clipperHref: 0, noteOrVault: 1 });
+    init(this, options, instance10, create_fragment10, safe_not_equal, {
+      clipperHref: 0,
+      noteOrVault: 1,
+    });
   }
 };
 var BookmarkletSettingsGroup_default = BookmarkletSettingsGroup;
@@ -9548,10 +11065,14 @@ function create_fragment11(ctx) {
       div3 = element("div");
       div2 = element("div");
       div0 = element("div");
-      t0 = text("Click the button below to generate a personalized Chrome-based extension\n			for the ");
+      t0 = text(
+        "Click the button below to generate a personalized Chrome-based extension\n			for the ",
+      );
       span = element("span");
       t1 = text(ctx[0]);
-      t2 = text(". After clicking\n			the button, use the link to download the .zip file.");
+      t2 = text(
+        ". After clicking\n			the button, use the link to download the .zip file.",
+      );
       t3 = space();
       div1 = element("div");
       button = element("button");
@@ -9583,20 +11104,17 @@ function create_fragment11(ctx) {
       }
     },
     p(ctx2, [dirty]) {
-      if (dirty & 1)
-        set_data(t1, ctx2[0]);
-      if (dirty & 1)
-        set_data(t5, ctx2[0]);
+      if (dirty & 1) set_data(t1, ctx2[0]);
+      if (dirty & 1) set_data(t5, ctx2[0]);
     },
     i: noop,
     o: noop,
     d(detaching) {
-      if (detaching)
-        detach(div3);
+      if (detaching) detach(div3);
       ctx[4](null);
       mounted = false;
       dispose();
-    }
+    },
   };
 }
 function instance11($$self, $$props, $$invalidate) {
@@ -9610,8 +11128,8 @@ function instance11($$self, $$props, $$invalidate) {
       method: "POST",
       body: JSON.stringify({
         name: noteOrVault,
-        bookmarklet_code: clipperHref
-      })
+        bookmarklet_code: clipperHref,
+      }),
     });
     const s3Link = window.document.createElement("a");
     s3Link.href = response.json.data.link;
@@ -9626,16 +11144,25 @@ function instance11($$self, $$props, $$invalidate) {
   }
   $$self.$$set = ($$props2) => {
     if ("clipperHref" in $$props2)
-      $$invalidate(3, clipperHref = $$props2.clipperHref);
+      $$invalidate(3, (clipperHref = $$props2.clipperHref));
     if ("noteOrVault" in $$props2)
-      $$invalidate(0, noteOrVault = $$props2.noteOrVault);
+      $$invalidate(0, (noteOrVault = $$props2.noteOrVault));
   };
-  return [noteOrVault, s3LinkContainer, getExtension, clipperHref, div1_binding];
+  return [
+    noteOrVault,
+    s3LinkContainer,
+    getExtension,
+    clipperHref,
+    div1_binding,
+  ];
 }
 var ExtensionSettingsGroup = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance11, create_fragment11, safe_not_equal, { clipperHref: 3, noteOrVault: 0 });
+    init(this, options, instance11, create_fragment11, safe_not_equal, {
+      clipperHref: 3,
+      noteOrVault: 0,
+    });
   }
 };
 var ExtensionSettingsGroup_default = ExtensionSettingsGroup;
@@ -9674,7 +11201,7 @@ function create_if_block5(ctx) {
       if (!mounted) {
         dispose = [
           listen(input, "change", ctx[6]),
-          listen(input, "change", ctx[3])
+          listen(input, "change", ctx[3]),
         ];
         mounted = true;
       }
@@ -9685,11 +11212,10 @@ function create_if_block5(ctx) {
       }
     },
     d(detaching) {
-      if (detaching)
-        detach(div4);
+      if (detaching) detach(div4);
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function create_fragment12(ctx) {
@@ -9739,14 +11265,14 @@ function create_fragment12(ctx) {
   bookmarkletsettingsgroup = new BookmarkletSettingsGroup_default({
     props: {
       clipperHref: ctx[0],
-      noteOrVault: ctx[2]
-    }
+      noteOrVault: ctx[2],
+    },
   });
   extensionsettingsgroup = new ExtensionSettingsGroup_default({
     props: {
       clipperHref: ctx[0],
-      noteOrVault: ctx[2]
-    }
+      noteOrVault: ctx[2],
+    },
   });
   let if_block = ctx[1].experimentalBookmarkletComment && create_if_block5(ctx);
   return {
@@ -9760,8 +11286,7 @@ function create_fragment12(ctx) {
       h10 = element("h1");
       h10.textContent = "Bookmarklet Settings";
       t3 = space();
-      if (if_block)
-        if_block.c();
+      if (if_block) if_block.c();
       t4 = space();
       div2 = element("div");
       div2.innerHTML = `<div class="setting-item-info"><h1 class="setting-item-name">Markdown Headings</h1></div>`;
@@ -9848,8 +11373,7 @@ function create_fragment12(ctx) {
       insert(target, div28, anchor);
       append(div28, h10);
       append(div28, t3);
-      if (if_block)
-        if_block.m(div28, null);
+      if (if_block) if_block.m(div28, null);
       append(div28, t4);
       append(div28, div2);
       append(div28, t6);
@@ -9894,19 +11418,17 @@ function create_fragment12(ctx) {
           listen(input1, "input", ctx[8]),
           listen(input2, "input", ctx[9]),
           listen(input3, "input", ctx[10]),
-          listen(input4, "input", ctx[11])
+          listen(input4, "input", ctx[11]),
         ];
         mounted = true;
       }
     },
     p(ctx2, [dirty]) {
       const bookmarkletsettingsgroup_changes = {};
-      if (dirty & 1)
-        bookmarkletsettingsgroup_changes.clipperHref = ctx2[0];
+      if (dirty & 1) bookmarkletsettingsgroup_changes.clipperHref = ctx2[0];
       bookmarkletsettingsgroup.$set(bookmarkletsettingsgroup_changes);
       const extensionsettingsgroup_changes = {};
-      if (dirty & 1)
-        extensionsettingsgroup_changes.clipperHref = ctx2[0];
+      if (dirty & 1) extensionsettingsgroup_changes.clipperHref = ctx2[0];
       extensionsettingsgroup.$set(extensionsettingsgroup_changes);
       if (ctx2[1].experimentalBookmarkletComment) {
         if (if_block) {
@@ -9937,8 +11459,7 @@ function create_fragment12(ctx) {
       }
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(bookmarkletsettingsgroup.$$.fragment, local);
       transition_in(extensionsettingsgroup.$$.fragment, local);
       current = true;
@@ -9949,24 +11470,22 @@ function create_fragment12(ctx) {
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div0);
+      if (detaching) detach(div0);
       destroy_component(bookmarkletsettingsgroup);
       destroy_component(extensionsettingsgroup);
-      if (detaching)
-        detach(t1);
-      if (detaching)
-        detach(div28);
-      if (if_block)
-        if_block.d();
+      if (detaching) detach(t1);
+      if (detaching) detach(div28);
+      if (if_block) if_block.d();
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function instance12($$self, $$props, $$invalidate) {
   let $settings;
-  component_subscribe($$self, settings, ($$value) => $$invalidate(1, $settings = $$value));
+  component_subscribe($$self, settings, ($$value) =>
+    $$invalidate(1, ($settings = $$value)),
+  );
   let { vaultName = "" } = $$props;
   let { filePath = "" } = $$props;
   let fileName = "";
@@ -9974,9 +11493,26 @@ function instance12($$self, $$props, $$invalidate) {
     fileName = getFileName(filePath);
   }
   let noteOrVault = fileName !== "" ? `${fileName} file` : `${vaultName} vault`;
-  let clipperHref = new BookmarketlGenerator(vaultName, filePath, $settings.markdownSettings, ($settings.experimentalBookmarkletComment && $settings.captureComments).toString()).generateBookmarklet();
+  let clipperHref = new BookmarketlGenerator(
+    vaultName,
+    filePath,
+    $settings.markdownSettings,
+    (
+      $settings.experimentalBookmarkletComment && $settings.captureComments
+    ).toString(),
+  ).generateBookmarklet();
   let updateClipperHref = () => {
-    $$invalidate(0, clipperHref = new BookmarketlGenerator(vaultName, filePath, $settings.markdownSettings, ($settings.experimentalBookmarkletComment && $settings.captureComments).toString()).generateBookmarklet());
+    $$invalidate(
+      0,
+      (clipperHref = new BookmarketlGenerator(
+        vaultName,
+        filePath,
+        $settings.markdownSettings,
+        (
+          $settings.experimentalBookmarkletComment && $settings.captureComments
+        ).toString(),
+      ).generateBookmarklet()),
+    );
   };
   function input_change_handler() {
     $settings.captureComments = this.checked;
@@ -10004,9 +11540,8 @@ function instance12($$self, $$props, $$invalidate) {
   }
   $$self.$$set = ($$props2) => {
     if ("vaultName" in $$props2)
-      $$invalidate(4, vaultName = $$props2.vaultName);
-    if ("filePath" in $$props2)
-      $$invalidate(5, filePath = $$props2.filePath);
+      $$invalidate(4, (vaultName = $$props2.vaultName));
+    if ("filePath" in $$props2) $$invalidate(5, (filePath = $$props2.filePath));
   };
   return [
     clipperHref,
@@ -10020,13 +11555,16 @@ function instance12($$self, $$props, $$invalidate) {
     input1_input_handler,
     input2_input_handler,
     input3_input_handler,
-    input4_input_handler
+    input4_input_handler,
   ];
 }
 var LinksSettingsGroup = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance12, create_fragment12, safe_not_equal, { vaultName: 4, filePath: 5 });
+    init(this, options, instance12, create_fragment12, safe_not_equal, {
+      vaultName: 4,
+      filePath: 5,
+    });
   }
 };
 var LinksSettingsGroup_default = LinksSettingsGroup;
@@ -10082,12 +11620,10 @@ function create_if_block6(ctx) {
       }
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       if (local) {
         add_render_callback(() => {
-          if (div5_outro)
-            div5_outro.end(1);
+          if (div5_outro) div5_outro.end(1);
           div5_intro = create_in_transition(div5, slide, { duration: 300 });
           div5_intro.start();
         });
@@ -10095,21 +11631,18 @@ function create_if_block6(ctx) {
       current = true;
     },
     o(local) {
-      if (div5_intro)
-        div5_intro.invalidate();
+      if (div5_intro) div5_intro.invalidate();
       if (local) {
         div5_outro = create_out_transition(div5, slide, { duration: 300 });
       }
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div5);
-      if (detaching && div5_outro)
-        div5_outro.end();
+      if (detaching) detach(div5);
+      if (detaching && div5_outro) div5_outro.end();
       mounted = false;
       dispose();
-    }
+    },
   };
 }
 function create_fragment13(ctx) {
@@ -10160,8 +11693,7 @@ function create_fragment13(ctx) {
       label0 = element("label");
       input0 = element("input");
       t6 = space();
-      if (if_block)
-        if_block.c();
+      if (if_block) if_block.c();
       t7 = space();
       div13 = element("div");
       h11 = element("h1");
@@ -10219,8 +11751,7 @@ function create_fragment13(ctx) {
       append(label0, input0);
       input0.checked = ctx[0].advanced;
       append(div5, t6);
-      if (if_block)
-        if_block.m(div5, null);
+      if (if_block) if_block.m(div5, null);
       insert(target, t7, anchor);
       insert(target, div13, anchor);
       append(div13, h11);
@@ -10244,7 +11775,7 @@ function create_fragment13(ctx) {
         dispose = [
           listen(input0, "change", ctx[1]),
           listen(input1, "change", ctx[3]),
-          listen(input2, "change", ctx[4])
+          listen(input2, "change", ctx[4]),
         ];
         mounted = true;
       }
@@ -10285,7 +11816,11 @@ function create_fragment13(ctx) {
         input2.checked = ctx2[0].experimentalBookmarkletComment;
       }
       if (dirty & 1) {
-        toggle_class(label2, "is-enabled", ctx2[0].experimentalBookmarkletComment);
+        toggle_class(
+          label2,
+          "is-enabled",
+          ctx2[0].experimentalBookmarkletComment,
+        );
       }
     },
     i(local) {
@@ -10295,22 +11830,20 @@ function create_fragment13(ctx) {
       transition_out(if_block);
     },
     d(detaching) {
-      if (detaching)
-        detach(div5);
-      if (if_block)
-        if_block.d();
-      if (detaching)
-        detach(t7);
-      if (detaching)
-        detach(div13);
+      if (detaching) detach(div5);
+      if (if_block) if_block.d();
+      if (detaching) detach(t7);
+      if (detaching) detach(div13);
       mounted = false;
       run_all(dispose);
-    }
+    },
   };
 }
 function instance13($$self, $$props, $$invalidate) {
   let $settings;
-  component_subscribe($$self, settings, ($$value) => $$invalidate(0, $settings = $$value));
+  component_subscribe($$self, settings, ($$value) =>
+    $$invalidate(0, ($settings = $$value)),
+  );
   function input0_change_handler() {
     $settings.advanced = this.checked;
     settings.set($settings);
@@ -10332,7 +11865,7 @@ function instance13($$self, $$props, $$invalidate) {
     input0_change_handler,
     input_input_handler,
     input1_change_handler,
-    input2_change_handler
+    input2_change_handler,
   ];
 }
 var AdvancedSettingsGroup = class extends SvelteComponent {
@@ -10357,9 +11890,8 @@ function create_noticeText_slot(ctx) {
     },
     p: noop,
     d(detaching) {
-      if (detaching)
-        detach(span);
-    }
+      if (detaching) detach(span);
+    },
   };
 }
 function create_calloutLink_slot(ctx) {
@@ -10376,9 +11908,8 @@ function create_calloutLink_slot(ctx) {
     },
     p: noop,
     d(detaching) {
-      if (detaching)
-        detach(span1);
-    }
+      if (detaching) detach(span1);
+    },
   };
 }
 function create_fragment14(ctx) {
@@ -10392,10 +11923,10 @@ function create_fragment14(ctx) {
     props: {
       $$slots: {
         calloutLink: [create_calloutLink_slot],
-        noticeText: [create_noticeText_slot]
+        noticeText: [create_noticeText_slot],
       },
-      $$scope: { ctx }
-    }
+      $$scope: { ctx },
+    },
   });
   tabs_1 = new Tabs_default({ props: { tabs: ctx[0] } });
   return {
@@ -10422,8 +11953,7 @@ function create_fragment14(ctx) {
       notice.$set(notice_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(notice.$$.fragment, local);
       transition_in(tabs_1.$$.fragment, local);
       current = true;
@@ -10435,17 +11965,15 @@ function create_fragment14(ctx) {
     },
     d(detaching) {
       destroy_component(notice, detaching);
-      if (detaching)
-        detach(t0);
-      if (detaching)
-        detach(br);
-      if (detaching)
-        detach(t1);
+      if (detaching) detach(t0);
+      if (detaching) detach(br);
+      if (detaching) detach(t1);
       destroy_component(tabs_1, detaching);
-    }
+    },
   };
 }
-var noticeText = "Lost on how to get started? Check out the new documentation website";
+var noticeText =
+  "Lost on how to get started? Check out the new documentation website";
 function instance14($$self, $$props, $$invalidate) {
   let { app } = $$props;
   const vaultName = app.vault.getName();
@@ -10454,37 +11982,38 @@ function instance14($$self, $$props, $$invalidate) {
       label: "Base",
       value: 1,
       component: BaseSettingsTab_default,
-      props: { app }
+      props: { app },
     },
     {
       label: "Topic Note",
       value: 2,
       component: TopicSettingsTab_default,
-      props: { app }
+      props: { app },
     },
     {
       label: "Browser",
       value: 3,
       component: LinksSettingsGroup_default,
-      props: { vaultName }
+      props: { vaultName },
     },
     {
       label: "Advanced",
       value: 4,
       component: AdvancedSettingsGroup_default,
-      props: { app }
-    }
+      props: { app },
+    },
   ];
   $$self.$$set = ($$props2) => {
-    if ("app" in $$props2)
-      $$invalidate(1, app = $$props2.app);
+    if ("app" in $$props2) $$invalidate(1, (app = $$props2.app));
   };
   return [tabs, app];
 }
 var SettingsComponent = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance14, create_fragment14, safe_not_equal, { app: 1 });
+    init(this, options, instance14, create_fragment14, safe_not_equal, {
+      app: 1,
+    });
   }
 };
 var SettingsComponent_default = SettingsComponent;
@@ -10496,8 +12025,8 @@ function create_if_block7(ctx) {
   notice = new Notice_default({
     props: {
       $$slots: { noticeText: [create_noticeText_slot2] },
-      $$scope: { ctx }
-    }
+      $$scope: { ctx },
+    },
   });
   return {
     c() {
@@ -10515,8 +12044,7 @@ function create_if_block7(ctx) {
       notice.$set(notice_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(notice.$$.fragment, local);
       current = true;
     },
@@ -10526,7 +12054,7 @@ function create_if_block7(ctx) {
     },
     d(detaching) {
       destroy_component(notice, detaching);
-    }
+    },
   };
 }
 function create_noticeText_slot2(ctx) {
@@ -10543,13 +12071,11 @@ function create_noticeText_slot2(ctx) {
       append(span, t);
     },
     p(ctx2, dirty) {
-      if (dirty & 1)
-        set_data(t, ctx2[0]);
+      if (dirty & 1) set_data(t, ctx2[0]);
     },
     d(detaching) {
-      if (detaching)
-        detach(span);
-    }
+      if (detaching) detach(span);
+    },
   };
 }
 function create_fragment15(ctx) {
@@ -10561,22 +12087,20 @@ function create_fragment15(ctx) {
   linkssettingsgroup = new LinksSettingsGroup_default({
     props: {
       vaultName: ctx[1],
-      filePath: ctx[2]
-    }
+      filePath: ctx[2],
+    },
   });
   return {
     c() {
       div = element("div");
-      if (if_block)
-        if_block.c();
+      if (if_block) if_block.c();
       t = space();
       create_component(linkssettingsgroup.$$.fragment);
       attr(div, "class", "clp_section_margin");
     },
     m(target, anchor) {
       insert(target, div, anchor);
-      if (if_block)
-        if_block.m(div, null);
+      if (if_block) if_block.m(div, null);
       append(div, t);
       mount_component(linkssettingsgroup, div, null);
       current = true;
@@ -10602,15 +12126,12 @@ function create_fragment15(ctx) {
         check_outros();
       }
       const linkssettingsgroup_changes = {};
-      if (dirty & 2)
-        linkssettingsgroup_changes.vaultName = ctx2[1];
-      if (dirty & 4)
-        linkssettingsgroup_changes.filePath = ctx2[2];
+      if (dirty & 2) linkssettingsgroup_changes.vaultName = ctx2[1];
+      if (dirty & 4) linkssettingsgroup_changes.filePath = ctx2[2];
       linkssettingsgroup.$set(linkssettingsgroup_changes);
     },
     i(local) {
-      if (current)
-        return;
+      if (current) return;
       transition_in(if_block);
       transition_in(linkssettingsgroup.$$.fragment, local);
       current = true;
@@ -10621,12 +12142,10 @@ function create_fragment15(ctx) {
       current = false;
     },
     d(detaching) {
-      if (detaching)
-        detach(div);
-      if (if_block)
-        if_block.d();
+      if (detaching) detach(div);
+      if (if_block) if_block.d();
       destroy_component(linkssettingsgroup);
-    }
+    },
   };
 }
 function instance15($$self, $$props, $$invalidate) {
@@ -10635,18 +12154,21 @@ function instance15($$self, $$props, $$invalidate) {
   let { filePath = "" } = $$props;
   $$self.$$set = ($$props2) => {
     if ("noticeText" in $$props2)
-      $$invalidate(0, noticeText2 = $$props2.noticeText);
+      $$invalidate(0, (noticeText2 = $$props2.noticeText));
     if ("vaultName" in $$props2)
-      $$invalidate(1, vaultName = $$props2.vaultName);
-    if ("filePath" in $$props2)
-      $$invalidate(2, filePath = $$props2.filePath);
+      $$invalidate(1, (vaultName = $$props2.vaultName));
+    if ("filePath" in $$props2) $$invalidate(2, (filePath = $$props2.filePath));
   };
   return [noticeText2, vaultName, filePath];
 }
 var BookmarkletModalComponent = class extends SvelteComponent {
   constructor(options) {
     super();
-    init(this, options, instance15, create_fragment15, safe_not_equal, { noticeText: 0, vaultName: 1, filePath: 2 });
+    init(this, options, instance15, create_fragment15, safe_not_equal, {
+      noticeText: 0,
+      vaultName: 1,
+      filePath: 2,
+    });
   }
 };
 var BookmarkletModalComponent_default = BookmarkletModalComponent;
@@ -10710,14 +12232,21 @@ var CanvasEntry = class {
     Utility.assertNotNull(content);
     const fileData = await this.app.vault.read(file);
     const canvasData = JSON.parse(fileData);
-    const newNode = this.createTextNode(canvasData.nodes, `${content}
+    const newNode = this.createTextNode(
+      canvasData.nodes,
+      `${content}
 [^1]
 
-[^1](${noteEntry.getUrl()})`, {
-      width: 600,
-      height: 400
-    });
-    const domainNode = this.findDomainNodeOrCreate(canvasData, Utility.parseDomainFromUrl(noteEntry.getUrl()));
+[^1](${noteEntry.getUrl()})`,
+      {
+        width: 600,
+        height: 400,
+      },
+    );
+    const domainNode = this.findDomainNodeOrCreate(
+      canvasData,
+      Utility.parseDomainFromUrl(noteEntry.getUrl()),
+    );
     canvasData.nodes.push(newNode);
     this.linkNewNodeToDomainNode(canvasData, domainNode, newNode);
     const layout = this.processWithDagre(canvasData);
@@ -10734,7 +12263,7 @@ var CanvasEntry = class {
         width: nodeData.width,
         height: nodeData.height,
         x: nodeData.x,
-        y: nodeData.y
+        y: nodeData.y,
       });
     });
     canvasData.nodes = nodesWithLayout;
@@ -10762,7 +12291,7 @@ var CanvasEntry = class {
       y,
       width: options.width,
       height: options.height,
-      createdBy: "obsidian-clipper"
+      createdBy: "obsidian-clipper",
     };
   }
   getPositionCoordinatesForNewNode(nodes) {
@@ -10774,7 +12303,7 @@ var CanvasEntry = class {
       fromNode: newNode.id,
       fromSide: "top",
       toNode: domainNode.id,
-      toSide: "bottom"
+      toSide: "bottom",
     };
     if (!canvasData.edges) {
       canvasData.edges = [];
@@ -10782,9 +12311,12 @@ var CanvasEntry = class {
     canvasData.edges.push(edge);
   }
   processWithDagre(canvasData) {
-    const g = new import_dagre.default.graphlib.Graph({ directed: true, multigraph: true });
+    const g = new import_dagre.default.graphlib.Graph({
+      directed: true,
+      multigraph: true,
+    });
     g.setGraph({});
-    g.setDefaultEdgeLabel(function() {
+    g.setDefaultEdgeLabel(function () {
       return {};
     });
     canvasData.nodes.forEach((node) => {
@@ -10795,13 +12327,17 @@ var CanvasEntry = class {
         createdBy: node.createdBy,
         type: node.type,
         x: node.x,
-        y: node.y
+        y: node.y,
       });
     });
     canvasData.edges.forEach((edge) => {
       g.setEdge(edge.toNode, edge.fromNode);
     });
-    import_dagre.default.layout(g, { rankdir: "lr", align: "dr", ranker: "tight-tree" });
+    import_dagre.default.layout(g, {
+      rankdir: "lr",
+      align: "dr",
+      ranker: "tight-tree",
+    });
     return g;
   }
 };
@@ -10814,28 +12350,33 @@ var ObsidianClipperPlugin = class extends import_obsidian7.Plugin {
     this.addCommand({
       id: "copy-bookmarklet-address-clipboard",
       name: "Vault Bookmarklet to Clipboard",
-      callback: () => this.handleCopyBookmarkletToClipboard()
+      callback: () => this.handleCopyBookmarkletToClipboard(),
     });
     this.addCommand({
       id: "copy-bookmarklet-address",
       name: "Vault Bookmarklet",
-      callback: () => this.handleCopyBookmarkletCommand()
+      callback: () => this.handleCopyBookmarkletCommand(),
     });
     this.addCommand({
       id: "copy-note-bookmarklet-address-clipboard",
       name: "Topic Bookmarklet to Clipboard",
       editorCallback: (_editor, ctx) => {
         var _a;
-        this.handleCopyBookmarkletToClipboard((_a = ctx.file) == null ? void 0 : _a.path);
-      }
+        this.handleCopyBookmarkletToClipboard(
+          (_a = ctx.file) == null ? void 0 : _a.path,
+        );
+      },
     });
     this.addCommand({
       id: "copy-note-bookmarklet-address",
       name: "Topic Bookmarklet",
       editorCallback: (_editor, ctx) => {
         var _a;
-        this.handleCopyBookmarkletCommand(false, (_a = ctx.file) == null ? void 0 : _a.path);
-      }
+        this.handleCopyBookmarkletCommand(
+          false,
+          (_a = ctx.file) == null ? void 0 : _a.path,
+        );
+      },
     });
     this.addCommand({
       id: "copy-note-bookmarklet-address-canvas",
@@ -10843,14 +12384,23 @@ var ObsidianClipperPlugin = class extends import_obsidian7.Plugin {
       checkCallback: (checking) => {
         var _a;
         if (checking) {
-          return this.settings.experimentalCanvas && ((_a = this.app.workspace.getActiveViewOfType(import_obsidian7.View)) == null ? void 0 : _a.file.extension) === "canvas";
+          return (
+            this.settings.experimentalCanvas &&
+            ((_a = this.app.workspace.getActiveViewOfType(
+              import_obsidian7.View,
+            )) == null
+              ? void 0
+              : _a.file.extension) === "canvas"
+          );
         } else {
-          const ctx = this.app.workspace.getActiveViewOfType(import_obsidian7.View);
+          const ctx = this.app.workspace.getActiveViewOfType(
+            import_obsidian7.View,
+          );
           if (ctx) {
             this.handleCopyBookmarkletCommand(false, ctx.file.path);
           }
         }
-      }
+      },
     });
     this.registerObsidianProtocolHandler("obsidian-clipper", async (e) => {
       const parameters = e;
@@ -10870,22 +12420,47 @@ var ObsidianClipperPlugin = class extends import_obsidian7.Plugin {
       let entryReference = highlightData;
       if (this.settings.advanced && highlightData) {
         const domain = Utility.parseDomainFromUrl(url);
-        entryReference = await new AdvancedNoteEntry(this.app, this.settings.advancedStorageFolder).writeToAdvancedNoteStorage(domain, highlightData, url);
+        entryReference = await new AdvancedNoteEntry(
+          this.app,
+          this.settings.advancedStorageFolder,
+        ).writeToAdvancedNoteStorage(domain, highlightData, url);
       }
-      const noteEntry = new ClippedData(title, url, this.settings, this.app, entryReference, comments);
+      const noteEntry = new ClippedData(
+        title,
+        url,
+        this.settings,
+        this.app,
+        entryReference,
+        comments,
+      );
       if (notePath && notePath !== "") {
         const file = this.app.vault.getAbstractFileByPath(notePath);
         if (file.extension === "canvas") {
           new CanvasEntry(this.app).writeToCanvas(file, noteEntry);
         } else {
-          new TopicNoteEntry(this.app, this.settings.topicOpenOnWrite, this.settings.topicPosition, this.settings.topicEntryTemplateLocation).writeToNote(file, noteEntry);
+          new TopicNoteEntry(
+            this.app,
+            this.settings.topicOpenOnWrite,
+            this.settings.topicPosition,
+            this.settings.topicEntryTemplateLocation,
+          ).writeToNote(file, noteEntry);
         }
       } else {
         if (this.settings.useDailyNote) {
-          new DailyPeriodicNoteEntry(this.app, this.settings.dailyOpenOnWrite, this.settings.dailyPosition, this.settings.dailyEntryTemplateLocation).writeToPeriodicNote(noteEntry, this.settings.dailyNoteHeading);
+          new DailyPeriodicNoteEntry(
+            this.app,
+            this.settings.dailyOpenOnWrite,
+            this.settings.dailyPosition,
+            this.settings.dailyEntryTemplateLocation,
+          ).writeToPeriodicNote(noteEntry, this.settings.dailyNoteHeading);
         }
         if (this.settings.useWeeklyNote) {
-          new WeeklyPeriodicNoteEntry(this.app, this.settings.weeklyOpenOnWrite, this.settings.weeklyPosition, this.settings.weeklyEntryTemplateLocation).writeToPeriodicNote(noteEntry, this.settings.weeklyNoteHeading);
+          new WeeklyPeriodicNoteEntry(
+            this.app,
+            this.settings.weeklyOpenOnWrite,
+            this.settings.weeklyPosition,
+            this.settings.weeklyEntryTemplateLocation,
+          ).writeToPeriodicNote(noteEntry, this.settings.weeklyNoteHeading);
         }
       }
     });
@@ -10902,8 +12477,20 @@ var ObsidianClipperPlugin = class extends import_obsidian7.Plugin {
     await this.saveData(this.settings);
   }
   handleCopyBookmarkletToClipboard(notePath = "") {
-    navigator.clipboard.writeText(new BookmarketlGenerator(this.app.vault.getName(), notePath, this.settings.markdownSettings, (this.settings.experimentalBookmarkletComment && this.settings.captureComments).toString()).generateBookmarklet());
-    new import_obsidian7.Notice("Obsidian Clipper Bookmarklet copied to clipboard.");
+    navigator.clipboard.writeText(
+      new BookmarketlGenerator(
+        this.app.vault.getName(),
+        notePath,
+        this.settings.markdownSettings,
+        (
+          this.settings.experimentalBookmarkletComment &&
+          this.settings.captureComments
+        ).toString(),
+      ).generateBookmarklet(),
+    );
+    new import_obsidian7.Notice(
+      "Obsidian Clipper Bookmarklet copied to clipboard.",
+    );
   }
   handleCopyBookmarkletCommand(updateRequired = false, filePath = "") {
     let noticeText2 = "";
@@ -10913,15 +12500,15 @@ var ObsidianClipperPlugin = class extends import_obsidian7.Plugin {
     }
     const bookmarkletLinkModal = new import_obsidian7.Modal(this.app);
     bookmarkletLinkModal.titleEl.createEl("h2", {
-      text: "Copy Your Bookmarklet"
+      text: "Copy Your Bookmarklet",
     });
     new BookmarkletModalComponent_default({
       target: bookmarkletLinkModal.contentEl,
       props: {
         noticeText: noticeText2,
         vaultName: this.app.vault.getName(),
-        filePath
-      }
+        filePath,
+      },
     });
     bookmarkletLinkModal.open();
   }
@@ -10938,8 +12525,8 @@ var SettingTab = class extends import_obsidian7.PluginSettingTab {
     this.view = new SettingsComponent_default({
       target: containerEl,
       props: {
-        app: this.app
-      }
+        app: this.app,
+      },
     });
   }
   async hide() {

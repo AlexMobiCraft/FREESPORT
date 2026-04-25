@@ -10,11 +10,12 @@
 
 ```html
 {% for obj in queryset %}
-    <input type="hidden" name="_selected_action" value="{{ obj.pk }}">
+<input type="hidden" name="_selected_action" value="{{ obj.pk }}" />
 {% endfor %}
 ```
 
 Если пользователь выбирал 2 сессии импорта в списке и нажимал action "🚀 Запустить импорт из 1С", то:
+
 1. Создавалось 2 скрытых поля `_selected_action`
 2. Django admin обрабатывал action для каждого выбранного объекта
 3. Создавалось 2 новые сессии импорта
@@ -47,11 +48,11 @@ if not queryset.exists():
 ```html
 <!-- БЫЛО: -->
 {% for obj in queryset %}
-    <input type="hidden" name="_selected_action" value="{{ obj.pk }}">
+<input type="hidden" name="_selected_action" value="{{ obj.pk }}" />
 {% endfor %}
 
 <!-- СТАЛО: -->
-<input type="hidden" name="_selected_action" value="0">
+<input type="hidden" name="_selected_action" value="0" />
 ```
 
 Теперь всегда создается только **одно скрытое поле**, независимо от количества выбранных сессий.
@@ -124,6 +125,7 @@ docker-compose -f docker/docker-compose.prod.yml restart backend
 ## Контакты
 
 При возникновении проблем обращайтесь к разработчику:
+
 - **Developer:** James (Dev Agent)
 - **Fix:** Двойной запуск Celery задач
 - **Date:** 2025-11-04

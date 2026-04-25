@@ -2,9 +2,9 @@
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-12-13 | 1.0 | Initial Epic Draft for Backend Logout | John (PM) |
+| Date       | Version | Description                           | Author    |
+| ---------- | ------- | ------------------------------------- | --------- |
+| 2025-12-13 | 1.0     | Initial Epic Draft for Backend Logout | John (PM) |
 
 ---
 
@@ -169,12 +169,14 @@ Epic 28 реализовал JWT аутентификацию, но не вкл�
 **Primary Risk:** Blacklist таблицы могут расти неограниченно.
 
 **Mitigation:**
+
 1. Django management command для очистки expired tokens
 2. Celery periodic task для автоматической очистки
 3. Индексы на blacklist таблицы
 4. Документация процесса очистки
 
 **Rollback Plan:**
+
 1. Удалить маршрут из urls.py
 2. Удалить LogoutView и LogoutSerializer
 3. Убрать token_blacklist из INSTALLED_APPS
@@ -288,9 +290,9 @@ class LogoutSerializer(serializers.Serializer):
                 description: Refresh token для инвалидации
                 example: "eyJ0eXAiOiJKV1QiLCJhbGc..."
     responses:
-      '204':
+      "204":
         description: Токен успешно инвалидирован
-      '400':
+      "400":
         description: Невалидный или уже инвалидированный токен
         content:
           application/json:
@@ -300,7 +302,7 @@ class LogoutSerializer(serializers.Serializer):
                 error:
                   type: string
                   example: "Invalid or expired token"
-      '401':
+      "401":
         description: Пользователь не аутентифицирован
         content:
           application/json:

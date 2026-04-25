@@ -46,7 +46,7 @@ evidence:
   risks_identified: 2
   trace:
     ac_covered: [1, 2, 3, 4, 5, 6, 9]
-    ac_gaps: [7, 8]  # AC 7 (фильтр) и AC 8 (JS auto-refresh) частично покрыты
+    ac_gaps: [7, 8] # AC 7 (фильтр) и AC 8 (JS auto-refresh) частично покрыты
 
 nfr_validation:
   security:
@@ -69,11 +69,14 @@ compliance:
   type_coverage: 100%
 
 recommendations:
-  immediate: []  # Нет блокирующих проблем
+  immediate: [] # Нет блокирующих проблем
 
   future:
     - action: "Add Jest unit tests for JavaScript auto-refresh logic"
-      refs: ["backend/templates/admin/products/importsession/change_list.html:15-107"]
+      refs:
+        [
+          "backend/templates/admin/products/importsession/change_list.html:15-107",
+        ]
       priority: medium
     - action: "Extract lock timeout to settings.IMPORT_LOCK_TIMEOUT"
       refs: ["backend/apps/products/admin.py:208"]

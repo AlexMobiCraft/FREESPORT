@@ -1,14 +1,14 @@
 schema: 1
-story: '12.1'
+story: "12.1"
 gate: PASS
 status_reason: Ролевые цены и UX галереи исправлены, тесты подтверждают выполнение всех AC.
 reviewer: Quinn (Test Architect)
-updated: '2025-11-30T16:58:00Z'
+updated: "2025-11-30T16:58:00Z"
 top_issues: []
 waiver:
   active: false
 quality_score: 100
-expires: '2025-12-14T16:58:00Z'
+expires: "2025-12-14T16:58:00Z"
 evidence:
   tests_reviewed: 62
   risks_identified: 0

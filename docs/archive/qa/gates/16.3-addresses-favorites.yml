@@ -52,9 +52,14 @@ recommendations:
     - action: "Реализовать точную проверку доступности варианта через API вместо упрощённой логики"
       refs: ["frontend/src/app/(profile)/favorites/page.tsx:43-52"]
     - action: "Добавить DaData автодополнение для адресов"
-      refs: ["frontend/src/components/business/AddressModal/AddressModal.tsx:276"]
+      refs:
+        ["frontend/src/components/business/AddressModal/AddressModal.tsx:276"]
     - action: "Добавить unit-тесты для AddressList и FavoritesList компонентов"
-      refs: ["frontend/src/components/business/AddressList/", "frontend/src/components/business/FavoritesList/"]
+      refs:
+        [
+          "frontend/src/components/business/AddressList/",
+          "frontend/src/components/business/FavoritesList/",
+        ]
 
 files_reviewed:
   pages:
@@ -86,7 +91,8 @@ acceptance_criteria_validation:
   AC1_add_address_modal:
     status: PASS
     implementation: "AddressModal компонент с React Hook Form + Zod валидацией"
-    tests: ["AddressCard.test.tsx", "addressService.test.ts", "addresses.spec.ts"]
+    tests:
+      ["AddressCard.test.tsx", "addressService.test.ts", "addresses.spec.ts"]
   AC2_edit_address_no_reload:
     status: PASS
     implementation: "handleUpdate с Optimistic UI в addresses/page.tsx"
@@ -106,7 +112,12 @@ acceptance_criteria_validation:
   AC6_remove_from_favorites_instant:
     status: PASS
     implementation: "Optimistic UI с откатом при ошибке API"
-    tests: ["FavoriteProductCard.test.tsx", "favoriteService.test.ts", "favorites.spec.ts"]
+    tests:
+      [
+        "FavoriteProductCard.test.tsx",
+        "favoriteService.test.ts",
+        "favorites.spec.ts",
+      ]
   AC7_out_of_stock_badge:
     status: PASS
     implementation: "Бейдж 'Нет в наличии' + disabled кнопка 'Сообщить о поступлении'"

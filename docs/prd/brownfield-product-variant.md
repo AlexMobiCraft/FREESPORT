@@ -14,6 +14,7 @@
 **Source:** IDE-based fresh analysis + existing project documentation
 
 **Available Documentation:**
+
 - ✅ [docs/PRD.md](../PRD.md) — основной Product Requirements Document
 - ✅ [docs/architecture.md](../architecture.md) — архитектурная документация (v4, sharded)
 - ✅ [docs/architecture/20-1c-integration.md](../architecture/20-1c-integration.md) — интеграция с 1С
@@ -26,6 +27,7 @@
 **FREESPORT Platform** — API-First E-commerce платформа для B2B/B2C продаж спортивных товаров с интеграцией 1С.
 
 **Current Functionality:**
+
 - ✅ **12 завершённых Epic** (Epic 1-12)
 - ✅ Backend API: Django 5.2.7 + DRF + PostgreSQL 15+
 - ✅ Frontend: Next.js 15.4.6 + React 19 + TypeScript
@@ -35,6 +37,7 @@
 - ✅ Личный кабинет пользователя
 
 **Current Architecture Problem:**
+
 - Каждый SKU из 1С импортируется как **отдельный Product**
 - Отсутствует группировка вариантов товара (цвет, размер)
 - Невозможна реализация UX "выбор опций" (Story 12.2 блокирована)
@@ -42,11 +45,13 @@
 ### 1.3 Enhancement Scope Definition
 
 **Enhancement Type:**
+
 - ☑️ New Feature Addition (модель ProductVariant)
 - ☑️ Major Feature Modification (рефакторинг Product)
 - ☑️ Integration with New Systems (обновление импорта 1С)
 
 **Impact Assessment:**
+
 - ☑️ Major Impact (architectural changes required)
 
 **Enhancement Description:**
@@ -56,6 +61,7 @@
 ### 1.4 Goals and Background Context
 
 **Goals:**
+
 - Разблокировать Story 12.2 (Выбор опций товара) для реализации UX выбора цвета/размера
 - Обеспечить корректное соответствие архитектуры данных структуре CommerceML 3.1 из 1С
 - Устранить дублирование базовой информации о товарах (описание, бренд, категория)
@@ -70,9 +76,9 @@
 
 ### 1.5 Change Log
 
-| Change | Date | Version | Description | Author |
-|--------|------|---------|-------------|--------|
-| Initial creation | 2025-11-30 | 1.0 | Создание Brownfield PRD для ProductVariant на основе product-variant-proposal.md | John (PM) |
+| Change           | Date       | Version | Description                                                                      | Author    |
+| ---------------- | ---------- | ------- | -------------------------------------------------------------------------------- | --------- |
+| Initial creation | 2025-11-30 | 1.0     | Создание Brownfield PRD для ProductVariant на основе product-variant-proposal.md | John (PM) |
 
 ---
 
@@ -209,6 +215,7 @@
 **Languages:** Python 3.11+, TypeScript 5.0+, SQL (PostgreSQL 15+)
 
 **Frameworks:**
+
 - Backend: Django 5.2.7, DRF 3.14+
 - Frontend: Next.js 15.4.6, React 19.1.0
 - State: Zustand 4.5.7
@@ -226,28 +233,33 @@
 ### 4.2 Integration Approach
 
 **Database Integration:**
+
 - Новые модели: `ProductVariant`, `ColorMapping`
 - Рефакторинг `Product`: удаление цен/остатков
 - Миграции с pre-backup через `pg_dump`
 - Foreign Keys: `ProductVariant.product` → `Product` (CASCADE)
 
 **API Integration:**
+
 - `ProductVariantSerializer` + `ProductDetailSerializer.variants[]`
 - `ProductViewSet.retrieve()` с `prefetch_related('variants')`
 - OpenAPI update + регенерация `api.generated.ts`
 
 **Frontend Integration:**
+
 - Новый компонент `ProductOptions.tsx`
 - Props drilling: `ProductDetail` → `ProductOptions` → `ProductSummary`
 - State: `useState<SelectedOptions>` с callback `onSelectionChange`
 
 **Testing Integration:**
+
 - Backend: unit (models), API тесты, импорт тесты с реальными XML
 - Frontend: Vitest + RTL, MSW mocks, E2E user flow
 
 ### 4.3 Code Organization and Standards
 
 **File Structure:**
+
 ```
 backend/apps/products/
 ├── models.py              # ProductVariant, ColorMapping
@@ -268,6 +280,7 @@ frontend/src/components/product/
 **Naming:** PascalCase (models, components), snake_case (DB tables, test files)
 
 **Coding Standards:**
+
 - Python: Black, Flake8, isort, mypy type hints
 - TypeScript: ESLint 9, Prettier, strict mode
 
@@ -276,20 +289,24 @@ frontend/src/components/product/
 ### 4.4 Deployment and Operations
 
 **Build Process:**
+
 - Backend: auto migrations в CI/CD
 - Frontend: `prebuild` script → `npm run generate:types`
 
 **Deployment Strategy:**
+
 1. Staging: deploy → migrate → reimport test data → QA
 2. Production: backup → deploy (2AM-4AM window) → verify → monitoring
 3. Rollback: restore backup + revert code (~15 min)
 
 **Monitoring:**
+
 - Logs: `logs/import_products.log` (INFO/ERROR)
 - Performance: Django Debug Toolbar, APM metrics
 - Alerting: критические ошибки → Slack #tech-alerts
 
 **Configuration:**
+
 ```env
 IMPORT_BATCH_SIZE=500
 IMPORT_LOG_FILE=/app/logs/import_products.log
@@ -299,16 +316,19 @@ COLOR_MAPPING_PRELOAD=true
 ### 4.5 Risk Assessment and Mitigation
 
 **Technical Risks:**
+
 - Регрессия в импорте 1С (Высокая / Критическое) → тесты с реальными XML, rollback
 - N+1 queries (Средняя / Высокое) → prefetch_related, мониторинг
 - Миграция сломает prod (Низкая / Критическое) → backup, staging тест
 
 **Integration Risks:**
+
 - Несоответствие ProductOption schema (Средняя / Высокое) → согласование JSON, integration тесты
 - Изменение 1С XML (Низкая / Критическое) → версионирование парсера, валидация schema
 - Деградация при 100+ вариантов (Средняя / Среднее) → индексы, edge case тесты
 
 **Deployment Risks:**
+
 - Rollback не работает (Низкая / Критическое) → тест rollback на staging
 - Downtime > 2ч (Средняя / Высокое) → maintenance window, мониторинг
 - ColorMapping не заполнен (Высокая / Низкое) → предзагрузка 20 цветов, fallback
@@ -322,6 +342,7 @@ COLOR_MAPPING_PRELOAD=true
 **Epic Structure Decision:** Единый Epic 13 с параллелизацией stories для оптимизации velocity
 
 **Rationale:**
+
 - Атомарность внедрения минимизирует риски частично работающей системы
 - Параллелизация backend/frontend сокращает timeline с 3 до 2 спринтов
 - Все stories направлены на одну цель: разблокировать Story 12.2
@@ -335,6 +356,7 @@ COLOR_MAPPING_PRELOAD=true
 Внедрить модель ProductVariant для хранения SKU-вариантов товаров (цвет, размер, цены, остатки), обеспечив корректное соответствие структуре данных 1С и разблокировав UX-сценарий "выбор опций товара" для Story 12.2.
 
 **Integration Requirements:**
+
 - Совместимость с CommerceML 3.1
 - Сохранение endpoints `/products/`, `/categories/`
 - Использование существующей дизайн-системы
@@ -366,6 +388,7 @@ COLOR_MAPPING_PRELOAD=true
 9. Предзагружено 20 базовых цветов в ColorMapping через data migration
 
 **Integration Verification:**
+
 - IV1: Существующие модели `Brand`, `Category` остались без изменений
 - IV2: Foreign key `Product.brand` и `Product.category` работают корректно
 - IV3: Миграция выполняется без ошибок на пустой БД
@@ -392,6 +415,7 @@ COLOR_MAPPING_PRELOAD=true
 8. Написаны unit тесты (Vitest + RTL) для отображения и взаимодействия
 
 **Integration Verification:**
+
 - IV1: Компонент корректно рендерится на странице `/catalog/[category]/[slug]`
 - IV2: Стили соответствуют существующей дизайн-системе
 - IV3: MSW mock возвращает данные в формате согласованного API контракта
@@ -421,6 +445,7 @@ COLOR_MAPPING_PRELOAD=true
 9. Batch processing по 500 записей для контроля памяти (NFR4)
 
 **Integration Verification:**
+
 - IV1: Существующий импорт брендов и категорий остался без изменений
 - IV2: Интеграция с 1С остаётся совместимой с CommerceML 3.1 (CR4)
 - IV3: Логи импорта содержат информацию о пропущенных записях и ошибках (NFR8)
@@ -447,6 +472,7 @@ COLOR_MAPPING_PRELOAD=true
 8. Написаны API тесты для новых endpoints
 
 **Integration Verification:**
+
 - IV1: Существующий endpoint `/products/` не изменён (CR1)
 - IV2: Endpoint `/categories/` не изменён (CR1)
 - IV3: Serializer использует те же роли пользователей
@@ -472,6 +498,7 @@ COLOR_MAPPING_PRELOAD=true
 7. Написаны integration тесты с реальным API
 
 **Integration Verification:**
+
 - IV1: Компонент корректно работает с API данными (нет ошибок типов)
 - IV2: ProductGallery обновляет изображение при смене цвета
 - IV3: ProductSummary показывает цену выбранного варианта
@@ -499,6 +526,7 @@ COLOR_MAPPING_PRELOAD=true
 7. Документация создана: migration guide, admin guide (NFR9)
 
 **Integration Verification:**
+
 - IV1: Таблицы orders, order_items, cart_items остались без изменений
 - IV2: Существующие пользователи и заказы сохранены
 - IV3: API endpoints работают корректно после миграции
@@ -512,12 +540,14 @@ COLOR_MAPPING_PRELOAD=true
 **Total Story Points:** 29 SP
 **Timeline:** 2 спринта + post-sprint миграция
 **Dependencies:**
+
 - 13.1 → 13.2 → 13.3 → 13.5b (последовательно backend)
 - 13.1 → 13.5a (параллельно frontend)
 - 13.3 → 13.5b (интеграция)
 - Все → 13.4 (финальная миграция)
 
 **Deliverables:**
+
 - ✅ Backend модели ProductVariant/ColorMapping
 - ✅ Рефакторинг импорта 1С
 - ✅ API с variants[]

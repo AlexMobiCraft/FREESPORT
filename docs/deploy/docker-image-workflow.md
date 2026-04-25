@@ -1,6 +1,7 @@
 ---
 description: Докуменция по CI/CD образов
 ---
+
 # Сборка и публикация Docker-образов FREESPORT
 
 Этот документ описывает процесс подготовки и доставки Docker-образов backend и frontend проекта FREESPORT в GitHub Container Registry, а также применение этих образов на продакшн-сервере.
@@ -8,7 +9,7 @@ description: Докуменция по CI/CD образов
 ## 1. Подготовка тегов релиза
 
 1. На машине разработчика или CI определить тег релиза. Рекомендуемый формат: `vYYYYMMDD-HHMM` или семантическая версия (`v1.0.0`).
-2. Зафиксировать тег для backend и frontend. 
+2. Зафиксировать тег для backend и frontend.
    Пример:
    - `BACKEND_TAG=v20251102-01`
    - `FRONTEND_TAG=v20251102-01`
@@ -90,9 +91,9 @@ docker push $frontendTag
 
 ## 4. Применение на сервере
 
-1. Подключиться к серверу `5.35.124.149`  c:\Users\38670\DEV_WEB\FREESPORT\scripts\server\ssh_server.ps1 (см. [docs/deploy/README.md](README.md)).
+1. Подключиться к серверу `5.35.124.149` c:\Users\38670\DEV_WEB\FREESPORT\scripts\server\ssh_server.ps1 (см. [docs/deploy/README.md](README.md)).
 
-2. nano .env.prod  указать новые теги образов:
+2. nano .env.prod указать новые теги образов:
 
    ```dotenv
    BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:v1.0.0

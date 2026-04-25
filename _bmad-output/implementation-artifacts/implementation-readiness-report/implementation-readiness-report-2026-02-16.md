@@ -36,18 +36,18 @@ FR-10: System provides a public API endpoint to retrieve only `is_featured` bran
 
 ### Coverage Matrix
 
-| FR Number | PRD Requirement | Epic Coverage | Status |
-| --------- | --------------- | -------------- | --------- |
-| FR-01 | Admin image upload | Epic 1 / Story 1.1 | ✓ Covered |
-| FR-02 | Admin toggle featured | Epic 1 / Story 1.1 | ✓ Covered |
-| FR-03 | Admin validation | Epic 1 / Story 1.1 | ✓ Covered |
-| FR-04 | Admin remove featured | Epic 1 / Story 1.1 | ✓ Covered |
-| FR-05 | User view brands section | Epic 1 / Story 1.4 | ✓ Covered |
-| FR-06 | User view carousel | Epic 1 / Story 1.3 | ✓ Covered |
-| FR-07 | Hover effect | Epic 1 / Story 1.3 | ✓ Covered |
-| FR-08 | Click logo | Epic 1 / Story 1.3 | ✓ Covered |
-| FR-09 | Navigate to catalog | Epic 1 / Story 1.3 | ✓ Covered |
-| FR-10 | API endpoint | Epic 1 / Story 1.2 | ✓ Covered |
+| FR Number | PRD Requirement          | Epic Coverage      | Status    |
+| --------- | ------------------------ | ------------------ | --------- |
+| FR-01     | Admin image upload       | Epic 1 / Story 1.1 | ✓ Covered |
+| FR-02     | Admin toggle featured    | Epic 1 / Story 1.1 | ✓ Covered |
+| FR-03     | Admin validation         | Epic 1 / Story 1.1 | ✓ Covered |
+| FR-04     | Admin remove featured    | Epic 1 / Story 1.1 | ✓ Covered |
+| FR-05     | User view brands section | Epic 1 / Story 1.4 | ✓ Covered |
+| FR-06     | User view carousel       | Epic 1 / Story 1.3 | ✓ Covered |
+| FR-07     | Hover effect             | Epic 1 / Story 1.3 | ✓ Covered |
+| FR-08     | Click logo               | Epic 1 / Story 1.3 | ✓ Covered |
+| FR-09     | Navigate to catalog      | Epic 1 / Story 1.3 | ✓ Covered |
+| FR-10     | API endpoint             | Epic 1 / Story 1.2 | ✓ Covered |
 
 ### Coverage Statistics
 
@@ -63,12 +63,12 @@ FR-10: System provides a public API endpoint to retrieve only `is_featured` bran
 
 ### Alignment Issues
 
-*   **Implied UX:** PRD and Epics fully describe the UI behavior (Carousel, Hover effects, responsive black logos).
-*   **Alignment:** Architecture supports `BrandsBlock` as a Client Component, which aligns with the "Interactivity" requirement.
+- **Implied UX:** PRD and Epics fully describe the UI behavior (Carousel, Hover effects, responsive black logos).
+- **Alignment:** Architecture supports `BrandsBlock` as a Client Component, which aligns with the "Interactivity" requirement.
 
 ### Warnings
 
-*   ⚠️ **Missing UX Artifact:** No dedicated Figma/UX spec found. Implementation will rely on PRD descriptions and existing Design System (`docs/frontend/design-system.json`).
+- ⚠️ **Missing UX Artifact:** No dedicated Figma/UX spec found. Implementation will rely on PRD descriptions and existing Design System (`docs/frontend/design-system.json`).
 
 ## Epic Quality Review
 

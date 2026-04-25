@@ -17,6 +17,7 @@
 **Файл:** `tests/unit/test_serializers/test_user_serializers.py`
 
 #### OrderHistorySerializer Tests
+
 1. **`test_order_serialization`** - Базовая сериализация заказа
 2. **`test_order_items_count_calculation`** - Подсчет количества товаров
 3. **`test_customer_display_name_for_user_order`** - Отображение имени клиента
@@ -28,6 +29,7 @@
 ### Functional Тесты (11 тестов)
 
 #### Dashboard API Tests (5 тестов)
+
 **Файл:** `tests/functional/test_dashboard_api.py`
 
 1. **`test_dashboard_with_no_orders`** - Дашборд без заказов
@@ -37,6 +39,7 @@
 5. **`test_dashboard_unauthorized`** - Доступ без авторизации
 
 #### Order History API Tests (6 тестов)
+
 **Файл:** `tests/functional/test_order_history_api.py`
 
 1. **`test_order_history_empty`** - Пустая история заказов
@@ -89,6 +92,7 @@ Total: 65.3s
 **Цель:** Проверка корректности сериализации данных заказов
 
 **Тестируемые аспекты:**
+
 - Сериализация всех полей заказа
 - Подсчет количества товаров через `get_items_count()`
 - Отображение имени клиента
@@ -96,6 +100,7 @@ Total: 65.3s
 - Работа SerializerMethodField
 
 **Пример теста:**
+
 ```python
 def test_order_items_count_calculation(self, user_factory, order_factory, order_item_factory):
     user = user_factory.create()
@@ -114,6 +119,7 @@ def test_order_items_count_calculation(self, user_factory, order_factory, order_
 **Цель:** Проверка корректности работы дашборда пользователя
 
 **Тестируемые аспекты:**
+
 - Отображение статистики для пользователей без заказов
 - Расчет и отображение реальной статистики заказов
 - Различия в данных для B2C и B2B пользователей
@@ -121,6 +127,7 @@ def test_order_items_count_calculation(self, user_factory, order_factory, order_
 - Обработка неавторизованных запросов
 
 **Пример B2B/B2C различий:**
+
 ```python
 # B2B пользователь видит финансовую статистику
 assert 'total_order_amount' in b2b_data
@@ -137,6 +144,7 @@ assert 'avg_order_amount' not in b2c_data
 **Цель:** Проверка корректности получения истории заказов
 
 **Тестируемые аспекты:**
+
 - Возврат пустой истории для новых пользователей
 - Правильная структура данных заказов
 - Фильтрация по статусу заказа
@@ -145,6 +153,7 @@ assert 'avg_order_amount' not in b2c_data
 - Обработка неавторизованных запросов
 
 **Пример фильтрации:**
+
 ```python
 # Фильтрация по статусу 'pending'
 response = client.get('/api/v1/users/orders/?status=pending')
@@ -159,6 +168,7 @@ for order in data['results']:
 **Цель:** Проверка взаимодействия компонентов системы
 
 **Тестируемые аспекты:**
+
 - Создание пользователя и заказов
 - Отображение в дашборде после создания заказов
 - Правильная сериализация в истории заказов
@@ -166,6 +176,7 @@ for order in data['results']:
 - Обработка ошибок и граничных случаев
 
 **Пример полного workflow:**
+
 ```python
 # Шаг 1: Создаем пользователя и заказы
 user = user_factory.create(role="wholesale_level1", is_verified=True)
@@ -189,6 +200,7 @@ assert history['count'] == 2
 ### Фабрики для Тестирования
 
 Используются следующие фабрики:
+
 - **`user_factory`** - создание тестовых пользователей
 - **`order_factory`** - создание тестовых заказов
 - **`order_item_factory`** - создание товаров в заказах
@@ -197,6 +209,7 @@ assert history['count'] == 2
 ### Тестовые Сценарии
 
 #### B2C Пользователь
+
 ```python
 user = user_factory.create(role="retail")
 # Не видит финансовую статистику
@@ -204,6 +217,7 @@ user = user_factory.create(role="retail")
 ```
 
 #### B2B Пользователь
+
 ```python
 user = user_factory.create(
     role="wholesale_level1",
@@ -215,6 +229,7 @@ user = user_factory.create(
 ```
 
 #### Заказы с Товарами
+
 ```python
 order = order_factory.create(user=user, total_amount=5000.00)
 order_item_factory.create(order=order, quantity=2, unit_price=2000.00)

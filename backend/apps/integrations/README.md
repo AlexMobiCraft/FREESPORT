@@ -11,11 +11,14 @@ Handles the HTTP exchange protocol with 1C:Enterprise (CommerceML).
 You can test the exchange flow manually using `curl`.
 
 **1. Authenticate (CheckAuth)**
+
 ```bash
 # Returns session cookie and success status
 curl -v -u <1c_username>:<password> "http://localhost:8001/api/integration/1c/exchange/?mode=checkauth"
 ```
-*Response:*
+
+_Response:_
+
 ```
 success
 FREESPORT_1C_SESSION
@@ -23,12 +26,14 @@ FREESPORT_1C_SESSION
 ```
 
 **2. Initialize (Init)**
+
 ```bash
 # Negotiate parameters (zip, limit)
 curl -v -H "Cookie: FREESPORT_1C_SESSION=<session_id>" "http://localhost:8001/api/integration/1c/exchange/?mode=init"
 ```
 
 **3. Upload File (File)**
+
 ```bash
 # Upload a test file (e.g. goods.xml)
 curl -v -X POST \
@@ -38,6 +43,7 @@ curl -v -X POST \
 ```
 
 **4. Trigger Import (Import)**
+
 ```bash
 # Signal that upload is complete
 curl -v -H "Cookie: FREESPORT_1C_SESSION=<session_id>" "http://localhost:8001/api/integration/1c/exchange/?mode=import&filename=goods.xml&sessid=<session_id>"

@@ -20,12 +20,14 @@
 **Документация:** [docs/epics/epic-30/epic-30-backend-logout.md](epic-30/epic-30-backend-logout.md)
 
 **Stories:**
+
 1. ✅ **Story 30.1:** Настройка JWT Token Blacklist
 2. ✅ **Story 30.2:** Реализация Logout View и Serializer
 3. ✅ **Story 30.3:** Регистрация маршрута и обновление API документации
 4. ✅ **Story 30.4:** Тесты для Logout функциональности
 
 **Key Deliverables:**
+
 - Backend endpoint `POST /auth/logout/`
 - JWT blacklist механизм (djangorestframework-simplejwt)
 - Database migrations для blacklist таблиц
@@ -33,6 +35,7 @@
 - Comprehensive tests (coverage >= 90%)
 
 **Tech Stack:**
+
 - Django 4.2 LTS + DRF 3.14+
 - djangorestframework-simplejwt 5.3.1
 - PostgreSQL 15+
@@ -49,12 +52,14 @@
 **Документация:** [docs/epics/epic-31/epic-31-frontend-logout.md](epic-31/epic-31-frontend-logout.md)
 
 **Stories:**
+
 1. ✅ **Story 31.1:** Добавление кнопки "Выйти" в Header компонент
 2. ✅ **Story 31.2:** Интеграция authService с backend logout endpoint
 3. ✅ **Story 31.3:** Обработчик logout с редиректом
 4. ✅ **Story 31.4:** Тесты для logout функциональности
 
 **Key Deliverables:**
+
 - Кнопка "Выйти" в Header (desktop + mobile)
 - `authService.logout()` метод для API вызова
 - Обновленный `authStore.logout()` с backend интеграцией
@@ -62,6 +67,7 @@
 - Comprehensive tests (coverage >= 90%)
 
 **Tech Stack:**
+
 - Next.js 15.4.6 + React 19.1.0
 - Zustand 4.5.7 + Axios 1.11.0
 - Vitest + RTL + MSW
@@ -190,11 +196,13 @@
 ### Backend Tests (Epic 30)
 
 **Unit Tests:**
+
 - `LogoutSerializer` валидация
 - Token blacklisting logic
 - Error handling (invalid token, expired, already blacklisted)
 
 **Integration Tests:**
+
 - Успешный logout с валидным refresh токеном
 - Ошибка 401 без аутентификации
 - Ошибка 400 с невалидным токеном
@@ -206,17 +214,20 @@
 ### Frontend Tests (Epic 31)
 
 **Unit Tests:**
+
 - Header компонент с/без авторизации
 - Кнопка "Выйти" отображается корректно
 - `handleLogout` вызывает правильные методы
 
 **Integration Tests:**
+
 - `authStore.logout()` вызывает backend API (MSW mock)
 - Успешная очистка state + localStorage + cookies
 - Fail-safe: очистка при ошибке API
 - Редирект на главную страницу
 
 **E2E Tests (опционально):**
+
 - Full logout flow: клик → API → очистка → редирект
 - Проверка что logout работает на всех вкладках
 
@@ -229,11 +240,13 @@
 ### Epic 30 Dependencies
 
 **Blocking:**
+
 - ✅ Epic 28 завершен (JWT аутентификация работает)
 - ✅ PostgreSQL 15+ настроен
 - ✅ djangorestframework-simplejwt установлен
 
 **Required:**
+
 - Django 4.2 LTS
 - DRF 3.14+
 - pytest + pytest-django
@@ -241,11 +254,13 @@
 ### Epic 31 Dependencies
 
 **Blocking:**
+
 - ⏳ Epic 30 завершен (backend `/auth/logout/` endpoint доступен)
 - ✅ Epic 28 завершен (authStore существует)
 - ✅ Header компонент реализован
 
 **Required:**
+
 - Next.js 15.4.6
 - React 19.1.0
 - Zustand 4.5.7
@@ -261,6 +276,7 @@
 **Estimated Duration:** 3-5 дней
 
 **Story Sequence:**
+
 1. Day 1: Story 30.1 - Setup JWT blacklist
 2. Day 2: Story 30.2 - Implement LogoutView
 3. Day 3: Story 30.3 - Register endpoint + API docs
@@ -271,6 +287,7 @@
 **Estimated Duration:** 3-4 дня
 
 **Story Sequence:**
+
 1. Day 1: Story 31.1 - Add logout button UI
 2. Day 2: Story 31.2 - Integrate authService
 3. Day 3: Story 31.3 - Implement logout handler
@@ -381,17 +398,20 @@
 ### Required Documentation Changes
 
 **Epic 30:**
+
 - ✅ `docs/api-spec.yaml` - добавить `/auth/logout/` endpoint
 - ✅ `docs/epics/epic-30/epic-30-backend-logout.md` - epic documentation
 - 📝 `backend/apps/users/README.md` - обновить с logout endpoint
 - 📝 `docs/architecture/authentication.md` - добавить blacklist механизм
 
 **Epic 31:**
+
 - ✅ `docs/epics/epic-31/epic-31-frontend-logout.md` - epic documentation
 - 📝 `frontend/README.md` - обновить с logout функциональностью
 - 📝 `docs/architecture/frontend-architecture.md` - authStore.logout() flow
 
 **General:**
+
 - 📝 `docs/user-guide/authentication.md` - user-facing logout documentation
 - 📝 `CHANGELOG.md` - версионирование и release notes
 
@@ -408,6 +428,7 @@ Epic 30 и Epic 31 вместе обеспечивают полноценную 
 - ✅ **Well-Documented:** Полная документация для developers и users
 
 **Готовность к реализации:**
+
 - Epic 30 готов к разработке ✅
 - Epic 31 зависит от завершения Epic 30 ⏳
 

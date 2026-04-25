@@ -12,7 +12,7 @@
 ROLE_CHOICES = [
     ("retail", "Розничный покупатель"),
     ("wholesale_level1", "Оптовик уровень 1"),
-    ("wholesale_level2", "Оптовик уровень 2"), 
+    ("wholesale_level2", "Оптовик уровень 2"),
     ("wholesale_level3", "Оптовик уровень 3"),
     ("trainer", "Тренер/Фитнес-клуб"),
     ("federation_rep", "Представитель федерации"),
@@ -42,7 +42,7 @@ class Company(models.Model):
     legal_address = models.TextField()
     # Банковские реквизиты
     bank_name = models.CharField(max_length=200, blank=True)
-    bank_bik = models.CharField(max_length=9, blank=True) 
+    bank_bik = models.CharField(max_length=9, blank=True)
     account_number = models.CharField(max_length=20, blank=True)
 ```
 
@@ -61,7 +61,7 @@ def validate(self, attrs):
             raise serializers.ValidationError({
                 "company_name": "Название компании обязательно для B2B пользователей."
             })
-        
+
         # Для оптовиков и представителей федерации требуется ИНН
         if role.startswith("wholesale") or role == "federation_rep":
             if not attrs.get("tax_id"):
@@ -137,6 +137,7 @@ CREATE INDEX IF NOT EXISTS companies_tax_id_idx ON companies (tax_id);
 ```
 
 **Реализация проверки:**
+
 ```python
 # В UserRegistrationSerializer.validate()
 if attrs.get("tax_id"):
@@ -155,16 +156,16 @@ def validate_tax_id(self, value):
     """Валидация российского ИНН"""
     if not value:
         return value
-        
+
     # Удаляем пробелы и дефисы
     inn = re.sub(r'[^\d]', '', value)
-    
+
     # ИНН может быть 10 или 12 цифр
     if len(inn) not in [10, 12]:
         raise serializers.ValidationError(
             "ИНН должен содержать 10 или 12 цифр."
         )
-    
+
     # TODO: Добавить контрольную сумму ИНН
     return inn
 ```
@@ -183,21 +184,21 @@ from .models import User, Company
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ['email', 'full_name', 'role', 'company_name', 
+    list_display = ['email', 'full_name', 'role', 'company_name',
                    'verification_status_display', 'created_at']
     list_filter = ['role', 'is_verified', 'is_active', 'created_at']
     search_fields = ['email', 'first_name', 'last_name', 'company_name', 'tax_id']
-    
+
     # B2B пользователи, ожидающие верификации
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         # Добавить quick filter для pending verification
         return qs
-    
+
     def verification_status_display(self, obj):
         if obj.role == 'retail':
             return '-'
-        
+
         if obj.is_verified:
             return format_html(
                 '<span style="color: green; font-weight: bold;">✓ Верифицирован</span>'
@@ -206,28 +207,28 @@ class UserAdmin(admin.ModelAdmin):
             return format_html(
                 '<span style="color: orange; font-weight: bold;">⏳ Ожидает верификации</span>'
             )
-    
+
     verification_status_display.short_description = 'Статус верификации'
-    
+
     # Bulk actions для верификации
     actions = ['verify_users', 'reject_verification']
-    
+
     def verify_users(self, request, queryset):
         """Верифицировать выбранных пользователей"""
         count = queryset.filter(role__in=[
             'wholesale_level1', 'wholesale_level2', 'wholesale_level3',
             'trainer', 'federation_rep'
         ]).update(is_verified=True)
-        
+
         self.message_user(request, f'Верифицировано {count} пользователей.')
-    
+
     verify_users.short_description = 'Верифицировать выбранных пользователей'
 ```
 
 #### Процесс ручной верификации
 
 1. **Администратор заходит в Django Admin**
-2. **Фильтрует пользователей:** 
+2. **Фильтрует пользователей:**
    - Role ≠ 'retail'
    - is_verified = False
 3. **Проверяет документы** (вне системы)
@@ -260,14 +261,14 @@ def handle_verification_status_change(sender, instance, **kwargs):
 def get_current_price(self, obj):
     """Получить цену с учетом верификации"""
     user = self.context['request'].user
-    
+
     if user.is_authenticated and user.is_b2b_user:
         if not user.is_verified:
             # Неверифицированные B2B видят только розничную цену
             return obj.retail_price
         # Верифицированные получают B2B цены
         return obj.get_price_for_user(user)
-    
+
     return obj.retail_price
 ```
 
@@ -278,7 +279,7 @@ def validate_quantity(self, value):
     """Валидация количества с учетом верификации"""
     user = self.context['request'].user
     product = self.initial_data.get('product')
-    
+
     if user.is_b2b_user and not user.is_verified:
         # Неверифицированные B2B не могут заказывать оптом
         if value > 10:  # Лимит для неверифицированных
@@ -293,7 +294,7 @@ def validate_quantity(self, value):
 def validate_payment_method(self, value):
     """Валидация способа оплаты"""
     user = self.context['request'].user
-    
+
     if user.is_b2b_user and not user.is_verified:
         # Неверифицированные B2B не могут использовать безналичный расчет
         if value == 'bank_transfer':
@@ -317,18 +318,18 @@ def test_unverified_b2b_limitations(self):
         company_name="Unverified Company",
         is_verified=False
     )
-    
+
     self.client.force_authenticate(user=unverified_user)
-    
+
     # 1. Видят только розничные цены
     response = self.client.get(f"/api/v1/products/{self.product.id}/")
     self.assertEqual(float(response.data["current_price"]), 1000.00)  # retail_price
-    
+
     # 2. Ограничения по количеству
     cart_data = {"product": self.product.id, "quantity": 15}
     response = self.client.post("/api/v1/cart/items/", cart_data)
     self.assertEqual(response.status_code, 400)
-    
+
     # 3. Ограничения по способу оплаты
     self.client.post("/api/v1/cart/items/", {"product": self.product.id, "quantity": 5})
     order_data = {
@@ -351,14 +352,14 @@ def test_verification_workflow_complete(self):
     }
     response = self.client.post("/api/v1/auth/register/", registration_data)
     self.assertEqual(response.status_code, 201)
-    
+
     user = User.objects.get(email="newcompany@example.com")
     self.assertFalse(user.is_verified)  # Автоматически неверифицирован
-    
+
     # 2. Верификация администратором
     user.is_verified = True
     user.save()
-    
+
     # 3. Проверка доступности B2B функций
     self.client.force_authenticate(user=user)
     response = self.client.get(f"/api/v1/products/{self.product.id}/")
@@ -378,7 +379,7 @@ def test_verification_workflow_complete(self):
 
 ```sql
 -- Статистика верификации
-SELECT 
+SELECT
     role,
     COUNT(*) as total_users,
     COUNT(CASE WHEN is_verified = true THEN 1 END) as verified_users,
@@ -386,7 +387,7 @@ SELECT
     ROUND(
         COUNT(CASE WHEN is_verified = true THEN 1 END) * 100.0 / COUNT(*), 2
     ) as verification_rate
-FROM users 
+FROM users
 WHERE role != 'retail'
 GROUP BY role
 ORDER BY total_users DESC;
@@ -397,7 +398,7 @@ ORDER BY total_users DESC;
 ### Краткосрочные улучшения (1-2 недели)
 
 1. **Создать Django Admin интерфейс** для управления верификацией
-2. **Добавить валидацию ИНН** с контрольной суммой  
+2. **Добавить валидацию ИНН** с контрольной суммой
 3. **Реализовать email уведомления** о результатах верификации
 4. **Расширить тестовое покрытие** для всех сценариев
 
@@ -422,7 +423,7 @@ ORDER BY total_users DESC;
 
 1. **Полная автоматизация:**
    - ML модель для оценки рисков
-   - Интеграция с внешними KYC сервисами  
+   - Интеграция с внешними KYC сервисами
    - Автоматическая верификация для низкорисковых компаний
 
 2. **Advanced функциональность:**
@@ -435,7 +436,7 @@ ORDER BY total_users DESC;
 B2B verification workflow в FREESPORT основан на надежной существующей архитектуре:
 
 - ✅ **Ролевая модель** с четким разделением B2B/B2C
-- ✅ **Автоматическая валидация** обязательных полей при регистрации  
+- ✅ **Автоматическая валидация** обязательных полей при регистрации
 - ✅ **Статус верификации** с влиянием на функциональность
 - ✅ **Тестовое покрытие** для основных сценариев
 - ✅ **Performance индексы** для быстрых запросов

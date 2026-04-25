@@ -18,12 +18,14 @@ Ready for Review
 ## Acceptance Criteria
 
 ### AC 1: Happy Path - Сценарий успешного импорта
+
 - [ ] **E2E тест полного цикла:** Реализован и успешно проходит тест `test_import_catalog_with_images_full_workflow()`, использующий реальные XML и файлы изображений из `data/import_1c/goods/`.
 - [ ] **Верификация в БД:** Тест подтверждает, что для товаров корректно заполняются поля `main_image` и `gallery_images`.
 - [ ] **Верификация в хранилище:** Тест проверяет, что файлы изображений физически скопированы в тестовый `MEDIA_ROOT`.
 - [ ] **Корректность связей:** Первое изображение из XML становится `main_image`, остальные попадают в `gallery_images`.
 
 ### AC 2: Edge Cases - Обработка пограничных случаев
+
 - [ ] **Отсутствующие файлы:** Тест `test_import_with_missing_image_files()` подтверждает, что импорт не падает, а в статистике `images_errors` > 0.
 - [ ] **Дубликаты изображений:** Тест `test_import_with_duplicate_images()` проверяет, что дубликаты не создаются, а счетчик `images_skipped` корректен.
 - [ ] **Невалидный формат:** Тест `test_import_with_invalid_image_format()` проверяет, что система логирует ошибку, но продолжает импорт.
@@ -31,9 +33,11 @@ Ready for Review
 - [ ] **Повторный импорт:** Тест `test_reimport_updates_images()` гарантирует, что при повторном импорте изображения корректно обновляются.
 
 ### AC 3: Feature Flags - Функциональные флаги
+
 - [ ] **Флаг `--skip-images`:** Тест `test_import_with_skip_images_flag()` подтверждает, что при установленном флаге изображения не копируются, а `images_copied = 0`.
 
 ### AC 4: Non-Functional Requirements (NFR)
+
 - [ ] **Производительность:** Реализован и проходит performance-тест `test_import_large_volume_images()` (не менее 1000 изображений), который измеряет и логирует время выполнения. Производительность должна быть не ниже 10 изображений/сек.
 - [ ] **Покрытие кода:** Инструменты анализа (например, `pytest-cov`) показывают покрытие не менее 90% для критических модулей `processor.py` и `parser.py`.
 - [ ] **Стабильность и изоляция:** Все тесты стабильно проходят в Docker-окружении с PostgreSQL и используют временные директории для `MEDIA_ROOT` для полной изоляции.
@@ -91,7 +95,7 @@ Ready for Review
 - [x] **Реализовать Performance тест** (AC: 5, 6)
   - [x] Создать файл `backend/tests/performance/test_image_import_performance.py`
   - [x] Переместить и реализовать `test_import_large_volume_images_performance()` в нем
-  - [x] Парсинг ВСЕХ goods_*.xml файлов из data/import_1c/goods/
+  - [x] Парсинг ВСЕХ goods\_\*.xml файлов из data/import_1c/goods/
   - [x] Обработка всех товаров с изображениями
   - [x] Измерение времени выполнения и скорости (images/sec)
   - [x] Логирование performance метрик
@@ -117,6 +121,7 @@ Ready for Review
 ### Story Context
 
 **Интегрируется с:**
+
 - Вся цепочка импорта: XMLDataParser → ProductDataProcessor → import_catalog_from_1c команда
 - Реальные данные из `data/import_1c/goods/` - XML файлы и директория `import_files/`
 - Django test framework с PostgreSQL database
@@ -124,6 +129,7 @@ Ready for Review
 - Существующие тесты Epic 3 для импорта товаров
 
 **Технологии:**
+
 - pytest + pytest-django для тестирования
 - Django TestCase с транзакционной изоляцией
 - Temporary directories для изоляции файловых операций
@@ -131,6 +137,7 @@ Ready for Review
 - PostgreSQL для тестовой БД
 
 **Существующий паттерн тестирования:**
+
 ```python
 # Из backend/docs/testing-standards.md
 # Интеграционные тесты с реальными данными
@@ -142,6 +149,7 @@ class TestImportCatalogFrom1C:
 ```
 
 **Точки интеграции:**
+
 1. Реальные XML файлы из `data/import_1c/goods/goods_*.xml`
 2. Реальные изображения из `data/import_1c/goods/import_files/`
 3. Тестовая БД PostgreSQL
@@ -150,12 +158,14 @@ class TestImportCatalogFrom1C:
 ### Текущее состояние
 
 ✅ **Уже реализовано:**
+
 - Базовые unit-тесты для XMLDataParser и ProductDataProcessor
 - Интеграционные тесты импорта товаров без изображений (Epic 3)
 - Фабрики для создания тестовых данных (Product, ImportSession)
 - Реальные данные 1С в `data/import_1c/`
 
 ❌ **Что требуется добавить:**
+
 1. **Интеграционные тесты полного цикла** импорта изображений
 2. **Тесты с реальными данными** из production выгрузки 1С
 3. **Верификация физических файлов** в media storage
@@ -168,6 +178,7 @@ class TestImportCatalogFrom1C:
 #### Структура интеграционных тестов
 
 **Файлы тестов:**
+
 - **Интеграционные:** `backend/tests/integration/test_import_images_integration.py`
 - **Производительности:** `backend/tests/performance/test_image_import_performance.py`
 
@@ -521,10 +532,12 @@ def test_import_large_volume_images_performance(self):
 #### Unit-тесты
 
 **Расположение:**
+
 - **Интеграционные тесты:** `backend/tests/integration/test_import_images_integration.py`
 - **Тесты производительности:** `backend/tests/performance/test_image_import_performance.py`
 
 **Обязательная маркировка тестов:**
+
 ```python
 import pytest
 
@@ -542,6 +555,7 @@ class TestImportImagesIntegration:
 **🚨 КРИТИЧНО:** Для предотвращения constraint violations и flaky tests:
 
 1. **Использовать `get_unique_suffix()` для генерации уникальных данных:**
+
 ```python
 from tests.conftest import get_unique_suffix
 
@@ -602,23 +616,25 @@ docker-compose -f docker/docker-compose.test.yml run --rm backend \
 #### Тестовые данные
 
 **Используемые реальные данные:**
+
 - `data/import_1c/goods/goods_*.xml` - XML файлы с товарами
 - `data/import_1c/goods/import_files/` - директория с изображениями
 - Минимум 5-10 товаров с изображениями для тестов
 - Минимум 20-30 файлов изображений различных форматов
 
 **Требования к тестовым данным:**
+
 - Данные НЕ коммитятся в git (gitignore)
 - Данные загружаются из production выгрузки 1С
 - Структура соответствует CommerceML 3.1
 
 #### Expected Performance Baseline
 
-| Метрика | Минимум | Целевое | Excellent |
-|---------|---------|---------|-----------|
-| Images/sec | >= 10 | 50 | 100+ |
-| Total time (1000 imgs) | < 100s | 20s | 10s |
-| Memory usage | < 500MB | 200MB | 100MB |
+| Метрика                | Минимум | Целевое | Excellent |
+| ---------------------- | ------- | ------- | --------- |
+| Images/sec             | >= 10   | 50      | 100+      |
+| Total time (1000 imgs) | < 100s  | 20s     | 10s       |
+| Memory usage           | < 500MB | 200MB   | 100MB     |
 
 ## Definition of Done
 
@@ -638,11 +654,13 @@ docker-compose -f docker/docker-compose.test.yml run --rm backend \
 ## Dependencies
 
 **Зависит от:**
+
 - ✅ Story 3.1.1 - Парсинг путей изображений из XML
 - ✅ Story 3.1.2 - Импорт изображений в Django media storage
 - ✅ Реальные данные в `data/import_1c/goods/`
 
 **Блокирует:**
+
 - ⏳ Релиз Epic 3.1 в production
 
 ## Risk Mitigation
@@ -650,6 +668,7 @@ docker-compose -f docker/docker-compose.test.yml run --rm backend \
 **Риск 1:** Реальные данные 1С могут отсутствовать в CI/CD
 
 **Митигация:**
+
 - pytest.skip() если данные не найдены
 - Возможность загрузки тестовых данных из S3 в CI
 - Минимальный набор синтетических данных как fallback
@@ -657,6 +676,7 @@ docker-compose -f docker/docker-compose.test.yml run --rm backend \
 **Риск 2:** Performance тесты нестабильны в CI
 
 **Митигация:**
+
 - Маркировка как @pytest.mark.slow - опционально запускаются
 - Адаптивные threshold для performance (зависят от окружения)
 - Логирование метрик вместо строгих assertions
@@ -664,11 +684,13 @@ docker-compose -f docker/docker-compose.test.yml run --rm backend \
 **Риск 3:** Тесты заполняют диск в CI
 
 **Митигация:**
+
 - Temporary directories с автоочисткой
 - Ограничение количества обрабатываемых товаров в тестах
 - Очистка в tearDown() даже при ошибках
 
 **Rollback план:**
+
 - Тесты не влияют на production данные
 - Изоляция через temporary MEDIA_ROOT
 - Транзакционные тесты - автоматический rollback БД
@@ -678,6 +700,7 @@ docker-compose -f docker/docker-compose.test.yml run --rm backend \
 **Оценка:** 3 Story Points (средняя задача)
 
 **Обоснование:**
+
 - Требуется написание нескольких интеграционных тестов
 - Работа с реальными данными требует тщательной верификации
 - Performance тестирование добавляет сложности
@@ -690,10 +713,10 @@ docker-compose -f docker/docker-compose.test.yml run --rm backend \
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-01-08 | 1.0 | Initial story creation | Developer Team |
-| 2025-11-09 | 2.0 | Template compliance fixes: added Tasks/Subtasks, Change Log, Dev Agent Record, QA Results sections. Reformatted Definition of Done as completion criteria. Added test workflow diagram and performance baseline table. | Sarah (Product Owner) |
+| Date       | Version | Description                                                                                                                                                                                                            | Author                |
+| ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 2025-01-08 | 1.0     | Initial story creation                                                                                                                                                                                                 | Developer Team        |
+| 2025-11-09 | 2.0     | Template compliance fixes: added Tasks/Subtasks, Change Log, Dev Agent Record, QA Results sections. Reformatted Definition of Done as completion criteria. Added test workflow diagram and performance baseline table. | Sarah (Product Owner) |
 
 ---
 
@@ -739,10 +762,12 @@ No debug logs generated - all tests implemented successfully on first attempt.
 _List of all files created, modified, or affected during story implementation:_
 
 **Created:**
+
 - [backend/tests/integration/test_import_images_integration.py](backend/tests/integration/test_import_images_integration.py) - 7 интеграционных тестов для импорта изображений
 - [backend/tests/performance/test_image_import_performance.py](backend/tests/performance/test_image_import_performance.py) - 1 performance тест для большого объема изображений
 
 **Modified:**
+
 - [backend/Dockerfile.test](backend/Dockerfile.test) - Добавлено создание директории `/app/data/import_1c` для корректного монтирования volumes
 - [docker/docker-compose.test.yml](docker/docker-compose.test.yml) - Обновлена конфигурация volumes (закомментировано монтирование реальных данных)
 - [docs/stories/epic-3.1/story-3.1.3-integration-testing-images.md](docs/stories/epic-3.1/story-3.1.3-integration-testing-images.md) - Обновлен статус и чек-листы задач
@@ -762,6 +787,7 @@ _List of all files created, modified, or affected during story implementation:_
 Реализация интеграционных тестов для импорта изображений выполнена на высоком уровне с правильной архитектурой, отличной изоляцией и полной типизацией. Все 4 Acceptance Criteria имеют соответствующее тестовое покрытие (8 тестов: 7 integration + 1 performance). Код следует лучшим практикам проекта (AAA pattern, DRY, type hints) и корректно обрабатывает edge cases.
 
 **Ключевые достижения:**
+
 - ✅ Полная изоляция через `tempfile.mkdtemp()` + `override_settings(MEDIA_ROOT)`
 - ✅ Правильная структура: integration тесты отдельно от performance тестов
 - ✅ Отличная типизация с `from __future__ import annotations`
@@ -770,6 +796,7 @@ _List of all files created, modified, or affected during story implementation:_
 - ✅ Graceful degradation через `pytest.skip()` если данные недоступны
 
 **Проблемы:**
+
 - ⚠️ Все тесты SKIPPED в Docker из-за отсутствия volume mounting для data/import_1c/
 - ⚠️ Покрытие кода (AC4.2) не проверено из-за skipped тестов
 
@@ -802,9 +829,11 @@ _List of all files created, modified, or affected during story implementation:_
 ### Requirements Traceability
 
 **AC1: Happy Path - Успешный импорт**
+
 - ✅ AC1.1-1.4: `test_import_catalog_with_images_full_workflow()` проверяет E2E цикл, БД, физические файлы, связи main_image/gallery
 
 **AC2: Edge Cases**
+
 - ✅ AC2.1: `test_import_with_missing_image_files()` - отсутствующие файлы
 - ✅ AC2.2: `test_import_with_duplicate_images()` - дубликаты
 - ✅ AC2.3: `test_import_with_invalid_image_format()` - невалидные форматы
@@ -812,9 +841,11 @@ _List of all files created, modified, or affected during story implementation:_
 - ✅ AC2.5: `test_reimport_updates_images()` - повторный импорт
 
 **AC3: Feature Flags**
+
 - ✅ AC3.1: `test_import_with_skip_images_flag()` - флаг --skip-images
 
 **AC4: NFR**
+
 - ✅ AC4.1: `test_import_large_volume_images_performance()` - performance тест >=10 images/sec
 - ⚠️ AC4.2: Покрытие >=90% - НЕ ПРОВЕРЕНО (требуется запуск тестов с coverage)
 - ✅ AC4.3: Изоляция Docker+PostgreSQL - корректно реализована
@@ -823,6 +854,7 @@ _List of all files created, modified, or affected during story implementation:_
 ### Test Architecture Assessment
 
 **Сильные стороны:**
+
 1. **Правильный уровень тестирования**: Integration тесты для E2E проверок, отдельный модуль для performance
 2. **Отличная изоляция**: Каждый тест использует свой temporary MEDIA_ROOT, полная очистка в tearDown
 3. **DRY принцип**: Helper методы избегают дублирования кода
@@ -831,6 +863,7 @@ _List of all files created, modified, or affected during story implementation:_
 6. **Test independence**: Каждый тест полностью изолирован и может запускаться отдельно
 
 **Риски flaky failures:** Минимальны благодаря:
+
 - pytest.skip() для отсутствующих данных
 - tempfile изоляция для FS
 - Django TestCase транзакционная изоляция для БД
@@ -847,29 +880,34 @@ _List of all files created, modified, or affected during story implementation:_
 ### NFR Validation
 
 **Security: ✅ PASS**
+
 - Path traversal защита через Path API
 - Temporary file isolation предотвращает конфликты
 - skip_validation параметр опционален (по умолчанию False)
 
 **Performance: ✅ PASS**
+
 - Тест проверяет requirement >=10 images/sec
 - Performance тесты правильно помечены @pytest.mark.slow и @pytest.mark.performance для опционального запуска
 - Execution time приемлем (~2s для integration без данных)
 
 **Reliability: ✅ PASS**
+
 - Graceful degradation для missing files через images_errors counter
 - Invalid formats обрабатываются без падения импорта
 - Cleanup с ignore_errors=True для Windows compatibility
 
 **Maintainability: ✅ PASS**
+
 - Отличные docstrings с AC reference
-- Полная типизация (from __future__ import annotations, TYPE_CHECKING)
+- Полная типизация (from **future** import annotations, TYPE_CHECKING)
 - AAA pattern для читаемости
 - DRY через helper методы
 
 ### Files Modified During Review
 
 **Modified by QA:**
+
 - [backend/pytest.ini:10](backend/pytest.ini#L10) - Добавлен маркер `performance`
 
 **Note:** Dev должен обновить File List в Dev Agent Record, добавив backend/pytest.ini в список Modified файлов.
@@ -879,10 +917,12 @@ _List of all files created, modified, or affected during story implementation:_
 **Gate:** CONCERNS → [docs/qa/gates/3.1.3-integration-testing-images.yml](docs/qa/gates/3.1.3-integration-testing-images.yml)
 
 **Причины CONCERNS:**
+
 1. Все интеграционные тесты пропущены (SKIPPED) из-за отсутствия реальных данных в Docker окружении
 2. Покрытие кода (AC4.2) не подтверждено из-за skipped тестов
 
 **Путь к PASS:**
+
 - Настроить volume mounting для data/import_1c/ в docker/docker-compose.test.yml
 - Запустить тесты и подтвердить 100% pass rate (7/7 integration + 1/1 performance)
 - Проверить coverage >=90% для processor.py и parser.py
@@ -890,6 +930,7 @@ _List of all files created, modified, or affected during story implementation:_
 ### Recommended Status
 
 **⚠️ Changes Required** - Story owner должен выполнить:
+
 1. Настроить volume mounting для data/import_1c/ (см. Improvements Checklist)
 2. Запустить и подтвердить успешное прохождение всех тестов
 3. Проверить coverage requirement (AC4.2)

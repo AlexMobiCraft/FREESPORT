@@ -21,12 +21,14 @@ Ready for Review
 ### Existing System Integration
 
 **Интегрируется с:**
+
 - `ProductDataProcessor` (`backend/apps/products/services/processor.py`) — процессор обработки данных товаров
 - `Product` модель (`backend/apps/products/models.py`) — модель товара с полями изображений
 - Django `default_storage` — file storage backend для media файлов
 - Команда `import_catalog_from_1c` (`backend/apps/products/management/commands/import_catalog_from_1c.py`) — оркестрация импорта
 
 **Технологии:**
+
 - Django 4.2 ImageField для хранения изображений
 - Django default_storage (FileSystemStorage или S3)
 - PostgreSQL JSONField для галереи изображений
@@ -34,6 +36,7 @@ Ready for Review
 - Batch операции для производительности
 
 **Существующий паттерн:**
+
 ```python
 # ProductDataProcessor использует bulk операции (processor.py:40-42)
 def __init__(self, session_id: int, skip_validation: bool = False, chunk_size: int = 1000):
@@ -42,6 +45,7 @@ def __init__(self, session_id: int, skip_validation: bool = False, chunk_size: i
 ```
 
 **Точки интеграции:**
+
 1. Модель `Product` - поля `main_image` (ImageField) и `gallery_images` (JSONField) (models.py:309-315)
 2. `ProductDataProcessor.create_product_placeholder()` - установка main_image при создании товара
 3. Django settings.MEDIA_ROOT и MEDIA_URL для путей к файлам
@@ -51,12 +55,14 @@ def __init__(self, session_id: int, skip_validation: bool = False, chunk_size: i
 ### Текущее состояние
 
 ✅ **Уже реализовано:**
+
 - Product модель имеет поля `main_image` и `gallery_images` (models.py:309-315)
 - ProductDataProcessor устанавливает placeholder изображение (processor.py:196)
 - ProductDataProcessor поддерживает bulk операции через chunk_size
 - ImportSession логирует статистику импорта
 
 ❌ **Что требуется добавить:**
+
 1. **Метод копирования изображений** из директории 1С в Django media
 2. **Установка связей** main_image (первое изображение) и gallery_images (остальные)
 3. **Обработка дубликатов** и отсутствующих файлов
@@ -148,6 +154,7 @@ def __init__(self, session_id: int, skip_validation: bool = False, chunk_size: i
 ### Структура физических файлов 1С
 
 **Пример директории:**
+
 ```
 data/import_1c/goods/import_files/
 ├── 00/
@@ -161,6 +168,7 @@ data/import_1c/goods/import_files/
 ```
 
 **Маппинг в Django media (сохранение структуры директорий):**
+
 ```
 MEDIA_ROOT/products/
 ├── 00/
@@ -662,11 +670,13 @@ def test_import_product_images_preserves_directory_structure(self):
 ## Dependencies
 
 **Зависит от:**
+
 - ✅ Story 3.1.1 - Парсинг путей изображений из XML (валидированные пути)
 - ✅ Product модель с полями main_image и gallery_images
 - ✅ ProductDataProcessor базовый функционал
 
 **Блокирует:**
+
 - ⏳ Story 3.1.3 - Интеграционное тестирование импорта изображений
 
 ## Risk Mitigation
@@ -674,6 +684,7 @@ def test_import_product_images_preserves_directory_structure(self):
 **Риск 1:** Большой объем изображений может заполнить дисковое пространство
 
 **Митигация:**
+
 - Проверка доступного места перед импортом (опционально)
 - Флаг `--skip-images` для импорта только метаданных
 - Возможность использовать S3 через Django storage backend
@@ -681,6 +692,7 @@ def test_import_product_images_preserves_directory_structure(self):
 **Риск 2:** Импорт изображений значительно замедляет процесс
 
 **Митигация:**
+
 - Батчинг операций копирования
 - Опциональная валидация через `--skip-validation`
 - Progress bar для визуализации прогресса
@@ -689,11 +701,13 @@ def test_import_product_images_preserves_directory_structure(self):
 **Риск 3:** Повторный импорт создает дубликаты файлов
 
 **Митигация:**
+
 - Проверка `default_storage.exists()` перед копированием
 - Использование детерминированных имен файлов (из 1С ID)
 - Галерея обновляется append, не replace
 
 **Rollback план:**
+
 - Очистка MEDIA_ROOT/products/ от импортированных файлов
 - Обнуление полей main_image и gallery_images через SQL
 - Восстановление из ImportSession backup
@@ -703,6 +717,7 @@ def test_import_product_images_preserves_directory_structure(self):
 **Оценка:** 5 Story Points (средняя задача)
 
 **Обоснование:**
+
 - Требуется новый метод с файловыми операциями
 - Интеграция с существующим процессором и командой
 - Обработка edge cases (дубликаты, ошибки)
@@ -753,11 +768,11 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 
 ## Change Log
 
-| Date       | Version | Description                                   | Author          |
-|------------|---------|-----------------------------------------------|-----------------|
-| 2025-01-08 | 0.1     | Первоначальный черновик истории               | Product Team    |
-| 2025-11-09 | 0.2     | Обновление после QA Planning Review (Quinn)   | Product Team    |
-| 2025-11-09 | 0.3     | Добавлены Tasks/Subtasks и уточнён DoD        | Product Owner   |
+| Date       | Version | Description                                      | Author            |
+| ---------- | ------- | ------------------------------------------------ | ----------------- |
+| 2025-01-08 | 0.1     | Первоначальный черновик истории                  | Product Team      |
+| 2025-11-09 | 0.2     | Обновление после QA Planning Review (Quinn)      | Product Team      |
+| 2025-11-09 | 0.3     | Добавлены Tasks/Subtasks и уточнён DoD           | Product Owner     |
 | 2025-11-09 | 1.0     | Реализована функциональность импорта изображений | James (Dev Agent) |
 
 ## QA Planning Review
@@ -775,12 +790,14 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 ### Ключевые выводы
 
 ✅ **Сильные стороны:**
+
 - Исключительно детальная техническая спецификация с примерами кода.
 - Продуманная интеграция с существующей архитектурой (`ProductDataProcessor`).
 - Полное покрытие edge cases, включая семантику повторного импорта и обработку ошибок.
 - Превосходная стратегия тестирования с 12 детализированными сценариями и упором на изоляцию тестов.
 
 ✅ **Внедрённые улучшения (финализированы в ходе этого ревью):**
+
 1.  **AC 1:** Уточнено требование по сохранению структуры поддиректорий (`products/{first_two_chars}/{filename}`) для оптимизации производительности.
 2.  **AC 2:** Финализирована семантика повторного импорта: `main_image` не перезаписывается, а `gallery_images` пополняется с проверкой на дубликаты.
 3.  **Testing:** Закреплено требование по полной изоляции тестов с помощью `get_unique_suffix()` и `pytest.mark.django_db`.

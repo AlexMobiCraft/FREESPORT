@@ -1,4 +1,3 @@
-
 # 1C Import Architecture
 
 ## Overview

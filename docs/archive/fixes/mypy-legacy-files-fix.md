@@ -3,6 +3,7 @@
 ## Обзор
 
 Были проанализированы и исправлены ошибки mypy в следующих legacy файлах проекта FREESPORT:
+
 - `apps/users/models.py`
 - `apps/common/models.py`
 - `apps/cart/models.py`
@@ -44,11 +45,13 @@ if TYPE_CHECKING:
 ### 3. apps/cart/models.py
 
 **Проблемы:**
+
 1. Неполная реализация метода `total_amount`
 2. Ошибки в CheckConstraint (неправильное имя параметра `condition` вместо `check`)
 3. Отсутствие необходимых type hints для методов
 
 **Решения:**
+
 1. Добавлена полная реализация метода `total_amount` с корректными type hints
 2. Исправлен параметр в CheckConstraint с `condition` на `check`
 3. Добавлены необходимые импорты и type hints
@@ -58,7 +61,7 @@ if TYPE_CHECKING:
 def total_amount(self):
     """Общая стоимость товаров в корзине"""
     from decimal import Decimal
-    
+
     total = Decimal("0")
     for item in self.items.select_related("product").all():
         user = self.user

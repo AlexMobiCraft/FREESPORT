@@ -3,12 +3,14 @@
 ## Быстрый старт
 
 ### Запуск всех тестов
+
 ```bash
 cd backend
 pytest tests/ -v
 ```
 
 ### Запуск конкретной категории
+
 ```bash
 # Unit тесты
 pytest tests/unit/ -v
@@ -21,6 +23,7 @@ pytest tests/performance/ -v
 ```
 
 ### Запуск с покрытием кода
+
 ```bash
 pytest --cov=apps --cov-report=html
 # Откройте htmlcov/index.html в браузере
@@ -116,7 +119,7 @@ def test_order_creation(user_factory, product_factory, order_factory):
     user = user_factory.create()
     product = product_factory.create(stock_quantity=10)
     order = order_factory.create(user=user)
-    
+
     assert order.user == user
 ```
 
@@ -156,6 +159,7 @@ def test_order_creation(user_factory, product_factory, order_factory):
 ## CI/CD
 
 Тесты автоматически запускаются в GitHub Actions при:
+
 - Push в ветки `main` и `develop`
 - Pull Request в эти ветки
 
@@ -166,6 +170,7 @@ def test_order_creation(user_factory, product_factory, order_factory):
 Минимальное требование: **70%**
 
 Проверка покрытия:
+
 ```bash
 pytest --cov=apps --cov-fail-under=70
 ```
@@ -173,21 +178,25 @@ pytest --cov=apps --cov-fail-under=70
 ## Полезные команды
 
 ### Запуск конкретного теста
+
 ```bash
 pytest tests/unit/test_serializers/test_order_serializers.py::TestOrderDetailSerializer::test_serializer_fields -v
 ```
 
 ### Запуск с отладкой
+
 ```bash
 pytest tests/ -v --pdb
 ```
 
 ### Показать медленные тесты
+
 ```bash
 pytest tests/ --durations=10
 ```
 
 ### Остановка на первой ошибке
+
 ```bash
 pytest tests/ -x
 ```
@@ -195,6 +204,7 @@ pytest tests/ -x
 ## Контакты
 
 При возникновении проблем:
+
 1. Проверьте [TEST_FIXES_GUIDE.md](./TEST_FIXES_GUIDE.md)
 2. Проверьте [CHANGELOG_TESTS.md](./CHANGELOG_TESTS.md)
 3. Обратитесь к команде разработки

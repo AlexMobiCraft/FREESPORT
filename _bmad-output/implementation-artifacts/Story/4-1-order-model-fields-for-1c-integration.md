@@ -59,22 +59,22 @@ So that **система может отслеживать статус синх
 - [x] [AI-Review][Low] Rename `sent_to_1c_at` verbose_name to "Дата и время отправки" [backend/apps/orders/models.py]
 - [x] [AI-Review][Low] Refactor `generate_order_number` static method call [backend/apps/orders/models.py]
 
-
 ## Dev Notes
 
 ### Целевые файлы
 
-| Файл | Действие |
-|------|----------|
-| `backend/apps/orders/models.py` | Добавить 3 поля в класс Order (строки ~27-253) |
-| `backend/apps/orders/admin.py` | Обновить OrderAdmin |
-| `backend/apps/orders/serializers.py` | Обновить OrderDetailSerializer, OrderListSerializer |
-| `backend/apps/orders/migrations/0008_*.py` | Автогенерация через makemigrations |
-| `backend/apps/orders/tests/` | Добавить/обновить тесты |
+| Файл                                       | Действие                                            |
+| ------------------------------------------ | --------------------------------------------------- |
+| `backend/apps/orders/models.py`            | Добавить 3 поля в класс Order (строки ~27-253)      |
+| `backend/apps/orders/admin.py`             | Обновить OrderAdmin                                 |
+| `backend/apps/orders/serializers.py`       | Обновить OrderDetailSerializer, OrderListSerializer |
+| `backend/apps/orders/migrations/0008_*.py` | Автогенерация через makemigrations                  |
+| `backend/apps/orders/tests/`               | Добавить/обновить тесты                             |
 
 ### Текущая структура модели Order
 
 Модель находится в `backend/apps/orders/models.py`. Текущие поля:
+
 - `order_number`, `user`, `customer_name/email/phone`
 - `status` (pending/confirmed/processing/shipped/delivered/cancelled/refunded)
 - `total_amount`, `discount_amount`, `delivery_cost`
@@ -104,6 +104,7 @@ So that **система может отслеживать статус синх
 ### Контекст интеграции с 1С
 
 Существующий `ICExchangeView` в `backend/apps/integrations/onec_exchange/views.py`:
+
 - `handle_query()` — уже существует, возвращает пустой XML (placeholder). В Epic 4 Story 1.2-1.3 будет реализована реальная генерация XML с использованием `Order.objects.filter(sent_to_1c=False)`.
 - `handle_file_upload()` — для приёма файлов из 1С (будет использоваться в Epic 5 для orders.xml).
 - Аутентификация: `Basic1CAuthentication` + `CsrfExemptSessionAuthentication`.
@@ -155,11 +156,13 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - 10 unit-тестов: defaults, set values, filter, serialization (detail, list, create negative)
 
 **Code Review Follow-ups (2026-01-30):**
+
 - ✅ Resolved review finding [Medium]: AddIndexConcurrently в migration 0008 для zero-downtime (atomic=False)
 - ✅ Resolved review finding [Low]: Обновлён docstring модели Order с описанием полей интеграции с 1С
 - ✅ Resolved review finding [Low]: Явное указание read_only_fields в OrderListSerializer для избежания хрупкости
 
 **Code Review Follow-ups (2026-01-30, Session 2):**
+
 - ✅ Resolved review finding [High]: status_1c max_length увеличен до 255
 - ✅ Resolved review finding [High]: untracked files готовы к коммиту (миграция 0008, 0009, тесты)
 - ✅ Resolved review finding [Medium]: sent_to_1c индекс оптимизирован в Partial Index (condition=sent_to_1c=False)

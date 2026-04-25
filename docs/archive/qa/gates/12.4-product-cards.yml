@@ -68,10 +68,10 @@ evidence:
   tests_passed: 39
   tests_failed: 0
   test_coverage: "86.01% statements, 100% functions, 86.01% lines, 62.5% branches"
-  risks_identified: 2  # Both are low severity (P3)
+  risks_identified: 2 # Both are low severity (P3)
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # All ACs covered
-    ac_gaps: []  # No gaps
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] # All ACs covered
+    ac_gaps: [] # No gaps
 
 # NFR Validation Results
 nfr_validation:
@@ -111,29 +111,29 @@ nfr_validation:
 risk_summary:
   totals:
     critical: 0
-    high: 0      # TEST-001 RESOLVED ✅
+    high: 0 # TEST-001 RESOLVED ✅
     medium: 0
-    low: 2       # A11Y-001, COVERAGE-001
+    low: 2 # A11Y-001, COVERAGE-001
 
   highest_risk:
     id: "A11Y-001"
-    score: 2  # probability (2/5 - minor warning) × impact (2/5 - не блокирует функциональность) = 2.0
+    score: 2 # probability (2/5 - minor warning) × impact (2/5 - не блокирует функциональность) = 2.0
     reason: |
       Next.js Image fill prop warning является низкоприоритетной проблемой.
       Не блокирует функциональность, только генерирует warning в тестах.
       Можно исправить в будущем спринте.
 
   recommendations:
-    must_fix: []  # Нет критических issues
+    must_fix: [] # Нет критических issues
     monitor:
       - "A11Y-001: Next.js Image fill prop warning (P3, 15 минут)"
       - "COVERAGE-001: Branch coverage 62.5% можно улучшить до 70%+ (P3, 1-2 часа)"
 
 # Detailed Recommendations
 recommendations:
-  immediate: []  # Нет блокирующих issues
+  immediate: [] # Нет блокирующих issues
 
-  future:  # Can be addressed later (all P3)
+  future: # Can be addressed later (all P3)
     - action: "Исправить Next.js Image fill prop warning"
       priority: P3
       effort: "15 минут"
@@ -233,7 +233,7 @@ ac_compliance:
 # Overall AC Compliance Summary
 ac_summary:
   total: 10
-  pass: 10  # All ACs now PASS
+  pass: 10 # All ACs now PASS
   fail: 0
   concerns: 0
   compliance_percentage: 100%

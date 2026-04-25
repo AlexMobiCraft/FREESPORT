@@ -10,13 +10,13 @@
 
 ### ✅ Завершённые этапы
 
-| Этап | Статус | Файлы |
-|------|--------|-------|
-| **Планирование миграции** | ✅ Готово | `00-migration-plan.md` |
-| **Маппинг цветов** | ✅ Готово | `01-color-mapping.md` |
-| **Спецификации компонентов** | ✅ Готово | `02-component-specs.md` |
-| **Спецификации страниц** | ✅ Готово | `03-page-specs.md` |
-| **CSS Foundation** | 🔄 В работе | `globals-electric-orange.css` (~1080 строк) |
+| Этап                         | Статус      | Файлы                                       |
+| ---------------------------- | ----------- | ------------------------------------------- |
+| **Планирование миграции**    | ✅ Готово   | `00-migration-plan.md`                      |
+| **Маппинг цветов**           | ✅ Готово   | `01-color-mapping.md`                       |
+| **Спецификации компонентов** | ✅ Готово   | `02-component-specs.md`                     |
+| **Спецификации страниц**     | ✅ Готово   | `03-page-specs.md`                          |
+| **CSS Foundation**           | 🔄 В работе | `globals-electric-orange.css` (~1080 строк) |
 
 ### 🔄 Текущий этап: Имплементация CSS Foundation
 
@@ -91,7 +91,7 @@ frontend/src/
     ├── NewsCard/ElectricNewsCard.tsx  # News Card
     ├── Tabs/ElectricTabs.tsx          # Tabs component
     ├── Hero/ElectricHeroBanner.tsx    # Hero Banner (NEW)
-    └── ElectricHeader.tsx / ElectricFooter.tsx 
+    └── ElectricHeader.tsx / ElectricFooter.tsx
 ```
 
 ### Тестовая страница

@@ -54,20 +54,22 @@ frontend/
 
 ```tsx
 // src/components/ui/__tests__/Button.test.tsx
-import { render, screen, fireEvent } from '@testing-library/react';
-import { Button } from '../Button';
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Button } from "../Button";
 
-describe('Button Component', () => {
-  test('renders button with text', () => {
+describe("Button Component", () => {
+  test("renders button with text", () => {
     render(<Button>Click me</Button>);
-    expect(screen.getByRole('button', { name: /click me/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /click me/i }),
+    ).toBeInTheDocument();
   });
 
-  test('calls onClick handler when clicked', () => {
+  test("calls onClick handler when clicked", () => {
     const handleClick = vi.fn();
     render(<Button onClick={handleClick}>Click me</Button>);
 
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole("button"));
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 });
@@ -82,20 +84,20 @@ describe('Button Component', () => {
 
 ```tsx
 // src/hooks/__tests__/useAuth.test.ts
-import { renderHook, act } from '@testing-library/react';
-import { useAuth } from '../useAuth';
+import { renderHook, act } from "@testing-library/react";
+import { useAuth } from "../useAuth";
 
-describe('useAuth Hook', () => {
-  test('should initialize with null user', () => {
+describe("useAuth Hook", () => {
+  test("should initialize with null user", () => {
     const { result } = renderHook(() => useAuth());
     expect(result.current.user).toBeNull();
   });
 
-  test('should login user', async () => {
+  test("should login user", async () => {
     const { result } = renderHook(() => useAuth());
 
     await act(async () => {
-      await result.current.login('test@example.com', 'password');
+      await result.current.login("test@example.com", "password");
     });
 
     expect(result.current.user).toBeTruthy();
@@ -112,25 +114,25 @@ describe('useAuth Hook', () => {
 
 ```tsx
 // src/services/__tests__/api.test.ts
-import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
-import { fetchProducts } from '../api';
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
+import { fetchProducts } from "../api";
 
 const server = setupServer(
-  http.get('/api/products', () => {
-    return HttpResponse.json([{ id: 1, name: 'Test Product', price: 100 }]);
-  })
+  http.get("/api/products", () => {
+    return HttpResponse.json([{ id: 1, name: "Test Product", price: 100 }]);
+  }),
 );
 
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-describe('API Service', () => {
-  test('fetchProducts returns products', async () => {
+describe("API Service", () => {
+  test("fetchProducts returns products", async () => {
     const products = await fetchProducts();
     expect(products).toHaveLength(1);
-    expect(products[0].name).toBe('Test Product');
+    expect(products[0].name).toBe("Test Product");
   });
 });
 ```
@@ -145,21 +147,21 @@ describe('API Service', () => {
 
 ```typescript
 // tests/e2e/auth.spec.ts
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test.describe('Authentication Flow', () => {
-  test('user can login and logout', async ({ page }) => {
-    await page.goto('/login');
+test.describe("Authentication Flow", () => {
+  test("user can login and logout", async ({ page }) => {
+    await page.goto("/login");
 
-    await page.fill('[data-testid="email"]', 'test@example.com');
-    await page.fill('[data-testid="password"]', 'password');
+    await page.fill('[data-testid="email"]', "test@example.com");
+    await page.fill('[data-testid="password"]', "password");
     await page.click('[data-testid="login-button"]');
 
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL("/dashboard");
     await expect(page.locator('[data-testid="user-menu"]')).toBeVisible();
 
     await page.click('[data-testid="logout-button"]');
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL("/login");
   });
 });
 ```
@@ -168,23 +170,23 @@ test.describe('Authentication Flow', () => {
 
 ```javascript
 // vitest.config.js
-const nextVitest = require('next/jest');
+const nextVitest = require("next/jest");
 
 const createVitestConfig = nextVitest({
-  dir: './',
+  dir: "./",
 });
 
 const customVitestConfig = {
-  testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/vitest.setup.js'],
+  testEnvironment: "jsdom",
+  setupFilesAfterEnv: ["<rootDir>/vitest.setup.js"],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
   collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/**/*.stories.{js,jsx,ts,tsx}',
-    '!src/**/index.{js,jsx,ts,tsx}',
+    "src/**/*.{js,jsx,ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/**/*.stories.{js,jsx,ts,tsx}",
+    "!src/**/index.{js,jsx,ts,tsx}",
   ],
   coverageThreshold: {
     global: {
@@ -194,7 +196,11 @@ const customVitestConfig = {
       statements: 80,
     },
   },
-  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/e2e/'],
+  testPathIgnorePatterns: [
+    "<rootDir>/.next/",
+    "<rootDir>/node_modules/",
+    "<rootDir>/tests/e2e/",
+  ],
 };
 
 module.exports = createVitestConfig(customVitestConfig);
@@ -204,17 +210,17 @@ module.exports = createVitestConfig(customVitestConfig);
 
 ```javascript
 // vitest.setup.js
-import '@testing-library/jest-dom';
-import { server } from './src/__mocks__/server';
+import "@testing-library/jest-dom";
+import { server } from "./src/__mocks__/server";
 
 // Mock Next.js router
-jest.mock('next/router', () => ({
+jest.mock("next/router", () => ({
   useRouter() {
     return {
-      route: '/',
-      pathname: '/',
+      route: "/",
+      pathname: "/",
       query: {},
-      asPath: '/',
+      asPath: "/",
       push: vi.fn(),
       replace: vi.fn(),
       reload: vi.fn(),
@@ -250,39 +256,39 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 ```typescript
 // src/__mocks__/handlers.ts
 // MSW 2.x API - используйте http и HttpResponse вместо устаревших rest и ctx
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from "msw";
 
 export const handlers = [
   // Auth endpoints
-  http.post('/api/auth/login', async ({ request }) => {
+  http.post("/api/auth/login", async ({ request }) => {
     const body = await request.json();
     return HttpResponse.json({
-      user: { id: 1, email: 'test@example.com' },
-      token: 'mock-jwt-token',
+      user: { id: 1, email: "test@example.com" },
+      token: "mock-jwt-token",
     });
   }),
 
   // Products endpoints
-  http.get('/api/products', () => {
+  http.get("/api/products", () => {
     return HttpResponse.json([
-      { id: 1, name: 'Test Product', price: 100 },
-      { id: 2, name: 'Another Product', price: 200 },
+      { id: 1, name: "Test Product", price: 100 },
+      { id: 2, name: "Another Product", price: 200 },
     ]);
   }),
 
   // Cart endpoints
-  http.get('/api/cart', () => {
+  http.get("/api/cart", () => {
     return HttpResponse.json({ items: [], total: 0 });
   }),
-  
+
   // Cart item update
-  http.patch('/api/v1/cart/items/:id/', async ({ request, params }) => {
-    const { quantity } = await request.json() as { quantity: number };
+  http.patch("/api/v1/cart/items/:id/", async ({ request, params }) => {
+    const { quantity } = (await request.json()) as { quantity: number };
     return HttpResponse.json({ id: params.id, quantity });
   }),
-  
+
   // Cart item delete
-  http.delete('/api/v1/cart/items/:id/', () => {
+  http.delete("/api/v1/cart/items/:id/", () => {
     return new HttpResponse(null, { status: 204 });
   }),
 ];
@@ -292,10 +298,10 @@ export const handlers = [
 
 ```typescript
 // __mocks__/next/image.js
-import React from 'react';
+import React from "react";
 
 const MockedImage = ({ src, alt, ...props }) => {
-  return React.createElement('img', { src, alt, ...props });
+  return React.createElement("img", { src, alt, ...props });
 };
 
 export default MockedImage;
@@ -372,41 +378,41 @@ npx playwright test --debug
 
 ```typescript
 // playwright.config.ts
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: "./tests/e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: "html",
   use: {
-    baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
+    baseURL: "http://localhost:3000",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
     },
     {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
     {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
+      name: "Mobile Chrome",
+      use: { ...devices["Pixel 5"] },
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: "npm run dev",
+    url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
   },
 });

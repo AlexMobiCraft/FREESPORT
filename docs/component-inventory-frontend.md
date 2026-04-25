@@ -1,6 +1,7 @@
 # Frontend Component Inventory
 
 ## UI Components (`src/components/ui`)
+
 Reusable, atomic components.
 
 - **Inputs**: `Input`, `Checkbox`, `Radio`, `Select`, `SearchField`.
@@ -10,6 +11,7 @@ Reusable, atomic components.
 - **Theme Variants**: Many components have `Electric*` counterparts (e.g., `ElectricButton`, `ElectricModal`) for the alternate theme.
 
 ## Business Components (`src/components/business`)
+
 Domain-specific components containing business logic.
 
 - **Product**: `ProductCard`, `ProductGrid`, `ProductOptions`, `ProductImageGallery`.
@@ -18,11 +20,13 @@ Domain-specific components containing business logic.
 - **Profile**: `ProfileForm`, `AddressList`, `OrderCard`.
 
 ## Layout Components (`src/components/layout`)
+
 Structural components.
 
 - **Header/Footer**: `Header`, `Footer` (and `Electric*` variants).
 - **Wrappers**: `LayoutWrapper`, `ProfileLayout`.
 
 ## Page Components (`src/components/home`, `src/components/product`, etc.)
+
 - **Home**: `HeroSection`, `NewArrivalsSection`, `PromoSection`.
 - **Product Page**: `ProductInfo`, `ProductSpecs`, `RelatedProducts`.

@@ -93,6 +93,7 @@
 ```
 
 Этот скрипт предоставит меню для выбора:
+
 - Story 3.1.3 — real catalog (8 тестов)
 - Epic 27 — VariantImportProcessor / import_products_from_1c
 - Все backend тесты (pytest tests)
@@ -107,6 +108,7 @@
 ```
 
 Доступные параметры:
+
 - `-ComposeFile`: путь к docker-compose файлу (по умолчанию: docker-compose.test.yml)
 - `-SkipBuild`: пропустить сборку образов
 - `-DockerContext`: Docker контекст (по умолчанию: default)
@@ -172,6 +174,7 @@ docker-compose -f docker-compose.test.yml exec backend [command]
 ### Ошибка "Файл compose не найден"
 
 Если вы столкнулись с ошибкой "Файл compose не найден", убедитесь, что:
+
 1. Файл `docker-compose.test.yml` существует в корне проекта
 2. Вы запускаете скрипты из корневой директории проекта
 3. Пути в скриптах указаны правильно относительно корня проекта
@@ -179,6 +182,7 @@ docker-compose -f docker-compose.test.yml exec backend [command]
 ### Проблемы с Docker
 
 Если контейнеры не запускаются:
+
 1. Убедитесь, что Docker запущен и доступен
 2. Проверьте, что порты 5432, 6379, 8001, 3000, 80 не заняты другими приложениями
 3. Проверьте права доступа к директориям проекта
@@ -186,6 +190,7 @@ docker-compose -f docker-compose.test.yml exec backend [command]
 ### Проблемы с тестами
 
 Если тесты не запускаются:
+
 1. Убедитесь, что тестовая среда настроена с помощью `.\scripts\dev\setup-test-environment.ps1`
 2. Проверьте, что тестовые сервисы (db, redis) запущены
 3. Проверьте логи тестовых контейнеров для диагностики проблем

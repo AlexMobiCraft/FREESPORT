@@ -71,14 +71,14 @@
   },
   "project_parts": [
     {
-        "part_id": "frontend",
-        "root_path": "frontend",
-        "project_type_id": "web"
+      "part_id": "frontend",
+      "root_path": "frontend",
+      "project_type_id": "web"
     },
     {
-        "part_id": "backend",
-        "root_path": "backend",
-        "project_type_id": "backend"
+      "part_id": "backend",
+      "root_path": "backend",
+      "project_type_id": "backend"
     }
   ],
   "outputs_generated": [

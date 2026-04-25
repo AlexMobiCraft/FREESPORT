@@ -1,13 +1,29 @@
 ---
-title: '1C Import Archiving'
-slug: '1c-import-archiving'
-created: '2026-01-26'
-status: 'review'
+title: "1C Import Archiving"
+slug: "1c-import-archiving"
+created: "2026-01-26"
+status: "review"
 stepsCompleted: [1, 2, 3]
-tech_stack: ['Python 3.10+', 'Django 4.2', 'stdlib zipfile', 'pathlib']
-files_to_modify: ['backend/apps/products/management/commands/import_products_from_1c.py', 'backend/apps/products/utils/archiver.py', 'backend/tests/integration/test_1c_archiving.py', 'backend/freesport/settings/base.py']
-code_patterns: ['Django Management Command', 'VariantImportProcessor pattern', 'Atomic file operations', 'Staging Strategy']
-test_patterns: ['pytest with fs isolation (pyfakefs or tempdir)', 'integration test for command']
+tech_stack: ["Python 3.10+", "Django 4.2", "stdlib zipfile", "pathlib"]
+files_to_modify:
+  [
+    "backend/apps/products/management/commands/import_products_from_1c.py",
+    "backend/apps/products/utils/archiver.py",
+    "backend/tests/integration/test_1c_archiving.py",
+    "backend/freesport/settings/base.py",
+  ]
+code_patterns:
+  [
+    "Django Management Command",
+    "VariantImportProcessor pattern",
+    "Atomic file operations",
+    "Staging Strategy",
+  ]
+test_patterns:
+  [
+    "pytest with fs isolation (pyfakefs or tempdir)",
+    "integration test for command",
+  ]
 ---
 
 # Тех-Спек: Архивация импорта 1С
@@ -27,6 +43,7 @@ test_patterns: ['pytest with fs isolation (pyfakefs or tempdir)', 'integration t
 ### Объем работ (Scope)
 
 **Входит в объем (In Scope):**
+
 - Модификация процесса завершения импорта 1С.
 - Создание ZIP-архива с именем `YYYY-MM-DD_HH-MM-SS.zip`.
 - Использование стратегии "Атомарное перемещение" (сначала в stading, потом в архив).
@@ -34,6 +51,7 @@ test_patterns: ['pytest with fs isolation (pyfakefs or tempdir)', 'integration t
 - Очистка файлов в `import_1c/` с сохранением структуры папок.
 
 **Не входит в объем (Out of Scope):**
+
 - Изменения в логике парсинга XML.
 - Архивация при ошибках импорта (если не оговорено иное).
 
@@ -41,30 +59,30 @@ test_patterns: ['pytest with fs isolation (pyfakefs or tempdir)', 'integration t
 
 ### Паттерны кодовой базы
 
-*   `VariantImportProcessor` используется для бизнес-логики импорта.
-*   `Command.handle` управляет потоком выполнения.
-*   `ONEC_DATA_DIR` определён в `settings.base.py`.
+- `VariantImportProcessor` используется для бизнес-логики импорта.
+- `Command.handle` управляет потоком выполнения.
+- `ONEC_DATA_DIR` определён в `settings.base.py`.
 
 ### Файлы для справки
 
-| Файл | Назначение |
-| ---- | ------- |
-| `backend/apps/products/management/commands/import_products_from_1c.py` | Точка входа команды. |
-| `backend/freesport/settings/base.py` | Конфигурация путей (`ONEC_DATA_DIR`, `ONEC_ARCHIVE_DIR`). |
-| `backend/apps/products/utils/archiver.py` | Новая утилита для архивации. |
+| Файл                                                                   | Назначение                                                |
+| ---------------------------------------------------------------------- | --------------------------------------------------------- |
+| `backend/apps/products/management/commands/import_products_from_1c.py` | Точка входа команды.                                      |
+| `backend/freesport/settings/base.py`                                   | Конфигурация путей (`ONEC_DATA_DIR`, `ONEC_ARCHIVE_DIR`). |
+| `backend/apps/products/utils/archiver.py`                              | Новая утилита для архивации.                              |
 
 ### Технические решения
 
-*   **Стратегия (F2 - Atomic Move)**:
-    1.  Сначала переместить файлы из `import_1c` во временную папку (staging) внутри `arhiv/temp_UUID`. Это минимизирует время блокировки `import_1c`.
-    2.  Создать архив из staging папки.
-    3.  Удалить staging папку после успешной архивации.
-*   **Пути (F5)**: Добавить `ONEC_ARCHIVE_DIR` в `settings.base.py` (default: `ONEC_DATA_DIR/../arhiv`).
-*   **I/O (F4)**: Использовать только `pathlib` (`Path.unlink`, `Path.rglob`, `Path.rename`).
-*   **Timezone (F3)**: Использовать `django.utils.timezone.now()` для именования архива.
-*   **Memory (F6)**: Использовать стандартный `zipfile.write(filename)`, который читает файл потоково, не загружая в RAM. Для больших файлов (>500MB) это безопасно.
-*   **Очистка (F7)**: Перемещение файлов автоматически очистит их из источника. Пустые папки в источнике НЕ трогать (оставлять).
-*   **Ошибки (F8)**: Ловить специфичные исключения `OSError`, `zipfile.LargeZipFile`. Не перехватывать глобальный `Exception` без нужды.
+- **Стратегия (F2 - Atomic Move)**:
+  1.  Сначала переместить файлы из `import_1c` во временную папку (staging) внутри `arhiv/temp_UUID`. Это минимизирует время блокировки `import_1c`.
+  2.  Создать архив из staging папки.
+  3.  Удалить staging папку после успешной архивации.
+- **Пути (F5)**: Добавить `ONEC_ARCHIVE_DIR` в `settings.base.py` (default: `ONEC_DATA_DIR/../arhiv`).
+- **I/O (F4)**: Использовать только `pathlib` (`Path.unlink`, `Path.rglob`, `Path.rename`).
+- **Timezone (F3)**: Использовать `django.utils.timezone.now()` для именования архива.
+- **Memory (F6)**: Использовать стандартный `zipfile.write(filename)`, который читает файл потоково, не загружая в RAM. Для больших файлов (>500MB) это безопасно.
+- **Очистка (F7)**: Перемещение файлов автоматически очистит их из источника. Пустые папки в источнике НЕ трогать (оставлять).
+- **Ошибки (F8)**: Ловить специфичные исключения `OSError`, `zipfile.LargeZipFile`. Не перехватывать глобальный `Exception` без нужды.
 
 ## План реализации (Implementation Plan)
 
@@ -93,7 +111,7 @@ test_patterns: ['pytest with fs isolation (pyfakefs or tempdir)', 'integration t
          - Вычислить относительный путь.
          - Создать структуру папок в `staging_dir`.
          - **Переместить** файл (`path.rename()`) в staging.
-         - *Примечание*: Исходные пустые папки остаются в `source_dir`.
+         - _Примечание_: Исходные пустые папки остаются в `source_dir`.
       5. **Zip**: Создать zip из `staging_dir`. Использовать `zipfile.write(file_path, arcname=rel_path)`.
       6. **Cleanup**: Удалить `staging_dir` (`shutil.rmtree`).
     - Использовать `pathlib`.

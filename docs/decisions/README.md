@@ -9,6 +9,7 @@ An ADR captures a single architecture decision along with its context, consequen
 ## ADR Template
 
 Each ADR should follow this structure:
+
 - **Status:** Proposed | Accepted | Deprecated | Superseded
 - **Date:** Decision date
 - **Context:** What is the issue we're facing?

@@ -1,25 +1,25 @@
 ---
-title: 'BLUE Home: возобновление autoplay маркетинговых баннеров после hover/focus'
-slug: 'blue-home-marketing-banners-autoplay-resume'
-created: '2026-02-17T17:24:28'
-status: 'Implementation Complete'
+title: "BLUE Home: возобновление autoplay маркетинговых баннеров после hover/focus"
+slug: "blue-home-marketing-banners-autoplay-resume"
+created: "2026-02-17T17:24:28"
+status: "Implementation Complete"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack:
-  - 'Next.js'
-  - 'React 19'
-  - 'TypeScript'
-  - 'Embla Carousel'
+  - "Next.js"
+  - "React 19"
+  - "TypeScript"
+  - "Embla Carousel"
 files_to_modify:
-  - 'frontend/src/hooks/useBannerCarousel.ts'
-  - 'frontend/src/components/home/MarketingBannersSection.tsx'
-  - 'frontend/src/hooks/__tests__/useBannerCarousel.test.ts'
-  - 'frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx'
+  - "frontend/src/hooks/useBannerCarousel.ts"
+  - "frontend/src/components/home/MarketingBannersSection.tsx"
+  - "frontend/src/hooks/__tests__/useBannerCarousel.test.ts"
+  - "frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx"
 code_patterns:
-  - 'Custom Hook (useBannerCarousel) + Embla Autoplay plugin'
-  - 'Container/Presenter pattern в MarketingBannersSection'
+  - "Custom Hook (useBannerCarousel) + Embla Autoplay plugin"
+  - "Container/Presenter pattern в MarketingBannersSection"
 test_patterns:
-  - 'Vitest + React Testing Library'
-  - 'Mock-based тестирование Embla/Autoplay'
+  - "Vitest + React Testing Library"
+  - "Mock-based тестирование Embla/Autoplay"
 ---
 
 # Tech-Spec: BLUE Home: возобновление autoplay маркетинговых баннеров после hover/focus
@@ -39,6 +39,7 @@ test_patterns:
 ### Scope
 
 **In Scope:**
+
 - Исправление логики autoplay pause/resume в `frontend/src/hooks/useBannerCarousel.ts`.
 - Точечные правки интеграции в `frontend/src/components/home/MarketingBannersSection.tsx` (только при необходимости).
 - Регрессионные тесты для hover/focus resume в:
@@ -47,6 +48,7 @@ test_patterns:
 - Проверка обратной совместимости с текущими AC Story 32.4.
 
 **Out of Scope:**
+
 - Изменения в `HeroSection` и `ElectricHeroSection`.
 - Backend/API/контракты баннеров.
 - Рефакторинг или замена кастомной карусели на другой framework-block.
@@ -64,15 +66,15 @@ test_patterns:
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `frontend/src/app/(blue)/home/page.tsx` | Точка входа BLUE homepage |
-| `frontend/src/components/home/HomePage.tsx` | Порядок секций, включая MarketingBannersSection |
-| `frontend/src/components/home/MarketingBannersSection.tsx` | UI/интеграция карусели маркетинговых баннеров |
-| `frontend/src/hooks/useBannerCarousel.ts` | Ядро логики Embla autoplay |
-| `frontend/src/hooks/__tests__/useBannerCarousel.test.ts` | Unit/regression тесты хука autoplay |
-| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Тесты поведения секции и интеграции с хуком |
-| `_bmad-output/implementation-artifacts/Story/32-4-marketing-banners-ui.md` | Базовые AC и ограничения совместимости |
+| File                                                                       | Purpose                                         |
+| -------------------------------------------------------------------------- | ----------------------------------------------- |
+| `frontend/src/app/(blue)/home/page.tsx`                                    | Точка входа BLUE homepage                       |
+| `frontend/src/components/home/HomePage.tsx`                                | Порядок секций, включая MarketingBannersSection |
+| `frontend/src/components/home/MarketingBannersSection.tsx`                 | UI/интеграция карусели маркетинговых баннеров   |
+| `frontend/src/hooks/useBannerCarousel.ts`                                  | Ядро логики Embla autoplay                      |
+| `frontend/src/hooks/__tests__/useBannerCarousel.test.ts`                   | Unit/regression тесты хука autoplay             |
+| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx`  | Тесты поведения секции и интеграции с хуком     |
+| `_bmad-output/implementation-artifacts/Story/32-4-marketing-banners-ui.md` | Базовые AC и ограничения совместимости          |
 
 ### Technical Decisions
 
@@ -149,12 +151,14 @@ test_patterns:
 ### Testing Strategy
 
 **Unit-тесты (useBannerCarousel.test.ts):**
+
 - Тест на `stopOnInteraction: false` опцию
 - Тест на resume поведения после mouseleave/blur
 - Тест на сохранение pause на hover/focus
 - Тест на дефолтные значения опций
 
 **Интеграционные тесты (MarketingBannersSection.test.tsx):**
+
 - Тест на передачу `stopOnInteraction: false` в hook
 - Тест на изоляцию изменений (другие секции не затронуты)
 - Регрессионные тесты AC Story 32.4:
@@ -164,6 +168,7 @@ test_patterns:
   - Single-banner optimization: отключение autoplay/loop для 1 баннера
 
 **Manual тестирование:**
+
 - Проверить hover/resume поведение в браузере
 - Проверить focus/resume поведение через Tab-навигацию
 - Убедиться что Hero/Electric секции не изменились
@@ -171,20 +176,24 @@ test_patterns:
 ### Notes
 
 **Root Cause Analysis:**
+
 - Проблема: `stopOnInteraction: true` в generic `useBannerCarousel` блокирует autoplay resume после любого взаимодействия
 - Решение: Локальный override `stopOnInteraction: false` только для `MarketingBannersSection`
 - Сохраняем: `stopOnMouseEnter: true` для паузы на hover (требование пользователя)
 
 **Constraints:**
+
 - НЕ изменять дефолты generic `useBannerCarousel` (чтобы не затронуть Hero/Electric)
 - НЕ изменять поведение AC Story 32.4 (security, error-handling, dots sync, single-banner)
 - Минимальные изменения - только локальная опция в одной секции
 
 **Future Considerations:**
+
 - Если другие секции потребуют аналогичного поведения,可以考虑 вынести в конфигурацию темы
 - Мониторинг производительности autoplay с новым interaction режимом
 
 **User Confirmations:**
+
 - ✅ Пауза на hover/focus должна сохраняться
 - ✅ Обязательное автовозобновление после ухода
 - ✅ Минимальный root-cause fix без миграции на framework-block

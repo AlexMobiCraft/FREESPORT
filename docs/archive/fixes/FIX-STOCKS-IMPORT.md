@@ -3,6 +3,7 @@
 ## Проблема
 
 При импорте остатков возникала ошибка:
+
 ```
 FileNotFoundError: Файл остатков не найден: /app/data/import_1c/rests/rests.xml
 ```
@@ -10,6 +11,7 @@ FileNotFoundError: Файл остатков не найден: /app/data/import
 ## Причина
 
 В директории `/app/data/import_1c/rests/` находятся файлы с паттерном `rests_1_*.xml`:
+
 - `rests_1_1_bf987153-7db9-4af6-818e-07f3f1b97bc8.xml`
 - `rests_1_2_90725d2f-8e88-49f1-bd46-666d3beb05d2.xml`
 - `rests_1_3_bbfef6e3-a9e4-482a-ace3-5095192524c9.xml`
@@ -22,22 +24,24 @@ FileNotFoundError: Файл остатков не найден: /app/data/import
 Изменена логика импорта остатков в `backend/apps/integrations/tasks.py`:
 
 ### Было:
+
 ```python
 elif import_type == "stocks":
     file_path = data_path / "rests" / "rests.xml"
     if not file_path.exists():
         raise FileNotFoundError(...)
-    
+
     call_command("load_product_stocks", "--file", str(file_path))
 ```
 
 ### Стало:
+
 ```python
 elif import_type == "stocks":
     rests_dir = data_path / "rests"
     if not rests_dir.exists():
         raise FileNotFoundError(...)
-    
+
     call_command(
         "import_catalog_from_1c",
         "--data-dir", str(data_dir),
@@ -68,6 +72,7 @@ docker-compose -f docker/docker-compose.yml logs -f celery
 ```
 
 Вы должны увидеть:
+
 ```
 [Task <task_id>] Запуск выборочного импорта: ['stocks']
 [Task <task_id>] Начало импорта: stocks
@@ -129,6 +134,7 @@ docker-compose -f docker/docker-compose.prod.yml restart celery
 ## Контакты
 
 При возникновении проблем обращайтесь к разработчику:
+
 - **Developer:** James (Dev Agent)
 - **Fix:** Импорт остатков из множественных файлов
 - **Date:** 2025-11-04

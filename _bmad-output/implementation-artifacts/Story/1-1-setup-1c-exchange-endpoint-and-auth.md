@@ -15,11 +15,13 @@ so that I can establish a secure session for data transfer.
    **Then** The response status code should be 200 OK
    **And** The response content-type should be `text/plain`
    **And** The response body must contain exactly:
+
    ```
    success
    <cookie_name>
    <cookie_value>
    ```
+
    (three lines, newline-separated)
 
 2. **Given** A request with invalid or missing Basic Auth credentials
@@ -71,6 +73,7 @@ so that I can establish a secure session for data transfer.
 
 **Response Format (CRITICAL):**
 1С ожидает ответы в формате `text/plain`, **НЕ JSON**! Каждое значение на отдельной строке:
+
 ```
 success
 PHPSESSID
@@ -78,6 +81,7 @@ abc123xyz
 ```
 
 **Структура папок проекта:**
+
 ```
 backend/
   apps/
@@ -101,7 +105,7 @@ sequenceDiagram
     participant 1C as 1С:Предприятие
     participant API as Django API
     participant Auth as Auth Service
-    
+
     1C->>API: GET /api/integration/1c/exchange/?mode=checkauth
     Note over 1C,API: Authorization: Basic base64(user:pass)
     API->>Auth: Validate credentials
@@ -119,11 +123,13 @@ sequenceDiagram
 ### Technical Requirements
 
 **Dependencies (existing in project):**
+
 - Django 5.2.7
 - Django REST Framework 3.14
 - SimpleJWT (но для 1C используем Basic Auth + Session Cookie)
 
 **Settings to add:**
+
 ```python
 # backend/freesport/settings/base.py or integrations.py
 ONEC_EXCHANGE = {
@@ -135,12 +141,13 @@ ONEC_EXCHANGE = {
 ```
 
 **Permission setup:**
+
 ```python
 # Create custom permission in apps/users or integrations
 class Is1CExchangeUser(BasePermission):
     def has_permission(self, request, view):
         return (
-            request.user.is_authenticated and 
+            request.user.is_authenticated and
             (request.user.is_staff or request.user.has_perm('integrations.can_exchange_1c'))
         )
 ```
@@ -152,6 +159,7 @@ class Is1CExchangeUser(BasePermission):
 - Import logic in `apps/products/services/import_1c/` will be triggered by Epic 3
 
 ### Discovery: 1C HTTP Methods
+
 Certain 1C configurations send `checkauth` and `init` requests using **POST** method instead of GET, even if no body is transmitted. The view handles this by aliasing `post` to `get` logic for these modes.
 
 ### References

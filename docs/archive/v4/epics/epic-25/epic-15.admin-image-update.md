@@ -18,6 +18,7 @@
 ### Existing System Context
 
 **Текущая функциональность:**
+
 - Существует класс `ProductDataProcessor` ([processor.py:784-924](backend/apps/products/services/processor.py#L784-L924)) с методом `import_product_images()`, который:
   - Копирует изображения товаров из директории 1С в Django media storage
   - Устанавливает первое изображение как `main_image`
@@ -31,12 +32,14 @@
 - Существует система ImportSession для отслеживания процесса импорта
 
 **Технологический стек:**
+
 - Backend: Django 5.2.7 + Django REST Framework
 - База данных: PostgreSQL 15+ (JSONB для хранения `gallery_images`)
 - Task Queue: Celery + Redis для асинхронных задач
 - Admin: Django Admin с custom views и URL routing
 
 **Точки интеграции:**
+
 - `apps/integrations/admin_urls.py` - monkey-patching для добавления custom URLs
 - `apps/integrations/views.py` - custom view `import_from_1c_view` для страницы импорта
 - `apps/integrations/admin.py` - `ImportSessionAdmin` для отображения сессий
@@ -49,7 +52,7 @@
 1. **Новый тип импорта "Изображения товаров"** в форме выбора на странице `/admin/integrations/import_1c/`:
    - Radio button: "Только изображения товаров"
    - Описание: "Обновление изображений товаров из директории 1С (main_image и gallery_images)"
-   - Files: "data/import_1c/goods/import_files/XX/*.jpg, data/import_1c/goods/import_files/XX/*.png"
+   - Files: "data/import*1c/goods/import_files/XX/*.jpg, data/import*1c/goods/import_files/XX/*.png"
    - Requires catalog: `true` (требуется наличие товаров в БД)
 
 2. **Backend обработка**:
@@ -90,12 +93,14 @@
 **Описание**: Расширить форму выбора типа импорта на странице `/admin/integrations/import_1c/` добавлением опции "Только изображения товаров".
 
 **Задачи**:
+
 - Добавить новый `ImportType.IMAGES` в модель `ImportSession`
 - Обновить список `import_types` в `import_from_1c_view` ([views.py:54-83](backend/apps/integrations/views.py#L54-L83))
 - Добавить валидацию зависимостей (требуется каталог товаров)
 - Обновить template `admin/integrations/import_1c.html`
 
 **Acceptance Criteria**:
+
 - Radio button "Только изображения товаров" отображается в форме
 - При отсутствии товаров в БД показывается предупреждение
 - Выбор типа сохраняется при отправке формы
@@ -107,6 +112,7 @@
 **Описание**: Создать Celery задачу `run_image_import_task`, которая использует существующий метод `ProductDataProcessor.import_product_images()` для обработки изображений всех товаров.
 
 **Задачи**:
+
 - Создать новую Celery задачу в `apps/integrations/tasks.py`
 - Реализовать итерацию по товарам с обновлением прогресса
 - Использовать `ProductDataProcessor.import_product_images()` для каждого товара
@@ -114,6 +120,7 @@
 - Обрабатывать ошибки и логировать детали
 
 **Acceptance Criteria**:
+
 - Задача запускается асинхронно при выборе типа "Изображения"
 - Прогресс обновляется в `ImportSession.report_details`
 - Статистика содержит: total_products, processed, copied, skipped, errors
@@ -126,6 +133,7 @@
 **Описание**: Интегрировать импорт изображений с существующей системой мониторинга `ImportSessionAdmin` и обеспечить покрытие тестами.
 
 **Задачи**:
+
 - Обновить маппинг типов в `_create_and_run_import` ([views.py:229-239](backend/apps/integrations/views.py#L229-L239))
 - Добавить проверку директории `import_files/` перед запуском
 - Создать интеграционные тесты для импорта изображений
@@ -133,6 +141,7 @@
 - Обновить документацию в `CLAUDE.md` и `scripts/server/README_IMPORT_ON_SERVER.md`
 
 **Acceptance Criteria**:
+
 - Импорт изображений отображается в списке сессий с корректными статусами
 - Прогресс-бар работает корректно (если применимо)
 - Тесты покрывают: успешный импорт, отсутствие товаров, отсутствие директории
@@ -154,21 +163,25 @@
 ## Risk Mitigation
 
 ### Primary Risk
+
 **Риск**: Импорт большого количества изображений может вызвать таймауты или исчерпание памяти.
 
 **Mitigation**:
+
 - Использовать chunked processing (по 100 товаров за итерацию)
 - Асинхронная обработка через Celery с большим timeout (1 час)
 - Мониторинг памяти и прогресса через `ImportSession`
 - Возможность пропустить валидацию изображений (`validate_images=False`) для производительности
 
 ### Rollback Plan
+
 1. Удалить новый тип `ImportType.IMAGES` из выбора в UI
 2. Откатить миграцию добавления enum значения (если применимо)
 3. Удалить Celery задачу `run_image_import_task`
 4. Восстановить предыдущую версию `import_from_1c_view`
 
 **Шаги отката**:
+
 ```bash
 # 1. Откатить миграции Django
 python manage.py migrate integrations <previous_migration>

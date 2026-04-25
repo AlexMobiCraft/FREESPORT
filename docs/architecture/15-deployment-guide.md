@@ -7,8 +7,9 @@
 ## Существующая Инфраструктура
 
 Проект уже имеет:
+
 - ✅ `docker-compose.yml` - development среда
-- ✅ `docker-compose.test.yml` - тестовая среда  
+- ✅ `docker-compose.test.yml` - тестовая среда
 - ✅ `backend/Dockerfile` и `frontend/Dockerfile`
 - ✅ `Makefile` с командами разработки
 - ✅ `docker/nginx/` - конфигурация Nginx
@@ -21,14 +22,14 @@
 
 ```yaml
 # docker-compose.prod.yml
-version: '3.8'
+version: "3.8"
 
 services:
   # Наследуем Nginx из существующей структуры
   nginx:
     build:
       context: ./docker/nginx
-      dockerfile: Dockerfile.prod  # Создадим отдельно
+      dockerfile: Dockerfile.prod # Создадим отдельно
     ports:
       - "80:80"
       - "443:443"
@@ -49,11 +50,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: production  # Multi-stage build
+      target: production # Multi-stage build
       args:
         DJANGO_SETTINGS_MODULE: freesport.settings.production
     expose:
-      - "8001"  # Изменим порт для production
+      - "8001" # Изменим порт для production
     environment:
       - DJANGO_SETTINGS_MODULE=freesport.settings.production
       - DATABASE_URL=${DATABASE_URL}
@@ -272,31 +273,31 @@ server {
 server {
     listen 443 ssl http2;
     server_name _;
-    
+
     # SSL Configuration (будет настроено через Let's Encrypt)
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
-    
+
     # Security Headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
-    
+
     # Static Files
     location /static/ {
         alias /var/www/static/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
-    
+
     location /media/ {
         alias /var/www/media/;
         expires 1M;
         add_header Cache-Control "public";
     }
-    
+
     # API Routes
     location /api/ {
         proxy_pass http://backend;
@@ -305,7 +306,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-    
+
     location /admin/ {
         proxy_pass http://backend;
         proxy_set_header Host $host;
@@ -313,7 +314,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-    
+
     # Frontend
     location / {
         proxy_pass http://frontend;
@@ -542,6 +543,7 @@ echo "🎉 Deployment завершен успешно!"
 ## Production Checklist
 
 ### Перед развертыванием:
+
 - [ ] Сервер настроен и доступен
 - [ ] Домен настроен и указывает на сервер
 - [ ] SSL сертификаты получены
@@ -550,6 +552,7 @@ echo "🎉 Deployment завершен успешно!"
 - [ ] Backup стратегия настроена
 
 ### После развертывания:
+
 - [ ] Все сервисы запущены (`docker-compose -f docker-compose.prod.yml ps`)
 - [ ] Health check проходит (`make health-check`)
 - [ ] SSL работает (проверить в браузере)
@@ -572,11 +575,11 @@ def health_check(request):
         # Database check
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-        
+
         # Redis check (если используется)
         from django.core.cache import cache
         cache.set('health_check', 'ok', 10)
-        
+
         return JsonResponse({
             'status': 'healthy',
             'database': 'ok',

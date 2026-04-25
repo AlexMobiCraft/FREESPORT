@@ -19,17 +19,20 @@ Ready for Review
 ### Existing System Integration
 
 **Интегрируется с:**
+
 - `XMLDataParser` ([backend/apps/products/services/parser.py](backend/apps/products/services/parser.py:75-461)) - существующий парсер CommerceML 3.1
 - `parse_goods_xml()` метод ([backend/apps/products/services/parser.py:164-207](backend/apps/products/services/parser.py#L164-L207)) - парсинг базовых данных товаров
 - `GoodsData` TypedDict ([backend/apps/products/services/parser.py:13-22](backend/apps/products/services/parser.py#L13-L22)) - структура данных товара
 
 **Технологии:**
+
 - Python 3.11+ с type hints
 - defusedxml.ElementTree для безопасного парсинга XML
 - Django settings для путей к файлам
 - CommerceML 3.1 формат выгрузки 1С
 
 **Существующий паттерн:**
+
 ```python
 # Текущая реализация parse_goods_xml() в parser.py:198-202
 image_elements = self._find_children(product_element, "Картинка")
@@ -40,6 +43,7 @@ if image_elements:
 ```
 
 **Точки интеграции:**
+
 1. Расширение `GoodsData` TypedDict - добавление поля `images: list[str]` (уже существует!)
 2. Метод `parse_goods_xml()` - уже извлекает пути изображений из тегов `<Картинка>`
 3. Вспомогательные методы `_find_children()` для безопасного поиска элементов
@@ -47,11 +51,13 @@ if image_elements:
 ### Текущее состояние
 
 ✅ **Уже реализовано:**
+
 - `GoodsData` TypedDict содержит поле `images: list[str]` (строка 21)
 - `parse_goods_xml()` извлекает все теги `<Картинка>` (строки 198-202)
 - Пути изображений добавляются в `goods_data["images"]` как список строк
 
 ❌ **Что требуется добавить:**
+
 1. **Валидация путей изображений** - проверка формата и расширения файлов
 2. **Обработка абсолютных и относительных путей** - нормализация путей
 3. **Unit-тесты** для парсинга изображений с реальными данными
@@ -175,6 +181,7 @@ logger = logging.getLogger(__name__)
 ### Структура XML из 1С (CommerceML 3.1)
 
 **Пример реального XML из goods.xml:**
+
 ```xml
 <Товар>
     <Ид>73f9d61e-5673-11f0-8041-fa163ea88911</Ид>
@@ -186,6 +193,7 @@ logger = logging.getLogger(__name__)
 ```
 
 **Формат путей:**
+
 - Относительные пути: `import_files/73/filename.png`
 - Структура: `import_files/{первые_2_символа_ID}/{ID_товара}_{ID_файла}.{расширение}`
 - Базовая директория: `data/import_1c/goods/`
@@ -235,11 +243,13 @@ ONEC_DATA_DIR = os.environ.get(
 ```
 
 **Важно:**
+
 - Валидация на этапе парсинга XML проверяет **ТОЛЬКО расширение и формат** пути
 - **НЕ проверяет** физическое существование файлов (это ответственность Story 3.1.2)
 - `ONEC_DATA_DIR` будет использоваться в Story 3.1.2 для формирования полных путей при копировании
 
 **Scope текущей story:**
+
 - ✅ Валидация расширения файла (`.jpg`, `.jpeg`, `.png`, `.webp`)
 - ✅ Нормализация пути (замена `\` на `/`, удаление пробелов по краям)
 - ✅ Дедупликация путей для одного товара
@@ -269,6 +279,7 @@ if image_elements:
 ### Интеграция с ProductDataProcessor
 
 **Связь с Story 3.1.2:**
+
 - ProductDataProcessor будет использовать `goods_data["images"]` для копирования файлов
 - Валидированные пути гарантируют корректность формата и расширения (НО НЕ существование файлов на диске - это проверит Story 3.1.2)
 - Нормализованные пути совместимы с Django `default_storage.save()`
@@ -276,11 +287,13 @@ if image_elements:
 ### Обработка ошибок
 
 **Стратегия:**
+
 - **Невалидные пути** - WARNING лог, путь пропускается, импорт продолжается
 - **Отсутствие изображений** - не является ошибкой, товар импортируется без изображений
 - **Дубликаты путей** - дедуплицируются автоматически через set
 
 **Логирование:**
+
 ```python
 logger.warning(f"Invalid image path for product {goods_data['id']}: {path}")
 logger.debug(f"Found {len(validated_images)} valid images for product {goods_data['id']}")
@@ -293,7 +306,7 @@ logger.debug(f"Found {len(validated_images)} valid images for product {goods_dat
 - [x] **Реализована дедупликация путей** через set при парсинге
 - [x] **Написаны unit-тесты** в `backend/tests/unit/test_services/test_xml_parser.py` для парсинга изображений с реальными данными (8 новых тестов)
 - [x] **Все существующие тесты проходят** без регрессий (53 теста прошли успешно)
-- [x] **Документация обновлена** (docstrings в parse_goods_xml() и _validate_image_path())
+- [x] **Документация обновлена** (docstrings в parse_goods_xml() и \_validate_image_path())
 - [x] **Code review пройден** - соответствие стандартам типизации и стиля кода (flake8, black, mypy)
 - [x] **Покрытие тестами >= 90%** для новой функциональности (достигнуто 81% для всего parser.py)
 
@@ -308,11 +321,13 @@ logger.debug(f"Found {len(validated_images)} valid images for product {goods_dat
 **Расположение:** Согласно [Testing Strategy §10.2](docs/architecture/10-testing-strategy.md#10.2), создать новый файл `backend/tests/unit/test_services/test_parser.py`
 
 **Обоснование структуры:**
+
 - Unit-тесты размещаются в `backend/tests/unit/`
 - Парсер относится к сервисным классам → поддиректория `test_services/`
 - Изоляция от app-specific тестов обеспечивает лучшую организацию
 
 **Обязательная маркировка тестов (§10.6.2):**
+
 ```python
 import pytest
 
@@ -330,6 +345,7 @@ class TestXMLDataParserImageParsing:
 **🚨 КРИТИЧНО:** Для предотвращения constraint violations и flaky tests:
 
 1. **Использовать `get_unique_suffix()` для генерации уникальных данных (§10.4.2):**
+
 ```python
 from tests.conftest import get_unique_suffix
 
@@ -566,6 +582,7 @@ make test-fast
 **Рекомендация из QA gate:** Рассмотреть батчинг WARNING логов для производительности.
 
 **Реализация:**
+
 ```python
 # В _validate_image_path() - логировать batch invalid paths
 invalid_paths = []
@@ -585,11 +602,13 @@ if invalid_paths:
 ## Dependencies
 
 **Зависит от:**
+
 - ✅ Epic 3 - Импорт товаров из 1С (реализован)
 - ✅ XMLDataParser базовый функционал (существует)
 - ✅ GoodsData TypedDict с полем images (существует)
 
 **Блокирует:**
+
 - ⏳ Story 3.1.2 - Импорт изображений в Django media storage (требует валидированные пути)
 
 ## Risk Mitigation
@@ -597,6 +616,7 @@ if invalid_paths:
 **Риск:** Большое количество изображений с невалидными путями может замедлить парсинг из-за WARNING логов
 
 **Митигация:**
+
 - Используем уровень DEBUG для успешных валидаций
 - WARNING только для действительно проблемных путей
 - Батчинг логов (логировать только первые N невалидных путей)
@@ -622,6 +642,7 @@ IMPORT_VALIDATE_IMAGE_PATHS = env.bool('IMPORT_VALIDATE_IMAGE_PATHS', default=Tr
 **Оценка:** 2 Story Points (малая задача)
 
 **Обоснование:**
+
 - Базовый функционал УЖЕ реализован (парсинг тегов `<Картинка>`)
 - Требуется только добавить валидацию и дедупликацию
 - Изменения локализованы в одном файле (parser.py)
@@ -640,10 +661,10 @@ IMPORT_VALIDATE_IMAGE_PATHS = env.bool('IMPORT_VALIDATE_IMAGE_PATHS', default=Tr
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-01-08 | 1.0 | Первоначальная версия story | PM Team |
-| 2025-11-09 | 1.1 | Исправления после валидации PO: добавлен logger, Tasks/Subtasks, улучшены AC | Sarah (PO) |
+| Date       | Version | Description                                                                  | Author     |
+| ---------- | ------- | ---------------------------------------------------------------------------- | ---------- |
+| 2025-01-08 | 1.0     | Первоначальная версия story                                                  | PM Team    |
+| 2025-11-09 | 1.1     | Исправления после валидации PO: добавлен logger, Tasks/Subtasks, улучшены AC | Sarah (PO) |
 
 ## Dev Agent Record
 
@@ -698,6 +719,7 @@ N/A - имплементация прошла без проблем
 Имплементация демонстрирует образцовое качество brownfield enhancement с полным соблюдением всех стандартов проекта.
 
 **Ключевые достижения:**
+
 - ✅ Полная типизация всех методов (`-> str | None`, `-> list[GoodsData]`)
 - ✅ Подробные docstrings с Args/Returns секциями
 - ✅ Logger правильно инициализирован и используется
@@ -738,15 +760,15 @@ N/A - имплементация прошла без проблем
 
 ### Requirements Traceability Matrix
 
-| AC | Описание | Тесты | Локация |
-|----|----------|-------|---------|
-| AC1 | Извлечение путей изображений | `test_parse_goods_xml_with_single_image`<br/>`test_parse_goods_xml_with_multiple_images` | test_xml_parser.py:250-283 |
-| AC2 | Валидация путей | `test_parse_goods_xml_with_invalid_image_extension`<br/>`test_validate_image_path_normalization`<br/>`test_validate_image_path_supported_extensions` | test_xml_parser.py:351-470 |
-| AC3 | Edge cases | `test_parse_goods_xml_with_no_images`<br/>`test_parse_goods_xml_with_duplicate_image_paths` | test_xml_parser.py:322-423 |
-| AC4 | Обратная совместимость | 53 существующих теста прошли | - |
-| AC5 | Соответствие паттернам | Logger + `_validate_image_path()` | parser.py:11-13,167-196 |
-| AC6 | Покрытие тестами | 8 новых тестов, 81% coverage | test_xml_parser.py:246-501 |
-| AC7 | Документация | Docstrings обновлены | parser.py:168-178,198-217 |
+| AC  | Описание                     | Тесты                                                                                                                                                | Локация                    |
+| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| AC1 | Извлечение путей изображений | `test_parse_goods_xml_with_single_image`<br/>`test_parse_goods_xml_with_multiple_images`                                                             | test_xml_parser.py:250-283 |
+| AC2 | Валидация путей              | `test_parse_goods_xml_with_invalid_image_extension`<br/>`test_validate_image_path_normalization`<br/>`test_validate_image_path_supported_extensions` | test_xml_parser.py:351-470 |
+| AC3 | Edge cases                   | `test_parse_goods_xml_with_no_images`<br/>`test_parse_goods_xml_with_duplicate_image_paths`                                                          | test_xml_parser.py:322-423 |
+| AC4 | Обратная совместимость       | 53 существующих теста прошли                                                                                                                         | -                          |
+| AC5 | Соответствие паттернам       | Logger + `_validate_image_path()`                                                                                                                    | parser.py:11-13,167-196    |
+| AC6 | Покрытие тестами             | 8 новых тестов, 81% coverage                                                                                                                         | test_xml_parser.py:246-501 |
+| AC7 | Документация                 | Docstrings обновлены                                                                                                                                 | parser.py:168-178,198-217  |
 
 **Пробелов в покрытии:** НЕТ ✅
 
@@ -770,11 +792,13 @@ N/A - имплементация прошла без проблем
 **Status:** ✅ **PASS**
 
 **Производительность:**
+
 - ✅ O(n) сложность валидации - минимальный оверхед
 - ✅ Set используется для дедупликации - O(1) lookup
 - ✅ Валидация не блокирует парсинг - невалидные пути пропускаются
 
 **Advisory замечание:**
+
 - ⚠️ При большом количестве невалидных путей может быть много WARNING логов
 - **Рекомендация:** Рассмотреть батчинг логов в будущем (не блокирует релиз)
 
@@ -782,12 +806,12 @@ N/A - имплементация прошла без проблем
 
 ### NFR (Non-Functional Requirements) Validation
 
-| NFR | Status | Детали |
-|-----|--------|--------|
-| **Security** | ✅ PASS | defusedxml + валидация расширений |
-| **Performance** | ✅ PASS | O(n) валидация, O(1) дедупликация |
-| **Reliability** | ✅ PASS | Graceful degradation, 53/53 теста прошли |
-| **Maintainability** | ✅ PASS | Отличная документация, типизация |
+| NFR                 | Status  | Детали                                   |
+| ------------------- | ------- | ---------------------------------------- |
+| **Security**        | ✅ PASS | defusedxml + валидация расширений        |
+| **Performance**     | ✅ PASS | O(n) валидация, O(1) дедупликация        |
+| **Reliability**     | ✅ PASS | Graceful degradation, 53/53 теста прошли |
+| **Maintainability** | ✅ PASS | Отличная документация, типизация         |
 
 ---
 
@@ -796,6 +820,7 @@ N/A - имплементация прошла без проблем
 **Общая оценка:** ⭐⭐⭐⭐⭐ **EXCELLENT**
 
 **Testability Evaluation:**
+
 - **Controllability:** EXCELLENT - inputs легко контролируются через XML строки
 - **Observability:** EXCELLENT - outputs четкие (`list[GoodsData]`, `str | None`)
 - **Debuggability:** GOOD - понятные логи, структура кода
@@ -803,6 +828,7 @@ N/A - имплементация прошла без проблем
 **Test Coverage:** 81% (превышает минимум 70%)
 
 **Test Quality:**
+
 - ✅ Правильная маркировка: `@pytest.mark.unit`
 - ✅ AAA Pattern соблюден во всех тестах
 - ✅ Data isolation через `get_unique_suffix()`
@@ -810,6 +836,7 @@ N/A - имплементация прошла без проблем
 - ✅ Edge cases покрыты: пустые изображения, невалидные расширения, дубликаты
 
 **Test Results:**
+
 - ✅ 61/61 тестов прошли (53 существующих + 8 новых)
 - ✅ Нет регрессий в существующей функциональности
 
@@ -832,6 +859,7 @@ N/A - имплементация прошла без проблем
    - **Приоритет:** VERY LOW - текущий подход адекватен
 
 **НЕ является долгом:**
+
 - ❌ Отсутствие проверки физического существования файлов - это НАМЕРЕННО вынесено в Story 3.1.2
 
 ---
@@ -839,6 +867,7 @@ N/A - имплементация прошла без проблем
 ### Improvements Checklist
 
 **Immediate (Ready for production):**
+
 - [x] Все acceptance criteria реализованы
 - [x] Код следует стандартам типизации
 - [x] Тесты покрывают все edge cases
@@ -847,6 +876,7 @@ N/A - имплементация прошла без проблем
 - [x] Обратная совместимость подтверждена
 
 **Future (Advisory, не блокирует):**
+
 - [ ] Рассмотреть батчинг WARNING логов для производительности (P2, LOW)
 - [ ] Опционально - вынести список расширений в settings (P3, VERY LOW)
 

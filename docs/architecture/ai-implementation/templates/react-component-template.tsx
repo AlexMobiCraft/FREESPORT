@@ -2,8 +2,8 @@
  * Шаблон React компонента для FREESPORT
  * Скопируйте и адаптируйте под ваш компонент
  */
-import React from 'react';
-import type { BaseComponentProps } from '@/types';
+import React from "react";
+import type { BaseComponentProps } from "@/types";
 
 // ===== ТИПЫ И ИНТЕРФЕЙСЫ =====
 
@@ -12,23 +12,23 @@ interface YourComponentProps extends BaseComponentProps {
   // Основные props
   title?: string;
   description?: string;
-  
+
   // Состояния
   loading?: boolean;
   disabled?: boolean;
-  
+
   // Данные
-  data?: YourDataType[];  // TODO: Замените на ваш тип данных
-  
+  data?: YourDataType[]; // TODO: Замените на ваш тип данных
+
   // Функции обратного вызова
   onSubmit?: (data: FormData) => void;
   onCancel?: () => void;
   onChange?: (value: any) => void;
-  
+
   // Стилизация
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-  
+  variant?: "primary" | "secondary" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg";
+
   // Конфигурация
   showActions?: boolean;
   allowEdit?: boolean;
@@ -46,14 +46,14 @@ interface YourDataType {
 
 /**
  * YourComponent - описание что делает компонент
- * 
+ *
  * TODO: Заполните описание функциональности
- * 
+ *
  * @param props - Свойства компонента
  * @returns JSX элемент
  */
 const YourComponent: React.FC<YourComponentProps> = ({
-  className = '',
+  className = "",
   children,
   title,
   description,
@@ -63,33 +63,32 @@ const YourComponent: React.FC<YourComponentProps> = ({
   onSubmit,
   onCancel,
   onChange,
-  variant = 'primary',
-  size = 'md',
+  variant = "primary",
+  size = "md",
   showActions = true,
   allowEdit = true,
-  ...props  // ✅ ПАТТЕРН: Spread остальных props
+  ...props // ✅ ПАТТЕРН: Spread остальных props
 }) => {
-  
   // ===== СОСТОЯНИЕ =====
-  
-  const [internalState, setInternalState] = React.useState<string>('');
+
+  const [internalState, setInternalState] = React.useState<string>("");
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [selectedItems, setSelectedItems] = React.useState<number[]>([]);
-  
+
   // TODO: Добавьте нужные состояния
   // const [formData, setFormData] = React.useState<YourFormType>({});
   // const [errors, setErrors] = React.useState<Record<string, string>>({});
   // const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // ===== ЭФФЕКТЫ =====
-  
+
   React.useEffect(() => {
     // TODO: Добавьте логику инициализации
-    console.log('Component mounted');
-    
+    console.log("Component mounted");
+
     // Cleanup функция
     return () => {
-      console.log('Component will unmount');
+      console.log("Component will unmount");
     };
   }, []);
 
@@ -101,40 +100,46 @@ const YourComponent: React.FC<YourComponentProps> = ({
   }, [internalState, onChange]);
 
   // ===== ВЫЧИСЛЯЕМЫЕ ЗНАЧЕНИЯ =====
-  
+
   const computedValue = React.useMemo(() => {
     // TODO: Добавьте вычисления
-    return data.filter(item => item.name.includes(internalState));
+    return data.filter((item) => item.name.includes(internalState));
   }, [data, internalState]);
 
   // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
-  
-  const handleSubmit = React.useCallback((event: React.FormEvent) => {
-    event.preventDefault();
-    
-    if (onSubmit && !loading && !disabled) {
-      // TODO: Подготовьте данные для отправки
-      const formData = new FormData();
-      // formData.append('field', value);
-      
-      onSubmit(formData);
-    }
-  }, [onSubmit, loading, disabled]);
 
-  const handleInputChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = event.target;
-    setInternalState(value);
-  }, []);
+  const handleSubmit = React.useCallback(
+    (event: React.FormEvent) => {
+      event.preventDefault();
+
+      if (onSubmit && !loading && !disabled) {
+        // TODO: Подготовьте данные для отправки
+        const formData = new FormData();
+        // formData.append('field', value);
+
+        onSubmit(formData);
+      }
+    },
+    [onSubmit, loading, disabled],
+  );
+
+  const handleInputChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const { value } = event.target;
+      setInternalState(value);
+    },
+    [],
+  );
 
   const handleToggleExpand = React.useCallback(() => {
-    setIsExpanded(prev => !prev);
+    setIsExpanded((prev) => !prev);
   }, []);
 
   const handleItemSelect = React.useCallback((itemId: number) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       const isSelected = prev.includes(itemId);
-      return isSelected 
-        ? prev.filter(id => id !== itemId)
+      return isSelected
+        ? prev.filter((id) => id !== itemId)
         : [...prev, itemId];
     });
   }, []);
@@ -142,33 +147,35 @@ const YourComponent: React.FC<YourComponentProps> = ({
   // TODO: Добавьте свои обработчики
 
   // ===== СТИЛИ =====
-  
-  const baseStyles = 'block w-full transition-all duration-200';
-  
+
+  const baseStyles = "block w-full transition-all duration-200";
+
   const variantStyles = {
-    primary: 'bg-white border border-gray-300 rounded-lg shadow-sm',
-    secondary: 'bg-gray-50 border border-gray-200 rounded-lg',
-    outline: 'border-2 border-dashed border-gray-300 rounded-lg',
-    ghost: 'bg-transparent',
+    primary: "bg-white border border-gray-300 rounded-lg shadow-sm",
+    secondary: "bg-gray-50 border border-gray-200 rounded-lg",
+    outline: "border-2 border-dashed border-gray-300 rounded-lg",
+    ghost: "bg-transparent",
   };
 
   const sizeStyles = {
-    sm: 'p-2 text-sm',
-    md: 'p-4 text-base',
-    lg: 'p-6 text-lg',
+    sm: "p-2 text-sm",
+    md: "p-4 text-base",
+    lg: "p-6 text-lg",
   };
 
   const containerClasses = [
     baseStyles,
     variantStyles[variant],
     sizeStyles[size],
-    loading && 'opacity-50 pointer-events-none',
-    disabled && 'opacity-60 cursor-not-allowed',
+    loading && "opacity-50 pointer-events-none",
+    disabled && "opacity-60 cursor-not-allowed",
     className,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   // ===== УСЛОВНЫЙ РЕНДЕРИНГ =====
-  
+
   if (loading) {
     return (
       <div className={`${containerClasses} flex items-center justify-center`}>
@@ -187,27 +194,21 @@ const YourComponent: React.FC<YourComponentProps> = ({
   }
 
   // ===== ОСНОВНОЙ РЕНДЕР =====
-  
+
   return (
     <div className={containerClasses} {...props}>
-      
       {/* Заголовок */}
       {title && (
         <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {title}
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
           {description && (
-            <p className="mt-1 text-sm text-gray-600">
-              {description}
-            </p>
+            <p className="mt-1 text-sm text-gray-600">{description}</p>
           )}
         </div>
       )}
 
       {/* Основной контент */}
       <div className="space-y-4">
-        
         {/* TODO: Замените на ваш контент */}
         {computedValue.map((item) => (
           <YourItemComponent
@@ -218,7 +219,7 @@ const YourComponent: React.FC<YourComponentProps> = ({
             allowEdit={allowEdit}
           />
         ))}
-        
+
         {children}
       </div>
 
@@ -226,15 +227,11 @@ const YourComponent: React.FC<YourComponentProps> = ({
       {showActions && (
         <div className="mt-6 flex justify-end space-x-3">
           {onCancel && (
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={loading}
-            >
+            <Button variant="outline" onClick={onCancel} disabled={loading}>
               Отмена
             </Button>
           )}
-          
+
           {onSubmit && (
             <Button
               variant="primary"
@@ -276,10 +273,10 @@ const YourItemComponent: React.FC<YourItemComponentProps> = ({
   allowEdit = true,
 }) => {
   return (
-    <div 
+    <div
       className={`
         p-3 border rounded-lg cursor-pointer transition-colors
-        ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}
+        ${selected ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}
       `}
       onClick={onSelect}
     >
@@ -290,7 +287,7 @@ const YourItemComponent: React.FC<YourItemComponentProps> = ({
             <p className="text-sm text-gray-600">{item.description}</p>
           )}
         </div>
-        
+
         {allowEdit && (
           <div className="flex space-x-2">
             <Button size="sm" variant="outline">
@@ -322,20 +319,19 @@ const useYourComponentData = () => {
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // TODO: Замените на ваш API вызов
-      const response = await fetch('/api/your-endpoint/');
-      
+      const response = await fetch("/api/your-endpoint/");
+
       if (!response.ok) {
-        throw new Error('Ошибка загрузки данных');
+        throw new Error("Ошибка загрузки данных");
       }
-      
+
       const result = await response.json();
       setData(result.results || result);
-      
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      setError(err instanceof Error ? err.message : "Неизвестная ошибка");
     } finally {
       setLoading(false);
     }
@@ -357,9 +353,11 @@ export const YourSimpleComponent: React.FC<{
   title: string;
   children: React.ReactNode;
   className?: string;
-}> = ({ title, children, className = '' }) => {
+}> = ({ title, children, className = "" }) => {
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${className}`}>
+    <div
+      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${className}`}
+    >
       <h3 className="text-lg font-medium text-gray-900 mb-3">{title}</h3>
       {children}
     </div>
@@ -375,12 +373,12 @@ export const YourFormComponent: React.FC<{
   onCancel?: () => void;
 }> = ({ initialData, onSubmit, onCancel }) => {
   const [formData, setFormData] = React.useState<Partial<YourDataType>>(
-    initialData || {}
+    initialData || {},
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.name) {
       onSubmit(formData as YourDataType);
     }
@@ -394,8 +392,10 @@ export const YourFormComponent: React.FC<{
         </label>
         <input
           type="text"
-          value={formData.name || ''}
-          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+          value={formData.name || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, name: e.target.value }))
+          }
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
         />
@@ -406,8 +406,10 @@ export const YourFormComponent: React.FC<{
           Описание
         </label>
         <textarea
-          value={formData.description || ''}
-          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          value={formData.description || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, description: e.target.value }))
+          }
           rows={3}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />

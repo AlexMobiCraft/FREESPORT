@@ -21,6 +21,7 @@
 ### Existing System Context
 
 **Текущая функциональность:**
+
 - Next.js 14+ проект инициализирован с TypeScript
 - Docker окружение настроено (`docker-compose.yml`)
 - Backend API готов и задокументирован в `api-spec.yaml`
@@ -28,6 +29,7 @@
 - Базовая структура проекта создана
 
 **Технологический стек:**
+
 - Frontend: Next.js 14+ App Router, TypeScript 5.0+, Tailwind CSS
 - State Management: Zustand
 - API Client: Axios
@@ -35,6 +37,7 @@
 - Code Quality: ESLint, Prettier, lint-staged
 
 **Точки интеграции:**
+
 - Backend API endpoints (auth, products, categories, cart, orders)
 - Docker окружение для локальной разработки
 - CI/CD pipeline для автоматизации проверок
@@ -77,12 +80,14 @@
    - Unit-тесты для всех сервисов с MSW моками
 
 **Как интегрируется:**
+
 - UI компоненты используют токены из `design-system.json`
 - API сервисы взаимодействуют с Backend через axios клиент
 - Zustand stores управляют глобальным состоянием приложения
 - Тесты обеспечивают 80%+ покрытие кода
 
 **Критерии успеха:**
+
 - Docker окружение работает стабильно (`make up`)
 - ESLint/Prettier настроены и проходят проверки
 - Все базовые UI компоненты реализованы и протестированы
@@ -97,9 +102,11 @@
 ## Stories
 
 ### Story 1: Environment Setup and Code Quality Automation
+
 **Описание:** Настроить и автоматизировать проверку качества кода для обеспечения стабильной разработки.
 
 **Задачи:**
+
 - Проверить работоспособность Docker-окружения (`make up`)
 - Синхронизировать переменные в `frontend/.env.local`
 - Настроить ESLint (`eslint.config.mjs`) с плагинами `react-hooks` и `jsx-a11y`
@@ -107,6 +114,7 @@
 - Настроить CI/CD для автоматического запуска линтеров
 
 **Acceptance Criteria:**
+
 - Docker окружение запускается без ошибок
 - ESLint проверяет код с правилами для React и accessibility
 - Prettier автоматически форматирует код перед коммитом
@@ -115,9 +123,11 @@
 ---
 
 ### Story 2: UI Kit Implementation
+
 **Описание:** Реализовать базовый набор переиспользуемых UI компонентов согласно дизайн-системе.
 
 **Задачи:**
+
 - Создать глобальный `layout.tsx` с провайдерами
 - Реализовать компоненты в `src/components/ui/`:
   - Button (primary, secondary, tertiary, subtle)
@@ -130,6 +140,7 @@
 - Написать unit-тесты для каждого компонента (80%+ coverage)
 
 **Acceptance Criteria:**
+
 - Все компоненты реализованы согласно спецификации в `design-system.json`
 - Компоненты используют Tailwind CSS с токенами дизайн-системы
 - Unit-тесты покрывают 80%+ кода компонентов
@@ -139,9 +150,11 @@
 ---
 
 ### Story 3: State Management and API Integration
+
 **Описание:** Создать надежный и масштабируемый слой для работы с API и управления состоянием приложения.
 
 **Задачи:**
+
 - Настроить Zustand stores:
   - `authStore` (user, login, logout, refresh token)
   - `cartStore` (items, addItem, removeItem, updateQuantity)
@@ -160,6 +173,7 @@
 - Написать unit-тесты для всех сервисов с MSW моками
 
 **Acceptance Criteria:**
+
 - Zustand stores работают корректно и управляют состоянием
 - API клиент автоматически добавляет JWT токены
 - Обработка ошибки 401 с автоматическим обновлением токена
@@ -186,6 +200,7 @@
 **Primary Risk:** Несоответствие реализованных компонентов дизайн-системе, что приведет к необходимости переработки в будущих эпиках.
 
 **Mitigation:**
+
 - Строгое следование спецификации в `design-system.json`
 - Code review каждого компонента перед merge
 - Визуальное тестирование компонентов в Storybook (опционально)
@@ -194,12 +209,14 @@
 **Secondary Risk:** API клиент не обрабатывает все edge cases (сетевые ошибки, таймауты, 401).
 
 **Mitigation:**
+
 - Comprehensive unit-тесты с MSW моками
 - Integration-тесты для критических сценариев
 - Retry логика для сетевых ошибок
 - Graceful degradation при недоступности API
 
 **Rollback Plan:**
+
 - Все изменения в отдельных feature branches
 - Merge только после прохождения всех тестов и code review
 - При критических проблемах - revert коммитов
@@ -244,6 +261,7 @@
 ## Technical Documentation References
 
 **Документы для разработки:**
+
 - `docs/frontend-development-plan.md` (раздел 2, строки 13-37)
 - `docs/front-end-spec.md` (раздел "Общие цели и принципы UX", строки 5-42)
 - `frontend/docs/design-system.json` (весь документ — основа UI Kit)
@@ -252,6 +270,7 @@
 - `docs/api-spec.yaml` (для генерации TypeScript типов)
 
 **Технические стандарты:**
+
 - Next.js 14+ App Router
 - TypeScript 5.0+ (strict mode)
 - Tailwind CSS с токенами из `design-system.json`
@@ -264,6 +283,7 @@
 ## Success Metrics
 
 **Технические метрики:**
+
 - ✅ Docker окружение работает стабильно (0 ошибок при `make up`)
 - ✅ ESLint/Prettier проверки: 100% pass rate
 - ✅ Unit-тесты покрытие: 80%+
@@ -271,12 +291,14 @@
 - ✅ PageSpeed score: > 70
 
 **Качественные метрики:**
+
 - ✅ Все UI компоненты соответствуют `design-system.json`
 - ✅ API клиент обрабатывает все edge cases
 - ✅ Zustand stores управляют состоянием без утечек памяти
 - ✅ TypeScript типы покрывают 100% API endpoints
 
 **Бизнес-метрики:**
+
 - ✅ Фундамент готов для разработки эпиков 11-19
 - ✅ Снижение времени разработки новых компонентов на 40%
 - ✅ Уменьшение количества багов на 50% благодаря тестам
@@ -286,12 +308,14 @@
 ## Dependencies and Blockers
 
 **Зависимости:**
+
 - ✅ Эпики 1-2 завершены (Backend API готов)
 - ✅ `api-spec.yaml` актуален и задокументирован
 - ✅ `design-system.json` определён и утверждён
 - ✅ Docker окружение настроено
 
 **Блокеры:**
+
 - ❌ Отсутствие актуального `api-spec.yaml` заблокирует генерацию TypeScript типов
 - ❌ Неполная дизайн-система заблокирует реализацию UI Kit
 - ❌ Проблемы с Docker окружением заблокируют локальную разработку
@@ -301,21 +325,25 @@
 ## Timeline and Milestones
 
 **Week 1:**
+
 - ✅ Story 1: Environment Setup and Code Quality Automation
 - ✅ Docker окружение стабильно работает
 - ✅ ESLint/Prettier настроены
 
 **Week 2:**
+
 - ✅ Story 2: UI Kit Implementation (Part 1)
 - ✅ Базовые компоненты: Button, Input, Select, SearchField
 - ✅ Unit-тесты для базовых компонентов
 
 **Week 3:**
+
 - ✅ Story 2: UI Kit Implementation (Part 2)
 - ✅ Продвинутые компоненты: Modal, Card, Badge, Tag, Chip, Breadcrumb, Tabs
 - ✅ Unit-тесты для продвинутых компонентов
 
 **Week 4:**
+
 - ✅ Story 3: State Management and API Integration
 - ✅ Zustand stores настроены
 - ✅ API клиент реализован

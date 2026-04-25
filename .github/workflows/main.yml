@@ -2,22 +2,21 @@ name: Django CI
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: ["main", "develop"]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: ["main", "develop"]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    
+
     # Глобальные переменные окружения для всего job
     env:
       SECRET_KEY: a_test_secret_key_for_ci
-      DEBUG: 'False'
+      DEBUG: "False"
       DB_NAME: test_db
       DB_USER: postgres
       DB_PASSWORD: postgres
@@ -25,11 +24,11 @@ jobs:
       DB_PORT: 5432
       REDIS_URL: redis://localhost:6379/0
       DJANGO_SETTINGS_MODULE: freesport.settings.test
-      
+
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ['3.12']
+        python-version: ["3.12"]
 
     services:
       postgres:
@@ -41,7 +40,7 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-      
+
       redis:
         image: redis:7
         ports:
@@ -49,76 +48,76 @@ jobs:
         options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r backend/requirements.txt
-        pip install pytest-django pytest-cov flake8
-    
-    - name: Wait for PostgreSQL and Redis
-      run: |
-        sudo apt-get update && sudo apt-get install -y netcat-traditional
-        # В GitHub Actions сервисы доступны через localhost
-        echo "Waiting for PostgreSQL..."
-        for i in {1..30}; do
-          nc -z localhost 5432 && echo "Postgres is up." && break
-          echo "Waiting for Postgres... ($i/30)"
-          sleep 2
-        done
-        
-        echo "Waiting for Redis..."
-        for i in {1..30}; do
-          nc -z localhost 6379 && echo "Redis is up." && break
-          echo "Waiting for Redis... ($i/30)"
-          sleep 2
-        done
-        
-        # Финальная проверка
-        nc -z localhost 5432 || (echo "PostgreSQL failed to start" && exit 1)
-        nc -z localhost 6379 || (echo "Redis failed to start" && exit 1)
-        echo "All services are ready!"
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest-django pytest-cov flake8
 
-    - name: Lint with flake8
-      run: |
-        pip install flake8
-        # --exit-zero не прерывает выполнение при ошибках, только сообщает о них
-        flake8 backend/ --max-line-length=120 --extend-ignore=E203,W503 --exit-zero
+      - name: Wait for PostgreSQL and Redis
+        run: |
+          sudo apt-get update && sudo apt-get install -y netcat-traditional
+          # В GitHub Actions сервисы доступны через localhost
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            nc -z localhost 5432 && echo "Postgres is up." && break
+            echo "Waiting for Postgres... ($i/30)"
+            sleep 2
+          done
 
-    - name: Create .env file for testing
-      run: |
-        cd backend
-        cat > .env << EOF
-        SECRET_KEY=test-secret-key-for-ci-cd-only
-        DB_NAME=test_db
-        DB_USER=postgres
-        DB_PASSWORD=postgres
-        DB_HOST=localhost
-        DB_PORT=5432
-        REDIS_URL=redis://localhost:6379/0
-        DJANGO_SETTINGS_MODULE=freesport.settings.test
-        EOF
-        
-    - name: Run Django system checks
-      run: |
-        cd backend
-        python manage.py check
-        
-    - name: Apply migrations
-      run: |
-        cd backend
-        # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
-        python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
-        python manage.py migrate --noinput
-        
-    - name: Run tests
-      run: |
-        cd backend
-        pytest --tb=short -v --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py
+          echo "Waiting for Redis..."
+          for i in {1..30}; do
+            nc -z localhost 6379 && echo "Redis is up." && break
+            echo "Waiting for Redis... ($i/30)"
+            sleep 2
+          done
+
+          # Финальная проверка
+          nc -z localhost 5432 || (echo "PostgreSQL failed to start" && exit 1)
+          nc -z localhost 6379 || (echo "Redis failed to start" && exit 1)
+          echo "All services are ready!"
+
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          # --exit-zero не прерывает выполнение при ошибках, только сообщает о них
+          flake8 backend/ --max-line-length=120 --extend-ignore=E203,W503 --exit-zero
+
+      - name: Create .env file for testing
+        run: |
+          cd backend
+          cat > .env << EOF
+          SECRET_KEY=test-secret-key-for-ci-cd-only
+          DB_NAME=test_db
+          DB_USER=postgres
+          DB_PASSWORD=postgres
+          DB_HOST=localhost
+          DB_PORT=5432
+          REDIS_URL=redis://localhost:6379/0
+          DJANGO_SETTINGS_MODULE=freesport.settings.test
+          EOF
+
+      - name: Run Django system checks
+        run: |
+          cd backend
+          python manage.py check
+
+      - name: Apply migrations
+        run: |
+          cd backend
+          # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
+          python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
+          python manage.py migrate --noinput
+
+      - name: Run tests
+        run: |
+          cd backend
+          pytest --tb=short -v --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py

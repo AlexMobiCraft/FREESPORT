@@ -18,11 +18,11 @@ docker-compose exec backend pytest tests/integration/test_real_catalog_import.py
 
 8 integration тестов валидируют:
 
-1. **test_import_real_goods** - Импорт ≥1900 товаров из goods_*.xml (~1916 товаров в реальных данных)
-2. **test_import_real_categories** - Иерархия категорий из groups_*.xml
-3. **test_import_real_prices** - Цены для всех 7 ролей из prices_*.xml
+1. **test_import_real_goods** - Импорт ≥1900 товаров из goods\_\*.xml (~1916 товаров в реальных данных)
+2. **test_import_real_categories** - Иерархия категорий из groups\_\*.xml
+3. **test_import_real_prices** - Цены для всех 7 ролей из prices\_\*.xml
 4. **test_real_data_integrity** - Целостность данных (связи, orphan records, onec_id)
-5. **test_specifications_from_properties** - Характеристики из propertiesGoods_*.xml
+5. **test_specifications_from_properties** - Характеристики из propertiesGoods\_\*.xml
 6. **test_api_returns_real_products** - API с реальными данными
 7. **test_admin_displays_real_catalog** - Админка с реальным каталогом
 8. **test_price_fallback_with_real_data** - Fallback логика цен
@@ -30,6 +30,7 @@ docker-compose exec backend pytest tests/integration/test_real_catalog_import.py
 ## Структура данных
 
 Тесты ожидают данные в:
+
 ```
 data/import_1c/
 ├── goods/          # 4 файла goods_1_*.xml (~31 MB, ~1916 товаров)
@@ -44,11 +45,13 @@ data/import_1c/
 ## Ожидаемые результаты
 
 ### С данными (data/import_1c/ заполнена)
+
 ```
 8 passed in ~30-60s
 ```
 
 ### Без данных (data/import_1c/ пустая или отсутствует)
+
 ```
 8 skipped in ~5s
 ```
@@ -56,9 +59,11 @@ data/import_1c/
 ## Troubleshooting
 
 ### Тесты пропускаются (skipped)
+
 ✅ **Это нормально!** Означает что данные не найдены в `data/import_1c/`
 
 ### Ошибка "database test_freesport is being accessed by other users"
+
 ```powershell
 # Удалить зависшую тестовую БД
 docker-compose exec db dropdb -U postgres test_freesport --force
@@ -68,6 +73,7 @@ docker-compose exec backend pytest tests/integration/test_real_catalog_import.py
 ```
 
 ### Ошибки подключения к БД
+
 ```powershell
 # Проверить что PostgreSQL запущен
 docker ps | grep freesport-db
@@ -77,7 +83,9 @@ docker-compose restart db
 ```
 
 ### Локальный запуск (Windows)
+
 Используйте PowerShell скрипт:
+
 ```powershell
 cd backend
 .\run_integration_tests.ps1

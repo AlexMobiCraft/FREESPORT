@@ -373,17 +373,17 @@ src/
 
 ## API Integration Map
 
-| Service | Endpoint | Method | Purpose | Story |
-|---------|----------|--------|---------|-------|
-| **ordersService** | `/orders/create` | POST | Создание заказа | 15.2 |
-| **ordersService** | `/orders/confirm` | POST | Подтверждение заказа | 15.2 |
-| **ordersService** | `/orders/{id}` | GET | Получение деталей | 15.5 |
-| **deliveryService** | `/delivery/calculate` | POST | Расчёт доставки | 15.3 |
-| **deliveryService** | `/delivery/options` | GET | Способы доставки | 15.3 |
-| **paymentService** | `/payment/methods` | GET | Способы оплаты | 15.4 |
-| **paymentService** | `/payment/initialize` | POST | Инициализация платежа | 15.4 |
-| **cartService** | `/cart/` | GET | Получение корзины | 15.1 |
-| **profileService** | `/profile/addresses` | GET | Адреса пользователя | 15.1 |
+| Service             | Endpoint              | Method | Purpose               | Story |
+| ------------------- | --------------------- | ------ | --------------------- | ----- |
+| **ordersService**   | `/orders/create`      | POST   | Создание заказа       | 15.2  |
+| **ordersService**   | `/orders/confirm`     | POST   | Подтверждение заказа  | 15.2  |
+| **ordersService**   | `/orders/{id}`        | GET    | Получение деталей     | 15.5  |
+| **deliveryService** | `/delivery/calculate` | POST   | Расчёт доставки       | 15.3  |
+| **deliveryService** | `/delivery/options`   | GET    | Способы доставки      | 15.3  |
+| **paymentService**  | `/payment/methods`    | GET    | Способы оплаты        | 15.4  |
+| **paymentService**  | `/payment/initialize` | POST   | Инициализация платежа | 15.4  |
+| **cartService**     | `/cart/`              | GET    | Получение корзины     | 15.1  |
+| **profileService**  | `/profile/addresses`  | GET    | Адреса пользователя   | 15.1  |
 
 ---
 

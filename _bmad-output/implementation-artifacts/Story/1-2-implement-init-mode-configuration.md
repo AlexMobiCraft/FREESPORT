@@ -17,7 +17,7 @@ so that 1C can optimize the data packet size and maintain secure session.
    - Line 2: `file_limit=<bytes>` (e.g., 104857600 for 100MB)
    - Line 3: `sessid=<django_session_key>` (Django Session ID from `request.session.session_key`)
    - Line 4: `version=3.1` (CommerceML version)
-   **And** The response status code should be 200 OK
+     **And** The response status code should be 200 OK
 
 2. **Given** An unauthenticated request
    **When** A GET request is sent with `?mode=init`
@@ -29,15 +29,15 @@ so that 1C can optimize the data packet size and maintain secure session.
 
 ## Test Cases
 
-| ID  | Scenario | Expected Result |
-|-----|----------|-----------------|
-| TC1 | Authenticated `?mode=init` | 200 OK, 4-line response with zip, file_limit, sessid, version |
-| TC2 | Unauthenticated `?mode=init` | 401 Unauthorized |
-| TC3 | User without `can_exchange_1c` | 403 Forbidden |
-| TC4 | POST `?mode=init` | 200 OK (same as GET, 1C compatibility) |
-| TC5 | Response contains valid `sessid=` | Non-empty session key |
-| TC6 | Response contains `version=3.1` | CommerceML version string |
-| TC7 | Content-Type header | `text/plain; charset=utf-8` |
+| ID  | Scenario                          | Expected Result                                               |
+| --- | --------------------------------- | ------------------------------------------------------------- |
+| TC1 | Authenticated `?mode=init`        | 200 OK, 4-line response with zip, file_limit, sessid, version |
+| TC2 | Unauthenticated `?mode=init`      | 401 Unauthorized                                              |
+| TC3 | User without `can_exchange_1c`    | 403 Forbidden                                                 |
+| TC4 | POST `?mode=init`                 | 200 OK (same as GET, 1C compatibility)                        |
+| TC5 | Response contains valid `sessid=` | Non-empty session key                                         |
+| TC6 | Response contains `version=3.1`   | CommerceML version string                                     |
+| TC7 | Content-Type header               | `text/plain; charset=utf-8`                                   |
 
 ## Tasks / Subtasks
 
@@ -131,6 +131,7 @@ so that 1C can optimize the data packet size and maintain secure session.
 > **TERMINOLOGY NOTE (2026-01-23):** Initial documentation incorrectly referred to `sessid` as "CSRF ключ сессии". This has been corrected - `sessid` is Django Session Key, NOT CSRF token. See [ADR-008](../../docs/decisions/ADR-008-1c-sessid-session-key-not-csrf.md) for details.
 
 1С ожидает **4 строки** в формате `text/plain`:
+
 ```
 zip=yes
 file_limit=104857600
@@ -138,12 +139,12 @@ sessid=abc123xyz
 version=3.1
 ```
 
-| Поле | Описание |
-|------|----------|
-| `zip` | `yes` если сайт принимает ZIP-архивы, иначе `no` |
-| `file_limit` | Максимальный размер одного **чанка** в байтах |
-| `sessid` | Django Session Key (`request.session.session_key`) для поддержания сессии между запросами. **NOT a CSRF token** - это идентификатор сессии Django, эквивалент PHP `session_id()` |
-| `version` | Версия CommerceML (текущая: 3.1) |
+| Поле         | Описание                                                                                                                                                                         |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `zip`        | `yes` если сайт принимает ZIP-архивы, иначе `no`                                                                                                                                 |
+| `file_limit` | Максимальный размер одного **чанка** в байтах                                                                                                                                    |
+| `sessid`     | Django Session Key (`request.session.session_key`) для поддержания сессии между запросами. **NOT a CSRF token** - это идентификатор сессии Django, эквивалент PHP `session_id()` |
+| `version`    | Версия CommerceML (текущая: 3.1)                                                                                                                                                 |
 
 ### Implementation Pattern (Updated)
 
@@ -182,6 +183,7 @@ def handle_init(self, request):
 ### Settings Update Required
 
 В `backend/freesport/settings/base.py` добавить:
+
 ```python
 ONEC_EXCHANGE = {
     'SESSION_COOKIE_NAME': 'FREESPORT_1C_SESSION',
@@ -198,18 +200,18 @@ ONEC_EXCHANGE = {
 sequenceDiagram
     participant 1C as 1С:Предприятие
     participant API as Django API
-    
+
     1C->>API: GET ?mode=checkauth (Basic Auth)
     API-->>1C: success, cookie_name, cookie_value, csrf_key, timestamp
-    
+
     1C->>API: GET ?mode=init (Cookie header)
     API-->>1C: zip=yes, file_limit=104857600, sessid=X, version=3.1
-    
+
     loop For each file chunk
         1C->>API: POST ?mode=file&filename=X (body: chunk data)
         API-->>1C: success
     end
-    
+
     1C->>API: GET ?mode=import&filename=X
     API-->>1C: progress / success / failure
 ```
@@ -219,6 +221,7 @@ sequenceDiagram
 **Файл:** `backend/apps/integrations/onec_exchange/views.py`
 
 Session уже создаётся в `handle_checkauth()`:
+
 ```python
 login(request._request, request.user)
 # session.session_key доступен после login()
@@ -279,10 +282,10 @@ Claude Sonnet 4 (Anthropic)
 
 ## Change Log
 
-| Date | Change | Author |
-|------|--------|--------|
-| 2026-01-22 | Story 1.2 implemented: mode=init endpoint with 4-line response | Dev Agent (Claude Sonnet 4) |
-| 2026-01-22 | **CRITICAL FIX**: Fixed 1C Protocol auth flow. Added `CsrfExemptSessionAuthentication` and updated tests to use Cookie-Based auth instead of Basic Auth for `init` mode. Fixed `test_init_no_permission` using `force_login`. | Dev Agent (Code Review Verification) |
-| 2026-01-23 | **DOCUMENTATION FIX**: Corrected AC#1 and Dev Notes - `sessid` is Django Session Key (`request.session.session_key`), NOT CSRF token. Updated docstrings in views.py. Created ADR-008 to document this decision and prevent future confusion. | Dev Agent (Amelia - Code Review) |
-| 2026-01-23 | **CODE REVIEW**: Adversarial review completed. Found 11 issues (3 HIGH, 5 MEDIUM, 3 LOW). Fixed issue #1 (documentation). Created 10 action items in "Review Follow-ups" section for remaining issues. Story status changed to `in-progress` pending resolution of HIGH priority items. | Dev Agent (Amelia - Code Review) |
-| 2026-01-23 | **FINAL REVIEW**: All issues resolved. Added `renderers.py` and `ADR-009` to File List. Removed orphan debug test. 13/13 tests passing. Story status → `done`. | Dev Agent (Amelia - Code Review) |
+| Date       | Change                                                                                                                                                                                                                                                                                  | Author                               |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 2026-01-22 | Story 1.2 implemented: mode=init endpoint with 4-line response                                                                                                                                                                                                                          | Dev Agent (Claude Sonnet 4)          |
+| 2026-01-22 | **CRITICAL FIX**: Fixed 1C Protocol auth flow. Added `CsrfExemptSessionAuthentication` and updated tests to use Cookie-Based auth instead of Basic Auth for `init` mode. Fixed `test_init_no_permission` using `force_login`.                                                           | Dev Agent (Code Review Verification) |
+| 2026-01-23 | **DOCUMENTATION FIX**: Corrected AC#1 and Dev Notes - `sessid` is Django Session Key (`request.session.session_key`), NOT CSRF token. Updated docstrings in views.py. Created ADR-008 to document this decision and prevent future confusion.                                           | Dev Agent (Amelia - Code Review)     |
+| 2026-01-23 | **CODE REVIEW**: Adversarial review completed. Found 11 issues (3 HIGH, 5 MEDIUM, 3 LOW). Fixed issue #1 (documentation). Created 10 action items in "Review Follow-ups" section for remaining issues. Story status changed to `in-progress` pending resolution of HIGH priority items. | Dev Agent (Amelia - Code Review)     |
+| 2026-01-23 | **FINAL REVIEW**: All issues resolved. Added `renderers.py` and `ADR-009` to File List. Removed orphan debug test. 13/13 tests passing. Story status → `done`.                                                                                                                          | Dev Agent (Amelia - Code Review)     |

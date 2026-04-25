@@ -3,6 +3,7 @@
 ## Проблема
 
 При выборе "Цены товаров" создавалось **3 сессии** вместо одной:
+
 - 2 сессии "Каталог товаров"
 - 1 сессия "Цены товаров"
 
@@ -59,6 +60,7 @@ docker-compose -f docker/docker-compose.yml logs backend | Select-String "Reques
 ```
 
 Вы должны увидеть:
+
 ```
 [Request abc123de] Попытка запуска импорта: ['prices']
 [Request abc123de] Импорт запущен успешно. Session ID: 16, Task ID: ...
@@ -89,6 +91,7 @@ docker-compose -f docker/docker-compose.yml logs celery | Select-String "run_sel
 Откройте DevTools (F12) → Network → найдите POST запрос к `/admin/integrations/integrationimportsession/`
 
 Проверьте Form Data:
+
 ```
 action: trigger_selective_import
 _selected_action: 0
@@ -104,7 +107,7 @@ apply: Запустить импорт
 
 ```javascript
 // В DevTools Console
-document.querySelector('button[name="apply"]').disabled
+document.querySelector('button[name="apply"]').disabled;
 // Должно быть: true (после клика)
 ```
 
@@ -151,6 +154,7 @@ if last_import:
 ## Контакты
 
 При возникновении проблем обращайтесь к разработчику:
+
 - **Developer:** James (Dev Agent)
 - **Debug:** Множественное создание сессий
 - **Date:** 2025-11-04

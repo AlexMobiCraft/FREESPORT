@@ -16,7 +16,6 @@
   - `PATCH /cart/items/{id}/` — обновление количества
   - `DELETE /cart/items/{id}/` — удаление товара
   - Поддержка гостевых корзин через session
-  
 - **Frontend Cart Infrastructure (Epic 12, Story 12.3):**
   - `cartStore.ts` — Zustand store с async операциями и Optimistic Updates
   - `cartService.ts` — API клиент для работы с корзиной
@@ -198,33 +197,35 @@
 > [!IMPORTANT]
 > Все компоненты Epic 26 должны использовать CSS переменные из `globals.css`:
 
-| Токен | CSS Variable | Значение | Использование |
-|-------|-------------|----------|---------------|
-| Primary | `var(--color-primary)` | #0060FF | CTA кнопки, акценты |
-| Primary Hover | `var(--color-primary-hover)` | #0047CC | Hover states |
-| Primary Subtle | `var(--color-primary-subtle)` | #E7F3FF | Фон вторичных кнопок |
-| Text Primary | `var(--color-text-primary)` | #1F2A44 | Основной текст |
-| Text Secondary | `var(--color-text-secondary)` | #4B5C7A | Вторичный текст |
-| Text Inverse | `var(--color-text-inverse)` | #FFFFFF | Текст на primary фоне |
-| Success | `var(--color-accent-success)` | #00AA5B | Скидки, промокод |
-| Danger | `var(--color-accent-danger)` | #E53935 | Удаление, ошибки |
-| Panel Background | `var(--bg-panel)` | #FFFFFF | Фон карточек |
-| Neutral 300 | `var(--color-neutral-300)` | #E3E8F2 | Dividers, hover backgrounds |
-| Neutral 400 | `var(--color-neutral-400)` | #B9C3D6 | Borders |
-| Shadow Default | `var(--shadow-default)` | 0 8px 24px rgba(15, 23, 42, 0.08) | Карточки |
-| Shadow priceBlock | (custom) | 0 18px 40px rgba(0, 55, 166, 0.12) | CartSummary (из ProductSummary.priceBlock) |
-| Radius SM | `var(--radius-sm)` | 6px | Кнопки, inputs |
-| Radius MD | `var(--radius-md)` | 16px | Карточки, CTA |
-| Radius LG | `var(--radius-lg)` | 20px | Summary блок |
-| Radius Default | `var(--radius)` | 12px | Изображения |
-| Focus Ring | `var(--focus-ring)` | 0 0 0 4px rgba(0, 96, 255, 0.12) | Focus states |
+| Токен             | CSS Variable                  | Значение                           | Использование                              |
+| ----------------- | ----------------------------- | ---------------------------------- | ------------------------------------------ |
+| Primary           | `var(--color-primary)`        | #0060FF                            | CTA кнопки, акценты                        |
+| Primary Hover     | `var(--color-primary-hover)`  | #0047CC                            | Hover states                               |
+| Primary Subtle    | `var(--color-primary-subtle)` | #E7F3FF                            | Фон вторичных кнопок                       |
+| Text Primary      | `var(--color-text-primary)`   | #1F2A44                            | Основной текст                             |
+| Text Secondary    | `var(--color-text-secondary)` | #4B5C7A                            | Вторичный текст                            |
+| Text Inverse      | `var(--color-text-inverse)`   | #FFFFFF                            | Текст на primary фоне                      |
+| Success           | `var(--color-accent-success)` | #00AA5B                            | Скидки, промокод                           |
+| Danger            | `var(--color-accent-danger)`  | #E53935                            | Удаление, ошибки                           |
+| Panel Background  | `var(--bg-panel)`             | #FFFFFF                            | Фон карточек                               |
+| Neutral 300       | `var(--color-neutral-300)`    | #E3E8F2                            | Dividers, hover backgrounds                |
+| Neutral 400       | `var(--color-neutral-400)`    | #B9C3D6                            | Borders                                    |
+| Shadow Default    | `var(--shadow-default)`       | 0 8px 24px rgba(15, 23, 42, 0.08)  | Карточки                                   |
+| Shadow priceBlock | (custom)                      | 0 18px 40px rgba(0, 55, 166, 0.12) | CartSummary (из ProductSummary.priceBlock) |
+| Radius SM         | `var(--radius-sm)`            | 6px                                | Кнопки, inputs                             |
+| Radius MD         | `var(--radius-md)`            | 16px                               | Карточки, CTA                              |
+| Radius LG         | `var(--radius-lg)`            | 20px                               | Summary блок                               |
+| Radius Default    | `var(--radius)`               | 12px                               | Изображения                                |
+| Focus Ring        | `var(--focus-ring)`           | 0 0 0 4px rgba(0, 96, 255, 0.12)   | Focus states                               |
 
 **Пример использования:**
 
 ```tsx
 // CartItemCard - правильное использование CSS переменных
-<div className="flex gap-4 p-6 bg-[var(--bg-panel)] rounded-[var(--radius-md)] 
-               shadow-[var(--shadow-default)]">
+<div
+  className="flex gap-4 p-6 bg-[var(--bg-panel)] rounded-[var(--radius-md)] 
+               shadow-[var(--shadow-default)]"
+>
   <h3 className="text-body-l font-semibold text-[var(--color-text-primary)]">
     {item.product.name}
   </h3>
@@ -273,6 +274,6 @@
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-12-07 | 1.0 | Initial brownfield epic creation | Sarah (PO) |
+| Date       | Version | Description                      | Author     |
+| ---------- | ------- | -------------------------------- | ---------- |
+| 2025-12-07 | 1.0     | Initial brownfield epic creation | Sarah (PO) |

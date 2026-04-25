@@ -4,18 +4,18 @@ info:
   description: |
     RESTful API для B2B/B2C платформы спортивных товаров FREESPORT.
     Объединяет 5 торговых марок с дифференцированным ценообразованием.
-    
+
     **Архитектура:** Django REST Framework + PostgreSQL  
     **Frontend:** Next.js 14+ с TypeScript  
     **Auth:** JWT tokens с refresh стратегией
-    
+
     ## Epic 1 Endpoints
     Данная спецификация покрывает Epic 1 user stories (1.1-1.9):
     - Управление пользователями и ролями B2B/B2C
     - Каталог товаров с категориями  
     - Корзина и оформление заказов
     - Поиск и фильтрация товаров
-    
+
   version: 1.0.0
   contact:
     name: FREESPORT Development Team
@@ -27,7 +27,7 @@ info:
 servers:
   - url: https://api.freesport.ru/v1
     description: Production API
-  - url: https://staging-api.freesport.ru/v1  
+  - url: https://staging-api.freesport.ru/v1
     description: Staging API
   - url: http://localhost:8001/api/v1
     description: Local Development
@@ -70,10 +70,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserRegistration'
+              $ref: "#/components/schemas/UserRegistration"
             examples:
               b2c_user:
-                summary: B2C пользователь  
+                summary: B2C пользователь
                 value:
                   email: "user@example.com"
                   password: "SecurePass123"
@@ -93,18 +93,18 @@ paths:
                   tax_id: "1234567890"
                   role: "wholesale_level1"
       responses:
-        '201':
+        "201":
           description: Пользователь успешно зарегистрирован
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserRegistrationResponse'
-        '400':
+                $ref: "#/components/schemas/UserRegistrationResponse"
+        "400":
           description: Ошибка валидации данных
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/login/:
     post:
@@ -118,21 +118,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Login'
+              $ref: "#/components/schemas/Login"
       responses:
-        '200':
+        "200":
           description: Успешная аутентификация
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '401':
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
           description: Неверные учетные данные
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                $ref: "#/components/schemas/Error"
+        "403":
           description: Аккаунт ожидает верификации (Epic 29.2)
           content:
             application/json:
@@ -164,7 +164,7 @@ paths:
                   description: Refresh token
               required: [refresh]
       responses:
-        '200':
+        "200":
           description: Новый access token
           content:
             application/json:
@@ -174,12 +174,12 @@ paths:
                   access:
                     type: string
                     description: Новый JWT access token
-        '401':
+        "401":
           description: Недействительный refresh токен
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /auth/logout/:
     post:
@@ -216,10 +216,10 @@ paths:
                   example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTcwNzg0OTYwMCwiaWF0IjoxNzA1MjU3NjAwLCJqdGkiOiJhYmNkZWYxMjM0NTYiLCJ1c2VyX2lkIjoxfQ.xyz123"
 
       responses:
-        '204':
+        "204":
           description: Токен успешно инвалидирован. Пользователь разлогинен.
 
-        '400':
+        "400":
           description: Невалидный, истекший или уже инвалидированный токен
           content:
             application/json:
@@ -230,7 +230,7 @@ paths:
                     type: string
                     example: "Invalid or expired token"
 
-        '401':
+        "401":
           description: Пользователь не аутентифицирован
           content:
             application/json:
@@ -251,19 +251,19 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Профиль пользователя
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
-        '401':
+                $ref: "#/components/schemas/UserProfile"
+        "401":
           description: Не авторизован
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-    
+                $ref: "#/components/schemas/Error"
+
     patch:
       tags: [Users]
       summary: Обновить профиль пользователя
@@ -274,14 +274,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserProfileUpdate'
+              $ref: "#/components/schemas/UserProfileUpdate"
       responses:
-        '200':
+        "200":
           description: Профиль успешно обновлен
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                $ref: "#/components/schemas/UserProfile"
 
   # =============================================================================
   # PRODUCTS CATALOG
@@ -301,18 +301,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Реквизиты компании
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Company'
-        '403':
+                $ref: "#/components/schemas/Company"
+        "403":
           description: Доступ запрещён (не B2B пользователь)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
     put:
       tags: [Users]
       summary: Обновить реквизиты компании
@@ -326,15 +326,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CompanyUpdate'
+              $ref: "#/components/schemas/CompanyUpdate"
       responses:
-        '200':
+        "200":
           description: Реквизиты успешно обновлены
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Company'
-        '403':
+                $ref: "#/components/schemas/Company"
+        "403":
           description: Доступ запрещён (не B2B пользователь)
   /products/:
     get:
@@ -369,7 +369,7 @@ paths:
           in: query
           schema:
             type: number
-            format: decimal  
+            format: decimal
           description: Максимальная цена
         - name: in_stock
           in: query
@@ -397,12 +397,12 @@ paths:
             default: -created_at
           description: Сортировка результатов
       responses:
-        '200':
+        "200":
           description: Список товаров
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductList'
+                $ref: "#/components/schemas/ProductList"
 
   /products/{id}/:
     get:
@@ -416,18 +416,18 @@ paths:
             type: integer
           description: ID товара
       responses:
-        '200':
+        "200":
           description: Детали товара
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductDetail'
-        '404':
+                $ref: "#/components/schemas/ProductDetail"
+        "404":
           description: Товар не найден
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   # =============================================================================
   # CATEGORIES
@@ -451,14 +451,14 @@ paths:
             type: integer
           description: Максимальный уровень вложенности
       responses:
-        '200':
+        "200":
           description: Дерево категорий
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Category'
+                  $ref: "#/components/schemas/Category"
 
   /categories/{id}/:
     get:
@@ -471,12 +471,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Детали категории
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CategoryDetail'
+                $ref: "#/components/schemas/CategoryDetail"
 
   # =============================================================================
   # SHOPPING CART
@@ -488,18 +488,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Содержимое корзины
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cart'
-        '401':
+                $ref: "#/components/schemas/Cart"
+        "401":
           description: Не авторизован
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /cart/items/:
     post:
@@ -512,20 +512,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CartItemCreate'
+              $ref: "#/components/schemas/CartItemCreate"
       responses:
-        '201':
+        "201":
           description: Товар добавлен в корзину
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CartItem'
-        '400':
+                $ref: "#/components/schemas/CartItem"
+        "400":
           description: Ошибка валидации
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /cart/items/{id}/:
     patch:
@@ -552,12 +552,12 @@ paths:
                   minimum: 1
               required: [quantity]
       responses:
-        '200':
+        "200":
           description: Количество обновлено
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CartItem'
+                $ref: "#/components/schemas/CartItem"
 
     delete:
       tags: [Cart]
@@ -571,7 +571,7 @@ paths:
           schema:
             type: integer
       responses:
-        '204':
+        "204":
           description: Товар удален из корзины
 
   # =============================================================================
@@ -588,7 +588,8 @@ paths:
           in: query
           schema:
             type: string
-            enum: [pending, confirmed, processing, shipped, delivered, cancelled]
+            enum:
+              [pending, confirmed, processing, shipped, delivered, cancelled]
           description: Фильтр по статусу заказа
         - name: page
           in: query
@@ -596,12 +597,12 @@ paths:
             type: integer
             default: 1
       responses:
-        '200':
+        "200":
           description: Список заказов
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderList'
+                $ref: "#/components/schemas/OrderList"
 
     post:
       tags: [Orders]
@@ -616,14 +617,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OrderCreate'
+              $ref: "#/components/schemas/OrderCreate"
       responses:
-        '201':
+        "201":
           description: Заказ успешно создан
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderDetail'
+                $ref: "#/components/schemas/OrderDetail"
 
   /orders/{id}/:
     get:
@@ -638,15 +639,15 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Детали заказа
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderDetail'
-        '403':
+                $ref: "#/components/schemas/OrderDetail"
+        "403":
           description: Доступ запрещен
-        '404':
+        "404":
           description: Заказ не найден
 
   # =============================================================================
@@ -670,14 +671,14 @@ paths:
             type: boolean
             default: false
       responses:
-        '200':
+        "200":
           description: Список атрибутов для фильтрации
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/AttributeFilter'
+                  $ref: "#/components/schemas/AttributeFilter"
 
   # =============================================================================
   # BANNERS
@@ -689,16 +690,16 @@ paths:
       description: |
         Возвращает список активных баннеров, отфильтрованных по роли пользователя.
         Для неавторизованных пользователей возвращаются баннеры с show_to_guests=true.
-      security: []  # Опциональная авторизация
+      security: [] # Опциональная авторизация
       responses:
-        '200':
+        "200":
           description: Список баннеров
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Banner'
+                  $ref: "#/components/schemas/Banner"
 
   # =============================================================================
   # PAGES
@@ -711,14 +712,14 @@ paths:
         Возвращает список всех опубликованных статических страниц.
         Результат кэшируется на 24 часа для лучшей производительности.
       responses:
-        '200':
+        "200":
           description: Список статических страниц
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Page'
+                  $ref: "#/components/schemas/Page"
 
   /pages/{slug}/:
     get:
@@ -736,23 +737,23 @@ paths:
           description: URL slug страницы
           example: "about-company"
       responses:
-        '200':
+        "200":
           description: Содержимое страницы
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PageDetail'
+                $ref: "#/components/schemas/PageDetail"
           headers:
             Cache-Control:
               schema:
                 type: string
               description: "public, max-age=86400"
-        '404':
+        "404":
           description: Страница не найдена
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
 # =============================================================================
 # COMPONENTS SCHEMAS
@@ -792,7 +793,16 @@ components:
           description: Телефон в формате +7XXXXXXXXXX
         role:
           type: string
-          enum: [retail, wholesale_level1, wholesale_level2, wholesale_level3, trainer, federation_rep, admin]
+          enum:
+            [
+              retail,
+              wholesale_level1,
+              wholesale_level2,
+              wholesale_level3,
+              trainer,
+              federation_rep,
+              admin,
+            ]
           description: Роль пользователя
         company_name:
           type: string
@@ -844,7 +854,7 @@ components:
           type: string
           description: JWT refresh token (срок действия 7 дней)
         user:
-          $ref: '#/components/schemas/UserProfile'
+          $ref: "#/components/schemas/UserProfile"
 
     # User Schemas
     UserProfile:
@@ -863,7 +873,16 @@ components:
           type: string
         role:
           type: string
-          enum: [retail, wholesale_level1, wholesale_level2, wholesale_level3, trainer, federation_rep, admin]
+          enum:
+            [
+              retail,
+              wholesale_level1,
+              wholesale_level2,
+              wholesale_level3,
+              trainer,
+              federation_rep,
+              admin,
+            ]
         company_name:
           type: string
           nullable: true
@@ -973,7 +992,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/Product'
+            $ref: "#/components/schemas/Product"
 
     Product:
       type: object
@@ -993,12 +1012,12 @@ components:
           type: string
           description: Краткое описание
         category:
-          $ref: '#/components/schemas/CategoryBreadcrumb'
+          $ref: "#/components/schemas/CategoryBreadcrumb"
         brand:
           type: string
           description: Бренд товара
         price:
-          $ref: '#/components/schemas/Price'
+          $ref: "#/components/schemas/Price"
         stock_quantity:
           type: integer
           description: Количество на складе
@@ -1009,7 +1028,7 @@ components:
         images:
           type: array
           items:
-            $ref: '#/components/schemas/ProductImage'
+            $ref: "#/components/schemas/ProductImage"
         rating:
           type: number
           format: float
@@ -1027,7 +1046,7 @@ components:
 
     ProductDetail:
       allOf:
-        - $ref: '#/components/schemas/Product'
+        - $ref: "#/components/schemas/Product"
         - type: object
           properties:
             full_description:
@@ -1045,12 +1064,12 @@ components:
             variants:
               type: array
               items:
-                $ref: '#/components/schemas/ProductVariant'
+                $ref: "#/components/schemas/ProductVariant"
               description: Варианты товара (цвет, размер, цены, остатки)
             related_products:
               type: array
               items:
-                $ref: '#/components/schemas/Product'
+                $ref: "#/components/schemas/Product"
               description: Похожие товары
 
     ProductImage:
@@ -1199,18 +1218,18 @@ components:
         children:
           type: array
           items:
-            $ref: '#/components/schemas/Category'
+            $ref: "#/components/schemas/Category"
           description: Дочерние категории
 
     CategoryDetail:
       allOf:
-        - $ref: '#/components/schemas/Category'
+        - $ref: "#/components/schemas/Category"
         - type: object
           properties:
             breadcrumbs:
               type: array
               items:
-                $ref: '#/components/schemas/CategoryBreadcrumb'
+                $ref: "#/components/schemas/CategoryBreadcrumb"
 
     CategoryBreadcrumb:
       type: object
@@ -1233,7 +1252,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/CartItem'
+            $ref: "#/components/schemas/CartItem"
         total_items:
           type: integer
           description: Общее количество товаров
@@ -1254,7 +1273,7 @@ components:
         id:
           type: integer
         product:
-          $ref: '#/components/schemas/Product'
+          $ref: "#/components/schemas/Product"
         quantity:
           type: integer
           minimum: 1
@@ -1298,7 +1317,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/Order'
+            $ref: "#/components/schemas/Order"
 
     Order:
       type: object
@@ -1326,17 +1345,17 @@ components:
 
     OrderDetail:
       allOf:
-        - $ref: '#/components/schemas/Order'
+        - $ref: "#/components/schemas/Order"
         - type: object
           properties:
             items:
               type: array
               items:
-                $ref: '#/components/schemas/OrderItem'
+                $ref: "#/components/schemas/OrderItem"
             shipping_address:
-              $ref: '#/components/schemas/Address'
+              $ref: "#/components/schemas/Address"
             legal_address:
-              $ref: '#/components/schemas/Address'
+              $ref: "#/components/schemas/Address"
             payment_method:
               type: string
             delivery_method:
@@ -1351,7 +1370,7 @@ components:
         id:
           type: integer
         product:
-          $ref: '#/components/schemas/Product'
+          $ref: "#/components/schemas/Product"
         quantity:
           type: integer
         unit_price:
@@ -1367,9 +1386,9 @@ components:
       required: [shipping_address, payment_method, delivery_method]
       properties:
         shipping_address:
-          $ref: '#/components/schemas/AddressCreate'
+          $ref: "#/components/schemas/AddressCreate"
         legal_address:
-          $ref: '#/components/schemas/AddressCreate'
+          $ref: "#/components/schemas/AddressCreate"
         payment_method:
           type: string
           enum: [card, cash, bank_transfer]
@@ -1452,7 +1471,7 @@ components:
           type: array
           description: Список значений атрибута для фильтрации
           items:
-            $ref: '#/components/schemas/AttributeValueFilter'
+            $ref: "#/components/schemas/AttributeValueFilter"
 
     AttributeValueFilter:
       type: object
@@ -1529,7 +1548,7 @@ components:
 
     PageDetail:
       allOf:
-        - $ref: '#/components/schemas/Page'
+        - $ref: "#/components/schemas/Page"
         - type: object
           properties:
             content:

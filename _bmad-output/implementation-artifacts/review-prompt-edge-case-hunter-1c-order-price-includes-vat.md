@@ -27,4 +27,3 @@
 - только actionable findings;
 - для каждой находки: severity, file/line, scenario, consequence;
 - если находок нет, явно напиши `Находок нет`.
-

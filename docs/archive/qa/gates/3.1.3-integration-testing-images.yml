@@ -38,7 +38,7 @@ evidence:
   risks_identified: 2
   trace:
     ac_covered: [1, 2, 3, 4]
-    ac_gaps: []  # Все AC имеют тестовое покрытие
+    ac_gaps: [] # Все AC имеют тестовое покрытие
 
 nfr_validation:
   security:

@@ -1,13 +1,22 @@
 ---
-title: 'Fix Marketing Banner Rotation - Issues Resolution'
-slug: 'fix-marketing-banner-rotation-issues'
-created: '2026-02-17T16:18:00'
-status: 'completed'
-stepsCompleted: ['implementation', 'testing', 'documentation']
-tech_stack: ['Next.js', 'React 19', 'Embla Carousel', 'TypeScript']
-files_to_modify: ['frontend/src/hooks/useBannerCarousel.ts', 'frontend/src/components/home/MarketingBannersSection.tsx']
-code_patterns: ['Custom Hook (useBannerCarousel)', 'Service Layer (bannersService)', 'Container/Presenter']
-test_patterns: ['Vitest', 'React Testing Library', 'Mocking (vi.mock)']
+title: "Fix Marketing Banner Rotation - Issues Resolution"
+slug: "fix-marketing-banner-rotation-issues"
+created: "2026-02-17T16:18:00"
+status: "completed"
+stepsCompleted: ["implementation", "testing", "documentation"]
+tech_stack: ["Next.js", "React 19", "Embla Carousel", "TypeScript"]
+files_to_modify:
+  [
+    "frontend/src/hooks/useBannerCarousel.ts",
+    "frontend/src/components/home/MarketingBannersSection.tsx",
+  ]
+code_patterns:
+  [
+    "Custom Hook (useBannerCarousel)",
+    "Service Layer (bannersService)",
+    "Container/Presenter",
+  ]
+test_patterns: ["Vitest", "React Testing Library", "Mocking (vi.mock)"]
 ---
 
 # Tech-Spec: Fix Marketing Banner Rotation - Issues Resolution
@@ -27,12 +36,14 @@ Address all identified issues ranging from critical error handling to code quali
 ### Scope
 
 **In Scope:**
+
 - `frontend/src/hooks/useBannerCarousel.ts` - Critical fixes for autoplay logic
 - `frontend/src/components/home/MarketingBannersSection.tsx` - Configuration improvements
 - Tests for new functionality
 - Documentation updates
 
 **Out of Scope:**
+
 - Hero Section.
 - Backend API.
 
@@ -41,24 +52,15 @@ Address all identified issues ranging from critical error handling to code quali
 ### Issues from Adversarial Review
 
 **Critical Issues:**
+
 1. **Error Handling:** No error handling when accessing `emblaApi.plugins().autoplay`
 2. **Race Conditions:** useEffect for autoplay may have race conditions
 
-**High Priority Issues:**
-3. **Hardcoded Values:** 3000ms is hardcoded instead of configurable
-4. **Missing Tests:** New useEffect logic is not covered by tests
-5. **Performance Issues:** useEffect fires on every emblaApi change
+**High Priority Issues:** 3. **Hardcoded Values:** 3000ms is hardcoded instead of configurable 4. **Missing Tests:** New useEffect logic is not covered by tests 5. **Performance Issues:** useEffect fires on every emblaApi change
 
-**Medium Priority Issues:**
-6. **Logic Duplication:** Multiple useEffect instances
-7. **Incomplete Implementation:** Only play() called, no stop/pause handling
-8. **Missing Documentation:** New useEffect not documented
+**Medium Priority Issues:** 6. **Logic Duplication:** Multiple useEffect instances 7. **Incomplete Implementation:** Only play() called, no stop/pause handling 8. **Missing Documentation:** New useEffect not documented
 
-**Low Priority Issues:**
-9. **Style Changes:** Unnecessary formatting changes in diff
-10. **Method Validation:** No validation that play() method exists
-11. **Memory Leaks:** Potential leaks when emblaApi is destroyed
-12. **UX Justification:** 3000ms value lacks UX research backing
+**Low Priority Issues:** 9. **Style Changes:** Unnecessary formatting changes in diff 10. **Method Validation:** No validation that play() method exists 11. **Memory Leaks:** Potential leaks when emblaApi is destroyed 12. **UX Justification:** 3000ms value lacks UX research backing
 
 ## Implementation Plan
 

@@ -30,25 +30,25 @@ So that **заказы передаются по стандартному про
 - [x] Task 2: Реализация `handle_query` (AC: 1, 2, 3)
   - [x] 2.1: Добавить обработку `mode=query` в метод `get()` класса `ICExchangeView`.
   - [x] 2.2: В `handle_query`:
-      - Зафиксировать текущее время `query_time`.
-      - Сохранить `request.session['last_1c_query_time'] = query_time` (для Task 3).
-      - Выбрать заказы `Order.objects.filter(sent_to_1c=False, created_at__lte=query_time)` с `prefetch_related`.
+    - Зафиксировать текущее время `query_time`.
+    - Сохранить `request.session['last_1c_query_time'] = query_time` (для Task 3).
+    - Выбрать заказы `Order.objects.filter(sent_to_1c=False, created_at__lte=query_time)` с `prefetch_related`.
   - [x] 2.3: Вызвать `OrderExportService.generate_xml(orders)`.
   - [x] 2.4: Если заказов нет, вернуть пустой `CommmerceInfo` или корректный пустой ответ (проверить спецификацию, обычно пустой container).
   - [x] 2.5: Обработка `zip=yes`:
-      - Создать in-memory zip (io.BytesIO).
-      - Записать XML в архив как `orders.xml`.
-      - Вернуть `HttpResponse` с content-type `application/zip` и заголовком `filename=orders.zip`.
+    - Создать in-memory zip (io.BytesIO).
+    - Записать XML в архив как `orders.xml`.
+    - Вернуть `HttpResponse` с content-type `application/zip` и заголовком `filename=orders.zip`.
   - [x] 2.6: Если `zip=no` (по умолчанию), вернуть XML (`application/xml`).
   - [x] 2.7: Сохранить копию ответа в лог (Task 1).
 
 - [x] Task 3: Реализация `handle_success` (AC: 4, 5)
   - [x] 3.1: Добавить обработку `mode=success` в метод `get()` класса `ICExchangeView`.
   - [x] 3.2: В `handle_success`:
-      - Использовать timestamp последнего `mode=query` (сохранённый в сессии пользователя в Task 2).
-      - Обновить `sent_to_1c=True` только для заказов, где `sent_to_1c=False` И `created_at <= last_query_timestamp`.
-      - Если timestamp в сессии нет (сессия истекла или прямой вызов), логировать warning и ничего не обновлять (или обновлять с осторожностью/возвращать ошибку).
-      - **Цель:** Исключить Race Condition, когда новые заказы, пришедшие между query и success, помечаются как выгруженные.
+    - Использовать timestamp последнего `mode=query` (сохранённый в сессии пользователя в Task 2).
+    - Обновить `sent_to_1c=True` только для заказов, где `sent_to_1c=False` И `created_at <= last_query_timestamp`.
+    - Если timestamp в сессии нет (сессия истекла или прямой вызов), логировать warning и ничего не обновлять (или обновлять с осторожностью/возвращать ошибку).
+    - **Цель:** Исключить Race Condition, когда новые заказы, пришедшие между query и success, помечаются как выгруженные.
   - [x] 3.3: Вернуть "success".
 
 - [x] Task 4: Integration Tests (AC: 7, 8)
@@ -66,7 +66,7 @@ So that **заказы передаются по стандартному про
 
 ### Review Follow-ups (AI - Cycle 3)
 
-- [x] [AI-Review][HIGH] **OOM Risk (Logging):** `handle_query` streams XML/ZIP to temp file effectively, but then calls `f.read()` to load the *entire* content back into RAM for `_save_exchange_log`. This defeats the purpose of streaming and risks OOM on large exports. Must use file copying (shutil.copy) or stream piping for logging. `backend/apps/integrations/onec_exchange/views.py`
+- [x] [AI-Review][HIGH] **OOM Risk (Logging):** `handle_query` streams XML/ZIP to temp file effectively, but then calls `f.read()` to load the _entire_ content back into RAM for `_save_exchange_log`. This defeats the purpose of streaming and risks OOM on large exports. Must use file copying (shutil.copy) or stream piping for logging. `backend/apps/integrations/onec_exchange/views.py`
 - [x] [AI-Review][MEDIUM] **Brittle Process Dependency:** `handle_success` strictly requires `exported_ids` from Redis (1h TTL). If 1C import exceeds 1h or Redis flushes, the batch cannot be confirmed (HTTP 400). Consider fallback: if cache missing, use time-window update (with strict bounded overlap check) or persist exchange state to DB (`ExchangeSession`).
 - [x] [AI-Review][LOW] **Test Gap:** No regression test ensures streaming actually streams (i.e., minimal RAM usage). A future refactor could revert to `list(generator)` without tests failing. Add a memory-profiling test or mock verification that chunks are written iteratively.
 
@@ -74,7 +74,6 @@ So that **заказы передаются по стандартному про
 
 - [x] [AI-Review][MEDIUM] **Documentation Discrepancy:** `backend/apps/orders/signals.py` was modified (added `orders_bulk_updated` signal) but is NOT listed in the Story's "File List". [action:document]
 - [x] [AI-Review][LOW] **Clean Code (Imports):** `backend/apps/integrations/onec_exchange/views.py` imports `orders_bulk_updated` inside `handle_success` method. Should be a top-level import. [file:backend/apps/integrations/onec_exchange/views.py:390]
-
 
 - [x] [AI-Review][HIGH] **Concurrency Risk:** `_get_exchange_identity` uses shared key "shared_1c_exchange" for all auth users, causing race conditions. Must return unique sessid. `backend/apps/integrations/onec_exchange/views.py`
 - [x] [AI-Review][MEDIUM] **OOM Risk:** `handle_query` (zip=no) materializes full XML in RAM using "".join(). switch to StreamingHttpResponse. `backend/apps/integrations/onec_exchange/views.py`
@@ -86,7 +85,7 @@ So that **заказы передаются по стандартному про
 - [x] [AI-Review][MEDIUM] Duplicate imports (transaction, zipfile, logging) inside methods. backend/apps/integrations/onec_exchange/views.py
 - [x] [AI-Review][LOW] Hardcoded log path string '1c_exchange/logs'. backend/apps/integrations/onec_exchange/views.py
 - [x] [AI-Review][CRITICAL] **Data Integrity Mismatch:** `handle_success` marks ALL orders in the query timeframe as `sent_to_1c`, ignoring `OrderExportService` validation logic. Orders skipped during XML generation (e.g., empty orders) are incorrectly marked as "Sent" in the database without being exported. `backend/apps/integrations/onec_exchange/views.py`
-- [x] [AI-Review][MEDIUM] **State Integrity:** `handle_query` updates the session state (`last_1c_query_time`) *before* successful XML generation. If generation fails (500 Error), the session remains "dirty", potentially leading to desync if 1C retries or forces success. `backend/apps/integrations/onec_exchange/views.py`
+- [x] [AI-Review][MEDIUM] **State Integrity:** `handle_query` updates the session state (`last_1c_query_time`) _before_ successful XML generation. If generation fails (500 Error), the session remains "dirty", potentially leading to desync if 1C retries or forces success. `backend/apps/integrations/onec_exchange/views.py`
 - [x] [AI-Review][LOW] **Performance:** `handle_query` generates full XML into memory (`"".join()`) before response. While necessary for ZIP mode, this risks OOM on very large exports. `backend/apps/integrations/onec_exchange/views.py`
 - [x] [AI-Review][CRITICAL] **Ошибка бизнес-логики:** `handle_query` фильтрует `user__isnull=False`, что некорректно отбрасывает гостевые B2C заказы. Это вызывает расхождение данных о выручке в 1С. `backend/apps/integrations/onec_exchange/views.py:540`
 - [x] [AI-Review][CRITICAL] **Риск безопасности/конфиденциальности (PII):** Логи обмена (XML/ZIP), содержащие персональные данные клиентов, сохраняются в `MEDIA_ROOT/1c_exchange/logs/`, который доступен публично. Логи должны быть перенесены в приватную/защищенную директорию. `backend/apps/integrations/onec_exchange/views.py:30`
@@ -108,14 +107,11 @@ So that **заказы передаются по стандартному про
 - [x] [AI-Review][CRITICAL] **Data Corruption Risk (Race Condition):** `ImportOrchestratorService.execute()` transfers and unpacks files into `import_dir` even if a session is `IN_PROGRESS`. This modifies the working directory of a running import, ensuring chaos and data corruption. `backend/apps/integrations/onec_exchange/import_orchestrator.py:59`
 - [x] [AI-Review][MEDIUM] **Performance / OOM Risk:** `OrderExportService.generate_xml` materializes the entire XML output into a single RAM string (`"".join()`). Compressing large queries (ZIP mode) multiplies this memory pressure. For B2B catalogs, this will crash the worker. `backend/apps/orders/services/order_export.py:78`
 
-
 ### Review Follow-ups (AI - Cycle 4)
 
 - [x] [AI-Review][MEDIUM] **Блокировка при синхронной отправке Email:** Функция `send_order_confirmation_email` отправляет письма синхронно в `post_save`. Необходимо вынести в Celery. `backend/apps/orders/signals.py`
 - [x] [AI-Review][MEDIUM] **Риск синхронного импорта:** `ImportOrchestratorService.execute` выполняет импорт синхронно. Большие файлы могут привести к таймаутам Nginx. `backend/apps/integrations/onec_exchange/import_orchestrator.py`
 - [x] [AI-Review][LOW] **Неоднозначность сигнала:** Полезная нагрузка сигнала `orders_bulk_updated` может не соответствовать фактическому количеству обновленных записей. `backend/apps/integrations/onec_exchange/views.py`
-
-
 
 ## Dev Notes
 
@@ -221,7 +217,6 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - ✅ Resolved review finding [LOW]: Moved import-related tests (TestImportOrchestratorService, TestAsyncImportDispatch, TestFinalizeBatchReliability, TestTransferFilesUnified, TestZipSlipProtection) from `test_onec_export.py` to new `test_onec_import.py`.
 - ✅ Resolved review finding [LOW]: Added 3 view-level integration tests for `GET /?mode=complete` (TestModeComplete) verifying delegation to orchestrator, error handling, and missing sessid.
 
-
 ### Review Follow-ups (AI - Cycle 5)
 
 - [x] [AI-Review][MEDIUM] **Reliability:** `ImportOrchestratorService.finalize_batch` swallows file transfer errors. If moving files fails, it logs error but returns "success" to 1C. Must fail hard or return warning. `backend/apps/integrations/onec_exchange/import_orchestrator.py`
@@ -241,7 +236,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - 2026-02-01: Addressed code review findings — 3 items resolved (1 CRITICAL, 1 MEDIUM, 1 LOW).
 - 2026-02-01: Review performed (2nd iteration). 3 issues found (1 CRITICAL, 1 MEDIUM, 1 LOW). Status reverted to in-progress.
 - 2026-02-01: Addressed 2nd code review findings — 3 items resolved (1 CRITICAL, 1 MEDIUM, 1 LOW). Added `generate_xml_with_ids()` to track exported orders. handle_success now uses exact PK list. Session state moved after XML generation. New test added.
-- 2026-02-01: Addressed 3rd code review findings — 3 items resolved (2 CRITICAL, 1 MEDIUM). Removed user__isnull=False filter (guest orders), moved audit logs to private dir, added getattr for ONEC_EXCHANGE config. 3 new tests added (17 total).
+- 2026-02-01: Addressed 3rd code review findings — 3 items resolved (2 CRITICAL, 1 MEDIUM). Removed user\_\_isnull=False filter (guest orders), moved audit logs to private dir, added getattr for ONEC_EXCHANGE config. 3 new tests added (17 total).
 - 2026-02-01: Addressed 4th code review findings — 3 items resolved (1 CRITICAL, 2 MEDIUM). Zip Slip protection, version sync, configurable units. 5 new tests added (22 total).
 - 2026-02-01: Addressed 5th code review findings — 3 items resolved (1 MEDIUM, 2 LOW). Fat View→ImportOrchestratorService, session bloat→cache, hardcoded filenames→constants. 7 new tests added (29 total).
 - 2026-02-01: Addressed 6th code review findings — 2 items resolved (1 MEDIUM, 1 LOW). Cache eviction→400 error, top-level import. 2 new tests added (31 total).
@@ -254,7 +249,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - 2026-02-01: Review performed (Cycle 3). 3 issues found (1 HIGH, 1 MEDIUM, 1 LOW). Action items created. Status reverted to in-progress.
 - 2026-02-01: Addressed Cycle 3 findings — 3 items resolved (1 HIGH, 1 MEDIUM, 1 LOW). shutil.copy2 for logging, time-window fallback, streaming tests. 33 tests total.
 - 2026-02-02: Addressed Cycle 4 findings — 3 items resolved (2 MEDIUM, 1 LOW). Async email via Celery, async import dispatch, signal payload accuracy. 38 tests total. Status → review.
-- 2026-02-02: Addressed Cycle 5 findings — 3 items resolved (1 MEDIUM, 2 LOW). finalize_batch error propagation, unified _transfer_files, SITE_URL fallback. 44 tests total.
+- 2026-02-02: Addressed Cycle 5 findings — 3 items resolved (1 MEDIUM, 2 LOW). finalize_batch error propagation, unified \_transfer_files, SITE_URL fallback. 44 tests total.
 - 2026-02-02: Review performed (Cycle 6). 3 LOW issues found. Action items created. Status → done.
 - 2026-02-02: Addressed Cycle 6 findings — 3 items resolved (3 LOW). Removed dead code `generate_xml_with_ids`, moved import tests to `test_onec_import.py`, added 3 view-level tests for `mode=complete`.
 

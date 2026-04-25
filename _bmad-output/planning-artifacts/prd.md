@@ -51,34 +51,36 @@ The objective of this feature is to enhance the FREESPORT homepage (Blue Theme) 
 
 ### User Success
 
-*   **Visibility**: User sees a clearly labeled "Brands" section with a carousel of logos immediately below the marketing banner on the homepage.
-*   **Interactivity**: The carousel is interactive (scroll/swipe) and supports hover animations for feedback.
-*   **Navigation**: Clicking a brand logo navigates the user to the catalog page pre-filtered by that specific brand.
-*   **Aesthetics**: The design uses black logos to match the light theme aesthetic.
+- **Visibility**: User sees a clearly labeled "Brands" section with a carousel of logos immediately below the marketing banner on the homepage.
+- **Interactivity**: The carousel is interactive (scroll/swipe) and supports hover animations for feedback.
+- **Navigation**: Clicking a brand logo navigates the user to the catalog page pre-filtered by that specific brand.
+- **Aesthetics**: The design uses black logos to match the light theme aesthetic.
 
 ### Business Success
 
-*   **Brand Exposure**: Increased visibility for key brands on the homepage.
-*   **UX Improvement**: Streamlined navigation for brand-loyal customers.
-*   **Content Management**: Ability to manage featured brands and their logos directly via the admin panel.
+- **Brand Exposure**: Increased visibility for key brands on the homepage.
+- **UX Improvement**: Streamlined navigation for brand-loyal customers.
+- **Content Management**: Ability to manage featured brands and their logos directly via the admin panel.
 
 ### Technical Success
 
-*   **Frontend**: `BrandsBlock` component implemented in the `(blue)` theme with responsive design and optimized images.
-*   **Backend**: `Brand` model updated with `image` and `is_featured` fields, including validation logic.
-*   **Performance**: Zero layout shift (CLS) and smooth 60fps animations.
+- **Frontend**: `BrandsBlock` component implemented in the `(blue)` theme with responsive design and optimized images.
+- **Backend**: `Brand` model updated with `image` and `is_featured` fields, including validation logic.
+- **Performance**: Zero layout shift (CLS) and smooth 60fps animations.
 
 ## Product Scope & Roadmap
 
 ### MVP - Minimum Viable Product (Phase 1)
 
 **Backend (Django):**
+
 1.  Update `Brand` model in `apps/products` with `image` (ImageField) and `is_featured` (BooleanField).
 2.  Implement validation: `is_featured` requires `image`.
 3.  Add "Show on Homepage" (`is_featured`) checkbox to Admin.
 4.  Expose/Update API endpoint to filter brands by `is_featured=True`.
 
 **Frontend (Next.js):**
+
 1.  Create `BrandsBlock` component in `frontend/src/components/business/home/`.
 2.  Implement Server-Side Rendering (SSR) data fetching for featured brands.
 3.  Render responsive carousel with `next/image` using black logo images.
@@ -88,8 +90,8 @@ The objective of this feature is to enhance the FREESPORT homepage (Blue Theme) 
 
 ### Growth Features (Post-MVP)
 
-*   **Phase 2**: manual drag-and-drop ordering of brands in the admin panel.
-*   **Phase 3**: Support for colored logos on hover (if design requirements change).
+- **Phase 2**: manual drag-and-drop ordering of brands in the admin panel.
+- **Phase 3**: Support for colored logos on hover (if design requirements change).
 
 ## User Journeys
 
@@ -118,42 +120,42 @@ The objective of this feature is to enhance the FREESPORT homepage (Blue Theme) 
 
 ### Brand Management (Admin)
 
-*   **FR-01**: Admin can upload an image (logo) for a `Brand` entity.
-*   **FR-02**: Admin can toggle a `Show on Homepage` (`is_featured`) flag for a `Brand`.
-*   **FR-03**: System must prevent enabling `Show on Homepage` if no image is uploaded for the brand.
-*   **FR-04**: Admin can remove a brand from the homepage by disabling the flag.
+- **FR-01**: Admin can upload an image (logo) for a `Brand` entity.
+- **FR-02**: Admin can toggle a `Show on Homepage` (`is_featured`) flag for a `Brand`.
+- **FR-03**: System must prevent enabling `Show on Homepage` if no image is uploaded for the brand.
+- **FR-04**: Admin can remove a brand from the homepage by disabling the flag.
 
 ### Brand Display (User)
 
-*   **FR-05**: User can view a "Brands" section on the homepage (Blue Theme).
-*   **FR-06**: User can view a carousel/list of brands marked as `is_featured`.
-*   **FR-07**: User sees a visual hover effect (animation) when interacting with a brand logo.
+- **FR-05**: User can view a "Brands" section on the homepage (Blue Theme).
+- **FR-06**: User can view a carousel/list of brands marked as `is_featured`.
+- **FR-07**: User sees a visual hover effect (animation) when interacting with a brand logo.
 
 ### Navigation
 
-*   **FR-08**: User can click on a brand logo.
-*   **FR-09**: Clicking a logo navigates the user to the catalog page with the brand filter active (`/catalog?brand={slug}`).
+- **FR-08**: User can click on a brand logo.
+- **FR-09**: Clicking a logo navigates the user to the catalog page with the brand filter active (`/catalog?brand={slug}`).
 
 ### Data Availability
 
-*   **FR-10**: System provides a public API endpoint to retrieve only `is_featured` brands.
+- **FR-10**: System provides a public API endpoint to retrieve only `is_featured` brands.
 
 ## Non-Functional Requirements
 
 ### Performance & Optimization
 
-*   **Image Optimization**: All brand logos must be served in next-gen formats (WebP/AVIF) via Next.js Image component and should not exceed 50KB.
-*   **CLS (Cumulative Layout Shift)**: The brands block container must define explicit dimensions to prevent layout shift during loading.
-*   **SSR**: The list of featured brands must be rendered on the server (SSR) to ensure immediate visibility and SEO indexability.
+- **Image Optimization**: All brand logos must be served in next-gen formats (WebP/AVIF) via Next.js Image component and should not exceed 50KB.
+- **CLS (Cumulative Layout Shift)**: The brands block container must define explicit dimensions to prevent layout shift during loading.
+- **SSR**: The list of featured brands must be rendered on the server (SSR) to ensure immediate visibility and SEO indexability.
 
 ### Usability & Accessibility
 
-*   **Keyboard Navigation**: The carousel component must be navigable using keyboard controls (Tab to focus, Arrows to scroll).
-*   **Touch Support**: The carousel must support swipe gestures on mobile devices.
-*   **Contrast**: Background and logo colors must meet WCAG AA contrast standards.
+- **Keyboard Navigation**: The carousel component must be navigable using keyboard controls (Tab to focus, Arrows to scroll).
+- **Touch Support**: The carousel must support swipe gestures on mobile devices.
+- **Contrast**: Background and logo colors must meet WCAG AA contrast standards.
 
 ### Implementation & Maintainability
 
-*   **Component Architecture**: `BrandsBlock.tsx` should be a Client Component (for interactivity) receiving data from a Server Component (page).
-*   **API Strategy**: GET `/api/v1/products/brands/?is_featured=true` with caching enabled (e.g., 1 hour TTL).
-*   **Code Standards**: Code must adhere to project TypeScript, ESLint, and Prettier configurations.
+- **Component Architecture**: `BrandsBlock.tsx` should be a Client Component (for interactivity) receiving data from a Server Component (page).
+- **API Strategy**: GET `/api/v1/products/brands/?is_featured=true` with caching enabled (e.g., 1 hour TTL).
+- **Code Standards**: Code must adhere to project TypeScript, ESLint, and Prettier configurations.

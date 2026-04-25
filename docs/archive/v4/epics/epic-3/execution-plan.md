@@ -1,6 +1,6 @@
 # Epic 3 Execution Plan & Progress Tracking
 
-**Проект:** FREESPORT - Интеграция с 1С  
+**Проект:** FREESPORT - Интеграция с 1С
 
 ## 📅 DETAILED EXECUTION TRACKING
 
@@ -11,7 +11,7 @@
 ##### **Task 3.1.1-A: Обновить модели для интеграции**
 
 **📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 1
-**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
 **Due Date:** 08.09.2025
 
 **Subtasks:**
@@ -48,7 +48,7 @@
 ##### **Task 3.1.1-B: Создать сервисный слой**
 
 **📋 Story:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 2
-**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
 **Due Date:** 10.09.2025
 
 **Subtasks:**
@@ -71,7 +71,7 @@
 ##### **Task 3.1.1-C: Создать базовую команду**
 
 **📋 Story:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 3, 5
-**Assigned:** *agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 8ч | **Status:** ⏳ Pending
 **Due Date:** 12.09.2025
 
 **Subtasks:**
@@ -102,7 +102,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.1.1-D: Ролевое ценообразование**
 
 **📋 Story:** [3.1.1](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 4
-**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
 **Due Date:** 13.09.2025
 
 **Subtasks:**
@@ -111,7 +111,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 - [ ] Создать миграцию add_price_type
 - [ ] Реализовать парсинг priceLists.xml
 - [ ] Реализовать маппинг цен на роли (Опт 1→opt1_price, Опт 2→opt2_price,  
-  Опт 3→opt3_price, РРЦ→recommended_retail_price)
+       Опт 3→opt3_price, РРЦ→recommended_retail_price)
 - [ ] Реализовать fallback: federation_price → recommended_retail_price
 - [ ] Unit тесты (10 тестов)
 
@@ -124,12 +124,13 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.2.1-A: Дополнить User модель и создать CustomerSyncLog (Фаза 1 от Story 3.2.1)**
 
 **📋 Story:** [3.2.1.0 import-existing-customers](../../stories/epic-3/3.2.1.0.import-existing-customers.md) - AC: 3
-**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
 **Due Date:** 10.09.2025
 
 **Subtasks:**
 
 **User модель (расположение: `backend/apps/users/models.py`):**
+
 - [ ] Добавить `onec_id = CharField(max_length=100, unique=True, null=True, db_index=True)`
 - [ ] Добавить `sync_status = CharField(max_length=20, choices=SYNC_STATUSES, default='pending')`
 - [ ] Добавить `created_in_1c = BooleanField(default=False)`
@@ -139,6 +140,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 - [ ] Создать миграцию с индексом на `onec_id`
 
 **CustomerSyncLog модель (расположение: `backend/apps/common/models.py`):**
+
 - [ ] Создать модель с полями: session, user, onec_id, operation_type, status, error_message, details, created_at
 - [ ] Добавить enum классы: OperationType (created/updated/skipped/error), StatusType (success/failed/warning)
 - [ ] Создать индексы: [session, operation_type], [onec_id], [status]
@@ -158,7 +160,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.1.2-A: Расширение команды import_catalog_from_1c и создание backup команд**
 
 **📋 Story:** [3.1.2](../../stories/epic-3/3.1.2.loading-scripts.md) AC:1,5,6,7,8
-**Assigned:** *agent dev | **Estimate:** 10ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 10ч | **Status:** ⏳ Pending
 **Due Date:** 16.09.2025
 
 **Subtasks:**
@@ -179,19 +181,19 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.1.3: Валидация импорта реального каталога из 1С (Реализация Story 3.1.3)**
 
 **📋 Story:** [3.1.3 test-catalog-loading](../../stories/epic-3/3.1.3.test-catalog-loading.md) - AC: 1,2,3,4,5
-**Assigned:** *agent qa | **Estimate:** 10ч | **Status:** ⏳ Pending
+**Assigned:** \*agent qa | **Estimate:** 10ч | **Status:** ⏳ Pending
 **Due Date:** 18.09.2025
 
 **Subtasks:**
 
 - [ ] Запустить полный импорт из data/import_1c/ и валидировать результаты (Story AC: 1)
-  - [ ] Валидировать импорт ≥5000 товаров из goods_1_*.xml
-  - [ ] Валидировать импорт категорий из groups_1_1_*.xml
-  - [ ] Валидировать импорт цен из prices_1_*.xml
+  - [ ] Валидировать импорт ≥5000 товаров из goods*1*\*.xml
+  - [ ] Валидировать импорт категорий из groups*1_1*\*.xml
+  - [ ] Валидировать импорт цен из prices*1*\*.xml
 - [ ] Валидировать ценообразование для всех 7 ролей (Story AC: 2)
-  - [ ] Проверить маппинг типов цен из priceLists_*.xml
+  - [ ] Проверить маппинг типов цен из priceLists\_\*.xml
   - [ ] Проверить fallback логику для отсутствующих цен
-- [ ] Проверить технические характеристики из propertiesGoods_*.xml (Story AC: 3)
+- [ ] Проверить технические характеристики из propertiesGoods\_\*.xml (Story AC: 3)
   - [ ] Валидировать структуру JSON specifications
   - [ ] Проверить массивы размеров/цветов
 - [ ] Валидировать целостность данных (Story AC: 4)
@@ -218,7 +220,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.4.1: Test Data Scenarios (Реализация Stories 3.4.1, 3.4.2, 3.4.3)**
 
 **📋 Stories:** [3.4.1](../../stories/epic-3/3.4.1.test-data-scenarios.md) + [3.4.2](../../stories/epic-3/3.4.2.conflict-scenarios-testing.md) + [3.4.3](../../stories/epic-3/3.4.3.data-integrity-checks.md)
-**Assigned:** *agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
 **Due Date:** 25.09.2025
 
 **Subtasks:**
@@ -239,7 +241,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.5.1-A: Monitoring Infrastructure (Реализация Stories 3.5.1, 3.5.2)**
 
 **📋 Stories:** [3.5.1 monitoring-system](../../stories/epic-3/3.5.1.monitoring-system.md) + [3.5.2 error-notifications](../../stories/epic-3/3.5.2.error-notifications.md)
-**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
 **Due Date:** 30.09.2025
 
 **Subtasks:**
@@ -284,7 +286,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.1.1-B: Реальные парсеры данных (Завершение Story 3.1.1)**
 
 **📋 Story:** [3.1.1 import-products-structure](../../stories/epic-3/3.1.1.import-products-structure.md) - AC: 2,3,7
-**Assigned:** *agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 12ч | **Status:** ⏳ Pending
 **Due Date:** _18.09.2025_
 
 **Subtasks:**
@@ -304,7 +306,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.1.2-B: Тестирование импорта с реальными данными 1С**
 
 **📋 Story:** [3.1.2 loading-scripts](../../stories/epic-3/3.1.2.loading-scripts.md) - AC: 2,3,4
-**Assigned:** *agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 6ч | **Status:** ⏳ Pending
 **Due Date:** _18.09.2025_
 
 **Subtasks:**
@@ -317,20 +319,21 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 - [ ] Performance тестирование на полном каталоге
 
 **Progress:** 0% □□□□□□□□□□
-**🔴 Blocking Factor:** Нет. Реальные данные доступны в data/import_1c
-**Notes:** _Используем реальные данные из 1С вместо генерации тестовых. Структура включает сегментированные файлы (goods_1_*.xml, offers_*.xml), изображения в goods/import_files/[XY]/, справочники contragents, propertiesGoods, propertiesOffers_
+**🔴 Blocking Factor:** Нет. Реальные данные доступны в data/import*1c
+**Notes:** *Используем реальные данные из 1С вместо генерации тестовых. Структура включает сегментированные файлы (goods*1*\_.xml, offers\_\_.xml), изображения в goods/import*files/[XY]/, справочники contragents, propertiesGoods, propertiesOffers*
 
 ---
 
 ##### **Task 3.2.1-B: Реальная синхронизация клиентов (Завершение Story 3.2.1 v1.4)**
 
 **📋 Story:** [3.2.1.0 import-existing-customers](../../stories/epic-3/3.2.1.0.import-existing-customers.md) - AC: 1,2,4,5,6,7
-**Assigned:** *agent dev | **Estimate:** 20ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 20ч | **Status:** ⏳ Pending
 **Due Date:** _22.09.2025_
 
 **Subtasks:**
 
 **Архитектура Парсер/Процессор (Story AC: 2):**
+
 - [ ] Создать `CustomerDataParser` в `apps/users/services/parser.py`
   - [ ] Метод `parse()` для парсинга CommerceML 3.1 (`<КоммерческаяИнформация>` → `<Контрагенты>` → `<Контрагент>`)
   - [ ] Обработка полей: `<Ид>`, `<Наименование>`, `<ПолноеНаименование>`, `<ОфициальноеНаименование>`, `<ИНН>`, `<КПП>`
@@ -349,6 +352,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
   - [ ] Unit тесты (4 теста: маппинг ролей, создание клиента, обновление, пропуск невалидного)
 
 **Команда import_customers_from_1c (Story AC: 1):**
+
 - [ ] Создать `apps/users/management/commands/import_customers_from_1c.py`
 - [ ] Параметры: `--file` (required), `--chunk-size` (default=100), `--dry-run`
 - [ ] Валидация: проверка существования файла, проверка chunk_size > 0
@@ -361,12 +365,14 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 - [ ] Integration тесты (3 теста: успешный импорт, dry-run, обработка ошибок)
 
 **Performance оптимизации (Story v1.4 - метрики производительности):**
+
 - [ ] Использовать bulk_create/bulk_update для пакетной обработки
 - [ ] Оптимизировать запросы к БД (select_related, prefetch_related)
 - [ ] Настроить chunk_size для баланса памяти/скорости
 - [ ] Целевая производительность: 1000 клиентов за ~1-2 минуты
 
 **Тестирование (Story AC: 7):**
+
 - [ ] Unit тесты для CustomerDataParser (3 теста)
 - [ ] Unit тесты для CustomerDataProcessor (4 теста)
 - [ ] Integration тесты для команды (3 теста)
@@ -383,7 +389,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.2.3: Bidirectional Sync (Реализация Story 3.2.3)**
 
 **📋 Story:** [3.2.3 bidirectional-sync](../../stories/epic-3/3.2.3.bidirectional-sync.md) - AC: 1,2,3,4,5,6,7
-**Assigned:** *agent dev | **Estimate:** 20ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 20ч | **Status:** ⏳ Pending
 **Due Date:** _29.09.2025_
 
 **Subtasks:**
@@ -403,12 +409,13 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 ##### **Task 3.2.2 + 3.2.1.5: Conflict Resolution (Реализация Stories 3.2.2, 3.2.1.5)**
 
 **📋 Stories:** [3.2.2 conflict-resolution](../../stories/epic-3/3.2.2.conflict-resolution.md) (SP: 8) + [3.2.1.5 customer-identity-algorithms](../../stories/epic-3/3.2.1.5.customer-identity-algorithms.md) (SP: 5)
-**Assigned:** *agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
+**Assigned:** \*agent dev | **Estimate:** 16ч | **Status:** ⏳ Pending
 **Due Date:** _04.10.2025_
 
 **Subtasks:**
 
 **CustomerIdentityResolver (Story 3.2.1.5 - детерминированная идентификация):**
+
 - [ ] Создать `CustomerIdentityResolver` в `apps/users/services/identity_resolution.py`
 - [ ] Реализовать метод `identify_customer(onec_customer_data)` с приоритетами:
   - [ ] Приоритет 1: поиск по `onec_id` (100% точность)
@@ -420,6 +427,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 - [ ] Unit тесты для всех сценариев идентификации (Story 3.2.1.5 AC: 7)
 
 **CustomerConflictResolver (Story 3.2.2 - стратегия onec_wins):**
+
 - [ ] Создать `CustomerConflictResolver` в `apps/users/services/conflict_resolution.py`
 - [ ] Реализовать единственную стратегию: `onec_wins` (1C как источник истины)
 - [ ] Реализовать метод `resolve_conflict(existing_customer, onec_data, conflict_source)`
@@ -545,7 +553,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 - [x] Story 3.1.3 обновлена: новые AC, Tasks, DoD для работы с реальными данными из data/import_1c/
 - [x] Execution plan Task 3.1.3 обновлен: новые subtasks, estimate снижен до 10ч
 - [x] Plan Update History обновлена (v1.7)
-- 🎯 **Next:** Начать Task 3.1.1-A (*agent dev)
+- 🎯 **Next:** Начать Task 3.1.1-A (\*agent dev)
 
 ### 2025-10-11
 
@@ -580,7 +588,7 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 **Project Lead:** BMad Orchestrator
 **Primary Developer:** *agent dev
 **QA Lead:** *agent qa
-**Architect:** *agent architect
+**Architect:** \*agent architect
 
 **External Dependencies:**
 
@@ -593,4 +601,4 @@ python manage.py import_catalog_from_1c --data-dir="backend/tests/fixtures/1c-da
 
 **🚀 ПЛАН АКТИВЕН И ГОТОВ К ИСПОЛНЕНИЮ!**
 
-*Последнее обновление: 14.10.2025 by PO Agent (реструктуризация: 3.3.1 → 3.2.1.5, 3.2.1 → 3.2.1.0)
+\*Последнее обновление: 14.10.2025 by PO Agent (реструктуризация: 3.3.1 → 3.2.1.5, 3.2.1 → 3.2.1.0)

@@ -81,20 +81,20 @@ CREATE TABLE banners (
     image_alt VARCHAR(255),
     cta_text VARCHAR(50),
     cta_link VARCHAR(200),
-    
+
     -- Targeting
     show_to_guests BOOLEAN DEFAULT FALSE,
     show_to_authenticated BOOLEAN DEFAULT FALSE,
     show_to_trainers BOOLEAN DEFAULT FALSE,
     show_to_wholesale BOOLEAN DEFAULT FALSE,
     show_to_federation BOOLEAN DEFAULT FALSE,
-    
+
     -- Management
     is_active BOOLEAN DEFAULT TRUE,
     priority INTEGER DEFAULT 0,
     start_date TIMESTAMP WITH TIME ZONE,
     end_date TIMESTAMP WITH TIME ZONE,
-    
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -113,7 +113,7 @@ CREATE TABLE products_product (
     category_id INTEGER NOT NULL REFERENCES products_category(id),
     description TEXT,
     specifications JSONB DEFAULT '{}',
-    
+
     -- Multi-tier pricing structure
     retail_price DECIMAL(10,2),
     opt1_price DECIMAL(10,2),
@@ -121,20 +121,20 @@ CREATE TABLE products_product (
     opt3_price DECIMAL(10,2),
     trainer_price DECIMAL(10,2),
     federation_price DECIMAL(10,2),
-    
+
     -- Inventory
     stock_quantity INTEGER DEFAULT 0,
-    
+
     -- Status flags
     is_active BOOLEAN DEFAULT TRUE,
-    
+
     -- Integration & Timestamps
     onec_id VARCHAR(100) UNIQUE,
     parent_onec_id VARCHAR(100),
     last_sync_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
+
     CONSTRAINT chk_stock_non_negative CHECK (stock_quantity >= 0)
 );
 
@@ -143,39 +143,39 @@ CREATE TABLE orders_order (
     id SERIAL,
     order_number VARCHAR(50) UNIQUE NOT NULL,
     user_id INTEGER REFERENCES users_user(id),
-    
+
     -- Customer info for guest orders
     customer_name VARCHAR(200),
     customer_email VARCHAR(254),
     customer_phone VARCHAR(20),
-    
+
     -- Order details
     status VARCHAR(50) DEFAULT 'pending',
     total_amount DECIMAL(10,2) NOT NULL,
     discount_amount DECIMAL(10,2) DEFAULT 0,
     delivery_cost DECIMAL(10,2) DEFAULT 0,
-    
+
     -- Delivery
     delivery_address TEXT NOT NULL,
     delivery_method VARCHAR(50),
     delivery_date DATE,
-    
+
     -- Payment
     payment_method VARCHAR(50),
     payment_status VARCHAR(50) DEFAULT 'pending',
     payment_id VARCHAR(100),
-    
+
     -- B2B specific
     company_name VARCHAR(200),
     tax_id VARCHAR(50),
     purchase_order_number VARCHAR(100),
-    
+
     -- Integration & audit
     onec_id VARCHAR(100),
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
+
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
@@ -188,14 +188,14 @@ CREATE TABLE orders_orderitem (
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
     total_price DECIMAL(10,2) NOT NULL,
-    
+
     -- Snapshot of product data at time of order
     product_name VARCHAR(300) NOT NULL,
     product_sku VARCHAR(100) NOT NULL, -- This is now sku_article from ProductVariant
-    
+
     -- Композитный FOREIGN KEY включающий partition key
     FOREIGN KEY (order_id, order_created_at) REFERENCES orders_order(id, created_at) ON DELETE CASCADE,
-    
+
     CONSTRAINT chk_positive_quantity CHECK (quantity > 0),
     CONSTRAINT chk_positive_prices CHECK (unit_price > 0 AND total_price > 0)
 );
@@ -215,7 +215,7 @@ CREATE TABLE cart_cartitem (
     product_id INTEGER NOT NULL REFERENCES products_product(id),
     quantity INTEGER NOT NULL DEFAULT 1,
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
+
     UNIQUE(cart_id, product_id),
     CONSTRAINT chk_positive_quantity CHECK (quantity > 0)
 );
@@ -263,10 +263,10 @@ CREATE INDEX idx_categories_active ON products_category(is_active) WHERE is_acti
 CREATE TEXT SEARCH CONFIGURATION russian_products (COPY = russian);
 
 -- Update search vector trigger
-CREATE OR REPLACE FUNCTION update_product_search_vector() 
+CREATE OR REPLACE FUNCTION update_product_search_vector()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.search_vector := 
+    NEW.search_vector :=
         setweight(to_tsvector('russian_products', COALESCE(NEW.name, '')), 'A') ||
         setweight(to_tsvector('russian_products', COALESCE(NEW.description, '')), 'B') ||
         setweight(to_tsvector('russian_products', COALESCE(NEW.short_description, '')), 'C');
@@ -310,7 +310,7 @@ BEGIN
     start_date := date_trunc('month', NOW());
     end_date := start_date + INTERVAL '1 month';
     partition_name := 'orders_order_' || to_char(start_date, 'YYYY_MM');
-    
+
     EXECUTE format('CREATE TABLE IF NOT EXISTS %I PARTITION OF orders_order
                     FOR VALUES FROM (%L) TO (%L)',
                    partition_name, start_date, end_date);
@@ -333,9 +333,9 @@ CREATE TABLE compliance_personaldatalog (
     ip_address INET,
     user_agent TEXT,
     processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
+
     CONSTRAINT chk_required_fields CHECK (
-        action IS NOT NULL AND 
+        action IS NOT NULL AND
         data_type IS NOT NULL AND
         processed_at IS NOT NULL
     )
@@ -353,7 +353,7 @@ CREATE TABLE compliance_consent (
     user_agent TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
+
     UNIQUE(user_id, consent_type)
 );
 
@@ -367,7 +367,7 @@ CREATE TABLE integrations_synclog (
     error_details JSONB DEFAULT '[]',
     started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     completed_at TIMESTAMP WITH TIME ZONE,
-    
+
     CONSTRAINT chk_status CHECK (status IN ('started', 'completed', 'failed'))
 );
 
@@ -387,14 +387,14 @@ DECLARE
     product_record RECORD;
     result_price DECIMAL(10,2);
 BEGIN
-    SELECT * INTO product_record 
-    FROM products_product 
+    SELECT * INTO product_record
+    FROM products_product
     WHERE id = p_product_id AND is_active = true;
-    
+
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Product not found or inactive: %', p_product_id;
     END IF;
-    
+
     result_price := CASE p_user_role
         WHEN 'retail' THEN product_record.retail_price
         WHEN 'wholesale_level1' THEN COALESCE(product_record.opt1_price, product_record.retail_price)
@@ -404,7 +404,7 @@ BEGIN
         WHEN 'federation_rep' THEN COALESCE(product_record.federation_price, product_record.retail_price)
         ELSE product_record.retail_price
     END;
-    
+
     RETURN result_price;
 END;
 $$ LANGUAGE plpgsql STABLE;
@@ -422,7 +422,7 @@ DECLARE
 BEGIN
     -- Get user role
     SELECT role INTO user_role FROM users_user WHERE id = p_user_id;
-    
+
     -- Calculate total for each item
     FOR item IN SELECT * FROM jsonb_array_elements(p_cart_items)
     LOOP
@@ -430,10 +430,10 @@ BEGIN
             (item->>'product_id')::INTEGER,
             user_role
         );
-        
+
         total_amount := total_amount + (item_price * (item->>'quantity')::INTEGER);
     END LOOP;
-    
+
     RETURN total_amount;
 END;
 $$ LANGUAGE plpgsql STABLE;

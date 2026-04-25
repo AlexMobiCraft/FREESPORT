@@ -15,8 +15,8 @@ waiver:
 top_issues: []
 
 # Quality metrics
-quality_score: 98  # 100 - 2 (minor improvements)
-expires: "2025-12-19T00:00:00Z"  # 2 weeks validity
+quality_score: 98 # 100 - 2 (minor improvements)
+expires: "2025-12-19T00:00:00Z" # 2 weeks validity
 
 # Evidence from comprehensive review
 evidence:
@@ -25,7 +25,53 @@ evidence:
   code_lines_added: 5000
   risks_identified: 0
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
+    ac_covered:
+      [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+      ]
     ac_gaps: []
 
 # NFR validation results
@@ -181,7 +227,7 @@ technical_debt:
 
 # Recommendations
 recommendations:
-  immediate: []  # Нет блокирующих проблем
+  immediate: [] # Нет блокирующих проблем
 
   future:
     - action: "Добавить примеры использования merge_attributes action в docs/guides/"

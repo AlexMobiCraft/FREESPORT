@@ -3,12 +3,14 @@
 ## Требования
 
 ### Обязательно
+
 - **Docker Desktop** версии 20.10 или выше
 - **Docker Compose** v2 (встроенный в Docker Desktop)
 - Минимум 4 GB RAM для Docker
 - Минимум 10 GB свободного места на диске
 
 ### Операционные системы
+
 - Windows 11 (рекомендуется)
 - Windows 10 Pro/Enterprise (с WSL2)
 - macOS 10.15+
@@ -19,6 +21,7 @@
 ### Windows 11
 
 1. **Скачать Docker Desktop**
+
    ```
    https://www.docker.com/products/docker-desktop/
    ```
@@ -29,6 +32,7 @@
    - Перезагрузить компьютер
 
 3. **Проверить установку**
+
    ```powershell
    docker --version
    docker compose version
@@ -42,6 +46,7 @@
 ### macOS
 
 1. **Скачать Docker Desktop для Mac**
+
    ```
    https://www.docker.com/products/docker-desktop/
    ```
@@ -60,6 +65,7 @@
 ### Linux (Ubuntu/Debian)
 
 1. **Установить Docker Engine**
+
    ```bash
    # Удалить старые версии
    sudo apt-get remove docker docker-engine docker.io containerd runc
@@ -83,6 +89,7 @@
    ```
 
 2. **Настроить права доступа**
+
    ```bash
    # Добавить текущего пользователя в группу docker
    sudo usermod -aG docker $USER
@@ -117,11 +124,13 @@ FREESPORT/
 ### docker-compose.test.yml
 
 **Сервисы:**
+
 - `db` - PostgreSQL 15 на порту 5433
 - `redis` - Redis 7 на порту 6380
 - `backend` - Django с pytest
 
 **Особенности:**
+
 - Использует отдельные порты (5433, 6380) для избежания конфликтов
 - tmpfs для ускорения тестов
 - Healthchecks для гарантии готовности сервисов
@@ -151,6 +160,7 @@ make test-fast
 ### Детальные команды
 
 **Полный цикл тестирования:**
+
 ```bash
 # 1. Остановить старые контейнеры и очистить volumes
 cd docker && docker compose -f docker-compose.test.yml down --remove-orphans --volumes
@@ -163,6 +173,7 @@ cd docker && docker compose -f docker-compose.test.yml down
 ```
 
 **Запуск конкретных тестов:**
+
 ```bash
 # Запустить тесты конкретного модуля
 cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest apps/products/tests/
@@ -178,6 +189,7 @@ cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest -
 ```
 
 **Работа с coverage:**
+
 ```bash
 # Тесты с coverage отчетом
 cd docker && docker compose -f docker-compose.test.yml run --rm backend pytest --cov=apps --cov-report=html --cov-report=term-missing
@@ -228,6 +240,7 @@ cd docker && docker compose -f docker-compose.test.yml ps --format json | jq -r 
 ### Проблема: "Cannot connect to the Docker daemon"
 
 **Решение:**
+
 ```bash
 # Убедиться что Docker Desktop запущен
 # Windows: Проверить в System Tray
@@ -239,6 +252,7 @@ sudo systemctl start docker
 ### Проблема: "port 5433 is already allocated"
 
 **Решение:**
+
 ```bash
 # Найти процесс использующий порт
 # Windows:
@@ -255,6 +269,7 @@ docker stop <container_id>
 ### Проблема: "no space left on device"
 
 **Решение:**
+
 ```bash
 # Очистить неиспользуемые образы и контейнеры
 docker system prune -a --volumes
@@ -265,6 +280,7 @@ docker system prune -a --volumes
 ### Проблема: Тесты падают с ошибками БД
 
 **Решение:**
+
 ```bash
 # Полная очистка и пересоздание
 cd docker && docker compose -f docker-compose.test.yml down --volumes
@@ -282,12 +298,14 @@ cd docker && docker compose -f docker-compose.test.yml up --build
    - Подходит для итеративной разработки
 
 3. **Регулярно очищайте Docker**
+
    ```bash
    # Раз в неделю
    docker system prune -a --volumes
    ```
 
 4. **Мониторьте использование ресурсов**
+
    ```bash
    docker stats
    ```
@@ -350,12 +368,14 @@ jobs:
 ## КРИТИЧНО: Security
 
 ⚠️ **НИКОГДА не коммитьте:**
+
 - Реальные пароли БД в docker-compose файлы
 - GitHub Personal Access Tokens
 - API ключи
 - Production credentials
 
 Используйте:
+
 - `.env` файлы (добавлены в `.gitignore`)
 - GitHub Secrets для CI/CD
 - Отдельные credentials для dev/test/prod окружений

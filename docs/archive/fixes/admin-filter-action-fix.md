@@ -23,7 +23,7 @@
 def trigger_catalog_import(self, request: HttpRequest, queryset: QuerySet) -> None:
     """
     Запуск импорта каталога из 1С с защитой от concurrent runs.
-    
+
     Примечание: Это действие не требует выбора объектов, так как
     создает новую сессию импорта независимо от существующих.
     """
@@ -38,7 +38,7 @@ def trigger_catalog_import(self, request: HttpRequest, queryset: QuerySet) -> No
             level="INFO",
         )
         return
-    
+
     # ... остальной код
 ```
 
@@ -97,11 +97,13 @@ docker exec freesport-backend pytest tests/integration/test_integrations_admin_a
 ## Файлы изменений
 
 ### Основное исправление
+
 - ✏️ `backend/apps/integrations/admin.py` - добавлена проверка queryset
 - ➕ `backend/tests/unit/test_integrations_admin.py` - новый файл с unit-тестами (8 тестов)
 - ➕ `backend/tests/integration/test_integrations_admin_actions.py` - новый файл с интеграционными тестами
 
 ### Исправление настройки ONEC_DATA_DIR
+
 - ✏️ `backend/freesport/settings/base.py` - исправлена настройка ONEC_DATA_DIR (теперь возвращает строку и поддерживает переменную окружения)
 - ✏️ `backend/backend/settings.py` - добавлена настройка ONEC_DATA_DIR (для совместимости)
 - ➕ `backend/tests/unit/test_settings_onec.py` - новый файл с тестами настроек (6 тестов)
@@ -110,12 +112,15 @@ docker exec freesport-backend pytest tests/integration/test_integrations_admin_a
 ## Дополнительное исправление: настройка ONEC_DATA_DIR
 
 ### Проблема
+
 После первого исправления возникла новая ошибка: "❌ Ошибка при импорте каталога: Директория не найдена: /data/import_1c"
 
 ### Причина
+
 Отсутствовала настройка `ONEC_DATA_DIR` в `backend/backend/settings.py`, которая указывает путь к директории с данными для импорта из 1С.
 
 ### Решение
+
 Добавлена настройка в конец файла `backend/backend/settings.py`:
 
 ```python
@@ -132,7 +137,9 @@ ONEC_DATA_DIR = os.environ.get(
 ```
 
 ### Проверка
+
 Директория `/app/data/import_1c` существует в Docker контейнере и содержит:
+
 - `contragents/` - контрагенты
 - `goods/` - товары (содержит XML файлы)
 - `groups/` - группы товаров

@@ -23,17 +23,18 @@ freesport/
 
 ### 🏛️ Основные приложения (`backend/apps/`)
 
-| Приложение | Описание | Ключевые файлы |
-| :--- | :--- | :--- |
-| **users** | Ролевая система (7 ролей), B2B верификация, профили. | `models.py` (User, Company, Address) |
-| **products** | Каталог товаров, бренды, категории, ролевые цены. | `models.py` (Product, ProductVariant, Attribute) |
-| **cart** | Управление корзиной (гости + авторизованные). | `models.py` (Cart, CartItem) |
-| **orders** | Система заказов, транзакционная логика, история. | `models.py` (Order, OrderItem), `serializers.py` |
-| **integrations** | Обмен данными с 1С (CommerceML), Celery задачи. | `tasks.py` (import logic), `models.py` (Session) |
-| **banners** | Управление Hero-секцией с таргетингом. | `models.py` (Banner) |
-| **common** | Общие утилиты, новости, блог, подписки. | `utils/`, `models.py` (News, BlogPost) |
+| Приложение       | Описание                                             | Ключевые файлы                                   |
+| :--------------- | :--------------------------------------------------- | :----------------------------------------------- |
+| **users**        | Ролевая система (7 ролей), B2B верификация, профили. | `models.py` (User, Company, Address)             |
+| **products**     | Каталог товаров, бренды, категории, ролевые цены.    | `models.py` (Product, ProductVariant, Attribute) |
+| **cart**         | Управление корзиной (гости + авторизованные).        | `models.py` (Cart, CartItem)                     |
+| **orders**       | Система заказов, транзакционная логика, история.     | `models.py` (Order, OrderItem), `serializers.py` |
+| **integrations** | Обмен данными с 1С (CommerceML), Celery задачи.      | `tasks.py` (import logic), `models.py` (Session) |
+| **banners**      | Управление Hero-секцией с таргетингом.               | `models.py` (Banner)                             |
+| **common**       | Общие утилиты, новости, блог, подписки.              | `utils/`, `models.py` (News, BlogPost)           |
 
 ### ⚙️ Инфраструктура Бэкенда
+
 - **`backend/freesport/`**: Настройки проекта Django.
 - **`backend/tests/`**: Тестовое покрытие (Pytest).
 - **`backend/manage.py`**: Точка входа CLI.

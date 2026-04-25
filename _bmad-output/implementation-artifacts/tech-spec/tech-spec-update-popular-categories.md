@@ -1,13 +1,21 @@
 ---
-title: 'Обновление блока популярных категорий'
-slug: 'update-popular-categories'
-created: '2026-01-12'
-status: 'ready-for-dev'
+title: "Обновление блока популярных категорий"
+slug: "update-popular-categories"
+created: "2026-01-12"
+status: "ready-for-dev"
 stepsCompleted: [1, 2, 3, 4]
-tech_stack: ['Next.js', 'React', 'Tailwind CSS']
-files_to_modify: ['c:\\Users\\38670\\DEV_WEB\\FREESPORT\\frontend\\src\\components\\home\\CategoriesSection.tsx']
-code_patterns: ['Component-based architecture', 'Client-side data fetching', 'Service layer pattern']
-test_patterns: ['Jest', 'React Testing Library']
+tech_stack: ["Next.js", "React", "Tailwind CSS"]
+files_to_modify:
+  [
+    'c:\\Users\\38670\\DEV_WEB\\FREESPORT\\frontend\\src\\components\\home\\CategoriesSection.tsx',
+  ]
+code_patterns:
+  [
+    "Component-based architecture",
+    "Client-side data fetching",
+    "Service layer pattern",
+  ]
+test_patterns: ["Jest", "React Testing Library"]
 ---
 
 # Техническое задание: Обновление блока популярных категорий
@@ -54,8 +62,8 @@ test_patterns: ['Jest', 'React Testing Library']
 
 ### Изменяемые файлы
 
-| Файл | Изменения |
-|------|-----------|
+| Файл                                        | Изменения                                                                                                                                                                                                     |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/components/home/CategoriesSection.tsx` | - Загрузка ВСЕХ категорий (limit: 100)<br>- Фильтрация по SLUG (с маппингом на русские названия)<br>- **Smart Grid Верстка**: Ряд 1 (3 элемента), Ряд 2 (4 элемента)<br>- Устойчивость к ошибкам (Resilience) |
 
 ### Технические решения
@@ -70,7 +78,7 @@ test_patterns: ['Jest', 'React Testing Library']
     5. Единоборства (`edinoborstva`) -> Стандартная карточка (Row 2)
     6. Детский транспорт (`detskiy-transport`) -> Стандартная карточка (Row 2)
     7. Оборудование (`oborudovanie`) -> Стандартная карточка (Row 2)
-  - *Примечание*: Слаги должны точно совпадать. Fallback по имени убираем.
+  - _Примечание_: Слаги должны точно совпадать. Fallback по имени убираем.
 
 - **Иконки**:
   - Иконки пока не используем (по требованию заказчика). UI: Только название категории.

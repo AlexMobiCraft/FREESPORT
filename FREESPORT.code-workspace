@@ -1,11 +1,11 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"window.zoomPerWindow": true,
-		"workbench.colorTheme": "Default High Contrast"
-	}
+  "folders": [
+    {
+      "path": ".",
+    },
+  ],
+  "settings": {
+    "window.zoomPerWindow": true,
+    "workbench.colorTheme": "Default High Contrast",
+  },
 }

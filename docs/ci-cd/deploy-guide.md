@@ -26,21 +26,21 @@
 
 #### Репозиторий
 
-| Secret | Описание |
-|--------|----------|
-| `SSH_PRIVATE_KEY` | Приватный ключ, которым GitHub Actions подключается по SSH |
-| `NEXT_PUBLIC_API_URL` | URL API для frontend (
-  например, `https://freesport.ru/api/v1`) |
-| `CODECOV_TOKEN` | Токен Codecov (опционально) |
+| Secret                                   | Описание                                                   |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `SSH_PRIVATE_KEY`                        | Приватный ключ, которым GitHub Actions подключается по SSH |
+| `NEXT_PUBLIC_API_URL`                    | URL API для frontend (                                     |
+| например, `https://freesport.ru/api/v1`) |
+| `CODECOV_TOKEN`                          | Токен Codecov (опционально)                                |
 
 #### Production
 
-| Secret | Описание |
-|--------|----------|
-| `PRODUCTION_SERVER_HOST` | IP или hostname production сервера |
-| `PRODUCTION_SERVER_USER` | Пользователь SSH на production |
-| `PRODUCTION_DEPLOY_PATH` | Путь к проекту на production |
-| `PRODUCTION_URL` | URL production окружения (например, `https://freesport.ru`) |
+| Secret                   | Описание                                                    |
+| ------------------------ | ----------------------------------------------------------- |
+| `PRODUCTION_SERVER_HOST` | IP или hostname production сервера                          |
+| `PRODUCTION_SERVER_USER` | Пользователь SSH на production                              |
+| `PRODUCTION_DEPLOY_PATH` | Путь к проекту на production                                |
+| `PRODUCTION_URL`         | URL production окружения (например, `https://freesport.ru`) |
 
 ### GitHub Environments
 
@@ -80,14 +80,15 @@ gh workflow run deploy.yml -f skip_tests=true
 
 Проект использует **две различные конфигурации Nginx**:
 
-| Файл | Окружение | Особенности |
-|------|-----------|-------------|
-| `docker/nginx/conf.d/local.conf` | Development | HTTP only, localhost |
-| `docker/nginx/conf.d/default.conf` | Production | HTTPS, SSL (LetsEncrypt), freesport.ru |
+| Файл                               | Окружение   | Особенности                            |
+| ---------------------------------- | ----------- | -------------------------------------- |
+| `docker/nginx/conf.d/local.conf`   | Development | HTTP only, localhost                   |
+| `docker/nginx/conf.d/default.conf` | Production  | HTTPS, SSL (LetsEncrypt), freesport.ru |
 
 ### Монтирование в Docker Compose
 
 - **`docker-compose.yml`** (dev):
+
   ```yaml
   volumes:
     - ./nginx/conf.d/local.conf:/etc/nginx/conf.d/default.conf:ro
@@ -233,4 +234,4 @@ docker compose -f docker/docker-compose.prod.yml restart db
 
 ---
 
-*Последнее обновление: 2024-11-28*
+_Последнее обновление: 2024-11-28_

@@ -79,7 +79,10 @@ recommendations:
       priority: low
       estimated_effort: "2 часа"
     - action: "Добавить performance тесты для больших объемов (1000+ клиентов)"
-      refs: ["backend/tests/integration/test_management_commands/test_import_customers.py"]
+      refs:
+        [
+          "backend/tests/integration/test_management_commands/test_import_customers.py",
+        ]
       priority: low
       estimated_effort: "3-4 часа"
 

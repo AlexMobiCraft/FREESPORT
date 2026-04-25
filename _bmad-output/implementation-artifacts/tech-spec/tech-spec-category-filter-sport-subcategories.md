@@ -1,8 +1,8 @@
 ---
-title: 'Фильтрация категорий 1С: импорт только подкатегорий СПОРТ'
-slug: 'category-filter-sport-subcategories'
-created: '2026-03-01T08:04:19+01:00'
-status: 'implemented'
+title: "Фильтрация категорий 1С: импорт только подкатегорий СПОРТ"
+slug: "category-filter-sport-subcategories"
+created: "2026-03-01T08:04:19+01:00"
+status: "implemented"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: [Django 5.x, PostgreSQL, Celery, XML/CommerceML 3.1, Python 3.12]
 files_to_modify:
@@ -20,7 +20,7 @@ code_patterns:
 test_patterns:
   - pytest + @pytest.mark.django_db
   - management call_command в тестах
-adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
+adversarial_review: "completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed"
 ---
 
 # Tech-Spec: Фильтрация категорий 1С — импорт только подкатегорий СПОРТ
@@ -54,21 +54,21 @@ adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
 
 ### ⚠️ CASCADE-зависимости
 
-| Модель | FK | on_delete | Риск |
-| ------ | -- | --------- | ---- |
-| `Category.parent` | FK self | CASCADE | Удаление родителя → удалит ВСЕХ потомков |
-| `Product.category` | FK Category | CASCADE | Удаление категории → удалит ВСЕ товары |
+| Модель             | FK          | on_delete | Риск                                     |
+| ------------------ | ----------- | --------- | ---------------------------------------- |
+| `Category.parent`  | FK self     | CASCADE   | Удаление родителя → удалит ВСЕХ потомков |
+| `Product.category` | FK Category | CASCADE   | Удаление категории → удалит ВСЕ товары   |
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `backend/apps/products/services/variant_import.py:1340-1434` | `process_categories()` — МОДИФИЦИРУЕТСЯ |
-| `backend/apps/products/models.py:168-289` | Category (CASCADE parent) + Product (CASCADE category) |
-| `backend/apps/products/management/commands/import_products_from_1c.py:329-349` | `_import_categories()` — вызывает process_categories |
-| `backend/backend/settings.py:197` | Аналогичный паттерн для ONEC_DATA_DIR |
-| `backend/tests/fixtures/1c-data/groups/groups.xml` | Тестовые данные XML |
-| `backend/apps/products/tests/unit/test_variant_import_migrated.py` | Существующие тесты |
+| File                                                                           | Purpose                                                |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| `backend/apps/products/services/variant_import.py:1340-1434`                   | `process_categories()` — МОДИФИЦИРУЕТСЯ                |
+| `backend/apps/products/models.py:168-289`                                      | Category (CASCADE parent) + Product (CASCADE category) |
+| `backend/apps/products/management/commands/import_products_from_1c.py:329-349` | `_import_categories()` — вызывает process_categories   |
+| `backend/backend/settings.py:197`                                              | Аналогичный паттерн для ONEC_DATA_DIR                  |
+| `backend/tests/fixtures/1c-data/groups/groups.xml`                             | Тестовые данные XML                                    |
+| `backend/apps/products/tests/unit/test_variant_import_migrated.py`             | Существующие тесты                                     |
 
 ## Implementation Plan
 
@@ -98,10 +98,11 @@ adversarial_review: 'completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed'
     - Вывод в stdout через `self.style.SUCCESS/WARNING/ERROR`
     - Паттерн из `import_products_from_1c.py`
   - **[F6] Production launch:**
+
     ```bash
     # Dry-run (проверка):
     docker compose --env-file .env -f docker/docker-compose.yml exec -T backend python manage.py cleanup_root_categories
-    
+
     # Execute (реальный запуск):
     docker compose --env-file .env -f docker/docker-compose.yml exec -T backend python manage.py cleanup_root_categories --execute
     ```

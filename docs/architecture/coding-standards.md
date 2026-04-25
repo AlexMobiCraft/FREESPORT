@@ -5,7 +5,7 @@
 ### Архитектурные принципы
 
 - **API-First подход**: Все функции должны быть доступны через API перед созданием UI
-- **Separation of Concerns**: Четкое разделение бизнес-логики, представления и доступа к данным  
+- **Separation of Concerns**: Четкое разделение бизнес-логики, представления и доступа к данным
 - **DRY (Don't Repeat Yourself)**: Избегать дублирования кода через переиспользуемые компоненты
 - **SOLID принципы**: Следование принципам объектно-ориентированного программирования
 - **12-Factor App**: Соблюдение принципов для современных веб-приложений
@@ -101,7 +101,7 @@ def get_user_data(user_id: int) -> Optional[Dict[str, Union[str, int]]]:
 apps/
 ├── users/          # Пользователи и аутентификация
 ├── products/       # Каталог товаров
-├── orders/         # Система заказов  
+├── orders/         # Система заказов
 ├── cart/          # Корзина покупок
 └── common/        # Общие компоненты
 ```
@@ -114,23 +114,23 @@ from apps.common.models import BaseModel
 
 class Product(BaseModel):
     """Модель товара."""
-    
+
     name = models.CharField(max_length=255, verbose_name="Название")
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField(blank=True, verbose_name="Описание")
-    
+
     # Многоуровневое ценообразование
     retail_price = models.DecimalField(max_digits=10, decimal_places=2)
     opt1_price = models.DecimalField(max_digits=10, decimal_places=2, null=True)
-    
+
     class Meta:
         verbose_name = "Товар"
         verbose_name_plural = "Товары"
         ordering = ['name']
-        
+
     def __str__(self) -> str:
         return self.name
-        
+
     @property
     def is_in_stock(self) -> bool:
         """Проверяет наличие товара на складе."""
@@ -145,14 +145,14 @@ from .models import Product
 
 class ProductSerializer(serializers.ModelSerializer):
     """Сериализатор товара."""
-    
+
     is_in_stock = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Product
         fields = ['id', 'name', 'slug', 'description', 'retail_price', 'is_in_stock']
         read_only_fields = ['id', 'created_at', 'updated_at']
-        
+
     def validate_retail_price(self, value):
         """Валидация розничной цены."""
         if value <= 0:
@@ -170,13 +170,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 class ProductViewSet(viewsets.ModelViewSet):
     """ViewSet для управления товарами."""
-    
+
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'brand']
-    
+
     @action(detail=True, methods=['get'])
     def stock_status(self, request, pk=None):
         """Получить статус наличия товара."""
@@ -205,7 +205,7 @@ from apps.products.models import Product
 @pytest.mark.unit
 class TestProductModel(TestCase):
     """Тесты модели Product."""
-    
+
     def setUp(self):
         """Настройка тестовых данных."""
         self.product = Product.objects.create(
@@ -213,11 +213,11 @@ class TestProductModel(TestCase):
             slug="test-product",
             retail_price=100.00
         )
-    
+
     def test_str_representation(self):
         """Тест строкового представления модели."""
         self.assertEqual(str(self.product), "Test Product")
-        
+
     def test_is_in_stock_property(self):
         """Тест свойства is_in_stock."""
         self.product.stock_quantity = 5
@@ -297,7 +297,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
 
 ```typescript
 // stores/cartStore.ts
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface CartItem {
   productId: number;
@@ -315,38 +315,43 @@ interface CartState {
 
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
-  
+
   addItem: (productId: number, price: number) => {
     set((state) => {
-      const existingItem = state.items.find(item => item.productId === productId);
-      
+      const existingItem = state.items.find(
+        (item) => item.productId === productId,
+      );
+
       if (existingItem) {
         return {
-          items: state.items.map(item =>
-            item.productId === productId 
+          items: state.items.map((item) =>
+            item.productId === productId
               ? { ...item, quantity: item.quantity + 1 }
-              : item
-          )
+              : item,
+          ),
         };
       }
-      
+
       return {
-        items: [...state.items, { productId, quantity: 1, price }]
+        items: [...state.items, { productId, quantity: 1, price }],
       };
     });
   },
-  
+
   removeItem: (productId: number) => {
     set((state) => ({
-      items: state.items.filter(item => item.productId !== productId)
+      items: state.items.filter((item) => item.productId !== productId),
     }));
   },
-  
+
   clearCart: () => set({ items: [] }),
-  
+
   get totalAmount() {
-    return get().items.reduce((total, item) => total + (item.price * item.quantity), 0);
-  }
+    return get().items.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0,
+    );
+  },
 }));
 ```
 
@@ -365,32 +370,32 @@ interface ButtonProps {
   children: React.ReactNode;
 }
 
-const Button: React.FC<ButtonProps> = ({ 
-  variant = 'primary', 
-  size = 'md', 
-  disabled = false, 
-  children 
+const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  size = 'md',
+  disabled = false,
+  children
 }) => {
   return (
     <button
       className={cn(
         // Базовые стили
         'rounded-lg font-medium transition-colors focus:outline-none focus:ring-2',
-        
+
         // Варианты
         {
           'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500': variant === 'primary',
           'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500': variant === 'secondary',
           'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500': variant === 'danger',
         },
-        
+
         // Размеры
         {
           'px-3 py-1.5 text-sm': size === 'sm',
           'px-4 py-2 text-base': size === 'md',
           'px-6 py-3 text-lg': size === 'lg',
         },
-        
+
         // Состояния
         {
           'opacity-50 cursor-not-allowed': disabled,
@@ -448,7 +453,7 @@ describe('ProductCard', () => {
 
   it('does not show add to cart button when out of stock', () => {
     const outOfStockProduct = { ...mockProduct, is_in_stock: false };
-    
+
     render(
       <ProductCard product={outOfStockProduct} onAddToCart={mockOnAddToCart} />
     );
@@ -503,8 +508,8 @@ npm run test:coverage      # Тесты с покрытием
 
 - **main** - продакшен ветка (защищена)
 - **develop** - основная ветка разработки (защищена)
-- **feature/*** - ветки для новых функций
-- **hotfix/*** - ветки для критических исправлений
+- **feature/\*** - ветки для новых функций
+- **hotfix/\*** - ветки для критических исправлений
 
 ### Commit сообщения
 

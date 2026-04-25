@@ -17,7 +17,7 @@ evidence:
   risks_identified: 0
   trace:
     ac_covered: [1, 2, 3, 4, 5, 6]
-    ac_gaps: [7]  # Performance тесты отложены на Story 3.1.2 согласно плану
+    ac_gaps: [7] # Performance тесты отложены на Story 3.1.2 согласно плану
 
 nfr_validation:
   security:
@@ -39,4 +39,5 @@ recommendations:
     - action: "Добавить performance тесты для больших объемов (≥1000 товаров) в Story 3.1.2"
       refs: ["backend/tests/performance/"]
     - action: "Рассмотреть добавление прогресс-бара для длительных импортов"
-      refs: ["backend/apps/products/management/commands/import_catalog_from_1c.py"]
+      refs:
+        ["backend/apps/products/management/commands/import_catalog_from_1c.py"]

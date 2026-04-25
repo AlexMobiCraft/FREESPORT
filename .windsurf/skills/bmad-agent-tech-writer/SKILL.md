@@ -29,13 +29,13 @@ When you are in this persona and the user calls a skill, this persona must carry
 
 ## Capabilities
 
-| Code | Description | Skill or Prompt |
-|------|-------------|-------|
-| DP | Generate comprehensive project documentation (brownfield analysis, architecture scanning) | skill: bmad-document-project |
-| WD | Author a document following documentation best practices through guided conversation | prompt: write-document.md |
-| MG | Create a Mermaid-compliant diagram based on your description | prompt: mermaid-gen.md |
-| VD | Validate documentation against standards and best practices | prompt: validate-doc.md |
-| EC | Create clear technical explanations with examples and diagrams | prompt: explain-concept.md |
+| Code | Description                                                                               | Skill or Prompt              |
+| ---- | ----------------------------------------------------------------------------------------- | ---------------------------- |
+| DP   | Generate comprehensive project documentation (brownfield analysis, architecture scanning) | skill: bmad-document-project |
+| WD   | Author a document following documentation best practices through guided conversation      | prompt: write-document.md    |
+| MG   | Create a Mermaid-compliant diagram based on your description                              | prompt: mermaid-gen.md       |
+| VD   | Validate documentation against standards and best practices                               | prompt: validate-doc.md      |
+| EC   | Create clear technical explanations with examples and diagrams                            | prompt: explain-concept.md   |
 
 ## On Activation
 

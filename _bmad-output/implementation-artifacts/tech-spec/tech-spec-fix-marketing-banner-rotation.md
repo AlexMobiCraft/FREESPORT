@@ -1,13 +1,22 @@
 ---
-title: 'Fix Marketing Banner Rotation'
-slug: 'fix-marketing-banner-rotation'
-created: '2026-02-17T15:45:08'
-status: 'completed'
+title: "Fix Marketing Banner Rotation"
+slug: "fix-marketing-banner-rotation"
+created: "2026-02-17T15:45:08"
+status: "completed"
 stepsCompleted: [1, 2, 3, 4, 5]
-tech_stack: ['Next.js', 'React 19', 'Embla Carousel', 'TypeScript']
-files_to_modify: ['frontend/src/components/home/MarketingBannersSection.tsx', 'frontend/src/hooks/useBannerCarousel.ts']
-code_patterns: ['Custom Hook (useBannerCarousel)', 'Service Layer (bannersService)', 'Container/Presenter']
-test_patterns: ['Vitest', 'React Testing Library', 'Mocking (vi.mock)']
+tech_stack: ["Next.js", "React 19", "Embla Carousel", "TypeScript"]
+files_to_modify:
+  [
+    "frontend/src/components/home/MarketingBannersSection.tsx",
+    "frontend/src/hooks/useBannerCarousel.ts",
+  ]
+code_patterns:
+  [
+    "Custom Hook (useBannerCarousel)",
+    "Service Layer (bannersService)",
+    "Container/Presenter",
+  ]
+test_patterns: ["Vitest", "React Testing Library", "Mocking (vi.mock)"]
 ---
 
 # Tech-Spec: Fix Marketing Banner Rotation
@@ -28,11 +37,13 @@ Marketing banners (located below QuickLinks) are not rotating automatically, or 
 ### Scope
 
 **In Scope:**
+
 - `frontend/src/components/home/MarketingBannersSection.tsx`
 - `frontend/src/hooks/useBannerCarousel.ts`
 - Implementation of rotation fix and robustness improvements.
 
 **Out of Scope:**
+
 - Hero Section.
 - Backend API.
 
@@ -46,11 +57,11 @@ Marketing banners (located below QuickLinks) are not rotating automatically, or 
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `frontend/src/components/home/MarketingBannersSection.tsx` | Main component. |
-| `frontend/src/hooks/useBannerCarousel.ts` | Carousel logic hook. |
-| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Tests to verify. |
+| File                                                                      | Purpose              |
+| ------------------------------------------------------------------------- | -------------------- |
+| `frontend/src/components/home/MarketingBannersSection.tsx`                | Main component.      |
+| `frontend/src/hooks/useBannerCarousel.ts`                                 | Carousel logic hook. |
+| `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` | Tests to verify.     |
 
 ### Technical Decisions
 
@@ -90,14 +101,14 @@ Marketing banners (located below QuickLinks) are not rotating automatically, or 
 ### Testing Strategy
 
 - **Manual Verification:**
-    1.  Open Homepage.
-    2.  Scroll to Marketing Banners.
-    3.  Count 3 seconds -> Slide change.
-    4.  Hover -> Stop.
-    5.  Refresh page -> Immediate start (after load).
+  1.  Open Homepage.
+  2.  Scroll to Marketing Banners.
+  3.  Count 3 seconds -> Slide change.
+  4.  Hover -> Stop.
+  5.  Refresh page -> Immediate start (after load).
 - **Unit Tests:**
-    - Update `MarketingBannersSection.test.tsx` if it assertions on specific timeout values.
-    - Since `useBannerCarousel` is mocked in component tests, logic changes in the hook won't be covered by component tests. We might need to verify the hook separately or trust manual verification for the hook internals.
+  - Update `MarketingBannersSection.test.tsx` if it assertions on specific timeout values.
+  - Since `useBannerCarousel` is mocked in component tests, logic changes in the hook won't be covered by component tests. We might need to verify the hook separately or trust manual verification for the hook internals.
 
 ### Notes
 

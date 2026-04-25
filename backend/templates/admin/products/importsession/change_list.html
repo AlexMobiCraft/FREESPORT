@@ -1,74 +1,79 @@
-{% extends "admin/change_list.html" %}
-
-{% block extrahead %}
-{{ block.super }}
+{% extends "admin/change_list.html" %} {% block extrahead %} {{ block.super }}
 <script>
-/**
- * Auto-refresh механизм для мониторинга импортов
- *
- * Автоматически перезагружает страницу каждые 10 секунд,
- * если обнаружена хотя бы одна сессия импорта в статусе "in_progress".
- *
- * Это позволяет админу видеть обновление прогресса в реальном времени
- * без необходимости вручную обновлять страницу.
- */
-(function() {
-    'use strict';
+  /**
+   * Auto-refresh механизм для мониторинга импортов
+   *
+   * Автоматически перезагружает страницу каждые 10 секунд,
+   * если обнаружена хотя бы одна сессия импорта в статусе "in_progress".
+   *
+   * Это позволяет админу видеть обновление прогресса в реальном времени
+   * без необходимости вручную обновлять страницу.
+   */
+  (function () {
+    "use strict";
 
     /**
      * Проверяет наличие активных (running) импортов на странице
      * @returns {boolean} true если найден хотя бы один running импорт
      */
     function hasRunningImports() {
-        // Ищем все ячейки со статусом (colored_status)
-        const statusCells = document.querySelectorAll('td.field-colored_status');
+      // Ищем все ячейки со статусом (colored_status)
+      const statusCells = document.querySelectorAll("td.field-colored_status");
 
-        for (let cell of statusCells) {
-            const cellText = cell.textContent || cell.innerText || '';
+      for (let cell of statusCells) {
+        const cellText = cell.textContent || cell.innerText || "";
 
-            // Проверяем наличие иконки "в процессе" или текста "in_progress"
-            if (cellText.includes('⏳') ||
-                cellText.toLowerCase().includes('в процессе') ||
-                cellText.toLowerCase().includes('in_progress')) {
-                return true;
-            }
+        // Проверяем наличие иконки "в процессе" или текста "in_progress"
+        if (
+          cellText.includes("⏳") ||
+          cellText.toLowerCase().includes("в процессе") ||
+          cellText.toLowerCase().includes("in_progress")
+        ) {
+          return true;
         }
+      }
 
-        return false;
+      return false;
     }
 
     /**
      * Инициализирует auto-refresh если есть активные импорты
      */
     function initAutoRefresh() {
-        if (hasRunningImports()) {
-            console.log('[ImportSession] Обнаружен активный импорт. Auto-refresh через 10 секунд...');
+      if (hasRunningImports()) {
+        console.log(
+          "[ImportSession] Обнаружен активный импорт. Auto-refresh через 10 секунд...",
+        );
 
-            // Показываем индикатор автообновления (опционально)
-            showAutoRefreshIndicator();
+        // Показываем индикатор автообновления (опционально)
+        showAutoRefreshIndicator();
 
-            // Планируем reload через 10 секунд
-            setTimeout(function() {
-                console.log('[ImportSession] Перезагрузка страницы для обновления статуса...');
-                location.reload();
-            }, 10000); // 10 секунд
-        } else {
-            console.log('[ImportSession] Активных импортов не обнаружено. Auto-refresh отключен.');
-        }
+        // Планируем reload через 10 секунд
+        setTimeout(function () {
+          console.log(
+            "[ImportSession] Перезагрузка страницы для обновления статуса...",
+          );
+          location.reload();
+        }, 10000); // 10 секунд
+      } else {
+        console.log(
+          "[ImportSession] Активных импортов не обнаружено. Auto-refresh отключен.",
+        );
+      }
     }
 
     /**
      * Показывает индикатор автообновления в правом верхнем углу
      */
     function showAutoRefreshIndicator() {
-        // Создаем индикатор, если его еще нет
-        let indicator = document.getElementById('auto-refresh-indicator');
+      // Создаем индикатор, если его еще нет
+      let indicator = document.getElementById("auto-refresh-indicator");
 
-        if (!indicator) {
-            indicator = document.createElement('div');
-            indicator.id = 'auto-refresh-indicator';
-            indicator.innerHTML = '⏳ Автообновление через 10 сек...';
-            indicator.style.cssText = `
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.id = "auto-refresh-indicator";
+        indicator.innerHTML = "⏳ Автообновление через 10 сек...";
+        indicator.style.cssText = `
                 position: fixed;
                 top: 70px;
                 right: 20px;
@@ -83,27 +88,27 @@
                 animation: pulse 2s infinite;
             `;
 
-            // Добавляем CSS анимацию
-            const style = document.createElement('style');
-            style.textContent = `
+        // Добавляем CSS анимацию
+        const style = document.createElement("style");
+        style.textContent = `
                 @keyframes pulse {
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.7; }
                 }
             `;
-            document.head.appendChild(style);
+        document.head.appendChild(style);
 
-            document.body.appendChild(indicator);
-        }
+        document.body.appendChild(indicator);
+      }
     }
 
     // Запускаем проверку после полной загрузки DOM
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAutoRefresh);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initAutoRefresh);
     } else {
-        // DOM уже загружен
-        initAutoRefresh();
+      // DOM уже загружен
+      initAutoRefresh();
     }
-})();
+  })();
 </script>
 {% endblock %}

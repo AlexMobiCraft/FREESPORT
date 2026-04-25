@@ -22,11 +22,11 @@ quality_score: 95
 expires: "2025-12-31T00:00:00Z"
 
 evidence:
-  tests_reviewed: 33  # Увеличилось с 16 до 33 после добавления 17 тест-кейсов для 6 gaps
-  risks_identified: 0  # Все 7 рисков устранены
+  tests_reviewed: 33 # Увеличилось с 16 до 33 после добавления 17 тест-кейсов для 6 gaps
+  risks_identified: 0 # Все 7 рисков устранены
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9]  # Все AC полностью покрыты
-    ac_gaps: []  # Все gaps закрыты
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9] # Все AC полностью покрыты
+    ac_gaps: [] # Все gaps закрыты
 
 nfr_validation:
   security:
@@ -43,9 +43,9 @@ nfr_validation:
     notes: "Полная типизация с импортами (from __future__ import annotations, TYPE_CHECKING). Тестовое покрытие >= 90% обеспечено 33 тест-кейсами."
 
 recommendations:
-  immediate: []  # Нет критических улучшений
+  immediate: [] # Нет критических улучшений
 
-  future:  # Опциональные улучшения для последующих итераций
+  future: # Опциональные улучшения для последующих итераций
     - action: "Рассмотреть миграцию с ColorMapping на dedicated color service для градиентов/паттернов"
       priority: low
       refs: ["apps/products/models.py:ColorMapping"]
@@ -93,7 +93,7 @@ requirements_trace:
       - test_available_quantity_with_reserve
       - test_available_quantity_never_negative
       - test_available_quantity_when_reserved_exceeds_stock
-      - test_effective_images_*  # 3 теста Hybrid логики
+      - test_effective_images_* # 3 теста Hybrid логики
     gaps: []
 
   PRD_FR9_get_price_for_user:

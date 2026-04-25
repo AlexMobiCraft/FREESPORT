@@ -85,7 +85,7 @@ compliance:
   design_system_v2: true
   typescript_strict: true
   accessibility_wcag_aa: true
-  test_coverage_requirement: true  # >= 80% достигнуто после расширения ToastProvider тестов
+  test_coverage_requirement: true # >= 80% достигнуто после расширения ToastProvider тестов
 
 files_reviewed:
   - "frontend/src/components/ui/Modal/Modal.tsx"

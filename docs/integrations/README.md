@@ -10,14 +10,14 @@ The platform follows a classic **BFF (Backend for Frontend)** pattern where Next
 
 ### Key Integration Points
 
-| Source | Target | Type | Description |
-|--------|--------|------|-------------|
-| Frontend | Backend API | REST | Product catalog, Cart, Checkout, User Profile |
-| Backend | PostgreSQL | SQL | Persistent storage (Users, Orders, Catalog) |
-| Backend | Redis | TCP | Caching, Session storage, Celery broker |
-| Backend | 1C (ERP) | XML | Async import/export of products and orders |
-| Backend | YuKassa | REST | Payment processing |
-| Backend | CDEK/Boxberry | REST | Shipping cost calculation |
+| Source   | Target        | Type | Description                                   |
+| -------- | ------------- | ---- | --------------------------------------------- |
+| Frontend | Backend API   | REST | Product catalog, Cart, Checkout, User Profile |
+| Backend  | PostgreSQL    | SQL  | Persistent storage (Users, Orders, Catalog)   |
+| Backend  | Redis         | TCP  | Caching, Session storage, Celery broker       |
+| Backend  | 1C (ERP)      | XML  | Async import/export of products and orders    |
+| Backend  | YuKassa       | REST | Payment processing                            |
+| Backend  | CDEK/Boxberry | REST | Shipping cost calculation                     |
 
 ## 1C Integration Architecture
 
@@ -38,12 +38,12 @@ graph TD
     NextJS -->|REST API| Django[Django Backend]
     Django -->|Read/Write| DB[(PostgreSQL)]
     Django -->|Cache/Broker| Redis[(Redis)]
-    
+
     subgraph Async Tasks
         Celery[Celery Workers] -->|Read Task| Redis
         Celery -->|Update| DB
     end
-    
+
     ERP[1C Enterprise] -->|XML Upload| Django
     Django -->|Parse Task| Celery
 ```

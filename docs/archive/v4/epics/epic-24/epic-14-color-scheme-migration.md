@@ -20,6 +20,7 @@
 ### Existing System Context
 
 **Текущая реализация:**
+
 - Дизайн-система базируется на графитово-серой палитре (#1F1F1F основной)
 - Токены определены в `docs/frontend/design-system.json` v2.0.0
 - CSS-переменные реализованы через Tailwind CSS 4.0 в `frontend/src/app/globals.css`
@@ -27,11 +28,13 @@
 - Epic 11, 12, 13 завершены с текущей цветовой схемой
 
 **Технологический стек:**
+
 - **Frontend:** Next.js 15.4.6, React 19.1.0, Tailwind CSS 4.0, TypeScript 5.0+
 - **Design System:** Tokenized система с JSON спецификацией
 - **Testing:** Vitest 2.1.5, React Testing Library 16.3.0, MSW 2.12.2
 
 **Интеграционные точки:**
+
 - design-system.json → источник истины для токенов
 - globals.css → CSS-переменные Tailwind
 - UI Components (Button, Badge, Checkbox, Toggle, Tabs, Toast, Input, Header, Pagination)
@@ -43,6 +46,7 @@
 **Что изменяется:**
 
 **1. Цветовая палитра:**
+
 - **Primary:** #1F1F1F (графитовый) → #0060FF (синий)
 - **Secondary:** #3D3D3D (серый) → #00B7FF (голубой)
 - **Accent Success:** #4D4D4D → #00AA5B (зелёный)
@@ -53,6 +57,7 @@
 - **Text цвета:** Обновление для улучшенной контрастности
 
 **2. UI компоненты с хардкодом:**
+
 - Button (primary, secondary, subtle variants)
 - Badge (new, hit, promo, sale, discount variants)
 - Checkbox (checked states)
@@ -64,12 +69,14 @@
 - Input (focus states)
 
 **3. Документация:**
+
 - design-system.json → v2.1.0
 - frontend/src/app/globals.css → обновление всех CSS-переменных
 - docs/front-end-spec.md → обновление цветовых таблиц и примеров
 - Story документы Epic 11 (11.0, 11.1, 11.2) → синхронизация цветовых AC
 
 **Как интегрируется:**
+
 - **Фаза 1:** Обновление источников истины (design-system.json, globals.css)
 - **Фаза 2:** Рефакторинг UI компонентов (замена хардкод на токены)
 - **Фаза 3:** Синхронизация документации
@@ -79,6 +86,7 @@
 **Success Criteria:**
 
 **Технические:**
+
 - ✅ Все unit тесты проходят (100%)
 - ✅ Контрастность WCAG AA соблюдена (проверено в color-scheme-migration.md)
 - ✅ Нет хардкод HEX кодов в компонентах (кроме badge bg специфических)
@@ -87,6 +95,7 @@
 - ✅ Visual regression tests обновлены
 
 **Бизнес:**
+
 - ✅ Design Lead утвердил визуальную реализацию
 - ✅ Product Owner одобрил изменения
 - ✅ QA подписал acceptance testing
@@ -99,17 +108,20 @@
 Эпик разбит на 5 логически последовательных stories для безопасного внедрения:
 
 ### Story 14.1: Обновление дизайн-системы и CSS токенов
+
 **Цель:** Обновить источники истины для цветовых токенов
 **Story Points:** 3
 **Приоритет:** 🔴 Критический (блокирует остальные stories)
 
 **Scope:**
+
 - Обновить design-system.json до v2.1.0
 - Обновить все CSS-переменные в globals.css
 - Валидация JSON и CSS синтаксиса
 - Проверка автоприменения токенов на dev сервере
 
 **Deliverables:**
+
 - design-system.json v2.1.0 с новой палитрой
 - globals.css с обновлёнными CSS-переменными
 - Git commit с детальным changelog
@@ -117,17 +129,20 @@
 ---
 
 ### Story 14.2: Рефакторинг UI Kit компонентов
+
 **Цель:** Заменить хардкод цветов на токены в core UI компонентах
 **Story Points:** 8
 **Приоритет:** 🔴 Критический
 
 **Scope:**
+
 - Рефакторинг 9 компонентов: Button, Badge, Checkbox, Toggle, Tabs, Input, Toast, Link
 - Замена всех хардкод HEX значений на Tailwind токены
 - Обновление всех вариантов и состояний (hover, active, focus, disabled)
 - Unit тесты для каждого компонента
 
 **Deliverables:**
+
 - 9 обновлённых компонентов с токенами
 - Все unit тесты проходят
 - Code review и approval
@@ -136,17 +151,20 @@
 ---
 
 ### Story 14.3: Обновление Page-level компонентов
+
 **Цель:** Синхронизировать цвета в компонентах страниц
 **Story Points:** 3
 **Приоритет:** 🟠 Высокий
 
 **Scope:**
+
 - Обновление Pagination в catalog page
 - Обновление Header (навигация, cart badge)
 - Проверка SearchFilters, ProductGallery, ProductSummary (уже используют токены)
 - Visual testing на ключевых страницах
 
 **Deliverables:**
+
 - Обновлённые page components
 - Visual screenshots до/после
 - Manual testing checklist завершён
@@ -154,11 +172,13 @@
 ---
 
 ### Story 14.4: Синхронизация документации
+
 **Цель:** Обновить всю проектную документацию с новыми цветами
 **Story Points:** 5
 **Приоритет:** 🟡 Средний
 
 **Scope:**
+
 - Обновление docs/front-end-spec.md (цветовые таблицы, примеры)
 - Синхронизация story документов Epic 11 (11.0, 11.1, 11.2)
 - Обновление color-scheme-migration.md (статус → Реализовано)
@@ -166,6 +186,7 @@
 - Обновление changelog в design-system.json
 
 **Deliverables:**
+
 - Обновлённая frontend спецификация
 - Синхронизированные story docs (3 файла)
 - Финальный migration report
@@ -174,11 +195,13 @@
 ---
 
 ### Story 14.5: Комплексное тестирование и деплой
+
 **Цель:** Провести полное тестирование и развернуть изменения
 **Story Points:** 2
 **Приоритет:** 🔴 Критический
 
 **Scope:**
+
 - Автоматизированное тестирование (unit, snapshot update)
 - Accessibility audit (WCAG AA контрастность)
 - Visual regression testing на 3 breakpoints
@@ -188,6 +211,7 @@
 - Production deployment + monitoring
 
 **Deliverables:**
+
 - Все тесты проходят (100%)
 - QA sign-off документ
 - Staging approval от stakeholders
@@ -201,6 +225,7 @@
 ### Обратная совместимость
 
 ✅ **Сохраняется:**
+
 - [ ] Все существующие API endpoints работают без изменений
 - [ ] Database schema остаётся неизменной
 - [ ] Функциональность UI компонентов идентична
@@ -208,11 +233,13 @@
 - [ ] Старые Tailwind классы (`bg-gray-*`) продолжают работать
 
 ✅ **Автоматически обновляется:**
+
 - [ ] Компоненты использующие CSS-переменные (`var(--color-primary)`)
 - [ ] Tailwind utility классы (`bg-primary`, `text-primary`)
 - [ ] Большинство компонентов без хардкода
 
 ⚠️ **Требует ручного обновления:**
+
 - [ ] Компоненты с хардкод HEX значениями (8 файлов)
 - [ ] Inline styles с цветами (если есть)
 - [ ] Visual snapshot тесты
@@ -220,6 +247,7 @@
 ### Performance Impact
 
 ✅ **Минимальное влияние:**
+
 - [ ] Bundle size не увеличивается (только значения токенов меняются)
 - [ ] Runtime performance не затронута
 - [ ] CSS компиляция Tailwind без замедления
@@ -235,12 +263,14 @@
 **Влияние:** Среднее (визуальные несоответствия)
 
 **Митигация:**
+
 1. Автоматический grep search по паттерну `#[0-9A-Fa-f]{6}` во всех `.tsx` файлах
 2. Code review всех изменённых компонентов
 3. Visual regression testing для обнаружения несоответствий
 4. Manual QA checklist для всех UI состояний
 
 **Rollback Plan:**
+
 ```bash
 # Немедленный rollback (15 минут)
 git revert <migration-commits>
@@ -256,6 +286,7 @@ git push origin main
 **Влияние:** Низкое
 
 **Митигация:**
+
 1. Все будущие Epic будут автоматически использовать новую палитру через токены
 2. Документация содержит примеры использования новых цветов
 3. Design System v2.1.0 — источник истины для разработки
@@ -268,6 +299,7 @@ git push origin main
 **Влияние:** Высокое (accessibility нарушение)
 
 **Митигация:**
+
 1. Контрастность WCAG AA уже проверена в color-scheme-migration.md:
    - #0060FF на #FFFFFF = 4.5:1 ✅
    - #1F2A44 на #FFFFFF = 12.6:1 ✅
@@ -276,6 +308,7 @@ git push origin main
 3. Тестирование с реальными пользователями (если возможно)
 
 **Rollback Plan:**
+
 - Если проблемы обнаружены: hotfix конкретных цветовых комбинаций
 - Критические проблемы: полный rollback до исправления
 
@@ -286,6 +319,7 @@ git push origin main
 ### Epic 14 считается завершённым когда:
 
 **Story Completion:**
+
 - [x] Story 14.1: Design System & CSS tokens — Completed ✅
 - [x] Story 14.2: UI Kit components refactor — Completed ✅
 - [x] Story 14.3: Page-level components — Completed ✅
@@ -293,6 +327,7 @@ git push origin main
 - [x] Story 14.5: Testing & deployment — Completed ✅
 
 **Technical Validation:**
+
 - [ ] Все unit тесты проходят (100% pass rate)
 - [ ] Visual snapshot тесты обновлены и проходят
 - [ ] Accessibility audit: WCAG AA соблюдён
@@ -303,6 +338,7 @@ git push origin main
 - [ ] Нет хардкод HEX кодов (кроме badge backgrounds)
 
 **Functional Validation:**
+
 - [ ] Существующая функциональность работает без регрессии:
   - [ ] Навигация и роутинг
   - [ ] Формы (регистрация, login, checkout)
@@ -318,12 +354,14 @@ git push origin main
   - [ ] :disabled states
 
 **Business Validation:**
+
 - [ ] Design Lead approval получен (визуальная реализация)
 - [ ] Product Owner approval получен (бизнес-требования)
 - [ ] QA Team sign-off получен (testing complete)
 - [ ] Stakeholder demo проведена успешно
 
 **Documentation:**
+
 - [ ] design-system.json обновлён до v2.1.0
 - [ ] front-end-spec.md синхронизирован
 - [ ] Story docs Epic 11 обновлены (11.0, 11.1, 11.2)
@@ -333,6 +371,7 @@ git push origin main
 - [ ] Git changelog детализирован
 
 **Deployment:**
+
 - [ ] Staging deployment успешен
 - [ ] Staging smoke tests пройдены
 - [ ] Production deployment выполнен
@@ -349,11 +388,13 @@ git push origin main
 ### Внешние зависимости
 
 **Требуется для начала:**
+
 - ✅ Epic 11, 12, 13 завершены (подтверждено)
 - ✅ Sprint Change Proposal утверждён Product Owner
 - ✅ Design Lead approval новой палитры
 
 **Не требуется:**
+
 - ❌ Backend изменения (только frontend)
 - ❌ Database миграции
 - ❌ API обновления
@@ -362,6 +403,7 @@ git push origin main
 ### Критические блокеры
 
 **Блокеры отсутствуют:**
+
 - Нет параллельных Epic в разработке
 - Нет незакоммиченных изменений в UI компонентах
 - Нет конфликтов с другими задачами
@@ -373,12 +415,14 @@ git push origin main
 **Общая длительность:** 5-7 рабочих дней
 
 ### День 1-2: Фундамент (Stories 14.1)
+
 - Обновление design-system.json
 - Обновление globals.css
 - Валидация и dev server проверка
 - **Milestone:** Источники истины обновлены ✅
 
 ### День 3-4: Рефакторинг (Stories 14.2, 14.3)
+
 - Рефакторинг UI Kit компонентов (9 файлов)
 - Обновление page-level компонентов
 - Unit тесты
@@ -386,12 +430,14 @@ git push origin main
 - **Milestone:** Все компоненты используют токены ✅
 
 ### День 5: Документация (Story 14.4)
+
 - Обновление front-end-spec.md
 - Синхронизация story docs
 - Обновление migration doc
 - **Milestone:** Документация синхронизирована ✅
 
 ### День 6-7: Тестирование и деплой (Story 14.5)
+
 - Автоматизированное тестирование
 - Accessibility audit
 - Visual regression tests
@@ -406,17 +452,18 @@ git push origin main
 
 ### Stakeholders
 
-| Роль | Уведомление | Формат |
-|------|-------------|--------|
-| Product Owner | Начало + Завершение | Slack + Demo |
-| Design Lead | Каждая story | Figma + Screenshots |
-| Frontend Team | Daily | Stand-up + Slack |
-| QA Engineer | Story 14.5 | Test reports |
-| Backend Team | FYI | Slack announcement |
+| Роль          | Уведомление         | Формат              |
+| ------------- | ------------------- | ------------------- |
+| Product Owner | Начало + Завершение | Slack + Demo        |
+| Design Lead   | Каждая story        | Figma + Screenshots |
+| Frontend Team | Daily               | Stand-up + Slack    |
+| QA Engineer   | Story 14.5          | Test reports        |
+| Backend Team  | FYI                 | Slack announcement  |
 
 ### Key Messages
 
 **Kick-off (День 1):**
+
 ```
 📢 Начинается Epic 14: Миграция цветовой схемы
 
@@ -430,6 +477,7 @@ Scope: 5 stories, 21 story points
 ```
 
 **Completion (День 7):**
+
 ```
 ✅ Epic 14: Миграция цветовой схемы ЗАВЕРШЕНА
 
@@ -510,17 +558,20 @@ git push origin main
 ## References
 
 ### Key Documents
+
 - [Sprint Change Proposal](../../sprint-change-proposal-color-migration.md) — детальный анализ и план
 - [Color Scheme Migration Guide](../../frontend/color-scheme-migration.md) — техническая спецификация миграции
 - [Design System JSON](../../frontend/design-system.json) — источник истины для токенов
 - [Frontend Specification](../../front-end-spec.md) — UI/UX спецификация
 
 ### Related Epics
+
 - Epic 11: Frontend Landing Page (Done) — использует старую палитру, требует обновления docs
 - Epic 12: [Название] (Done) — не затронут
 - Epic 13: [Название] (Done) — не затронут
 
 ### Useful Links
+
 - WCAG Contrast Checker: https://webaim.org/resources/contrastchecker/
 - Tailwind CSS 4.0 Docs: https://tailwindcss.com/docs
 - Next.js Testing Guide: https://nextjs.org/docs/testing
@@ -529,9 +580,9 @@ git push origin main
 
 ## Version History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-11-25 | John (PM) | Initial epic creation for color scheme migration |
+| Version | Date       | Author    | Changes                                          |
+| ------- | ---------- | --------- | ------------------------------------------------ |
+| 1.0     | 2025-11-25 | John (PM) | Initial epic creation for color scheme migration |
 
 ---
 

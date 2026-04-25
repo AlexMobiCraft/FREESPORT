@@ -13,16 +13,16 @@ Status: done
 ## Критерии приёмки
 
 1. **Сохранение файлов в temp директорию**
-   * **Дано** Загрузка файла через `mode=file` (любое расширение)
-   * **Когда** Загрузка успешно завершается
-   * **Тогда** Файл сохраняется в `1c_temp/<sessid>/<filename>`
-   * **И** ZIP-архивы НЕ распаковываются (распаковка в Story 3.1)
-   * **И** Ответ остаётся `success`
+   - **Дано** Загрузка файла через `mode=file` (любое расширение)
+   - **Когда** Загрузка успешно завершается
+   - **Тогда** Файл сохраняется в `1c_temp/<sessid>/<filename>`
+   - **И** ZIP-архивы НЕ распаковываются (распаковка в Story 3.1)
+   - **И** Ответ остаётся `success`
 
 2. **Маршрутизация XML файлов**
-   * **Дано** Полностью загруженный файл с расширением `.xml`
-   * **Когда** Загрузка завершена
-   * **Тогда** Файл перемещается в соответствующую папку `1c_import/<sessid>/` по имени:
+   - **Дано** Полностью загруженный файл с расширением `.xml`
+   - **Когда** Загрузка завершена
+   - **Тогда** Файл перемещается в соответствующую папку `1c_import/<sessid>/` по имени:
      - `goods*.xml` -> `1c_import/<sessid>/goods/`
      - `offers*.xml` -> `1c_import/<sessid>/offers/`
      - `prices*.xml` -> `1c_import/<sessid>/prices/`
@@ -30,20 +30,20 @@ Status: done
      - `groups*.xml` -> `1c_import/<sessid>/groups/`
 
 3. **Маршрутизация изображений**
-   * **Дано** Полностью загруженный файл с расширением `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
-   * **Когда** Загрузка завершена
-   * **Тогда** Файл перемещается в `1c_import/<sessid>/import_files/`
+   - **Дано** Полностью загруженный файл с расширением `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
+   - **Когда** Загрузка завершена
+   - **Тогда** Файл перемещается в `1c_import/<sessid>/import_files/`
 
 4. **ZIP файлы остаются в temp**
-   * **Дано** Полностью загруженный файл с расширением `.zip` (регистронезависимо)
-   * **Когда** Загрузка завершена
-   * **Тогда** Файл остаётся в `1c_temp/<sessid>/` БЕЗ распаковки
-   * **И** Распаковка будет выполнена в Story 3.1 при вызове `mode=import`
+   - **Дано** Полностью загруженный файл с расширением `.zip` (регистронезависимо)
+   - **Когда** Загрузка завершена
+   - **Тогда** Файл остаётся в `1c_temp/<sessid>/` БЕЗ распаковки
+   - **И** Распаковка будет выполнена в Story 3.1 при вызове `mode=import`
 
 5. **Прочие файлы**
-   * **Дано** Файл с неизвестным расширением (не XML, не изображение, не ZIP)
-   * **Когда** Загрузка завершена
-   * **Тогда** Файл перемещается в корень `1c_import/<sessid>/`
+   - **Дано** Файл с неизвестным расширением (не XML, не изображение, не ZIP)
+   - **Когда** Загрузка завершена
+   - **Тогда** Файл перемещается в корень `1c_import/<sessid>/`
 
 ## Задачи / Подзадачи
 
@@ -121,6 +121,7 @@ Story 3.1: mode=import → распаковка ZIP + триггер Celery task
 ```
 
 **Почему ZIP не распаковывается здесь:**
+
 - 1С отправляет файлы чанками
 - `mode=import` — явный сигнал "все файлы загружены"
 - Распаковка неполного ZIP = `BadZipFile` или corrupted data
@@ -128,12 +129,14 @@ Story 3.1: mode=import → распаковка ZIP + триггер Celery task
 ### Интеллект предыдущей истории (2.1)
 
 **Ключевые паттерны для переиспользования:**
+
 - `FileStreamService._ensure_session_dir()` - создание директории с parents
 - `get_file_path()` с санитизацией имени файла (`Path(filename).name`)
 - Формат логирования: `f"... (session: {self.session_id[:8]}...)"`
 - Доступ к настройкам: `settings.ONEC_EXCHANGE.get('KEY', default)`
 
 **Файлы, созданные в 2.1:**
+
 - `backend/apps/integrations/onec_exchange/file_service.py` - FileStreamService
 - `backend/apps/integrations/onec_exchange/views.py` - ICExchangeView
 - `backend/tests/integration/test_1c_file_upload.py` - 26 тестов
@@ -141,10 +144,12 @@ Story 3.1: mode=import → распаковка ZIP + триггер Celery task
 ### Заметки о структуре проекта
 
 **Новые файлы для создания:**
+
 - `backend/apps/integrations/onec_exchange/routing_service.py` - FileRoutingService
 - `backend/tests/integration/test_1c_file_routing.py` - тесты маршрутизации
 
 **Файлы для модификации:**
+
 - `backend/freesport/settings/base.py` - добавить `IMPORT_DIR` в `ONEC_EXCHANGE`
 - `backend/apps/integrations/onec_exchange/views.py` - вызвать routing service
 
@@ -159,6 +164,7 @@ Story 3.1: mode=import → распаковка ZIP + триггер Celery task
 ### Что переносится в Story 3.1
 
 Следующие элементы будут реализованы в Story 3.1:
+
 - Распаковка ZIP архивов
 - Защита от Zip Bomb (MAX_UNCOMPRESSED_SIZE, MAX_FILES_IN_ARCHIVE)
 - Защита от Path Traversal в архивах

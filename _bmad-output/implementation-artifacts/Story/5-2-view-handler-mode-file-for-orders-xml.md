@@ -123,14 +123,17 @@ _Date: 2026-02-06_
 ### Findings
 
 #### 🟡 Medium Severity
+
 1.  **Security/Resources**: `backend/apps/integrations/onec_exchange/views.py` использует `xml_data = request._request.read()` (line 611). Это полагается на то, что `Content-Length` заголовок соответствует реальности или что веб-сервер обрезает тело. Если злоумышленник укажет `Content-Length: 100`, но отправит 100MB, а server buffer settings это позволяют, мы прочитаем всё в память.
-    -   *Recommendation*: Использовать `request._request.read(ORDERS_XML_MAX_SIZE + 1)` для гарантии лимита.
+    - _Recommendation_: Использовать `request._request.read(ORDERS_XML_MAX_SIZE + 1)` для гарантии лимита.
 
 #### 🟢 Low Severity
+
 1.  **Robustness**: `_validate_xml_timestamp` читает только первые 500 байт (`orders.xml`). Если в начале файла будут длинные комментарии или DOCTYPE, проверка может пропустить валидный timestamp или вернуть False negative (fail-open).
-    -   *Recommendation*: Увеличить окно поиска до 2-4KB.
+    - _Recommendation_: Увеличить окно поиска до 2-4KB.
 
 ### Conclusion
+
 **Approve with Follow-ups**. Реализация надежная, тесты проходят. Найденные проблемы не блокируют релиз, но должны быть исправлены.
 
 ## Tasks / Subtasks (Review Follow-ups 2)
@@ -140,32 +143,36 @@ _Date: 2026-02-06_
 - [x] [AI-Review][Medium] Error Handling: Обеспечить возврат специфичного `failure\nMalformed XML` при ошибках парсинга (сейчас экранируется сервисом).
 - [x] [AI-Review][Low] Refactoring: Унифицировать сигнатуру `_parse_document` (вернуть Result или исключение).
 
-
 ## Dev Notes
 
 ### Архитектурные решения (ADR)
 
 **ADR-001: Синхронная обработка**
+
 - orders.xml обрабатывается inline в `handle_file_upload()`
 - Асинхронность (Celery) НЕ используется — 1С ожидает немедленный ответ
 - Обоснование: файл маленький (<1MB), протокол требует немедленного ответа
 
 **ADR-002: Структура кода**
+
 - Выделить `_handle_orders_xml()` как отдельный приватный метод
 - `handle_file_upload()` только маршрутизирует по filename
 - Обоснование: Single Responsibility, тестируемость, расширяемость
 
 **ADR-003: Partial Success Strategy**
+
 - Если хотя бы 1 заказ обновлён → `success`
 - Только при полном отказе (invalid XML, exception) → `failure`
 - Обоснование: 1С не умеет обрабатывать partial failure
 
 **ADR-004: Защита от больших файлов**
+
 - `Content-Length > 5MB` → `failure\nFile too large for inline processing`
 - Проверка ДО чтения тела запроса
 - Обоснование: предотвращение timeout и OOM
 
 **ADR-005: Audit Log порядок**
+
 - Порядок: Сохранить копию XML → Обработать → Вернуть ответ
 - Обоснование: при сбое можно восстановить и повторить обработку
 
@@ -174,11 +181,13 @@ _Date: 2026-02-06_
 ### Архитектурные требования
 
 **Fat Services, Thin Views (docs/architecture-backend.md):**
+
 - View только читает XML из request body и передаёт в сервис
 - Вся бизнес-логика уже в `OrderStatusImportService` (Story 5.1)
 - View возвращает plain text ответ согласно протоколу 1С
 
 **Существующий код для референса:**
+
 - `backend/apps/integrations/onec_exchange/views.py:496-545` — `handle_file_upload()`
 - `backend/apps/integrations/onec_exchange/views.py:29` — `ORDERS_XML_FILENAME = "orders.xml"`
 - `backend/apps/integrations/onec_exchange/views.py:46-58` — `_save_exchange_log()`
@@ -278,6 +287,7 @@ def _handle_orders_xml(self, request) -> HttpResponse:
 ### Протокол 1С (type=sale)
 
 **Полный flow обмена заказами:**
+
 1. `GET /?type=sale&mode=checkauth` → Basic Auth, установка сессии
 2. `GET /?type=sale&mode=init` → Capability negotiation
 3. `GET /?type=sale&mode=query` → Экспорт заказов (уже реализовано, Story 4.3)
@@ -285,6 +295,7 @@ def _handle_orders_xml(self, request) -> HttpResponse:
 5. `POST /?type=sale&mode=file&filename=orders.xml` → **ЭТА STORY** — импорт статусов
 
 **ВАЖНО:** В отличие от catalog import (mode=file → mode=import), orders.xml обрабатывается синхронно в mode=file, т.к.:
+
 - Файл маленький (обычно <1MB)
 - 1С ожидает немедленный ответ о результате
 - Не требуется распаковка ZIP или batch processing
@@ -292,11 +303,13 @@ def _handle_orders_xml(self, request) -> HttpResponse:
 ### Testing Standards (10-testing-strategy.md)
 
 **§10.3.1 Integration-тесты:**
+
 - Размещение: `backend/tests/integration/test_orders_xml_mode_file.py`
 - Маркировка: `@pytest.mark.integration`, `@pytest.mark.django_db`
 - Используют реальную БД через Docker
 
 **§10.4.2 Factory Boy:**
+
 ```python
 from tests.conftest import get_unique_suffix
 
@@ -309,6 +322,7 @@ order = OrderFactory(
 ```
 
 **§10.6.3 AAA-паттерн:**
+
 ```python
 def test_mode_file_orders_xml_updates_order_status(self, api_client, order):
     # ARRANGE
@@ -340,6 +354,7 @@ def test_mode_file_orders_xml_updates_order_status(self, api_client, order):
 **Сценарий атаки R3:** Злоумышленник компрометирует 1С сервер и модифицирует orders.xml, добавляя поля для изменения адреса доставки или суммы заказа.
 
 **Защита:** Строгий whitelist разрешённых полей:
+
 ```python
 # backend/apps/orders/constants.py
 ALLOWED_ORDER_FIELDS = {'Номер', 'Ид', 'ЗначенияРеквизитов'}
@@ -370,6 +385,7 @@ for child in document:
 | Broken Function Level Auth | ✅ | `Is1CExchangeUser` permission |
 
 **Реализованные защиты:**
+
 ```python
 # backend/apps/integrations/onec_exchange/throttling.py
 from rest_framework.throttling import SimpleRateThrottle
@@ -384,6 +400,7 @@ class OneCAuthThrottle(SimpleRateThrottle):
 ```
 
 **Timestamp validation (Anti-Replay):**
+
 ```python
 from datetime import timedelta
 from django.utils import timezone
@@ -402,15 +419,16 @@ def _validate_xml_timestamp(xml_data: bytes) -> bool:
 
 ### Failure Mode Analysis: Критические точки отказа
 
-| FM ID | Компонент | Failure Mode | Mitigation |
-|-------|-----------|--------------|------------|
-| FM1.1 | HTTP | Body truncated | Проверка `len(body) == Content-Length` |
-| FM3.1 | XML Parser | Malformed XML | Catch `ParseError` → понятный `failure` |
-| FM4.5 | Service | Too many documents | `MAX_DOCUMENTS_PER_FILE = 1000` |
-| FM5.1 | Database | Connection exhausted | Retry 3x с backoff |
-| FM5.2 | Database | Transaction timeout | Retry 3x с backoff |
+| FM ID | Компонент  | Failure Mode         | Mitigation                              |
+| ----- | ---------- | -------------------- | --------------------------------------- |
+| FM1.1 | HTTP       | Body truncated       | Проверка `len(body) == Content-Length`  |
+| FM3.1 | XML Parser | Malformed XML        | Catch `ParseError` → понятный `failure` |
+| FM4.5 | Service    | Too many documents   | `MAX_DOCUMENTS_PER_FILE = 1000`         |
+| FM5.1 | Database   | Connection exhausted | Retry 3x с backoff                      |
+| FM5.2 | Database   | Transaction timeout  | Retry 3x с backoff                      |
 
 **Retry pattern для DB errors:**
+
 ```python
 from django.db import OperationalError
 import time
@@ -432,10 +450,12 @@ for attempt in range(MAX_RETRIES):
 ### Pre-mortem: Превентивные меры
 
 **Сценарий #1 — Молчаливый провал:**
+
 - Alert при `processed == 0` на непустом XML
 - Метрика `orders_import_zero_processed_total` для мониторинга
 
 **Сценарий #2 — Регресс статуса:**
+
 ```python
 # backend/apps/orders/constants.py
 STATUS_PRIORITY = {
@@ -448,9 +468,11 @@ STATUS_PRIORITY = {
     "refunded": 0,   # Особый случай: всегда разрешён
 }
 ```
+
 - Блокировка: `new_priority < current_priority` → skip (кроме cancelled/refunded)
 
 **Сценарий #5 — Кодировка windows-1251:**
+
 - Детекция из XML declaration
 - Перекодирование в UTF-8 перед парсингом
 

@@ -59,7 +59,6 @@ export const CartSummary = () => {
             {mounted ? formatPrice(totalPrice) : '—'}
           </span>
         </div>
-
       </div>
 
       {/* Divider */}

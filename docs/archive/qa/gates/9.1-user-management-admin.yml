@@ -52,7 +52,11 @@ recommendations:
     - action: "Рассмотреть интеграцию django-ratelimit для admin endpoints"
       refs: ["docs/architecture/04-component-structure.md:164-181"]
     - action: "Оптимизировать массовые операции через bulk_update при увеличении нагрузки"
-      refs: ["backend/apps/users/admin.py:305-327", "backend/apps/users/admin.py:369-391"]
+      refs:
+        [
+          "backend/apps/users/admin.py:305-327",
+          "backend/apps/users/admin.py:369-391",
+        ]
     - action: "Добавить integration тесты для проверки UI админки (опционально)"
       refs: ["backend/tests/unit/test_users_admin.py"]
 

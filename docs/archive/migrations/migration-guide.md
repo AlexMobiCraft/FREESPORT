@@ -34,21 +34,21 @@
 
 **Рекомендуемое время**: 2:00 AM - 4:00 AM MSK (низкая нагрузка)
 
-| Время | Действие | Длительность | Ответственный |
-|-------|----------|--------------|---------------|
-| 01:30 | Уведомление в Slack #tech-alerts | 2 мин | DevOps |
-| 01:45 | Pre-deployment meeting | 15 мин | Team |
-| 02:00 | Включить maintenance mode | 2 мин | DevOps |
-| 02:02 | Создать pre-migration backup | 10 мин | DevOps |
-| 02:12 | Deploy новой версии кода | 5 мин | DevOps |
-| 02:17 | Запустить Django миграции | 3 мин | DevOps |
-| 02:20 | Pre-import validation (1С) | 5 мин | Backend |
-| 02:25 | Очистить старые товары | 2 мин | DevOps |
-| 02:27 | Импорт каталога из 1С | 30 мин | Backend |
-| 02:57 | Post-migration validation | 5 мин | QA |
-| 03:02 | Отключить maintenance mode | 2 мин | DevOps |
-| 03:04 | Smoke tests | 10 мин | QA |
-| 03:14 | Уведомление о завершении | 2 мин | DevOps |
+| Время | Действие                         | Длительность | Ответственный |
+| ----- | -------------------------------- | ------------ | ------------- |
+| 01:30 | Уведомление в Slack #tech-alerts | 2 мин        | DevOps        |
+| 01:45 | Pre-deployment meeting           | 15 мин       | Team          |
+| 02:00 | Включить maintenance mode        | 2 мин        | DevOps        |
+| 02:02 | Создать pre-migration backup     | 10 мин       | DevOps        |
+| 02:12 | Deploy новой версии кода         | 5 мин        | DevOps        |
+| 02:17 | Запустить Django миграции        | 3 мин        | DevOps        |
+| 02:20 | Pre-import validation (1С)       | 5 мин        | Backend       |
+| 02:25 | Очистить старые товары           | 2 мин        | DevOps        |
+| 02:27 | Импорт каталога из 1С            | 30 мин       | Backend       |
+| 02:57 | Post-migration validation        | 5 мин        | QA            |
+| 03:02 | Отключить maintenance mode       | 2 мин        | DevOps        |
+| 03:04 | Smoke tests                      | 10 мин       | QA            |
+| 03:14 | Уведомление о завершении         | 2 мин        | DevOps        |
 
 **Общее время**: ~1ч 45мин (buffer до 4:00 AM)
 
@@ -210,14 +210,14 @@ supervisorctl start freesport:*
 
 ## Rollback Decision Matrix
 
-| Проблема | Severity | Rollback? | Действие |
-|----------|----------|-----------|----------|
-| Django миграция failed | 🔴 Critical | ✅ YES | Немедленный rollback |
-| Импорт 1С failed | 🔴 Critical | ✅ YES | Rollback + расследование |
-| Response time > 1000ms | 🟡 High | ⚠️ MAYBE | Мониторинг 1ч, затем решение |
-| Error rate > 5% | 🔴 Critical | ✅ YES | Немедленный rollback |
-| Error rate 1-5% | 🟡 High | ⚠️ MAYBE | Мониторинг + hotfix |
-| Missing ColorMapping | 🟢 Low | ❌ NO | Hotfix (добавить цвета) |
+| Проблема               | Severity    | Rollback? | Действие                     |
+| ---------------------- | ----------- | --------- | ---------------------------- |
+| Django миграция failed | 🔴 Critical | ✅ YES    | Немедленный rollback         |
+| Импорт 1С failed       | 🔴 Critical | ✅ YES    | Rollback + расследование     |
+| Response time > 1000ms | 🟡 High     | ⚠️ MAYBE  | Мониторинг 1ч, затем решение |
+| Error rate > 5%        | 🔴 Critical | ✅ YES    | Немедленный rollback         |
+| Error rate 1-5%        | 🟡 High     | ⚠️ MAYBE  | Мониторинг + hotfix          |
+| Missing ColorMapping   | 🟢 Low      | ❌ NO     | Hotfix (добавить цвета)      |
 
 ---
 
@@ -296,17 +296,17 @@ grep "request_time" /var/log/nginx/access.log | awk '{sum+=$NF; count++} END {pr
 
 ## Contacts
 
-| Роль | Имя | Контакт |
-|------|-----|---------|
-| DevOps Lead | - | Slack: @devops |
-| Backend Lead | - | Slack: @backend |
-| QA Lead | - | Slack: @qa |
-| On-Call | - | PagerDuty |
+| Роль         | Имя | Контакт         |
+| ------------ | --- | --------------- |
+| DevOps Lead  | -   | Slack: @devops  |
+| Backend Lead | -   | Slack: @backend |
+| QA Lead      | -   | Slack: @qa      |
+| On-Call      | -   | PagerDuty       |
 
 ---
 
 ## Revision History
 
-| Дата | Версия | Описание | Автор |
-|------|--------|----------|-------|
-| 2025-12-02 | 1.0 | Создание документа | James (Dev) |
+| Дата       | Версия | Описание           | Автор       |
+| ---------- | ------ | ------------------ | ----------- |
+| 2025-12-02 | 1.0    | Создание документа | James (Dev) |

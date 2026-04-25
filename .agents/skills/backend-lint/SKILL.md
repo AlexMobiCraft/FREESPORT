@@ -50,5 +50,5 @@ venv\Scripts\python.exe -m flake8 . --max-line-length=120 --extend-ignore=E203,W
 
 ## Важные нюансы для Windows
 
-*   Всегда используй `venv\Scripts\python.exe -m <tool>`, если прямой вызов `.exe` не срабатывает.
-*   Убедись, что находишься в директории `backend/`, так как `venv` находится именно там.
+- Всегда используй `venv\Scripts\python.exe -m <tool>`, если прямой вызов `.exe` не срабатывает.
+- Убедись, что находишься в директории `backend/`, так как `venv` находится именно там.

@@ -5,11 +5,13 @@
 ### Запуск через Docker (рекомендуется)
 
 **Преимущества:**
+
 - Изолированная среда тестирования
 - Автоматическая настройка PostgreSQL и Redis
 - Соответствие окружению CI/CD на GitHub Actions
 
 **Требования:**
+
 - Docker Desktop должен быть запущен
 
 **Команды:**
@@ -48,6 +50,7 @@ docker-compose -f docker-compose.test.yml run --rm backend pytest tests/unit/tes
 ### Запуск локально (без Docker)
 
 **Требования:**
+
 - PostgreSQL запущен локально или через Docker
 - Redis запущен локально или через Docker
 - Виртуальное окружение Python активировано

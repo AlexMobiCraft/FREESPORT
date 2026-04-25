@@ -18,20 +18,20 @@
 
 ### Готовые компоненты (можно переиспользовать)
 
-| Компонент | Файл | Статус |
-|-----------|------|--------|
-| **SearchField** | `src/components/ui/SearchField/SearchField.tsx` | ✅ Готов: debounce, autocomplete dropdown, валидация minLength |
-| **productsService.search()** | `src/services/productsService.ts` | ✅ Готов: GET `/products/search/?q=query` |
-| **useDebounce** | `src/hooks/useDebounce.ts` | ✅ Готов |
-| **Backend Full-Text Search** | `backend/apps/products/filters.py` | ✅ PostgreSQL FTS с русской конфигурацией |
+| Компонент                    | Файл                                            | Статус                                                         |
+| ---------------------------- | ----------------------------------------------- | -------------------------------------------------------------- |
+| **SearchField**              | `src/components/ui/SearchField/SearchField.tsx` | ✅ Готов: debounce, autocomplete dropdown, валидация minLength |
+| **productsService.search()** | `src/services/productsService.ts`               | ✅ Готов: GET `/products/search/?q=query`                      |
+| **useDebounce**              | `src/hooks/useDebounce.ts`                      | ✅ Готов                                                       |
+| **Backend Full-Text Search** | `backend/apps/products/filters.py`              | ✅ PostgreSQL FTS с русской конфигурацией                      |
 
 ### Текущие ограничения
 
-| Проблема | Решение в рамках эпика |
-|----------|------------------------|
+| Проблема                         | Решение в рамках эпика                      |
+| -------------------------------- | ------------------------------------------- |
 | Иконка поиска в Header неактивна | Story 18.1: Интеграция SearchField в Header |
-| Нет страницы `/search` | Story 18.2: Создание страницы результатов |
-| Нет истории поиска | Story 18.3: localStorage для истории |
+| Нет страницы `/search`           | Story 18.2: Создание страницы результатов   |
+| Нет истории поиска               | Story 18.3: localStorage для истории        |
 
 ---
 
@@ -167,11 +167,11 @@
 
 ## 6. Риски и митигация
 
-| Риск | Вероятность | Влияние | Митигация |
-|------|-------------|---------|-----------|
-| Производительность autocomplete | Средняя | Высокое | Debounce 300ms, лимит 5 товаров в dropdown |
-| Конфликт с мобильной навигацией | Низкая | Среднее | Отдельный UI для mobile (fullscreen search) |
-| SEO для страницы поиска | Низкая | Среднее | SSR + canonical URL + noindex для пагинации |
+| Риск                            | Вероятность | Влияние | Митигация                                   |
+| ------------------------------- | ----------- | ------- | ------------------------------------------- |
+| Производительность autocomplete | Средняя     | Высокое | Debounce 300ms, лимит 5 товаров в dropdown  |
+| Конфликт с мобильной навигацией | Низкая      | Среднее | Отдельный UI для mobile (fullscreen search) |
+| SEO для страницы поиска         | Низкая      | Среднее | SSR + canonical URL + noindex для пагинации |
 
 ---
 
@@ -197,13 +197,13 @@
 
 ## 9. Документы для разработки
 
-| Документ | Назначение |
-|----------|------------|
-| `docs/frontend/design-system.json` | Стили SearchField, Cards |
-| `docs/api-spec.yaml` | Эндпоинт `/products/?search=` |
-| `frontend/docs/testing-standards.md` | Рекомендации по тестам |
-| `src/components/ui/SearchField/` | Существующий компонент |
-| `src/services/productsService.ts` | API методы для поиска |
+| Документ                             | Назначение                    |
+| ------------------------------------ | ----------------------------- |
+| `docs/frontend/design-system.json`   | Стили SearchField, Cards      |
+| `docs/api-spec.yaml`                 | Эндпоинт `/products/?search=` |
+| `frontend/docs/testing-standards.md` | Рекомендации по тестам        |
+| `src/components/ui/SearchField/`     | Существующий компонент        |
+| `src/services/productsService.ts`    | API методы для поиска         |
 
 ---
 

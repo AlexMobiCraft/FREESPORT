@@ -7,36 +7,36 @@ Starting from Epic 27, the legacy `import_catalog_from_1c` command has been
 
 ## Timeline
 
-| Milestone | Status |
-|-----------|--------|
+| Milestone      | Status                                             |
+| -------------- | -------------------------------------------------- |
 | **Story 27.4** | `import_catalog_from_1c` deprecation warning added |
-| **Story 27.5** | ✅ `import_catalog_from_1c` **REMOVED** |
+| **Story 27.5** | ✅ `import_catalog_from_1c` **REMOVED**            |
 
 ## Command Mapping
 
-| Old Command | New Command |
-|------------|-------------|
-| `import_catalog_from_1c --file-type=all` | `import_products_from_1c --file-type=all` |
-| `import_catalog_from_1c --file-type=goods` | `import_products_from_1c --file-type=goods` |
+| Old Command                                 | New Command                                  |
+| ------------------------------------------- | -------------------------------------------- |
+| `import_catalog_from_1c --file-type=all`    | `import_products_from_1c --file-type=all`    |
+| `import_catalog_from_1c --file-type=goods`  | `import_products_from_1c --file-type=goods`  |
 | `import_catalog_from_1c --file-type=offers` | `import_products_from_1c --file-type=offers` |
-| `import_catalog_from_1c --file-type=rests` | `import_products_from_1c --file-type=rests` |
+| `import_catalog_from_1c --file-type=rests`  | `import_products_from_1c --file-type=rests`  |
 | `import_catalog_from_1c --file-type=prices` | `import_products_from_1c --file-type=prices` |
 
 ## Parameter Compatibility
 
 All parameters from the legacy command are supported in the new command:
 
-| Parameter | Description |
-|-----------|-------------|
-| `--data-dir` | Path to 1C data directory |
-| `--file-type` | Type of import (all, goods, offers, prices, rests) |
-| `--celery-task-id` | Celery task ID for linking to import session |
-| `--skip-validation` | Skip data validation for faster import |
-| `--skip-images` | Skip image import |
-| `--chunk-size` | Batch size for bulk operations (default: 1000) |
-| `--dry-run` | Test run without writing to database |
-| `--clear-existing` | Clear existing data before import |
-| `--skip-backup` | Skip backup creation before import |
+| Parameter           | Description                                        |
+| ------------------- | -------------------------------------------------- |
+| `--data-dir`        | Path to 1C data directory                          |
+| `--file-type`       | Type of import (all, goods, offers, prices, rests) |
+| `--celery-task-id`  | Celery task ID for linking to import session       |
+| `--skip-validation` | Skip data validation for faster import             |
+| `--skip-images`     | Skip image import                                  |
+| `--chunk-size`      | Batch size for bulk operations (default: 1000)     |
+| `--dry-run`         | Test run without writing to database               |
+| `--clear-existing`  | Clear existing data before import                  |
+| `--skip-backup`     | Skip backup creation before import                 |
 
 ## Migration Steps
 

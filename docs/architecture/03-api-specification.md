@@ -51,7 +51,7 @@ paths:
                   enum: [retail, wholesale_level1, trainer]
               required: [email, password, first_name, last_name, role]
       responses:
-        '201':
+        "201":
           description: Registration successful
           content:
             application/json:
@@ -67,8 +67,8 @@ paths:
                     type: string
                     description: Only for verified users
                   user:
-                    $ref: '#/components/schemas/User'
-        '400':
+                    $ref: "#/components/schemas/User"
+        "400":
           description: Validation error
 
   /auth/login/:
@@ -90,7 +90,7 @@ paths:
                   format: password
               required: [email, password]
       responses:
-        '200':
+        "200":
           description: Login successful
           content:
             application/json:
@@ -102,10 +102,10 @@ paths:
                   refresh_token:
                     type: string
                   user:
-                    $ref: '#/components/schemas/User'
-        '401':
+                    $ref: "#/components/schemas/User"
+        "401":
           description: Invalid credentials
-        '403':
+        "403":
           description: Account pending verification (Epic 29.2)
           content:
             application/json:
@@ -134,7 +134,7 @@ paths:
                   type: string
               required: [refresh_token]
 
-  # Product Catalog Endpoints  
+  # Product Catalog Endpoints
   /products/:
     get:
       tags: [Products]
@@ -172,7 +172,7 @@ paths:
             default: 20
             maximum: 100
       responses:
-        '200':
+        "200":
           description: Products list
           content:
             application/json:
@@ -190,7 +190,7 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Product'
+                      $ref: "#/components/schemas/Product"
 
   /products/{id}/:
     get:
@@ -203,12 +203,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Product details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductDetail'
+                $ref: "#/components/schemas/ProductDetail"
 
   # Catalog Filters (Story 14.3)
   /catalog/filters/:
@@ -226,14 +226,14 @@ paths:
             type: boolean
             default: false
       responses:
-        '200':
+        "200":
           description: Список атрибутов для фильтрации
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/AttributeFilter'
+                  $ref: "#/components/schemas/AttributeFilter"
 
   # Banners API
   /banners/active/:
@@ -243,16 +243,16 @@ paths:
       description: |
         Возвращает список активных баннеров, отфильтрованных по роли пользователя.
         Для неавторизованных пользователей возвращаются баннеры с show_to_guests=true.
-      security: []  # Опциональная авторизация
+      security: [] # Опциональная авторизация
       responses:
-        '200':
+        "200":
           description: Список баннеров
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Banner'
+                  $ref: "#/components/schemas/Banner"
 
   # News API
   /news/:
@@ -271,7 +271,7 @@ paths:
             type: integer
             default: 10
       responses:
-        '200':
+        "200":
           description: News list
           content:
             application/json:
@@ -289,7 +289,7 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/News'
+                      $ref: "#/components/schemas/News"
 
   /news/{slug}/:
     get:
@@ -302,13 +302,13 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: News details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NewsDetail'
-        '404':
+                $ref: "#/components/schemas/NewsDetail"
+        "404":
           description: News not found
 
   # Blog API
@@ -328,7 +328,7 @@ paths:
             type: integer
             default: 10
       responses:
-        '200':
+        "200":
           description: Blog posts list
           content:
             application/json:
@@ -346,7 +346,7 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/BlogPost'
+                      $ref: "#/components/schemas/BlogPost"
 
   /blog/{slug}/:
     get:
@@ -359,13 +359,13 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Blog post details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BlogPostDetail'
-        '404':
+                $ref: "#/components/schemas/BlogPostDetail"
+        "404":
           description: Blog post not found
 
   # Cart Management
@@ -376,13 +376,13 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Cart contents
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cart'
-    
+                $ref: "#/components/schemas/Cart"
+
     post:
       tags: [Cart]
       summary: Add item to cart
@@ -414,19 +414,20 @@ paths:
           in: query
           schema:
             type: string
-            enum: [pending, confirmed, processing, shipped, delivered, cancelled]
+            enum:
+              [pending, confirmed, processing, shipped, delivered, cancelled]
         - name: page
           in: query
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Orders list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderList'
-    
+                $ref: "#/components/schemas/OrderList"
+
     post:
       tags: [Orders]
       summary: Create new order
@@ -437,14 +438,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OrderCreate'
+              $ref: "#/components/schemas/OrderCreate"
       responses:
-        '201':
+        "201":
           description: Order created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: "#/components/schemas/Order"
 
   # 1C Integration Endpoints
   /api/1c/customers/:
@@ -478,7 +479,7 @@ paths:
             default: 50
             maximum: 200
       responses:
-        '200':
+        "200":
           description: Customers list for sync
           content:
             application/json:
@@ -496,8 +497,8 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Customer1C'
-    
+                      $ref: "#/components/schemas/Customer1C"
+
     post:
       tags: [1C Integration]
       summary: Import customers from 1C
@@ -513,13 +514,13 @@ paths:
                 customers:
                   type: array
                   items:
-                    $ref: '#/components/schemas/Customer1CImport'
+                    $ref: "#/components/schemas/Customer1CImport"
                 sync_operation_id:
                   type: string
                   description: Unique identifier for sync operation
               required: [customers]
       responses:
-        '202':
+        "202":
           description: Import initiated
           content:
             application/json:
@@ -535,12 +536,12 @@ paths:
                     type: integer
                   conflicts_count:
                     type: integer
-        '400':
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
   /api/1c/customers/{onec_id}/:
     get:
@@ -555,15 +556,15 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Customer found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Customer1C'
-        '404':
+                $ref: "#/components/schemas/Customer1C"
+        "404":
           description: Customer not found
-    
+
     put:
       tags: [1C Integration]
       summary: Update customer from 1C
@@ -580,20 +581,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Customer1CImport'
+              $ref: "#/components/schemas/Customer1CImport"
       responses:
-        '200':
+        "200":
           description: Customer updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Customer1C'
-        '409':
+                $ref: "#/components/schemas/Customer1C"
+        "409":
           description: Conflict detected
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SyncConflict'
+                $ref: "#/components/schemas/SyncConflict"
 
   /api/1c/orders/:
     get:
@@ -625,7 +626,7 @@ paths:
             type: integer
             default: 50
       responses:
-        '200':
+        "200":
           description: Orders for export
           content:
             application/json:
@@ -637,8 +638,8 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Order1CExport'
-    
+                      $ref: "#/components/schemas/Order1CExport"
+
     post:
       tags: [1C Integration]
       summary: Update order statuses from 1C
@@ -662,14 +663,15 @@ paths:
                         type: string
                       status:
                         type: string
-                        enum: [confirmed, processing, shipped, delivered, cancelled]
+                        enum:
+                          [confirmed, processing, shipped, delivered, cancelled]
                       tracking_number:
                         type: string
                         nullable: true
                     required: [platform_order_id, status]
               required: [orders]
       responses:
-        '200':
+        "200":
           description: Orders updated
           content:
             application/json:
@@ -710,7 +712,7 @@ paths:
             type: integer
             default: 1
       responses:
-        '200':
+        "200":
           description: Conflicts list
           content:
             application/json:
@@ -722,7 +724,7 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/SyncConflict'
+                      $ref: "#/components/schemas/SyncConflict"
 
   /api/1c/sync/conflicts/{conflict_id}/resolve/:
     post:
@@ -751,12 +753,12 @@ paths:
                   description: Details of manual resolution if strategy is manual
               required: [resolution_strategy]
       responses:
-        '200':
+        "200":
           description: Conflict resolved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SyncConflict'
+                $ref: "#/components/schemas/SyncConflict"
 
   /api/1c/sync/logs/:
     get:
@@ -791,7 +793,7 @@ paths:
             type: integer
             default: 1
       responses:
-        '200':
+        "200":
           description: Sync logs
           content:
             application/json:
@@ -803,7 +805,7 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CustomerSyncLog'
+                      $ref: "#/components/schemas/CustomerSyncLog"
 
 components:
   securitySchemes:
@@ -831,7 +833,16 @@ components:
           type: string
         role:
           type: string
-          enum: [retail, wholesale_level1, wholesale_level2, wholesale_level3, trainer, federation_rep, admin]
+          enum:
+            [
+              retail,
+              wholesale_level1,
+              wholesale_level2,
+              wholesale_level3,
+              trainer,
+              federation_rep,
+              admin,
+            ]
         company_name:
           type: string
           nullable: true
@@ -911,7 +922,7 @@ components:
 
     ProductDetail:
       allOf:
-        - $ref: '#/components/schemas/Product'
+        - $ref: "#/components/schemas/Product"
         - type: object
           properties:
             description:
@@ -946,7 +957,7 @@ components:
           type: array
           description: Список значений атрибута
           items:
-            $ref: '#/components/schemas/AttributeValueFilter'
+            $ref: "#/components/schemas/AttributeValueFilter"
 
     AttributeValueFilter:
       type: object
@@ -982,7 +993,7 @@ components:
 
     NewsDetail:
       allOf:
-        - $ref: '#/components/schemas/News'
+        - $ref: "#/components/schemas/News"
         - type: object
           properties:
             content:
@@ -1023,7 +1034,7 @@ components:
 
     BlogPostDetail:
       allOf:
-        - $ref: '#/components/schemas/BlogPost'
+        - $ref: "#/components/schemas/BlogPost"
         - type: object
           properties:
             content:
@@ -1068,7 +1079,16 @@ components:
           nullable: true
         role:
           type: string
-          enum: [retail, wholesale_level1, wholesale_level2, wholesale_level3, trainer, federation_rep, admin]
+          enum:
+            [
+              retail,
+              wholesale_level1,
+              wholesale_level2,
+              wholesale_level3,
+              trainer,
+              federation_rep,
+              admin,
+            ]
         is_verified_b2b:
           type: boolean
         onec_id:
@@ -1127,7 +1147,16 @@ components:
           nullable: true
         role:
           type: string
-          enum: [retail, wholesale_level1, wholesale_level2, wholesale_level3, trainer, federation_rep, admin]
+          enum:
+            [
+              retail,
+              wholesale_level1,
+              wholesale_level2,
+              wholesale_level3,
+              trainer,
+              federation_rep,
+              admin,
+            ]
           default: retail
         is_verified_b2b:
           type: boolean
@@ -1163,7 +1192,16 @@ components:
               nullable: true
         status:
           type: string
-          enum: [pending, confirmed, processing, shipped, delivered, cancelled, returned]
+          enum:
+            [
+              pending,
+              confirmed,
+              processing,
+              shipped,
+              delivered,
+              cancelled,
+              returned,
+            ]
         total_amount:
           type: number
           format: decimal
@@ -1305,7 +1343,7 @@ components:
               id:
                 type: integer
               product:
-                $ref: '#/components/schemas/Product'
+                $ref: "#/components/schemas/Product"
               quantity:
                 type: integer
               price_at_add:
@@ -1326,7 +1364,16 @@ components:
           type: string
         status:
           type: string
-          enum: [draft, pending, processing, shipped, delivered, cancelled, returned]
+          enum:
+            [
+              draft,
+              pending,
+              processing,
+              shipped,
+              delivered,
+              cancelled,
+              returned,
+            ]
         total_amount:
           type: number
           format: decimal
@@ -1361,7 +1408,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/Order'
+            $ref: "#/components/schemas/Order"
 
     OrderCreate:
       type: object

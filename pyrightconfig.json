@@ -1,9 +1,6 @@
 {
-    "typeCheckingMode": "basic",
-    "reportMissingImports": "none",
-    "reportMissingTypeStubs": "none",
-    "ignore": [
-        "transliterate",
-        "django_filters.rest_framework"
-    ]
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": "none",
+  "ignore": ["transliterate", "django_filters.rest_framework"]
 }

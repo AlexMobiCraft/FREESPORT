@@ -163,6 +163,6 @@
 
 ## Change Log
 
-| Date       | Version | Description                      | Author       |
-|------------|---------|----------------------------------|--------------|
-| 2025-12-26 | 1.0     | Initial epic draft               | John (PM)    |
+| Date       | Version | Description        | Author    |
+| ---------- | ------- | ------------------ | --------- |
+| 2025-12-26 | 1.0     | Initial epic draft | John (PM) |

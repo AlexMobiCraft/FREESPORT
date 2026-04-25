@@ -13,9 +13,9 @@
 
 ### Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-12-22 | 1.0 | Начальная версия спецификации | Sally (UX Expert) |
+| Date       | Version | Description                   | Author            |
+| ---------- | ------- | ----------------------------- | ----------------- |
+| 2025-12-22 | 1.0     | Начальная версия спецификации | Sally (UX Expert) |
 
 ---
 
@@ -101,7 +101,7 @@
 [Категории]
          ↓
 ┌─────────────────────────────┐
-│ 🆕 ТИЗЕР 1: Почему FREESPORT│  ← После категорий  
+│ 🆕 ТИЗЕР 1: Почему FREESPORT│  ← После категорий
 └─────────────────────────────┘
 [Хиты продаж]
 [Новинки]
@@ -144,7 +144,7 @@ flowchart TD
     B -->|Скролл вниз| D[Продолжает просмотр]
     D --> E{Footer или Header}
     E -->|Клик «Партнёрам»| C
-    
+
     C --> F[Hero: Условия сотрудничества]
     F --> G[Изучает типы клиентов]
     G --> H[Читает условия]
@@ -166,16 +166,16 @@ flowchart TD
     B -->|Главная| C[Тизер «Доставка»]
     B -->|Корзина| D[Ссылка в Checkout]
     B -->|Footer| E[Прямой переход]
-    
+
     C --> F[/delivery]
     D --> F
     E --> F
-    
+
     F --> G[Hero: Доставка по России]
     G --> H{Какой способ интересует?}
     H -->|ТК| I[Карточка: Доставка до ТК]
     H -->|Самовывоз| J[Карточка: Самовывоз + адрес]
-    
+
     I --> K[Понял условия]
     J --> K
     K --> L{Остались вопросы?}
@@ -391,15 +391,15 @@ flowchart TD
 
 ### Существующие компоненты (переиспользуем)
 
-| Компонент | Использование |
-|-----------|---------------|
-| `Button` | CTA кнопки |
-| `Card` | Карточки ценностей, типов клиентов |
-| `InfoPanel` | Блок «Персональный менеджер» |
-| `SupportPanel` | Карточки доставки |
-| `Badge` | «БЕСПЛАТНО», статусы |
-| `Input`, `Select` | Форма регистрации (существующая) |
-| `Breadcrumb` | Навигация |
+| Компонент         | Использование                      |
+| ----------------- | ---------------------------------- |
+| `Button`          | CTA кнопки                         |
+| `Card`            | Карточки ценностей, типов клиентов |
+| `InfoPanel`       | Блок «Персональный менеджер»       |
+| `SupportPanel`    | Карточки доставки                  |
+| `Badge`           | «БЕСПЛАТНО», статусы               |
+| `Input`, `Select` | Форма регистрации (существующая)   |
+| `Breadcrumb`      | Навигация                          |
 
 ### Новые компоненты
 
@@ -412,7 +412,7 @@ interface FeatureCardProps {
   icon: LucideIcon;
   title: string;
   description?: string;
-  variant?: 'default' | 'horizontal' | 'compact';
+  variant?: "default" | "horizontal" | "compact";
 }
 ```
 
@@ -449,7 +449,7 @@ interface ProcessStepsProps {
     title: string;
     description: string;
   }>;
-  variant?: 'numbered' | 'timeline';
+  variant?: "numbered" | "timeline";
 }
 ```
 
@@ -475,25 +475,25 @@ interface AccordionProps {
 
 ### Color Palette
 
-| Color | Hex | Variable | Usage |
-|-------|-----|----------|-------|
-| Primary | `#0060FF` | `--color-primary` | CTA, акценты |
-| Primary Subtle | `#E7F3FF` | `--color-primary-subtle` | Фон иконок |
-| Success | `#00AA5B` | `--color-accent-success` | «БЕСПЛАТНО» |
-| Text Primary | `#1F2A44` | `--color-text-primary` | Заголовки |
-| Text Secondary | `#4B5C7A` | `--color-text-secondary` | Описания |
+| Color          | Hex       | Variable                 | Usage        |
+| -------------- | --------- | ------------------------ | ------------ |
+| Primary        | `#0060FF` | `--color-primary`        | CTA, акценты |
+| Primary Subtle | `#E7F3FF` | `--color-primary-subtle` | Фон иконок   |
+| Success        | `#00AA5B` | `--color-accent-success` | «БЕСПЛАТНО»  |
+| Text Primary   | `#1F2A44` | `--color-text-primary`   | Заголовки    |
+| Text Secondary | `#4B5C7A` | `--color-text-secondary` | Описания     |
 
 ### Typography
 
 **Font:** Inter, SF Pro Display, sans-serif
 
-| Element | Size | Weight |
-|---------|------|--------|
-| display-l | 48px | 700 |
-| headline-l | 32px | 700 |
-| title-m | 20px | 600 |
-| body-m | 16px | 500 |
-| body-s | 14px | 500 |
+| Element    | Size | Weight |
+| ---------- | ---- | ------ |
+| display-l  | 48px | 700    |
+| headline-l | 32px | 700    |
+| title-m    | 20px | 600    |
+| body-m     | 16px | 500    |
+| body-s     | 14px | 500    |
 
 ### Icons (lucide-react)
 
@@ -526,21 +526,21 @@ interface AccordionProps {
 
 ### Breakpoints
 
-| Name | Min Width | Target |
-|------|-----------|--------|
-| Mobile | 0 | Смартфоны |
-| Tablet | 640px | Планшеты |
-| Desktop | 1024px | Ноутбуки |
-| Wide | 1440px | Мониторы |
+| Name    | Min Width | Target    |
+| ------- | --------- | --------- |
+| Mobile  | 0         | Смартфоны |
+| Tablet  | 640px     | Планшеты  |
+| Desktop | 1024px    | Ноутбуки  |
+| Wide    | 1440px    | Мониторы  |
 
 ### Layout Adaptations
 
-| Component | Desktop | Mobile |
-|-----------|---------|--------|
-| Тизер «Почему FREESPORT?» | 4 колонки | 1 колонка |
-| Типы клиентов | 6 карточек | 2x3 grid |
-| ProcessSteps | Горизонтально | Вертикально |
-| CTA кнопки | Inline | Full-width |
+| Component                 | Desktop       | Mobile      |
+| ------------------------- | ------------- | ----------- |
+| Тизер «Почему FREESPORT?» | 4 колонки     | 1 колонка   |
+| Типы клиентов             | 6 карточек    | 2x3 grid    |
+| ProcessSteps              | Горизонтально | Вертикально |
+| CTA кнопки                | Inline        | Full-width  |
 
 ---
 
@@ -554,12 +554,12 @@ interface AccordionProps {
 
 ### Key Animations
 
-| Animation | Trigger | Duration |
-|-----------|---------|----------|
-| Card hover | Hover | 180ms |
-| StatCounter | Scroll | 2000ms |
-| Accordion | Click | 180ms |
-| Section fade-in | Scroll | 400ms |
+| Animation       | Trigger | Duration |
+| --------------- | ------- | -------- |
+| Card hover      | Hover   | 180ms    |
+| StatCounter     | Scroll  | 2000ms   |
+| Accordion       | Click   | 180ms    |
+| Section fade-in | Scroll  | 400ms    |
 
 ---
 

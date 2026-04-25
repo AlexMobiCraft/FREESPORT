@@ -9,19 +9,21 @@ description: Используй этот навык для быстрого по
 
 ## Параметры подключения
 
-*   **Host:** `5.35.124.149`
-*   **User:** `root`
-*   **Project Path:** `/home/freesport/freesport/`
-*   **Аутентификация:** SSH ключ
+- **Host:** `5.35.124.149`
+- **User:** `root`
+- **Project Path:** `/home/freesport/freesport/`
+- **Аутентификация:** SSH ключ
 
 ## Команды подключения
 
 ### Из PowerShell (Windows)
+
 ```powershell
 ssh root@5.35.124.149
 ```
 
 ### Автоматизированное подключение (через существующий скрипт)
+
 ```powershell
 pwsh ./scripts/server/ssh_server.ps1
 ```
@@ -31,6 +33,7 @@ pwsh ./scripts/server/ssh_server.ps1
 После подключения (в директории `/home/freesport/freesport/`):
 
 ### Просмотр логов
+
 ```bash
 # Логи бэкенда в реальном времени
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f backend
@@ -40,6 +43,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f ng
 ```
 
 ### Управление сервисами и пересборка
+
 ```bash
 # Перезапуск Nginx
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart nginx
@@ -75,6 +79,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --bu
 ```
 
 ### Работа с базой данных
+
 ```bash
 # Просмотр статуса миграций
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py showmigrations

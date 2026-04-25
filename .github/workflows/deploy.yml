@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Окружение для деплоя'
+        description: "Окружение для деплоя"
         required: false
-        default: 'production'
+        default: "production"
         type: string
       skip_tests:
-        description: 'Пропустить тесты (только для hotfix)'
+        description: "Пропустить тесты (только для hotfix)"
         required: false
         default: false
         type: boolean
@@ -40,7 +40,7 @@ jobs:
     needs: setup
     if: needs.setup.outputs.should_deploy == 'true' && github.event.inputs.skip_tests != 'true'
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -55,7 +55,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      
+
       redis:
         image: redis:7
         ports:
@@ -73,7 +73,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Cache pip packages
         uses: actions/cache@v4
@@ -118,8 +118,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
-          cache: 'npm'
+          node-version: "22.x"
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
@@ -216,7 +216,7 @@ jobs:
     if: needs.setup.outputs.environment == 'production'
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -320,7 +320,7 @@ jobs:
           PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
         run: |
           echo "🔍 Проверка работоспособности production..."
-          
+
           # Проверка API
           for i in {1..10}; do
             if curl -sf "$PRODUCTION_URL/api/v1/health/" > /dev/null; then
@@ -331,12 +331,12 @@ jobs:
             echo "⏳ Попытка $i/10..."
             sleep 15
           done
-          
+
           if [ "$API_OK" != "true" ]; then
             echo "❌ API недоступен после деплоя"
             exit 1
           fi
-          
+
           # Проверка Frontend
           for i in {1..10}; do
             if curl -sf "$PRODUCTION_URL" > /dev/null; then
@@ -347,12 +347,12 @@ jobs:
             echo "⏳ Попытка $i/10..."
             sleep 15
           done
-          
+
           if [ "$FRONTEND_OK" != "true" ]; then
             echo "❌ Frontend недоступен после деплоя"
             exit 1
           fi
-          
+
           echo "✅ Все проверки пройдены успешно!"
 
       - name: Notify production deployment
@@ -365,7 +365,7 @@ jobs:
             const message = status === 'success' 
               ? 'Production deployment completed successfully!'
               : 'Production deployment failed!';
-            
+
             // Создаем issue для отслеживания деплоя
             if (status !== 'success') {
               await github.rest.issues.create({
@@ -376,7 +376,7 @@ jobs:
                 labels: ['deployment', 'urgent']
               });
             }
-            
+
             console.log(`${emoji} ${message}`);
 
   # Rollback (ручной запуск)
@@ -384,7 +384,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && failure()
     needs: [deploy-production]
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Rollback notification
         run: |

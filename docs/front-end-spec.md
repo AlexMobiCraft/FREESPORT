@@ -54,12 +54,12 @@
 
 ### Журнал изменений
 
-| Date | Version   | Description                                                                                    | Author       |
-|------|-----------|------------------------------------------------------------------------------------------------|--------------|
-| 2025-08-12 | 1.1 | Финальная доработка B2B спецификации с исправлениями                                           |  (UX Expert) |
-| 2025-08-16 | 1.2 | Добавлены критические компоненты: сортировка товаров, верификация B2B, административная панель |  (UX Expert) |
-| 2025-11-19 | 2.0 | Полное обновление дизайн-системы: новая цветовая палитра, типографика, компоненты UI           |  (UX Expert) |
-| 2025-11-25 | 2.1 | Синхронизация документации с сине-голубой палитрой (Story 14.4)                                | John (PM)    |
+| Date       | Version | Description                                                                                    | Author      |
+| ---------- | ------- | ---------------------------------------------------------------------------------------------- | ----------- |
+| 2025-08-12 | 1.1     | Финальная доработка B2B спецификации с исправлениями                                           | (UX Expert) |
+| 2025-08-16 | 1.2     | Добавлены критические компоненты: сортировка товаров, верификация B2B, административная панель | (UX Expert) |
+| 2025-11-19 | 2.0     | Полное обновление дизайн-системы: новая цветовая палитра, типографика, компоненты UI           | (UX Expert) |
+| 2025-11-25 | 2.1     | Синхронизация документации с сине-голубой палитрой (Story 14.4)                                | John (PM)   |
 
 ## Информационная архитектура (IA)
 
@@ -427,7 +427,7 @@ flowchart TD
 │ Фильтры: [Все ▼] [Дата ▼] [Тип клиента ▼]     [Поиск_______________] [🔍]   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ ┌─────────────────────────────────────────────────────────────────────────┐ |
-│ │ 📅 16.08.2025 | 🏢 ОПТОВИК | Иванов Иван Иванович               [🔴●]  │ │ 
+│ │ 📅 16.08.2025 | 🏢 ОПТОВИК | Иванов Иван Иванович               [🔴●]  │ │
 │ │ ООО "СпортСнаб" | ИНН: 7712345678 | 📞 +7-495-123-45-67                 │ │
 │ │ 📧 info@sportsnab.ru                                                    │ │
 │ │ 📄 Документы: [Устав.pdf] [Справка.pdf] [Паспорт.pdf] [СМОТРЕТЬ]        │ │
@@ -436,10 +436,10 @@ flowchart TD
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
 │ │ 📅 16.08.2025 | 💪 ТРЕНЕР | Петров Петр Петрович               [🟡●]   │ │
-│ │ Фитнес-клуб "Титан" | 📞 +7-925-987-65-43                               │ │ 
+│ │ Фитнес-клуб "Титан" | 📞 +7-925-987-65-43                               │ │
 │ │ 📧 trainer@titan-gym.ru                                                 │ │
 │ │ 📄 Документы: [Справка_работы.pdf] [Сертификат.pdf] [СМОТРЕТЬ]          │ │
-│ │ 💬 Комментарий: "Персональный тренер, веду групповые занятия...         │ │ 
+│ │ 💬 Комментарий: "Персональный тренер, веду групповые занятия...         │ │
 │ │ [❌ ОТКЛОНИТЬ] [✅ ОДОБРИТЬ КАК ТРЕНЕР]                                │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │ Всего заявок: 8 | На странице: 2                                [1] 2 3 [→] │
@@ -495,7 +495,9 @@ flowchart TD
 │ └───────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
 #### HEADER
+
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ [■ FREESPORT]  ГЛАВНАЯ КАТАЛОГ НОВОСТИ БЛОГ ПАРТНЁРАМ   [     🔍] [♡] [🛒] [👤][ОПТ1] [Регистрация][Войти] │
@@ -544,7 +546,7 @@ flowchart TD
 │ │  │                                                                │ │ │
 │ │  │ ┌────────────────────────────────────┐                         │ │ │
 │ │  │ │ О компании FREESPORT               │                         │ │ │
-│ │  │ │ федеральный оптовый поставщик      │                         │ │ │ 
+│ │  │ │ федеральный оптовый поставщик      │                         │ │ │
 │ │  │ │ и производитель спортивных товаров │                         │ │ │
 │ │  │ │ [К каталогу]                       │                         │ │ │
 │ │  │ └────────────────────────────────────┘                         │ │ │
@@ -1215,9 +1217,9 @@ interface PaginationProps {
 
 ```typescript
 interface TabsProps {
-  tabs: { label: string; content: ReactNode }[]
-  defaultTab?: number
-  onChange?: (index: number) => void
+  tabs: { label: string; content: ReactNode }[];
+  defaultTab?: number;
+  onChange?: (index: number) => void;
 }
 
 // Горизонтальные табы с underline
@@ -1255,8 +1257,8 @@ cancelled:  { bg: 'var(--color-danger-bg)', text: 'var(--color-danger)', icon: '
 
 ```typescript
 interface TagProps {
-  variant: 'default' | 'highlight' | 'success' | 'warning' | 'danger'
-  children: string
+  variant: "default" | "highlight" | "success" | "warning" | "danger";
+  children: string;
 }
 
 // Shape: rounded-xl, text: caption
@@ -1465,10 +1467,10 @@ thumb: { size: 20px, color: var(--color-neutral-100), shadow: 'var(--shadow-defa
 
 ```typescript
 interface SelectProps {
-  options: Option[]
-  placeholder?: string
-  label?: string
-  onChange: (value: string) => void
+  options: Option[];
+  placeholder?: string;
+  label?: string;
+  onChange: (value: string) => void;
 }
 
 // Height: 40px
@@ -1481,10 +1483,10 @@ interface SelectProps {
 
 ```typescript
 interface CheckboxProps {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  label?: string
-  disabled?: boolean
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: string;
+  disabled?: boolean;
 }
 
 // Checkbox:
@@ -1495,9 +1497,9 @@ interface CheckboxProps {
 // - Label справа, gap 12px
 
 interface ToggleProps {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  label?: string
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: string;
 }
 
 // Toggle:
@@ -1570,78 +1572,94 @@ interface Integration1CStatus {
 
 ```typescript
 interface ModerationListProps {
-  applications: B2BApplication[]
-  filters: ModerationFilters
-  onApprove: (id: string, role: UserRole) => void
-  onReject: (id: string, reason: string) => void
-  onFilterChange: (filters: ModerationFilters) => void
+  applications: B2BApplication[];
+  filters: ModerationFilters;
+  onApprove: (id: string, role: UserRole) => void;
+  onReject: (id: string, reason: string) => void;
+  onFilterChange: (filters: ModerationFilters) => void;
 }
 
 interface B2BApplication {
-  id: string
-  submittedAt: Date
-  applicantType: 'wholesale' | 'trainer' | 'federation_rep'
-  contactPerson: string
-  companyName: string
-  phone: string
-  email: string
-  taxId?: string
-  documents: Document[]
-  comment: string
-  status: 'pending' | 'approved' | 'rejected'
+  id: string;
+  submittedAt: Date;
+  applicantType: "wholesale" | "trainer" | "federation_rep";
+  contactPerson: string;
+  companyName: string;
+  phone: string;
+  email: string;
+  taxId?: string;
+  documents: Document[];
+  comment: string;
+  status: "pending" | "approved" | "rejected";
 }
 
 interface ModerationFilters {
-  status: string
-  dateRange: [Date, Date]
-  applicantType: string
-  searchQuery: string
+  status: string;
+  dateRange: [Date, Date];
+  applicantType: string;
+  searchQuery: string;
 }
 
 // Статусы заявок:
 const APPLICATION_STATUSES = {
-  pending: { label: 'На модерации', color: 'var(--color-warning)', icon: '🟡' },
-  urgent: { label: 'Срочная', color: 'var(--color-danger)', icon: '🔴' },
-  approved: { label: 'Одобрена', color: 'var(--color-success)', icon: '🟢' },
-  rejected: { label: 'Отклонена', color: 'var(--color-neutral-600)', icon: '⚫' }
-}
+  pending: { label: "На модерации", color: "var(--color-warning)", icon: "🟡" },
+  urgent: { label: "Срочная", color: "var(--color-danger)", icon: "🔴" },
+  approved: { label: "Одобрена", color: "var(--color-success)", icon: "🟢" },
+  rejected: {
+    label: "Отклонена",
+    color: "var(--color-neutral-600)",
+    icon: "⚫",
+  },
+};
 ```
 
 #### Мониторинг интеграции с 1С (1C Integration Monitor)
 
 ```typescript
 interface Integration1CMonitorProps {
-  status: CircuitBreakerStatus
-  syncHistory: SyncLogEntry[]
-  onManualSync: (type: SyncType) => void
-  onCircuitBreakerAction: (action: 'open' | 'close' | 'reset') => void
+  status: CircuitBreakerStatus;
+  syncHistory: SyncLogEntry[];
+  onManualSync: (type: SyncType) => void;
+  onCircuitBreakerAction: (action: "open" | "close" | "reset") => void;
 }
 
 interface CircuitBreakerStatus {
-  state: 'open' | 'closed' | 'half-open'
-  lastFailure?: Date
-  successfulOperations: number
-  failureThreshold: number
-  recoveryTime: number
+  state: "open" | "closed" | "half-open";
+  lastFailure?: Date;
+  successfulOperations: number;
+  failureThreshold: number;
+  recoveryTime: number;
 }
 
 interface SyncLogEntry {
-  id: string
-  timestamp: Date
-  type: 'products' | 'stocks' | 'orders' | 'prices'
-  status: 'success' | 'error' | 'warning'
-  recordsProcessed: number
-  errorMessage?: string
-  details?: any
+  id: string;
+  timestamp: Date;
+  type: "products" | "stocks" | "orders" | "prices";
+  status: "success" | "error" | "warning";
+  recordsProcessed: number;
+  errorMessage?: string;
+  details?: any;
 }
 
 // Индикаторы статуса синхронизации:
 const SYNC_STATUSES = {
-  success: { label: 'Синхронизировано', color: 'var(--color-success)', icon: '✅' },
-  error: { label: 'Ошибка', color: 'var(--color-danger)', icon: '❌' },
-  warning: { label: 'Предупреждение', color: 'var(--color-warning)', icon: '⚠️' },
-  running: { label: 'Выполняется', color: 'var(--color-secondary)', icon: '🔄' }
-}
+  success: {
+    label: "Синхронизировано",
+    color: "var(--color-success)",
+    icon: "✅",
+  },
+  error: { label: "Ошибка", color: "var(--color-danger)", icon: "❌" },
+  warning: {
+    label: "Предупреждение",
+    color: "var(--color-warning)",
+    icon: "⚠️",
+  },
+  running: {
+    label: "Выполняется",
+    color: "var(--color-secondary)",
+    icon: "🔄",
+  },
+};
 ```
 
 #### Разделение ответственности
@@ -1686,19 +1704,31 @@ interface CartItemProps {
 
 ```typescript
 interface OrderStatusProps {
-  status: OrderStatus
-  showProgress?: boolean
-  timeline?: TimelineItem[]
+  status: OrderStatus;
+  showProgress?: boolean;
+  timeline?: TimelineItem[];
 }
 
 const OrderStatuses = {
-  pending: { label: 'Ожидает обработки', color: 'var(--color-warning)', icon: '⏳' },
-  confirmed: { label: 'Подтвержден', color: 'var(--color-success)', icon: '✅' },
-  processing: { label: 'В обработке', color: 'var(--color-secondary)', icon: '📦' },
-  shipped: { label: 'Отправлен', color: 'var(--color-warning)', icon: '🚚' },
-  delivered: { label: 'Доставлен', color: 'var(--color-success)', icon: '📍' },
-  cancelled: { label: 'Отменен', color: 'var(--color-danger)', icon: '❌' }
-}
+  pending: {
+    label: "Ожидает обработки",
+    color: "var(--color-warning)",
+    icon: "⏳",
+  },
+  confirmed: {
+    label: "Подтвержден",
+    color: "var(--color-success)",
+    icon: "✅",
+  },
+  processing: {
+    label: "В обработке",
+    color: "var(--color-secondary)",
+    icon: "📦",
+  },
+  shipped: { label: "Отправлен", color: "var(--color-warning)", icon: "🚚" },
+  delivered: { label: "Доставлен", color: "var(--color-success)", icon: "📍" },
+  cancelled: { label: "Отменен", color: "var(--color-danger)", icon: "❌" },
+};
 ```
 
 #### Уведомления (Notifications/Toast)
@@ -1765,13 +1795,13 @@ interface VerificationData {
   contactPerson: string
   phone: string
   email: string
-  
+
   // Специфичные для типа клиента
   taxId?: string        // ИНН для юр.лиц (ИП, Самозанятый)
   orgId?: string        // ОГРН для ООО
   clubName?: string     // Название клуба для тренеров
   federationName?: string // Название федерации (вводится на первом этапе)
-  
+
   // Документы
   documents: File[]
 }
@@ -1813,9 +1843,11 @@ interface VerificationData {
 
 ```scss
 $breakpoints: (
-  mobile: 640px,     // Мобильные устройства
-  tablet: 1024px,    // Планшеты
-  desktop: 1440px    // Десктоп
+  mobile: 640px,
+  // Мобильные устройства
+  tablet: 1024px,
+  // Планшеты
+  desktop: 1440px, // Десктоп
 );
 ```
 
@@ -1858,10 +1890,19 @@ $breakpoints: (
     transform: translateY(0);
     box-shadow: $shadow-pressed;
   }
-  &.loading { /* Spinner или skeleton */ }
-  &.error { /* Border danger, фон с opacity */ }
-  &.success { /* Border success */ }
-  &.disabled { opacity: 0.5; pointer-events: none; }
+  &.loading {
+    /* Spinner или skeleton */
+  }
+  &.error {
+    /* Border danger, фон с opacity */
+  }
+  &.success {
+    /* Border success */
+  }
+  &.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
 }
 ```
 
@@ -1933,39 +1974,39 @@ $breakpoints: (
 ```typescript
 const CategoryIcons = {
   // Основные категории
-  sport: '🏃',                    // СПОРТ
-  childTransport: '🚲',           // ДЕТСКИЙ ТРАНСПОРТ
-  equipment: '🏋️',               // ОБОРУДОВАНИЕ
-  souvenirs: '🎁',               // СУВЕНИРНАЯ ПРОДУКЦИЯ
+  sport: "🏃", // СПОРТ
+  childTransport: "🚲", // ДЕТСКИЙ ТРАНСПОРТ
+  equipment: "🏋️", // ОБОРУДОВАНИЕ
+  souvenirs: "🎁", // СУВЕНИРНАЯ ПРОДУКЦИЯ
 
   // СПОРТ подкатегории
-  tourism: '🥾',                  // Туризм
-  fitness: '💪',                  // Фитнес и атлетика
-  swimming: '🏊',                 // Плавание
-  sportGames: '⚽',              // Спортивные игры
-  martialArts: '🥊',             // Единоборства
-  gymnastics: '🤸',              // Гимнастика и танцы
-  sportClothing: '👕',           // Одежда спортивная
+  tourism: "🥾", // Туризм
+  fitness: "💪", // Фитнес и атлетика
+  swimming: "🏊", // Плавание
+  sportGames: "⚽", // Спортивные игры
+  martialArts: "🥊", // Единоборства
+  gymnastics: "🤸", // Гимнастика и танцы
+  sportClothing: "👕", // Одежда спортивная
 
   // Детальные подкатегории
-  weightLifting: '🏋️',           // Тяжелая атлетика
-  fitnessGeneral: '🤸‍♀️',         // Фитнес
-  trackField: '🏃‍♂️',             // Легкая атлетика
-  basketball: '🏀',              // Баскетбол
-  tableTennis: '🏓',            // Настольный теннис
-  volleyball: '🏐',             // Волейбол
-  football: '⚽',               // Футбол
-  badminton: '🏸',              // Бадминтон
-  handball: '🤾‍♂️',              // Гандбол
-  darts: '🎯',                  // Дартс
+  weightLifting: "🏋️", // Тяжелая атлетика
+  fitnessGeneral: "🤸‍♀️", // Фитнес
+  trackField: "🏃‍♂️", // Легкая атлетика
+  basketball: "🏀", // Баскетбол
+  tableTennis: "🏓", // Настольный теннис
+  volleyball: "🏐", // Волейбол
+  football: "⚽", // Футбол
+  badminton: "🏸", // Бадминтон
+  handball: "🤾‍♂️", // Гандбол
+  darts: "🎯", // Дартс
 
   // ДЕТСКИЙ ТРАНСПОРТ
-  bicycles: '🚲',               // Велосипеды
-  rollerSkates: '⛸️',          // Ролики
-  scooters: '🛴',               // Самокаты
-  skateboards: '🛹',           // Скейты
-  protection_child: '🛡️',      // Защита и аксессуары
-}
+  bicycles: "🚲", // Велосипеды
+  rollerSkates: "⛸️", // Ролики
+  scooters: "🛴", // Самокаты
+  skateboards: "🛹", // Скейты
+  protection_child: "🛡️", // Защита и аксессуары
+};
 ```
 
 ### 3. Технические требования (согласно architecture.md)
@@ -1974,24 +2015,24 @@ const CategoryIcons = {
 
 ```typescript
 const TechStack = {
-  framework: 'Next.js 14+',           // SSR/SSG/ISR, SEO
-  language: 'TypeScript 5.0+',       // Типобезопасность
-  forms: 'React Hook Form 7.45+',    // Производительность
-  apiLayer: 'Next.js API Routes',    // BFF слой
-  imageOptimization: 'next/image',    // WebP/AVIF оптимизация
-  testing: 'React Testing Library',   // Component testing
-  nodeVersion: 'Node.js 18+'          // Runtime
-}
+  framework: "Next.js 14+", // SSR/SSG/ISR, SEO
+  language: "TypeScript 5.0+", // Типобезопасность
+  forms: "React Hook Form 7.45+", // Производительность
+  apiLayer: "Next.js API Routes", // BFF слой
+  imageOptimization: "next/image", // WebP/AVIF оптимизация
+  testing: "React Testing Library", // Component testing
+  nodeVersion: "Node.js 18+", // Runtime
+};
 ```
 
 #### Поддержка браузеров
 
 ```typescript
 const BrowserSupport = {
-  modern: ['Chrome 90+', 'Firefox 88+', 'Safari 14+', 'Edge 90+'],
-  mobile: ['Mobile Safari iOS 14+', 'Chrome Mobile 90+'],
-  legacy: 'IE11 через полифиллы (при необходимости)'
-}
+  modern: ["Chrome 90+", "Firefox 88+", "Safari 14+", "Edge 90+"],
+  mobile: ["Mobile Safari iOS 14+", "Chrome Mobile 90+"],
+  legacy: "IE11 через полифиллы (при необходимости)",
+};
 ```
 
 ## Руководство по бренд-стилю
@@ -2007,13 +2048,17 @@ const BrowserSupport = {
 
 ```scss
 // Основные цвета (Primary)
-$primary-default: var(--color-primary);     // CTA, ключевые акценты, выделение активных элементов
+$primary-default: var(
+  --color-primary
+); // CTA, ключевые акценты, выделение активных элементов
 $primary-hover: var(--color-primary-hover);
 $primary-active: var(--color-primary-active);
 $primary-subtle: var(--color-primary-subtle);
 
 // Вторичные цвета (Secondary)
-$secondary-default: var(--color-secondary);   // Вторичные акценты, подсветка сервисных блоков
+$secondary-default: var(
+  --color-secondary
+); // Вторичные акценты, подсветка сервисных блоков
 $secondary-hover: var(--color-secondary-hover);
 $secondary-active: var(--color-secondary-active);
 $secondary-subtle: var(--color-secondary-subtle);
@@ -2042,34 +2087,44 @@ $text-muted: var(--color-text-muted);
 $text-inverse: var(--color-text-inverse);
 
 // Фоны
-$bg-canvas: var(--bg-canvas);                                   // Основной фон страницы
-$bg-panel: var(--bg-panel);                                    // Фон карточек и панелей
-$bg-emphasis: linear-gradient(135deg, rgba(0, 96, 255, 0.12), rgba(0, 183, 255, 0.08));
+$bg-canvas: var(--bg-canvas); // Основной фон страницы
+$bg-panel: var(--bg-panel); // Фон карточек и панелей
+$bg-emphasis: linear-gradient(
+  135deg,
+  rgba(0, 96, 255, 0.12),
+  rgba(0, 183, 255, 0.08)
+);
 ```
 
 ### Типографика
 
 ```scss
 // Шрифтовая система
-$font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+$font-family:
+  "Inter",
+  "SF Pro Display",
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  sans-serif;
 
 // Типографическая шкала
-$display-l:   48px / 56px / 700;  // Главные hero заголовки
-$display-m:   40px / 48px / 700;  // Заголовки страниц
-$headline-l:  32px / 40px / 700;  // Карточки разделов
-$headline-m:  28px / 36px / 600;  // Субзаголовки
-$title-l:     24px / 32px / 600;  // Блоки контента
-$title-m:     20px / 28px / 600;  // Карточки, модальные окна
-$body-l:      18px / 28px / 500;  // Важный текст, подводки
-$body-m:      16px / 24px / 500;  // Основной текст, подписи к полям
-$body-s:      14px / 20px / 500;  // Вторичный текст
-$caption:     12px / 16px / 500;  // Метки, бейджи
+$display-l: 48px / 56px / 700; // Главные hero заголовки
+$display-m: 40px / 48px / 700; // Заголовки страниц
+$headline-l: 32px / 40px / 700; // Карточки разделов
+$headline-m: 28px / 36px / 600; // Субзаголовки
+$title-l: 24px / 32px / 600; // Блоки контента
+$title-m: 20px / 28px / 600; // Карточки, модальные окна
+$body-l: 18px / 28px / 500; // Важный текст, подводки
+$body-m: 16px / 24px / 500; // Основной текст, подписи к полям
+$body-s: 14px / 20px / 500; // Вторичный текст
+$caption: 12px / 16px / 500; // Метки, бейджи
 
 // Цвета текста (typography colorUsage)
-$typography-primary: #1F2A44;
-$typography-secondary: #4B5C7A;
-$typography-muted: #7F8CA8;
-$typography-inverse: #FFFFFF;
+$typography-primary: #1f2a44;
+$typography-secondary: #4b5c7a;
+$typography-muted: #7f8ca8;
+$typography-inverse: #ffffff;
 
 // ВАЖНО: Эти цвета отличаются от базовых text цветов
 // и используются для типографики в специфических контекстах
@@ -2102,23 +2157,23 @@ $button-gap: 12px;
 ### Радиусы скругления
 
 ```scss
-$radius-sm: 6px;       // Кнопки и входные поля
+$radius-sm: 6px; // Кнопки и входные поля
 $radius-default: 12px; // Стандартные карточки
-$radius-md: 16px;      // Крупные карточки
-$radius-lg: 20px;      // Модальные окна
-$radius-xl: 24px;      // Hero-секции
-$radius-full: 9999px;  // Бейджи, пилюли
+$radius-md: 16px; // Крупные карточки
+$radius-lg: 20px; // Модальные окна
+$radius-xl: 24px; // Hero-секции
+$radius-full: 9999px; // Бейджи, пилюли
 ```
 
 ### Тени
 
 ```scss
-$shadow-default: 0 8px 24px rgba(15, 23, 42, 0.08);    // Карточки
-$shadow-hover: 0 10px 32px rgba(15, 23, 42, 0.12);     // Hover состояние
-$shadow-primary: 0 10px 24px rgba(0, 96, 255, 0.28);   // CTA кнопки
-$shadow-secondary: 0 6px 16px rgba(0, 71, 204, 0.12);  // Вторичные элементы
-$shadow-pressed: 0 6px 18px rgba(0, 55, 166, 0.24);    // Нажатие
-$shadow-modal: 0 24px 64px rgba(15, 23, 42, 0.24);     // Модальные окна
+$shadow-default: 0 8px 24px rgba(15, 23, 42, 0.08); // Карточки
+$shadow-hover: 0 10px 32px rgba(15, 23, 42, 0.12); // Hover состояние
+$shadow-primary: 0 10px 24px rgba(0, 96, 255, 0.28); // CTA кнопки
+$shadow-secondary: 0 6px 16px rgba(0, 71, 204, 0.12); // Вторичные элементы
+$shadow-pressed: 0 6px 18px rgba(0, 55, 166, 0.24); // Нажатие
+$shadow-modal: 0 24px 64px rgba(15, 23, 42, 0.24); // Модальные окна
 
 // Использовать плавные тени для создания многоуровневой иерархии
 ```
@@ -2163,7 +2218,7 @@ $breakpoint-desktop: 1440px;
 
 ```scss
 // Containers
-$container-surface: #FFFFFF;
+$container-surface: #ffffff;
 $container-radius: 16px;
 $container-shadow-default: 0 8px 24px rgba(15, 23, 42, 0.08);
 $container-shadow-hover: 0 10px 32px rgba(15, 23, 42, 0.12);
@@ -2171,9 +2226,13 @@ $container-section-spacing: 48px;
 $container-inner-spacing: 24px;
 
 // Backgrounds
-$bg-canvas: #F5F7FB;
-$bg-panel: #FFFFFF;
-$bg-emphasis: linear-gradient(135deg, rgba(0, 78, 255, 0.12), rgba(0, 149, 255, 0.08));
+$bg-canvas: #f5f7fb;
+$bg-panel: #ffffff;
+$bg-emphasis: linear-gradient(
+  135deg,
+  rgba(0, 78, 255, 0.12),
+  rgba(0, 149, 255, 0.08)
+);
 
 // Page Templates - Product Detail
 $product-detail-left-min-width: 560px;
@@ -2183,7 +2242,7 @@ $product-detail-right-panels-gap: 20px;
 // Цена и CTA закрепляются при скролле после 600px
 
 // Recommendations
-$recommendations-layout: 'Горизонтальная галерея на 6 карточек c scroll-snap';
+$recommendations-layout: "Горизонтальная галерея на 6 карточек c scroll-snap";
 $recommendations-card-spacing: 16px;
 $recommendations-section-padding: 32px 24px;
 $recommendations-title-style: title-m;
@@ -2193,7 +2252,7 @@ $recommendations-title-style: title-m;
 
 ```scss
 // Icon style
-$icon-style: 'Rounded minimal с толщиной линий 1.5-2px и скруглением 4px';
+$icon-style: "Rounded minimal с толщиной линий 1.5-2px и скруглением 4px";
 $icon-primary-size: 24px;
 $icon-secondary-size: 20px;
 $icon-default-color: var(--color-neutral-700);

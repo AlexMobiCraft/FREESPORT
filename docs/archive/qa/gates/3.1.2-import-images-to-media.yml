@@ -22,9 +22,9 @@ expires: "2025-12-09T00:00:00Z"
 evidence:
   specification_sections_reviewed: 11
   acceptance_criteria_count: 8
-  edge_cases_identified: 7  # +3 новых (повторный импорт, дубликаты, структура директорий)
+  edge_cases_identified: 7 # +3 новых (повторный импорт, дубликаты, структура директорий)
   integration_points_documented: 4
-  test_scenarios_defined: 12  # +4 новых теста
+  test_scenarios_defined: 12 # +4 новых теста
 
   planning_completeness:
     user_story: "✓ Четкая, следует формату As-Want-So"
@@ -92,9 +92,9 @@ planning_strengths:
 
 # Рекомендации для улучшения спецификации
 recommendations:
-  immediate: []  # Все критичные рекомендации внедрены (обновлено 2025-11-09)
+  immediate: [] # Все критичные рекомендации внедрены (обновлено 2025-11-09)
 
-  implemented:  # Внедренные рекомендации
+  implemented: # Внедренные рекомендации
     - action: "✅ AC 1 - Сохранение оригинальных имен файлов"
       implemented_at: "2025-11-09T14:30:00Z"
       refs:
@@ -169,8 +169,8 @@ implementation_readiness:
   acceptance_criteria_testable: true
   rollback_plan_defined: true
 
-  readiness_score: "10/10"  # Обновлено после внедрения всех рекомендаций
-  readiness_blockers: []  # Все рекомендации внедрены
+  readiness_score: "10/10" # Обновлено после внедрения всех рекомендаций
+  readiness_blockers: [] # Все рекомендации внедрены
   readiness_risks:
     - risk: "Производительность при импорте тысяч изображений"
       mitigation: "AC 5 покрывает батчинг, структура директорий оптимизирована, требуется реальное тестирование в Story 3.1.3"
@@ -186,7 +186,11 @@ requirements_trace_planning:
     given: "Товар имеет пути к изображениям в goods_data['images']"
     when: "Вызывается import_product_images() с корректным base_dir"
     then: "Файлы копируются из {base_dir}/{image_path} в media/products/ через default_storage.save()"
-    test_scenarios: ["test_import_product_images_single_image", "test_import_product_images_multiple_images"]
+    test_scenarios:
+      [
+        "test_import_product_images_single_image",
+        "test_import_product_images_multiple_images",
+      ]
 
   # AC 2: Установка связей
   - ac: 2
@@ -200,7 +204,11 @@ requirements_trace_planning:
     given: "Файл изображения отсутствует или невалиден"
     when: "import_product_images() проверяет существование/валидность"
     then: "Логируется WARNING, файл пропускается, импорт продолжается"
-    test_scenarios: ["test_import_product_images_missing_file", "test_import_product_images_invalid_file"]
+    test_scenarios:
+      [
+        "test_import_product_images_missing_file",
+        "test_import_product_images_invalid_file",
+      ]
 
   # AC 4: Интеграция с командой
   - ac: 4

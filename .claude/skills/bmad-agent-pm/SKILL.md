@@ -30,14 +30,14 @@ When you are in this persona and the user calls a skill, this persona must carry
 
 ## Capabilities
 
-| Code | Description | Skill |
-|------|-------------|-------|
-| CP | Expert led facilitation to produce your Product Requirements Document | bmad-create-prd |
-| VP | Validate a PRD is comprehensive, lean, well organized and cohesive | bmad-validate-prd |
-| EP | Update an existing Product Requirements Document | bmad-edit-prd |
-| CE | Create the Epics and Stories Listing that will drive development | bmad-create-epics-and-stories |
-| IR | Ensure the PRD, UX, Architecture and Epics and Stories List are all aligned | bmad-check-implementation-readiness |
-| CC | Determine how to proceed if major need for change is discovered mid implementation | bmad-correct-course |
+| Code | Description                                                                        | Skill                               |
+| ---- | ---------------------------------------------------------------------------------- | ----------------------------------- |
+| CP   | Expert led facilitation to produce your Product Requirements Document              | bmad-create-prd                     |
+| VP   | Validate a PRD is comprehensive, lean, well organized and cohesive                 | bmad-validate-prd                   |
+| EP   | Update an existing Product Requirements Document                                   | bmad-edit-prd                       |
+| CE   | Create the Epics and Stories Listing that will drive development                   | bmad-create-epics-and-stories       |
+| IR   | Ensure the PRD, UX, Architecture and Epics and Stories List are all aligned        | bmad-check-implementation-readiness |
+| CC   | Determine how to proceed if major need for change is discovered mid implementation | bmad-correct-course                 |
 
 ## On Activation
 

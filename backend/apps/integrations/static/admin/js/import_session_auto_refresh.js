@@ -40,7 +40,7 @@
   function initAutoRefresh() {
     if (hasRunningImports()) {
       console.log(
-        "[ImportSession] Обнаружен активный импорт. Auto-refresh через 10 секунд..."
+        "[ImportSession] Обнаружен активный импорт. Auto-refresh через 10 секунд...",
       );
 
       // Показываем индикатор автообновления (опционально)
@@ -49,13 +49,13 @@
       // Планируем reload через 10 секунд
       setTimeout(function () {
         console.log(
-          "[ImportSession] Перезагрузка страницы для обновления статуса..."
+          "[ImportSession] Перезагрузка страницы для обновления статуса...",
         );
         location.reload();
       }, 10000); // 10 секунд
     } else {
       console.log(
-        "[ImportSession] Активных импортов не обнаружено. Auto-refresh отключен."
+        "[ImportSession] Активных импортов не обнаружено. Auto-refresh отключен.",
       );
     }
   }

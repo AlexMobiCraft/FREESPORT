@@ -13,12 +13,14 @@ So that I can quickly access my favorite brands.
 ## Acceptance Criteria
 
 ### 1. Component Logic
+
 - **Given** the `BrandsBlock` component in `frontend/src/components/business/home/`,
 - **When** it receives a list of brands as props from the Server Component (SSR),
 - **Then** it renders a horizontal carousel of logos.
 - **And** it correctly handles the `is_featured` property (though filtering should ideally happen on API/Server side, this component displays what it's given).
 
 ### 2. Responsiveness & Interaction
+
 - **Given** the component is rendered,
 - **When** viewed on mobile devices,
 - **Then** it supports swipe gestures (NFR-05) via `embla-carousel`.
@@ -29,17 +31,20 @@ So that I can quickly access my favorite brands.
 - **Then** a subtle scale/opacity animation occurs (FR-07) using `framer-motion` (motion).
 
 ### 3. Image Optimization
+
 - **Given** brand logos,
 - **When** rendered,
 - **Then** they use `next/image` with `objectAttribute="contain"` (or `object-contain` class) to handle varying aspect ratios (NFR-01).
 - **And** images must have appropriate `sizes` prop to ensure correct responsive loading.
 
 ### 4. Navigation
+
 - **Given** a user clicks a logo,
 - **When** clicked,
 - **Then** they are navigated to `/catalog?brand={slug}` (FR-09).
 
 ### 5. Accessibility
+
 - **Given** the carousel,
 - **Then** it must be navigable via keyboard (Tab) (NFR-04).
 - **And** images must have `alt` text (brand name).

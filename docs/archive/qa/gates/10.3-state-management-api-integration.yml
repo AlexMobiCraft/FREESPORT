@@ -24,15 +24,15 @@ risk_summary:
 # Comprehensive evidence after Vitest migration
 evidence:
   tests_reviewed: 361
-  tests_passing: 359  # 99.4% success rate ✅
-  tests_failing: 2  # Select.test.tsx (1), ordersService.test.ts (1) - minor issues
+  tests_passing: 359 # 99.4% success rate ✅
+  tests_failing: 2 # Select.test.tsx (1), ordersService.test.ts (1) - minor issues
   msw_status: "✅ FULLY OPERATIONAL with Vitest 2.1.5"
   vitest_version: "2.1.5"
   msw_version: "2.12.2"
   risks_identified: 0
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9]  # ALL ACs fully covered ✅
-    ac_gaps: []  # No gaps!
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9] # ALL ACs fully covered ✅
+    ac_gaps: [] # No gaps!
 
 # Test Coverage Breakdown
 test_coverage:
@@ -133,7 +133,7 @@ minor_issues_to_track:
     impact: "1 тест из 32 service tests failing (96.9% service tests passing)"
 
 recommendations:
-  immediate: []  # Нет блокирующих проблем! ✅
+  immediate: [] # Нет блокирующих проблем! ✅
 
   future:
     - action: "Добавить MSW handler для GET /orders/ endpoint с pagination"
@@ -193,7 +193,6 @@ production_readiness:
   blocking_issues: "Нет"
 
   ready_for_stories:
-  
 
   key_deliverables:
     - "✅ Zustand stores (authStore, cartStore) с DevTools"

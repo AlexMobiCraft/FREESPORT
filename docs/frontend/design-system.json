@@ -5,10 +5,7 @@
     "version": "2.2.0",
     "lastUpdated": "2026-02-10",
     "author": "Antigravity (Migration Agent)",
-    "sourceFiles": [
-      "docs/front-end-spec.md",
-      "frontend/src/app/globals.css"
-    ],
+    "sourceFiles": ["docs/front-end-spec.md", "frontend/src/app/globals.css"],
     "changeLog": [
       {
         "version": "2.2.1",
@@ -180,19 +177,7 @@
       }
     },
     "spacing": {
-      "scale": [
-        4,
-        8,
-        12,
-        16,
-        20,
-        24,
-        32,
-        40,
-        48,
-        56,
-        64
-      ],
+      "scale": [4, 8, 12, 16, 20, 24, 32, 40, 48, 56, 64],
       "rules": [
         "Базовый шаг интерфейса 4px",
         "Вертикальный ритм в компонентах: кратен 8px",
@@ -235,10 +220,7 @@
         "medium": 180
       },
       "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-      "rules": [
-        "Анимации не более 200ms",
-        "Использовать плавные fade/slide"
-      ]
+      "rules": ["Анимации не более 200ms", "Использовать плавные fade/slide"]
     },
     "grid": {
       "pageWidth": 1280,

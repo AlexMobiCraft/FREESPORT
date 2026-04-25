@@ -71,7 +71,6 @@ so that **двусторонний обмен заказами с 1С работ
   - [x] [AI-Review][Low] Оптимизировать очистку кэша в тесте лимитов — использовать более точечный подход вместо `cache.clear()` [backend/tests/integration/test_orders_xml_mode_file.py]
   - [x] [AI-Review][Low] Рефакторинг `test_multi_orders_in_single_xml`: использовать данные фабрик вместо ручного создания словарей [backend/tests/integration/test_orders_xml_mode_file.py]
 
-
 ## Dev Notes
 
 ### Контекст интеграции и поведения API

@@ -11,6 +11,7 @@
 The Transport Layer acts as the bridge between 1C:Enterprise and the FREESPORT platform. It implements the standard "1C-Bitrix Site Exchange" protocol via HTTP(S).
 
 **Key Responsibilities:**
+
 - Establishing a secure session with 1C.
 - Negotiating transfer parameters (compression, file limits).
 - Receiving large data archives via chunked uploads.
@@ -24,6 +25,7 @@ The system uses a hybrid authentication mechanism required by the 1C protocol:
 2.  **Session Maintenance:** Standard Django Session Cookie.
 
 > **Security Note:** The exchange endpoints (`/api/integration/1c/exchange/`) are **CSRF Exempt** (see [ADR-009](../../decisions/ADR-009-csrf-exemption-1c-protocol.md)) because 1C does not support CSRF token exchange. Security is maintained via:
+>
 > - Strict Origin checks (if applicable).
 > - Session IP binding (optional future enhancement).
 > - Restricted user permissions (`can_exchange_1c`).
@@ -59,7 +61,7 @@ Negotiates capabilities.
   sessid=<session_id_value>
   version=3.1
   ```
-  *(Note: `file_limit` is set to 100MB per chunk)*
+  _(Note: `file_limit` is set to 100MB per chunk)_
 
 ### 3.3 Step 3: File Upload
 
@@ -72,6 +74,7 @@ Transfers data chunks.
   - OR `failure\n<Error Message>`
 
 **Logic:**
+
 - Chunks for the same `filename` are appended sequentially.
 - Files are stored in a temporary isolation directory: `MEDIA_ROOT/1c_temp/<session_id>/`.
 - **ZIP Archives:** Stored as-is, not unpacked at this stage.
@@ -86,6 +89,7 @@ Signals that upload is complete and triggers transfer/unpack into the import que
   - `failure`
 
 **Routing Logic (`FileRoutingService`):**
+
 1.  **XML Files** (`goods.xml`, `offers.xml`, etc.): Moved to `MEDIA_ROOT/1c_import/<type>/`.
 2.  **Images** (`.jpg`, `.png`): Moved to `MEDIA_ROOT/1c_import/goods/import_files/`.
 3.  **ZIP Files**: Moved to `MEDIA_ROOT/1c_import/` and unpacked during `mode=import` (or `mode=complete`), contents routed as above.
@@ -93,6 +97,7 @@ Signals that upload is complete and triggers transfer/unpack into the import que
 ## 4. File System Structure
 
 ### 4.1 Temporary Staging (`1c_temp`)
+
 Used for assembling chunks. Contents are ephemeral.
 
 ```
@@ -103,6 +108,7 @@ Used for assembling chunks. Contents are ephemeral.
 ```
 
 ### 4.2 Import Queue (`1c_import`)
+
 Contains fully assembled/unpacked files ready for the Processing Layer.
 
 ```

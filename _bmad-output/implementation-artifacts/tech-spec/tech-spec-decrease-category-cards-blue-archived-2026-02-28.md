@@ -1,13 +1,18 @@
 ---
 title: 'Уменьшение карточек в "Популярных категориях" для темы BLUE'
-slug: 'decrease-category-cards-blue'
-created: '2026-02-27T16:35:00+01:00'
-status: 'review'
+slug: "decrease-category-cards-blue"
+created: "2026-02-27T16:35:00+01:00"
+status: "review"
 stepsCompleted: [1, 2, 3]
-tech_stack: ['Next.js', 'React', 'Tailwind CSS']
-files_to_modify: ['frontend/src/components/home/CategoriesSection.tsx']
-code_patterns: ['Functional React Components', 'Tailwind Utility Classes', 'Responsive Design (mobile-first)']
-test_patterns: ['Jest', 'React Testing Library']
+tech_stack: ["Next.js", "React", "Tailwind CSS"]
+files_to_modify: ["frontend/src/components/home/CategoriesSection.tsx"]
+code_patterns:
+  [
+    "Functional React Components",
+    "Tailwind Utility Classes",
+    "Responsive Design (mobile-first)",
+  ]
+test_patterns: ["Jest", "React Testing Library"]
 ---
 
 # Tech-Spec: Уменьшение карточек в "Популярных категориях" для темы BLUE
@@ -27,11 +32,13 @@ test_patterns: ['Jest', 'React Testing Library']
 ### Scope
 
 **In Scope:**
+
 - Корректировка ширины карточек `CARD_LAYOUT_CLASSES` в компоненте `CategoriesSection`.
 - Изменение верстки контейнера карусели для кнопок-стрелок (вынос их за пределы скорлла, как в `HitsSection.tsx`).
 - Соответствующая подгонка ширины и отступов для мобильной версии.
 
 **Out of Scope:**
+
 - Изменение логики получения данных API для категорий.
 - Модификация компонента "Хиты продаж".
 
@@ -43,10 +50,10 @@ test_patterns: ['Jest', 'React Testing Library']
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `frontend/src/components/home/CategoriesSection.tsx` | Основной компонент, подлежащий изменению |
-| `frontend/src/components/home/HitsSection.tsx` | Эталон стилей для ширины карточек и позиционирования кнопок |
+| File                                                 | Purpose                                                     |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| `frontend/src/components/home/CategoriesSection.tsx` | Основной компонент, подлежащий изменению                    |
+| `frontend/src/components/home/HitsSection.tsx`       | Эталон стилей для ширины карточек и позиционирования кнопок |
 
 ### Technical Decisions
 
@@ -67,7 +74,7 @@ test_patterns: ['Jest', 'React Testing Library']
 
 - [ ] Task 3: Рефакторинг кнопок навигации (стрелок)
   - File: `frontend/src/components/home/CategoriesSection.tsx`
-  - Action: 
+  - Action:
     - Добавить класс `relative` корневому тегу `<section>`.
     - Переместить кнопки навигации (левую и правую стрелки) из `<div className="relative group">` в `<section>`, расположив их на одном уровне с основным заголовком или контейнером списка, для выноса за видимую часть.
     - Изменить классы позиционирования кнопок, чтобы они выступали за пределы списка: использовать `left-0` / `-left-2` и `right-0` / `-right-2` по аналогии с `HitsSection.tsx`. Убедиться, что они имеют `absolute top-1/2 -translate-y-1/2 z-10`.

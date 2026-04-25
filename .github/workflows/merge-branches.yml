@@ -3,28 +3,28 @@ name: Автоматическое слияние веток
 on:
   # Запуск по расписанию (каждый день в 9:00 UTC)
   schedule:
-    - cron: '0 9 * * *'
+    - cron: "0 9 * * *"
   # Ручной запуск
   workflow_dispatch:
     inputs:
       source_branch:
-        description: 'Исходная ветка для слияния'
+        description: "Исходная ветка для слияния"
         required: true
-        default: 'develop'
+        default: "develop"
         type: choice
         options:
-          - 'develop'
-          - 'main'
+          - "develop"
+          - "main"
       target_branch:
-        description: 'Целевая ветка для слияния'
+        description: "Целевая ветка для слияния"
         required: true
-        default: 'main'
+        default: "main"
         type: choice
         options:
-          - 'main'
-          - 'develop'
+          - "main"
+          - "develop"
       force_merge:
-        description: 'Принудительное слияние (игнорировать проверки)'
+        description: "Принудительное слияние (игнорировать проверки)"
         required: false
         default: false
         type: boolean
@@ -41,68 +41,68 @@ jobs:
     outputs:
       can_merge: ${{ steps.check.outputs.can_merge }}
       merge_reason: ${{ steps.check.outputs.merge_reason }}
-      
+
     steps:
-    - name: Checkout кода
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Получаем всю историю для корректного анализа
-        
-    - name: Проверка состояния веток
-      id: check
-      run: |
-        echo "🔍 Проверка готовности веток к слиянию..."
-        
-        # Проверяем существование веток
-        if ! git rev-parse --verify origin/$SOURCE_BRANCH >/dev/null 2>&1; then
-          echo "❌ Ветка $SOURCE_BRANCH не существует"
-          echo "can_merge=false" >> $GITHUB_OUTPUT
-          echo "merge_reason=Ветка $SOURCE_BRANCH не существует" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        if ! git rev-parse --verify origin/$TARGET_BRANCH >/dev/null 2>&1; then
-          echo "❌ Ветка $TARGET_BRANCH не существует"
-          echo "can_merge=false" >> $GITHUB_OUTPUT
-          echo "merge_reason=Ветка $TARGET_BRANCH не существует" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        # Получаем последние коммиты
-        git fetch origin $SOURCE_BRANCH $TARGET_BRANCH
-        SOURCE_COMMIT=$(git rev-parse origin/$SOURCE_BRANCH)
-        TARGET_COMMIT=$(git rev-parse origin/$TARGET_BRANCH)
-        
-        echo "📋 Информация о ветках:"
-        echo "  Исходная ветка: $SOURCE_BRANCH (коммит: $SOURCE_COMMIT)"
-        echo "  Целевая ветка: $TARGET_BRANCH (коммит: $TARGET_COMMIT)"
-        
-        # Проверяем, есть ли изменения для слияния
-        if git merge-base --is-ancestor origin/$SOURCE_BRANCH origin/$TARGET_BRANCH; then
-          echo "ℹ️ Ветка $SOURCE_BRANCH уже включена в $TARGET_BRANCH"
-          echo "can_merge=false" >> $GITHUB_OUTPUT
-          echo "merge_reason=Ветка $SOURCE_BRANCH уже включена в $TARGET_BRANCH" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        # Проверяем наличие конфликтов
-        git checkout -b temp-merge-check origin/$TARGET_BRANCH
-        if git merge --no-commit --no-ff origin/$SOURCE_BRANCH >/dev/null 2>&1; then
-          echo "✅ Конфликты слияния не обнаружены"
-          echo "can_merge=true" >> $GITHUB_OUTPUT
-          echo "merge_reason=Ветки готовы к слиянию" >> $GITHUB_OUTPUT
-        else
-          echo "❌ Обнаружены конфликты слияния"
-          echo "can_merge=false" >> $GITHUB_OUTPUT
-          echo "merge_reason=Обнаружены конфликты слияния" >> $GITHUB_OUTPUT
-        fi
-        git merge --abort 2>/dev/null || true
-        
-    - name: Вывод результата проверки
-      run: |
-        echo "📊 Результат проверки:"
-        echo "  Можно слить: ${{ steps.check.outputs.can_merge }}"
-        echo "  Причина: ${{ steps.check.outputs.merge_reason }}"
+      - name: Checkout кода
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Получаем всю историю для корректного анализа
+
+      - name: Проверка состояния веток
+        id: check
+        run: |
+          echo "🔍 Проверка готовности веток к слиянию..."
+
+          # Проверяем существование веток
+          if ! git rev-parse --verify origin/$SOURCE_BRANCH >/dev/null 2>&1; then
+            echo "❌ Ветка $SOURCE_BRANCH не существует"
+            echo "can_merge=false" >> $GITHUB_OUTPUT
+            echo "merge_reason=Ветка $SOURCE_BRANCH не существует" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if ! git rev-parse --verify origin/$TARGET_BRANCH >/dev/null 2>&1; then
+            echo "❌ Ветка $TARGET_BRANCH не существует"
+            echo "can_merge=false" >> $GITHUB_OUTPUT
+            echo "merge_reason=Ветка $TARGET_BRANCH не существует" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Получаем последние коммиты
+          git fetch origin $SOURCE_BRANCH $TARGET_BRANCH
+          SOURCE_COMMIT=$(git rev-parse origin/$SOURCE_BRANCH)
+          TARGET_COMMIT=$(git rev-parse origin/$TARGET_BRANCH)
+
+          echo "📋 Информация о ветках:"
+          echo "  Исходная ветка: $SOURCE_BRANCH (коммит: $SOURCE_COMMIT)"
+          echo "  Целевая ветка: $TARGET_BRANCH (коммит: $TARGET_COMMIT)"
+
+          # Проверяем, есть ли изменения для слияния
+          if git merge-base --is-ancestor origin/$SOURCE_BRANCH origin/$TARGET_BRANCH; then
+            echo "ℹ️ Ветка $SOURCE_BRANCH уже включена в $TARGET_BRANCH"
+            echo "can_merge=false" >> $GITHUB_OUTPUT
+            echo "merge_reason=Ветка $SOURCE_BRANCH уже включена в $TARGET_BRANCH" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Проверяем наличие конфликтов
+          git checkout -b temp-merge-check origin/$TARGET_BRANCH
+          if git merge --no-commit --no-ff origin/$SOURCE_BRANCH >/dev/null 2>&1; then
+            echo "✅ Конфликты слияния не обнаружены"
+            echo "can_merge=true" >> $GITHUB_OUTPUT
+            echo "merge_reason=Ветки готовы к слиянию" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Обнаружены конфликты слияния"
+            echo "can_merge=false" >> $GITHUB_OUTPUT
+            echo "merge_reason=Обнаружены конфликты слияния" >> $GITHUB_OUTPUT
+          fi
+          git merge --abort 2>/dev/null || true
+
+      - name: Вывод результата проверки
+        run: |
+          echo "📊 Результат проверки:"
+          echo "  Можно слить: ${{ steps.check.outputs.can_merge }}"
+          echo "  Причина: ${{ steps.check.outputs.merge_reason }}"
 
   # Проверка статуса CI/CD для исходной ветки
   check-ci-status:
@@ -112,29 +112,29 @@ jobs:
     if: needs.check-merge-readiness.outputs.can_merge == 'true'
     outputs:
       ci_passed: ${{ steps.ci-check.outputs.ci_passed }}
-      
+
     steps:
-    - name: Проверка статуса CI/CD
-      id: ci-check
-      run: |
-        echo "🔍 Проверка статуса CI/CD для ветки $SOURCE_BRANCH..."
-        
-        # Проверяем статус последних workflow для исходной ветки
-        CI_STATUS=$(gh api repos/${{ github.repository }}/actions/runs \
-          --jq ".workflow_runs[] | select(.head_branch == \"$SOURCE_BRANCH\" and .event == \"push\") | .conclusion" \
-          --limit 1 | head -n1 || echo "unknown")
-        
-        echo "Статус CI/CD: $CI_STATUS"
-        
-        if [[ "$CI_STATUS" == "success" || "${{ github.event.inputs.force_merge }}" == "true" ]]; then
-          echo "✅ CI/CD проверки пройдены"
-          echo "ci_passed=true" >> $GITHUB_OUTPUT
-        else
-          echo "❌ CI/CD проверки не пройдены"
-          echo "ci_passed=false" >> $GITHUB_OUTPUT
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Проверка статуса CI/CD
+        id: ci-check
+        run: |
+          echo "🔍 Проверка статуса CI/CD для ветки $SOURCE_BRANCH..."
+
+          # Проверяем статус последних workflow для исходной ветки
+          CI_STATUS=$(gh api repos/${{ github.repository }}/actions/runs \
+            --jq ".workflow_runs[] | select(.head_branch == \"$SOURCE_BRANCH\" and .event == \"push\") | .conclusion" \
+            --limit 1 | head -n1 || echo "unknown")
+
+          echo "Статус CI/CD: $CI_STATUS"
+
+          if [[ "$CI_STATUS" == "success" || "${{ github.event.inputs.force_merge }}" == "true" ]]; then
+            echo "✅ CI/CD проверки пройдены"
+            echo "ci_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ CI/CD проверки не пройдены"
+            echo "ci_passed=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Создание Pull Request для слияния
   create-merge-pr:
@@ -142,65 +142,65 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check-merge-readiness, check-ci-status]
     if: needs.check-merge-readiness.outputs.can_merge == 'true' && needs.check-ci-status.outputs.ci_passed == 'true'
-    
+
     steps:
-    - name: Checkout кода
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Создание Pull Request
-      id: create-pr
-      run: |
-        echo "🔄 Создание Pull Request для слияния $SOURCE_BRANCH в $TARGET_BRANCH..."
-        
-        # Проверяем существующий PR
-        EXISTING_PR=$(gh pr list \
-          --head $SOURCE_BRANCH \
-          --base $TARGET_BRANCH \
-          --state open \
-          --json number \
-          --jq '.[0].number' || echo "")
-        
-        if [[ -n "$EXISTING_PR" ]]; then
-          echo "ℹ️ Найден существующий PR #$EXISTING_PR"
-          echo "pr_number=$EXISTING_PR" >> $GITHUB_OUTPUT
-        else
-          # Создаем новый PR
-          PR_TITLE="🚀 Автоматическое слияние: $SOURCE_BRANCH → $TARGET_BRANCH"
-          PR_BODY="## 📋 Информация о слиянии
-          
-          **Источник:** \`$SOURCE_BRANCH\`
-          **Цель:** \`$TARGET_BRANCH\`
-          **Стратегия:** Squash Merge
-          **Инициировано:** ${{ github.event_name }}
-          
-          ### 🔄 Изменения
-          $(git log --oneline origin/$TARGET_BRANCH..origin/$SOURCE_BRANCH | sed 's/^/- /')
-          
-          ### ✅ Проверки
-          - [x] Анализ конфликтов слияния
-          - [x] Проверка статуса CI/CD
-          - [ ] Ручная проверка кода (рекомендуется)
-          
-          ---
-          *Этот Pull Request создан автоматически для слияния веток.*"
-          
-          PR_NUMBER=$(gh pr create \
-            --title "$PR_TITLE" \
-            --body "$PR_BODY" \
+      - name: Checkout кода
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Создание Pull Request
+        id: create-pr
+        run: |
+          echo "🔄 Создание Pull Request для слияния $SOURCE_BRANCH в $TARGET_BRANCH..."
+
+          # Проверяем существующий PR
+          EXISTING_PR=$(gh pr list \
             --head $SOURCE_BRANCH \
             --base $TARGET_BRANCH \
-            --label "automerge" \
+            --state open \
             --json number \
-            --jq '.number')
-          
-          echo "✅ Создан PR #$PR_NUMBER"
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            --jq '.[0].number' || echo "")
+
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "ℹ️ Найден существующий PR #$EXISTING_PR"
+            echo "pr_number=$EXISTING_PR" >> $GITHUB_OUTPUT
+          else
+            # Создаем новый PR
+            PR_TITLE="🚀 Автоматическое слияние: $SOURCE_BRANCH → $TARGET_BRANCH"
+            PR_BODY="## 📋 Информация о слиянии
+            
+            **Источник:** \`$SOURCE_BRANCH\`
+            **Цель:** \`$TARGET_BRANCH\`
+            **Стратегия:** Squash Merge
+            **Инициировано:** ${{ github.event_name }}
+            
+            ### 🔄 Изменения
+            $(git log --oneline origin/$TARGET_BRANCH..origin/$SOURCE_BRANCH | sed 's/^/- /')
+            
+            ### ✅ Проверки
+            - [x] Анализ конфликтов слияния
+            - [x] Проверка статуса CI/CD
+            - [ ] Ручная проверка кода (рекомендуется)
+            
+            ---
+            *Этот Pull Request создан автоматически для слияния веток.*"
+            
+            PR_NUMBER=$(gh pr create \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY" \
+              --head $SOURCE_BRANCH \
+              --base $TARGET_BRANCH \
+              --label "automerge" \
+              --json number \
+              --jq '.number')
+            
+            echo "✅ Создан PR #$PR_NUMBER"
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Автоматическое слияние Pull Request
   auto-merge-pr:
@@ -208,78 +208,79 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check-merge-readiness, check-ci-status, create-merge-pr]
     if: needs.check-merge-readiness.outputs.can_merge == 'true' && needs.check-ci-status.outputs.ci_passed == 'true'
-    
+
     steps:
-    - name: Ожидание прохождения проверок
-      run: |
-        echo "⏳ Ожидание прохождения всех проверок для PR #${{ needs.create-merge-pr.outputs.pr_number }}..."
-        
-        # Ожидаем завершения всех проверок
-        timeout 600 bash -c '
-          while true; do
-            STATUS=$(gh pr view ${{ needs.create-merge-pr.outputs.pr_number }} \
-              --json mergeable,mergeStateStatus \
-              --jq ".mergeable + \" \" + .mergeStateStatus")
-            
-            echo "Статус PR: $STATUS"
-            
-            if [[ "$STATUS" == "true CLEAN" ]]; then
-              echo "✅ Все проверки пройдены"
-              break
-            fi
-            
-            if [[ "$STATUS" == *"BLOCKED"* || "$STATUS" == *"DIRTY"* ]]; then
-              echo "❌ PR заблокирован или имеет проблемы"
-              exit 1
-            fi
-            
-            sleep 30
-          done
-        '
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Слияние Pull Request
-      run: |
-        echo "🔄 Выполнение слияния PR #${{ needs.create-merge-pr.outputs.pr_number }}..."
-        
-        # Выполняем squash merge
-        gh pr merge ${{ needs.create-merge-pr.outputs.pr_number }} \
-          --squash \
-          --delete-branch \
-          --commit-title "🚀 Автоматическое слияние: $SOURCE_BRANCH → $TARGET_BRANCH" \
-          --commit-body "Слияние ветки $SOURCE_BRANCH в $TARGET_BRANCH выполнено автоматически через CI/CD.
-        
-        Изменения включены в один коммит для чистоты истории основной ветки."
-        
-        echo "✅ Слияние успешно выполнено"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Ожидание прохождения проверок
+        run: |
+          echo "⏳ Ожидание прохождения всех проверок для PR #${{ needs.create-merge-pr.outputs.pr_number }}..."
+
+          # Ожидаем завершения всех проверок
+          timeout 600 bash -c '
+            while true; do
+              STATUS=$(gh pr view ${{ needs.create-merge-pr.outputs.pr_number }} \
+                --json mergeable,mergeStateStatus \
+                --jq ".mergeable + \" \" + .mergeStateStatus")
+              
+              echo "Статус PR: $STATUS"
+              
+              if [[ "$STATUS" == "true CLEAN" ]]; then
+                echo "✅ Все проверки пройдены"
+                break
+              fi
+              
+              if [[ "$STATUS" == *"BLOCKED"* || "$STATUS" == *"DIRTY"* ]]; then
+                echo "❌ PR заблокирован или имеет проблемы"
+                exit 1
+              fi
+              
+              sleep 30
+            done
+          '
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Слияние Pull Request
+        run: |
+          echo "🔄 Выполнение слияния PR #${{ needs.create-merge-pr.outputs.pr_number }}..."
+
+          # Выполняем squash merge
+          gh pr merge ${{ needs.create-merge-pr.outputs.pr_number }} \
+            --squash \
+            --delete-branch \
+            --commit-title "🚀 Автоматическое слияние: $SOURCE_BRANCH → $TARGET_BRANCH" \
+            --commit-body "Слияние ветки $SOURCE_BRANCH в $TARGET_BRANCH выполнено автоматически через CI/CD.
+
+          Изменения включены в один коммит для чистоты истории основной ветки."
+
+          echo "✅ Слияние успешно выполнено"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Уведомление о результате
   notify-result:
     name: Уведомление о результате
     runs-on: ubuntu-latest
-    needs: [check-merge-readiness, check-ci-status, create-merge-pr, auto-merge-pr]
+    needs:
+      [check-merge-readiness, check-ci-status, create-merge-pr, auto-merge-pr]
     if: always()
-    
+
     steps:
-    - name: Формирование уведомления
-      run: |
-        echo "📊 Результат операции слияния:"
-        echo "  Исходная ветка: $SOURCE_BRANCH"
-        echo "  Целевая ветка: $TARGET_BRANCH"
-        echo "  Готовность к слиянию: ${{ needs.check-merge-readiness.outputs.can_merge }}"
-        echo "  Причина: ${{ needs.check-merge-readiness.outputs.merge_reason }}"
-        
-        if [[ "${{ needs.check-merge-readiness.outputs.can_merge }}" == "true" ]]; then
-          echo "  Статус CI/CD: ${{ needs.check-ci-status.outputs.ci_passed }}"
-          
-          if [[ "${{ needs.check-ci-status.outputs.ci_passed }}" == "true" ]]; then
-            echo "  PR создан: #${{ needs.create-merge-pr.outputs.pr_number }}"
-            echo "  Статус слияния: ${{ needs.auto-merge-pr.result }}"
+      - name: Формирование уведомления
+        run: |
+          echo "📊 Результат операции слияния:"
+          echo "  Исходная ветка: $SOURCE_BRANCH"
+          echo "  Целевая ветка: $TARGET_BRANCH"
+          echo "  Готовность к слиянию: ${{ needs.check-merge-readiness.outputs.can_merge }}"
+          echo "  Причина: ${{ needs.check-merge-readiness.outputs.merge_reason }}"
+
+          if [[ "${{ needs.check-merge-readiness.outputs.can_merge }}" == "true" ]]; then
+            echo "  Статус CI/CD: ${{ needs.check-ci-status.outputs.ci_passed }}"
+            
+            if [[ "${{ needs.check-ci-status.outputs.ci_passed }}" == "true" ]]; then
+              echo "  PR создан: #${{ needs.create-merge-pr.outputs.pr_number }}"
+              echo "  Статус слияния: ${{ needs.auto-merge-pr.result }}"
+            fi
           fi
-        fi
-        
-        # Здесь можно добавить отправку уведомлений в Slack, Teams и т.д.
-        # TODO: Добавить интеграцию с системами уведомлений
+
+          # Здесь можно добавить отправку уведомлений в Slack, Teams и т.д.
+          # TODO: Добавить интеграцию с системами уведомлений

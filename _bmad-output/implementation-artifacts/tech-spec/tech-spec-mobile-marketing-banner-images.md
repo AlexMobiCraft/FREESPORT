@@ -1,13 +1,43 @@
 ---
-title: 'Мобильные изображения для маркетинговых баннеров'
-slug: 'mobile-marketing-banner-images'
-created: '2026-03-01'
-status: 'done'
+title: "Мобильные изображения для маркетинговых баннеров"
+slug: "mobile-marketing-banner-images"
+created: "2026-03-01"
+status: "done"
 stepsCompleted: [1, 2, 3, 4]
-tech_stack: ['Django 5.2.7', 'DRF 3.14', 'PostgreSQL 15', 'Next.js 15', 'React 19', 'Tailwind CSS 4', 'Embla Carousel']
-files_to_modify: ['backend/apps/banners/models.py', 'backend/apps/banners/serializers.py', 'backend/apps/banners/admin.py', 'backend/apps/banners/factories.py', 'backend/apps/banners/views.py', 'frontend/src/types/banners.ts', 'frontend/src/components/home/MarketingBannersSection.tsx']
-code_patterns: ['cast() обёртки для полей модели', 'SerializerMethodField для URL изображений', 'fieldsets в Admin для группировки полей', 'нативный <picture>+<source>+<img> для responsive images', 'aspect-[21/9] md:aspect-[3/1] для responsive']
-test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Library (frontend)', 'MSW для API mocking']
+tech_stack:
+  [
+    "Django 5.2.7",
+    "DRF 3.14",
+    "PostgreSQL 15",
+    "Next.js 15",
+    "React 19",
+    "Tailwind CSS 4",
+    "Embla Carousel",
+  ]
+files_to_modify:
+  [
+    "backend/apps/banners/models.py",
+    "backend/apps/banners/serializers.py",
+    "backend/apps/banners/admin.py",
+    "backend/apps/banners/factories.py",
+    "backend/apps/banners/views.py",
+    "frontend/src/types/banners.ts",
+    "frontend/src/components/home/MarketingBannersSection.tsx",
+  ]
+code_patterns:
+  [
+    "cast() обёртки для полей модели",
+    "SerializerMethodField для URL изображений",
+    "fieldsets в Admin для группировки полей",
+    "нативный <picture>+<source>+<img> для responsive images",
+    "aspect-[21/9] md:aspect-[3/1] для responsive",
+  ]
+test_patterns:
+  [
+    "pytest + Factory Boy (backend)",
+    "Vitest + React Testing Library (frontend)",
+    "MSW для API mocking",
+  ]
 ---
 
 # Tech-Spec: Мобильные изображения для маркетинговых баннеров
@@ -27,6 +57,7 @@ test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Librar
 ### Scope
 
 **In Scope:**
+
 - Новое поле `mobile_image` в модели Banner (применяется только для type=marketing)
 - Миграция БД
 - Обновление сериализатора (новое поле `mobile_image_url`)
@@ -38,6 +69,7 @@ test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Librar
 - Fallback: если мобильное изображение не загружено — показывать десктопное
 
 **Out of Scope:**
+
 - Hero-баннеры
 - Автоматическая обрезка/ресайз изображений
 - Оптимизация изображений (WebP конвертация и т.д.)
@@ -63,15 +95,15 @@ test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Librar
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `backend/apps/banners/models.py` | Модель Banner — добавить поле `mobile_image` |
-| `backend/apps/banners/serializers.py` | BannerSerializer — добавить `mobile_image_url` |
-| `backend/apps/banners/admin.py` | BannerAdmin — добавить поле в fieldsets и превью |
-| `backend/apps/banners/factories.py` | Factory Boy — добавить `mobile_image`, создать `MarketingBannerFactory` |
-| `backend/apps/banners/views.py` | OpenAPI пример — добавить `mobile_image_url` в example |
-| `frontend/src/types/banners.ts` | Тип Banner — добавить `mobile_image_url` |
-| `frontend/src/components/home/MarketingBannersSection.tsx` | Компонент — `<picture>` для мобильного изображения |
+| File                                                       | Purpose                                                                 |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `backend/apps/banners/models.py`                           | Модель Banner — добавить поле `mobile_image`                            |
+| `backend/apps/banners/serializers.py`                      | BannerSerializer — добавить `mobile_image_url`                          |
+| `backend/apps/banners/admin.py`                            | BannerAdmin — добавить поле в fieldsets и превью                        |
+| `backend/apps/banners/factories.py`                        | Factory Boy — добавить `mobile_image`, создать `MarketingBannerFactory` |
+| `backend/apps/banners/views.py`                            | OpenAPI пример — добавить `mobile_image_url` в example                  |
+| `frontend/src/types/banners.ts`                            | Тип Banner — добавить `mobile_image_url`                                |
+| `frontend/src/components/home/MarketingBannersSection.tsx` | Компонент — `<picture>` для мобильного изображения                      |
 
 ### Technical Decisions
 
@@ -165,6 +197,7 @@ test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Librar
   - Action:
     1. В `BannerFactory` добавить `mobile_image = ""` (пустое по умолчанию). Django `ImageField` с `blank=True` хранит `""` при отсутствии файла. `FieldFile.__bool__` проверяет `self.name` → пустая строка = `False`. Совпадает с `if obj.mobile_image:` в сериализаторе
     2. Добавить новые фабрики:
+
     ```python
     class MarketingBannerFactory(BannerFactory):
         """Factory для маркетинговых баннеров"""
@@ -175,6 +208,7 @@ test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Librar
         """Factory для маркетинговых баннеров с мобильным изображением"""
         mobile_image = factory.LazyFunction(generate_test_image)
     ```
+
   - Notes: Существующие sub-factories (`ActiveGuestBannerFactory` и др.) автоматически унаследуют `mobile_image = ""` от `BannerFactory` — дополнительных изменений не нужно
 
 - [x] Task 6: Обновить OpenAPI пример в views.py
@@ -235,18 +269,21 @@ test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Librar
 ### Testing Strategy
 
 **Backend (unit):**
+
 - Тест модели: создание баннера с `mobile_image` и без него
 - Тест сериализатора: проверка `mobile_image_url` в ответе — непустая строка при наличии файла, `""` при отсутствии (никогда `null`)
 - Тест кеш-инвалидации: обновление **только** `mobile_image` (без других полей) инвалидирует кеш баннеров
 - Тест фабрик: `BannerFactory()` — `bool(instance.mobile_image) == False`; `MarketingBannerWithMobileImageFactory()` — `bool(instance.mobile_image) == True`
 
 **Frontend (unit):**
+
 - Тест MarketingBannersSection: при непустом `mobile_image_url` — рендерится `<picture>` с `<source media="(max-width: 767px)">`
 - Тест MarketingBannersSection: при пустом `mobile_image_url` — рендерится `<picture>` без `<source>`, только `<img>`
 - Тест MarketingBannersSection: SSR рендер совпадает с клиентским (нет hydration mismatch) — `<picture>` рендерится одинаково на сервере и клиенте
 - Тест обработки ошибки: при ошибке загрузки изображения — баннер скрывается (существующее поведение через `handleImageError` + `useState<Set>`)
 
 **Manual:**
+
 - Загрузить мобильное изображение 21:9 через Django Admin
 - Проверить отображение на мобильном устройстве (DevTools responsive mode, viewport 375px) — отображается мобильное изображение
 - Проверить на десктопе (viewport 1280px) — отображается десктопное изображение
@@ -268,4 +305,3 @@ test_patterns: ['pytest + Factory Boy (backend)', 'Vitest + React Testing Librar
 - Resolution approach: auto-fix all real findings
 - Fixed: F1 (migrate), F2 (23 unit tests), F3 (factory DRY), F4 (decoding=async), F6 (picture extract), F8 (line length)
 - Tests: 163 total (140 existing + 23 new), all passing
-

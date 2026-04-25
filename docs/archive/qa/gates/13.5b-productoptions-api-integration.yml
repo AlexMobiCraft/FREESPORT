@@ -47,19 +47,39 @@ test_coverage:
       tests: ["Типы ProductVariant импортируются из api.generated.ts"]
       status: COVERED
     ac3_gallery_color_update:
-      tests: ["ProductImageGallery обновляет изображение при смене selectedVariant", "Галерея обновляется с gallery_images", "Сброс изображений при selectedVariant=null"]
+      tests:
+        [
+          "ProductImageGallery обновляет изображение при смене selectedVariant",
+          "Галерея обновляется с gallery_images",
+          "Сброс изображений при selectedVariant=null",
+        ]
       status: COVERED
     ac4_summary_price_stock:
-      tests: ["Обновление цены при выборе варианта", "Отображение наличия выбранного варианта"]
+      tests:
+        [
+          "Обновление цены при выборе варианта",
+          "Отображение наличия выбранного варианта",
+        ]
       status: COVERED
     ac5_summary_integration:
-      tests: ["onVariantChange вызывается при изменении выбора", "ProductPageClient синхронизирует галерею через selectedVariant"]
+      tests:
+        [
+          "onVariantChange вызывается при изменении выбора",
+          "ProductPageClient синхронизирует галерею через selectedVariant",
+        ]
       status: COVERED
     ac6_validation:
-      tests: ["validateOptions - все 5 unit тестов", "Валидация показывает ошибку при пропущенных опциях"]
+      tests:
+        [
+          "validateOptions - все 5 unit тестов",
+          "Валидация показывает ошибку при пропущенных опциях",
+        ]
       status: COVERED
     ac7_integration_tests:
-      tests: ["20 интеграционных тестов покрывают все сценарии взаимодействия компонентов"]
+      tests:
+        [
+          "20 интеграционных тестов покрывают все сценарии взаимодействия компонентов",
+        ]
       status: COVERED
 
 # Recommendations

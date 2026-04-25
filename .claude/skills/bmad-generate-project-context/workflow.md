@@ -32,7 +32,7 @@ This uses **micro-file architecture** for disciplined execution:
 
 - `output_file` = `{output_folder}/project-context.md`
 
-    EXECUTION
+  EXECUTION
 
 Load and execute `./steps/step-01-discover.md` to begin the workflow.
 

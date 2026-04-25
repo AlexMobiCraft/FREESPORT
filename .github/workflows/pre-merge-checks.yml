@@ -10,312 +10,312 @@ jobs:
   quality-checks:
     name: Проверки качества кода
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout кода
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Получаем всю историю для анализа
-        
-    - name: Анализ изменений
-      run: |
-        echo "🔍 Анализ изменений в Pull Request..."
-        
-        # Получаем список измененных файлов
-        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
-        echo "Измененные файлы:"
-        echo "$CHANGED_FILES"
-        
-        # Анализируем типы изменений
-        BACKEND_CHANGED=false
-        FRONTEND_CHANGED=false
-        DOCKER_CHANGED=false
-        CI_CHANGED=false
-        
-        while IFS= read -r file; do
-          if [[ "$file" == backend/* ]]; then
-            BACKEND_CHANGED=true
-          elif [[ "$file" == frontend/* ]]; then
-            FRONTEND_CHANGED=true
-          elif [[ "$file" == docker/* || "$file" == *Dockerfile* ]]; then
-            DOCKER_CHANGED=true
-          elif [[ "$file" == .github/* ]]; then
-            CI_CHANGED=true
-          fi
-        done <<< "$CHANGED_FILES"
-        
-        echo "BACKEND_CHANGED=$BACKEND_CHANGED" >> $GITHUB_ENV
-        echo "FRONTEND_CHANGED=$FRONTEND_CHANGED" >> $GITHUB_ENV
-        echo "DOCKER_CHANGED=$DOCKER_CHANGED" >> $GITHUB_ENV
-        echo "CI_CHANGED=$CI_CHANGED" >> $GITHUB_ENV
-        
-        echo "📊 Типы изменений:"
-        echo "  Бэкенд: $BACKEND_CHANGED"
-        echo "  Фронтенд: $FRONTEND_CHANGED"
-        echo "  Docker: $DOCKER_CHANGED"
-        echo "  CI/CD: $CI_CHANGED"
+      - name: Checkout кода
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Получаем всю историю для анализа
 
-    - name: Проверка размера PR
-      run: |
-        echo "📏 Проверка размера Pull Request..."
-        
-        # Считаем количество измененных строк
-        ADDED_LINES=$(git diff --numstat origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | awk '{sum += $1} END {print sum}')
-        DELETED_LINES=$(git diff --numstat origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | awk '{sum += $2} END {print sum}')
-        TOTAL_CHANGED=$((ADDED_LINES + DELETED_LINES))
-        
-        echo "Добавлено строк: $ADDED_LINES"
-        echo "Удалено строк: $DELETED_LINES"
-        echo "Всего изменено: $TOTAL_CHANGED"
-        
-        # Проверяем на слишком большие PR
-        if [[ $TOTAL_CHANGED -gt 2000 ]]; then
-          echo "⚠️ Внимание: большой Pull Request ($TOTAL_CHANGED строк)"
-          echo "Рекомендуется разбить на несколько меньших PR"
-          echo "::warning::Large PR detected ($TOTAL_CHANGED lines). Consider splitting into smaller PRs."
-        elif [[ $TOTAL_CHANGED -gt 1000 ]]; then
-          echo "ℹ️ Средний размер Pull Request"
-        else
-          echo "✅ Приемлемый размер Pull Request"
-        fi
-        
-        # Сохраняем для использования в других шагах
-        echo "PR_SIZE=$TOTAL_CHANGED" >> $GITHUB_ENV
+      - name: Анализ изменений
+        run: |
+          echo "🔍 Анализ изменений в Pull Request..."
 
-    - name: Проверка наличия тестов
-      run: |
-        echo "🧪 Проверка наличия тестов..."
-        
-        # Получаем список измененных файлов
-        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
-        
-        # Проверяем наличие изменений в исходном коде
-        SOURCE_CHANGED=false
-        TESTS_ADDED=false
-        
-        while IFS= read -r file; do
-          # Проверяем изменения в исходном коде бэкенда
-          if [[ "$file" == backend/apps/**/*.py ]] && [[ ! "$file" == **/test*.py ]] && [[ ! "$file" == **/tests/** ]]; then
-            SOURCE_CHANGED=true
-          fi
-          
-          # Проверяем наличие тестов
-          if [[ "$file" == **/test*.py ]] || [[ "$file" == **/tests/** ]]; then
-            TESTS_ADDED=true
-          fi
-        done <<< "$CHANGED_FILES"
-        
-        echo "SOURCE_CHANGED=$SOURCE_CHANGED" >> $GITHUB_ENV
-        echo "TESTS_ADDED=$TESTS_ADDED" >> $GITHUB_ENV
-        
-        if [[ "$SOURCE_CHANGED" == "true" && "$TESTS_ADDED" == "false" ]]; then
-          echo "⚠️ Обнаружены изменения в исходном коде без тестов"
-          echo "::warning::Source code changes detected without tests. Consider adding tests."
-        else
-          echo "✅ Тесты присутствуют или изменения в исходном коде не обнаружены"
-        fi
+          # Получаем список измененных файлов
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
+          echo "Измененные файлы:"
+          echo "$CHANGED_FILES"
 
-    - name: Проверка документации
-      run: |
-        echo "📚 Проверка документации..."
-        
-        # Получаем список измененных файлов
-        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
-        
-        # Проверяем наличие изменений в API
-        API_CHANGED=false
-        DOCS_UPDATED=false
-        
-        while IFS= read -r file; do
-          # Проверяем изменения в API
-          if [[ "$file" == backend/apps/**/views.py ]] || [[ "$file" == backend/apps/**/serializers.py ]] || [[ "$file" == backend/apps/**/urls.py ]]; then
-            API_CHANGED=true
-          fi
-          
-          # Проверяем обновление документации
-          if [[ "$file" == docs/** ]] || [[ "$file" == **/*.md ]]; then
-            DOCS_UPDATED=true
-          fi
-        done <<< "$CHANGED_FILES"
+          # Анализируем типы изменений
+          BACKEND_CHANGED=false
+          FRONTEND_CHANGED=false
+          DOCKER_CHANGED=false
+          CI_CHANGED=false
 
-        # Экспортируем переменные для использования в других шагах
-        echo "API_CHANGED=$API_CHANGED" >> $GITHUB_ENV
-        echo "DOCS_UPDATED=$DOCS_UPDATED" >> $GITHUB_ENV
-
-        if [[ "$API_CHANGED" == "true" && "$DOCS_UPDATED" == "false" ]]; then
-          echo "⚠️ Обнаружены изменения в API без обновления документации"
-          echo "::warning::API changes detected without documentation updates. Consider updating docs."
-        else
-          echo "✅ Документация обновлена или изменения в API не обнаружены"
-        fi
-
-    - name: Проверка безопасности
-      run: |
-        echo "🔒 Проверка безопасности..."
-        
-        # Получаем список измененных файлов
-        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
-        
-        # Проверяем наличие секретов в коде
-        SECRETS_FOUND=false
-        
-        while IFS= read -r file; do
-          if [[ -f "$file" ]]; then
-            # Пропускаем тестовые файлы — тестовые пароли не являются секретами
-            if [[ "$file" == */tests/* ]] || [[ "$file" == */test_* ]]; then
-              continue
+          while IFS= read -r file; do
+            if [[ "$file" == backend/* ]]; then
+              BACKEND_CHANGED=true
+            elif [[ "$file" == frontend/* ]]; then
+              FRONTEND_CHANGED=true
+            elif [[ "$file" == docker/* || "$file" == *Dockerfile* ]]; then
+              DOCKER_CHANGED=true
+            elif [[ "$file" == .github/* ]]; then
+              CI_CHANGED=true
             fi
-            # Проверяем наличие потенциальных секретов
-            if grep -q -E "(password|secret|key|token)\s*=\s*['\"][^'\"]{8,}" "$file" 2>/dev/null; then
-              echo "⚠️ Обнаружены потенциальные секреты в файле: $file"
-              SECRETS_FOUND=true
-            fi
-          fi
-        done <<< "$CHANGED_FILES"
-        
-        if [[ "$SECRETS_FOUND" == "true" ]]; then
-          echo "::error::Potential secrets found in code. Please review and remove."
-          exit 1
-        else
-          echo "✅ Потенциальные секреты не обнаружены"
-        fi
+          done <<< "$CHANGED_FILES"
 
-    - name: Проверка зависимостей
-      run: |
-        echo "📦 Проверка зависимостей..."
-        
-        # Проверяем изменения в файлах зависимостей
-        if git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | grep -E "(requirements\.txt|package\.json|package-lock\.json|yarn\.lock)"; then
-          echo "Обнаружены изменения в файлах зависимостей"
-          
-          # Проверяем бэкенд зависимости
-          if [[ -f "backend/requirements.txt" ]]; then
-            echo "🔍 Проверка бэкенд зависимостей..."
-            cd backend
-            
-            # Проверяем наличие уязвимостей
-            if command -v safety &> /dev/null; then
-              safety check --json --output safety-report.json || true
-              echo "Отчет о безопасности зависимостей сохранен в safety-report.json"
-            else
-              echo "⚠️ Safety не установлен, пропускаем проверку"
+          echo "BACKEND_CHANGED=$BACKEND_CHANGED" >> $GITHUB_ENV
+          echo "FRONTEND_CHANGED=$FRONTEND_CHANGED" >> $GITHUB_ENV
+          echo "DOCKER_CHANGED=$DOCKER_CHANGED" >> $GITHUB_ENV
+          echo "CI_CHANGED=$CI_CHANGED" >> $GITHUB_ENV
+
+          echo "📊 Типы изменений:"
+          echo "  Бэкенд: $BACKEND_CHANGED"
+          echo "  Фронтенд: $FRONTEND_CHANGED"
+          echo "  Docker: $DOCKER_CHANGED"
+          echo "  CI/CD: $CI_CHANGED"
+
+      - name: Проверка размера PR
+        run: |
+          echo "📏 Проверка размера Pull Request..."
+
+          # Считаем количество измененных строк
+          ADDED_LINES=$(git diff --numstat origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | awk '{sum += $1} END {print sum}')
+          DELETED_LINES=$(git diff --numstat origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | awk '{sum += $2} END {print sum}')
+          TOTAL_CHANGED=$((ADDED_LINES + DELETED_LINES))
+
+          echo "Добавлено строк: $ADDED_LINES"
+          echo "Удалено строк: $DELETED_LINES"
+          echo "Всего изменено: $TOTAL_CHANGED"
+
+          # Проверяем на слишком большие PR
+          if [[ $TOTAL_CHANGED -gt 2000 ]]; then
+            echo "⚠️ Внимание: большой Pull Request ($TOTAL_CHANGED строк)"
+            echo "Рекомендуется разбить на несколько меньших PR"
+            echo "::warning::Large PR detected ($TOTAL_CHANGED lines). Consider splitting into smaller PRs."
+          elif [[ $TOTAL_CHANGED -gt 1000 ]]; then
+            echo "ℹ️ Средний размер Pull Request"
+          else
+            echo "✅ Приемлемый размер Pull Request"
+          fi
+
+          # Сохраняем для использования в других шагах
+          echo "PR_SIZE=$TOTAL_CHANGED" >> $GITHUB_ENV
+
+      - name: Проверка наличия тестов
+        run: |
+          echo "🧪 Проверка наличия тестов..."
+
+          # Получаем список измененных файлов
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
+
+          # Проверяем наличие изменений в исходном коде
+          SOURCE_CHANGED=false
+          TESTS_ADDED=false
+
+          while IFS= read -r file; do
+            # Проверяем изменения в исходном коде бэкенда
+            if [[ "$file" == backend/apps/**/*.py ]] && [[ ! "$file" == **/test*.py ]] && [[ ! "$file" == **/tests/** ]]; then
+              SOURCE_CHANGED=true
             fi
             
-            cd ..
+            # Проверяем наличие тестов
+            if [[ "$file" == **/test*.py ]] || [[ "$file" == **/tests/** ]]; then
+              TESTS_ADDED=true
+            fi
+          done <<< "$CHANGED_FILES"
+
+          echo "SOURCE_CHANGED=$SOURCE_CHANGED" >> $GITHUB_ENV
+          echo "TESTS_ADDED=$TESTS_ADDED" >> $GITHUB_ENV
+
+          if [[ "$SOURCE_CHANGED" == "true" && "$TESTS_ADDED" == "false" ]]; then
+            echo "⚠️ Обнаружены изменения в исходном коде без тестов"
+            echo "::warning::Source code changes detected without tests. Consider adding tests."
+          else
+            echo "✅ Тесты присутствуют или изменения в исходном коде не обнаружены"
           fi
-          
-          # Проверяем фронтенд зависимости
-          if [[ -f "frontend/package.json" ]]; then
-            echo "🔍 Проверка фронтенд зависимостей..."
-            cd frontend
-            
-            # Проверяем наличие уязвимостей
-            if command -v npm &> /dev/null; then
-              npm audit --json > npm-audit-report.json || true
-              echo "Отчет о безопасности зависимостей сохранен в npm-audit-report.json"
-            else
-              echo "⚠️ npm не доступен, пропускаем проверку"
+
+      - name: Проверка документации
+        run: |
+          echo "📚 Проверка документации..."
+
+          # Получаем список измененных файлов
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
+
+          # Проверяем наличие изменений в API
+          API_CHANGED=false
+          DOCS_UPDATED=false
+
+          while IFS= read -r file; do
+            # Проверяем изменения в API
+            if [[ "$file" == backend/apps/**/views.py ]] || [[ "$file" == backend/apps/**/serializers.py ]] || [[ "$file" == backend/apps/**/urls.py ]]; then
+              API_CHANGED=true
             fi
             
-            cd ..
+            # Проверяем обновление документации
+            if [[ "$file" == docs/** ]] || [[ "$file" == **/*.md ]]; then
+              DOCS_UPDATED=true
+            fi
+          done <<< "$CHANGED_FILES"
+
+          # Экспортируем переменные для использования в других шагах
+          echo "API_CHANGED=$API_CHANGED" >> $GITHUB_ENV
+          echo "DOCS_UPDATED=$DOCS_UPDATED" >> $GITHUB_ENV
+
+          if [[ "$API_CHANGED" == "true" && "$DOCS_UPDATED" == "false" ]]; then
+            echo "⚠️ Обнаружены изменения в API без обновления документации"
+            echo "::warning::API changes detected without documentation updates. Consider updating docs."
+          else
+            echo "✅ Документация обновлена или изменения в API не обнаружены"
           fi
-        else
-          echo "✅ Изменения в зависимостях не обнаружены"
-        fi
 
-    - name: Создание отчета о проверках
-      if: always()
-      run: |
-        echo "📊 Создание отчета о проверках..."
-        
-        cat > pre-merge-checks-report.md << EOF
-        # 📊 Отчет о проверках перед слиянием
-        
-        ## 📋 Общая информация
-        - **Pull Request:** #${{ github.event.number }}
-        - **Ветка:** ${{ github.head_ref }} → ${{ github.base_ref }}
-        - **Автор:** ${{ github.actor }}
-        - **Размер PR:** ${{ env.PR_SIZE }} строк
-        
-        ## 🔍 Результаты проверок
-        
-        ### 📏 Размер PR
-        $([[ ${{ env.PR_SIZE }} -gt 2000 ]] && echo "⚠️ **Большой PR** (рекомендуется разбить)" || echo "✅ **Приемлемый размер**")
-        
-        ### 🧪 Тесты
-        $([[ ${{ env.TESTS_ADDED }} == "true" ]] && echo "✅ **Тесты добавлены**" || ([[ ${{ env.SOURCE_CHANGED }} == "true" ]] && echo "⚠️ **Тесты отсутствуют**" || echo "ℹ️ **Тесты не требуются**"))
-        
-        ### 📚 Документация
-        $([[ ${{ env.DOCS_UPDATED }} == "true" ]] && echo "✅ **Документация обновлена**" || ([[ ${{ env.API_CHANGED }} == "true" ]] && echo "⚠️ **Документация не обновлена**" || echo "ℹ️ **Документация не требуется**"))
-        
-        ### 🔒 Безопасность
-        ✅ **Проверка пройдена**
-        
-        ### 📦 Зависимости
-        ✅ **Проверка пройдена**
-        
-        ## 📝 Рекомендации
-        $([[ ${{ env.PR_SIZE }} -gt 2000 ]] && echo "- Рассмотрите возможность разбить PR на несколько меньших" || echo "")
-        $([[ ${{ env.SOURCE_CHANGED }} == "true" && ${{ env.TESTS_ADDED }} == "false" ]] && echo "- Добавьте тесты для изменений в исходном коде" || echo "")
-        $([[ ${{ env.API_CHANGED }} == "true" && ${{ env.DOCS_UPDATED }} == "false" ]] && echo "- Обновите документацию для изменений в API" || echo "")
-        
-        ---
-        *Этот отчет создан автоматически*
-        EOF
-        
-        echo "Отчет сохранен в pre-merge-checks-report.md"
+      - name: Проверка безопасности
+        run: |
+          echo "🔒 Проверка безопасности..."
 
-    - name: Загрузка отчета
-      uses: actions/upload-artifact@v4
-      if: always()
-      continue-on-error: true
-      with:
-        name: pre-merge-checks-report
-        retention-days: 1
-        path: |
-          pre-merge-checks-report.md
-          backend/safety-report.json
-          frontend/npm-audit-report.json
+          # Получаем список измененных файлов
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
 
-    - name: Комментарий в PR с результатами
-      uses: actions/github-script@v7
-      if: github.event_name == 'pull_request'
-      with:
-        script: |
-          const fs = require('fs');
-          
-          try {
-            const report = fs.readFileSync('pre-merge-checks-report.md', 'utf8');
+          # Проверяем наличие секретов в коде
+          SECRETS_FOUND=false
+
+          while IFS= read -r file; do
+            if [[ -f "$file" ]]; then
+              # Пропускаем тестовые файлы — тестовые пароли не являются секретами
+              if [[ "$file" == */tests/* ]] || [[ "$file" == */test_* ]]; then
+                continue
+              fi
+              # Проверяем наличие потенциальных секретов
+              if grep -q -E "(password|secret|key|token)\s*=\s*['\"][^'\"]{8,}" "$file" 2>/dev/null; then
+                echo "⚠️ Обнаружены потенциальные секреты в файле: $file"
+                SECRETS_FOUND=true
+              fi
+            fi
+          done <<< "$CHANGED_FILES"
+
+          if [[ "$SECRETS_FOUND" == "true" ]]; then
+            echo "::error::Potential secrets found in code. Please review and remove."
+            exit 1
+          else
+            echo "✅ Потенциальные секреты не обнаружены"
+          fi
+
+      - name: Проверка зависимостей
+        run: |
+          echo "📦 Проверка зависимостей..."
+
+          # Проверяем изменения в файлах зависимостей
+          if git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | grep -E "(requirements\.txt|package\.json|package-lock\.json|yarn\.lock)"; then
+            echo "Обнаружены изменения в файлах зависимостей"
             
-            // Ищем существующий комментарий
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
+            # Проверяем бэкенд зависимости
+            if [[ -f "backend/requirements.txt" ]]; then
+              echo "🔍 Проверка бэкенд зависимостей..."
+              cd backend
+              
+              # Проверяем наличие уязвимостей
+              if command -v safety &> /dev/null; then
+                safety check --json --output safety-report.json || true
+                echo "Отчет о безопасности зависимостей сохранен в safety-report.json"
+              else
+                echo "⚠️ Safety не установлен, пропускаем проверку"
+              fi
+              
+              cd ..
+            fi
             
-            const existingComment = comments.data.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('Отчет о проверках перед слиянием')
-            );
-            
-            if (existingComment) {
-              // Обновляем существующий комментарий
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: report,
-              });
-            } else {
-              // Создаем новый комментарий
-              await github.rest.issues.createComment({
+            # Проверяем фронтенд зависимости
+            if [[ -f "frontend/package.json" ]]; then
+              echo "🔍 Проверка фронтенд зависимостей..."
+              cd frontend
+              
+              # Проверяем наличие уязвимостей
+              if command -v npm &> /dev/null; then
+                npm audit --json > npm-audit-report.json || true
+                echo "Отчет о безопасности зависимостей сохранен в npm-audit-report.json"
+              else
+                echo "⚠️ npm не доступен, пропускаем проверку"
+              fi
+              
+              cd ..
+            fi
+          else
+            echo "✅ Изменения в зависимостях не обнаружены"
+          fi
+
+      - name: Создание отчета о проверках
+        if: always()
+        run: |
+          echo "📊 Создание отчета о проверках..."
+
+          cat > pre-merge-checks-report.md << EOF
+          # 📊 Отчет о проверках перед слиянием
+
+          ## 📋 Общая информация
+          - **Pull Request:** #${{ github.event.number }}
+          - **Ветка:** ${{ github.head_ref }} → ${{ github.base_ref }}
+          - **Автор:** ${{ github.actor }}
+          - **Размер PR:** ${{ env.PR_SIZE }} строк
+
+          ## 🔍 Результаты проверок
+
+          ### 📏 Размер PR
+          $([[ ${{ env.PR_SIZE }} -gt 2000 ]] && echo "⚠️ **Большой PR** (рекомендуется разбить)" || echo "✅ **Приемлемый размер**")
+
+          ### 🧪 Тесты
+          $([[ ${{ env.TESTS_ADDED }} == "true" ]] && echo "✅ **Тесты добавлены**" || ([[ ${{ env.SOURCE_CHANGED }} == "true" ]] && echo "⚠️ **Тесты отсутствуют**" || echo "ℹ️ **Тесты не требуются**"))
+
+          ### 📚 Документация
+          $([[ ${{ env.DOCS_UPDATED }} == "true" ]] && echo "✅ **Документация обновлена**" || ([[ ${{ env.API_CHANGED }} == "true" ]] && echo "⚠️ **Документация не обновлена**" || echo "ℹ️ **Документация не требуется**"))
+
+          ### 🔒 Безопасность
+          ✅ **Проверка пройдена**
+
+          ### 📦 Зависимости
+          ✅ **Проверка пройдена**
+
+          ## 📝 Рекомендации
+          $([[ ${{ env.PR_SIZE }} -gt 2000 ]] && echo "- Рассмотрите возможность разбить PR на несколько меньших" || echo "")
+          $([[ ${{ env.SOURCE_CHANGED }} == "true" && ${{ env.TESTS_ADDED }} == "false" ]] && echo "- Добавьте тесты для изменений в исходном коде" || echo "")
+          $([[ ${{ env.API_CHANGED }} == "true" && ${{ env.DOCS_UPDATED }} == "false" ]] && echo "- Обновите документацию для изменений в API" || echo "")
+
+          ---
+          *Этот отчет создан автоматически*
+          EOF
+
+          echo "Отчет сохранен в pre-merge-checks-report.md"
+
+      - name: Загрузка отчета
+        uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: pre-merge-checks-report
+          retention-days: 1
+          path: |
+            pre-merge-checks-report.md
+            backend/safety-report.json
+            frontend/npm-audit-report.json
+
+      - name: Комментарий в PR с результатами
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+
+            try {
+              const report = fs.readFileSync('pre-merge-checks-report.md', 'utf8');
+              
+              // Ищем существующий комментарий
+              const comments = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: report,
               });
+              
+              const existingComment = comments.data.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('Отчет о проверках перед слиянием')
+              );
+              
+              if (existingComment) {
+                // Обновляем существующий комментарий
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: report,
+                });
+              } else {
+                // Создаем новый комментарий
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: report,
+                });
+              }
+            } catch (error) {
+              console.log('Не удалось добавить комментарий в PR:', error.message);
             }
-          } catch (error) {
-            console.log('Не удалось добавить комментарий в PR:', error.message);
-          }

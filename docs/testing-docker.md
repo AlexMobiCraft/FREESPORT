@@ -12,14 +12,14 @@
 
 ### Тестовая среда vs Среда разработки
 
-| Аспект | Разработка | Тестирование |
-|--------|------------|-------------|
-| **Порты** | 5432, 6379, 8001 | 5433, 6380 |
-| **Сеть** | freesport-network | freesport-test-network |
-| **БД** | PostgreSQL persistent | PostgreSQL tmpfs |
-| **Redis** | Persistent, AOF | In-memory, no persistence |
-| **Образ** | Dockerfile | Dockerfile.test |
-| **Команда** | gunicorn | pytest |
+| Аспект      | Разработка            | Тестирование              |
+| ----------- | --------------------- | ------------------------- |
+| **Порты**   | 5432, 6379, 8001      | 5433, 6380                |
+| **Сеть**    | freesport-network     | freesport-test-network    |
+| **БД**      | PostgreSQL persistent | PostgreSQL tmpfs          |
+| **Redis**   | Persistent, AOF       | In-memory, no persistence |
+| **Образ**   | Dockerfile            | Dockerfile.test           |
+| **Команда** | gunicorn              | pytest                    |
 
 ### Тестовые контейнеры
 
@@ -53,7 +53,7 @@ docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 # Windows скрипт
 scripts\test.bat
 
-# Linux/macOS скрипт  
+# Linux/macOS скрипт
 ./scripts/test.sh
 ```
 
@@ -63,7 +63,7 @@ scripts\test.bat
 # Только unit тесты
 make test-unit
 
-# Только integration тесты  
+# Только integration тесты
 make test-integration
 
 # Быстрые тесты (без пересборки)
@@ -84,13 +84,13 @@ db:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: password123
   ports:
-    - "5433:5432"  # Избегаем конфликта с основной БД
+    - "5433:5432" # Избегаем конфликта с основной БД
   tmpfs:
-    - /tmp         # Ускоряем временные операции
-  shm_size: 256mb  # Больше памяти для PostgreSQL
+    - /tmp # Ускоряем временные операции
+  shm_size: 256mb # Больше памяти для PostgreSQL
   healthcheck:
     test: ["CMD-SHELL", "pg_isready -U postgres -d freesport_test"]
-    interval: 10s  # Быстрее проверки
+    interval: 10s # Быстрее проверки
     timeout: 5s
     retries: 5
 ```
@@ -103,9 +103,9 @@ redis:
   container_name: freesport-test-redis
   command: redis-server --appendonly no --save "" --requirepass redis123
   ports:
-    - "6380:6379"  # Избегаем конфликта с основным Redis
+    - "6380:6379" # Избегаем конфликта с основным Redis
   tmpfs:
-    - /data        # Всё в памяти для скорости
+    - /data # Всё в памяти для скорости
   healthcheck:
     test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
     interval: 10s
@@ -129,7 +129,8 @@ backend:
     - REDIS_URL=redis://:redis123@redis:6379/1
     - PYTEST_CURRENT_TEST=1
     - PYTHONUNBUFFERED=1
-  command: ["pytest", "-v", "--cov=apps", "--cov-report=html", "--cov-report=term"]
+  command:
+    ["pytest", "-v", "--cov=apps", "--cov-report=html", "--cov-report=term"]
   volumes:
     - ./backend:/app
     - test_coverage:/app/htmlcov
@@ -157,7 +158,7 @@ RUN apt-get update && apt-get install -y \
 # Дополнительные тестовые инструменты
 RUN pip install --no-cache-dir \
     pytest-xdist \      # Параллельные тесты
-    pytest-mock \       # Улучшенные моки  
+    pytest-mock \       # Улучшенные моки
     pytest-env \        # Environment variables
     pytest-sugar \      # Красивый вывод
     pytest-clarity      # Лучшие assert diff'ы
@@ -170,9 +171,9 @@ RUN mkdir -p /app/test-reports /app/htmlcov /app/test-logs
 
 ```dockerfile
 # Команда с оптимальными параметрами
-CMD ["pytest", 
+CMD ["pytest",
      "-v",                          # Verbose вывод
-     "--tb=short",                  # Краткие traceback'и  
+     "--tb=short",                  # Краткие traceback'и
      "--cov=apps",                  # Покрытие кода
      "--cov-report=html",           # HTML отчет
      "--cov-report=term-missing",   # Terminal отчет
@@ -419,7 +420,7 @@ pytest --maxfail=3           # Stop after 3 failures
 - name: Запуск тестов в Docker
   run: |
     make test
-    
+
 - name: Загрузка отчетов покрытия
   uses: actions/upload-artifact@v4
   with:
@@ -442,6 +443,7 @@ codecov -f coverage.xml
 ### Частые проблемы
 
 **1. Контейнеры не останавливаются**
+
 ```bash
 # Принудительная остановка
 docker compose -f docker-compose.test.yml down --remove-orphans --volumes
@@ -450,6 +452,7 @@ docker rm $(docker ps -aq)
 ```
 
 **2. Проблемы с портами**
+
 ```bash
 # Проверка занятых портов
 netstat -tulpn | grep :5433
@@ -460,6 +463,7 @@ lsof -i :5433
 ```
 
 **3. Ошибки БД подключения**
+
 ```bash
 # Проверка health check
 docker compose -f docker-compose.test.yml ps
@@ -472,6 +476,7 @@ docker compose -f docker-compose.test.yml exec db pg_isready -U postgres -d free
 ```
 
 **4. Медленные тесты**
+
 ```bash
 # Профилирование
 pytest --durations=10
@@ -484,6 +489,7 @@ pytest -n auto
 ```
 
 **5. Проблемы с покрытием кода**
+
 ```bash
 # Проверка конфигурации покрытия
 cat .coveragerc
@@ -541,7 +547,7 @@ from apps.users.models import User
 class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = User
-    
+
     email = factory.Sequence(lambda n: f"user{n}@example.com")
     username = factory.LazyAttribute(lambda obj: obj.email.split('@')[0])
     is_active = True
@@ -557,7 +563,7 @@ def test_user_creation():
 Docker-based тестирование для FREESPORT Platform обеспечивает:
 
 - ✅ **Изоляцию** - отдельная среда для тестов
-- ✅ **Консистентность** - одинаковая среда везде  
+- ✅ **Консистентность** - одинаковая среда везде
 - ✅ **Скорость** - оптимизация с tmpfs и параллелизм
 - ✅ **Покрытие** - автоматические отчеты покрытия кода
 - ✅ **CI/CD Ready** - готова для автоматизации

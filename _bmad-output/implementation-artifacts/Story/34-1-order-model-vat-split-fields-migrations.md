@@ -108,6 +108,7 @@ vat_group = cast(
 ```
 
 Также добавить в TYPE_CHECKING блок `Order`:
+
 ```python
 parent_order: "Order | None"
 is_master: bool
@@ -134,33 +135,37 @@ vat_rate = cast(
 ```
 
 Добавить в TYPE_CHECKING блок `OrderItem`:
+
 ```python
 vat_rate: "Decimal | None"
 ```
 
 Обновить `OrderItem.save()` — добавить снимок `vat_rate` по аналогии с существующими snapshot-полями:
+
 ```python
 if self.variant and self.vat_rate is None:
     vat = getattr(self.variant, "vat_rate", None)
     if vat is not None:
         self.vat_rate = Decimal(str(vat))
 ```
+
 Вставить этот блок после блока снимка `variant_info` в методе `save()`.
 
 ### Ключевые файлы для изменения
 
-| Файл | Действие |
-|------|----------|
-| `backend/apps/orders/models.py` | Добавить поля в `Order` и `OrderItem` |
-| `backend/apps/orders/admin.py` | Добавить fieldset "VAT / Субзаказы" |
-| `backend/apps/orders/serializers.py` | Обновить Detail и List сериализаторы |
-| `backend/apps/orders/migrations/0012_*.py` | Автогенерация через makemigrations |
-| `backend/tests/unit/test_models/test_order_models.py` | Добавить тесты новых полей |
-| `backend/tests/unit/test_orders_1c_fields.py` | Опционально — добавить тесты сериализаторов |
+| Файл                                                  | Действие                                    |
+| ----------------------------------------------------- | ------------------------------------------- |
+| `backend/apps/orders/models.py`                       | Добавить поля в `Order` и `OrderItem`       |
+| `backend/apps/orders/admin.py`                        | Добавить fieldset "VAT / Субзаказы"         |
+| `backend/apps/orders/serializers.py`                  | Обновить Detail и List сериализаторы        |
+| `backend/apps/orders/migrations/0012_*.py`            | Автогенерация через makemigrations          |
+| `backend/tests/unit/test_models/test_order_models.py` | Добавить тесты новых полей                  |
+| `backend/tests/unit/test_orders_1c_fields.py`         | Опционально — добавить тесты сериализаторов |
 
 ### Текущее состояние модели Order (на момент истории)
 
 Поля, актуальные для контекста:
+
 - `order_number`, `user`, `customer_name/email/phone`
 - `status` (choices из `ORDER_STATUSES` в `constants.py`)
 - `total_amount`, `discount_amount`, `delivery_cost`
@@ -184,16 +189,19 @@ if self.variant and self.vat_rate is None:
 ### Паттерн `cast()` для TYPE_CHECKING
 
 Весь проект использует `cast()` из `typing` для типизации полей Django:
+
 ```python
 from typing import TYPE_CHECKING, Any, cast
 # ...
 is_master = cast(bool, models.BooleanField(...))
 ```
+
 Следуй этому паттерну строго.
 
 ### Архитектурный контекст (зачем нужны эти поля)
 
 Из `sprint-change-proposal-2026-04-16.md`:
+
 - **Проблема:** `OrderExportService._get_order_vat_rate()` (строка ~371 в `order_export.py`) берёт НДС только первого товара. Если заказ содержит товары с НДС 5% и 22% — экспорт в 1С некорректен.
 - **Решение:** parent/child архитектура:
   - `is_master=True` — заказ видит клиент через API
@@ -203,6 +211,7 @@ is_master = cast(bool, models.BooleanField(...))
 ### Поля организации и склада в 1С
 
 Из `order_export.py` (метод `_get_org_and_warehouse`):
+
 - НДС 5% → Склад А (ИП Терещенко)
 - НДС 22% → Склад Б (ИП Семерюк)
 - Эта логика остаётся в `order_export.py` — Story 34-1 только добавляет поля модели.
@@ -210,6 +219,7 @@ is_master = cast(bool, models.BooleanField(...))
 ### Тестовые паттерны проекта
 
 Из `backend/tests/conftest.py` и `backend/tests/unit/test_models/test_order_models.py`:
+
 - Маркер: `@pytest.mark.django_db`
 - Фабрики: `OrderFactory`, `OrderItemFactory`, `UserFactory` из `tests.conftest`
 - Уникальность: `get_unique_suffix()` для строковых данных
@@ -275,6 +285,7 @@ claude-sonnet-4-6
 ### Completion Notes List
 
 **Реализовано (2026-04-16):**
+
 - Task 1: Добавлены поля `parent_order` (ForeignKey self, CASCADE, related_name='sub_orders'), `is_master` (BooleanField, default=True), `vat_group` (DecimalField null=True) в модель `Order`. Обновлён TYPE_CHECKING блок и docstring.
 - Task 2: Добавлено поле `vat_rate` (DecimalField null=True) в `OrderItem`. Обновлён TYPE_CHECKING блок. В `save()` добавлен снимок `vat_rate` из `variant.vat_rate` при первом сохранении (условие `is None`, т.к. не строка).
 - Task 3 (частично): Создана миграция `0012_add_vat_split_fields.py` вручную (аналогично существующим). Все поля имеют `null=True` или `default`. Task 3.4 (apply migration) — требует запуска Docker.
@@ -283,16 +294,19 @@ claude-sonnet-4-6
 - Task 6: Написаны 11 unit-тестов в классе `TestOrderVatSplitFields` (test_order_models.py): дефолтные значения, создание субзаказа, related_name, CASCADE delete, vat_rate snapshot логика, serializer output, негативные тесты CreateSerializer. Тесты не запускались из-за отсутствия Docker.
 
 **Реализовано (2026-04-16, Review Follow-ups):**
+
 - Исправлен bulk_create path для vat_rate snapshot (serializers.py).
 - Добавлены 2 regression-теста (TestOrderItemVatRateSnapshot).
 - Story state приведено к достоверному виду. 67/67 тестов прошли в Docker.
 
 **Реализовано (2026-04-16, Third Follow-up):**
+
 - Добавлены pytest markers (@pytest.mark.unit / @pytest.mark.integration).
 - Вынесена snapshot-логика в OrderItem.build_snapshot().
 - Рабочее дерево приведено к reviewable snapshot. 74/74 тестов.
 
 **Реализовано (2026-04-16, Auto-fix Code Review):**
+
 - Snapshot-поля OrderItem теперь защищены first-save guard.
 - Integration marker поднят на уровень класса.
 - Добавлен regression-тест на неизменяемость variant_info.
@@ -307,21 +321,22 @@ claude-sonnet-4-6
 - backend/tests/unit/test_models/test_order_models.py
 - backend/tests/unit/test_serializers/test_order_serializers.py
 - backend/tests/integration/test_cart_order_integration.py
-- _bmad-output/implementation-artifacts/sprint-status.yaml
-- _bmad-output/implementation-artifacts/Story/34-1-order-model-vat-split-fields-migrations.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+- \_bmad-output/implementation-artifacts/Story/34-1-order-model-vat-split-fields-migrations.md
 
 ## Senior Developer Review (AI)
+
 ### Review Date
 
 2026-04-16
 
-  ### Outcome
-  
- Changes Requested
-  
-  ### Summary
-  
-  - Найдено 3 issue: 1 Critical, 1 High, 1 Medium.
+### Outcome
+
+Changes Requested
+
+### Summary
+
+- Найдено 3 issue: 1 Critical, 1 High, 1 Medium.
 - Story claims не полностью согласованы с фактическим состоянием выполнения: миграция и тесты заявлены как выполненные, но в Completion Notes это опровергается.
 - Ключевой функциональный риск: vat_rate снимается только в OrderItem.save(), но реальный путь создания заказа использует bulk_create, поэтому AC по snapshot-полю в рабочем flow не гарантирован.
 - Покрытие не защищает этот сценарий: есть unit-тест на модельный save(), но нет regression-теста на фактическое создание заказа через serializer/API.
@@ -336,13 +351,13 @@ claude-sonnet-4-6
 
 2026-04-16
 
-  ### Follow-up Outcome
-  
- Changes Requested
-  
-  ### Follow-up Summary
-  
-  - Найдено 3 issue: 1 High, 2 Medium.
+### Follow-up Outcome
+
+Changes Requested
+
+### Follow-up Summary
+
+- Найдено 3 issue: 1 High, 2 Medium.
 - Story больше не совпадает с собственным контрактом по Task 5.3 / AC7: `OrderCreateSerializer` изменён, хотя story требует его не менять.
 - Закрытый follow-up по regression coverage подтверждает только serializer-level path и не доказывает поведение на API-уровне.
 - Snapshot-поле `variant_info` собирается по-разному в `OrderItem.save()` и `OrderCreateSerializer.create()`, из-за чего результат зависит от пути создания заказа.
@@ -357,13 +372,13 @@ claude-sonnet-4-6
 
 2026-04-16
 
-  ### Second Follow-up Outcome
-  
- Changes Requested
-  
-  ### Second Follow-up Summary
-  
-  - Найдено 3 issue: 2 Medium, 1 Low.
+### Second Follow-up Outcome
+
+Changes Requested
+
+### Second Follow-up Summary
+
+- Найдено 3 issue: 2 Medium, 1 Low.
 - Текущий code review выполняется по mixed staged/unstaged состоянию, поэтому следующий проход нужно делать по воспроизводимому snapshot изменений.
 - Новые regression-тесты story не размечены project-standard pytest-маркерами `unit` / `integration`, из-за чего выборочные прогоны могут пропустить покрытие Story 34-1.
 - Snapshot-логика `OrderItem` всё ещё дублируется между моделью и сериализатором; после недавнего фикса это уже не functional bug, но остаётся источником будущих расхождений.
@@ -398,12 +413,12 @@ Approved
 
 ## Change Log
 
-| Date | Change |
-|------|--------|
-| 2026-04-16 | Code Review (AI): добавлены 3 Review Follow-ups (1 Critical, 1 High, 1 Medium). Status → in-progress. Outcome: Changes Requested. |
-| 2026-04-16 | Review Follow-ups resolved: исправлен bulk_create path для vat_rate snapshot (serializers.py), добавлены 2 regression-теста (TestOrderItemVatRateSnapshot), story state приведено к достоверному виду. 67/67 тестов. Status → review. |
-| 2026-04-16 | Follow-up Code Review (AI): добавлены 3 Review Follow-ups (1 High, 2 Medium). Status → in-progress. Outcome: Changes Requested. |
-| 2026-04-16 | Follow-up Review Follow-ups resolved: обновлены AC7/Task 5.3 (story согласована с реализацией), добавлены 2 API-level интеграционных теста (test_cart_order_integration.py), унифицирован порядок атрибутов variant_info в OrderItem.save(). 74/74 тестов. Status → review. |
-| 2026-04-16 | Second Follow-up Code Review (AI): добавлены 3 Review Follow-ups (2 Medium, 1 Low). Status → in-progress. Outcome: Changes Requested. |
-| 2026-04-16 | Third Follow-up resolved: добавлены pytest markers (unit/integration), вынесена snapshot-логика в OrderItem.build_snapshot(), рабочее дерево приведено к reviewable snapshot. 74/74 тестов. Status → review. |
+| Date       | Change                                                                                                                                                                                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-04-16 | Code Review (AI): добавлены 3 Review Follow-ups (1 Critical, 1 High, 1 Medium). Status → in-progress. Outcome: Changes Requested.                                                                                                                                                                      |
+| 2026-04-16 | Review Follow-ups resolved: исправлен bulk_create path для vat_rate snapshot (serializers.py), добавлены 2 regression-теста (TestOrderItemVatRateSnapshot), story state приведено к достоверному виду. 67/67 тестов. Status → review.                                                                  |
+| 2026-04-16 | Follow-up Code Review (AI): добавлены 3 Review Follow-ups (1 High, 2 Medium). Status → in-progress. Outcome: Changes Requested.                                                                                                                                                                        |
+| 2026-04-16 | Follow-up Review Follow-ups resolved: обновлены AC7/Task 5.3 (story согласована с реализацией), добавлены 2 API-level интеграционных теста (test_cart_order_integration.py), унифицирован порядок атрибутов variant_info в OrderItem.save(). 74/74 тестов. Status → review.                            |
+| 2026-04-16 | Second Follow-up Code Review (AI): добавлены 3 Review Follow-ups (2 Medium, 1 Low). Status → in-progress. Outcome: Changes Requested.                                                                                                                                                                  |
+| 2026-04-16 | Third Follow-up resolved: добавлены pytest markers (unit/integration), вынесена snapshot-логика в OrderItem.build_snapshot(), рабочее дерево приведено к reviewable snapshot. 74/74 тестов. Status → review.                                                                                           |
 | 2026-04-16 | Third Follow-up Code Review (AI): найдено 2 Medium и 1 Low. Выбран auto-fix. Исправлены first-save guard для snapshot-полей OrderItem, class-level `@pytest.mark.integration` в `test_cart_order_integration.py`, добавлен regression-тест на snapshot-immutability. Status → done. Outcome: Approved. |

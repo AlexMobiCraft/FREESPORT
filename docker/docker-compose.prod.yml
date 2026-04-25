@@ -77,7 +77,13 @@ services:
       - ${ONEC_DATA_DIR}:/app/data/import_1c
     user: "1000:1000"
     healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; req=urllib.request.Request('http://localhost:8000/api/v1/health/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(req)" ]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; req=urllib.request.Request('http://localhost:8000/api/v1/health/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(req)",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -111,7 +117,13 @@ services:
       - INTERNAL_API_URL=http://backend:8000
       - ACTIVE_THEME=${ACTIVE_THEME:-coming_soon}
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -243,7 +255,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-
 
 networks:
   freesport-network:

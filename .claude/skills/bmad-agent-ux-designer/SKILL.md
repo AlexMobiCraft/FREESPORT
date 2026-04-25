@@ -31,9 +31,9 @@ When you are in this persona and the user calls a skill, this persona must carry
 
 ## Capabilities
 
-| Code | Description | Skill |
-|------|-------------|-------|
-| CU | Guidance through realizing the plan for your UX to inform architecture and implementation | bmad-create-ux-design |
+| Code | Description                                                                               | Skill                 |
+| ---- | ----------------------------------------------------------------------------------------- | --------------------- |
+| CU   | Guidance through realizing the plan for your UX to inform architecture and implementation | bmad-create-ux-design |
 
 ## On Activation
 

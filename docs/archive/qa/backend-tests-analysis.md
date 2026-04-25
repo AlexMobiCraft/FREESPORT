@@ -20,15 +20,15 @@
 
 ## Статистика тестов
 
-| Метрика | Значение |
-|---------|----------|
-| Всего тестовых файлов | 88 |
-| Файлов с тестовыми функциями | 90 |
-| Integration тестов | 43+ |
-| Unit тестов | 47+ |
-| Пропущенных тестов (@skip/@xfail) | 3 |
-| Ошибок линтера | 23 |
-| Покрытие кода (products/models.py) | 83.33% |
+| Метрика                            | Значение |
+| ---------------------------------- | -------- |
+| Всего тестовых файлов              | 88       |
+| Файлов с тестовыми функциями       | 90       |
+| Integration тестов                 | 43+      |
+| Unit тестов                        | 47+      |
+| Пропущенных тестов (@skip/@xfail)  | 3        |
+| Ошибок линтера                     | 23       |
+| Покрытие кода (products/models.py) | 83.33%   |
 
 ---
 
@@ -153,23 +153,23 @@ def test_min_order_quantity_validation(self):
 
 **Методы с низким/нулевым покрытием:**
 
-| Метод | Покрытие | Строки |
-|-------|----------|--------|
-| `Brand.save()` | 30% | 67, 69-71, 73, 76-77 не покрыты |
-| `Brand.__str__()` | 0% | Не тестируется |
-| `Brand1CMapping.__str__()` | 0% | Не тестируется |
-| `Category.save()` | 22% | 188, 190-192, 194, 197-198 не покрыты |
-| `Category.__str__()` | 0% | Не тестируется |
-| `Category.full_name()` | 0% | Полностью не покрыт |
-| `Product.save()` | 12% | 408, 410-412, 414, 417-418, 421-426, 428-430 не покрыты |
-| `Product.__str__()` | 0% | Не тестируется |
-| `ProductImage.__str__()` | 0% | Не тестируется |
-| `ProductImage.save()` | 0% | Полностью не покрыт |
-| `ImportSession.__str__()` | 0% | Не тестируется |
-| `PriceType.__str__()` | 0% | Не тестируется |
-| `ColorMapping.__str__()` | 0% | Не тестируется |
+| Метод                      | Покрытие | Строки                                                  |
+| -------------------------- | -------- | ------------------------------------------------------- |
+| `Brand.save()`             | 30%      | 67, 69-71, 73, 76-77 не покрыты                         |
+| `Brand.__str__()`          | 0%       | Не тестируется                                          |
+| `Brand1CMapping.__str__()` | 0%       | Не тестируется                                          |
+| `Category.save()`          | 22%      | 188, 190-192, 194, 197-198 не покрыты                   |
+| `Category.__str__()`       | 0%       | Не тестируется                                          |
+| `Category.full_name()`     | 0%       | Полностью не покрыт                                     |
+| `Product.save()`           | 12%      | 408, 410-412, 414, 417-418, 421-426, 428-430 не покрыты |
+| `Product.__str__()`        | 0%       | Не тестируется                                          |
+| `ProductImage.__str__()`   | 0%       | Не тестируется                                          |
+| `ProductImage.save()`      | 0%       | Полностью не покрыт                                     |
+| `ImportSession.__str__()`  | 0%       | Не тестируется                                          |
+| `PriceType.__str__()`      | 0%       | Не тестируется                                          |
+| `ColorMapping.__str__()`   | 0%       | Не тестируется                                          |
 
-**Проблема:** Критические методы (save(), __str__()) не тестируются
+**Проблема:** Критические методы (save(), **str**()) не тестируются
 **Влияние:** Высокое - возможны баги в логике сохранения и строковом представлении
 
 ---
@@ -244,6 +244,7 @@ class ProductFactory(DjangoModelFactory):
 **Шаги:**
 
 1. Добавить метод `clean()` в модель CartItem:
+
 ```python
 def clean(self):
     if self.variant.min_order_quantity and self.quantity < self.variant.min_order_quantity:
@@ -253,6 +254,7 @@ def clean(self):
 ```
 
 2. Добавить валидацию в `save()`:
+
 ```python
 def save(self, *args, **kwargs):
     self.full_clean()
@@ -270,11 +272,13 @@ def save(self, *args, **kwargs):
 **Шаги:**
 
 1. Диагностировать проблему:
+
 ```bash
 pytest tests/integration/test_auth_api.py::test_schema_includes_logout_endpoint -xvs
 ```
 
 2. Проверить импорты в serializers:
+
 ```bash
 grep -r "from decimal import Decimal" apps/*/serializers.py
 ```
@@ -294,6 +298,7 @@ grep -r "from decimal import Decimal" apps/*/serializers.py
 **Шаги:**
 
 1. Написать тесты для `__str__()` методов:
+
 ```python
 def test_brand_str_representation(self):
     brand = BrandFactory.create(name="Nike")
@@ -305,6 +310,7 @@ def test_category_str_representation(self):
 ```
 
 2. Написать тесты для `save()` методов:
+
 ```python
 def test_brand_save_generates_slug(self):
     brand = Brand(name="New Brand")
@@ -319,6 +325,7 @@ def test_category_save_full_path(self):
 ```
 
 3. Написать тесты для `Category.full_name()`:
+
 ```python
 def test_category_full_name_with_parent(self):
     parent = CategoryFactory.create(name="Спорт")
@@ -327,6 +334,7 @@ def test_category_full_name_with_parent(self):
 ```
 
 4. Запустить тесты с coverage:
+
 ```bash
 pytest tests/unit/test_models/test_product_models.py --cov=apps/products/models --cov-report=term
 ```
@@ -344,6 +352,7 @@ pytest tests/unit/test_models/test_product_models.py --cov=apps/products/models 
 **Шаги:**
 
 1. Запустить flake8 с автофиксом (если используется autopep8):
+
 ```bash
 autopep8 --in-place --max-line-length=88 apps/products/management/commands/deduplicate_images.py
 ```
@@ -354,6 +363,7 @@ autopep8 --in-place --max-line-length=88 apps/products/management/commands/dedup
    - Использовать f-строки вместо конкатенации
 
 3. Пример исправления:
+
 ```python
 # До
 assert response_data["message"] == "This is a very long message that exceeds 88 characters limit"
@@ -366,6 +376,7 @@ assert response_data["message"] == expected_message
 ```
 
 4. Проверить:
+
 ```bash
 flake8 apps/ tests/ --count --select=E501 --show-source --statistics
 ```
@@ -380,6 +391,7 @@ flake8 apps/ tests/ --count --select=E501 --show-source --statistics
 **Шаги:**
 
 1. Добавить настройки в test.py:
+
 ```python
 SPECTACULAR_SETTINGS = {
     'TITLE': 'FREESPORT API (Test)',
@@ -390,6 +402,7 @@ SPECTACULAR_SETTINGS = {
 ```
 
 2. Убедиться, что URL настроен в urls.py:
+
 ```python
 urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -408,6 +421,7 @@ urlpatterns = [
 **Шаги:**
 
 1. Рефакторинг: создать отдельную фабрику ProductWithVariantFactory:
+
 ```python
 class ProductFactory(DjangoModelFactory):
     """Simple Product factory without auto-variant creation"""
@@ -440,6 +454,7 @@ class ProductWithVariantFactory(ProductFactory):
    - Оставить ProductFactory для тестов только Product модели
 
 3. Запустить все тесты:
+
 ```bash
 pytest tests/unit/test_models/ -v
 ```
@@ -490,6 +505,7 @@ pytest tests/unit/test_models/ -v
 **Шаги:**
 
 1. Найти нестабильный тест:
+
 ```bash
 grep -r "unique\|unikal" tests/ --include="*.py" -l
 ```
@@ -499,6 +515,7 @@ grep -r "unique\|unikal" tests/ --include="*.py" -l
    - Проверить, что нет жестко закодированных значений
 
 3. Добавить retry механизм для CI:
+
 ```python
 @pytest.mark.flaky(reruns=3, reruns_delay=1)
 def test_unique_constraint(self):
@@ -506,6 +523,7 @@ def test_unique_constraint(self):
 ```
 
 4. Использовать изоляцию БД (truncate):
+
 ```python
 @pytest.fixture(autouse=True)
 def _db_isolation(self, db):
@@ -523,6 +541,7 @@ def _db_isolation(self, db):
 **Шаги:**
 
 1. Добавить flake8 проверку:
+
 ```yaml
 - name: Lint with flake8
   run: |
@@ -531,6 +550,7 @@ def _db_isolation(self, db):
 ```
 
 2. Добавить проверку покрытия:
+
 ```yaml
 - name: Test with coverage
   run: |
@@ -538,6 +558,7 @@ def _db_isolation(self, db):
 ```
 
 3. Добавить badge в README:
+
 ```markdown
 ![Coverage](https://img.shields.io/codecov/c/github/yourorg/freesport)
 ![Tests](https://img.shields.io/github/actions/workflow/status/yourorg/freesport/tests.yml)
@@ -613,7 +634,7 @@ pytest --cov=apps --cov-report=term-missing
 - [ ] Убрать @pytest.mark.skip из test_min_order_quantity_validation
 - [ ] Исправить генерацию OpenAPI схемы (Decimal issue)
 - [ ] Убрать @pytest.mark.skip из test_schema_includes_logout_endpoint
-- [ ] Написать тесты для __str__() методов (Brand, Category, Product, etc.)
+- [ ] Написать тесты для **str**() методов (Brand, Category, Product, etc.)
 - [ ] Написать тесты для save() методов
 - [ ] Написать тесты для Category.full_name()
 - [ ] Проверить покрытие: должно быть >= 90% для products/models.py
@@ -647,14 +668,14 @@ pytest --cov=apps --cov-report=term-missing
 
 ## 📊 Метрики успеха
 
-| Метрика | Текущее значение | Целевое значение |
-|---------|------------------|------------------|
-| Покрытие кода | 83.33% | >= 90% |
-| Пропущенные тесты | 3 | 0 |
-| Ошибки flake8 | 23 | 0 |
-| TODO комментарии | 14 | Задокументированы |
-| Нестабильные тесты | 1 | 0 |
-| Время выполнения тестов | ? | < 5 минут |
+| Метрика                 | Текущее значение | Целевое значение  |
+| ----------------------- | ---------------- | ----------------- |
+| Покрытие кода           | 83.33%           | >= 90%            |
+| Пропущенные тесты       | 3                | 0                 |
+| Ошибки flake8           | 23               | 0                 |
+| TODO комментарии        | 14               | Задокументированы |
+| Нестабильные тесты      | 1                | 0                 |
+| Время выполнения тестов | ?                | < 5 минут         |
 
 ---
 
@@ -663,17 +684,20 @@ pytest --cov=apps --cov-report=term-missing
 ### Рекомендации по стилю
 
 1. **Всегда используйте factory.LazyFunction для уникальных полей:**
+
 ```python
 email = factory.LazyFunction(lambda: f"user-{uuid.uuid4().hex[:8]}@test.com")
 ```
 
 2. **Используйте timezone-aware datetime:**
+
 ```python
 from django.utils import timezone
 created_at = factory.LazyFunction(timezone.now)
 ```
 
 3. **Явно указывайте параметры в тестах:**
+
 ```python
 # Плохо
 product = ProductFactory.create()

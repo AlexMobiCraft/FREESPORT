@@ -13,6 +13,7 @@
 Основной скрипт валидации документации. Проверяет качество, актуальность и консистентность документов.
 
 **Возможности:**
+
 - ✅ Проверка кросс-ссылок между документами
 - ✅ Валидация покрытия API endpoints документацией
 - ✅ Поиск устаревших терминов и TODO
@@ -159,6 +160,7 @@ Remove-Item Env:FREESPORT_PROJECT_ROOT
 Детальная проверка всех ссылок в markdown документах.
 
 **Возможности:**
+
 - ✅ Проверка локальных ссылок на файлы
 - ✅ Проверка якорей (anchors) в ссылках
 - ✅ Проверка внешних URL (опционально)
@@ -211,6 +213,7 @@ make docs-check-links
 Автоматическая генерация и обновление индексов документации.
 
 **Возможности:**
+
 - ✅ Обновление главного индекса `docs/index.md`
 - ✅ Генерация README.md в каждой категории
 - ✅ Автоматическое извлечение заголовков и описаний
@@ -313,20 +316,20 @@ name: Documentation Validation
 on:
   pull_request:
     paths:
-      - 'docs/**'
-      - 'backend/**'
+      - "docs/**"
+      - "backend/**"
 
 jobs:
   validate-docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      
+          python-version: "3.12"
+
       - name: Validate documentation
         run: |
           python scripts/docs_validator.py validate

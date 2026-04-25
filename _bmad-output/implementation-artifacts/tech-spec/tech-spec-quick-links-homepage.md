@@ -1,13 +1,21 @@
 ---
-title: 'Quick Links on Homepage'
-slug: 'quick-links-homepage'
-created: '2026-02-12'
-status: 'ready-for-dev'
+title: "Quick Links on Homepage"
+slug: "quick-links-homepage"
+created: "2026-02-12"
+status: "ready-for-dev"
 stepsCompleted: [1, 2, 3, 4]
-tech_stack: ['React', 'Next.js', 'Tailwind CSS']
-files_to_modify: ['frontend/src/components/home/HomePage.tsx', 'frontend/src/components/home/index.ts', 'frontend/src/services/categoriesService.ts', 'frontend/src/config/quickLinks.ts', 'frontend/src/components/home/QuickLinksSection.tsx']
-code_patterns: ['Component Composition', 'Service Layer Pattern', 'Design System Tokens']
-test_patterns: ['Unit Testing (Vitest)', 'React Testing Library']
+tech_stack: ["React", "Next.js", "Tailwind CSS"]
+files_to_modify:
+  [
+    "frontend/src/components/home/HomePage.tsx",
+    "frontend/src/components/home/index.ts",
+    "frontend/src/services/categoriesService.ts",
+    "frontend/src/config/quickLinks.ts",
+    "frontend/src/components/home/QuickLinksSection.tsx",
+  ]
+code_patterns:
+  ["Component Composition", "Service Layer Pattern", "Design System Tokens"]
+test_patterns: ["Unit Testing (Vitest)", "React Testing Library"]
 ---
 
 # Tech-Spec: Quick Links on Homepage
@@ -29,6 +37,7 @@ test_patterns: ['Unit Testing (Vitest)', 'React Testing Library']
 ### Scope
 
 **In Scope:**
+
 - Создание React-компонента `QuickLinksSection` в `frontend/src/components/home`.
 - Интеграция компонента в `HomePage` сразу после `HeroSection`.
 - Получение списка корневых категорий через существующий `categoriesService`.
@@ -39,6 +48,7 @@ test_patterns: ['Unit Testing (Vitest)', 'React Testing Library']
 - Адаптивная верстка (Mobile First).
 
 **Out of Scope:**
+
 - Создание административного интерфейса для управления статическими ссылками.
 - Изменение API категорий (используем существующий эндпойнт).
 
@@ -53,31 +63,31 @@ test_patterns: ['Unit Testing (Vitest)', 'React Testing Library']
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `frontend/src/components/home/HomePage.tsx` | Главная страница, точка входа. |
-| `frontend/src/services/categoriesService.ts` | Сервис для получения данных категорий. |
-| `frontend/src/components/home/index.ts` | Баррель файл для экспорта нового компонента. |
-| `frontend/src/config/quickLinks.ts` | [NEW] Конфигурация статических ссылок. |
-| `frontend/src/app/globals.css` | Источник CSS переменных. |
-| `docs/frontend/css-variables-mapping.md` | Правила маппинга цветов. |
+| File                                         | Purpose                                      |
+| -------------------------------------------- | -------------------------------------------- |
+| `frontend/src/components/home/HomePage.tsx`  | Главная страница, точка входа.               |
+| `frontend/src/services/categoriesService.ts` | Сервис для получения данных категорий.       |
+| `frontend/src/components/home/index.ts`      | Баррель файл для экспорта нового компонента. |
+| `frontend/src/config/quickLinks.ts`          | [NEW] Конфигурация статических ссылок.       |
+| `frontend/src/app/globals.css`               | Источник CSS переменных.                     |
+| `docs/frontend/css-variables-mapping.md`     | Правила маппинга цветов.                     |
 
 ### Technical Decisions
 
 - **Данные:**
-    - Динамические: `categoriesService.getCategories({ parent_id__isnull: true, limit: 100 })`.
-    - Статические: Вынести в `frontend/src/config/quickLinks.ts`.
-        - Новинки: `{ label: "Новинки", icon: <Sparkles />, link: "/catalog?sort=new", variant: "new" }`
-        - Хиты: `{ label: "Хиты продаж", icon: <Flame />, link: "/catalog?sort=popular", variant: "hit" }`
-        - Скидки: `{ label: "Скидки", icon: <Percent />, link: "/catalog?is_discounted=true", variant: "sale" }`
+  - Динамические: `categoriesService.getCategories({ parent_id__isnull: true, limit: 100 })`.
+  - Статические: Вынести в `frontend/src/config/quickLinks.ts`.
+    - Новинки: `{ label: "Новинки", icon: <Sparkles />, link: "/catalog?sort=new", variant: "new" }`
+    - Хиты: `{ label: "Хиты продаж", icon: <Flame />, link: "/catalog?sort=popular", variant: "hit" }`
+    - Скидки: `{ label: "Скидки", icon: <Percent />, link: "/catalog?is_discounted=true", variant: "sale" }`
 - **Error Handling:** Если `categoriesService` возвращает ошибку, `QuickLinksSection` должен отловить её и отобразить только статические ссылки (без падения UI).
 - **Скролл:**
-    - Mobile: CSS `overflow-x-auto` + `snap-x`.
-    - Desktop: Скрыть скроллбар, добавить кнопки `<` и `>` для прокрутки (scrollBy).
+  - Mobile: CSS `overflow-x-auto` + `snap-x`.
+  - Desktop: Скрыть скроллбар, добавить кнопки `<` и `>` для прокрутки (scrollBy).
 - **Стилизация:**
-    - Контейнер: `bg-canvas` (var(--bg-canvas)).
-    - Элементы: `bg-panel` (var(--bg-panel)), shadow-sm, rounded-full или rounded-lg.
-    - Текст: `text-primary` (var(--color-text-primary)).
+  - Контейнер: `bg-canvas` (var(--bg-canvas)).
+  - Элементы: `bg-panel` (var(--bg-panel)), shadow-sm, rounded-full или rounded-lg.
+  - Текст: `text-primary` (var(--color-text-primary)).
 - **Icons:** Использовать `lucide-react` (стандарт проекта).
 
 ## Implementation Plan
@@ -85,40 +95,44 @@ test_patterns: ['Unit Testing (Vitest)', 'React Testing Library']
 ### Tasks
 
 #### 1. Конфигурация и Типы
+
 - [ ] Задача 1.1: Создать конфигурацию статических ссылок
-    - Файл: `frontend/src/config/quickLinks.tsx` (tsx нужен для иконок)
-    - Действие: Экспортировать константу `STATIC_QUICK_LINKS` с массивом объектов (label, link, variant, icon).
-    - Примечание: Иконки импортировать из `lucide-react`.
+  - Файл: `frontend/src/config/quickLinks.tsx` (tsx нужен для иконок)
+  - Действие: Экспортировать константу `STATIC_QUICK_LINKS` с массивом объектов (label, link, variant, icon).
+  - Примечание: Иконки импортировать из `lucide-react`.
 
 #### 2. Реализация Компонента
+
 - [ ] Задача 2.1: Создать скелет компонента и логику
-    - Файл: `frontend/src/components/home/QuickLinksSection.tsx`
-    - Действие: Реализовать структуру компонента, `useEffect` для загрузки данных через `categoriesService`, состояния для категорий и обработки загрузки/ошибок.
-    - Примечание: Корректно обработать состояние ошибки (показывать только статические ссылки).
+  - Файл: `frontend/src/components/home/QuickLinksSection.tsx`
+  - Действие: Реализовать структуру компонента, `useEffect` для загрузки данных через `categoriesService`, состояния для категорий и обработки загрузки/ошибок.
+  - Примечание: Корректно обработать состояние ошибки (показывать только статические ссылки).
 
 - [ ] Задача 2.2: Реализовать верстку и скролл
-    - Файл: `frontend/src/components/home/QuickLinksSection.tsx`
-    - Действие: Добавить горизонтальный контейнер с прокруткой (`snap-x`). Рендерить статические ссылки, затем динамические категории.
-    - Примечание: Использовать классы Tailwind (`flex`, `overflow-x-auto`, `gap-4`). Использовать `ref` для контейнера скролла.
+  - Файл: `frontend/src/components/home/QuickLinksSection.tsx`
+  - Действие: Добавить горизонтальный контейнер с прокруткой (`snap-x`). Рендерить статические ссылки, затем динамические категории.
+  - Примечание: Использовать классы Tailwind (`flex`, `overflow-x-auto`, `gap-4`). Использовать `ref` для контейнера скролла.
 
 - [ ] Задача 2.3: Реализовать контролы для десктопа
-    - Файл: `frontend/src/components/home/QuickLinksSection.tsx`
-    - Действие: Добавить кнопки-стрелки (Влево/Вправо). Логика `scrollBy` при клике. Скрывать/показывать в зависимости от позиции скролла (опционально) или типа устройства.
-    - Примечание: Стилизовать как круглые кнопки с иконками и тенью (`shadow-md`).
+  - Файл: `frontend/src/components/home/QuickLinksSection.tsx`
+  - Действие: Добавить кнопки-стрелки (Влево/Вправо). Логика `scrollBy` при клике. Скрывать/показывать в зависимости от позиции скролла (опционально) или типа устройства.
+  - Примечание: Стилизовать как круглые кнопки с иконками и тенью (`shadow-md`).
 
 #### 3. Интеграция
+
 - [ ] Задача 3.1: Экспорт компонента
-    - Файл: `frontend/src/components/home/index.ts`
-    - Действие: Экспортировать `QuickLinksSection`.
+  - Файл: `frontend/src/components/home/index.ts`
+  - Действие: Экспортировать `QuickLinksSection`.
 
 - [ ] Задача 3.2: Добавить на Главную страницу
-    - Файл: `frontend/src/components/home/HomePage.tsx`
-    - Действие: Импортировать и разместить `QuickLinksSection` сразу после `HeroSection`.
+  - Файл: `frontend/src/components/home/HomePage.tsx`
+  - Действие: Импортировать и разместить `QuickLinksSection` сразу после `HeroSection`.
 
 #### 4. Тестирование
+
 - [ ] Задача 4.1: Unit-тесты
-    - Файл: `frontend/src/components/home/__tests__/QuickLinksSection.test.tsx`
-    - Действие: Написать тесты для рендера статических ссылок, загрузки категорий, обработки ошибок и моки взаимодействия со скроллом.
+  - Файл: `frontend/src/components/home/__tests__/QuickLinksSection.test.tsx`
+  - Действие: Написать тесты для рендера статических ссылок, загрузки категорий, обработки ошибок и моки взаимодействия со скроллом.
 
 ### Acceptance Criteria
 

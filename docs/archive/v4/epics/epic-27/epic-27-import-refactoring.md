@@ -2,10 +2,10 @@
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2024-12-09 | 1.0 | Initial PRD draft | John (PM) |
-| 2024-12-09 | 1.1 | Added comparison table, architecture diagrams, Story 27.6 | John (PM) |
+| Date       | Version | Description                                               | Author    |
+| ---------- | ------- | --------------------------------------------------------- | --------- |
+| 2024-12-09 | 1.0     | Initial PRD draft                                         | John (PM) |
+| 2024-12-09 | 1.1     | Added comparison table, architecture diagrams, Story 27.6 | John (PM) |
 
 ---
 
@@ -37,18 +37,18 @@
 
 ## Methods Comparison: ProductDataProcessor vs VariantImportProcessor
 
-| Функционал | ProductDataProcessor (LEGACY) | VariantImportProcessor (NEW) | Статус |
-|------------|-------------------------------|------------------------------|--------|
-| Создание Product из goods.xml | `create_product_placeholder()` | `process_product_from_goods()` | ✅ Дублирование |
-| Импорт изображений Product | `_import_base_images_simple()` | `_import_base_images()` | ⚠️ Разная реализация |
-| Обработка offers.xml | `enrich_product_from_offer()` | `process_variant_from_offer()` | ✅ Дублирование |
-| Обновление цен | `update_product_prices()` | `update_variant_prices()` | ✅ Дублирование |
-| Обновление остатков | `update_product_stock()` | `update_variant_stock()` | ✅ Дублирование |
-| Связывание атрибутов | `_link_product_attributes()` | `_link_variant_attributes()` | ✅ Дублирование |
-| Обработка категорий | `process_categories()` | ❌ Отсутствует | 🔄 Требует переноса |
-| Обработка брендов | `process_brands()` | ❌ Отсутствует | 🔄 Требует переноса |
-| Обработка типов цен | `process_price_types()` | ❌ Отсутствует | 🔄 Требует переноса |
-| `normalize_image_path()` | ❌ Не использует | ✅ Использует | ⚠️ Критично |
+| Функционал                    | ProductDataProcessor (LEGACY)  | VariantImportProcessor (NEW)   | Статус               |
+| ----------------------------- | ------------------------------ | ------------------------------ | -------------------- |
+| Создание Product из goods.xml | `create_product_placeholder()` | `process_product_from_goods()` | ✅ Дублирование      |
+| Импорт изображений Product    | `_import_base_images_simple()` | `_import_base_images()`        | ⚠️ Разная реализация |
+| Обработка offers.xml          | `enrich_product_from_offer()`  | `process_variant_from_offer()` | ✅ Дублирование      |
+| Обновление цен                | `update_product_prices()`      | `update_variant_prices()`      | ✅ Дублирование      |
+| Обновление остатков           | `update_product_stock()`       | `update_variant_stock()`       | ✅ Дублирование      |
+| Связывание атрибутов          | `_link_product_attributes()`   | `_link_variant_attributes()`   | ✅ Дублирование      |
+| Обработка категорий           | `process_categories()`         | ❌ Отсутствует                 | 🔄 Требует переноса  |
+| Обработка брендов             | `process_brands()`             | ❌ Отсутствует                 | 🔄 Требует переноса  |
+| Обработка типов цен           | `process_price_types()`        | ❌ Отсутствует                 | 🔄 Требует переноса  |
+| `normalize_image_path()`      | ❌ Не использует               | ✅ Использует                  | ⚠️ Критично          |
 
 ---
 

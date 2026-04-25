@@ -22,7 +22,7 @@ waiver:
   active: false
 
 # Quality score
-quality_score: 90  # 100 - (10 × 1 CONCERN)
+quality_score: 90 # 100 - (10 × 1 CONCERN)
 
 # NFR Validation
 nfr_validation:
@@ -44,7 +44,7 @@ evidence:
   tests_reviewed: 14
   risks_identified: 1
   trace:
-    ac_covered: [1, 2, 3, 4, 5]  # Newsletter Model, News Model, Subscribe, Unsubscribe, News List
+    ac_covered: [1, 2, 3, 4, 5] # Newsletter Model, News Model, Subscribe, Unsubscribe, News List
     ac_gaps: []
 
 # Recommendations

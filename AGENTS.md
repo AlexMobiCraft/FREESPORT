@@ -35,16 +35,19 @@ pytest -v --cov=apps --cov-report=term-missing
 ### Валидация и синхронизация документации:
 
 - **`docs-validate`**: Полная валидация документации
+
   ```bash
   make docs-validate
   ```
 
 - **`docs-sync-api`**: Сверка API (код ↔ документация)
+
   ```bash
   make docs-sync-api
   ```
 
 - **`docs-sync-decisions`**: Сверка решений (docs ↔ код)
+
   ```bash
   make docs-sync-decisions
   ```
@@ -57,11 +60,13 @@ pytest -v --cov=apps --cov-report=term-missing
 ### Проверка документации:
 
 - **`docs-check-links`**: Проверка кросс-ссылок
+
   ```bash
   make docs-check-links
   ```
 
 - **`docs-check-api`**: Проверка покрытия API
+
   ```bash
   make docs-check-api
   ```
@@ -74,6 +79,7 @@ pytest -v --cov=apps --cov-report=term-missing
 ### Управление индексами:
 
 - **`docs-update-index`**: Обновление индекса документации
+
   ```bash
   make docs-update-index
   ```
@@ -116,10 +122,12 @@ pytest -v --cov=apps --cov-report=term-missing
 ## Работа в среде Windows и Terminal
 
 ### PowerShell Chaining
+
 В среде Windows PowerShell для объединения команд используй `;` вместо `&&`.
-*Например:* `git add .; git commit -m "..."; git push`
+_Например:_ `git add .; git commit -m "..."; git push`
 
 ### Правила работы с терминалом и SSH (защита от зависаний)
+
 - **Запуск из подпапок**: Чтобы избежать зависаний терминала из-за индексации Git/Oh-My-Posh в корне проекта, ВСЕГДА запускай команды из подпапки (например, `scripts/` или `backend/`). Git автоматически найдет корень проекта.
 - **SSH Authentication**: Используй только SSH-ключи через `ssh-agent`. Избегай интерактивных запросов пароля, так как они приводят к зависанию агента.
 - **Production Git Updates**: При обновлении кода на продакшен-сервере НИКОГДА не используй `git pull`. ВСЕГДА используй: `git fetch origin main; git reset --hard origin/main`, чтобы избежать конфликтов и ошибки `divergent branches`.
@@ -129,10 +137,11 @@ pytest -v --cov=apps --cov-report=term-missing
 ## Правила разработки Frontend
 
 - **ВАЖНО**: После внесения изменений во фронтенд-код (`frontend/src/`), необходимо ПЕРЕЗАПУСТИТЬ Docker-контейнер, чтобы изменения отразились в браузере:
+
   ```bash
   # Обычный перезапуск (для проблем с hot-reload)
   docker compose --env-file .env -f docker/docker-compose.yml restart frontend
-  
+
   # Полная пересборка (при изменении зависимостей или конфига)
   docker compose --env-file .env -f docker/docker-compose.yml up -d --build frontend
   ```
@@ -140,14 +149,15 @@ pytest -v --cov=apps --cov-report=term-missing
 ## Разработка и тестирование Backend
 
 - **Локальное тестирование**: Для запуска `pytest` локально необходимо предварительно инициировать (активировать) виртуальное окружение.
-  *Пример (в PowerShell из корня проекта):*
+  _Пример (в PowerShell из корня проекта):_
   ```powershell
   .\backend\venv\Scripts\Activate.ps1
   pytest <путь_к_тесту>
   ```
 - **Тестирование через Docker**: При необходимости запустить тесты внутри Docker-контейнера:
-  *Пример команды:*
+  _Пример команды:_
   `docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
 
 ## Справочная информация
+
 Справочная информация о проекте (архитектура, стек, команды запуска и тесты) находится в файле [PROJECT_INFO.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/PROJECT_INFO.md).

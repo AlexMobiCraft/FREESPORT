@@ -23,7 +23,7 @@
 **FREESPORT Platform** интегрируется с **1С:Управление торговлей** для обеспечения:
 
 - **Синхронизации товаров:** Загрузка каталога, цен, характеристик
-- **Управления остатками:** Актуальная информация о наличии товаров  
+- **Управления остатками:** Актуальная информация о наличии товаров
 - **Синхронизации покупателей:** Двусторонняя синхронизация клиентской базы
 - **Обработки заказов:** Экспорт заказов из веб-платформы в 1С
 - **Синхронизации статусов:** Обновление статусов заказов из 1С
@@ -46,10 +46,10 @@ graph TD
 
         K -- 1. Категории --> G[Парсер groups.xml]
         G --> H[Создание/обновление: Category]
-        
+
         K -- 2. Базовые товары --> I[Парсер goods.xml]
         I --> J[Создание/обновление: Product (частичное)]
-        
+
         K -- 3. SKU, Цены, Остатки --> L[Парсер offers.xml, prices.xml, rests.xml]
         L --> M[Поиск Product по parent_onec_id]
         M --> N[Обновление: Product (цены, остатки, sku)]
@@ -89,44 +89,46 @@ graph TD
 
 ### 2.1 Принципы проектирования
 
-  1. **Idempotency:** Повторная обработка данных не должна нарушать целостность
-  2. **Fault Tolerance:** Система устойчива к временным сбоям интеграции
-  3. **Data Consistency:** Приоритет целостности данных над скоростью синхронизации
-  4. **Incremental Sync:** Поддержка инкрементальных обновлений
-  5. **Audit Trail:** Полное логирование всех операций импорта/экспорта
-  6. **Customer Identity Resolution:** Надежное сопоставление клиентов между системами
+1. **Idempotency:** Повторная обработка данных не должна нарушать целостность
+2. **Fault Tolerance:** Система устойчива к временным сбоям интеграции
+3. **Data Consistency:** Приоритет целостности данных над скоростью синхронизации
+4. **Incremental Sync:** Поддержка инкрементальных обновлений
+5. **Audit Trail:** Полное логирование всех операций импорта/экспорта
+6. **Customer Identity Resolution:** Надежное сопоставление клиентов между системами
 
 ### 2.2 Уточненные архитектурные решения (от 19.09.2025)
 
 На основе архитектурного ревью были приняты следующие дополнительные принципы:
 
-  1. **Использование "Сессий импорта"**:
+1. **Использование "Сессий импорта"**:
 
-   **Задача:**
-  
-   Гарантировать атомарность и целостность данных при массовом импорте из XML-файлов.
+**Задача:**
 
-  **Реализация:** Каждая операция импорта будет обернута в "сессию" (модель `ImportSession`). Все созданные или измененные в ходе импорта данные будут привязаны к этой сессии. В случае сбоя это позволит полностью откатить изменения, избегая появления неконсистентных данных в основной базе.
+Гарантировать атомарность и целостность данных при массовом импорте из XML-файлов.
 
-  1. **Абстрагирование сервисного слоя**:
+**Реализация:** Каждая операция импорта будет обернута в "сессию" (модель `ImportSession`). Все созданные или измененные в ходе импорта данные будут привязаны к этой сессии. В случае сбоя это позволит полностью откатить изменения, избегая появления неконсистентных данных в основной базе.
 
-     **Задача:** Обеспечить гибкость архитектуры для будущего перехода с файлового обмена на интеграцию через API.
-     **Реализация:** Логика интеграции будет разделена на два уровня:
-      - **Слой Парсинга (Parser):** Отвечает за чтение источника (XML-файла) и преобразование данных в единый внутренний формат (например, Python `dict`).
-      - **Слой Обработки (Processor):** Принимает данные в этом едином формате и отвечает за их валидацию и сохранение в моделях Django.
-    - Такой подход позволит в будущем заменить только `Парсер` для работы с API, не затрагивая основную бизнес-логику в `Процессоре`.
+1. **Абстрагирование сервисного слоя**:
+
+   **Задача:** Обеспечить гибкость архитектуры для будущего перехода с файлового обмена на интеграцию через API.
+   **Реализация:** Логика интеграции будет разделена на два уровня:
+   - **Слой Парсинга (Parser):** Отвечает за чтение источника (XML-файла) и преобразование данных в единый внутренний формат (например, Python `dict`).
+   - **Слой Обработки (Processor):** Принимает данные в этом едином формате и отвечает за их валидацию и сохранение в моделях Django.
+
+   - Такой подход позволит в будущем заменить только `Парсер` для работы с API, не затрагивая основную бизнес-логику в `Процессоре`.
 
 ### 2.3 Выбор технологий
 
 **Формат данных:** **CommerceML 3.1** (XML)
 **Протокол передачи:** **HTTP Exchange** (Стандартный протокол обмена с сайтом 1С-Битрикс)
 **Обработка данных:**
+
 - **Transport Layer:** Django View (`ICExchangeView`) + Streaming Upload (`FileStreamService`)
 - **Import Layer:** Celery Tasks (`import_products`, `import_orders`)
-**Хранение состояния:**
+  **Хранение состояния:**
 - **Sessions:** Django Session (хранение состояния обмена)
 - **Data:** PostgreSQL + JSONB (хранение сырых данных)
-**Мониторинг:** Structured logging + Django Admin interface
+  **Мониторинг:** Structured logging + Django Admin interface
 
 ---
 
@@ -154,23 +156,24 @@ graph TD
 - `units/units.xml`: Справочник единиц измерения.
 - `contragents/contragents.xml`: Справочник контрагентов.
 
-    goods_*.xml
-    contragents_*.xml
-    groups_*.xml
-    offers_*.xml
-    priceLists_*.xml
-    prices_*.xml
-    propertiesGoods_*.xml
-    propertiesOffers_*.xml
-    rests_*.xml
-    storages_*.xml
-    units_*.xml
+  goods*\*.xml
+  contragents*\_.xml
+  groups\__.xml
+  offers*\*.xml
+  priceLists*_.xml
+  prices\__.xml
+  propertiesGoods*\*.xml
+  propertiesOffers*_.xml
+  rests\_\_.xml
+  storages*\*.xml
+  units*\*.xml
 
 ### 3.3 Метод передачи данных
 
 Используется стандартный **HTTP протокол обмена** (по спецификации 1С-Битрикс), обеспечивающий надежную передачу больших объемов данных через чанкирование.
 
 **Этапы передачи:**
+
 1.  **CheckAuth**: Аутентификация и старт сессии (Basic Auth -> Session Cookie).
 2.  **Init**: Запрос параметров сервера (zip support, file limit).
 3.  **File**: Потоковая загрузка файлов (поддержка чанков и ZIP-архивов).
@@ -190,46 +193,45 @@ graph TD
 
 **Шаг 1: создание или обновление `Product` из `goods.xml`**
 
-| Поле в `goods.xml` (`<Товар>`) | Поле в FREESPORT | Примечание |
-| :--- | :--- | :--- |
-| `<Ид>` | `Product.onec_id`, `Product.parent_onec_id` | Базовый ID товара из 1С. Используется для связи с предложениями. |
-| `<Наименование>` | `Product.name` | Базовое имя товара. |
-| `<Описание>` | `Product.description` | HTML-описание. |
-| `<Группы><Ид>` | `Product.category` | Связь с `Category.onec_id`. |
-| `<Картинка>` | `Product.base_images` | Fallback-изображения базового товара. |
-| `<СтавкаНДС>` | `Product.vat_rate` | Ставка НДС базового товара. Нужна, если НДС пришел в `goods.xml`, а варианты обновляются отдельно из `offers.xml`. |
-| `<ЗначенияСвойств>` | `Product.specifications` / атрибуты | Базовые свойства и EAV-атрибуты товара. |
+| Поле в `goods.xml` (`<Товар>`) | Поле в FREESPORT                            | Примечание                                                                                                         |
+| :----------------------------- | :------------------------------------------ | :----------------------------------------------------------------------------------------------------------------- |
+| `<Ид>`                         | `Product.onec_id`, `Product.parent_onec_id` | Базовый ID товара из 1С. Используется для связи с предложениями.                                                   |
+| `<Наименование>`               | `Product.name`                              | Базовое имя товара.                                                                                                |
+| `<Описание>`                   | `Product.description`                       | HTML-описание.                                                                                                     |
+| `<Группы><Ид>`                 | `Product.category`                          | Связь с `Category.onec_id`.                                                                                        |
+| `<Картинка>`                   | `Product.base_images`                       | Fallback-изображения базового товара.                                                                              |
+| `<СтавкаНДС>`                  | `Product.vat_rate`                          | Ставка НДС базового товара. Нужна, если НДС пришел в `goods.xml`, а варианты обновляются отдельно из `offers.xml`. |
+| `<ЗначенияСвойств>`            | `Product.specifications` / атрибуты         | Базовые свойства и EAV-атрибуты товара.                                                                            |
 
 Если `Product.vat_rate` изменился, импорт синхронизирует эту ставку в существующие `ProductVariant.vat_rate`, чтобы новые заказы корректно делились на `sub-orders`.
 
 **Шаг 2: создание или обновление `ProductVariant` из `offers.xml`**
 
-| Поле в `offers.xml` (`<Предложение>`) | Поле в FREESPORT | Примечание |
-| :--- | :--- | :--- |
-| `<Ид>` (вида `uuid#uuid`) | `ProductVariant.onec_id` | Составной ID SKU. Parent-часть используется для поиска `Product`. |
-| `<Артикул>` | `ProductVariant.sku` | Уникальный SKU. |
-| `<Наименование>` | `ProductVariant` attributes / display data | Используется для характеристик и fallback-разбора цвета/размера. |
-| `<ХарактеристикиТовара>` | `ProductVariant.color_name`, `size_value`, EAV | Характеристики SKU. |
-| `Product.vat_rate` или кэш `goods.xml` | `ProductVariant.vat_rate` | Основной каталожный источник НДС для создания заказа и fallback при экспорте. |
-| `prices.xml` -> `<Цены>` | `ProductVariant.retail_price`, `opt1_price` и т.д. | Цены мапятся на роли покупателей. |
-| `rests_*.xml` -> `<Количество>` | `ProductVariant.stock_quantity` | Остатки суммируются по SKU. |
-| `rests_*.xml` -> `<Склад><Ид>` | `ProductVariant.warehouse_id` | GUID основного склада с максимальным остатком. |
-| `WAREHOUSE_NAME_BY_ID[warehouse_id]` | `ProductVariant.warehouse_name` | Человекочитаемое имя склада, например `"1 СДВ склад"`. |
-| `WAREHOUSE_RULES[warehouse_name]["vat_rate"]` | `ProductVariant.vat_rate` | Ставка НДС по складу. Используется для складского routing и может переопределить ставку варианта. |
+| Поле в `offers.xml` (`<Предложение>`)         | Поле в FREESPORT                                   | Примечание                                                                                        |
+| :-------------------------------------------- | :------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| `<Ид>` (вида `uuid#uuid`)                     | `ProductVariant.onec_id`                           | Составной ID SKU. Parent-часть используется для поиска `Product`.                                 |
+| `<Артикул>`                                   | `ProductVariant.sku`                               | Уникальный SKU.                                                                                   |
+| `<Наименование>`                              | `ProductVariant` attributes / display data         | Используется для характеристик и fallback-разбора цвета/размера.                                  |
+| `<ХарактеристикиТовара>`                      | `ProductVariant.color_name`, `size_value`, EAV     | Характеристики SKU.                                                                               |
+| `Product.vat_rate` или кэш `goods.xml`        | `ProductVariant.vat_rate`                          | Основной каталожный источник НДС для создания заказа и fallback при экспорте.                     |
+| `prices.xml` -> `<Цены>`                      | `ProductVariant.retail_price`, `opt1_price` и т.д. | Цены мапятся на роли покупателей.                                                                 |
+| `rests_*.xml` -> `<Количество>`               | `ProductVariant.stock_quantity`                    | Остатки суммируются по SKU.                                                                       |
+| `rests_*.xml` -> `<Склад><Ид>`                | `ProductVariant.warehouse_id`                      | GUID основного склада с максимальным остатком.                                                    |
+| `WAREHOUSE_NAME_BY_ID[warehouse_id]`          | `ProductVariant.warehouse_name`                    | Человекочитаемое имя склада, например `"1 СДВ склад"`.                                            |
+| `WAREHOUSE_RULES[warehouse_name]["vat_rate"]` | `ProductVariant.vat_rate`                          | Ставка НДС по складу. Используется для складского routing и может переопределить ставку варианта. |
 
 Для заказов `ProductVariant.vat_rate` остается основным каталожным источником, но после создания заказа ставка фиксируется в `OrderItem.vat_rate` как snapshot.
 
-
 ### 4.2 Маппинг справочников
 
-| Файл-справочник | Модель в FREESPORT | Назначение |
-| :--- | :--- | :--- |
-| `groups.xml` | `Category` | Создание иерархии категорий. |
-| `priceLists.xml` | `PriceType` | Маппинг типов цен 1С на роли пользователей. |
-| `storages.xml` | `(не используется напрямую)` | Маппинг GUID склада → имя задаётся в `settings.ONEC_EXCHANGE["WAREHOUSE_NAME_BY_ID"]`. |
-| `units.xml` | `Unit` | Единицы измерения. |
-| `propertiesGoods/` | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping`, `Brand` | Создание атрибутов с дедупликацией и **определение бренда** (если он задан как свойство). |
-| `propertiesOffers/` | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping` | Создание атрибутов для SKU с дедупликацией. |
+| Файл-справочник     | Модель в FREESPORT                                                                      | Назначение                                                                                |
+| :------------------ | :-------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| `groups.xml`        | `Category`                                                                              | Создание иерархии категорий.                                                              |
+| `priceLists.xml`    | `PriceType`                                                                             | Маппинг типов цен 1С на роли пользователей.                                               |
+| `storages.xml`      | `(не используется напрямую)`                                                            | Маппинг GUID склада → имя задаётся в `settings.ONEC_EXCHANGE["WAREHOUSE_NAME_BY_ID"]`.    |
+| `units.xml`         | `Unit`                                                                                  | Единицы измерения.                                                                        |
+| `propertiesGoods/`  | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping`, `Brand` | Создание атрибутов с дедупликацией и **определение бренда** (если он задан как свойство). |
+| `propertiesOffers/` | `Attribute`, `AttributeValue`, `Attribute1CMapping`, `AttributeValue1CMapping`          | Создание атрибутов для SKU с дедупликацией.                                               |
 
 > **Дедупликация атрибутов (Story 14.3):**  
 > При импорте атрибутов из 1С применяется нормализация названий (lowercase, удаление пробелов).  
@@ -238,15 +240,15 @@ graph TD
 
 ### 4.3 Маппинг покупателей (`contragents.xml`)
 
-| Поле в `contragents.xml` (`<Контрагент>`) | Поле в модели `User` (FREESPORT) | Примечание |
-| :--- | :--- | :--- |
-| `<Ид>` | `onec_id` | Первичный ключ для связи. |
-| `<Наименование>` | `company_name` / `first_name`, `last_name` | Парсится в зависимости от типа контрагента (юр/физ лицо). |
-| `<ОфициальноеНаименование>` | `company_name` | Для юридических лиц. |
-| `<Роль>` | `role` | Мапится на роли в системе (retail, wholesale_level1 и т.д.). |
-| `<Контакты>` -> `<Контакт>` | `email`, `phone` | Парсинг контактной информации. Тип контакта (email/телефон) определяется в `<Тип>`. |
-| `<АдресРегистрации>` | `legal_address` | Юридический адрес. |
-| `<Реквизиты>` -> `<ИНН>` | `tax_id` | ИНН для B2B пользователей. |
+| Поле в `contragents.xml` (`<Контрагент>`) | Поле в модели `User` (FREESPORT)           | Примечание                                                                          |
+| :---------------------------------------- | :----------------------------------------- | :---------------------------------------------------------------------------------- |
+| `<Ид>`                                    | `onec_id`                                  | Первичный ключ для связи.                                                           |
+| `<Наименование>`                          | `company_name` / `first_name`, `last_name` | Парсится в зависимости от типа контрагента (юр/физ лицо).                           |
+| `<ОфициальноеНаименование>`               | `company_name`                             | Для юридических лиц.                                                                |
+| `<Роль>`                                  | `role`                                     | Мапится на роли в системе (retail, wholesale_level1 и т.д.).                        |
+| `<Контакты>` -> `<Контакт>`               | `email`, `phone`                           | Парсинг контактной информации. Тип контакта (email/телефон) определяется в `<Тип>`. |
+| `<АдресРегистрации>`                      | `legal_address`                            | Юридический адрес.                                                                  |
+| `<Реквизиты>` -> `<ИНН>`                  | `tax_id`                                   | ИНН для B2B пользователей.                                                          |
 
 ### 4.4 Маппинг заказов, НДС и складов
 
@@ -263,11 +265,11 @@ graph TD
 
 Актуальные правила складов:
 
-| Склад | Организация | НДС |
-| :--- | :--- | :--- |
-| `1 СДВ склад` | `ИП Семерюк Д. В.` | 22% |
-| `Intex ОСНОВНОЙ` | `ИП Семерюк Д. В.` | 22% |
-| `2 ТЛВ склад` | `ИП Терещенко Л.В.` | 5% |
+| Склад            | Организация         | НДС |
+| :--------------- | :------------------ | :-- |
+| `1 СДВ склад`    | `ИП Семерюк Д. В.`  | 22% |
+| `Intex ОСНОВНОЙ` | `ИП Семерюк Д. В.`  | 22% |
+| `2 ТЛВ склад`    | `ИП Терещенко Л.В.` | 5%  |
 
 Подробный troubleshooting и проверочный сценарий `variant_id=78 + 4441 + 4925` вынесены в отдельный документ: [VAT-split и складской routing заказов для 1С](./order-vat-warehouse-routing.md).
 
@@ -277,10 +279,10 @@ graph TD
 
 В настройках заполнения реквизитов загружаемых документов БУС нужно указать:
 
-| Реквизит 1С | Тип данных | Значение |
-| :--- | :--- | :--- |
+| Реквизит 1С   | Тип данных                            | Значение      |
+| :------------ | :------------------------------------ | :------------ |
 | `Организация` | `Сопоставление по свойству документа` | `Организация` |
-| `Склад` | `Сопоставление по свойству документа` | `Склад` |
+| `Склад`       | `Сопоставление по свойству документа` | `Склад`       |
 
 Подробная диагностика обработчика 1С и ссылка на локальную выгрузку расширения зафиксированы в документе: [Диагностика загрузки Организации и Склада в 1С](./order-import-handler-diagnostics.md).
 
@@ -312,16 +314,19 @@ graph TD
 ```
 
 **Ключевые компоненты Transport Layer:**
+
 - **ICExchangeView**: Единая точка входа, маршрутизация по `mode`.
 - **FileStreamService**: Обработка потоковой загрузки, сборка чанков в файлы.
 - **FileRoutingService**: Маршрутизация файлов (goods, offers, images) в целевые папки.
 
 > **Важные решения (ADR):**
+>
 > - [ADR-008](../../decisions/ADR-008-1c-sessid-session-key-not-csrf.md): Использование Django Session Key как `sessid`.
 > - [ADR-009](../../decisions/ADR-009-csrf-exemption-1c-protocol.md): Отключение CSRF для эндпоинтов обмена.
 
 ### 5.2 (Legacy) Структура Management Commands
-*(Сохраняется для ручного запуска и отладки)*
+
+_(Сохраняется для ручного запуска и отладки)_
 
 ```mermaid
 graph TD
@@ -329,25 +334,25 @@ graph TD
     B --> C[Data Parser]
     B --> D[Data Validator]
     B --> E[Data Processor]
-    
+
     C --> F[Catalog Parser]
-    C --> G[Offers Parser] 
+    C --> G[Offers Parser]
     C --> H[Customers Parser]
-    
+
     D --> I[Field Validation]
     D --> J[Business Rules]
     D --> K[Data Integrity]
-    
+
     E --> L[Category Creator]
     E --> M[Brand Creator]
     E --> N[Product Creator/Updater]
     E --> O[Customer Creator/Updater]
-    
+
     L --> P[Django Models]
     M --> P
     N --> P
     O --> P
-    
+
     Q[Progress Monitor] --> A
     R[Error Handler] --> A
     S[Audit Logger] --> A
@@ -360,7 +365,7 @@ graph TD
 # apps/products/management/commands/
 class ImportFrom1CCommand(BaseCommand):
     """Базовая команда для импорта из 1С"""
-    
+
     def add_arguments(self, parser):
         parser.add_argument('--file', required=True, help='Путь к файлу данных')
         parser.add_argument('--type', choices=['catalog', 'offers', 'customers'], required=True)
@@ -386,7 +391,7 @@ class ExportNewCustomersCommand(BaseCommand):
 # apps/users/models.py
 class User(AbstractUser):
     # ... существующие поля
-    
+
     # Добавить поля для интеграции с 1С
     onec_id = models.CharField('ID в 1С', max_length=100, blank=True, null=True, unique=True)
     sync_status = models.CharField(
@@ -402,35 +407,35 @@ class User(AbstractUser):
     )
     sync_error_message = models.TextField('Ошибка синхронизации', blank=True)
     last_sync_at = models.DateTimeField('Последняя синхронизация', null=True, blank=True)
-    
+
     # Флаги источника данных
     created_in_1c = models.BooleanField('Создан в 1С', default=False)
     needs_1c_export = models.BooleanField('Требует экспорта в 1С', default=False)
 
 class CustomerSyncLog(models.Model):
     """Лог синхронизации клиентов"""
-    
+
     OPERATION_TYPES = [
         ('import_from_1c', 'Импорт из 1С'),
         ('export_to_1c', 'Экспорт в 1С'),
         ('sync_changes', 'Синхронизация изменений'),
     ]
-    
+
     operation_type = models.CharField('Тип операции', max_length=20, choices=OPERATION_TYPES)
     customer = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     customer_email = models.EmailField('Email клиента', blank=True)
-    
+
     status = models.CharField('Статус', max_length=20, choices=[
         ('success', 'Успешно'),
         ('error', 'Ошибка'),
         ('skipped', 'Пропущено'),
     ])
-    
+
     details = models.JSONField('Детали операции', default=dict)
     error_message = models.TextField('Сообщение об ошибке', blank=True)
-    
+
     created_at = models.DateTimeField('Дата операции', auto_now_add=True)
-    
+
     class Meta:
         verbose_name = 'Лог синхронизации клиентов'
         verbose_name_plural = 'Логи синхронизации клиентов'
@@ -457,7 +462,7 @@ def unified_import_workflow(import_directory):
     # Шаг 2: Предварительное создание товаров из goods.xml
     # Создаются "заготовки" с базовой информацией.
     create_product_placeholders('goods/goods.xml')
-    
+
     # Шаг 3: Обогащение и финализация товаров из offers.xml
     # Заполняются цены, остатки, артикулы и перезаписываются наименования.
     enrich_products_from_offers(
@@ -467,10 +472,10 @@ def unified_import_workflow(import_directory):
             'rests.xml'
         ]
     )
-    
+
     # Шаг 4: Деактивация отсутствующих товаров
     deactivate_stale_products(import_session_id)
-    
+
     # Шаг 5: Генерация отчета
     generate_import_report(import_session_id)
 ```
@@ -525,18 +530,18 @@ def update_stocks_workflow(import_directory):
     """
     # Шаг 1: Начало сессии импорта (для атомарности)
     session = ImportSession.objects.create(type='stocks')
-    
+
     # Шаг 2: Парсинг файла с остатками
     stock_data = parse_stock_file('rests.xml')
-    
+
     # Шаг 3: Массовое обновление остатков
     # Используется bulk_update для максимальной производительности
     update_stock_quantities(stock_data, session)
-    
+
     # Шаг 4: Завершение сессии
     session.status = 'completed'
     session.save()
-    
+
     # Шаг 5: Генерация краткого отчета
     generate_stock_update_report(session)
 ```
@@ -556,21 +561,21 @@ sequenceDiagram
     participant Site as FREESPORT Platform
     participant Sync as Sync Service
     participant 1C as 1С:УТ
-    
+
     Note over Site,1C: Импорт существующих клиентов
     1C->>Sync: Выгрузка справочника клиентов
     Sync->>Site: Создание/обновление пользователей
-    
+
     Note over Site,1C: Регистрация нового клиента
     Site->>Sync: Новый пользователь зарегистрирован
     Sync->>1C: Создание клиента в 1С
     1C-->>Sync: Подтверждение + onec_id
     Sync->>Site: Обновление onec_id пользователя
-    
+
     Note over Site,1C: Изменение данных клиента
     Site->>Sync: Пользователь изменил профиль
     Sync->>1C: Обновление данных клиента
-    
+
     1C->>Sync: Изменение данных в 1С
     Sync->>Site: Обновление данных пользователя
 ```
@@ -582,11 +587,11 @@ sequenceDiagram
 ```python
 class CustomerConflictResolver:
     """Упрощенная система разрешения конфликтов: 1C как источник истины"""
-    
+
     def resolve_conflict(self, existing_customer, onec_data, conflict_source):
         """
         Единственная стратегия: onec_wins
-        
+
         Args:
             existing_customer: Существующий клиент в БД
             onec_data: Данные из 1С
@@ -595,30 +600,30 @@ class CustomerConflictResolver:
         with transaction.atomic():
             # Архивируем текущие данные
             platform_data = self._serialize_customer(existing_customer)
-            
+
             if conflict_source == 'portal_registration':
                 # Присваиваем статус, НЕ изменяя данные из 1С
                 existing_customer.is_confirmed_client = True
                 existing_customer.save()
-            
+
             elif conflict_source == 'data_import':
                 # Обогащаем профиль и перезаписываем конфликтующие поля
                 existing_customer.onec_id = onec_data.get('onec_id')
                 existing_customer.onec_guid = onec_data.get('onec_guid')
-                
+
                 # Перезаписываем все конфликтующие поля данными из 1С
                 for field in self.CONFLICTING_FIELDS:
                     if new_value := onec_data.get(field):
                         setattr(existing_customer, field, new_value)
-                
+
                 existing_customer.last_sync_from_1c = timezone.now()
                 existing_customer.save()
-            
+
             # Создаем запись в SyncConflict для аудита
             self._create_sync_conflict_record(
                 existing_customer, platform_data, onec_data, conflict_source
             )
-            
+
             # Отправляем email уведомление администратору
             self._send_notification(
                 existing_customer, platform_data, onec_data, conflict_source
@@ -630,39 +635,39 @@ class CustomerConflictResolver:
 ```python
 def sync_customers_workflow():
     """Полный цикл синхронизации клиентов"""
-    
+
     # Шаг 1: Импорт новых клиентов из 1С
     new_1c_customers = import_customers_from_1c()
     for customer_data in new_1c_customers:
         create_or_update_platform_customer(customer_data)
-    
+
     # Шаг 2: Экспорт новых регистраций в 1С
     new_platform_customers = get_customers_needing_export()
     for customer in new_platform_customers:
         export_customer_to_1c(customer)
-    
+
     # Шаг 3: Синхронизация изменений
     updated_customers = get_updated_customers_since_last_sync()
     for customer in updated_customers:
         sync_customer_changes(customer)
-    
+
     # Шаг 4: Разрешение конфликтов
     conflicts = detect_customer_conflicts()
     resolve_customer_conflicts(conflicts)
-    
+
     # Шаг 5: Отчет о синхронизации
     generate_customer_sync_report()
 
 def create_or_update_platform_customer(customer_data_from_1c):
     """Создание или обновление клиента на платформе"""
-    
+
     # Поиск существующего клиента
     existing_customer = find_customer_by_identifiers(
         email=customer_data_from_1c.get('email'),
         onec_id=customer_data_from_1c.get('onec_id'),
         phone=customer_data_from_1c.get('phone')
     )
-    
+
     if existing_customer:
         # Обновляем данные существующего клиента
         update_customer_from_1c_data(existing_customer, customer_data_from_1c)
@@ -672,13 +677,13 @@ def create_or_update_platform_customer(customer_data_from_1c):
 
 def export_customer_to_1c(platform_customer):
     """Экспорт клиента с платформы в 1С"""
-    
+
     # Подготовка данных для экспорта
     export_data = prepare_customer_export_data(platform_customer)
-    
+
     # Отправка в 1С
     result = send_customer_to_1c(export_data)
-    
+
     if result.success:
         # Обновляем onec_id и статус синхронизации
         platform_customer.onec_id = result.onec_id
@@ -686,7 +691,7 @@ def export_customer_to_1c(platform_customer):
         platform_customer.needs_1c_export = False
         platform_customer.last_sync_at = timezone.now()
         platform_customer.save()
-        
+
         # Логируем успех
         CustomerSyncLog.objects.create(
             operation_type='export_to_1c',
@@ -704,28 +709,28 @@ def export_customer_to_1c(platform_customer):
 ```python
 class CustomerIdentityResolver:
     """Сервис для идентификации клиентов между системами"""
-    
+
     def find_customer_by_identifiers(self, **identifiers):
         """Поиск клиента по множественным идентификаторам"""
-        
+
         # Приоритет поиска: onec_id > email > phone + name
         if identifiers.get('onec_id'):
             customer = User.objects.filter(onec_id=identifiers['onec_id']).first()
             if customer:
                 return customer
-        
+
         if identifiers.get('email'):
             customer = User.objects.filter(email=identifiers['email']).first()
             if customer:
                 return customer
-        
+
         # Поиск по телефону + ФИО (для надежности)
         if identifiers.get('phone') and identifiers.get('full_name'):
             # Сложная логика поиска по нескольким полям
             return self.fuzzy_search_customer(identifiers)
-        
+
         return None
-    
+
     def fuzzy_search_customer(self, identifiers):
         """Нечеткий поиск клиента по частичным данным"""
         # Реализация алгоритма нечеткого поиска
@@ -733,7 +738,7 @@ class CustomerIdentityResolver:
 
 class CustomerDataMapper:
     """Маппинг данных клиентов между форматами 1С и платформы"""
-    
+
     def map_1c_to_platform(self, customer_data_1c):
         """Маппинг данных клиента из 1С в формат платформы"""
         return {
@@ -751,18 +756,18 @@ class CustomerDataMapper:
             'created_in_1c': True,
             'sync_status': 'synced',
         }
-    
+
     def map_platform_to_1c(self, platform_customer):
         """Маппинг данных клиента из платформы в формат 1С"""
         customer_type = 'individual' if not platform_customer.company_name else 'legal_entity'
-        
+
         base_data = {
             'email': platform_customer.email,
             'phone': platform_customer.phone,
             'customer_type': customer_type,
             'platform_id': platform_customer.id,
         }
-        
+
         if customer_type == 'individual':
             base_data.update({
                 'first_name': platform_customer.first_name,
@@ -774,7 +779,7 @@ class CustomerDataMapper:
                 'tax_id': platform_customer.tax_id,
                 'contact_person': f"{platform_customer.first_name} {platform_customer.last_name}",
             })
-        
+
         return base_data
 ```
 
@@ -787,7 +792,7 @@ class CustomerDataMapper:
 ```python
 class IntegrationErrorHandler:
     """Обработчик ошибок интеграции"""
-    
+
     ERROR_STRATEGIES = {
         'validation_error': 'skip_and_log',
         'database_error': 'retry_with_backoff',
@@ -796,10 +801,10 @@ class IntegrationErrorHandler:
         'duplicate_customer': 'auto_resolve_onec_wins',
         '1c_api_error': 'retry_with_exponential_backoff',
     }
-    
+
     def handle_customer_sync_error(self, error_type, error_data, context):
         """Специализированная обработка ошибок синхронизации клиентов"""
-        
+
         if error_type in ('customer_conflict', 'duplicate_customer'):
             # Автоматическое разрешение: 1C всегда имеет приоритет
             return self.auto_resolve_conflict(error_data, context)
@@ -808,10 +813,10 @@ class IntegrationErrorHandler:
 
 class CustomerSyncMonitor:
     """Мониторинг синхронизации клиентов"""
-    
+
     def generate_sync_dashboard_data(self):
         """Генерация данных для дашборда синхронизации"""
-        
+
         return {
             'customers_synced_today': self.get_customers_synced_today(),
             'auto_resolved_conflicts_today': self.get_auto_resolved_conflicts_count(),
@@ -826,7 +831,7 @@ class CustomerSyncMonitor:
 ```python
 class CustomerSyncLogger:
     """Специализированное логирование синхронизации клиентов"""
-    
+
     def log_customer_import(self, customer_data, result):
         """Логирование импорта клиента"""
         CustomerSyncLog.objects.create(
@@ -841,7 +846,7 @@ class CustomerSyncLogger:
             },
             error_message=result.error_message if not result.success else ''
         )
-    
+
     def log_customer_export(self, platform_customer, result):
         """Логирование экспорта клиента"""
         CustomerSyncLog.objects.create(
@@ -867,12 +872,12 @@ class CustomerSyncLogger:
 ```python
 class CustomerDataSecurity:
     """Обеспечение безопасности данных клиентов"""
-    
+
     SENSITIVE_FIELDS = ['phone', 'tax_id', 'passport_data', 'birth_date']
-    
+
     def sanitize_customer_data(self, customer_data):
         """Санитизация данных клиента перед обработкой"""
-        
+
         sanitized = {}
         for field, value in customer_data.items():
             if field in self.SENSITIVE_FIELDS:
@@ -880,9 +885,9 @@ class CustomerDataSecurity:
                 sanitized[field] = self.validate_sensitive_field(field, value)
             else:
                 sanitized[field] = self.clean_general_field(field, value)
-        
+
         return sanitized
-    
+
     def validate_sensitive_field(self, field_name, value):
         """Валидация чувствительных полей"""
         if field_name == 'phone':
@@ -894,7 +899,7 @@ class CustomerDataSecurity:
 
 class CustomerDataEncryption:
     """Шифрование чувствительных данных клиентов"""
-    
+
     def encrypt_customer_export_data(self, customer_data):
         """Шифрование данных для экспорта"""
         # Шифрование чувствительных полей перед передачей в 1С
@@ -906,27 +911,27 @@ class CustomerDataEncryption:
 ```python
 class CustomerSyncOptimizer:
     """Оптимизация производительности синхронизации"""
-    
+
     def bulk_import_customers(self, customers_data):
         """Массовый импорт клиентов"""
-        
+
         # Группировка операций для оптимизации
         new_customers = []
         existing_customers_updates = []
-        
+
         for customer_data in customers_data:
             if self.customer_exists(customer_data):
                 existing_customers_updates.append(customer_data)
             else:
                 new_customers.append(customer_data)
-        
+
         # Bulk операции
         if new_customers:
             self.bulk_create_customers(new_customers)
-        
+
         if existing_customers_updates:
             self.bulk_update_customers(existing_customers_updates)
-    
+
     def optimize_customer_queries(self):
         """Оптимизация запросов для поиска клиентов"""
         # Создание индексов для быстрого поиска
@@ -960,7 +965,7 @@ class CustomerSyncOptimizer:
 # apps/products/management/commands/import_catalog_from_1c.py
 class Command(BaseCommand):
     help = "Импорт каталога товаров из файла 1С"
-    
+
     def add_arguments(self, parser):
         parser.add_argument('--file', required=True, help='Путь к файлу данных')
         parser.add_argument('--dry-run', action='store_true', help='Тестовый запуск')
@@ -970,7 +975,7 @@ class Command(BaseCommand):
 class Command(BaseCommand):
     help = "Импорт цен и остатков из файла 1С"
 
-# apps/users/management/commands/import_customers_from_1c.py  
+# apps/users/management/commands/import_customers_from_1c.py
 class Command(BaseCommand):
     help = "Импорт справочника клиентов из 1С"
 
@@ -985,11 +990,11 @@ class Command(BaseCommand):
 # apps/products/services/data_parser.py
 class DataParser:
     """Базовый класс для парсинга данных из 1С"""
-    
+
 # apps/users/services/customer_sync_service.py
 class CustomerSyncService:
     """Сервис синхронизации клиентов"""
-    
+
 # apps/common/services/import_validator.py
 class ImportDataValidator:
     """Валидатор импортируемых данных"""
@@ -1060,23 +1065,20 @@ needs_1c_export = models.BooleanField('Требует экспорта в 1С', 
 ✅ **Identity Resolution:** надежная идентификация клиентов между системами  
 ✅ **Audit Trail:** полное логирование всех операций синхронизации  
 ✅ **Performance:** batch операции и оптимизированные запросы  
-✅ **Security:** валидация и защита чувствительных данных клиентов  
+✅ **Security:** валидация и защита чувствительных данных клиентов
 
 **Следующие шаги:**
 
 1. **Отправить запрос программисту 1С**
-
-    - получить ответы на технические вопросы
+   - получить ответы на технические вопросы
 
 2. **Доработать разделы 3-4**
-
-    - форматы данных и схемы маппинга
+   - форматы данных и схемы маппинга
 
 3. **Передать Dev Agent (James)**
+   - для реализации Stories 3.2-3.5
 
-    - для реализации Stories 3.2-3.5
-
-**Готово к передаче для разработки! 🚀*
+\*_Готово к передаче для разработки! 🚀_
 
 ---
 

@@ -2,14 +2,14 @@
 
 ## Метаданные
 
-| Поле | Значение |
-|------|----------|
-| **Epic ID** | 12 |
-| **Название** | Карточка товара (Product Detail Page) |
-| **Приоритет** | P0 (критичный) |
-| **Длительность** | 2 недели |
-| **Статус** | Draft |
-| **Зависимости** | Epic 10 (Фундамент и UI Kit), Epic 11 (Каталог товаров) |
+| Поле                    | Значение                                                                                                                                                                                                                                              |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Epic ID**             | 12                                                                                                                                                                                                                                                    |
+| **Название**            | Карточка товара (Product Detail Page)                                                                                                                                                                                                                 |
+| **Приоритет**           | P0 (критичный)                                                                                                                                                                                                                                        |
+| **Длительность**        | 2 недели                                                                                                                                                                                                                                              |
+| **Статус**              | Draft                                                                                                                                                                                                                                                 |
+| **Зависимости**         | Epic 10 (Фундамент и UI Kit), Epic 11 (Каталог товаров)                                                                                                                                                                                               |
 | **Связанные документы** | `docs/frontend-development-plan.md` (раздел 3.1, строки 46-47)<br>`docs/frontend/design-system.json` (компоненты: ProductGallery, ProductSummary, Badge, Button)<br>`docs/api-spec.yaml` (эндпоинты: `/products/{id}`, `/cart/add`, `/favorites/add`) |
 
 ---
@@ -19,12 +19,14 @@
 Реализация детальной страницы товара с полной информацией о продукте, галереей изображений, выбором опций (размер, цвет), отображением цены с учетом роли пользователя (B2B/B2C), возможностью добавления в корзину и избранное, блоком характеристик и рекомендациями похожих товаров.
 
 **Стратегическая ценность:**
+
 - Критически важная точка конверсии в e-commerce воронке
 - Обеспечивает полную информацию для принятия решения о покупке
 - Реализует ролевое ценообразование для B2B/B2C клиентов
 - Поддерживает SEO через SSR для индексации товаров
 
 **Технологический стек:**
+
 - Next.js 15.4.6 App Router с динамическим роутом `/product/[slug]`
 - SSR (Server-Side Rendering) для SEO оптимизации
 - TypeScript 5.0+ для типобезопасности
@@ -37,12 +39,14 @@
 ## Цели и метрики успеха
 
 ### Бизнес-метрики
+
 - Конверсия "Просмотр карточки → Добавление в корзину": **> 25%**
 - Bounce rate на карточке товара: **< 40%**
 - Среднее время на странице: **> 90 секунд**
 - Количество просмотров галереи: **> 60%** посетителей
 
 ### Технические метрики
+
 - PageSpeed Score: **> 70**
 - Time to Interactive (TTI): **< 3.5 секунды**
 - Lighthouse SEO Score: **> 95**
@@ -54,11 +58,13 @@
 ## User Stories
 
 ### Story 12.1: Просмотр детальной информации о товаре
+
 **Как** посетитель сайта (B2C/B2B),
 **Я хочу** просматривать детальную информацию о товаре с фотографиями и характеристиками,
 **Чтобы** принять обоснованное решение о покупке.
 
 **Acceptance Criteria:**
+
 1. ✅ Страница доступна по URL `/product/[slug]` где slug — SEO-friendly идентификатор
 2. ✅ Отображается галерея изображений товара с возможностью увеличения
 3. ✅ Показывается название товара, артикул (SKU), бренд, описание
@@ -73,11 +79,13 @@
 ---
 
 ### Story 12.2: Выбор опций товара (размер, цвет)
+
 **Как** покупатель,
 **Я хочу** выбирать размер и цвет товара перед добавлением в корзину,
 **Чтобы** заказать именно тот вариант, который мне нужен.
 
 **Acceptance Criteria:**
+
 1. ✅ Селектор размеров отображается если товар имеет варианты размеров
 2. ✅ Селектор цветов отображается если товар доступен в разных цветах
 3. ✅ Недоступные опции (нет в наличии) визуально отключены
@@ -89,11 +97,13 @@
 ---
 
 ### Story 12.3: Добавление товара в корзину
+
 **Как** авторизованный пользователь,
 **Я хочу** добавить товар в корзину с выбранным количеством,
 **Чтобы** продолжить покупки или оформить заказ.
 
 **Acceptance Criteria:**
+
 1. ✅ Кнопка "В корзину" видна и доступна для товаров в наличии
 2. ✅ Возможность выбрать количество товара (с учетом min_order_quantity)
 3. ✅ При клике на "В корзину" товар добавляется через API `/cart/items/`
@@ -106,11 +116,13 @@
 ---
 
 ### Story 12.4: Галерея изображений товара
+
 **Как** покупатель,
 **Я хочу** просматривать все изображения товара и увеличивать их,
 **Чтобы** детально рассмотреть продукт перед покупкой.
 
 **Acceptance Criteria:**
+
 1. ✅ Основное изображение отображается в размере 520x520px с радиусом 16px
 2. ✅ Вертикальная полоса превью (thumbnails) слева от основного изображения
 3. ✅ Thumbnails размером 88x88px с gap 12px и радиусом 12px
@@ -125,11 +137,13 @@
 ---
 
 ### Story 12.5: Блок рекомендаций похожих товаров
+
 **Как** покупатель,
 **Я хочу** видеть рекомендации похожих товаров,
 **Чтобы** найти альтернативы или дополнить свой заказ.
 
 **Acceptance Criteria:**
+
 1. ✅ Секция "Похожие товары" отображается под основным контентом
 2. ✅ Показывается 6 товаров в горизонтальной галерее
 3. ✅ Используется компонент RecommendationsRow из дизайн-системы
@@ -141,11 +155,13 @@
 ---
 
 ### Story 12.6: Адаптивная верстка карточки товара
+
 **Как** пользователь мобильного устройства,
 **Я хочу** удобно просматривать карточку товара на смартфоне,
 **Чтобы** получить всю информацию без проблем с навигацией.
 
 **Acceptance Criteria:**
+
 1. ✅ Desktop (>1024px): двухколоночный layout (галерея 2/3, сводка 1/3)
 2. ✅ Tablet (640-1024px): двухколоночный layout с адаптивными отступами
 3. ✅ Mobile (<640px): вертикальный стек всех элементов
@@ -183,6 +199,7 @@ src/components/product/
 **Endpoint:** `GET /api/v1/products/{id}/`
 
 **Response Schema:**
+
 ```typescript
 interface ProductDetail {
   id: number;
@@ -217,6 +234,7 @@ interface ProductDetail {
 ```
 
 **Add to Cart:** `POST /api/v1/cart/items/`
+
 ```typescript
 interface CartItemCreate {
   product_id: number;
@@ -227,18 +245,21 @@ interface CartItemCreate {
 ### Компоненты дизайн-системы
 
 **ProductGallery:**
+
 - `primaryImage`: 520x520px, radius 16px, shadow-default
 - `thumbnails`: vertical, 88x88px, gap 12px, radius 12px
 - `selectedBorder`: ring-2 ring-primary
 - `viewerControls`: lightbox с навигацией
 
 **ProductSummary:**
+
 - `priceBlock`: background bg-panel, radius 20px, shadow-modal, padding 24px
 - `ctaPrimary`: background bg-primary, hover bg-primary-hover, radius 16px, height 56px
 - `ctaSecondary`: border border-primary, radius 16px, height 56px
 - `promoBadge`: background bg-promo, radius 999px
 
 **Badge варианты:**
+
 - `new`: background bg-primary-bg, textColor text-primary
 - `hit`: background bg-success-bg, textColor text-success
 - `sale`: background bg-danger-bg, textColor text-danger
@@ -258,7 +279,7 @@ export async function generateMetadata({ params }): Promise<Metadata> {
       title: product.name,
       description: product.description,
       images: [product.images[0].image],
-      type: 'product',
+      type: "product",
     },
     alternates: {
       canonical: `/product/${product.slug}`,
@@ -270,16 +291,19 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 ### Состояния и обработка ошибок
 
 **Loading States:**
+
 - Skeleton для галереи и контента
 - Shimmer эффект для плейсхолдеров
 - Loading spinner для кнопки "В корзину"
 
 **Error States:**
+
 - 404: Товар не найден → показать похожие товары
 - 500: Ошибка сервера → показать retry кнопку
 - Network error: проверить соединение
 
 **Empty States:**
+
 - Нет изображений → показать placeholder
 - Нет характеристик → скрыть блок
 - Нет похожих товаров → скрыть секцию
@@ -291,66 +315,71 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 ### Unit тесты (Vitest + React Testing Library)
 
 **ProductGallery.test.tsx:**
+
 ```typescript
-describe('ProductGallery', () => {
-  it('renders primary image with correct dimensions', () => {});
-  it('renders thumbnails vertically with gap', () => {});
-  it('highlights selected thumbnail with border', () => {});
-  it('changes primary image on thumbnail click', () => {});
-  it('opens lightbox on primary image click', () => {});
-  it('navigates through images in lightbox', () => {});
-  it('closes lightbox on X button click', () => {});
-  it('lazy loads images', () => {});
+describe("ProductGallery", () => {
+  it("renders primary image with correct dimensions", () => {});
+  it("renders thumbnails vertically with gap", () => {});
+  it("highlights selected thumbnail with border", () => {});
+  it("changes primary image on thumbnail click", () => {});
+  it("opens lightbox on primary image click", () => {});
+  it("navigates through images in lightbox", () => {});
+  it("closes lightbox on X button click", () => {});
+  it("lazy loads images", () => {});
 });
 ```
 
 **ProductSummary.test.tsx:**
+
 ```typescript
-describe('ProductSummary', () => {
-  it('displays correct price based on user role', () => {});
-  it('shows retail price for guest users', () => {});
-  it('shows wholesale price for B2B users', () => {});
-  it('disables add to cart if out of stock', () => {});
-  it('validates minimum order quantity', () => {});
-  it('updates cart store on add to cart', () => {});
-  it('shows success notification after adding', () => {});
+describe("ProductSummary", () => {
+  it("displays correct price based on user role", () => {});
+  it("shows retail price for guest users", () => {});
+  it("shows wholesale price for B2B users", () => {});
+  it("disables add to cart if out of stock", () => {});
+  it("validates minimum order quantity", () => {});
+  it("updates cart store on add to cart", () => {});
+  it("shows success notification after adding", () => {});
 });
 ```
 
 **ProductOptions.test.tsx:**
+
 ```typescript
-describe('ProductOptions', () => {
-  it('renders size selector if sizes available', () => {});
-  it('renders color selector if colors available', () => {});
-  it('disables unavailable options', () => {});
-  it('updates image on option selection', () => {});
-  it('validates required options before add to cart', () => {});
+describe("ProductOptions", () => {
+  it("renders size selector if sizes available", () => {});
+  it("renders color selector if colors available", () => {});
+  it("disables unavailable options", () => {});
+  it("updates image on option selection", () => {});
+  it("validates required options before add to cart", () => {});
 });
 ```
 
 ### Integration тесты (MSW моки)
 
 **product-page.integration.test.tsx:**
+
 ```typescript
-describe('Product Page Integration', () => {
-  it('loads product data from API', () => {});
-  it('adds product to cart via API', () => {});
-  it('handles 404 for non-existent product', () => {});
-  it('shows error on API failure', () => {});
+describe("Product Page Integration", () => {
+  it("loads product data from API", () => {});
+  it("adds product to cart via API", () => {});
+  it("handles 404 for non-existent product", () => {});
+  it("shows error on API failure", () => {});
 });
 ```
 
 ### E2E тесты (Playwright)
 
 **product-purchase-flow.spec.ts:**
+
 ```typescript
-test('complete product purchase flow', async ({ page }) => {
-  await page.goto('/product/nike-air-max-2025');
+test("complete product purchase flow", async ({ page }) => {
+  await page.goto("/product/nike-air-max-2025");
   await page.click('[data-testid="size-option-42"]');
   await page.click('[data-testid="color-option-black"]');
-  await page.fill('[data-testid="quantity-input"]', '2');
+  await page.fill('[data-testid="quantity-input"]', "2");
   await page.click('[data-testid="add-to-cart-button"]');
-  await expect(page.locator('[data-testid="cart-count"]')).toHaveText('2');
+  await expect(page.locator('[data-testid="cart-count"]')).toHaveText("2");
   await expect(page.locator('[data-testid="success-toast"]')).toBeVisible();
 });
 ```
@@ -423,13 +452,13 @@ test('complete product purchase flow', async ({ page }) => {
 
 ## Риски и митигация
 
-| Риск | Вероятность | Влияние | Митигация |
-|------|-------------|---------|-----------|
-| **API /products/{id} не готов** | Низкая | Высокое | Использовать MSW моки для разработки, параллельная работа backend |
-| **Сложность SSR с динамическими данными** | Средняя | Среднее | Использовать generateMetadata для SEO, кэшировать запросы |
-| **Проблемы с производительностью галереи** | Средняя | Среднее | Lazy loading изображений, оптимизация размеров, WebP формат |
-| **Ролевое ценообразование не работает** | Низкая | Высокое | Покрыть тестами все роли, использовать middleware для проверки прав |
-| **Превышение сроков (2 недели)** | Средняя | Высокое | Декомпозировать на stories, ежедневный трекинг прогресса |
+| Риск                                       | Вероятность | Влияние | Митигация                                                           |
+| ------------------------------------------ | ----------- | ------- | ------------------------------------------------------------------- |
+| **API /products/{id} не готов**            | Низкая      | Высокое | Использовать MSW моки для разработки, параллельная работа backend   |
+| **Сложность SSR с динамическими данными**  | Средняя     | Среднее | Использовать generateMetadata для SEO, кэшировать запросы           |
+| **Проблемы с производительностью галереи** | Средняя     | Среднее | Lazy loading изображений, оптимизация размеров, WebP формат         |
+| **Ролевое ценообразование не работает**    | Низкая      | Высокое | Покрыть тестами все роли, использовать middleware для проверки прав |
+| **Превышение сроков (2 недели)**           | Средняя     | Высокое | Декомпозировать на stories, ежедневный трекинг прогресса            |
 
 ---
 
@@ -462,9 +491,9 @@ test('complete product purchase flow', async ({ page }) => {
 
 ## Change Log
 
-| Date | Version | Description | Author |
-|------|---------|-------------|--------|
-| 2025-11-30 | 1.0 | Создание Epic 12 на основе frontend-epics-10-19-plan.md | Sarah (PO) |
+| Date       | Version | Description                                             | Author     |
+| ---------- | ------- | ------------------------------------------------------- | ---------- |
+| 2025-11-30 | 1.0     | Создание Epic 12 на основе frontend-epics-10-19-plan.md | Sarah (PO) |
 
 ---
 
@@ -488,13 +517,13 @@ export interface ProductDetailProps {
 }
 
 export type UserRole =
-  | 'retail'
-  | 'wholesale_level1'
-  | 'wholesale_level2'
-  | 'wholesale_level3'
-  | 'trainer'
-  | 'federation_rep'
-  | 'admin';
+  | "retail"
+  | "wholesale_level1"
+  | "wholesale_level2"
+  | "wholesale_level3"
+  | "trainer"
+  | "federation_rep"
+  | "admin";
 
 export interface ProductImage {
   id: number;

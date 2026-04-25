@@ -30,10 +30,20 @@ evidence:
     ac_gaps: []
 
 nfr_validation:
-  security: { status: PASS, notes: "Client-side validation + MSW mock, no sensitive data" }
-  performance: { status: PASS, notes: "Dynamic discount calculation is efficient" }
-  reliability: { status: PASS, notes: "Proper error handling with user-friendly messages" }
-  maintainability: { status: PASS, notes: "Well-structured code with JSDoc, follows project patterns" }
+  security:
+    {
+      status: PASS,
+      notes: "Client-side validation + MSW mock, no sensitive data",
+    }
+  performance:
+    { status: PASS, notes: "Dynamic discount calculation is efficient" }
+  reliability:
+    { status: PASS, notes: "Proper error handling with user-friendly messages" }
+  maintainability:
+    {
+      status: PASS,
+      notes: "Well-structured code with JSDoc, follows project patterns",
+    }
 
 recommendations:
   immediate: []

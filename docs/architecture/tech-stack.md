@@ -5,19 +5,22 @@
 FREESPORT - это API-First E-commerce платформа для B2B/B2C продаж спортивных товаров, построенная на основе Monorepo архитектуры с Django REST API backend и Next.js frontend.
 
 ### Архитектурный подход
+
 - **API-First**: Все функции доступны через API перед созданием UI
-- **SSR/SSG**: Next.js обеспечивает SEO оптимизацию и производительность  
+- **SSR/SSG**: Next.js обеспечивает SEO оптимизацию и производительность
 - **BFF Layer**: Next.js API Routes как прослойка для агрегации данных
 - **Monorepo**: Упрощенное управление компонентами между брендами
 
 ## Backend технологии
 
 ### Core Framework
+
 - **Django 4.2 LTS** - стабильная LTS версия веб-фреймворка
 - **Django REST Framework 3.14+** - мощный toolkit для создания Web APIs
 - **Python 3.11+** - современная версия Python с улучшенной производительностью
 
 ### База данных
+
 - **PostgreSQL 15+** - основная реляционная БД с поддержкой:
   - Партиционирование таблиц для масштабируемости
   - JSONB поля для спецификаций товаров
@@ -26,19 +29,22 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **psycopg2-binary 2.9.9** - PostgreSQL адаптер для Python
 
 ### Кэширование и сессии
+
 - **Redis 7.0+** - in-memory структура данных для:
   - Кэширование запросов к БД
   - Хранение сессий пользователей
   - Очереди Celery задач
 - **django-redis 5.4.0** - Django интеграция с Redis
 
-### Аутентификация и безопасность  
+### Аутентификация и безопасность
+
 - **djangorestframework-simplejwt 5.3.1** - JWT токены с refresh стратегией
 - **django-cors-headers 4.3.1** - Cross-Origin Resource Sharing
 - **django-ratelimit 4.1.0** - ограничение частоты запросов
 - **python-decouple 3.8** - управление переменными окружения
 
 ### Асинхронные задачи
+
 - **Celery** - распределенная очередь задач для:
   - Интеграция с ERP системами (1С)
   - Обработка заказов и платежей
@@ -48,11 +54,13 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **Redis** как message broker для Celery
 
 ### API документация
+
 - **drf-spectacular 0.28.0** - генерация OpenAPI 3.1.0 спецификации
 - **django-filter 23.5** - фильтрация данных в API
 - **Swagger UI** - интерактивная документация API
 
 ### Разработка и тестирование
+
 - **pytest 7.4.3** - современный testing framework
 - **pytest-django 4.7.0** - интеграция pytest с Django
 - **pytest-cov 4.1.0** - измерение покрытия кода тестами
@@ -61,6 +69,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **django-extensions 3.2.3** - полезные расширения Django
 
 ### Качество кода
+
 - **black 23.11.0** - автоматическое форматирование Python кода
 - **flake8 6.1.0** - проверка стиля кода и потенциальных ошибок
 - **isort 5.12.0** - сортировка импортов
@@ -68,15 +77,17 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **django-stubs 4.2.6** - типы для Django в mypy
 
 ### Production сервер
+
 - **gunicorn 21.2.0** - WSGI HTTP сервер для Python
 - **whitenoise 6.6.0** - обслуживание статических файлов
 
 ## Frontend технологии
 
 ### Core Framework
+
 - **Next.js 15.5.7** - React фреймворк с поддержкой:
   - SSG (Static Site Generation) для статических страниц
-  - SSR (Server-Side Rendering) для динамических страниц  
+  - SSR (Server-Side Rendering) для динамических страниц
   - ISR (Incremental Static Regeneration) для каталогов
   - API Routes для BFF слоя
   - Turbopack для быстрой разработки
@@ -84,12 +95,14 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **React DOM 19.1.0** - DOM рендерер для React
 
 ### TypeScript и типизация
+
 - **TypeScript 5.0+** - строгая типизация для JavaScript
 - **@types/node** - типы для Node.js API
 - **@types/react** - типы для React
 - **@types/react-dom** - типы для React DOM
 
 ### State Management
+
 - **Zustand 4.5.7** - легковесное решение для управления состоянием:
   - Простой API без boilerplate кода
   - TypeScript friendly
@@ -97,6 +110,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
   - DevTools интеграция
 
 ### Формы и валидация
+
 - **React Hook Form 7.62.0** - производительная библиотека для форм:
   - Минимальные re-renders
   - Встроенная валидация
@@ -104,6 +118,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
   - Интеграция с UI компонентами
 
 ### HTTP клиент
+
 - **Axios 1.11.0** - HTTP клиент для API запросов:
   - Request/Response interceptors
   - Автоматическая обработка JSON
@@ -112,6 +127,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **@types/axios 0.9.36** - типы для Axios
 
 ### Стилизация
+
 - **Tailwind CSS 4.0** - utility-first CSS фреймворк:
   - Быстрая разработка UI
   - Consistent дизайн система
@@ -121,6 +137,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **@tailwindcss/postcss 4** - PostCSS интеграция
 
 ### Тестирование
+
 - **Vitest 2.1.5** - современный тестовый раннер с нативной ESM поддержкой (~15% быстрее Jest)
 - **@vitest/ui 2.1.5** - визуальный интерфейс для отладки тестов
 - **@vitest/coverage-v8 2.1.5** - coverage reporting с встроенным V8 провайдером
@@ -131,6 +148,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 - **MSW 2.12.2** - мокирование API запросов (ESM-only, требует Vitest)
 
 ### Линтинг и качество кода
+
 - **ESLint 9** - статический анализ JavaScript/TypeScript кода
 - **eslint-config-next 15.4.6** - ESLint конфигурация для Next.js
 - **@eslint/eslintrc 3** - конфигурация ESLint
@@ -138,6 +156,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 ## Инфраструктура и DevOps
 
 ### Контейнеризация
+
 - **Docker** - контейнеризация приложений:
   - Multi-stage builds для оптимизации размера образов
   - Отдельные Dockerfile для разработки и продакшена
@@ -148,6 +167,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
   - Override файлы для разных окружений
 
 ### Web сервер и прокси
+
 - **Nginx** - высокопроизводительный web сервер и reverse proxy:
   - SSL/TLS терминация
   - Load balancing между backend инстансами
@@ -156,6 +176,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
   - Кэширование статического контента
 
 ### CI/CD
+
 - **GitHub Actions** - автоматизация CI/CD пайплайнов:
   - Автоматический запуск тестов при Pull Request
   - Проверка качества кода (линтинг, типизация)
@@ -163,6 +184,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
   - Уведомления о статусе сборки
 
 ### Мониторинг и логирование
+
 - **Django Logging** - структурированное логирование:
   - Разные уровни логов (DEBUG, INFO, WARNING, ERROR, CRITICAL)
   - Ротация log файлов
@@ -173,6 +195,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 ## Интеграции и внешние сервисы
 
 ### ERP системы
+
 - **1С:Предприятие** - интеграция через REST API:
   - Синхронизация товаров и остатков
   - Обмен заказами и документами
@@ -180,6 +203,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
   - Celery задачи для фоновой обработки
 
 ### Платежные системы
+
 - **YuKassa (Яндекс.Касса)** - прием онлайн платежей:
   - Поддержка карт, электронных кошельков
   - 3D-Secure аутентификация
@@ -187,6 +211,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
   - Возвраты и частичные возвраты
 
 ### Службы доставки
+
 - **CDEK API** - расчет стоимости и сроков доставки
 - **Boxberry API** - пункты выдачи и доставка
 - **Интеграция через единый интерфейс** для добавления новых служб
@@ -194,6 +219,7 @@ FREESPORT - это API-First E-commerce платформа для B2B/B2C про
 ## Версии и совместимость
 
 ### Python экосистема
+
 ```
 Python >= 3.11
 Django >= 4.2 LTS
@@ -201,7 +227,8 @@ PostgreSQL >= 15
 Redis >= 7.0
 ```
 
-### Node.js экосистема  
+### Node.js экосистема
+
 ```
 Node.js >= 18 LTS
 Next.js >= 15.5.7
@@ -210,6 +237,7 @@ TypeScript >= 5.0
 ```
 
 ### Системные требования
+
 ```
 CPU: 2+ cores
 RAM: 4GB+ для разработки, 8GB+ для продакшена
@@ -222,7 +250,9 @@ OS: Linux/macOS/Windows с Docker поддержкой
 ### Выбор технологий
 
 #### Django vs FastAPI
+
 **Выбран Django** по причинам:
+
 - Зрелая экосистема с богатым выбором пакетов
 - Django Admin для управления данными
 - ORM с миграциями из коробки
@@ -230,7 +260,9 @@ OS: Linux/macOS/Windows с Docker поддержкой
 - LTS версии для долгосрочной поддержки
 
 #### PostgreSQL vs MongoDB
+
 **Выбран PostgreSQL** по причинам:
+
 - ACID транзакции для финансовых операций
 - JSONB поля для гибкой структуры данных товаров
 - Мощные индексы и оптимизатор запросов
@@ -238,7 +270,9 @@ OS: Linux/macOS/Windows с Docker поддержкой
 - Поддержка полнотекстового поиска
 
 #### Next.js vs SPA (Create React App)
+
 **Выбран Next.js** по причинам:
+
 - SEO оптимизация через SSR/SSG
 - Производительность через code splitting
 - API Routes для BFF слоя
@@ -246,7 +280,9 @@ OS: Linux/macOS/Windows с Docker поддержкой
 - Hybrid rendering для разных типов страниц
 
 #### Zustand vs Redux Toolkit
+
 **Выбран Zustand** по причинам:
+
 - Минимальный boilerplate код
 - Отличная TypeScript поддержка
 - Простота интеграции и тестирования
@@ -256,18 +292,21 @@ OS: Linux/macOS/Windows с Docker поддержкой
 ## Масштабирование и производительность
 
 ### Горизонтальное масштабирование
+
 - **Load balancer** (Nginx) для распределения нагрузки
 - **Multiple backend instances** через Docker Swarm/Kubernetes
 - **Read replicas** PostgreSQL для чтения данных
 - **CDN** для статических файлов и изображений
 
 ### Кэширование стратегии
+
 - **Redis** для кэширования API ответов
 - **Database query caching** через Django cache framework
 - **Browser caching** через HTTP заголовки
 - **Next.js ISR** для кэширования страниц каталога
 
 ### Мониторинг производительности
+
 - **Django Debug Toolbar** для профилирования запросов
 - **PostgreSQL EXPLAIN ANALYZE** для оптимизации SQL
 - **Web Vitals** метрики для фронтенда
@@ -276,6 +315,7 @@ OS: Linux/macOS/Windows с Docker поддержкой
 ## Безопасность
 
 ### Backend безопасность
+
 - **JWT токены** с коротким временем жизни
 - **CORS политики** для ограничения домнов
 - **Rate limiting** для защиты от брутфорса
@@ -283,6 +323,7 @@ OS: Linux/macOS/Windows с Docker поддержкой
 - **XSS защита** через Django встроенные механизмы
 
 ### Frontend безопасность
+
 - **CSP заголовки** для предотвращения XSS
 - **HTTPS only** для всех запросов
 - **Secure cookies** для аутентификации
@@ -292,6 +333,7 @@ OS: Linux/macOS/Windows с Docker поддержкой
 ## Будущие улучшения
 
 ### Планируемые обновления
+
 - **Django 5.x** миграция после стабилизации
 - **PostgreSQL 16+** для новых функций производительности
 - **Redis Cluster** для высокой доступности

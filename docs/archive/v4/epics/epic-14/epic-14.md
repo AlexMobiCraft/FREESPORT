@@ -19,12 +19,14 @@
 ## Stories
 
 ### ✅ Story 14.1: Attribute Models
+
 **Status:** Done
 **File:** [14.1.attribute-models.md](./14.1.attribute-models.md)
 
 Создание моделей `Attribute` и `AttributeValue` для хранения атрибутов товаров.
 
 **Deliverables:**
+
 - Модели Attribute и AttributeValue
 - M2M связи с Product и ProductVariant
 - Миграции БД
@@ -33,12 +35,14 @@
 ---
 
 ### ✅ Story 14.2: Import Attributes from 1C
+
 **Status:** Ready for Done
 **File:** [14.2.import-attributes.md](./14.2.import-attributes.md)
 
-Импорт атрибутов из XML файлов 1С (propertiesGoods/*.xml, propertiesOffers/*.xml).
+Импорт атрибутов из XML файлов 1С (propertiesGoods/_.xml, propertiesOffers/_.xml).
 
 **Deliverables:**
+
 - AttributeImportService для парсинга XML
 - Management command `import_attributes`
 - Django Admin UI для просмотра атрибутов
@@ -46,6 +50,7 @@
 - Реальные данные: 458 атрибутов, 12,260 значений
 
 **Key Achievements:**
+
 - ✅ XXE защита через defusedxml
 - ✅ Идемпотентный импорт (update_or_create)
 - ✅ Inline display атрибутов в админке
@@ -54,17 +59,20 @@
 ---
 
 ### 🚧 Story 14.3: Attribute Deduplication
+
 **Status:** Draft
 **File:** [14.3.attribute-deduplication.md](./14.3.attribute-deduplication.md)
 
 Устранение дублирования атрибутов при импорте и добавление флага активности.
 
 **Goal:**
+
 - Объединение дубликатов атрибутов по нормализованному имени
 - Флаг `is_active` для ручной модерации администратором
 - Система маппингов 1С ID на master-атрибуты
 
 **Key Features:**
+
 - `Attribute.normalized_name` — уникальное поле для дедупликации
 - `Attribute.is_active` — default=False, требует активации
 - `Attribute1CMapping` — связь всех 1С ID с master-атрибутом
@@ -72,6 +80,7 @@
 - Django Admin actions для массовой активации/объединения
 
 **Sub-stories:**
+
 - 14.3.1: Модели Attribute1CMapping + поле is_active
 - 14.3.2: Модель AttributeValue1CMapping
 - 14.3.3: Обновление логики импорта с дедупликацией
@@ -81,6 +90,7 @@
 - 14.3.7: Документация и тестирование
 
 **Expected Results:**
+
 - **До:** 458 атрибутов, ~30-40% дубликатов, все активны
 - **После:** ~280-320 уникальных атрибутов, 0 дубликатов, ~50-100 активировано
 
@@ -89,51 +99,60 @@
 ---
 
 ### 📋 Story 14.4: Link Attributes to Products
+
 **Status:** Draft
 **File:** [14.4.link-attributes.md](./14.4.link-attributes.md)
 
 Связывание атрибутов с товарами при импорте из 1С.
 
 **Goal:**
+
 - Парсинг связей атрибутов из goods.xml и offers.xml
 - Создание M2M связей Product/ProductVariant ↔ AttributeValue
 - Обработка missing attributes
 
 **Dependencies:**
+
 - Story 14.2 (Import Attributes)
 - Story 14.3 (Deduplication) — рекомендуется
 
 ---
 
 ### 📋 Story 14.5: API Enhancement
+
 **Status:** Draft
 **File:** [14.5.api-enhancement.md](./14.5.api-enhancement.md)
 
 Добавление атрибутов в API эндпоинты каталога товаров.
 
 **Goal:**
+
 - Отображение атрибутов в ProductSerializer
 - Фильтрация только активных атрибутов
 - OpenAPI спецификация обновлена
 
 **Dependencies:**
+
 - Story 14.3 (для фильтрации по is_active)
 - Story 14.4 (для связей с товарами)
 
 ---
 
 ### 📋 Story 14.6: Filtering & Facets
+
 **Status:** Draft
 **File:** [14.6.filtering-facets.md](./14.6.filtering-facets.md)
 
 Реализация динамических фильтров по атрибутам в каталоге.
 
 **Goal:**
+
 - Faceted search по атрибутам
 - Динамическое построение фильтров
 - Frontend интеграция
 
 **Dependencies:**
+
 - Story 14.5 (API Enhancement)
 
 ---
@@ -141,6 +160,7 @@
 ## Technical Architecture
 
 ### Current State (до Epic 14)
+
 ```python
 Product {
     specifications: JSONField  # Неструктурированные данные
@@ -148,6 +168,7 @@ Product {
 ```
 
 ### Target State (после Epic 14)
+
 ```python
 Attribute {
     name: str
@@ -212,6 +233,7 @@ Frontend Catalog
 ## Key Metrics
 
 ### Story 14.2 (Import) - Completed
+
 - ✅ 458 атрибутов импортировано
 - ✅ 12,260 значений атрибутов
 - ✅ 22 XML файла обработано
@@ -219,6 +241,7 @@ Frontend Catalog
 - ✅ Code quality: 95/100
 
 ### Story 14.3 (Deduplication) - Planned
+
 - 🎯 ~280-320 уникальных атрибутов (после дедупликации)
 - 🎯 0 дубликатов в каталоге
 - 🎯 ~50-100 атрибутов активировано вручную

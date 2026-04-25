@@ -10,7 +10,7 @@
 
 - **Текущая функциональность:** Django admin интерфейс с action "🚀 Запустить импорт из 1С" на странице списка сессий импорта
 - **Technology stack:** Django 5.0, Django Admin, Celery для асинхронных задач, Redis для блокировок
-- **Integration points:** 
+- **Integration points:**
   - IntegrationImportSession model (proxy модель ImportSession)
   - Celery задача run_selective_import_task
   - Django admin actions с intermediate page
@@ -19,12 +19,14 @@
 ### Existing Import Infrastructure (из Epic 3):
 
 **Парсеры и процессоры (✅ Реализованы в Epic 3):**
+
 - `XMLDataParser` (`apps/products/services/parser.py`) - парсинг XML файлов CommerceML 3.1
 - `ProductDataProcessor` (`apps/products/services/processor.py`) - обработка товаров, категорий, цен
 - `CustomerDataParser` (`apps/users/services/parser.py`) - парсинг контрагентов
 - `CustomerDataProcessor` (`apps/users/services/processor.py`) - обработка клиентов
 
 **Management команды (✅ Реализованы в Epic 3):**
+
 - `import_catalog_from_1c` - основная команда импорта с параметрами:
   - `--data-dir` - директория с данными (по умолчанию из settings.ONEC_DATA_DIR)
   - `--file-type` - выборочный импорт (goods|offers|prices|rests|all)
@@ -36,6 +38,7 @@
 - `import_customers_from_1c` - импорт клиентов из contragents.xml
 
 **Структура данных 1С (CommerceML 3.1):**
+
 - Сегментированные файлы: `goods_1_*.xml`, `offers_*.xml`, `prices_1_*.xml`, `rests_1_*.xml`
 - Справочники: `units.xml`, `storages.xml`, `priceLists.xml`
 - Свойства: `propertiesGoods/`, `propertiesOffers/`
@@ -43,6 +46,7 @@
 - Клиенты: `contragents.xml`
 
 **ImportSession типы:**
+
 - `CATALOG` - импорт каталога товаров
 - `STOCKS` - импорт остатков
 - `PRICES` - импорт цен
@@ -51,18 +55,21 @@
 ### Enhancement Details:
 
 **Что меняется:**
+
 1. Удаляется admin action "🚀 Запустить импорт из 1С" со страницы сессий
 2. Создается новый пункт меню "Импорт из 1С" в разделе ИНТЕГРАЦИИ
 3. Страница "Сессии импорта" переименовывается и становится read-only журналом
 4. Новая страница "Импорт из 1С" получает форму выбора типов данных и запуска
 
 **Интеграция:**
+
 - Использует существующую Celery задачу run_selective_import_task
 - Сохраняет механизм создания ImportSession с celery_task_id
 - Поддерживает текущую логику валидации зависимостей
 - Сохраняет Redis lock для предотвращения параллельных импортов
 
 **Success criteria:**
+
 - Импорт запускается с новой страницы без выбора существующих сессий
 - История импортов доступна на отдельной странице без возможности запуска
 - Сохранена вся существующая функциональность импорта
@@ -75,6 +82,7 @@
 Создать отдельную страницу для запуска импорта с использованием существующих management команд из Epic 3.
 
 **Технические детали:**
+
 - Создать новый Django admin view без привязки к модели (или использовать ImportSession)
 - URL: `/admin/integrations/import_1c/`
 - Форма с radio buttons для типов импорта:
@@ -89,6 +97,7 @@
 - Добавить страницу в меню ИНТЕГРАЦИИ перед "Сессии импорта"
 
 **Acceptance Criteria:**
+
 - [ ] Страница доступна по URL `/admin/integrations/import_1c/`
 - [ ] Форма отображает 4 типа импорта с описанием
 - [ ] При выборе типа вызывается соответствующая management команда через Celery
@@ -103,6 +112,7 @@
 Преобразовать страницу сессий в read-only журнал с сохранением функционала отслеживания прогресса.
 
 **Технические детали:**
+
 - Удалить admin action "🚀 Запустить импорт из 1С" из IntegrationImportSessionAdmin
 - Переименовать URL с `/admin/integrations/integrationimportsession/` на `/admin/integrations/session/`
 - Сделать страницу read-only:
@@ -116,6 +126,7 @@
   - Фильтры по статусу, типу импорта, дате
 
 **Acceptance Criteria:**
+
 - [ ] URL изменен на `/admin/integrations/session/`
 - [ ] Admin action "🚀 Запустить импорт" удален
 - [ ] Невозможно создать/редактировать сессии через admin
@@ -130,10 +141,11 @@
 Комплексное тестирование нового flow и обновление документации.
 
 **Технические детали:**
+
 - End-to-end тестирование всех типов импорта:
   - Полный каталог (все файлы)
-  - Только остатки (сегментированные rests_*.xml)
-  - Только цены (сегментированные prices_*.xml)
+  - Только остатки (сегментированные rests\_\*.xml)
+  - Только цены (сегментированные prices\_\*.xml)
   - Клиенты (contragents.xml)
 - Проверка валидации зависимостей
 - Проверка Redis lock (предотвращение параллельных импортов)
@@ -145,6 +157,7 @@
   - Troubleshooting guide
 
 **Acceptance Criteria:**
+
 - [ ] Все 4 типа импорта протестированы end-to-end
 - [ ] Валидация зависимостей работает (остатки/цены требуют каталог)
 - [ ] Redis lock предотвращает параллельные импорты
@@ -164,7 +177,7 @@
 
 - ✅ **Story 3.1.2** (loading-scripts) - расширенная функциональность команд
   - Параметры: --file-type, --chunk-size, --skip-validation, --clear-existing
-  - Поддержка сегментированных файлов (goods_*.xml, prices_*.xml, rests_*.xml)
+  - Поддержка сегментированных файлов (goods*\*.xml, prices*\_.xml, rests\_\_.xml)
   - Команды backup_db, restore_db, rotate_backups
 
 - ✅ **Story 3.1.5** (import-session-and-stocks-command) - импорт остатков
@@ -224,18 +237,21 @@ call_command('import_customers_from_1c', file=...)
 ## Validation Checklist
 
 ### Scope Validation:
+
 - [x] Epic может быть завершен в 3 истории
 - [x] Архитектурная документация не требуется
 - [x] Enhancement следует существующим паттернам Django Admin
 - [x] Интеграционная сложность управляема
 
 ### Risk Assessment:
+
 - [x] Риск для существующей системы низкий
 - [x] План отката выполним (Git revert)
 - [x] Подход к тестированию покрывает существующую функциональность
 - [x] Команда имеет достаточные знания точек интеграции
 
 ### Completeness Check:
+
 - [x] Цель эпика ясна и достижима
 - [x] Истории правильно определены
 - [x] Критерии успеха измеримы
@@ -268,25 +284,25 @@ call_command('import_customers_from_1c', file=...)
 
 class ImportFrom1CAdmin(admin.ModelAdmin):
     """Страница для запуска импорта из 1С"""
-    
+
     def changelist_view(self, request):
         # Отображение формы выбора типа импорта
         if request.method == 'POST':
             import_type = request.POST.get('import_type')
-            
+
             # Валидация зависимостей
             if import_type in ['stocks', 'prices']:
                 if not Product.objects.exists():
                     messages.error(request, "Сначала импортируйте каталог")
                     return redirect('.')
-            
+
             # Redis lock
             redis_conn = get_redis_connection("default")
             lock = redis_conn.lock("import_catalog_lock", timeout=3600)
             if not lock.acquire(blocking=False):
                 messages.warning(request, "Импорт уже запущен")
                 return redirect('.')
-            
+
             try:
                 # Создание ImportSession
                 session_type_map = {
@@ -295,15 +311,15 @@ class ImportFrom1CAdmin(admin.ModelAdmin):
                     'prices': ImportSession.ImportType.PRICES,
                     'customers': ImportSession.ImportType.CUSTOMERS,
                 }
-                
+
                 session = ImportSession.objects.create(
                     import_type=session_type_map[import_type],
                     status=ImportSession.ImportStatus.STARTED,
                 )
-                
+
                 # Запуск Celery задачи
                 data_dir = settings.ONEC_DATA_DIR
-                
+
                 if import_type == 'catalog':
                     task = run_selective_import_task.delay(['catalog'], data_dir)
                 elif import_type == 'stocks':
@@ -312,22 +328,22 @@ class ImportFrom1CAdmin(admin.ModelAdmin):
                     task = run_selective_import_task.delay(['prices'], data_dir)
                 elif import_type == 'customers':
                     task = run_selective_import_task.delay(['customers'], data_dir)
-                
+
                 session.celery_task_id = task.id
                 session.save(update_fields=['celery_task_id'])
-                
+
                 messages.success(
                     request,
                     f"Импорт запущен (Task ID: {task.id}, Session ID: {session.pk})"
                 )
             finally:
                 lock.release()
-        
+
         # Отображение формы
         context = {
             'title': 'Импорт из 1С',
             'import_types': [
-                {'value': 'catalog', 'label': 'Полный каталог', 
+                {'value': 'catalog', 'label': 'Полный каталог',
                  'description': 'Товары, категории, цены, остатки, свойства'},
                 {'value': 'stocks', 'label': 'Только остатки',
                  'description': 'Обновление остатков товаров'},
@@ -348,20 +364,20 @@ admin.site.register(ImportFrom1C, ImportFrom1CAdmin)
 ```python
 class IntegrationImportSessionAdmin(admin.ModelAdmin):
     model = IntegrationImportSession
-    
+
     # Удалить actions
     actions = []  # Было: ["trigger_selective_import"]
-    
+
     # Read-only
     def has_add_permission(self, request):
         return False
-    
+
     def has_change_permission(self, request, obj=None):
         return False
-    
+
     def has_delete_permission(self, request, obj=None):
         return False
-    
+
     # Сохранить существующий функционал
     list_display = (
         "id",
@@ -372,17 +388,17 @@ class IntegrationImportSessionAdmin(admin.ModelAdmin):
         "finished_at",
         "duration",
     )
-    
+
     @admin.display(description="Celery Task")
     def celery_task_status(self, obj):
         # Существующая реализация из истории 9.5
         if not obj.celery_task_id:
             return format_html('<span style="color: gray;">-</span>')
-        
+
         from celery.result import AsyncResult
         task_result = AsyncResult(obj.celery_task_id)
         state = task_result.state
-        
+
         status_map = {
             "PENDING": ("⏳", "gray", "В очереди"),
             "STARTED": ("▶️", "blue", "Выполняется"),
@@ -390,13 +406,13 @@ class IntegrationImportSessionAdmin(admin.ModelAdmin):
             "FAILURE": ("❌", "red", "Ошибка"),
             "RETRY": ("🔄", "orange", "Повтор"),
         }
-        
+
         icon, color, label = status_map.get(state, ("❓", "black", state))
         return format_html(
             '<span style="color: {}; font-weight: bold;">{} {}</span>',
             color, icon, label
         )
-    
+
     class Media:
         js = ("admin/js/import_session_auto_refresh.js",)  # ← Сохранить
 ```
@@ -404,6 +420,7 @@ class IntegrationImportSessionAdmin(admin.ModelAdmin):
 **3. Обновление Celery задачи (apps/integrations/tasks.py):**
 
 Задача `run_selective_import_task` уже реализована и вызывает:
+
 - `import_catalog_from_1c --file-type=all` для 'catalog'
 - `import_catalog_from_1c --file-type=rests` для 'stocks'
 - `import_catalog_from_1c --file-type=prices` для 'prices'
@@ -423,6 +440,7 @@ def _validate_dependencies(import_types):
 **5. Обработка сегментированных файлов:**
 
 Команда `import_catalog_from_1c` автоматически обрабатывает:
+
 - `goods_1_*.xml`, `goods_2_*.xml`, ... (метод `_collect_xml_files`)
 - `prices_1_*.xml`, `prices_2_*.xml`, ...
 - `rests_1_*.xml`, `rests_2_*.xml`, ...

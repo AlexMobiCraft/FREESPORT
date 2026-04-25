@@ -2,18 +2,18 @@ name: Backend CI/CD
 
 on:
   push:
-    branches: [ main, develop ]
-    paths: 
-      - 'backend/**'
-      - '.github/workflows/backend-ci.yml'
-  pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'backend/**'
-      - '.github/workflows/backend-ci.yml'
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: "3.12"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   # Этап 1: Качество кода и тестирование
@@ -41,7 +41,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      
+
       redis:
         image: redis:7
         ports:
@@ -51,257 +51,257 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python ${{ env.PYTHON_VERSION }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Cache pip packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-          
-    - name: Create virtual environment and install dependencies
-      run: |
-        cd backend
-        python -m venv venv
-        source venv/bin/activate
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest-django pytest-cov black flake8 mypy bandit safety
-        
-    - name: Create .env file for testing
-      run: |
-        cd backend
-        cat > .env << EOF
-        SECRET_KEY=test-secret-key-for-ci-cd-only
-        DB_NAME=freesport_test
-        DB_USER=postgres
-        DB_PASSWORD=postgres
-        DB_HOST=localhost
-        DB_PORT=5432
-        REDIS_URL=redis://localhost:6379/0
-        DJANGO_SETTINGS_MODULE=freesport.settings.test
-        EOF
-        
-    - name: Run linting with Black
-      run: |
-        cd backend
-        source venv/bin/activate
-        black .
-        
-    - name: Run linting with Flake8
-      run: |
-        cd backend
-        source venv/bin/activate
-        flake8 . --max-line-length=120 --extend-ignore=E203,W503
-        
-    - name: Run type checking with mypy
-      run: |
-        cd backend
-        source venv/bin/activate
-        mypy --config-file=mypy.ini .
-      continue-on-error: true  # Не блокируем сборку из-за mypy warnings
-        
-    - name: Run security checks with bandit
-      run: |
-        cd backend
-        source venv/bin/activate
-        # Сканируем только исходный код приложений, используя конфиг .bandit
-        bandit -r apps/ freesport/ -f json -o bandit-report.json || true
-        bandit -r apps/ freesport/ -ll || true
-      continue-on-error: true  # Не блокируем сборку из-за Medium severity проблем
-        
-    - name: Check dependencies for security vulnerabilities
-      run: |
-        cd backend
-        source venv/bin/activate
-        echo "🔍 Проверка зависимостей на уязвимости..."
-        safety check --json --output safety-report.json || true
-        echo "📋 Подробный отчет о найденных уязвимостях:"
-        safety check --full-report || true
-      continue-on-error: true  # Не блокируем сборку из-за уязвимостей в зависимостях
-        
-    - name: Run Django system checks
-      run: |
-        cd backend
-        source venv/bin/activate
-        python manage.py check --deploy
-        
-    - name: Validate API documentation completeness
-      run: |
-        cd backend
-        source venv/bin/activate
-        echo "🔍 Проверка полноты API документации..."
-        python manage.py check_api_docs --verbose || true
-      continue-on-error: true  # Не блокируем сборку из-за неполной документации API
-        
-    - name: Validate OpenAPI schema generation
-      run: |
-        cd backend
-        source venv/bin/activate
-        echo "📋 Генерация и валидация OpenAPI схемы..."
-        python manage.py spectacular --color --file /tmp/schema.yml --validate
-        echo "✅ OpenAPI схема сгенерирована успешно"
-        
-    - name: Run database migrations
-      env:
-        DJANGO_SETTINGS_MODULE: freesport.settings.test
-      run: |
-        cd backend
-        source venv/bin/activate
-        # Отладка: выводим переменные окружения БД
-        echo "🔍 Database environment variables:"
-        echo "DB_USER=$DB_USER"
-        echo "DB_NAME=$DB_NAME"
-        echo "DB_HOST=$DB_HOST"
-        echo "DB_PORT=$DB_PORT"
-        echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
-        # Проверяем настройки Django
-        python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.test'); import django; django.setup(); from django.conf import settings; print('🔍 Django DB settings:'); print(f\"USER: {settings.DATABASES['default']['USER']}\"); print(f\"NAME: {settings.DATABASES['default']['NAME']}\"); print(f\"HOST: {settings.DATABASES['default']['HOST']}\")"
-        # Пересоздаем тестовую БД для чистого старта
-        echo "🔄 Пересоздание тестовой базы данных..."
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS freesport_test;" || true
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE freesport_test;" || true
-        # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
-        python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
-        python manage.py migrate --noinput
-        
-    - name: Run tests with coverage
-      env:
-        SECRET_KEY: test-secret-key-for-ci-cd-only
-        DEBUG: False
-        DJANGO_SETTINGS_MODULE: freesport.settings.test
-        DB_NAME: freesport_test
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-      run: |
-        cd backend
-        source venv/bin/activate
-        echo "🧪 Запуск тестов с покрытием..."
-        # Используем --reuse-db для переиспользования БД между тестами
-        # Добавляем -v для более подробного вывода
-        pytest --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py -m "not integration and not data_dependent" --reuse-db -v --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=65
-        
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        file: backend/coverage.xml
-        flags: backend
-        name: backend-coverage
-        fail_ci_if_error: false
-        token: ${{ secrets.CODECOV_TOKEN }}  # Optional: configure in repository secrets
-        
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      continue-on-error: true
-      with:
-        name: backend-test-results
-        retention-days: 1
-        path: |
-          backend/htmlcov/
-          backend/bandit-report.json
-          backend/safety-report.json
-          
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          cd backend
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-django pytest-cov black flake8 mypy bandit safety
+
+      - name: Create .env file for testing
+        run: |
+          cd backend
+          cat > .env << EOF
+          SECRET_KEY=test-secret-key-for-ci-cd-only
+          DB_NAME=freesport_test
+          DB_USER=postgres
+          DB_PASSWORD=postgres
+          DB_HOST=localhost
+          DB_PORT=5432
+          REDIS_URL=redis://localhost:6379/0
+          DJANGO_SETTINGS_MODULE=freesport.settings.test
+          EOF
+
+      - name: Run linting with Black
+        run: |
+          cd backend
+          source venv/bin/activate
+          black .
+
+      - name: Run linting with Flake8
+        run: |
+          cd backend
+          source venv/bin/activate
+          flake8 . --max-line-length=120 --extend-ignore=E203,W503
+
+      - name: Run type checking with mypy
+        run: |
+          cd backend
+          source venv/bin/activate
+          mypy --config-file=mypy.ini .
+        continue-on-error: true # Не блокируем сборку из-за mypy warnings
+
+      - name: Run security checks with bandit
+        run: |
+          cd backend
+          source venv/bin/activate
+          # Сканируем только исходный код приложений, используя конфиг .bandit
+          bandit -r apps/ freesport/ -f json -o bandit-report.json || true
+          bandit -r apps/ freesport/ -ll || true
+        continue-on-error: true # Не блокируем сборку из-за Medium severity проблем
+
+      - name: Check dependencies for security vulnerabilities
+        run: |
+          cd backend
+          source venv/bin/activate
+          echo "🔍 Проверка зависимостей на уязвимости..."
+          safety check --json --output safety-report.json || true
+          echo "📋 Подробный отчет о найденных уязвимостях:"
+          safety check --full-report || true
+        continue-on-error: true # Не блокируем сборку из-за уязвимостей в зависимостях
+
+      - name: Run Django system checks
+        run: |
+          cd backend
+          source venv/bin/activate
+          python manage.py check --deploy
+
+      - name: Validate API documentation completeness
+        run: |
+          cd backend
+          source venv/bin/activate
+          echo "🔍 Проверка полноты API документации..."
+          python manage.py check_api_docs --verbose || true
+        continue-on-error: true # Не блокируем сборку из-за неполной документации API
+
+      - name: Validate OpenAPI schema generation
+        run: |
+          cd backend
+          source venv/bin/activate
+          echo "📋 Генерация и валидация OpenAPI схемы..."
+          python manage.py spectacular --color --file /tmp/schema.yml --validate
+          echo "✅ OpenAPI схема сгенерирована успешно"
+
+      - name: Run database migrations
+        env:
+          DJANGO_SETTINGS_MODULE: freesport.settings.test
+        run: |
+          cd backend
+          source venv/bin/activate
+          # Отладка: выводим переменные окружения БД
+          echo "🔍 Database environment variables:"
+          echo "DB_USER=$DB_USER"
+          echo "DB_NAME=$DB_NAME"
+          echo "DB_HOST=$DB_HOST"
+          echo "DB_PORT=$DB_PORT"
+          echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
+          # Проверяем настройки Django
+          python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'freesport.settings.test'); import django; django.setup(); from django.conf import settings; print('🔍 Django DB settings:'); print(f\"USER: {settings.DATABASES['default']['USER']}\"); print(f\"NAME: {settings.DATABASES['default']['NAME']}\"); print(f\"HOST: {settings.DATABASES['default']['HOST']}\")"
+          # Пересоздаем тестовую БД для чистого старта
+          echo "🔄 Пересоздание тестовой базы данных..."
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS freesport_test;" || true
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE freesport_test;" || true
+          # Сбрасываем соединения с БД перед миграциями для избежания проблем с транзакциями
+          python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
+          python manage.py migrate --noinput
+
+      - name: Run tests with coverage
+        env:
+          SECRET_KEY: test-secret-key-for-ci-cd-only
+          DEBUG: False
+          DJANGO_SETTINGS_MODULE: freesport.settings.test
+          DB_NAME: freesport_test
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_HOST: localhost
+          DB_PORT: 5432
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          cd backend
+          source venv/bin/activate
+          echo "🧪 Запуск тестов с покрытием..."
+          # Используем --reuse-db для переиспользования БД между тестами
+          # Добавляем -v для более подробного вывода
+          pytest --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py -m "not integration and not data_dependent" --reuse-db -v --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=65
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }} # Optional: configure in repository secrets
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: backend-test-results
+          retention-days: 1
+          path: |
+            backend/htmlcov/
+            backend/bandit-report.json
+            backend/safety-report.json
+
   # Этап 2: Сборка Docker образа
   build:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    continue-on-error: true  # Не блокируем workflow из-за проблем с Docker Registry
-    
+    continue-on-error: true # Не блокируем workflow из-за проблем с Docker Registry
+
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v3
-      continue-on-error: true
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Extract metadata for Docker
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ghcr.io/${{ github.repository }}/backend
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix=commit-
-          type=raw,value=latest,enable={{is_default_branch}}
-          
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      continue-on-error: true
-      with:
-        context: backend
-        file: backend/Dockerfile
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        build-args: |
-          DJANGO_SETTINGS_MODULE=freesport.settings.production
-          
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=commit-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        continue-on-error: true
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            DJANGO_SETTINGS_MODULE=freesport.settings.production
+
   # Этап 3: Deploy на staging (только develop branch)
   deploy-staging:
     name: Deploy to Staging
     needs: [test, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    
+
     permissions:
       actions: write
       id-token: write
       attestations: write
 
     steps:
-    - name: Trigger deploy workflow
-      uses: actions/github-script@v7
-      with:
-        script: |
-          await github.rest.actions.createWorkflowDispatch({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            workflow_id: 'deploy.yml',
-            ref: 'develop',
-            inputs: {
-              skip_tests: 'true'
-            }
-          });
-          console.log('✅ Deploy workflow triggered for staging');
+      - name: Trigger deploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy.yml',
+              ref: 'develop',
+              inputs: {
+                skip_tests: 'true'
+              }
+            });
+            console.log('✅ Deploy workflow triggered for staging');
 
-    - name: Notify staging deployment
-      run: |
-        echo "✅ Backend staging deployment triggered"
-        echo "Отслеживайте статус в Actions → Deploy to Server"
-        
+      - name: Notify staging deployment
+        run: |
+          echo "✅ Backend staging deployment triggered"
+          echo "Отслеживайте статус в Actions → Deploy to Server"
+
   # Этап 4: Deploy на production (только main branch, с manual approval)
   deploy-production:
     name: Deploy to Production
@@ -309,32 +309,32 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
-    
+
     permissions:
       actions: write
       id-token: write
       attestations: write
 
     steps:
-    - name: Trigger deploy workflow
-      uses: actions/github-script@v7
-      with:
-        script: |
-          await github.rest.actions.createWorkflowDispatch({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            workflow_id: 'deploy.yml',
-            ref: 'main',
-            inputs: {
-              environment: 'production',
-              skip_tests: 'true'
-            }
-          });
-          console.log('✅ Deploy workflow triggered for production');
+      - name: Trigger deploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy.yml',
+              ref: 'main',
+              inputs: {
+                environment: 'production',
+                skip_tests: 'true'
+              }
+            });
+            console.log('✅ Deploy workflow triggered for production');
 
-    - name: Notify production deployment
-      if: always()
-      run: |
-        echo "✅ Backend production deployment triggered"
-        echo "Отслеживайте статус в Actions → Deploy to Server"
-        echo "⚠️ Production deployment requires manual approval"
+      - name: Notify production deployment
+        if: always()
+        run: |
+          echo "✅ Backend production deployment triggered"
+          echo "Отслеживайте статус в Actions → Deploy to Server"
+          echo "⚠️ Production deployment requires manual approval"

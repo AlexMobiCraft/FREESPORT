@@ -21,12 +21,14 @@
 ### **Existing System Context:**
 
 **Текущий функционал:**
+
 - ✅ Backend API для создания заказов (`/orders/`, `/orders/{id}/`)
 - ✅ Корзина с поддержкой промокодов и расчётом итоговой стоимости (Эпик 14)
 - ✅ Система аутентификации с ролевой моделью B2B/B2C (Эпик 13)
 - ✅ UI Kit компоненты (Input, Select, Button, Modal, InfoPanel) из Эпика 10
 
 **Технологический стек:**
+
 - Frontend: Next.js 15.4.6 + TypeScript 5.0+ + React 19.1.0
 - State Management: Zustand 4.5.7
 - Форматы: React Hook Form 7.62.0 для управления формами
@@ -36,12 +38,14 @@
 - API Mocking: MSW 2.12.2
 
 **Интеграционные точки:**
+
 - `/orders/create` - создание заказа
 - `/delivery/methods` - список способов доставки (настраивается через Django Admin)
 - `/cart/` - получение содержимого корзины
 - `/profile/addresses` - адреса доставки пользователя (опционально)
 
 **⚠️ НЕ РЕАЛИЗУЕТСЯ на данном этапе:**
+
 - ❌ Расчёт стоимости доставки (CDEK, Boxberry API)
 - ❌ Онлайн оплата (YuKassa)
 - ❌ Автоматическое изменение статусов заказов
@@ -83,12 +87,14 @@
    - Email-уведомление клиенту об успешном создании заказа
 
 **Как интегрируется:**
+
 - Использует cartStore из Эпика 14 для получения товаров
 - Использует authStore из Эпика 13 для данных пользователя
 - Использует UI Kit компоненты из Эпика 10 (Input, Select, Button, Modal)
 - Следует дизайн-системе из `frontend/docs/design-system.json`
 
 **Критерии успеха (упрощённая версия):**
+
 - Пользователь может оформить заказ за 2-3 минуты
 - Форма валидируется в реальном времени (React Hook Form + Zod)
 - Заказ успешно создаётся и отправляется email администратору
@@ -186,6 +192,7 @@
 - ✅ Unit-тесты для компонента
 
 **Технические детали:**
+
 - Компонент: `src/app/checkout/success/[orderId]/page.tsx`
 - SSR для отображения деталей заказа
 
@@ -217,6 +224,7 @@
 ## Compatibility Requirements
 
 ### **Обратная совместимость:**
+
 - ✅ Существующие API endpoints остаются неизменными
 - ✅ cartStore из Эпика 14 не модифицируется (только чтение)
 - ✅ authStore из Эпика 13 используется без изменений
@@ -224,6 +232,7 @@
 - ✅ Производительность: PageSpeed > 70, LCP < 2.5s
 
 ### **Интеграция с существующими компонентами:**
+
 - ✅ Использует `Button`, `Input`, `Select`, `Modal`, `InfoPanel` из UI Kit
 - ✅ Использует `apiClient` из `src/services/api-client.ts`
 - ✅ Следует TypeScript best practices (без `as any`)
@@ -242,6 +251,7 @@
 **Вероятность:** Низкая
 **Влияние:** Критическое
 **Митигация:**
+
 - Обязательное E2E тестирование через Playwright
 - Unit-тесты покрытие 80%+
 - Ручное тестирование всех B2B/B2C сценариев
@@ -250,6 +260,7 @@
 **Вероятность:** Низкая
 **Влияние:** Среднее
 **Митигация:**
+
 - Использовать React Hook Form (оптимизирован для производительности)
 - ~~Debounce для динамических расчётов~~ (не требуется - без расчётов)
 - Lighthouse аудит перед релизом
@@ -258,6 +269,7 @@
 **Вероятность:** Средняя
 **Влияние:** Высокое
 **Митигация:**
+
 - Mobile-first подход к вёрстке
 - Тестирование на реальных устройствах (iOS/Android)
 - Адаптивные компоненты из design-system.json
@@ -293,12 +305,14 @@
 - ✅ Администратор может управлять заказами через Django Admin
 
 ### **Качество кода:**
+
 - ✅ TypeScript без `as any`
 - ✅ ESLint/Prettier проверки пройдены
 - ✅ Code review завершён
 - ✅ Нет критических Lighthouse проблем
 
 ### **Тестирование:**
+
 - ✅ Unit-тесты: 80%+ покрытие
 - ✅ Integration-тесты с MSW для всех API вызовов
 - ✅ E2E тесты критического флоу (Playwright)
@@ -306,18 +320,21 @@
 - ✅ Ручное тестирование на mobile/tablet/desktop
 
 ### **UX/UI:**
+
 - ✅ Соответствие design-system.json
 - ✅ Адаптивная вёрстка (mobile/tablet/desktop)
 - ✅ Accessibility (WCAG 2.1 AA)
 - ✅ PageSpeed > 70, LCP < 2.5s
 
 ### **Документация:**
+
 - ✅ README обновлён с инструкциями по checkout
 - ✅ API интеграции задокументированы
 - ✅ Компоненты описаны (JSDoc/TSDoc)
 - ✅ E2E тесты задокументированы
 
 ### **Регрессия:**
+
 - ✅ Существующий функционал корзины не сломан
 - ✅ Smoke-тесты пройдены
 - ✅ Нет критических багов
@@ -328,6 +345,7 @@
 ## Dependencies and Integration Points
 
 ### **Зависимости от других эпиков:**
+
 - **Эпик 10 (Фундамент):** UI Kit компоненты, apiClient, Zustand setup
 - **Эпик 13 (Аутентификация):** authStore, JWT токены, защищённые роуты
 - **Эпик 14 (Корзина):** cartStore, товары в корзине, промокоды
@@ -357,6 +375,7 @@
 ## Technical Architecture
 
 ### **Component Structure:**
+
 ```
 src/
 ├── app/
@@ -403,6 +422,7 @@ src/
 ```
 
 ### **Data Flow:**
+
 ```
 1. User → CheckoutForm
 2. CheckoutForm → ordersService.create()
@@ -415,6 +435,7 @@ src/
 ```
 
 ### **State Management (Zustand):**
+
 ```typescript
 // orderStore.ts
 interface OrderState {
@@ -432,6 +453,7 @@ interface OrderState {
 ## Testing Strategy
 
 ### **1. Unit Tests (Vitest + React Testing Library):**
+
 - ✅ Все компоненты checkout секции
 - ✅ Все сервисы (ordersService, deliveryService, paymentService)
 - ✅ orderStore (Zustand)
@@ -439,12 +461,14 @@ interface OrderState {
 - **Цель:** 80%+ покрытие
 
 ### **2. Integration Tests (MSW):**
+
 - ✅ API вызовы с моками
 - ✅ Обработка успешных ответов
 - ✅ Обработка ошибок (4xx, 5xx)
 - ✅ Retry логика
 
 ### **3. E2E Tests (Playwright):**
+
 - ✅ Критический флоу: добавление в корзину → checkout → успех
 - ✅ Валидация формы
 - ✅ Расчёт доставки
@@ -452,11 +476,13 @@ interface OrderState {
 - ✅ Ролевые сценарии (B2B/B2C)
 
 ### **4. Accessibility Tests:**
+
 - ✅ axe-core для проверки WCAG 2.1 AA
 - ✅ Keyboard navigation
 - ✅ Screen reader compatibility
 
 ### **5. Performance Tests:**
+
 - ✅ Lighthouse audit (PageSpeed > 70)
 - ✅ LCP < 2.5s
 - ✅ Bundle size анализ
@@ -478,7 +504,8 @@ interface OrderState {
    - Обработка ошибок
 
 3. **Component Documentation (JSDoc):**
-   ```typescript
+
+   ````typescript
    /**
     * CheckoutForm - главная форма оформления заказа
     *
@@ -492,7 +519,7 @@ interface OrderState {
     * />
     * ```
     */
-   ```
+   ````
 
 4. **E2E Tests Documentation:**
    - Описание критических флоу
@@ -505,16 +532,17 @@ interface OrderState {
 
 ### **Метрики производительности:**
 
-| Метрика | Целевое значение | Критическое значение |
-|---------|------------------|----------------------|
-| **LCP (Largest Contentful Paint)** | < 2.5s | < 4.0s |
-| **FID (First Input Delay)** | < 100ms | < 300ms |
-| **CLS (Cumulative Layout Shift)** | < 0.1 | < 0.25 |
-| **PageSpeed Score** | > 70 | > 50 |
-| **Bundle Size (checkout page)** | < 200KB gzipped | < 300KB gzipped |
-| **API Response Time (create order)** | < 500ms | < 1000ms |
+| Метрика                              | Целевое значение | Критическое значение |
+| ------------------------------------ | ---------------- | -------------------- |
+| **LCP (Largest Contentful Paint)**   | < 2.5s           | < 4.0s               |
+| **FID (First Input Delay)**          | < 100ms          | < 300ms              |
+| **CLS (Cumulative Layout Shift)**    | < 0.1            | < 0.25               |
+| **PageSpeed Score**                  | > 70             | > 50                 |
+| **Bundle Size (checkout page)**      | < 200KB gzipped  | < 300KB gzipped      |
+| **API Response Time (create order)** | < 500ms          | < 1000ms             |
 
 ### **Оптимизации:**
+
 - ✅ Code splitting для checkout страницы
 - ✅ Lazy loading для компонентов доставки/платежей
 - ✅ Image optimization (Next.js Image)
@@ -578,7 +606,6 @@ interface OrderState {
 ### **Метрики для мониторинга:**
 
 1. **Business Metrics (упрощённая версия):**
-
    - Конверсия checkout → success
    - Среднее время оформления заказа
    - Drop-off rate по секциям формы
@@ -586,7 +613,6 @@ interface OrderState {
    - Количество заказов, созданных в день
 
 2. **Technical Metrics:**
-
    - API response times (`/orders/create`)
    - 4xx/5xx error rates
    - Client-side errors (Sentry)
@@ -594,7 +620,6 @@ interface OrderState {
    - Email delivery success rate (администратору)
 
 3. **Alerts:**
-
    - ❗ Critical: Ошибки создания заказа > 5%
    - ❗ Critical: Email не доставлен администратору
    - ❗ Warning: API latency > 1s
@@ -606,17 +631,18 @@ interface OrderState {
 
 ### **Ключевые метрики успеха:**
 
-| Метрика | Целевое значение | Текущее (baseline) |
-|---------|------------------|-------------------|
-| **Конверсия корзина → оформление** | > 60% | N/A (новый функционал) |
-| **Конверсия оформление → успех** | > 80% | N/A |
-| **Среднее время оформления** | < 2 мин | N/A (упрощённая форма) |
-| **Mobile conversion rate** | > 50% | N/A |
-| **Ошибки API (create order)** | < 2% | N/A |
-| **Email delivery rate (админу)** | > 99% | N/A |
-| **Заказов обработано админом** | < 24 часа | N/A (ручная обработка) |
+| Метрика                            | Целевое значение | Текущее (baseline)     |
+| ---------------------------------- | ---------------- | ---------------------- |
+| **Конверсия корзина → оформление** | > 60%            | N/A (новый функционал) |
+| **Конверсия оформление → успех**   | > 80%            | N/A                    |
+| **Среднее время оформления**       | < 2 мин          | N/A (упрощённая форма) |
+| **Mobile conversion rate**         | > 50%            | N/A                    |
+| **Ошибки API (create order)**      | < 2%             | N/A                    |
+| **Email delivery rate (админу)**   | > 99%            | N/A                    |
+| **Заказов обработано админом**     | < 24 часа        | N/A (ручная обработка) |
 
 ### **Сбор метрик:**
+
 - Google Analytics 4 для конверсии
 - Sentry для client-side ошибок
 - Backend logging для API метрик
@@ -677,12 +703,14 @@ interface OrderState {
 ## Approval and Sign-off
 
 **Заинтересованные стороны:**
+
 - ✅ Product Manager (John) - Одобрено
 - ⏳ Tech Lead - Ожидает ревью
 - ⏳ UX Designer - Ожидает ревью
 - ⏳ QA Lead - Ожидает ревью
 
 **Следующие шаги:**
+
 1. ✅ Epic создан и задокументирован
 2. 🔄 Story Manager: декомпозиция на детальные user stories
 3. ⏳ Tech Lead: архитектурное ревью

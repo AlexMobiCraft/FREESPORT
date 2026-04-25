@@ -42,54 +42,62 @@ frontend/src/
 #### UI Component Library (согласно front-end-spec.md)
 
 **Базовые компоненты:**
+
 ```typescript
 // Кнопки с B2B/B2C вариантами
 interface ButtonProps {
-  variant: 'primary' | 'secondary' | 'outline' | 'ghost' | 'b2b-bulk' | 'danger'
-  size: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-  mode: 'b2c' | 'b2b' | 'universal'
+  variant:
+    | "primary"
+    | "secondary"
+    | "outline"
+    | "ghost"
+    | "b2b-bulk"
+    | "danger";
+  size: "xs" | "sm" | "md" | "lg" | "xl";
+  mode: "b2c" | "b2b" | "universal";
 }
 
-// Карточки товаров с ролевым ценообразованием  
+// Карточки товаров с ролевым ценообразованием
 interface ProductCardProps {
-  mode: 'b2c' | 'b2b'
-  layout: 'grid' | 'list' | 'compact'
-  product: Product
-  showRRP?: boolean // Для B2B пользователей
-  showMSRP?: boolean // Для B2B пользователей
+  mode: "b2c" | "b2b";
+  layout: "grid" | "list" | "compact";
+  product: Product;
+  showRRP?: boolean; // Для B2B пользователей
+  showMSRP?: boolean; // Для B2B пользователей
 }
 
 // Фильтры и сортировка
 interface SortOptionsProps {
-  options: SortOption[]
-  currentSort: string
-  mode: 'b2c' | 'b2b'
+  options: SortOption[];
+  currentSort: string;
+  mode: "b2c" | "b2b";
 }
 ```
 
 **Административные компоненты:**
+
 ```typescript
 // Дашборд админ-панели
 interface AdminDashboardProps {
-  kpis: KPIData
-  alerts: AlertItem[]
-  integrationStatus: Integration1CStatus
-  systemMetrics: SystemMetrics
+  kpis: KPIData;
+  alerts: AlertItem[];
+  integrationStatus: Integration1CStatus;
+  systemMetrics: SystemMetrics;
 }
 
 // Модерация B2B заявок
 interface ModerationListProps {
-  applications: B2BApplication[]
-  filters: ModerationFilters
-  onApprove: (id: string, role: UserRole) => void
-  onReject: (id: string, reason: string) => void
+  applications: B2BApplication[];
+  filters: ModerationFilters;
+  onApprove: (id: string, role: UserRole) => void;
+  onReject: (id: string, reason: string) => void;
 }
 
 // Мониторинг интеграции с 1С
 interface Integration1CMonitorProps {
-  status: CircuitBreakerStatus
-  syncHistory: SyncLogEntry[]
-  onManualSync: (type: SyncType) => void
+  status: CircuitBreakerStatus;
+  syncHistory: SyncLogEntry[];
+  onManualSync: (type: SyncType) => void;
 }
 ```
 
@@ -184,3 +192,5 @@ backend/
 **Модульная организация views для масштабируемости:**
 
 ```python
+
+```

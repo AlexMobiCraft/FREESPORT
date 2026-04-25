@@ -5,6 +5,7 @@
 We follow a strict **Docker-first** development workflow. All services (Backend, Frontend, DB, Redis, Nginx) run inside containers. Do not install Node.js or Python on your host machine for running the project.
 
 **Primary References:**
+
 - [Local Docker Setup](../docs/deploy/LOCAL_DOCKER_SETUP.md) - Detailed setup guide.
 - [Docker Quick Reference](../docs/deploy/DOCKER_QUICK_REFERENCE.md) - Cheat sheet for common commands.
 
@@ -18,33 +19,37 @@ We follow a strict **Docker-first** development workflow. All services (Backend,
 ## Quick Start
 
 1. **Setup Environment**
+
    ```bash
    cp .env.example .env
    # Edit .env if needed (passwords must match docker-compose.yml)
    ```
 
 2. **Generate SSL Certs (Critical for Nginx)**
+
    ```bash
    # Linux/macOS
    ./scripts/server/create-ssl-certs.sh
-   
+
    # Windows (PowerShell)
    .\scripts\server\create-ssl-certs.ps1
    ```
 
 3. **Start Services**
+
    ```bash
    docker compose --env-file .env -f docker/docker-compose.yml up -d
    ```
 
 4. **Initialize Backend**
+
    ```bash
    # Migrate DB
    docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py migrate
-   
+
    # Collect Statics
    docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py collectstatic --no-input
-   
+
    # Create Admin (Optional)
    docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py createsuperuser
    ```
@@ -52,15 +57,19 @@ We follow a strict **Docker-first** development workflow. All services (Backend,
 ## Workflow
 
 ### Frontend Development
+
 Code changes in `frontend/src` are hot-reloaded automatically via the mounted volume.
+
 - **Logs:** `docker compose --env-file .env -f docker/docker-compose.yml logs -f frontend`
-- **Install Package:** 
+- **Install Package:**
   ```bash
   docker compose --env-file .env -f docker/docker-compose.yml exec frontend npm install <package>
   ```
 
 ### Backend Development
+
 Code changes in `backend/` auto-restart Gunicorn/Django dev server.
+
 - **Logs:** `docker compose --env-file .env -f docker/docker-compose.yml logs -f backend`
 - **Shell:** `docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py shell`
 - **Migrations:**
@@ -86,10 +95,12 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend pytest
 We use a unified shell script for server deployment. See [Detailed Deployment Guide](./deploy/README.md) for production setup.
 
 ### Quick Deployment (Server)
+
 1. SSH into server.
 2. Run `./scripts/deploy/deploy.sh`.
 
 ### Key References
+
 - [Docker Quick Reference](./deploy/DOCKER_QUICK_REFERENCE.md)
 - [Server Setup](./deploy/DOCKER_SETUP.md)
 - [Health Checks](./deploy/health-check.md)

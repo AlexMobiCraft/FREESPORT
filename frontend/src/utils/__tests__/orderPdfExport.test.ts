@@ -29,11 +29,17 @@ vi.mock('jspdf', () => ({
 }));
 
 // Мок fetch для загрузки шрифтов — новый Response на каждый вызов (MSW клонирует body)
-vi.stubGlobal('fetch', vi.fn().mockImplementation(() =>
-  Promise.resolve(new Response(new ArrayBuffer(0)))
-));
+vi.stubGlobal(
+  'fetch',
+  vi.fn().mockImplementation(() => Promise.resolve(new Response(new ArrayBuffer(0))))
+);
 
-import { getDeliveryMethodLabel, getPaymentMethodLabel, getPaymentStatusLabel, generateOrderPdf } from '../orderPdfExport';
+import {
+  getDeliveryMethodLabel,
+  getPaymentMethodLabel,
+  getPaymentStatusLabel,
+  generateOrderPdf,
+} from '../orderPdfExport';
 import type { Order } from '@/types/order';
 
 const baseOrder: Order = {

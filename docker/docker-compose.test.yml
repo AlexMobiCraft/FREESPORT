@@ -13,7 +13,7 @@ services:
     volumes:
       - test_postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"  # Другой порт чтобы не конфликтовать с основной БД
+      - "5433:5432" # Другой порт чтобы не конфликтовать с основной БД
     networks:
       - freesport-test-network
     healthcheck:
@@ -25,13 +25,13 @@ services:
       - /tmp
     shm_size: 256mb
 
-  # Redis для тестового кеширования  
+  # Redis для тестового кеширования
   redis:
     image: redis:7-alpine
     container_name: freesport-test-redis
     command: redis-server --appendonly no --save "" --requirepass redis123
     ports:
-      - "6380:6379"  # Другой порт чтобы не конфликтовать с основным Redis
+      - "6380:6379" # Другой порт чтобы не конфликтовать с основным Redis
     networks:
       - freesport-test-network
     healthcheck:
@@ -79,7 +79,8 @@ services:
     networks:
       - freesport-test-network
     # По умолчанию запускаем все тесты
-    command: ["pytest", "-v", "--cov=apps", "--cov-report=html", "--cov-report=term"]
+    command:
+      ["pytest", "-v", "--cov=apps", "--cov-report=html", "--cov-report=term"]
 
 volumes:
   test_postgres_data:

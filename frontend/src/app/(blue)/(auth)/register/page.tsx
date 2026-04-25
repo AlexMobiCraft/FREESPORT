@@ -9,15 +9,35 @@
 
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { RegisterForm } from '@/components/auth/RegisterForm';
+import { Spinner } from '@/components/ui/Spinner/Spinner';
+import { authSelectors } from '@/stores/authStore';
+import { isSafeRedirectUrl } from '@/utils/urlUtils';
 
 function RegisterFormContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const isAuthenticated = authSelectors.useIsAuthenticated();
   // Support both 'next' (Django standard) and 'redirect' (common pattern)
   const redirectUrl = searchParams.get('next') || searchParams.get('redirect') || undefined;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const target = isSafeRedirectUrl(redirectUrl) ? redirectUrl! : '/';
+      router.replace(target);
+    }
+  }, [isAuthenticated, redirectUrl, router]);
+
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-[var(--shadow-default)] p-8">

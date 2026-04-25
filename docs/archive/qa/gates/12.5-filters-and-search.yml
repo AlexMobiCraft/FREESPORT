@@ -61,9 +61,15 @@ nfr_validation:
 recommendations:
   immediate:
     - action: "Обновить тесты Chip: заменить bg-primary на bg-[#0060FF], rounded-md на rounded-2xl, duration-short на duration-[180ms], py-1.5 на py-1"
-      refs: ["frontend/src/components/ui/Chip/__tests__/Chip.test.tsx:31,163,178,185,246"]
+      refs:
+        [
+          "frontend/src/components/ui/Chip/__tests__/Chip.test.tsx:31,163,178,185,246",
+        ]
     - action: "Исправить тесты валидации PriceRangeSlider: проверить логику ограничения min/max"
-      refs: ["frontend/src/components/ui/PriceRangeSlider/__tests__/PriceRangeSlider.test.tsx:63-82"]
+      refs:
+        [
+          "frontend/src/components/ui/PriceRangeSlider/__tests__/PriceRangeSlider.test.tsx:63-82",
+        ]
   future:
     - action: "Рассмотреть использование useDebounce hook в SearchField вместо собственной реализации"
       refs: ["frontend/src/components/ui/SearchField/SearchField.tsx:36-53"]

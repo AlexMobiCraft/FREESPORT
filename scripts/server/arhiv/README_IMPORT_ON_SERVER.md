@@ -16,6 +16,7 @@
 ## Параметры скрипта
 
 ### Основные параметры
+
 - `ServerIP` - IP-адрес сервера (по умолчанию: `5.35.124.149`)
 - `User` - Пользователь SSH (по умолчанию: `root`)
 - `RemoteDataPath` - Путь к XML-файлам на сервере (по умолчанию: `/home/freesport/freesport/data/import_1c`)
@@ -23,6 +24,7 @@
 - `SshKeyPath` - Путь к SSH-ключу (по умолчанию: `C:\Users\38670\.ssh\id_ed25519`)
 
 ### Параметры импорта
+
 - `ChunkSize` - Размер пакета для импорта (по умолчанию: `500`)
 - `SkipBackup` - Пропустить создание резервной копии
 - `SkipMigrate` - Пропустить применение миграций
@@ -32,32 +34,41 @@
 ## Примеры использования
 
 ### Стандартный запуск
+
 ```powershell
 .\import_catalog_on_server.ps1
 ```
+
 Выполнит полный импорт с резервным копированием и миграциями.
 
 ### Тестовый запуск
+
 ```powershell
 .\import_catalog_on_server.ps1 -DryRun
 ```
+
 Проверит процесс импорта без изменения данных в базе.
 
 ### Пропуск резервного копирования
+
 ```powershell
 .\import_catalog_on_server.ps1 -SkipBackup
 ```
+
 Выполнит импорт без создания резервной копии.
 
 ### Указание пути для бэкапа
+
 ```powershell
 .\import_catalog_on_server.ps1 -BackupPath "/home/freesport/backups/catalog_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
 ```
 
 ### Изменение размера пакета
+
 ```powershell
 .\import_catalog_on_server.ps1 -ChunkSize 1000
 ```
+
 Увеличит размер пакета для ускорения импорта.
 
 ## Процесс выполнения
@@ -80,12 +91,14 @@
 ## Требования
 
 ### На сервере
+
 - Python и Django проект
 - PostgreSQL база данных
 - SSH доступ с ключевой аутентификацией
 - Установленные зависимости проекта
 
 ### На локальной машине
+
 - PowerShell 5.1 или выше
 - OpenSSH клиент
 - Доступ к SSH-ключу
@@ -93,6 +106,7 @@
 ## Устранение неполадок
 
 ### Ошибка соединения
+
 ```powershell
 # Проверьте доступность сервера
 ssh root@5.35.124.149
@@ -102,19 +116,23 @@ ssh-add -l
 ```
 
 ### Ошибка "Проект не найден"
+
 ```powershell
 # Проверьте путь к проекту на сервере
 ssh root@5.35.124.149 "ls -la /home/freesport/freesport"
 ```
 
 ### Ошибка "XML-файлы не найдены"
+
 ```powershell
 # Проверьте наличие файлов
 ssh root@5.35.124.149 "find /home/freesport/freesport/data/import_1c -name '*.xml' | wc -l"
 ```
 
 ### Ошибка импорта
+
 Проверьте логи Django на сервере:
+
 ```powershell
 ssh root@5.35.124.149 "cd /home/freesport/freesport && python manage.py import_products_from_1c --help"
 ```
@@ -122,6 +140,7 @@ ssh root@5.35.124.149 "cd /home/freesport/freesport && python manage.py import_p
 ## Мониторинг прогресса
 
 Скрипт показывает детальную информацию о каждом шаге:
+
 - Количество найденных XML-файлов
 - Примеры файлов для импорта
 - Статус резервного копирования

@@ -11,6 +11,7 @@ So that I can highlight key partners and improve navigation.
 ## Acceptance Criteria
 
 ### 1. Brand Model Updates
+
 - **Given** the existing `Brand` model in `apps/products/models.py`,
 - **When** the model is updated,
 - **Then** it includes an `image` field (`models.ImageField`) allowing uploads to `brands/`.
@@ -18,6 +19,7 @@ So that I can highlight key partners and improve navigation.
 - **And** the `__str__` method still returns the brand name.
 
 ### 2. Admin Interface Updates
+
 - **Given** the Django Admin interface for Brands,
 - **When** creating or editing a brand,
 - **Then** I see the fields `image` and `is_featured`.
@@ -25,6 +27,7 @@ So that I can highlight key partners and improve navigation.
 - **And** the list view includes a `list_filter` for `is_featured`.
 
 ### 3. Data Validation (Model Level)
+
 - **Given** I check "Show on Homepage" (`is_featured=True`) but do not upload an image,
 - **When** I try to save the brand (via Admin or Code),
 - **Then** the system raises a `ValidationError`: "Image is required for featured brands" (FR-03).
@@ -50,8 +53,9 @@ So that I can highlight key partners and improve navigation.
   - [x] Write unit test for `is_featured` default value
 
 ### Доработки по результатам ревью (AI)
+
 - [x] [MEDIUM] Добавить фильтрацию по `is_featured` в `BrandViewSet` (`apps/products/views.py`).
-- [x] [MEDIUM] Исправить опечатку в папке: `frontend/public/images/brends/` -> `brands/`. *(Уже корректно — папка `brands/` существует, `brends/` отсутствует)*
+- [x] [MEDIUM] Исправить опечатку в папке: `frontend/public/images/brends/` -> `brands/`. _(Уже корректно — папка `brands/` существует, `brends/` отсутствует)_
 - [x] [LOW] Добавить превью изображений в `BrandAdmin` (`apps/products/admin.py`) для улучшения UX.
 - [x] [REVIEW][MEDIUM] Удалить дублирующую логику генерации slug из `BrandSerializer.validate` (уже есть в модели)
 - [x] [REVIEW][MEDIUM] Документировать изменения во `frontend/src/types/api.ts` в File List и Dev Notes
@@ -65,11 +69,12 @@ So that I can highlight key partners and improve navigation.
 - [x] [AI-Review][MEDIUM] Обновить интерфейс `Brand` в `api.ts`: сделать `is_featured` обязательным полем. [frontend/src/types/api.ts]
 - [x] [AI-Review][LOW] Увеличить размер превью в `BrandAdmin.image_preview` (сейчас 30px). [backend/apps/products/admin.py]
 - [x] [AI-Review][LOW] Вынести фильтрацию активных брендов в кастомный Manager (`Brand.objects.active()`). [backend/apps/products/models.py]
-- [x] [AI-Review][LOW] Исправить согласованность verbose_name в `Brand1CMapping`. [backend/apps/products/models.py] *(Уже корректно — verbose_name согласован с Attribute1CMapping)*
+- [x] [AI-Review][LOW] Исправить согласованность verbose*name в `Brand1CMapping`. [backend/apps/products/models.py] *(Уже корректно — verbose*name согласован с Attribute1CMapping)*
 
 ## Dev Notes
 
 ### Architecture & Patterns
+
 - **Module**: `apps/products`
 - **Model**: `Brand` (likely in `apps/products/models.py`)
 - **Admin**: `BrandAdmin` (likely in `apps/products/admin.py`)
@@ -77,22 +82,26 @@ So that I can highlight key partners and improve navigation.
 - **Image Handling**: Ensure `Pillow` is installed (it should be). Images should be uploaded to `MEDIA_ROOT/brands/`.
 
 ### Source Tree Locations
+
 - `backend/apps/products/models.py`
 - `backend/apps/products/admin.py`
 - `backend/apps/products/tests/test_brand_model.py` — unit tests for Brand model (Story 33.1)
 - `frontend/src/types/api.ts` — Brand interface updated: added `image`, `is_featured` fields
 
 ### Testing Standards
+
 - Use `pytest` with `pytest-django`.
 - Run tests via Docker: `docker compose ... exec backend pytest apps/products/tests/`
 - Factories: Update `BrandFactory` in `apps/products/tests/factories.py` (if exists) or create one to support new fields.
 
 ### Commands
+
 - Make migrations: `docker compose ... exec backend python manage.py makemigrations`
 - Migrate: `docker compose ... exec backend python manage.py migrate`
 - Run tests: `docker compose ... exec backend pytest apps/products/`
 
 ## References
+
 - [Epics.md: Epic 33](/docs/epics.md#epic-33-brands-block-implementation)
 - [Architecture.md: Django Apps Structure](/docs/architecture.md#django-app-structure)
 

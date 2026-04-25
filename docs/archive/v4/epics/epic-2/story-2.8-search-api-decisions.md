@@ -45,7 +45,7 @@
 
 **Реализация:**
 
-```python
+````python
 def filter_search(self, queryset, name, value):
     # PostgreSQL full-text search с русскоязычной конфигурацией
     search_vector = (
@@ -82,27 +82,30 @@ class ProductFilter(django_filters.FilterSet):
         method='filter_search',
         help_text="Полнотекстовый поиск по названию, описанию, артикулу"
     )
-    
+
     def filter_search(self, queryset, name, value):
         # Реализация поиска
-```
+````
 
 ### 1.3 Приоритизация результатов поиска
 
 **Решение:** Трехуровневая система приоритизации с весами полей.
 
 **Обоснование:**
+
 - Пользователи ожидают, что точные совпадения в названии будут выше
 - Артикул имеет высокий приоритет для B2B пользователей
 - Описание имеет низший приоритет как дополнительная информация
 
 **Приоритеты:**
+
 1. **Название товара (weight='A')** - наивысший приоритет
 2. **Артикул (weight='A')** - равный приоритет с названием
-3. **Краткое описание (weight='B')** - средний приоритет  
+3. **Краткое описание (weight='B')** - средний приоритет
 4. **Полное описание (weight='C')** - низший приоритет
 
 **Реализация PostgreSQL:**
+
 ```python
 search_vector = (
     SearchVector('name', weight='A', config='russian') +
@@ -119,23 +122,26 @@ search_vector = (
 **Решение:** Использование русскоязычной конфигурации ('russian') для морфологической обработки.
 
 **Обоснование:**
+
 - Поддержка склонений и морфологических форм русских слов
 - Автоматический stemming для лучшего качества поиска
 - Встроенная поддержка в PostgreSQL без дополнительных зависимостей
 
 **Технические детали:**
+
 - `config='russian'` для SearchVector и SearchQuery
 - `ts_rank` для ранжирования результатов по релевантности
 - GIN индексы для оптимизации производительности
 
 **Пример поискового запроса:**
+
 ```sql
 SELECT *, ts_rank(
     to_tsvector('russian', name || ' ' || description || ' ' || sku),
     to_tsquery('russian', 'футбольные')
 ) as rank
-FROM products_product 
-WHERE to_tsvector('russian', name || ' ' || description || ' ' || sku) 
+FROM products_product
+WHERE to_tsvector('russian', name || ' ' || description || ' ' || sku)
       @@ to_tsquery('russian', 'футбольные')
 ORDER BY rank DESC, created_at DESC;
 ```
@@ -145,26 +151,29 @@ ORDER BY rank DESC, created_at DESC;
 **Решение:** Многоуровневая валидация с защитой от XSS и оптимизацией производительности.
 
 **Уровни валидации:**
+
 1. **Длина запроса:** 2-100 символов для оптимальной производительности
 2. **XSS защита:** Блокировка HTML тегов `<` и `>`
 3. **Пустые запросы:** Возврат всех товаров для удобства пользователей
 4. **SQL injection:** Автоматическая защита через Django ORM
 
 **Реализация:**
+
 ```python
 def filter_search(self, queryset, name, value):
     if not value:
         return queryset
-    
+
     search_query = value.strip()
     if len(search_query) > 100 or '<' in search_query or '>' in search_query:
         return queryset.none()
-    
+
     if len(search_query) < 2:
         return queryset
 ```
 
 **Обоснование решений:**
+
 - 100 символов - баланс между гибкостью и производительностью
 - Минимум 2 символа предотвращает случайные нажатия
 - XSS защита критична для безопасности
@@ -175,22 +184,24 @@ def filter_search(self, queryset, name, value):
 **Решение:** Создание специализированных индексов для разных типов БД.
 
 **PostgreSQL индексы:**
+
 ```sql
 -- GIN индекс для полнотекстового поиска
-CREATE INDEX products_search_gin_idx ON products_product 
-USING GIN(to_tsvector('russian', 
-COALESCE(name, '') || ' ' || COALESCE(short_description, '') || ' ' || 
+CREATE INDEX products_search_gin_idx ON products_product
+USING GIN(to_tsvector('russian',
+COALESCE(name, '') || ' ' || COALESCE(short_description, '') || ' ' ||
 COALESCE(description, '') || ' ' || COALESCE(sku, '')));
 
 -- Составные индексы для комбинирования с фильтрами
-CREATE INDEX products_search_category_idx ON products_product 
+CREATE INDEX products_search_category_idx ON products_product
 (category_id, is_active) WHERE name IS NOT NULL;
 
-CREATE INDEX products_search_brand_idx ON products_product 
+CREATE INDEX products_search_brand_idx ON products_product
 (brand_id, is_active) WHERE name IS NOT NULL;
 ```
 
 **Обоснование:**
+
 - GIN индексы оптимальны для full-text search в PostgreSQL
 - Составные индексы ускоряют комбинированные запросы
 - Условие `WHERE name IS NOT NULL` исключает некорректные записи
@@ -202,6 +213,7 @@ CREATE INDEX products_search_brand_idx ON products_product
 **Решение:** Трехуровневое тестирование - Unit, Integration, Functional.
 
 **Unit тесты (12 тестов):**
+
 - Валидация поисковых запросов (пустые, короткие, длинные, XSS)
 - Поиск по разным полям (название, артикул, описание)
 - Регистронезависимый поиск
@@ -210,6 +222,7 @@ CREATE INDEX products_search_brand_idx ON products_product
 - Исключение неактивных товаров
 
 **Integration тесты (19 тестов):**
+
 - API endpoints с реальными HTTP запросами
 - Комбинирование search с фильтрами (категория, бренд, цена)
 - Ролевое ценообразование в результатах поиска
@@ -218,6 +231,7 @@ CREATE INDEX products_search_brand_idx ON products_product
 - Error handling
 
 **Functional тесты:**
+
 - Демонстрация поиска с реальными данными
 - End-to-end сценарии использования
 - Проверка производительности
@@ -227,21 +241,23 @@ CREATE INDEX products_search_brand_idx ON products_product
 **Решение:** Минимальное использование mock-объектов, акцент на реальные данные.
 
 **Обоснование:**
+
 - Unit тесты используют реальные модели Django с тестовой БД
 - Mock только для внешних зависимостей (request объекты)
 - Integration тесты работают с полным API stack
 - Функциональные тесты с реальными HTTP запросами
 
 **Пример тестирования:**
+
 ```python
 def test_search_by_name(self):
     """Тест поиска по названию товара"""
     queryset = Product.objects.all()
     request = Mock()
-    
+
     product_filter = ProductFilter(request=request)
     result = product_filter.filter_search(queryset, 'search', 'Nike')
-    
+
     result_names = [p.name for p in result]
     self.assertIn("Nike Phantom GT2 Elite FG", result_names)
 ```
@@ -253,12 +269,14 @@ def test_search_by_name(self):
 **Решение:** Автоматическое применение ролевых цен в результатах поиска без изменения search логики.
 
 **Обоснование:**
+
 - Search возвращает QuerySet, который обрабатывается существующими serializers
 - ProductListSerializer автоматически применяет ролевое ценообразование
 - Нет дублирования логики ценообразования
 - Консистентность цен во всех частях API
 
 **Интеграция:**
+
 ```python
 # Search возвращает QuerySet
 search_results = product_filter.filter_search(queryset, 'search', 'Nike')
@@ -272,12 +290,14 @@ serializer = ProductListSerializer(search_results, many=True, context={'request'
 **Решение:** Полная интеграция через django-filter FilterSet без конфликтов.
 
 **Преимущества:**
+
 - Автоматическое комбинирование: `?search=Nike&category_id=1&min_price=1000`
 - Единая система валидации всех параметров
 - Консистентное API поведение
 - Совместимость с DRF пагинацией
 
 **Пример комбинированного запроса:**
+
 ```python
 # GET /api/v1/products/?search=Nike&category_id=1&brand=nike&min_price=5000&max_price=20000
 # Автоматически комбинирует все фильтры
@@ -288,10 +308,11 @@ serializer = ProductListSerializer(search_results, many=True, context={'request'
 **Решение:** Расширение существующего OpenAPI описания Products ViewSet.
 
 **Обновления документации:**
+
 ```python
 OpenApiParameter(
-    'search', 
-    OpenApiTypes.STR, 
+    'search',
+    OpenApiTypes.STR,
     description='Полнотекстовый поиск по названию, описанию, артикулу. '
                'Поддерживает русский язык, ранжирование по релевантности. '
                'Мин. 2 символа, макс. 100'
@@ -299,6 +320,7 @@ OpenApiParameter(
 ```
 
 **Интеграция в Swagger UI:**
+
 - Параметр search добавлен в список фильтров
 - Подробное описание возможностей
 - Примеры использования
@@ -311,12 +333,14 @@ OpenApiParameter(
 **Решение:** Проактивная оптимизация для каталогов 10k+ товаров.
 
 **Меры оптимизации:**
+
 - Специализированные индексы для поиска
 - Ограничение длины поисковых запросов
 - Эффективные SQL запросы с минимальным overhead
 - Готовность к добавлению кэширования (Redis)
 
 **Performance метрики:**
+
 - Время ответа: <500ms для тестовых данных
 - Память: минимальное потребление через QuerySet lazy evaluation
 - SQL запросы: оптимизированы с использованием индексов
@@ -326,12 +350,14 @@ OpenApiParameter(
 **Решение:** Подготовка к интеграции поисковой аналитики.
 
 **Готовность к мониторингу:**
+
 - Структурированные логи поисковых запросов
 - Метрики популярных поисковых фраз
 - Performance мониторинг времени ответа
 - Error tracking для некорректных запросов
 
 **Будущие улучшения:**
+
 ```python
 # Потенциальное логирование поисковых запросов
 import logging
@@ -347,12 +373,14 @@ def filter_search(self, queryset, name, value):
 **Решение:** Архитектура спроектирована для будущих улучшений.
 
 **Возможности расширения:**
+
 - Добавление синонимов и автокоррекции
 - Интеграция с Elasticsearch для advanced поиска
 - Персонализированное ранжирование результатов
 - Поиск с автодополнением (autocomplete)
 
 **Архитектурная готовность:**
+
 - Модульная структура позволяет легко заменить search backend
 - Django-filter integration обеспечивает гибкость
 - Database-agnostic подход упрощает миграцию
@@ -362,6 +390,7 @@ def filter_search(self, queryset, name, value):
 ### 6.1 Краткосрочные планы (1-2 месяца)
 
 **Приоритетные улучшения:**
+
 1. **Автодополнение поиска** - suggestions API для улучшения UX
 2. **Поисковая аналитика** - сбор статистики популярных запросов
 3. **Кэширование результатов** - Redis cache для частых запросов
@@ -370,6 +399,7 @@ def filter_search(self, queryset, name, value):
 ### 6.2 Среднесрочные планы (3-6 месяцев)
 
 **Расширенные возможности:**
+
 1. **Elasticsearch интеграция** - для advanced поиска и аналитики
 2. **Faceted search** - категории, бренды, цены как фильтры результатов
 3. **Персонализация** - ранжирование на основе истории пользователя
@@ -378,6 +408,7 @@ def filter_search(self, queryset, name, value):
 ### 6.3 Долгосрочные планы (6-12 месяцев)
 
 **Инновационные решения:**
+
 1. **AI-powered поиск** - семантический поиск с ML
 2. **Голосовой поиск** - интеграция с браузерными API
 3. **Поиск по описанию** - "красные футбольные бутсы размер 42"
@@ -391,7 +422,7 @@ Search API для платформы FREESPORT представляет собо
 ✅ **Функциональная полнота** - полнотекстовый поиск с русскоязычной поддержкой  
 ✅ **Техническое совершенство** - PostgreSQL FTS, валидация, безопасность  
 ✅ **Интеграционная готовность** - совместимость с фильтрами и ролевым ценообразованием  
-✅ **Производственная зрелость** - оптимизация, мониторинг, масштабируемость  
+✅ **Производственная зрелость** - оптимизация, мониторинг, масштабируемость
 
 Все решения задокументированы, протестированы и готовы к долгосрочному сопровождению и развитию.
 

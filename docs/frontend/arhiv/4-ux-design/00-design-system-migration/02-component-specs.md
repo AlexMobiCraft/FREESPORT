@@ -11,13 +11,13 @@
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricButton` | `src/components/ui/Button/ElectricButton.tsx` |
-| **Geometry** | Skewed `-12deg` | Container transform |
-| **Text** | Counter-skewed `12deg` | To appear upright |
-| **Typography** | `Roboto Condensed`, Uppercase | Bold weight |
-| **Border Radius** | `0px` | Strict |
+| Property          | Value                         | Notes                                         |
+| ----------------- | ----------------------------- | --------------------------------------------- |
+| **Component**     | `ElectricButton`              | `src/components/ui/Button/ElectricButton.tsx` |
+| **Geometry**      | Skewed `-12deg`               | Container transform                           |
+| **Text**          | Counter-skewed `12deg`        | To appear upright                             |
+| **Typography**    | `Roboto Condensed`, Uppercase | Bold weight                                   |
+| **Border Radius** | `0px`                         | Strict                                        |
 
 ### Visual Variants
 
@@ -40,14 +40,14 @@
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricInput` | `src/components/ui/Input/ElectricInput.tsx` |
-| **Geometry** | **Rectangular (0deg)** | NO skew for readability |
-| **Border** | 1px Solid `var(--border-default)` | Dark Gray |
-| **Background** | Transparent | |
-| **Focus** | Border `var(--color-primary)` | Orange focus ring |
-| **Typography** | `Inter` (Body) | |
+| Property       | Value                             | Notes                                       |
+| -------------- | --------------------------------- | ------------------------------------------- |
+| **Component**  | `ElectricInput`                   | `src/components/ui/Input/ElectricInput.tsx` |
+| **Geometry**   | **Rectangular (0deg)**            | NO skew for readability                     |
+| **Border**     | 1px Solid `var(--border-default)` | Dark Gray                                   |
+| **Background** | Transparent                       |                                             |
+| **Focus**      | Border `var(--color-primary)`     | Orange focus ring                           |
+| **Typography** | `Inter` (Body)                    |                                             |
 
 ---
 
@@ -55,13 +55,13 @@
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricCheckbox` | `src/components/ui/Checkbox/ElectricCheckbox.tsx` |
-| **Container** | Skewed `-12deg` | 20x20px |
-| **Checkmark** | Counter-skewed `12deg` | Black color |
-| **Active State** | Orange Background | Filled when checked |
-| **Label** | **Straight (0deg)** | Inter font |
+| Property         | Value                  | Notes                                             |
+| ---------------- | ---------------------- | ------------------------------------------------- |
+| **Component**    | `ElectricCheckbox`     | `src/components/ui/Checkbox/ElectricCheckbox.tsx` |
+| **Container**    | Skewed `-12deg`        | 20x20px                                           |
+| **Checkmark**    | Counter-skewed `12deg` | Black color                                       |
+| **Active State** | Orange Background      | Filled when checked                               |
+| **Label**        | **Straight (0deg)**    | Inter font                                        |
 
 ---
 
@@ -69,14 +69,14 @@
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricProductCard` | `src/components/ui/ProductCard` |
-| **Structure** | Vertical Layout | |
-| **Image** | **Strictly Square (1:1)** | `aspect-square`, `object-fit: cover` |
-| **Interaction** | **Physical Lift** | `hover:-translate-y-[5px]` |
-| **Price Tag** | Skewed `-12deg` | Roboto Condensed, Bold, Orange |
-| **Actions** | Always Visible | "Add to Cart" + "Wishlist" |
+| Property        | Value                     | Notes                                |
+| --------------- | ------------------------- | ------------------------------------ |
+| **Component**   | `ElectricProductCard`     | `src/components/ui/ProductCard`      |
+| **Structure**   | Vertical Layout           |                                      |
+| **Image**       | **Strictly Square (1:1)** | `aspect-square`, `object-fit: cover` |
+| **Interaction** | **Physical Lift**         | `hover:-translate-y-[5px]`           |
+| **Price Tag**   | Skewed `-12deg`           | Roboto Condensed, Bold, Orange       |
+| **Actions**     | Always Visible            | "Add to Cart" + "Wishlist"           |
 
 ### Interaction Details
 
@@ -93,13 +93,13 @@ On hover:
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricToast` | `src/components/ui/Toast/ElectricToast.tsx` |
-| **Geometry** | Skewed `-12deg` | |
-| **Animation In** | `slideInRight` (180ms) | From right edge |
-| **Animation Out** | `slideOutRight` (280ms) | To right edge |
-| **Position** | Top Right | Fixed, z-index 50 |
+| Property          | Value                   | Notes                                       |
+| ----------------- | ----------------------- | ------------------------------------------- |
+| **Component**     | `ElectricToast`         | `src/components/ui/Toast/ElectricToast.tsx` |
+| **Geometry**      | Skewed `-12deg`         |                                             |
+| **Animation In**  | `slideInRight` (180ms)  | From right edge                             |
+| **Animation Out** | `slideOutRight` (280ms) | To right edge                               |
+| **Position**      | Top Right               | Fixed, z-index 50                           |
 
 ---
 
@@ -107,13 +107,13 @@ On hover:
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricSpinner` | `src/components/ui/Spinner/ElectricSpinner.tsx` |
-| **Structure** | Parallelogram `-12deg` | No border, no background |
-| **Animation** | Sequential Bar Fill | Bars appear one by one |
-| **Duration** | 1.2s per cycle | Loop |
-| **Sizes** | sm, md, lg | Bar count varies (5, 6, 7) |
+| Property      | Value                  | Notes                                           |
+| ------------- | ---------------------- | ----------------------------------------------- |
+| **Component** | `ElectricSpinner`      | `src/components/ui/Spinner/ElectricSpinner.tsx` |
+| **Structure** | Parallelogram `-12deg` | No border, no background                        |
+| **Animation** | Sequential Bar Fill    | Bars appear one by one                          |
+| **Duration**  | 1.2s per cycle         | Loop                                            |
+| **Sizes**     | sm, md, lg             | Bar count varies (5, 6, 7)                      |
 
 ---
 
@@ -121,13 +121,13 @@ On hover:
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricBreadcrumbs` | `src/components/ui/Breadcrumb` |
-| **Geometry** | **Rectangular (0deg)** | No skew for links |
-| **Typography** | `Inter` 14px | |
-| **Colors** | Secondary (Default) | Primary (Hover/Active) |
-| **Separator** | Chevron `>` | Gray color |
+| Property       | Value                  | Notes                          |
+| -------------- | ---------------------- | ------------------------------ |
+| **Component**  | `ElectricBreadcrumbs`  | `src/components/ui/Breadcrumb` |
+| **Geometry**   | **Rectangular (0deg)** | No skew for links              |
+| **Typography** | `Inter` 14px           |                                |
+| **Colors**     | Secondary (Default)    | Primary (Hover/Active)         |
+| **Separator**  | Chevron `>`            | Gray color                     |
 
 ---
 
@@ -175,25 +175,28 @@ Grid containers inside flex layouts require:
 ```tsx
 <div className="flex gap-8">
   <aside className="w-[280px] flex-shrink-0">...</aside>
-  <main className="flex-1 min-w-0"> {/* <-- CRITICAL */}
+  <main className="flex-1 min-w-0">
+    {" "}
+    {/* <-- CRITICAL */}
     <div className="grid grid-cols-4 gap-2">...</div>
   </main>
 </div>
 ```
 
 ---
-  height: 18px;
-  width: 18px;
-  background: var(--color-primary);
-  border: 2px solid var(--color-text-inverse);
-  cursor: pointer;
+
+height: 18px;
+width: 18px;
+background: var(--color-primary);
+border: 2px solid var(--color-text-inverse);
+cursor: pointer;
 }
 
 input[type='range']::-webkit-slider-thumb:hover {
-  background: var(--color-text-primary);
+background: var(--color-text-primary);
 }
 
-```
+````
 
 ### React Component
 
@@ -258,7 +261,7 @@ interface ElectricSidebarProps {
   priceRange={{ min: 1000, max: 50000 }}
   onApply={() => console.log('Apply filters')}
 />
-```
+````
 
 ### Checkbox Behavior (Updated 2026-01-02)
 
@@ -279,22 +282,28 @@ interface ElectricSidebarProps {
 
 ```tsx
 // Local state for checkboxes when no external handler is provided
-const [localSelectedFilters, setLocalSelectedFilters] = useState<Record<string, string[]>>(
-  selectedFilters
-);
+const [localSelectedFilters, setLocalSelectedFilters] =
+  useState<Record<string, string[]>>(selectedFilters);
 
-const handleCheckboxChange = (groupId: string, optionId: string, checked: boolean) => {
+const handleCheckboxChange = (
+  groupId: string,
+  optionId: string,
+  checked: boolean,
+) => {
   if (onFilterChange) {
     // Use external handler if provided
     onFilterChange(groupId, optionId, checked);
   } else {
     // Use local state
-    setLocalSelectedFilters(prev => {
+    setLocalSelectedFilters((prev) => {
       const currentGroup = prev[groupId] || [];
       if (checked) {
         return { ...prev, [groupId]: [...currentGroup, optionId] };
       } else {
-        return { ...prev, [groupId]: currentGroup.filter(id => id !== optionId) };
+        return {
+          ...prev,
+          [groupId]: currentGroup.filter((id) => id !== optionId),
+        };
       }
     });
   }
@@ -345,13 +354,13 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ### Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `title` | `string` | - | Main heading text |
-| `label` | `string` | - | Small label above title |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Text size |
-| `align` | `'left' \| 'center'` | `'left'` | Alignment |
-| `showUnderline` | `boolean` | `true` | Visibility of orange underline |
+| Prop            | Type                   | Default  | Description                    |
+| --------------- | ---------------------- | -------- | ------------------------------ |
+| `title`         | `string`               | -        | Main heading text              |
+| `label`         | `string`               | -        | Small label above title        |
+| `size`          | `'sm' \| 'md' \| 'lg'` | `'md'`   | Text size                      |
+| `align`         | `'left' \| 'center'`   | `'left'` | Alignment                      |
+| `showUnderline` | `boolean`              | `true`   | Visibility of orange underline |
 
 ---
 
@@ -377,7 +386,7 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 }
 
 .header-logo {
-  font-family: 'Roboto Condensed', sans-serif;
+  font-family: "Roboto Condensed", sans-serif;
   font-weight: 900;
   font-size: 24px;
   color: var(--color-text-primary);
@@ -390,7 +399,7 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 }
 
 .header-nav-link {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 500;
   color: var(--color-text-secondary);
   text-transform: uppercase;
@@ -471,7 +480,7 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ```css
 .electric-breadcrumbs {
-  font-family: var(--font-body);  /* Inter */
+  font-family: var(--font-body); /* Inter */
   font-size: 14px;
   /* NO SKEW - breadcrumbs stay straight for readability */
 }
@@ -584,12 +593,12 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ### Variants
 
-| Variant | Border Color | Icon |
-|---------|--------------|------|
-| success | `--color-success` | CheckCircle |
-| error | `--color-danger` | XCircle |
+| Variant | Border Color      | Icon          |
+| ------- | ----------------- | ------------- |
+| success | `--color-success` | CheckCircle   |
+| error   | `--color-danger`  | XCircle       |
 | warning | `--color-warning` | AlertTriangle |
-| info | `--color-primary` | Info |
+| info    | `--color-primary` | Info          |
 
 ### Стилизация
 
@@ -749,11 +758,11 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ### Sizes
 
-| Size | Dimensions |
-|------|------------|
-| sm | 20px × 20px |
-| md | 32px × 32px |
-| lg | 48px × 48px |
+| Size | Dimensions  |
+| ---- | ----------- |
+| sm   | 20px × 20px |
+| md   | 32px × 32px |
+| lg   | 48px × 48px |
 
 ### Стилизация
 
@@ -842,12 +851,12 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ### Specifications
 
-| Property | Value | Notes |
-|----------|-------|-------|
-| **Component** | `ElectricSidebar` | `src/components/ui/Sidebar/ElectricSidebar.tsx` |
-| **Headers** | Skewed `-12deg` | Uppercase, Border-bottom |
-| **Filters** | Checkbox / Price | |
-| **Price Slider** | **Dual Thumb** | Skewed `-12deg`. Min/Max configurable. |
+| Property         | Value             | Notes                                           |
+| ---------------- | ----------------- | ----------------------------------------------- |
+| **Component**    | `ElectricSidebar` | `src/components/ui/Sidebar/ElectricSidebar.tsx` |
+| **Headers**      | Skewed `-12deg`   | Uppercase, Border-bottom                        |
+| **Filters**      | Checkbox / Price  |                                                 |
+| **Price Slider** | **Dual Thumb**    | Skewed `-12deg`. Min/Max configurable.          |
 
 ### Price Range Detail (PriceRangeSlider)
 
@@ -861,7 +870,7 @@ import ElectricSectionHeader from '@/components/ui/SectionHeader/ElectricSection
 
 ```css
 .sidebar-header {
-  font-family: 'Roboto Condensed';
+  font-family: "Roboto Condensed";
   transform: skewX(-12deg);
   border-bottom: 1px solid var(--border-default);
 }

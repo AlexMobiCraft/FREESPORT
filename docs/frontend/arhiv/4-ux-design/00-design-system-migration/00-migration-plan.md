@@ -17,13 +17,13 @@
 
 ### Ключевые принципы редизайна
 
-| Аспект | Текущий дизайн | Electric Orange |
-|--------|----------------|-----------------|
-| **Тема** | Light theme (#FFFFFF) | Dark theme (#0F0F0F) |
-| **Primary** | Blue (#0060FF) | Electric Orange (#FF6B00) |
-| **Стиль** | Classic Modern | Digital Brutalism |
-| **Геометрия** | Rounded (4-6px) | Sharp edges + Skew (-12deg) |
-| **Typography** | Inter | Roboto Condensed (display) + Inter (body) |
+| Аспект         | Текущий дизайн        | Electric Orange                           |
+| -------------- | --------------------- | ----------------------------------------- |
+| **Тема**       | Light theme (#FFFFFF) | Dark theme (#0F0F0F)                      |
+| **Primary**    | Blue (#0060FF)        | Electric Orange (#FF6B00)                 |
+| **Стиль**      | Classic Modern        | Digital Brutalism                         |
+| **Геометрия**  | Rounded (4-6px)       | Sharp edges + Skew (-12deg)               |
+| **Typography** | Inter                 | Roboto Condensed (display) + Inter (body) |
 
 ---
 
@@ -31,42 +31,42 @@
 
 ### Приоритет 1: Core Pages (Критический путь пользователя)
 
-| # | Страница | Путь | Компоненты | Сложность |
-|---|----------|------|------------|-----------|
-| 1.1 | **Главная** | `/` (page.tsx) | Hero, Categories, ProductSlider, NewsSection | 🔴 Высокая |
-| 1.2 | **Каталог** | `/catalog` | Filters, ProductGrid, Pagination, Breadcrumbs | 🔴 Высокая |
-| 1.3 | **Карточка товара** | `/product/[slug]` | Gallery, ProductInfo, AddToCart, Related | 🟡 Средняя |
-| 1.4 | **Корзина** | `/cart` | CartItems, CartSummary, PromoCode | 🟡 Средняя |
-| 1.5 | **Checkout** | `/checkout` | Steps, Forms, OrderSummary | 🔴 Высокая |
+| #   | Страница            | Путь              | Компоненты                                    | Сложность  |
+| --- | ------------------- | ----------------- | --------------------------------------------- | ---------- |
+| 1.1 | **Главная**         | `/` (page.tsx)    | Hero, Categories, ProductSlider, NewsSection  | 🔴 Высокая |
+| 1.2 | **Каталог**         | `/catalog`        | Filters, ProductGrid, Pagination, Breadcrumbs | 🔴 Высокая |
+| 1.3 | **Карточка товара** | `/product/[slug]` | Gallery, ProductInfo, AddToCart, Related      | 🟡 Средняя |
+| 1.4 | **Корзина**         | `/cart`           | CartItems, CartSummary, PromoCode             | 🟡 Средняя |
+| 1.5 | **Checkout**        | `/checkout`       | Steps, Forms, OrderSummary                    | 🔴 Высокая |
 
 ### Приоритет 2: Account Pages (Личный кабинет)
 
-| # | Страница | Путь | Компоненты | Сложность |
-|---|----------|------|------------|-----------|
-| 2.1 | **Профиль** | `/profile` | ProfileForm, PasswordChange | 🟢 Низкая |
-| 2.2 | **История заказов** | `/profile/orders` | OrderList, OrderCard | 🟡 Средняя |
-| 2.3 | **Адреса доставки** | `/profile/addresses` | AddressCard, AddressForm | 🟢 Низкая |
-| 2.4 | **Избранное** | `/profile/favorites` | ProductGrid (reuse) | 🟢 Низкая |
-| 2.5 | **B2B Профиль** | `/profile/company` | CompanyForm, Requisites | 🟡 Средняя |
+| #   | Страница            | Путь                 | Компоненты                  | Сложность  |
+| --- | ------------------- | -------------------- | --------------------------- | ---------- |
+| 2.1 | **Профиль**         | `/profile`           | ProfileForm, PasswordChange | 🟢 Низкая  |
+| 2.2 | **История заказов** | `/profile/orders`    | OrderList, OrderCard        | 🟡 Средняя |
+| 2.3 | **Адреса доставки** | `/profile/addresses` | AddressCard, AddressForm    | 🟢 Низкая  |
+| 2.4 | **Избранное**       | `/profile/favorites` | ProductGrid (reuse)         | 🟢 Низкая  |
+| 2.5 | **B2B Профиль**     | `/profile/company`   | CompanyForm, Requisites     | 🟡 Средняя |
 
 ### Приоритет 3: Auth Pages
 
-| # | Страница | Путь | Компоненты | Сложность |
-|---|----------|------|------------|-----------|
-| 3.1 | **Вход** | `/(auth)/login` | LoginForm | 🟢 Низкая |
-| 3.2 | **Регистрация** | `/(auth)/register` | RegisterForm | 🟢 Низкая |
-| 3.3 | **B2B Регистрация** | `/(auth)/register-b2b` | B2BRegisterForm | 🟡 Средняя |
-| 3.4 | **Сброс пароля** | `/(auth)/reset-password` | ResetForm | 🟢 Низкая |
+| #   | Страница            | Путь                     | Компоненты      | Сложность  |
+| --- | ------------------- | ------------------------ | --------------- | ---------- |
+| 3.1 | **Вход**            | `/(auth)/login`          | LoginForm       | 🟢 Низкая  |
+| 3.2 | **Регистрация**     | `/(auth)/register`       | RegisterForm    | 🟢 Низкая  |
+| 3.3 | **B2B Регистрация** | `/(auth)/register-b2b`   | B2BRegisterForm | 🟡 Средняя |
+| 3.4 | **Сброс пароля**    | `/(auth)/reset-password` | ResetForm       | 🟢 Низкая  |
 
 ### Приоритет 4: Static & Content Pages
 
-| # | Страница | Путь | Компоненты | Сложность |
-|---|----------|------|------------|-----------|
-| 4.1 | **О компании** | `/about` | ContentBlock, Stats | 🟢 Низкая |
-| 4.2 | **Доставка** | `/delivery` | InfoCards, Teaser | 🟢 Низкая |
-| 4.3 | **Партнеры** | `/partners` | PartnersGrid | 🟢 Низкая |
-| 4.4 | **Новости** | `/news` | NewsGrid, NewsCard | 🟡 Средняя |
-| 4.5 | **Блог** | `/blog` | BlogGrid, BlogCard | 🟡 Средняя |
+| #   | Страница       | Путь        | Компоненты          | Сложность  |
+| --- | -------------- | ----------- | ------------------- | ---------- |
+| 4.1 | **О компании** | `/about`    | ContentBlock, Stats | 🟢 Низкая  |
+| 4.2 | **Доставка**   | `/delivery` | InfoCards, Teaser   | 🟢 Низкая  |
+| 4.3 | **Партнеры**   | `/partners` | PartnersGrid        | 🟢 Низкая  |
+| 4.4 | **Новости**    | `/news`     | NewsGrid, NewsCard  | 🟡 Средняя |
+| 4.5 | **Блог**       | `/blog`     | BlogGrid, BlogCard  | 🟡 Средняя |
 
 ---
 
@@ -125,32 +125,32 @@ frontend/src/components/home/
 
 ### Backgrounds
 
-| Текущий | Electric Orange |
-|---------|-----------------|
-| `#FFFFFF` (body) | `#0F0F0F` |
-| `#F8FAFC` (subtle) | `#1A1A1A` |
-| `#E3E8F2` (muted) | `#333333` |
+| Текущий            | Electric Orange |
+| ------------------ | --------------- |
+| `#FFFFFF` (body)   | `#0F0F0F`       |
+| `#F8FAFC` (subtle) | `#1A1A1A`       |
+| `#E3E8F2` (muted)  | `#333333`       |
 
 ### Primary Colors
 
-| Текущий | Electric Orange |
-|---------|-----------------|
-| `#0060FF` (primary) | `#FF6B00` |
+| Текущий                    | Electric Orange       |
+| -------------------------- | --------------------- |
+| `#0060FF` (primary)        | `#FF6B00`             |
 | `#E7F3FF` (primary-subtle) | `rgba(255,107,0,0.1)` |
 
 ### Text Colors
 
-| Текущий | Electric Orange |
-|---------|-----------------|
-| `#1B1B1B` (text-primary) | `#FFFFFF` |
-| `#4B5C7A` (text-secondary) | `#A0A0A0` |
+| Текущий                    | Electric Orange |
+| -------------------------- | --------------- |
+| `#1B1B1B` (text-primary)   | `#FFFFFF`       |
+| `#4B5C7A` (text-secondary) | `#A0A0A0`       |
 
 ### Borders
 
-| Текущий | Electric Orange |
-|---------|-----------------|
-| `#D0D7E6` (border) | `#333333` |
-| `#0060FF` (border-active) | `#FF6B00` |
+| Текущий                   | Electric Orange |
+| ------------------------- | --------------- |
+| `#D0D7E6` (border)        | `#333333`       |
+| `#0060FF` (border-active) | `#FF6B00`       |
 
 ---
 
@@ -186,11 +186,11 @@ frontend/src/app/
 
 Переменная `ACTIVE_THEME` в `.env` контролирует редирект корневого URL (`/`):
 
-| Значение | Редирект | Тема |
-|----------|----------|------|
-| `coming_soon` | `/coming-soon` | Заглушка |
-| `blue` | `/catalog` | Blue Theme |
-| `electric_orange` | `/electric` | Electric Orange |
+| Значение          | Редирект       | Тема            |
+| ----------------- | -------------- | --------------- |
+| `coming_soon`     | `/coming-soon` | Заглушка        |
+| `blue`            | `/catalog`     | Blue Theme      |
+| `electric_orange` | `/electric`    | Electric Orange |
 
 ### Преимущества реализации
 
@@ -216,23 +216,23 @@ frontend/src/app/
 /* globals-electric-orange.css */
 :root {
   /* Background */
-  --color-bg-body: #0F0F0F;
-  --color-bg-card: #1A1A1A;
+  --color-bg-body: #0f0f0f;
+  --color-bg-card: #1a1a1a;
   --color-bg-input: transparent;
-  
+
   /* Primary */
-  --color-primary: #FF6B00;
-  --color-primary-hover: #FF8533;
-  
+  --color-primary: #ff6b00;
+  --color-primary-hover: #ff8533;
+
   /* Text */
-  --color-text-primary: #FFFFFF;
-  --color-text-secondary: #A0A0A0;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
   --color-text-inverse: #000000;
-  
+
   /* Border */
   --color-border-subtle: #333333;
-  --color-border-active: #FF6B00;
-  
+  --color-border-active: #ff6b00;
+
   /* Geometry */
   --skew-angle: -12deg;
   --counter-skew: 12deg;
@@ -297,15 +297,15 @@ frontend/src/app/
 
 ## 📊 Оценка трудозатрат
 
-| Этап | Описание | Срок |
-|------|----------|------|
-| 1 | CSS Variables Foundation | 1 день |
-| 2 | Core UI Components (7 шт) | 3-5 дней |
-| 3 | Layout Components (4 шт) | 2-3 дня |
-| 4 | Business Components (~15 шт) | 5-7 дней |
-| 5 | Page-Level Migration (~20 шт) | 5-7 дней |
-| 6 | QA & Polish | 2-3 дня |
-| **ИТОГО** | | **18-26 дней** |
+| Этап      | Описание                      | Срок           |
+| --------- | ----------------------------- | -------------- |
+| 1         | CSS Variables Foundation      | 1 день         |
+| 2         | Core UI Components (7 шт)     | 3-5 дней       |
+| 3         | Layout Components (4 шт)      | 2-3 дня        |
+| 4         | Business Components (~15 шт)  | 5-7 дней       |
+| 5         | Page-Level Migration (~20 шт) | 5-7 дней       |
+| 6         | QA & Polish                   | 2-3 дня        |
+| **ИТОГО** |                               | **18-26 дней** |
 
 ---
 
@@ -326,8 +326,8 @@ frontend/src/app/
 ```typescript
 // config/theme.ts
 export const THEME = {
-  current: process.env.NEXT_PUBLIC_THEME || 'classic', // 'classic' | 'electric-orange'
-}
+  current: process.env.NEXT_PUBLIC_THEME || "classic", // 'classic' | 'electric-orange'
+};
 ```
 
 - ✅ Постепенная миграция

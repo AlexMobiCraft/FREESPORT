@@ -1,13 +1,20 @@
 ---
-title: 'Исправление фрагментации сессий импорта 1С'
-slug: 'fix-1c-import-session-fragmentation'
-created: '2026-01-25T11:58:00+01:00'
-status: 'review'
+title: "Исправление фрагментации сессий импорта 1С"
+slug: "fix-1c-import-session-fragmentation"
+created: "2026-01-25T11:58:00+01:00"
+status: "review"
 stepsCompleted: [1, 2, 3, 4, 5, 6]
-tech_stack: ['Django REST Framework', 'Celery', 'PostgreSQL', 'Redis']
-files_to_modify: ['backend/apps/integrations/onec_exchange/views.py', 'backend/apps/products/models.py', 'backend/apps/products/tasks.py', 'backend/tests/integration/test_onec_exchange_api.py']
-code_patterns: ['APIView', 'Atomic Transactions', 'Celery Tasks', 'FileStreamService']
-test_patterns: ['pytest', 'integration tests']
+tech_stack: ["Django REST Framework", "Celery", "PostgreSQL", "Redis"]
+files_to_modify:
+  [
+    "backend/apps/integrations/onec_exchange/views.py",
+    "backend/apps/products/models.py",
+    "backend/apps/products/tasks.py",
+    "backend/tests/integration/test_onec_exchange_api.py",
+  ]
+code_patterns:
+  ["APIView", "Atomic Transactions", "Celery Tasks", "FileStreamService"]
+test_patterns: ["pytest", "integration tests"]
 ---
 
 # Tech-Spec: Исправление фрагментации сессий импорта 1С
@@ -23,6 +30,7 @@ test_patterns: ['pytest', 'integration tests']
 ### Решение
 
 Реализовать строгую обработку сессий и идемпотентность для запросов импорта 1С:
+
 1.  **Строгая привязка**: Приоритет параметра `sessid` из URL над кукой сессии, чтобы обеспечить непрерывность, даже если 1С теряет куки.
 2.  **Отслеживаемость**: Добавить поле `session_key` в модель `ImportSession` для обеспечения связи 1-к-1 с сессиями Django.
 3.  **Идемпотентность и Конкурентность**: Обнаруживать дублирующиеся команды `import` для активных сессий; возвращать "success" в 1С без создания новых лишних задач. Использовать атомарные транзакции для предотвращения гонок (race conditions).
@@ -33,42 +41,44 @@ test_patterns: ['pytest', 'integration tests']
 ### Объем работ (Scope)
 
 **Входит в scope:**
--   Логика бэкенда (`views.py`): Обнаружение и маршрутизация сессии.
--   Модель данных (`models.py`): Обновление схемы `ImportSession`.
--   Асинхронные задачи (`tasks.py`): Обновление логов.
--   Логирование: Детальные логи обмена.
+
+- Логика бэкенда (`views.py`): Обнаружение и маршрутизация сессии.
+- Модель данных (`models.py`): Обновление схемы `ImportSession`.
+- Асинхронные задачи (`tasks.py`): Обновление логов.
+- Логирование: Детальные логи обмена.
 
 **Не входит в scope:**
--   Изменения в конфигурации или поведении клиента 1С.
--   Модификации фронтенда/UI (кроме случайного отображения исправленных сессий в админке).
+
+- Изменения в конфигурации или поведении клиента 1С.
+- Модификации фронтенда/UI (кроме случайного отображения исправленных сессий в админке).
 
 ## Контекст разработки
 
 ### Паттерны кодовой базы
 
--   **Django REST Framework**: `APIView` для эндпоинтов 1С.
--   **Celery**: Асинхронная обработка задач импорта.
--   **Session Auth**: Кастомная `CsrfExemptSessionAuthentication` для совместимости с 1С.
--   **File Handling**: `FileStreamService` и `FileRoutingService` управляют загрузкой.
+- **Django REST Framework**: `APIView` для эндпоинтов 1С.
+- **Celery**: Асинхронная обработка задач импорта.
+- **Session Auth**: Кастомная `CsrfExemptSessionAuthentication` для совместимости с 1С.
+- **File Handling**: `FileStreamService` и `FileRoutingService` управляют загрузкой.
 
 ### Файлы для справки
 
-| Файл | Назначение |
-| ---- | ------- |
-| `backend/apps/integrations/onec_exchange/views.py` | Основная точка входа для 1С. Требует строгой логики сессий. |
-| `backend/apps/products/models.py` | Модель `ImportSession` требует поле `session_key`. |
-| `backend/apps/products/tasks.py` | Асинхронная задача импорта. Требует обновления логов. |
-| `backend/tests/integration/test_onec_exchange_api.py` | Место для интеграционного теста на конкурентность. |
+| Файл                                                  | Назначение                                                  |
+| ----------------------------------------------------- | ----------------------------------------------------------- |
+| `backend/apps/integrations/onec_exchange/views.py`    | Основная точка входа для 1С. Требует строгой логики сессий. |
+| `backend/apps/products/models.py`                     | Модель `ImportSession` требует поле `session_key`.          |
+| `backend/apps/products/tasks.py`                      | Асинхронная задача импорта. Требует обновления логов.       |
+| `backend/tests/integration/test_onec_exchange_api.py` | Место для интеграционного теста на конкурентность.          |
 
 ### Технические решения
 
--   **Первые принципы (Идентичность)**: `sessid`, предоставляемый 1С, является **ID Транзакции**, а не просто сессией пользователя. Мы должны отвязать логику "Транзакции Импорта" от логики "Аутентификации Пользователя". Папка и запись в БД должны быть жестко привязаны к этому ID Транзакции.
--   **Почему `sessid` важнее Cookie?** Реализации 1С известны своей нестабильностью с куками. URL-параметр `sessid` — единственная надежная ссылка на "логическую" сессию с точки зрения 1С.
--   **Почему не блокировать дубликаты `import`?** 1С может повторить запрос по таймауту. Блокировка ошибкой может привести к сбою всего обмена. Ответ "success" (идемпотентность) позволяет 1С продолжить/завершить работу без побочных эффектов.
--   **Зачем строгая идентификация?** Предотвращает "сессии-призраки". Если 1С теряет контекст, мы должны быстрее падать с ошибкой, чем создавать мусорные данные в новой сессии.
--   **Предотвращение Deadlock (Lazy Expiration):** Вместо отдельной cron-задачи, проверять зависшие `IN_PROGRESS` сессии (>2ч) прямо в `handle_import` перед созданием новой. Если найдена — помечать FAILED немедленно. Это обеспечивает самовосстановление без внешних зависимостей.
--   **Стратегия конкурентности**: Использовать `transaction.atomic()` и строгие блокировки (например, `select_for_update` или уникальные констрейнты), чтобы гарантировать создание только одной `ImportSession` на `session_key`, даже при параллельных запросах.
--   **Требование верификации**: Специальный интеграционный тест должен симулировать конкурентные запросы, чтобы доказать работу фикса гонки (симуляция двойной отправки от 1С).
+- **Первые принципы (Идентичность)**: `sessid`, предоставляемый 1С, является **ID Транзакции**, а не просто сессией пользователя. Мы должны отвязать логику "Транзакции Импорта" от логики "Аутентификации Пользователя". Папка и запись в БД должны быть жестко привязаны к этому ID Транзакции.
+- **Почему `sessid` важнее Cookie?** Реализации 1С известны своей нестабильностью с куками. URL-параметр `sessid` — единственная надежная ссылка на "логическую" сессию с точки зрения 1С.
+- **Почему не блокировать дубликаты `import`?** 1С может повторить запрос по таймауту. Блокировка ошибкой может привести к сбою всего обмена. Ответ "success" (идемпотентность) позволяет 1С продолжить/завершить работу без побочных эффектов.
+- **Зачем строгая идентификация?** Предотвращает "сессии-призраки". Если 1С теряет контекст, мы должны быстрее падать с ошибкой, чем создавать мусорные данные в новой сессии.
+- **Предотвращение Deadlock (Lazy Expiration):** Вместо отдельной cron-задачи, проверять зависшие `IN_PROGRESS` сессии (>2ч) прямо в `handle_import` перед созданием новой. Если найдена — помечать FAILED немедленно. Это обеспечивает самовосстановление без внешних зависимостей.
+- **Стратегия конкурентности**: Использовать `transaction.atomic()` и строгие блокировки (например, `select_for_update` или уникальные констрейнты), чтобы гарантировать создание только одной `ImportSession` на `session_key`, даже при параллельных запросах.
+- **Требование верификации**: Специальный интеграционный тест должен симулировать конкурентные запросы, чтобы доказать работу фикса гонки (симуляция двойной отправки от 1С).
 
 ## План реализации
 
@@ -130,48 +140,48 @@ test_patterns: ['pytest', 'integration tests']
 
 ### Зависимости
 
--   Нет (Стандартный стек Django/Celery).
+- Нет (Стандартный стек Django/Celery).
 
 ### Стратегия тестирования
 
--   **Unit/Integration**: Запуск `pytest tests/integration/test_onec_exchange_api.py`.
--   **Concurrency**: Специальный тест-кейс на состояние гонки.
--   **Manual**: Использование `curl` скрипта для проверки поведения на запущенном Docker окружении.
+- **Unit/Integration**: Запуск `pytest tests/integration/test_onec_exchange_api.py`.
+- **Concurrency**: Специальный тест-кейс на состояние гонки.
+- **Manual**: Использование `curl` скрипта для проверки поведения на запущенном Docker окружении.
 
 ### Примечания
 
--   **Риск**: Если 1С существенно изменит формат `sessid` или поведение, строгая проверка может отвергать валидные запросы. Мониторинг логов после деплоя критически важен.
+- **Риск**: Если 1С существенно изменит формат `sessid` или поведение, строгая проверка может отвергать валидные запросы. Мониторинг логов после деплоя критически важен.
 
 ## File List
 
--   `backend/apps/products/models.py`
--   `backend/apps/products/migrations/0042_importsession_unique_active_session_key.py`
--   `backend/apps/integrations/onec_exchange/views.py`
--   `backend/apps/products/tasks.py`
--   `backend/tests/integration/test_onec_exchange_api.py`
--   `docker/verify_1c_session.sh`
+- `backend/apps/products/models.py`
+- `backend/apps/products/migrations/0042_importsession_unique_active_session_key.py`
+- `backend/apps/integrations/onec_exchange/views.py`
+- `backend/apps/products/tasks.py`
+- `backend/tests/integration/test_onec_exchange_api.py`
+- `docker/verify_1c_session.sh`
 
 ## Dev Agent Record
 
 ### Completion Notes
 
--   **Implemented ImportSession.session_key**: Added field to model (nullable for migration compatibility).
--   **Strict Session Logic**: `handle_import` now prioritizes `sessid` from URL. 403 if missing.
--   **Concurrency & Idempotency**:
-    -   Used `transaction.atomic()` and `select_for_update()` in `ICExchangeView.handle_import`.
-    -   Implemented duplicate request detection (returns "success" without new session).
-    -   Implemented "Lazy Expiration" for sessions older than 2 hours.
--   **Logging**: Enhanced logs in view and tasks with session keys.
--   **Verification**:
-    -   Added 17 integration tests covering all scenarios (Auth, Init, Import, Concurrency, Stale Sessions).
-    -   Created `docker/verify_1c_session.sh` for manual verification.
-    -   All tests passed.
-    -   **Code Review Fixes**:
-        -   Added `UniqueConstraint` to `ImportSession.session_key` (conditional on active status) to enforce DB-level concurrency protection.
-        -   Implemented `test_concurrent_import_requests` which verified the constraint catches `IntegrityError`.
-        -   Generated `0042_importsession_unique_active_session_key.py` migration.
+- **Implemented ImportSession.session_key**: Added field to model (nullable for migration compatibility).
+- **Strict Session Logic**: `handle_import` now prioritizes `sessid` from URL. 403 if missing.
+- **Concurrency & Idempotency**:
+  - Used `transaction.atomic()` and `select_for_update()` in `ICExchangeView.handle_import`.
+  - Implemented duplicate request detection (returns "success" without new session).
+  - Implemented "Lazy Expiration" for sessions older than 2 hours.
+- **Logging**: Enhanced logs in view and tasks with session keys.
+- **Verification**:
+  - Added 17 integration tests covering all scenarios (Auth, Init, Import, Concurrency, Stale Sessions).
+  - Created `docker/verify_1c_session.sh` for manual verification.
+  - All tests passed.
+  - **Code Review Fixes**:
+    - Added `UniqueConstraint` to `ImportSession.session_key` (conditional on active status) to enforce DB-level concurrency protection.
+    - Implemented `test_concurrent_import_requests` which verified the constraint catches `IntegrityError`.
+    - Generated `0042_importsession_unique_active_session_key.py` migration.
 
 ## Change Log
 
--   2026-01-25: Implemented strict session handling, concurrency protection, and lazy expiration for 1C import. Verified with integration tests.
--   2026-01-25: [Code Review] Review performed. Found 2 CRITICAL and 1 MEDIUM issues. Reverted status to in-progress.
+- 2026-01-25: Implemented strict session handling, concurrency protection, and lazy expiration for 1C import. Verified with integration tests.
+- 2026-01-25: [Code Review] Review performed. Found 2 CRITICAL and 1 MEDIUM issues. Reverted status to in-progress.

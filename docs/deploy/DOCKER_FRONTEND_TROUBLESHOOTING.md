@@ -5,6 +5,7 @@
 ### Симптомы
 
 Ошибка в браузере или консоли:
+
 ```
 Module not found: Can't resolve 'embla-carousel-autoplay'
 ```
@@ -16,10 +17,11 @@ Docker-контейнер `freesport-frontend` использует **имено
 ```yaml
 volumes:
   - ../frontend:/app
-  - frontend_node_modules:/app/node_modules  # Именованный том!
+  - frontend_node_modules:/app/node_modules # Именованный том!
 ```
 
 Это означает, что:
+
 - Локальный `node_modules` **не синхронизирован** с контейнером
 - При добавлении новой зависимости в `package.json` она не появляется в контейнере автоматически
 - `npm install` должен выполняться **внутри контейнера** или том нужно пересоздать
@@ -150,13 +152,13 @@ docker compose --env-file .env -f docker/docker-compose.yml up -d frontend
 
 ## Структура томов Docker
 
-| Том | Описание |
-|-----|----------|
+| Том                            | Описание                     |
+| ------------------------------ | ---------------------------- |
 | `docker_frontend_node_modules` | Зависимости npm для frontend |
-| `postgres_data` | Данные PostgreSQL |
-| `redis_data` | Данные Redis |
-| `backend_media` | Загруженные файлы |
-| `backend_static` | Статические файлы Django |
+| `postgres_data`                | Данные PostgreSQL            |
+| `redis_data`                   | Данные Redis                 |
+| `backend_media`                | Загруженные файлы            |
+| `backend_static`               | Статические файлы Django     |
 
 ---
 

@@ -1,10 +1,10 @@
 schema: 1
-story: '13.4'
-story_title: 'Обновление импорта товаров'
+story: "13.4"
+story_title: "Обновление импорта товаров"
 gate: PASS
-status_reason: 'Все критерии приемки выполнены, тесты проходят, код соответствует стандартам.'
-reviewer: 'Quinn (Test Architect)'
-updated: '2025-11-24T21:30:00Z'
+status_reason: "Все критерии приемки выполнены, тесты проходят, код соответствует стандартам."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-11-24T21:30:00Z"
 
 top_issues: []
 waiver: { active: false }
@@ -19,16 +19,16 @@ evidence:
 nfr_validation:
   security:
     status: PASS
-    notes: 'Логирование безопасно, PII не раскрываются'
+    notes: "Логирование безопасно, PII не раскрываются"
   performance:
     status: PASS
-    notes: 'Используется select_related для оптимизации'
+    notes: "Используется select_related для оптимизации"
   reliability:
     status: PASS
-    notes: 'Fallback-механизм обеспечивает устойчивость импорта'
+    notes: "Fallback-механизм обеспечивает устойчивость импорта"
   maintainability:
     status: PASS
-    notes: 'Код чистый, типизированный'
+    notes: "Код чистый, типизированный"
 
 recommendations:
   immediate: []

@@ -28,6 +28,7 @@
 **Создан файл:** `backend/apps/integrations/tasks.py`
 
 Celery задача `run_selective_import_task` выполняет импорт в фоновом режиме:
+
 - Не блокирует Gunicorn worker
 - Поддерживает retry механизм (до 3 попыток)
 - Логирует прогресс с Task ID
@@ -36,6 +37,7 @@ Celery задача `run_selective_import_task` выполняет импорт 
 **Изменен файл:** `backend/apps/integrations/admin.py`
 
 Admin action теперь запускает Celery задачу вместо синхронного `call_command()`:
+
 ```python
 task = run_selective_import_task.delay(selected_types, str(data_dir))
 self.message_user(
@@ -51,11 +53,12 @@ self.message_user(
 **Изменен файл:** `backend/Dockerfile`
 
 Увеличен timeout с 30 до 300 секунд (5 минут):
+
 ```dockerfile
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", 
-     "--worker-class", "sync", "--timeout", "300", "--graceful-timeout", "300", 
-     "--max-requests", "1000", "--max-requests-jitter", "100", 
-     "--preload", "--access-logfile", "-", "--error-logfile", "-", 
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4",
+     "--worker-class", "sync", "--timeout", "300", "--graceful-timeout", "300",
+     "--max-requests", "1000", "--max-requests-jitter", "100",
+     "--preload", "--access-logfile", "-", "--error-logfile", "-",
      "freesport.wsgi:application"]
 ```
 
@@ -64,6 +67,7 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4",
 **Изменен файл:** `backend/templates/admin/integrations/import_selection.html`
 
 Добавлен JavaScript для предотвращения двойного клика:
+
 - Блокирует кнопку после первого клика
 - Меняет текст на "⏳ Запуск импорта..."
 - Валидирует выбор хотя бы одного чекбокса
@@ -74,6 +78,7 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4",
 **Создан файл:** `backend/tests/integration/test_async_import_tasks.py`
 
 Покрытие тестами:
+
 - Успешный импорт одного типа
 - Последовательный импорт нескольких типов
 - Прерывание цепочки при ошибке
@@ -124,6 +129,7 @@ docker-compose -f docker/docker-compose.prod.yml logs -f celery
 ### Шаг 4: Мониторинг импорта
 
 Отслеживайте прогресс в разделе "Сессии импорта":
+
 - Статус должен меняться: `started` → `in_progress` → `completed`
 - В логах Celery должны быть записи: `[Task <task_id>] Начало импорта: catalog`
 
@@ -199,6 +205,7 @@ docker-compose -f docker/docker-compose.prod.yml up -d
 ## Контакты
 
 При возникновении проблем обращайтесь к разработчику:
+
 - **Developer:** James (Dev Agent)
 - **Story:** 9.5 - Выборочный импорт данных из 1С
 - **Date:** 2025-11-04

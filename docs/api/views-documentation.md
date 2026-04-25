@@ -3,7 +3,7 @@
 ## Оглавление
 
 1. [Products API](#products-api) - Каталог товаров, категории, бренды
-2. [Cart API](#cart-api) - Управление корзиной покупок  
+2. [Cart API](#cart-api) - Управление корзиной покупок
 3. [Orders API](#orders-api) - Система заказов
 4. [Users API](#users-api) - Аутентификация и личный кабинет
 5. [Common API](#common-api) - Общие утилиты и мониторинг
@@ -75,7 +75,7 @@
 
 **`get_queryset()`**
 
-- **Цель:** Загрузка только корневых категорий (parent__isnull=True)
+- **Цель:** Загрузка только корневых категорий (parent\_\_isnull=True)
 - **Логика:** Рекурсивное включение всех дочерних категорий
 - **Возврат:** QuerySet корневых категорий
 
@@ -212,6 +212,7 @@
 #### Методы
 
 **`method_name()` - [HTTP METHOD] /endpoint/**
+
 - **Цель:** [Что делает метод]
 - **Логика:** [Ключевые шаги алгоритма]
 - **Параметры:** [Важные параметры если есть]
@@ -541,71 +542,71 @@ docs/
 
 ### Products API
 
-| Method | Endpoint | Описание | Аутентификация |
-|--------|----------|----------|----------------|
-| GET | `/api/v1/products/` | Список товаров с фильтрацией | Опционально |
-| GET | `/api/v1/products/{id}/` | Детали товара | Опционально |
-| GET | `/api/v1/categories/` | Список категорий | Нет |
-| GET | `/api/v1/categories/{slug}/` | Детали категории | Нет |
-| GET | `/api/v1/category-tree/` | Дерево категорий | Нет |
-| GET | `/api/v1/brands/` | Список брендов | Нет |
-| GET | `/api/v1/brands/{slug}/` | Детали бренда | Нет |
+| Method | Endpoint                     | Описание                     | Аутентификация |
+| ------ | ---------------------------- | ---------------------------- | -------------- |
+| GET    | `/api/v1/products/`          | Список товаров с фильтрацией | Опционально    |
+| GET    | `/api/v1/products/{id}/`     | Детали товара                | Опционально    |
+| GET    | `/api/v1/categories/`        | Список категорий             | Нет            |
+| GET    | `/api/v1/categories/{slug}/` | Детали категории             | Нет            |
+| GET    | `/api/v1/category-tree/`     | Дерево категорий             | Нет            |
+| GET    | `/api/v1/brands/`            | Список брендов               | Нет            |
+| GET    | `/api/v1/brands/{slug}/`     | Детали бренда                | Нет            |
 
 ### Cart API
 
-| Method | Endpoint | Описание | Аутентификация |
-|--------|----------|----------|----------------|
-| GET | `/api/v1/cart/` | Получить корзину | Опционально |
-| DELETE | `/api/v1/cart/clear/` | Очистить корзину | Опционально |
-| POST | `/api/v1/cart/items/` | Добавить товар | Опционально |
-| GET | `/api/v1/cart/items/` | Список товаров в корзине | Опционально |
-| GET | `/api/v1/cart/items/{id}/` | Детали товара в корзине | Опционально |
-| PATCH | `/api/v1/cart/items/{id}/` | Обновить количество | Опционально |
-| DELETE | `/api/v1/cart/items/{id}/` | Удалить товар | Опционально |
+| Method | Endpoint                   | Описание                 | Аутентификация |
+| ------ | -------------------------- | ------------------------ | -------------- |
+| GET    | `/api/v1/cart/`            | Получить корзину         | Опционально    |
+| DELETE | `/api/v1/cart/clear/`      | Очистить корзину         | Опционально    |
+| POST   | `/api/v1/cart/items/`      | Добавить товар           | Опционально    |
+| GET    | `/api/v1/cart/items/`      | Список товаров в корзине | Опционально    |
+| GET    | `/api/v1/cart/items/{id}/` | Детали товара в корзине  | Опционально    |
+| PATCH  | `/api/v1/cart/items/{id}/` | Обновить количество      | Опционально    |
+| DELETE | `/api/v1/cart/items/{id}/` | Удалить товар            | Опционально    |
 
 ### Orders API
 
-| Method | Endpoint | Описание | Аутентификация |
-|--------|----------|----------|----------------|
-| GET | `/api/v1/orders/` | Список заказов пользователя | Да |
-| POST | `/api/v1/orders/` | Создать заказ из корзины | Да |
-| GET | `/api/v1/orders/{id}/` | Детали заказа | Да |
-| PATCH | `/api/v1/orders/{id}/cancel/` | Отменить заказ | Да |
+| Method | Endpoint                      | Описание                    | Аутентификация |
+| ------ | ----------------------------- | --------------------------- | -------------- |
+| GET    | `/api/v1/orders/`             | Список заказов пользователя | Да             |
+| POST   | `/api/v1/orders/`             | Создать заказ из корзины    | Да             |
+| GET    | `/api/v1/orders/{id}/`        | Детали заказа               | Да             |
+| PATCH  | `/api/v1/orders/{id}/cancel/` | Отменить заказ              | Да             |
 
 ### Users API
 
-| Method | Endpoint | Описание | Аутентификация |
-|--------|----------|----------|----------------|
-| POST | `/api/v1/auth/register/` | Регистрация | Нет |
-| POST | `/api/v1/auth/login/` | Авторизация | Нет |
-| POST | `/api/v1/auth/refresh/` | Обновление токена | Нет |
-| GET | `/api/v1/personal-cabinet/dashboard/` | Дашборд | Да |
-| GET | `/api/v1/personal-cabinet/profile/` | Профиль | Да |
-| PATCH | `/api/v1/personal-cabinet/profile/` | Обновить профиль | Да |
-| GET | `/api/v1/personal-cabinet/addresses/` | Список адресов | Да |
-| POST | `/api/v1/personal-cabinet/addresses/` | Добавить адрес | Да |
-| PUT | `/api/v1/personal-cabinet/addresses/{id}/` | Обновить адрес | Да |
-| DELETE | `/api/v1/personal-cabinet/addresses/{id}/` | Удалить адрес | Да |
-| GET | `/api/v1/personal-cabinet/favorites/` | Избранное | Да |
-| POST | `/api/v1/personal-cabinet/favorites/` | Добавить в избранное | Да |
-| DELETE | `/api/v1/personal-cabinet/favorites/{id}/` | Удалить из избранного | Да |
-| GET | `/api/v1/users/orders/` | История заказов | Да |
-| GET | `/api/v1/users/company/` | Реквизиты компании | Да (B2B) |
-| PUT | `/api/v1/users/company/` | Обновить реквизиты | Да (B2B) |
+| Method | Endpoint                                   | Описание              | Аутентификация |
+| ------ | ------------------------------------------ | --------------------- | -------------- |
+| POST   | `/api/v1/auth/register/`                   | Регистрация           | Нет            |
+| POST   | `/api/v1/auth/login/`                      | Авторизация           | Нет            |
+| POST   | `/api/v1/auth/refresh/`                    | Обновление токена     | Нет            |
+| GET    | `/api/v1/personal-cabinet/dashboard/`      | Дашборд               | Да             |
+| GET    | `/api/v1/personal-cabinet/profile/`        | Профиль               | Да             |
+| PATCH  | `/api/v1/personal-cabinet/profile/`        | Обновить профиль      | Да             |
+| GET    | `/api/v1/personal-cabinet/addresses/`      | Список адресов        | Да             |
+| POST   | `/api/v1/personal-cabinet/addresses/`      | Добавить адрес        | Да             |
+| PUT    | `/api/v1/personal-cabinet/addresses/{id}/` | Обновить адрес        | Да             |
+| DELETE | `/api/v1/personal-cabinet/addresses/{id}/` | Удалить адрес         | Да             |
+| GET    | `/api/v1/personal-cabinet/favorites/`      | Избранное             | Да             |
+| POST   | `/api/v1/personal-cabinet/favorites/`      | Добавить в избранное  | Да             |
+| DELETE | `/api/v1/personal-cabinet/favorites/{id}/` | Удалить из избранного | Да             |
+| GET    | `/api/v1/users/orders/`                    | История заказов       | Да             |
+| GET    | `/api/v1/users/company/`                   | Реквизиты компании    | Да (B2B)       |
+| PUT    | `/api/v1/users/company/`                   | Обновить реквизиты    | Да (B2B)       |
 
 ### Pages API
 
-| Method | Endpoint | Описание | Аутентификация |
-|--------|----------|----------|----------------|
-| GET | `/api/v1/pages/` | Список статических страниц | Нет |
-| GET | `/api/v1/pages/{slug}/` | Содержимое страницы | Нет |
+| Method | Endpoint                | Описание                   | Аутентификация |
+| ------ | ----------------------- | -------------------------- | -------------- |
+| GET    | `/api/v1/pages/`        | Список статических страниц | Нет            |
+| GET    | `/api/v1/pages/{slug}/` | Содержимое страницы        | Нет            |
 
 ### Common API
 
-| Method | Endpoint | Описание | Аутентификация |
-|--------|----------|----------|----------------|
-| GET | `/api/v1/health/` | Проверка состояния | Нет |
-| GET | `/api/v1/sync-logs/` | Логи синхронизации | Да (админ) |
+| Method | Endpoint             | Описание           | Аутентификация |
+| ------ | -------------------- | ------------------ | -------------- |
+| GET    | `/api/v1/health/`    | Проверка состояния | Нет            |
+| GET    | `/api/v1/sync-logs/` | Логи синхронизации | Да (админ)     |
 
 ### Особенности аутентификации
 

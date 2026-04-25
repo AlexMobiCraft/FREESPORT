@@ -75,7 +75,11 @@ recommendations:
     - action: "Добавить интеграционные тесты для полного admin workflow (опционально)"
       refs: []
     - action: "Рассмотреть извлечение customer_display логики в общий метод (минимальное дублирование)"
-      refs: ["backend/apps/orders/admin.py:114-118", "backend/apps/orders/models.py:223-230"]
+      refs:
+        [
+          "backend/apps/orders/admin.py:114-118",
+          "backend/apps/orders/models.py:223-230",
+        ]
 
 compliance_check:
   coding_standards: PASS

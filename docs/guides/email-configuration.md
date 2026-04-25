@@ -15,18 +15,18 @@ FREESPORT использует email для:
 
 ### Переменные окружения
 
-| Переменная | Описание | Пример |
-|------------|----------|--------|
-| `EMAIL_BACKEND` | Django email backend | `django.core.mail.backends.smtp.EmailBackend` |
-| `EMAIL_HOST` | SMTP сервер | `smtp.yandex.ru` |
-| `EMAIL_PORT` | Порт SMTP | `587` |
-| `EMAIL_USE_TLS` | Использовать TLS | `True` |
-| `EMAIL_USE_SSL` | Использовать SSL | `False` |
-| `EMAIL_HOST_USER` | Логин SMTP | `noreply@freesport.ru` |
-| `EMAIL_HOST_PASSWORD` | Пароль SMTP | `your-app-password` |
-| `DEFAULT_FROM_EMAIL` | Адрес отправителя | `noreply@freesport.ru` |
-| `SERVER_EMAIL` | Email сервера для ошибок | `noreply@freesport.ru` |
-| `ADMIN_EMAILS` | Список админов (через запятую) | `admin1@freesport.ru,admin2@freesport.ru` |
+| Переменная            | Описание                       | Пример                                        |
+| --------------------- | ------------------------------ | --------------------------------------------- |
+| `EMAIL_BACKEND`       | Django email backend           | `django.core.mail.backends.smtp.EmailBackend` |
+| `EMAIL_HOST`          | SMTP сервер                    | `smtp.yandex.ru`                              |
+| `EMAIL_PORT`          | Порт SMTP                      | `587`                                         |
+| `EMAIL_USE_TLS`       | Использовать TLS               | `True`                                        |
+| `EMAIL_USE_SSL`       | Использовать SSL               | `False`                                       |
+| `EMAIL_HOST_USER`     | Логин SMTP                     | `noreply@freesport.ru`                        |
+| `EMAIL_HOST_PASSWORD` | Пароль SMTP                    | `your-app-password`                           |
+| `DEFAULT_FROM_EMAIL`  | Адрес отправителя              | `noreply@freesport.ru`                        |
+| `SERVER_EMAIL`        | Email сервера для ошибок       | `noreply@freesport.ru`                        |
+| `ADMIN_EMAILS`        | Список админов (через запятую) | `admin1@freesport.ru,admin2@freesport.ru`     |
 
 ### Development окружение
 
@@ -107,7 +107,7 @@ ADMIN_EMAILS=admin@freesport.ru
 
 1. Перейдите в [Google Account Security](https://myaccount.google.com/security).
 2. Найдите "App passwords" (Пароли приложений).
-   - *Если нет в меню, воспользуйтесь поиском по настройкам.*
+   - _Если нет в меню, воспользуйтесь поиском по настройкам._
 3. Создайте пароль "Django Backend".
 4. Скопируйте 16-значный код.
 
@@ -127,12 +127,12 @@ DEFAULT_FROM_EMAIL=your-email@gmail.com
 
 > ⚠️ **Важно:** Учитывайте лимиты при высокой нагрузке
 
-| Provider | Лимит | Рекомендация |
-|----------|-------|--------------|
-| Gmail | 500 emails/день | Только для development/testing |
-| Yandex Mail | 100-500/день | Подходит для небольшого объема |
-| SendGrid Free | 100/день | Альтернатива для production |
-| SendGrid Paid | 40,000+/месяц | Рекомендуется для масштабирования |
+| Provider      | Лимит           | Рекомендация                      |
+| ------------- | --------------- | --------------------------------- |
+| Gmail         | 500 emails/день | Только для development/testing    |
+| Yandex Mail   | 100-500/день    | Подходит для небольшого объема    |
+| SendGrid Free | 100/день        | Альтернатива для production       |
+| SendGrid Paid | 40,000+/месяц   | Рекомендуется для масштабирования |
 
 ## Тестирование
 

@@ -58,7 +58,7 @@ review_details:
         - "Hot-reload работает через volume mounting"
         - "README.md содержит команды запуска и troubleshooting"
         - "Smoke test в docker-environment.test.ts проверяет доступность"
-      
+
     ac2_eslint_configuration:
       status: PASS
       evidence:
@@ -68,7 +68,7 @@ review_details:
         - "Extends: next/core-web-vitals, next/typescript"
         - "Unit-тесты в eslint.config.test.ts проверяют наличие всех плагинов и правил"
         - "package.json содержит скрипты lint и lint:fix"
-      
+
     ac3_prettier_automation:
       status: PASS
       evidence:
@@ -78,7 +78,7 @@ review_details:
         - ".husky/pre-commit hook существует и содержит команду 'npx lint-staged'"
         - "Unit-тесты в prettier.config.test.ts проверяют все настройки"
         - "ИСПРАВЛЕНО: .husky/ больше не в .gitignore, hook закоммичен"
-      
+
     ac4_ci_cd_pipeline:
       status: PASS
       evidence:
@@ -100,13 +100,13 @@ review_details:
       - "CI/CD pipeline покрывает все аспекты качества кода"
       - "Отличная документация в README.md с примерами команд"
       - "Docker окружение стабильно с hot-reload"
-    
+
     improvements_made:
       - "Инициализирован Husky (npx husky init)"
       - "Создан .husky/pre-commit hook с командой 'npx lint-staged'"
       - "Удалена строка .husky/ из frontend/.gitignore"
       - "Hook закоммичен в репозиторий"
-    
+
     technical_debt: []
 
   test_coverage_analysis:
@@ -120,10 +120,10 @@ review_details:
       - file: "src/__tests__/docker-environment.test.ts"
         coverage: "Smoke test доступности Docker, проверка package.json"
         status: PASS
-    
+
     integration_tests:
       status: "N/A - не требуются для инфраструктурной истории"
-    
+
     e2e_tests:
       status: "N/A - не требуются для инфраструктурной истории"
 
@@ -132,17 +132,17 @@ review_details:
       - "Зависимости проверяются через npm audit в CI"
       - "Нет хардкода секретов или API ключей"
       - ".env.local в .gitignore"
-    
+
     performance:
       - "Turbopack используется для dev сервера (быстрый hot-reload)"
       - "CI анализирует размер сборки"
       - "Возможность добавить Lighthouse CI в будущем"
-    
+
     maintainability:
       - "Автоматическое форматирование через pre-commit hooks"
       - "Консистентный code style через ESLint + Prettier"
       - "Хорошая документация для новых разработчиков"
-    
+
     reliability:
       - "Docker обеспечивает консистентное окружение"
       - "CI/CD pipeline стабилен"
@@ -156,15 +156,15 @@ review_details:
       - "frontend/package.json - ✓ Все скрипты и зависимости на месте"
       - "frontend/.husky/pre-commit - ✓ Hook активен и закоммичен"
       - "frontend/.gitignore - ✓ .husky/ удален из игнора"
-    
+
     tests:
       - "frontend/src/__tests__/eslint.config.test.ts - ✓ Все проверки проходят"
       - "frontend/src/__tests__/prettier.config.test.ts - ✓ Все проверки проходят"
       - "frontend/src/__tests__/docker-environment.test.ts - ✓ Все проверки проходят"
-    
+
     ci_cd:
       - ".github/workflows/frontend-ci.yml - ✓ Полный pipeline настроен"
-    
+
     documentation:
       - "frontend/README.md - ✓ Comprehensive документация"
       - "docs/stories/epic-10/10.1.environment-setup.md - ✓ История обновлена"

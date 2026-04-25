@@ -3,6 +3,7 @@
 ## Проблема
 
 На странице "Сессии импорта" (`/admin/integrations/integrationimportsession/`) не отображался прогресс выполнения асинхронного импорта через Celery. Пользователь не мог понять:
+
 - Запустился ли импорт
 - Выполняется ли он сейчас
 - Завершился ли успешно
@@ -62,15 +63,16 @@ def celery_task_status(self, obj: IntegrationImportSession) -> str:
     """Отображение статуса Celery задачи в реальном времени"""
     if not obj.celery_task_id:
         return '-'
-    
+
     task_result = AsyncResult(obj.celery_task_id)
     state = task_result.state
-    
+
     # PENDING, STARTED, SUCCESS, FAILURE, RETRY
     # Отображается с иконками и цветами
 ```
 
 **Статусы:**
+
 - ⏳ **В очереди** (PENDING) - серый
 - ▶️ **Выполняется** (STARTED) - синий
 - ✅ **Завершено** (SUCCESS) - зеленый
@@ -113,15 +115,16 @@ docker-compose -f docker/docker-compose.yml exec backend python manage.py migrat
 
 На странице списка сессий вы увидите:
 
-| ID | Тип импорта | Статус | Celery Task | Начало | Окончание | Длительность |
-|----|-------------|--------|-------------|--------|-----------|--------------|
-| 123 | Каталог товаров | ⏳ Начато | ▶️ Выполняется | 16:30 | - | В процессе... |
+| ID  | Тип импорта     | Статус    | Celery Task    | Начало | Окончание | Длительность  |
+| --- | --------------- | --------- | -------------- | ------ | --------- | ------------- |
+| 123 | Каталог товаров | ⏳ Начато | ▶️ Выполняется | 16:30  | -         | В процессе... |
 
 Страница автоматически обновляется каждые 5 секунд, показывая актуальный статус.
 
 ### Просмотр деталей
 
 Кликните на сессию для просмотра деталей:
+
 - **ID задачи Celery** - UUID задачи для отслеживания в логах
 - **Детали отчета** - статистика импорта (created, updated, skipped, errors)
 - **Сообщение об ошибке** - текст ошибки, если импорт завершился неудачно
@@ -139,6 +142,7 @@ docker-compose -f docker/docker-compose.yml logs celery | findstr "8f392b98-e21b
 ```
 
 В логах вы увидите:
+
 ```
 [Task 8f392b98-e21b-485b-889f-25f4fd8fc317] Запуск выборочного импорта: ['catalog']
 [Task 8f392b98-e21b-485b-889f-25f4fd8fc317] Начало импорта: catalog
@@ -211,6 +215,7 @@ docker-compose -f docker/docker-compose.prod.yml restart backend
 ### Продакшн
 
 После деплоя проверьте:
+
 - Миграция применена: `docker-compose -f docker/docker-compose.prod.yml exec backend python manage.py showmigrations products`
 - Статика собрана: проверьте наличие файла в `/app/staticfiles/admin/js/import_session_auto_refresh.js`
 - Импорт работает: запустите тестовый импорт и проверьте отображение статуса
@@ -218,6 +223,7 @@ docker-compose -f docker/docker-compose.prod.yml restart backend
 ## Контакты
 
 При возникновении проблем обращайтесь к разработчику:
+
 - **Developer:** James (Dev Agent)
 - **Feature:** Отслеживание прогресса Celery задач
 - **Date:** 2025-11-04

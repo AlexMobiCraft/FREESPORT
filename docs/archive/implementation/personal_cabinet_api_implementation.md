@@ -185,6 +185,7 @@ Coverage Report:
 ### Зависимости
 
 **Внешние зависимости:**
+
 - `django.db.models` - для агрегации (Count, Sum, Avg)
 - `rest_framework` - для сериализации и представлений
 - `drf-spectacular` - для документирования API

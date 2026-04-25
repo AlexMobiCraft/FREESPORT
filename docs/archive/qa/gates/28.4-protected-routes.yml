@@ -49,7 +49,27 @@ evidence:
   tests_failed: 2
   files_reviewed: 8
   trace:
-    ac_covered: [1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 5.1, 5.2]
+    ac_covered:
+      [
+        1.1,
+        1.2,
+        1.3,
+        1.4,
+        2.1,
+        2.2,
+        2.3,
+        2.4,
+        3.1,
+        3.2,
+        3.3,
+        3.4,
+        3.5,
+        4.1,
+        4.2,
+        4.3,
+        5.1,
+        5.2,
+      ]
     ac_gaps: [6.1] # Minor: "No flash of unauthorized content" - требует manual verification
 
 # NFR Validation
@@ -93,7 +113,11 @@ nfr_validation:
 recommendations:
   immediate:
     - action: "Fix 2 failing tests in AuthProvider.test.tsx"
-      refs: ["frontend/src/providers/__tests__/AuthProvider.test.tsx:239-266", "frontend/src/providers/__tests__/AuthProvider.test.tsx:269-292"]
+      refs:
+        [
+          "frontend/src/providers/__tests__/AuthProvider.test.tsx:239-266",
+          "frontend/src/providers/__tests__/AuthProvider.test.tsx:269-292",
+        ]
     - action: "Verify 'no flash of unauthorized content' manually on protected routes"
       refs: ["AC 6.1"]
   future:

@@ -18,11 +18,13 @@
 **Цель:** Снижение операционных затрат, повышение скорости реакции на проблемы, предоставление менеджерам инструментов для самостоятельного управления платформой без привлечения разработчиков.
 
 **Метрики успеха:**
+
 - Снижение времени на запуск импорта 1С с 30 мин → 2 мин (через админку)
 - Время реакции на проблемы импорта: с 4 часов → 15 минут
 - Уменьшение обращений к разработчикам на 60%
 
 **Alignment с PRD:**
+
 - **FR8:** Портал должен иметь базовую административную панель для управления заказами и пользователями
 - **PRD UI/UX:** Административная панель (дашборд, мониторинг 1С, управление)
 
@@ -33,6 +35,7 @@
 ### ✅ Уже реализовано в Django Admin:
 
 **Зарегистрированные модели:**
+
 - `Product` - полная кастомизация с fieldsets, фильтрами, поиском
 - `Brand` - базовая регистрация
 - `Category` - с поддержкой иерархии (parent field)
@@ -40,6 +43,7 @@
 - `Cart` и `CartItem` - с inlines и custom displays
 
 **Инфраструктура:**
+
 - Django Admin UI доступна по `/admin/`
 - Аутентификация через встроенную User модель
 - Permissions и groups настроены
@@ -47,11 +51,13 @@
 ### ❌ Отсутствует (требуется реализация):
 
 **Критичные модели БЕЗ admin регистрации:**
+
 - `User` (CustomUser) - управление пользователями, B2B верификация
 - `Order` и `OrderItem` - управление заказами (admin.py пустой)
 - `CustomerSyncLog`, `SyncConflict` - мониторинг синхронизации 1С
 
 **Отсутствующая функциональность:**
+
 - Кастомное действие для запуска импорта 1С из админки
 - Виджет мониторинга текущего статуса импорта
 - Дашборд с KPI метриками
@@ -125,6 +131,7 @@
 **Описание:** Регистрация и кастомизация User модели в Django Admin для управления пользователями и B2B верификации.
 
 **Acceptance Criteria:**
+
 - [ ] User модель зарегистрирована в `backend/apps/users/admin.py`
 - [ ] Кастомный UserAdmin с fieldsets:
   - Основная информация (email, имя, телефон)
@@ -141,6 +148,7 @@
 - [ ] Readonly fields: onec_id, sync timestamps, created_at
 
 **Technical Details:**
+
 - Файл: `backend/apps/users/admin.py` (создать)
 - Используемые библиотеки: django.contrib.admin
 - Permissions: только superuser и staff с permission `users.change_user`
@@ -156,20 +164,21 @@
    - AuditLog для критичных действий (approve, block, delete)
 
 2. **Example Pattern:**
+
    ```python
    @admin.register(User)
    class UserAdmin(admin.ModelAdmin):
        list_display = ['email', 'role', 'verification_status_display']
        list_select_related = ['company']  # Оптимизация N+1
        readonly_fields = ['onec_id', 'created_at', 'synced_at']
-       
+
        @admin.display(description='Verification Status')
        def verification_status_display(self, obj):
            # Custom display вместо lambda
            if obj.is_verified:
                return format_html('<span style="color: green;">✓ Verified</span>')
            return format_html('<span style="color: orange;">⏳ Pending</span>')
-       
+
        @admin.action(permissions=['users.change_user'], description='Approve B2B users')
        def approve_b2b_users(self, request, queryset):
            # AuditLog для критичных действий
@@ -184,6 +193,7 @@
    ```
 
 **Definition of Done:**
+
 - [ ] Code написан и прошел code review
 - [ ] Unit тесты для admin actions (покрытие >80%)
 - [ ] Протестировано вручную в локальной админке
@@ -206,6 +216,7 @@
 **Описание:** Регистрация Order и OrderItem моделей в Django Admin с поддержкой мониторинга интеграции 1С.
 
 **Acceptance Criteria:**
+
 - [ ] Order модель зарегистрирована в `backend/apps/orders/admin.py`
 - [ ] OrderItem как inline в Order admin
 - [ ] Кастомный OrderAdmin с fieldsets:
@@ -214,7 +225,7 @@
   - Доставка и оплата (shipping_address, payment_method, payment_status)
   - Интеграция 1С (onec_id, exported_to_1c, sync timestamps)
 - [ ] Фильтры: status, payment_status, exported_to_1c, created_at
-- [ ] Поиск: order_number, user__email, onec_id
+- [ ] Поиск: order_number, user\_\_email, onec_id
 - [ ] Custom display methods:
   - `customer_email` - email покупателя
   - `items_count` - количество позиций
@@ -223,11 +234,13 @@
 - [ ] OrderItemInline: product_name, quantity, unit_price, total_price
 
 **Technical Details:**
+
 - Файл: `backend/apps/orders/admin.py` (обновить существующий пустой файл)
 - Оптимизация: `select_related('user')`, `prefetch_related('items')`
 - JSONField rendering для shipping_address
 
 **Definition of Done:**
+
 - [ ] Code написан и прошел code review
 - [ ] Unit тесты для custom displays
 - [ ] Протестировано с реальными заказами
@@ -244,6 +257,7 @@
 **Описание:** Создание кастомного admin action для запуска импорта 1С и улучшение мониторинга ImportSession.
 
 **Acceptance Criteria:**
+
 - [ ] Custom admin action в `ImportSessionAdmin`: `trigger_catalog_import`
 - [ ] Action запускает импорт каталога (синхронно через call_command)
 - [ ] После завершения импорта показывается сообщение об успехе/ошибке
@@ -255,6 +269,7 @@
 - [ ] Auto-refresh для страницы со списком ImportSession (JavaScript, каждые 10 сек)
 
 **Technical Details:**
+
 - Файлы:
   - `backend/apps/products/admin.py` - обновить ImportSessionAdmin
 - **Подход:** Синхронный запуск через `call_command('import_catalog_from_1c')`
@@ -273,7 +288,7 @@ def trigger_catalog_import(self, request, queryset):
     redis_conn = get_redis_connection("default")
     lock_key = "import_catalog_lock"
     lock = redis_conn.lock(lock_key, timeout=3600)  # 1 час TTL
-    
+
     # Пытаемся захватить блокировку
     if not lock.acquire(blocking=False):
         self.message_user(
@@ -282,7 +297,7 @@ def trigger_catalog_import(self, request, queryset):
             level='WARNING'
         )
         return
-    
+
     try:
         data_dir = settings.ONEC_DATA_DIR
         call_command('import_catalog_from_1c', '--data-dir', data_dir)
@@ -294,11 +309,13 @@ def trigger_catalog_import(self, request, queryset):
 ```
 
 **Зачем нужен Distributed Lock:**
+
 - Предотвращает запуск двух импортов одновременно (data corruption)
 - Защищает от race conditions при обновлении Product/Category
 - Автоматически освобождается через 1 час (если процесс упал)
 
 **Definition of Done:**
+
 - [ ] Admin action работает корректно
 - [ ] Distributed Lock реализован и предотвращает concurrent imports
 - [ ] При попытке запустить второй импорт показывается предупреждение
@@ -310,6 +327,7 @@ def trigger_catalog_import(self, request, queryset):
 - [ ] Integration тест: concurrent import prevention (Redis lock)
 
 **Зависимости:**
+
 - Management command `import_catalog_from_1c` уже существует и работает
 - **Epic 3 Story 3.2.2:** Модель `SyncConflict` должна быть создана (для мониторинга конфликтов синхронизации)
 - Redis должен быть доступен (для distributed lock)
@@ -318,6 +336,7 @@ def trigger_catalog_import(self, request, queryset):
 **Estimated Effort:** 1.5 дня (10 часов)
 
 **Post-MVP Enhancement (опционально):**
+
 - Добавить Celery task wrapper для async выполнения (если импорт станет >10 мин)
 - Scheduled imports через Celery Beat
 - Возможность отмены running импорта
@@ -330,6 +349,7 @@ def trigger_catalog_import(self, request, queryset):
 **Описание:** Создание виджета на главной странице Django Admin с ключевыми метриками платформы.
 
 **Acceptance Criteria:**
+
 - [ ] Custom template `admin/index.html` создан (extends original)
 - [ ] Виджет отображает метрики:
   - **Пользователи:** активные сегодня, новые за неделю, на верификации B2B
@@ -341,6 +361,7 @@ def trigger_catalog_import(self, request, queryset):
 - [ ] Кэширование метрик (Redis, TTL 5 минут)
 
 **Technical Details:**
+
 - Файлы:
   - `backend/templates/admin/index.html` - custom template
   - `backend/apps/common/admin.py` - AdminSite customization
@@ -349,6 +370,7 @@ def trigger_catalog_import(self, request, queryset):
 - CSS framework: Bootstrap (уже в Django Admin)
 
 **Definition of Done:**
+
 - [ ] Дашборд отображается на `/admin/`
 - [ ] Метрики рассчитываются корректно
 - [ ] Кэширование работает
@@ -421,6 +443,7 @@ backend/templates/
 **Новые зависимости:** Нет (все уже установлено)
 
 **Существующие:**
+
 - Django Admin (встроено)
 - Celery + Redis (настроено)
 - PostgreSQL (работает)
@@ -431,18 +454,18 @@ backend/templates/
 
 ### 🔴 HIGH Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Изменение существующих admin регистраций нарушит workflow админов | High | Medium | Feature flags, постепенный rollout, training |
-| Admin action для импорта создаст race conditions при одновременных запусках | High | Low | Distributed lock (Redis), проверка running imports |
-| Медленная загрузка дашборда из-за тяжелых запросов | Medium | High | Кэширование, оптимизация запросов, мониторинг |
+| Risk                                                                        | Impact | Probability | Mitigation                                         |
+| --------------------------------------------------------------------------- | ------ | ----------- | -------------------------------------------------- |
+| Изменение существующих admin регистраций нарушит workflow админов           | High   | Medium      | Feature flags, постепенный rollout, training       |
+| Admin action для импорта создаст race conditions при одновременных запусках | High   | Low         | Distributed lock (Redis), проверка running imports |
+| Медленная загрузка дашборда из-за тяжелых запросов                          | Medium | High        | Кэширование, оптимизация запросов, мониторинг      |
 
 ### ⚠️ MEDIUM Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Конфликт кастомных admin templates с будущими обновлениями Django | Medium | Low | Минимальное переопределение, использование blocks |
-| Недостаточные permissions для bulk actions | Low | Medium | Декораторы проверки permissions, аудит лог |
+| Risk                                                              | Impact | Probability | Mitigation                                        |
+| ----------------------------------------------------------------- | ------ | ----------- | ------------------------------------------------- |
+| Конфликт кастомных admin templates с будущими обновлениями Django | Medium | Low         | Минимальное переопределение, использование blocks |
+| Недостаточные permissions для bulk actions                        | Low    | Medium      | Декораторы проверки permissions, аудит лог        |
 
 ---
 
@@ -466,6 +489,7 @@ ADMIN_FEATURES = {
 **Перед каждым deployment Epic 9:**
 
 1. **Database Backup:**
+
    ```bash
    python manage.py backup_db
    # Создает: backend/backup_db/freesport_YYYYMMDD_HHMMSS.sql
@@ -477,6 +501,7 @@ ADMIN_FEATURES = {
    - Screenshot текущего состояния админки
 
 3. **Redis Cache Snapshot (опционально):**
+
    ```bash
    redis-cli SAVE
    # Создает: dump.rdb
@@ -519,6 +544,7 @@ ADMIN_FEATURES = {
 ### Unit Tests
 
 **Locations:**
+
 - `backend/apps/users/tests/test_admin.py`
 - `backend/apps/orders/tests/test_admin.py`
 - `backend/apps/products/tests/test_admin_actions.py`
@@ -527,6 +553,7 @@ ADMIN_FEATURES = {
 **Coverage Target:** >80%
 
 **Key Tests:**
+
 ```python
 # Story 9.1
 def test_approve_b2b_users_action()
@@ -551,6 +578,7 @@ def test_dashboard_cache_invalidation()
 **Location:** `backend/tests/integration/test_admin_workflows.py`
 
 **Scenarios:**
+
 1. Full user approval workflow через админку
 2. Import запуск → мониторинг → завершение
 3. Dashboard метрики отражают реальные данные
@@ -558,20 +586,24 @@ def test_dashboard_cache_invalidation()
 ### Manual Testing Checklist
 
 **Story 9.1:**
+
 - [ ] Создать нового B2B пользователя через админку
 - [ ] Bulk approve 5 пользователей
 - [ ] Проверить фильтры по ролям
 
 **Story 9.2:**
+
 - [ ] Открыть Order в админке, проверить inline
 - [ ] Проверить colored status display
 
 **Story 9.3:**
+
 - [ ] Запустить импорт через admin action
 - [ ] Проверить, что нельзя запустить второй параллельный импорт
 - [ ] Проверить auto-refresh ImportSession list
 
 **Story 9.4:**
+
 - [ ] Открыть /admin/ и проверить виджет
 - [ ] Проверить все ссылки на разделы
 - [ ] Проверить на мобильном экране
@@ -587,7 +619,7 @@ graph TD
     A[Story 9.1: User Admin] --> D[Story 9.4: Dashboard]
     B[Story 9.2: Order Admin] --> D
     C[Story 9.3: Import Action] --> D
-    
+
     C --> E[Существующий ImportSession admin]
     A --> F[Существующая User модель]
     B --> G[Существующая Order модель]
@@ -606,6 +638,7 @@ graph TD
 ### Developer Documentation
 
 **Обновить:**
+
 - `docs/architecture/04-component-structure.md` - добавить раздел Django Admin
   - Перечислить все admin registrations (User, Order, ImportSession)
   - Описать custom actions и их назначение
@@ -618,6 +651,7 @@ graph TD
 **Создать:** `docs/admin-guide.md`
 
 **Содержание:**
+
 1. Вход в админ-панель (credentials, permissions)
 2. Управление пользователями (верификация B2B, блокировка)
 3. Управление заказами (просмотр, изменение статусов)
@@ -632,11 +666,13 @@ graph TD
 ### Timeline: За неделю до deployment
 
 **Week -1: Announcement**
+
 - [ ] Email всем admin users с описанием новых функций
 - [ ] Приглашение на demo session
 - [ ] Список изменений (changelog)
 
 **Week 0: Training (перед deployment)**
+
 - [ ] Demo session (30 мин): walkthrough новых features
   - User management (approve/reject B2B)
   - Order management (статусы, 1C sync)
@@ -647,11 +683,13 @@ graph TD
 - [ ] Sandbox environment для практики
 
 **Deployment Day: Phased Rollout**
+
 - Day 1: Включить для 1 админа (тестирование)
 - Day 2: Feedback сбор + quick fixes
 - Day 3: Включить для всех админов
 
 **Week 1 Post-Deployment: Support**
+
 - [ ] Daily check-ins с админами
 - [ ] Quick fixes для критичных issues
 - [ ] FAQ обновление на основе вопросов
@@ -692,14 +730,16 @@ graph TD
 **Known Limitations (принято для MVP):**
 
 ### 1. Django Admin UI Customization
+
 - **Limitation:** Ограниченная кастомизация встроенного UI Django Admin
 - **Impact:** Менее гибкий UX для complex workflows (например, multi-step B2B approval)
-- **Mitigation Path:** 
+- **Mitigation Path:**
   - Фаза 2 (Эпик 6): Миграция critical admin features → Next.js Custom Admin
   - Django Admin остается для CRUD operations и quick fixes
 - **Timeline:** Фаза 2 (~6 месяцев после MVP)
 
 ### 2. Synchronous Import Execution
+
 - **Limitation:** Админ должен ждать 2-5 минут во время импорта (UI блокируется)
 - **Impact:** UX неоптимален, но приемлем для редких операций (1-2/день)
 - **Mitigation Path:**
@@ -710,6 +750,7 @@ graph TD
 - **Estimated Effort:** +4 часа (Celery task wrapper уже спроектирован в Story 9.3)
 
 ### 3. Manual Import Trigger Only
+
 - **Limitation:** Нет scheduled/automatic imports, админ запускает вручную
 - **Impact:** Админ должен помнить запускать импорт регулярно
 - **Mitigation Path:**
@@ -719,6 +760,7 @@ graph TD
 - **Estimated Effort:** +6 часов
 
 ### 4. Basic Dashboard Metrics Only
+
 - **Limitation:** Только базовые метрики (counts, simple aggregations), нет графиков
 - **Impact:** Ограниченная бизнес-аналитика
 - **Mitigation Path:**
@@ -728,6 +770,7 @@ graph TD
 - **Estimated Effort:** Story в Эпик 6
 
 ### 5. No Performance Degradation Monitoring
+
 - **Current State:** Performance targets (<500ms) определены, но нет automated monitoring
 - **Impact:** Регресс производительности может остаться незамеченным
 - **Mitigation Path:**
@@ -740,15 +783,15 @@ graph TD
 
 ## Timeline & Effort Estimation
 
-| Story | Effort | Developer | Week |
-|-------|--------|-----------|------|
-| Story 9.1: User Admin | 6h | Backend Dev 1 | Week 1 |
-| Story 9.2: Order Admin | 6h | Backend Dev 2 | Week 1 |
-| Story 9.3: Import Action | 10h | Backend Dev 1 | Week 2 |
-| Story 9.4: Dashboard | 12h | Backend Dev 1 | Week 3 |
-| Testing & QA | 6h | QA + Devs | Week 3 |
-| Documentation | 4h | Tech Writer | Week 3 |
-| **TOTAL** | **44h** (~5.5 дней) | 2 developers | 3 weeks |
+| Story                    | Effort              | Developer     | Week    |
+| ------------------------ | ------------------- | ------------- | ------- |
+| Story 9.1: User Admin    | 6h                  | Backend Dev 1 | Week 1  |
+| Story 9.2: Order Admin   | 6h                  | Backend Dev 2 | Week 1  |
+| Story 9.3: Import Action | 10h                 | Backend Dev 1 | Week 2  |
+| Story 9.4: Dashboard     | 12h                 | Backend Dev 1 | Week 3  |
+| Testing & QA             | 6h                  | QA + Devs     | Week 3  |
+| Documentation            | 4h                  | Tech Writer   | Week 3  |
+| **TOTAL**                | **44h** (~5.5 дней) | 2 developers  | 3 weeks |
 
 **Буфер:** +20% (9h) для непредвиденных проблем  
 **Итого:** ~53h или 7 рабочих дней (1.5 недели с учетом параллельной работы)
@@ -761,13 +804,13 @@ graph TD
 
 **Measurement Period:** 2 недели после деплоя
 
-| Metric | Baseline | Target | Measurement |
-|--------|----------|--------|-------------|
-| Время запуска импорта 1С | 30 мин (manual) | <2 мин (admin action) | Time tracking |
-| Время реакции на проблемы импорта | 4 часа | <15 минут | Support tickets |
-| Обращения к разработчикам | 20/неделя | <8/неделя (-60%) | Ticket count |
-| Admin page load time | N/A | <500ms (dashboard) | APM monitoring |
-| User satisfaction (админы) | N/A | >4/5 | Survey |
+| Metric                            | Baseline        | Target                | Measurement     |
+| --------------------------------- | --------------- | --------------------- | --------------- |
+| Время запуска импорта 1С          | 30 мин (manual) | <2 мин (admin action) | Time tracking   |
+| Время реакции на проблемы импорта | 4 часа          | <15 минут             | Support tickets |
+| Обращения к разработчикам         | 20/неделя       | <8/неделя (-60%)      | Ticket count    |
+| Admin page load time              | N/A             | <500ms (dashboard)    | APM monitoring  |
+| User satisfaction (админы)        | N/A             | >4/5                  | Survey          |
 
 ---
 
@@ -775,6 +818,7 @@ graph TD
 
 **Prepared by:** Product Owner (Sarah)  
 **Reviewed by:**
+
 - [ ] Tech Lead (Backend)
 - [ ] QA Lead
 - [ ] DevOps Engineer (rollback strategy review)
@@ -787,7 +831,7 @@ graph TD
 
 ## Change Log
 
-| Date | Author | Changes |
-|------|--------|---------|
-| 2025-10-28 | PO (Sarah) | Initial draft expansion based on validation report |
-| | | Added gap analysis, detailed stories, risks, rollback strategy |
+| Date       | Author     | Changes                                                        |
+| ---------- | ---------- | -------------------------------------------------------------- |
+| 2025-10-28 | PO (Sarah) | Initial draft expansion based on validation report             |
+|            |            | Added gap analysis, detailed stories, risks, rollback strategy |

@@ -29,7 +29,7 @@ top_issues:
     resolution: "Test marked as skip with JSDoc documentation, coverage provided by unit tests"
     suggested_owner: dev
 
-quality_score: 92  # 100 - (0*20 FAILs) - (0*10 CONCERNS) - (1*8 skipped) = 92
+quality_score: 92 # 100 - (0*20 FAILs) - (0*10 CONCERNS) - (1*8 skipped) = 92
 
 evidence:
   tests_reviewed: 47
@@ -38,8 +38,8 @@ evidence:
   tests_skipped: 1
   risks_identified: 0
   trace:
-    ac_covered: [1, 2, 3, 4, 5, 6]  # All AC covered
-    ac_gaps: []  # No gaps
+    ac_covered: [1, 2, 3, 4, 5, 6] # All AC covered
+    ac_gaps: [] # No gaps
 
 nfr_validation:
   security:
@@ -59,7 +59,9 @@ recommendations:
   immediate: []
   future:
     - action: "Enable skipped MSW error test when MSW 2.x handler override is stable"
-      refs: ["frontend/src/components/checkout/__tests__/CheckoutForm.integration.test.tsx:232"]
+      refs:
+        [
+          "frontend/src/components/checkout/__tests__/CheckoutForm.integration.test.tsx:232",
+        ]
     - action: "Add E2E test for full checkout flow"
       refs: []
-

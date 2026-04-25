@@ -90,8 +90,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
             // Все попытки исчерпаны (сетевая ошибка, не 401/403)
-            // НЕ вызываем logout() - сохраняем токены для повторных попыток,
-            // чтобы временная недоступность бэкенда не приводила к потере сессии
+            // НЕ вызываем logout() - сохраняем localStorage для повторных попыток,
+            // чтобы временная недоступность бэкенда не приводила к потере сессии.
+            // НО удаляем cookies, чтобы middleware не блокировал переход на /login:
+            // пользователь должен иметь возможность войти заново если нужно.
+            if (typeof document !== 'undefined') {
+              document.cookie = 'refreshToken=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+              document.cookie = 'accessToken=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+            }
             console.warn('Auth initialization failed after retries (network error):', error);
             setIsInitialized(true);
             setIsLoading(false);

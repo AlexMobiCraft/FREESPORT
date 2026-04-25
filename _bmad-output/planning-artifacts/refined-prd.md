@@ -65,4 +65,4 @@
 
 После завершения Эпика 31, проект переходит к финальному тестированию, оптимизации производительности (Lighthouse) и подготовке к релизу.
 
-*Примечание: Полный перечень историй и их статусов ведется в [sprint-status.yaml](file:///c:/Users/38670/DEV_WEB/FREESPORT/_bmad-output/implementation-artifacts/sprint-status.yaml).*
+_Примечание: Полный перечень историй и их статусов ведется в [sprint-status.yaml](file:///c:/Users/38670/DEV_WEB/FREESPORT/_bmad-output/implementation-artifacts/sprint-status.yaml)._

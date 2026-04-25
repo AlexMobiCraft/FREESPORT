@@ -1,15 +1,15 @@
 ---
-title: 'Умный редирект авторизации и обход заглушки'
-slug: 'smart-auth-redirection'
-created: '2026-01-16'
-status: 'done'
+title: "Умный редирект авторизации и обход заглушки"
+slug: "smart-auth-redirection"
+created: "2026-01-16"
+status: "done"
 stepsCompleted: [1, 2, 3, 4]
-tech_stack: ['Next.js 15', 'TypeScript', 'Zustand']
-files_to_modify: 
-  - 'frontend/src/app/page.tsx'
-  - 'frontend/src/components/auth/LoginForm.tsx'
-code_patterns: ['Server Actions', 'Cookies API', 'Next.js Redirects']
-test_patterns: ['Vitest']
+tech_stack: ["Next.js 15", "TypeScript", "Zustand"]
+files_to_modify:
+  - "frontend/src/app/page.tsx"
+  - "frontend/src/components/auth/LoginForm.tsx"
+code_patterns: ["Server Actions", "Cookies API", "Next.js Redirects"]
+test_patterns: ["Vitest"]
 ---
 
 # Техническая спецификация: Умный редирект авторизации
@@ -17,24 +17,30 @@ test_patterns: ['Vitest']
 ## Обзор
 
 ### Постановка проблемы
+
 В настоящее время корневой маршрут (`/`) перенаправляет пользователей на путь, определенный в переменной окружения `ACTIVE_THEME`. Если установлено `ACTIVE_THEME=coming_soon`, даже авторизованные пользователи (админы, разработчики) попадают на заглушку после входа, так как формы авторизации перенаправляют на `/`.
 
 ### Решение
+
 Модернизировать логику в `app/page.tsx` (Root Page), чтобы при наличии активной сессии (проверка через куки `accessToken` или `refreshToken`) пользователь перенаправлялся на функциональную тему (например, `blue`), игнорируя настройку `coming_soon`.
 
 ### Объем работ (Scope)
+
 **Входит в объем:**
+
 - Обновление серверного компонента `app/page.tsx`.
 - Проверка консистентности редиректов в `LoginForm.tsx`, `RegisterForm.tsx`.
 - Верификация работы middleware для защищенных путей.
 
 **Вне объема:**
+
 - Изменение дизайна страницы coming-soon.
 - Глобальная смена логики тем (речь только о редиректе с корня).
 
 ## Контекст разработки
 
 ### Технические решения
+
 - Использовать `cookies()` из `next/headers` в `app/page.tsx` для детекции сессии.
 - Если `ACTIVE_THEME === 'coming_soon'` И сессия активна -> редирект на `/home`.
 - В остальных случаях следовать логике `ACTIVE_THEME`.
@@ -45,7 +51,7 @@ test_patterns: ['Vitest']
 
 - [x] Задача 1: Анализ и обновление Root Page
   - Файл: `frontend/src/app/page.tsx`
-  - Действие: 
+  - Действие:
     - Импортировать `cookies` из `next/headers`.
     - Сделать функцию `RootPage` асинхронной.
     - Проверить наличие куки `refreshToken` (признак сессии).
@@ -62,6 +68,7 @@ test_patterns: ['Vitest']
   - Действие: Протестировать логику редиректа при разных значениях `ACTIVE_THEME` и наличии/отсутствии кук.
 
 ## Критерии приемки
+
 - [x] AC 1: Авторизованный пользователь при переходе на `/` попадает на рабочую тему (`/home`), если в `.env` стоит `coming_soon`.
 - [x] AC 2: Неавторизованный пользователь по-прежнему видит заглушку (`/coming-soon`), если `ACTIVE_THEME=coming_soon`.
 - [x] AC 3: При смене `ACTIVE_THEME=blue` или `electric_orange`, все пользователи попадают на соответствующую тему без изменений в поведении.
@@ -69,9 +76,11 @@ test_patterns: ['Vitest']
 ## План верификации
 
 ### Автоматические тесты
+
 - `npm test` - запуск всех тестов, включая новый тест для `app/page.tsx`.
 
 ### Ручная проверка
+
 1. Установить `ACTIVE_THEME=coming_soon` в `.env`.
 2. Перейти на `http://localhost:3000/login`.
 3. Авторизоваться.

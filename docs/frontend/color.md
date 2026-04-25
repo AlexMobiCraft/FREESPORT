@@ -1,4 +1,5 @@
 **Палитра (Сине-голубая):**
+
 ```
 Primary:    #0060FF (синий)
 Secondary:  #00B7FF (голубой)
@@ -11,14 +12,15 @@ Promo:      #FF2E93 (розовый)
 **Раздел 2: Цветовая палитра**
 Требуется полная замена таблиц цветов:
 
-+ Primary Default: #0060FF
-+ Secondary Default: #00B7FF
+- Primary Default: #0060FF
+- Secondary Default: #00B7FF
 
-+ Accent Success: #00AA5B (новый)
-+ Accent Warning: #F5A623 (новый)
-+ Accent Danger: #E53935 (новый)
-+ Accent Promo: #FF2E93 (новый)
-```
+- Accent Success: #00AA5B (новый)
+- Accent Warning: #F5A623 (новый)
+- Accent Danger: #E53935 (новый)
+- Accent Promo: #FF2E93 (новый)
+
+````
 
 **Раздел 3: UI Components Specifications**
 Обновить примеры компонентов:
@@ -31,7 +33,7 @@ Promo:      #FF2E93 (розовый)
 **Журнал изменений:**
 ```markdown
 | 2025-11-25 | 2.1 | Миграция на сине-голубую цветовую схему | John (PM) |
-```
+````
 
 ---
 
@@ -44,10 +46,11 @@ Promo:      #FF2E93 (розовый)
 **Требуемые изменения:**
 
 **1. Meta section:**
+
 ```json
 {
   "meta": {
-    "version": "2.1.0",  // было 2.0.0
+    "version": "2.1.0", // было 2.0.0
     "lastUpdated": "2025-11-25",
     "changeLog": [
       {
@@ -61,10 +64,11 @@ Promo:      #FF2E93 (розовый)
 ```
 
 **2. Brand section:**
+
 ```json
 {
   "brand": {
-    "tone": "Технологичный, дружелюбный e-commerce в стиле OZON",  // обновлено
+    "tone": "Технологичный, дружелюбный e-commerce в стиле OZON", // обновлено
     "colorPhilosophy": "Яркие синие акценты для CTA, голубые вторичные тона, семантические цвета для статусов"
   }
 }
@@ -78,39 +82,39 @@ Promo:      #FF2E93 (розовый)
   "foundations": {
     "colors": {
       "primary": {
-        "default": "#0060FF",    // было #1F1F1F
-        "hover": "#0047CC",      // было #3A3A3A
-        "active": "#0037A6",     // было #0D0D0D
-        "subtle": "#E7F3FF"      // было #F2F2F2
+        "default": "#0060FF", // было #1F1F1F
+        "hover": "#0047CC", // было #3A3A3A
+        "active": "#0037A6", // было #0D0D0D
+        "subtle": "#E7F3FF" // было #F2F2F2
       },
       "secondary": {
-        "default": "#00B7FF",    // было #3D3D3D
-        "hover": "#0095D6",      // было #2E2E2E
-        "active": "#0078B3",     // было #1C1C1C
-        "subtle": "#E1F5FF"      // было #EAEAEA
+        "default": "#00B7FF", // было #3D3D3D
+        "hover": "#0095D6", // было #2E2E2E
+        "active": "#0078B3", // было #1C1C1C
+        "subtle": "#E1F5FF" // было #EAEAEA
       },
       "accent": {
-        "success": "#00AA5B",    // было #4D4D4D
-        "warning": "#F5A623",    // было #6A6A6A
-        "danger": "#E53935",     // было #2B2B2B
-        "promo": "#FF2E93"       // было #8A8A8A
+        "success": "#00AA5B", // было #4D4D4D
+        "warning": "#F5A623", // было #6A6A6A
+        "danger": "#E53935", // было #2B2B2B
+        "promo": "#FF2E93" // было #8A8A8A
       },
       "neutral": {
-        "100": "#FFFFFF",        // без изменений
-        "200": "#F5F7FB",        // было #F5F5F5
-        "300": "#E3E8F2",        // было #E0E0E0
-        "400": "#B9C3D6",        // было #C7C7C7
-        "500": "#8F9BB3",        // было #A3A3A3
-        "600": "#6B7A99",        // было #7D7D7D
-        "700": "#4B5C7A",        // было #5E5E5E
-        "800": "#2D3A52",        // было #3F3F3F
-        "900": "#1F2A44"         // было #1F1F1F
+        "100": "#FFFFFF", // без изменений
+        "200": "#F5F7FB", // было #F5F5F5
+        "300": "#E3E8F2", // было #E0E0E0
+        "400": "#B9C3D6", // было #C7C7C7
+        "500": "#8F9BB3", // было #A3A3A3
+        "600": "#6B7A99", // было #7D7D7D
+        "700": "#4B5C7A", // было #5E5E5E
+        "800": "#2D3A52", // было #3F3F3F
+        "900": "#1F2A44" // было #1F1F1F
       },
       "text": {
-        "primary": "#1F2A44",    // было #1B1B1B
-        "secondary": "#4B5C7A",  // было #4D4D4D
-        "muted": "#7F8CA8",      // было #7A7A7A
-        "inverse": "#FFFFFF"     // без изменений
+        "primary": "#1F2A44", // было #1B1B1B
+        "secondary": "#4B5C7A", // было #4D4D4D
+        "muted": "#7F8CA8", // было #7A7A7A
+        "inverse": "#FFFFFF" // без изменений
       }
     }
   }
@@ -126,16 +130,16 @@ Promo:      #FF2E93 (розовый)
     "Button": {
       "variants": {
         "primary": {
-          "bg": "var(--color-primary)",           // теперь #0060FF
+          "bg": "var(--color-primary)", // теперь #0060FF
           "bgHover": "var(--color-primary-hover)", // теперь #0047CC
           "text": "#FFFFFF"
         },
         "secondary": {
-          "border": "var(--color-primary)",       // теперь #0060FF
+          "border": "var(--color-primary)", // теперь #0060FF
           "text": "var(--color-primary)"
         },
         "subtle": {
-          "bg": "var(--color-primary-subtle)",    // теперь #E7F3FF
+          "bg": "var(--color-primary-subtle)", // теперь #E7F3FF
           "text": "var(--color-primary)"
         }
       }
@@ -143,44 +147,44 @@ Promo:      #FF2E93 (розовый)
     "Badge": {
       "variants": {
         "new": {
-          "bg": "#E7F3FF",         // было #E1F0FF
-          "text": "#0060FF"        // было #0F5DA3
+          "bg": "#E7F3FF", // было #E1F0FF
+          "text": "#0060FF" // было #0F5DA3
         },
         "hit": {
-          "bg": "#E0F5E8",         // было #E3F6EC
-          "text": "#00AA5B"        // было #1F7A4A
+          "bg": "#E0F5E8", // было #E3F6EC
+          "text": "#00AA5B" // было #1F7A4A
         },
         "promo": {
-          "bg": "#FFF0F5",         // было #F4EBDC
-          "text": "#FF2E93"        // было #8C4C00
+          "bg": "#FFF0F5", // было #F4EBDC
+          "text": "#FF2E93" // было #8C4C00
         },
         "sale": {
-          "bg": "#FFE1E8",         // было #F9E1E1
-          "text": "#E53935"        // было #A63232
+          "bg": "#FFE1E8", // было #F9E1E1
+          "text": "#E53935" // было #A63232
         },
         "discount": {
-          "bg": "#F0E7FF",         // было #F4E9FF
-          "text": "#7C3AED"        // было #5E32A1
+          "bg": "#F0E7FF", // было #F4E9FF
+          "text": "#7C3AED" // было #5E32A1
         }
       }
     },
     "Checkbox": {
-      "checkedBg": "var(--color-primary)",       // теперь #0060FF
+      "checkedBg": "var(--color-primary)", // теперь #0060FF
       "checkedBorder": "var(--color-primary)",
       "hoverBorder": "var(--color-primary)"
     },
     "Toggle": {
-      "trackOn": "var(--color-primary)",         // теперь #0060FF
+      "trackOn": "var(--color-primary)", // теперь #0060FF
       "trackOff": "#E3E8F2"
     },
     "Tabs": {
       "activeIndicator": "var(--color-primary)", // уже был #0060FF
-      "activeText": "var(--color-primary)"       // теперь #0060FF
+      "activeText": "var(--color-primary)" // теперь #0060FF
     },
     "Toast": {
       "variants": {
         "info": {
-          "border": "var(--color-primary)"       // теперь #0060FF
+          "border": "var(--color-primary)" // теперь #0060FF
         },
         "success": {
           "border": "var(--color-accent-success)" // теперь #00AA5B
@@ -189,7 +193,7 @@ Promo:      #FF2E93 (розовый)
           "border": "var(--color-accent-warning)" // теперь #F5A623
         },
         "error": {
-          "border": "var(--color-accent-danger)"  // теперь #E53935
+          "border": "var(--color-accent-danger)" // теперь #E53935
         }
       }
     }
@@ -198,23 +202,25 @@ Promo:      #FF2E93 (розовый)
 ```
 
 **5. Shadows section:**
+
 ```json
 {
   "shadows": {
-    "primary": "0 4px 12px rgba(0, 96, 255, 0.28)",    // обновлено
-    "secondary": "0 2px 8px rgba(0, 96, 255, 0.16)",   // обновлено
+    "primary": "0 4px 12px rgba(0, 96, 255, 0.28)", // обновлено
+    "secondary": "0 2px 8px rgba(0, 96, 255, 0.16)", // обновлено
     "pressed": "inset 0 2px 4px rgba(0, 71, 204, 0.24)" // обновлено
   }
 }
 ```
 
 **6. Focus states:**
+
 ```json
 {
   "states": {
     "focus": {
-      "outline": "2px solid rgba(0, 96, 255, 0.6)",   // было rgba(31,31,31,0.6)
-      "ring": "0 0 0 4px rgba(0, 96, 255, 0.12)"      // обновлено
+      "outline": "2px solid rgba(0, 96, 255, 0.6)", // было rgba(31,31,31,0.6)
+      "ring": "0 0 0 4px rgba(0, 96, 255, 0.12)" // обновлено
     }
   }
 }
@@ -233,42 +239,42 @@ Promo:      #FF2E93 (розовый)
 ```css
 @theme inline {
   /* Colors - Primary */
-  --color-primary: #0060FF;           /* было #1f1f1f */
-  --color-primary-hover: #0047CC;     /* было #3a3a3a */
-  --color-primary-active: #0037A6;    /* было #0d0d0d */
-  --color-primary-subtle: #E7F3FF;    /* было #f2f2f2 */
+  --color-primary: #0060ff; /* было #1f1f1f */
+  --color-primary-hover: #0047cc; /* было #3a3a3a */
+  --color-primary-active: #0037a6; /* было #0d0d0d */
+  --color-primary-subtle: #e7f3ff; /* было #f2f2f2 */
 
   /* Colors - Secondary */
-  --color-secondary: #00B7FF;         /* было #3d3d3d */
-  --color-secondary-hover: #0095D6;   /* было #2e2e2e */
-  --color-secondary-active: #0078B3;  /* было #1c1c1c */
-  --color-secondary-subtle: #E1F5FF;  /* было #eaeaea */
+  --color-secondary: #00b7ff; /* было #3d3d3d */
+  --color-secondary-hover: #0095d6; /* было #2e2e2e */
+  --color-secondary-active: #0078b3; /* было #1c1c1c */
+  --color-secondary-subtle: #e1f5ff; /* было #eaeaea */
 
   /* Colors - Accent */
-  --color-accent-success: #00AA5B;    /* было #4d4d4d */
-  --color-accent-warning: #F5A623;    /* было #6a6a6a */
-  --color-accent-danger: #E53935;     /* было #2b2b2b */
-  --color-accent-promo: #FF2E93;      /* было #8a8a8a */
+  --color-accent-success: #00aa5b; /* было #4d4d4d */
+  --color-accent-warning: #f5a623; /* было #6a6a6a */
+  --color-accent-danger: #e53935; /* было #2b2b2b */
+  --color-accent-promo: #ff2e93; /* было #8a8a8a */
 
   /* Colors - Neutral Scale */
-  --color-neutral-200: #F5F7FB;       /* было #f5f5f5 */
-  --color-neutral-300: #E3E8F2;       /* было #e0e0e0 */
-  --color-neutral-400: #B9C3D6;       /* было #c7c7c7 */
-  --color-neutral-500: #8F9BB3;       /* было #a3a3a3 */
-  --color-neutral-600: #6B7A99;       /* было #7d7d7d */
-  --color-neutral-700: #4B5C7A;       /* было #5e5e5e */
-  --color-neutral-800: #2D3A52;       /* было #3f3f3f */
-  --color-neutral-900: #1F2A44;       /* было #1f1f1f */
+  --color-neutral-200: #f5f7fb; /* было #f5f5f5 */
+  --color-neutral-300: #e3e8f2; /* было #e0e0e0 */
+  --color-neutral-400: #b9c3d6; /* было #c7c7c7 */
+  --color-neutral-500: #8f9bb3; /* было #a3a3a3 */
+  --color-neutral-600: #6b7a99; /* было #7d7d7d */
+  --color-neutral-700: #4b5c7a; /* было #5e5e5e */
+  --color-neutral-800: #2d3a52; /* было #3f3f3f */
+  --color-neutral-900: #1f2a44; /* было #1f1f1f */
 
   /* Colors - Text */
-  --color-text-primary: #1F2A44;      /* было #1b1b1b */
-  --color-text-secondary: #4B5C7A;    /* было #4d4d4d */
-  --color-text-muted: #7F8CA8;        /* было #7a7a7a */
+  --color-text-primary: #1f2a44; /* было #1b1b1b */
+  --color-text-secondary: #4b5c7a; /* было #4d4d4d */
+  --color-text-muted: #7f8ca8; /* было #7a7a7a */
 
   /* Typography - Color Usage */
-  --color-typography-primary: #1F2A44;    /* было #1f2a44 */
-  --color-typography-secondary: #4B5C7A;  /* было #4b5c7a */
-  --color-typography-muted: #7F8CA8;      /* было #7f8ca8 */
+  --color-typography-primary: #1f2a44; /* было #1f2a44 */
+  --color-typography-secondary: #4b5c7a; /* было #4b5c7a */
+  --color-typography-muted: #7f8ca8; /* было #7f8ca8 */
 
   /* Shadows */
   --shadow-primary: 0 4px 12px rgba(0, 96, 255, 0.28);
@@ -282,6 +288,7 @@ Promo:      #FF2E93 (розовый)
 ```
 
 **Комментарий для разработчика:**
+
 ```css
 /**
  * FREESPORT Design System - Tailwind CSS 4.0 Tokens
@@ -303,50 +310,55 @@ Promo:      #FF2E93 (розовый)
 **Затронутые файлы:**
 
 #### 1. Button Component
+
 **Файл:** `frontend/src/components/ui/Button/Button.tsx`
 
 **Текущий код (проблема):**
+
 ```tsx
 // ❌ Хардкод цветов
 const variantClasses = {
-  primary: 'bg-[#1F1F1F] hover:bg-[#3A3A3A] text-white',
-  secondary: 'border-[#1F1F1F] text-[#1F1F1F]',
+  primary: "bg-[#1F1F1F] hover:bg-[#3A3A3A] text-white",
+  secondary: "border-[#1F1F1F] text-[#1F1F1F]",
 };
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Использование токенов
 const variantClasses = {
-  primary: 'bg-primary hover:bg-primary-hover active:bg-primary-active text-white',
-  secondary: 'border-primary text-primary hover:bg-primary-subtle',
-  subtle: 'bg-primary-subtle text-primary hover:bg-primary-subtle/80',
+  primary:
+    "bg-primary hover:bg-primary-hover active:bg-primary-active text-white",
+  secondary: "border-primary text-primary hover:bg-primary-subtle",
+  subtle: "bg-primary-subtle text-primary hover:bg-primary-subtle/80",
 };
 ```
 
 #### 2. Checkbox Component
+
 **Файл:** `frontend/src/components/ui/Checkbox/Checkbox.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Хардкод
-<input
-  className="checked:bg-[#1F1F1F] checked:border-[#1F1F1F]"
-/>
+<input className="checked:bg-[#1F1F1F] checked:border-[#1F1F1F]" />
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Токены
-<input
-  className="checked:bg-primary checked:border-primary focus:ring-primary/12"
-/>
+<input className="checked:bg-primary checked:border-primary focus:ring-primary/12" />
 ```
 
 #### 3. Toggle Component
+
 **Файл:** `frontend/src/components/ui/Toggle/Toggle.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Хардкод
 <div className={cn(
@@ -356,6 +368,7 @@ const variantClasses = {
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Токены
 <div className={cn(
@@ -365,9 +378,11 @@ const variantClasses = {
 ```
 
 #### 4. Pagination Component (Catalog)
+
 **Файл:** `frontend/src/app/catalog/page.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Хардкод Tailwind класса
 <button className={cn(
@@ -377,6 +392,7 @@ const variantClasses = {
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Использование токена primary
 <button className={cn(
@@ -386,60 +402,68 @@ const variantClasses = {
 ```
 
 #### 5. Badge Component
+
 **Файл:** `frontend/src/components/ui/Badge/Badge.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Старые цвета
 const variantClasses = {
-  new: 'bg-[#E1F0FF] text-[#0F5DA3]',
-  hit: 'bg-[#E3F6EC] text-[#1F7A4A]',
-  promo: 'bg-[#F4EBDC] text-[#8C4C00]',
-  sale: 'bg-[#F9E1E1] text-[#A63232]',
+  new: "bg-[#E1F0FF] text-[#0F5DA3]",
+  hit: "bg-[#E3F6EC] text-[#1F7A4A]",
+  promo: "bg-[#F4EBDC] text-[#8C4C00]",
+  sale: "bg-[#F9E1E1] text-[#A63232]",
 };
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Новые цвета из токенов
 const variantClasses = {
-  new: 'bg-[#E7F3FF] text-primary',              // #0060FF
-  hit: 'bg-[#E0F5E8] text-accent-success',       // #00AA5B
-  promo: 'bg-[#FFF0F5] text-accent-promo',       // #FF2E93
-  sale: 'bg-[#FFE1E8] text-accent-danger',       // #E53935
-  discount: 'bg-[#F0E7FF] text-[#7C3AED]',
+  new: "bg-[#E7F3FF] text-primary", // #0060FF
+  hit: "bg-[#E0F5E8] text-accent-success", // #00AA5B
+  promo: "bg-[#FFF0F5] text-accent-promo", // #FF2E93
+  sale: "bg-[#FFE1E8] text-accent-danger", // #E53935
+  discount: "bg-[#F0E7FF] text-[#7C3AED]",
 };
 ```
 
 #### 6. Toast Component
+
 **Файл:** `frontend/src/components/ui/Toast/Toast.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Старые border цвета
 const variantClasses = {
-  info: 'border-l-4 border-[#0F5DA3]',
-  success: 'border-l-4 border-[#1F7A1F]',
-  warning: 'border-l-4 border-[#B07600]',
-  error: 'border-l-4 border-[#C23B3B]',
+  info: "border-l-4 border-[#0F5DA3]",
+  success: "border-l-4 border-[#1F7A1F]",
+  warning: "border-l-4 border-[#B07600]",
+  error: "border-l-4 border-[#C23B3B]",
 };
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Новые semantic цвета
 const variantClasses = {
-  info: 'border-l-4 border-primary',           // #0060FF
-  success: 'border-l-4 border-accent-success', // #00AA5B
-  warning: 'border-l-4 border-accent-warning', // #F5A623
-  error: 'border-l-4 border-accent-danger',    // #E53935
+  info: "border-l-4 border-primary", // #0060FF
+  success: "border-l-4 border-accent-success", // #00AA5B
+  warning: "border-l-4 border-accent-warning", // #F5A623
+  error: "border-l-4 border-accent-danger", // #E53935
 };
 ```
 
 #### 7. SearchFilters Chip
+
 **Файл:** `frontend/src/components/catalog/SearchFilters.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ✅ УЖЕ использует токен primary - изменений НЕ требуется
 <button className={cn(
@@ -449,9 +473,11 @@ const variantClasses = {
 ```
 
 #### 8. ProductGallery Thumbnails
+
 **Файл:** `frontend/src/components/product/ProductGallery.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ✅ УЖЕ использует primary - изменений НЕ требуется
 <div className={cn(
@@ -461,53 +487,68 @@ const variantClasses = {
 ```
 
 #### 9. ProductSummary CTA
+
 **Файл:** `frontend/src/components/product/ProductSummary.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ✅ УЖЕ использует primary - изменений НЕ требуется
-<Button variant="primary">  {/* #0060FF автоматически */}
+<Button variant="primary">
+  {" "}
+  {/* #0060FF автоматически */}
   Добавить в корзину
 </Button>
 ```
 
 #### 10. Header Navigation
+
 **Файл:** `frontend/src/components/layout/Header.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Смешанное использование
 <nav>
-  <a className={cn(
-    'text-neutral-700',
-    isActive && 'text-primary'  // ✅ УЖЕ токен
-  )}>
-  </a>
-  <div className="bg-[#F9E1E1] text-[#A63232]">  {/* ❌ Хардкод для cart badge */}
+  <a
+    className={cn(
+      "text-neutral-700",
+      isActive && "text-primary", // ✅ УЖЕ токен
+    )}
+  ></a>
+  <div className="bg-[#F9E1E1] text-[#A63232]">
+    {" "}
+    {/* ❌ Хардкод для cart badge */}
     {cartCount}
   </div>
 </nav>
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Использование новых токенов
 <nav>
-  <a className={cn(
-    'text-neutral-700',
-    isActive && 'text-primary'  // Автоматически #0060FF
-  )}>
-  </a>
-  <div className="bg-[#FFE1E8] text-accent-danger">  {/* Новые цвета sale badge */}
+  <a
+    className={cn(
+      "text-neutral-700",
+      isActive && "text-primary", // Автоматически #0060FF
+    )}
+  ></a>
+  <div className="bg-[#FFE1E8] text-accent-danger">
+    {" "}
+    {/* Новые цвета sale badge */}
     {cartCount}
   </div>
 </nav>
 ```
 
 #### 11. Tabs Component
+
 **Файл:** `frontend/src/components/ui/Tabs/Tabs.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Хардкод active text color
 <button className={cn(
@@ -517,6 +558,7 @@ const variantClasses = {
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Использование primary для active text
 <button className={cn(
@@ -526,34 +568,36 @@ const variantClasses = {
 ```
 
 #### 12. Form Input Focus States
+
 **Файл:** `frontend/src/components/ui/Input/Input.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Хардкод outline цвета
-<input
-  className="focus:outline-[#1F1F1F]/60 focus:ring-4 focus:ring-[#1F1F1F]/12"
-/>
+<input className="focus:outline-[#1F1F1F]/60 focus:ring-4 focus:ring-[#1F1F1F]/12" />
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Использование primary токена
-<input
-  className="focus:outline-primary/60 focus:ring-4 focus:ring-primary/12"
-/>
+<input className="focus:outline-primary/60 focus:ring-4 focus:ring-primary/12" />
 ```
 
 #### 13. Link Component (если используется)
+
 **Файл:** `frontend/src/components/ui/Link/Link.tsx`
 
 **Текущий код:**
+
 ```tsx
 // ❌ Хардкод
 <a className="text-[#1F1F1F] hover:text-[#3A3A3A]">
 ```
 
 **Исправленный код:**
+
 ```tsx
 // ✅ Токены
 <a className="text-primary hover:text-primary-hover">
@@ -566,6 +610,7 @@ const variantClasses = {
 ### 3.7 Story Documents
 
 #### Story 11.0: Product badge flags
+
 **Файл:** `docs/stories/epic-11/11.0.product-badge-flags.story.md`
 
 **Конфликт:** ⚠️ **СРЕДНИЙ** - Цвета бейджей изменены
@@ -573,16 +618,21 @@ const variantClasses = {
 **Требуемое обновление:**
 
 **Acceptance Criteria 3 - Визуальные требования:**
+
 ```markdown
 ## БЫЛО:
+
 Цвета бейджей:
+
 - `new`: bg #E1F0FF, text #0F5DA3
 - `hit`: bg #E3F6EC, text #1F7A4A
 - `promo`: bg #F4EBDC, text #8C4C00
 - `sale`: bg #F9E1E1, text #A63232
 
 ## СТАЛО:
+
 Цвета бейджей (обновлено 2025-11-25):
+
 - `new`: bg #E7F3FF, text #0060FF (primary)
 - `hit`: bg #E0F5E8, text #00AA5B (accent-success)
 - `promo`: bg #FFF0F5, text #FF2E93 (accent-promo)
@@ -591,6 +641,7 @@ const variantClasses = {
 ```
 
 **Добавить примечание:**
+
 ```markdown
 > **Примечание (2025-11-25):** Цвета бейджей обновлены в соответствии с миграцией
 > на сине-голубую цветовую схему. См. [color-scheme-migration.md](../../frontend/color-scheme-migration.md)
@@ -599,6 +650,7 @@ const variantClasses = {
 ---
 
 #### Story 11.1: Hero Section Layout
+
 **Файл:** `docs/stories/epic-11/11.1.hero-section-layout.story.md`
 
 **Конфликт:** ⚠️ **СРЕДНИЙ** - CTA кнопки изменили цвет
@@ -606,20 +658,26 @@ const variantClasses = {
 **Требуемое обновление:**
 
 **Acceptance Criteria 2 - CTA Buttons:**
+
 ```markdown
 ## БЫЛО:
+
 - Primary CTA: bg #1F1F1F (графитовый), hover #3A3A3A
 - Secondary CTA: border #1F1F1F, text #1F1F1F
 
 ## СТАЛО:
+
 - Primary CTA: bg #0060FF (синий), hover #0047CC, active #0037A6
 - Secondary CTA: border #0060FF, text #0060FF, hover bg #E7F3FF
 ```
 
 **Добавить в Technical Notes:**
+
 ```markdown
 ### Цветовая схема (обновлено 2025-11-25)
+
 Кнопки используют новую сине-голубую палитру:
+
 - Primary button: `bg-primary hover:bg-primary-hover` (#0060FF → #0047CC)
 - Secondary button: `border-primary text-primary hover:bg-primary-subtle`
 - Все цвета используют токены из design-system.json v2.1.0
@@ -628,6 +686,7 @@ const variantClasses = {
 ---
 
 #### Story 11.2: Dynamic content blocks
+
 **Файл:** `docs/stories/epic-11/11.2.dynamic-content-blocks.story.md`
 
 **Конфликт:** ⚠️ **ВЫСОКИЙ** - Активная разработка, требует синхронизации
@@ -635,9 +694,12 @@ const variantClasses = {
 **Требуемое обновление:**
 
 **Acceptance Criteria 1 & 2 - Badge colors:**
+
 ```markdown
 ## ОБНОВЛЕНО (2025-11-25):
+
 Автоматическое определение типа Badge использует новые цвета:
+
 - Приоритет 1: `variant="sale"` → bg #FFE1E8, text #E53935 (было #F9E1E1/#A63232)
 - Приоритет 2: `variant="promo"` → bg #FFF0F5, text #FF2E93 (было #F4EBDC/#8C4C00)
 - Приоритет 3: `variant="new"` → bg #E7F3FF, text #0060FF (было #E1F0FF/#0F5DA3)
@@ -646,14 +708,17 @@ const variantClasses = {
 ```
 
 **Добавить в Dependencies:**
+
 ```markdown
 ### Цветовая миграция (2025-11-25)
+
 - ⚠️ Story разрабатывается параллельно с миграцией цветовой схемы
 - Использовать обновлённый Badge компонент с новыми цветами
 - См. [color-scheme-migration.md](../../frontend/color-scheme-migration.md)
 ```
 
 **Обновить Task 1.5 - Badge Component:**
+
 ```markdown
 - [ ] Task 1.5: Создать/обновить Badge component
   - [ ] Использовать цвета из design-system.json v2.1.0
@@ -669,21 +734,25 @@ const variantClasses = {
 ### 3.8 Дополнительные артефакты
 
 #### UI Testing Screenshots
+
 **Директория:** `frontend/__tests__/__snapshots__/`
 
 **Влияние:** ⚠️ **СРЕДНЕЕ** - Snapshot тесты сломаются
 
 **Действие:**
+
 1. Обновить визуальные snapshot тесты после применения новой палитры
 2. Запустить `npm run test:update-snapshots` для регенерации
 3. Провести визуальный review обновлённых snapshots
 
 #### Storybook (если используется)
+
 **Файлы:** `frontend/.storybook/`, `*.stories.tsx`
 
 **Влияние:** ⚠️ **СРЕДНЕЕ** - Stories покажут старые цвета
 
 **Действие:**
+
 1. Обновить Storybook конфигурацию с новыми токенами
 2. Проверить все stories на соответствие новой палитре
 3. Обновить документацию в Storybook
@@ -697,6 +766,7 @@ const variantClasses = {
 **✅ ВАРИАНТ 1: Прямая интеграция (Direct Adjustment)**
 
 **Обоснование:**
+
 1. ✅ Изменение **НЕ затрагивает функциональность** - только визуал
 2. ✅ **Обратная совместимость** частично сохранена через CSS-переменные
 3. ✅ **Минимальный риск** для текущей разработки Epic 11
@@ -706,10 +776,12 @@ const variantClasses = {
 **Альтернативные варианты (отклонены):**
 
 ❌ **Вариант 2: Rollback Epic 11**
+
 - Причина отклонения: Epic 11 на 40% завершён, rollback уничтожит проделанную работу
 - Нецелесообразно для визуального изменения
 
 ❌ **Вариант 3: Откладывание миграции до Epic 12**
+
 - Причина отклонения: Создаст технический долг и несоответствие дизайну
 - Затруднит параллельную разработку Epic 11.2 и 11.3
 
@@ -717,26 +789,26 @@ const variantClasses = {
 
 **Технические риски:**
 
-| Риск | Вероятность | Влияние | Митигация |
-|------|-------------|---------|-----------|
-| Сломанные визуальные тесты | Высокая | Низкое | Обновить snapshots (автоматизировано) |
-| Пропущенный хардкод цветов | Средняя | Среднее | Code review + grep поиск HEX кодов |
-| Проблемы контрастности | Низкая | Высокое | Уже проверено в миграционном документе |
-| Конфликт с Epic 11.2 | Средняя | Среднее | Синхронизировать с разработчиком |
+| Риск                       | Вероятность | Влияние | Митигация                              |
+| -------------------------- | ----------- | ------- | -------------------------------------- |
+| Сломанные визуальные тесты | Высокая     | Низкое  | Обновить snapshots (автоматизировано)  |
+| Пропущенный хардкод цветов | Средняя     | Среднее | Code review + grep поиск HEX кодов     |
+| Проблемы контрастности     | Низкая      | Высокое | Уже проверено в миграционном документе |
+| Конфликт с Epic 11.2       | Средняя     | Среднее | Синхронизировать с разработчиком       |
 
 **Трудозатраты:**
 
-| Задача | Оценка | Приоритет |
-|--------|--------|-----------|
-| Обновление design-system.json | 2 часа | Критический |
-| Обновление globals.css | 1 час | Критический |
-| Рефакторинг UI компонентов (8 файлов) | 8 часов | Высокий |
-| Обновление story документов (3 файла) | 2 часа | Средний |
-| Обновление front-end-spec.md | 3 часа | Высокий |
-| Визуальное тестирование | 4 часа | Высокий |
-| Обновление snapshot тестов | 2 часа | Средний |
-| Code review и исправления | 4 часа | Высокий |
-| **ИТОГО** | **26 часов (~5-7 дней)** | |
+| Задача                                | Оценка                   | Приоритет   |
+| ------------------------------------- | ------------------------ | ----------- |
+| Обновление design-system.json         | 2 часа                   | Критический |
+| Обновление globals.css                | 1 час                    | Критический |
+| Рефакторинг UI компонентов (8 файлов) | 8 часов                  | Высокий     |
+| Обновление story документов (3 файла) | 2 часа                   | Средний     |
+| Обновление front-end-spec.md          | 3 часа                   | Высокий     |
+| Визуальное тестирование               | 4 часа                   | Высокий     |
+| Обновление snapshot тестов            | 2 часа                   | Средний     |
+| Code review и исправления             | 4 часа                   | Высокий     |
+| **ИТОГО**                             | **26 часов (~5-7 дней)** |             |
 
 ---
 
@@ -745,6 +817,7 @@ const variantClasses = {
 **MVP Scope:** ✅ **БЕЗ ИЗМЕНЕНИЙ**
 
 **Обоснование:**
+
 - Миграция **НЕ добавляет новых функций** → scope не расширяется
 - Миграция **НЕ удаляет функции** → scope не сужается
 - Миграция **улучшает визуальную составляющую** → качество MVP повышается
@@ -753,6 +826,7 @@ const variantClasses = {
 **Критерии успеха Фазы 1:** ✅ **БЕЗ ИЗМЕНЕНИЙ**
 
 Бизнес-метрики и технические метрики из PRD не затронуты:
+
 - PageSpeed >70 - не зависит от цветов
 - Время отклика API <2с - не зависит от цветов
 - Мобильная адаптивность - сохраняется
@@ -766,6 +840,7 @@ const variantClasses = {
 **Приоритет:** 🔴 **КРИТИЧЕСКИЙ** - блокирует остальные фазы
 
 #### День 1: Design System JSON
+
 ```bash
 Файл: docs/frontend/design-system.json
 Ответственный: Frontend Lead / Design System Owner
@@ -786,6 +861,7 @@ const variantClasses = {
 ```
 
 #### День 2: CSS Variables
+
 ```bash
 Файл: frontend/src/app/globals.css
 Ответственный: Frontend Developer
@@ -813,6 +889,7 @@ const variantClasses = {
 #### День 3: Core UI Kit Components
 
 **Button Component:**
+
 ```bash
 Файл: frontend/src/components/ui/Button/Button.tsx
 Изменения:
@@ -826,6 +903,7 @@ const variantClasses = {
 ```
 
 **Badge Component:**
+
 ```bash
 Файл: frontend/src/components/ui/Badge/Badge.tsx
 Изменения:
@@ -837,6 +915,7 @@ const variantClasses = {
 ```
 
 **Checkbox & Toggle:**
+
 ```bash
 Файлы:
 - frontend/src/components/ui/Checkbox/Checkbox.tsx
@@ -847,6 +926,7 @@ const variantClasses = {
 ```
 
 **Tabs & Input:**
+
 ```bash
 Файлы:
 - frontend/src/components/ui/Tabs/Tabs.tsx
@@ -860,6 +940,7 @@ const variantClasses = {
 #### День 4: Page-level Components
 
 **Pagination (Catalog):**
+
 ```bash
 Файл: frontend/src/app/catalog/page.tsx
 Изменения:
@@ -867,6 +948,7 @@ const variantClasses = {
 ```
 
 **Header:**
+
 ```bash
 Файл: frontend/src/components/layout/Header.tsx
 Изменения:
@@ -874,6 +956,7 @@ const variantClasses = {
 ```
 
 **Toast Component:**
+
 ```bash
 Файл: frontend/src/components/ui/Toast/Toast.tsx
 Изменения:
@@ -881,6 +964,7 @@ const variantClasses = {
 ```
 
 **Git Commit:**
+
 ```bash
 git commit -m "refactor(ui): migrate all components to blue color scheme
 
@@ -904,6 +988,7 @@ Design System: v2.1.0
 **Приоритет:** 🟡 **СРЕДНИЙ**
 
 #### Frontend Specification
+
 ```bash
 Файл: docs/front-end-spec.md
 Задачи:
@@ -916,6 +1001,7 @@ Design System: v2.1.0
 ```
 
 #### Story Documents
+
 ```bash
 Файлы:
 - docs/stories/epic-11/11.0.product-badge-flags.story.md
@@ -931,6 +1017,7 @@ Design System: v2.1.0
 ```
 
 #### Migration Document Integration
+
 ```bash
 Файл: docs/frontend/color-scheme-migration.md
 Задачи:
@@ -951,6 +1038,7 @@ Design System: v2.1.0
 #### День 6: Автоматизированное тестирование
 
 **Unit Tests:**
+
 ```bash
 Задачи:
 1. Запустить все тесты: npm test
@@ -963,6 +1051,7 @@ Design System: v2.1.0
 ```
 
 **Visual Regression Testing:**
+
 ```bash
 Инструменты: Percy / Chromatic (если настроены)
 Задачи:
@@ -972,6 +1061,7 @@ Design System: v2.1.0
 ```
 
 **Accessibility Testing:**
+
 ```bash
 Инструменты: axe-core, WAVE, контрастомер
 Задачи:
@@ -985,33 +1075,39 @@ Design System: v2.1.0
 #### День 7: Ручное тестирование
 
 **Чек-лист страниц:**
+
 ```markdown
 ✅ Desktop (1920x1080)
-  - [ ] Главная страница (Hero, динамические блоки)
-  - [ ] Каталог товаров (фильтры, пагинация, карточки)
-  - [ ] Карточка товара (галерея, бейджи, CTA)
-  - [ ] Корзина (кнопки, итоги)
-  - [ ] Checkout (формы, validation)
-  - [ ] Личный кабинет (навигация, секции)
-  - [ ] Header (навигация, cart badge)
-  - [ ] Footer (ссылки)
+
+- [ ] Главная страница (Hero, динамические блоки)
+- [ ] Каталог товаров (фильтры, пагинация, карточки)
+- [ ] Карточка товара (галерея, бейджи, CTA)
+- [ ] Корзина (кнопки, итоги)
+- [ ] Checkout (формы, validation)
+- [ ] Личный кабинет (навигация, секции)
+- [ ] Header (навигация, cart badge)
+- [ ] Footer (ссылки)
 
 ✅ Tablet (768x1024)
-  - [ ] Проверить все страницы выше
-  - [ ] Проверить touch interactions
+
+- [ ] Проверить все страницы выше
+- [ ] Проверить touch interactions
 
 ✅ Mobile (375x667)
-  - [ ] Проверить все страницы выше
-  - [ ] Проверить burger menu
+
+- [ ] Проверить все страницы выше
+- [ ] Проверить burger menu
 
 ✅ Браузеры
-  - [ ] Chrome 90+
-  - [ ] Firefox 88+
-  - [ ] Safari 14+
-  - [ ] Edge 90+
+
+- [ ] Chrome 90+
+- [ ] Firefox 88+
+- [ ] Safari 14+
+- [ ] Edge 90+
 ```
 
 **Компоненты UI Kit:**
+
 ```markdown
 - [ ] Button (все варианты + состояния)
 - [ ] Badge (все варианты)
@@ -1024,6 +1120,7 @@ Design System: v2.1.0
 ```
 
 **Интерактивные состояния:**
+
 ```markdown
 - [ ] :hover (все интерактивные элементы)
 - [ ] :active (кнопки, ссылки)
@@ -1032,6 +1129,7 @@ Design System: v2.1.0
 ```
 
 **QA Sign-off:**
+
 ```bash
 Критерии приёмки:
 ✅ Все unit тесты проходят
@@ -1049,6 +1147,7 @@ Design System: v2.1.0
 **Приоритет:** 🟢 **СТАНДАРТНЫЙ**
 
 #### Staging Deployment
+
 ```bash
 Задачи:
 1. Деплой на staging среду
@@ -1057,6 +1156,7 @@ Design System: v2.1.0
 ```
 
 #### Production Deployment
+
 ```bash
 Задачи:
 1. Создать релизную ветку: release/color-scheme-v2.1
@@ -1066,6 +1166,7 @@ Design System: v2.1.0
 ```
 
 #### Rollback Plan
+
 ```bash
 На случай критических проблем:
 1. Git revert коммитов миграции
@@ -1123,12 +1224,14 @@ Design System: v2.1.0
 **✅ Выбрать Вариант А (Последовательная интеграция)**
 
 **Обоснование:**
+
 1. Story 11.2 оценена в 8 story points → 8-10 дней работы
 2. Миграция займёт 5-7 дней → задержка составит <50% от общего времени Story
 3. Избежание конфликтов сэкономит 1-2 дня на разрешение
 4. Разработчик сразу работает с финальными цветами → нет переделки
 
 **План действий:**
+
 ```markdown
 1. Уведомить разработчика Story 11.2 о приостановке (сегодня)
 2. Разработчик коммитит текущий прогресс в feature/story-11.2
@@ -1147,6 +1250,7 @@ Design System: v2.1.0
 
 ```markdown
 ✅ Обязательные (Must-have):
+
 - [ ] Все unit тесты проходят (100%)
 - [ ] Контрастность WCAG AA соблюдена
 - [ ] Нет хардкод HEX кодов в компонентах (кроме исключений)
@@ -1155,12 +1259,14 @@ Design System: v2.1.0
 - [ ] Нет console errors в браузере
 
 ✅ Желательные (Should-have):
+
 - [ ] Visual regression tests проходят
 - [ ] Storybook обновлён (если есть)
 - [ ] Accessibility audit 100%
 - [ ] Cross-browser testing пройден
 
 ✅ Nice-to-have:
+
 - [ ] Performance улучшился
 - [ ] Bundle size не увеличился
 ```
@@ -1169,16 +1275,19 @@ Design System: v2.1.0
 
 ```markdown
 ✅ Stakeholder approval:
+
 - [ ] Design Lead утвердил визуальную реализацию
 - [ ] Product Owner одобрил изменения
 - [ ] QA подписал тестирование
 
 ✅ User Experience:
+
 - [ ] Визуальная иерархия улучшилась
 - [ ] CTA элементы более заметны
 - [ ] Нет жалоб от пользователей после деплоя
 
 ✅ Documentation:
+
 - [ ] Все документы обновлены
 - [ ] Migration guide создан
 - [ ] Change log заполнен
@@ -1188,16 +1297,16 @@ Design System: v2.1.0
 
 ## 8. Риски и митигация
 
-| # | Риск | Вероятность | Влияние | Митигация | Владелец |
-|---|------|-------------|---------|-----------|----------|
-| 1 | Пропущенный хардкод цветов в компонентах | Средняя | Среднее | Grep search по `.tsx` файлам на паттерн `#[0-9A-F]{6}` | Frontend Lead |
-| 2 | Конфликт с разработкой Story 11.2 | Высокая | Высокое | Приостановка Story 11.2 на период миграции | PM + Dev |
-| 3 | Сломанные визуальные тесты | Высокая | Низкое | Автообновление snapshots, QA review | QA Engineer |
-| 4 | Проблемы контрастности на edge cases | Низкая | Высокое | Ручной аудит всех текстовых комбинаций | Design Lead |
-| 5 | Regression багов в интерактивных состояниях | Средняя | Среднее | Детальный чек-лист тестирования | QA Engineer |
-| 6 | Увеличение bundle size | Низкая | Низкое | Анализ бандла до/после | Frontend Lead |
-| 7 | Несоответствие Storybook реальным компонентам | Средняя | Низкое | Обновление Storybook конфигурации | Frontend Dev |
-| 8 | Задержка релиза Epic 11 | Низкая | Среднее | Параллельное выполнение некритичных задач | PM |
+| #   | Риск                                          | Вероятность | Влияние | Митигация                                              | Владелец      |
+| --- | --------------------------------------------- | ----------- | ------- | ------------------------------------------------------ | ------------- |
+| 1   | Пропущенный хардкод цветов в компонентах      | Средняя     | Среднее | Grep search по `.tsx` файлам на паттерн `#[0-9A-F]{6}` | Frontend Lead |
+| 2   | Конфликт с разработкой Story 11.2             | Высокая     | Высокое | Приостановка Story 11.2 на период миграции             | PM + Dev      |
+| 3   | Сломанные визуальные тесты                    | Высокая     | Низкое  | Автообновление snapshots, QA review                    | QA Engineer   |
+| 4   | Проблемы контрастности на edge cases          | Низкая      | Высокое | Ручной аудит всех текстовых комбинаций                 | Design Lead   |
+| 5   | Regression багов в интерактивных состояниях   | Средняя     | Среднее | Детальный чек-лист тестирования                        | QA Engineer   |
+| 6   | Увеличение bundle size                        | Низкая      | Низкое  | Анализ бандла до/после                                 | Frontend Lead |
+| 7   | Несоответствие Storybook реальным компонентам | Средняя     | Низкое  | Обновление Storybook конфигурации                      | Frontend Dev  |
+| 8   | Задержка релиза Epic 11                       | Низкая      | Среднее | Параллельное выполнение некритичных задач              | PM            |
 
 ---
 
@@ -1207,12 +1316,14 @@ Design System: v2.1.0
 
 ```markdown
 ✅ Не требуется:
+
 - Backend изменений (цвета только frontend)
 - Изменений в 1С интеграции
 - Database миграций
 - API обновлений
 
 ✅ Требуется:
+
 - Утверждение Design Lead (новая палитра)
 - Координация с разработчиком Story 11.2
 - QA ресурсы для тестирования (2 дня)
@@ -1222,9 +1333,11 @@ Design System: v2.1.0
 
 ```markdown
 ❌ Критические блокеры:
+
 - (Нет)
 
 ⚠️ Потенциальные блокеры:
+
 - Если Story 11.2 уже в code review → нужна немедленная координация
 - Если есть незакоммиченные изменения в UI компонентах → нужна синхронизация
 ```
@@ -1235,17 +1348,18 @@ Design System: v2.1.0
 
 ### 10.1 Stakeholders
 
-| Роль | Уведомление | Частота | Формат |
-|------|-------------|---------|--------|
-| Product Owner | Начало + Завершение | 2 раза | Slack + Demo |
-| Design Lead | Каждая фаза | Ежедневно | Figma + Screenshots |
-| Frontend Dev (Story 11.2) | Real-time | Постоянно | Slack + Stand-up |
-| QA Engineer | Фаза 4 | Daily | Test reports |
-| Backend Team | FYI | 1 раз | Slack announcement |
+| Роль                      | Уведомление         | Частота   | Формат              |
+| ------------------------- | ------------------- | --------- | ------------------- |
+| Product Owner             | Начало + Завершение | 2 раза    | Slack + Demo        |
+| Design Lead               | Каждая фаза         | Ежедневно | Figma + Screenshots |
+| Frontend Dev (Story 11.2) | Real-time           | Постоянно | Slack + Stand-up    |
+| QA Engineer               | Фаза 4              | Daily     | Test reports        |
+| Backend Team              | FYI                 | 1 раз     | Slack announcement  |
 
 ### 10.2 Шаблон уведомления
 
 **Начало миграции:**
+
 ```markdown
 📢 Начинается миграция цветовой схемы FREESPORT
 
@@ -1258,10 +1372,12 @@ Design System: v2.1.0
 ```
 
 **Завершение миграции:**
+
 ```markdown
 ✅ Миграция цветовой схемы завершена
 
 Изменено:
+
 - 8 UI компонентов обновлено
 - 3 story документа синхронизировано
 - design-system.json → v2.1.0
@@ -1291,24 +1407,29 @@ Staging: [ссылка]
 
 ```markdown
 День 1 (Завтра):
+
 - [ ] Kick-off встреча (30 мин)
 - [ ] Обновление design-system.json (2 часа)
 - [ ] Code review изменений в JSON
 
 День 2:
+
 - [ ] Обновление globals.css (1 час)
 - [ ] Проверка автоприменения на dev сервере
 - [ ] Начало рефакторинга UI компонентов
 
 День 3-4:
+
 - [ ] Завершение рефакторинга всех 8 компонентов
 - [ ] Code review PR
 
 День 5:
+
 - [ ] Обновление документации
 - [ ] Синхронизация story documents
 
 День 6-7:
+
 - [ ] Полное тестирование (авто + ручное)
 - [ ] Staging deployment
 - [ ] Final approval
@@ -1405,13 +1526,13 @@ grep -r "border-\[#" frontend/src --include="*.tsx"
 
 ### Приложение В: Контрастность WCAG AA (проверено)
 
-| Комбинация | Контраст | WCAG AA | Статус |
-|------------|----------|---------|--------|
-| #0060FF на #FFFFFF | 4.5:1 | ≥4.5:1 | ✅ Pass |
-| #1F2A44 на #FFFFFF | 12.6:1 | ≥4.5:1 | ✅ Pass |
-| #4B5C7A на #FFFFFF | 6.2:1 | ≥4.5:1 | ✅ Pass |
-| #FFFFFF на #0060FF | 4.5:1 | ≥4.5:1 | ✅ Pass |
-| #0060FF на #E7F3FF | 4.1:1 | ≥4.5:1 | ⚠️ Borderline |
+| Комбинация         | Контраст | WCAG AA | Статус        |
+| ------------------ | -------- | ------- | ------------- |
+| #0060FF на #FFFFFF | 4.5:1    | ≥4.5:1  | ✅ Pass       |
+| #1F2A44 на #FFFFFF | 12.6:1   | ≥4.5:1  | ✅ Pass       |
+| #4B5C7A на #FFFFFF | 6.2:1    | ≥4.5:1  | ✅ Pass       |
+| #FFFFFF на #0060FF | 4.5:1    | ≥4.5:1  | ✅ Pass       |
+| #0060FF на #E7F3FF | 4.1:1    | ≥4.5:1  | ⚠️ Borderline |
 
 **Рекомендация:** Для мелкого текста на `#E7F3FF` использовать `#0047CC` вместо `#0060FF`.
 
@@ -1419,12 +1540,14 @@ grep -r "border-\[#" frontend/src --include="*.tsx"
 
 ```markdown
 # Pre-migration checklist
+
 - [ ] Создан feature branch: feature/color-scheme-migration
 - [ ] design-system.json backed up
 - [ ] globals.css backed up
 - [ ] Все текущие изменения закоммичены
 
 # Phase 1 checklist
+
 - [ ] design-system.json обновлён
 - [ ] JSON валидация пройдена
 - [ ] globals.css обновлён
@@ -1432,12 +1555,14 @@ grep -r "border-\[#" frontend/src --include="*.tsx"
 - [ ] Dev server запускается
 
 # Phase 2 checklist (per component)
+
 - [ ] Хардкод цветов заменён на токены
 - [ ] Все варианты обновлены
 - [ ] Тесты проходят
 - [ ] Storybook обновлён (если есть)
 
 # Phase 3 checklist
+
 - [ ] front-end-spec.md обновлён
 - [ ] Story 11.0 обновлена
 - [ ] Story 11.1 обновлена
@@ -1445,6 +1570,7 @@ grep -r "border-\[#" frontend/src --include="*.tsx"
 - [ ] color-scheme-migration.md статус обновлён
 
 # Phase 4 checklist
+
 - [ ] npm test прошёл
 - [ ] Snapshots обновлены
 - [ ] Accessibility audit пройден
@@ -1452,6 +1578,7 @@ grep -r "border-\[#" frontend/src --include="*.tsx"
 - [ ] QA sign-off получен
 
 # Phase 5 checklist
+
 - [ ] Staging deployment успешен
 - [ ] Stakeholder approval получен
 - [ ] Production deployment выполнен

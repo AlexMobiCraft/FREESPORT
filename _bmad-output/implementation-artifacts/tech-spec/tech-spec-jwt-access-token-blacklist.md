@@ -38,6 +38,7 @@ test_patterns:
 При logout пользователя в системе FREESPORT инвалидируется только **refresh-токен** через механизм `simplejwt.token_blacklist` (база данных). **Access-токен** остаётся валидным до истечения TTL (60 минут).
 
 Это создаёт окно уязвимости:
+
 - Украденный access-токен может использоваться до 60 минут после logout
 - При смене пароля старые access-токены продолжают работать
 - Нет возможности немедленно "выбросить" пользователя из системы
@@ -56,12 +57,14 @@ test_patterns:
 ### Scope
 
 **In Scope:**
+
 - Redis blacklist для access-токенов при logout
 - Кастомный JWTAuthentication класс
 - Обновление LogoutView для blacklist access token
 - Интеграционные тесты
 
 **Out of Scope:**
+
 - Отзыв токенов при смене пароля (отдельный tech-spec)
 - Endpoint "Выйти со всех устройств" (пункт 5 в tech-debt.md)
 - Уменьшение TTL access-токена (рассмотреть позже)
@@ -72,6 +75,7 @@ test_patterns:
 ### Codebase Patterns
 
 1. **Redis Cache** уже настроен в `base.py`:
+
    ```python
    CACHES = {
        "default": {
@@ -93,12 +97,12 @@ test_patterns:
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `backend/freesport/settings/base.py` | SIMPLE_JWT config, CACHES (Redis) |
-| `backend/apps/users/views/authentication.py` | LogoutView (строки 506-609) |
-| `backend/tests/integration/test_auth_logout_api.py` | Существующие тесты logout |
-| `backend/tests/integration/test_token_blacklist.py` | Тесты DB blacklist механизма |
+| File                                                | Purpose                           |
+| --------------------------------------------------- | --------------------------------- |
+| `backend/freesport/settings/base.py`                | SIMPLE_JWT config, CACHES (Redis) |
+| `backend/apps/users/views/authentication.py`        | LogoutView (строки 506-609)       |
+| `backend/tests/integration/test_auth_logout_api.py` | Существующие тесты logout         |
+| `backend/tests/integration/test_token_blacklist.py` | Тесты DB blacklist механизма      |
 
 ### Technical Decisions
 
@@ -120,15 +124,15 @@ test_patterns:
 
 ### Risk Analysis (Pre-mortem)
 
-| # | Риск | Митигация | Статус |
-|---|------|-----------|--------|
-| **R1** | Redis failure → bypass blacklist | Circuit breaker (max **2 мин** fallback) | ✅ В scope |
-| **R2** | Password reset не инвалидирует токены | Отдельный tech-spec | ⏳ Roadmap |
-| **R3** | Race condition при concurrent logout | Добавить concurrency тест | ✅ В scope |
-| **R4** | Нет мониторинга failed blacklist checks | Метрики + alerting | ✅ В scope |
-| **R5** | Redis memory pressure при peak load | Мониторинг Redis memory | ⏳ Ops task |
-| **R6** | Token Replay (украденный токен работает до TTL) | ⚠️ Limitation stateless JWT. Mitigation: сократить TTL | 📝 Documented |
-| **R7** | Redis restart → blacklist потерян (FMA F3.2) | ⚠️ **Accepted risk**. Window: max 60 мин. Ops: Redis persistence | 📝 Documented |
+| #      | Риск                                            | Митигация                                                        | Статус        |
+| ------ | ----------------------------------------------- | ---------------------------------------------------------------- | ------------- |
+| **R1** | Redis failure → bypass blacklist                | Circuit breaker (max **2 мин** fallback)                         | ✅ В scope    |
+| **R2** | Password reset не инвалидирует токены           | Отдельный tech-spec                                              | ⏳ Roadmap    |
+| **R3** | Race condition при concurrent logout            | Добавить concurrency тест                                        | ✅ В scope    |
+| **R4** | Нет мониторинга failed blacklist checks         | Метрики + alerting                                               | ✅ В scope    |
+| **R5** | Redis memory pressure при peak load             | Мониторинг Redis memory                                          | ⏳ Ops task   |
+| **R6** | Token Replay (украденный токен работает до TTL) | ⚠️ Limitation stateless JWT. Mitigation: сократить TTL           | 📝 Documented |
+| **R7** | Redis restart → blacklist потерян (FMA F3.2)    | ⚠️ **Accepted risk**. Window: max 60 мин. Ops: Redis persistence | 📝 Documented |
 
 ## Implementation Plan
 
@@ -160,20 +164,20 @@ class BlacklistCheckJWTAuthentication(JWTAuthentication):
     """
     JWTAuthentication с проверкой Redis blacklist для access-токенов.
     """
-    
+
     def get_validated_token(self, raw_token):
         validated_token = super().get_validated_token(raw_token)
-        
+
         jti = validated_token.get("jti")
         if jti and self._is_token_blacklisted(jti):
             # Security: Generic message to prevent information leakage
             raise InvalidToken("Token is invalid")
-        
+
         return validated_token
-    
+
     def _is_token_blacklisted(self, jti: str) -> bool:
         """Проверить, находится ли токен в blacklist.
-        
+
         Note: We store JSON metadata in Redis for forensics,
         but only check existence here (not parsing JSON).
         This keeps the hot path simple and fast.
@@ -205,9 +209,9 @@ ACCESS_BLACKLIST_PREFIX = "access_blacklist:"
 # В методе post() после token.blacklist():
 def post(self, request, *args, **kwargs):
     # ... существующий код ...
-    
+
     # После token.blacklist():
-    
+
     # Blacklist access token в Redis с metadata для forensics
     access_token = request.auth  # Текущий access token из заголовка
     if access_token:
@@ -328,9 +332,11 @@ And в логах warning о недоступности Redis blacklist
 ### Testing Strategy
 
 **Существующие тесты (обновить):**
+
 - `test_auth_logout_api.py::test_logout_does_not_affect_access_token_immediately` → переименовать и изменить ожидание
 
 **Новые тесты:**
+
 ```
 # Core functionality
 test_access_token_rejected_after_logout
@@ -347,6 +353,7 @@ test_blacklist_failure_logged_with_warning
 ```
 
 **Команда запуска:**
+
 ```bash
 docker compose exec backend pytest tests/integration/test_auth_logout_api.py -v
 ```
@@ -364,6 +371,7 @@ docker compose exec backend pytest tests/integration/test_auth_logout_api.py -v
 
 > [!NOTE]
 > **Security Audit Recommendations (Roadmap):**
+>
 > - **IR Plan:** Документировать процедуру реагирования на массовый компромат токенов
 > - **Logout-All:** Endpoint `/auth/logout-all/` для инвалидации всех токенов пользователя (см. tech-debt.md #5)
 

@@ -18,6 +18,7 @@ The 1C CommerceML protocol requires a `sessid` parameter to be returned in the `
 4. `import` - Trigger data processing (requires `sessid` parameter)
 
 Initial Story documentation incorrectly referred to `sessid` as a "CSRF ключ сессии" (CSRF session key), creating confusion about whether to use:
+
 - Django Session Key (`request.session.session_key`)
 - Django CSRF Token (`request.META.get('CSRF_COOKIE')` or `get_token(request)`)
 
@@ -30,6 +31,7 @@ This ambiguity needed clarification to ensure correct protocol implementation.
 **We use Django Session Key (`request.session.session_key`) for the 1C `sessid` parameter.**
 
 Implementation:
+
 ```python
 def handle_init(self, request):
     """Returns server capabilities including session ID."""
@@ -51,6 +53,7 @@ def handle_init(self, request):
 The official 1C-Bitrix CommerceML documentation and reference implementations use **PHP Session ID**:
 
 **PHP Reference Implementation:**
+
 ```php
 case "checkauth":
     echo "success\n";
@@ -67,26 +70,27 @@ case "init":
 
 ### 2. Django Equivalent Mapping
 
-| PHP | Django | Purpose |
-|-----|--------|---------|
-| `session_id()` | `request.session.session_key` | Session identifier |
-| `session_name()` | `settings.SESSION_COOKIE_NAME` | Cookie name |
-| N/A | `get_token(request)` | CSRF protection |
+| PHP              | Django                         | Purpose            |
+| ---------------- | ------------------------------ | ------------------ |
+| `session_id()`   | `request.session.session_key`  | Session identifier |
+| `session_name()` | `settings.SESSION_COOKIE_NAME` | Cookie name        |
+| N/A              | `get_token(request)`           | CSRF protection    |
 
 **Correct mapping:** `sessid` = Django Session Key
 
 ### 3. CSRF Token vs Session Key Differences
 
-| Aspect | Session Key | CSRF Token |
-|--------|-------------|------------|
-| **Purpose** | Authentication & state | CSRF attack prevention |
-| **Lifetime** | Persistent (1 hour in our config) | Rotates frequently |
-| **Transmission** | Cookie only | Cookie + Header/Form field |
-| **Protocol requirement** | Required by 1C ✅ | Not used by 1C ❌ |
+| Aspect                   | Session Key                       | CSRF Token                 |
+| ------------------------ | --------------------------------- | -------------------------- |
+| **Purpose**              | Authentication & state            | CSRF attack prevention     |
+| **Lifetime**             | Persistent (1 hour in our config) | Rotates frequently         |
+| **Transmission**         | Cookie only                       | Cookie + Header/Form field |
+| **Protocol requirement** | Required by 1C ✅                 | Not used by 1C ❌          |
 
 ### 4. Real-World 1C Client Behavior
 
 1C Enterprise client:
+
 - Saves `sessid` value from `init` response
 - Sends it as `?sessid=<value>` query parameter in subsequent requests
 - Expects it to remain **stable** across the exchange session
@@ -97,6 +101,7 @@ Using CSRF token would break the protocol due to token rotation.
 ### 5. Security Considerations
 
 **Why CSRF exemption is safe here:**
+
 - 1C uses Basic Auth for initial authentication
 - Session is tied to authenticated user
 - File upload endpoint validates `sessid` matches current session
@@ -104,6 +109,7 @@ Using CSRF token would break the protocol due to token rotation.
 - Added `CsrfExemptSessionAuthentication` for this specific use case
 
 **Implementation:**
+
 ```python
 class ICExchangeView(APIView):
     authentication_classes = [
@@ -151,6 +157,7 @@ class ICExchangeView(APIView):
 ### Protocol Verification
 
 Tested against 1C Enterprise 8.3:
+
 ```bash
 # Step 1: checkauth
 curl -u 1c_user:password "http://localhost:8001/api/integration/1c/exchange/?mode=checkauth"
@@ -179,6 +186,7 @@ curl -b sessionid=abc123xyz "http://localhost:8001/api/integration/1c/exchange/?
 ## Amendments
 
 ### 2026-01-23 - Initial Creation
+
 - Documented decision to use Session Key, not CSRF token
 - Clarified terminology confusion in original Story documentation
 - Added protocol validation and test coverage details

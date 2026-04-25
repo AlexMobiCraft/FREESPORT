@@ -1,13 +1,25 @@
 ---
-title: 'Исправление ошибки 401 при обновлении токена после регистрации'
-slug: 'fix-registration-tokens-401'
-created: '2026-01-16T09:55:41+01:00'
-status: 'completed'
+title: "Исправление ошибки 401 при обновлении токена после регистрации"
+slug: "fix-registration-tokens-401"
+created: "2026-01-16T09:55:41+01:00"
+status: "completed"
 stepsCompleted: [1, 2, 3, 4]
-tech_stack: ['Django', 'DRF', 'SimpleJWT', 'Next.js', 'Zustand']
-files_to_modify: ['backend/apps/users/views/authentication.py', 'frontend/src/services/authService.ts', 'frontend/src/services/api-client.ts', 'frontend/src/stores/authStore.ts']
-code_patterns: ['JWT Authentication', 'Interceptors', 'Service Pattern', 'Defensive Programming']
-test_patterns: ['Integration Tests', 'Vitest']
+tech_stack: ["Django", "DRF", "SimpleJWT", "Next.js", "Zustand"]
+files_to_modify:
+  [
+    "backend/apps/users/views/authentication.py",
+    "frontend/src/services/authService.ts",
+    "frontend/src/services/api-client.ts",
+    "frontend/src/stores/authStore.ts",
+  ]
+code_patterns:
+  [
+    "JWT Authentication",
+    "Interceptors",
+    "Service Pattern",
+    "Defensive Programming",
+  ]
+test_patterns: ["Integration Tests", "Vitest"]
 ---
 
 # Tech-Spec: Исправление ошибки 401 при обновлении токена после регистрации
@@ -29,12 +41,14 @@ test_patterns: ['Integration Tests', 'Vitest']
 ### Scope
 
 **In Scope:**
+
 - Модификация `UserRegistrationView` в `backend/apps/users/views/authentication.py`.
 - Обновление `AuthService` в `frontend/src/services/authService.ts`.
 - Усиление `api-client.ts` в `frontend/src/services/api-client.ts`.
 - (Опционально) обновление документации API через drf-spectacular.
 
 **Out of Scope:**
+
 - Изменение логики входа (Login).
 - Изменение времени жизни JWT-токенов.
 
@@ -48,11 +62,11 @@ test_patterns: ['Integration Tests', 'Vitest']
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `backend/apps/users/views/authentication.py` | Вьюхи аутентификации. Цель изменений: `UserRegistrationView.post`. |
-| `frontend/src/services/authService.ts` | Сервис аутентификации. Цель изменений: методы `register` и `registerB2B`. |
-| `frontend/src/services/api-client.ts` | Axios клиент. Цель изменений: response interceptor. |
+| File                                         | Purpose                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| `backend/apps/users/views/authentication.py` | Вьюхи аутентификации. Цель изменений: `UserRegistrationView.post`.        |
+| `frontend/src/services/authService.ts`       | Сервис аутентификации. Цель изменений: методы `register` и `registerB2B`. |
+| `frontend/src/services/api-client.ts`        | Axios клиент. Цель изменений: response interceptor.                       |
 
 ### Technical Decisions
 
@@ -64,39 +78,39 @@ test_patterns: ['Integration Tests', 'Vitest']
 ### Tasks
 
 1.  **Backend: Update Registration View**
-    -   [x] В `UserRegistrationView.post` после успешного сохранения пользователя (`serializer.save()`):
-        -   Проверить `user.is_active` и `user.verification_status`.
-        -   Если `is_active=True` (B2C retail), сгенерировать токены: `refresh = RefreshToken.for_user(user)`.
-        -   Добавить `access` и `refresh` в ответ `201 Created`.
-    -   [x] Обновить `extend_schema` декоратор для `UserRegistrationView`, добавив токены в пример ответа (201).
+    - [x] В `UserRegistrationView.post` после успешного сохранения пользователя (`serializer.save()`):
+      - Проверить `user.is_active` и `user.verification_status`.
+      - Если `is_active=True` (B2C retail), сгенерировать токены: `refresh = RefreshToken.for_user(user)`.
+      - Добавить `access` и `refresh` в ответ `201 Created`.
+    - [x] Обновить `extend_schema` декоратор для `UserRegistrationView`, добавив токены в пример ответа (201).
 
 2.  **Frontend: Harden Auth Service**
-    -   [x] В `frontend/src/services/authService.ts`:
-        -   В методе `register`: добавить проверку `if (access && refresh)` перед вызовом `setTokens`.
-        -   В методе `registerB2B`: аналогично добавить проверку. Учесть, что для B2B токенов может и не быть (ожидаемое поведение).
+    - [x] В `frontend/src/services/authService.ts`:
+      - В методе `register`: добавить проверку `if (access && refresh)` перед вызовом `setTokens`.
+      - В методе `registerB2B`: аналогично добавить проверку. Учесть, что для B2B токенов может и не быть (ожидаемое поведение).
 
 3.  **Frontend: Secure API Client**
-    -   [x] В `api-client.ts` (response interceptor):
-        -   Найти место получения `refreshToken`.
-        -   Добавить условие: если токен равен строке `"undefined"`, считать его отсутствующим и делать logout.
+    - [x] В `api-client.ts` (response interceptor):
+      - Найти место получения `refreshToken`.
+      - Добавить условие: если токен равен строке `"undefined"`, считать его отсутствующим и делать logout.
 
 ### Acceptance Criteria
 
 1.  **B2C Registration:**
-    -   Регистрация -> ответ 201 с токенами -> токены сохранены -> профиль загружается без 401.
+    - Регистрация -> ответ 201 с токенами -> токены сохранены -> профиль загружается без 401.
 2.  **B2B Registration (Pending):**
-    -   Регистрация -> ответ 201 без токенов -> сторадж чист (нет `"undefined"`) -> редирект/сообщение пользователю.
+    - Регистрация -> ответ 201 без токенов -> сторадж чист (нет `"undefined"`) -> редирект/сообщение пользователю.
 3.  **Undefined Token Protection:**
-    -   Если вручную записать `"undefined"` в localStorage и вызвать API -> происходит logout, нет запроса на `/auth/refresh/` с невалидным токеном.
+    - Если вручную записать `"undefined"` в localStorage и вызвать API -> происходит logout, нет запроса на `/auth/refresh/` с невалидным токеном.
 
 ## Additional Context
 
 ### Testing Strategy
 
 - **Manual Verification:**
-    -   Регистрация розничного пользователя.
-    -   Регистрация оптового пользователя.
-    -   Проверка DevTools (Network, Application).
+  - Регистрация розничного пользователя.
+  - Регистрация оптового пользователя.
+  - Проверка DevTools (Network, Application).
 
 ---
 
@@ -105,6 +119,7 @@ test_patterns: ['Integration Tests', 'Vitest']
 ### Симптомы
 
 После первоначальной имплементации спеки обнаружена регрессия:
+
 - **ВСЕ публичные эндпоинты** (`/banners/`, `/products/`, `/blog/`, `/news/`) возвращали 401 Unauthorized.
 - Ошибка возникала даже для неаутентифицированных пользователей.
 - Backend views имели `permission_classes = [AllowAny]`, но 401 всё равно возвращался.
@@ -112,6 +127,7 @@ test_patterns: ['Integration Tests', 'Vitest']
 ### Root Cause Analysis
 
 1. **Request Interceptor не проверял токен на `"undefined"`:**
+
    ```typescript
    // БЫЛО (api-client.ts, строка 97-99):
    const token = useAuthStore.getState().accessToken;
@@ -119,6 +135,7 @@ test_patterns: ['Integration Tests', 'Vitest']
      config.headers.Authorization = `Bearer ${token}`;
    }
    ```
+
    Если `token = "undefined"` (строка, не `undefined`), условие `if (token)` = `true`, и отправлялся невалидный header `Authorization: Bearer undefined`.
 
 2. **SimpleJWT возвращает 401 при невалидном токене ДО проверки permissions:**
@@ -128,8 +145,8 @@ test_patterns: ['Integration Tests', 'Vitest']
    ```typescript
    // БЫЛО (authStore.ts):
    getRefreshToken: () => {
-     return localStorage.getItem('refreshToken'); // Может вернуть "undefined"
-   }
+     return localStorage.getItem("refreshToken"); // Может вернуть "undefined"
+   };
    ```
 
 ### Исправления
@@ -178,4 +195,3 @@ getRefreshToken: () => {
 
 > [!TIP]
 > SimpleJWT валидирует токен ДО проверки permission_classes. Невалидный `Authorization` header = 401, даже для `AllowAny` endpoints.
-

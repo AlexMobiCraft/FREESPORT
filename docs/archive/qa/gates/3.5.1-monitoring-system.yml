@@ -57,8 +57,8 @@ evidence:
   tests_reviewed: 24
   risks_identified: 4
   trace:
-    ac_covered: [1, 2, 3, 4, 5]  # AC 1-5 полностью покрыты тестами
-    ac_gaps: [6, 7]  # AC 6-7 частично реализованы (нет Prometheus/Grafana интеграции)
+    ac_covered: [1, 2, 3, 4, 5] # AC 1-5 полностью покрыты тестами
+    ac_gaps: [6, 7] # AC 6-7 частично реализованы (нет Prometheus/Grafana интеграции)
 
 # Валидация Non-Functional Requirements
 nfr_validation:
@@ -104,7 +104,7 @@ quality_score: 75
 
 # Рекомендации
 recommendations:
-  immediate:  # Must fix перед production
+  immediate: # Must fix перед production
     - action: "Создать Prometheus scrape config и alert rules"
       refs:
         - "docker/prometheus/prometheus.yml"
@@ -122,7 +122,7 @@ recommendations:
       refs:
         - "backend/tests/performance/test_monitoring_load.py"
 
-  future:  # Nice to have для следующих итераций
+  future: # Nice to have для следующих итераций
     - action: "Рассмотреть миграцию percentile calculation на Django ORM Percentile aggregate"
       refs:
         - "backend/apps/common/services/customer_sync_monitor.py:130-164"

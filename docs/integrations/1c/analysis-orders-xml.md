@@ -73,6 +73,6 @@ For **Importing Statuses** (1C -> Site), we rely on:
 ## Next Steps
 
 1.  Obtain a real `orders.xml` export from the specific 1C instance to verify:
-    *   Exact name of the status field.
-    *   How dates are passed.
-    *   If `<Контейнер>` is strictly used (it is in 3.1, but sometimes strictness varies).
+    - Exact name of the status field.
+    - How dates are passed.
+    - If `<Контейнер>` is strictly used (it is in 3.1, but sometimes strictness varies).

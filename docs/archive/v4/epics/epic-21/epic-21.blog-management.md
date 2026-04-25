@@ -175,12 +175,12 @@
 
 **Документы для обновления:**
 
-| Документ | Изменения |
-|----------|-----------|
-| source-tree.md | Добавить BlogPost в apps/common/, blogService.ts в frontend/services/ |
-| 03-api-specification.md | Добавить GET /api/v1/blog/, GET /api/v1/blog/{slug}/ |
-| 02-data-models.md | Добавить описание модели BlogPost |
-| GEMINI.md / CLAUDE.md | Добавить краткое описание Blog модуля |
+| Документ                | Изменения                                                             |
+| ----------------------- | --------------------------------------------------------------------- |
+| source-tree.md          | Добавить BlogPost в apps/common/, blogService.ts в frontend/services/ |
+| 03-api-specification.md | Добавить GET /api/v1/blog/, GET /api/v1/blog/{slug}/                  |
+| 02-data-models.md       | Добавить описание модели BlogPost                                     |
+| GEMINI.md / CLAUDE.md   | Добавить краткое описание Blog модуля                                 |
 
 **Estimated effort:** 0.25 дня
 
@@ -229,7 +229,7 @@
 
 ## Change Log
 
-| Date       | Version | Description                      | Author       |
-|------------|---------|----------------------------------|--------------|
-| 2025-12-27 | 1.0     | Initial epic draft               | John (PM)    |
-| 2025-12-27 | 1.1     | Added Story 21.4: Documentation Update | Bob (SM) |
+| Date       | Version | Description                            | Author    |
+| ---------- | ------- | -------------------------------------- | --------- |
+| 2025-12-27 | 1.0     | Initial epic draft                     | John (PM) |
+| 2025-12-27 | 1.1     | Added Story 21.4: Documentation Update | Bob (SM)  |

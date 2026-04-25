@@ -7,6 +7,7 @@ Docker контексты позволяют управлять нескольк
 ## Проблема
 
 При выполнении скриптов обновления кода на сервере может возникнуть ошибка:
+
 ```
 Failed to initialize: unable to resolve docker endpoint: context "freesport-remote": context not found
 ```
@@ -28,11 +29,13 @@ pwsh .\scripts\server\update_server_code.ps1
 Если автоматическое создание не работает, можно создать контекст вручную:
 
 1. **Проверьте текущие контексты:**
+
    ```powershell
    docker context ls
    ```
 
 2. **Создайте новый контекст:**
+
    ```powershell
    docker context create freesport-remote --docker "host=ssh://root@5.35.124.149"
    ```
@@ -47,11 +50,13 @@ pwsh .\scripts\server\update_server_code.ps1
 Если контекст существует, но не работает правильно:
 
 1. **Удалите поврежденный контекст:**
+
    ```powershell
    docker context rm freesport-remote
    ```
 
 2. **Создайте его заново:**
+
    ```powershell
    docker context create freesport-remote --docker "host=ssh://root@5.35.124.149"
    ```
@@ -88,6 +93,7 @@ ssh root@5.35.124.149 "docker ps"
 Ошибка: `SSH key not found`
 
 Решение: Убедитесь, что SSH ключ существует и добавлен в ssh-agent:
+
 ```powershell
 ssh-add ~/.ssh/id_ed25519
 ```
@@ -97,6 +103,7 @@ ssh-add ~/.ssh/id_ed25519
 Ошибка: `permission denied while trying to connect to the Docker daemon socket`
 
 Решение: Добавьте пользователя в группу docker на сервере:
+
 ```bash
 sudo usermod -aG docker root
 # или для другого пользователя
@@ -108,6 +115,7 @@ sudo usermod -aG docker username
 Ошибка: `Cannot connect to the Docker daemon`
 
 Решение: Проверьте статус Docker на сервере:
+
 ```bash
 ssh root@5.35.124.149 "sudo systemctl status docker"
 ```
@@ -115,26 +123,31 @@ ssh root@5.35.124.149 "sudo systemctl status docker"
 ## Полный процесс восстановления
 
 1. **Проверьте SSH подключение:**
+
    ```powershell
    ssh root@5.35.124.149 "echo 'SSH connection works'"
    ```
 
 2. **Проверьте Docker на сервере:**
+
    ```powershell
    ssh root@5.35.124.149 "docker --version && docker ps"
    ```
 
 3. **Удалите старый контекст (если существует):**
+
    ```powershell
    docker context rm freesport-remote -f
    ```
 
 4. **Создайте новый контекст:**
+
    ```powershell
    docker context create freesport-remote --docker "host=ssh://root@5.35.124.149"
    ```
 
 5. **Проверьте работу контекста:**
+
    ```powershell
    docker --context freesport-remote ps
    ```

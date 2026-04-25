@@ -80,3 +80,4 @@ Docker Desktop Settings → Resources → CPU: 4+, Memory: 8GB+
 Docker Desktop → Settings → General → WSL 2 engine
 Оптимизировать bind-mounts:
 
+```

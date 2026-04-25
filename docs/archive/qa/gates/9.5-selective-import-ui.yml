@@ -36,21 +36,21 @@ evidence:
   coverage_percent: 82
   risks_identified: 2
   trace:
-    ac_covered: [1, 2, 3, 4, 5]  # Все AC покрыты реализацией
+    ac_covered: [1, 2, 3, 4, 5] # Все AC покрыты реализацией
     ac_gaps: []
 
 # NFR Validation
 nfr_validation:
-  security: 
+  security:
     status: PASS
     notes: "Redis distributed lock предотвращает concurrent runs"
-  performance: 
+  performance:
     status: PASS
     notes: "Последовательный импорт с прерыванием при ошибках"
-  reliability: 
+  reliability:
     status: PASS
     notes: "Comprehensive error handling с валидацией файлов"
-  maintainability: 
+  maintainability:
     status: PASS
     notes: "Чистая архитектура с разделением ответственности, type hints"
   testability:
@@ -77,7 +77,7 @@ implementation_quality:
   error_handling: "Comprehensive"
   documentation_code: "Good (type hints, docstrings)"
   documentation_user: "Incomplete (needs admin guide update)"
-  
+
 # Acceptance Criteria Status
 acceptance_criteria:
   AC1_admin_structure: PASS
@@ -95,6 +95,6 @@ definition_of_done:
   redis_lock_prevents_concurrent: true
   tests_passed: true
   coverage_above_80: true
-  documentation_updated: false  # ❌ Blocking PASS
-  code_review_passed: false  # Pending
-  manual_testing_docker: false  # ❌ Blocking PASS
+  documentation_updated: false # ❌ Blocking PASS
+  code_review_passed: false # Pending
+  manual_testing_docker: false # ❌ Blocking PASS

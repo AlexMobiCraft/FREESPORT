@@ -57,37 +57,50 @@ ac_traceability:
     status: PASS
     evidence: "ProductOptions.tsx создан в src/components/product/"
     tests: ["рендерит компонент с data-testid"]
-  
+
   AC2_size_selectors:
     status: PASS
     evidence: "Размеры отображаются как группа Chip компонентов"
     tests: ["рендерит селекторы размеров"]
-  
+
   AC3_color_selectors:
     status: PASS
     evidence: "Цвета отображаются с цветовыми индикаторами"
-    tests: ["рендерит селекторы цветов", "рендерит цветовые индикаторы для цветов"]
-  
+    tests:
+      ["рендерит селекторы цветов", "рендерит цветовые индикаторы для цветов"]
+
   AC4_disabled_options:
     status: PASS
     evidence: "Недоступные опции имеют opacity-50, cursor-not-allowed, aria-disabled"
-    tests: ["отображает недоступные цвета как disabled", "применяет opacity-50 к недоступным опциям"]
-  
+    tests:
+      [
+        "отображает недоступные цвета как disabled",
+        "применяет opacity-50 к недоступным опциям",
+      ]
+
   AC5_selection_state:
     status: PASS
     evidence: "onSelectionChange вызывается при клике, состояние обновляется"
-    tests: ["вызывает onSelectionChange при клике на размер", "вызывает onSelectionChange при клике на цвет"]
-  
+    tests:
+      [
+        "вызывает onSelectionChange при клике на размер",
+        "вызывает onSelectionChange при клике на цвет",
+      ]
+
   AC6_design_system:
     status: PASS
     evidence: "Стили соответствуют front-end-spec.md: rounded-2xl, px-4, py-2, space-y-6, gap-2"
-    tests: ["применяет корректные базовые стили к Chip", "применяет typography для заголовков групп"]
-  
+    tests:
+      [
+        "применяет корректные базовые стили к Chip",
+        "применяет typography для заголовков групп",
+      ]
+
   AC7_msw_mock:
     status: PASS
     evidence: "MSW handler для /api/products/:slug/ настроен с MOCK_PRODUCT_WITH_VARIANTS"
     tests: []
-  
+
   AC8_unit_tests:
     status: PASS
     evidence: "37 тестов покрывают рендеринг, взаимодействие, accessibility, стили, edge cases"
@@ -98,11 +111,11 @@ integration_verification:
   IV1_renders_on_page:
     status: PASS
     evidence: "ProductSummary интегрирует ProductOptions, передает variants и callbacks"
-  
+
   IV2_design_system_compliance:
     status: PASS
     evidence: "Стили соответствуют Chip спецификации из front-end-spec.md"
-  
+
   IV3_api_contract:
     status: PASS
     evidence: "MSW mock возвращает ProductVariantSchema структуру"

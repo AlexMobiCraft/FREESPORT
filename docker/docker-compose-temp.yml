@@ -1,5 +1,5 @@
 # Временный Docker Compose для создания чистой PostgreSQL
-version: '3.8'
+version: "3.8"
 
 services:
   # PostgreSQL база данных без монтирования тома
