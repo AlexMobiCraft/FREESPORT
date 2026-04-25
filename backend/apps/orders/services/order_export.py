@@ -406,6 +406,8 @@ class OrderExportService:
         # warehouse_name варианта НЕ используется для item-level VAT — только для order-level fallback.
         if item.vat_rate is not None:
             return Decimal(str(item.vat_rate))
+        if item.variant is None:
+            return order_vat_rate
         if item.variant.vat_rate is not None:
             return Decimal(str(item.variant.vat_rate))
         product_vat_rate = self._get_prefetched_product_vat_rate(item)
@@ -415,6 +417,8 @@ class OrderExportService:
         """Сумма НДС документа как сумма НДС строк, чтобы совпадать с товарными блоками."""
         total_vat = Decimal("0.00")
         for item in order.items.all():
+            if item.variant is None:
+                continue
             item_vat_rate = self._resolve_item_vat_rate_for_export(item, order_vat_rate)
             total_vat += self._calc_vat_amount(item.total_price, item_vat_rate)
         return total_vat.quantize(Decimal("0.01"))
