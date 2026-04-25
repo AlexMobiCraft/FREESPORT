@@ -154,7 +154,7 @@ describe('Header', () => {
       const blogLink = screen.getByRole('link', { name: 'Блог' });
       expect(blogLink).toBeInTheDocument();
       expect(blogLink).toHaveAttribute('href', '/blog');
-      expect(screen.getByRole('link', { name: 'Партнёрам' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Партнерам' })).toBeInTheDocument();
     });
 
     it('should render action icons (search, favorites, cart)', () => {
@@ -474,14 +474,14 @@ describe('Header', () => {
 
     it('should render Partners link', () => {
       render(<Header />);
-      const partnersLink = screen.getByRole('link', { name: 'Партнёрам' });
+      const partnersLink = screen.getByRole('link', { name: 'Партнерам' });
       expect(partnersLink).toBeInTheDocument();
       expect(partnersLink).toHaveAttribute('href', '/partners');
     });
 
     it('should apply relative positioning for active state styles', () => {
       render(<Header />);
-      const partnersLink = screen.getByRole('link', { name: 'Партнёрам' });
+      const partnersLink = screen.getByRole('link', { name: 'Партнерам' });
 
       // Should have relative class for positioning the active state underline
       expect(partnersLink).toHaveClass('relative');
@@ -583,7 +583,7 @@ describe('Header', () => {
         const logoutButton = screen.getByTestId('logout-button');
         await user.click(logoutButton);
 
-        expect(mockPush).toHaveBeenCalledWith('/');
+        expect(mockPush).toHaveBeenCalledWith('/home');
       });
 
       it('should call authStore.logout() and redirect on mobile button click', async () => {
@@ -600,7 +600,7 @@ describe('Header', () => {
 
         // Check that logout was called
         expect(mockLogout).toHaveBeenCalled();
-        expect(mockPush).toHaveBeenCalledWith('/');
+        expect(mockPush).toHaveBeenCalledWith('/home');
       });
 
       it('should close mobile menu after logout', async () => {

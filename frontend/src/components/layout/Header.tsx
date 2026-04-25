@@ -52,7 +52,7 @@ const Header: React.FC = () => {
    */
   const handleLogout = async () => {
     await logout();
-    router.push('/');
+    router.push('/home');
   };
 
   // Получаем количество товаров из корзины
