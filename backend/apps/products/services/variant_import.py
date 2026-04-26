@@ -312,12 +312,33 @@ class VariantImportProcessor:
 
     # Минимальный размер изображения в байтах (100KB)
     MIN_IMAGE_SIZE_BYTES = 100 * 1024
+    # Резервный минимум — используется когда нет изображений >= 100KB
+    FALLBACK_MIN_IMAGE_SIZE_BYTES = 10 * 1024
+
+    def _get_effective_min_size(self, image_paths: list[str], base_dir: str) -> int:
+        """
+        Определяет эффективный минимальный размер изображения.
+
+        Если среди image_paths есть хотя бы одно изображение >= MIN_IMAGE_SIZE_BYTES,
+        возвращает MIN_IMAGE_SIZE_BYTES. Иначе возвращает FALLBACK_MIN_IMAGE_SIZE_BYTES,
+        чтобы не оставлять товар/вариант вообще без изображений.
+        """
+        for image_path in image_paths:
+            normalized_path = normalize_image_path(image_path)
+            source_path = Path(base_dir) / normalized_path
+            try:
+                if source_path.exists() and source_path.stat().st_size >= self.MIN_IMAGE_SIZE_BYTES:
+                    return self.MIN_IMAGE_SIZE_BYTES
+            except OSError:
+                continue
+        return self.FALLBACK_MIN_IMAGE_SIZE_BYTES
 
     def _save_image_if_not_exists(
         self,
         source_path: Path,
         image_path: str,
         destination_prefix: str,
+        min_size_bytes: int | None = None,
     ) -> str | None:
         """
         Helper метод для сохранения изображения если оно еще не существует
@@ -326,6 +347,7 @@ class VariantImportProcessor:
             source_path: Путь к исходному файлу изображения
             image_path: Относительный путь изображения из XML
             destination_prefix: Префикс директории назначения ('base' или 'variants')
+            min_size_bytes: Минимальный размер файла; если None — использует MIN_IMAGE_SIZE_BYTES
 
         Returns:
             Путь к сохраненному файлу или None если файл не найден/ошибка/слишком мал
@@ -339,13 +361,13 @@ class VariantImportProcessor:
             self.stats["images_errors"] += 1
             return None
 
-        # Проверка минимального размера файла (100KB)
+        effective_min = min_size_bytes if min_size_bytes is not None else self.MIN_IMAGE_SIZE_BYTES
         file_size = source_path.stat().st_size
-        if file_size < self.MIN_IMAGE_SIZE_BYTES:
+        if file_size < effective_min:
             size_kb = file_size / 1024
             logger.debug(
                 f"Image too small, skipping: {source_path} "
-                f"({size_kb:.1f}KB < {self.MIN_IMAGE_SIZE_BYTES // 1024}KB)"
+                f"({size_kb:.1f}KB < {effective_min // 1024}KB)"
             )
             self.stats["images_skipped"] += 1
             return None
@@ -603,12 +625,14 @@ class VariantImportProcessor:
 
         seen_paths: set[str] = set(base_images)
 
+        effective_min = self._get_effective_min_size(image_paths, base_dir)
+
         for image_path in image_paths:
             try:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
-                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "base")
+                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "base", min_size_bytes=effective_min)
 
                 if saved_path:
                     saved_filename = Path(saved_path).name
@@ -885,12 +909,14 @@ class VariantImportProcessor:
 
         seen_paths: set[str] = set(gallery_images)
 
+        effective_min = self._get_effective_min_size(image_paths, base_dir)
+
         for image_path in image_paths:
             try:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
-                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "variants")
+                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "variants", min_size_bytes=effective_min)
 
                 if saved_path:
                     saved_filename = Path(saved_path).name

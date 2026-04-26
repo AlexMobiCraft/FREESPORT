@@ -5,7 +5,7 @@
 
 from collections import defaultdict
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 from django.conf import settings
 from django.db import transaction
@@ -21,7 +21,7 @@ from apps.products.models import ProductVariant
 class OrderCreateService:
     """Создаёт мастер-заказ и N субзаказов по VAT-группам из корзины."""
 
-    def __init__(self, cart, user, validated_data: dict, delivery_cost: Decimal):
+    def __init__(self, cart: Cart, user: Any, validated_data: dict[str, Any], delivery_cost: Decimal):
         self.cart = cart
         self.user = user
         self.validated_data = validated_data
@@ -137,7 +137,7 @@ class OrderCreateService:
                 stock_quantity=F("stock_quantity") - qty
             )
             if updated == 0:
-                variant = variant_manager.filter(pk=variant_pk).only("id", "sku").first()
+                variant: ProductVariant | None = variant_manager.filter(pk=variant_pk).only("id", "sku").first()
                 sku = getattr(variant, "sku", variant_pk) if variant else variant_pk
                 raise serializers.ValidationError(
                     f"Недостаточно товара '{sku}' на складе. "
@@ -150,7 +150,7 @@ class OrderCreateService:
 
         return master
 
-    def _resolve_item_vat_rate(self, variant: ProductVariant, product) -> Decimal | None:
+    def _resolve_item_vat_rate(self, variant: ProductVariant, product: Any) -> Decimal | None:
         """
         Возвращает ставку НДС для группировки заказа.
 

@@ -4,7 +4,7 @@
 """
 
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.manager import BaseManager
@@ -62,14 +62,14 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         """Собрать OrderItem из всех субзаказов (список, использующий prefetch cache)."""
         return [item for sub in obj.sub_orders.all() for item in sub.items.all()]
 
-    def get_items(self, obj: Order) -> list:
+    def get_items(self, obj: Order) -> list[Any]:
         if obj.is_master:
             sub_items = self._collect_sub_items(obj)
             if sub_items:
-                return OrderItemSerializer(sub_items, many=True).data
+                return cast(list[Any], OrderItemSerializer(sub_items, many=True).data)
             # Legacy master (до VAT-split): позиции лежат на самом мастере
         qs = obj.items.select_related("product", "variant")
-        return OrderItemSerializer(qs, many=True).data
+        return cast(list[Any], OrderItemSerializer(qs, many=True).data)
 
     def get_subtotal(self, obj: Order) -> Decimal:
         if obj.is_master:
