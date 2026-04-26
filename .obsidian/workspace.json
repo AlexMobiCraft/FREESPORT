@@ -27,16 +27,58 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Исправить.md",
+                "file": "docs/integrations/1c/architecture.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Исправить"
+              "title": "architecture"
+            }
+          },
+          {
+            "id": "85e1d302965fe54b",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/integrations/1c/architecture.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "architecture"
+            }
+          },
+          {
+            "id": "03cff46679c9b8ba",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/integrations/1c/architecture.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "architecture"
+            }
+          },
+          {
+            "id": "e78ebdad1411932b",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/integrations/1c/architecture.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "architecture"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 4
       }
     ],
     "direction": "vertical"
@@ -109,7 +151,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "_bmad-output/planning-artifacts/architecture.md",
+                "file": "docs/integrations/1c/architecture.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -198,8 +240,19 @@
       "graph:Граф": false
     }
   },
-  "active": "1f30e3d293a0d4cd",
+  "active": "e78ebdad1411932b",
   "lastOpenFiles": [
+    "docs/integrations/1c/analysis-orders-xml.md",
+    "docs/integrations/1c/Структура категорий товара.md",
+    "docs/integrations/1c/transport-layer.md",
+    "docs/integrations/1c/order-vat-warehouse-routing.md",
+    "docs/integrations/1c/1.md",
+    "docs/integrations/1c/order-import-handler-diagnostics.md",
+    "docs/integrations/1c/import-process.md",
+    "docs/integrations/1c/import-flow-detailed.md",
+    "docs/integrations/1c/commands-guide.md",
+    "docs/integrations/1c/architecture.md",
+    "Исправить.md",
     "frontend/node_modules/happy-dom/lib/event/events/CloseEvent.js",
     "frontend/node_modules/ws/lib/websocket-server.js",
     "frontend/node_modules/ws/lib/websocket.js",
@@ -210,7 +263,6 @@
     "frontend/node_modules/ws/lib/extension.js",
     "frontend/node_modules/ws/lib/stream.js",
     "frontend/node_modules/ws/wrapper.mjs",
-    "frontend/node_modules/ws/package.json",
     "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/test-failed-1.png",
     "frontend/test-results/checkout-Checkout-Error-Ha-d3e2b-alidation-error-from-server-chromium/test-failed-1.png",
@@ -227,21 +279,11 @@
     "frontend/test-results/checkout-Checkout-Flow-E2E-3f2a7-ntact-information-correctly-chromium/test-failed-1.png",
     "frontend/node_modules/entities/readme.md",
     "frontend/node_modules/@types/ws/README.md",
-    "Исправить.md",
     "README.md",
     "AGENTS.md",
     "_bmad-output/implementation-artifacts/Story/34-3-order-export-service-sub-orders.md",
     "docs/api/views-documentation.md",
     "docs/api/index.md",
-    "2026-04-17.md",
-    "backend/venv/Lib/site-packages/pytz/zoneinfo/Pacific/Saipan.md",
-    "GEMINI.md",
-    "CLAUDE.md",
-    "frontend/node_modules/eslint-plugin-import/memo-parser/README.md",
-    "frontend/node_modules/zustand/readme.md",
-    "_bmad-output/planning-artifacts/architecture.md",
-    "docs/archive/v4/index_v4_backup.md",
-    "Prototype.md",
-    "project-context.md"
+    "2026-04-17.md"
   ]
 }

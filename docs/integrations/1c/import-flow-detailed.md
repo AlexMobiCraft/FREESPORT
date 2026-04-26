@@ -62,4 +62,105 @@
 
 - `media/1c_temp/<session_id>/`: Временное хранилище (файлы лежат здесь до `mode=import`/`mode=complete`). Содержит флаг `.exchange_complete`.
 - `media/1c_import/`: Рабочая директория, куда файлы переносятся и распаковываются. Может содержать флаг `.dry_run` для режима проверки.
-- `media/products/`: Конечная папка для хранения изображений товаров.
+- `media/products/base/`: Конечная папка для базовых изображений товаров (из `goods.xml`).
+- `media/products/variants/`: Конечная папка для изображений вариантов (из `offers.xml`).
+
+---
+
+## 6. Алгоритм импорта изображений
+
+Реализован в `VariantImportProcessor` (`apps/products/services/variant_import.py`).
+
+### 6.1 Гибридная стратегия хранения
+
+Изображения разделены между двумя моделями:
+
+| Модель | Поле | Источник | Папка назначения |
+|---|---|---|---|
+| `Product` | `base_images` (JSON-массив путей) | `goods.xml` | `media/products/base/` |
+| `ProductVariant` | `main_image` (первое изображение) | `offers.xml` | `media/products/variants/` |
+| `ProductVariant` | `gallery_images` (JSON-массив остальных) | `offers.xml` | `media/products/variants/` |
+
+Если у варианта нет собственных изображений, фронтенд отображает `Product.base_images` как резервные.
+
+### 6.2 Алгоритм выбора порога размера файла
+
+Перед обработкой каждого списка изображений (`_get_effective_min_size`) выполняется предварительное сканирование всех файлов из XML:
+
+- Если **хотя бы одно** изображение ≥ **100 KB** — используется стандартный порог **100 KB**
+- Если **ни одного** изображения ≥ 100 KB нет — используется резервный порог **10 KB**
+
+Это позволяет не оставлять товар или вариант полностью без изображений в ситуациях, когда 1С выгружает только миниатюры.
+
+```
+MIN_IMAGE_SIZE_BYTES     = 100 * 1024   # 100 KB — стандартный порог
+FALLBACK_MIN_IMAGE_SIZE_BYTES = 10 * 1024    #  10 KB — резервный порог
+```
+
+### 6.3 Схема принятия решений для одного изображения
+
+```mermaid
+flowchart TD
+    START([Изображение из XML]) --> PRESCAN
+
+    PRESCAN{Есть хотя бы одно\nизображение ≥ 100 KB\nв этом списке?}
+    PRESCAN -- Да --> THRESHOLD_STD[effective_min = 100 KB]
+    PRESCAN -- Нет --> THRESHOLD_FB[effective_min = 10 KB]
+
+    THRESHOLD_STD --> NORMALIZE
+    THRESHOLD_FB --> NORMALIZE
+
+    NORMALIZE[Нормализация пути\nубрать префикс import_files/] --> EXISTS_SRC
+
+    EXISTS_SRC{Файл существует\nв media/1c_import/?}
+    EXISTS_SRC -- Нет --> ERR[images_errors++\nпропустить]
+    EXISTS_SRC -- Да --> SIZE_CHECK
+
+    SIZE_CHECK{Размер файла\n≥ effective_min?}
+    SIZE_CHECK -- Нет --> SKIP[images_skipped++\nпропустить]
+    SIZE_CHECK -- Да --> EXISTS_DST
+
+    EXISTS_DST{Файл уже есть\nв media/products/?}
+    EXISTS_DST -- Да --> SKIP2[images_skipped++\nвернуть путь]
+    EXISTS_DST -- Нет --> COPY
+
+    COPY[Скопировать файл\nв media/products/base/\nили variants/] --> DEDUP
+
+    DEDUP{Filename уже\nв seen_filenames?}
+    DEDUP -- Да --> DISCARD[Дубль — не добавлять\nв список]
+    DEDUP -- Нет --> ASSIGN
+
+    ASSIGN{Это изображение\nварианта?}
+    ASSIGN -- Нет --> ADD_BASE[Добавить в\nProduct.base_images]
+    ASSIGN -- Да, первое --> SET_MAIN[Установить\nVariant.main_image]
+    ASSIGN -- Да, не первое --> ADD_GALLERY[Добавить в\nVariant.gallery_images]
+```
+
+### 6.4 Дедупликация
+
+На каждом проходе ведётся два множества для защиты от дублей:
+
+- `seen_filenames` — имена файлов (защита от одного файла с разными путями)
+- `seen_paths` — полные пути (защита от повторного добавления того же пути)
+
+Дедупликация применяется и к уже существующим записям в БД (из предыдущих импортов) перед добавлением новых.
+
+### 6.5 Нормализация путей
+
+XML из 1С может содержать путь с префиксом `import_files/`:
+
+```
+import_files/картинки/товар.jpg  →  картинки/товар.jpg
+```
+
+Функция `normalize_image_path()` снимает этот префикс, обеспечивая единый формат путей независимо от источника (XML-импорт или загрузка через админку).
+
+### 6.6 Счётчики статистики
+
+После завершения импорта `VariantImportProcessor.stats` содержит:
+
+| Ключ | Описание |
+|---|---|
+| `images_copied` | Файлы успешно скопированы в `media/products/` |
+| `images_skipped` | Пропущены (слишком малы, уже существуют или дубль) |
+| `images_errors` | Ошибки (файл не найден или ошибка копирования) |
