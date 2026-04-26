@@ -239,11 +239,19 @@ def process_1c_import_task(
             session.report += f"[{timestamp}] Импорт успешно завершен.\n"
             session.save(update_fields=["status", "finished_at", "report", "updated_at"])
 
-        # Clean up shared import directory after successful import
+        # Clean up shared import directory only if no other sessions are active.
+        # Multiple sessions share the same import_dir; cleaning up while another
+        # session's Celery task is still running would delete its files mid-import.
         try:
-            from apps.integrations.onec_exchange.routing_service import FileRoutingService
+            other_active = ImportSession.objects.filter(
+                status=ImportSession.ImportStatus.IN_PROGRESS,
+            ).exclude(pk=session.pk).exists()
 
-            if session.session_key:
+            if other_active:
+                logger.info("Skipping import directory cleanup — other sessions are still IN_PROGRESS.")
+            elif session.session_key:
+                from apps.integrations.onec_exchange.routing_service import FileRoutingService
+
                 routing_service = FileRoutingService(str(session.session_key))
                 cleaned = routing_service.cleanup_import_dir()
                 logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")
