@@ -46,19 +46,19 @@ def processor(import_session):
 @pytest.mark.django_db
 class TestPriceImportLogic:
     def test_rrp_auto_population_on_import(self, processor, variant):
-        """Test AC2: rrp is populated from retail_price if not provided"""
+        """Test AC2: retail_price is populated from rrp if not provided"""
 
-        # Setup PriceType for retail_price
+        # Setup PriceType for rrp (РРЦ из 1С)
         PriceType.objects.create(
-            onec_id="price-retail-id",
-            onec_name="Розничная",
-            product_field="retail_price",
+            onec_id="price-rrp-id",
+            onec_name="РРЦ",
+            product_field="rrp",
         )
 
-        # Import data with only retail price
+        # Import data with only rrp price
         price_data = {
             "id": variant.onec_id,
-            "prices": [{"price_type_id": "price-retail-id", "value": Decimal("150.00")}],
+            "prices": [{"price_type_id": "price-rrp-id", "value": Decimal("150.00")}],
         }
 
         # Act
@@ -66,8 +66,8 @@ class TestPriceImportLogic:
 
         # Assert
         variant.refresh_from_db()
-        assert variant.retail_price == Decimal("150.00")
-        assert variant.rrp == Decimal("150.00")  # Should be auto-populated
+        assert variant.rrp == Decimal("150.00")
+        assert variant.retail_price == Decimal("150.00")  # Should be auto-populated from rrp
 
     def test_rrp_not_overwritten_if_provided(self, processor, variant):
         """Test AC2 edge case: rrp is used if explicitly provided"""
