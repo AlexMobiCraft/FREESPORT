@@ -111,9 +111,7 @@ describe('NewsPage (/news)', () => {
     it('должна отображать описание секции', async () => {
       vi.mocked(newsService.getNewsList).mockResolvedValue(mockNewsData);
       render(await NewsPage({ searchParams: Promise.resolve({}) }));
-      expect(
-        screen.getByText(/Актуальные новости, акции и события компании/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Актуальные новости, акции и события компании/i)).toBeInTheDocument();
     });
   });
 
