@@ -272,8 +272,8 @@ class ImportOrchestratorService:
 
             if target_subdir:
                 dest_dir = self.import_dir / target_subdir
-                dest_dir.mkdir(parents=True, exist_ok=True)
                 dest_path = dest_dir / unpacked_name
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
                     shutil.move(str(file_path), str(dest_path))
                     routed_count += 1

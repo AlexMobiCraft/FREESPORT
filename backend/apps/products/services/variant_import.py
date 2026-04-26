@@ -969,6 +969,7 @@ class VariantImportProcessor:
             return 0
 
         default_variants: list[ProductVariant] = []
+        product_ids_to_activate: list[int] = []
         batch_count = 0
 
         for product in products_without_variants.iterator():
@@ -992,6 +993,7 @@ class VariantImportProcessor:
                 vat_rate=Decimal(str(product.vat_rate)) if product.vat_rate is not None else None,
             )
             default_variants.append(variant)
+            product_ids_to_activate.append(product.pk)
 
             logger.info(
                 f"Creating default variant for product: {product.name} " f"(onec_id={product.onec_id}, sku={sku})"
@@ -1001,14 +1003,17 @@ class VariantImportProcessor:
             if len(default_variants) >= self.batch_size:
                 with transaction.atomic():
                     ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
+                    Product.objects.filter(pk__in=product_ids_to_activate, is_active=False).update(is_active=True)
                 batch_count += len(default_variants)
                 logger.info(f"Processed {batch_count} default variants")
                 default_variants = []
+                product_ids_to_activate = []
 
         # Сохранение оставшихся
         if default_variants:
             with transaction.atomic():
                 ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
+                Product.objects.filter(pk__in=product_ids_to_activate, is_active=False).update(is_active=True)
             batch_count += len(default_variants)
 
         self.stats["default_variants_created"] = batch_count
