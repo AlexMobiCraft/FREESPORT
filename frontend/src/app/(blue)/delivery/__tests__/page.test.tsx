@@ -101,7 +101,7 @@ describe('DeliveryPage (/delivery)', () => {
         screen.getByText(/Доставим до терминала без дополнительной платы/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Дальнейшую доставку осуществляет ТК по её тарифам/i)
+        screen.getByText(/Дальнейшую доставку осуществляет ТК по ее тарифам/i)
       ).toBeInTheDocument();
     });
   });

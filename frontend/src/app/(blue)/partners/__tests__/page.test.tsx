@@ -19,7 +19,7 @@ describe('PartnersPage', () => {
     render(<PartnersPage />);
 
     expect(screen.getByText('Главная')).toBeInTheDocument();
-    expect(screen.getByText('Партнёрам')).toBeInTheDocument();
+    expect(screen.getByText('Партнерам')).toBeInTheDocument();
   });
 
   it('renders hero section with title and description', () => {
@@ -28,7 +28,7 @@ describe('PartnersPage', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: /условия сотрудничества/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/выстраиваем долгосрочные партнёрские отношения/i)).toBeInTheDocument();
+    expect(screen.getByText(/выстраиваем долгосрочные партнерские отношения/i)).toBeInTheDocument();
   });
 
   it('renders 6 client type cards', () => {

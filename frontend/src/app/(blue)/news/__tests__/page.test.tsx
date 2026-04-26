@@ -112,7 +112,7 @@ describe('NewsPage (/news)', () => {
       vi.mocked(newsService.getNewsList).mockResolvedValue(mockNewsData);
       render(await NewsPage({ searchParams: Promise.resolve({}) }));
       expect(
-        screen.getByText(/Актуальные новости, акции и события компании FREESPORT/i)
+        screen.getByText(/Актуальные новости, акции и события компании/i)
       ).toBeInTheDocument();
     });
   });
@@ -169,7 +169,7 @@ describe('NewsPage (/news)', () => {
       vi.mocked(newsService.getNewsList).mockResolvedValue(mockNewsData);
       render(await NewsPage({ searchParams: Promise.resolve({}) }));
       expect(screen.getByText('← Назад')).toBeInTheDocument();
-      expect(screen.getByText('Вперёд →')).toBeInTheDocument();
+      expect(screen.getByText('Вперед →')).toBeInTheDocument();
     });
 
     it('должна отображать номера страниц', async () => {
