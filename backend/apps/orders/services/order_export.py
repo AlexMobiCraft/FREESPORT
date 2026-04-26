@@ -17,7 +17,7 @@ from django.conf import settings
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderItem
 from apps.products.models import ProductVariant
 from apps.users.models import User
 
@@ -250,7 +250,7 @@ class OrderExportService:
             counterparty_id = self._get_counterparty_id(user)
             if not user.onec_id:
                 logger.warning(
-                    f"Order {order.order_number}: User {user.id} has no onec_id, "  # type: ignore[attr-defined]
+                    f"Order {order.order_number}: User {user.id} has no onec_id, "
                     f"using fallback ID: {counterparty_id}"
                 )
             self._add_text_element(counterparty, "Ид", counterparty_id)
@@ -400,7 +400,7 @@ class OrderExportService:
 
         return products
 
-    def _resolve_item_vat_rate_for_export(self, item, order_vat_rate: Decimal) -> Decimal:
+    def _resolve_item_vat_rate_for_export(self, item: "OrderItem", order_vat_rate: Decimal) -> Decimal:
         """Возвращает ставку НДС строки для XML-экспорта заказа."""
         # Цепочка AC5: OrderItem.vat_rate (snapshot) → variant.vat_rate → product.vat_rate → order_vat_rate.
         # warehouse_name варианта НЕ используется для item-level VAT — только для order-level fallback.
@@ -454,7 +454,7 @@ class OrderExportService:
                 return warehouse_vat_rate
         return default_rate
 
-    def _get_prefetched_product_vat_rate(self, item) -> Decimal | None:
+    def _get_prefetched_product_vat_rate(self, item: "OrderItem") -> Decimal | None:
         """Возвращает Product.vat_rate без неявного SQL-запроса к item.product."""
         product = getattr(item._state, "fields_cache", {}).get("product")
         if product is None or product.vat_rate is None:
@@ -607,7 +607,7 @@ class OrderExportService:
         unlike order_number which could theoretically be changed.
         Format: 'order-{id}' for clarity in 1C.
         """
-        return f"order-{order.id}"  # type: ignore[attr-defined]
+        return f"order-{order.id}"
 
     def _get_counterparty_id(self, user: "User") -> str:
         """
@@ -622,7 +622,7 @@ class OrderExportService:
             # Use first 16 chars of SHA256 hash for reasonable uniqueness
             email_hash = hashlib.sha256(str(user.email).encode()).hexdigest()[:16]
             return f"email-{email_hash}"
-        return f"user-{user.id}"  # type: ignore[attr-defined]
+        return f"user-{user.id}"
 
     def _get_guest_counterparty_id(self, order: "Order") -> str:
         """
@@ -634,4 +634,4 @@ class OrderExportService:
         if order.customer_email:
             email_hash = hashlib.sha256(order.customer_email.encode()).hexdigest()[:16]
             return f"guest-{email_hash}"
-        return f"guest-order-{order.id}"  # type: ignore[attr-defined]
+        return f"guest-order-{order.id}"

@@ -23,8 +23,8 @@ class BrandFactory(DjangoModelFactory):
     class Meta:
         model = Brand
 
-    name = factory.Faker("company")
-    slug = factory.LazyAttribute(lambda obj: obj.name.lower().replace(" ", "-"))
+    name = factory.LazyFunction(lambda: f"Brand-{get_unique_suffix()}")
+    slug = factory.LazyAttribute(lambda obj: slugify(obj.name))
 
 
 class Brand1CMappingFactory(DjangoModelFactory):
