@@ -113,9 +113,7 @@ describe('BlogPage (/blog)', () => {
       vi.mocked(blogService.getBlogPosts).mockResolvedValue(mockBlogData);
       render(await BlogPage({ searchParams: Promise.resolve({}) }));
       expect(
-        screen.getByText(
-          /Полезные статьи о спорте, тренировках и экипировке от наших экспертов/i
-        )
+        screen.getByText(/Полезные статьи о спорте, тренировках и экипировке от наших экспертов/i)
       ).toBeInTheDocument();
     });
   });
