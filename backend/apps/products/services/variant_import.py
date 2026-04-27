@@ -580,18 +580,30 @@ class VariantImportProcessor:
             return None
 
     def _sync_product_variants_vat_rate(self, product: Any, vat_rate: Decimal) -> int:
-        """Обновляет ставки НДС существующих вариантов после раздельного импорта goods.xml."""
+        """Обновляет ставки НДС существующих вариантов после раздельного импорта goods.xml.
+
+        Пропускает варианты, у которых склад имеет собственный маппинг vat_rate в WAREHOUSE_RULES:
+        для таких вариантов ставка НДС определяется складом (rests.xml), а не товаром (goods.xml).
+        """
         from apps.products.models import ProductVariant
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        # Склады с явным vat_rate — их варианты обновляет rests.xml, не goods.xml
+        warehouses_with_own_vat = [
+            name for name, info in warehouse_rules.items() if info.get("vat_rate") is not None
+        ]
 
         updated = (
             ProductVariant.objects.filter(product=product)
             .filter(models.Q(vat_rate__isnull=True) | ~models.Q(vat_rate=vat_rate))
+            .exclude(warehouse_name__in=warehouses_with_own_vat)
             .update(vat_rate=vat_rate)
         )
         if updated:
             self.stats["variants_updated"] += updated
             logger.info(
-                f"Product {product.onec_id}: synchronized vat_rate={vat_rate} " f"to {updated} existing variants"
+                f"Product {product.onec_id}: synchronized vat_rate={vat_rate} to {updated} existing variants"
             )
         return updated
 

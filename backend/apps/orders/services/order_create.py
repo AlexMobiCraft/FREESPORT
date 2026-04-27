@@ -154,11 +154,15 @@ class OrderCreateService:
         """
         Возвращает ставку НДС для группировки заказа.
 
-        Приоритет соответствует источникам импорта 1С:
-        ProductVariant.vat_rate → Product.vat_rate → warehouse_name → DEFAULT_VAT_RATE.
-        Product.vat_rate нужен для реального обмена, где goods.xml и offers.xml
-        могут импортироваться раздельными задачами.
+        Приоритет: warehouse_name → variant.vat_rate → product.vat_rate → DEFAULT_VAT_RATE.
+        Склад проверяется первым: он определяет юрлицо (ИП) и применяемую ставку НДС.
+        Это защищает от ситуации когда goods.xml содержит иную ставку, чем реально
+        применяется для продажи со склада (например, 22% в каталоге vs 5% на складе ТЛВ).
         """
+        warehouse_vat = self._get_vat_rate_by_warehouse_name(getattr(variant, "warehouse_name", None))
+        if warehouse_vat is not None:
+            return warehouse_vat
+
         raw_vat = getattr(variant, "vat_rate", None)
         if raw_vat is not None:
             return Decimal(str(raw_vat))
@@ -166,10 +170,6 @@ class OrderCreateService:
         product_vat = getattr(product, "vat_rate", None)
         if product_vat is not None:
             return Decimal(str(product_vat))
-
-        warehouse_vat = self._get_vat_rate_by_warehouse_name(getattr(variant, "warehouse_name", None))
-        if warehouse_vat is not None:
-            return warehouse_vat
 
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         default_vat = exchange_cfg.get("DEFAULT_VAT_RATE")
