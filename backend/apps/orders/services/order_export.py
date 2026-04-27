@@ -469,7 +469,14 @@ class OrderExportService:
         return None
 
     def _get_order_warehouse_name_for_vat(self, order: "Order", vat_rate: Decimal) -> str | None:
-        """Возвращает склад субзаказа, только если он однозначен и соответствует vat_group."""
+        """Возвращает склад субзаказа если он однозначен и совместим с vat_group.
+
+        Склад возвращается если:
+        - все позиции субзаказа имеют одинаковый склад (однозначность)
+        - склад известен (есть в WAREHOUSE_RULES)
+        - склад либо не имеет фиксированной ставки НДС (переменная, как 1 СДВ склад),
+          либо его ставка совпадает с vat_group субзаказа.
+        """
         warehouse_names = {
             str(item.variant.warehouse_name)
             for item in order.items.all()
@@ -479,8 +486,15 @@ class OrderExportService:
             return None
 
         warehouse_name = next(iter(warehouse_names))
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
+        if warehouse_name not in warehouse_rules:
+            return None
+
         warehouse_vat_rate = self._get_vat_rate_by_warehouse_name(warehouse_name)
-        if warehouse_vat_rate == Decimal(str(vat_rate)):
+        # Склад без фиксированной ставки (переменный НДС) — принимаем как есть.
+        # Склад с фиксированной ставкой — принимаем только если совпадает с vat_group.
+        if warehouse_vat_rate is None or warehouse_vat_rate == Decimal(str(vat_rate)):
             return warehouse_name
         return None
 
