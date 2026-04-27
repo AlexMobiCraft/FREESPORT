@@ -313,7 +313,7 @@ class VariantImportProcessor:
     # Минимальный размер изображения в байтах (100KB)
     MIN_IMAGE_SIZE_BYTES = 100 * 1024
     # Резервный минимум — используется когда нет изображений >= 100KB
-    FALLBACK_MIN_IMAGE_SIZE_BYTES = 10 * 1024
+    FALLBACK_MIN_IMAGE_SIZE_BYTES = 8 * 1024
 
     def _get_effective_min_size(self, image_paths: list[str], base_dir: str) -> int:
         """
