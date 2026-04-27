@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Docker контексты позволяют управлять несколькими Docker хостами (локальными и удаленными) из одного клиента Docker. В проекте FREESPORT используется контекст `freesport-remote` для работы с Docker на удаленном сервере `5.35.124.149`.
+Docker контексты позволяют управлять несколькими Docker хостами (локальными и удаленными) из одного клиента Docker. В проекте FREESPORT используется контекст `freesport-remote` для работы с Docker на удаленном сервере `<SERVER_IP>`.
 
 ## Проблема
 
@@ -37,7 +37,7 @@ pwsh .\scripts\server\update_server_code.ps1
 2. **Создайте новый контекст:**
 
    ```powershell
-   docker context create freesport-remote --docker "host=ssh://root@5.35.124.149"
+   docker context create freesport-remote --docker "host=ssh://root@<SERVER_IP>"
    ```
 
 3. **Проверьте подключение:**
@@ -58,7 +58,7 @@ pwsh .\scripts\server\update_server_code.ps1
 2. **Создайте его заново:**
 
    ```powershell
-   docker context create freesport-remote --docker "host=ssh://root@5.35.124.149"
+   docker context create freesport-remote --docker "host=ssh://root@<SERVER_IP>"
    ```
 
 3. **Проверьте работу:**
@@ -77,13 +77,13 @@ pwsh .\scripts\server\update_server_code.ps1
 ### Проверка SSH подключения
 
 ```powershell
-ssh root@5.35.124.149
+ssh root@<SERVER_IP>
 ```
 
 ### Проверка Docker на сервере
 
 ```powershell
-ssh root@5.35.124.149 "docker ps"
+ssh root@<SERVER_IP> "docker ps"
 ```
 
 ## Частые проблемы
@@ -117,7 +117,7 @@ sudo usermod -aG docker username
 Решение: Проверьте статус Docker на сервере:
 
 ```bash
-ssh root@5.35.124.149 "sudo systemctl status docker"
+ssh root@<SERVER_IP> "sudo systemctl status docker"
 ```
 
 ## Полный процесс восстановления
@@ -125,13 +125,13 @@ ssh root@5.35.124.149 "sudo systemctl status docker"
 1. **Проверьте SSH подключение:**
 
    ```powershell
-   ssh root@5.35.124.149 "echo 'SSH connection works'"
+   ssh root@<SERVER_IP> "echo 'SSH connection works'"
    ```
 
 2. **Проверьте Docker на сервере:**
 
    ```powershell
-   ssh root@5.35.124.149 "docker --version && docker ps"
+   ssh root@<SERVER_IP> "docker --version && docker ps"
    ```
 
 3. **Удалите старый контекст (если существует):**
@@ -143,7 +143,7 @@ ssh root@5.35.124.149 "sudo systemctl status docker"
 4. **Создайте новый контекст:**
 
    ```powershell
-   docker context create freesport-remote --docker "host=ssh://root@5.35.124.149"
+   docker context create freesport-remote --docker "host=ssh://root@<SERVER_IP>"
    ```
 
 5. **Проверьте работу контекста:**

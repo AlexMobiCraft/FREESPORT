@@ -378,21 +378,21 @@ SENTRY_DSN=https://your-sentry-dsn@sentry.io/project
 # Production сборка
 build-prod:
 	@echo "Сборка production образов..."
-	docker-compose -f docker-compose.prod.yml build --no-cache
+	docker compose --env-file .env.prod -f docker/docker-compose.prod.yml build --no-cache
 
 # Production запуск
 up-prod:
 	@echo "Запуск production среды..."
-	docker-compose -f docker-compose.prod.yml up -d
+	docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 
 # Production остановка
 down-prod:
 	@echo "Остановка production среды..."
-	docker-compose -f docker-compose.prod.yml down
+	docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
 
 # Production логи
 logs-prod:
-	docker-compose -f docker-compose.prod.yml logs -f
+	docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f
 
 # Health check
 health-check:
@@ -403,7 +403,7 @@ health-check:
 # Database backup
 backup-db:
 	@echo "Создание backup базы данных..."
-	docker-compose -f docker-compose.prod.yml exec -T db pg_dump -U $(POSTGRES_USER) $(POSTGRES_DB) | gzip > backups/db_backup_$(shell date +%Y%m%d_%H%M%S).sql.gz
+	docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db pg_dump -U $(POSTGRES_USER) $(POSTGRES_DB) | gzip > backups/db_backup_$(shell date +%Y%m%d_%H%M%S).sql.gz
 
 # Deploy (полный цикл)
 deploy:
@@ -411,8 +411,8 @@ deploy:
 	make backup-db
 	git pull origin main
 	make build-prod
-	docker-compose -f docker-compose.prod.yml exec backend python manage.py migrate
-	docker-compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+	docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
+	docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 	make up-prod
 	sleep 30
 	make health-check
@@ -451,7 +451,7 @@ sudo apt install -y certbot
 mkdir -p ./ssl
 
 # Получение сертификата (при остановленном Nginx)
-docker-compose -f docker-compose.prod.yml stop nginx
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml stop nginx
 
 sudo certbot certonly --standalone \
   -d $DOMAIN \
@@ -468,7 +468,7 @@ sudo chmod 644 ./ssl/*.pem
 # Настройка автообновления
 echo "0 12 * * * /usr/bin/certbot renew --quiet --post-hook 'docker-compose -f $(pwd)/docker-compose.prod.yml restart nginx'" | sudo crontab -
 
-docker-compose -f docker-compose.prod.yml start nginx
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml start nginx
 
 echo "✅ SSL сертификаты настроены"
 ```
@@ -483,7 +483,7 @@ echo "✅ SSL сертификаты настроены"
 
 set -e
 
-DEPLOY_DIR="/opt/freesport"
+DEPLOY_DIR="/home/freesport/freesport"
 BACKUP_DIR="./backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 
@@ -514,19 +514,19 @@ make build-prod
 
 # Миграции БД
 echo "🗄️ Применение миграций..."
-docker-compose -f docker-compose.prod.yml exec backend python manage.py migrate --noinput
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate --noinput
 
 # Сбор статических файлов
 echo "📎 Сбор статических файлов..."
-docker-compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 
 # Rolling restart
 echo "♻️ Перезапуск сервисов..."
-docker-compose -f docker-compose.prod.yml up -d --no-deps backend celery
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --no-deps backend celery
 sleep 15
-docker-compose -f docker-compose.prod.yml up -d --no-deps frontend
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --no-deps frontend
 sleep 10
-docker-compose -f docker-compose.prod.yml up -d --no-deps nginx
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --no-deps nginx
 
 # Health check
 echo "🏥 Проверка состояния..."
@@ -542,6 +542,8 @@ echo "🎉 Deployment завершен успешно!"
 
 ## Production Checklist
 
+> **Backup/restore:** Management-команды `backup_db`, `restore_db`, `rotate_backups` реализованы (локальное хранение). Production shell-скрипт `backup_production_db.sh` поддерживает опциональную загрузку в S3/MinIO (требует установленных CLI-инструментов). Регулярное расписание и offsite-репликация не настроены — требуют ручной настройки cron.
+
 ### Перед развертыванием:
 
 - [ ] Сервер настроен и доступен
@@ -553,7 +555,7 @@ echo "🎉 Deployment завершен успешно!"
 
 ### После развертывания:
 
-- [ ] Все сервисы запущены (`docker-compose -f docker-compose.prod.yml ps`)
+- [ ] Все сервисы запущены (`docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps`)
 - [ ] Health check проходит (`make health-check`)
 - [ ] SSL работает (проверить в браузере)
 - [ ] Статические файлы загружаются

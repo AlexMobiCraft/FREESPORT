@@ -106,7 +106,7 @@ gh workflow run deploy.yml -f skip_tests=true
 ## Структура на сервере
 
 ```
-/opt/freesport/
+/home/freesport/freesport/
 ├── backend/
 ├── frontend/
 ├── docker/
@@ -149,7 +149,7 @@ BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:production
 FRONTEND_IMAGE=ghcr.io/alexmobicraft/freesport/frontend:production
 
 # 1C Integration
-ONEC_DATA_DIR=/opt/freesport/data/import_1c
+ONEC_DATA_DIR=/home/freesport/freesport/data/import_1c
 ```
 
 ## Откат (Rollback)

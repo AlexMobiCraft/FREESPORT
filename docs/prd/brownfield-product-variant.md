@@ -17,7 +17,7 @@
 
 - ✅ [docs/PRD.md](../PRD.md) — основной Product Requirements Document
 - ✅ [docs/architecture.md](../architecture.md) — архитектурная документация (v4, sharded)
-- ✅ [docs/architecture/20-1c-integration.md](../architecture/20-1c-integration.md) — интеграция с 1С
+- ✅ [Архитектура интеграции 1С](../integrations/1c/architecture.md) — интеграция с 1С
 - ✅ [docs/architecture/product-variant-proposal.md](../architecture/product-variant-proposal.md) — предложение от PO
 - ✅ [CLAUDE.md](../../CLAUDE.md) — руководство для разработки
 - ✅ [docs/stories/epic-12/12.2.product-options.md](../stories/epic-12/12.2.product-options.md) — Story 12.2 (блокирована)

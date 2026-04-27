@@ -1,6 +1,6 @@
 # Установка Docker и развертывание FREESPORT Platform
 
-Эта страница содержит краткое руководство по установке Docker и развертыванию платформы FREESPORT на сервере 5.35.124.149 для домена freesport.ru.
+Эта страница содержит краткое руководство по установке Docker и развертыванию платформы FREESPORT на сервере <SERVER_IP> для домена freesport.ru.
 
 ## 🚀 Быстрый старт
 
@@ -51,7 +51,7 @@ nano .env.prod  # Обязательно измените пароли!
 
 ```bash
 # Проверка статуса всех сервисов
-cd /opt/freesport
+cd /home/freesport/freesport
 ./scripts/deploy/deploy.sh status
 
 # Комплексная проверка работоспособности
@@ -185,7 +185,7 @@ docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml up -d
 - **RAM**: 4+ ГБ
 - **Storage**: 20+ ГБ SSD
 - **OS**: Ubuntu 20.04+ / CentOS 8+ / Debian 11+
-- **IP**: 5.35.124.149
+- **IP**: <SERVER_IP>
 - **Домен**: freesport.ru
 
 ### Шаг 2: Установка Docker
@@ -235,7 +235,7 @@ nano .env.prod
 - `SECRET_KEY` - сгенерируйте новый ключ
 - `DB_PASSWORD` - установите надежный пароль
 - `REDIS_PASSWORD` - установите надежный пароль
-- `ALLOWED_HOSTS` - уже настроено для freesport.ru и IP 5.35.124.149
+- `ALLOWED_HOSTS` - уже настроено для freesport.ru и IP <SERVER_IP>
 - `CORS_ALLOWED_ORIGINS` - уже настроено для freesport.ru
 
 ### Шаг 4: Развертывание

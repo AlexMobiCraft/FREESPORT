@@ -222,6 +222,8 @@ redis:
 
 ### Основная среда
 
+> Значения ниже — dev-дефолты. На production пароли задаются через `.env.prod` (см. `.env.prod.example`).
+
 ```env
 # Backend
 DJANGO_SETTINGS_MODULE=freesport.settings.development

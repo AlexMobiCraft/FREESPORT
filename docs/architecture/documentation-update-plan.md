@@ -143,7 +143,7 @@ class CustomerSyncLog(models.Model):
 - [ ] Расширить раздел интеграции с 1С
 - [ ] Добавить архитектурную схему взаимодействия
 - [ ] Описать типы синхронизации (товары, клиенты, заказы)
-- [ ] Добавить ссылку на детальную архитектуру (20-1c-integration.md)
+- [ ] Добавить ссылку на детальную архитектуру (integrations/1c/architecture.md)
 - [ ] Описать fallback стратегии при недоступности 1С
 
 #### **1.5. Workflow процессы**
@@ -245,7 +245,7 @@ class CustomerSyncLog(models.Model):
 
 #### **3.1. Обновление архитектуры интеграции**
 
-**Файл:** `docs/architecture/20-1c-integration.md`  
+**Файл:** `docs/integrations/1c/architecture.md` (ранее docs/architecture/20-1c-integration.md — не существовал)
 **Ответственный:** Architect  
 **Время:** 3-4 часа  
 **Статус:** 🔒 Ждет ответа от 1С

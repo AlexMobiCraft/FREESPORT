@@ -5,7 +5,7 @@
 Проект FREESPORT использует две основные конфигурации окружений:
 
 - **Локальная разработка** - для разработки на локальной машине
-- **Продакшен** - для развертывания на сервере 5.35.124.149
+- **Продакшен** - для развертывания на сервере <SERVER_IP>
 
 ## Структура конфигурационных файлов
 
@@ -74,7 +74,7 @@ DB_SSLMODE=prefer
 REDIS_PASSWORD=production-redis-password
 
 # === НАСТРОЙКИ ДОМЕНОВ ===
-ALLOWED_HOSTS=freesport.ru,www.freesport.ru,5.35.124.149
+ALLOWED_HOSTS=freesport.ru,www.freesport.ru,<SERVER_IP>
 CORS_ALLOWED_ORIGINS=https://freesport.ru,https://www.freesport.ru
 
 # === НАСТРОЙКИ БЕЗОПАСНОСТИ ===
@@ -113,7 +113,7 @@ docker compose -f docker/docker-compose.yml ps
 1. **Настройка серверных переменных окружения:**
 
 ```bash
-# На сервере 5.35.124.149
+# На сервере <SERVER_IP>
 export DB_NAME=freesport
 export DB_PASSWORD=production-db-password
 export REDIS_PASSWORD=production-redis-password

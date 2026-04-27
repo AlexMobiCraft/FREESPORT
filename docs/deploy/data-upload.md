@@ -1,10 +1,10 @@
 # Загрузка данных для импорта 1С на сервер
 
-Инструкция описывает, как перенести локальные данные из каталога `data/import_1c` на прод-сервер `5.35.124.149` перед запуском импорта.
+Инструкция описывает, как перенести локальные данные из каталога `data/import_1c` на прод-сервер перед запуском импорта.
 
 ## Предусловия
 
-- Настроен SSH-доступ: `root@5.35.124.149` (или другой пользователь из `scripts/server/update_server_code.ps1`).
+- Настроен SSH-доступ: `root@<SERVER_IP>` (или другой пользователь из `scripts/server/update_server_code.ps1`).
 - На сервере существует каталог `/home/freesport/freesport/data/import_1c` и поддиректории `goods`, `offers`, `prices`, `rests`, `contragents`, `priceLists`, `storages`, `units`.
 - Docker-контейнеры уже запускались, чтобы хостовые директории смонтировались.
 
@@ -12,7 +12,7 @@
 
 ```powershell
 # из корня репозитория
-scp -r .\data\import_1c root@5.35.124.149:/home/freesport/freesport/data/
+scp -r .\data\import_1c root@<SERVER_IP>:/home/freesport/freesport/data/
 ```
 
 После копирования перезапустите backend, чтобы контейнер увидел новые файлы:
@@ -24,7 +24,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart ba
 ## Вариант 2. Синхронизация через rsync (экономит трафик)
 
 ```powershell
-rsync -avz --delete ./data/import_1c/ root@5.35.124.149:/home/freesport/freesport/data/import_1c/
+rsync -avz --delete ./data/import_1c/ root@<SERVER_IP>:/home/freesport/freesport/data/import_1c/
 ```
 
 - Флаг `--delete` гарантирует, что на сервере не останутся старые файлы.
@@ -35,7 +35,7 @@ rsync -avz --delete ./data/import_1c/ root@5.35.124.149:/home/freesport/freespor
 1. На локальной машине:
    ```powershell
    tar -czf import_1c.tar.gz -C ./data import_1c
-   scp import_1c.tar.gz root@5.35.124.149:/home/freesport/
+   scp import_1c.tar.gz root@<SERVER_IP>:/home/freesport/
    ```
 2. На сервере:
    ```bash

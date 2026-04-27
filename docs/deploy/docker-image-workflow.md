@@ -91,7 +91,7 @@ docker push $frontendTag
 
 ## 4. Применение на сервере
 
-1. Подключиться к серверу `5.35.124.149` c:\Users\38670\DEV_WEB\FREESPORT\scripts\server\ssh_server.ps1 (см. [docs/deploy/README.md](README.md)).
+1. Подключиться к серверу `<SERVER_IP>` (см. `scripts/server/ssh_server.ps1` и [docs/deploy/README.md](README.md)).
 
 2. nano .env.prod указать новые теги образов:
 

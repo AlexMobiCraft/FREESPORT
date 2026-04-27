@@ -6,14 +6,14 @@ This is a full-stack e-commerce platform for selling sporting goods, designed as
 
 - **API-First + SSR/SSG Approach:** Ensures SEO optimization and high performance. The decoupling of frontend and backend allows for independent development cycles.
 - **Next.js Hybrid Rendering:** Utilizes Static Site Generation (SSG) for static pages, Server-Side Rendering (SSR) for dynamic content, and Incremental Static Regeneration (ISR) for catalogs.
-- **BFF (Backend for Frontend) Layer:** Next.js API Routes act as an intermediary layer to aggregate data and enhance security between the client and the main API.
+- **API Client Layer:** Frontend обращается напрямую к Django REST API через `api-client.ts` (Axios). Next.js API Routes используются минимально.
 - **Monorepo Structure:** Simplifies management of shared components, configurations, and dependencies across the entire platform.
 
 **Technology Stack:**
 
 **Backend:**
 
-- **Framework:** Django 4.2 LTS with Django REST Framework 3.14+
+- **Framework:** Django 5.2.7 with Django REST Framework 3.14+
 - **Database:** PostgreSQL 15+ (with table partitioning and JSONB support)
 - **Cache:** Redis 7.0+ (for caching and sessions)
 - **Authentication:** JWT tokens with a refresh strategy

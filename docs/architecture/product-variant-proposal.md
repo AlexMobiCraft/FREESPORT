@@ -425,7 +425,7 @@ class ColorMapping(models.Model):
 
 ### A. Связанные документы
 
-- [20-1c-integration.md](./20-1c-integration.md) — Архитектура интеграции с 1С
+- [Архитектура интеграции 1С](../integrations/1c/architecture.md) — Архитектура интеграции с 1С
 - [Story 12.2](../stories/epic-12/12.2.product-options.md) — Выбор опций товара
 - [data-analysis.md](../epics/epic-3/data-analysis.md) — Анализ структуры данных CommerceML
 

@@ -371,15 +371,15 @@ cd /path/to/freesport
 git pull origin main
 
 # Пересборка и перезапуск контейнеров
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml build
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 
 # Выполнение миграций
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
 
 # Сбор статических файлов
-docker compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 
 echo "Обновление завершено"
 ```
@@ -439,7 +439,7 @@ DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
 # Резервное копирование базы данных
-docker compose -f docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > $BACKUP_DIR/db_backup_$DATE.sql
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > $BACKUP_DIR/db_backup_$DATE.sql
 
 # Резервное копирование медиа файлов
 tar -czf $BACKUP_DIR/media_backup_$DATE.tar.gz data/
@@ -562,19 +562,19 @@ echo "0 4 * * 0 /path/to/freesport/scripts/system-update.sh" | crontab -
 
 ```bash
 # Просмотр запущенных контейнеров
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 
 # Просмотр логов
-docker compose -f docker-compose.prod.yml logs -f [service_name]
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f [service_name]
 
 # Перезапуск сервиса
-docker compose -f docker-compose.prod.yml restart [service_name]
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart [service_name]
 
 # Остановка всех сервисов
-docker compose -f docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
 
 # Полная очистка
-docker compose -f docker-compose.prod.yml down -v --remove-orphans
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down -v --remove-orphans
 docker system prune -a
 ```
 
@@ -582,23 +582,23 @@ docker system prune -a
 
 ```bash
 # Подключение к базе данных
-docker compose -f docker-compose.prod.yml exec db psql -U postgres -d freesport
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec db psql -U postgres -d freesport
 
 # Создание бэкапа БД
-docker compose -f docker-compose.prod.yml exec db pg_dump -U postgres freesport > backup.sql
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec db pg_dump -U postgres freesport > backup.sql
 
 # Восстановление БД из бэкапа
-docker compose -f docker-compose.prod.yml exec -T db psql -U postgres freesport < backup.sql
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres freesport < backup.sql
 ```
 
 ### Отладка
 
 ```bash
 # Вход в контейнер backend
-docker compose -f docker-compose.prod.yml exec backend bash
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend bash
 
 # Вход в контейнер frontend
-docker compose -f docker-compose.prod.yml exec frontend sh
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec frontend sh
 
 # Просмотр потребления ресурсов
 docker stats
@@ -646,9 +646,9 @@ docker network ls
 docker network inspect freesport-network
 
 # Пересоздание сети
-docker compose -f docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down
 docker network prune
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 ```
 
 ### Проблема: Недостаточно места на диске
@@ -670,7 +670,7 @@ sudo journalctl --vacuum-time=7d
 
 ```bash
 # Проверка логов контейнера БД
-docker compose -f docker-compose.prod.yml logs db
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs db
 
 # Проверка прав на директорию данных
 sudo chown -R 999:999 postgres_data/

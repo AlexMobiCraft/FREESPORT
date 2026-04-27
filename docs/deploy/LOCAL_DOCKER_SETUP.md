@@ -244,6 +244,8 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T db psql -U p
 
 ### Работа с Redis
 
+> Пароль `redis123` — значение по умолчанию для локальной разработки (задаётся через `REDIS_PASSWORD` в `.env`).
+
 ```bash
 # Подключение к Redis CLI
 docker compose --env-file .env -f docker/docker-compose.yml exec redis redis-cli -a redis123

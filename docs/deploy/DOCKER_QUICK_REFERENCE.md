@@ -79,6 +79,8 @@ docker compose -f docker/docker-compose.yml exec -T db psql -U postgres freespor
 
 ### Работа с Redis
 
+> **Примечание:** Пароль `redis123` — dev-значение по умолчанию (из `REDIS_PASSWORD` в `.env`). На production используйте значение из `.env.prod`.
+
 ```bash
 # Подключение к Redis CLI
 docker compose -f docker/docker-compose.yml exec redis redis-cli -a redis123

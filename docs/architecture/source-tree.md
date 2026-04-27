@@ -80,7 +80,7 @@ freesport/
 │   │   ├── 17-performance-sla.md
 │   │   ├── 18-b2b-verification-workflow.md
 │   │   ├── 19-development-environment.md
-│   │   ├── 20-1c-integration.md
+│   │   ├── (20-1c-integration.md → docs/integrations/1c/architecture.md)
 │   │   ├── coding-standards.md
 │   │   ├── documentation-update-plan.md
 │   │   ├── index.md

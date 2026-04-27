@@ -56,8 +56,8 @@ sudo adduser --system --group freesport
 sudo usermod -aG sudo,docker freesport
 
 # Настройка прав доступа
-sudo mkdir -p /opt/freesport
-sudo chown freesport:freesport /opt/freesport
+sudo mkdir -p /home/freesport/freesport
+sudo chown freesport:freesport /home/freesport/freesport
 ```
 
 3. **Альтернативный вариант - работа под текущим пользователем:**
@@ -87,7 +87,7 @@ nano .env.prod
 sudo su - freesport
 
 # Перейдите в директорию проекта
-cd /opt/freesport
+cd /home/freesport/freesport
 
 # Отредактируйте файл окружения
 nano .env.prod
@@ -133,7 +133,7 @@ python3 -c 'import secrets; print(secrets.token_urlsafe(50))'
 1. **Откройте файл .env.prod:**
 
 ```bash
-nano /opt/freesport/.env.prod
+nano /home/freesport/freesport/.env.prod
 ```
 
 1. **Найдите строку с SECRET_KEY:**
@@ -162,7 +162,7 @@ sed -i "s/SECRET_KEY=.*/SECRET_KEY=$NEW_KEY/" /freesport/.env.prod
 1. **Проверьте изменения:**
 
 ```bash
-grep SECRET_KEY /opt/freesport/.env.prod
+grep SECRET_KEY /home/freesport/freesport/.env.prod
 ```
 
 **Важные замечания о SECRET_KEY:**
@@ -260,7 +260,7 @@ sudo certbot certificates
 sudo su - freesport
 
 # Перейдите в директорию проекта
-cd /opt/freesport
+cd /home/freesport/freesport
 
 # Обновление
 ./scripts/deploy/deploy.sh update

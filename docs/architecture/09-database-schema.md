@@ -1,5 +1,7 @@
 # 9. Схема Базы Данных
 
+> **Стратегия миграций:** Проект использует Django ORM migrations (backend/apps/*/migrations/). Партиционирование таблицы `orders_order` описано концептуально и пока не реализовано в миграциях — требует ручного SQL или кастомной миграции. Разработка и тестирование — через `--nomigrations` (создание схемы из моделей).
+
 ### Дизайн базы данных PostgreSQL
 
 #### Основные таблицы
@@ -103,34 +105,80 @@ CREATE INDEX idx_banners_active ON banners(is_active) WHERE is_active = true;
 CREATE INDEX idx_banners_priority ON banners(priority);
 CREATE INDEX idx_banners_dates ON banners(start_date, end_date);
 
--- Unified Product table (representing SKU)
+-- Master Product table (parent entity, aggregates variants)
 CREATE TABLE products_product (
     id SERIAL PRIMARY KEY,
     name VARCHAR(300) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
-    sku VARCHAR(100) UNIQUE NOT NULL,
     brand_id INTEGER NOT NULL REFERENCES products_brand(id),
     category_id INTEGER NOT NULL REFERENCES products_category(id),
     description TEXT,
+    short_description TEXT,
     specifications JSONB DEFAULT '{}',
+    base_images JSONB DEFAULT '[]',
+
+    -- Marketing flags
+    is_active BOOLEAN DEFAULT TRUE,
+    is_hit BOOLEAN DEFAULT FALSE,
+    is_new BOOLEAN DEFAULT FALSE,
+    is_sale BOOLEAN DEFAULT FALSE,
+    is_promo BOOLEAN DEFAULT FALSE,
+    is_premium BOOLEAN DEFAULT FALSE,
+    discount_percent DECIMAL(5,2) DEFAULT 0,
+
+    -- Integration & Timestamps
+    onec_id VARCHAR(100) UNIQUE,
+    parent_onec_id VARCHAR(100),
+    vat_rate DECIMAL(5,2),
+    onec_brand_id VARCHAR(100),
+    sync_status VARCHAR(20) DEFAULT 'pending',
+    last_sync_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Product Variant table (SKU-level: pricing, inventory, warehouse)
+CREATE TABLE products_productvariant (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products_product(id) ON DELETE CASCADE,
+    sku VARCHAR(100) UNIQUE NOT NULL,
+    onec_id VARCHAR(100) UNIQUE,
+
+    -- Variant attributes
+    color_name VARCHAR(100),
+    size_value VARCHAR(50),
 
     -- Multi-tier pricing structure
-    retail_price DECIMAL(10,2),
+    retail_price DECIMAL(10,2) NOT NULL,
     opt1_price DECIMAL(10,2),
     opt2_price DECIMAL(10,2),
     opt3_price DECIMAL(10,2),
     trainer_price DECIMAL(10,2),
     federation_price DECIMAL(10,2),
 
+    -- Reference prices (B2B)
+    rrp DECIMAL(10,2),
+    msrp DECIMAL(10,2),
+
+    -- VAT
+    vat_rate DECIMAL(5,2),
+
+    -- Warehouse
+    warehouse_id VARCHAR(64),
+    warehouse_name VARCHAR(255),
+
     -- Inventory
     stock_quantity INTEGER DEFAULT 0,
+    reserved_quantity INTEGER DEFAULT 0,
 
-    -- Status flags
+    -- Images
+    main_image VARCHAR(500),
+    gallery_images JSONB DEFAULT '[]',
+
+    -- Status
     is_active BOOLEAN DEFAULT TRUE,
 
-    -- Integration & Timestamps
-    onec_id VARCHAR(100) UNIQUE,
-    parent_onec_id VARCHAR(100),
+    -- Timestamps
     last_sync_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -185,13 +233,14 @@ CREATE TABLE orders_orderitem (
     order_id INTEGER NOT NULL,
     order_created_at TIMESTAMP WITH TIME ZONE NOT NULL, -- Обязательно для FOREIGN KEY
     product_id INTEGER NOT NULL REFERENCES products_product(id),
+    variant_id INTEGER REFERENCES products_productvariant(id),
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
     total_price DECIMAL(10,2) NOT NULL,
 
     -- Snapshot of product data at time of order
     product_name VARCHAR(300) NOT NULL,
-    product_sku VARCHAR(100) NOT NULL, -- This is now sku_article from ProductVariant
+    product_sku VARCHAR(100) NOT NULL,
 
     -- Композитный FOREIGN KEY включающий partition key
     FOREIGN KEY (order_id, order_created_at) REFERENCES orders_order(id, created_at) ON DELETE CASCADE,
@@ -213,10 +262,11 @@ CREATE TABLE cart_cartitem (
     id SERIAL PRIMARY KEY,
     cart_id INTEGER NOT NULL REFERENCES cart_cart(id) ON DELETE CASCADE,
     product_id INTEGER NOT NULL REFERENCES products_product(id),
+    variant_id INTEGER REFERENCES products_productvariant(id),
     quantity INTEGER NOT NULL DEFAULT 1,
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
-    UNIQUE(cart_id, product_id),
+    UNIQUE(cart_id, variant_id),
     CONSTRAINT chk_positive_quantity CHECK (quantity > 0)
 );
 ```
@@ -228,11 +278,17 @@ CREATE TABLE cart_cartitem (
 CREATE INDEX idx_products_brand ON products_product(brand_id);
 CREATE INDEX idx_products_category ON products_product(category_id);
 CREATE INDEX idx_products_active ON products_product(is_active) WHERE is_active = true;
-CREATE INDEX idx_products_featured ON products_product(is_featured) WHERE is_featured = true;
-CREATE INDEX idx_products_stock ON products_product(stock_quantity) WHERE stock_quantity > 0;
-CREATE INDEX idx_products_price_retail ON products_product(retail_price);
+CREATE INDEX idx_products_featured ON products_product(is_hit) WHERE is_hit = true;
 CREATE INDEX idx_products_search ON products_product USING gin(search_vector);
 CREATE INDEX idx_products_onec ON products_product(onec_id) WHERE onec_id IS NOT NULL;
+
+-- Product variant indexes
+CREATE INDEX idx_variants_product ON products_productvariant(product_id);
+CREATE INDEX idx_variants_sku ON products_productvariant(sku);
+CREATE INDEX idx_variants_onec ON products_productvariant(onec_id) WHERE onec_id IS NOT NULL;
+CREATE INDEX idx_variants_stock ON products_productvariant(stock_quantity) WHERE stock_quantity > 0;
+CREATE INDEX idx_variants_warehouse ON products_productvariant(warehouse_id) WHERE warehouse_id IS NOT NULL;
+CREATE INDEX idx_variants_price_retail ON products_productvariant(retail_price);
 
 -- Order indexes
 CREATE INDEX idx_orders_user ON orders_order(user_id);
@@ -262,7 +318,7 @@ CREATE INDEX idx_categories_active ON products_category(is_active) WHERE is_acti
 -- Full-Text Search Configuration
 CREATE TEXT SEARCH CONFIGURATION russian_products (COPY = russian);
 
--- Update search vector trigger
+-- Update search vector trigger (on master Product table)
 CREATE OR REPLACE FUNCTION update_product_search_vector()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -282,16 +338,6 @@ CREATE TRIGGER trigger_update_product_search
 #### Секционирование для масштабируемости
 
 ```sql
--- Create partitions for products table (by brand hash)
-CREATE TABLE products_product_0 PARTITION OF products_product
-    FOR VALUES WITH (modulus 4, remainder 0);
-CREATE TABLE products_product_1 PARTITION OF products_product
-    FOR VALUES WITH (modulus 4, remainder 1);
-CREATE TABLE products_product_2 PARTITION OF products_product
-    FOR VALUES WITH (modulus 4, remainder 2);
-CREATE TABLE products_product_3 PARTITION OF products_product
-    FOR VALUES WITH (modulus 4, remainder 3);
-
 -- Create partitions for orders table (by month)
 CREATE TABLE orders_order_2024_01 PARTITION OF orders_order
     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
@@ -378,31 +424,31 @@ CREATE INDEX idx_synclog_started ON integrations_synclog(started_at);
 #### Хранимые процедуры для бизнес-логики
 
 ```sql
--- Function to get price by user role
+-- Function to get price by user role (from ProductVariant)
 CREATE OR REPLACE FUNCTION get_user_price(
-    p_product_id INTEGER,
+    p_variant_id INTEGER,
     p_user_role VARCHAR(20)
 ) RETURNS DECIMAL(10,2) AS $$
 DECLARE
-    product_record RECORD;
+    variant_record RECORD;
     result_price DECIMAL(10,2);
 BEGIN
-    SELECT * INTO product_record
-    FROM products_product
-    WHERE id = p_product_id AND is_active = true;
+    SELECT * INTO variant_record
+    FROM products_productvariant
+    WHERE id = p_variant_id AND is_active = true;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Product not found or inactive: %', p_product_id;
+        RAISE EXCEPTION 'Product variant not found or inactive: %', p_variant_id;
     END IF;
 
     result_price := CASE p_user_role
-        WHEN 'retail' THEN product_record.retail_price
-        WHEN 'wholesale_level1' THEN COALESCE(product_record.opt1_price, product_record.retail_price)
-        WHEN 'wholesale_level2' THEN COALESCE(product_record.opt2_price, product_record.retail_price)
-        WHEN 'wholesale_level3' THEN COALESCE(product_record.opt3_price, product_record.retail_price)
-        WHEN 'trainer' THEN COALESCE(product_record.trainer_price, product_record.retail_price)
-        WHEN 'federation_rep' THEN COALESCE(product_record.federation_price, product_record.retail_price)
-        ELSE product_record.retail_price
+        WHEN 'retail' THEN variant_record.retail_price
+        WHEN 'wholesale_level1' THEN COALESCE(variant_record.opt1_price, variant_record.retail_price)
+        WHEN 'wholesale_level2' THEN COALESCE(variant_record.opt2_price, variant_record.retail_price)
+        WHEN 'wholesale_level3' THEN COALESCE(variant_record.opt3_price, variant_record.retail_price)
+        WHEN 'trainer' THEN COALESCE(variant_record.trainer_price, variant_record.retail_price)
+        WHEN 'federation_rep' THEN COALESCE(variant_record.federation_price, variant_record.retail_price)
+        ELSE variant_record.retail_price
     END;
 
     RETURN result_price;
@@ -427,7 +473,7 @@ BEGIN
     FOR item IN SELECT * FROM jsonb_array_elements(p_cart_items)
     LOOP
         item_price := get_user_price(
-            (item->>'product_id')::INTEGER,
+            (item->>'variant_id')::INTEGER,
             user_role
         );
 
@@ -441,22 +487,29 @@ $$ LANGUAGE plpgsql STABLE;
 
 #### Важные архитектурные решения
 
-**1. Композитный FOREIGN KEY для секционированных таблиц:**
+**1. Двухмодельная структура продуктов (Product + ProductVariant):**
+
+- `products_product` — master-запись товара (общие данные, описание, изображения, маркетинговые флаги)
+- `products_productvariant` — SKU-уровень (ценообразование, остатки, склад, атрибуты варианта)
+- Гостевая связь: `Product → ProductVariant` (OneToMany) — один товар может иметь множество торговых предложений
+- Ценообразование и остатки хранятся на уровне варианта, а не товара
+- Изображения: Product имеет `base_images` (fallback), ProductVariant — `main_image` и `gallery_images`
+
+**2. Композитный FOREIGN KEY для секционированных таблиц:**
 
 - `orders_orderitem` включает `order_created_at` для корректной работы с секционированной `orders_order`
 - Это обеспечивает referential integrity на уровне БД
 
-**2. Секционирование:**
+**3. Секционирование:**
 
-- `products_product` - по hash от `brand_id` для равномерного распределения
 - `orders_order` - по range от `created_at` для эффективного архивирования
 
-**3. Ценообразование:**
+**4. Ценообразование:**
 
-- Multi-tier pricing с поддержкой всех типов пользователей
+- Multi-tier pricing на уровне ProductVariant с поддержкой всех типов пользователей
 - RRP/MSRP поля для B2B пользователей (требование FR5)
 
-**4. Соответствие ФЗ-152:**
+**5. Соответствие ФЗ-152:**
 
 - Audit log с `ON DELETE SET NULL` для сохранения аудита
 - Система согласий (consent management)

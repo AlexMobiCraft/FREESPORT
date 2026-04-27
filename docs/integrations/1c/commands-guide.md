@@ -672,7 +672,7 @@ IMPORT_LOG_FILE=/var/log/freesport/import.log
 ## Дополнительные ресурсы
 
 - [Story 3.1.2: loading-scripts](../stories/epic-3/3.1.2.loading-scripts.md)
-- [Архитектура интеграции с 1С](../architecture/20-1c-integration.md)
+- [Архитектура интеграции с 1С](./architecture.md)
 - [Стандарты кодирования](../architecture/coding-standards.md)
 
 ---

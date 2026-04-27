@@ -7,7 +7,7 @@
 - Сервер с Ubuntu 20.04+ или CentOS 8+
 - Установленный Docker и Docker Compose
 - Доменное имя freesport.ru
-- IP адрес: 5.35.124.149
+- IP адрес: <SERVER_IP>
 - Git
 
 ## Шаг 1: Подготовка сервера
@@ -44,7 +44,7 @@ nano .env.prod
 - `SECRET_KEY` - сгенерируйте новый ключ
 - `DB_PASSWORD` - установите надежный пароль
 - `REDIS_PASSWORD` - установите надежный пароль
-- `ALLOWED_HOSTS` - уже настроено для freesport.ru и IP 5.35.124.149
+- `ALLOWED_HOSTS` - уже настроено для freesport.ru и IP <SERVER_IP>
 - `CORS_ALLOWED_ORIGINS` - уже настроено для freesport.ru
 - `NEXT_PUBLIC_API_URL` - уже настроено для freesport.ru
 

@@ -13,9 +13,9 @@ info:
     email: dev@freesport.com
 
 servers:
-  - url: https://api.freesport.com/v1
+  - url: https://api.freesport.com/api/v1
     description: Production server
-  - url: https://staging-api.freesport.com/v1
+  - url: https://staging-api.freesport.com/api/v1
     description: Staging server
 
 security:
@@ -372,9 +372,10 @@ paths:
   /cart/:
     get:
       tags: [Cart]
-      summary: Get current user's cart
+      summary: Get current user's or guest's cart
       security:
         - BearerAuth: []
+        - SessionAuth: []
       responses:
         "200":
           description: Cart contents
@@ -388,6 +389,7 @@ paths:
       summary: Add item to cart
       security:
         - BearerAuth: []
+        - SessionAuth: []
       requestBody:
         required: true
         content:
@@ -813,6 +815,11 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    SessionAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+      description: Сессионная аутентификация для гостевых корзин
     ApiKeyAuth:
       type: apiKey
       in: header
@@ -1366,8 +1373,8 @@ components:
           type: string
           enum:
             [
-              draft,
               pending,
+              confirmed,
               processing,
               shipped,
               delivered,

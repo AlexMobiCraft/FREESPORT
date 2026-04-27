@@ -161,6 +161,35 @@ class Company(models.Model):
 - Company создаётся автоматически при первом обращении к API `/users/company/`
 - Данные `company_name` и `tax_id` в User синхронизируются с Company.legal_name/tax_id
 
+### Address Model
+
+```python
+class Address(models.Model):
+    """
+    Модель адресов для пользователей (доставка, юридический)
+    """
+    ADDRESS_TYPES = [
+        ("shipping", "Адрес доставки"),
+        ("legal", "Юридический адрес"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="addresses")
+    address_type = models.CharField(max_length=10, choices=ADDRESS_TYPES, default="shipping")
+    full_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=12)
+    city = models.CharField(max_length=100)
+    street = models.CharField(max_length=200)
+    building = models.CharField(max_length=10)
+    building_section = models.CharField(max_length=20, blank=True)
+    apartment = models.CharField(max_length=10, blank=True)
+    postal_code = models.CharField(max_length=6)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+```
+
+**Связь User ↔ Address:** OneToMany — у пользователя может быть несколько адресов (доставка + юридический). При установке `is_default=True` флаг автоматически снимается с других адресов того же типа.
+
 ### Модели каталога товаров
 
 ```python
@@ -293,7 +322,13 @@ class Order(models.Model):
     status = models.CharField(
         max_length=20,
         choices=[
-            ('draft', 'Черновик'),        ('pending', 'Ожидает обработки'),        ('processing', 'В обработке'),        ('shipped', 'Отгружен'),        ('delivered', 'Доставлен'),        ('cancelled', 'Отменен'),        ('returned', 'Возвращен'),
+            ('pending', 'Ожидает обработки'),
+            ('confirmed', 'Подтвержден'),
+            ('processing', 'В обработке'),
+            ('shipped', 'Отгружен'),
+            ('delivered', 'Доставлен'),
+            ('cancelled', 'Отменен'),
+            ('returned', 'Возвращен'),
         ],
         default='pending'
     )
@@ -358,7 +393,7 @@ class Order(models.Model):
 Этот механизм обеспечивает целостность данных об остатках на всех этапах до оформления заказа.
 
 Подробное обоснование и детали реализации описаны в соответствующем архитектурном решении:
-- **ADR:** [Логика резервирования товаров при добавлении в корзину](../decisions/story-3.x-product-reservation-logic.md)
+- **ADR:** Логика резервирования товаров описана в данной секции (полный ADR-документ пока не создан)
 
 class OrderItem(models.Model):
     """
