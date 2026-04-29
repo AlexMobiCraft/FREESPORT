@@ -63,9 +63,7 @@ export function AddressSection({
           aria-label="Выберите сохранённый адрес"
           data-testid="address-selector"
         >
-          <p className="mb-2 text-sm font-medium text-gray-700">
-            Выберите сохранённый адрес
-          </p>
+          <p className="mb-2 text-sm font-medium text-gray-700">Выберите сохранённый адрес</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {addresses!.map(addr => (
               <AddressCardOption

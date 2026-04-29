@@ -32,9 +32,10 @@ export type CheckoutAddressFields = Pick<
   | 'postalCode'
 >;
 
-function splitFullName(
-  fullName: string | null | undefined
-): { firstName: string; lastName: string } {
+function splitFullName(fullName: string | null | undefined): {
+  firstName: string;
+  lastName: string;
+} {
   if (!fullName) return { firstName: '', lastName: '' };
   const trimmed = fullName.trim();
   if (!trimmed) return { firstName: '', lastName: '' };
@@ -100,10 +101,7 @@ export function formValuesToAddressPayload(
  * Контактные поля (firstName/lastName/phone) тоже учитываются, поскольку
  * Address их хранит.
  */
-export function isFormDirtyVsAddress(
-  values: CheckoutAddressFields,
-  address: Address
-): boolean {
+export function isFormDirtyVsAddress(values: CheckoutAddressFields, address: Address): boolean {
   const expected = addressToFormValues(address);
   return (
     values.firstName !== expected.firstName ||

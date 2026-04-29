@@ -44,10 +44,7 @@ export const AddressCardOption: React.FC<AddressCardOptionProps> = ({
       <div className="flex w-full items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <MapPin
-            className={cn(
-              'h-4 w-4 flex-shrink-0',
-              selected ? 'text-blue-600' : 'text-gray-400'
-            )}
+            className={cn('h-4 w-4 flex-shrink-0', selected ? 'text-blue-600' : 'text-gray-400')}
             aria-hidden="true"
           />
           <span className="truncate text-sm font-semibold text-gray-900">
@@ -63,9 +60,7 @@ export const AddressCardOption: React.FC<AddressCardOptionProps> = ({
 
       <p className="break-words text-sm text-gray-600">{address.full_address}</p>
 
-      {address.phone && (
-        <p className="text-xs text-gray-500">{address.phone}</p>
-      )}
+      {address.phone && <p className="text-xs text-gray-500">{address.phone}</p>}
 
       {selected && (
         <span

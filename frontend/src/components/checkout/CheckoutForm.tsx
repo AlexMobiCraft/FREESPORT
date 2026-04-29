@@ -191,8 +191,7 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
     };
 
     // Если хотя бы одно адресное поле заполнено — есть что сохранять.
-    const hasAddressContent =
-      values.city || values.street || values.house || values.postalCode;
+    const hasAddressContent = values.city || values.street || values.house || values.postalCode;
     if (!hasAddressContent) return false;
 
     if (selectedAddressId !== null) {
