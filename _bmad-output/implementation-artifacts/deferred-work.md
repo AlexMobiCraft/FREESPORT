@@ -12,3 +12,9 @@
 - Двойной submit при `isSubmitting: true` не защищён в orderStore — pre-existing.
 - Validation coverage PromoCodeInput деградирована (удалены тесты Min Order Amount / Apply Error) — восстановить при реализации серверной promo-системы.
 - error path тесты в `orderStore.test.ts` помечены `.skip` — pre-existing, не вызвано текущим diff.
+
+## Deferred from: checkout-address-ux-improvements review (2026-04-29)
+
+- `orderId === 0` или `orderId === ""` (falsy) в CheckoutForm.onSubmit — нет редиректа на success, хотя заказ создан. Pre-existing, не вызвано текущим diff. Риск минимален (PostgreSQL serial начинает с 1), но стоит добавить guard `if (orderId != null && orderId !== '')` в будущем рефакторинге. [frontend/src/components/checkout/CheckoutForm.tsx:253]
+- `orderStore.currentOrder` может содержать stale id после failed `createOrder` — при повторном submit возможен ложный редирект на старый заказ. Pre-existing, зависит от реализации orderStore. Рассмотреть сброс `currentOrder` при ошибке в orderStore. [frontend/src/stores/orderStore.ts]
+- Контактные поля (firstName, lastName, phone) перезаписываются при автозаполнении из Address.full_name — если адрес оформлен на другого получателя (B2B склад), имя подменяется. Спека намеренно включает контактные поля в маппинг (Address хранит full_name+phone). Если потребуется разделение «контакт заказчика» vs «получатель» — отдельная задача. [frontend/src/utils/checkout/addressMapping.ts]

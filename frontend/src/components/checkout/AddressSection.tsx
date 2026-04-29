@@ -2,38 +2,82 @@
 
 import { UseFormReturn } from 'react-hook-form';
 import { CheckoutFormData, CheckoutFormInput } from '@/schemas/checkoutSchema';
-import { Input } from '@/components/ui';
+import { Input, Checkbox } from '@/components/ui';
+import { AddressCardOption } from './AddressCardOption';
+import type { Address } from '@/types/address';
 
 export interface AddressSectionProps {
   form: UseFormReturn<CheckoutFormInput, unknown, CheckoutFormData>;
+  /** Список сохранённых shipping-адресов авторизованного пользователя */
+  addresses?: Address[];
+  /** ID выбранного адреса в селекторе (null — нет выбора, ввод вручную) */
+  selectedAddressId?: number | null;
+  /** Колбэк выбора адреса в селекторе */
+  onSelectAddress?: (id: number) => void;
+  /** Показывать ли чекбокс «запомнить адрес» */
+  showSaveCheckbox?: boolean;
+  /** Текущее состояние чекбокса «запомнить адрес» */
+  saveAddress?: boolean;
+  /** Колбэк переключения чекбокса */
+  onToggleSaveAddress?: (value: boolean) => void;
 }
 
 /**
- * Секция адреса доставки для формы checkout
- *
- * Story 15.1: Checkout страница и упрощённая форма
+ * Секция адреса доставки для формы checkout.
  *
  * Поля:
- * - Город (обязательно, минимум 2 символа)
- * - Улица (обязательно, минимум 3 символа)
- * - Дом (обязательно)
- * - Квартира (опционально)
- * - Индекс (обязательно, 6 цифр)
+ * - Город, Улица, Дом (обяз.), Корпус, Квартира, Индекс
  *
- * Автозаполнение:
- * - Для авторизованных пользователей данные берутся из user.addresses[0] (если есть)
+ * UX:
+ * - Если переданы 2+ сохранённых адреса — рендерим селектор-карточки над полями
+ * - Если showSaveCheckbox=true — рендерим чекбокс «запомнить адрес» под полями
+ * - Иначе — стандартная форма ввода
  */
-export function AddressSection({ form }: AddressSectionProps) {
+export function AddressSection({
+  form,
+  addresses,
+  selectedAddressId,
+  onSelectAddress,
+  showSaveCheckbox = false,
+  saveAddress = false,
+  onToggleSaveAddress,
+}: AddressSectionProps) {
   const {
     register,
     formState: { errors },
   } = form;
+
+  const showSelector = !!addresses && addresses.length > 1 && !!onSelectAddress;
 
   return (
     <section className="rounded-lg bg-white p-6 shadow-sm" aria-labelledby="address-section">
       <h2 id="address-section" className="mb-4 text-lg font-semibold text-gray-900">
         Адрес доставки
       </h2>
+
+      {/* Селектор сохранённых адресов */}
+      {showSelector && (
+        <div
+          className="mb-6"
+          role="radiogroup"
+          aria-label="Выберите сохранённый адрес"
+          data-testid="address-selector"
+        >
+          <p className="mb-2 text-sm font-medium text-gray-700">
+            Выберите сохранённый адрес
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {addresses!.map(addr => (
+              <AddressCardOption
+                key={addr.id}
+                address={addr}
+                selected={addr.id === selectedAddressId}
+                onSelect={onSelectAddress!}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4">
         {/* Город */}
@@ -76,9 +120,8 @@ export function AddressSection({ form }: AddressSectionProps) {
           )}
         </div>
 
-        {/* Дом, Корпус и Квартира в одной строке на desktop */}
+        {/* Дом, Корпус и Квартира */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {/* Дом */}
           <div>
             <Input
               {...register('house')}
@@ -98,7 +141,6 @@ export function AddressSection({ form }: AddressSectionProps) {
             )}
           </div>
 
-          {/* Корпус */}
           <div>
             <Input
               {...register('buildingSection')}
@@ -116,7 +158,6 @@ export function AddressSection({ form }: AddressSectionProps) {
             )}
           </div>
 
-          {/* Квартира */}
           <div>
             <Input
               {...register('apartment')}
@@ -157,6 +198,17 @@ export function AddressSection({ form }: AddressSectionProps) {
             </p>
           )}
         </div>
+
+        {/* Чекбокс «запомнить адрес» */}
+        {showSaveCheckbox && (
+          <div className="pt-2" data-testid="save-address-checkbox-wrapper">
+            <Checkbox
+              label="Запомнить этот адрес в профиле"
+              checked={saveAddress}
+              onChange={e => onToggleSaveAddress?.(e.target.checked)}
+            />
+          </div>
+        )}
       </div>
     </section>
   );
