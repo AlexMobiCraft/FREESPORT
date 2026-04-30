@@ -78,14 +78,68 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build backend frontend
 ```
 
+## Экранирование кавычек и сложные команды (PowerShell → SSH → bash)
+
+При выполнении команд через SSH из PowerShell строка проходит 3 уровня интерпретации. Основное правило:
+
+- **Одинарные кавычки `'...'`** на уровне PowerShell — bash получает строку как есть.
+- **Двойные кавычки `"..."`** на уровне PowerShell — PowerShell интерпретирует переменные и подстановки.
+
+### Правильный шаблон (простые команды)
+
+```powershell
+ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml logs --tail=30 backend'
+```
+
+### Команды с переменными bash
+
+Используйте двойные кавычки внутри одинарных, экранируя `$` через `\$`:
+
+```powershell
+ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend sh -c "echo \$HOME"'
+```
+
+### Сложные команды: временный скрипт (here-document)
+
+Для Python-скриптов, `curl` с переменными или многострочных команд — создавайте временный файл:
+
+```powershell
+ssh root@5.35.124.149 'cat > /tmp/check_api.py << "EOF"
+import urllib.request
+r = urllib.request.urlopen("http://localhost:8000/api/v1/brands/")
+print(r.status, len(r.read()))
+EOF
+cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend python /tmp/check_api.py'
+```
+
+После выполнения удалите временный файл:
+
+```powershell
+ssh root@5.35.124.149 'rm /tmp/check_api.py'
+```
+
+### Важные замечания по docker compose
+
+- **Рабочая директория:** `docker compose exec` ищет `.env.prod` относительно **текущей директории**. Всегда делайте `cd /home/freesport/freesport &&` перед командой.
+- **Абсолютный путь:** используйте `--env-file /home/freesport/freesport/.env.prod` для надёжности, даже если `cd` выполнен.
+- **Разделитель команд в PowerShell:** используйте `;` вместо `&&` для разделения команд PowerShell, а `&&` — уже внутри строки, передаваемой SSH.
+
+### Логи без обрезки
+
+Docker обрезает длинные строки. Для полных логов:
+
+```powershell
+ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml logs --tail=50 --no-trunc backend 2>&1 | cat'
+```
+
 ### Работа с базой данных
 
 ```bash
 # Просмотр статуса миграций
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py showmigrations
+docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec backend python manage.py showmigrations
 
 # Создание суперпользователя
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser
+docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser
 ```
 
 > [!WARNING]
