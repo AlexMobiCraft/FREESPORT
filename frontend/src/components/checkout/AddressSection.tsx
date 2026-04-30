@@ -50,8 +50,8 @@ export function AddressSection({
   const showSelector = !!addresses && addresses.length > 1 && !!onSelectAddress;
 
   return (
-    <section className="rounded-lg bg-white p-6 shadow-sm" aria-labelledby="address-section">
-      <h2 id="address-section" className="mb-4 text-lg font-semibold text-gray-900">
+    <section className="rounded-[var(--radius)] bg-[var(--bg-panel)] p-6 shadow-[var(--shadow-default)]" aria-labelledby="address-section">
+      <h2 id="address-section" className="mb-4 text-lg font-semibold text-text-primary">
         Адрес доставки
       </h2>
 
@@ -63,7 +63,7 @@ export function AddressSection({
           aria-label="Выберите сохранённый адрес"
           data-testid="address-selector"
         >
-          <p className="mb-2 text-sm font-medium text-gray-700">Выберите сохранённый адрес</p>
+          <p className="mb-2 text-sm font-medium text-text-secondary">Выберите сохранённый адрес</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {addresses!.map(addr => (
               <AddressCardOption
