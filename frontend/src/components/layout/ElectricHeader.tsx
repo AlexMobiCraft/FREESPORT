@@ -30,7 +30,7 @@ const ElectricHeader: React.FC = () => {
             {/* Logo Image */}
             <div className="relative h-8 w-auto transform -skew-x-12 transition-transform group-hover:scale-105">
               <Image
-                src="/Freesport_logo.svg"
+                src="/LOGO-NEW_Freesport.png"
                 alt="FREESPORT"
                 width={150}
                 height={32}

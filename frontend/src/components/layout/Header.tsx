@@ -80,7 +80,7 @@ const Header: React.FC = () => {
           <div className="flex-shrink-0">
             <Link href="/home" className="flex items-center gap-2">
               <Image
-                src="/Freesport_logo.svg"
+                src="/LOGO-NEW_Freesport.png"
                 alt="FREESPORT"
                 width={120}
                 height={32}
