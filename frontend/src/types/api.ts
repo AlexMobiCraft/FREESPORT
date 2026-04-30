@@ -117,6 +117,7 @@ export interface Category {
 
 export interface CategoryTree extends Category {
   children?: CategoryTree[];
+  in_stock_count?: number;
 }
 
 export interface PaginatedResponse<T> {

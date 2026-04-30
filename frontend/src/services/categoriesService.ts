@@ -4,6 +4,7 @@
 
 import apiClient from './api-client';
 import type { Category, CategoryTree } from '@/types/api';
+import type { ProductFilters } from './productsService';
 
 interface GetCategoriesParams {
   parent_id?: number | null;
@@ -75,6 +76,22 @@ class CategoriesService {
       return response.data;
     }
     return response.data?.results ?? [];
+  }
+
+  /**
+   * Получить ID категорий, содержащих видимые товары при текущих фильтрах.
+   * category_id намеренно исключается из запроса — чтобы sidebar не сужался
+   * до активной ветки, а отражал глобальные фильтры (бренд, цена, наличие).
+   */
+  async getVisibleCategories(filters: Partial<ProductFilters>): Promise<number[]> {
+    // Исключаем category_id — endpoint его намеренно игнорирует на бекенде,
+    // но очищаем на фронтенде для явности и избежания путаницы
+    const { category_id: _omit, ...filtersWithoutCategory } = filters;
+    const response = await apiClient.get<{ category_ids: number[] }>(
+      '/products/visible-categories/',
+      { params: filtersWithoutCategory }
+    );
+    return response.data.category_ids;
   }
 }
 

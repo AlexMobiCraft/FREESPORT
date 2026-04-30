@@ -95,6 +95,7 @@ vi.mock('@/services/productsService', () => ({
 vi.mock('@/services/categoriesService', () => ({
   default: {
     getTree: vi.fn(() => Promise.resolve(mockCategories)),
+    getVisibleCategories: vi.fn(() => Promise.resolve([1])),
   },
 }));
 
@@ -422,6 +423,114 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
 
       const brandButton = screen.getByRole('button', { name: /Бренд/i });
       expect(brandButton).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Тесты сортировки и скрытия пустых категорий (bugfix: Без категории)
+// ---------------------------------------------------------------------------
+import categoriesService from '@/services/categoriesService';
+
+const mockMatchMedia = () => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(min-width: 1024px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+};
+
+describe('CatalogPage — сортировка и скрытие пустых категорий', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMatchMedia();
+    // Сбрасываем getVisibleCategories к дефолтному значению
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
+  });
+
+  it('не показывает категорию Без категории если она скрыта (in_stock_count=0)', async () => {
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      { id: 1, name: 'Обувь', slug: 'shoes', in_stock_count: 5, products_count: 5, children: [] },
+      { id: 2, name: 'Без категории', slug: 'uncategorized', in_stock_count: 0, products_count: 3, children: [] },
+    ]);
+    // visible-categories не возвращает uncategorized (нет in_stock товаров)
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
+
+    render(<CatalogPage />);
+
+    // Открываем панель категорий
+    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
+    await act(async () => { categoryBtn.click(); });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Без категории')).not.toBeInTheDocument();
+      expect(screen.getByText('Обувь')).toBeInTheDocument();
+    });
+  });
+
+  it('показывает "Нет категорий" если все категории скрыты', async () => {
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      { id: 1, name: 'Обувь', slug: 'shoes', in_stock_count: 3, products_count: 3, children: [] },
+    ]);
+    // visible-categories вернул пустой список
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([]);
+
+    render(<CatalogPage />);
+
+    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
+    await act(async () => { categoryBtn.click(); });
+
+    await waitFor(() => {
+      expect(screen.getByText('Нет категорий')).toBeInTheDocument();
+    });
+  });
+
+  it('показывает весь список если getVisibleCategories вернул ошибку (graceful degradation)', async () => {
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      { id: 1, name: 'Обувь', slug: 'shoes', in_stock_count: 3, products_count: 3, children: [] },
+      { id: 2, name: 'Без категории', slug: 'uncategorized', in_stock_count: 0, products_count: 1, children: [] },
+    ]);
+    (categoriesService.getVisibleCategories as Mock).mockRejectedValue(new Error('500'));
+
+    render(<CatalogPage />);
+
+    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
+    await act(async () => { categoryBtn.click(); });
+
+    await waitFor(() => {
+      // При ошибке fallback = показывать всё дерево
+      expect(screen.getByText('Обувь')).toBeInTheDocument();
+      expect(screen.getByText('Без категории')).toBeInTheDocument();
+    });
+  });
+
+  it('сохраняет родительскую категорию видимой если дочерняя видима', async () => {
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      {
+        id: 10, name: 'Спорт', slug: 'sport', in_stock_count: 0, products_count: 0,
+        children: [
+          { id: 11, name: 'Лыжи', slug: 'skiing', in_stock_count: 2, products_count: 2, children: [] },
+        ],
+      },
+    ]);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([11]); // только дочерняя
+
+    render(<CatalogPage />);
+
+    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
+    await act(async () => { categoryBtn.click(); });
+
+    await waitFor(() => {
+      // Родитель виден потому что дочерняя видима
+      expect(screen.getByText('Спорт')).toBeInTheDocument();
     });
   });
 });

@@ -176,6 +176,55 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         # Prefetch уже настроен в get_queryset() (Story 14.5)
         return super().retrieve(request, *args, **kwargs)
 
+    @extend_schema(
+        summary="Видимые категории по фильтрам",
+        description=(
+            "Возвращает ID категорий, в которых есть товары, соответствующие активным фильтрам. "
+            "Параметр category_id игнорируется — endpoint отражает глобальные фильтры, "
+            "не сужая sidebar до активной ветки."
+        ),
+        parameters=[
+            OpenApiParameter("brand", OpenApiTypes.STR, description="Бренд (ID или slug)"),
+            OpenApiParameter("min_price", OpenApiTypes.NUMBER, description="Минимальная цена"),
+            OpenApiParameter("max_price", OpenApiTypes.NUMBER, description="Максимальная цена"),
+            OpenApiParameter("in_stock", OpenApiTypes.BOOL, description="Товары в наличии"),
+            OpenApiParameter("search", OpenApiTypes.STR, description="Поисковый запрос"),
+        ],
+        tags=["Products"],
+    )
+    @action(detail=False, methods=["get"], url_path="visible-categories")
+    def visible_categories(self, request: Request) -> Response:
+        """
+        Возвращает список category_id категорий (включая предков), содержащих
+        товары при текущих фильтрах. Параметр category_id намеренно игнорируется,
+        чтобы sidebar отображал все категории с товарами по глобальным фильтрам.
+        """
+        # Копируем параметры запроса и убираем category_id
+        params = request.query_params.copy()
+        params.pop("category_id", None)
+
+        # Применяем ProductFilter без category_id
+        filterset = self.filterset_class(params, queryset=self.get_queryset())
+        filtered_qs = filterset.qs
+
+        # Получаем прямые категории отфильтрованных товаров
+        leaf_ids: set[int] = set(filtered_qs.values_list("category_id", flat=True).distinct())
+
+        # Расширяем до всех предков (до 5 уровней вглубь)
+        all_ids: set[int] = set(leaf_ids)
+        if leaf_ids:
+            cats = list(
+                Category.objects.filter(id__in=leaf_ids)
+                .select_related("parent", "parent__parent", "parent__parent__parent", "parent__parent__parent__parent")
+            )
+            for cat in cats:
+                ancestor = cat.parent
+                while ancestor is not None:
+                    all_ids.add(ancestor.id)
+                    ancestor = ancestor.parent
+
+        return Response({"category_ids": list(all_ids)})
+
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -236,7 +285,14 @@ class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
         """Только корневые категории с рекурсивной предзагрузкой дочерних"""
         return (
             Category.objects.filter(is_active=True, parent__isnull=True)
-            .annotate(products_count=Count("products", filter=Q(products__is_active=True)))
+            .annotate(
+                products_count=Count("products", filter=Q(products__is_active=True)),
+                in_stock_count=Count(
+                    "products",
+                    filter=Q(products__is_active=True) & Q(products__variants__stock_quantity__gt=0),
+                    distinct=True,
+                ),
+            )
             .order_by("sort_order", "name")
         )
 

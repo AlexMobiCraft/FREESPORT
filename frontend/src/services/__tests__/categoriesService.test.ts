@@ -115,6 +115,60 @@ describe('categoriesService', () => {
     });
   });
 
+  describe('getVisibleCategories', () => {
+    test('returns array of category IDs', async () => {
+      server.use(
+        http.get('http://localhost:8001/api/v1/products/visible-categories/', () => {
+          return HttpResponse.json({ category_ids: [1, 2, 5] });
+        })
+      );
+
+      const result = await categoriesService.getVisibleCategories({ in_stock: true });
+
+      expect(result).toEqual([1, 2, 5]);
+    });
+
+    test('omits category_id from request params', async () => {
+      let capturedUrl = '';
+      server.use(
+        http.get('http://localhost:8001/api/v1/products/visible-categories/', ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({ category_ids: [] });
+        })
+      );
+
+      await categoriesService.getVisibleCategories({ category_id: 3, in_stock: true, brand: 'nike' });
+
+      expect(capturedUrl).not.toContain('category_id');
+      expect(capturedUrl).toContain('in_stock=true');
+      expect(capturedUrl).toContain('brand=nike');
+    });
+
+    test('returns empty array when no categories match', async () => {
+      server.use(
+        http.get('http://localhost:8001/api/v1/products/visible-categories/', () => {
+          return HttpResponse.json({ category_ids: [] });
+        })
+      );
+
+      const result = await categoriesService.getVisibleCategories({ brand: 'no-match' });
+
+      expect(result).toEqual([]);
+    });
+
+    test('throws on network error', async () => {
+      server.use(
+        http.get('http://localhost:8001/api/v1/products/visible-categories/', () => {
+          return HttpResponse.error();
+        })
+      );
+
+      await expect(
+        categoriesService.getVisibleCategories({ in_stock: true })
+      ).rejects.toThrow();
+    });
+  });
+
   describe('getCategories', () => {
     test('passes ordering parameter to API', async () => {
       let capturedUrl = '';

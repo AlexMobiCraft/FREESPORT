@@ -815,6 +815,7 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
 
     children = serializers.SerializerMethodField()
     products_count = serializers.IntegerField(read_only=True)
+    in_stock_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Category
@@ -826,6 +827,7 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
             "icon",
             "children",
             "products_count",
+            "in_stock_count",
             "sort_order",
         ]
 
@@ -833,7 +835,14 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         """Рекурсивно получить все дочерние категории"""
         children = (
             obj.children.filter(is_active=True)
-            .annotate(products_count=Count("products", filter=Q(products__is_active=True)))
+            .annotate(
+                products_count=Count("products", filter=Q(products__is_active=True)),
+                in_stock_count=Count(
+                    "products",
+                    filter=Q(products__is_active=True) & Q(products__variants__stock_quantity__gt=0),
+                    distinct=True,
+                ),
+            )
             .order_by("sort_order", "name")
         )
 

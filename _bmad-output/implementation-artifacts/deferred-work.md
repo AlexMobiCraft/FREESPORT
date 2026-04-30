@@ -1,3 +1,12 @@
+## Deferred from: review of tech-spec-catalog-category-sort-and-hide-empty (2026-04-30)
+
+- **N+1 / глубина `select_related` в `visible_categories`**: цепочка `select_related("parent__parent__parent__parent")` ограничена 4 уровнями; иерархия глубже вызовет N+1. Рассмотреть замену на рекурсивный CTE или MPTT-запрос. [backend/apps/products/views.py — `visible_categories` action]
+- **Race condition `getVisibleCategories` без AbortController**: при быстрой смене фильтров устаревший ответ может перезаписать актуальный `sidebarVisibleIds`. Добавить счётчик версий или AbortController по аналогии с основным списком продуктов. [frontend/src/app/(blue)/catalog/page.tsx — `fetchProducts`]
+- **`products_count` без `distinct=True`**: при нескольких вариантах у товара `products_count` завышается (JOIN inflation). Pre-existing. [backend/apps/products/serializers.py — `CategoryTreeSerializer.get_children`]
+- **`visible_categories` без лимита**: `values_list("category_id", flat=True).distinct()` грузит все ID в память. При большом каталоге рассмотреть лимит или агрегацию на стороне БД. [backend/apps/products/views.py — `visible_categories`]
+- **Утечка пагинации в `getVisibleCategories`**: параметры `page`, `page_size`, `ordering` передаются в `/products/visible-categories/` — бэкенд их игнорирует, но стоит явно исключить. [frontend/src/services/categoriesService.ts — `getVisibleCategories`]
+- **Pre-fill flash для глубоких деревьев**: начальная фильтрация по `in_stock_count` не добавляет предков явно в `initialVisible` — для 3+ уровней flash до ответа `visible-categories` не устранён. `hasVisibleDescendant` корректирует рендер, но краткий flash возможен. Pre-existing ограничение дизайна. [frontend/src/app/(blue)/catalog/page.tsx — `fetchCategories`]
+
 ## Deferred from: Fortieth Follow-up code review of 34-2-sub-order-creation-logic-and-api.md (2026-04-19)
 
 - Двойной вызов `trim()` в `isButtonDisabled` — косметика, извлечь `trimmedCode` переменную. [frontend/src/components/cart/PromoCodeInput.tsx:139]

@@ -42,6 +42,7 @@ type CategoryNode = {
   label: string;
   slug?: string;
   icon?: string;
+  inStockCount: number;
   children?: CategoryNode[];
 };
 
@@ -71,8 +72,21 @@ const mapCategoryTreeNode = (node: CategoryTreeResponse): CategoryNode => ({
   label: node.name,
   slug: node.slug,
   icon: node.icon || undefined,
+  inStockCount: node.in_stock_count ?? 0,
   children: node.children?.map(mapCategoryTreeNode),
 });
+
+const sortCategoryTree = (nodes: CategoryNode[]): CategoryNode[] =>
+  [...nodes]
+    .sort((a, b) => {
+      if (a.slug === 'uncategorized') return 1;
+      if (b.slug === 'uncategorized') return -1;
+      return a.label.localeCompare(b.label, 'ru');
+    })
+    .map(n => ({ ...n, children: n.children ? sortCategoryTree(n.children) : undefined }));
+
+const hasVisibleDescendant = (node: CategoryNode, visibleIds: Set<number>): boolean =>
+  Boolean(node.children?.some(c => visibleIds.has(c.id) || hasVisibleDescendant(c, visibleIds)));
 
 const findCategoryBySlug = (nodes: CategoryNode[], targetSlug: string): CategoryNode | null => {
   for (const node of nodes) {
@@ -228,10 +242,19 @@ const CategoryTree: React.FC<{
   onToggle: (key: string) => void;
   onSelect: (node: CategoryNode) => void;
   path?: number[];
-}> = ({ nodes, level = 0, activeId, expandedKeys, onToggle, onSelect, path = [] }) => {
+  visibleIds?: Set<number> | null;
+}> = ({ nodes, level = 0, activeId, expandedKeys, onToggle, onSelect, path = [], visibleIds }) => {
+  const visibleNodes = visibleIds
+    ? nodes.filter(n => visibleIds.has(n.id) || hasVisibleDescendant(n, visibleIds))
+    : nodes;
+
+  if (level === 0 && visibleNodes.length === 0 && nodes.length > 0) {
+    return <p className="text-sm text-gray-400 py-1">Нет категорий</p>;
+  }
+
   return (
     <ul className={level === 0 ? 'space-y-2' : 'space-y-1 pl-3 border-l border-gray-100'}>
-      {nodes.map(node => {
+      {visibleNodes.map(node => {
         const currentPath = [...path, node.id];
         const nodeKey = getNodeKey(currentPath);
         const isActive = node.id === activeId;
@@ -283,6 +306,7 @@ const CategoryTree: React.FC<{
                 onToggle={onToggle}
                 onSelect={onSelect}
                 path={currentPath}
+                visibleIds={visibleIds}
               />
             )}
           </li>
@@ -319,6 +343,8 @@ const CatalogContent: React.FC = () => {
   const hasBadgeFilter = Boolean(activeBadge.is_new || activeBadge.is_hit || activeBadge.is_sale);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  // Видимость категорий в sidebar: null = показывать всё (fallback / initial)
+  const [sidebarVisibleIds, setSidebarVisibleIds] = useState<Set<number> | null>(null);
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrandIds, setSelectedBrandIds] = useState<Set<number>>(new Set());
@@ -430,8 +456,22 @@ const CatalogContent: React.FC = () => {
       try {
         const tree = await categoriesService.getTree();
         if (!isMounted) return;
-        const mapped = tree.map(mapCategoryTreeNode);
+        const mapped = sortCategoryTree(tree.map(mapCategoryTreeNode));
         setCategoryTree(mapped);
+
+        // Первичная фильтрация по in_stock_count (до получения visible-categories)
+        // устраняет flash пустых категорий при загрузке с inStock=true
+        if (inStock) {
+          const initialVisible = new Set<number>();
+          const collectVisible = (nodes: CategoryNode[]) => {
+            for (const n of nodes) {
+              if (n.inStockCount > 0) initialVisible.add(n.id);
+              if (n.children) collectVisible(n.children);
+            }
+          };
+          collectVisible(mapped);
+          setSidebarVisibleIds(initialVisible);
+        }
 
         const categorySlug = searchParams.get('category');
         let initialCategory: CategoryNode | null = null;
@@ -588,7 +628,15 @@ const CatalogContent: React.FC = () => {
         filters.search = searchQuery.trim();
       }
 
-      const response = await productsService.getAll(filters);
+      const [response] = await Promise.all([
+        productsService.getAll(filters),
+        // Параллельно обновляем видимость категорий по текущим фильтрам
+        categoriesService
+          .getVisibleCategories(filters)
+          .then(ids => setSidebarVisibleIds(new Set(ids)))
+          .catch(() => setSidebarVisibleIds(null)), // fallback: показать всё дерево
+      ]);
+
       setProducts(response.results);
       setTotalProducts(response.count);
     } catch (error) {
@@ -957,6 +1005,7 @@ const CatalogContent: React.FC = () => {
                     expandedKeys={expandedKeys}
                     onToggle={handleToggle}
                     onSelect={handleSelectCategory}
+                    visibleIds={sidebarVisibleIds}
                   />
                 )}
               </div>
@@ -1028,6 +1077,7 @@ const CatalogContent: React.FC = () => {
                   onChange={e => {
                     setInStock(e.target.checked);
                     setPage(1);
+                    if (!e.target.checked) setSidebarVisibleIds(null);
                   }}
                 />
               </div>
