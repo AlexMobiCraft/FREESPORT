@@ -302,8 +302,8 @@ const CatalogContent: React.FC = () => {
   const [activeCategoryLabel, setActiveCategoryLabel] = useState('');
   // Флаг означает "попытка загрузки категорий завершена" (включая ошибку) — F3
   const [isCategoryLoadAttempted, setIsCategoryLoadAttempted] = useState(false);
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
-  const [isBrandsOpen, setIsBrandsOpen] = useState(true);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [isBrandsOpen, setIsBrandsOpen] = useState(false);
 
   // Badge-фильтры из URL (is_new, is_hit, is_sale)
   const activeBadge = useMemo(() => {

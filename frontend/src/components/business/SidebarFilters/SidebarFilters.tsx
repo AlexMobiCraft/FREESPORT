@@ -175,7 +175,7 @@ export const SidebarFilters = React.forwardRef<HTMLDivElement, SidebarFiltersPro
             <div className="space-y-2">{renderCategories}</div>
           </FilterGroup>
           {/* Бренды */}
-          <FilterGroup title="Бренды" defaultExpanded={true}>
+          <FilterGroup title="Бренды" defaultExpanded={false}>
             <div className="space-y-2">
               {brands.map(brand => (
                 <Checkbox
