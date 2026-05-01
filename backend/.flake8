@@ -5,7 +5,9 @@
 exclude =
     .git,
     __pycache__,
+    .pytest_cache,
     venv,
+    data,
     */migrations/,
     */static/,
     */legacy/

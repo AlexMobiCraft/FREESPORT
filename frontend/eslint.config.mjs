@@ -29,7 +29,22 @@ const eslintConfig = [
     },
   },
   {
-    ignores: ['.next/**', 'coverage/**', '**/*.config.mjs', 'node_modules/**'],
+    ignores: [
+      '.next/**',
+      'coverage/**',
+      '**/*.config.mjs',
+      'node_modules/**',
+      '../docs/**',
+      '../.pytest_cache/**',
+      '../_bmad-output/**',
+      '../_bmad/**',
+      '../.agents/**',
+      '../.claude/**',
+      '../.kilo/**',
+      '../.obsidian/**',
+      '../.windsurf/skills/**',
+      '../backend/data/**',
+    ],
   },
 ];
 
