@@ -1,9 +1,10 @@
 ---
-status: ready-for-dev
+status: done
 area: 1c-integration
 type: dev-task
 created: 2026-05-01
 updated: 2026-05-01
+baseline_commit: 4f5857431074658047d18ebf53ea1ac8171b4962
 related:
   - docs/prd/1c-order-exchange.md
   - docs/integrations/1c/architecture.md
@@ -698,3 +699,48 @@ STATUS_MAPPING.keys()
 ## Ожидаемый результат для бизнеса
 
 После доработки 1С сможет автоматически загрузить с сайта список статусов заказов, заполнить таблицу сопоставления и продолжить настройку обмена без ручного редактирования недоступных полей.
+
+## Suggested Review Order
+
+**Маршрутизация `mode=info`**
+
+- Точка входа GET — где `mode=info` начинает обрабатываться по основному протоколу 1С.
+  [`views.py:208`](../../backend/apps/integrations/onec_exchange/views.py#L208)
+
+- Симметричная ветвь POST — некоторые конфигурации 1С шлют `info` POST-запросом.
+  [`views.py:235`](../../backend/apps/integrations/onec_exchange/views.py#L235)
+
+**Сборка XML-справочника статусов**
+
+- Метод `handle_info` целиком — design intent с привязкой к исходнику Bitrix.
+  [`views.py:351`](../../backend/apps/integrations/onec_exchange/views.py#L351)
+
+- Источник статусов: `STATUS_MAPPING.keys()` плюс `ORDER_DEFAULTS.STATUS`, дедуп.
+  [`views.py:380`](../../backend/apps/integrations/onec_exchange/views.py#L380)
+
+- Структура XML с латинской `C` в `<Cтатусы>` — критично для совместимости с Bitrix.
+  [`views.py:389`](../../backend/apps/integrations/onec_exchange/views.py#L389)
+
+- Кодирование в `windows-1251` и Content-Type, согласованные с XML declaration.
+  [`views.py:404`](../../backend/apps/integrations/onec_exchange/views.py#L404)
+
+**Покрытие приёмочных критериев тестами**
+
+- AC1/AC5: статус 200 и отсутствие `failure`/`Unknown mode` в ответе.
+  [`test_onec_exchange_info_mode.py:52`](../../backend/tests/integration/test_onec_exchange_info_mode.py#L52)
+
+- AC2: латинская `C` в теге статусов — точечная проверка `ord == 0x43`.
+  [`test_onec_exchange_info_mode.py:92`](../../backend/tests/integration/test_onec_exchange_info_mode.py#L92)
+
+- AC3: Content-Type содержит `windows-1251`.
+  [`test_onec_exchange_info_mode.py:126`](../../backend/tests/integration/test_onec_exchange_info_mode.py#L126)
+
+- AC4: количество элементов вычисляется по той же логике, что и production-код (защита от хрупкого `+1`).
+  [`test_onec_exchange_info_mode.py:174`](../../backend/tests/integration/test_onec_exchange_info_mode.py#L174)
+
+- AC5: `mode=init` и unknown-mode не сломаны.
+  [`test_onec_exchange_info_mode.py:195`](../../backend/tests/integration/test_onec_exchange_info_mode.py#L195)
+
+- Структурный контроль: ответ парсится `ElementTree` и содержит ожидаемых детей.
+  [`test_onec_exchange_info_mode.py:231`](../../backend/tests/integration/test_onec_exchange_info_mode.py#L231)
+

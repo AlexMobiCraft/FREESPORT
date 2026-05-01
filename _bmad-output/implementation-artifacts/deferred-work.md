@@ -22,6 +22,13 @@
 - Validation coverage PromoCodeInput деградирована (удалены тесты Min Order Amount / Apply Error) — восстановить при реализации серверной promo-системы.
 - error path тесты в `orderStore.test.ts` помечены `.skip` — pre-existing, не вызвано текущим diff.
 
+## Deferred from: dev-task-order-status-mode-info review (2026-05-01)
+
+- **`errors="xmlcharrefreplace"` при кодировании в windows-1251** — для текущего набора (`STATUS_MAPPING.keys()` + `Не согласован`) ни один символ не выходит за пределы cp1251. Если когда-нибудь в `ONEC_EXCHANGE.ORDER_DEFAULTS.STATUS` попадёт unicode за пределами cp1251 (эмодзи, редкая латиница), он молча превратится в `&#NNN;`, что 1С может не распарсить как имя статуса. Рассмотреть валидацию настроек или fail-loud режим. [backend/apps/integrations/onec_exchange/views.py — `handle_info`]
+- **Throttling `OneCExchangeThrottle` применяется к `mode=info`** — кнопка "Загрузить с сайта" в 1С вызывается редко, риск минимален. При лимите запросов 1С получит `429` с JSON-телом, что не соответствует протоколу обмена. Pre-existing для всех режимов, не специфично для этой истории. [backend/apps/integrations/onec_exchange/views.py — `ICExchangeView.throttle_classes`]
+- **Дублирование dispatch-таблицы в `get`/`post`** — добавление нового режима требует правки в двух местах (`mode == "info"` добавлен в обе ветки). Pre-existing паттерн, не созданный этой историей. Рефакторинг в общий dispatch dict — отдельная задача. [backend/apps/integrations/onec_exchange/views.py — `get`/`post`]
+- **AC6 (manual): `Загрузить с сайта` в 1С** — после деплоя нужна ручная проверка из 1С: открыть настройки обмена заказами, перейти к таблице сопоставления статусов, нажать "Загрузить с сайта", убедиться, что таблица заполняется без ошибки "Не удалось прочитать данные, загруженные с сервера".
+
 ## Deferred from: checkout-address-ux-improvements review (2026-04-29)
 
 - `orderId === 0` или `orderId === ""` (falsy) в CheckoutForm.onSubmit — нет редиректа на success, хотя заказ создан. Pre-existing, не вызвано текущим diff. Риск минимален (PostgreSQL serial начинает с 1), но стоит добавить guard `if (orderId != null && orderId !== '')` в будущем рефакторинге. [frontend/src/components/checkout/CheckoutForm.tsx:253]

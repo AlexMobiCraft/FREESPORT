@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 from xml.etree.ElementTree import ParseError as ETParseError
+from xml.sax.saxutils import escape as xml_escape
 
 from defusedxml.common import DefusedXmlException
 from django.conf import settings
@@ -204,6 +205,8 @@ class ICExchangeView(APIView):
             return self.handle_checkauth(request)
         elif mode == "init":
             return self.handle_init(request)
+        elif mode == "info":
+            return self.handle_info(request)
         elif mode == "import":
             return self.handle_import(request)
         elif mode == "query":
@@ -229,6 +232,8 @@ class ICExchangeView(APIView):
             return self.handle_checkauth(request)
         elif mode == "init":
             return self.handle_init(request)
+        elif mode == "info":
+            return self.handle_info(request)
         elif mode == "file":
             return self.handle_file_upload(request)
         elif mode == "import":
@@ -342,6 +347,62 @@ class ICExchangeView(APIView):
 
         response_text = f"success\n{cookie_name}\n{session_id}"
         return HttpResponse(response_text, content_type="text/plain; charset=utf-8")
+
+    def handle_info(self, request):
+        """
+        Handle mode=info request from Bitrix component sale.export.1c.
+
+        Returns an XML directory of order statuses (and an empty payment systems
+        block) so 1C can pre-fill its status mapping table when the user clicks
+        "Загрузить с сайта" in the order exchange settings.
+
+        Reference (Bitrix component source):
+        bitrix/components/bitrix/sale.export.1c/component.php — branch
+        ``elseif($_GET["mode"] == "info")`` builds the same structure with the
+        following tag names from the russian language file:
+            CC_BSC1_DI_GENERAL = "Справочник"
+            CC_BSC1_DI_STATUSES = "Cтатусы"  (note: leading char is LATIN "C")
+            CC_BSC1_DI_PS = "ПлатежныеСистемы"
+            CC_BSC1_DI_ELEMENT = "Элемент"
+            CC_BSC1_DI_ID = "Ид"
+            CC_BSC1_DI_NAME = "Название"
+        Encoding is windows-1251 to match Bitrix and 1С expectations.
+        """
+        from apps.orders.constants import STATUS_MAPPING
+
+        exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
+        # Mirror OrderExportService._get_order_defaults(): fallback to "Не согласован"
+        # when ORDER_DEFAULTS is absent, None, or lacks a STATUS key.
+        defaults = exchange_cfg.get("ORDER_DEFAULTS") or {}
+        default_status = defaults.get("STATUS", "Не согласован")
+
+        # Source statuses: keys of STATUS_MAPPING + default export status when set,
+        # preserving order and uniqueness. STATUS_MAPPING.keys() are the values
+        # backend can accept back from 1С; default_status is what backend itself
+        # sends to 1С as initial order status, so 1С must be able to map it too.
+        status_names: list[str] = list(STATUS_MAPPING.keys())
+        if default_status not in status_names:
+            status_names.append(default_status)
+
+        # ВАЖНО: первый символ в "Cтатусы" — латинская "C" (как в языковом файле
+        # Bitrix). Нарушение этого нюанса приведёт к несовместимости с компонентом
+        # bitrix:sale.export.1c, который сравнивает имена тегов посимвольно.
+        parts: list[str] = ['<?xml version="1.0" encoding="windows-1251"?>', "<Справочник>", "\t<Cтатусы>"]
+        for name in status_names:
+            safe = xml_escape(name)
+            parts.append("\t\t<Элемент>")
+            parts.append(f"\t\t\t<Ид>{safe}</Ид>")
+            parts.append(f"\t\t\t<Название>{safe}</Название>")
+            parts.append("\t\t</Элемент>")
+        parts.append("\t</Cтатусы>")
+        parts.append("\t<ПлатежныеСистемы></ПлатежныеСистемы>")
+        parts.append("</Справочник>")
+
+        xml_text = "\n".join(parts)
+        body = xml_text.encode("windows-1251", errors="xmlcharrefreplace")
+
+        logger.info(f"[INFO MODE] Returned {len(status_names)} order statuses to 1C")
+        return HttpResponse(body, content_type="text/xml; charset=windows-1251")
 
     def handle_init(self, request):
         """
