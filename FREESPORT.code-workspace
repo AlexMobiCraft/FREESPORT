@@ -9,6 +9,6 @@
   ],
   "settings": {
     "window.zoomPerWindow": true,
-    "workbench.colorTheme": "Default High Contrast",
+    "workbench.colorTheme": "Visual Studio Dark",
   },
 }
