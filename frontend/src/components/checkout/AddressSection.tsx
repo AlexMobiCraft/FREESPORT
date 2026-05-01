@@ -50,7 +50,10 @@ export function AddressSection({
   const showSelector = !!addresses && addresses.length > 1 && !!onSelectAddress;
 
   return (
-    <section className="rounded-[var(--radius)] bg-[var(--bg-panel)] p-6 shadow-[var(--shadow-default)]" aria-labelledby="address-section">
+    <section
+      className="rounded-[var(--radius)] bg-[var(--bg-panel)] p-6 shadow-[var(--shadow-default)]"
+      aria-labelledby="address-section"
+    >
       <h2 id="address-section" className="mb-4 text-lg font-semibold text-text-primary">
         Адрес доставки
       </h2>
