@@ -176,8 +176,23 @@ graph TD
 
 1.  **CheckAuth**: Аутентификация и старт сессии (Basic Auth -> Session Cookie).
 2.  **Init**: Запрос параметров сервера (zip support, file limit).
-3.  **File**: Потоковая загрузка файлов (поддержка чанков и ZIP-архивов).
-4.  **Import**: Триггер обработки загруженных файлов.
+3.  **Query**: Получение заказов сайта для `type=sale`.
+4.  **Success**: Подтверждение успешного получения заказов 1С.
+5.  **File**: Потоковая загрузка файлов (поддержка чанков и ZIP-архивов).
+6.  **Import**: Триггер обработки загруженных файлов.
+7.  **Info**: Получение справочников сайта для настройки 1С-Битрикс, включая статусы заказов.
+
+`mode=info` является справочным режимом: он не выгружает заказы и не принимает изменения, а возвращает XML `<Справочник>` со списком статусов сайта и блоком `<ПлатежныеСистемы>`. В модуле **"1С-Битрикс. Управление сайтом"** этот режим используется кнопкой **"Загрузить с сайта"** в таблице сопоставления **"Статусы заказов"**.
+
+```mermaid
+sequenceDiagram
+    participant OneC as 1С-Битрикс
+    participant Site as FREESPORT backend
+
+    OneC->>Site: GET type=sale&mode=info
+    Site-->>OneC: XML <Справочник><Cтатусы>...</Cтатусы></Справочник>
+    OneC->>OneC: Заполнение таблицы сопоставления статусов
+```
 
 > **Подробнее:** См. [Техническую спецификацию транспортного уровня](transport-layer.md).
 
@@ -299,6 +314,9 @@ graph TD
     subgraph "Transport Layer (Sync)"
         req[HTTP Request] --> View[ICExchangeView]
         View -- Auth --> Auth[Basic1CAuthentication]
+        View -- "mode=query" --> OrderExport[OrderExportService]
+        View -- "mode=success" --> OrderAck[Подтверждение выгрузки заказов]
+        View -- "mode=info" --> StatusDict[XML-справочник статусов]
         View -- "mode=file" --> FSS[FileStreamService]
         FSS --> Temp[Media: 1c_temp/session_id/]
         View -- "mode=import" --> Router[FileRoutingService]
@@ -307,9 +325,12 @@ graph TD
 
     subgraph "Processing Layer (Async)"
         Router -- Trigger --> Celery[Celery Task]
+        FSS -- "orders.xml" --> OrderStatus[OrderStatusImportService]
+        OrderExport --> OrderXML[CommerceML XML заказов]
         Celery --> SVC[Import Service]
         SVC --> Parser[XML Parser]
         SVC --> DB[(PostgreSQL)]
+        OrderStatus --> DB
     end
 ```
 
@@ -318,6 +339,9 @@ graph TD
 - **ICExchangeView**: Единая точка входа, маршрутизация по `mode`.
 - **FileStreamService**: Обработка потоковой загрузки, сборка чанков в файлы.
 - **FileRoutingService**: Маршрутизация файлов (goods, offers, images) в целевые папки.
+- **OrderExportService**: Формирование CommerceML XML для `type=sale&mode=query`.
+- **OrderStatusImportService**: Синхронная обработка `orders.xml` со статусами заказов из 1С.
+- **Status dictionary XML**: Ответ `type=sale&mode=info` со справочником статусов для настройки сопоставления в 1С-Битрикс.
 
 > **Важные решения (ADR):**
 >

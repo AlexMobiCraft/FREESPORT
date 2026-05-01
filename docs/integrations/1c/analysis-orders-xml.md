@@ -70,9 +70,42 @@ For **Importing Statuses** (1C -> Site), we rely on:
 2.  **Status**: Look for `<ЗначениеРеквизита>` with `Наименование="Статус заказа"` (or similar, depends on 1C config).
 3.  **Payment/Shipment Dates**: Look for separate documents in the container or requsites like "Дата оплаты", "Дата отгрузки".
 
+## Справочник статусов сайта (`mode=info`)
+
+`mode=info` — это отдельный справочный ответ для настройки модуля **"1С-Битрикс. Управление сайтом"**. Он не является `orders.xml` и не содержит документов заказов. Этот XML нужен 1С при нажатии кнопки **"Загрузить с сайта"** в таблице сопоставления **"Статусы заказов"**.
+
+Ожидаемая структура ответа:
+
+```xml
+<?xml version="1.0" encoding="windows-1251"?>
+<Справочник>
+  <Cтатусы>
+    <Элемент>
+      <Ид>ОжидаетОбработки</Ид>
+      <Название>ОжидаетОбработки</Название>
+    </Элемент>
+    <Элемент>
+      <Ид>Отгружен</Ид>
+      <Название>Отгружен</Название>
+    </Элемент>
+  </Cтатусы>
+  <ПлатежныеСистемы />
+</Справочник>
+```
+
+Связь потоков:
+
+1. `type=sale&mode=info` отдаёт список возможных статусов сайта для заполнения таблицы сопоставления в 1С.
+2. `type=sale&mode=file&filename=orders.xml` принимает фактические изменения статусов заказов из 1С.
+3. `OrderStatusImportService` извлекает значение статуса из реквизита заказа и маппит его через `STATUS_MAPPING`.
+
+Для минимизации расхождений значения `<Ид>` и `<Название>` в справочнике рекомендуется брать из ключей `STATUS_MAPPING`.
+
 ## Next Steps
 
 1.  Obtain a real `orders.xml` export from the specific 1C instance to verify:
     - Exact name of the status field.
     - How dates are passed.
     - If `<Контейнер>` is strictly used (it is in 3.1, but sometimes strictness varies).
+2.  Verify the real `mode=info` request from 1C logs when the user clicks **"Загрузить с сайта"**.
+3.  Confirm whether 1C sends back status identifiers, names, or mapped internal values after the status table is populated.

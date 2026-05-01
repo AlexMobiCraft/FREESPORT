@@ -19,6 +19,7 @@
 
 - **[Интеграция с 1С](./integrations/1c/architecture.md)** — асинхронная синхронизация CommerceML.
 - **[VAT-split и складской routing заказов для 1С](./integrations/1c/order-vat-warehouse-routing.md)** — НДС, склады, master/sub-orders и экспорт CommerceML.
+- **[Задание: загрузка статусов заказов 1С-Битрикс через mode=info](./integrations/1c/dev-task-order-status-mode-info.md)** — справочник статусов для кнопки "Загрузить с сайта" в 1С.
 - **[Инвентаризация UI компонентов](./component-inventory-frontend.md)** — библиотека визуальных элементов.
 - **[Система развертывания](./deploy/README.md)** — Docker, Nginx и скрипты деплоя.
 
@@ -30,4 +31,4 @@
 
 ---
 
-_Документация обновлена: 22.04.2026. Агент: Paige (Technical Writer)_
+_Документация обновлена: 01.05.2026. Агент: Paige (Technical Writer)_
