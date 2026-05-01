@@ -2,7 +2,7 @@
 title: "Обновление блока популярных категорий"
 slug: "update-popular-categories"
 created: "2026-01-12"
-status: "ready-for-dev"
+status: "done"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ["Next.js", "React", "Tailwind CSS"]
 files_to_modify:

@@ -2,7 +2,7 @@
 title: 'Маркетинговые баннеры'
 slug: 'marketing-banners'
 created: '2026-02-12'
-status: 'review'
+status: 'done'
 stepsCompleted: [1, 2, 3]
 tech_stack: 
   - Django (Models, Migrations, DRF)

@@ -2,7 +2,7 @@
 title: "Quick Links on Homepage"
 slug: "quick-links-homepage"
 created: "2026-02-12"
-status: "ready-for-dev"
+status: "done"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ["React", "Next.js", "Tailwind CSS"]
 files_to_modify:

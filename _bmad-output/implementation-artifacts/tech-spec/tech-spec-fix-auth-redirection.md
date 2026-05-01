@@ -2,7 +2,7 @@
 title: "Исправление редиректа авторизации на активную тему"
 slug: "fix-auth-redirection"
 created: "2026-01-16"
-status: "ready-for-dev"
+status: "done"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ["Next.js 15", "React Hook Form", "Zod", "Vitest"]
 files_to_modify:

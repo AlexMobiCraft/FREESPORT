@@ -2,7 +2,7 @@
 title: 'JWT Access Token Blacklist (Redis)'
 slug: 'jwt-access-token-blacklist'
 created: '2026-01-18'
-status: 'ready-for-dev'
+status: 'done'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack:
   - Django 5.2.7

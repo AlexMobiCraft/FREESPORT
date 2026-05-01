@@ -2,7 +2,7 @@
 title: "1C Import Archiving"
 slug: "1c-import-archiving"
 created: "2026-01-26"
-status: "review"
+status: "done"
 stepsCompleted: [1, 2, 3]
 tech_stack: ["Python 3.10+", "Django 4.2", "stdlib zipfile", "pathlib"]
 files_to_modify:

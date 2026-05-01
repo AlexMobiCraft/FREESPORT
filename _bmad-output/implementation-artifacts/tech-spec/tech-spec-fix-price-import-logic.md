@@ -2,7 +2,7 @@
 title: "Исправление импорта цен (РРЦ, МРЦ, Федерация)"
 slug: "fix-price-import-logic"
 created: "2026-01-16T21:35:00"
-status: "ready-for-dev"
+status: "done"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ["Django", "Python"]
 files_to_modify:

@@ -2,7 +2,7 @@
 title: "Исправление фрагментации сессий импорта 1С"
 slug: "fix-1c-import-session-fragmentation"
 created: "2026-01-25T11:58:00+01:00"
-status: "review"
+status: "done"
 stepsCompleted: [1, 2, 3, 4, 5, 6]
 tech_stack: ["Django REST Framework", "Celery", "PostgreSQL", "Redis"]
 files_to_modify:
