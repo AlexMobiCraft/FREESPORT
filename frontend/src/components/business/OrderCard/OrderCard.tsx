@@ -13,6 +13,7 @@ import { Card } from '@/components/ui';
 import { OrderStatusBadge } from '@/components/business/OrderStatusBadge';
 import { ShoppingBag, Calendar, ChevronRight } from 'lucide-react';
 import type { OrderListItem } from '@/types/order';
+import { formatOrderNumber } from '@/utils/orderNumberFormat';
 
 export interface OrderCardProps {
   order: OrderListItem;
@@ -73,6 +74,7 @@ function getItemsLabel(count: number): string {
  */
 export const OrderCard: React.FC<OrderCardProps> = ({ order, className }) => {
   const itemsCount = order.total_items || 0;
+  const formattedOrderNumber = formatOrderNumber(order.order_number);
 
   return (
     <Link href={`/profile/orders/${order.id}`} className={cn('block', className)}>
@@ -80,7 +82,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, className }) => {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-title-m font-semibold text-text-primary">
-              Заказ №{order.order_number}
+              Заказ №{formattedOrderNumber}
             </h3>
             <div className="flex items-center gap-1.5 mt-1 text-body-s text-text-muted">
               <Calendar className="w-4 h-4" aria-hidden="true" />

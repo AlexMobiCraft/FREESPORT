@@ -196,10 +196,16 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         if not request:
             raise serializers.ValidationError("Контекст запроса обязателен")
 
-        user = request.user if request.user.is_authenticated else None
+        request_user = getattr(request, "user", None)
+        if not request_user or not request_user.is_authenticated:
+            raise serializers.ValidationError("Для оформления заказа требуется авторизация")
+
+        user = request_user
+        if not getattr(user, "customer_code", ""):
+            raise serializers.ValidationError("Для оформления заказа требуется customer_code")
 
         # Получаем корзину
-        cart = self._get_user_cart(request, user)
+        cart = self._get_user_cart(user)
         if not cart or not cart.items.exists():
             raise serializers.ValidationError("Корзина пуста")
 
@@ -249,19 +255,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         attrs["_cart"] = cart
         return attrs
 
-    def _get_user_cart(self, request, user):
+    def _get_user_cart(self, user):
         """Получение корзины пользователя"""
         if user:
             return getattr(user, "cart", None)
-        else:
-            # Гостевая корзина по session
-            session_key = request.session.session_key
-            if session_key:
-                cart_manager = cast(BaseManager[Cart], getattr(Cart, "objects"))
-                try:
-                    return cart_manager.get(session_key=session_key, user__isnull=True)
-                except ObjectDoesNotExist:
-                    pass
         return None
 
     def create(self, validated_data):

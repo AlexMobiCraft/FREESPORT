@@ -178,6 +178,7 @@ class UserFactory(DjangoModelFactory):
     email = factory.Faker("email")
     first_name = factory.Faker("first_name")
     last_name = factory.Faker("last_name")
+    customer_code = factory.Sequence(lambda n: f"{n + 1000:05d}")
     is_active = True
 
 

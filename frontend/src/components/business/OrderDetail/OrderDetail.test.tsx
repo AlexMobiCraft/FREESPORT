@@ -16,7 +16,7 @@ vi.mock('next/link', () => ({
 
 const mockOrder: Order = {
   id: 1,
-  order_number: 'ORD-2025-001',
+  order_number: '0462026007',
   user: 1,
   customer_display_name: 'Иван Иванов',
   customer_name: 'Иван Иванов',
@@ -93,7 +93,7 @@ describe('OrderDetail', () => {
 
   it('renders order number and status', () => {
     render(<OrderDetail {...defaultProps} />);
-    expect(screen.getByText('Заказ №ORD-2025-001')).toBeInTheDocument();
+    expect(screen.getByText('Заказ №4620-26007')).toBeInTheDocument();
     expect(screen.getByText('Новый')).toBeInTheDocument();
   });
 

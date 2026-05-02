@@ -408,7 +408,8 @@ paths:
   /orders/:
     get:
       tags: [Orders]
-      summary: List user orders
+      summary: List user master orders
+      description: Возвращает только master-заказы пользователя. `order_number` передаётся в каноническом формате, а технические sub-orders клиенту не видны.
       security:
         - BearerAuth: []
       parameters:
@@ -417,7 +418,7 @@ paths:
           schema:
             type: string
             enum:
-              [pending, confirmed, processing, shipped, delivered, cancelled]
+              [pending, confirmed, processing, shipped, delivered, cancelled, returned]
         - name: page
           in: query
           schema:
@@ -433,6 +434,7 @@ paths:
     post:
       tags: [Orders]
       summary: Create new order
+      description: Создание заказа из корзины авторизованного пользователя с валидным `customer_code`.
       security:
         - BearerAuth: []
       requestBody:
@@ -447,7 +449,32 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Order"
+                $ref: "#/components/schemas/OrderDetail"
+
+  /orders/{id}/cancel/:
+    post:
+      tags: [Orders]
+      summary: Cancel master order
+      description: Отмена master-заказа пользователем с каскадной отменой связанных sub-orders.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "400":
+          description: Order cannot be cancelled in current status
+        "404":
+          description: Order not found
 
   # 1C Integration Endpoints
   /api/1c/customers/:
@@ -1369,6 +1396,9 @@ components:
           type: integer
         order_number:
           type: string
+          description: Канонический номер заказа (`CCCCCYYNNN` для master, `CCCCCYYNNNS` для sub-order).
+        customer_display_name:
+          type: string
         status:
           type: string
           enum:
@@ -1384,19 +1414,21 @@ components:
         total_amount:
           type: number
           format: decimal
-        items:
-          type: array
-          items:
-            type: object
-            properties:
-              product_name:
-                type: string
-              quantity:
-                type: integer
-              unit_price:
-                type: number
-              total_price:
-                type: number
+        delivery_method:
+          type: string
+          enum: [pickup, courier, post, transport_company, transport_schedule]
+        payment_method:
+          type: string
+          enum: [card, cash, bank_transfer, payment_on_delivery]
+        payment_status:
+          type: string
+          enum: [pending, paid, failed, refunded]
+        is_master:
+          type: boolean
+        sent_to_1c:
+          type: boolean
+        total_items:
+          type: integer
         created_at:
           type: string
           format: date-time
@@ -1420,31 +1452,39 @@ components:
     OrderCreate:
       type: object
       properties:
-        shipping_address:
-          type: object
-          properties:
-            full_name:
-              type: string
-            phone:
-              type: string
-            city:
-              type: string
-            street:
-              type: string
-            building:
-              type: string
-            apartment:
-              type: string
-            postal_code:
-              type: string
-          required: [full_name, phone, city, street, building]
+        delivery_address:
+          type: string
         payment_method:
           type: string
+          enum: [card, cash, bank_transfer, payment_on_delivery]
+        delivery_method:
+          type: string
+          enum: [pickup, courier, post, transport_company, transport_schedule]
+        delivery_date:
+          type: string
+          format: date
+          nullable: true
         notes:
           type: string
           nullable: true
-      required: [shipping_address, payment_method]
+        customer_name:
+          type: string
+        customer_email:
+          type: string
+          format: email
+        customer_phone:
+          type: string
+        discount_amount:
+          type: number
+          format: decimal
+        promo_code:
+          type: string
+          nullable: true
+      required: [delivery_address, payment_method, delivery_method, customer_name, customer_email, customer_phone]
 ```
+
+> [!IMPORTANT]
+> Актуализация от `2026-05-02`: frontend и email/PDF paths отображают UI-формат номера (`CCCC-YYNNN` / `CCCCC-YYNNN-S`), но API хранит и отдаёт только канонический `order_number`. Создание заказа для гостя больше не поддерживается: доступ к checkout flow требует аутентификацию и наличие `customer_code`.
 
 ## Особенности API интеграции с 1С
 

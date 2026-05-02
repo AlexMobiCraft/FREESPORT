@@ -12,12 +12,12 @@
 
 - **[Архитектура Бэкенда](./architecture-backend.md)** — Django, DRF и бизнес-логика.
 - **[Архитектура Фронтенда](./architecture-frontend.md)** — Next.js, App Router и состояние.
-- **[Модели данных](./data-models.md)** — таблицы, связи и снимки данных.
-- **[Контракты API](./api-contracts.md)** — описание REST эндпоинтов.
+- **[Модели данных](./data-models.md)** — таблицы, связи, `customer_code` и каноническая нумерация заказов.
+- **[Контракты API](./api-contracts.md)** — описание REST эндпоинтов, включая актуальный contract `/orders/`.
 
 ## 📦 Интеграции и Модули
 
-- **[Интеграция с 1С](./integrations/1c/architecture.md)** — асинхронная синхронизация CommerceML.
+- **[Интеграция с 1С](./integrations/1c/architecture.md)** — CommerceML, sub-orders и канонические номера заказов.
 - **[VAT-split и складской routing заказов для 1С](./integrations/1c/order-vat-warehouse-routing.md)** — НДС, склады, master/sub-orders и экспорт CommerceML.
 - **[Задание: загрузка статусов заказов 1С-Битрикс через mode=info](./integrations/1c/dev-task-order-status-mode-info.md)** — справочник статусов для кнопки "Загрузить с сайта" в 1С.
 - **[Инвентаризация UI компонентов](./component-inventory-frontend.md)** — библиотека визуальных элементов.
@@ -31,4 +31,4 @@
 
 ---
 
-_Документация обновлена: 01.05.2026. Агент: Paige (Technical Writer)_
+_Документация обновлена: 02.05.2026. Агент: Cascade_

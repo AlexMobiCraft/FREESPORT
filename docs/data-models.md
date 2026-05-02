@@ -12,6 +12,7 @@
 - **role**: Роль пользователя (`retail`, `wholesale_level1-3`, `trainer`, `federation_rep`, `admin`).
 - **verification_status**: Статус верификации B2B (`unverified`, `verified`, `pending`).
 - **onec_id**: Привязка к контрагенту в 1С.
+- **customer_code**: Пятизначный код клиента для схемы нумерации заказов и интеграционных сценариев.
 
 ### Company
 
@@ -64,16 +65,19 @@
 
 - **Cart**: Привязка к `User` или `session_key` (для гостей).
 - **CartItem**: Хранит `price_snapshot` — цену в момент добавления товара.
+- **Checkout-ограничение**: Гостевая корзина поддерживается для browsing/cart flow, но создание заказа через `/orders/` доступно только авторизованному пользователю с валидным `customer_code`.
 
 ### Order
 
 Заказ пользователя.
 
-- **order_number**: UUID-строка.
+- **order_number**: Канонический immutable-номер. Для master-заказа формат `CCCCCYYNNN`, для sub-order — `CCCCCYYNNNS`.
+- **customer_code_snapshot / order_year / customer_year_sequence / suborder_sequence**: Снимки, поддерживающие атомарную генерацию, аудит и поиск.
 - **total_amount**: Сумма (товары + доставка - скидки).
 - **Статусы**: `pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`.
 - **Платежи**: Интеграция с ЮKassa через `payment_id`.
 - **parent_order / is_master / vat_group**: Структура `master-order` + технические `sub-orders` для экспорта в 1С. `sub-order` группируется по `(vat_rate, warehouse_name)`, а `vat_group` является авторитетной ставкой документа CommerceML.
+- **order_number_display**: Производное UI-представление номера. Для master используется формат `CCCC-YYNNN`, для sub-order — `CCCCC-YYNNN-S`.
 
 ### OrderItem
 

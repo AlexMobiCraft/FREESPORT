@@ -18,6 +18,7 @@ import { CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button/Button';
 import { InfoPanel } from '@/components/ui/InfoPanel/InfoPanel';
 import type { Order } from '@/types/order';
+import { formatOrderNumber } from '@/utils/orderNumberFormat';
 
 export interface OrderSuccessViewProps {
   order: Order;
@@ -61,6 +62,7 @@ function parseDecimal(value: string | number | undefined): number {
  */
 export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({ order }) => {
   const statusLabel = statusLabels[order.status] || order.status;
+  const formattedOrderNumber = formatOrderNumber(order.order_number);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -71,7 +73,7 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({ order }) => 
         </div>
         <h1 className="text-3xl font-bold mt-4">Заказ успешно оформлен!</h1>
         <p className="text-gray-600 mt-2">
-          Номер заказа: <span className="font-semibold">{order.order_number}</span>
+          Номер заказа: <span className="font-semibold">{formattedOrderNumber}</span>
         </p>
       </div>
 

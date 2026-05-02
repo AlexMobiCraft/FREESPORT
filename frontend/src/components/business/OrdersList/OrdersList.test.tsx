@@ -17,7 +17,7 @@ vi.mock('next/link', () => ({
 const mockOrders: OrderListItem[] = [
   {
     id: 1,
-    order_number: 'ORD-2025-001',
+    order_number: '0462026007',
     user: 1,
     customer_display_name: 'Иван Иванов',
     status: 'pending',
@@ -33,7 +33,7 @@ const mockOrders: OrderListItem[] = [
   },
   {
     id: 2,
-    order_number: 'ORD-2025-002',
+    order_number: '0462026008',
     user: 1,
     customer_display_name: 'Иван Иванов',
     status: 'delivered',
@@ -62,8 +62,8 @@ describe('OrdersList', () => {
 
   it('renders list of orders', () => {
     render(<OrdersList {...defaultProps} />);
-    expect(screen.getByText('Заказ №ORD-2025-001')).toBeInTheDocument();
-    expect(screen.getByText('Заказ №ORD-2025-002')).toBeInTheDocument();
+    expect(screen.getByText('Заказ №4620-26007')).toBeInTheDocument();
+    expect(screen.getByText('Заказ №4620-26008')).toBeInTheDocument();
   });
 
   it('renders total count', () => {

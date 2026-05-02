@@ -106,7 +106,7 @@ describe('orderStore', () => {
       const state = useOrderStore.getState();
       expect(state.currentOrder).not.toBeNull();
       expect(state.currentOrder?.id).toBe(mockSuccessOrder.id);
-      expect(state.currentOrder?.order_number).toBe('ORD-2025-001');
+      expect(state.currentOrder?.order_number).toBe('0462026007');
       expect(state.currentOrder?.status).toBe('pending');
       expect(state.error).toBeNull();
     });

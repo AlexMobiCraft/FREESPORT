@@ -38,7 +38,7 @@ FREESPORT/
 
 - `users/` — пользователи, **7 ролей**: retail, wholesale_level1-3, trainer, federation_rep, admin
 - `products/` — каталог, бренды, категории, многоуровневое ценообразование
-- `orders/` — заказы B2B/B2C со снимком данных товара на момент заказа
+- `orders/` — заказы B2B/B2C со снимком данных товара на момент заказа. Email-уведомления (customer + admin) ставятся в очередь **только для `is_master=True`** (`signals.py` guard); items для отображения агрегируются из `sub_orders` через helper `_get_order_display_items`.
 - `cart/` — корзина (авторизованные + гостевые)
 - `common/` — утилиты, аудит, контент (новости, блог)
 - `pages/` — динамические страницы

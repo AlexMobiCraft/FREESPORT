@@ -66,6 +66,14 @@ class User(AbstractUser):
     # Основные поля
     email = models.EmailField(unique=True)  # Primary identifier, USERNAME_FIELD
     phone = models.CharField(max_length=255, blank=True)  # Формат: +79001234567
+    customer_code = models.CharField(
+        max_length=5,
+        blank=True,
+        null=True,
+        unique=True,
+        validators=[RegexValidator(r'^\d{5}$', 'Код должен содержать ровно 5 цифр')],
+        help_text="Пятизначный клиентский код для канонической нумерации заказов"
+    )
 
     # B2B поля (базовые, расширенные данные в модели Company)
     company_name = models.CharField(max_length=200, blank=True)
@@ -287,6 +295,7 @@ class ProductVariant(models.Model):
     def get_price_for_user(self, user):
         # ... логика получения цены ...
         pass
+
 ```
 
 ### Модели заказов и корзины
@@ -366,6 +375,35 @@ class Order(models.Model):
     # Системные поля
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Дополнительные поля для поддержки канонической схемы нумерации заказов
+    customer_code_snapshot = models.CharField(max_length=5, blank=True, null=True)
+    order_year = models.IntegerField(blank=True, null=True)
+    customer_year_sequence = models.IntegerField(blank=True, null=True)
+    suborder_sequence = models.IntegerField(blank=True, null=True)
+
+````
+
+```python
+class CustomerOrderSequence(models.Model):
+    """
+    Атомарный счётчик заказов клиента в календарном году.
+    Используется для генерации канонического номера заказа `CCCCCYYNNN`.
+    """
+    customer_code = models.CharField(max_length=5, db_index=True)
+    year = models.PositiveIntegerField()
+    last_sequence = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("customer_code", "year")
+        db_table = "customer_order_sequences"
+```
+
+> [!IMPORTANT]
+> Актуализация от `2026-05-02`: в модель `User` добавлено поле `customer_code` с форматом `^\d{5}$`. Поле используется как источник пятизначного клиентского кода для канонических номеров заказов и становится неизменяемым после появления у пользователя хотя бы одного заказа.
+
+> [!IMPORTANT]
+> Актуализация от `2026-05-02`: для заказов внедрена каноническая схема нумерации. `order_number` хранится как immutable-значение в формате `CCCCCYYNNN` для master-заказов и `CCCCCYYNNNS` для sub-orders. Дополнительно используются поля `customer_code_snapshot`, `order_year`, `customer_year_sequence`, `suborder_sequence` и отдельная модель счётчика `CustomerOrderSequence`. В клиентских API видны только master-заказы, а UI-формат (`CCCC-YYNNN` / `CCCCC-YYNNN-S`) формируется на уровне представления.
 
 ### Логика резервирования товаров
 

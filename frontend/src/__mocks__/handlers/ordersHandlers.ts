@@ -13,7 +13,7 @@ import type { OrderListItem } from '@/types/order';
  */
 export const mockSuccessOrder = {
   id: 1,
-  order_number: 'ORD-2025-001',
+  order_number: '0462026007',
   user: 1,
   customer_display_name: 'Тест Пользователь',
   customer_name: 'Тест Пользователь',
@@ -88,7 +88,7 @@ export const mockSuccessOrder = {
 export const mockOrderListItem1: OrderListItem = {
   id: 1,
   user: 1,
-  order_number: 'ORD-2025-001',
+  order_number: '0462026007',
   customer_display_name: 'Тест Пользователь',
   status: 'pending',
   total_amount: '15500',
@@ -107,7 +107,7 @@ export const mockOrdersList: OrderListItem[] = [
   {
     ...mockOrderListItem1,
     id: 2,
-    order_number: 'ORD-2025-002',
+    order_number: '0462026008',
     status: 'delivered',
     total_amount: '25000',
     payment_status: 'paid',
@@ -117,7 +117,7 @@ export const mockOrdersList: OrderListItem[] = [
   {
     ...mockOrderListItem1,
     id: 3,
-    order_number: 'ORD-2025-003',
+    order_number: '0462026009',
     status: 'shipped',
     total_amount: '8000',
     payment_status: 'paid',

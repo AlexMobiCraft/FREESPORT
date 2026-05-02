@@ -13,7 +13,7 @@ import type { Order } from '@/types/order';
  */
 const mockOrder: Order = {
   id: 123,
-  order_number: 'FS-2024-001',
+  order_number: '0462026007',
   user: 1,
   customer_display_name: 'Иван Иванов',
   customer_name: 'Иван Иванов',
@@ -75,7 +75,7 @@ describe('OrderSuccessView', () => {
       render(<OrderSuccessView order={mockOrder} />);
 
       expect(screen.getByText('Заказ успешно оформлен!')).toBeInTheDocument();
-      expect(screen.getByText('FS-2024-001')).toBeInTheDocument();
+      expect(screen.getByText('4620-26007')).toBeInTheDocument();
     });
 
     it('должен отображать статус "Новый" для pending', () => {

@@ -14,6 +14,7 @@ CREATE TABLE users_user (
     first_name VARCHAR(150),
     last_name VARCHAR(150),
     phone VARCHAR(20),
+    customer_code VARCHAR(5) UNIQUE,
     role VARCHAR(20) DEFAULT 'retail',
     company_name VARCHAR(200),
     tax_id VARCHAR(50),
@@ -192,10 +193,17 @@ CREATE TABLE orders_order (
     order_number VARCHAR(50) UNIQUE NOT NULL,
     user_id INTEGER REFERENCES users_user(id),
 
-    -- Customer info for guest orders
+    -- Customer contact snapshot
     customer_name VARCHAR(200),
     customer_email VARCHAR(254),
     customer_phone VARCHAR(20),
+    customer_code_snapshot VARCHAR(5),
+    order_year SMALLINT,
+    customer_year_sequence SMALLINT,
+    suborder_sequence SMALLINT,
+    parent_order_id INTEGER REFERENCES orders_order(id),
+    is_master BOOLEAN DEFAULT TRUE,
+    vat_group DECIMAL(5,2),
 
     -- Order details
     status VARCHAR(50) DEFAULT 'pending',
@@ -491,9 +499,15 @@ $$ LANGUAGE plpgsql STABLE;
 
 - `products_product` — master-запись товара (общие данные, описание, изображения, маркетинговые флаги)
 - `products_productvariant` — SKU-уровень (ценообразование, остатки, склад, атрибуты варианта)
-- Гостевая связь: `Product → ProductVariant` (OneToMany) — один товар может иметь множество торговых предложений
+- Связь `Product → ProductVariant` (OneToMany) — один товар может иметь множество торговых предложений
 - Ценообразование и остатки хранятся на уровне варианта, а не товара
 - Изображения: Product имеет `base_images` (fallback), ProductVariant — `main_image` и `gallery_images`
+
+**Дополнение по заказам (2026-05-02):**
+
+- `orders_order.order_number` хранит канонический номер: `CCCCCYYNNN` для master-заказа и `CCCCCYYNNNS` для sub-order.
+- `customer_code_snapshot`, `order_year`, `customer_year_sequence`, `suborder_sequence` фиксируют данные генерации номера и используются для аудита, поиска и уникальных ограничений.
+- Текущий checkout flow требует авторизацию и валидный `customer_code`; guest cart остаётся только механизмом корзины, а не создания заказа.
 
 **2. Композитный FOREIGN KEY для секционированных таблиц:**
 

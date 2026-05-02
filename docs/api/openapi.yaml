@@ -581,6 +581,9 @@ paths:
     get:
       tags: [Orders]
       summary: Получить список заказов пользователя
+      description: |
+        Возвращает только master-заказы пользователя (`is_master=true`).
+        `order_number` передаётся в каноническом формате: `CCCCCYYNNN` для master-заказа.
       security:
         - BearerAuth: []
       parameters:
@@ -589,7 +592,7 @@ paths:
           schema:
             type: string
             enum:
-              [pending, confirmed, processing, shipped, delivered, cancelled]
+              [pending, confirmed, processing, shipped, delivered, cancelled, returned]
           description: Фильтр по статусу заказа
         - name: page
           in: query
@@ -609,6 +612,7 @@ paths:
       summary: Создать новый заказ
       description: |
         Создание заказа из текущей корзины пользователя.
+        Для успешного оформления требуется авторизованный пользователь с валидным `customer_code`.
         После создания корзина очищается.
       security:
         - BearerAuth: []
@@ -647,6 +651,33 @@ paths:
                 $ref: "#/components/schemas/OrderDetail"
         "403":
           description: Доступ запрещен
+        "404":
+          description: Заказ не найден
+
+  /orders/{id}/cancel/:
+    post:
+      tags: [Orders]
+      summary: Отменить master-заказ
+      description: |
+        Отменяет master-заказ пользователя и каскадно проставляет статус `cancelled`
+        всем связанным sub-orders. Технические sub-orders напрямую не отменяются через клиентский API.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Заказ успешно отменён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetail"
+        "400":
+          description: Заказ нельзя отменить в текущем статусе
         "404":
           description: Заказ не найден
 
@@ -1324,45 +1355,94 @@ components:
       properties:
         id:
           type: integer
+        user:
+          type: integer
         order_number:
           type: string
-          description: Номер заказа
+          description: Канонический номер заказа. Для master-заказа формат `CCCCCYYNNN`, для sub-order — `CCCCCYYNNNS`.
+        customer_display_name:
+          type: string
         status:
           type: string
-          enum: [pending, confirmed, processing, shipped, delivered, cancelled]
+          enum: [pending, confirmed, processing, shipped, delivered, cancelled, returned]
         total_amount:
           type: number
           format: decimal
-        items_count:
+        delivery_method:
+          type: string
+          enum: [pickup, courier, post, transport_company, transport_schedule]
+        payment_method:
+          type: string
+          enum: [card, cash, bank_transfer, payment_on_delivery]
+        payment_status:
+          type: string
+          enum: [pending, paid, failed, refunded]
+        is_master:
+          type: boolean
+        vat_group:
+          type: number
+          format: decimal
+          nullable: true
+        sent_to_1c:
+          type: boolean
+        total_items:
           type: integer
         created_at:
           type: string
           format: date-time
-        estimated_delivery:
-          type: string
-          format: date
-          nullable: true
 
     OrderDetail:
       allOf:
         - $ref: "#/components/schemas/Order"
         - type: object
           properties:
+            customer_name:
+              type: string
+            customer_email:
+              type: string
+              format: email
+            customer_phone:
+              type: string
+            discount_amount:
+              type: number
+              format: decimal
+            delivery_cost:
+              type: number
+              format: decimal
             items:
               type: array
               items:
                 $ref: "#/components/schemas/OrderItem"
-            shipping_address:
-              $ref: "#/components/schemas/Address"
-            legal_address:
-              $ref: "#/components/schemas/Address"
-            payment_method:
+            delivery_address:
               type: string
-            delivery_method:
+            delivery_date:
+              type: string
+              format: date
+              nullable: true
+            tracking_number:
+              type: string
+            payment_id:
               type: string
             notes:
               type: string
               nullable: true
+            sent_to_1c_at:
+              type: string
+              format: date-time
+              nullable: true
+            status_1c:
+              type: string
+            updated_at:
+              type: string
+              format: date-time
+            subtotal:
+              type: number
+              format: decimal
+            calculated_total:
+              type: number
+              format: decimal
+            can_be_cancelled:
+              type: boolean
 
     OrderItem:
       type: object
@@ -1371,6 +1451,15 @@ components:
           type: integer
         product:
           $ref: "#/components/schemas/Product"
+        variant:
+          type: integer
+          nullable: true
+        product_name:
+          type: string
+        product_sku:
+          type: string
+        variant_info:
+          type: string
         quantity:
           type: integer
         unit_price:
@@ -1383,21 +1472,42 @@ components:
 
     OrderCreate:
       type: object
-      required: [shipping_address, payment_method, delivery_method]
+      required: [delivery_address, delivery_method, payment_method, customer_name, customer_email, customer_phone]
       properties:
-        shipping_address:
-          $ref: "#/components/schemas/AddressCreate"
-        legal_address:
-          $ref: "#/components/schemas/AddressCreate"
+        delivery_address:
+          type: string
         payment_method:
           type: string
-          enum: [card, cash, bank_transfer]
+          enum: [card, cash, bank_transfer, payment_on_delivery]
         delivery_method:
           type: string
-          enum: [courier, pickup, post]
+          enum: [pickup, courier, post, transport_company, transport_schedule]
+        delivery_date:
+          type: string
+          format: date
+          nullable: true
         notes:
           type: string
           maxLength: 500
+          nullable: true
+        customer_name:
+          type: string
+          maxLength: 200
+        customer_email:
+          type: string
+          format: email
+        customer_phone:
+          type: string
+          maxLength: 20
+        discount_amount:
+          type: number
+          format: decimal
+          minimum: 0
+          default: 0
+        promo_code:
+          type: string
+          maxLength: 100
+          nullable: true
 
     # Address Schemas
     Address:

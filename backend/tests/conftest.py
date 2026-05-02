@@ -53,6 +53,7 @@ def create_factories():
         email = factory.Sequence(lambda n: f"user{n}@freesport.test")
         first_name = factory.Faker("first_name")
         last_name = factory.Faker("last_name")
+        customer_code = factory.Sequence(lambda n: f"{n + 1:05d}")
         role = "retail"
         is_active = True
         is_verified = False
@@ -697,6 +698,7 @@ def clear_db_before_test(transactional_db):
             "cart.CartItem",
             "orders.OrderItem",
             "orders.Order",
+            "orders.CustomerOrderSequence",
             "cart.Cart",
             "products.ProductImage",
             "products.ProductVariant",
@@ -754,6 +756,7 @@ def truncate_db(transactional_db):
                 "cart_cartitem",
                 "orders_orderitem",
                 "orders_order",
+                "customer_order_sequences",
                 "cart_cart",
                 "products_productimage",
                 "products_productvariants",

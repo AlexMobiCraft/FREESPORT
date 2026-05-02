@@ -6,6 +6,7 @@
 from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
@@ -96,6 +97,18 @@ class User(AbstractUser):
         validators=[phone_regex],
         max_length=255,  # Увеличено для поддержки нескольких телефонов из 1С
         blank=True,
+    )
+    customer_code_regex = RegexValidator(
+        regex=r"^\d{5}$",
+        message="Код клиента должен содержать ровно 5 цифр",
+    )
+    customer_code = models.CharField(
+        "Код клиента",
+        max_length=5,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[customer_code_regex],
     )
 
     # B2B поля
@@ -201,6 +214,14 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return f"{self.email or ''} ({self.get_role_display()})"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.customer_code = self.customer_code or None
+        if self.pk is not None:
+            previous = type(self).objects.filter(pk=self.pk).only("customer_code").first()
+            if previous and previous.customer_code and previous.customer_code != self.customer_code and self.orders.exists():
+                raise ValidationError({"customer_code": "Нельзя менять customer_code после создания заказа."})
+        super().save(*args, **kwargs)
 
     @property
     def full_name(self) -> str:

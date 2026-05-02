@@ -271,6 +271,9 @@ sequenceDiagram
 
 Ключевые правила:
 
+- checkout flow доступен только авторизованному пользователю с валидным `customer_code`; этот код сохраняется в заказе как `customer_code_snapshot`.
+- `order_number` хранится в каноническом формате: `CCCCCYYNNN` для master и `CCCCCYYNNNS` для sub-order. Номер генерируется атомарно через модель `CustomerOrderSequence` (пара `customer_code` + год), что гарантирует уникальность счётчика `NNN` в рамках клиента и года.
+- В `mode=query` экспортируется только технический `sub-order`: `<Номер>` содержит канонический номер субзаказа, а `<Ид>` остаётся immutable identifier в формате `order-{id}`.
 - `ProductVariant.vat_rate` — основной каталожный источник ставки для создания заказа.
 - `Product.vat_rate` — fallback для случаев, когда ставка пришла в `goods.xml`, а SKU создается или обновляется из `offers.xml`.
 - `OrderItem.vat_rate` — snapshot ставки на момент заказа.
@@ -339,9 +342,11 @@ graph TD
 - **ICExchangeView**: Единая точка входа, маршрутизация по `mode`.
 - **FileStreamService**: Обработка потоковой загрузки, сборка чанков в файлы.
 - **FileRoutingService**: Маршрутизация файлов (goods, offers, images) в целевые папки.
-- **OrderExportService**: Формирование CommerceML XML для `type=sale&mode=query`.
+- **OrderExportService**: Формирование CommerceML XML для `type=sale&mode=query`, где `<Номер>` берётся из канонического `sub-order.order_number`, а `<Ид>` из `order-{id}`.
 - **OrderStatusImportService**: Синхронная обработка `orders.xml` со статусами заказов из 1С.
 - **Status dictionary XML**: Ответ `type=sale&mode=info` со справочником статусов для настройки сопоставления в 1С-Битрикс.
+
+Импорт статусов сначала пытается сопоставить заказ по `<Номер>`, а затем использует fallback по `<Ид>`. Это позволяет одновременно поддерживать новые numeric order numbers и legacy-заказы.
 
 > **Важные решения (ADR):**
 >

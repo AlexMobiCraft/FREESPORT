@@ -12,6 +12,7 @@ erDiagram
         last_name varchar(150)
         password varchar(128)
         phone varchar(12) "формат +79001234567"
+        customer_code varchar(5) UK "пятизначный код клиента"
         is_active boolean
         date_joined timestamp
         role varchar(20) "retail, wholesale_level1, wholesale_level2, wholesale_level3, trainer, federation_rep, admin"
@@ -127,11 +128,18 @@ erDiagram
     %% Управление заказами
     Order {
         id bigint PK
-        order_number varchar(50) UK
-        user_id bigint FK "null для гостевых заказов"
-        customer_name varchar(200) "для гостевых заказов"
-        customer_email varchar(254) "для гостевых заказов"
-        customer_phone varchar(20) "для гостевых заказов"
+        order_number varchar(50) UK "канонический номер: CCCCCYYNNN / CCCCCYYNNNS"
+        user_id bigint FK "пользователь заказа; legacy-данные могут быть null"
+        customer_name varchar(200) "снимок контактного имени"
+        customer_email varchar(254) "снимок контактного email"
+        customer_phone varchar(20) "снимок контактного телефона"
+        customer_code_snapshot varchar(5) "снимок customer_code"
+        order_year smallint
+        customer_year_sequence smallint
+        suborder_sequence smallint
+        parent_order_id bigint FK "master-order для sub-order"
+        is_master boolean
+        vat_group decimal
         status varchar(50) "pending, confirmed, processing, shipped, delivered, cancelled, refunded"
         total_amount decimal
         discount_amount decimal
@@ -320,7 +328,14 @@ erDiagram
 - **pickup**: Самовывоз
 - **courier**: Курьерская доставка
 - **post**: Почтовая доставка
-- **transport**: Транспортная компания
+- **transport_company**: Транспортная компания
+- **transport_schedule**: Транспортная компания (по расписанию)
+
+### Нумерация заказов
+
+- **master-order canonical**: `CCCCCYYNNN`
+- **sub-order canonical**: `CCCCCYYNNNS`
+- **customer_code**: пятизначный код клиента, обязательный для текущего checkout flow
 
 ### Типы синхронизации с 1С
 

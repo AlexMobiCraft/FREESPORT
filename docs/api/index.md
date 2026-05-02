@@ -1,8 +1,10 @@
-# API Contracts
+# Контракты API
 
-See [Backend API Contracts](./contracts-backend.md) for detailed specification.
+См. [Контракты Backend API](./contracts-backend.md) для краткого обзора актуальных endpoint'ов, включая текущий contract `/orders/` с каноническим `order_number` и обязательным `customer_code` для checkout.
 
-## Quick Links
+> **Актуализация от 2026-05-02:** `POST /api/orders/` требует аутентификации (`IsAuthenticated`). Анонимные запросы возвращают **401 Unauthorized**.
 
-- [API Specification (OpenAPI)](./openapi.yaml)
-- [API Views Documentation](./views-documentation.md)
+## Быстрые ссылки
+
+- [Спецификация API (OpenAPI)](./openapi.yaml)
+- [Документация по API Views](./views-documentation.md)

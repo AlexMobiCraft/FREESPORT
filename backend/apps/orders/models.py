@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 from apps.orders.constants import ORDER_STATUSES
 
@@ -57,6 +58,10 @@ class Order(models.Model):
         delivery_cost: Decimal
         delivery_address: str
         delivery_method: str
+        customer_code_snapshot: str
+        order_year: int | None
+        customer_year_sequence: int | None
+        suborder_sequence: int | None
         delivery_date: date | None
         tracking_number: str
         payment_method: str
@@ -104,6 +109,22 @@ class Order(models.Model):
     order_number = cast(
         str,
         models.CharField("Номер заказа", max_length=50, unique=True, editable=False),
+    )
+    customer_code_snapshot = cast(
+        str,
+        models.CharField("Снимок customer_code", max_length=5, blank=True, db_index=True),
+    )
+    order_year = cast(
+        "int | None",
+        models.PositiveSmallIntegerField("Год заказа", null=True, blank=True, db_index=True),
+    )
+    customer_year_sequence = cast(
+        "int | None",
+        models.PositiveSmallIntegerField("Порядковый номер заказа клиента в году", null=True, blank=True),
+    )
+    suborder_sequence = cast(
+        "int | None",
+        models.PositiveSmallIntegerField("Порядковый номер субзаказа", null=True, blank=True),
     )
     user = cast(
         "UserType | None",
@@ -270,6 +291,28 @@ class Order(models.Model):
                 condition=models.Q(sent_to_1c=False, export_skipped=False),
             ),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer_code_snapshot", "order_year", "customer_year_sequence"],
+                condition=Q(is_master=True, order_year__isnull=False, customer_year_sequence__isnull=False)
+                & ~Q(customer_code_snapshot=""),
+                name="uniq_master_order_customer_year_seq",
+            ),
+            models.UniqueConstraint(
+                fields=["parent_order", "suborder_sequence"],
+                condition=Q(is_master=False, parent_order__isnull=False, suborder_sequence__isnull=False),
+                name="uniq_suborder_parent_sequence",
+            ),
+            models.CheckConstraint(
+                condition=Q(customer_year_sequence__isnull=True)
+                | (Q(customer_year_sequence__gte=1) & Q(customer_year_sequence__lte=999)),
+                name="check_customer_year_sequence_range",
+            ),
+            models.CheckConstraint(
+                condition=Q(suborder_sequence__isnull=True) | Q(suborder_sequence__gte=1),
+                name="check_suborder_sequence_positive",
+            ),
+        ]
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.order_number:
@@ -278,6 +321,12 @@ class Order(models.Model):
 
     def __str__(self) -> str:
         return f"Заказ #{self.order_number}"
+
+    @property
+    def order_number_display(self) -> str:
+        from apps.orders.services.order_numbering import format_order_number
+
+        return format_order_number(self.order_number)
 
     @classmethod
     def generate_order_number(cls) -> str:
@@ -317,6 +366,30 @@ class Order(models.Model):
     def can_be_refunded(self) -> bool:
         """Можно ли вернуть заказ"""
         return self.status in ["delivered"] and self.payment_status == "paid"
+
+
+class CustomerOrderSequence(models.Model):
+    objects = models.Manager()
+
+    if TYPE_CHECKING:
+        customer_code: str
+        year: int
+        last_sequence: int
+
+    customer_code = cast(str, models.CharField("Код клиента", max_length=5))
+    year = cast(int, models.PositiveSmallIntegerField("Год"))
+    last_sequence = cast(int, models.PositiveSmallIntegerField("Последняя последовательность", default=0))
+
+    class Meta:
+        verbose_name = "Счетчик заказов клиента"
+        verbose_name_plural = "Счетчики заказов клиентов"
+        db_table = "customer_order_sequences"
+        constraints = [
+            models.UniqueConstraint(fields=["customer_code", "year"], name="uniq_customer_order_sequence"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.customer_code}-{self.year}: {self.last_sequence}"
 
 
 class OrderItem(models.Model):

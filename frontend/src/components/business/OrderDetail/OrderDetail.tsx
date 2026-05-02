@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { Order } from '@/types/order';
 import { getDeliveryMethodLabel } from '@/utils/orderPdfExport';
+import { formatOrderNumber } from '@/utils/orderNumberFormat';
 
 export interface OrderDetailProps {
   order: Order;
@@ -120,6 +121,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     label: order.payment_status,
     color: 'text-text-secondary',
   };
+  const formattedOrderNumber = formatOrderNumber(order.order_number);
 
   return (
     <div className={cn('w-full', className)}>
@@ -135,7 +137,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-title-l font-bold text-text-primary">Заказ №{order.order_number}</h1>
+          <h1 className="text-title-l font-bold text-text-primary">Заказ №{formattedOrderNumber}</h1>
           <div className="flex items-center gap-2 mt-2 text-body-m text-text-muted">
             <Calendar className="w-4 h-4" aria-hidden="true" />
             <span>{formatDate(order.created_at)}</span>

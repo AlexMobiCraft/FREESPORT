@@ -93,6 +93,69 @@ class TestOrderAdminMethods(TestCase):
 
         self.assertEqual(self.admin.total_items_quantity(order), 5)
 
+    def test_display_order_number_formats_canonical_master(self) -> None:
+        order = Order.objects.create(
+            order_number="0462026007",
+            customer_code_snapshot="04620",
+            order_year=2026,
+            customer_year_sequence=7,
+            total_amount=Decimal("300.00"),
+            delivery_address="Test Address",
+            delivery_method="courier",
+            payment_method="card",
+        )
+
+        self.assertEqual(self.admin.display_order_number(order), "4620-26007")
+
+    def test_get_search_results_normalizes_master_ui_number(self) -> None:
+        order = Order.objects.create(
+            order_number="0462026007",
+            customer_code_snapshot="04620",
+            order_year=2026,
+            customer_year_sequence=7,
+            total_amount=Decimal("300.00"),
+            delivery_address="Test Address",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        request = RequestFactory().get("/admin/orders/order/?q=4620-26007")
+        request.user = User.objects.create_superuser(email="admin-search@test.com", password="password")
+
+        queryset, _ = self.admin.get_search_results(request, Order.objects.all(), "4620-26007")
+
+        self.assertEqual(list(queryset), [order])
+
+    def test_get_search_results_normalizes_suborder_ui_number(self) -> None:
+        master = Order.objects.create(
+            order_number="0462026007",
+            customer_code_snapshot="04620",
+            order_year=2026,
+            customer_year_sequence=7,
+            total_amount=Decimal("300.00"),
+            delivery_address="Test Address",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        suborder = Order.objects.create(
+            order_number="04620260071",
+            customer_code_snapshot="04620",
+            order_year=2026,
+            customer_year_sequence=7,
+            suborder_sequence=1,
+            parent_order=master,
+            is_master=False,
+            total_amount=Decimal("300.00"),
+            delivery_address="Test Address",
+            delivery_method="courier",
+            payment_method="card",
+        )
+        request = RequestFactory().get("/admin/orders/order/?q=04620-26007-1")
+        request.user = User.objects.create_superuser(email="admin-suborder@test.com", password="password")
+
+        queryset, _ = self.admin.get_search_results(request, Order.objects.all(), "04620-26007-1")
+
+        self.assertEqual(list(queryset), [suborder])
+
 
 @pytest.mark.django_db
 class TestOrderItemInline:

@@ -212,7 +212,7 @@ describe('ordersService', () => {
       const result = await ordersService.createOrder(mockFormData, mockCartItems);
 
       expect(result.id).toBe(mockSuccessOrder.id);
-      expect(result.order_number).toBe('ORD-2025-001');
+      expect(result.order_number).toBe('0462026007');
       expect(result.status).toBe('pending');
       expect(result.total_amount).toBe('15500');
     });
@@ -283,7 +283,7 @@ describe('ordersService', () => {
 
       expect(result.count).toBe(3);
       expect(result.results).toHaveLength(3);
-      expect(result.results[0].order_number).toBe('ORD-2025-001');
+      expect(result.results[0].order_number).toBe('0462026007');
     });
 
     test('получает заказы с пагинацией', async () => {
@@ -326,7 +326,7 @@ describe('ordersService', () => {
       const result = await ordersService.getById('1');
 
       expect(result.id).toBe(1);
-      expect(result.order_number).toBe('ORD-2025-001');
+      expect(result.order_number).toBe('0462026007');
     });
 
     test('items[].product является nested object (depth=1 contract)', async () => {

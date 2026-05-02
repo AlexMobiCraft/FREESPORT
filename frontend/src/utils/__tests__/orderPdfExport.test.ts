@@ -44,7 +44,7 @@ import type { Order } from '@/types/order';
 
 const baseOrder: Order = {
   id: 1,
-  order_number: 'ORD-001',
+  order_number: '0462026007',
   user: 1,
   customer_display_name: 'Иван Иванов',
   customer_name: 'Иван Иванов',
@@ -189,7 +189,13 @@ describe('generateOrderPdf — delivery_method локализация', () => {
 
   it('вызывает doc.save с именем файла на основе order_number', async () => {
     await generateOrderPdf(baseOrder);
-    expect(mockSave).toHaveBeenCalledWith('order-ORD-001.pdf');
+    expect(mockSave).toHaveBeenCalledWith('order-0462026007.pdf');
+  });
+
+  it('выводит UI-формат номера заказа в заголовке PDF', async () => {
+    await generateOrderPdf(baseOrder);
+    const allText = getTextArgs().join(' ');
+    expect(allText).toContain('Заказ №4620-26007');
   });
 
   it('выводит локализованный label для bank_transfer (Story 34-2 regression)', async () => {

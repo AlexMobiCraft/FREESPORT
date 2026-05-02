@@ -5,6 +5,7 @@
 
 import { jsPDF } from 'jspdf';
 import type { Order } from '@/types/order';
+import { formatOrderNumber } from '@/utils/orderNumberFormat';
 
 async function loadFont(doc: jsPDF, url: string, name: string): Promise<void> {
   const res = await fetch(url);
@@ -109,6 +110,7 @@ export async function generateOrderPdf(order: Order): Promise<void> {
     unit: 'mm',
     format: 'a4',
   });
+  const formattedOrderNumber = formatOrderNumber(order.order_number);
 
   await loadFont(doc, '/fonts/arial.ttf', 'arial.ttf');
   await loadFont(doc, '/fonts/arialbd.ttf', 'arialbd.ttf');
@@ -120,7 +122,7 @@ export async function generateOrderPdf(order: Order): Promise<void> {
   // Заголовок документа
   doc.setFontSize(18);
   doc.setFont('Arial', 'bold');
-  doc.text(`Заказ №${order.order_number}`, pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(`Заказ №${formattedOrderNumber}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 12;
 
   // Дата создания

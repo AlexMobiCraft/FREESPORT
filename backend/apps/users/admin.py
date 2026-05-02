@@ -88,6 +88,7 @@ class UserAdmin(BaseUserAdmin):
     list_display = [
         "email",
         "full_name",
+        "customer_code",
         "role_display",
         "verification_status_display",
         "phone",
@@ -110,6 +111,7 @@ class UserAdmin(BaseUserAdmin):
         "first_name",
         "last_name",
         "phone",
+        "customer_code",
         "company_name",
         "tax_id",
     ]
@@ -137,6 +139,7 @@ class UserAdmin(BaseUserAdmin):
                     "email",
                     "first_name",
                     "last_name",
+                    "customer_code",
                     "phone",
                 )
             },
@@ -216,6 +219,7 @@ class UserAdmin(BaseUserAdmin):
                     "email",
                     "first_name",
                     "last_name",
+                    "customer_code",
                     "password1",
                     "password2",
                     "role",
@@ -247,6 +251,12 @@ class UserAdmin(BaseUserAdmin):
     def full_name(self, obj: User) -> str:
         """Отображение полного имени пользователя"""
         return obj.full_name or "-"
+
+    def get_readonly_fields(self, request: HttpRequest, obj: User | None = None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj and obj.customer_code and obj.orders.exists() and "customer_code" not in readonly_fields:
+            readonly_fields.append("customer_code")
+        return readonly_fields
 
     @admin.display(description="Роль")
     def role_display(self, obj: User) -> str:

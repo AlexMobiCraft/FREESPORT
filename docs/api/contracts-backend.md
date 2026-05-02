@@ -1,41 +1,54 @@
-# Backend API Contracts
+# Контракты Backend API
 
-**(Updated Scan: 2026-01-18)**
+**(Обновлённый срез: 2026-05-02)**
 
-## Base URL
+## Базовый префикс
 
 `/api/v1/`
 
-## Products (`/products`)
+## Каталог (`/products`, `/categories`, `/brands`)
 
-- `GET /products/`: List products (supports filtering).
-- `GET /products/{slug}/`: Retrieve product details.
-- `GET /categories/`: List categories.
-- `GET /categories-tree/`: Hierarchical category tree.
-- `GET /brands/`: List brands.
-- `GET /catalog/filters/`: Dynamic attribute filters.
+- `GET /products/`: Список товаров с фильтрацией и пагинацией.
+- `GET /products/{slug}/`: Детальная карточка товара.
+- `GET /categories/`: Список категорий.
+- `GET /categories-tree/`: Иерархическое дерево категорий.
+- `GET /brands/`: Список брендов.
+- `GET /catalog/filters/`: Динамические фильтры каталога.
 
-## Cart (`/cart`)
+## Корзина (`/cart`)
 
-- `GET /cart/`: Get current session cart.
-- `DELETE /cart/clear/`: Empty the cart.
-- `POST /cart/items/`: Add item to cart.
-- `PATCH /cart/items/{id}/`: Update quantity.
-- `DELETE /cart/items/{id}/`: Remove item.
+- `GET /cart/`: Текущая корзина пользователя или гостевой сессии.
+- `DELETE /cart/clear/`: Очистка корзины.
+- `POST /cart/items/`: Добавление позиции в корзину.
+- `PATCH /cart/items/{id}/`: Изменение количества.
+- `DELETE /cart/items/{id}/`: Удаление позиции.
 
-## Orders (`/orders`)
+## Заказы (`/orders`)
 
-- `POST /orders/`: Create order.
-- `GET /orders/`: List user orders.
+- `POST /orders/`: Создание заказа из корзины.
+  - Требует авторизацию.
+  - Требует валидный `customer_code` у пользователя.
+  - Возвращает `OrderDetail` мастер-заказа.
+- `GET /orders/`: Список только master-заказов текущего пользователя.
+- `GET /orders/{id}/`: Детали master-заказа с агрегированными позициями sub-orders.
+- `POST /orders/{id}/cancel/`: Отмена master-заказа с каскадной отменой sub-orders.
 
-## Users (`/users`)
+### Инварианты контракта заказов
 
-- `POST /users/register/`: Registration.
-- `POST /users/token/`: Login (JWT).
-- `GET /users/me/`: Current profile.
-- `GET /users/company/`: B2B Company profile.
+- `order_number` в API всегда канонический:
+  - master: `CCCCCYYNNN`
+  - sub-order: `CCCCCYYNNNS`
+- UI-формат (`CCCC-YYNNN` / `CCCCC-YYNNN-S`) не используется как API payload.
+- Клиентские endpoint скрывают технические `sub-orders`; они используются для интеграции с 1С.
 
-## Documentation
+## Пользователи (`/users`, `/auth`)
+
+- `POST /users/register/`: Регистрация пользователя.
+- `POST /users/token/`: Получение JWT.
+- `GET /users/me/`: Текущий профиль.
+- `GET /users/company/`: B2B-профиль компании.
+
+## Документация API
 
 - Swagger UI: `/api/schema/swagger-ui/`
 - ReDoc: `/api/schema/redoc/`

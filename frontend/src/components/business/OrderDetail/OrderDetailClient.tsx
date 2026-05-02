@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui';
 import { useCartStore } from '@/stores/cartStore';
 import { authSelectors } from '@/stores/authStore';
 import { generateOrderPdf } from '@/utils/orderPdfExport';
+import { formatOrderNumber } from '@/utils/orderNumberFormat';
 import type { Order } from '@/types/order';
 
 interface OrderDetailClientProps {
@@ -113,7 +114,7 @@ export function OrderDetailClient({ order }: OrderDetailClientProps) {
 
     try {
       await generateOrderPdf(order);
-      toast.success(`Заказ №${order.order_number} экспортирован в PDF`, 'Экспорт завершён');
+      toast.success(`Заказ №${formatOrderNumber(order.order_number)} экспортирован в PDF`, 'Экспорт завершён');
     } catch (err) {
       console.error('Failed to export PDF:', err);
       toast.error('Не удалось экспортировать заказ в PDF', 'Ошибка');

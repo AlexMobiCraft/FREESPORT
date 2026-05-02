@@ -16,7 +16,7 @@ vi.mock('next/link', () => ({
 
 const mockOrder: OrderListItem = {
   id: 1,
-  order_number: 'ORD-2025-001',
+  order_number: '0462026007',
   user: 1,
   customer_display_name: 'Иван Иванов',
   status: 'pending',
@@ -34,7 +34,7 @@ const mockOrder: OrderListItem = {
 describe('OrderCard', () => {
   it('renders order number correctly', () => {
     render(<OrderCard order={mockOrder} />);
-    expect(screen.getByText('Заказ №ORD-2025-001')).toBeInTheDocument();
+    expect(screen.getByText('Заказ №4620-26007')).toBeInTheDocument();
   });
 
   it('renders formatted date', () => {
