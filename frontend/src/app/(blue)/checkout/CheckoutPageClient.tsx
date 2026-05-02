@@ -17,7 +17,7 @@ import { CheckoutForm } from '@/components/checkout/CheckoutForm';
  */
 export function CheckoutPageClient() {
   const { user, isAuthenticated } = useAuthStore();
-  const { fetchCart, items } = useCartStore();
+  const { fetchCart } = useCartStore();
 
   // Загружаем корзину при монтировании, если она еще не загружена
   useEffect(() => {

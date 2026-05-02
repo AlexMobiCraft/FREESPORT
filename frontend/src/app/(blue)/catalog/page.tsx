@@ -6,6 +6,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState, Suspense } from 'react';
+import NextImage from 'next/image';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
@@ -290,7 +291,14 @@ const CategoryTree: React.FC<{
               >
                 {node.icon &&
                   (node.icon.startsWith('http') || node.icon.startsWith('/') ? (
-                    <img src={node.icon} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                    <NextImage
+                      src={node.icon}
+                      alt=""
+                      width={20}
+                      height={20}
+                      unoptimized
+                      className="w-5 h-5 object-contain flex-shrink-0"
+                    />
                   ) : (
                     <span className="text-lg flex-shrink-0 leading-none">{node.icon}</span>
                   ))}
@@ -506,7 +514,7 @@ const CatalogContent: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, hasBadgeFilter]);
+  }, [searchParams, hasBadgeFilter, inStock]);
 
   // Чтение параметра search из URL при инициализации
   useEffect(() => {

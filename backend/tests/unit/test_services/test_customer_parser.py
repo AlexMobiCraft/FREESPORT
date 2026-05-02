@@ -42,6 +42,8 @@ class TestCustomerDataParser:
                 / "contragents"
                 / "contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml"
             )
+        if not xml_path.exists():
+            pytest.skip(f"Реальный dataset 1С не найден: {xml_path}")
         return str(xml_path)
 
     def test_parse_real_1c_file(self, parser, real_xml_file):

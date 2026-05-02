@@ -5,7 +5,7 @@
 
 import React from 'react';
 import type { Metadata } from 'next';
-import { Truck, MapPin, Phone, Mail, AlertTriangle } from 'lucide-react';
+import { Truck, MapPin, Mail, AlertTriangle } from 'lucide-react';
 import { Breadcrumb, Badge, Card } from '@/components/ui';
 import { cn } from '@/utils/cn';
 

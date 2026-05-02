@@ -4,6 +4,7 @@ API Views для заказов FREESPORT
 """
 
 from django.db import transaction
+from django.db.models import prefetch_related_objects
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status, viewsets
@@ -121,17 +122,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
 
-        # Re-fetch с prefetch_related, чтобы OrderDetailSerializer агрегировал
-        # items/subtotal/total_items/calculated_total из sub_orders без N+1.
-        order = (
-            Order.objects.select_related("user")
-            .prefetch_related(
-                "items__product",
-                "items__variant",
-                "sub_orders__items__product",
-                "sub_orders__items__variant",
-            )
-            .get(pk=order.pk)
+        # Наполняем prefetch cache на уже созданном объекте без лишнего root SELECT
+        # по Order.pk. Для freshly-created master direct items всегда пусты,
+        # поэтому достаточно префетчить sub_orders/items path.
+        prefetch_related_objects(
+            [order],
+            "sub_orders__items__product",
+            "sub_orders__items__variant",
         )
         detail_serializer = OrderDetailSerializer(order, context={"request": request})
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED)

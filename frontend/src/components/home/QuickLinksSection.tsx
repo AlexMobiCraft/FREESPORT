@@ -16,6 +16,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import NextImage from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import categoriesService from '@/services/categoriesService';
@@ -180,11 +181,14 @@ export const QuickLinksSection: React.FC = () => {
                       className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-100 text-base flex-shrink-0"
                       aria-hidden="true"
                     >
-                      <img
+                      <NextImage
                         src={normalizeImageUrl(category.icon)}
                         alt=""
+                        width={20}
+                        height={20}
+                        unoptimized
                         className="w-5 h-5 object-contain"
-                        onError={e => {
+                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                           // Fallback if image fails to load (maybe it WAS an emoji?)
                           const target = e.currentTarget;
                           if (category.icon && !category.icon.includes('/')) {

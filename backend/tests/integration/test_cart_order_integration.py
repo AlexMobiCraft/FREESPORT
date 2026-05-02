@@ -24,7 +24,12 @@ class CartOrderIntegrationTest(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        self.user = User.objects.create_user(email="test@example.com", password="testpass123", role="retail")
+        self.user = User.objects.create_user(
+            email="test@example.com",
+            password="testpass123",
+            role="retail",
+            customer_code="10001",
+        )
 
         # Создаем товары
         self.category = Category.objects.create(name="Test Category", slug="test-category")
@@ -319,7 +324,12 @@ class VATSplitAPITest(TestCase):
         from decimal import Decimal
 
         self.client = APIClient()
-        self.user = User.objects.create_user(email="vat_test@example.com", password="testpass123", role="retail")
+        self.user = User.objects.create_user(
+            email="vat_test@example.com",
+            password="testpass123",
+            role="retail",
+            customer_code="10002",
+        )
 
         self.category = Category.objects.create(name="VAT Category", slug="vat-category")
         self.brand = Brand.objects.create(name="VAT Brand", slug="vat-brand")
@@ -739,7 +749,7 @@ class VATSplitAPITest(TestCase):
         """Security fix [Story 34-2, Twenty-Seventh Follow-up, High]:
         Повторный POST /api/v1/orders/ из той же (уже пустой) корзины возвращает 400.
 
-        После первого успешного checkout корзина очищена — select_for_update + cart.clear()
+        После первого успешного checkout корзина очищена — select_for_update() + cart.clear()
         делают повторный запрос невозможным (корзина пуста).
         В БД остаётся ровно один мастер-заказ.
         """
@@ -786,6 +796,7 @@ class ConcurrentCartCheckoutTests(TransactionTestCase):
             email="concurrent_checkout@test.com",
             password="testpass123",
             role="retail",
+            customer_code="10003",
         )
         self.category = Category.objects.create(name="Concurrent Cat", slug="concurrent-cat")
         self.brand = Brand.objects.create(name="Concurrent Brand", slug="concurrent-brand")

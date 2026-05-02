@@ -86,7 +86,8 @@ class CategoriesService {
   async getVisibleCategories(filters: Partial<ProductFilters>): Promise<number[]> {
     // Исключаем category_id — endpoint его намеренно игнорирует на бекенде,
     // но очищаем на фронтенде для явности и избежания путаницы
-    const { category_id: _omit, ...filtersWithoutCategory } = filters;
+    const filtersWithoutCategory = { ...filters };
+    delete filtersWithoutCategory.category_id;
     const response = await apiClient.get<{ category_ids: number[] }>(
       '/products/visible-categories/',
       { params: filtersWithoutCategory }

@@ -78,22 +78,27 @@ global.console = {
   info: vi.fn(),
 };
 
+type MockNextImageProps = Omit<React.ComponentProps<'img'>, 'src'> & {
+  src: string | { src?: string };
+  alt?: string;
+  fill?: boolean;
+  priority?: boolean;
+  quality?: number;
+};
+
 // Мокирование next/image
 vi.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => {
+  default: ({ src, alt, ...props }: MockNextImageProps) => {
+    const sanitizedProps = { ...props };
+    delete sanitizedProps.fill;
+    delete sanitizedProps.priority;
+    delete sanitizedProps.quality;
     return React.createElement('img', {
-      ...props,
+      ...sanitizedProps,
       // Извлекаем пропсы, которые next/image обрабатывает специфично
-      src: typeof props.src === 'string' ? props.src : props.src?.src || '',
-      alt: props.alt || '',
-      // Удаляем пропсы, которые не должны быть на обычном img
-      fill: undefined,
-      priority: undefined,
-      loading: undefined,
-      quality: undefined,
-      sizes: undefined,
-      onError: undefined,
+      src: typeof src === 'string' ? src : src?.src || '',
+      alt: alt || '',
     });
   },
 }));
