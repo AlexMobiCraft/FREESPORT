@@ -33,7 +33,7 @@
     "jspdf": "^4.0.0",
     "lucide-react": "^0.553.0",
     "motion": "^12.23.25",
-    "next": "^15.5.7",
+    "next": "^16.2.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",

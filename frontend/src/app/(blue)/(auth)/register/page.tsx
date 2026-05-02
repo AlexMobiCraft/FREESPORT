@@ -22,7 +22,7 @@ function RegisterFormContent() {
   const router = useRouter();
   const isAuthenticated = authSelectors.useIsAuthenticated();
   // Support both 'next' (Django standard) and 'redirect' (common pattern)
-  const redirectUrl = searchParams.get('next') || searchParams.get('redirect') || undefined;
+  const redirectUrl = searchParams?.get('next') || searchParams?.get('redirect') || undefined;
 
   useEffect(() => {
     if (isAuthenticated) {

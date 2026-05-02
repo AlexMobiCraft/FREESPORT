@@ -111,6 +111,7 @@ const ProfileLayout: React.FC<ProfileLayoutProps> = ({ children }) => {
    * Для /profile — точное совпадение, для остальных — startsWith
    */
   const isActiveRoute = (href: string): boolean => {
+    if (!pathname) return false;
     if (href === '/profile') {
       return pathname === '/profile';
     }

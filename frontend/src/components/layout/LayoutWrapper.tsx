@@ -16,7 +16,7 @@ export default function LayoutWrapper({
   const pathname = usePathname();
   const isHomePage = pathname === '/';
   const isElectricTestPage = pathname === '/electric-orange-test';
-  const isElectricPage = pathname.startsWith('/electric');
+  const isElectricPage = pathname?.startsWith('/electric') ?? false;
 
   if (isHomePage || isElectricTestPage) {
     return <main className="flex-grow">{children}</main>;

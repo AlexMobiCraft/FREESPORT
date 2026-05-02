@@ -20,19 +20,21 @@ class PricingIntegrationTest(TestCase):
         self.client = APIClient()
 
         # Создаем пользователей с разными ролями
-        self.retail_user = User.objects.create_user(email="retail@example.com", password="testpass123", role="retail")
+        self.retail_user = User.objects.create_user(email="retail@example.com", password="testpass123", role="retail", customer_code="00003")
         self.wholesale_l1_user = User.objects.create_user(
             email="wholesale1@example.com",
             password="testpass123",
             role="wholesale_level1",
+            customer_code="00004",
         )
         self.wholesale_l2_user = User.objects.create_user(
             email="wholesale2@example.com",
             password="testpass123",
             role="wholesale_level2",
+            customer_code="00005",
         )
         self.trainer_user = User.objects.create_user(
-            email="trainer@example.com", password="testpass123", role="trainer"
+            email="trainer@example.com", password="testpass123", role="trainer", customer_code="00006"
         )
 
         # Создаем товар с разными ценами

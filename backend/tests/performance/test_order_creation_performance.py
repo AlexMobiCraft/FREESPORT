@@ -23,7 +23,7 @@ class OrderCreationPerformanceTest(TestCase):
 
         # Создаем пользователей
         self.retail_user = User.objects.create_user(
-            email="perf_retail@example.com", password="testpass123", role="retail"
+            email="perf_retail@example.com", password="testpass123", role="retail", customer_code="00007"
         )
         self.wholesale_user = User.objects.create_user(
             email="perf_wholesale@example.com",
@@ -31,6 +31,7 @@ class OrderCreationPerformanceTest(TestCase):
             role="wholesale_level1",
             company_name="Performance Test Company",
             tax_id="1234567890",
+            customer_code="00008",
         )
 
         # Создаем товары для тестов

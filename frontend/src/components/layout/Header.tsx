@@ -68,6 +68,7 @@ const Header: React.FC = () => {
   ];
 
   const isActivePage = (href: string) => {
+    if (!pathname) return false;
     if (href === '/home') return pathname === href;
     return pathname.startsWith(href);
   };

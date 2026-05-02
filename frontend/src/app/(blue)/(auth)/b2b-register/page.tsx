@@ -17,7 +17,7 @@ import { B2BRegisterForm } from '@/components/auth/B2BRegisterForm';
 
 function B2BRegisterContent() {
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('next') || searchParams.get('redirect') || undefined;
+  const redirectUrl = searchParams?.get('next') || searchParams?.get('redirect') || undefined;
 
   return (
     <div className="bg-white rounded-lg shadow-[var(--shadow-default)] p-8">

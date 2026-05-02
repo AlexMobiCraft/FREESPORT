@@ -50,8 +50,8 @@ function OrdersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const statusFilter = parseStatusFilter(searchParams.get('status'));
-  const currentPage = parsePageNumber(searchParams.get('page'));
+  const statusFilter = parseStatusFilter(searchParams?.get('status') ?? null);
+  const currentPage = parsePageNumber(searchParams?.get('page') ?? null);
 
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -96,7 +96,7 @@ function OrdersPageContent() {
    */
   const handleStatusFilterChange = useCallback(
     (status: OrderStatus | 'all') => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
       params.set('page', '1');
 
       if (status === 'all') {
@@ -115,7 +115,7 @@ function OrdersPageContent() {
    */
   const handlePageChange = useCallback(
     (page: number) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
       params.set('page', page.toString());
       router.push(`/profile/orders?${params.toString()}`, { scroll: false });
     },

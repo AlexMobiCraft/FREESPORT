@@ -331,9 +331,9 @@ const CatalogContent: React.FC = () => {
 
   // Badge-фильтры из URL (is_new, is_hit, is_sale)
   const activeBadge = useMemo(() => {
-    const isNew = searchParams.get('is_new');
-    const isHit = searchParams.get('is_hit');
-    const isSale = searchParams.get('is_sale');
+    const isNew = searchParams?.get('is_new');
+    const isHit = searchParams?.get('is_hit');
+    const isSale = searchParams?.get('is_sale');
     return {
       is_new: isNew === 'true' ? true : undefined,
       is_hit: isHit === 'true' ? true : undefined,
@@ -473,7 +473,7 @@ const CatalogContent: React.FC = () => {
           setSidebarVisibleIds(initialVisible);
         }
 
-        const categorySlug = searchParams.get('category');
+        const categorySlug = searchParams?.get('category');
         let initialCategory: CategoryNode | null = null;
 
         if (categorySlug) {
@@ -510,7 +510,7 @@ const CatalogContent: React.FC = () => {
 
   // Чтение параметра search из URL при инициализации
   useEffect(() => {
-    const searchFromUrl = searchParams.get('search');
+    const searchFromUrl = searchParams?.get('search');
     if (searchFromUrl) {
       setSearchQuery(searchFromUrl);
     }
@@ -546,7 +546,7 @@ const CatalogContent: React.FC = () => {
 
   // Синхронизация фильтра бренда с URL
   useEffect(() => {
-    const brandSlug = searchParams.get('brand');
+    const brandSlug = searchParams?.get('brand');
     // Если есть параметр в URL и бренды загружены
     if (brandSlug && brands.length > 0) {
       const foundBrand = brands.find(b => b.slug === brandSlug);
@@ -572,7 +572,7 @@ const CatalogContent: React.FC = () => {
   // Функция для обновления URL параметров без перезагрузки страницы
   const updateSearchParams = useCallback(
     (key: string, value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
 
       if (value === null || value === '') {
         params.delete(key);
@@ -580,7 +580,7 @@ const CatalogContent: React.FC = () => {
         params.set(key, value);
       }
 
-      const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+      const newUrl = params.toString() ? `${pathname || '/'}?${params.toString()}` : (pathname || '/');
       router.push(newUrl, { scroll: false });
     },
     [pathname, router, searchParams]
@@ -671,7 +671,7 @@ const CatalogContent: React.FC = () => {
 
   useEffect(() => {
     // Если перешли с параметром focusSearch=true, фокусируемся на поле поиска
-    if (searchParams.get('focusSearch') === 'true') {
+    if (searchParams?.get('focusSearch') === 'true') {
       // Небольшая задержка чтобы убедиться что компонент смонтирован и анимации прошли
       setTimeout(() => {
         searchInputRef.current?.focus();

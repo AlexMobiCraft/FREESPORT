@@ -2,7 +2,10 @@ const MASTER_CANONICAL_RE = /^\d{10}$/;
 const SUBORDER_UI_RE = /^(\d{5})-(\d{5})-([1-9]\d*)$/;
 const MASTER_UI_RE = /^(\d{4})-(\d{5})$/;
 
-export function isCanonicalMasterOrderNumber(value: string | null | undefined): value is string {
+type CanonicalMasterOrderNumber = string & { readonly __brand: 'CanonicalMasterOrderNumber' };
+type CanonicalSubOrderNumber = string & { readonly __brand: 'CanonicalSubOrderNumber' };
+
+export function isCanonicalMasterOrderNumber(value: unknown): value is CanonicalMasterOrderNumber {
   if (typeof value !== 'string' || !MASTER_CANONICAL_RE.test(value)) {
     return false;
   }
@@ -10,11 +13,13 @@ export function isCanonicalMasterOrderNumber(value: string | null | undefined): 
   return sequence >= 1 && sequence <= 999;
 }
 
-export function isCanonicalSubOrderNumber(value: string | null | undefined): value is string {
+export function isCanonicalSubOrderNumber(value: unknown): value is CanonicalSubOrderNumber {
   if (typeof value !== 'string' || !/^\d+$/.test(value) || value.length <= 10) {
     return false;
   }
-  return isCanonicalMasterOrderNumber(value.slice(0, 10)) && Number.parseInt(value.slice(10), 10) >= 1;
+  return (
+    isCanonicalMasterOrderNumber(value.slice(0, 10)) && Number.parseInt(value.slice(10), 10) >= 1
+  );
 }
 
 export function formatOrderNumber(

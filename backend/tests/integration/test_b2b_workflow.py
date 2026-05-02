@@ -24,6 +24,7 @@ class B2BWorkflowTest(TestCase):
             role="wholesale_level1",
             company_name="Test B2B Company",
             tax_id="1234567890",
+            customer_code="00001",
         )
 
         # Создаем товар

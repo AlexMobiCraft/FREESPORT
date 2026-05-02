@@ -27,7 +27,7 @@ function LoginPageContent() {
   const router = useRouter();
   const isAuthenticated = authSelectors.useIsAuthenticated();
   // Поддержка обоих параметров: 'next' (middleware) и 'redirect' (legacy)
-  const redirectUrl = searchParams.get('next') || searchParams.get('redirect') || undefined;
+  const redirectUrl = searchParams?.get('next') || searchParams?.get('redirect') || undefined;
 
   // Редирект аутентифицированного пользователя со страницы логина
   // Это обрабатывает случай, когда AuthProvider восстановил сессию из localStorage,

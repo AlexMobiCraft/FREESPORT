@@ -108,7 +108,7 @@ export const SearchPageClient: React.FC<SearchPageClientProps> = ({
     setCurrentPage(page);
 
     // Обновляем URL с новым номером страницы
-    const params = new URLSearchParams(searchParams.toString());
+    const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
     params.set('page', page.toString());
 
     router.push(`/search?${params.toString()}`, { scroll: true });
@@ -121,8 +121,8 @@ export const SearchPageClient: React.FC<SearchPageClientProps> = ({
    * Эффект для загрузки результатов при изменении query или page
    */
   useEffect(() => {
-    const currentQuery = searchParams.get('q') || '';
-    const currentPageParam = parseInt(searchParams.get('page') || '1', 10);
+    const currentQuery = searchParams?.get('q') || '';
+    const currentPageParam = parseInt(searchParams?.get('page') || '1', 10);
 
     setQuery(currentQuery);
     setCurrentPage(currentPageParam);

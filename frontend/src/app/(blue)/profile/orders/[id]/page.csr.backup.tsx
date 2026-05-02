@@ -24,7 +24,7 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const toast = useToast();
 
-  const orderId = params.id as string;
+  const orderId = (params?.id as string) ?? '';
 
   const isB2BUser = authSelectors.useIsB2BUser();
 

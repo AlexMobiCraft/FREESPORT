@@ -199,7 +199,7 @@ const ElectricCatalogPage: React.FC = () => {
         const mapped = tree.map(mapCategoryTreeNode);
         setCategoriesTree(mapped);
 
-        const categorySlug = searchParams.get('category');
+        const categorySlug = searchParams?.get('category');
         let initialCategory: CategoryNode | null = null;
 
         if (categorySlug) {
@@ -245,7 +245,7 @@ const ElectricCatalogPage: React.FC = () => {
   // --------------------------------------------
 
   useEffect(() => {
-    const searchFromUrl = searchParams.get('search');
+    const searchFromUrl = searchParams?.get('search');
     if (searchFromUrl) setSearchQuery(searchFromUrl);
   }, [searchParams]);
 

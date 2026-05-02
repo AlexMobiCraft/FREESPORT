@@ -185,6 +185,9 @@
   },
   "active": "4513498424e52642",
   "lastOpenFiles": [
+    "frontend/src/pages/_document.tsx",
+    "frontend/src/pages",
+    "frontend/src/app/not-found.tsx",
     "docs/integrations/1c/architecture.md",
     "architecture/20-1c-integration.md",
     "docs/architecture/index.md",
@@ -212,8 +215,6 @@
     "frontend/node_modules/ws/lib/sender.js",
     "frontend/node_modules/ws/lib/receiver.js",
     "frontend/node_modules/ws/lib/permessage-deflate.js",
-    "frontend/node_modules/ws/lib/extension.js",
-    "frontend/node_modules/ws/lib/stream.js",
     "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/test-failed-1.png",
     "frontend/test-results/checkout-Checkout-Error-Ha-d3e2b-alidation-error-from-server-chromium/test-failed-1.png",
@@ -226,7 +227,6 @@
     "frontend/test-results/checkout-Checkout-Form-Val-be941-imum-length-for-name-fields-chromium/test-failed-1.png",
     "frontend/test-results/checkout-Checkout-Flow-E2E-1f1da-t-flow-from-cart-to-success-chromium/test-failed-1.png",
     "frontend/test-results/checkout-Checkout-Flow-E2E-1f1da-t-flow-from-cart-to-success-chromium/error-context.md",
-    "frontend/test-results/checkout-Checkout-Flow-E2E-3f2a7-ntact-information-correctly-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Flow-E2E-3f2a7-ntact-information-correctly-chromium/test-failed-1.png"
   ]
 }

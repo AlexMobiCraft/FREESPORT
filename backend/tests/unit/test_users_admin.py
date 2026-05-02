@@ -69,6 +69,7 @@ class TestUserAdmin(TestCase):
         expected_fields = [
             "email",
             "full_name",
+            "customer_code",
             "role_display",
             "verification_status_display",
             "phone",
@@ -95,6 +96,7 @@ class TestUserAdmin(TestCase):
             "first_name",
             "last_name",
             "phone",
+            "customer_code",
             "company_name",
             "tax_id",
         ]

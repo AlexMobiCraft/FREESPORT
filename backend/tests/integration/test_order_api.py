@@ -37,8 +37,8 @@ def variant(sample_image):
 
 
 @pytest.fixture
-def authenticated_client(db, api_client):
-    user = User.objects.create_user(email=f"user-{uuid.uuid4()}@example.com", password="testpass")
+def authenticated_client(db, api_client, user_factory):
+    user = user_factory.create(email=f"user-{uuid.uuid4()}@example.com", password="testpass")
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(user)

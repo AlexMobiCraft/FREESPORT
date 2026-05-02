@@ -26,6 +26,7 @@ class B2CWorkflowTest(TestCase):
             role="retail",
             first_name="John",
             last_name="Doe",
+            customer_code="00002",
         )
 
         # Создаем товар
