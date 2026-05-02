@@ -96,7 +96,9 @@ function OrdersPageContent() {
    */
   const handleStatusFilterChange = useCallback(
     (status: OrderStatus | 'all') => {
-      const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+      const params = searchParams
+        ? new URLSearchParams(searchParams.toString())
+        : new URLSearchParams();
       params.set('page', '1');
 
       if (status === 'all') {
@@ -115,7 +117,9 @@ function OrdersPageContent() {
    */
   const handlePageChange = useCallback(
     (page: number) => {
-      const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+      const params = searchParams
+        ? new URLSearchParams(searchParams.toString())
+        : new URLSearchParams();
       params.set('page', page.toString());
       router.push(`/profile/orders?${params.toString()}`, { scroll: false });
     },

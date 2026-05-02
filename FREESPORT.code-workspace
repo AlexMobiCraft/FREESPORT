@@ -1,11 +1,11 @@
 {
   "folders": [
     {
-      "path": "."
+      "path": ".",
     },
     {
-      "path": "../FREESPORT_WIKI/FREESPORT WIKI"
-    }
+      "path": "../FREESPORT_WIKI/FREESPORT WIKI",
+    },
   ],
   "settings": {
     "window.zoomPerWindow": true,

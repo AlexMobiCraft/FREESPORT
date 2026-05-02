@@ -580,7 +580,9 @@ const CatalogContent: React.FC = () => {
   // Функция для обновления URL параметров без перезагрузки страницы
   const updateSearchParams = useCallback(
     (key: string, value: string | null) => {
-      const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+      const params = searchParams
+        ? new URLSearchParams(searchParams.toString())
+        : new URLSearchParams();
 
       if (value === null || value === '') {
         params.delete(key);
@@ -588,7 +590,9 @@ const CatalogContent: React.FC = () => {
         params.set(key, value);
       }
 
-      const newUrl = params.toString() ? `${pathname || '/'}?${params.toString()}` : (pathname || '/');
+      const newUrl = params.toString()
+        ? `${pathname || '/'}?${params.toString()}`
+        : pathname || '/';
       router.push(newUrl, { scroll: false });
     },
     [pathname, router, searchParams]

@@ -16,7 +16,9 @@ export function PaginationWrapper({ currentPage, totalPages }: PaginationWrapper
   const searchParams = useSearchParams();
 
   const handlePageChange = (page: number) => {
-    const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+    const params = searchParams
+      ? new URLSearchParams(searchParams.toString())
+      : new URLSearchParams();
     params.set('page', page.toString());
     router.push(`/examples?${params.toString()}`);
   };

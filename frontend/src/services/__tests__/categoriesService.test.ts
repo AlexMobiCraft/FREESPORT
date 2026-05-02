@@ -137,7 +137,11 @@ describe('categoriesService', () => {
         })
       );
 
-      await categoriesService.getVisibleCategories({ category_id: 3, in_stock: true, brand: 'nike' });
+      await categoriesService.getVisibleCategories({
+        category_id: 3,
+        in_stock: true,
+        brand: 'nike',
+      });
 
       expect(capturedUrl).not.toContain('category_id');
       expect(capturedUrl).toContain('in_stock=true');
@@ -163,9 +167,7 @@ describe('categoriesService', () => {
         })
       );
 
-      await expect(
-        categoriesService.getVisibleCategories({ in_stock: true })
-      ).rejects.toThrow();
+      await expect(categoriesService.getVisibleCategories({ in_stock: true })).rejects.toThrow();
     });
   });
 

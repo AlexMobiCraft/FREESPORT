@@ -459,7 +459,14 @@ describe('CatalogPage — сортировка и скрытие пустых к
   it('не показывает категорию Без категории если она скрыта (in_stock_count=0)', async () => {
     (categoriesService.getTree as Mock).mockResolvedValue([
       { id: 1, name: 'Обувь', slug: 'shoes', in_stock_count: 5, products_count: 5, children: [] },
-      { id: 2, name: 'Без категории', slug: 'uncategorized', in_stock_count: 0, products_count: 3, children: [] },
+      {
+        id: 2,
+        name: 'Без категории',
+        slug: 'uncategorized',
+        in_stock_count: 0,
+        products_count: 3,
+        children: [],
+      },
     ]);
     // visible-categories не возвращает uncategorized (нет in_stock товаров)
     (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
@@ -468,7 +475,9 @@ describe('CatalogPage — сортировка и скрытие пустых к
 
     // Открываем панель категорий
     const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => { categoryBtn.click(); });
+    await act(async () => {
+      categoryBtn.click();
+    });
 
     await waitFor(() => {
       expect(screen.queryByText('Без категории')).not.toBeInTheDocument();
@@ -486,7 +495,9 @@ describe('CatalogPage — сортировка и скрытие пустых к
     render(<CatalogPage />);
 
     const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => { categoryBtn.click(); });
+    await act(async () => {
+      categoryBtn.click();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Нет категорий')).toBeInTheDocument();
@@ -496,14 +507,23 @@ describe('CatalogPage — сортировка и скрытие пустых к
   it('показывает весь список если getVisibleCategories вернул ошибку (graceful degradation)', async () => {
     (categoriesService.getTree as Mock).mockResolvedValue([
       { id: 1, name: 'Обувь', slug: 'shoes', in_stock_count: 3, products_count: 3, children: [] },
-      { id: 2, name: 'Без категории', slug: 'uncategorized', in_stock_count: 0, products_count: 1, children: [] },
+      {
+        id: 2,
+        name: 'Без категории',
+        slug: 'uncategorized',
+        in_stock_count: 0,
+        products_count: 1,
+        children: [],
+      },
     ]);
     (categoriesService.getVisibleCategories as Mock).mockRejectedValue(new Error('500'));
 
     render(<CatalogPage />);
 
     const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => { categoryBtn.click(); });
+    await act(async () => {
+      categoryBtn.click();
+    });
 
     await waitFor(() => {
       // При ошибке fallback = показывать всё дерево
@@ -515,9 +535,20 @@ describe('CatalogPage — сортировка и скрытие пустых к
   it('сохраняет родительскую категорию видимой если дочерняя видима', async () => {
     (categoriesService.getTree as Mock).mockResolvedValue([
       {
-        id: 10, name: 'Спорт', slug: 'sport', in_stock_count: 0, products_count: 0,
+        id: 10,
+        name: 'Спорт',
+        slug: 'sport',
+        in_stock_count: 0,
+        products_count: 0,
         children: [
-          { id: 11, name: 'Лыжи', slug: 'skiing', in_stock_count: 2, products_count: 2, children: [] },
+          {
+            id: 11,
+            name: 'Лыжи',
+            slug: 'skiing',
+            in_stock_count: 2,
+            products_count: 2,
+            children: [],
+          },
         ],
       },
     ]);
@@ -526,7 +557,9 @@ describe('CatalogPage — сортировка и скрытие пустых к
     render(<CatalogPage />);
 
     const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => { categoryBtn.click(); });
+    await act(async () => {
+      categoryBtn.click();
+    });
 
     await waitFor(() => {
       // Родитель виден потому что дочерняя видима

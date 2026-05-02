@@ -350,7 +350,14 @@ describe('CheckoutForm', () => {
     it('авторизован, 3 адреса с default — селектор показан, дефолт автозаполнен', async () => {
       const list = [
         makeAddress({ id: 1, city: 'Москва' }),
-        makeAddress({ id: 2, is_default: true, city: 'СПб', street: 'Невский', building: '1', postal_code: '190000' }),
+        makeAddress({
+          id: 2,
+          is_default: true,
+          city: 'СПб',
+          street: 'Невский',
+          building: '1',
+          postal_code: '190000',
+        }),
         makeAddress({ id: 3, city: 'Сочи' }),
       ];
       (addressService.getAddresses as ReturnType<typeof vi.fn>).mockResolvedValueOnce(list);
@@ -389,7 +396,13 @@ describe('CheckoutForm', () => {
     it('выбор другого адреса в селекторе перезаписывает поля формы', async () => {
       const list = [
         makeAddress({ id: 1, is_default: true, city: 'Москва', street: 'Ленина', building: '10' }),
-        makeAddress({ id: 2, city: 'Сочи', street: 'Морская', building: '5', postal_code: '354000' }),
+        makeAddress({
+          id: 2,
+          city: 'Сочи',
+          street: 'Морская',
+          building: '5',
+          postal_code: '354000',
+        }),
       ];
       (addressService.getAddresses as ReturnType<typeof vi.fn>).mockResolvedValueOnce(list);
 
@@ -445,11 +458,7 @@ describe('CheckoutForm', () => {
   });
 
   describe('Address save после оформления заказа (spec checkout-address-ux)', () => {
-    async function fillFormAndSubmit({
-      withCheckbox,
-    }: {
-      withCheckbox: boolean;
-    }): Promise<void> {
+    async function fillFormAndSubmit({ withCheckbox }: { withCheckbox: boolean }): Promise<void> {
       // Заполняем все обязательные поля
       fireEvent.change(screen.getByLabelText('Электронная почта'), {
         target: { value: 'buyer@example.com' },
@@ -494,12 +503,12 @@ describe('CheckoutForm', () => {
         error: null,
         clearOrder: vi.fn(),
       });
-      (
-        useOrderStore as unknown as { getState: ReturnType<typeof vi.fn> }
-      ).getState.mockReturnValue({
-        currentOrder: { id: 999 },
-        setError: vi.fn(),
-      });
+      (useOrderStore as unknown as { getState: ReturnType<typeof vi.fn> }).getState.mockReturnValue(
+        {
+          currentOrder: { id: 999 },
+          setError: vi.fn(),
+        }
+      );
       (addressService.getAddresses as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
       (addressService.createAddress as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
         makeAddress({ id: 50 })
@@ -541,12 +550,12 @@ describe('CheckoutForm', () => {
         error: null,
         clearOrder: vi.fn(),
       });
-      (
-        useOrderStore as unknown as { getState: ReturnType<typeof vi.fn> }
-      ).getState.mockReturnValue({
-        currentOrder: { id: 1000 },
-        setError: vi.fn(),
-      });
+      (useOrderStore as unknown as { getState: ReturnType<typeof vi.fn> }).getState.mockReturnValue(
+        {
+          currentOrder: { id: 1000 },
+          setError: vi.fn(),
+        }
+      );
       (addressService.getAddresses as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
 
       render(<CheckoutForm user={mockUser} />);
@@ -587,9 +596,7 @@ describe('CheckoutForm', () => {
 
       // Чекбокса быть не должно (поля совпадают с выбранным адресом)
       await waitFor(() => {
-        expect(
-          screen.queryByTestId('save-address-checkbox-wrapper')
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('save-address-checkbox-wrapper')).not.toBeInTheDocument();
       });
     });
 

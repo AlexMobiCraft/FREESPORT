@@ -266,10 +266,7 @@ describe('AddressSection', () => {
     });
 
     it('помечает выбранную карточку через aria-checked', () => {
-      const addresses = [
-        makeAddress({ id: 1 }),
-        makeAddress({ id: 2 }),
-      ];
+      const addresses = [makeAddress({ id: 1 }), makeAddress({ id: 2 })];
       render(
         <AddressSectionWrapper
           addresses={addresses}
@@ -306,7 +303,11 @@ describe('AddressSection', () => {
 
     it('отображается при showSaveCheckbox=true', () => {
       render(
-        <AddressSectionWrapper showSaveCheckbox saveAddress={false} onToggleSaveAddress={() => {}} />
+        <AddressSectionWrapper
+          showSaveCheckbox
+          saveAddress={false}
+          onToggleSaveAddress={() => {}}
+        />
       );
       expect(screen.getByTestId('save-address-checkbox-wrapper')).toBeInTheDocument();
       expect(screen.getByLabelText(/Запомнить этот адрес в профиле/)).toBeInTheDocument();
@@ -315,7 +316,11 @@ describe('AddressSection', () => {
     it('вызывает onToggleSaveAddress при клике', () => {
       const onToggle = vi.fn();
       render(
-        <AddressSectionWrapper showSaveCheckbox saveAddress={false} onToggleSaveAddress={onToggle} />
+        <AddressSectionWrapper
+          showSaveCheckbox
+          saveAddress={false}
+          onToggleSaveAddress={onToggle}
+        />
       );
       const checkbox = screen.getByLabelText(/Запомнить этот адрес в профиле/);
       fireEvent.click(checkbox);

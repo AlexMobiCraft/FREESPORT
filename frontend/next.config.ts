@@ -153,7 +153,6 @@ const nextConfig: NextConfig = {
     // Не останавливать сборку при ошибках TypeScript в разработке
     ignoreBuildErrors: false,
   },
-
 };
 
 export default nextConfig;

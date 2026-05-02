@@ -108,7 +108,9 @@ export const SearchPageClient: React.FC<SearchPageClientProps> = ({
     setCurrentPage(page);
 
     // Обновляем URL с новым номером страницы
-    const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+    const params = searchParams
+      ? new URLSearchParams(searchParams.toString())
+      : new URLSearchParams();
     params.set('page', page.toString());
 
     router.push(`/search?${params.toString()}`, { scroll: true });
