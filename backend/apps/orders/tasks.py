@@ -15,9 +15,20 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
 from apps.common.models import NotificationRecipient
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderItem
 
 logger = logging.getLogger(__name__)
+
+
+def _get_order_display_items(order: Order):
+    """Возвращает позиции для отображения в email/admin.
+
+    Для master-заказа агрегирует items из всех субзаказов.
+    Для legacy-заказов (без субзаказов) — прямые items.
+    """
+    if order.is_master and order.sub_orders.exists():
+        return OrderItem.objects.filter(order__parent_order=order).select_related("product", "variant")
+    return order.items.select_related("product", "variant").all()
 
 
 @shared_task(
@@ -38,7 +49,7 @@ def send_order_confirmation_to_customer(self: Any, order_id: int) -> bool:
         True если email отправлен успешно
     """
     try:
-        order = Order.objects.prefetch_related("items").get(id=order_id)
+        order = Order.objects.prefetch_related("items", "sub_orders__items").get(id=order_id)
     except Order.DoesNotExist:
         logger.error(
             "Order not found for customer confirmation",
@@ -56,7 +67,7 @@ def send_order_confirmation_to_customer(self: Any, order_id: int) -> bool:
         logger.warning(f"Не удалось отправить email для заказа {order.order_number}: " "email клиента не указан")
         return False
 
-    subject = f"Заказ #{order.order_number} успешно оформлен - FREESPORT"
+    subject = f"Заказ #{order.order_number_display} успешно оформлен - FREESPORT"
     message = _build_order_email_text(order)
 
     try:
@@ -77,23 +88,26 @@ def send_order_confirmation_to_customer(self: Any, order_id: int) -> bool:
 def _build_order_email_text(order):
     """Формирование текста email-уведомления о заказе."""
     customer_name = order.customer_display_name or "Уважаемый клиент"
+    display_number = order.order_number_display
 
     delivery_methods = {
         "pickup": "Самовывоз",
         "courier": "Курьерская доставка",
         "post": "Почтовая доставка",
         "transport": "Транспортная компания",
+        "transport_company": "Транспортная компания",
+        "transport_schedule": "Доставка по расписанию",
     }
     delivery_method_name = delivery_methods.get(order.delivery_method, order.delivery_method)
 
     items_text = ""
-    for item in order.items.all():
+    for item in _get_order_display_items(order):
         items_text += f"  - {item.product_name} × {item.quantity}: {item.total_price} ₽\n"
 
     message = f"""
 Здравствуйте, {customer_name}!
 
-Ваш заказ #{order.order_number} успешно оформлен.
+Ваш заказ #{display_number} успешно оформлен.
 
 ДЕТАЛИ ЗАКАЗА:
 {items_text}
@@ -137,7 +151,7 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
         True если хотя бы один email отправлен успешно
     """
     try:
-        order = Order.objects.prefetch_related("items").get(id=order_id)
+        order = Order.objects.prefetch_related("items", "sub_orders__items").get(id=order_id)
     except Order.DoesNotExist:
         logger.error(
             "Order not found for notification",
@@ -181,7 +195,7 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
 
     context = {
         "order": order,
-        "items": order.items.all(),
+        "items": _get_order_display_items(order),
         "customer_name": customer_name,
         "customer_email": customer_email,
         "customer_phone": customer_phone,

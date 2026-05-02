@@ -1,3 +1,10 @@
+## Deferred from: order-numbering email/permissions/admin fixes review (2026-05-02)
+
+- **`_get_order_display_items` обходит prefetch-cache**: при `is_master=True` функция выполняет `OrderItem.objects.filter(order__parent_order=order)` вместо итерации по `order.sub_orders.all()` из prefetch-кеша. Результат корректный, но лишний запрос. Не критично в async Celery-контексте. [backend/apps/orders/tasks.py — `_get_order_display_items`]
+- **Year format 2026/2126 коллизия**: `f"{customer_code}{str(year)[-2:]}{sequence:03d}"` даёт одинаковый строковой префикс для 2026 и 2126. DB-constraint использует полный `order_year`, коллизия в БД исключена, но `order_number` как строка не различает века — может быть проблемой для внешних систем (1С, отчёты). Pre-existing design. [backend/apps/orders/services/order_numbering.py:129]
+- **`normalize_order_number_query` для master UI-формата возвращает 9 символов вместо 10**: master UI `4620-26007` нормализуется в `462026007` (9 цифр), поиск использует `order_number__endswith`. Суффикс-поиск корректен, но если два разных `customer_code` дают одинаковый suffix — возможен ложный результат. Pre-existing design decision. [backend/apps/orders/services/order_numbering.py:94]
+- **`select_for_update` в `OrderNumberingService.next_master_number` не защищён от вызова вне транзакции**: метод публично вызываемый; вызов без `transaction.atomic()` не гарантирует атомарность блокировки. В текущем коде вызывается только из `OrderCreateService.create()` с `@transaction.atomic`. Pre-existing. [backend/apps/orders/services/order_numbering.py:121]
+
 ## Deferred from: review of tech-spec-catalog-category-sort-and-hide-empty (2026-04-30)
 
 - **N+1 / глубина `select_related` в `visible_categories`**: цепочка `select_related("parent__parent__parent__parent")` ограничена 4 уровнями; иерархия глубже вызовет N+1. Рассмотреть замену на рекурсивный CTE или MPTT-запрос. [backend/apps/products/views.py — `visible_categories` action]

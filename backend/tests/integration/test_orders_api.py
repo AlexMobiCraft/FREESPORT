@@ -3,6 +3,7 @@
 """
 
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -31,6 +32,7 @@ class TestOrderAPI:
             first_name="John",
             last_name="Doe",
             role="retail",
+            customer_code="04620",
         )
         self.brand = Brand.objects.create(name="Test Brand", slug="test-brand")
         self.category = Category.objects.create(name="Test Category", slug="test-category")
@@ -85,6 +87,11 @@ class TestOrderAPI:
         assert order.status == "pending"
         assert order.total_amount == Decimal("700.00")  # 2 * 100 + 500 доставка
         assert order.delivery_cost == Decimal("500.00")
+        assert order.order_number.startswith("04620")
+        assert len(order.order_number) == 10
+        assert order.customer_code_snapshot == "04620"
+        assert order.customer_year_sequence == 1
+        assert order.order_year is not None
 
         # После VAT-split позиции живут на субзаказах, а не на мастере
         assert order.items.count() == 0
@@ -92,6 +99,9 @@ class TestOrderAPI:
         assert len(sub_orders) == 1  # однородная корзина (одна vat_rate=None)
         sub = sub_orders[0]
         assert sub.is_master is False
+        assert sub.order_number == f"{order.order_number}1"
+        assert sub.suborder_sequence == 1
+        assert sub.customer_code_snapshot == "04620"
         assert sub.items.count() == 1
         order_item = sub.items.first()
         assert order_item.variant == self.variant
@@ -126,6 +136,37 @@ class TestOrderAPI:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Корзина пуста" in str(response.data)
 
+    def test_create_order_user_without_customer_code_failure(self, db):
+        user_without_customer_code = User.objects.create_user(
+            email="no-code@example.com",
+            password="testpass",
+            first_name="No",
+            last_name="Code",
+            role="retail",
+            customer_code="",
+        )
+        self.client.force_authenticate(user=user_without_customer_code)
+
+        cart = Cart.objects.create(user=user_without_customer_code)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            price_snapshot=self.variant.retail_price,
+        )
+
+        order_data = {
+            "delivery_address": "г. Москва, ул. Тестовая, д. 1",
+            "delivery_method": "courier",
+            "payment_method": "card",
+        }
+
+        url = reverse("orders:order-list")
+        response = self.client.post(url, order_data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "customer_code" in str(response.data)
+
     def test_create_order_insufficient_stock_failure(self, db):
         """Тест создания заказа при недостатке товара"""
         self.client.force_authenticate(user=self.user)
@@ -158,38 +199,52 @@ class TestOrderAPI:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Недостаточно товара" in str(response.data)
 
-    def test_create_order_guest_no_cart_failure(self, db):
-        """Тест создания заказа гостем без корзины
-        (ожидаем 400, так как доступ есть, но данных нет)
-        """
+    def test_create_order_anonymous_returns_401(self, db):
+        """Анонимный запрос POST /orders/ должен возвращать 401 (не 400)."""
         order_data = {
             "delivery_address": "г. Москва, ул. Тестовая, д. 1",
             "delivery_method": "courier",
             "payment_method": "card",
-            "customer_email": "guest@example.com",
-            "customer_phone": "+79990000000",
-            "customer_name": "Guest",
         }
 
         url = reverse("orders:order-list")
         response = self.client.post(url, order_data)
 
-        # 400 Bad Request because cart is missing/empty, not 401 Unauthorized
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "Корзина пуста" in str(response.data)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_create_order_guest_happy_path_via_session_cart(self, db):
-        """Fifth follow-up: успешный guest checkout через session-корзину.
+    def test_checkout_queues_exactly_one_email_task_for_master(self, db):
+        """При checkout с субзаказами email-задачи ставятся только для master (1 раз каждая)."""
+        self.client.force_authenticate(user=self.user)
 
-        Публичный `AllowAny` flow `OrderCreateSerializer._get_user_cart()` должен
-        корректно находить гостевую корзину по session_key и создавать заказ.
-        """
-        # Имитация гостевой сессии через APIClient (session middleware создаст session_key)
+        cart = Cart.objects.create(user=self.user)
+        CartItem.objects.create(
+            cart=cart,
+            variant=self.variant,
+            quantity=1,
+            price_snapshot=self.variant.retail_price,
+        )
+
+        order_data = {
+            "delivery_address": "г. Москва, ул. Тестовая, д. 1",
+            "delivery_method": "courier",
+            "payment_method": "card",
+        }
+
+        url = reverse("orders:order-list")
+        with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, \
+             patch("apps.orders.tasks.send_order_notification_email") as mock_admin:
+            response = self.client.post(url, order_data)
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert mock_customer.delay.call_count == 1
+        assert mock_admin.delay.call_count == 1
+
+    def test_create_order_guest_with_session_cart_is_rejected(self, db):
+        """Гостевой checkout через session-корзину запрещён новой схемой нумерации."""
         self.client.post(
             reverse("cart:cart-items-list"),
             {"variant_id": self.variant.id, "quantity": 1},
         )
-        # Убеждаемся, что гостевая корзина создана с session_key
         session_key = self.client.session.session_key
         assert session_key is not None
         guest_cart = Cart.objects.get(session_key=session_key, user__isnull=True)
@@ -207,18 +262,9 @@ class TestOrderAPI:
         url = reverse("orders:order-list")
         response = self.client.post(url, order_data)
 
-        assert response.status_code == status.HTTP_201_CREATED
-        order = Order.objects.get(order_number=response.data["order_number"])
-        assert order.user is None
-        assert order.is_master is True
-        assert order.customer_email == "guest@example.com"
-        # После VAT-split items живут на субзаказах
-        sub_orders = list(order.sub_orders.all())
-        assert len(sub_orders) == 1
-        assert sub_orders[0].items.count() == 1
-        # Гостевая корзина очищена
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
         guest_cart.refresh_from_db()
-        assert not guest_cart.items.exists()
+        assert guest_cart.items.count() == 1
 
     def test_legacy_master_with_direct_items_backward_compat(self, db):
         """Regression (Story 34-2 Third Follow-up): legacy мастер-заказ с direct items
@@ -301,7 +347,11 @@ class TestOrderAPI:
     def test_get_order_detail_access_denied(self, db):
         """Тест доступа к чужому заказу"""
         # Создаем другого пользователя
-        other_user = User.objects.create_user(email="other@example.com", password="testpass")
+        other_user = User.objects.create_user(
+            email="other@example.com",
+            password="testpass",
+            customer_code="04621",
+        )
 
         # Создаем заказ от имени другого пользователя
         order = Order.objects.create(
@@ -403,7 +453,12 @@ class TestOrderAPI:
     def test_b2b_minimum_quantity_validation(self, db):
         """Тест валидации минимального количества для B2B пользователей"""
         # Создаем B2B пользователя
-        b2b_user = User.objects.create_user(email="b2b@example.com", password="testpass", role="wholesale_level1")
+        b2b_user = User.objects.create_user(
+            email="b2b@example.com",
+            password="testpass",
+            role="wholesale_level1",
+            customer_code="04622",
+        )
         self.client.force_authenticate(user=b2b_user)
 
         # Устанавливаем минимальное количество для заказа

@@ -13,6 +13,7 @@ from django.http import HttpResponse
 from django.utils.html import format_html
 
 from .models import Order, OrderItem
+from .services.order_numbering import build_order_number_search_query
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -38,6 +39,7 @@ class OrderAdmin(admin.ModelAdmin):
     """Admin конфигурация для модели Order."""
 
     list_display = [
+        "display_order_number",
         "order_number",
         "customer_display",
         "status",
@@ -64,7 +66,7 @@ class OrderAdmin(admin.ModelAdmin):
         "customer_email",
         "tracking_number",
     ]
-    readonly_fields = ["order_number", "created_at", "updated_at", "payment_id"]
+    readonly_fields = ["display_order_number", "order_number", "created_at", "updated_at", "payment_id"]
     inlines = [OrderItemInline]
     actions = ["export_to_csv"]
     date_hierarchy = "created_at"
@@ -74,6 +76,7 @@ class OrderAdmin(admin.ModelAdmin):
             "Основная информация",
             {
                 "fields": (
+                    "display_order_number",
                     "order_number",
                     "user",
                     "status",
@@ -129,7 +132,7 @@ class OrderAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[Order]:
         """Оптимизация queryset для предотвращения N+1 запросов."""
         qs = super().get_queryset(request)
-        return qs.select_related("user").prefetch_related("items")
+        return qs.select_related("user").prefetch_related("items", "sub_orders__items")
 
     @admin.display(description="Customer", ordering="user__email")
     def customer_display(self, obj: Order) -> str:
@@ -138,14 +141,22 @@ class OrderAdmin(admin.ModelAdmin):
             return str(obj.user.email)
         return obj.customer_email or obj.customer_name or "-"
 
+    @admin.display(description="Display Number")
+    def display_order_number(self, obj: Order) -> str:
+        return obj.order_number_display
+
     @admin.display(description="Items Count")
     def items_count(self, obj: Order) -> int:
-        """Количество позиций в заказе."""
+        """Количество позиций в заказе (для master — из субзаказов)."""
+        if obj.is_master and obj.sub_orders.exists():
+            return sum(sub.items.count() for sub in obj.sub_orders.all())
         return obj.items.count()
 
     @admin.display(description="Total Items")
     def total_items_quantity(self, obj: Order) -> int:
-        """Общее количество товаров в заказе."""
+        """Общее количество товаров в заказе (для master — из субзаказов)."""
+        if obj.is_master and obj.sub_orders.exists():
+            return sum(item.quantity for sub in obj.sub_orders.all() for item in sub.items.all())
         return sum(item.quantity for item in obj.items.all())
 
     @admin.display(description="Payment Status")
@@ -161,6 +172,15 @@ class OrderAdmin(admin.ModelAdmin):
         template = icons.get(obj.payment_status, "{}")
         return format_html(template, status_display)
 
+    def get_search_results(self, request: HttpRequest, queryset: QuerySet[Order], search_term: str):
+        base_queryset = queryset
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        order_number_query = build_order_number_search_query(search_term)
+        if order_number_query is None:
+            return queryset, use_distinct
+        normalized_queryset = base_queryset.filter(order_number_query)
+        return queryset | normalized_queryset, use_distinct
+
     @admin.action(description="Export selected orders to CSV")
     def export_to_csv(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
         """Экспорт выбранных заказов в CSV файл."""
@@ -171,6 +191,7 @@ class OrderAdmin(admin.ModelAdmin):
         writer.writerow(
             [
                 "Order Number",
+                "Display Number",
                 "Customer",
                 "Status",
                 "Payment Status",
@@ -185,6 +206,7 @@ class OrderAdmin(admin.ModelAdmin):
             writer.writerow(
                 [
                     order.order_number,
+                    order.order_number_display,
                     order.customer_display_name,
                     order.get_status_display(),
                     order.get_payment_status_display(),

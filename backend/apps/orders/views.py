@@ -29,12 +29,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Настройка прав доступа:
-        - create: Доступно всем (включая гостей)
-        - остальные: Только авторизованные пользователи
+        Настройка прав доступа: только авторизованные пользователи.
+        Гостевой checkout не поддерживается (customer_code требуется для нумерации).
         """
-        if self.action == "create":
-            return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):

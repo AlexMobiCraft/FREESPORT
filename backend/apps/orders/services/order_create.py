@@ -15,6 +15,7 @@ from rest_framework import serializers
 
 from apps.cart.models import Cart
 from apps.orders.models import Order, OrderItem
+from apps.orders.services.order_numbering import OrderNumberError, OrderNumberingService
 from apps.products.models import ProductVariant
 
 
@@ -68,12 +69,29 @@ class OrderCreateService:
             # Используем снимок цены из корзины, а не пересчитываем по текущему каталогу.
             total_items_sum += ci.total_price
 
+        ordered_groups = sorted(
+            groups.items(),
+            key=lambda entry: (
+                entry[0][0] is None,
+                entry[0][0] if entry[0][0] is not None else Decimal("0"),
+                entry[0][1] or "",
+            ),
+        )
+        try:
+            master_number = OrderNumberingService.next_master_number(user)
+        except OrderNumberError as exc:
+            raise serializers.ValidationError({"order_number": str(exc)}) from exc
+
         # 2. Создать мастер-заказ (delivery_cost и discount_amount только здесь)
         master = Order(
+            order_number=master_number.order_number,
             user=user,
             is_master=True,
             parent_order=None,
             vat_group=None,
+            customer_code_snapshot=master_number.customer_code_snapshot,
+            order_year=master_number.order_year,
+            customer_year_sequence=master_number.customer_year_sequence,
             delivery_cost=delivery_cost,
             discount_amount=discount_amount,
             total_amount=total_items_sum + delivery_cost - discount_amount,
@@ -85,13 +103,19 @@ class OrderCreateService:
         variant_updates: list[tuple[int, int]] = []
         order_item_manager = cast(BaseManager[OrderItem], getattr(OrderItem, "objects"))
 
-        for (vat_key, _warehouse_key), items in groups.items():
+        for suborder_sequence, ((vat_key, _warehouse_key), items) in enumerate(ordered_groups, start=1):
             group_total = Decimal(sum(ci.total_price for ci in items))
+            sub_number = OrderNumberingService.build_suborder_number(master, suborder_sequence)
             sub = Order(
+                order_number=sub_number.order_number,
                 user=user,
                 is_master=False,
                 parent_order=master,
                 vat_group=vat_key,
+                customer_code_snapshot=sub_number.customer_code_snapshot,
+                order_year=sub_number.order_year,
+                customer_year_sequence=sub_number.customer_year_sequence,
+                suborder_sequence=sub_number.suborder_sequence,
                 delivery_cost=Decimal("0"),
                 total_amount=group_total,
                 status="pending",

@@ -34,6 +34,9 @@ def send_order_confirmation_email(sender, instance, created, **kwargs):
     if not created:
         return
 
+    if not instance.is_master:
+        return
+
     # --- Отправка уведомления клиенту (async через Celery) ---
     try:
         from apps.orders.tasks import send_order_confirmation_to_customer
