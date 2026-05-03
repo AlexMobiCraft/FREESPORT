@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Sum
 from rest_framework import serializers
 
+from .category_utils import FULL_PLACEHOLDER_CATEGORY_RE_PATTERN
 from .models import Attribute, AttributeValue, Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
 
 # Константы для отображения диапазонов остатков
@@ -838,7 +839,7 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
             .exclude(
                 Q(slug__in=["uncategorized", "onec-unresolved-category"])
                 | Q(name="Без категории")
-                | Q(name__startswith="Категория ")
+                | Q(name__regex=FULL_PLACEHOLDER_CATEGORY_RE_PATTERN)
             )
             .annotate(
                 products_count=Count("products", filter=Q(products__is_active=True)),

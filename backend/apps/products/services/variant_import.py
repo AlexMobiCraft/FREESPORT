@@ -25,6 +25,8 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+
 if TYPE_CHECKING:
     from apps.products.models import Product, ProductVariant
 
@@ -1409,10 +1411,20 @@ class VariantImportProcessor:
         if category_id:
             category = Category.objects.filter(onec_id=category_id).first()
             if category:
+                if self._category_filtering_active and category_id not in self._allowed_category_ids:
+                    logger.warning(
+                        "Категория вне разрешённого поддерева; товар перемещается в техкатегорию: "
+                        "category_id=%s product_id=%s",
+                        category_id,
+                        goods_data.get("id"),
+                    )
+                    self.stats["category_fallbacks"] += 1
+                    return self._get_unresolved_category()
                 return category
 
             logger.warning(
-                "Product category reference unresolved; using hidden fallback " "category_id=%s product_id=%s",
+                "Ссылка на категорию не разрешена; используется техническая fallback-категория: "
+                "category_id=%s product_id=%s",
                 category_id,
                 goods_data.get("id"),
             )
@@ -1545,9 +1557,9 @@ class VariantImportProcessor:
         2. Устанавливаем родительские связи с валидацией циклов
 
         Фильтрация корневых категорий:
-        - Если ROOT_CATEGORY_NAME задан: импортируются только подкатегории якорной
+        - Если ROOT_CATEGORY_NAME задан: импортируются только якорь и его потомки
         - Если не задан (None): импортируются все категории (обратная совместимость)
-        - Если задан но не найден: logger.error + fallback на полный импорт
+        - Если задан но не найден ни в XML, ни в БД: logger.error + импорт отменяется
 
         Args:
             categories_data: Список данных категорий с полями
@@ -1593,7 +1605,22 @@ class VariantImportProcessor:
 
             # 2. Ищем якорную в базе, если не нашли в XML (случай инкрементального обновления)
             if not anchor_id:
-                anchor_cat = Category.objects.filter(name=root_category_name, parent__isnull=True).first()
+                anchor_cat = Category.objects.filter(
+                    name=root_category_name, parent__isnull=True, is_active=True
+                ).first()
+                if not anchor_cat:
+                    # Неактивный якорь реактивируется, чтобы дерево не стало пустым
+                    inactive_anchor = Category.objects.filter(
+                        name=root_category_name, parent__isnull=True, is_active=False
+                    ).first()
+                    if inactive_anchor:
+                        inactive_anchor.is_active = True
+                        inactive_anchor.save(update_fields=["is_active"])
+                        anchor_cat = inactive_anchor
+                        logger.info(
+                            "Якорная категория '%s' была неактивной — реактивирована при инкрементальном импорте.",
+                            root_category_name,
+                        )
                 if anchor_cat:
                     anchor_id = anchor_cat.onec_id
 
@@ -1679,6 +1706,30 @@ class VariantImportProcessor:
 
                 if (i + 1) % 50 == 0:
                     self.log_progress(f"Обработка категорий: {i + 1}...")
+
+                # Если это якорная категория — проверяем наличие repair-якоря с sentinel onec_id.
+                # Repair-команда создаёт якорь с onec_id=REPAIR_ANCHOR_ONEC_ID или без onec_id;
+                # при следующем полном импорте обновляем его реальным onec_id вместо создания дубликата.
+                if filtering_active and onec_id == anchor_id:
+                    repair_anchor = (
+                        Category.objects.filter(name=name, parent__isnull=True)
+                        .exclude(onec_id=onec_id)
+                        .first()
+                    )
+                    if repair_anchor and repair_anchor.onec_id in (None, "", REPAIR_ANCHOR_ONEC_ID):
+                        repair_anchor.onec_id = onec_id
+                        repair_anchor.name = name
+                        repair_anchor.is_active = True
+                        if description:
+                            repair_anchor.description = description
+                        repair_anchor.save(update_fields=["onec_id", "name", "is_active", "description"])
+                        category_map[onec_id] = repair_anchor
+                        self._valid_category_onec_ids.add(onec_id)
+                        result["updated"] += 1
+                        logger.info(
+                            f"Repair-якорь '{name}' обновлён реальным onec_id={onec_id}"
+                        )
+                        continue
 
                 category, created = Category.objects.update_or_create(
                     onec_id=onec_id,

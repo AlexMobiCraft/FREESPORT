@@ -67,6 +67,11 @@ def create_master_with_subs(
     # Проверка на дублирование variant в одной VAT-группе (по pk, не по id() объекта)
     seen: set[tuple] = set()
     for variant, vat_rate in variants_with_vat:
+        if variant.pk is None:
+            raise ValueError(
+                "ProductVariant без pk (unsaved) передан в create_master_with_subs — "
+                "сохраните variant перед вызовом"
+            )
         key = (variant.pk, vat_rate)
         if key in seen:
             raise ValueError(

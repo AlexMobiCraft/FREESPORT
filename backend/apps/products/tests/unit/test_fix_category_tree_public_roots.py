@@ -6,6 +6,7 @@ import io
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from apps.products.factories import CategoryFactory, ProductFactory
 from apps.products.models import Category, Product
@@ -58,3 +59,116 @@ def test_fix_category_tree_execute_restores_missing_sport_anchor_without_deletin
     assert sport.slug == "sport"
     assert useful_root.parent == sport
     assert useful_product.category == useful_root
+
+
+def test_fix_category_tree_execute_reactivates_inactive_sport_anchor():
+    """Регрессия: repair реактивирует якорь СПОРТ (is_active=False → True); публичное дерево становится видимым."""
+    sport = CategoryFactory(
+        name="СПОРТ", slug="sport-inactive", onec_id="sport-inactive", parent=None, is_active=False
+    )
+    child = CategoryFactory(name="Теннис", slug="tennis-inactive-test", parent=None)
+
+    out = io.StringIO()
+    call_command("fix_category_tree_public_roots", execute=True, stdout=out)
+
+    sport.refresh_from_db()
+    child.refresh_from_db()
+
+    assert sport.is_active is True, "Неактивный якорь СПОРТ должен быть реактивирован"
+    assert child.parent == sport, "Публичные root должны быть перенесены под СПОРТ"
+    assert "anchor=inactive" in out.getvalue(), "До исправления якорь должен быть отмечен как inactive"
+    assert "public_reparented=1" in out.getvalue(), (
+        "Дочерняя категория должна быть перенесена под реактивированный якорь"
+    )
+
+
+def test_fix_category_tree_multiple_anchors_raises_command_error():
+    """Регрессия: при нескольких якорях СПОРТ команда завершается с ненулевым кодом (CommandError)."""
+    CategoryFactory(name="СПОРТ", slug="sport-anchor-1", parent=None)
+    CategoryFactory(name="СПОРТ", slug="sport-anchor-2", parent=None)
+
+    with pytest.raises(CommandError, match="более одного корневого якоря"):
+        call_command("fix_category_tree_public_roots", execute=True, stdout=io.StringIO())
+
+
+def test_fix_category_tree_create_anchor_sets_sentinel_onec_id():
+    """CR-3: repair-команда создаёт якорь с sentinel onec_id, чтобы импорт мог найти и обновить его."""
+    from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+
+    call_command("fix_category_tree_public_roots", execute=True, stdout=io.StringIO())
+
+    anchor = Category.objects.get(name="СПОРТ", parent=None)
+    assert anchor.onec_id == REPAIR_ANCHOR_ONEC_ID, (
+        "Repair-якорь должен иметь sentinel onec_id для корректного слияния при следующем импорте"
+    )
+
+
+def test_fix_category_tree_dry_run_lists_affected_categories():
+    """CR-4 Fix 6: DRY-RUN режим перечисляет затрагиваемые категории и товары."""
+    sport = CategoryFactory(name="СПОРТ", slug="sport-dryrun", onec_id="sport-dryrun-root", parent=None)
+    useful_root = CategoryFactory(name="Теннис", slug="tennis-dryrun", parent=None)
+    placeholder = CategoryFactory(
+        name="Категория 123e4567-e89b-12d3-a456-426614174002",
+        slug="category-placeholder-dryrun",
+        parent=None,
+        is_active=True,
+    )
+
+    out = io.StringIO()
+    call_command("fix_category_tree_public_roots", stdout=out)
+
+    output = out.getvalue()
+    assert "DRY-RUN" in output, "DRY-RUN метка должна присутствовать в выводе"
+    assert "[placeholder]" in output, "Список placeholder-категорий должен быть выведен в dry-run"
+    assert "[public_root]" in output, "Список публичных root-категорий должен быть выведен в dry-run"
+    # Убеждаемся, что БД не изменена
+    useful_root.refresh_from_db()
+    assert useful_root.parent is None, "DRY-RUN не должен изменять БД"
+
+
+def test_fix_category_tree_repair_no_cycle_when_fallback_inside_placeholder():
+    """CR-4 Fix 2: repair не создаёт цикл, если fallback уже вложен внутри placeholder-поддерева."""
+    placeholder = CategoryFactory(
+        name="Категория 123e4567-e89b-12d3-a456-426614174003",
+        slug="category-placeholder-cycle",
+        parent=None,
+        is_active=True,
+    )
+    # fallback-категория уже является дочерней placeholder-а (искусственная БД-аномалия)
+    fallback_cat = CategoryFactory(
+        name="Техническая категория: неразрешенные ссылки 1С",
+        slug="onec-unresolved-category",
+        parent=placeholder,
+        is_active=False,
+    )
+
+    out = io.StringIO()
+    # Должна выполниться без ошибок, без создания цикла
+    call_command("fix_category_tree_public_roots", execute=True, stdout=out)
+
+    placeholder.refresh_from_db()
+    fallback_cat.refresh_from_db()
+    # Fallback не становится parent для самого placeholder
+    assert placeholder.parent != fallback_cat, "Repair не должен создавать цикл placeholder -> fallback -> placeholder"
+    # Placeholder деактивирован
+    assert placeholder.is_active is False
+
+
+def test_fix_category_tree_legacy_placeholder_isolated_by_broad_regex():
+    """CR-3: legacy placeholder с не-UUID именем (длинный hex-ID) изолируется, а не переносится под СПОРТ."""
+    sport = CategoryFactory(name="СПОРТ", slug="sport-cr3", onec_id="sport-cr3-root", parent=None)
+    legacy = CategoryFactory(
+        name="Категория 1a2b3c4d5e6f",  # 12 hex-char суффикс, не стандартный UUID
+        slug="category-legacy-hex",
+        parent=None,
+        is_active=True,
+    )
+
+    call_command("fix_category_tree_public_roots", execute=True, stdout=io.StringIO())
+
+    legacy.refresh_from_db()
+    fallback = Category.objects.get(slug="onec-unresolved-category")
+
+    assert legacy.parent == fallback, "Legacy hex-ID placeholder должен быть изолирован под fallback"
+    assert legacy.is_active is False, "Legacy placeholder должен быть деактивирован"
+    assert legacy.parent != sport, "Legacy placeholder не должен быть перемещён под СПОРТ как публичная категория"

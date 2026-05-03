@@ -435,6 +435,65 @@ class TestProcessCategoriesFiltering:
         # Публичная placeholder-категория НЕ создана в БД
         assert not Category.objects.filter(onec_id=f"junk_{suffix}").exists()
 
+    def test_get_or_create_category_routes_existing_outside_subtree_to_fallback(self, processor):
+        """CR-4 Fix 1: категория существует в DB, но вне allowed subtree — товар уходит в техкатегорию."""
+        suffix = get_unique_suffix()
+        categories_data: list[CategoryData] = [
+            {"id": f"sport_{suffix}", "name": "СПОРТ"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": f"sport_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            processor.process_categories(categories_data)
+
+        # Создаём категорию в DB с onec_id вне разрешённого поддерева (она уже есть в _allowed_category_ids? нет)
+        outside_cat = Category.objects.create(
+            name=f"Вне поддерева {suffix}",
+            slug=f"outside-subtree-{suffix}",
+            onec_id=f"outside_{suffix}",
+            is_active=True,
+        )
+
+        assert processor._category_filtering_active is True
+        assert outside_cat.onec_id not in processor._allowed_category_ids
+
+        # Вызов _get_or_create_category: категория найдена в DB, но вне subtree
+        result = processor._get_or_create_category({"category_id": f"outside_{suffix}", "id": f"prod_{suffix}"})
+
+        assert result is not None
+        assert result.slug == "onec-unresolved-category", (
+            "Категория вне allowed subtree должна направляться в техническую fallback-категорию"
+        )
+        assert result.is_active is False
+        assert processor.stats["category_fallbacks"] >= 1
+
+    def test_incremental_import_reactivates_inactive_anchor(self, processor):
+        """CR-4 Fix 3: инкрементальный импорт (без СПОРТ в XML) реактивирует неактивный якорь."""
+        suffix = get_unique_suffix()
+
+        # Pre-condition: якорь СПОРТ в БД, но неактивный
+        inactive_sport = Category.objects.create(
+            name="СПОРТ",
+            slug=f"sport-inactive-incr-{suffix}",
+            onec_id=f"sport_inactive_{suffix}",
+            is_active=False,
+            parent=None,
+        )
+
+        # Инкрементальный импорт: XML содержит только потомков, якоря нет
+        categories_data: list[CategoryData] = [
+            {"id": f"football_{suffix}", "name": f"Футбол {suffix}", "parent_id": f"sport_inactive_{suffix}"},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            processor.process_categories(categories_data)
+
+        inactive_sport.refresh_from_db()
+        assert inactive_sport.is_active is True, (
+            "Инкрементальный импорт должен реактивировать неактивный якорь СПОРТ"
+        )
+        assert processor._category_filtering_active is True
+
     def test_get_or_create_category_does_not_create_public_placeholder_for_unknown_id(self, processor):
         """Не создаёт публичную `Категория <uuid>` при неизвестном category_id из goods.xml."""
         suffix = get_unique_suffix()
@@ -496,6 +555,90 @@ class TestProcessCategoriesFiltering:
 
         # Проверяем error лог
         assert any("НЕСУЩЕСТВУЮЩАЯ" in record.message for record in caplog.records)
+
+    def test_full_reimport_does_not_produce_placeholder_roots(self, processor):
+        """AC8: повторная полная перезаливка в пустую БД — UUID-placeholder roots не появляются.
+
+        Симулирует два подряд полных импорта groups.xml и проверяет, что на выходе:
+        - СПОРТ является единственным root
+        - потомки сохраняют parent chain
+        - нет категорий с UUID-суффиксом в parent=None
+        """
+        from apps.products.category_utils import is_placeholder_category_name
+
+        suffix = get_unique_suffix()
+        sport_id = f"sport_full_{suffix}"
+        football_id = f"football_full_{suffix}"
+        balls_id = f"balls_full_{suffix}"
+
+        categories_data: list[CategoryData] = [
+            {"id": sport_id, "name": "СПОРТ"},
+            {"id": football_id, "name": f"Футбол {suffix}", "parent_id": sport_id},
+            {"id": balls_id, "name": f"Мячи {suffix}", "parent_id": football_id},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            # Первая полная заливка
+            processor.process_categories(categories_data)
+            # Вторая полная заливка — imitate full re-import
+            result = processor.process_categories(categories_data)
+
+        # Ровно один root — СПОРТ
+        roots = list(Category.objects.filter(parent__isnull=True, is_active=True))
+        root_names = [c.name for c in roots]
+        assert len([r for r in roots if r.name == "СПОРТ"]) == 1, (
+            f"Должен быть ровно один активный root СПОРТ, found: {root_names}"
+        )
+
+        # Нет UUID-placeholder в root
+        for cat in roots:
+            assert not is_placeholder_category_name(cat.name), (
+                f"Найден UUID-placeholder root: {cat.name!r}"
+            )
+
+        # Иерархия корректна
+        football = Category.objects.get(onec_id=football_id)
+        sport = Category.objects.get(onec_id=sport_id)
+        balls = Category.objects.get(onec_id=balls_id)
+        assert football.parent == sport
+        assert balls.parent == football
+
+        # Нет "ложного" дубля СПОРТ
+        assert Category.objects.filter(name="СПОРТ", parent__isnull=True).count() == 1
+        assert result.get("root_not_found") is not True
+
+    def test_process_categories_merges_repair_anchor_with_real_onec_id(self, processor):
+        """CR-3: если repair-якорь СПОРТ существует с sentinel onec_id, импорт обновляет его реальным ID,
+        а не создаёт второй root СПОРТ."""
+        from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+
+        suffix = get_unique_suffix()
+        real_sport_id = f"sport_real_{suffix}"
+
+        # Симуляция repair-команды: якорь существует с sentinel onec_id
+        repair_anchor = Category.objects.create(
+            name="СПОРТ",
+            slug=f"sport-repair-{suffix}",
+            is_active=True,
+            onec_id=REPAIR_ANCHOR_ONEC_ID,
+            parent=None,
+        )
+
+        categories_data: list[CategoryData] = [
+            {"id": real_sport_id, "name": "СПОРТ"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": real_sport_id},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            result = processor.process_categories(categories_data)
+
+        # Должен остаться ровно один root СПОРТ — repair-якорь, обновлённый реальным onec_id
+        sport_roots = list(Category.objects.filter(name="СПОРТ", parent__isnull=True))
+        assert len(sport_roots) == 1, "Должен остаться ровно один корневой СПОРТ после слияния"
+        merged = sport_roots[0]
+        assert merged.pk == repair_anchor.pk, "Repair-якорь должен быть обновлён, не удалён"
+        assert merged.onec_id == real_sport_id, "Sentinel onec_id должен быть заменён реальным"
+        assert result["updated"] >= 1
 
 
 # ============================================================================

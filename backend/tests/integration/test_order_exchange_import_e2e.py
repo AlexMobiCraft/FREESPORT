@@ -19,7 +19,7 @@ from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderItem
 from tests.conftest import OrderFactory, OrderItemFactory, ProductVariantFactory, UserFactory
 from tests.helpers import create_master_with_subs
 from tests.utils import EXCHANGE_URL, ONEC_PASSWORD
@@ -314,6 +314,17 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
         sent_to_1c=False,
     )
     sub1, sub2 = subs
+
+    # Verify OrderItem snapshot fields created by helper (AC6: корректные snapshot-поля)
+    sub1_item = OrderItem.objects.get(order=sub1)
+    assert sub1_item.vat_rate == Decimal("5.00"), f"sub1_item.vat_rate={sub1_item.vat_rate!r}"
+    assert sub1_item.product_sku == variant1.sku, f"sub1_item.product_sku={sub1_item.product_sku!r}"
+    assert sub1_item.unit_price == Decimal("1000.00"), f"sub1_item.unit_price={sub1_item.unit_price!r}"
+
+    sub2_item = OrderItem.objects.get(order=sub2)
+    assert sub2_item.vat_rate == Decimal("22.00"), f"sub2_item.vat_rate={sub2_item.vat_rate!r}"
+    assert sub2_item.product_sku == variant2.sku, f"sub2_item.product_sku={sub2_item.product_sku!r}"
+    assert sub2_item.unit_price == Decimal("2000.00"), f"sub2_item.unit_price={sub2_item.unit_price!r}"
 
     # Устанавливаем order_number для XML-ссылок
     sub1.order_number = f"order-{sub1.pk}"

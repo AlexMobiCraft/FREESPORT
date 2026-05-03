@@ -1,6 +1,6 @@
 # Story 34.5: Обновление тестов Epic 4+5 под master/sub структуру заказов
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -84,8 +84,8 @@ so that **тестовое покрытие полностью отражает 
 - [x] [Review][Patch] AC6 всё ещё не выполнен: обновлённый E2E создаёт master/sub вручную вместо shared helper [backend/tests/integration/test_order_exchange_import_e2e.py:307]
 - [x] [Review][Patch] Проверка дублей variant использует `id(variant)`, поэтому не ловит две ORM-инстанции одной записи перед `OrderItem` unique constraint [backend/tests/helpers.py:70]
 - [x] [Review][Patch] E2E проверяет только `<Организация>`, но не `<Склад>`, хотя `ORGANIZATION_BY_VAT` задаёт оба значения [backend/tests/integration/test_order_exchange_import_e2e.py:371]
-- [ ] [Review][Patch] `create_master_with_subs` для unsaved `ProductVariant` с `pk=None` выдаёт ложную ошибку дубля или падает позже с менее понятной ошибкой [backend/tests/helpers.py:70]
-- [ ] [Review][Patch] E2E после перехода на `create_master_with_subs` не проверяет, что helper создал корректные `OrderItem` snapshot-поля (`vat_rate`, `product_sku`, цены) [backend/tests/integration/test_order_exchange_import_e2e.py:308]
+- [x] [Review][Patch] `create_master_with_subs` для unsaved `ProductVariant` с `pk=None` выдаёт ложную ошибку дубля или падает позже с менее понятной ошибкой [backend/tests/helpers.py:70]
+- [x] [Review][Patch] E2E после перехода на `create_master_with_subs` не проверяет, что helper создал корректные `OrderItem` snapshot-поля (`vat_rate`, `product_sku`, цены) [backend/tests/integration/test_order_exchange_import_e2e.py:308]
 
 ## Dev Notes
 
@@ -408,9 +408,10 @@ pytest -xvs -m unit backend/tests/unit/test_order_export_service.py backend/test
 
 ### File List
 
-- `backend/tests/helpers.py` (modified: `id(variant)` → `variant.pk` для дедупликации)
-- `backend/tests/integration/test_order_exchange_import_e2e.py` (modified: рефакторинг на `create_master_with_subs`, добавлена проверка `<Склад>`)
+- `backend/tests/helpers.py` (modified: `id(variant)` → `variant.pk` для дедупликации; guard для unsaved variant pk=None)
+- `backend/tests/integration/test_order_exchange_import_e2e.py` (modified: рефакторинг на `create_master_with_subs`, проверка `<Склад>`, assertions OrderItem snapshot-полей)
 
 ### Change Log
 
 - Addressed code review findings — 3 items resolved (Date: 2026-04-21)
+- Addressed final 2 review findings: helpers.py pk=None guard, E2E OrderItem snapshot assertions (Date: 2026-05-03)

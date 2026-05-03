@@ -1,3 +1,7 @@
+## Deferred from: code review of category-tree-root-cause-fix (2026-05-03)
+
+- **`CategoryTreeSerializer` без visited/depth guard для циклов**: рекурсивная сериализация публичного дерева может уйти в бесконечную рекурсию, если в уже испорченной БД есть цикл `parent`. Текущая story не создала эту рекурсию; импортный path уже валидирует циклы. Рассмотреть отдельный hardening для serializer/API. [backend/apps/products/serializers.py:835]
+
 ## Deferred from: order-numbering email/permissions/admin fixes review (2026-05-02)
 
 - **`_get_order_display_items` обходит prefetch-cache**: при `is_master=True` функция выполняет `OrderItem.objects.filter(order__parent_order=order)` вместо итерации по `order.sub_orders.all()` из prefetch-кеша. Результат корректный, но лишний запрос. Не критично в async Celery-контексте. [backend/apps/orders/tasks.py — `_get_order_display_items`]

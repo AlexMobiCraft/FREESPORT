@@ -28,14 +28,14 @@
 # ===============
 # - Mark epic as 'in-progress' when starting work on its first story
 # - SM typically creates next story ONLY after previous one is 'done' to incorporate learnings
-# - Dev moves story to 'review', then runs code-review (fresh context, ideally different LLM)
+# - Dev moves story to `review`, then runs code-review (fresh context, ideally different LLM)
 
 generated: "2026-02-16T14:24:01+01:00"
 project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-03" # Category tree root-cause fix ready for review
+last_updated: "2026-05-03" # category-tree-root-cause-fix → in-progress (CR-4 findings left as action items)
 
 development_status:
   # ========================================
@@ -132,7 +132,7 @@ development_status:
   34-2-sub-order-creation-logic-and-api: done
   34-3-order-export-service-sub-orders: done
   34-4-order-status-import-aggregation: done
-  34-5-tests-update-epics-4-5: in-progress
+  34-5-tests-update-epics-4-5: done
 
   # ========================================
   # Catalog / 1C Import Bugfix: публичное дерево категорий

@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils.text import slugify
 
+from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID, is_repair_placeholder_category_name
 
-PLACEHOLDER_RE = re.compile(r"^Категория\s+[-0-9a-fA-F_]{8,}$")
 FALLBACK_SLUG = "onec-unresolved-category"
 
 
@@ -36,7 +35,13 @@ class Command(BaseCommand):
         execute = bool(options.get("execute"))
         root_name = options.get("root_name") or getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
 
-        anchor = Category.objects.filter(name=root_name, parent__isnull=True).first()
+        anchor_qs = Category.objects.filter(name=root_name, parent__isnull=True)
+        if anchor_qs.count() > 1:
+            raise CommandError(
+                f"Найдено более одного корневого якоря с именем '{root_name}'. "
+                "Устраните дублирование вручную перед повторным запуском."
+            )
+        anchor = anchor_qs.first()
         placeholder_roots = list(
             Category.objects.filter(parent__isnull=True, name__startswith="Категория ").exclude(name=root_name)
         )
@@ -54,20 +59,29 @@ class Command(BaseCommand):
             ids.add(category.pk)
             products_in_placeholders += Product.objects.filter(category_id__in=ids).count()
 
+        anchor_status = "missing"
+        if anchor:
+            anchor_status = "active" if anchor.is_active else "inactive"
+        mode = "DRY-RUN" if not execute else "EXECUTE"
         self.stdout.write(
-            "DRY-RUN"
-            if not execute
-            else "EXECUTE"
-            + f": anchor_exists={bool(anchor)}, public_roots={len(public_roots)}, "
-            + f"placeholder_roots={len(placeholder_roots)}, "
-            + f"products_in_placeholders={products_in_placeholders}"
+            f"{mode}: anchor={anchor_status}, public_roots={len(public_roots)}, "
+            f"placeholder_roots={len(placeholder_roots)}, "
+            f"products_in_placeholders={products_in_placeholders}"
         )
 
         if not execute:
+            for cat in placeholder_roots:
+                self.stdout.write(f"  [placeholder] id={cat.pk} name={cat.name!r}")
+            for cat in public_roots:
+                self.stdout.write(f"  [public_root] id={cat.pk} name={cat.name!r}")
             return
 
         with transaction.atomic():
-            anchor = anchor or self._create_anchor(root_name)
+            if anchor is None:
+                anchor = self._create_anchor(root_name)
+            elif not anchor.is_active:
+                anchor.is_active = True
+                anchor.save(update_fields=["is_active"])
             fallback = self._get_fallback_category()
 
             public_reparented = 0
@@ -83,6 +97,12 @@ class Command(BaseCommand):
             for category in placeholder_roots:
                 ids = self._descendant_ids(category)
                 ids.add(category.pk)
+                if fallback.pk in ids:
+                    # Защита от цикла: fallback уже вложен внутри данного placeholder-поддерева.
+                    # Изолируем потомков (кроме самого fallback), товары уже в fallback — пропускаем переприсвоение parent.
+                    Category.objects.filter(pk__in=ids).exclude(pk=fallback.pk).update(is_active=False)
+                    placeholders_hidden += 1
+                    continue
                 products_moved += Product.objects.filter(category_id__in=ids).update(category=fallback)
                 Category.objects.filter(pk__in=ids).update(is_active=False)
                 if category.pk != fallback.pk:
@@ -99,13 +119,20 @@ class Command(BaseCommand):
         )
 
     def _is_placeholder(self, category: Any) -> bool:
-        return bool(PLACEHOLDER_RE.match(category.name or ""))
+        return is_repair_placeholder_category_name(category.name or "")
 
     def _create_anchor(self, root_name: str) -> Any:
         from apps.products.models import Category
 
         slug = self._unique_slug(slugify(root_name) or "sport")
-        return Category.objects.create(name=root_name, slug=slug, is_active=True)
+        # Sentinel onec_id сигнализирует import-процессору о repair-created якоре,
+        # чтобы он обновил его реальным onec_id вместо создания дублирующего root.
+        return Category.objects.create(
+            name=root_name,
+            slug=slug,
+            is_active=True,
+            onec_id=REPAIR_ANCHOR_ONEC_ID,
+        )
 
     def _get_fallback_category(self) -> Any:
         from apps.products.models import Category

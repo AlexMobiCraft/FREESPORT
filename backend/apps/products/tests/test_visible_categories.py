@@ -177,6 +177,7 @@ class TestCategoryTreeInStockCount:
         assert category_data["in_stock_count"] == 1
         assert category_data["products_count"] == 2
 
+    @pytest.mark.integration
     def test_public_tree_returns_sport_children_only(self, client, url):
         """Публичное дерево отдаёт детей СПОРТ и скрывает тех/fallback категории."""
         sport = CategoryFactory(name="СПОРТ", slug="sport-root", onec_id="sport-root", parent=None)
@@ -199,3 +200,46 @@ class TestCategoryTreeInStockCount:
         assert names == ["Футбол"]
         assert results[0]["id"] == football.id
         assert results[0]["children"][0]["id"] == balls.id
+
+    @pytest.mark.integration
+    def test_public_tree_shows_legitimate_category_with_kategoriya_prefix(self, client, url):
+        """Регрессия: 'Категория сезона' (легитимная) не скрывается фильтром placeholder."""
+        sport = CategoryFactory(name="СПОРТ", slug="sport-legit-test", onec_id="sport-legit-test", parent=None)
+        legit = CategoryFactory(name="Категория сезона", slug="kategoriya-sezona", parent=sport)
+        placeholder = CategoryFactory(
+            name="Категория 123e4567-e89b-12d3-a456-426614174000",
+            slug="category-placeholder-uuid",
+            parent=sport,
+            is_active=True,
+        )
+
+        resp = client.get(url)
+
+        assert resp.status_code == status.HTTP_200_OK
+        results = resp.data if isinstance(resp.data, list) else resp.data.get("results", [])
+        ids = {item["id"] for item in results}
+        assert legit.id in ids, "Легитимная категория 'Категория сезона' должна быть видна в публичном дереве"
+        assert placeholder.id not in ids, "UUID-placeholder категория не должна появляться в публичном дереве"
+
+    @pytest.mark.integration
+    def test_placeholder_nested_under_legitimate_category_is_excluded(self, client, url):
+        """Регрессия: рекурсивная фильтрация — placeholder вложен под легитимную категорию."""
+        sport = CategoryFactory(name="СПОРТ", slug="sport-nested-ph-test", onec_id="sport-nested-ph", parent=None)
+        football = CategoryFactory(name="Футбол", slug="football-nested-ph-test", parent=sport)
+        nested_placeholder = CategoryFactory(
+            name="Категория 123e4567-e89b-12d3-a456-426614174001",
+            slug="category-nested-placeholder-uuid",
+            parent=football,
+            is_active=True,
+        )
+
+        resp = client.get(url)
+
+        assert resp.status_code == status.HTTP_200_OK
+        results = resp.data if isinstance(resp.data, list) else resp.data.get("results", [])
+        football_data = next((c for c in results if c["id"] == football.id), None)
+        assert football_data is not None, "Легитимная категория Футбол должна присутствовать в дереве"
+        child_ids = {child["id"] for child in football_data.get("children", [])}
+        assert nested_placeholder.id not in child_ids, (
+            "Вложенная UUID-placeholder категория не должна появляться в дочерних элементах"
+        )

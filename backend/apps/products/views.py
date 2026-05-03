@@ -4,6 +4,7 @@ Views для каталога товаров
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from django.conf import settings
@@ -18,6 +19,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from .category_utils import FULL_PLACEHOLDER_CATEGORY_RE_PATTERN
 from .constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
 from .filters import CategoryFilter, ProductFilter
 from .models import Attribute, AttributeValue, Brand, Category, Product, ProductVariant
@@ -31,6 +33,8 @@ from .serializers import (
     ProductListSerializer,
 )
 from .services.facets import AttributeFacetService
+
+logger = logging.getLogger(__name__)
 
 
 class CustomPageNumberPagination(PageNumberPagination):
@@ -285,20 +289,30 @@ class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
 
     permission_classes = [permissions.AllowAny]
     serializer_class = CategoryTreeSerializer
+    pagination_class = None  # дерево всегда возвращается целиком, без обрезки по PAGE_SIZE
 
     def get_queryset(self):
         """Публичные root-категории: прямые дети якорной СПОРТ."""
         root_name = getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
-        anchor = Category.objects.filter(is_active=True, parent__isnull=True, name=root_name).first()
-        if not anchor:
+        anchor_qs = Category.objects.filter(is_active=True, parent__isnull=True, name=root_name)
+        anchor_count = anchor_qs.count()
+        if anchor_count == 0:
             return Category.objects.none()
+        if anchor_count > 1:
+            logger.warning(
+                "Обнаружено несколько активных корневых якорей '%s' (count=%d). "
+                "Используется первый найденный; запустите repair-команду для устранения дублирования.",
+                root_name,
+                anchor_count,
+            )
+        anchor = anchor_qs.first()
 
         return (
             Category.objects.filter(is_active=True, parent=anchor)
             .exclude(
                 Q(slug__in=["uncategorized", "onec-unresolved-category"])
                 | Q(name="Без категории")
-                | Q(name__startswith="Категория ")
+                | Q(name__regex=FULL_PLACEHOLDER_CATEGORY_RE_PATTERN)
             )
             .annotate(
                 products_count=Count("products", filter=Q(products__is_active=True)),
