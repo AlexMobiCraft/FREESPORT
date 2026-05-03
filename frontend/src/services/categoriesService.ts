@@ -37,7 +37,8 @@ class CategoriesService {
    */
   async getTree(): Promise<CategoryTree[]> {
     const response = await apiClient.get<CategoryTree[] | PaginatedResponse<CategoryTree>>(
-      '/categories-tree/'
+      '/categories-tree/',
+      { params: { page_size: 1000 } }
     );
 
     if (Array.isArray(response.data)) {

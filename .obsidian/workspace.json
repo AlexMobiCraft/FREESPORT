@@ -185,6 +185,11 @@
   },
   "active": "4513498424e52642",
   "lastOpenFiles": [
+    "backend/apps/products/management/commands/fix_category_tree_public_roots.py",
+    "backend/apps/products/tests/unit/test_fix_category_tree_public_roots.py",
+    "_bmad-output/implementation-artifacts/Story/category-tree-root-cause-fix.md",
+    "_bmad-output/planning-artifacts/sprint-change-proposal-2026-05-03.md",
+    "_bmad-output/implementation-artifacts/tech-spec/tech-spec-category-tree-root-cause-fix.md",
     "frontend/src/pages/_document.tsx",
     "frontend/src/pages",
     "frontend/src/app/not-found.tsx",
@@ -213,20 +218,15 @@
     "frontend/node_modules/ws/lib/websocket.js",
     "frontend/node_modules/ws/lib/subprotocol.js",
     "frontend/node_modules/ws/lib/sender.js",
-    "frontend/node_modules/ws/lib/receiver.js",
-    "frontend/node_modules/ws/lib/permessage-deflate.js",
     "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Error-Ha-489ca-es-network-error-gracefully-chromium/test-failed-1.png",
     "frontend/test-results/checkout-Checkout-Error-Ha-d3e2b-alidation-error-from-server-chromium/test-failed-1.png",
     "frontend/test-results/checkout-Checkout-Error-Ha-d3e2b-alidation-error-from-server-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Error-Ha-c07c3-e-when-order-creation-fails-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Error-Ha-c07c3-e-when-order-creation-fails-chromium/test-failed-1.png",
-    "frontend/test-results/checkout-Checkout-Form-Val-93c9d-s-delivery-method-selection-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Form-Val-93c9d-s-delivery-method-selection-chromium/test-failed-1.png",
-    "frontend/test-results/checkout-Checkout-Form-Val-be941-imum-length-for-name-fields-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Form-Val-be941-imum-length-for-name-fields-chromium/test-failed-1.png",
     "frontend/test-results/checkout-Checkout-Flow-E2E-1f1da-t-flow-from-cart-to-success-chromium/test-failed-1.png",
-    "frontend/test-results/checkout-Checkout-Flow-E2E-1f1da-t-flow-from-cart-to-success-chromium/error-context.md",
     "frontend/test-results/checkout-Checkout-Flow-E2E-3f2a7-ntact-information-correctly-chromium/test-failed-1.png"
   ]
 }

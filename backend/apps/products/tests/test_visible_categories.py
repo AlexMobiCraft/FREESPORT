@@ -147,7 +147,8 @@ class TestCategoryTreeInStockCount:
 
     def test_in_stock_count_field_present(self, client, url):
         """Поле in_stock_count присутствует в ответе."""
-        cat = CategoryFactory(name="Тест", parent=None)
+        sport = CategoryFactory(name="СПОРТ", slug="sport-root", onec_id="sport-root", parent=None)
+        cat = CategoryFactory(name="Тест", parent=sport)
         p = ProductFactory(category=cat, create_variant=False)
         ProductVariantFactory(product=p, stock_quantity=3, retail_price=Decimal("1000"))
 
@@ -161,7 +162,8 @@ class TestCategoryTreeInStockCount:
 
     def test_in_stock_count_excludes_zero_stock(self, client, url):
         """in_stock_count не считает товары с нулевым остатком."""
-        cat = CategoryFactory(name="Склад", parent=None)
+        sport = CategoryFactory(name="СПОРТ", slug="sport-root", onec_id="sport-root", parent=None)
+        cat = CategoryFactory(name="Склад", parent=sport)
         p_in = ProductFactory(category=cat, create_variant=False)
         ProductVariantFactory(product=p_in, stock_quantity=2, retail_price=Decimal("1000"))
         p_out = ProductFactory(category=cat, create_variant=False)
@@ -174,3 +176,26 @@ class TestCategoryTreeInStockCount:
         assert category_data is not None
         assert category_data["in_stock_count"] == 1
         assert category_data["products_count"] == 2
+
+    def test_public_tree_returns_sport_children_only(self, client, url):
+        """Публичное дерево отдаёт детей СПОРТ и скрывает тех/fallback категории."""
+        sport = CategoryFactory(name="СПОРТ", slug="sport-root", onec_id="sport-root", parent=None)
+        football = CategoryFactory(name="Футбол", slug="football-public", parent=sport)
+        balls = CategoryFactory(name="Мячи", slug="balls-public", parent=football)
+        CategoryFactory(name="Категория unknown-uuid", slug="category-unknown-uuid", parent=None, is_active=True)
+        CategoryFactory(name="Без категории", slug="uncategorized", parent=sport, is_active=True)
+        CategoryFactory(
+            name="Техническая категория: неразрешенные ссылки 1С",
+            slug="onec-unresolved-category",
+            parent=sport,
+            is_active=False,
+        )
+
+        resp = client.get(url)
+
+        assert resp.status_code == status.HTTP_200_OK
+        results = resp.data if isinstance(resp.data, list) else resp.data.get("results", [])
+        names = [item["name"] for item in results]
+        assert names == ["Футбол"]
+        assert results[0]["id"] == football.id
+        assert results[0]["children"][0]["id"] == balls.id

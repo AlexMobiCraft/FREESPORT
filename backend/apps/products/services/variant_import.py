@@ -283,6 +283,7 @@ class VariantImportProcessor:
             "attributes_missing": 0,
             # Story 27.1: Keys for migrated methods
             "brand_fallbacks": 0,
+            "category_fallbacks": 0,
             "attributes_missing_mapping": 0,
         }
 
@@ -365,10 +366,7 @@ class VariantImportProcessor:
         file_size = source_path.stat().st_size
         if file_size < effective_min:
             size_kb = file_size / 1024
-            logger.debug(
-                f"Image too small, skipping: {source_path} "
-                f"({size_kb:.1f}KB < {effective_min // 1024}KB)"
-            )
+            logger.debug(f"Image too small, skipping: {source_path} " f"({size_kb:.1f}KB < {effective_min // 1024}KB)")
             self.stats["images_skipped"] += 1
             return None
 
@@ -590,9 +588,7 @@ class VariantImportProcessor:
         exchange_cfg = getattr(settings, "ONEC_EXCHANGE", {})
         warehouse_rules = exchange_cfg.get("WAREHOUSE_RULES", {})
         # Склады с явным vat_rate — их варианты обновляет rests.xml, не goods.xml
-        warehouses_with_own_vat = [
-            name for name, info in warehouse_rules.items() if info.get("vat_rate") is not None
-        ]
+        warehouses_with_own_vat = [name for name, info in warehouse_rules.items() if info.get("vat_rate") is not None]
 
         updated = (
             ProductVariant.objects.filter(product=product)
@@ -602,9 +598,7 @@ class VariantImportProcessor:
         )
         if updated:
             self.stats["variants_updated"] += updated
-            logger.info(
-                f"Product {product.onec_id}: synchronized vat_rate={vat_rate} to {updated} existing variants"
-            )
+            logger.info(f"Product {product.onec_id}: synchronized vat_rate={vat_rate} to {updated} existing variants")
         return updated
 
     def _import_base_images(
@@ -644,7 +638,9 @@ class VariantImportProcessor:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
-                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "base", min_size_bytes=effective_min)
+                saved_path = self._save_image_if_not_exists(
+                    source_path, normalized_path, "base", min_size_bytes=effective_min
+                )
 
                 if saved_path:
                     saved_filename = Path(saved_path).name
@@ -928,7 +924,9 @@ class VariantImportProcessor:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
                 source_path = Path(base_dir) / normalized_path
-                saved_path = self._save_image_if_not_exists(source_path, normalized_path, "variants", min_size_bytes=effective_min)
+                saved_path = self._save_image_if_not_exists(
+                    source_path, normalized_path, "variants", min_size_bytes=effective_min
+                )
 
                 if saved_path:
                     saved_filename = Path(saved_path).name
@@ -1401,49 +1399,53 @@ class VariantImportProcessor:
     def _get_or_create_category(self, goods_data: dict[str, Any]) -> Any:
         """Получает или создаёт категорию.
 
-        При активной фильтрации (self._category_filtering_active) не создаёт
-        placeholder для категорий вне allowed_ids — возвращает None.
+        Не создаёт публичные placeholder-категории по неизвестным ссылкам из
+        goods.xml. Неразрешённые ссылки изолируются в скрытой техкатегории.
         """
         from apps.products.models import Category
 
         category_id = goods_data.get("category_id")
 
         if category_id:
-            # Фильтрация: если категория не в allowed — не создаём и не ищем
-            if self._category_filtering_active and category_id not in self._allowed_category_ids:
-                return None
-
             category = Category.objects.filter(onec_id=category_id).first()
             if category:
                 return category
 
-            # Создаём placeholder категорию (только для allowed)
-            category_name = goods_data.get("category_name", f"Категория {category_id}")
-            slug = slugify(category_name) or f"category-{uuid.uuid4().hex[:8]}"
-
-            # Обеспечиваем уникальность slug
-            if Category.objects.filter(slug=slug).exists():
-                slug = f"{slug}-{uuid.uuid4().hex[:8]}"
-
-            category, _ = Category.objects.get_or_create(
-                onec_id=category_id,
-                defaults={
-                    "name": category_name,
-                    "slug": slug,
-                    "is_active": True,
-                },
+            logger.warning(
+                "Product category reference unresolved; using hidden fallback " "category_id=%s product_id=%s",
+                category_id,
+                goods_data.get("id"),
             )
-            return category
+            self.stats["category_fallbacks"] += 1
+            return self._get_unresolved_category()
 
         # Fallback категория
-        # Если включена строгая фильтрация категорий, игнорируем товары без категории
         if self._category_filtering_active:
-            return None
+            logger.warning("Product without category_id moved to hidden fallback: product_id=%s", goods_data.get("id"))
+            self.stats["category_fallbacks"] += 1
+            return self._get_unresolved_category()
 
         category, _ = Category.objects.get_or_create(
             slug="uncategorized",
             defaults={"name": "Без категории", "is_active": True},
         )
+        return category
+
+    def _get_unresolved_category(self) -> Any:
+        """Скрытая техкатегория для товаров с неразрешённой ссылкой 1С."""
+        from apps.products.models import Category
+
+        category, _ = Category.objects.get_or_create(
+            slug="onec-unresolved-category",
+            defaults={
+                "name": "Техническая категория: неразрешенные ссылки 1С",
+                "onec_id": "__onec_unresolved_category__",
+                "is_active": False,
+            },
+        )
+        if category.is_active:
+            category.is_active = False
+            category.save(update_fields=["is_active"])
         return category
 
     def _generate_unique_slug(self, name: str, parent_id: str) -> str:
@@ -1598,7 +1600,7 @@ class VariantImportProcessor:
             if anchor_id:
                 filtering_active = True
                 self._category_filtering_active = True
-                # Не добавляем anchor_id в allowed_category_ids т.к. якорь не создается на сайте
+                self._allowed_category_ids.add(anchor_id)
 
                 # Загружаем существующие категории из БД для построения дерева разрешенных
                 db_categories = list(
@@ -1670,10 +1672,8 @@ class VariantImportProcessor:
                     result["errors"] += 1
                     continue
 
-                # Фильтрация: пропускаем все корневые и не-allowed
+                # Фильтрация: импортируем только якорь СПОРТ и его потомков
                 if filtering_active:
-                    if onec_id in root_ids:
-                        continue  # Пропускаем все корневые (в т.ч. якорь)
                     if onec_id not in self._allowed_category_ids:
                         continue  # Пропускаем не-allowed (потомки других корневых)
 
@@ -1731,12 +1731,8 @@ class VariantImportProcessor:
                     result["cycles_detected"] += 1
                     continue
 
-                # Устанавливаем parent
-                if filtering_active and parent_id == anchor_id:
-                    # Если родитель — якорная, делаем корневой (на сайте)
-                    child_category.parent = None
-                else:
-                    child_category.parent = parent
+                # Устанавливаем parent, включая полный путь СПОРТ -> child -> descendant
+                child_category.parent = parent
                 child_category.save(update_fields=["parent"])
 
             except Exception:

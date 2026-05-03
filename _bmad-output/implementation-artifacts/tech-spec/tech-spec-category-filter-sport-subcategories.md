@@ -2,7 +2,9 @@
 title: "Фильтрация категорий 1С: импорт только подкатегорий СПОРТ"
 slug: "category-filter-sport-subcategories"
 created: "2026-03-01T08:04:19+01:00"
-status: "implemented"
+status: "superseded"
+superseded_by: "tech-spec-category-tree-root-cause-fix.md"
+superseded_at: "2026-05-03"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: [Django 5.x, PostgreSQL, Celery, XML/CommerceML 3.1, Python 3.12]
 files_to_modify:
@@ -25,8 +27,10 @@ adversarial_review: "completed 2026-03-01, F4/F5/F6/F7/F8/F9 addressed"
 
 # Tech-Spec: Фильтрация категорий 1С — импорт только подкатегорий СПОРТ
 
+> **Superseded 2026-05-03:** контракт из этой spec больше не является актуальным для дерева категорий. Новое утверждённое решение описано в `tech-spec-category-tree-root-cause-fix.md` и `sprint-change-proposal-2026-05-03.md`: `СПОРТ` должен храниться в БД как корневой узел, а публичное дерево витрины должно быть отдельной API-проекцией его прямых потомков. Команду `cleanup_root_categories` из этой spec нельзя использовать как repair-путь для нового контракта без изменения семантики.
+
 **Created:** 2026-03-01  
-**Status:** ready-for-dev  
+**Status:** superseded  
 **Adversarial Review:** ✅ Completed
 
 ## Overview

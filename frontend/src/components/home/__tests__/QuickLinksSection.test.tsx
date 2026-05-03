@@ -106,6 +106,29 @@ describe('QuickLinksSection', () => {
     });
   });
 
+  it('uses categories-tree response directly without unwrapping a single root', async () => {
+    server.use(
+      http.get('*/categories-tree/', () =>
+        HttpResponse.json([
+          {
+            id: 10,
+            name: 'СПОРТ',
+            slug: 'sport',
+            children: [{ id: 11, name: 'Футбол', slug: 'football', children: [] }],
+          },
+        ])
+      )
+    );
+
+    render(<QuickLinksSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('СПОРТ')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Футбол')).not.toBeInTheDocument();
+  });
+
   it('category links point to /catalog/{slug}', async () => {
     server.use(http.get('*/categories-tree/', () => HttpResponse.json(mockCategories)));
 

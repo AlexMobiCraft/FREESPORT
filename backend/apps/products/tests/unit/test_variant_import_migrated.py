@@ -320,7 +320,7 @@ class TestProcessCategoriesFiltering:
     """Тесты для фильтрации корневых категорий в process_categories()"""
 
     def test_process_categories_skips_root_categories(self, processor):
-        """Корневые категории не создаются в БД при активной фильтрации."""
+        """Создаёт якорь СПОРТ и пропускает посторонние root-ветки."""
         suffix = get_unique_suffix()
         categories_data: list[CategoryData] = [
             {"id": f"sport_{suffix}", "name": "СПОРТ"},
@@ -331,15 +331,15 @@ class TestProcessCategoriesFiltering:
         with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
             result = processor.process_categories(categories_data)
 
-        # Корневые не создаются
-        assert not Category.objects.filter(onec_id=f"sport_{suffix}").exists()
+        sport = Category.objects.get(onec_id=f"sport_{suffix}")
+        assert sport.parent is None
         assert not Category.objects.filter(onec_id=f"tech_{suffix}").exists()
-        # Дочерняя СПОРТ создаётся
-        assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
-        assert result["created"] == 1
+        clothes = Category.objects.get(onec_id=f"clothes_{suffix}")
+        assert clothes.parent == sport
+        assert result["created"] == 2
 
     def test_process_categories_imports_sport_children_as_root(self, processor):
-        """Дочерние СПОРТ → parent=None (корневые на сайте)."""
+        """Дочерние СПОРТ сохраняются под якорем, а не становятся root."""
         suffix = get_unique_suffix()
         categories_data: list[CategoryData] = [
             {"id": f"sport_{suffix}", "name": "СПОРТ"},
@@ -352,9 +352,11 @@ class TestProcessCategoriesFiltering:
 
         clothes = Category.objects.get(onec_id=f"clothes_{suffix}")
         shoes = Category.objects.get(onec_id=f"shoes_{suffix}")
-        assert clothes.parent is None
-        assert shoes.parent is None
-        assert result["created"] == 2
+        sport = Category.objects.get(onec_id=f"sport_{suffix}")
+        assert sport.parent is None
+        assert clothes.parent == sport
+        assert shoes.parent == sport
+        assert result["created"] == 3
 
     def test_process_categories_imports_deep_descendants(self, processor):
         """[F4] Глубокие потомки (внуки, правнуки) якорной тоже импортируются."""
@@ -373,15 +375,16 @@ class TestProcessCategoriesFiltering:
         assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
         assert Category.objects.filter(onec_id=f"tshirts_{suffix}").exists()
         assert Category.objects.filter(onec_id=f"polo_{suffix}").exists()
-        assert result["created"] == 3
+        assert result["created"] == 4
 
-        # Иерархия сохранена (кроме прямых child якорной)
+        # Иерархия сохранена полностью, включая якорь СПОРТ
+        sport = Category.objects.get(onec_id=f"sport_{suffix}")
         tshirts = Category.objects.get(onec_id=f"tshirts_{suffix}")
         clothes = Category.objects.get(onec_id=f"clothes_{suffix}")
         polo = Category.objects.get(onec_id=f"polo_{suffix}")
         assert tshirts.parent == clothes
         assert polo.parent == tshirts
-        assert clothes.parent is None  # Прямой child якорной → root
+        assert clothes.parent == sport
 
     def test_process_categories_ignores_non_sport_root_descendants(self, processor):
         """Потомки НЕ-СПОРТ корневых не импортируются."""
@@ -396,12 +399,14 @@ class TestProcessCategoriesFiltering:
         with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
             result = processor.process_categories(categories_data)
 
+        assert Category.objects.filter(onec_id=f"sport_{suffix}").exists()
         assert Category.objects.filter(onec_id=f"clothes_{suffix}").exists()
+        assert not Category.objects.filter(onec_id=f"tech_{suffix}").exists()
         assert not Category.objects.filter(onec_id=f"fridges_{suffix}").exists()
-        assert result["created"] == 1
+        assert result["created"] == 2
 
     def test_get_or_create_category_returns_none_for_filtered(self, processor):
-        """_get_or_create_category возвращает None для категорий вне allowed_ids."""
+        """_get_or_create_category изолирует категории вне allowed_ids в скрытый fallback."""
         suffix = get_unique_suffix()
         categories_data: list[CategoryData] = [
             {"id": f"sport_{suffix}", "name": "СПОРТ"},
@@ -412,8 +417,9 @@ class TestProcessCategoriesFiltering:
         with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
             processor.process_categories(categories_data)
 
-        # allowed: только clothes (дочерняя СПОРТ)
+        # allowed: anchor + его потомки
         assert processor._category_filtering_active is True
+        assert f"sport_{suffix}" in processor._allowed_category_ids
         assert f"clothes_{suffix}" in processor._allowed_category_ids
         assert f"junk_{suffix}" not in processor._allowed_category_ids
 
@@ -421,11 +427,32 @@ class TestProcessCategoriesFiltering:
         result_allowed = processor._get_or_create_category({"category_id": f"clothes_{suffix}"})
         assert result_allowed is not None
 
-        # Товар с категорией вне allowed — возвращает None
+        # Товар с категорией вне allowed — уходит в скрытую техническую категорию
         result_filtered = processor._get_or_create_category({"category_id": f"junk_{suffix}"})
-        assert result_filtered is None
-        # Категория НЕ создана в БД
+        assert result_filtered is not None
+        assert result_filtered.slug == "onec-unresolved-category"
+        assert result_filtered.is_active is False
+        # Публичная placeholder-категория НЕ создана в БД
         assert not Category.objects.filter(onec_id=f"junk_{suffix}").exists()
+
+    def test_get_or_create_category_does_not_create_public_placeholder_for_unknown_id(self, processor):
+        """Не создаёт публичную `Категория <uuid>` при неизвестном category_id из goods.xml."""
+        suffix = get_unique_suffix()
+        unknown_id = f"unknown_{suffix}"
+
+        category = processor._get_or_create_category(
+            {
+                "category_id": unknown_id,
+                "category_name": f"Категория {unknown_id}",
+            }
+        )
+
+        assert category is not None
+        assert category.slug == "onec-unresolved-category"
+        assert category.is_active is False
+        assert processor.stats["category_fallbacks"] == 1
+        assert not Category.objects.filter(onec_id=unknown_id).exists()
+        assert not Category.objects.filter(name=f"Категория {unknown_id}").exists()
 
     def test_process_categories_fallback_without_root_name(self, processor):
         """Если ROOT_CATEGORY_NAME=None, импортирует всё (тихо)."""

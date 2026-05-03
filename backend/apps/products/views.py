@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count, Exists, Min, OuterRef, Prefetch, Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
@@ -214,8 +215,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         all_ids: set[int] = set(leaf_ids)
         if leaf_ids:
             cats = list(
-                Category.objects.filter(id__in=leaf_ids)
-                .select_related("parent", "parent__parent", "parent__parent__parent", "parent__parent__parent__parent")
+                Category.objects.filter(id__in=leaf_ids).select_related(
+                    "parent", "parent__parent", "parent__parent__parent", "parent__parent__parent__parent"
+                )
             )
             for cat in cats:
                 ancestor = cat.parent
@@ -275,16 +277,29 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet для дерева категорий (только корневые категории)
+    ViewSet для публичного дерева категорий.
+
+    В БД хранится полное дерево 1С с якорем СПОРТ. Публичный контракт отдаёт
+    прямых детей СПОРТ как корни витрины.
     """
 
     permission_classes = [permissions.AllowAny]
     serializer_class = CategoryTreeSerializer
 
     def get_queryset(self):
-        """Только корневые категории с рекурсивной предзагрузкой дочерних"""
+        """Публичные root-категории: прямые дети якорной СПОРТ."""
+        root_name = getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
+        anchor = Category.objects.filter(is_active=True, parent__isnull=True, name=root_name).first()
+        if not anchor:
+            return Category.objects.none()
+
         return (
-            Category.objects.filter(is_active=True, parent__isnull=True)
+            Category.objects.filter(is_active=True, parent=anchor)
+            .exclude(
+                Q(slug__in=["uncategorized", "onec-unresolved-category"])
+                | Q(name="Без категории")
+                | Q(name__startswith="Категория ")
+            )
             .annotate(
                 products_count=Count("products", filter=Q(products__is_active=True)),
                 in_stock_count=Count(

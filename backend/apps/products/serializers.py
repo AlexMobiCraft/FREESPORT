@@ -835,6 +835,11 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         """Рекурсивно получить все дочерние категории"""
         children = (
             obj.children.filter(is_active=True)
+            .exclude(
+                Q(slug__in=["uncategorized", "onec-unresolved-category"])
+                | Q(name="Без категории")
+                | Q(name__startswith="Категория ")
+            )
             .annotate(
                 products_count=Count("products", filter=Q(products__is_active=True)),
                 in_stock_count=Count(

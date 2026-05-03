@@ -69,8 +69,10 @@ describe('categoriesService', () => {
 
   describe('getTree', () => {
     test('fetches category tree successfully', async () => {
+      let capturedUrl = '';
       server.use(
-        http.get('http://localhost:8001/api/v1/categories-tree/', () => {
+        http.get('http://localhost:8001/api/v1/categories-tree/', ({ request }) => {
+          capturedUrl = request.url;
           return HttpResponse.json([
             {
               id: 1,
@@ -100,6 +102,7 @@ describe('categoriesService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].children).toHaveLength(1);
       expect(result[0].children?.[0]?.name).toBe('Мячи');
+      expect(capturedUrl).toContain('page_size=1000');
     });
 
     test('handles empty tree', async () => {

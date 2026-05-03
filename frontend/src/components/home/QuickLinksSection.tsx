@@ -32,22 +32,12 @@ export const QuickLinksSection: React.FC = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  // Загрузка категорий через /categories-tree/ (корневые + children)
+  // Загрузка публичного дерева категорий
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        // /categories-tree/ возвращает только корневые с вложенными children
         const tree = await categoriesService.getTree();
-
-        if (tree.length === 1 && tree[0].children?.length) {
-          // Единственная корневая (напр. «СПОРТ») — показываем её детей
-          setCategories(tree[0].children);
-        } else if (tree.length > 1) {
-          // Несколько корневых — показываем их напрямую
-          setCategories(tree);
-        } else {
-          setCategories([]);
-        }
+        setCategories(tree);
       } catch {
         setCategories([]);
       } finally {
