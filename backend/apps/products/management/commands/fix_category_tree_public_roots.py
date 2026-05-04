@@ -72,6 +72,18 @@ class Command(BaseCommand):
         if not execute:
             for cat in placeholder_roots:
                 self.stdout.write(f"  [placeholder] id={cat.pk} name={cat.name!r}")
+                ids = self._descendant_ids(cat)
+                ids.add(cat.pk)
+                products_in_branch = list(
+                    Product.objects.filter(category_id__in=ids).values_list("pk", "slug", "name")[:50]
+                )
+                total_in_branch = Product.objects.filter(category_id__in=ids).count()
+                for pk, slug, prod_name in products_in_branch:
+                    self.stdout.write(f"    [product] id={pk} slug={slug!r} name={prod_name!r}")
+                if total_in_branch > len(products_in_branch):
+                    self.stdout.write(
+                        f"    ... и ещё {total_in_branch - len(products_in_branch)} товар(ов) в ветке"
+                    )
             for cat in public_roots:
                 self.stdout.write(f"  [public_root] id={cat.pk} name={cat.name!r}")
             return
@@ -98,9 +110,20 @@ class Command(BaseCommand):
                 ids = self._descendant_ids(category)
                 ids.add(category.pk)
                 if fallback.pk in ids:
-                    # Защита от цикла: fallback уже вложен внутри данного placeholder-поддерева.
-                    # Изолируем потомков (кроме самого fallback), товары уже в fallback — пропускаем переприсвоение parent.
+                    # Защита от цикла: fallback уже вложен внутри placeholder-поддерева.
+                    # Сначала переносим товары из поддерева (кроме самого fallback) в fallback,
+                    # затем деактивируем все категории поддерева кроме fallback и отвязываем
+                    # fallback от placeholder-родителя, чтобы он не остался в скрытой ветке.
+                    products_moved += (
+                        Product.objects.filter(category_id__in=ids)
+                        .exclude(category_id=fallback.pk)
+                        .update(category=fallback)
+                    )
                     Category.objects.filter(pk__in=ids).exclude(pk=fallback.pk).update(is_active=False)
+                    fallback.refresh_from_db(fields=["parent_id"])
+                    if fallback.parent_id is not None:
+                        fallback.parent = None
+                        fallback.save(update_fields=["parent"])
                     placeholders_hidden += 1
                     continue
                 products_moved += Product.objects.filter(category_id__in=ids).update(category=fallback)

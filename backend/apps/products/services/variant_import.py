@@ -1710,13 +1710,21 @@ class VariantImportProcessor:
                 # Если это якорная категория — проверяем наличие repair-якоря с sentinel onec_id.
                 # Repair-команда создаёт якорь с onec_id=REPAIR_ANCHOR_ONEC_ID или без onec_id;
                 # при следующем полном импорте обновляем его реальным onec_id вместо создания дубликата.
+                # CR-5 #2: фильтруем sentinel/blank onec_id на уровне БД ДО .first(),
+                # чтобы при наличии нескольких root СПОРТ не выбрать произвольный с чужим onec_id.
                 if filtering_active and onec_id == anchor_id:
                     repair_anchor = (
                         Category.objects.filter(name=name, parent__isnull=True)
                         .exclude(onec_id=onec_id)
+                        .filter(
+                            models.Q(onec_id__isnull=True)
+                            | models.Q(onec_id="")
+                            | models.Q(onec_id=REPAIR_ANCHOR_ONEC_ID)
+                        )
+                        .order_by("pk")
                         .first()
                     )
-                    if repair_anchor and repair_anchor.onec_id in (None, "", REPAIR_ANCHOR_ONEC_ID):
+                    if repair_anchor:
                         repair_anchor.onec_id = onec_id
                         repair_anchor.name = name
                         repair_anchor.is_active = True

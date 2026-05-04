@@ -607,6 +607,51 @@ class TestProcessCategoriesFiltering:
         assert Category.objects.filter(name="СПОРТ", parent__isnull=True).count() == 1
         assert result.get("root_not_found") is not True
 
+    def test_process_categories_picks_repair_anchor_when_stale_duplicate_root_exists(self, processor):
+        """CR-5 #2: при наличии stale-дубля root СПОРТ с чужим onec_id и repair-якоря с sentinel
+        импорт должен обновить именно repair-якорь, а не stale-дубль и не создать третий root."""
+        from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+
+        suffix = get_unique_suffix()
+        real_sport_id = f"sport_real_{suffix}"
+        stale_sport_id = f"sport_stale_{suffix}"
+
+        # Stale-дубль root СПОРТ с чужим (не sentinel) onec_id
+        stale_root = Category.objects.create(
+            name="СПОРТ",
+            slug=f"sport-stale-{suffix}",
+            is_active=True,
+            onec_id=stale_sport_id,
+            parent=None,
+        )
+        # Repair-якорь с sentinel — должен быть выбран для merge
+        repair_anchor = Category.objects.create(
+            name="СПОРТ",
+            slug=f"sport-repair-{suffix}",
+            is_active=True,
+            onec_id=REPAIR_ANCHOR_ONEC_ID,
+            parent=None,
+        )
+
+        categories_data: list[CategoryData] = [
+            {"id": real_sport_id, "name": "СПОРТ"},
+            {"id": f"clothes_{suffix}", "name": f"Одежда {suffix}", "parent_id": real_sport_id},
+        ]
+
+        with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
+            processor.process_categories(categories_data)
+
+        repair_anchor.refresh_from_db()
+        stale_root.refresh_from_db()
+
+        assert repair_anchor.onec_id == real_sport_id, (
+            "Импорт должен слить именно repair-якорь с реальным onec_id, а не stale-дубль"
+        )
+        assert stale_root.onec_id == stale_sport_id, "Stale-дубль не должен быть затронут merge-логикой"
+        # Suммарно остаются repair-якорь (теперь real) + stale, но новый root не создаётся
+        sport_roots_count = Category.objects.filter(name="СПОРТ", parent__isnull=True).count()
+        assert sport_roots_count == 2, "Не должно появиться третьего root СПОРТ"
+
     def test_process_categories_merges_repair_anchor_with_real_onec_id(self, processor):
         """CR-3: если repair-якорь СПОРТ существует с sentinel onec_id, импорт обновляет его реальным ID,
         а не создаёт второй root СПОРТ."""

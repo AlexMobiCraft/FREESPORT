@@ -154,6 +154,65 @@ def test_fix_category_tree_repair_no_cycle_when_fallback_inside_placeholder():
     assert placeholder.is_active is False
 
 
+def test_fix_category_tree_cycle_guard_moves_products_to_fallback():
+    """CR-5 #1: при fallback внутри placeholder-поддерева товары всё равно переносятся в fallback,
+    а fallback отвязывается от placeholder-родителя, чтобы не оставаться в скрытой ветке."""
+    placeholder = CategoryFactory(
+        name="Категория 123e4567-e89b-12d3-a456-426614174777",
+        slug="category-placeholder-cycle-products",
+        parent=None,
+        is_active=True,
+    )
+    # fallback искусственно вложен внутрь placeholder-поддерева (старая аномалия БД)
+    fallback_cat = CategoryFactory(
+        name="Техническая категория: неразрешенные ссылки 1С",
+        slug="onec-unresolved-category",
+        parent=placeholder,
+        is_active=False,
+    )
+    # Товар лежит в самом placeholder, не в fallback
+    placeholder_product = ProductFactory(category=placeholder, create_variant=False)
+
+    out = io.StringIO()
+    call_command("fix_category_tree_public_roots", execute=True, stdout=out)
+
+    placeholder.refresh_from_db()
+    fallback_cat.refresh_from_db()
+    placeholder_product.refresh_from_db()
+
+    assert placeholder_product.category_id == fallback_cat.pk, (
+        "Товар из placeholder должен быть перенесён в fallback даже при cycle guard"
+    )
+    assert fallback_cat.parent_id is None, (
+        "Fallback должен быть отвязан от placeholder-родителя, чтобы не остаться в скрытой ветке"
+    )
+    assert placeholder.is_active is False, "Placeholder должен быть деактивирован"
+    assert "products_moved_to_fallback=1" in out.getvalue(), (
+        "В отчёте должен быть учтён 1 перенесённый товар"
+    )
+
+
+def test_fix_category_tree_dry_run_lists_products_in_placeholder_branches():
+    """CR-5 #4: DRY-RUN перечисляет конкретные товары из placeholder-веток (Task 4.2)."""
+    CategoryFactory(name="СПОРТ", slug="sport-dryrun-products", onec_id="sport-dr-products", parent=None)
+    placeholder = CategoryFactory(
+        name="Категория 123e4567-e89b-12d3-a456-426614174888",
+        slug="category-placeholder-dryrun-products",
+        parent=None,
+        is_active=True,
+    )
+    p1 = ProductFactory(category=placeholder, create_variant=False)
+    p2 = ProductFactory(category=placeholder, create_variant=False)
+
+    out = io.StringIO()
+    call_command("fix_category_tree_public_roots", stdout=out)
+    output = out.getvalue()
+
+    assert "[product]" in output, "DRY-RUN должен помечать товары префиксом [product]"
+    assert f"id={p1.pk}" in output, "Конкретный товар p1 должен присутствовать в DRY-RUN отчёте"
+    assert f"id={p2.pk}" in output, "Конкретный товар p2 должен присутствовать в DRY-RUN отчёте"
+
+
 def test_fix_category_tree_legacy_placeholder_isolated_by_broad_regex():
     """CR-3: legacy placeholder с не-UUID именем (длинный hex-ID) изолируется, а не переносится под СПОРТ."""
     sport = CategoryFactory(name="СПОРТ", slug="sport-cr3", onec_id="sport-cr3-root", parent=None)

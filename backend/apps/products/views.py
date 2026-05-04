@@ -292,7 +292,12 @@ class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None  # дерево всегда возвращается целиком, без обрезки по PAGE_SIZE
 
     def get_queryset(self):
-        """Публичные root-категории: прямые дети якорной СПОРТ."""
+        """Публичные root-категории: прямые дети якорной СПОРТ.
+
+        CR-5 #3: при нескольких активных якорях возвращаем union детей всех найденных,
+        чтобы каталог не оказался обрезанным до случайного podderева. Warning остаётся
+        для оператора как сигнал к запуску repair-команды.
+        """
         root_name = getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
         anchor_qs = Category.objects.filter(is_active=True, parent__isnull=True, name=root_name)
         anchor_count = anchor_qs.count()
@@ -301,19 +306,19 @@ class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
         if anchor_count > 1:
             logger.warning(
                 "Обнаружено несколько активных корневых якорей '%s' (count=%d). "
-                "Используется первый найденный; запустите repair-команду для устранения дублирования.",
+                "Возвращаем union детей всех якорей; запустите repair-команду для устранения дублирования.",
                 root_name,
                 anchor_count,
             )
-        anchor = anchor_qs.first()
 
         return (
-            Category.objects.filter(is_active=True, parent=anchor)
+            Category.objects.filter(is_active=True, parent__in=anchor_qs)
             .exclude(
                 Q(slug__in=["uncategorized", "onec-unresolved-category"])
                 | Q(name="Без категории")
                 | Q(name__regex=FULL_PLACEHOLDER_CATEGORY_RE_PATTERN)
             )
+            .distinct()
             .annotate(
                 products_count=Count("products", filter=Q(products__is_active=True)),
                 in_stock_count=Count(

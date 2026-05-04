@@ -222,6 +222,25 @@ class TestCategoryTreeInStockCount:
         assert placeholder.id not in ids, "UUID-placeholder категория не должна появляться в публичном дереве"
 
     @pytest.mark.integration
+    def test_public_tree_returns_union_when_multiple_active_anchors(self, client, url):
+        """CR-5 #3: при нескольких активных якорях СПОРТ публичное дерево возвращает union детей.
+
+        Защищает от ситуации, когда из-за дублирования root СПОРТ витрина теряет половину каталога.
+        """
+        sport_a = CategoryFactory(name="СПОРТ", slug="sport-anchor-a", onec_id="sport-anchor-a", parent=None)
+        sport_b = CategoryFactory(name="СПОРТ", slug="sport-anchor-b", onec_id="sport-anchor-b", parent=None)
+        football = CategoryFactory(name="Футбол", slug="football-anchor-a", parent=sport_a)
+        tennis = CategoryFactory(name="Теннис", slug="tennis-anchor-b", parent=sport_b)
+
+        resp = client.get(url)
+
+        assert resp.status_code == status.HTTP_200_OK
+        results = resp.data if isinstance(resp.data, list) else resp.data.get("results", [])
+        ids = {item["id"] for item in results}
+        assert football.id in ids, "Дети первого якоря СПОРТ должны быть в публичном дереве"
+        assert tennis.id in ids, "Дети второго якоря СПОРТ также должны быть в публичном дереве (union)"
+
+    @pytest.mark.integration
     def test_placeholder_nested_under_legitimate_category_is_excluded(self, client, url):
         """Регрессия: рекурсивная фильтрация — placeholder вложен под легитимную категорию."""
         sport = CategoryFactory(name="СПОРТ", slug="sport-nested-ph-test", onec_id="sport-nested-ph", parent=None)
