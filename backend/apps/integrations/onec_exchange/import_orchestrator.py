@@ -261,7 +261,9 @@ class ImportOrchestratorService:
                     reverse=True,
                 )
                 for prefix, subdir in sorted_rules:
-                    if name_lower.startswith(prefix):
+                    # Сравнение case-insensitive: 1С присылает 'priceLists_*.xml' (mixed case),
+                    # а name_lower уже lowercased — без .lower() на префиксе матчинг проваливается
+                    if name_lower.startswith(prefix.lower()):
                         target_subdir = subdir.rstrip("/")
                         break
             elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:

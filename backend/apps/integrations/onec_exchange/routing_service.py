@@ -135,7 +135,9 @@ class FileRoutingService:
             # e.g. 'propertiesOffers' (len 16) before 'properties' (len 10)
             sorted_rules = sorted(XML_ROUTING_RULES.items(), key=lambda x: len(x[0]), reverse=True)
             for prefix, subdir in sorted_rules:
-                if name_lower.startswith(prefix):
+                # Сравнение case-insensitive: 1С присылает 'priceLists_*.xml' (mixed case),
+                # а name_lower уже lowercased — без .lower() на префиксе матчинг проваливается
+                if name_lower.startswith(prefix.lower()):
                     return subdir.rstrip("/")
             # Unknown XML file -> root
             return ""

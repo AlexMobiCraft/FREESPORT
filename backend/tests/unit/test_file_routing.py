@@ -428,6 +428,14 @@ class TestRoutingRules:
             ("rests_1_uuid.xml", "rests"),
             ("groups.xml", "groups"),
             ("groups_1_uuid.xml", "groups"),
+            # priceLists приходит из 1С с заглавной L — матчинг должен быть case-insensitive
+            ("priceLists.xml", "priceLists"),
+            ("priceLists_1_uuid.xml", "priceLists"),
+            ("PRICELISTS_1.xml", "priceLists"),
+            ("pricelists_1_uuid.xml", "priceLists"),
+            # propertiesOffers длиннее properties — должен матчиться более специфичный
+            ("propertiesOffers_1.xml", "propertiesOffers"),
+            ("propertiesgoods_1.xml", "propertiesGoods"),
         ],
     )
     def test_xml_routing_by_prefix(self, file_service, import_base, session_id, filename, expected_subdir):
@@ -559,3 +567,45 @@ class TestShouldRoute:
 
             assert router.should_route("import.zip") is True
             assert router.should_route("data.ZIP") is True
+
+
+# ============================================================================
+# ImportOrchestratorService._route_unpacked_files — параллельный routing для
+# содержимого распакованных ZIP. Здесь жил тот же case-insensitive bug.
+# ============================================================================
+
+
+class TestImportOrchestratorServiceRouteUnpackedFiles:
+    """Регрессия: priceLists.xml внутри ZIP должен попадать в priceLists/, не в root."""
+
+    @pytest.mark.parametrize(
+        "filename,expected_subdir",
+        [
+            ("goods_1_uuid.xml", "goods"),
+            ("offers_1_uuid.xml", "offers"),
+            ("prices_1_uuid.xml", "prices"),
+            ("rests_1_uuid.xml", "rests"),
+            # Главный регрессионный кейс: 1С шлёт priceLists с заглавной L
+            ("priceLists_1_1_uuid.xml", "priceLists"),
+            ("priceLists.xml", "priceLists"),
+            ("PRICELISTS.xml", "priceLists"),
+            ("propertiesOffers_1.xml", "propertiesOffers"),
+            ("propertiesgoods_1.xml", "propertiesGoods"),
+        ],
+    )
+    def test_route_unpacked_xml_by_prefix(self, tmp_path, filename, expected_subdir):
+        from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
+
+        import_dir = tmp_path / "1c_import"
+        import_dir.mkdir()
+        (import_dir / filename).write_bytes(b"<root/>")
+
+        orch = ImportOrchestratorService.__new__(ImportOrchestratorService)
+        orch.import_dir = import_dir
+
+        routed = orch._route_unpacked_files([filename])
+
+        assert routed == 1
+        expected_path = import_dir / expected_subdir / filename
+        assert expected_path.exists(), f"{filename} должен лежать в {expected_subdir}/"
+        assert not (import_dir / filename).exists(), "оригинал должен быть перемещён"

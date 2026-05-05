@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.pages",
     "apps.common",
+    "apps.banners",
+    "apps.delivery",
     "apps.integrations.apps.IntegrationsConfig",
 ]
 
