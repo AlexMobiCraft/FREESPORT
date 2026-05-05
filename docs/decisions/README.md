@@ -22,10 +22,12 @@ Each ADR should follow this structure:
 
 - **[ADR-002: 1C Integration Strategy](../../_bmad-output/planning-artifacts/architecture.md#adr-002-стратегия-интеграции-с-1с)** - Асинхронная синхронизация на основе файлов XML (CommerceML)
 - **[ADR-008: Use Django Session Key for 1C sessid](./ADR-008-1c-sessid-session-key-not-csrf.md)** - Clarifies that `sessid` in 1C protocol is Django Session ID, not CSRF token (2026-01-23)
+- **[ADR-010: Публичная проекция дерева категорий 1С](./ADR-010-category-tree-public-projection.md)** - Разделяет исходное дерево `Category` с якорем `СПОРТ` и публичное дерево `/categories-tree/` для витрины (2026-05-05)
 
 ### API & Authentication
 
 - **[ADR-001: API-First и паттерн BFF](../../_bmad-output/planning-artifacts/architecture.md#adr-001-api-first-и-паттерн-bff)** - Разделенная архитектура с Django REST API и Next.js BFF
+- **[ADR-009: CSRF Exemption for 1C Exchange Protocol](./ADR-009-csrf-exemption-1c-protocol.md)** - Исключение CSRF-проверки только для эндпоинта 1С CommerceML с сохранением Basic/session authentication (2026-01-23)
 - **[ADR-004: Ценообразование на основе ролей](../../_bmad-output/planning-artifacts/architecture.md#adr-004-ценообразование-на-основе-ролей)** - Динамическая сериализация цен в DRF
 
 ### Frontend & UX
@@ -41,7 +43,7 @@ Each ADR should follow this structure:
 ## How to Create a New ADR
 
 1. Copy the ADR template (create from ADR-008 structure)
-2. Number it sequentially (next available: ADR-009)
+2. Number it sequentially (next available: ADR-011)
 3. Write in clear, concise language
 4. Include code examples and references
 5. Update this README index

@@ -15,6 +15,8 @@ code_patterns:
 test_patterns: ["Component Testing (Vitest)", "Integration Testing (Pytest)"]
 ---
 
+> **Актуальность после 2026-05-05:** эта спецификация описывает историческую реализацию блока `CategoriesSection`. Формулировки про root-категории и `parent=None` не являются актуальным контрактом публичного дерева каталога. Текущий контракт: `Category` хранит полное дерево 1С с якорем `СПОРТ`, `/api/v1/categories-tree/` отдаёт публичную проекцию его прямых потомков, а категории главной страницы выбираются отдельной логикой (`is_homepage` / `sort_order`), если используется `CategoriesSection`.
+
 # Overview
 
 ## Problem Statement

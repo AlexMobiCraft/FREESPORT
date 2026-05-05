@@ -11,6 +11,8 @@ files_to_modify:
   - "frontend/src/components/home/CategoriesSection.tsx"
 ---
 
+> **Актуальность после 2026-05-05:** эта спецификация остаётся исторической заметкой по `HomepageCategory` / `CategoriesSection`. Её часть про снятие ограничения `parent__isnull=True` совместима с текущим подходом, но любые формулировки про публичные root-категории не являются контрактом дерева каталога. Текущий публичный контракт зафиксирован в `category-tree-root-cause-fix.md` и ADR-010: витрина читает `/api/v1/categories-tree/`, где корнями являются прямые потомки `СПОРТ`.
+
 # Fix Home Page Categories Level
 
 ## Problem

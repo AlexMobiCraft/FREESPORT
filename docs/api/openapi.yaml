@@ -478,6 +478,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/CategoryDetail"
 
+  /categories-tree/:
+    get:
+      tags: [Categories]
+      summary: Получить публичное дерево категорий
+      description: |
+        Возвращает дерево категорий для витрины без пагинации.
+        В БД хранится полное дерево 1С с корневым якорем СПОРТ, но endpoint
+        отдаёт прямых детей СПОРТ как публичные root-узлы.
+
+        Из ответа рекурсивно исключаются технические категории:
+        uncategorized, onec-unresolved-category, Без категории и placeholder-узлы
+        вида "Категория <uuid/legacy-id>".
+      responses:
+        "200":
+          description: Публичное дерево категорий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryTree"
+
   # =============================================================================
   # SHOPPING CART
   # =============================================================================
@@ -1261,6 +1283,38 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/CategoryBreadcrumb"
+
+    CategoryTree:
+      type: object
+      description: Публичный узел дерева категорий для витрины
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: Название категории
+        slug:
+          type: string
+          description: URL slug
+        image:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        products_count:
+          type: integer
+          description: Количество активных товаров в категории
+        in_stock_count:
+          type: integer
+          description: Количество активных товаров с остатками
+        sort_order:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryTree"
+          description: Дочерние публичные категории
 
     CategoryBreadcrumb:
       type: object

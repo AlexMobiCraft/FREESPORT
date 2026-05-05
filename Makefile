@@ -1,5 +1,8 @@
 # Makefile для FREESPORT Platform
 
+ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+DOCS_SCRIPTS_DIR := $(ROOT_DIR)scripts/docs
+
 .PHONY: help build up down test test-unit test-integration clean logs shell \
          format lint migrate createsuperuser collectstatic \
          docs-validate docs-search-obsolete docs-check-links docs-check-api docs-update-index \
@@ -164,47 +167,47 @@ collectstatic:
 # Валидация документации
 docs-validate:
 	@echo "Валидация документации..."
-	python scripts/docs_validator.py validate
+	python "$(DOCS_SCRIPTS_DIR)/docs_validator.py" validate
 
 # Поиск устаревших терминов
 docs-search-obsolete:
 	@echo "Поиск устаревших терминов..."
-	python scripts/docs_validator.py obsolete
+	python "$(DOCS_SCRIPTS_DIR)/docs_validator.py" obsolete
 
 # Проверка кросс-ссылок
 docs-check-links:
 	@echo "Проверка кросс-ссылок..."
-	python scripts/docs_validator.py cross-links
+	python "$(DOCS_SCRIPTS_DIR)/docs_validator.py" cross-links
 
 # Проверка покрытия API
 docs-check-api:
 	@echo "Проверка покрытия API..."
-	python scripts/docs_validator.py api-coverage
+	python "$(DOCS_SCRIPTS_DIR)/docs_validator.py" api-coverage
 
 # Обновление индекса документации
 docs-update-index:
 	@echo "Обновление индекса документации..."
-	python scripts/docs_index_generator.py
+	python "$(DOCS_SCRIPTS_DIR)/docs_index_generator.py"
 
 # Синхронизация документации: API ↔ Views
 docs-sync-api:
 	@echo "Синхронизация API (код ↔ документация)..."
-	python scripts/docs_sync.py api-sync
+	python "$(DOCS_SCRIPTS_DIR)/docs_sync.py" api-sync
 
 # Синхронизация документации: Decisions ↔ Код
 docs-sync-decisions:
 	@echo "Синхронизация решений (docs ↔ код)..."
-	python scripts/docs_sync.py decisions-sync
+	python "$(DOCS_SCRIPTS_DIR)/docs_sync.py" decisions-sync
 
 # Синхронизация: все шаги
 docs-sync-all:
 	@echo "Полная синхронизация документации..."
-	python scripts/docs_sync.py all
+	python "$(DOCS_SCRIPTS_DIR)/docs_sync.py" all
 
 # Обновление индексов с применением изменений
 docs-update-index-apply:
 	@echo "Обновление индексов документации (apply)..."
-	python scripts/docs_sync.py update-index --apply
+	python "$(DOCS_SCRIPTS_DIR)/docs_sync.py" update-index --apply
 # Проверка согласованности виртуальных окружений
 check-env-consistency:
 	@echo "Проверка согласованности виртуальных окружений..."
