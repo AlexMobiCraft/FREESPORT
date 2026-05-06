@@ -368,6 +368,7 @@ npm run build  # должен пройти без TypeScript ошибок
 | 2026-05-06 | 1.0 | История создана из утверждённого tech-spec `tech-spec-catalog-hide-out-of-stock-brands.md` (status=draft, baseline_commit=e4f2ae0). | Cascade (bmad-create-story) |
 | 2026-05-06 | 1.1 | Реализованы backend `has_stock`/`visible-brands`, frontend-сужение брендов каталога и тестовое покрытие. | GPT-5 Codex |
 | 2026-05-06 | 1.2 | Code review: AC9 переформулирован под conditional fetch (`getVisibleBrands` зовётся только при `inStock=true`); Task 9.1 переписан с обоснованием компромисса. Findings — 1 ratified, 1 patch pending, 5 deferred. | Claude Opus 4.7 (bmad-code-review) |
+| 2026-05-06 | 1.3 | Исправлен review patch по Task 5.3: `brandsService.getAll({ has_stock: false })` больше не отправляет `has_stock=false`; story переведена в review. | GPT-5 Codex |
 
 ## Dev Agent Record
 
@@ -383,12 +384,16 @@ GPT-5 Codex
 - 2026-05-06: Frontend service tests passed: 14 passed; CatalogPage tests passed: 22 passed.
 - 2026-05-06: Backend products regression passed: 179 passed, 199 deselected.
 - 2026-05-06: Frontend build passed; scoped ESLint on changed files passed. Full `npm run lint` is blocked by existing generated `frontend/next-env.d.ts` triple-slash rule outside this story diff.
+- 2026-05-06: Red frontend service check failed as expected after updating the Task 5.3 test: `has_stock=false` was still present in the query string.
+- 2026-05-06: Review patch fixed; frontend service tests passed: 14 passed; CatalogPage tests passed: 22 passed; frontend build passed; scoped ESLint on changed files passed.
+- 2026-05-06: Full frontend Vitest regression suite passed (`npm run test`, exit code 0).
 
 ### Completion Notes List
 
 - Добавлен backend-гейт `GET /api/v1/brands/?has_stock=true` через `Exists` subquery; `featured` action и кэш `FEATURED_BRANDS_CACHE_KEY` не затронуты.
 - Добавлен `GET /api/v1/products/visible-brands/`, который применяет `ProductFilter`, игнорирует `brand`, исключает `brand_id IS NULL` и сбрасывает ordering перед `distinct()`.
 - `brandsService.getAll` получил опциональный `has_stock`, добавлен `getVisibleBrands` с удалением `brand` на клиенте.
+- Review patch Task 5.3 закрыт: `brandsService.getAll` отправляет `has_stock` только при `has_stock === true`; `false`, `{}` и `undefined` сохраняют backward-compatible URL без `has_stock`.
 - `/catalog` теперь первично загружает только бренды с товарами в наличии, динамически сужает sidebar по `visible-brands`, сохраняет выбранный бренд видимым и делает graceful fallback при ошибке.
 - Scope AC14/AC15 подтверждён: нет diff в electric-каталоге, миграциях, `Brand` model, `BrandFeaturedSerializer`, constants.
 
@@ -404,12 +409,28 @@ GPT-5 Codex
 - `frontend/src/app/(blue)/catalog/page.tsx`
 - `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx`
 
+### Review Findings (run 2 — 2026-05-06, post-v1.3)
+
+_Source: bmad-code-review (повторный прогон после v1.3 patch), reviewers: Blind Hunter + Edge Case Hunter + Acceptance Auditor. Baseline: `e4f2ae0`. Diff включает 2 коммита + uncommitted v1.3 fix._
+
+- [x] [Review][Decision][Resolved 2026-05-06: dismissed] **Deep-link `/catalog?brand=<slug>` для out-of-stock бренда — невидимый фильтр** [`frontend/src/app/(blue)/catalog/page.tsx:529-568`] — Решение: dismissed как валидное поведение. Пользователь явно указал out-of-stock бренд через URL — отсутствие чекбокса в sidebar симметрично pre-existing поведению deep-link к скрытым категориям. Спека не требует обработки этого сценария.
+- [ ] [Review][Patch] **Тест `test_excludes_brand_id_null_for_products_without_brand` тривиально-зелёный** [`backend/apps/products/tests/test_visible_brands.py:230-243`] — Тест создаёт ОДИН продукт с `brand=brand_nike` и проверяет `None not in brand_ids`. Ни одного продукта с `brand=None` не создаётся → `exclude(brand_id__isnull=True)` фактически не валидируется (тест прошёл бы и без `.exclude(...)`). Спека (Critical инвариант 4) явно говорит «Товары без бренда (в каталоге FREESPORT встречаются)». Фикс: добавить продукт с `brand=None` (если `Product.brand` nullable) и убедиться, что результат всё равно не содержит `null`/None.
+- [x] [Review][Defer] **AbortController / race для `getVisibleBrands` (включая reset при `setInStock(false)`)** [`frontend/src/app/(blue)/catalog/page.tsx:649-661, 1111-1116`] — Уже зафиксировано в `deferred-work.md` (run 1). При быстром переключении фильтров stale-ответ может перезаписать актуальный sidebar; reset на onChange чекбокса «В наличии» не отменяет in-flight `getVisibleBrands` от предыдущего `fetchProducts`. Решать единой story по race-protection visible-* запросов.
+- [x] [Review][Defer] **Race с unmount — нет `isMounted`-guard в `fetchProducts`** [`frontend/src/app/(blue)/catalog/page.tsx:649-661`] — Симметрично pre-existing паттерну `getVisibleCategories`. Setter может вызваться на размонтированном компоненте при быстрой навигации.
+- [x] [Review][Defer] **`variant.is_active=True` не проверяется в Exists-subquery `has_stock`** [`backend/apps/products/views.py:397-401`] — Уже зафиксировано в run 1, симметрично существующему паттерну `Product.has_stock` (`views.py:102`).
+- [x] [Review][Defer] **`featured` action: латентный риск кэш-poisoning** [`backend/apps/products/views.py`] — Уже зафиксировано в run 1.
+- [x] [Review][Defer] **`BrandPageNumberPagination.page_size=100` ограничение пагинации** [`frontend/src/services/brandsService.ts`] — Pre-existing, уже зафиксировано в run 1.
+- [x] [Review][Defer] **`visible_brands` использует role-dependent pricing через `ProductFilter`** [`backend/apps/products/views.py:250-266`] — `min_price`/`max_price` в `ProductFilter` зависят от `request.user.role` (B2B vs гость). Один и тот же URL даст разные `brand_ids` для разных ролей. Симметрично pre-existing поведению `ProductViewSet`/`visible_categories`. Решать единой story по role-aware shareable URLs.
+- [x] [Review][Defer] **`getVisibleBrands` отправляет `page`/`page_size`/`ordering` в URL** [`frontend/src/services/brandsService.ts:84-92`] — Backend их игнорирует, но создают мусор в URL и теоретически ломают cache на CDN. Симметрично pre-existing проблеме `getVisibleCategories` (уже задеферрено).
+
+_Run 2 dismissed: ~30 (false-positive coverage gaps в стилистических тестах, theoretical multi-value query params, парсинг boolean — соответствует спеке, IIFE без useMemo — performance overengineering, conditional dispatch v1.2 уже снимает заявленные проблемы с in_stock=false и т.д.)._
+
 ### Review Findings
 
 _Source: bmad-code-review (2026-05-06), reviewers: Blind Hunter + Edge Case Hunter + Acceptance Auditor. Baseline: `e4f2ae0`._
 
 - [x] [Review][Decision][Resolved 2026-05-06: ratified] **AC9: `getVisibleBrands` вызывается условно (`filters.in_stock`)** — Решение: ратифицировать реализацию как намеренный компромисс. AC9 обновлён (precondition `inStock=true`); Task 9.1 переписан под conditional dispatch с обоснованием; tech-spec обновлён в Change Log v1.2. Симметрия с `getVisibleCategories` нарушена осознанно (категории всегда полные, бренды — гейтированы по `has_stock`).
-- [ ] [Review][Patch] **`brandsService.getAll` отправляет `has_stock=false` явно — нарушает Task 5.3** [`frontend/src/services/brandsService.ts:49`, `frontend/src/services/__tests__/brandsService.test.ts`] — Спека Task 5.3 явно говорит: «Не отправлять `false` явно: если консумер хочет старое поведение, он не передаёт ничего». Текущее условие `if (opts?.has_stock !== undefined)` пропускает `false` в URL, а тест `sends has_stock=false when opts.has_stock=false` фиксирует это. Backend трактует `false` как no-op (`"true"/"1"` only), поэтому контракт сейчас «работает», но семантически рассинхронизирован: фронт говорит «верни всё», бэк по совпадению делает то же самое. Фикс: изменить условие на `if (opts?.has_stock === true)` и поправить service-test (assert: `false` → URL без `has_stock`).
+- [x] [Review][Patch][Resolved 2026-05-06] **`brandsService.getAll` отправляет `has_stock=false` явно — нарушает Task 5.3** [`frontend/src/services/brandsService.ts:49`, `frontend/src/services/__tests__/brandsService.test.ts`] — Исправлено: условие изменено на `if (opts?.has_stock === true)`, тест переименован в `omits has_stock when opts.has_stock=false` и проверяет отсутствие query-параметра. Проверки: service tests 14 passed, CatalogPage tests 22 passed, `npm run build` passed, scoped ESLint passed.
 - [x] [Review][Defer] **Race condition / отсутствие AbortController в `getVisibleBrands`** [`frontend/src/app/(blue)/catalog/page.tsx:653`] — deferred, спека явно фиксирует это в "Backward compatibility и риски": «Race condition при быстрой смене фильтров: getVisibleBrands БЕЗ AbortController. Уже зафиксировано в deferred-work.md для getVisibleCategories … В рамках текущей story НЕ требуется (DEFERRED, симметрично категориям)».
 - [x] [Review][Defer] **`Promise.all` failure mode: visibility setters срабатывают, даже если `productsService.getAll` падает** [`frontend/src/app/(blue)/catalog/page.tsx:645`] — deferred, pre-existing паттерн (тот же эффект у `getVisibleCategories`). При 500 от продуктов sidebar остаётся обновлённым по новым фильтрам, а основной грид показывает ошибку — рассинхронизация. Решать вместе с AbortController-стори.
 - [x] [Review][Defer] **`featured` action: латентный риск кэш-poisoning при будущем расширении** [`backend/apps/products/views.py`] — deferred, не активный баг. `FEATURED_BRANDS_CACHE_KEY` не имеет измерения по query-параметрам; если кто-то когда-нибудь свяжет `has_stock` или иную фильтрацию с `featured`, кэш начнёт отдавать устаревший payload. Сейчас `get_queryset` корректно short-circuit'ит для `featured` (AC4 и тест подтверждают). Зафиксировать как замечание для будущих расширений `featured`.

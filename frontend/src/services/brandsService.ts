@@ -46,8 +46,8 @@ class BrandsService {
 
   async getAll(opts?: { has_stock?: boolean }): Promise<Brand[]> {
     const params: Record<string, unknown> = { page_size: DEFAULT_PAGE_SIZE };
-    if (opts?.has_stock !== undefined) {
-      params.has_stock = opts.has_stock;
+    if (opts?.has_stock === true) {
+      params.has_stock = true;
     }
 
     const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/', {

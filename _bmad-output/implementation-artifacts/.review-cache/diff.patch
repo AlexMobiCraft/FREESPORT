@@ -92,6 +92,177 @@ index 4add4867..5cb44161 100644
  @pytest.mark.django_db
  class TestFeaturedBrandSerializer:
      """Test that featured endpoint uses lightweight serializer without description."""
+diff --git a/backend/apps/products/tests/test_visible_brands.py b/backend/apps/products/tests/test_visible_brands.py
+new file mode 100644
+index 00000000..f7d6abfa
+--- /dev/null
++++ b/backend/apps/products/tests/test_visible_brands.py
+@@ -0,0 +1,165 @@
++"""
++Тесты для ProductViewSet.visible_brands action.
++"""
++
++from __future__ import annotations
++
++from decimal import Decimal
++
++import pytest
++from django.urls import reverse
++from rest_framework import status
++from rest_framework.test import APIClient
++
++from apps.products.factories import BrandFactory, CategoryFactory, ProductFactory, ProductVariantFactory
++
++
++@pytest.mark.django_db
++@pytest.mark.integration
++class TestVisibleBrandsAction:
++    """GET /products/visible-brands/."""
++
++    @pytest.fixture
++    def client(self):
++        return APIClient()
++
++    @pytest.fixture
++    def url(self):
++        return reverse("products:product-visible-brands")
++
++    @pytest.fixture
++    def brand_nike(self):
++        return BrandFactory(name="Nike", slug="nike")
++
++    @pytest.fixture
++    def brand_adidas(self):
++        return BrandFactory(name="Adidas", slug="adidas")
++
++    @pytest.fixture
++    def brand_puma(self):
++        return BrandFactory(name="Puma", slug="puma")
++
++    @pytest.fixture
++    def cat_football(self):
++        return CategoryFactory(name="Футбол", slug="football")
++
++    @pytest.fixture
++    def cat_boots(self, cat_football):
++        return CategoryFactory(name="Бутсы", slug="boots", parent=cat_football)
++
++    @pytest.fixture
++    def cat_running(self):
++        return CategoryFactory(name="Бег", slug="running")
++
++    def test_returns_brand_ids_for_in_stock_products(self, client, url, brand_nike, brand_adidas, cat_football):
++        nike_product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        adidas_product = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"in_stock": "true"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert set(resp.data["brand_ids"]) == {brand_nike.id, brand_adidas.id}
++
++    def test_filter_by_category_id_returns_only_relevant_brands(
++        self, client, url, brand_nike, brand_adidas, cat_football, cat_boots, cat_running
++    ):
++        nike_product = ProductFactory(brand=brand_nike, category=cat_boots, create_variant=False)
++        adidas_product = ProductFactory(brand=brand_adidas, category=cat_running, create_variant=False)
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"category_id": cat_football.id, "in_stock": "true"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_ignores_brand_param(self, client, url, brand_nike, brand_adidas, cat_football):
++        nike_product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        adidas_product = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1200"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1400"))
++
++        resp = client.get(url, {"brand": "nike", "min_price": "1000"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert set(resp.data["brand_ids"]) == {brand_nike.id, brand_adidas.id}
++
++    def test_filter_by_min_price(self, client, url, brand_nike, brand_adidas, cat_football):
++        cheap = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        expensive = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=cheap, stock_quantity=3, retail_price=Decimal("500"))
++        ProductVariantFactory(product=expensive, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"min_price": "1000"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_adidas.id]
++
++    def test_filter_by_max_price(self, client, url, brand_nike, brand_adidas, cat_football):
++        cheap = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        expensive = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=cheap, stock_quantity=3, retail_price=Decimal("500"))
++        ProductVariantFactory(product=expensive, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"max_price": "1000"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_filter_by_in_stock(self, client, url, brand_nike, brand_adidas, cat_football):
++        in_stock = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        out_of_stock = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=in_stock, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=out_of_stock, stock_quantity=0, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"in_stock": "true"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_filter_by_search(self, client, url, brand_nike, brand_adidas, cat_football):
++        nike_product = ProductFactory(
++            name="Mercurial Boots", brand=brand_nike, category=cat_football, create_variant=False
++        )
++        adidas_product = ProductFactory(
++            name="Running Jersey", brand=brand_adidas, category=cat_football, create_variant=False
++        )
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"search": "Mercurial"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_excludes_brand_id_null_for_products_without_brand(self, client, url, brand_nike, cat_football):
++        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
++
++        resp = client.get(url)
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert None not in resp.data["brand_ids"]
++
++    def test_empty_result_when_filters_exclude_all_products(self, client, url, brand_nike, cat_football):
++        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
++
++        resp = client.get(url, {"min_price": "999999"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == []
++
++    def test_returns_distinct_brand_ids_no_duplicates(self, client, url, brand_nike, cat_football):
++        for idx in range(3):
++            product = ProductFactory(
++                name=f"Nike Product {idx}", brand=brand_nike, category=cat_football, create_variant=False
++            )
++            ProductVariantFactory(product=product, stock_quantity=idx + 1, retail_price=Decimal("1000"))
++
++        resp = client.get(url)
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"].count(brand_nike.id) == 1
 diff --git a/backend/apps/products/views.py b/backend/apps/products/views.py
 index 30a9bf25..17ab4d0c 100644
 --- a/backend/apps/products/views.py
@@ -396,7 +567,7 @@ index dd79c418..065a06b2 100644
                  />
                </div>
 diff --git a/frontend/src/services/__tests__/brandsService.test.ts b/frontend/src/services/__tests__/brandsService.test.ts
-index 809df372..68ad2c17 100644
+index 809df372..e7e22f96 100644
 --- a/frontend/src/services/__tests__/brandsService.test.ts
 +++ b/frontend/src/services/__tests__/brandsService.test.ts
 @@ -184,5 +184,113 @@ describe('brandsService', () => {
@@ -450,7 +621,7 @@ index 809df372..68ad2c17 100644
 +      }
 +    });
 +
-+    test('sends has_stock=false when opts.has_stock=false', async () => {
++    test('omits has_stock when opts.has_stock=false', async () => {
 +      let capturedUrl = '';
 +
 +      server.use(
@@ -468,7 +639,7 @@ index 809df372..68ad2c17 100644
 +      await brandsService.getAll({ has_stock: false });
 +
 +      const url = new URL(capturedUrl);
-+      expect(url.searchParams.get('has_stock')).toBe('false');
++      expect(url.searchParams.has('has_stock')).toBe(false);
 +    });
 +  });
 +
@@ -514,7 +685,7 @@ index 809df372..68ad2c17 100644
    });
  });
 diff --git a/frontend/src/services/brandsService.ts b/frontend/src/services/brandsService.ts
-index 7d491133..b9206e3e 100644
+index 7d491133..bb42074e 100644
 --- a/frontend/src/services/brandsService.ts
 +++ b/frontend/src/services/brandsService.ts
 @@ -5,6 +5,7 @@
@@ -532,8 +703,8 @@ index 7d491133..b9206e3e 100644
 -  async getAll(): Promise<Brand[]> {
 +  async getAll(opts?: { has_stock?: boolean }): Promise<Brand[]> {
 +    const params: Record<string, unknown> = { page_size: DEFAULT_PAGE_SIZE };
-+    if (opts?.has_stock !== undefined) {
-+      params.has_stock = opts.has_stock;
++    if (opts?.has_stock === true) {
++      params.has_stock = true;
 +    }
 +
      const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/', {
@@ -560,174 +731,3 @@ index 7d491133..b9206e3e 100644
  }
  
  const brandsService = new BrandsService();
-diff --git a/backend/apps/products/tests/test_visible_brands.py b/backend/apps/products/tests/test_visible_brands.py
-new file mode 100644
-index 00000000..f7d6abfa
---- /dev/null
-+++ b/backend/apps/products/tests/test_visible_brands.py
-@@ -0,0 +1,165 @@
-+"""
-+Тесты для ProductViewSet.visible_brands action.
-+"""
-+
-+from __future__ import annotations
-+
-+from decimal import Decimal
-+
-+import pytest
-+from django.urls import reverse
-+from rest_framework import status
-+from rest_framework.test import APIClient
-+
-+from apps.products.factories import BrandFactory, CategoryFactory, ProductFactory, ProductVariantFactory
-+
-+
-+@pytest.mark.django_db
-+@pytest.mark.integration
-+class TestVisibleBrandsAction:
-+    """GET /products/visible-brands/."""
-+
-+    @pytest.fixture
-+    def client(self):
-+        return APIClient()
-+
-+    @pytest.fixture
-+    def url(self):
-+        return reverse("products:product-visible-brands")
-+
-+    @pytest.fixture
-+    def brand_nike(self):
-+        return BrandFactory(name="Nike", slug="nike")
-+
-+    @pytest.fixture
-+    def brand_adidas(self):
-+        return BrandFactory(name="Adidas", slug="adidas")
-+
-+    @pytest.fixture
-+    def brand_puma(self):
-+        return BrandFactory(name="Puma", slug="puma")
-+
-+    @pytest.fixture
-+    def cat_football(self):
-+        return CategoryFactory(name="Футбол", slug="football")
-+
-+    @pytest.fixture
-+    def cat_boots(self, cat_football):
-+        return CategoryFactory(name="Бутсы", slug="boots", parent=cat_football)
-+
-+    @pytest.fixture
-+    def cat_running(self):
-+        return CategoryFactory(name="Бег", slug="running")
-+
-+    def test_returns_brand_ids_for_in_stock_products(self, client, url, brand_nike, brand_adidas, cat_football):
-+        nike_product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-+        adidas_product = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
-+        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
-+        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
-+
-+        resp = client.get(url, {"in_stock": "true"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert set(resp.data["brand_ids"]) == {brand_nike.id, brand_adidas.id}
-+
-+    def test_filter_by_category_id_returns_only_relevant_brands(
-+        self, client, url, brand_nike, brand_adidas, cat_football, cat_boots, cat_running
-+    ):
-+        nike_product = ProductFactory(brand=brand_nike, category=cat_boots, create_variant=False)
-+        adidas_product = ProductFactory(brand=brand_adidas, category=cat_running, create_variant=False)
-+        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
-+        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
-+
-+        resp = client.get(url, {"category_id": cat_football.id, "in_stock": "true"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert resp.data["brand_ids"] == [brand_nike.id]
-+
-+    def test_ignores_brand_param(self, client, url, brand_nike, brand_adidas, cat_football):
-+        nike_product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-+        adidas_product = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
-+        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1200"))
-+        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1400"))
-+
-+        resp = client.get(url, {"brand": "nike", "min_price": "1000"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert set(resp.data["brand_ids"]) == {brand_nike.id, brand_adidas.id}
-+
-+    def test_filter_by_min_price(self, client, url, brand_nike, brand_adidas, cat_football):
-+        cheap = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-+        expensive = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
-+        ProductVariantFactory(product=cheap, stock_quantity=3, retail_price=Decimal("500"))
-+        ProductVariantFactory(product=expensive, stock_quantity=4, retail_price=Decimal("1500"))
-+
-+        resp = client.get(url, {"min_price": "1000"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert resp.data["brand_ids"] == [brand_adidas.id]
-+
-+    def test_filter_by_max_price(self, client, url, brand_nike, brand_adidas, cat_football):
-+        cheap = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-+        expensive = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
-+        ProductVariantFactory(product=cheap, stock_quantity=3, retail_price=Decimal("500"))
-+        ProductVariantFactory(product=expensive, stock_quantity=4, retail_price=Decimal("1500"))
-+
-+        resp = client.get(url, {"max_price": "1000"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert resp.data["brand_ids"] == [brand_nike.id]
-+
-+    def test_filter_by_in_stock(self, client, url, brand_nike, brand_adidas, cat_football):
-+        in_stock = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-+        out_of_stock = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
-+        ProductVariantFactory(product=in_stock, stock_quantity=3, retail_price=Decimal("1000"))
-+        ProductVariantFactory(product=out_of_stock, stock_quantity=0, retail_price=Decimal("1500"))
-+
-+        resp = client.get(url, {"in_stock": "true"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert resp.data["brand_ids"] == [brand_nike.id]
-+
-+    def test_filter_by_search(self, client, url, brand_nike, brand_adidas, cat_football):
-+        nike_product = ProductFactory(
-+            name="Mercurial Boots", brand=brand_nike, category=cat_football, create_variant=False
-+        )
-+        adidas_product = ProductFactory(
-+            name="Running Jersey", brand=brand_adidas, category=cat_football, create_variant=False
-+        )
-+        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
-+        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
-+
-+        resp = client.get(url, {"search": "Mercurial"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert resp.data["brand_ids"] == [brand_nike.id]
-+
-+    def test_excludes_brand_id_null_for_products_without_brand(self, client, url, brand_nike, cat_football):
-+        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-+        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
-+
-+        resp = client.get(url)
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert None not in resp.data["brand_ids"]
-+
-+    def test_empty_result_when_filters_exclude_all_products(self, client, url, brand_nike, cat_football):
-+        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-+        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
-+
-+        resp = client.get(url, {"min_price": "999999"})
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert resp.data["brand_ids"] == []
-+
-+    def test_returns_distinct_brand_ids_no_duplicates(self, client, url, brand_nike, cat_football):
-+        for idx in range(3):
-+            product = ProductFactory(
-+                name=f"Nike Product {idx}", brand=brand_nike, category=cat_football, create_variant=False
-+            )
-+            ProductVariantFactory(product=product, stock_quantity=idx + 1, retail_price=Decimal("1000"))
-+
-+        resp = client.get(url)
-+
-+        assert resp.status_code == status.HTTP_200_OK
-+        assert resp.data["brand_ids"].count(brand_nike.id) == 1

@@ -231,7 +231,7 @@ describe('brandsService', () => {
       }
     });
 
-    test('sends has_stock=false when opts.has_stock=false', async () => {
+    test('omits has_stock when opts.has_stock=false', async () => {
       let capturedUrl = '';
 
       server.use(
@@ -249,7 +249,7 @@ describe('brandsService', () => {
       await brandsService.getAll({ has_stock: false });
 
       const url = new URL(capturedUrl);
-      expect(url.searchParams.get('has_stock')).toBe('false');
+      expect(url.searchParams.has('has_stock')).toBe(false);
     });
   });
 

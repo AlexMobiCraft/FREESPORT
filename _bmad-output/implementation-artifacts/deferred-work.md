@@ -52,6 +52,12 @@
 - `orderStore.currentOrder` может содержать stale id после failed `createOrder` — при повторном submit возможен ложный редирект на старый заказ. Pre-existing, зависит от реализации orderStore. Рассмотреть сброс `currentOrder` при ошибке в orderStore. [frontend/src/stores/orderStore.ts]
 - Контактные поля (firstName, lastName, phone) перезаписываются при автозаполнении из Address.full_name — если адрес оформлен на другого получателя (B2B склад), имя подменяется. Спека намеренно включает контактные поля в маппинг (Address хранит full_name+phone). Если потребуется разделение «контакт заказчика» vs «получатель» — отдельная задача. [frontend/src/utils/checkout/addressMapping.ts]
 
+## Deferred from: code review of catalog-hide-out-of-stock-brands run 2 (2026-05-06)
+
+- **`visible_brands` использует role-dependent pricing через `ProductFilter`** — `ProductFilter.min_price`/`max_price` зависят от роли пользователя (B2B `opt1/opt2/opt3/trainer/federation_price` vs гостевой `retail_price`). Один и тот же shareable URL `/catalog?min_price=1000` даст разные `brand_ids` для гостя и опт-клиента. Симметрично pre-existing поведению `ProductViewSet`/`visible_categories`. Решать единой story по role-aware shareable URLs (или зафиксировать в API-доках). [`backend/apps/products/views.py:250-266`]
+- **`getVisibleBrands` отправляет `page`/`page_size`/`ordering` в URL** — Backend их игнорирует, но создают мусор в network-логах и теоретически ломают cache на CDN. Симметрично pre-existing проблеме `getVisibleCategories` (уже задеферрено в run 1 категорий, line 24). Стоит явно исключать pagination/ordering поля при сборке `filtersWithoutBrand`. [`frontend/src/services/brandsService.ts:84-92`]
+- **Race с unmount — нет `isMounted`-guard в `fetchProducts`** — Setter `setSidebarVisibleBrandIds`/`setSidebarVisibleIds` может вызваться на размонтированном компоненте при быстрой навигации (React 18+ предупредит). Симметрично pre-existing паттерну `getVisibleCategories`. Решать вместе с AbortController-стори. [`frontend/src/app/(blue)/catalog/page.tsx:649-661`]
+
 ## Deferred from: code review of catalog-hide-out-of-stock-brands (2026-05-06)
 
 - AbortController для `getVisibleBrands` — race на быстрых сменах фильтров. Симметрично уже задеферренной проблеме `getVisibleCategories`. Решать единой story по race-protection обоих visible-* запросов. [`frontend/src/app/(blue)/catalog/page.tsx:653`]
