@@ -231,6 +231,40 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response({"category_ids": list(all_ids)})
 
+    @extend_schema(
+        summary="Видимые бренды по фильтрам",
+        description=(
+            "Возвращает ID брендов, у которых есть товары по текущим фильтрам каталога. "
+            "Параметр brand игнорируется — endpoint отражает глобальные фильтры, "
+            "не сужая sidebar до уже выбранных брендов."
+        ),
+        parameters=[
+            OpenApiParameter("category_id", OpenApiTypes.INT, description="ID категории (включая дочерние)"),
+            OpenApiParameter("min_price", OpenApiTypes.NUMBER, description="Минимальная цена"),
+            OpenApiParameter("max_price", OpenApiTypes.NUMBER, description="Максимальная цена"),
+            OpenApiParameter("in_stock", OpenApiTypes.BOOL, description="Товары в наличии"),
+            OpenApiParameter("search", OpenApiTypes.STR, description="Поисковый запрос"),
+        ],
+        tags=["Products"],
+    )
+    @action(detail=False, methods=["get"], url_path="visible-brands")
+    def visible_brands(self, request: Request) -> Response:
+        """
+        Возвращает список brand_id брендов, содержащих товары при текущих
+        фильтрах. Параметр brand намеренно игнорируется, чтобы sidebar
+        не сужался до уже выбранных брендов.
+        """
+        params = request.query_params.copy()
+        params.pop("brand", None)
+
+        filterset = self.filterset_class(params, queryset=self.get_queryset())
+        filtered_qs = filterset.qs
+        brand_ids = list(
+            filtered_qs.exclude(brand_id__isnull=True).order_by().values_list("brand_id", flat=True).distinct()
+        )
+
+        return Response({"brand_ids": brand_ids})
+
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -358,16 +392,32 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
             is_featured = self.request.query_params.get("is_featured")
             if is_featured is not None:
                 qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
+            has_stock = self.request.query_params.get("has_stock")
+            if has_stock is not None and has_stock.lower() in ("true", "1"):
+                in_stock_products = Product.objects.filter(
+                    brand=OuterRef("pk"),
+                    is_active=True,
+                    variants__stock_quantity__gt=0,
+                )
+                qs = qs.filter(Exists(in_stock_products))
         return qs
 
     @extend_schema(
         summary="Список брендов",
-        description="Получение списка всех активных брендов с опциональной фильтрацией по is_featured",
+        description="Получение списка всех активных брендов с опциональной фильтрацией",
         parameters=[
             OpenApiParameter(
                 "is_featured",
                 OpenApiTypes.BOOL,
                 description="Фильтр по featured-статусу бренда (true/false)",
+            ),
+            OpenApiParameter(
+                "has_stock",
+                OpenApiTypes.BOOL,
+                description=(
+                    "Возвращать только бренды, у которых есть активные товары с вариантами в наличии "
+                    "(stock_quantity > 0). По умолчанию параметр не применяется (backward compat)."
+                ),
             ),
         ],
         tags=["Brands"],

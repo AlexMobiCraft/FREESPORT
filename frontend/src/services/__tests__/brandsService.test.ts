@@ -184,5 +184,113 @@ describe('brandsService', () => {
 
       expect(result).toHaveLength(2);
     });
+
+    test('sends has_stock=true when opts.has_stock=true', async () => {
+      let capturedUrl = '';
+
+      server.use(
+        http.get(`${API_BASE_URL}/brands/`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({
+            count: 2,
+            next: null,
+            previous: null,
+            results: mockBrands,
+          });
+        })
+      );
+
+      await brandsService.getAll({ has_stock: true });
+
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.get('has_stock')).toBe('true');
+      expect(url.searchParams.get('page_size')).toBe('100');
+    });
+
+    test('omits has_stock when opts is undefined or empty', async () => {
+      const capturedUrls: string[] = [];
+
+      server.use(
+        http.get(`${API_BASE_URL}/brands/`, ({ request }) => {
+          capturedUrls.push(request.url);
+          return HttpResponse.json({
+            count: 2,
+            next: null,
+            previous: null,
+            results: mockBrands,
+          });
+        })
+      );
+
+      await brandsService.getAll();
+      await brandsService.getAll({});
+
+      for (const capturedUrl of capturedUrls) {
+        const url = new URL(capturedUrl);
+        expect(url.searchParams.has('has_stock')).toBe(false);
+      }
+    });
+
+    test('sends has_stock=false when opts.has_stock=false', async () => {
+      let capturedUrl = '';
+
+      server.use(
+        http.get(`${API_BASE_URL}/brands/`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({
+            count: 2,
+            next: null,
+            previous: null,
+            results: mockBrands,
+          });
+        })
+      );
+
+      await brandsService.getAll({ has_stock: false });
+
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.get('has_stock')).toBe('false');
+    });
+  });
+
+  describe('getVisibleBrands', () => {
+    test('returns brand_ids array on success', async () => {
+      server.use(
+        http.get(`${API_BASE_URL}/products/visible-brands/`, () => {
+          return HttpResponse.json({ brand_ids: [1, 2] });
+        })
+      );
+
+      const result = await brandsService.getVisibleBrands({ in_stock: true });
+
+      expect(result).toEqual([1, 2]);
+    });
+
+    test('does not send brand param to backend', async () => {
+      let capturedUrl = '';
+
+      server.use(
+        http.get(`${API_BASE_URL}/products/visible-brands/`, ({ request }) => {
+          capturedUrl = request.url;
+          return HttpResponse.json({ brand_ids: [1, 2] });
+        })
+      );
+
+      await brandsService.getVisibleBrands({ brand: 'nike', min_price: 1000 });
+
+      const url = new URL(capturedUrl);
+      expect(url.searchParams.has('brand')).toBe(false);
+      expect(url.searchParams.get('min_price')).toBe('1000');
+    });
+
+    test('throws on network error', async () => {
+      server.use(
+        http.get(`${API_BASE_URL}/products/visible-brands/`, () => {
+          return HttpResponse.error();
+        })
+      );
+
+      await expect(brandsService.getVisibleBrands({ in_stock: true })).rejects.toThrow();
+    });
   });
 });

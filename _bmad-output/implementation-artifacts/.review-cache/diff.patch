@@ -1,0 +1,733 @@
+diff --git a/backend/apps/products/tests/test_brand_api.py b/backend/apps/products/tests/test_brand_api.py
+index 4add4867..5cb44161 100644
+--- a/backend/apps/products/tests/test_brand_api.py
++++ b/backend/apps/products/tests/test_brand_api.py
+@@ -22,6 +22,7 @@ from django.test.utils import override_settings
+ from rest_framework.test import APIClient
+ 
+ from apps.products.constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
++from apps.products.factories import BrandFactory, ProductFactory, ProductVariantFactory
+ from apps.products.models import Brand
+ 
+ 
+@@ -323,6 +324,81 @@ class TestBrandSearch:
+         assert len(response.data["results"]) == 3
+ 
+ 
++@pytest.mark.django_db
++@pytest.mark.integration
++class TestBrandsHasStockGate:
++    """GET /api/v1/brands/?has_stock=true."""
++
++    @pytest.fixture(autouse=True)
++    def setup(self):
++        cache.clear()
++        self.client = cast(Any, APIClient())
++
++    def _brand_names(self, params=None):
++        response = self.client.get("/api/v1/brands/", params or {})
++        assert response.status_code == 200
++        return [brand["name"] for brand in response.data["results"]]
++
++    def test_has_stock_true_excludes_brand_without_stock(self):
++        nike = BrandFactory(name="Nike", slug="nike")
++        for idx in range(5):
++            product = ProductFactory(name=f"Nike Product {idx}", brand=nike, create_variant=False)
++            ProductVariantFactory(product=product, stock_quantity=0)
++
++        assert "Nike" not in self._brand_names({"has_stock": "true"})
++
++    def test_has_stock_true_includes_brand_with_stock(self):
++        adidas = BrandFactory(name="Adidas", slug="adidas")
++        product = ProductFactory(name="Adidas Product", brand=adidas, create_variant=False)
++        ProductVariantFactory(product=product, stock_quantity=7)
++
++        assert "Adidas" in self._brand_names({"has_stock": "true"})
++
++    def test_has_stock_absent_returns_all_active_brands(self):
++        BrandFactory(name="Nike", slug="nike")
++        BrandFactory(name="Adidas", slug="adidas")
++
++        assert set(self._brand_names()) == {"Adidas", "Nike"}
++
++    def test_has_stock_false_returns_all_active_brands(self):
++        BrandFactory(name="Nike", slug="nike")
++        BrandFactory(name="Adidas", slug="adidas")
++
++        assert set(self._brand_names({"has_stock": "false"})) == {"Adidas", "Nike"}
++
++    def test_has_stock_does_not_affect_featured_action(self):
++        nike = BrandFactory(name="Nike", slug="nike", is_featured=True, image=_make_image("nike.png"))
++        adidas = BrandFactory(name="Adidas", slug="adidas", is_featured=True, image=_make_image("adidas.png"))
++        nike_product = ProductFactory(name="Nike Product", brand=nike, create_variant=False)
++        adidas_product = ProductFactory(name="Adidas Product", brand=adidas, create_variant=False)
++        ProductVariantFactory(product=nike_product, stock_quantity=0)
++        ProductVariantFactory(product=adidas_product, stock_quantity=5)
++
++        response = self.client.get(FEATURED_URL, {"has_stock": "true"})
++
++        assert response.status_code == 200
++        assert {brand["name"] for brand in response.data} == {"Adidas", "Nike"}
++        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
++
++    def test_has_stock_uses_exists_subquery_no_duplicates(self):
++        brand = BrandFactory(name="Multi Variant", slug="multi-variant")
++        for idx in range(3):
++            product = ProductFactory(name=f"Product {idx}", brand=brand, create_variant=False)
++            ProductVariantFactory(product=product, stock_quantity=3)
++            ProductVariantFactory(product=product, stock_quantity=4)
++
++        names = self._brand_names({"has_stock": "true"})
++
++        assert names.count("Multi Variant") == 1
++
++    def test_has_stock_excludes_inactive_products(self):
++        brand = BrandFactory(name="Inactive Stock", slug="inactive-stock")
++        product = ProductFactory(name="Inactive Product", brand=brand, is_active=False, create_variant=False)
++        ProductVariantFactory(product=product, stock_quantity=10)
++
++        assert "Inactive Stock" not in self._brand_names({"has_stock": "true"})
++
++
+ @pytest.mark.django_db
+ class TestFeaturedBrandSerializer:
+     """Test that featured endpoint uses lightweight serializer without description."""
+diff --git a/backend/apps/products/views.py b/backend/apps/products/views.py
+index 30a9bf25..17ab4d0c 100644
+--- a/backend/apps/products/views.py
++++ b/backend/apps/products/views.py
+@@ -231,6 +231,40 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+ 
+         return Response({"category_ids": list(all_ids)})
+ 
++    @extend_schema(
++        summary="Видимые бренды по фильтрам",
++        description=(
++            "Возвращает ID брендов, у которых есть товары по текущим фильтрам каталога. "
++            "Параметр brand игнорируется — endpoint отражает глобальные фильтры, "
++            "не сужая sidebar до уже выбранных брендов."
++        ),
++        parameters=[
++            OpenApiParameter("category_id", OpenApiTypes.INT, description="ID категории (включая дочерние)"),
++            OpenApiParameter("min_price", OpenApiTypes.NUMBER, description="Минимальная цена"),
++            OpenApiParameter("max_price", OpenApiTypes.NUMBER, description="Максимальная цена"),
++            OpenApiParameter("in_stock", OpenApiTypes.BOOL, description="Товары в наличии"),
++            OpenApiParameter("search", OpenApiTypes.STR, description="Поисковый запрос"),
++        ],
++        tags=["Products"],
++    )
++    @action(detail=False, methods=["get"], url_path="visible-brands")
++    def visible_brands(self, request: Request) -> Response:
++        """
++        Возвращает список brand_id брендов, содержащих товары при текущих
++        фильтрах. Параметр brand намеренно игнорируется, чтобы sidebar
++        не сужался до уже выбранных брендов.
++        """
++        params = request.query_params.copy()
++        params.pop("brand", None)
++
++        filterset = self.filterset_class(params, queryset=self.get_queryset())
++        filtered_qs = filterset.qs
++        brand_ids = list(
++            filtered_qs.exclude(brand_id__isnull=True).order_by().values_list("brand_id", flat=True).distinct()
++        )
++
++        return Response({"brand_ids": brand_ids})
++
+ 
+ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+     """
+@@ -358,17 +392,33 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
+             is_featured = self.request.query_params.get("is_featured")
+             if is_featured is not None:
+                 qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
++            has_stock = self.request.query_params.get("has_stock")
++            if has_stock is not None and has_stock.lower() in ("true", "1"):
++                in_stock_products = Product.objects.filter(
++                    brand=OuterRef("pk"),
++                    is_active=True,
++                    variants__stock_quantity__gt=0,
++                )
++                qs = qs.filter(Exists(in_stock_products))
+         return qs
+ 
+     @extend_schema(
+         summary="Список брендов",
+-        description="Получение списка всех активных брендов с опциональной фильтрацией по is_featured",
++        description="Получение списка всех активных брендов с опциональной фильтрацией",
+         parameters=[
+             OpenApiParameter(
+                 "is_featured",
+                 OpenApiTypes.BOOL,
+                 description="Фильтр по featured-статусу бренда (true/false)",
+             ),
++            OpenApiParameter(
++                "has_stock",
++                OpenApiTypes.BOOL,
++                description=(
++                    "Возвращать только бренды, у которых есть активные товары с вариантами в наличии "
++                    "(stock_quantity > 0). По умолчанию параметр не применяется (backward compat)."
++                ),
++            ),
+         ],
+         tags=["Brands"],
+     )
+diff --git a/frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx b/frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx
+index ab9c80c0..faf9d9cb 100644
+--- a/frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx
++++ b/frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx
+@@ -103,6 +103,7 @@ vi.mock('@/services/categoriesService', () => ({
+ vi.mock('@/services/brandsService', () => ({
+   default: {
+     getAll: vi.fn(() => Promise.resolve(mockBrands)),
++    getVisibleBrands: vi.fn(() => Promise.resolve([1, 2])),
+   },
+ }));
+ 
+@@ -431,6 +432,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
+ // Тесты сортировки и скрытия пустых категорий (bugfix: Без категории)
+ // ---------------------------------------------------------------------------
+ import categoriesService from '@/services/categoriesService';
++import brandsService from '@/services/brandsService';
+ 
+ const mockMatchMedia = () => {
+   Object.defineProperty(window, 'matchMedia', {
+@@ -567,3 +569,108 @@ describe('CatalogPage — сортировка и скрытие пустых к
+     });
+   });
+ });
++
++// ---------------------------------------------------------------------------
++// Тесты скрытия брендов без товаров и динамического visible-brands
++// ---------------------------------------------------------------------------
++
++describe('CatalogPage — видимость брендов по наличию и фильтрам', () => {
++  beforeEach(() => {
++    vi.clearAllMocks();
++    mockMatchMedia();
++    (categoriesService.getTree as Mock).mockResolvedValue([
++      { id: 1, name: 'Футбол', slug: 'football', in_stock_count: 5, products_count: 5, children: [] },
++    ]);
++    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
++    (brandsService.getAll as Mock).mockResolvedValue(mockBrands);
++    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1, 2]);
++  });
++
++  it('вызывает первичную загрузку брендов с has_stock=true', async () => {
++    render(<CatalogPage />);
++
++    await waitFor(() => {
++      expect(brandsService.getAll).toHaveBeenCalledWith({ has_stock: true });
++    });
++  });
++
++  it('не показывает out-of-stock бренд, если его нет в первичном ответе getAll', async () => {
++    (brandsService.getAll as Mock).mockResolvedValue([{ id: 2, name: 'Adidas', slug: 'adidas' }]);
++
++    render(<CatalogPage />);
++
++    await waitFor(() => {
++      expect(screen.getByLabelText('Adidas')).toBeInTheDocument();
++      expect(screen.queryByLabelText('Nike')).not.toBeInTheDocument();
++    });
++  });
++
++  it('скрывает бренды, которых нет в visible-brands', async () => {
++    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1]);
++
++    render(<CatalogPage />);
++
++    await waitFor(() => {
++      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
++      expect(screen.queryByLabelText('Adidas')).not.toBeInTheDocument();
++    });
++  });
++
++  it('сохраняет выбранный бренд видимым, даже если он не входит в visible-brands', async () => {
++    const user = userEvent.setup();
++    (brandsService.getVisibleBrands as Mock)
++      .mockResolvedValueOnce([1, 2])
++      .mockResolvedValueOnce([]);
++
++    render(<CatalogPage />);
++
++    const nike = await screen.findByLabelText('Nike');
++    await user.click(nike);
++
++    await waitFor(() => {
++      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
++      expect(screen.queryByLabelText('Adidas')).not.toBeInTheDocument();
++    });
++  });
++
++  it('показывает полный список брендов при сетевой ошибке visible-brands', async () => {
++    (brandsService.getVisibleBrands as Mock).mockRejectedValue(new Error('500'));
++
++    render(<CatalogPage />);
++
++    await waitFor(() => {
++      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
++      expect(screen.getByLabelText('Adidas')).toBeInTheDocument();
++    });
++  });
++
++  it('показывает "Бренды не найдены", когда visible-brands пустой и нет выбора', async () => {
++    (brandsService.getVisibleBrands as Mock).mockResolvedValue([]);
++
++    render(<CatalogPage />);
++
++    await waitFor(() => {
++      expect(screen.getByText('Бренды не найдены')).toBeInTheDocument();
++      expect(screen.queryByLabelText('Nike')).not.toBeInTheDocument();
++      expect(screen.queryByLabelText('Adidas')).not.toBeInTheDocument();
++    });
++  });
++
++  it('сбрасывает sidebarVisibleBrandIds при снятии чекбокса "В наличии"', async () => {
++    const user = userEvent.setup();
++    (brandsService.getVisibleBrands as Mock).mockResolvedValue([]);
++
++    render(<CatalogPage />);
++
++    await waitFor(() => {
++      expect(screen.getByText('Бренды не найдены')).toBeInTheDocument();
++    });
++
++    await user.click(screen.getByLabelText('В наличии'));
++
++    await waitFor(() => {
++      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
++      expect(screen.getByLabelText('Adidas')).toBeInTheDocument();
++    });
++  });
++});
+diff --git a/frontend/src/app/(blue)/catalog/page.tsx b/frontend/src/app/(blue)/catalog/page.tsx
+index dd79c418..065a06b2 100644
+--- a/frontend/src/app/(blue)/catalog/page.tsx
++++ b/frontend/src/app/(blue)/catalog/page.tsx
+@@ -355,6 +355,8 @@ const CatalogContent: React.FC = () => {
+   const [sidebarVisibleIds, setSidebarVisibleIds] = useState<Set<number> | null>(null);
+ 
+   const [brands, setBrands] = useState<Brand[]>([]);
++  // Видимость брендов в sidebar: null = показывать всё (fallback / initial)
++  const [sidebarVisibleBrandIds, setSidebarVisibleBrandIds] = useState<Set<number> | null>(null);
+   const [selectedBrandIds, setSelectedBrandIds] = useState<Set<number>>(new Set());
+   const [isBrandsLoading, setIsBrandsLoading] = useState(true);
+   const [brandsError, setBrandsError] = useState<string | null>(null);
+@@ -529,7 +531,7 @@ const CatalogContent: React.FC = () => {
+ 
+     const fetchBrands = async () => {
+       try {
+-        const data = await brandsService.getAll();
++        const data = await brandsService.getAll({ has_stock: true });
+         if (isMounted) {
+           setBrands(data);
+         }
+@@ -647,6 +649,16 @@ const CatalogContent: React.FC = () => {
+           .getVisibleCategories(filters)
+           .then(ids => setSidebarVisibleIds(new Set(ids)))
+           .catch(() => setSidebarVisibleIds(null)), // fallback: показать всё дерево
++        // Бренды сужаем только в режиме "В наличии"; при снятии чекбокса показываем весь первичный список
++        filters.in_stock
++          ? brandsService
++              .getVisibleBrands(filters)
++              .then(ids => setSidebarVisibleBrandIds(new Set(ids)))
++              .catch(error => {
++                console.warn('Не удалось загрузить видимые бренды', error);
++                setSidebarVisibleBrandIds(null);
++              })
++          : Promise.resolve(setSidebarVisibleBrandIds(null)),
+       ]);
+ 
+       setProducts(response.results);
+@@ -1063,20 +1075,30 @@ const CatalogContent: React.FC = () => {
+                   <div className="mt-2 flex flex-col gap-1">
+                     {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
+                     {brandsError && <p className="text-xs text-red-500">{brandsError}</p>}
+-                    {!isBrandsLoading && !brandsError && brands.length === 0 && (
+-                      <p className="text-xs text-gray-400">Бренды не найдены</p>
+-                    )}
+                     {!isBrandsLoading &&
+                       !brandsError &&
+-                      brands.map(brand => (
+-                        <div key={brand.id}>
+-                          <Checkbox
+-                            label={brand.name}
+-                            checked={selectedBrandIds.has(brand.id)}
+-                            onChange={() => handleBrandToggle(brand.id)}
+-                          />
+-                        </div>
+-                      ))}
++                      (() => {
++                        const visibleBrands = brands.filter(
++                          brand =>
++                            sidebarVisibleBrandIds === null ||
++                            sidebarVisibleBrandIds.has(brand.id) ||
++                            selectedBrandIds.has(brand.id)
++                        );
++
++                        if (visibleBrands.length === 0) {
++                          return <p className="text-xs text-gray-400">Бренды не найдены</p>;
++                        }
++
++                        return visibleBrands.map(brand => (
++                          <div key={brand.id}>
++                            <Checkbox
++                              label={brand.name}
++                              checked={selectedBrandIds.has(brand.id)}
++                              onChange={() => handleBrandToggle(brand.id)}
++                            />
++                          </div>
++                        ));
++                      })()}
+                   </div>
+                 </div>
+               </div>
+@@ -1089,7 +1111,10 @@ const CatalogContent: React.FC = () => {
+                   onChange={e => {
+                     setInStock(e.target.checked);
+                     setPage(1);
+-                    if (!e.target.checked) setSidebarVisibleIds(null);
++                    if (!e.target.checked) {
++                      setSidebarVisibleIds(null);
++                      setSidebarVisibleBrandIds(null);
++                    }
+                   }}
+                 />
+               </div>
+diff --git a/frontend/src/services/__tests__/brandsService.test.ts b/frontend/src/services/__tests__/brandsService.test.ts
+index 809df372..68ad2c17 100644
+--- a/frontend/src/services/__tests__/brandsService.test.ts
++++ b/frontend/src/services/__tests__/brandsService.test.ts
+@@ -184,5 +184,113 @@ describe('brandsService', () => {
+ 
+       expect(result).toHaveLength(2);
+     });
++
++    test('sends has_stock=true when opts.has_stock=true', async () => {
++      let capturedUrl = '';
++
++      server.use(
++        http.get(`${API_BASE_URL}/brands/`, ({ request }) => {
++          capturedUrl = request.url;
++          return HttpResponse.json({
++            count: 2,
++            next: null,
++            previous: null,
++            results: mockBrands,
++          });
++        })
++      );
++
++      await brandsService.getAll({ has_stock: true });
++
++      const url = new URL(capturedUrl);
++      expect(url.searchParams.get('has_stock')).toBe('true');
++      expect(url.searchParams.get('page_size')).toBe('100');
++    });
++
++    test('omits has_stock when opts is undefined or empty', async () => {
++      const capturedUrls: string[] = [];
++
++      server.use(
++        http.get(`${API_BASE_URL}/brands/`, ({ request }) => {
++          capturedUrls.push(request.url);
++          return HttpResponse.json({
++            count: 2,
++            next: null,
++            previous: null,
++            results: mockBrands,
++          });
++        })
++      );
++
++      await brandsService.getAll();
++      await brandsService.getAll({});
++
++      for (const capturedUrl of capturedUrls) {
++        const url = new URL(capturedUrl);
++        expect(url.searchParams.has('has_stock')).toBe(false);
++      }
++    });
++
++    test('sends has_stock=false when opts.has_stock=false', async () => {
++      let capturedUrl = '';
++
++      server.use(
++        http.get(`${API_BASE_URL}/brands/`, ({ request }) => {
++          capturedUrl = request.url;
++          return HttpResponse.json({
++            count: 2,
++            next: null,
++            previous: null,
++            results: mockBrands,
++          });
++        })
++      );
++
++      await brandsService.getAll({ has_stock: false });
++
++      const url = new URL(capturedUrl);
++      expect(url.searchParams.get('has_stock')).toBe('false');
++    });
++  });
++
++  describe('getVisibleBrands', () => {
++    test('returns brand_ids array on success', async () => {
++      server.use(
++        http.get(`${API_BASE_URL}/products/visible-brands/`, () => {
++          return HttpResponse.json({ brand_ids: [1, 2] });
++        })
++      );
++
++      const result = await brandsService.getVisibleBrands({ in_stock: true });
++
++      expect(result).toEqual([1, 2]);
++    });
++
++    test('does not send brand param to backend', async () => {
++      let capturedUrl = '';
++
++      server.use(
++        http.get(`${API_BASE_URL}/products/visible-brands/`, ({ request }) => {
++          capturedUrl = request.url;
++          return HttpResponse.json({ brand_ids: [1, 2] });
++        })
++      );
++
++      await brandsService.getVisibleBrands({ brand: 'nike', min_price: 1000 });
++
++      const url = new URL(capturedUrl);
++      expect(url.searchParams.has('brand')).toBe(false);
++      expect(url.searchParams.get('min_price')).toBe('1000');
++    });
++
++    test('throws on network error', async () => {
++      server.use(
++        http.get(`${API_BASE_URL}/products/visible-brands/`, () => {
++          return HttpResponse.error();
++        })
++      );
++
++      await expect(brandsService.getVisibleBrands({ in_stock: true })).rejects.toThrow();
++    });
+   });
+ });
+diff --git a/frontend/src/services/brandsService.ts b/frontend/src/services/brandsService.ts
+index 7d491133..b9206e3e 100644
+--- a/frontend/src/services/brandsService.ts
++++ b/frontend/src/services/brandsService.ts
+@@ -5,6 +5,7 @@
+ import { isAxiosError } from 'axios';
+ import apiClient from './api-client';
+ import type { Brand, PaginatedResponse } from '@/types/api';
++import type { ProductFilters } from './productsService';
+ import { normalizeImageUrl } from '@/utils/media';
+ 
+ const DEFAULT_PAGE_SIZE = 100;
+@@ -43,11 +44,14 @@ class BrandsService {
+     });
+   }
+ 
+-  async getAll(): Promise<Brand[]> {
++  async getAll(opts?: { has_stock?: boolean }): Promise<Brand[]> {
++    const params: Record<string, unknown> = { page_size: DEFAULT_PAGE_SIZE };
++    if (opts?.has_stock !== undefined) {
++      params.has_stock = opts.has_stock;
++    }
++
+     const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/', {
+-      params: {
+-        page_size: DEFAULT_PAGE_SIZE,
+-      },
++      params,
+     });
+     return response.data.results.map(this.normalizeBrand);
+   }
+@@ -75,6 +79,15 @@ class BrandsService {
+       return this.normalizeFeaturedBrands(fallbackResponse.data);
+     }
+   }
++
++  async getVisibleBrands(filters: Partial<ProductFilters>): Promise<number[]> {
++    const filtersWithoutBrand = { ...filters };
++    delete filtersWithoutBrand.brand;
++    const response = await apiClient.get<{ brand_ids: number[] }>('/products/visible-brands/', {
++      params: filtersWithoutBrand,
++    });
++    return response.data.brand_ids;
++  }
+ }
+ 
+ const brandsService = new BrandsService();
+diff --git a/backend/apps/products/tests/test_visible_brands.py b/backend/apps/products/tests/test_visible_brands.py
+new file mode 100644
+index 00000000..f7d6abfa
+--- /dev/null
++++ b/backend/apps/products/tests/test_visible_brands.py
+@@ -0,0 +1,165 @@
++"""
++Тесты для ProductViewSet.visible_brands action.
++"""
++
++from __future__ import annotations
++
++from decimal import Decimal
++
++import pytest
++from django.urls import reverse
++from rest_framework import status
++from rest_framework.test import APIClient
++
++from apps.products.factories import BrandFactory, CategoryFactory, ProductFactory, ProductVariantFactory
++
++
++@pytest.mark.django_db
++@pytest.mark.integration
++class TestVisibleBrandsAction:
++    """GET /products/visible-brands/."""
++
++    @pytest.fixture
++    def client(self):
++        return APIClient()
++
++    @pytest.fixture
++    def url(self):
++        return reverse("products:product-visible-brands")
++
++    @pytest.fixture
++    def brand_nike(self):
++        return BrandFactory(name="Nike", slug="nike")
++
++    @pytest.fixture
++    def brand_adidas(self):
++        return BrandFactory(name="Adidas", slug="adidas")
++
++    @pytest.fixture
++    def brand_puma(self):
++        return BrandFactory(name="Puma", slug="puma")
++
++    @pytest.fixture
++    def cat_football(self):
++        return CategoryFactory(name="Футбол", slug="football")
++
++    @pytest.fixture
++    def cat_boots(self, cat_football):
++        return CategoryFactory(name="Бутсы", slug="boots", parent=cat_football)
++
++    @pytest.fixture
++    def cat_running(self):
++        return CategoryFactory(name="Бег", slug="running")
++
++    def test_returns_brand_ids_for_in_stock_products(self, client, url, brand_nike, brand_adidas, cat_football):
++        nike_product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        adidas_product = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"in_stock": "true"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert set(resp.data["brand_ids"]) == {brand_nike.id, brand_adidas.id}
++
++    def test_filter_by_category_id_returns_only_relevant_brands(
++        self, client, url, brand_nike, brand_adidas, cat_football, cat_boots, cat_running
++    ):
++        nike_product = ProductFactory(brand=brand_nike, category=cat_boots, create_variant=False)
++        adidas_product = ProductFactory(brand=brand_adidas, category=cat_running, create_variant=False)
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"category_id": cat_football.id, "in_stock": "true"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_ignores_brand_param(self, client, url, brand_nike, brand_adidas, cat_football):
++        nike_product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        adidas_product = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1200"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1400"))
++
++        resp = client.get(url, {"brand": "nike", "min_price": "1000"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert set(resp.data["brand_ids"]) == {brand_nike.id, brand_adidas.id}
++
++    def test_filter_by_min_price(self, client, url, brand_nike, brand_adidas, cat_football):
++        cheap = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        expensive = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=cheap, stock_quantity=3, retail_price=Decimal("500"))
++        ProductVariantFactory(product=expensive, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"min_price": "1000"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_adidas.id]
++
++    def test_filter_by_max_price(self, client, url, brand_nike, brand_adidas, cat_football):
++        cheap = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        expensive = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=cheap, stock_quantity=3, retail_price=Decimal("500"))
++        ProductVariantFactory(product=expensive, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"max_price": "1000"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_filter_by_in_stock(self, client, url, brand_nike, brand_adidas, cat_football):
++        in_stock = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        out_of_stock = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=in_stock, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=out_of_stock, stock_quantity=0, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"in_stock": "true"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_filter_by_search(self, client, url, brand_nike, brand_adidas, cat_football):
++        nike_product = ProductFactory(
++            name="Mercurial Boots", brand=brand_nike, category=cat_football, create_variant=False
++        )
++        adidas_product = ProductFactory(
++            name="Running Jersey", brand=brand_adidas, category=cat_football, create_variant=False
++        )
++        ProductVariantFactory(product=nike_product, stock_quantity=3, retail_price=Decimal("1000"))
++        ProductVariantFactory(product=adidas_product, stock_quantity=4, retail_price=Decimal("1500"))
++
++        resp = client.get(url, {"search": "Mercurial"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == [brand_nike.id]
++
++    def test_excludes_brand_id_null_for_products_without_brand(self, client, url, brand_nike, cat_football):
++        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
++
++        resp = client.get(url)
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert None not in resp.data["brand_ids"]
++
++    def test_empty_result_when_filters_exclude_all_products(self, client, url, brand_nike, cat_football):
++        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
++        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
++
++        resp = client.get(url, {"min_price": "999999"})
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"] == []
++
++    def test_returns_distinct_brand_ids_no_duplicates(self, client, url, brand_nike, cat_football):
++        for idx in range(3):
++            product = ProductFactory(
++                name=f"Nike Product {idx}", brand=brand_nike, category=cat_football, create_variant=False
++            )
++            ProductVariantFactory(product=product, stock_quantity=idx + 1, retail_price=Decimal("1000"))
++
++        resp = client.get(url)
++
++        assert resp.status_code == status.HTTP_200_OK
++        assert resp.data["brand_ids"].count(brand_nike.id) == 1

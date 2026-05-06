@@ -22,6 +22,7 @@ from django.test.utils import override_settings
 from rest_framework.test import APIClient
 
 from apps.products.constants import FEATURED_BRANDS_CACHE_KEY, FEATURED_BRANDS_CACHE_TIMEOUT, FEATURED_BRANDS_MAX_ITEMS
+from apps.products.factories import BrandFactory, ProductFactory, ProductVariantFactory
 from apps.products.models import Brand
 
 
@@ -321,6 +322,81 @@ class TestBrandSearch:
         response = self.client.get("/api/v1/brands/")
         assert response.status_code == 200
         assert len(response.data["results"]) == 3
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+class TestBrandsHasStockGate:
+    """GET /api/v1/brands/?has_stock=true."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        cache.clear()
+        self.client = cast(Any, APIClient())
+
+    def _brand_names(self, params=None):
+        response = self.client.get("/api/v1/brands/", params or {})
+        assert response.status_code == 200
+        return [brand["name"] for brand in response.data["results"]]
+
+    def test_has_stock_true_excludes_brand_without_stock(self):
+        nike = BrandFactory(name="Nike", slug="nike")
+        for idx in range(5):
+            product = ProductFactory(name=f"Nike Product {idx}", brand=nike, create_variant=False)
+            ProductVariantFactory(product=product, stock_quantity=0)
+
+        assert "Nike" not in self._brand_names({"has_stock": "true"})
+
+    def test_has_stock_true_includes_brand_with_stock(self):
+        adidas = BrandFactory(name="Adidas", slug="adidas")
+        product = ProductFactory(name="Adidas Product", brand=adidas, create_variant=False)
+        ProductVariantFactory(product=product, stock_quantity=7)
+
+        assert "Adidas" in self._brand_names({"has_stock": "true"})
+
+    def test_has_stock_absent_returns_all_active_brands(self):
+        BrandFactory(name="Nike", slug="nike")
+        BrandFactory(name="Adidas", slug="adidas")
+
+        assert set(self._brand_names()) == {"Adidas", "Nike"}
+
+    def test_has_stock_false_returns_all_active_brands(self):
+        BrandFactory(name="Nike", slug="nike")
+        BrandFactory(name="Adidas", slug="adidas")
+
+        assert set(self._brand_names({"has_stock": "false"})) == {"Adidas", "Nike"}
+
+    def test_has_stock_does_not_affect_featured_action(self):
+        nike = BrandFactory(name="Nike", slug="nike", is_featured=True, image=_make_image("nike.png"))
+        adidas = BrandFactory(name="Adidas", slug="adidas", is_featured=True, image=_make_image("adidas.png"))
+        nike_product = ProductFactory(name="Nike Product", brand=nike, create_variant=False)
+        adidas_product = ProductFactory(name="Adidas Product", brand=adidas, create_variant=False)
+        ProductVariantFactory(product=nike_product, stock_quantity=0)
+        ProductVariantFactory(product=adidas_product, stock_quantity=5)
+
+        response = self.client.get(FEATURED_URL, {"has_stock": "true"})
+
+        assert response.status_code == 200
+        assert {brand["name"] for brand in response.data} == {"Adidas", "Nike"}
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+
+    def test_has_stock_uses_exists_subquery_no_duplicates(self):
+        brand = BrandFactory(name="Multi Variant", slug="multi-variant")
+        for idx in range(3):
+            product = ProductFactory(name=f"Product {idx}", brand=brand, create_variant=False)
+            ProductVariantFactory(product=product, stock_quantity=3)
+            ProductVariantFactory(product=product, stock_quantity=4)
+
+        names = self._brand_names({"has_stock": "true"})
+
+        assert names.count("Multi Variant") == 1
+
+    def test_has_stock_excludes_inactive_products(self):
+        brand = BrandFactory(name="Inactive Stock", slug="inactive-stock")
+        product = ProductFactory(name="Inactive Product", brand=brand, is_active=False, create_variant=False)
+        ProductVariantFactory(product=product, stock_quantity=10)
+
+        assert "Inactive Stock" not in self._brand_names({"has_stock": "true"})
 
 
 @pytest.mark.django_db

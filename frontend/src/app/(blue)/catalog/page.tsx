@@ -355,6 +355,8 @@ const CatalogContent: React.FC = () => {
   const [sidebarVisibleIds, setSidebarVisibleIds] = useState<Set<number> | null>(null);
 
   const [brands, setBrands] = useState<Brand[]>([]);
+  // Видимость брендов в sidebar: null = показывать всё (fallback / initial)
+  const [sidebarVisibleBrandIds, setSidebarVisibleBrandIds] = useState<Set<number> | null>(null);
   const [selectedBrandIds, setSelectedBrandIds] = useState<Set<number>>(new Set());
   const [isBrandsLoading, setIsBrandsLoading] = useState(true);
   const [brandsError, setBrandsError] = useState<string | null>(null);
@@ -529,7 +531,7 @@ const CatalogContent: React.FC = () => {
 
     const fetchBrands = async () => {
       try {
-        const data = await brandsService.getAll();
+        const data = await brandsService.getAll({ has_stock: true });
         if (isMounted) {
           setBrands(data);
         }
@@ -647,6 +649,16 @@ const CatalogContent: React.FC = () => {
           .getVisibleCategories(filters)
           .then(ids => setSidebarVisibleIds(new Set(ids)))
           .catch(() => setSidebarVisibleIds(null)), // fallback: показать всё дерево
+        // Бренды сужаем только в режиме "В наличии"; при снятии чекбокса показываем весь первичный список
+        filters.in_stock
+          ? brandsService
+              .getVisibleBrands(filters)
+              .then(ids => setSidebarVisibleBrandIds(new Set(ids)))
+              .catch(error => {
+                console.warn('Не удалось загрузить видимые бренды', error);
+                setSidebarVisibleBrandIds(null);
+              })
+          : Promise.resolve(setSidebarVisibleBrandIds(null)),
       ]);
 
       setProducts(response.results);
@@ -1063,20 +1075,30 @@ const CatalogContent: React.FC = () => {
                   <div className="mt-2 flex flex-col gap-1">
                     {isBrandsLoading && <p className="text-xs text-gray-400">Загрузка...</p>}
                     {brandsError && <p className="text-xs text-red-500">{brandsError}</p>}
-                    {!isBrandsLoading && !brandsError && brands.length === 0 && (
-                      <p className="text-xs text-gray-400">Бренды не найдены</p>
-                    )}
                     {!isBrandsLoading &&
                       !brandsError &&
-                      brands.map(brand => (
-                        <div key={brand.id}>
-                          <Checkbox
-                            label={brand.name}
-                            checked={selectedBrandIds.has(brand.id)}
-                            onChange={() => handleBrandToggle(brand.id)}
-                          />
-                        </div>
-                      ))}
+                      (() => {
+                        const visibleBrands = brands.filter(
+                          brand =>
+                            sidebarVisibleBrandIds === null ||
+                            sidebarVisibleBrandIds.has(brand.id) ||
+                            selectedBrandIds.has(brand.id)
+                        );
+
+                        if (visibleBrands.length === 0) {
+                          return <p className="text-xs text-gray-400">Бренды не найдены</p>;
+                        }
+
+                        return visibleBrands.map(brand => (
+                          <div key={brand.id}>
+                            <Checkbox
+                              label={brand.name}
+                              checked={selectedBrandIds.has(brand.id)}
+                              onChange={() => handleBrandToggle(brand.id)}
+                            />
+                          </div>
+                        ));
+                      })()}
                   </div>
                 </div>
               </div>
@@ -1089,7 +1111,10 @@ const CatalogContent: React.FC = () => {
                   onChange={e => {
                     setInStock(e.target.checked);
                     setPage(1);
-                    if (!e.target.checked) setSidebarVisibleIds(null);
+                    if (!e.target.checked) {
+                      setSidebarVisibleIds(null);
+                      setSidebarVisibleBrandIds(null);
+                    }
                   }}
                 />
               </div>

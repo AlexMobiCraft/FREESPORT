@@ -103,6 +103,7 @@ vi.mock('@/services/categoriesService', () => ({
 vi.mock('@/services/brandsService', () => ({
   default: {
     getAll: vi.fn(() => Promise.resolve(mockBrands)),
+    getVisibleBrands: vi.fn(() => Promise.resolve([1, 2])),
   },
 }));
 
@@ -431,6 +432,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
 // Тесты сортировки и скрытия пустых категорий (bugfix: Без категории)
 // ---------------------------------------------------------------------------
 import categoriesService from '@/services/categoriesService';
+import brandsService from '@/services/brandsService';
 
 const mockMatchMedia = () => {
   Object.defineProperty(window, 'matchMedia', {
@@ -564,6 +566,111 @@ describe('CatalogPage — сортировка и скрытие пустых к
     await waitFor(() => {
       // Родитель виден потому что дочерняя видима
       expect(screen.getByText('Спорт')).toBeInTheDocument();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Тесты скрытия брендов без товаров и динамического visible-brands
+// ---------------------------------------------------------------------------
+
+describe('CatalogPage — видимость брендов по наличию и фильтрам', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMatchMedia();
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      { id: 1, name: 'Футбол', slug: 'football', in_stock_count: 5, products_count: 5, children: [] },
+    ]);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
+    (brandsService.getAll as Mock).mockResolvedValue(mockBrands);
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1, 2]);
+  });
+
+  it('вызывает первичную загрузку брендов с has_stock=true', async () => {
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(brandsService.getAll).toHaveBeenCalledWith({ has_stock: true });
+    });
+  });
+
+  it('не показывает out-of-stock бренд, если его нет в первичном ответе getAll', async () => {
+    (brandsService.getAll as Mock).mockResolvedValue([{ id: 2, name: 'Adidas', slug: 'adidas' }]);
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Adidas')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Nike')).not.toBeInTheDocument();
+    });
+  });
+
+  it('скрывает бренды, которых нет в visible-brands', async () => {
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1]);
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Adidas')).not.toBeInTheDocument();
+    });
+  });
+
+  it('сохраняет выбранный бренд видимым, даже если он не входит в visible-brands', async () => {
+    const user = userEvent.setup();
+    (brandsService.getVisibleBrands as Mock)
+      .mockResolvedValueOnce([1, 2])
+      .mockResolvedValueOnce([]);
+
+    render(<CatalogPage />);
+
+    const nike = await screen.findByLabelText('Nike');
+    await user.click(nike);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Adidas')).not.toBeInTheDocument();
+    });
+  });
+
+  it('показывает полный список брендов при сетевой ошибке visible-brands', async () => {
+    (brandsService.getVisibleBrands as Mock).mockRejectedValue(new Error('500'));
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
+      expect(screen.getByLabelText('Adidas')).toBeInTheDocument();
+    });
+  });
+
+  it('показывает "Бренды не найдены", когда visible-brands пустой и нет выбора', async () => {
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([]);
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Бренды не найдены')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Nike')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Adidas')).not.toBeInTheDocument();
+    });
+  });
+
+  it('сбрасывает sidebarVisibleBrandIds при снятии чекбокса "В наличии"', async () => {
+    const user = userEvent.setup();
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([]);
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Бренды не найдены')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByLabelText('В наличии'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Nike')).toBeInTheDocument();
+      expect(screen.getByLabelText('Adidas')).toBeInTheDocument();
     });
   });
 });

@@ -5,6 +5,7 @@
 import { isAxiosError } from 'axios';
 import apiClient from './api-client';
 import type { Brand, PaginatedResponse } from '@/types/api';
+import type { ProductFilters } from './productsService';
 import { normalizeImageUrl } from '@/utils/media';
 
 const DEFAULT_PAGE_SIZE = 100;
@@ -43,11 +44,14 @@ class BrandsService {
     });
   }
 
-  async getAll(): Promise<Brand[]> {
+  async getAll(opts?: { has_stock?: boolean }): Promise<Brand[]> {
+    const params: Record<string, unknown> = { page_size: DEFAULT_PAGE_SIZE };
+    if (opts?.has_stock !== undefined) {
+      params.has_stock = opts.has_stock;
+    }
+
     const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/', {
-      params: {
-        page_size: DEFAULT_PAGE_SIZE,
-      },
+      params,
     });
     return response.data.results.map(this.normalizeBrand);
   }
@@ -74,6 +78,15 @@ class BrandsService {
 
       return this.normalizeFeaturedBrands(fallbackResponse.data);
     }
+  }
+
+  async getVisibleBrands(filters: Partial<ProductFilters>): Promise<number[]> {
+    const filtersWithoutBrand = { ...filters };
+    delete filtersWithoutBrand.brand;
+    const response = await apiClient.get<{ brand_ids: number[] }>('/products/visible-brands/', {
+      params: filtersWithoutBrand,
+    });
+    return response.data.brand_ids;
   }
 }
 
