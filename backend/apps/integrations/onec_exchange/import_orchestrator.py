@@ -429,13 +429,25 @@ class ImportOrchestratorService:
                 session.report += f"[{timezone.now()}] DRY RUN: Импорт пропущен.\n"
                 session.save(update_fields=["report"])
             else:
+                # Race-fix: перевести session в IN_PROGRESS ДО dispatch и ДО mark_complete().
+                # Это закрывает окно очереди Celery — handle_init guard видит active session
+                # ещё до того, как worker подхватит задачу. process_1c_import_task сам
+                # повторно установит IN_PROGRESS на старте — операция идемпотентна.
+                from apps.products.models import ImportSession
+
+                session.status = ImportSession.ImportStatus.IN_PROGRESS
+                session.report += (
+                    f"[{timezone.now()}] Celery task queued; session marked IN_PROGRESS " "before complete marker.\n"
+                )
+                session.save(update_fields=["status", "report", "updated_at"])
+
                 logger.info(
                     f"[COMPLETE] Dispatching Celery task for " f"session_id={session.pk}, import_dir={self.import_dir}"
                 )
                 task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
                 logger.info(f"[COMPLETE] Celery task dispatched: task_id={task_result.id}")
                 session.report += f"[{timezone.now()}] Celery task запущен: {task_result.id}\n"
-                session.save(update_fields=["report"])
+                session.save(update_fields=["report", "updated_at"])
 
             # Mark exchange cycle complete for next init
             file_service.mark_complete()

@@ -13,7 +13,7 @@ from defusedxml.common import DefusedXmlException
 from django.conf import settings
 from django.contrib.auth import get_backends, login
 from django.core.cache import cache
-from django.db import OperationalError, transaction
+from django.db import DatabaseError, OperationalError, transaction
 from django.http import FileResponse, HttpResponse, StreamingHttpResponse
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -419,16 +419,40 @@ class ICExchangeView(APIView):
             # If the PREVIOUS exchange was marked as complete,
             # this 'init' starts a NEW cycle -> Full Cleanup.
             if file_service.is_complete():
-                logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
-                file_service.cleanup_session(force=True)
+                # Race-fix: DB-check ДО cleanup_session(force=True), потому что cleanup_session
+                # удаляет marker `.exchange_complete` вместе с прочими файлами session_dir.
+                # При DB-исключении marker должен остаться, чтобы следующий init мог повторить попытку.
+                from apps.products.models import ImportSession
 
-                # Also clean up the shared import directory to prevent loops with old XML segments
-                from .routing_service import FileRoutingService
+                try:
+                    active_sessions = ImportSession.objects.filter(
+                        status=ImportSession.ImportStatus.IN_PROGRESS
+                    ).count()
+                except DatabaseError as db_err:
+                    logger.warning(
+                        f"[INIT] Active sessions check failed for {sessid}: {db_err}. "
+                        "Skipping cleanup; marker preserved for retry on next init."
+                    )
+                else:
+                    if active_sessions > 0:
+                        # Race-skip: пропускаем ВЕСЬ destructive cleanup-блок и сохраняем marker.
+                        # Marker `.exchange_complete` остаётся, чтобы следующий handle_init
+                        # повторил guard, когда active==0 и cleanup станет безопасным.
+                        logger.info(
+                            f"Skipping import dir cleanup — {active_sessions} sessions in progress "
+                            f"(sessid={sessid})"
+                        )
+                    else:
+                        logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
+                        file_service.cleanup_session(force=True)
 
-                routing_service = FileRoutingService(sessid)
-                routing_service.cleanup_import_dir(force=True)
+                        # Also clean up the shared import directory to prevent loops with old XML segments
+                        from .routing_service import FileRoutingService
 
-                file_service.clear_complete()
+                        routing_service = FileRoutingService(sessid)
+                        routing_service.cleanup_import_dir(force=True)
+
+                        file_service.clear_complete()
             else:
                 logger.info(f"Continuing existing exchange cycle for {sessid}. Accumulating files.")
         except Exception as e:
