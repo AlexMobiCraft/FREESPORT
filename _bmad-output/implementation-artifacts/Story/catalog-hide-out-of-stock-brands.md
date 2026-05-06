@@ -1,0 +1,376 @@
+# Story: Каталог — скрытие брендов без товаров в наличии
+
+Status: ready-for-dev
+
+Source:
+- `_bmad-output/implementation-artifacts/tech-spec/tech-spec-catalog-hide-out-of-stock-brands.md`
+- `_bmad-output/implementation-artifacts/tech-spec/tech-spec-catalog-category-sort-and-hide-empty.md` (контекст-симметрия паттерна `visible-categories`)
+
+Baseline commit: `e4f2ae0181a9341c008dae7f0370f37944e20b30`
+
+## Story
+
+As a **покупатель FREESPORT, использующий каталог `(blue)/catalog`**,
+I want **видеть в фильтре «Бренд» только бренды, у которых реально есть товары в наличии (с учётом активных фильтров каталога)**,
+so that **выбор бренда никогда не приводит к пустому гриду или к показу out-of-stock товаров без возможности заказа, а UX фильтра брендов симметричен уже реализованному скрытию пустых категорий**.
+
+## Acceptance Criteria
+
+1. **AC1 (гейт `has_stock=true`, бренд без in-stock товаров):** Given бренд `Nike` имеет ≥1 активный товар, но у всех связанных `ProductVariant.stock_quantity = 0`, when выполняется `GET /api/v1/brands/?has_stock=true`, then `Nike` отсутствует в результате.
+2. **AC2 (гейт `has_stock=true`, бренд с in-stock товарами):** Given бренд `Adidas` имеет ≥1 активный товар (`Product.is_active=True`) с ≥1 вариантом, у которого `stock_quantity > 0`, when выполняется `GET /api/v1/brands/?has_stock=true`, then `Adidas` присутствует в результате.
+3. **AC3 (backward compatibility списка брендов):** Given `GET /api/v1/brands/` без параметра `has_stock` (либо `has_stock=false`), when запрос делает существующий клиент, then возвращаются все активные бренды (как сейчас) — гейт не применяется.
+4. **AC4 (`featured` не затронут):** Given реализован гейт `has_stock`, when выполняется `GET /api/v1/brands/featured/` (с любыми query-параметрами), then ответ идентичен прежнему контракту, кэшируется по существующим правилам и `has_stock` не применяется.
+5. **AC5 (новый action `visible-brands`, базовый случай):** Given в каталоге несколько брендов с in-stock товарами в разных категориях, when выполняется `GET /api/v1/products/visible-brands/?category_id=15`, then ответ имеет вид `{"brand_ids": [...]}` и содержит ID только тех брендов, у которых есть активные товары в категории 15 (с учётом дочерних категорий через `filter_category_id`).
+6. **AC6 (`visible-brands` игнорирует параметр `brand`):** Given `GET /api/v1/products/visible-brands/?brand=nike&min_price=1000`, when параметр `brand` присутствует в запросе, then он игнорируется backend'ом (удаляется до применения `ProductFilter`); результат содержит ID всех брендов с товарами по фильтру `min_price=1000`, включая `nike`.
+7. **AC7 (`visible-brands` исключает товары без бренда):** Given товар без бренда (`brand_id IS NULL`) попадает под текущие фильтры, when выполняется `visible-brands`, then `null` отсутствует в `brand_ids` (только реальные ID).
+8. **AC8 (frontend гейт первичной загрузки):** Given пользователь открывает `/catalog`, when выполняется первичный `fetchBrands`, then `brandsService.getAll({ has_stock: true })` вызывается с параметром `has_stock=true`, и в сайдбаре никогда не появляются бренды без товаров в наличии.
+9. **AC9 (динамическое сужение по фильтрам):** Given пользователь выбрал категорию «Футбол», when `getVisibleBrands(filters)` вернул `{brand_ids: [Nike.id, Puma.id]}`, then в сайдбаре видны только чекбоксы `Nike` и `Puma`; остальные бренды скрыты, но НЕ удалены из `brands` state.
+10. **AC10 (preserve-selection при смене фильтра):** Given `selectedBrandIds = {Nike.id}`, then пользователь меняет категорию на ту, где `Nike` нет, when `sidebarVisibleBrandIds` не содержит `Nike.id`, then чекбокс `Nike` всё равно отрисован (через условие `selectedBrandIds.has(b.id)`) и `selectedBrandIds` не сбрасывается автоматически.
+11. **AC11 (сброс `sidebarVisibleBrandIds` при снятии «В наличии»):** Given пользователь снимает чекбокс «В наличии», when обработчик вызывает `setInStock(false)`, then немедленно устанавливается `sidebarVisibleBrandIds = null` и сайдбар показывает все бренды из первичного `getAll({ has_stock: true })` (зеркально текущему поведению `setSidebarVisibleIds(null)` для категорий).
+12. **AC12 (graceful fallback на сетевую ошибку `visible-brands`):** Given сетевая/5xx ошибка `getVisibleBrands`, when promise reject, then `sidebarVisibleBrandIds = null`, чекбоксы из `brands` state видны полностью, никаких toast-ошибок и блокировки UI; в консоль выводится `console.error`/`console.warn`.
+13. **AC13 (empty-state):** Given активные фильтры исключают все товары каталога и `selectedBrandIds.size === 0`, when `visible-brands` вернул пустой массив, then в сайдбаре отображается существующий fallback `<p>Бренды не найдены</p>` (`page.tsx:1066`-логика).
+14. **AC14 (scope не затрагивает electric-каталог):** Given `frontend/src/app/(electric)/electric/catalog/page.tsx` существует в кодовой базе, when выполнены все задачи спеки, then этот файл и его тесты остаются неизменёнными.
+15. **AC15 (модель `Brand` и миграции):** Given реализован гейт `has_stock` и action `visible_brands`, when выполнены все задачи, then ни одной миграции не добавлено и модель `Brand` не изменена; `BrandFeaturedSerializer` и контракт `/brands/featured/` неизменны.
+
+## Tasks / Subtasks
+
+- [ ] Task 1: Backend — гейт `has_stock` в `BrandViewSet` (AC: 1, 2, 3, 4, 15)
+  - [ ] 1.1: В `backend/apps/products/views.py` (`BrandViewSet.get_queryset`, ~line 354–361) после существующего `is_featured` фильтра добавить парсинг `has_stock` через `self.request.query_params.get("has_stock")`. Boolean-семантика: `"true"`/`"1"` (lowercase) → True; всё остальное (включая `"false"`/`"0"`) и `None` → False (без применения фильтра, backward compat).
+  - [ ] 1.2: Реализовать фильтр через `Exists` subquery (НЕ через `Count`/`distinct`):
+    ```python
+    in_stock_products = Product.objects.filter(
+        brand=OuterRef("pk"),
+        is_active=True,
+        variants__stock_quantity__gt=0,
+    )
+    qs = qs.filter(Exists(in_stock_products))
+    ```
+    `Exists` гарантирует один subquery без декартова произведения `products × variants` (паттерн в `views.py:102` для аннотации `has_stock` у `Product`). Импорты `Exists`, `OuterRef`, `Product` уже есть в файле — проверить и не дублировать.
+  - [ ] 1.3: Гейт применяется ТОЛЬКО когда `self.action != "featured"` (внутри существующей ветки `if self.action != "featured":`) — featured-кэш не должен ломаться через query-параметр.
+  - [ ] 1.4: Обновить `@extend_schema(parameters=[...])` действия `list` (~`views.py:362–376`): добавить `OpenApiParameter("has_stock", OpenApiTypes.BOOL, description="Возвращать только бренды, у которых есть активные товары с вариантами в наличии (stock_quantity > 0). По умолчанию параметр не применяется (backward compat).")`.
+
+- [ ] Task 2: Backend — action `visible_brands` на `ProductViewSet` (AC: 5, 6, 7)
+  - [ ] 2.1: В `backend/apps/products/views.py` после `visible_categories` (~`views.py:200–232`) добавить новый action:
+    ```python
+    @extend_schema(
+        summary="Видимые бренды по фильтрам",
+        description=(
+            "Возвращает ID брендов, у которых есть товары по текущим фильтрам каталога. "
+            "Параметр brand игнорируется — endpoint отражает глобальные фильтры, "
+            "не сужая sidebar до уже выбранных брендов."
+        ),
+        parameters=[
+            OpenApiParameter("category_id", OpenApiTypes.INT, description="ID категории (включая дочерние)"),
+            OpenApiParameter("min_price", OpenApiTypes.NUMBER, description="Минимальная цена"),
+            OpenApiParameter("max_price", OpenApiTypes.NUMBER, description="Максимальная цена"),
+            OpenApiParameter("in_stock", OpenApiTypes.BOOL, description="Товары в наличии"),
+            OpenApiParameter("search", OpenApiTypes.STR, description="Поисковый запрос"),
+        ],
+        tags=["Products"],
+    )
+    @action(detail=False, methods=["get"], url_path="visible-brands")
+    def visible_brands(self, request: Request) -> Response:
+        params = request.query_params.copy()
+        params.pop("brand", None)  # симметрично visible_categories.pop("category_id")
+        filterset = self.filterset_class(params, queryset=self.get_queryset())
+        filtered_qs = filterset.qs
+        brand_ids = list(
+            filtered_qs.exclude(brand_id__isnull=True)
+                       .values_list("brand_id", flat=True)
+                       .distinct()
+        )
+        return Response({"brand_ids": brand_ids})
+    ```
+  - [ ] 2.2: URL генерируется автоматически через `DefaultRouter` → `products:product-visible-brands` (zero-config, симметрично `products:product-visible-categories` в `products/urls.py:12`).
+  - [ ] 2.3: Без расширения предками (бренд — плоская модель, не иерархия) и без сортировки (порядок не важен; на frontend применяется существующий порядок брендов из `getAll`).
+
+- [ ] Task 3: Backend — тесты `has_stock` (AC: 1, 2, 3, 4)
+  - [ ] 3.1: Дополнить `backend/apps/products/tests/test_brand_api.py` новым классом `TestBrandsHasStockGate` (или add module-level test cases) с фикстурами `Brand`, `Product`, `ProductVariant` (по образцу `apps.products.factories` из `test_visible_categories.py`).
+  - [ ] 3.2: Тесты:
+    - `test_has_stock_true_excludes_brand_without_stock` (AC1): `Nike` с 5 товарами и всеми вариантами `stock_quantity=0` НЕ в результате при `?has_stock=true`.
+    - `test_has_stock_true_includes_brand_with_stock` (AC2): `Adidas` с ≥1 товаром и ≥1 вариантом `stock_quantity>0` присутствует.
+    - `test_has_stock_absent_returns_all_active_brands` (AC3): `GET /api/v1/brands/` без `has_stock` возвращает все активные бренды.
+    - `test_has_stock_false_returns_all_active_brands` (AC3): `?has_stock=false` эквивалент отсутствию параметра.
+    - `test_has_stock_does_not_affect_featured_action` (AC4): `?has_stock=true` к `/api/v1/brands/featured/` НЕ меняет ответ; кэш `FEATURED_BRANDS_CACHE_KEY` не загрязняется.
+    - `test_has_stock_uses_exists_subquery_no_duplicates` (производительность/корректность): бренд с 3 товарами, у каждого по 2 варианта `stock>0` — возвращается ровно 1 раз без `distinct()` (`Exists` исключает декартово произведение).
+    - `test_has_stock_excludes_inactive_products` (граничный): бренд имеет товары с `is_active=False` и `stock>0` — НЕ попадает в результат при `?has_stock=true`.
+  - [ ] 3.3: Все новые тесты помечены `@pytest.mark.unit` или `@pytest.mark.integration` согласно правилу проекта (см. `AGENTS.md` — кастомные маркеры pytest). Для тестов через `APIClient` + `@pytest.mark.django_db` используется маркер `integration`.
+
+- [ ] Task 4: Backend — тесты `visible_brands` (AC: 5, 6, 7)
+  - [ ] 4.1: Создать новый файл `backend/apps/products/tests/test_visible_brands.py` по образцу `test_visible_categories.py` (структура `TestVisibleBrandsAction` с APIClient-фикстурой, `reverse("products:product-visible-brands")`).
+  - [ ] 4.2: Тесты:
+    - `test_returns_brand_ids_for_in_stock_products` (AC5): два бренда с in-stock товарами в разных категориях — оба ID в ответе.
+    - `test_filter_by_category_id_returns_only_relevant_brands` (AC5): `?category_id=<football_id>` → только бренды с товарами в «Футбол» (с дочерними).
+    - `test_ignores_brand_param` (AC6): `?brand=nike&min_price=1000` → ID всех брендов с товарами цена≥1000, включая nike.
+    - `test_filter_by_min_price` / `test_filter_by_max_price` / `test_filter_by_in_stock` / `test_filter_by_search`: каждый ProductFilter параметр работает.
+    - `test_excludes_brand_id_null_for_products_without_brand` (AC7): товар с `brand=None` не приводит к появлению `null` в `brand_ids`.
+    - `test_empty_result_when_filters_exclude_all_products`: пустой массив при исключающих фильтрах.
+    - `test_returns_distinct_brand_ids_no_duplicates`: бренд с N товарами появляется ровно один раз (через `.distinct()`).
+  - [ ] 4.3: Все тесты помечены `@pytest.mark.integration` (используют `APIClient`, реальный `ProductFilter`). При желании — отдельные unit-тесты с маркером `unit` для проверки логики `pop("brand")` без HTTP-обёртки.
+
+- [ ] Task 5: Frontend — `brandsService.getAll` опциональный `has_stock` (AC: 8, 3)
+  - [ ] 5.1: В `frontend/src/services/brandsService.ts` (~line 46) расширить сигнатуру:
+    ```typescript
+    async getAll(opts?: { has_stock?: boolean }): Promise<Brand[]> {
+      const params: Record<string, unknown> = { page_size: DEFAULT_PAGE_SIZE };
+      if (opts?.has_stock !== undefined) {
+        params.has_stock = opts.has_stock;
+      }
+      const response = await apiClient.get<PaginatedResponse<Brand>>('/brands/', { params });
+      return response.data.results.map(this.normalizeBrand);
+    }
+    ```
+  - [ ] 5.2: Backward compat: вызовы `brandsService.getAll()` (без аргумента) работают как сейчас — параметр `has_stock` НЕ отправляется. Это ВАЖНО, потому что `getAll()` могут вызывать другие потребители помимо catalog/page.tsx.
+  - [ ] 5.3: Тип-аннотация для `opts?.has_stock` — строго `boolean | undefined`. Не отправлять `false` явно: если консумер хочет старое поведение, он не передаёт ничего.
+
+- [ ] Task 6: Frontend — `brandsService.getVisibleBrands` (AC: 9, 10, 12)
+  - [ ] 6.1: В `frontend/src/services/brandsService.ts` после `getFeatured` добавить метод по образцу `categoriesService.getVisibleCategories` (`categoriesService.ts:87`):
+    ```typescript
+    async getVisibleBrands(filters: Partial<ProductFilters>): Promise<number[]> {
+      const filtersWithoutBrand = { ...filters };
+      delete filtersWithoutBrand.brand;
+      const response = await apiClient.get<{ brand_ids: number[] }>(
+        '/products/visible-brands/',
+        { params: filtersWithoutBrand }
+      );
+      return response.data.brand_ids;
+    }
+    ```
+  - [ ] 6.2: Импорт `ProductFilters` из `@/services/productsService` (тип уже экспортируется, см. `productsService.ts:152`).
+  - [ ] 6.3: Удаление `brand` на frontend ВАЖНО для согласованности: бекенд тоже игнорирует `brand`, но удаление на клиенте делает контракт явным и предотвращает путаницу при чтении network-логов.
+
+- [ ] Task 7: Frontend — тесты `brandsService` (AC: 8, 9)
+  - [ ] 7.1: В `frontend/src/services/__tests__/brandsService.test.ts` дополнить describe `getAll`:
+    - `test('sends has_stock=true when opts.has_stock=true')`: проверка query string.
+    - `test('omits has_stock when opts is undefined or empty (backward compat)')`: URL без `has_stock`.
+    - `test('sends has_stock=false when opts.has_stock=false')`: явная передача.
+  - [ ] 7.2: Добавить новый describe `getVisibleBrands`:
+    - `test('returns brand_ids array on success')`.
+    - `test('does not send brand param to backend')` — проверка отсутствия `brand` в query string.
+    - `test('throws on network error')` (по образцу `getFeatured handles network error`).
+
+- [ ] Task 8: Frontend — state и первичный fetch на `/catalog` (AC: 8, 11)
+  - [ ] 8.1: В `frontend/src/app/(blue)/catalog/page.tsx` рядом со state `sidebarVisibleIds` (~line 355) добавить:
+    ```typescript
+    const [sidebarVisibleBrandIds, setSidebarVisibleBrandIds] = useState<Set<number> | null>(null);
+    ```
+    Семантика: `null` = «показывать всё» (initial / fallback), `Set<number>` = whitelist для фильтрации чекбоксов.
+  - [ ] 8.2: В `fetchBrands` (~line 530) заменить `brandsService.getAll()` на `brandsService.getAll({ has_stock: true })`. Это первичный гейт — бренды без товаров в наличии не попадают даже в `brands` state.
+  - [ ] 8.3: Если `getAll({ has_stock: true })` падает с network/5xx, `brandsError` уже устанавливается existing-логикой — никаких новых веток обработки не требуется.
+
+- [ ] Task 9: Frontend — параллельный fetch `getVisibleBrands` в `fetchProducts` (AC: 9, 12)
+  - [ ] 9.1: В `fetchProducts` (~line 643) расширить `Promise.all`:
+    ```typescript
+    const [response] = await Promise.all([
+      productsService.getAll(filters),
+      categoriesService
+        .getVisibleCategories(filters)
+        .then(ids => setSidebarVisibleIds(new Set(ids)))
+        .catch(() => setSidebarVisibleIds(null)),
+      brandsService
+        .getVisibleBrands(filters)
+        .then(ids => setSidebarVisibleBrandIds(new Set(ids)))
+        .catch(() => setSidebarVisibleBrandIds(null)),
+    ]);
+    ```
+  - [ ] 9.2: `visible-brands` запрос НЕ блокирует рендер товаров — он обновляет только sidebar visibility state (структура такая же, как для `getVisibleCategories`).
+  - [ ] 9.3: Сетевые ошибки `getVisibleBrands` приводят к `setSidebarVisibleBrandIds(null)` и `console.error`/`console.warn` (без toast-уведомлений, без блокировки UI).
+
+- [ ] Task 10: Frontend — рендер чекбоксов с preserve-selection (AC: 9, 10, 13)
+  - [ ] 10.1: В рендере чекбоксов брендов (`page.tsx:1069–1079`) внедрить filter с тройным условием:
+    ```typescript
+    {!isBrandsLoading && !brandsError && (() => {
+      const visibleBrands = brands.filter(b =>
+        sidebarVisibleBrandIds === null
+        || sidebarVisibleBrandIds.has(b.id)
+        || selectedBrandIds.has(b.id)
+      );
+      if (visibleBrands.length === 0) {
+        return <p className="text-xs text-gray-400">Бренды не найдены</p>;
+      }
+      return visibleBrands.map(brand => (
+        <div key={brand.id}>
+          <Checkbox
+            label={brand.name}
+            checked={selectedBrandIds.has(brand.id)}
+            onChange={() => handleBrandToggle(brand.id)}
+          />
+        </div>
+      ));
+    })()}
+    ```
+  - [ ] 10.2: Условие `|| selectedBrandIds.has(b.id)` КРИТИЧНО — без него выбранный бренд исчезнет из UI при смене фильтра (ломает preserve-selection).
+  - [ ] 10.3: Существующий fallback `<p>Бренды не найдены</p>` (`page.tsx:1066–1068`) для случая `brands.length === 0` сохранить, либо консолидировать с новым empty-state внутри IIFE — ОДИН источник истины для empty-state. Рекомендация: убрать дублирующий `brands.length === 0` блок, оставить только новый внутри IIFE, поскольку `visibleBrands.length === 0` покрывает оба случая.
+
+- [ ] Task 11: Frontend — сброс `sidebarVisibleBrandIds` при снятии «В наличии» (AC: 11)
+  - [ ] 11.1: В обработчике чекбокса «В наличии» (`page.tsx:1086–1094`, `onChange`) при `!e.target.checked` дополнительно вызвать:
+    ```typescript
+    if (!e.target.checked) {
+      setSidebarVisibleIds(null);
+      setSidebarVisibleBrandIds(null);
+    }
+    ```
+    Зеркально текущему сбросу `setSidebarVisibleIds(null)` для категорий.
+  - [ ] 11.2: При этом базовый список брендов из `brandsService.getAll({ has_stock: true })` остаётся отфильтрованным гейтом (это сознательный компромисс — см. Open Questions в tech-spec).
+
+- [ ] Task 12: Frontend — тесты CatalogPage (AC: 8, 9, 10, 11, 12, 13)
+  - [ ] 12.1: В `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx` добавить тесты:
+    - `test('hides out-of-stock brands at initial load')`: мок `getAll({has_stock:true})` возвращает только in-stock бренды → в DOM нет `Nike` если он out-of-stock.
+    - `test('hides brands not in visible-brands when category filter active')`: мок `getVisibleBrands` возвращает `[Nike.id]`, выбор категории → `Adidas` checkbox не рендерится.
+    - `test('preserves selected brand checkbox even when not in visible-brands')`: выбран `Nike`, фильтр меняется так, что `visible-brands` не содержит `Nike.id` → checkbox `Nike` остаётся видимым (AC10).
+    - `test('falls back to full brands list on visible-brands network error')` (AC12): мок `getVisibleBrands` rejects → все бренды из `brands` state видны.
+    - `test('shows "Бренды не найдены" when visible-brands empty and no selection')` (AC13).
+    - `test('resets sidebarVisibleBrandIds to null when in-stock checkbox unchecked')` (AC11).
+  - [ ] 12.2: Использовать существующий MSW-сервер (`__mocks__/api/server.ts`), моки на endpoints `/brands/`, `/brands/featured/`, `/products/visible-brands/`, `/products/visible-categories/`, `/products/`.
+
+- [ ] Task 13: Scope verification (AC: 14, 15)
+  - [ ] 13.1: Подтвердить отсутствием diff'а в `frontend/src/app/(electric)/electric/catalog/**` после всех изменений (`git status` / `git diff --stat`).
+  - [ ] 13.2: Подтвердить отсутствием новых миграций `backend/apps/products/migrations/` и неизменностью `Brand` модели.
+  - [ ] 13.3: Подтвердить неизменность `BrandFeaturedSerializer`, `FEATURED_BRANDS_CACHE_KEY`, и поведения `/brands/featured/` (см. AC4).
+
+## Dev Notes
+
+### Архитектурный паттерн
+
+Стратегия двухуровневого фильтра брендов **полностью симметрична** уже работающему фильтру категорий:
+
+| Уровень | Категории (существующий) | Бренды (новый) |
+|---|---|---|
+| **Глобальный гейт** | (нет — категории всегда полные) | `GET /brands/?has_stock=true` (первичный fetch) |
+| **Динамическое сужение** | `GET /products/visible-categories/?...` (без `category_id`) | `GET /products/visible-brands/?...` (без `brand`) |
+| **State (frontend)** | `sidebarVisibleIds: Set<number> \| null` | `sidebarVisibleBrandIds: Set<number> \| null` |
+| **Семантика `null`** | показать всё (fallback) | показать всё (fallback) |
+| **Preserve-selection** | (категория выбирается одна, нет проблемы) | `selectedBrandIds.has(b.id)` принудительно показывает чекбокс |
+| **Reset при `!inStock`** | `setSidebarVisibleIds(null)` | `setSidebarVisibleBrandIds(null)` |
+
+### Критические инварианты (developer guardrails)
+
+1. **`Exists` subquery, не `Count` / `JOIN` через `annotate(Count('products__variants'))`.** Иначе декартово произведение `products × variants` испортит результат и/или потребует `distinct()`. Паттерн уже использован в `views.py:102` для аннотации `has_stock` у `Product` — копировать его форму.
+2. **Гейт `has_stock` НЕ применяется в `featured` action.** Внутри `BrandViewSet.get_queryset` уже есть условие `if self.action != "featured":` — добавлять парсинг `has_stock` ВНУТРИ этого if-блока (после `is_featured`). Кэш `FEATURED_BRANDS_CACHE_KEY` не должен зависеть от query-параметров.
+3. **`visible_brands` удаляет `brand` из `query_params.copy()` ДО применения `ProductFilter`.** Симметрично `visible_categories.pop("category_id")` (`views.py:208–209`). Без этого фильтр сужает сам себя при множественном выборе брендов.
+4. **`exclude(brand_id__isnull=True)` ДО `values_list("brand_id", flat=True).distinct()`.** Товары без бренда (в каталоге FREESPORT встречаются) приведут к `null` в `brand_ids` и сломают `Set<number>` на frontend.
+5. **Frontend `getAll` без аргумента остаётся backward-compat.** Если `opts === undefined` или `opts.has_stock === undefined` — параметр НЕ отправляется. Это критично, т.к. `brandsService.getAll()` могут вызывать другие компоненты.
+6. **Preserve-selection через `|| selectedBrandIds.has(b.id)`.** Это единственная защита от UX-disaster'а: пользователь выбрал бренд → фильтр изменился → бренд исчез → пользователь не может снять выбор. Это требование AC10.
+7. **`null` vs пустой `Set` в `sidebarVisibleBrandIds`.** `null` = «показать все». Пустой `Set` = «нет видимых брендов» (валидное состояние при исключающих фильтрах). НЕ нормализовать пустой Set к `null` — empty-state требует показа `<p>Бренды не найдены</p>`.
+
+### Anti-patterns (что НЕ делать)
+
+- **Не использовать `Brand.objects.annotate(Count('products__variants__stock_quantity'))`** — это N+1 / декартово произведение. Только `Exists`.
+- **Не вводить `has_stock` или `visible_brands` в `BrandViewSet.featured` action** — кэшируется, изменение сломает кэш и tests `TestFeaturedBrandsEndpoint`.
+- **Не сбрасывать `selectedBrandIds` при изменении `sidebarVisibleBrandIds`** — пользователь увидит самопроизвольное снятие фильтров.
+- **Не добавлять «предков» как для категорий** — модель `Brand` плоская, иерархии нет.
+- **Не вносить никаких изменений в `(electric)/electric/catalog/page.tsx`** — модуль deprecated.
+- **Не менять контракт `BrandFeaturedSerializer` и endpoint `/brands/featured/`.**
+- **Не менять модель `Brand` и не добавлять миграции** (Story предполагает no-migration scope).
+- **Не передавать `request` в `getVisibleBrands` filters** — фильтры берутся из текущего `fetchProducts` filters, а они формируются из URL-state catalog page.
+
+### Затрагиваемые файлы (File List preview)
+
+**Backend:**
+- `backend/apps/products/views.py` — изменить `BrandViewSet.get_queryset` (~line 354), добавить `OpenApiParameter("has_stock", ...)` в `BrandViewSet.list @extend_schema` (~line 362), добавить `ProductViewSet.visible_brands` action (после `visible_categories`, ~line 232).
+- `backend/apps/products/tests/test_brand_api.py` — расширить новым классом `TestBrandsHasStockGate`.
+- `backend/apps/products/tests/test_visible_brands.py` — НОВЫЙ файл по образцу `test_visible_categories.py`.
+
+**Frontend:**
+- `frontend/src/services/brandsService.ts` — расширить `getAll(opts?: { has_stock?: boolean })`, добавить `getVisibleBrands(filters)`.
+- `frontend/src/services/__tests__/brandsService.test.ts` — расширить тесты.
+- `frontend/src/app/(blue)/catalog/page.tsx` — добавить state `sidebarVisibleBrandIds`, обновить `fetchBrands`, `fetchProducts`, рендер чекбоксов брендов, обработчик `inStock`.
+- `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx` — добавить тесты visibility/preserve-selection/fallback/empty-state/reset.
+
+### Backward compatibility и риски
+
+- **OpenAPI / spec sync:** добавление `has_stock` в `@extend_schema` обновит OpenAPI schema. Если в проекте есть docs-sync (см. `make docs-sync-api`), запустить после изменений.
+- **Кэш `FEATURED_BRANDS_CACHE_KEY`:** если кэш уже прогрет на проде, инвалидация не нужна — `featured` action не меняется.
+- **DRF pagination для `/brands/`:** `BrandPageNumberPagination.page_size = 100`. Если каталог имеет 100+ брендов с in-stock товарами, гейт `has_stock=true` уменьшит набор — page_size не нужно увеличивать.
+- **Race condition при быстрой смене фильтров:** `getVisibleBrands` БЕЗ AbortController. Уже зафиксировано в `deferred-work.md` для `getVisibleCategories` как известный риск; решение — отдельная story с AbortController/счётчиком версий. В рамках текущей story НЕ требуется (DEFERRED, симметрично категориям).
+
+### Тестовые стандарты
+
+- Backend: `pytest` с маркерами `@pytest.mark.unit` (без БД, чистая логика) и `@pytest.mark.integration` (`@pytest.mark.django_db`, `APIClient`). См. `AGENTS.md` — секция «Кастомные маркеры pytest».
+- Frontend: Jest + Testing Library + MSW. Для service-тестов использовать `__mocks__/api/server.ts` (паттерн в `brandsService.test.ts`).
+- Verification: см. секцию `Verification` ниже.
+
+### References
+
+- Tech-spec: [`_bmad-output/implementation-artifacts/tech-spec/tech-spec-catalog-hide-out-of-stock-brands.md`](../tech-spec/tech-spec-catalog-hide-out-of-stock-brands.md)
+- Симметричный tech-spec категорий: [`_bmad-output/implementation-artifacts/tech-spec/tech-spec-catalog-category-sort-and-hide-empty.md`](../tech-spec/tech-spec-catalog-category-sort-and-hide-empty.md)
+- Образец backend action: `backend/apps/products/views.py:184-232` (`visible_categories`)
+- Образец backend `Exists`-аннотации: `backend/apps/products/views.py:102`
+- Образец frontend service метода: `frontend/src/services/categoriesService.ts:87-97` (`getVisibleCategories`)
+- Образец frontend state и filter: `frontend/src/app/(blue)/catalog/page.tsx:355` (`sidebarVisibleIds`)
+- Образец backend тестов: `backend/apps/products/tests/test_visible_categories.py`
+- Project info: [`docs/PROJECT_INFO.md`](../../../docs/PROJECT_INFO.md)
+- Deferred risks (контекст): [`_bmad-output/implementation-artifacts/deferred-work.md`](../deferred-work.md)
+
+### Project Structure Notes
+
+Этот story не вносит изменений в структуру проекта:
+- Backend: добавляет ОДИН action в существующий ViewSet (`ProductViewSet`) и ОДИН parsing-блок в `BrandViewSet.get_queryset`. Никаких новых модулей/папок.
+- Frontend: расширяет существующий `brandsService` двумя методами и одну страницу `catalog/page.tsx`. Никаких новых компонентов.
+- Тесты: один новый файл `test_visible_brands.py` рядом с симметричным `test_visible_categories.py`.
+
+## Testing
+
+### Pre-Implementation (red tests)
+
+Запустить ДО реализации, чтобы убедиться, что новые тесты падают на текущем коде:
+
+```bash
+docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend \
+  pytest apps/products/tests/test_brand_api.py::TestBrandsHasStockGate \
+         apps/products/tests/test_visible_brands.py \
+         -m "unit or integration" -x -v
+```
+
+### Post-Implementation (green)
+
+```bash
+# Backend (targeted)
+docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend \
+  pytest apps/products/tests/test_brand_api.py \
+         apps/products/tests/test_visible_brands.py \
+         -m "unit or integration" -x -q
+
+# Backend (regression — весь products)
+docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend \
+  pytest apps/products -m "unit or integration" -x -q
+
+# Frontend (targeted)
+cd frontend
+npm run test -- src/services/__tests__/brandsService.test.ts
+npm run test -- "src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx"
+
+# Frontend (build)
+npm run build  # должен пройти без TypeScript ошибок
+```
+
+### Manual checks (smoke)
+
+- `/catalog` default (`inStock=true`): бренды без товаров в наличии не видны; бренды с товарами видны.
+- `/catalog?category=football`: видны только бренды с товарами в «Футболе».
+- `/catalog?brand=nike` затем смена категории на ту, где `Nike` нет → чекбокс `Nike` остаётся видимым.
+- Снятие чекбокса «В наличии» → весь список из первичного `getAll(has_stock=true)` восстанавливается; другие бренды НЕ появляются (гейт всегда применяется в первичном fetch).
+- Активная комбинация фильтров, исключающая все товары → «Бренды не найдены».
+- Симуляция 500 от `/products/visible-brands/` → сайдбар показывает полный список из `getAll(has_stock=true)`, навигация не сломана.
+- `/api/v1/brands/featured/` (главная) → содержимое без изменений.
+- `/electric/catalog` → визуальная регрессия не наблюдается (модуль deprecated, но проверить не сломан).
+
+## Change Log
+
+| Date | Version | Description | Author |
+|---|---:|---|---|
+| 2026-05-06 | 1.0 | История создана из утверждённого tech-spec `tech-spec-catalog-hide-out-of-stock-brands.md` (status=draft, baseline_commit=e4f2ae0). | Cascade (bmad-create-story) |
+
+## Dev Agent Record
+
+### Agent Model Used
+
+(будет заполнено dev-агентом при реализации)
+
+### Debug Log References
+
+### Completion Notes List
+
+### File List
+
+(будет заполнено dev-агентом)

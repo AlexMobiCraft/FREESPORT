@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-04" # category-tree-root-cause-fix → done (clean code review; CR-5 findings закрыты/acknowledged)
+last_updated: "2026-05-06" # catalog-hide-out-of-stock-brands → ready-for-dev (story создана из tech-spec)
 
 development_status:
   # ========================================
@@ -140,3 +140,11 @@ development_status:
   # Source: sprint-change-proposal-2026-05-03.md
   # ========================================
   category-tree-root-cause-fix: done
+
+  # ========================================
+  # Catalog UX: скрытие брендов без товаров в наличии
+  # Goal: В фильтре «Бренд» каталога (blue) показывать только бренды,
+  #       у которых есть товары в наличии, с динамическим сужением по активным фильтрам.
+  # Source: tech-spec/tech-spec-catalog-hide-out-of-stock-brands.md
+  # ========================================
+  catalog-hide-out-of-stock-brands: ready-for-dev
