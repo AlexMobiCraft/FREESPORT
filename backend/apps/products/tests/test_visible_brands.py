@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.products.factories import BrandFactory, CategoryFactory, ProductFactory, ProductVariantFactory
+from apps.products.views import ProductViewSet
 
 
 @pytest.mark.django_db
@@ -134,13 +135,42 @@ class TestVisibleBrandsAction:
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data["brand_ids"] == [brand_nike.id]
 
-    def test_excludes_brand_id_null_for_products_without_brand(self, client, url, brand_nike, cat_football):
-        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
-        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
+    def test_excludes_brand_id_null_for_products_without_brand(self, client, url, brand_nike, monkeypatch):
+        class FakeVisibleBrandsQuerySet:
+            def __init__(self, brand_ids):
+                self.brand_ids = brand_ids
+
+            def exclude(self, **kwargs):
+                assert kwargs == {"brand_id__isnull": True}
+                self.brand_ids = [brand_id for brand_id in self.brand_ids if brand_id is not None]
+                return self
+
+            def order_by(self, *args):
+                assert args == ()
+                return self
+
+            def values_list(self, *fields, **kwargs):
+                assert fields == ("brand_id",)
+                assert kwargs == {"flat": True}
+                return self
+
+            def distinct(self):
+                result = []
+                for brand_id in self.brand_ids:
+                    if brand_id not in result:
+                        result.append(brand_id)
+                return result
+
+        class FakeProductFilter:
+            def __init__(self, params, queryset):
+                self.qs = FakeVisibleBrandsQuerySet([brand_nike.id, None, brand_nike.id])
+
+        monkeypatch.setattr(ProductViewSet, "filterset_class", FakeProductFilter)
 
         resp = client.get(url)
 
         assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["brand_ids"] == [brand_nike.id]
         assert None not in resp.data["brand_ids"]
 
     def test_empty_result_when_filters_exclude_all_products(self, client, url, brand_nike, cat_football):
