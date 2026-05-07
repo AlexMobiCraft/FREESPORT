@@ -172,13 +172,14 @@ class TestFeaturedBrandsEndpoint:
         response_plain = self.client.get(FEATURED_URL)
         assert response_plain.status_code == 200
         assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+        cached_payload_plain = cache.get(FEATURED_BRANDS_CACHE_KEY)
 
-        cached_payload = cache.get(FEATURED_BRANDS_CACHE_KEY)
+        cache.clear()
         response_filtered = self.client.get(FEATURED_URL, {"is_featured": "false", "has_stock": "true"})
 
         assert response_filtered.status_code == 200
         assert response_filtered.data == response_plain.data
-        assert cache.get(FEATURED_BRANDS_CACHE_KEY) == cached_payload
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) == cached_payload_plain
 
 
 LOCMEM_CACHE = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

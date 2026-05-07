@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-07" # brand-viewset-filter-normalization → in-progress (code review run 1: 1 patch action item)
+last_updated: "2026-05-07" # brand-viewset-filter-normalization → in-progress (code review run 2: 1 patch action item)
 
 development_status:
   # ========================================
