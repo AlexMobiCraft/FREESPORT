@@ -386,13 +386,12 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["name"]
 
     def get_queryset(self):
-        """Активные бренды; has_stock применяется только к list action."""
+        """Активные бренды; is_featured и has_stock применяются только к list action."""
         qs = Brand.objects.active().order_by("name")
-        if self.action != "featured":
+        if self.action == "list":
             is_featured = self.request.query_params.get("is_featured")
             if is_featured is not None:
                 qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
-        if self.action == "list":
             has_stock = self.request.query_params.get("has_stock")
             if has_stock is not None and has_stock.lower() in ("true", "1"):
                 in_stock_products = Product.objects.filter(
@@ -410,7 +409,11 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
             OpenApiParameter(
                 "is_featured",
                 OpenApiTypes.BOOL,
-                description="Фильтр по featured-статусу бренда (true/false)",
+                description=(
+                    "Фильтр по featured-статусу бренда (true/false). "
+                    "Применяется только в list-action; для retrieve(slug)-эндпоинта "
+                    "параметр игнорируется и не влияет на поиск бренда."
+                ),
             ),
             OpenApiParameter(
                 "has_stock",

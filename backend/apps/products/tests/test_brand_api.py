@@ -164,6 +164,22 @@ class TestFeaturedBrandsEndpoint:
         assert "Adidas" in names
         assert "Nike" in names
 
+    @pytest.mark.integration
+    def test_featured_action_ignores_is_featured_and_has_stock_query_params(self):
+        """Featured endpoint не применяет list-only фильтры и использует один cache key."""
+        cache.clear()
+
+        response_plain = self.client.get(FEATURED_URL)
+        assert response_plain.status_code == 200
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
+
+        cached_payload = cache.get(FEATURED_BRANDS_CACHE_KEY)
+        response_filtered = self.client.get(FEATURED_URL, {"is_featured": "false", "has_stock": "true"})
+
+        assert response_filtered.status_code == 200
+        assert response_filtered.data == response_plain.data
+        assert cache.get(FEATURED_BRANDS_CACHE_KEY) == cached_payload
+
 
 LOCMEM_CACHE = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
@@ -326,6 +342,40 @@ class TestBrandSearch:
 
 @pytest.mark.django_db
 @pytest.mark.integration
+class TestBrandsIsFeaturedFilter:
+    """GET /api/v1/brands/?is_featured=true|false."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        cache.clear()
+        self.client = cast(Any, APIClient())
+
+    def _brand_names(self, params=None):
+        response = self.client.get("/api/v1/brands/", params or {})
+        assert response.status_code == 200
+        return [brand["name"] for brand in response.data["results"]]
+
+    def test_list_is_featured_true_returns_only_featured_brands(self):
+        BrandFactory(name="Nike", slug="nike", is_featured=False)
+        BrandFactory(name="Adidas", slug="adidas", is_featured=True)
+
+        assert self._brand_names({"is_featured": "true"}) == ["Adidas"]
+
+    def test_list_is_featured_false_returns_only_non_featured_brands(self):
+        BrandFactory(name="Nike", slug="nike", is_featured=False)
+        BrandFactory(name="Adidas", slug="adidas", is_featured=True)
+
+        assert self._brand_names({"is_featured": "false"}) == ["Nike"]
+
+    def test_list_without_is_featured_returns_all_active_brands(self):
+        BrandFactory(name="Nike", slug="nike", is_featured=False)
+        BrandFactory(name="Adidas", slug="adidas", is_featured=True)
+
+        assert set(self._brand_names()) == {"Adidas", "Nike"}
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
 class TestBrandsHasStockGate:
     """GET /api/v1/brands/?has_stock=true."""
 
@@ -389,6 +439,18 @@ class TestBrandsHasStockGate:
 
         assert response.status_code == 200
         assert response.data["name"] == "Nike"
+
+    def test_is_featured_does_not_affect_retrieve_action(self):
+        BrandFactory(name="Nike", slug="nike", is_featured=False)
+        BrandFactory(name="Adidas", slug="adidas", is_featured=True)
+
+        nike_response = self.client.get("/api/v1/brands/nike/", {"is_featured": "true"})
+        adidas_response = self.client.get("/api/v1/brands/adidas/", {"is_featured": "false"})
+
+        assert nike_response.status_code == 200
+        assert nike_response.data["name"] == "Nike"
+        assert adidas_response.status_code == 200
+        assert adidas_response.data["name"] == "Adidas"
 
     def test_has_stock_uses_exists_subquery_no_duplicates(self):
         brand = BrandFactory(name="Multi Variant", slug="multi-variant")

@@ -1,6 +1,6 @@
 # Story: Нормализация query-фильтров `BrandViewSet` (`is_featured` / `has_stock`)
 
-Status: ready-for-dev
+Status: in-progress
 
 Source:
 - `_bmad-output/implementation-artifacts/tech-spec/tech-spec-brand-viewset-filter-normalization.md`
@@ -29,8 +29,8 @@ so that **контракт detail-эндпоинта симметричен (`is
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Backend — объединить ветку `is_featured` с `has_stock` в `BrandViewSet.get_queryset`** (AC: 1, 2, 6, 7)
-  - [ ] 1.1: В `backend/apps/products/views.py` (`BrandViewSet.get_queryset`, ~lines 388–404) заменить структуру с двумя ветками (`if self.action != "featured":` для `is_featured` и `if self.action == "list":` для `has_stock`) на единый блок `if self.action == "list":` с обоими фильтрами внутри. Целевой код:
+- [x] **Task 1: Backend — объединить ветку `is_featured` с `has_stock` в `BrandViewSet.get_queryset`** (AC: 1, 2, 6, 7)
+  - [x] 1.1: В `backend/apps/products/views.py` (`BrandViewSet.get_queryset`, ~lines 388–404) заменить структуру с двумя ветками (`if self.action != "featured":` для `is_featured` и `if self.action == "list":` для `has_stock`) на единый блок `if self.action == "list":` с обоими фильтрами внутри. Целевой код:
     ```python
     def get_queryset(self):
         """Активные бренды; is_featured и has_stock применяются только к list action."""
@@ -49,12 +49,12 @@ so that **контракт detail-эндпоинта симметричен (`is
                 qs = qs.filter(Exists(in_stock_products))
         return qs
     ```
-  - [ ] 1.2: Убедиться, что импорты `Exists`, `OuterRef`, `Product` уже присутствуют в `views.py` (см. существующий код run 4). НЕ дублировать импорты.
-  - [ ] 1.3: Обновить docstring метода (с «Активные бренды; has_stock применяется только к list action» → «Активные бренды; is_featured и has_stock применяются только к list action»).
-  - [ ] 1.4: НЕ затрагивать `featured`-action: новая структура (`if self.action == "list":`) короткозамыкает все detail/featured/future actions автоматически.
+  - [x] 1.2: Убедиться, что импорты `Exists`, `OuterRef`, `Product` уже присутствуют в `views.py` (см. существующий код run 4). НЕ дублировать импорты.
+  - [x] 1.3: Обновить docstring метода (с «Активные бренды; has_stock применяется только к list action» → «Активные бренды; is_featured и has_stock применяются только к list action»).
+  - [x] 1.4: НЕ затрагивать `featured`-action: новая структура (`if self.action == "list":`) короткозамыкает все detail/featured/future actions автоматически.
 
-- [ ] **Task 2: Backend — обновить `@extend_schema` `BrandViewSet.list` для `is_featured`** (AC: 3, 4, 5, 9)
-  - [ ] 2.1: В `backend/apps/products/views.py` (`@extend_schema(... parameters=[...])` на `BrandViewSet.list`, ~lines 406–427) уточнить description параметра `is_featured`, явно зафиксировав, что фильтр применяется **только** в `list`-action. Рекомендуемая формулировка:
+- [x] **Task 2: Backend — обновить `@extend_schema` `BrandViewSet.list` для `is_featured`** (AC: 3, 4, 5, 9)
+  - [x] 2.1: В `backend/apps/products/views.py` (`@extend_schema(... parameters=[...])` на `BrandViewSet.list`, ~lines 406–429) уточнить description параметра `is_featured`, явно зафиксировав, что фильтр применяется **только** в `list`-action. Рекомендуемая формулировка:
     ```python
     OpenApiParameter(
         "is_featured",
@@ -66,42 +66,56 @@ so that **контракт detail-эндпоинта симметричен (`is
         ),
     ),
     ```
-  - [ ] 2.2: Сохранить семантику `list`-контракта: `?is_featured=true|false|None` работает как раньше; AC3-AC5 защищают существующее поведение коллекции.
-  - [ ] 2.3: Не менять description `has_stock` (он уже корректно описывает gate-семантику после run 3 предыдущей story).
+    Для справки — текущий стиль description `has_stock` (run 3, не менять):
+    ```python
+    description=(
+        "Возвращать только бренды, у которых есть активные товары с вариантами в наличии "
+        "(stock_quantity > 0). Применяется только при значении true/1. Любое другое значение "
+        "(включая false/0) эквивалентно отсутствию параметра и не возвращает бренды без "
+        "in-stock товаров."
+    )
+    ```
+    Семантика `is_featured` отличается (`false` — валидное значение, фильтрующее не-featured бренды), поэтому формулировка симметрична по структуре, но не по содержанию gate-семантики.
+  - [x] 2.2: Сохранить семантику `list`-контракта: `?is_featured=true|false|None` работает как раньше; AC3-AC5 защищают существующее поведение коллекции.
+  - [x] 2.3: Не менять description `has_stock` (он уже корректно описывает gate-семантику после run 3 предыдущей story).
 
-- [ ] **Task 3: Backend — регрессионный тест `is_featured` на `retrieve`** (AC: 1, 2)
-  - [ ] 3.1: В `backend/apps/products/tests/test_brand_api.py` добавить тест `test_is_featured_does_not_affect_retrieve_action` в существующий класс `TestBrandsHasStockGate` (рядом с `test_has_stock_does_not_affect_retrieve_action`) — это сохраняет co-location симметричных регрессий, либо завести новый класс `TestBrandRetrieveQueryParams` если так удобнее.
-  - [ ] 3.2: Тестовые сценарии (в одном `@pytest.mark.django_db` тесте или двух — на усмотрение реализатора):
+- [x] **Task 3: Backend — регрессионный тест `is_featured` на `retrieve`** (AC: 1, 2)
+  - [x] 3.1: В `backend/apps/products/tests/test_brand_api.py` добавить тест `test_is_featured_does_not_affect_retrieve_action` в существующий класс `TestBrandsHasStockGate` (рядом с `test_has_stock_does_not_affect_retrieve_action`) — это сохраняет co-location симметричных регрессий, либо завести новый класс `TestBrandRetrieveQueryParams` если так удобнее.
+  - [x] 3.2: Тестовые сценарии (в одном `@pytest.mark.django_db` тесте или двух — на усмотрение реализатора):
     - Создать `BrandFactory(name="Nike", slug="nike", is_featured=False)`. `GET /api/v1/brands/nike/?is_featured=true` → `status_code == 200`, `data["name"] == "Nike"`.
     - Создать `BrandFactory(name="Adidas", slug="adidas", is_featured=True)`. `GET /api/v1/brands/adidas/?is_featured=false` → `status_code == 200`, `data["name"] == "Adidas"`.
-  - [ ] 3.3: Тест помечен `@pytest.mark.django_db` + `@pytest.mark.integration` (использует `APIClient`) — соответствует правилу проекта (см. `AGENTS.md` секция «Кастомные маркеры pytest»).
-  - [ ] 3.4: Pre-implementation (red): запустить новый тест на текущем коде → ожидать **404** (failure expected), что подтверждает баг и адекватность теста.
+  - [x] 3.3: Тест помечен `@pytest.mark.django_db` + `@pytest.mark.integration` (использует `APIClient`) — соответствует правилу проекта (см. `AGENTS.md` секция «Кастомные маркеры pytest»).
+  - [x] 3.4: Pre-implementation (red): запустить новый тест на текущем коде → ожидать **404** (failure expected), что подтверждает баг и адекватность теста.
 
-- [ ] **Task 4: Backend — регрессионные тесты `list + is_featured`** (AC: 3, 4, 5)
-  - [ ] 4.1: Проверить покрытие existing `is_featured` поведения для `list`-action в `backend/apps/products/tests/test_brand_api.py` через `grep` по `is_featured`. Если тестов нет — добавить (рядом с `TestBrandsHasStockGate` или в отдельном классе `TestBrandsIsFeaturedFilter`):
+- [x] **Task 4: Backend — регрессионные тесты `list + is_featured`** (AC: 3, 4, 5)
+  - [x] 4.1: Проверить покрытие existing `is_featured` поведения для `list`-action в `backend/apps/products/tests/test_brand_api.py` через `grep` по `is_featured`. Если тестов нет — добавить (рядом с `TestBrandsHasStockGate` или в отдельном классе `TestBrandsIsFeaturedFilter`):
     - `test_list_is_featured_true_returns_only_featured_brands` (AC3): два бренда `Nike(False)` и `Adidas(True)` → `?is_featured=true` возвращает только `Adidas`.
     - `test_list_is_featured_false_returns_only_non_featured_brands` (AC4): `?is_featured=false` возвращает только `Nike`.
     - `test_list_without_is_featured_returns_all_active_brands` (AC5): без параметра возвращаются оба активных бренда.
-  - [ ] 4.2: Если такие тесты уже существуют — НЕ дублировать; убедиться, что они зелёные после изменения `get_queryset`.
-  - [ ] 4.3: Все тесты помечены `@pytest.mark.django_db` + `@pytest.mark.integration`.
+  - [x] 4.2: Если такие тесты уже существуют — НЕ дублировать; убедиться, что они зелёные после изменения `get_queryset`.
+  - [x] 4.3: Все тесты помечены `@pytest.mark.django_db` + `@pytest.mark.integration`.
 
-- [ ] **Task 5: Backend — подтверждение `featured` action и кэша** (AC: 6)
-  - [ ] 5.1: Убедиться, что existing `TestFeaturedBrandsEndpoint` и `TestFeaturedBrandsCaching` (в `test_brand_api.py`) проходят без изменений на новом `get_queryset`.
-  - [ ] 5.2: Опционально: если ещё нет — добавить `test_featured_action_ignores_is_featured_query_param` (`?is_featured=false` к `/brands/featured/` не меняет ответ). Этот тест может быть пропущен, если уже косвенно покрыт существующими `featured`-тестами.
+- [x] **Task 5: Backend — подтверждение `featured` action и кэша** (AC: 6)
+  - [x] 5.1: Убедиться, что existing `TestFeaturedBrandsEndpoint` и `TestFeaturedBrandsCaching` (в `test_brand_api.py`) проходят без изменений на новом `get_queryset`.
+  - [x] 5.2: Добавить **обязательный** регрессионный тест `test_featured_action_ignores_is_featured_query_param` в `TestFeaturedBrandsEndpoint` (или новый класс), напрямую защищающий AC6:
+    - `GET /api/v1/brands/featured/?is_featured=false` возвращает тот же набор featured брендов, что и `GET /api/v1/brands/featured/`.
+    - Дополнительно проверить, что `?has_stock=true` к `/brands/featured/` не меняет ответ (симметричная защита AC6 для `has_stock`).
+    - Тест помечен `@pytest.mark.django_db` + `@pytest.mark.integration`.
+  - [x] 5.3: Подтвердить, что `FEATURED_BRANDS_CACHE_KEY` не загрязняется query-параметрами (cache key namespaced и не зависит от request query).
 
-- [ ] **Task 6: Verification и docs-sync** (AC: 9)
-  - [ ] 6.1: Если description `is_featured` в `@extend_schema` изменён — запустить `make docs-sync-api` для синхронизации OpenAPI-схемы.
-  - [ ] 6.2: Запуск targeted suite (Docker через `docker-compose.test.yml`):
+- [x] **Task 6: Verification и docs-sync** (AC: 9)
+  - [x] 6.1: Если description `is_featured` в `@extend_schema` изменён — запустить `make docs-sync-api` для синхронизации OpenAPI-схемы.
+  - [x] 6.2: Запуск targeted suite (Docker через `docker-compose.test.yml`):
     ```bash
     docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend \
       pytest apps/products/tests/test_brand_api.py -m "unit or integration" -x -q
     ```
-  - [ ] 6.3: Запуск products regression:
+  - [x] 6.3: Запуск products regression:
     ```bash
     docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend \
       pytest apps/products -m "unit or integration" -x -q
     ```
-  - [ ] 6.4: Подтвердить: нет diff'а во `frontend/`, нет новых миграций в `backend/apps/products/migrations/`, не изменены `Brand`-модель, `BrandSerializer`, `BrandFeaturedSerializer`, `BrandPageNumberPagination`, URLs.
+  - [x] 6.4: Подтвердить: нет diff'а во `frontend/`, нет новых миграций в `backend/apps/products/migrations/`, не изменены `Brand`-модель, `BrandSerializer`, `BrandFeaturedSerializer`, `BrandPageNumberPagination`, URLs.
 
 ## Dev Notes
 
@@ -221,15 +235,56 @@ make docs-sync-api
 | Дата | Версия | Описание | Автор |
 |---|---:|---|---|
 | 2026-05-07 | 0.1 | Story создана из tech-spec `tech-spec-brand-viewset-filter-normalization.md` (run 5 deferred-finding по story `catalog-hide-out-of-stock-brands`). Baseline `22520173`. | Cascade (bmad-create-story) |
+| 2026-05-07 | 0.2 | Validate-create-story исправления: (1) Task 2.1 диапазон строк `:406–427` → `:406–429`, добавлена цитата текущего `has_stock` description и пояснение асимметрии семантики; (2) Task 5.2 переведён из «опционально» в обязательный регрессионный тест с прямой защитой AC6, добавлен Task 5.3 на изоляцию cache key от query-параметров. | Cascade (bmad-validate-create-story) |
+| 2026-05-07 | 1.0 | Реализована нормализация `BrandViewSet`: `is_featured` и `has_stock` применяются только к `list`; добавлены regression-тесты retrieve/list/featured и выполнена валидация. | Codex (bmad-dev-story) |
 
 ## Dev Agent Record
 
 ### Agent Model Used
 
-_To be filled during implementation_
+GPT-5 Codex
+
+### Implementation Plan
+
+- Добавить regression-тест, который воспроизводит 404 на `retrieve(slug)` при несовпадающем `is_featured`.
+- Сохранить backward compatibility `list` через отдельные тесты `is_featured=true`, `is_featured=false`, без параметра.
+- Защитить `featured` action тестом на игнорирование `is_featured`/`has_stock` query-параметров и стабильность `FEATURED_BRANDS_CACHE_KEY`.
+- Свести фильтрацию `BrandViewSet.get_queryset` к единственной ветке `if self.action == "list":` и обновить OpenAPI description `is_featured`.
 
 ### Debug Log References
 
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.test.yml up -d backend` → тестовый backend-контейнер поднят.
+- RED: `pytest apps/products/tests/test_brand_api.py::TestBrandsHasStockGate::test_is_featured_does_not_affect_retrieve_action -m "unit or integration" -x -v` → ожидаемо упал: `404 == 200`.
+- GREEN: тот же targeted test → `1 passed`.
+- Targeted suite: `pytest apps/products/tests/test_brand_api.py -m "unit or integration" -x -q` → `13 passed, 30 deselected`.
+- Products regression: `pytest apps/products -m "unit or integration" -x -q` → `186 passed, 199 deselected`.
+- `make -C .. docs-sync-api` → не выполнен: `make` не установлен в Windows-среде.
+- Эквивалент target: `python ..\scripts\docs\docs_sync.py api-sync` → успешно, рассинхрона не найдено.
+- `black --check apps/products/views.py apps/products/tests/test_brand_api.py` → passed.
+- `flake8 apps/products/views.py apps/products/tests/test_brand_api.py` → passed.
+- Scope-check: `git diff --name-only -- ..\frontend ..\backend\apps\products\migrations apps\products\models.py apps\products\serializers.py apps\products\urls.py` → пустой вывод.
+
 ### Completion Notes List
 
+- `BrandViewSet.get_queryset` теперь применяет оба query-фильтра (`is_featured`, `has_stock`) только для `list`, поэтому `retrieve(slug)` идентифицирует бренд только по slug.
+- OpenAPI description для `is_featured` уточняет, что параметр является list-only и игнорируется на retrieve-эндпоинте.
+- Добавлены integration regression-тесты для `retrieve + is_featured`, `list + is_featured=true|false|None`, `featured + is_featured/has_stock`.
+- `featured` action и кэш не менялись; тест подтверждает стабильный `FEATURED_BRANDS_CACHE_KEY` при query-параметрах.
+- Frontend, миграции, модели, сериализаторы, пагинация и URLs не изменялись.
+
 ### File List
+
+- `backend/apps/products/views.py`
+- `backend/apps/products/tests/test_brand_api.py`
+- `_bmad-output/implementation-artifacts/Story/2026-05-07-brand-viewset-filter-normalization.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+### Review Findings
+
+_Source: bmad-code-review (2026-05-07), reviewers: Blind Hunter + Edge Case Hunter + Acceptance Auditor (выполнены вручную в основной сессии — все три subagent упали с API 529 Overloaded). Baseline: `22520173` (run 4 catalog-hide-out-of-stock-brands). HEAD: `c37ad0b8` + uncommitted v1.0 patch._
+
+- [ ] [Review][Patch] **AC6 cache short-circuit ослабляет верификацию: второй GET в `test_featured_action_ignores_is_featured_and_has_stock_query_params` обслуживается из кэша первого GET** [`backend/apps/products/tests/test_brand_api.py:168-181`] — После `cache.clear()` первый `self.client.get(FEATURED_URL)` заполняет `FEATURED_BRANDS_CACHE_KEY`. Второй GET с `{"is_featured": "false", "has_stock": "true"}` обслуживается из кэша (handler `featured` имеет `cache.get → Response(cached)` short-circuit), поэтому `assert response_filtered.data == response_plain.data` тривиально true и не проверяет, что `get_queryset()` для `self.action == "featured"` действительно игнорирует query-параметры. AC6 формально met (cache key не зависит от query, что подтверждается), но spec-инвариант («`get_queryset` для `featured` отрабатывает базовый querysset» Dev Notes §2) защищён слабее — регрессия в queryset-обработчике для featured могла бы пройти. Усиление: вставить `cache.clear()` между двумя GET; или сделать два независимых вызова с `cache.clear()` перед каждым и сравнить payload.
+- [x] [Review][Defer] **Парсинг `is_featured` принимает только `"true"|"1"`; любые другие значения (включая `""`, `"yes"`, `"on"`, `"FALSE"`) тихо мапятся в `False` и фильтруют не-featured бренды** [`backend/apps/products/views.py:392-394`] — Pre-existing: введено до этой story (run 4 ограничил `has_stock` действием list, но парсинг `is_featured` остался прежним). Симметрично pre-existing поведению `has_stock`-парсинга, но семантика `is_featured` не gate-типа и невалидное значение не должно тихо превращаться в `False`. Не покрыто тестами на noncanonical input. Решать единой story по валидации/нормализации query-параметров `BrandViewSet` (`is_featured`/`has_stock`/будущие).
+- [x] [Review][Defer] **`@pytest.mark.integration` применён только к новому тесту `test_featured_action_ignores_is_featured_and_has_stock_query_params`, а не ко всему `TestFeaturedBrandsEndpoint`** [`backend/apps/products/tests/test_brand_api.py:167`] — Маркер на новом тесте корректен по spec Task 5.2 (явное требование). Несогласованность сидит в pre-existing тестах класса `TestFeaturedBrandsEndpoint`, которые помечены только `@pytest.mark.django_db` без `@pytest.mark.integration`, хотя используют `APIClient` + кэш + БД — это integration. Не введено этим diff. Решать при общем рефакторинге test-маркировок класса (поднять маркер на класс, как сделано в `TestBrandsHasStockGate` / `TestBrandsIsFeaturedFilter`).
+
+_Run 1 dismissed: 3 findings (1) OpenAPI `is_featured` description не документирует loose-parsing — описание обновлено по рекомендованной spec формулировке Task 2.1, явно одобрено spec; (2) `BrandFactory` не задаёт `is_featured` по умолчанию — out-of-scope, тесты явно передают значение; (3) `_brand_names` не валидирует pagination structure — в новых тестах создаётся 2 бренда, pagination не делит, reasonable assumption._
