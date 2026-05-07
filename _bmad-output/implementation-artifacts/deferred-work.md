@@ -71,3 +71,14 @@
 - `BrandViewSet.featured` использует фиксированный `FEATURED_BRANDS_CACHE_KEY` без измерения по query-параметрам. Сейчас `get_queryset` корректно short-circuit'ит `has_stock` для featured, но любое будущее добавление query-фильтрации к `featured` приведёт к poisoning'у кэша. Зафиксировать как ограничение. [`backend/apps/products/views.py`]
 - Variant `is_active=True` не проверяется в `Exists`-subquery `has_stock`-фильтра. Соответствует существующему паттерну `Product.has_stock`-аннотации (`views.py:102`). Кейс «активный продукт + неактивный вариант с stock>0» консистентен с продуктовым фильтром. Менять — отдельной story с пересмотром `is_in_stock`/`can_be_ordered`. [`backend/apps/products/views.py:397-401`]
 - Тестовые пробелы по `visible_brands`: невалидный `category_id` (хотя `filter_category_id` корректно возвращает `queryset.none()`); multi-value `?brand=1&brand=2` (поведение `MultiValueDict.pop("brand", None)` корректно, но тест single-value); страничное ограничение `BrandPageNumberPagination.page_size=100` — pre-existing. [`backend/apps/products/tests/test_visible_brands.py`]
+
+## Deferred from: code review of catalog-hide-out-of-stock-brands run 5 (2026-05-07)
+
+- **`is_featured` парсинг в `BrandViewSet.retrieve`** [`backend/apps/products/views.py:391-394`] — `has_stock` ограничен `list`-action, но `is_featured` всё ещё применяется для всех action кроме `featured`, включая `retrieve(slug)`. `GET /api/v1/brands/<slug>/?is_featured=true` для не-featured бренда вернёт 404. Pre-existing асимметрия. Решать единой story по нормализации фильтров `BrandViewSet`.
+
+## Deferred from: code review of catalog-hide-out-of-stock-brands (2026-05-07)
+
+- AbortController для `getVisibleBrands` — race на быстрых сменах фильтров. Симметрично уже задеферренной проблеме `getVisibleCategories`. Решать единой story по race-protection обоих visible-* запросов. [`frontend/src/app/(blue)/catalog/page.tsx:653`]
+- `Promise.all` failure mode в `fetchProducts`: при падении `productsService.getAll` `getVisibleCategories`/`getVisibleBrands` уже могут успеть обновить sidebar — рассинхрон с грид'ом продуктов. Pre-existing паттерн (тот же эффект у `visible-categories`). [`frontend/src/app/(blue)/catalog/page.tsx:645`]
+- `BrandViewSet.featured` использует фиксированный `FEATURED_BRANDS_CACHE_KEY` без измерения по query-параметрам. Сейчас `get_queryset` корректно short-circuit'ит `has_stock` для featured, но любое будущее добавление query-фильтрации к `featured` приведёт к poisoning'у кэша. Зафиксировать как ограничение. [`backend/apps/products/views.py`]
+- Variant `is_active=True` не проверяется в `Exists`-subquery `has_stock`-фильтра. Соответствует существующему паттерну `Product.has_stock`-аннотации (`views.py:102`). Кейс «активный продукт + неактивный вариант с stock>0» консистентен с продуктовым фильтром. Менять — отдельной story с пересмотром `is_in_stock`/`can_be_ordered`. [`backend/apps/products/views.py:397-401`]

@@ -386,12 +386,13 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["name"]
 
     def get_queryset(self):
-        """Активные бренды с опциональной фильтрацией по is_featured"""
+        """Активные бренды; has_stock применяется только к list action."""
         qs = Brand.objects.active().order_by("name")
         if self.action != "featured":
             is_featured = self.request.query_params.get("is_featured")
             if is_featured is not None:
                 qs = qs.filter(is_featured=is_featured.lower() in ("true", "1"))
+        if self.action == "list":
             has_stock = self.request.query_params.get("has_stock")
             if has_stock is not None and has_stock.lower() in ("true", "1"):
                 in_stock_products = Product.objects.filter(

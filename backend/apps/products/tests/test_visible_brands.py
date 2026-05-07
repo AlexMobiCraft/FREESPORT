@@ -81,6 +81,15 @@ class TestVisibleBrandsAction:
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data["brand_ids"] == [brand_nike.id]
 
+    def test_returns_empty_brand_ids_for_nonexistent_category_id(self, client, url, brand_nike, cat_football):
+        product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
+        ProductVariantFactory(product=product, stock_quantity=3, retail_price=Decimal("1000"))
+
+        resp = client.get(url, {"category_id": 999999, "in_stock": "true"})
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["brand_ids"] == []
+
     def test_ignores_brand_param(self, client, url, brand_nike, brand_adidas, cat_football):
         nike_product = ProductFactory(brand=brand_nike, category=cat_football, create_variant=False)
         adidas_product = ProductFactory(brand=brand_adidas, category=cat_football, create_variant=False)

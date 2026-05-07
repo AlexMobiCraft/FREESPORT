@@ -1,6 +1,6 @@
 # Story: Каталог — скрытие брендов без товаров в наличии
 
-Status: in-progress
+Status: done
 
 Source:
 - `_bmad-output/implementation-artifacts/tech-spec/tech-spec-catalog-hide-out-of-stock-brands.md`
@@ -373,6 +373,8 @@ npm run build  # должен пройти без TypeScript ошибок
 | 2026-05-07 | 1.5 | Code review run 3 (post-v1.4): 6 patch findings оставлены как action items (option 2), 3 deferred, 3 dismissed. Status переведён в in-progress. | Cascade (bmad-code-review) |
 | 2026-05-07 | 1.6 | Исправлены 6 patch findings run 3: cache isolation, OpenAPI wording, async reset ветки `inStock=false`, defensive `brand_ids`, `tsconfig` scope; story переведена в review. | GPT-5 Codex |
 | 2026-05-07 | 1.7 | Code review run 4 (post-v1.6): 2 patch findings (MEDIUM — `BrandViewSet.retrieve` неявное поведение `has_stock`, coverage gap для несуществующего `category_id`), 3 defer (повторы run 3), 1 dismissed. Outcome — выбор пользователя. | Cascade (bmad-code-review) |
+| 2026-05-07 | 1.8 | Исправлены 2 patch findings run 4: `has_stock` ограничен list-action, добавлено покрытие несуществующего `category_id` для `visible-brands`; story переведена в review. | GPT-5 Codex |
+| 2026-05-07 | 1.9 | Code review run 5 (post-v1.8): 0 patch, 1 defer (`is_featured` retrieve-асимметрия — pre-existing), 2 dismissed. Run 4 findings подтверждены закрытыми. Status переведён в done. | Cascade (bmad-code-review) |
 
 ## Dev Agent Record
 
@@ -393,6 +395,9 @@ GPT-5 Codex
 - 2026-05-06: Full frontend Vitest regression suite passed (`npm run test`, exit code 0).
 - 2026-05-06: Review patch AC7 fixed; `test_visible_brands.py` targeted test passed, file suite passed (10 passed), backend targeted suite passed (17 passed), products regression passed (179 passed, 199 deselected).
 - 2026-05-07: Review patch run 3 fixed; backend targeted tests passed (47 passed), backend products regression passed (378 passed), frontend targeted tests passed (37 passed), full frontend Vitest passed, Black check passed, Flake8 passed, scoped ESLint passed, `npm run build` passed.
+- 2026-05-07: Review patch run 4 red check confirmed `retrieve?has_stock=true` returned 404 before the fix; nonexistent `category_id` visible-brands case already returned empty result.
+- 2026-05-07: Review patch run 4 fixed; new targeted tests passed (2 passed), backend targeted contract suite passed (49 passed), backend products regression passed (380 passed), Black check passed, Flake8 passed.
+- 2026-05-07: Full backend `pytest -q` attempted in Docker; stopped after 15-minute timeout without useful failure output, lingering pytest process terminated manually.
 
 ### Completion Notes List
 
@@ -402,6 +407,7 @@ GPT-5 Codex
 - Review patch Task 5.3 закрыт: `brandsService.getAll` отправляет `has_stock` только при `has_stock === true`; `false`, `{}` и `undefined` сохраняют backward-compatible URL без `has_stock`.
 - Review patch AC7 закрыт: тест `test_excludes_brand_id_null_for_products_without_brand` больше не является тривиально-зелёным и проверяет удаление `None` через fake queryset, потому что текущая `Product.brand` в модели и миграции не nullable.
 - Review patch run 3 закрыт: `visible-brands` тесты изолированы от Django cache, OpenAPI явно описывает gate-семантику `has_stock`, reset `sidebarVisibleBrandIds` в `inStock=false` ветке стал асинхронным внутри `Promise.all`, `getVisibleBrands` защищён от malformed payload без `brand_ids`, форматирование `frontend/tsconfig.json` возвращено к baseline.
+- Review patch run 4 закрыт: `has_stock` больше не применяется к `BrandViewSet.retrieve`, а `visible-brands` покрыт тестом на несуществующий `category_id` с ответом `{"brand_ids": []}`.
 - `/catalog` теперь первично загружает только бренды с товарами в наличии, динамически сужает sidebar по `visible-brands`, сохраняет выбранный бренд видимым и делает graceful fallback при ошибке.
 - Scope AC14/AC15 подтверждён: нет diff в electric-каталоге, миграциях, `Brand` model, `BrandFeaturedSerializer`, constants.
 
@@ -418,12 +424,22 @@ GPT-5 Codex
 - `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx`
 - `frontend/tsconfig.json`
 
+### Review Findings (run 5 — 2026-05-07, post-v1.8)
+
+_Source: bmad-code-review (пятый прогон после v1.8 patch), reviewers: Blind Hunter + Edge Case Hunter + Acceptance Auditor. Baseline: `e4f2ae0`. HEAD: `22520173` + uncommitted v1.8 patch._
+
+- [x] [Review][Defer] **`is_featured` парсинг применяется к `retrieve` action** [`backend/apps/products/views.py:391-394`] — После фикса run 4 `has_stock` ограничен `self.action == "list"`, но `is_featured` всё ещё в ветке `if self.action != "featured":`, что включает `retrieve(slug)`. Сценарий: `GET /api/v1/brands/<slug>/?is_featured=true` для не-featured бренда вернёт 404 вместо 200. Pre-existing (введено до этой story); асимметрично новому ограничению `has_stock`. Решать единой story по нормализации фильтров `BrandViewSet`.
+
+Run 4 findings подтверждены закрытыми: `has_stock` ограничен `list` (тест `test_has_stock_does_not_affect_retrieve_action` проходит); `test_returns_empty_brand_ids_for_nonexistent_category_id` валидирует 200 + `{"brand_ids": []}` для `category_id=999999`.
+
+_Run 5 dismissed: 2 findings (hardcoded URL `/api/v1/brands/nike/` в новом тесте retrieve — соответствует существующему стилю файла `test_brand_api.py`; cosmetic revert `frontend/tsconfig.json` к baseline-формату — ratified в run 3 как валидное patch-исправление scope leak)._
+
 ### Review Findings (run 4 — 2026-05-07, post-v1.6)
 
 _Source: bmad-code-review (четвёртый прогон после v1.6 patch), reviewers: Blind Hunter + Edge Case Hunter + Acceptance Auditor. Baseline: `e4f2ae0`. HEAD: `2b736b3` + uncommitted v1.6 patch._
 
-- [ ] [Review][Patch] **`BrandViewSet.retrieve(slug)?has_stock=true` начинает возвращать 404 для брендов без in-stock товаров — поведение не определено в spec и не покрыто тестами** [`backend/apps/products/views.py:391-402`] — `BrandViewSet.get_queryset()` применяет `has_stock` гейт во ВСЕХ action != "featured", включая `retrieve`. Spec (AC1-AC3) описывает только list endpoint `GET /api/v1/brands/?has_stock=true`; AC4 явно изолирует только `featured`. Если внешний клиент или будущий код дёрнет `GET /api/v1/brands/nike/?has_stock=true` для бренда без stock, получит 404 вместо 200 — это новое неявное поведение, не задокументированное в spec и не покрытое тестом. Решения: (a) ограничить гейт `if self.action == "list":` (более узкий контракт, симметрично list-only intent spec'и); (b) явно зафиксировать в spec, что гейт применяется к list+retrieve, и добавить тест `test_has_stock_does_not_affect_retrieve_action` либо `test_retrieve_returns_404_for_filtered_brand_with_has_stock`. Рекомендация: (a) — `if self.action == "list":` гарантирует, что гейт работает только там, где описан AC.
-- [ ] [Review][Patch] **Coverage gap: нет теста на несуществующий `category_id` в `visible_brands`** [`backend/apps/products/tests/test_visible_brands.py`] — `ProductFilter.filter_category_id` корректно возвращает `queryset.none()` для несуществующего `category_id` (`filters.py:225`), но `test_visible_brands.py` не верифицирует контракт ответа в этом кейсе. Ожидаемое поведение: `GET /api/v1/products/visible-brands/?category_id=999999` → `200 OK` с `{"brand_ids": []}`. Добавить `test_returns_empty_brand_ids_for_nonexistent_category_id` с маркером `@pytest.mark.integration`. Защищает от регрессий, если кто-то заменит `filter_category_id` на raise/404.
+- [x] [Review][Patch][Resolved 2026-05-07] **`BrandViewSet.retrieve(slug)?has_stock=true` начинает возвращать 404 для брендов без in-stock товаров — поведение не определено в spec и не покрыто тестами** [`backend/apps/products/views.py:391-402`] — Исправлено: `has_stock` ограничен `self.action == "list"`, добавлен тест `test_has_stock_does_not_affect_retrieve_action`.
+- [x] [Review][Patch][Resolved 2026-05-07] **Coverage gap: нет теста на несуществующий `category_id` в `visible_brands`** [`backend/apps/products/tests/test_visible_brands.py`] — Исправлено: добавлен `test_returns_empty_brand_ids_for_nonexistent_category_id`, проверяющий `200 OK` и `{"brand_ids": []}`.
 - [x] [Review][Defer] **AC11 race manifest: stale `getVisibleBrands` ответ может перезаписать null после reset** [`frontend/src/app/(blue)/catalog/page.tsx:653-661, 1109-1116`] — Уже зафиксировано в run 3 deferred-section. Решать единой story по race-protection visible-* запросов с AbortController/version-counter.
 - [x] [Review][Defer] **`visible_brands` тащит heavy annotations через `get_queryset()` (Sum/Min/Exists + GROUP BY products.id)** [`backend/apps/products/views.py:67-104, 260-264`] — Уже зафиксировано в run 3. Решать в общей story по оптимизации visible-* endpoints.
 - [x] [Review][Defer] **`getVisibleBrands` отправляет `page`/`page_size`/`ordering`/marketing badges в URL (OpenAPI mismatch)** [`frontend/src/services/brandsService.ts:83-90`] — Уже зафиксировано в run 3. Решение — явно whitelist-ить разрешённые поля.

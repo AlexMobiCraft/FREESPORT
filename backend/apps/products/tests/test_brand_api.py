@@ -380,6 +380,16 @@ class TestBrandsHasStockGate:
         assert {brand["name"] for brand in response.data} == {"Adidas", "Nike"}
         assert cache.get(FEATURED_BRANDS_CACHE_KEY) is not None
 
+    def test_has_stock_does_not_affect_retrieve_action(self):
+        nike = BrandFactory(name="Nike", slug="nike")
+        nike_product = ProductFactory(name="Nike Product", brand=nike, create_variant=False)
+        ProductVariantFactory(product=nike_product, stock_quantity=0)
+
+        response = self.client.get("/api/v1/brands/nike/", {"has_stock": "true"})
+
+        assert response.status_code == 200
+        assert response.data["name"] == "Nike"
+
     def test_has_stock_uses_exists_subquery_no_duplicates(self):
         brand = BrandFactory(name="Multi Variant", slug="multi-variant")
         for idx in range(3):
