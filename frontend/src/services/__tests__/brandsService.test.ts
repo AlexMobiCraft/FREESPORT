@@ -266,6 +266,18 @@ describe('brandsService', () => {
       expect(result).toEqual([1, 2]);
     });
 
+    test('returns empty array when brand_ids payload is missing', async () => {
+      server.use(
+        http.get(`${API_BASE_URL}/products/visible-brands/`, () => {
+          return HttpResponse.json({});
+        })
+      );
+
+      const result = await brandsService.getVisibleBrands({ in_stock: true });
+
+      expect(result).toEqual([]);
+    });
+
     test('does not send brand param to backend', async () => {
       let capturedUrl = '';
 

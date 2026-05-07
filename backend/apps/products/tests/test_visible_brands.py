@@ -7,6 +7,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from django.core.cache import cache
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -19,6 +20,10 @@ from apps.products.views import ProductViewSet
 @pytest.mark.integration
 class TestVisibleBrandsAction:
     """GET /products/visible-brands/."""
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        cache.clear()
 
     @pytest.fixture
     def client(self):

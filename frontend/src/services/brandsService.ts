@@ -86,7 +86,7 @@ class BrandsService {
     const response = await apiClient.get<{ brand_ids: number[] }>('/products/visible-brands/', {
       params: filtersWithoutBrand,
     });
-    return response.data.brand_ids;
+    return Array.isArray(response.data.brand_ids) ? response.data.brand_ids : [];
   }
 }
 

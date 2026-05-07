@@ -658,7 +658,7 @@ const CatalogContent: React.FC = () => {
                 console.warn('Не удалось загрузить видимые бренды', error);
                 setSidebarVisibleBrandIds(null);
               })
-          : Promise.resolve(setSidebarVisibleBrandIds(null)),
+          : Promise.resolve().then(() => setSidebarVisibleBrandIds(null)),
       ]);
 
       setProducts(response.results);

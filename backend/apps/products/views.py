@@ -404,7 +404,7 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Список брендов",
-        description="Получение списка всех активных брендов с опциональной фильтрацией",
+        description="Получение списка всех активных брендов с опциональной фильтрацией по is_featured и/или has_stock",
         parameters=[
             OpenApiParameter(
                 "is_featured",
@@ -416,7 +416,9 @@ class BrandViewSet(viewsets.ReadOnlyModelViewSet):
                 OpenApiTypes.BOOL,
                 description=(
                     "Возвращать только бренды, у которых есть активные товары с вариантами в наличии "
-                    "(stock_quantity > 0). По умолчанию параметр не применяется (backward compat)."
+                    "(stock_quantity > 0). Применяется только при значении true/1. Любое другое значение "
+                    "(включая false/0) эквивалентно отсутствию параметра и не возвращает бренды без "
+                    "in-stock товаров."
                 ),
             ),
         ],
