@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-07" # catalog-hide-out-of-stock-brands → done (run 5: 0 patch, 1 defer pre-existing)
+last_updated: "2026-05-07" # brand-viewset-filter-normalization → ready-for-dev (создан из run 5 deferred finding)
 
 development_status:
   # ========================================
@@ -148,3 +148,11 @@ development_status:
   # Source: tech-spec/tech-spec-catalog-hide-out-of-stock-brands.md
   # ========================================
   catalog-hide-out-of-stock-brands: done
+
+  # ========================================
+  # Brands API: нормализация query-фильтров BrandViewSet
+  # Goal: is_featured и has_stock применяются только к list-action,
+  #       retrieve(slug) идентифицируется только по slug (не возвращает 404 при «лишних» query).
+  # Source: tech-spec/tech-spec-brand-viewset-filter-normalization.md
+  # ========================================
+  brand-viewset-filter-normalization: ready-for-dev

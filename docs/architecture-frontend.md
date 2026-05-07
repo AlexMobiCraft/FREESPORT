@@ -32,6 +32,7 @@ Follows Atomic Design principles adapted for React:
 
 - **Server Components**: Fetch data directly (no API roundtrip if co-located) or via Internal API.
 - **Client Components**: Use API Service layer (`src/services/`) with Axios.
+- **Сайдбар каталога**: `(blue)/catalog` загружает фильтр брендов через `brandsService.getAll({ has_stock: true })`, поэтому бренды без товаров в наличии скрыты уже на первом рендере. Пока `in_stock=true`, `brandsService.getVisibleBrands(filters)` сужает видимые чекбоксы через `/products/visible-brands/`; при `in_stock=false` это динамическое сужение сбрасывается и не запрашивается.
 
 ## Detailed Documentation
 

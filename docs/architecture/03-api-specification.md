@@ -210,6 +210,112 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProductDetail"
 
+  /products/visible-brands/:
+    get:
+      tags: [Products]
+      summary: Видимые бренды по фильтрам каталога
+      description: |
+        Возвращает ID брендов, у которых есть активные товары по текущим
+        фильтрам каталога. Параметр brand намеренно игнорируется, чтобы
+        фильтр «Бренд» не сужал сам себя при множественном выборе.
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+          description: ID категории с учётом дочерних категорий через ProductFilter
+        - name: min_price
+          in: query
+          schema:
+            type: number
+          description: Минимальная цена
+        - name: max_price
+          in: query
+          schema:
+            type: number
+          description: Максимальная цена
+        - name: in_stock
+          in: query
+          schema:
+            type: boolean
+          description: Только товары в наличии
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Поисковый запрос
+      responses:
+        "200":
+          description: Список ID видимых брендов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  brand_ids:
+                    type: array
+                    items:
+                      type: integer
+
+  /brands/:
+    get:
+      tags: [Brands]
+      summary: Список брендов
+      description: |
+        Возвращает активные бренды. При has_stock=true применяет гейт
+        наличия: бренд попадает в ответ, если существует Product.is_active=True
+        с вариантом ProductVariant.stock_quantity > 0.
+        Значения has_stock=false/0 и отсутствие параметра сохраняют прежний
+        контракт: все активные бренды.
+      parameters:
+        - name: is_featured
+          in: query
+          schema:
+            type: boolean
+          description: Фильтр по featured-статусу бренда
+        - name: has_stock
+          in: query
+          schema:
+            type: boolean
+          description: Применяется только при true/1; false/0 не означает «бренды без наличия»
+      responses:
+        "200":
+          description: Пагинированный список брендов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: string
+                    nullable: true
+                  previous:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Brand"
+
+  /brands/featured/:
+    get:
+      tags: [Brands]
+      summary: Избранные бренды
+      description: |
+        Возвращает кэшируемый список избранных брендов для главной страницы.
+        Гейт has_stock здесь не применяется.
+      responses:
+        "200":
+          description: Список избранных брендов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Brand"
+
   # Catalog Filters (Story 14.3)
   /catalog/filters/:
     get:
@@ -973,6 +1079,25 @@ components:
               type: number
             federation_price:
               type: number
+
+    Brand:
+      type: object
+      description: Бренд товара
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        image:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+        is_featured:
+          type: boolean
 
     # Catalog Filter Schemas (Story 14.3)
     AttributeFilter:

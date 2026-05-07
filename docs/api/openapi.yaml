@@ -39,6 +39,8 @@ tags:
     description: Управление пользователями и профилями
   - name: Products
     description: Каталог товаров и управление продуктами
+  - name: Brands
+    description: Бренды товаров и фильтр брендов в каталоге
   - name: Categories
     description: Категории и структура каталога
   - name: Cart
@@ -428,6 +430,136 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /products/visible-brands/:
+    get:
+      tags: [Products]
+      summary: Получить видимые бренды по фильтрам
+      description: |
+        Возвращает ID брендов, у которых есть активные товары по текущим
+        фильтрам каталога. Параметр brand намеренно игнорируется, чтобы
+        фильтр брендов не сужал сам себя при множественном выборе.
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+          description: ID категории с учётом дочерних категорий через ProductFilter
+        - name: min_price
+          in: query
+          schema:
+            type: number
+            format: decimal
+          description: Минимальная цена
+        - name: max_price
+          in: query
+          schema:
+            type: number
+            format: decimal
+          description: Максимальная цена
+        - name: in_stock
+          in: query
+          schema:
+            type: boolean
+          description: Только товары в наличии
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Поисковый запрос
+      responses:
+        "200":
+          description: ID брендов, доступных по текущим фильтрам
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisibleBrandIds"
+
+  # =============================================================================
+  # BRANDS
+  # =============================================================================
+  /brands/:
+    get:
+      tags: [Brands]
+      summary: Получить список брендов
+      description: |
+        Возвращает активные бренды. При has_stock=true применяет гейт наличия:
+        бренд попадает в ответ, если существует Product.is_active=True с
+        вариантом ProductVariant.stock_quantity > 0.
+        has_stock=false, 0 или отсутствие параметра сохраняют прежний контракт.
+      parameters:
+        - name: is_featured
+          in: query
+          schema:
+            type: boolean
+          description: Фильтр по featured-статусу бренда
+        - name: has_stock
+          in: query
+          schema:
+            type: boolean
+          description: Применяется только при true/1; false/0 не означает «бренды без наличия»
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Номер страницы
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+          description: Количество брендов на странице
+      responses:
+        "200":
+          description: Пагинированный список брендов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandList"
+
+  /brands/{slug}/:
+    get:
+      tags: [Brands]
+      summary: Получить бренд по slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Slug бренда
+      responses:
+        "200":
+          description: Детали бренда
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+        "404":
+          description: Бренд не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /brands/featured/:
+    get:
+      tags: [Brands]
+      summary: Получить избранные бренды
+      description: |
+        Возвращает кэшируемый список избранных брендов для главной страницы.
+        Query-параметр has_stock не применяется.
+      responses:
+        "200":
+          description: Список избранных брендов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Brand"
 
   # =============================================================================
   # CATEGORIES
@@ -1046,6 +1178,61 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Product"
+
+    BrandList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Общее количество брендов
+        next:
+          type: string
+          nullable: true
+          description: URL следующей страницы
+        previous:
+          type: string
+          nullable: true
+          description: URL предыдущей страницы
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Brand"
+
+    Brand:
+      type: object
+      description: Бренд товара
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: Название бренда
+        slug:
+          type: string
+          description: URL slug бренда
+        image:
+          type: string
+          nullable: true
+          description: URL изображения бренда для витрины
+        website:
+          type: string
+          nullable: true
+          description: Сайт бренда
+        is_featured:
+          type: boolean
+          description: Показывать бренд на главной странице
+        description:
+          type: string
+          nullable: true
+
+    VisibleBrandIds:
+      type: object
+      properties:
+        brand_ids:
+          type: array
+          items:
+            type: integer
+          description: ID брендов, у которых есть товары по текущим фильтрам
 
     Product:
       type: object
