@@ -1,6 +1,6 @@
 # Story: Нормализация query-фильтров `BrandViewSet` (`is_featured` / `has_stock`)
 
-Status: in-progress
+Status: done
 
 Source:
 - `_bmad-output/implementation-artifacts/tech-spec/tech-spec-brand-viewset-filter-normalization.md`
@@ -239,6 +239,8 @@ make docs-sync-api
 | 2026-05-07 | 1.0 | Реализована нормализация `BrandViewSet`: `is_featured` и `has_stock` применяются только к `list`; добавлены regression-тесты retrieve/list/featured и выполнена валидация. | Codex (bmad-dev-story) |
 | 2026-05-07 | 1.1 | Закрыт review patch AC6: тест `featured` теперь очищает кэш между plain/query вызовами и проверяет uncached путь с query-параметрами. Story переведена в review. | Codex (bmad-dev-story) |
 | 2026-05-07 | 1.2 | Code review run 2 (Blind Hunter + Edge Case Hunter + Acceptance Auditor): 1 patch (revert `frontend/tsconfig.json`), 2 defer (OpenAPI `has_stock` description, out-of-scope `test_visible_brands` тест), 5 dismissed. Run 1 patch AC6 confirmed RESOLVED. Patch оставлен как action item, story → in-progress. | Cascade (bmad-code-review) |
+| 2026-05-07 | 1.3 | Закрыт review patch AC8: `frontend/tsconfig.json` возвращён к baseline-форматированию, итоговый story diff больше не затрагивает frontend. Story переведена в review. | Codex (bmad-dev-story) |
+| 2026-05-07 | 1.4 | Code review run 3 (Blind Hunter + Edge Case Hunter + Acceptance Auditor inline): ✅ Clean review, 0 patch / 0 decision-needed / 0 новых defer. Все потенциальные findings — дубликаты defer/dismiss из Run 1/2. Run 1 patch AC6 и Run 2 patch AC8 подтверждены как RESOLVED. Story → done. | Cascade (bmad-code-review) |
 
 ## Dev Agent Record
 
@@ -274,6 +276,13 @@ GPT-5 Codex
 - `black --check apps/products/views.py apps/products/tests/test_brand_api.py` → passed после review patch.
 - `flake8 apps/products/views.py apps/products/tests/test_brand_api.py` → passed после review patch.
 - Scope-check после review patch: `git diff --name-only -- ..\frontend ..\backend\apps\products\migrations apps\products\models.py apps\products\serializers.py apps\products\urls.py` → пустой вывод.
+- Review patch AC8: `frontend/tsconfig.json` возвращён к baseline `22520173`; `git diff 22520173 -- ..\frontend\tsconfig.json` → пустой вывод.
+- Targeted suite после AC8 patch: `pytest apps/products/tests/test_brand_api.py -m "unit or integration" -x -q` → `13 passed, 30 deselected`.
+- Products regression после AC8 patch: `pytest apps/products -m "unit or integration" -x -q` → `186 passed, 199 deselected`.
+- `black --check apps/products/views.py apps/products/tests/test_brand_api.py` → passed после AC8 patch.
+- `flake8 apps/products/views.py apps/products/tests/test_brand_api.py` → passed после AC8 patch.
+- `python ..\scripts\docs\docs_sync.py api-sync` → успешно после AC8 patch, рассинхрона не найдено.
+- Scope-check после AC8 patch: `git diff --name-only 22520173 -- ..\frontend ..\backend\apps\products\migrations apps\products\models.py apps\products\serializers.py apps\products\urls.py` → пустой вывод.
 
 ### Completion Notes List
 
@@ -282,12 +291,14 @@ GPT-5 Codex
 - Добавлены integration regression-тесты для `retrieve + is_featured`, `list + is_featured=true|false|None`, `featured + is_featured/has_stock`.
 - `featured` action и кэш не менялись; тест подтверждает стабильный `FEATURED_BRANDS_CACHE_KEY` при query-параметрах.
 - Review patch AC6 закрыт: тест `featured` теперь очищает кэш между plain и query запросами, поэтому query-вызов проверяет uncached обработку `self.action == "featured"`, а не short-circuit из первого ответа.
-- Frontend, миграции, модели, сериализаторы, пагинация и URLs не изменялись.
+- Review patch AC8 закрыт: `frontend/tsconfig.json` восстановлен к baseline-форматированию, поэтому итоговый story diff больше не затрагивает frontend.
+- Миграции, модели, сериализаторы, пагинация и URLs не изменялись.
 
 ### File List
 
 - `backend/apps/products/views.py`
 - `backend/apps/products/tests/test_brand_api.py`
+- `frontend/tsconfig.json` (revert к baseline; в итоговом baseline-diff отсутствует)
 - `_bmad-output/implementation-artifacts/Story/2026-05-07-brand-viewset-filter-normalization.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
@@ -303,7 +314,7 @@ _Run 1 dismissed: 3 findings (1) OpenAPI `is_featured` description не доку
 
 _Run 2: bmad-code-review (2026-05-07), reviewers: Blind Hunter + Edge Case Hunter + Acceptance Auditor (general-purpose subagents, all three completed). Baseline `22520173` (run 4 catalog-hide-out-of-stock-brands). HEAD `265a2862` + uncommitted v1.1 patch (`cache.clear()` в featured-тесте). Run 1 patch AC6 confirmed RESOLVED аудитором._
 
-- [ ] [Review][Patch] **`frontend/tsconfig.json` cosmetic reformat нарушает AC8 «не трогать frontend»** [`frontend/tsconfig.json`] — Diff baseline → HEAD содержит переформатирование multi-line arrays в single-line (lib, types, paths, exclude). Без функциональных изменений, но AC8 + Anti-patterns story («Не трогать frontend») явно запрещают любые изменения во `frontend/`. Также делает Debug Log claim Task 6.4 (`scope-check ... → пустой вывод`) формально неверным. Реверт: `git checkout 22520173 -- frontend/tsconfig.json`.
+- [x] [Review][Patch] **`frontend/tsconfig.json` cosmetic reformat нарушает AC8 «не трогать frontend»** [`frontend/tsconfig.json`] — Diff baseline → HEAD содержит переформатирование multi-line arrays в single-line (lib, types, paths, exclude). Без функциональных изменений, но AC8 + Anti-patterns story («Не трогать frontend») явно запрещают любые изменения во `frontend/`. Также делает Debug Log claim Task 6.4 (`scope-check ... → пустой вывод`) формально неверным. Реверт: `git checkout 22520173 -- frontend/tsconfig.json`. Resolved: файл восстановлен к baseline-форматированию через обратную правку; `git diff 22520173 -- ..\frontend\tsconfig.json` и общий scope-check по `..\frontend` дают пустой вывод.
 - [x] [Review][Defer] **OpenAPI description `has_stock` самопротиворечив** [`backend/apps/products/views.py:421-426`] — Текст «Любое другое значение (включая false/0) эквивалентно отсутствию параметра и не возвращает бренды без in-stock товаров» содержит противоречие: «эквивалентно отсутствию параметра» подразумевает возврат всех брендов, а «не возвращает бренды без in-stock товаров» — применение фильтра. Реальное поведение (тест `test_has_stock_false_returns_all_active_brands`): `?has_stock=false` возвращает все активные бренды. Pre-existing (введено в run 3 предшественника `catalog-hide-out-of-stock-brands`, не модифицировано этой story). Корректная формулировка: «...эквивалентно отсутствию параметра — фильтр не применяется и возвращаются все активные бренды». Решать единой правкой OpenAPI описаний BrandViewSet.
 - [x] [Review][Defer] **`test_visible_brands.py::test_returns_empty_brand_ids_for_nonexistent_category_id` out-of-scope для текущей story** [`backend/apps/products/tests/test_visible_brands.py:84-89`] — Тест добавлен в коммит `265a2862` brand-viewset-filter-normalization, но защищает поведение `visible_brands` action на `ProductViewSet`, явно в `НЕ затрагивается` секции story (line 161). Тест функционально корректен и защищает реальное поведение (`?category_id=999999` возвращает 200 OK с пустым `brand_ids`). Удалять не нужно — добавить в File List предшественника `catalog-hide-out-of-stock-brands` при ретроспективе для traceability.
 
@@ -318,3 +329,20 @@ _(3) **`is_featured` парсинг silent-tolerance (`""`, `"yes"`, `"on"`, `"F
 _(4) **`_brand_names` paginated assumption vs flat list в featured-тестах** (blind) — false positive. `/api/v1/brands/` (paginated, response.data["results"]) и `/api/v1/brands/featured/` (flat list, response.data) — разные endpoints с разной формой ответа. Тесты обращаются к разным URL, противоречия нет._
 
 _(5) **Fixture name `setup` collision с pytest hook** (blind) — pre-existing project pattern (используется в `TestBrandsHasStockGate`, `TestFeaturedBrandsEndpoint`, `TestBrandSearch` уже). Не введено этим diff. Если бы было реальной проблемой — существующие тесты падали бы._
+
+_Run 3: bmad-code-review (2026-05-07), reviewers: Blind Hunter + Edge Case Hunter + Acceptance Auditor (inline в основной сессии — параллельные субагенты недоступны в Cascade-окружении). Baseline `22520173`, scope: baseline → working tree (включает коммиты `265a2862` + `4d31448e` и uncommitted v1.3 AC8 patch). HEAD `4d31448e`._
+
+**Outcome: ✅ Clean review.** 0 patch findings, 0 decision-needed, 0 новых defer. Все потенциальные findings — дубликаты уже зафиксированных в Run 1/2:
+
+- silent parsing tolerance `is_featured` (`"yes"`, `"FALSE"`, whitespace) — дубликат Run 1 defer #2 / Run 2 dismissed #3;
+- description `has_stock` self-contradictory — дубликат Run 2 defer #2;
+- `test_returns_empty_brand_ids_for_nonexistent_category_id` out-of-scope — дубликат Run 2 defer #3;
+- `@pytest.mark.integration` не на классе `TestFeaturedBrandsEndpoint` — дубликат Run 1 defer #3;
+- forward-compat whitelist `if self.action == "list":` — дубликат Run 2 dismissed #1 (intended design);
+- `cache.clear()` патч ослабил cache short-circuit verification — дубликат Run 2 dismissed #2 (AC6 защищает cache key + payload identity, не short-circuit).
+
+**Подтверждены как RESOLVED аудитором:**
+- Run 1 patch AC6: `cache.clear()` между plain/query вызовами в `test_featured_action_ignores_is_featured_and_has_stock_query_params` корректно проверяет, что `get_queryset()` для `featured` action игнорирует query-параметры (uncached путь).
+- Run 2 patch AC8: `git diff 22520173 -- frontend/tsconfig.json` пуст; общий scope-check `frontend backend/apps/products/migrations models.py serializers.py urls.py` пуст.
+
+**Acceptance verdict:** AC1–AC9 покрыты регрессионными тестами; targeted suite `13 passed`, products regression `186 passed`; lint (`black --check`, `flake8`) passed; OpenAPI sync через `python scripts/docs/docs_sync.py api-sync` (эквивалент `make docs-sync-api` в Windows) — нет рассинхрона.
