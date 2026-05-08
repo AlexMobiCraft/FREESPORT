@@ -1,5 +1,5 @@
 ---
-outputFile: "{planning_artifacts}/implementation-readiness-report-{{date}}.md"
+outputFile: '{planning_artifacts}/implementation-readiness-report-{{date}}.md'
 ---
 
 # Step 6: Final Assessment
@@ -124,3 +124,9 @@ Implementation Readiness complete. Invoke the `bmad-help` skill.
 - Not reviewing previous findings
 - Incomplete summary
 - No clear recommendations
+
+## On Complete
+
+Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow.on_complete`
+
+If the resolved `workflow.on_complete` is non-empty, follow it as the final terminal instruction before exiting.

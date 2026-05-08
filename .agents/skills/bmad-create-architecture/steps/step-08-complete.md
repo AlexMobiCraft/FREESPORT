@@ -33,10 +33,10 @@ Both you and the User completed something amazing here - give a summary of what 
 
 ```yaml
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
-workflowType: "architecture"
+workflowType: 'architecture'
 lastStep: 8
-status: "complete"
-completedAt: "{{current_date}}"
+status: 'complete'
+completedAt: '{{current_date}}'
 ```
 
 ### 3. Next Steps Guidance
@@ -44,6 +44,7 @@ completedAt: "{{current_date}}"
 Architecture complete. Invoke the `bmad-help` skill.
 
 Upon Completion of task output: offer to answer any questions about the Architecture Document.
+
 
 ## SUCCESS METRICS:
 
@@ -73,3 +74,9 @@ Upon Completion of task output: offer to answer any questions about the Architec
 This is the final step of the Architecture workflow. The user now has a complete, validated architecture document ready for AI agent implementation.
 
 The architecture will serve as the single source of truth for all technical decisions, ensuring consistent implementation across the entire project development lifecycle.
+
+## On Complete
+
+Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow.on_complete`
+
+If the resolved `workflow.on_complete` is non-empty, follow it as the final terminal instruction before exiting.

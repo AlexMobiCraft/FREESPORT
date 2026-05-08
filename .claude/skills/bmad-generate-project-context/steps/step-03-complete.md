@@ -188,20 +188,12 @@ Update the project context file with completion information:
 
 ```yaml
 ---
-project_name: "{{project_name}}"
-user_name: "{{user_name}}"
-date: "{{date}}"
+project_name: '{{project_name}}'
+user_name: '{{user_name}}'
+date: '{{date}}'
 sections_completed:
-  [
-    "technology_stack",
-    "language_rules",
-    "framework_rules",
-    "testing_rules",
-    "quality_rules",
-    "workflow_rules",
-    "anti_patterns",
-  ]
-status: "complete"
+  ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'quality_rules', 'workflow_rules', 'anti_patterns']
+status: 'complete'
 rule_count: { { total_rules } }
 optimized_for_llm: true
 ---
@@ -284,3 +276,9 @@ Your project context will help ensure high-quality, consistent implementation ac
 This is the final step of the Generate Project Context workflow. The user now has a comprehensive, optimized project context file that will ensure consistent, high-quality implementation across all AI agents working on the project.
 
 The project context file serves as the critical "rules of the road" that agents need to implement code consistently with the project's standards and patterns.
+
+## On Complete
+
+Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow.on_complete`
+
+If the resolved `workflow.on_complete` is non-empty, follow it as the final terminal instruction before exiting.
