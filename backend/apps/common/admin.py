@@ -13,7 +13,17 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import AuditLog, BlogPost, CustomerSyncLog, News, Newsletter, NotificationRecipient, SyncConflict, SyncLog
+from .models import (
+    AuditLog,
+    BlogPost,
+    CustomerSyncLog,
+    News,
+    Newsletter,
+    NotificationRecipient,
+    SyncConflict,
+    SyncLog,
+    UserConsent,
+)
 from .services import CustomerSyncMonitor
 
 
@@ -286,6 +296,33 @@ class NewsletterAdmin(admin.ModelAdmin):
     def has_add_permission(self, request: HttpRequest) -> bool:
         """Только superuser может создавать подписки через admin."""
         return bool(getattr(request.user, "is_superuser", False))
+
+
+@admin.register(UserConsent)
+class UserConsentAdmin(admin.ModelAdmin):
+    """Read-only admin для согласий пользователей."""
+
+    list_display = ["user", "consent_type", "given_at", "ip_address", "policy_version"]
+    list_filter = ["consent_type", "given_at"]
+    search_fields = ["user__email", "ip_address"]
+    readonly_fields = [
+        "user",
+        "session_key",
+        "consent_type",
+        "given_at",
+        "ip_address",
+        "user_agent",
+        "policy_version",
+    ]
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj=None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj=None) -> bool:
+        return False
 
 
 @admin.register(News)

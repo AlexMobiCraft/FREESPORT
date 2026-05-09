@@ -1,0 +1,112 @@
+/**
+ * Unit-тесты для страницы «Политика обработки персональных данных» (/privacy-policy).
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import PrivacyPolicyPage, { generateMetadata } from '../page';
+
+const { mockNotFound } = vi.hoisted(() => ({
+  mockNotFound: vi.fn(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  }),
+}));
+
+vi.mock('next/navigation', () => ({
+  notFound: mockNotFound,
+}));
+
+vi.mock('next/link', () => ({
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+
+const mockPage = {
+  id: 1,
+  title: 'Политика обработки персональных данных',
+  slug: 'privacy-policy',
+  content: '<p>Текст политики с <strong>HTML</strong>.</p>',
+  seo_title: 'Политика ПДн | FREESPORT',
+  seo_description: 'Правила обработки персональных данных FREESPORT',
+  is_published: true,
+  created_at: '2026-05-09T10:00:00Z',
+  updated_at: '2026-05-09T10:00:00Z',
+};
+
+function mockFetch(response: Response) {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+}
+
+describe('PrivacyPolicyPage (/privacy-policy)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('запрашивает страницу политики через Pages API с ISR revalidate 3600', async () => {
+    mockFetch(Response.json(mockPage));
+
+    render(await PrivacyPolicyPage());
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8001/api/v1/pages/privacy-policy/',
+      { next: { revalidate: 3600 } }
+    );
+  });
+
+  it('рендерит заголовок страницы из API', async () => {
+    mockFetch(Response.json(mockPage));
+
+    render(await PrivacyPolicyPage());
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Политика обработки персональных данных'
+    );
+  });
+
+  it('рендерит HTML-контент из API', async () => {
+    mockFetch(Response.json(mockPage));
+
+    const { container } = render(await PrivacyPolicyPage());
+    const content = container.querySelector('.prose');
+
+    expect(content?.innerHTML).toContain('<strong>HTML</strong>');
+  });
+
+  it('рендерит breadcrumb', async () => {
+    mockFetch(Response.json(mockPage));
+
+    render(await PrivacyPolicyPage());
+
+    expect(screen.getByText('Главная')).toBeInTheDocument();
+    expect(screen.getAllByText('Политика обработки персональных данных').length).toBeGreaterThan(0);
+    expect(screen.getByText('Главная').closest('a')).toHaveAttribute('href', '/');
+  });
+
+  it('вызывает notFound при 404 от API', async () => {
+    mockFetch(new Response(null, { status: 404 }));
+
+    await expect(PrivacyPolicyPage()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mockNotFound).toHaveBeenCalled();
+  });
+
+  it('вызывает notFound при is_published=false', async () => {
+    mockFetch(Response.json({ ...mockPage, is_published: false }));
+
+    await expect(PrivacyPolicyPage()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mockNotFound).toHaveBeenCalled();
+  });
+
+  it('генерирует metadata из SEO-полей страницы', async () => {
+    mockFetch(Response.json(mockPage));
+
+    const metadata = await generateMetadata();
+
+    expect(metadata.title).toBe('Политика ПДн | FREESPORT');
+    expect(metadata.description).toBe('Правила обработки персональных данных FREESPORT');
+  });
+});

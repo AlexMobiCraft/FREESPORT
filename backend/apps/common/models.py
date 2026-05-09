@@ -584,6 +584,52 @@ class Newsletter(models.Model):
             self.email = self.email.lower().strip()
 
 
+class UserConsent(models.Model):
+    """Фиксация согласий пользователей (152-ФЗ)."""
+
+    CONSENT_TYPE_CHOICES = [
+        ("pdp_contract", "Согласие на обработку ПДн для исполнения договора"),
+        ("marketing_email", "Согласие на получение рекламных рассылок"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="consents",
+        verbose_name="Пользователь",
+    )
+    session_key = models.CharField(
+        max_length=40,
+        blank=True,
+        verbose_name="Ключ сессии",
+        help_text="Для анонимных пользователей",
+    )
+    consent_type = models.CharField(
+        max_length=30,
+        choices=CONSENT_TYPE_CHOICES,
+        verbose_name="Тип согласия",
+    )
+    given_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата согласия")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP адрес")
+    user_agent = models.TextField(blank=True, verbose_name="User Agent")
+    policy_version = models.CharField(
+        max_length=20,
+        default="1.0",
+        verbose_name="Версия политики",
+    )
+
+    class Meta:
+        verbose_name = "Согласие пользователя"
+        verbose_name_plural = "Согласия пользователей"
+        ordering = ["-given_at"]
+
+    def __str__(self) -> str:
+        who = self.user.email if self.user else f"аноним ({self.session_key[:8]})"
+        return f"{who} — {self.get_consent_type_display()} — {self.given_at:%d.%m.%Y}"
+
+
 class News(models.Model):
     """
     Модель новости для системы управления контентом.

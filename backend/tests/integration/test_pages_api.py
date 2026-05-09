@@ -76,6 +76,30 @@ class PagesAPITest(TestCase):
         self.assertEqual(response.data["title"], "О компании")
         self.assertEqual(response.data["content"], "<p>Информация о нашей компании</p>")
 
+    def test_privacy_policy_page_is_available_only_after_publication(self):
+        """Тест публикации страницы политики ПДн по slug privacy-policy."""
+        cache.clear()
+        url = reverse("pages:pages-detail", kwargs={"slug": "privacy-policy"})
+
+        response_before_publication = self.client.get(url)
+        self.assertEqual(response_before_publication.status_code, status.HTTP_404_NOT_FOUND)
+
+        Page.objects.create(
+            title="Политика обработки персональных данных",
+            slug="privacy-policy",
+            content="<p>Текст политики</p>",
+            is_published=True,
+        )
+        cache.clear()
+
+        response_after_publication = self.client.get(url)
+        self.assertEqual(response_after_publication.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response_after_publication.data["title"],
+            "Политика обработки персональных данных",
+        )
+        self.assertEqual(response_after_publication.data["slug"], "privacy-policy")
+
     def test_unpublished_page_not_accessible(self):
         """Тест что неопубликованные страницы недоступны"""
         url = reverse("pages:pages-detail", kwargs={"slug": "draft"})
