@@ -603,17 +603,27 @@ class UserConsent(models.Model):
     session_key = models.CharField(
         max_length=40,
         blank=True,
+        db_index=True,
         verbose_name="Ключ сессии",
         help_text="Для анонимных пользователей",
     )
     consent_type = models.CharField(
         max_length=30,
         choices=CONSENT_TYPE_CHOICES,
+        db_index=True,
         verbose_name="Тип согласия",
     )
-    given_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата согласия")
+    given_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name="Дата согласия",
+    )
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP адрес")
-    user_agent = models.TextField(blank=True, verbose_name="User Agent")
+    user_agent = models.CharField(
+        max_length=512,
+        blank=True,
+        verbose_name="User Agent",
+    )
     policy_version = models.CharField(
         max_length=20,
         default="1.0",
@@ -624,10 +634,23 @@ class UserConsent(models.Model):
         verbose_name = "Согласие пользователя"
         verbose_name_plural = "Согласия пользователей"
         ordering = ["-given_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(user__isnull=False) | ~models.Q(session_key=""),
+                name="userconsent_user_or_session_required",
+            ),
+        ]
 
     def __str__(self) -> str:
-        who = self.user.email if self.user else f"аноним ({self.session_key[:8]})"
-        return f"{who} — {self.get_consent_type_display()} — {self.given_at:%d.%m.%Y}"
+        if self.user:
+            who = self.user.email
+        elif self.session_key:
+            who = f"аноним ({self.session_key[:8]})"
+        else:
+            who = "аноним"
+
+        given_at = timezone.localtime(self.given_at)
+        return f"{who} — {self.get_consent_type_display()} — {given_at:%d.%m.%Y}"
 
 
 class News(models.Model):

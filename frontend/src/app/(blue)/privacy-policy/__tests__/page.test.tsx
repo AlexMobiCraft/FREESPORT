@@ -94,8 +94,38 @@ describe('PrivacyPolicyPage (/privacy-policy)', () => {
     expect(mockNotFound).toHaveBeenCalled();
   });
 
-  it('вызывает notFound при is_published=false', async () => {
-    mockFetch(Response.json({ ...mockPage, is_published: false }));
+  it('пробрасывает 500 от API в error boundary вместо 404', async () => {
+    mockFetch(new Response('Server error', { status: 500 }));
+
+    await expect(PrivacyPolicyPage()).rejects.toThrow(
+      'Не удалось загрузить страницу политики ПДн'
+    );
+    expect(mockNotFound).not.toHaveBeenCalled();
+  });
+
+  it('пробрасывает сетевую ошибку в error boundary вместо 404', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network timeout'));
+
+    await expect(PrivacyPolicyPage()).rejects.toThrow('Network timeout');
+    expect(mockNotFound).not.toHaveBeenCalled();
+  });
+
+  it('вызывает notFound при malformed JSON от API', async () => {
+    mockFetch(new Response('not-json', { status: 200 }));
+
+    await expect(PrivacyPolicyPage()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mockNotFound).toHaveBeenCalled();
+  });
+
+  it('вызывает notFound при пустом content', async () => {
+    mockFetch(Response.json({ ...mockPage, content: null }));
+
+    await expect(PrivacyPolicyPage()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mockNotFound).toHaveBeenCalled();
+  });
+
+  it('вызывает notFound при отсутствующем title', async () => {
+    mockFetch(Response.json({ ...mockPage, title: undefined }));
 
     await expect(PrivacyPolicyPage()).rejects.toThrow('NEXT_NOT_FOUND');
     expect(mockNotFound).toHaveBeenCalled();

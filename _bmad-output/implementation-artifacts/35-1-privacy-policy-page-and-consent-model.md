@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных  
 **Story ID:** 35.1  
-**Status:** in-progress (15 review patches как action items)  
+**Status:** done  
 **Priority:** High (блокирует истории 35.2, 35.3)
 
 ---
@@ -429,12 +429,20 @@ export default async function PrivacyPolicyPage() {
 - RED frontend: `npm run test -- "src/app/(blue)/privacy-policy/__tests__/page.test.tsx"` падал на отсутствии `../page`.
 - RED admin read-only: `pytest apps/common/tests/test_user_consent.py -q` падал, потому что Django Admin по умолчанию разрешал delete.
 - Обнаружено расхождение story с текущим API: `PageSerializer` не отдаёт `is_published`, и существующий тест `test_api_response_structure` проверяет отсутствие этого поля. Frontend реализован совместимо: 404 от backend является основным сигналом неопубликованной/отсутствующей страницы, `is_published === false` дополнительно обрабатывается, если поле появится.
+- RED review patches: `pytest apps/common/tests/test_user_consent.py -q` падал на отсутствии `CheckConstraint`, индексов, bounded `user_agent`, timezone-safe `__str__` и удалении `ip_address` из `search_fields`.
+- RED review patches: `npm run test -- "src/app/(blue)/privacy-policy/__tests__/page.test.tsx"` падал на 500→404, malformed JSON, `content=null` и отсутствующем `title`.
+- GREEN review patches: целевые backend/frontend тесты прошли после добавления миграции `0016_userconsent_review_fixes`, guard-валидации API-ответа и React `cache()`.
+- Регрессия: `pytest -m unit -q --create-db` прошёл; `pytest -m integration -q --reuse-db --ignore=tests/integration/test_management_commands/test_import_customers.py` прошёл; сам `test_import_customers.py` падает из-за отсутствующей `/app/data/import_1c/contragents`.
 
 ### Completion Notes
 
 - Реализованы модель `UserConsent`, read-only admin, миграция `0015_userconsent`, API-тест публикации `privacy-policy` и frontend-страница `/privacy-policy`.
 - Миграция применена в Docker backend: `python manage.py migrate common`.
 - Полный backend `pytest -q` дважды не уложился в лимиты 10 и 20 минут. После разделения suite: `pytest -m unit -q --reuse-db` прошёл, `pytest -m integration -q --reuse-db` выявил 10 pre-existing/data-dependent падений в `test_import_customers.py` из-за отсутствия `/app/data/import_1c/contragents`, а `pytest -m integration -q --reuse-db --ignore=tests/integration/test_management_commands/test_import_customers.py` прошёл.
+- Закрыты 15 review patches: добавлены subject constraint для `UserConsent`, индексы горячих полей, ограничение `user_agent=512`, корректный `__str__` для анонимных/таймзоны, read-only admin action test, frontend 4xx/5xx/error handling, JSON/content/title guards и React `cache()`.
+- Локальная миграция применена в Docker backend: `python manage.py migrate common` применил `common.0016_userconsent_review_fixes`.
+- Проверки review patch: backend `test_user_consent.py` 12 passed; `test_pages_api.py` 19 passed; frontend privacy-policy test 11 passed; frontend full `npm run test` прошёл; `npm run build` прошёл.
+- Общий frontend `npm run lint` падает на pre-existing файлах вне story: `next-env.d.ts` и `scripts/convert-svg-to-favicon.js`; targeted eslint для изменённых frontend-файлов прошёл.
 
 ## File List
 
@@ -443,6 +451,8 @@ export default async function PrivacyPolicyPage() {
 - `backend/apps/common/models.py`
 - `backend/apps/common/admin.py`
 - `backend/apps/common/migrations/0015_userconsent.py`
+- `backend/apps/common/migrations/0016_userconsent_review_fixes.py`
+- `backend/apps/common/tests/__init__.py`
 - `backend/apps/common/tests/test_user_consent.py`
 - `backend/tests/integration/test_pages_api.py`
 - `frontend/src/app/(blue)/privacy-policy/page.tsx`
@@ -461,21 +471,21 @@ _Code review run: 2026-05-09 (3 параллельных слоя: Blind Hunter 
 
 ### Patch (story-scope, fixable)
 
-- [ ] [Review][Patch] **Создать `backend/apps/common/tests/__init__.py`** [backend/apps/common/tests/__init__.py] — Все остальные `apps/*/tests/` имеют `__init__.py` (banners, delivery, integrations, products). Отсутствие может вызвать конфликты импорта между `apps.common.tests` и `apps.common` namespace-пакетом при pytest-discovery.
-- [ ] [Review][Patch] **`UserConsent.__str__`: обработать пустой `session_key` для полностью анонимного случая** [backend/apps/common/models.py:629-630] — Если `user is None` и `session_key=""`, выводится `"аноним () — ..."` с пустыми скобками. Заменить на условную ветку: `who = "аноним"` без скобок при пустом ключе.
-- [ ] [Review][Patch] **`UserConsent.__str__`: использовать `timezone.localtime`** [backend/apps/common/models.py:630] — `f"{self.given_at:%d.%m.%Y}"` берёт naive UTC при `USE_TZ=True`, отдаёт неправильный день для вечерних MSK-согласий. Использовать `timezone.localtime(self.given_at).strftime("%d.%m.%Y")`.
-- [ ] [Review][Patch] **`UserConsent`: CheckConstraint `user OR session_key`** [backend/apps/common/models.py + новая миграция] — Сейчас можно создать запись с `user=NULL, session_key=""` — orphan-row без субъекта. Добавить `Meta.constraints = [CheckConstraint(check=Q(user__isnull=False) | ~Q(session_key=""), name="userconsent_user_or_session_required")]`. Связан с тестом ниже.
-- [ ] [Review][Patch] **`UserConsent`: `db_index` на горячих полях** [backend/apps/common/models.py + миграция] — Compliance-запросы фильтруют по `consent_type`, `given_at`, `session_key`. FK `user` индексирован автоматически. Добавить `db_index=True` на `consent_type`, `given_at`, `session_key`, либо `Meta.indexes = [Index(fields=["consent_type", "-given_at"])]`.
-- [ ] [Review][Patch] **`user_agent`: ограничить длину** [backend/apps/common/models.py:613 + миграция] — `TextField(blank=True)` без верхней границы — DoS / storage bloat при больших UA-строках. Заменить на `CharField(max_length=512)` с обрезкой при сохранении.
-- [ ] [Review][Patch] **Frontend: try/catch вокруг `fetch` и обработка 5xx ≠ 404** [frontend/src/app/(blue)/privacy-policy/page.tsx:26-36] — Сейчас `!res.ok` для всего возвращает `null` → `notFound()`. Сетевая ошибка/таймаут/5xx превращаются в 404 для SEO. Обернуть в try/catch (network errors), 4xx → `null`, 5xx → пробросить (Next.js error boundary).
-- [ ] [Review][Patch] **Frontend: guard для malformed JSON и `content`/`title` = null** [page.tsx:31-35] — `res.json()` бросает на не-JSON ответе, ломает SSR. `dangerouslySetInnerHTML={{ __html: undefined }}` рендерит сломанный HTML. Обернуть `await res.json()` в try/catch; добавить `if (!page.title || !page.content) notFound()`.
-- [ ] [Review][Patch] **Frontend: дедуплицировать `fetchPrivacyPolicy` через React `cache()`** [page.tsx:26-45] — `generateMetadata` и `PrivacyPolicyPage` оба вызывают `fetchPrivacyPolicy()` → две запроса к backend на каждый запрос. `import { cache } from 'react'; const fetchPrivacyPolicy = cache(async () => {...})`.
-- [ ] [Review][Patch] **`UserConsentAdmin.search_fields`: убрать `ip_address`** [backend/apps/common/admin.py:307] — `GenericIPAddressField` + `icontains` поиск даёт неинтуитивное поведение и медленные запросы. Оставить только `user__email`. Поиск по IP делать через явный фильтр.
-- [ ] [Review][Patch] **Frontend tests: добавить кейсы для malformed JSON, null content, отсутствующего title** [frontend/src/app/(blue)/privacy-policy/__tests__/page.test.tsx] — Сейчас покрыты только success / 404 / `is_published=false`. После Patch выше (`page.tsx`) покрыть: 500 от API, не-JSON body, `content=null`, `title=undefined`.
-- [ ] [Review][Patch] **Backend tests: anonymous-only инварианты** [backend/apps/common/tests/test_user_consent.py] — Добавить: (1) `__str__` для `session_key` короче 8 символов (slice не падает, но надо зафиксировать формат); (2) после Patch CheckConstraint — тест что `UserConsent.objects.create(user=None, session_key="")` поднимает `IntegrityError`.
-- [ ] [Review][Patch 1a] **Удалить мёртвый guard `is_published === false`** [frontend/src/app/(blue)/privacy-policy/page.tsx:55] — Заменить `if (!page || page.is_published === false) notFound();` на `if (!page) notFound();`. Также удалить из `PageData` interface optional поле `is_published?: boolean` (теперь не используется).
-- [ ] [Review][Patch 1a] **Удалить тест мёртвого guard** [frontend/src/app/(blue)/privacy-policy/__tests__/page.test.tsx:97-102] — Удалить тест `it('вызывает notFound при is_published=false', ...)` целиком (тест проходит только из-за фейкового мока, в реальности кейс невозможен).
-- [ ] [Review][Patch 4a] **Добавить тест что `delete_selected` отсутствует в admin actions** [backend/apps/common/tests/test_user_consent.py] — Создать тест `test_user_consent_admin_excludes_delete_selected_action`: создать `UserConsentAdmin(UserConsent, admin.site)`, вызвать `model_admin.get_actions(request)`, проверить `assert "delete_selected" not in actions`. Защищает от регрессии если кто-то ошибочно поднимет `has_delete_permission`.
+- [x] [Review][Patch] **Создать `backend/apps/common/tests/__init__.py`** [backend/apps/common/tests/__init__.py] — Все остальные `apps/*/tests/` имеют `__init__.py` (banners, delivery, integrations, products). Отсутствие может вызвать конфликты импорта между `apps.common.tests` и `apps.common` namespace-пакетом при pytest-discovery.
+- [x] [Review][Patch] **`UserConsent.__str__`: обработать пустой `session_key` для полностью анонимного случая** [backend/apps/common/models.py:629-630] — Если `user is None` и `session_key=""`, выводится `"аноним () — ..."` с пустыми скобками. Заменить на условную ветку: `who = "аноним"` без скобок при пустом ключе.
+- [x] [Review][Patch] **`UserConsent.__str__`: использовать `timezone.localtime`** [backend/apps/common/models.py:630] — `f"{self.given_at:%d.%m.%Y}"` берёт naive UTC при `USE_TZ=True`, отдаёт неправильный день для вечерних MSK-согласий. Использовать `timezone.localtime(self.given_at).strftime("%d.%m.%Y")`.
+- [x] [Review][Patch] **`UserConsent`: CheckConstraint `user OR session_key`** [backend/apps/common/models.py + новая миграция] — Сейчас можно создать запись с `user=NULL, session_key=""` — orphan-row без субъекта. Добавить `Meta.constraints = [CheckConstraint(check=Q(user__isnull=False) | ~Q(session_key=""), name="userconsent_user_or_session_required")]`. Связан с тестом ниже.
+- [x] [Review][Patch] **`UserConsent`: `db_index` на горячих полях** [backend/apps/common/models.py + миграция] — Compliance-запросы фильтруют по `consent_type`, `given_at`, `session_key`. FK `user` индексирован автоматически. Добавить `db_index=True` на `consent_type`, `given_at`, `session_key`, либо `Meta.indexes = [Index(fields=["consent_type", "-given_at"])]`.
+- [x] [Review][Patch] **`user_agent`: ограничить длину** [backend/apps/common/models.py:613 + миграция] — `TextField(blank=True)` без верхней границы — DoS / storage bloat при больших UA-строках. Заменить на `CharField(max_length=512)` с обрезкой при сохранении.
+- [x] [Review][Patch] **Frontend: try/catch вокруг `fetch` и обработка 5xx ≠ 404** [frontend/src/app/(blue)/privacy-policy/page.tsx:26-36] — Сейчас `!res.ok` для всего возвращает `null` → `notFound()`. Сетевая ошибка/таймаут/5xx превращаются в 404 для SEO. Обернуть в try/catch (network errors), 4xx → `null`, 5xx → пробросить (Next.js error boundary).
+- [x] [Review][Patch] **Frontend: guard для malformed JSON и `content`/`title` = null** [page.tsx:31-35] — `res.json()` бросает на не-JSON ответе, ломает SSR. `dangerouslySetInnerHTML={{ __html: undefined }}` рендерит сломанный HTML. Обернуть `await res.json()` в try/catch; добавить `if (!page.title || !page.content) notFound()`.
+- [x] [Review][Patch] **Frontend: дедуплицировать `fetchPrivacyPolicy` через React `cache()`** [page.tsx:26-45] — `generateMetadata` и `PrivacyPolicyPage` оба вызывают `fetchPrivacyPolicy()` → две запроса к backend на каждый запрос. `import { cache } from 'react'; const fetchPrivacyPolicy = cache(async () => {...})`.
+- [x] [Review][Patch] **`UserConsentAdmin.search_fields`: убрать `ip_address`** [backend/apps/common/admin.py:307] — `GenericIPAddressField` + `icontains` поиск даёт неинтуитивное поведение и медленные запросы. Оставить только `user__email`. Поиск по IP делать через явный фильтр.
+- [x] [Review][Patch] **Frontend tests: добавить кейсы для malformed JSON, null content, отсутствующего title** [frontend/src/app/(blue)/privacy-policy/__tests__/page.test.tsx] — Сейчас покрыты только success / 404 / `is_published=false`. После Patch выше (`page.tsx`) покрыть: 500 от API, не-JSON body, `content=null`, `title=undefined`.
+- [x] [Review][Patch] **Backend tests: anonymous-only инварианты** [backend/apps/common/tests/test_user_consent.py] — Добавить: (1) `__str__` для `session_key` короче 8 символов (slice не падает, но надо зафиксировать формат); (2) после Patch CheckConstraint — тест что `UserConsent.objects.create(user=None, session_key="")` поднимает `IntegrityError`.
+- [x] [Review][Patch 1a] **Удалить мёртвый guard `is_published === false`** [frontend/src/app/(blue)/privacy-policy/page.tsx:55] — Заменить `if (!page || page.is_published === false) notFound();` на `if (!page) notFound();`. Также удалить из `PageData` interface optional поле `is_published?: boolean` (теперь не используется).
+- [x] [Review][Patch 1a] **Удалить тест мёртвого guard** [frontend/src/app/(blue)/privacy-policy/__tests__/page.test.tsx:97-102] — Удалить тест `it('вызывает notFound при is_published=false', ...)` целиком (тест проходит только из-за фейкового мока, в реальности кейс невозможен).
+- [x] [Review][Patch 4a] **Добавить тест что `delete_selected` отсутствует в admin actions** [backend/apps/common/tests/test_user_consent.py] — Создать тест `test_user_consent_admin_excludes_delete_selected_action`: создать `UserConsentAdmin(UserConsent, admin.site)`, вызвать `model_admin.get_actions(request)`, проверить `assert "delete_selected" not in actions`. Защищает от регрессии если кто-то ошибочно поднимет `has_delete_permission`.
 
 ### Deferred (не блокирует merge, в `_bmad-output/implementation-artifacts/deferred-work.md`)
 
@@ -516,7 +526,52 @@ _Code review run: 2026-05-09 (3 параллельных слоя: Blind Hunter 
 - Тест создаёт superuser избыточно — style nit
 - `__str__` em-dash format — стилистика, не функциональный риск
 
+### Re-review (2026-05-09 — после применения patches)
+
+_Code review run 2: 3 параллельных слоя (Blind Hunter / Edge Case Hunter / Acceptance Auditor). Acceptance Auditor подтвердил: все 15 patch + 4 decision + 5 AC реализованы корректно, регрессий не обнаружено. ~35 raw findings → 0 decision-needed / 0 patch / 8 defer / ~25 dismiss._
+
+#### Defer (не блокирует merge, в `deferred-work.md`)
+
+- [x] [Review2][Defer] **`__str__` для unsaved instance показывает текущее время вместо «—»** [backend/apps/common/models.py:652] — `timezone.localtime(None)` возвращает `localtime(now())`, не падает, но в admin/Debug Toolbar для unsaved instance дата будет current time. Cosmetic, поверхность очень мала (`has_add_permission=False`).
+- [x] [Review2][Defer] **`timezone.localtime` падает `ValueError` на naive `given_at`** [backend/apps/common/models.py:652] — Возможно при `loaddata`/raw SQL/`update(given_at=...)` без tz при `USE_TZ=True`. Добавить `if timezone.is_naive(self.given_at): self.given_at = timezone.make_aware(self.given_at)` guard.
+- [x] [Review2][Defer] **CheckConstraint пропускает `session_key` из пробелов / `​`** [backend/apps/common/models.py:638-641] — `~Q(session_key="")` не ловит `"   "`. Поверхность мала (Django `request.session.session_key` всегда даёт hex), но defensive — добавить `length(trim(session_key)) >= N` или нормализацию в save().
+- [x] [Review2][Defer] **`user_agent` CharField(512) без явной обрезки на стороне приложения** [backend/apps/common/models.py:622-626] — При INSERT длинного UA PostgreSQL поднимет `DataError`. Нужно truncation в middleware/service-слое (`request.META["HTTP_USER_AGENT"][:512]`) когда появятся API endpoints (Story 35.2/35.3).
+- [x] [Review2][Defer] **Composite-индекс `(consent_type, -given_at)` для compliance-запросов** [backend/apps/common/models.py:634-647] — Отдельные `db_index=True` решают list_filter, но горячий compliance-запрос «есть ли актуальное согласие?» эффективнее индексировать через `Meta.indexes = [Index(["consent_type", "-given_at"])]`. Поднять при первом нагрузочном тесте.
+- [x] [Review2][Defer] **`text/html` 200 (nginx maintenance) → `notFound()`** [frontend/src/app/(blue)/privacy-policy/page.tsx:67-71] — При 200 + HTML-телом `res.json()` бросает → catch → `null` → `notFound()`. Юзер видит 404 вместо 503 во время плановой maintenance. Решить проверкой `Content-Type`-заголовка перед `res.json()`.
+- [x] [Review2][Defer] **non-404 4xx → `notFound()` без логирования** [frontend/src/app/(blue)/privacy-policy/page.tsx:63-65] — 401/403/429 (misconfig DRF permissions / антибот rate limit для Yandex/Google) превращаются в 404 без alert'ов. Добавить `console.error` или Sentry capture для 4xx ≠ 404.
+- [x] [Review2][Defer] **`fetch` без `signal: AbortSignal.timeout(...)`** [frontend/src/app/(blue)/privacy-policy/page.tsx:55-58] — Один медленный backend (30s+) держит Next.js render-worker до DRF gateway timeout. Project-wide pattern (другие page.tsx делают то же), решать единой story.
+
+#### Dismissed (false positives / handled elsewhere) — 25+ items
+
+- [Blind] `user_agent` migration `TextField → CharField(512)` без data-migration — модель `UserConsent` новая (0015+0016 деплоятся вместе на пустой таблице), риска нет
+- [Blind] React `cache()` кеширует rejected promise → `generateMetadata` тоже бросит — by design, одна 5xx-ошибка должна доходить до error boundary один раз за запрос
+- [Blind] `vi.spyOn` + `cache()` могут смешиваться между тестами — тесты зелёные (`page.test.tsx 11 passed`), `mockFetch` сбрасывает реализацию в beforeEach
+- [Blind] timezone-тест жёстко привязан к Europe/Moscow — `timezone.override("Europe/Moscow")` явно выставляет, не зависит от системного TIME_ZONE
+- [Blind] `condition=` vs `check=` в CheckConstraint — Django 5.2.7 (CLAUDE.md), `condition=` валидно
+- [Blind] `search_fields` потерял `ip_address` — Patch 10 закрыт в первом ревью с обоснованием (медленный icontains на GenericIPAddressField)
+- [Blind] `is_published` удалён из контракта — Patch 1a закрыт; backend `PageSerializer` явно не отдаёт поле, и существующий integration-тест проверяет это
+- [Blind] `normalizePageData` не валидирует `slug === "privacy-policy"` — slug приходит с того же endpoint'а к которому шёл запрос, defense-in-depth не требуется
+- [Blind] `session_key="short"` нереалистичен — Django session_key всегда 32-символьный hex, тест защищает defensive-ветку
+- [Blind] `from datetime import UTC` требует Python 3.11+ — проект на Django 5.2 → Python ≥ 3.11
+- [Blind] `__str__` test без `.save()` — целенаправленно тестит ветку, которую CheckConstraint защищает на DB-уровне
+- [Blind] `search_fields = list` vs `tuple` — style nit, тесту явно зафиксирован тип
+- [Blind] Отдельные `db_index` vs composite — см. defer выше
+- [Blind] superuser в каждом тесте на admin actions — test polish
+- [Blind] `result.startswith("аноним —")` fragile к invisible chars — style nit
+- [Edge] `__str__` падает на user без email — User model требует unique non-null email (project invariant)
+- [Edge] `cache()` vs Next fetch-cache рассинхрон при ISR — by design, fetch-cache работает на уровне URL, cache() на уровне request, оба корректны
+- [Edge] `dangerouslySetInnerHTML` без client-side sanitization — `apps/pages/models.py:56,77` запускает `bleach.clean()` на save, dismissed в первом ревью
+- [Edge] Сетевые ошибки прокидываются с raw message — Sentry-friendly, две разные ошибки для двух разных проблем
+- [Edge] `slug` валидируется только на тип — slug сейчас не используется в JSX, type-guard для PageData достаточен
+- [Edge] `NEXT_PUBLIC_API_URL` localhost fallback — уже в Defer первого ревью (project-wide pattern)
+- [Edge] `consent_type=""` проходит DB-уровень — Django ChoiceField не валидируется на DB, project-wide limitation; `full_clean()` в API-слое (Story 35.2/35.3) закроет
+- [Edge] Race condition «два клика → два согласия» — Decision Dismiss 2a закрыт явно: каждый клик = audit-событие (152-ФЗ), дубликаты допустимы
+- [Edge] `title.trim()` не покрывает `​` — экзотика, low impact
+- [Edge] `__str__` падает с AttributeError на unsaved given_at=None — на самом деле `timezone.localtime(None)` использует `now()` без exception (Django source), нет crash. Cosmetic — см. defer выше.
+
 ## Change Log
 
 - 2026-05-09: Реализована Story 35.1: модель и admin согласий пользователей, миграция, страница политики ПДн, backend/frontend тесты и BMAD статус `review`.
 - 2026-05-09: Code review run — 4 decision-needed / 12 patch / 13 defer / 20+ dismiss. Раздел `Review Findings` добавлен.
+- 2026-05-09: Addressed code review findings — 15 review patch items resolved; story returned to `review`.
+- 2026-05-09: Re-review run 2 — 0 decision-needed / 0 patch / 8 defer / 25+ dismiss. Acceptance Auditor подтвердил полное соответствие spec ↔ diff. Готово к merge.

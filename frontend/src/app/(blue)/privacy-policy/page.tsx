@@ -2,7 +2,7 @@
  * Страница «Политика обработки персональных данных» (/privacy-policy).
  */
 
-import React from 'react';
+import React, { cache } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb, Card } from '@/components/ui';
@@ -13,7 +13,6 @@ interface PageData {
   content: string;
   seo_title?: string;
   seo_description?: string;
-  is_published?: boolean;
 }
 
 const DEFAULT_TITLE = 'Политика обработки персональных данных | FREESPORT';
@@ -23,17 +22,54 @@ function getApiUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 }
 
-async function fetchPrivacyPolicy(): Promise<PageData | null> {
+function normalizePageData(data: unknown): PageData | null {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const page = data as Record<string, unknown>;
+
+  if (typeof page.title !== 'string' || page.title.trim() === '') {
+    return null;
+  }
+
+  if (typeof page.content !== 'string' || page.content.trim() === '') {
+    return null;
+  }
+
+  if (typeof page.slug !== 'string') {
+    return null;
+  }
+
+  return {
+    title: page.title,
+    slug: page.slug,
+    content: page.content,
+    seo_title: typeof page.seo_title === 'string' ? page.seo_title : undefined,
+    seo_description:
+      typeof page.seo_description === 'string' ? page.seo_description : undefined,
+  };
+}
+
+const fetchPrivacyPolicy = cache(async (): Promise<PageData | null> => {
   const res = await fetch(`${getApiUrl()}${PRIVACY_POLICY_ENDPOINT}`, {
     next: { revalidate: 3600 },
   });
+
+  if (res.status >= 500) {
+    throw new Error('Не удалось загрузить страницу политики ПДн');
+  }
 
   if (!res.ok) {
     return null;
   }
 
-  return res.json();
-}
+  try {
+    return normalizePageData(await res.json());
+  } catch {
+    return null;
+  }
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const page = await fetchPrivacyPolicy();
@@ -52,7 +88,7 @@ const breadcrumbItems = [
 export default async function PrivacyPolicyPage() {
   const page = await fetchPrivacyPolicy();
 
-  if (!page || page.is_published === false) {
+  if (!page) {
     notFound();
   }
 

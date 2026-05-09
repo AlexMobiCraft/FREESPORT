@@ -304,7 +304,7 @@ class UserConsentAdmin(admin.ModelAdmin):
 
     list_display = ["user", "consent_type", "given_at", "ip_address", "policy_version"]
     list_filter = ["consent_type", "given_at"]
-    search_fields = ["user__email", "ip_address"]
+    search_fields = ["user__email"]
     readonly_fields = [
         "user",
         "session_key",
