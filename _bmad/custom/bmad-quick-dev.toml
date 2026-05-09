@@ -1,0 +1,13 @@
+# Team override: обязательный GitNexus-анализ в bmad-quick-dev
+# Коммитить в репозиторий — командная политика.
+
+[workflow]
+
+activation_steps_append = [
+  "GITNEXUS PRE-FLIGHT (обязательно): Выполни `npx gitnexus status` через Bash и покажи результат. Если индекс устарел ('stale') или отсутствует — сообщи пользователю: 'Запусти `! npx gitnexus analyze` в терминале, затем перезапусти сессию'. Если индекс свежий — продолжай.",
+]
+
+persistent_facts = [
+  "ПРАВИЛО АНАЛИЗА КОДА (обязательно): ЗАПРЕЩЕНО запускать Explore-субагента (subagent_type=Explore) для исследования кодовой базы. Вместо этого использовать GitNexus MCP напрямую: gitnexus_query({query: '...'}) для поиска потоков выполнения, gitnexus_context({name: '...'}) для анализа символов и blast radius. Читать файлы (Read) только для путей, возвращённых GitNexus. Это обязательное требование проекта FREESPORT.",
+  "ПРАВИЛО ПЕРЕД РЕДАКТИРОВАНИЕМ (обязательно): Перед изменением любой функции, класса или метода — запустить gitnexus_impact({target: 'symbolName', direction: 'upstream'}) и сообщить blast radius пользователю. При HIGH или CRITICAL риске — предупредить до внесения изменений.",
+]

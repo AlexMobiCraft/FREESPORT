@@ -1,0 +1,12 @@
+# Team override: обязательный GitNexus-анализ при ревью кода
+# Коммитить в репозиторий — командная политика.
+
+[workflow]
+
+activation_steps_append = [
+  "GITNEXUS PRE-FLIGHT (обязательно): Выполни `npx gitnexus status` через Bash и покажи результат. Если индекс устарел ('stale') — сообщи пользователю запустить `! npx gitnexus analyze`. Если свежий — продолжай.",
+]
+
+persistent_facts = [
+  "ПРАВИЛО АНАЛИЗА ПРИ РЕВЬЮ (обязательно): Для понимания контекста изменений использовать gitnexus_detect_changes() — покажет какие символы затронуты. Для оценки blast radius изменённых функций — gitnexus_impact({target: 'symbolName', direction: 'upstream'}). ЗАПРЕЩЕНО использовать Explore-субагента вместо этих инструментов.",
+]
