@@ -1,4 +1,5 @@
 # Исключить папки из анализа GitNexus
+backend/data/
 node_modules/
 .git/
 .vscode/
@@ -11,6 +12,18 @@ out/
 .env*
 *.log
 *.tmp
+*.zip
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.ico
+*.exe
+*.dll
+*.xml
 .cache/
 venv/
 ccs.bat
