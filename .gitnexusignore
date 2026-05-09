@@ -58,18 +58,6 @@ Thumbs.db
 **/test_*.py
 **/tests/**/*.py
 
-# Временно исключаем ВСЕ файлы для диагностики крэша GitNexus
-# Будем добавлять по одному, чтобы найти триггер
-backend/apps/orders/services/order_status_import.py
-backend/apps/products/services/variant_import.py
-backend/apps/integrations/onec_exchange/views.py
-backend/apps/products/services/parser.py
-backend/apps/products/services/attribute_import.py
-backend/apps/integrations/onec_exchange/import_orchestrator.py
-backend/apps/products/models.py
-backend/apps/products/admin.py
-backend/apps/products/management/commands/import_products_from_1c.py
-
 # Но включить нужные папки (используйте ! для исключения исключений)
 #!docs/api/
 #!src/tests/

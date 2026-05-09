@@ -203,3 +203,6 @@ backend/data/import_1c/
 backend/data/import_1c/
 backend/data/import_1c/
 *.tar.gz
+
+# GitNexus index DB
+.gitnexus/
