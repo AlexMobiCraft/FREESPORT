@@ -558,6 +558,12 @@ HERO_BANNER_LIMIT = 10
 SITE_URL = config("SITE_URL", default="http://localhost:3000")
 
 # ============================================================================
+# Frontend revalidation (ISR cache invalidation)
+# ============================================================================
+FRONTEND_INTERNAL_URL = config("FRONTEND_INTERNAL_URL", default="")
+REVALIDATE_SECRET = config("REVALIDATE_SECRET", default="")
+
+# ============================================================================
 # Настройки безопасности (переопределяются в продакшене)
 # ============================================================================
 

@@ -188,7 +188,7 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **FREESPORT** (8917 symbols, 14222 relationships, 297 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **FREESPORT** (8436 symbols, 13724 relationships, 297 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

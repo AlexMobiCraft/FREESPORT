@@ -134,7 +134,7 @@ const ElectricFooter: React.FC = () => {
           </p>
           <div className="flex gap-6">
             <Link
-              href="#"
+              href="/privacy-policy"
               className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Политика конфиденциальности

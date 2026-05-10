@@ -19,7 +19,11 @@ const DEFAULT_TITLE = 'Политика обработки персональн�
 const PRIVACY_POLICY_ENDPOINT = '/pages/privacy-policy/';
 
 function getApiUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+  return (
+    process.env.NEXT_PUBLIC_API_URL_INTERNAL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://backend:8000/api/v1'
+  );
 }
 
 function normalizePageData(data: unknown): PageData | null {
@@ -53,7 +57,7 @@ function normalizePageData(data: unknown): PageData | null {
 
 const fetchPrivacyPolicy = cache(async (): Promise<PageData | null> => {
   const res = await fetch(`${getApiUrl()}${PRIVACY_POLICY_ENDPOINT}`, {
-    next: { revalidate: 3600 },
+    next: { revalidate: process.env.NODE_ENV === 'development' ? 0 : 3600 },
   });
 
   if (res.status >= 500) {
@@ -109,7 +113,7 @@ export default async function PrivacyPolicyPage() {
       <section className="container mx-auto px-4 py-8 sm:py-12">
         <Card className="p-6 sm:p-10">
           <div
-            className="prose prose-neutral max-w-none text-text-primary"
+            className="prose prose-neutral max-w-none whitespace-pre-line text-text-primary"
             dangerouslySetInnerHTML={{ __html: page.content }}
           />
         </Card>

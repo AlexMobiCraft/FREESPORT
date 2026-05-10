@@ -1,5 +1,5 @@
 # Исключить папки из анализа GitNexus
-backend/data/
+.obsidian/
 node_modules/
 .git/
 .vscode/
@@ -12,18 +12,7 @@ out/
 .env*
 *.log
 *.tmp
-*.zip
 *.txt
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.webp
-*.ico
-*.exe
-*.dll
-*.xml
 .cache/
 venv/
 ccs.bat
@@ -38,6 +27,7 @@ ccqwen.bat
 .claude/
 .kilo/
 _bmad/
+_bmad-output/
 scripts/
 
 # Исключить документацию если нужно

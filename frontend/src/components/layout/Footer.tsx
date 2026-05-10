@@ -48,7 +48,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     links: [
       { label: 'Личный кабинет', href: '/profile' },
       { label: 'Реквизиты', href: '/requisites' },
-      { label: 'Политика конфиденциальности', href: '/policy' },
+      { label: 'Политика конфиденциальности', href: '/privacy-policy' },
     ],
   },
   {

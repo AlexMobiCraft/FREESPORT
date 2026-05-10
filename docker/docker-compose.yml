@@ -74,6 +74,8 @@ services:
       - SERVER_EMAIL=${SERVER_EMAIL:-noreply@freesport.local}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - SITE_URL=${SITE_URL:-http://localhost:3000}
+      - FRONTEND_INTERNAL_URL=${FRONTEND_INTERNAL_URL:-http://frontend:3000}
+      - REVALIDATE_SECRET=${REVALIDATE_SECRET}
     volumes:
       - ../backend:/app
       - ../data:/app/data
@@ -117,6 +119,7 @@ services:
       - NEXT_PUBLIC_MEDIA_URL=http://localhost
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
       - ACTIVE_THEME=${ACTIVE_THEME:-coming_soon}
+      - REVALIDATE_SECRET=${REVALIDATE_SECRET}
     command: npm run dev
     volumes:
       - ../frontend:/app

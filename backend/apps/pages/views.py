@@ -3,8 +3,6 @@ Views для статических страниц
 """
 
 from django.core.cache import cache
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, viewsets
 from rest_framework.response import Response
@@ -46,7 +44,15 @@ class PageViewSet(viewsets.ReadOnlyModelViewSet):
         description="Возвращает содержимое статической страницы по URL slug",
         tags=["Pages"],
     )
-    @method_decorator(cache_page(60 * 60 * 24))  # Cache for 24 hours
     def retrieve(self, request, *args, **kwargs):
-        """Получить страницу с кэшированием"""
-        return super().retrieve(request, *args, **kwargs)
+        """Получить страницу с кэшированием по предсказуемому ключу"""
+        slug = kwargs.get(self.lookup_field)
+        cache_key = f"page_detail_{slug}"
+        cached = cache.get(cache_key)
+
+        if cached is not None:
+            return Response(cached)
+
+        response = super().retrieve(request, *args, **kwargs)
+        cache.set(cache_key, response.data, 60 * 60 * 24)
+        return response
