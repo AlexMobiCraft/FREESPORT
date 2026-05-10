@@ -125,7 +125,7 @@ export default function DeliveryPage() {
         </Card>
 
         {/* Самовывоз */}
-        <Card className="p-5 sm:p-8">
+        <Card id="pickup" className="scroll-mt-24 p-5 sm:p-8">
           <div className="flex flex-col gap-6 sm:gap-8">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-16 h-16 rounded-xl bg-primary-subtle flex items-center justify-center flex-shrink-0">

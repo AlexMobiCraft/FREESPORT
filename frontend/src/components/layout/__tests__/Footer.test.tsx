@@ -76,6 +76,24 @@ describe('Footer', () => {
       );
     });
 
+    it('renders cooperation terms link to partners page', () => {
+      render(<Footer />);
+
+      expect(screen.getByRole('link', { name: 'Условия сотрудничества' })).toHaveAttribute(
+        'href',
+        '/partners'
+      );
+    });
+
+    it('renders news link in clients column', () => {
+      render(<Footer />);
+
+      expect(screen.getByRole('link', { name: 'Новости' })).toHaveAttribute('href', '/news');
+      expect(
+        screen.queryByRole('link', { name: 'Маркетинговые материалы' })
+      ).not.toBeInTheDocument();
+    });
+
     it('renders Контакты column with tel: and mailto: links', () => {
       render(<Footer />);
 
@@ -84,6 +102,25 @@ describe('Footer', () => {
 
       const emailLink = screen.getByRole('link', { name: 'info@freesport.ru' });
       expect(emailLink).toHaveAttribute('href', 'mailto:info@freesport.ru');
+    });
+
+    it('renders warehouse address as a link to pickup section on delivery page', () => {
+      render(<Footer />);
+
+      expect(screen.getByRole('link', { name: 'г. Ставрополь, ул. Коломийцева, 40/1' }))
+        .toHaveAttribute('href', '/delivery#pickup');
+    });
+
+    it('renders Контакты under Компания in the default desktop layout', () => {
+      render(<Footer />);
+
+      const companyHeading = screen.getByRole('heading', { level: 3, name: 'Компания' });
+      const companyColumn = companyHeading.parentElement;
+
+      expect(companyColumn).toContainElement(
+        screen.getByRole('heading', { level: 3, name: 'Контакты' })
+      );
+      expect(companyColumn).toContainElement(screen.getByRole('link', { name: '+7 968 273-21-68' }));
     });
 
     it('renders custom columns when provided', () => {
@@ -212,13 +249,13 @@ describe('Footer', () => {
   });
 
   describe('Responsive Layout', () => {
-    it('renders grid with responsive columns (1/2/3)', () => {
+    it('renders grid with responsive columns (1/2/4)', () => {
       render(<Footer />);
 
       const footer = screen.getByRole('contentinfo');
       const grid = footer.querySelector('.grid');
 
-      expect(grid).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3');
+      expect(grid).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-4');
     });
 
     it('renders responsive padding (px-3 md:px-4 lg:px-6)', () => {

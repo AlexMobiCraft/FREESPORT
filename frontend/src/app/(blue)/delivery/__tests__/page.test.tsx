@@ -116,6 +116,14 @@ describe('DeliveryPage (/delivery)', () => {
       expect(heading).toBeInTheDocument();
     });
 
+    it('должна иметь anchor для перехода из футера', () => {
+      const { container } = render(<DeliveryPage />);
+      const pickupSection = container.querySelector('#pickup');
+
+      expect(pickupSection).toBeInTheDocument();
+      expect(pickupSection).toHaveClass('scroll-mt-24');
+    });
+
     it('должна отображать минимальный заказ', () => {
       render(<DeliveryPage />);
       expect(screen.getByText(/Минимальный заказ:/i)).toBeInTheDocument();

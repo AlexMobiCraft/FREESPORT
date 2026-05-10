@@ -55,8 +55,8 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     title: 'Клиентам',
     links: [
       { label: 'Памятка клиенту', href: '/home' },
-      { label: 'Маркетинговые материалы', href: '/home' },
-      { label: 'Условия сотрудничества', href: '/home' },
+      { label: 'Новости', href: '/news' },
+      { label: 'Условия сотрудничества', href: '/partners' },
       { label: 'Условия доставки', href: '/delivery' },
       { label: 'Розница', href: '/home' },
     ],
@@ -74,7 +74,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     links: [
       { label: '+7 968 273-21-68', href: 'tel:+79682732168' },
       { label: 'info@freesport.ru', href: 'mailto:info@freesport.ru' },
-      { label: 'г. Ставрополь, ул. Коломийцева, 40/1', href: '#' },
+      { label: 'г. Ставрополь, ул. Коломийцева, 40/1', href: '/delivery#pickup' },
     ],
   },
 ];
@@ -114,12 +114,21 @@ export const Footer: React.FC<FooterProps> = ({
   socialLinks = DEFAULT_SOCIAL_LINKS,
   copyright = '© 2026 FREESPORT. Все права защищены.',
 }) => {
+  const isDefaultLayout = columns === DEFAULT_COLUMNS;
+  const contactsColumn = isDefaultLayout
+    ? columns.find(column => column.title === 'Контакты')
+    : undefined;
+  const visibleColumns = isDefaultLayout
+    ? columns.filter(column => column.title !== 'Контакты')
+    : columns;
+  const columnGridClass = isDefaultLayout ? 'lg:grid-cols-4' : 'lg:grid-cols-3';
+
   return (
     <footer className="bg-[#111827] text-white py-12" role="contentinfo">
       <div className="max-w-[1280px] mx-auto px-3 md:px-4 lg:px-6">
         {/* Колонки */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-          {columns.map((column, index) => (
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${columnGridClass} gap-8 mb-8`}>
+          {visibleColumns.map((column, index) => (
             <div key={index}>
               <h3 className="font-semibold mb-4">{column.title}</h3>
               <ul className="space-y-2">
@@ -135,6 +144,24 @@ export const Footer: React.FC<FooterProps> = ({
                   </li>
                 ))}
               </ul>
+
+              {contactsColumn && column.title === 'Компания' && (
+                <div className="mt-10">
+                  <h3 className="font-semibold mb-4">{contactsColumn.title}</h3>
+                  <ul className="space-y-2">
+                    {contactsColumn.links.map((link, linkIndex) => (
+                      <li key={linkIndex}>
+                        <Link
+                          href={link.href}
+                          className="text-sm text-[#9ca3af] hover:text-white transition-colors"
+                        >
+                          {link.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </div>
