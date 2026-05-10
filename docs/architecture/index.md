@@ -44,6 +44,7 @@
 
 ### 📅 История изменений
 
+- **2026-05-09:** Epic 35 / Story 35.1 — добавлены `UserConsent` (audit log согласий 152-ФЗ) в `02-data-models.md`, реальная схема `common_userconsent` в `09-database-schema.md`, страница `/privacy-policy` в `04-component-structure.md`, раздел compliance в `11-security-performance.md`
 - **2026-05-02:** Актуализированы модели данных, API и 1С-документация под `customer_code`, канонические `order_number` и master/sub-order flow
 - **2025-09-05:** Добавлена архитектура интеграции с 1С, включая синхронизацию покупателей
 - **2025-08-23:** Исправления Docker конфигурации и система изоляции тестов

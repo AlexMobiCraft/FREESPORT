@@ -375,41 +375,36 @@ $$ LANGUAGE plpgsql;
 #### Специальные таблицы для ФЗ-152 соответствия
 
 ```sql
--- Personal data audit log (ФЗ-152 compliance)
-CREATE TABLE compliance_personaldatalog (
+-- Согласия пользователей на обработку ПДн (ФЗ-152) — Story 35.1
+-- Append-only audit log: каждый клик «Согласен» = отдельная строка
+-- Django app: apps/common, модель UserConsent
+-- Миграции: common.0015_userconsent + common.0016_userconsent_review_fixes
+CREATE TABLE common_userconsent (
     id SERIAL PRIMARY KEY,
+
+    -- Субъект согласия: либо зарегистрированный пользователь, либо аноним (session_key)
     user_id INTEGER REFERENCES users_user(id) ON DELETE SET NULL,
-    action VARCHAR(100) NOT NULL,
-    data_type VARCHAR(100) NOT NULL,
-    processed_data JSONB,
-    purpose VARCHAR(200),
-    legal_basis VARCHAR(200),
-    ip_address INET,
-    user_agent TEXT,
-    processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    session_key VARCHAR(40) DEFAULT '',
 
-    CONSTRAINT chk_required_fields CHECK (
-        action IS NOT NULL AND
-        data_type IS NOT NULL AND
-        processed_at IS NOT NULL
-    )
+    -- Тип согласия: pdp_contract | marketing_email
+    consent_type VARCHAR(30) NOT NULL,
+
+    -- Контекст согласия
+    given_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    ip_address INET,
+    user_agent VARCHAR(512) DEFAULT '',
+    policy_version VARCHAR(20) DEFAULT '1.0' NOT NULL,
+
+    -- Гарантия: у каждой записи есть субъект (user или session_key)
+    CONSTRAINT userconsent_user_or_session_required
+        CHECK (user_id IS NOT NULL OR session_key <> '')
 );
 
--- Consent management for GDPR/ФЗ-152
-CREATE TABLE compliance_consent (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users_user(id) ON DELETE CASCADE,
-    consent_type VARCHAR(100) NOT NULL,
-    is_given BOOLEAN NOT NULL DEFAULT false,
-    given_at TIMESTAMP WITH TIME ZONE,
-    withdrawn_at TIMESTAMP WITH TIME ZONE,
-    ip_address INET,
-    user_agent TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    UNIQUE(user_id, consent_type)
-);
+-- Индексы для compliance-запросов и admin list_filter
+CREATE INDEX idx_userconsent_user ON common_userconsent(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_userconsent_consent_type ON common_userconsent(consent_type);
+CREATE INDEX idx_userconsent_given_at ON common_userconsent(given_at DESC);
+CREATE INDEX idx_userconsent_session ON common_userconsent(session_key) WHERE session_key <> '';
 
 -- Sync logs for 1C integration monitoring
 CREATE TABLE integrations_synclog (
@@ -523,9 +518,11 @@ $$ LANGUAGE plpgsql STABLE;
 - Multi-tier pricing на уровне ProductVariant с поддержкой всех типов пользователей
 - RRP/MSRP поля для B2B пользователей (требование FR5)
 
-**5. Соответствие ФЗ-152:**
+**5. Соответствие ФЗ-152 (Story 35.1, 2026-05-09):**
 
-- Audit log с `ON DELETE SET NULL` для сохранения аудита
-- Система согласий (consent management)
+- `common_userconsent` — реализованная таблица audit log согласий (`ON DELETE SET NULL` для сохранения аудита после удаления пользователя)
+- Append-only: admin заблокирован через `has_add_permission=False` / `has_change_permission=False`
+- Constraint `userconsent_user_or_session_required` гарантирует наличие субъекта в каждой строке
+- Страница политики ПДн доступна по `GET /api/pages/privacy-policy/` (существующий `PageViewSet`, slug `privacy-policy`)
 
 ---

@@ -872,7 +872,23 @@ class BackupLog(models.Model):
 
 ### 5.1. Compliance и аудит
 
-**GDPR и защита персональных данных:**
+#### 152-ФЗ — реализованные механизмы (Story 35.1, 2026-05-09)
+
+**Модель согласий `UserConsent` (`apps/common/models.py`):**
+
+- Фиксирует каждое согласие пользователя на обработку ПДн (`pdp_contract`) и рекламные рассылки (`marketing_email`) как отдельную immutable-запись.
+- Хранит: субъект (user FK или session_key для анонимов), тип согласия, дату, IP, User-Agent (max 512), версию политики.
+- CheckConstraint `userconsent_user_or_session_required` — гарантирует идентификацию субъекта в каждой строке.
+- Admin (`UserConsentAdmin`): только просмотр + поиск + фильтры; add/change/delete заблокированы.
+- Страница «Политика обработки персональных данных» — `/privacy-policy`, данные через `GET /api/pages/privacy-policy/` (ISR 1ч).
+
+**Архитектурные ограничения, зафиксированные как deferred:**
+- `policy_version` не связан автоматически со снапшотом содержимого — требует отдельной compliance-story.
+- Backfill согласий легаси-пользователей — отдельная RunPython-миграция.
+- `ip_address` nullable — заполняется из request в Story 35.2/35.3.
+- `user_agent` без application-level truncation — добавить `[:512]` при создании API-слоя в Story 35.2/35.3.
+
+**GDPR и защита персональных данных (концептуальный слой):**
 
 ```python
 class GDPRComplianceManager:

@@ -542,10 +542,19 @@ docs/
 - **Параметры:** slug - URL идентификатор страницы
 - **Ответ:** Полное содержимое страницы с HTML контентом и SEO метаданными
 - **Особенности:**
-  - HTML sanitization на уровне модели
+  - HTML sanitization на уровне модели (`bleach.clean()` — только разрешённые теги: p, h1-h6, ul, ol, li, a, strong, em, br)
   - SEO поля: seo_title, seo_description
   - Автогенерация SEO из title/content
   - Поддержка кириллических slug через transliterate
+  - `is_published` **не** включён в ответ serializer'а — неопубликованные страницы просто не возвращаются (404)
+
+**Используемые slug (зафиксированные):**
+
+| slug | Страница | Frontend-маршрут | Примечание |
+|------|----------|-----------------|------------|
+| `privacy-policy` | Политика обработки персональных данных | `/privacy-policy` | Story 35.1 (ISR 1ч); страница создаётся через Django Admin |
+
+> **Known issue (deferred):** `@cache_page(60*60*24)` использует URL-based ключ middleware-стиля. Signal `invalidate_page_cache` удаляет ключи `pages_list`/`page_detail_{slug}`, но не совпадает с реальным cache_key декоратора — после публикации/изменения страницы фронтенд получает stale-ответ до 24ч. Решается архитектурной story по унификации cache-стратегии.
 
 ---
 

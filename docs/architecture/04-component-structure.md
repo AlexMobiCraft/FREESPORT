@@ -8,6 +8,13 @@
 frontend/src/
 ├── app/                          # App Router (Next.js 13+)
 │   ├── (auth)/                   # Route groups
+│   ├── (blue)/                   # Blue theme layout group
+│   │   ├── catalog/              # Каталог товаров
+│   │   ├── delivery/             # Страница доставки (статическая)
+│   │   ├── privacy-policy/       # Политика ПДн (Story 35.1, ISR 1ч, данные из API)
+│   │   │   ├── page.tsx          # Server Component: GET /api/pages/privacy-policy/
+│   │   │   └── __tests__/
+│   │   └── blog/[slug]/          # Детальная страница блога
 │   ├── catalog/
 │   ├── product/[id]/
 │   ├── admin/                    # Административные маршруты
@@ -142,10 +149,13 @@ backend/
 │   │   ├── models.py                 # Cart, CartItem
 │   │   └── views.py                  # Session-based cart
 │   └── common/                       # Общие компоненты
+│       ├── models.py                 # Newsletter, UserConsent (152-ФЗ audit log)
+│       ├── admin.py                  # UserConsentAdmin (read-only, Story 35.1)
 │       ├── permissions.py            # Custom permissions
 │       ├── pagination.py             # Стандартизированная пагинация
 │       ├── exceptions.py             # Обработка ошибок
-│       └── utils.py                  # Общие утилиты
+│       ├── utils.py                  # Общие утилиты
+│       └── migrations/               # 0015_userconsent, 0016_userconsent_review_fixes
 ├── freesport/                        # Django настройки
 │   ├── settings/                     # Модульные настройки
 │   │   ├── base.py                   # OpenAPI 3.1, JWT, DRF

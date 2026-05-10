@@ -8,6 +8,7 @@ erDiagram
     User ||--o{ CartItem : has
     User ||--o{ CustomerSyncLog : logs
     User ||--o{ SyncConflict : conflicts
+    User ||--o{ UserConsent : "consents (152-ФЗ)"
 
     Product ||--o{ CartItem : contains
     Product ||--o{ OrderItem : ordered
@@ -48,6 +49,17 @@ erDiagram
         datetime end_date
         datetime created_at
         datetime updated_at
+    }
+
+    UserConsent {
+        int id PK
+        int user_id FK "nullable"
+        string session_key "для анонимных"
+        string consent_type "pdp_contract / marketing_email"
+        datetime given_at
+        inet ip_address "nullable"
+        string user_agent "max 512"
+        string policy_version "default 1.0"
     }
 ```
 
@@ -402,6 +414,9 @@ class CustomerOrderSequence(models.Model):
 ```
 
 > [!IMPORTANT]
+> Актуализация от `2026-05-09`: добавлена модель `UserConsent` (Epic 35, Story 35.1) в `apps/common/models.py`. Реализует audit log согласий пользователей согласно 152-ФЗ. Миграции: `common.0015_userconsent`, `common.0016_userconsent_review_fixes`. Admin: только просмотр, add/change/delete заблокированы.
+
+> [!IMPORTANT]
 > Актуализация от `2026-05-02`: в модель `User` добавлено поле `customer_code` с форматом `^\d{5}$`. Поле используется как источник пятизначного клиентского кода для канонических номеров заказов и становится неизменяемым после появления у пользователя хотя бы одного заказа.
 
 > [!IMPORTANT]
@@ -697,6 +712,58 @@ class Newsletter(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 ```
 
+#### Согласия пользователей (152-ФЗ) — Story 35.1
+
+```python
+class UserConsent(models.Model):
+    """Фиксация согласий пользователей (152-ФЗ). Append-only audit log."""
+
+    CONSENT_TYPE_CHOICES = [
+        ("pdp_contract", "Согласие на обработку ПДн для исполнения договора"),
+        ("marketing_email", "Согласие на получение рекламных рассылок"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,  # SET_NULL: аудит сохраняется после удаления юзера
+        null=True, blank=True,
+        related_name="consents",
+        verbose_name="Пользователь",
+    )
+    session_key = models.CharField(
+        max_length=40, blank=True, db_index=True,
+        verbose_name="Ключ сессии",
+        help_text="Для анонимных пользователей (Django hex-ключ)",
+    )
+    consent_type = models.CharField(
+        max_length=30, choices=CONSENT_TYPE_CHOICES,
+        db_index=True, verbose_name="Тип согласия",
+    )
+    given_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Дата согласия")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP адрес")
+    user_agent = models.CharField(max_length=512, blank=True, verbose_name="User Agent")
+    policy_version = models.CharField(max_length=20, default="1.0", verbose_name="Версия политики")
+
+    class Meta:
+        verbose_name = "Согласие пользователя"
+        verbose_name_plural = "Согласия пользователей"
+        ordering = ["-given_at"]
+        constraints = [
+            # Каждая запись должна идентифицировать субъект: либо user, либо session_key
+            models.CheckConstraint(
+                condition=models.Q(user__isnull=False) | ~models.Q(session_key=""),
+                name="userconsent_user_or_session_required",
+            )
+        ]
+```
+
+**Ключевые инварианты:**
+- Записи **только добавляются** (append-only) — admin заблокирован (`has_add_permission=False`, `has_change_permission=False`)
+- Каждый клик «Согласен» = отдельная audit-запись (требование 152-ФЗ); дубликаты допустимы
+- Проверка «дал ли пользователь согласие?» через `.filter(user=u, consent_type=...).exists()`
+- `user_agent` ограничен 512 символами; при сохранении через API необходимо обрезать `request.META["HTTP_USER_AGENT"][:512]` (Story 35.2/35.3)
+- `policy_version` фиксирует версию политики на момент согласия; не связан автоматически с содержимым `Page` (отдельная compliance-story)
+
 #### Новости
 
 ```python
@@ -792,4 +859,5 @@ erDiagram
     Category ||--o{ News : contains
     Category ||--o{ BlogPost : contains
     User ||--o{ Newsletter : "can have"
+    User ||--o{ UserConsent : "consents (152-ФЗ)"
 ```
