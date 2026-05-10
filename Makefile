@@ -3,7 +3,7 @@
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 DOCS_SCRIPTS_DIR := $(ROOT_DIR)scripts/docs
 
-.PHONY: help build up down test test-unit test-integration clean logs shell \
+.PHONY: help build build-frontend up down test test-unit test-integration clean logs shell \
          format lint migrate createsuperuser collectstatic \
          docs-validate docs-search-obsolete docs-check-links docs-check-api docs-update-index \
          check-env-consistency fix-black-quick fix-existing-venv remove-venv
@@ -14,6 +14,7 @@ help:
 	@echo ""
 	@echo "Разработка:"
 	@echo "  build          - Собрать все Docker образы"
+	@echo "  build-frontend - Production-сборка Next.js внутри контейнера"
 	@echo "  up             - Запустить среду разработки"
 	@echo "  down           - Остановить среду разработки"
 	@echo "  logs           - Показать логи всех сервисов"
@@ -59,6 +60,10 @@ help:
 # Сборка образов
 build:
 	cd docker && docker compose build
+
+# Production-сборка frontend внутри контейнера (NODE_ENV=production обязателен)
+build-frontend:
+	docker compose --env-file .env -f docker/docker-compose.yml exec -T frontend sh -c "NODE_ENV=production npm run build"
 
 # Запуск среды разработки
 up:
