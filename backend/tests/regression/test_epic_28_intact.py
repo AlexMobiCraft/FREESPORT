@@ -39,6 +39,7 @@ class TestEpic28Regression:
                 "password_confirm": "SecurePass123!",
                 "first_name": "New",
                 "role": "retail",
+                "pdp_consent": True,
             },
         )
 
@@ -111,6 +112,7 @@ class TestEpic28Regression:
                 "first_name": "New",
                 "role": "trainer",
                 "company_name": "Test Company",
+                "pdp_consent": True,
             },
         )
 

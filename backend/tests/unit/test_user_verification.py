@@ -34,6 +34,7 @@ class TestUserRegistrationVerification:
             "password_confirm": "SecurePass123!",
             "first_name": "Test",
             "role": "retail",
+            "pdp_consent": True,
         }
         serializer = UserRegistrationSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -54,6 +55,7 @@ class TestUserRegistrationVerification:
             "first_name": "Test",
             "role": "trainer",
             "company_name": "Test Gym",
+            "pdp_consent": True,
         }
         serializer = UserRegistrationSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -75,6 +77,7 @@ class TestUserRegistrationVerification:
             "role": "wholesale_level1",
             "company_name": "Test Company",
             "tax_id": "1234567890",
+            "pdp_consent": True,
         }
         serializer = UserRegistrationSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -96,6 +99,7 @@ class TestUserRegistrationVerification:
             "role": "federation_rep",
             "company_name": "Test Federation",
             "tax_id": "9876543210",
+            "pdp_consent": True,
         }
         serializer = UserRegistrationSerializer(data=data)
         assert serializer.is_valid(), serializer.errors

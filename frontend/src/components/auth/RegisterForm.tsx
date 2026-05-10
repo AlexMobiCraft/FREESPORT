@@ -26,9 +26,11 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
+import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
 import authService from '@/services/authService';
 import { isSafeRedirectUrl } from '@/utils/urlUtils';
@@ -64,11 +66,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
     // Story 29.1 AC 2: Retail роль по умолчанию
     defaultValues: {
       role: 'retail',
+      pdp_consent: false,
+      marketing_consent: false,
     },
   });
 
   // Story 29.1: Отслеживаем выбранную роль для условной логики
   const selectedRole = watch('role') ?? 'retail';
+  const pdpConsent = watch('pdp_consent');
+  const marketingConsent = watch('marketing_consent');
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
@@ -87,6 +93,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         // Story 29.1 AC 8: Условные B2B поля
         company_name: data.company_name,
         tax_id: data.tax_id,
+        pdp_consent: data.pdp_consent,
+        marketing_consent: data.marketing_consent ?? false,
       };
 
       // AC 2: Автоматический вход после регистрации
@@ -246,6 +254,57 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         autoComplete="new-password"
         placeholder="••••••••"
       />
+
+      <div className="space-y-2">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="register-pdp-consent"
+            {...register('pdp_consent')}
+            checked={pdpConsent}
+            disabled={isSubmitting}
+            aria-describedby={errors.pdp_consent?.message ? 'register-pdp-consent-error' : undefined}
+          />
+          <label
+            htmlFor="register-pdp-consent"
+            className="text-body-s text-text-primary cursor-pointer select-none"
+          >
+            Я даю согласие на{' '}
+            <Link
+              href="/privacy-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline hover:text-primary-hover"
+            >
+              обработку моих персональных данных
+            </Link>{' '}
+            в соответствии с Политикой
+          </label>
+        </div>
+        {errors.pdp_consent?.message && (
+          <p
+            id="register-pdp-consent-error"
+            className="text-body-xs text-[var(--color-accent-danger)]"
+            role="alert"
+          >
+            {errors.pdp_consent.message}
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-start gap-3">
+        <Checkbox
+          id="register-marketing-consent"
+          {...register('marketing_consent')}
+          checked={marketingConsent}
+          disabled={isSubmitting}
+        />
+        <label
+          htmlFor="register-marketing-consent"
+          className="text-body-s text-text-primary cursor-pointer select-none"
+        >
+          Я согласен(на) получать рекламные и информационные рассылки от FREESPORT
+        </label>
+      </div>
 
       {/* AC 6: Использование Button компонента */}
       {/* AC 4: Loading state с блокировкой кнопки */}

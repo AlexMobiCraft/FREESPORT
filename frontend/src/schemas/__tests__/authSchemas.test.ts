@@ -125,6 +125,7 @@ describe('registerSchema', () => {
         email: 'ivan@example.com',
         password: 'SecurePass123',
         confirmPassword: 'SecurePass123',
+        pdp_consent: true,
       };
 
       const result = registerSchema.safeParse(validData);
@@ -138,6 +139,7 @@ describe('registerSchema', () => {
         email: 'user@example.com',
         password: 'SecurePass123',
         confirmPassword: 'SecurePass123',
+        pdp_consent: true,
       });
 
       expect(result.success).toBe(true);
@@ -151,6 +153,7 @@ describe('registerSchema', () => {
         email: 'user@example.com',
         password: 'SecurePass123',
         confirmPassword: 'SecurePass123',
+        pdp_consent: true,
       });
 
       expect(result.success).toBe(false);
@@ -166,6 +169,7 @@ describe('registerSchema', () => {
         email: 'user@example.com',
         password: 'SecurePass123',
         confirmPassword: 'SecurePass123',
+        pdp_consent: true,
       });
 
       expect(result.success).toBe(false);
@@ -183,6 +187,7 @@ describe('registerSchema', () => {
         email: 'user@example.com',
         password: 'SecurePass123',
         confirmPassword: 'DifferentPass456',
+        pdp_consent: true,
       });
 
       expect(result.success).toBe(false);
@@ -198,6 +203,7 @@ describe('registerSchema', () => {
         email: 'user@example.com',
         password: 'SecurePass123',
         confirmPassword: '',
+        pdp_consent: true,
       });
 
       expect(result.success).toBe(false);
@@ -214,6 +220,7 @@ describe('registerSchema', () => {
         email: 'user@example.com',
         password: 'SecurePass',
         confirmPassword: 'SecurePass',
+        pdp_consent: true,
       });
 
       expect(result.success).toBe(false);
@@ -229,6 +236,7 @@ describe('registerSchema', () => {
         email: 'user@example.com',
         password: 'securepass123',
         confirmPassword: 'securepass123',
+        pdp_consent: true,
       });
 
       expect(result.success).toBe(false);

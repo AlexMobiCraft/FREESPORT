@@ -22,6 +22,7 @@ class TestRegistrationTokens:
             "first_name": "New",
             "last_name": "User",
             "role": "retail",
+            "pdp_consent": True,
         }
 
         # Используем прямой путь, так как reverse может отличаться
@@ -55,6 +56,7 @@ class TestRegistrationTokens:
             "role": "wholesale_level1",
             "company_name": "Test Company",
             "tax_id": "1234567890",
+            "pdp_consent": True,
         }
 
         response = client.post(url, data, format="json")

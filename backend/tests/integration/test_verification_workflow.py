@@ -135,6 +135,7 @@ class TestLoginVerificationBlocking:
                 "first_name": "Workflow",
                 "role": "trainer",
                 "company_name": "Workflow Gym",
+                "pdp_consent": True,
             },
         )
         assert register_response.status_code == status.HTTP_201_CREATED

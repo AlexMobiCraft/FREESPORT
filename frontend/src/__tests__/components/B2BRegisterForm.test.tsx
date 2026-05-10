@@ -105,6 +105,9 @@ describe('B2BRegisterForm', () => {
       );
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await user.click(
+        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      );
 
       const submitButton = screen.getByRole('button', { name: /отправить заявку/i });
       await user.click(submitButton);

@@ -49,6 +49,10 @@ export const registerSchema = z
     // Story 29.1: Условные B2B поля
     company_name: z.string().optional(),
     tax_id: z.string().optional(),
+    pdp_consent: z.boolean().refine(value => value === true, {
+      message: 'Необходимо согласие на обработку персональных данных',
+    }),
+    marketing_consent: z.boolean().default(false),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: 'Пароли не совпадают',
@@ -139,6 +143,10 @@ export const b2bRegisterSchema = z
       'trainer',
       'federation_rep',
     ]),
+    pdp_consent: z.boolean().refine(value => value === true, {
+      message: 'Необходимо согласие на обработку персональных данных',
+    }),
+    marketing_consent: z.boolean().default(false),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: 'Пароли не совпадают',
@@ -181,6 +189,6 @@ export const passwordResetConfirmSchema = z
  */
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.input<typeof registerSchema>;
-export type B2BRegisterFormData = z.infer<typeof b2bRegisterSchema>;
+export type B2BRegisterFormData = z.input<typeof b2bRegisterSchema>;
 export type PasswordResetRequestFormData = z.infer<typeof passwordResetRequestSchema>;
 export type PasswordResetConfirmFormData = z.infer<typeof passwordResetConfirmSchema>;

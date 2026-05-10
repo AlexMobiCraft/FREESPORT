@@ -26,6 +26,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
     )
     password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
+    pdp_consent = serializers.BooleanField(write_only=True, required=True)
+    marketing_consent = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = User
@@ -39,6 +41,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "role",
             "company_name",
             "tax_id",
+            "pdp_consent",
+            "marketing_consent",
         ]
         extra_kwargs = {
             "email": {"required": True},
@@ -56,6 +60,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Проверка совпадения паролей
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
+
+        if not attrs.get("pdp_consent"):
+            raise serializers.ValidationError({"pdp_consent": "Необходимо согласие на обработку персональных данных."})
 
         # Валидация B2B полей
         role = attrs.get("role", "retail")
@@ -79,6 +86,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """Создание нового пользователя"""
         # Удаляем password_confirm из данных
         validated_data.pop("password_confirm")
+        marketing_consent = validated_data.pop("marketing_consent", False)
+        validated_data.pop("pdp_consent")
 
         # Извлекаем пароль
         password = validated_data.pop("password")
@@ -105,6 +114,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             send_admin_verification_email.delay(user.id)
             send_user_pending_email.delay(user.id)
 
+        user._marketing_consent = marketing_consent  # type: ignore[attr-defined]
         return user
 
 

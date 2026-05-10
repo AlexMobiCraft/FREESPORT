@@ -1,1951 +1,4570 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  title: FREESPORT Platform API
-  description: |
-    RESTful API для B2B/B2C платформы спортивных товаров FREESPORT.
-    Объединяет 5 торговых марок с дифференцированным ценообразованием.
-
-    **Архитектура:** Django REST Framework + PostgreSQL  
-    **Frontend:** Next.js 14+ с TypeScript  
-    **Auth:** JWT tokens с refresh стратегией
-
-    ## Epic 1 Endpoints
-    Данная спецификация покрывает Epic 1 user stories (1.1-1.9):
-    - Управление пользователями и ролями B2B/B2C
-    - Каталог товаров с категориями  
-    - Корзина и оформление заказов
-    - Поиск и фильтрация товаров
-
+  title: FREESPORT API
   version: 1.0.0
-  contact:
-    name: FREESPORT Development Team
-    email: dev@freesport.ru
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-
-servers:
-  - url: https://api.freesport.ru/v1
-    description: Production API
-  - url: https://staging-api.freesport.ru/v1
-    description: Staging API
-  - url: http://localhost:8001/api/v1
-    description: Local Development
-
-tags:
-  - name: Authentication
-    description: Аутентификация и авторизация пользователей
-  - name: Users
-    description: Управление пользователями и профилями
-  - name: Products
-    description: Каталог товаров и управление продуктами
-  - name: Brands
-    description: Бренды товаров и фильтр брендов в каталоге
-  - name: Categories
-    description: Категории и структура каталога
-  - name: Cart
-    description: Корзина покупок
-  - name: Orders
-    description: Заказы и их обработка
-  - name: Search
-    description: Поиск и фильтрация товаров
-  - name: Catalog Filters
-    description: Фильтры каталога и атрибуты товаров (Story 14.3)
-  - name: Pages
-    description: Статические страницы и контент
-  - name: Banners
-    description: Управление баннерами Hero-секции
-
+  x-logo:
+    url: https://api.freesport.ru/static/logo.png
+    altText: FREESPORT API
+  description: RESTful API для B2B/B2C платформы спортивных товаров FREESPORT
 paths:
-  # =============================================================================
-  # AUTHENTICATION ENDPOINTS
-  # =============================================================================
+  /health/:
+    get:
+      operationId: health_retrieve
+      description: Проверка состояния API сервера
+      summary: Health Check
+      tags:
+      - System
+      security:
+      - {}
+      responses:
+        '200':
+          description: API работает корректно
+  /monitoring/metrics/operations/:
+    get:
+      operationId: monitoring_metrics_operations_retrieve
+      description: Возвращает метрики операций за указанный период (по умолчанию последние
+        24 часа)
+      summary: Получить метрики операций синхронизации
+      parameters:
+      - in: query
+        name: end_date
+        schema:
+          type: string
+        description: Конец периода (ISO 8601 формат)
+      - in: query
+        name: start_date
+        schema:
+          type: string
+        description: Начало периода (ISO 8601 формат)
+      tags:
+      - Monitoring
+      responses:
+        '200':
+          description: Метрики операций успешно получены
+  /monitoring/metrics/business/:
+    get:
+      operationId: monitoring_metrics_business_retrieve
+      description: Возвращает бизнес-метрики за указанный период
+      summary: Получить бизнес-метрики синхронизации
+      parameters:
+      - in: query
+        name: end_date
+        schema:
+          type: string
+        description: Конец периода (ISO 8601 формат)
+      - in: query
+        name: start_date
+        schema:
+          type: string
+        description: Начало периода (ISO 8601 формат)
+      tags:
+      - Monitoring
+      responses:
+        '200':
+          description: Бизнес-метрики успешно получены
+  /monitoring/metrics/realtime/:
+    get:
+      operationId: monitoring_metrics_realtime_retrieve
+      description: Возвращает метрики за последние 5 минут
+      summary: Получить метрики в реальном времени
+      tags:
+      - Monitoring
+      responses:
+        '200':
+          description: Метрики в реальном времени получены
+  /monitoring/health/:
+    get:
+      operationId: monitoring_health_retrieve
+      description: Возвращает текущий статус всех компонентов системы интеграции
+      summary: Получить статус здоровья системы
+      tags:
+      - Monitoring
+      responses:
+        '200':
+          description: Статус системы успешно получен
+  /subscribe/:
+    post:
+      operationId: subscribe_create
+      description: Подписывает пользователя на email-рассылку о новинках и акциях.
+        Если email уже подписан - возвращает 409 Conflict.
+      summary: Подписка на email-рассылку
+      tags:
+      - Newsletter
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscribeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubscribeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubscribeRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          description: Подписка успешно создана
+        '400':
+          description: Ошибка валидации email
+        '409':
+          description: Email уже подписан на рассылку
+  /unsubscribe/:
+    post:
+      operationId: unsubscribe_create
+      description: Отписывает пользователя от email-рассылки. Если email не найден
+        или уже отписан - возвращает 404 Not Found.
+      summary: Отписка от email-рассылки
+      tags:
+      - Newsletter
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnsubscribeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UnsubscribeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UnsubscribeRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Отписка успешно выполнена
+        '400':
+          description: Ошибка валидации email
+        '404':
+          description: Email не найден или уже отписан
+  /news/:
+    get:
+      operationId: news_list
+      description: Возвращает список опубликованных новостей с пагинацией. Новости
+        отсортированы по дате публикации (новые первые).
+      summary: Получить список новостей
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: 'Номер страницы (по умолчанию: 1)'
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 'Количество новостей на странице (по умолчанию: 10, макс: 100)'
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - News
+      security:
+      - {}
+      responses:
+        '200':
+          description: Список новостей успешно получен
+  /news/{slug}/:
+    get:
+      operationId: news_retrieve
+      description: "\n    Возвращает детальную информацию о новости по её slug.\n\n\
+        \    Доступны только опубликованные новости (is_published=True)\n    с датой\
+        \ публикации <= текущего момента.\n\n    Возвращает 404, если новость не найдена\
+        \ или не опубликована.\n    "
+      summary: Получить детальную информацию о новости
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - News
+      security:
+      - {}
+      responses:
+        '200':
+          description: Детальная информация о новости
+        '404':
+          description: Новость не найдена или не опубликована
+  /blog/:
+    get:
+      operationId: blog_list
+      description: Возвращает список опубликованных статей блога с пагинацией. Статьи
+        отсортированы по дате публикации (новые первые).
+      summary: Получить список статей блога
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: 'Номер страницы (по умолчанию: 1)'
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: 'Количество статей на странице (по умолчанию: 10, макс: 100)'
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Blog
+      security:
+      - {}
+      responses:
+        '200':
+          description: Список статей блога успешно получен
+  /blog/{slug}/:
+    get:
+      operationId: blog_retrieve
+      description: "\n    Возвращает детальную информацию о статье блога по её slug.\n\
+        \n    Доступны только опубликованные статьи (is_published=True)\n    с датой\
+        \ публикации <= текущего момента.\n\n    Возвращает 404, если статья не найдена\
+        \ или не опубликована.\n    "
+      summary: Получить детальную информацию о статье блога
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Blog
+      security:
+      - {}
+      responses:
+        '200':
+          description: Детальная информация о статье блога
+        '404':
+          description: Статья не найдена или не опубликована
   /auth/register/:
     post:
-      tags: [Authentication]
-      summary: Регистрация нового пользователя
-      description: |
-        Создание нового аккаунта B2C или B2B пользователя.
-        Для B2B требуется верификация компании.
+      operationId: auth_register_create
+      description: Создание нового пользователя с указанием роли (retail, wholesale_level1-3,
+        trainer, federation_rep)
+      summary: Регистрация пользователя
+      tags:
+      - Authentication
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserRegistration"
-            examples:
-              b2c_user:
-                summary: B2C пользователь
-                value:
-                  email: "user@example.com"
-                  password: "SecurePass123"
-                  first_name: "Иван"
-                  last_name: "Иванов"
-                  phone: "+7900123456"
-                  role: "retail"
-              b2b_user:
-                summary: B2B пользователь
-                value:
-                  email: "coach@school.ru"
-                  password: "SecurePass123"
-                  first_name: "Петр"
-                  last_name: "Петров"
-                  phone: "+7900123457"
-                  company_name: "ДЮСШ №1"
-                  tax_id: "1234567890"
-                  role: "wholesale_level1"
+              $ref: '#/components/schemas/UserRegistrationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+        required: true
+      security:
+      - {}
       responses:
-        "201":
+        '201':
           description: Пользователь успешно зарегистрирован
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserRegistrationResponse"
-        "400":
-          description: Ошибка валидации данных
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
+        '400':
+          description: Ошибки валидации
   /auth/login/:
     post:
-      tags: [Authentication]
-      summary: Вход в систему
-      description: |
-        Аутентификация пользователя с получением JWT токенов.
-        Поддерживает как B2C, так и B2B пользователей.
+      operationId: auth_login_create
+      description: Аутентификация пользователя и получение JWT токенов
+      summary: Вход пользователя
+      tags:
+      - Authentication
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Login"
+              $ref: '#/components/schemas/UserLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+        required: true
+      security:
+      - {}
       responses:
-        "200":
+        '200':
           description: Успешная аутентификация
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LoginResponse"
-        "401":
-          description: Неверные учетные данные
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: Аккаунт ожидает верификации (Epic 29.2)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detail:
-                    type: string
-                    example: "Ваша учетная запись находится на проверке"
-                  code:
-                    type: string
-                    example: "account_pending_verification"
-
-  /auth/refresh/:
-    post:
-      tags: [Authentication]
-      summary: Обновление токена доступа
-      description: |
-        Получение нового access токена на основе действующего refresh токена.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refresh:
-                  type: string
-                  description: Refresh token
-              required: [refresh]
-      responses:
-        "200":
-          description: Новый access token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  access:
-                    type: string
-                    description: Новый JWT access token
-        "401":
-          description: Недействительный refresh токен
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
+        '400':
+          description: Ошибки аутентификации
+        '403':
+          description: Аккаунт ожидает верификации
   /auth/logout/:
     post:
-      tags: [Authentication]
-      summary: Logout пользователя
-      description: |
+      operationId: auth_logout_create
+      description: |-
         Инвалидация refresh токена через blacklist механизм.
-        После logout токен не может использоваться для получения новых access tokens.
 
-        **Механизм работы:**
-        1. Клиент отправляет refresh token в теле запроса
-        2. Backend проверяет валидность токена
-        3. Токен добавляется в blacklist таблицу
-        4. Последующие попытки использовать токен будут отклонены
+        После успешного logout refresh токен больше не может быть использован для получения новых access токенов. Access токен остаётся валидным до истечения срока действия (short-lived).
 
-        **Требования:**
-        - Пользователь должен быть аутентифицирован (Bearer token в заголовке)
-        - Refresh token должен быть валидным и не истекшим
-
-      security:
-        - BearerAuth: []
-
+        Все события logout логируются с audit trail информацией: user_id, username, timestamp (ISO 8601), IP address.
+      summary: Logout пользователя
+      tags:
+      - Authentication
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [refresh]
-              properties:
-                refresh:
-                  type: string
-                  description: Refresh token для инвалидации
-                  example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTcwNzg0OTYwMCwiaWF0IjoxNzA1MjU3NjAwLCJqdGkiOiJhYmNkZWYxMjM0NTYiLCJ1c2VyX2lkIjoxfQ.xyz123"
-
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
       responses:
-        "204":
-          description: Токен успешно инвалидирован. Пользователь разлогинен.
-
-        "400":
-          description: Невалидный, истекший или уже инвалидированный токен
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Invalid or expired token"
-
-        "401":
+        '204':
+          description: Logout успешен, токен добавлен в blacklist
+        '400':
+          description: Невалидный или истёкший refresh токен
+        '401':
           description: Пользователь не аутентифицирован
+  /auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  detail:
-                    type: string
-                    example: "Authentication credentials were not provided."
-
-  # =============================================================================
-  # USER MANAGEMENT
-  # =============================================================================
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /auth/password-reset/:
+    post:
+      operationId: auth_password_reset_create
+      description: Отправка email с ссылкой для сброса пароля. Всегда возвращает 200
+        OK (security best practice).
+      summary: Запрос на сброс пароля
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Email отправлен (если пользователь существует)
+  /auth/password-reset/validate-token/:
+    post:
+      operationId: auth_password_reset_validate_token_create
+      description: Проверка валидности токена перед сбросом пароля
+      summary: Валидация токена сброса пароля
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateTokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ValidateTokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ValidateTokenRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Токен валиден
+        '404':
+          description: Токен не найден
+        '410':
+          description: Токен истёк
+  /auth/password-reset/confirm/:
+    post:
+      operationId: auth_password_reset_confirm_create
+      description: Установка нового пароля после валидации токена
+      summary: Подтверждение сброса пароля
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Пароль успешно изменён
+        '400':
+          description: Ошибки валидации
+        '404':
+          description: Токен не найден
+        '410':
+          description: Токен истёк
   /users/profile/:
     get:
-      tags: [Users]
-      summary: Получить профиль текущего пользователя
-      security:
-        - BearerAuth: []
+      operationId: users_profile_retrieve
+      description: Получение данных профиля текущего авторизованного пользователя
+      summary: Получение профиля пользователя
+      tags:
+      - Users
       responses:
-        "200":
-          description: Профиль пользователя
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserProfile"
-        "401":
-          description: Не авторизован
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-    patch:
-      tags: [Users]
-      summary: Обновить профиль пользователя
-      security:
-        - BearerAuth: []
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+    put:
+      operationId: users_profile_update
+      description: Просмотр и обновление профиля текущего пользователя
+      tags:
+      - users
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserProfileUpdate"
+              $ref: '#/components/schemas/UserProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserProfileRequest'
       responses:
-        "200":
-          description: Профиль успешно обновлен
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserProfile"
-
-  # =============================================================================
-  # PRODUCTS CATALOG
-  # =============================================================================
-
-  # =============================================================================
-  # COMPANY MANAGEMENT (B2B)
-  # =============================================================================
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+    patch:
+      operationId: users_profile_partial_update
+      description: Частичное обновление данных профиля пользователя (PATCH)
+      summary: Обновление профиля пользователя
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '401':
+          description: Пользователь не авторизован
+  /users/profile/dashboard/:
+    get:
+      operationId: users_profile_dashboard_retrieve
+      description: Возвращает основные метрики и статистику пользователя
+      summary: Получение дашборда пользователя
+      tags:
+      - users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDashboard'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
   /users/company/:
     get:
-      tags: [Users]
-      summary: Получить реквизиты компании
-      description: |
-        Возвращает юридические и банковские реквизиты компании для B2B пользователя.
-        Доступен только для B2B ролей (wholesale_level1-3, trainer, federation_rep).
-        Если Company не существует — автоматически создаётся.
-      security:
-        - BearerAuth: []
+      operationId: users_company_retrieve
+      description: Возвращает реквизиты компании для B2B пользователя
+      summary: Получение реквизитов компании
+      tags:
+      - Users
       responses:
-        "200":
-          description: Реквизиты компании
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Company"
-        "403":
-          description: Доступ запрещён (не B2B пользователь)
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '403':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
     put:
-      tags: [Users]
-      summary: Обновить реквизиты компании
-      description: |
-        Обновляет юридические и банковские реквизиты компании B2B пользователя.
-        При обновлении legal_name и tax_id синхронизируются с User.company_name и User.tax_id.
-      security:
-        - BearerAuth: []
+      operationId: users_company_update
+      description: Обновляет реквизиты компании для B2B пользователя
+      summary: Обновление реквизитов компании
+      tags:
+      - Users
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CompanyUpdate"
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
       responses:
-        "200":
-          description: Реквизиты успешно обновлены
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Company"
-        "403":
-          description: Доступ запрещён (не B2B пользователь)
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /users/orders/:
+    get:
+      operationId: users_orders_list
+      description: Получение истории заказов пользователя с пагинацией
+      summary: История заказов
+      tags:
+      - Users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderHistory'
+          description: ''
+  /users/roles/:
+    get:
+      operationId: users_roles_retrieve
+      description: Получение списка доступных ролей пользователей в системе
+      summary: Информация о ролях пользователей
+      tags:
+      - Users
+      security:
+      - {}
+      responses:
+        '200':
+          description: Список ролей пользователей
+  /users/addresses/:
+    post:
+      operationId: users_addresses_create
+      description: ViewSet для управления адресами пользователя
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
+    get:
+      operationId: users_addresses_list
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAddressList'
+          description: ''
+  /users/addresses/{id}/:
+    put:
+      operationId: users_addresses_update
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
+    patch:
+      operationId: users_addresses_partial_update
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
+    delete:
+      operationId: users_addresses_destroy
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
+    get:
+      operationId: users_addresses_retrieve
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
+  /users/favorites/:
+    post:
+      operationId: users_favorites_create
+      description: ViewSet для управления избранными товарами
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteCreate'
+          description: ''
+    get:
+      operationId: users_favorites_list
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFavoriteList'
+          description: ''
+  /users/favorites/{id}/:
+    put:
+      operationId: users_favorites_update
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FavoriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FavoriteRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
+    patch:
+      operationId: users_favorites_partial_update
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
+    delete:
+      operationId: users_favorites_destroy
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
+    get:
+      operationId: users_favorites_retrieve
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
   /products/:
     get:
-      tags: [Products]
-      summary: Получить список товаров
-      description: |
-        Получение каталога товаров с поддержкой фильтрации, поиска и пагинации.
-        Цены адаптируются под роль пользователя (B2C/B2B).
+      operationId: products_list
+      description: Получение списка товаров с фильтрацией, сортировкой и ролевым ценообразованием
+      summary: Список товаров
       parameters:
-        - name: category_id
-          in: query
-          schema:
-            type: integer
-          description: ID категории для фильтрации
-        - name: search
-          in: query
-          schema:
-            type: string
-          description: Поиск по названию, описанию, артикулу
-        - name: brand
-          in: query
-          schema:
-            type: string
-          description: Фильтр по бренду
-        - name: min_price
-          in: query
-          schema:
-            type: number
-            format: decimal
-          description: Минимальная цена
-        - name: max_price
-          in: query
-          schema:
-            type: number
-            format: decimal
-          description: Максимальная цена
-        - name: in_stock
-          in: query
-          schema:
-            type: boolean
-          description: Только товары в наличии
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: Номер страницы
-        - name: page_size
-          in: query
-          schema:
-            type: integer
-            default: 20
-            maximum: 100
-          description: Количество товаров на странице
-        - name: ordering
-          in: query
-          schema:
-            type: string
-            enum: [name, -name, price, -price, created_at, -created_at]
-            default: -created_at
-          description: Сортировка результатов
+      - in: query
+        name: brand
+        schema:
+          type: string
+        description: 'Бренд (ID или slug). Поддерживает множественный выбор: brand=nike,adidas'
+      - in: query
+        name: category_id
+        schema:
+          type: integer
+        description: ID категории
+      - in: query
+        name: has_discount
+        schema:
+          type: boolean
+        description: Товары со скидкой (имеют discount_percent)
+      - in: query
+        name: in_stock
+        schema:
+          type: boolean
+        description: Товары в наличии
+      - in: query
+        name: is_featured
+        schema:
+          type: boolean
+        description: Рекомендуемые товары
+      - in: query
+        name: is_hit
+        schema:
+          type: boolean
+        description: Хиты продаж
+      - in: query
+        name: is_new
+        schema:
+          type: boolean
+        description: Новинки
+      - in: query
+        name: is_premium
+        schema:
+          type: boolean
+        description: Премиум товары
+      - in: query
+        name: is_promo
+        schema:
+          type: boolean
+        description: Акции
+      - in: query
+        name: is_sale
+        schema:
+          type: boolean
+        description: Распродажа
+      - in: query
+        name: max_price
+        schema:
+          type: number
+        description: Максимальная цена
+      - in: query
+        name: min_price
+        schema:
+          type: number
+        description: Минимальная цена
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: 'Сортировка: name, -name, retail_price, -retail_price, created_at,
+          -created_at'
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Полнотекстовый поиск по названию, описанию, артикулу. Поддерживает
+          русский язык, ранжирование по релевантности. Мин. 2 символа, макс. 100
+      - in: query
+        name: size
+        schema:
+          type: string
+        description: Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40,
+          42 и т.д.)
+      tags:
+      - Products
+      security:
+      - {}
       responses:
-        "200":
-          description: Список товаров
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProductList"
-
-  /products/{id}/:
-    get:
-      tags: [Products]
-      summary: Получить детали товара
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: ID товара
-      responses:
-        "200":
-          description: Детали товара
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProductDetail"
-        "404":
-          description: Товар не найден
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/PaginatedProductListList'
+          description: ''
   /products/visible-brands/:
     get:
-      tags: [Products]
-      summary: Получить видимые бренды по фильтрам
-      description: |
-        Возвращает ID брендов, у которых есть активные товары по текущим
-        фильтрам каталога. Параметр brand намеренно игнорируется, чтобы
-        фильтр брендов не сужал сам себя при множественном выборе.
+      operationId: products_visible_brands_retrieve
+      description: Возвращает ID брендов, у которых есть товары по текущим фильтрам
+        каталога. Параметр brand игнорируется — endpoint отражает глобальные фильтры,
+        не сужая sidebar до уже выбранных брендов.
+      summary: Видимые бренды по фильтрам
       parameters:
-        - name: category_id
-          in: query
-          schema:
-            type: integer
-          description: ID категории с учётом дочерних категорий через ProductFilter
-        - name: min_price
-          in: query
-          schema:
-            type: number
-            format: decimal
-          description: Минимальная цена
-        - name: max_price
-          in: query
-          schema:
-            type: number
-            format: decimal
-          description: Максимальная цена
-        - name: in_stock
-          in: query
-          schema:
-            type: boolean
-          description: Только товары в наличии
-        - name: search
-          in: query
-          schema:
-            type: string
-          description: Поисковый запрос
+      - in: query
+        name: category_id
+        schema:
+          type: integer
+        description: ID категории (включая дочерние)
+      - in: query
+        name: in_stock
+        schema:
+          type: boolean
+        description: Товары в наличии
+      - in: query
+        name: max_price
+        schema:
+          type: number
+        description: Максимальная цена
+      - in: query
+        name: min_price
+        schema:
+          type: number
+        description: Минимальная цена
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Поисковый запрос
+      tags:
+      - Products
+      security:
+      - {}
       responses:
-        "200":
-          description: ID брендов, доступных по текущим фильтрам
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VisibleBrandIds"
-
-  # =============================================================================
-  # BRANDS
-  # =============================================================================
-  /brands/:
+                $ref: '#/components/schemas/ProductList'
+          description: ''
+  /products/visible-categories/:
     get:
-      tags: [Brands]
-      summary: Получить список брендов
-      description: |
-        Возвращает активные бренды. При has_stock=true применяет гейт наличия:
-        бренд попадает в ответ, если существует Product.is_active=True с
-        вариантом ProductVariant.stock_quantity > 0.
-        has_stock=false, 0 или отсутствие параметра сохраняют прежний контракт.
+      operationId: products_visible_categories_retrieve
+      description: Возвращает ID категорий, в которых есть товары, соответствующие
+        активным фильтрам. Параметр category_id игнорируется — endpoint отражает глобальные
+        фильтры, не сужая sidebar до активной ветки.
+      summary: Видимые категории по фильтрам
       parameters:
-        - name: is_featured
-          in: query
-          schema:
-            type: boolean
-          description: Фильтр по featured-статусу бренда
-        - name: has_stock
-          in: query
-          schema:
-            type: boolean
-          description: Применяется только при true/1; false/0 не означает «бренды без наличия»
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: Номер страницы
-        - name: page_size
-          in: query
-          schema:
-            type: integer
-            default: 100
-            maximum: 500
-          description: Количество брендов на странице
+      - in: query
+        name: brand
+        schema:
+          type: string
+        description: Бренд (ID или slug)
+      - in: query
+        name: in_stock
+        schema:
+          type: boolean
+        description: Товары в наличии
+      - in: query
+        name: max_price
+        schema:
+          type: number
+        description: Максимальная цена
+      - in: query
+        name: min_price
+        schema:
+          type: number
+        description: Минимальная цена
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Поисковый запрос
+      tags:
+      - Products
+      security:
+      - {}
       responses:
-        "200":
-          description: Пагинированный список брендов
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BrandList"
-
-  /brands/{slug}/:
+                $ref: '#/components/schemas/ProductList'
+          description: ''
+  /products/{slug}/:
     get:
-      tags: [Brands]
-      summary: Получить бренд по slug
+      operationId: products_retrieve
+      description: Получение детальной информации о товаре
+      summary: Детали товара
       parameters:
-        - name: slug
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Slug бренда
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Products
+      security:
+      - {}
       responses:
-        "200":
-          description: Детали бренда
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Brand"
-        "404":
-          description: Бренд не найден
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /brands/featured/:
-    get:
-      tags: [Brands]
-      summary: Получить избранные бренды
-      description: |
-        Возвращает кэшируемый список избранных брендов для главной страницы.
-        Query-параметр has_stock не применяется.
-      responses:
-        "200":
-          description: Список избранных брендов
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Brand"
-
-  # =============================================================================
-  # CATEGORIES
-  # =============================================================================
+                $ref: '#/components/schemas/ProductDetail'
+          description: ''
   /categories/:
     get:
-      tags: [Categories]
-      summary: Получить дерево категорий
-      description: |
-        Возвращает иерархическую структуру категорий товаров.
-        Поддерживает неограниченную вложенность.
+      operationId: categories_list
+      description: Получение списка всех категорий с иерархией и количеством товаров
+      summary: Список категорий
       parameters:
-        - name: parent_id
-          in: query
-          schema:
-            type: integer
-          description: ID родительской категории (null для корневых)
-        - name: level
-          in: query
-          schema:
-            type: integer
-          description: Максимальный уровень вложенности
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: is_homepage
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: parent
+        schema:
+          type: integer
+      - in: query
+        name: parent__slug
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Categories
+      security:
+      - {}
       responses:
-        "200":
-          description: Дерево категорий
+        '200':
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Category"
-
-  /categories/{id}/:
+                $ref: '#/components/schemas/PaginatedCategoryList'
+          description: ''
+  /categories/{slug}/:
     get:
-      tags: [Categories]
-      summary: Получить категорию по ID
+      operationId: categories_retrieve
+      description: Получение детальной информации о категории с навигационной цепочкой
+      summary: Детали категории
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Categories
+      security:
+      - {}
       responses:
-        "200":
-          description: Детали категории
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CategoryDetail"
-
+                $ref: '#/components/schemas/Category'
+          description: ''
   /categories-tree/:
     get:
-      tags: [Categories]
-      summary: Получить публичное дерево категорий
-      description: |
-        Возвращает дерево категорий для витрины без пагинации.
-        В БД хранится полное дерево 1С с корневым якорем СПОРТ, но endpoint
-        отдаёт прямых детей СПОРТ как публичные root-узлы.
-
-        Из ответа рекурсивно исключаются технические категории:
-        uncategorized, onec-unresolved-category, Без категории и placeholder-узлы
-        вида "Категория <uuid/legacy-id>".
+      operationId: categories_tree_list
+      description: Получение иерархического дерева категорий для навигации
+      summary: Дерево категорий
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Categories
+      security:
+      - {}
       responses:
-        "200":
-          description: Публичное дерево категорий
+        '200':
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/CategoryTree"
-
-  # =============================================================================
-  # SHOPPING CART
-  # =============================================================================
-  /cart/:
+                  $ref: '#/components/schemas/CategoryTree'
+          description: ''
+  /categories-tree/{id}/:
     get:
-      tags: [Cart]
-      summary: Получить корзину пользователя
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: Содержимое корзины
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Cart"
-        "401":
-          description: Не авторизован
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+      operationId: categories_tree_retrieve
+      description: |-
+        ViewSet для публичного дерева категорий.
 
-  /cart/items/:
-    post:
-      tags: [Cart]
-      summary: Добавить товар в корзину
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CartItemCreate"
-      responses:
-        "201":
-          description: Товар добавлен в корзину
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CartItem"
-        "400":
-          description: Ошибка валидации
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /cart/items/{id}/:
-    patch:
-      tags: [Cart]
-      summary: Обновить количество товара в корзине
-      security:
-        - BearerAuth: []
+        В БД хранится полное дерево 1С с якорем СПОРТ. Публичный контракт отдаёт
+        прямых детей СПОРТ как корни витрины.
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: ID элемента корзины
-      requestBody:
+      - in: path
+        name: id
+        schema:
+          type: string
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                quantity:
-                  type: integer
-                  minimum: 1
-              required: [quantity]
+      tags:
+      - categories-tree
+      security:
+      - {}
       responses:
-        "200":
-          description: Количество обновлено
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CartItem"
-
-    delete:
-      tags: [Cart]
-      summary: Удалить товар из корзины
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Товар удален из корзины
-
-  # =============================================================================
-  # ORDERS
-  # =============================================================================
-  /orders/:
+                $ref: '#/components/schemas/CategoryTree'
+          description: ''
+  /brands/:
     get:
-      tags: [Orders]
-      summary: Получить список заказов пользователя
-      description: |
-        Возвращает только master-заказы пользователя (`is_master=true`).
-        `order_number` передаётся в каноническом формате: `CCCCCYYNNN` для master-заказа.
-      security:
-        - BearerAuth: []
+      operationId: brands_list
+      description: Получение списка всех активных брендов с опциональной фильтрацией
+        по is_featured и/или has_stock
+      summary: Список брендов
       parameters:
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum:
-              [pending, confirmed, processing, shipped, delivered, cancelled, returned]
-          description: Фильтр по статусу заказа
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-      responses:
-        "200":
-          description: Список заказов
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrderList"
-
-    post:
-      tags: [Orders]
-      summary: Создать новый заказ
-      description: |
-        Создание заказа из текущей корзины пользователя.
-        Для успешного оформления требуется авторизованный пользователь с валидным `customer_code`.
-        После создания корзина очищается.
+      - in: query
+        name: has_stock
+        schema:
+          type: boolean
+        description: Возвращать только бренды, у которых есть активные товары с вариантами
+          в наличии (stock_quantity > 0). Применяется только при значении true/1.
+          Любое другое значение (включая false/0) эквивалентно отсутствию параметра
+          и не возвращает бренды без in-stock товаров.
+      - in: query
+        name: is_featured
+        schema:
+          type: boolean
+        description: Фильтр по featured-статусу бренда (true/false). Применяется только
+          в list-action; для retrieve(slug)-эндпоинта параметр игнорируется и не влияет
+          на поиск бренда.
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Brands
       security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OrderCreate"
+      - {}
       responses:
-        "201":
-          description: Заказ успешно создан
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OrderDetail"
-
-  /orders/{id}/:
+                $ref: '#/components/schemas/PaginatedBrandList'
+          description: ''
+  /brands/featured/:
     get:
-      tags: [Orders]
-      summary: Получить детали заказа
+      operationId: brands_featured_retrieve
+      description: Получение списка избранных брендов для отображения на главной странице.
+        Ответ кэшируется на 1 час.
+      summary: Избранные бренды
+      tags:
+      - Brands
       security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - {}
       responses:
-        "200":
-          description: Детали заказа
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OrderDetail"
-        "403":
-          description: Доступ запрещен
-        "404":
-          description: Заказ не найден
-
-  /orders/{id}/cancel/:
-    post:
-      tags: [Orders]
-      summary: Отменить master-заказ
-      description: |
-        Отменяет master-заказ пользователя и каскадно проставляет статус `cancelled`
-        всем связанным sub-orders. Технические sub-orders напрямую не отменяются через клиентский API.
-      security:
-        - BearerAuth: []
+                $ref: '#/components/schemas/Brand'
+          description: ''
+  /brands/{slug}/:
+    get:
+      operationId: brands_retrieve
+      description: Получение детальной информации о бренде
+      summary: Детали бренда
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Brands
+      security:
+      - {}
       responses:
-        "200":
-          description: Заказ успешно отменён
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OrderDetail"
-        "400":
-          description: Заказ нельзя отменить в текущем статусе
-        "404":
-          description: Заказ не найден
-
-  # =============================================================================
-  # CATALOG FILTERS (Story 14.3)
-  # =============================================================================
+                $ref: '#/components/schemas/Brand'
+          description: ''
   /catalog/filters/:
     get:
-      tags: [Catalog Filters]
-      summary: Получение списка атрибутов для фильтрации товаров
-      description: |
-        Возвращает активные атрибуты с их значениями для построения UI фильтров в каталоге.
-        По умолчанию возвращаются только активные атрибуты (is_active=True).
-        Staff users могут использовать параметр include_inactive=true для просмотра всех атрибутов.
+      operationId: catalog_filters_list
+      description: Получение списка активных атрибутов для фильтрации товаров в каталоге.
+        Возвращает атрибуты с их значениями для построения UI фильтров.
+      summary: Фильтры каталога
       parameters:
-        - name: include_inactive
-          in: query
-          description: |
-            Включить неактивные атрибуты в ответ.
-            Доступно только для staff users. Для обычных пользователей параметр игнорируется.
-          schema:
-            type: boolean
-            default: false
+      - in: query
+        name: include_inactive
+        schema:
+          type: boolean
+        description: Включить неактивные атрибуты (только для staff users). Для обычных
+          пользователей параметр игнорируется.
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Catalog Filters
+      security:
+      - {}
       responses:
-        "200":
-          description: Список атрибутов для фильтрации
+        '200':
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/AttributeFilter"
-
-  # =============================================================================
-  # BANNERS
-  # =============================================================================
-  /banners/active/:
+                $ref: '#/components/schemas/PaginatedAttributeFilterList'
+          description: ''
+  /catalog/filters/{id}/:
     get:
-      tags: [Banners]
-      summary: Получить активные баннеры для текущего пользователя
-      description: |
-        Возвращает список активных баннеров, отфильтрованных по роли пользователя.
-        Для неавторизованных пользователей возвращаются баннеры с show_to_guests=true.
-      security: [] # Опциональная авторизация
+      operationId: catalog_filters_retrieve
+      description: |-
+        ViewSet для фильтров каталога на основе активных атрибутов.
+
+        Возвращает список активных атрибутов для построения фильтров в каталоге.
+        Каждый атрибут содержит список значений для формирования UI фильтров.
+
+        Endpoints:
+        - GET /api/v1/catalog/filters/ - список активных атрибутов
+        - GET /api/v1/catalog/filters/{id}/ - детали атрибута
+
+        Query Parameters:
+        - include_inactive: true/false - включить неактивные атрибуты (только для staff)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Атрибут товара.
+        required: true
+      tags:
+      - catalog
+      security:
+      - {}
       responses:
-        "200":
-          description: Список баннеров
+        '200':
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Banner"
+                $ref: '#/components/schemas/AttributeFilter'
+          description: ''
+  /orders/:
+    post:
+      operationId: orders_create
+      description: Создание нового заказа из корзины пользователя
+      summary: Создание заказа
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '400':
+          description: Ошибки валидации или пустая корзина
+        '401':
+          description: Пользователь не авторизован
+    get:
+      operationId: orders_list
+      description: Возвращает только мастер-заказы пользователя (`is_master=True`).
+        Субзаказы — внутренняя разбивка по ставкам НДС для экспорта в 1С и клиенту
+        не видны.
+      summary: Список заказов
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+          title: Статус заказа
+          enum:
+          - cancelled
+          - confirmed
+          - delivered
+          - pending
+          - processing
+          - refunded
+          - shipped
+        description: |-
+          * `pending` - Ожидает обработки
+          * `confirmed` - Подтвержден
+          * `processing` - В обработке
+          * `shipped` - Отправлен
+          * `delivered` - Доставлен
+          * `cancelled` - Отменен
+          * `refunded` - Возвращен
+      tags:
+      - Orders
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrderListList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+  /orders/{id}/:
+    put:
+      operationId: orders_update
+      description: |-
+        ViewSet для управления заказами.
 
-  # =============================================================================
-  # PAGES
-  # =============================================================================
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+    patch:
+      operationId: orders_partial_update
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+    delete:
+      operationId: orders_destroy
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      responses:
+        '204':
+          description: No response body
+    get:
+      operationId: orders_retrieve
+      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
+        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
+        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
+        404.
+      summary: Детали заказа
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - Orders
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заказ не найден
+  /orders/{id}/cancel/:
+    post:
+      operationId: orders_cancel_create
+      description: Отмена мастер-заказа пользователем (только для статусов pending,
+        confirmed). Отмена каскадно проставляет статус `cancelled` у всех субзаказов.
+        Попытка отменить субзаказ напрямую возвращает 404.
+      summary: Отмена заказа
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '400':
+          description: Заказ не может быть отменен
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заказ не найден
+  /cart/:
+    get:
+      operationId: cart_list
+      description: Получение содержимого корзины пользователя с ценами
+      summary: Получить корзину
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Cart
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCartList'
+          description: ''
+  /cart/clear/:
+    delete:
+      operationId: cart_clear_destroy
+      description: Удаление всех товаров из корзины
+      summary: Очистить корзину
+      tags:
+      - Cart
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /cart/items/:
+    post:
+      operationId: cart_items_create
+      description: Добавление варианта товара (variant_id) в корзину с автоматическим
+        объединением одинаковых вариантов. Цена фиксируется в момент добавления.
+      summary: Добавить вариант товара в корзину
+      tags:
+      - Cart Items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemCreate'
+          description: ''
+    get:
+      operationId: cart_items_list
+      description: Получение списка всех товаров в корзине пользователя
+      summary: Список товаров в корзине
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCartItemList'
+          description: ''
+  /cart/items/{id}/:
+    patch:
+      operationId: cart_items_partial_update
+      description: Частичное изменение количества товара в корзине
+      summary: Частичное обновление товара
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '404':
+          description: Товар в корзине не найден
+    delete:
+      operationId: cart_items_destroy
+      description: Удаление товара из корзины
+      summary: Удалить товар из корзины
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+    get:
+      operationId: cart_items_retrieve
+      description: Получение детальной информации о товаре в корзине
+      summary: Детали товара в корзине
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+          description: ''
+        '404':
+          description: Товар в корзине не найден
   /pages/:
     get:
-      tags: [Pages]
-      summary: Получить список статических страниц
-      description: |
-        Возвращает список всех опубликованных статических страниц.
-        Результат кэшируется на 24 часа для лучшей производительности.
+      operationId: pages_list
+      description: Возвращает список всех опубликованных статических страниц
+      summary: Получить список страниц
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Pages
+      security:
+      - {}
       responses:
-        "200":
-          description: Список статических страниц
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPageList'
+          description: ''
+  /pages/{slug}/:
+    get:
+      operationId: pages_retrieve
+      description: Возвращает содержимое статической страницы по URL slug
+      summary: Получить страницу по slug
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+          title: URL slug
+        required: true
+      tags:
+      - Pages
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+          description: ''
+  /delivery/methods/:
+    get:
+      operationId: delivery_methods_list
+      description: Возвращает список доступных способов доставки
+      summary: Список способов доставки
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - Delivery
+      security:
+      - {}
+      responses:
+        '200':
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Page"
-
-  /pages/{slug}/:
+                  $ref: '#/components/schemas/DeliveryMethod'
+          description: ''
+  /delivery/methods/{id}/:
     get:
-      tags: [Pages]
-      summary: Получить содержимое страницы
-      description: |
-        Возвращает полное содержимое статической страницы по URL slug.
-        Включает HTML контент, SEO метаданные и кэширование.
+      operationId: delivery_methods_retrieve
+      description: Возвращает детали конкретного способа доставки по ID
+      summary: Получить способ доставки
       parameters:
-        - name: slug
-          in: path
-          required: true
-          schema:
-            type: string
-          description: URL slug страницы
-          example: "about-company"
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this Способ доставки.
+        required: true
+      tags:
+      - Delivery
+      security:
+      - {}
       responses:
-        "200":
-          description: Содержимое страницы
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageDetail"
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-              description: "public, max-age=86400"
-        "404":
-          description: Страница не найдена
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/DeliveryMethod'
+          description: ''
+  /banners/:
+    get:
+      operationId: banners_list
+      description: |-
+        Возвращает список активных баннеров для текущего пользователя.
 
-# =============================================================================
-# COMPONENTS SCHEMAS
-# =============================================================================
+        Фильтрация:
+        - Только активные баннеры (is_active=True)
+        - В пределах дат показа (start_date/end_date)
+        - По роли пользователя из JWT токена или гость
+        - По типу баннера через ?type=hero|marketing
+
+        Сортировка: по приоритету (DESC)
+      summary: Получить активные баннеры
+      parameters:
+      - in: query
+        name: type
+        schema:
+          type: string
+          enum:
+          - hero
+          - marketing
+        description: 'Фильтр по типу баннера: hero или marketing'
+      tags:
+      - Banners
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Banner'
+              examples:
+                SuccessExample:
+                  value:
+                  - - id: 1
+                      type: hero
+                      title: Новая коллекция 2025
+                      subtitle: Эксклюзивные новинки для профессионалов
+                      image_url: /media/promos/2025/01/hero.webp
+                      mobile_image_url: ''
+                      image_alt: Баннер новой коллекции
+                      cta_text: Перейти в каталог
+                      cta_link: /catalog
+                    - id: 2
+                      type: marketing
+                      title: Специальные цены для оптовиков
+                      subtitle: Скидки до 30% на весь ассортимент
+                      image_url: /media/promos/2025/01/wholesale.webp
+                      mobile_image_url: /media/promos/2025/01/wholesale_mobile.webp
+                      image_alt: Баннер оптовых цен
+                      cta_text: Узнать больше
+                      cta_link: /wholesale
+                  summary: Успешный ответ
+                  description: Список активных баннеров для пользователя
+          description: ''
+  /api/integration/1c/exchange/:
+    get:
+      operationId: api_integration_1c_exchange_retrieve
+      tags:
+      - api
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_integration_1c_exchange_create
+      description: |-
+        Handle POST requests.
+        Some 1C configurations send checkauth or init via POST.
+        Also handles file uploads (mode=file).
+      tags:
+      - api
+      responses:
+        '200':
+          description: No response body
 components:
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
   schemas:
-    # Authentication Schemas
-    UserRegistration:
+    Address:
       type: object
-      required: [email, password, first_name, last_name, role]
+      description: Serializer для адресов пользователя
       properties:
-        email:
+        id:
+          type: integer
+          readOnly: true
+        address_type:
+          allOf:
+          - $ref: '#/components/schemas/AddressTypeEnum'
+          title: Тип адреса
+        full_name:
           type: string
-          format: email
-          description: Email пользователя
-        password:
-          type: string
-          minLength: 8
-          description: Пароль (минимум 8 символов)
-        first_name:
-          type: string
-          maxLength: 30
-          description: Имя
-        last_name:
-          type: string
-          maxLength: 30
-          description: Фамилия
+          title: Полное имя получателя
+          maxLength: 100
         phone:
           type: string
-          pattern: '^\+7\d{10}$'
-          description: Телефон в формате +7XXXXXXXXXX
-        role:
-          type: string
-          enum:
-            [
-              retail,
-              wholesale_level1,
-              wholesale_level2,
-              wholesale_level3,
-              trainer,
-              federation_rep,
-              admin,
-            ]
-          description: Роль пользователя
-        company_name:
-          type: string
-          maxLength: 200
-          description: Название компании (для B2B)
-        tax_id:
-          type: string
+          title: Телефон
           maxLength: 12
-          description: ИНН (для B2B)
-
-    UserRegistrationResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-        email:
+        city:
           type: string
-          format: email
-        first_name:
+          title: Город
+          maxLength: 100
+        street:
           type: string
-        last_name:
-          type: string
-        role:
-          type: string
-        is_verified:
-          type: boolean
-          description: Подтвержден ли аккаунт
-        verification_required:
-          type: boolean
-          description: Требуется ли верификация (для B2B)
-
-    Login:
-      type: object
-      required: [email, password]
-      properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-
-    LoginResponse:
-      type: object
-      properties:
-        access:
-          type: string
-          description: JWT access token (срок действия 15 минут)
-        refresh:
-          type: string
-          description: JWT refresh token (срок действия 7 дней)
-        user:
-          $ref: "#/components/schemas/UserProfile"
-
-    # User Schemas
-    UserProfile:
-      type: object
-      properties:
-        id:
-          type: integer
-        email:
-          type: string
-          format: email
-        first_name:
-          type: string
-        last_name:
-          type: string
-        phone:
-          type: string
-        role:
-          type: string
-          enum:
-            [
-              retail,
-              wholesale_level1,
-              wholesale_level2,
-              wholesale_level3,
-              trainer,
-              federation_rep,
-              admin,
-            ]
-        company_name:
-          type: string
-          nullable: true
-        tax_id:
-          type: string
-          nullable: true
-        is_verified:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    UserProfileUpdate:
-      type: object
-      properties:
-        first_name:
-          type: string
-          maxLength: 30
-        last_name:
-          type: string
-          maxLength: 30
-        phone:
-          type: string
-          pattern: '^\+7\d{10}$'
-        company_name:
-          type: string
+          title: Улица
           maxLength: 200
-
-    # Company Schemas (B2B)
-    Company:
-      type: object
-      description: Реквизиты компании для B2B пользователей
-      properties:
-        id:
-          type: integer
-        legal_name:
+        building:
           type: string
-          description: Юридическое название
-        tax_id:
+          title: Дом
+          maxLength: 10
+        apartment:
           type: string
-          description: ИНН (12 символов)
-        kpp:
+          title: Квартира/офис
+          maxLength: 10
+        postal_code:
           type: string
-          description: КПП (9 символов)
-        legal_address:
+          title: Почтовый индекс
+          maxLength: 6
+        is_default:
+          type: boolean
+          title: Адрес по умолчанию
+        full_address:
           type: string
-          description: Юридический адрес
-        bank_name:
-          type: string
-          description: Название банка
-        bank_bik:
-          type: string
-          description: БИК банка (9 символов)
-        account_number:
-          type: string
-          description: Расчётный счёт (20 символов)
+          readOnly: true
         created_at:
           type: string
           format: date-time
+          readOnly: true
+          title: Дата создания
         updated_at:
           type: string
           format: date-time
-
-    CompanyUpdate:
+          readOnly: true
+          title: Дата обновления
+      required:
+      - building
+      - city
+      - created_at
+      - full_address
+      - full_name
+      - id
+      - phone
+      - postal_code
+      - street
+      - updated_at
+    AddressRequest:
       type: object
-      description: Данные для обновления реквизитов компании
+      description: Serializer для адресов пользователя
       properties:
-        legal_name:
+        address_type:
+          allOf:
+          - $ref: '#/components/schemas/AddressTypeEnum'
+          title: Тип адреса
+        full_name:
           type: string
+          minLength: 1
+          title: Полное имя получателя
+          maxLength: 100
+        phone:
+          type: string
+          minLength: 1
+          title: Телефон
+          maxLength: 12
+        city:
+          type: string
+          minLength: 1
+          title: Город
+          maxLength: 100
+        street:
+          type: string
+          minLength: 1
+          title: Улица
+          maxLength: 200
+        building:
+          type: string
+          minLength: 1
+          title: Дом
+          maxLength: 10
+        apartment:
+          type: string
+          title: Квартира/офис
+          maxLength: 10
+        postal_code:
+          type: string
+          minLength: 1
+          title: Почтовый индекс
+          maxLength: 6
+        is_default:
+          type: boolean
+          title: Адрес по умолчанию
+      required:
+      - building
+      - city
+      - full_name
+      - phone
+      - postal_code
+      - street
+    AddressTypeEnum:
+      enum:
+      - shipping
+      - legal
+      type: string
+      description: |-
+        * `shipping` - Адрес доставки
+        * `legal` - Юридический адрес
+    AttributeFilter:
+      type: object
+      description: |-
+        Serializer для атрибутов в фильтрах каталога.
+
+        Возвращает список активных атрибутов с их значениями для построения
+        фильтров в каталоге товаров.
+
+        Fields:
+        - id: ID атрибута
+        - name: Название атрибута
+        - slug: URL-совместимый идентификатор
+        - values: Список значений атрибута
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название атрибута
+          description: Название типа свойства (например, 'Цвет', 'Размер', 'Материал')
           maxLength: 255
-        tax_id:
+        slug:
           type: string
-          maxLength: 12
-        kpp:
-          type: string
-          maxLength: 9
-        legal_address:
-          type: string
-        bank_name:
-          type: string
-          maxLength: 200
-        bank_bik:
-          type: string
-          maxLength: 9
-        account_number:
-          type: string
-          maxLength: 20
-
-    # Product Schemas
-    ProductList:
-      type: object
-      properties:
-        count:
-          type: integer
-          description: Общее количество товаров
-        next:
-          type: string
-          nullable: true
-          description: URL следующей страницы
-        previous:
-          type: string
-          nullable: true
-          description: URL предыдущей страницы
-        results:
+          description: URL-совместимый идентификатор
+          maxLength: 255
+          pattern: ^[-a-zA-Z0-9_]+$
+        values:
           type: array
           items:
-            $ref: "#/components/schemas/Product"
+            type: object
+            additionalProperties: {}
+          description: |-
+            Получить все значения атрибута.
 
-    BrandList:
+            Args:
+                obj: Attribute instance
+
+            Returns:
+                List[dict]: Список значений атрибута
+          readOnly: true
+      required:
+      - id
+      - name
+      - slug
+      - values
+    Banner:
       type: object
-      properties:
-        count:
-          type: integer
-          description: Общее количество брендов
-        next:
-          type: string
-          nullable: true
-          description: URL следующей страницы
-        previous:
-          type: string
-          nullable: true
-          description: URL предыдущей страницы
-        results:
-          type: array
-          items:
-            $ref: "#/components/schemas/Brand"
+      description: |-
+        Сериализатор баннера для публичного API
 
+        Возвращает данные для отображения баннера в Hero-секции главной страницы
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        type:
+          allOf:
+          - $ref: '#/components/schemas/TypeEnum'
+          readOnly: true
+          title: Тип баннера
+          description: |-
+            Тип определяет место и способ отображения баннера
+
+            * `hero` - Геройский (Hero)
+            * `marketing` - Маркетинговый
+        title:
+          type: string
+          readOnly: true
+          title: Заголовок
+          description: Основной заголовок баннера
+        subtitle:
+          type: string
+          readOnly: true
+          title: Подзаголовок
+          description: Дополнительный текст под заголовком
+        image_url:
+          type: string
+          description: |-
+            Получить URL изображения баннера
+
+            Возвращает относительный путь для совместимости с SSR
+            (избегаем проблем с internal Docker hostnames)
+
+            Args:
+                obj: Объект баннера
+
+            Returns:
+                Относительный URL изображения или пустая строка
+          readOnly: true
+        mobile_image_url:
+          type: string
+          description: |-
+            Получить URL мобильного изображения баннера
+
+            Args:
+                obj: Объект баннера
+
+            Returns:
+                Относительный URL мобильного изображения или пустая строка
+          readOnly: true
+        image_alt:
+          type: string
+          readOnly: true
+          title: Alt-текст изображения
+          description: Alt-текст для accessibility
+        cta_text:
+          type: string
+          readOnly: true
+          title: Текст кнопки
+          description: Текст call-to-action кнопки
+        cta_link:
+          type: string
+          readOnly: true
+          title: Ссылка кнопки
+          description: URL для перехода по клику
+      required:
+      - cta_link
+      - cta_text
+      - id
+      - image_alt
+      - image_url
+      - mobile_image_url
+      - subtitle
+      - title
+      - type
     Brand:
       type: object
-      description: Бренд товара
+      description: Serializer для брендов
       properties:
         id:
           type: integer
+          readOnly: true
         name:
           type: string
-          description: Название бренда
+          title: Название бренда
+          maxLength: 100
         slug:
           type: string
-          description: URL slug бренда
+          pattern: ^[-a-zA-Z0-9_]+$
         image:
+          type:
+          - string
+          - 'null'
+          description: Возвращает URL изображения или None.
+          readOnly: true
+        description:
           type: string
-          nullable: true
-          description: URL изображения бренда для витрины
+          title: Описание
         website:
           type: string
-          nullable: true
-          description: Сайт бренда
+          format: uri
+          title: Веб-сайт
+          maxLength: 200
         is_featured:
           type: boolean
-          description: Показывать бренд на главной странице
-        description:
-          type: string
-          nullable: true
-
-    VisibleBrandIds:
-      type: object
-      properties:
-        brand_ids:
-          type: array
-          items:
-            type: integer
-          description: ID брендов, у которых есть товары по текущим фильтрам
-
-    Product:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-          description: Название товара
-        slug:
-          type: string
-          description: URL slug для SEO
-        sku:
-          type: string
-          description: Артикул товара
-        description:
-          type: string
-          description: Краткое описание
-        category:
-          $ref: "#/components/schemas/CategoryBreadcrumb"
-        brand:
-          type: string
-          description: Бренд товара
-        price:
-          $ref: "#/components/schemas/Price"
-        stock_quantity:
-          type: integer
-          description: Количество на складе
-        min_order_quantity:
-          type: integer
-          default: 1
-          description: Минимальное количество для заказа
-        images:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProductImage"
-        rating:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 5
-          nullable: true
-        reviews_count:
-          type: integer
-        is_available:
-          type: boolean
-          description: Доступен ли товар для заказа
-        created_at:
-          type: string
-          format: date-time
-
-    ProductDetail:
-      allOf:
-        - $ref: "#/components/schemas/Product"
-        - type: object
-          properties:
-            full_description:
-              type: string
-              description: Полное описание товара
-            specifications:
-              type: object
-              additionalProperties: true
-              description: Технические характеристики товара в формате ключ-значение
-              example:
-                "Материал": "Полиэстер 100%"
-                "Размеры": "S, M, L, XL"
-                "Вес": "0.5 кг"
-                "Цвет": "Синий, красный, черный"
-            variants:
-              type: array
-              items:
-                $ref: "#/components/schemas/ProductVariant"
-              description: Варианты товара (цвет, размер, цены, остатки)
-            related_products:
-              type: array
-              items:
-                $ref: "#/components/schemas/Product"
-              description: Похожие товары
-
-    ProductImage:
-      type: object
-      properties:
-        id:
-          type: integer
-        image:
-          type: string
-          format: uri
-          description: URL изображения
-        alt_text:
-          type: string
-          description: Альтернативный текст
-        is_primary:
-          type: boolean
-          description: Является ли основным изображением
-
-    ProductVariant:
-      type: object
+          title: Показывать на главной
       required:
-        - id
-        - sku
-        - current_price
-        - stock_quantity
-        - is_in_stock
-        - available_quantity
-      properties:
-        id:
-          type: integer
-          description: ID варианта товара
-        sku:
-          type: string
-          description: Артикул SKU
-          example: "NIKE-AM-RED-42"
-        color_name:
-          type: string
-          nullable: true
-          description: Название цвета
-          example: "Красный"
-        size_value:
-          type: string
-          nullable: true
-          description: Размер
-          example: "42"
-        current_price:
-          type: string
-          format: decimal
-          description: Цена для текущего пользователя (роле-ориентированная)
-          example: "5990.00"
-        color_hex:
-          type: string
-          nullable: true
-          description: Hex-код цвета (если доступен из ColorMapping)
-          example: "#FF0000"
-        stock_quantity:
-          type: integer
-          description: Количество на складе
-          example: 15
-        is_in_stock:
-          type: boolean
-          description: Доступен для заказа (computed property)
-          example: true
-        available_quantity:
-          type: integer
-          description: Доступное количество (с учетом резерва, computed property)
-          example: 15
-        main_image:
-          type: string
-          format: uri
-          nullable: true
-          description: Основное изображение варианта
-          example: "/media/products/variants/nike-am-red.jpg"
-        gallery_images:
-          type: array
-          items:
-            type: string
-            format: uri
-          description: Галерея изображений варианта
-          example: ["/media/products/variants/nike-am-red-side.jpg"]
-
-    Price:
-      type: object
-      properties:
-        retail:
-          type: number
-          format: decimal
-          description: Розничная цена
-        wholesale:
-          type: object
-          nullable: true
-          properties:
-            level1:
-              type: number
-              format: decimal
-              description: Оптовая цена уровень 1
-            level2:
-              type: number
-              format: decimal
-              description: Оптовая цена уровень 2
-            level3:
-              type: number
-              format: decimal
-              description: Оптовая цена уровень 3
-        currency:
-          type: string
-          default: RUB
-        current:
-          type: number
-          format: decimal
-          description: Цена для текущего пользователя
-        discount_percent:
-          type: integer
-          nullable: true
-          description: Процент скидки для текущего пользователя
-
-    # Category Schemas
-    Category:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-          description: Название категории
-        slug:
-          type: string
-          description: URL slug
-        description:
-          type: string
-          nullable: true
-        parent_id:
-          type: integer
-          nullable: true
-          description: ID родительской категории
-        level:
-          type: integer
-          description: Уровень вложенности
-        icon:
-          type: string
-          nullable: true
-          description: Иконка категории (emoji или код)
-        products_count:
-          type: integer
-          description: Количество товаров в категории
-        children:
-          type: array
-          items:
-            $ref: "#/components/schemas/Category"
-          description: Дочерние категории
-
-    CategoryDetail:
-      allOf:
-        - $ref: "#/components/schemas/Category"
-        - type: object
-          properties:
-            breadcrumbs:
-              type: array
-              items:
-                $ref: "#/components/schemas/CategoryBreadcrumb"
-
-    CategoryTree:
-      type: object
-      description: Публичный узел дерева категорий для витрины
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-          description: Название категории
-        slug:
-          type: string
-          description: URL slug
-        image:
-          type: string
-          nullable: true
-        icon:
-          type: string
-          nullable: true
-        products_count:
-          type: integer
-          description: Количество активных товаров в категории
-        in_stock_count:
-          type: integer
-          description: Количество активных товаров с остатками
-        sort_order:
-          type: integer
-        children:
-          type: array
-          items:
-            $ref: "#/components/schemas/CategoryTree"
-          description: Дочерние публичные категории
-
-    CategoryBreadcrumb:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        slug:
-          type: string
-
-    # Cart Schemas
+      - id
+      - image
+      - name
     Cart:
       type: object
+      description: Serializer для корзины с полной информацией
       properties:
         id:
           type: integer
-        user_id:
-          type: integer
+          readOnly: true
         items:
           type: array
           items:
-            $ref: "#/components/schemas/CartItem"
+            $ref: '#/components/schemas/CartItem'
+          readOnly: true
         total_items:
-          type: integer
-          description: Общее количество товаров
-        total_price:
-          type: number
-          format: decimal
-          description: Общая стоимость корзины
+          type: string
+          readOnly: true
+        total_amount:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
+          readOnly: true
+          title: Дата создания
         updated_at:
           type: string
           format: date-time
-
+          readOnly: true
+          title: Дата обновления
+      required:
+      - created_at
+      - id
+      - items
+      - total_amount
+      - total_items
+      - updated_at
     CartItem:
       type: object
+      description: |-
+        Serializer для элемента корзины с ценовой информацией.
+        Работает с ProductVariant вместо Product.
       properties:
         id:
           type: integer
+          readOnly: true
+        variant_id:
+          type: integer
+          title: Вариант товара
+          description: SKU-вариант товара с конкретными характеристиками (цвет, размер)
+          readOnly: true
         product:
-          $ref: "#/components/schemas/Product"
+          type: object
+          additionalProperties: {}
+          description: Получить информацию о товаре
+          readOnly: true
+        variant:
+          type: object
+          additionalProperties: {}
+          description: Получить информацию о варианте
+          readOnly: true
         quantity:
           type: integer
+          maximum: 2147483647
           minimum: 1
+          title: Количество
         unit_price:
-          type: number
-          format: decimal
-          description: Цена за единицу (на момент добавления)
+          type: string
+          description: Получить цену из снимка
+          readOnly: true
         total_price:
           type: number
-          format: decimal
-          description: Общая стоимость позиции
+          format: double
+          description: Стоимость этого элемента корзины на основе снимка цены
+          readOnly: true
         added_at:
           type: string
           format: date-time
-
+          readOnly: true
+          title: Дата добавления
+      required:
+      - added_at
+      - id
+      - product
+      - total_price
+      - unit_price
+      - variant
+      - variant_id
     CartItemCreate:
       type: object
-      required: [variant_id, quantity]
+      description: |-
+        Serializer для создания элемента корзины.
+        Принимает variant_id вместо product_id.
+      properties:
+        quantity:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+          title: Количество
+    CartItemCreateRequest:
+      type: object
+      description: |-
+        Serializer для создания элемента корзины.
+        Принимает variant_id вместо product_id.
       properties:
         variant_id:
           type: integer
-          description: ID варианта товара (ProductVariant.id)
+          writeOnly: true
         quantity:
           type: integer
+          maximum: 2147483647
           minimum: 1
-        # Deprecated: product_id больше не используется
-        # Используйте variant_id для добавления в корзину
-
-    # Order Schemas
-    OrderList:
+          title: Количество
+      required:
+      - variant_id
+    Category:
       type: object
-      properties:
-        count:
-          type: integer
-        next:
-          type: string
-          nullable: true
-        previous:
-          type: string
-          nullable: true
-        results:
-          type: array
-          items:
-            $ref: "#/components/schemas/Order"
-
-    Order:
-      type: object
+      description: Serializer для категорий с поддержкой иерархии
       properties:
         id:
           type: integer
-        user:
-          type: integer
-        order_number:
+          readOnly: true
+        name:
           type: string
-          description: Канонический номер заказа. Для master-заказа формат `CCCCCYYNNN`, для sub-order — `CCCCCYYNNNS`.
-        customer_display_name:
+          title: Название
+          maxLength: 200
+        slug:
           type: string
-        status:
+          maxLength: 255
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
           type: string
-          enum: [pending, confirmed, processing, shipped, delivered, cancelled, returned]
-        total_amount:
-          type: number
-          format: decimal
-        delivery_method:
+          title: Описание
+        image:
           type: string
-          enum: [pickup, courier, post, transport_company, transport_schedule]
-        payment_method:
+          format: uri
+          title: Изображение
+        icon:
           type: string
-          enum: [card, cash, bank_transfer, payment_on_delivery]
-        payment_status:
+          format: uri
+          title: Иконка
+        parent:
+          type:
+          - integer
+          - 'null'
+          title: Родительская категория
+        children:
           type: string
-          enum: [pending, paid, failed, refunded]
-        is_master:
+          readOnly: true
+        products_count:
+          type: string
+          readOnly: true
+        breadcrumbs:
+          type: string
+          readOnly: true
+        is_active:
           type: boolean
-        vat_group:
-          type: number
-          format: decimal
-          nullable: true
-        sent_to_1c:
-          type: boolean
-        total_items:
+          title: Активная
+        sort_order:
           type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Порядок сортировки
+      required:
+      - breadcrumbs
+      - children
+      - id
+      - name
+      - products_count
+      - slug
+    CategoryTree:
+      type: object
+      description: Специальный serializer для дерева категорий (корневые категории)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 200
+        slug:
+          type: string
+          maxLength: 255
+          pattern: ^[-a-zA-Z0-9_]+$
+        image:
+          type: string
+          format: uri
+          title: Изображение
+        icon:
+          type: string
+          format: uri
+          title: Иконка
+        children:
+          type: string
+          readOnly: true
+        products_count:
+          type: integer
+          readOnly: true
+        in_stock_count:
+          type: integer
+          readOnly: true
+        sort_order:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Порядок сортировки
+      required:
+      - children
+      - id
+      - in_stock_count
+      - name
+      - products_count
+      - slug
+    DeliveryMethod:
+      type: object
+      description: Сериализатор для способа доставки.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+          title: Название
+        description:
+          type: string
+          readOnly: true
+          title: Описание
+        icon:
+          type: string
+          readOnly: true
+          title: Иконка
+          description: CSS класс иконки или emoji для UI
+        is_available:
+          type: boolean
+          readOnly: true
+          title: Доступен
+      required:
+      - description
+      - icon
+      - id
+      - is_available
+      - name
+    DeliveryMethodEnum:
+      enum:
+      - pickup
+      - courier
+      - post
+      - transport_company
+      - transport_schedule
+      type: string
+      description: |-
+        * `pickup` - Самовывоз
+        * `courier` - Курьерская доставка
+        * `post` - Почтовая доставка
+        * `transport_company` - Транспортная компания
+        * `transport_schedule` - Транспортная компания (по расписанию)
+    Favorite:
+      type: object
+      description: |-
+        Serializer для избранных товаров.
+
+        Данные о цене, SKU и изображении получаются из первого активного
+        ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          type: integer
+          title: Товар
+        product_name:
+          type: string
+          readOnly: true
+        product_price:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Получить розничную цену из первого активного варианта товара.
+            Возвращает строку для совместимости с DecimalField.
+          readOnly: true
+        product_image:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Получить изображение товара из ProductVariant или Product.base_images.
+            Epic 13/14: изображения хранятся в ProductVariant.main_image
+            с fallback на Product.base_images.
+          readOnly: true
+        product_slug:
+          type: string
+          readOnly: true
+        product_sku:
+          type:
+          - string
+          - 'null'
+          description: Получить SKU из первого активного варианта товара.
+          readOnly: true
         created_at:
           type: string
           format: date-time
-
-    OrderDetail:
-      allOf:
-        - $ref: "#/components/schemas/Order"
-        - type: object
-          properties:
-            customer_name:
-              type: string
-            customer_email:
-              type: string
-              format: email
-            customer_phone:
-              type: string
-            discount_amount:
-              type: number
-              format: decimal
-            delivery_cost:
-              type: number
-              format: decimal
-            items:
-              type: array
-              items:
-                $ref: "#/components/schemas/OrderItem"
-            delivery_address:
-              type: string
-            delivery_date:
-              type: string
-              format: date
-              nullable: true
-            tracking_number:
-              type: string
-            payment_id:
-              type: string
-            notes:
-              type: string
-              nullable: true
-            sent_to_1c_at:
-              type: string
-              format: date-time
-              nullable: true
-            status_1c:
-              type: string
-            updated_at:
-              type: string
-              format: date-time
-            subtotal:
-              type: number
-              format: decimal
-            calculated_total:
-              type: number
-              format: decimal
-            can_be_cancelled:
-              type: boolean
-
-    OrderItem:
+          readOnly: true
+          title: Дата добавления
+      required:
+      - created_at
+      - id
+      - product
+      - product_image
+      - product_name
+      - product_price
+      - product_sku
+      - product_slug
+    FavoriteCreate:
       type: object
+      description: Serializer для добавления товара в избранное
       properties:
-        id:
-          type: integer
         product:
-          $ref: "#/components/schemas/Product"
-        variant:
           type: integer
-          nullable: true
-        product_name:
-          type: string
-        product_sku:
-          type: string
-        variant_info:
-          type: string
-        quantity:
-          type: integer
-        unit_price:
-          type: number
-          format: decimal
-          description: Цена за единицу на момент заказа
-        total_price:
-          type: number
-          format: decimal
-
-    OrderCreate:
+          title: Товар
+      required:
+      - product
+    FavoriteCreateRequest:
       type: object
-      required: [delivery_address, delivery_method, payment_method, customer_name, customer_email, customer_phone]
+      description: Serializer для добавления товара в избранное
+      properties:
+        product:
+          type: integer
+          title: Товар
+      required:
+      - product
+    FavoriteRequest:
+      type: object
+      description: |-
+        Serializer для избранных товаров.
+
+        Данные о цене, SKU и изображении получаются из первого активного
+        ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
+      properties:
+        product:
+          type: integer
+          title: Товар
+      required:
+      - product
+    LogoutRequest:
+      type: object
+      description: |-
+        Serializer для logout endpoint.
+
+        Валидирует refresh token для его инвалидации через blacklist механизм.
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+          description: Refresh token для инвалидации
+      required:
+      - refresh
+    OrderCreateRequest:
+      type: object
+      description: Сериализатор создания заказа из корзины
       properties:
         delivery_address:
           type: string
-        payment_method:
-          type: string
-          enum: [card, cash, bank_transfer, payment_on_delivery]
+          minLength: 1
+          title: Адрес доставки
         delivery_method:
-          type: string
-          enum: [pickup, courier, post, transport_company, transport_schedule]
+          allOf:
+          - $ref: '#/components/schemas/DeliveryMethodEnum'
+          title: Способ доставки
         delivery_date:
-          type: string
+          type:
+          - string
+          - 'null'
           format: date
-          nullable: true
+          title: Дата доставки
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          title: Способ оплаты
         notes:
           type: string
-          maxLength: 500
-          nullable: true
+          title: Комментарии к заказу
         customer_name:
           type: string
+          title: Имя клиента
           maxLength: 200
         customer_email:
           type: string
           format: email
+          title: Email клиента
+          maxLength: 254
         customer_phone:
           type: string
+          title: Телефон клиента
           maxLength: 20
         discount_amount:
-          type: number
+          type: string
           format: decimal
-          minimum: 0
-          default: 0
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          default: '0.00'
         promo_code:
-          type: string
+          type:
+          - string
+          - 'null'
           maxLength: 100
-          nullable: true
-
-    # Address Schemas
-    Address:
+      required:
+      - delivery_address
+      - delivery_method
+      - payment_method
+    OrderDetail:
       type: object
+      description: |-
+        Детальный сериализатор заказа.
+
+        Для мастер-заказов items/subtotal/total_items/calculated_total агрегируются
+        из субзаказов (sub_orders). Для субзаказов — собственные items.
       properties:
         id:
           type: integer
-        full_name:
+          readOnly: true
+        order_number:
           type: string
-        phone:
+          readOnly: true
+          title: Номер заказа
+        user:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+          title: Пользователь
+        customer_display_name:
           type: string
-        city:
+          readOnly: true
+        customer_name:
           type: string
-        street:
-          type: string
-        building:
-          type: string
-        apartment:
-          type: string
-          nullable: true
-        postal_code:
-          type: string
-
-    AddressCreate:
-      type: object
-      required: [full_name, phone, city, street, building, postal_code]
-      properties:
-        full_name:
-          type: string
-          maxLength: 100
-        phone:
-          type: string
-          pattern: '^\+7\d{10}$'
-        city:
-          type: string
-          maxLength: 100
-        street:
-          type: string
+          title: Имя клиента
           maxLength: 200
-        building:
+        customer_email:
           type: string
-          maxLength: 10
-        apartment:
+          format: email
+          title: Email клиента
+          maxLength: 254
+        customer_phone:
           type: string
-          maxLength: 10
-        postal_code:
+          title: Телефон клиента
+          maxLength: 20
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус заказа
+        total_amount:
           type: string
-          pattern: '^\d{6}$'
-
-    # Catalog Filter Schemas (Story 14.3)
-    AttributeFilter:
-      type: object
-      description: Атрибут для фильтрации товаров в каталоге
-      properties:
-        id:
-          type: integer
-          description: ID атрибута
-        name:
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Общая сумма
+        discount_amount:
           type: string
-          description: Название атрибута
-          example: "Размер"
-        slug:
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Сумма скидки
+        delivery_cost:
           type: string
-          description: URL-совместимый идентификатор атрибута
-          example: "razmer"
-        is_active:
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Стоимость доставки
+        delivery_address:
+          type: string
+          title: Адрес доставки
+        delivery_method:
+          allOf:
+          - $ref: '#/components/schemas/DeliveryMethodEnum'
+          title: Способ доставки
+        delivery_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          title: Дата доставки
+        tracking_number:
+          type: string
+          title: Трек-номер
+          description: Номер для отслеживания посылки
+          maxLength: 100
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          title: Способ оплаты
+        payment_status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          title: Статус оплаты
+        payment_id:
+          type: string
+          title: ID платежа (ЮKassa)
+          maxLength: 100
+        notes:
+          type: string
+          title: Комментарии к заказу
+        sent_to_1c:
           type: boolean
-          description: Активен ли атрибут (отображается в каталоге)
-          example: true
-        values:
-          type: array
-          description: Список значений атрибута для фильтрации
-          items:
-            $ref: "#/components/schemas/AttributeValueFilter"
-
-    AttributeValueFilter:
-      type: object
-      description: Значение атрибута для фильтра
-      properties:
-        id:
-          type: integer
-          description: ID значения атрибута
-        value:
-          type: string
-          description: Отображаемое значение
-          example: "Красный"
-        slug:
-          type: string
-          description: URL-совместимый идентификатор значения
-          example: "krasnyj"
-
-    # Common Schemas
-    Error:
-      type: object
-      properties:
-        detail:
-          type: string
-          description: Описание ошибки
-        field_errors:
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              type: string
-          description: Ошибки валидации полей
-        error_code:
-          type: string
-          description: Код ошибки для программной обработки
-
-    # Page Schemas
-    Page:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Уникальный идентификатор страницы
-        title:
-          type: string
-          maxLength: 200
-          description: Заголовок страницы
-        slug:
-          type: string
-          maxLength: 200
-          description: URL slug для SEO-дружественных URL
-          example: "about-company"
-        content:
-          type: string
-          description: HTML содержимое страницы (очищенное и безопасное)
-          example: "<h1>О компании</h1><p>Мы лидеры в сфере спортивных товаров...</p>"
-        seo_title:
-          type: string
-          maxLength: 60
-          description: SEO заголовок для meta title
-          example: "О компании FREESPORT - лидер спортивных товаров"
-        seo_description:
-          type: string
-          maxLength: 160
-          description: SEO описание для meta description
-          example: "FREESPORT - ведущий поставщик спортивных товаров с 2010 года. Качественные товары для всех видов спорта."
-        updated_at:
-          type: string
+          readOnly: true
+          title: Отправлен в 1С
+        sent_to_1c_at:
+          type:
+          - string
+          - 'null'
           format: date-time
-          description: Время последнего обновления
+          readOnly: true
+          title: Дата и время отправки в 1С
+        status_1c:
+          type: string
+          readOnly: true
+          title: Статус из 1С
+        is_master:
+          type: boolean
+          readOnly: true
+          title: Мастер-заказ
+          description: True — заказ видит клиент; False — технический субзаказ для
+            1С
+        vat_group:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Группа НДС (%)
+          description: Ставка НДС группы товаров в этом субзаказе (5 или 22)
         created_at:
           type: string
           format: date-time
-          description: Время создания страницы
-
-    PageDetail:
-      allOf:
-        - $ref: "#/components/schemas/Page"
-        - type: object
-          properties:
-            content:
-              type: string
-              description: Полное HTML содержимое страницы с санитизацией
-              example: |
-                <h1>О компании FREESPORT</h1>
-                <p>Мы работаем на рынке спортивных товаров с 2010 года...</p>
-                <ul>
-                  <li>Широкий ассортимент</li>
-                  <li>Гарантия качества</li>
-                  <li>Быстрая доставка</li>
-                </ul>
-
-    # Banner Schemas
-    Banner:
+          readOnly: true
+          title: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата обновления
+        items:
+          type: array
+          items: {}
+          readOnly: true
+        subtotal:
+          type: number
+          format: double
+          readOnly: true
+        total_items:
+          type: integer
+          readOnly: true
+        calculated_total:
+          type: number
+          format: double
+          readOnly: true
+        can_be_cancelled:
+          type: boolean
+          readOnly: true
+      required:
+      - calculated_total
+      - can_be_cancelled
+      - created_at
+      - customer_display_name
+      - delivery_address
+      - delivery_method
+      - id
+      - is_master
+      - items
+      - order_number
+      - payment_method
+      - sent_to_1c
+      - sent_to_1c_at
+      - status_1c
+      - subtotal
+      - total_amount
+      - total_items
+      - updated_at
+      - user
+      - vat_group
+    OrderDetailRequest:
       type: object
+      description: |-
+        Детальный сериализатор заказа.
+
+        Для мастер-заказов items/subtotal/total_items/calculated_total агрегируются
+        из субзаказов (sub_orders). Для субзаказов — собственные items.
+      properties:
+        customer_name:
+          type: string
+          title: Имя клиента
+          maxLength: 200
+        customer_email:
+          type: string
+          format: email
+          title: Email клиента
+          maxLength: 254
+        customer_phone:
+          type: string
+          title: Телефон клиента
+          maxLength: 20
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус заказа
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Общая сумма
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Сумма скидки
+        delivery_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Стоимость доставки
+        delivery_address:
+          type: string
+          minLength: 1
+          title: Адрес доставки
+        delivery_method:
+          allOf:
+          - $ref: '#/components/schemas/DeliveryMethodEnum'
+          title: Способ доставки
+        delivery_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          title: Дата доставки
+        tracking_number:
+          type: string
+          title: Трек-номер
+          description: Номер для отслеживания посылки
+          maxLength: 100
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          title: Способ оплаты
+        payment_status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          title: Статус оплаты
+        payment_id:
+          type: string
+          title: ID платежа (ЮKassa)
+          maxLength: 100
+        notes:
+          type: string
+          title: Комментарии к заказу
+      required:
+      - delivery_address
+      - delivery_method
+      - payment_method
+      - total_amount
+    OrderHistory:
+      type: object
+      description: Serializer для истории заказов пользователя
       properties:
         id:
           type: integer
+          readOnly: true
+        order_number:
+          type: string
+          readOnly: true
+          title: Номер заказа
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+          title: Статус заказа
+        status_display:
+          type: string
+          readOnly: true
+        payment_status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          readOnly: true
+          title: Статус оплаты
+        payment_status_display:
+          type: string
+          readOnly: true
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Общая сумма
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Сумма скидки
+        delivery_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Стоимость доставки
+        items_count:
+          type: integer
+          description: Получение количества товаров в заказе
+          readOnly: true
+        customer_display_name:
+          type: string
+          description: Отображаемое имя клиента
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата обновления
+      required:
+      - created_at
+      - customer_display_name
+      - delivery_cost
+      - discount_amount
+      - id
+      - items_count
+      - order_number
+      - payment_status
+      - payment_status_display
+      - status
+      - status_display
+      - total_amount
+      - updated_at
+    OrderList:
+      type: object
+      description: |-
+        Сериализатор для списка заказов.
+
+        Для мастер-заказов `total_items` агрегируется из субзаказов: direct items
+        мастера всегда пусты (все позиции живут в sub_orders), поэтому использовать
+        Order.total_items напрямую нельзя — это даст 0 и сломает клиентский контракт.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+          title: Пользователь
+        order_number:
+          type: string
+          readOnly: true
+          title: Номер заказа
+        customer_display_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+          title: Статус заказа
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Общая сумма
+        delivery_method:
+          allOf:
+          - $ref: '#/components/schemas/DeliveryMethodEnum'
+          readOnly: true
+          title: Способ доставки
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+          title: Способ оплаты
+        payment_status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          readOnly: true
+          title: Статус оплаты
+        is_master:
+          type: boolean
+          readOnly: true
+          title: Мастер-заказ
+          description: True — заказ видит клиент; False — технический субзаказ для
+            1С
+        vat_group:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Группа НДС (%)
+          description: Ставка НДС группы товаров в этом субзаказе (5 или 22)
+        sent_to_1c:
+          type: boolean
+          readOnly: true
+          title: Отправлен в 1С
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата создания
+        total_items:
+          type: integer
+          readOnly: true
+      required:
+      - created_at
+      - customer_display_name
+      - delivery_method
+      - id
+      - is_master
+      - order_number
+      - payment_method
+      - payment_status
+      - sent_to_1c
+      - status
+      - total_amount
+      - total_items
+      - user
+      - vat_group
+    Page:
+      type: object
+      description: Serializer для статической страницы
+      properties:
+        id:
+          type: integer
+          readOnly: true
         title:
           type: string
-        subtitle:
+          title: Заголовок
+          maxLength: 200
+        slug:
           type: string
-        image_url:
+          title: URL slug
+          maxLength: 200
+          pattern: ^[-a-zA-Z0-9_]+$
+        content:
           type: string
-          format: uri
-        image_alt:
+          title: Содержимое
+        seo_title:
           type: string
-          description: Alt-текст для accessibility
-        cta_text:
+          title: SEO заголовок
+          maxLength: 60
+        seo_description:
           type: string
-        cta_link:
+          title: SEO описание
+          maxLength: 160
+        updated_at:
           type: string
-
-    PaginatedResponse:
+          format: date-time
+          readOnly: true
+      required:
+      - content
+      - id
+      - slug
+      - title
+      - updated_at
+    PaginatedAddressList:
       type: object
       properties:
         count:
           type: integer
-          description: Общее количество элементов
+          example: 123
         next:
           type: string
           nullable: true
-          description: URL следующей страницы
+          format: uri
+          example: http://api.example.org/accounts/?page=4
         previous:
           type: string
           nullable: true
-          description: URL предыдущей страницы
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+    PaginatedAttributeFilterList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeFilter'
+    PaginatedBrandList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Brand'
+    PaginatedCartItemList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+    PaginatedCartList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cart'
+    PaginatedCategoryList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+    PaginatedFavoriteList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Favorite'
+    PaginatedOrderListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderList'
+    PaginatedPageList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Page'
+    PaginatedProductListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductList'
+    PasswordResetConfirmRequest:
+      type: object
+      description: Serializer для подтверждения сброса пароля
+      properties:
+        uid:
+          type: string
+          minLength: 1
+        token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - token
+      - uid
+    PasswordResetRequestRequest:
+      type: object
+      description: Serializer для запроса на сброс пароля
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    PatchedAddressRequest:
+      type: object
+      description: Serializer для адресов пользователя
+      properties:
+        address_type:
+          allOf:
+          - $ref: '#/components/schemas/AddressTypeEnum'
+          title: Тип адреса
+        full_name:
+          type: string
+          minLength: 1
+          title: Полное имя получателя
+          maxLength: 100
+        phone:
+          type: string
+          minLength: 1
+          title: Телефон
+          maxLength: 12
+        city:
+          type: string
+          minLength: 1
+          title: Город
+          maxLength: 100
+        street:
+          type: string
+          minLength: 1
+          title: Улица
+          maxLength: 200
+        building:
+          type: string
+          minLength: 1
+          title: Дом
+          maxLength: 10
+        apartment:
+          type: string
+          title: Квартира/офис
+          maxLength: 10
+        postal_code:
+          type: string
+          minLength: 1
+          title: Почтовый индекс
+          maxLength: 6
+        is_default:
+          type: boolean
+          title: Адрес по умолчанию
+    PatchedCartItemUpdateRequest:
+      type: object
+      description: Serializer для обновления количества в элементе корзины
+      properties:
+        quantity:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+          title: Количество
+    PatchedFavoriteRequest:
+      type: object
+      description: |-
+        Serializer для избранных товаров.
+
+        Данные о цене, SKU и изображении получаются из первого активного
+        ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
+      properties:
+        product:
+          type: integer
+          title: Товар
+    PatchedOrderDetailRequest:
+      type: object
+      description: |-
+        Детальный сериализатор заказа.
+
+        Для мастер-заказов items/subtotal/total_items/calculated_total агрегируются
+        из субзаказов (sub_orders). Для субзаказов — собственные items.
+      properties:
+        customer_name:
+          type: string
+          title: Имя клиента
+          maxLength: 200
+        customer_email:
+          type: string
+          format: email
+          title: Email клиента
+          maxLength: 254
+        customer_phone:
+          type: string
+          title: Телефон клиента
+          maxLength: 20
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус заказа
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Общая сумма
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Сумма скидки
+        delivery_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Стоимость доставки
+        delivery_address:
+          type: string
+          minLength: 1
+          title: Адрес доставки
+        delivery_method:
+          allOf:
+          - $ref: '#/components/schemas/DeliveryMethodEnum'
+          title: Способ доставки
+        delivery_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          title: Дата доставки
+        tracking_number:
+          type: string
+          title: Трек-номер
+          description: Номер для отслеживания посылки
+          maxLength: 100
+        payment_method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          title: Способ оплаты
+        payment_status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          title: Статус оплаты
+        payment_id:
+          type: string
+          title: ID платежа (ЮKassa)
+          maxLength: 100
+        notes:
+          type: string
+          title: Комментарии к заказу
+    PatchedUserProfileRequest:
+      type: object
+      description: Serializer для просмотра и обновления профиля пользователя
+      properties:
+        first_name:
+          type: string
+          title: Имя
+          maxLength: 150
+        last_name:
+          type: string
+          title: Фамилия
+          maxLength: 150
+        phone:
+          type: string
+          title: Номер телефона
+          pattern: ^\+7\d{10}$
+          maxLength: 255
+        company_name:
+          type: string
+          title: Название компании
+          description: Для B2B пользователей
+          maxLength: 200
+        tax_id:
+          type: string
+          title: ИНН
+          description: ИНН для B2B пользователей
+          maxLength: 12
+    PaymentMethodEnum:
+      enum:
+      - card
+      - cash
+      - bank_transfer
+      - payment_on_delivery
+      type: string
+      description: |-
+        * `card` - Банковская карта
+        * `cash` - Наличные
+        * `bank_transfer` - Банковский перевод
+        * `payment_on_delivery` - Оплата при получении
+    PaymentStatusEnum:
+      enum:
+      - pending
+      - paid
+      - failed
+      - refunded
+      type: string
+      description: |-
+        * `pending` - Ожидает оплаты
+        * `paid` - Оплачен
+        * `failed` - Ошибка оплаты
+        * `refunded` - Возвращен
+    ProductDetail:
+      type: object
+      description: Serializer для детальной информации о товаре с расширенными полями
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 300
+        slug:
+          type: string
+          maxLength: 255
+          pattern: ^[-a-zA-Z0-9_]+$
+        brand:
+          allOf:
+          - $ref: '#/components/schemas/Brand'
+          readOnly: true
+        category:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          title: Описание
+        short_description:
+          type: string
+          title: Краткое описание
+          maxLength: 500
+        specifications:
+          readOnly: true
+        base_images:
+          title: Базовые изображения
+          description: Общие изображения товара из 1С (используются как fallback для
+            вариантов)
+        is_featured:
+          type: boolean
+          title: Рекомендуемый
+        is_hit:
+          type: boolean
+          readOnly: true
+          title: Хит продаж
+          description: Отображать бейдж 'Хит продаж' на карточке товара
+        is_new:
+          type: boolean
+          readOnly: true
+          title: Новинка
+          description: Отображать бейдж 'Новинка' на карточке товара
+        is_sale:
+          type: boolean
+          readOnly: true
+          title: Распродажа
+          description: Товар участвует в распродаже
+        is_promo:
+          type: boolean
+          readOnly: true
+          title: Акция
+          description: Товар участвует в акции/промо
+        is_premium:
+          type: boolean
+          readOnly: true
+          title: Премиум
+          description: Премиум товар (эксклюзив, лимитированная серия)
+        discount_percent:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+          title: Процент скидки
+          description: Процент скидки для отображения на бейдже (0-100)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата создания
+        attributes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: |-
+            Получить атрибуты продукта
+
+            Args:
+                obj: Product instance
+
+            Returns:
+                list[dict]: Список атрибутов с полями name, value, slug, type
+          readOnly: true
+        retail_price:
+          type: number
+          format: double
+          description: Получить розничную цену из первого варианта
+          readOnly: true
+        opt1_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 1 из первого варианта
+          readOnly: true
+        opt2_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 2 из первого варианта
+          readOnly: true
+        opt3_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 3 из первого варианта
+          readOnly: true
+        stock_quantity:
+          type: integer
+          description: Получить суммарное количество на складе по всем вариантам
+          readOnly: true
+        is_in_stock:
+          type: boolean
+          description: Проверить наличие товара (любой вариант в наличии)
+          readOnly: true
+        main_image:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Получить основное изображение из первого варианта или base_images
+
+            Возвращает относительный URL с /media/ префиксом
+          readOnly: true
+        can_be_ordered:
+          type: boolean
+          description: Проверить можно ли заказать товар
+          readOnly: true
+        current_price:
+          type: string
+          description: Получить актуальную цену на основе роли пользователя
+          readOnly: true
+        sku:
+          type: string
+          description: Получить артикул первого варианта
+          readOnly: true
+        rrp:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: Получить РРЦ первого варианта
+          readOnly: true
+        msrp:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: Получить МРЦ первого варианта
+          readOnly: true
+        images:
+          type: string
+          readOnly: true
+        related_products:
+          type: string
+          readOnly: true
+        category_breadcrumbs:
+          type: string
+          readOnly: true
+        seo_title:
+          type: string
+          title: SEO заголовок
+          maxLength: 200
+        seo_description:
+          type: string
+          title: SEO описание
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+          readOnly: true
+      required:
+      - attributes
+      - brand
+      - can_be_ordered
+      - category
+      - category_breadcrumbs
+      - created_at
+      - current_price
+      - description
+      - discount_percent
+      - id
+      - images
+      - is_hit
+      - is_in_stock
+      - is_new
+      - is_premium
+      - is_promo
+      - is_sale
+      - main_image
+      - msrp
+      - name
+      - opt1_price
+      - opt2_price
+      - opt3_price
+      - related_products
+      - retail_price
+      - rrp
+      - sku
+      - slug
+      - specifications
+      - stock_quantity
+      - variants
+    ProductList:
+      type: object
+      description: |-
+        Serializer для списка товаров (базовая модель Product)
+
+        Примечание: Product - это базовая модель товара без цен и остатков.
+        Цены и остатки хранятся в ProductVariant.
+        Для получения вариантов используйте вложенное поле 'variants'
+        в ProductDetailSerializer.
+
+        Вычисляемые поля для обратной совместимости (данные из вариантов):
+        - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+        - stock_quantity: суммарное количество на складе по всем вариантам
+        - is_in_stock: есть ли хотя бы один вариант в наличии
+        - main_image: изображение из первого варианта или base_images
+        - can_be_ordered: можно ли заказать товар
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 300
+        slug:
+          type: string
+          maxLength: 255
+          pattern: ^[-a-zA-Z0-9_]+$
+        brand:
+          allOf:
+          - $ref: '#/components/schemas/Brand'
+          readOnly: true
+        category:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          title: Описание
+        short_description:
+          type: string
+          title: Краткое описание
+          maxLength: 500
+        specifications:
+          readOnly: true
+        base_images:
+          title: Базовые изображения
+          description: Общие изображения товара из 1С (используются как fallback для
+            вариантов)
+        is_featured:
+          type: boolean
+          title: Рекомендуемый
+        is_hit:
+          type: boolean
+          readOnly: true
+          title: Хит продаж
+          description: Отображать бейдж 'Хит продаж' на карточке товара
+        is_new:
+          type: boolean
+          readOnly: true
+          title: Новинка
+          description: Отображать бейдж 'Новинка' на карточке товара
+        is_sale:
+          type: boolean
+          readOnly: true
+          title: Распродажа
+          description: Товар участвует в распродаже
+        is_promo:
+          type: boolean
+          readOnly: true
+          title: Акция
+          description: Товар участвует в акции/промо
+        is_premium:
+          type: boolean
+          readOnly: true
+          title: Премиум
+          description: Премиум товар (эксклюзив, лимитированная серия)
+        discount_percent:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+          title: Процент скидки
+          description: Процент скидки для отображения на бейдже (0-100)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата создания
+        attributes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: |-
+            Получить атрибуты продукта
+
+            Args:
+                obj: Product instance
+
+            Returns:
+                list[dict]: Список атрибутов с полями name, value, slug, type
+          readOnly: true
+        retail_price:
+          type: number
+          format: double
+          description: Получить розничную цену из первого варианта
+          readOnly: true
+        opt1_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 1 из первого варианта
+          readOnly: true
+        opt2_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 2 из первого варианта
+          readOnly: true
+        opt3_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 3 из первого варианта
+          readOnly: true
+        stock_quantity:
+          type: integer
+          description: Получить суммарное количество на складе по всем вариантам
+          readOnly: true
+        is_in_stock:
+          type: boolean
+          description: Проверить наличие товара (любой вариант в наличии)
+          readOnly: true
+        main_image:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Получить основное изображение из первого варианта или base_images
+
+            Возвращает относительный URL с /media/ префиксом
+          readOnly: true
+        can_be_ordered:
+          type: boolean
+          description: Проверить можно ли заказать товар
+          readOnly: true
+        current_price:
+          type: string
+          description: Получить актуальную цену на основе роли пользователя
+          readOnly: true
+        sku:
+          type: string
+          description: Получить артикул первого варианта
+          readOnly: true
+        rrp:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: Получить РРЦ первого варианта
+          readOnly: true
+        msrp:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: Получить МРЦ первого варианта
+          readOnly: true
+      required:
+      - attributes
+      - brand
+      - can_be_ordered
+      - category
+      - created_at
+      - current_price
+      - description
+      - discount_percent
+      - id
+      - is_hit
+      - is_in_stock
+      - is_new
+      - is_premium
+      - is_promo
+      - is_sale
+      - main_image
+      - msrp
+      - name
+      - opt1_price
+      - opt2_price
+      - opt3_price
+      - retail_price
+      - rrp
+      - sku
+      - slug
+      - specifications
+      - stock_quantity
+    ProductVariant:
+      type: object
+      description: |-
+        Serializer для ProductVariant с роле-ориентированной ценой
+
+        Поля:
+        - current_price: цена для текущего пользователя (роле-ориентированная)
+        - color_hex: hex-код цвета из ColorMapping
+        - is_in_stock: computed property из модели
+        - available_quantity: computed property из модели
+        - attributes: объединенный список атрибутов (вариант + продукт с наследованием)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        sku:
+          type: string
+          readOnly: true
+          title: Артикул SKU
+          description: Уникальный артикул варианта
+        color_name:
+          type: string
+          readOnly: true
+          title: Цвет
+          description: Название цвета из 1С
+        size_value:
+          type: string
+          readOnly: true
+          title: Размер
+          description: Значение размера
+        current_price:
+          type: string
+          description: |-
+            Получить роле-ориентированную цену для текущего пользователя
+
+            Args:
+                obj: ProductVariant instance
+
+            Returns:
+                str: Цена как строка (сериализация Decimal)
+          readOnly: true
+        color_hex:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Получить hex-код цвета из ColorMapping
+
+            Args:
+                obj: ProductVariant instance
+
+            Returns:
+                str | None: Hex-код цвета или None если маппинг не найден
+          readOnly: true
+        stock_quantity:
+          type: integer
+          readOnly: true
+          title: Количество на складе
+          description: Доступное количество на складе
+        is_in_stock:
+          type: boolean
+          readOnly: true
+        available_quantity:
+          type: integer
+          readOnly: true
+        stock_range:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Получить диапазон остатков (1-5, 6-19, 20-49, 50+)
+
+            Args:
+                obj: ProductVariant instance
+
+            Returns:
+                str | None: Строка диапазона или None если товара нет
+          readOnly: true
+        rrp:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: РРЦ
+          description: Рекомендованная розничная цена (информационно)
+        msrp:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: МРЦ
+          description: Минимальная рекомендованная розничная цена (информационно)
+        main_image:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Получить URL основного изображения варианта
+
+            Args:
+                obj: ProductVariant instance
+
+            Returns:
+                str | None: URL изображения или None (относительный путь с /media/)
+          readOnly: true
+        gallery_images:
+          type: array
+          items:
+            type: string
+          description: |-
+            Получить список URL галереи изображений варианта
+
+            Пути в gallery_images хранятся как относительные от /media/:
+            - /products/variants/... → /media/products/variants/...
+
+            Дубликаты и main_image исключаются из результата.
+
+            Args:
+                obj: ProductVariant instance
+
+            Returns:
+                list[str]: Список уникальных URL изображений с /media/ префиксом
+          readOnly: true
+        attributes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: |-
+            Получить атрибуты варианта с наследованием от продукта
+
+            Логика наследования:
+            1. Получаем атрибуты продукта
+            2. Получаем атрибуты варианта
+            3. Объединяем: если вариант имеет значение атрибута,
+               оно переопределяет значение продукта
+            4. Возвращаем комбинированный список
+
+            Args:
+                obj: ProductVariant instance
+
+            Returns:
+                list[dict]: Список атрибутов с полями name, value, slug, type
+          readOnly: true
+      required:
+      - attributes
+      - available_quantity
+      - color_hex
+      - color_name
+      - current_price
+      - gallery_images
+      - id
+      - is_in_stock
+      - main_image
+      - msrp
+      - rrp
+      - size_value
+      - sku
+      - stock_quantity
+      - stock_range
+    RoleEnum:
+      enum:
+      - retail
+      - wholesale_level1
+      - wholesale_level2
+      - wholesale_level3
+      - trainer
+      - federation_rep
+      - admin
+      type: string
+      description: |-
+        * `retail` - Розничный покупатель
+        * `wholesale_level1` - Оптовик уровень 1
+        * `wholesale_level2` - Оптовик уровень 2
+        * `wholesale_level3` - Оптовик уровень 3
+        * `trainer` - Тренер/Фитнес-клуб
+        * `federation_rep` - Представитель федерации
+        * `admin` - Администратор
+    StatusEnum:
+      enum:
+      - pending
+      - confirmed
+      - processing
+      - shipped
+      - delivered
+      - cancelled
+      - refunded
+      type: string
+      description: |-
+        * `pending` - Ожидает обработки
+        * `confirmed` - Подтвержден
+        * `processing` - В обработке
+        * `shipped` - Отправлен
+        * `delivered` - Доставлен
+        * `cancelled` - Отменен
+        * `refunded` - Возвращен
+    SubscribeRequest:
+      type: object
+      description: |-
+        Сериализатор для подписки на email-рассылку.
+        Валидирует email и создает запись в Newsletter.
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: Email адрес для подписки
+          maxLength: 255
+      required:
+      - email
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TypeEnum:
+      enum:
+      - hero
+      - marketing
+      type: string
+      description: |-
+        * `hero` - Геройский (Hero)
+        * `marketing` - Маркетинговый
+    UnsubscribeRequest:
+      type: object
+      description: |-
+        Сериализатор для отписки от email-рассылки.
+        Валидирует email и деактивирует подписку.
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: Email адрес для отписки
+          maxLength: 255
+      required:
+      - email
+    UserDashboard:
+      type: object
+      description: Serializer для персонального дашборда пользователя
+      properties:
+        user_info:
+          allOf:
+          - $ref: '#/components/schemas/UserProfile'
+          readOnly: true
+        orders_count:
+          type: integer
+          readOnly: true
+        favorites_count:
+          type: integer
+          readOnly: true
+        addresses_count:
+          type: integer
+          readOnly: true
+        total_order_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        avg_order_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        verification_status:
+          type: string
+          readOnly: true
+      required:
+      - addresses_count
+      - avg_order_amount
+      - favorites_count
+      - orders_count
+      - total_order_amount
+      - user_info
+      - verification_status
+    UserLoginRequest:
+      type: object
+      description: Serializer для входа пользователя
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - password
+    UserProfile:
+      type: object
+      description: Serializer для просмотра и обновления профиля пользователя
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type:
+          - string
+          - 'null'
+          format: email
+          readOnly: true
+          title: Email адрес
+        first_name:
+          type: string
+          title: Имя
+          maxLength: 150
+        last_name:
+          type: string
+          title: Фамилия
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          title: Номер телефона
+          pattern: ^\+7\d{10}$
+          maxLength: 255
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+          title: Роль пользователя
+        company_name:
+          type: string
+          title: Название компании
+          description: Для B2B пользователей
+          maxLength: 200
+        tax_id:
+          type: string
+          title: ИНН
+          description: ИНН для B2B пользователей
+          maxLength: 12
+        is_verified:
+          type: boolean
+          readOnly: true
+          title: Верифицирован
+          description: B2B пользователи требуют верификации администратором
+        is_b2b_user:
+          type: boolean
+          readOnly: true
+        is_wholesale_user:
+          type: boolean
+          readOnly: true
+        wholesale_level:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата обновления
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - is_b2b_user
+      - is_verified
+      - is_wholesale_user
+      - role
+      - updated_at
+      - wholesale_level
+    UserProfileRequest:
+      type: object
+      description: Serializer для просмотра и обновления профиля пользователя
+      properties:
+        first_name:
+          type: string
+          title: Имя
+          maxLength: 150
+        last_name:
+          type: string
+          title: Фамилия
+          maxLength: 150
+        phone:
+          type: string
+          title: Номер телефона
+          pattern: ^\+7\d{10}$
+          maxLength: 255
+        company_name:
+          type: string
+          title: Название компании
+          description: Для B2B пользователей
+          maxLength: 200
+        tax_id:
+          type: string
+          title: ИНН
+          description: ИНН для B2B пользователей
+          maxLength: 12
+    UserRegistrationRequest:
+      type: object
+      description: Serializer для регистрации новых пользователей
+      properties:
+        email:
+          type:
+          - string
+          - 'null'
+          format: email
+          title: Email адрес
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+        first_name:
+          type: string
+          title: Имя
+          maxLength: 150
+        last_name:
+          type: string
+          title: Фамилия
+          maxLength: 150
+        phone:
+          type: string
+          title: Номер телефона
+          pattern: ^\+7\d{10}$
+          maxLength: 255
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          title: Роль пользователя
+        company_name:
+          type: string
+          title: Название компании
+          description: Для B2B пользователей
+          maxLength: 200
+        tax_id:
+          type: string
+          title: ИНН
+          description: ИНН для B2B пользователей
+          maxLength: 12
+        pdp_consent:
+          type: boolean
+          writeOnly: true
+        marketing_consent:
+          type: boolean
+          writeOnly: true
+          default: false
+      required:
+      - email
+      - first_name
+      - password
+      - password_confirm
+      - pdp_consent
+    ValidateTokenRequest:
+      type: object
+      description: Serializer для валидации токена сброса пароля
+      properties:
+        uid:
+          type: string
+          minLength: 1
+        token:
+          type: string
+          minLength: 1
+      required:
+      - token
+      - uid
+servers:
+- url: http://127.0.0.1:8001
+  description: Development server
+- url: https://api.freesport.ru
+  description: Production server
+tags:
+- name: Authentication
+  description: Аутентификация и JWT токены
+- name: Users
+  description: Управление пользователями и профилями
+- name: Products
+  description: Каталог товаров и управление ассортиментом
+- name: Cart
+  description: Корзина покупок
+- name: Orders
+  description: Управление заказами и их статусами
+- name: Search
+  description: Поиск и фильтрация товаров
+- name: System
+  description: Системные эндпоинты для мониторинга
+- name: Webhooks
+  description: Уведомления от внешних сервисов

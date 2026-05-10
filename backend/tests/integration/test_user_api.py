@@ -36,6 +36,7 @@ def create_user_and_get_token(api_client):
             "first_name": "Тест",
             "last_name": f"Пользователь {role}",
             "role": role,
+            "pdp_consent": True,
         }
         if role != "retail":
             registration_data.update({"company_name": f"Тестовая компания {role}", "tax_id": "1234567890"})
@@ -69,6 +70,7 @@ def test_user_registration(api_client):
         "first_name": "New",
         "last_name": "User",
         "role": "retail",
+        "pdp_consent": True,
     }
     response = api_client.post(url, data, format="json")
     assert response.status_code == 201

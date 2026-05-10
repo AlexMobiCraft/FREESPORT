@@ -34,6 +34,17 @@ describe('RegisterForm', () => {
     mockPush.mockClear();
   });
 
+  const acceptPdpConsent = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(
+      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+    );
+  };
+
+  const getMarketingConsent = () =>
+    screen.getByRole('checkbox', {
+      name: /получать рекламные и информационные рассылки от freesport/i,
+    });
+
   describe('Rendering', () => {
     test('should render all form fields', () => {
       render(<RegisterForm />);
@@ -42,7 +53,28 @@ describe('RegisterForm', () => {
       expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/подтверждение пароля/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      ).toBeInTheDocument();
+      expect(getMarketingConsent()).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /зарегистрироваться/i })).toBeInTheDocument();
+    });
+
+    test('should render privacy policy link for pdp consent', () => {
+      render(<RegisterForm />);
+
+      const link = screen.getByRole('link', {
+        name: /обработку моих персональных данных/i,
+      });
+      expect(link).toHaveAttribute('href', '/privacy-policy');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    test('should render marketing consent unchecked by default', () => {
+      render(<RegisterForm />);
+
+      expect(getMarketingConsent()).not.toBeChecked();
     });
 
     test('should have proper autocomplete attributes', () => {
@@ -160,6 +192,23 @@ describe('RegisterForm', () => {
 
       expect(await screen.findByText(/хотя бы 1 заглавную букву/i)).toBeInTheDocument();
     });
+
+    test('should block submit without pdp consent', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(
+        await screen.findByText(/необходимо согласие на обработку персональных данных/i)
+      ).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
+    });
   });
 
   describe('Form Submission', () => {
@@ -192,6 +241,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'newuser@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -205,6 +255,8 @@ describe('RegisterForm', () => {
           role: 'retail',
           company_name: undefined,
           tax_id: undefined,
+          pdp_consent: true,
+          marketing_consent: false,
         });
       });
 
@@ -245,6 +297,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'newuser@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -275,10 +328,84 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'test@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith('/custom/path');
+      });
+    });
+
+    test('should submit with marketing_consent false when unchecked', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockResolvedValue({
+        access: 'mock-token',
+        refresh: 'mock-refresh',
+        user: {
+          id: 2,
+          email: 'marketing-false@example.com',
+          first_name: 'Marketing',
+          last_name: '',
+          phone: '',
+          role: 'retail',
+          is_verified: true,
+        },
+      });
+
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Marketing');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-false@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      await waitFor(() => {
+        expect(mockRegister).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pdp_consent: true,
+            marketing_consent: false,
+          })
+        );
+      });
+    });
+
+    test('should submit with marketing_consent true when checked', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockResolvedValue({
+        access: 'mock-token',
+        refresh: 'mock-refresh',
+        user: {
+          id: 2,
+          email: 'marketing-true@example.com',
+          first_name: 'Marketing',
+          last_name: '',
+          phone: '',
+          role: 'retail',
+          is_verified: true,
+        },
+      });
+
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Marketing');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-true@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      await user.click(getMarketingConsent());
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      await waitFor(() => {
+        expect(mockRegister).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pdp_consent: true,
+            marketing_consent: true,
+          })
+        );
       });
     });
   });
@@ -307,6 +434,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'existing@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       // First verify the API was called
@@ -342,6 +470,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'WeakPass1');
       await user.type(confirmInput, 'WeakPass1');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       expect(await screen.findByText(/password is too weak/i)).toBeInTheDocument();
@@ -369,6 +498,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       expect(await screen.findByText(/ошибка сервера/i)).toBeInTheDocument();
@@ -415,6 +545,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'test@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       // Button should be disabled during submission
@@ -464,6 +595,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'test@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       // All inputs should be disabled during submission
@@ -515,6 +647,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'existing@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       const alert = await screen.findByRole('alert');
@@ -640,6 +773,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'trainer@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       await waitFor(() => {

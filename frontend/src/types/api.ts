@@ -148,6 +148,8 @@ export interface RegisterRequest {
   role?: string;
   company_name?: string;
   tax_id?: string;
+  pdp_consent: boolean;
+  marketing_consent?: boolean;
 }
 
 export interface RegisterResponse {

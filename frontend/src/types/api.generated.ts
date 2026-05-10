@@ -4,1260 +4,4671 @@
  */
 
 export interface paths {
-  '/auth/register/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/health/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health Check
+         * @description Проверка состояния API сервера
+         */
+        get: operations["health_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Регистрация нового пользователя
-     * @description Создание нового аккаунта B2C или B2B пользователя.
-     *     Для B2B требуется верификация компании.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['UserRegistration'];
+    "/monitoring/metrics/operations/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Пользователь успешно зарегистрирован */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['UserRegistrationResponse'];
-          };
-        };
-        /** @description Ошибка валидации данных */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        /**
+         * Получить метрики операций синхронизации
+         * @description Возвращает метрики операций за указанный период (по умолчанию последние 24 часа)
+         */
+        get: operations["monitoring_metrics_operations_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/login/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/monitoring/metrics/business/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить бизнес-метрики синхронизации
+         * @description Возвращает бизнес-метрики за указанный период
+         */
+        get: operations["monitoring_metrics_business_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Вход в систему
-     * @description Аутентификация пользователя с получением JWT токенов.
-     *     Поддерживает как B2C, так и B2B пользователей.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['Login'];
+    "/monitoring/metrics/realtime/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Успешная аутентификация */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['LoginResponse'];
-          };
-        };
-        /** @description Неверные учетные данные */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        /**
+         * Получить метрики в реальном времени
+         * @description Возвращает метрики за последние 5 минут
+         */
+        get: operations["monitoring_metrics_realtime_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/refresh/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/monitoring/health/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить статус здоровья системы
+         * @description Возвращает текущий статус всех компонентов системы интеграции
+         */
+        get: operations["monitoring_health_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Обновление токена доступа
-     * @description Получение нового access токена на основе действующего refresh токена.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            /** @description Refresh token */
-            refresh: string;
-          };
+    "/subscribe/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Новый access token */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': {
-              /** @description Новый JWT access token */
-              access?: string;
-            };
-          };
-        };
-        /** @description Недействительный refresh токен */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        get?: never;
+        put?: never;
+        /**
+         * Подписка на email-рассылку
+         * @description Подписывает пользователя на email-рассылку о новинках и акциях. Если email уже подписан - возвращает 409 Conflict.
+         */
+        post: operations["subscribe_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/users/profile/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/unsubscribe/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Отписка от email-рассылки
+         * @description Отписывает пользователя от email-рассылки. Если email не найден или уже отписан - возвращает 404 Not Found.
+         */
+        post: operations["unsubscribe_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Получить профиль текущего пользователя */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Профиль пользователя */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['UserProfile'];
-          };
+    "/news/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        /** @description Не авторизован */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        /**
+         * Получить список новостей
+         * @description Возвращает список опубликованных новостей с пагинацией. Новости отсортированы по дате публикации (новые первые).
+         */
+        get: operations["news_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Обновить профиль пользователя */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['UserProfileUpdate'];
+    "/news/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Профиль успешно обновлен */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['UserProfile'];
-          };
-        };
-      };
+        /**
+         * Получить детальную информацию о новости
+         * @description Возвращает детальную информацию о новости по её slug.
+         *
+         *         Доступны только опубликованные новости (is_published=True)
+         *         с датой публикации <= текущего момента.
+         *
+         *         Возвращает 404, если новость не найдена или не опубликована.
+         */
+        get: operations["news_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    trace?: never;
-  };
-  '/products/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/blog/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить список статей блога
+         * @description Возвращает список опубликованных статей блога с пагинацией. Статьи отсортированы по дате публикации (новые первые).
+         */
+        get: operations["blog_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Получить список товаров
-     * @description Получение каталога товаров с поддержкой фильтрации, поиска и пагинации.
-     *     Цены адаптируются под роль пользователя (B2C/B2B).
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description ID категории для фильтрации */
-          category_id?: number;
-          /** @description Поиск по названию, описанию, артикулу */
-          search?: string;
-          /** @description Фильтр по бренду */
-          brand?: string;
-          /** @description Минимальная цена */
-          min_price?: number;
-          /** @description Максимальная цена */
-          max_price?: number;
-          /** @description Только товары в наличии */
-          in_stock?: boolean;
-          /** @description Номер страницы */
-          page?: number;
-          /** @description Количество товаров на странице */
-          page_size?: number;
-          /** @description Сортировка результатов */
-          ordering?: 'name' | '-name' | 'price' | '-price' | 'created_at' | '-created_at';
+    "/blog/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Список товаров */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ProductList'];
-          };
-        };
-      };
+        /**
+         * Получить детальную информацию о статье блога
+         * @description Возвращает детальную информацию о статье блога по её slug.
+         *
+         *         Доступны только опубликованные статьи (is_published=True)
+         *         с датой публикации <= текущего момента.
+         *
+         *         Возвращает 404, если статья не найдена или не опубликована.
+         */
+        get: operations["blog_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/products/{id}/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/register/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Регистрация пользователя
+         * @description Создание нового пользователя с указанием роли (retail, wholesale_level1-3, trainer, federation_rep)
+         */
+        post: operations["auth_register_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Получить детали товара */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /** @description ID товара */
-          id: number;
+    "/auth/login/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Детали товара */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ProductDetail'];
-          };
-        };
-        /** @description Товар не найден */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        get?: never;
+        put?: never;
+        /**
+         * Вход пользователя
+         * @description Аутентификация пользователя и получение JWT токенов
+         */
+        post: operations["auth_login_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/categories/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/logout/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout пользователя
+         * @description Инвалидация refresh токена через blacklist механизм.
+         *
+         *     После успешного logout refresh токен больше не может быть использован для получения новых access токенов. Access токен остаётся валидным до истечения срока действия (short-lived).
+         *
+         *     Все события logout логируются с audit trail информацией: user_id, username, timestamp (ISO 8601), IP address.
+         */
+        post: operations["auth_logout_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Получить дерево категорий
-     * @description Возвращает иерархическую структуру категорий товаров.
-     *     Поддерживает неограниченную вложенность.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description ID родительской категории (null для корневых) */
-          parent_id?: number;
-          /** @description Максимальный уровень вложенности */
-          level?: number;
+    "/auth/refresh/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Дерево категорий */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Category'][];
-          };
-        };
-      };
+        get?: never;
+        put?: never;
+        /**
+         * @description Takes a refresh type JSON web token and returns an access type JSON web
+         *     token if the refresh token is valid.
+         */
+        post: operations["auth_refresh_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/categories/{id}/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/password-reset/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Запрос на сброс пароля
+         * @description Отправка email с ссылкой для сброса пароля. Всегда возвращает 200 OK (security best practice).
+         */
+        post: operations["auth_password_reset_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Получить категорию по ID */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: number;
+    "/auth/password-reset/validate-token/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Детали категории */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['CategoryDetail'];
-          };
-        };
-      };
+        get?: never;
+        put?: never;
+        /**
+         * Валидация токена сброса пароля
+         * @description Проверка валидности токена перед сбросом пароля
+         */
+        post: operations["auth_password_reset_validate_token_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/cart/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/password-reset/confirm/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подтверждение сброса пароля
+         * @description Установка нового пароля после валидации токена
+         */
+        post: operations["auth_password_reset_confirm_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Получить корзину пользователя */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Содержимое корзины */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Cart'];
-          };
+    "/users/profile/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        /** @description Не авторизован */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        /**
+         * Получение профиля пользователя
+         * @description Получение данных профиля текущего авторизованного пользователя
+         */
+        get: operations["users_profile_retrieve"];
+        /** @description Просмотр и обновление профиля текущего пользователя */
+        put: operations["users_profile_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Обновление профиля пользователя
+         * @description Частичное обновление данных профиля пользователя (PATCH)
+         */
+        patch: operations["users_profile_partial_update"];
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/cart/items/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/profile/dashboard/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получение дашборда пользователя
+         * @description Возвращает основные метрики и статистику пользователя
+         */
+        get: operations["users_profile_dashboard_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Добавить товар в корзину */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['CartItemCreate'];
+    "/users/company/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Товар добавлен в корзину */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['CartItem'];
-          };
-        };
-        /** @description Ошибка валидации */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        /**
+         * Получение реквизитов компании
+         * @description Возвращает реквизиты компании для B2B пользователя
+         */
+        get: operations["users_company_retrieve"];
+        /**
+         * Обновление реквизитов компании
+         * @description Обновляет реквизиты компании для B2B пользователя
+         */
+        put: operations["users_company_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/cart/items/{id}/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/orders/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * История заказов
+         * @description Получение истории заказов пользователя с пагинацией
+         */
+        get: operations["users_orders_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Удалить товар из корзины */
-    delete: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: number;
+    "/users/roles/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Товар удален из корзины */
-        204: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
+        /**
+         * Информация о ролях пользователей
+         * @description Получение списка доступных ролей пользователей в системе
+         */
+        get: operations["users_roles_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    options?: never;
-    head?: never;
-    /** Обновить количество товара в корзине */
-    patch: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /** @description ID элемента корзины */
-          id: number;
+    "/users/addresses/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': {
-            quantity: number;
-          };
-        };
-      };
-      responses: {
-        /** @description Количество обновлено */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['CartItem'];
-          };
-        };
-      };
+        /** @description ViewSet для управления адресами пользователя */
+        get: operations["users_addresses_list"];
+        put?: never;
+        /** @description ViewSet для управления адресами пользователя */
+        post: operations["users_addresses_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    trace?: never;
-  };
-  '/orders/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/addresses/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ViewSet для управления адресами пользователя */
+        get: operations["users_addresses_retrieve"];
+        /** @description ViewSet для управления адресами пользователя */
+        put: operations["users_addresses_update"];
+        post?: never;
+        /** @description ViewSet для управления адресами пользователя */
+        delete: operations["users_addresses_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ViewSet для управления адресами пользователя */
+        patch: operations["users_addresses_partial_update"];
+        trace?: never;
     };
-    /** Получить список заказов пользователя */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Фильтр по статусу заказа */
-          status?: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-          page?: number;
+    "/users/favorites/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Список заказов */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['OrderList'];
-          };
-        };
-      };
+        /** @description ViewSet для управления избранными товарами */
+        get: operations["users_favorites_list"];
+        put?: never;
+        /** @description ViewSet для управления избранными товарами */
+        post: operations["users_favorites_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    /**
-     * Создать новый заказ
-     * @description Создание заказа из текущей корзины пользователя.
-     *     После создания корзина очищается.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['OrderCreate'];
+    "/users/favorites/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
-      responses: {
-        /** @description Заказ успешно создан */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['OrderDetail'];
-          };
-        };
-      };
+        /** @description ViewSet для управления избранными товарами */
+        get: operations["users_favorites_retrieve"];
+        /** @description ViewSet для управления избранными товарами */
+        put: operations["users_favorites_update"];
+        post?: never;
+        /** @description ViewSet для управления избранными товарами */
+        delete: operations["users_favorites_destroy"];
+        options?: never;
+        head?: never;
+        /** @description ViewSet для управления избранными товарами */
+        patch: operations["users_favorites_partial_update"];
+        trace?: never;
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/orders/{id}/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/products/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Список товаров
+         * @description Получение списка товаров с фильтрацией, сортировкой и ролевым ценообразованием
+         */
+        get: operations["products_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Получить детали заказа */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: number;
+    "/products/visible-brands/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Детали заказа */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['OrderDetail'];
-          };
-        };
-        /** @description Доступ запрещен */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Заказ не найден */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
+        /**
+         * Видимые бренды по фильтрам
+         * @description Возвращает ID брендов, у которых есть товары по текущим фильтрам каталога. Параметр brand игнорируется — endpoint отражает глобальные фильтры, не сужая sidebar до уже выбранных брендов.
+         */
+        get: operations["products_visible_brands_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/pages/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Получить список статических страниц
-     * @description Возвращает список всех опубликованных статических страниц.
-     *     Результат кэшируется на 24 часа для лучшей производительности.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Список статических страниц */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Page'][];
-          };
+    "/products/visible-categories/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-      };
+        /**
+         * Видимые категории по фильтрам
+         * @description Возвращает ID категорий, в которых есть товары, соответствующие активным фильтрам. Параметр category_id игнорируется — endpoint отражает глобальные фильтры, не сужая sidebar до активной ветки.
+         */
+        get: operations["products_visible_categories_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/pages/{slug}/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/products/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Детали товара
+         * @description Получение детальной информации о товаре
+         */
+        get: operations["products_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Получить содержимое страницы
-     * @description Возвращает полное содержимое статической страницы по URL slug.
-     *     Включает HTML контент, SEO метаданные и кэширование.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /**
-           * @description URL slug страницы
-           * @example about-company
-           */
-          slug: string;
+    "/categories/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Содержимое страницы */
-        200: {
-          headers: {
-            /** @description public, max-age=86400 */
-            'Cache-Control'?: string;
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['PageDetail'];
-          };
-        };
-        /** @description Страница не найдена */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
+        /**
+         * Список категорий
+         * @description Получение списка всех категорий с иерархией и количеством товаров
+         */
+        get: operations["categories_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/categories/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Детали категории
+         * @description Получение детальной информации о категории с навигационной цепочкой
+         */
+        get: operations["categories_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories-tree/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Дерево категорий
+         * @description Получение иерархического дерева категорий для навигации
+         */
+        get: operations["categories_tree_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories-tree/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description ViewSet для публичного дерева категорий.
+         *
+         *     В БД хранится полное дерево 1С с якорем СПОРТ. Публичный контракт отдаёт
+         *     прямых детей СПОРТ как корни витрины.
+         */
+        get: operations["categories_tree_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/brands/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Список брендов
+         * @description Получение списка всех активных брендов с опциональной фильтрацией по is_featured и/или has_stock
+         */
+        get: operations["brands_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/brands/featured/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Избранные бренды
+         * @description Получение списка избранных брендов для отображения на главной странице. Ответ кэшируется на 1 час.
+         */
+        get: operations["brands_featured_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/brands/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Детали бренда
+         * @description Получение детальной информации о бренде
+         */
+        get: operations["brands_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/catalog/filters/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Фильтры каталога
+         * @description Получение списка активных атрибутов для фильтрации товаров в каталоге. Возвращает атрибуты с их значениями для построения UI фильтров.
+         */
+        get: operations["catalog_filters_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/catalog/filters/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description ViewSet для фильтров каталога на основе активных атрибутов.
+         *
+         *     Возвращает список активных атрибутов для построения фильтров в каталоге.
+         *     Каждый атрибут содержит список значений для формирования UI фильтров.
+         *
+         *     Endpoints:
+         *     - GET /api/v1/catalog/filters/ - список активных атрибутов
+         *     - GET /api/v1/catalog/filters/{id}/ - детали атрибута
+         *
+         *     Query Parameters:
+         *     - include_inactive: true/false - включить неактивные атрибуты (только для staff)
+         */
+        get: operations["catalog_filters_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Список заказов
+         * @description Возвращает только мастер-заказы пользователя (`is_master=True`). Субзаказы — внутренняя разбивка по ставкам НДС для экспорта в 1С и клиенту не видны.
+         */
+        get: operations["orders_list"];
+        put?: never;
+        /**
+         * Создание заказа
+         * @description Создание нового заказа из корзины пользователя
+         */
+        post: operations["orders_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Детали заказа
+         * @description Получение детальной информации о мастер-заказе. Поле `items` агрегирует позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total` считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает 404.
+         */
+        get: operations["orders_retrieve"];
+        /**
+         * @description ViewSet для управления заказами.
+         *
+         *     Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+         *     (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+         *     экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+         *     скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+         *     попытке обратиться к id субзаказа).
+         */
+        put: operations["orders_update"];
+        post?: never;
+        /**
+         * @description ViewSet для управления заказами.
+         *
+         *     Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+         *     (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+         *     экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+         *     скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+         *     попытке обратиться к id субзаказа).
+         */
+        delete: operations["orders_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description ViewSet для управления заказами.
+         *
+         *     Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+         *     (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+         *     экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+         *     скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+         *     попытке обратиться к id субзаказа).
+         */
+        patch: operations["orders_partial_update"];
+        trace?: never;
+    };
+    "/orders/{id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Отмена заказа
+         * @description Отмена мастер-заказа пользователем (только для статусов pending, confirmed). Отмена каскадно проставляет статус `cancelled` у всех субзаказов. Попытка отменить субзаказ напрямую возвращает 404.
+         */
+        post: operations["orders_cancel_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cart/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить корзину
+         * @description Получение содержимого корзины пользователя с ценами
+         */
+        get: operations["cart_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cart/clear/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Очистить корзину
+         * @description Удаление всех товаров из корзины
+         */
+        delete: operations["cart_clear_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cart/items/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Список товаров в корзине
+         * @description Получение списка всех товаров в корзине пользователя
+         */
+        get: operations["cart_items_list"];
+        put?: never;
+        /**
+         * Добавить вариант товара в корзину
+         * @description Добавление варианта товара (variant_id) в корзину с автоматическим объединением одинаковых вариантов. Цена фиксируется в момент добавления.
+         */
+        post: operations["cart_items_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cart/items/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Детали товара в корзине
+         * @description Получение детальной информации о товаре в корзине
+         */
+        get: operations["cart_items_retrieve"];
+        put?: never;
+        post?: never;
+        /**
+         * Удалить товар из корзины
+         * @description Удаление товара из корзины
+         */
+        delete: operations["cart_items_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * Частичное обновление товара
+         * @description Частичное изменение количества товара в корзине
+         */
+        patch: operations["cart_items_partial_update"];
+        trace?: never;
+    };
+    "/pages/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить список страниц
+         * @description Возвращает список всех опубликованных статических страниц
+         */
+        get: operations["pages_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pages/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить страницу по slug
+         * @description Возвращает содержимое статической страницы по URL slug
+         */
+        get: operations["pages_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/delivery/methods/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Список способов доставки
+         * @description Возвращает список доступных способов доставки
+         */
+        get: operations["delivery_methods_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/delivery/methods/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить способ доставки
+         * @description Возвращает детали конкретного способа доставки по ID
+         */
+        get: operations["delivery_methods_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/banners/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Получить активные баннеры
+         * @description Возвращает список активных баннеров для текущего пользователя.
+         *
+         *     Фильтрация:
+         *     - Только активные баннеры (is_active=True)
+         *     - В пределах дат показа (start_date/end_date)
+         *     - По роли пользователя из JWT токена или гость
+         *     - По типу баннера через ?type=hero|marketing
+         *
+         *     Сортировка: по приоритету (DESC)
+         */
+        get: operations["banners_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integration/1c/exchange/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_integration_1c_exchange_retrieve"];
+        put?: never;
+        /**
+         * @description Handle POST requests.
+         *     Some 1C configurations send checkauth or init via POST.
+         *     Also handles file uploads (mode=file).
+         */
+        post: operations["api_integration_1c_exchange_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    UserRegistration: {
-      /**
-       * Format: email
-       * @description Email пользователя
-       */
-      email: string;
-      /** @description Пароль (минимум 8 символов) */
-      password: string;
-      /** @description Имя */
-      first_name: string;
-      /** @description Фамилия */
-      last_name: string;
-      /** @description Телефон в формате +7XXXXXXXXXX */
-      phone?: string;
-      /**
-       * @description Роль пользователя
-       * @enum {string}
-       */
-      role:
-        | 'retail'
-        | 'wholesale_level1'
-        | 'wholesale_level2'
-        | 'wholesale_level3'
-        | 'trainer'
-        | 'federation_rep'
-        | 'admin';
-      /** @description Название компании (для B2B) */
-      company_name?: string;
-      /** @description ИНН (для B2B) */
-      tax_id?: string;
-    };
-    UserRegistrationResponse: {
-      id?: number;
-      /** Format: email */
-      email?: string;
-      first_name?: string;
-      last_name?: string;
-      role?: string;
-      /** @description Подтвержден ли аккаунт */
-      is_verified?: boolean;
-      /** @description Требуется ли верификация (для B2B) */
-      verification_required?: boolean;
-    };
-    Login: {
-      /** Format: email */
-      email: string;
-      password: string;
-    };
-    LoginResponse: {
-      /** @description JWT access token (срок действия 15 минут) */
-      access?: string;
-      /** @description JWT refresh token (срок действия 7 дней) */
-      refresh?: string;
-      user?: components['schemas']['UserProfile'];
-    };
-    UserProfile: {
-      id?: number;
-      /** Format: email */
-      email?: string;
-      first_name?: string;
-      last_name?: string;
-      phone?: string;
-      /** @enum {string} */
-      role?:
-        | 'retail'
-        | 'wholesale_level1'
-        | 'wholesale_level2'
-        | 'wholesale_level3'
-        | 'trainer'
-        | 'federation_rep'
-        | 'admin';
-      company_name?: string | null;
-      tax_id?: string | null;
-      is_verified?: boolean;
-      /** Format: date-time */
-      created_at?: string;
-      /** Format: date-time */
-      updated_at?: string;
-    };
-    UserProfileUpdate: {
-      first_name?: string;
-      last_name?: string;
-      phone?: string;
-      company_name?: string;
-    };
-    ProductList: {
-      /** @description Общее количество товаров */
-      count?: number;
-      /** @description URL следующей страницы */
-      next?: string | null;
-      /** @description URL предыдущей страницы */
-      previous?: string | null;
-      results?: components['schemas']['Product'][];
-    };
-    Product: {
-      id?: number;
-      /** @description Название товара */
-      name?: string;
-      /** @description URL slug для SEO */
-      slug?: string;
-      /** @description Артикул товара */
-      sku?: string;
-      /** @description Краткое описание */
-      description?: string;
-      category?: components['schemas']['CategoryBreadcrumb'];
-      /** @description Бренд товара */
-      brand?: string;
-      price?: components['schemas']['Price'];
-      /** @description Количество на складе */
-      stock_quantity?: number;
-      /**
-       * @description Минимальное количество для заказа
-       * @default 1
-       */
-      min_order_quantity: number;
-      images?: components['schemas']['ProductImage'][];
-      /** Format: float */
-      rating?: number | null;
-      reviews_count?: number;
-      /** @description Доступен ли товар для заказа */
-      is_available?: boolean;
-      /** Format: date-time */
-      created_at?: string;
-    };
-    ProductDetail: components['schemas']['Product'] & {
-      /** @description Полное описание товара */
-      full_description?: string;
-      /**
-       * @description Технические характеристики товара в формате ключ-значение
-       * @example {
-       *       "Материал": "Полиэстер 100%",
-       *       "Размеры": "S, M, L, XL",
-       *       "Вес": "0.5 кг",
-       *       "Цвет": "Синий, красный, черный"
-       *     }
-       */
-      specifications?: {
-        [key: string]: unknown;
-      };
-      /** @description Варианты товара (цвет, размер, цены, остатки) */
-      variants?: components['schemas']['ProductVariant'][];
-      /** @description Похожие товары */
-      related_products?: components['schemas']['Product'][];
-    };
-    ProductImage: {
-      id?: number;
-      /**
-       * Format: uri
-       * @description URL изображения
-       */
-      image?: string;
-      /** @description Альтернативный текст */
-      alt_text?: string;
-      /** @description Является ли основным изображением */
-      is_primary?: boolean;
-    };
-    ProductVariant: {
-      /** @description ID варианта товара */
-      id: number;
-      /**
-       * @description Артикул SKU
-       * @example NIKE-AM-RED-42
-       */
-      sku: string;
-      /**
-       * @description Название цвета
-       * @example Красный
-       */
-      color_name?: string | null;
-      /**
-       * @description Размер
-       * @example 42
-       */
-      size_value?: string | null;
-      /**
-       * Format: decimal
-       * @description Цена для текущего пользователя (роле-ориентированная)
-       * @example 5990.00
-       */
-      current_price: string;
-      /**
-       * @description Hex-код цвета (если доступен из ColorMapping)
-       * @example #FF0000
-       */
-      color_hex?: string | null;
-      /**
-       * @description Количество на складе
-       * @example 15
-       */
-      stock_quantity: number;
-      /**
-       * @description Доступен для заказа (computed property)
-       * @example true
-       */
-      is_in_stock: boolean;
-      /**
-       * @description Доступное количество (с учетом резерва, computed property)
-       * @example 15
-       */
-      available_quantity: number;
-      /**
-       * Format: uri
-       * @description Основное изображение варианта
-       * @example /media/products/variants/nike-am-red.jpg
-       */
-      main_image?: string | null;
-      /**
-       * @description Галерея изображений варианта
-       * @example [
-       *       "/media/products/variants/nike-am-red-side.jpg"
-       *     ]
-       */
-      gallery_images?: string[];
-    };
-    Price: {
-      /**
-       * Format: decimal
-       * @description Розничная цена
-       */
-      retail?: number;
-      wholesale?: {
+    schemas: {
+        /** @description Serializer для адресов пользователя */
+        Address: {
+            readonly id: number;
+            /** Тип адреса */
+            address_type?: components["schemas"]["AddressTypeEnum"];
+            /** Полное имя получателя */
+            full_name: string;
+            /** Телефон */
+            phone: string;
+            /** Город */
+            city: string;
+            /** Улица */
+            street: string;
+            /** Дом */
+            building: string;
+            /** Квартира/офис */
+            apartment?: string;
+            /** Почтовый индекс */
+            postal_code: string;
+            /** Адрес по умолчанию */
+            is_default?: boolean;
+            readonly full_address: string;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Дата обновления
+             * Format: date-time
+             */
+            readonly updated_at: string;
+        };
+        /** @description Serializer для адресов пользователя */
+        AddressRequest: {
+            /** Тип адреса */
+            address_type?: components["schemas"]["AddressTypeEnum"];
+            /** Полное имя получателя */
+            full_name: string;
+            /** Телефон */
+            phone: string;
+            /** Город */
+            city: string;
+            /** Улица */
+            street: string;
+            /** Дом */
+            building: string;
+            /** Квартира/офис */
+            apartment?: string;
+            /** Почтовый индекс */
+            postal_code: string;
+            /** Адрес по умолчанию */
+            is_default?: boolean;
+        };
         /**
-         * Format: decimal
-         * @description Оптовая цена уровень 1
+         * @description * `shipping` - Адрес доставки
+         *     * `legal` - Юридический адрес
+         * @enum {string}
          */
-        level1?: number;
+        AddressTypeEnum: "shipping" | "legal";
         /**
-         * Format: decimal
-         * @description Оптовая цена уровень 2
+         * @description Serializer для атрибутов в фильтрах каталога.
+         *
+         *     Возвращает список активных атрибутов с их значениями для построения
+         *     фильтров в каталоге товаров.
+         *
+         *     Fields:
+         *     - id: ID атрибута
+         *     - name: Название атрибута
+         *     - slug: URL-совместимый идентификатор
+         *     - values: Список значений атрибута
          */
-        level2?: number;
+        AttributeFilter: {
+            readonly id: number;
+            /**
+             * Название атрибута
+             * @description Название типа свойства (например, 'Цвет', 'Размер', 'Материал')
+             */
+            name: string;
+            /** @description URL-совместимый идентификатор */
+            slug: string;
+            /**
+             * @description Получить все значения атрибута.
+             *
+             *     Args:
+             *         obj: Attribute instance
+             *
+             *     Returns:
+             *         List[dict]: Список значений атрибута
+             */
+            readonly values: {
+                [key: string]: unknown;
+            }[];
+        };
         /**
-         * Format: decimal
-         * @description Оптовая цена уровень 3
+         * @description Сериализатор баннера для публичного API
+         *
+         *     Возвращает данные для отображения баннера в Hero-секции главной страницы
          */
-        level3?: number;
-      } | null;
-      /** @default RUB */
-      currency: string;
-      /**
-       * Format: decimal
-       * @description Цена для текущего пользователя
-       */
-      current?: number;
-      /** @description Процент скидки для текущего пользователя */
-      discount_percent?: number | null;
+        Banner: {
+            readonly id: number;
+            /**
+             * Тип баннера
+             * @description Тип определяет место и способ отображения баннера
+             *
+             *     * `hero` - Геройский (Hero)
+             *     * `marketing` - Маркетинговый
+             */
+            readonly type: components["schemas"]["TypeEnum"];
+            /**
+             * Заголовок
+             * @description Основной заголовок баннера
+             */
+            readonly title: string;
+            /**
+             * Подзаголовок
+             * @description Дополнительный текст под заголовком
+             */
+            readonly subtitle: string;
+            /**
+             * @description Получить URL изображения баннера
+             *
+             *     Возвращает относительный путь для совместимости с SSR
+             *     (избегаем проблем с internal Docker hostnames)
+             *
+             *     Args:
+             *         obj: Объект баннера
+             *
+             *     Returns:
+             *         Относительный URL изображения или пустая строка
+             */
+            readonly image_url: string;
+            /**
+             * @description Получить URL мобильного изображения баннера
+             *
+             *     Args:
+             *         obj: Объект баннера
+             *
+             *     Returns:
+             *         Относительный URL мобильного изображения или пустая строка
+             */
+            readonly mobile_image_url: string;
+            /**
+             * Alt-текст изображения
+             * @description Alt-текст для accessibility
+             */
+            readonly image_alt: string;
+            /**
+             * Текст кнопки
+             * @description Текст call-to-action кнопки
+             */
+            readonly cta_text: string;
+            /**
+             * Ссылка кнопки
+             * @description URL для перехода по клику
+             */
+            readonly cta_link: string;
+        };
+        /** @description Serializer для брендов */
+        Brand: {
+            readonly id: number;
+            /** Название бренда */
+            name: string;
+            slug?: string;
+            /** @description Возвращает URL изображения или None. */
+            readonly image: string | null;
+            /** Описание */
+            description?: string;
+            /**
+             * Веб-сайт
+             * Format: uri
+             */
+            website?: string;
+            /** Показывать на главной */
+            is_featured?: boolean;
+        };
+        /** @description Serializer для корзины с полной информацией */
+        Cart: {
+            readonly id: number;
+            readonly items: components["schemas"]["CartItem"][];
+            readonly total_items: string;
+            readonly total_amount: string;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Дата обновления
+             * Format: date-time
+             */
+            readonly updated_at: string;
+        };
+        /**
+         * @description Serializer для элемента корзины с ценовой информацией.
+         *     Работает с ProductVariant вместо Product.
+         */
+        CartItem: {
+            readonly id: number;
+            /**
+             * Вариант товара
+             * @description SKU-вариант товара с конкретными характеристиками (цвет, размер)
+             */
+            readonly variant_id: number;
+            /** @description Получить информацию о товаре */
+            readonly product: {
+                [key: string]: unknown;
+            };
+            /** @description Получить информацию о варианте */
+            readonly variant: {
+                [key: string]: unknown;
+            };
+            /** Количество */
+            quantity?: number;
+            /** @description Получить цену из снимка */
+            readonly unit_price: string;
+            /**
+             * Format: double
+             * @description Стоимость этого элемента корзины на основе снимка цены
+             */
+            readonly total_price: number;
+            /**
+             * Дата добавления
+             * Format: date-time
+             */
+            readonly added_at: string;
+        };
+        /**
+         * @description Serializer для создания элемента корзины.
+         *     Принимает variant_id вместо product_id.
+         */
+        CartItemCreate: {
+            /** Количество */
+            quantity?: number;
+        };
+        /**
+         * @description Serializer для создания элемента корзины.
+         *     Принимает variant_id вместо product_id.
+         */
+        CartItemCreateRequest: {
+            variant_id: number;
+            /** Количество */
+            quantity?: number;
+        };
+        /** @description Serializer для категорий с поддержкой иерархии */
+        Category: {
+            readonly id: number;
+            /** Название */
+            name: string;
+            slug: string;
+            /** Описание */
+            description?: string;
+            /**
+             * Изображение
+             * Format: uri
+             */
+            image?: string;
+            /**
+             * Иконка
+             * Format: uri
+             */
+            icon?: string;
+            /** Родительская категория */
+            parent?: number | null;
+            readonly children: string;
+            readonly products_count: string;
+            readonly breadcrumbs: string;
+            /** Активная */
+            is_active?: boolean;
+            /** Порядок сортировки */
+            sort_order?: number;
+        };
+        /** @description Специальный serializer для дерева категорий (корневые категории) */
+        CategoryTree: {
+            readonly id: number;
+            /** Название */
+            name: string;
+            slug: string;
+            /**
+             * Изображение
+             * Format: uri
+             */
+            image?: string;
+            /**
+             * Иконка
+             * Format: uri
+             */
+            icon?: string;
+            readonly children: string;
+            readonly products_count: number;
+            readonly in_stock_count: number;
+            /** Порядок сортировки */
+            sort_order?: number;
+        };
+        /** @description Сериализатор для способа доставки. */
+        DeliveryMethod: {
+            readonly id: string;
+            /** Название */
+            readonly name: string;
+            /** Описание */
+            readonly description: string;
+            /**
+             * Иконка
+             * @description CSS класс иконки или emoji для UI
+             */
+            readonly icon: string;
+            /** Доступен */
+            readonly is_available: boolean;
+        };
+        /**
+         * @description * `pickup` - Самовывоз
+         *     * `courier` - Курьерская доставка
+         *     * `post` - Почтовая доставка
+         *     * `transport_company` - Транспортная компания
+         *     * `transport_schedule` - Транспортная компания (по расписанию)
+         * @enum {string}
+         */
+        DeliveryMethodEnum: "pickup" | "courier" | "post" | "transport_company" | "transport_schedule";
+        /**
+         * @description Serializer для избранных товаров.
+         *
+         *     Данные о цене, SKU и изображении получаются из первого активного
+         *     ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
+         */
+        Favorite: {
+            readonly id: number;
+            /** Товар */
+            product: number;
+            readonly product_name: string;
+            /**
+             * @description Получить розничную цену из первого активного варианта товара.
+             *     Возвращает строку для совместимости с DecimalField.
+             */
+            readonly product_price: string | null;
+            /**
+             * @description Получить изображение товара из ProductVariant или Product.base_images.
+             *     Epic 13/14: изображения хранятся в ProductVariant.main_image
+             *     с fallback на Product.base_images.
+             */
+            readonly product_image: string | null;
+            readonly product_slug: string;
+            /** @description Получить SKU из первого активного варианта товара. */
+            readonly product_sku: string | null;
+            /**
+             * Дата добавления
+             * Format: date-time
+             */
+            readonly created_at: string;
+        };
+        /** @description Serializer для добавления товара в избранное */
+        FavoriteCreate: {
+            /** Товар */
+            product: number;
+        };
+        /** @description Serializer для добавления товара в избранное */
+        FavoriteCreateRequest: {
+            /** Товар */
+            product: number;
+        };
+        /**
+         * @description Serializer для избранных товаров.
+         *
+         *     Данные о цене, SKU и изображении получаются из первого активного
+         *     ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
+         */
+        FavoriteRequest: {
+            /** Товар */
+            product: number;
+        };
+        /**
+         * @description Serializer для logout endpoint.
+         *
+         *     Валидирует refresh token для его инвалидации через blacklist механизм.
+         */
+        LogoutRequest: {
+            /** @description Refresh token для инвалидации */
+            refresh: string;
+        };
+        /** @description Сериализатор создания заказа из корзины */
+        OrderCreateRequest: {
+            /** Адрес доставки */
+            delivery_address: string;
+            /** Способ доставки */
+            delivery_method: components["schemas"]["DeliveryMethodEnum"];
+            /**
+             * Дата доставки
+             * Format: date
+             */
+            delivery_date?: string | null;
+            /** Способ оплаты */
+            payment_method: components["schemas"]["PaymentMethodEnum"];
+            /** Комментарии к заказу */
+            notes?: string;
+            /** Имя клиента */
+            customer_name?: string;
+            /**
+             * Email клиента
+             * Format: email
+             */
+            customer_email?: string;
+            /** Телефон клиента */
+            customer_phone?: string;
+            /**
+             * Format: decimal
+             * @default 0.00
+             */
+            discount_amount: string;
+            promo_code?: string | null;
+        };
+        /**
+         * @description Детальный сериализатор заказа.
+         *
+         *     Для мастер-заказов items/subtotal/total_items/calculated_total агрегируются
+         *     из субзаказов (sub_orders). Для субзаказов — собственные items.
+         */
+        OrderDetail: {
+            readonly id: number;
+            /** Номер заказа */
+            readonly order_number: string;
+            /** Пользователь */
+            readonly user: number | null;
+            readonly customer_display_name: string;
+            /** Имя клиента */
+            customer_name?: string;
+            /**
+             * Email клиента
+             * Format: email
+             */
+            customer_email?: string;
+            /** Телефон клиента */
+            customer_phone?: string;
+            /** Статус заказа */
+            status?: components["schemas"]["StatusEnum"];
+            /**
+             * Общая сумма
+             * Format: decimal
+             */
+            total_amount: string;
+            /**
+             * Сумма скидки
+             * Format: decimal
+             */
+            discount_amount?: string;
+            /**
+             * Стоимость доставки
+             * Format: decimal
+             */
+            delivery_cost?: string;
+            /** Адрес доставки */
+            delivery_address: string;
+            /** Способ доставки */
+            delivery_method: components["schemas"]["DeliveryMethodEnum"];
+            /**
+             * Дата доставки
+             * Format: date
+             */
+            delivery_date?: string | null;
+            /**
+             * Трек-номер
+             * @description Номер для отслеживания посылки
+             */
+            tracking_number?: string;
+            /** Способ оплаты */
+            payment_method: components["schemas"]["PaymentMethodEnum"];
+            /** Статус оплаты */
+            payment_status?: components["schemas"]["PaymentStatusEnum"];
+            /** ID платежа (ЮKassa) */
+            payment_id?: string;
+            /** Комментарии к заказу */
+            notes?: string;
+            /** Отправлен в 1С */
+            readonly sent_to_1c: boolean;
+            /**
+             * Дата и время отправки в 1С
+             * Format: date-time
+             */
+            readonly sent_to_1c_at: string | null;
+            /** Статус из 1С */
+            readonly status_1c: string;
+            /**
+             * Мастер-заказ
+             * @description True — заказ видит клиент; False — технический субзаказ для 1С
+             */
+            readonly is_master: boolean;
+            /**
+             * Группа НДС (%)
+             * Format: decimal
+             * @description Ставка НДС группы товаров в этом субзаказе (5 или 22)
+             */
+            readonly vat_group: string | null;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Дата обновления
+             * Format: date-time
+             */
+            readonly updated_at: string;
+            readonly items: unknown[];
+            /** Format: double */
+            readonly subtotal: number;
+            readonly total_items: number;
+            /** Format: double */
+            readonly calculated_total: number;
+            readonly can_be_cancelled: boolean;
+        };
+        /**
+         * @description Детальный сериализатор заказа.
+         *
+         *     Для мастер-заказов items/subtotal/total_items/calculated_total агрегируются
+         *     из субзаказов (sub_orders). Для субзаказов — собственные items.
+         */
+        OrderDetailRequest: {
+            /** Имя клиента */
+            customer_name?: string;
+            /**
+             * Email клиента
+             * Format: email
+             */
+            customer_email?: string;
+            /** Телефон клиента */
+            customer_phone?: string;
+            /** Статус заказа */
+            status?: components["schemas"]["StatusEnum"];
+            /**
+             * Общая сумма
+             * Format: decimal
+             */
+            total_amount: string;
+            /**
+             * Сумма скидки
+             * Format: decimal
+             */
+            discount_amount?: string;
+            /**
+             * Стоимость доставки
+             * Format: decimal
+             */
+            delivery_cost?: string;
+            /** Адрес доставки */
+            delivery_address: string;
+            /** Способ доставки */
+            delivery_method: components["schemas"]["DeliveryMethodEnum"];
+            /**
+             * Дата доставки
+             * Format: date
+             */
+            delivery_date?: string | null;
+            /**
+             * Трек-номер
+             * @description Номер для отслеживания посылки
+             */
+            tracking_number?: string;
+            /** Способ оплаты */
+            payment_method: components["schemas"]["PaymentMethodEnum"];
+            /** Статус оплаты */
+            payment_status?: components["schemas"]["PaymentStatusEnum"];
+            /** ID платежа (ЮKassa) */
+            payment_id?: string;
+            /** Комментарии к заказу */
+            notes?: string;
+        };
+        /** @description Serializer для истории заказов пользователя */
+        OrderHistory: {
+            readonly id: number;
+            /** Номер заказа */
+            readonly order_number: string;
+            /** Статус заказа */
+            readonly status: components["schemas"]["StatusEnum"];
+            readonly status_display: string;
+            /** Статус оплаты */
+            readonly payment_status: components["schemas"]["PaymentStatusEnum"];
+            readonly payment_status_display: string;
+            /**
+             * Общая сумма
+             * Format: decimal
+             */
+            readonly total_amount: string;
+            /**
+             * Сумма скидки
+             * Format: decimal
+             */
+            readonly discount_amount: string;
+            /**
+             * Стоимость доставки
+             * Format: decimal
+             */
+            readonly delivery_cost: string;
+            /** @description Получение количества товаров в заказе */
+            readonly items_count: number;
+            /** @description Отображаемое имя клиента */
+            readonly customer_display_name: string;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Дата обновления
+             * Format: date-time
+             */
+            readonly updated_at: string;
+        };
+        /**
+         * @description Сериализатор для списка заказов.
+         *
+         *     Для мастер-заказов `total_items` агрегируется из субзаказов: direct items
+         *     мастера всегда пусты (все позиции живут в sub_orders), поэтому использовать
+         *     Order.total_items напрямую нельзя — это даст 0 и сломает клиентский контракт.
+         */
+        OrderList: {
+            readonly id: number;
+            /** Пользователь */
+            readonly user: number | null;
+            /** Номер заказа */
+            readonly order_number: string;
+            readonly customer_display_name: string;
+            /** Статус заказа */
+            readonly status: components["schemas"]["StatusEnum"];
+            /**
+             * Общая сумма
+             * Format: decimal
+             */
+            readonly total_amount: string;
+            /** Способ доставки */
+            readonly delivery_method: components["schemas"]["DeliveryMethodEnum"];
+            /** Способ оплаты */
+            readonly payment_method: components["schemas"]["PaymentMethodEnum"];
+            /** Статус оплаты */
+            readonly payment_status: components["schemas"]["PaymentStatusEnum"];
+            /**
+             * Мастер-заказ
+             * @description True — заказ видит клиент; False — технический субзаказ для 1С
+             */
+            readonly is_master: boolean;
+            /**
+             * Группа НДС (%)
+             * Format: decimal
+             * @description Ставка НДС группы товаров в этом субзаказе (5 или 22)
+             */
+            readonly vat_group: string | null;
+            /** Отправлен в 1С */
+            readonly sent_to_1c: boolean;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            readonly total_items: number;
+        };
+        /** @description Serializer для статической страницы */
+        Page: {
+            readonly id: number;
+            /** Заголовок */
+            title: string;
+            /** URL slug */
+            slug: string;
+            /** Содержимое */
+            content: string;
+            /** SEO заголовок */
+            seo_title?: string;
+            /** SEO описание */
+            seo_description?: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        PaginatedAddressList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["Address"][];
+        };
+        PaginatedAttributeFilterList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["AttributeFilter"][];
+        };
+        PaginatedBrandList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["Brand"][];
+        };
+        PaginatedCartItemList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["CartItem"][];
+        };
+        PaginatedCartList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["Cart"][];
+        };
+        PaginatedCategoryList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["Category"][];
+        };
+        PaginatedFavoriteList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["Favorite"][];
+        };
+        PaginatedOrderListList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["OrderList"][];
+        };
+        PaginatedPageList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["Page"][];
+        };
+        PaginatedProductListList: {
+            /** @example 123 */
+            count?: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results?: components["schemas"]["ProductList"][];
+        };
+        /** @description Serializer для подтверждения сброса пароля */
+        PasswordResetConfirmRequest: {
+            uid: string;
+            token: string;
+            new_password: string;
+        };
+        /** @description Serializer для запроса на сброс пароля */
+        PasswordResetRequestRequest: {
+            /** Format: email */
+            email: string;
+        };
+        /** @description Serializer для адресов пользователя */
+        PatchedAddressRequest: {
+            /** Тип адреса */
+            address_type?: components["schemas"]["AddressTypeEnum"];
+            /** Полное имя получателя */
+            full_name?: string;
+            /** Телефон */
+            phone?: string;
+            /** Город */
+            city?: string;
+            /** Улица */
+            street?: string;
+            /** Дом */
+            building?: string;
+            /** Квартира/офис */
+            apartment?: string;
+            /** Почтовый индекс */
+            postal_code?: string;
+            /** Адрес по умолчанию */
+            is_default?: boolean;
+        };
+        /** @description Serializer для обновления количества в элементе корзины */
+        PatchedCartItemUpdateRequest: {
+            /** Количество */
+            quantity?: number;
+        };
+        /**
+         * @description Serializer для избранных товаров.
+         *
+         *     Данные о цене, SKU и изображении получаются из первого активного
+         *     ProductVariant, т.к. эти поля хранятся на уровне варианта, а не Product.
+         */
+        PatchedFavoriteRequest: {
+            /** Товар */
+            product?: number;
+        };
+        /**
+         * @description Детальный сериализатор заказа.
+         *
+         *     Для мастер-заказов items/subtotal/total_items/calculated_total агрегируются
+         *     из субзаказов (sub_orders). Для субзаказов — собственные items.
+         */
+        PatchedOrderDetailRequest: {
+            /** Имя клиента */
+            customer_name?: string;
+            /**
+             * Email клиента
+             * Format: email
+             */
+            customer_email?: string;
+            /** Телефон клиента */
+            customer_phone?: string;
+            /** Статус заказа */
+            status?: components["schemas"]["StatusEnum"];
+            /**
+             * Общая сумма
+             * Format: decimal
+             */
+            total_amount?: string;
+            /**
+             * Сумма скидки
+             * Format: decimal
+             */
+            discount_amount?: string;
+            /**
+             * Стоимость доставки
+             * Format: decimal
+             */
+            delivery_cost?: string;
+            /** Адрес доставки */
+            delivery_address?: string;
+            /** Способ доставки */
+            delivery_method?: components["schemas"]["DeliveryMethodEnum"];
+            /**
+             * Дата доставки
+             * Format: date
+             */
+            delivery_date?: string | null;
+            /**
+             * Трек-номер
+             * @description Номер для отслеживания посылки
+             */
+            tracking_number?: string;
+            /** Способ оплаты */
+            payment_method?: components["schemas"]["PaymentMethodEnum"];
+            /** Статус оплаты */
+            payment_status?: components["schemas"]["PaymentStatusEnum"];
+            /** ID платежа (ЮKassa) */
+            payment_id?: string;
+            /** Комментарии к заказу */
+            notes?: string;
+        };
+        /** @description Serializer для просмотра и обновления профиля пользователя */
+        PatchedUserProfileRequest: {
+            /** Имя */
+            first_name?: string;
+            /** Фамилия */
+            last_name?: string;
+            /** Номер телефона */
+            phone?: string;
+            /**
+             * Название компании
+             * @description Для B2B пользователей
+             */
+            company_name?: string;
+            /**
+             * ИНН
+             * @description ИНН для B2B пользователей
+             */
+            tax_id?: string;
+        };
+        /**
+         * @description * `card` - Банковская карта
+         *     * `cash` - Наличные
+         *     * `bank_transfer` - Банковский перевод
+         *     * `payment_on_delivery` - Оплата при получении
+         * @enum {string}
+         */
+        PaymentMethodEnum: "card" | "cash" | "bank_transfer" | "payment_on_delivery";
+        /**
+         * @description * `pending` - Ожидает оплаты
+         *     * `paid` - Оплачен
+         *     * `failed` - Ошибка оплаты
+         *     * `refunded` - Возвращен
+         * @enum {string}
+         */
+        PaymentStatusEnum: "pending" | "paid" | "failed" | "refunded";
+        /** @description Serializer для детальной информации о товаре с расширенными полями */
+        ProductDetail: {
+            readonly id: number;
+            /** Название */
+            name: string;
+            slug: string;
+            readonly brand: components["schemas"]["Brand"];
+            readonly category: string;
+            /** Описание */
+            description: string;
+            /** Краткое описание */
+            short_description?: string;
+            readonly specifications: unknown;
+            /**
+             * Базовые изображения
+             * @description Общие изображения товара из 1С (используются как fallback для вариантов)
+             */
+            base_images?: unknown;
+            /** Рекомендуемый */
+            is_featured?: boolean;
+            /**
+             * Хит продаж
+             * @description Отображать бейдж 'Хит продаж' на карточке товара
+             */
+            readonly is_hit: boolean;
+            /**
+             * Новинка
+             * @description Отображать бейдж 'Новинка' на карточке товара
+             */
+            readonly is_new: boolean;
+            /**
+             * Распродажа
+             * @description Товар участвует в распродаже
+             */
+            readonly is_sale: boolean;
+            /**
+             * Акция
+             * @description Товар участвует в акции/промо
+             */
+            readonly is_promo: boolean;
+            /**
+             * Премиум
+             * @description Премиум товар (эксклюзив, лимитированная серия)
+             */
+            readonly is_premium: boolean;
+            /**
+             * Процент скидки
+             * @description Процент скидки для отображения на бейдже (0-100)
+             */
+            readonly discount_percent: number | null;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * @description Получить атрибуты продукта
+             *
+             *     Args:
+             *         obj: Product instance
+             *
+             *     Returns:
+             *         list[dict]: Список атрибутов с полями name, value, slug, type
+             */
+            readonly attributes: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Format: double
+             * @description Получить розничную цену из первого варианта
+             */
+            readonly retail_price: number;
+            /**
+             * Format: double
+             * @description Получить оптовую цену уровня 1 из первого варианта
+             */
+            readonly opt1_price: number;
+            /**
+             * Format: double
+             * @description Получить оптовую цену уровня 2 из первого варианта
+             */
+            readonly opt2_price: number;
+            /**
+             * Format: double
+             * @description Получить оптовую цену уровня 3 из первого варианта
+             */
+            readonly opt3_price: number;
+            /** @description Получить суммарное количество на складе по всем вариантам */
+            readonly stock_quantity: number;
+            /** @description Проверить наличие товара (любой вариант в наличии) */
+            readonly is_in_stock: boolean;
+            /**
+             * @description Получить основное изображение из первого варианта или base_images
+             *
+             *     Возвращает относительный URL с /media/ префиксом
+             */
+            readonly main_image: string | null;
+            /** @description Проверить можно ли заказать товар */
+            readonly can_be_ordered: boolean;
+            /** @description Получить актуальную цену на основе роли пользователя */
+            readonly current_price: string;
+            /** @description Получить артикул первого варианта */
+            readonly sku: string;
+            /**
+             * Format: double
+             * @description Получить РРЦ первого варианта
+             */
+            readonly rrp: number | null;
+            /**
+             * Format: double
+             * @description Получить МРЦ первого варианта
+             */
+            readonly msrp: number | null;
+            readonly images: string;
+            readonly related_products: string;
+            readonly category_breadcrumbs: string;
+            /** SEO заголовок */
+            seo_title?: string;
+            /** SEO описание */
+            seo_description?: string;
+            readonly variants: components["schemas"]["ProductVariant"][];
+        };
+        /**
+         * @description Serializer для списка товаров (базовая модель Product)
+         *
+         *     Примечание: Product - это базовая модель товара без цен и остатков.
+         *     Цены и остатки хранятся в ProductVariant.
+         *     Для получения вариантов используйте вложенное поле 'variants'
+         *     в ProductDetailSerializer.
+         *
+         *     Вычисляемые поля для обратной совместимости (данные из вариантов):
+         *     - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+         *     - stock_quantity: суммарное количество на складе по всем вариантам
+         *     - is_in_stock: есть ли хотя бы один вариант в наличии
+         *     - main_image: изображение из первого варианта или base_images
+         *     - can_be_ordered: можно ли заказать товар
+         */
+        ProductList: {
+            readonly id: number;
+            /** Название */
+            name: string;
+            slug: string;
+            readonly brand: components["schemas"]["Brand"];
+            readonly category: string;
+            /** Описание */
+            description: string;
+            /** Краткое описание */
+            short_description?: string;
+            readonly specifications: unknown;
+            /**
+             * Базовые изображения
+             * @description Общие изображения товара из 1С (используются как fallback для вариантов)
+             */
+            base_images?: unknown;
+            /** Рекомендуемый */
+            is_featured?: boolean;
+            /**
+             * Хит продаж
+             * @description Отображать бейдж 'Хит продаж' на карточке товара
+             */
+            readonly is_hit: boolean;
+            /**
+             * Новинка
+             * @description Отображать бейдж 'Новинка' на карточке товара
+             */
+            readonly is_new: boolean;
+            /**
+             * Распродажа
+             * @description Товар участвует в распродаже
+             */
+            readonly is_sale: boolean;
+            /**
+             * Акция
+             * @description Товар участвует в акции/промо
+             */
+            readonly is_promo: boolean;
+            /**
+             * Премиум
+             * @description Премиум товар (эксклюзив, лимитированная серия)
+             */
+            readonly is_premium: boolean;
+            /**
+             * Процент скидки
+             * @description Процент скидки для отображения на бейдже (0-100)
+             */
+            readonly discount_percent: number | null;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * @description Получить атрибуты продукта
+             *
+             *     Args:
+             *         obj: Product instance
+             *
+             *     Returns:
+             *         list[dict]: Список атрибутов с полями name, value, slug, type
+             */
+            readonly attributes: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Format: double
+             * @description Получить розничную цену из первого варианта
+             */
+            readonly retail_price: number;
+            /**
+             * Format: double
+             * @description Получить оптовую цену уровня 1 из первого варианта
+             */
+            readonly opt1_price: number;
+            /**
+             * Format: double
+             * @description Получить оптовую цену уровня 2 из первого варианта
+             */
+            readonly opt2_price: number;
+            /**
+             * Format: double
+             * @description Получить оптовую цену уровня 3 из первого варианта
+             */
+            readonly opt3_price: number;
+            /** @description Получить суммарное количество на складе по всем вариантам */
+            readonly stock_quantity: number;
+            /** @description Проверить наличие товара (любой вариант в наличии) */
+            readonly is_in_stock: boolean;
+            /**
+             * @description Получить основное изображение из первого варианта или base_images
+             *
+             *     Возвращает относительный URL с /media/ префиксом
+             */
+            readonly main_image: string | null;
+            /** @description Проверить можно ли заказать товар */
+            readonly can_be_ordered: boolean;
+            /** @description Получить актуальную цену на основе роли пользователя */
+            readonly current_price: string;
+            /** @description Получить артикул первого варианта */
+            readonly sku: string;
+            /**
+             * Format: double
+             * @description Получить РРЦ первого варианта
+             */
+            readonly rrp: number | null;
+            /**
+             * Format: double
+             * @description Получить МРЦ первого варианта
+             */
+            readonly msrp: number | null;
+        };
+        /**
+         * @description Serializer для ProductVariant с роле-ориентированной ценой
+         *
+         *     Поля:
+         *     - current_price: цена для текущего пользователя (роле-ориентированная)
+         *     - color_hex: hex-код цвета из ColorMapping
+         *     - is_in_stock: computed property из модели
+         *     - available_quantity: computed property из модели
+         *     - attributes: объединенный список атрибутов (вариант + продукт с наследованием)
+         */
+        ProductVariant: {
+            readonly id: number;
+            /**
+             * Артикул SKU
+             * @description Уникальный артикул варианта
+             */
+            readonly sku: string;
+            /**
+             * Цвет
+             * @description Название цвета из 1С
+             */
+            readonly color_name: string;
+            /**
+             * Размер
+             * @description Значение размера
+             */
+            readonly size_value: string;
+            /**
+             * @description Получить роле-ориентированную цену для текущего пользователя
+             *
+             *     Args:
+             *         obj: ProductVariant instance
+             *
+             *     Returns:
+             *         str: Цена как строка (сериализация Decimal)
+             */
+            readonly current_price: string;
+            /**
+             * @description Получить hex-код цвета из ColorMapping
+             *
+             *     Args:
+             *         obj: ProductVariant instance
+             *
+             *     Returns:
+             *         str | None: Hex-код цвета или None если маппинг не найден
+             */
+            readonly color_hex: string | null;
+            /**
+             * Количество на складе
+             * @description Доступное количество на складе
+             */
+            readonly stock_quantity: number;
+            readonly is_in_stock: boolean;
+            readonly available_quantity: number;
+            /**
+             * @description Получить диапазон остатков (1-5, 6-19, 20-49, 50+)
+             *
+             *     Args:
+             *         obj: ProductVariant instance
+             *
+             *     Returns:
+             *         str | None: Строка диапазона или None если товара нет
+             */
+            readonly stock_range: string | null;
+            /**
+             * РРЦ
+             * Format: decimal
+             * @description Рекомендованная розничная цена (информационно)
+             */
+            readonly rrp: string | null;
+            /**
+             * МРЦ
+             * Format: decimal
+             * @description Минимальная рекомендованная розничная цена (информационно)
+             */
+            readonly msrp: string | null;
+            /**
+             * @description Получить URL основного изображения варианта
+             *
+             *     Args:
+             *         obj: ProductVariant instance
+             *
+             *     Returns:
+             *         str | None: URL изображения или None (относительный путь с /media/)
+             */
+            readonly main_image: string | null;
+            /**
+             * @description Получить список URL галереи изображений варианта
+             *
+             *     Пути в gallery_images хранятся как относительные от /media/:
+             *     - /products/variants/... → /media/products/variants/...
+             *
+             *     Дубликаты и main_image исключаются из результата.
+             *
+             *     Args:
+             *         obj: ProductVariant instance
+             *
+             *     Returns:
+             *         list[str]: Список уникальных URL изображений с /media/ префиксом
+             */
+            readonly gallery_images: string[];
+            /**
+             * @description Получить атрибуты варианта с наследованием от продукта
+             *
+             *     Логика наследования:
+             *     1. Получаем атрибуты продукта
+             *     2. Получаем атрибуты варианта
+             *     3. Объединяем: если вариант имеет значение атрибута,
+             *        оно переопределяет значение продукта
+             *     4. Возвращаем комбинированный список
+             *
+             *     Args:
+             *         obj: ProductVariant instance
+             *
+             *     Returns:
+             *         list[dict]: Список атрибутов с полями name, value, slug, type
+             */
+            readonly attributes: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * @description * `retail` - Розничный покупатель
+         *     * `wholesale_level1` - Оптовик уровень 1
+         *     * `wholesale_level2` - Оптовик уровень 2
+         *     * `wholesale_level3` - Оптовик уровень 3
+         *     * `trainer` - Тренер/Фитнес-клуб
+         *     * `federation_rep` - Представитель федерации
+         *     * `admin` - Администратор
+         * @enum {string}
+         */
+        RoleEnum: "retail" | "wholesale_level1" | "wholesale_level2" | "wholesale_level3" | "trainer" | "federation_rep" | "admin";
+        /**
+         * @description * `pending` - Ожидает обработки
+         *     * `confirmed` - Подтвержден
+         *     * `processing` - В обработке
+         *     * `shipped` - Отправлен
+         *     * `delivered` - Доставлен
+         *     * `cancelled` - Отменен
+         *     * `refunded` - Возвращен
+         * @enum {string}
+         */
+        StatusEnum: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled" | "refunded";
+        /**
+         * @description Сериализатор для подписки на email-рассылку.
+         *     Валидирует email и создает запись в Newsletter.
+         */
+        SubscribeRequest: {
+            /**
+             * Format: email
+             * @description Email адрес для подписки
+             */
+            email: string;
+        };
+        TokenRefresh: {
+            readonly access: string;
+            refresh: string;
+        };
+        TokenRefreshRequest: {
+            refresh: string;
+        };
+        /**
+         * @description * `hero` - Геройский (Hero)
+         *     * `marketing` - Маркетинговый
+         * @enum {string}
+         */
+        TypeEnum: "hero" | "marketing";
+        /**
+         * @description Сериализатор для отписки от email-рассылки.
+         *     Валидирует email и деактивирует подписку.
+         */
+        UnsubscribeRequest: {
+            /**
+             * Format: email
+             * @description Email адрес для отписки
+             */
+            email: string;
+        };
+        /** @description Serializer для персонального дашборда пользователя */
+        UserDashboard: {
+            readonly user_info: components["schemas"]["UserProfile"];
+            readonly orders_count: number;
+            readonly favorites_count: number;
+            readonly addresses_count: number;
+            /** Format: decimal */
+            readonly total_order_amount: string;
+            /** Format: decimal */
+            readonly avg_order_amount: string;
+            readonly verification_status: string;
+        };
+        /** @description Serializer для входа пользователя */
+        UserLoginRequest: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        /** @description Serializer для просмотра и обновления профиля пользователя */
+        UserProfile: {
+            readonly id: number;
+            /**
+             * Email адрес
+             * Format: email
+             */
+            readonly email: string | null;
+            /** Имя */
+            first_name?: string;
+            /** Фамилия */
+            last_name?: string;
+            readonly full_name: string;
+            /** Номер телефона */
+            phone?: string;
+            /** Роль пользователя */
+            readonly role: components["schemas"]["RoleEnum"];
+            /**
+             * Название компании
+             * @description Для B2B пользователей
+             */
+            company_name?: string;
+            /**
+             * ИНН
+             * @description ИНН для B2B пользователей
+             */
+            tax_id?: string;
+            /**
+             * Верифицирован
+             * @description B2B пользователи требуют верификации администратором
+             */
+            readonly is_verified: boolean;
+            readonly is_b2b_user: boolean;
+            readonly is_wholesale_user: boolean;
+            readonly wholesale_level: number;
+            /**
+             * Дата создания
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Дата обновления
+             * Format: date-time
+             */
+            readonly updated_at: string;
+        };
+        /** @description Serializer для просмотра и обновления профиля пользователя */
+        UserProfileRequest: {
+            /** Имя */
+            first_name?: string;
+            /** Фамилия */
+            last_name?: string;
+            /** Номер телефона */
+            phone?: string;
+            /**
+             * Название компании
+             * @description Для B2B пользователей
+             */
+            company_name?: string;
+            /**
+             * ИНН
+             * @description ИНН для B2B пользователей
+             */
+            tax_id?: string;
+        };
+        /** @description Serializer для регистрации новых пользователей */
+        UserRegistrationRequest: {
+            /**
+             * Email адрес
+             * Format: email
+             */
+            email: string | null;
+            password: string;
+            password_confirm: string;
+            /** Имя */
+            first_name: string;
+            /** Фамилия */
+            last_name?: string;
+            /** Номер телефона */
+            phone?: string;
+            /** Роль пользователя */
+            role?: components["schemas"]["RoleEnum"];
+            /**
+             * Название компании
+             * @description Для B2B пользователей
+             */
+            company_name?: string;
+            /**
+             * ИНН
+             * @description ИНН для B2B пользователей
+             */
+            tax_id?: string;
+            pdp_consent: boolean;
+            /** @default false */
+            marketing_consent: boolean;
+        };
+        /** @description Serializer для валидации токена сброса пароля */
+        ValidateTokenRequest: {
+            uid: string;
+            token: string;
+        };
     };
-    Category: {
-      id?: number;
-      /** @description Название категории */
-      name?: string;
-      /** @description URL slug */
-      slug?: string;
-      description?: string | null;
-      /** @description ID родительской категории */
-      parent_id?: number | null;
-      /** @description Уровень вложенности */
-      level?: number;
-      /** @description Иконка категории (emoji или код) */
-      icon?: string | null;
-      /** @description Количество товаров в категории */
-      products_count?: number;
-      /** @description Дочерние категории */
-      children?: components['schemas']['Category'][];
-    };
-    CategoryDetail: components['schemas']['Category'] & {
-      breadcrumbs?: components['schemas']['CategoryBreadcrumb'][];
-    };
-    CategoryBreadcrumb: {
-      id?: number;
-      name?: string;
-      slug?: string;
-    };
-    Cart: {
-      id?: number;
-      user_id?: number;
-      items?: components['schemas']['CartItem'][];
-      /** @description Общее количество товаров */
-      total_items?: number;
-      /**
-       * Format: decimal
-       * @description Общая стоимость корзины
-       */
-      total_price?: number;
-      /** Format: date-time */
-      created_at?: string;
-      /** Format: date-time */
-      updated_at?: string;
-    };
-    CartItem: {
-      id?: number;
-      product?: components['schemas']['Product'];
-      quantity?: number;
-      /**
-       * Format: decimal
-       * @description Цена за единицу (на момент добавления)
-       */
-      unit_price?: number;
-      /**
-       * Format: decimal
-       * @description Общая стоимость позиции
-       */
-      total_price?: number;
-      /** Format: date-time */
-      added_at?: string;
-    };
-    CartItemCreate: {
-      product_id: number;
-      quantity: number;
-    };
-    OrderList: {
-      count?: number;
-      next?: string | null;
-      previous?: string | null;
-      results?: components['schemas']['Order'][];
-    };
-    Order: {
-      id?: number;
-      /** @description Номер заказа */
-      order_number?: string;
-      /** @enum {string} */
-      status?: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-      /** Format: decimal */
-      total_amount?: number;
-      items_count?: number;
-      /** Format: date-time */
-      created_at?: string;
-      /** Format: date */
-      estimated_delivery?: string | null;
-    };
-    OrderDetail: components['schemas']['Order'] & {
-      items?: components['schemas']['OrderItem'][];
-      shipping_address?: components['schemas']['Address'];
-      legal_address?: components['schemas']['Address'];
-      payment_method?: string;
-      delivery_method?: string;
-      notes?: string | null;
-    };
-    OrderItem: {
-      id?: number;
-      product?: components['schemas']['Product'];
-      quantity?: number;
-      /**
-       * Format: decimal
-       * @description Цена за единицу на момент заказа
-       */
-      unit_price?: number;
-      /** Format: decimal */
-      total_price?: number;
-    };
-    OrderCreate: {
-      shipping_address: components['schemas']['AddressCreate'];
-      legal_address?: components['schemas']['AddressCreate'];
-      /** @enum {string} */
-      payment_method: 'card' | 'cash' | 'bank_transfer';
-      /** @enum {string} */
-      delivery_method: 'courier' | 'pickup' | 'post';
-      notes?: string;
-    };
-    Address: {
-      id?: number;
-      full_name?: string;
-      phone?: string;
-      city?: string;
-      street?: string;
-      building?: string;
-      apartment?: string | null;
-      postal_code?: string;
-    };
-    AddressCreate: {
-      full_name: string;
-      phone: string;
-      city: string;
-      street: string;
-      building: string;
-      apartment?: string;
-      postal_code: string;
-    };
-    Error: {
-      /** @description Описание ошибки */
-      detail?: string;
-      /** @description Ошибки валидации полей */
-      field_errors?: {
-        [key: string]: string[];
-      };
-      /** @description Код ошибки для программной обработки */
-      error_code?: string;
-    };
-    Page: {
-      /** @description Уникальный идентификатор страницы */
-      id?: number;
-      /** @description Заголовок страницы */
-      title?: string;
-      /**
-       * @description URL slug для SEO-дружественных URL
-       * @example about-company
-       */
-      slug?: string;
-      /**
-       * @description HTML содержимое страницы (очищенное и безопасное)
-       * @example <h1>О компании</h1><p>Мы лидеры в сфере спортивных товаров...</p>
-       */
-      content?: string;
-      /**
-       * @description SEO заголовок для meta title
-       * @example О компании FREESPORT - лидер спортивных товаров
-       */
-      seo_title?: string;
-      /**
-       * @description SEO описание для meta description
-       * @example FREESPORT - ведущий поставщик спортивных товаров с 2010 года. Качественные товары для всех видов спорта.
-       */
-      seo_description?: string;
-      /**
-       * Format: date-time
-       * @description Время последнего обновления
-       */
-      updated_at?: string;
-      /**
-       * Format: date-time
-       * @description Время создания страницы
-       */
-      created_at?: string;
-    };
-    PageDetail: components['schemas']['Page'] & {
-      /**
-       * @description Полное HTML содержимое страницы с санитизацией
-       * @example <h1>О компании FREESPORT</h1>
-       *     <p>Мы работаем на рынке спортивных товаров с 2010 года...</p>
-       *     <ul>
-       *       <li>Широкий ассортимент</li>
-       *       <li>Гарантия качества</li>
-       *       <li>Быстрая доставка</li>
-       *     </ul>
-       */
-      content?: string;
-    };
-    PaginatedResponse: {
-      /** @description Общее количество элементов */
-      count?: number;
-      /** @description URL следующей страницы */
-      next?: string | null;
-      /** @description URL предыдущей страницы */
-      previous?: string | null;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    health_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API работает корректно */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    monitoring_metrics_operations_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Конец периода (ISO 8601 формат) */
+                end_date?: string;
+                /** @description Начало периода (ISO 8601 формат) */
+                start_date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Метрики операций успешно получены */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    monitoring_metrics_business_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Конец периода (ISO 8601 формат) */
+                end_date?: string;
+                /** @description Начало периода (ISO 8601 формат) */
+                start_date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Бизнес-метрики успешно получены */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    monitoring_metrics_realtime_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Метрики в реальном времени получены */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    monitoring_health_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Статус системы успешно получен */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    subscribe_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscribeRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SubscribeRequest"];
+                "multipart/form-data": components["schemas"]["SubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Подписка успешно создана */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ошибка валидации email */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Email уже подписан на рассылку */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unsubscribe_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnsubscribeRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UnsubscribeRequest"];
+                "multipart/form-data": components["schemas"]["UnsubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Отписка успешно выполнена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ошибка валидации email */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Email не найден или уже отписан */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    news_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description Номер страницы (по умолчанию: 1) */
+                page?: number;
+                /** @description Количество новостей на странице (по умолчанию: 10, макс: 100) */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список новостей успешно получен */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    news_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Детальная информация о новости */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Новость не найдена или не опубликована */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    blog_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description Номер страницы (по умолчанию: 1) */
+                page?: number;
+                /** @description Количество статей на странице (по умолчанию: 10, макс: 100) */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список статей блога успешно получен */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    blog_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Детальная информация о статье блога */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Статья не найдена или не опубликована */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_register_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRegistrationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UserRegistrationRequest"];
+                "multipart/form-data": components["schemas"]["UserRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Пользователь успешно зарегистрирован */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ошибки валидации */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_login_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserLoginRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UserLoginRequest"];
+                "multipart/form-data": components["schemas"]["UserLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Успешная аутентификация */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ошибки аутентификации */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Аккаунт ожидает верификации */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_logout_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LogoutRequest"];
+                "multipart/form-data": components["schemas"]["LogoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Logout успешен, токен добавлен в blacklist */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Невалидный или истёкший refresh токен */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Пользователь не аутентифицирован */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_refresh_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRefreshRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TokenRefreshRequest"];
+                "multipart/form-data": components["schemas"]["TokenRefreshRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenRefresh"];
+                };
+            };
+        };
+    };
+    auth_password_reset_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PasswordResetRequestRequest"];
+                "multipart/form-data": components["schemas"]["PasswordResetRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description Email отправлен (если пользователь существует) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_password_reset_validate_token_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidateTokenRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ValidateTokenRequest"];
+                "multipart/form-data": components["schemas"]["ValidateTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Токен валиден */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Токен не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Токен истёк */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_password_reset_confirm_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirmRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PasswordResetConfirmRequest"];
+                "multipart/form-data": components["schemas"]["PasswordResetConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Пароль успешно изменён */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ошибки валидации */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Токен не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Токен истёк */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_profile_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Пользователь не авторизован */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_profile_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UserProfileRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UserProfileRequest"];
+                "multipart/form-data": components["schemas"]["UserProfileRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+        };
+    };
+    users_profile_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedUserProfileRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedUserProfileRequest"];
+                "multipart/form-data": components["schemas"]["PatchedUserProfileRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Ошибки валидации */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Пользователь не авторизован */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_profile_dashboard_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDashboard"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    users_company_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    users_company_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+                "application/x-www-form-urlencoded": {
+                    [key: string]: unknown;
+                };
+                "multipart/form-data": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    users_orders_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderHistory"][];
+                };
+            };
+        };
+    };
+    users_roles_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список ролей пользователей */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_addresses_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAddressList"];
+                };
+            };
+        };
+    };
+    users_addresses_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AddressRequest"];
+                "multipart/form-data": components["schemas"]["AddressRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Address"];
+                };
+            };
+        };
+    };
+    users_addresses_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Адрес. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Address"];
+                };
+            };
+        };
+    };
+    users_addresses_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Адрес. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AddressRequest"];
+                "multipart/form-data": components["schemas"]["AddressRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Address"];
+                };
+            };
+        };
+    };
+    users_addresses_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Адрес. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_addresses_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Адрес. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedAddressRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedAddressRequest"];
+                "multipart/form-data": components["schemas"]["PatchedAddressRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Address"];
+                };
+            };
+        };
+    };
+    users_favorites_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedFavoriteList"];
+                };
+            };
+        };
+    };
+    users_favorites_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FavoriteCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["FavoriteCreateRequest"];
+                "multipart/form-data": components["schemas"]["FavoriteCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavoriteCreate"];
+                };
+            };
+        };
+    };
+    users_favorites_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Избранное. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Favorite"];
+                };
+            };
+        };
+    };
+    users_favorites_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Избранное. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FavoriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["FavoriteRequest"];
+                "multipart/form-data": components["schemas"]["FavoriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Favorite"];
+                };
+            };
+        };
+    };
+    users_favorites_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Избранное. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_favorites_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Избранное. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedFavoriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedFavoriteRequest"];
+                "multipart/form-data": components["schemas"]["PatchedFavoriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Favorite"];
+                };
+            };
+        };
+    };
+    products_list: {
+        parameters: {
+            query?: {
+                /** @description Бренд (ID или slug). Поддерживает множественный выбор: brand=nike,adidas */
+                brand?: string;
+                /** @description ID категории */
+                category_id?: number;
+                /** @description Товары со скидкой (имеют discount_percent) */
+                has_discount?: boolean;
+                /** @description Товары в наличии */
+                in_stock?: boolean;
+                /** @description Рекомендуемые товары */
+                is_featured?: boolean;
+                /** @description Хиты продаж */
+                is_hit?: boolean;
+                /** @description Новинки */
+                is_new?: boolean;
+                /** @description Премиум товары */
+                is_premium?: boolean;
+                /** @description Акции */
+                is_promo?: boolean;
+                /** @description Распродажа */
+                is_sale?: boolean;
+                /** @description Максимальная цена */
+                max_price?: number;
+                /** @description Минимальная цена */
+                min_price?: number;
+                /** @description Сортировка: name, -name, retail_price, -retail_price, created_at, -created_at */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description Полнотекстовый поиск по названию, описанию, артикулу. Поддерживает русский язык, ранжирование по релевантности. Мин. 2 символа, макс. 100 */
+                search?: string;
+                /** @description Размер товара из спецификаций (XS, S, M, L, XL, XXL, 38, 40, 42 и т.д.) */
+                size?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedProductListList"];
+                };
+            };
+        };
+    };
+    products_visible_brands_retrieve: {
+        parameters: {
+            query?: {
+                /** @description ID категории (включая дочерние) */
+                category_id?: number;
+                /** @description Товары в наличии */
+                in_stock?: boolean;
+                /** @description Максимальная цена */
+                max_price?: number;
+                /** @description Минимальная цена */
+                min_price?: number;
+                /** @description Поисковый запрос */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductList"];
+                };
+            };
+        };
+    };
+    products_visible_categories_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Бренд (ID или slug) */
+                brand?: string;
+                /** @description Товары в наличии */
+                in_stock?: boolean;
+                /** @description Максимальная цена */
+                max_price?: number;
+                /** @description Минимальная цена */
+                min_price?: number;
+                /** @description Поисковый запрос */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductList"];
+                };
+            };
+        };
+    };
+    products_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDetail"];
+                };
+            };
+        };
+    };
+    categories_list: {
+        parameters: {
+            query?: {
+                is_active?: boolean;
+                is_homepage?: boolean;
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                parent?: number;
+                parent__slug?: string;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCategoryList"];
+                };
+            };
+        };
+    };
+    categories_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    categories_tree_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryTree"][];
+                };
+            };
+        };
+    };
+    categories_tree_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryTree"];
+                };
+            };
+        };
+    };
+    brands_list: {
+        parameters: {
+            query?: {
+                /** @description Возвращать только бренды, у которых есть активные товары с вариантами в наличии (stock_quantity > 0). Применяется только при значении true/1. Любое другое значение (включая false/0) эквивалентно отсутствию параметра и не возвращает бренды без in-stock товаров. */
+                has_stock?: boolean;
+                /** @description Фильтр по featured-статусу бренда (true/false). Применяется только в list-action; для retrieve(slug)-эндпоинта параметр игнорируется и не влияет на поиск бренда. */
+                is_featured?: boolean;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedBrandList"];
+                };
+            };
+        };
+    };
+    brands_featured_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Brand"];
+                };
+            };
+        };
+    };
+    brands_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Brand"];
+                };
+            };
+        };
+    };
+    catalog_filters_list: {
+        parameters: {
+            query?: {
+                /** @description Включить неактивные атрибуты (только для staff users). Для обычных пользователей параметр игнорируется. */
+                include_inactive?: boolean;
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAttributeFilterList"];
+                };
+            };
+        };
+    };
+    catalog_filters_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Атрибут товара. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributeFilter"];
+                };
+            };
+        };
+    };
+    orders_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /**
+                 * @description * `pending` - Ожидает обработки
+                 *     * `confirmed` - Подтвержден
+                 *     * `processing` - В обработке
+                 *     * `shipped` - Отправлен
+                 *     * `delivered` - Доставлен
+                 *     * `cancelled` - Отменен
+                 *     * `refunded` - Возвращен
+                 */
+                status?: "cancelled" | "confirmed" | "delivered" | "pending" | "processing" | "refunded" | "shipped";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedOrderListList"];
+                };
+            };
+            /** @description Пользователь не авторизован */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    orders_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OrderCreateRequest"];
+                "multipart/form-data": components["schemas"]["OrderCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetail"];
+                };
+            };
+            /** @description Ошибки валидации или пустая корзина */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Пользователь не авторизован */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    orders_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Заказ. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetail"];
+                };
+            };
+            /** @description Пользователь не авторизован */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Заказ не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    orders_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Заказ. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderDetailRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OrderDetailRequest"];
+                "multipart/form-data": components["schemas"]["OrderDetailRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetail"];
+                };
+            };
+        };
+    };
+    orders_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Заказ. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    orders_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Заказ. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedOrderDetailRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedOrderDetailRequest"];
+                "multipart/form-data": components["schemas"]["PatchedOrderDetailRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetail"];
+                };
+            };
+        };
+    };
+    orders_cancel_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this Заказ. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderDetailRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OrderDetailRequest"];
+                "multipart/form-data": components["schemas"]["OrderDetailRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetail"];
+                };
+            };
+            /** @description Заказ не может быть отменен */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Пользователь не авторизован */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Заказ не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cart_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCartList"];
+                };
+            };
+        };
+    };
+    cart_clear_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cart_items_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCartItemList"];
+                };
+            };
+        };
+    };
+    cart_items_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartItemCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CartItemCreateRequest"];
+                "multipart/form-data": components["schemas"]["CartItemCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CartItemCreate"];
+                };
+            };
+        };
+    };
+    cart_items_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CartItem"];
+                };
+            };
+            /** @description Товар в корзине не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cart_items_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cart_items_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCartItemUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCartItemUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCartItemUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CartItem"];
+                };
+            };
+            /** @description Ошибки валидации */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Товар в корзине не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pages_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedPageList"];
+                };
+            };
+        };
+    };
+    pages_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page"];
+                };
+            };
+        };
+    };
+    delivery_methods_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryMethod"][];
+                };
+            };
+        };
+    };
+    delivery_methods_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique value identifying this Способ доставки. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryMethod"];
+                };
+            };
+        };
+    };
+    banners_list: {
+        parameters: {
+            query?: {
+                /** @description Фильтр по типу баннера: hero или marketing */
+                type?: "hero" | "marketing";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Banner"][];
+                };
+            };
+        };
+    };
+    api_integration_1c_exchange_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_integration_1c_exchange_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+}

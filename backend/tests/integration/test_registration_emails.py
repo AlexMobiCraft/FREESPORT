@@ -36,6 +36,7 @@ class TestRegistrationEmailsIntegration:
                 "last_name": "User",
                 "role": "trainer",
                 "company_name": "Test Club",
+                "pdp_consent": True,
             },
             format="json",
         )
@@ -70,6 +71,7 @@ class TestRegistrationEmailsIntegration:
                 "role": "wholesale_level1",
                 "company_name": "Wholesale Company",
                 "tax_id": "1234567890",
+                "pdp_consent": True,
             },
             format="json",
         )
@@ -96,6 +98,7 @@ class TestRegistrationEmailsIntegration:
                 "first_name": "Retail",
                 "last_name": "Customer",
                 "role": "retail",
+                "pdp_consent": True,
             },
             format="json",
         )
@@ -130,6 +133,7 @@ class TestRegistrationEmailsIntegration:
                 "role": "federation_rep",
                 "company_name": "Tennis Federation",
                 "tax_id": "9876543210",
+                "pdp_consent": True,
             },
             format="json",
         )

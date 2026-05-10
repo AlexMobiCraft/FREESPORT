@@ -6,6 +6,7 @@ import logging
 from typing import Any, cast
 
 from django.contrib.auth import get_user_model, login, logout
+from django.db import transaction
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -18,6 +19,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from apps.common.models import UserConsent
 
 logger = logging.getLogger("apps.users.auth")
 
@@ -109,7 +112,27 @@ class UserRegistrationView(APIView):
         serializer = UserRegistrationSerializer(data=request.data)
 
         if serializer.is_valid():
-            user = serializer.save()
+            with transaction.atomic():
+                user = serializer.save()
+
+                client_ip = get_client_ip(request)
+                ip_address = client_ip if client_ip != "unknown" else None
+                user_agent = (request.META.get("HTTP_USER_AGENT") or "")[:512]
+
+                UserConsent.objects.create(
+                    user=user,
+                    consent_type="pdp_contract",
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                )
+
+                if getattr(user, "_marketing_consent", False):
+                    UserConsent.objects.create(
+                        user=user,
+                        consent_type="marketing_email",
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                    )
 
             response_data = {
                 "message": "Пользователь успешно зарегистрирован",

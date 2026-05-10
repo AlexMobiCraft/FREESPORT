@@ -17,10 +17,12 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input/Input';
 import { PhoneInput } from '@/components/ui/Input/PhoneInput';
 import { Button } from '@/components/ui/Button/Button';
+import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import authService from '@/services/authService';
 import { isSafeRedirectUrl } from '@/utils/urlUtils';
 import { b2bRegisterSchema, type B2BRegisterFormData } from '@/schemas/authSchemas';
@@ -41,13 +43,19 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<B2BRegisterFormData>({
     resolver: zodResolver(b2bRegisterSchema),
     defaultValues: {
       role: 'wholesale_level1',
+      pdp_consent: false,
+      marketing_consent: false,
     },
   });
+
+  const pdpConsent = watch('pdp_consent');
+  const marketingConsent = watch('marketing_consent');
 
   const onSubmit = async (data: B2BRegisterFormData) => {
     try {
@@ -64,6 +72,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         role: data.role,
         company_name: data.company_name,
         tax_id: data.tax_id,
+        pdp_consent: data.pdp_consent,
+        marketing_consent: data.marketing_consent ?? false,
       };
 
       // AC 4: Отправка через authService.registerB2B()
@@ -296,6 +306,59 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           autoComplete="new-password"
           placeholder="••••••••"
         />
+
+        <div className="space-y-2">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="b2b-register-pdp-consent"
+              {...register('pdp_consent')}
+              checked={pdpConsent}
+              disabled={isSubmitting}
+              aria-describedby={
+                errors.pdp_consent?.message ? 'b2b-register-pdp-consent-error' : undefined
+              }
+            />
+            <label
+              htmlFor="b2b-register-pdp-consent"
+              className="text-body-s text-text-primary cursor-pointer select-none"
+            >
+              Я даю согласие на{' '}
+              <Link
+                href="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:text-primary-hover"
+              >
+                обработку моих персональных данных
+              </Link>{' '}
+              в соответствии с Политикой
+            </label>
+          </div>
+          {errors.pdp_consent?.message && (
+            <p
+              id="b2b-register-pdp-consent-error"
+              className="text-body-xs text-[var(--color-accent-danger)]"
+              role="alert"
+            >
+              {errors.pdp_consent.message}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="b2b-register-marketing-consent"
+            {...register('marketing_consent')}
+            checked={marketingConsent}
+            disabled={isSubmitting}
+          />
+          <label
+            htmlFor="b2b-register-marketing-consent"
+            className="text-body-s text-text-primary cursor-pointer select-none"
+          >
+            Я согласен(на) получать рекламные и информационные рассылки от FREESPORT
+          </label>
+        </div>
       </div>
 
       {/* Submit Button */}
