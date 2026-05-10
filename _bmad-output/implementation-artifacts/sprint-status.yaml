@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-09" # 35.1 re-review passed (0 patch / 8 defer), статус → done
+last_updated: "2026-05-10" # 35.2 story создан (ready-for-dev): чек-боксы согласий ПДн в RegisterForm/B2BRegisterForm
 
 development_status:
   # ========================================
@@ -165,6 +165,6 @@ development_status:
   # ========================================
   epic-35: in-progress
   35-1-privacy-policy-page-and-consent-model: done
-  35-2-consent-checkboxes-in-registration-forms: backlog
+  35-2-consent-checkboxes-in-registration-forms: ready-for-dev
   35-3-consent-checkbox-in-subscribe-form: backlog
   35-4-cookie-banner: backlog
