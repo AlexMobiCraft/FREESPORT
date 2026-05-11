@@ -119,14 +119,22 @@ def test_retail_registration_creates_pdp_consent_record():
 def test_retail_registration_with_marketing_creates_two_records():
     client = APIClient()
 
-    response = post_register(client, retail_payload(marketing_consent=True))
+    response = post_register(
+        client,
+        retail_payload(marketing_consent=True),
+        REMOTE_ADDR="1.2.3.4",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
 
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
-    assert set(UserConsent.objects.filter(user=user).values_list("consent_type", flat=True)) == {
+    consents = list(UserConsent.objects.filter(user=user).order_by("consent_type"))
+    assert {consent.consent_type for consent in consents} == {
         "pdp_contract",
         "marketing_email",
     }
+    assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
+    assert {consent.user_agent for consent in consents} == {"ConsentTestAgent/1.0"}
 
 
 @patch("apps.users.serializers.send_admin_verification_email.delay")
@@ -250,6 +258,24 @@ def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_recor
             client,
             retail_payload(),
             HTTP_X_FORWARDED_FOR="1.2.3.4:99999",
+            HTTP_USER_AGENT="ConsentTestAgent/1.0",
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert consent.ip_address is None
+    assert "Invalid client IP skipped for consent audit" in caplog.text
+
+
+def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_record(caplog):
+    client = APIClient()
+
+    with caplog.at_level("WARNING", logger="apps.users.auth"):
+        response = post_register(
+            client,
+            retail_payload(),
+            HTTP_X_FORWARDED_FOR="[2606:4700:4700::1111]:99999",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
         )
 

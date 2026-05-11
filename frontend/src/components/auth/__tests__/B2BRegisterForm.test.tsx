@@ -377,6 +377,34 @@ describe('B2BRegisterForm consent checkboxes', () => {
     ).toBeGreaterThan(0);
   });
 
+  test('should preserve backend validation order when pdp_consent appears before email', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+          email: ['Пользователь с таким email уже существует.'],
+        },
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(
+      (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
+        .length
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole('alert')[0]).toHaveTextContent(
+      /необходимо согласие на обработку персональных данных/i
+    );
+  });
+
   test('should surface nested backend validation errors', async () => {
     const user = userEvent.setup();
     const mockRegisterB2B = vi.mocked(authService.registerB2B);

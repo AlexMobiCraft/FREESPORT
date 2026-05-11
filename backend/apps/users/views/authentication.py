@@ -563,8 +563,13 @@ def normalize_consent_ip(raw_ip: str) -> str | None:
 
         host = candidate[1:closing_bracket_index]
         port_suffix = candidate[closing_bracket_index + 1 :]
-        if port_suffix and not (port_suffix.startswith(":") and port_suffix[1:].isdigit()):
-            return None
+        if port_suffix:
+            if not port_suffix.startswith(":"):
+                return None
+
+            port = port_suffix[1:]
+            if not port.isdigit() or not (1 <= int(port) <= 65535):
+                return None
         candidate = host
     else:
         ipv4_with_port_match = IPV4_WITH_PORT_RE.match(candidate)

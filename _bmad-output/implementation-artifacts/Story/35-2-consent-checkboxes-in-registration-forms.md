@@ -144,10 +144,12 @@ if not attrs.get("pdp_consent"):
 UserConsent.objects.create(
     user=user,
     consent_type="pdp_contract",
-    ip_address=get_client_ip(request) if get_client_ip(request) != "unknown" else None,
-    user_agent=(request.META.get("HTTP_USER_AGENT") or "")[:512],
+    ip_address=get_consent_ip_address(request),
+    user_agent=sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT")),
 )
 ```
+
+`get_consent_ip_address(request)` использует существующий `get_client_ip(request)`, но перед записью валидирует и нормализует audit IP для PostgreSQL `inet`: отбрасывает `unknown`, private/loopback/link-local адреса, невалидные значения `X-Forwarded-For`, IPv6 zone-id и `host:port` с портом вне диапазона `1..65535`. Невалидный IP не ломает регистрацию и сохраняется как `NULL`.
 
 2. **Только если `marketing_consent=True`** — вторая запись с `consent_type="marketing_email"` (остальные поля идентичны).
 
@@ -698,6 +700,13 @@ GPT-5 Codex
   - GREEN targeted: `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` + `authSchemas.test.ts` **74/74**; `test_auth_registration_consent.py` **28/28**; `npx tsc --noEmit`, scoped ESLint, Prettier check, `python manage.py check`, `black --check`, `flake8` passed.
   - Full regression completed for changed surfaces: full frontend `npm run test -- --run` passed; backend unit suite **697 passed, 12 skipped, 1529 deselected**. Full backend integration was not rerun in this pass because story remains `in-progress` pending product/architect decision; story-specific integration coverage is green.
   - Decision resolved by product/user: выбран вариант 4 — не расширять Story 35.2, явно оставить текущее поведение вне scope и вынести сохранение B2B `ogrn` / `legal_address` в отдельное ТЗ + backlog story. Durable note added to `deferred-work.md`.
+- **Review patch Pass 5 closure (GPT-5 Codex, 2026-05-11):**
+  - GitNexus impact перед patch: `normalize_consent_ip`, `get_consent_ip_address`, `RegisterForm`, `B2BRegisterForm` — LOW; affected flows limited to `UserRegistrationView.post`, `RegisterPage`, `B2BRegisterPage`.
+  - RED backend: `test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_record` падал, потому `[2606:4700:4700::1111]:99999` сохранялся как `2606:4700:4700::1111`.
+  - GREEN targeted: `test_auth_registration_consent.py` **29/29**; `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` **46/46**; `python manage.py check`, `black --check`, `flake8`, `npx tsc --noEmit`, scoped ESLint, Prettier check passed.
+  - Full regression: full frontend `npm run test -- --run` passed; backend unit suite **697 passed, 12 skipped, 1530 deselected**; backend integration **628 passed, 2 skipped, 10 failed** — all 10 failures remain isolated in `test_management_commands/test_import_customers.py` because `/app/data/import_1c/contragents` is absent.
+  - `git diff --check` passed; `npx gitnexus detect-changes --scope all` — 10 files, 11 symbols, 3 affected flows, risk `medium`; affected flows limited to registration validation parser and consent IP normalization.
+  - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
 
 ### Completion Notes List
 
@@ -711,6 +720,7 @@ GPT-5 Codex
 - **Review patch Pass 3 completion (2026-05-11, GPT-5 Codex):** закрыты 9 `[Review][Patch]` и 1 `[Review][Decision]` (Опция 3): native privacy-policy link без custom `window.open`, canonical/global consent IP, hardened log sanitization, cyclic-safe validation parser, inline backend field errors, PDP checkbox a11y/error state и B2B pending `onSuccess` order. Story снова готова к review.
 - **Review patch Pass 4 completion (2026-05-11, GPT-5 Codex):** закрыты 4 `[Review][Patch]`: verified B2B registration больше не ломается при сбое `refreshToken`, pending `onSuccess` стал single-shot при смене callback reference, schema output сузила `pdp_consent` до literal `true`, IPv4-with-port regex отклоняет невалидный port.
 - **Pass 4 decision closure (2026-05-11, user-approved Option 4):** B2B `ogrn` / `legal_address` silent-drop не исправляется в 35.2; будущая работа вынесена в `deferred-work.md` как отдельное ТЗ + backlog story. Story снова готова к review.
+- **Review patch Pass 5 completion (2026-05-11, GPT-5 Codex):** закрыты 5 `[Review][Patch]`: bracketed IPv6 port теперь валидируется диапазоном `1..65535`, marketing consent test проверяет audit IP/User-Agent для обеих записей, AC-6 синхронизирован с hardened helper, общий backend validation parser вынесен в `frontend/src/utils/validationErrorParser.ts`, добавлен reversed-order coverage для B2B validation errors. Story снова готова к review.
 
 ### File List
 
@@ -738,6 +748,7 @@ GPT-5 Codex
 - `frontend/src/schemas/__tests__/authSchemas.test.ts`
 - `frontend/src/types/api.ts`
 - `frontend/src/types/api.generated.ts`
+- `frontend/src/utils/validationErrorParser.ts`
 - `frontend/src/app/(blue)/privacy-policy/page.tsx`
 
 #### Pass 4 (2026-05-11) — расширенный full-scope code review (Cascade)
@@ -761,6 +772,30 @@ GPT-5 Codex
 
 - [x] [Review][Defer] Дубликат `PDP_CONSENT_REQUIRED_MESSAGE` в `error_messages` (3 ключа) + `validate()` body — deferred, pre-existing drift-risk уже отмечен в Pass 2 deferred (line 572); отдельная кодовая полировка вне Pass 4 patch scope. [backend/apps/users/serializers.py:34-38, 75]
 
+#### Pass 5 (2026-05-11) — backend + frontend full-scope code review (Cascade)
+
+**Scope:** полный delta story 35.2 относительно `origin/main` (727848fc..HEAD), разбит на 2 chunk: backend (`apps/users/**` + `backend/tests/**`, ~764 строк diff) и frontend (`frontend/src/components/auth/**`, `schemas/authSchemas.ts`, `types/api.ts`, frontend-тесты, ~1723 строк diff). Auto-generated артефакты (`docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts`) исключены из adversarial review.
+
+**Acceptance Auditor:** ✅ AC-1..AC-8 соответствуют коду; единственная придирка — AC-6 spec text (line 147) ссылается на устаревший inline pattern `get_client_ip(request) if != "unknown" else None`, тогда как реализация использует `get_consent_ip_address(request)` (Pass 1/2/3 hardening). Pass 1-4 patches и decisions закрыты.
+
+**Patches (Pass 5):**
+
+- [x] [Review][Patch] Asymmetric port validation: IPv6 bracketed (`[2606:...]:99999`) принимает invalid port range, тогда как IPv4 (`1.2.3.4:99999`) отклоняет через `IPV4_PORT_RE` 1..65535 — resolved: bracketed IPv6 port теперь валидируется тем же диапазоном `1..65535`; invalid port сохраняет consent IP как `NULL` и логирует warning; regression covered. [backend/apps/users/views/authentication.py, backend/tests/integration/test_auth_registration_consent.py]
+- [x] [Review][Patch] Тест `test_retail_registration_with_marketing_creates_two_records` не выставляет `REMOTE_ADDR`/`HTTP_X_FORWARDED_FOR` и молча принимает `ip_address=NULL` из-за default Django test client REMOTE_ADDR=`127.0.0.1` (loopback не проходит `is_global`) — resolved: тест задаёт глобальный `REMOTE_ADDR`, проверяет IP и User-Agent для обеих consent-записей. [backend/tests/integration/test_auth_registration_consent.py]
+- [x] [Review][Patch] AC-6 spec drift: текст AC (line 147) предписывает inline `get_client_ip(request) if get_client_ip(request) != "unknown" else None`, но реализация использует `get_consent_ip_address(request)` с дополнительной `is_global`/`parse_ip_address`/`IPV4_WITH_PORT_RE` валидацией — resolved: AC-6 wording обновлён на `get_consent_ip_address()` / `sanitize_consent_user_agent()` и явно описывает hardening audit IP. [_bmad-output/implementation-artifacts/Story/35-2-consent-checkboxes-in-registration-forms.md]
+- [x] [Review][Patch] ~120 LOC валидационного парсера (`MAX_VALIDATION_MESSAGE_DEPTH`, `ARRAY_INDEX_KEY_RE`, `getValidationMessage`, `getValidationEntries`, `getFirstValidationMessage`, `collectBackendFieldMessages`, `applyBackendFieldErrors`) дублируется почти идентично между `RegisterForm.tsx:52-150` и `B2BRegisterForm.tsx:21-149`; различия — только field error map. Pass 1 Dev Notes (line 485-487) deferred DRY-extraction для ~30 LOC UI-блока, но Pass 3 patches увеличили duplicate-cost 4× (recursive WeakSet-guard parser, depth limit, sort logic). Низко-усилийный extract в `frontend/src/utils/validationErrorParser.ts` (generic over field map) снизит drift-risk — resolved: общий generic parser вынесен в `frontend/src/utils/validationErrorParser.ts`, формы передают только field map. [frontend/src/utils/validationErrorParser.ts, frontend/src/components/auth/RegisterForm.tsx, frontend/src/components/auth/B2BRegisterForm.tsx]
+- [x] [Review][Patch] Тест `should show first backend validation error instead of hard-coded pdp priority` проходит потому что `email` идёт первым в mock-data — нет reversed-order coverage (`{pdp_consent: [...], email: [...]}`), которая доказала бы «no hard-coded priority». Поведение зависит от key-order ответа DRF, и регрессия на смену сериализации полей проскочит — resolved: добавлен reversed-order test, который проверяет первый alert при `pdp_consent` перед `email`. [frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx]
+
+**Deferred (pre-existing, accepted trade-off, or out of scope):**
+
+- [x] [Review][Defer] Cross-cutting изменение `get_client_ip` (blank XFF first hop → fallback `REMOTE_ADDR` вместо `""`) не задокументировано в Change Log — функция используется всеми callers (LogoutView и др.), не только consent flow. Improvement strict (avoid empty string), но cosmetic — отметить намеренный side-effect в commit message при следующем заходе. [backend/apps/users/views/authentication.py:548-557]
+- [x] [Review][Defer] `transaction.atomic()` wrapper расширил окно pre-existing Celery race (`send_admin_verification_email.delay` / `send_user_pending_email.delay` вызываются ВНУТРИ atomic block перед commit, теперь между .delay() и commit два дополнительных `UserConsent` INSERT) — pre-existing tech debt, явно out of scope 35.2 (Dev Notes 477-479, Pass 1 defer #6); запись уже есть в `_bmad-output/implementation-artifacts/deferred-work.md` (Pass 3 entry). [backend/apps/users/serializers.py:113-125, backend/apps/users/views/authentication.py:143-166]
+
+**Dismissed (noise / false positive):**
+
+- Controlled/RHF double-tracking через `checked={watch('pdp_consent')}` + `{...register('pdp_consent')}` — works correctly, идиоматично для RHF при UI-visible state binding; perf cost minimal (2 checkboxes)
+- Convoluted ctrl-click test для privacy-policy link (`fireEvent.click(link, { ctrlKey: true })` с manual `preventDefault`) — реальная проверка «link не toggle-ит checkbox» уже работает через `expect(link.closest('label')).toBeNull()`; modifier-click сценарий редундантен, но не вреден
+
 ---
 
 ### Change Log
@@ -775,5 +810,7 @@ GPT-5 Codex
 - 2026-05-11: addressed code review findings — 15 Pass 2 `[Review][Patch]` items resolved; status story → `review`.
 - 2026-05-11: addressed code review findings — 9 Pass 3 `[Review][Patch]` items + 1 `[Review][Decision]` resolved; status story → `review`.
 - 2026-05-11: Pass 4 full-scope code review (Cascade) — открыто 4 `[Review][Patch]` + 1 `[Review][Decision]` + 1 `[Review][Defer]`; status story → `in-progress`.
+- 2026-05-11: Pass 5 full-scope code review (Cascade) — открыто 5 `[Review][Patch]` (2 MEDIUM, 3 LOW) + 2 `[Review][Defer]`, 2 findings dismissed; status story → `in-progress`.
 - 2026-05-11: addressed Pass 4 code review findings — 4 `[Review][Patch]` items resolved, 1 `[Review][Defer]` recorded as deferred; story remains `in-progress` pending product/architect decision on B2B `ogrn` / `legal_address`.
 - 2026-05-11: resolved Pass 4 `[Review][Decision]` by user-approved Option 4; B2B `ogrn` / `legal_address` persistence moved to deferred-work for future ТЗ/story; status story → `review`.
+- 2026-05-11: addressed Pass 5 code review findings — 5 `[Review][Patch]` items resolved; status story → `review`.

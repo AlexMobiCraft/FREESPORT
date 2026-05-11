@@ -1,0 +1,764 @@
+﻿diff --git a/backend/apps/users/serializers.py b/backend/apps/users/serializers.py
+index 61f0b351..4fb86ce6 100644
+--- a/backend/apps/users/serializers.py
++++ b/backend/apps/users/serializers.py
+@@ -14,6 +14,8 @@ from apps.orders.models import Order
+ from .models import Address, Company, Favorite, User
+ from .tasks import send_admin_verification_email, send_user_pending_email
+ 
++PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
++
+ 
+ class UserRegistrationSerializer(serializers.ModelSerializer):
+     """
+@@ -26,6 +28,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+         style={"input_type": "password"},
+     )
+     password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
++    pdp_consent = serializers.BooleanField(
++        write_only=True,
++        required=True,
++        error_messages={
++            "required": PDP_CONSENT_REQUIRED_MESSAGE,
++            "invalid": PDP_CONSENT_REQUIRED_MESSAGE,
++            "null": PDP_CONSENT_REQUIRED_MESSAGE,
++        },
++    )
++    marketing_consent = serializers.BooleanField(write_only=True, required=False, default=False)
+ 
+     class Meta:
+         model = User
+@@ -39,6 +51,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+             "role",
+             "company_name",
+             "tax_id",
++            "pdp_consent",
++            "marketing_consent",
+         ]
+         extra_kwargs = {
+             "email": {"required": True},
+@@ -57,6 +71,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+         if attrs["password"] != attrs["password_confirm"]:
+             raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
+ 
++        if not attrs.get("pdp_consent"):
++            raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED_MESSAGE})
++
+         # Валидация B2B полей
+         role = attrs.get("role", "retail")
+         if role != "retail":
+@@ -79,6 +96,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+         """Создание нового пользователя"""
+         # Удаляем password_confirm из данных
+         validated_data.pop("password_confirm")
++        marketing_consent = validated_data.pop("marketing_consent", False)
++        validated_data.pop("pdp_consent")
+ 
+         # Извлекаем пароль
+         password = validated_data.pop("password")
+@@ -105,6 +124,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+             send_admin_verification_email.delay(user.id)
+             send_user_pending_email.delay(user.id)
+ 
++        user._marketing_consent = marketing_consent  # type: ignore[attr-defined]
+         return user
+ 
+ 
+diff --git a/backend/apps/users/views/authentication.py b/backend/apps/users/views/authentication.py
+index e36777d1..5cdbda3d 100644
+--- a/backend/apps/users/views/authentication.py
++++ b/backend/apps/users/views/authentication.py
+@@ -3,9 +3,12 @@ Views для аутентификации пользователей
+ """
+ 
+ import logging
++import re
++from ipaddress import ip_address as parse_ip_address
+ from typing import Any, cast
+ 
+ from django.contrib.auth import get_user_model, login, logout
++from django.db import transaction
+ from django.utils import timezone
+ from django.utils.encoding import force_bytes, force_str
+ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+@@ -19,7 +22,35 @@ from rest_framework.views import APIView
+ from rest_framework_simplejwt.exceptions import TokenError
+ from rest_framework_simplejwt.tokens import RefreshToken
+ 
++from apps.common.models import UserConsent
++
+ logger = logging.getLogger("apps.users.auth")
++MAX_CONSENT_USER_AGENT_LENGTH = 512
++MAX_LOG_VALUE_LENGTH = 128
++IPV4_OCTET_RE = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
++IPV4_PORT_RE = r"(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{0,3})"
++IPV4_WITH_PORT_RE = re.compile(rf"^(?P<ip>{IPV4_OCTET_RE}(?:\.{IPV4_OCTET_RE}){{3}}):(?P<port>{IPV4_PORT_RE})$")
++UNSAFE_LOG_CHAR_ESCAPES = {
++    "\x00": "\\x00",
++    "\r": "\\r",
++    "\n": "\\n",
++    "\x1b": "\\x1b",
++    "\u200b": "\\u200b",
++    "\u200c": "\\u200c",
++    "\u200d": "\\u200d",
++    "\u2028": "\\u2028",
++    "\u2029": "\\u2029",
++    "\u202a": "\\u202a",
++    "\u202b": "\\u202b",
++    "\u202c": "\\u202c",
++    "\u202d": "\\u202d",
++    "\u202e": "\\u202e",
++    "\u2066": "\\u2066",
++    "\u2067": "\\u2067",
++    "\u2068": "\\u2068",
++    "\u2069": "\\u2069",
++    "\ufeff": "\\ufeff",
++}
+ 
+ # User model is used in the code
+ from ..authentication import blacklist_access_token
+@@ -109,7 +140,26 @@ class UserRegistrationView(APIView):
+         serializer = UserRegistrationSerializer(data=request.data)
+ 
+         if serializer.is_valid():
+-            user = serializer.save()
++            with transaction.atomic():
++                user = serializer.save()
++
++                ip_address = get_consent_ip_address(request)
++                user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
++
++                UserConsent.objects.create(
++                    user=user,
++                    consent_type="pdp_contract",
++                    ip_address=ip_address,
++                    user_agent=user_agent,
++                )
++
++                if getattr(user, "_marketing_consent", False):
++                    UserConsent.objects.create(
++                        user=user,
++                        consent_type="marketing_email",
++                        ip_address=ip_address,
++                        user_agent=user_agent,
++                    )
+ 
+             response_data = {
+                 "message": "Пользователь успешно зарегистрирован",
+@@ -493,11 +543,90 @@ def get_client_ip(request: Request) -> str:
+     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+     if x_forwarded_for:
+         ip = x_forwarded_for.split(",")[0].strip()
+-    else:
+-        ip = request.META.get("REMOTE_ADDR", "unknown")
++        if ip:
++            return cast(str, ip)
++
++    ip = request.META.get("REMOTE_ADDR", "unknown")
+     return cast(str, ip)
+ 
+ 
++def normalize_consent_ip(raw_ip: str) -> str | None:
++    """Нормализовать IP из audit-заголовка перед записью в PostgreSQL inet."""
++    candidate = raw_ip.strip()
++    if not candidate:
++        return None
++
++    if candidate.startswith("["):
++        closing_bracket_index = candidate.find("]")
++        if closing_bracket_index == -1:
++            return None
++
++        host = candidate[1:closing_bracket_index]
++        port_suffix = candidate[closing_bracket_index + 1 :]
++        if port_suffix and not (port_suffix.startswith(":") and port_suffix[1:].isdigit()):
++            return None
++        candidate = host
++    else:
++        ipv4_with_port_match = IPV4_WITH_PORT_RE.match(candidate)
++        if ipv4_with_port_match:
++            candidate = ipv4_with_port_match.group("ip")
++
++    try:
++        parsed_ip = parse_ip_address(candidate)
++    except ValueError:
++        return None
++
++    if getattr(parsed_ip, "scope_id", None) or not parsed_ip.is_global:
++        return None
++
++    return str(parsed_ip)
++
++
++def sanitize_log_value(value: str) -> str:
++    """Сжать и экранировать внешнее значение перед записью в structured log."""
++    sanitized_parts: list[str] = []
++    sanitized_length = 0
++
++    for char in value:
++        token = UNSAFE_LOG_CHAR_ESCAPES.get(char, char)
++        if sanitized_length + len(token) > MAX_LOG_VALUE_LENGTH:
++            break
++
++        sanitized_parts.append(token)
++        sanitized_length += len(token)
++
++    return "".join(sanitized_parts)
++
++
++def sanitize_consent_user_agent(user_agent: Any) -> str:
++    """Удалить невалидные UTF-8 surrogate-символы и ограничить длину User-Agent."""
++    safe_user_agent = str(user_agent or "").encode("utf-8", "ignore").decode("utf-8")
++    return safe_user_agent[:MAX_CONSENT_USER_AGENT_LENGTH]
++
++
++def get_consent_ip_address(request: Request) -> str | None:
++    """
++    Получить валидный IP для audit-записи согласия.
++
++    Заголовок X-Forwarded-For приходит извне, поэтому невалидное значение
++    нельзя напрямую сохранять в PostgreSQL inet-поле.
++    """
++    client_ip = get_client_ip(request)
++    if client_ip == "unknown":
++        logger.warning("Unknown client IP skipped for consent audit")
++        return None
++
++    normalized_ip = normalize_consent_ip(client_ip)
++    if normalized_ip is None:
++        logger.warning(
++            "Invalid client IP skipped for consent audit",
++            extra={"client_ip": sanitize_log_value(client_ip)},
++        )
++        return None
++
++    return normalized_ip
++
++
+ class LogoutView(GenericAPIView):
+     """
+     Выход пользователя из системы через blacklisting refresh токена.
+diff --git a/backend/tests/integration/test_auth_registration_consent.py b/backend/tests/integration/test_auth_registration_consent.py
+new file mode 100644
+index 00000000..25457f27
+--- /dev/null
++++ b/backend/tests/integration/test_auth_registration_consent.py
+@@ -0,0 +1,374 @@
++from __future__ import annotations
++
++import time
++from unittest.mock import patch
++
++import pytest
++from rest_framework import status
++from rest_framework.test import APIClient
++
++from apps.common.models import UserConsent
++from apps.users.models import User
++
++
++pytestmark = [pytest.mark.integration, pytest.mark.django_db]
++
++
++def unique_email(prefix: str) -> str:
++    return f"{prefix}_{time.time_ns()}@example.com"
++
++
++def retail_payload(**overrides):
++    payload = {
++        "email": unique_email("consent_retail"),
++        "password": "StrongPassword123!",
++        "password_confirm": "StrongPassword123!",
++        "first_name": "Consent",
++        "last_name": "Retail",
++        "role": "retail",
++        "pdp_consent": True,
++        "marketing_consent": False,
++    }
++    payload.update(overrides)
++    return payload
++
++
++def b2b_payload(**overrides):
++    payload = {
++        "email": unique_email("consent_b2b"),
++        "password": "StrongPassword123!",
++        "password_confirm": "StrongPassword123!",
++        "first_name": "Consent",
++        "last_name": "B2B",
++        "role": "wholesale_level1",
++        "company_name": "Consent Company",
++        "tax_id": "1234567890",
++        "pdp_consent": True,
++        "marketing_consent": False,
++    }
++    payload.update(overrides)
++    return payload
++
++
++def post_register(client: APIClient, payload: dict, **headers):
++    return client.post("/api/v1/auth/register/", payload, format="json", **headers)
++
++
++def test_registration_requires_pdp_consent():
++    client = APIClient()
++    payload = retail_payload()
++    payload.pop("pdp_consent")
++
++    response = post_register(client, payload)
++
++    assert response.status_code == status.HTTP_400_BAD_REQUEST
++    assert "pdp_consent" in response.data
++    assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
++
++
++def test_registration_rejects_pdp_consent_false():
++    client = APIClient()
++
++    response = post_register(client, retail_payload(pdp_consent=False))
++
++    assert response.status_code == status.HTTP_400_BAD_REQUEST
++    assert "pdp_consent" in response.data
++
++
++@pytest.mark.parametrize("invalid_value", ["not-bool", None])
++def test_registration_rejects_invalid_pdp_consent_with_contract_message(invalid_value):
++    client = APIClient()
++
++    response = post_register(client, retail_payload(pdp_consent=invalid_value))
++
++    assert response.status_code == status.HTTP_400_BAD_REQUEST
++    assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
++
++
++@pytest.mark.parametrize("truthy_value", [1, "yes", "on", "t"])
++def test_registration_accepts_drf_truthy_pdp_consent_values_by_decision(truthy_value):
++    client = APIClient()
++
++    response = post_register(client, retail_payload(pdp_consent=truthy_value))
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert UserConsent.objects.filter(user=user, consent_type="pdp_contract").exists()
++
++
++def test_retail_registration_creates_pdp_consent_record():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(marketing_consent=False),
++        REMOTE_ADDR="1.2.3.4",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consents = UserConsent.objects.filter(user=user)
++    assert consents.count() == 1
++    consent = consents.get()
++    assert consent.consent_type == "pdp_contract"
++    assert consent.ip_address == "1.2.3.4"
++    assert consent.user_agent == "ConsentTestAgent/1.0"
++
++
++def test_retail_registration_with_marketing_creates_two_records():
++    client = APIClient()
++
++    response = post_register(client, retail_payload(marketing_consent=True))
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert set(UserConsent.objects.filter(user=user).values_list("consent_type", flat=True)) == {
++        "pdp_contract",
++        "marketing_email",
++    }
++
++
++@patch("apps.users.serializers.send_admin_verification_email.delay")
++@patch("apps.users.serializers.send_user_pending_email.delay")
++def test_b2b_registration_creates_pdp_consent_record_for_pending_user(
++    mock_user_email,
++    mock_admin_email,
++):
++    client = APIClient()
++
++    response = post_register(client, b2b_payload())
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert user.is_active is False
++    assert user.is_verified is False
++    consent = UserConsent.objects.get(user=user)
++    assert consent.consent_type == "pdp_contract"
++    mock_admin_email.assert_called_once_with(user.id)
++    mock_user_email.assert_called_once_with(user.id)
++
++
++def test_consent_record_captures_ip_and_user_agent_from_proxy_headers():
++    client = APIClient()
++    long_user_agent = "A" * 600
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR="1.2.3.4, 5.6.7.8",
++        HTTP_USER_AGENT=long_user_agent,
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == "1.2.3.4"
++    assert consent.user_agent == "A" * 512
++
++
++def test_registration_ignores_invalid_forwarded_ip_for_consent_record():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR="not-a-valid-ip, 5.6.7.8",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++    assert consent.ip_address != "5.6.7.8"
++
++
++def test_registration_falls_back_to_remote_addr_when_forwarded_ip_first_hop_is_blank():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR=", 5.6.7.8",
++        REMOTE_ADDR="8.8.8.8",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == "8.8.8.8"
++
++
++def test_registration_falls_back_to_remote_addr_when_forwarded_ip_is_whitespace():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR=" ",
++        REMOTE_ADDR="8.8.4.4",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == "8.8.4.4"
++
++
++@pytest.mark.parametrize(
++    ("forwarded_ip", "expected_ip"),
++    [
++        ("[2606:4700:4700::1111]:443", "2606:4700:4700::1111"),
++        ("1.2.3.4:8443", "1.2.3.4"),
++        ("2606:4700:4700::ABCD", "2606:4700:4700::abcd"),
++    ],
++)
++def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_ip):
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR=forwarded_ip,
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == expected_ip
++
++
++def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record(caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR="1.2.3.4:99999",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++    assert "Invalid client IP skipped for consent audit" in caplog.text
++
++
++@pytest.mark.parametrize("forwarded_ip", ["10.0.0.1", "127.0.0.10", "fe80::1"])
++def test_registration_ignores_non_global_forwarded_ip_for_consent_record(forwarded_ip, caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR=forwarded_ip,
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++    assert "Invalid client IP skipped for consent audit" in caplog.text
++
++
++def test_registration_ignores_forwarded_ipv6_zone_id_for_consent_record():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR="fe80::1%eth0",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++
++
++def test_registration_logs_warning_when_remote_addr_is_unknown(caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            REMOTE_ADDR="unknown",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    assert "Unknown client IP skipped for consent audit" in caplog.text
++
++
++def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
++    client = APIClient()
++    invalid_ip = "bad\x00\u2028\u2029\u202e\u200b\r\nINJECT\x1b[31m"
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    record = next(item for item in caplog.records if item.message == "Invalid client IP skipped for consent audit")
++    assert record.client_ip == "bad\\x00\\u2028\\u2029\\u202e\\u200b\\r\\nINJECT\\x1b[31m"
++    for unsafe_char in ["\x00", "\u2028", "\u2029", "\u202e", "\u200b", "\r", "\n", "\x1b"]:
++        assert unsafe_char not in record.client_ip
++
++
++def test_registration_does_not_split_escape_sequence_when_truncating_warning_log(caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR=("A" * 127) + "\r\n",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    record = next(item for item in caplog.records if item.message == "Invalid client IP skipped for consent audit")
++    assert len(record.client_ip) <= 128
++    assert not record.client_ip.endswith("\\")
++
++
++def test_registration_sanitizes_invalid_user_agent_surrogates():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        REMOTE_ADDR="1.2.3.4",
++        HTTP_USER_AGENT="Agent\udcff" + "A" * 600,
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert "\udcff" not in consent.user_agent
++    expected_tail_length = 512 - len("Agent")
++    assert consent.user_agent == "Agent" + "A" * expected_tail_length
++
++
++def test_consent_records_have_default_policy_version():
++    client = APIClient()
++
++    response = post_register(client, retail_payload(marketing_consent=True))
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert set(UserConsent.objects.filter(user=user).values_list("policy_version", flat=True)) == {"1.0"}
+diff --git a/backend/tests/integration/test_auth_registration_tokens.py b/backend/tests/integration/test_auth_registration_tokens.py
+index 59d1f596..403fc388 100644
+--- a/backend/tests/integration/test_auth_registration_tokens.py
++++ b/backend/tests/integration/test_auth_registration_tokens.py
+@@ -22,6 +22,7 @@ class TestRegistrationTokens:
+             "first_name": "New",
+             "last_name": "User",
+             "role": "retail",
++            "pdp_consent": True,
+         }
+ 
+         # Используем прямой путь, так как reverse может отличаться
+@@ -55,6 +56,7 @@ class TestRegistrationTokens:
+             "role": "wholesale_level1",
+             "company_name": "Test Company",
+             "tax_id": "1234567890",
++            "pdp_consent": True,
+         }
+ 
+         response = client.post(url, data, format="json")
+diff --git a/backend/tests/integration/test_registration_emails.py b/backend/tests/integration/test_registration_emails.py
+index eb1ca143..25637ee7 100644
+--- a/backend/tests/integration/test_registration_emails.py
++++ b/backend/tests/integration/test_registration_emails.py
+@@ -36,6 +36,7 @@ class TestRegistrationEmailsIntegration:
+                 "last_name": "User",
+                 "role": "trainer",
+                 "company_name": "Test Club",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+@@ -70,6 +71,7 @@ class TestRegistrationEmailsIntegration:
+                 "role": "wholesale_level1",
+                 "company_name": "Wholesale Company",
+                 "tax_id": "1234567890",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+@@ -96,6 +98,7 @@ class TestRegistrationEmailsIntegration:
+                 "first_name": "Retail",
+                 "last_name": "Customer",
+                 "role": "retail",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+@@ -130,6 +133,7 @@ class TestRegistrationEmailsIntegration:
+                 "role": "federation_rep",
+                 "company_name": "Tennis Federation",
+                 "tax_id": "9876543210",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+diff --git a/backend/tests/integration/test_user_api.py b/backend/tests/integration/test_user_api.py
+index dc46ae5d..c545727d 100644
+--- a/backend/tests/integration/test_user_api.py
++++ b/backend/tests/integration/test_user_api.py
+@@ -36,6 +36,7 @@ def create_user_and_get_token(api_client):
+             "first_name": "Тест",
+             "last_name": f"Пользователь {role}",
+             "role": role,
++            "pdp_consent": True,
+         }
+         if role != "retail":
+             registration_data.update({"company_name": f"Тестовая компания {role}", "tax_id": "1234567890"})
+@@ -69,6 +70,7 @@ def test_user_registration(api_client):
+         "first_name": "New",
+         "last_name": "User",
+         "role": "retail",
++        "pdp_consent": True,
+     }
+     response = api_client.post(url, data, format="json")
+     assert response.status_code == 201
+diff --git a/backend/tests/integration/test_verification_workflow.py b/backend/tests/integration/test_verification_workflow.py
+index 80498e4e..5b899106 100644
+--- a/backend/tests/integration/test_verification_workflow.py
++++ b/backend/tests/integration/test_verification_workflow.py
+@@ -135,6 +135,7 @@ class TestLoginVerificationBlocking:
+                 "first_name": "Workflow",
+                 "role": "trainer",
+                 "company_name": "Workflow Gym",
++                "pdp_consent": True,
+             },
+         )
+         assert register_response.status_code == status.HTTP_201_CREATED
+diff --git a/backend/tests/regression/test_epic_28_intact.py b/backend/tests/regression/test_epic_28_intact.py
+index 61aa0d5b..f0090139 100644
+--- a/backend/tests/regression/test_epic_28_intact.py
++++ b/backend/tests/regression/test_epic_28_intact.py
+@@ -39,6 +39,7 @@ class TestEpic28Regression:
+                 "password_confirm": "SecurePass123!",
+                 "first_name": "New",
+                 "role": "retail",
++                "pdp_consent": True,
+             },
+         )
+ 
+@@ -111,6 +112,7 @@ class TestEpic28Regression:
+                 "first_name": "New",
+                 "role": "trainer",
+                 "company_name": "Test Company",
++                "pdp_consent": True,
+             },
+         )
+ 
+diff --git a/backend/tests/unit/test_user_verification.py b/backend/tests/unit/test_user_verification.py
+index 8b3f0169..fe4cdc68 100644
+--- a/backend/tests/unit/test_user_verification.py
++++ b/backend/tests/unit/test_user_verification.py
+@@ -34,6 +34,7 @@ class TestUserRegistrationVerification:
+             "password_confirm": "SecurePass123!",
+             "first_name": "Test",
+             "role": "retail",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors
+@@ -54,6 +55,7 @@ class TestUserRegistrationVerification:
+             "first_name": "Test",
+             "role": "trainer",
+             "company_name": "Test Gym",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors
+@@ -75,6 +77,7 @@ class TestUserRegistrationVerification:
+             "role": "wholesale_level1",
+             "company_name": "Test Company",
+             "tax_id": "1234567890",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors
+@@ -96,6 +99,7 @@ class TestUserRegistrationVerification:
+             "role": "federation_rep",
+             "company_name": "Test Federation",
+             "tax_id": "9876543210",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors

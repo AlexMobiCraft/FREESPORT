@@ -15,7 +15,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useForm, type UseFormSetError } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -31,20 +31,15 @@ import {
   type B2BRegisterFormInput,
 } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
+import {
+  applyBackendFieldErrors,
+  getFirstValidationMessage,
+  getValidationMessage,
+  type ApiErrorData,
+  type BackendFieldErrorMap,
+} from '@/utils/validationErrorParser';
 
-type ApiValidationValue =
-  | string
-  | string[]
-  | ApiValidationValue[]
-  | { [key: string]: ApiValidationValue }
-  | null
-  | undefined;
-
-type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidationValue };
-
-const MAX_VALIDATION_MESSAGE_DEPTH = 8;
-const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
-const B2B_FIELD_ERROR_MAP: Partial<Record<string, keyof B2BRegisterFormInput>> = {
+const B2B_FIELD_ERROR_MAP = {
   email: 'email',
   password: 'password',
   password_confirm: 'confirmPassword',
@@ -58,120 +53,7 @@ const B2B_FIELD_ERROR_MAP: Partial<Record<string, keyof B2BRegisterFormInput>> =
   legal_address: 'legal_address',
   pdp_consent: 'pdp_consent',
   marketing_consent: 'marketing_consent',
-};
-
-const isArrayIndexKey = (key: string) => ARRAY_INDEX_KEY_RE.test(key);
-
-const getValidationEntries = (data: Record<string, ApiValidationValue>) =>
-  Object.entries(data).sort(
-    ([leftKey], [rightKey]) => Number(isArrayIndexKey(leftKey)) - Number(isArrayIndexKey(rightKey))
-  );
-
-const getValidationMessage = (
-  value: ApiValidationValue,
-  seenObjects: WeakSet<object> = new WeakSet(),
-  depth = 0
-): string | undefined => {
-  if (depth > MAX_VALIDATION_MESSAGE_DEPTH) {
-    return undefined;
-  }
-
-  if (typeof value === 'string') {
-    return value || undefined;
-  }
-
-  if (Array.isArray(value)) {
-    if (seenObjects.has(value)) {
-      return undefined;
-    }
-    seenObjects.add(value);
-
-    for (const item of value) {
-      const message = getValidationMessage(item, seenObjects, depth + 1);
-      if (message) {
-        return message;
-      }
-    }
-    return undefined;
-  }
-
-  if (value && typeof value === 'object') {
-    if (seenObjects.has(value)) {
-      return undefined;
-    }
-    seenObjects.add(value);
-
-    for (const [, item] of getValidationEntries(value)) {
-      const message = getValidationMessage(item, seenObjects, depth + 1);
-      if (message) {
-        return message;
-      }
-    }
-  }
-
-  return undefined;
-};
-
-const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
-  for (const [key, value] of getValidationEntries(data)) {
-    if (key === 'detail') {
-      continue;
-    }
-
-    const message = getValidationMessage(value);
-    if (message) {
-      return message;
-    }
-  }
-
-  return getValidationMessage(data.detail);
-};
-
-const collectBackendFieldMessages = (
-  value: ApiValidationValue,
-  messages: Partial<Record<keyof B2BRegisterFormInput, string>>,
-  seenObjects: WeakSet<object> = new WeakSet(),
-  depth = 0
-) => {
-  if (!value || typeof value !== 'object' || depth > MAX_VALIDATION_MESSAGE_DEPTH) {
-    return;
-  }
-
-  if (seenObjects.has(value)) {
-    return;
-  }
-  seenObjects.add(value);
-
-  const entries = Array.isArray(value)
-    ? value.map((item, index) => [String(index), item] as const)
-    : getValidationEntries(value);
-
-  for (const [key, item] of entries) {
-    const fieldName = B2B_FIELD_ERROR_MAP[key];
-    const message = fieldName ? getValidationMessage(item) : undefined;
-    if (fieldName && message && !messages[fieldName]) {
-      messages[fieldName] = message;
-    }
-
-    collectBackendFieldMessages(item, messages, seenObjects, depth + 1);
-  }
-};
-
-const applyBackendFieldErrors = (
-  data: ApiErrorData,
-  setError: UseFormSetError<B2BRegisterFormInput>
-): string | undefined => {
-  const messages: Partial<Record<keyof B2BRegisterFormInput, string>> = {};
-  collectBackendFieldMessages(data, messages);
-
-  for (const [fieldName, message] of Object.entries(messages) as Array<
-    [keyof B2BRegisterFormInput, string]
-  >) {
-    setError(fieldName, { type: 'server', message });
-  }
-
-  return Object.values(messages)[0];
-};
+} satisfies BackendFieldErrorMap<B2BRegisterFormInput>;
 
 export interface B2BRegisterFormProps {
   /**
@@ -280,7 +162,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         };
       };
       const responseData = err.response?.data || {};
-      const firstFieldError = applyBackendFieldErrors(responseData, setError);
+      const firstFieldError = applyBackendFieldErrors(responseData, setError, B2B_FIELD_ERROR_MAP);
 
       if (err.response?.status === 409) {
         // AC 5: Специфичная обработка "Компания уже зарегистрирована"
