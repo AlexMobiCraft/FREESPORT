@@ -595,6 +595,7 @@ def normalize_consent_ip(raw_ip: str) -> str | None:
 
 def sanitize_log_value(value: str) -> str:
     """Сжать и экранировать внешнее значение перед записью в structured log."""
+    value = value.encode("utf-8", "ignore").decode("utf-8")
     sanitized_parts: list[str] = []
     sanitized_length = 0
 

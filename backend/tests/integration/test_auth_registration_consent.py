@@ -401,6 +401,24 @@ def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
         assert unsafe_char not in record.client_ip
 
 
+def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
+    client = APIClient()
+    invalid_ip = "bad\udcff\r\nINJECT"
+
+    with caplog.at_level("WARNING", logger="apps.users.auth"):
+        response = post_register(
+            client,
+            retail_payload(),
+            HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
+            HTTP_USER_AGENT="ConsentTestAgent/1.0",
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    record = next(item for item in caplog.records if item.message == "Invalid client IP skipped for consent audit")
+    assert record.client_ip == "bad\\r\\nINJECT"
+    assert "\udcff" not in record.client_ip
+
+
 def test_registration_does_not_split_escape_sequence_when_truncating_warning_log(caplog):
     client = APIClient()
 

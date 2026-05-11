@@ -524,7 +524,7 @@ Default модели `"1.0"`. Если в будущем потребуется 
 
 - [x] AC-1..AC-8 реализованы.
 - [x] Backend unit suite зелёный через Docker (`pytest -v -m unit --cov=apps --cov-report=term-missing`): 697 passed, 12 skipped, 1509 deselected. Backend integration suite: 607 passed; **10 failures isolated в `test_management_commands/test_import_customers.py` — environmental issue (пустая `data/import_1c/contragents/` в локальной checkout), не регрессия от 35.2**.
-- [x] Новые тесты `test_auth_registration_consent.py` зелёные (31 кейс: 7 AC + review patches для IP/User-Agent/error-contract edge cases + Pass 7 IPv4-mapped IPv6).
+- [x] Новые тесты `test_auth_registration_consent.py` зелёные (32 кейса: 7 AC + review patches для IP/User-Agent/error-contract edge cases + Pass 7 IPv4-mapped IPv6 + Pass 8 surrogate sanitization).
 - [x] Существующий `test_auth_registration_tokens.py` обновлён и зелёный.
 - [x] `npm run test -- src/components/auth/__tests__/RegisterForm.test.tsx` зелёный (33 кейса).
 - [x] `npm run test -- src/components/auth/__tests__/B2BRegisterForm.test.tsx` зелёный (15 кейсов; auth component bundle `RegisterForm` + `B2BRegisterForm` = 48/48).
@@ -721,6 +721,14 @@ GPT-5 Codex
   - Static/full regression: full frontend `npm run test` passed; frontend `npm run build` passed with `NEXT_PUBLIC_API_URL_INTERNAL=http://localhost:8001/api/v1` / `NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1`; backend unit **697 passed, 12 skipped**; backend integration without known environmental `test_import_customers.py` blocker **628 passed, 2 skipped**; `python manage.py check`, `black --check`, `flake8`, `npx tsc --noEmit`, scoped ESLint, Prettier check passed.
   - `npx gitnexus detect-changes --scope all`: 14 files, 10 symbols, 7 affected flows, risk `high`; фактические affected flows ограничены registration pages, consent IP normalization helpers и GitNexus stats в `AGENTS.md`/`CLAUDE.md`.
   - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
+- **Review patch Pass 8 closure (GPT-5 Codex, 2026-05-11):**
+  - GitNexus impact перед patch: `sanitize_log_value` — LOW; direct caller `get_consent_ip_address`, транзитивный affected flow `UserRegistrationView.post`.
+  - RED backend: `test_registration_sanitizes_surrogate_from_invalid_ip_warning_log` падал, потому `\udcff` оставался в `record.client_ip`.
+  - GREEN targeted: новый surrogate regression test passed; весь `test_auth_registration_consent.py` **32/32**.
+  - Story-related regression: `test_auth_registration_tokens.py` **2/2**; `python manage.py check` passed.
+  - Static checks: `black --check apps/users/views/authentication.py tests/integration/test_auth_registration_consent.py`, `flake8 apps/users/views/authentication.py tests/integration/test_auth_registration_consent.py` и `git diff --check` по изменённым файлам passed.
+  - `npx gitnexus detect-changes --scope all`: 5 files, 1 changed symbol (`sanitize_log_value`), 1 affected flow (`Post → Sanitize_log_value`), risk `medium`; affected runtime scope ограничен registration consent audit warning-log path.
+  - Широкий backend integration regression без известного environmental `test_import_customers.py` блока был запущен, но не завершился за 20 минут и остановлен без итогового pytest-отчёта; этот прогон не засчитан как passed. Test backend container остановлен, чтобы не оставить фоновые pytest-процессы.
 
 ### Completion Notes List
 
@@ -737,6 +745,7 @@ GPT-5 Codex
 - **Review patch Pass 5 completion (2026-05-11, GPT-5 Codex):** закрыты 5 `[Review][Patch]`: bracketed IPv6 port теперь валидируется диапазоном `1..65535`, marketing consent test проверяет audit IP/User-Agent для обеих записей, AC-6 синхронизирован с hardened helper, общий backend validation parser вынесен в `frontend/src/utils/validationErrorParser.ts`, добавлен reversed-order coverage для B2B validation errors. Story снова готова к review.
 - **Review patch Pass 6 completion (2026-05-11, GPT-5 Codex):** закрыты 2 LOW `[Review][Patch]`: consent checkbox-ы переведены на RHF uncontrolled registration без `checked={watch(...)}`, добавлен B2B pending + `marketing_consent=True` integration coverage. Story снова готова к review.
 - **Review patch Pass 7 completion (2026-05-11, GPT-5 Codex):** закрыты 6 `[Review][Patch]`: frontend/backend PDP-message синхронизирован с точкой, IPv4-mapped IPv6 нормализуется в canonical IPv4, backend field-error parser мапит inline только top-level поля, optional marketing checkbox явно оставлен без error-state, `get_client_ip` side-effect и Celery race scope-increment задокументированы. Story снова готова к review.
+- **Review patch Pass 8 completion (2026-05-11, GPT-5 Codex):** закрыт 1 LOW `[Review][Patch]`: `sanitize_log_value` теперь удаляет lone UTF-8 surrogates перед escaping/truncation; добавлен regression test для `X-Forwarded-For` с `\udcff`. Story снова готова к review.
 
 ### File List
 
@@ -855,6 +864,33 @@ GPT-5 Codex
 - 2026-05-11: addressed Pass 6 LOW review follow-ups — 2 `[Review][Patch]` items resolved; status story → `review`.
 - 2026-05-11: Pass 7 full-scope code review (Cascade) — Outcome `Changes Requested (minor)`, открыто 6 `[Review][Patch]` (2 MEDIUM, 4 LOW); status story → `in-progress`.
 - 2026-05-11: addressed Pass 7 review follow-ups — 6 `[Review][Patch]` items resolved; status story → `review`.
+- 2026-05-11: Pass 8 full-scope adversarial review (Cascade) — Outcome `Approve with minor recommendation`, открыт 1 `[Review][Patch][LOW]` (sanitize_log_value surrogate handling), 3 deferred (pre-existing), 4 dismissed; status story → `in-progress`.
+- 2026-05-11: addressed Pass 8 LOW review follow-up — 1 `[Review][Patch]` item resolved; status story → `review`.
+
+#### Pass 8 (2026-05-11) — full-scope adversarial review (Cascade)
+
+**Scope:** полный delta story 35.2 относительно `af7254ce..HEAD` (8 коммитов story 35.2, ~2000 строк значимого source-кода без auto-generated `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts` и `.review-cache/*.patch`). Layers: Acceptance Auditor + Blind Hunter + Edge Case Hunter (inline isolated mental contexts).
+
+**Acceptance Auditor:** ✅ AC-1..AC-8 соответствуют коду. Все 31 `[Review][Patch]` из Passes 1-7 закрыты. Файлы из «НЕ ИЗМЕНЯТЬ» не тронуты. Pass 4 spec-drift по AC-4 (`z.boolean().pipe(z.literal(true))`) и Pass 5 spec-drift по AC-6 (`get_consent_ip_address`) зафиксированы как accepted.
+
+**Outcome:** **Approve with minor recommendation** — production-ready, найденный 1 LOW issue не блокирует release.
+
+**Review Follow-ups (Pass 8):**
+
+- [x] [Review][Patch][LOW] Inconsistency между `sanitize_log_value` и `sanitize_consent_user_agent` по обработке lone UTF-8 surrogates: `sanitize_consent_user_agent` (line 612-615) удаляет lone surrogates через `.encode("utf-8", "ignore").decode("utf-8")`, но `sanitize_log_value` (line 596-609) — нет, только escape-ит фиксированный набор control chars. Если `client_ip` из `X-Forwarded-For` содержит lone surrogate (`\udcff`), `logger.warning(extra={"client_ip": sanitize_log_value(...)})` может крашнуть log handler'ы с UTF-8 encoding (SocketHandler, syslog, journald, Sentry transport). Существующий тест `test_registration_sanitizes_invalid_ip_before_warning_log` покрывает control chars/Unicode separators, но не lone surrogates. Resolved: `sanitize_log_value` удаляет lone surrogate через UTF-8 encode/decode до escaping/truncation; добавлен regression test `test_registration_sanitizes_surrogate_from_invalid_ip_warning_log`. [backend/apps/users/views/authentication.py:596-609; backend/tests/integration/test_auth_registration_consent.py]
+
+**Deferred (pre-existing, accepted trade-off, или out of scope):**
+
+- [x] [Review][Defer] `validate_email` case-sensitive uniqueness check (`User.objects.filter(email=value).exists()`) при `value.lower()` на return: race-condition `Foo@x.com` после `foo@x.com` приведёт к `IntegrityError` → 500 вместо 409. Pre-existing (Pass 3 defer #2), не введено 35.2. [backend/apps/users/serializers.py:62-66]
+- [x] [Review][Defer] Celery `.delay()` внутри `transaction.atomic()` — pre-existing tech debt, явно out of scope (Pass 1 defer #6, Pass 7 follow-up scope-increment), запись в `_bmad-output/implementation-artifacts/deferred-work.md`. [backend/apps/users/serializers.py:113-125, backend/apps/users/views/authentication.py:143-166]
+- [x] [Review][Defer] B2B form `ogrn`/`legal_address` silent-drop в payload — Pass 4 product decision Option 4, durable запись в `deferred-work.md`. [frontend/src/components/auth/B2BRegisterForm.tsx:110-122]
+
+**Dismissed (noise / false positive):**
+
+- `dangerouslySetInnerHTML` в `frontend/src/app/(blue)/privacy-policy/page.tsx:117` — pre-existing 35.1, content из `/pages/privacy-policy/` admin trust boundary; не введено 35.2.
+- `getValidationEntries` sort comparator stability — Node 12+/V8 гарантируют stable sort, проект на Next.js 15 / React 19.
+- `IPV4_PORT_RE` 6-alternation regex — функционально корректно, cosmetic verbosity vs `\d{1,5}` + range check.
+- B2B `refreshToken()` silent swallow на verified-path — Pass 4 conscious decision, регрессионный тест Pass 4 закрепил поведение.
 
 #### Pass 7 (2026-05-11) — full-scope adversarial review (Cascade)
 

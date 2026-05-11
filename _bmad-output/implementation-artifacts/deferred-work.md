@@ -1,3 +1,9 @@
+## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-11, Pass 8)
+
+- **`validate_email` case-sensitive uniqueness race** — pre-existing (см. Pass 3 entry ниже); не введено 35.2. Подтверждено в Pass 8.
+- **Celery `.delay()` внутри `transaction.atomic()`** — pre-existing tech debt (см. Pass 5 + Pass 7 entries); подтверждено в Pass 8.
+- **B2B `ogrn`/`legal_address` silent-drop** — pre-existing Pass 4 product decision (см. Pass 4 decision entry ниже); подтверждено в Pass 8.
+
 ## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-11, Pass 5)
 
 - **Cross-cutting изменение `get_client_ip` (blank XFF → REMOTE_ADDR fallback) не задокументировано в Change Log story** — Функция используется не только consent flow (LogoutView и др. callers); поведение изменилось: blank first hop XFF (`", 5.6.7.8"`) теперь возвращает `REMOTE_ADDR` вместо `""`. Strict improvement (избегает пустой строки), но cross-cutting side-effect не отмечен в commit message. Решение: при следующем заходе на authentication.py явно описать поведение в Change Log/commit. [backend/apps/users/views/authentication.py:548-557]
