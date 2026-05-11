@@ -24,7 +24,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormSetError } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -55,14 +55,48 @@ type ApiValidationValue =
 
 type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidationValue };
 
-const getValidationMessage = (value: ApiValidationValue): string | undefined => {
+const MAX_VALIDATION_MESSAGE_DEPTH = 8;
+const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
+const REGISTER_FIELD_ERROR_MAP: Partial<Record<string, keyof RegisterFormData>> = {
+  email: 'email',
+  password: 'password',
+  password_confirm: 'confirmPassword',
+  first_name: 'first_name',
+  role: 'role',
+  company_name: 'company_name',
+  tax_id: 'tax_id',
+  pdp_consent: 'pdp_consent',
+  marketing_consent: 'marketing_consent',
+};
+
+const isArrayIndexKey = (key: string) => ARRAY_INDEX_KEY_RE.test(key);
+
+const getValidationEntries = (data: Record<string, ApiValidationValue>) =>
+  Object.entries(data).sort(
+    ([leftKey], [rightKey]) => Number(isArrayIndexKey(leftKey)) - Number(isArrayIndexKey(rightKey))
+  );
+
+const getValidationMessage = (
+  value: ApiValidationValue,
+  seenObjects: WeakSet<object> = new WeakSet(),
+  depth = 0
+): string | undefined => {
+  if (depth > MAX_VALIDATION_MESSAGE_DEPTH) {
+    return undefined;
+  }
+
   if (typeof value === 'string') {
     return value || undefined;
   }
 
   if (Array.isArray(value)) {
+    if (seenObjects.has(value)) {
+      return undefined;
+    }
+    seenObjects.add(value);
+
     for (const item of value) {
-      const message = getValidationMessage(item);
+      const message = getValidationMessage(item, seenObjects, depth + 1);
       if (message) {
         return message;
       }
@@ -71,8 +105,13 @@ const getValidationMessage = (value: ApiValidationValue): string | undefined => 
   }
 
   if (value && typeof value === 'object') {
-    for (const item of Object.values(value)) {
-      const message = getValidationMessage(item);
+    if (seenObjects.has(value)) {
+      return undefined;
+    }
+    seenObjects.add(value);
+
+    for (const [, item] of getValidationEntries(value)) {
+      const message = getValidationMessage(item, seenObjects, depth + 1);
       if (message) {
         return message;
       }
@@ -83,7 +122,7 @@ const getValidationMessage = (value: ApiValidationValue): string | undefined => 
 };
 
 const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
-  for (const [key, value] of Object.entries(data)) {
+  for (const [key, value] of getValidationEntries(data)) {
     if (key === 'detail') {
       continue;
     }
@@ -95,6 +134,52 @@ const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
   }
 
   return getValidationMessage(data.detail);
+};
+
+const collectBackendFieldMessages = (
+  value: ApiValidationValue,
+  messages: Partial<Record<keyof RegisterFormData, string>>,
+  seenObjects: WeakSet<object> = new WeakSet(),
+  depth = 0
+) => {
+  if (!value || typeof value !== 'object' || depth > MAX_VALIDATION_MESSAGE_DEPTH) {
+    return;
+  }
+
+  if (seenObjects.has(value)) {
+    return;
+  }
+  seenObjects.add(value);
+
+  const entries = Array.isArray(value)
+    ? value.map((item, index) => [String(index), item] as const)
+    : getValidationEntries(value);
+
+  for (const [key, item] of entries) {
+    const fieldName = REGISTER_FIELD_ERROR_MAP[key];
+    const message = fieldName ? getValidationMessage(item) : undefined;
+    if (fieldName && message && !messages[fieldName]) {
+      messages[fieldName] = message;
+    }
+
+    collectBackendFieldMessages(item, messages, seenObjects, depth + 1);
+  }
+};
+
+const applyBackendFieldErrors = (
+  data: ApiErrorData,
+  setError: UseFormSetError<RegisterFormData>
+): string | undefined => {
+  const messages: Partial<Record<keyof RegisterFormData, string>> = {};
+  collectBackendFieldMessages(data, messages);
+
+  for (const [fieldName, message] of Object.entries(messages) as Array<
+    [keyof RegisterFormData, string]
+  >) {
+    setError(fieldName, { type: 'server', message });
+  }
+
+  return Object.values(messages)[0];
 };
 
 export interface RegisterFormProps {
@@ -128,6 +213,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
   const selectedRole = watch('role') ?? 'retail';
   const pdpConsent = watch('pdp_consent');
   const marketingConsent = watch('marketing_consent');
+  const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
@@ -171,10 +257,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         };
       };
       const responseData = err.response?.data || {};
-      const pdpConsentMessage = getValidationMessage(responseData.pdp_consent);
-      if (pdpConsentMessage) {
-        setError('pdp_consent', { type: 'server', message: pdpConsentMessage });
-      }
+      const firstFieldError = applyBackendFieldErrors(responseData, setError);
 
       if (err.response?.status === 409) {
         // Конфликт - пользователь уже существует
@@ -182,7 +265,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         setApiError(emailError || 'Пользователь с таким email уже существует');
       } else if (err.response?.status === 400) {
         // Ошибки валидации
-        const errorMessage = getFirstValidationMessage(responseData);
+        const errorMessage = firstFieldError || getFirstValidationMessage(responseData);
         setApiError(errorMessage || 'Ошибка валидации данных');
       } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');
@@ -318,36 +401,42 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
             {...register('pdp_consent')}
             checked={pdpConsent}
             disabled={isSubmitting}
+            aria-invalid={hasPdpConsentError || undefined}
+            aria-labelledby="register-pdp-consent-label-prefix register-pdp-consent-policy-link register-pdp-consent-label-suffix"
             aria-describedby={
               errors.pdp_consent?.message ? 'register-pdp-consent-error' : undefined
             }
+            className={
+              hasPdpConsentError
+                ? 'border-[var(--color-accent-danger)] bg-[var(--color-accent-danger)]/8 peer-focus:ring-[var(--color-accent-danger)]'
+                : undefined
+            }
           />
-          <label
-            id="register-pdp-consent-label"
-            htmlFor="register-pdp-consent"
-            className="text-body-s text-text-primary cursor-pointer select-none"
-          >
-            Я даю согласие на{' '}
+          <span className="text-body-s text-text-primary select-none">
+            <label
+              id="register-pdp-consent-label-prefix"
+              htmlFor="register-pdp-consent"
+              className="cursor-pointer"
+            >
+              Я даю согласие на
+            </label>{' '}
             <Link
               id="register-pdp-consent-policy-link"
               href="/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary underline hover:text-primary-hover"
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                try {
-                  window.open(event.currentTarget.href, '_blank', 'noopener,noreferrer');
-                } catch {
-                  // В тестовой среде window.open может быть не реализован.
-                }
-              }}
             >
               обработку моих персональных данных
             </Link>{' '}
-            в соответствии с Политикой
-          </label>
+            <label
+              id="register-pdp-consent-label-suffix"
+              htmlFor="register-pdp-consent"
+              className="cursor-pointer"
+            >
+              в соответствии с Политикой
+            </label>
+          </span>
         </div>
         {errors.pdp_consent?.message && (
           <p

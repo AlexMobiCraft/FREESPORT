@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-11" # 35.2 → in-progress: Pass 3 review — 10 patches as action items + 6 defer + 1 decision (Опция 3)
+last_updated: "2026-05-11" # 35.2 → in-progress: Pass 4 full-scope review (Cascade) — 4 patches + 1 decision + 1 defer открыто
 
 development_status:
   # ========================================

@@ -14,8 +14,8 @@
 
 'use client';
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useEffect, useState } from 'react';
+import { useForm, type UseFormSetError } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -38,14 +38,52 @@ type ApiValidationValue =
 
 type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidationValue };
 
-const getValidationMessage = (value: ApiValidationValue): string | undefined => {
+const MAX_VALIDATION_MESSAGE_DEPTH = 8;
+const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
+const B2B_FIELD_ERROR_MAP: Partial<Record<string, keyof B2BRegisterFormData>> = {
+  email: 'email',
+  password: 'password',
+  password_confirm: 'confirmPassword',
+  first_name: 'first_name',
+  last_name: 'last_name',
+  phone: 'phone',
+  role: 'role',
+  company_name: 'company_name',
+  tax_id: 'tax_id',
+  ogrn: 'ogrn',
+  legal_address: 'legal_address',
+  pdp_consent: 'pdp_consent',
+  marketing_consent: 'marketing_consent',
+};
+
+const isArrayIndexKey = (key: string) => ARRAY_INDEX_KEY_RE.test(key);
+
+const getValidationEntries = (data: Record<string, ApiValidationValue>) =>
+  Object.entries(data).sort(
+    ([leftKey], [rightKey]) => Number(isArrayIndexKey(leftKey)) - Number(isArrayIndexKey(rightKey))
+  );
+
+const getValidationMessage = (
+  value: ApiValidationValue,
+  seenObjects: WeakSet<object> = new WeakSet(),
+  depth = 0
+): string | undefined => {
+  if (depth > MAX_VALIDATION_MESSAGE_DEPTH) {
+    return undefined;
+  }
+
   if (typeof value === 'string') {
     return value || undefined;
   }
 
   if (Array.isArray(value)) {
+    if (seenObjects.has(value)) {
+      return undefined;
+    }
+    seenObjects.add(value);
+
     for (const item of value) {
-      const message = getValidationMessage(item);
+      const message = getValidationMessage(item, seenObjects, depth + 1);
       if (message) {
         return message;
       }
@@ -54,8 +92,13 @@ const getValidationMessage = (value: ApiValidationValue): string | undefined => 
   }
 
   if (value && typeof value === 'object') {
-    for (const item of Object.values(value)) {
-      const message = getValidationMessage(item);
+    if (seenObjects.has(value)) {
+      return undefined;
+    }
+    seenObjects.add(value);
+
+    for (const [, item] of getValidationEntries(value)) {
+      const message = getValidationMessage(item, seenObjects, depth + 1);
       if (message) {
         return message;
       }
@@ -66,7 +109,7 @@ const getValidationMessage = (value: ApiValidationValue): string | undefined => 
 };
 
 const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
-  for (const [key, value] of Object.entries(data)) {
+  for (const [key, value] of getValidationEntries(data)) {
     if (key === 'detail') {
       continue;
     }
@@ -80,8 +123,57 @@ const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
   return getValidationMessage(data.detail);
 };
 
+const collectBackendFieldMessages = (
+  value: ApiValidationValue,
+  messages: Partial<Record<keyof B2BRegisterFormData, string>>,
+  seenObjects: WeakSet<object> = new WeakSet(),
+  depth = 0
+) => {
+  if (!value || typeof value !== 'object' || depth > MAX_VALIDATION_MESSAGE_DEPTH) {
+    return;
+  }
+
+  if (seenObjects.has(value)) {
+    return;
+  }
+  seenObjects.add(value);
+
+  const entries = Array.isArray(value)
+    ? value.map((item, index) => [String(index), item] as const)
+    : getValidationEntries(value);
+
+  for (const [key, item] of entries) {
+    const fieldName = B2B_FIELD_ERROR_MAP[key];
+    const message = fieldName ? getValidationMessage(item) : undefined;
+    if (fieldName && message && !messages[fieldName]) {
+      messages[fieldName] = message;
+    }
+
+    collectBackendFieldMessages(item, messages, seenObjects, depth + 1);
+  }
+};
+
+const applyBackendFieldErrors = (
+  data: ApiErrorData,
+  setError: UseFormSetError<B2BRegisterFormData>
+): string | undefined => {
+  const messages: Partial<Record<keyof B2BRegisterFormData, string>> = {};
+  collectBackendFieldMessages(data, messages);
+
+  for (const [fieldName, message] of Object.entries(messages) as Array<
+    [keyof B2BRegisterFormData, string]
+  >) {
+    setError(fieldName, { type: 'server', message });
+  }
+
+  return Object.values(messages)[0];
+};
+
 export interface B2BRegisterFormProps {
-  /** Callback после успешной регистрации (optional) */
+  /**
+   * Callback после успешной регистрации.
+   * Для pending B2B-заявки вызывается после рендера inline pending state.
+   */
   onSuccess?: () => void;
   /** URL для редиректа после успешной регистрации */
   redirectUrl?: string;
@@ -91,6 +183,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [shouldNotifyPendingSuccess, setShouldNotifyPendingSuccess] = useState(false);
 
   const {
     register,
@@ -109,6 +202,16 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
 
   const pdpConsent = watch('pdp_consent');
   const marketingConsent = watch('marketing_consent');
+  const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
+
+  useEffect(() => {
+    if (!isPending || !shouldNotifyPendingSuccess) {
+      return;
+    }
+
+    onSuccess?.();
+    setShouldNotifyPendingSuccess(false);
+  }, [isPending, onSuccess, shouldNotifyPendingSuccess]);
 
   const onSubmit = async (data: B2BRegisterFormData) => {
     try {
@@ -134,10 +237,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
 
       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
       if (response.user.is_verified === false) {
-        if (onSuccess) {
-          onSuccess();
-        }
         setIsPending(true);
+        setShouldNotifyPendingSuccess(Boolean(onSuccess));
         return;
       } else {
         // CRITICAL FIX: Force token refresh immediately to ensure valid session
@@ -162,10 +263,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         };
       };
       const responseData = err.response?.data || {};
-      const pdpConsentMessage = getValidationMessage(responseData.pdp_consent);
-      if (pdpConsentMessage) {
-        setError('pdp_consent', { type: 'server', message: pdpConsentMessage });
-      }
+      const firstFieldError = applyBackendFieldErrors(responseData, setError);
 
       if (err.response?.status === 409) {
         // AC 5: Специфичная обработка "Компания уже зарегистрирована"
@@ -176,7 +274,9 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         );
       } else if (err.response?.status === 400) {
         // Ошибки валидации
-        setApiError(getFirstValidationMessage(responseData) || 'Ошибка валидации данных');
+        setApiError(
+          firstFieldError || getFirstValidationMessage(responseData) || 'Ошибка валидации данных'
+        );
       } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');
       } else {
@@ -381,35 +481,42 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               {...register('pdp_consent')}
               checked={pdpConsent}
               disabled={isSubmitting}
+              aria-invalid={hasPdpConsentError || undefined}
+              aria-labelledby="b2b-register-pdp-consent-label-prefix b2b-register-pdp-consent-policy-link b2b-register-pdp-consent-label-suffix"
               aria-describedby={
                 errors.pdp_consent?.message ? 'b2b-register-pdp-consent-error' : undefined
               }
+              className={
+                hasPdpConsentError
+                  ? 'border-[var(--color-accent-danger)] bg-[var(--color-accent-danger)]/8 peer-focus:ring-[var(--color-accent-danger)]'
+                  : undefined
+              }
             />
-            <label
-              htmlFor="b2b-register-pdp-consent"
-              className="text-body-s text-text-primary cursor-pointer select-none"
-            >
-              Я даю согласие на{' '}
+            <span className="text-body-s text-text-primary select-none">
+              <label
+                id="b2b-register-pdp-consent-label-prefix"
+                htmlFor="b2b-register-pdp-consent"
+                className="cursor-pointer"
+              >
+                Я даю согласие на
+              </label>{' '}
               <Link
                 id="b2b-register-pdp-consent-policy-link"
                 href="/privacy-policy"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary underline hover:text-primary-hover"
-                onClick={event => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  try {
-                    window.open(event.currentTarget.href, '_blank', 'noopener,noreferrer');
-                  } catch {
-                    // В тестовой среде window.open может быть не реализован.
-                  }
-                }}
               >
                 обработку моих персональных данных
               </Link>{' '}
-              в соответствии с Политикой
-            </label>
+              <label
+                id="b2b-register-pdp-consent-label-suffix"
+                htmlFor="b2b-register-pdp-consent"
+                className="cursor-pointer"
+              >
+                в соответствии с Политикой
+              </label>
+            </span>
           </div>
           {errors.pdp_consent?.message && (
             <p

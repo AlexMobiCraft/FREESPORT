@@ -8,7 +8,7 @@
  */
 
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RegisterForm } from '../RegisterForm';
 import authService from '@/services/authService';
@@ -60,7 +60,7 @@ describe('RegisterForm', () => {
       expect(screen.getByRole('button', { name: /зарегистрироваться/i })).toBeInTheDocument();
     });
 
-    test('should render privacy policy link inside clickable pdp consent label', async () => {
+    test('should render native privacy policy link next to clickable pdp consent label text', async () => {
       const user = userEvent.setup();
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
       render(<RegisterForm />);
@@ -74,19 +74,17 @@ describe('RegisterForm', () => {
       expect(link).toHaveAttribute('href', '/privacy-policy');
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-      const label = link.closest('label');
+      expect(link.closest('label')).toBeNull();
+      const label = document.querySelector('label[for="register-pdp-consent"]');
       expect(label).not.toBeNull();
 
       await user.click(label!);
       expect(pdpCheckbox).toBeChecked();
 
-      await user.click(link);
+      link.addEventListener('click', event => event.preventDefault(), { once: true });
+      fireEvent.click(link, { ctrlKey: true });
       expect(pdpCheckbox).toBeChecked();
-      expect(openSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/privacy-policy'),
-        '_blank',
-        'noopener,noreferrer'
-      );
+      expect(openSpy).not.toHaveBeenCalled();
       openSpy.mockRestore();
     });
 
@@ -227,6 +225,9 @@ describe('RegisterForm', () => {
         (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
           .length
       ).toBeGreaterThan(0);
+      expect(
+        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      ).toHaveAttribute('aria-invalid', 'true');
       expect(mockRegister).not.toHaveBeenCalled();
     });
   });
@@ -493,7 +494,7 @@ describe('RegisterForm', () => {
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
-      expect(await screen.findByText(/password is too weak/i)).toBeInTheDocument();
+      expect((await screen.findAllByText(/password is too weak/i)).length).toBeGreaterThan(0);
     });
 
     test('should display backend pdp consent validation error inline', async () => {
@@ -522,6 +523,63 @@ describe('RegisterForm', () => {
       expect(
         screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
       ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
+      expect(
+        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      ).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    test('should display backend email validation error inline', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockRejectedValue({
+        response: {
+          status: 400,
+          data: { email: ['Пользователь с таким email уже существует.'] },
+        },
+      });
+
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      const emailInput = screen.getByLabelText(/электронная почта/i);
+      expect(
+        (await screen.findAllByText(/пользователь с таким email уже существует/i)).length
+      ).toBeGreaterThan(0);
+      expect(emailInput).toHaveAccessibleDescription(/пользователь с таким email уже существует/i);
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    test('should not hang on cyclic backend validation payloads', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      const cyclicPayload: Record<string, unknown> = {};
+      cyclicPayload.self = cyclicPayload;
+      mockRegister.mockRejectedValue({
+        response: {
+          status: 400,
+          data: {
+            nested: cyclicPayload,
+            email: ['Email from backend'],
+          },
+        },
+      });
+
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect((await screen.findAllByText(/email from backend/i)).length).toBeGreaterThan(0);
     });
 
     test('should display API error on 500 Internal Server Error', async () => {

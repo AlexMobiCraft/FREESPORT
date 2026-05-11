@@ -28,6 +28,27 @@ logger = logging.getLogger("apps.users.auth")
 MAX_CONSENT_USER_AGENT_LENGTH = 512
 MAX_LOG_VALUE_LENGTH = 128
 IPV4_WITH_PORT_RE = re.compile(r"^(?P<ip>\d{1,3}(?:\.\d{1,3}){3}):(?P<port>\d+)$")
+UNSAFE_LOG_CHAR_ESCAPES = {
+    "\x00": "\\x00",
+    "\r": "\\r",
+    "\n": "\\n",
+    "\x1b": "\\x1b",
+    "\u200b": "\\u200b",
+    "\u200c": "\\u200c",
+    "\u200d": "\\u200d",
+    "\u2028": "\\u2028",
+    "\u2029": "\\u2029",
+    "\u202a": "\\u202a",
+    "\u202b": "\\u202b",
+    "\u202c": "\\u202c",
+    "\u202d": "\\u202d",
+    "\u202e": "\\u202e",
+    "\u2066": "\\u2066",
+    "\u2067": "\\u2067",
+    "\u2068": "\\u2068",
+    "\u2069": "\\u2069",
+    "\ufeff": "\\ufeff",
+}
 
 # User model is used in the code
 from ..authentication import blacklist_access_token
@@ -530,7 +551,7 @@ def get_client_ip(request: Request) -> str:
 def normalize_consent_ip(raw_ip: str) -> str | None:
     """Нормализовать IP из audit-заголовка перед записью в PostgreSQL inet."""
     candidate = raw_ip.strip()
-    if not candidate or "%" in candidate:
+    if not candidate:
         return None
 
     if candidate.startswith("["):
@@ -549,16 +570,30 @@ def normalize_consent_ip(raw_ip: str) -> str | None:
             candidate = ipv4_with_port_match.group("ip")
 
     try:
-        parse_ip_address(candidate)
+        parsed_ip = parse_ip_address(candidate)
     except ValueError:
         return None
 
-    return candidate
+    if getattr(parsed_ip, "scope_id", None) or not parsed_ip.is_global:
+        return None
+
+    return str(parsed_ip)
 
 
 def sanitize_log_value(value: str) -> str:
     """Сжать и экранировать внешнее значение перед записью в structured log."""
-    return value.replace("\r", "\\r").replace("\n", "\\n").replace("\x1b", "\\x1b")[:MAX_LOG_VALUE_LENGTH]
+    sanitized_parts: list[str] = []
+    sanitized_length = 0
+
+    for char in value:
+        token = UNSAFE_LOG_CHAR_ESCAPES.get(char, char)
+        if sanitized_length + len(token) > MAX_LOG_VALUE_LENGTH:
+            break
+
+        sanitized_parts.append(token)
+        sanitized_length += len(token)
+
+    return "".join(sanitized_parts)
 
 
 def sanitize_consent_user_agent(user_agent: Any) -> str:
