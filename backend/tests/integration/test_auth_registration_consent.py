@@ -75,6 +75,16 @@ def test_registration_rejects_pdp_consent_false():
     assert "pdp_consent" in response.data
 
 
+@pytest.mark.parametrize("invalid_value", ["not-bool", None])
+def test_registration_rejects_invalid_pdp_consent_with_contract_message(invalid_value):
+    client = APIClient()
+
+    response = post_register(client, retail_payload(pdp_consent=invalid_value))
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
+
+
 def test_retail_registration_creates_pdp_consent_record():
     client = APIClient()
 
@@ -160,6 +170,114 @@ def test_registration_ignores_invalid_forwarded_ip_for_consent_record():
     user = User.objects.get(email=response.data["user"]["email"])
     consent = UserConsent.objects.get(user=user)
     assert consent.ip_address is None
+    assert consent.ip_address != "5.6.7.8"
+
+
+def test_registration_falls_back_to_remote_addr_when_forwarded_ip_first_hop_is_blank():
+    client = APIClient()
+
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR=", 5.6.7.8",
+        REMOTE_ADDR="127.0.0.42",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert consent.ip_address == "127.0.0.42"
+
+
+@pytest.mark.parametrize(
+    ("forwarded_ip", "expected_ip"),
+    [
+        ("[2001:db8::1]:443", "2001:db8::1"),
+        ("203.0.113.42:8443", "203.0.113.42"),
+    ],
+)
+def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_ip):
+    client = APIClient()
+
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR=forwarded_ip,
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert consent.ip_address == expected_ip
+
+
+def test_registration_ignores_forwarded_ipv6_zone_id_for_consent_record():
+    client = APIClient()
+
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR="fe80::1%eth0",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert consent.ip_address is None
+
+
+def test_registration_logs_warning_when_remote_addr_is_unknown(caplog):
+    client = APIClient()
+
+    with caplog.at_level("WARNING", logger="apps.users.auth"):
+        response = post_register(
+            client,
+            retail_payload(),
+            REMOTE_ADDR="unknown",
+            HTTP_USER_AGENT="ConsentTestAgent/1.0",
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert "Unknown client IP skipped for consent audit" in caplog.text
+
+
+def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
+    client = APIClient()
+
+    with caplog.at_level("WARNING", logger="apps.users.auth"):
+        response = post_register(
+            client,
+            retail_payload(),
+            HTTP_X_FORWARDED_FOR="bad\r\nINJECT\x1b[31m, 5.6.7.8",
+            HTTP_USER_AGENT="ConsentTestAgent/1.0",
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    record = next(item for item in caplog.records if item.message == "Invalid client IP skipped for consent audit")
+    assert record.client_ip == "bad\\r\\nINJECT\\x1b[31m"
+    assert "\r" not in record.client_ip
+    assert "\n" not in record.client_ip
+    assert "\x1b" not in record.client_ip
+
+
+def test_registration_sanitizes_invalid_user_agent_surrogates():
+    client = APIClient()
+
+    response = post_register(
+        client,
+        retail_payload(),
+        REMOTE_ADDR="127.0.0.10",
+        HTTP_USER_AGENT="Agent\udcff" + "A" * 600,
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert "\udcff" not in consent.user_agent
+    assert consent.user_agent == "Agent" + "A" * 507
 
 
 def test_consent_records_have_default_policy_version():

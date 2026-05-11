@@ -28,6 +28,58 @@ import { isSafeRedirectUrl } from '@/utils/urlUtils';
 import { b2bRegisterSchema, type B2BRegisterFormData } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
 
+type ApiValidationValue =
+  | string
+  | string[]
+  | ApiValidationValue[]
+  | { [key: string]: ApiValidationValue }
+  | null
+  | undefined;
+
+type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidationValue };
+
+const getValidationMessage = (value: ApiValidationValue): string | undefined => {
+  if (typeof value === 'string') {
+    return value || undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const message = getValidationMessage(item);
+      if (message) {
+        return message;
+      }
+    }
+    return undefined;
+  }
+
+  if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) {
+      const message = getValidationMessage(item);
+      if (message) {
+        return message;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'detail') {
+      continue;
+    }
+
+    const message = getValidationMessage(value);
+    if (message) {
+      return message;
+    }
+  }
+
+  return getValidationMessage(data.detail);
+};
+
 export interface B2BRegisterFormProps {
   /** Callback после успешной регистрации (optional) */
   onSuccess?: () => void;
@@ -44,6 +96,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
     register,
     handleSubmit,
     watch,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<B2BRegisterFormData>({
     resolver: zodResolver(b2bRegisterSchema),
@@ -81,6 +134,9 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
 
       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
       if (response.user.is_verified === false) {
+        if (onSuccess) {
+          onSuccess();
+        }
         setIsPending(true);
         return;
       } else {
@@ -102,54 +158,31 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
       const err = error as {
         response?: {
           status?: number;
-          data?: Record<string, string[] | string> & { detail?: string };
+          data?: ApiErrorData;
         };
       };
       const responseData = err.response?.data || {};
-      const getValidationMessage = (keys: string[]): string | undefined => {
-        for (const key of keys) {
-          const value = responseData[key];
-          if (Array.isArray(value) && value[0]) {
-            return value[0];
-          }
-          if (typeof value === 'string' && value) {
-            return value;
-          }
-        }
-        return undefined;
-      };
-      const getFirstValidationMessage = (): string | undefined => {
-        for (const [key, value] of Object.entries(responseData)) {
-          if (key === 'detail') {
-            continue;
-          }
-          if (Array.isArray(value) && value[0]) {
-            return value[0];
-          }
-          if (typeof value === 'string' && value) {
-            return value;
-          }
-        }
-        return typeof responseData.detail === 'string' ? responseData.detail : undefined;
-      };
+      const pdpConsentMessage = getValidationMessage(responseData.pdp_consent);
+      if (pdpConsentMessage) {
+        setError('pdp_consent', { type: 'server', message: pdpConsentMessage });
+      }
 
       if (err.response?.status === 409) {
         // AC 5: Специфичная обработка "Компания уже зарегистрирована"
         setApiError(
-          getValidationMessage(['company_name', 'email']) ||
+          getValidationMessage(responseData.company_name) ||
+            getValidationMessage(responseData.email) ||
             'Компания или email уже зарегистрированы'
         );
       } else if (err.response?.status === 400) {
         // Ошибки валидации
-        setApiError(
-          getValidationMessage(['pdp_consent', 'tax_id', 'password']) ||
-            getFirstValidationMessage() ||
-            'Ошибка валидации данных'
-        );
+        setApiError(getFirstValidationMessage(responseData) || 'Ошибка валидации данных');
       } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');
       } else {
-        setApiError(err.response?.data?.detail || 'Произошла ошибка при регистрации');
+        setApiError(
+          getValidationMessage(responseData.detail) || 'Произошла ошибка при регистрации'
+        );
       }
     }
   };
@@ -348,36 +381,35 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               {...register('pdp_consent')}
               checked={pdpConsent}
               disabled={isSubmitting}
-              aria-labelledby="b2b-register-pdp-consent-label-start b2b-register-pdp-consent-policy-link b2b-register-pdp-consent-label-end"
               aria-describedby={
                 errors.pdp_consent?.message ? 'b2b-register-pdp-consent-error' : undefined
               }
             />
-            <div className="text-body-s text-text-primary select-none">
-              <label
-                id="b2b-register-pdp-consent-label-start"
-                htmlFor="b2b-register-pdp-consent"
-                className="cursor-pointer"
-              >
-                Я даю согласие на{' '}
-              </label>
+            <label
+              htmlFor="b2b-register-pdp-consent"
+              className="text-body-s text-text-primary cursor-pointer select-none"
+            >
+              Я даю согласие на{' '}
               <Link
                 id="b2b-register-pdp-consent-policy-link"
                 href="/privacy-policy"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary underline hover:text-primary-hover"
+                onClick={event => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  try {
+                    window.open(event.currentTarget.href, '_blank', 'noopener,noreferrer');
+                  } catch {
+                    // В тестовой среде window.open может быть не реализован.
+                  }
+                }}
               >
                 обработку моих персональных данных
               </Link>{' '}
-              <label
-                id="b2b-register-pdp-consent-label-end"
-                htmlFor="b2b-register-pdp-consent"
-                className="cursor-pointer"
-              >
-                в соответствии с Политикой
-              </label>
-            </div>
+              в соответствии с Политикой
+            </label>
           </div>
           {errors.pdp_consent?.message && (
             <p

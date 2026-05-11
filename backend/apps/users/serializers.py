@@ -14,6 +14,8 @@ from apps.orders.models import Order
 from .models import Address, Company, Favorite, User
 from .tasks import send_admin_verification_email, send_user_pending_email
 
+PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
+
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
@@ -29,7 +31,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     pdp_consent = serializers.BooleanField(
         write_only=True,
         required=True,
-        error_messages={"required": "Необходимо согласие на обработку персональных данных."},
+        error_messages={
+            "required": PDP_CONSENT_REQUIRED_MESSAGE,
+            "invalid": PDP_CONSENT_REQUIRED_MESSAGE,
+            "null": PDP_CONSENT_REQUIRED_MESSAGE,
+        },
     )
     marketing_consent = serializers.BooleanField(write_only=True, required=False, default=False)
 
@@ -66,7 +72,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
 
         if not attrs.get("pdp_consent"):
-            raise serializers.ValidationError({"pdp_consent": "Необходимо согласие на обработку персональных данных."})
+            raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED_MESSAGE})
 
         # Валидация B2B полей
         role = attrs.get("role", "retail")

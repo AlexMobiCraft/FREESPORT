@@ -60,16 +60,34 @@ describe('RegisterForm', () => {
       expect(screen.getByRole('button', { name: /зарегистрироваться/i })).toBeInTheDocument();
     });
 
-    test('should render privacy policy link for pdp consent', () => {
+    test('should render privacy policy link inside clickable pdp consent label', async () => {
+      const user = userEvent.setup();
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
       render(<RegisterForm />);
 
+      const pdpCheckbox = screen.getByRole('checkbox', {
+        name: /обработку моих персональных данных/i,
+      });
       const link = screen.getByRole('link', {
         name: /обработку моих персональных данных/i,
       });
       expect(link).toHaveAttribute('href', '/privacy-policy');
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-      expect(link.closest('label')).toBeNull();
+      const label = link.closest('label');
+      expect(label).not.toBeNull();
+
+      await user.click(label!);
+      expect(pdpCheckbox).toBeChecked();
+
+      await user.click(link);
+      expect(pdpCheckbox).toBeChecked();
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/privacy-policy'),
+        '_blank',
+        'noopener,noreferrer'
+      );
+      openSpy.mockRestore();
     });
 
     test('should render marketing consent unchecked by default', () => {
@@ -206,8 +224,9 @@ describe('RegisterForm', () => {
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
       expect(
-        await screen.findByText(/необходимо согласие на обработку персональных данных/i)
-      ).toBeInTheDocument();
+        (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
+          .length
+      ).toBeGreaterThan(0);
       expect(mockRegister).not.toHaveBeenCalled();
     });
   });
@@ -475,6 +494,34 @@ describe('RegisterForm', () => {
       await user.click(submitButton);
 
       expect(await screen.findByText(/password is too weak/i)).toBeInTheDocument();
+    });
+
+    test('should display backend pdp consent validation error inline', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockRejectedValue({
+        response: {
+          status: 400,
+          data: { pdp_consent: ['Необходимо согласие на обработку персональных данных.'] },
+        },
+      });
+
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(
+        (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
+          .length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
     });
 
     test('should display API error on 500 Internal Server Error', async () => {

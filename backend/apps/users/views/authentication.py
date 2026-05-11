@@ -3,6 +3,7 @@ Views для аутентификации пользователей
 """
 
 import logging
+import re
 from ipaddress import ip_address as parse_ip_address
 from typing import Any, cast
 
@@ -24,6 +25,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.common.models import UserConsent
 
 logger = logging.getLogger("apps.users.auth")
+MAX_CONSENT_USER_AGENT_LENGTH = 512
+MAX_LOG_VALUE_LENGTH = 128
+IPV4_WITH_PORT_RE = re.compile(r"^(?P<ip>\d{1,3}(?:\.\d{1,3}){3}):(?P<port>\d+)$")
 
 # User model is used in the code
 from ..authentication import blacklist_access_token
@@ -117,7 +121,7 @@ class UserRegistrationView(APIView):
                 user = serializer.save()
 
                 ip_address = get_consent_ip_address(request)
-                user_agent = (request.META.get("HTTP_USER_AGENT") or "")[:512]
+                user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
 
                 UserConsent.objects.create(
                     user=user,
@@ -516,9 +520,51 @@ def get_client_ip(request: Request) -> str:
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
         ip = x_forwarded_for.split(",")[0].strip()
-    else:
-        ip = request.META.get("REMOTE_ADDR", "unknown")
+        if ip:
+            return cast(str, ip)
+
+    ip = request.META.get("REMOTE_ADDR", "unknown")
     return cast(str, ip)
+
+
+def normalize_consent_ip(raw_ip: str) -> str | None:
+    """Нормализовать IP из audit-заголовка перед записью в PostgreSQL inet."""
+    candidate = raw_ip.strip()
+    if not candidate or "%" in candidate:
+        return None
+
+    if candidate.startswith("["):
+        closing_bracket_index = candidate.find("]")
+        if closing_bracket_index == -1:
+            return None
+
+        host = candidate[1:closing_bracket_index]
+        port_suffix = candidate[closing_bracket_index + 1 :]
+        if port_suffix and not (port_suffix.startswith(":") and port_suffix[1:].isdigit()):
+            return None
+        candidate = host
+    else:
+        ipv4_with_port_match = IPV4_WITH_PORT_RE.match(candidate)
+        if ipv4_with_port_match:
+            candidate = ipv4_with_port_match.group("ip")
+
+    try:
+        parse_ip_address(candidate)
+    except ValueError:
+        return None
+
+    return candidate
+
+
+def sanitize_log_value(value: str) -> str:
+    """Сжать и экранировать внешнее значение перед записью в structured log."""
+    return value.replace("\r", "\\r").replace("\n", "\\n").replace("\x1b", "\\x1b")[:MAX_LOG_VALUE_LENGTH]
+
+
+def sanitize_consent_user_agent(user_agent: Any) -> str:
+    """Удалить невалидные UTF-8 surrogate-символы и ограничить длину User-Agent."""
+    safe_user_agent = str(user_agent or "").encode("utf-8", "ignore").decode("utf-8")
+    return safe_user_agent[:MAX_CONSENT_USER_AGENT_LENGTH]
 
 
 def get_consent_ip_address(request: Request) -> str | None:
@@ -530,18 +576,18 @@ def get_consent_ip_address(request: Request) -> str | None:
     """
     client_ip = get_client_ip(request)
     if client_ip == "unknown":
+        logger.warning("Unknown client IP skipped for consent audit")
         return None
 
-    try:
-        parse_ip_address(client_ip)
-    except ValueError:
+    normalized_ip = normalize_consent_ip(client_ip)
+    if normalized_ip is None:
         logger.warning(
             "Invalid client IP skipped for consent audit",
-            extra={"client_ip": client_ip},
+            extra={"client_ip": sanitize_log_value(client_ip)},
         )
         return None
 
-    return client_ip
+    return normalized_ip
 
 
 class LogoutView(GenericAPIView):

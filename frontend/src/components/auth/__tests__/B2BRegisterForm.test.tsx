@@ -48,19 +48,35 @@ describe('B2BRegisterForm consent checkboxes', () => {
     await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
   };
 
-  test('should render pdp consent checkbox with privacy policy link', () => {
+  test('should render pdp consent checkbox with privacy policy link inside clickable label', async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     render(<B2BRegisterForm />);
 
-    expect(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-    ).toBeInTheDocument();
+    const pdpCheckbox = screen.getByRole('checkbox', {
+      name: /обработку моих персональных данных/i,
+    });
+    expect(pdpCheckbox).toBeInTheDocument();
     const link = screen.getByRole('link', {
       name: /обработку моих персональных данных/i,
     });
     expect(link).toHaveAttribute('href', '/privacy-policy');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(link.closest('label')).toBeNull();
+    const label = link.closest('label');
+    expect(label).not.toBeNull();
+
+    await user.click(label!);
+    expect(pdpCheckbox).toBeChecked();
+
+    await user.click(link);
+    expect(pdpCheckbox).toBeChecked();
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/privacy-policy'),
+      '_blank',
+      'noopener,noreferrer'
+    );
+    openSpy.mockRestore();
   });
 
   test('should block submit without pdp consent', async () => {
@@ -72,8 +88,9 @@ describe('B2BRegisterForm consent checkboxes', () => {
     await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
 
     expect(
-      await screen.findByText(/необходимо согласие на обработку персональных данных/i)
-    ).toBeInTheDocument();
+      (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
+        .length
+    ).toBeGreaterThan(0);
     expect(mockRegisterB2B).not.toHaveBeenCalled();
   });
 
@@ -141,6 +158,35 @@ describe('B2BRegisterForm consent checkboxes', () => {
     expect(authService.refreshToken).not.toHaveBeenCalled();
   });
 
+  test('should call onSuccess before showing pending state for pending B2B user', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    const mockOnSuccess = vi.fn();
+    mockRegisterB2B.mockResolvedValue({
+      access: '',
+      refresh: '',
+      user: {
+        id: 10,
+        email: 'b2b@example.com',
+        first_name: 'Иван',
+        last_name: 'Петров',
+        phone: '+79991234567',
+        role: 'wholesale_level1',
+        is_verified: false,
+      },
+    });
+
+    render(<B2BRegisterForm onSuccess={mockOnSuccess} redirectUrl="/account" />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
+    expect(mockOnSuccess).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalledWith('/account');
+  });
+
   test('should submit marketing_consent true when checked', async () => {
     const user = userEvent.setup();
     const mockRegisterB2B = vi.mocked(authService.registerB2B);
@@ -205,7 +251,58 @@ describe('B2BRegisterForm consent checkboxes', () => {
     await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
 
     expect(
-      await screen.findByText(/необходимо согласие на обработку персональных данных/i)
+      (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
+        .length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+    ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
+  });
+
+  test('should show first backend validation error instead of hard-coded pdp priority', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          email: ['Пользователь с таким email уже существует.'],
+          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+        },
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(
+      await screen.findByText(/пользователь с таким email уже существует/i)
     ).toBeInTheDocument();
+  });
+
+  test('should surface nested backend validation errors', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          company: {
+            tax_id: ['Некорректный ИНН компании'],
+          },
+        },
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(await screen.findByText(/некорректный инн компании/i)).toBeInTheDocument();
   });
 });
