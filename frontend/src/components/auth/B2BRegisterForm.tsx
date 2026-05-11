@@ -76,7 +76,6 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const {
     register,
     handleSubmit,
-    watch,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<B2BRegisterFormInput, unknown, B2BRegisterFormData>({
@@ -88,8 +87,6 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
     },
   });
 
-  const pdpConsent = watch('pdp_consent');
-  const marketingConsent = watch('marketing_consent');
   const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
 
   useEffect(() => {
@@ -378,7 +375,6 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
             <Checkbox
               id="b2b-register-pdp-consent"
               {...register('pdp_consent')}
-              checked={pdpConsent}
               disabled={isSubmitting}
               aria-invalid={hasPdpConsentError || undefined}
               aria-labelledby="b2b-register-pdp-consent-label-prefix b2b-register-pdp-consent-policy-link b2b-register-pdp-consent-label-suffix"
@@ -432,7 +428,6 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           <Checkbox
             id="b2b-register-marketing-consent"
             {...register('marketing_consent')}
-            checked={marketingConsent}
             disabled={isSubmitting}
           />
           <label

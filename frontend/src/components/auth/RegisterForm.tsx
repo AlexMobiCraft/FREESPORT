@@ -97,8 +97,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
 
   // Story 29.1: Отслеживаем выбранную роль для условной логики
   const selectedRole = watch('role') ?? 'retail';
-  const pdpConsent = watch('pdp_consent');
-  const marketingConsent = watch('marketing_consent');
   const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -289,7 +287,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           <Checkbox
             id="register-pdp-consent"
             {...register('pdp_consent')}
-            checked={pdpConsent}
             disabled={isSubmitting}
             aria-invalid={hasPdpConsentError || undefined}
             aria-labelledby="register-pdp-consent-label-prefix register-pdp-consent-policy-link register-pdp-consent-label-suffix"
@@ -343,7 +340,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         <Checkbox
           id="register-marketing-consent"
           {...register('marketing_consent')}
-          checked={marketingConsent}
           disabled={isSubmitting}
         />
         <label

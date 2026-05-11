@@ -157,6 +157,36 @@ def test_b2b_registration_creates_pdp_consent_record_for_pending_user(
     mock_user_email.assert_called_once_with(user.id)
 
 
+@patch("apps.users.serializers.send_admin_verification_email.delay")
+@patch("apps.users.serializers.send_user_pending_email.delay")
+def test_b2b_registration_with_marketing_creates_two_records_for_pending_user(
+    mock_user_email,
+    mock_admin_email,
+):
+    client = APIClient()
+
+    response = post_register(
+        client,
+        b2b_payload(marketing_consent=True),
+        REMOTE_ADDR="1.2.3.4",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    assert user.is_active is False
+    assert user.is_verified is False
+    consents = list(UserConsent.objects.filter(user=user).order_by("consent_type"))
+    assert {consent.consent_type for consent in consents} == {
+        "pdp_contract",
+        "marketing_email",
+    }
+    assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
+    assert {consent.user_agent for consent in consents} == {"ConsentTestAgent/1.0"}
+    mock_admin_email.assert_called_once_with(user.id)
+    mock_user_email.assert_called_once_with(user.id)
+
+
 def test_consent_record_captures_ip_and_user_agent_from_proxy_headers():
     client = APIClient()
     long_user_agent = "A" * 600

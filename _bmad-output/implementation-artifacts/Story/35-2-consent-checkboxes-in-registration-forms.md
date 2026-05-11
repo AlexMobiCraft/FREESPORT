@@ -707,6 +707,12 @@ GPT-5 Codex
   - Full regression: full frontend `npm run test -- --run` passed; backend unit suite **697 passed, 12 skipped, 1530 deselected**; backend integration **628 passed, 2 skipped, 10 failed** — all 10 failures remain isolated in `test_management_commands/test_import_customers.py` because `/app/data/import_1c/contragents` is absent.
   - `git diff --check` passed; `npx gitnexus detect-changes --scope all` — 10 files, 11 symbols, 3 affected flows, risk `medium`; affected flows limited to registration validation parser and consent IP normalization.
   - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
+- **Review patch Pass 6 closure (GPT-5 Codex, 2026-05-11):**
+  - GitNexus impact перед patch: `RegisterForm` и `B2BRegisterForm` — LOW; affected flows limited to `RegisterPage` / `B2BRegisterPage`.
+  - Coverage follow-up добавлен для B2B pending user с `marketing_consent=True`; тест сразу зелёный, потому backend implementation уже создавал обе consent-записи, а Pass 6 issue был gap в regression coverage.
+  - Frontend refactor убрал controlled `checked={watch(...)}` с PDP/marketing checkbox-ов в B2C/B2B формах; RHF `register()` остаётся единственным источником состояния.
+  - Targeted verification: `test_auth_registration_consent.py` **30/30**, `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` **46/46**, `npx tsc --noEmit`, scoped ESLint, `black --check`, `flake8`, `git diff --check` passed.
+  - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
 
 ### Completion Notes List
 
@@ -721,6 +727,7 @@ GPT-5 Codex
 - **Review patch Pass 4 completion (2026-05-11, GPT-5 Codex):** закрыты 4 `[Review][Patch]`: verified B2B registration больше не ломается при сбое `refreshToken`, pending `onSuccess` стал single-shot при смене callback reference, schema output сузила `pdp_consent` до literal `true`, IPv4-with-port regex отклоняет невалидный port.
 - **Pass 4 decision closure (2026-05-11, user-approved Option 4):** B2B `ogrn` / `legal_address` silent-drop не исправляется в 35.2; будущая работа вынесена в `deferred-work.md` как отдельное ТЗ + backlog story. Story снова готова к review.
 - **Review patch Pass 5 completion (2026-05-11, GPT-5 Codex):** закрыты 5 `[Review][Patch]`: bracketed IPv6 port теперь валидируется диапазоном `1..65535`, marketing consent test проверяет audit IP/User-Agent для обеих записей, AC-6 синхронизирован с hardened helper, общий backend validation parser вынесен в `frontend/src/utils/validationErrorParser.ts`, добавлен reversed-order coverage для B2B validation errors. Story снова готова к review.
+- **Review patch Pass 6 completion (2026-05-11, GPT-5 Codex):** закрыты 2 LOW `[Review][Patch]`: consent checkbox-ы переведены на RHF uncontrolled registration без `checked={watch(...)}`, добавлен B2B pending + `marketing_consent=True` integration coverage. Story снова готова к review.
 
 ### File List
 
@@ -796,6 +803,27 @@ GPT-5 Codex
 - Controlled/RHF double-tracking через `checked={watch('pdp_consent')}` + `{...register('pdp_consent')}` — works correctly, идиоматично для RHF при UI-visible state binding; perf cost minimal (2 checkboxes)
 - Convoluted ctrl-click test для privacy-policy link (`fireEvent.click(link, { ctrlKey: true })` с manual `preventDefault`) — реальная проверка «link не toggle-ит checkbox» уже работает через `expect(link.closest('label')).toBeNull()`; modifier-click сценарий редундантен, но не вреден
 
+#### Pass 6 (2026-05-11) — full-scope code review (Cascade)
+
+**Scope:** полный delta story 35.2 относительно `origin/main` (727848fc..ed4f83e3, ~1800 строк значимого source-кода без auto-generated `api.generated.ts`/`openapi.yaml`/`.review-cache`). Layers: Acceptance Auditor + Blind Hunter + Edge Case Hunter (inline isolated mental contexts).
+
+**Acceptance Auditor:** ✅ Все AC-1..AC-8 соответствуют коду. 16 `[Review][Patch]` из Passes 1-5 закрыты. Файлы из «НЕ ИЗМЕНЯТЬ» не тронуты. Spec-drift AC-4 (`z.boolean().pipe(z.literal(true))` вместо `z.literal(true, { errorMap })`) задокументирован Pass 4 patch как accepted.
+
+**Outcome:** **Approve with minor recommendations** — production-ready, найденные 2 LOW issue не блокируют release.
+
+**Review Follow-ups (Pass 6, LOW, non-blocking):**
+
+- [x] [Review][Patch][LOW] Code smell — RHF `register()` + controlled `checked={watch(...)}` в Checkbox. На `<Checkbox>` спредятся одновременно `{...register('pdp_consent')}` (uncontrolled-style: даёт `name/onChange/onBlur/ref`) и `checked={pdpConsent}` (controlled через `watch()`). RHF идиоматично работает с checkbox через uncontrolled `defaultChecked`. Текущая схема работает (43/43 тестов зелёные), но создаёт избыточный re-render на каждом toggle и потенциально вызывает React warning «changing controlled/uncontrolled» при HMR. То же для `marketing_consent`. Рекомендация: убрать `checked={pdpConsent}`/`checked={marketingConsent}` и `watch('pdp_consent')`/`watch('marketing_consent')` — оставить только `{...register(...)}` + `aria-invalid` через `errors.pdp_consent`; стиль `hasPdpConsentError` обновлять через CSS `peer-aria-[invalid=true]`. Альтернатива — `<Controller>`. Resolved: B2C/B2B consent checkbox-ы больше не передают controlled `checked`; состояние ведёт RHF `register()`. [frontend/src/components/auth/RegisterForm.tsx; frontend/src/components/auth/B2BRegisterForm.tsx]
+- [x] [Review][Patch][LOW] Gap в AC-7 coverage — нет интеграционного теста для **B2B + `marketing_consent=True`** (две `UserConsent` записи для pending-пользователя). `test_b2b_registration_creates_pdp_consent_record_for_pending_user` использует только `marketing_consent=False` (default из `b2b_payload()`). Retail-эквивалент покрыт (`test_retail_registration_with_marketing_creates_two_records`). AC-7 п.5 формально удовлетворён, но edge case с двумя записями для `is_active=False` пользователя остаётся без regression coverage. Рекомендация: добавить `test_b2b_registration_with_marketing_creates_two_records_for_pending_user`, ассертить `consents.count() == 2` и `{consent_type for consent in consents} == {"pdp_contract", "marketing_email"}`. Resolved: добавлен integration test для pending B2B + `marketing_consent=True`, включая audit IP/User-Agent обеих записей. [backend/tests/integration/test_auth_registration_consent.py]
+
+**Dismissed (noise / уже покрыто Pass 1-5 defer):**
+
+- `serializers.py:100` `validated_data.pop("pdp_consent")` без присваивания — интенциональное удаление, контекст ясен из `validate()` выше.
+- `get_client_ip` без trusted-proxy allowlist — defer-flagged в Pass 2 (project-wide infra).
+- Email Celery tasks внутри `transaction.atomic` (rollback → orphan `delay`) — pre-existing defer в Dev Notes + `deferred-work.md`.
+- Zod v4 `error:` vs spec `errorMap:` — функционально эквивалентно, покрыто `authSchemas.test.ts` (27/27).
+- Конфликт accessible name между внутренним `Checkbox` `<label htmlFor>` (иконка `aria-hidden`) и внешним `aria-labelledby` — внутренний label без текстового контента, accessible name берётся однозначно из 3 span'ов.
+
 ---
 
 ### Change Log
@@ -814,3 +842,5 @@ GPT-5 Codex
 - 2026-05-11: addressed Pass 4 code review findings — 4 `[Review][Patch]` items resolved, 1 `[Review][Defer]` recorded as deferred; story remains `in-progress` pending product/architect decision on B2B `ogrn` / `legal_address`.
 - 2026-05-11: resolved Pass 4 `[Review][Decision]` by user-approved Option 4; B2B `ogrn` / `legal_address` persistence moved to deferred-work for future ТЗ/story; status story → `review`.
 - 2026-05-11: addressed Pass 5 code review findings — 5 `[Review][Patch]` items resolved; status story → `review`.
+- 2026-05-11: Pass 6 full-scope code review (Cascade) — Outcome `Approve with minor recommendations`, открыто 2 `[Review][Patch][LOW]` (controlled-checkbox code smell, B2B+marketing test gap); status story → `in-progress`.
+- 2026-05-11: addressed Pass 6 LOW review follow-ups — 2 `[Review][Patch]` items resolved; status story → `review`.
