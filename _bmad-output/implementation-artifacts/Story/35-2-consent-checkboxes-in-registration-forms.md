@@ -524,10 +524,10 @@ Default модели `"1.0"`. Если в будущем потребуется 
 
 - [x] AC-1..AC-8 реализованы.
 - [x] Backend unit suite зелёный через Docker (`pytest -v -m unit --cov=apps --cov-report=term-missing`): 697 passed, 12 skipped, 1509 deselected. Backend integration suite: 607 passed; **10 failures isolated в `test_management_commands/test_import_customers.py` — environmental issue (пустая `data/import_1c/contragents/` в локальной checkout), не регрессия от 35.2**.
-- [x] Новые тесты `test_auth_registration_consent.py` зелёные (27 кейсов: 7 AC + review patches для IP/User-Agent/error-contract edge cases + Pass 3 hardening).
+- [x] Новые тесты `test_auth_registration_consent.py` зелёные (31 кейс: 7 AC + review patches для IP/User-Agent/error-contract edge cases + Pass 7 IPv4-mapped IPv6).
 - [x] Существующий `test_auth_registration_tokens.py` обновлён и зелёный.
-- [x] `npm run test -- src/components/auth/__tests__/RegisterForm.test.tsx` зелёный.
-- [x] `npm run test -- src/components/auth/__tests__/B2BRegisterForm.test.tsx` зелёный (11 кейсов; auth component bundle `RegisterForm` + `B2BRegisterForm` = 43/43).
+- [x] `npm run test -- src/components/auth/__tests__/RegisterForm.test.tsx` зелёный (33 кейса).
+- [x] `npm run test -- src/components/auth/__tests__/B2BRegisterForm.test.tsx` зелёный (15 кейсов; auth component bundle `RegisterForm` + `B2BRegisterForm` = 48/48).
 - [x] `npm run build` (frontend) прошёл с явным локальным `NEXT_PUBLIC_API_URL_INTERNAL=http://localhost:8001/api/v1`; без этой переменной локальный shell пытается prerender `/privacy-policy` через Docker hostname `backend` и падает `ENOTFOUND backend`.
 - [x] OpenAPI спецификация регенерирована (`python manage.py spectacular --file docs/api-spec.yaml`), если используется generated types на фронте — `npm run generate:types` прогнан.
 - [x] `gitnexus_detect_changes()` подтверждает: затронуты только символы из списка UPDATE/CREATE плюс задокументированный extra-fix `PrivacyPolicyPage/fetchPrivacyPolicy` (см. Debug Log) и косметика GitNexus stats в `AGENTS.md`/`CLAUDE.md` (auto-update).
@@ -713,6 +713,14 @@ GPT-5 Codex
   - Frontend refactor убрал controlled `checked={watch(...)}` с PDP/marketing checkbox-ов в B2C/B2B формах; RHF `register()` остаётся единственным источником состояния.
   - Targeted verification: `test_auth_registration_consent.py` **30/30**, `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` **46/46**, `npx tsc --noEmit`, scoped ESLint, `black --check`, `flake8`, `git diff --check` passed.
   - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
+- **Review patch Pass 7 closure (GPT-5 Codex, 2026-05-11):**
+  - GitNexus index refreshed (`npx gitnexus analyze`), impact перед patch: `normalize_consent_ip`, `get_client_ip`, `applyBackendFieldErrors`, `registerSchema`, `b2bRegisterSchema`, `RegisterForm`, `B2BRegisterForm`, `UserRegistrationSerializer` — LOW; affected flows limited to `UserRegistrationView.post`, `LogoutView.post`, `RegisterPage`, `B2BRegisterPage`.
+  - RED frontend: `authSchemas.test.ts` падал 2/31 из-за frontend PDP-message без точки; `B2BRegisterForm.test.tsx` падал на nested `tax_id` inline mapping.
+  - RED backend: новый `test_registration_normalizes_ipv4_mapped_ipv6_for_consent_record` падал, потому `::ffff:8.8.8.8` сохранялся как IPv6-mapped value вместо canonical IPv4.
+  - GREEN targeted: `test_auth_registration_consent.py` **31/31**; `authSchemas.test.ts` + `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` **79/79**.
+  - Static/full regression: full frontend `npm run test` passed; frontend `npm run build` passed with `NEXT_PUBLIC_API_URL_INTERNAL=http://localhost:8001/api/v1` / `NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1`; backend unit **697 passed, 12 skipped**; backend integration without known environmental `test_import_customers.py` blocker **628 passed, 2 skipped**; `python manage.py check`, `black --check`, `flake8`, `npx tsc --noEmit`, scoped ESLint, Prettier check passed.
+  - `npx gitnexus detect-changes --scope all`: 14 files, 10 symbols, 7 affected flows, risk `high`; фактические affected flows ограничены registration pages, consent IP normalization helpers и GitNexus stats в `AGENTS.md`/`CLAUDE.md`.
+  - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
 
 ### Completion Notes List
 
@@ -728,6 +736,7 @@ GPT-5 Codex
 - **Pass 4 decision closure (2026-05-11, user-approved Option 4):** B2B `ogrn` / `legal_address` silent-drop не исправляется в 35.2; будущая работа вынесена в `deferred-work.md` как отдельное ТЗ + backlog story. Story снова готова к review.
 - **Review patch Pass 5 completion (2026-05-11, GPT-5 Codex):** закрыты 5 `[Review][Patch]`: bracketed IPv6 port теперь валидируется диапазоном `1..65535`, marketing consent test проверяет audit IP/User-Agent для обеих записей, AC-6 синхронизирован с hardened helper, общий backend validation parser вынесен в `frontend/src/utils/validationErrorParser.ts`, добавлен reversed-order coverage для B2B validation errors. Story снова готова к review.
 - **Review patch Pass 6 completion (2026-05-11, GPT-5 Codex):** закрыты 2 LOW `[Review][Patch]`: consent checkbox-ы переведены на RHF uncontrolled registration без `checked={watch(...)}`, добавлен B2B pending + `marketing_consent=True` integration coverage. Story снова готова к review.
+- **Review patch Pass 7 completion (2026-05-11, GPT-5 Codex):** закрыты 6 `[Review][Patch]`: frontend/backend PDP-message синхронизирован с точкой, IPv4-mapped IPv6 нормализуется в canonical IPv4, backend field-error parser мапит inline только top-level поля, optional marketing checkbox явно оставлен без error-state, `get_client_ip` side-effect и Celery race scope-increment задокументированы. Story снова готова к review.
 
 ### File List
 
@@ -844,3 +853,29 @@ GPT-5 Codex
 - 2026-05-11: addressed Pass 5 code review findings — 5 `[Review][Patch]` items resolved; status story → `review`.
 - 2026-05-11: Pass 6 full-scope code review (Cascade) — Outcome `Approve with minor recommendations`, открыто 2 `[Review][Patch][LOW]` (controlled-checkbox code smell, B2B+marketing test gap); status story → `in-progress`.
 - 2026-05-11: addressed Pass 6 LOW review follow-ups — 2 `[Review][Patch]` items resolved; status story → `review`.
+- 2026-05-11: Pass 7 full-scope code review (Cascade) — Outcome `Changes Requested (minor)`, открыто 6 `[Review][Patch]` (2 MEDIUM, 4 LOW); status story → `in-progress`.
+- 2026-05-11: addressed Pass 7 review follow-ups — 6 `[Review][Patch]` items resolved; status story → `review`.
+
+#### Pass 7 (2026-05-11) — full-scope adversarial review (Cascade)
+
+**Scope:** полный delta story 35.2 относительно `origin/main` (727848fc..16addf9b), ~1600 строк значимого source-кода без auto-generated `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts` и `.review-cache/*.patch`. Layers: Acceptance Auditor + Blind Hunter + Edge Case Hunter.
+
+**Acceptance Auditor:** ✅ AC-1..AC-8 соответствуют коду. Все 25 `[Review][Patch]` из Passes 1-6 закрыты. Файлы из «НЕ ИЗМЕНЯТЬ» не тронуты.
+
+**Outcome:** **Changes Requested (minor)** — 2 MEDIUM + 4 LOW follow-ups; ничего не блокирует merge, но требует явного решения по M-1/M-2.
+
+**Review Follow-ups (Pass 7):**
+
+- [x] [Review][Patch][MEDIUM] Drift текста ошибки `pdp_consent` между frontend и backend: frontend Zod `'Необходимо согласие на обработку персональных данных'` (без точки), backend serializer `PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных.'` (с точкой). При client-side Zod валидации показывается версия без точки, при 400-ответе backend через `applyBackendFieldErrors` — с точкой на том же чекбоксе. UX-inconsistency + drift-risk для assertion-тестов. Resolved: frontend Zod message синхронизирован с backend punctuation; schema tests закрепляют точный текст для B2C и B2B. [frontend/src/schemas/authSchemas.ts, frontend/src/schemas/__tests__/authSchemas.test.ts]
+- [x] [Review][Patch][MEDIUM] `normalize_consent_ip` отбрасывает IPv4-mapped IPv6 (`::ffff:<public-v4>`): `IPv6Address("::ffff:8.8.8.8").is_global == False`, поэтому dual-stack nginx/proxy, передающий клиентский IPv4 в IPv6-mapped форме, получит `UserConsent.ip_address = NULL` для легитимного публичного клиента. 152-ФЗ audit-trail деградирует молча. Resolved: `ipv4_mapped` разворачивается до canonical IPv4 и валидируется через `is_global`; integration test покрывает `::ffff:8.8.8.8` → `8.8.8.8`. [backend/apps/users/views/authentication.py, backend/tests/integration/test_auth_registration_consent.py]
+- [x] [Review][Patch][LOW] Cross-cutting side-effect `get_client_ip` (blank XFF first hop → fallback `REMOTE_ADDR` вместо пустой строки) не отражён ни в Change Log story, ни в commit message. Функция используется вне scope registration (LogoutView, rate-limiting). Resolved: side-effect явно зафиксирован в Change Log/Debug Log как намеренное улучшение: empty first hop больше не попадает в audit/log path как пустая строка и fallback-ится на `REMOTE_ADDR`. [backend/apps/users/views/authentication.py, _bmad-output/implementation-artifacts/Story/35-2-consent-checkboxes-in-registration-forms.md]
+- [x] [Review][Patch][LOW] `applyBackendFieldErrors` рекурсивно сканирует весь payload до `MAX_VALIDATION_MESSAGE_DEPTH = 8` и сопоставляет любой ключ с `fieldErrorMap` на любой глубине. Если backend в будущем вложит diagnostic-структуру с ключом, случайно совпадающим с `email`/`password` где-то глубже top-level, RHF выставит inline error на неподходящее поле формы. Сейчас коллизия маловероятна (DRF контракт плоский), но ограничитель глубины её не предотвращает. Resolved: inline `setError` теперь мапит только top-level field keys; nested payload остаётся видимым как API error через `getFirstValidationMessage`. [frontend/src/utils/validationErrorParser.ts, frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx]
+- [x] [Review][Patch][LOW] Marketing-checkbox не получает `aria-invalid`/`aria-describedby`/error-state визуализации. Сейчас осознанно (поле опциональное, submit не блокируется), но если в будущем появится валидация (например, «подтвердите возраст» или отзыв marketing согласия с условием), симметрия с PDP-чекбоксом будет потеряна. Resolved: отличие зафиксировано комментариями в B2C/B2B формах; tests закрепляют, что optional marketing checkbox не получает inline error-state. [frontend/src/components/auth/RegisterForm.tsx, frontend/src/components/auth/B2BRegisterForm.tsx, frontend/src/components/auth/__tests__/RegisterForm.test.tsx, frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx]
+- [x] [Review][Patch][LOW] `transaction.atomic()` в `UserRegistrationView.post` расширил окно pre-existing Celery race: после 35.2 между `send_admin_verification_email.delay(...)` / `send_user_pending_email.delay(...)` (внутри `serializer.create()`) и финальным COMMIT выполняется 1-2 `UserConsent.objects.create()`. Если consent INSERT упадёт (например, DB contention на `UserConsent` constraint), worker получает задачу на откатанного user'а. Deferred recognized в Passes 1/3/5, но scope-increment именно 35.2 стоит явно зафиксировать в `deferred-work.md` с пометкой «окно расширено Pass 1 atomic wrapping». Resolved: scope-increment добавлен в `_bmad-output/implementation-artifacts/deferred-work.md`; code change остаётся вне scope 35.2. [backend/apps/users/views/authentication.py, backend/apps/users/serializers.py, _bmad-output/implementation-artifacts/deferred-work.md]
+
+**Dismissed (noise / уже покрыто ранее):**
+
+- A11y `aria-labelledby` через 3 ID (label-prefix + link + label-suffix) — SR читает accessible name корректно, покрыто component-тестами Pass 3.
+- `sanitize_log_value` `MAX_LOG_VALUE_LENGTH = 128` — достаточно для max bracketed IPv6+port (~47 символов), truncation по token boundary корректна.
+- `IPV4_WITH_PORT_RE` не ловит `0.0.0.0:0` — отсечётся позже через `parse_ip_address` + `is_global`.
+- Pass 6 controlled-checkbox fix — проверено: `checked={watch(...)}` удалён, осталось только `{...register(...)}`.

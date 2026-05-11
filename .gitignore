@@ -40,6 +40,8 @@ celerybeat-schedule*
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
+.claude/z-glm.json
+.claude/openrouter-QWEN3_6.json
 
 # OS generated files
 .DS_Store

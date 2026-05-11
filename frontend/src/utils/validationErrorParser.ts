@@ -85,33 +85,16 @@ export const getFirstValidationMessage = (data: ApiErrorData): string | undefine
 };
 
 const collectBackendFieldMessages = <FormInput extends FieldValues>(
-  value: ApiValidationValue,
+  data: ApiErrorData,
   fieldErrorMap: BackendFieldErrorMap<FormInput>,
-  messages: Partial<Record<Path<FormInput>, string>>,
-  seenObjects: WeakSet<object> = new WeakSet(),
-  depth = 0
+  messages: Partial<Record<Path<FormInput>, string>>
 ) => {
-  if (!value || typeof value !== 'object' || depth > MAX_VALIDATION_MESSAGE_DEPTH) {
-    return;
-  }
-
-  if (seenObjects.has(value)) {
-    return;
-  }
-  seenObjects.add(value);
-
-  const entries: Array<readonly [string, ApiValidationValue]> = Array.isArray(value)
-    ? value.map((item, index) => [String(index), item] as const)
-    : getValidationEntries(value as Record<string, ApiValidationValue>);
-
-  for (const [key, item] of entries) {
+  for (const [key, item] of getValidationEntries(data)) {
     const fieldName = fieldErrorMap[key];
     const message = fieldName ? getValidationMessage(item) : undefined;
     if (fieldName && message && !messages[fieldName]) {
       messages[fieldName] = message;
     }
-
-    collectBackendFieldMessages(item, fieldErrorMap, messages, seenObjects, depth + 1);
   }
 };
 

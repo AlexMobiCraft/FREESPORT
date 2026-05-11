@@ -52,7 +52,6 @@ const B2B_FIELD_ERROR_MAP = {
   ogrn: 'ogrn',
   legal_address: 'legal_address',
   pdp_consent: 'pdp_consent',
-  marketing_consent: 'marketing_consent',
 } satisfies BackendFieldErrorMap<B2BRegisterFormInput>;
 
 export interface B2BRegisterFormProps {
@@ -425,6 +424,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         </div>
 
         <div className="flex items-start gap-3">
+          {/* Маркетинговое согласие опционально: inline error-state намеренно не назначается. */}
           <Checkbox
             id="b2b-register-marketing-consent"
             {...register('marketing_consent')}

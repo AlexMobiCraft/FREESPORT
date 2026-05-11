@@ -1,0 +1,197 @@
+diff --git a/frontend/src/schemas/authSchemas.ts b/frontend/src/schemas/authSchemas.ts
+index 2276ee7a..18000956 100644
+--- a/frontend/src/schemas/authSchemas.ts
++++ b/frontend/src/schemas/authSchemas.ts
+@@ -9,6 +9,12 @@
+ import { z } from 'zod';
+ import { validateINN, validateOGRN } from '@/utils/validators/b2b-validators';
+ 
++const PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных';
++
++const pdpConsentSchema = z
++  .boolean({ error: PDP_CONSENT_REQUIRED_MESSAGE })
++  .pipe(z.literal(true, { error: PDP_CONSENT_REQUIRED_MESSAGE }));
++
+ /**
+  * Login Schema
+  * Валидация формы входа
+@@ -49,6 +55,8 @@ export const registerSchema = z
+     // Story 29.1: Условные B2B поля
+     company_name: z.string().optional(),
+     tax_id: z.string().optional(),
++    pdp_consent: pdpConsentSchema,
++    marketing_consent: z.boolean().default(false),
+   })
+   .refine(data => data.password === data.confirmPassword, {
+     message: 'Пароли не совпадают',
+@@ -139,6 +147,8 @@ export const b2bRegisterSchema = z
+       'trainer',
+       'federation_rep',
+     ]),
++    pdp_consent: pdpConsentSchema,
++    marketing_consent: z.boolean().default(false),
+   })
+   .refine(data => data.password === data.confirmPassword, {
+     message: 'Пароли не совпадают',
+@@ -180,7 +190,9 @@ export const passwordResetConfirmSchema = z
+  * TypeScript Types (инференция из Zod schemas)
+  */
+ export type LoginFormData = z.infer<typeof loginSchema>;
+-export type RegisterFormData = z.input<typeof registerSchema>;
+-export type B2BRegisterFormData = z.infer<typeof b2bRegisterSchema>;
++export type RegisterFormInput = z.input<typeof registerSchema>;
++export type RegisterFormData = z.output<typeof registerSchema>;
++export type B2BRegisterFormInput = z.input<typeof b2bRegisterSchema>;
++export type B2BRegisterFormData = z.output<typeof b2bRegisterSchema>;
+ export type PasswordResetRequestFormData = z.infer<typeof passwordResetRequestSchema>;
+ export type PasswordResetConfirmFormData = z.infer<typeof passwordResetConfirmSchema>;
+diff --git a/frontend/src/types/api.ts b/frontend/src/types/api.ts
+index 6dd60728..e1c0b3dd 100644
+--- a/frontend/src/types/api.ts
++++ b/frontend/src/types/api.ts
+@@ -148,6 +148,8 @@ export interface RegisterRequest {
+   role?: string;
+   company_name?: string;
+   tax_id?: string;
++  pdp_consent: boolean;
++  marketing_consent?: boolean;
+ }
+ 
+ export interface RegisterResponse {
+diff --git a/frontend/src/utils/validationErrorParser.ts b/frontend/src/utils/validationErrorParser.ts
+new file mode 100644
+index 00000000..6d42177d
+--- /dev/null
++++ b/frontend/src/utils/validationErrorParser.ts
+@@ -0,0 +1,131 @@
++import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
++
++export type ApiValidationValue =
++  | string
++  | string[]
++  | ApiValidationValue[]
++  | { [key: string]: ApiValidationValue }
++  | null
++  | undefined;
++
++export type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidationValue };
++
++export type BackendFieldErrorMap<FormInput extends FieldValues> = Partial<
++  Record<string, Path<FormInput>>
++>;
++
++const MAX_VALIDATION_MESSAGE_DEPTH = 8;
++const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
++
++const isArrayIndexKey = (key: string) => ARRAY_INDEX_KEY_RE.test(key);
++
++export const getValidationEntries = (data: Record<string, ApiValidationValue>) =>
++  Object.entries(data).sort(
++    ([leftKey], [rightKey]) => Number(isArrayIndexKey(leftKey)) - Number(isArrayIndexKey(rightKey))
++  );
++
++export const getValidationMessage = (
++  value: ApiValidationValue,
++  seenObjects: WeakSet<object> = new WeakSet(),
++  depth = 0
++): string | undefined => {
++  if (depth > MAX_VALIDATION_MESSAGE_DEPTH) {
++    return undefined;
++  }
++
++  if (typeof value === 'string') {
++    return value || undefined;
++  }
++
++  if (Array.isArray(value)) {
++    if (seenObjects.has(value)) {
++      return undefined;
++    }
++    seenObjects.add(value);
++
++    for (const item of value) {
++      const message = getValidationMessage(item, seenObjects, depth + 1);
++      if (message) {
++        return message;
++      }
++    }
++    return undefined;
++  }
++
++  if (value && typeof value === 'object') {
++    if (seenObjects.has(value)) {
++      return undefined;
++    }
++    seenObjects.add(value);
++
++    for (const [, item] of getValidationEntries(value as Record<string, ApiValidationValue>)) {
++      const message = getValidationMessage(item, seenObjects, depth + 1);
++      if (message) {
++        return message;
++      }
++    }
++  }
++
++  return undefined;
++};
++
++export const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
++  for (const [key, value] of getValidationEntries(data)) {
++    if (key === 'detail') {
++      continue;
++    }
++
++    const message = getValidationMessage(value);
++    if (message) {
++      return message;
++    }
++  }
++
++  return getValidationMessage(data.detail);
++};
++
++const collectBackendFieldMessages = <FormInput extends FieldValues>(
++  value: ApiValidationValue,
++  fieldErrorMap: BackendFieldErrorMap<FormInput>,
++  messages: Partial<Record<Path<FormInput>, string>>,
++  seenObjects: WeakSet<object> = new WeakSet(),
++  depth = 0
++) => {
++  if (!value || typeof value !== 'object' || depth > MAX_VALIDATION_MESSAGE_DEPTH) {
++    return;
++  }
++
++  if (seenObjects.has(value)) {
++    return;
++  }
++  seenObjects.add(value);
++
++  const entries: Array<readonly [string, ApiValidationValue]> = Array.isArray(value)
++    ? value.map((item, index) => [String(index), item] as const)
++    : getValidationEntries(value as Record<string, ApiValidationValue>);
++
++  for (const [key, item] of entries) {
++    const fieldName = fieldErrorMap[key];
++    const message = fieldName ? getValidationMessage(item) : undefined;
++    if (fieldName && message && !messages[fieldName]) {
++      messages[fieldName] = message;
++    }
++
++    collectBackendFieldMessages(item, fieldErrorMap, messages, seenObjects, depth + 1);
++  }
++};
++
++export const applyBackendFieldErrors = <FormInput extends FieldValues>(
++  data: ApiErrorData,
++  setError: UseFormSetError<FormInput>,
++  fieldErrorMap: BackendFieldErrorMap<FormInput>
++): string | undefined => {
++  const messages: Partial<Record<Path<FormInput>, string>> = {};
++  collectBackendFieldMessages(data, fieldErrorMap, messages);
++
++  for (const [fieldName, message] of Object.entries(messages) as Array<[Path<FormInput>, string]>) {
++    setError(fieldName, { type: 'server', message });
++  }
++
++  return Object.values(messages).find((message): message is string => typeof message === 'string');
++};

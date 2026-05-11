@@ -1,0 +1,451 @@
+diff --git a/frontend/src/components/auth/B2BRegisterForm.tsx b/frontend/src/components/auth/B2BRegisterForm.tsx
+index 37cbb37f..88881b66 100644
+--- a/frontend/src/components/auth/B2BRegisterForm.tsx
++++ b/frontend/src/components/auth/B2BRegisterForm.tsx
+@@ -14,20 +14,52 @@
+ 
+ 'use client';
+ 
+-import React, { useState } from 'react';
++import React, { useEffect, useRef, useState } from 'react';
+ import { useForm } from 'react-hook-form';
+ import { zodResolver } from '@hookform/resolvers/zod';
++import Link from 'next/link';
+ import { useRouter } from 'next/navigation';
+ import { Input } from '@/components/ui/Input/Input';
+ import { PhoneInput } from '@/components/ui/Input/PhoneInput';
+ import { Button } from '@/components/ui/Button/Button';
++import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
+ import authService from '@/services/authService';
+ import { isSafeRedirectUrl } from '@/utils/urlUtils';
+-import { b2bRegisterSchema, type B2BRegisterFormData } from '@/schemas/authSchemas';
++import {
++  b2bRegisterSchema,
++  type B2BRegisterFormData,
++  type B2BRegisterFormInput,
++} from '@/schemas/authSchemas';
+ import type { RegisterRequest } from '@/types/api';
++import {
++  applyBackendFieldErrors,
++  getFirstValidationMessage,
++  getValidationMessage,
++  type ApiErrorData,
++  type BackendFieldErrorMap,
++} from '@/utils/validationErrorParser';
++
++const B2B_FIELD_ERROR_MAP = {
++  email: 'email',
++  password: 'password',
++  password_confirm: 'confirmPassword',
++  first_name: 'first_name',
++  last_name: 'last_name',
++  phone: 'phone',
++  role: 'role',
++  company_name: 'company_name',
++  tax_id: 'tax_id',
++  ogrn: 'ogrn',
++  legal_address: 'legal_address',
++  pdp_consent: 'pdp_consent',
++  marketing_consent: 'marketing_consent',
++} satisfies BackendFieldErrorMap<B2BRegisterFormInput>;
+ 
+ export interface B2BRegisterFormProps {
+-  /** Callback после успешной регистрации (optional) */
++  /**
++   * Callback после успешной регистрации.
++   * Для pending B2B-заявки вызывается после рендера inline pending state.
++   */
+   onSuccess?: () => void;
+   /** URL для редиректа после успешной регистрации */
+   redirectUrl?: string;
+@@ -37,18 +69,40 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+   const router = useRouter();
+   const [apiError, setApiError] = useState<string | null>(null);
+   const [isPending, setIsPending] = useState(false);
++  const [shouldNotifyPendingSuccess, setShouldNotifyPendingSuccess] = useState(false);
++  const pendingSuccessCallbackRef = useRef<(() => void) | null>(null);
++  const pendingSuccessNotifiedRef = useRef(false);
+ 
+   const {
+     register,
+     handleSubmit,
++    setError,
+     formState: { errors, isSubmitting },
+-  } = useForm<B2BRegisterFormData>({
++  } = useForm<B2BRegisterFormInput, unknown, B2BRegisterFormData>({
+     resolver: zodResolver(b2bRegisterSchema),
+     defaultValues: {
+       role: 'wholesale_level1',
++      pdp_consent: false,
++      marketing_consent: false,
+     },
+   });
+ 
++  const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
++
++  useEffect(() => {
++    if (!isPending || !shouldNotifyPendingSuccess) {
++      return;
++    }
++
++    if (pendingSuccessNotifiedRef.current) {
++      return;
++    }
++
++    pendingSuccessNotifiedRef.current = true;
++    pendingSuccessCallbackRef.current?.();
++    setShouldNotifyPendingSuccess(false);
++  }, [isPending, shouldNotifyPendingSuccess]);
++
+   const onSubmit = async (data: B2BRegisterFormData) => {
+     try {
+       setApiError(null);
+@@ -64,19 +118,29 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+         role: data.role,
+         company_name: data.company_name,
+         tax_id: data.tax_id,
++        pdp_consent: data.pdp_consent,
++        marketing_consent: data.marketing_consent ?? false,
+       };
+ 
+       // AC 4: Отправка через authService.registerB2B()
+       const response = await authService.registerB2B(registerData);
+ 
+-      // CRITICAL FIX: Force token refresh immediately to ensure valid session
+-      // Initial access token from registration might be restricted/invalid until refresh
+-      await authService.refreshToken();
+-
+       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
+       if (response.user.is_verified === false) {
++        pendingSuccessCallbackRef.current = onSuccess ?? null;
++        pendingSuccessNotifiedRef.current = false;
+         setIsPending(true);
++        setShouldNotifyPendingSuccess(Boolean(onSuccess));
++        return;
+       } else {
++        // CRITICAL FIX: Force token refresh immediately to ensure valid session
++        // Initial access token from registration might be restricted/invalid until refresh
++        try {
++          await authService.refreshToken();
++        } catch {
++          // Регистрация уже успешна; сбой refresh не должен превращать ее в ошибку.
++        }
++
+         // Callback при успехе
+         if (onSuccess) {
+           onSuccess();
+@@ -89,23 +153,32 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+     } catch (error: unknown) {
+       // AC 5: Обработка ошибок API
+       const err = error as {
+-        response?: { status?: number; data?: Record<string, string[]> & { detail?: string } };
++        response?: {
++          status?: number;
++          data?: ApiErrorData;
++        };
+       };
++      const responseData = err.response?.data || {};
++      const firstFieldError = applyBackendFieldErrors(responseData, setError, B2B_FIELD_ERROR_MAP);
+ 
+       if (err.response?.status === 409) {
+         // AC 5: Специфичная обработка "Компания уже зарегистрирована"
+-        const companyError = err.response?.data?.company_name?.[0];
+-        const emailError = err.response?.data?.email?.[0];
+-        setApiError(companyError || emailError || 'Компания или email уже зарегистрированы');
++        setApiError(
++          getValidationMessage(responseData.company_name) ||
++            getValidationMessage(responseData.email) ||
++            'Компания или email уже зарегистрированы'
++        );
+       } else if (err.response?.status === 400) {
+         // Ошибки валидации
+-        const taxIdError = err.response?.data?.tax_id?.[0];
+-        const passwordError = err.response?.data?.password?.[0];
+-        setApiError(taxIdError || passwordError || 'Ошибка валидации данных');
++        setApiError(
++          firstFieldError || getFirstValidationMessage(responseData) || 'Ошибка валидации данных'
++        );
+       } else if (err.response?.status === 500) {
+         setApiError('Ошибка сервера. Попробуйте позже');
+       } else {
+-        setApiError(err.response?.data?.detail || 'Произошла ошибка при регистрации');
++        setApiError(
++          getValidationMessage(responseData.detail) || 'Произошла ошибка при регистрации'
++        );
+       }
+     }
+   };
+@@ -296,6 +369,74 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+           autoComplete="new-password"
+           placeholder="••••••••"
+         />
++
++        <div className="space-y-2">
++          <div className="flex items-start gap-3">
++            <Checkbox
++              id="b2b-register-pdp-consent"
++              {...register('pdp_consent')}
++              disabled={isSubmitting}
++              aria-invalid={hasPdpConsentError || undefined}
++              aria-labelledby="b2b-register-pdp-consent-label-prefix b2b-register-pdp-consent-policy-link b2b-register-pdp-consent-label-suffix"
++              aria-describedby={
++                errors.pdp_consent?.message ? 'b2b-register-pdp-consent-error' : undefined
++              }
++              className={
++                hasPdpConsentError
++                  ? 'border-[var(--color-accent-danger)] bg-[var(--color-accent-danger)]/8 peer-focus:ring-[var(--color-accent-danger)]'
++                  : undefined
++              }
++            />
++            <span className="text-body-s text-text-primary select-none">
++              <label
++                id="b2b-register-pdp-consent-label-prefix"
++                htmlFor="b2b-register-pdp-consent"
++                className="cursor-pointer"
++              >
++                Я даю согласие на
++              </label>{' '}
++              <Link
++                id="b2b-register-pdp-consent-policy-link"
++                href="/privacy-policy"
++                target="_blank"
++                rel="noopener noreferrer"
++                className="text-primary underline hover:text-primary-hover"
++              >
++                обработку моих персональных данных
++              </Link>{' '}
++              <label
++                id="b2b-register-pdp-consent-label-suffix"
++                htmlFor="b2b-register-pdp-consent"
++                className="cursor-pointer"
++              >
++                в соответствии с Политикой
++              </label>
++            </span>
++          </div>
++          {errors.pdp_consent?.message && (
++            <p
++              id="b2b-register-pdp-consent-error"
++              className="text-body-xs text-[var(--color-accent-danger)]"
++              role="alert"
++            >
++              {errors.pdp_consent.message}
++            </p>
++          )}
++        </div>
++
++        <div className="flex items-start gap-3">
++          <Checkbox
++            id="b2b-register-marketing-consent"
++            {...register('marketing_consent')}
++            disabled={isSubmitting}
++          />
++          <label
++            htmlFor="b2b-register-marketing-consent"
++            className="text-body-s text-text-primary cursor-pointer select-none"
++          >
++            Я согласен(на) получать рекламные и информационные рассылки от FREESPORT
++          </label>
++        </div>
+       </div>
+ 
+       {/* Submit Button */}
+diff --git a/frontend/src/components/auth/RegisterForm.tsx b/frontend/src/components/auth/RegisterForm.tsx
+index f9972860..b47f1803 100644
+--- a/frontend/src/components/auth/RegisterForm.tsx
++++ b/frontend/src/components/auth/RegisterForm.tsx
+@@ -26,14 +26,27 @@
+ import React, { useState } from 'react';
+ import { useForm } from 'react-hook-form';
+ import { zodResolver } from '@hookform/resolvers/zod';
++import Link from 'next/link';
+ import { useRouter } from 'next/navigation';
+ import { Input } from '@/components/ui/Input/Input';
+ import { Button } from '@/components/ui/Button/Button';
++import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
+ import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
+ import authService from '@/services/authService';
+ import { isSafeRedirectUrl } from '@/utils/urlUtils';
+-import { registerSchema, type RegisterFormData } from '@/schemas/authSchemas';
++import {
++  registerSchema,
++  type RegisterFormData,
++  type RegisterFormInput,
++} from '@/schemas/authSchemas';
+ import type { RegisterRequest } from '@/types/api';
++import {
++  applyBackendFieldErrors,
++  getFirstValidationMessage,
++  getValidationMessage,
++  type ApiErrorData,
++  type BackendFieldErrorMap,
++} from '@/utils/validationErrorParser';
+ 
+ // Story 29.1 AC 1: Константа с опциями ролей
+ const ROLE_OPTIONS = [
+@@ -43,6 +56,18 @@ const ROLE_OPTIONS = [
+   { value: 'federation_rep' as const, label: 'Представитель спортивной федерации' },
+ ] as const;
+ 
++const REGISTER_FIELD_ERROR_MAP = {
++  email: 'email',
++  password: 'password',
++  password_confirm: 'confirmPassword',
++  first_name: 'first_name',
++  role: 'role',
++  company_name: 'company_name',
++  tax_id: 'tax_id',
++  pdp_consent: 'pdp_consent',
++  marketing_consent: 'marketing_consent',
++} satisfies BackendFieldErrorMap<RegisterFormInput>;
++
+ export interface RegisterFormProps {
+   /** Callback после успешной регистрации (optional) */
+   onSuccess?: () => void;
+@@ -58,17 +83,21 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+     register,
+     handleSubmit,
+     watch,
++    setError,
+     formState: { errors, isSubmitting },
+-  } = useForm<RegisterFormData>({
++  } = useForm<RegisterFormInput, unknown, RegisterFormData>({
+     resolver: zodResolver(registerSchema),
+     // Story 29.1 AC 2: Retail роль по умолчанию
+     defaultValues: {
+       role: 'retail',
++      pdp_consent: false,
++      marketing_consent: false,
+     },
+   });
+ 
+   // Story 29.1: Отслеживаем выбранную роль для условной логики
+   const selectedRole = watch('role') ?? 'retail';
++  const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
+ 
+   const onSubmit = async (data: RegisterFormData) => {
+     try {
+@@ -87,6 +116,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+         // Story 29.1 AC 8: Условные B2B поля
+         company_name: data.company_name,
+         tax_id: data.tax_id,
++        pdp_consent: data.pdp_consent,
++        marketing_consent: data.marketing_consent ?? false,
+       };
+ 
+       // AC 2: Автоматический вход после регистрации
+@@ -106,26 +137,30 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+       const err = error as {
+         response?: {
+           status?: number;
+-          data?: Record<string, string[] | string>;
++          data?: ApiErrorData;
+         };
+       };
++      const responseData = err.response?.data || {};
++      const firstFieldError = applyBackendFieldErrors(
++        responseData,
++        setError,
++        REGISTER_FIELD_ERROR_MAP
++      );
++
+       if (err.response?.status === 409) {
+         // Конфликт - пользователь уже существует
+-        const emailError = err.response?.data?.email?.[0];
++        const emailError = getValidationMessage(responseData.email);
+         setApiError(emailError || 'Пользователь с таким email уже существует');
+       } else if (err.response?.status === 400) {
+         // Ошибки валидации
+-        const data = err.response?.data || {};
+-        // Ищем первую ошибку в ответе
+-        const firstErrorKey = Object.keys(data).find(key => key !== 'detail');
+-        const firstError = firstErrorKey ? data[firstErrorKey] : null;
+-        const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+-
++        const errorMessage = firstFieldError || getFirstValidationMessage(responseData);
+         setApiError(errorMessage || 'Ошибка валидации данных');
+       } else if (err.response?.status === 500) {
+         setApiError('Ошибка сервера. Попробуйте позже');
+       } else {
+-        setApiError((err.response?.data?.detail as string) || 'Произошла ошибка при регистрации');
++        setApiError(
++          getValidationMessage(responseData.detail) || 'Произошла ошибка при регистрации'
++        );
+       }
+     }
+   };
+@@ -247,6 +282,74 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+         placeholder="••••••••"
+       />
+ 
++      <div className="space-y-2">
++        <div className="flex items-start gap-3">
++          <Checkbox
++            id="register-pdp-consent"
++            {...register('pdp_consent')}
++            disabled={isSubmitting}
++            aria-invalid={hasPdpConsentError || undefined}
++            aria-labelledby="register-pdp-consent-label-prefix register-pdp-consent-policy-link register-pdp-consent-label-suffix"
++            aria-describedby={
++              errors.pdp_consent?.message ? 'register-pdp-consent-error' : undefined
++            }
++            className={
++              hasPdpConsentError
++                ? 'border-[var(--color-accent-danger)] bg-[var(--color-accent-danger)]/8 peer-focus:ring-[var(--color-accent-danger)]'
++                : undefined
++            }
++          />
++          <span className="text-body-s text-text-primary select-none">
++            <label
++              id="register-pdp-consent-label-prefix"
++              htmlFor="register-pdp-consent"
++              className="cursor-pointer"
++            >
++              Я даю согласие на
++            </label>{' '}
++            <Link
++              id="register-pdp-consent-policy-link"
++              href="/privacy-policy"
++              target="_blank"
++              rel="noopener noreferrer"
++              className="text-primary underline hover:text-primary-hover"
++            >
++              обработку моих персональных данных
++            </Link>{' '}
++            <label
++              id="register-pdp-consent-label-suffix"
++              htmlFor="register-pdp-consent"
++              className="cursor-pointer"
++            >
++              в соответствии с Политикой
++            </label>
++          </span>
++        </div>
++        {errors.pdp_consent?.message && (
++          <p
++            id="register-pdp-consent-error"
++            className="text-body-xs text-[var(--color-accent-danger)]"
++            role="alert"
++          >
++            {errors.pdp_consent.message}
++          </p>
++        )}
++      </div>
++
++      <div className="flex items-start gap-3">
++        <Checkbox
++          id="register-marketing-consent"
++          {...register('marketing_consent')}
++          disabled={isSubmitting}
++        />
++        <label
++          htmlFor="register-marketing-consent"
++          className="text-body-s text-text-primary cursor-pointer select-none"
++        >
++          Я согласен(на) получать рекламные и информационные рассылки от FREESPORT
++        </label>
++      </div>
++
+       {/* AC 6: Использование Button компонента */}
+       {/* AC 4: Loading state с блокировкой кнопки */}
+       <Button type="submit" loading={isSubmitting} disabled={isSubmitting} className="w-full">

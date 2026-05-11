@@ -405,7 +405,7 @@ describe('B2BRegisterForm consent checkboxes', () => {
     );
   });
 
-  test('should surface nested backend validation errors', async () => {
+  test('should show nested backend validation errors without mapping nested field names inline', async () => {
     const user = userEvent.setup();
     const mockRegisterB2B = vi.mocked(authService.registerB2B);
     mockRegisterB2B.mockRejectedValue({
@@ -427,8 +427,23 @@ describe('B2BRegisterForm consent checkboxes', () => {
 
     expect((await screen.findAllByText(/некорректный инн компании/i)).length).toBeGreaterThan(0);
     const taxIdInput = screen.getByLabelText(/инн/i);
-    expect(taxIdInput).toHaveAccessibleDescription(/некорректный инн компании/i);
-    expect(taxIdInput).toHaveAttribute('aria-invalid', 'true');
+    expect(taxIdInput).not.toHaveAccessibleDescription(/некорректный инн компании/i);
+    expect(taxIdInput).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  test('should keep optional marketing checkbox without inline error state', async () => {
+    const user = userEvent.setup();
+    render(<B2BRegisterForm />);
+
+    const marketingConsent = getMarketingConsent();
+    expect(marketingConsent).not.toHaveAttribute('aria-invalid');
+    expect(marketingConsent).not.toHaveAttribute('aria-describedby');
+
+    await fillValidB2BForm(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(marketingConsent).not.toHaveAttribute('aria-invalid');
+    expect(marketingConsent).not.toHaveAttribute('aria-describedby');
   });
 
   test('should not hang on cyclic backend validation payloads', async () => {

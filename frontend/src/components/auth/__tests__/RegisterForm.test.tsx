@@ -94,6 +94,20 @@ describe('RegisterForm', () => {
       expect(getMarketingConsent()).not.toBeChecked();
     });
 
+    test('should keep optional marketing checkbox without inline error state', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const marketingConsent = getMarketingConsent();
+      expect(marketingConsent).not.toHaveAttribute('aria-invalid');
+      expect(marketingConsent).not.toHaveAttribute('aria-describedby');
+
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(marketingConsent).not.toHaveAttribute('aria-invalid');
+      expect(marketingConsent).not.toHaveAttribute('aria-describedby');
+    });
+
     test('should have proper autocomplete attributes', () => {
       render(<RegisterForm />);
 

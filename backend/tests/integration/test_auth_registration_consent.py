@@ -205,6 +205,22 @@ def test_consent_record_captures_ip_and_user_agent_from_proxy_headers():
     assert consent.user_agent == "A" * 512
 
 
+def test_registration_normalizes_ipv4_mapped_ipv6_for_consent_record():
+    client = APIClient()
+
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR="::ffff:8.8.8.8",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert consent.ip_address == "8.8.8.8"
+
+
 def test_registration_ignores_invalid_forwarded_ip_for_consent_record():
     client = APIClient()
 

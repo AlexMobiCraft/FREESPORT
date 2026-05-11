@@ -581,6 +581,12 @@ def normalize_consent_ip(raw_ip: str) -> str | None:
     except ValueError:
         return None
 
+    mapped_ipv4 = getattr(parsed_ip, "ipv4_mapped", None)
+    if mapped_ipv4 is not None:
+        if not mapped_ipv4.is_global:
+            return None
+        return str(mapped_ipv4)
+
     if getattr(parsed_ip, "scope_id", None) or not parsed_ip.is_global:
         return None
 

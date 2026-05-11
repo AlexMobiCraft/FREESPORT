@@ -9,7 +9,7 @@
 import { z } from 'zod';
 import { validateINN, validateOGRN } from '@/utils/validators/b2b-validators';
 
-const PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных';
+const PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных.';
 
 const pdpConsentSchema = z
   .boolean({ error: PDP_CONSENT_REQUIRED_MESSAGE })

@@ -65,7 +65,6 @@ const REGISTER_FIELD_ERROR_MAP = {
   company_name: 'company_name',
   tax_id: 'tax_id',
   pdp_consent: 'pdp_consent',
-  marketing_consent: 'marketing_consent',
 } satisfies BackendFieldErrorMap<RegisterFormInput>;
 
 export interface RegisterFormProps {
@@ -337,6 +336,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
       </div>
 
       <div className="flex items-start gap-3">
+        {/* Маркетинговое согласие опционально: inline error-state намеренно не назначается. */}
         <Checkbox
           id="register-marketing-consent"
           {...register('marketing_consent')}

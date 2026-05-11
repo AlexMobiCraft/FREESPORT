@@ -141,6 +141,28 @@ describe('registerSchema', () => {
     }
   });
 
+  test('should use backend contract message for missing pdp consent', () => {
+    const result = registerSchema.safeParse({
+      first_name: 'Иван',
+      email: 'ivan.pdp-message@example.com',
+      password: 'SecurePass123',
+      confirmPassword: 'SecurePass123',
+      pdp_consent: false,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: ['pdp_consent'],
+            message: 'Необходимо согласие на обработку персональных данных.',
+          }),
+        ])
+      );
+    }
+  });
+
   describe('valid data', () => {
     test('should validate correct registration data', () => {
       const validData = {
@@ -294,6 +316,35 @@ describe('b2bRegisterSchema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.pdp_consent).toBe(true);
+    }
+  });
+
+  test('should use backend contract message for missing B2B pdp consent', () => {
+    const result = b2bRegisterSchema.safeParse({
+      first_name: 'Иван',
+      last_name: 'Петров',
+      email: 'b2b.pdp-message@example.com',
+      phone: '+79991234567',
+      password: 'SecurePass123',
+      confirmPassword: 'SecurePass123',
+      company_name: 'ООО Спорт',
+      tax_id: '1234567890',
+      ogrn: '1234567890123',
+      legal_address: 'г. Москва, ул. Тестовая, 1',
+      role: 'wholesale_level1',
+      pdp_consent: false,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: ['pdp_consent'],
+            message: 'Необходимо согласие на обработку персональных данных.',
+          }),
+        ])
+      );
     }
   });
 });
