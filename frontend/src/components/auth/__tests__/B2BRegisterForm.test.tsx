@@ -60,6 +60,7 @@ describe('B2BRegisterForm consent checkboxes', () => {
     expect(link).toHaveAttribute('href', '/privacy-policy');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link.closest('label')).toBeNull();
   });
 
   test('should block submit without pdp consent', async () => {
@@ -108,6 +109,36 @@ describe('B2BRegisterForm consent checkboxes', () => {
         })
       );
     });
+    expect(authService.refreshToken).not.toHaveBeenCalled();
+    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
+  });
+
+  test('should show pending state even when refresh token is unavailable for pending B2B user', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    vi.mocked(authService.refreshToken).mockRejectedValue(new Error('No refresh token'));
+    mockRegisterB2B.mockResolvedValue({
+      access: '',
+      refresh: '',
+      user: {
+        id: 10,
+        email: 'b2b@example.com',
+        first_name: 'Иван',
+        last_name: 'Петров',
+        phone: '+79991234567',
+        role: 'wholesale_level1',
+        is_verified: false,
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
+    expect(authService.refreshToken).not.toHaveBeenCalled();
   });
 
   test('should submit marketing_consent true when checked', async () => {
@@ -155,5 +186,26 @@ describe('B2BRegisterForm consent checkboxes', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/необходимо согласие/i);
+  });
+
+  test('should display backend pdp consent validation error', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockRejectedValue({
+      response: {
+        status: 400,
+        data: { pdp_consent: ['Необходимо согласие на обработку персональных данных.'] },
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(
+      await screen.findByText(/необходимо согласие на обработку персональных данных/i)
+    ).toBeInTheDocument();
   });
 });

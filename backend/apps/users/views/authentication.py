@@ -3,6 +3,7 @@ Views для аутентификации пользователей
 """
 
 import logging
+from ipaddress import ip_address as parse_ip_address
 from typing import Any, cast
 
 from django.contrib.auth import get_user_model, login, logout
@@ -115,8 +116,7 @@ class UserRegistrationView(APIView):
             with transaction.atomic():
                 user = serializer.save()
 
-                client_ip = get_client_ip(request)
-                ip_address = client_ip if client_ip != "unknown" else None
+                ip_address = get_consent_ip_address(request)
                 user_agent = (request.META.get("HTTP_USER_AGENT") or "")[:512]
 
                 UserConsent.objects.create(
@@ -519,6 +519,29 @@ def get_client_ip(request: Request) -> str:
     else:
         ip = request.META.get("REMOTE_ADDR", "unknown")
     return cast(str, ip)
+
+
+def get_consent_ip_address(request: Request) -> str | None:
+    """
+    Получить валидный IP для audit-записи согласия.
+
+    Заголовок X-Forwarded-For приходит извне, поэтому невалидное значение
+    нельзя напрямую сохранять в PostgreSQL inet-поле.
+    """
+    client_ip = get_client_ip(request)
+    if client_ip == "unknown":
+        return None
+
+    try:
+        parse_ip_address(client_ip)
+    except ValueError:
+        logger.warning(
+            "Invalid client IP skipped for consent audit",
+            extra={"client_ip": client_ip},
+        )
+        return None
+
+    return client_ip
 
 
 class LogoutView(GenericAPIView):

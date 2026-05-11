@@ -63,6 +63,7 @@ def test_registration_requires_pdp_consent():
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "pdp_consent" in response.data
+    assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
 
 
 def test_registration_rejects_pdp_consent_false():
@@ -143,6 +144,22 @@ def test_consent_record_captures_ip_and_user_agent_from_proxy_headers():
     consent = UserConsent.objects.get(user=user)
     assert consent.ip_address == "1.2.3.4"
     assert consent.user_agent == "A" * 512
+
+
+def test_registration_ignores_invalid_forwarded_ip_for_consent_record():
+    client = APIClient()
+
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR="not-a-valid-ip, 5.6.7.8",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert consent.ip_address is None
 
 
 def test_consent_records_have_default_policy_version():

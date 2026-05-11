@@ -69,6 +69,7 @@ describe('RegisterForm', () => {
       expect(link).toHaveAttribute('href', '/privacy-policy');
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(link.closest('label')).toBeNull();
     });
 
     test('should render marketing consent unchecked by default', () => {

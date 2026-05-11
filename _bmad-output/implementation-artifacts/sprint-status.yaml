@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-10" # 35.2 → review: все DoD-пункты закрыты (test-unit/integration, gitnexus, coverage, manual QA)
+last_updated: "2026-05-11" # 35.2 → in-progress: code review Pass 2 — 15 patch + 4 defer (Decision-1: Опция 3, Decision-2: Опция 2)
 
 development_status:
   # ========================================
@@ -165,6 +165,6 @@ development_status:
   # ========================================
   epic-35: in-progress
   35-1-privacy-policy-page-and-consent-model: done
-  35-2-consent-checkboxes-in-registration-forms: review
+  35-2-consent-checkboxes-in-registration-forms: in-progress
   35-3-consent-checkbox-in-subscribe-form: backlog
   35-4-cookie-banner: backlog

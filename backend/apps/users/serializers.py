@@ -26,7 +26,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
     )
     password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
-    pdp_consent = serializers.BooleanField(write_only=True, required=True)
+    pdp_consent = serializers.BooleanField(
+        write_only=True,
+        required=True,
+        error_messages={"required": "Необходимо согласие на обработку персональных данных."},
+    )
     marketing_consent = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:

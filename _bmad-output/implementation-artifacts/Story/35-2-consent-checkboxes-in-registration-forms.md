@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.2
-**Status:** review
+**Status:** in-progress
 **Priority:** High (часть compliance-пакета 152-ФЗ; разблокирует фактический сбор согласий пользователей)
 
 ---
@@ -521,12 +521,12 @@ Default модели `"1.0"`. Если в будущем потребуется 
 ## Definition of Done
 
 - [x] AC-1..AC-8 реализованы.
-- [x] `make test-unit` зелёный (697 passed, 12 skipped, 4:03 min). `make test-integration`: 606 passed; **10 failures isolated в `test_management_commands/test_import_customers.py` — environmental issue (пустая `data/import_1c/contragents/` в локальной checkout), не регрессия от 35.2** (последняя модификация теста — black-форматирование, см. Debug Log).
-- [x] Новые тесты `test_auth_registration_consent.py` зелёные (7 кейсов).
+- [x] Backend unit suite зелёный через Docker (`pytest -v -m unit --cov=apps --cov-report=term-missing`): 697 passed, 12 skipped, 1509 deselected. Backend integration suite: 607 passed; **10 failures isolated в `test_management_commands/test_import_customers.py` — environmental issue (пустая `data/import_1c/contragents/` в локальной checkout), не регрессия от 35.2**.
+- [x] Новые тесты `test_auth_registration_consent.py` зелёные (8 кейсов: 7 AC + review patch для invalid `X-Forwarded-For`).
 - [x] Существующий `test_auth_registration_tokens.py` обновлён и зелёный.
 - [x] `npm run test -- src/components/auth/__tests__/RegisterForm.test.tsx` зелёный.
-- [x] `npm run test -- src/components/auth/__tests__/B2BRegisterForm.test.tsx` зелёный (новый файл).
-- [x] `npm run build` (frontend) без ошибок TypeScript.
+- [x] `npm run test -- src/components/auth/__tests__/B2BRegisterForm.test.tsx` зелёный (7 кейсов).
+- [x] `npm run build` (frontend) прошёл с явным локальным `NEXT_PUBLIC_API_URL_INTERNAL=http://localhost:8001/api/v1`; без этой переменной локальный shell пытается prerender `/privacy-policy` через Docker hostname `backend` и падает `ENOTFOUND backend`.
 - [x] OpenAPI спецификация регенерирована (`python manage.py spectacular --file docs/api-spec.yaml`), если используется generated types на фронте — `npm run generate:types` прогнан.
 - [x] `gitnexus_detect_changes()` подтверждает: затронуты только символы из списка UPDATE/CREATE плюс задокументированный extra-fix `PrivacyPolicyPage/fetchPrivacyPolicy` (см. Debug Log) и косметика GitNexus stats в `AGENTS.md`/`CLAUDE.md` (auto-update).
 - [x] Покрытие `apps/users/views/authentication.py::UserRegistrationView.post` ≥ 90% — фактически **100%** (метод 110-159, missing-lines в `coverage`-отчёте все вне scope метода: Login/PasswordReset/Logout views).
@@ -536,13 +536,40 @@ Default модели `"1.0"`. Если в будущем потребуется 
 
 ### Review Findings
 
-- [ ] [Review][Patch] B2B pending registration can fail after successful backend response because `B2BRegisterForm` always calls `refreshToken()` before showing pending state [frontend/src/components/auth/B2BRegisterForm.tsx:84]
-- [ ] [Review][Patch] Missing `pdp_consent` returns DRF default required-field error instead of the story API-contract consent message [backend/apps/users/serializers.py:29]
-- [ ] [Review][Patch] Invalid `X-Forwarded-For` can make `UserConsent.ip_address` insert fail and roll back otherwise valid registration [backend/apps/users/views/authentication.py:118]
-- [ ] [Review][Patch] Privacy-policy link is nested inside the clickable checkbox label and can toggle consent when the user tries to read the policy [frontend/src/components/auth/RegisterForm.tsx:267]
-- [ ] [Review][Patch] B2B 400-error handling drops backend `pdp_consent` validation messages and shows a generic validation error [frontend/src/components/auth/B2BRegisterForm.tsx:110]
+- [x] [Review][Patch] B2B pending registration can fail after successful backend response because `B2BRegisterForm` always calls `refreshToken()` before showing pending state [frontend/src/components/auth/B2BRegisterForm.tsx:84] — resolved: pending response returns immediately before refresh; regression covered.
+- [x] [Review][Patch] Missing `pdp_consent` returns DRF default required-field error instead of the story API-contract consent message [backend/apps/users/serializers.py:29] — resolved: serializer `required` error now uses consent contract message; integration test asserts exact text.
+- [x] [Review][Patch] Invalid `X-Forwarded-For` can make `UserConsent.ip_address` insert fail and roll back otherwise valid registration [backend/apps/users/views/authentication.py:118] — resolved: consent audit IP is validated before DB insert; invalid external IP is stored as `NULL`.
+- [x] [Review][Patch] Privacy-policy link is nested inside the clickable checkbox label and can toggle consent when the user tries to read the policy [frontend/src/components/auth/RegisterForm.tsx:267] — resolved: link is outside checkbox labels; checkbox accessible name preserved via `aria-labelledby`.
+- [x] [Review][Patch] B2B 400-error handling drops backend `pdp_consent` validation messages and shows a generic validation error [frontend/src/components/auth/B2BRegisterForm.tsx:110] — resolved: B2B form surfaces `pdp_consent` and first backend validation message.
 - [x] [Review][Defer] B2B email Celery tasks are queued inside the registration transaction before consent rows are committed [backend/apps/users/serializers.py:113] — deferred, pre-existing and explicitly out of scope for 35.2
 - [x] [Review][Defer] Deleting a user with `UserConsent(user=..., session_key="")` can violate `userconsent_user_or_session_required` after `on_delete=SET_NULL` [backend/apps/common/models.py:595] — deferred, pre-existing 35.1 model lifecycle issue
+
+#### Pass 2 (2026-05-10) — review of [Review][Patch] closure diff
+
+**Patch items (включают резолюцию decision-items от 2026-05-11):**
+
+- [ ] [Review][Patch] **[Decision-1 resolved → Опция 3]** Заменить `aria-labelledby` + 3 фрагментированных `<label>` на единый wrapping `<label htmlFor=…>` с `<Link>` внутри, на котором повешен `onClick={(e) => e.stopPropagation()}` — это предотвращает toggle чекбокса при клике на link (исходный мотив фрагментации) и при этом сохраняет полный click-to-toggle UX и корректный accessible name из видимого текста [frontend/src/components/auth/RegisterForm.tsx:265-294, B2BRegisterForm.tsx:351-380]
+- [ ] [Review][Patch] **[Decision-2 resolved → Опция 2]** В B2B pending-ветке вызывать `onSuccess?.()` ПЕРЕД `setIsPending(true); return;`, но НЕ вызывать `router.push(redirectUrl)` (pending показывает inline-сообщение, навигация не нужна) — pending registration является успешным бизнес-событием с точки зрения аналитики/трекинга [frontend/src/components/auth/B2BRegisterForm.tsx:83-99]
+- [ ] [Review][Patch] `parse_ip_address` принимает IPv6 zone-id (`fe80::1%eth0`) и не нормализует bracketed `[2001:db8::1]:port` — на write в `inet`-поле PostgreSQL даст `DataError` → откат всей регистрации [backend/apps/users/views/authentication.py:524-544]
+- [ ] [Review][Patch] Пустой/whitespace первый hop `X-Forwarded-For` (`", 1.2.3.4"` или `" "`) → `parse_ip_address("")` падает → `None` вместо fallback на `REMOTE_ADDR`, теряем валидный IP для аудита [backend/apps/users/views/authentication.py:516-544]
+- [ ] [Review][Patch] `REMOTE_ADDR == "unknown"` молча возвращает `None` без warning-лога — нет различия между «нет IP» и «спарсили валидно» [backend/apps/users/views/authentication.py:520, 532]
+- [ ] [Review][Patch] `getValidationMessage` с hard-coded priority `['pdp_consent', 'tax_id', 'password']` скрывает реальные ошибки backend (например, валидный `pdp_consent`, но падение по `email`/`phone`/`inn` — пользователь видит сообщение о согласии вместо настоящей причины) [frontend/src/components/auth/B2BRegisterForm.tsx:120-134]
+- [ ] [Review][Patch] User-Agent slice `[:512]` по символам может оставить lone surrogates от latin-1 декодирования WSGI → `UnicodeEncodeError` при сохранении `varchar`, откат транзакции [backend/apps/users/views/authentication.py:120]
+- [ ] [Review][Patch] `pdp_consent.error_messages` покрывает только ключ `required`, но не `invalid` — клиент с `pdp_consent: "abc"` или `null` получит дефолтное английское сообщение DRF в Russian-only UI [backend/apps/users/serializers.py:29-33]
+- [ ] [Review][Patch] Тип `Record<string, string[] | string> & { detail?: string }` не моделирует вложенные DRF-ошибки и `non_field_errors` — `getFirstValidationMessage` молча проскакивает `object`-значения (вложенные сериализаторы) [frontend/src/components/auth/B2BRegisterForm.tsx:104]
+- [ ] [Review][Patch] Backend `pdp_consent` 400-ошибка устанавливает только `apiError` баннер; `setError('pdp_consent', ...)` не вызывается → нет inline-фокуса на проблемном поле [frontend/src/components/auth/B2BRegisterForm.tsx:142-148]
+- [ ] [Review][Patch] B2C `RegisterForm` НЕ получил эквивалентного surfacing backend `pdp_consent` ошибки — обработчик 400 показывает первое поле в произвольном порядке (`Object.keys(data).find(key => key !== 'detail')`), асимметрия с B2B [frontend/src/components/auth/RegisterForm.tsx:124-138]
+- [ ] [Review][Patch] `test_registration_ignores_invalid_forwarded_ip_for_consent_record` ассертит только `consent.ip_address is None`, но не assertит, что валидный второй IP `5.6.7.8` НЕ был использован, и нет green-path теста для валидного XFF [backend/tests/integration/test_auth_registration_consent.py:149-162]
+- [ ] [Review][Patch] DoD line 533 указывает `400 {"pdp_consent":["Обязательное поле."]}` — устарело, после patch backend возвращает кастомное сообщение «Необходимо согласие на обработку персональных данных.» [_bmad-output/implementation-artifacts/Story/35-2-consent-checkboxes-in-registration-forms.md:533]
+- [ ] [Review][Patch] DoD line 528 говорит «B2BRegisterForm.test.tsx (7 кейсов)», но patched-файл содержит больше (Debug Log §611 указывает «36/36» component tests) [_bmad-output/implementation-artifacts/Story/35-2-consent-checkboxes-in-registration-forms.md:528]
+- [ ] [Review][Patch] `extra={"client_ip": client_ip}` в warning-логе передаёт сырое значение из X-Forwarded-For без truncate/sanitize — log injection через CRLF/ANSI escapes [backend/apps/users/views/authentication.py:541]
+
+**Deferred (pre-existing or out of scope):**
+
+- [x] [Review][Defer] X-Forwarded-For trusted-proxy allowlist отсутствует — `get_client_ip` слепо доверяет leftmost значение, валидно сформированный, но spoofed IP (например, `1.2.3.4`) сохраняется как audit IP [backend/apps/users/views/authentication.py:516-521] — deferred, project-wide infra issue, требует отдельной story по trusted-proxy конфигурации
+- [x] [Review][Defer] `get_consent_ip_address` лежит в `apps/users/views/authentication.py` — для Story 35.3 (`SubscribeForm consent`) удобнее иметь его в `apps/common/utils.py` [backend/apps/users/views/authentication.py:524-544] — deferred, рефакторинг при стартe Story 35.3
+- [x] [Review][Defer] Click на текст внешнего обёртки (между фрагментами `<label>`) больше не toggle-ит чекбокс — мелкая UX-регрессия на touch [frontend/src/components/auth/RegisterForm.tsx, B2BRegisterForm.tsx] — deferred, accepted trade-off ради семантической валидности и предотвращения toggle при клике на link
+- [x] [Review][Defer] Дубликат сообщения `«Необходимо согласие на обработку персональных данных.»` в `error_messages={"required"}` и в теле `validate()` — drift при будущих правках [backend/apps/users/serializers.py:29-33, 68-69 + test_auth_registration_consent.py:66] — deferred, кодовая полировка, экстракт в константу при следующем заходе
 
 ---
 
@@ -605,6 +632,15 @@ GPT-5 Codex
   - `npx gitnexus detect-changes --scope all`: 24 файла, 35 символов, 7 flows, risk `high`. Все code-symbol изменения в scope (serializers/views/components/schemas/types). Out-of-scope: `PrivacyPolicyPage/fetchPrivacyPolicy` (документирован выше как отдельный fix), `AGENTS.md`/`CLAUDE.md` (косметика GitNexus stats: 8332→8354 символа).
   - Manual QA через `curl` к dev-стеку (`localhost:8001`) + `python manage.py shell` для проверки `UserConsent` в реальной БД: все 5 сценариев из DoD прошли (см. DoD пункт Manual QA).
 - **Side-find (out of scope, для тех-долга):** при попытке cleanup QA-пользователей через `User.objects.filter(...).delete()` получили `IntegrityError` на `userconsent_user_or_session_required` — `on_delete=SET_NULL` обнуляет `user_id`, но `session_key=""` нарушает constraint. Реальное удаление пользователей с consent-записями в текущем дизайне модели требует двушагового сценария (сначала `UserConsent.objects.filter(user_id=...).delete()`). Это pre-existing наследие 35.1, не блокирует 35.2.
+- **Review patch pass (GPT-5 Codex, 2026-05-10):**
+  - GitNexus impact перед patch: `UserRegistrationSerializer`, `UserRegistrationView.post`, `get_client_ip`, `RegisterForm`, `B2BRegisterForm` — LOW; affected frontend flows: `RegisterPage`, `B2BRegisterPage`; backend impact ограничен регистрацией и logout IP logging.
+  - RED: `test_auth_registration_consent.py` падал 2/8 (required-message + invalid inet), auth component tests падали 5/36 (link-in-label, B2B refresh pending, B2B backend `pdp_consent` message).
+  - GREEN targeted: `test_auth_registration_consent.py` 8/8; `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` 36/36; story-related backend integration bundle 20/20.
+  - Full regression: backend unit 697 passed, 12 skipped; backend integration 607 passed, 10 known environmental failures in `test_management_commands/test_import_customers.py`; full `npm run test` passed; `npx tsc --noEmit` passed; scoped ESLint for changed auth files passed; `python manage.py check`, `black --check`, `flake8`, `prettier --check`, `git diff --check` passed.
+  - `npm run build` passed with `NEXT_PUBLIC_API_URL_INTERNAL=http://localhost:8001/api/v1`; first local build without this env failed on `/privacy-policy` `ENOTFOUND backend`, unrelated to auth patch.
+  - `npm run lint` full still fails on pre-existing project files outside this patch (`next-env.d.ts` triple-slash reference and `scripts/convert-svg-to-favicon.js` CommonJS `require`); scoped ESLint for changed files is clean.
+  - `npx gitnexus detect-changes --scope all`: 9 files, 20 symbols, 3 affected flows, risk `medium`; affected flows limited to registration pages.
+  - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
 
 ### Completion Notes List
 
@@ -613,6 +649,7 @@ GPT-5 Codex
 - Для frontend использован существующий `Checkbox`; privacy-policy ссылка открывается в новой вкладке без потери состояния формы.
 - OpenAPI обновлён в `docs/api/openapi.yaml`, generated types обновлены в `frontend/src/types/api.generated.ts`.
 - **Финальная верификация (2026-05-10, Sonnet):** все ранее открытые DoD-пункты закрыты — `make test-unit` зелёный (697 passed), `make test-integration` зелёный кроме environmental import_customers (606 passed; падения не от story), `gitnexus_detect_changes` подтверждает scope, coverage `UserRegistrationView.post` = 100%, manual QA через API+DB прошёл все 5 сценариев. Story переведена в `review`.
+- **Review patch completion (2026-05-10, GPT-5 Codex):** закрыты 5 пунктов `[Review][Patch]`: B2B pending больше не зависит от refresh token, backend missing `pdp_consent` отдаёт контрактное сообщение, невалидный `X-Forwarded-For` не ломает регистрацию, privacy-policy link больше не вложена в checkbox label, B2B форма показывает backend `pdp_consent` validation message. Story снова готова к review.
 
 ### File List
 
@@ -647,3 +684,4 @@ GPT-5 Codex
 - Регенерированы OpenAPI и generated frontend API-типы.
 - Исправлено сохранение error-boundary поведения `/privacy-policy` для 5xx/network ошибок, обнаруженное полным frontend suite.
 - 2026-05-10: финальный verification-проход (full make test-unit/test-integration, gitnexus detect-changes, coverage, manual API QA), статус story → `review`.
+- 2026-05-10: addressed code review findings — 5 `[Review][Patch]` items resolved; status story → `review`.

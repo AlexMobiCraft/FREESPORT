@@ -79,14 +79,15 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
       // AC 4: Отправка через authService.registerB2B()
       const response = await authService.registerB2B(registerData);
 
-      // CRITICAL FIX: Force token refresh immediately to ensure valid session
-      // Initial access token from registration might be restricted/invalid until refresh
-      await authService.refreshToken();
-
       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
       if (response.user.is_verified === false) {
         setIsPending(true);
+        return;
       } else {
+        // CRITICAL FIX: Force token refresh immediately to ensure valid session
+        // Initial access token from registration might be restricted/invalid until refresh
+        await authService.refreshToken();
+
         // Callback при успехе
         if (onSuccess) {
           onSuccess();
@@ -99,19 +100,52 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
     } catch (error: unknown) {
       // AC 5: Обработка ошибок API
       const err = error as {
-        response?: { status?: number; data?: Record<string, string[]> & { detail?: string } };
+        response?: {
+          status?: number;
+          data?: Record<string, string[] | string> & { detail?: string };
+        };
+      };
+      const responseData = err.response?.data || {};
+      const getValidationMessage = (keys: string[]): string | undefined => {
+        for (const key of keys) {
+          const value = responseData[key];
+          if (Array.isArray(value) && value[0]) {
+            return value[0];
+          }
+          if (typeof value === 'string' && value) {
+            return value;
+          }
+        }
+        return undefined;
+      };
+      const getFirstValidationMessage = (): string | undefined => {
+        for (const [key, value] of Object.entries(responseData)) {
+          if (key === 'detail') {
+            continue;
+          }
+          if (Array.isArray(value) && value[0]) {
+            return value[0];
+          }
+          if (typeof value === 'string' && value) {
+            return value;
+          }
+        }
+        return typeof responseData.detail === 'string' ? responseData.detail : undefined;
       };
 
       if (err.response?.status === 409) {
         // AC 5: Специфичная обработка "Компания уже зарегистрирована"
-        const companyError = err.response?.data?.company_name?.[0];
-        const emailError = err.response?.data?.email?.[0];
-        setApiError(companyError || emailError || 'Компания или email уже зарегистрированы');
+        setApiError(
+          getValidationMessage(['company_name', 'email']) ||
+            'Компания или email уже зарегистрированы'
+        );
       } else if (err.response?.status === 400) {
         // Ошибки валидации
-        const taxIdError = err.response?.data?.tax_id?.[0];
-        const passwordError = err.response?.data?.password?.[0];
-        setApiError(taxIdError || passwordError || 'Ошибка валидации данных');
+        setApiError(
+          getValidationMessage(['pdp_consent', 'tax_id', 'password']) ||
+            getFirstValidationMessage() ||
+            'Ошибка валидации данных'
+        );
       } else if (err.response?.status === 500) {
         setApiError('Ошибка сервера. Попробуйте позже');
       } else {
@@ -314,16 +348,21 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               {...register('pdp_consent')}
               checked={pdpConsent}
               disabled={isSubmitting}
+              aria-labelledby="b2b-register-pdp-consent-label-start b2b-register-pdp-consent-policy-link b2b-register-pdp-consent-label-end"
               aria-describedby={
                 errors.pdp_consent?.message ? 'b2b-register-pdp-consent-error' : undefined
               }
             />
-            <label
-              htmlFor="b2b-register-pdp-consent"
-              className="text-body-s text-text-primary cursor-pointer select-none"
-            >
-              Я даю согласие на{' '}
+            <div className="text-body-s text-text-primary select-none">
+              <label
+                id="b2b-register-pdp-consent-label-start"
+                htmlFor="b2b-register-pdp-consent"
+                className="cursor-pointer"
+              >
+                Я даю согласие на{' '}
+              </label>
               <Link
+                id="b2b-register-pdp-consent-policy-link"
                 href="/privacy-policy"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -331,8 +370,14 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               >
                 обработку моих персональных данных
               </Link>{' '}
-              в соответствии с Политикой
-            </label>
+              <label
+                id="b2b-register-pdp-consent-label-end"
+                htmlFor="b2b-register-pdp-consent"
+                className="cursor-pointer"
+              >
+                в соответствии с Политикой
+              </label>
+            </div>
           </div>
           {errors.pdp_consent?.message && (
             <p

@@ -262,14 +262,21 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
             {...register('pdp_consent')}
             checked={pdpConsent}
             disabled={isSubmitting}
-            aria-describedby={errors.pdp_consent?.message ? 'register-pdp-consent-error' : undefined}
+            aria-labelledby="register-pdp-consent-label-start register-pdp-consent-policy-link register-pdp-consent-label-end"
+            aria-describedby={
+              errors.pdp_consent?.message ? 'register-pdp-consent-error' : undefined
+            }
           />
-          <label
-            htmlFor="register-pdp-consent"
-            className="text-body-s text-text-primary cursor-pointer select-none"
-          >
-            Я даю согласие на{' '}
+          <div className="text-body-s text-text-primary select-none">
+            <label
+              id="register-pdp-consent-label-start"
+              htmlFor="register-pdp-consent"
+              className="cursor-pointer"
+            >
+              Я даю согласие на{' '}
+            </label>
             <Link
+              id="register-pdp-consent-policy-link"
               href="/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
@@ -277,8 +284,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
             >
               обработку моих персональных данных
             </Link>{' '}
-            в соответствии с Политикой
-          </label>
+            <label
+              id="register-pdp-consent-label-end"
+              htmlFor="register-pdp-consent"
+              className="cursor-pointer"
+            >
+              в соответствии с Политикой
+            </label>
+          </div>
         </div>
         {errors.pdp_consent?.message && (
           <p
