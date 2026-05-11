@@ -27,7 +27,9 @@ from apps.common.models import UserConsent
 logger = logging.getLogger("apps.users.auth")
 MAX_CONSENT_USER_AGENT_LENGTH = 512
 MAX_LOG_VALUE_LENGTH = 128
-IPV4_WITH_PORT_RE = re.compile(r"^(?P<ip>\d{1,3}(?:\.\d{1,3}){3}):(?P<port>\d+)$")
+IPV4_OCTET_RE = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
+IPV4_PORT_RE = r"(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{0,3})"
+IPV4_WITH_PORT_RE = re.compile(rf"^(?P<ip>{IPV4_OCTET_RE}(?:\.{IPV4_OCTET_RE}){{3}}):(?P<port>{IPV4_PORT_RE})$")
 UNSAFE_LOG_CHAR_ESCAPES = {
     "\x00": "\\x00",
     "\r": "\\r",

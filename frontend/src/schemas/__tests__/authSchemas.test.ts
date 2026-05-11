@@ -8,11 +8,16 @@
  * AC 8: Unit Tests для loginSchema, registerSchema, passwordResetRequestSchema, passwordResetConfirmSchema
  */
 
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, expectTypeOf } from 'vitest';
 import {
+  b2bRegisterSchema,
+  type B2BRegisterFormData,
+  type B2BRegisterFormInput,
   loginSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
+  type RegisterFormData,
+  type RegisterFormInput,
   registerSchema,
 } from '../authSchemas';
 
@@ -118,6 +123,24 @@ describe('loginSchema', () => {
 });
 
 describe('registerSchema', () => {
+  test('should narrow parsed pdp consent to literal true while form input still accepts false default', () => {
+    expectTypeOf<RegisterFormInput['pdp_consent']>().toEqualTypeOf<boolean>();
+    expectTypeOf<RegisterFormData['pdp_consent']>().toEqualTypeOf<true>();
+
+    const result = registerSchema.safeParse({
+      first_name: 'Иван',
+      email: 'ivan.literal@example.com',
+      password: 'SecurePass123',
+      confirmPassword: 'SecurePass123',
+      pdp_consent: true,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.pdp_consent).toBe(true);
+    }
+  });
+
   describe('valid data', () => {
     test('should validate correct registration data', () => {
       const validData = {
@@ -245,6 +268,33 @@ describe('registerSchema', () => {
         expect(messages.some(m => m.includes('заглавную букву'))).toBe(true);
       }
     });
+  });
+});
+
+describe('b2bRegisterSchema', () => {
+  test('should narrow parsed pdp consent to literal true while B2B form input still accepts false default', () => {
+    expectTypeOf<B2BRegisterFormInput['pdp_consent']>().toEqualTypeOf<boolean>();
+    expectTypeOf<B2BRegisterFormData['pdp_consent']>().toEqualTypeOf<true>();
+
+    const result = b2bRegisterSchema.safeParse({
+      first_name: 'Иван',
+      last_name: 'Петров',
+      email: 'b2b.literal@example.com',
+      phone: '+79991234567',
+      password: 'SecurePass123',
+      confirmPassword: 'SecurePass123',
+      company_name: 'ООО Спорт',
+      tax_id: '1234567890',
+      ogrn: '1234567890123',
+      legal_address: 'г. Москва, ул. Тестовая, 1',
+      role: 'wholesale_level1',
+      pdp_consent: true,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.pdp_consent).toBe(true);
+    }
   });
 });
 

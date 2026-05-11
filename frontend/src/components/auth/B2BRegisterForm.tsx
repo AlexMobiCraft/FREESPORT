@@ -14,7 +14,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, type UseFormSetError } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
@@ -25,7 +25,11 @@ import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import authService from '@/services/authService';
 import { isSafeRedirectUrl } from '@/utils/urlUtils';
-import { b2bRegisterSchema, type B2BRegisterFormData } from '@/schemas/authSchemas';
+import {
+  b2bRegisterSchema,
+  type B2BRegisterFormData,
+  type B2BRegisterFormInput,
+} from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
 
 type ApiValidationValue =
@@ -40,7 +44,7 @@ type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidatio
 
 const MAX_VALIDATION_MESSAGE_DEPTH = 8;
 const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
-const B2B_FIELD_ERROR_MAP: Partial<Record<string, keyof B2BRegisterFormData>> = {
+const B2B_FIELD_ERROR_MAP: Partial<Record<string, keyof B2BRegisterFormInput>> = {
   email: 'email',
   password: 'password',
   password_confirm: 'confirmPassword',
@@ -125,7 +129,7 @@ const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
 
 const collectBackendFieldMessages = (
   value: ApiValidationValue,
-  messages: Partial<Record<keyof B2BRegisterFormData, string>>,
+  messages: Partial<Record<keyof B2BRegisterFormInput, string>>,
   seenObjects: WeakSet<object> = new WeakSet(),
   depth = 0
 ) => {
@@ -155,13 +159,13 @@ const collectBackendFieldMessages = (
 
 const applyBackendFieldErrors = (
   data: ApiErrorData,
-  setError: UseFormSetError<B2BRegisterFormData>
+  setError: UseFormSetError<B2BRegisterFormInput>
 ): string | undefined => {
-  const messages: Partial<Record<keyof B2BRegisterFormData, string>> = {};
+  const messages: Partial<Record<keyof B2BRegisterFormInput, string>> = {};
   collectBackendFieldMessages(data, messages);
 
   for (const [fieldName, message] of Object.entries(messages) as Array<
-    [keyof B2BRegisterFormData, string]
+    [keyof B2BRegisterFormInput, string]
   >) {
     setError(fieldName, { type: 'server', message });
   }
@@ -184,6 +188,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const [apiError, setApiError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [shouldNotifyPendingSuccess, setShouldNotifyPendingSuccess] = useState(false);
+  const pendingSuccessCallbackRef = useRef<(() => void) | null>(null);
+  const pendingSuccessNotifiedRef = useRef(false);
 
   const {
     register,
@@ -191,7 +197,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
     watch,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<B2BRegisterFormData>({
+  } = useForm<B2BRegisterFormInput, unknown, B2BRegisterFormData>({
     resolver: zodResolver(b2bRegisterSchema),
     defaultValues: {
       role: 'wholesale_level1',
@@ -209,9 +215,14 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
       return;
     }
 
-    onSuccess?.();
+    if (pendingSuccessNotifiedRef.current) {
+      return;
+    }
+
+    pendingSuccessNotifiedRef.current = true;
+    pendingSuccessCallbackRef.current?.();
     setShouldNotifyPendingSuccess(false);
-  }, [isPending, onSuccess, shouldNotifyPendingSuccess]);
+  }, [isPending, shouldNotifyPendingSuccess]);
 
   const onSubmit = async (data: B2BRegisterFormData) => {
     try {
@@ -237,13 +248,19 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
 
       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
       if (response.user.is_verified === false) {
+        pendingSuccessCallbackRef.current = onSuccess ?? null;
+        pendingSuccessNotifiedRef.current = false;
         setIsPending(true);
         setShouldNotifyPendingSuccess(Boolean(onSuccess));
         return;
       } else {
         // CRITICAL FIX: Force token refresh immediately to ensure valid session
         // Initial access token from registration might be restricted/invalid until refresh
-        await authService.refreshToken();
+        try {
+          await authService.refreshToken();
+        } catch {
+          // Регистрация уже успешна; сбой refresh не должен превращать ее в ошибку.
+        }
 
         // Callback при успехе
         if (onSuccess) {

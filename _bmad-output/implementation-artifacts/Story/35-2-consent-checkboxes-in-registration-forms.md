@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.2
-**Status:** in-progress
+**Status:** review
 **Priority:** High (часть compliance-пакета 152-ФЗ; разблокирует фактический сбор согласий пользователей)
 
 ---
@@ -691,6 +691,13 @@ GPT-5 Codex
   - GREEN frontend: `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` **43/43**; полный `npm run test -- --run`, scoped ESLint, Prettier check и `npx tsc --noEmit` passed.
   - Frontend Docker container restarted after `frontend/src/*` changes: `freesport-frontend` restarted successfully.
   - Final hygiene: `git diff --check` passed; `npx gitnexus detect-changes --scope all` — 10 files, 40 symbols, 8 affected flows, risk `high`; actual affected flows are limited to B2C/B2B registration, `UserRegistrationView.post` consent audit helpers, and GitNexus stats in `AGENTS.md`/`CLAUDE.md`.
+- **Review patch Pass 4 closure (GPT-5 Codex, 2026-05-11):**
+  - GitNexus impact перед patch: `B2BRegisterForm`, `registerSchema`, `b2bRegisterSchema`, `normalize_consent_ip`, `IPV4_WITH_PORT_RE` — LOW; direct frontend blast radius limited to `B2BRegisterContent` / `B2BRegisterPage`, backend blast radius limited to consent audit in registration.
+  - RED frontend: `B2BRegisterForm.test.tsx` падал на verified B2B path, где `refreshToken()` превращал уже успешную регистрацию в ошибку; `npx tsc --noEmit` падал на отсутствующих input/output schema-типах и `pdp_consent` literal-type contract.
+  - RED backend: новый `test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record` падал, потому `1.2.3.4:99999` сохранялся как `1.2.3.4`.
+  - GREEN targeted: `RegisterForm.test.tsx` + `B2BRegisterForm.test.tsx` + `authSchemas.test.ts` **74/74**; `test_auth_registration_consent.py` **28/28**; `npx tsc --noEmit`, scoped ESLint, Prettier check, `python manage.py check`, `black --check`, `flake8` passed.
+  - Full regression completed for changed surfaces: full frontend `npm run test -- --run` passed; backend unit suite **697 passed, 12 skipped, 1529 deselected**. Full backend integration was not rerun in this pass because story remains `in-progress` pending product/architect decision; story-specific integration coverage is green.
+  - Decision resolved by product/user: выбран вариант 4 — не расширять Story 35.2, явно оставить текущее поведение вне scope и вынести сохранение B2B `ogrn` / `legal_address` в отдельное ТЗ + backlog story. Durable note added to `deferred-work.md`.
 
 ### Completion Notes List
 
@@ -702,10 +709,13 @@ GPT-5 Codex
 - **Review patch completion (2026-05-10, GPT-5 Codex):** закрыты 5 пунктов `[Review][Patch]`: B2B pending больше не зависит от refresh token, backend missing `pdp_consent` отдаёт контрактное сообщение, невалидный `X-Forwarded-For` не ломает регистрацию, privacy-policy link больше не вложена в checkbox label, B2B форма показывает backend `pdp_consent` validation message. Story снова готова к review.
 - **Review patch Pass 2 completion (2026-05-11, GPT-5 Codex):** закрыты 15 пунктов `[Review][Patch]`: единый label/link UX для B2C/B2B, B2B pending `onSuccess`, IP normalization/logging hardening, User-Agent sanitization, единый DRF error contract, nested validation parser и inline `pdp_consent` surfacing. Story снова готова к review.
 - **Review patch Pass 3 completion (2026-05-11, GPT-5 Codex):** закрыты 9 `[Review][Patch]` и 1 `[Review][Decision]` (Опция 3): native privacy-policy link без custom `window.open`, canonical/global consent IP, hardened log sanitization, cyclic-safe validation parser, inline backend field errors, PDP checkbox a11y/error state и B2B pending `onSuccess` order. Story снова готова к review.
+- **Review patch Pass 4 completion (2026-05-11, GPT-5 Codex):** закрыты 4 `[Review][Patch]`: verified B2B registration больше не ломается при сбое `refreshToken`, pending `onSuccess` стал single-shot при смене callback reference, schema output сузила `pdp_consent` до literal `true`, IPv4-with-port regex отклоняет невалидный port.
+- **Pass 4 decision closure (2026-05-11, user-approved Option 4):** B2B `ogrn` / `legal_address` silent-drop не исправляется в 35.2; будущая работа вынесена в `deferred-work.md` как отдельное ТЗ + backlog story. Story снова готова к review.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/Story/35-2-consent-checkboxes-in-registration-forms.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `AGENTS.md`
 - `CLAUDE.md`
@@ -738,18 +748,18 @@ GPT-5 Codex
 
 **Patches (Pass 4):**
 
-- [ ] [Review][Patch] B2B verified-immediately path: `await authService.refreshToken()` без try/catch — при сбое refresh пользователь видит «Произошла ошибка при регистрации», хотя backend уже закоммитил `User` + `UserConsent` (orphan UX, ретрай → 400 email exists). B2C `RegisterForm` не имеет аналогичного refresh-вызова. Регрессий-теста нет (все Pass 3 тесты идут через pending branch `is_verified=false`). [frontend/src/components/auth/B2BRegisterForm.tsx:243-256]
-- [ ] [Review][Patch] `useEffect` для pending `onSuccess` чувствителен к смене reference родительского коллбэка — если родитель пересоздаёт `onSuccess` без `useCallback` между `setShouldNotifyPendingSuccess(true)` (line 241) и первым исполнением эффекта, `onSuccess` может быть вызван дважды. Узкое окно, но семантически race. Фикс: захватить флаг через `useRef` или вызвать `onSuccess` синхронно через single-shot ref. [frontend/src/components/auth/B2BRegisterForm.tsx:207-214]
-- [ ] [Review][Patch] AC-4 spec vs code drift: `z.boolean().refine(v => v === true)` вместо рекомендованного спекой `z.literal(true, { errorMap: ... })`. Runtime эквивалентно, но `RegisterFormData.pdp_consent` имеет тип `boolean` вместо `true` — type-narrowing слабее, чем декларировано в AC-4. Поправить код или зафиксировать deviation в AC-4. [frontend/src/schemas/authSchemas.ts:52-54, 146-148]
-- [ ] [Review][Patch] `IPV4_WITH_PORT_RE` не валидирует диапазон октетов (`999.999.999.999:80` матчится, валидируется потом через `parse_ip_address`) и принимает `port=99999`. Работает, но regex не self-validating. Уточнить regex или добавить inline-комментарий о делегированной валидации. [backend/apps/users/views/authentication.py:30]
+- [x] [Review][Patch] B2B verified-immediately path: `await authService.refreshToken()` без try/catch — resolved: refresh выполняется best-effort и не превращает уже успешную verified-регистрацию в ошибку; regression covered. [frontend/src/components/auth/B2BRegisterForm.tsx]
+- [x] [Review][Patch] `useEffect` для pending `onSuccess` чувствителен к смене reference родительского коллбэка — resolved: pending success callback захватывается через `useRef`, notification guarded single-shot ref; regression covered with changing parent callback reference. [frontend/src/components/auth/B2BRegisterForm.tsx]
+- [x] [Review][Patch] AC-4 spec vs code drift: `z.boolean().refine(v => v === true)` вместо рекомендованного спекой `z.literal(true, { errorMap: ... })` — resolved: PDP schema теперь `z.boolean().pipe(z.literal(true, ...))`, form input остаётся boolean для unchecked default, parsed `RegisterFormData` / `B2BRegisterFormData` получает `pdp_consent: true`; type tests covered. [frontend/src/schemas/authSchemas.ts]
+- [x] [Review][Patch] `IPV4_WITH_PORT_RE` не валидирует диапазон октетов и принимает `port=99999` — resolved: regex валидирует IPv4 octets и port range 1..65535 перед strip-port; invalid port сохраняется как `NULL` consent IP and logs warning; integration test covered. [backend/apps/users/views/authentication.py]
 
 **Decision-needed:**
 
-- [ ] [Review][Decision] B2B-форма отправляет `ogrn` / `legal_address`, но `UserRegistrationSerializer.Meta.fields` их не содержит → DRF молча игнорирует, поля **не сохраняются**. Это pre-existing (см. Pass 3 `[Review][Defer]` line 601), но в контексте Эпика 35 (152-ФЗ compliance) — рискованная зона: пользователь видит, что ввёл юр. реквизиты → ожидает их сохранения. Опции: (1) добавить поля в Meta + миграция модели; (2) убрать поля из B2B-формы до отдельной story; (3) показать frontend-warning «поля будут собраны позже»; (4) явно оставить как есть и переоформить в backlog story. **Требуется решение product/architect.**
+- [x] [Review][Decision] **[resolved → Опция 4]** B2B-форма отправляет `ogrn` / `legal_address`, но `UserRegistrationSerializer.Meta.fields` их не содержит → DRF молча игнорирует, поля **не сохраняются**. Решение: не расширять scope Story 35.2, потому текущая история отвечает за явные consent-чекбоксы и audit `UserConsent`, а сохранение юридических реквизитов B2B требует отдельного backend/data/API решения. Следующее действие: подготовить отдельное ТЗ и backlog story `B2B registration legal requisites persistence`; durable запись добавлена в `_bmad-output/implementation-artifacts/deferred-work.md`.
 
 **Deferred (pre-existing, accepted trade-off):**
 
-- [ ] [Review][Defer] Дубликат `PDP_CONSENT_REQUIRED_MESSAGE` в `error_messages` (3 ключа) + `validate()` body — drift-risk при будущих правках. Уже отмечено в Pass 2 deferred (line 572). [backend/apps/users/serializers.py:34-38, 75]
+- [x] [Review][Defer] Дубликат `PDP_CONSENT_REQUIRED_MESSAGE` в `error_messages` (3 ключа) + `validate()` body — deferred, pre-existing drift-risk уже отмечен в Pass 2 deferred (line 572); отдельная кодовая полировка вне Pass 4 patch scope. [backend/apps/users/serializers.py:34-38, 75]
 
 ---
 
@@ -765,3 +775,5 @@ GPT-5 Codex
 - 2026-05-11: addressed code review findings — 15 Pass 2 `[Review][Patch]` items resolved; status story → `review`.
 - 2026-05-11: addressed code review findings — 9 Pass 3 `[Review][Patch]` items + 1 `[Review][Decision]` resolved; status story → `review`.
 - 2026-05-11: Pass 4 full-scope code review (Cascade) — открыто 4 `[Review][Patch]` + 1 `[Review][Decision]` + 1 `[Review][Defer]`; status story → `in-progress`.
+- 2026-05-11: addressed Pass 4 code review findings — 4 `[Review][Patch]` items resolved, 1 `[Review][Defer]` recorded as deferred; story remains `in-progress` pending product/architect decision on B2B `ogrn` / `legal_address`.
+- 2026-05-11: resolved Pass 4 `[Review][Decision]` by user-approved Option 4; B2B `ogrn` / `legal_address` persistence moved to deferred-work for future ТЗ/story; status story → `review`.

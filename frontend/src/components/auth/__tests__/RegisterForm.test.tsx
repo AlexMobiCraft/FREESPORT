@@ -167,6 +167,9 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'DifferentPass456');
+      await user.click(
+        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      );
       await user.click(submitButton);
 
       expect(await screen.findByText(/пароли не совпадают/i)).toBeInTheDocument();

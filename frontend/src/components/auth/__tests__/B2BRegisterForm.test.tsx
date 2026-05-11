@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { StrictMode, useCallback, useState } from 'react';
 import { B2BRegisterForm } from '../B2BRegisterForm';
 import authService from '@/services/authService';
 
@@ -194,6 +195,84 @@ describe('B2BRegisterForm consent checkboxes', () => {
     });
     expect(onSuccessOrder).toEqual(['after-pending']);
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  test('should notify pending success only once when parent callback reference changes', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    const successCalls: number[] = [];
+    mockRegisterB2B.mockResolvedValue({
+      access: '',
+      refresh: '',
+      user: {
+        id: 10,
+        email: 'b2b@example.com',
+        first_name: 'Иван',
+        last_name: 'Петров',
+        phone: '+79991234567',
+        role: 'wholesale_level1',
+        is_verified: false,
+      },
+    });
+
+    const Wrapper = () => {
+      const [version, setVersion] = useState(0);
+      const onSuccess = useCallback(() => {
+        successCalls.push(version);
+        setVersion(current => current + 1);
+      }, [version]);
+
+      return <B2BRegisterForm onSuccess={onSuccess} />;
+    };
+
+    render(
+      <StrictMode>
+        <Wrapper />
+      </StrictMode>
+    );
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(successCalls).toHaveLength(1);
+    });
+    expect(successCalls).toEqual([0]);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  test('should keep verified B2B registration successful when token refresh fails', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    const mockOnSuccess = vi.fn();
+    vi.mocked(authService.refreshToken).mockRejectedValue(new Error('Refresh endpoint unavailable'));
+    mockRegisterB2B.mockResolvedValue({
+      access: 'access-token',
+      refresh: 'refresh-token',
+      user: {
+        id: 10,
+        email: 'b2b@example.com',
+        first_name: 'Иван',
+        last_name: 'Петров',
+        phone: '+79991234567',
+        role: 'wholesale_level1',
+        is_verified: true,
+      },
+    });
+
+    render(<B2BRegisterForm onSuccess={mockOnSuccess} redirectUrl="/account" />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalledTimes(1);
+      expect(mockPush).toHaveBeenCalledWith('/account');
+    });
+    expect(screen.queryByText(/произошла ошибка при регистрации/i)).not.toBeInTheDocument();
   });
 
   test('should submit marketing_consent true when checked', async () => {

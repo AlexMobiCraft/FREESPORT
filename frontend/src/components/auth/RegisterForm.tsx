@@ -34,7 +34,11 @@ import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
 import authService from '@/services/authService';
 import { isSafeRedirectUrl } from '@/utils/urlUtils';
-import { registerSchema, type RegisterFormData } from '@/schemas/authSchemas';
+import {
+  registerSchema,
+  type RegisterFormData,
+  type RegisterFormInput,
+} from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
 
 // Story 29.1 AC 1: Константа с опциями ролей
@@ -57,7 +61,7 @@ type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidatio
 
 const MAX_VALIDATION_MESSAGE_DEPTH = 8;
 const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
-const REGISTER_FIELD_ERROR_MAP: Partial<Record<string, keyof RegisterFormData>> = {
+const REGISTER_FIELD_ERROR_MAP: Partial<Record<string, keyof RegisterFormInput>> = {
   email: 'email',
   password: 'password',
   password_confirm: 'confirmPassword',
@@ -138,7 +142,7 @@ const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
 
 const collectBackendFieldMessages = (
   value: ApiValidationValue,
-  messages: Partial<Record<keyof RegisterFormData, string>>,
+  messages: Partial<Record<keyof RegisterFormInput, string>>,
   seenObjects: WeakSet<object> = new WeakSet(),
   depth = 0
 ) => {
@@ -168,13 +172,13 @@ const collectBackendFieldMessages = (
 
 const applyBackendFieldErrors = (
   data: ApiErrorData,
-  setError: UseFormSetError<RegisterFormData>
+  setError: UseFormSetError<RegisterFormInput>
 ): string | undefined => {
-  const messages: Partial<Record<keyof RegisterFormData, string>> = {};
+  const messages: Partial<Record<keyof RegisterFormInput, string>> = {};
   collectBackendFieldMessages(data, messages);
 
   for (const [fieldName, message] of Object.entries(messages) as Array<
-    [keyof RegisterFormData, string]
+    [keyof RegisterFormInput, string]
   >) {
     setError(fieldName, { type: 'server', message });
   }
@@ -199,7 +203,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
     watch,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterFormData>({
+  } = useForm<RegisterFormInput, unknown, RegisterFormData>({
     resolver: zodResolver(registerSchema),
     // Story 29.1 AC 2: Retail роль по умолчанию
     defaultValues: {

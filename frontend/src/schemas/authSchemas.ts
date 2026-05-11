@@ -9,6 +9,12 @@
 import { z } from 'zod';
 import { validateINN, validateOGRN } from '@/utils/validators/b2b-validators';
 
+const PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных';
+
+const pdpConsentSchema = z
+  .boolean({ error: PDP_CONSENT_REQUIRED_MESSAGE })
+  .pipe(z.literal(true, { error: PDP_CONSENT_REQUIRED_MESSAGE }));
+
 /**
  * Login Schema
  * Валидация формы входа
@@ -49,9 +55,7 @@ export const registerSchema = z
     // Story 29.1: Условные B2B поля
     company_name: z.string().optional(),
     tax_id: z.string().optional(),
-    pdp_consent: z.boolean().refine(value => value === true, {
-      message: 'Необходимо согласие на обработку персональных данных',
-    }),
+    pdp_consent: pdpConsentSchema,
     marketing_consent: z.boolean().default(false),
   })
   .refine(data => data.password === data.confirmPassword, {
@@ -143,9 +147,7 @@ export const b2bRegisterSchema = z
       'trainer',
       'federation_rep',
     ]),
-    pdp_consent: z.boolean().refine(value => value === true, {
-      message: 'Необходимо согласие на обработку персональных данных',
-    }),
+    pdp_consent: pdpConsentSchema,
     marketing_consent: z.boolean().default(false),
   })
   .refine(data => data.password === data.confirmPassword, {
@@ -188,7 +190,9 @@ export const passwordResetConfirmSchema = z
  * TypeScript Types (инференция из Zod schemas)
  */
 export type LoginFormData = z.infer<typeof loginSchema>;
-export type RegisterFormData = z.input<typeof registerSchema>;
-export type B2BRegisterFormData = z.input<typeof b2bRegisterSchema>;
+export type RegisterFormInput = z.input<typeof registerSchema>;
+export type RegisterFormData = z.output<typeof registerSchema>;
+export type B2BRegisterFormInput = z.input<typeof b2bRegisterSchema>;
+export type B2BRegisterFormData = z.output<typeof b2bRegisterSchema>;
 export type PasswordResetRequestFormData = z.infer<typeof passwordResetRequestSchema>;
 export type PasswordResetConfirmFormData = z.infer<typeof passwordResetConfirmSchema>;

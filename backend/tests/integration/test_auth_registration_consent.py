@@ -242,6 +242,24 @@ def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_i
     assert consent.ip_address == expected_ip
 
 
+def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record(caplog):
+    client = APIClient()
+
+    with caplog.at_level("WARNING", logger="apps.users.auth"):
+        response = post_register(
+            client,
+            retail_payload(),
+            HTTP_X_FORWARDED_FOR="1.2.3.4:99999",
+            HTTP_USER_AGENT="ConsentTestAgent/1.0",
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consent = UserConsent.objects.get(user=user)
+    assert consent.ip_address is None
+    assert "Invalid client IP skipped for consent audit" in caplog.text
+
+
 @pytest.mark.parametrize("forwarded_ip", ["10.0.0.1", "127.0.0.10", "fe80::1"])
 def test_registration_ignores_non_global_forwarded_ip_for_consent_record(forwarded_ip, caplog):
     client = APIClient()
