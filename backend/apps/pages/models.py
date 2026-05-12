@@ -56,28 +56,32 @@ class Page(models.Model):
             clean_content = bleach.clean(self.content, tags=[], strip=True)
             self.seo_description = clean_content[:160]
 
-        # HTML sanitization
+        # HTML sanitization — расширенный whitelist для rich-контента страниц
         allowed_tags = [
-            "p",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "ul",
-            "ol",
-            "li",
-            "a",
-            "strong",
-            "em",
-            "br",
+            "p", "div", "span", "h1", "h2", "h3", "h4", "h5", "h6",
+            "ul", "ol", "li", "a", "strong", "em", "b", "i", "u", "s",
+            "br", "hr", "table", "thead", "tbody", "tfoot", "tr", "td", "th",
+            "caption", "colgroup", "col", "img", "figure", "figcaption",
+            "blockquote", "pre", "code", "sub", "sup", "dl", "dt", "dd",
+            "details", "summary", "section", "article", "header", "footer",
+            "nav", "main", "aside", "address", "time", "mark", "small", "cite",
+            "q", "abbr", "dfn", "kbd", "samp", "var", "wbr", "ins", "del",
+            "style", "meta", "html", "head", "body", "link", "title",
         ]
-        allowed_attributes = {"a": ["href", "title"]}
+        allowed_attributes = {
+            "a": ["href", "title", "target", "rel"],
+            "img": ["src", "alt", "width", "height", "loading"],
+            "meta": ["content", "http-equiv", "charset", "name"],
+            "link": ["href", "rel", "type"],
+            "td": ["colspan", "rowspan"],
+            "th": ["colspan", "rowspan"],
+            "*": ["class", "id"],
+        }
         self.content = bleach.clean(
             self.content,
             tags=allowed_tags,
             attributes=allowed_attributes,
+            protocols=["http", "https", "mailto"],
             strip=True,  # Полностью удаляем запрещенные теги вместо экранирования
         )
 

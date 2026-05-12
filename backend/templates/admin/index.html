@@ -4,10 +4,11 @@
   {% for app in app_list %} {% if app.app_label == "integrations" %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
   {% for app in app_list %} {% if app.app_label == "common" %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
   {% for app in app_list %} {% if app.app_label == "orders" %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
+  {% for app in app_list %} {% if app.app_label == "pages" %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
   {% for app in app_list %} {% if app.app_label == "flatpages" %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
   {% for app in app_list %} {% if app.app_label == "users" %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
   {% for app in app_list %} {% if app.app_label == "auth" %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
-  {% with ordered_labels="products integrations common orders flatpages users auth" %}
+  {% with ordered_labels="products integrations common orders pages flatpages users auth" %}
     {% for app in app_list %} {% if app.app_label not in ordered_labels %} {% include "admin/_app_block.html" with app=app %} {% endif %} {% endfor %}
   {% endwith %}
 </div>

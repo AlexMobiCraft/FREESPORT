@@ -77,6 +77,22 @@ describe('PrivacyPolicyPage (/privacy-policy)', () => {
     expect(content?.innerHTML).toContain('<strong>HTML</strong>');
   });
 
+  it('извлекает только содержимое <body> при полном HTML-документе', async () => {
+    const fullHtmlPage = {
+      ...mockPage,
+      content: '<html><head><style>.red{color:red}</style></head><body><p>Текст политики</p></body></html>',
+    };
+    mockFetch(Response.json(fullHtmlPage));
+
+    const { container } = render(await PrivacyPolicyPage());
+    const content = container.querySelector('.prose');
+
+    expect(content?.innerHTML).toContain('<p>Текст политики</p>');
+    expect(content?.innerHTML).not.toContain('<html>');
+    expect(content?.innerHTML).not.toContain('<head>');
+    expect(content?.innerHTML).not.toContain('<style>');
+  });
+
   it('рендерит breadcrumb', async () => {
     mockFetch(Response.json(mockPage));
 

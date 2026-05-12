@@ -46,13 +46,16 @@ class PageModelSecurityTest(TestCase):
 
         page = Page.objects.create(title="Attributes Test", content=dangerous_content, is_published=True)
 
-        # Опасные теги должны быть удалены, но текст может остаться
-        # Важно что опасные теги и их атрибуты удаляются
-        self.assertNotIn("<script>", page.content)
+        # Опасные атрибуты должны быть удалены
+        self.assertNotIn("onclick=", page.content)
         self.assertNotIn("onmouseover=", page.content)
         self.assertNotIn("onerror=", page.content)
-        self.assertNotIn("<img", page.content)  # img не в allowed_tags
-        self.assertNotIn("<div", page.content)  # div не в allowed_tags
+        self.assertNotIn("style=", page.content)
+        # javascript/data протоколы должны быть вырезаны из href/src
+        self.assertNotIn("javascript:", page.content)
+        # Разрешенные теги остаются
+        self.assertIn("<img", page.content)
+        self.assertIn("<div", page.content)
 
     def test_iframe_and_embed_removal(self):
         """Тест удаления iframe и embed тегов"""
@@ -82,6 +85,12 @@ class PageModelSecurityTest(TestCase):
         <h2>Заголовок 2</h2>
         <h3>Заголовок 3</h3>
         <p>Параграф с <strong>жирным</strong> и <em>курсивом</em></p>
+        <div><span>Текст в div/span</span></div>
+        <table>
+            <tr><td>Ячейка</td></tr>
+        </table>
+        <img src="https://example.com/image.jpg" alt="Пример" />
+        <style>.red{color:red}</style>
         <ul>
             <li>Элемент списка 1</li>
             <li>Элемент списка 2</li>
@@ -96,7 +105,10 @@ class PageModelSecurityTest(TestCase):
         page = Page.objects.create(title="Safe Tags Test", content=safe_content, is_published=True)
 
         # Все безопасные теги должны сохраниться
-        safe_tags = ["h1", "h2", "h3", "p", "strong", "em", "ul", "ol", "li", "a", "br"]
+        safe_tags = [
+            "h1", "h2", "h3", "p", "div", "span", "strong", "em", "ul", "ol", "li",
+            "a", "br", "table", "tr", "td", "img", "style",
+        ]
         for tag in safe_tags:
             self.assertIn(f"<{tag}", page.content)
 
@@ -123,9 +135,12 @@ class PageModelSecurityTest(TestCase):
 
         page = Page.objects.create(title="Data URI Test", content=dangerous_content, is_published=True)
 
-        # Data URI со скриптами должны быть удалены
+        # Data URI со скриптами должны быть удалены (protocols whitelist)
         self.assertNotIn("data:text/html", page.content)
         self.assertNotIn("<script>", page.content)
+        # Разрешенные теги остаются, но опасные src/href вычищены
+        self.assertIn("<img", page.content)
+        self.assertIn("<a", page.content)
 
 
 @pytest.mark.unit

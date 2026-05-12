@@ -6,6 +6,7 @@ import React, { cache } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb, Card } from '@/components/ui';
+import { extractBodyContent } from '@/utils/htmlContent';
 
 interface PageData {
   title: string;
@@ -112,8 +113,8 @@ export default async function PrivacyPolicyPage() {
       <section className="container mx-auto px-4 py-8 sm:py-12">
         <Card className="p-6 sm:p-10">
           <div
-            className="prose prose-neutral max-w-none whitespace-pre-line text-text-primary"
-            dangerouslySetInnerHTML={{ __html: page.content }}
+            className="prose prose-neutral max-w-none text-text-primary"
+            dangerouslySetInnerHTML={{ __html: extractBodyContent(page.content) }}
           />
         </Card>
       </section>
