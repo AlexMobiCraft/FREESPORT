@@ -1,0 +1,2685 @@
+﻿diff --git a/.gitignore b/.gitignore
+index a63c1a89..d803b32f 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -40,6 +40,8 @@ celerybeat-schedule*
+ 
+ # Claude Code local settings (user-specific)
+ .claude/settings.local.json
++.claude/z-glm.json
++.claude/openrouter-QWEN3_6.json
+ 
+ # OS generated files
+ .DS_Store
+diff --git a/AGENTS.md b/AGENTS.md
+index 408e3879..30f14d65 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -165,7 +165,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
+ <!-- gitnexus:start -->
+ # GitNexus — Code Intelligence
+ 
+-This project is indexed by GitNexus as **FREESPORT** (8334 symbols, 13622 relationships, 297 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
++This project is indexed by GitNexus as **FREESPORT** (8400 symbols, 13735 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+ 
+ > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+ 
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 30e54ca9..3fd383e7 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -188,7 +188,7 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
+ <!-- gitnexus:start -->
+ # GitNexus — Code Intelligence
+ 
+-This project is indexed by GitNexus as **FREESPORT** (8334 symbols, 13622 relationships, 297 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
++This project is indexed by GitNexus as **FREESPORT** (8400 symbols, 13735 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+ 
+ > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+ 
+diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
+index 3e63ae32..0b5474ff 100644
+--- a/_bmad-output/implementation-artifacts/deferred-work.md
++++ b/_bmad-output/implementation-artifacts/deferred-work.md
+@@ -1,3 +1,34 @@
++## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-11, Pass 8)
++
++- **`validate_email` case-sensitive uniqueness race** — pre-existing (см. Pass 3 entry ниже); не введено 35.2. Подтверждено в Pass 8.
++- **Celery `.delay()` внутри `transaction.atomic()`** — pre-existing tech debt (см. Pass 5 + Pass 7 entries); подтверждено в Pass 8.
++- **B2B `ogrn`/`legal_address` silent-drop** — pre-existing Pass 4 product decision (см. Pass 4 decision entry ниже); подтверждено в Pass 8.
++
++## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-11, Pass 5)
++
++- **Cross-cutting изменение `get_client_ip` (blank XFF → REMOTE_ADDR fallback) не задокументировано в Change Log story** — Функция используется не только consent flow (LogoutView и др. callers); поведение изменилось: blank first hop XFF (`", 5.6.7.8"`) теперь возвращает `REMOTE_ADDR` вместо `""`. Strict improvement (избегает пустой строки), но cross-cutting side-effect не отмечен в commit message. Решение: при следующем заходе на authentication.py явно описать поведение в Change Log/commit. [backend/apps/users/views/authentication.py:548-557]
++- **Atomic-wrapper расширил окно pre-existing Celery race** — `serializer.create()` ставит `send_admin_verification_email.delay` / `send_user_pending_email.delay` ВНУТРИ `transaction.atomic()` блока. Между .delay() и commit теперь два дополнительных `UserConsent` INSERT — окно для worker pickup до commit расширилось. Pre-existing tech debt, явно out of scope 35.2 (Dev Notes 477-479, Pass 1 defer #6, Pass 3 deferred-work entry). Решение: обернуть delay() в `transaction.on_commit(lambda: ...)` отдельной story. [backend/apps/users/serializers.py:113-125, backend/apps/users/views/authentication.py:143-166]
++
++## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-11, Pass 4 decision)
++
++- **B2B registration legal requisites persistence — требуется отдельное ТЗ и backlog story.** Решение по Story 35.2: выбран вариант 4 — не расширять consent-story, явно оставить текущее поведение вне scope и оформить отдельную работу. Сейчас `frontend/src/components/auth/B2BRegisterForm.tsx` собирает и отправляет `ogrn` / `legal_address`, но `backend/apps/users/serializers.py::UserRegistrationSerializer.Meta.fields` их не содержит, поэтому DRF silently drops эти поля и они не сохраняются. Это pre-existing B2B registration contract gap, не часть consent-аудита 152-ФЗ. Будущее ТЗ должно определить canonical storage (`User` vs `Company`/profile model), миграции, serializer/API contract, admin/profile display, OpenAPI/generated types, и backward-compatible поведение для уже зарегистрированных B2B пользователей. Минимальная story должна покрыть: (1) `ogrn` и `legal_address` сохраняются при B2B регистрации; (2) поля доступны менеджеру/админу для verification; (3) frontend payload соответствует backend contract, без silent drop; (4) интеграционные тесты доказывают сохранение; (5) документация/API обновлены. До реализации этой отдельной story не использовать эти frontend-поля как юридически надёжно сохранённые реквизиты. [frontend/src/components/auth/B2BRegisterForm.tsx, backend/apps/users/serializers.py]
++
++## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-11, Pass 3)
++
++- **HTML5 nested label spec violation** — `<a>` inside `<label>` + внешний `<label>` оборачивает text/Checkbox; HTML5 spec discourages anchors inside labels, browser behavior может trigger label-for-toggle на clicks. Структурное решение Pass 2 — единый wrapping `<label>` с link внутри + `onClick stopPropagation` (см. Pass 2 patch #1). Accepted trade-off (см. Pass 2 defer #3 — touch UX-регрессия). Решение через расширение `Checkbox` под `ReactNode label` — отдельная UI-story. [frontend/src/components/auth/RegisterForm.tsx:314-361, B2BRegisterForm.tsx:377-423]
++- **Race на duplicate email → HTTP 500 вместо 409** — `validate_email` делает `User.objects.filter(email=value).exists()` без блокировки; два concurrent POST с одним email — один проходит, второй ловит `IntegrityError` на unique constraint → API возвращает 500 (нет `except IntegrityError`), frontend `getValidationMessage` не понимает 500. Pre-existing, не введено 35.2. Решение: `try { user = create_user(...) } except IntegrityError: raise ValidationError({"email": [...]})` либо `select_for_update` на user-level. [backend/apps/users/views/authentication.py:115-163, serializers.py:62-66]
++- **Case-sensitive email check** — `User.objects.filter(email=value).exists()` без `__iexact`. Если в БД есть `Foo@bar.com`, новый юзер с `foo@bar.com` проходит проверку — `value.lower()` затем сохраняется, PG unique constraint тоже case-sensitive (расхождение с `email.lower()` в save). Pre-existing. Project-wide pattern (см. также LoginView). Решать единой story по email normalization (RFC 5321 case-insensitive). [backend/apps/users/serializers.py:62-66]
++- **`ogrn`/`legal_address` молча игнорируются при B2B-регистрации** — Frontend B2B Zod schema требует `ogrn` (13 цифр) и `legal_address` (string), но `UserRegistrationSerializer.Meta.fields` не содержит их → DRF whitelist → silent drop. B2B-юзер регистрируется без реквизитов в БД, потом не пройдёт verification. Pre-existing bug, не из 35.2. Решение: добавить поля в Meta.fields + миграция (поля уже есть в User модели или добавить их). [backend/apps/users/serializers.py:42-56]
++- **`get_consent_ip_address` WARN на каждом legit no-IP контексте** — Internal job / health-check / cron-init без `X-Forwarded-For` и `REMOTE_ADDR="unknown"` генерируют `logger.warning("Unknown client IP skipped for consent audit")`. Threshold alerting (Sentry/Prometheus) тригерится на каждом legit вызове. Pass 2 conscious decision (resolved patch #5 — раньше return None silent). Понизить до `logger.info` или гейтить через `if settings.DEBUG` если в продакшене станет шумно. [backend/apps/users/views/authentication.py:578-580]
++- **Celery `.delay()` в `serializer.create()` без `transaction.on_commit`** — `send_admin_verification_email.delay(user.id)` и `send_user_pending_email.delay(user.id)` ставятся в очередь синхронно ВНУТРИ `transaction.atomic()`. При откате транзакции (например, ошибка `UserConsent.create(...)`) worker подберёт task с несуществующим `user.id` → `User.DoesNotExist` exception, или admin получит email о rolled-back пользователе. Pre-existing техдолг, явно out of scope 35.2 (см. Dev Notes line 477-479 + Pass 1 defer #6). Уже в `_bmad-output/planning-artifacts/tech-debt.md`. Решение: обернуть в `transaction.on_commit(lambda: send_admin_verification_email.delay(user.id))`. [backend/apps/users/serializers.py:113-125]
++
++## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-10, Pass 2)
++
++- **X-Forwarded-For trusted-proxy allowlist отсутствует** — `get_client_ip` слепо доверяет leftmost значение `XFF`. Валидно сформированный, но spoofed IP (например, прямой POST с `X-Forwarded-For: 1.2.3.4` минуя nginx) сохраняется в `UserConsent.ip_address` как audit IP — для 152-ФЗ это делает запись доказательно бесполезной. Решать единой infra-story: список доверенных IP/CIDR прокси из settings, использовать rightmost trusted hop или `REMOTE_ADDR` если запрос не из доверенного источника. Pre-existing project-wide pattern. [backend/apps/users/views/authentication.py:516-521]
++- **`get_consent_ip_address` location для Story 35.3 reuse** — Helper лежит в `apps/users/views/authentication.py`, но Story 35.3 (`SubscribeForm` consent для анонимов через `session_key`) тоже будет писать `UserConsent.ip_address` и нуждается в той же валидации. Два варианта: (a) re-implement в subscribe-view (DRY violation); (b) импортировать из auth-views (awkward layering — common module зависит от users). Решение: при старте 35.3 переехать в `apps/common/utils.py` (или `apps/common/audit.py`). [backend/apps/users/views/authentication.py:524-544]
++- **Click-to-toggle на внешнем wrapper больше не работает** — После patch [Review] item #4 фраза разбита на 2 `<label>` фрагмента + `<Link>`. Кликать на пробелы между ними или на `<Link>` теперь не toggle-ит чекбокс — это intentional (link открывает policy в новой вкладке без побочного эффекта), но между фрагментами есть «dead-zones» (пробелы вокруг ссылки). Touch UX субтильно ухудшен. Acceptable trade-off за семантическую валидность; решать через расширение `Checkbox` под `ReactNode label` в отдельной story (out of scope согласно spec Dev Notes). [frontend/src/components/auth/RegisterForm.tsx:265-294, B2BRegisterForm.tsx:351-380]
++- **Дубликат сообщения «Необходимо согласие на обработку персональных данных.»** — Текст хардкоден в трёх местах: `serializers.py:29-33` (`error_messages={"required"}`), `serializers.py:68-69` (тело `validate()`), `test_auth_registration_consent.py:66` (assert). Drift при будущих правках punctuation/locale неизбежен. Polish: экстракт в `serializers.PDP_CONSENT_REQUIRED_MESSAGE` или модуль-константу + use across all three sites. Не блокирует — defer до следующего захода на сериализатор. [backend/apps/users/serializers.py:29-33, 68-69]
++
+ ## Deferred from: re-review of 35-1-privacy-policy-page-and-consent-model (2026-05-09)
+ 
+ - **`UserConsent.__str__` для unsaved instance показывает current time вместо «—»** — `timezone.localtime(None)` в Django ≥ 5 эквивалентно `localtime(now())`, не падает. Поверхность мала (admin Add заблокирован через `has_add_permission=False`), но в Debug Toolbar или при ручном `repr(UserConsent(...))` даёт дату «сейчас». Cosmetic. [backend/apps/common/models.py:652]
+@@ -105,6 +136,12 @@
+ - `Promise.all` failure mode в `fetchProducts`: при падении `productsService.getAll` `getVisibleCategories`/`getVisibleBrands` уже могут успеть обновить sidebar — рассинхрон с грид'ом продуктов. Pre-existing паттерн (тот же эффект у `visible-categories`). [`frontend/src/app/(blue)/catalog/page.tsx:645`]
+ - `BrandViewSet.featured` использует фиксированный `FEATURED_BRANDS_CACHE_KEY` без измерения по query-параметрам. Сейчас `get_queryset` корректно short-circuit'ит `has_stock` для featured, но любое будущее добавление query-фильтрации к `featured` приведёт к poisoning'у кэша. Зафиксировать как ограничение. [`backend/apps/products/views.py`]
+ - Variant `is_active=True` не проверяется в `Exists`-subquery `has_stock`-фильтра. Соответствует существующему паттерну `Product.has_stock`-аннотации (`views.py:102`). Кейс «активный продукт + неактивный вариант с stock>0» консистентен с продуктовым фильтром. Менять — отдельной story с пересмотром `is_in_stock`/`can_be_ordered`. [`backend/apps/products/views.py:397-401`]
++
++## Deferred from: code review of 35-2-consent-checkboxes-in-registration-forms (2026-05-10)
++
++- **B2B email Celery tasks are queued before transaction commit**: `UserRegistrationSerializer.create()` still calls `send_admin_verification_email.delay()` / `send_user_pending_email.delay()` while `UserRegistrationView.post()` now wraps user + consent creation in `transaction.atomic()`. If later consent insert fails, the transaction rolls back but tasks may already be queued. Story 35.2 explicitly marked moving these calls to `transaction.on_commit()` as out of scope. [backend/apps/users/serializers.py:113]
++- **Pass 7 уточнение по Celery race**: Story 35.2 расширила окно pre-existing race именно за счёт Pass 1 `transaction.atomic()` around user + consent creation: после `.delay()` внутри `serializer.create()` до final COMMIT теперь выполняются 1-2 `UserConsent.objects.create()`. Если consent INSERT упадёт, worker может получить задачу на откатанного user. Исправление остаётся отдельной backend-story: перенос email `.delay()` в `transaction.on_commit()` и проверка registration email tests. [backend/apps/users/views/authentication.py:143-166, backend/apps/users/serializers.py:113-125]
++- **Deleting users with consent rows can violate `userconsent_user_or_session_required`**: `UserConsent.user` uses `on_delete=SET_NULL`, while registration consent rows have empty `session_key`; deleting the user can leave a row that violates the check constraint. This is a pre-existing 35.1 model lifecycle issue and matches the side-find already documented in Story 35.2. [backend/apps/common/models.py:595]
+ - Тестовые пробелы по `visible_brands`: невалидный `category_id` (хотя `filter_category_id` корректно возвращает `queryset.none()`); multi-value `?brand=1&brand=2` (поведение `MultiValueDict.pop("brand", None)` корректно, но тест single-value); страничное ограничение `BrandPageNumberPagination.page_size=100` — pre-existing. [`backend/apps/products/tests/test_visible_brands.py`]
+ 
+ ## Deferred from: code review of catalog-hide-out-of-stock-brands run 5 (2026-05-07)
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index f9478650..ae820cc7 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -35,7 +35,7 @@ project: "FREESPORT"
+ project_key: "1C-HTTP-EXCHANGE"
+ tracking_system: "file-system"
+ story_location: "{project-root}/_bmad-output/implementation-artifacts"
+-last_updated: "2026-05-09" # 35.1 re-review passed (0 patch / 8 defer), статус → done
++last_updated: "2026-05-11" # 35.2 → review: Pass 8 LOW patch closed
+ 
+ development_status:
+   # ========================================
+@@ -165,6 +165,6 @@ development_status:
+   # ========================================
+   epic-35: in-progress
+   35-1-privacy-policy-page-and-consent-model: done
+-  35-2-consent-checkboxes-in-registration-forms: backlog
++  35-2-consent-checkboxes-in-registration-forms: review
+   35-3-consent-checkbox-in-subscribe-form: backlog
+   35-4-cookie-banner: backlog
+diff --git a/backend/apps/users/serializers.py b/backend/apps/users/serializers.py
+index 61f0b351..4fb86ce6 100644
+--- a/backend/apps/users/serializers.py
++++ b/backend/apps/users/serializers.py
+@@ -14,6 +14,8 @@ from apps.orders.models import Order
+ from .models import Address, Company, Favorite, User
+ from .tasks import send_admin_verification_email, send_user_pending_email
+ 
++PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
++
+ 
+ class UserRegistrationSerializer(serializers.ModelSerializer):
+     """
+@@ -26,6 +28,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+         style={"input_type": "password"},
+     )
+     password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
++    pdp_consent = serializers.BooleanField(
++        write_only=True,
++        required=True,
++        error_messages={
++            "required": PDP_CONSENT_REQUIRED_MESSAGE,
++            "invalid": PDP_CONSENT_REQUIRED_MESSAGE,
++            "null": PDP_CONSENT_REQUIRED_MESSAGE,
++        },
++    )
++    marketing_consent = serializers.BooleanField(write_only=True, required=False, default=False)
+ 
+     class Meta:
+         model = User
+@@ -39,6 +51,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+             "role",
+             "company_name",
+             "tax_id",
++            "pdp_consent",
++            "marketing_consent",
+         ]
+         extra_kwargs = {
+             "email": {"required": True},
+@@ -57,6 +71,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+         if attrs["password"] != attrs["password_confirm"]:
+             raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
+ 
++        if not attrs.get("pdp_consent"):
++            raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED_MESSAGE})
++
+         # Валидация B2B полей
+         role = attrs.get("role", "retail")
+         if role != "retail":
+@@ -79,6 +96,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+         """Создание нового пользователя"""
+         # Удаляем password_confirm из данных
+         validated_data.pop("password_confirm")
++        marketing_consent = validated_data.pop("marketing_consent", False)
++        validated_data.pop("pdp_consent")
+ 
+         # Извлекаем пароль
+         password = validated_data.pop("password")
+@@ -105,6 +124,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
+             send_admin_verification_email.delay(user.id)
+             send_user_pending_email.delay(user.id)
+ 
++        user._marketing_consent = marketing_consent  # type: ignore[attr-defined]
+         return user
+ 
+ 
+diff --git a/backend/apps/users/views/authentication.py b/backend/apps/users/views/authentication.py
+index e36777d1..eb413611 100644
+--- a/backend/apps/users/views/authentication.py
++++ b/backend/apps/users/views/authentication.py
+@@ -3,9 +3,12 @@ Views для аутентификации пользователей
+ """
+ 
+ import logging
++import re
++from ipaddress import ip_address as parse_ip_address
+ from typing import Any, cast
+ 
+ from django.contrib.auth import get_user_model, login, logout
++from django.db import transaction
+ from django.utils import timezone
+ from django.utils.encoding import force_bytes, force_str
+ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+@@ -19,7 +22,35 @@ from rest_framework.views import APIView
+ from rest_framework_simplejwt.exceptions import TokenError
+ from rest_framework_simplejwt.tokens import RefreshToken
+ 
++from apps.common.models import UserConsent
++
+ logger = logging.getLogger("apps.users.auth")
++MAX_CONSENT_USER_AGENT_LENGTH = 512
++MAX_LOG_VALUE_LENGTH = 128
++IPV4_OCTET_RE = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
++IPV4_PORT_RE = r"(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{0,3})"
++IPV4_WITH_PORT_RE = re.compile(rf"^(?P<ip>{IPV4_OCTET_RE}(?:\.{IPV4_OCTET_RE}){{3}}):(?P<port>{IPV4_PORT_RE})$")
++UNSAFE_LOG_CHAR_ESCAPES = {
++    "\x00": "\\x00",
++    "\r": "\\r",
++    "\n": "\\n",
++    "\x1b": "\\x1b",
++    "\u200b": "\\u200b",
++    "\u200c": "\\u200c",
++    "\u200d": "\\u200d",
++    "\u2028": "\\u2028",
++    "\u2029": "\\u2029",
++    "\u202a": "\\u202a",
++    "\u202b": "\\u202b",
++    "\u202c": "\\u202c",
++    "\u202d": "\\u202d",
++    "\u202e": "\\u202e",
++    "\u2066": "\\u2066",
++    "\u2067": "\\u2067",
++    "\u2068": "\\u2068",
++    "\u2069": "\\u2069",
++    "\ufeff": "\\ufeff",
++}
+ 
+ # User model is used in the code
+ from ..authentication import blacklist_access_token
+@@ -109,7 +140,26 @@ class UserRegistrationView(APIView):
+         serializer = UserRegistrationSerializer(data=request.data)
+ 
+         if serializer.is_valid():
+-            user = serializer.save()
++            with transaction.atomic():
++                user = serializer.save()
++
++                ip_address = get_consent_ip_address(request)
++                user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
++
++                UserConsent.objects.create(
++                    user=user,
++                    consent_type="pdp_contract",
++                    ip_address=ip_address,
++                    user_agent=user_agent,
++                )
++
++                if getattr(user, "_marketing_consent", False):
++                    UserConsent.objects.create(
++                        user=user,
++                        consent_type="marketing_email",
++                        ip_address=ip_address,
++                        user_agent=user_agent,
++                    )
+ 
+             response_data = {
+                 "message": "Пользователь успешно зарегистрирован",
+@@ -493,11 +543,102 @@ def get_client_ip(request: Request) -> str:
+     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+     if x_forwarded_for:
+         ip = x_forwarded_for.split(",")[0].strip()
+-    else:
+-        ip = request.META.get("REMOTE_ADDR", "unknown")
++        if ip:
++            return cast(str, ip)
++
++    ip = request.META.get("REMOTE_ADDR", "unknown")
+     return cast(str, ip)
+ 
+ 
++def normalize_consent_ip(raw_ip: str) -> str | None:
++    """Нормализовать IP из audit-заголовка перед записью в PostgreSQL inet."""
++    candidate = raw_ip.strip()
++    if not candidate:
++        return None
++
++    if candidate.startswith("["):
++        closing_bracket_index = candidate.find("]")
++        if closing_bracket_index == -1:
++            return None
++
++        host = candidate[1:closing_bracket_index]
++        port_suffix = candidate[closing_bracket_index + 1 :]
++        if port_suffix:
++            if not port_suffix.startswith(":"):
++                return None
++
++            port = port_suffix[1:]
++            if not port.isdigit() or not (1 <= int(port) <= 65535):
++                return None
++        candidate = host
++    else:
++        ipv4_with_port_match = IPV4_WITH_PORT_RE.match(candidate)
++        if ipv4_with_port_match:
++            candidate = ipv4_with_port_match.group("ip")
++
++    try:
++        parsed_ip = parse_ip_address(candidate)
++    except ValueError:
++        return None
++
++    mapped_ipv4 = getattr(parsed_ip, "ipv4_mapped", None)
++    if mapped_ipv4 is not None:
++        if not mapped_ipv4.is_global:
++            return None
++        return str(mapped_ipv4)
++
++    if getattr(parsed_ip, "scope_id", None) or not parsed_ip.is_global:
++        return None
++
++    return str(parsed_ip)
++
++
++def sanitize_log_value(value: str) -> str:
++    """Сжать и экранировать внешнее значение перед записью в structured log."""
++    value = value.encode("utf-8", "ignore").decode("utf-8")
++    sanitized_parts: list[str] = []
++    sanitized_length = 0
++
++    for char in value:
++        token = UNSAFE_LOG_CHAR_ESCAPES.get(char, char)
++        if sanitized_length + len(token) > MAX_LOG_VALUE_LENGTH:
++            break
++
++        sanitized_parts.append(token)
++        sanitized_length += len(token)
++
++    return "".join(sanitized_parts)
++
++
++def sanitize_consent_user_agent(user_agent: Any) -> str:
++    """Удалить невалидные UTF-8 surrogate-символы и ограничить длину User-Agent."""
++    safe_user_agent = str(user_agent or "").encode("utf-8", "ignore").decode("utf-8")
++    return safe_user_agent[:MAX_CONSENT_USER_AGENT_LENGTH]
++
++
++def get_consent_ip_address(request: Request) -> str | None:
++    """
++    Получить валидный IP для audit-записи согласия.
++
++    Заголовок X-Forwarded-For приходит извне, поэтому невалидное значение
++    нельзя напрямую сохранять в PostgreSQL inet-поле.
++    """
++    client_ip = get_client_ip(request)
++    if client_ip == "unknown":
++        logger.warning("Unknown client IP skipped for consent audit")
++        return None
++
++    normalized_ip = normalize_consent_ip(client_ip)
++    if normalized_ip is None:
++        logger.warning(
++            "Invalid client IP skipped for consent audit",
++            extra={"client_ip": sanitize_log_value(client_ip)},
++        )
++        return None
++
++    return normalized_ip
++
++
+ class LogoutView(GenericAPIView):
+     """
+     Выход пользователя из системы через blacklisting refresh токена.
+diff --git a/backend/tests/integration/test_auth_registration_consent.py b/backend/tests/integration/test_auth_registration_consent.py
+new file mode 100644
+index 00000000..9ae05be9
+--- /dev/null
++++ b/backend/tests/integration/test_auth_registration_consent.py
+@@ -0,0 +1,464 @@
++from __future__ import annotations
++
++import time
++from unittest.mock import patch
++
++import pytest
++from rest_framework import status
++from rest_framework.test import APIClient
++
++from apps.common.models import UserConsent
++from apps.users.models import User
++
++
++pytestmark = [pytest.mark.integration, pytest.mark.django_db]
++
++
++def unique_email(prefix: str) -> str:
++    return f"{prefix}_{time.time_ns()}@example.com"
++
++
++def retail_payload(**overrides):
++    payload = {
++        "email": unique_email("consent_retail"),
++        "password": "StrongPassword123!",
++        "password_confirm": "StrongPassword123!",
++        "first_name": "Consent",
++        "last_name": "Retail",
++        "role": "retail",
++        "pdp_consent": True,
++        "marketing_consent": False,
++    }
++    payload.update(overrides)
++    return payload
++
++
++def b2b_payload(**overrides):
++    payload = {
++        "email": unique_email("consent_b2b"),
++        "password": "StrongPassword123!",
++        "password_confirm": "StrongPassword123!",
++        "first_name": "Consent",
++        "last_name": "B2B",
++        "role": "wholesale_level1",
++        "company_name": "Consent Company",
++        "tax_id": "1234567890",
++        "pdp_consent": True,
++        "marketing_consent": False,
++    }
++    payload.update(overrides)
++    return payload
++
++
++def post_register(client: APIClient, payload: dict, **headers):
++    return client.post("/api/v1/auth/register/", payload, format="json", **headers)
++
++
++def test_registration_requires_pdp_consent():
++    client = APIClient()
++    payload = retail_payload()
++    payload.pop("pdp_consent")
++
++    response = post_register(client, payload)
++
++    assert response.status_code == status.HTTP_400_BAD_REQUEST
++    assert "pdp_consent" in response.data
++    assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
++
++
++def test_registration_rejects_pdp_consent_false():
++    client = APIClient()
++
++    response = post_register(client, retail_payload(pdp_consent=False))
++
++    assert response.status_code == status.HTTP_400_BAD_REQUEST
++    assert "pdp_consent" in response.data
++
++
++@pytest.mark.parametrize("invalid_value", ["not-bool", None])
++def test_registration_rejects_invalid_pdp_consent_with_contract_message(invalid_value):
++    client = APIClient()
++
++    response = post_register(client, retail_payload(pdp_consent=invalid_value))
++
++    assert response.status_code == status.HTTP_400_BAD_REQUEST
++    assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
++
++
++@pytest.mark.parametrize("truthy_value", [1, "yes", "on", "t"])
++def test_registration_accepts_drf_truthy_pdp_consent_values_by_decision(truthy_value):
++    client = APIClient()
++
++    response = post_register(client, retail_payload(pdp_consent=truthy_value))
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert UserConsent.objects.filter(user=user, consent_type="pdp_contract").exists()
++
++
++def test_retail_registration_creates_pdp_consent_record():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(marketing_consent=False),
++        REMOTE_ADDR="1.2.3.4",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consents = UserConsent.objects.filter(user=user)
++    assert consents.count() == 1
++    consent = consents.get()
++    assert consent.consent_type == "pdp_contract"
++    assert consent.ip_address == "1.2.3.4"
++    assert consent.user_agent == "ConsentTestAgent/1.0"
++
++
++def test_retail_registration_with_marketing_creates_two_records():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(marketing_consent=True),
++        REMOTE_ADDR="1.2.3.4",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consents = list(UserConsent.objects.filter(user=user).order_by("consent_type"))
++    assert {consent.consent_type for consent in consents} == {
++        "pdp_contract",
++        "marketing_email",
++    }
++    assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
++    assert {consent.user_agent for consent in consents} == {"ConsentTestAgent/1.0"}
++
++
++@patch("apps.users.serializers.send_admin_verification_email.delay")
++@patch("apps.users.serializers.send_user_pending_email.delay")
++def test_b2b_registration_creates_pdp_consent_record_for_pending_user(
++    mock_user_email,
++    mock_admin_email,
++):
++    client = APIClient()
++
++    response = post_register(client, b2b_payload())
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert user.is_active is False
++    assert user.is_verified is False
++    consent = UserConsent.objects.get(user=user)
++    assert consent.consent_type == "pdp_contract"
++    mock_admin_email.assert_called_once_with(user.id)
++    mock_user_email.assert_called_once_with(user.id)
++
++
++@patch("apps.users.serializers.send_admin_verification_email.delay")
++@patch("apps.users.serializers.send_user_pending_email.delay")
++def test_b2b_registration_with_marketing_creates_two_records_for_pending_user(
++    mock_user_email,
++    mock_admin_email,
++):
++    client = APIClient()
++
++    response = post_register(
++        client,
++        b2b_payload(marketing_consent=True),
++        REMOTE_ADDR="1.2.3.4",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert user.is_active is False
++    assert user.is_verified is False
++    consents = list(UserConsent.objects.filter(user=user).order_by("consent_type"))
++    assert {consent.consent_type for consent in consents} == {
++        "pdp_contract",
++        "marketing_email",
++    }
++    assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
++    assert {consent.user_agent for consent in consents} == {"ConsentTestAgent/1.0"}
++    mock_admin_email.assert_called_once_with(user.id)
++    mock_user_email.assert_called_once_with(user.id)
++
++
++def test_consent_record_captures_ip_and_user_agent_from_proxy_headers():
++    client = APIClient()
++    long_user_agent = "A" * 600
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR="1.2.3.4, 5.6.7.8",
++        HTTP_USER_AGENT=long_user_agent,
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == "1.2.3.4"
++    assert consent.user_agent == "A" * 512
++
++
++def test_registration_normalizes_ipv4_mapped_ipv6_for_consent_record():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR="::ffff:8.8.8.8",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == "8.8.8.8"
++
++
++def test_registration_ignores_invalid_forwarded_ip_for_consent_record():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR="not-a-valid-ip, 5.6.7.8",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++    assert consent.ip_address != "5.6.7.8"
++
++
++def test_registration_falls_back_to_remote_addr_when_forwarded_ip_first_hop_is_blank():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR=", 5.6.7.8",
++        REMOTE_ADDR="8.8.8.8",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == "8.8.8.8"
++
++
++def test_registration_falls_back_to_remote_addr_when_forwarded_ip_is_whitespace():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR=" ",
++        REMOTE_ADDR="8.8.4.4",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == "8.8.4.4"
++
++
++@pytest.mark.parametrize(
++    ("forwarded_ip", "expected_ip"),
++    [
++        ("[2606:4700:4700::1111]:443", "2606:4700:4700::1111"),
++        ("1.2.3.4:8443", "1.2.3.4"),
++        ("2606:4700:4700::ABCD", "2606:4700:4700::abcd"),
++    ],
++)
++def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_ip):
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR=forwarded_ip,
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address == expected_ip
++
++
++def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record(caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR="1.2.3.4:99999",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++    assert "Invalid client IP skipped for consent audit" in caplog.text
++
++
++def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_record(caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR="[2606:4700:4700::1111]:99999",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++    assert "Invalid client IP skipped for consent audit" in caplog.text
++
++
++@pytest.mark.parametrize("forwarded_ip", ["10.0.0.1", "127.0.0.10", "fe80::1"])
++def test_registration_ignores_non_global_forwarded_ip_for_consent_record(forwarded_ip, caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR=forwarded_ip,
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++    assert "Invalid client IP skipped for consent audit" in caplog.text
++
++
++def test_registration_ignores_forwarded_ipv6_zone_id_for_consent_record():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        HTTP_X_FORWARDED_FOR="fe80::1%eth0",
++        HTTP_USER_AGENT="ConsentTestAgent/1.0",
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert consent.ip_address is None
++
++
++def test_registration_logs_warning_when_remote_addr_is_unknown(caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            REMOTE_ADDR="unknown",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    assert "Unknown client IP skipped for consent audit" in caplog.text
++
++
++def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
++    client = APIClient()
++    invalid_ip = "bad\x00\u2028\u2029\u202e\u200b\r\nINJECT\x1b[31m"
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    record = next(item for item in caplog.records if item.message == "Invalid client IP skipped for consent audit")
++    assert record.client_ip == "bad\\x00\\u2028\\u2029\\u202e\\u200b\\r\\nINJECT\\x1b[31m"
++    for unsafe_char in ["\x00", "\u2028", "\u2029", "\u202e", "\u200b", "\r", "\n", "\x1b"]:
++        assert unsafe_char not in record.client_ip
++
++
++def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
++    client = APIClient()
++    invalid_ip = "bad\udcff\r\nINJECT"
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    record = next(item for item in caplog.records if item.message == "Invalid client IP skipped for consent audit")
++    assert record.client_ip == "bad\\r\\nINJECT"
++    assert "\udcff" not in record.client_ip
++
++
++def test_registration_does_not_split_escape_sequence_when_truncating_warning_log(caplog):
++    client = APIClient()
++
++    with caplog.at_level("WARNING", logger="apps.users.auth"):
++        response = post_register(
++            client,
++            retail_payload(),
++            HTTP_X_FORWARDED_FOR=("A" * 127) + "\r\n",
++            HTTP_USER_AGENT="ConsentTestAgent/1.0",
++        )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    record = next(item for item in caplog.records if item.message == "Invalid client IP skipped for consent audit")
++    assert len(record.client_ip) <= 128
++    assert not record.client_ip.endswith("\\")
++
++
++def test_registration_sanitizes_invalid_user_agent_surrogates():
++    client = APIClient()
++
++    response = post_register(
++        client,
++        retail_payload(),
++        REMOTE_ADDR="1.2.3.4",
++        HTTP_USER_AGENT="Agent\udcff" + "A" * 600,
++    )
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    consent = UserConsent.objects.get(user=user)
++    assert "\udcff" not in consent.user_agent
++    expected_tail_length = 512 - len("Agent")
++    assert consent.user_agent == "Agent" + "A" * expected_tail_length
++
++
++def test_consent_records_have_default_policy_version():
++    client = APIClient()
++
++    response = post_register(client, retail_payload(marketing_consent=True))
++
++    assert response.status_code == status.HTTP_201_CREATED
++    user = User.objects.get(email=response.data["user"]["email"])
++    assert set(UserConsent.objects.filter(user=user).values_list("policy_version", flat=True)) == {"1.0"}
+diff --git a/backend/tests/integration/test_auth_registration_tokens.py b/backend/tests/integration/test_auth_registration_tokens.py
+index 59d1f596..403fc388 100644
+--- a/backend/tests/integration/test_auth_registration_tokens.py
++++ b/backend/tests/integration/test_auth_registration_tokens.py
+@@ -22,6 +22,7 @@ class TestRegistrationTokens:
+             "first_name": "New",
+             "last_name": "User",
+             "role": "retail",
++            "pdp_consent": True,
+         }
+ 
+         # Используем прямой путь, так как reverse может отличаться
+@@ -55,6 +56,7 @@ class TestRegistrationTokens:
+             "role": "wholesale_level1",
+             "company_name": "Test Company",
+             "tax_id": "1234567890",
++            "pdp_consent": True,
+         }
+ 
+         response = client.post(url, data, format="json")
+diff --git a/backend/tests/integration/test_registration_emails.py b/backend/tests/integration/test_registration_emails.py
+index eb1ca143..25637ee7 100644
+--- a/backend/tests/integration/test_registration_emails.py
++++ b/backend/tests/integration/test_registration_emails.py
+@@ -36,6 +36,7 @@ class TestRegistrationEmailsIntegration:
+                 "last_name": "User",
+                 "role": "trainer",
+                 "company_name": "Test Club",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+@@ -70,6 +71,7 @@ class TestRegistrationEmailsIntegration:
+                 "role": "wholesale_level1",
+                 "company_name": "Wholesale Company",
+                 "tax_id": "1234567890",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+@@ -96,6 +98,7 @@ class TestRegistrationEmailsIntegration:
+                 "first_name": "Retail",
+                 "last_name": "Customer",
+                 "role": "retail",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+@@ -130,6 +133,7 @@ class TestRegistrationEmailsIntegration:
+                 "role": "federation_rep",
+                 "company_name": "Tennis Federation",
+                 "tax_id": "9876543210",
++                "pdp_consent": True,
+             },
+             format="json",
+         )
+diff --git a/backend/tests/integration/test_user_api.py b/backend/tests/integration/test_user_api.py
+index dc46ae5d..c545727d 100644
+--- a/backend/tests/integration/test_user_api.py
++++ b/backend/tests/integration/test_user_api.py
+@@ -36,6 +36,7 @@ def create_user_and_get_token(api_client):
+             "first_name": "Тест",
+             "last_name": f"Пользователь {role}",
+             "role": role,
++            "pdp_consent": True,
+         }
+         if role != "retail":
+             registration_data.update({"company_name": f"Тестовая компания {role}", "tax_id": "1234567890"})
+@@ -69,6 +70,7 @@ def test_user_registration(api_client):
+         "first_name": "New",
+         "last_name": "User",
+         "role": "retail",
++        "pdp_consent": True,
+     }
+     response = api_client.post(url, data, format="json")
+     assert response.status_code == 201
+diff --git a/backend/tests/integration/test_verification_workflow.py b/backend/tests/integration/test_verification_workflow.py
+index 80498e4e..5b899106 100644
+--- a/backend/tests/integration/test_verification_workflow.py
++++ b/backend/tests/integration/test_verification_workflow.py
+@@ -135,6 +135,7 @@ class TestLoginVerificationBlocking:
+                 "first_name": "Workflow",
+                 "role": "trainer",
+                 "company_name": "Workflow Gym",
++                "pdp_consent": True,
+             },
+         )
+         assert register_response.status_code == status.HTTP_201_CREATED
+diff --git a/backend/tests/regression/test_epic_28_intact.py b/backend/tests/regression/test_epic_28_intact.py
+index 61aa0d5b..f0090139 100644
+--- a/backend/tests/regression/test_epic_28_intact.py
++++ b/backend/tests/regression/test_epic_28_intact.py
+@@ -39,6 +39,7 @@ class TestEpic28Regression:
+                 "password_confirm": "SecurePass123!",
+                 "first_name": "New",
+                 "role": "retail",
++                "pdp_consent": True,
+             },
+         )
+ 
+@@ -111,6 +112,7 @@ class TestEpic28Regression:
+                 "first_name": "New",
+                 "role": "trainer",
+                 "company_name": "Test Company",
++                "pdp_consent": True,
+             },
+         )
+ 
+diff --git a/backend/tests/unit/test_user_verification.py b/backend/tests/unit/test_user_verification.py
+index 8b3f0169..fe4cdc68 100644
+--- a/backend/tests/unit/test_user_verification.py
++++ b/backend/tests/unit/test_user_verification.py
+@@ -34,6 +34,7 @@ class TestUserRegistrationVerification:
+             "password_confirm": "SecurePass123!",
+             "first_name": "Test",
+             "role": "retail",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors
+@@ -54,6 +55,7 @@ class TestUserRegistrationVerification:
+             "first_name": "Test",
+             "role": "trainer",
+             "company_name": "Test Gym",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors
+@@ -75,6 +77,7 @@ class TestUserRegistrationVerification:
+             "role": "wholesale_level1",
+             "company_name": "Test Company",
+             "tax_id": "1234567890",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors
+@@ -96,6 +99,7 @@ class TestUserRegistrationVerification:
+             "role": "federation_rep",
+             "company_name": "Test Federation",
+             "tax_id": "9876543210",
++            "pdp_consent": True,
+         }
+         serializer = UserRegistrationSerializer(data=data)
+         assert serializer.is_valid(), serializer.errors
+diff --git a/frontend/src/__tests__/components/B2BRegisterForm.test.tsx b/frontend/src/__tests__/components/B2BRegisterForm.test.tsx
+index 497f5231..2e3f614f 100644
+--- a/frontend/src/__tests__/components/B2BRegisterForm.test.tsx
++++ b/frontend/src/__tests__/components/B2BRegisterForm.test.tsx
+@@ -105,6 +105,9 @@ describe('B2BRegisterForm', () => {
+       );
+       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await user.click(
++        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++      );
+ 
+       const submitButton = screen.getByRole('button', { name: /отправить заявку/i });
+       await user.click(submitButton);
+diff --git a/frontend/src/components/auth/B2BRegisterForm.tsx b/frontend/src/components/auth/B2BRegisterForm.tsx
+index 37cbb37f..3b7bc461 100644
+--- a/frontend/src/components/auth/B2BRegisterForm.tsx
++++ b/frontend/src/components/auth/B2BRegisterForm.tsx
+@@ -14,20 +14,51 @@
+ 
+ 'use client';
+ 
+-import React, { useState } from 'react';
++import React, { useEffect, useRef, useState } from 'react';
+ import { useForm } from 'react-hook-form';
+ import { zodResolver } from '@hookform/resolvers/zod';
++import Link from 'next/link';
+ import { useRouter } from 'next/navigation';
+ import { Input } from '@/components/ui/Input/Input';
+ import { PhoneInput } from '@/components/ui/Input/PhoneInput';
+ import { Button } from '@/components/ui/Button/Button';
++import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
+ import authService from '@/services/authService';
+ import { isSafeRedirectUrl } from '@/utils/urlUtils';
+-import { b2bRegisterSchema, type B2BRegisterFormData } from '@/schemas/authSchemas';
++import {
++  b2bRegisterSchema,
++  type B2BRegisterFormData,
++  type B2BRegisterFormInput,
++} from '@/schemas/authSchemas';
+ import type { RegisterRequest } from '@/types/api';
++import {
++  applyBackendFieldErrors,
++  getFirstValidationMessage,
++  getValidationMessage,
++  type ApiErrorData,
++  type BackendFieldErrorMap,
++} from '@/utils/validationErrorParser';
++
++const B2B_FIELD_ERROR_MAP = {
++  email: 'email',
++  password: 'password',
++  password_confirm: 'confirmPassword',
++  first_name: 'first_name',
++  last_name: 'last_name',
++  phone: 'phone',
++  role: 'role',
++  company_name: 'company_name',
++  tax_id: 'tax_id',
++  ogrn: 'ogrn',
++  legal_address: 'legal_address',
++  pdp_consent: 'pdp_consent',
++} satisfies BackendFieldErrorMap<B2BRegisterFormInput>;
+ 
+ export interface B2BRegisterFormProps {
+-  /** Callback после успешной регистрации (optional) */
++  /**
++   * Callback после успешной регистрации.
++   * Для pending B2B-заявки вызывается после рендера inline pending state.
++   */
+   onSuccess?: () => void;
+   /** URL для редиректа после успешной регистрации */
+   redirectUrl?: string;
+@@ -37,18 +68,40 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+   const router = useRouter();
+   const [apiError, setApiError] = useState<string | null>(null);
+   const [isPending, setIsPending] = useState(false);
++  const [shouldNotifyPendingSuccess, setShouldNotifyPendingSuccess] = useState(false);
++  const pendingSuccessCallbackRef = useRef<(() => void) | null>(null);
++  const pendingSuccessNotifiedRef = useRef(false);
+ 
+   const {
+     register,
+     handleSubmit,
++    setError,
+     formState: { errors, isSubmitting },
+-  } = useForm<B2BRegisterFormData>({
++  } = useForm<B2BRegisterFormInput, unknown, B2BRegisterFormData>({
+     resolver: zodResolver(b2bRegisterSchema),
+     defaultValues: {
+       role: 'wholesale_level1',
++      pdp_consent: false,
++      marketing_consent: false,
+     },
+   });
+ 
++  const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
++
++  useEffect(() => {
++    if (!isPending || !shouldNotifyPendingSuccess) {
++      return;
++    }
++
++    if (pendingSuccessNotifiedRef.current) {
++      return;
++    }
++
++    pendingSuccessNotifiedRef.current = true;
++    pendingSuccessCallbackRef.current?.();
++    setShouldNotifyPendingSuccess(false);
++  }, [isPending, shouldNotifyPendingSuccess]);
++
+   const onSubmit = async (data: B2BRegisterFormData) => {
+     try {
+       setApiError(null);
+@@ -64,19 +117,29 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+         role: data.role,
+         company_name: data.company_name,
+         tax_id: data.tax_id,
++        pdp_consent: data.pdp_consent,
++        marketing_consent: data.marketing_consent ?? false,
+       };
+ 
+       // AC 4: Отправка через authService.registerB2B()
+       const response = await authService.registerB2B(registerData);
+ 
+-      // CRITICAL FIX: Force token refresh immediately to ensure valid session
+-      // Initial access token from registration might be restricted/invalid until refresh
+-      await authService.refreshToken();
+-
+       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
+       if (response.user.is_verified === false) {
++        pendingSuccessCallbackRef.current = onSuccess ?? null;
++        pendingSuccessNotifiedRef.current = false;
+         setIsPending(true);
++        setShouldNotifyPendingSuccess(Boolean(onSuccess));
++        return;
+       } else {
++        // CRITICAL FIX: Force token refresh immediately to ensure valid session
++        // Initial access token from registration might be restricted/invalid until refresh
++        try {
++          await authService.refreshToken();
++        } catch {
++          // Регистрация уже успешна; сбой refresh не должен превращать ее в ошибку.
++        }
++
+         // Callback при успехе
+         if (onSuccess) {
+           onSuccess();
+@@ -89,23 +152,32 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+     } catch (error: unknown) {
+       // AC 5: Обработка ошибок API
+       const err = error as {
+-        response?: { status?: number; data?: Record<string, string[]> & { detail?: string } };
++        response?: {
++          status?: number;
++          data?: ApiErrorData;
++        };
+       };
++      const responseData = err.response?.data || {};
++      const firstFieldError = applyBackendFieldErrors(responseData, setError, B2B_FIELD_ERROR_MAP);
+ 
+       if (err.response?.status === 409) {
+         // AC 5: Специфичная обработка "Компания уже зарегистрирована"
+-        const companyError = err.response?.data?.company_name?.[0];
+-        const emailError = err.response?.data?.email?.[0];
+-        setApiError(companyError || emailError || 'Компания или email уже зарегистрированы');
++        setApiError(
++          getValidationMessage(responseData.company_name) ||
++            getValidationMessage(responseData.email) ||
++            'Компания или email уже зарегистрированы'
++        );
+       } else if (err.response?.status === 400) {
+         // Ошибки валидации
+-        const taxIdError = err.response?.data?.tax_id?.[0];
+-        const passwordError = err.response?.data?.password?.[0];
+-        setApiError(taxIdError || passwordError || 'Ошибка валидации данных');
++        setApiError(
++          firstFieldError || getFirstValidationMessage(responseData) || 'Ошибка валидации данных'
++        );
+       } else if (err.response?.status === 500) {
+         setApiError('Ошибка сервера. Попробуйте позже');
+       } else {
+-        setApiError(err.response?.data?.detail || 'Произошла ошибка при регистрации');
++        setApiError(
++          getValidationMessage(responseData.detail) || 'Произошла ошибка при регистрации'
++        );
+       }
+     }
+   };
+@@ -296,6 +368,75 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
+           autoComplete="new-password"
+           placeholder="••••••••"
+         />
++
++        <div className="space-y-2">
++          <div className="flex items-start gap-3">
++            <Checkbox
++              id="b2b-register-pdp-consent"
++              {...register('pdp_consent')}
++              disabled={isSubmitting}
++              aria-invalid={hasPdpConsentError || undefined}
++              aria-labelledby="b2b-register-pdp-consent-label-prefix b2b-register-pdp-consent-policy-link b2b-register-pdp-consent-label-suffix"
++              aria-describedby={
++                errors.pdp_consent?.message ? 'b2b-register-pdp-consent-error' : undefined
++              }
++              className={
++                hasPdpConsentError
++                  ? 'border-[var(--color-accent-danger)] bg-[var(--color-accent-danger)]/8 peer-focus:ring-[var(--color-accent-danger)]'
++                  : undefined
++              }
++            />
++            <span className="text-body-s text-text-primary select-none">
++              <label
++                id="b2b-register-pdp-consent-label-prefix"
++                htmlFor="b2b-register-pdp-consent"
++                className="cursor-pointer"
++              >
++                Я даю согласие на
++              </label>{' '}
++              <Link
++                id="b2b-register-pdp-consent-policy-link"
++                href="/privacy-policy"
++                target="_blank"
++                rel="noopener noreferrer"
++                className="text-primary underline hover:text-primary-hover"
++              >
++                обработку моих персональных данных
++              </Link>{' '}
++              <label
++                id="b2b-register-pdp-consent-label-suffix"
++                htmlFor="b2b-register-pdp-consent"
++                className="cursor-pointer"
++              >
++                в соответствии с Политикой
++              </label>
++            </span>
++          </div>
++          {errors.pdp_consent?.message && (
++            <p
++              id="b2b-register-pdp-consent-error"
++              className="text-body-xs text-[var(--color-accent-danger)]"
++              role="alert"
++            >
++              {errors.pdp_consent.message}
++            </p>
++          )}
++        </div>
++
++        <div className="flex items-start gap-3">
++          {/* Маркетинговое согласие опционально: inline error-state намеренно не назначается. */}
++          <Checkbox
++            id="b2b-register-marketing-consent"
++            {...register('marketing_consent')}
++            disabled={isSubmitting}
++          />
++          <label
++            htmlFor="b2b-register-marketing-consent"
++            className="text-body-s text-text-primary cursor-pointer select-none"
++          >
++            Я согласен(на) получать рекламные и информационные рассылки от FREESPORT
++          </label>
++        </div>
+       </div>
+ 
+       {/* Submit Button */}
+diff --git a/frontend/src/components/auth/RegisterForm.tsx b/frontend/src/components/auth/RegisterForm.tsx
+index f9972860..51ee6e31 100644
+--- a/frontend/src/components/auth/RegisterForm.tsx
++++ b/frontend/src/components/auth/RegisterForm.tsx
+@@ -26,14 +26,27 @@
+ import React, { useState } from 'react';
+ import { useForm } from 'react-hook-form';
+ import { zodResolver } from '@hookform/resolvers/zod';
++import Link from 'next/link';
+ import { useRouter } from 'next/navigation';
+ import { Input } from '@/components/ui/Input/Input';
+ import { Button } from '@/components/ui/Button/Button';
++import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
+ import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
+ import authService from '@/services/authService';
+ import { isSafeRedirectUrl } from '@/utils/urlUtils';
+-import { registerSchema, type RegisterFormData } from '@/schemas/authSchemas';
++import {
++  registerSchema,
++  type RegisterFormData,
++  type RegisterFormInput,
++} from '@/schemas/authSchemas';
+ import type { RegisterRequest } from '@/types/api';
++import {
++  applyBackendFieldErrors,
++  getFirstValidationMessage,
++  getValidationMessage,
++  type ApiErrorData,
++  type BackendFieldErrorMap,
++} from '@/utils/validationErrorParser';
+ 
+ // Story 29.1 AC 1: Константа с опциями ролей
+ const ROLE_OPTIONS = [
+@@ -43,6 +56,17 @@ const ROLE_OPTIONS = [
+   { value: 'federation_rep' as const, label: 'Представитель спортивной федерации' },
+ ] as const;
+ 
++const REGISTER_FIELD_ERROR_MAP = {
++  email: 'email',
++  password: 'password',
++  password_confirm: 'confirmPassword',
++  first_name: 'first_name',
++  role: 'role',
++  company_name: 'company_name',
++  tax_id: 'tax_id',
++  pdp_consent: 'pdp_consent',
++} satisfies BackendFieldErrorMap<RegisterFormInput>;
++
+ export interface RegisterFormProps {
+   /** Callback после успешной регистрации (optional) */
+   onSuccess?: () => void;
+@@ -58,17 +82,21 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+     register,
+     handleSubmit,
+     watch,
++    setError,
+     formState: { errors, isSubmitting },
+-  } = useForm<RegisterFormData>({
++  } = useForm<RegisterFormInput, unknown, RegisterFormData>({
+     resolver: zodResolver(registerSchema),
+     // Story 29.1 AC 2: Retail роль по умолчанию
+     defaultValues: {
+       role: 'retail',
++      pdp_consent: false,
++      marketing_consent: false,
+     },
+   });
+ 
+   // Story 29.1: Отслеживаем выбранную роль для условной логики
+   const selectedRole = watch('role') ?? 'retail';
++  const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
+ 
+   const onSubmit = async (data: RegisterFormData) => {
+     try {
+@@ -87,6 +115,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+         // Story 29.1 AC 8: Условные B2B поля
+         company_name: data.company_name,
+         tax_id: data.tax_id,
++        pdp_consent: data.pdp_consent,
++        marketing_consent: data.marketing_consent ?? false,
+       };
+ 
+       // AC 2: Автоматический вход после регистрации
+@@ -106,26 +136,30 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+       const err = error as {
+         response?: {
+           status?: number;
+-          data?: Record<string, string[] | string>;
++          data?: ApiErrorData;
+         };
+       };
++      const responseData = err.response?.data || {};
++      const firstFieldError = applyBackendFieldErrors(
++        responseData,
++        setError,
++        REGISTER_FIELD_ERROR_MAP
++      );
++
+       if (err.response?.status === 409) {
+         // Конфликт - пользователь уже существует
+-        const emailError = err.response?.data?.email?.[0];
++        const emailError = getValidationMessage(responseData.email);
+         setApiError(emailError || 'Пользователь с таким email уже существует');
+       } else if (err.response?.status === 400) {
+         // Ошибки валидации
+-        const data = err.response?.data || {};
+-        // Ищем первую ошибку в ответе
+-        const firstErrorKey = Object.keys(data).find(key => key !== 'detail');
+-        const firstError = firstErrorKey ? data[firstErrorKey] : null;
+-        const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+-
++        const errorMessage = firstFieldError || getFirstValidationMessage(responseData);
+         setApiError(errorMessage || 'Ошибка валидации данных');
+       } else if (err.response?.status === 500) {
+         setApiError('Ошибка сервера. Попробуйте позже');
+       } else {
+-        setApiError((err.response?.data?.detail as string) || 'Произошла ошибка при регистрации');
++        setApiError(
++          getValidationMessage(responseData.detail) || 'Произошла ошибка при регистрации'
++        );
+       }
+     }
+   };
+@@ -247,6 +281,75 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
+         placeholder="••••••••"
+       />
+ 
++      <div className="space-y-2">
++        <div className="flex items-start gap-3">
++          <Checkbox
++            id="register-pdp-consent"
++            {...register('pdp_consent')}
++            disabled={isSubmitting}
++            aria-invalid={hasPdpConsentError || undefined}
++            aria-labelledby="register-pdp-consent-label-prefix register-pdp-consent-policy-link register-pdp-consent-label-suffix"
++            aria-describedby={
++              errors.pdp_consent?.message ? 'register-pdp-consent-error' : undefined
++            }
++            className={
++              hasPdpConsentError
++                ? 'border-[var(--color-accent-danger)] bg-[var(--color-accent-danger)]/8 peer-focus:ring-[var(--color-accent-danger)]'
++                : undefined
++            }
++          />
++          <span className="text-body-s text-text-primary select-none">
++            <label
++              id="register-pdp-consent-label-prefix"
++              htmlFor="register-pdp-consent"
++              className="cursor-pointer"
++            >
++              Я даю согласие на
++            </label>{' '}
++            <Link
++              id="register-pdp-consent-policy-link"
++              href="/privacy-policy"
++              target="_blank"
++              rel="noopener noreferrer"
++              className="text-primary underline hover:text-primary-hover"
++            >
++              обработку моих персональных данных
++            </Link>{' '}
++            <label
++              id="register-pdp-consent-label-suffix"
++              htmlFor="register-pdp-consent"
++              className="cursor-pointer"
++            >
++              в соответствии с Политикой
++            </label>
++          </span>
++        </div>
++        {errors.pdp_consent?.message && (
++          <p
++            id="register-pdp-consent-error"
++            className="text-body-xs text-[var(--color-accent-danger)]"
++            role="alert"
++          >
++            {errors.pdp_consent.message}
++          </p>
++        )}
++      </div>
++
++      <div className="flex items-start gap-3">
++        {/* Маркетинговое согласие опционально: inline error-state намеренно не назначается. */}
++        <Checkbox
++          id="register-marketing-consent"
++          {...register('marketing_consent')}
++          disabled={isSubmitting}
++        />
++        <label
++          htmlFor="register-marketing-consent"
++          className="text-body-s text-text-primary cursor-pointer select-none"
++        >
++          Я согласен(на) получать рекламные и информационные рассылки от FREESPORT
++        </label>
++      </div>
++
+       {/* AC 6: Использование Button компонента */}
+       {/* AC 4: Loading state с блокировкой кнопки */}
+       <Button type="submit" loading={isSubmitting} disabled={isSubmitting} className="w-full">
+diff --git a/frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx b/frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx
+new file mode 100644
+index 00000000..6d68b06b
+--- /dev/null
++++ b/frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx
+@@ -0,0 +1,472 @@
++import { describe, test, expect, vi, beforeEach } from 'vitest';
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { StrictMode, useCallback, useState } from 'react';
++import { B2BRegisterForm } from '../B2BRegisterForm';
++import authService from '@/services/authService';
++
++const mockPush = vi.fn();
++vi.mock('next/navigation', () => ({
++  useRouter: () => ({
++    push: mockPush,
++  }),
++}));
++
++vi.mock('@/services/authService', () => ({
++  default: {
++    registerB2B: vi.fn(),
++    refreshToken: vi.fn(),
++  },
++}));
++
++describe('B2BRegisterForm consent checkboxes', () => {
++  beforeEach(() => {
++    vi.clearAllMocks();
++    mockPush.mockClear();
++  });
++
++  const acceptPdpConsent = async (user: ReturnType<typeof userEvent.setup>) => {
++    await user.click(
++      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++    );
++  };
++
++  const getMarketingConsent = () =>
++    screen.getByRole('checkbox', {
++      name: /получать рекламные и информационные рассылки от freesport/i,
++    });
++
++  const fillValidB2BForm = async (user: ReturnType<typeof userEvent.setup>) => {
++    await user.type(screen.getByLabelText(/имя/i), 'Иван');
++    await user.type(screen.getByLabelText(/фамилия/i), 'Петров');
++    await user.type(screen.getByLabelText(/электронная почта/i), 'b2b@example.com');
++    await user.type(screen.getByLabelText(/телефон/i), '+79991234567');
++    await user.type(screen.getByLabelText(/название компании/i), 'ООО Спорт');
++    await user.type(screen.getByLabelText(/инн/i), '1234567890');
++    await user.type(screen.getByLabelText(/огрн/i), '1234567890123');
++    await user.type(screen.getByLabelText(/юридический адрес/i), 'г. Москва, ул. Тестовая, 1');
++    await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
++    await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++  };
++
++  test('should render pdp consent checkbox with native privacy policy link next to clickable label text', async () => {
++    const user = userEvent.setup();
++    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
++    render(<B2BRegisterForm />);
++
++    const pdpCheckbox = screen.getByRole('checkbox', {
++      name: /обработку моих персональных данных/i,
++    });
++    expect(pdpCheckbox).toBeInTheDocument();
++    const link = screen.getByRole('link', {
++      name: /обработку моих персональных данных/i,
++    });
++    expect(link).toHaveAttribute('href', '/privacy-policy');
++    expect(link).toHaveAttribute('target', '_blank');
++    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
++    expect(link.closest('label')).toBeNull();
++    const label = document.querySelector('label[for="b2b-register-pdp-consent"]');
++    expect(label).not.toBeNull();
++
++    await user.click(label!);
++    expect(pdpCheckbox).toBeChecked();
++
++    link.addEventListener('click', event => event.preventDefault(), { once: true });
++    fireEvent.click(link, { ctrlKey: true });
++    expect(pdpCheckbox).toBeChecked();
++    expect(openSpy).not.toHaveBeenCalled();
++    openSpy.mockRestore();
++  });
++
++  test('should block submit without pdp consent', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(
++      (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
++        .length
++    ).toBeGreaterThan(0);
++    expect(
++      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++    ).toHaveAttribute('aria-invalid', 'true');
++    expect(mockRegisterB2B).not.toHaveBeenCalled();
++  });
++
++  test('should submit pdp_consent true and marketing_consent false when marketing unchecked', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    vi.mocked(authService.refreshToken).mockResolvedValue({ access: 'access-token' });
++    mockRegisterB2B.mockResolvedValue({
++      access: '',
++      refresh: '',
++      user: {
++        id: 10,
++        email: 'b2b@example.com',
++        first_name: 'Иван',
++        last_name: 'Петров',
++        phone: '+79991234567',
++        role: 'wholesale_level1',
++        is_verified: false,
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    await waitFor(() => {
++      expect(mockRegisterB2B).toHaveBeenCalledWith(
++        expect.objectContaining({
++          pdp_consent: true,
++          marketing_consent: false,
++        })
++      );
++    });
++    expect(authService.refreshToken).not.toHaveBeenCalled();
++    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
++  });
++
++  test('should show pending state even when refresh token is unavailable for pending B2B user', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    vi.mocked(authService.refreshToken).mockRejectedValue(new Error('No refresh token'));
++    mockRegisterB2B.mockResolvedValue({
++      access: '',
++      refresh: '',
++      user: {
++        id: 10,
++        email: 'b2b@example.com',
++        first_name: 'Иван',
++        last_name: 'Петров',
++        phone: '+79991234567',
++        role: 'wholesale_level1',
++        is_verified: false,
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
++    expect(authService.refreshToken).not.toHaveBeenCalled();
++  });
++
++  test('should call onSuccess after showing pending state for pending B2B user', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    const onSuccessOrder: string[] = [];
++    const mockOnSuccess = vi.fn(() => {
++      onSuccessOrder.push(
++        screen.queryByText(/заявка на рассмотрении/i) ? 'after-pending' : 'before-pending'
++      );
++    });
++    mockRegisterB2B.mockResolvedValue({
++      access: '',
++      refresh: '',
++      user: {
++        id: 10,
++        email: 'b2b@example.com',
++        first_name: 'Иван',
++        last_name: 'Петров',
++        phone: '+79991234567',
++        role: 'wholesale_level1',
++        is_verified: false,
++      },
++    });
++
++    render(<B2BRegisterForm onSuccess={mockOnSuccess} redirectUrl="/account" />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
++    await waitFor(() => {
++      expect(mockOnSuccess).toHaveBeenCalledTimes(1);
++    });
++    expect(onSuccessOrder).toEqual(['after-pending']);
++    expect(mockPush).not.toHaveBeenCalled();
++  });
++
++  test('should notify pending success only once when parent callback reference changes', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    const successCalls: number[] = [];
++    mockRegisterB2B.mockResolvedValue({
++      access: '',
++      refresh: '',
++      user: {
++        id: 10,
++        email: 'b2b@example.com',
++        first_name: 'Иван',
++        last_name: 'Петров',
++        phone: '+79991234567',
++        role: 'wholesale_level1',
++        is_verified: false,
++      },
++    });
++
++    const Wrapper = () => {
++      const [version, setVersion] = useState(0);
++      const onSuccess = useCallback(() => {
++        successCalls.push(version);
++        setVersion(current => current + 1);
++      }, [version]);
++
++      return <B2BRegisterForm onSuccess={onSuccess} />;
++    };
++
++    render(
++      <StrictMode>
++        <Wrapper />
++      </StrictMode>
++    );
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
++    await waitFor(() => {
++      expect(successCalls).toHaveLength(1);
++    });
++    expect(successCalls).toEqual([0]);
++    expect(mockPush).not.toHaveBeenCalled();
++  });
++
++  test('should keep verified B2B registration successful when token refresh fails', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    const mockOnSuccess = vi.fn();
++    vi.mocked(authService.refreshToken).mockRejectedValue(new Error('Refresh endpoint unavailable'));
++    mockRegisterB2B.mockResolvedValue({
++      access: 'access-token',
++      refresh: 'refresh-token',
++      user: {
++        id: 10,
++        email: 'b2b@example.com',
++        first_name: 'Иван',
++        last_name: 'Петров',
++        phone: '+79991234567',
++        role: 'wholesale_level1',
++        is_verified: true,
++      },
++    });
++
++    render(<B2BRegisterForm onSuccess={mockOnSuccess} redirectUrl="/account" />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    await waitFor(() => {
++      expect(mockOnSuccess).toHaveBeenCalledTimes(1);
++      expect(mockPush).toHaveBeenCalledWith('/account');
++    });
++    expect(screen.queryByText(/произошла ошибка при регистрации/i)).not.toBeInTheDocument();
++  });
++
++  test('should submit marketing_consent true when checked', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    vi.mocked(authService.refreshToken).mockResolvedValue({ access: 'access-token' });
++    mockRegisterB2B.mockResolvedValue({
++      access: '',
++      refresh: '',
++      user: {
++        id: 10,
++        email: 'b2b@example.com',
++        first_name: 'Иван',
++        last_name: 'Петров',
++        phone: '+79991234567',
++        role: 'wholesale_level1',
++        is_verified: false,
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(getMarketingConsent());
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    await waitFor(() => {
++      expect(mockRegisterB2B).toHaveBeenCalledWith(
++        expect.objectContaining({
++          pdp_consent: true,
++          marketing_consent: true,
++        })
++      );
++    });
++  });
++
++  test('should expose associated labels and alert for pdp validation error', async () => {
++    const user = userEvent.setup();
++    render(<B2BRegisterForm />);
++
++    expect(getMarketingConsent()).not.toBeChecked();
++    await fillValidB2BForm(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    const alert = await screen.findByRole('alert');
++    expect(alert).toHaveTextContent(/необходимо согласие/i);
++    expect(
++      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++    ).toHaveAttribute('aria-invalid', 'true');
++  });
++
++  test('should display backend pdp consent validation error', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    mockRegisterB2B.mockRejectedValue({
++      response: {
++        status: 400,
++        data: { pdp_consent: ['Необходимо согласие на обработку персональных данных.'] },
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(
++      (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
++        .length
++    ).toBeGreaterThan(0);
++    expect(
++      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++    ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
++    expect(
++      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++    ).toHaveAttribute('aria-invalid', 'true');
++  });
++
++  test('should show first backend validation error instead of hard-coded pdp priority', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    mockRegisterB2B.mockRejectedValue({
++      response: {
++        status: 400,
++        data: {
++          email: ['Пользователь с таким email уже существует.'],
++          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
++        },
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(
++      (await screen.findAllByText(/пользователь с таким email уже существует/i)).length
++    ).toBeGreaterThan(0);
++  });
++
++  test('should preserve backend validation order when pdp_consent appears before email', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    mockRegisterB2B.mockRejectedValue({
++      response: {
++        status: 400,
++        data: {
++          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
++          email: ['Пользователь с таким email уже существует.'],
++        },
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(
++      (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
++        .length
++    ).toBeGreaterThan(0);
++    expect(screen.getAllByRole('alert')[0]).toHaveTextContent(
++      /необходимо согласие на обработку персональных данных/i
++    );
++  });
++
++  test('should show nested backend validation errors without mapping nested field names inline', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    mockRegisterB2B.mockRejectedValue({
++      response: {
++        status: 400,
++        data: {
++          company: {
++            tax_id: ['Некорректный ИНН компании'],
++          },
++        },
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect((await screen.findAllByText(/некорректный инн компании/i)).length).toBeGreaterThan(0);
++    const taxIdInput = screen.getByLabelText(/инн/i);
++    expect(taxIdInput).not.toHaveAccessibleDescription(/некорректный инн компании/i);
++    expect(taxIdInput).not.toHaveAttribute('aria-invalid', 'true');
++  });
++
++  test('should keep optional marketing checkbox without inline error state', async () => {
++    const user = userEvent.setup();
++    render(<B2BRegisterForm />);
++
++    const marketingConsent = getMarketingConsent();
++    expect(marketingConsent).not.toHaveAttribute('aria-invalid');
++    expect(marketingConsent).not.toHaveAttribute('aria-describedby');
++
++    await fillValidB2BForm(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect(marketingConsent).not.toHaveAttribute('aria-invalid');
++    expect(marketingConsent).not.toHaveAttribute('aria-describedby');
++  });
++
++  test('should not hang on cyclic backend validation payloads', async () => {
++    const user = userEvent.setup();
++    const mockRegisterB2B = vi.mocked(authService.registerB2B);
++    const cyclicPayload: Record<string, unknown> = {};
++    cyclicPayload.self = cyclicPayload;
++    mockRegisterB2B.mockRejectedValue({
++      response: {
++        status: 400,
++        data: {
++          nested: cyclicPayload,
++          email: ['Email from backend'],
++        },
++      },
++    });
++
++    render(<B2BRegisterForm />);
++
++    await fillValidB2BForm(user);
++    await acceptPdpConsent(user);
++    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
++
++    expect((await screen.findAllByText(/email from backend/i)).length).toBeGreaterThan(0);
++  });
++});
+diff --git a/frontend/src/components/auth/__tests__/RegisterForm.test.tsx b/frontend/src/components/auth/__tests__/RegisterForm.test.tsx
+index bc96078c..e71f473d 100644
+--- a/frontend/src/components/auth/__tests__/RegisterForm.test.tsx
++++ b/frontend/src/components/auth/__tests__/RegisterForm.test.tsx
+@@ -8,7 +8,7 @@
+  */
+ 
+ import { describe, test, expect, vi, beforeEach } from 'vitest';
+-import { render, screen, waitFor } from '@testing-library/react';
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { RegisterForm } from '../RegisterForm';
+ import authService from '@/services/authService';
+@@ -34,6 +34,17 @@ describe('RegisterForm', () => {
+     mockPush.mockClear();
+   });
+ 
++  const acceptPdpConsent = async (user: ReturnType<typeof userEvent.setup>) => {
++    await user.click(
++      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++    );
++  };
++
++  const getMarketingConsent = () =>
++    screen.getByRole('checkbox', {
++      name: /получать рекламные и информационные рассылки от freesport/i,
++    });
++
+   describe('Rendering', () => {
+     test('should render all form fields', () => {
+       render(<RegisterForm />);
+@@ -42,9 +53,61 @@ describe('RegisterForm', () => {
+       expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
+       expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument();
+       expect(screen.getByLabelText(/подтверждение пароля/i)).toBeInTheDocument();
++      expect(
++        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++      ).toBeInTheDocument();
++      expect(getMarketingConsent()).toBeInTheDocument();
+       expect(screen.getByRole('button', { name: /зарегистрироваться/i })).toBeInTheDocument();
+     });
+ 
++    test('should render native privacy policy link next to clickable pdp consent label text', async () => {
++      const user = userEvent.setup();
++      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
++      render(<RegisterForm />);
++
++      const pdpCheckbox = screen.getByRole('checkbox', {
++        name: /обработку моих персональных данных/i,
++      });
++      const link = screen.getByRole('link', {
++        name: /обработку моих персональных данных/i,
++      });
++      expect(link).toHaveAttribute('href', '/privacy-policy');
++      expect(link).toHaveAttribute('target', '_blank');
++      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
++      expect(link.closest('label')).toBeNull();
++      const label = document.querySelector('label[for="register-pdp-consent"]');
++      expect(label).not.toBeNull();
++
++      await user.click(label!);
++      expect(pdpCheckbox).toBeChecked();
++
++      link.addEventListener('click', event => event.preventDefault(), { once: true });
++      fireEvent.click(link, { ctrlKey: true });
++      expect(pdpCheckbox).toBeChecked();
++      expect(openSpy).not.toHaveBeenCalled();
++      openSpy.mockRestore();
++    });
++
++    test('should render marketing consent unchecked by default', () => {
++      render(<RegisterForm />);
++
++      expect(getMarketingConsent()).not.toBeChecked();
++    });
++
++    test('should keep optional marketing checkbox without inline error state', async () => {
++      const user = userEvent.setup();
++      render(<RegisterForm />);
++
++      const marketingConsent = getMarketingConsent();
++      expect(marketingConsent).not.toHaveAttribute('aria-invalid');
++      expect(marketingConsent).not.toHaveAttribute('aria-describedby');
++
++      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
++
++      expect(marketingConsent).not.toHaveAttribute('aria-invalid');
++      expect(marketingConsent).not.toHaveAttribute('aria-describedby');
++    });
++
+     test('should have proper autocomplete attributes', () => {
+       render(<RegisterForm />);
+ 
+@@ -118,6 +181,9 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'ivan@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'DifferentPass456');
++      await user.click(
++        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++      );
+       await user.click(submitButton);
+ 
+       expect(await screen.findByText(/пароли не совпадают/i)).toBeInTheDocument();
+@@ -160,6 +226,27 @@ describe('RegisterForm', () => {
+ 
+       expect(await screen.findByText(/хотя бы 1 заглавную букву/i)).toBeInTheDocument();
+     });
++
++    test('should block submit without pdp consent', async () => {
++      const user = userEvent.setup();
++      const mockRegister = vi.mocked(authService.register);
++      render(<RegisterForm />);
++
++      await user.type(screen.getByLabelText(/имя/i), 'Иван');
++      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
++      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
++      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
++
++      expect(
++        (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
++          .length
++      ).toBeGreaterThan(0);
++      expect(
++        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++      ).toHaveAttribute('aria-invalid', 'true');
++      expect(mockRegister).not.toHaveBeenCalled();
++    });
+   });
+ 
+   describe('Form Submission', () => {
+@@ -192,6 +279,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'newuser@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       await waitFor(() => {
+@@ -205,6 +293,8 @@ describe('RegisterForm', () => {
+           role: 'retail',
+           company_name: undefined,
+           tax_id: undefined,
++          pdp_consent: true,
++          marketing_consent: false,
+         });
+       });
+ 
+@@ -245,6 +335,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'newuser@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       await waitFor(() => {
+@@ -275,12 +366,86 @@ describe('RegisterForm', () => {
+       await user.type(screen.getByLabelText(/электронная почта/i), 'test@example.com');
+       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+ 
+       await waitFor(() => {
+         expect(mockPush).toHaveBeenCalledWith('/custom/path');
+       });
+     });
++
++    test('should submit with marketing_consent false when unchecked', async () => {
++      const user = userEvent.setup();
++      const mockRegister = vi.mocked(authService.register);
++      mockRegister.mockResolvedValue({
++        access: 'mock-token',
++        refresh: 'mock-refresh',
++        user: {
++          id: 2,
++          email: 'marketing-false@example.com',
++          first_name: 'Marketing',
++          last_name: '',
++          phone: '',
++          role: 'retail',
++          is_verified: true,
++        },
++      });
++
++      render(<RegisterForm />);
++
++      await user.type(screen.getByLabelText(/имя/i), 'Marketing');
++      await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-false@example.com');
++      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
++      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await acceptPdpConsent(user);
++      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
++
++      await waitFor(() => {
++        expect(mockRegister).toHaveBeenCalledWith(
++          expect.objectContaining({
++            pdp_consent: true,
++            marketing_consent: false,
++          })
++        );
++      });
++    });
++
++    test('should submit with marketing_consent true when checked', async () => {
++      const user = userEvent.setup();
++      const mockRegister = vi.mocked(authService.register);
++      mockRegister.mockResolvedValue({
++        access: 'mock-token',
++        refresh: 'mock-refresh',
++        user: {
++          id: 2,
++          email: 'marketing-true@example.com',
++          first_name: 'Marketing',
++          last_name: '',
++          phone: '',
++          role: 'retail',
++          is_verified: true,
++        },
++      });
++
++      render(<RegisterForm />);
++
++      await user.type(screen.getByLabelText(/имя/i), 'Marketing');
++      await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-true@example.com');
++      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
++      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await acceptPdpConsent(user);
++      await user.click(getMarketingConsent());
++      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
++
++      await waitFor(() => {
++        expect(mockRegister).toHaveBeenCalledWith(
++          expect.objectContaining({
++            pdp_consent: true,
++            marketing_consent: true,
++          })
++        );
++      });
++    });
+   });
+ 
+   describe('Error Handling', () => {
+@@ -307,6 +472,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'existing@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       // First verify the API was called
+@@ -342,9 +508,95 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'ivan@example.com');
+       await user.type(passwordInput, 'WeakPass1');
+       await user.type(confirmInput, 'WeakPass1');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+-      expect(await screen.findByText(/password is too weak/i)).toBeInTheDocument();
++      expect((await screen.findAllByText(/password is too weak/i)).length).toBeGreaterThan(0);
++    });
++
++    test('should display backend pdp consent validation error inline', async () => {
++      const user = userEvent.setup();
++      const mockRegister = vi.mocked(authService.register);
++      mockRegister.mockRejectedValue({
++        response: {
++          status: 400,
++          data: { pdp_consent: ['Необходимо согласие на обработку персональных данных.'] },
++        },
++      });
++
++      render(<RegisterForm />);
++
++      await user.type(screen.getByLabelText(/имя/i), 'Иван');
++      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
++      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
++      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await acceptPdpConsent(user);
++      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
++
++      expect(
++        (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
++          .length
++      ).toBeGreaterThan(0);
++      expect(
++        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++      ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
++      expect(
++        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
++      ).toHaveAttribute('aria-invalid', 'true');
++    });
++
++    test('should display backend email validation error inline', async () => {
++      const user = userEvent.setup();
++      const mockRegister = vi.mocked(authService.register);
++      mockRegister.mockRejectedValue({
++        response: {
++          status: 400,
++          data: { email: ['Пользователь с таким email уже существует.'] },
++        },
++      });
++
++      render(<RegisterForm />);
++
++      await user.type(screen.getByLabelText(/имя/i), 'Иван');
++      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
++      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
++      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await acceptPdpConsent(user);
++      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
++
++      const emailInput = screen.getByLabelText(/электронная почта/i);
++      expect(
++        (await screen.findAllByText(/пользователь с таким email уже существует/i)).length
++      ).toBeGreaterThan(0);
++      expect(emailInput).toHaveAccessibleDescription(/пользователь с таким email уже существует/i);
++      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
++    });
++
++    test('should not hang on cyclic backend validation payloads', async () => {
++      const user = userEvent.setup();
++      const mockRegister = vi.mocked(authService.register);
++      const cyclicPayload: Record<string, unknown> = {};
++      cyclicPayload.self = cyclicPayload;
++      mockRegister.mockRejectedValue({
++        response: {
++          status: 400,
++          data: {
++            nested: cyclicPayload,
++            email: ['Email from backend'],
++          },
++        },
++      });
++
++      render(<RegisterForm />);
++
++      await user.type(screen.getByLabelText(/имя/i), 'Иван');
++      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
++      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
++      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
++      await acceptPdpConsent(user);
++      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
++
++      expect((await screen.findAllByText(/email from backend/i)).length).toBeGreaterThan(0);
+     });
+ 
+     test('should display API error on 500 Internal Server Error', async () => {
+@@ -369,6 +621,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'ivan@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       expect(await screen.findByText(/ошибка сервера/i)).toBeInTheDocument();
+@@ -415,6 +668,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'test@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       // Button should be disabled during submission
+@@ -464,6 +718,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'test@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       // All inputs should be disabled during submission
+@@ -515,6 +770,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'existing@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       const alert = await screen.findByRole('alert');
+@@ -640,6 +896,7 @@ describe('RegisterForm', () => {
+       await user.type(emailInput, 'trainer@example.com');
+       await user.type(passwordInput, 'SecurePass123');
+       await user.type(confirmInput, 'SecurePass123');
++      await acceptPdpConsent(user);
+       await user.click(submitButton);
+ 
+       await waitFor(() => {
+diff --git a/frontend/src/schemas/__tests__/authSchemas.test.ts b/frontend/src/schemas/__tests__/authSchemas.test.ts
+index 921e4f02..cf63ab69 100644
+--- a/frontend/src/schemas/__tests__/authSchemas.test.ts
++++ b/frontend/src/schemas/__tests__/authSchemas.test.ts
+@@ -8,11 +8,16 @@
+  * AC 8: Unit Tests для loginSchema, registerSchema, passwordResetRequestSchema, passwordResetConfirmSchema
+  */
+ 
+-import { describe, test, expect } from 'vitest';
++import { describe, test, expect, expectTypeOf } from 'vitest';
+ import {
++  b2bRegisterSchema,
++  type B2BRegisterFormData,
++  type B2BRegisterFormInput,
+   loginSchema,
+   passwordResetConfirmSchema,
+   passwordResetRequestSchema,
++  type RegisterFormData,
++  type RegisterFormInput,
+   registerSchema,
+ } from '../authSchemas';
+ 
+@@ -118,6 +123,46 @@ describe('loginSchema', () => {
+ });
+ 
+ describe('registerSchema', () => {
++  test('should narrow parsed pdp consent to literal true while form input still accepts false default', () => {
++    expectTypeOf<RegisterFormInput['pdp_consent']>().toEqualTypeOf<boolean>();
++    expectTypeOf<RegisterFormData['pdp_consent']>().toEqualTypeOf<true>();
++
++    const result = registerSchema.safeParse({
++      first_name: 'Иван',
++      email: 'ivan.literal@example.com',
++      password: 'SecurePass123',
++      confirmPassword: 'SecurePass123',
++      pdp_consent: true,
++    });
++
++    expect(result.success).toBe(true);
++    if (result.success) {
++      expect(result.data.pdp_consent).toBe(true);
++    }
++  });
++
++  test('should use backend contract message for missing pdp consent', () => {
++    const result = registerSchema.safeParse({
++      first_name: 'Иван',
++      email: 'ivan.pdp-message@example.com',
++      password: 'SecurePass123',
++      confirmPassword: 'SecurePass123',
++      pdp_consent: false,
++    });
++
++    expect(result.success).toBe(false);
++    if (!result.success) {
++      expect(result.error.issues).toEqual(
++        expect.arrayContaining([
++          expect.objectContaining({
++            path: ['pdp_consent'],
++            message: 'Необходимо согласие на обработку персональных данных.',
++          }),
++        ])
++      );
++    }
++  });
++
+   describe('valid data', () => {
+     test('should validate correct registration data', () => {
+       const validData = {
+@@ -125,6 +170,7 @@ describe('registerSchema', () => {
+         email: 'ivan@example.com',
+         password: 'SecurePass123',
+         confirmPassword: 'SecurePass123',
++        pdp_consent: true,
+       };
+ 
+       const result = registerSchema.safeParse(validData);
+@@ -138,6 +184,7 @@ describe('registerSchema', () => {
+         email: 'user@example.com',
+         password: 'SecurePass123',
+         confirmPassword: 'SecurePass123',
++        pdp_consent: true,
+       });
+ 
+       expect(result.success).toBe(true);
+@@ -151,6 +198,7 @@ describe('registerSchema', () => {
+         email: 'user@example.com',
+         password: 'SecurePass123',
+         confirmPassword: 'SecurePass123',
++        pdp_consent: true,
+       });
+ 
+       expect(result.success).toBe(false);
+@@ -166,6 +214,7 @@ describe('registerSchema', () => {
+         email: 'user@example.com',
+         password: 'SecurePass123',
+         confirmPassword: 'SecurePass123',
++        pdp_consent: true,
+       });
+ 
+       expect(result.success).toBe(false);
+@@ -183,6 +232,7 @@ describe('registerSchema', () => {
+         email: 'user@example.com',
+         password: 'SecurePass123',
+         confirmPassword: 'DifferentPass456',
++        pdp_consent: true,
+       });
+ 
+       expect(result.success).toBe(false);
+@@ -198,6 +248,7 @@ describe('registerSchema', () => {
+         email: 'user@example.com',
+         password: 'SecurePass123',
+         confirmPassword: '',
++        pdp_consent: true,
+       });
+ 
+       expect(result.success).toBe(false);
+@@ -214,6 +265,7 @@ describe('registerSchema', () => {
+         email: 'user@example.com',
+         password: 'SecurePass',
+         confirmPassword: 'SecurePass',
++        pdp_consent: true,
+       });
+ 
+       expect(result.success).toBe(false);
+@@ -229,6 +281,7 @@ describe('registerSchema', () => {
+         email: 'user@example.com',
+         password: 'securepass123',
+         confirmPassword: 'securepass123',
++        pdp_consent: true,
+       });
+ 
+       expect(result.success).toBe(false);
+@@ -240,6 +293,62 @@ describe('registerSchema', () => {
+   });
+ });
+ 
++describe('b2bRegisterSchema', () => {
++  test('should narrow parsed pdp consent to literal true while B2B form input still accepts false default', () => {
++    expectTypeOf<B2BRegisterFormInput['pdp_consent']>().toEqualTypeOf<boolean>();
++    expectTypeOf<B2BRegisterFormData['pdp_consent']>().toEqualTypeOf<true>();
++
++    const result = b2bRegisterSchema.safeParse({
++      first_name: 'Иван',
++      last_name: 'Петров',
++      email: 'b2b.literal@example.com',
++      phone: '+79991234567',
++      password: 'SecurePass123',
++      confirmPassword: 'SecurePass123',
++      company_name: 'ООО Спорт',
++      tax_id: '1234567890',
++      ogrn: '1234567890123',
++      legal_address: 'г. Москва, ул. Тестовая, 1',
++      role: 'wholesale_level1',
++      pdp_consent: true,
++    });
++
++    expect(result.success).toBe(true);
++    if (result.success) {
++      expect(result.data.pdp_consent).toBe(true);
++    }
++  });
++
++  test('should use backend contract message for missing B2B pdp consent', () => {
++    const result = b2bRegisterSchema.safeParse({
++      first_name: 'Иван',
++      last_name: 'Петров',
++      email: 'b2b.pdp-message@example.com',
++      phone: '+79991234567',
++      password: 'SecurePass123',
++      confirmPassword: 'SecurePass123',
++      company_name: 'ООО Спорт',
++      tax_id: '1234567890',
++      ogrn: '1234567890123',
++      legal_address: 'г. Москва, ул. Тестовая, 1',
++      role: 'wholesale_level1',
++      pdp_consent: false,
++    });
++
++    expect(result.success).toBe(false);
++    if (!result.success) {
++      expect(result.error.issues).toEqual(
++        expect.arrayContaining([
++          expect.objectContaining({
++            path: ['pdp_consent'],
++            message: 'Необходимо согласие на обработку персональных данных.',
++          }),
++        ])
++      );
++    }
++  });
++});
++
+ /**
+  * Password Reset Request Schema Tests
+  * Story 28.3 - Task 6.1
+diff --git a/frontend/src/schemas/authSchemas.ts b/frontend/src/schemas/authSchemas.ts
+index 2276ee7a..b7a4c4b9 100644
+--- a/frontend/src/schemas/authSchemas.ts
++++ b/frontend/src/schemas/authSchemas.ts
+@@ -9,6 +9,12 @@
+ import { z } from 'zod';
+ import { validateINN, validateOGRN } from '@/utils/validators/b2b-validators';
+ 
++const PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных.';
++
++const pdpConsentSchema = z
++  .boolean({ error: PDP_CONSENT_REQUIRED_MESSAGE })
++  .pipe(z.literal(true, { error: PDP_CONSENT_REQUIRED_MESSAGE }));
++
+ /**
+  * Login Schema
+  * Валидация формы входа
+@@ -49,6 +55,8 @@ export const registerSchema = z
+     // Story 29.1: Условные B2B поля
+     company_name: z.string().optional(),
+     tax_id: z.string().optional(),
++    pdp_consent: pdpConsentSchema,
++    marketing_consent: z.boolean().default(false),
+   })
+   .refine(data => data.password === data.confirmPassword, {
+     message: 'Пароли не совпадают',
+@@ -139,6 +147,8 @@ export const b2bRegisterSchema = z
+       'trainer',
+       'federation_rep',
+     ]),
++    pdp_consent: pdpConsentSchema,
++    marketing_consent: z.boolean().default(false),
+   })
+   .refine(data => data.password === data.confirmPassword, {
+     message: 'Пароли не совпадают',
+@@ -180,7 +190,9 @@ export const passwordResetConfirmSchema = z
+  * TypeScript Types (инференция из Zod schemas)
+  */
+ export type LoginFormData = z.infer<typeof loginSchema>;
+-export type RegisterFormData = z.input<typeof registerSchema>;
+-export type B2BRegisterFormData = z.infer<typeof b2bRegisterSchema>;
++export type RegisterFormInput = z.input<typeof registerSchema>;
++export type RegisterFormData = z.output<typeof registerSchema>;
++export type B2BRegisterFormInput = z.input<typeof b2bRegisterSchema>;
++export type B2BRegisterFormData = z.output<typeof b2bRegisterSchema>;
+ export type PasswordResetRequestFormData = z.infer<typeof passwordResetRequestSchema>;
+ export type PasswordResetConfirmFormData = z.infer<typeof passwordResetConfirmSchema>;
+diff --git a/frontend/src/types/api.ts b/frontend/src/types/api.ts
+index 6dd60728..e1c0b3dd 100644
+--- a/frontend/src/types/api.ts
++++ b/frontend/src/types/api.ts
+@@ -148,6 +148,8 @@ export interface RegisterRequest {
+   role?: string;
+   company_name?: string;
+   tax_id?: string;
++  pdp_consent: boolean;
++  marketing_consent?: boolean;
+ }
+ 
+ export interface RegisterResponse {
+diff --git a/frontend/src/utils/validationErrorParser.ts b/frontend/src/utils/validationErrorParser.ts
+new file mode 100644
+index 00000000..2d0835c0
+--- /dev/null
++++ b/frontend/src/utils/validationErrorParser.ts
+@@ -0,0 +1,114 @@
++import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
++
++export type ApiValidationValue =
++  | string
++  | string[]
++  | ApiValidationValue[]
++  | { [key: string]: ApiValidationValue }
++  | null
++  | undefined;
++
++export type ApiErrorData = Record<string, ApiValidationValue> & { detail?: ApiValidationValue };
++
++export type BackendFieldErrorMap<FormInput extends FieldValues> = Partial<
++  Record<string, Path<FormInput>>
++>;
++
++const MAX_VALIDATION_MESSAGE_DEPTH = 8;
++const ARRAY_INDEX_KEY_RE = /^(0|[1-9]\d*)$/;
++
++const isArrayIndexKey = (key: string) => ARRAY_INDEX_KEY_RE.test(key);
++
++export const getValidationEntries = (data: Record<string, ApiValidationValue>) =>
++  Object.entries(data).sort(
++    ([leftKey], [rightKey]) => Number(isArrayIndexKey(leftKey)) - Number(isArrayIndexKey(rightKey))
++  );
++
++export const getValidationMessage = (
++  value: ApiValidationValue,
++  seenObjects: WeakSet<object> = new WeakSet(),
++  depth = 0
++): string | undefined => {
++  if (depth > MAX_VALIDATION_MESSAGE_DEPTH) {
++    return undefined;
++  }
++
++  if (typeof value === 'string') {
++    return value || undefined;
++  }
++
++  if (Array.isArray(value)) {
++    if (seenObjects.has(value)) {
++      return undefined;
++    }
++    seenObjects.add(value);
++
++    for (const item of value) {
++      const message = getValidationMessage(item, seenObjects, depth + 1);
++      if (message) {
++        return message;
++      }
++    }
++    return undefined;
++  }
++
++  if (value && typeof value === 'object') {
++    if (seenObjects.has(value)) {
++      return undefined;
++    }
++    seenObjects.add(value);
++
++    for (const [, item] of getValidationEntries(value as Record<string, ApiValidationValue>)) {
++      const message = getValidationMessage(item, seenObjects, depth + 1);
++      if (message) {
++        return message;
++      }
++    }
++  }
++
++  return undefined;
++};
++
++export const getFirstValidationMessage = (data: ApiErrorData): string | undefined => {
++  for (const [key, value] of getValidationEntries(data)) {
++    if (key === 'detail') {
++      continue;
++    }
++
++    const message = getValidationMessage(value);
++    if (message) {
++      return message;
++    }
++  }
++
++  return getValidationMessage(data.detail);
++};
++
++const collectBackendFieldMessages = <FormInput extends FieldValues>(
++  data: ApiErrorData,
++  fieldErrorMap: BackendFieldErrorMap<FormInput>,
++  messages: Partial<Record<Path<FormInput>, string>>
++) => {
++  for (const [key, item] of getValidationEntries(data)) {
++    const fieldName = fieldErrorMap[key];
++    const message = fieldName ? getValidationMessage(item) : undefined;
++    if (fieldName && message && !messages[fieldName]) {
++      messages[fieldName] = message;
++    }
++  }
++};
++
++export const applyBackendFieldErrors = <FormInput extends FieldValues>(
++  data: ApiErrorData,
++  setError: UseFormSetError<FormInput>,
++  fieldErrorMap: BackendFieldErrorMap<FormInput>
++): string | undefined => {
++  const messages: Partial<Record<Path<FormInput>, string>> = {};
++  collectBackendFieldMessages(data, fieldErrorMap, messages);
++
++  for (const [fieldName, message] of Object.entries(messages) as Array<[Path<FormInput>, string]>) {
++    setError(fieldName, { type: 'server', message });
++  }
++
++  return Object.values(messages).find((message): message is string => typeof message === 'string');
++};

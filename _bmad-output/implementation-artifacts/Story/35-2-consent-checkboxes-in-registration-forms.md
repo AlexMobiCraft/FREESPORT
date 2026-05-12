@@ -729,6 +729,14 @@ GPT-5 Codex
   - Static checks: `black --check apps/users/views/authentication.py tests/integration/test_auth_registration_consent.py`, `flake8 apps/users/views/authentication.py tests/integration/test_auth_registration_consent.py` и `git diff --check` по изменённым файлам passed.
   - `npx gitnexus detect-changes --scope all`: 5 files, 1 changed symbol (`sanitize_log_value`), 1 affected flow (`Post → Sanitize_log_value`), risk `medium`; affected runtime scope ограничен registration consent audit warning-log path.
   - Широкий backend integration regression без известного environmental `test_import_customers.py` блока был запущен, но не завершился за 20 минут и остановлен без итогового pytest-отчёта; этот прогон не засчитан как passed. Test backend container остановлен, чтобы не оставить фоновые pytest-процессы.
+- **Final BMAD dev-story closure after Pass 9 (GPT-5 Codex, 2026-05-11):**
+  - Открытых `[ ]` задач и review follow-ups не найдено; Pass 9 зафиксирован как `Clean review / Approved`, без новых patch/defer/decision items.
+  - Backend unit suite через Docker: **697 passed, 12 skipped, 1533 deselected**.
+  - Backend integration suite через Docker: **631 passed, 2 skipped, 10 failed**; все 10 падений снова локализованы в `tests/integration/test_management_commands/test_import_customers.py`, причина среды подтверждена: `data/import_1c/contragents` отсутствует в локальном checkout.
+  - Story-specific backend regression: `test_auth_registration_consent.py` + `test_auth_registration_tokens.py` = **34/34 passed**.
+  - Frontend auth/schema/parser regression: `RegisterForm.test.tsx`, `B2BRegisterForm.test.tsx`, `authSchemas.test.ts`, `validationErrorParser.test.ts` = **79/79 passed**.
+  - Scoped frontend ESLint по auth/schema/parser файлам passed; `npm run build` passed with `NEXT_PUBLIC_API_URL_INTERNAL=http://localhost:8001/api/v1` (остались только существующие Next workspace-root / ESLint-config warnings).
+  - `npx gitnexus detect-changes --scope all`: 5 files, 2 symbols, 0 affected processes, risk `low`; source-code символы story не затронуты, изменения ограничены BMAD/review artifacts и GitNexus stats docs.
 
 ### Completion Notes List
 
@@ -746,10 +754,12 @@ GPT-5 Codex
 - **Review patch Pass 6 completion (2026-05-11, GPT-5 Codex):** закрыты 2 LOW `[Review][Patch]`: consent checkbox-ы переведены на RHF uncontrolled registration без `checked={watch(...)}`, добавлен B2B pending + `marketing_consent=True` integration coverage. Story снова готова к review.
 - **Review patch Pass 7 completion (2026-05-11, GPT-5 Codex):** закрыты 6 `[Review][Patch]`: frontend/backend PDP-message синхронизирован с точкой, IPv4-mapped IPv6 нормализуется в canonical IPv4, backend field-error parser мапит inline только top-level поля, optional marketing checkbox явно оставлен без error-state, `get_client_ip` side-effect и Celery race scope-increment задокументированы. Story снова готова к review.
 - **Review patch Pass 8 completion (2026-05-11, GPT-5 Codex):** закрыт 1 LOW `[Review][Patch]`: `sanitize_log_value` теперь удаляет lone UTF-8 surrogates перед escaping/truncation; добавлен regression test для `X-Forwarded-For` с `\udcff`. Story снова готова к review.
+- **Final BMAD dev-story closure after Pass 9 (2026-05-11, GPT-5 Codex):** Pass 9 clean review подтверждён, открытых задач нет; story и `sprint-status.yaml` переведены обратно в `review`. Full backend unit прошёл; full backend integration имеет только известный environmental blocker `test_import_customers.py` из-за отсутствующего `data/import_1c/contragents`; story-specific backend/frontend regression, scoped ESLint, frontend build и GitNexus detect-changes прошли.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/Story/35-2-consent-checkboxes-in-registration-forms.md`
+- `_bmad-output/implementation-artifacts/.review-cache/35-2-pass9-review.diff`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `AGENTS.md`
@@ -866,6 +876,25 @@ GPT-5 Codex
 - 2026-05-11: addressed Pass 7 review follow-ups — 6 `[Review][Patch]` items resolved; status story → `review`.
 - 2026-05-11: Pass 8 full-scope adversarial review (Cascade) — Outcome `Approve with minor recommendation`, открыт 1 `[Review][Patch][LOW]` (sanitize_log_value surrogate handling), 3 deferred (pre-existing), 4 dismissed; status story → `in-progress`.
 - 2026-05-11: addressed Pass 8 LOW review follow-up — 1 `[Review][Patch]` item resolved; status story → `review`.
+- 2026-05-11: Pass 9 full-scope adversarial review (Cascade) — Outcome `Clean review / Approved`, 0 decision-needed, 0 patch, 0 defer, 4 dismissed (LOW polish observations); новых follow-up задач нет, source-код не менялся; story/sprint-status оставлены `in-progress` до финального BMAD-закрытия.
+- 2026-05-11: финальное BMAD dev-story closure после Pass 9 — DoD revalidated, story/sprint-status → `review`; full backend unit passed, story-specific backend/frontend regression passed, frontend build/scoped ESLint passed, full backend integration имеет только известный environmental blocker `test_import_customers.py` из-за отсутствующего `data/import_1c/contragents`.
+
+#### Pass 9 (2026-05-11) — full-scope adversarial review (Cascade)
+
+**Scope:** полный delta story 35.2 относительно `origin/main` (727848fc..38a0d8d9), все story-коммиты, ~2000 строк значимого source-кода без auto-generated `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts`, `.review-cache/*.patch` и самого story-файла. Layers: Acceptance Auditor + Blind Hunter + Edge Case Hunter.
+
+**Acceptance Auditor:** ✅ AC-1..AC-8 соответствуют коду. Все 32 `[Review][Patch]` из Passes 1-8 закрыты. Файлы из «НЕ ИЗМЕНЯТЬ» не тронуты. Accepted spec-drifts (Pass 4 AC-4 `z.boolean().pipe(z.literal(true))`, Pass 5 AC-6 `get_consent_ip_address`) подтверждены.
+
+**Outcome:** **Clean review / Approved** — production-ready, 0 blocking findings.
+
+**Review Follow-ups (Pass 9):** нет.
+
+**Dismissed (LOW polish observations, noise / already covered):**
+
+- Dead entries `ogrn`/`legal_address` в `B2B_FIELD_ERROR_MAP` — backend silently drops эти поля (Pass 4 product decision Option 4, deferred в `deferred-work.md`); map-entries никогда не триггерятся, безвредны. [frontend/src/components/auth/B2BRegisterForm.tsx]
+- Защитный fallback `validated_data.pop("marketing_consent", False)` — DRF `BooleanField(default=False)` всегда заполняет validated_data; второй аргумент `pop` недостижим. Defensive coding без дефекта. [backend/apps/users/serializers.py]
+- `user._marketing_consent` attribute-convention для передачи флага из `serializer.create()` в `view.post` — slightly smelly, но single-flag refactor в DRF serializer context = over-engineering. Accepted trade-off. [backend/apps/users/serializers.py, backend/apps/users/views/authentication.py]
+- `BackendFieldErrorMap<FormInput>` типизирован `Partial<Record<string, Path<FormInput>>>` — ключ-строка не ограничен union'ом API-contract field names; опечатка в ключе молча не применится, но backend API-контракт не экспортируется как union из generated types. Acceptable trade-off. [frontend/src/utils/validationErrorParser.ts]
 
 #### Pass 8 (2026-05-11) — full-scope adversarial review (Cascade)
 
