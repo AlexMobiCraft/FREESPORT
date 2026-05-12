@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.2
-**Status:** review
+**Status:** done
 **Priority:** High (часть compliance-пакета 152-ФЗ; разблокирует фактический сбор согласий пользователей)
 
 ---
@@ -878,6 +878,21 @@ GPT-5 Codex
 - 2026-05-11: addressed Pass 8 LOW review follow-up — 1 `[Review][Patch]` item resolved; status story → `review`.
 - 2026-05-11: Pass 9 full-scope adversarial review (Cascade) — Outcome `Clean review / Approved`, 0 decision-needed, 0 patch, 0 defer, 4 dismissed (LOW polish observations); новых follow-up задач нет, source-код не менялся; story/sprint-status оставлены `in-progress` до финального BMAD-закрытия.
 - 2026-05-11: финальное BMAD dev-story closure после Pass 9 — DoD revalidated, story/sprint-status → `review`; full backend unit passed, story-specific backend/frontend regression passed, frontend build/scoped ESLint passed, full backend integration имеет только известный environmental blocker `test_import_customers.py` из-за отсутствующего `data/import_1c/contragents`.
+- 2026-05-12: Pass 10 code review (Cascade) — Clean review / Approved, 0 новых findings. Story status → `done`.
+
+#### Pass 10 (2026-05-12) — full-scope adversarial review (Cascade)
+
+**Scope:** полный delta story 35.2 относительно `origin/main` (727848fc..8a109008), все story-коммиты, ~2000 строк значимого source-кода без auto-generated артефактов. Layers: Acceptance Auditor + Blind Hunter + Edge Case Hunter.
+
+**Acceptance Auditor:** ✅ AC-1..AC-8 соответствуют коду. Все 32 `[Review][Patch]` из Passes 1-9 закрыты. Файлы из «НЕ ИЗМЕНЯТЬ» не тронуты.
+
+**Outcome:** **Clean review / Approved** — production-ready, 0 новых blocking findings.
+
+**Review Follow-ups (Pass 10):** нет.
+
+**Dismissed (noise / already covered):**
+
+- Duplicate B2BRegisterForm test files (`frontend/src/__tests__/components/B2BRegisterForm.test.tsx` vs `frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx`) — pre-existing structural inconsistency (legacy location из Story 28.2 vs co-located из Story 35.2), оба набора тестов зелёные и не конфликтуют; консолидация — out of scope для 35.2.
 
 #### Pass 9 (2026-05-11) — full-scope adversarial review (Cascade)
 

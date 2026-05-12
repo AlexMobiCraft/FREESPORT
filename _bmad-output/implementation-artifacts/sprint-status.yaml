@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-11" # 35.2 → review: final BMAD closure after Pass 9 clean review
+last_updated: "2026-05-12" # 35.2 → done: Pass 10 clean review / Approved
 
 development_status:
   # ========================================
@@ -165,6 +165,6 @@ development_status:
   # ========================================
   epic-35: in-progress
   35-1-privacy-policy-page-and-consent-model: done
-  35-2-consent-checkboxes-in-registration-forms: review
+  35-2-consent-checkboxes-in-registration-forms: done
   35-3-consent-checkbox-in-subscribe-form: backlog
   35-4-cookie-banner: backlog
