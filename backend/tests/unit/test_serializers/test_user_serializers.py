@@ -34,6 +34,7 @@ class TestUserRegistrationSerializer:
             "last_name": "Пользователь",
             "phone": "+79991234568",
             "role": "retail",
+            "pdp_consent": True,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -56,6 +57,7 @@ class TestUserRegistrationSerializer:
             "role": "wholesale_level1",
             "company_name": "Тест Компания",
             "tax_id": "1234567890",
+            "pdp_consent": True,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -76,6 +78,7 @@ class TestUserRegistrationSerializer:
             "last_name": "Пользователь",
             "phone": "+79991234568",
             "role": "retail",
+            "pdp_consent": True,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -94,6 +97,7 @@ class TestUserRegistrationSerializer:
             "last_name": "Пользователь",
             "phone": "+79991234568",
             "role": "retail",
+            "pdp_consent": True,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -110,6 +114,7 @@ class TestUserRegistrationSerializer:
             "last_name": "Пользователь",
             "phone": "+79991234568",
             "role": "wholesale_level1",
+            "pdp_consent": True,
         }
 
         serializer = UserRegistrationSerializer(data=data)

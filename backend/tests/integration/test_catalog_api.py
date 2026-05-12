@@ -126,6 +126,7 @@ def register_and_login_user(api_client, role="retail"):
         "first_name": "Тест",
         "last_name": f"Пользователь {role}",
         "role": role,
+        "pdp_consent": True,
     }
     if role != "retail":
         # Используем уникальный ИНН для каждой роли
