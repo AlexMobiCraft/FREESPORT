@@ -56,19 +56,19 @@ function normalizePageData(data: unknown): PageData | null {
 }
 
 const fetchPrivacyPolicy = cache(async (): Promise<PageData | null> => {
-  const res = await fetch(`${getApiUrl()}${PRIVACY_POLICY_ENDPOINT}`, {
-    next: { revalidate: process.env.NODE_ENV === 'development' ? 0 : 3600 },
-  });
-
-  if (res.status >= 500) {
-    throw new Error('Не удалось загрузить страницу политики ПДн');
-  }
-
-  if (!res.ok) {
-    return null;
-  }
-
   try {
+    const res = await fetch(`${getApiUrl()}${PRIVACY_POLICY_ENDPOINT}`, {
+      next: { revalidate: process.env.NODE_ENV === 'development' ? 0 : 3600 },
+    });
+
+    if (res.status >= 500) {
+      return null;
+    }
+
+    if (!res.ok) {
+      return null;
+    }
+
     return normalizePageData(await res.json());
   } catch {
     return null;
