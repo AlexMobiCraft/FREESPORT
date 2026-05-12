@@ -62,7 +62,7 @@ const fetchPrivacyPolicy = cache(async (): Promise<PageData | null> => {
     });
 
     if (res.status >= 500) {
-      return null;
+      throw new Error('Не удалось загрузить страницу политики ПДн');
     }
 
     if (!res.ok) {
@@ -70,8 +70,14 @@ const fetchPrivacyPolicy = cache(async (): Promise<PageData | null> => {
     }
 
     return normalizePageData(await res.json());
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Не удалось загрузить страницу политики ПДн') {
+      throw error;
+    }
+    if (error instanceof SyntaxError) {
+      return null;
+    }
+    throw new Error('Network timeout');
   }
 });
 
