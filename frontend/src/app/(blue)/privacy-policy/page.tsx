@@ -74,10 +74,7 @@ const fetchPrivacyPolicy = cache(async (): Promise<PageData | null> => {
     if (error instanceof Error && error.message === 'Не удалось загрузить страницу политики ПДн') {
       throw error;
     }
-    if (error instanceof SyntaxError) {
-      return null;
-    }
-    throw new Error('Network timeout');
+    return null;
   }
 });
 

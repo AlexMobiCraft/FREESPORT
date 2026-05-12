@@ -119,11 +119,11 @@ describe('PrivacyPolicyPage (/privacy-policy)', () => {
     expect(mockNotFound).not.toHaveBeenCalled();
   });
 
-  it('пробрасывает сетевую ошибку в error boundary вместо 404', async () => {
+  it('вызывает notFound при сетевой ошибке', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network timeout'));
 
-    await expect(PrivacyPolicyPage()).rejects.toThrow('Network timeout');
-    expect(mockNotFound).not.toHaveBeenCalled();
+    await expect(PrivacyPolicyPage()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mockNotFound).toHaveBeenCalled();
   });
 
   it('вызывает notFound при malformed JSON от API', async () => {
