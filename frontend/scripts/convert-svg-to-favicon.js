@@ -32,18 +32,12 @@ let modifiedSvg = svgContent
 
 // Если нет wrapper <g>, добавляем transform к существующему <g>
 if (!modifiedSvg.includes('transform=')) {
-  modifiedSvg = modifiedSvg.replace(
-    /<g>/,
-    `<g transform="translate(${paddingX}, ${paddingY})">`
-  );
+  modifiedSvg = modifiedSvg.replace(/<g>/, `<g transform="translate(${paddingX}, ${paddingY})">`);
 }
 
 // Добавляем xmlns если отсутствует
 if (!modifiedSvg.includes('xmlns="http://www.w3.org/2000/svg"')) {
-  modifiedSvg = modifiedSvg.replace(
-    /<svg/,
-    '<svg xmlns="http://www.w3.org/2000/svg"'
-  );
+  modifiedSvg = modifiedSvg.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
 }
 
 async function main() {

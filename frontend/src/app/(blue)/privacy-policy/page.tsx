@@ -50,8 +50,7 @@ function normalizePageData(data: unknown): PageData | null {
     slug: page.slug,
     content: page.content,
     seo_title: typeof page.seo_title === 'string' ? page.seo_title : undefined,
-    seo_description:
-      typeof page.seo_description === 'string' ? page.seo_description : undefined,
+    seo_description: typeof page.seo_description === 'string' ? page.seo_description : undefined,
   };
 }
 
