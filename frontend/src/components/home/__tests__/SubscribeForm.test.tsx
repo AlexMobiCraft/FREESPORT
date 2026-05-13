@@ -30,9 +30,7 @@ const getPdpCheckbox = () =>
   screen.getByRole('checkbox', { name: /обработку моих персональных данных/i });
 
 const clickPdpCheckbox = async (user: ReturnType<typeof userEvent.setup>) => {
-  const label = document.getElementById('subscribe-pdp-consent-label-prefix');
-  expect(label).not.toBeNull();
-  await user.click(label!);
+  await user.click(getPdpCheckbox());
 };
 
 const fillEmailAndAcceptConsent = async (
@@ -125,8 +123,22 @@ describe('SubscribeForm', () => {
     });
     const alert = screen.getByRole('alert');
     expect(checkbox).toHaveAttribute('aria-invalid', 'true');
-    expect(checkbox).toHaveAttribute('aria-describedby', 'subscribe-pdp-consent-error');
-    expect(alert).toHaveAttribute('id', 'subscribe-pdp-consent-error');
+    expect(checkbox).toHaveAttribute('aria-describedby', alert.id);
+  });
+
+  it('generates unique PDN ids for multiple form instances', () => {
+    render(
+      <>
+        <SubscribeForm />
+        <SubscribeForm />
+      </>
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox', {
+      name: /обработку моих персональных данных/i,
+    });
+    const checkboxIds = checkboxes.map(checkbox => checkbox.getAttribute('id'));
+    expect(new Set(checkboxIds).size).toBe(2);
   });
 
   it('calls subscribe service with email and PDN consent payload', async () => {
@@ -186,6 +198,30 @@ describe('SubscribeForm', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Этот email уже подписан на рассылку');
+    });
+  });
+
+  it('shows backend PDN field error instead of email validation fallback', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        details: {
+          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'server-pdp@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Необходимо согласие на обработку персональных данных.')).toBeInTheDocument();
+      expect(toast.error).toHaveBeenCalledWith(
+        'Необходимо согласие на обработку персональных данных.'
+      );
     });
   });
 

@@ -7,10 +7,15 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from django.db import IntegrityError
 from rest_framework import serializers
 
 from .models import BlogPost, Category, News, Newsletter
-from .utils.consent_audit import sanitize_consent_user_agent
+from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_agent
+
+
+PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
+ALREADY_SUBSCRIBED = "Этот email уже подписан на рассылку"
 
 
 class SubscribeSerializer(serializers.Serializer):
@@ -28,9 +33,9 @@ class SubscribeSerializer(serializers.Serializer):
         write_only=True,
         required=True,
         error_messages={
-            "required": "Необходимо согласие на обработку персональных данных.",
-            "invalid": "Необходимо согласие на обработку персональных данных.",
-            "null": "Необходимо согласие на обработку персональных данных.",
+            "required": PDP_CONSENT_REQUIRED,
+            "invalid": PDP_CONSENT_REQUIRED,
+            "null": PDP_CONSENT_REQUIRED,
         },
     )
 
@@ -44,14 +49,14 @@ class SubscribeSerializer(serializers.Serializer):
 
         # Проверка на существующую активную подписку
         if Newsletter.objects.filter(email=value, is_active=True).exists():
-            raise serializers.ValidationError("Этот email уже подписан на рассылку")
+            raise serializers.ValidationError(ALREADY_SUBSCRIBED)
 
         return value
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Проверить обязательное согласие на обработку ПДн."""
-        if not attrs.get("pdp_consent"):
-            raise serializers.ValidationError({"pdp_consent": "Необходимо согласие на обработку персональных данных."})
+        if self.initial_data.get("pdp_consent") is not True:
+            raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED})
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> Newsletter:
@@ -67,40 +72,39 @@ class SubscribeSerializer(serializers.Serializer):
         ip_address = None
         user_agent = ""
 
-        if request:
-            # Получаем IP с учетом proxy (X-Forwarded-For)
-            x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-            if x_forwarded_for:
-                ip_address = x_forwarded_for.split(",")[0]
-            else:
-                ip_address = request.META.get("REMOTE_ADDR")
-
+        if request is not None:
+            ip_address = get_consent_ip_address(request)
             user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT", ""))
 
-        # Проверяем существование неактивной подписки
         try:
-            subscription = Newsletter.objects.get(email=email, is_active=False)
-            # Реактивируем подписку
-            subscription.is_active = True
-            subscription.unsubscribed_at = None
-            subscription.ip_address = ip_address
-            subscription.user_agent = user_agent
-            subscription.save(
-                update_fields=[
-                    "is_active",
-                    "unsubscribed_at",
-                    "ip_address",
-                    "user_agent",
-                ]
-            )
-            return subscription
+            subscription = Newsletter.objects.select_for_update().get(email=email)
         except Newsletter.DoesNotExist:
-            # Создаем новую подписку
-            return Newsletter.objects.create(
-                email=email,
-                ip_address=ip_address,
-                user_agent=user_agent,
-            )
+            try:
+                return Newsletter.objects.create(
+                    email=email,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                )
+            except IntegrityError as exc:
+                raise serializers.ValidationError({"email": [ALREADY_SUBSCRIBED]}) from exc
+
+        if subscription.is_active:
+            raise serializers.ValidationError({"email": [ALREADY_SUBSCRIBED]})
+
+        # Реактивируем подписку
+        subscription.is_active = True
+        subscription.unsubscribed_at = None
+        subscription.ip_address = ip_address
+        subscription.user_agent = user_agent
+        subscription.save(
+            update_fields=[
+                "is_active",
+                "unsubscribed_at",
+                "ip_address",
+                "user_agent",
+            ]
+        )
+        return subscription
 
 
 class SubscribeResponseSerializer(serializers.Serializer):

@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review
+**Status:** review (patch action items P1-P12 закрыты после code review 2026-05-13)
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -891,6 +891,22 @@ GPT-5 Codex
 - Dev-stack API smoke: missing `pdp_consent` → 400; anonymous subscribe → 201 + 2 `UserConsent`; authenticated subscribe → 201 + 2 `UserConsent` with `session_key=""`.
 - Dev-stack reactivation smoke: subscribe → unsubscribe → subscribe creates 4 total consent rows for the same manual user-agent.
 - Playwright UI smoke: `/home` and `/electric` PDN checkbox visible/clickable, privacy link attrs correct; `/home` submit without checkbox blocked.
+- `npx gitnexus impact REST_FRAMEWORK --direction upstream` → ambiguous; уточнён `Variable:backend/freesport/settings/base.py:REST_FRAMEWORK` → LOW.
+- `npx gitnexus impact ProxyAwareAnonRateThrottle --direction upstream` → LOW, upstream callers не найдены.
+- RED: `docker compose --env-file ..\.env -f ..\docker\docker-compose.test.yml run --rm backend pytest tests/integration/test_common_subscribe_api.py tests/integration/test_auth_registration_consent.py -q` → expected failures по P1/P2/P3/P5/P10/P11/P12.
+- RED: `npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/__tests__/subscribeService.test.ts` → expected failures по P6/P7/P8.
+- `.\venv\Scripts\python.exe -m black apps\common\serializers.py apps\common\views.py apps\common\throttling.py apps\common\utils\consent_audit.py tests\integration\test_common_subscribe_api.py tests\integration\test_auth_registration_consent.py freesport\settings\base.py freesport\settings\production.py` → passed.
+- `npx prettier --write src/components/home/SubscribeForm.tsx src/components/home/ElectricSubscribeForm.tsx src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/subscribeService.ts src/services/__tests__/subscribeService.test.ts` → passed.
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.test.yml run --rm backend pytest tests/integration/test_common_subscribe_api.py tests/integration/test_auth_registration_consent.py -q` → passed, 55 tests.
+- `npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/__tests__/subscribeService.test.ts` → passed, 20 tests.
+- `.\venv\Scripts\python.exe -m flake8 apps\common\serializers.py apps\common\views.py apps\common\throttling.py apps\common\utils\consent_audit.py tests\integration\test_common_subscribe_api.py tests\integration\test_auth_registration_consent.py freesport\settings\base.py freesport\settings\production.py --max-line-length=120 --extend-ignore=E203,W503` → passed.
+- `npx eslint src/components/home/SubscribeForm.tsx src/components/home/ElectricSubscribeForm.tsx src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/subscribeService.ts src/services/__tests__/subscribeService.test.ts --max-warnings=0` → passed.
+- `npx tsc --noEmit` → passed.
+- `git diff --check` → passed.
+- `.\venv\Scripts\python.exe manage.py check` → passed.
+- `$env:NEXT_PUBLIC_API_URL_INTERNAL='http://backend:8000'; npm run build` → passed.
+- `docker compose -p freesport-test --env-file ..\.env -f ..\docker\docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing` → passed, 697 passed, 12 skipped.
+- `npx gitnexus detect-changes --scope all` → 19 files, 33 symbols, 7 affected flows, risk `high`; HIGH объясняется шириной diff вокруг subscribe/registration audit и home subscribe UI, targeted + unit + build validations пройдены.
 
 ### Completion Notes
 
@@ -900,16 +916,23 @@ GPT-5 Codex
 - `subscribe()` теперь атомарно создаёт/реактивирует `Newsletter` и пишет две записи `UserConsent`: `pdp_contract` и `marketing_email`.
 - Consent audit helpers вынесены в `apps.common.utils.consent_audit`; `UserRegistrationView` и `LogoutView` используют новый общий модуль.
 - Story переведена в `review`: targeted backend integration, unit suite, frontend tests/build, dev-stack API smoke и UI smoke подтверждены.
+- Review patch P1-P12 закрыт: Newsletter и UserConsent используют общий normalized IP, duplicate/reactivation races защищены `select_for_update()` + 409 mapping, strict consent принимает только JSON `true`, default throttle перенесён в base и покрыт smoke-тестом.
+- Для безопасного default throttle добавлен proxy-aware user throttle fallback: invalid/surrogate XFF больше не ломает Redis throttle key до consent audit.
+- Frontend patch закрыт: тесты кликают настоящий checkbox, `React.useId()` убрал дубли DOM id, `subscribeService` сохраняет backend field errors, формы показывают `pdp_consent` 400 inline/toast без email fallback.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/Story/35-3-consent-checkbox-in-subscribe-form.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `backend/apps/common/serializers.py`
+- `backend/apps/common/throttling.py`
 - `backend/apps/common/views.py`
 - `backend/apps/common/utils/__init__.py`
 - `backend/apps/common/utils/consent_audit.py`
+- `backend/freesport/settings/base.py`
+- `backend/freesport/settings/production.py`
 - `backend/apps/users/views/authentication.py`
+- `backend/tests/integration/test_auth_registration_consent.py`
 - `backend/tests/integration/test_common_subscribe_api.py`
 - `docs/api/openapi.yaml`
 - `frontend/src/components/home/SubscribeForm.tsx`
@@ -917,9 +940,64 @@ GPT-5 Codex
 - `frontend/src/components/home/__tests__/SubscribeForm.test.tsx`
 - `frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx`
 - `frontend/src/services/subscribeService.ts`
+- `frontend/src/services/__tests__/subscribeService.test.ts`
 - `frontend/src/types/api.ts`
 - `frontend/src/types/api.generated.ts`
 
 ### Change Log
 
 - 2026-05-13: Реализован consent checkbox для подписки, backend audit write path, frontend/backend tests, dev-stack smoke и generated API contract updates; статус переведён в `review`.
+- 2026-05-13: Закрыты review patch items P1-P12; добавлены race/rollback/throttle/IP/strict-consent guardrails, field-specific frontend errors и синхронизация story/sprint-status обратно в `review`.
+
+---
+
+## Review Findings
+
+Code review от 2026-05-13 (bmad-code-review, 3 параллельных слоя: Blind Hunter, Edge Case Hunter, Acceptance Auditor). Дедуп ~50 raw → 32 уникальных: 5 decision-needed, 9 patch, 9 defer, 9 dismissed.
+
+### Decision-needed (resolved 2026-05-13)
+
+- [x] **D1 → Dismiss.** Newsletter.ip_address/user_agent = «latest activity». Audit-trail «первый раз» живёт в UserConsent (append-only). Поведение оставлено как есть.
+- [x] **D2 → Patch (см. P10).** Перенести `DEFAULT_THROTTLE_CLASSES` из `production.py` в `base.py` + написать smoke-тест из AC-5.
+- [x] **D3 → Patch (см. P11).** Убрать `is_global` фильтр в `normalize_consent_ip` — принимать любой валидный IP (включая private/loopback) в audit. Закрывает D3 + дополнительно делает P5 (тест IP) осмысленным.
+- [x] **D4 → Patch (см. P12).** В `SubscribeSerializer.validate()` усилить: `if attrs.get("pdp_consent") is not True: raise ValidationError(...)`. Принимаем только JSON `true` boolean (152-ФЗ explicit consent).
+- [x] **D5 → Dismiss.** Паттерн `aria-labelledby` с `<Link>` ID валиден по WAI-ARIA, унаследован из 35.2 RegisterForm, manual QA в 35.2 подтвердил. SR не читает link дважды — один раз как часть accessible name, один раз при tab на саму ссылку. Альтернативы (aria-label plain) хуже: разнобой между sighted/SR-перцепцией.
+
+### Patch (12: 9 исходных + 3 из decision-resolved)
+
+- [x] [Review][Patch] **P1. Newsletter.ip_address без normalize → DataError на невалидном XFF + расхождение с UserConsent в одной транзакции** [`backend/apps/common/serializers.py:70-78`] — raw `X-Forwarded-For.split(",")[0]` без strip/normalize. UserConsent для того же запроса проходит через `normalize_consent_ip`. Fix: использовать `get_consent_ip_address(request)` для Newsletter тоже (или передавать значение из view через context).
+- [x] [Review][Patch] **P2. Race на unique email → 500 вместо 409** [`backend/apps/common/views.py:374-387`] — `validate_email()...filter().exists()` без блокировки. Concurrent POST: один проходит, второй ловит IntegrityError → 500. Fix: `except IntegrityError → 409 Conflict`.
+- [x] [Review][Patch] **P3. Race на реактивации → дубли UserConsent (4 вместо 2)** [`backend/apps/common/serializers.py:82-95` + `views.py:374-387`] — Два concurrent POST на отписанный Newsletter создадут 4 UserConsent. Fix: `Newsletter.objects.select_for_update()` внутри transaction.atomic().
+- [x] [Review][Patch] **P4. Тест `test_subscribe_atomic_rollback_on_consent_failure` не покрывает «первый создан, второй упал»** [`backend/tests/integration/test_common_subscribe_api.py:810-819`] — Mock падает на первом вызове. Реалистичный rollback не проверен. Fix: `side_effect=[mock_obj, IntegrityError(...)]`, assert `UserConsent.objects.count() == 0`.
+- [x] [Review][Patch] **P5. Тест `test_subscribe_creates_two_consent_records_for_anonymous` false-passes на None** [`backend/tests/integration/test_common_subscribe_api.py:706-725`] — TestClient REMOTE_ADDR=127.0.0.1 → normalize → None. `set({None,None})` len==1, тест проходит. IP реально не записан. Fix: передать `HTTP_X_FORWARDED_FOR="203.0.113.5"` (RFC 5737).
+- [x] [Review][Patch] **P6. Frontend тесты кликают по `<label>`, не по `<input type=checkbox>`** [`SubscribeForm.test.tsx`, `ElectricSubscribeForm.test.tsx`] — `clickPdpCheckbox` использует `document.getElementById('...-label-prefix')`. Если сломать `htmlFor` или удалить input — тесты пройдут. Fix: `screen.getByRole('checkbox', { name: /согласие на обработку/i })`.
+- [x] [Review][Patch] **P7. subscribeService слепо мапит любой 400 → "Введите корректный email"** [`frontend/src/services/subscribeService.ts:18-29`, `SubscribeForm.tsx:50-62`, `ElectricSubscribeForm.tsx:54-65`] — Backend 400 с `{"pdp_consent": [...]}` (curl/Postman обход) → user видит «Введите корректный email». Fix: прокинуть `response.data` и различать поля.
+- [x] [Review][Patch] **P8. Дубликаты DOM ID при двух экземплярах формы на одной странице** [`SubscribeForm.tsx:89-141`, `ElectricSubscribeForm.tsx:121-186`] — Статические id (`subscribe-pdp-consent`, `-error`, `-label-prefix` и т.д.). Multiple instances → невалидный HTML, htmlFor сломан. Fix: `React.useId()` (React 19 native).
+- [x] [Review][Patch] **P9. Двойной `onChange` + `setValue({shouldValidate})` в SubscribeForm** [`SubscribeForm.tsx:93-98`, `ElectricSubscribeForm.tsx:138-141`] — `pdpConsentRegistration.onChange(event)` (RHF уже обновляет state) + `setValue(..., {shouldValidate: true})`. Двойная валидация, лишние рендеры. Fix: оставить только `register('pdp_consent', { required })`.
+- [x] [Review][Patch] **P10. (из D2) Throttling в `base.py` + smoke-тест AC-5** [`backend/freesport/settings/base.py`, `backend/freesport/settings/production.py:108-119`, `backend/tests/integration/test_common_subscribe_api.py`] — Перенести `DEFAULT_THROTTLE_CLASSES = ['apps.common.throttling.ProxyAwareAnonRateThrottle']` + `DEFAULT_THROTTLE_RATES = {'anon': '...'}` из `production.py` в `base.py`. Написать smoke-тест: x100 POST `/subscribe/` → 6+ ответов 429 (или другой rate). Закрывает DDoS-вектор и AC-5 spec gap.
+- [x] [Review][Patch] **P11. (из D3) Убрать `is_global` фильтр в `normalize_consent_ip`** [`backend/apps/common/utils/consent_audit.py:91`] — Принимать любой парсящийся IP (включая private/loopback). Логировать на DEBUG, не WARNING. После фикса P5-тест с реальным `HTTP_X_FORWARDED_FOR="203.0.113.5"` начнёт реально проверять IP capture. Дополнительно: в `test_auth_registration_consent.py` не должно регрессий (поведение helpers «либеральнее» — старые тесты с private IPs начнут возвращать IP вместо None — если они на это assert-ят, fixture обновить).
+- [x] [Review][Patch] **P12. (из D4) Усилить `validate()` в SubscribeSerializer: `is True`** [`backend/apps/common/serializers.py:51-55`] — `if attrs.get("pdp_consent") is not True: raise ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED})`. Принимаем только JSON `true`. Добавить тест `test_subscribe_rejects_pdp_consent_truthy_string` (для `"on"`/`"yes"`/`"1"`/`1`).
+
+### Defer (9) — pre-existing или out-of-scope
+
+- [x] [Review][Defer] **W1. CRLF/control chars (`\r\n\x00`) в `sanitize_consent_user_agent`** [`backend/apps/common/utils/consent_audit.py:114-117`] — pre-existing 35.2, AC-6 требовал «строка-в-строку».
+- [x] [Review][Defer] **W2. IPv6 zone-id / порт edge cases в `normalize_consent_ip`** [`backend/apps/common/utils/consent_audit.py:60-92`] — pre-existing 35.2.
+- [x] [Review][Defer] **W3. `request.session.save()` без try/except** [`backend/apps/common/views.py:377-378`] — низкий риск, зависимость от рабочего session middleware.
+- [x] [Review][Defer] **W4. `policy_version="1.0"` hardcoded в default модели** [`backend/apps/common/models.py:627-631`] — архитектурный вопрос эпика 35 (нет связи с фактической версией Privacy Policy).
+- [x] [Review][Defer] **W5. `frontend/package.json:22 generate:types` указывает на устаревший `docs/api-spec.yaml`** — pre-existing проектный долг, обойдён ручным `npx openapi-typescript`.
+- [x] [Review][Defer] **W6. Шум в `docs/api/openapi.yaml` (перестановка get/patch для unrelated endpoints — Orders/Cart/Favorites/Addresses)** — артефакт перегенерации drf-spectacular, не привнесено 35.3.
+- [x] [Review][Defer] **W7. Throttle по `X-Real-IP` vs audit по `X-Forwarded-For`** [`backend/apps/common/throttling.py:11-24` vs `consent_audit.py:42-51`] — pre-existing из 11.3 SEC-001.
+- [x] [Review][Defer] **W8. `Checkbox.tsx` callback ref не поддерживает indeterminate** [`frontend/src/components/ui/Checkbox/Checkbox.tsx:25-29`] — out-of-scope (Checkbox.tsx в «НЕ изменять» списке).
+- [x] [Review][Defer] **W9. `logger.warning "Invalid client IP skipped"` без request_id/email** [`backend/apps/common/utils/consent_audit.py:133-138`] — улучшение audit forensics, низкий приоритет.
+
+### Dismissed (9) — noise / false positive
+
+- consent_kwargs mutable trap (умозрительный futureproofing — сейчас все значения immutable)
+- `validate()` дублирует BooleanField required (defensive coding, не баг)
+- `pop("pdp_consent", False)` default misleading (косметика, validate() уже отверг бы)
+- ElectricSubscribeForm hitbox skew (CSS transform не меняет реальный hitbox)
+- form unmount race (RHF 7+ это терпит без warning)
+- middleware missing test (инфраструктурное предположение)
+- validate_email перед validate (стандарт DRF execution order)
+- pop position cosmetic
+- sanitize_consent_user_agent `Any` type hint cosmetic

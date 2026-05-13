@@ -18,12 +18,37 @@ interface SubscribeFormData {
   pdp_consent: boolean;
 }
 
+type SubscribeFormField = keyof SubscribeFormData;
+type SubscribeValidationError = Error & {
+  details?: Partial<Record<SubscribeFormField, string[]>>;
+};
+
+const electricToastErrorOptions = {
+  style: { borderRadius: '0', background: '#000', color: '#fff', border: '1px solid red' },
+};
+
+const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
+  if (!(error instanceof Error) || !('details' in error)) {
+    return undefined;
+  }
+
+  return (error as SubscribeValidationError).details?.[field]?.[0];
+};
+
 export const ElectricSubscribeForm: React.FC = () => {
+  const formBaseId = React.useId();
+  const emailId = `${formBaseId}-electric-email-subscribe`;
+  const pdpConsentId = `${formBaseId}-electric-subscribe-pdp-consent`;
+  const pdpConsentLabelPrefixId = `${formBaseId}-electric-subscribe-pdp-consent-label-prefix`;
+  const pdpConsentPolicyLinkId = `${formBaseId}-electric-subscribe-pdp-consent-policy-link`;
+  const pdpConsentLabelSuffixId = `${formBaseId}-electric-subscribe-pdp-consent-label-suffix`;
+  const pdpConsentErrorId = `${formBaseId}-electric-subscribe-pdp-consent-error`;
+
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
+    setError,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<SubscribeFormData>({
@@ -54,13 +79,21 @@ export const ElectricSubscribeForm: React.FC = () => {
     } catch (error: unknown) {
       // Error handling similar to original but with toast styles if we want
       if (error instanceof Error && error.message === 'already_subscribed') {
-        toast.error('ЭТОТ EMAIL УЖЕ ПОДПИСАН', {
-          style: { borderRadius: '0', background: '#000', color: '#fff', border: '1px solid red' },
-        });
+        toast.error('ЭТОТ EMAIL УЖЕ ПОДПИСАН', electricToastErrorOptions);
+      } else if (error instanceof Error && error.message === 'validation_error') {
+        const pdpConsentError = getBackendFieldError(error, 'pdp_consent');
+        const emailError = getBackendFieldError(error, 'email');
+
+        if (pdpConsentError) {
+          setError('pdp_consent', { type: 'server', message: pdpConsentError });
+        }
+        if (emailError) {
+          setError('email', { type: 'server', message: emailError });
+        }
+
+        toast.error(pdpConsentError ?? emailError ?? 'ОШИБКА ПОДПИСКИ', electricToastErrorOptions);
       } else {
-        toast.error('ОШИБКА ПОДПИСКИ', {
-          style: { borderRadius: '0', background: '#000', color: '#fff', border: '1px solid red' },
-        });
+        toast.error('ОШИБКА ПОДПИСКИ', electricToastErrorOptions);
       }
     }
   };
@@ -81,14 +114,14 @@ export const ElectricSubscribeForm: React.FC = () => {
 
       <div className="space-y-2">
         <label
-          htmlFor="email-subscribe"
+          htmlFor={emailId}
           className="block text-sm font-bold text-[var(--foreground)] uppercase transform -skew-x-12"
         >
           <span className="inline-block transform skew-x-12">Email</span>
         </label>
         <div className="relative transform -skew-x-12">
           <input
-            id="email-subscribe"
+            id={emailId}
             type="email"
             placeholder="your@email.com"
             className={`
@@ -118,7 +151,7 @@ export const ElectricSubscribeForm: React.FC = () => {
         <div className="flex items-start gap-3">
           <div className="relative flex items-center pt-0.5">
             <input
-              id="electric-subscribe-pdp-consent"
+              id={pdpConsentId}
               type="checkbox"
               className="sr-only peer"
               disabled={isSubmitting}
@@ -126,18 +159,13 @@ export const ElectricSubscribeForm: React.FC = () => {
               ref={pdpConsentRegistration.ref}
               onBlur={pdpConsentRegistration.onBlur}
               checked={pdpConsent}
-              onChange={event => {
-                void pdpConsentRegistration.onChange(event);
-                setValue('pdp_consent', event.target.checked, { shouldValidate: true });
-              }}
+              onChange={pdpConsentRegistration.onChange}
               aria-invalid={hasPdpConsentError || undefined}
-              aria-labelledby="electric-subscribe-pdp-consent-label-prefix electric-subscribe-pdp-consent-policy-link electric-subscribe-pdp-consent-label-suffix"
-              aria-describedby={
-                hasPdpConsentError ? 'electric-subscribe-pdp-consent-error' : undefined
-              }
+              aria-labelledby={`${pdpConsentLabelPrefixId} ${pdpConsentPolicyLinkId} ${pdpConsentLabelSuffixId}`}
+              aria-describedby={hasPdpConsentError ? pdpConsentErrorId : undefined}
             />
             <label
-              htmlFor="electric-subscribe-pdp-consent"
+              htmlFor={pdpConsentId}
               className={cn(
                 'flex h-5 w-5 cursor-pointer items-center justify-center border-2 transition-all duration-150',
                 'transform -skew-x-12',
@@ -155,15 +183,11 @@ export const ElectricSubscribeForm: React.FC = () => {
             </label>
           </div>
           <span className="font-inter text-xs md:text-sm uppercase leading-relaxed text-[var(--color-text-secondary)]">
-            <label
-              id="electric-subscribe-pdp-consent-label-prefix"
-              htmlFor="electric-subscribe-pdp-consent"
-              className="cursor-pointer"
-            >
+            <label id={pdpConsentLabelPrefixId} htmlFor={pdpConsentId} className="cursor-pointer">
               Я даю согласие на
             </label>{' '}
             <Link
-              id="electric-subscribe-pdp-consent-policy-link"
+              id={pdpConsentPolicyLinkId}
               href="/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
@@ -171,18 +195,14 @@ export const ElectricSubscribeForm: React.FC = () => {
             >
               обработку моих персональных данных
             </Link>{' '}
-            <label
-              id="electric-subscribe-pdp-consent-label-suffix"
-              htmlFor="electric-subscribe-pdp-consent"
-              className="cursor-pointer"
-            >
+            <label id={pdpConsentLabelSuffixId} htmlFor={pdpConsentId} className="cursor-pointer">
               в соответствии с Политикой
             </label>
           </span>
         </div>
         {errors.pdp_consent?.message && (
           <p
-            id="electric-subscribe-pdp-consent-error"
+            id={pdpConsentErrorId}
             className="text-red-500 text-xs font-bold uppercase mt-1"
             role="alert"
           >

@@ -168,6 +168,14 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "PAGE_SIZE_QUERY_PARAM": "page_size",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "apps.common.throttling.ProxyAwareAnonRateThrottle",
+        "apps.common.throttling.ProxyAwareUserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "6000/min",  # Increased to fix SSR 429 errors
+        "user": "10000/day",
+    },
 }
 
 # ============================================================================

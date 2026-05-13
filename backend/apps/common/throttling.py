@@ -1,24 +1,42 @@
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+
+from apps.common.utils.consent_audit import sanitize_log_value
 
 
-class ProxyAwareAnonRateThrottle(AnonRateThrottle):
+class ProxyAwareThrottleIdentMixin:
+    """Единый proxy-aware ident для DRF throttle cache keys."""
+
+    def _sanitize_ident(self, ident):
+        """Вернуть Redis-safe throttle ident из внешнего IP-заголовка."""
+        return sanitize_log_value(str(ident).strip())
+
+    def get_ident(self, request):
+        # Nginx sets X-Real-IP to the client's IP address
+        x_real_ip = request.META.get("HTTP_X_REAL_IP")
+        if x_real_ip:
+            return self._sanitize_ident(x_real_ip)
+
+        # Fallback to X-Forwarded-For
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            # The first IP in the list is usually the client's IP
+            return self._sanitize_ident(x_forwarded_for.split(",")[0])
+
+        # Fallback to standard behavior (REMOTE_ADDR)
+        return super().get_ident(request)
+
+
+class ProxyAwareAnonRateThrottle(ProxyAwareThrottleIdentMixin, AnonRateThrottle):
     """
     Throttle class that correctly identifies the client IP address
     when running behind a reverse proxy (Nginx).
     Uses HTTP_X_REAL_IP or HTTP_X_FORWARDED_FOR headers.
     """
 
-    def get_ident(self, request):
-        # Nginx sets X-Real-IP to the client's IP address
-        x_real_ip = request.META.get("HTTP_X_REAL_IP")
-        if x_real_ip:
-            return x_real_ip
+    pass
 
-        # Fallback to X-Forwarded-For
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            # The first IP in the list is usually the client's IP
-            return x_forwarded_for.split(",")[0].strip()
 
-        # Fallback to standard behavior (REMOTE_ADDR)
-        return super().get_ident(request)
+class ProxyAwareUserRateThrottle(ProxyAwareThrottleIdentMixin, UserRateThrottle):
+    """User throttle с тем же безопасным proxy-aware ident для anonymous fallback."""
+
+    pass

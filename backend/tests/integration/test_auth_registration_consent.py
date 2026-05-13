@@ -299,7 +299,7 @@ def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_i
 def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record(caplog):
     client = APIClient()
 
-    with caplog.at_level("WARNING", logger="apps.users.auth"):
+    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -317,7 +317,7 @@ def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_recor
 def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_record(caplog):
     client = APIClient()
 
-    with caplog.at_level("WARNING", logger="apps.users.auth"):
+    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -333,22 +333,20 @@ def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_recor
 
 
 @pytest.mark.parametrize("forwarded_ip", ["10.0.0.1", "127.0.0.10", "fe80::1"])
-def test_registration_ignores_non_global_forwarded_ip_for_consent_record(forwarded_ip, caplog):
+def test_registration_accepts_non_global_forwarded_ip_for_consent_record(forwarded_ip):
     client = APIClient()
 
-    with caplog.at_level("WARNING", logger="apps.users.auth"):
-        response = post_register(
-            client,
-            retail_payload(),
-            HTTP_X_FORWARDED_FOR=forwarded_ip,
-            HTTP_USER_AGENT="ConsentTestAgent/1.0",
-        )
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR=forwarded_ip,
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
 
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
     consent = UserConsent.objects.get(user=user)
-    assert consent.ip_address is None
-    assert "Invalid client IP skipped for consent audit" in caplog.text
+    assert consent.ip_address == forwarded_ip
 
 
 def test_registration_ignores_forwarded_ipv6_zone_id_for_consent_record():
@@ -386,7 +384,7 @@ def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
     client = APIClient()
     invalid_ip = "bad\x00\u2028\u2029\u202e\u200b\r\nINJECT\x1b[31m"
 
-    with caplog.at_level("WARNING", logger="apps.users.auth"):
+    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -405,7 +403,7 @@ def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
     client = APIClient()
     invalid_ip = "bad\udcff\r\nINJECT"
 
-    with caplog.at_level("WARNING", logger="apps.users.auth"):
+    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -422,7 +420,7 @@ def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
 def test_registration_does_not_split_escape_sequence_when_truncating_warning_log(caplog):
     client = APIClient()
 
-    with caplog.at_level("WARNING", logger="apps.users.auth"):
+    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),

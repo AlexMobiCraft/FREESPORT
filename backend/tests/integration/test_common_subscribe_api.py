@@ -4,6 +4,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from django.conf import settings
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.urls import reverse
@@ -11,6 +13,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from apps.common.models import Newsletter, UserConsent
+from apps.common.throttling import ProxyAwareAnonRateThrottle
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 
@@ -108,12 +111,33 @@ class TestSubscribeEndpoint:
         assert str(response.data["pdp_consent"][0]) == PDP_CONSENT_REQUIRED
         assert not Newsletter.objects.filter(email="false-consent@example.com").exists()
 
+    @pytest.mark.parametrize("truthy_value", ["on", "yes", "1", 1])
+    def test_subscribe_rejects_pdp_consent_truthy_non_boolean(self, api_client, truthy_value):
+        """Только JSON boolean true считается явным согласием."""
+        url = reverse("common:subscribe")
+        data = {
+            "email": f"truthy-consent-{truthy_value}@example.com",
+            "pdp_consent": truthy_value,
+        }
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert str(response.data["pdp_consent"][0]) == PDP_CONSENT_REQUIRED
+        assert not Newsletter.objects.filter(email=data["email"]).exists()
+
     def test_subscribe_creates_two_consent_records_for_anonymous(self, api_client):
         """Анонимная подписка пишет два согласия с session_key."""
         url = reverse("common:subscribe")
         data = {"email": "anonymous-consent@example.com", "pdp_consent": True}
 
-        response = api_client.post(url, data, format="json", HTTP_USER_AGENT="SubscribeTest/1.0")
+        response = api_client.post(
+            url,
+            data,
+            format="json",
+            HTTP_X_FORWARDED_FOR="203.0.113.5",
+            HTTP_USER_AGENT="SubscribeTest/1.0",
+        )
 
         assert response.status_code == status.HTTP_201_CREATED
         consents = list(UserConsent.objects.order_by("consent_type"))
@@ -125,9 +149,45 @@ class TestSubscribeEndpoint:
         assert all(consent.user is None for consent in consents)
         assert all(consent.session_key for consent in consents)
         assert len({consent.session_key for consent in consents}) == 1
-        assert len({consent.ip_address for consent in consents}) == 1
+        assert {str(consent.ip_address) for consent in consents} == {"203.0.113.5"}
         assert all(consent.user_agent == "SubscribeTest/1.0" for consent in consents)
         assert all(consent.policy_version == "1.0" for consent in consents)
+
+    def test_subscribe_newsletter_ip_uses_normalized_audit_ip(self, api_client):
+        """Newsletter.latest IP не должен сохранять raw невалидный XFF."""
+        url = reverse("common:subscribe")
+        data = {"email": "invalid-newsletter-ip@example.com", "pdp_consent": True}
+
+        response = api_client.post(
+            url,
+            data,
+            format="json",
+            HTTP_X_FORWARDED_FOR="bad-ip, 203.0.113.5",
+            HTTP_USER_AGENT="SubscribeTest/1.0",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        subscription = Newsletter.objects.get(email="invalid-newsletter-ip@example.com")
+        assert subscription.ip_address is None
+        assert {consent.ip_address for consent in UserConsent.objects.all()} == {None}
+
+    def test_subscribe_accepts_private_forwarded_ip_for_audit(self, api_client):
+        """Audit сохраняет любой валидный IP, включая private/loopback."""
+        url = reverse("common:subscribe")
+        data = {"email": "private-ip-consent@example.com", "pdp_consent": True}
+
+        response = api_client.post(
+            url,
+            data,
+            format="json",
+            HTTP_X_FORWARDED_FOR="10.0.0.1",
+            HTTP_USER_AGENT="SubscribeTest/1.0",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        subscription = Newsletter.objects.get(email="private-ip-consent@example.com")
+        assert subscription.ip_address == "10.0.0.1"
+        assert {str(consent.ip_address) for consent in UserConsent.objects.all()} == {"10.0.0.1"}
 
     def test_subscribe_creates_two_consent_records_for_authenticated(self, api_client):
         """Авторизованная подписка пишет согласия на user без session_key."""
@@ -212,16 +272,54 @@ class TestSubscribeEndpoint:
         assert subscription.unsubscribed_at is None
         assert UserConsent.objects.count() == initial_consent_count + 2
 
+    def test_subscribe_reactivation_locks_existing_subscription(self, api_client):
+        """Реактивация должна брать row lock, чтобы concurrent POST не дублировал audit."""
+        Newsletter.objects.create(
+            email="locked-reactivation@example.com",
+            is_active=False,
+            unsubscribed_at=timezone.now(),
+        )
+
+        url = reverse("common:subscribe")
+        data = {"email": "locked-reactivation@example.com", "pdp_consent": True}
+
+        with patch.object(
+            Newsletter.objects,
+            "select_for_update",
+            wraps=Newsletter.objects.select_for_update,
+        ) as select_for_update:
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert select_for_update.called
+
     def test_subscribe_atomic_rollback_on_consent_failure(self, api_client):
         """Если consent audit не записался, Newsletter не должен сохраниться."""
         url = reverse("common:subscribe")
         data = {"email": "rollback-consent@example.com", "pdp_consent": True}
 
-        with patch.object(UserConsent.objects, "create", side_effect=IntegrityError("consent failed")):
+        with patch.object(
+            UserConsent.objects,
+            "create",
+            side_effect=[object(), IntegrityError("consent failed")],
+        ):
             with pytest.raises(IntegrityError):
                 api_client.post(url, data, format="json")
 
         assert not Newsletter.objects.filter(email="rollback-consent@example.com").exists()
+        assert UserConsent.objects.count() == 0
+
+    def test_subscribe_returns_409_when_newsletter_unique_race_hits_integrity_error(self, api_client):
+        """Race на unique email должен возвращать 409, а не 500."""
+        url = reverse("common:subscribe")
+        data = {"email": "unique-race@example.com", "pdp_consent": True}
+
+        with patch.object(Newsletter.objects, "create", side_effect=IntegrityError("duplicate")):
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert "уже подписан" in str(response.data["email"][0])
+        assert UserConsent.objects.count() == 0
 
     def test_subscribe_anonymous_creates_session_key(self, api_client):
         """У анонимной подписки обе consent-записи получают непустой session_key."""
@@ -233,3 +331,28 @@ class TestSubscribeEndpoint:
         assert response.status_code == status.HTTP_201_CREATED
         assert UserConsent.objects.count() == 2
         assert all(consent.session_key for consent in UserConsent.objects.all())
+
+    def test_subscribe_default_anon_throttle_applies(self, api_client):
+        """Default throttle должен ограничивать anonymous POST /subscribe."""
+        assert (
+            "apps.common.throttling.ProxyAwareAnonRateThrottle" in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"]
+        )
+        cache.clear()
+        url = reverse("common:subscribe")
+        statuses = []
+
+        with patch.object(
+            ProxyAwareAnonRateThrottle,
+            "THROTTLE_RATES",
+            {"anon": "5/min", "user": "10000/day"},
+        ):
+            for index in range(12):
+                response = api_client.post(
+                    url,
+                    {"email": f"throttle-{index}@example.com", "pdp_consent": True},
+                    format="json",
+                    REMOTE_ADDR="198.51.100.77",
+                )
+                statuses.append(response.status_code)
+
+        assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 6

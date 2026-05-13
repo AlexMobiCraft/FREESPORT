@@ -10,6 +10,7 @@ from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -371,20 +372,35 @@ def subscribe(request: Request) -> Response:
     serializer = SubscribeSerializer(data=request.data, context={"request": request})
 
     if serializer.is_valid():
-        with transaction.atomic():
-            subscription = serializer.save()
+        try:
+            with transaction.atomic():
+                subscription = serializer.save()
 
-            if not request.user.is_authenticated and not request.session.session_key:
-                request.session.save()
+                if not request.user.is_authenticated and not request.session.session_key:
+                    request.session.save()
 
-            consent_kwargs = {
-                "user": request.user if request.user.is_authenticated else None,
-                "session_key": "" if request.user.is_authenticated else (request.session.session_key or ""),
-                "ip_address": get_consent_ip_address(request),
-                "user_agent": sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT")),
-            }
-            UserConsent.objects.create(consent_type="pdp_contract", **consent_kwargs)
-            UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
+                consent_kwargs = {
+                    "user": request.user if request.user.is_authenticated else None,
+                    "session_key": "" if request.user.is_authenticated else (request.session.session_key or ""),
+                    "ip_address": get_consent_ip_address(request),
+                    "user_agent": sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT")),
+                }
+                UserConsent.objects.create(consent_type="pdp_contract", **consent_kwargs)
+                UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
+        except DRFValidationError as exc:
+            if "email" in exc.detail:
+                email_errors = exc.detail["email"]
+                error_msg = str(email_errors[0] if isinstance(email_errors, list) else email_errors)
+                if "уже подписан" in error_msg:
+                    return Response(
+                        exc.detail,
+                        status=status.HTTP_409_CONFLICT,
+                    )
+
+            return Response(
+                exc.detail,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         response_serializer = SubscribeResponseSerializer(
             {

@@ -104,16 +104,3 @@ EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 # Домен для email будет настраиваться через переменные
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
 SERVER_EMAIL = config("SERVER_EMAIL", default="admin@freesport.ru")
-
-# Rate limiting для защиты от SPAM (Story 11.3 - SEC-001)
-REST_FRAMEWORK = {
-    **REST_FRAMEWORK,  # Наследуем настройки из base.py
-    "DEFAULT_THROTTLE_CLASSES": [
-        "apps.common.throttling.ProxyAwareAnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "6000/min",  # Increased to fix SSR 429 errors
-        "user": "10000/day",  # Для авторизованных пользователей
-    },
-}

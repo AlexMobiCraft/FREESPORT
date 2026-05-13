@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ElectricSubscribeForm } from '../ElectricSubscribeForm';
+import { toast } from 'react-hot-toast';
 
 vi.mock('react-hot-toast', () => ({
   toast: {
@@ -26,9 +27,7 @@ const getPdpCheckbox = () =>
   screen.getByRole('checkbox', { name: /обработку моих персональных данных/i });
 
 const clickPdpCheckbox = async (user: ReturnType<typeof userEvent.setup>) => {
-  const label = document.getElementById('electric-subscribe-pdp-consent-label-prefix');
-  expect(label).not.toBeNull();
-  await user.click(label!);
+  await user.click(getPdpCheckbox());
 };
 
 describe('ElectricSubscribeForm', () => {
@@ -63,6 +62,21 @@ describe('ElectricSubscribeForm', () => {
     expect(mockSubscribe).not.toHaveBeenCalled();
   });
 
+  it('generates unique PDN ids for multiple form instances', () => {
+    render(
+      <>
+        <ElectricSubscribeForm />
+        <ElectricSubscribeForm />
+      </>
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox', {
+      name: /обработку моих персональных данных/i,
+    });
+    const checkboxIds = checkboxes.map(checkbox => checkbox.getAttribute('id'));
+    expect(new Set(checkboxIds).size).toBe(2);
+  });
+
   it('calls subscribe service with email and PDN consent payload', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockResolvedValueOnce({
@@ -82,6 +96,34 @@ describe('ElectricSubscribeForm', () => {
         email: 'electric@example.com',
         pdp_consent: true,
       });
+    });
+  });
+
+  it('shows backend PDN field error instead of generic subscription error', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        details: {
+          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await user.type(screen.getByLabelText(/email/i), 'electric-pdp@example.com');
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Необходимо согласие на обработку персональных данных.')).toBeInTheDocument();
+      expect(toast.error).toHaveBeenCalledWith(
+        'Необходимо согласие на обработку персональных данных.',
+        expect.objectContaining({
+          style: expect.objectContaining({ borderRadius: '0' }),
+        })
+      );
     });
   });
 });

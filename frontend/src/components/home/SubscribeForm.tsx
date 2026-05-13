@@ -21,12 +21,32 @@ interface SubscribeFormData {
   pdp_consent: boolean;
 }
 
+type SubscribeFormField = keyof SubscribeFormData;
+type SubscribeValidationError = Error & {
+  details?: Partial<Record<SubscribeFormField, string[]>>;
+};
+
+const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
+  if (!(error instanceof Error) || !('details' in error)) {
+    return undefined;
+  }
+
+  return (error as SubscribeValidationError).details?.[field]?.[0];
+};
+
 export const SubscribeForm: React.FC = () => {
+  const consentBaseId = React.useId();
+  const pdpConsentId = `${consentBaseId}-subscribe-pdp-consent`;
+  const pdpConsentLabelPrefixId = `${consentBaseId}-subscribe-pdp-consent-label-prefix`;
+  const pdpConsentPolicyLinkId = `${consentBaseId}-subscribe-pdp-consent-policy-link`;
+  const pdpConsentLabelSuffixId = `${consentBaseId}-subscribe-pdp-consent-label-suffix`;
+  const pdpConsentErrorId = `${consentBaseId}-subscribe-pdp-consent-error`;
+
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
+    setError,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<SubscribeFormData>({
@@ -52,7 +72,17 @@ export const SubscribeForm: React.FC = () => {
         if (error.message === 'already_subscribed') {
           toast.error('Этот email уже подписан на рассылку');
         } else if (error.message === 'validation_error') {
-          toast.error('Введите корректный email');
+          const pdpConsentError = getBackendFieldError(error, 'pdp_consent');
+          const emailError = getBackendFieldError(error, 'email');
+
+          if (pdpConsentError) {
+            setError('pdp_consent', { type: 'server', message: pdpConsentError });
+          }
+          if (emailError) {
+            setError('email', { type: 'server', message: emailError });
+          }
+
+          toast.error(pdpConsentError ?? emailError ?? 'Введите корректный email');
         } else {
           toast.error('Не удалось подписаться. Попробуйте позже');
         }
@@ -86,19 +116,16 @@ export const SubscribeForm: React.FC = () => {
       <div className="space-y-2">
         <div className="flex items-start gap-3">
           <Checkbox
-            id="subscribe-pdp-consent"
+            id={pdpConsentId}
             name={pdpConsentRegistration.name}
             ref={pdpConsentRegistration.ref}
             onBlur={pdpConsentRegistration.onBlur}
-            onChange={event => {
-              void pdpConsentRegistration.onChange(event);
-              setValue('pdp_consent', event.target.checked, { shouldValidate: true });
-            }}
+            onChange={pdpConsentRegistration.onChange}
             checked={pdpConsent}
             disabled={isSubmitting}
             aria-invalid={hasPdpConsentError || undefined}
-            aria-labelledby="subscribe-pdp-consent-label-prefix subscribe-pdp-consent-policy-link subscribe-pdp-consent-label-suffix"
-            aria-describedby={hasPdpConsentError ? 'subscribe-pdp-consent-error' : undefined}
+            aria-labelledby={`${pdpConsentLabelPrefixId} ${pdpConsentPolicyLinkId} ${pdpConsentLabelSuffixId}`}
+            aria-describedby={hasPdpConsentError ? pdpConsentErrorId : undefined}
             className={
               hasPdpConsentError
                 ? 'border-[var(--color-accent-danger)] bg-[var(--color-accent-danger)]/8 peer-focus:ring-[var(--color-accent-danger)]'
@@ -106,15 +133,11 @@ export const SubscribeForm: React.FC = () => {
             }
           />
           <span className="text-body-s text-text-primary select-none">
-            <label
-              id="subscribe-pdp-consent-label-prefix"
-              htmlFor="subscribe-pdp-consent"
-              className="cursor-pointer"
-            >
+            <label id={pdpConsentLabelPrefixId} htmlFor={pdpConsentId} className="cursor-pointer">
               Я даю согласие на
             </label>{' '}
             <Link
-              id="subscribe-pdp-consent-policy-link"
+              id={pdpConsentPolicyLinkId}
               href="/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
@@ -122,18 +145,14 @@ export const SubscribeForm: React.FC = () => {
             >
               обработку моих персональных данных
             </Link>{' '}
-            <label
-              id="subscribe-pdp-consent-label-suffix"
-              htmlFor="subscribe-pdp-consent"
-              className="cursor-pointer"
-            >
+            <label id={pdpConsentLabelSuffixId} htmlFor={pdpConsentId} className="cursor-pointer">
               в соответствии с Политикой
             </label>
           </span>
         </div>
         {errors.pdp_consent?.message && (
           <p
-            id="subscribe-pdp-consent-error"
+            id={pdpConsentErrorId}
             className="text-body-xs text-[var(--color-accent-danger)]"
             role="alert"
           >
