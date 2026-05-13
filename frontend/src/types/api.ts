@@ -208,6 +208,7 @@ export interface ApiError {
 // Newsletter Subscription Types
 export interface SubscribeRequest {
   email: string;
+  pdp_consent: boolean;
 }
 
 export interface SubscribeResponse {

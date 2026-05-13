@@ -1,13 +1,22 @@
 """Интеграционные тесты публичного API подписки на рассылку."""
 
+from unittest.mock import patch
+from uuid import uuid4
+
 import pytest
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 
-from apps.common.models import Newsletter
+from apps.common.models import Newsletter, UserConsent
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.integration]
+
+User = get_user_model()
+
+PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
 
 
 class TestSubscribeEndpoint:
@@ -16,7 +25,7 @@ class TestSubscribeEndpoint:
     def test_subscribe_success(self, api_client):
         """Проверяет успешное создание подписки."""
         url = reverse("common:subscribe")
-        data = {"email": "newuser@example.com"}
+        data = {"email": "newuser@example.com", "pdp_consent": True}
 
         response = api_client.post(url, data, format="json")
 
@@ -30,12 +39,13 @@ class TestSubscribeEndpoint:
         Newsletter.objects.create(email="existing@example.com", is_active=True)
 
         url = reverse("common:subscribe")
-        data = {"email": "existing@example.com"}
+        data = {"email": "existing@example.com", "pdp_consent": True}
 
         response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_409_CONFLICT
         assert "уже подписан" in str(response.data["email"][0])
+        assert UserConsent.objects.count() == 0
 
     def test_subscribe_reactivate_unsubscribed(self, api_client):
         """Проверяет реактивацию ранее отписавшегося email."""
@@ -46,7 +56,7 @@ class TestSubscribeEndpoint:
         )
 
         url = reverse("common:subscribe")
-        data = {"email": "unsubscribed@example.com"}
+        data = {"email": "unsubscribed@example.com", "pdp_consent": True}
 
         response = api_client.post(url, data, format="json")
 
@@ -58,7 +68,7 @@ class TestSubscribeEndpoint:
     def test_subscribe_invalid_email(self, api_client):
         """Возвращает 400 для некорректного email."""
         url = reverse("common:subscribe")
-        data = {"email": "invalid-email"}
+        data = {"email": "invalid-email", "pdp_consent": True}
 
         response = api_client.post(url, data, format="json")
 
@@ -68,10 +78,158 @@ class TestSubscribeEndpoint:
     def test_subscribe_email_normalization(self, api_client):
         """Подтверждает нормализацию email в lowercase."""
         url = reverse("common:subscribe")
-        data = {"email": "TestUser@EXAMPLE.COM"}
+        data = {"email": "TestUser@EXAMPLE.COM", "pdp_consent": True}
 
         response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         subscription = Newsletter.objects.get(email="testuser@example.com")
         assert subscription.email == "testuser@example.com"
+
+    def test_subscribe_requires_pdp_consent(self, api_client):
+        """Без явного согласия подписка отклоняется."""
+        url = reverse("common:subscribe")
+        data = {"email": "missing-consent@example.com"}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert str(response.data["pdp_consent"][0]) == PDP_CONSENT_REQUIRED
+        assert not Newsletter.objects.filter(email="missing-consent@example.com").exists()
+
+    def test_subscribe_rejects_pdp_consent_false(self, api_client):
+        """False в pdp_consent не считается согласием."""
+        url = reverse("common:subscribe")
+        data = {"email": "false-consent@example.com", "pdp_consent": False}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert str(response.data["pdp_consent"][0]) == PDP_CONSENT_REQUIRED
+        assert not Newsletter.objects.filter(email="false-consent@example.com").exists()
+
+    def test_subscribe_creates_two_consent_records_for_anonymous(self, api_client):
+        """Анонимная подписка пишет два согласия с session_key."""
+        url = reverse("common:subscribe")
+        data = {"email": "anonymous-consent@example.com", "pdp_consent": True}
+
+        response = api_client.post(url, data, format="json", HTTP_USER_AGENT="SubscribeTest/1.0")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        consents = list(UserConsent.objects.order_by("consent_type"))
+        assert len(consents) == 2
+        assert {consent.consent_type for consent in consents} == {
+            "marketing_email",
+            "pdp_contract",
+        }
+        assert all(consent.user is None for consent in consents)
+        assert all(consent.session_key for consent in consents)
+        assert len({consent.session_key for consent in consents}) == 1
+        assert len({consent.ip_address for consent in consents}) == 1
+        assert all(consent.user_agent == "SubscribeTest/1.0" for consent in consents)
+        assert all(consent.policy_version == "1.0" for consent in consents)
+
+    def test_subscribe_creates_two_consent_records_for_authenticated(self, api_client):
+        """Авторизованная подписка пишет согласия на user без session_key."""
+        user = User.objects.create_user(
+            email=f"subscribe-user-{uuid4().hex}@example.com",
+            password="testpass123",
+        )
+        api_client.force_authenticate(user=user)
+
+        url = reverse("common:subscribe")
+        data = {"email": "authenticated-consent@example.com", "pdp_consent": True}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        consents = list(UserConsent.objects.order_by("consent_type"))
+        assert len(consents) == 2
+        assert {consent.consent_type for consent in consents} == {
+            "marketing_email",
+            "pdp_contract",
+        }
+        assert all(consent.user == user for consent in consents)
+        assert all(consent.session_key == "" for consent in consents)
+
+    def test_subscribe_consent_records_capture_ip_and_user_agent(self, api_client):
+        """Audit-записи используют валидный first hop X-Forwarded-For и User-Agent."""
+        url = reverse("common:subscribe")
+        data = {"email": "ip-user-agent@example.com", "pdp_consent": True}
+
+        response = api_client.post(
+            url,
+            data,
+            format="json",
+            HTTP_X_FORWARDED_FOR="1.2.3.4, 5.6.7.8",
+            HTTP_USER_AGENT="SubscribeAudit/1.0",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        consents = UserConsent.objects.all()
+        assert consents.count() == 2
+        assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
+        assert {consent.user_agent for consent in consents} == {"SubscribeAudit/1.0"}
+
+    def test_subscribe_user_agent_truncated_to_512(self, api_client):
+        """User-Agent для audit-записи очищается от surrogate и режется до 512 символов."""
+        url = reverse("common:subscribe")
+        data = {"email": "long-user-agent@example.com", "pdp_consent": True}
+        user_agent = "A" * 510 + "\ud800" + "B" * 600
+
+        response = api_client.post(url, data, format="json", HTTP_USER_AGENT=user_agent)
+
+        assert response.status_code == status.HTTP_201_CREATED
+        newsletter = Newsletter.objects.get(email="long-user-agent@example.com")
+        assert len(newsletter.user_agent) == 512
+        assert "\ud800" not in newsletter.user_agent
+        assert UserConsent.objects.count() == 2
+        for consent in UserConsent.objects.all():
+            assert len(consent.user_agent) == 512
+            assert "\ud800" not in consent.user_agent
+
+    def test_subscribe_reactivation_creates_new_consent_records(self, api_client):
+        """Реактивация append-only добавляет новые consent-записи."""
+        Newsletter.objects.create(
+            email="reactivation-consent@example.com",
+            is_active=False,
+            unsubscribed_at=timezone.now(),
+        )
+        UserConsent.objects.create(
+            session_key="old-reactivation-session",
+            consent_type="pdp_contract",
+        )
+        initial_consent_count = UserConsent.objects.count()
+
+        url = reverse("common:subscribe")
+        data = {"email": "reactivation-consent@example.com", "pdp_consent": True}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        subscription = Newsletter.objects.get(email="reactivation-consent@example.com")
+        assert subscription.is_active is True
+        assert subscription.unsubscribed_at is None
+        assert UserConsent.objects.count() == initial_consent_count + 2
+
+    def test_subscribe_atomic_rollback_on_consent_failure(self, api_client):
+        """Если consent audit не записался, Newsletter не должен сохраниться."""
+        url = reverse("common:subscribe")
+        data = {"email": "rollback-consent@example.com", "pdp_consent": True}
+
+        with patch.object(UserConsent.objects, "create", side_effect=IntegrityError("consent failed")):
+            with pytest.raises(IntegrityError):
+                api_client.post(url, data, format="json")
+
+        assert not Newsletter.objects.filter(email="rollback-consent@example.com").exists()
+
+    def test_subscribe_anonymous_creates_session_key(self, api_client):
+        """У анонимной подписки обе consent-записи получают непустой session_key."""
+        url = reverse("common:subscribe")
+        data = {"email": "anonymous-session@example.com", "pdp_consent": True}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert UserConsent.objects.count() == 2
+        assert all(consent.session_key for consent in UserConsent.objects.all())

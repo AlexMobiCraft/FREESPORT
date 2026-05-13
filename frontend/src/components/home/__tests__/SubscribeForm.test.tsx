@@ -26,6 +26,23 @@ vi.mock('@/services/subscribeService', () => ({
 
 import { subscribeService } from '@/services/subscribeService';
 
+const getPdpCheckbox = () =>
+  screen.getByRole('checkbox', { name: /обработку моих персональных данных/i });
+
+const clickPdpCheckbox = async (user: ReturnType<typeof userEvent.setup>) => {
+  const label = document.getElementById('subscribe-pdp-consent-label-prefix');
+  expect(label).not.toBeNull();
+  await user.click(label!);
+};
+
+const fillEmailAndAcceptConsent = async (
+  user: ReturnType<typeof userEvent.setup>,
+  email = 'new@example.com'
+) => {
+  await user.type(screen.getByLabelText(/электронная почта/i), email);
+  await clickPdpCheckbox(user);
+};
+
 describe('SubscribeForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -39,6 +56,19 @@ describe('SubscribeForm', () => {
     expect(screen.getByRole('button', { name: /подписаться/i })).toBeInTheDocument();
   });
 
+  it('renders PDN checkbox with privacy policy link', () => {
+    render(<SubscribeForm />);
+
+    expect(getPdpCheckbox()).toBeInTheDocument();
+    const link = screen.getByRole('link', {
+      name: /обработку моих персональных данных/i,
+    });
+    expect(link).toHaveAttribute('href', '/privacy-policy');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link.closest('label')).toBeNull();
+  });
+
   it('shows validation error for invalid email pattern', async () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
@@ -48,6 +78,7 @@ describe('SubscribeForm', () => {
 
     // Email that passes HTML5 type=email validation but fails our regex pattern
     await user.type(input, 'test@x');
+    await clickPdpCheckbox(user);
     await user.click(button);
 
     await waitFor(() => {
@@ -60,6 +91,7 @@ describe('SubscribeForm', () => {
     render(<SubscribeForm />);
 
     const button = screen.getByRole('button', { name: /подписаться/i });
+    await clickPdpCheckbox(user);
     await user.click(button);
 
     await waitFor(() => {
@@ -67,7 +99,58 @@ describe('SubscribeForm', () => {
     });
   });
 
-  it('shows success toast on successful subscription', async () => {
+  it('blocks submit without PDN consent', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await user.type(screen.getByLabelText(/электронная почта/i), 'new@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Необходимо согласие на обработку персональных данных')).toBeInTheDocument();
+    });
+    expect(mockSubscribe).not.toHaveBeenCalled();
+  });
+
+  it('marks PDN checkbox invalid and links error text through aria-describedby', async () => {
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await user.type(screen.getByLabelText(/электронная почта/i), 'new@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    const checkbox = await screen.findByRole('checkbox', {
+      name: /обработку моих персональных данных/i,
+    });
+    const alert = screen.getByRole('alert');
+    expect(checkbox).toHaveAttribute('aria-invalid', 'true');
+    expect(checkbox).toHaveAttribute('aria-describedby', 'subscribe-pdp-consent-error');
+    expect(alert).toHaveAttribute('id', 'subscribe-pdp-consent-error');
+  });
+
+  it('calls subscribe service with email and PDN consent payload', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockResolvedValueOnce({
+      message: 'Successfully subscribed',
+      email: 'new@example.com',
+    });
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'new@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(mockSubscribe).toHaveBeenCalledWith({
+        email: 'new@example.com',
+        pdp_consent: true,
+      });
+    });
+  });
+
+  it('shows success toast on successful subscription and resets form', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockResolvedValueOnce({
       message: 'Successfully subscribed',
@@ -80,15 +163,15 @@ describe('SubscribeForm', () => {
     const input = screen.getByLabelText(/электронная почта/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
-    await user.type(input, 'new@example.com');
+    await fillEmailAndAcceptConsent(user, 'new@example.com');
     await user.click(button);
 
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith('Вы успешно подписались на рассылку');
     });
 
-    // Form should be reset
     expect(input).toHaveValue('');
+    expect(getPdpCheckbox()).not.toBeChecked();
   });
 
   it('shows error toast when email already subscribed', async () => {
@@ -98,11 +181,8 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/электронная почта/i);
-    const button = screen.getByRole('button', { name: /подписаться/i });
-
-    await user.type(input, 'existing@example.com');
-    await user.click(button);
+    await fillEmailAndAcceptConsent(user, 'existing@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Этот email уже подписан на рассылку');
@@ -116,11 +196,8 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/электронная почта/i);
-    const button = screen.getByRole('button', { name: /подписаться/i });
-
-    await user.type(input, 'test@example.com');
-    await user.click(button);
+    await fillEmailAndAcceptConsent(user, 'test@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Не удалось подписаться. Попробуйте позже');
@@ -140,10 +217,9 @@ describe('SubscribeForm', () => {
     const user = userEvent.setup();
     render(<SubscribeForm />);
 
-    const input = screen.getByLabelText(/электронная почта/i);
     const button = screen.getByRole('button', { name: /подписаться/i });
 
-    await user.type(input, 'test@example.com');
+    await fillEmailAndAcceptConsent(user, 'test@example.com');
     await user.click(button);
 
     // Button should be disabled and show loading text

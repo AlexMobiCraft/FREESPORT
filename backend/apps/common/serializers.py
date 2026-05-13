@@ -10,6 +10,7 @@ from typing import Any, cast
 from rest_framework import serializers
 
 from .models import BlogPost, Category, News, Newsletter
+from .utils.consent_audit import sanitize_consent_user_agent
 
 
 class SubscribeSerializer(serializers.Serializer):
@@ -22,6 +23,15 @@ class SubscribeSerializer(serializers.Serializer):
         required=True,
         max_length=255,
         help_text="Email адрес для подписки",
+    )
+    pdp_consent = serializers.BooleanField(
+        write_only=True,
+        required=True,
+        error_messages={
+            "required": "Необходимо согласие на обработку персональных данных.",
+            "invalid": "Необходимо согласие на обработку персональных данных.",
+            "null": "Необходимо согласие на обработку персональных данных.",
+        },
     )
 
     def validate_email(self, value: str) -> str:
@@ -38,11 +48,18 @@ class SubscribeSerializer(serializers.Serializer):
 
         return value
 
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Проверить обязательное согласие на обработку ПДн."""
+        if not attrs.get("pdp_consent"):
+            raise serializers.ValidationError({"pdp_consent": "Необходимо согласие на обработку персональных данных."})
+        return attrs
+
     def create(self, validated_data: dict[str, Any]) -> Newsletter:
         """
         Создание подписки.
         Если email ранее отписался - реактивируем подписку.
         """
+        validated_data.pop("pdp_consent", False)
         email = validated_data["email"]
 
         # Получаем IP и User-Agent из контекста (request)
@@ -58,7 +75,7 @@ class SubscribeSerializer(serializers.Serializer):
             else:
                 ip_address = request.META.get("REMOTE_ADDR")
 
-            user_agent = request.META.get("HTTP_USER_AGENT", "")
+            user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT", ""))
 
         # Проверяем существование неактивной подписки
         try:

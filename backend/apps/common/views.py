@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
@@ -13,7 +14,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.common.models import BlogPost, News
+from apps.common.models import BlogPost, News, UserConsent
 from apps.common.serializers import (
     BlogPostDetailSerializer,
     BlogPostListSerializer,
@@ -24,6 +25,10 @@ from apps.common.serializers import (
     UnsubscribeSerializer,
 )
 from apps.common.services import CustomerSyncMonitor
+from apps.common.utils.consent_audit import (
+    get_consent_ip_address,
+    sanitize_consent_user_agent,
+)
 
 
 @extend_schema(
@@ -299,6 +304,13 @@ def realtime_metrics(_request: Request) -> Response:
         "Если email уже подписан - возвращает 409 Conflict."
     ),
     request=SubscribeSerializer,
+    examples=[
+        OpenApiExample(
+            name="successful_subscription_request",
+            value={"email": "user@example.com", "pdp_consent": True},
+            request_only=True,
+        ),
+    ],
     responses={
         201: OpenApiResponse(
             description="Подписка успешно создана",
@@ -322,7 +334,14 @@ def realtime_metrics(_request: Request) -> Response:
                         "email": ["Введите корректный email адрес."],
                     },
                     response_only=True,
-                )
+                ),
+                OpenApiExample(
+                    name="pdp_consent_required",
+                    value={
+                        "pdp_consent": ["Необходимо согласие на обработку персональных данных."],
+                    },
+                    response_only=True,
+                ),
             ],
         ),
         409: OpenApiResponse(
@@ -352,7 +371,20 @@ def subscribe(request: Request) -> Response:
     serializer = SubscribeSerializer(data=request.data, context={"request": request})
 
     if serializer.is_valid():
-        subscription = serializer.save()
+        with transaction.atomic():
+            subscription = serializer.save()
+
+            if not request.user.is_authenticated and not request.session.session_key:
+                request.session.save()
+
+            consent_kwargs = {
+                "user": request.user if request.user.is_authenticated else None,
+                "session_key": "" if request.user.is_authenticated else (request.session.session_key or ""),
+                "ip_address": get_consent_ip_address(request),
+                "user_agent": sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT")),
+            }
+            UserConsent.objects.create(consent_type="pdp_contract", **consent_kwargs)
+            UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
 
         response_serializer = SubscribeResponseSerializer(
             {

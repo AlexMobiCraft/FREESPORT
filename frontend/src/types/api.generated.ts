@@ -2523,6 +2523,7 @@ export interface components {
        * @description Email адрес для подписки
        */
       email: string;
+      pdp_consent: boolean;
     };
     TokenRefresh: {
       readonly access: string;

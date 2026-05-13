@@ -4,17 +4,15 @@
  */
 
 import apiClient from './api-client';
-import type { SubscribeResponse } from '@/types/api';
+import type { SubscribeRequest, SubscribeResponse } from '@/types/api';
 
 export const subscribeService = {
   /**
    * Подписаться на email-рассылку
    */
-  async subscribe(email: string): Promise<SubscribeResponse> {
+  async subscribe(payload: SubscribeRequest): Promise<SubscribeResponse> {
     try {
-      const { data } = await apiClient.post<SubscribeResponse>('/subscribe', {
-        email,
-      });
+      const { data } = await apiClient.post<SubscribeResponse>('/subscribe', payload);
       return data;
     } catch (error: unknown) {
       // Проброс ошибки для обработки в компоненте
