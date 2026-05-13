@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review (patch action items P1-P12 закрыты после code review 2026-05-13)
+**Status:** in-progress (Pass 2 code review 2026-05-13: 3 decision-needed + 8 patch action items открыты)
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -1000,4 +1000,51 @@ Code review от 2026-05-13 (bmad-code-review, 3 параллельных сло
 - middleware missing test (инфраструктурное предположение)
 - validate_email перед validate (стандарт DRF execution order)
 - pop position cosmetic
+
+---
+
+## Review Findings — Pass 2 (2026-05-13)
+
+Повторный bmad-code-review после закрытия P1-P12, 3 параллельных слоя (Blind Hunter, Edge Case Hunter, Acceptance Auditor) по diff `0833e90c^..HEAD` (1911 строк, 18 файлов). Триаж: ~50 raw findings → 15 уникальных после дедупа: 3 decision-needed, 8 patch, 4 defer, ~22 dismissed.
+
+### Decision-needed (3)
+
+- [ ] [Review][Decision] **DN1. `validate()` использует `self.initial_data` вместо `attrs`** — P12-лог фиксировал `attrs.get("pdp_consent") is not True`, но фактический код `backend/apps/common/serializers.py:56-60` проверяет `self.initial_data.get("pdp_consent") is not True`. `initial_data` минует DRF-coercion BooleanField (`"true"`/`"1"`/`1` → True), что и нужно для 152-ФЗ explicit consent — тест `test_subscribe_rejects_pdp_consent_truthy_non_boolean` зависит от этого. Drift между P12-claim и реализацией: оставить как есть (стрикт, документировать) ИЛИ переписать через `attrs` + custom Field/Validator, который явно reject coercion. Источник: Blind#5 + Auditor#50.
+
+- [ ] [Review][Decision] **DN2. 409-маппинг через подстроку русского текста «уже подписан»** [`backend/apps/common/views.py:391-398, 418-424`] — View сравнивает `"уже подписан" in error_msg` для маршрутизации 409. Хрупкость: любое изменение `ALREADY_SUBSCRIBED` в `serializers.py:18` сломает HTTP-код, i18n становится невозможен. Варианты: (a) принять как есть (внутренняя константа), (b) custom `class AlreadySubscribedError(DRFValidationError)` с `default_code="already_subscribed"`, (c) ловить `IntegrityError` отдельно и мапить в 409. Источник: Blind#4.
+
+- [ ] [Review][Decision] **DN3. `ProxyAwareUserRateThrottle` + `ProxyAwareThrottleIdentMixin` — scope creep сверх P10** [`backend/apps/common/throttling.py:6-42`, `backend/freesport/settings/base.py:172-174`] — AC-5/P10 предписывали только перенос `DEFAULT_THROTTLE_CLASSES` из `production.py` в `base.py`. Реализация дополнительно: (a) ввела mixin с sanitize-ident, (b) создала новый класс `ProxyAwareUserRateThrottle` (anonymous fallback для UserRateThrottle), (c) зарегистрировала его в DEFAULT_THROTTLE_CLASSES. Обоснование (Redis key injection защита) валидно, но это unscoped изменение, меняющее cache-key для authenticated throttle глобально → возможны временно-stale rate limits после deploy. Решение: зафиксировать как намеренное (обновить spec/CHANGELOG) ИЛИ откатить mixin/UserRateThrottle отдельным reverter-commit. Источник: Auditor#53.
+
+### Patch (8)
+
+- [ ] [Review][Patch] **PP1. Throttle ident санитизация оставляет bypass через IPv6 zone-id/порт/brackets** [`backend/apps/common/throttling.py:9-26`] — `_sanitize_ident` использует `sanitize_log_value` (escape `\r\n` для log-safety), но НЕ нормализует канонический IP. `X-Real-IP: fe80::1%eth0` и `X-Real-IP: [::1]:8080` от одного клиента дают разные cache-keys → bypass throttle. `normalize_consent_ip` для тех же входов выдаёт canonical IP. Fix: throttle ident строить как `normalize_consent_ip(raw_ip) or sanitize_log_value(raw_ip.strip())` (canonical mapping + fallback на sanitize для invalid). Источник: Blind#6 + Edge#34 + Edge#35.
+
+- [ ] [Review][Patch] **PP2. `IntegrityError` из `UserConsent.objects.create()` пробрасывается до клиента как HTTP 500 без JSON** [`backend/apps/common/views.py:382-389`] — `transaction.atomic()` блок ловит только `DRFValidationError`. `IntegrityError` (нарушение CheckConstraint `userconsent_user_or_session_required` при пустом session_key + user=None, PG deadlock на consent-таблице) пробрасывается как unhandled 500. Тест `test_subscribe_atomic_rollback_on_consent_failure` это явно фиксирует (`pytest.raises(IntegrityError)`), но реальный клиент получает 500 без структуры. Fix: `except (DRFValidationError, IntegrityError) as exc: logger.error(...); return Response({"error": "consent_persistence_failed"}, status=503)` (или 500 со структурой). Источник: Edge#27.
+
+- [ ] [Review][Patch] **PP3. HTTP 429 маскируется на фронте как `network_error`** [`frontend/src/services/subscribeService.ts:18-29`, `SubscribeForm.tsx`, `ElectricSubscribeForm.tsx`] — subscribeService различает только 400 и 409. Любой 429 (rate-limit), 5xx, timeout → `SubscribeServiceError('network_error')` → UI «Не удалось подписаться, попробуйте позже» — пользователь не понимает, что нужно подождать → спамит submit. Fix: добавить ветку `if (status === 429) throw new SubscribeServiceError('throttled', details)` + UI-сообщение «Слишком много попыток. Попробуйте через минуту». Источник: Edge#37.
+
+- [ ] [Review][Patch] **PP4. A11y-тест для `ElectricSubscribeForm.test.tsx` отсутствует** [`frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx`] — AC-9 требует a11y (aria-invalid, aria-describedby, role="alert"), AC-2 распространяет правила на Electric. `SubscribeForm.test.tsx` это покрывает (test «marks PDN checkbox invalid and links error text through aria-describedby»), Electric — нет. Fix: добавить аналогичный test-case в Electric. Источник: Auditor#56.
+
+- [ ] [Review][Patch] **PP5. Backend `details` с unknown ключами не отображается на фронте** [`frontend/src/components/home/SubscribeForm.tsx:75-86`, `ElectricSubscribeForm.tsx:82-94`] — `getBackendFieldError` читает только `details.email` и `details.pdp_consent`. Если backend вернёт `non_field_errors`, новое поле или 500 со структурой (см. PP2) — фронт покажет generic «ОШИБКА ПОДПИСКИ» без message. Fix: fallback на первое сообщение из любого ключа `details` если known-ключи отсутствуют. Источник: Edge#38.
+
+- [ ] [Review][Patch] **PP6. Точка в `PDP_CONSENT_REQUIRED` — фронт без точки, бэк с точкой** [`frontend/src/components/home/SubscribeForm.tsx` RHF validator, `ElectricSubscribeForm.tsx` RHF validator, `backend/apps/common/serializers.py:17`] — Backend константа и `docs/api/openapi.yaml` дают сообщение «Необходимо согласие на обработку персональных данных.» (с точкой). Frontend RHF-валидаторы в обеих формах — без точки. Client-side и server-side ошибки показывают разные строки. Spec AC-1/AC-8 явно указывают версию С точкой. Fix: добавить точку в обе frontend-validator константы. Источник: Auditor#51.
+
+- [ ] [Review][Patch] **PP7. Тест `test_subscribe_atomic_rollback_on_consent_failure` использует sentinel `object()` для первого create** [`backend/tests/integration/test_common_subscribe_api.py:~1027`] — `side_effect=[object(), IntegrityError(...)]` работает только потому, что view не использует возвращаемое значение `UserConsent.objects.create`. При рефакторинге (например, `consent = UserConsent.objects.create(...)` + последующий `.id`) тест начнёт падать не из-за production-логики, а из-за mock-структуры. Fix: заменить `object()` на `mock.MagicMock(spec=UserConsent)` (или явный комментарий-pin «sentinel, return value unused»). Источник: Blind#12.
+
+- [ ] [Review][Patch] **PP8. Дубликат логики `get_client_ip` в `apps.users.authentication._get_client_ip` и `apps.users.admin._get_client_ip`** [`backend/apps/users/authentication.py:164`, `backend/apps/users/admin.py:466`] — После AC-6 публичный `apps.common.utils.consent_audit.get_client_ip` существует, но обе private-обёртки в users остались с собственной реализацией. Если в общем `get_client_ip` исправят парсинг (например, IPv6 brackets / X-Real-IP priority) — три места разойдутся, audit для login/admin/subscribe начнёт давать разные IP для одного запроса. Fix: `_get_client_ip` обёртки заменить на `from apps.common.utils.consent_audit import get_client_ip` (admin.py может оставить private alias). Источник: Edge#49.
+
+### Defer (4) — pre-existing или out-of-scope
+
+- [x] [Review][Defer] **WW1. Stale Redis throttle-ключи после deploy** — Замена `UserRateThrottle` на `ProxyAwareUserRateThrottle` (DN3) меняет cache-key (REMOTE_ADDR → X-Real-IP). В первое окно после deploy старые ключи остаются параллельно — возможны временные stale rate limits. Ops-concern, не код-issue. Решение: `redis-cli FLUSHDB` для throttle namespace при deploy или принять transient окно. [ops/deploy]
+- [x] [Review][Defer] **WW2. Throttle конфиг в `base.py` без override для test/dev/staging** [`backend/freesport/settings/base.py:171-176`] — Все среды получают `anon: 6000/min` без переопределения в `test.py`/`development.py`. Для local-dev и параллельных CI runner-ов с shared Redis возможно исчерпание. Pre-existing per P10 decision. Решение: добавить override в `development.py` (`'anon': '10000/min'`) при необходимости.
+- [x] [Review][Defer] **WW3. `ProxyAwareThrottleIdentMixin` без trusted-proxy allowlist** [`backend/apps/common/throttling.py:13-26`] — Pre-existing pattern (зафиксирован как W7 в Pass 1): клиент напрямую без proxy шлёт `X-Real-IP: 1.2.3.4` → throttle bucket произвольный. Решение на уровне nginx (overwrite заголовков от внешних клиентов) или middleware с TRUSTED_PROXIES списком. Связано с 11.3 SEC-001, единая infra-story.
+- [x] [Review][Defer] **WW4. Email-input не disabled при `isSubmitting`** [`frontend/src/components/home/SubscribeForm.tsx:101-115`, `ElectricSubscribeForm.tsx:123-143`] — Пользователь может изменить email после клика «Подписаться» до ответа сервера; `setError('email')` ассоциирует server-side ошибку с уже-другим значением. UX-edge, не bug. Решение: `disabled={isSubmitting}` на input или fieldset (отдельная UX-story).
+
+### Dismissed (~22) — noise / false positive / already-resolved
+
+**Blind Hunter:** `select_for_update` без локального atomic в `create()` (покрыто P3/view-level atomic), `policy_version="1.0"` (AC-5 default), control-flow в `subscribe()` (false positive — структура корректна), DoS UserConsent через 6000/min (покрыто DN3/WW2), `session.save()` DoS (покрыто WW3/throttling), нет bulk_create (преждевременная оптимизация), двойная проверка is_active (защитный паттерн), удалённый is_global фильтр (D3→P11 решено), мёртвый код email_errors mapping (defensive), `sanitize_log_value` 128-char truncation (реальные IPv6 короче), `try/except DRFValidationError` crufty (субъективно), aria-labelledby склейка в тестах (стандарт a11y testing), двойная защита BooleanField + custom validate (purposeful), logger WARNING → DEBUG (связано с P11), `'details' in error` слабая проверка (низкий риск), `pop` default `False` (косметика), потерянный SEC-001 комментарий (минор docs), логгер не наследует имя модуля (тривиально), Newsletter.create race (IntegrityError ловится).
+
+**Edge Case Hunter:** `str(dict)` при future nested validators (hypothetical), reuse session_key анонима (audit-correct по дизайну), concurrent unsubscribe-resubscribe chain (покрытие, не bug), `REMOTE_ADDR="unknown"` (hypothetical middleware), IPv6 `::`/broadcast `255.255.255.255` (deliberate после P11), throttle test `THROTTLE_RATES` patch (smoke-уровень, реальное поведение проверяется), autofill на checkbox (browser behavior), `setError` race (теоретический), test для request.session без middleware (инфраструктурное), form-urlencoded (API JSON-only), concurrent с разными emails (coverage), IPv4-mapped IPv6 test (coverage), дублирующее покрытие реактивации (noise, не bug).
+
+**Acceptance Auditor:** `select_for_update` без локального atomic (= Blind, dismiss), logger DEBUG vs WARNING (связано с P11 dismiss), `test_auth_registration_consent.py` rename+invert (часть P11, согласовано).
 - sanitize_consent_user_agent `Any` type hint cosmetic
