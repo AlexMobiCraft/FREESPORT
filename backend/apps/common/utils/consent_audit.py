@@ -138,6 +138,12 @@ def get_consent_ip_address(request: Request) -> str | None:
 
     normalized_ip = normalize_consent_ip(client_ip)
     if normalized_ip is None:
+        remote_addr = request.META.get("REMOTE_ADDR")
+        if remote_addr:
+            normalized_remote_addr = normalize_consent_ip(str(remote_addr))
+            if normalized_remote_addr is not None:
+                return normalized_remote_addr
+
         logger.warning(
             "Invalid client IP skipped for consent audit",
             extra={"client_ip": sanitize_log_value(client_ip)},

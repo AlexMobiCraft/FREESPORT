@@ -171,7 +171,7 @@ class TestSubscribeEndpoint:
         assert all(consent.policy_version == "1.0" for consent in consents)
 
     def test_subscribe_newsletter_ip_uses_normalized_audit_ip(self, api_client):
-        """Newsletter.latest IP не должен сохранять raw невалидный XFF."""
+        """Newsletter.latest IP использует REMOTE_ADDR fallback при невалидном proxy-IP."""
         url = reverse("common:subscribe")
         data = {"email": "invalid-newsletter-ip@example.com", "pdp_consent": True}
 
@@ -181,12 +181,13 @@ class TestSubscribeEndpoint:
             format="json",
             HTTP_X_FORWARDED_FOR="bad-ip, 203.0.113.5",
             HTTP_USER_AGENT="SubscribeTest/1.0",
+            REMOTE_ADDR="198.51.100.77",
         )
 
         assert response.status_code == status.HTTP_201_CREATED
         subscription = Newsletter.objects.get(email="invalid-newsletter-ip@example.com")
-        assert subscription.ip_address is None
-        assert {consent.ip_address for consent in UserConsent.objects.all()} == {None}
+        assert subscription.ip_address == "198.51.100.77"
+        assert {str(consent.ip_address) for consent in UserConsent.objects.all()} == {"198.51.100.77"}
 
     def test_subscribe_accepts_private_forwarded_ip_for_audit(self, api_client):
         """Audit сохраняет любой валидный IP, включая private/loopback."""

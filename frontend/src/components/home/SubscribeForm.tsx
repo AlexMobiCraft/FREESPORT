@@ -22,7 +22,7 @@ interface SubscribeFormData {
 }
 
 type SubscribeFormField = keyof SubscribeFormData;
-type SubscribeValidationDetails = Record<string, string[] | string | undefined>;
+type SubscribeValidationDetails = Record<string, string[]>;
 type SubscribeValidationError = Error & {
   details?: SubscribeValidationDetails;
 };
@@ -30,12 +30,7 @@ type SubscribeValidationError = Error & {
 const PDP_CONSENT_REQUIRED = 'Необходимо согласие на обработку персональных данных.';
 const THROTTLED_ERROR = 'Слишком много попыток. Попробуйте через минуту';
 
-const getBackendMessage = (value: string[] | string | undefined) => {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-  return value;
-};
+const getBackendMessage = (value: string[] | undefined) => value?.[0];
 
 const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
   if (!(error instanceof Error) || !('details' in error)) {

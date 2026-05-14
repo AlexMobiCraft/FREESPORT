@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Sum
+from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
 from .category_utils import FULL_PLACEHOLDER_CATEGORY_RE_PATTERN
@@ -732,6 +733,17 @@ class ProductDetailSerializer(ProductListSerializer):
         """Гарантируем использование логики скрытия полей из родительского класса"""
         return super().to_representation(instance)
 
+    @extend_schema_field(
+        inline_serializer(
+            name="ProductDetailImage",
+            many=True,
+            fields={
+                "url": serializers.CharField(),
+                "alt_text": serializers.CharField(),
+                "is_main": serializers.BooleanField(),
+            },
+        )
+    )
     def get_images(self, obj):
         """
         Получить галерею изображений из base_images
@@ -774,6 +786,7 @@ class ProductDetailSerializer(ProductListSerializer):
 
         return images
 
+    @extend_schema_field(ProductListSerializer(many=True))
     def get_related_products(self, obj):
         """Получить связанные товары из той же категории или бренда"""
         # Сначала товары из той же категории
@@ -797,6 +810,17 @@ class ProductDetailSerializer(ProductListSerializer):
 
         return ProductListSerializer(related_products, many=True, context=self.context).data
 
+    @extend_schema_field(
+        inline_serializer(
+            name="ProductDetailCategoryBreadcrumb",
+            many=True,
+            fields={
+                "id": serializers.IntegerField(),
+                "name": serializers.CharField(),
+                "slug": serializers.CharField(),
+            },
+        )
+    )
     def get_category_breadcrumbs(self, obj):
         """Получить навигационную цепочку для категории товара"""
         breadcrumbs: list[dict[str, Any]] = []

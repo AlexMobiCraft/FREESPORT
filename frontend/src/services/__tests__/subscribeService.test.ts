@@ -71,4 +71,53 @@ describe('subscribeService', () => {
       details,
     });
   });
+
+  it('maps 503 responses to server errors when details match the OpenAPI contract', async () => {
+    const details = {
+      non_field_errors: ['Не удалось сохранить согласие. Попробуйте позже.'],
+    };
+    vi.mocked(apiClient.post).mockRejectedValueOnce({
+      response: {
+        status: 503,
+        data: {
+          error: 'consent_persistence_failed',
+          details,
+        },
+      },
+    });
+
+    await expect(
+      subscribeService.subscribe({
+        email: 'new@example.com',
+        pdp_consent: true,
+      })
+    ).rejects.toMatchObject({
+      message: 'server_error',
+      details,
+    });
+  });
+
+  it('does not preserve non-contract string details from backend responses', async () => {
+    vi.mocked(apiClient.post).mockRejectedValueOnce({
+      response: {
+        status: 503,
+        data: {
+          error: 'consent_persistence_failed',
+          details: {
+            non_field_errors: 'Не удалось сохранить согласие. Попробуйте позже.',
+          },
+        },
+      },
+    });
+
+    await expect(
+      subscribeService.subscribe({
+        email: 'new@example.com',
+        pdp_consent: true,
+      })
+    ).rejects.toMatchObject({
+      message: 'network_error',
+      details: undefined,
+    });
+  });
 });

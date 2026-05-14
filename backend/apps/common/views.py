@@ -10,8 +10,9 @@ from django.db import DatabaseError, transaction
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -398,6 +399,7 @@ def realtime_metrics(_request: Request) -> Response:
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@parser_classes([JSONParser])
 @throttle_classes([SubscribeRateThrottle])
 def subscribe(request: Request) -> Response:
     """

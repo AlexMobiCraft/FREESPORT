@@ -2219,14 +2219,24 @@ export interface components {
        * @description Получить МРЦ первого варианта
        */
       readonly msrp: number | null;
-      readonly images: string;
-      readonly related_products: string;
-      readonly category_breadcrumbs: string;
+      readonly images: components['schemas']['ProductDetailImage'][];
+      readonly related_products: components['schemas']['ProductList'][];
+      readonly category_breadcrumbs: components['schemas']['ProductDetailCategoryBreadcrumb'][];
       /** SEO заголовок */
       seo_title?: string;
       /** SEO описание */
       seo_description?: string;
       readonly variants: components['schemas']['ProductVariant'][];
+    };
+    ProductDetailCategoryBreadcrumb: {
+      id: number;
+      name: string;
+      slug: string;
+    };
+    ProductDetailImage: {
+      url: string;
+      alt_text: string;
+      is_main: boolean;
     };
     /**
      * @description Serializer для списка товаров (базовая модель Product)
@@ -2793,8 +2803,6 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': components['schemas']['SubscribeRequest'];
-        'application/x-www-form-urlencoded': components['schemas']['SubscribeRequest'];
-        'multipart/form-data': components['schemas']['SubscribeRequest'];
       };
     };
     responses: {

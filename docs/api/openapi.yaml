@@ -101,12 +101,6 @@ paths:
                   email: user@example.com
                   pdp_consent: true
                 summary: successful_subscription_request
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SubscribeRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SubscribeRequest'
         required: true
       security:
       - {}
@@ -118,11 +112,19 @@ paths:
         '409':
           description: Email уже подписан на рассылку
         '503':
-          description: Согласие не удалось сохранить, подписка откатана
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubscribeConsentPersistenceErrorResponse'
+              examples:
+                ConsentPersistenceFailed:
+                  value:
+                    error: consent_persistence_failed
+                    details:
+                      non_field_errors:
+                      - Не удалось сохранить согласие. Попробуйте позже.
+                  summary: consent_persistence_failed
+          description: Согласие не удалось сохранить, подписка откатана
   /unsubscribe/:
     post:
       operationId: unsubscribe_create
@@ -728,6 +730,36 @@ paths:
                 $ref: '#/components/schemas/PaginatedAddressList'
           description: ''
   /users/addresses/{id}/:
+    patch:
+      operationId: users_addresses_partial_update
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
     put:
       operationId: users_addresses_update
       description: ViewSet для управления адресами пользователя
@@ -793,36 +825,6 @@ paths:
       responses:
         '204':
           description: No response body
-    patch:
-      operationId: users_addresses_partial_update
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedAddressRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedAddressRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedAddressRequest'
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
   /users/favorites/:
     post:
       operationId: users_favorites_create
@@ -880,6 +882,36 @@ paths:
                 $ref: '#/components/schemas/PaginatedFavoriteList'
           description: ''
   /users/favorites/{id}/:
+    patch:
+      operationId: users_favorites_partial_update
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
     put:
       operationId: users_favorites_update
       description: ViewSet для управления избранными товарами
@@ -945,36 +977,6 @@ paths:
       responses:
         '204':
           description: No response body
-    patch:
-      operationId: users_favorites_partial_update
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedFavoriteRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedFavoriteRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedFavoriteRequest'
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Favorite'
-          description: ''
   /products/:
     get:
       operationId: products_list
@@ -1562,6 +1564,43 @@ paths:
         '401':
           description: Пользователь не авторизован
   /orders/{id}/:
+    patch:
+      operationId: orders_partial_update
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
     put:
       operationId: orders_update
       description: |-
@@ -1649,43 +1688,6 @@ paths:
       responses:
         '204':
           description: No response body
-    patch:
-      operationId: orders_partial_update
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - orders
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedOrderDetailRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedOrderDetailRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedOrderDetailRequest'
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
   /orders/{id}/cancel/:
     post:
       operationId: orders_cancel_create
@@ -1838,6 +1840,42 @@ paths:
                 $ref: '#/components/schemas/PaginatedCartItemList'
           description: ''
   /cart/items/{id}/:
+    patch:
+      operationId: cart_items_partial_update
+      description: Частичное изменение количества товара в корзине
+      summary: Частичное обновление товара
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+          description: ''
+        '400':
+          description: Ошибки валидации
+        '404':
+          description: Товар в корзине не найден
     get:
       operationId: cart_items_retrieve
       description: Получение детальной информации о товаре в корзине
@@ -1878,42 +1916,6 @@ paths:
       responses:
         '204':
           description: No response body
-    patch:
-      operationId: cart_items_partial_update
-      description: Частичное изменение количества товара в корзине
-      summary: Частичное обновление товара
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - Cart Items
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedCartItemUpdateRequest'
-      security:
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartItem'
-          description: ''
-        '400':
-          description: Ошибки валидации
-        '404':
-          description: Товар в корзине не найден
   /pages/:
     get:
       operationId: pages_list
@@ -3826,11 +3828,39 @@ components:
           format: double
           description: Получить МРЦ первого варианта
           readOnly: true
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductDetailImage'
+          readOnly: true
+        related_products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductList'
+          readOnly: true
+        category_breadcrumbs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductDetailCategoryBreadcrumb'
+          readOnly: true
+        seo_title:
+          type: string
+          title: SEO заголовок
+          maxLength: 200
+        seo_description:
+          type: string
+          title: SEO описание
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+          readOnly: true
       required:
       - attributes
       - brand
       - can_be_ordered
       - category
+      - category_breadcrumbs
       - created_at
       - current_price
       - description
@@ -3849,6 +3879,7 @@ components:
       - opt1_price
       - opt2_price
       - opt3_price
+      - related_products
       - retail_price
       - rrp
       - sku
@@ -3856,6 +3887,32 @@ components:
       - specifications
       - stock_quantity
       - variants
+    ProductDetailCategoryBreadcrumb:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+      required:
+      - id
+      - name
+      - slug
+    ProductDetailImage:
+      type: object
+      properties:
+        url:
+          type: string
+        alt_text:
+          type: string
+        is_main:
+          type: boolean
+      required:
+      - alt_text
+      - is_main
+      - url
     ProductList:
       type: object
       description: |-

@@ -19,7 +19,7 @@ interface SubscribeFormData {
 }
 
 type SubscribeFormField = keyof SubscribeFormData;
-type SubscribeValidationDetails = Record<string, string[] | string | undefined>;
+type SubscribeValidationDetails = Record<string, string[]>;
 type SubscribeValidationError = Error & {
   details?: SubscribeValidationDetails;
 };
@@ -31,12 +31,7 @@ const electricToastErrorOptions = {
   style: { borderRadius: '0', background: '#000', color: '#fff', border: '1px solid red' },
 };
 
-const getBackendMessage = (value: string[] | string | undefined) => {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-  return value;
-};
+const getBackendMessage = (value: string[] | undefined) => value?.[0];
 
 const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
   if (!(error instanceof Error) || !('details' in error)) {

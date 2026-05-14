@@ -6,10 +6,21 @@
 import apiClient from './api-client';
 import type { SubscribeRequest, SubscribeResponse } from '@/types/api';
 
-export type SubscribeValidationDetails = Record<string, string[] | string | undefined>;
+export type SubscribeValidationDetails = Record<string, string[]>;
 
-type SubscribeErrorResponse = SubscribeValidationDetails & {
+type SubscribeErrorResponse = {
   details?: SubscribeValidationDetails;
+};
+
+const isValidationDetails = (value: unknown): value is SubscribeValidationDetails => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return Object.values(value).every(
+    fieldErrors =>
+      Array.isArray(fieldErrors) && fieldErrors.every(message => typeof message === 'string')
+  );
 };
 
 const getValidationDetails = (data: unknown): SubscribeValidationDetails | undefined => {
@@ -18,11 +29,15 @@ const getValidationDetails = (data: unknown): SubscribeValidationDetails | undef
   }
 
   const errorData = data as SubscribeErrorResponse;
-  if (errorData.details && typeof errorData.details === 'object') {
+  if (isValidationDetails(errorData.details)) {
     return errorData.details;
   }
 
-  return errorData;
+  if (isValidationDetails(data)) {
+    return data;
+  }
+
+  return undefined;
 };
 
 export class SubscribeServiceError extends Error {

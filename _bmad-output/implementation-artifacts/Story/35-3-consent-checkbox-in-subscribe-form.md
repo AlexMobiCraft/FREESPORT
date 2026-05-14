@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review (Pass 5: P5N1-P5N7 closed 2026-05-14; W5N1-W5N7 deferred including resolved D5N2)
+**Status:** review (Pass 6 patch items closed 2026-05-14; W5N1-W5N7 + PPPP6-W1 deferred)
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -990,6 +990,22 @@ GPT-5 Codex
   - `cmd /c npm exec -- eslint --max-warnings=0 --no-warn-ignored src/components/home/SubscribeForm.tsx src/components/home/__tests__/SubscribeForm.test.tsx src/types/api.generated.ts` → passed.
   - `cmd /c npm run lint -- --no-warn-ignored` → failed на existing `frontend/next-env.d.ts` (`@typescript-eslint/triple-slash-reference`), не связан с изменениями story; targeted ESLint по изменённым frontend-файлам зелёный.
   - Локальный DB-dependent pytest через `backend\venv` заблокирован локальными PostgreSQL credentials (`password authentication failed for user "postgres"`); тот же набор пройден через Docker backend.
+- Pass 6 targeted validation:
+  - `cmd /c .\venv\Scripts\python.exe -m black apps\common\utils\consent_audit.py apps\common\views.py apps\products\serializers.py tests\integration\test_common_subscribe_api.py` → passed, 4 files left unchanged.
+  - `cmd /c npx prettier --write src\components\home\SubscribeForm.tsx src\components\home\ElectricSubscribeForm.tsx src\services\subscribeService.ts src\services\__tests__\subscribeService.test.ts src\types\api.generated.ts` → passed.
+  - `cmd /c docker compose --env-file ..\.env -f ..\docker\docker-compose.test.yml run --rm backend pytest tests/integration/test_common_subscribe_api.py tests/unit/test_serializers/test_product_serializers.py -q` → passed, 48 tests.
+  - `cmd /c npm run test -- src/services/__tests__/subscribeService.test.ts src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx` → passed, 30 tests.
+  - `cmd /c .\venv\Scripts\python.exe -m flake8 apps\common\utils\consent_audit.py apps\common\views.py apps\products\serializers.py tests\integration\test_common_subscribe_api.py --max-line-length=120 --extend-ignore=E203,W503` → passed.
+  - `cmd /c .\venv\Scripts\python.exe -m py_compile apps\common\utils\consent_audit.py apps\common\views.py apps\products\serializers.py tests\integration\test_common_subscribe_api.py` → passed.
+  - `cmd /c npm exec -- eslint src/components/home/SubscribeForm.tsx src/components/home/ElectricSubscribeForm.tsx src/services/subscribeService.ts src/services/__tests__/subscribeService.test.ts src/types/api.generated.ts --max-warnings=0` → passed.
+  - `cmd /c npm exec -- tsc --noEmit` → passed.
+  - `cmd /c .\venv\Scripts\python.exe manage.py check` → passed.
+  - `cmd /c git diff --check` → passed; только Windows LF→CRLF warnings.
+  - `cmd /c npx gitnexus detect-changes --scope all` → 16 files, 20 symbols, 11 affected flows; affected scope соответствует `subscribe`, consent audit, `ProductDetailSerializer`, subscribe UI/service/types и уже существующим BMAD/AGENTS metadata.
+  - `cmd /c docker compose --env-file ..\.env -f ..\docker\docker-compose.test.yml run --rm backend pytest -q -m unit` → passed, 719 passed, 12 skipped, 1556 deselected.
+  - `cmd /c npm run test` → passed, 140 files, 2373 passed, 16 skipped.
+  - `$env:NEXT_PUBLIC_API_URL_INTERNAL='http://backend:8000'; npm --prefix 'c:\Users\1\DEV\FREESPORT\frontend' run build` → passed. Первый build-запуск через `cmd /c "set ...&& npm run build"` стартовал из корня и упал на `package.json` ENOENT, не кодовая ошибка.
+  - `cmd /c docker compose --env-file ..\.env -f docker-compose.yml restart frontend` → passed.
 
 ### Completion Notes
 
@@ -1009,6 +1025,8 @@ GPT-5 Codex
 - Pass 4 закрыт: `REMOTE_ADDR` fallback в throttle теперь санитизируется; anonymous `session.save()` вынесен перед локальным `transaction.atomic()`; rollback-тест реально пишет первую `UserConsent` и проверяет откат; subscribe throttle flood-тест переведён на валидные payload; audit IP теперь предпочитает `X-Real-IP`, как throttle. PPPP5 закрыт как проверенный false-positive: в текущей DRF-версии `SimpleRateThrottle.get_cache_key()` abstract, удаление override приводит к `NotImplementedError`, поэтому override сохранён с поясняющим docstring.
 - Pass 4 regression: targeted subscribe/audit tests, зависимые registration/admin tests, backend unit marker suite, integration marker suite без известного `test_import_customers.py` data-dependent blocker, Black, Flake8 и `git diff --check` зелёные.
 - Pass 5 закрыт: invalid-IP audit log возвращён на WARNING; malformed proxy headers в throttle fallback-ятся на `REMOTE_ADDR`; subscribe ловит `DatabaseError` и возвращает структурированный 503 с rollback; Blue SubscribeForm покрыт server_error/503 regression; OpenAPI/generated types получили 503 body schema; admin tests используют production-like `SessionStore`; existing-email lookup убран из `validate_email`, чтобы missing `pdp_consent` не раскрывал статус подписки.
+- Pass 6 закрыт: `/subscribe/` ограничен JSON parser и OpenAPI больше не рекламирует form-urlencoded; `ProductDetail` schema восстановлена через `extend_schema_field` для runtime-полей; consent audit получил fallback на валидный `REMOTE_ADDR`; frontend `SubscribeValidationDetails` сужен до OpenAPI-compatible `Record<string, string[]>` с regression-тестами.
+- Финальный Pass 6 регресс зелёный: targeted backend/frontend tests, backend unit marker suite, full frontend Vitest, Flake8, ESLint, TypeScript, Django checks, Next build, `git diff --check`, GitNexus detect-changes и frontend container restart выполнены.
 
 ### File List
 
@@ -1021,6 +1039,7 @@ GPT-5 Codex
 - `backend/apps/common/views.py`
 - `backend/apps/common/utils/__init__.py`
 - `backend/apps/common/utils/consent_audit.py`
+- `backend/apps/products/serializers.py`
 - `backend/apps/users/admin.py`
 - `backend/apps/users/authentication.py`
 - `backend/freesport/settings/base.py`
@@ -1051,6 +1070,7 @@ GPT-5 Codex
 - 2026-05-14: Закрыты Pass 3 findings PPP1-PPP7; добавлены scope-specific subscribe throttle, non-prod throttle overrides, русский 429 detail, session-engine system check, admin audit IP fallback и Electric reset regression test; статус синхронизирован в `review`.
 - 2026-05-14: Закрыты Pass 4 findings PPPP1-PPPP6; добавлены Redis-safe `REMOTE_ADDR` fallback, `X-Real-IP` priority для consent audit, session-save-before-local-atomic guard, real rollback test и валидный throttle flood regression; PPPP5 подтверждён как false-positive для текущей DRF-версии; статус синхронизирован в `review`.
 - 2026-05-14: Закрыты Pass 5 findings P5N1-P5N7; добавлены DatabaseError 503 contract, no-enumeration validation path, malformed proxy fallback на REMOTE_ADDR, WARNING audit logs, OpenAPI/generated 503 schema, Blue server_error regression и SessionStore в admin tests; статус синхронизирован в `review`.
+- 2026-05-14: Закрыты Pass 6 findings PPPP6-D1/D2/P1/P2; `/subscribe/` стал JSON-only в OpenAPI, `ProductDetail` schema восстановлена, consent audit fallback на `REMOTE_ADDR` добавлен, frontend validation details приведены к OpenAPI-контракту; статус синхронизирован в `review`.
 
 ---
 
@@ -1344,3 +1364,70 @@ Code review от 2026-05-13 (bmad-code-review, 3 параллельных сло
 - EC-7 `_has_error_code non-ErrorDetail string` = **WWW3 Pass 3** defer.
 - EC-10 `RHF rapid double-submit` = `isSubmitting` действительно блокирует re-entry (handleSubmit guards).
 - EC-14 `legacy mixed-case email` = duplicate of BH-18 → defer W5N3.
+
+---
+
+## Review Findings — Pass 6 (2026-05-14)
+
+Reviewer: Claude Code `bmad-code-review` (Opus 4.7) — параллельные слои: Blind Hunter, Edge Case Hunter, Acceptance Auditor. Диф: `fb47fbeb..0b67968c` (10 коммитов Story 35.3). Сверены с Pass 1-5 patch/defer/dismiss списками, чтобы исключить уже-закрытые. AC-1 … AC-9 — все **PASS** по Acceptance Auditor с задокументированными deviations (AC-4 `initial_data`, AC-5 no-leak, AC-6 `is_global` — все ссылаются на Pass 1-5 decision trail).
+
+### Decision-needed (resolved 2026-05-14)
+
+- **PPPP6-D1 → Patch (investigate + fix root cause).** Alex: «Разобраться сейчас» — исследовать, почему drf-spectacular больше не видит fields, и устранить причину (annotations / Meta / `extend_schema_field`).
+- **PPPP6-D2 → Patch (align with throttling).** Alex: «Выровнять с throttling» — добавить REMOTE_ADDR fallback в `get_consent_ip_address` + обновить `test_subscribe_newsletter_ip_uses_normalized_audit_ip` (PIN заменяется на новое поведение).
+- **PPPP6-D3 → Dismiss.** Alex: «Оставить checkbox checked» — текущее поведение остаётся; каждый submit = consent для конкретного запроса.
+
+### Decision-resolved unchecked patches (3 added)
+
+- [x] **[Review][Patch] PPPP6-D1→P3: восстановить 6 properties в `ProductDetail` OpenAPI schema** — закрыто через `extend_schema_field` annotations для `images`, `related_products`, `category_breadcrumbs` и регенерацию `docs/api/openapi.yaml` / `frontend/src/types/api.generated.ts`; schema содержит runtime-поля `images`, `related_products`, `category_breadcrumbs`, `seo_title`, `seo_description`, `variants`.
+- [x] **[Review][Patch] PPPP6-D2→P4: REMOTE_ADDR fallback в `get_consent_ip_address`** — закрыто: invalid first-hop proxy IP fallback-ится на валидный `REMOTE_ADDR`; `test_subscribe_newsletter_ip_uses_normalized_audit_ip` обновлён под новое поведение.
+
+### Decision-needed (3, ORIGINAL — оставлено для истории)
+
+- [x] **[Review][Decision] PPPP6-D1: OpenAPI `ProductDetail` schema потеряла 6 properties вне scope Story 35.3** — resolved 2026-05-14: выбран вариант «разобраться сейчас»; root cause закрыт schema annotations, см. PPPP6-D1→P3.
+- [x] **[Review][Decision] PPPP6-D2: `get_consent_ip_address` не делает fallback на REMOTE_ADDR при невалидном first-hop XFF** — resolved 2026-05-14: выбран вариант «выровнять с throttling»; см. PPPP6-D2→P4.
+- [x] **[Review][Decision] PPPP6-D3: UX — сбрасывать ли `pdp_consent` на 409 `already_subscribed`** — resolved 2026-05-14: выбран вариант «оставить checkbox checked»; каждый submit подтверждает текущий checked-state.
+
+### Patch (2)
+
+- [x] **[Review][Patch] PPPP6-P1: OpenAPI subscribe-схема рекламирует `application/x-www-form-urlencoded`, но DN1 strict-bool гарантированно ломает form-encoded** — закрыто: `subscribe` ограничен `JSONParser`, regenerated OpenAPI для `/subscribe/` содержит только `application/json`.
+- [x] **[Review][Patch] PPPP6-P2: типы `SubscribeValidationDetails` шире OpenAPI-контракта 503** — закрыто: `SubscribeValidationDetails = Record<string, string[]>`, добавлен runtime guard, string details не сохраняются; покрыто `subscribeService` regression-тестами.
+
+### Defer (1) — pre-existing / cosmetic
+
+- [x] **[Review][Defer] PPPP6-W1: spec section «Структура файлов» в `story-35-3.md:493-525` отстаёт от scope creep** — 9 файлов изменены/созданы без mention в spec list (`backend/apps/common/apps.py`, `throttling.py`, `tests/test_common_config.py`, `users/admin.py`, `users/authentication.py`, settings `base.py/development.py/staging.py/test.py`, `tests/unit/test_users_admin.py`, `tests/unit/test_common_throttling.py`, `services/__tests__/subscribeService.test.ts`). Все они задокументированы в Pass 2-5 patch sections, но spec sections «Структура файлов» / «Acceptance Criteria» — нет. **Defer reason:** косметический spec-maintenance; не блокирует runtime.
+
+### Dismissed (~50) — already-closed in Pass 1-5 / verified / spec-documented
+
+**Verified false positives (после повторной проверки кода):**
+- BH-5/E16 `production.py removed REST_FRAMEWORK block → throttle regression` → **verified safe**: rates (anon=6000/min, user=10000/day, subscribe=30/min) мигрированы в `backend/freesport/settings/base.py:171-181` (P10 Pass 4). Прод-окружение наследует, нет регрессии.
+- BH-3 `DRFValidationError vs DatabaseError catch ordering` → **verified safe**: P5N3 regression `test_subscribe_returns_structured_503_on_operational_consent_failure` подтверждает структурный 503. `IntegrityError` подкласс `DatabaseError`, но `SubscribeSerializer.create` перехватывает свой `IntegrityError` и поднимает `already_subscribed_error()` ДО того, как он дойдёт до outer `except DatabaseError`.
+- BH-4/B20/E18 `select_for_update on non-PK email + concurrent reactivation` → **dismissed**: row-lock на email-row корректно покрывает существующие активные подписки; для phantom inserts срабатывает UNIQUE constraint → `already_subscribed_error()` → 409. Поведение детерминированное.
+- BH-7 `already_subscribed_error catches UserConsent IntegrityError` → **dismissed**: `serializer.save()` поднимает только Newsletter-IntegrityError; UserConsent.create находится в view ВНЕ сериализатора, отлавливается `except DatabaseError` → 503.
+- BH-9 `OpenAPI 503 details type vs frontend types` → **частично reclassified** — см. PPPP6-P2 (frontend type wider, не OpenAPI narrower).
+
+**Уже закрыто в Pass 1-5:**
+- BH-1/EC-5/A2 `validate uses initial_data strict bool` = **DN1 Pass 2** documented.
+- BH-2/EC-3/EC-4 `session.save() before atomic + orphan rows on 503` = **PPPP2 Pass 4** intentional + accepted growth-pattern (DBSize defer).
+- BH-6 `subscribe scope absent → ImproperlyConfigured` = **PPPP3/P10 Pass 4** — все 4 env-файлов (base/dev/staging/test) теперь явно перечисляют `subscribe`.
+- BH-8/BH-22/R6/EC-7 `_has_error_code recursion / split logic / depth` = **WWW3 Pass 3** defer.
+- BH-10/D3 (R7? нет, R7 это другое) `is_global filter removed for registration` = **D3 Pass 1 → P11 Pass 2 → WWW14 Pass 3 → AA-1 Pass 4** accepted намеренное изменение политики.
+- BH-11 `AnonRateThrottle mixin order` = архитектурный, не находка.
+- BH-12/BH-24 `tests mock UserConsent.create / broken transaction state` = integration-уровень покрыт P5N3.
+- BH-13 `pdp_consent not denormalized in Newsletter` = design decision, FK покрывается audit-таблицей.
+- BH-14/E6 `policy_version "1.0" hardcoded default` = **W5N6 Pass 5** defer.
+- BH-15/E11 `rotating IP throttle bypass` = **W5N2 Pass 5** defer (NAT/proxy edge).
+- BH-17/A6 `OpenAPI reorder noise patch/get` = drf-spectacular regen volatility, **WWWW2 Pass 4** defer (но ProductDetail loss = новая находка PPPP6-D1).
+- BH-18 `frontend toast localization period` = **W5 microcopy** defer / косметика.
+- BH-19 `"unknown" sentinel в admin._get_client_ip` = pre-existing pattern.
+- BH-21 `MAX_CONSENT_USER_AGENT_LENGTH vs Newsletter.user_agent` = decoupled, low risk.
+- BH-23 `SubscribeRateThrottle scope namespace` = единственный consumer scope=subscribe.
+- BH-25/E17 `system check Error vs Warning` = **PPP4 Pass 3** intentional strict.
+- EC-2 `select_for_update outside atomic` = находится внутри atomic (view-level wrap).
+- EC-7 `single pdp_consent → 2 consent records` = **spec Решение #2** explicit.
+- EC-9 `IPv4-mapped IPv6 granularity loss` = audit edge, accepted.
+- EC-10 `bracketed IPv6 with whitespace` = misconfigured proxy edge, accepted.
+- EC-12 `session.save() returns but session_key None` = покрыт system check + edge.
+- EC-13 `5xx without JSON body` = P5N4 закрыл server_error через DRF-shape, нативный 502/504 без body — edge.
+- EC-15 `JWT/session decoupling race on mid-request logout` = edge case, не воспроизводится в test harness.
+- R1-R4 `fragile tests` (count==0, atomic_blocks, THROTTLE_RATES patch, name substring) = **WWW13 Pass 3 / косметика** defer.
