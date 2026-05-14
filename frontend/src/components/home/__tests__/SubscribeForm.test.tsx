@@ -106,7 +106,9 @@ describe('SubscribeForm', () => {
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Необходимо согласие на обработку персональных данных')).toBeInTheDocument();
+      expect(
+        screen.getByText('Необходимо согласие на обработку персональных данных.')
+      ).toBeInTheDocument();
     });
     expect(mockSubscribe).not.toHaveBeenCalled();
   });
@@ -222,6 +224,42 @@ describe('SubscribeForm', () => {
       expect(toast.error).toHaveBeenCalledWith(
         'Необходимо согласие на обработку персональных данных.'
       );
+    });
+  });
+
+  it('shows unknown backend validation details instead of generic email fallback', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        details: {
+          non_field_errors: ['Не удалось сохранить согласие. Попробуйте позже.'],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'server-detail@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Не удалось сохранить согласие. Попробуйте позже.');
+    });
+  });
+
+  it('shows throttling message on 429 subscribe errors', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(new Error('throttled'));
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'throttled@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Слишком много попыток. Попробуйте через минуту');
     });
   });
 

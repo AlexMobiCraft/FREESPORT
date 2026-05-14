@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
@@ -22,6 +23,7 @@ from apps.common.serializers import (
     NewsSerializer,
     SubscribeResponseSerializer,
     SubscribeSerializer,
+    ALREADY_SUBSCRIBED_CODE,
     UnsubscribeResponseSerializer,
     UnsubscribeSerializer,
 )
@@ -30,6 +32,17 @@ from apps.common.utils.consent_audit import (
     get_consent_ip_address,
     sanitize_consent_user_agent,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _has_error_code(detail: object, code: str) -> bool:
+    """Проверить DRF ErrorDetail code в nested serializer detail."""
+    if isinstance(detail, dict):
+        return any(_has_error_code(value, code) for value in detail.values())
+    if isinstance(detail, (list, tuple)):
+        return any(_has_error_code(value, code) for value in detail)
+    return getattr(detail, "code", None) == code
 
 
 @extend_schema(
@@ -357,6 +370,21 @@ def realtime_metrics(_request: Request) -> Response:
                 )
             ],
         ),
+        503: OpenApiResponse(
+            description="Согласие не удалось сохранить, подписка откатана",
+            examples=[
+                OpenApiExample(
+                    name="consent_persistence_failed",
+                    value={
+                        "error": "consent_persistence_failed",
+                        "details": {
+                            "non_field_errors": ["Не удалось сохранить согласие. Попробуйте позже."],
+                        },
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
     },
     tags=["Newsletter"],
 )
@@ -388,18 +416,26 @@ def subscribe(request: Request) -> Response:
                 UserConsent.objects.create(consent_type="pdp_contract", **consent_kwargs)
                 UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
         except DRFValidationError as exc:
-            if "email" in exc.detail:
-                email_errors = exc.detail["email"]
-                error_msg = str(email_errors[0] if isinstance(email_errors, list) else email_errors)
-                if "уже подписан" in error_msg:
-                    return Response(
-                        exc.detail,
-                        status=status.HTTP_409_CONFLICT,
-                    )
+            if _has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
+                return Response(
+                    exc.detail,
+                    status=status.HTTP_409_CONFLICT,
+                )
 
             return Response(
                 exc.detail,
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        except IntegrityError:
+            logger.exception("Failed to persist newsletter consent audit")
+            return Response(
+                {
+                    "error": "consent_persistence_failed",
+                    "details": {
+                        "non_field_errors": ["Не удалось сохранить согласие. Попробуйте позже."],
+                    },
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         response_serializer = SubscribeResponseSerializer(
@@ -415,13 +451,11 @@ def subscribe(request: Request) -> Response:
         )
 
     # Обработка ошибки "уже подписан"
-    if "email" in serializer.errors:
-        error_msg = str(serializer.errors["email"][0])
-        if "уже подписан" in error_msg:
-            return Response(
-                serializer.errors,
-                status=status.HTTP_409_CONFLICT,
-            )
+    if _has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
+        return Response(
+            serializer.errors,
+            status=status.HTTP_409_CONFLICT,
+        )
 
     # Другие ошибки валидации
     return Response(

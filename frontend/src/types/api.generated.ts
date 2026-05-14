@@ -2813,6 +2813,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Согласие не удалось сохранить, подписка откатана */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   unsubscribe_create: {

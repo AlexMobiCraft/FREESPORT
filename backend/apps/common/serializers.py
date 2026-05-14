@@ -9,6 +9,7 @@ from typing import Any, cast
 
 from django.db import IntegrityError
 from rest_framework import serializers
+from rest_framework.exceptions import ErrorDetail
 
 from .models import BlogPost, Category, News, Newsletter
 from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_agent
@@ -16,6 +17,21 @@ from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_a
 
 PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
 ALREADY_SUBSCRIBED = "Этот email уже подписан на рассылку"
+ALREADY_SUBSCRIBED_CODE = "already_subscribed"
+
+
+def already_subscribed_error() -> serializers.ValidationError:
+    """Вернуть field-level ошибку подписки с устойчивым machine-code."""
+    return serializers.ValidationError(
+        {
+            "email": [
+                ErrorDetail(
+                    ALREADY_SUBSCRIBED,
+                    code=ALREADY_SUBSCRIBED_CODE,
+                )
+            ]
+        }
+    )
 
 
 class SubscribeSerializer(serializers.Serializer):
@@ -49,12 +65,13 @@ class SubscribeSerializer(serializers.Serializer):
 
         # Проверка на существующую активную подписку
         if Newsletter.objects.filter(email=value, is_active=True).exists():
-            raise serializers.ValidationError(ALREADY_SUBSCRIBED)
+            raise serializers.ValidationError(ALREADY_SUBSCRIBED, code=ALREADY_SUBSCRIBED_CODE)
 
         return value
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Проверить обязательное согласие на обработку ПДн."""
+        # BooleanField коэрсит truthy-строки в True; для 152-ФЗ нужен исходный JSON boolean true.
         if self.initial_data.get("pdp_consent") is not True:
             raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED})
         return attrs
@@ -86,10 +103,10 @@ class SubscribeSerializer(serializers.Serializer):
                     user_agent=user_agent,
                 )
             except IntegrityError as exc:
-                raise serializers.ValidationError({"email": [ALREADY_SUBSCRIBED]}) from exc
+                raise already_subscribed_error() from exc
 
         if subscription.is_active:
-            raise serializers.ValidationError({"email": [ALREADY_SUBSCRIBED]})
+            raise already_subscribed_error()
 
         # Реактивируем подписку
         subscription.is_active = True

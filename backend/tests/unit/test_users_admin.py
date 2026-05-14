@@ -423,7 +423,7 @@ class TestUserAdmin(TestCase):
     def test_get_client_ip_with_x_forwarded_for(self):
         """Тест получения IP из X-Forwarded-For заголовка"""
         request = self.factory.get("/admin/")
-        request.META["HTTP_X_FORWARDED_FOR"] = "192.168.1.1, 10.0.0.1"
+        request.META["HTTP_X_FORWARDED_FOR"] = " 192.168.1.1 , 10.0.0.1"
 
         ip = self.admin._get_client_ip(request)
         self.assertEqual(ip, "192.168.1.1")
@@ -445,7 +445,7 @@ class TestUserAdmin(TestCase):
             del request.META["REMOTE_ADDR"]
 
         ip = self.admin._get_client_ip(request)
-        self.assertEqual(ip, "0.0.0.0")
+        self.assertIsNone(ip)
 
     def test_company_inline_configuration(self):
         """Тест конфигурации CompanyInline"""

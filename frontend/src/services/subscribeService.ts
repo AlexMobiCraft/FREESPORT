@@ -6,7 +6,24 @@
 import apiClient from './api-client';
 import type { SubscribeRequest, SubscribeResponse } from '@/types/api';
 
-export type SubscribeValidationDetails = Partial<Record<'email' | 'pdp_consent', string[]>>;
+export type SubscribeValidationDetails = Record<string, string[] | string | undefined>;
+
+type SubscribeErrorResponse = SubscribeValidationDetails & {
+  details?: SubscribeValidationDetails;
+};
+
+const getValidationDetails = (data: unknown): SubscribeValidationDetails | undefined => {
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+
+  const errorData = data as SubscribeErrorResponse;
+  if (errorData.details && typeof errorData.details === 'object') {
+    return errorData.details;
+  }
+
+  return errorData;
+};
 
 export class SubscribeServiceError extends Error {
   details?: SubscribeValidationDetails;
@@ -30,13 +47,20 @@ export const subscribeService = {
       // Проброс ошибки для обработки в компоненте
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as {
-          response?: { status?: number; data?: SubscribeValidationDetails };
+          response?: { status?: number; data?: unknown };
         };
+        const details = getValidationDetails(axiosError.response?.data);
         if (axiosError.response?.status === 409) {
-          throw new SubscribeServiceError('already_subscribed', axiosError.response.data);
+          throw new SubscribeServiceError('already_subscribed', details);
         }
         if (axiosError.response?.status === 400) {
-          throw new SubscribeServiceError('validation_error', axiosError.response.data);
+          throw new SubscribeServiceError('validation_error', details);
+        }
+        if (axiosError.response?.status === 429) {
+          throw new SubscribeServiceError('throttled', details);
+        }
+        if (axiosError.response?.status && axiosError.response.status >= 500 && details) {
+          throw new SubscribeServiceError('server_error', details);
         }
       }
       throw new SubscribeServiceError('network_error');

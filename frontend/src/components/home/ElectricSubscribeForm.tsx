@@ -19,12 +19,23 @@ interface SubscribeFormData {
 }
 
 type SubscribeFormField = keyof SubscribeFormData;
+type SubscribeValidationDetails = Record<string, string[] | string | undefined>;
 type SubscribeValidationError = Error & {
-  details?: Partial<Record<SubscribeFormField, string[]>>;
+  details?: SubscribeValidationDetails;
 };
+
+const PDP_CONSENT_REQUIRED = 'Необходимо согласие на обработку персональных данных.';
+const THROTTLED_ERROR = 'Слишком много попыток. Попробуйте через минуту';
 
 const electricToastErrorOptions = {
   style: { borderRadius: '0', background: '#000', color: '#fff', border: '1px solid red' },
+};
+
+const getBackendMessage = (value: string[] | string | undefined) => {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+  return value;
 };
 
 const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
@@ -32,7 +43,27 @@ const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
     return undefined;
   }
 
-  return (error as SubscribeValidationError).details?.[field]?.[0];
+  return getBackendMessage((error as SubscribeValidationError).details?.[field]);
+};
+
+const getFirstBackendError = (error: unknown) => {
+  if (!(error instanceof Error) || !('details' in error)) {
+    return undefined;
+  }
+
+  const details = (error as SubscribeValidationError).details;
+  if (!details) {
+    return undefined;
+  }
+
+  for (const value of Object.values(details)) {
+    const message = getBackendMessage(value);
+    if (message) {
+      return message;
+    }
+  }
+
+  return undefined;
 };
 
 export const ElectricSubscribeForm: React.FC = () => {
@@ -57,7 +88,7 @@ export const ElectricSubscribeForm: React.FC = () => {
 
   const pdpConsent = watch('pdp_consent');
   const pdpConsentRegistration = register('pdp_consent', {
-    required: 'Необходимо согласие на обработку персональных данных',
+    required: PDP_CONSENT_REQUIRED,
   });
   const hasPdpConsentError = !!errors.pdp_consent;
 
@@ -83,6 +114,7 @@ export const ElectricSubscribeForm: React.FC = () => {
       } else if (error instanceof Error && error.message === 'validation_error') {
         const pdpConsentError = getBackendFieldError(error, 'pdp_consent');
         const emailError = getBackendFieldError(error, 'email');
+        const backendError = getFirstBackendError(error);
 
         if (pdpConsentError) {
           setError('pdp_consent', { type: 'server', message: pdpConsentError });
@@ -91,7 +123,17 @@ export const ElectricSubscribeForm: React.FC = () => {
           setError('email', { type: 'server', message: emailError });
         }
 
-        toast.error(pdpConsentError ?? emailError ?? 'ОШИБКА ПОДПИСКИ', electricToastErrorOptions);
+        toast.error(
+          pdpConsentError ?? emailError ?? backendError ?? 'ОШИБКА ПОДПИСКИ',
+          electricToastErrorOptions
+        );
+      } else if (error instanceof Error && error.message === 'throttled') {
+        toast.error(
+          (getFirstBackendError(error) ?? THROTTLED_ERROR).toUpperCase(),
+          electricToastErrorOptions
+        );
+      } else if (error instanceof Error && error.message === 'server_error') {
+        toast.error(getFirstBackendError(error) ?? 'ОШИБКА ПОДПИСКИ', electricToastErrorOptions);
       } else {
         toast.error('ОШИБКА ПОДПИСКИ', electricToastErrorOptions);
       }

@@ -10,7 +10,7 @@ Tech-Spec: jwt-access-token-blacklist
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -18,6 +18,8 @@ from django.utils import timezone
 from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
+
+from apps.common.utils.consent_audit import get_client_ip
 
 logger = logging.getLogger("apps.users.auth")
 
@@ -171,9 +173,4 @@ def _get_client_ip(request: Request) -> str:
     Returns:
         str: IP адрес клиента
     """
-    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(",")[0].strip()
-    else:
-        ip = request.META.get("REMOTE_ADDR", "unknown")
-    return cast(str, ip)
+    return get_client_ip(request)

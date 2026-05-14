@@ -10,6 +10,7 @@ from django.http import HttpRequest
 from django.utils.html import format_html
 
 from apps.common.models import AuditLog
+from apps.common.utils.consent_audit import get_client_ip
 
 from .models import Address, Company, Favorite, User
 
@@ -463,14 +464,10 @@ class UserAdmin(BaseUserAdmin):
 
     # Helper methods
 
-    def _get_client_ip(self, request: HttpRequest) -> str:
+    def _get_client_ip(self, request: HttpRequest) -> str | None:
         """Получение IP адреса клиента"""
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0]
-        else:
-            ip = request.META.get("REMOTE_ADDR", "0.0.0.0")
-        return str(ip)
+        ip_address = get_client_ip(request)
+        return None if ip_address == "unknown" else ip_address
 
 
 @admin.register(Company)

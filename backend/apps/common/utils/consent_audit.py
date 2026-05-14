@@ -77,6 +77,9 @@ def normalize_consent_ip(raw_ip: str) -> str | None:
         if ipv4_with_port_match:
             candidate = ipv4_with_port_match.group("ip")
 
+    if "%" in candidate:
+        candidate = candidate.split("%", 1)[0]
+
     try:
         parsed_ip = parse_ip_address(candidate)
     except ValueError:

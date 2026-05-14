@@ -1,6 +1,6 @@
 """Интеграционные тесты публичного API подписки на рассылку."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -48,6 +48,7 @@ class TestSubscribeEndpoint:
 
         assert response.status_code == status.HTTP_409_CONFLICT
         assert "уже подписан" in str(response.data["email"][0])
+        assert response.data["email"][0].code == "already_subscribed"
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_reactivate_unsubscribed(self, api_client):
@@ -294,18 +295,19 @@ class TestSubscribeEndpoint:
         assert select_for_update.called
 
     def test_subscribe_atomic_rollback_on_consent_failure(self, api_client):
-        """Если consent audit не записался, Newsletter не должен сохраниться."""
+        """Если consent audit не записался, клиент получает JSON 503 и Newsletter откатывается."""
         url = reverse("common:subscribe")
         data = {"email": "rollback-consent@example.com", "pdp_consent": True}
 
         with patch.object(
             UserConsent.objects,
             "create",
-            side_effect=[object(), IntegrityError("consent failed")],
+            side_effect=[MagicMock(spec=UserConsent), IntegrityError("consent failed")],
         ):
-            with pytest.raises(IntegrityError):
-                api_client.post(url, data, format="json")
+            response = api_client.post(url, data, format="json")
 
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data["error"] == "consent_persistence_failed"
         assert not Newsletter.objects.filter(email="rollback-consent@example.com").exists()
         assert UserConsent.objects.count() == 0
 
@@ -319,6 +321,7 @@ class TestSubscribeEndpoint:
 
         assert response.status_code == status.HTTP_409_CONFLICT
         assert "уже подписан" in str(response.data["email"][0])
+        assert response.data["email"][0].code == "already_subscribed"
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_anonymous_creates_session_key(self, api_client):

@@ -1,6 +1,6 @@
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
-from apps.common.utils.consent_audit import sanitize_log_value
+from apps.common.utils.consent_audit import normalize_consent_ip, sanitize_log_value
 
 
 class ProxyAwareThrottleIdentMixin:
@@ -8,7 +8,8 @@ class ProxyAwareThrottleIdentMixin:
 
     def _sanitize_ident(self, ident):
         """Вернуть Redis-safe throttle ident из внешнего IP-заголовка."""
-        return sanitize_log_value(str(ident).strip())
+        raw_ident = str(ident).strip()
+        return normalize_consent_ip(raw_ident) or sanitize_log_value(raw_ident)
 
     def get_ident(self, request):
         # Nginx sets X-Real-IP to the client's IP address

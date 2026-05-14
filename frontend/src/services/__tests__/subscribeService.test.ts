@@ -49,4 +49,26 @@ describe('subscribeService', () => {
       details,
     });
   });
+
+  it('maps 429 responses to throttled errors with backend details', async () => {
+    const details = {
+      non_field_errors: ['Слишком много попыток. Попробуйте через минуту.'],
+    };
+    vi.mocked(apiClient.post).mockRejectedValueOnce({
+      response: {
+        status: 429,
+        data: details,
+      },
+    });
+
+    await expect(
+      subscribeService.subscribe({
+        email: 'new@example.com',
+        pdp_consent: true,
+      })
+    ).rejects.toMatchObject({
+      message: 'throttled',
+      details,
+    });
+  });
 });

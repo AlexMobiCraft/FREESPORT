@@ -117,6 +117,8 @@ paths:
           description: Ошибка валидации email
         '409':
           description: Email уже подписан на рассылку
+        '503':
+          description: Согласие не удалось сохранить, подписка откатана
   /unsubscribe/:
     post:
       operationId: unsubscribe_create

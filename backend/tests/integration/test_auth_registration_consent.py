@@ -349,7 +349,8 @@ def test_registration_accepts_non_global_forwarded_ip_for_consent_record(forward
     assert consent.ip_address == forwarded_ip
 
 
-def test_registration_ignores_forwarded_ipv6_zone_id_for_consent_record():
+def test_registration_normalizes_forwarded_ipv6_zone_id_for_consent_record():
+    """IPv6 zone id нормализуется до canonical IP перед записью в audit."""
     client = APIClient()
 
     response = post_register(
@@ -362,7 +363,7 @@ def test_registration_ignores_forwarded_ipv6_zone_id_for_consent_record():
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
     consent = UserConsent.objects.get(user=user)
-    assert consent.ip_address is None
+    assert str(consent.ip_address) == "fe80::1"
 
 
 def test_registration_logs_warning_when_remote_addr_is_unknown(caplog):
