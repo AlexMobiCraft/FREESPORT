@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review (Pass 3 patches PPP1-PPP7 closed 2026-05-14; DDN1 deferred to story 35.5)
+**Status:** in-progress (Pass 4: 6 patch-action items PPPP1-PPPP6 awaiting fix 2026-05-14; 3 deferred WWWW1-WWWW3)
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -1169,3 +1169,64 @@ Code review от 2026-05-13 (bmad-code-review, 3 параллельных сло
 - **Edge #6 потеря `unsubscribed_at` истории при reactivation** — Pass 1 D1 явно зафиксировал: `Newsletter.ip_address`/`user_agent`/`unsubscribed_at` = «latest activity», а audit-trail «первый раз» / «каждое согласие» живёт в `UserConsent` (append-only — каждая реактивация = 2 новых записи). Архитектурное решение. Dismiss.
 - **Edge #15 mock-based тест с false-positive (без указания конкретного теста)** — generic concern без evidence в diff, dismiss как noise.
 - **Acceptance scope creep `policy_version="1.0"` hardcoded в default модели** — AC-5 explicit fallback на default. Auditor сам пометил «верификация пройдена». Dismiss.
+
+---
+
+## Review Findings — Pass 4 (2026-05-14)
+
+Четвёртый заход bmad-code-review после закрытия Pass 3 (PPP1-PPP7, DDN1-DDN2). Запущены 3 параллельных слоя — Blind Hunter, Edge Case Hunter, Acceptance Auditor — по diff `0833e90c^..fa435897` (2932 строки production-кода + tests, без BMAD-артефактов / AGENTS.md / CLAUDE.md / api.generated.ts). **Edge Case Hunter и Acceptance Auditor наткнулись на rate-limit (00:50 Europe/Ljubljana)** и не отдали output; их слои частично воспроизведены в основной сессии (выборочный AC-аудит ключевых файлов + дополнительные edge-cases). Blind Hunter выдал 25 находок. Триаж в свете истории P1-P12 + PP1-PP8 + PPP1-PPP7: **0 decision-needed, 6 patch, 3 defer, ~17 dismissed (already-resolved в предыдущих проходах)**.
+
+### Decision-needed (0)
+
+Все архитектурные decisions, всплывшие у Blind Hunter, **уже зафиксированы** в спеке: D3→P11 (is_global filter намеренно убран), DN1 (strict `initial_data` JSON-only), DN3 (`ProxyAwareUserRateThrottle` в production), DDN1 (forensic связка через ip+ua+timestamp), DDN2 (scope-specific `SubscribeRateThrottle`). Pass 4 ничего нового по архитектуре не выявил.
+
+### Patch (6)
+
+- [ ] [Review][Patch] **PPPP1. `ProxyAwareThrottleIdentMixin.get_ident()` fallback не санитизует `REMOTE_ADDR`** [`backend/apps/common/throttling.py:18-31`] — Если запрос приходит **без** `HTTP_X_REAL_IP` и `HTTP_X_FORWARDED_FOR`, метод делает `return super().get_ident(request)` — `BaseThrottle.get_ident` возвращает **сырой** `REMOTE_ADDR` без `_sanitize_ident`. PP1 Pass 2 закрыл proxy-заголовочные пути, но REMOTE_ADDR fallback всё ещё может содержать unsafe chars (если фронт ходит мимо Nginx или REMOTE_ADDR заспуфен в тестах) → unsafe Redis cache key. Fix: `return self._sanitize_ident(super().get_ident(request))` или `return self._sanitize_ident(request.META.get("REMOTE_ADDR", ""))`. Источник: Blind#6.
+
+- [ ] [Review][Patch] **PPPP2. `request.session.save()` внутри `transaction.atomic()` создаёт session-row, который откатывается при IntegrityError** [`backend/apps/common/views.py:406-419`] — Текущая последовательность: открываем atomic → `serializer.save()` (Newsletter) → `session.save()` (создаёт row в `django_session` через тот же connection) → 2× `UserConsent.create`. Если `UserConsent.create` падает на CheckConstraint/IntegrityError, atomic-rollback откатит **и `Newsletter`, и `django_session` row**. Дальше `SessionMiddleware.process_response` попытается записать session повторно с тем же ключом — может вернуть конфликт уникальности или потеряет привязку. Также блокировка `django_session` (горячая таблица) внутри длинной транзакции — contention vector. Fix: вынести `session.save()` **до** `with transaction.atomic():` блока — session_key должен существовать **независимо** от успеха consent-вставки (он используется только как идентификатор анонима в audit). Источник: Blind#4.
+
+- [ ] [Review][Patch] **PPPP3. `test_subscribe_atomic_rollback_on_consent_failure` тавтологичный** [`backend/tests/integration/test_common_subscribe_api.py:~1331-1346`] — `side_effect=[MagicMock(spec=UserConsent), IntegrityError(...)]` — первый вызов `UserConsent.objects.create` возвращает мок, **не пишет в БД**. Финальный assert `UserConsent.objects.count() == 0` тавтологичен — мок ничего не создаёт независимо от наличия rollback. Тест проверяет только что код возвращает 503 при IntegrityError, но **не подтверждает rollback реальной записи**. Fix: либо использовать `mock.patch` ТОЛЬКО для второго вызова через `side_effect=[DEFAULT, IntegrityError(...)]` + `wraps=UserConsent.objects.create` (первый вызов идёт в реальную БД), либо переписать assert на `Newsletter.objects.count() == 0` (более явный proxy для rollback). Источник: Blind#17.
+
+- [ ] [Review][Patch] **PPPP4. `test_subscribe_scope_throttle_applies_before_validation` имя мисслидит реальное поведение** [`backend/tests/integration/test_common_subscribe_api.py:~1384-1394`] — Payload без `pdp_consent`, ассерты `400 in statuses` + `429 count >= 10`. Если throttle действительно применялся **до** validation, мы получили бы **только** 429 после лимита, не комбинацию 400+429. Тест проверяет «во время серии запросов встречаются и 400, и 429», что не доказывает порядок их применения. Fix: либо переименовать в `test_subscribe_scope_throttle_kicks_in_during_invalid_payload_flood`, либо отправлять валидный payload (`pdp_consent: True`) с уникальными email — тогда сравнение «без throttle = 40×201, с throttle = N×201 + M×429» становится prove of behaviour. Источник: Blind#8.
+
+- [ ] [Review][Patch] **PPPP5. `SubscribeRateThrottle.get_cache_key` полностью дублирует `SimpleRateThrottle.get_cache_key`** [`backend/apps/common/throttling.py:55-60`] — Базовая реализация `SimpleRateThrottle.get_cache_key` уже использует `self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}` — точно тот же код. Override не добавляет логики. Fix: удалить override — `SubscribeRateThrottle` отнаследует базовый метод. Источник: Blind#19.
+
+- [ ] [Review][Patch] **PPPP6. `consent_audit.get_client_ip` смотрит только `X-Forwarded-For`, throttle mixin — `X-Real-IP` first** [`backend/apps/common/utils/consent_audit.py:42-51` vs `backend/apps/common/throttling.py:19-28`] — Под Nginx, который ставит и `X-Real-IP`, и `X-Forwarded-For`, throttle bucket будет ключиться по X-Real-IP, а audit IP — по XFF first-hop. Если nginx-конфиг устроен так, что эти заголовки расходятся (например, intermediate proxy), у одной и той же сессии IP в audit и в throttle ключе будут разные. Fix: синхронизировать порядок: `get_client_ip` тоже должен смотреть `X-Real-IP` first, как PP1 Pass 2 формализовал для throttle. Альтернатива — оставить расхождение, но задокументировать в Dev Notes и `consent_audit.py` docstring. Источник: Blind#16.
+
+### Defer (3) — pre-existing или out-of-scope
+
+- [x] [Review][Defer] **WWWW1. Мёртвая ветка `if getattr(parsed_ip, "scope_id", None): return None` в `normalize_consent_ip`** [`backend/apps/common/utils/consent_audit.py:80-95`] — После `candidate.split("%", 1)[0]` (line 81) zone_id уже отсечён до парсинга, поэтому `scope_id` после `parse_ip_address(candidate)` всегда `None`. Условие на line 92-93 никогда не сработает. Защитный fallback на гипотетический случай, когда `parse_ip_address` сам распознает scope. Не баг, но мёртвый код. Fix (опционально): убрать `scope_id` проверку или добавить комментарий «defensive». Источник: Blind#2.
+
+- [x] [Review][Defer] **WWWW2. OpenAPI yaml: массовая перестановка get/patch операций без видимой причины** [`docs/api/openapi.yaml`] — Большая часть из 182 строк изменений в openapi.yaml — drf-spectacular regenerated с другим порядком ключей. Blind Hunter отметил возможную утрату описаний `'401'`/`'404'` для одной из операций (`/orders/{id}`) — нужно сверить с прошлой версией, чтобы понять, реально ли утрачены ответы. Если да — это **regression в API контракте, не связанный со story 35.3**. Fix: вне scope 35.3 — отдельная задача «verify openapi.yaml diff for unintended response removal». Источник: Blind#13.
+
+- [x] [Review][Defer] **WWWW3. `/unsubscribe/` не обвешан throttle — enumeration attack vector** [`backend/apps/common/views.py:518-554`] — После DDN2 Pass 3 на `/subscribe/` повесили scope-specific 30/min. На `/unsubscribe/` остался global `ProxyAwareAnonRateThrottle` (после DN3 Pass 2 — 6000/min anon). Атакующий может массово опрашивать `/unsubscribe/` с разными email-ами: 200 (success) vs 404 (not subscribed) → пассивное email enumeration (известно, кто подписан). Pre-existing — endpoint существовал до 35.3, story 35.3 не меняет unsubscribe flow. Fix: вне scope — отдельная security-story «harden unsubscribe enumeration». Источник: внутренний edge case audit.
+
+### Dismissed (~17) — already-resolved в P1-P12 / PP1-PP8 / PPP1-PPP7 + false positives
+
+**Blind Hunter:**
+- **#1 `normalize_consent_ip` потерял `is_global` filter** — D3 Pass 1 → P11 Pass 2 явно зафиксировал как намеренное изменение политики (audit пишет всё, juridical filtering — на read-time). См. WWW14 Pass 3.
+- **#3 race на новый email** — IntegrityError на unique constraint → already_subscribed_error → 409, поведение корректное.
+- **#5 двойной 409 path (через validate_email + через IntegrityError)** — defensive defense-in-depth, не баг.
+- **#7 `THROTTLE_RATES` patch хрупкий** — WWW13 defer Pass 3.
+- **#9 Newsletter.ip_address: raw XFF → normalized** — положительное усиление, не нарушение.
+- **#10 `_has_error_code` рекурсивный any** — WWW3 defer Pass 3.
+- **#11 `validate()` initial_data ломает form-urlencoded** — DN1 Pass 2 strict JSON-only.
+- **#12 OpenAPI form-urlencoded валиден, но кода не работает** — следствие DN1, dismiss.
+- **#14 development.py `100000/min` фактически без лимита** — intentional dev override; CI/test не страдают.
+- **#15 production.py: `UserRateThrottle` → `ProxyAwareUserRateThrottle`** — DN3 Pass 2.
+- **#18 `MAX_LOG_VALUE_LENGTH=128` collision** — теоретическая, не реальная угроза.
+- **#20 `ErrorDetail` многословный** — косметика.
+- **#21 `getFirstBackendError` порядок ключей** — WWW6 defer Pass 3.
+- **#22 `getValidationDetails` error string в loop** — WWW10 defer Pass 3.
+- **#23 `policy_version` hardcoded** — false positive, default="1.0" в `UserConsent` модели (`backend/apps/common/models.py:627-629`).
+- **#24 `pdp_consent: false` payload на фронте** — design choice, RHF блокирует submit, бэк отвергает.
+- **#25 `api.generated.ts` required-flag** — корректно, openapi.yaml содержит `required: [email, pdp_consent]`.
+
+**Edge Case Hunter (rate-limited, темы воспроизведены в основной сессии и пересеклись с Blind находками выше).**
+
+**Acceptance Auditor (rate-limited, ключевые AC проверены в основной сессии):**
+- AC-1..AC-3, AC-5, AC-7, AC-9 — **OK**.
+- AC-4 — формально OK, нюанс с form-urlencoded — DN1 closed (dismiss).
+- AC-6 — формально нарушен («строка-в-строку»), но D3 Pass 1 → P11 Pass 2 → WWW14 Pass 3 явно зафиксировали изменение как намеренное; AC-6 considered amended (dismiss).
+- AC-8 — OK с замечаниями на хрупкость тестов (PPPP3, PPPP4).
