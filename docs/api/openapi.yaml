@@ -119,6 +119,10 @@ paths:
           description: Email уже подписан на рассылку
         '503':
           description: Согласие не удалось сохранить, подписка откатана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscribeConsentPersistenceErrorResponse'
   /unsubscribe/:
     post:
       operationId: unsubscribe_create
@@ -3822,33 +3826,11 @@ components:
           format: double
           description: Получить МРЦ первого варианта
           readOnly: true
-        images:
-          type: string
-          readOnly: true
-        related_products:
-          type: string
-          readOnly: true
-        category_breadcrumbs:
-          type: string
-          readOnly: true
-        seo_title:
-          type: string
-          title: SEO заголовок
-          maxLength: 200
-        seo_description:
-          type: string
-          title: SEO описание
-        variants:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductVariant'
-          readOnly: true
       required:
       - attributes
       - brand
       - can_be_ordered
       - category
-      - category_breadcrumbs
       - created_at
       - current_price
       - description
@@ -3867,7 +3849,6 @@ components:
       - opt1_price
       - opt2_price
       - opt3_price
-      - related_products
       - retail_price
       - rrp
       - sku
@@ -4268,6 +4249,20 @@ components:
         * `delivered` - Доставлен
         * `cancelled` - Отменен
         * `refunded` - Возвращен
+    SubscribeConsentPersistenceErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - details
+      - error
     SubscribeRequest:
       type: object
       description: |-

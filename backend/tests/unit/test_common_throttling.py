@@ -46,6 +46,22 @@ def test_proxy_aware_throttle_remote_addr_fallback_is_sanitized():
 
 
 @pytest.mark.parametrize(
+    "header_name",
+    ["HTTP_X_REAL_IP", "HTTP_X_FORWARDED_FOR"],
+)
+def test_proxy_aware_throttle_uses_remote_addr_for_malformed_proxy_header(header_name):
+    """Malformed proxy header не должен создавать отдельный throttle bucket."""
+    request = SimpleNamespace(
+        META={
+            header_name: "rotating-bad-header",
+            "REMOTE_ADDR": "198.51.100.77",
+        }
+    )
+
+    assert ProxyAwareAnonRateThrottle().get_ident(request) == "198.51.100.77"
+
+
+@pytest.mark.parametrize(
     "throttle_cls",
     [ProxyAwareAnonRateThrottle, ProxyAwareUserRateThrottle, SubscribeRateThrottle],
 )

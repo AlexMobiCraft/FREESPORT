@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review (Pass 4 patch closure: PPPP1-PPPP6 closed 2026-05-14; WWWW1-WWWW3 deferred)
+**Status:** review (Pass 5: P5N1-P5N7 closed 2026-05-14; W5N1-W5N7 deferred including resolved D5N2)
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -979,6 +979,17 @@ GPT-5 Codex
   - `docker compose -p freesport-test --env-file ..\.env -f docker-compose.test.yml run --rm backend pytest -q -m unit` → passed, 717 passed, 12 skipped, 1554 deselected.
   - `docker compose -p freesport-test --env-file ..\.env -f docker-compose.test.yml run --rm backend pytest -q -m integration --ignore=tests/integration/test_management_commands/test_import_customers.py` → passed, 654 passed, 2 skipped, 1615 deselected. `test_import_customers.py` оставлен вне прогона как известный data-dependent локальный blocker без `data/import_1c/contragents`.
   - `npx gitnexus detect-changes --scope all` → 7 files, 7 symbols, 9 affected flows, risk `high`; HIGH ожидаем из-за shared `get_client_ip` (`subscribe`, registration audit, admin approve/reject/block audit, logout/JWT audit), покрыт targeted + dependent + unit/integration regression.
+- Pass 5 targeted validation:
+  - `cmd /c .\venv\Scripts\python.exe -m black apps\common\serializers.py apps\common\views.py apps\common\throttling.py apps\common\utils\consent_audit.py tests\integration\test_common_subscribe_api.py tests\integration\test_auth_registration_consent.py tests\unit\test_common_throttling.py tests\unit\test_users_admin.py` → passed; `apps/common/views.py` reformatted.
+  - `cmd /c npx prettier --write src\components\home\__tests__\SubscribeForm.test.tsx src\types\api.generated.ts` → passed.
+  - `cmd /c git diff --check` → passed; только Windows LF→CRLF warnings.
+  - `cmd /c .\venv\Scripts\python.exe -m flake8 apps\common\serializers.py apps\common\views.py apps\common\throttling.py apps\common\utils\consent_audit.py tests\integration\test_common_subscribe_api.py tests\integration\test_auth_registration_consent.py tests\unit\test_common_throttling.py tests\unit\test_users_admin.py --max-line-length=120 --extend-ignore=E203,W503` → passed.
+  - `cmd /c .\venv\Scripts\python.exe -m py_compile apps\common\serializers.py apps\common\views.py apps\common\throttling.py apps\common\utils\consent_audit.py tests\integration\test_common_subscribe_api.py tests\integration\test_auth_registration_consent.py tests\unit\test_common_throttling.py tests\unit\test_users_admin.py` → passed.
+  - `cmd /c npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx` → passed, 16 tests.
+  - `cmd /c docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -T backend pytest tests/integration/test_common_subscribe_api.py tests/integration/test_auth_registration_consent.py tests/unit/test_common_throttling.py tests/unit/test_users_admin.py -q` → passed, 112 tests, 6 warnings.
+  - `cmd /c npm exec -- eslint --max-warnings=0 --no-warn-ignored src/components/home/SubscribeForm.tsx src/components/home/__tests__/SubscribeForm.test.tsx src/types/api.generated.ts` → passed.
+  - `cmd /c npm run lint -- --no-warn-ignored` → failed на existing `frontend/next-env.d.ts` (`@typescript-eslint/triple-slash-reference`), не связан с изменениями story; targeted ESLint по изменённым frontend-файлам зелёный.
+  - Локальный DB-dependent pytest через `backend\venv` заблокирован локальными PostgreSQL credentials (`password authentication failed for user "postgres"`); тот же набор пройден через Docker backend.
 
 ### Completion Notes
 
@@ -997,6 +1008,7 @@ GPT-5 Codex
 - Финальный регресс: backend unit marker suite и полный frontend Vitest suite зелёные; story и `sprint-status.yaml` синхронизированы в `review`.
 - Pass 4 закрыт: `REMOTE_ADDR` fallback в throttle теперь санитизируется; anonymous `session.save()` вынесен перед локальным `transaction.atomic()`; rollback-тест реально пишет первую `UserConsent` и проверяет откат; subscribe throttle flood-тест переведён на валидные payload; audit IP теперь предпочитает `X-Real-IP`, как throttle. PPPP5 закрыт как проверенный false-positive: в текущей DRF-версии `SimpleRateThrottle.get_cache_key()` abstract, удаление override приводит к `NotImplementedError`, поэтому override сохранён с поясняющим docstring.
 - Pass 4 regression: targeted subscribe/audit tests, зависимые registration/admin tests, backend unit marker suite, integration marker suite без известного `test_import_customers.py` data-dependent blocker, Black, Flake8 и `git diff --check` зелёные.
+- Pass 5 закрыт: invalid-IP audit log возвращён на WARNING; malformed proxy headers в throttle fallback-ятся на `REMOTE_ADDR`; subscribe ловит `DatabaseError` и возвращает структурированный 503 с rollback; Blue SubscribeForm покрыт server_error/503 regression; OpenAPI/generated types получили 503 body schema; admin tests используют production-like `SessionStore`; existing-email lookup убран из `validate_email`, чтобы missing `pdp_consent` не раскрывал статус подписки.
 
 ### File List
 
@@ -1038,6 +1050,7 @@ GPT-5 Codex
 - 2026-05-13: Закрыты Pass 2 findings DN1-DN3 и PP1-PP8; добавлены machine-code 409 mapping, canonical throttle IP, структурированный 503 rollback, 429/unknown-details UI, Electric a11y test и минимальная OpenAPI/generated-types дельта.
 - 2026-05-14: Закрыты Pass 3 findings PPP1-PPP7; добавлены scope-specific subscribe throttle, non-prod throttle overrides, русский 429 detail, session-engine system check, admin audit IP fallback и Electric reset regression test; статус синхронизирован в `review`.
 - 2026-05-14: Закрыты Pass 4 findings PPPP1-PPPP6; добавлены Redis-safe `REMOTE_ADDR` fallback, `X-Real-IP` priority для consent audit, session-save-before-local-atomic guard, real rollback test и валидный throttle flood regression; PPPP5 подтверждён как false-positive для текущей DRF-версии; статус синхронизирован в `review`.
+- 2026-05-14: Закрыты Pass 5 findings P5N1-P5N7; добавлены DatabaseError 503 contract, no-enumeration validation path, malformed proxy fallback на REMOTE_ADDR, WARNING audit logs, OpenAPI/generated 503 schema, Blue server_error regression и SessionStore в admin tests; статус синхронизирован в `review`.
 
 ---
 
@@ -1253,3 +1266,81 @@ Code review от 2026-05-13 (bmad-code-review, 3 параллельных сло
 - AC-4 — формально OK, нюанс с form-urlencoded — DN1 closed (dismiss).
 - AC-6 — формально нарушен («строка-в-строку»), но D3 Pass 1 → P11 Pass 2 → WWW14 Pass 3 явно зафиксировали изменение как намеренное; AC-6 considered amended (dismiss).
 - AC-8 — OK с замечаниями на хрупкость тестов (PPPP3, PPPP4).
+
+---
+
+## Review Findings — Pass 5 (2026-05-14)
+
+Пятый заход bmad-code-review после Pass 4 closure (PPPP1-PPPP6 закрыты, WWWW1-WWWW3 deferred). Запущены 3 параллельных subagent-слоя (Blind Hunter, Edge Case Hunter, Acceptance Auditor) по cumulative diff `fb47fbeb..HEAD` (28 файлов, +1785/-366, без BMAD-артефактов / AGENTS.md / CLAUDE.md). Все три слоя завершились успешно: BH=20, EC=15, AA=8 = 43 raw findings. После dedup и сверки с историей P1-P12 / PP1-PP8 / PPP1-PPP7 / PPPP1-PPPP6: **2 decision-needed (обе разрешены ниже) → 7 patch, 7 defer, ~32 dismiss**.
+
+### Decision-needed (0)
+
+Обе всплывшие у Edge Case Hunter архитектурные decisions **разрешены** в Pass 5:
+- **D5N1** (validate_email раскрывает subscription state) → **разрешено: вариант 1** — реклассифицировано как patch P5N7 (убрать existing-email lookup из `validate_email`; race-check остаётся через `select_for_update + IntegrityError` в `save()`).
+- **D5N2** (cross-identity reactivation) → **разрешено: вариант 5** — реклассифицировано как defer W5N7 (defer в существующую Story 35.5 «consent audit linkage» — единый pattern для всех типов согласий, требует юридического input).
+
+### Patch (7)
+
+- [x] [Review][Patch] **P5N7. Переместить existing-email lookup из `validate_email` в `save()` — закрыть 152-ФЗ enumeration vector** [`backend/apps/common/serializers.py:56-77` (`validate_email`) → `serializers.py:96-106` (`save()`)] — Текущий `validate_email` сначала вызывает `Newsletter.objects.filter(email=value, unsubscribed_at__isnull=True).exists()` и raises 409 `already_subscribed` ДО проверки cross-field `validate()` для `pdp_consent`. Анонимный POST `{email: "known@x.com"}` (без pdp_consent) раскрывает subscription state существующего подписчика. **Fix**: убрать early existing-email check из `validate_email` — оставить только нормализацию (`lower()`, `strip()`) + DRF EmailValidator. Race-check уже покрыт через `select_for_update().get() / DoesNotExist → create() / IntegrityError → already_subscribed_error()` в `save()`. Поведенческий эффект: невалидный/отсутствующий `pdp_consent` → 400 без leak; валидный consent + существующий email → 409 на save-time (тот же контракт для клиента). Добавить regression test: `test_subscribe_missing_pdp_consent_does_not_leak_subscriber_status` — POST `{email: <known>}` без pdp_consent → 400 с pdp_consent error, **БЕЗ** email-field 409. Источник: Edge#1 (decision D5N1 → вариант 1). Закрыто Pass 5.
+
+- [x] [Review][Patch] **P5N1. Log level invalid-IP понижен с WARNING до DEBUG при переносе helpers** [`backend/apps/common/utils/consent_audit.py:127` / `:435`] — Источник в `apps/users/views/authentication.py` (35.2, до миграции) логировал `logger.warning("Invalid client IP skipped...")`. Новый модуль `consent_audit.py` использует `logger.debug(...)`. Тесты `tests/integration/test_auth_registration_consent.py:300,316,388,407,424` переведены на `caplog.at_level("DEBUG", ...)`. AC-6 spec явно требует «строка-в-строку» — log-level понижение даже формально drift, к тому же реальная цена: SOC/ops больше не видят WARNING при попытках header-injection. Inconsistency: `"unknown REMOTE_ADDR"` ветка осталась на `logger.warning(...)`. **Fix**: вернуть `logger.warning(...)` для invalid-IP в `consent_audit.py`, обновить тесты на `caplog.at_level("WARNING", ...)`. Источник: Blind#12 + Auditor F-AA-7. Закрыто Pass 5.
+
+- [x] [Review][Patch] **P5N2. Throttle bypass через ротацию malformed `X-Real-IP` / `X-Forwarded-For`** [`backend/apps/common/throttling.py:_sanitize_ident` (≈ ProxyAwareThrottleIdentMixin)] — Цепочка: `normalize_consent_ip(raw)` возвращает `None` для невалидного IP → fallback `sanitize_log_value(raw)` возвращает уникальный escaped string. Этот escaped string становится throttle cache key. Attacker ротирует `X-Real-IP`: `bad1`, `bad2`, ..., `badN` — каждый получает свой 30/min bucket. Эффективный rate = `N × 30/min`. PP1 Pass 2 закрыл log-safety + Redis-injection, но НЕ закрыл этот bypass — `_sanitize_ident` всё ещё возвращает header-derived value. **Fix**: когда `normalize_consent_ip` вернул `None`, fallback должен использовать `REMOTE_ADDR` (TCP-source IP, не spoofable через header), а не sanitized header. Идиоматически: `return self._sanitize_ident(request.META.get("REMOTE_ADDR", "")) if not normalize_consent_ip(parsed) else parsed`. Опционально: добавить `logger.warning(...)` при fallback на REMOTE_ADDR (signal для SOC). Источник: Blind#9 + Edge#6. Закрыто Pass 5.
+
+- [x] [Review][Patch] **P5N3. `OperationalError` / `DatabaseError` не пойман в subscribe atomic блоке — 503 контракт работает только для `IntegrityError`** [`backend/apps/common/views.py:412-441` (consent persistence block)] — Текущий код: `except IntegrityError → return 503 {"error": "consent_persistence_failed", ...}`. Но `UserConsent.objects.create` может бросить и другие `DatabaseError` подклассы: `OperationalError` (DB connection drop, deadlock retry exhausted), `DataError` (CHECK constraint violation на edge data). Эти исключения **не пойманы** → Django default 500 handler → ответ без custom `error/details` shape, фронтенд `subscribeService.ts` маппит на generic `network_error`. **Fix**: расширить `except` до `(IntegrityError, OperationalError)` или базовый `DatabaseError` (`from django.db import DatabaseError`). Желательно различать в logging — `IntegrityError` (constraint, retry бесполезен), `OperationalError` (transient, можно retry). Источник: Edge#8. Закрыто Pass 5.
+
+- [x] [Review][Patch] **P5N4. `SubscribeForm.tsx` не обрабатывает `server_error` / 503 — toast показывает generic «Не удалось подписаться»** [`frontend/src/components/home/SubscribeForm.tsx:103-128` vs `ElectricSubscribeForm.tsx:113-128`] — `ElectricSubscribeForm` имеет полноценную `server_error` ветку с разбором `details.non_field_errors` через `getFirstBackendError` (см. AC-7 / PP2 Pass 2). `SubscribeForm.tsx` (Blue, основной продакшен) той же ветки не имеет — 503 попадает в `default` блок и пользователь видит «Не удалось подписаться. Попробуйте позже» вместо более конкретного сообщения. Тесты `SubscribeForm.test.tsx` не покрывают 503/server_error путь (только ElectricSubscribeForm.test.tsx это делает). **Fix**: скопировать `server_error` switch-case из `ElectricSubscribeForm.tsx:113-128` в `SubscribeForm.tsx`, добавить `test_subscribe_form_shows_backend_message_on_503` тест по аналогии с Electric. Источник: Edge#11. Закрыто Pass 5.
+
+- [x] [Review][Patch] **P5N5. 503 OpenAPI response schema пустая — generated TypeScript типы `content?: never` маскируют body** [`docs/api/openapi.yaml:1577-1578` (subscribe 503) / `frontend/src/types/api.generated.ts:2976-2982`] — `@extend_schema(responses={503: OpenApiResponse(description="...")})` не передал `inline_serializer` / `OpenApiTypes.OBJECT` с реальной body shape, поэтому openapi-typescript генерирует `'503': { headers; content?: never }`. Фронтенд видит «нет body» — typed consumer не может прочитать `{error, details}`. **Fix**: добавить inline serializer в `@extend_schema` для 503 с полями `error: str`, `details: dict`, регенерировать `python manage.py spectacular --file docs/api/openapi.yaml`, прогнать `npm run generate:types` (но см. defer W5N1 про двойственность файлов). Источник: Blind#17. Закрыто Pass 5.
+
+- [x] [Review][Patch] **P5N6. `test_users_admin.py` передаёт строку как `request.session` — dormant breakage** [`backend/tests/unit/test_users_admin.py:~1545`] — `setattr(request, "session", "session")`. Admin action `block_users` сейчас не читает `request.session.session_key`, поэтому тест проходит. Если в будущем action добавит session-use (например, для CSRF check / audit), `"session".session_key` → AttributeError. Также: маркер plain string в production-like тесте — misleading reader. **Fix**: `from importlib import import_module; SessionStore = import_module(settings.SESSION_ENGINE).SessionStore; request.session = SessionStore()` или `request.session = MagicMock(spec=SessionStore)`. Источник: Blind#14. Закрыто Pass 5.
+
+### Defer (7) — pre-existing или out-of-scope
+
+- [x] [Review][Defer] **W5N7. Cross-identity reactivation — authenticated user B переподписывает email user A** [`backend/apps/common/views.py:412-419`] — Сценарий: anon A подписал `victim@x.com`, отписался. Позже authenticated B (со своим email) POST-ит `{email: "victim@x.com", pdp_consent: true}`. View реактивирует `Newsletter` row и пишет 2× `UserConsent` с `user=B`. Audit не доказывает согласие владельца email — только что B утверждал согласие. **Defer**: cross-identity reactivation органично укладывается в уже-открытую **Story 35.5 «consent audit linkage»** (DDN1 Pass 3). Без юриста/комплаенс-офицера выбор между «запретить если user.email != email», «double-opt-in», «anon-only для reactivation», «принять» — неполный. Единый pattern proof-of-consent для всех типов согласий (registration + subscribe + cookie-banner) должен решаться в одной story. Источник: Edge#4 (decision D5N2 → вариант 5).
+
+- [x] [Review][Defer] **W5N1. `docs/api-spec.yaml` не синхронизирован с `docs/api/openapi.yaml` — frontend codegen читает первый файл** [`frontend/package.json:22` `openapi-typescript ../docs/api-spec.yaml ...`] — Story 35.3 (и предыдущие 35.1/35.2) обновляли `docs/api/openapi.yaml`. Codegen команда `npm run generate:types` читает `docs/api-spec.yaml`. Если оба файла должны существовать — нужно явное правило (один — canonical), либо мигрировать package.json на `docs/api/openapi.yaml`. Pre-existing inconsistency (была до 35.3). Источник: Auditor F-AA-8.
+
+- [x] [Review][Defer] **W5N2. `SubscribeRateThrottle` 30/min шарится между всеми клиентами за одним CGNAT/NAT exit IP — DoS amplification против легитимных подписчиков** [`backend/freesport/settings/base.py:864` + `apps/common/throttling.py`] — Один attacker за корпоративным NAT занимает 30/min → все остальные за тем же IP получают 429. Особенно болезненно для мобильных операторов (carrier-grade NAT). Architectural решение DDN2 Pass 3 принято осознанно. Mitigation вне scope: добавить session-scoped throttle (для аутентифицированных), CAPTCHA для 429-фоллбэка, либо `DEFAULT_THROTTLE_CLASSES` с per-session ключом. Источник: Blind#8.
+
+- [x] [Review][Defer] **W5N3. `Newsletter.email` lookup чувствителен к регистру — legacy mixed-case rows провоцируют unrecoverable 409** [`backend/apps/common/serializers.py:96-106`] — Если в `Newsletter` есть legacy `"User@X.com"`, новый запрос с `"user@x.com"` (нормализованный validator-ом) промахивается на `select_for_update().get()` → `DoesNotExist` → `create(email="user@x.com")` → `IntegrityError` (если в PG `email` имеет unique CI index) или второй row (если CS index). Story 35.3 не делает миграцию данных. Fix вне scope: `migrations/000X_normalize_newsletter_emails.py` (UPDATE Lower(email)) + CITEXT field или `Lower()` functional index. Источник: Blind#18 + Edge#14.
+
+- [x] [Review][Defer] **W5N4. Cross-domain session cookies — `SAMESITE=Strict` / domain mismatch ломает session-key reuse для анонимного subscriber** [`backend/freesport/settings/production.py:37`] — Если фронт `freesport.ru`, API `api.freesport.ru`, и `SESSION_COOKIE_SAMESITE='Strict'` — браузер не отправит cookie на cross-site POST. Каждый запрос → новая session → audit-records с разными session_keys для одного человека (defeats forensic linkage). Deploy-config concern, story 35.3 не отвечает за production cookie policy. Источник: Edge#12.
+
+- [x] [Review][Defer] **W5N5. `sanitize_consent_user_agent` slice по `[:512]` после surrogate strip — boundary fragile для emoji/мульти-байтовых UA** [`backend/apps/common/utils/consent_audit.py:415-418`] — `encode("utf-8","ignore").decode(...)` может удалить surrogate pair → итоговая Python-длина переменна. Тест ассертит `len == 512` exactly при конкретном входе, но input-вариативность ломает assertion. Не баг runtime (slice безопасен), test brittleness. Источник: Edge#15.
+
+- [x] [Review][Defer] **W5N6. `policy_version` всегда пишется как model-default "1.0" — при будущем обновлении политики audit не отражает version drift** [`backend/apps/common/models.py:627-629` + `backend/apps/common/views.py:412-419`] — `views.py` не передаёт `policy_version` в `consent_kwargs`, поэтому DB default `"1.0"` записывается всегда. При смене текста privacy policy (новая версия "1.1") старые admin-action создания consent продолжат писать "1.0" пока кто-то вручную не сменит default в модели. Pass 3 dismiss обосновывал «default в модели достаточно», но не учитывал live versioning. Compliance forward-concern: добавить `POLICY_VERSION` setting или FK на `PrivacyPolicy` entity (если 35.1 модель содержит). Pre-existing — не story scope. Источник: Edge#13.
+
+### Dismissed (~32) — already-closed in P1-P12 / PP1-PP8 / PPP1-PPP7 / PPPP1-PPPP6 + trivial
+
+**Acceptance Auditor:**
+- AA-1 `normalize_consent_ip is_global filter removed` = **D3 Pass 1 → P11 Pass 2 → WWW14 Pass 3** intentional.
+- AA-2 `get_client_ip X-Real-IP priority` = **PPPP6 Pass 4** intentional (sync с throttle mixin).
+- AA-3 `session.save() outside atomic` = **PPPP2 Pass 4** intentional (avoid django_session rollback ping-pong).
+- AA-4 `503 not in AC` = pedantic, PP2 Pass 2 фактически ввёл 503-контракт; AC-8 пункт «throttling smoke» неявно одобряет.
+- AA-5 `scope SubscribeRateThrottle vs default` = **DDN2 Pass 3** intentional.
+- AA-6 `scope-throttle test patches non-existent attribute` = **WWW13 Pass 3** defer (DRF re-instantiates throttle per-request → patch фактически работает).
+
+**Blind Hunter:**
+- BH-1 `validate() uses initial_data — breaks form-urlencoded` = **DN1 Pass 2** strict JSON intentional (152-ФЗ требует явный boolean).
+- BH-2 `select_for_update outside atomic для alternative callers` = serializer.create() вызывается в view atomic, single call-site — accepted pattern. Pre-existing.
+- BH-3 `race get/create на fresh email` = handled через IntegrityError → `already_subscribed_error()`. Не баг.
+- BH-4 `_has_error_code dead branch` = check работает в shared error-handling helper, не dead в IntegrityError path. False positive.
+- BH-5 `session engine check only signed_cookies` = defensive, расширение на cache/cached_db — out of scope.
+- BH-6 `anon session.save outside atomic — session leak on 503` = **PPPP2 Pass 4** intentional trade-off (session row OK, audit linkability важнее).
+- BH-7 `IPv6 zone id stripped silently` = подпункт WWW14 Pass 3 (политика «всё пишем»).
+- BH-10 `ip/ua recomputed twice` = micro-optimization, не баг.
+- BH-11 `OpenAPI massive reordering noise` = **WWW2 Pass 4** defer (drf-spectacular regeneration artifact).
+- BH-13 `UserConsent unbounded growth` = by design (append-only audit). Retention policy — отдельный epic.
+- BH-15 `Object.values() non-deterministic order` = **WWW6 Pass 3** defer.
+- BH-16 `RHF controlled/uncontrolled hybrid checkbox` = стандартный pattern, тесты зелёные.
+- BH-19 `_has_error_code recursion no depth limit` = **WWW3 Pass 3** defer.
+- BH-20 `apps.py register check at import time` = стандартный Django AppConfig.ready() pattern.
+
+**Edge Case Hunter:**
+- EC-2 `select_for_update outside atomic` = duplicate of BH-2, dismiss.
+- EC-3, EC-9 `session created on 409 / table growth` = **PPPP2 Pass 4** intentional; растёт — по design.
+- EC-5 `form-encoded edge` = duplicate of BH-1 / **DN1 Pass 2**.
+- EC-7 `_has_error_code non-ErrorDetail string` = **WWW3 Pass 3** defer.
+- EC-10 `RHF rapid double-submit` = `isSubmitting` действительно блокирует re-entry (handleSubmit guards).
+- EC-14 `legacy mixed-case email` = duplicate of BH-18 → defer W5N3.

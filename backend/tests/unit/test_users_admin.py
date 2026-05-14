@@ -3,7 +3,10 @@ Unit тесты для Django Admin конфигурации пользоват�
 Покрывает UserAdmin, admin actions, custom display methods и AuditLog интеграцию
 """
 
+from importlib import import_module
+
 import pytest
+from django.conf import settings
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
@@ -14,6 +17,11 @@ from apps.users.admin import CompanyAdmin, UserAdmin
 from apps.users.models import Address, Company
 
 User = get_user_model()
+
+
+def build_test_session():
+    SessionStore = import_module(settings.SESSION_ENGINE).SessionStore
+    return SessionStore()
 
 
 @pytest.mark.django_db
@@ -188,7 +196,7 @@ class TestUserAdmin(TestCase):
         # Mock messages framework
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Создаем queryset
@@ -221,7 +229,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Включаем retail пользователя в queryset
@@ -246,7 +254,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Только retail пользователи (не B2B)
@@ -275,7 +283,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         queryset = User.objects.filter(id=b2b_super.id)
@@ -301,7 +309,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Создаем queryset
@@ -331,7 +339,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Создаем queryset
@@ -361,7 +369,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Пытаемся заблокировать суперпользователя
@@ -386,7 +394,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Пустой queryset
@@ -407,7 +415,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         # Только retail пользователи (не B2B)
@@ -455,7 +463,7 @@ class TestUserAdmin(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         self.admin.block_users(request, User.objects.filter(id=self.retail_user.id))
@@ -573,7 +581,7 @@ class TestAuditLogIntegration(TestCase):
         request.META["HTTP_USER_AGENT"] = "Test Browser"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         queryset = User.objects.filter(id=self.b2b_user.id)
@@ -597,7 +605,7 @@ class TestAuditLogIntegration(TestCase):
         request.META["HTTP_USER_AGENT"] = "Mozilla/5.0"
         from django.contrib.messages.storage.cookie import CookieStorage
 
-        setattr(request, "session", "session")
+        setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
 
         queryset = User.objects.filter(id=self.b2b_user.id)

@@ -6,10 +6,10 @@ import logging
 from datetime import datetime, timedelta
 
 from django.conf import settings
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, transaction
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema
-from rest_framework import generics, status
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import generics, serializers, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -372,6 +372,13 @@ def realtime_metrics(_request: Request) -> Response:
             ],
         ),
         503: OpenApiResponse(
+            response=inline_serializer(
+                name="SubscribeConsentPersistenceErrorResponse",
+                fields={
+                    "error": serializers.CharField(),
+                    "details": serializers.DictField(child=serializers.ListField(child=serializers.CharField())),
+                },
+            ),
             description="Согласие не удалось сохранить, подписка откатана",
             examples=[
                 OpenApiExample(
@@ -428,7 +435,7 @@ def subscribe(request: Request) -> Response:
                 exc.detail,
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except IntegrityError:
+        except DatabaseError:
             logger.exception("Failed to persist newsletter consent audit")
             return Response(
                 {

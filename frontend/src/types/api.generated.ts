@@ -2513,6 +2513,12 @@ export interface components {
       | 'delivered'
       | 'cancelled'
       | 'refunded';
+    SubscribeConsentPersistenceErrorResponse: {
+      error: string;
+      details: {
+        [key: string]: string[];
+      };
+    };
     /**
      * @description Сериализатор для подписки на email-рассылку.
      *     Валидирует email и создает запись в Newsletter.
@@ -2818,7 +2824,9 @@ export interface operations {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['SubscribeConsentPersistenceErrorResponse'];
+        };
       };
     };
   };

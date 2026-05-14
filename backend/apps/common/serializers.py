@@ -58,14 +58,10 @@ class SubscribeSerializer(serializers.Serializer):
     def validate_email(self, value: str) -> str:
         """
         Валидация email адреса.
-        Проверяет существование подписки.
+        Нормализует email перед сохранением.
         """
         # Нормализация email (lowercase)
         value = value.lower().strip()
-
-        # Проверка на существующую активную подписку
-        if Newsletter.objects.filter(email=value, is_active=True).exists():
-            raise serializers.ValidationError(ALREADY_SUBSCRIBED, code=ALREADY_SUBSCRIBED_CODE)
 
         return value
 

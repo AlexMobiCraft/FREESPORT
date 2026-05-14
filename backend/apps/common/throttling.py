@@ -15,20 +15,28 @@ class ProxyAwareThrottleIdentMixin:
         raw_ident = str(ident).strip()
         return normalize_consent_ip(raw_ident) or sanitize_log_value(raw_ident)
 
+    def _get_proxy_ident_or_remote_addr(self, request, ident):
+        raw_ident = str(ident).strip()
+        normalized_ident = normalize_consent_ip(raw_ident)
+        if normalized_ident is not None:
+            return normalized_ident
+
+        return self._sanitize_ident(request.META.get("REMOTE_ADDR", ""))
+
     def get_ident(self, request):
         # Nginx sets X-Real-IP to the client's IP address
         x_real_ip = request.META.get("HTTP_X_REAL_IP")
         if x_real_ip:
-            return self._sanitize_ident(x_real_ip)
+            return self._get_proxy_ident_or_remote_addr(request, x_real_ip)
 
         # Fallback to X-Forwarded-For
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
             # The first IP in the list is usually the client's IP
-            return self._sanitize_ident(x_forwarded_for.split(",")[0])
+            return self._get_proxy_ident_or_remote_addr(request, x_forwarded_for.split(",")[0])
 
         # Fallback to standard behavior (REMOTE_ADDR)
-        return self._sanitize_ident(super().get_ident(request))
+        return self._sanitize_ident(request.META.get("REMOTE_ADDR", ""))
 
 
 class ProxyAwareAnonRateThrottle(ProxyAwareThrottleIdentMixin, AnonRateThrottle):

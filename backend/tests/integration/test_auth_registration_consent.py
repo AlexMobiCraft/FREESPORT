@@ -299,7 +299,7 @@ def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_i
 def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record(caplog):
     client = APIClient()
 
-    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
+    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -317,7 +317,7 @@ def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_recor
 def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_record(caplog):
     client = APIClient()
 
-    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
+    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -385,7 +385,7 @@ def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
     client = APIClient()
     invalid_ip = "bad\x00\u2028\u2029\u202e\u200b\r\nINJECT\x1b[31m"
 
-    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
+    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -404,7 +404,7 @@ def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
     client = APIClient()
     invalid_ip = "bad\udcff\r\nINJECT"
 
-    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
+    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
@@ -421,7 +421,7 @@ def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
 def test_registration_does_not_split_escape_sequence_when_truncating_warning_log(caplog):
     client = APIClient()
 
-    with caplog.at_level("DEBUG", logger="apps.common.consent_audit"):
+    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),

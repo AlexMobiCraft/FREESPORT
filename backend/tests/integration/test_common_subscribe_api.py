@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.sessions.backends.db import SessionStore
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, OperationalError, connection
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -50,6 +50,21 @@ class TestSubscribeEndpoint:
         assert response.status_code == status.HTTP_409_CONFLICT
         assert "уже подписан" in str(response.data["email"][0])
         assert response.data["email"][0].code == "already_subscribed"
+        assert UserConsent.objects.count() == 0
+
+    def test_subscribe_missing_pdp_consent_does_not_leak_subscriber_status(self, api_client):
+        """Без pdp_consent известный email не должен раскрывать статус подписки."""
+        Newsletter.objects.create(email="known-subscriber@example.com", is_active=True)
+
+        url = reverse("common:subscribe")
+        data = {"email": "known-subscriber@example.com"}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "pdp_consent" in response.data
+        assert "email" not in response.data
+        assert str(response.data["pdp_consent"][0]) == PDP_CONSENT_REQUIRED
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_reactivate_unsubscribed(self, api_client):
@@ -338,6 +353,23 @@ class TestSubscribeEndpoint:
         assert response.data["error"] == "consent_persistence_failed"
         assert not Newsletter.objects.filter(email="rollback-consent@example.com").exists()
         assert UserConsent.objects.count() == 0
+
+    def test_subscribe_returns_structured_503_on_operational_consent_failure(self, api_client):
+        """DatabaseError-подклассы при записи согласия возвращают JSON 503."""
+        url = reverse("common:subscribe")
+        data = {"email": "operational-consent@example.com", "pdp_consent": True}
+
+        with patch.object(UserConsent.objects, "create", side_effect=OperationalError("db unavailable")):
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data == {
+            "error": "consent_persistence_failed",
+            "details": {
+                "non_field_errors": ["Не удалось сохранить согласие. Попробуйте позже."],
+            },
+        }
+        assert not Newsletter.objects.filter(email="operational-consent@example.com").exists()
 
     def test_subscribe_anonymous_session_is_saved_before_atomic_consent_write(self, api_client, monkeypatch):
         """session_key для audit создается до локального atomic-блока с Newsletter/UserConsent."""

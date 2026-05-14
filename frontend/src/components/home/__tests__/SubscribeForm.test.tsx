@@ -248,6 +248,27 @@ describe('SubscribeForm', () => {
     });
   });
 
+  it('shows backend message on server error from subscribe service', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('server_error'), {
+        details: {
+          non_field_errors: ['Не удалось сохранить согласие. Попробуйте позже.'],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'server-error@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Не удалось сохранить согласие. Попробуйте позже.');
+    });
+  });
+
   it('shows throttling message on 429 subscribe errors', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(new Error('throttled'));

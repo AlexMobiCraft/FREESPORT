@@ -138,7 +138,7 @@ def get_consent_ip_address(request: Request) -> str | None:
 
     normalized_ip = normalize_consent_ip(client_ip)
     if normalized_ip is None:
-        logger.debug(
+        logger.warning(
             "Invalid client IP skipped for consent audit",
             extra={"client_ip": sanitize_log_value(client_ip)},
         )
