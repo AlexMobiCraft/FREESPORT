@@ -403,11 +403,11 @@ def subscribe(request: Request) -> Response:
 
     if serializer.is_valid():
         try:
+            if not request.user.is_authenticated and not request.session.session_key:
+                request.session.save()
+
             with transaction.atomic():
                 subscription = serializer.save()
-
-                if not request.user.is_authenticated and not request.session.session_key:
-                    request.session.save()
 
                 consent_kwargs = {
                     "user": request.user if request.user.is_authenticated else None,

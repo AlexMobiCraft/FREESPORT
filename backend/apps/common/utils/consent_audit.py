@@ -40,7 +40,13 @@ UNSAFE_LOG_CHAR_ESCAPES = {
 
 
 def get_client_ip(request: Request) -> str:
-    """Извлечь IP клиента (X-Forwarded-For first hop или REMOTE_ADDR)."""
+    """Извлечь IP клиента (X-Real-IP, X-Forwarded-For first hop или REMOTE_ADDR)."""
+    x_real_ip = request.META.get("HTTP_X_REAL_IP")
+    if x_real_ip:
+        ip = str(x_real_ip).strip()
+        if ip:
+            return cast(str, ip)
+
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
         ip = x_forwarded_for.split(",")[0].strip()

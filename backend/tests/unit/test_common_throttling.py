@@ -1,5 +1,7 @@
 """Unit-тесты proxy-aware throttling helpers."""
 
+from types import SimpleNamespace
+
 import pytest
 from django.conf import settings
 
@@ -34,6 +36,13 @@ def test_proxy_aware_throttle_sanitizes_to_canonical_ip(throttle_cls, raw_ident,
 def test_proxy_aware_throttle_falls_back_to_log_safe_value_for_invalid_ident():
     """Невалидный ident остается Redis-safe через log sanitizer."""
     assert ProxyAwareAnonRateThrottle()._sanitize_ident("bad\r\nip") == "bad\\r\\nip"
+
+
+def test_proxy_aware_throttle_remote_addr_fallback_is_sanitized():
+    """REMOTE_ADDR fallback тоже должен проходить через Redis-safe sanitizer."""
+    request = SimpleNamespace(META={"REMOTE_ADDR": "bad\r\nip"})
+
+    assert ProxyAwareAnonRateThrottle().get_ident(request) == "bad\\r\\nip"
 
 
 @pytest.mark.parametrize(

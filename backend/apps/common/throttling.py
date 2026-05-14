@@ -28,7 +28,7 @@ class ProxyAwareThrottleIdentMixin:
             return self._sanitize_ident(x_forwarded_for.split(",")[0])
 
         # Fallback to standard behavior (REMOTE_ADDR)
-        return super().get_ident(request)
+        return self._sanitize_ident(super().get_ident(request))
 
 
 class ProxyAwareAnonRateThrottle(ProxyAwareThrottleIdentMixin, AnonRateThrottle):
@@ -53,7 +53,7 @@ class SubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
     scope = "subscribe"
 
     def get_cache_key(self, request, view):
-        """Сформировать cache key по отдельному subscribe scope и canonical IP."""
+        """Сформировать cache key: SimpleRateThrottle оставляет этот метод abstract."""
         return self.cache_format % {
             "scope": self.scope,
             "ident": self.get_ident(request),

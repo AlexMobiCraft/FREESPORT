@@ -1,13 +1,14 @@
 """Интеграционные тесты публичного API подписки на рассылку."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from django.conf import settings
+from django.contrib.sessions.backends.db import SessionStore
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -232,6 +233,27 @@ class TestSubscribeEndpoint:
         assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
         assert {consent.user_agent for consent in consents} == {"SubscribeAudit/1.0"}
 
+    def test_subscribe_consent_records_prefer_x_real_ip_over_forwarded_for(self, api_client):
+        """Audit-записи и Newsletter.latest IP должны совпадать с throttle ident priority."""
+        url = reverse("common:subscribe")
+        data = {"email": "x-real-ip-consent@example.com", "pdp_consent": True}
+
+        response = api_client.post(
+            url,
+            data,
+            format="json",
+            HTTP_X_REAL_IP="198.51.100.10",
+            HTTP_X_FORWARDED_FOR="203.0.113.5, 198.51.100.10",
+            HTTP_USER_AGENT="SubscribeAudit/1.0",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        subscription = Newsletter.objects.get(email="x-real-ip-consent@example.com")
+        assert subscription.ip_address == "198.51.100.10"
+        consents = UserConsent.objects.all()
+        assert consents.count() == 2
+        assert {consent.ip_address for consent in consents} == {"198.51.100.10"}
+
     def test_subscribe_user_agent_truncated_to_512(self, api_client):
         """User-Agent для audit-записи очищается от surrogate и режется до 512 символов."""
         url = reverse("common:subscribe")
@@ -298,11 +320,17 @@ class TestSubscribeEndpoint:
         """Если consent audit не записался, клиент получает JSON 503 и Newsletter откатывается."""
         url = reverse("common:subscribe")
         data = {"email": "rollback-consent@example.com", "pdp_consent": True}
+        original_create = UserConsent.objects.create
+
+        def create_first_consent_then_fail(*args, **kwargs):
+            if UserConsent.objects.count() == 0:
+                return original_create(*args, **kwargs)
+            raise IntegrityError("consent failed")
 
         with patch.object(
             UserConsent.objects,
             "create",
-            side_effect=[MagicMock(spec=UserConsent), IntegrityError("consent failed")],
+            side_effect=create_first_consent_then_fail,
         ):
             response = api_client.post(url, data, format="json")
 
@@ -310,6 +338,26 @@ class TestSubscribeEndpoint:
         assert response.data["error"] == "consent_persistence_failed"
         assert not Newsletter.objects.filter(email="rollback-consent@example.com").exists()
         assert UserConsent.objects.count() == 0
+
+    def test_subscribe_anonymous_session_is_saved_before_atomic_consent_write(self, api_client, monkeypatch):
+        """session_key для audit создается до локального atomic-блока с Newsletter/UserConsent."""
+        url = reverse("common:subscribe")
+        data = {"email": "session-before-atomic@example.com", "pdp_consent": True}
+        original_save = SessionStore.save
+        save_atomic_depths = []
+
+        def tracking_save(self, *args, **kwargs):
+            save_atomic_depths.append(len(getattr(connection, "atomic_blocks", ())))
+            return original_save(self, *args, **kwargs)
+
+        monkeypatch.setattr(SessionStore, "save", tracking_save)
+
+        with patch.object(UserConsent.objects, "create", side_effect=IntegrityError("consent failed")):
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert save_atomic_depths
+        assert save_atomic_depths[0] <= 1
 
     def test_subscribe_returns_409_when_newsletter_unique_race_hits_integrity_error(self, api_client):
         """Race на unique email должен возвращать 409, а не 500."""
@@ -335,8 +383,8 @@ class TestSubscribeEndpoint:
         assert UserConsent.objects.count() == 2
         assert all(consent.session_key for consent in UserConsent.objects.all())
 
-    def test_subscribe_scope_throttle_applies_before_validation(self, api_client):
-        """Scope-specific subscribe throttle должен срабатывать до serializer validation."""
+    def test_subscribe_scope_throttle_kicks_in_during_valid_payload_flood(self, api_client):
+        """Scope-specific subscribe throttle ограничивает валидный flood до serializer side effects."""
         assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["subscribe"] == "100000/min"
         cache.clear()
         url = reverse("common:subscribe")
@@ -350,11 +398,12 @@ class TestSubscribeEndpoint:
             for index in range(40):
                 response = api_client.post(
                     url,
-                    {"email": f"throttle-{index}@example.com"},
+                    {"email": f"throttle-{index}@example.com", "pdp_consent": True},
                     format="json",
                     REMOTE_ADDR="198.51.100.77",
                 )
                 statuses.append(response.status_code)
 
-        assert status.HTTP_400_BAD_REQUEST in statuses
+        cache.clear()
+        assert statuses[:5] == [status.HTTP_201_CREATED] * 5
         assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10
