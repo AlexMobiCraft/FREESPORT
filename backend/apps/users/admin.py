@@ -464,10 +464,10 @@ class UserAdmin(BaseUserAdmin):
 
     # Helper methods
 
-    def _get_client_ip(self, request: HttpRequest) -> str | None:
+    def _get_client_ip(self, request: HttpRequest) -> str:
         """Получение IP адреса клиента"""
         ip_address = get_client_ip(request)
-        return None if ip_address == "unknown" else ip_address
+        return "0.0.0.0" if ip_address == "unknown" else ip_address
 
 
 @admin.register(Company)

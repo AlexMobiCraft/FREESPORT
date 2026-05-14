@@ -92,6 +92,13 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 # Отключаем логирование в консоль, чтобы вывод тестов был чистым.
 LOGGING: dict[str, Any] = {}  # type: ignore[no-redef]  # type: ignore[no-redef]
 
+# В тестах throttle не должен пересекаться между кейсами/worker-ами.
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "anon": "100000/min",
+    "subscribe": "100000/min",
+    "user": "100000/min",
+}
+
 # Гарантированно отключаем Django Debug Toolbar в тестах,
 # даже если он был добавлен в другом файле настроек.
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "debug_toolbar"]

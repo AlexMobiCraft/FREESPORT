@@ -116,6 +116,28 @@ describe('ElectricSubscribeForm', () => {
     });
   });
 
+  it('resets email and PDN checkbox after successful subscription', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockResolvedValueOnce({
+      message: 'Successfully subscribed',
+      email: 'electric@example.com',
+    });
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    const emailInput = screen.getByLabelText(/email/i);
+    await user.type(emailInput, 'electric@example.com');
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalled();
+    });
+    expect(emailInput).toHaveValue('');
+    expect(getPdpCheckbox()).not.toBeChecked();
+  });
+
   it('shows backend PDN field error instead of generic subscription error', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(

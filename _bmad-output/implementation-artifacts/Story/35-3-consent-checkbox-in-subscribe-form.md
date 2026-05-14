@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review (Pass 2 review follow-ups закрыты 2026-05-13)
+**Status:** review (Pass 3 patches PPP1-PPP7 closed 2026-05-14; DDN1 deferred to story 35.5)
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -753,6 +753,12 @@ export const subscribeService = {
 
 ## Dev Notes
 
+### Forensic-связка `UserConsent` ↔ `Newsletter` (DDN1, Pass 3)
+
+`UserConsent` не хранит explicit FK на `Newsletter` / email подписки — связь восстанавливается forensic через тройку `(ip_address, user_agent, given_at ≈ Newsletter.subscribed_at)`: оба записи в одной транзакции и хранят эти поля симметрично. Для анонимного flow дополнительный якорь — `session_key` (один в UserConsent.session_key, тот же — в request.session.session_key, через который Newsletter был создан; Newsletter сам session_key не хранит, но временное окно `given_at ≈ subscribed_at` (< 1 сек) однозначно идентифицирует пару). Это **достаточно** для типичного запроса Роскомнадзора «покажите доказательство согласия на email Y»: выгружается JOIN `Newsletter` × `UserConsent` по этой тройке.
+
+Жёсткая FK / JSONB-metadata требуют архитектурного обсуждения с комплаенс-офицером (асимметрия с registration consent, где аналогичный gap pre-existing). Поднять отдельной story **35.5 — consent audit linkage**.
+
 ### Почему ДВЕ записи `UserConsent` за один POST
 
 Подписка на newsletter — это и есть marketing-канал. Создание ОБЕИХ записей (`pdp_contract` для юридического базиса + `marketing_email` для конкретной цели обработки) делает аудиторский след максимально явным: при проверке Роскомнадзор видит и согласие на обработку ПДн, и явное согласие на маркетинговый канал — без двусмысленности «pdp_contract есть, а marketing_email нет → можно ли вообще слать письма?».
@@ -911,11 +917,32 @@ GPT-5 Codex
   - `npx gitnexus impact "Function:backend/apps/common/views.py:subscribe" -d upstream --depth 3 --include-tests` → LOW, upstream callers не найдены.
   - `npx gitnexus impact "Method:frontend/src/services/subscribeService.ts:subscribe#1" -d upstream --depth 3 --include-tests` → LOW, upstream callers не найдены.
   - `npx gitnexus impact "Function:frontend/src/components/home/SubscribeForm.tsx:SubscribeForm" -d upstream --depth 3 --include-tests` → LOW, affected path `SubscribeNewsSection -> HomePage -> BlueHomePage`.
-  - `npx gitnexus impact "Function:frontend/src/components/home/ElectricSubscribeForm.tsx:ElectricSubscribeForm" -d upstream --depth 3 --include-tests` → LOW, affected path `ElectricSubscribeSection -> ElectricHomePage`.
-  - `npx gitnexus impact "Method:backend/apps/common/throttling.py:ProxyAwareThrottleIdentMixin._sanitize_ident#1" -d upstream --depth 3 --include-tests` → LOW, direct caller `get_ident`.
-  - `npx gitnexus impact "Function:backend/apps/common/utils/consent_audit.py:normalize_consent_ip" -d upstream --depth 3 --include-tests` → LOW, affected subscribe + registration consent audit.
-  - `npx gitnexus impact "Function:backend/apps/users/authentication.py:_get_client_ip" -d upstream --depth 3 --include-tests` → LOW, affected logout audit path.
-  - `npx gitnexus impact "Method:backend/apps/users/admin.py:UserAdmin._get_client_ip#1" -d upstream --depth 3 --include-tests` → LOW, direct callers admin approve/reject/block actions.
+- `npx gitnexus impact "Function:frontend/src/components/home/ElectricSubscribeForm.tsx:ElectricSubscribeForm" -d upstream --depth 3 --include-tests` → LOW, affected path `ElectricSubscribeSection -> ElectricHomePage`.
+- `npx gitnexus impact "Method:backend/apps/common/throttling.py:ProxyAwareThrottleIdentMixin._sanitize_ident#1" -d upstream --depth 3 --include-tests` → LOW, direct caller `get_ident`.
+- `npx gitnexus impact "Function:backend/apps/common/utils/consent_audit.py:normalize_consent_ip" -d upstream --depth 3 --include-tests` → LOW, affected subscribe + registration consent audit.
+- `npx gitnexus impact "Function:backend/apps/users/authentication.py:_get_client_ip" -d upstream --depth 3 --include-tests` → LOW, affected logout audit path.
+- `npx gitnexus impact "Method:backend/apps/users/admin.py:UserAdmin._get_client_ip#1" -d upstream --depth 3 --include-tests` → LOW, direct callers admin approve/reject/block actions.
+- Pass 3 GitNexus impact:
+  - `npx gitnexus impact "Function:backend/apps/common/views.py:subscribe" -d upstream --include-tests` → LOW, upstream callers не найдены.
+  - `npx gitnexus impact ProxyAwareAnonRateThrottle -d upstream --include-tests` → LOW, upstream callers не найдены.
+  - `npx gitnexus impact "Method:backend/apps/users/admin.py:UserAdmin._get_client_ip#1" -d upstream --include-tests` → HIGH; прямые consumers `approve_b2b_users`, `reject_b2b_users`, `block_users`; фикс ограничен восстановлением совместимого fallback `"0.0.0.0"`.
+  - `npx gitnexus impact "Function:frontend/src/components/home/ElectricSubscribeForm.tsx:ElectricSubscribeForm" -d upstream --include-tests` → LOW, affected path `ElectricSubscribeSection -> ElectricHomePage`.
+  - `npx gitnexus impact CommonConfig -d upstream --include-tests` → LOW, upstream callers не найдены.
+- RED Pass 3: `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -T backend pytest apps/common/tests/test_common_config.py tests/unit/test_common_throttling.py tests/unit/test_users_admin.py::TestUserAdmin::test_get_client_ip_fallback tests/unit/test_users_admin.py::TestUserAdmin::test_block_users_audit_log_uses_zero_ip_when_remote_addr_missing tests/integration/test_common_subscribe_api.py::TestSubscribeEndpoint::test_subscribe_scope_throttle_applies_before_validation tests/integration/test_auth_registration_consent.py::test_registration_logs_warning_when_remote_addr_is_unknown` → expected import failure: `SubscribeRateThrottle` отсутствует.
+- GREEN Pass 3 targeted: тот же backend-набор → passed, 23 tests.
+- `npm run test -- src/components/home/__tests__/ElectricSubscribeForm.test.tsx` → passed, 9 tests.
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -e DJANGO_SETTINGS_MODULE=freesport.settings.test -T backend pytest tests/unit/test_common_throttling.py::test_test_settings_use_high_throttle_rates` → passed, 1 test.
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -T backend python manage.py check` → passed.
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -T backend pytest tests/integration/test_common_subscribe_api.py tests/integration/test_auth_registration_consent.py tests/unit/test_common_throttling.py apps/common/tests/test_common_config.py tests/unit/test_users_admin.py` → passed, 107 tests.
+- `npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/__tests__/subscribeService.test.ts` → passed, 27 tests.
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -T backend black --check ...` → passed after formatting `tests/integration/test_common_subscribe_api.py`.
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -T backend flake8 ...` → passed.
+- `npx prettier --check src/components/home/__tests__/ElectricSubscribeForm.test.tsx` → passed.
+- `npx eslint src/components/home/__tests__/ElectricSubscribeForm.test.tsx --max-warnings=0` → passed.
+- `git diff --check` → passed.
+- `npx gitnexus detect-changes --scope all` → 19 files, 20 symbols, 8 affected flows, risk `high`; HIGH соответствует ожидаемому затрагиванию `subscribe`, `ProxyAwareThrottleIdentMixin._sanitize_ident`, `UserAdmin._get_client_ip` и BMAD/AGENTS metadata.
+- `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml exec -T backend pytest -m unit` → passed, 716 passed, 12 skipped, 1552 deselected.
+- `npm run test` → passed (full Vitest suite; stderr содержит существующие test-warning/log noise без fail).
 - RED Pass 2: `npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/__tests__/subscribeService.test.ts` → expected failures по PP3/PP5/PP6: 7 failed, 19 passed.
 - RED Pass 2: `.\venv\Scripts\python.exe -m pytest tests\unit\test_common_throttling.py ... -q` → expected failures по PP1; DB-зависимые кейсы в локальном запуске заблокированы локальным PostgreSQL (`password authentication failed for user "postgres"`), поэтому backend DB validation выполнена через Docker.
 - `.\venv\Scripts\python.exe -m black apps\common\serializers.py apps\common\views.py apps\common\throttling.py apps\common\utils\consent_audit.py apps\users\authentication.py apps\users\admin.py tests\integration\test_common_subscribe_api.py tests\integration\test_auth_registration_consent.py tests\unit\test_common_throttling.py tests\unit\test_users_admin.py` → passed.
@@ -946,20 +973,27 @@ GPT-5 Codex
 - Frontend patch закрыт: тесты кликают настоящий checkbox, `React.useId()` убрал дубли DOM id, `subscribeService` сохраняет backend field errors, формы показывают `pdp_consent` 400 inline/toast без email fallback.
 - Pass 2 закрыт: DN1 оставлен strict через `self.initial_data` и задокументирован в коде; DN2 закрыт machine-code `already_subscribed` вместо сравнения русского текста; DN3 сохранён как намеренное proxy-aware throttle изменение и усилен canonical IP sanitization.
 - PP1-PP8 закрыты: throttle ident нормализует canonical IP, consent persistence failure возвращает структурированный 503 с rollback, frontend показывает 429/unknown backend details, Electric получил a11y regression test, validator text синхронизирован с backend точкой, rollback mock заменён на `MagicMock(spec=UserConsent)`, users/admin IP helpers используют общий `get_client_ip`.
+- Pass 3 закрыт: `/subscribe/` получил отдельный `SubscribeRateThrottle(scope="subscribe")` с лимитом `30/min`, non-prod settings получили явные throttle overrides, 429 detail русифицирован, admin audit IP fallback восстановлен как `"0.0.0.0"`, signed-cookie sessions блокируются system check, устаревший caplog logger исправлен, Electric success reset покрыт тестом.
+- Финальный регресс: backend unit marker suite и полный frontend Vitest suite зелёные; story и `sprint-status.yaml` синхронизированы в `review`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/Story/35-3-consent-checkbox-in-subscribe-form.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `backend/apps/common/apps.py`
 - `backend/apps/common/serializers.py`
 - `backend/apps/common/throttling.py`
+- `backend/apps/common/tests/test_common_config.py`
 - `backend/apps/common/views.py`
 - `backend/apps/common/utils/__init__.py`
 - `backend/apps/common/utils/consent_audit.py`
 - `backend/apps/users/admin.py`
 - `backend/apps/users/authentication.py`
 - `backend/freesport/settings/base.py`
+- `backend/freesport/settings/development.py`
 - `backend/freesport/settings/production.py`
+- `backend/freesport/settings/staging.py`
+- `backend/freesport/settings/test.py`
 - `backend/apps/users/views/authentication.py`
 - `backend/tests/integration/test_auth_registration_consent.py`
 - `backend/tests/integration/test_common_subscribe_api.py`
@@ -980,6 +1014,7 @@ GPT-5 Codex
 - 2026-05-13: Реализован consent checkbox для подписки, backend audit write path, frontend/backend tests, dev-stack smoke и generated API contract updates; статус переведён в `review`.
 - 2026-05-13: Закрыты review patch items P1-P12; добавлены race/rollback/throttle/IP/strict-consent guardrails, field-specific frontend errors и синхронизация story/sprint-status обратно в `review`.
 - 2026-05-13: Закрыты Pass 2 findings DN1-DN3 и PP1-PP8; добавлены machine-code 409 mapping, canonical throttle IP, структурированный 503 rollback, 429/unknown-details UI, Electric a11y test и минимальная OpenAPI/generated-types дельта.
+- 2026-05-14: Закрыты Pass 3 findings PPP1-PPP7; добавлены scope-specific subscribe throttle, non-prod throttle overrides, русский 429 detail, session-engine system check, admin audit IP fallback и Electric reset regression test; статус синхронизирован в `review`.
 
 ---
 
@@ -1080,3 +1115,57 @@ Code review от 2026-05-13 (bmad-code-review, 3 параллельных сло
 
 **Acceptance Auditor:** `select_for_update` без локального atomic (= Blind, dismiss), logger DEBUG vs WARNING (связано с P11 dismiss), `test_auth_registration_consent.py` rename+invert (часть P11, согласовано).
 - sanitize_consent_user_agent `Any` type hint cosmetic
+
+---
+
+## Review Findings — Pass 3 (2026-05-14)
+
+Третий заход bmad-code-review после закрытия P1-P12 + DN1-DN3 + PP1-PP8. 3 параллельных слоя (Blind Hunter, Edge Case Hunter, Acceptance Auditor) по diff `0833e90c^..HEAD` (2377 строк, 21 файл production-кода, без metadata/openapi.yaml шума). Edge Case Hunter дал детально только #17-#20 (output обрезан), но темы #1-#16 пересекались с Blind Hunter и были учтены при дедупе. Триаж: ~38 raw findings → 23 уникальных после дедупа: **2 decision-needed, 6 patch, 15 defer, ~6 dismissed**.
+
+### Decision-needed (resolved 2026-05-14)
+
+- [x] **DDN1 → Defer.** Принято: forensic-связка через `(ip_address, user_agent, given_at ≈ Newsletter.subscribed_at)` работает (Newsletter и UserConsent хранят эти поля симметрично). Жёсткая FK ломает асимметрию с registration consent (FK=NULL), JSONB-metadata требует архитектурного обсуждения с комплаенс-офицером (аналогичный pre-existing gap есть и для регистрации). Поднять отдельной story **35.5 — consent audit linkage**. В 35.3: оставить статус-кво + добавить защитную заметку в Dev Notes.
+- [x] **DDN2 → Patch (см. PPP7).** Принято: вариант 2 — scope-specific `SubscribeRateThrottle(scope="subscribe", rate="30/min")` на `subscribe()` view. SSR на read-endpoints не страдает, write-endpoint изолирован, DDoS-вектор закрыт без CAPTCHA. Для e2e/load-tests — override в `test.py`.
+
+### Patch (7: 6 исходных + 1 из DDN2)
+
+- [x] [Review][Patch] **PPP7. (из DDN2) Scope-specific `SubscribeRateThrottle` для `/subscribe/`** [`backend/apps/common/throttling.py`, `backend/apps/common/views.py:subscribe`, `backend/freesport/settings/base.py:171-176`] — Создать класс `SubscribeRateThrottle(SimpleRateThrottle)` с `scope = "subscribe"` (использовать `ProxyAwareThrottleIdentMixin` для canonical IP), зарегистрировать `"subscribe": "30/min"` в `DEFAULT_THROTTLE_RATES`, повесить `@throttle_classes([SubscribeRateThrottle])` на `subscribe()` view. Глобальный `anon: 6000/min` остаётся для SSR/pages-API. **Тест:** smoke-тест в `test_common_subscribe_api.py` — x40 POST на `/api/v1/subscribe/` от одного IP → ≥10 ответов 429 (или другой rate). Override `"subscribe": "100000/min"` в test-settings, чтобы основной integration-suite не сталкивался с throttle между кейсами. Также добавить assert, что без `pdp_consent` запрос всё равно throttle'ится (валидация — после throttle middleware).
+
+- [x] [Review][Patch] **PPP1. `DEFAULT_THROTTLE_RATES` активен в test/dev/staging без override** [`backend/freesport/settings/base.py:171-176`, `backend/freesport/settings/test.py`, `backend/freesport/settings/development.py`] — После P10 переноса throttle из `production.py` в `base.py` все среды получают `anon: 6000/min` без явных overrides. В CI с параллельными test-runner'ами на shared Redis возможно исчерпание квоты между тестами (особенно в integration suite). Источник: Blind#3 + Edge#5 + Pass 2 deferred WW2. Fix: добавить в `freesport/settings/test.py` (если есть) или через pytest fixture `settings.DEFAULT_THROTTLE_RATES = {"anon": "100000/min", "user": "100000/min"}` + `cache.clear()` autouse fixture; либо явно установить `THROTTLE_RATES = {}` в `pytest.ini` через `DJANGO_SETTINGS_MODULE`.
+
+- [x] [Review][Patch] **PPP2. Английский `Throttled.default_detail` для русскоязычного UX** [DRF default behavior, `backend/apps/common/throttling.py`] — Throttle возвращает «Request was throttled. Expected available in X seconds.» на ответе 429. Frontend Pass 2 PP3 добавил code `throttled` и UI-сообщение «Слишком много попыток...», но если детальный `detail` из backend попадёт в toast (через `details.detail` или fallback), пользователь увидит английский текст. Источник: Edge#4. Fix: либо переопределить `ProxyAwareAnonRateThrottle.default_detail = _("Слишком много попыток. Попробуйте через минуту.")` через `gettext_lazy`, либо явно очищать `detail` в кастомном `throttled()` view-helper.
+
+- [x] [Review][Patch] **PPP3. `_get_client_ip` в `apps/users/admin.py` изменил сигнатуру с `str` на `str | None`, downstream AuditLog потребляет result** [`backend/apps/users/admin.py:540-552`, downstream callers approve/reject/block actions] — PP8 Pass 2 заменил приватную реализацию на делегирование общему `get_client_ip`, который возвращает `None` для отсутствующего IP. Тест `test_users_admin.py` обновлён с `assertEqual(ip, "0.0.0.0")` на `assertIsNone(ip)`. Spec AC-6 явно говорил «НЕ трогать `_get_client_ip` в admin», PP8 это override. Downstream: если admin-actions передают этот IP в `AuditLog.ip_address` (PG inet field), `None` записывается как NULL вместо строки "0.0.0.0" — миграция исторических записей, фильтры в admin-журнале, экспорт CSV могут отличаться. Источник: Auditor A5. Fix: проверить вызывающие коды (`approve_users_action`, `reject_users_action`, `block_users_action`) — если значение используется как обязательное (например, форматирование `f"{ip}"` или фильтр `__icontains`), завернуть в `or "0.0.0.0"` для совместимости; иначе документировать поведение `None` в Dev Notes.
+
+- [x] [Review][Patch] **PPP4. Анонимная сессия зависит от `SESSION_ENGINE=django.contrib.sessions.backends.db`** [`backend/apps/common/views.py:~398-400`, `backend/freesport/settings/base.py` SESSION_ENGINE setting] — `request.session.save()` для `signed_cookies` backend — no-op (`session_key` остаётся None). В `UserConsent.session_key` попадёт `""`, CheckConstraint `userconsent_user_or_session_required` (user IS NOT NULL OR session_key != '') нарушится → IntegrityError → PP2 503 ответ для legit пользователей. Тест `test_subscribe_anonymous_creates_session_key` проходит в test settings (db backend), но регрессирует если кто-то поменяет SESSION_ENGINE. Источник: Blind#8. Fix: либо `assert settings.SESSION_ENGINE != "django.contrib.sessions.backends.signed_cookies"` в Django startup check (apps/common/apps.py `ready()`), либо документировать жёсткое требование в Dev Notes + комментарий в `subscribe()` view рядом с `request.session.save()`.
+
+- [x] [Review][Patch] **PPP5. caplog `logger="apps.users.auth"` устарел в `test_registration_logs_warning_when_remote_addr_is_unknown`** [`backend/tests/integration/test_auth_registration_consent.py:372`] — После AC-6 рефактора `logger.warning("Unknown client IP skipped for consent audit")` живёт в `apps.common.consent_audit`. 4 других caplog-теста в этом файле уже обновлены на `logger="apps.common.consent_audit"`, этот — нет. Тест passed per Dev Agent Record (через propagation), но при будущем рефакторе log propagation легко упасть unnoticed. Источник: Auditor A8. Fix: заменить `caplog.at_level("WARNING", logger="apps.users.auth")` → `logger="apps.common.consent_audit"`.
+
+- [x] [Review][Patch] **PPP6. `reset()` не вызывается в `ElectricSubscribeForm` onSubmit success** [`frontend/src/components/home/ElectricSubscribeForm.tsx` onSubmit success branch] — `reset` импортируется в деструктуризации `useForm`, но в `try { await subscribeService.subscribe(...); toast.success(...); }` после `toast.success` нет `reset()`. После успешной подписки email и PDN-checkbox остаются заполненными — пользователь может случайно отправить ещё один запрос (особенно учитывая 6000/min throttle ↔ DDN2 риск). В `SubscribeForm` (Blue) `reset()` корректно вызывается. Источник: Blind#12. Fix: добавить `reset()` после `toast.success(...)` в success-ветке onSubmit.
+
+### Defer (15) — pre-existing или out-of-scope
+
+- [x] [Review][Defer] **WWW1. Hardcoded русский error-message без gettext_lazy** [`backend/apps/common/serializers.py:17-30` PDP_CONSENT_REQUIRED/ALREADY_SUBSCRIBED] — Pre-existing проектный паттерн (тот же подход в `apps/users/serializers.py`). Не вводится 35.3. Решать единой i18n-story.
+- [x] [Review][Defer] **WWW2. SEC-001 комментарий потерян при миграции THROTTLE_RATES в base.py** [`backend/freesport/settings/base.py:171-176`] — Косметика-документация: исходный комментарий `# Story 11.3 — SEC-001` в production.py не перенесён, остался только `# Increased to fix SSR 429 errors`. Pre-existing привязка к SEC-001 не задокументирована. Источник: Auditor A3.
+- [x] [Review][Defer] **WWW3. `_has_error_code` рекурсивная без depth-limit** [`backend/apps/common/views.py:13-19`] — Глубоко вложенный сериализатор или вредоносный nested-error может вызвать stack overflow. Маловероятно для текущего сериализатора (глубина 1-2), но code smell. Источник: Blind#14.
+- [x] [Review][Defer] **WWW4. `except IntegrityError` ловит ТОЛЬКО IntegrityError, не различает source constraint** [`backend/apps/common/views.py` 503-handler] — `DatabaseError`/`OperationalError` пробрасываются как 500. Также: IntegrityError может прийти и от Newsletter (race на unique email), и от UserConsent (CheckConstraint) — ветка возвращает 503 "consent_persistence_failed" для обоих, что вводит в заблуждение при race на Newsletter. Источник: Blind#15 + Edge#20. Future-proofing.
+- [x] [Review][Defer] **WWW5. `getBackendMessage(['', 'real'])` возвращает `''` (falsy)** [`frontend/src/components/home/*SubscribeForm.tsx` getBackendMessage helper] — Если backend вернёт массив с пустой первой строкой, frontend покажет пустой toast. Гипотетический сценарий, backend DRF серриализатор не генерит пустые строки. Источник: Blind#6.
+- [x] [Review][Defer] **WWW6. `getFirstBackendError` зависит от порядка ключей в JSON-ответе** [`frontend/src/components/home/*SubscribeForm.tsx` getFirstBackendError] — DRF errors не специфицируют order; обновление DRF/serializer order может поменять, какое сообщение увидит пользователь. Хрупкая зависимость от детали реализации. Источник: Blind#5.
+- [x] [Review][Defer] **WWW7. AC-1 `aria-invalid={hasPdpConsentError || undefined}` vs spec `{!!errors.pdp_consent}`** [`frontend/src/components/home/SubscribeForm.tsx:162`, `ElectricSubscribeForm.tsx:1485`] — Spec говорит boolean cast `!!`, код использует `|| undefined` (если false — атрибут отсутствует, а не `aria-invalid="false"`). Функционально эквивалентно для SR. Источник: Auditor A7.
+- [x] [Review][Defer] **WWW8. Spec разделы «Структура файлов (изменения)» и «API контракт» отстают от Pass 1/Pass 2 scope creep** [`spec lines 493-525, 466-480`] — `backend/apps/common/throttling.py`, `backend/apps/users/admin.py`, `backend/apps/users/authentication.py`, `backend/freesport/settings/base.py+production.py`, `backend/tests/unit/test_common_throttling.py`, `backend/tests/unit/test_users_admin.py`, `frontend/src/services/__tests__/subscribeService.test.ts` — все реально изменены/созданы, но не в spec-списке. API contract не упоминает 503 (PP2). Docs maintenance, не блокирует. Источник: Auditor A9 + scope creep.
+- [x] [Review][Defer] **WWW9. `setError('pdp_consent', { type: 'server' })` сохраняется между submit'ами** [`frontend/src/components/home/SubscribeForm.tsx:108-117`, `ElectricSubscribeForm.tsx:113-128`] — RHF 7+ `setError({type: 'server'})` сохраняется до явного `clearErrors`. Если на 2-м submit backend больше не возвращает ошибку для pdp_consent, старая ошибка может зависнуть. Тесты делают только 1 submit, не серию. UX-edge, теоретический. Источник: Edge#17.
+- [x] [Review][Defer] **WWW10. `getValidationDetails` возвращает весь errorData когда `details` отсутствует → машинный код в toast** [`frontend/src/services/subscribeService.ts:11-22`, `SubscribeForm.tsx:107`] — Если backend 5xx вернёт `{error: "consent_persistence_failed"}` без вложенного `details` (corner case PP2 path), `getValidationDetails` отдаст `{error: "..."}` целиком → `getFirstBackendError` найдёт строку `"consent_persistence_failed"` → toast машинного кода. Источник: Edge#18.
+- [x] [Review][Defer] **WWW11. `serializer.save()` бросает `serializers.ValidationError` — нарушение DRF-конвенции** [`backend/apps/common/serializers.py:120-127` `already_subscribed_error()`] — `serializer.save()` по DRF-конвенции не должен бросать `ValidationError` (она для фазы `is_valid()`). View ловит её специально, но любой middleware/wrapper, ожидающий стандартного DRF flow (например, exception_handler с auto-400 mapping), может неверно обработать race. Также `from exc` теряет original traceback в логах. Pass 2 PP2 pattern. Источник: Blind#10.
+- [x] [Review][Defer] **WWW12. `UserConsent.objects.create` дважды вместо `bulk_create`** [`backend/apps/common/views.py:~407-410`] — Два отдельных INSERT в цикле. На write-эндпоинте с throttle 6000/min — лишний DB roundtrip. Преждевременная оптимизация для текущего объёма (~5-10 подписок/час). Источник: Blind#7.
+- [x] [Review][Defer] **WWW13. Тест `test_subscribe_default_anon_throttle_applies` через `patch.object(THROTTLE_RATES)`** [`backend/tests/integration/test_common_subscribe_api.py`] — DRF создаёт новый throttle на каждый запрос, поэтому patch работает. Если в будущем DRF введёт throttle-pool/caching — false-positive (все 201, ассерт `>= 6` упадёт). Также `cache.clear()` влияет на параллельные тесты. Pre-existing pattern. Источник: Blind#11.
+- [x] [Review][Defer] **WWW14. Деградация политики `is_global` фильтра в `normalize_consent_ip`** [`backend/apps/common/utils/consent_audit.py:91`] — Теперь private/loopback IPs пишутся в audit (Pass 1 D3→P11 явное решение). Если Docker/k8s неправильно настроены — в audit попадают внутренние IP контейнеров. Юридически бесполезные записи. Источник: Blind#9 + Edge#9. Закрыто decision D3 Pass 1 как намеренное, оставлено для compliance-офицера на форум проверить.
+- [x] [Review][Defer] **WWW15. Throttle 6000/min глобально без CAPTCHA + связка с DDN2** — Связано с DDN2 как architectural concern; до решения decision-needed defer'им сам defer как pre-existing post-DDN2 cleanup.
+
+### Dismissed (~6)
+
+- **Blind #4 `validate()` использует `self.initial_data` ломает form-encoded** — DN1 Pass 2 явно зафиксировал strict `initial_data` как намеренное решение для 152-ФЗ; в коде есть код-комментарий-обоснование. API JSON-only, dismiss.
+- **Edge #3 form-encoded клиенты не получают валидацию consent** — дубль Blind #4, dismiss (= DN1 Pass 2).
+- **Edge #1/#8/#10/#11 throttle bypass через empty XFF first hop / длинный мусор / IPv4-mapped IPv6 / port=0/big** — PP1 Pass 2 закрыл через `_sanitize_ident` + `normalize_consent_ip` canonical fallback в `apps/common/throttling.py:ProxyAwareThrottleIdentMixin`. Тест `tests/unit/test_common_throttling.py` покрывает canonical IP mapping для основных форматов. Dismiss.
+- **Edge #6 потеря `unsubscribed_at` истории при reactivation** — Pass 1 D1 явно зафиксировал: `Newsletter.ip_address`/`user_agent`/`unsubscribed_at` = «latest activity», а audit-trail «первый раз» / «каждое согласие» живёт в `UserConsent` (append-only — каждая реактивация = 2 новых записи). Архитектурное решение. Dismiss.
+- **Edge #15 mock-based тест с false-positive (без указания конкретного теста)** — generic concern без evidence в diff, dismiss как noise.
+- **Acceptance scope creep `policy_version="1.0"` hardcoded в default модели** — AC-5 explicit fallback на default. Auditor сам пометил «верификация пройдена». Dismiss.

@@ -1,10 +1,14 @@
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from django.utils.translation import gettext_lazy as _
+from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle, UserRateThrottle
 
 from apps.common.utils.consent_audit import normalize_consent_ip, sanitize_log_value
 
 
 class ProxyAwareThrottleIdentMixin:
     """Единый proxy-aware ident для DRF throttle cache keys."""
+
+    default_detail = _("Слишком много попыток. Попробуйте через минуту.")
+    default_code = "throttled"
 
     def _sanitize_ident(self, ident):
         """Вернуть Redis-safe throttle ident из внешнего IP-заголовка."""
@@ -41,3 +45,16 @@ class ProxyAwareUserRateThrottle(ProxyAwareThrottleIdentMixin, UserRateThrottle)
     """User throttle с тем же безопасным proxy-aware ident для anonymous fallback."""
 
     pass
+
+
+class SubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
+    """Отдельный лимит для write-endpoint подписки на рассылку."""
+
+    scope = "subscribe"
+
+    def get_cache_key(self, request, view):
+        """Сформировать cache key по отдельному subscribe scope и canonical IP."""
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }

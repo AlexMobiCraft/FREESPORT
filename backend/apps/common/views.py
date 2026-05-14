@@ -28,6 +28,7 @@ from apps.common.serializers import (
     UnsubscribeSerializer,
 )
 from apps.common.services import CustomerSyncMonitor
+from apps.common.throttling import SubscribeRateThrottle
 from apps.common.utils.consent_audit import (
     get_consent_ip_address,
     sanitize_consent_user_agent,
@@ -390,6 +391,7 @@ def realtime_metrics(_request: Request) -> Response:
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([SubscribeRateThrottle])
 def subscribe(request: Request) -> Response:
     """
     Подписка на email-рассылку.

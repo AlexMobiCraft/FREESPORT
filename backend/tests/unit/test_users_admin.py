@@ -445,7 +445,23 @@ class TestUserAdmin(TestCase):
             del request.META["REMOTE_ADDR"]
 
         ip = self.admin._get_client_ip(request)
-        self.assertIsNone(ip)
+        self.assertEqual(ip, "0.0.0.0")
+
+    def test_block_users_audit_log_uses_zero_ip_when_remote_addr_missing(self):
+        """Admin action сохраняет совместимый fallback IP при отсутствии REMOTE_ADDR."""
+        request = self.factory.post("/admin/users/user/")
+        request.user = self.superuser
+        del request.META["REMOTE_ADDR"]
+        request.META["HTTP_USER_AGENT"] = "Test Browser"
+        from django.contrib.messages.storage.cookie import CookieStorage
+
+        setattr(request, "session", "session")
+        setattr(request, "_messages", CookieStorage(request))
+
+        self.admin.block_users(request, User.objects.filter(id=self.retail_user.id))
+
+        audit_log = AuditLog.objects.filter(action="block_user").latest("created_at")
+        self.assertEqual(audit_log.ip_address, "0.0.0.0")
 
     def test_company_inline_configuration(self):
         """Тест конфигурации CompanyInline"""

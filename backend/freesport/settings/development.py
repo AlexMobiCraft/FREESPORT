@@ -54,6 +54,13 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
+# В локальной разработке не наследуем production-like лимиты из base.py.
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "anon": "100000/min",
+    "subscribe": "100000/min",
+    "user": "100000/min",
+}
+
 # Настройки Debug Toolbar
 INTERNAL_IPS = [
     "127.0.0.1",

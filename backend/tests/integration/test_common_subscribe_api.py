@@ -13,7 +13,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from apps.common.models import Newsletter, UserConsent
-from apps.common.throttling import ProxyAwareAnonRateThrottle
+from apps.common.throttling import SubscribeRateThrottle
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 
@@ -335,27 +335,26 @@ class TestSubscribeEndpoint:
         assert UserConsent.objects.count() == 2
         assert all(consent.session_key for consent in UserConsent.objects.all())
 
-    def test_subscribe_default_anon_throttle_applies(self, api_client):
-        """Default throttle должен ограничивать anonymous POST /subscribe."""
-        assert (
-            "apps.common.throttling.ProxyAwareAnonRateThrottle" in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"]
-        )
+    def test_subscribe_scope_throttle_applies_before_validation(self, api_client):
+        """Scope-specific subscribe throttle должен срабатывать до serializer validation."""
+        assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["subscribe"] == "100000/min"
         cache.clear()
         url = reverse("common:subscribe")
         statuses = []
 
         with patch.object(
-            ProxyAwareAnonRateThrottle,
+            SubscribeRateThrottle,
             "THROTTLE_RATES",
-            {"anon": "5/min", "user": "10000/day"},
+            {"subscribe": "5/min"},
         ):
-            for index in range(12):
+            for index in range(40):
                 response = api_client.post(
                     url,
-                    {"email": f"throttle-{index}@example.com", "pdp_consent": True},
+                    {"email": f"throttle-{index}@example.com"},
                     format="json",
                     REMOTE_ADDR="198.51.100.77",
                 )
                 statuses.append(response.status_code)
 
-        assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 6
+        assert status.HTTP_400_BAD_REQUEST in statuses
+        assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10

@@ -1,0 +1,25 @@
+"""Unit-тесты системных проверок приложения common."""
+
+import pytest
+from django.test import override_settings
+
+from apps.common.apps import check_session_engine_for_subscribe_consent
+
+pytestmark = pytest.mark.unit
+
+
+def test_session_engine_check_accepts_db_sessions():
+    """DB-backed sessions поддерживают session_key для анонимного consent audit."""
+    with override_settings(SESSION_ENGINE="django.contrib.sessions.backends.db"):
+        errors = check_session_engine_for_subscribe_consent(None)
+
+    assert errors == []
+
+
+def test_session_engine_check_rejects_signed_cookie_sessions():
+    """signed_cookies не создают session_key для anonymous UserConsent."""
+    with override_settings(SESSION_ENGINE="django.contrib.sessions.backends.signed_cookies"):
+        errors = check_session_engine_for_subscribe_consent(None)
+
+    assert len(errors) == 1
+    assert errors[0].id == "common.E001"

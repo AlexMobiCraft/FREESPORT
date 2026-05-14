@@ -369,7 +369,7 @@ def test_registration_normalizes_forwarded_ipv6_zone_id_for_consent_record():
 def test_registration_logs_warning_when_remote_addr_is_unknown(caplog):
     client = APIClient()
 
-    with caplog.at_level("WARNING", logger="apps.users.auth"):
+    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
             retail_payload(),
