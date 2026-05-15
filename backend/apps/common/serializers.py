@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ErrorDetail
 
@@ -67,6 +67,9 @@ class SubscribeSerializer(serializers.Serializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Проверить обязательное согласие на обработку ПДн."""
+        if not isinstance(self.initial_data, dict):
+            raise serializers.ValidationError({"non_field_errors": "Ожидался JSON-объект."})
+
         # BooleanField коэрсит truthy-строки в True; для 152-ФЗ нужен исходный JSON boolean true.
         if self.initial_data.get("pdp_consent") is not True:
             raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED})
@@ -89,35 +92,36 @@ class SubscribeSerializer(serializers.Serializer):
             ip_address = get_consent_ip_address(request)
             user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT", ""))
 
-        try:
-            subscription = Newsletter.objects.select_for_update().get(email=email)
-        except Newsletter.DoesNotExist:
+        with transaction.atomic():
             try:
-                return Newsletter.objects.create(
-                    email=email,
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                )
-            except IntegrityError as exc:
-                raise already_subscribed_error() from exc
+                subscription = Newsletter.objects.select_for_update().get(email=email)
+            except Newsletter.DoesNotExist:
+                try:
+                    return Newsletter.objects.create(
+                        email=email,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                    )
+                except IntegrityError as exc:
+                    raise already_subscribed_error() from exc
 
-        if subscription.is_active:
-            raise already_subscribed_error()
+            if subscription.is_active:
+                raise already_subscribed_error()
 
-        # Реактивируем подписку
-        subscription.is_active = True
-        subscription.unsubscribed_at = None
-        subscription.ip_address = ip_address
-        subscription.user_agent = user_agent
-        subscription.save(
-            update_fields=[
-                "is_active",
-                "unsubscribed_at",
-                "ip_address",
-                "user_agent",
-            ]
-        )
-        return subscription
+            # Реактивируем подписку
+            subscription.is_active = True
+            subscription.unsubscribed_at = None
+            subscription.ip_address = ip_address
+            subscription.user_agent = user_agent
+            subscription.save(
+                update_fields=[
+                    "is_active",
+                    "unsubscribed_at",
+                    "ip_address",
+                    "user_agent",
+                ]
+            )
+            return subscription
 
 
 class SubscribeResponseSerializer(serializers.Serializer):

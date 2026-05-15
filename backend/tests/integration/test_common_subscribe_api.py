@@ -5,15 +5,17 @@ from uuid import uuid4
 
 import pytest
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.sessions.backends.db import SessionStore
 from django.core.cache import cache
-from django.contrib.auth import get_user_model
 from django.db import IntegrityError, OperationalError, connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import serializers, status
 
 from apps.common.models import Newsletter, UserConsent
+from apps.common.serializers import SubscribeSerializer
 from apps.common.throttling import SubscribeRateThrottle
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
@@ -85,6 +87,17 @@ class TestSubscribeEndpoint:
         assert subscription.is_active is True
         assert subscription.unsubscribed_at is None
 
+    @pytest.mark.django_db(transaction=True)
+    def test_subscribe_serializer_save_can_run_outside_view_atomic(self):
+        """SubscribeSerializer.save() сам открывает transaction для select_for_update."""
+        serializer = SubscribeSerializer(data={"email": "serializer-direct@example.com", "pdp_consent": True})
+
+        assert serializer.is_valid(), serializer.errors
+        subscription = serializer.save()
+
+        assert subscription.email == "serializer-direct@example.com"
+        assert Newsletter.objects.filter(email="serializer-direct@example.com").exists()
+
     def test_subscribe_invalid_email(self, api_client):
         """Возвращает 400 для некорректного email."""
         url = reverse("common:subscribe")
@@ -116,6 +129,27 @@ class TestSubscribeEndpoint:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert str(response.data["pdp_consent"][0]) == PDP_CONSENT_REQUIRED
         assert not Newsletter.objects.filter(email="missing-consent@example.com").exists()
+
+    def test_subscribe_serializer_validate_rejects_non_mapping_initial_data(self):
+        """Strict consent guard не должен падать на non-object JSON payload."""
+        serializer = SubscribeSerializer()
+        serializer.initial_data = []
+
+        with pytest.raises(serializers.ValidationError) as exc_info:
+            serializer.validate({"email": "array-payload@example.com", "pdp_consent": True})
+
+        assert "non_field_errors" in exc_info.value.detail
+
+    @pytest.mark.parametrize("payload", [[], "string"])
+    def test_subscribe_rejects_non_object_json_payload(self, api_client, payload):
+        """JSONParser может принять не-object JSON, но endpoint обязан вернуть 400."""
+        url = reverse("common:subscribe")
+
+        response = api_client.post(url, payload, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "non_field_errors" in response.data
+        assert Newsletter.objects.count() == 0
 
     def test_subscribe_rejects_pdp_consent_false(self, api_client):
         """False в pdp_consent не считается согласием."""
@@ -322,15 +356,11 @@ class TestSubscribeEndpoint:
         url = reverse("common:subscribe")
         data = {"email": "locked-reactivation@example.com", "pdp_consent": True}
 
-        with patch.object(
-            Newsletter.objects,
-            "select_for_update",
-            wraps=Newsletter.objects.select_for_update,
-        ) as select_for_update:
+        with CaptureQueriesContext(connection) as captured_queries:
             response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
-        assert select_for_update.called
+        assert any(" FOR UPDATE" in query["sql"].upper() for query in captured_queries.captured_queries)
 
     def test_subscribe_atomic_rollback_on_consent_failure(self, api_client):
         """Если consent audit не записался, клиент получает JSON 503 и Newsletter откатывается."""
@@ -377,10 +407,11 @@ class TestSubscribeEndpoint:
         url = reverse("common:subscribe")
         data = {"email": "session-before-atomic@example.com", "pdp_consent": True}
         original_save = SessionStore.save
+        baseline_savepoint_depth = len(connection.savepoint_ids)
         save_atomic_depths = []
 
         def tracking_save(self, *args, **kwargs):
-            save_atomic_depths.append(len(getattr(connection, "atomic_blocks", ())))
+            save_atomic_depths.append(len(connection.savepoint_ids))
             return original_save(self, *args, **kwargs)
 
         monkeypatch.setattr(SessionStore, "save", tracking_save)
@@ -390,7 +421,26 @@ class TestSubscribeEndpoint:
 
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert save_atomic_depths
-        assert save_atomic_depths[0] <= 1
+        assert save_atomic_depths[0] == baseline_savepoint_depth
+
+    def test_subscribe_logs_session_materialization_failure_separately(self, api_client, monkeypatch, caplog):
+        """Ошибка session.save() логируется отдельно от ошибок записи UserConsent."""
+        url = reverse("common:subscribe")
+        data = {"email": "session-failure@example.com", "pdp_consent": True}
+
+        def fail_session_save(self, *args, **kwargs):
+            raise OperationalError("session store unavailable")
+
+        monkeypatch.setattr(SessionStore, "save", fail_session_save)
+
+        with caplog.at_level("ERROR", logger="apps.common.views"):
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data["error"] == "consent_persistence_failed"
+        assert "Failed to materialize anonymous session for consent audit" in caplog.text
+        assert "Failed to persist newsletter consent audit" not in caplog.text
+        assert not Newsletter.objects.filter(email="session-failure@example.com").exists()
 
     def test_subscribe_returns_409_when_newsletter_unique_race_hits_integrity_error(self, api_client):
         """Race на unique email должен возвращать 409, а не 500."""

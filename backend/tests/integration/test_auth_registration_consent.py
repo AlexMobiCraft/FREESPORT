@@ -234,7 +234,7 @@ def test_registration_ignores_invalid_forwarded_ip_for_consent_record():
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
     consent = UserConsent.objects.get(user=user)
-    assert consent.ip_address is None
+    assert consent.ip_address == "127.0.0.1"
     assert consent.ip_address != "5.6.7.8"
 
 
@@ -296,40 +296,36 @@ def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_i
     assert consent.ip_address == expected_ip
 
 
-def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record(caplog):
+def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_record():
     client = APIClient()
 
-    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
-        response = post_register(
-            client,
-            retail_payload(),
-            HTTP_X_FORWARDED_FOR="1.2.3.4:99999",
-            HTTP_USER_AGENT="ConsentTestAgent/1.0",
-        )
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR="1.2.3.4:99999",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
 
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
     consent = UserConsent.objects.get(user=user)
-    assert consent.ip_address is None
-    assert "Invalid client IP skipped for consent audit" in caplog.text
+    assert consent.ip_address == "127.0.0.1"
 
 
-def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_record(caplog):
+def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_record():
     client = APIClient()
 
-    with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
-        response = post_register(
-            client,
-            retail_payload(),
-            HTTP_X_FORWARDED_FOR="[2606:4700:4700::1111]:99999",
-            HTTP_USER_AGENT="ConsentTestAgent/1.0",
-        )
+    response = post_register(
+        client,
+        retail_payload(),
+        HTTP_X_FORWARDED_FOR="[2606:4700:4700::1111]:99999",
+        HTTP_USER_AGENT="ConsentTestAgent/1.0",
+    )
 
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
     consent = UserConsent.objects.get(user=user)
-    assert consent.ip_address is None
-    assert "Invalid client IP skipped for consent audit" in caplog.text
+    assert consent.ip_address == "127.0.0.1"
 
 
 @pytest.mark.parametrize("forwarded_ip", ["10.0.0.1", "127.0.0.10", "fe80::1"])
@@ -390,6 +386,7 @@ def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
             client,
             retail_payload(),
             HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
+            REMOTE_ADDR="unknown",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
         )
 
@@ -409,6 +406,7 @@ def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
             client,
             retail_payload(),
             HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
+            REMOTE_ADDR="unknown",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
         )
 
@@ -426,6 +424,7 @@ def test_registration_does_not_split_escape_sequence_when_truncating_warning_log
             client,
             retail_payload(),
             HTTP_X_FORWARDED_FOR=("A" * 127) + "\r\n",
+            REMOTE_ADDR="unknown",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
         )
 

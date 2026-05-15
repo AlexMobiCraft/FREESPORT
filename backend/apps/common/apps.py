@@ -5,7 +5,7 @@ from django.core.checks import Error, Tags, register
 SIGNED_COOKIE_SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 
 
-@register(Tags.compatibility)
+@register(Tags.security)
 def check_session_engine_for_subscribe_consent(app_configs, **kwargs):
     """Проверить, что anonymous subscribe consent может получить session_key."""
     if settings.SESSION_ENGINE != SIGNED_COOKIE_SESSION_ENGINE:

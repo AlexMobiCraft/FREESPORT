@@ -342,7 +342,7 @@ def realtime_metrics(_request: Request) -> Response:
             ],
         ),
         400: OpenApiResponse(
-            description="Ошибка валидации email",
+            description="Ошибка валидации (email или pdp_consent)",
             examples=[
                 OpenApiExample(
                     name="validation_error",
@@ -414,7 +414,19 @@ def subscribe(request: Request) -> Response:
         try:
             if not request.user.is_authenticated and not request.session.session_key:
                 request.session.save()
+        except DatabaseError:
+            logger.exception("Failed to materialize anonymous session for consent audit")
+            return Response(
+                {
+                    "error": "consent_persistence_failed",
+                    "details": {
+                        "non_field_errors": ["Не удалось сохранить согласие. Попробуйте позже."],
+                    },
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
+        try:
             with transaction.atomic():
                 subscription = serializer.save()
 

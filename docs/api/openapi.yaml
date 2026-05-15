@@ -108,7 +108,7 @@ paths:
         '201':
           description: Подписка успешно создана
         '400':
-          description: Ошибка валидации email
+          description: Ошибка валидации (email или pdp_consent)
         '409':
           description: Email уже подписан на рассылку
         '503':
