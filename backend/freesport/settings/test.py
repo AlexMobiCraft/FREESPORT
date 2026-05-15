@@ -90,7 +90,7 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 )
 
 # Отключаем логирование в консоль, чтобы вывод тестов был чистым.
-LOGGING: dict[str, Any] = {}  # type: ignore[no-redef]  # type: ignore[no-redef]
+LOGGING: dict[str, Any] = {}  # type: ignore[no-redef]
 
 # В тестах throttle не должен пересекаться между кейсами/worker-ами.
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {

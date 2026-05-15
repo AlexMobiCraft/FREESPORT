@@ -61,15 +61,6 @@ def test_proxy_aware_throttle_uses_remote_addr_for_malformed_proxy_header(header
     assert ProxyAwareAnonRateThrottle().get_ident(request) == "198.51.100.77"
 
 
-@pytest.mark.parametrize(
-    "throttle_cls",
-    [ProxyAwareAnonRateThrottle, ProxyAwareUserRateThrottle, SubscribeRateThrottle],
-)
-def test_proxy_aware_throttle_uses_russian_default_detail(throttle_cls):
-    """429 от proxy-aware throttle не должен отдавать DRF default на английском."""
-    assert str(throttle_cls.default_detail) == "Слишком много попыток. Попробуйте через минуту."
-
-
 def test_test_settings_use_high_throttle_rates():
     """Тестовое окружение не должно наследовать production-like лимиты из base.py."""
     rates = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]

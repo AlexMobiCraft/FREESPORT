@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** in-progress
+**Status:** review
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -51,7 +51,7 @@
 
 **Given** чек-бокс не отмечен,
 **When** пользователь нажимает «Подписаться»,
-**Then** показывается ошибка `«Необходимо согласие на обработку персональных данных»` под чек-боксом, submit блокируется (RHF validation).
+**Then** показывается ошибка `«Необходимо согласие на обработку персональных данных.»` под чек-боксом, submit блокируется (RHF validation).
 
 **Given** чек-бокс отмечен,
 **When** подписка успешна,
@@ -394,7 +394,7 @@ grep -rn "subscribe/\|SubscribeSerializer" backend/tests/ backend/apps/
    - `expect(link).toHaveAttribute('href', '/privacy-policy');`
    - `expect(link).toHaveAttribute('target', '_blank');`
    - `expect(link).toHaveAttribute('rel', 'noopener noreferrer');`
-2. **Submit без отметки PDN** показывает ошибку «Необходимо согласие на обработку персональных данных»; `subscribeService.subscribe` НЕ вызывается (`expect(subscribeService.subscribe).not.toHaveBeenCalled();`).
+2. **Submit без отметки PDN** показывает ошибку «Необходимо согласие на обработку персональных данных.»; `subscribeService.subscribe` НЕ вызывается (`expect(subscribeService.subscribe).not.toHaveBeenCalled();`).
 3. **Submit с отметкой PDN** вызывает `subscribeService.subscribe` с **точным** payload `{ email: 'test@example.com', pdp_consent: true }` — assertion через `expect(subscribeService.subscribe).toHaveBeenCalledWith({ email: 'test@example.com', pdp_consent: true });`.
 4. **Reset формы после успешной подписки** очищает email **и** PDN-чек-бокс (после `reset()` чекбокс снова `unchecked`).
 5. **A11y:** PDN-чекбокс получает `aria-invalid="true"` при ошибке; ошибка читается через `role="alert"`; `aria-describedby` указывает на id error-элемента.
@@ -674,7 +674,7 @@ export const SubscribeForm: React.FC = () => {
           <Checkbox
             id="subscribe-pdp-consent"
             {...register('pdp_consent', {
-              required: 'Необходимо согласие на обработку персональных данных',
+              required: 'Необходимо согласие на обработку персональных данных.',
             })}
             disabled={isSubmitting}
             aria-invalid={hasPdpConsentError || undefined}
@@ -1050,6 +1050,7 @@ GPT-5 Codex
 - Финальный Pass 7 регресс зелёный: targeted subscribe/common config, registration consent + throttle dependent suite, backend unit marker suite, integration marker suite без известного data-dependent blocker, Black, Flake8, `py_compile`, Django checks, OpenAPI generation, `git diff --check` и GitNexus detect-changes выполнены.
 - Pass 8 закрыт: `subscribeService` корректно маппит 5xx без `details` в `server_error` вместо `network_error`; `api.generated.ts` синхронизирован с OpenAPI 400 description; THROTTLED_ERROR punctuation синхронизирован между backend/frontend; ElectricSubscribeForm покрыт regression-тестами на `server_error`; `test_users_admin.py` получил `pytest.mark.unit`; system check `common.E002` проверяет наличие `subscribe` throttle scope; dev/staging/test settings наследуют `DEFAULT_THROTTLE_RATES` из `base.py`; stale `setError('pdp_consent')` очищается через `clearErrors` перед повторным submit в обеих формах.
 - Финальный Pass 8 регресс: frontend targeted tests (SubscribeForm + ElectricSubscribeForm + subscribeService) — 30/30 passed; backend ESLint/targeted проверки пройдены; story и sprint-status синхронизированы в `review`.
+- Pass 9 закрыт: убран дублирующий `# type: ignore[no-redef]` в `test.py`, удалены мёртвые `default_detail`/`default_code` из `ProxyAwareThrottleIdentMixin` и неактуальный тест `test_proxy_aware_throttle_uses_russian_default_detail`, AC-1 story синхронизирована с точкой в `PDP_CONSENT_REQUIRED`; Black, Flake8, py_compile зелёные.
 
 ### File List
 
@@ -1084,6 +1085,9 @@ GPT-5 Codex
 - `frontend/src/services/__tests__/subscribeService.test.ts`
 - `frontend/src/types/api.ts`
 - `frontend/src/types/api.generated.ts`
+- `backend/freesport/settings/test.py`
+- `backend/apps/common/throttling.py`
+- `backend/tests/unit/test_common_throttling.py`
 
 ### Change Log
 
@@ -1096,6 +1100,7 @@ GPT-5 Codex
 - 2026-05-14: Закрыты Pass 6 findings PPPP6-D1/D2/P1/P2; `/subscribe/` стал JSON-only в OpenAPI, `ProductDetail` schema восстановлена, consent audit fallback на `REMOTE_ADDR` добавлен, frontend validation details приведены к OpenAPI-контракту; статус синхронизирован в `review`.
 - 2026-05-15: Закрыты Pass 7 findings P7-1…P7-7; усилены non-object JSON validation, serializer-level atomic, session failure observability, FOR UPDATE/session-save tests, security-tag system check и OpenAPI 400 description; зависимые registration tests синхронизированы с Pass 6 fallback; статус синхронизирован в `review`.
 - 2026-05-15: Закрыты Pass 8 findings P8-1…P8-8; исправлено 5xx-мэппирование без details в `server_error`, синхронизирована OpenAPI/generated types punctuation, добавлена system check `common.E002` на `subscribe` throttle scope, dev/staging/test settings наследуют throttle rates из base.py, добавлен `pytest.mark.unit` в `test_users_admin.py`, `clearErrors('pdp_consent')` очищает stale server errors перед retry, ElectricSubscribeForm покрыт `server_error` regression-тестом; статус синхронизирован в `review`.
+- 2026-05-15: Закрыты Pass 9 findings P9-1 / DP9-1 / DP9-2; убран дублирующий `# type: ignore`, удалены мёртвые `default_detail`/`default_code` из `ProxyAwareThrottleIdentMixin` вместе с неактуальным тестом, AC-1 story синхронизирована с frontend/backend точкой в сообщении `PDP_CONSENT_REQUIRED`.
 
 ---
 
@@ -1619,9 +1624,9 @@ Reviewer: Claude Code `bmad-code-review` (Opus 4.7) — параллельные
 
 ### Patch (3: 1 исходный + 2 из decision-resolved)
 
-- [ ] [Review][Patch] P9-1. Дублированный inline-комментарий `# type: ignore[no-redef]` дважды в одной строке [`backend/freesport/settings/test.py:93`]
-- [ ] [Review][Patch] DP9-1. Удалить мёртвые `default_detail`/`default_code` с `ProxyAwareThrottleIdentMixin` + тест `test_proxy_aware_throttle_uses_russian_default_detail` (DRF не читает эти атрибуты для 429-ответа) [`backend/apps/common/throttling.py:10-11`, `backend/tests/unit/test_common_throttling.py`]
-- [ ] [Review][Patch] DP9-2. Обновить AC-1 в story: сообщение RHF-ошибки PDN зафиксировать С точкой (`«…персональных данных.»`) для консистентности с backend-сообщением [story AC-1, строки 54/397/677]
+- [x] [Review][Patch] P9-1. Дублированный inline-комментарий `# type: ignore[no-redef]` дважды в одной строке [`backend/freesport/settings/test.py:93`]
+- [x] [Review][Patch] DP9-1. Удалить мёртвые `default_detail`/`default_code` с `ProxyAwareThrottleIdentMixin` + тест `test_proxy_aware_throttle_uses_russian_default_detail` (DRF не читает эти атрибуты для 429-ответа) [`backend/apps/common/throttling.py:10-11`, `backend/tests/unit/test_common_throttling.py`]
+- [x] [Review][Patch] DP9-2. Обновить AC-1 в story: сообщение RHF-ошибки PDN зафиксировать С точкой (`«…персональных данных.»`) для консистентности с backend-сообщением [story AC-1, строки 54/397/677]
 
 ### Defer (5) — pre-existing / minor / out-of-scope
 

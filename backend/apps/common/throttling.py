@@ -1,4 +1,3 @@
-from django.utils.translation import gettext_lazy as _
 from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle, UserRateThrottle
 
 from apps.common.utils.consent_audit import normalize_consent_ip, sanitize_log_value
@@ -6,9 +5,6 @@ from apps.common.utils.consent_audit import normalize_consent_ip, sanitize_log_v
 
 class ProxyAwareThrottleIdentMixin:
     """Единый proxy-aware ident для DRF throttle cache keys."""
-
-    default_detail = _("Слишком много попыток. Попробуйте через минуту.")
-    default_code = "throttled"
 
     def _sanitize_ident(self, ident):
         """Вернуть Redis-safe throttle ident из внешнего IP-заголовка."""
