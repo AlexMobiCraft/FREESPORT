@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review (Pass 6 patch items closed 2026-05-14; W5N1-W5N7 + PPPP6-W1 deferred)
+**Status:** in-progress (Pass 7 — 7 patch findings P7-1…P7-7 oustanding; 8 defer W7-1…W7-8 записаны; ~30 dismissed)
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -1431,3 +1431,57 @@ Reviewer: Claude Code `bmad-code-review` (Opus 4.7) — параллельные
 - EC-13 `5xx without JSON body` = P5N4 закрыл server_error через DRF-shape, нативный 502/504 без body — edge.
 - EC-15 `JWT/session decoupling race on mid-request logout` = edge case, не воспроизводится в test harness.
 - R1-R4 `fragile tests` (count==0, atomic_blocks, THROTTLE_RATES patch, name substring) = **WWW13 Pass 3 / косметика** defer.
+
+---
+
+## Review Findings — Pass 7 (2026-05-15)
+
+Reviewer: Claude Code `bmad-code-review` (Opus 4.7) — параллельные слои: Blind Hunter, Edge Case Hunter, Acceptance Auditor. Диф: backend-only chunk `28c0a0a0~1..HEAD` (21 файл, +1171/-369, 2322 строки unified diff). Triage: 46 raw → 7 patch + 8 defer + ~30 dismiss (все dismiss — уже закрыты в Pass 1-6 либо noise).
+
+### Decision-needed (0)
+
+Архитектурные вопросы не выявлены — все decision-shaped находки (B8/B20 IP fallback к nginx; E17 `policy_version` audit drift) уже ратифицированы в PPPP6-D2 / W5N6 Pass 5.
+
+### Patch (7)
+
+- [ ] [Review][Patch] **P7-1. `SubscribeSerializer.validate()` падает `AttributeError`/500 если `self.initial_data` — не dict** [`backend/apps/common/serializers.py:97-102`] — Strict-bool guard читает `self.initial_data.get("pdp_consent")`. `JSONParser` принимает любой валидный JSON (array, scalar, null). POST `[]` или `"string"` → `initial_data` — не dict → `.get()` → `AttributeError` → 500 без структуры контракта. Fix: добавить `isinstance(self.initial_data, dict)` guard в начале `validate()`, иначе raise standard DRF `ValidationError({"non_field_errors": "Expected an object"})`. Источник: Blind#5. **Severity: HIGH** (потенциальный 500 на неожиданном payload).
+
+- [ ] [Review][Patch] **P7-2. Тест `test_subscribe_anonymous_session_is_saved_before_atomic_consent_write` тавтологический — ассерт через `getattr(connection, "atomic_blocks", ())`** [`backend/tests/integration/test_common_subscribe_api.py:1502-1520`] — `connection.atomic_blocks` атрибут не существует в Django (`BaseDatabaseWrapper` использует `savepoint_ids` / `in_atomic_block`). `getattr(..., ())` всегда `()` → `len(...) == 0` → `0 <= 1` всегда True. Тест ничего не проверяет — `session.save()` мог бы быть внутри atomic блока и тест бы всё равно прошёл, ломая PPPP2 invariant. Fix: использовать `connection.savepoint_ids` (depth = `len(savepoint_ids)`) или установить probe через `transaction.atomic()` context manager mock. Источник: Blind#12. **Severity: HIGH** (test smell — скрывает регрессию PPPP2).
+
+- [ ] [Review][Patch] **P7-3. `test_subscribe_reactivation_locks_existing_subscription` проверяет только `.called`, не реальное SQL `FOR UPDATE`** [`backend/tests/integration/test_common_subscribe_api.py:1441-1460`] — `wraps=Newsletter.objects.select_for_update`; ассерт `select_for_update.called` — проверка вызова, не семантики lock'а. Реактивация без `select_for_update` (например, удалили вызов из `serializer.save()`) — тест останется зелёным. Fix: проверить через `captured_queries` присутствие `SELECT ... FOR UPDATE` или использовать `pytest.mark.django_db(transaction=True)` + параллельный поток, конкурирующий за row. Источник: Blind#13. **Severity: MEDIUM** (test smell).
+
+- [ ] [Review][Patch] **P7-4. `SubscribeSerializer.save()` использует `select_for_update` без собственного `transaction.atomic()`** [`backend/apps/common/serializers.py:140-180`] — Сейчас works потому что caller (view) оборачивает в atomic. Unit-тест `serializer.save()` напрямую (или будущий internal admin/signal caller) упадёт с `TransactionManagementError: select_for_update cannot be used outside of a transaction`. Fix: обернуть `select_for_update().get()` → `Newsletter.objects.create()` блок в `with transaction.atomic():` внутри `save()`. Nested atomic с view-уровнем безопасно (Django поддерживает). Источник: Edge#2. **Severity: MEDIUM** (defensive — устойчивость к будущим callers).
+
+- [ ] [Review][Patch] **P7-5. Логгер 503-ветки misleading при `session.save()` failure** [`backend/apps/common/views.py:414-441`] — `try:` блок включает `request.session.save()` (line 416, до atomic). Если session.save() бросает `DatabaseError` (deadlock `django_session`, DB outage), catch на line 440 пишет `"Failed to persist newsletter consent audit"` — но consent write даже не начат. Operator misdiagnosis. Fix: вынести session.save() в отдельный try/except с собственным log message (`"Failed to materialize anonymous session for consent audit"`) или различить branch внутри except. Источник: Auditor A2. **Severity: LOW** (observability).
+
+- [ ] [Review][Patch] **P7-6. OpenAPI `subscribe` 400 description устарел после AC-4** [`docs/api/openapi.yaml:110-111`] — Текст `description: Ошибка валидации email`. После AC-4 эндпоинт также возвращает 400 для `pdp_consent` field error. AC-7 step 4(б) добавил example `pdp_consent_required`, но description не обновлён. Fix: `description: Ошибка валидации (email или pdp_consent)`. Источник: Auditor A3. **Severity: LOW** (docs drift).
+
+- [ ] [Review][Patch] **P7-7. System check `check_session_engine_for_subscribe_consent` помечен `Tags.compatibility` вместо security/database** [`backend/apps/common/apps.py:8`] — Check защищает `CheckConstraint userconsent_user_or_session_required` (data-integrity / security инвариант). Команда `python manage.py check --tag=security` или `--tag=database` (которые DevOps gates targets) не увидит этот check. Fix: заменить `Tags.compatibility` на `Tags.security` (более точно семантически) или `Tags.database`. Источник: Auditor A4. **Severity: LOW** (cosmetic / surface in CI).
+
+### Defer (8) — pre-existing / out-of-scope
+
+- [x] [Review][Defer] **W7-1. Malformed `X-Real-IP`/`X-Forwarded-For` → REMOTE_ADDR fallback collapses всех атакующих в один nginx-IP throttle bucket** [`backend/apps/common/throttling.py:244-257`] — В production REMOTE_ADDR = nginx upstream IP (постоянное значение). Атакующий ротирует malformed headers → fallback на nginx IP → все попадают в shared bucket 30/min. С другой стороны легитимные пользователи за тем же nginx тоже получают 429. **Defer reason:** уже задокументировано в W5N2 Pass 5 (CGNAT/NAT amplification); требует архитектурного решения (CAPTCHA / session-scoped throttle / trusted-proxy allowlist) — единая infra-story. Источник: Blind#3.
+
+- [x] [Review][Defer] **W7-2. `test_subscribe_atomic_rollback_on_consent_failure` не различает view-atomic rollback от pytest-django outer transaction rollback** [`backend/tests/integration/test_common_subscribe_api.py:1462-1483`] — Без `pytest.mark.django_db(transaction=True)` outer transaction wrap'а pytest откатывает всё в конце теста. Assertion `UserConsent.objects.count() == 0` пройдёт даже если view's `atomic()` block НЕ откатил (фикстура спасёт). **Defer reason:** Pass 4 PPPP3 уже улучшил тест (первый create реальный). Переход на `transaction=True` сломает изоляцию параллельных тестов и потребует пересмотра pytest-плагинов проекта. Источник: Blind#14.
+
+- [x] [Review][Defer] **W7-3. OpenAPI `users` vs `Users` tag case inconsistency в reshuffled blocks** [`docs/api/openapi.yaml:2034-2056`] — `/users/favorites/{id}/` GET использует tag `users`, DELETE — `Users`. Swagger UI разделит resource на две секции. **Defer reason:** drf-spectacular regeneration artifact, pre-existing (см. WWW2/WWWW2 Pass 4 deferred); не вводится 35.3. Источник: Blind#16.
+
+- [x] [Review][Defer] **W7-4. `ProxyAwareUserRateThrottle` в production изменил 429 message format для всех DRF-throttled endpoints** [`backend/freesport/settings/production.py` (deleted override) → `backend/freesport/settings/base.py:944-952`] — Раньше production использовал raw `UserRateThrottle` с английским `"Request was throttled. Expected available in X seconds."`. Теперь `ProxyAwareUserRateThrottle` (`default_detail = "Слишком много попыток..."` PPP2 Pass 3) применён ко всем endpoints, не только subscribe. Frontend i18n / message parsing других endpoints может сломаться. **Defer reason:** scope creep за 35.3; требует frontend-аудита всех throttled endpoints. Источник: Blind#18.
+
+- [x] [Review][Defer] **W7-5. Degraded session backend (Redis/cache) → `session.save()` no-op → empty `session_key` → CheckConstraint → 503 + audit silently lost** [`backend/apps/common/views.py:415-423`] — Кэш/сессия в degraded режиме могут не материализовать session_key. `request.session.session_key` остаётся None → `session_key = ""` → `UserConsent.create()` → IntegrityError → 503. Пользователь видит 503 для валидного запроса; audit не записан. **Defer reason:** hypothetical (Django db-backend не имеет silent-fail режима); реальные DB outages уже ловятся `except DatabaseError → 503` (P5N3). Источник: Edge#3.
+
+- [x] [Review][Defer] **W7-6. Throttle bucket edge cases: IPv4-mapped IPv6 + whitespace-only headers конфликтуют по cache key** [`backend/apps/common/throttling.py:244-257`, `backend/apps/common/utils/consent_audit.py:60-101`] — `::ffff:127.0.0.1` нормализуется в `127.0.0.1` (тот же bucket что у клиента отправляющего `X-Real-IP: 127.0.0.1` напрямую — collide); whitespace-only `X-Real-IP: " "` + пустой REMOTE_ADDR → empty ident bucket. **Defer reason:** trusted-proxy misconfiguration territory; mitigation на nginx-уровне (header overwrite). Связано с W5N2 / W7-1. Источник: Edge#10 + Edge#12.
+
+- [x] [Review][Defer] **W7-7. Throttle integration tests flaky под pytest-xdist с shared Redis cache** [`backend/tests/integration/test_common_subscribe_api.py:425-441, 1546-1569`] — `cache.clear()` в начале/конце теста не изолирует от параллельных workers (xdist) с shared Redis backend. Counter contamination → ложные 429 / отсутствие 429 в одном из workers. **Defer reason:** pre-existing test infra issue (WWW13 Pass 3 deferred); фикс требует pytest fixture с per-test KEY_PREFIX или dedicated locmem cache для tests. Источник: Edge#9 + Edge#19.
+
+- [x] [Review][Defer] **W7-8. AC-8 test parametrization gaps: zone-id integration coverage + surrogate-only UA** [`backend/tests/integration/test_common_subscribe_api.py:233-250, 273-288`] — Spec AC-8 case #5 требовал параметризацию `private/loopback/zone-id/невалидный IP`; реализация — один кейс с XFF + отдельные тесты на private/невалидный. Zone-id (`fe80::1%eth0`) покрыт только unit test_common_throttling.py, не integration subscribe path. AC-8 case #6 (UA 1000 → ≤512) тестируется на конкретной длине 1110 → exact 512, без короткого surrogate-only кейса. **Defer reason:** функционально требование `<=512` выполнено; unit tests покрывают edge cases; коспетический test-coverage gap. Источник: Auditor A1 + A5.
+
+### Dismissed (~30) — already-resolved in Pass 1-6 / verified false positives / noise
+
+**Blind Hunter:** B1 (self-discard), B2 (low fragility, не баг), B4 (= BH-6 Pass 6: subscribe scope в base + всех env-файлах), B6 (`error_messages` `invalid`/`null` dead — DN1 Pass 2 intentional), B7 (= PPPP2 Pass 4 intentional accept session row), B8 (= PPPP6-D2 Pass 6 ratified REMOTE_ADDR fallback), B9 (= D3→P11→WWW14 ratified is_global removal), B10 (= E14 — request.user lazy кэшируется, безопасно), B11 (= WWW3 Pass 3 deferred), B15 (low risk, design pattern), B17 (= W5N4 Pass 5 deferred cross-domain cookies), B19 (intentional per-IP design), B20 (= B8 merge).
+
+**Edge Case Hunter:** E1 (concurrent create race correctly handled via IntegrityError → 409 → BH-3 Pass 6 verified), E5 (= B11/A6/WWW3), E6 (= DN1 Pass 2 strict initial_data intentional), E7 (DRF coerces string → list of ErrorDetail correctly), E8 (= W5N2 Pass 5 deferred), E9 (= WWW13 Pass 3 deferred), E11 (= PPPP2 ratified), E13 (over-engineering future-proofing), E14 (self-discard by Hunter), E15 (= PPPP2 ratified), E17 (= W5N6 Pass 5 deferred), E18 (= W5N3 Pass 5 deferred), E20 (cosmetic dead config).
+
+**Acceptance Auditor:** A6 (= WWW3 Pass 3 deferred — `_has_error_code` recursion).
+
+---
