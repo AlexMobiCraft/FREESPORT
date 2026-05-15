@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review
+**Status:** in-progress
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -1605,6 +1605,49 @@ Reviewer: Claude Code `bmad-code-review` (Opus 4.7) — параллельные
 - Audit#5 `products/serializers.py scope creep` = Pass 6 PPPP6-D1→P3 закрытие OpenAPI regression, justified.
 - Audit#7 `policy_version="1.0" hardcoded` = **W5N6 Pass 5** deferred, для Story 35.5.
 - Audit#8 `JSDoc Story 35.3 reference missing` — косметика; spec ничего не требует про JSDoc reference.
+
+---
+
+## Review Findings — Pass 9 (2026-05-15)
+
+Адверсариальное ревью диапазона `fb47fbeb..bbae541f` (Blind Hunter / Edge Case Hunter / Acceptance Auditor). Итог: 2 decision-needed, 1 patch, 5 defer, 12 dismissed.
+
+### Decision-needed (2 — resolved 2026-05-15 → оба patch)
+
+- [x] [Review][Decision] Локализация 429-ответа `SubscribeRateThrottle` — resolved (Alex, 2026-05-15): вариант «удалить мёртвый код» → стало DP9-1.
+- [x] [Review][Decision] Точка в тексте RHF-ошибки PDN — resolved (Alex, 2026-05-15): вариант «оставить точку, обновить AC-1» → стало DP9-2.
+
+### Patch (3: 1 исходный + 2 из decision-resolved)
+
+- [ ] [Review][Patch] P9-1. Дублированный inline-комментарий `# type: ignore[no-redef]` дважды в одной строке [`backend/freesport/settings/test.py:93`]
+- [ ] [Review][Patch] DP9-1. Удалить мёртвые `default_detail`/`default_code` с `ProxyAwareThrottleIdentMixin` + тест `test_proxy_aware_throttle_uses_russian_default_detail` (DRF не читает эти атрибуты для 429-ответа) [`backend/apps/common/throttling.py:10-11`, `backend/tests/unit/test_common_throttling.py`]
+- [ ] [Review][Patch] DP9-2. Обновить AC-1 в story: сообщение RHF-ошибки PDN зафиксировать С точкой (`«…персональных данных.»`) для консистентности с backend-сообщением [story AC-1, строки 54/397/677]
+
+### Defer (5) — pre-existing / minor / out-of-scope
+
+- [x] [Review][Defer] Осиротевшая `django_session`-строка при 503 — `request.session.save()` выполняется до `transaction.atomic()`, поэтому при сбое записи consent (503) сессия в БД остаётся без подписки и согласия [`backend/apps/common/views.py`] — deferred, minor side effect на редком DB-failure пути.
+- [x] [Review][Defer] Недетерминированный текст toast `getFirstBackendError` — берётся «первое попавшееся» сообщение из `Object.values(details)` без гарантии порядка [`SubscribeForm.tsx` / `ElectricSubscribeForm.tsx`] — deferred, проявляется только при multi-field error response.
+- [x] [Review][Defer] Несогласованный fallback неизвестного IP — admin `_get_client_ip` отдаёт `"0.0.0.0"`, consent-audit отдаёт `None` для того же `unknown` [`backend/apps/users/admin.py`] — deferred, admin-код, минорная неконсистентность.
+- [x] [Review][Defer] `SubscribeRateThrottle` ключуется только по IP — авторизованные пользователи за общим NAT делят один лимит `30/min`; пустой IP → все клиенты в одном бакете [`backend/apps/common/throttling.py:63-68`] — deferred, endpoint преимущественно анонимный, failure-closed.
+- [x] [Review][Defer] Сломанный pipeline `npm run generate:types` — скрипт читает устаревший `docs/api-spec.yaml`, тогда как канонический файл — `docs/api/openapi.yaml`; типы синхронизировались вручную [`frontend/package.json`] — deferred, ранее зафиксировано как W5N1.
+
+### Dismissed (12) — noise / false positive / deliberate design
+
+**Blind Hunter:**
+- B1 `is_global removal — регрессия` — субагенты сравнивали закоммиченный stale-артефакт `story-35-3-review-pass3.diff` с финальным кодом; финальный код+тесты консистентны и намеренны (verified `test_subscribe_accepts_private_forwarded_ip_for_audit`, `test_subscribe_newsletter_ip_uses_normalized_audit_ip`).
+- B2 `fallback на REMOTE_ADDR при malformed XFF` — намеренное решение Pass 5 (P5N2), задокументировано, покрыто тестом.
+- B3 `common.E002 проверяет наличие ключа, а не регистрацию scope` — работает как задумано, startup-guard.
+- B5 `validate() читает initial_data, а не attrs` — намеренная строгая 152-ФЗ проверка; `validate()` запускается только через `is_valid()`, который требует `data=`, поэтому `initial_data` всегда dict (non-dict guarded).
+- B6 `race на select_for_update для нового email` — оба субагента подтвердили: корректно резолвится в 409 через `IntegrityError`.
+- B7 `policy_version не передан явно` — соответствует AC-5 (строка 166); version-drift зафиксирован в deferred W5N6.
+- B9 `шум в OpenAPI diff (переупорядочены методы)` — артефакт регенерации drf-spectacular.
+- B12 `удалён тест между passes` — артефакт сравнения со stale-diff.
+- B13 `test_test_settings_use_high_throttle_rates ассертит точные числа` — намеренный config-snapshot тест.
+
+**Acceptance Auditor:**
+- Audit-2 `вложенный atomic вместо единого (AC-5)` — функционально корректно, намеренное решение Pass 7 (P7-2); nested savepoint достигает намерения.
+- Audit-scope `scope creep вне «Структуры файлов»` — зафиксировано в deferred-work (PPPP6-W1 / WWW8).
+- Audit-artifact `story-35-3-pass8.diff ≠ HEAD` — ревью-diff `fb47fbeb..bbae541f` отражает истинный HEAD, сравнение со stale-артефактом неактуально.
 
 ---
 
