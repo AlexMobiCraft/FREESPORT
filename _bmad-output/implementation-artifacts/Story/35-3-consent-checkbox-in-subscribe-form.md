@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.3
-**Status:** review
+**Status:** in-progress
 **Priority:** High (часть compliance-пакета 152-ФЗ; сейчас email подписчика принимается без явного согласия — нарушение)
 
 ---
@@ -1507,3 +1507,101 @@ Reviewer: Claude Code `bmad-code-review` (Opus 4.7) — параллельные
 **Acceptance Auditor:** A6 (= WWW3 Pass 3 deferred — `_has_error_code` recursion).
 
 ---
+
+## Review Findings — Pass 8 (2026-05-15)
+
+Восьмой заход `bmad-code-review` после закрытия P7-1…P7-7. 3 параллельных слоя (Blind Hunter, Edge Case Hunter, Acceptance Auditor) по diff `0833e90c^..HEAD` (3204 строки, 31 файл, баз/фронт + тесты, без api.generated.ts / openapi.yaml / story.md / review-cache). Raw: 18 + 49 + 8 = 75. Дедуп: ~35 уникальных. Триаж: **2 decision-needed, 8 patch, 13 defer, ~30 dismissed**.
+
+### Decision-needed (2 — resolved 2026-05-15 → оба defer)
+
+- [x] **DN8-1 → Defer.** Email enumeration через 409 «already_subscribed» [`backend/apps/common/views.py:441-451`, `backend/apps/common/serializers.py:120-127`]. Анонимный атакующий с `pdp_consent: true` различает «subscribed/not subscribed» по `201` vs `409`. **Решение (Alex, 2026-05-15):** defer — объединить с WWWW3 Pass 4 (`/unsubscribe/` enumeration) в единую security-story «harden enumeration»; `/subscribe/` и `/unsubscribe/` — один класс уязвимости, чинить одним паттерном. Смена 409-контракта ломает AC-4 и откатывает 7 passes тестов. Throttle 30/min ограничивает атаку; маскировка — территория комплаенс-офицера. Источник: Blind#3.
+
+- [x] **DN8-2 → Defer.** `_sanitize_ident` fallback на `sanitize_log_value` создаёт separate Redis bucket для каждой мусорной `X-Real-IP` [`backend/apps/common/throttling.py:13-16`]. **Решение (Alex, 2026-05-15):** defer — `get_ident()` уже fallback-ится на `REMOTE_ADDR` для malformed заголовков (тест `test_proxy_aware_throttle_uses_remote_addr_for_malformed_proxy_header`); в production REMOTE_ADDR = постоянный nginx-upstream IP, что ограничивает реальный bypass. Полное решение (TRUSTED_PROXY allowlist) уже отложено как W7-1 «единая infra-story». Источник: Blind#9 + Edge#19 + Edge#20.
+
+### Patch (8)
+
+- [ ] [Review][Patch] **P8-1. Frontend `subscribeService` маппит 5xx БЕЗ `details` в `network_error` — реальные 502/504 Nginx (HTML response) показывают пользователю «Не удалось подписаться. Попробуйте позже» вместо «Сервер временно недоступен»** [`frontend/src/services/subscribeService.ts:77-79`, `frontend/src/components/home/SubscribeForm.tsx:96-119`, `frontend/src/components/home/ElectricSubscribeForm.tsx:90-135`] — Гард `if (axiosError.response?.status >= 500 && details)` требует `details`. 502 Bad Gateway / 504 Gateway Timeout / 503 без JSON-тела (Nginx сам), 500 без структурированного ответа — все падают в `network_error`. UX неконсистентен: реальная инфра-проблема выглядит как offline. Fix: `if (status >= 500) throw new SubscribeServiceError('server_error', details ?? undefined)` — details optional. Frontend `getValidationDetails` уже выдержит `undefined`. Источник: Blind#13 + Edge×3.
+
+- [ ] [Review][Patch] **P8-2. `frontend/src/types/api.generated.ts:2816` всё ещё `Ошибка валидации email`, тогда как `docs/api/openapi.yaml:111` обновлён в Pass 7 P7-6 на `Ошибка валидации (email или pdp_consent)`** [`frontend/src/types/api.generated.ts:2816`] — DoD пункт «generated TypeScript types обновлены» помечен `[x]`, но регенерация после P7-6 не выполнена — drift. Fix: `npx openapi-typescript ../docs/api/openapi.yaml -o ./src/types/api.generated.ts`. Источник: Auditor#1.
+
+- [ ] [Review][Patch] **P8-3. THROTTLED_ERROR text drift — backend с точкой, frontend без** [`backend/apps/common/throttling.py:10` (`"Слишком много попыток. Попробуйте через минуту."`), `frontend/src/components/home/SubscribeForm.tsx:31`, `frontend/src/components/home/ElectricSubscribeForm.tsx:28` (`"Слишком много попыток. Попробуйте через минуту"`)] — Симметрично Pass 2 PP6 (`PDP_CONSENT_REQUIRED` точка). Backend DRF detail vs frontend fallback константы расходятся → пользователь видит разные строки в зависимости от источника. Fix: добавить точку в обе frontend константы. Источник: Auditor#2.
+
+- [ ] [Review][Patch] **P8-4. ElectricSubscribeForm не покрыт регрессией на `server_error` / 503** [`frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx`] — Blue форма имеет тест «shows backend message on server error from subscribe service» (`SubscribeForm.test.tsx:251`), Electric — нет (`grep server_error|503` → 0 матчей). Pass 2 PP4 явно зафиксировал parity-инвариант между Blue и Electric. Fix: добавить аналогичный test-case в Electric с `vi.mocked(subscribeService.subscribe).mockRejectedValue(new SubscribeServiceError('server_error', {...}))`. Источник: Auditor#3.
+
+- [ ] [Review][Patch] **P8-5. `backend/tests/unit/test_users_admin.py` без `pytest.mark.unit` маркера** [`backend/tests/unit/test_users_admin.py:1-20`] — Файл расширен в рамках 35.3 (P5N6 — `SessionStore` change), но не имеет `pytestmark = pytest.mark.unit`. Project-context.md §4 требует marker на каждом backend-тесте, иначе выпадает из `make test-unit` фильтра. Fix: `pytestmark = pytest.mark.unit` в начале файла (после имеющегося `pytest.mark.django_db` на классах). Источник: Auditor#6.
+
+- [ ] [Review][Patch] **P8-6. `SubscribeRateThrottle` silently disabled если `DEFAULT_THROTTLE_RATES['subscribe']` отсутствует в env-настройках** [`backend/apps/common/throttling.py:58-68`, `backend/apps/common/apps.py`] — `SimpleRateThrottle.get_rate()` возвращает `None` если ключ scope отсутствует → throttle отключается silently. Сейчас все env (base/dev/staging/test) явно перечисляют `subscribe`, но при добавлении новой env легко забыть. Fix: расширить `check_session_engine_for_subscribe_consent` (или добавить parallel system check) — `if 'subscribe' not in settings.REST_FRAMEWORK.get('DEFAULT_THROTTLE_RATES', {}): yield Error("Missing 'subscribe' throttle rate", id='common.E002')`. Источник: Blind#10 + Edge#22.
+
+- [ ] [Review][Patch] **P8-7. dev/staging/test settings ПОЛНОСТЬЮ замещают `DEFAULT_THROTTLE_RATES`, не наследуя от `base.py`** [`backend/freesport/settings/development.py:58-62`, `backend/freesport/settings/staging.py:49-53`, `backend/freesport/settings/test.py:96-100`] — Pattern `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {...}` (assignment, не merge). Если в `base.py` появится новый scope (e.g. `"admin"`), все три env-файла его molchat'ом сбросят. Fix: `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {**REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"], "anon": "100000/min", "subscribe": "100000/min", "user": "100000/min"}` (inherit + override). Источник: Edge#26.
+
+- [ ] [Review][Patch] **P8-8. Stale `setError('pdp_consent', {type: 'server'})` сохраняется между submit'ами — повторная отправка с валидным значением показывает старую ошибку** [`frontend/src/components/home/SubscribeForm.tsx:88-122`, `frontend/src/components/home/ElectricSubscribeForm.tsx:113-128`] — RHF 7+ server-type errors не очищаются автоматически при `reValidateMode: 'onChange'`. Симметрично уже-deferred WWW9 Pass 3, но в финальный review разумнее закрыть. Fix: `clearErrors('pdp_consent')` в начале `onSubmit` обеих форм. Источник: Edge#34 + WWW9 reaffirm.
+
+### Defer (13) — pre-existing, hypothetical, или infrastructure scope
+
+- [x] [Review][Defer] **W8-1. `UserConsent.objects.create()` бросает не-`DatabaseError` (ValueError/TypeError из model-level coercion) — 500 leak вместо 503** [`backend/apps/common/views.py:429-451`] — `except DatabaseError` ловит большинство DB-проблем, но `model.__init__` может бросить `ValueError` (например, `ip_address="not-an-ip"` — но мы уже нормализовали; `consent_type` invalid — но мы хардкодим). Hypothetical, текущий input-flow это не воспроизводит. Defer reason: defensive future-proofing, не runtime concern для текущего scope; broaden catch может скрыть реальные программные баги. Источник: Edge#1.
+
+- [x] [Review][Defer] **W8-2. AbortController отсутствует на `subscribeService.subscribe` — отмена навигацией показывает «Не удалось подписаться. Попробуйте позже» вместо silent abort** [`frontend/src/services/subscribeService.ts:57-83`] — `axios.CanceledError` не классифицируется специально, попадает в `network_error`. Defer reason: minor UX; пользователь, ушедший со страницы, всё равно не увидит сообщение. Источник: Edge#29.
+
+- [x] [Review][Defer] **W8-3. Double-submit окно между click и `isSubmitting=true` — два быстрых клика провоцируют два запроса** [`frontend/src/components/home/SubscribeForm.tsx:148-165`, `frontend/src/components/home/ElectricSubscribeForm.tsx:194-203`] — RHF `handleSubmit` асинхронен; isSubmitting устанавливается после первого клика, но второй кликается в окне до этого. Fix: `disabled` через onClick handler. Defer reason: микро-UX, серверный 30/min throttle ограничивает реальный impact. Источник: Edge#36 + Edge#41.
+
+- [x] [Review][Defer] **W8-4. Пустой first hop в `X-Forwarded-For` (e.g. `", 1.2.3.4"`) → `get_client_ip` падает в REMOTE_ADDR вместо чтения hop2** [`backend/apps/common/utils/consent_audit.py:50-54`] — Malformed proxy config. Defer reason: misconfigured nginx territory, инфра-проблема. Источник: Edge#14.
+
+- [x] [Review][Defer] **W8-5. `.toUpperCase()` для русских строк ошибок в `ElectricSubscribeForm` — некорректный mapping в старых браузерах** [`frontend/src/components/home/ElectricSubscribeForm.tsx:90-135`] — Кириллический uppercase зависит от locale; `toLocaleUpperCase('ru-RU')` корректнее. Defer reason: современные браузеры обрабатывают правильно; legacy-browser scope не требуется. Источник: Edge#39.
+
+- [x] [Review][Defer] **W8-6. `normalize_consent_ip` принимает 0.0.0.0/multicast/reserved IPs после удаления `is_global` фильтра (P11)** [`backend/apps/common/utils/consent_audit.py:60-101`] — `::ffff:0.0.0.0` → `"0.0.0.0"`, `224.0.0.1`, `255.255.255.255` принимаются в audit. Defer reason: D3→P11 Pass 1-2 ratified — принят forensic noise в обмен на полноту audit; comply-officer одобрил. Связано с WWW14 Pass 3. Источник: Edge#15 + Edge#48.
+
+- [x] [Review][Defer] **W8-7. Bracketed IPv6 с внутренним whitespace (`" [::1]:80 "`) → парсинг падает** [`backend/apps/common/utils/consent_audit.py:66-80`] — `candidate.strip()` обрезает только окружающий whitespace, не внутренний. Malformed proxy header. Defer reason: nginx-level concern; не воспроизводимо валидным proxy. Связано с W7-6 Pass 7. Источник: Edge#16.
+
+- [x] [Review][Defer] **W8-8. При fallback на REMOTE_ADDR (`get_consent_ip_address`) сам REMOTE_ADDR не логируется — потеря observability** [`backend/apps/common/utils/consent_audit.py:127-153`] — Если оба заголовка malformed и REMOTE_ADDR тоже невалидный, audit запишет `ip_address=None`, но в логе будет только malformed header. Defer reason: forensic enhancement; не блокирует runtime. Источник: Edge#18.
+
+- [x] [Review][Defer] **W8-9. `SubscribeRateThrottle.cache_format` зависит от DRF cache prefix convention** [`backend/apps/common/throttling.py:63-68`] — При DRF upgrade (e.g. 3.16+) prefix может измениться → throttle перестанет находить старые ключи (но не сломается полностью). Defer reason: hypothetical upgrade concern; покрывается при upgrade-аудите. Источник: Edge#21.
+
+- [x] [Review][Defer] **W8-10. Возможный дубликат DOM `id="input-электронная-почта"` если две `SubscribeForm` отрендерены на одной странице** [`frontend/src/components/home/SubscribeForm.tsx:132-146`] — `Input` компонент генерирует id из label. P8 Pass 1 закрыл duplicate IDs через `useId()` для form-level IDs (subscribe-pdp-consent), но `Input` компонент потребовал бы отдельной правки. Defer reason: текущая архитектура страниц не предполагает две формы Subscribe на одной странице; верификация требует чтения `Input/Input.tsx` (вне scope spec). Источник: Edge#35.
+
+- [x] [Review][Defer] **W8-11. `check_session_engine_for_subscribe_consent` blacklist `signed_cookies`, не whitelist** [`backend/apps/common/apps.py:6-21`] — Будущий custom session backend (например, file-based без save()) пройдёт check, но не материализует key. Defer reason: hypothetical future custom backend; project использует только Django stock + DB. Источник: Edge#24.
+
+- [x] [Review][Defer] **W8-12. Тест `test_subscribe_anonymous_session_is_saved_before_atomic_consent_write` — assertion `save_atomic_depths[0] == baseline_savepoint_depth` работает только потому что `ATOMIC_REQUESTS=True` в `test.py` использует transaction (не savepoint)** [`backend/tests/integration/test_common_subscribe_api.py:1573-1592`] — Production-stack (`ATOMIC_REQUESTS=False`) валиден; test-stack валиден; но логика test'а assertирует test-env, не production-инвариант («session.save() ВНЕ view's transaction.atomic()» с любым ATOMIC_REQUESTS). Defer reason: производит правильный результат в test-env; рефактор для general assertion усложнит тест. Источник: Blind#2 + Blind#16.
+
+- [x] [Review][Defer] **W8-13. `getValidationDetails` не передаёт `details` для 400 с non-validation shape (e.g., `{error: "bad payload"}`)** [`frontend/src/services/subscribeService.ts:71-73`] — Гипотетический backend-ответ, обычный DRF flow всегда возвращает field-keyed validation errors. Defer reason: не воспроизводимо текущим backend кодом; защита от будущих экзотических shapes. Источник: Edge#32.
+
+### Dismissed (~30) — already-resolved / verified false-positive / noise
+
+**Blind Hunter:**
+- B1/E7/E8 `validate uses initial_data` = **DN1 Pass 2** ratified strict-bool guard для 152-ФЗ.
+- B4 `session_key rotation в serializer.save()` — speculative, `Newsletter.save()` не вызывает session middleware/rotation.
+- B6 `empty session_key в anon flow` = **check_session_engine_for_subscribe_consent** Pass 5 покрывает.
+- B7 `is_global removal` = **D3→P11 Pass 1-2 → WWW14 Pass 3 → AA-1 Pass 4** ratified.
+- B11 `select_for_update reactivate race` — корректный design (P3 Pass 1, BH-3 Pass 6).
+- B12 `503 error CharField vs Enum` — cosmetic future-proofing, контракт стабилен.
+- B14 `UA inconsistency views vs serializer` — оба пути сходятся в `sanitize_consent_user_agent(None|"")` → `""`.
+- B15 `register() every render` — RHF 7+ возвращает стабильные handlers.
+- B18 `pop("pdp_consent", False)` — `write_only=True` гарантирует, что pdp_consent не попадёт в response; default cosmetic.
+
+**Edge Case Hunter:**
+- E2 `ImproperlyConfigured из session.save()` = system check Pass 5 покрывает на startup.
+- E3 `request.session None при custom middleware` — hypothetical, не воспроизводимо текущим settings.
+- E4 `anon race shared session_key → 4 rows` — append-only audit correct semantic (4 distinct events).
+- E5 `session.session_key None после save()` = system check + W7-5 Pass 7 deferred.
+- E9 `OperationalError on replica` — проект single PG, no replicas.
+- E11 `select_for_update без atomic в serializer` = P7-4 Pass 7 закрыт.
+- E13 `whitespace-only X-Real-IP` — strip() покрывает; fallback на XFF работает.
+- E25 `ProxyAwareUserRateThrottle Russian message creep` = **DN3 Pass 2** ratified.
+- E27 `_has_error_code RecursionError` = **WWW3 Pass 3** deferred, текущий shape flat.
+- E30 `429 Retry-After ignored` — frontend использует hardcoded fallback, Retry-After не критичен для 30/min.
+- E31 `5xx 500 not 503` — backend всегда returns 503 для consent persistence (P5N3); 502/504 покрыты P8-1.
+- E33 `429 от CDN с HTML` — Content-Type check overkill для текущей инфраструктуры.
+- E37 `Field-bound vs toast` — design decision (Pass 2 PP4 закрыл a11y parity).
+- E38 `Checkbox unmount during pending` — React warnings tolerable, no UX bug.
+- E40 `tracking_save savepoint_ids flaky across pytest-django versions` — runtime stable в текущем pin.
+- E42 `multi-DB router using=` — single DB project.
+- E44 `request.user.is_authenticated LazyObject race` — Django framework guarantee, не воспроизводимо.
+- E45 `503 без details через server_error guard` = совпадает с P8-1.
+- E46 `concurrent anon на nginx-IP` = **W5N2/W7-1** deferred CGNAT amplification.
+
+**Acceptance Auditor:**
+- Audit#5 `products/serializers.py scope creep` = Pass 6 PPPP6-D1→P3 закрытие OpenAPI regression, justified.
+- Audit#7 `policy_version="1.0" hardcoded` = **W5N6 Pass 5** deferred, для Story 35.5.
+- Audit#8 `JSDoc Story 35.3 reference missing` — косметика; spec ничего не требует про JSDoc reference.
+
+---
+

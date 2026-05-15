@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-15" # 35.3 → review: Pass 7 P7-1…P7-7 закрыты, W7-1…W7-8 deferred
+last_updated: "2026-05-15" # 35.3 → in-progress: Pass 8 — 2 DN + 13 W deferred, 8 patch как action items
 
 development_status:
   # ========================================
@@ -166,5 +166,5 @@ development_status:
   epic-35: in-progress
   35-1-privacy-policy-page-and-consent-model: done
   35-2-consent-checkboxes-in-registration-forms: done
-  35-3-consent-checkbox-in-subscribe-form: review
+  35-3-consent-checkbox-in-subscribe-form: in-progress
   35-4-cookie-banner: backlog
