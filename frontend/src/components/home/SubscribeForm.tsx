@@ -28,7 +28,8 @@ type SubscribeValidationError = Error & {
 };
 
 const PDP_CONSENT_REQUIRED = 'Необходимо согласие на обработку персональных данных.';
-const THROTTLED_ERROR = 'Слишком много попыток. Попробуйте через минуту';
+const THROTTLED_ERROR = 'Слишком много попыток. Попробуйте через минуту.';
+const SERVER_TEMPORARILY_UNAVAILABLE = 'Сервер временно недоступен. Попробуйте позже';
 
 const getBackendMessage = (value: string[] | undefined) => value?.[0];
 
@@ -73,6 +74,7 @@ export const SubscribeForm: React.FC = () => {
     handleSubmit,
     watch,
     setError,
+    clearErrors,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<SubscribeFormData>({
@@ -86,6 +88,8 @@ export const SubscribeForm: React.FC = () => {
   const hasPdpConsentError = !!errors.pdp_consent;
 
   const onSubmit = async (data: SubscribeFormData) => {
+    clearErrors('pdp_consent');
+
     try {
       await subscribeService.subscribe({
         email: data.email,
@@ -113,7 +117,7 @@ export const SubscribeForm: React.FC = () => {
         } else if (error.message === 'throttled') {
           toast.error(getFirstBackendError(error) ?? THROTTLED_ERROR);
         } else if (error.message === 'server_error') {
-          toast.error(getFirstBackendError(error) ?? 'Не удалось подписаться. Попробуйте позже');
+          toast.error(getFirstBackendError(error) ?? SERVER_TEMPORARILY_UNAVAILABLE);
         } else {
           toast.error('Не удалось подписаться. Попробуйте позже');
         }

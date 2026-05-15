@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SubscribeForm } from '../SubscribeForm';
 import { toast } from 'react-hot-toast';
@@ -269,6 +269,21 @@ describe('SubscribeForm', () => {
     });
   });
 
+  it('shows temporary server unavailable message on server error without backend details', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(new Error('server_error'));
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'server-unavailable@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Сервер временно недоступен. Попробуйте позже');
+    });
+  });
+
   it('shows throttling message on 429 subscribe errors', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(new Error('throttled'));
@@ -280,7 +295,46 @@ describe('SubscribeForm', () => {
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Слишком много попыток. Попробуйте через минуту');
+      expect(toast.error).toHaveBeenCalledWith('Слишком много попыток. Попробуйте через минуту.');
+    });
+  });
+
+  it('clears stale PDN server error before retrying submit', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    let resolveSecondSubmit: (value: { message: string; email: string }) => void;
+    mockSubscribe
+      .mockRejectedValueOnce(
+        Object.assign(new Error('validation_error'), {
+          details: {
+            pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+          },
+        })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveSecondSubmit = resolve;
+          })
+      );
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'retry@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await screen.findByText('Необходимо согласие на обработку персональных данных.');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(mockSubscribe).toHaveBeenCalledTimes(2);
+      expect(
+        screen.queryByText('Необходимо согласие на обработку персональных данных.')
+      ).not.toBeInTheDocument();
+    });
+
+    await act(async () => {
+      resolveSecondSubmit!({ message: 'Success', email: 'retry@example.com' });
     });
   });
 

@@ -54,8 +54,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# В локальной разработке не наследуем production-like лимиты из base.py.
+# В локальной разработке наследуем scopes из base.py и ослабляем лимиты.
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
     "anon": "100000/min",
     "subscribe": "100000/min",
     "user": "100000/min",

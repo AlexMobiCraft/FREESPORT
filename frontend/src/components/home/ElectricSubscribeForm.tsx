@@ -25,7 +25,8 @@ type SubscribeValidationError = Error & {
 };
 
 const PDP_CONSENT_REQUIRED = 'Необходимо согласие на обработку персональных данных.';
-const THROTTLED_ERROR = 'Слишком много попыток. Попробуйте через минуту';
+const THROTTLED_ERROR = 'Слишком много попыток. Попробуйте через минуту.';
+const SERVER_TEMPORARILY_UNAVAILABLE = 'СЕРВЕР ВРЕМЕННО НЕДОСТУПЕН. ПОПРОБУЙТЕ ПОЗЖЕ';
 
 const electricToastErrorOptions = {
   style: { borderRadius: '0', background: '#000', color: '#fff', border: '1px solid red' },
@@ -75,6 +76,7 @@ export const ElectricSubscribeForm: React.FC = () => {
     handleSubmit,
     watch,
     setError,
+    clearErrors,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<SubscribeFormData>({
@@ -88,6 +90,8 @@ export const ElectricSubscribeForm: React.FC = () => {
   const hasPdpConsentError = !!errors.pdp_consent;
 
   const onSubmit = async (data: SubscribeFormData) => {
+    clearErrors('pdp_consent');
+
     try {
       await subscribeService.subscribe({
         email: data.email,
@@ -128,7 +132,10 @@ export const ElectricSubscribeForm: React.FC = () => {
           electricToastErrorOptions
         );
       } else if (error instanceof Error && error.message === 'server_error') {
-        toast.error(getFirstBackendError(error) ?? 'ОШИБКА ПОДПИСКИ', electricToastErrorOptions);
+        toast.error(
+          getFirstBackendError(error)?.toUpperCase() ?? SERVER_TEMPORARILY_UNAVAILABLE,
+          electricToastErrorOptions
+        );
       } else {
         toast.error('ОШИБКА ПОДПИСКИ', electricToastErrorOptions);
       }

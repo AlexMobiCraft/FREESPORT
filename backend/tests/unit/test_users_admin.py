@@ -17,6 +17,7 @@ from apps.users.admin import CompanyAdmin, UserAdmin
 from apps.users.models import Address, Company
 
 User = get_user_model()
+pytestmark = pytest.mark.unit
 
 
 def build_test_session():

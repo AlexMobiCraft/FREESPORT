@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ElectricSubscribeForm } from '../ElectricSubscribeForm';
 import { toast } from 'react-hot-toast';
@@ -193,6 +193,54 @@ describe('ElectricSubscribeForm', () => {
     });
   });
 
+  it('shows backend message on server error from subscribe service', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('server_error'), {
+        details: {
+          non_field_errors: ['Не удалось сохранить согласие. Попробуйте позже.'],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await user.type(screen.getByLabelText(/email/i), 'electric-server-error@example.com');
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'НЕ УДАЛОСЬ СОХРАНИТЬ СОГЛАСИЕ. ПОПРОБУЙТЕ ПОЗЖЕ.',
+        expect.objectContaining({
+          style: expect.objectContaining({ borderRadius: '0' }),
+        })
+      );
+    });
+  });
+
+  it('shows temporary server unavailable message on server error without backend details', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(new Error('server_error'));
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await user.type(screen.getByLabelText(/email/i), 'electric-server-unavailable@example.com');
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'СЕРВЕР ВРЕМЕННО НЕДОСТУПЕН. ПОПРОБУЙТЕ ПОЗЖЕ',
+        expect.objectContaining({
+          style: expect.objectContaining({ borderRadius: '0' }),
+        })
+      );
+    });
+  });
+
   it('shows throttling message on 429 subscribe errors', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(new Error('throttled'));
@@ -206,11 +254,51 @@ describe('ElectricSubscribeForm', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
-        'СЛИШКОМ МНОГО ПОПЫТОК. ПОПРОБУЙТЕ ЧЕРЕЗ МИНУТУ',
+        'СЛИШКОМ МНОГО ПОПЫТОК. ПОПРОБУЙТЕ ЧЕРЕЗ МИНУТУ.',
         expect.objectContaining({
           style: expect.objectContaining({ borderRadius: '0' }),
         })
       );
+    });
+  });
+
+  it('clears stale PDN server error before retrying submit', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    let resolveSecondSubmit: (value: { message: string; email: string }) => void;
+    mockSubscribe
+      .mockRejectedValueOnce(
+        Object.assign(new Error('validation_error'), {
+          details: {
+            pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+          },
+        })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveSecondSubmit = resolve;
+          })
+      );
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await user.type(screen.getByLabelText(/email/i), 'electric-retry@example.com');
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await screen.findByText('Необходимо согласие на обработку персональных данных.');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(mockSubscribe).toHaveBeenCalledTimes(2);
+      expect(
+        screen.queryByText('Необходимо согласие на обработку персональных данных.')
+      ).not.toBeInTheDocument();
+    });
+
+    await act(async () => {
+      resolveSecondSubmit!({ message: 'Success', email: 'electric-retry@example.com' });
     });
   });
 });

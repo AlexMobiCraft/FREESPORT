@@ -2813,7 +2813,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Ошибка валидации email */
+      /** @description Ошибка валидации (email или pdp_consent) */
       400: {
         headers: {
           [name: string]: unknown;

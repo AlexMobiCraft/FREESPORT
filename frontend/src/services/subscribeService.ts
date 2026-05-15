@@ -74,7 +74,7 @@ export const subscribeService = {
         if (axiosError.response?.status === 429) {
           throw new SubscribeServiceError('throttled', details);
         }
-        if (axiosError.response?.status && axiosError.response.status >= 500 && details) {
+        if (axiosError.response?.status && axiosError.response.status >= 500) {
           throw new SubscribeServiceError('server_error', details);
         }
       }

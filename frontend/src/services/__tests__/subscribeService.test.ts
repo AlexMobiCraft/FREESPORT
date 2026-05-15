@@ -97,16 +97,11 @@ describe('subscribeService', () => {
     });
   });
 
-  it('does not preserve non-contract string details from backend responses', async () => {
+  it('maps 5xx responses without contract details to server errors', async () => {
     vi.mocked(apiClient.post).mockRejectedValueOnce({
       response: {
-        status: 503,
-        data: {
-          error: 'consent_persistence_failed',
-          details: {
-            non_field_errors: 'Не удалось сохранить согласие. Попробуйте позже.',
-          },
-        },
+        status: 502,
+        data: '<html>Bad Gateway</html>',
       },
     });
 
@@ -116,7 +111,7 @@ describe('subscribeService', () => {
         pdp_consent: true,
       })
     ).rejects.toMatchObject({
-      message: 'network_error',
+      message: 'server_error',
       details: undefined,
     });
   });
