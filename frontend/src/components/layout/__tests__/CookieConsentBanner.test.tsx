@@ -15,13 +15,16 @@ describe('CookieConsentBanner', () => {
   it('показывает текст, ссылку и кнопку при первом визите', async () => {
     render(<CookieConsentBanner />);
 
-    expect(
-      await screen.findByRole('region', { name: 'Уведомление об использовании cookie' })
-    ).toBeInTheDocument();
+    const banner = await screen.findByRole('region', { name: 'Уведомление об использовании cookie' });
+
+    expect(banner).toBeInTheDocument();
     expect(screen.getByText(/Мы используем файлы cookie/)).toBeInTheDocument();
     expect(screen.getByText(/Продолжая пользоваться сайтом/)).toBeInTheDocument();
+    expect(banner).toHaveTextContent(
+      /пользовательских данных согласно Политике обработки персональных данных\./
+    );
     expect(
-      screen.getByRole('link', { name: 'Политика обработки персональных данных' })
+      screen.getByRole('link', { name: 'Политике обработки персональных данных' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /принять/i })).toBeInTheDocument();
   });
@@ -56,7 +59,7 @@ describe('CookieConsentBanner', () => {
     render(<CookieConsentBanner />);
 
     const link = await screen.findByRole('link', {
-      name: 'Политика обработки персональных данных',
+      name: 'Политике обработки персональных данных',
     });
 
     expect(link).toHaveAttribute('href', '/privacy-policy');

@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.4
-**Status:** in-progress
+**Status:** review
 **Priority:** Medium (завершает compliance-пакет 152-ФЗ; не блокирует другие истории)
 
 ---
@@ -396,6 +396,17 @@ GPT-5 Codex
 - 2026-05-16: `npm run test` → полный frontend regression passed.
 - 2026-05-16: `git diff --check` по изменённым файлам → passed (только Windows LF→CRLF warnings для BMAD YAML/MD).
 - 2026-05-16: `npx gitnexus detect-changes --scope all --repo FREESPORT` → risk low, affected processes 0.
+- 2026-05-16: Review patch impact: `npx gitnexus impact CookieConsentBanner --direction upstream --repo FREESPORT --depth 3` → risk LOW, 0 direct callers, 0 affected processes.
+- 2026-05-16: RED review patch: `npm run test -- src/components/layout/__tests__/CookieConsentBanner.test.tsx` → ожидаемо упал на проверке фразы `согласно Политике обработки персональных данных.`.
+- 2026-05-16: GREEN review patch: `npm run test -- src/components/layout/__tests__/CookieConsentBanner.test.tsx` → 1 file passed, 5 tests passed.
+- 2026-05-16: `npm run test -- src/hooks/__tests__/useCookieConsent.test.ts src/components/layout/__tests__/CookieConsentBanner.test.tsx` → 2 files passed, 11 tests passed.
+- 2026-05-16: `npx eslint src/components/layout/CookieConsentBanner.tsx src/components/layout/__tests__/CookieConsentBanner.test.tsx --max-warnings=0` → passed.
+- 2026-05-16: `npm run test:coverage -- src/hooks/__tests__/useCookieConsent.test.ts src/components/layout/__tests__/CookieConsentBanner.test.tsx --coverage.include=src/hooks/useCookieConsent.ts --coverage.include=src/components/layout/CookieConsentBanner.tsx` → hook 94.44%, banner 100%.
+- 2026-05-16: `npm run build` → passed; предупреждения Next.js только про несколько lockfile и ESLint plugin.
+- 2026-05-16: `npm run test` → полный frontend regression passed.
+- 2026-05-16: `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml restart frontend` → `freesport-frontend` restarted.
+- 2026-05-16: Browser check на `http://127.0.0.1:3000/coming-soon` → `согласно` и `Политике ... данных.` присутствуют, ссылка `/privacy-policy` с `_blank`/`noopener noreferrer`, после «Принять» `localStorage=1`, после reload баннер не возвращается, hydration warnings = 0.
+- 2026-05-16: Final `npx gitnexus detect-changes --scope all --repo FREESPORT` → 4 files, 1 symbol (`CookieConsentBanner`), 1 affected flow, risk medium.
 
 ### Completion Notes List
 
@@ -403,6 +414,8 @@ GPT-5 Codex
 - Добавлен глобальный клиентский `CookieConsentBanner` с фиксированным нижним layout, ссылкой на `/privacy-policy`, доступным `role="region"` и кнопкой `Button`.
 - Баннер смонтирован в root `frontend/src/app/layout.tsx` после `{children}`, без добавления `'use client'` в layout.
 - Добавлены unit/component тесты для localStorage-состояния, исключений storage, поведения кнопки, ссылки и a11y-атрибутов.
+- Review patch: текст баннера приведён к утверждённой формулировке со встроенной ссылкой в дательном падеже: `согласно Политике обработки персональных данных.`
+- Review patch: File List и Change Log дополнены под фактический commit `f35b6edb`, включая принятые сопутствующие изменения зависимостей/линтинга.
 - Backend не изменялся; модель `UserConsent`, API, serializers, migrations не затронуты.
 
 ### File List
@@ -413,12 +426,17 @@ GPT-5 Codex
 - `frontend/src/components/layout/__tests__/CookieConsentBanner.test.tsx` — добавлены component tests баннера.
 - `frontend/src/hooks/index.ts` — добавлен реэкспорт `useCookieConsent`.
 - `frontend/src/app/layout.tsx` — баннер смонтирован глобально после `{children}`.
+- `.gitignore` — приняты сопутствующие ignore-правила для `supabase-backup` artifacts из commit `f35b6edb`.
+- `frontend/eslint.config.mjs` — принят ignore `next-env.d.ts` из commit `f35b6edb`.
+- `frontend/package.json` — принят апгрейд Next.js / `eslint-config-next` 15.5.15 → 15.5.18 и пин `typescript` 5.8.2 из commit `f35b6edb`.
+- `frontend/package-lock.json` — lockfile синхронизирован с принятыми dependency changes из commit `f35b6edb`.
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус Story 35.4 синхронизирован.
 - `_bmad-output/implementation-artifacts/Story/35-4-cookie-banner.md` — BMAD-статус, чеклист и Dev Agent Record обновлены.
 
 ### Change Log
 
 - 2026-05-16: Реализован frontend-only cookie-баннер Story 35.4, добавлены hook/component tests, выполнены targeted/full frontend проверки и story переведена в `review`.
+- 2026-05-16: Закрыты review patch-находки: ссылка встроена в предложение баннера, File List/Change Log дополнены под фактический diff commit `f35b6edb`, story возвращена в `review`.
 
 ### Review Findings
 
@@ -426,8 +444,8 @@ _Code review 2026-05-16 (BMad adversarial review: Blind Hunter + Edge Case Hunte
 
 _Решения по decision-needed (2026-05-16): текст баннера — встроить ссылку в предложение (вариант эталонного кода спеки); внеплановые изменения коммита — принять, обновить документацию story. Обе находки переведены в `[Review][Patch]`._
 
-- [ ] [Review][Patch] Исправить текст баннера — встроить ссылку в предложение [frontend/src/components/layout/CookieConsentBanner.tsx:21-31] — Текущий текст: «…пользовательских данных.» + отдельный фрагмент-ссылка без точки. Заменить на вариант эталонного кода спеки: «…вы соглашаетесь с обработкой файлов cookie и пользовательских данных согласно <Link>Политике обработки персональных данных</Link>.» (дательный падеж, ссылка встроена в предложение, точка после).
-- [ ] [Review][Patch] Дополнить File List и Change Log story под фактический дифф коммита [_bmad-output/implementation-artifacts/Story/35-4-cookie-banner.md:408-421] — File List перечисляет 8 файлов, но коммит f35b6edb также изменил package.json, package-lock.json, .gitignore, frontend/eslint.config.mjs (апгрейд Next.js 15.5.15→15.5.18, пин typescript 5.8.2). Внеплановые изменения приняты как легитимные — задокументировать их в File List и Change Log.
+- [x] [Review][Patch] Исправить текст баннера — встроить ссылку в предложение [frontend/src/components/layout/CookieConsentBanner.tsx:21-31] — Текущий текст: «…пользовательских данных.» + отдельный фрагмент-ссылка без точки. Заменить на вариант эталонного кода спеки: «…вы соглашаетесь с обработкой файлов cookie и пользовательских данных согласно <Link>Политике обработки персональных данных</Link>.» (дательный падеж, ссылка встроена в предложение, точка после).
+- [x] [Review][Patch] Дополнить File List и Change Log story под фактический дифф коммита [_bmad-output/implementation-artifacts/Story/35-4-cookie-banner.md:408-421] — File List перечисляет 8 файлов, но коммит f35b6edb также изменил package.json, package-lock.json, .gitignore, frontend/eslint.config.mjs (апгрейд Next.js 15.5.15→15.5.18, пин typescript 5.8.2). Внеплановые изменения приняты как легитимные — задокументировать их в File List и Change Log.
 - [x] [Review][Defer] fixed-баннер перекрывает нижний контент без компенсирующего отступа [frontend/src/components/layout/CookieConsentBanner.tsx:13] — deferred, минорный UX
 - [x] [Review][Defer] Нет aria-live — скринридер не анонсирует появление баннера после гидрации [frontend/src/components/layout/CookieConsentBanner.tsx:12] — deferred, AC-5 a11y выполнен, это необязательное улучшение
 - [x] [Review][Defer] Нет pb-[env(safe-area-inset-bottom)] — на iOS кнопка «Принять» заходит под home indicator [frontend/src/components/layout/CookieConsentBanner.tsx:13] — deferred, минорный mobile-polish
