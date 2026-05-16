@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.4
-**Status:** review
+**Status:** in-progress
 **Priority:** Medium (завершает compliance-пакет 152-ФЗ; не блокирует другие истории)
 
 ---
@@ -419,3 +419,16 @@ GPT-5 Codex
 ### Change Log
 
 - 2026-05-16: Реализован frontend-only cookie-баннер Story 35.4, добавлены hook/component tests, выполнены targeted/full frontend проверки и story переведена в `review`.
+
+### Review Findings
+
+_Code review 2026-05-16 (BMad adversarial review: Blind Hunter + Edge Case Hunter + Acceptance Auditor)._
+
+_Решения по decision-needed (2026-05-16): текст баннера — встроить ссылку в предложение (вариант эталонного кода спеки); внеплановые изменения коммита — принять, обновить документацию story. Обе находки переведены в `[Review][Patch]`._
+
+- [ ] [Review][Patch] Исправить текст баннера — встроить ссылку в предложение [frontend/src/components/layout/CookieConsentBanner.tsx:21-31] — Текущий текст: «…пользовательских данных.» + отдельный фрагмент-ссылка без точки. Заменить на вариант эталонного кода спеки: «…вы соглашаетесь с обработкой файлов cookie и пользовательских данных согласно <Link>Политике обработки персональных данных</Link>.» (дательный падеж, ссылка встроена в предложение, точка после).
+- [ ] [Review][Patch] Дополнить File List и Change Log story под фактический дифф коммита [_bmad-output/implementation-artifacts/Story/35-4-cookie-banner.md:408-421] — File List перечисляет 8 файлов, но коммит f35b6edb также изменил package.json, package-lock.json, .gitignore, frontend/eslint.config.mjs (апгрейд Next.js 15.5.15→15.5.18, пин typescript 5.8.2). Внеплановые изменения приняты как легитимные — задокументировать их в File List и Change Log.
+- [x] [Review][Defer] fixed-баннер перекрывает нижний контент без компенсирующего отступа [frontend/src/components/layout/CookieConsentBanner.tsx:13] — deferred, минорный UX
+- [x] [Review][Defer] Нет aria-live — скринридер не анонсирует появление баннера после гидрации [frontend/src/components/layout/CookieConsentBanner.tsx:12] — deferred, AC-5 a11y выполнен, это необязательное улучшение
+- [x] [Review][Defer] Нет pb-[env(safe-area-inset-bottom)] — на iOS кнопка «Принять» заходит под home indicator [frontend/src/components/layout/CookieConsentBanner.tsx:13] — deferred, минорный mobile-polish
+- [x] [Review][Defer] Кнопка баннера остаётся в tab-order под модальным оверлеем [frontend/src/components/layout/CookieConsentBanner.tsx:13] — deferred, зависит от pre-existing focus-trap модалок
