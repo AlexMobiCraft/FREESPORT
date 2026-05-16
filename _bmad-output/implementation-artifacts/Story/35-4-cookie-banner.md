@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.4
-**Status:** review
+**Status:** done
 **Priority:** Medium (завершает compliance-пакет 152-ФЗ; не блокирует другие истории)
 
 ---
@@ -450,3 +450,9 @@ _Решения по decision-needed (2026-05-16): текст баннера —
 - [x] [Review][Defer] Нет aria-live — скринридер не анонсирует появление баннера после гидрации [frontend/src/components/layout/CookieConsentBanner.tsx:12] — deferred, AC-5 a11y выполнен, это необязательное улучшение
 - [x] [Review][Defer] Нет pb-[env(safe-area-inset-bottom)] — на iOS кнопка «Принять» заходит под home indicator [frontend/src/components/layout/CookieConsentBanner.tsx:13] — deferred, минорный mobile-polish
 - [x] [Review][Defer] Кнопка баннера остаётся в tab-order под модальным оверлеем [frontend/src/components/layout/CookieConsentBanner.tsx:13] — deferred, зависит от pre-existing focus-trap модалок
+
+_Code review run 2 — 2026-05-16 (BMad adversarial review: Blind Hunter + Edge Case Hunter + Acceptance Auditor). Триаж: 0 decision-needed, 0 patch, 3 defer; остальные находки отклонены как noise/false-positive — в т.ч. контраст `text-text-secondary` (#4b5c7a на белом ≈6.75:1) проходит WCAG AA; `z-40` корректно ниже модалок (z-50); scope-creep package.json/.gitignore/eslint уже принят в run 1; «фантомное» принятие на SSR невозможно — `accept` живёт в `'use client'`-компоненте._
+
+- [x] [Review][Defer] Нет синхронизации согласия между вкладками [frontend/src/hooks/useCookieConsent.ts:14-24] — deferred, спека описывает информационный баннер, multi-tab sync не требуется
+- [x] [Review][Defer] Ссылка target="_blank" без a11y-индикации «открывается в новой вкладке» [frontend/src/components/layout/CookieConsentBanner.tsx:21-29] — deferred, AC-5 выполнен, необязательное a11y-улучшение
+- [x] [Review][Defer] Текст баннера `<p>` без max-w — неограниченный рост высоты на узких экранах [frontend/src/components/layout/CookieConsentBanner.tsx:20] — deferred, минорный UX-polish

@@ -256,3 +256,9 @@
 - Нет `aria-live` на контейнере баннера — баннер появляется динамически после гидрации, скринридер не анонсирует его появление. AC-5 a11y (role="region", aria-label, клавиатура) выполнен полностью; `aria-live` — необязательное улучшение. [`frontend/src/components/layout/CookieConsentBanner.tsx:12`]
 - Нет `pb-[env(safe-area-inset-bottom)]` — на современных iPhone (iOS Safari) `fixed bottom-0` баннер заходит под home indicator / жестовую панель, кнопка «Принять» может быть частично перекрыта. Минорный mobile-polish. [`frontend/src/components/layout/CookieConsentBanner.tsx:13`]
 - Кнопка «Принять» баннера остаётся в DOM и tab-order, когда поверх открыт модальный оверлей (Modal/Drawer z-50, баннер z-40). При корректном focus-trap модалки проблема не проявляется; зависит от pre-existing реализации focus-trap. [`frontend/src/components/layout/CookieConsentBanner.tsx:13`]
+
+## Deferred from: code review of story-35.4-cookie-banner run 2 (2026-05-16)
+
+- Нет синхронизации согласия между вкладками — `useCookieConsent` читает `localStorage` только при монтировании, нет слушателя события `storage`. Если принять cookie в одной вкладке, на других открытых вкладках баннер останется висеть до перезагрузки. Спека описывает информационный баннер и multi-tab sync не требует — минорный UX. [`frontend/src/hooks/useCookieConsent.ts:14-24`]
+- Ссылка на политику с `target="_blank"` не имеет текстовой/`aria` индикации «открывается в новой вкладке» — пользователи скринридеров не предупреждены о смене контекста. AC-5 формально выполнен (ссылка фокусируема, текст понятный) — это необязательное a11y-улучшение. [`frontend/src/components/layout/CookieConsentBanner.tsx:21-29`]
+- Текст баннера (`<p>`) без `max-w-*` — на узких экранах длинный абзац растёт в высоту без ограничения, баннер может занять значимую часть экрана. Минорный UX-polish, текст фиксированный и сейчас умещается. [`frontend/src/components/layout/CookieConsentBanner.tsx:20`]
