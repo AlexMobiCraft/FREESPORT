@@ -208,3 +208,7 @@ backend/data/import_1c/
 
 # GitNexus index DB
 .gitnexus/
+
+# Supabase backup artifacts
+supabase-backup/backups/
+supabase-backup/.env

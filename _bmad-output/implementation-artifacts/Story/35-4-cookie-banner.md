@@ -2,7 +2,7 @@
 
 **Epic:** 35 — Соответствие 152-ФЗ о персональных данных
 **Story ID:** 35.4
-**Status:** ready-for-dev
+**Status:** review
 **Priority:** Medium (завершает compliance-пакет 152-ФЗ; не блокирует другие истории)
 
 ---
@@ -363,17 +363,17 @@ Vitest + RTL. Покрыть:
 
 ## Definition of Done
 
-- [ ] Hook `useCookieConsent` создан, SSR-safe, обёрнут в `try/catch`
-- [ ] Компонент `CookieConsentBanner` создан с директивой `'use client'`
-- [ ] Баннер показывается при первом визите, скрывается после «Принять»
-- [ ] Состояние сохраняется между перезагрузками (localStorage)
-- [ ] Баннер смонтирован в root `layout.tsx`, появляется на всех route-группах
-- [ ] Ссылка ведёт на `/privacy-policy`, открывается в новой вкладке
-- [ ] a11y: `role="region"`, `aria-label`, доступность с клавиатуры
-- [ ] Нет hydration mismatch (проверить консоль браузера в dev)
-- [ ] Тесты hook и компонента проходят, покрытие ≥ 90%
-- [ ] `npm run build` без ошибок TypeScript
-- [ ] Backend не затронут (нет изменений в `backend/`)
+- [x] Hook `useCookieConsent` создан, SSR-safe, обёрнут в `try/catch`
+- [x] Компонент `CookieConsentBanner` создан с директивой `'use client'`
+- [x] Баннер показывается при первом визите, скрывается после «Принять»
+- [x] Состояние сохраняется между перезагрузками (localStorage)
+- [x] Баннер смонтирован в root `layout.tsx`, появляется на всех route-группах
+- [x] Ссылка ведёт на `/privacy-policy`, открывается в новой вкладке
+- [x] a11y: `role="region"`, `aria-label`, доступность с клавиатуры
+- [x] Нет hydration mismatch (проверить консоль браузера в dev)
+- [x] Тесты hook и компонента проходят, покрытие ≥ 90%
+- [x] `npm run build` без ошибок TypeScript
+- [x] Backend не затронут (нет изменений в `backend/`)
 
 ---
 
@@ -381,8 +381,41 @@ Vitest + RTL. Покрыть:
 
 ### Agent Model Used
 
+GPT-5 Codex
+
 ### Debug Log References
+
+- 2026-05-16: `npx gitnexus analyze ..`; индекс обновлён, затем `npx gitnexus impact RootLayout --direction upstream --repo FREESPORT --depth 3` → risk LOW, 0 direct callers, 0 affected processes.
+- 2026-05-16: RED: `npm run test -- src/hooks/__tests__/useCookieConsent.test.ts src/components/layout/__tests__/CookieConsentBanner.test.tsx` → ожидаемо упал на отсутствующих `useCookieConsent` / `CookieConsentBanner`.
+- 2026-05-16: GREEN: тот же targeted test command → 2 files passed, 11 tests passed.
+- 2026-05-16: `npm run test:coverage -- src/hooks/__tests__/useCookieConsent.test.ts src/components/layout/__tests__/CookieConsentBanner.test.tsx --coverage.include=src/hooks/useCookieConsent.ts --coverage.include=src/components/layout/CookieConsentBanner.tsx` → hook 94.44%, banner 100%.
+- 2026-05-16: `npx eslint src/hooks/useCookieConsent.ts src/hooks/__tests__/useCookieConsent.test.ts src/components/layout/CookieConsentBanner.tsx src/components/layout/__tests__/CookieConsentBanner.test.tsx src/hooks/index.ts src/app/layout.tsx --max-warnings=0` → passed.
+- 2026-05-16: `npm run build` → passed; предупреждения Next.js только про несколько lockfile и ESLint plugin.
+- 2026-05-16: `docker compose --env-file ..\.env -f ..\docker\docker-compose.yml restart frontend` → `freesport-frontend` restarted.
+- 2026-05-16: Browser check на `http://127.0.0.1:3000/coming-soon` → баннер виден, ссылка `/privacy-policy` с `_blank`/`noopener noreferrer`, после «Принять» исчезает, после reload не возвращается, hydration warnings = 0.
+- 2026-05-16: `npm run test` → полный frontend regression passed.
+- 2026-05-16: `git diff --check` по изменённым файлам → passed (только Windows LF→CRLF warnings для BMAD YAML/MD).
+- 2026-05-16: `npx gitnexus detect-changes --scope all --repo FREESPORT` → risk low, affected processes 0.
 
 ### Completion Notes List
 
+- Реализован SSR-safe hook `useCookieConsent`: читает `cookie_consent_accepted` из `localStorage`, возвращает `isLoaded` для защиты от hydration mismatch, безопасно обрабатывает ошибки чтения/записи.
+- Добавлен глобальный клиентский `CookieConsentBanner` с фиксированным нижним layout, ссылкой на `/privacy-policy`, доступным `role="region"` и кнопкой `Button`.
+- Баннер смонтирован в root `frontend/src/app/layout.tsx` после `{children}`, без добавления `'use client'` в layout.
+- Добавлены unit/component тесты для localStorage-состояния, исключений storage, поведения кнопки, ссылки и a11y-атрибутов.
+- Backend не изменялся; модель `UserConsent`, API, serializers, migrations не затронуты.
+
 ### File List
+
+- `frontend/src/hooks/useCookieConsent.ts` — создан SSR-safe hook cookie consent.
+- `frontend/src/hooks/__tests__/useCookieConsent.test.ts` — добавлены тесты hook.
+- `frontend/src/components/layout/CookieConsentBanner.tsx` — создан глобальный cookie-баннер.
+- `frontend/src/components/layout/__tests__/CookieConsentBanner.test.tsx` — добавлены component tests баннера.
+- `frontend/src/hooks/index.ts` — добавлен реэкспорт `useCookieConsent`.
+- `frontend/src/app/layout.tsx` — баннер смонтирован глобально после `{children}`.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус Story 35.4 синхронизирован.
+- `_bmad-output/implementation-artifacts/Story/35-4-cookie-banner.md` — BMAD-статус, чеклист и Dev Agent Record обновлены.
+
+### Change Log
+
+- 2026-05-16: Реализован frontend-only cookie-баннер Story 35.4, добавлены hook/component tests, выполнены targeted/full frontend проверки и story переведена в `review`.

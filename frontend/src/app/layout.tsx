@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Roboto_Condensed } from 'next/font/google';
+import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body className={`${inter.variable} ${robotoCondensed.variable} font-sans antialiased`}>
         {children}
+        <CookieConsentBanner />
       </body>
     </html>
   );
