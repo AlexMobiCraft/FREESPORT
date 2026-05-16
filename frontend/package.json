@@ -19,7 +19,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "generate:types": "openapi-typescript ../docs/api-spec.yaml -o ./src/types/api.generated.ts",
+    "generate:types": "openapi-typescript ../docs/api/openapi.yaml -o ./src/types/api.generated.ts",
     "postinstall": "node scripts/install-lightningcss.js"
   },
   "dependencies": {
