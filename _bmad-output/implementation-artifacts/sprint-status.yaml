@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-16" # 35.4 → done: code review run 2 пройден (0 patch, 3 defer)
+last_updated: "2026-05-16" # epic-2-retrospective → done
 
 development_status:
   # ========================================
@@ -56,7 +56,7 @@ development_status:
   epic-2: done
   2-1-file-stream-upload: done
   2-2-zip-unpacking-with-structure: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   # ========================================
   # Epic 3: Asynchronous Import Triggering
@@ -89,7 +89,7 @@ development_status:
   # Source: epics.md (1C Order Exchange)
   # ========================================
   epic-5: done
-  5-0-spike-analysis-orders-xml: included
+  5-0-spike-analysis-orders-xml: done
   5-1-order-status-import-service: done
   5-2-view-handler-mode-file-for-orders-xml: done
   5-3-integration-tests-full-import-cycle: done
