@@ -1,7 +1,7 @@
 # Story: Security — Harden Email Enumeration on Subscribe/Unsubscribe
 
 **Story ID:** security-email-enumeration-hardening
-**Status:** review
+**Status:** in-progress
 **Priority:** High (security fix; устраняет два вектора email enumeration, зафиксированных code review Epic 35)
 **Source issues:** DN8-1 (Pass 8) · WWWW3 (Pass 4) из `_bmad-output/implementation-artifacts/deferred-work.md`
 
@@ -281,6 +281,24 @@ _Повторное ревью после resolve 3 Patch finding'ов. Все 3
 - [x] [Review][Defer] `UnsubscribeRateThrottle.get_cache_key` — bucket чисто per-IP: за корпоративным NAT/CGNAT все пользователи делят лимит. [`backend/apps/common/throttling.py`] — deferred, явно принятый риск (W9-4 в deferred-work.md)
 - [x] [Review][Defer] `test_unsubscribe_throttle_scope_check_rejects_missing_rate` ассертит `errors[0].id` по индексу — хрупко при добавлении новых system check. [`backend/apps/common/tests/test_common_config.py`] — deferred, унаследованный паттерн (тест `common.E002` тот же)
 - [x] [Review][Defer] «Промах» `/unsubscribe/` (неизвестный email) не логируется — массовый harvesting не оставляет следа в аудите/логах. [`backend/apps/common/serializers.py`] — deferred, by-design tradeoff маскировки; кандидат на внутреннюю метрику
+
+### Re-review 2026-05-17 (pass 3 — bmad-code-review, 3 слоя: Blind Hunter, Edge Case Hunter, Acceptance Auditor)
+
+_Третий проход после resolve P1-P4. Acceptance Auditor подтвердил: все 10 AC выполнены корректно, все findings pass 1 и pass 2 (3 Patch + P1-P4) реально закрыты в коде. Новых нарушений AC нет. Ниже — 2 Patch (пробелы тестового покрытия) и 6 Defer. Decision-needed: нет._
+
+#### Patch
+
+- [ ] [Review][Patch] Нет теста на `503`-ответ `/unsubscribe/` при `DatabaseError` — view возвращает `503` (pass 1 Patch 1) и `@extend_schema`/`openapi.yaml` его документируют (pass 2 P2), но ни один тест этот путь не покрывает; у `subscribe` есть аналог `test_subscribe_returns_structured_503_on_operational_consent_failure` [backend/tests/integration/test_common_subscribe_api.py]
+- [ ] [Review][Patch] Нет негативных тестов `/unsubscribe/` на не-строковый / отсутствующий / `null` email — у `subscribe` есть `test_subscribe_duplicate_non_string_email_is_not_echoed` и `test_subscribe_rejects_non_object_json_payload`, в `TestUnsubscribeEndpoint` аналогов нет; 400-ветка проверена только одним `test_unsubscribe_invalid_email` [backend/tests/integration/test_common_subscribe_api.py]
+
+#### Deferred
+
+- [x] [Review][Defer] Timing side-channel на `/subscribe/` и `/unsubscribe/`: known/unknown email различимы по latency из-за асимметрии БД-операций (UPDATE + inserts vs SELECT + exception) [backend/apps/common/views.py, backend/apps/common/serializers.py] — deferred, вне scope story (уже зафиксировано в pass 1 Deferred)
+- [x] [Review][Defer] Расхождение регистра email: `UnsubscribeSerializer.save()` ищет по нормализованному lowercase `email`; при не-нормализованных записях в БД (импорт 1С минует `Model.clean()`) активный подписчик получает «обработан», но реально не отписывается; ответ может эхоить email в разном регистре для known/unknown — остаточный слабый enumeration-вектор [backend/apps/common/serializers.py:146-168] — deferred, pre-existing (нормализация поиска не менялась этой story; зависит от состояния данных БД)
+- [x] [Review][Defer] `/unsubscribe/` без `@parser_classes([JSONParser])` — асимметрия с `subscribe`, принимает form-urlencoded/multipart [backend/apps/common/views.py:547] — deferred, pre-existing асимметрия декораторов (уже зафиксировано в pass 2 Deferred)
+- [x] [Review][Defer] Ветка `subscribe` `serializer.errors` дублирует нормализацию email (`.lower().strip()`) из сериализатора — источник будущей рассинхронизации формата ответа при изменении правил нормализации [backend/apps/common/views.py:469-473] — deferred, maintainability, нет однозначного fix
+- [x] [Review][Defer] Несвязанная регенерация `openapi.yaml`: перестановка блоков `/users/addresses/`, `/users/favorites/`, `/orders/`, `/cart/items/`, смена типа id `categories-tree`; рассинхрон тегов `tags: [users]` vs `[Users]` у favorites [docs/api/openapi.yaml] — deferred, гигиена коммита (аналог уже зафиксирован в pass 1 Deferred)
+- [x] [Review][Defer] `UnsubscribeRateThrottle.get_cache_key` дословно скопирован из `SubscribeRateThrottle` — кандидат на подъём в `ProxyAwareThrottleIdentMixin` [backend/apps/common/throttling.py] — deferred, minor maintainability, копирование санкционировано spec («точная копия»)
 
 ---
 
