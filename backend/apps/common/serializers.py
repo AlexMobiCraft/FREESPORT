@@ -146,24 +146,24 @@ class UnsubscribeSerializer(serializers.Serializer):
     def validate_email(self, value: str) -> str:
         """
         Валидация email адреса.
-        Проверяет существование активной подписки.
+        Нормализует email без раскрытия наличия активной подписки.
         """
         # Нормализация email (lowercase)
         value = value.lower().strip()
 
-        # Проверка на существование активной подписки
-        if not Newsletter.objects.filter(email=value, is_active=True).exists():
-            raise serializers.ValidationError("Этот email не найден в списке подписчиков или уже отписан")
-
         return value
 
-    def save(self, **kwargs: Any) -> Newsletter:
+    def save(self, **kwargs: Any) -> Newsletter | None:
         """
         Отписка от рассылки.
-        Вызывает метод unsubscribe() модели.
+        Возвращает None, если активной подписки нет, чтобы не раскрывать наличие email.
         """
         email = self.validated_data["email"]
-        subscription = Newsletter.objects.get(email=email, is_active=True)
+        try:
+            subscription = Newsletter.objects.get(email=email, is_active=True)
+        except Newsletter.DoesNotExist:
+            return None
+
         subscription.unsubscribe()
         return subscription
 

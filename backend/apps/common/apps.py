@@ -33,6 +33,15 @@ def check_session_engine_for_subscribe_consent(app_configs, **kwargs):
             )
         )
 
+    if "unsubscribe" not in throttle_rates:
+        errors.append(
+            Error(
+                "Для /unsubscribe/ должен быть задан отдельный throttle scope 'unsubscribe'.",
+                hint="Добавьте REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['unsubscribe'] в настройки окружения.",
+                id="common.E003",
+            )
+        )
+
     return errors
 
 

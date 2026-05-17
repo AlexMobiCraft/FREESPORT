@@ -41,6 +41,22 @@ def test_subscribe_throttle_scope_check_rejects_missing_rate():
     assert errors[0].id == "common.E002"
 
 
+def test_unsubscribe_throttle_scope_check_rejects_missing_rate():
+    rest_framework = {
+        **settings.REST_FRAMEWORK,
+        "DEFAULT_THROTTLE_RATES": {
+            key: value
+            for key, value in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].items()
+            if key != "unsubscribe"
+        },
+    }
+    with override_settings(REST_FRAMEWORK=rest_framework):
+        errors = check_session_engine_for_subscribe_consent(None)
+
+    assert len(errors) == 1
+    assert errors[0].id == "common.E003"
+
+
 def test_session_engine_check_is_visible_under_security_tag():
     with override_settings(SESSION_ENGINE="django.contrib.sessions.backends.signed_cookies"):
         errors = run_checks(tags=[Tags.security])

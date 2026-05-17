@@ -115,7 +115,7 @@ export interface paths {
     put?: never;
     /**
      * Подписка на email-рассылку
-     * @description Подписывает пользователя на email-рассылку о новинках и акциях. Если email уже подписан - возвращает 409 Conflict.
+     * @description Подписывает пользователя на email-рассылку о новинках и акциях. Если email уже подписан - возвращает нейтральный 200 OK.
      */
     post: operations['subscribe_create'];
     delete?: never;
@@ -135,7 +135,7 @@ export interface paths {
     put?: never;
     /**
      * Отписка от email-рассылки
-     * @description Отписывает пользователя от email-рассылки. Если email не найден или уже отписан - возвращает 404 Not Found.
+     * @description Обрабатывает запрос на отписку от email-рассылки. Для неизвестного или уже отписанного email возвращает такой же нейтральный 200 OK.
      */
     post: operations['unsubscribe_create'];
     delete?: never;
@@ -2806,6 +2806,13 @@ export interface operations {
       };
     };
     responses: {
+      /** @description Email уже был подписан; возвращается нейтральный успех */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Подписка успешно создана */
       201: {
         headers: {
@@ -2815,13 +2822,6 @@ export interface operations {
       };
       /** @description Ошибка валидации (email или pdp_consent) */
       400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Email уже подписан на рассылку */
-      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -2853,7 +2853,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Отписка успешно выполнена */
+      /** @description Запрос на отписку обработан */
       200: {
         headers: {
           [name: string]: unknown;
@@ -2862,13 +2862,6 @@ export interface operations {
       };
       /** @description Ошибка валидации email */
       400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Email не найден или уже отписан */
-      404: {
         headers: {
           [name: string]: unknown;
         };

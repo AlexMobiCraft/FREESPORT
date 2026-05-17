@@ -16,7 +16,7 @@ from rest_framework import serializers, status
 
 from apps.common.models import Newsletter, UserConsent
 from apps.common.serializers import SubscribeSerializer
-from apps.common.throttling import SubscribeRateThrottle
+from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 
@@ -41,7 +41,7 @@ class TestSubscribeEndpoint:
         assert Newsletter.objects.filter(email="newuser@example.com").exists()
 
     def test_subscribe_duplicate_email(self, api_client):
-        """Гарантирует корректный конфликт при повторной подписке."""
+        """Повторная подписка возвращает нейтральный успех без enumeration leak."""
         Newsletter.objects.create(email="existing@example.com", is_active=True)
 
         url = reverse("common:subscribe")
@@ -49,9 +49,11 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_409_CONFLICT
-        assert "уже подписан" in str(response.data["email"][0])
-        assert response.data["email"][0].code == "already_subscribed"
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            "message": "Вы успешно подписались на рассылку",
+            "email": "existing@example.com",
+        }
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_missing_pdp_consent_does_not_leak_subscriber_status(self, api_client):
@@ -442,17 +444,19 @@ class TestSubscribeEndpoint:
         assert "Failed to persist newsletter consent audit" not in caplog.text
         assert not Newsletter.objects.filter(email="session-failure@example.com").exists()
 
-    def test_subscribe_returns_409_when_newsletter_unique_race_hits_integrity_error(self, api_client):
-        """Race на unique email должен возвращать 409, а не 500."""
+    def test_subscribe_returns_200_when_newsletter_unique_race_hits_integrity_error(self, api_client):
+        """Race на unique email должен возвращать нейтральный 200, а не enumeration leak."""
         url = reverse("common:subscribe")
         data = {"email": "unique-race@example.com", "pdp_consent": True}
 
         with patch.object(Newsletter.objects, "create", side_effect=IntegrityError("duplicate")):
             response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_409_CONFLICT
-        assert "уже подписан" in str(response.data["email"][0])
-        assert response.data["email"][0].code == "already_subscribed"
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            "message": "Вы успешно подписались на рассылку",
+            "email": "unique-race@example.com",
+        }
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_anonymous_creates_session_key(self, api_client):
@@ -489,4 +493,81 @@ class TestSubscribeEndpoint:
 
         cache.clear()
         assert statuses[:5] == [status.HTTP_201_CREATED] * 5
+        assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10
+
+
+class TestUnsubscribeEndpoint:
+    """Набор кейсов для POST /api/v1/unsubscribe."""
+
+    def test_unsubscribe_unknown_email_returns_200(self, api_client):
+        """Неизвестный email возвращает нейтральный 200 без создания подписки."""
+        url = reverse("common:unsubscribe")
+
+        response = api_client.post(url, {"email": "unknown-unsubscribe@example.com"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            "message": "Запрос на отписку обработан",
+            "email": "unknown-unsubscribe@example.com",
+        }
+        assert not Newsletter.objects.filter(email="unknown-unsubscribe@example.com").exists()
+
+    def test_unsubscribe_already_unsubscribed_returns_200(self, api_client):
+        """Уже отписанный email возвращает такой же нейтральный 200."""
+        Newsletter.objects.create(
+            email="already-unsubscribed@example.com",
+            is_active=False,
+            unsubscribed_at=timezone.now(),
+        )
+        url = reverse("common:unsubscribe")
+
+        response = api_client.post(url, {"email": "already-unsubscribed@example.com"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            "message": "Запрос на отписку обработан",
+            "email": "already-unsubscribed@example.com",
+        }
+        subscription = Newsletter.objects.get(email="already-unsubscribed@example.com")
+        assert subscription.is_active is False
+
+    def test_unsubscribe_success_returns_200(self, api_client):
+        """Активная подписка деактивируется и возвращает нейтральный 200."""
+        Newsletter.objects.create(email="active-unsubscribe@example.com", is_active=True)
+        url = reverse("common:unsubscribe")
+
+        response = api_client.post(url, {"email": "active-unsubscribe@example.com"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            "message": "Запрос на отписку обработан",
+            "email": "active-unsubscribe@example.com",
+        }
+        subscription = Newsletter.objects.get(email="active-unsubscribe@example.com")
+        assert subscription.is_active is False
+        assert subscription.unsubscribed_at is not None
+
+    def test_unsubscribe_throttle_kicks_in(self, api_client):
+        """Scope-specific unsubscribe throttle ограничивает flood по отдельному bucket."""
+        assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["unsubscribe"] == "100000/min"
+        cache.clear()
+        url = reverse("common:unsubscribe")
+        statuses = []
+
+        with patch.object(
+            UnsubscribeRateThrottle,
+            "THROTTLE_RATES",
+            {"unsubscribe": "5/min"},
+        ):
+            for index in range(40):
+                response = api_client.post(
+                    url,
+                    {"email": f"unsubscribe-throttle-{index}@example.com"},
+                    format="json",
+                    REMOTE_ADDR="198.51.100.88",
+                )
+                statuses.append(response.status_code)
+
+        cache.clear()
+        assert status.HTTP_429_TOO_MANY_REQUESTS not in statuses[:5]
         assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10

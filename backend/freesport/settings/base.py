@@ -175,6 +175,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "6000/min",  # Increased to fix SSR 429 errors
         "subscribe": "30/min",
+        "unsubscribe": "30/min",
         "user": "10000/day",
     },
 }

@@ -1,12 +1,12 @@
 # 4. Структура Компонентов
 
-### Frontend Architecture (Next.js 14+)
+### Frontend Architecture (Next.js 15+)
 
 #### Компонентная архитектура
 
 ```
 frontend/src/
-├── app/                          # App Router (Next.js 13+)
+├── app/                          # App Router (Next.js 15+)
 │   ├── (auth)/                   # Route groups
 │   ├── (blue)/                   # Blue theme layout group
 │   │   ├── catalog/              # Каталог товаров

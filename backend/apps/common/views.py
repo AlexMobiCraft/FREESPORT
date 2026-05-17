@@ -29,7 +29,7 @@ from apps.common.serializers import (
     UnsubscribeSerializer,
 )
 from apps.common.services import CustomerSyncMonitor
-from apps.common.throttling import SubscribeRateThrottle
+from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
 from apps.common.utils.consent_audit import (
     get_consent_ip_address,
     sanitize_consent_user_agent,
@@ -317,7 +317,7 @@ def realtime_metrics(_request: Request) -> Response:
     summary="Подписка на email-рассылку",
     description=(
         "Подписывает пользователя на email-рассылку о новинках и акциях. "
-        "Если email уже подписан - возвращает 409 Conflict."
+        "Если email уже подписан - возвращает нейтральный 200 OK."
     ),
     request=SubscribeSerializer,
     examples=[
@@ -333,6 +333,19 @@ def realtime_metrics(_request: Request) -> Response:
             examples=[
                 OpenApiExample(
                     name="success_response",
+                    value={
+                        "message": "Вы успешно подписались на рассылку",
+                        "email": "user@example.com",
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        200: OpenApiResponse(
+            description="Email уже был подписан; возвращается нейтральный успех",
+            examples=[
+                OpenApiExample(
+                    name="already_subscribed_neutral_response",
                     value={
                         "message": "Вы успешно подписались на рассылку",
                         "email": "user@example.com",
@@ -358,18 +371,6 @@ def realtime_metrics(_request: Request) -> Response:
                     },
                     response_only=True,
                 ),
-            ],
-        ),
-        409: OpenApiResponse(
-            description="Email уже подписан на рассылку",
-            examples=[
-                OpenApiExample(
-                    name="already_subscribed",
-                    value={
-                        "email": ["Этот email уже подписан на рассылку"],
-                    },
-                    response_only=True,
-                )
             ],
         ),
         503: OpenApiResponse(
@@ -440,10 +441,13 @@ def subscribe(request: Request) -> Response:
                 UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
         except DRFValidationError as exc:
             if _has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
-                return Response(
-                    exc.detail,
-                    status=status.HTTP_409_CONFLICT,
+                response_serializer = SubscribeResponseSerializer(
+                    {
+                        "message": "Вы успешно подписались на рассылку",
+                        "email": serializer.validated_data["email"],
+                    }
                 )
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
 
             return Response(
                 exc.detail,
@@ -475,10 +479,16 @@ def subscribe(request: Request) -> Response:
 
     # Обработка ошибки "уже подписан"
     if _has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
-        return Response(
-            serializer.errors,
-            status=status.HTTP_409_CONFLICT,
+        email = ""
+        if isinstance(serializer.initial_data, dict):
+            email = str(serializer.initial_data.get("email", "")).lower().strip()
+        response_serializer = SubscribeResponseSerializer(
+            {
+                "message": "Вы успешно подписались на рассылку",
+                "email": email,
+            }
         )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     # Другие ошибки валидации
     return Response(
@@ -490,17 +500,18 @@ def subscribe(request: Request) -> Response:
 @extend_schema(
     summary="Отписка от email-рассылки",
     description=(
-        "Отписывает пользователя от email-рассылки. " "Если email не найден или уже отписан - возвращает 404 Not Found."
+        "Обрабатывает запрос на отписку от email-рассылки. "
+        "Для неизвестного или уже отписанного email возвращает такой же нейтральный 200 OK."
     ),
     request=UnsubscribeSerializer,
     responses={
         200: OpenApiResponse(
-            description="Отписка успешно выполнена",
+            description="Запрос на отписку обработан",
             examples=[
                 OpenApiExample(
                     name="success_response",
                     value={
-                        "message": "Вы успешно отписались от рассылки",
+                        "message": "Запрос на отписку обработан",
                         "email": "user@example.com",
                     },
                     response_only=True,
@@ -519,23 +530,12 @@ def subscribe(request: Request) -> Response:
                 )
             ],
         ),
-        404: OpenApiResponse(
-            description="Email не найден или уже отписан",
-            examples=[
-                OpenApiExample(
-                    name="not_found",
-                    value={
-                        "email": ["Этот email не найден в списке подписчиков или уже отписан"],
-                    },
-                    response_only=True,
-                )
-            ],
-        ),
     },
     tags=["Newsletter"],
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([UnsubscribeRateThrottle])
 def unsubscribe(request: Request) -> Response:
     """
     Отписка от email-рассылки.
@@ -546,11 +546,12 @@ def unsubscribe(request: Request) -> Response:
 
     if serializer.is_valid():
         subscription = serializer.save()
+        email = subscription.email if subscription is not None else serializer.validated_data["email"]
 
         response_serializer = UnsubscribeResponseSerializer(
             {
-                "message": "Вы успешно отписались от рассылки",
-                "email": subscription.email,
+                "message": "Запрос на отписку обработан",
+                "email": email,
             }
         )
 
@@ -559,16 +560,6 @@ def unsubscribe(request: Request) -> Response:
             status=status.HTTP_200_OK,
         )
 
-    # Обработка ошибки "не найден или уже отписан"
-    if "email" in serializer.errors:
-        error_msg = str(serializer.errors["email"][0])
-        if "не найден" in error_msg or "уже отписан" in error_msg:
-            return Response(
-                serializer.errors,
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    # Другие ошибки валидации
     return Response(
         serializer.errors,
         status=status.HTTP_400_BAD_REQUEST,

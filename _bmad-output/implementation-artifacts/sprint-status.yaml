@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-16" # epic-34, epic-35 → done; package.json generate:types path fixed
+last_updated: "2026-05-16" # security-email-enumeration-hardening ready for review
 
 development_status:
   # ========================================
@@ -170,3 +170,12 @@ development_status:
   35-3-consent-checkbox-in-subscribe-form: done
   35-4-cookie-banner: done
   epic-35-retrospective: skipped # 2026-05-16: conscious decision; lessons captured in deferred-work.md
+
+  # ========================================
+  # Security: Hardening Email Enumeration on Subscribe/Unsubscribe
+  # Goal: Закрыть два вектора email enumeration (DN8-1 + WWWW3 из deferred-work.md):
+  #       - /subscribe/ 409 → 200 при already_subscribed
+  #       - /unsubscribe/ добавить UnsubscribeRateThrottle + замаскировать 404 → 200
+  # Source: deferred-work.md (code review Epic 35, Pass 4 и Pass 8)
+  # ========================================
+  security-email-enumeration-hardening: review

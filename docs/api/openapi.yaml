@@ -86,7 +86,7 @@ paths:
     post:
       operationId: subscribe_create
       description: Подписывает пользователя на email-рассылку о новинках и акциях.
-        Если email уже подписан - возвращает 409 Conflict.
+        Если email уже подписан - возвращает нейтральный 200 OK.
       summary: Подписка на email-рассылку
       tags:
       - Newsletter
@@ -107,10 +107,10 @@ paths:
       responses:
         '201':
           description: Подписка успешно создана
+        '200':
+          description: Email уже был подписан; возвращается нейтральный успех
         '400':
           description: Ошибка валидации (email или pdp_consent)
-        '409':
-          description: Email уже подписан на рассылку
         '503':
           content:
             application/json:
@@ -128,8 +128,8 @@ paths:
   /unsubscribe/:
     post:
       operationId: unsubscribe_create
-      description: Отписывает пользователя от email-рассылки. Если email не найден
-        или уже отписан - возвращает 404 Not Found.
+      description: Обрабатывает запрос на отписку от email-рассылки. Для неизвестного
+        или уже отписанного email возвращает такой же нейтральный 200 OK.
       summary: Отписка от email-рассылки
       tags:
       - Newsletter
@@ -149,11 +149,9 @@ paths:
       - {}
       responses:
         '200':
-          description: Отписка успешно выполнена
+          description: Запрос на отписку обработан
         '400':
           description: Ошибка валидации email
-        '404':
-          description: Email не найден или уже отписан
   /news/:
     get:
       operationId: news_list

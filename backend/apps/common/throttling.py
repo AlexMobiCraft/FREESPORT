@@ -62,3 +62,16 @@ class SubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
             "scope": self.scope,
             "ident": self.get_ident(request),
         }
+
+
+class UnsubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
+    """Отдельный лимит для write-endpoint отписки от рассылки."""
+
+    scope = "unsubscribe"
+
+    def get_cache_key(self, request, view):
+        """Сформировать cache key: SimpleRateThrottle оставляет этот метод abstract."""
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }

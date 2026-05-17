@@ -45,11 +45,12 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Staging явно документирует production-like throttle rates, не полагаясь на скрытое наследование base.py.
+# Staging явно документирует throttle rates, не полагаясь на скрытое наследование base.py.
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
     "anon": "6000/min",
     "subscribe": "30/min",
+    "unsubscribe": "100000/min",
     "user": "10000/day",
 }
 
