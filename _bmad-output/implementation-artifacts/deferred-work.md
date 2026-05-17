@@ -1,3 +1,8 @@
+## Deferred from: code review of security-subscribe-status-unification (2026-05-17)
+
+- **Аномальный `409` от бэкенда → `network_error` с потерей `details`** — после удаления ветки `409 → already_subscribed` любой статус вне `400/429/5xx` (включая `409`, `403`, `404`) попадает в catch-all `throw new SubscribeServiceError('network_error')` без `details`. Pre-existing паттерн `subscribeService`; spec story явно зафиксировал `409 → network_error` регрессионным тестом. Не введено этой story; реальный контракт `409` не возвращает. [`frontend/src/services/subscribeService.ts:78`]
+- **Коммит `83f30fb0` содержит изменения вне scope story** — помимо 7 файлов из File List коммит изменил файл story-предшественника `security-email-enumeration-hardening.md` (смена статуса + блок re-review pass 4, ~27 строк). Смена статуса предшественника оправдана как prerequisite, но добавление re-review-блока — отдельная работа, замешанная в коммит унификации. Гигиена коммита; уже закоммичено. [`_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md`]
+
 ## Deferred from: code review of 35-3-consent-checkbox-in-subscribe-form (2026-05-15, Pass 9)
 
 - **W9-1. Осиротевшая `django_session`-строка при 503** — `request.session.save()` выполняется до `transaction.atomic()`, поэтому при сбое записи consent (503) анонимный пользователь получает `sessionid`-cookie и строку в `django_session` без подписки и согласия. Minor side effect на редком DB-failure пути; порядок `session.save()` намеренно покрыт тестом `test_subscribe_anonymous_session_is_saved_before_atomic_consent_write`. [`backend/apps/common/views.py`]

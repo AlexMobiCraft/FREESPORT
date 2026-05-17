@@ -228,6 +228,7 @@ return Response(
 - 2026-05-17: Story создана по итогам Architect impact assessment рефакторинга `/subscribe/` (Winston).
 - 2026-05-17: Story принята в разработку по workflow `bmad-dev-story`; prerequisite `e76b7e6c` подтверждён как ancestor текущего `develop`.
 - 2026-05-17: Story выполнена: `/subscribe/` contract зафиксирован на `200`, frontend mock/service синхронизированы, OpenAPI/types перегенерированы, deferred-пункт закрыт; story → review.
+- 2026-05-17: Review-патч закрыт: удалены устаревшие ветки `already_subscribed` из фронтенд-форм подписки и удалён unreachable-тест; story и sprint-status синхронизированы на `review`.
 
 ---
 
@@ -242,6 +243,7 @@ return Response(
 - 2026-05-17: `manage.py spectacular --file ../docs/api/openapi.yaml --validate` и `npm run generate:types` выполнены успешно.
 - 2026-05-17: GitNexus detect-changes после реализации: 11 files, 2 indexed symbols (`AGENTS.md`, `CLAUDE.md`), affected processes 0, risk low. GitNexus не индексирует изменённые generated/docs/frontend mock symbols как affected flows.
 - 2026-05-17: Frontend Docker container перезапущен после изменений в `frontend/src/`: `docker compose --env-file ../.env -f ../docker/docker-compose.yml restart frontend`.
+- 2026-05-17: После review-патча выполнены `npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/__tests__/subscribeService.test.ts`, `npx eslint src/components/home/SubscribeForm.tsx src/components/home/ElectricSubscribeForm.tsx src/components/home/__tests__/SubscribeForm.test.tsx --max-warnings=0`, `npm run test`, `npm run build`; все проверки прошли.
 
 ### Completion Notes
 
@@ -255,6 +257,7 @@ return Response(
 - Validation frontend full: `npm run test` — passed; `npx tsc --noEmit` — passed.
 - Code quality: `npx prettier --check ...`, `npx eslint ... --max-warnings=0`, `git diff --check`, `python manage.py check` — passed.
 - Full backend regression: первый `pytest -q` остановлен таймаутом инструмента через 30 минут без итогового вывода; после остановки фоновых pytest-процессов fail-fast `pytest --maxfail=1 --tb=short -q` дал `1758 passed, 3 skipped` и остановился на известном data-dependent blocker `tests/integration/test_management_commands/test_import_customers.py::TestImportCustomersCommand::test_command_imports_real_customers` из-за отсутствующей `/app/data/import_1c/contragents`. Повторный прогон с `--ignore=tests/integration/test_management_commands/test_import_customers.py` остановлен таймаутом инструмента через 20 минут без итогового вывода.
+- Review patch: удалены устаревшие ветки `already_subscribed` из `SubscribeForm` и `ElectricSubscribeForm`, а ложный тест `SubscribeForm.test.tsx` удалён; компонентный fallback теперь унифицирован на общий error-path.
 
 ### File List
 
@@ -266,3 +269,16 @@ return Response(
 - `frontend/src/services/__tests__/subscribeService.test.ts`
 - `frontend/src/services/subscribeService.ts`
 - `frontend/src/types/api.generated.ts`
+- `frontend/src/components/home/SubscribeForm.tsx`
+- `frontend/src/components/home/ElectricSubscribeForm.tsx`
+- `frontend/src/components/home/__tests__/SubscribeForm.test.tsx`
+
+---
+
+### Review Findings
+
+Code review (2026-05-17, 3 слоя: Blind Hunter / Edge Case Hunter / Acceptance Auditor). AC-1..AC-5, AC-7, AC-8 подтверждены выполненными. AC-6 закрыт — см. ниже.
+
+- [x] [Review][Patch] Осиротевший код `already_subscribed` в формах подписки и ложно-зелёный тест — resolved: после удаления ветки `409 → already_subscribed` из `subscribeService` сервис больше никогда не бросает `'already_subscribed'`. Ветки `if (error.message === 'already_subscribed')` удалены из `SubscribeForm` и `ElectricSubscribeForm`, а unreachable-тест `SubscribeForm.test.tsx` удалён. AC-6 + Важное предупреждение №5 полностью закрыты. [`frontend/src/components/home/SubscribeForm.tsx:102`, `frontend/src/components/home/ElectricSubscribeForm.tsx:111`, `frontend/src/components/home/__tests__/SubscribeForm.test.tsx`]
+- [x] [Review][Defer] Аномальный `409` от бэкенда классифицируется как `network_error` с потерей `details` — pre-existing catch-all паттерн `subscribeService` (любой статус вне 400/429/5xx → `network_error`); spec явно зафиксировал `409 → network_error` тестом. Не введено этой story. [`frontend/src/services/subscribeService.ts:78`] — deferred, pre-existing
+- [x] [Review][Defer] Коммит `83f30fb0` содержит изменения вне scope story — правка файла story-предшественника `security-email-enumeration-hardening.md` (статус + блок re-review pass 4, 27 строк) не указана в File List этой story. Гигиена коммита; уже закоммичено, откату не подлежит. [`_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md`] — deferred, pre-existing

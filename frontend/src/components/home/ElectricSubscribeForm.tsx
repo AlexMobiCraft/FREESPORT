@@ -108,9 +108,7 @@ export const ElectricSubscribeForm: React.FC = () => {
       reset();
     } catch (error: unknown) {
       // Error handling similar to original but with toast styles if we want
-      if (error instanceof Error && error.message === 'already_subscribed') {
-        toast.error('ЭТОТ EMAIL УЖЕ ПОДПИСАН', electricToastErrorOptions);
-      } else if (error instanceof Error && error.message === 'validation_error') {
+      if (error instanceof Error && error.message === 'validation_error') {
         const pdpConsentError = getBackendFieldError(error, 'pdp_consent');
         const emailError = getBackendFieldError(error, 'email');
         const backendError = getFirstBackendError(error);

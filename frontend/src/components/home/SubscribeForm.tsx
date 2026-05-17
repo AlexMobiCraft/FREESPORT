@@ -99,9 +99,7 @@ export const SubscribeForm: React.FC = () => {
       reset();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.message === 'already_subscribed') {
-          toast.error('Этот email уже подписан на рассылку');
-        } else if (error.message === 'validation_error') {
+        if (error.message === 'validation_error') {
           const pdpConsentError = getBackendFieldError(error, 'pdp_consent');
           const emailError = getBackendFieldError(error, 'email');
           const backendError = getFirstBackendError(error);

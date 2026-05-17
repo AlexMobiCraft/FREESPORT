@@ -188,21 +188,6 @@ describe('SubscribeForm', () => {
     expect(getPdpCheckbox()).not.toBeChecked();
   });
 
-  it('shows error toast when email already subscribed', async () => {
-    const mockSubscribe = vi.mocked(subscribeService.subscribe);
-    mockSubscribe.mockRejectedValueOnce(new Error('already_subscribed'));
-
-    const user = userEvent.setup();
-    render(<SubscribeForm />);
-
-    await fillEmailAndAcceptConsent(user, 'existing@example.com');
-    await user.click(screen.getByRole('button', { name: /подписаться/i }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Этот email уже подписан на рассылку');
-    });
-  });
-
   it('shows backend PDN field error instead of email validation fallback', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(
