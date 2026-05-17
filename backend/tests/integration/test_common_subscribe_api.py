@@ -547,6 +547,15 @@ class TestUnsubscribeEndpoint:
         assert subscription.is_active is False
         assert subscription.unsubscribed_at is not None
 
+    def test_unsubscribe_invalid_email(self, api_client):
+        """Возвращает 400 для некорректного email при отписке."""
+        url = reverse("common:unsubscribe")
+
+        response = api_client.post(url, {"email": "invalid-email"}, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "email" in response.data
+
     def test_unsubscribe_throttle_kicks_in(self, api_client):
         """Scope-specific unsubscribe throttle ограничивает flood по отдельному bucket."""
         assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["unsubscribe"] == "100000/min"
@@ -569,5 +578,5 @@ class TestUnsubscribeEndpoint:
                 statuses.append(response.status_code)
 
         cache.clear()
-        assert status.HTTP_429_TOO_MANY_REQUESTS not in statuses[:5]
+        assert statuses[:5] == [status.HTTP_200_OK] * 5
         assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10

@@ -35,7 +35,7 @@ project: "FREESPORT"
 project_key: "1C-HTTP-EXCHANGE"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
-last_updated: "2026-05-17" # code review complete, 3 patch items for dev + 1 deferred decision
+last_updated: "2026-05-17" # CR follow-up done: 3 Patch items resolved, story → review
 
 development_status:
   # ========================================
@@ -178,4 +178,4 @@ development_status:
   #       - /unsubscribe/ добавить UnsubscribeRateThrottle + замаскировать 404 → 200
   # Source: deferred-work.md (code review Epic 35, Pass 4 и Pass 8)
   # ========================================
-  security-email-enumeration-hardening: in-progress
+  security-email-enumeration-hardening: review

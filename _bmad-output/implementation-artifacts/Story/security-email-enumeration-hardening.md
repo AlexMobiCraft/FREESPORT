@@ -1,7 +1,7 @@
 # Story: Security — Harden Email Enumeration on Subscribe/Unsubscribe
 
 **Story ID:** security-email-enumeration-hardening
-**Status:** in-progress
+**Status:** review
 **Priority:** High (security fix; устраняет два вектора email enumeration, зафиксированных code review Epic 35)
 **Source issues:** DN8-1 (Pass 8) · WWWW3 (Pass 4) из `_bmad-output/implementation-artifacts/deferred-work.md`
 
@@ -244,9 +244,9 @@ _Code review 2026-05-17 (bmad-code-review, 3 слоя: Blind Hunter, Edge Case H
 
 ### Patch
 
-- [ ] [Review][Patch] `unsubscribe` не оборачивает `serializer.save()` в try/except `DatabaseError` — асимметрия с `subscribe`, который при сбое БД отдаёт 503; здесь любая `DatabaseError` пробросится наружу как `HTTP 500` [backend/apps/common/views.py:547]
-- [ ] [Review][Patch] Тест `test_unsubscribe_throttle_kicks_in` не проверяет, что первые 5 запросов реально успешны (`200`) — ассертится только отсутствие `429` в `statuses[:5]`; subscribe-аналог ассертит `[201]*5` [backend/tests/integration/test_common_subscribe_api.py:937]
-- [ ] [Review][Patch] Нет теста на `400`-ветку `unsubscribe` (невалидный/пустой/отсутствующий email) — ветка изменилась в diff (над ней удалена 404-обработка), но осталась без покрытия [backend/tests/integration/test_common_subscribe_api.py]
+- [x] [Review][Patch] `unsubscribe` не оборачивает `serializer.save()` в try/except `DatabaseError` — асимметрия с `subscribe`, который при сбое БД отдаёт 503; здесь любая `DatabaseError` пробросится наружу как `HTTP 500` [backend/apps/common/views.py:547]
+- [x] [Review][Patch] Тест `test_unsubscribe_throttle_kicks_in` не проверяет, что первые 5 запросов реально успешны (`200`) — ассертится только отсутствие `429` в `statuses[:5]`; subscribe-аналог ассертит `[201]*5` [backend/tests/integration/test_common_subscribe_api.py:937]
+- [x] [Review][Patch] Нет теста на `400`-ветку `unsubscribe` (невалидный/пустой/отсутствующий email) — ветка изменилась в diff (над ней удалена 404-обработка), но осталась без покрытия [backend/tests/integration/test_common_subscribe_api.py]
 
 ### Deferred
 
@@ -380,6 +380,7 @@ def save(self, **kwargs):
 ### Debug Log
 
 - 2026-05-16: Загружен workflow `bmad-dev-story`, конфигурация BMAD и полный story-файл.
+- 2026-05-17: Выполнен follow-up CR: 3 Patch finding'а из code review resolved — DatabaseError wrap в unsubscribe view, улучшен assert throttle-теста, добавлен тест на 400-ветку unsubscribe. Тесты 42/42 passed. Flake8/Black проходят.
 - 2026-05-16: GitNexus impact перед правками: `subscribe`, `unsubscribe`, `UnsubscribeSerializer`, `SubscribeRateThrottle` — LOW risk.
 - 2026-05-16: GitNexus impact перед расширением system check: `check_session_engine_for_subscribe_consent` — LOW risk.
 - 2026-05-16: GitNexus detect-changes после реализации: 16 файлов, 12 symbols, 3 affected flows (`Subscribe → Get_client_ip`, `Subscribe → Normalize_consent_ip`, `Subscribe → Sanitize_log_value`), risk `medium`.
@@ -424,3 +425,4 @@ def save(self, **kwargs):
 - 2026-05-16: Tasks 4/5/7 — обновлены тесты и добавлен system check для `unsubscribe` throttle scope.
 - 2026-05-16: Task 6 — обновлены OpenAPI YAML и frontend API-типы.
 - 2026-05-16: Story переведена в `review`; validation caveats по full regression зафиксированы в Dev Agent Record.
+- 2026-05-17: Follow-up CR: `test_unsubscribe_invalid_email` добавлен; `test_unsubscribe_throttle_kicks_in` теперь ассертит `[200]*5` вместо `not in statuses[:5]`; `unsubscribe` view оборачивает `serializer.save()` в `try/except DatabaseError` с логом и 503 ответом, симметрично `subscribe`. Повторный прогон тестов subscribe/unsubscribe + config: 42 passed.

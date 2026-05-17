@@ -545,20 +545,32 @@ def unsubscribe(request: Request) -> Response:
     serializer = UnsubscribeSerializer(data=request.data)
 
     if serializer.is_valid():
-        subscription = serializer.save()
-        email = subscription.email if subscription is not None else serializer.validated_data["email"]
+        try:
+            subscription = serializer.save()
+            email = subscription.email if subscription is not None else serializer.validated_data["email"]
 
-        response_serializer = UnsubscribeResponseSerializer(
-            {
-                "message": "Запрос на отписку обработан",
-                "email": email,
-            }
-        )
+            response_serializer = UnsubscribeResponseSerializer(
+                {
+                    "message": "Запрос на отписку обработан",
+                    "email": email,
+                }
+            )
 
-        return Response(
-            response_serializer.data,
-            status=status.HTTP_200_OK,
-        )
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except DatabaseError:
+            logger.exception("Failed to process unsubscribe request")
+            return Response(
+                {
+                    "error": "unsubscribe_processing_failed",
+                    "details": {
+                        "non_field_errors": ["Не удалось обработать запрос. Попробуйте позже."],
+                    },
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
     return Response(
         serializer.errors,
