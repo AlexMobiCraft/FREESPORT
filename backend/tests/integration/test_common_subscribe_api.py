@@ -13,9 +13,10 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers, status
+from rest_framework.exceptions import ErrorDetail
 
 from apps.common.models import Newsletter, UserConsent
-from apps.common.serializers import SubscribeSerializer
+from apps.common.serializers import ALREADY_SUBSCRIBED_CODE, SubscribeSerializer
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
@@ -35,7 +36,7 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         assert response.data["message"] == "Вы успешно подписались на рассылку"
         assert response.data["email"] == "newuser@example.com"
         assert Newsletter.objects.filter(email="newuser@example.com").exists()
@@ -55,6 +56,41 @@ class TestSubscribeEndpoint:
             "email": "existing@example.com",
         }
         assert UserConsent.objects.count() == 0
+
+    def test_subscribe_duplicate_non_string_email_is_not_echoed(self, api_client):
+        """Нейтральный already_subscribed-ответ не эхоит list/dict из raw request."""
+
+        class FakeSubscribeSerializer:
+            initial_data = {"email": ["existing@example.com"]}
+            errors = {
+                "email": [
+                    ErrorDetail(
+                        "Этот email уже подписан на рассылку",
+                        code=ALREADY_SUBSCRIBED_CODE,
+                    )
+                ]
+            }
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def is_valid(self):
+                return False
+
+        url = reverse("common:subscribe")
+
+        with patch("apps.common.views.SubscribeSerializer", FakeSubscribeSerializer):
+            response = api_client.post(
+                url,
+                {"email": ["existing@example.com"], "pdp_consent": True},
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            "message": "Вы успешно подписались на рассылку",
+            "email": "",
+        }
 
     def test_subscribe_missing_pdp_consent_does_not_leak_subscriber_status(self, api_client):
         """Без pdp_consent известный email не должен раскрывать статус подписки."""
@@ -84,7 +120,7 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         subscription = Newsletter.objects.get(email="unsubscribed@example.com")
         assert subscription.is_active is True
         assert subscription.unsubscribed_at is None
@@ -117,7 +153,7 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         subscription = Newsletter.objects.get(email="testuser@example.com")
         assert subscription.email == "testuser@example.com"
 
@@ -192,7 +228,7 @@ class TestSubscribeEndpoint:
             HTTP_USER_AGENT="SubscribeTest/1.0",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         consents = list(UserConsent.objects.order_by("consent_type"))
         assert len(consents) == 2
         assert {consent.consent_type for consent in consents} == {
@@ -220,7 +256,7 @@ class TestSubscribeEndpoint:
             REMOTE_ADDR="198.51.100.77",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         subscription = Newsletter.objects.get(email="invalid-newsletter-ip@example.com")
         assert subscription.ip_address == "198.51.100.77"
         assert {str(consent.ip_address) for consent in UserConsent.objects.all()} == {"198.51.100.77"}
@@ -238,7 +274,7 @@ class TestSubscribeEndpoint:
             HTTP_USER_AGENT="SubscribeTest/1.0",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         subscription = Newsletter.objects.get(email="private-ip-consent@example.com")
         assert subscription.ip_address == "10.0.0.1"
         assert {str(consent.ip_address) for consent in UserConsent.objects.all()} == {"10.0.0.1"}
@@ -256,7 +292,7 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         consents = list(UserConsent.objects.order_by("consent_type"))
         assert len(consents) == 2
         assert {consent.consent_type for consent in consents} == {
@@ -279,7 +315,7 @@ class TestSubscribeEndpoint:
             HTTP_USER_AGENT="SubscribeAudit/1.0",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         consents = UserConsent.objects.all()
         assert consents.count() == 2
         assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
@@ -299,7 +335,7 @@ class TestSubscribeEndpoint:
             HTTP_USER_AGENT="SubscribeAudit/1.0",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         subscription = Newsletter.objects.get(email="x-real-ip-consent@example.com")
         assert subscription.ip_address == "198.51.100.10"
         consents = UserConsent.objects.all()
@@ -314,7 +350,7 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json", HTTP_USER_AGENT=user_agent)
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         newsletter = Newsletter.objects.get(email="long-user-agent@example.com")
         assert len(newsletter.user_agent) == 512
         assert "\ud800" not in newsletter.user_agent
@@ -341,7 +377,7 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         subscription = Newsletter.objects.get(email="reactivation-consent@example.com")
         assert subscription.is_active is True
         assert subscription.unsubscribed_at is None
@@ -361,7 +397,7 @@ class TestSubscribeEndpoint:
         with CaptureQueriesContext(connection) as captured_queries:
             response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         assert any(" FOR UPDATE" in query["sql"].upper() for query in captured_queries.captured_queries)
 
     def test_subscribe_atomic_rollback_on_consent_failure(self, api_client):
@@ -466,7 +502,7 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         assert UserConsent.objects.count() == 2
         assert all(consent.session_key for consent in UserConsent.objects.all())
 
@@ -492,7 +528,7 @@ class TestSubscribeEndpoint:
                 statuses.append(response.status_code)
 
         cache.clear()
-        assert statuses[:5] == [status.HTTP_201_CREATED] * 5
+        assert statuses[:5] == [status.HTTP_200_OK] * 5
         assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10
 
 

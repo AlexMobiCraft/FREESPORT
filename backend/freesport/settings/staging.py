@@ -50,7 +50,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
     "anon": "6000/min",
     "subscribe": "30/min",
-    "unsubscribe": "100000/min",
+    "unsubscribe": "30/min",
     "user": "10000/day",
 }
 

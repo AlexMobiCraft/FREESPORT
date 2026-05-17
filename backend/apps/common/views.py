@@ -328,24 +328,11 @@ def realtime_metrics(_request: Request) -> Response:
         ),
     ],
     responses={
-        201: OpenApiResponse(
-            description="Подписка успешно создана",
+        200: OpenApiResponse(
+            description="Запрос на подписку обработан; новый и уже подписанный email возвращают одинаковый успех",
             examples=[
                 OpenApiExample(
                     name="success_response",
-                    value={
-                        "message": "Вы успешно подписались на рассылку",
-                        "email": "user@example.com",
-                    },
-                    response_only=True,
-                )
-            ],
-        ),
-        200: OpenApiResponse(
-            description="Email уже был подписан; возвращается нейтральный успех",
-            examples=[
-                OpenApiExample(
-                    name="already_subscribed_neutral_response",
                     value={
                         "message": "Вы успешно подписались на рассылку",
                         "email": "user@example.com",
@@ -474,14 +461,16 @@ def subscribe(request: Request) -> Response:
 
         return Response(
             response_serializer.data,
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_200_OK,
         )
 
     # Обработка ошибки "уже подписан"
     if _has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
         email = ""
         if isinstance(serializer.initial_data, dict):
-            email = str(serializer.initial_data.get("email", "")).lower().strip()
+            raw_email = serializer.initial_data.get("email", "")
+            if isinstance(raw_email, str):
+                email = raw_email.lower().strip()
         response_serializer = SubscribeResponseSerializer(
             {
                 "message": "Вы успешно подписались на рассылку",
@@ -525,6 +514,28 @@ def subscribe(request: Request) -> Response:
                     name="validation_error",
                     value={
                         "email": ["Введите корректный email адрес."],
+                    },
+                    response_only=True,
+                )
+            ],
+        ),
+        503: OpenApiResponse(
+            response=inline_serializer(
+                name="UnsubscribeProcessingErrorResponse",
+                fields={
+                    "error": serializers.CharField(),
+                    "details": serializers.DictField(child=serializers.ListField(child=serializers.CharField())),
+                },
+            ),
+            description="Запрос на отписку не удалось обработать из-за ошибки БД",
+            examples=[
+                OpenApiExample(
+                    name="unsubscribe_processing_failed",
+                    value={
+                        "error": "unsubscribe_processing_failed",
+                        "details": {
+                            "non_field_errors": ["Не удалось обработать запрос. Попробуйте позже."],
+                        },
                     },
                     response_only=True,
                 )

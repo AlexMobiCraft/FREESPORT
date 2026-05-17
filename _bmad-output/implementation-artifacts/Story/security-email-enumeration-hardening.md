@@ -152,7 +152,7 @@ def unsubscribe(request: Request) -> Response:
 **Then** ключ `"unsubscribe"` присутствует в:
 - `backend/freesport/settings/base.py` → `"30/min"` (production rate)
 - `backend/freesport/settings/development.py` → `"100000/min"` (не блокирует dev)
-- `backend/freesport/settings/staging.py` → `"100000/min"` (не блокирует staging)
+- `backend/freesport/settings/staging.py` → `"30/min"` (production-like; исправлено по CR pass 2 — staging должен совпадать с прод-rate, симметрично `subscribe`)
 - `backend/freesport/settings/test.py` → `"100000/min"` (не блокирует тесты)
 
 ### AC-7: Тесты обновлены — 409 заменён на 200 в тестах подписки
@@ -256,6 +256,31 @@ _Code review 2026-05-17 (bmad-code-review, 3 слоя: Blind Hunter, Edge Case H
 - [x] [Review][Defer] Full regression: 11 падающих тестов (10 — отсутствие `data/import_1c/contragents`, 1 — perf-тест 562ms vs порог 500ms) — deferred, инфраструктурные/pre-existing, заявлены вне scope в Dev Agent Record
 - [x] [Review][Defer] System check `common.E003` ловит только отсутствие ключа `"unsubscribe"`, не `None`/пустой rate (при `rate=None` throttle молча отключается) [backend/apps/common/apps.py:36] — deferred, унаследованный паттерн (`common.E002` имеет тот же дефект)
 - [x] [Review][Defer] `/unsubscribe/` позволяет отписать чужой активный email без подтверждения личности (abuse) — deferred, pre-existing класс abuse, намеренное проектное решение story (маскировка без токена подтверждения)
+
+### Re-review 2026-05-17 (pass 2 — bmad-code-review, 3 слоя: Blind Hunter, Edge Case Hunter, Acceptance Auditor)
+
+_Повторное ревью после resolve 3 Patch finding'ов. Все 3 Patch из pass 1 подтверждены закрытыми. 9/10 AC выполнены корректно._
+
+#### Decision needed (resolved 2026-05-17)
+
+- [x] [Review][Decision] AC-1 / DN8-1 — вектор email enumeration на `/subscribe/` закрыт лишь частично (201 vs 200). **Решено: Вариант A** — унифицировать `/subscribe/` на `200` для обоих исходов (новая подписка + already_subscribed), вектор закрывается полностью. → перенесено в Patch (P3).
+- [x] [Review][Decision] `staging.py` — `unsubscribe: "100000/min"` делает staging не production-like. **Решено: Вариант A** — выставить staging `unsubscribe: "30/min"` симметрично `subscribe`; AC-6 исправлен (требование для staging: `30/min`, не `100000/min`). → перенесено в Patch (P4).
+
+#### Patch
+
+- [x] [Review][Patch] P1 — subscribe: ветка `already_subscribed` в `serializer.errors` эхо-ит email из `initial_data` без type-guard значения: при `email` в виде JSON-массива/объекта `str(...)` вернёт `"[...]"`/`"{...}"` в теле нейтрального `200`. Path успеха использует чистый `validated_data["email"]` — расхождение формата ответа. Добавить `isinstance(raw, str)`-guard. [`backend/apps/common/views.py:482-491`]
+- [x] [Review][Patch] P2 — `@extend_schema` для `unsubscribe` не документирует `503` ответ (`unsubscribe_processing_failed`), который view возвращает при `DatabaseError`. `subscribe` свой `503` документирует — асимметрия; сгенерированные TS-типы не имеют обработчика 503. Добавить `503` в `responses` + регенерировать OpenAPI/типы. [`backend/apps/common/views.py:507-533`]
+- [x] [Review][Patch] P3 (из D1) — унифицировать `/subscribe/` на `200`: success-path новой подписки вернуть `200` вместо `201`; обновить `@extend_schema` (убрать `201`, оставить единый `200`); обновить тесты, ассертящие `HTTP_201_CREATED` (включая `statuses[:5] == [201]*5` в throttle-тесте); регенерировать `docs/api/openapi.yaml` и `frontend/src/types/api.generated.ts`. [`backend/apps/common/views.py`, `backend/tests/integration/test_common_subscribe_api.py`]
+- [x] [Review][Patch] P4 (из D2) — `staging.py`: `unsubscribe: "100000/min"` → `"30/min"` симметрично `subscribe`; вернуть комментарий о production-like throttle rates. [`backend/freesport/settings/staging.py:53`]
+
+#### Deferred
+
+- [x] [Review][Defer] `UnsubscribeSerializer.save()` делает `Newsletter.objects.get()` + `unsubscribe()` без `select_for_update()`/`transaction.atomic()` — гонка при конкурентной отписке (lost-update, перезапись `unsubscribed_at`). [`backend/apps/common/serializers.py:156-168`] — deferred, pre-existing (lock отсутствовал и до изменения)
+- [x] [Review][Defer] `try/except` в `unsubscribe` ловит только `DatabaseError` — non-`DatabaseError` исключение в `unsubscribe()` существующего email → `500` (vs `200` для неизвестного) — остаточный status/timing-сигнал. [`backend/apps/common/views.py:547-562`] — deferred, узкий/теоретический путь, паттерн симметричен `subscribe`
+- [x] [Review][Defer] `unsubscribe` без `@parser_classes([JSONParser])`, который есть у `subscribe` — принимает form-urlencoded/multipart, более широкая поверхность атаки. [`backend/apps/common/views.py:536`] — deferred, pre-existing асимметрия декораторов
+- [x] [Review][Defer] `UnsubscribeRateThrottle.get_cache_key` — bucket чисто per-IP: за корпоративным NAT/CGNAT все пользователи делят лимит. [`backend/apps/common/throttling.py`] — deferred, явно принятый риск (W9-4 в deferred-work.md)
+- [x] [Review][Defer] `test_unsubscribe_throttle_scope_check_rejects_missing_rate` ассертит `errors[0].id` по индексу — хрупко при добавлении новых system check. [`backend/apps/common/tests/test_common_config.py`] — deferred, унаследованный паттерн (тест `common.E002` тот же)
+- [x] [Review][Defer] «Промах» `/unsubscribe/` (неизвестный email) не логируется — массовый harvesting не оставляет следа в аудите/логах. [`backend/apps/common/serializers.py`] — deferred, by-design tradeoff маскировки; кандидат на внутреннюю метрику
 
 ---
 
@@ -384,6 +409,9 @@ def save(self, **kwargs):
 - 2026-05-16: GitNexus impact перед правками: `subscribe`, `unsubscribe`, `UnsubscribeSerializer`, `SubscribeRateThrottle` — LOW risk.
 - 2026-05-16: GitNexus impact перед расширением system check: `check_session_engine_for_subscribe_consent` — LOW risk.
 - 2026-05-16: GitNexus detect-changes после реализации: 16 файлов, 12 symbols, 3 affected flows (`Subscribe → Get_client_ip`, `Subscribe → Normalize_consent_ip`, `Subscribe → Sanitize_log_value`), risk `medium`.
+- 2026-05-17: GitNexus impact перед CR pass 2 patch: `subscribe` и `unsubscribe` — LOW risk, direct callers/importers 0; `subscribe` затрагивает 3 audit/IP flows, `unsubscribe` без process flows.
+- 2026-05-17: RED для P3 подтверждён: `test_subscribe_success` ожидал `200`, старый код возвращал `201`.
+- 2026-05-17: GitNexus detect-changes после P1-P4: 10 files, 4 symbols, 3 affected flows, risk `medium`.
 
 ### Completion Notes
 
@@ -398,6 +426,13 @@ def save(self, **kwargs):
 - Task 6: OpenAPI схема перегенерирована через `manage.py spectacular`, TypeScript-типы обновлены через `npm run generate:types`; `subscribe_create` без `409`, `unsubscribe_create` без `404`.
 - Code quality: `black --check` и `flake8` по затронутым backend-файлам проходят; `python manage.py check` — без issues; `git diff --check` — без ошибок.
 - Full regression: test-compose full suite запущен; итог `2270 passed, 15 skipped, 11 failed`. Failures вне scope story: 10 тестов `tests/integration/test_management_commands/test_import_customers.py` падают из-за отсутствующей `/app/data/import_1c/contragents`, 1 performance-тест `apps/products/tests/test_api_products.py::TestProductAPIPerformance::test_retrieve_product_with_100_variants_under_500ms` изолированно дал 562.21ms при пороге 500ms. Subscribe/unsubscribe блоки в full suite прошли.
+- CR pass 2 P1: добавлен `isinstance(raw_email, str)` guard для raw `initial_data["email"]`; добавлен regression-тест `test_subscribe_duplicate_non_string_email_is_not_echoed`.
+- CR pass 2 P2: `unsubscribe` OpenAPI теперь документирует `503 unsubscribe_processing_failed`; `docs/api/openapi.yaml` и `frontend/src/types/api.generated.ts` регенерированы.
+- CR pass 2 P3: `/subscribe/` унифицирован на `200 OK` для новой подписки, реактивации и already_subscribed; все `HTTP_201_CREATED` ожидания в subscribe-тестах заменены на `HTTP_200_OK`.
+- CR pass 2 P4: staging `unsubscribe` throttle выставлен в `"30/min"` симметрично `subscribe`.
+- Validation CR pass 2: targeted RED `test_subscribe_success` failed на старом `201`; после правки `pytest tests/integration/test_common_subscribe_api.py apps/common/tests/test_common_config.py` — 43 passed.
+- Code quality CR pass 2: `black --check apps/common/views.py tests/integration/test_common_subscribe_api.py freesport/settings/staging.py`, `flake8 ...`, `python manage.py check` и `git diff --check` проходят.
+- Full regression CR pass 2: `pytest -q` был остановлен таймаутом инструмента через 20 минут без итогового результата. Fail-fast `pytest --maxfail=1 --tb=short -q` сначала остановился на unrelated order/cache-state падении `apps/banners/tests/test_signals.py::TestBannerCacheInvalidation::test_save_marketing_does_not_invalidate_hero_cache`; этот файл изолированно прошёл `7 passed`. Повторный fail-fast был остановлен таймаутом через 10 минут без нового результата.
 
 ## File List
 
@@ -426,3 +461,4 @@ def save(self, **kwargs):
 - 2026-05-16: Task 6 — обновлены OpenAPI YAML и frontend API-типы.
 - 2026-05-16: Story переведена в `review`; validation caveats по full regression зафиксированы в Dev Agent Record.
 - 2026-05-17: Follow-up CR: `test_unsubscribe_invalid_email` добавлен; `test_unsubscribe_throttle_kicks_in` теперь ассертит `[200]*5` вместо `not in statuses[:5]`; `unsubscribe` view оборачивает `serializer.save()` в `try/except DatabaseError` с логом и 503 ответом, симметрично `subscribe`. Повторный прогон тестов subscribe/unsubscribe + config: 42 passed.
+- 2026-05-17: Follow-up CR pass 2: P1-P4 закрыты; `/subscribe/` полностью унифицирован на `200`, `unsubscribe 503` добавлен в OpenAPI/types, staging `unsubscribe` rate исправлен на `30/min`; targeted tests 43 passed, story возвращена в `review`.

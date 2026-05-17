@@ -105,10 +105,9 @@ paths:
       security:
       - {}
       responses:
-        '201':
-          description: Подписка успешно создана
         '200':
-          description: Email уже был подписан; возвращается нейтральный успех
+          description: Запрос на подписку обработан; новый и уже подписанный email
+            возвращают одинаковый успех
         '400':
           description: Ошибка валидации (email или pdp_consent)
         '503':
@@ -152,6 +151,20 @@ paths:
           description: Запрос на отписку обработан
         '400':
           description: Ошибка валидации email
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsubscribeProcessingErrorResponse'
+              examples:
+                UnsubscribeProcessingFailed:
+                  value:
+                    error: unsubscribe_processing_failed
+                    details:
+                      non_field_errors:
+                      - Не удалось обработать запрос. Попробуйте позже.
+                  summary: unsubscribe_processing_failed
+          description: Запрос на отписку не удалось обработать из-за ошибки БД
   /news/:
     get:
       operationId: news_list
@@ -672,30 +685,6 @@ paths:
         '200':
           description: Список ролей пользователей
   /users/addresses/:
-    post:
-      operationId: users_addresses_create
-      description: ViewSet для управления адресами пользователя
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
     get:
       operationId: users_addresses_list
       description: ViewSet для управления адресами пользователя
@@ -727,7 +716,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAddressList'
           description: ''
+    post:
+      operationId: users_addresses_create
+      description: ViewSet для управления адресами пользователя
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
   /users/addresses/{id}/:
+    get:
+      operationId: users_addresses_retrieve
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
     patch:
       operationId: users_addresses_partial_update
       description: ViewSet для управления адресами пользователя
@@ -789,25 +821,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
-    get:
-      operationId: users_addresses_retrieve
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
     delete:
       operationId: users_addresses_destroy
       description: ViewSet для управления адресами пользователя
@@ -824,30 +837,6 @@ paths:
         '204':
           description: No response body
   /users/favorites/:
-    post:
-      operationId: users_favorites_create
-      description: ViewSet для управления избранными товарами
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FavoriteCreate'
-          description: ''
     get:
       operationId: users_favorites_list
       description: ViewSet для управления избранными товарами
@@ -879,7 +868,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedFavoriteList'
           description: ''
+    post:
+      operationId: users_favorites_create
+      description: ViewSet для управления избранными товарами
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteCreate'
+          description: ''
   /users/favorites/{id}/:
+    get:
+      operationId: users_favorites_retrieve
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
     patch:
       operationId: users_favorites_partial_update
       description: ViewSet для управления избранными товарами
@@ -934,25 +966,6 @@ paths:
             schema:
               $ref: '#/components/schemas/FavoriteRequest'
         required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Favorite'
-          description: ''
-    get:
-      operationId: users_favorites_retrieve
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - users
       responses:
         '200':
           content:
@@ -1308,7 +1321,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: A unique integer value identifying this Категория.
         required: true
       tags:
       - categories-tree
@@ -1487,35 +1501,6 @@ paths:
                 $ref: '#/components/schemas/AttributeFilter'
           description: ''
   /orders/:
-    post:
-      operationId: orders_create
-      description: Создание нового заказа из корзины пользователя
-      summary: Создание заказа
-      tags:
-      - Orders
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-        '400':
-          description: Ошибки валидации или пустая корзина
-        '401':
-          description: Пользователь не авторизован
     get:
       operationId: orders_list
       description: Возвращает только мастер-заказы пользователя (`is_master=True`).
@@ -1561,7 +1546,63 @@ paths:
           description: ''
         '401':
           description: Пользователь не авторизован
+    post:
+      operationId: orders_create
+      description: Создание нового заказа из корзины пользователя
+      summary: Создание заказа
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '400':
+          description: Ошибки валидации или пустая корзина
+        '401':
+          description: Пользователь не авторизован
   /orders/{id}/:
+    get:
+      operationId: orders_retrieve
+      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
+        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
+        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
+        404.
+      summary: Детали заказа
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - Orders
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заказ не найден
     patch:
       operationId: orders_partial_update
       description: |-
@@ -1637,33 +1678,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
-    get:
-      operationId: orders_retrieve
-      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
-        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
-        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
-        404.
-      summary: Детали заказа
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - Orders
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-        '401':
-          description: Пользователь не авторизован
-        '404':
-          description: Заказ не найден
     delete:
       operationId: orders_destroy
       description: |-
@@ -1838,6 +1852,29 @@ paths:
                 $ref: '#/components/schemas/PaginatedCartItemList'
           description: ''
   /cart/items/{id}/:
+    get:
+      operationId: cart_items_retrieve
+      description: Получение детальной информации о товаре в корзине
+      summary: Детали товара в корзине
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+          description: ''
+        '404':
+          description: Товар в корзине не найден
     patch:
       operationId: cart_items_partial_update
       description: Частичное изменение количества товара в корзине
@@ -1872,29 +1909,6 @@ paths:
           description: ''
         '400':
           description: Ошибки валидации
-        '404':
-          description: Товар в корзине не найден
-    get:
-      operationId: cart_items_retrieve
-      description: Получение детальной информации о товаре в корзине
-      summary: Детали товара в корзине
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - Cart Items
-      security:
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartItem'
-          description: ''
         '404':
           description: Товар в корзине не найден
     delete:
@@ -4363,6 +4377,20 @@ components:
       description: |-
         * `hero` - Геройский (Hero)
         * `marketing` - Маркетинговый
+    UnsubscribeProcessingErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - details
+      - error
     UnsubscribeRequest:
       type: object
       description: |-
