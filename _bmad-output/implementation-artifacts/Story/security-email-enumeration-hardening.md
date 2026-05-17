@@ -1,7 +1,7 @@
 # Story: Security — Harden Email Enumeration on Subscribe/Unsubscribe
 
 **Story ID:** security-email-enumeration-hardening
-**Status:** in-progress
+**Status:** review
 **Priority:** High (security fix; устраняет два вектора email enumeration, зафиксированных code review Epic 35)
 **Source issues:** DN8-1 (Pass 8) · WWWW3 (Pass 4) из `_bmad-output/implementation-artifacts/deferred-work.md`
 
@@ -288,8 +288,8 @@ _Третий проход после resolve P1-P4. Acceptance Auditor подт
 
 #### Patch
 
-- [ ] [Review][Patch] Нет теста на `503`-ответ `/unsubscribe/` при `DatabaseError` — view возвращает `503` (pass 1 Patch 1) и `@extend_schema`/`openapi.yaml` его документируют (pass 2 P2), но ни один тест этот путь не покрывает; у `subscribe` есть аналог `test_subscribe_returns_structured_503_on_operational_consent_failure` [backend/tests/integration/test_common_subscribe_api.py]
-- [ ] [Review][Patch] Нет негативных тестов `/unsubscribe/` на не-строковый / отсутствующий / `null` email — у `subscribe` есть `test_subscribe_duplicate_non_string_email_is_not_echoed` и `test_subscribe_rejects_non_object_json_payload`, в `TestUnsubscribeEndpoint` аналогов нет; 400-ветка проверена только одним `test_unsubscribe_invalid_email` [backend/tests/integration/test_common_subscribe_api.py]
+- [x] [Review][Patch] Нет теста на `503`-ответ `/unsubscribe/` при `DatabaseError` — view возвращает `503` (pass 1 Patch 1) и `@extend_schema`/`openapi.yaml` его документируют (pass 2 P2), но ни один тест этот путь не покрывает; у `subscribe` есть аналог `test_subscribe_returns_structured_503_on_operational_consent_failure` [backend/tests/integration/test_common_subscribe_api.py]
+- [x] [Review][Patch] Нет негативных тестов `/unsubscribe/` на не-строковый / отсутствующий / `null` email — у `subscribe` есть `test_subscribe_duplicate_non_string_email_is_not_echoed` и `test_subscribe_rejects_non_object_json_payload`, в `TestUnsubscribeEndpoint` аналогов нет; 400-ветка проверена только одним `test_unsubscribe_invalid_email` [backend/tests/integration/test_common_subscribe_api.py]
 
 #### Deferred
 
@@ -430,6 +430,9 @@ def save(self, **kwargs):
 - 2026-05-17: GitNexus impact перед CR pass 2 patch: `subscribe` и `unsubscribe` — LOW risk, direct callers/importers 0; `subscribe` затрагивает 3 audit/IP flows, `unsubscribe` без process flows.
 - 2026-05-17: RED для P3 подтверждён: `test_subscribe_success` ожидал `200`, старый код возвращал `201`.
 - 2026-05-17: GitNexus detect-changes после P1-P4: 10 files, 4 symbols, 3 affected flows, risk `medium`.
+- 2026-05-17: GitNexus impact перед CR pass 3 coverage patch: `Function:backend/apps/common/views.py:unsubscribe` — LOW risk, direct callers/importers 0, affected processes 0.
+- 2026-05-17: CR pass 3 coverage patch: добавлены тесты `test_unsubscribe_returns_structured_503_on_database_failure` и `test_unsubscribe_rejects_invalid_email_shapes`.
+- 2026-05-17: GitNexus detect-changes после CR pass 3: 3 files, 2 indexed symbols, affected processes 0, risk `low` (GitNexus видит только AGENTS.md/CLAUDE.md как indexed-symbol changes; тестовый diff вне affected flows).
 
 ### Completion Notes
 
@@ -451,6 +454,9 @@ def save(self, **kwargs):
 - Validation CR pass 2: targeted RED `test_subscribe_success` failed на старом `201`; после правки `pytest tests/integration/test_common_subscribe_api.py apps/common/tests/test_common_config.py` — 43 passed.
 - Code quality CR pass 2: `black --check apps/common/views.py tests/integration/test_common_subscribe_api.py freesport/settings/staging.py`, `flake8 ...`, `python manage.py check` и `git diff --check` проходят.
 - Full regression CR pass 2: `pytest -q` был остановлен таймаутом инструмента через 20 минут без итогового результата. Fail-fast `pytest --maxfail=1 --tb=short -q` сначала остановился на unrelated order/cache-state падении `apps/banners/tests/test_signals.py::TestBannerCacheInvalidation::test_save_marketing_does_not_invalidate_hero_cache`; этот файл изолированно прошёл `7 passed`. Повторный fail-fast был остановлен таймаутом через 10 минут без нового результата.
+- CR pass 3: добавлено покрытие `503` при `OperationalError` в `/unsubscribe/` и негативных payload `{email: list}`, missing email, `{email: None}`; production-код не менялся, новые тесты сразу прошли, потому что runtime-поведение уже было реализовано.
+- Validation CR pass 3: новые tests-only кейсы — `4 passed`; targeted `pytest tests/integration/test_common_subscribe_api.py apps/common/tests/test_common_config.py` — `47 passed`; `black --check tests/integration/test_common_subscribe_api.py`, `flake8 tests/integration/test_common_subscribe_api.py`, `git diff --check` — проходят.
+- Full regression CR pass 3: `pytest -q` завершился с exit code 1 после ~22 минут; до удаления `--rm` контейнера tail показал failures около 77%. Отдельный прогон `pytest tests/integration/test_management_commands/test_import_customers.py -q` подтвердил pre-existing/data-dependent источник: `10 failed, 2 passed`, причина — отсутствует `/app/data/import_1c/contragents`.
 
 ## File List
 
@@ -480,3 +486,4 @@ def save(self, **kwargs):
 - 2026-05-16: Story переведена в `review`; validation caveats по full regression зафиксированы в Dev Agent Record.
 - 2026-05-17: Follow-up CR: `test_unsubscribe_invalid_email` добавлен; `test_unsubscribe_throttle_kicks_in` теперь ассертит `[200]*5` вместо `not in statuses[:5]`; `unsubscribe` view оборачивает `serializer.save()` в `try/except DatabaseError` с логом и 503 ответом, симметрично `subscribe`. Повторный прогон тестов subscribe/unsubscribe + config: 42 passed.
 - 2026-05-17: Follow-up CR pass 2: P1-P4 закрыты; `/subscribe/` полностью унифицирован на `200`, `unsubscribe 503` добавлен в OpenAPI/types, staging `unsubscribe` rate исправлен на `30/min`; targeted tests 43 passed, story возвращена в `review`.
+- 2026-05-17: Follow-up CR pass 3: закрыты 2 Patch gap по тестовому покрытию `/unsubscribe/` (`503 DatabaseError`, нестроковый/отсутствующий/null email); targeted tests 47 passed, story возвращена в `review`.

@@ -592,6 +592,38 @@ class TestUnsubscribeEndpoint:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "email" in response.data
 
+    def test_unsubscribe_returns_structured_503_on_database_failure(self, api_client):
+        """DatabaseError-подклассы при обработке отписки возвращают JSON 503."""
+        url = reverse("common:unsubscribe")
+
+        with patch.object(Newsletter.objects, "get", side_effect=OperationalError("db unavailable")):
+            response = api_client.post(url, {"email": "db-failure-unsubscribe@example.com"}, format="json")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data == {
+            "error": "unsubscribe_processing_failed",
+            "details": {
+                "non_field_errors": ["Не удалось обработать запрос. Попробуйте позже."],
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"email": ["list-value@example.com"]},
+            {},
+            {"email": None},
+        ],
+    )
+    def test_unsubscribe_rejects_invalid_email_shapes(self, api_client, payload):
+        """Отписка возвращает 400 для нестрокового, отсутствующего и null email."""
+        url = reverse("common:unsubscribe")
+
+        response = api_client.post(url, payload, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "email" in response.data
+
     def test_unsubscribe_throttle_kicks_in(self, api_client):
         """Scope-specific unsubscribe throttle ограничивает flood по отдельному bucket."""
         assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["unsubscribe"] == "100000/min"
