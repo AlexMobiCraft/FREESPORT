@@ -65,9 +65,6 @@ export const subscribeService = {
           response?: { status?: number; data?: unknown };
         };
         const details = getValidationDetails(axiosError.response?.data);
-        if (axiosError.response?.status === 409) {
-          throw new SubscribeServiceError('already_subscribed', details);
-        }
         if (axiosError.response?.status === 400) {
           throw new SubscribeServiceError('validation_error', details);
         }

@@ -72,6 +72,27 @@ describe('subscribeService', () => {
     });
   });
 
+  it('does not expose the removed already_subscribed contract for unexpected 409 responses', async () => {
+    vi.mocked(apiClient.post).mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          email: ['Этот email уже подписан на рассылку'],
+        },
+      },
+    });
+
+    await expect(
+      subscribeService.subscribe({
+        email: 'existing@example.com',
+        pdp_consent: true,
+      })
+    ).rejects.toMatchObject({
+      message: 'network_error',
+      details: undefined,
+    });
+  });
+
   it('maps 503 responses to server errors when details match the OpenAPI contract', async () => {
     const details = {
       non_field_errors: ['Не удалось сохранить согласие. Попробуйте позже.'],

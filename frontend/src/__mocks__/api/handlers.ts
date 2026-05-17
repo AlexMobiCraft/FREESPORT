@@ -632,17 +632,6 @@ export const handlers = [
     const body = (await request.json()) as { email?: string };
     const email = body.email;
 
-    // Simulate already subscribed
-    if (email === 'existing@example.com') {
-      return HttpResponse.json(
-        {
-          error: 'This email is already subscribed',
-          email,
-        },
-        { status: 409 }
-      );
-    }
-
     // Simulate validation error
     if (!email || !email.includes('@')) {
       return HttpResponse.json(
@@ -657,10 +646,10 @@ export const handlers = [
     // Success
     return HttpResponse.json(
       {
-        message: 'Successfully subscribed',
+        message: 'Вы успешно подписались на рассылку',
         email,
       },
-      { status: 201 }
+      { status: 200 }
     );
   }),
 

@@ -1,7 +1,7 @@
 # Story: Security — Унификация HTTP-статуса `/subscribe/` (201 → 200)
 
 **Story ID:** security-subscribe-status-unification
-**Status:** draft
+**Status:** review
 **Priority:** High (security follow-up; закрывает остаточный вектор email enumeration)
 **Source issues:** Code review `security-email-enumeration-hardening` (2026-05-17, Blind Hunter HIGH) — раздел «Deferred» в `_bmad-output/implementation-artifacts/deferred-work.md`
 **Зависит от:** `security-email-enumeration-hardening` (должна быть merged в main/develop перед началом этой story)
@@ -170,21 +170,21 @@ return Response(
 
 ---
 
-- [ ] Task 1: Унифицировать статус subscribe на `200` (AC: 1, 2)
-  - [ ] 1.1: `backend/apps/common/views.py:476` — заменить `status.HTTP_201_CREATED` → `status.HTTP_200_OK` в success-ветке
-- [ ] Task 2: Обновить OpenAPI-схему (AC: 3)
-  - [ ] 2.1: `views.py:330-356` — убрать ответ `201` из `@extend_schema`, оставить один `200` с нейтральным описанием
-- [ ] Task 3: Обновить backend-тесты (AC: 4)
-  - [ ] 3.1: `test_common_subscribe_api.py` — заменить все `HTTP_201_CREATED` → `HTTP_200_OK` (14 мест, вкл. строку 495)
-- [ ] Task 4: Синхронизировать frontend-мок и сервис (AC: 5, 6)
-  - [ ] 4.1: `handlers.ts:631-663` — успех `200`, убрать/заменить ветку `409`
-  - [ ] 4.2: `subscribeService.ts:68-70` — удалить мёртвую ветку `409`
-  - [ ] 4.3: Прогнать `subscribeService.test.ts` / `SubscribeForm.test.tsx` / `ElectricSubscribeForm.test.tsx`, обновить при падении
-- [ ] Task 5: Регенерировать артефакты (AC: 7)
-  - [ ] 5.1: `manage.py spectacular` → `docs/api/openapi.yaml`
-  - [ ] 5.2: `cd frontend && npm run generate:types`
-- [ ] Task 6: Закрыть deferred-пункт предшественника (AC: 8)
-  - [ ] 6.1: `deferred-work.md` — пометить пункт `201 vs 200` как resolved
+- [x] Task 1: Унифицировать статус subscribe на `200` (AC: 1, 2)
+  - [x] 1.1: `backend/apps/common/views.py:476` — заменить `status.HTTP_201_CREATED` → `status.HTTP_200_OK` в success-ветке
+- [x] Task 2: Обновить OpenAPI-схему (AC: 3)
+  - [x] 2.1: `views.py:330-356` — убрать ответ `201` из `@extend_schema`, оставить один `200` с нейтральным описанием
+- [x] Task 3: Обновить backend-тесты (AC: 4)
+  - [x] 3.1: `test_common_subscribe_api.py` — заменить все `HTTP_201_CREATED` → `HTTP_200_OK` (14 мест, вкл. строку 495)
+- [x] Task 4: Синхронизировать frontend-мок и сервис (AC: 5, 6)
+  - [x] 4.1: `handlers.ts:631-663` — успех `200`, убрать/заменить ветку `409`
+  - [x] 4.2: `subscribeService.ts:68-70` — удалить мёртвую ветку `409`
+  - [x] 4.3: Прогнать `subscribeService.test.ts` / `SubscribeForm.test.tsx` / `ElectricSubscribeForm.test.tsx`, обновить при падении
+- [x] Task 5: Регенерировать артефакты (AC: 7)
+  - [x] 5.1: `manage.py spectacular` → `docs/api/openapi.yaml`
+  - [x] 5.2: `cd frontend && npm run generate:types`
+- [x] Task 6: Закрыть deferred-пункт предшественника (AC: 8)
+  - [x] 6.1: `deferred-work.md` — пометить пункт `201 vs 200` как resolved
 
 ---
 
@@ -226,3 +226,43 @@ return Response(
 ## Change Log
 
 - 2026-05-17: Story создана по итогам Architect impact assessment рефакторинга `/subscribe/` (Winston).
+- 2026-05-17: Story принята в разработку по workflow `bmad-dev-story`; prerequisite `e76b7e6c` подтверждён как ancestor текущего `develop`.
+- 2026-05-17: Story выполнена: `/subscribe/` contract зафиксирован на `200`, frontend mock/service синхронизированы, OpenAPI/types перегенерированы, deferred-пункт закрыт; story → review.
+
+---
+
+## Dev Agent Record
+
+### Debug Log
+
+- 2026-05-17: Загружены workflow `bmad-dev-story`, BMAD config, `project-context.md`, story-файл и полный `sprint-status.yaml`.
+- 2026-05-17: Prerequisite проверен: `git merge-base --is-ancestor e76b7e6c HEAD` подтвердил, что hardening-предшественник уже входит в текущий `develop`.
+- 2026-05-17: GitNexus impact перед правками: `Function:backend/apps/common/views.py:subscribe` — LOW risk, 0 direct callers/process flows; `Method:frontend/src/services/subscribeService.ts:subscribe#1` — LOW risk, 0 direct callers/process flows.
+- 2026-05-17: RED подтверждён frontend-тестом `does not expose the removed already_subscribed contract for unexpected 409 responses`: на старом `subscribeService` тест падал, потому что `409` мапился в `already_subscribed`.
+- 2026-05-17: `manage.py spectacular --file ../docs/api/openapi.yaml --validate` и `npm run generate:types` выполнены успешно.
+- 2026-05-17: GitNexus detect-changes после реализации: 11 files, 2 indexed symbols (`AGENTS.md`, `CLAUDE.md`), affected processes 0, risk low. GitNexus не индексирует изменённые generated/docs/frontend mock symbols как affected flows.
+- 2026-05-17: Frontend Docker container перезапущен после изменений в `frontend/src/`: `docker compose --env-file ../.env -f ../docker/docker-compose.yml restart frontend`.
+
+### Completion Notes
+
+- Task 1/2/3: backend success-путь `subscribe()` уже был приведён к `HTTP_200_OK` в текущем `develop`; `@extend_schema`, `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts` и `test_common_subscribe_api.py` подтверждают отсутствие `201` у `subscribe_create`.
+- Task 4: MSW handler `/subscribe` теперь возвращает нейтральный `200` с тем же success-body для валидных email, включая ранее special-cased `existing@example.com`; мёртвая ветка `409 -> already_subscribed` удалена из `subscribeService`.
+- Task 4 tests: добавлен regression-тест в `subscribeService.test.ts`; RED падал на старом маппинге `409`, после правки проходит.
+- Task 5: OpenAPI schema перегенерирована через `manage.py spectacular --file ../docs/api/openapi.yaml --validate`; frontend-типы перегенерированы через `npm run generate:types` и отформатированы Prettier.
+- Task 6: deferred-пункт `/subscribe/` `201 vs 200` в `_bmad-output/implementation-artifacts/deferred-work.md` помечен как resolved by `security-subscribe-status-unification`.
+- Validation targeted backend: `pytest tests/integration/test_common_subscribe_api.py apps/common/tests/test_common_config.py` — 47 passed.
+- Validation targeted frontend: `npm run test -- src/services/__tests__/subscribeService.test.ts src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx` — 36 passed.
+- Validation frontend full: `npm run test` — passed; `npx tsc --noEmit` — passed.
+- Code quality: `npx prettier --check ...`, `npx eslint ... --max-warnings=0`, `git diff --check`, `python manage.py check` — passed.
+- Full backend regression: первый `pytest -q` остановлен таймаутом инструмента через 30 минут без итогового вывода; после остановки фоновых pytest-процессов fail-fast `pytest --maxfail=1 --tb=short -q` дал `1758 passed, 3 skipped` и остановился на известном data-dependent blocker `tests/integration/test_management_commands/test_import_customers.py::TestImportCustomersCommand::test_command_imports_real_customers` из-за отсутствующей `/app/data/import_1c/contragents`. Повторный прогон с `--ignore=tests/integration/test_management_commands/test_import_customers.py` остановлен таймаутом инструмента через 20 минут без итогового вывода.
+
+### File List
+
+- `_bmad-output/implementation-artifacts/Story/security-subscribe-status-unification.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/api/openapi.yaml`
+- `frontend/src/__mocks__/api/handlers.ts`
+- `frontend/src/services/__tests__/subscribeService.test.ts`
+- `frontend/src/services/subscribeService.ts`
+- `frontend/src/types/api.generated.ts`

@@ -1,7 +1,7 @@
 # Story: Security — Harden Email Enumeration on Subscribe/Unsubscribe
 
 **Story ID:** security-email-enumeration-hardening
-**Status:** review
+**Status:** done
 **Priority:** High (security fix; устраняет два вектора email enumeration, зафиксированных code review Epic 35)
 **Source issues:** DN8-1 (Pass 8) · WWWW3 (Pass 4) из `_bmad-output/implementation-artifacts/deferred-work.md`
 
@@ -299,6 +299,31 @@ _Третий проход после resolve P1-P4. Acceptance Auditor подт
 - [x] [Review][Defer] Ветка `subscribe` `serializer.errors` дублирует нормализацию email (`.lower().strip()`) из сериализатора — источник будущей рассинхронизации формата ответа при изменении правил нормализации [backend/apps/common/views.py:469-473] — deferred, maintainability, нет однозначного fix
 - [x] [Review][Defer] Несвязанная регенерация `openapi.yaml`: перестановка блоков `/users/addresses/`, `/users/favorites/`, `/orders/`, `/cart/items/`, смена типа id `categories-tree`; рассинхрон тегов `tags: [users]` vs `[Users]` у favorites [docs/api/openapi.yaml] — deferred, гигиена коммита (аналог уже зафиксирован в pass 1 Deferred)
 - [x] [Review][Defer] `UnsubscribeRateThrottle.get_cache_key` дословно скопирован из `SubscribeRateThrottle` — кандидат на подъём в `ProxyAwareThrottleIdentMixin` [backend/apps/common/throttling.py] — deferred, minor maintainability, копирование санкционировано spec («точная копия»)
+
+### Re-review 2026-05-17 (pass 4 — bmad-code-review, 3 слоя: Blind Hunter, Edge Case Hunter, Acceptance Auditor)
+
+_Четвёртый проход. Acceptance Auditor подтвердил: все 10 AC выполнены корректно. Новых actionable-находок нет: 0 decision-needed, 0 Patch. Все «новые» находки adversarial-слоёв оказались либо ложными срабатываниями (проверено по фактическому коду), либо повторным обнаружением уже-deferred пунктов passes 1-3._
+
+#### Ложные срабатывания (dismissed, 16)
+
+- Blind Hunter HIGH «`DatabaseError` / `logger` / `OperationalError` / `throttle_classes` не импортированы» — все импорты подтверждены: `views.py:9,13` (`import logging`, `from django.db import DatabaseError`, `throttle_classes`), `logger` определён `views.py:38`, тест импортирует `OperationalError` (`test_common_subscribe_api.py:11`). Blind Hunter не имеет доступа к коду вне diff.
+- Edge Case Hunter HIGH «`IntegrityError` не подкласс `DatabaseError`» — фактически неверно: в Django `IntegrityError(DatabaseError)`, блок `except DatabaseError` его перехватывает.
+- «`@extend_schema` unsubscribe не декларирует `400`» — блок `400: OpenApiResponse` присутствует (`views.py:510-521`).
+- Остальное: `subscription.email` не может быть пустым (объект получен запросом по этому email); DRF `EmailField` не валидирует значение на output-сериализации (`.data`); 503-ответ учитывается throttle'ом (запрос уже allowed); тестовые нитпики (`assert >= 10`, hardcoded dev-rate, fake-serializer) — унаследованные от subscribe-аналогов паттерны.
+
+#### Deferred (повторное обнаружение, новых записей нет)
+
+Все 9 находок adversarial-слоёв ниже уже зафиксированы в Deferred-секциях passes 1-3 — дубликаты не создаются:
+
+- [x] [Review][Defer] Timing side-channel `/subscribe/` и `/unsubscribe/` — см. pass 1 / pass 3 Deferred
+- [x] [Review][Defer] Расхождение регистра email в echo для known/unknown — см. pass 3 Deferred
+- [x] [Review][Defer] `common.E003` не ловит `None`/пустой rate — см. pass 1 Deferred
+- [x] [Review][Defer] Дублирование нормализации email в ветке `subscribe` `serializer.errors` — см. pass 3 Deferred
+- [x] [Review][Defer] `UnsubscribeSerializer.save()` без `select_for_update()` — см. pass 2 Deferred
+- [x] [Review][Defer] `/unsubscribe/` без `@parser_classes([JSONParser])` — см. pass 2 / pass 3 Deferred
+- [x] [Review][Defer] `UnsubscribeRateThrottle` bucket per-IP (NAT/CGNAT) — см. pass 2 Deferred (W9-4 acceptable risk)
+- [x] [Review][Defer] Обход throttle подделкой `X-Forwarded-For` — вне scope (infra-story W7-1)
+- [x] [Review][Defer] non-`DatabaseError` исключение в `unsubscribe()` → 500 vs 200 — см. pass 2 Deferred
 
 ---
 

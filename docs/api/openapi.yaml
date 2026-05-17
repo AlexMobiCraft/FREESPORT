@@ -741,25 +741,6 @@ paths:
                 $ref: '#/components/schemas/Address'
           description: ''
   /users/addresses/{id}/:
-    get:
-      operationId: users_addresses_retrieve
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
     patch:
       operationId: users_addresses_partial_update
       description: ViewSet для управления адресами пользователя
@@ -790,6 +771,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
+    delete:
+      operationId: users_addresses_destroy
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
     put:
       operationId: users_addresses_update
       description: ViewSet для управления адресами пользователя
@@ -821,8 +817,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
-    delete:
-      operationId: users_addresses_destroy
+    get:
+      operationId: users_addresses_retrieve
       description: ViewSet для управления адресами пользователя
       parameters:
       - in: path
@@ -834,8 +830,12 @@ paths:
       tags:
       - Users
       responses:
-        '204':
-          description: No response body
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
   /users/favorites/:
     get:
       operationId: users_favorites_list
@@ -893,25 +893,6 @@ paths:
                 $ref: '#/components/schemas/FavoriteCreate'
           description: ''
   /users/favorites/{id}/:
-    get:
-      operationId: users_favorites_retrieve
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - users
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Favorite'
-          description: ''
     patch:
       operationId: users_favorites_partial_update
       description: ViewSet для управления избранными товарами
@@ -942,6 +923,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
+    delete:
+      operationId: users_favorites_destroy
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
     put:
       operationId: users_favorites_update
       description: ViewSet для управления избранными товарами
@@ -973,8 +969,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
-    delete:
-      operationId: users_favorites_destroy
+    get:
+      operationId: users_favorites_retrieve
       description: ViewSet для управления избранными товарами
       parameters:
       - in: path
@@ -984,10 +980,14 @@ paths:
         description: A unique integer value identifying this Избранное.
         required: true
       tags:
-      - Users
+      - users
       responses:
-        '204':
-          description: No response body
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
   /products/:
     get:
       operationId: products_list
@@ -1321,8 +1321,7 @@ paths:
       - in: path
         name: id
         schema:
-          type: integer
-        description: A unique integer value identifying this Категория.
+          type: string
         required: true
       tags:
       - categories-tree
@@ -1576,33 +1575,6 @@ paths:
         '401':
           description: Пользователь не авторизован
   /orders/{id}/:
-    get:
-      operationId: orders_retrieve
-      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
-        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
-        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
-        404.
-      summary: Детали заказа
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - Orders
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-        '401':
-          description: Пользователь не авторизован
-        '404':
-          description: Заказ не найден
     patch:
       operationId: orders_partial_update
       description: |-
@@ -1640,6 +1612,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
+    delete:
+      operationId: orders_destroy
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      responses:
+        '204':
+          description: No response body
     put:
       operationId: orders_update
       description: |-
@@ -1678,16 +1672,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
-    delete:
-      operationId: orders_destroy
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
+    get:
+      operationId: orders_retrieve
+      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
+        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
+        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
+        404.
+      summary: Детали заказа
       parameters:
       - in: path
         name: id
@@ -1696,10 +1687,18 @@ paths:
         description: A unique integer value identifying this Заказ.
         required: true
       tags:
-      - orders
+      - Orders
       responses:
-        '204':
-          description: No response body
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заказ не найден
   /orders/{id}/cancel/:
     post:
       operationId: orders_cancel_create
@@ -1852,29 +1851,6 @@ paths:
                 $ref: '#/components/schemas/PaginatedCartItemList'
           description: ''
   /cart/items/{id}/:
-    get:
-      operationId: cart_items_retrieve
-      description: Получение детальной информации о товаре в корзине
-      summary: Детали товара в корзине
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - Cart Items
-      security:
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartItem'
-          description: ''
-        '404':
-          description: Товар в корзине не найден
     patch:
       operationId: cart_items_partial_update
       description: Частичное изменение количества товара в корзине
@@ -1928,6 +1904,29 @@ paths:
       responses:
         '204':
           description: No response body
+    get:
+      operationId: cart_items_retrieve
+      description: Получение детальной информации о товаре в корзине
+      summary: Детали товара в корзине
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+          description: ''
+        '404':
+          description: Товар в корзине не найден
   /pages/:
     get:
       operationId: pages_list
