@@ -30,6 +30,10 @@ Each ADR should follow this structure:
 - **[ADR-009: CSRF Exemption for 1C Exchange Protocol](./ADR-009-csrf-exemption-1c-protocol.md)** - Исключение CSRF-проверки только для эндпоинта 1С CommerceML с сохранением Basic/session authentication (2026-01-23)
 - **[ADR-004: Ценообразование на основе ролей](../../_bmad-output/planning-artifacts/architecture.md#adr-004-ценообразование-на-основе-ролей)** - Динамическая сериализация цен в DRF
 
+### Security
+
+- **[ADR-011: Timing/behavioral side-channels на endpoint'ах рассылки](./ADR-011-subscribe-timing-side-channels-acceptable-risk.md)** - Timing- и behavioral-side-channels на `/subscribe/` и `/unsubscribe/` приняты как acceptable risk; обоснование — throttle 30/min делает атаку непрактичной (2026-05-17)
+
 ### Frontend & UX
 
 - **[ADR-003: Гибридный интерфейс администратора](../../_bmad-output/planning-artifacts/architecture.md#adr-003-гибридный-интерфейс-администратора)** - Django Admin для CRUD + кастомная админ-панель
@@ -43,7 +47,7 @@ Each ADR should follow this structure:
 ## How to Create a New ADR
 
 1. Copy the ADR template (create from ADR-008 structure)
-2. Number it sequentially (next available: ADR-011)
+2. Number it sequentially (next available: ADR-012)
 3. Write in clear, concise language
 4. Include code examples and references
 5. Update this README index

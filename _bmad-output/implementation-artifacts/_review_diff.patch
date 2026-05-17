@@ -1,0 +1,1081 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index dcedbfa1..982806c3 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -165,7 +165,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
+ <!-- gitnexus:start -->
+ # GitNexus — Code Intelligence
+ 
+-This project is indexed by GitNexus as **FREESPORT** (8500 symbols, 13915 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
++This project is indexed by GitNexus as **FREESPORT** (8499 symbols, 13915 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+ 
+ > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+ 
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 01c418cb..1373239a 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -188,7 +188,7 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
+ <!-- gitnexus:start -->
+ # GitNexus — Code Intelligence
+ 
+-This project is indexed by GitNexus as **FREESPORT** (8500 symbols, 13915 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
++This project is indexed by GitNexus as **FREESPORT** (8499 symbols, 13915 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+ 
+ > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+ 
+diff --git a/_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md b/_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md
+new file mode 100644
+index 00000000..1d084cbf
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md
+@@ -0,0 +1,401 @@
++# Story: Security — Harden Email Enumeration on Subscribe/Unsubscribe
++
++**Story ID:** security-email-enumeration-hardening
++**Status:** review
++**Priority:** High (security fix; устраняет два вектора email enumeration, зафиксированных code review Epic 35)
++**Source issues:** DN8-1 (Pass 8) · WWWW3 (Pass 4) из `_bmad-output/implementation-artifacts/deferred-work.md`
++
++---
++
++## Story
++
++Как **команда безопасности FREESPORT**,
++я хочу **закрыть два вектора email enumeration на `/subscribe/` и `/unsubscribe/`**,
++чтобы **анонимный атакующий не мог определять наличие email-адреса в базе подписчиков по HTTP-коду ответа**.
++
++---
++
++## Контекст и решения
++
++### Два вектора (зафиксированы в deferred-work.md)
++
++**DN8-1 — `/subscribe/` (POST):**
++Анонимный атакующий с `pdp_consent: true` и валидным email различает «email subscribed» vs «email not subscribed» по HTTP-коду: **201 Created** (новая подписка) vs **409 Conflict** (already_subscribed). Throttle 30/min ограничивает, но не устраняет атаку — 30 проверок в минуту, 1800/час за один IP, обход через несколько IP тривиален.
++Файлы: `backend/apps/common/views.py:441-451`, `backend/apps/common/serializers.py:120-127`
++
++**WWWW3 — `/unsubscribe/` (POST):**
++Endpoint не throttled (наследует глобальный `anon: 6000/min`), различает «была подписка» vs «не было» по **200 OK** vs **404 Not Found** → пассивный mass enumeration со скоростью до 100 запросов/сек.
++Файл: `backend/apps/common/views.py:518-554`
++
++### Решение принято (DN8-1, 2026-05-15)
++
++Оба вектора принадлежат одному классу уязвимости — **differential HTTP response enumeration**. Исправлять единым паттерном в одной story.
++
++### Вне scope этой story
++
++- **W7-1 / trusted-proxy allowlist** — отдельная infra-story (см. `deferred-work.md`)
++- **W5N7 / cross-identity reactivation** — Story 35.5 (consent audit linkage)
++- **W9-4 / корпоративный NAT throttle bucket** — уже задокументировано как acceptable risk
++
++---
++
++## Текущее состояние кода (прочитано перед реализацией)
++
++### `/subscribe/` — views.py:441-451
++
++```python
++# ТЕКУЩИЙ КОД (проблемный):
++except DRFValidationError as exc:
++    if _has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
++        return Response(
++            exc.detail,
++            status=status.HTTP_409_CONFLICT,  # ← enumeration leak
++        )
++```
++
++Также строки 477-481 (вне `serializer.is_valid()` ветки):
++```python
++if _has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
++    return Response(
++        serializer.errors,
++        status=status.HTTP_409_CONFLICT,  # ← второй путь 409
++    )
++```
++
++### `/unsubscribe/` — views.py:562-569
++
++```python
++# ТЕКУЩИЙ КОД (проблемный):
++if "email" in serializer.errors:
++    error_msg = str(serializer.errors["email"][0])
++    if "не найден" in error_msg or "уже отписан" in error_msg:
++        return Response(
++            serializer.errors,
++            status=status.HTTP_404_NOT_FOUND,  # ← enumeration leak
++        )
++```
++
++### `/subscribe/` throttle — views.py:403, throttling.py
++
++```python
++@throttle_classes([SubscribeRateThrottle])  # 30/min в prod (base.py:177)
++def subscribe(request: Request) -> Response:
++```
++
++### `/unsubscribe/` throttle — ОТСУТСТВУЕТ
++
++```python
++@api_view(["POST"])
++@permission_classes([AllowAny])
++# ← нет @throttle_classes → наследует global anon 6000/min
++def unsubscribe(request: Request) -> Response:
++```
++
++### Frontend использование `/unsubscribe/`
++
++Проверено: `frontend/src/services/` **не содержит** сервиса для `/unsubscribe/`. Эндпоинт присутствует только в `frontend/src/types/api.generated.ts:2841` как типы. Frontend не вызывает `/unsubscribe/` — контракт 200/404 в UI **не используется**. Изменение HTTP-кода **не сломает** frontend.
++
++---
++
++## Acceptance Criteria
++
++### AC-1: `/subscribe/` возвращает 200 вместо 409 при already_subscribed
++
++**Given** анонимный пользователь делает POST `/api/v1/subscribe/` с `pdp_consent: true` и email, который уже активно подписан,
++**When** запрос обработан,
++**Then** ответ — **200 OK** с телом `{"message": "Вы успешно подписались на рассылку", "email": "<email>"}` (идентично успешной подписке).
++
++Атакующий **не может** различить новую подписку (201) от существующей (ранее 409, теперь 200) — статус-коды разные (201 vs 200), но это допустимо: оба «успех», смысловая разница не раскрывает факт подписки.
++
++> **Примечание:** 201 для новой подписки сохраняется. Только already_subscribed меняется с 409 → 200.
++
++### AC-2: `/subscribe/` 409 полностью устранён из всех путей
++
++**Given** любой запрос на `/api/v1/subscribe/`,
++**When** обработан,
++**Then** HTTP-код ответа **никогда не равен 409**. Проверить оба пути в views.py (строки 441-451 и 477-481).
++
++### AC-3: `/unsubscribe/` добавляется throttle `UnsubscribeRateThrottle` (30/min)
++
++**Given** endpoint `/api/v1/unsubscribe/`,
++**When** один и тот же IP делает более 30 запросов в минуту,
++**Then** endpoint возвращает **429 Too Many Requests**.
++
++Реализация: добавить `UnsubscribeRateThrottle(SimpleRateThrottle)` по аналогии с `SubscribeRateThrottle` в `apps/common/throttling.py`. Добавить scope `"unsubscribe"` в `DEFAULT_THROTTLE_RATES` (base.py, development.py, staging.py, test.py). Применить `@throttle_classes([UnsubscribeRateThrottle])` к view `unsubscribe`.
++
++### AC-4: Контракт `/unsubscribe/` 200/404 — два варианта (выбрать один)
++
++> **Решение для dev agent:** Реализовать **Вариант A** (маскировка 404 → 200). Обоснование: frontend не использует 200/404 различие (проверено выше), Вариант A полностью устраняет enumeration, а throttle (AC-3) — дополнительный барьер.
++
++**Вариант A (Маскировка — ВЫБРАН):**
++**Given** POST `/api/v1/unsubscribe/` с email, которого нет в подписчиках (или уже отписан),
++**When** запрос обработан,
++**Then** ответ — **200 OK** с телом `{"message": "Запрос на отписку обработан", "email": "<email>"}` — идентично успешной отписке.
++
++Реализация: в `views.py:562-569` убрать ветку `HTTP_404_NOT_FOUND`. Возвращать 200 с нейтральным сообщением при любом исходе (`is_valid()` → отписан ИЛИ не найден).
++
++Обновить `UnsubscribeSerializer.save()` в `serializers.py`: метод не должен бросать `ValidationError` при «не найден» — он должен возвращать нейтральный объект или `None`. View обрабатывает оба исхода одинаково.
++
++**Вариант B (альтернатива, не реализовывать):**
++Оставить 200/404 контракт, только добавить throttle (AC-3). Менее разрушительно, но не устраняет enumeration — только замедляет.
++
++### AC-5: `/unsubscribe/` 404 полностью устранён из ответов
++
++**Given** любой запрос на `/api/v1/unsubscribe/` с валидным email,
++**When** обработан,
++**Then** HTTP-код **никогда не равен 404** (кроме стандартного Django 404 при неправильном URL, что не относится к endpoint-логике).
++
++### AC-6: Settings обновлены — `unsubscribe` rate в DEFAULT_THROTTLE_RATES
++
++**Given** файлы настроек backend,
++**When** проверяется `DEFAULT_THROTTLE_RATES`,
++**Then** ключ `"unsubscribe"` присутствует в:
++- `backend/freesport/settings/base.py` → `"30/min"` (production rate)
++- `backend/freesport/settings/development.py` → `"100000/min"` (не блокирует dev)
++- `backend/freesport/settings/staging.py` → `"100000/min"` (не блокирует staging)
++- `backend/freesport/settings/test.py` → `"100000/min"` (не блокирует тесты)
++
++### AC-7: Тесты обновлены — 409 заменён на 200 в тестах подписки
++
++**Given** файл `backend/tests/integration/test_common_subscribe_api.py`,
++**When** запускается тест `test_subscribe_duplicate_email` (строка 43) и смежные тесты,
++**Then** все ассерты `status.HTTP_409_CONFLICT` заменены на `status.HTTP_200_OK`.
++
++Список тестов, требующих обновления (проверить весь файл на `409`):
++- `test_subscribe_duplicate_email` (строка 43-55)
++- `test_subscribe_returns_409_when_newsletter_unique_race_hits_integrity_error` (строка 445-456)
++
++> Проверить: возможно, названия тестов тоже надо обновить (`409` в имени → `200`).
++
++### AC-8: Новые тесты для `/unsubscribe/` throttle и маскировки
++
++**Given** файл `backend/tests/integration/test_common_subscribe_api.py` (или отдельный файл для unsubscribe),
++**When** добавлены тесты,
++**Then** покрыты:
++
++- `test_unsubscribe_unknown_email_returns_200` — POST с несуществующим email → 200 OK
++- `test_unsubscribe_already_unsubscribed_returns_200` — POST с email, подписка которого уже `is_active=False` → 200 OK
++- `test_unsubscribe_success_returns_200` — POST с активным subscriber → 200 OK (регрессия)
++- `test_unsubscribe_throttle_kicks_in` — более 5 запросов за 1 мин → 429 (по аналогии с `test_subscribe_scope_throttle_kicks_in_during_valid_payload_flood`)
++- `test_unsubscribe_throttle_scope_check_rejects_missing_rate` — по аналогии с `test_subscribe_throttle_scope_check_rejects_missing_rate` в `test_common_config.py`
++
++### AC-9: OpenAPI обновлён, если контракт изменился
++
++**Given** декоратор `@extend_schema` на view `subscribe` (строка 331-398) и `unsubscribe` (строка 490-536),
++**When** реализован новый контракт,
++**Then**:
++- `/subscribe/`: убрать `409` из `responses` в `@extend_schema`; оставить/добавить `200` для already_subscribed с нейтральным описанием.
++- `/unsubscribe/`: убрать `404` из `responses` в `@extend_schema`; убрать из description фразу «Если email не найден или уже отписан - возвращает 404 Not Found».
++- Регенерировать типы: `cd frontend && npm run generate:types` (путь настроен в `package.json`).
++
++### AC-10: Django system check для `unsubscribe` rate (опционально, если `common.E002` расширяется)
++
++**Given** `backend/apps/common/apps.py` функция `check_session_engine_for_subscribe_consent`,
++**When** в `DEFAULT_THROTTLE_RATES` отсутствует ключ `"unsubscribe"`,
++**Then** проверить, стоит ли добавить аналогичный check `common.E003` (по образцу `common.E002` для subscribe). Это защитит от случайного удаления rate в будущем.
++
++> Реализовать если diff небольшой; пропустить если добавляет complexity без ценности.
++
++---
++
++## Tasks / Subtasks
++
++- [x] Task 1: Исправить `/subscribe/` — убрать 409 (AC: 1, 2)
++  - [x] 1.1: В `backend/apps/common/views.py` строки 441-451: заменить `HTTP_409_CONFLICT` → `HTTP_200_OK`, убедиться что тело ответа нейтральное (не раскрывает «вы уже подписаны»)
++  - [x] 1.2: В `backend/apps/common/views.py` строки 477-481: убрать вторую ветку `HTTP_409_CONFLICT` (или изменить на 200)
++  - [x] 1.3: Обновить `@extend_schema` на subscribe — убрать 409, добавить 200 для already_subscribed
++
++- [x] Task 2: Добавить `UnsubscribeRateThrottle` (AC: 3, 6)
++  - [x] 2.1: В `backend/apps/common/throttling.py` добавить класс `UnsubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle)` с `scope = "unsubscribe"` — по образцу `SubscribeRateThrottle`
++  - [x] 2.2: В `backend/freesport/settings/base.py` добавить `"unsubscribe": "30/min"` в `DEFAULT_THROTTLE_RATES`
++  - [x] 2.3: В `backend/freesport/settings/development.py`, `staging.py`, `test.py` добавить `"unsubscribe": "100000/min"`
++  - [x] 2.4: В `backend/apps/common/views.py` добавить `@throttle_classes([UnsubscribeRateThrottle])` к view `unsubscribe`
++  - [x] 2.5: Добавить import `UnsubscribeRateThrottle` в views.py
++
++- [x] Task 3: Замаскировать 404 на `/unsubscribe/` (AC: 4, 5)
++  - [x] 3.1: В `backend/apps/common/serializers.py` обновить `UnsubscribeSerializer.save()` — при «не найден / уже отписан» **не бросать** `ValidationError`, а возвращать нейтральный объект (например, `None` или mock-subscription с переданным email)
++  - [x] 3.2: В `backend/apps/common/views.py` строки 562-569: убрать ветку `HTTP_404_NOT_FOUND`, вместо неё возвращать 200 с нейтральным сообщением `"Запрос на отписку обработан"` при любом исходе (подписан / не найден / уже отписан)
++  - [x] 3.3: Обновить `@extend_schema` на unsubscribe — убрать 404 из responses, обновить description
++
++- [x] Task 4: Обновить существующие тесты (AC: 7)
++  - [x] 4.1: В `backend/tests/integration/test_common_subscribe_api.py` найти все ассерты `HTTP_409_CONFLICT` → заменить на `HTTP_200_OK`
++  - [x] 4.2: Обновить описания/названия тестов если упоминают 409
++
++- [x] Task 5: Написать новые тесты (AC: 8)
++  - [x] 5.1: Добавить тесты для `/unsubscribe/` (unknown email → 200, already_unsubscribed → 200, throttle → 429) — добавить в существующий файл `test_common_subscribe_api.py` или создать `test_common_unsubscribe_api.py`
++  - [x] 5.2: Добавить `test_unsubscribe_throttle_scope_check_rejects_missing_rate` в `test_common_config.py`
++
++- [x] Task 6: Регенерировать OpenAPI типы (AC: 9)
++  - [x] 6.1: `cd frontend && npm run generate:types` (проверить команду в `package.json`)
++  - [x] 6.2: Убедиться что в `frontend/src/types/api.generated.ts` у `unsubscribe_create` нет 404 в responses
++
++- [x] Task 7: (опционально) Добавить Django system check для unsubscribe rate (AC: 10)
++  - [x] 7.1: В `backend/apps/common/apps.py` расширить `check_session_engine_for_subscribe_consent` или добавить отдельный check для `"unsubscribe"` rate
++
++---
++
++## Структура файлов (изменения)
++
++| Файл | Тип | Что меняется |
++|------|-----|-------------|
++| `backend/apps/common/views.py` | UPDATE | Убрать 409 из subscribe (строки 441-451, 477-481); добавить throttle + убрать 404 в unsubscribe (строки 539, 562-569); обновить @extend_schema |
++| `backend/apps/common/serializers.py` | UPDATE | `UnsubscribeSerializer.save()` не бросает ValidationError при «не найден» |
++| `backend/apps/common/throttling.py` | UPDATE | Добавить `UnsubscribeRateThrottle` |
++| `backend/freesport/settings/base.py` | UPDATE | `"unsubscribe": "30/min"` в DEFAULT_THROTTLE_RATES |
++| `backend/freesport/settings/development.py` | UPDATE | `"unsubscribe": "100000/min"` |
++| `backend/freesport/settings/staging.py` | UPDATE | `"unsubscribe": "100000/min"` |
++| `backend/freesport/settings/test.py` | UPDATE | `"unsubscribe": "100000/min"` |
++| `backend/tests/integration/test_common_subscribe_api.py` | UPDATE | Заменить HTTP_409 → HTTP_200; добавить unsubscribe тесты |
++| `backend/tests/integration/test_common_unsubscribe_api.py` | NEW (опционально) | Отдельный файл для unsubscribe тестов |
++| `backend/apps/common/tests/test_common_config.py` | UPDATE | Добавить check для unsubscribe scope |
++| `backend/apps/common/apps.py` | UPDATE (опционально) | System check для unsubscribe rate |
++| `frontend/src/types/api.generated.ts` | REGENERATE | npm run generate:types |
++
++---
++
++## Технические ограничения и паттерны
++
++### Паттерн UnsubscribeRateThrottle (по образцу SubscribeRateThrottle)
++
++```python
++class UnsubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
++    """Отдельный лимит для write-endpoint отписки от рассылки."""
++    scope = "unsubscribe"
++
++    def get_cache_key(self, request, view):
++        return self.cache_format % {
++            "scope": self.scope,
++            "ident": self.get_ident(request),
++        }
++```
++
++### Нейтральный ответ при already_subscribed (subscribe)
++
++Вместо раскрытия факта подписки — тот же тип ответа что при успехе, но 200 (не 201):
++```python
++# При already_subscribed возвращать 200, используя email из запроса
++response_serializer = SubscribeResponseSerializer({
++    "message": "Вы успешно подписались на рассылку",
++    "email": validated_email,  # из serializer.validated_data или exc.detail
++})
++return Response(response_serializer.data, status=status.HTTP_200_OK)
++```
++
++### Нейтральный ответ при unsubscribe (не найден)
++
++```python
++# При «не найден» или «уже отписан» — тот же ответ что при успехе
++response_serializer = UnsubscribeResponseSerializer({
++    "message": "Запрос на отписку обработан",
++    "email": email_from_request,
++})
++return Response(response_serializer.data, status=status.HTTP_200_OK)
++```
++
++### Обновление UnsubscribeSerializer.save()
++
++Текущий код: при «не найден» бросает ValidationError → view возвращает 404.
++Новый подход: вернуть sentinel или None; view сам формирует нейтральный ответ:
++
++```python
++def save(self, **kwargs):
++    email = self.validated_data["email"]
++    try:
++        subscription = Newsletter.objects.get(email=email, is_active=True)
++        # ... deactivate ...
++        return subscription
++    except Newsletter.DoesNotExist:
++        return None  # ← view обработает нейтрально
++```
++
++---
++
++## Важные предупреждения для dev agent
++
++1. **Не удалять existing subscriber status 201 vs 200 разницу.** Новая подписка → 201 Created. Already_subscribed → 200 OK. Это не нарушает сокрытие: оба «успех», а атакующий не может узнать о существующей подписке (он видит только «200» и правдоподобный ответ).
++
++2. **Throttle tests используют `patch.object(SubscribeRateThrottle, 'THROTTLE_RATES', ...)`** — применить тот же паттерн для UnsubscribeRateThrottle тестов.
++
++3. **`cache.clear()` в throttle тестах** — использовать тот же паттерн что в `test_subscribe_scope_throttle_kicks_in_during_valid_payload_flood` (строки 469-492 в test_common_subscribe_api.py).
++
++4. **NEVER создавать синтетические XML или mock-данные для 1С** — не имеет отношения к этой story, но стандартное правило проекта.
++
++5. **Тест `test_subscribe_duplicate_email` (строка 43)** ассертит `"уже подписан" in str(response.data["email"][0])` и `response.data["email"][0].code == "already_subscribed"` — эти ассерты тела ответа, вероятно, тоже изменятся, если в 200 ответе возвращается `message` а не field-level error. Проверить что тело ответа при AC-1 не содержит `already_subscribed` error code — иначе тест надо переписать принципиально.
++
++6. **Проверить `_has_error_code` helper** — используется для детекции `already_subscribed` в view. После рефактора он может стать ненужным для этого пути.
++
++---
++
++## Dev notes / learnings из предыдущих story
++
++Из Story 35.3 (consent checkbox in subscribe form):
++- `SubscribeRateThrottle` уже работает и протестирован. `UnsubscribeRateThrottle` — точная копия с другим scope.
++- `DEFAULT_THROTTLE_RATES` обновляется в 4 файлах settings: base, development, staging, test. Не забыть ни один.
++- Импорт `SubscribeRateThrottle` уже в `views.py:32` — добавить рядом `UnsubscribeRateThrottle`.
++- `@throttle_classes([])` применён к некоторым view-функциям в этом файле (строка 73) — для unsubscribe нужен конкретный класс, не пустой список.
++- System check `common.E002` проверяет `"subscribe"` rate; аналогичная проверка для `"unsubscribe"` — хороший pattern.
++
++---
++
++## Связанные артефакты
++
++- `_bmad-output/implementation-artifacts/deferred-work.md` — исходный контекст (DN8-1, WWWW3)
++- `backend/apps/common/views.py` — основной файл реализации
++- `backend/apps/common/serializers.py` — логика UnsubscribeSerializer
++- `backend/apps/common/throttling.py` — throttle классы
++- `backend/apps/common/apps.py` — system checks
++- `backend/tests/integration/test_common_subscribe_api.py` — основной тестовый файл
++- `backend/apps/common/tests/test_common_config.py` — config checks
++- `backend/freesport/settings/base.py:175-179` — DEFAULT_THROTTLE_RATES
++
++---
++
++## Dev Agent Record
++
++### Debug Log
++
++- 2026-05-16: Загружен workflow `bmad-dev-story`, конфигурация BMAD и полный story-файл.
++- 2026-05-16: GitNexus impact перед правками: `subscribe`, `unsubscribe`, `UnsubscribeSerializer`, `SubscribeRateThrottle` — LOW risk.
++- 2026-05-16: GitNexus impact перед расширением system check: `check_session_engine_for_subscribe_consent` — LOW risk.
++- 2026-05-16: GitNexus detect-changes после реализации: 16 файлов, 12 symbols, 3 affected flows (`Subscribe → Get_client_ip`, `Subscribe → Normalize_consent_ip`, `Subscribe → Sanitize_log_value`), risk `medium`.
++
++### Completion Notes
++
++- Task 1: `/subscribe/` больше не возвращает `409` для `already_subscribed`/unique race; оба пути возвращают нейтральный `200 OK` с success-body.
++- Task 1 tests: `test_subscribe_duplicate_email` и `test_subscribe_returns_200_when_newsletter_unique_race_hits_integrity_error` сначала падали на старом `409`, после правки проходят.
++- Task 2: добавлен `UnsubscribeRateThrottle`, scope `unsubscribe` прописан в `base/development/staging/test`, view `unsubscribe` использует отдельный throttle.
++- Task 2 tests: `test_unsubscribe_throttle_kicks_in` сначала падал на отсутствующем классе, после правки проходит.
++- Task 3: `/unsubscribe/` возвращает нейтральный `200 OK` для активной, отсутствующей и уже неактивной подписки; `404` из endpoint-логики убран.
++- Task 3 tests: три unsubscribe-теста сначала падали на старом `404`/сообщении, после правки проходят.
++- Tasks 4/5/7: существующие subscribe-тесты обновлены, добавлены unsubscribe masking/throttle тесты и Django system check `common.E003`.
++- Validation: `pytest tests/integration/test_common_subscribe_api.py apps/common/tests/test_common_config.py` — 41 passed.
++- Task 6: OpenAPI схема перегенерирована через `manage.py spectacular`, TypeScript-типы обновлены через `npm run generate:types`; `subscribe_create` без `409`, `unsubscribe_create` без `404`.
++- Code quality: `black --check` и `flake8` по затронутым backend-файлам проходят; `python manage.py check` — без issues; `git diff --check` — без ошибок.
++- Full regression: test-compose full suite запущен; итог `2270 passed, 15 skipped, 11 failed`. Failures вне scope story: 10 тестов `tests/integration/test_management_commands/test_import_customers.py` падают из-за отсутствующей `/app/data/import_1c/contragents`, 1 performance-тест `apps/products/tests/test_api_products.py::TestProductAPIPerformance::test_retrieve_product_with_100_variants_under_500ms` изолированно дал 562.21ms при пороге 500ms. Subscribe/unsubscribe блоки в full suite прошли.
++
++## File List
++
++- `_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md`
++- `_bmad-output/implementation-artifacts/sprint-status.yaml`
++- `backend/apps/common/views.py`
++- `backend/apps/common/serializers.py`
++- `backend/apps/common/apps.py`
++- `backend/apps/common/tests/test_common_config.py`
++- `docs/api/openapi.yaml`
++- `frontend/src/types/api.generated.ts`
++- `backend/apps/common/throttling.py`
++- `backend/freesport/settings/base.py`
++- `backend/freesport/settings/development.py`
++- `backend/freesport/settings/staging.py`
++- `backend/freesport/settings/test.py`
++- `backend/tests/integration/test_common_subscribe_api.py`
++
++## Change Log
++
++- 2026-05-16: Story переведена в `in-progress` по workflow `bmad-dev-story`.
++- 2026-05-16: Task 1 — закрыт `409` enumeration leak на `/subscribe/`.
++- 2026-05-16: Task 2 — добавлен отдельный throttle scope для `/unsubscribe/`.
++- 2026-05-16: Task 3 — закрыт `404` enumeration leak на `/unsubscribe/`.
++- 2026-05-16: Tasks 4/5/7 — обновлены тесты и добавлен system check для `unsubscribe` throttle scope.
++- 2026-05-16: Task 6 — обновлены OpenAPI YAML и frontend API-типы.
++- 2026-05-16: Story переведена в `review`; validation caveats по full regression зафиксированы в Dev Agent Record.
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index a22d14b3..9b99e5ac 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -35,7 +35,7 @@ project: "FREESPORT"
+ project_key: "1C-HTTP-EXCHANGE"
+ tracking_system: "file-system"
+ story_location: "{project-root}/_bmad-output/implementation-artifacts"
+-last_updated: "2026-05-16" # epic-34, epic-35 → done; package.json generate:types path fixed
++last_updated: "2026-05-16" # security-email-enumeration-hardening ready for review
+ 
+ development_status:
+   # ========================================
+@@ -170,3 +170,12 @@ development_status:
+   35-3-consent-checkbox-in-subscribe-form: done
+   35-4-cookie-banner: done
+   epic-35-retrospective: skipped # 2026-05-16: conscious decision; lessons captured in deferred-work.md
++
++  # ========================================
++  # Security: Hardening Email Enumeration on Subscribe/Unsubscribe
++  # Goal: Закрыть два вектора email enumeration (DN8-1 + WWWW3 из deferred-work.md):
++  #       - /subscribe/ 409 → 200 при already_subscribed
++  #       - /unsubscribe/ добавить UnsubscribeRateThrottle + замаскировать 404 → 200
++  # Source: deferred-work.md (code review Epic 35, Pass 4 и Pass 8)
++  # ========================================
++  security-email-enumeration-hardening: review
+diff --git a/backend/apps/common/apps.py b/backend/apps/common/apps.py
+index 908ae5e4..e8d3f764 100644
+--- a/backend/apps/common/apps.py
++++ b/backend/apps/common/apps.py
+@@ -33,6 +33,15 @@ def check_session_engine_for_subscribe_consent(app_configs, **kwargs):
+             )
+         )
+ 
++    if "unsubscribe" not in throttle_rates:
++        errors.append(
++            Error(
++                "Для /unsubscribe/ должен быть задан отдельный throttle scope 'unsubscribe'.",
++                hint="Добавьте REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['unsubscribe'] в настройки окружения.",
++                id="common.E003",
++            )
++        )
++
+     return errors
+ 
+ 
+diff --git a/backend/apps/common/serializers.py b/backend/apps/common/serializers.py
+index 4fee0383..ee7e6021 100644
+--- a/backend/apps/common/serializers.py
++++ b/backend/apps/common/serializers.py
+@@ -146,24 +146,24 @@ class UnsubscribeSerializer(serializers.Serializer):
+     def validate_email(self, value: str) -> str:
+         """
+         Валидация email адреса.
+-        Проверяет существование активной подписки.
++        Нормализует email без раскрытия наличия активной подписки.
+         """
+         # Нормализация email (lowercase)
+         value = value.lower().strip()
+ 
+-        # Проверка на существование активной подписки
+-        if not Newsletter.objects.filter(email=value, is_active=True).exists():
+-            raise serializers.ValidationError("Этот email не найден в списке подписчиков или уже отписан")
+-
+         return value
+ 
+-    def save(self, **kwargs: Any) -> Newsletter:
++    def save(self, **kwargs: Any) -> Newsletter | None:
+         """
+         Отписка от рассылки.
+-        Вызывает метод unsubscribe() модели.
++        Возвращает None, если активной подписки нет, чтобы не раскрывать наличие email.
+         """
+         email = self.validated_data["email"]
+-        subscription = Newsletter.objects.get(email=email, is_active=True)
++        try:
++            subscription = Newsletter.objects.get(email=email, is_active=True)
++        except Newsletter.DoesNotExist:
++            return None
++
+         subscription.unsubscribe()
+         return subscription
+ 
+diff --git a/backend/apps/common/tests/test_common_config.py b/backend/apps/common/tests/test_common_config.py
+index fc86e559..03b3d97a 100644
+--- a/backend/apps/common/tests/test_common_config.py
++++ b/backend/apps/common/tests/test_common_config.py
+@@ -41,6 +41,22 @@ def test_subscribe_throttle_scope_check_rejects_missing_rate():
+     assert errors[0].id == "common.E002"
+ 
+ 
++def test_unsubscribe_throttle_scope_check_rejects_missing_rate():
++    rest_framework = {
++        **settings.REST_FRAMEWORK,
++        "DEFAULT_THROTTLE_RATES": {
++            key: value
++            for key, value in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].items()
++            if key != "unsubscribe"
++        },
++    }
++    with override_settings(REST_FRAMEWORK=rest_framework):
++        errors = check_session_engine_for_subscribe_consent(None)
++
++    assert len(errors) == 1
++    assert errors[0].id == "common.E003"
++
++
+ def test_session_engine_check_is_visible_under_security_tag():
+     with override_settings(SESSION_ENGINE="django.contrib.sessions.backends.signed_cookies"):
+         errors = run_checks(tags=[Tags.security])
+diff --git a/backend/apps/common/throttling.py b/backend/apps/common/throttling.py
+index e4e86229..80809f04 100644
+--- a/backend/apps/common/throttling.py
++++ b/backend/apps/common/throttling.py
+@@ -62,3 +62,16 @@ class SubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
+             "scope": self.scope,
+             "ident": self.get_ident(request),
+         }
++
++
++class UnsubscribeRateThrottle(ProxyAwareThrottleIdentMixin, SimpleRateThrottle):
++    """Отдельный лимит для write-endpoint отписки от рассылки."""
++
++    scope = "unsubscribe"
++
++    def get_cache_key(self, request, view):
++        """Сформировать cache key: SimpleRateThrottle оставляет этот метод abstract."""
++        return self.cache_format % {
++            "scope": self.scope,
++            "ident": self.get_ident(request),
++        }
+diff --git a/backend/apps/common/views.py b/backend/apps/common/views.py
+index 7464e31f..b491a2cf 100644
+--- a/backend/apps/common/views.py
++++ b/backend/apps/common/views.py
+@@ -29,7 +29,7 @@ from apps.common.serializers import (
+     UnsubscribeSerializer,
+ )
+ from apps.common.services import CustomerSyncMonitor
+-from apps.common.throttling import SubscribeRateThrottle
++from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
+ from apps.common.utils.consent_audit import (
+     get_consent_ip_address,
+     sanitize_consent_user_agent,
+@@ -317,7 +317,7 @@ def realtime_metrics(_request: Request) -> Response:
+     summary="Подписка на email-рассылку",
+     description=(
+         "Подписывает пользователя на email-рассылку о новинках и акциях. "
+-        "Если email уже подписан - возвращает 409 Conflict."
++        "Если email уже подписан - возвращает нейтральный 200 OK."
+     ),
+     request=SubscribeSerializer,
+     examples=[
+@@ -341,6 +341,19 @@ def realtime_metrics(_request: Request) -> Response:
+                 )
+             ],
+         ),
++        200: OpenApiResponse(
++            description="Email уже был подписан; возвращается нейтральный успех",
++            examples=[
++                OpenApiExample(
++                    name="already_subscribed_neutral_response",
++                    value={
++                        "message": "Вы успешно подписались на рассылку",
++                        "email": "user@example.com",
++                    },
++                    response_only=True,
++                )
++            ],
++        ),
+         400: OpenApiResponse(
+             description="Ошибка валидации (email или pdp_consent)",
+             examples=[
+@@ -360,18 +373,6 @@ def realtime_metrics(_request: Request) -> Response:
+                 ),
+             ],
+         ),
+-        409: OpenApiResponse(
+-            description="Email уже подписан на рассылку",
+-            examples=[
+-                OpenApiExample(
+-                    name="already_subscribed",
+-                    value={
+-                        "email": ["Этот email уже подписан на рассылку"],
+-                    },
+-                    response_only=True,
+-                )
+-            ],
+-        ),
+         503: OpenApiResponse(
+             response=inline_serializer(
+                 name="SubscribeConsentPersistenceErrorResponse",
+@@ -440,10 +441,13 @@ def subscribe(request: Request) -> Response:
+                 UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
+         except DRFValidationError as exc:
+             if _has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
+-                return Response(
+-                    exc.detail,
+-                    status=status.HTTP_409_CONFLICT,
++                response_serializer = SubscribeResponseSerializer(
++                    {
++                        "message": "Вы успешно подписались на рассылку",
++                        "email": serializer.validated_data["email"],
++                    }
+                 )
++                return Response(response_serializer.data, status=status.HTTP_200_OK)
+ 
+             return Response(
+                 exc.detail,
+@@ -475,10 +479,16 @@ def subscribe(request: Request) -> Response:
+ 
+     # Обработка ошибки "уже подписан"
+     if _has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
+-        return Response(
+-            serializer.errors,
+-            status=status.HTTP_409_CONFLICT,
++        email = ""
++        if isinstance(serializer.initial_data, dict):
++            email = str(serializer.initial_data.get("email", "")).lower().strip()
++        response_serializer = SubscribeResponseSerializer(
++            {
++                "message": "Вы успешно подписались на рассылку",
++                "email": email,
++            }
+         )
++        return Response(response_serializer.data, status=status.HTTP_200_OK)
+ 
+     # Другие ошибки валидации
+     return Response(
+@@ -490,17 +500,18 @@ def subscribe(request: Request) -> Response:
+ @extend_schema(
+     summary="Отписка от email-рассылки",
+     description=(
+-        "Отписывает пользователя от email-рассылки. " "Если email не найден или уже отписан - возвращает 404 Not Found."
++        "Обрабатывает запрос на отписку от email-рассылки. "
++        "Для неизвестного или уже отписанного email возвращает такой же нейтральный 200 OK."
+     ),
+     request=UnsubscribeSerializer,
+     responses={
+         200: OpenApiResponse(
+-            description="Отписка успешно выполнена",
++            description="Запрос на отписку обработан",
+             examples=[
+                 OpenApiExample(
+                     name="success_response",
+                     value={
+-                        "message": "Вы успешно отписались от рассылки",
++                        "message": "Запрос на отписку обработан",
+                         "email": "user@example.com",
+                     },
+                     response_only=True,
+@@ -519,23 +530,12 @@ def subscribe(request: Request) -> Response:
+                 )
+             ],
+         ),
+-        404: OpenApiResponse(
+-            description="Email не найден или уже отписан",
+-            examples=[
+-                OpenApiExample(
+-                    name="not_found",
+-                    value={
+-                        "email": ["Этот email не найден в списке подписчиков или уже отписан"],
+-                    },
+-                    response_only=True,
+-                )
+-            ],
+-        ),
+     },
+     tags=["Newsletter"],
+ )
+ @api_view(["POST"])
+ @permission_classes([AllowAny])
++@throttle_classes([UnsubscribeRateThrottle])
+ def unsubscribe(request: Request) -> Response:
+     """
+     Отписка от email-рассылки.
+@@ -546,11 +546,12 @@ def unsubscribe(request: Request) -> Response:
+ 
+     if serializer.is_valid():
+         subscription = serializer.save()
++        email = subscription.email if subscription is not None else serializer.validated_data["email"]
+ 
+         response_serializer = UnsubscribeResponseSerializer(
+             {
+-                "message": "Вы успешно отписались от рассылки",
+-                "email": subscription.email,
++                "message": "Запрос на отписку обработан",
++                "email": email,
+             }
+         )
+ 
+@@ -559,16 +560,6 @@ def unsubscribe(request: Request) -> Response:
+             status=status.HTTP_200_OK,
+         )
+ 
+-    # Обработка ошибки "не найден или уже отписан"
+-    if "email" in serializer.errors:
+-        error_msg = str(serializer.errors["email"][0])
+-        if "не найден" in error_msg or "уже отписан" in error_msg:
+-            return Response(
+-                serializer.errors,
+-                status=status.HTTP_404_NOT_FOUND,
+-            )
+-
+-    # Другие ошибки валидации
+     return Response(
+         serializer.errors,
+         status=status.HTTP_400_BAD_REQUEST,
+diff --git a/backend/freesport/settings/base.py b/backend/freesport/settings/base.py
+index 1c4c8ee1..6a23d07e 100644
+--- a/backend/freesport/settings/base.py
++++ b/backend/freesport/settings/base.py
+@@ -175,6 +175,7 @@ REST_FRAMEWORK = {
+     "DEFAULT_THROTTLE_RATES": {
+         "anon": "6000/min",  # Increased to fix SSR 429 errors
+         "subscribe": "30/min",
++        "unsubscribe": "30/min",
+         "user": "10000/day",
+     },
+ }
+diff --git a/backend/freesport/settings/development.py b/backend/freesport/settings/development.py
+index dd3c6425..232dd52b 100644
+--- a/backend/freesport/settings/development.py
++++ b/backend/freesport/settings/development.py
+@@ -59,6 +59,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+     **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+     "anon": "100000/min",
+     "subscribe": "100000/min",
++    "unsubscribe": "100000/min",
+     "user": "100000/min",
+ }
+ 
+diff --git a/backend/freesport/settings/staging.py b/backend/freesport/settings/staging.py
+index 19a02919..1e652295 100644
+--- a/backend/freesport/settings/staging.py
++++ b/backend/freesport/settings/staging.py
+@@ -45,11 +45,12 @@ CORS_ALLOWED_ORIGINS = [
+ 
+ CORS_ALLOW_CREDENTIALS = True
+ 
+-# Staging явно документирует production-like throttle rates, не полагаясь на скрытое наследование base.py.
++# Staging явно документирует throttle rates, не полагаясь на скрытое наследование base.py.
+ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+     **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+     "anon": "6000/min",
+     "subscribe": "30/min",
++    "unsubscribe": "100000/min",
+     "user": "10000/day",
+ }
+ 
+diff --git a/backend/freesport/settings/test.py b/backend/freesport/settings/test.py
+index 61a54b21..68c158eb 100644
+--- a/backend/freesport/settings/test.py
++++ b/backend/freesport/settings/test.py
+@@ -97,6 +97,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+     **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+     "anon": "100000/min",
+     "subscribe": "100000/min",
++    "unsubscribe": "100000/min",
+     "user": "100000/min",
+ }
+ 
+diff --git a/backend/tests/integration/test_common_subscribe_api.py b/backend/tests/integration/test_common_subscribe_api.py
+index 9f974e3a..3176131c 100644
+--- a/backend/tests/integration/test_common_subscribe_api.py
++++ b/backend/tests/integration/test_common_subscribe_api.py
+@@ -16,7 +16,7 @@ from rest_framework import serializers, status
+ 
+ from apps.common.models import Newsletter, UserConsent
+ from apps.common.serializers import SubscribeSerializer
+-from apps.common.throttling import SubscribeRateThrottle
++from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
+ 
+ pytestmark = [pytest.mark.django_db, pytest.mark.integration]
+ 
+@@ -41,7 +41,7 @@ class TestSubscribeEndpoint:
+         assert Newsletter.objects.filter(email="newuser@example.com").exists()
+ 
+     def test_subscribe_duplicate_email(self, api_client):
+-        """Гарантирует корректный конфликт при повторной подписке."""
++        """Повторная подписка возвращает нейтральный успех без enumeration leak."""
+         Newsletter.objects.create(email="existing@example.com", is_active=True)
+ 
+         url = reverse("common:subscribe")
+@@ -49,9 +49,11 @@ class TestSubscribeEndpoint:
+ 
+         response = api_client.post(url, data, format="json")
+ 
+-        assert response.status_code == status.HTTP_409_CONFLICT
+-        assert "уже подписан" in str(response.data["email"][0])
+-        assert response.data["email"][0].code == "already_subscribed"
++        assert response.status_code == status.HTTP_200_OK
++        assert response.data == {
++            "message": "Вы успешно подписались на рассылку",
++            "email": "existing@example.com",
++        }
+         assert UserConsent.objects.count() == 0
+ 
+     def test_subscribe_missing_pdp_consent_does_not_leak_subscriber_status(self, api_client):
+@@ -442,17 +444,19 @@ class TestSubscribeEndpoint:
+         assert "Failed to persist newsletter consent audit" not in caplog.text
+         assert not Newsletter.objects.filter(email="session-failure@example.com").exists()
+ 
+-    def test_subscribe_returns_409_when_newsletter_unique_race_hits_integrity_error(self, api_client):
+-        """Race на unique email должен возвращать 409, а не 500."""
++    def test_subscribe_returns_200_when_newsletter_unique_race_hits_integrity_error(self, api_client):
++        """Race на unique email должен возвращать нейтральный 200, а не enumeration leak."""
+         url = reverse("common:subscribe")
+         data = {"email": "unique-race@example.com", "pdp_consent": True}
+ 
+         with patch.object(Newsletter.objects, "create", side_effect=IntegrityError("duplicate")):
+             response = api_client.post(url, data, format="json")
+ 
+-        assert response.status_code == status.HTTP_409_CONFLICT
+-        assert "уже подписан" in str(response.data["email"][0])
+-        assert response.data["email"][0].code == "already_subscribed"
++        assert response.status_code == status.HTTP_200_OK
++        assert response.data == {
++            "message": "Вы успешно подписались на рассылку",
++            "email": "unique-race@example.com",
++        }
+         assert UserConsent.objects.count() == 0
+ 
+     def test_subscribe_anonymous_creates_session_key(self, api_client):
+@@ -490,3 +494,80 @@ class TestSubscribeEndpoint:
+         cache.clear()
+         assert statuses[:5] == [status.HTTP_201_CREATED] * 5
+         assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10
++
++
++class TestUnsubscribeEndpoint:
++    """Набор кейсов для POST /api/v1/unsubscribe."""
++
++    def test_unsubscribe_unknown_email_returns_200(self, api_client):
++        """Неизвестный email возвращает нейтральный 200 без создания подписки."""
++        url = reverse("common:unsubscribe")
++
++        response = api_client.post(url, {"email": "unknown-unsubscribe@example.com"}, format="json")
++
++        assert response.status_code == status.HTTP_200_OK
++        assert response.data == {
++            "message": "Запрос на отписку обработан",
++            "email": "unknown-unsubscribe@example.com",
++        }
++        assert not Newsletter.objects.filter(email="unknown-unsubscribe@example.com").exists()
++
++    def test_unsubscribe_already_unsubscribed_returns_200(self, api_client):
++        """Уже отписанный email возвращает такой же нейтральный 200."""
++        Newsletter.objects.create(
++            email="already-unsubscribed@example.com",
++            is_active=False,
++            unsubscribed_at=timezone.now(),
++        )
++        url = reverse("common:unsubscribe")
++
++        response = api_client.post(url, {"email": "already-unsubscribed@example.com"}, format="json")
++
++        assert response.status_code == status.HTTP_200_OK
++        assert response.data == {
++            "message": "Запрос на отписку обработан",
++            "email": "already-unsubscribed@example.com",
++        }
++        subscription = Newsletter.objects.get(email="already-unsubscribed@example.com")
++        assert subscription.is_active is False
++
++    def test_unsubscribe_success_returns_200(self, api_client):
++        """Активная подписка деактивируется и возвращает нейтральный 200."""
++        Newsletter.objects.create(email="active-unsubscribe@example.com", is_active=True)
++        url = reverse("common:unsubscribe")
++
++        response = api_client.post(url, {"email": "active-unsubscribe@example.com"}, format="json")
++
++        assert response.status_code == status.HTTP_200_OK
++        assert response.data == {
++            "message": "Запрос на отписку обработан",
++            "email": "active-unsubscribe@example.com",
++        }
++        subscription = Newsletter.objects.get(email="active-unsubscribe@example.com")
++        assert subscription.is_active is False
++        assert subscription.unsubscribed_at is not None
++
++    def test_unsubscribe_throttle_kicks_in(self, api_client):
++        """Scope-specific unsubscribe throttle ограничивает flood по отдельному bucket."""
++        assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["unsubscribe"] == "100000/min"
++        cache.clear()
++        url = reverse("common:unsubscribe")
++        statuses = []
++
++        with patch.object(
++            UnsubscribeRateThrottle,
++            "THROTTLE_RATES",
++            {"unsubscribe": "5/min"},
++        ):
++            for index in range(40):
++                response = api_client.post(
++                    url,
++                    {"email": f"unsubscribe-throttle-{index}@example.com"},
++                    format="json",
++                    REMOTE_ADDR="198.51.100.88",
++                )
++                statuses.append(response.status_code)
++
++        cache.clear()
++        assert status.HTTP_429_TOO_MANY_REQUESTS not in statuses[:5]
++        assert statuses.count(status.HTTP_429_TOO_MANY_REQUESTS) >= 10
+diff --git a/docs/api/openapi.yaml b/docs/api/openapi.yaml
+index fcce0a82..7ee70866 100644
+--- a/docs/api/openapi.yaml
++++ b/docs/api/openapi.yaml
+@@ -86,7 +86,7 @@ paths:
+     post:
+       operationId: subscribe_create
+       description: Подписывает пользователя на email-рассылку о новинках и акциях.
+-        Если email уже подписан - возвращает 409 Conflict.
++        Если email уже подписан - возвращает нейтральный 200 OK.
+       summary: Подписка на email-рассылку
+       tags:
+       - Newsletter
+@@ -107,10 +107,10 @@ paths:
+       responses:
+         '201':
+           description: Подписка успешно создана
++        '200':
++          description: Email уже был подписан; возвращается нейтральный успех
+         '400':
+           description: Ошибка валидации (email или pdp_consent)
+-        '409':
+-          description: Email уже подписан на рассылку
+         '503':
+           content:
+             application/json:
+@@ -128,8 +128,8 @@ paths:
+   /unsubscribe/:
+     post:
+       operationId: unsubscribe_create
+-      description: Отписывает пользователя от email-рассылки. Если email не найден
+-        или уже отписан - возвращает 404 Not Found.
++      description: Обрабатывает запрос на отписку от email-рассылки. Для неизвестного
++        или уже отписанного email возвращает такой же нейтральный 200 OK.
+       summary: Отписка от email-рассылки
+       tags:
+       - Newsletter
+@@ -149,11 +149,9 @@ paths:
+       - {}
+       responses:
+         '200':
+-          description: Отписка успешно выполнена
++          description: Запрос на отписку обработан
+         '400':
+           description: Ошибка валидации email
+-        '404':
+-          description: Email не найден или уже отписан
+   /news/:
+     get:
+       operationId: news_list
+diff --git a/docs/architecture/04-component-structure.md b/docs/architecture/04-component-structure.md
+index 0a93df25..aa3d49fc 100644
+--- a/docs/architecture/04-component-structure.md
++++ b/docs/architecture/04-component-structure.md
+@@ -1,12 +1,12 @@
+ # 4. Структура Компонентов
+ 
+-### Frontend Architecture (Next.js 14+)
++### Frontend Architecture (Next.js 15+)
+ 
+ #### Компонентная архитектура
+ 
+ ```
+ frontend/src/
+-├── app/                          # App Router (Next.js 13+)
++├── app/                          # App Router (Next.js 15+)
+ │   ├── (auth)/                   # Route groups
+ │   ├── (blue)/                   # Blue theme layout group
+ │   │   ├── catalog/              # Каталог товаров
+diff --git a/frontend/src/types/api.generated.ts b/frontend/src/types/api.generated.ts
+index f45b9cad..2c6f52f0 100644
+--- a/frontend/src/types/api.generated.ts
++++ b/frontend/src/types/api.generated.ts
+@@ -115,7 +115,7 @@ export interface paths {
+     put?: never;
+     /**
+      * Подписка на email-рассылку
+-     * @description Подписывает пользователя на email-рассылку о новинках и акциях. Если email уже подписан - возвращает 409 Conflict.
++     * @description Подписывает пользователя на email-рассылку о новинках и акциях. Если email уже подписан - возвращает нейтральный 200 OK.
+      */
+     post: operations['subscribe_create'];
+     delete?: never;
+@@ -135,7 +135,7 @@ export interface paths {
+     put?: never;
+     /**
+      * Отписка от email-рассылки
+-     * @description Отписывает пользователя от email-рассылки. Если email не найден или уже отписан - возвращает 404 Not Found.
++     * @description Обрабатывает запрос на отписку от email-рассылки. Для неизвестного или уже отписанного email возвращает такой же нейтральный 200 OK.
+      */
+     post: operations['unsubscribe_create'];
+     delete?: never;
+@@ -2806,22 +2806,22 @@ export interface operations {
+       };
+     };
+     responses: {
+-      /** @description Подписка успешно создана */
+-      201: {
++      /** @description Email уже был подписан; возвращается нейтральный успех */
++      200: {
+         headers: {
+           [name: string]: unknown;
+         };
+         content?: never;
+       };
+-      /** @description Ошибка валидации (email или pdp_consent) */
+-      400: {
++      /** @description Подписка успешно создана */
++      201: {
+         headers: {
+           [name: string]: unknown;
+         };
+         content?: never;
+       };
+-      /** @description Email уже подписан на рассылку */
+-      409: {
++      /** @description Ошибка валидации (email или pdp_consent) */
++      400: {
+         headers: {
+           [name: string]: unknown;
+         };
+@@ -2853,7 +2853,7 @@ export interface operations {
+       };
+     };
+     responses: {
+-      /** @description Отписка успешно выполнена */
++      /** @description Запрос на отписку обработан */
+       200: {
+         headers: {
+           [name: string]: unknown;
+@@ -2867,13 +2867,6 @@ export interface operations {
+         };
+         content?: never;
+       };
+-      /** @description Email не найден или уже отписан */
+-      404: {
+-        headers: {
+-          [name: string]: unknown;
+-        };
+-        content?: never;
+-      };
+     };
+   };
+   news_list: {

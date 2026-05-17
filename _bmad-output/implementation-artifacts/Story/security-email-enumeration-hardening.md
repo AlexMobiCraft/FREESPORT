@@ -1,7 +1,7 @@
 # Story: Security — Harden Email Enumeration on Subscribe/Unsubscribe
 
 **Story ID:** security-email-enumeration-hardening
-**Status:** review
+**Status:** in-progress
 **Priority:** High (security fix; устраняет два вектора email enumeration, зафиксированных code review Epic 35)
 **Source issues:** DN8-1 (Pass 8) · WWWW3 (Pass 4) из `_bmad-output/implementation-artifacts/deferred-work.md`
 
@@ -231,6 +231,31 @@ def unsubscribe(request: Request) -> Response:
 
 - [x] Task 7: (опционально) Добавить Django system check для unsubscribe rate (AC: 10)
   - [x] 7.1: В `backend/apps/common/apps.py` расширить `check_session_engine_for_subscribe_consent` или добавить отдельный check для `"unsubscribe"` rate
+
+---
+
+## Review Findings
+
+_Code review 2026-05-17 (bmad-code-review, 3 слоя: Blind Hunter, Edge Case Hunter, Acceptance Auditor). Все 10 AC формально выполнены, но обнаружен дефект самого замысла AC-1._
+
+### Deferred (resolved from decision-needed)
+
+- [x] [Review][Defer] `/subscribe/` всё ещё допускает email enumeration через различие `201` vs `200` — Новая подписка возвращает `201 Created`, already_subscribed — `200 OK`. Атакующий по-прежнему различает «email в базе» (200) vs «нет в базе» (201) — оракул enumeration сохранён, лишь сменил коды (было 201 vs 409). AC-1 явно принимает это («оба success, смысловая разница не раскрывает факт подписки»), но это обоснование security-некорректно: атакующему важна различимость ответа, а `201 ≠ 200` различимы идеально. Исходный вектор DN8-1 закрыт лишь частично. Нашёл независимо Blind Hunter (HIGH). — deferred, требуется уточнить, критична ли REST-семантика 201 для потребителей API
+
+### Patch
+
+- [ ] [Review][Patch] `unsubscribe` не оборачивает `serializer.save()` в try/except `DatabaseError` — асимметрия с `subscribe`, который при сбое БД отдаёт 503; здесь любая `DatabaseError` пробросится наружу как `HTTP 500` [backend/apps/common/views.py:547]
+- [ ] [Review][Patch] Тест `test_unsubscribe_throttle_kicks_in` не проверяет, что первые 5 запросов реально успешны (`200`) — ассертится только отсутствие `429` в `statuses[:5]`; subscribe-аналог ассертит `[201]*5` [backend/tests/integration/test_common_subscribe_api.py:937]
+- [ ] [Review][Patch] Нет теста на `400`-ветку `unsubscribe` (невалидный/пустой/отсутствующий email) — ветка изменилась в diff (над ней удалена 404-обработка), но осталась без покрытия [backend/tests/integration/test_common_subscribe_api.py]
+
+### Deferred
+
+- [x] [Review][Defer] Поведенческие side-channels `/unsubscribe/` за пределами HTTP-кода (запись `unsubscribed_at`, эффект повторной отписки) [backend/apps/common/serializers.py:155] — deferred, вне scope story (story закрывает только HTTP-код-differential)
+- [x] [Review][Defer] Timing side-channel на `/subscribe/` и `/unsubscribe/` (разное время ответа для существующего vs несуществующего email) не адресован — deferred, вне scope story
+- [x] [Review][Defer] В коммит security-фикса попали несвязанные правки docs (Next.js 14→15, счётчик символов GitNexus 8500→8499) [AGENTS.md, CLAUDE.md, docs/architecture/04-component-structure.md] — deferred, гигиена коммита, уже закоммичено
+- [x] [Review][Defer] Full regression: 11 падающих тестов (10 — отсутствие `data/import_1c/contragents`, 1 — perf-тест 562ms vs порог 500ms) — deferred, инфраструктурные/pre-existing, заявлены вне scope в Dev Agent Record
+- [x] [Review][Defer] System check `common.E003` ловит только отсутствие ключа `"unsubscribe"`, не `None`/пустой rate (при `rate=None` throttle молча отключается) [backend/apps/common/apps.py:36] — deferred, унаследованный паттерн (`common.E002` имеет тот же дефект)
+- [x] [Review][Defer] `/unsubscribe/` позволяет отписать чужой активный email без подтверждения личности (abuse) — deferred, pre-existing класс abuse, намеренное проектное решение story (маскировка без токена подтверждения)
 
 ---
 

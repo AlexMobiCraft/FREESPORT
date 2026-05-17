@@ -198,7 +198,7 @@ async function fillCheckoutForm(page: Page, data: typeof testCheckoutData) {
   // Адрес доставки
   await page.getByLabel('Город').fill(data.city);
   await page.getByLabel('Улица').fill(data.street);
-  await page.getByLabel('Дом').fill(data.house);
+  await page.locator('input[name="house"]').fill(data.house);
   await page.locator('input[name="apartment"]').fill(data.apartment);
   await page.locator('input[name="postalCode"]').fill(data.postalCode);
 }
