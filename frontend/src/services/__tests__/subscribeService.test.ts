@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { subscribeService } from '../subscribeService';
+import { subscribeService, SubscribeServiceError } from '../subscribeService';
 import apiClient from '../api-client';
 
 vi.mock('../api-client');
@@ -82,15 +82,17 @@ describe('subscribeService', () => {
       },
     });
 
-    await expect(
-      subscribeService.subscribe({
+    try {
+      await subscribeService.subscribe({
         email: 'existing@example.com',
         pdp_consent: true,
-      })
-    ).rejects.toMatchObject({
-      message: 'network_error',
-      details: undefined,
-    });
+      });
+      throw new Error('Expected subscribeService to reject');
+    } catch (error) {
+      expect(error).toBeInstanceOf(SubscribeServiceError);
+      expect((error as SubscribeServiceError).message).toBe('network_error');
+      expect((error as SubscribeServiceError).details).toBeUndefined();
+    }
   });
 
   it('maps 503 responses to server errors when details match the OpenAPI contract', async () => {

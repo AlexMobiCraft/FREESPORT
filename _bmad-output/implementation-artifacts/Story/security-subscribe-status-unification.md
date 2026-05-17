@@ -229,6 +229,7 @@ return Response(
 - 2026-05-17: Story принята в разработку по workflow `bmad-dev-story`; prerequisite `e76b7e6c` подтверждён как ancestor текущего `develop`.
 - 2026-05-17: Story выполнена: `/subscribe/` contract зафиксирован на `200`, frontend mock/service синхронизированы, OpenAPI/types перегенерированы, deferred-пункт закрыт; story → review.
 - 2026-05-17: Review-патч закрыт: удалены устаревшие ветки `already_subscribed` из фронтенд-форм подписки и удалён unreachable-тест; story и sprint-status синхронизированы на `review`.
+- 2026-05-17: Финальный review-патч закрыт: `subscribeService.test.ts` теперь строго проверяет `SubscribeServiceError.details === undefined` для `network_error`, и история вернулась в `review`.
 
 ---
 
@@ -244,12 +245,14 @@ return Response(
 - 2026-05-17: GitNexus detect-changes после реализации: 11 files, 2 indexed symbols (`AGENTS.md`, `CLAUDE.md`), affected processes 0, risk low. GitNexus не индексирует изменённые generated/docs/frontend mock symbols как affected flows.
 - 2026-05-17: Frontend Docker container перезапущен после изменений в `frontend/src/`: `docker compose --env-file ../.env -f ../docker/docker-compose.yml restart frontend`.
 - 2026-05-17: После review-патча выполнены `npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx src/services/__tests__/subscribeService.test.ts`, `npx eslint src/components/home/SubscribeForm.tsx src/components/home/ElectricSubscribeForm.tsx src/components/home/__tests__/SubscribeForm.test.tsx --max-warnings=0`, `npm run test`, `npm run build`; все проверки прошли.
+- 2026-05-17: Финальный review-патч в `subscribeService.test.ts` подтверждён `npm run test -- src/services/__tests__/subscribeService.test.ts`, `npm run test`, и `npx tsc --noEmit`.
 
 ### Completion Notes
 
 - Task 1/2/3: backend success-путь `subscribe()` уже был приведён к `HTTP_200_OK` в текущем `develop`; `@extend_schema`, `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts` и `test_common_subscribe_api.py` подтверждают отсутствие `201` у `subscribe_create`.
 - Task 4: MSW handler `/subscribe` теперь возвращает нейтральный `200` с тем же success-body для валидных email, включая ранее special-cased `existing@example.com`; мёртвая ветка `409 -> already_subscribed` удалена из `subscribeService`.
 - Task 4 tests: добавлен regression-тест в `subscribeService.test.ts`; RED падал на старом маппинге `409`, после правки проходит.
+- Task 4 review patch: усилен `network_error`-assert для проверки `SubscribeServiceError.details === undefined`; цель закрытия ревью-файндинга достигнута без изменения production-кода.
 - Task 5: OpenAPI schema перегенерирована через `manage.py spectacular --file ../docs/api/openapi.yaml --validate`; frontend-типы перегенерированы через `npm run generate:types` и отформатированы Prettier.
 - Task 6: deferred-пункт `/subscribe/` `201 vs 200` в `_bmad-output/implementation-artifacts/deferred-work.md` помечен как resolved by `security-subscribe-status-unification`.
 - Validation targeted backend: `pytest tests/integration/test_common_subscribe_api.py apps/common/tests/test_common_config.py` — 47 passed.
@@ -282,3 +285,23 @@ Code review (2026-05-17, 3 слоя: Blind Hunter / Edge Case Hunter / Acceptanc
 - [x] [Review][Patch] Осиротевший код `already_subscribed` в формах подписки и ложно-зелёный тест — resolved: после удаления ветки `409 → already_subscribed` из `subscribeService` сервис больше никогда не бросает `'already_subscribed'`. Ветки `if (error.message === 'already_subscribed')` удалены из `SubscribeForm` и `ElectricSubscribeForm`, а unreachable-тест `SubscribeForm.test.tsx` удалён. AC-6 + Важное предупреждение №5 полностью закрыты. [`frontend/src/components/home/SubscribeForm.tsx:102`, `frontend/src/components/home/ElectricSubscribeForm.tsx:111`, `frontend/src/components/home/__tests__/SubscribeForm.test.tsx`]
 - [x] [Review][Defer] Аномальный `409` от бэкенда классифицируется как `network_error` с потерей `details` — pre-existing catch-all паттерн `subscribeService` (любой статус вне 400/429/5xx → `network_error`); spec явно зафиксировал `409 → network_error` тестом. Не введено этой story. [`frontend/src/services/subscribeService.ts:78`] — deferred, pre-existing
 - [x] [Review][Defer] Коммит `83f30fb0` содержит изменения вне scope story — правка файла story-предшественника `security-email-enumeration-hardening.md` (статус + блок re-review pass 4, 27 строк) не указана в File List этой story. Гигиена коммита; уже закоммичено, откату не подлежит. [`_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md`] — deferred, pre-existing
+
+---
+
+### Code Review 2026-05-17 (bmad-code-review, 3 слоя: Blind Hunter / Edge Case Hunter / Acceptance Auditor)
+
+_Повторный независимый проход. Все 8 AC подтверждены выполненными в фактическом состоянии `develop`. Итог триажа: 0 decision-needed, 1 patch, 4 defer, 5 dismissed._
+
+- [x] [Review][Patch] Ассерт `toMatchObject({ details: undefined })` не доказывает отсутствие утечки `details` — `toMatchObject` проходит и при отсутствующем ключе, и при значении `undefined`. Усилено строгой проверкой (`expect((err as SubscribeServiceError).details).toBeUndefined()`), чтобы будущая регрессия — передача `details` в ветку `network_error` — не оставалась зелёной. [`frontend/src/services/__tests__/subscribeService.test.ts:90`] — resolved 2026-05-17
+- [x] [Review][Defer] Регенерация `openapi.yaml` (AC-7) внесла out-of-scope изменения — перестановка `operationId` в `/users/addresses/`, `/users/favorites/`, `/orders/`, `/cart/items/`; рассинхрон тега `Users`/`users` у `/users/favorites/{id}/`; смена типа `categories-tree {id}` `integer`→`string` с потерей `description`. Pre-existing schema drift, проявленный обязательной регенерацией; контракт `/subscribe/` не затронут. [`docs/api/openapi.yaml`] — deferred, pre-existing
+- [x] [Review][Defer] Story-файл «Текущее состояние кода» описывает несуществующий код — раздел (строки 72-104) цитирует `views.py` с `HTTP_201_CREATED`; фактически в `develop` этого уже нет. Tasks 1.1/2.1 помечены `[x]`, хотя были no-op (backend приведён к `200` предшественником). [`_bmad-output/implementation-artifacts/Story/security-subscribe-status-unification.md`] — deferred, документационная неточность
+- [x] [Review][Defer] Аномальный `409` (и любой статус вне `400/429/5xx`) → `network_error` с потерей `details` — повторное обнаружение, уже в `deferred-work.md` (раздел этой story). Осознанное anti-enumeration решение, покрыто регрессионным тестом. [`frontend/src/services/subscribeService.ts:78`] — deferred, pre-existing
+- [x] [Review][Defer] Коммит `83f30fb0` вне scope story — повторное обнаружение, уже в `deferred-work.md`. Дополнительно: затронуты `AGENTS.md`/`CLAUDE.md` (авто-счётчик GitNexus `8502→8503`), не указанные в File List/Review Findings; таблица «Структура файлов» рассинхронена с File List. [`_bmad-output/implementation-artifacts/Story/security-email-enumeration-hardening.md`] — deferred, гигиена коммита
+
+#### Dismissed (5)
+
+- Blind Hunter: спекуляция об утечке через тело `400` «уже подписан» — ложно: Acceptance Auditor подтвердил по `views.py`, что already_subscribed возвращает `200` с нейтральным телом.
+- Blind Hunter: «hardcoded русский текст в MSW-моке» — на деле улучшение: мок приведён к фактическому ответу бэкенда (`Вы успешно подписались на рассылку`), старое `Successfully subscribed` было неверным.
+- Blind Hunter: перестановка HTTP-методов в `openapi.yaml` — учтено в defer-находке по регенерации схемы.
+- Edge Case Hunter / Blind Hunter: MSW-мок `/subscribe` не покрывает `429`/`5xx`/повторную подписку — pre-existing ограничение мока, не введено этой story.
+- Edge Case Hunter: формы `SubscribeForm`/`ElectricSubscribeForm` имеют корректный финальный `else`-fallback — регрессии нет (положительное подтверждение).
