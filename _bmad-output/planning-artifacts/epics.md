@@ -70,6 +70,21 @@ Enable users to quickly navigate to popular brand catalogs from the homepage and
 **FRs covered:** FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-07, FR-08, FR-09, FR-10.
 **NFRs covered:** NFR-1 to NFR-8.
 
+### Epic 36: Critical Security & Export Fixes (Week 1)
+
+Закрыть критические дефекты: публичная утечка файлов импорта 1С, некорректная стоимость доставки в XML-экспорте заказов, захардкоженный `SITE_URL`.
+**Приоритет:** 🔴 CRITICAL. **Источник:** security audit (#15, #16, #7).
+
+### Epic 37: Auth Hardening — JWT & Sessions (Week 2-3)
+
+Усилить безопасность аутентификации: добавить endpoint logout-all, устранить race condition при ротации токенов.
+**Приоритет:** 🟠 HIGH. **Источник:** tech-debt.md (#5, #4).
+
+### Epic 38: Session & Resource Cleanup (Week 4+)
+
+Централизовать очистку сессий, обеспечить безопасное переключение аккаунтов, добавить GC временных файлов импорта 1С.
+**Приоритет:** 🟡 MEDIUM. **Источник:** security audit (#6, #9, #13).
+
 ## Epic 33: Brands Block Implementation
 
 **Goal:** Enable users to quickly navigate to popular brand catalogs from the homepage and allow admins to manage this content.
@@ -164,3 +179,214 @@ So that I can easily find it.
 
 **Given** the page load process,
 **Then** the brands block has explicit dimensions to prevent Layout Shift (CLS) during hydration (NFR-02).
+
+---
+
+# Security & Bugfix Sprint (2026-Q2)
+
+> Эпики 36-38 не относятся к Brands Block — это отдельный security/bugfix спринт, запланированный 2026-05-18.
+> Источник задач — `_bmad-output/planning-artifacts/tech-debt.md` (от 2026-01-18), пункты #3-#16. Трекинг — `_bmad-output/implementation-artifacts/sprint-status.yaml`.
+
+## Epic 36: Critical Security & Export Fixes (Week 1)
+
+**Goal:** Закрыть критические дефекты безопасности и экспорта до начала остальных работ спринта.
+
+**Приоритет:** 🔴 CRITICAL
+
+### Story 36.1: Move 1C import files from public MEDIA_ROOT
+
+As a Security Engineer,
+I want файлы импорта 1С не размещались в публично доступном `MEDIA_ROOT`,
+So that XML-данные контрагентов, цен и остатков не утекают по прямой ссылке.
+
+**Контекст (tech-debt #15):** `ImportOrchestratorService.import_dir = settings.MEDIA_ROOT / "1c_import"` (`import_orchestrator.py`). `MEDIA_ROOT` раздаётся nginx как статика — файлы импорта (цены, остатки, клиенты) можно скачать, подобрав URL. Рекомендация аудита: перенести хранение в приватную директорию (`var/` или иную) за пределами web-root.
+
+**Acceptance Criteria:**
+
+**Given** входящие файлы обмена с 1С (контрагенты, товары, цены, остатки),
+**When** они принимаются и распаковываются,
+**Then** они сохраняются в приватную директорию вне `MEDIA_ROOT` (не раздаётся nginx).
+
+**Given** приватную директорию импорта,
+**When** анонимный пользователь запрашивает файл по предполагаемому media-URL,
+**Then** сервер возвращает 403/404, файл недоступен.
+
+**Given** существующий пайплайн импорта (`VariantImportProcessor`, Celery-задачи),
+**When** путь хранения изменён,
+**Then** импорт товаров и контрагентов отрабатывает без регрессий.
+
+### Story 36.2: Fix delivery cost in Order XML export
+
+As a 1С Manager,
+I want сумма документа в XML-экспорте заказа совпадала с суммой строк `<Товары>`,
+So that интеграция с 1С не падает на валидации, когда у заказа есть стоимость доставки.
+
+**Контекст (tech-debt #16):** `OrderExportService` задаёт сумму документа равной `order.total_amount` (включает доставку), но список `<Товары>` содержит только физические товары. При `delivery_cost > 0` сумма строк не сходится с суммой документа — интеграция с 1С падает на валидации. Рекомендация аудита: добавлять виртуальную позицию «Доставка» в список товаров при `delivery_cost > 0`.
+
+**Acceptance Criteria:**
+
+**Given** заказ с `delivery_cost > 0`,
+**When** `OrderExportService` формирует XML,
+**Then** в список `<Товары>` добавляется виртуальная позиция «Доставка» со стоимостью, равной `delivery_cost`.
+
+**Given** экспортированный XML заказа с доставкой,
+**When** проверяется сумма документа,
+**Then** она равна сумме всех строк `<Товары>`, включая позицию «Доставка» (валидация 1С проходит).
+
+**Given** заказ с `delivery_cost = 0`,
+**When** формируется XML,
+**Then** виртуальная позиция «Доставка» не добавляется.
+
+**Given** интеграционный тест полного цикла экспорта,
+**When** он выполняется,
+**Then** покрывает оба случая — заказ с доставкой и без.
+
+### Story 36.3: Fix hardcoded SITE_URL
+
+As a Developer,
+I want в письме сброса пароля адрес сайта брался из `settings.SITE_URL`, а не был захардкожен,
+So that ссылка восстановления пароля корректна в production, а не указывает на `localhost:3000`.
+
+**Контекст (tech-debt #7):** в `apps/users/views/authentication.py` (Password Reset) используется захардкоженный `localhost:3000` вместо `settings.SITE_URL`.
+
+**Acceptance Criteria:**
+
+**Given** код Password Reset в `apps/users/views/authentication.py`,
+**When** формируется ссылка восстановления пароля,
+**Then** базовый адрес берётся из `settings.SITE_URL`, захардкоженный `localhost:3000` удалён.
+
+**Given** окружение production,
+**When** пользователь запрашивает сброс пароля,
+**Then** письмо содержит ссылку на production-домен.
+
+**Given** прочие места backend, где может встречаться захардкоженный адрес сайта,
+**When** выполняется проверка,
+**Then** они также переведены на `settings.SITE_URL` либо подтверждено их отсутствие.
+
+## Epic 37: Auth Hardening — JWT & Sessions (Week 2-3)
+
+**Goal:** Усилить контроль над жизненным циклом токенов и сессий аутентификации.
+
+**Приоритет:** 🟠 HIGH
+
+> Примечание: пункт #3 tech-debt (JWT access token invalidation) исключён из спринта 2026-05-18 — уже реализован (`tech-spec/tech-spec-jwt-access-token-blacklist.md`, status: done). Эпик содержит 2 стори.
+
+### Story 37.1: Logout-all endpoint
+
+As a User,
+I want иметь возможность выйти со всех устройств одним действием,
+So that при подозрении на компрометацию я могу мгновенно отозвать все свои сессии.
+
+**Контекст (tech-debt #5):** в backend нет endpoint'а для массовой инвалидации всех сессий пользователя. Рекомендация аудита: реализовать `/auth/logout-all/` через очистку `OutstandingToken`.
+
+**Acceptance Criteria:**
+
+**Given** аутентифицированный пользователь с несколькими активными сессиями,
+**When** он вызывает `POST /api/v1/auth/logout-all/`,
+**Then** все его refresh-токены попадают в blacklist, все access-токены инвалидируются.
+
+**Given** выполнен logout-all,
+**When** запрос приходит с любым ранее выданным токеном пользователя,
+**Then** возвращается 401 Unauthorized.
+
+**Given** endpoint logout-all,
+**When** его вызывает неаутентифицированный пользователь,
+**Then** возвращается 401, никакие сессии не затрагиваются.
+
+### Story 37.2: Token rotation race condition
+
+As a User,
+I want одновременный refresh токена с разных устройств не приводил к неожиданному разлогину,
+So that активная сессия не теряется из-за гонки при ротации refresh-токенов.
+
+**Контекст (tech-debt #4):** в `frontend/src/services/api-client.ts` одновременный refresh с разных устройств может привести к разлогину из-за `ROTATE_REFRESH_TOKENS=True`. Рекомендация аудита: задокументировать поведение либо рассмотреть sliding sessions.
+
+**Acceptance Criteria:**
+
+**Given** конкурентные запросы refresh с разных устройств/вкладок,
+**When** срабатывает ротация refresh-токена,
+**Then** поведение детерминировано: гонка либо устранена, либо явно задокументирована как принятый риск с описанием UX-последствий.
+
+**Given** варианты решения,
+**When** принимается решение,
+**Then** зафиксирован выбор между (а) дедупликацией одновременных refresh на клиенте, (б) sliding sessions, (в) документированием поведения.
+
+**Given** выбранный вариант,
+**When** он реализован или задокументирован,
+**Then** изменения отражены в `api-client.ts` и/или в документации auth-флоу.
+
+## Epic 38: Session & Resource Cleanup (Week 4+)
+
+**Goal:** Навести порядок в очистке сессий и временных ресурсов, снизить технический долг.
+
+**Приоритет:** 🟡 MEDIUM
+
+### Story 38.1: Session cleanup centralization
+
+As a Frontend Developer,
+I want логика удаления токенов и очистки состояния сессии была в одном месте,
+So that устраняется дублирование между `authStore.ts`, `api-client.ts` и `AuthProvider.tsx`.
+
+**Контекст (tech-debt #6):** логика очистки сессии дублируется в трёх frontend-файлах: `authStore.ts`, `api-client.ts`, `AuthProvider.tsx`. Рекомендация аудита: централизовать в общую функцию `clearAuthState()`.
+
+**Acceptance Criteria:**
+
+**Given** продублированную логику очистки в трёх frontend-файлах,
+**When** проводится рефакторинг,
+**Then** создаётся единая функция `clearAuthState()`, вызываемая из всех трёх мест.
+
+**Given** функцию `clearAuthState()`,
+**When** выполняется logout, ошибка refresh или истечение сессии,
+**Then** очистка токенов и состояния идентична и согласована для всех сценариев.
+
+**Given** существующие тесты auth (Vitest),
+**When** рефакторинг завершён,
+**Then** регрессий нет.
+
+### Story 38.2: Account switching safety
+
+As a User,
+I want переключаться между аккаунтами надёжно, без риска оставить старые токены валидными,
+So that сессия предыдущего аккаунта полностью завершается перед входом в новый.
+
+**Контекст (tech-debt #9):** в `frontend/src/stores/authStore.ts` нет метода надёжного переключения между аккаунтами. Рекомендация аудита: реализовать метод `switchAccount()`, обеспечивающий полную очистку старой сессии перед входом в новую.
+
+**Acceptance Criteria:**
+
+**Given** `authStore.ts`,
+**When** добавляется метод `switchAccount()`,
+**Then** он полностью очищает старую сессию (через `clearAuthState()` из story 38.1) до установки новой.
+
+**Given** переключение через `switchAccount()`,
+**When** новая сессия установлена,
+**Then** старые токены недействительны, клиентское состояние не содержит данных прежнего пользователя.
+
+**Given** метод `switchAccount()`,
+**When** он покрыт тестом,
+**Then** проверяется отсутствие утечки сессии между аккаунтами.
+
+### Story 38.3: Temp file cleanup (GC)
+
+As a System Operator,
+I want временные файлы импорта 1С автоматически удалялись по TTL,
+So that `MEDIA_ROOT/1c_temp/` не переполняет хранилище «осиротевшими» файлами.
+
+**Контекст (tech-debt #13):** временные файлы в `MEDIA_ROOT/1c_temp/` остаются на диске после завершения импорта или при ошибке — риск переполнения хранилища. Рекомендация аудита: management command `cleanup_1c_temp` (создать), удаляющий файлы старше 24 часов, запускаемый через Celery Beat.
+
+**Acceptance Criteria:**
+
+**Given** временные файлы в `MEDIA_ROOT/1c_temp/` старше 24 часов,
+**When** выполняется management command `cleanup_1c_temp`,
+**Then** устаревшие файлы удаляются.
+
+**Given** команду `cleanup_1c_temp`,
+**When** настраивается расписание,
+**Then** она зарегистрирована в Celery Beat для периодического запуска.
+
+**Given** активную сессию импорта (`ImportSession` в статусе `IN_PROGRESS`),
+**When** запускается `cleanup_1c_temp`,
+**Then** её файлы не удаляются — согласованность с guard'ом из `tech-spec-fix-1c-import-cleanup-race.md` (AC сверх tech-debt #13).
+
+**Given** запуск команды,
+**When** удаление выполнено,
+**Then** действие логируется (количество удалённых файлов) для диагностики.

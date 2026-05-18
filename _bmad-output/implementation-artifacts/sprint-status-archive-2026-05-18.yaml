@@ -1,0 +1,189 @@
+# Sprint Status - 1C HTTP Exchange Module
+# =========================================
+# generated: 2026-02-16T14:24:01+01:00
+# project: FREESPORT
+# project_key: 1C-HTTP-EXCHANGE
+# tracking_system: file-system
+# story_location: "{project-root}/_bmad-output/implementation-artifacts"
+#
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Mark epic as 'in-progress' when starting work on its first story
+# - SM typically creates next story ONLY after previous one is 'done' to incorporate learnings
+# - Dev moves story to `review`, then runs code-review (fresh context, ideally different LLM)
+
+generated: "2026-02-16T14:24:01+01:00"
+project: "FREESPORT"
+project_key: "1C-HTTP-EXCHANGE"
+tracking_system: "file-system"
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+last_updated: "2026-05-18" # sprint formally completed: all epics done, retrospectives 3/5/33 done, sprint readiness: 100%
+
+development_status:
+  # ========================================
+  # Epic 1: 1C Transport & Authentication
+  # Goal: Enable 1C Enteprise to establish a secure connection with the platform and perform protocol initialization.
+  # FRs covered: FR1, FR2, FR3, NFR3
+  # ========================================
+  epic-1: done
+  1-1-setup-1c-exchange-endpoint-and-auth: done
+  1-2-implement-init-mode-configuration: done
+  epic-1-retrospective: done
+
+  # ========================================
+  # Epic 2: Secure Stream Upload & Structure Handling
+  # Goal: Enable reliable transfer of large data archives and ensuring they are unpacked into the strict directory structure required by the import engine.
+  # FRs covered: FR4, FR5, FR6, NFR2
+  # ========================================
+  epic-2: done
+  2-1-file-stream-upload: done
+  2-2-zip-unpacking-with-structure: done
+  epic-2-retrospective: done
+
+  # ========================================
+  # Epic 3: Asynchronous Import Triggering
+  # Goal: Connect the transport layer to the business logic by triggering specific Celery tasks when import commands are received.
+  # FRs covered: FR7, FR8, NFR1
+  # ========================================
+  epic-3: done
+  3-1-async-import-orchestration: done
+  epic-3-retrospective: done
+
+  # ========================================
+  # Epic 4: Экспорт заказов в 1С
+  # Goal: Менеджеры 1С автоматически получают заказы с сайта через CommerceML 3.1 (mode=query, mode=success, ZIP-сжатие).
+  # FRs covered: FR1.1-FR1.8, FR3.1-FR3.3
+  # NFRs covered: NFR1, NFR2, NFR3, NFR4
+  # Source: epics.md (1C Order Exchange)
+  # ========================================
+  epic-4: done
+  4-1-order-model-fields-for-1c-integration: done
+  4-2-order-export-service-xml-generation: done
+  4-3-view-handlers-mode-query-and-mode-success: done
+  4-4-integration-tests-full-export-cycle: done
+  epic-4-retrospective: done
+
+  # ========================================
+  # Epic 5: Импорт статусов заказов из 1С
+  # Goal: Автоматическое обновление статусов заказов при получении orders.xml из 1С (mode=file, маппинг статусов, даты).
+  # FRs covered: FR2.1-FR2.4
+  # NFRs covered: NFR1, NFR2, NFR3
+  # Source: epics.md (1C Order Exchange)
+  # ========================================
+  epic-5: done
+  5-0-spike-analysis-orders-xml: done
+  5-1-order-status-import-service: done
+  5-2-view-handler-mode-file-for-orders-xml: done
+  5-3-integration-tests-full-import-cycle: done
+  epic-5-retrospective: done
+
+  # ========================================
+  # Epic 32: Управление маркетинговыми баннерами
+  # Support for marketing banners with specific type, validation, and API filtering.
+  # FRs covered: FR1-FR13, NFR1-NFR9
+  # ========================================
+  epic-32: done
+  32-1-database-and-admin-updates: done
+  32-2-api-implementation-marketing-banners: done
+  32-3-frontend-carousel-logic: done
+  32-4-marketing-banners-ui: done
+
+  # ========================================
+  # Epic 33: Brands Block Implementation
+  # Goal: Enable users to quickly navigate to popular brand catalogs from the homepage and allow admins to manage this content.
+  # FRs covered: FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-07, FR-08, FR-09, FR-10.
+  # NFRs covered: NFR-1 to NFR-8.
+  # Source: epics.md (Brands Block Feature)
+  # ========================================
+  epic-33: done
+  33-1-brand-model-admin-updates: done
+  33-2-api-featured-brands-endpoint: done
+  33-3-brandsblock-component-logic-ui: done
+  33-4-integration-into-homepage: done
+  epic-33-retrospective: done
+
+  # ========================================
+  # Epic 34: Разбивка заказов по ставке НДС
+  # Goal: Обеспечить корректное создание и экспорт заказов с товарами разных ставок НДС,
+  #       с поддержкой независимых статусов субзаказов из 1С.
+  # FRs covered: разбивка Order на master/sub по vat_group, экспорт субзаказов, агрегация статусов
+  # Source: sprint-change-proposal-2026-04-16.md
+  # ========================================
+  epic-34: done
+  34-1-order-model-vat-split-fields-migrations: done
+  34-2-sub-order-creation-logic-and-api: done
+  34-3-order-export-service-sub-orders: done
+  34-4-order-status-import-aggregation: done
+  34-5-tests-update-epics-4-5: done
+  epic-34-retrospective: skipped # 2026-05-16: conscious decision, no lessons to document
+
+  # ========================================
+  # Catalog / 1C Import Bugfix: публичное дерево категорий
+  # Goal: Хранить полное дерево категорий 1С с якорем СПОРТ и отдавать витрине отдельную публичную проекцию.
+  # Source: sprint-change-proposal-2026-05-03.md
+  # ========================================
+  category-tree-root-cause-fix: done
+
+  # ========================================
+  # Catalog UX: скрытие брендов без товаров в наличии
+  # Goal: В фильтре «Бренд» каталога (blue) показывать только бренды,
+  #       у которых есть товары в наличии, с динамическим сужением по активным фильтрам.
+  # Source: tech-spec/tech-spec-catalog-hide-out-of-stock-brands.md
+  # ========================================
+  catalog-hide-out-of-stock-brands: done
+
+  # ========================================
+  # Brands API: нормализация query-фильтров BrandViewSet
+  # Goal: is_featured и has_stock применяются только к list-action,
+  #       retrieve(slug) идентифицируется только по slug (не возвращает 404 при «лишних» query).
+  # Source: tech-spec/tech-spec-brand-viewset-filter-normalization.md
+  # ========================================
+  brand-viewset-filter-normalization: done
+
+  # ========================================
+  # Epic 35: Соответствие 152-ФЗ о персональных данных
+  # Goal: Реализовать технические требования 152-ФЗ: страница Политики ПДн через admin,
+  #       чек-боксы согласий в формах регистрации и подписки, cookie-баннер.
+  # FRs covered: FR-01..FR-06
+  # ========================================
+  epic-35: done
+  35-1-privacy-policy-page-and-consent-model: done
+  35-2-consent-checkboxes-in-registration-forms: done
+  35-3-consent-checkbox-in-subscribe-form: done
+  35-4-cookie-banner: done
+  epic-35-retrospective: skipped # 2026-05-16: conscious decision; lessons captured in deferred-work.md
+
+  # ========================================
+  # Security: Hardening Email Enumeration on Subscribe/Unsubscribe
+  # Goal: Закрыть два вектора email enumeration (DN8-1 + WWWW3 из deferred-work.md):
+  #       - /subscribe/ 409 → 200 при already_subscribed
+  #       - /unsubscribe/ добавить UnsubscribeRateThrottle + замаскировать 404 → 200
+  # Source: deferred-work.md (code review Epic 35, Pass 4 и Pass 8)
+  # ========================================
+  security-email-enumeration-hardening: done
+
+  # ========================================
+  # Security: Subscribe status unification
+  # Goal: Закрыть остаточный email enumeration vector на /subscribe/
+  #       через унификацию новой подписки и already_subscribed на HTTP 200.
+  # Source: Story/security-subscribe-status-unification.md
+  # ========================================
+  security-subscribe-status-unification: done
