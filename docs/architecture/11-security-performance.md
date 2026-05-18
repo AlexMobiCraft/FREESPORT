@@ -872,21 +872,41 @@ class BackupLog(models.Model):
 
 ### 5.1. Compliance и аудит
 
-#### 152-ФЗ — реализованные механизмы (Story 35.1, 2026-05-09)
+#### 152-ФЗ — реализованные механизмы (Epic 35, Stories 35.1–35.4, 2026-05-09—2026-05-16)
 
-**Модель согласий `UserConsent` (`apps/common/models.py`):**
+**Модель согласий `UserConsent` (`apps/common/models.py`) — Story 35.1:**
 
-- Фиксирует каждое согласие пользователя на обработку ПДн (`pdp_contract`) и рекламные рассылки (`marketing_email`) как отдельную immutable-запись.
-- Хранит: субъект (user FK или session_key для анонимов), тип согласия, дату, IP, User-Agent (max 512), версию политики.
+- Фиксирует каждое согласие пользователя на обработку ПДн (`pdp_contract`) и рекламные рассылки (`marketing_email`) как отдельную immutable-запись (append-only audit log).
+- Хранит: субъект (user FK или session_key для анонимов), тип согласия, дату, IP, User-Agent (max 512 символов, обрезается в API), версию политики.
 - CheckConstraint `userconsent_user_or_session_required` — гарантирует идентификацию субъекта в каждой строке.
 - Admin (`UserConsentAdmin`): только просмотр + поиск + фильтры; add/change/delete заблокированы.
 - Страница «Политика обработки персональных данных» — `/privacy-policy`, данные через `GET /api/pages/privacy-policy/` (ISR 1ч).
 
-**Архитектурные ограничения, зафиксированные как deferred:**
-- `policy_version` не связан автоматически со снапшотом содержимого — требует отдельной compliance-story.
+**Сбор согласий при регистрации — Story 35.2:**
+
+- B2C (`RegisterForm`) и B2B (`B2BRegisterForm`) формы содержат обязательный чек-бокс ПДн (`pdp_consent`) и опциональный маркетинговый чек-бокс (`marketing_consent`, unchecked by default).
+- Backend `UserRegistrationView.post` создаёт одну или две записи `UserConsent` (pdp_contract + опционально marketing_email) с IP/User-Agent через `consent_audit.py`.
+- Валидация: `pdp_consent: true` (JSON boolean, строгая — не `"true"` / `1`) обязательно в payload.
+- Вспомогательные функции вынесены в `backend/apps/common/utils/consent_audit.py`: `get_consent_ip_address`, `sanitize_consent_user_agent`, `normalize_consent_ip`.
+
+**Сбор согласий при подписке на рассылку — Story 35.3:**
+
+- `SubscribeForm` (Blue) и `ElectricSubscribeForm` (Electric) содержат обязательный чек-бокс ПДн.
+- При подписке backend создаёт **две** записи `UserConsent` (pdp_contract + marketing_email) с одинаковыми IP/User-Agent/given_at.
+- Анонимные подписчики идентифицируются через `request.session.session_key`; авторизованные — через user FK.
+- `POST /api/v1/subscribe/` теперь принимает обязательное поле `pdp_consent: true`; payload без него — `400 Bad Request`.
+- Throttle: `SubscribeRateThrottle` (30/min, scope `"subscribe"`) и `UnsubscribeRateThrottle` (30/min, scope `"unsubscribe"`) — оба из `ProxyAwareThrottleIdentMixin`.
+
+**Cookie-баннер — Story 35.4:**
+
+- Глобальный `CookieConsentBanner` (клиентский компонент, `'use client'`) монтируется в root `layout.tsx` после `{children}`.
+- Состояние хранится в `localStorage` (`cookie_consent_accepted = "1"`); SSR-safe через флаг `isLoaded` (hook `useCookieConsent`).
+- Backend не затрагивается: уведомление информационное, аудит в `UserConsent` не требуется.
+
+**Deferred (актуально на 2026-05-16):**
+- `policy_version` не связан автоматически со снапшотом содержимого — отдельная compliance-story.
 - Backfill согласий легаси-пользователей — отдельная RunPython-миграция.
-- `ip_address` nullable — заполняется из request в Story 35.2/35.3.
-- `user_agent` без application-level truncation — добавить `[:512]` при создании API-слоя в Story 35.2/35.3.
+- Timing side-channel на `/subscribe/` и `/unsubscribe/` (success vs no-op имеют разное время из-за DB-операций).
 
 **GDPR и защита персональных данных (концептуальный слой):**
 
@@ -1020,6 +1040,27 @@ class GDPRLog(models.Model):
 
 ---
 
+### 5.2. Hardening email enumeration (security stories, 2026-05-16—2026-05-17)
+
+Устранены два вектора **differential HTTP-response enumeration** на subscribe/unsubscribe endpoints.
+
+**До:**
+- `POST /api/v1/subscribe/` — `201 Created` (новая подписка) vs `409 Conflict` (already_subscribed) — атакующий мог различить «email в базе».
+- `POST /api/v1/unsubscribe/` — `200 OK` (успех) vs `404 Not Found` (не найден) — атакующий мог проверять существование email с 6000 req/min.
+
+**После:**
+- `POST /api/v1/subscribe/` — всегда **`200 OK`** с нейтральным телом `{"message": "Вы успешно подписались на рассылку", "email": "..."}`.
+- `POST /api/v1/unsubscribe/` — всегда **`200 OK`** с нейтральным телом `{"message": "Запрос на отписку обработан", "email": "..."}` (ресурс не найден и успешная отписка неразличимы).
+- Добавлен `UnsubscribeRateThrottle` (scope `"unsubscribe"`, 30/min) — симметрично `SubscribeRateThrottle`.
+- Добавлен Django system check `common.E003` — проверяет наличие `"unsubscribe"` в `DEFAULT_THROTTLE_RATES`.
+
+**Остаточные риски (deferred):**
+- Timing side-channel (DB-операции на success-пути дольше, чем no-op на not-found-пути).
+- Корпоративный NAT bucket для throttle — одна кнопка на все офисные IP (W9-4, acceptable risk).
+- Trusted-proxy allowlist для `X-Forwarded-For` — инфраструктурная story.
+
+---
+
 Обновленная архитектура безопасности и производительности обеспечивает:
 
 1. **Многослойную защиту** с JWT аутентификацией и ролевой моделью
@@ -1027,3 +1068,4 @@ class GDPRLog(models.Model):
 3. **Высокую производительность** благодаря многоуровневому кэшированию
 4. **Комплексный мониторинг** системы и интеграций
 5. **Соответствие GDPR** и международным стандартам безопасности
+6. **Защиту от email enumeration** через унификацию HTTP-статусов и rate limiting

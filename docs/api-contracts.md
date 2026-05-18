@@ -50,6 +50,46 @@
 
 ---
 
+## 📰 Подписка и согласия (`/subscribe/`, `/unsubscribe/`, `/pages/`)
+
+| Метод | Эндпоинт | Описание |
+| :---- | :------- | :------- |
+| POST | `/subscribe/` | Подписка на email-рассылку с обязательным согласием ПДн. |
+| POST | `/unsubscribe/` | Отписка от рассылки. |
+| GET | `/pages/{slug}/` | Публичная страница (например, `privacy-policy`). |
+
+### Контракты subscribe / unsubscribe
+
+**`POST /api/v1/subscribe/`**
+
+Payload:
+```json
+{ "email": "user@example.com", "pdp_consent": true }
+```
+- `pdp_consent` — обязательное поле, принимается только `true` (JSON boolean). Без него — `400 Bad Request`.
+- Всегда возвращает **`200 OK`** (новая подписка или already_subscribed неразличимы — защита от email enumeration).
+- Тело успешного ответа: `{"message": "Вы успешно подписались на рассылку", "email": "<email>"}`.
+- `400` — невалидный email или отсутствующий/ложный `pdp_consent`.
+- `429 Too Many Requests` — throttle `SubscribeRateThrottle` (30/min, scope `"subscribe"`).
+- `503` — сбой БД при записи согласий.
+
+**`POST /api/v1/unsubscribe/`**
+
+Payload: `{ "email": "user@example.com" }`
+- Всегда возвращает **`200 OK`** (успешная отписка и «email не найден» неразличимы — защита от email enumeration).
+- Тело: `{"message": "Запрос на отписку обработан", "email": "<email>"}`.
+- `400` — невалидный email.
+- `429 Too Many Requests` — throttle `UnsubscribeRateThrottle` (30/min, scope `"unsubscribe"`).
+- `503` — сбой БД.
+
+**`GET /api/v1/pages/privacy-policy/`**
+
+- Возвращает опубликованную страницу Политики ПДн (управляется через Django Admin, ISR кэш 1ч).
+- `404` если страница не найдена или `is_published=False`.
+- Frontend-маршрут: `/privacy-policy` (Server Component, ISR revalidate 3600).
+
+---
+
 ## ⚙️ Особенности реализации (Frontend)
 
 - **api-client.ts**: Базовый клиент на Axios.

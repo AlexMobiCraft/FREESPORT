@@ -38,8 +38,10 @@ frontend/src/
 │   └── layout/                   # Лейаут компоненты
 │       ├── Header/
 │       ├── Navigation/
-│       └── Footer/
+│       ├── Footer/
+│       └── CookieConsentBanner.tsx  # Cookie-уведомление 152-ФЗ (Story 35.4, localStorage)
 ├── hooks/                        # Custom React hooks
+│   ├── useCookieConsent.ts       # Состояние cookie-баннера (localStorage, SSR-safe)
 ├── services/                     # API сервисы
 ├── stores/                       # State management (Zustand)
 ├── types/                        # TypeScript типы
@@ -154,12 +156,17 @@ backend/
 │       ├── permissions.py            # Custom permissions
 │       ├── pagination.py             # Стандартизированная пагинация
 │       ├── exceptions.py             # Обработка ошибок
-│       ├── utils.py                  # Общие утилиты
+│       ├── throttling.py             # SubscribeRateThrottle, UnsubscribeRateThrottle, ProxyAwareThrottleIdentMixin
+│       ├── apps.py                   # System checks: common.E002 (subscribe rate), common.E003 (unsubscribe rate)
+│       ├── utils/
+│       │   ├── __init__.py
+│       │   └── consent_audit.py      # get_consent_ip_address, sanitize_consent_user_agent, normalize_consent_ip (Story 35.3)
 │       └── migrations/               # 0015_userconsent, 0016_userconsent_review_fixes
 ├── freesport/                        # Django настройки
 │   ├── settings/                     # Модульные настройки
-│   │   ├── base.py                   # OpenAPI 3.1, JWT, DRF
-│   │   ├── development.py            # Dev настройки
+│   │   ├── base.py                   # OpenAPI 3.1, JWT, DRF, DEFAULT_THROTTLE_RATES
+│   │   ├── development.py            # Dev настройки (throttle 100000/min)
+│   │   ├── staging.py                # Staging (throttle = production rates)
 │   │   └── production.py             # Production конфигурация
 │   ├── urls.py                       # Root URL configuration
 │   └── wsgi.py                       # WSGI application

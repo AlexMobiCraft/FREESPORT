@@ -414,7 +414,7 @@ class CustomerOrderSequence(models.Model):
 ```
 
 > [!IMPORTANT]
-> Актуализация от `2026-05-09`: добавлена модель `UserConsent` (Epic 35, Story 35.1) в `apps/common/models.py`. Реализует audit log согласий пользователей согласно 152-ФЗ. Миграции: `common.0015_userconsent`, `common.0016_userconsent_review_fixes`. Admin: только просмотр, add/change/delete заблокированы.
+> Актуализация от `2026-05-09—2026-05-17` (Epic 35): добавлена модель `UserConsent` (Story 35.1) в `apps/common/models.py`. Миграции: `common.0015_userconsent`, `common.0016_userconsent_review_fixes`. Admin: только просмотр. Stories 35.2/35.3 подключили сбор IP/UA и запись согласий при регистрации и подписке. Story 35.4 добавила cookie-баннер (frontend-only). Security-истории закрыли email enumeration (409→200 на subscribe, 404→200 на unsubscribe, 201→200 для новой подписки).
 
 > [!IMPORTANT]
 > Актуализация от `2026-05-02`: в модель `User` добавлено поле `customer_code` с форматом `^\d{5}$`. Поле используется как источник пятизначного клиентского кода для канонических номеров заказов и становится неизменяемым после появления у пользователя хотя бы одного заказа.
@@ -761,8 +761,12 @@ class UserConsent(models.Model):
 - Записи **только добавляются** (append-only) — admin заблокирован (`has_add_permission=False`, `has_change_permission=False`)
 - Каждый клик «Согласен» = отдельная audit-запись (требование 152-ФЗ); дубликаты допустимы
 - Проверка «дал ли пользователь согласие?» через `.filter(user=u, consent_type=...).exists()`
-- `user_agent` ограничен 512 символами; при сохранении через API необходимо обрезать `request.META["HTTP_USER_AGENT"][:512]` (Story 35.2/35.3)
+- `user_agent` ограничен 512 символами; обрезается через `sanitize_consent_user_agent` (`apps/common/utils/consent_audit.py`, реализовано в Story 35.2/35.3)
+- `ip_address` заполняется через `get_consent_ip_address(request)` (реализовано в Story 35.2/35.3); поддерживает IPv4/IPv6, включая адреса за proxy
 - `policy_version` фиксирует версию политики на момент согласия; не связан автоматически с содержимым `Page` (отдельная compliance-story)
+
+> [!NOTE]
+> Актуализация от `2026-05-13—2026-05-15` (Stories 35.2/35.3): `ip_address` и `user_agent` заполняются при регистрации (`UserRegistrationView`) и при подписке (`subscribe` view) через функции из `apps/common/utils/consent_audit.py`. При подписке анонима используется `request.session.session_key`; авторизованного пользователя — user FK.
 
 #### Новости
 
