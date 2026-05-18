@@ -19,8 +19,9 @@
 ## 📦 Интеграции и Модули
 
 - **[Интеграция с 1С](./integrations/1c/architecture.md)** — CommerceML, sub-orders и канонические номера заказов.
+- **[Руководство по командам импорта](./integrations/1c/commands-guide.md)** — `import_products_from_1c`, `import_customers_from_1c`, примеры использования.
 - **[VAT-split и складской routing заказов для 1С](./integrations/1c/order-vat-warehouse-routing.md)** — НДС, склады, master/sub-orders и экспорт CommerceML.
-- **[Задание: загрузка статусов заказов 1С-Битрикс через mode=info](./integrations/1c/dev-task-order-status-mode-info.md)** — справочник статусов для кнопки "Загрузить с сайта" в 1С.
+- **[Анализ порядка статусов заказов](./integrations/1c/analysis-orders-xml.md)** — маппинг статусов между 1С и платформой.
 - **[Инвентаризация UI компонентов](./component-inventory-frontend.md)** — библиотека визуальных элементов.
 - **[Система развертывания](./deploy/README.md)** — Docker, Nginx и скрипты деплоя.
 
@@ -28,7 +29,7 @@
 
 ## 📈 Прогресс проекта
 
-Актуальный статус реализации доступных фич и задач находится в **[PROJECT_PROGRESS.md](./PROJECT_PROGRESS.md)**.
+Актуальный статус спринта находится в **[_bmad-output/implementation-artifacts/sprint-status.yaml](../_bmad-output/implementation-artifacts/sprint-status.yaml)** и **[_bmad-output/implementation-artifacts/sprint-completion-report-2026-05-18.md](../_bmad-output/implementation-artifacts/sprint-completion-report-2026-05-18.md)**.
 
 ---
 

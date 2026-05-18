@@ -993,18 +993,18 @@ class CustomerSyncOptimizer:
 #### **Создать Django management commands:**
 
 ```python
-# apps/products/management/commands/import_catalog_from_1c.py
+# apps/products/management/commands/import_products_from_1c.py
 class Command(BaseCommand):
-    help = "Импорт каталога товаров из файла 1С"
+    help = "Импорт каталога товаров, цен и остатков из файлов 1С (CommerceML 3.1)"
 
     def add_arguments(self, parser):
-        parser.add_argument('--file', required=True, help='Путь к файлу данных')
+        parser.add_argument('--data-dir', required=True, help='Директория с XML файлами экспорта 1С')
+        parser.add_argument('--file-type', default='all', choices=['goods', 'offers', 'prices', 'rests', 'all'], 
+                           help='Тип файлов для импорта')
         parser.add_argument('--dry-run', action='store_true', help='Тестовый запуск')
-        parser.add_argument('--chunk-size', type=int, default=100, help='Размер пакета')
-
-# apps/products/management/commands/import_offers_from_1c.py
-class Command(BaseCommand):
-    help = "Импорт цен и остатков из файла 1С"
+        parser.add_argument('--chunk-size', type=int, default=1000, help='Размер пакета для bulk операций')
+        parser.add_argument('--skip-validation', action='store_true', help='Пропустить валидацию для ускорения')
+        parser.add_argument('--clear-existing', action='store_true', help='Очистить существующие данные')
 
 # apps/users/management/commands/import_customers_from_1c.py
 class Command(BaseCommand):
@@ -1049,14 +1049,14 @@ needs_1c_export = models.BooleanField('Требует экспорта в 1С', 
 
 **Story 3.2 - Разработка структуры:**
 
-- [ ] Создана команда `import_catalog_from_1c`
-- [ ] Создана команда `import_customers_from_1c`
-- [ ] Реализован базовый парсер данных (будет доработан после ответа 1С)
-- [ ] Добавлена валидация импортируемых данных
-- [ ] Настроено логирование процесса импорта
-- [ ] Обновлены модели User и Product для интеграции с 1С
-- [ ] Создана модель CustomerSyncLog
-- [ ] Созданы unit тесты для базовых компонентов
+- [x] Создана команда `import_products_from_1c` (объединённая команда для импорта товаров, цен и остатков)
+- [x] Создана команда `import_customers_from_1c` для импорта контрагентов из 1С
+- [x] Реализован парсер данных (XMLDataParser для CommerceML 3.1)
+- [x] Добавлена валидация импортируемых данных
+- [x] Настроено логирование процесса импорта (ImportSession model, структурированное логирование)
+- [x] Обновлены модели User и Product для интеграции с 1С (onec_id, sync_status fields)
+- [x] Реализованы сервисы обработки (VariantImportProcessor, OrderImportService, CustomerImportService)
+- [x] Созданы интеграционные тесты с реальными данными из data/import_1c/
 
 **Story 3.3 - Создание скриптов:**
 
