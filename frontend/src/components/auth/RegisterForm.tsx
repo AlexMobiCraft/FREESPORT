@@ -288,7 +288,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
             {...register('pdp_consent')}
             disabled={isSubmitting}
             aria-invalid={hasPdpConsentError || undefined}
-            aria-labelledby="register-pdp-consent-label-prefix register-pdp-consent-policy-link register-pdp-consent-label-suffix"
+            aria-labelledby="register-pdp-consent-label-prefix register-pdp-consent-policy-link"
             aria-describedby={
               errors.pdp_consent?.message ? 'register-pdp-consent-error' : undefined
             }
@@ -304,7 +304,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
               htmlFor="register-pdp-consent"
               className="cursor-pointer"
             >
-              Я даю согласие на
+              Я даю согласие на обработку моих персональных данных в соответствии с
             </label>{' '}
             <Link
               id="register-pdp-consent-policy-link"
@@ -313,15 +313,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
               rel="noopener noreferrer"
               className="text-primary underline hover:text-primary-hover"
             >
-              обработку моих персональных данных
-            </Link>{' '}
-            <label
-              id="register-pdp-consent-label-suffix"
-              htmlFor="register-pdp-consent"
-              className="cursor-pointer"
-            >
-              в соответствии с Политикой
-            </label>
+              «Политикой обработки персональных данных ООО „Фриспорт“»
+            </Link>
           </span>
         </div>
         {errors.pdp_consent?.message && (
@@ -346,7 +339,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           htmlFor="register-marketing-consent"
           className="text-body-s text-text-primary cursor-pointer select-none"
         >
-          Я согласен(на) получать рекламные и информационные рассылки от FREESPORT
+          Я согласен (на) получать рекламные и информационные рассылки от ООО „Фриспорт“
         </label>
       </div>
 

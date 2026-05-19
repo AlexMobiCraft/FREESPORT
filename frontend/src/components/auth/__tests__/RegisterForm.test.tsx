@@ -42,7 +42,7 @@ describe('RegisterForm', () => {
 
   const getMarketingConsent = () =>
     screen.getByRole('checkbox', {
-      name: /получать рекламные и информационные рассылки от freesport/i,
+      name: /получать рекламные и информационные рассылки от ооо/i,
     });
 
   describe('Rendering', () => {
@@ -69,7 +69,7 @@ describe('RegisterForm', () => {
         name: /обработку моих персональных данных/i,
       });
       const link = screen.getByRole('link', {
-        name: /обработку моих персональных данных/i,
+        name: /политикой обработки персональных данных/i,
       });
       expect(link).toHaveAttribute('href', '/privacy-policy');
       expect(link).toHaveAttribute('target', '_blank');

@@ -47,7 +47,6 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             htmlFor={checkboxId}
             className={cn(
               // Базовые стили
-              'relative flex items-center justify-center',
               'w-5 h-5 rounded-sm', // 6px radius
               'border-[1.5px] border-[#B9C3D6]', // Design System v2.0 border
               'bg-white',
@@ -59,7 +58,6 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
 
               // Checked state
               'peer-checked:bg-primary peer-checked:border-primary',
-              'peer-checked:scale-100',
 
               // Hover state
               'peer-hover:border-primary-hover',
@@ -75,25 +73,33 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
 
               className
             )}
-          >
-            {/* Check Icon - Design System v2.0: 18px, strokeWidth 3 */}
-            {checked && !indeterminate && (
-              <Check
-                className={cn(
-                  'w-[18px] h-[18px] text-white',
-                  'scale-100 transition-transform duration-[180ms]',
-                  'motion-reduce:transition-none'
-                )}
-                strokeWidth={3}
-                aria-hidden="true"
-              />
-            )}
+          />
 
-            {/* Indeterminate Icon */}
-            {indeterminate && (
-              <Minus className="w-[18px] h-[18px] text-white" strokeWidth={3} aria-hidden="true" />
-            )}
-          </label>
+          {/* Иконки — siblings peer-инпута (после input и label в DOM),
+              абсолютно поверх квадрата. Так CSS peer-checked корректно
+              выбирает <Check> и галочка работает в uncontrolled-режиме
+              (react-hook-form register). pointer-events-none — клик уходит на <label>. */}
+          {!indeterminate && (
+            <Check
+              className={cn(
+                'pointer-events-none absolute inset-0 m-auto',
+                'w-[18px] h-[18px] text-white',
+                'opacity-0 peer-checked:opacity-100',
+                'transition-opacity duration-[180ms]',
+                'motion-reduce:transition-none'
+              )}
+              strokeWidth={3}
+              aria-hidden="true"
+            />
+          )}
+
+          {indeterminate && (
+            <Minus
+              className="pointer-events-none absolute inset-0 m-auto w-[18px] h-[18px] text-white"
+              strokeWidth={3}
+              aria-hidden="true"
+            />
+          )}
         </div>
 
         {/* Label */}

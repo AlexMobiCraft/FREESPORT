@@ -59,7 +59,7 @@ describe('SubscribeForm', () => {
 
     expect(getPdpCheckbox()).toBeInTheDocument();
     const link = screen.getByRole('link', {
-      name: /обработку моих персональных данных/i,
+      name: /политикой обработки персональных данных/i,
     });
     expect(link).toHaveAttribute('href', '/privacy-policy');
     expect(link).toHaveAttribute('target', '_blank');

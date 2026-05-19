@@ -66,7 +66,6 @@ export const SubscribeForm: React.FC = () => {
   const pdpConsentId = `${consentBaseId}-subscribe-pdp-consent`;
   const pdpConsentLabelPrefixId = `${consentBaseId}-subscribe-pdp-consent-label-prefix`;
   const pdpConsentPolicyLinkId = `${consentBaseId}-subscribe-pdp-consent-policy-link`;
-  const pdpConsentLabelSuffixId = `${consentBaseId}-subscribe-pdp-consent-label-suffix`;
   const pdpConsentErrorId = `${consentBaseId}-subscribe-pdp-consent-error`;
 
   const {
@@ -157,7 +156,7 @@ export const SubscribeForm: React.FC = () => {
             checked={pdpConsent}
             disabled={isSubmitting}
             aria-invalid={hasPdpConsentError || undefined}
-            aria-labelledby={`${pdpConsentLabelPrefixId} ${pdpConsentPolicyLinkId} ${pdpConsentLabelSuffixId}`}
+            aria-labelledby={`${pdpConsentLabelPrefixId} ${pdpConsentPolicyLinkId}`}
             aria-describedby={hasPdpConsentError ? pdpConsentErrorId : undefined}
             className={
               hasPdpConsentError
@@ -167,7 +166,7 @@ export const SubscribeForm: React.FC = () => {
           />
           <span className="text-body-s text-text-primary select-none">
             <label id={pdpConsentLabelPrefixId} htmlFor={pdpConsentId} className="cursor-pointer">
-              Я даю согласие на
+              Я даю согласие на обработку моих персональных данных в соответствии с
             </label>{' '}
             <Link
               id={pdpConsentPolicyLinkId}
@@ -176,11 +175,8 @@ export const SubscribeForm: React.FC = () => {
               rel="noopener noreferrer"
               className="text-primary underline hover:text-primary-hover"
             >
-              обработку моих персональных данных
-            </Link>{' '}
-            <label id={pdpConsentLabelSuffixId} htmlFor={pdpConsentId} className="cursor-pointer">
-              в соответствии с Политикой
-            </label>
+              «Политикой обработки персональных данных ООО „Фриспорт“»
+            </Link>
           </span>
         </div>
         {errors.pdp_consent?.message && (

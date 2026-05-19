@@ -312,3 +312,7 @@
 - Примеры в документе содержат два формата `<Номер>` (`FS-INT-...` и UUID `2daf0d1a-...`), но не указано, что парсер должен принимать оба формата ключа сопоставления. [docs/integrations/1c/analysis-orders-xml.md]
 - Скрипт сбора статистики по 1359 файлам не сохранён. Project Structure Notes story допускает `scripts/analyze_1c_xml.py` — для воспроизводимости анализа стоит его закоммитить. [scripts/]
 - Spike Story 5.0 выполнен на внутренних логах сайта (`backend/var/1c_exchange/logs/*_orders.xml`), а не на выгрузках 1С реального клиента. AC 1 и Dev Notes «Важно» (сверка схемы идентификации с `mode=query`) по существу не закрыты. Deferred: ожидаем реальные выгрузки `orders.xml` от 1С клиента; анализ внутренних логов принят как промежуточный артефакт. [docs/integrations/1c/analysis-orders-xml.md]
+
+## Deferred from: code review of fix-consent-checkboxes (2026-05-19)
+
+- `Checkbox` без явного `id` генерирует fallback `checkbox-${label}` из текста метки. В `SidebarFilters` чекбоксы категорий/брендов передаются без `id` — при одинаковых `category.name`/`brand.name` (или пустых) fallback-id дублируются, ломая связь `htmlFor`/`peer`: клик по метке переключает первый одноимённый чекбокс, а не свой. Pre-existing, выявлено при обходе controlled-потребителя. [`frontend/src/components/ui/Checkbox/Checkbox.tsx`, `frontend/src/components/business/SidebarFilters/SidebarFilters.tsx`]
