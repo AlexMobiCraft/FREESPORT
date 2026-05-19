@@ -57,6 +57,13 @@ describe('Checkbox', () => {
     expect(label).toHaveClass('motion-reduce:transition-none');
   });
 
+  it('keeps checked scale animation on label', () => {
+    render(<Checkbox label="Test" />);
+    const checkbox = screen.getByRole('checkbox', { hidden: true });
+    const label = checkbox.nextElementSibling as HTMLElement;
+    expect(label).toHaveClass('peer-checked:scale-100');
+  });
+
   // Accessibility
   describe('Accessibility', () => {
     it('has focus ring styles', () => {

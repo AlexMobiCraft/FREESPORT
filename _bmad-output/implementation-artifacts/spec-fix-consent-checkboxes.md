@@ -79,6 +79,12 @@ baseline_commit: '4ff9e6c0ec7bd444c37b337b85f89a4c9430c073'
 
 **KEEP:** тексты чекбоксов и ссылок (`RegisterForm.tsx`, `SubscribeForm.tsx`) выверены аудитором символ-в-символ — сохранить. `aria-labelledby` (префикс + ссылка) — корректны, сохранить. Обновления тестов под новые тексты — корректны, сохранить.
 
+### Итерация 3 — review closure (2026-05-19)
+
+**Исправлено:** вернули scale-анимацию `peer-checked:scale-100` на `Checkbox` и заменили хрупкий substring-regex на полный accessible name PDP-чекбокса в тестах `RegisterForm` и `SubscribeForm`.
+
+**Результат:** ревью-замечания по UX и matcher'у закрыты, поведение и тексты согласия остались в рамках Design Notes.
+
 ## Design Notes
 
 **Корень бага:** иконка `<Check>` рендерится по React-пропу `checked` (`{checked && !indeterminate && <Check/>}`). В `RegisterForm` чекбоксы подключены через `{...register()}` — uncontrolled, проп `checked` всегда `undefined`. Квадрат закрашивается, т.к. это CSS `peer-checked:bg-primary` на `<label>` (label — прямой sibling `peer`-инпута, селектор `.peer:checked ~ label` матчит). Иконку нужно перевести на тот же CSS-механизм.
@@ -120,7 +126,7 @@ baseline_commit: '4ff9e6c0ec7bd444c37b337b85f89a4c9430c073'
 **Корень бага — рендер галочки**
 
 - Точка входа: иконки `<Check>`/`<Minus>` вынесены в siblings `peer`-инпута — теперь CSS `peer-checked` их выбирает
-  [`Checkbox.tsx:82`](../../frontend/src/components/ui/Checkbox/Checkbox.tsx#L82)
+  [`Checkbox.tsx:87`](../../frontend/src/components/ui/Checkbox/Checkbox.tsx#L87)
 
 **Тексты согласия и ссылка на политику**
 
@@ -138,8 +144,22 @@ baseline_commit: '4ff9e6c0ec7bd444c37b337b85f89a4c9430c073'
 
 **Тесты**
 
-- Regex `link`-роли и marketing-чекбокса обновлены под новые тексты
-  [`RegisterForm.test.tsx:42`](../../frontend/src/components/auth/__tests__/RegisterForm.test.tsx#L42)
+- Полный accessible name PDP-чекбокса и `link`-роли обновлены под новые тексты
+  [`RegisterForm.test.tsx:43`](../../frontend/src/components/auth/__tests__/RegisterForm.test.tsx#L43)
 
-- Regex `link`-роли обновлён под новый текст ссылки
-  [`SubscribeForm.test.tsx:59`](../../frontend/src/components/home/__tests__/SubscribeForm.test.tsx#L59)
+- `link`-роль подписки обновлена под новый текст ссылки
+  [`SubscribeForm.test.tsx:67`](../../frontend/src/components/home/__tests__/SubscribeForm.test.tsx#L67)
+
+## Review Findings (2026-05-19)
+
+### Patch
+
+- [x] [Review][Patch] Удалена анимация `peer-checked:scale-100` из `<label>` — регрессия UX [`frontend/src/components/ui/Checkbox/Checkbox.tsx:62`]
+  - Комментарий компонента (строка 3) всё ещё упоминает «анимацию масштаба», что теперь не соответствует коду. При checked-переходе квадрат меняет цвет/границу, но масштабирование пропало.
+- [x] [Review][Patch] Хрупкий substring-regex в тесте PDP-чекбокса [`frontend/src/components/auth/__tests__/RegisterForm.test.tsx:43,69`]
+  - Accessible name чекбокса теперь содержит полный текст (prefix + link). Regex `/обработку моих персональных данных/i` матчит подстроку и может сломаться при будущем изменении prefix. Рекомендуется использовать более специфичный matcher.
+
+### Defer
+
+- [x] [Review][Defer] `Minus` при `indeterminate` не имеет анимации исчезновения [`frontend/src/components/ui/Checkbox/Checkbox.tsx:96-101`] — deferred, pre-existing
+  - `<Check>` получил `transition-opacity`, а `<Minus>` — нет. При смене `indeterminate → checked` `Minus` исчезает мгновенно, `Check` появляется с fade. Pre-existing inconsistency, minor cosmetic.

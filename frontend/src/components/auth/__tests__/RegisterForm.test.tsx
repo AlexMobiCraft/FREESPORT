@@ -13,6 +13,11 @@ import userEvent from '@testing-library/user-event';
 import { RegisterForm } from '../RegisterForm';
 import authService from '@/services/authService';
 
+const PDP_CONSENT_NAME =
+  'Я даю согласие на обработку моих персональных данных в соответствии с ' +
+  '«Политикой обработки персональных данных ООО „Фриспорт“»';
+const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных ООО „Фриспорт“»';
+
 // Mock next/navigation
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -35,9 +40,7 @@ describe('RegisterForm', () => {
   });
 
   const acceptPdpConsent = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-    );
+    await user.click(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME }));
   };
 
   const getMarketingConsent = () =>
@@ -53,9 +56,7 @@ describe('RegisterForm', () => {
       expect(screen.getByLabelText(/электронная почта/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/подтверждение пароля/i)).toBeInTheDocument();
-      expect(
-        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })).toBeInTheDocument();
       expect(getMarketingConsent()).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /зарегистрироваться/i })).toBeInTheDocument();
     });
@@ -66,10 +67,10 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const pdpCheckbox = screen.getByRole('checkbox', {
-        name: /обработку моих персональных данных/i,
+        name: PDP_CONSENT_NAME,
       });
       const link = screen.getByRole('link', {
-        name: /политикой обработки персональных данных/i,
+        name: PDP_CONSENT_POLICY_LINK_NAME,
       });
       expect(link).toHaveAttribute('href', '/privacy-policy');
       expect(link).toHaveAttribute('target', '_blank');
@@ -181,9 +182,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'DifferentPass456');
-      await user.click(
-        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-      );
+      await user.click(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME }));
       await user.click(submitButton);
 
       expect(await screen.findByText(/пароли не совпадают/i)).toBeInTheDocument();
@@ -242,9 +241,10 @@ describe('RegisterForm', () => {
         (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
           .length
       ).toBeGreaterThan(0);
-      expect(
-        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-      ).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })).toHaveAttribute(
+        'aria-invalid',
+        'true'
+      );
       expect(mockRegister).not.toHaveBeenCalled();
     });
   });
@@ -537,12 +537,13 @@ describe('RegisterForm', () => {
         (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
           .length
       ).toBeGreaterThan(0);
-      expect(
-        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-      ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
-      expect(
-        screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-      ).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })).toHaveAccessibleDescription(
+        /необходимо согласие на обработку персональных данных/i
+      );
+      expect(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })).toHaveAttribute(
+        'aria-invalid',
+        'true'
+      );
     });
 
     test('should display backend email validation error inline', async () => {

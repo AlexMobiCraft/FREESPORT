@@ -9,6 +9,11 @@ import userEvent from '@testing-library/user-event';
 import { SubscribeForm } from '../SubscribeForm';
 import { toast } from 'react-hot-toast';
 
+const PDP_CONSENT_NAME =
+  'Я даю согласие на обработку моих персональных данных в соответствии с ' +
+  '«Политикой обработки персональных данных ООО „Фриспорт“»';
+const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных ООО „Фриспорт“»';
+
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({
   toast: {
@@ -27,7 +32,7 @@ vi.mock('@/services/subscribeService', () => ({
 import { subscribeService } from '@/services/subscribeService';
 
 const getPdpCheckbox = () =>
-  screen.getByRole('checkbox', { name: /обработку моих персональных данных/i });
+  screen.getByRole('checkbox', { name: PDP_CONSENT_NAME });
 
 const clickPdpCheckbox = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(getPdpCheckbox());
@@ -59,7 +64,7 @@ describe('SubscribeForm', () => {
 
     expect(getPdpCheckbox()).toBeInTheDocument();
     const link = screen.getByRole('link', {
-      name: /политикой обработки персональных данных/i,
+      name: PDP_CONSENT_POLICY_LINK_NAME,
     });
     expect(link).toHaveAttribute('href', '/privacy-policy');
     expect(link).toHaveAttribute('target', '_blank');
@@ -121,7 +126,7 @@ describe('SubscribeForm', () => {
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     const checkbox = await screen.findByRole('checkbox', {
-      name: /обработку моих персональных данных/i,
+      name: PDP_CONSENT_NAME,
     });
     const alert = screen.getByRole('alert');
     expect(checkbox).toHaveAttribute('aria-invalid', 'true');
@@ -137,7 +142,7 @@ describe('SubscribeForm', () => {
     );
 
     const checkboxes = screen.getAllByRole('checkbox', {
-      name: /обработку моих персональных данных/i,
+      name: PDP_CONSENT_NAME,
     });
     const checkboxIds = checkboxes.map(checkbox => checkbox.getAttribute('id'));
     expect(new Set(checkboxIds).size).toBe(2);
