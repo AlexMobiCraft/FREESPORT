@@ -129,7 +129,7 @@ class FileStreamService:
     Service for handling chunked file uploads from 1C.
 
     Files are isolated per session to prevent collisions:
-    MEDIA_ROOT/1c_temp/<session_id>/<filename>
+    ONEC_EXCHANGE["TEMP_DIR"]/<session_id>/<filename>
 
     Usage:
         service = FileStreamService(session_id)
@@ -147,8 +147,7 @@ class FileStreamService:
             raise ValueError("session_id is required for FileStreamService")
 
         self.session_id = session_id
-        temp_dir = settings.ONEC_EXCHANGE.get("TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp")
-        self.base_dir = Path(str(temp_dir))
+        self.base_dir = Path(str(settings.ONEC_EXCHANGE["TEMP_DIR"]))
         self.session_dir = self.base_dir / session_id
 
     def _ensure_session_dir(self) -> Path:

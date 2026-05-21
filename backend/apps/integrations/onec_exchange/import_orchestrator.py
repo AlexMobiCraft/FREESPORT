@@ -43,7 +43,7 @@ class ImportOrchestratorService:
     def __init__(self, sessid: str, filename: str = "unknown"):
         self.sessid = sessid
         self.filename = filename
-        self.import_dir = Path(settings.MEDIA_ROOT) / "1c_import"
+        self.import_dir = Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
 
     def execute(self) -> tuple[bool, str]:
         """

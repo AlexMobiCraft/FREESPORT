@@ -12,7 +12,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
@@ -57,6 +56,37 @@ def authenticated_client(onec_user):
     cookie_value = lines[2]
     client.cookies[cookie_name] = cookie_value
     return client
+
+
+@pytest.fixture
+def onec_private_dirs(monkeypatch, django_settings, tmp_path):
+    """Configure private 1C runtime directories outside MEDIA_ROOT."""
+    media_root = tmp_path / "media"
+    private_root = tmp_path / "var" / "onec"
+    temp_dir = private_root / "1c_temp"
+    import_dir = private_root / "1c_import"
+
+    monkeypatch.setattr(django_settings, "MEDIA_ROOT", str(media_root), raising=False)
+    monkeypatch.setattr(
+        django_settings,
+        "ONEC_EXCHANGE",
+        {
+            **getattr(django_settings, "ONEC_EXCHANGE", {}),
+            "TEMP_DIR": temp_dir,
+            "IMPORT_DIR": import_dir,
+        },
+        raising=False,
+    )
+
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    import_dir.mkdir(parents=True, exist_ok=True)
+
+    return {
+        "media_root": media_root,
+        "private_root": private_root,
+        "temp_dir": temp_dir,
+        "import_dir": import_dir,
+    }
 
 
 # ============================================================
@@ -114,11 +144,8 @@ class TestImportOrchestratorService:
 class TestAsyncImportDispatch:
     """Tests for async import dispatch via Celery."""
 
-    def test_execute_dispatches_celery_task(self, settings, tmp_path):
+    def test_execute_dispatches_celery_task(self, onec_private_dirs):
         """MEDIUM: ImportOrchestratorService.execute must dispatch Celery task."""
-        settings.MEDIA_ROOT = str(tmp_path)
-        (tmp_path / "1c_import").mkdir(parents=True, exist_ok=True)
-
         from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
         with patch("apps.products.tasks.process_1c_import_task") as mock_task:
@@ -137,7 +164,52 @@ class TestAsyncImportDispatch:
 
                 success, msg = svc.execute()
                 assert success is True
-                mock_task.delay.assert_called_once_with(999, str(tmp_path / "1c_import"))
+                mock_task.delay.assert_called_once_with(999, str(onec_private_dirs["import_dir"]))
+
+    def test_real_xml_upload_and_import_use_private_dirs(self, authenticated_client, onec_private_dirs):
+        """Real XML from backend/data/import_1c should stay outside MEDIA_ROOT."""
+        real_xml = (
+            Path(__file__).resolve().parents[2]
+            / "data"
+            / "import_1c"
+            / "goods"
+            / "goods_1_5_cf5935c3-270e-4d18-9099-a9337898c68a.xml"
+        )
+        payload = real_xml.read_bytes()
+        filename = real_xml.name
+        session_key = authenticated_client.session.session_key
+
+        upload_url = "/api/integration/1c/exchange/" f"?mode=file&filename={filename}&sessid={session_key}"
+        upload_response = authenticated_client.post(
+            upload_url,
+            data=payload,
+            content_type="application/octet-stream",
+        )
+
+        assert upload_response.status_code == 200
+        temp_file = onec_private_dirs["temp_dir"] / session_key / filename
+        assert temp_file.exists()
+        assert temp_file.read_bytes() == payload
+
+        with patch("apps.products.tasks.process_1c_import_task.delay") as mock_task:
+            import_response = authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={
+                    "mode": "import",
+                    "filename": filename,
+                    "sessid": session_key,
+                },
+            )
+
+            assert import_response.status_code == 200
+            assert import_response.content.decode("utf-8") == "success"
+            mock_task.assert_called_once()
+            assert mock_task.call_args[0][1] == str(onec_private_dirs["import_dir"])
+
+        routed_file = onec_private_dirs["import_dir"] / "goods" / filename
+        assert routed_file.exists()
+        assert routed_file.read_bytes() == payload
+        assert not temp_file.exists()
 
     def test_execute_no_call_command(self):
         """Import orchestrator must not use call_command (synchronous)."""

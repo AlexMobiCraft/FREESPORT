@@ -6,9 +6,7 @@ Validates that files are routed to correct directories based on type.
 
 Red-Green-Refactor: These tests define expected behavior.
 """
-import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -516,6 +514,39 @@ class TestRoutingServiceInit:
 
             service = FileRoutingService(session_id)
             assert service.import_base == import_dir
+
+
+class TestOneCPrivatePathConfiguration:
+    """Private 1C runtime paths must live outside MEDIA_ROOT."""
+
+    def test_private_import_dirs_are_outside_media_root(self, tmp_path):
+        media_root = tmp_path / "media"
+        private_root = tmp_path / "var" / "onec"
+        temp_dir = private_root / "1c_temp"
+        import_dir = private_root / "1c_import"
+
+        assert media_root not in temp_dir.parents
+        assert media_root not in import_dir.parents
+
+    def test_orchestrator_uses_import_dir_from_settings(self, tmp_path):
+        media_root = tmp_path / "media"
+        private_root = tmp_path / "var" / "onec"
+        temp_dir = private_root / "1c_temp"
+        import_dir = private_root / "1c_import"
+
+        mock = MagicMock()
+        mock.MEDIA_ROOT = media_root
+        mock.ONEC_EXCHANGE = {
+            "TEMP_DIR": temp_dir,
+            "IMPORT_DIR": import_dir,
+        }
+
+        with patch("apps.integrations.onec_exchange.import_orchestrator.settings", mock):
+            from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
+
+            service = ImportOrchestratorService("session-1")
+            assert service.import_dir == import_dir
+            assert media_root not in service.import_dir.parents
 
 
 # ============================================================================

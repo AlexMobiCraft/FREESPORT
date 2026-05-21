@@ -278,6 +278,11 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 # Поддерживает переменную окружения ONEC_DATA_DIR
 ONEC_DATA_DIR = os.environ.get("ONEC_DATA_DIR", str(BASE_DIR / "data" / "import_1c"))
 
+# Приватный корень для runtime-каталогов обмена с 1С.
+# Держим его вне MEDIA_ROOT, чтобы файлы обмена не раздавались nginx.
+# Поддерживает переменную окружения ONEC_PRIVATE_DIR для production.
+ONEC_PRIVATE_DIR = Path(os.environ.get("ONEC_PRIVATE_DIR", str(BASE_DIR / "var" / "onec")))
+
 # Имя корневой категории 1С для фильтрации при импорте
 # Подкатегории этой категории импортируются как корневые на сайте
 ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")
@@ -299,8 +304,8 @@ ONEC_EXCHANGE = {
     "FILE_LIMIT_BYTES": 100 * 1024 * 1024,  # 100MB per chunk
     "ZIP_SUPPORT": True,
     "COMMERCEML_VERSION": "3.1",  # CommerceML protocol version
-    "TEMP_DIR": MEDIA_ROOT / "1c_temp",  # Temporary directory for chunked uploads
-    "IMPORT_DIR": MEDIA_ROOT / "1c_import",  # Story 2.2: Directory for routed import files
+    "TEMP_DIR": ONEC_PRIVATE_DIR / "1c_temp",  # Temporary directory for chunked uploads
+    "IMPORT_DIR": ONEC_PRIVATE_DIR / "1c_import",  # Private directory for routed import files
     # Реквизиты заказа для УТ 11 (фиксированные значения — операция и статус)
     "ORDER_DEFAULTS": {
         "OPERATION": "Реализация",

@@ -68,8 +68,8 @@ services:
     volumes:
       # Используем относительные пути, которые будут работать на любой машине
       - ../backend:/app
-      # Раскомментировали монтирование данных для тестов импорта изображений
-      - ../data/import_1c:/app/data/import_1c
+      # Реальные XML для 1C-импорта лежат в backend/data/import_1c
+      - ../backend/data/import_1c:/app/data/import_1c
       - test_coverage:/app/htmlcov
     depends_on:
       db:

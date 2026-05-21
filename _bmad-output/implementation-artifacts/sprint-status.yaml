@@ -39,7 +39,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-18"
-last_updated: "2026-05-18"
+last_updated: "2026-05-19"
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
@@ -67,7 +67,7 @@ development_status:
   # Source: tech-debt.md (#15, #16, #7)
   # ========================================
   epic-36: in-progress
-  36-1-move-1c-import-files-from-public-media-root: ready-for-dev
+  36-1-move-1c-import-files-from-public-media-root: review
   36-2-fix-delivery-cost-in-order-xml-export: ready-for-dev
   36-3-fix-hardcoded-site-url: ready-for-dev
   epic-36-retrospective: optional

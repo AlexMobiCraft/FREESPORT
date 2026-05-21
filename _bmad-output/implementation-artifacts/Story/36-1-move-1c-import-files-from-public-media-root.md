@@ -2,7 +2,7 @@
 
 **Epic:** 36 — Critical Security & Export Fixes (Week 1)
 **Story ID:** 36.1
-**Status:** ready-for-dev
+**Status:** review
 **Priority:** 🔴 CRITICAL
 **Source:** tech-debt.md #15
 
@@ -299,16 +299,16 @@ make test-integration
 
 ## Definition of Done
 
-- [ ] `base.py`: `TEMP_DIR`/`IMPORT_DIR` указывают на приватный каталог вне `MEDIA_ROOT`, с override через `ONEC_PRIVATE_DIR`
-- [ ] `import_orchestrator.py`: `import_dir` берётся из `ONEC_EXCHANGE["IMPORT_DIR"]`
-- [ ] `tasks.py`: fallback `process_1c_import_task` приведён к `ONEC_EXCHANGE["IMPORT_DIR"]`
-- [ ] Хардкода `MEDIA_ROOT / "1c_import"` / `"1c_temp"` в продакшен-коде не осталось (AC-4)
-- [ ] `docker-compose.prod.yml`: добавлен общий volume `/app/var/onec` на `backend` и `celery` + `ONEC_PRIVATE_DIR`
-- [ ] nginx-блок `/media/1c_temp/` пересмотрен (оставлен с комментарием либо удалён)
-- [ ] Unit-тесты: путь импорта не под `MEDIA_ROOT`; оркестратор использует settings
-- [ ] Integration-тест: полный цикл обмена на реальных XML из `data/import_1c/` проходит без регрессий
-- [ ] Файлы импорта недоступны по `/media/...`-URL (AC-2)
-- [ ] `make test-unit` и `make test-integration` проходят
+- [x] `base.py`: `TEMP_DIR`/`IMPORT_DIR` указывают на приватный каталог вне `MEDIA_ROOT`, с override через `ONEC_PRIVATE_DIR`
+- [x] `import_orchestrator.py`: `import_dir` берётся из `ONEC_EXCHANGE["IMPORT_DIR"]`
+- [x] `tasks.py`: fallback `process_1c_import_task` приведён к `ONEC_EXCHANGE["IMPORT_DIR"]`
+- [x] Хардкода `MEDIA_ROOT / "1c_import"` / `"1c_temp"` в продакшен-коде не осталось (AC-4)
+- [x] `docker-compose.prod.yml`: добавлен общий volume `/app/var/onec` на `backend` и `celery` + `ONEC_PRIVATE_DIR`
+- [x] nginx-блок `/media/1c_temp/` пересмотрен (оставлен с комментарием либо удалён)
+- [x] Unit-тесты: путь импорта не под `MEDIA_ROOT`; оркестратор использует settings
+- [x] Integration-тест: полный цикл обмена на реальных XML из `data/import_1c/` проходит без регрессий
+- [x] Файлы импорта недоступны по `/media/...`-URL (AC-2)
+- [x] `make test-unit` и `make test-integration` проходят
 - [ ] Black / Flake8 / isort / mypy без ошибок
 
 ---
@@ -317,14 +317,43 @@ make test-integration
 
 ### Agent Model Used
 
-_(заполняется dev-агентом)_
+GPT-5.5
 
 ### Debug Log References
 
+- Перевёл рантайм-каталоги 1С на приватный корень `ONEC_PRIVATE_DIR` вне `MEDIA_ROOT`.
+- Убрал хардкод `MEDIA_ROOT` из `ImportOrchestratorService` и fallback в `process_1c_import_task`.
+- Обновил production docker-compose, чтобы `backend` и `celery` делили `/app/var/onec`.
+- Добавил/обновил тесты на приватные пути и реальный XML из `data/import_1c`.
+- Валидация: `py_compile` прошёл, точечные тесты прошли, `pytest -m unit` и `pytest -m integration` в Docker прошли.
+- Локальный `make` в этой оболочке отсутствует; проверял эквивалентные docker-команды из Makefile.
+- Репозиторный `flake8`/`mypy` остаются шумными из-за существующего debt вне scope story.
+
 ### Completion Notes List
 
+- Файлы 1С для HTTP-обмена теперь пишутся в приватный каталог вне публичного `MEDIA_ROOT`.
+- В проде добавлен общий bind-mount для `backend` и `celery`, чтобы воркер видел те же файлы импорта.
+- Реальные XML из `backend/data/import_1c` продолжили работать через HTTP-обмен и асинхронный импорт.
+- Проверено, что `1c_import` и `1c_temp` больше не живут под `/media`.
+- Проверка `pytest -m unit` завершилась `763 passed`, `pytest -m integration` завершилась `684 passed`.
+
 ### File List
+
+- `backend/freesport/settings/base.py`
+- `backend/apps/integrations/onec_exchange/import_orchestrator.py`
+- `backend/apps/products/tasks.py`
+- `backend/apps/integrations/onec_exchange/routing_service.py`
+- `backend/apps/integrations/onec_exchange/file_service.py`
+- `docker/docker-compose.prod.yml`
+- `docker/docker-compose.test.yml`
+- `docker/nginx/conf.d/default.conf`
+- `backend/tests/unit/test_file_routing.py`
+- `backend/tests/integration/test_onec_import.py`
+- `backend/apps/products/tests/integration/test_import_orchestration.py`
+- `backend/apps/products/tests/test_import_orchestration_tasks.py`
+- `backend/apps/integrations/tests/test_import_orchestration_view.py`
 
 ## Change Log
 
 - 2026-05-18: Создана Story 36.1 (bmad-create-story). Status: ready-for-dev.
+- 2026-05-19: Перенёс runtime-каталоги 1С из публичного `MEDIA_ROOT` в `ONEC_PRIVATE_DIR`, обновил оркестратор, fallback задачи, production compose и тестовое покрытие. Status: review.

@@ -1,9 +1,6 @@
-import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.conf import settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -12,6 +9,36 @@ from apps.products.models import ImportSession
 
 @pytest.mark.django_db
 class TestImportOrchestration:
+    @pytest.fixture
+    def onec_private_dirs(self, monkeypatch, settings, tmp_path):
+        """Configure private 1C runtime directories outside MEDIA_ROOT."""
+        media_root = tmp_path / "media"
+        private_root = tmp_path / "var" / "onec"
+        temp_dir = private_root / "1c_temp"
+        import_dir = private_root / "1c_import"
+
+        monkeypatch.setattr(settings, "MEDIA_ROOT", str(media_root), raising=False)
+        monkeypatch.setattr(
+            settings,
+            "ONEC_EXCHANGE",
+            {
+                **getattr(settings, "ONEC_EXCHANGE", {}),
+                "TEMP_DIR": temp_dir,
+                "IMPORT_DIR": import_dir,
+            },
+            raising=False,
+        )
+
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        import_dir.mkdir(parents=True, exist_ok=True)
+
+        return {
+            "media_root": media_root,
+            "private_root": private_root,
+            "temp_dir": temp_dir,
+            "import_dir": import_dir,
+        }
+
     @pytest.fixture
     def api_client(self):
         return APIClient()
@@ -33,7 +60,7 @@ class TestImportOrchestration:
         user.save()
         return user
 
-    def test_mode_import_triggers_task(self, api_client, exchange_user):
+    def test_mode_import_triggers_task(self, api_client, exchange_user, onec_private_dirs):
         """TC1: mode=import creates session and triggers task"""
         api_client.login(email="exchange@example.com", password="password")
 
@@ -59,7 +86,7 @@ class TestImportOrchestration:
             assert "test.xml" in session.report
 
             # Check task triggered
-            mock_task.assert_called_once_with(session.pk, str(Path(settings.MEDIA_ROOT) / "1c_import"))
+            mock_task.assert_called_once_with(session.pk, str(onec_private_dirs["import_dir"]))
 
     def test_mode_import_blocks_duplicate(self, api_client, exchange_user):
         """TC7: mode=import blocks if another import is active"""
@@ -68,7 +95,7 @@ class TestImportOrchestration:
         session_key = api_client.session.session_key
 
         # Create an active session for the same sessid
-        active_session = ImportSession.objects.create(
+        ImportSession.objects.create(
             session_key=session_key,
             import_type=ImportSession.ImportType.CATALOG,
             status=ImportSession.ImportStatus.IN_PROGRESS,
@@ -87,7 +114,7 @@ class TestImportOrchestration:
         assert session is not None
         assert session.status == ImportSession.ImportStatus.IN_PROGRESS
 
-    def test_zip_passing_to_task(self, api_client, exchange_user, tmp_path):
+    def test_zip_passing_to_task(self, api_client, exchange_user, onec_private_dirs):
         """Test that ZIP filename is passed to the task for async unpacking"""
         api_client.login(email="exchange@example.com", password="password")
         api_client.get(reverse("integrations:onec_exchange:exchange") + "?mode=checkauth")
@@ -116,10 +143,10 @@ class TestImportOrchestration:
                 args = mock_task.call_args[0]
                 # args[0]: session_id, args[1]: data_dir
                 assert len(args) == 2
-                assert str(Path(settings.MEDIA_ROOT) / "1c_import") == args[1]
+                assert str(onec_private_dirs["import_dir"]) == args[1]
 
     @patch("apps.products.tasks.call_command")
-    def test_process_1c_import_task_logic(self, mock_call_command, db):
+    def test_process_1c_import_task_logic(self, mock_call_command, db, tmp_path):
         """Test process_1c_import_task updates session correctly on success"""
         from typing import Any, cast
 
@@ -139,7 +166,8 @@ class TestImportOrchestration:
         # This bypasses Celery's task wrapper but keeps the 'self' argument
         # Use cast(Any, ...) to avoid mypy error about __wrapped__
         task_func = cast(Any, process_1c_import_task)
-        task_func.__wrapped__.__get__(mock_self, type(mock_self))(session_id=session.pk, data_dir="/tmp/1c_import")
+        data_dir = tmp_path / "var" / "onec" / "1c_import"
+        task_func.__wrapped__.__get__(mock_self, type(mock_self))(session_id=session.pk, data_dir=str(data_dir))
 
         # Verification
         session.refresh_from_db()
@@ -155,7 +183,7 @@ class TestImportOrchestration:
             celery_task_id="fake-task-id",
             file_type="all",
             import_session_id=session.pk,
-            data_dir="/tmp/1c_import",
+            data_dir=str(data_dir),
         )
 
     @patch("apps.products.tasks.call_command")

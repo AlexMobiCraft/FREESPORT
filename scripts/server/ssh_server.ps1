@@ -9,7 +9,7 @@
 #)
 param(
     [string]$User = "root",
-    [string]$IP = "5.35.124.149"
+    [string]$IP = "docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml up -d --build"
 )
 # Функция подключается по SSH к удалённому серверу разработки
 function Connect-FreesportServer {

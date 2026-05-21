@@ -1,3 +1,7 @@
+## Deferred from: code review of spec-fix-consent-checkboxes (2026-05-19)
+
+- **`Minus` при `indeterminate` не имеет анимации исчезновения** — `<Check>` получил `transition-opacity duration-[180ms]`, а `<Minus>` — нет. При смене `indeterminate → checked` `Minus` исчезает мгновенно, `Check` появляется с fade. Pre-existing inconsistency, minor cosmetic. [`frontend/src/components/ui/Checkbox/Checkbox.tsx:96-101`]
+
 ## Deferred from: code review of security-subscribe-status-unification — pass 3 (2026-05-17)
 
 - **Нет тестов на ветки `subscribeService` без `response`** — все негативные кейсы `subscribeService.test.ts` передают `{ response: {...} }`. Ветвь `'response' in error === false` (таймаут axios `ECONNABORTED`, отмена/`CanceledError`, реальный сетевой обрыв, `error === null`, строковая ошибка) логически уходит в `network_error` корректно, но не покрыта ни одним тестом — регрессия в этой ветке пройдёт незаметно. Pre-existing test gap; ветка `network_error` этой story не вводилась. [`frontend/src/services/__tests__/subscribeService.test.ts`]

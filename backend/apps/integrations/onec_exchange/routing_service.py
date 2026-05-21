@@ -49,7 +49,7 @@ class FileRoutingService:
     Service for routing uploaded files to appropriate import directories.
 
     Files are isolated per session to prevent collisions:
-    MEDIA_ROOT/1c_import/<session_id>/<subdir>/<filename>
+    ONEC_EXCHANGE["IMPORT_DIR"]/<session_id>/<subdir>/<filename>
 
     Usage:
         router = FileRoutingService(session_id)
@@ -72,12 +72,9 @@ class FileRoutingService:
 
         self.session_id = session_id
 
-        # Get directories from settings
-        temp_dir = settings.ONEC_EXCHANGE.get("TEMP_DIR", Path(settings.MEDIA_ROOT) / "1c_temp")
-        self.temp_base = Path(str(temp_dir))
-
-        import_dir = settings.ONEC_EXCHANGE.get("IMPORT_DIR", Path(settings.MEDIA_ROOT) / "1c_import")
-        self.import_base = Path(str(import_dir))
+        # Get directories from settings. Они уже заданы вне MEDIA_ROOT.
+        self.temp_base = Path(str(settings.ONEC_EXCHANGE["TEMP_DIR"]))
+        self.import_base = Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
 
         self.temp_dir = self.temp_base / session_id
         # FIXED: Import directory should be shared/root, not session-isolated

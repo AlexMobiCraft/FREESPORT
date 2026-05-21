@@ -142,11 +142,11 @@ class TestImportOrchestrationTasks:
 
     @patch("apps.products.tasks.call_command")
     @patch("apps.products.tasks.FileStreamService")
-    def test_process_1c_import_task_with_zip_unpacking(self, mock_file_service_cls, mock_call_command):
+    def test_process_1c_import_task_with_zip_unpacking(self, mock_file_service_cls, mock_call_command, tmp_path):
         """Test import task with synchronous ZIP unpacking."""
         session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
         zip_filename = "data.zip"
-        data_dir = "/media/1c_import/abc_123"
+        data_dir = str(tmp_path / "var" / "onec" / "1c_import" / "abc_123")
 
         mock_file_service = MagicMock()
         mock_file_service_cls.return_value = mock_file_service
@@ -165,7 +165,7 @@ class TestImportOrchestrationTasks:
         ).get()
 
         # Verify FileStreamService was initialized with correct sessid
-        # path is /media/1c_import/abc_123, so sessid name is abc_123
+        # path is private 1c_import/abc_123, so sessid name is abc_123
         mock_file_service_cls.assert_called_once_with("abc_123")
 
         # Verify unpack_zip was called

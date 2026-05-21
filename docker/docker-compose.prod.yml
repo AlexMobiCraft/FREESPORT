@@ -57,6 +57,7 @@ services:
       - ALLOWED_HOSTS=freesport.ru,www.freesport.ru,5.35.124.149,backend,nginx,localhost,127.0.0.1
       - CSRF_TRUSTED_ORIGINS=http://5.35.124.149,http://freesport.ru,https://5.35.124.149,https://freesport.ru,https://www.freesport.ru,http://www.freesport.ru
       - ONEC_DATA_DIR=/app/data/import_1c
+      - ONEC_PRIVATE_DIR=/app/var/onec
       - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT}
       # Email настройки
       - EMAIL_BACKEND=${EMAIL_BACKEND}
@@ -74,6 +75,7 @@ services:
       - ../backend/logs:/app/logs
       - ../data/prod/static:/app/staticfiles
       - ../data/prod/media:/app/media
+      - ../data/prod/onec_private:/app/var/onec
       - ${ONEC_DATA_DIR}:/app/data/import_1c
     user: "1000:1000"
     healthcheck:
@@ -182,6 +184,7 @@ services:
       - DEBUG=0
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - ONEC_DATA_DIR=/app/data/import_1c
+      - ONEC_PRIVATE_DIR=/app/var/onec
       # Email настройки
       - EMAIL_BACKEND=${EMAIL_BACKEND}
       - EMAIL_HOST=${EMAIL_HOST}
@@ -198,6 +201,7 @@ services:
       - ../backend/logs:/app/logs
       - ${ONEC_DATA_DIR}:/app/data/import_1c
       - ../data/prod/media:/app/media
+      - ../data/prod/onec_private:/app/var/onec
     user: "1000:1000"
     depends_on:
       - db

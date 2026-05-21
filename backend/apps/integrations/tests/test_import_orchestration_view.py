@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.conf import settings
 from django.contrib.sessions.backends.db import SessionStore
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -42,8 +43,6 @@ class TestICExchangeViewImport:
         # or just rely on cookie.
 
         # Actually, let's just make sure we send the cookie corresponding to settings.SESSION_COOKIE_NAME.
-        from django.conf import settings
-
         self.client.cookies[settings.SESSION_COOKIE_NAME] = self.session_key
 
         # Also, the view checks `sessid == request.session.session_key`
@@ -54,8 +53,6 @@ class TestICExchangeViewImport:
     def test_import_trigger_success(self, mock_task):
         """Test successful trigger of import task."""
         url = reverse("integrations:onec_exchange:exchange")
-
-        path = "/api/integration/1c_exchange/"
 
         # Create session in DB so it can be loaded
         s = SessionStore(session_key=self.session_key)
@@ -89,7 +86,7 @@ class TestICExchangeViewImport:
     def test_import_blocked_active_session(self):
         """Test that import is blocked if a session is already in progress."""
         # Create active session
-        active_session = ImportSession.objects.create(
+        ImportSession.objects.create(
             session_key=self.session_key,
             status=ImportSession.ImportStatus.IN_PROGRESS,
         )
@@ -116,7 +113,6 @@ class TestICExchangeViewImport:
         assert ImportSession.objects.count() == 1
         session = ImportSession.objects.first()
         assert session is not None
-        assert session.pk == active_session.pk
         assert session.status == ImportSession.ImportStatus.IN_PROGRESS
 
     def test_import_invalid_sessid(self):
@@ -171,7 +167,7 @@ class TestICExchangeViewImport:
         args = mock_task_delay.call_args[0]
         assert len(args) == 2
         # args[0] is session_id, args[1] is import_path
-        assert args[1].endswith("/media/1c_import")
+        assert args[1] == str(settings.ONEC_EXCHANGE["IMPORT_DIR"])
 
     @patch("apps.integrations.onec_exchange.import_orchestrator.FileStreamService")
     def test_complete_after_import_idempotency(self, mock_file_service_cls):

@@ -68,7 +68,7 @@ def process_1c_import_task(
         # Story 3.2: Defered Unpacking
         # Files (including ZIPs) are already moved to import_dir by the view (handle_complete).
         # We need to find them there and unpack.
-        target_import_dir = Path(data_dir) if data_dir else (Path(settings.MEDIA_ROOT) / "1c_import")
+        target_import_dir = Path(data_dir) if data_dir else Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
 
         if target_import_dir.exists():
             zip_files = list(target_import_dir.glob("*.zip"))
@@ -243,9 +243,13 @@ def process_1c_import_task(
         # Multiple sessions share the same import_dir; cleaning up while another
         # session's Celery task is still running would delete its files mid-import.
         try:
-            other_active = ImportSession.objects.filter(
-                status=ImportSession.ImportStatus.IN_PROGRESS,
-            ).exclude(pk=session.pk).exists()
+            other_active = (
+                ImportSession.objects.filter(
+                    status=ImportSession.ImportStatus.IN_PROGRESS,
+                )
+                .exclude(pk=session.pk)
+                .exists()
+            )
 
             if other_active:
                 logger.info("Skipping import directory cleanup — other sessions are still IN_PROGRESS.")
