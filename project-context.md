@@ -56,15 +56,15 @@ optimized_for_llm: true
 
 - **`onec_id`** — внешний идентификатор 1С (CommerceML), `unique=True`, **immutable**. PK Django остаётся стандартный `id`. Уникален в рамках типа сущности (Product.onec_id и Brand.onec_id могут совпадать) — не строить cross-entity lookups по нему.
 - **`OrderItem` хранит snapshot** цены, названия и атрибутов товара на момент заказа. Не заменять snapshot полями FK на текущий `Product` — сломает исторические заказы при изменении цен/SKU.
-- **Role-based pricing**: 6 ценовых полей в `Product` — `retail_price`, `opt1_price`, `opt2_price`, `opt3_price`, `trainer_price`, `federation_price`.
+- **Role-based pricing**: 6 ценовых полей в `Product` — `retail_price`, `opt1_price`, `opt2_price`, `opt3_price`, `trainer_price`, `federation_price` (всего 7 ролей, но роль `admin` собственной цены не имеет → 6 полей).
   - Маппинг роли → поле: `retail`→`retail_price`, `wholesale_level1/2/3`→`opt1/2/3_price`, `trainer`→`trainer_price`, `federation_rep`→`federation_price`.
   - Сериализаторы отдают цену **по роли `request.user`**, не сырое поле. Гостям — `retail_price`.
   - Инфо-цены B2B (`RRP`, `MSRP`) — отдельные поля, не используются для фактических расчётов.
-- **Номер заказа** — канонический формат `CCCCCYYNNN` (10 цифр), хранится только в полном виде, **immutable** после создания. UI отображает `CCCC-YYNNN` (последние 4 цифры customer_code + YYNNN). Субзаказы: `CCCCCYYNNNS` (UI: `CCCCC-YYNNN-S`). Поиск в админке принимает оба формата и нормализует к каноническому.
+- **Номер заказа** — канонический формат `CCCCCYYNNN` (10 цифр: 5-значный customer_code + `YY` + `NNN`), хранится только в полном виде, **immutable** после создания. UI мастер-заказа: `CCCC-YYNNN` — **последние 4** цифры customer_code (первая отбрасывается) + `YYNNN`. Субзаказы: `CCCCCYYNNNS` (UI: `CCCCC-YYNNN-S`) — здесь customer_code показывается **целиком (5 цифр)**, `S` ≥ 1 и может быть многозначным. Асимметрия 4 vs 5 цифр между мастером и субзаказом **намеренная** (см. `format_order_number` в `apps/orders/services/order_numbering.py`) — не «исправлять». Пример: customer_code `12345`, год `2026`, счётчик `7` → хранится `1234526007`, UI мастера `2345-26007`, UI субзаказа `12345-26007-1`. Поиск в админке принимает оба формата и нормализует к каноническому.
 - **Гости не оформляют заказы** — checkout требует JWT-аутентификации.
-- **DRF defaults**: канонические настройки в `backend/freesport/settings/base.py`:
-  - `DEFAULT_AUTHENTICATION_CLASSES`: `apps.users.authentication.BlacklistCheckJWTAuthentication` (JWT с проверкой Redis blacklist) + `SessionAuthentication`.
-  - `DEFAULT_PERMISSION_CLASSES`: `AllowAny` — это осознанное решение для публичных endpoints. **Защищённые view ОБЯЗАНЫ явно указывать** `permission_classes = [IsAuthenticated]`. Не полагаться на default.
+- **DRF defaults** (канонические значения — в `backend/freesport/settings/base.py`, точные классы не дублировать здесь):
+  - Аутентификация по умолчанию — JWT с проверкой Redis-blacklist (+ session auth).
+  - `DEFAULT_PERMISSION_CLASSES` = `AllowAny` — осознанное решение для публичных endpoints. **Защищённые view ОБЯЗАНЫ явно указывать** `permission_classes = [IsAuthenticated]`. Не полагаться на default.
 - **B2B verification**: оптовые цены (`opt1/2/3_price`) и B2B-функции доступны **только верифицированным** пользователям с ролью wholesale/trainer/federation_rep. Неверифицированный B2B видит retail-цены. Проверять флаг верификации в сериализаторах/permissions.
 - **Master/sub-order email**: customer- и admin-уведомления ставятся в очередь **только для `is_master=True`** (guard в `apps/orders/signals.py`). Items для отображения берутся из `sub_orders` через `_get_order_display_items` — не из прямых `OrderItem` мастера.
 - **Критические операции** (генерация номера заказа, decrement остатков, создание `Order` + `OrderItem` snapshot) — обязательно в `transaction.atomic()` с `select_for_update()`. Не разносить по двум вызовам.
@@ -124,4 +124,4 @@ optimized_for_llm: true
 
 _При сомнениях — выбирать более ограничительную опцию. Обновлять файл при смене стека, доменных инвариантов или deploy-протокола._
 
-_Last Updated: 2026-05-09_
+_Last Updated: 2026-05-22_

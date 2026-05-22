@@ -78,8 +78,8 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### ADR-004: Ценообразование на основе ролей
 
-- **Контекст:** 7 типов цен.
-- **Решение:** Динамическая сериализация цен в DRF в зависимости от роли токена JWT.
+- **Контекст:** 7 ролей пользователей, отображаемых на 6 ценовых полей (`retail_price`, `opt1/2/3_price`, `trainer_price`, `federation_price`; у роли `admin` собственного поля нет). Поля `RRP`/`MSRP` — информационные, в расчётах не участвуют.
+- **Решение:** Динамическая сериализация цены в DRF в зависимости от роли JWT-токена (`ProductVariant.get_price_for_user`). Гостям и неверифицированным B2B отдаётся `retail_price`.
 
 ### ADR-005: Гибридная динамическая валидация B2B
 
@@ -143,7 +143,7 @@ npm run dev
 **Организация кода:**
 
 - Модульная структура Django (apps/).
-- Next.js App Router с использованием Route Groups (`(blue)`, `(electric)`) для реализации мультитемности.
+- Next.js App Router. Мультибрендовая темизация реализована через CSS (напр. `globals-electric-orange.css`), а не через route groups. На текущий момент `frontend/src/app/` — плоская структура (этап «coming soon»). Сегментация на route groups для брендовых витрин — планируемое решение, ещё не внедрённое.
 
 **Опыт разработки:**
 
@@ -214,7 +214,7 @@ FREESPORT/
 │   └── tests/                  # Глобальные тесты
 └── frontend/                   # Frontend (Next.js)
     ├── src/
-    │   ├── app/                # App Router ((blue), (electric), (auth))
+    │   ├── app/                # App Router (плоская структура; темизация через CSS)
     │   ├── components/         # ui, business
     │   ├── services/           # API Clients
     │   ├── store/              # Zustand
@@ -231,8 +231,8 @@ FREESPORT/
 
 **Маппинг требований на структуру:**
 
-- **B2B Validation:** `apps/cart/services/validation.py` + `src/services/cartValidation.py`.
-- **1C Integration:** `apps/products/services/import_processor.py` + `backend/data/import_1c/`.
+- **B2B Validation:** на текущий момент логика корзины расположена в `apps/cart/serializers.py` и `apps/cart/views.py` (выделенного слоя `apps/cart/services/` пока нет). Вынос в Service Layer + фронтенд-валидатор (`src/services/*.ts`) — целевое состояние, см. ADR-005.
+- **1C Integration:** `apps/products/services/import_processor.py` + `data/import_1c/`.
 
 ## Architecture Validation Results
 
@@ -249,9 +249,9 @@ FREESPORT/
   - Проверки `min_order_quantity` в `OrderCreateSerializer`.
 - **Ролевая модель:** Реализовано 7 ролей с разграничением цен на уровне сериализаторов.
 
-### Implementation Readiness Validation ✅
+### Implementation Readiness Validation ⚠️
 
-- **ADR-005 (Dynamic Validation):** Для реализации эндпоинта `/api/v1/cart/rules/` утверждена следующая схема:
+- **ADR-005 (Dynamic Validation) — НЕ РЕАЛИЗОВАНО (планируемое):** Эндпоинт `/api/v1/cart/rules/` на текущий момент в коде отсутствует (в `apps/cart` нет ни маршрута `cart/rules`, ни логики правил). Утверждённая контрактная схема для будущей реализации:
 
 ```json
 {

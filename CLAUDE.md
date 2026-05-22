@@ -137,7 +137,7 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
   --file=/app/data/import_1c/contragents/contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml
 ```
 
-**Архитектура импорта:** процессинг — `VariantImportProcessor`, парсинг — `XMLDataParser`. Подробности: `docs/architecture/import-architecture.md`.
+**Архитектура импорта:** процессинг — `VariantImportProcessor`, парсинг — `XMLDataParser`. Подробности: `docs/integrations/1c/import-process.md`.
 
 ## Внешние интеграции
 
@@ -172,11 +172,11 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
 Подробности ищи в `docs/`:
 
 - `docs/index.md` — главная документации
-- `docs/PRD.md` — Product Requirements
-- `docs/architecture.md` — архитектура системы
-- `docs/architecture/import-architecture.md` — архитектура импорта 1С
-- `docs/api-spec.yaml` — OpenAPI спецификация
-- `docs/api-views-documentation.md` — документация API endpoints
+- `_bmad-output/planning-artifacts/refined-prd.md` — Product Requirements (PRD)
+- `docs/architecture/index.md` — архитектура системы
+- `docs/integrations/1c/import-process.md` — архитектура импорта 1С
+- `docs/api/openapi.yaml` — OpenAPI спецификация
+- `docs/api/views-documentation.md` — документация API endpoints
 - `docs/stories/epic-*/` — user stories по эпикам (epic-1 … epic-26)
 - `docs/decisions/` — архитектурные решения
 - `docs/guides/` — руководства
