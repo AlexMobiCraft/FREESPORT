@@ -59,19 +59,19 @@ def authenticated_client(onec_user):
 
 
 @pytest.fixture
-def onec_private_dirs(monkeypatch, django_settings, tmp_path):
+def onec_private_dirs(monkeypatch, settings, tmp_path):
     """Configure private 1C runtime directories outside MEDIA_ROOT."""
     media_root = tmp_path / "media"
     private_root = tmp_path / "var" / "onec"
     temp_dir = private_root / "1c_temp"
     import_dir = private_root / "1c_import"
 
-    monkeypatch.setattr(django_settings, "MEDIA_ROOT", str(media_root), raising=False)
+    monkeypatch.setattr(settings, "MEDIA_ROOT", str(media_root), raising=False)
     monkeypatch.setattr(
-        django_settings,
+        settings,
         "ONEC_EXCHANGE",
         {
-            **getattr(django_settings, "ONEC_EXCHANGE", {}),
+            **getattr(settings, "ONEC_EXCHANGE", {}),
             "TEMP_DIR": temp_dir,
             "IMPORT_DIR": import_dir,
         },
