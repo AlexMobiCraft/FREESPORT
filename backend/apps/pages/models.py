@@ -2,11 +2,20 @@
 Модели для статических страниц
 """
 
+import re
+
 import bleach
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
+
+# Удаляет блоки <style>...</style>, <script>...</script>, <head>...</head> ВМЕСТЕ
+# с содержимым. Bleach с strip=True вырезает только теги, но оставляет текст —
+# поэтому CSS/JS код проступал на страницу.
+_STRIP_BLOCKS_RE = re.compile(
+    r"<(style|script|head)\b[^>]*>[\s\S]*?</\1>", re.IGNORECASE
+)
 
 
 class Page(models.Model):
@@ -51,6 +60,10 @@ class Page(models.Model):
         if not self.seo_title:
             self.seo_title = self.title[:60]
 
+        # Удаляем блоки <style>/<script>/<head> с содержимым ДО bleach,
+        # иначе CSS/JS код останется как текст после strip=True.
+        self.content = _STRIP_BLOCKS_RE.sub("", self.content)
+
         if not self.seo_description:
             # Извлекаем первые 160 символов из content без HTML
             clean_content = bleach.clean(self.content, tags=[], strip=True)
@@ -66,7 +79,6 @@ class Page(models.Model):
             "details", "summary", "section", "article", "header", "footer",
             "nav", "main", "aside", "address", "time", "mark", "small", "cite",
             "q", "abbr", "dfn", "kbd", "samp", "var", "wbr", "ins", "del",
-            "style", "meta", "html", "head", "body", "link", "title",
         ]
         allowed_attributes = {
             "a": ["href", "title", "target", "rel"],
