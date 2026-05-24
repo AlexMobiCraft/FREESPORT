@@ -52,15 +52,26 @@ log "Код успешно обновлен."
 # 3.5. Настройка прав доступа (Fix for PermissionError)
 log "Настройка прав доступа к директориям данных..."
 # Создаем директории, если они не существуют
-mkdir -p data/prod/static data/prod/media backend/logs
+DATA_DIRS=(
+    data/prod/static
+    data/prod/media
+    data/prod/onec_private
+    data/prod/onec_private/1c_temp
+    data/prod/onec_private/1c_import
+    backend/logs
+)
 
 # Устанавливаем владельца 1000:1000 (пользователь внутри контейнера)
 # Используем sudo, так как скрипт может быть запущен от пользователя freesport
 if command -v sudo >/dev/null 2>&1; then
-    sudo chown -R 1000:1000 data/prod/static data/prod/media backend/logs
+    sudo mkdir -p "${DATA_DIRS[@]}"
+    sudo chown -R 1000:1000 "${DATA_DIRS[@]}"
+    sudo chmod -R u+rwX,g+rwX "${DATA_DIRS[@]}"
 else
     # Если sudo нет (например, запущен от root), выполняем напрямую
-    chown -R 1000:1000 data/prod/static data/prod/media backend/logs
+    mkdir -p "${DATA_DIRS[@]}"
+    chown -R 1000:1000 "${DATA_DIRS[@]}"
+    chmod -R u+rwX,g+rwX "${DATA_DIRS[@]}"
 fi
 log "Права доступа настроены."
 
@@ -74,6 +85,10 @@ log "Перезапуск сервисов из '$COMPOSE_PROD_FILE'..."
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" down -v
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" up -d
 log "Сервисы успешно перезапущены."
+
+log "Проверка доступа backend к директориям обмена 1С..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_PROD_FILE" exec -T backend sh -c 'test -w /app/var/onec/1c_temp && test -w /app/var/onec/1c_import && touch /app/var/onec/1c_temp/.deploy_write_test && rm -f /app/var/onec/1c_temp/.deploy_write_test'
+log "Доступ backend к директориям обмена 1С подтвержден."
 
 # 6. Выполнение миграций базы данных
 log "Выполнение миграций Django..."
