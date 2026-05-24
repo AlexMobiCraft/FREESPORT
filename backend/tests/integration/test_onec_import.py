@@ -169,11 +169,12 @@ class TestAsyncImportDispatch:
     def test_real_xml_upload_and_import_use_private_dirs(self, authenticated_client, onec_private_dirs):
         """Real XML from backend/data/import_1c should stay outside MEDIA_ROOT."""
         real_xml = (
-            Path(__file__).resolve().parents[2]
-            / "data"
-            / "import_1c"
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "1c-data"
             / "goods"
-            / "goods_1_5_cf5935c3-270e-4d18-9099-a9337898c68a.xml"
+            / "import_files"
+            / "goods.xml"
         )
         payload = real_xml.read_bytes()
         filename = real_xml.name
