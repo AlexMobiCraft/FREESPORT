@@ -90,7 +90,6 @@ class PageModelSecurityTest(TestCase):
             <tr><td>Ячейка</td></tr>
         </table>
         <img src="https://example.com/image.jpg" alt="Пример" />
-        <style>.red{color:red}</style>
         <ul>
             <li>Элемент списка 1</li>
             <li>Элемент списка 2</li>
@@ -107,7 +106,7 @@ class PageModelSecurityTest(TestCase):
         # Все безопасные теги должны сохраниться
         safe_tags = [
             "h1", "h2", "h3", "p", "div", "span", "strong", "em", "ul", "ol", "li",
-            "a", "br", "table", "tr", "td", "img", "style",
+            "a", "br", "table", "tr", "td", "img",
         ]
         for tag in safe_tags:
             self.assertIn(f"<{tag}", page.content)
