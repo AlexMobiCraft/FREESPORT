@@ -376,7 +376,10 @@ class TestImportConcurrency:
 
         new_session = ImportSession.objects.exclude(pk=session.pk).first()
         assert new_session.session_key == sessid
-        assert new_session.status == ImportSession.ImportStatus.PENDING
+        # Race-fix: session marked IN_PROGRESS before Celery dispatch (see
+        # import_orchestrator.py::_dispatch_import) to guard shared import_dir
+        # from concurrent cleanup while still PENDING in the Celery queue.
+        assert new_session.status == ImportSession.ImportStatus.IN_PROGRESS
 
     def test_strict_session_linkage_url_priority(self):
         """
