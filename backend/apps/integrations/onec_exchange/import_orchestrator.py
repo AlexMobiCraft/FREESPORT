@@ -309,8 +309,17 @@ class ImportOrchestratorService:
         file_type = self._detect_file_type()
         logger.info(f"[IMPORT] Dispatching Celery import task for " f"session_id={session.pk}, file_type={file_type}")
 
+        # Race-fix (same as _dispatch_or_dryrun): перевести session в IN_PROGRESS ДО
+        # dispatch. Иначе session остаётся PENDING в окне очереди Celery, и
+        # handle_init guard на другом потоке обмена не видит её как активную —
+        # cleanup_import_dir(force=True) стирает shared import dir раньше, чем
+        # воркер успевает обработать файл. process_1c_import_task сам повторно
+        # установит IN_PROGRESS на старте — операция идемпотентна.
+        from apps.products.models import ImportSession
+
+        session.status = ImportSession.ImportStatus.IN_PROGRESS
         session.report += f"[{timezone.now()}] Celery import task dispatched " f"(file_type={file_type})\n"
-        session.save(update_fields=["report", "updated_at"])
+        session.save(update_fields=["status", "report", "updated_at"])
 
         task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
 
