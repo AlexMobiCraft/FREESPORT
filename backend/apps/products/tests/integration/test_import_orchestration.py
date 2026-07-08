@@ -82,7 +82,10 @@ class TestImportOrchestration:
             # Check session created
             session = ImportSession.objects.latest("created_at")
             assert session is not None
-            assert session.status == ImportSession.ImportStatus.PENDING
+            # Race-fix: session marked IN_PROGRESS before Celery dispatch (see
+            # import_orchestrator.py::_dispatch_import) to guard shared import_dir
+            # from concurrent cleanup while still PENDING in the Celery queue.
+            assert session.status == ImportSession.ImportStatus.IN_PROGRESS
             assert "test.xml" in session.report
 
             # Check task triggered
