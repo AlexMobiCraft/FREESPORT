@@ -320,3 +320,19 @@
 ## Deferred from: code review of fix-consent-checkboxes (2026-05-19)
 
 - `Checkbox` без явного `id` генерирует fallback `checkbox-${label}` из текста метки. В `SidebarFilters` чекбоксы категорий/брендов передаются без `id` — при одинаковых `category.name`/`brand.name` (или пустых) fallback-id дублируются, ломая связь `htmlFor`/`peer`: клик по метке переключает первый одноимённый чекбокс, а не свой. Pre-existing, выявлено при обходе controlled-потребителя. [`frontend/src/components/ui/Checkbox/Checkbox.tsx`, `frontend/src/components/business/SidebarFilters/SidebarFilters.tsx`]
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: Гонка состояний при привязке/дублях 1С-клиента на портале — нет `select_for_update()` при разрешении конфликта и нет DB-уровневой защиты от одновременной регистрации двух портальных аккаунтов с одним ИНН.
+  evidence: Adversarial-ревью (Blind Hunter + Edge Case Hunter, 2026-07-09) на первой реализации привязки 1С-клиента показало, что проверка дубля по `tax_id` в `UserRegistrationSerializer.validate()` — это read-then-decide без блокировки, а `CustomerConflictResolver.resolve_conflict` мутирует `existing_customer` без `select_for_update()`; два параллельных запроса могут создать два портальных аккаунта с одним ИНН или дважды привязаться к одной 1С-записи. Вынесено из core-спеки (email-подтверждение перед привязкой) при контроле объёма (token budget), т.к. не блокирует основной security-фикс.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: `CustomerIdentityResolver._find_by_onec_id/_find_by_onec_guid/_find_by_tax_id/_find_by_email` используют `User.objects.get(...)`, что даёт необработанный `User.MultipleObjectsReturned` (500) при легаси-дублях в БД, — теперь достижимо через публичный `/api/v1/auth/register/`.
+  evidence: Edge Case Hunter (2026-07-09): в `users.tax_id`/`users.email` нет уникального constraint на уровне БД у части старых записей, а с подключением identity resolver к публичной регистрации это стало реально triggerable извне, а не только из внутренних 1С-импортов. Вынесено из core-спеки при контроле объёма.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: `PasswordResetRequestView.post` исключает из сброса пароля только `verification_status == "unverified"`, а условие привязываемости 1С-записи в регистрации — `!= "verified"` (шире, включает гипотетический `pending`); рассинхрон условий, если 1С-профиль когда-либо окажется в `pending`.
+  evidence: Blind Hunter (2026-07-09), MEDIUM. На сегодняшний день `pending` для `created_in_1c=True` записей не достижим текущими импорт-путями, поэтому не блокирует core-фикс; вынесено для консистентности вместе с остальным hardening.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: `UserRegistrationSerializer.validate_email` делает только `.lower()`, а `CustomerIdentityResolver.normalize_email` — `.strip().lower()`; email с пробелами по краям может не совпасть при последующих 1С-сверках/дедупликации.
+  evidence: Blind Hunter (2026-07-09), MEDIUM, edge case а не активная уязвимость. Вынесено из core-спеки при контроле объёма.
