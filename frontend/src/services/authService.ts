@@ -50,7 +50,9 @@ class AuthService {
       useAuthStore.getState().setTokens(access, refresh);
     }
 
-    useAuthStore.getState().setUser(user);
+    if (user) {
+      useAuthStore.getState().setUser(user);
+    }
 
     return response.data;
   }
@@ -78,7 +80,9 @@ class AuthService {
       useAuthStore.getState().setTokens(access, refresh);
     }
 
-    useAuthStore.getState().setUser(user);
+    if (user) {
+      useAuthStore.getState().setUser(user);
+    }
 
     return response.data;
   }
