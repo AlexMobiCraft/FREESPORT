@@ -202,6 +202,16 @@ export interface PasswordResetConfirmResponse {
   detail: string;
 }
 
+export interface PortalLinkConfirmRequest {
+  token: string;
+  new_password: string;
+  new_password_confirm: string;
+}
+
+export interface PortalLinkConfirmResponse {
+  detail: string;
+}
+
 export interface ApiError {
   detail?: string;
   message?: string;
