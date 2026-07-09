@@ -2,10 +2,10 @@
 title: 'Привязка существующего 1С-клиента к регистрации на портале'
 type: 'feature'
 created: '2026-07-09'
-status: 'ready-for-dev'
+status: 'done'
 context: []
-baseline_commit: 'e63b07c609f6bb2ba30a0bc54c1f40b07a746582'
-review_loop_iteration: 1
+baseline_commit: '6beb607c5ee5f0866da9df51ac95d7c4d66c31ea'
+review_loop_iteration: 2
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -18,9 +18,9 @@ review_loop_iteration: 1
 
 ## Boundaries & Constraints
 
-**Always:** ссылка подтверждения для B2B с несовпадающим email уходит на НОВЫЙ email из формы (доказывает лишь его живость), никогда на старый email из 1С; пароль и переход в `pending` выполняются одним атомарным шагом (нет окна "пароль уже есть, но verification_status ещё не блокирует вход" — `UserLoginView` блокирует вход только по `verification_status == "pending"`, `is_active` не проверяется); "1C wins" — ФИО/роль/компания форма не переопределяет никогда; email — единственное исключение, обновляется только после явного подтверждения владения новым адресом; финальную верификацию (`verified`/`is_verified`) делает только человек-администратор через существующий `approve_b2b_users`, не код.
+**Always:** ссылка подтверждения для B2B с несовпадающим email уходит на НОВЫЙ email из формы (доказывает лишь его живость), никогда на старый email из 1С; пароль и переход в `pending` выполняются одним атомарным шагом (нет окна "пароль уже есть, но verification_status ещё не блокирует вход" — `UserLoginView` блокирует вход только по `verification_status == "pending"`, `is_active` не проверяется); "1C wins" — ФИО/роль/компания форма не переопределяет никогда; email — единственное исключение, обновляется только после явного подтверждения владения новым адресом; финальную верификацию (`verified`/`is_verified`) делает только человек-администратор через существующий `approve_b2b_users`, не код; матч в `validate()` допускается только для `verification_status == 'unverified'` — запись, уже переведённая в `pending` этой же фичей, повторно не матчится (иначе второй заявитель может перезаписать пароль до одобрения администратором первой заявки).
 
-**Ask First:** нет открытых решений — дизайн подтверждён человеком 2026-07-09 (три раунда уточнений).
+**Ask First:** нет открытых решений — дизайн подтверждён человеком 2026-07-09 (четыре раунда уточнений).
 
 **Never:** не переписывать `CustomerIdentityResolver`/`CustomerConflictResolver` целиком (используются как есть); не хранить пароль из формы регистрации, если завершение отложено до клика — он запрашивается заново на confirm-шаге; не строить отдельный validate-token эндпоинт, confirm сразу проверяет и применяет; не трогать `UserLoginView`; не давать retail-матчу по email из 1С никакого доступа/письма — временно вне скоупа, отклонять так же, как обычный дубликат; не переписывать `docs/.../18-*.md` целиком — только один раздел; concurrency-hardening (`select_for_update`, `MultipleObjectsReturned`, рассинхрон password-reset, `.strip()` в email) — вне скоупа, в `deferred-work.md`.
 
@@ -28,12 +28,12 @@ review_loop_iteration: 1
 
 | Scenario | Input / State | Expected Output / Behavior | Error Handling |
 |----------|--------------|---------------------------|----------------|
-| B2B-матч по ИНН, email формы совпадает с 1С | Регистрация: tax_id совпадает с User(created_in_1c=True, verification_status!='verified'), email формы == customer.email | Пароль + `verification_status='pending'` атомарно; письмо `notify_user_verification`-получателям; новый User не создаётся; JWT не выдаются | N/A |
+| B2B-матч по ИНН, email формы совпадает с 1С | Регистрация: tax_id совпадает с User(created_in_1c=True, verification_status=='unverified'), email формы == customer.email | Пароль + `verification_status='pending'` атомарно; письмо `notify_user_verification`-получателям; новый User не создаётся; JWT не выдаются | N/A |
 | B2B-матч по ИНН, email формы ОТЛИЧАЕТСЯ от 1С | То же, но email формы != customer.email | Пароль пока не сохраняется; письмо-ссылка на НОВЫЙ email формы | N/A |
 | Переход по ссылке (B2B, email менялся) | POST confirm с валидным token + новым паролем | `customer.email` заменён на подтверждённый, пароль установлен, `verification_status='pending'`, письмо админам; JWT не выдаются | N/A |
 | Просроченный/неверный/повторный токен | POST confirm с невалидным token или уже `verified`/`pending` записью | 404/410, ничего не меняется | ValidationError |
-| Retail-матч по email (1С-клиент, role='retail') | email формы совпадает с User(created_in_1c=True, role='retail', verification_status!='verified') | Временно вне скоупа: 400 под `email` (тот же текст, что и для дубликата), без привязки, без письма, дубль не создаётся | ValidationError |
-| Дубликат (портальный аккаунт или уже верифицированная 1С-запись) | email/tax_id совпадает с User(created_in_1c=False ИЛИ verification_status='verified') | 400 под полем, без привязки/дубля | ValidationError |
+| Retail-матч по email (1С-клиент, role='retail') | email формы совпадает с User(created_in_1c=True, role='retail', verification_status=='unverified') | Временно вне скоупа: 400 под `email` (тот же текст, что и для дубликата), без привязки, без письма, дубль не создаётся | ValidationError |
+| Дубликат (портальный аккаунт, уже верифицированная 1С-запись, или 1С-запись уже в pending через эту фичу) | email/tax_id совпадает с User(created_in_1c=False ИЛИ verification_status != 'unverified') | 400 под полем, без привязки/дубля | ValidationError |
 | Сброс пароля непривязанного 1С-клиента | POST password-reset, created_in_1c=True, verification_status=='unverified' | 200 как для несуществующего email | N/A |
 
 </frozen-after-approval>
@@ -50,17 +50,17 @@ review_loop_iteration: 1
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `backend/apps/users/serializers.py` -- `validate()`: `CustomerIdentityResolver().identify_customer({"email":..., "tax_id":...})`; матч с `created_in_1c=True and verification_status != 'verified' and customer.role != 'retail'` → сохранить в `self._matched_1c_customer`; любой другой матч (включая retail-матч — временно вне скоупа) → `ValidationError` под `email`/`tax_id`, тем же текстом, что и раньше -- идентификация + временное исключение retail
-- [ ] `backend/apps/users/serializers.py` -- `create()`: если матч есть и email формы (normalized) == `customer.email` (normalized) → `customer.set_password(password); customer.verification_status = 'pending'; customer.save(update_fields=[...])` одним вызовом, затем `send_admin_verification_email.delay(customer.id)`; выставить `self._pending_admin_review = True` -- B2B-same-email путь, пароль и pending — одной атомарной операцией
-- [ ] `backend/apps/users/serializers.py` -- `create()`: иначе (email формы отличается) → НЕ сохранять пароль; через `django.core.signing.dumps` собрать токен `{"user_id": customer.id, "new_email": <email формы>}`; поставить `send_portal_link_confirmation_email.delay(customer.id, new_email, confirm_url)` на НОВЫЙ email формы; выставить `self._pending_link_confirmation = True` -- откладывает пароль/email до клика
-- [ ] `backend/apps/users/serializers.py` -- добавить `PortalLinkConfirmSerializer(token, new_password[validate_password], new_password_confirm)` -- вход для confirm-эндпоинта
-- [ ] `backend/apps/users/views/authentication.py` -- `UserRegistrationView.post`: если `_pending_admin_review` или `_pending_link_confirmation` установлен на пользователе — не создавать `UserConsent`, не выдавать JWT, вернуть нейтральный ответ (без ФИО/роли найденной записи) -- закрывает утечку PII/токенов из находки ревью
-- [ ] `backend/apps/users/views/authentication.py` -- новый `PortalLinkConfirmView.post`: `django.core.signing.loads(token, salt=..., max_age=...)` → `{user_id, new_email}`; `user = User.objects.get(pk=user_id, created_in_1c=True)`; если `user.verification_status != "unverified"` → 410 (уже применено или неприменимо); иначе `user.email = new_email; user.set_password(new_password); user.verification_status = "pending"; user.save(...)`, `send_admin_verification_email.delay(user.id)`, ответ без JWT -- единственная точка финализации confirm-ветки
-- [ ] `backend/apps/users/tasks.py` -- `send_portal_link_confirmation_email(self, user_id, new_email, confirm_url)` по образцу `send_password_reset_email` -- письмо на явно переданный `new_email` (ещё не сохранён в `user.email`)
-- [ ] `backend/templates/emails/portal_link_confirmation.html` и `.txt` -- новые шаблоны по образцу `password_reset.*`
-- [ ] `backend/apps/users/urls.py`, `backend/apps/users/views/__init__.py` -- зарегистрировать `PortalLinkConfirmView` на `auth/portal-link/confirm/`
-- [ ] `backend/tests/integration/test_portal_registration_1c_link.py` (new) -- покрыть всю I/O-матрицу: B2B-match-same-email, B2B-mismatch+confirm, retail-матч → 400, invalid/replay token, duplicate, password-reset
-- [ ] `docs/architecture/18-b2b-verification-workflow.md` -- переписать "Этап 2.5" под новый flow
+- [x] `backend/apps/users/serializers.py` -- `validate()`: `CustomerIdentityResolver().identify_customer({"email":..., "tax_id":...})`; матч с `created_in_1c=True and verification_status == 'unverified' and customer.role != 'retail'` → сохранить в `self._matched_1c_customer`; любой другой матч (включая retail-матч и уже-`pending`-запись через эту же фичу — временно вне скоупа) → `ValidationError` под `email`/`tax_id`, тем же текстом, что и раньше -- идентификация + временное исключение retail + защита от повторного матча pending-записи (round 4)
+- [x] `backend/apps/users/serializers.py` -- `create()`: если матч есть и email формы (normalized) == `customer.email` (normalized) → `customer.set_password(password); customer.verification_status = 'pending'; customer.save(update_fields=[...])` одним вызовом, затем `send_admin_verification_email.delay(customer.id)`; выставить `self._pending_admin_review = True` -- B2B-same-email путь, пароль и pending — одной атомарной операцией
+- [x] `backend/apps/users/serializers.py` -- `create()`: иначе (email формы отличается) → НЕ сохранять пароль; через `django.core.signing.dumps` собрать токен `{"user_id": customer.id, "new_email": <email формы>}`; поставить `send_portal_link_confirmation_email.delay(customer.id, new_email, confirm_url)` на НОВЫЙ email формы; выставить `self._pending_link_confirmation = True` -- откладывает пароль/email до клика
+- [x] `backend/apps/users/serializers.py` -- добавить `PortalLinkConfirmSerializer(token, new_password[validate_password], new_password_confirm)` -- вход для confirm-эндпоинта
+- [x] `backend/apps/users/views/authentication.py` -- `UserRegistrationView.post`: если `_pending_admin_review` или `_pending_link_confirmation` установлен на пользователе — не создавать `UserConsent`, не выдавать JWT, вернуть нейтральный ответ (без ФИО/роли найденной записи) -- закрывает утечку PII/токенов из находки ревью
+- [x] `backend/apps/users/views/authentication.py` -- новый `PortalLinkConfirmView.post`: `django.core.signing.loads(token, salt=..., max_age=...)` → `{user_id, new_email}`; `user = User.objects.get(pk=user_id, created_in_1c=True)`; если `user.verification_status != "unverified"` → 410 (уже применено или неприменимо); иначе `user.email = new_email; user.set_password(new_password); user.verification_status = "pending"; user.save(...)`, `send_admin_verification_email.delay(user.id)`, ответ без JWT -- единственная точка финализации confirm-ветки
+- [x] `backend/apps/users/tasks.py` -- `send_portal_link_confirmation_email(self, user_id, new_email, confirm_url)` по образцу `send_password_reset_email` -- письмо на явно переданный `new_email` (ещё не сохранён в `user.email`)
+- [x] `backend/templates/emails/portal_link_confirmation.html` и `.txt` -- новые шаблоны по образцу `password_reset.*`
+- [x] `backend/apps/users/urls.py`, `backend/apps/users/views/__init__.py` -- зарегистрировать `PortalLinkConfirmView` на `auth/portal-link/confirm/`
+- [x] `backend/tests/integration/test_portal_registration_1c_link.py` (new) -- покрыть всю I/O-матрицу: B2B-match-same-email, B2B-mismatch+confirm, retail-матч → 400, invalid/replay token, duplicate, password-reset
+- [x] `docs/architecture/18-b2b-verification-workflow.md` -- переписать "Этап 2.5" под новый flow
 
 **Acceptance Criteria:**
 - Given B2B 1С-клиент с tax_id=Y, unverified, email формы совпадает с 1С, when регистрируется, then пароль и `pending` выставлены сразу одной операцией, письмо ушло получателям с `notify_user_verification=True`, новый User не создан, JWT не выданы
@@ -85,6 +85,14 @@ review_loop_iteration: 1
 
 - 2026-07-09 (renegotiation раунд 3, до реализации): человек решил временно ограничить доступ через привязку 1С-записи только B2B — retail-ветка (матч по email, клик по ссылке, мгновенная активация через `CustomerConflictResolver`) убрана из скоупа целиком. Retail-матч теперь просто попадает в существующую ветку "любой другой матч → 400", как и было до этой фичи. Это отменяет всё, что раньше планировалось для retail: `PortalLinkConfirmView` больше не ветвится на два исхода (остался только B2B-confirm), `CustomerConflictResolver`/`_handle_portal_registration` в этой спеке больше не используются и не меняются, JWT нигде в этом flow не выдаются. Спека заметно сократилась.
 
+- 2026-07-09 (реализация): Все Execution-задачи выполнены. `PasswordResetRequestView` не потребовал изменений — ответ (200, generic detail) уже идентичен для найденного и ненайденного email независимо от совпадения; тест `TestPasswordResetForUnlinked1CCustomer` фиксирует это как регресс-гвард, а не новую логику. Confirm-токен переиспользует `settings.PASSWORD_RESET_TIMEOUT` (default 259200s) как `max_age` вместо отдельной настройки. Новый тестовый файл (10 тестов) + регресс: `test_auth_registration_tokens.py`, `test_auth_registration_consent.py`, `test_auth_api.py`, `test_auth_logout_api.py`, `test_conflict_resolution_scenarios.py`, `test_customer_identity_resolver.py` — все зелёные (Black/Flake8 чисто). GitNexus MCP-инструменты были недоступны в сессии реализации (сервер не подключился даже после рестарта) — impact-анализ символов выполнен вручную через Read/Grep по Code Map спеки.
+
+- 2026-07-09 (loopback, review_loop_iteration → 2; renegotiation раунд 4, adversarial-ревью после первой реализации): Blind Hunter нашёл **intent_gap** внутри frozen I/O-матрицы: guard `verification_status != 'verified'` матчил 1С-запись, уже переведённую в `pending` этой же фичей (первая заявка ждёт одобрения администратора) — второй заявитель, знающий тот же ИНН и тот же email, мог перезаписать пароль pending-записи до одобрения (итоговый пароль после `approve_b2b_users` принадлежал бы второму заявителю). **Решение человека (раунд 4):** ужесточить guard до `verification_status == 'unverified'` — строго один матч на запись, всё остальное (включая уже-`pending` через эту же фичу) уходит в обычную ветку "дубликат → 400". I/O-матрица и Boundaries обновлены; `validate()` в `serializers.py` и тест `test_pending_1c_customer_cannot_be_rematched` (в `test_portal_registration_1c_link.py`) приведены в соответствие.
+
+  Отдельно, **patch** (root cause вне frozen, тривиально фиксируется без изменения дизайна): отсутствовала валидация занятости НОВОГО email формы в mismatch-ветке при регистрации — коллизия обнаруживалась только на confirm-клике как необработанный `IntegrityError` (500). Добавлена явная проверка в `validate()` (до отправки confirm-ссылки) + defensive `try/except IntegrityError` (409) в `PortalLinkConfirmView` как fallback на гонку между регистрацией и кликом.
+
+  **KEEP:** остальной дизайн (email-подтверждение перед привязкой, атомарность пароль+pending, "1C wins", retail временно вне скоупа) подтверждён ревью без замечаний и не менялся.
+
 ## Design Notes
 
 При регистрации доступны только tax_id/email; матч теперь возможен только для B2B (есть tax_id) — у retail нет tax_id, а без него `identify_customer` матчит только по точному совпадению email, что при отключённой retail-ветке всегда попадает в error-branch.
@@ -101,3 +109,59 @@ review_loop_iteration: 1
 
 **Manual checks (if no CLI):**
 - В Django Admin найти тестовый B2B-1С-импорт без пароля, зарегистрироваться с его ИНН и другим email — убедиться, что письмо ушло на новый email, а после клика запись видна в списке pending-верификации и одобряется через `approve_b2b_users`
+
+## Suggested Review Order
+
+**Идентификация и защита от повторного матча**
+
+- Точка входа: матч по ИНН/email через `CustomerIdentityResolver`, guard строго на `unverified` (round 4 fix против повторного матча pending-записи).
+  [`serializers.py:75`](../../backend/apps/users/serializers.py#L75)
+
+- Проверка занятости нового email в mismatch-ветке до отправки confirm-ссылки (round 4 patch — раньше падало на confirm-клике).
+  [`serializers.py:117`](../../backend/apps/users/serializers.py#L117)
+
+**Ветвление create(): same-email vs mismatch**
+
+- `create()` делегирует найденной 1С-записи вместо создания нового User.
+  [`serializers.py:135`](../../backend/apps/users/serializers.py#L135)
+
+- `_link_matched_1c_customer`: атомарно пароль+pending при совпадении email, иначе — подписанный токен на новый email формы.
+  [`serializers.py:174`](../../backend/apps/users/serializers.py#L174)
+
+- `PortalLinkConfirmSerializer` — вход для confirm-эндпоинта (token + новый пароль).
+  [`serializers.py:208`](../../backend/apps/users/serializers.py#L208)
+
+**Ответ регистрации: без JWT/PII/consent для matched-путей**
+
+- `UserRegistrationView.post` — ветка `pending_1c_link` пропускает создание `UserConsent` и не выдаёт JWT.
+  [`authentication.py:119`](../../backend/apps/users/views/authentication.py#L119)
+
+**Confirm-эндпоинт**
+
+- `PortalLinkConfirmView.post` — единственная точка финализации mismatch-ветки: декодирует токен, применяет email+пароль+pending.
+  [`authentication.py:572`](../../backend/apps/users/views/authentication.py#L572)
+
+- Defensive `except IntegrityError` — fallback на гонку между регистрацией и confirm-кликом (round 4 patch).
+  [`authentication.py:599`](../../backend/apps/users/views/authentication.py#L599)
+
+**Инфраструктура**
+
+- Новая Celery-таска на образе `send_password_reset_email`.
+  [`tasks.py:328`](../../backend/apps/users/tasks.py#L328)
+
+- Маршрут `auth/portal-link/confirm/`.
+  [`urls.py:56`](../../backend/apps/users/urls.py#L56)
+
+- Раздел "Этап 2.5" — новый flow в архитектурной документации.
+  [`18-b2b-verification-workflow.md:173`](../../docs/architecture/18-b2b-verification-workflow.md#L173)
+
+**Тесты**
+
+- Regression-guard: повторный матч уже-pending записи не проходит и не перезаписывает пароль.
+  [`test_portal_registration_1c_link.py:129`](../../backend/tests/integration/test_portal_registration_1c_link.py#L129)
+
+- "1C wins": ФИО/роль/компания формы не переопределяют найденную запись.
+  [`test_portal_registration_1c_link.py:103`](../../backend/tests/integration/test_portal_registration_1c_link.py#L103)
+
+- Полная I/O-матрица спеки (13 тестов): same-email, mismatch+confirm, invalid/replay token, retail out-of-scope, дубликаты, password-reset.
+  [`test_portal_registration_1c_link.py:1`](../../backend/tests/integration/test_portal_registration_1c_link.py#L1)

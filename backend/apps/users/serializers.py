@@ -5,14 +5,23 @@ Serializers для API управления пользователями
 from decimal import Decimal
 from typing import Any, cast
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from django.core import signing
 from rest_framework import serializers
 
 from apps.orders.models import Order
 
 from .models import Address, Company, Favorite, User
-from .tasks import send_admin_verification_email, send_user_pending_email
+from .services.identity_resolution import CustomerIdentityResolver
+from .tasks import (
+    send_admin_verification_email,
+    send_portal_link_confirmation_email,
+    send_user_pending_email,
+)
+
+PORTAL_LINK_CONFIRM_SALT = "portal-link-confirm"
 
 PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
 
@@ -55,15 +64,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "marketing_consent",
         ]
         extra_kwargs = {
-            "email": {"required": True},
+            # Уникальность email проверяется вручную в validate() через
+            # CustomerIdentityResolver — это позволяет привязать регистрацию
+            # к существующей 1С-записи вместо жёсткого отказа. Автогенерируемый
+            # UniqueValidator сработал бы раньше validate() и заблокировал сценарий.
+            "email": {"required": True, "validators": []},
             "first_name": {"required": True},
         }
-
-    def validate_email(self, value: str) -> str:
-        """Проверка уникальности email"""
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Пользователь с таким email уже существует.")
-        return value.lower()
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Валидация полей"""
@@ -90,6 +97,39 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                         {"tax_id": ("ИНН обязателен для оптовых покупателей и " "представителей федерации.")}
                     )
 
+        resolver = CustomerIdentityResolver()
+        attrs["email"] = resolver.normalize_email(attrs["email"]) or attrs["email"].strip().lower()
+
+        matched_customer, method = resolver.identify_customer({"email": attrs["email"], "tax_id": attrs.get("tax_id")})
+
+        if matched_customer is not None:
+            if (
+                matched_customer.created_in_1c
+                and matched_customer.verification_status == "unverified"
+                and matched_customer.role != "retail"
+            ):
+                # B2B-клиент из 1С без пароля — привязываем регистрацию вместо
+                # создания дубля (см. create()). Строго "unverified", а не
+                # "!= verified": запись, уже переведённая в pending этой же
+                # фичей (заявка ждёт одобрения администратора), повторно не
+                # матчится — иначе второй заявитель может перезаписать пароль
+                # до одобрения (round 4, 2026-07-09).
+                if (
+                    attrs["email"] != resolver.normalize_email(matched_customer.email)
+                    and User.objects.filter(email=attrs["email"]).exists()
+                ):
+                    # Новый email формы уже занят другим аккаунтом — отклоняем
+                    # сразу, а не на confirm-клике (иначе там IntegrityError).
+                    raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
+                self._matched_1c_customer = matched_customer
+            else:
+                # Дубликат (портальный аккаунт/уже верифицированная 1С-запись/
+                # уже pending через эту фичу) или retail-матч по email из 1С —
+                # временно вне скоупа (round 3)
+                if method == "tax_id":
+                    raise serializers.ValidationError({"tax_id": "Компания с данным ИНН уже зарегистрирована."})
+                raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
+
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> User:
@@ -101,6 +141,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         # Извлекаем пароль
         password = validated_data.pop("password")
+
+        matched_customer = getattr(self, "_matched_1c_customer", None)
+        if matched_customer is not None:
+            return self._link_matched_1c_customer(matched_customer, validated_data["email"], password)
 
         # Создаем пользователя
         user = User.objects.create_user(password=password, **validated_data)
@@ -126,6 +170,59 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         user._marketing_consent = marketing_consent  # type: ignore[attr-defined]
         return user
+
+    def _link_matched_1c_customer(self, customer: User, form_email: str, password: str) -> User:
+        """
+        Привязывает регистрацию к существующей 1С-записи вместо создания дубля.
+
+        "1C wins": ФИО/роль/компания формы не применяются к найденной записи.
+        Email — единственное исключение, и то лишь после подтверждения владения
+        новым адресом (см. PortalLinkConfirmView).
+        """
+        resolver = CustomerIdentityResolver()
+        existing_email = resolver.normalize_email(customer.email)
+
+        if form_email == existing_email:
+            # Email совпадает — пароль и переход в pending одной атомарной
+            # операцией (иначе возникает окно с рабочим паролем без блокировки
+            # входа, т.к. UserLoginView проверяет только verification_status).
+            customer.set_password(password)
+            customer.verification_status = "pending"
+            customer.save(update_fields=["password", "verification_status"])
+            send_admin_verification_email.delay(customer.id)
+            customer._pending_admin_review = True  # type: ignore[attr-defined]
+        else:
+            # Email отличается — пароль пока не сохраняем, ссылка уходит на
+            # НОВЫЙ email формы (доказывает лишь его живость).
+            token = signing.dumps(
+                {"user_id": customer.id, "new_email": form_email},
+                salt=PORTAL_LINK_CONFIRM_SALT,
+            )
+            confirm_url = f"{settings.SITE_URL}/portal-link/confirm/{token}/"
+            send_portal_link_confirmation_email.delay(customer.id, form_email, confirm_url)
+            customer._pending_link_confirmation = True  # type: ignore[attr-defined]
+
+        return customer
+
+
+class PortalLinkConfirmSerializer(serializers.Serializer):
+    """
+    Serializer для подтверждения привязки 1С-клиента к регистрации на портале
+    (случай, когда email формы отличался от email в 1С).
+    """
+
+    token = serializers.CharField()
+    new_password = serializers.CharField(
+        write_only=True,
+        validators=[validate_password],
+        style={"input_type": "password"},
+    )
+    new_password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["new_password"] != attrs["new_password_confirm"]:
+            raise serializers.ValidationError({"new_password_confirm": "Пароли не совпадают."})
+        return attrs
 
 
 class UserLoginSerializer(serializers.Serializer):
