@@ -5,8 +5,10 @@ Views для аутентификации пользователей
 import logging
 from typing import Any, cast
 
+from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
-from django.db import transaction
+from django.core import signing
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -32,14 +34,16 @@ logger = logging.getLogger("apps.users.auth")
 # User model is used in the code
 from ..authentication import blacklist_access_token
 from ..serializers import (
+    PORTAL_LINK_CONFIRM_SALT,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    PortalLinkConfirmSerializer,
     UserLoginSerializer,
     UserRegistrationSerializer,
     ValidateTokenSerializer,
 )
-from ..tasks import send_password_reset_email
+from ..tasks import send_admin_verification_email, send_password_reset_email
 from ..tokens import password_reset_token
 
 User = get_user_model()
@@ -120,23 +124,42 @@ class UserRegistrationView(APIView):
             with transaction.atomic():
                 user = serializer.save()
 
-                ip_address = get_consent_ip_address(request)
-                user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
-
-                UserConsent.objects.create(
-                    user=user,
-                    consent_type="pdp_contract",
-                    ip_address=ip_address,
-                    user_agent=user_agent,
+                # Привязка к существующей 1С-записи (см. serializers._link_matched_1c_customer):
+                # не создаём consent-запись и не выдаём JWT/PII найденной записи —
+                # это не новая регистрация, а привязка ожидающая подтверждения/ручного одобрения.
+                pending_1c_link = getattr(user, "_pending_admin_review", False) or getattr(
+                    user, "_pending_link_confirmation", False
                 )
 
-                if getattr(user, "_marketing_consent", False):
+                if not pending_1c_link:
+                    ip_address = get_consent_ip_address(request)
+                    user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
+
                     UserConsent.objects.create(
                         user=user,
-                        consent_type="marketing_email",
+                        consent_type="pdp_contract",
                         ip_address=ip_address,
                         user_agent=user_agent,
                     )
+
+                    if getattr(user, "_marketing_consent", False):
+                        UserConsent.objects.create(
+                            user=user,
+                            consent_type="marketing_email",
+                            ip_address=ip_address,
+                            user_agent=user_agent,
+                        )
+
+            if pending_1c_link:
+                return Response(
+                    {
+                        "message": (
+                            "Если данные совпадают с записью в 1С, дальнейшие "
+                            "инструкции отправлены на указанный email."
+                        )
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
 
             response_data = {
                 "message": "Пользователь успешно зарегистрирован",
@@ -500,6 +523,91 @@ class PasswordResetConfirmView(APIView):
 
             except (TypeError, ValueError, OverflowError, User.DoesNotExist):
                 return Response({"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PortalLinkConfirmView(APIView):
+    """
+    Подтверждение привязки 1С-клиента к регистрации на портале, когда email
+    формы отличался от email в 1С (см. UserRegistrationSerializer).
+
+    Единственная точка финализации: проверяет токен и сразу применяет новый
+    email + пароль + переводит запись в pending — отдельного validate-token
+    эндпоинта для этого флоу нет.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        summary="Подтверждение привязки 1С-клиента к порталу",
+        description=(
+            "Применяет новый email (из формы регистрации) и пароль к найденной "
+            "1С-записи, переводит её в статус pending для ручного одобрения."
+        ),
+        request=PortalLinkConfirmSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Привязка подтверждена, аккаунт ожидает верификации",
+                examples=[
+                    OpenApiExample(
+                        name="success",
+                        value={"detail": "Аккаунт привязан и ожидает верификации администратором."},
+                    )
+                ],
+            ),
+            400: OpenApiResponse(description="Ошибки валидации"),
+            404: OpenApiResponse(
+                description="Токен не найден",
+                examples=[OpenApiExample(name="invalid_token", value={"detail": "Invalid token"})],
+            ),
+            410: OpenApiResponse(
+                description="Токен истёк или уже применён",
+                examples=[OpenApiExample(name="expired_token", value={"detail": "Token expired"})],
+            ),
+        },
+        tags=["Authentication"],
+    )
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Подтверждение привязки 1С-клиента"""
+        serializer = PortalLinkConfirmSerializer(data=request.data)
+
+        if serializer.is_valid():
+            token = serializer.validated_data["token"]
+            new_password = serializer.validated_data["new_password"]
+
+            try:
+                data = signing.loads(
+                    token,
+                    salt=PORTAL_LINK_CONFIRM_SALT,
+                    max_age=getattr(settings, "PASSWORD_RESET_TIMEOUT", 259200),
+                )
+                user = User.objects.get(pk=data["user_id"], created_in_1c=True)
+            except (signing.BadSignature, KeyError, User.DoesNotExist):
+                return Response({"detail": "Invalid token"}, status=status.HTTP_404_NOT_FOUND)
+
+            if user.verification_status != "unverified":
+                # Токен уже применён или запись более не в исходном состоянии
+                return Response({"detail": "Token expired"}, status=status.HTTP_410_GONE)
+
+            user.email = data["new_email"]
+            user.set_password(new_password)
+            user.verification_status = "pending"
+            try:
+                user.save(update_fields=["email", "password", "verification_status"])
+            except IntegrityError:
+                # new_email занят другим аккаунтом (напр. зарегистрирован уже
+                # после отправки ссылки) — регистрация уже проверяет это
+                # заранее, здесь только защита от гонки.
+                return Response({"detail": "Email already in use"}, status=status.HTTP_409_CONFLICT)
+
+            send_admin_verification_email.delay(user.id)
+
+            return Response(
+                {"detail": "Аккаунт привязан и ожидает верификации администратором."},
+                status=status.HTTP_200_OK,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

@@ -14,6 +14,7 @@ from .views import (
     OrderHistoryView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    PortalLinkConfirmView,
     UserDashboardView,
     UserLoginView,
     UserProfileView,
@@ -50,6 +51,11 @@ urlpatterns = [
         "auth/password-reset/confirm/",
         PasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
+    ),
+    path(
+        "auth/portal-link/confirm/",
+        PortalLinkConfirmView.as_view(),
+        name="portal_link_confirm",
     ),
     # Профиль пользователя
     path("users/profile/", UserProfileView.as_view(), name="profile"),

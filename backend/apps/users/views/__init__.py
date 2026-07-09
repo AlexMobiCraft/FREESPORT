@@ -8,6 +8,7 @@ from .authentication import (
     LogoutView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    PortalLinkConfirmView,
     UserLoginView,
     UserRegistrationView,
     ValidateTokenView,
@@ -30,4 +31,5 @@ __all__ = [
     "PasswordResetRequestView",
     "PasswordResetConfirmView",
     "ValidateTokenView",
+    "PortalLinkConfirmView",
 ]

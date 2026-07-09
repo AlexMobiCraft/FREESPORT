@@ -320,3 +320,31 @@
 ## Deferred from: code review of fix-consent-checkboxes (2026-05-19)
 
 - `Checkbox` без явного `id` генерирует fallback `checkbox-${label}` из текста метки. В `SidebarFilters` чекбоксы категорий/брендов передаются без `id` — при одинаковых `category.name`/`brand.name` (или пустых) fallback-id дублируются, ломая связь `htmlFor`/`peer`: клик по метке переключает первый одноимённый чекбокс, а не свой. Pre-existing, выявлено при обходе controlled-потребителя. [`frontend/src/components/ui/Checkbox/Checkbox.tsx`, `frontend/src/components/business/SidebarFilters/SidebarFilters.tsx`]
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: Гонка состояний при привязке/дублях 1С-клиента на портале — нет `select_for_update()` при разрешении конфликта и нет DB-уровневой защиты от одновременной регистрации двух портальных аккаунтов с одним ИНН.
+  evidence: Adversarial-ревью (Blind Hunter + Edge Case Hunter, 2026-07-09) на первой реализации привязки 1С-клиента показало, что проверка дубля по `tax_id` в `UserRegistrationSerializer.validate()` — это read-then-decide без блокировки, а `CustomerConflictResolver.resolve_conflict` мутирует `existing_customer` без `select_for_update()`; два параллельных запроса могут создать два портальных аккаунта с одним ИНН или дважды привязаться к одной 1С-записи. Вынесено из core-спеки (email-подтверждение перед привязкой) при контроле объёма (token budget), т.к. не блокирует основной security-фикс.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: `CustomerIdentityResolver._find_by_onec_id/_find_by_onec_guid/_find_by_tax_id/_find_by_email` используют `User.objects.get(...)`, что даёт необработанный `User.MultipleObjectsReturned` (500) при легаси-дублях в БД, — теперь достижимо через публичный `/api/v1/auth/register/`.
+  evidence: Edge Case Hunter (2026-07-09): в `users.tax_id`/`users.email` нет уникального constraint на уровне БД у части старых записей, а с подключением identity resolver к публичной регистрации это стало реально triggerable извне, а не только из внутренних 1С-импортов. Вынесено из core-спеки при контроле объёма.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: `PasswordResetRequestView`/`PasswordResetConfirmView` полностью обходят весь фичер привязки — фильтруют только по `email` + `is_active=True`, не проверяют `verification_status`; любой `created_in_1c=True` клиент (unusable password, `is_active` по умолчанию `True`) может получить рабочий пароль через обычный "forgot password" без знания `tax_id` и без одобрения администратора. Усугубляется тем, что `UserLoginView` блокирует вход только по `verification_status == "pending"` — `"unverified"` не блокируется, т.е. после такого сброса пароля вход происходит немедленно, обходя весь смысл этой фичи.
+  evidence: Blind Hunter (2026-07-09, повторное ревью после round 4). Обновляет предыдущую запись этого файла (была про формальный рассинхрон условий) — после ужесточения guard'а в `validate()` до `verification_status == 'unverified'` состояние `pending` для `created_in_1c=True` теперь реально достижимо через саму эту фичу, поэтому рассинхрон условий актуален уже не гипотетически. HIGH — не требует знания `tax_id`, полностью независимый от этой фичи путь обхода B2B-верификации; существовал до этой спеки, этой спекой не введён и не блокируется её acceptance criteria.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: (Resolved) `UserRegistrationSerializer.validate_email` делал только `.lower()`, а `CustomerIdentityResolver.normalize_email` — `.strip().lower()`.
+  evidence: Blind Hunter (2026-07-09), MEDIUM. Устранено в ходе реализации: `validate_email` удалён целиком, нормализация email в `validate()` теперь всегда идёт через `resolver.normalize_email()` — расхождение больше не существует. Запись оставлена для истории, действий не требует.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: Нет rate-limiting/replay-guard на повторные mismatch-email регистрации с одним `tax_id` — можно слать confirm-письма на произвольные адреса без ограничений, и несколько валидных токенов для одной 1С-записи существуют одновременно.
+  evidence: Blind Hunter (2026-07-09): повторные POST на `/auth/register/` с тем же `tax_id`, но разными email каждый раз ставят новую `send_portal_link_confirmation_email.delay()` без проверки на уже отправленную неподтверждённую ссылку и без инвалидации ранее выданных токенов — потенциал для inbox-flooding/фишинг-злоупотребления отправителем FREESPORT. Не входит в acceptance criteria спеки (rate-limiting — отдельная инфраструктурная задача, есть прецедент `SubscribeRateThrottle` в `backend/apps/common/throttling.py`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: Для matched-путей (`_pending_admin_review`/`_pending_link_confirmation`) `UserConsent` намеренно не создаётся (так решено в задаче спеки) — PDP-согласие, отмеченное в форме, нигде не сохраняется на audit-trail даже после одобрения аккаунта администратором.
+  evidence: Edge Case Hunter (2026-07-09); подтверждено человеком как deferred (2026-07-09, review pass) — открытый вопрос: где персистить consent для matched-пути (на confirm-клике, на approve_b2b_users, или сразу) требует отдельного решения, не тривиален для патча без обсуждения дизайна.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
+  summary: Guard `matched_customer.role != "retail"` в `validate()` трактует любое значение роли кроме `"retail"` (включая гипотетический blank/неклассифицированный `role` при повреждённых 1С-импортах) как "в скоупе для B2B-привязки", вместо явного allowlist B2B-ролей.
+  evidence: Blind Hunter + Edge Case Hunter (2026-07-09) независимо сошлись на этом пункте. LOW — `role` имеет `default="retail"` на уровне модели и импорт-процессор (`apps/users/services/processor.py`) никогда не создаёт `role="admin"`/blank для `created_in_1c=True` записей, поэтому сценарий требует уже повреждённых данных вне контроля этой фичи; не блокирует acceptance criteria.
