@@ -325,6 +325,79 @@ def send_password_reset_email(self: Any, user_id: int, reset_url: str) -> bool:
     retry_backoff=True,
     retry_backoff_max=600,
 )
+def send_portal_link_confirmation_email(self: Any, user_id: int, new_email: str, confirm_url: str) -> bool:
+    """
+    Отправить письмо-ссылку для подтверждения привязки 1С-клиента к порталу.
+
+    Письмо уходит на new_email (ещё не сохранён в user.email) — только явно
+    переданный адрес, чтобы доказать его живость перед привязкой.
+
+    Args:
+        user_id: ID найденной 1С-записи
+        new_email: Email формы регистрации, ожидающий подтверждения
+        confirm_url: Ссылка для подтверждения привязки
+
+    Returns:
+        True если email отправлен успешно
+    """
+    try:
+        user = User.objects.get(id=user_id)
+
+        context = {
+            "first_name": user.first_name,
+            "confirm_url": confirm_url,
+        }
+
+        html_message = render_to_string("emails/portal_link_confirmation.html", context)
+        plain_message = render_to_string("emails/portal_link_confirmation.txt", context)
+
+        send_mail(
+            subject="[FREESPORT] Подтвердите привязку аккаунта",
+            message=plain_message,
+            from_email=None,
+            recipient_list=[new_email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        logger.info(
+            "Portal link confirmation email sent",
+            extra={
+                "user_id": user_id,
+                "new_email": new_email,
+                "template": "portal_link_confirmation",
+                "timestamp": timezone.now().isoformat(),
+            },
+        )
+        return True
+
+    except User.DoesNotExist:
+        logger.error(
+            "User not found for portal link confirmation email",
+            extra={"user_id": user_id, "action": "portal_link_confirmation_email"},
+        )
+        return False
+
+    except SMTPException as exc:
+        logger.error(
+            "Failed to send portal link confirmation email",
+            extra={
+                "user_id": user_id,
+                "exception": str(exc),
+                "retry_count": self.request.retries,
+                "action": "portal_link_confirmation_email",
+            },
+        )
+        raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException, ConnectionError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+)
 def send_user_verified_email(self: Any, user_id: int) -> bool:
     """
     Отправить email пользователю о том, что его аккаунт верифицирован.
