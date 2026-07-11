@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
@@ -5,9 +6,9 @@ from unittest.mock import patch
 import pytest
 from django.db import transaction
 
-from apps.orders.models import CustomerOrderSequence, Order, OrderItem
+from apps.orders.models import CustomerCodeSequence, CustomerOrderSequence, Order, OrderItem
 from apps.orders.services.order_numbering import (
-    MissingCustomerCodeError,
+    CustomerCodeSequenceExhausted,
     OrderNumberSequenceExhausted,
     OrderNumberingService,
     format_order_number,
@@ -35,12 +36,74 @@ class TestOrderNumberingService:
         counter = CustomerOrderSequence.objects.get(customer_code="04620", year=2026)
         assert counter.last_sequence == 2
 
-    def test_next_master_number_requires_customer_code(self, monkeypatch):
+    def test_next_master_number_auto_assigns_customer_code(self, monkeypatch):
         user = UserFactory.create(customer_code="")
         monkeypatch.setattr("apps.orders.services.order_numbering.timezone.localdate", lambda: date(2026, 5, 2))
 
-        with transaction.atomic(), pytest.raises(MissingCustomerCodeError):
+        with transaction.atomic():
+            result = OrderNumberingService.next_master_number(user)
+
+        assert re.fullmatch(r"\d{5}", result.customer_code_snapshot)
+        user.refresh_from_db()
+        assert user.customer_code == result.customer_code_snapshot
+
+    def test_next_master_number_preserves_existing_customer_code(self, monkeypatch):
+        user = UserFactory.create(customer_code="05000")
+        monkeypatch.setattr("apps.orders.services.order_numbering.timezone.localdate", lambda: date(2026, 5, 2))
+
+        with transaction.atomic():
+            result = OrderNumberingService.next_master_number(user)
+
+        assert result.customer_code_snapshot == "05000"
+        user.refresh_from_db()
+        assert user.customer_code == "05000"
+        assert not CustomerCodeSequence.objects.exists()
+
+    def test_next_master_number_assigns_unique_codes_to_different_users(self, monkeypatch):
+        first_user = UserFactory.create(customer_code="")
+        second_user = UserFactory.create(customer_code="")
+        monkeypatch.setattr("apps.orders.services.order_numbering.timezone.localdate", lambda: date(2026, 5, 2))
+
+        with transaction.atomic():
+            first_result = OrderNumberingService.next_master_number(first_user)
+        with transaction.atomic():
+            second_result = OrderNumberingService.next_master_number(second_user)
+
+        assert first_result.customer_code_snapshot != second_result.customer_code_snapshot
+        first_user.refresh_from_db()
+        second_user.refresh_from_db()
+        assert first_user.customer_code == first_result.customer_code_snapshot
+        assert second_user.customer_code == second_result.customer_code_snapshot
+
+    def test_next_master_number_skips_customer_code_taken_out_of_band(self, monkeypatch):
+        """Код, занятый в обход счётчика (например, вручную через админку),
+
+        не должен приводить к необработанному IntegrityError -- сервис
+        обязан пропустить занятое значение и подобрать следующее свободное.
+        """
+        CustomerCodeSequence.objects.create(pk=1, last_value=0)
+        UserFactory.create(customer_code="00001")  # занял код в обход счётчика
+        user = UserFactory.create(customer_code="")
+        monkeypatch.setattr("apps.orders.services.order_numbering.timezone.localdate", lambda: date(2026, 5, 2))
+
+        with transaction.atomic():
+            result = OrderNumberingService.next_master_number(user)
+
+        assert result.customer_code_snapshot == "00002"
+        user.refresh_from_db()
+        assert user.customer_code == "00002"
+        assert CustomerCodeSequence.objects.get(pk=1).last_value == 2
+
+    def test_next_master_number_raises_when_customer_code_sequence_exhausted(self, monkeypatch):
+        user = UserFactory.create(customer_code="")
+        monkeypatch.setattr("apps.orders.services.order_numbering.timezone.localdate", lambda: date(2026, 5, 2))
+        CustomerCodeSequence.objects.create(pk=1, last_value=99999)
+
+        with transaction.atomic(), pytest.raises(CustomerCodeSequenceExhausted):
             OrderNumberingService.next_master_number(user)
+
+        counter = CustomerCodeSequence.objects.get(pk=1)
+        assert counter.last_value == 99999
 
     def test_sequence_overflow_raises_exhausted(self, monkeypatch):
         user = UserFactory.create(customer_code="99999")

@@ -392,6 +392,29 @@ class CustomerOrderSequence(models.Model):
         return f"{self.customer_code}-{self.year}: {self.last_sequence}"
 
 
+class CustomerCodeSequence(models.Model):
+    """Singleton-счётчик для автоприсвоения customer_code (pk=1).
+
+    В отличие от `CustomerOrderSequence` не привязан к году/клиенту --
+    код клиента выдаётся один раз за всё время жизни пользователя.
+    """
+
+    objects = models.Manager()
+
+    if TYPE_CHECKING:
+        last_value: int
+
+    last_value = cast(int, models.PositiveIntegerField("Последнее выданное значение", default=0))
+
+    class Meta:
+        verbose_name = "Счетчик кодов клиентов"
+        verbose_name_plural = "Счетчики кодов клиентов"
+        db_table = "customer_code_sequences"
+
+    def __str__(self) -> str:
+        return f"CustomerCodeSequence: {self.last_value}"
+
+
 class OrderItem(models.Model):
     """Элемент заказа с информацией о товаре и зафиксированной цене."""
 

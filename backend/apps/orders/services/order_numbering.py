@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.orders.models import CustomerOrderSequence
+from apps.orders.models import CustomerCodeSequence, CustomerOrderSequence
 
 if TYPE_CHECKING:
     from apps.orders.models import Order
@@ -25,11 +25,11 @@ class OrderNumberError(ValueError):
     pass
 
 
-class MissingCustomerCodeError(OrderNumberError):
+class OrderNumberSequenceExhausted(OrderNumberError):
     pass
 
 
-class OrderNumberSequenceExhausted(OrderNumberError):
+class CustomerCodeSequenceExhausted(OrderNumberError):
     pass
 
 
@@ -124,7 +124,7 @@ class OrderNumberingService:
         locked_user = user_model._default_manager.select_for_update().only("pk", "customer_code").get(pk=user.pk)
         customer_code = str(getattr(locked_user, "customer_code", "") or "")
         if not is_valid_customer_code(customer_code):
-            raise MissingCustomerCodeError("У пользователя отсутствует корректный customer_code.")
+            customer_code = cls._assign_customer_code(locked_user)
         year = timezone.localdate().year
         sequence = cls._next_sequence(customer_code, year)
         order_number = f"{customer_code}{str(year)[-2:]}{sequence:03d}"
@@ -175,3 +175,46 @@ class OrderNumberingService:
             except IntegrityError:
                 pass
             return CustomerOrderSequence.objects.select_for_update().get(customer_code=customer_code, year=year)
+
+    CUSTOMER_CODE_MAX_ASSIGN_ATTEMPTS = 100
+
+    @classmethod
+    def _assign_customer_code(cls, locked_user: Any) -> str:
+        """Лениво присваивает пользователю следующий свободный customer_code.
+
+        Работает на уже заблокированной строке пользователя (locked_user)
+        внутри той же транзакции, что и next_master_number(). Счётчик не
+        знает о кодах, проставленных в обход него (вручную через Django
+        Admin) -- при коллизии unique-констрейнта пропускаем занятое
+        значение и пробуем следующее. Каждая попытка сохранения обёрнута
+        в savepoint (`transaction.atomic()`): без него IntegrityError
+        отравил бы всю внешнюю транзакцию создания заказа, а не только
+        эту попытку.
+        """
+        counter = cls._get_locked_customer_code_counter()
+        for _ in range(cls.CUSTOMER_CODE_MAX_ASSIGN_ATTEMPTS):
+            next_value = counter.last_value + 1
+            if next_value > 99999:
+                raise CustomerCodeSequenceExhausted("Исчерпан диапазон customer_code (99999).")
+            counter.last_value = next_value
+            counter.save(update_fields=["last_value"])
+            customer_code = f"{next_value:05d}"
+            locked_user.customer_code = customer_code
+            try:
+                with transaction.atomic():
+                    locked_user.save(update_fields=["customer_code"])
+            except IntegrityError:
+                continue
+            return customer_code
+        raise CustomerCodeSequenceExhausted("Не удалось подобрать свободный customer_code за отведённое число попыток.")
+
+    @classmethod
+    def _get_locked_customer_code_counter(cls) -> CustomerCodeSequence:
+        try:
+            return CustomerCodeSequence.objects.select_for_update().get(pk=1)
+        except ObjectDoesNotExist:
+            try:
+                CustomerCodeSequence.objects.create(pk=1, last_value=0)
+            except IntegrityError:
+                pass
+            return CustomerCodeSequence.objects.select_for_update().get(pk=1)

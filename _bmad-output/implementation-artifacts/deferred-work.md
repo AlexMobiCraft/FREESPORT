@@ -348,3 +348,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-client-portal-linking.md`
   summary: Guard `matched_customer.role != "retail"` в `validate()` трактует любое значение роли кроме `"retail"` (включая гипотетический blank/неклассифицированный `role` при повреждённых 1С-импортах) как "в скоупе для B2B-привязки", вместо явного allowlist B2B-ролей.
   evidence: Blind Hunter + Edge Case Hunter (2026-07-09) независимо сошлись на этом пункте. LOW — `role` имеет `default="retail"` на уровне модели и импорт-процессор (`apps/users/services/processor.py`) никогда не создаёт `role="admin"`/blank для `created_in_1c=True` записей, поэтому сценарий требует уже повреждённых данных вне контроля этой фичи; не блокирует acceptance criteria.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-customer-code-autogeneration.md`
+  summary: `_assign_customer_code` молча перезаписывает существующий, но не проходящий формат `^\d{5}$` `customer_code` (легаси/повреждённые данные) без лога и без отличия "кода нет" от "код есть, но битый" — раньше такой пользователь получал явную ошибку, теперь код тихо заменяется.
+  evidence: Edge Case Hunter (2026-07-11). LOW — на проде проверено: единственный существующий `customer_code` ("00000") валиден по формату, ни один текущий писатель поля (admin-форма валидирует через `customer_code_regex`, новый auto-assign всегда пишет 5 цифр) не создаёт невалидные значения, риск чисто гипотетический для будущих прямых записей в обход ORM-валидации.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-customer-code-autogeneration.md`
+  summary: Нет наблюдаемости/раннего предупреждения при приближении `CustomerCodeSequence.last_value` к жёсткому потолку 99999 (только hard-fail `CustomerCodeSequenceExhausted` по достижении).
+  evidence: Blind Hunter (2026-07-11). LOW при текущем масштабе (4621 пользователь, запас ~95к кодов), но раз исчерпание блокирует checkout для всех новых пользователей — стоит добавить metric/log-warning на пороге (например 90%) отдельной задачей, не блокирует эту story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-customer-code-autogeneration.md`
+  summary: Единственный singleton-счётчик `CustomerCodeSequence` (`pk=1`) лочится через `select_for_update()` при каждом первом чекауте безкодового пользователя — потенциальная точка контенции именно в момент всплеска (после деплоя 4620 из 4621 пользователей на проде без кода одновременно проходят этот путь впервые).
+  evidence: Blind Hunter (2026-07-11). Осознанный trade-off "корректность важнее throughput" для этой story; стоит перепроверить по метрикам после деплоя и при необходимости шардировать счётчик или использовать `NOWAIT`/ретраи с backoff.

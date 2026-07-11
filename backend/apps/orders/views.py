@@ -31,7 +31,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """
         Настройка прав доступа: только авторизованные пользователи.
-        Гостевой checkout не поддерживается (customer_code требуется для нумерации).
+        Гостевой checkout не поддерживается: customer_code нужен для нумерации
+        заказа и присваивается пользователю автоматически при первом заказе.
         """
         return [permissions.IsAuthenticated()]
 

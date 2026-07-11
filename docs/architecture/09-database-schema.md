@@ -503,6 +503,7 @@ $$ LANGUAGE plpgsql STABLE;
 - `orders_order.order_number` хранит канонический номер: `CCCCCYYNNN` для master-заказа и `CCCCCYYNNNS` для sub-order.
 - `customer_code_snapshot`, `order_year`, `customer_year_sequence`, `suborder_sequence` фиксируют данные генерации номера и используются для аудита, поиска и уникальных ограничений.
 - Текущий checkout flow требует авторизацию и валидный `customer_code`; guest cart остаётся только механизмом корзины, а не создания заказа.
+- `customer_code` теперь присваивается автоматически при первом заказе, если отсутствует.
 
 **2. Композитный FOREIGN KEY для секционированных таблиц:**
 

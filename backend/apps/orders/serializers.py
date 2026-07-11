@@ -201,8 +201,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Для оформления заказа требуется авторизация")
 
         user = request_user
-        if not getattr(user, "customer_code", ""):
-            raise serializers.ValidationError("Для оформления заказа требуется customer_code")
 
         # Получаем корзину
         cart = self._get_user_cart(user)
