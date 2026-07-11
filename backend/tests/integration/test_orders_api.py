@@ -136,7 +136,8 @@ class TestOrderAPI:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Корзина пуста" in str(response.data)
 
-    def test_create_order_user_without_customer_code_failure(self, db):
+    def test_create_order_auto_assigns_customer_code_when_missing(self, db):
+        """Оформление заказа пользователем без customer_code должно автоприсвоить код, а не блокировать checkout."""
         user_without_customer_code = User.objects.create_user(
             email="no-code@example.com",
             password="testpass",
@@ -164,8 +165,13 @@ class TestOrderAPI:
         url = reverse("orders:order-list")
         response = self.client.post(url, order_data)
 
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "customer_code" in str(response.data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        order = Order.objects.get(order_number=response.data["order_number"])
+        user_without_customer_code.refresh_from_db()
+        assert user_without_customer_code.customer_code is not None
+        assert len(user_without_customer_code.customer_code) == 5
+        assert order.customer_code_snapshot == user_without_customer_code.customer_code
 
     def test_create_order_insufficient_stock_failure(self, db):
         """Тест создания заказа при недостатке товара"""
