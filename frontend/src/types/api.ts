@@ -153,9 +153,12 @@ export interface RegisterRequest {
 }
 
 export interface RegisterResponse {
-  user: User;
-  access: string;
-  refresh: string;
+  message?: string;
+  // Отсутствуют при привязке к существующей 1С-записи (нейтральный ответ без
+  // PII/JWT — см. backend/apps/users/views/authentication.py, pending_1c_link).
+  user?: User;
+  access?: string;
+  refresh?: string;
 }
 
 export interface RefreshTokenRequest {
@@ -196,6 +199,16 @@ export interface PasswordResetConfirmRequest {
 }
 
 export interface PasswordResetConfirmResponse {
+  detail: string;
+}
+
+export interface PortalLinkConfirmRequest {
+  token: string;
+  new_password: string;
+  new_password_confirm: string;
+}
+
+export interface PortalLinkConfirmResponse {
   detail: string;
 }
 

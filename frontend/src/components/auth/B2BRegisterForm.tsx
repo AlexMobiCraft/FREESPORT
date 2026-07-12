@@ -68,6 +68,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [neutralMessage, setNeutralMessage] = useState<string | null>(null);
   const [shouldNotifyPendingSuccess, setShouldNotifyPendingSuccess] = useState(false);
   const pendingSuccessCallbackRef = useRef<(() => void) | null>(null);
   const pendingSuccessNotifiedRef = useRef(false);
@@ -89,7 +90,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
 
   useEffect(() => {
-    if (!isPending || !shouldNotifyPendingSuccess) {
+    if ((!isPending && !neutralMessage) || !shouldNotifyPendingSuccess) {
       return;
     }
 
@@ -100,7 +101,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
     pendingSuccessNotifiedRef.current = true;
     pendingSuccessCallbackRef.current?.();
     setShouldNotifyPendingSuccess(false);
-  }, [isPending, shouldNotifyPendingSuccess]);
+  }, [isPending, neutralMessage, shouldNotifyPendingSuccess]);
 
   const onSubmit = async (data: B2BRegisterFormData) => {
     try {
@@ -123,6 +124,20 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
 
       // AC 4: Отправка через authService.registerB2B()
       const response = await authService.registerB2B(registerData);
+
+      // Привязка к существующей 1С-записи: бэкенд намеренно возвращает
+      // нейтральный ответ без `user` (без PII/JWT найденной записи) —
+      // инструкции по дальнейшим шагам присланы на указанный email.
+      if (!response.user) {
+        pendingSuccessCallbackRef.current = onSuccess ?? null;
+        pendingSuccessNotifiedRef.current = false;
+        setNeutralMessage(
+          response.message ||
+            'Если данные совпадают с записью в 1С, дальнейшие инструкции отправлены на указанный email.'
+        );
+        setShouldNotifyPendingSuccess(Boolean(onSuccess));
+        return;
+      }
 
       // AC 6: Обработка статуса "На рассмотрении" (is_verified: false)
       if (response.user.is_verified === false) {
@@ -181,6 +196,50 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
       }
     }
   };
+
+  // Привязка к существующей 1С-записи: нейтральное сообщение без раскрытия
+  // деталей найденной записи (см. authService.registerB2B / RegisterResponse).
+  if (neutralMessage) {
+    return (
+      <div className="w-full max-w-md mx-auto p-6 space-y-4">
+        <div
+          className="p-6 rounded-md bg-primary-subtle border border-primary/20"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start space-x-3">
+            <svg
+              className="w-6 h-6 text-primary flex-shrink-0 mt-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary mb-2">Проверьте почту</h3>
+              <p className="text-body-m text-text-primary">{neutralMessage}</p>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          onClick={() => router.push('/')}
+          variant="secondary"
+          className="w-full"
+        >
+          На главную
+        </Button>
+      </div>
+    );
+  }
 
   // AC 6: Отображение статуса "На рассмотрении"
   if (isPending) {

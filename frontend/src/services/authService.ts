@@ -14,6 +14,8 @@ import type {
   PasswordResetConfirmResponse,
   PasswordResetRequest,
   PasswordResetResponse,
+  PortalLinkConfirmRequest,
+  PortalLinkConfirmResponse,
   RefreshTokenResponse,
   RegisterRequest,
   RegisterResponse,
@@ -50,7 +52,9 @@ class AuthService {
       useAuthStore.getState().setTokens(access, refresh);
     }
 
-    useAuthStore.getState().setUser(user);
+    if (user) {
+      useAuthStore.getState().setUser(user);
+    }
 
     return response.data;
   }
@@ -78,7 +82,9 @@ class AuthService {
       useAuthStore.getState().setTokens(access, refresh);
     }
 
-    useAuthStore.getState().setUser(user);
+    if (user) {
+      useAuthStore.getState().setUser(user);
+    }
 
     return response.data;
   }
@@ -187,6 +193,33 @@ class AuthService {
         token,
         new_password: password,
       } as PasswordResetConfirmRequest
+    );
+
+    return response.data;
+  }
+
+  /**
+   * Подтверждение привязки 1С-клиента к регистрации на портале
+   * (случай, когда email формы отличался от email в 1С).
+   *
+   * Отдельного эндпоинта валидации токена нет — проверка и применение
+   * происходят одним запросом (см. backend PortalLinkConfirmView).
+   *
+   * @throws {Error} 400 - Validation errors, 404 - Invalid token,
+   *   409 - email already in use, 410 - Token expired/already applied
+   */
+  async confirmPortalLink(
+    token: string,
+    newPassword: string,
+    newPasswordConfirm: string
+  ): Promise<PortalLinkConfirmResponse> {
+    const response = await apiClient.post<PortalLinkConfirmResponse>(
+      '/auth/portal-link/confirm/',
+      {
+        token,
+        new_password: newPassword,
+        new_password_confirm: newPasswordConfirm,
+      } as PortalLinkConfirmRequest
     );
 
     return response.data;
