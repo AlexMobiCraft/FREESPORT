@@ -76,8 +76,8 @@ export const PortalLinkConfirmForm = ({ token }: PortalLinkConfirmFormProps) => 
         </div>
         <h2 className="text-xl font-semibold text-gray-900">Заявка отправлена</h2>
         <p className="text-gray-600 max-w-md mx-auto">
-          Пароль установлен, аккаунт привязан к записи в 1С и передан на верификацию
-          администратору. Мы свяжемся с вами после проверки.
+          Пароль установлен, аккаунт привязан к записи в 1С и передан на верификацию администратору.
+          Мы свяжемся с вами после проверки.
         </p>
         <Button type="button" onClick={() => router.push('/login')} className="mt-4">
           На страницу входа

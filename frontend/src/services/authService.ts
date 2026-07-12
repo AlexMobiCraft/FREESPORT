@@ -213,14 +213,11 @@ class AuthService {
     newPassword: string,
     newPasswordConfirm: string
   ): Promise<PortalLinkConfirmResponse> {
-    const response = await apiClient.post<PortalLinkConfirmResponse>(
-      '/auth/portal-link/confirm/',
-      {
-        token,
-        new_password: newPassword,
-        new_password_confirm: newPasswordConfirm,
-      } as PortalLinkConfirmRequest
-    );
+    const response = await apiClient.post<PortalLinkConfirmResponse>('/auth/portal-link/confirm/', {
+      token,
+      new_password: newPassword,
+      new_password_confirm: newPasswordConfirm,
+    } as PortalLinkConfirmRequest);
 
     return response.data;
   }
