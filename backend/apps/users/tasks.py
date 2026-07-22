@@ -398,6 +398,100 @@ def send_portal_link_confirmation_email(self: Any, user_id: int, new_email: str,
     retry_backoff=True,
     retry_backoff_max=600,
 )
+def send_manager_region_email(self: Any, user_id: int) -> bool:
+    """
+    Отправить региональному менеджеру письмо о новой B2B-заявке.
+
+    Получатели определяются по стране и коду субъекта РФ (первые 2 цифры ИНН)
+    через ``resolve_manager_recipients``. Письмо дополняет, а не заменяет
+    общее уведомление админам (``send_admin_verification_email``).
+
+    Args:
+        user_id: ID пользователя, подавшего заявку
+
+    Returns:
+        True если email отправлен, False если получатели не настроены
+    """
+    from apps.users.services.region_routing import resolve_manager_recipients
+
+    try:
+        user = User.objects.get(id=user_id)
+
+        recipients = resolve_manager_recipients(user.country, user.tax_id)
+
+        if not recipients:
+            logger.warning(
+                "No manager recipients resolved for registration; skipping",
+                extra={
+                    "user_id": user_id,
+                    "country": user.country,
+                    "action": "skip_manager_region_email",
+                    "reason": "no_recipients_resolved",
+                },
+            )
+            return False
+
+        context = {
+            "user": user,
+            "role_display": user.get_role_display(),
+            "company_name": user.company_name,
+            "tax_id": user.tax_id,
+            "country": user.country,
+            "registration_date": user.created_at,
+            "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/change/",
+        }
+
+        html_message = render_to_string("emails/manager_region_notification.html", context)
+        plain_message = render_to_string("emails/manager_region_notification.txt", context)
+
+        send_mail(
+            subject=(f"[FREESPORT] Новая заявка вашего региона: {user.company_name}"),
+            message=plain_message,
+            from_email=None,  # Uses DEFAULT_FROM_EMAIL
+            recipient_list=recipients,
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        logger.info(
+            "Manager region email sent successfully",
+            extra={
+                "user_id": user_id,
+                "country": user.country,
+                "recipients": recipients,
+                "template": "manager_region_notification",
+                "timestamp": timezone.now().isoformat(),
+            },
+        )
+        return True
+
+    except User.DoesNotExist:
+        logger.error(
+            "User not found for manager region email",
+            extra={"user_id": user_id, "action": "manager_region_email"},
+        )
+        return False
+
+    except SMTPException as exc:
+        logger.error(
+            "Failed to send manager region email",
+            extra={
+                "user_id": user_id,
+                "exception": str(exc),
+                "retry_count": self.request.retries,
+                "action": "manager_region_email",
+            },
+        )
+        raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException, ConnectionError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+)
 def send_user_verified_email(self: Any, user_id: int) -> bool:
     """
     Отправить email пользователю о том, что его аккаунт верифицирован.
