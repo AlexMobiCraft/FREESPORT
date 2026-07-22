@@ -116,6 +116,63 @@ class TestRegistrationEmailsIntegration:
         assert user.verification_status == "verified"
         assert user.is_verified is True
 
+    @patch("apps.users.serializers.send_manager_region_email.delay")
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    @patch("apps.users.serializers.send_user_pending_email.delay")
+    def test_b2b_registration_triggers_manager_region_email(
+        self, mock_user_email, mock_admin_email, mock_manager_email
+    ):
+        """B2B регистрация дополнительно ставит в очередь письмо менеджеру региона."""
+        client = APIClient()
+
+        response = client.post(
+            "/api/v1/auth/register/",
+            {
+                "email": "region-b2b@example.com",
+                "password": "SecurePass123!",
+                "password_confirm": "SecurePass123!",
+                "first_name": "Region",
+                "last_name": "Buyer",
+                "role": "wholesale_level1",
+                "company_name": "ООО Регион",
+                "tax_id": "7701234567",
+                "country": "Россия",
+                "pdp_consent": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+
+        user = User.objects.get(email="region-b2b@example.com")
+
+        # Письмо менеджеру — дополнительно к письму админам, не вместо него.
+        mock_admin_email.assert_called_once_with(user.id)
+        mock_manager_email.assert_called_once_with(user.id)
+        assert user.country == "Россия"
+
+    @patch("apps.users.serializers.send_manager_region_email.delay")
+    def test_retail_registration_skips_manager_region_email(self, mock_manager_email):
+        """Retail регистрация НЕ ставит письмо менеджеру региона."""
+        client = APIClient()
+
+        response = client.post(
+            "/api/v1/auth/register/",
+            {
+                "email": "region-retail@example.com",
+                "password": "SecurePass123!",
+                "password_confirm": "SecurePass123!",
+                "first_name": "Retail",
+                "last_name": "Customer",
+                "role": "retail",
+                "pdp_consent": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        mock_manager_email.assert_not_called()
+
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     @patch("apps.users.serializers.send_user_pending_email.delay")
     def test_federation_rep_registration_triggers_emails(self, mock_user_email, mock_admin_email):

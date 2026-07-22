@@ -43,7 +43,11 @@ from ..serializers import (
     UserRegistrationSerializer,
     ValidateTokenSerializer,
 )
-from ..tasks import send_admin_verification_email, send_password_reset_email
+from ..tasks import (
+    send_admin_verification_email,
+    send_manager_region_email,
+    send_password_reset_email,
+)
 from ..tokens import password_reset_token
 
 User = get_user_model()
@@ -603,6 +607,8 @@ class PortalLinkConfirmView(APIView):
                 return Response({"detail": "Email already in use"}, status=status.HTTP_409_CONFLICT)
 
             send_admin_verification_email.delay(user.id)
+            # Дополнительно — уведомление регионального менеджера по стране/ИНН.
+            send_manager_region_email.delay(user.id)
 
             return Response(
                 {"detail": "Аккаунт привязан и ожидает верификации администратором."},
