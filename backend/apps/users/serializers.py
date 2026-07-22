@@ -17,6 +17,7 @@ from .models import Address, Company, Favorite, User
 from .services.identity_resolution import CustomerIdentityResolver
 from .tasks import (
     send_admin_verification_email,
+    send_manager_region_email,
     send_portal_link_confirmation_email,
     send_user_pending_email,
 )
@@ -60,6 +61,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "role",
             "company_name",
             "tax_id",
+            "country",
             "pdp_consent",
             "marketing_consent",
         ]
@@ -167,6 +169,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if user.role != "retail":
             send_admin_verification_email.delay(user.id)
             send_user_pending_email.delay(user.id)
+            # Дополнительно — уведомление регионального менеджера по стране/ИНН.
+            send_manager_region_email.delay(user.id)
 
         user._marketing_consent = marketing_consent  # type: ignore[attr-defined]
         return user
@@ -190,6 +194,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             customer.verification_status = "pending"
             customer.save(update_fields=["password", "verification_status"])
             send_admin_verification_email.delay(customer.id)
+            # Дополнительно — уведомление регионального менеджера по стране/ИНН.
+            send_manager_region_email.delay(customer.id)
             customer._pending_admin_review = True  # type: ignore[attr-defined]
         else:
             # Email отличается — пароль пока не сохраняем, ссылка уходит на

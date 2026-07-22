@@ -446,6 +446,69 @@ describe('B2BRegisterForm consent checkboxes', () => {
     expect(marketingConsent).not.toHaveAttribute('aria-describedby');
   });
 
+  test('should submit country "Россия" by default', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockResolvedValue({
+      access: '',
+      refresh: '',
+      user: {
+        id: 10,
+        email: 'b2b@example.com',
+        first_name: 'Иван',
+        last_name: 'Петров',
+        phone: '+79991234567',
+        role: 'wholesale_level1',
+        is_verified: false,
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    expect(screen.getByLabelText(/страна/i)).toHaveValue('Россия');
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    await waitFor(() => {
+      expect(mockRegisterB2B).toHaveBeenCalledWith(
+        expect.objectContaining({ country: 'Россия' })
+      );
+    });
+  });
+
+  test('should submit selected country when changed to Беларусь', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockResolvedValue({
+      access: '',
+      refresh: '',
+      user: {
+        id: 10,
+        email: 'b2b@example.com',
+        first_name: 'Иван',
+        last_name: 'Петров',
+        phone: '+79991234567',
+        role: 'wholesale_level1',
+        is_verified: false,
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    await waitFor(() => {
+      expect(mockRegisterB2B).toHaveBeenCalledWith(
+        expect.objectContaining({ country: 'Беларусь' })
+      );
+    });
+  });
+
   test('should not hang on cyclic backend validation payloads', async () => {
     const user = userEvent.setup();
     const mockRegisterB2B = vi.mocked(authService.registerB2B);

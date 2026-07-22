@@ -17,6 +17,7 @@ from .models import (
     AuditLog,
     BlogPost,
     CustomerSyncLog,
+    ManagerRoutingRule,
     News,
     Newsletter,
     NotificationRecipient,
@@ -583,6 +584,77 @@ class NotificationRecipientAdmin(admin.ModelAdmin):
                 "fields": (
                     "notify_low_stock",
                     "notify_daily_summary",
+                )
+            },
+        ),
+        (
+            "Метаданные",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
+# ==================================================================
+# Manager Routing Rules Admin
+# ==================================================================
+
+
+@admin.register(ManagerRoutingRule)
+class ManagerRoutingRuleAdmin(admin.ModelAdmin):
+    """Admin интерфейс для правил маршрутизации заявок на менеджеров."""
+
+    list_display = [
+        "match_type",
+        "match_value",
+        "manager_name",
+        "manager_email",
+        "federal_district",
+        "is_active",
+    ]
+    list_filter = [
+        "match_type",
+        "is_active",
+        "federal_district",
+    ]
+    search_fields = [
+        "match_value",
+        "manager_name",
+        "manager_email",
+        "federal_district",
+    ]
+    list_editable = [
+        "manager_email",
+        "is_active",
+    ]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+    ]
+
+    fieldsets = (
+        (
+            "Правило",
+            {
+                "fields": (
+                    "match_type",
+                    "match_value",
+                    "is_active",
+                )
+            },
+        ),
+        (
+            "Менеджер",
+            {
+                "fields": (
+                    "manager_name",
+                    "manager_email",
+                    "federal_district",
                 )
             },
         ),

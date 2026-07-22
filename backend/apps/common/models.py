@@ -940,3 +940,81 @@ class NotificationRecipient(TimeStampedModel):
         super().clean()
         if self.email:
             self.email = self.email.lower().strip()
+
+
+class ManagerRoutingRule(TimeStampedModel):
+    """
+    Правило маршрутизации email о регистрации B2B-клиента на менеджера.
+
+    Определяет получателя(ей) уведомления по стране регистрации или коду
+    субъекта РФ (первые 2 цифры ИНН). Несколько активных строк с одинаковыми
+    ``(match_type, match_value)`` дают несколько получателей — так реализуются
+    резервные адреса (``fallback``). Редактируется через Django Admin без деплоя.
+    """
+
+    MATCH_INN_REGION = "inn_region"
+    MATCH_COUNTRY = "country"
+    MATCH_FALLBACK = "fallback"
+    MATCH_TYPE_CHOICES = [
+        (MATCH_INN_REGION, "Код субъекта РФ (по ИНН)"),
+        (MATCH_COUNTRY, "Страна"),
+        (MATCH_FALLBACK, "Резерв (fallback)"),
+    ]
+
+    match_type = models.CharField(
+        _("Тип совпадения"),
+        max_length=20,
+        choices=MATCH_TYPE_CHOICES,
+        db_index=True,
+        help_text="По коду субъекта РФ (первые 2 цифры ИНН), по стране или резерв",
+    )
+    match_value = models.CharField(
+        _("Значение"),
+        max_length=50,
+        blank=True,
+        help_text=('2-значный код региона ("23"), название страны ("Беларусь") ' 'или "default" для резерва'),
+    )
+    manager_name = models.CharField(
+        _("Имя менеджера"),
+        max_length=100,
+        blank=True,
+        help_text="Имя менеджера для персонализации письма",
+    )
+    manager_email = models.EmailField(
+        _("Email менеджера"),
+        help_text="Адрес, на который уходит уведомление о регистрации",
+    )
+    federal_district = models.CharField(
+        _("Федеральный округ"),
+        max_length=30,
+        blank=True,
+        help_text="Справочно: округ / зона ответственности",
+    )
+    is_active = models.BooleanField(
+        _("Активно"),
+        default=True,
+        db_index=True,
+        help_text="Неактивные правила исключаются из маршрутизации",
+    )
+
+    class Meta:
+        verbose_name = _("Правило маршрутизации менеджеров")
+        verbose_name_plural = _("Правила маршрутизации менеджеров")
+        ordering = ["match_type", "match_value", "manager_email"]
+        indexes = [
+            models.Index(
+                fields=["match_type", "match_value", "is_active"],
+                name="common_mrr_type_val_act_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_match_type_display()}:{self.match_value or '—'} → {self.manager_email}"
+
+    def clean(self):
+        """Нормализация значений перед сохранением."""
+        super().clean()
+        if self.manager_email:
+            self.manager_email = self.manager_email.lower().strip()
+        if self.match_value:
+            self.match_value = self.match_value.strip()

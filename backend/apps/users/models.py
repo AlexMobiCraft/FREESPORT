@@ -121,6 +121,22 @@ class User(AbstractUser):
 
     tax_id = models.CharField("ИНН", max_length=12, blank=True, help_text="ИНН для B2B пользователей")
 
+    # Страна регистрации B2B-клиента — используется для маршрутизации заявки
+    # на регионального менеджера (см. apps.users.services.region_routing).
+    COUNTRY_RUSSIA = "Россия"
+    COUNTRY_CHOICES = [
+        (COUNTRY_RUSSIA, "Россия"),
+        ("Беларусь", "Беларусь"),
+        ("Казахстан", "Казахстан"),
+    ]
+    country = models.CharField(
+        "Страна",
+        max_length=20,
+        choices=COUNTRY_CHOICES,
+        default=COUNTRY_RUSSIA,
+        help_text="Страна регистрации B2B-клиента (для маршрутизации на менеджера)",
+    )
+
     # Статус верификации для B2B
     is_verified = models.BooleanField(
         "Верифицирован",
