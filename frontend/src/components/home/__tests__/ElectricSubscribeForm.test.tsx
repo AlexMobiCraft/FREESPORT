@@ -48,33 +48,46 @@ describe('ElectricSubscribeForm', () => {
     expect(link.closest('label')).toBeNull();
   });
 
-  it('blocks submit without PDN consent', async () => {
+  it('keeps submit disabled until PDN consent is checked', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
     await user.type(screen.getByLabelText(/email/i), 'electric@example.com');
-    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+    const button = screen.getByRole('button', { name: /подписаться/i });
 
-    await waitFor(() => {
-      expect(
-        screen.getByText('Необходимо согласие на обработку персональных данных.')
-      ).toBeInTheDocument();
-    });
+    // Без согласия на обработку ПДн кнопка неактивна, submit невозможен
+    expect(button).toBeDisabled();
+    await user.click(button);
     expect(mockSubscribe).not.toHaveBeenCalled();
+
+    // После установки согласия кнопка становится активной
+    await clickPdpCheckbox(user);
+    expect(button).toBeEnabled();
   });
 
   it('marks PDN checkbox invalid and links error text through aria-describedby', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        details: {
+          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+        },
+      })
+    );
+
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
+    // Согласие отмечено (кнопка активна), но backend возвращает ошибку pdp_consent
     await user.type(screen.getByLabelText(/email/i), 'electric@example.com');
+    await clickPdpCheckbox(user);
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     const checkbox = await screen.findByRole('checkbox', {
       name: /обработку моих персональных данных/i,
     });
-    const alert = screen.getByRole('alert');
+    const alert = await screen.findByRole('alert');
     expect(checkbox).toHaveAttribute('aria-invalid', 'true');
     expect(checkbox).toHaveAttribute('aria-describedby', alert.id);
   });

@@ -55,6 +55,9 @@ export const registerSchema = z
     // Story 29.1: Условные B2B поля
     company_name: z.string().optional(),
     tax_id: z.string().optional(),
+    // Страна регистрации B2B — по ней (или коду субъекта РФ из ИНН) заявка
+    // маршрутизируется на регионального менеджера. Показывается для B2B-ролей.
+    country: z.enum(['Россия', 'Беларусь', 'Казахстан']).default('Россия'),
     pdp_consent: pdpConsentSchema,
     marketing_consent: z.boolean().default(false),
   })

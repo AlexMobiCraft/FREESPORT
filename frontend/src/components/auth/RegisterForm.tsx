@@ -64,6 +64,7 @@ const REGISTER_FIELD_ERROR_MAP = {
   role: 'role',
   company_name: 'company_name',
   tax_id: 'tax_id',
+  country: 'country',
   pdp_consent: 'pdp_consent',
 } satisfies BackendFieldErrorMap<RegisterFormInput>;
 
@@ -89,6 +90,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
     // Story 29.1 AC 2: Retail роль по умолчанию
     defaultValues: {
       role: 'retail',
+      country: 'Россия',
       pdp_consent: false,
       marketing_consent: false,
     },
@@ -97,6 +99,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
   // Story 29.1: Отслеживаем выбранную роль для условной логики
   const selectedRole = watch('role') ?? 'retail';
   const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
+  // Кнопка регистрации активна только при согласии на обработку ПДн
+  const pdpConsentChecked = watch('pdp_consent') === true;
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
@@ -115,6 +119,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         // Story 29.1 AC 8: Условные B2B поля
         company_name: data.company_name,
         tax_id: data.tax_id,
+        country: data.country,
         pdp_consent: data.pdp_consent,
         marketing_consent: data.marketing_consent ?? false,
       };
@@ -260,6 +265,36 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         />
       )}
 
+      {/* Страна регистрации для B2B: определяет маршрутизацию заявки на менеджера */}
+      {isB2BRole && (
+        <div className="space-y-1">
+          <label htmlFor="register-country" className="block text-body-s font-medium text-gray-700">
+            Страна
+          </label>
+          <select
+            id="register-country"
+            {...register('country')}
+            disabled={isSubmitting}
+            aria-invalid={Boolean(errors.country?.message) || undefined}
+            aria-describedby={errors.country?.message ? 'register-country-error' : undefined}
+            className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="Россия">Россия</option>
+            <option value="Беларусь">Беларусь</option>
+            <option value="Казахстан">Казахстан</option>
+          </select>
+          {errors.country?.message && (
+            <p
+              id="register-country-error"
+              className="text-body-xs text-[var(--color-accent-danger)]"
+              role="alert"
+            >
+              {errors.country.message}
+            </p>
+          )}
+        </div>
+      )}
+
       <Input
         label="Пароль"
         type="password"
@@ -345,7 +380,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
 
       {/* AC 6: Использование Button компонента */}
       {/* AC 4: Loading state с блокировкой кнопки */}
-      <Button type="submit" loading={isSubmitting} disabled={isSubmitting} className="w-full">
+      <Button
+        type="submit"
+        loading={isSubmitting}
+        disabled={isSubmitting || !pdpConsentChecked}
+        className="w-full"
+      >
         Зарегистрироваться
       </Button>
     </form>

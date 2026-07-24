@@ -192,7 +192,7 @@ export const SubscribeForm: React.FC = () => {
       <Button
         type="submit"
         variant="primary"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !pdpConsent}
         loading={isSubmitting}
         className="w-full"
       >

@@ -257,7 +257,7 @@ export const ElectricSubscribeForm: React.FC = () => {
         type="submit"
         variant="primary"
         size="lg"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !pdpConsent}
         className="w-full"
       >
         {isSubmitting ? 'ОТПРАВКА...' : 'ПОДПИСАТЬСЯ'}
