@@ -125,6 +125,15 @@ context:
   - **Известное плохое состояние, которого избегаем:** переплата тренеру по смешанным заказам и массовое начисление задним числом при первом же импорте.
   - **KEEP (должно пережить перегенерацию):** нормализация знака `amount` в `clean()`, а не в `save()` — `full_clean()` проверяет `CheckConstraint` до сохранения, иначе ручные операции с положительной суммой отклоняются; savepoint вокруг всех обращений к БД в `accrue_for_order` — сигнал работает внутри `transaction.atomic()` импорта; собственный класс пагинации, поскольку глобальный `PAGE_SIZE_QUERY_PARAM` в DRF неактивен.
 
+- **Итерация 2 (2026-07-25), закрытие отложенных находок ревью.**
+  - **Долговечность журнала:** `BonusTransaction.user` переведён с `CASCADE` на `SET_NULL` (`null=True`, `blank=False`), добавлены снимки `user_email_snapshot`, `user_name_snapshot`, `order_number_snapshot`. `CASCADE` стирал исполненные выплаты вместе с учётной записью, нарушая гарантию «история не удаляется»; `PROTECT` конфликтовал бы с удалением по запросу ПДн. **Решение человека (Alex, 2026-07-25):** вариант «SET_NULL + снимки».
+  - **Ключ идемпотентности** перенесён с FK `order` на `order_number_snapshot`: в PostgreSQL NULL-ы различны, поэтому после удаления заказа `UniqueConstraint(order)` перестал бы защищать от повторного начисления.
+  - **Лимит выплаты** проверяется под `SELECT ... FOR UPDATE` по строке тренера (`lock_trainer_account`); добавлен сервис `create_manual_transaction`, а `save()` принудительно валидирует новые ручные операции — прямой `objects.create()` больше не обходит ни лимит, ни требование комментария.
+  - **`accrual_status`** сужен до нетерминальных статусов (`ACCRUAL_STATUS_CHOICES` + `CheckConstraint`). **Осознанное отклонение от буквы спеки** «choices из `ORDER_STATUSES`»: полный список позволял настроить начисление за отменённые заказы, что прямо противоречит разделу Boundaries.
+  - **Доступ к API** выровнен с начислением и пунктом меню: `IsTrainer` требует `is_verified`, неподтверждённый тренер получает 403 вместо 200 с нулями.
+  - **Обратный переход статуса УТ 11:** семантика `STATUS_PRIORITY` не изменена (граница «Ask First» соблюдена), но фактический `status_1c` фиксируется при заблокированном переходе. **Решение человека (Alex, 2026-07-25):** вариант «сохранять `status_1c`».
+  - **KEEP (должно пережить перегенерацию):** снимки заполняются один раз при создании и никогда не переписываются — журнал обязан хранить состояние на момент операции; `lock_trainer_account` молча пропускает блокировку вне транзакции, поскольку `full_clean()` вызывают и из кода без транзакции; блокировка в админке работает только потому, что POST `ModelAdmin.changeform_view` идёт внутри `transaction.atomic()`.
+
 ## Design Notes
 
 **`BonusTransaction`:** `user` (FK, `related_name='bonus_transactions'`), `transaction_type` (`accrual`/`payout`/`writeoff`), `amount` (Decimal 10,2, со знаком), `order` (FK `orders.Order`, null), `percent_applied` (Decimal 5,2, null), `base_amount` (Decimal 10,2, null), `comment` (Text), `created_by` (FK User, null, `on_delete=SET_NULL`), `created_at`. Индекс по `(user, created_at)`.

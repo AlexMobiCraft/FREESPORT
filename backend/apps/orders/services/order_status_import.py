@@ -708,6 +708,7 @@ class OrderStatusImportService:
                 f"'{order.status}' to '{new_status}' blocked"
             )
             logger.warning(error_msg)
+            self._record_blocked_status_1c(order, order_data)
             return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # 2. Priority-based regression for non-final statuses
@@ -722,6 +723,7 @@ class OrderStatusImportService:
                 f"'{new_status}' (p={new_priority}) blocked"
             )
             logger.warning(error_msg)
+            self._record_blocked_status_1c(order, order_data)
             return ProcessingStatus.SKIPPED_STATUS_REGRESSION, error_msg
 
         # Проверяем, нужно ли обновление (идемпотентность AC8)
@@ -784,6 +786,34 @@ class OrderStatusImportService:
 
         logger.debug(f"Order {order.order_number}: status updated to " f"'{new_status}' (1C: '{order_data.status_1c}')")
         return ProcessingStatus.UPDATED, None
+
+    def _record_blocked_status_1c(self, order: Order, order_data: OrderUpdateData) -> None:
+        """Фиксирует исходный статус 1С при заблокированном переходе.
+
+        `order.status` не меняется — защита от регрессии остаётся в силе.
+        Но без записи `status_1c` расхождение с 1С было бы полностью молчаливым:
+        о нём говорил только счётчик `skipped_status_regression` в отчёте
+        импорта. Реальный сценарий УТ 11 — возврат заказа из «К выполнению»
+        в «На согласовании»: FREESPORT показывал бы «В обработке», а 1С —
+        «На согласовании», и понять это по карточке заказа было невозможно.
+        """
+        raw_status = order_data.status_1c[:255]
+        if order.status_1c == raw_status:
+            return
+
+        order.status_1c = raw_status
+        order.sent_to_1c_at = timezone.now()
+        update_fields = ["status_1c", "sent_to_1c_at", "updated_at"]
+
+        if not order.sent_to_1c:
+            order.sent_to_1c = True
+            update_fields.append("sent_to_1c")
+
+        order.save(update_fields=update_fields)
+        logger.info(
+            f"Order {order.order_number}: FREESPORT-статус остался '{order.status}', "
+            f"сохранён фактический статус 1С '{raw_status}'"
+        )
 
     # =========================================================================
     # Master Aggregation Methods (Story 34-4)

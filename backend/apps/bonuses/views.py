@@ -21,6 +21,7 @@ from apps.bonuses.serializers import BonusSummarySerializer, BonusTransactionSer
 from apps.bonuses.services.accrual import TRAINER_ROLE, get_balance
 
 FORBIDDEN_RESPONSE = {"detail": "Бонусная программа доступна только тренерам."}
+UNVERIFIED_RESPONSE = {"detail": "Учётная запись тренера ещё не подтверждена менеджером."}
 
 
 class BonusTransactionPagination(PageNumberPagination):
@@ -35,16 +36,28 @@ class BonusTransactionPagination(PageNumberPagination):
 
 
 class IsTrainer(permissions.BasePermission):
-    """Доступ только для роли «Тренер / Фитнес-клуб».
+    """Доступ только для подтверждённых тренеров («Тренер / Фитнес-клуб»).
 
     Реализовано permission-классом, а не проверкой внутри `get()`: иначе любой
     добавленный позже метод остался бы без проверки роли на денежных данных.
+
+    Условие совпадает с условием начисления (`is_eligible`) и с показом пункта
+    меню на фронте: неподтверждённый тренер в программе не участвует, поэтому
+    получает 403 с объяснением, а не 200 с нулями.
     """
 
     message = FORBIDDEN_RESPONSE["detail"]
 
     def has_permission(self, request: Request, view: object) -> bool:
-        return getattr(request.user, "role", None) == TRAINER_ROLE
+        user = request.user
+        if getattr(user, "role", None) != TRAINER_ROLE:
+            # message задаётся на экземпляре: DRF создаёт permission на каждый запрос
+            self.message = FORBIDDEN_RESPONSE["detail"]
+            return False
+        if not getattr(user, "is_verified", False):
+            self.message = UNVERIFIED_RESPONSE["detail"]
+            return False
+        return True
 
 
 class BonusSummaryView(APIView):
@@ -58,7 +71,7 @@ class BonusSummaryView(APIView):
         responses={
             200: BonusSummarySerializer,
             401: "Пользователь не авторизован",
-            403: "Доступ только для тренеров",
+            403: "Доступ только для подтверждённых тренеров",
         },
         tags=["Bonuses"],
     )
@@ -118,7 +131,7 @@ class BonusTransactionListView(ListAPIView):
         responses={
             200: BonusTransactionSerializer(many=True),
             401: "Пользователь не авторизован",
-            403: "Доступ только для тренеров",
+            403: "Доступ только для подтверждённых тренеров",
         },
         tags=["Bonuses"],
     )

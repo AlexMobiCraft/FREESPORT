@@ -22,7 +22,13 @@ class BonusTransactionSerializer(serializers.ModelSerializer):
 
     transaction_type_display = serializers.CharField(source="get_transaction_type_display", read_only=True)
     order_id = serializers.IntegerField(source="order.id", read_only=True, allow_null=True)
-    order_number = serializers.CharField(source="order.order_number_display", read_only=True, default=None)
+    # Номер берётся из снимка, если заказ удалён: иначе начисление в истории
+    # тренера осталось бы без указания, за что оно сделано
+    order_number = serializers.SerializerMethodField()
+
+    def get_order_number(self, obj: BonusTransaction) -> str | None:
+        """Номер заказа: живой заказ либо снимок на момент начисления."""
+        return obj.order_display or None
 
     class Meta:
         model = BonusTransaction

@@ -246,6 +246,33 @@ class TestUT11StatusMapping:
         master.refresh_from_db()
         assert master.status == "delivered"
 
+    def test_reverse_transition_keeps_status_but_records_status_1c(self):
+        """Возврат заказа в УТ 11 на согласование не теряется молча.
+
+        «К выполнению» → «На согласовании» — обратный переход, который защита
+        от регрессии блокирует. Статус FREESPORT остаётся прежним, но
+        фактический статус 1С фиксируется: иначе расхождение с 1С было бы
+        видно только в счётчике `skipped_status_regression`.
+        """
+        master, subs = _make_master_with_subs(["processing"])
+        sub = subs[0]
+        sub.status_1c = "К выполнению"
+        sub.save(update_fields=["status_1c"])
+
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{sub.pk}",
+            order_number=sub.order_number,
+            status="На согласовании",
+        )
+
+        result = OrderStatusImportService().process(xml_data)
+
+        sub.refresh_from_db()
+        assert result.updated == 0
+        assert result.skipped_status_regression == 1
+        assert sub.status == "processing"
+        assert sub.status_1c == "На согласовании"
+
     def test_approval_statuses_map_to_pending(self):
         """«Не согласован» и «На согласовании» не двигают заказ вперёд."""
         master, subs = _make_master_with_subs(["pending"])
@@ -1828,8 +1855,11 @@ class TestRound7ReviewFollowups:
             assert result.updated == 0
             assert result.skipped_status_regression == 1
             assert result.skipped_unknown_status == 0
-            mock_order.save.assert_not_called()
             assert mock_order.status == current_status
+            # Переход заблокирован, но фактический статус 1С сохраняется —
+            # расхождение видно в карточке заказа, а не только в счётчике импорта
+            assert mock_order.status_1c == "Отгружен"
+            mock_order.save.assert_called_once_with(update_fields=["status_1c", "sent_to_1c_at", "updated_at"])
 
     @pytest.mark.parametrize(
         ("current_status", "current_1c", "new_1c_status", "target_status"),
@@ -1879,9 +1909,11 @@ class TestRound7ReviewFollowups:
             # ASSERT — переход между финальными статусами блокируется
             assert result.updated == 0
             assert result.skipped_status_regression == 1
-            mock_order.save.assert_not_called()
             # Статус не изменился
             assert mock_order.status == current_status
+            # Фактический статус 1С зафиксирован — менеджер видит расхождение
+            assert mock_order.status_1c == new_1c_status
+            mock_order.save.assert_called_once_with(update_fields=["status_1c", "sent_to_1c_at", "updated_at"])
 
     def test_status_update_logged_at_debug(self, caplog):
         # [AI-Review][Medium] Обновление статуса логируется на DEBUG, не INFO.
@@ -2754,4 +2786,7 @@ class TestModernSubOrderImportUnit:
         assert result.skipped_status_regression == 1
         assert result.updated == 0
         assert mock_sub.status == "shipped"
-        mock_sub.save.assert_not_called()
+        # Статус FREESPORT не регрессирует, но фактический статус 1С фиксируется:
+        # иначе расхождение с 1С было бы видно только в счётчике импорта
+        assert mock_sub.status_1c == "Подтвержден"
+        mock_sub.save.assert_called_once_with(update_fields=["status_1c", "sent_to_1c_at", "updated_at"])

@@ -116,7 +116,7 @@ class BonusTransactionAdmin(admin.ModelAdmin):
     form = ManualBonusTransactionForm
     list_display = (
         "created_at",
-        "user",
+        "trainer",
         "transaction_type",
         "amount",
         "user_balance",
@@ -124,7 +124,16 @@ class BonusTransactionAdmin(admin.ModelAdmin):
         "short_comment",
     )
     list_filter = ("transaction_type", TrainerFilter, "created_at")
-    search_fields = ("user__email", "user__first_name", "user__last_name", "order__order_number", "comment")
+    search_fields = (
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "user_email_snapshot",
+        "user_name_snapshot",
+        "order__order_number",
+        "order_number_snapshot",
+        "comment",
+    )
     date_hierarchy = "created_at"
     list_select_related = ("user", "order")
 
@@ -159,11 +168,17 @@ class BonusTransactionAdmin(admin.ModelAdmin):
             balance = get_balance(obj.user_id)
         return f"{balance} ₽"
 
+    @admin.display(description="Тренер")
+    def trainer(self, obj: BonusTransaction) -> str:
+        """Тренер или снимок его данных, если учётная запись удалена."""
+        return obj.trainer_display
+
     @admin.display(description="Заказ")
     def order_link(self, obj: BonusTransaction) -> str:
         order = obj.order
         if order is None:
-            return "—"
+            # Заказ удалён — остаётся снимок номера, ссылки уже нет
+            return obj.order_number_snapshot or "—"
         url = reverse("admin:orders_order_change", args=[order.pk])
         return format_html('<a href="{}">{}</a>', url, order.order_number_display)
 
@@ -172,14 +187,28 @@ class BonusTransactionAdmin(admin.ModelAdmin):
         comment = obj.comment or ""
         return comment if len(comment) <= 60 else f"{comment[:60]}…"
 
+    def _is_read_only(self, obj: BonusTransaction | None) -> bool:
+        """Операция открывается только на чтение.
+
+        Начисления не правятся никогда. Операции удалённого тренера — тоже:
+        форма требует тренера, а восстановить ссылку на удалённую учётную
+        запись нельзя, поэтому запись остаётся историческим документом.
+        """
+        if obj is None:
+            return False
+        return obj.transaction_type == BonusTransaction.ACCRUAL or obj.user_id is None
+
     def get_readonly_fields(self, request: HttpRequest, obj: BonusTransaction | None = None) -> tuple[str, ...]:
-        """Начисление открывается только на чтение."""
-        if obj is not None and obj.transaction_type == BonusTransaction.ACCRUAL:
+        """Начисления и операции удалённых тренеров открываются на чтение."""
+        if self._is_read_only(obj):
             return (
                 "user",
+                "user_email_snapshot",
+                "user_name_snapshot",
                 "transaction_type",
                 "amount",
                 "order",
+                "order_number_snapshot",
                 "percent_applied",
                 "base_amount",
                 "comment",
@@ -189,13 +218,13 @@ class BonusTransactionAdmin(admin.ModelAdmin):
         return ()
 
     def get_fields(self, request: HttpRequest, obj: BonusTransaction | None = None) -> Any:
-        if obj is not None and obj.transaction_type == BonusTransaction.ACCRUAL:
+        if self._is_read_only(obj):
             return self.get_readonly_fields(request, obj)
         return super().get_fields(request, obj)
 
     def has_change_permission(self, request: HttpRequest, obj: BonusTransaction | None = None) -> bool:
         """Начисление правкам не подлежит — открывается в режиме просмотра."""
-        if obj is not None and obj.transaction_type == BonusTransaction.ACCRUAL:
+        if self._is_read_only(obj):
             return False
         return super().has_change_permission(request, obj)
 
@@ -210,7 +239,14 @@ class BonusTransactionAdmin(admin.ModelAdmin):
         form: forms.ModelForm,
         change: bool,
     ) -> None:
-        """Проставляет автора операции. Валидация уже выполнена формой."""
+        """Проставляет автора операции. Валидация уже выполнена формой.
+
+        Лимит выплаты проверяется в `BonusTransaction.clean()` под блокировкой
+        счёта тренера. POST админки Django выполняет внутри `transaction.atomic()`
+        (`ModelAdmin.changeform_view`), поэтому блокировка, взятая при валидации
+        формы, держится до сохранения — вторая одновременная выплата ждёт
+        коммита первой и видит уже уменьшенный баланс.
+        """
         if obj.created_by_id is None:
             obj.created_by_id = request.user.pk
         super().save_model(request, obj, form, change)

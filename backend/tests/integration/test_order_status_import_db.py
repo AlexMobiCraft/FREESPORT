@@ -298,7 +298,8 @@ class TestOrderStatusImportDBIntegration(TestCase):
 """
 
         # ACT
-        # Query count breakdown (11 total) после Story 34-5 (master+sub):
+        # Query count breakdown (14 total) после Story 34-5 (master+sub)
+        # и бонусной программы:
         # 1. SAVEPOINT — transaction.atomic() start
         # 2. SELECT ... FOR UPDATE — bulk fetch all 3 sub-orders in one query
         # (no EXISTS: is_master=False short-circuits master-guard)
@@ -311,8 +312,12 @@ class TestOrderStatusImportDBIntegration(TestCase):
         # 8. SELECT sub_orders.payment_status — _aggregate_master_payment_status
         # 9. SELECT sub_orders.sent_to_1c_at — _aggregate_master_sent_to_1c_at
         # 10. UPDATE master — save() with update_fields
-        # 11. RELEASE SAVEPOINT — transaction.atomic() commit
-        with cast(Any, self).assertNumQueries(11):
+        # [Сигнал бонусной программы на post_save мастера]
+        # 11. SAVEPOINT — вложенный atomic() в accrue_for_order
+        # 12. SELECT bonus_program_settings — BonusProgramSettings.load()
+        # 13. RELEASE SAVEPOINT — заказ не проходит is_eligible, выход
+        # 14. RELEASE SAVEPOINT — transaction.atomic() commit
+        with cast(Any, self).assertNumQueries(14):
             result = self.service.process(xml_data)
 
         # ASSERT — все 3 заказа обновлены
@@ -449,7 +454,9 @@ class TestFinalStatusTransitionsDB(TestCase):
         self.assertEqual(result.skipped_status_regression, 1)
         # Статус в БД не изменился
         self.assertEqual(self.order.status, "delivered")
-        self.assertEqual(self.order.status_1c, "Доставлен")
+        # Фактический статус 1С зафиксирован: расхождение видно менеджеру
+        # в карточке заказа, а не только в счётчике skipped_status_regression
+        self.assertEqual(self.order.status_1c, "Отменен")
 
     def test_transition_cancelled_to_refunded_blocked_in_db(self):
         """Переход cancelled → refunded блокируется."""

@@ -78,6 +78,19 @@ class TestBonusSummary:
 
         assert response.status_code == 403
 
+    def test_unverified_trainer_is_forbidden(self, client: APIClient) -> None:
+        """Условие доступа совпадает с условием начисления и с пунктом меню.
+
+        Неподтверждённый тренер в программе не участвует, поэтому получает
+        403 с объяснением, а не 200 с нулями, похожими на пропажу бонусов.
+        """
+        client.force_authenticate(user=create_user(is_verified=False))
+
+        response = client.get(SUMMARY_URL)
+
+        assert response.status_code == 403
+        assert "не подтверждена" in response.data["detail"]
+
     def test_anonymous_is_unauthorized(self, client: APIClient) -> None:
         response = client.get(SUMMARY_URL)
 
@@ -156,10 +169,30 @@ class TestBonusTransactionList:
 
         assert response.status_code == 403
 
+    def test_unverified_trainer_is_forbidden(self, client: APIClient) -> None:
+        client.force_authenticate(user=create_user(is_verified=False))
+
+        response = client.get(TRANSACTIONS_URL)
+
+        assert response.status_code == 403
+        assert "не подтверждена" in response.data["detail"]
+
     def test_anonymous_is_unauthorized(self, client: APIClient) -> None:
         response = client.get(TRANSACTIONS_URL)
 
         assert response.status_code == 401
+
+    def test_deleted_order_still_shows_number_from_snapshot(self, client: APIClient) -> None:
+        """Иначе начисление в истории осталось бы без указания, за что оно."""
+        trainer, master = _trainer_with_history()
+        order_number = master.order_number_display
+        master.delete()
+        client.force_authenticate(user=trainer)
+
+        response = client.get(f"{TRANSACTIONS_URL}?type=accrual")
+
+        assert response.status_code == 200
+        assert response.data["results"][0]["order_number"] == order_number
 
     def test_invalid_type_returns_400(self, client: APIClient) -> None:
         """Опечатка в типе не должна выглядеть как «бонусы пропали»."""

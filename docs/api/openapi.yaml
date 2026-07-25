@@ -689,7 +689,7 @@ paths:
         '401':
           description: Пользователь не авторизован
         '403':
-          description: Доступ только для тренеров
+          description: Доступ только для подтверждённых тренеров
   /users/bonuses/transactions/:
     get:
       operationId: users_bonuses_transactions_list
@@ -730,7 +730,7 @@ paths:
         '401':
           description: Пользователь не авторизован
         '403':
-          description: Доступ только для тренеров
+          description: Доступ только для подтверждённых тренеров
   /users/roles/:
     get:
       operationId: users_roles_retrieve

@@ -361,26 +361,27 @@
   summary: Единственный singleton-счётчик `CustomerCodeSequence` (`pk=1`) лочится через `select_for_update()` при каждом первом чекауте безкодового пользователя — потенциальная точка контенции именно в момент всплеска (после деплоя 4620 из 4621 пользователей на проде без кода одновременно проходят этот путь впервые).
   evidence: Blind Hunter (2026-07-11). Осознанный trade-off "корректность важнее throughput" для этой story; стоит перепроверить по метрикам после деплоя и при необходимости шардировать счётчик или использовать `NOWAIT`/ретраи с backoff.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
-  summary: `BonusTransaction.user` — FK с `on_delete=CASCADE`: удаление пользователя молча стирает весь финансовый журнал (начисления и уже исполненные выплаты), что противоречит гарантии «история не удаляется».
-  evidence: Blind Hunter + Edge Case Hunter (2026-07-25), сошлись независимо. Не патчится тривиально: `PROTECT` заблокирует удаление пользователя, что конфликтует с удалением по запросу ПДн. Нужно решение — либо анонимизация пользователя вместо удаления, либо tombstone-таблица.
+## Resolved: spec-trainer-bonus-program (2026-07-25)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
-  summary: `BonusTransaction.order` — FK с `on_delete=SET_NULL`, а ключ идемпотентности — `UniqueConstraint(order)` при `transaction_type='accrual'`; в PostgreSQL NULL-ы различны, поэтому после удаления заказа возможно повторное начисление за то же экономическое событие.
-  evidence: Blind Hunter + Edge Case Hunter (2026-07-25). Требует того же решения об удалении заказов, что и пункт выше; на практике заказы не удаляются, поэтому отложено.
+Все шесть находок ревью закрыты в рамках отдельной итерации. Решения по
+двум продуктовым вопросам приняты человеком (Alex, 2026-07-25).
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
-  summary: Лимит выплаты (`payout` не больше баланса) проверяется в `clean()` обычным `Sum` без `select_for_update`; две одновременные выплаты одному тренеру пройдут обе и уведут баланс в минус. Через `objects.create()` проверка не выполняется вовсе.
-  evidence: Blind Hunter + Edge Case Hunter (2026-07-25). Реально, но требует дизайн-решения: блокировка в `clean()` не гарантирует транзакцию, а БД-констрейнт на агрегат в PostgreSQL без триггера невозможен. На текущем масштабе (выплаты оформляет один-два менеджера вручную) вероятность низкая.
+- **РЕШЕНО.** `BonusTransaction.user` — FK с `on_delete=CASCADE`: удаление пользователя молча стирало весь финансовый журнал.
+  Решение (вариант «SET_NULL + снимки»): `user` переведён в `SET_NULL` (`null=True`, `blank=False` — формы по-прежнему требуют тренера), добавлены снимки `user_email_snapshot` / `user_name_snapshot`, заполняемые при создании операции. Удаление по запросу ПДн остаётся возможным, финансовая история сохраняется. Операции удалённого тренера в админке доступны только на чтение. [`backend/apps/bonuses/models.py`, миграция `0003_bonus_journal_survives_deletion`]
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
-  summary: `accrual_status` использует полный список `ORDER_STATUSES`, поэтому администратор может выбрать в выпадающем списке `cancelled` или `refunded` и настроить начисление бонусов за отменённые заказы.
-  evidence: Blind Hunter (2026-07-25). Сужение списка противоречит букве спеки («choices из `ORDER_STATUSES`»), поэтому вынесено в отдельное решение.
+- **РЕШЕНО.** `BonusTransaction.order` — `SET_NULL` при ключе идемпотентности `UniqueConstraint(order)`: NULL-ы в PostgreSQL различны, после удаления заказа было возможно повторное начисление.
+  Решение: ключ идемпотентности перенесён с FK на снимок `order_number_snapshot` (`UniqueConstraint(order_number_snapshot)` при `transaction_type='accrual'` и непустом снимке). `accrue_for_order` проверяет дубликат по снимку, а не по FK. Серializer и админка показывают номер из снимка, когда заказа уже нет.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
-  summary: Три несовпадающих определения «тренера в программе»: начисление требует `role=trainer` И `is_verified`, пункт меню на фронте — тоже оба условия, а API проверяет только роль. Неверифицированный тренер получает 200 с нулями вместо 403.
-  evidence: Blind Hunter (2026-07-25). Последствий для данных нет (журнал пуст), но расхождение порождает вопросы в поддержку. Спека в I/O-матрице описывает только случай не-тренера, поэтому выравнивание требует уточнения интента.
+- **РЕШЕНО.** Гонка двух одновременных выплат обходила лимит баланса; `objects.create()` не выполнял проверку вовсе.
+  Решение: `lock_trainer_account()` берёт `SELECT ... FOR UPDATE` по строке тренера перед чтением баланса в `clean()`. POST админки Django выполняет внутри `transaction.atomic()` (`ModelAdmin.changeform_view`), поэтому блокировка держится от валидации формы до сохранения. Для кода добавлен сервис `create_manual_transaction()`, а `save()` принудительно вызывает `full_clean()` для новых ручных операций — прямой `objects.create()` больше не обходит ни лимит, ни требование комментария.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
-  summary: Обратный переход в УТ 11 («К выполнению» → «На согласовании») блокируется защитой от регрессии: заказ пропускается, `status_1c` не обновляется, и FREESPORT молча расходится с 1С — виден только счётчик `skipped_status_regression`.
-  evidence: Edge Case Hunter (2026-07-25). Поведение существовало и до этой задачи, но новые ключи маппинга сделали такой сценарий достижимым. Изменение семантики `STATUS_PRIORITY` спека относит к «Ask First».
+- **РЕШЕНО.** `accrual_status` допускал выбор `cancelled` / `refunded`.
+  Решение: список сужен до `ACCRUAL_STATUS_CHOICES` (нетерминальные статусы) + `CheckConstraint` на уровне БД. Отклонение от буквы спеки («choices из `ORDER_STATUSES`») зафиксировано в Spec Change Log.
+
+- **РЕШЕНО.** Три несовпадающих определения «тренера в программе»: API проверял только роль.
+  Решение: `IsTrainer` требует `role='trainer'` И `is_verified` — как начисление и как пункт меню. Неподтверждённый тренер получает 403 с отдельным текстом «Учётная запись тренера ещё не подтверждена менеджером». Условие соответствует §3 `docs/guides/bonus-program-trainers.md`.
+
+- **РЕШЕНО.** Обратный переход в УТ 11 («К выполнению» → «На согласовании») отбрасывался молча.
+  Решение (вариант «сохранять `status_1c`»): семантика `STATUS_PRIORITY` не тронута — переход по-прежнему блокируется, но `_record_blocked_status_1c()` фиксирует фактический статус 1С и `sent_to_1c_at`. Расхождение с 1С видно в карточке заказа и админке, а не только в счётчике `skipped_status_regression`. Применено к обеим веткам блокировки (финальные статусы и приоритетная регрессия). [`backend/apps/orders/services/order_status_import.py`]
+
+**Попутно исправлено:** `test_bulk_fetch_orders_optimization` (`assertNumQueries(11)`) был сломан ещё коммитом бонусной программы `72c99a51` — сигнал `post_save` добавил 3 запроса (savepoint + чтение настроек + release). Счётчик обновлён до 14 с разбивкой в комментарии.

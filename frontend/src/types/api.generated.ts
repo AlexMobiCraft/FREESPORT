@@ -3603,7 +3603,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Доступ только для тренеров */
+      /** @description Доступ только для подтверждённых тренеров */
       403: {
         headers: {
           [name: string]: unknown;
@@ -3643,7 +3643,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Доступ только для тренеров */
+      /** @description Доступ только для подтверждённых тренеров */
       403: {
         headers: {
           [name: string]: unknown;

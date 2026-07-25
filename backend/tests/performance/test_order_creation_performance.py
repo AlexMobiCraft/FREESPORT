@@ -300,10 +300,16 @@ class OrderCreationPerformanceTest(TestCase):
 
         queries_count = len(ctx.captured_queries)
 
-        # Создание заказа не должно генерировать слишком много запросов
+        # Порог запросов при создании заказа (master + sub-order архитектура):
+        # Story 34-2: разбивка на master + sub-order по VAT-группам
+        # Story 34-5: агрегация мастера + сигнал бонусной программы
+        # OrderNumberingService: select_for_update user + sequence counter
+        # OrderDetailSerializer: prefetch sub_orders__items для ответа
+        # Валидация: cart.items.exists() + select_related в serializer и service
+        # Ожидаемое количество: ~35 запросов, порог 40 с запасом
         self.assertLess(
             queries_count,
-            30,
+            40,
             f"Order creation generates too many DB queries: {queries_count}",
         )
         self.assertEqual(response.status_code, 201)

@@ -11,7 +11,8 @@ import logging
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
-from django.db import IntegrityError, transaction
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Sum
 
 from apps.bonuses.models import BonusProgramSettings, BonusTransaction
@@ -73,6 +74,68 @@ def get_balance(user: "User | int", exclude_pk: int | None = None) -> Decimal:
     return total or Decimal("0")
 
 
+def lock_trainer_account(user_id: int | None) -> None:
+    """Блокирует счёт тренера до конца текущей транзакции.
+
+    Точка сериализации для проверки лимита выплаты: без неё две одновременные
+    выплаты читают одинаковый баланс и обе проходят проверку. Блокируется
+    строка пользователя — она существует всегда, в отличие от строк журнала
+    (у тренера без операций блокировать было бы нечего).
+
+    Вне транзакции `select_for_update()` невозможен, поэтому в этом случае
+    блокировка пропускается: `full_clean()` вызывают и из кода без транзакции,
+    и падать там нельзя. Все пути записи (админка, `create_manual_transaction`)
+    транзакцию открывают.
+    """
+    if user_id is None:
+        return
+    if not connection.in_atomic_block:
+        logger.warning(
+            "Проверка баланса тренера %s выполняется без транзакции — блокировка счёта пропущена",
+            user_id,
+        )
+        return
+    user_model = get_user_model()
+    # values_list + list() гарантируют выполнение SELECT ... FOR UPDATE:
+    # exists() Django оборачивает в EXISTS и блокировку теряет
+    list(user_model.objects.select_for_update().filter(pk=user_id).values_list("pk", flat=True))
+
+
+def create_manual_transaction(
+    *,
+    user: "User | int",
+    transaction_type: str,
+    amount: Decimal,
+    comment: str,
+    created_by: "User | int | None" = None,
+) -> BonusTransaction:
+    """Создаёт ручную операцию (выплату или списание) с полной валидацией.
+
+    Единственный поддерживаемый путь создания ручных операций вне админки:
+    открывает транзакцию, блокирует счёт тренера и проверяет лимит выплаты
+    в той же транзакции, в которой операция сохраняется.
+
+    Raises:
+        ValidationError: сумма не положительна, нет комментария или выплата
+            превышает баланс.
+    """
+    user_id = user if isinstance(user, int) else user.pk
+    created_by_id = created_by if isinstance(created_by, int) or created_by is None else created_by.pk
+
+    with transaction.atomic():
+        lock_trainer_account(user_id)
+        bonus = BonusTransaction(
+            user_id=user_id,
+            transaction_type=transaction_type,
+            amount=amount,
+            comment=comment,
+            created_by_id=created_by_id,
+        )
+        bonus.full_clean()
+        bonus.save()
+    return bonus
+
+
 def is_eligible(order: "Order", settings: BonusProgramSettings) -> bool:
     """Проверяет, подлежит ли заказ начислению бонуса."""
     if not settings.is_active:
@@ -113,7 +176,14 @@ def accrue_for_order(order: "Order") -> BonusTransaction | None:
             if not is_eligible(order, settings):
                 return None
 
-            if BonusTransaction.objects.filter(order_id=order.pk, transaction_type=BonusTransaction.ACCRUAL).exists():
+            # Проверка идёт по снимку номера заказа, а не по FK: после удаления
+            # заказа `order` обнуляется, и проверка по FK пропустила бы
+            # повторное начисление за то же экономическое событие
+            already_accrued = BonusTransaction.objects.filter(
+                transaction_type=BonusTransaction.ACCRUAL,
+                order_number_snapshot=order.order_number,
+            ).exists()
+            if already_accrued:
                 logger.debug("Бонус по заказу %s уже начислен, пропуск", order.pk)
                 return None
 
