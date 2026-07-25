@@ -9,7 +9,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, ShoppingBag, MapPin, Heart, Building } from 'lucide-react';
+import { User, ShoppingBag, MapPin, Heart, Building, Wallet } from 'lucide-react';
 import { authSelectors } from '@/stores/authStore';
 
 /**
@@ -20,6 +20,7 @@ interface NavigationItem {
   href: string;
   icon: React.ElementType;
   b2bOnly?: boolean;
+  trainerOnly?: boolean;
 }
 
 /**
@@ -38,6 +39,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Адреса', href: '/profile/addresses', icon: MapPin },
   { label: 'Избранное', href: '/profile/favorites', icon: Heart },
   { label: 'Реквизиты', href: '/profile/requisites', icon: Building, b2bOnly: true },
+  { label: 'Бонусы', href: '/profile/bonuses', icon: Wallet, trainerOnly: true },
 ];
 
 /**
@@ -105,6 +107,9 @@ const MobileTabItem: React.FC<{ item: NavigationItem; isActive: boolean }> = ({
 const ProfileLayout: React.FC<ProfileLayoutProps> = ({ children }) => {
   const pathname = usePathname();
   const isB2B = authSelectors.useIsB2BUser();
+  const user = authSelectors.useUser();
+  // Бонусная программа — только для подтверждённых тренеров
+  const isTrainer = user?.role === 'trainer' && user?.is_verified === true;
 
   /**
    * Определяет, является ли путь активным
@@ -118,8 +123,10 @@ const ProfileLayout: React.FC<ProfileLayoutProps> = ({ children }) => {
     return pathname.startsWith(href);
   };
 
-  // Фильтруем навигацию: B2B-only пункты показываем только для B2B пользователей
-  const filteredNavItems = navigationItems.filter(item => !item.b2bOnly || isB2B);
+  // Фильтруем навигацию: B2B- и trainer-only пункты показываем только своим ролям
+  const filteredNavItems = navigationItems.filter(
+    item => (!item.b2bOnly || isB2B) && (!item.trainerOnly || isTrainer)
+  );
 
   return (
     <div className="min-h-screen bg-canvas">

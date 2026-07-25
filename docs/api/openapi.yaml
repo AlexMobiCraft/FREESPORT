@@ -672,6 +672,65 @@ paths:
                 items:
                   $ref: '#/components/schemas/OrderHistory'
           description: ''
+  /users/bonuses/:
+    get:
+      operationId: users_bonuses_retrieve
+      description: Баланс, суммы начислений и выплат, действующий процент программы.
+      summary: Сводка по бонусному счёту
+      tags:
+      - Bonuses
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BonusSummary'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Доступ только для тренеров
+  /users/bonuses/transactions/:
+    get:
+      operationId: users_bonuses_transactions_list
+      description: Список операций тренера с пагинацией и фильтром по типу.
+      summary: История бонусных операций
+      parameters:
+      - name: type
+        required: false
+        in: query
+        description: Фильтр по типу операции
+        schema:
+          type: string
+          enum:
+          - accrual
+          - payout
+          - writeoff
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - Bonuses
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBonusTransactionList'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '403':
+          description: Доступ только для тренеров
   /users/roles/:
     get:
       operationId: users_roles_retrieve
@@ -2371,6 +2430,90 @@ components:
       - subtitle
       - title
       - type
+    BonusSummary:
+      type: object
+      description: Сводка по бонусному счёту тренера
+      properties:
+        balance:
+          type: string
+          format: decimal
+          description: Текущий баланс
+        total_accrued:
+          type: string
+          format: decimal
+          description: Всего начислено
+        total_paid_out:
+          type: string
+          format: decimal
+          description: Всего выплачено и списано (положительное число)
+        current_percent:
+          type: string
+          format: decimal
+          description: Действующий процент
+        is_active:
+          type: boolean
+          description: Программа активна
+      required:
+      - balance
+      - total_accrued
+      - total_paid_out
+      - current_percent
+      - is_active
+    BonusTransaction:
+      type: object
+      description: Операция журнала бонусов
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        transaction_type:
+          $ref: '#/components/schemas/BonusTransactionTypeEnum'
+        transaction_type_display:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          description: Сумма со знаком; начисление положительное, выплата и списание отрицательные
+        order_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        order_number:
+          type: string
+          nullable: true
+          readOnly: true
+        percent_applied:
+          type: string
+          format: decimal
+          nullable: true
+          description: Снимок процента на момент начисления
+        base_amount:
+          type: string
+          format: decimal
+          nullable: true
+          description: Снимок стоимости товаров на момент начисления
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - transaction_type
+      - amount
+      - created_at
+    BonusTransactionTypeEnum:
+      enum:
+      - accrual
+      - payout
+      - writeoff
+      type: string
+      description: |-
+        * `accrual` - Начисление
+        * `payout` - Выплата
+        * `writeoff` - Списание
     Brand:
       type: object
       description: Serializer для брендов
@@ -3309,6 +3452,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AttributeFilter'
+    PaginatedBonusTransactionList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BonusTransaction'
     PaginatedBrandList:
       type: object
       properties:
@@ -4651,6 +4814,8 @@ tags:
   description: Корзина покупок
 - name: Orders
   description: Управление заказами и их статусами
+- name: Bonuses
+  description: Бонусная программа для тренеров
 - name: Search
   description: Поиск и фильтрация товаров
 - name: System

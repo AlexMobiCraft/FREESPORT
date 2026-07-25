@@ -467,6 +467,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/users/bonuses/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Сводка по бонусному счёту
+     * @description Баланс, суммы начислений и выплат, действующий процент программы.
+     */
+    get: operations['users_bonuses_retrieve'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/users/bonuses/transactions/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * История бонусных операций
+     * @description Список операций тренера с пагинацией и фильтром по типу.
+     */
+    get: operations['users_bonuses_transactions_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/users/roles/': {
     parameters: {
       query?: never;
@@ -1308,6 +1348,64 @@ export interface components {
        */
       readonly cta_link: string;
     };
+    /** @description Сводка по бонусному счёту тренера */
+    BonusSummary: {
+      /**
+       * Format: decimal
+       * @description Текущий баланс
+       */
+      balance: string;
+      /**
+       * Format: decimal
+       * @description Всего начислено
+       */
+      total_accrued: string;
+      /**
+       * Format: decimal
+       * @description Всего выплачено и списано (положительное число)
+       */
+      total_paid_out: string;
+      /**
+       * Format: decimal
+       * @description Действующий процент
+       */
+      current_percent: string;
+      /** @description Программа активна */
+      is_active: boolean;
+    };
+    /** @description Операция журнала бонусов */
+    BonusTransaction: {
+      readonly id: number;
+      transaction_type: components['schemas']['BonusTransactionTypeEnum'];
+      readonly transaction_type_display?: string;
+      /**
+       * Format: decimal
+       * @description Сумма со знаком; начисление положительное, выплата и списание отрицательные
+       */
+      amount: string;
+      readonly order_id?: number | null;
+      readonly order_number?: string | null;
+      /**
+       * Format: decimal
+       * @description Снимок процента на момент начисления
+       */
+      percent_applied?: string | null;
+      /**
+       * Format: decimal
+       * @description Снимок стоимости товаров на момент начисления
+       */
+      base_amount?: string | null;
+      comment?: string;
+      /** Format: date-time */
+      readonly created_at: string;
+    };
+    /**
+     * @description * `accrual` - Начисление
+     *     * `payout` - Выплата
+     *     * `writeoff` - Списание
+     * @enum {string}
+     */
+    BonusTransactionTypeEnum: 'accrual' | 'payout' | 'writeoff';
     /** @description Serializer для брендов */
     Brand: {
       readonly id: number;
@@ -1832,6 +1930,21 @@ export interface components {
        */
       previous?: string | null;
       results?: components['schemas']['Address'][];
+    };
+    PaginatedBonusTransactionList: {
+      /** @example 123 */
+      count?: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results?: components['schemas']['BonusTransaction'][];
     };
     PaginatedAttributeFilterList: {
       /** @example 123 */
@@ -3463,6 +3576,79 @@ export interface operations {
         content: {
           'application/json': components['schemas']['OrderHistory'][];
         };
+      };
+    };
+  };
+  users_bonuses_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BonusSummary'];
+        };
+      };
+      /** @description Пользователь не авторизован */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Доступ только для тренеров */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  users_bonuses_transactions_list: {
+    parameters: {
+      query?: {
+        /** @description Фильтр по типу операции */
+        type?: 'accrual' | 'payout' | 'writeoff';
+        /** @description A page number within the paginated result set. */
+        page?: number;
+        /** @description Number of results to return per page. */
+        page_size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PaginatedBonusTransactionList'];
+        };
+      };
+      /** @description Пользователь не авторизован */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Доступ только для тренеров */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

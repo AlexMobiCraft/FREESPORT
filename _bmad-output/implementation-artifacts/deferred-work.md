@@ -360,3 +360,27 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-customer-code-autogeneration.md`
   summary: Единственный singleton-счётчик `CustomerCodeSequence` (`pk=1`) лочится через `select_for_update()` при каждом первом чекауте безкодового пользователя — потенциальная точка контенции именно в момент всплеска (после деплоя 4620 из 4621 пользователей на проде без кода одновременно проходят этот путь впервые).
   evidence: Blind Hunter (2026-07-11). Осознанный trade-off "корректность важнее throughput" для этой story; стоит перепроверить по метрикам после деплоя и при необходимости шардировать счётчик или использовать `NOWAIT`/ретраи с backoff.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
+  summary: `BonusTransaction.user` — FK с `on_delete=CASCADE`: удаление пользователя молча стирает весь финансовый журнал (начисления и уже исполненные выплаты), что противоречит гарантии «история не удаляется».
+  evidence: Blind Hunter + Edge Case Hunter (2026-07-25), сошлись независимо. Не патчится тривиально: `PROTECT` заблокирует удаление пользователя, что конфликтует с удалением по запросу ПДн. Нужно решение — либо анонимизация пользователя вместо удаления, либо tombstone-таблица.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
+  summary: `BonusTransaction.order` — FK с `on_delete=SET_NULL`, а ключ идемпотентности — `UniqueConstraint(order)` при `transaction_type='accrual'`; в PostgreSQL NULL-ы различны, поэтому после удаления заказа возможно повторное начисление за то же экономическое событие.
+  evidence: Blind Hunter + Edge Case Hunter (2026-07-25). Требует того же решения об удалении заказов, что и пункт выше; на практике заказы не удаляются, поэтому отложено.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
+  summary: Лимит выплаты (`payout` не больше баланса) проверяется в `clean()` обычным `Sum` без `select_for_update`; две одновременные выплаты одному тренеру пройдут обе и уведут баланс в минус. Через `objects.create()` проверка не выполняется вовсе.
+  evidence: Blind Hunter + Edge Case Hunter (2026-07-25). Реально, но требует дизайн-решения: блокировка в `clean()` не гарантирует транзакцию, а БД-констрейнт на агрегат в PostgreSQL без триггера невозможен. На текущем масштабе (выплаты оформляет один-два менеджера вручную) вероятность низкая.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
+  summary: `accrual_status` использует полный список `ORDER_STATUSES`, поэтому администратор может выбрать в выпадающем списке `cancelled` или `refunded` и настроить начисление бонусов за отменённые заказы.
+  evidence: Blind Hunter (2026-07-25). Сужение списка противоречит букве спеки («choices из `ORDER_STATUSES`»), поэтому вынесено в отдельное решение.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
+  summary: Три несовпадающих определения «тренера в программе»: начисление требует `role=trainer` И `is_verified`, пункт меню на фронте — тоже оба условия, а API проверяет только роль. Неверифицированный тренер получает 200 с нулями вместо 403.
+  evidence: Blind Hunter (2026-07-25). Последствий для данных нет (журнал пуст), но расхождение порождает вопросы в поддержку. Спека в I/O-матрице описывает только случай не-тренера, поэтому выравнивание требует уточнения интента.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-trainer-bonus-program.md`
+  summary: Обратный переход в УТ 11 («К выполнению» → «На согласовании») блокируется защитой от регрессии: заказ пропускается, `status_1c` не обновляется, и FREESPORT молча расходится с 1С — виден только счётчик `skipped_status_regression`.
+  evidence: Edge Case Hunter (2026-07-25). Поведение существовало и до этой задачи, но новые ключи маппинга сделали такой сценарий достижимым. Изменение семантики `STATUS_PRIORITY` спека относит к «Ask First».

@@ -155,9 +155,112 @@ class TestStatusMapping:
                 STATUS_MAPPING.get(status_1c) == status_freesport
             ), f"Mapping mismatch: {status_1c} should map to {status_freesport}"
 
-    def test_status_mapping_count(self):
-        """Проверка количества статусов в маппинге."""
-        assert len(STATUS_MAPPING) == 6
+    def test_status_mapping_values_are_valid(self):
+        """Все значения маппинга — существующие статусы FREESPORT.
+
+        Раньше здесь проверялась точная длина словаря: тест падал при каждом
+        добавлении статуса, ничего не доказывая о корректности.
+        """
+        from apps.orders.constants import ALL_ORDER_STATUSES
+
+        assert set(STATUS_MAPPING.values()) <= ALL_ORDER_STATUSES
+        assert len(STATUS_MAPPING_LOWER) == len(STATUS_MAPPING), "ключи маппинга различаются только регистром"
+
+
+@pytest.mark.unit
+class TestUT11StatusMapping:
+    """Тесты реальных статусов УТ 11.
+
+    До их добавления «Закрыт» отбрасывался как unknown ещё до записи в БД,
+    поэтому заказ никогда не доходил до `delivered`.
+    """
+
+    def test_ut11_statuses_are_mapped(self):
+        """Все статусы «Состояния» документа «Заказ клиента» распознаются."""
+        expected_mappings = {
+            "Не согласован": "pending",
+            "На согласовании": "pending",
+            "К выполнению": "processing",
+            "Закрыт": "delivered",
+        }
+
+        for status_1c, status_freesport in expected_mappings.items():
+            assert STATUS_MAPPING.get(status_1c) == status_freesport
+
+    def test_legacy_keys_are_preserved(self):
+        """Обратная совместимость: исторические ключи не потеряны."""
+        for legacy_key in ("ОжидаетОбработки", "Подтвержден", "Отгружен", "Доставлен", "Отменен", "Возвращен"):
+            assert legacy_key in STATUS_MAPPING
+
+    def test_lowercase_lookup_covers_new_keys(self):
+        """Регистронезависимый поиск работает и для новых ключей."""
+        assert STATUS_MAPPING_LOWER["закрыт"] == "delivered"
+        assert STATUS_MAPPING_LOWER["к выполнению"] == "processing"
+
+    def test_unknown_status_is_still_skipped(self):
+        """Неизвестный статус по-прежнему пропускается (поведение не изменилось)."""
+        assert STATUS_MAPPING.get("Отменен клиентом") is None
+        assert STATUS_MAPPING_LOWER.get("отменен клиентом") is None
+
+    def test_closed_sub_order_becomes_delivered(self):
+        """«Закрыт» переводит субзаказ в delivered и сохраняет исходный статус 1С."""
+        master, subs = _make_master_with_subs(["processing"])
+        sub = subs[0]
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{sub.pk}",
+            order_number=sub.order_number,
+            status="Закрыт",
+        )
+
+        result = OrderStatusImportService().process(xml_data)
+
+        sub.refresh_from_db()
+        assert result.updated == 1
+        assert result.skipped_unknown_status == 0
+        assert sub.status == "delivered"
+        assert sub.status_1c == "Закрыт"
+
+    def test_master_becomes_delivered_when_all_subs_closed(self):
+        """Мастер переходит в delivered только после закрытия всех субзаказов."""
+        master, subs = _make_master_with_subs(["processing", "processing"])
+
+        # Закрыт только первый субзаказ — мастер остаётся активным
+        first_xml = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{subs[0].pk}",
+            order_number=subs[0].order_number,
+            status="Закрыт",
+        )
+        OrderStatusImportService().process(first_xml)
+
+        master.refresh_from_db()
+        assert master.status != "delivered"
+
+        # Закрыт второй — агрегация переводит мастер в delivered
+        second_xml = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{subs[1].pk}",
+            order_number=subs[1].order_number,
+            status="Закрыт",
+        )
+        OrderStatusImportService().process(second_xml)
+
+        master.refresh_from_db()
+        assert master.status == "delivered"
+
+    def test_approval_statuses_map_to_pending(self):
+        """«Не согласован» и «На согласовании» не двигают заказ вперёд."""
+        master, subs = _make_master_with_subs(["pending"])
+        sub = subs[0]
+        xml_data = build_test_xml(
+            order_id=f"{ORDER_ID_PREFIX}{sub.pk}",
+            order_number=sub.order_number,
+            status="На согласовании",
+        )
+
+        OrderStatusImportService().process(xml_data)
+
+        sub.refresh_from_db()
+        assert sub.status == "pending"
+        assert sub.status_1c == "На согласовании"
 
 
 @pytest.mark.unit
