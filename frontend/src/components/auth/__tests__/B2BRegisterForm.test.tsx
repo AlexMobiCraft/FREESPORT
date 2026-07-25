@@ -78,22 +78,22 @@ describe('B2BRegisterForm consent checkboxes', () => {
     openSpy.mockRestore();
   });
 
-  test('should block submit without pdp consent', async () => {
+  test('should keep submit disabled until pdp consent is checked', async () => {
     const user = userEvent.setup();
     const mockRegisterB2B = vi.mocked(authService.registerB2B);
     render(<B2BRegisterForm />);
 
     await fillValidB2BForm(user);
-    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+    const submitButton = screen.getByRole('button', { name: /отправить заявку/i });
 
-    expect(
-      (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
-        .length
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-    ).toHaveAttribute('aria-invalid', 'true');
+    // Без согласия на обработку ПДн кнопка неактивна, submit невозможен
+    expect(submitButton).toBeDisabled();
+    await user.click(submitButton);
     expect(mockRegisterB2B).not.toHaveBeenCalled();
+
+    // После установки согласия кнопка становится активной
+    await acceptPdpConsent(user);
+    expect(submitButton).toBeEnabled();
   });
 
   test('should submit pdp_consent true and marketing_consent false when marketing unchecked', async () => {
@@ -308,21 +308,6 @@ describe('B2BRegisterForm consent checkboxes', () => {
         })
       );
     });
-  });
-
-  test('should expose associated labels and alert for pdp validation error', async () => {
-    const user = userEvent.setup();
-    render(<B2BRegisterForm />);
-
-    expect(getMarketingConsent()).not.toBeChecked();
-    await fillValidB2BForm(user);
-    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(/необходимо согласие/i);
-    expect(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
-    ).toHaveAttribute('aria-invalid', 'true');
   });
 
   test('should display backend pdp consent validation error', async () => {

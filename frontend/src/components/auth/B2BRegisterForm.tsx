@@ -77,6 +77,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const {
     register,
     handleSubmit,
+    watch,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<B2BRegisterFormInput, unknown, B2BRegisterFormData>({
@@ -90,6 +91,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   });
 
   const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
+  // Кнопка отправки заявки активна только при согласии на обработку ПДн
+  const pdpConsentChecked = watch('pdp_consent') === true;
 
   useEffect(() => {
     if ((!isPending && !neutralMessage) || !shouldNotifyPendingSuccess) {
@@ -532,7 +535,12 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
       </div>
 
       {/* Submit Button */}
-      <Button type="submit" loading={isSubmitting} disabled={isSubmitting} className="w-full mt-6">
+      <Button
+        type="submit"
+        loading={isSubmitting}
+        disabled={isSubmitting || !pdpConsentChecked}
+        className="w-full mt-6"
+      >
         Отправить заявку
       </Button>
     </form>

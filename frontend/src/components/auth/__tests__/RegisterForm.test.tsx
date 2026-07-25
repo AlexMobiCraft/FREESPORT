@@ -138,6 +138,7 @@ describe('RegisterForm', () => {
       render(<RegisterForm />);
 
       const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       expect(await screen.findByText(/имя обязательно/i)).toBeInTheDocument();
@@ -202,6 +203,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'NoDigitsHere');
       await user.type(confirmInput, 'NoDigitsHere');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       expect(await screen.findByText(/хотя бы 1 цифру/i)).toBeInTheDocument();
@@ -221,12 +223,13 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'nouppercase123');
       await user.type(confirmInput, 'nouppercase123');
+      await acceptPdpConsent(user);
       await user.click(submitButton);
 
       expect(await screen.findByText(/хотя бы 1 заглавную букву/i)).toBeInTheDocument();
     });
 
-    test('should block submit without pdp consent', async () => {
+    test('should keep submit disabled until pdp consent is checked', async () => {
       const user = userEvent.setup();
       const mockRegister = vi.mocked(authService.register);
       render(<RegisterForm />);
@@ -235,17 +238,17 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
-      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
-      expect(
-        (await screen.findAllByText(/необходимо согласие на обработку персональных данных/i))
-          .length
-      ).toBeGreaterThan(0);
-      expect(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })).toHaveAttribute(
-        'aria-invalid',
-        'true'
-      );
+      const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
+
+      // Без согласия на обработку ПДн кнопка неактивна, submit невозможен
+      expect(submitButton).toBeDisabled();
+      await user.click(submitButton);
       expect(mockRegister).not.toHaveBeenCalled();
+
+      // После установки согласия кнопка становится активной
+      await acceptPdpConsent(user);
+      expect(submitButton).toBeEnabled();
     });
   });
 
@@ -293,6 +296,7 @@ describe('RegisterForm', () => {
           role: 'retail',
           company_name: undefined,
           tax_id: undefined,
+          country: 'Россия',
           pdp_consent: true,
           marketing_consent: false,
         });
@@ -857,6 +861,76 @@ describe('RegisterForm', () => {
       // Select trainer - tax_id should NOT be visible
       await user.selectOptions(roleSelect, 'trainer');
       expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
+    });
+
+    // Region routing: country selector appears for B2B roles with «Россия» default
+    test('should show country selector for B2B roles with Russia default', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+
+      // Initially retail, country should not be visible
+      expect(screen.queryByLabelText(/страна/i)).not.toBeInTheDocument();
+
+      // Select wholesale (B2B role)
+      await user.selectOptions(roleSelect, 'wholesale_level1');
+
+      const countrySelect = (await screen.findByLabelText(/страна/i)) as HTMLSelectElement;
+      expect(countrySelect).toBeInTheDocument();
+      expect(countrySelect.value).toBe('Россия');
+
+      const options = Array.from(countrySelect.options).map(opt => opt.value);
+      expect(options).toEqual(['Россия', 'Беларусь', 'Казахстан']);
+
+      // Switch back to retail - country should hide again
+      await user.selectOptions(roleSelect, 'retail');
+      expect(screen.queryByLabelText(/страна/i)).not.toBeInTheDocument();
+    });
+
+    // Region routing: submitted payload carries the selected country
+    test('should submit form with selected country for B2B role', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockResolvedValue({
+        access: 'mock-token',
+        refresh: 'mock-refresh',
+        user: {
+          id: 3,
+          email: 'opt@example.com',
+          first_name: 'Опт',
+          last_name: '',
+          phone: '',
+          role: 'wholesale_level1',
+          company_name: 'ООО Опт',
+          is_verified: false,
+        },
+      });
+
+      render(<RegisterForm />);
+
+      await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'wholesale_level1');
+
+      const companyInput = await screen.findByLabelText(/название компании/i);
+      await user.type(companyInput, 'ООО Опт');
+      await user.type(screen.getByLabelText(/инн/i), '1234567890');
+      await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+
+      await user.type(screen.getByLabelText(/имя/i), 'Опт');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'opt@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      await waitFor(() => {
+        expect(mockRegister).toHaveBeenCalledWith(
+          expect.objectContaining({
+            role: 'wholesale_level1',
+            country: 'Беларусь',
+          })
+        );
+      });
     });
 
     // AC 4: Form submits with selected role
