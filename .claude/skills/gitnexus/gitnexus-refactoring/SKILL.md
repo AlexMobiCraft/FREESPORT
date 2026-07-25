@@ -16,9 +16,9 @@ description: "Use when the user wants to rename, extract, split, move, or restru
 ## Workflow
 
 ```
-1. gitnexus_impact({target: "X", direction: "upstream"})  → Map all dependents
-2. gitnexus_query({query: "X"})                            → Find execution flows involving X
-3. gitnexus_context({name: "X"})                           → See all incoming/outgoing refs
+1. npx gitnexus impact X --direction upstream  → Map all dependents
+2. npx gitnexus query "X"                            → Find execution flows involving X
+3. npx gitnexus context X                           → See all incoming/outgoing refs
 4. Plan update order: interfaces → implementations → callers → tests
 ```
 
@@ -28,66 +28,73 @@ description: "Use when the user wants to rename, extract, split, move, or restru
 
 ### Rename Symbol
 
+> **There is no `rename` command in the CLI.** Renaming is manual — but never a blind
+> find-and-replace. Build the exhaustive call-site list from the graph first.
+
 ```
-- [ ] gitnexus_rename({symbol_name: "oldName", new_name: "newName", dry_run: true}) — preview all edits
-- [ ] Review graph edits (high confidence) and ast_search edits (review carefully)
-- [ ] If satisfied: gitnexus_rename({..., dry_run: false}) — apply edits
-- [ ] gitnexus_detect_changes() — verify only expected files changed
+- [ ] npx gitnexus impact oldName --direction upstream --include-tests — every dependent
+- [ ] npx gitnexus context oldName — incoming/outgoing refs and the file that defines it
+- [ ] npx gitnexus cypher "MATCH (c)-[:CodeRelation {type: 'CALLS'}]->(f {name: 'oldName'}) RETURN c.name, c.filePath"
+- [ ] Grep for dynamic/string references the graph cannot see (configs, templates, serializers)
+- [ ] Edit definition first, then callers, then tests — one file at a time
+- [ ] npx gitnexus detect-changes --scope all — verify only expected files changed
 - [ ] Run tests for affected processes
+- [ ] npx gitnexus analyze — reindex, or the graph keeps returning the old name
 ```
 
 ### Extract Module
 
 ```
-- [ ] gitnexus_context({name: target}) — see all incoming/outgoing refs
-- [ ] gitnexus_impact({target, direction: "upstream"}) — find all external callers
+- [ ] npx gitnexus context <symbol> — see all incoming/outgoing refs
+- [ ] npx gitnexus impact <symbol> --direction upstream — find all external callers
 - [ ] Define new module interface
 - [ ] Extract code, update imports
-- [ ] gitnexus_detect_changes() — verify affected scope
+- [ ] npx gitnexus detect-changes — verify affected scope
 - [ ] Run tests for affected processes
 ```
 
 ### Split Function/Service
 
 ```
-- [ ] gitnexus_context({name: target}) — understand all callees
+- [ ] npx gitnexus context <symbol> — understand all callees
 - [ ] Group callees by responsibility
-- [ ] gitnexus_impact({target, direction: "upstream"}) — map callers to update
+- [ ] npx gitnexus impact <symbol> --direction upstream — map callers to update
 - [ ] Create new functions/services
 - [ ] Update callers
-- [ ] gitnexus_detect_changes() — verify affected scope
+- [ ] npx gitnexus detect-changes — verify affected scope
 - [ ] Run tests for affected processes
 ```
 
 ## Tools
 
-**gitnexus_rename** — automated multi-file rename:
+**npx gitnexus cypher** — enumerate call sites for a manual rename:
 
 ```
-gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: true})
-→ 12 edits across 8 files
-→ 10 graph edits (high confidence), 2 ast_search edits (review)
-→ Changes: [{file_path, edits: [{line, old_text, new_text, confidence}]}]
+npx gitnexus cypher "MATCH (c)-[:CodeRelation {type: 'CALLS'}]->(f {name: 'validateUser'}) RETURN c.name, c.filePath"
+→ {"markdown": "| c.name | c.filePath |\n| --- | --- |\n| loginHandler | src/auth/login.ts |", "row_count": 1}
 ```
 
-**gitnexus_impact** — map all dependents first:
+The graph sees static references only. Dynamic ones — names in config files, string-based
+dispatch, serializer field maps — must still be found with grep.
+
+**npx gitnexus impact** — map all dependents first:
 
 ```
-gitnexus_impact({target: "validateUser", direction: "upstream"})
+npx gitnexus impact validateUser --direction upstream
 → d=1: loginHandler, apiMiddleware, testUtils
 → Affected Processes: LoginFlow, TokenRefresh
 ```
 
-**gitnexus_detect_changes** — verify your changes after refactoring:
+**npx gitnexus detect-changes** — verify your changes after refactoring:
 
 ```
-gitnexus_detect_changes({scope: "all"})
+npx gitnexus detect-changes --scope all
 → Changed: 8 files, 12 symbols
 → Affected processes: LoginFlow, TokenRefresh
 → Risk: MEDIUM
 ```
 
-**gitnexus_cypher** — custom reference queries:
+**npx gitnexus cypher** — custom reference queries:
 
 ```cypher
 MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(f:Function {name: "validateUser"})
@@ -98,24 +105,31 @@ RETURN caller.name, caller.filePath ORDER BY caller.filePath
 
 | Risk Factor         | Mitigation                                |
 | ------------------- | ----------------------------------------- |
-| Many callers (>5)   | Use gitnexus_rename for automated updates |
-| Cross-area refs     | Use detect_changes after to verify scope  |
-| String/dynamic refs | gitnexus_query to find them               |
+| Many callers (>5)   | Enumerate with `impact --include-tests`, edit file by file |
+| Cross-area refs     | Use detect-changes after to verify scope  |
+| String/dynamic refs | npx gitnexus query to find them               |
 | External/public API | Version and deprecate properly            |
 
 ## Example: Rename `validateUser` to `authenticateUser`
 
 ```
-1. gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: true})
-   → 12 edits: 10 graph (safe), 2 ast_search (review)
-   → Files: validator.ts, login.ts, middleware.ts, config.json...
+1. npx gitnexus impact validateUser --direction upstream --include-tests
+   → d=1: loginHandler, apiMiddleware, testUtils
+   → Affected Processes: LoginFlow, TokenRefresh
+   → risk: MEDIUM
 
-2. Review ast_search edits (config.json: dynamic reference!)
+2. npx gitnexus cypher "MATCH (c)-[:CodeRelation {type: 'CALLS'}]->(f {name: 'validateUser'}) RETURN c.name, c.filePath"
+   → exact file list to edit
 
-3. gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: false})
-   → Applied 12 edits across 8 files
+3. grep -rn "validateUser" --include=*.json --include=*.yaml
+   → config.json: dynamic reference the graph cannot see
 
-4. gitnexus_detect_changes({scope: "all"})
+4. Edit definition → callers → tests, one file at a time
+
+5. npx gitnexus detect-changes --scope all
    → Affected: LoginFlow, TokenRefresh
    → Risk: MEDIUM — run tests for these flows
+
+6. npx gitnexus analyze
+   → reindex, otherwise the graph still answers for the old name
 ```

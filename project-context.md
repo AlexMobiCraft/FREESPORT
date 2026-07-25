@@ -50,7 +50,7 @@ optimized_for_llm: true
   ```
 - После рестарта backend на проде (`docker compose restart backend celery celery-beat`) **обязательно** дополнительный `docker compose restart nginx`, иначе nginx отдаёт 502 на upstream.
 - **На проде НИКОГДА** `docker compose down -v` — снесёт volumes с `media/` и `static/` (пользовательские загрузки).
-- **НЕ** переименовывать символы через find-and-replace — использовать `gitnexus_rename` (см. §5).
+- **НЕ** переименовывать символы через find-and-replace. Команды `rename` в GitNexus CLI нет — собрать все места через `impact`/`context`/`cypher` и править точечно (см. §5).
 
 ## 3. Доменные инварианты
 
@@ -91,13 +91,17 @@ optimized_for_llm: true
 - **Покрытие**: общее ≥ 70%, критические модули (orders, products, integrations) ≥ 90%.
 - **Тесты импорта 1С** — только реальные XML из `data/import_1c/` (`contragents/`, `goods/`, `offers/`, `prices/`, `rests/`, `units/`, `storages/`, `priceLists/`). Не генерировать синтетические XML.
 
-## 5. GitNexus-дисциплина
+## 5. GitNexus-дисциплина (только CLI)
 
-- **Перед редактированием** функции/класса/метода: `gitnexus_impact({target: "<symbol>", direction: "upstream"})`. Сообщить blast radius (callers, processes, risk) пользователю. При HIGH/CRITICAL — предупредить и подтвердить.
-- **Перед коммитом**: `gitnexus_detect_changes()` — убедиться, что изменения затронули только ожидаемые символы и flows.
-- **Поиск/исследование** — через `gitnexus_query({query: "<concept>"})` вместо grep по большой кодовой базе.
-- **Контекст символа** (callers + callees + processes) — `gitnexus_context({name: "<symbol>"})`.
-- **Rename** — только `gitnexus_rename`, не текстовая замена.
+**MCP-сервер GitNexus в проекте не подключён** — `.mcp.json` отсутствует, инструментов `gitnexus_*` нет. Всё выполняется через Bash.
+
+- **Перед редактированием** функции/класса/метода: `npx gitnexus impact <symbol> --direction upstream`. Сообщить blast radius (callers, processes, risk) пользователю. При HIGH/CRITICAL — предупредить и подтвердить.
+- **Перед коммитом**: `npx gitnexus detect-changes --scope all` — убедиться, что затронуты только ожидаемые символы и flows.
+- **Поиск/исследование** — `npx gitnexus query "<concept>"` вместо grep по большой кодовой базе.
+- **Контекст символа** (callers + callees + processes) — `npx gitnexus context <symbol>`; `--file <path>` снимает неоднозначность одинаковых имён.
+- **Rename** — команды `rename` в CLI нет. Собрать все места через `impact` и `context`, затем править точечно; текстовая замена по-прежнему запрещена.
+- **Свежесть индекса**: `npx gitnexus status`. При `stale` — попросить пользователя выполнить `! npx gitnexus analyze`. Ответ `{"error": "Symbol ... not found"}` на существующий код означает устаревший индекс.
+- `impact`, `context`, `query`, `cypher` печатают JSON; `status` и `detect-changes` — текст.
 
 ## 6. Язык
 

@@ -188,43 +188,64 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **FREESPORT** (8552 symbols, 14020 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+> **Блок адаптирован под CLI вручную.** В проекте нет `.mcp.json`, MCP-сервер GitNexus не подключён,
+> поэтому инструменты `gitnexus_*` недоступны — все команды выполняются через Bash.
+> `npx gitnexus setup` перезапишет этот блок MCP-версией; после него верните CLI-вариант.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+Проект проиндексирован GitNexus как **FREESPORT**. Используй CLI, чтобы понимать код,
+оценивать последствия правок и безопасно навигировать.
 
-## Always Do
+> Если `npx gitnexus status` показывает `stale` — попроси пользователя выполнить `! npx gitnexus analyze`.
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+## Обязательно
 
-## Never Do
+- **Перед изменением любого символа** (функции, класса, метода) — `npx gitnexus impact <symbol> --direction upstream`;
+  сообщи пользователю blast radius: прямые вызывающие, затронутые процессы, уровень риска.
+- **Перед коммитом** — `npx gitnexus detect-changes --scope all`: убедись, что затронуты только ожидаемые символы и потоки.
+- **Предупреди пользователя**, если impact вернул `"risk": "HIGH"` или `"CRITICAL"`, — до внесения правок.
+- **Для исследования незнакомого кода** — `npx gitnexus query "<концепция>"` вместо grep по всей базе.
+- **Полный контекст символа** (вызывающие, вызываемые, процессы) — `npx gitnexus context <symbol>`.
 
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+## Запрещено
 
-## Resources
+- НЕ редактировать функцию/класс/метод, не выполнив `impact`.
+- НЕ игнорировать риск HIGH или CRITICAL.
+- НЕ переименовывать символы через find-and-replace. Команды `rename` в CLI нет:
+  собери все места через `impact` и `context`, затем правь точечно и осознанно.
+- НЕ коммитить без `detect-changes`.
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/FREESPORT/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/FREESPORT/clusters` | All functional areas |
-| `gitnexus://repo/FREESPORT/processes` | All execution flows |
-| `gitnexus://repo/FREESPORT/process/{name}` | Step-by-step execution trace |
+## Команды
 
-## CLI
+| Задача | Команда |
+|---|---|
+| Статус и свежесть индекса | `npx gitnexus status` |
+| Переиндексация | `npx gitnexus analyze` |
+| Blast radius | `npx gitnexus impact <symbol> [--direction upstream\|downstream] [--depth N] [--include-tests]` |
+| Контекст символа | `npx gitnexus context <symbol> [--file <path>] [--content]` |
+| Поиск потоков выполнения | `npx gitnexus query "<концепция>" [--limit N] [--goal <text>]` |
+| Символы, затронутые изменениями | `npx gitnexus detect-changes [--scope unstaged\|staged\|all\|compare] [--base-ref <ref>]` |
+| Произвольный запрос к графу | `npx gitnexus cypher "<query>"` |
+| Обзор функциональных областей | `npx gitnexus cypher "<query>"` |
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+`impact`, `context`, `query`, `cypher` печатают JSON; `status` и `detect-changes` — текст.
+
+## Ограничения CLI
+
+- Команды `rename` нет — переименование только вручную по списку из `impact`/`context`.
+- MCP-ресурсов (`gitnexus://repo/...`) нет; их заменяют `query`, `context` и `cypher`.
+- `npx gitnexus wiki` требует LLM-провайдер и API-ключ — это не локальная бесплатная команда.
+- Символы, добавленные после последней индексации, не находятся: `context` вернёт
+  `{"error": "Symbol ... not found"}`. Это признак устаревшего индекса, а не отсутствия кода.
+
+## Skill-файлы
+
+| Задача | Файл |
+|---|---|
+| Понять архитектуру / «Как работает X?» | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / «Что сломается, если поменять X?» | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Отладка / «Почему X падает?» | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Переименование и рефакторинг | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Справочник по командам и схеме графа | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Индекс, статус, очистка, wiki | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
