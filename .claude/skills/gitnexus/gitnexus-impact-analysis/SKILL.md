@@ -17,9 +17,9 @@ description: "Use when the user wants to know what will break if they change som
 ## Workflow
 
 ```
-1. npx gitnexus impact X --direction upstream  → What depends on this
-2. npx gitnexus query "<concept>" --limit 10                → Check affected execution flows
-3. npx gitnexus detect-changes                               → Map current git changes to affected flows
+1. gitnexus_impact({target: "X", direction: "upstream"})  → What depends on this
+2. READ gitnexus://repo/{name}/processes                   → Check affected execution flows
+3. gitnexus_detect_changes()                               → Map current git changes to affected flows
 4. Assess risk and report to user
 ```
 
@@ -28,11 +28,11 @@ description: "Use when the user wants to know what will break if they change som
 ## Checklist
 
 ```
-- [ ] npx gitnexus impact <symbol> --direction upstream to find dependents
+- [ ] gitnexus_impact({target, direction: "upstream"}) to find dependents
 - [ ] Review d=1 items first (these WILL BREAK)
 - [ ] Check high-confidence (>0.8) dependencies
 - [ ] READ processes to check affected execution flows
-- [ ] npx gitnexus detect-changes for pre-commit check
+- [ ] gitnexus_detect_changes() for pre-commit check
 - [ ] Assess risk level and report to user
 ```
 
@@ -55,14 +55,15 @@ description: "Use when the user wants to know what will break if they change som
 
 ## Tools
 
-**npx gitnexus impact** — the primary tool for symbol blast radius:
+**gitnexus_impact** — the primary tool for symbol blast radius:
 
 ```
-npx gitnexus impact validateUser --direction upstream --depth 3
-
-→ JSON: {"risk": "HIGH", "impactedCount": 3,
-         "summary": {"direct": 1, "processes_affected": 3, "modules_affected": 2},
-         "affected_processes": [...]}
+gitnexus_impact({
+  target: "validateUser",
+  direction: "upstream",
+  minConfidence: 0.8,
+  maxDepth: 3
+})
 
 → d=1 (WILL BREAK):
   - loginHandler (src/auth/login.ts:42) [CALLS, 100%]
@@ -72,10 +73,10 @@ npx gitnexus impact validateUser --direction upstream --depth 3
   - authRouter (src/routes/auth.ts:22) [CALLS, 95%]
 ```
 
-**npx gitnexus detect-changes** — git-diff based impact analysis:
+**gitnexus_detect_changes** — git-diff based impact analysis:
 
 ```
-npx gitnexus detect-changes --scope staged
+gitnexus_detect_changes({scope: "staged"})
 
 → Changed: 5 symbols in 3 files
 → Affected: LoginFlow, TokenRefresh, APIMiddlewarePipeline
@@ -85,11 +86,11 @@ npx gitnexus detect-changes --scope staged
 ## Example: "What breaks if I change validateUser?"
 
 ```
-1. npx gitnexus impact validateUser --direction upstream
+1. gitnexus_impact({target: "validateUser", direction: "upstream"})
    → d=1: loginHandler, apiMiddleware (WILL BREAK)
    → d=2: authRouter, sessionManager (LIKELY AFFECTED)
 
-2. npx gitnexus query "<concept>" --limit 10
+2. READ gitnexus://repo/my-app/processes
    → LoginFlow and TokenRefresh touch validateUser
 
 3. Risk: 2 direct callers, 2 processes = MEDIUM

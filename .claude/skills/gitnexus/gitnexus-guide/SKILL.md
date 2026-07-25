@@ -11,7 +11,7 @@ Quick reference for all GitNexus MCP tools, resources, and the knowledge graph s
 
 For any task involving code understanding, debugging, impact analysis, or refactoring:
 
-1. **Run `npx gitnexus status`** — check index freshness before anything else
+1. **Read `gitnexus://repo/{name}/context`** — codebase overview + check index freshness
 2. **Match your task to a skill below** and **read that skill file**
 3. **Follow the skill's workflow and checklist**
 
@@ -35,28 +35,23 @@ For any task involving code understanding, debugging, impact analysis, or refact
 | `query`          | Process-grouped code intelligence — execution flows related to a concept |
 | `context`        | 360-degree symbol view — categorized refs, processes it participates in  |
 | `impact`         | Symbol blast radius — what breaks at depth 1/2/3 with confidence         |
-| `detect-changes` | Git-diff impact — what do your current changes affect                    |
-| `cypher`         | Raw graph queries (see **Graph Schema** below)                           |
-| `list`           | Discover indexed repos                                                   |
+| `detect_changes` | Git-diff impact — what do your current changes affect                    |
+| `rename`         | Multi-file coordinated rename with confidence-tagged edits               |
+| `cypher`         | Raw graph queries (read `gitnexus://repo/{name}/schema` first)           |
+| `list_repos`     | Discover indexed repos                                                   |
 
-> There is **no `rename` command** in the CLI. Renaming is manual: enumerate every
-> call site with `impact` / `context` / `cypher`, then edit deliberately.
+## Resources Reference
 
-## Navigation Reference (CLI)
+Lightweight reads (~100-500 tokens) for navigation:
 
-This project runs GitNexus through the CLI only — there is no `.mcp.json`, so MCP
-resources (`gitnexus://...`) and the `gitnexus_*` tools are unavailable.
-
-| Need                       | Command                                   |
-| -------------------------- | ----------------------------------------- |
-| Index stats / staleness    | `npx gitnexus status`                     |
-| Indexed repositories       | `npx gitnexus list`                       |
-| Functional areas overview  | `npx gitnexus query "<concept>"`          |
-| Execution flows            | `npx gitnexus query "<concept>" --limit N`|
-| Graph schema for Cypher    | see **Graph Schema** below                |
-
-Output format: `impact`, `context`, `query` and `cypher` print JSON; `status` and
-`detect-changes` print text.
+| Resource                                       | Content                                   |
+| ---------------------------------------------- | ----------------------------------------- |
+| `gitnexus://repo/{name}/context`               | Stats, staleness check                    |
+| `gitnexus://repo/{name}/clusters`              | All functional areas with cohesion scores |
+| `gitnexus://repo/{name}/cluster/{clusterName}` | Area members                              |
+| `gitnexus://repo/{name}/processes`             | All execution flows                       |
+| `gitnexus://repo/{name}/process/{processName}` | Step-by-step trace                        |
+| `gitnexus://repo/{name}/schema`                | Graph schema for Cypher                   |
 
 ## Graph Schema
 
