@@ -135,6 +135,7 @@ class TestLoginVerificationBlocking:
                 "first_name": "Workflow",
                 "role": "trainer",
                 "company_name": "Workflow Gym",
+                "tax_id": "7703456789",
                 "pdp_consent": True,
             },
         )

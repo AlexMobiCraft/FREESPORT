@@ -55,6 +55,7 @@ class TestUserRegistrationVerification:
             "first_name": "Test",
             "role": "trainer",
             "company_name": "Test Gym",
+            "tax_id": "7704567890",
             "pdp_consent": True,
         }
         serializer = UserRegistrationSerializer(data=data)

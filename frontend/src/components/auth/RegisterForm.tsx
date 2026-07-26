@@ -116,9 +116,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         last_name: '', // B2C registration может не требовать фамилию
         phone: '', // B2C может не требовать телефон при регистрации
         role: data.role ?? 'retail', // Story 29.1 AC 4: Используем выбранную роль
-        // Story 29.1 AC 8: Условные B2B поля
+        // Story 29.1 AC 8: Условные B2B поля.
+        // Для retail поле ИНН скрыто, но RHF сохраняет значение, введённое
+        // до переключения роли — отправлять его нельзя: бэкенд ищет по ИНН
+        // клиента 1С и привязал бы розничную заявку к чужому юрлицу.
         company_name: data.company_name,
-        tax_id: data.tax_id,
+        tax_id: data.role !== 'retail' ? data.tax_id?.trim() : undefined,
         country: data.country,
         pdp_consent: data.pdp_consent,
         marketing_consent: data.marketing_consent ?? false,
@@ -171,8 +174,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
 
   // Story 29.1 AC 3: Проверяем, выбрана ли B2B роль
   const isB2BRole = selectedRole !== 'retail';
-  // Story 29.1 AC 8: Определяем, нужно ли поле ИНН
-  const requiresTaxId = selectedRole === 'wholesale_level1' || selectedRole === 'federation_rep';
+  // Story 29.1 AC 8: Определяем, нужно ли поле ИНН.
+  // ИНН обязателен для ВСЕХ B2B-ролей (включая trainer): без него
+  // CustomerIdentityResolver не находит существующего клиента из 1С
+  // и вместо привязки создается дубль пользователя.
+  const requiresTaxId = isB2BRole;
+  // Подсказка под полем зависит от страны: маска российского ИНН
+  // неприменима к белорусскому УНП и казахстанскому БИН/ИИН
+  const selectedCountry = watch('country') ?? 'Россия';
+  const taxIdHelper =
+    selectedCountry === 'Россия'
+      ? 'Тренер как физлицо или ИП указывает свой ИНН (12 цифр), клуб — ИНН организации (10 цифр). Один ИНН — один аккаунт.'
+      : 'Налоговый номер организации: от 8 до 12 цифр. Один номер — один аккаунт.';
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md mx-auto p-6 space-y-4">
@@ -251,7 +264,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         />
       )}
 
-      {/* Story 29.1 AC 8: Условные B2B поля - tax_id для wholesale и federation_rep */}
+      {/* Story 29.1 AC 8: Условные B2B поля - tax_id для всех B2B ролей */}
       {requiresTaxId && (
         <Input
           label="ИНН"
@@ -260,7 +273,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           error={errors.tax_id?.message}
           disabled={isSubmitting}
           placeholder="1234567890 или 123456789012"
-          helper="10 цифр для юр. лица или 12 цифр для ИП"
+          helper={taxIdHelper}
           required
         />
       )}

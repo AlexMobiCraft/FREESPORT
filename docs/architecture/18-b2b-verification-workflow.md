@@ -62,12 +62,26 @@ def validate(self, attrs):
                 "company_name": "Название компании обязательно для B2B пользователей."
             })
 
-        # Для оптовиков и представителей федерации требуется ИНН
-        if role.startswith("wholesale") or role == "federation_rep":
-            if not attrs.get("tax_id"):
+        # ИНН требуется для всех B2B ролей, включая trainer: по нему
+        # CustomerIdentityResolver находит существующую запись из 1С
+        # (иначе создается дубль) и определяется региональный менеджер.
+        tax_id = attrs.get("tax_id")
+        if not tax_id:
+            raise serializers.ValidationError({
+                "tax_id": "ИНН обязателен для B2B пользователей."
+            })
+
+        # Маска российского ИНН применима только к клиентам из РФ:
+        # у Беларуси УНП — 9 цифр, у Казахстана БИН/ИИН — 12.
+        if attrs.get("country", User.COUNTRY_RUSSIA) == User.COUNTRY_RUSSIA:
+            if len(tax_id) not in [10, 12]:
                 raise serializers.ValidationError({
-                    "tax_id": "ИНН обязателен для оптовых покупателей и представителей федерации."
+                    "tax_id": "ИНН должен содержать 10 или 12 цифр."
                 })
+        elif not 8 <= len(tax_id) <= 12:
+            raise serializers.ValidationError({
+                "tax_id": "Налоговый номер должен содержать от 8 до 12 цифр."
+            })
 ```
 
 **Автоматическая установка статуса (apps/users/serializers.py:92-95):**

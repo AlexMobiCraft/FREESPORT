@@ -80,17 +80,31 @@ export const registerSchema = z
   )
   .refine(
     data => {
-      // Story 29.1: AC 8 - tax_id обязательно для wholesale и federation_rep
-      if (
-        (data.role === 'wholesale_level1' || data.role === 'federation_rep') &&
-        (!data.tax_id || data.tax_id.trim() === '')
-      ) {
+      // tax_id обязателен для всех B2B ролей, включая trainer: без ИНН
+      // бэкенд не может найти существующего клиента из 1С и создает дубль.
+      if (data.role !== 'retail' && (!data.tax_id || data.tax_id.trim() === '')) {
         return false;
       }
       return true;
     },
     {
-      message: 'ИНН обязателен для оптовиков и представителей федераций',
+      message: 'ИНН обязателен для B2B регистрации',
+      path: ['tax_id'],
+    }
+  )
+  .refine(
+    data => {
+      // Маска российского ИНН применима только к клиентам из РФ:
+      // у Беларуси УНП — 9 цифр, у Казахстана БИН/ИИН — 12.
+      const taxId = data.tax_id?.trim();
+      if (data.role === 'retail' || !taxId) {
+        return true;
+      }
+      return data.country === 'Россия' ? validateINN(taxId) : /^\d{8,12}$/.test(taxId);
+    },
+    {
+      message:
+        'ИНН должен содержать 10 цифр (юр. лицо) или 12 цифр (ИП); для Беларуси и Казахстана — от 8 до 12 цифр',
       path: ['tax_id'],
     }
   );

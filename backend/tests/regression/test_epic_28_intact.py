@@ -112,6 +112,7 @@ class TestEpic28Regression:
                 "first_name": "New",
                 "role": "trainer",
                 "company_name": "Test Company",
+                "tax_id": "7702345678",
                 "pdp_consent": True,
             },
         )

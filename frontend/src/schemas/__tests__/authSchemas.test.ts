@@ -291,6 +291,114 @@ describe('registerSchema', () => {
       }
     });
   });
+
+  // ИНН обязателен для всех B2B ролей: без него бэкенд не находит
+  // существующего клиента из 1С и создает дубль
+  describe('tax_id для B2B ролей', () => {
+    const b2bBase = {
+      first_name: 'Тренер',
+      email: 'trainer@example.com',
+      password: 'SecurePass123',
+      confirmPassword: 'SecurePass123',
+      company_name: 'Спортклуб',
+      pdp_consent: true,
+    };
+
+    test('should reject trainer without tax_id', () => {
+      const result = registerSchema.safeParse({ ...b2bBase, role: 'trainer' });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              path: ['tax_id'],
+              message: 'ИНН обязателен для B2B регистрации',
+            }),
+          ])
+        );
+      }
+    });
+
+    test('should reject trainer with tax_id of wrong length', () => {
+      const result = registerSchema.safeParse({ ...b2bBase, role: 'trainer', tax_id: '12345' });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const messages = result.error.issues.map(i => i.message);
+        expect(messages.some(m => m.includes('10 цифр'))).toBe(true);
+      }
+    });
+
+    test('should reject trainer with non-numeric tax_id', () => {
+      const result = registerSchema.safeParse({
+        ...b2bBase,
+        role: 'trainer',
+        tax_id: 'abc1234567',
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    test('should accept trainer with 12-digit tax_id', () => {
+      const result = registerSchema.safeParse({
+        ...b2bBase,
+        role: 'trainer',
+        tax_id: '123456789012',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.tax_id).toBe('123456789012');
+      }
+    });
+
+    test('should reject 9-digit tax_id for Russia', () => {
+      const result = registerSchema.safeParse({
+        ...b2bBase,
+        role: 'trainer',
+        country: 'Россия',
+        tax_id: '191234567',
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    // Маска российского ИНН неприменима к белорусскому УНП (9 цифр)
+    test('should accept 9-digit tax_id for Belarus', () => {
+      const result = registerSchema.safeParse({
+        ...b2bBase,
+        role: 'trainer',
+        country: 'Беларусь',
+        tax_id: '191234567',
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    test('should reject too short tax_id for Belarus', () => {
+      const result = registerSchema.safeParse({
+        ...b2bBase,
+        role: 'trainer',
+        country: 'Беларусь',
+        tax_id: '1234567',
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    test('should accept retail without tax_id', () => {
+      const result = registerSchema.safeParse({
+        first_name: 'Иван',
+        email: 'retail@example.com',
+        password: 'SecurePass123',
+        confirmPassword: 'SecurePass123',
+        pdp_consent: true,
+      });
+
+      expect(result.success).toBe(true);
+    });
+  });
 });
 
 describe('b2bRegisterSchema', () => {

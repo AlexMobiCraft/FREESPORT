@@ -36,6 +36,7 @@ class TestRegistrationEmailsIntegration:
                 "last_name": "User",
                 "role": "trainer",
                 "company_name": "Test Club",
+                "tax_id": "7701234567",
                 "pdp_consent": True,
             },
             format="json",

@@ -2,6 +2,7 @@
 Serializers для API управления пользователями
 """
 
+import re
 from decimal import Decimal
 from typing import Any, cast
 
@@ -74,6 +75,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "first_name": {"required": True},
         }
 
+    def validate_tax_id(self, value: str) -> str:
+        """
+        Нормализация ИНН: остаются только ASCII-цифры.
+
+        Разделители и пробелы (частый случай при копировании из счёта или 1С)
+        убираются здесь, поэтому в CustomerIdentityResolver и в БД попадает
+        значение, которое normalize_inn() не отбросит и найдёт точным поиском.
+        Длина проверяется в validate(), т.к. зависит от страны регистрации.
+        """
+        if not value:
+            return value
+
+        return re.sub(r"[^0-9]", "", value)
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Валидация полей"""
         # Проверка совпадения паролей
@@ -85,19 +100,32 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         # Валидация B2B полей
         role = attrs.get("role", "retail")
-        if role != "retail":
+        if role == "retail":
+            # У розничного покупателя ИНН не запрашивается. Значение, оставшееся
+            # в форме после переключения роли, отбрасываем: иначе матч по ИНН
+            # (приоритет выше email) привязал бы заявку к чужому юрлицу из 1С.
+            attrs["tax_id"] = ""
+        else:
             # Для B2B пользователей требуется название компании
             if not attrs.get("company_name"):
                 raise serializers.ValidationError(
                     {"company_name": ("Название компании обязательно для B2B " "пользователей.")}
                 )
 
-            # Для оптовиков и представителей федерации требуется ИНН
-            if role.startswith("wholesale") or role == "federation_rep":
-                if not attrs.get("tax_id"):
-                    raise serializers.ValidationError(
-                        {"tax_id": ("ИНН обязателен для оптовых покупателей и " "представителей федерации.")}
-                    )
+            # ИНН требуется для всех B2B ролей, включая trainer: по нему
+            # CustomerIdentityResolver находит существующую запись из 1С
+            # (иначе создается дубль) и определяется региональный менеджер.
+            tax_id = attrs.get("tax_id")
+            if not tax_id:
+                raise serializers.ValidationError({"tax_id": "ИНН обязателен для B2B пользователей."})
+
+            # Маска российского ИНН применима только к клиентам из РФ:
+            # у Беларуси УНП — 9 цифр, у Казахстана БИН/ИИН — 12.
+            if attrs.get("country", User.COUNTRY_RUSSIA) == User.COUNTRY_RUSSIA:
+                if len(tax_id) not in [10, 12]:
+                    raise serializers.ValidationError({"tax_id": "ИНН должен содержать 10 или 12 цифр."})
+            elif not 8 <= len(tax_id) <= 12:
+                raise serializers.ValidationError({"tax_id": "Налоговый номер должен содержать от 8 до 12 цифр."})
 
         resolver = CustomerIdentityResolver()
         attrs["email"] = resolver.normalize_email(attrs["email"]) or attrs["email"].strip().lower()

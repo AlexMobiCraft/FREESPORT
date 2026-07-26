@@ -840,8 +840,8 @@ describe('RegisterForm', () => {
       expect(screen.getByLabelText(/название компании/i)).toBeInTheDocument();
     });
 
-    // AC 8: tax_id field appears for wholesale and federation_rep
-    test('should show tax_id field for wholesale and federation roles', async () => {
+    // AC 8: tax_id field appears for all B2B roles (включая trainer)
+    test('should show tax_id field for all B2B roles', async () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
@@ -858,8 +858,13 @@ describe('RegisterForm', () => {
       await user.selectOptions(roleSelect, 'federation_rep');
       expect(screen.getByLabelText(/инн/i)).toBeInTheDocument();
 
-      // Select trainer - tax_id should NOT be visible
+      // Тренер / спортклуб — ИНН нужен так же, как остальным B2B ролям:
+      // по нему бэкенд ищет существующего клиента из 1С
       await user.selectOptions(roleSelect, 'trainer');
+      expect(screen.getByLabelText(/инн/i)).toBeInTheDocument();
+
+      // Обратно на retail — поле снова скрыто
+      await user.selectOptions(roleSelect, 'retail');
       expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
     });
 
@@ -963,9 +968,10 @@ describe('RegisterForm', () => {
 
       await user.selectOptions(roleSelect, 'trainer');
 
-      // Fill company_name (appears for B2B roles)
+      // Fill company_name и ИНН (появляются для B2B ролей)
       const companyInput = await screen.findByLabelText(/название компании/i);
       await user.type(companyInput, 'Спортклуб');
+      await user.type(screen.getByLabelText(/инн/i), '123456789012');
 
       await user.type(nameInput, 'Тренер');
       await user.type(emailInput, 'trainer@example.com');
@@ -979,9 +985,93 @@ describe('RegisterForm', () => {
           expect.objectContaining({
             role: 'trainer',
             company_name: 'Спортклуб',
+            tax_id: '123456789012',
           })
         );
       });
+    });
+
+    // Регрессия бага: тренер без ИНН не должен уходить на бэкенд
+    test('should block trainer submit without tax_id', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockClear();
+
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+      const nameInput = screen.getByLabelText(/имя/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
+      const passwordInput = screen.getByLabelText(/^пароль$/i);
+      const confirmInput = screen.getByLabelText(/подтверждение пароля/i);
+      const submitButton = screen.getByRole('button', { name: /зарегистрироваться/i });
+
+      await user.selectOptions(roleSelect, 'trainer');
+
+      // company_name заполняем, чтобы отказ был вызван ровно отсутствием ИНН
+      const companyInput = await screen.findByLabelText(/название компании/i);
+      await user.type(companyInput, 'Спортклуб');
+
+      await user.type(nameInput, 'Тренер');
+      await user.type(emailInput, 'trainer2@example.com');
+      await user.type(passwordInput, 'SecurePass123');
+      await user.type(confirmInput, 'SecurePass123');
+      await acceptPdpConsent(user);
+      await waitFor(() => expect(submitButton).toBeEnabled());
+      // Прямой submit: userEvent.click после длинной цепочки ввода не всегда
+      // доводит событие до формы в jsdom, а нам важна именно валидация.
+      fireEvent.submit(submitButton.closest('form') as HTMLFormElement);
+
+      expect(await screen.findByText(/ИНН обязателен для B2B регистрации/i)).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
+    });
+
+    // ИНН, введённый до переключения на retail, не должен уходить на бэкенд:
+    // иначе розничная заявка привяжется к 1С-записи чужого юрлица
+    test('should not submit tax_id after switching from B2B role back to retail', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockResolvedValue({
+        access: 'mock-token',
+        refresh: 'mock-refresh',
+        user: {
+          id: 4,
+          email: 'retail-switch@example.com',
+          first_name: 'Розница',
+          last_name: '',
+          phone: '',
+          role: 'retail',
+          company_name: '',
+          is_verified: true,
+        },
+      });
+
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+      await user.selectOptions(roleSelect, 'trainer');
+
+      const companyInput = await screen.findByLabelText(/название компании/i);
+      await user.type(companyInput, 'Спортклуб');
+      await user.type(screen.getByLabelText(/инн/i), '123456789012');
+
+      // Пользователь передумал и вернулся к рознице
+      await user.selectOptions(roleSelect, 'retail');
+      expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/имя/i), 'Розница');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'retail-switch@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      fireEvent.submit(
+        screen.getByRole('button', { name: /зарегистрироваться/i }).closest('form') as HTMLFormElement
+      );
+
+      await waitFor(() => expect(mockRegister).toHaveBeenCalled());
+      expect(mockRegister).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'retail', tax_id: undefined })
+      );
     });
 
     // AC 8: Validation for required B2B fields (covered by submit test above + Zod schema tests)

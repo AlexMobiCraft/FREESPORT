@@ -309,6 +309,131 @@ class TestRetailMatchOutOfScope:
         assert User.objects.filter(email=customer.email).count() == 1
 
 
+class TestTrainerRoleRequiresTaxId:
+    """
+    Роль trainer («Тренер / Спортивный клуб») — такой же B2B-клиент:
+    без ИНН резолвер не находит запись из 1С и создается дубль.
+    """
+
+    def test_trainer_without_tax_id_returns_400(self):
+        client = APIClient()
+        payload = b2b_registration_payload(role="trainer", company_name="Спортклуб")
+        payload.pop("tax_id")
+
+        response = client.post(REGISTER_URL, payload, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["tax_id"] == ["ИНН обязателен для B2B пользователей."]
+        assert not User.objects.filter(email=payload["email"]).exists()
+
+    def test_trainer_with_malformed_tax_id_returns_400(self):
+        client = APIClient()
+        payload = b2b_registration_payload(role="trainer", company_name="Спортклуб", tax_id="abc1234567")
+
+        response = client.post(REGISTER_URL, payload, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["tax_id"] == ["ИНН должен содержать 10 или 12 цифр."]
+        assert not User.objects.filter(email=payload["email"]).exists()
+
+    def test_trainer_from_belarus_accepts_9_digit_tax_id(self):
+        """У белорусского УНП 9 цифр — маска российского ИНН к нему не применяется."""
+        client = APIClient()
+        payload = b2b_registration_payload(
+            role="trainer",
+            company_name="Спортклуб",
+            country="Беларусь",
+            tax_id="191234567",
+        )
+
+        response = client.post(REGISTER_URL, payload, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert User.objects.get(email=payload["email"]).tax_id == "191234567"
+
+    def test_trainer_from_russia_rejects_9_digit_tax_id(self):
+        client = APIClient()
+        payload = b2b_registration_payload(role="trainer", company_name="Спортклуб", tax_id="191234567")
+
+        response = client.post(REGISTER_URL, payload, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["tax_id"] == ["ИНН должен содержать 10 или 12 цифр."]
+
+    def test_retail_tax_id_is_ignored_and_not_matched(self):
+        """ИНН, оставшийся в форме после переключения на retail, не должен искать клиента 1С."""
+        customer = create_1c_customer()
+        client = APIClient()
+
+        response = client.post(
+            REGISTER_URL,
+            {
+                "email": unique_email("retail_with_tax_id"),
+                "password": "StrongPassword123!",
+                "password_confirm": "StrongPassword123!",
+                "first_name": "Розница",
+                "last_name": "Покупатель",
+                "role": "retail",
+                "tax_id": customer.tax_id,
+                "pdp_consent": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        new_user = User.objects.get(email=response.data["user"]["email"])
+        assert new_user.tax_id == ""
+        customer.refresh_from_db()
+        assert customer.verification_status == "unverified"
+
+    def test_trainer_tax_id_with_separators_is_normalized(self):
+        """ИНН, скопированный с пробелами, не должен блокировать регистрацию."""
+        client = APIClient()
+        tax_id = unique_tax_id()
+        payload = b2b_registration_payload(
+            role="trainer",
+            company_name="Спортклуб",
+            tax_id=f" {tax_id[:3]} {tax_id[3:]} ",
+        )
+
+        response = client.post(REGISTER_URL, payload, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        user = User.objects.get(email=payload["email"])
+        assert user.tax_id == tax_id
+
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    def test_trainer_matched_by_tax_id_links_1c_record_without_duplicate(self, mock_admin_email):
+        customer = create_1c_customer(role="trainer", company_name="Спортклуб 1С")
+        users_before = User.objects.count()
+        client = APIClient()
+
+        response = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(
+                email=customer.email,
+                tax_id=customer.tax_id,
+                role="trainer",
+                company_name="Спортклуб",
+            ),
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert "user" not in response.data
+
+        customer.refresh_from_db()
+        assert customer.verification_status == "pending"
+        assert customer.check_password("StrongPassword123!")
+        assert User.objects.count() == users_before
+        assert User.objects.filter(tax_id=customer.tax_id).count() == 1
+        # "1C wins": данные формы не перезаписывают найденную запись
+        assert customer.company_name == "Спортклуб 1С"
+        assert customer.role == "trainer"
+
+        mock_admin_email.assert_called_once_with(customer.id)
+
+
 class TestDuplicates:
     def test_duplicate_portal_account_by_email_returns_400(self):
         existing = User.objects.create_user(
