@@ -144,3 +144,69 @@ Data-миграция опирается на `password=''`: все 4606 зап�
 
 **Manual checks (if no CLI):**
 - После применения миграций на проде: `SELECT role, COUNT(*) FROM users WHERE created_in_1c GROUP BY role` возвращает единственную строку `unregistered | 4606`.
+
+## Suggested Review Order
+
+**Первопричина: импорт 1С назначал всем role='retail'**
+
+- Точка входа: маппинг ждал названий типов цен, парсер отдавал тип лица — всегда fallback
+  [`processor.py:41`](../../backend/apps/users/services/processor.py#L41)
+
+- Роль назначается один раз при создании; у существующего пользователя не трогается
+  [`processor.py:379`](../../backend/apps/users/services/processor.py#L379)
+
+- Фильтр «только покупатели», устойчивый к регистру и нескольким ролям
+  [`processor.py:54`](../../backend/apps/users/services/processor.py#L54)
+
+- CommerceML повторяет тег, а не перечисляет через запятую — собираем все
+  [`parser.py:100`](../../backend/apps/users/services/parser.py#L100)
+
+**Новая роль и перевод существующих записей**
+
+- Роль контрагента без портального аккаунта: не B2B, цены розничные
+  [`models.py:81`](../../backend/apps/users/models.py#L81)
+
+- Единый признак «запись 1С, которую можно не считать занятой»; учитывает пароль-заглушку
+  [`models.py:275`](../../backend/apps/users/models.py#L275)
+
+- Data-миграция 4606 строк; reverse повторяет фильтр forward, не понижая заявки
+  [`0018_migrate_1c_users_to_unregistered.py`](../../backend/apps/users/migrations/0018_migrate_1c_users_to_unregistered.py)
+
+**Регистрация: автопривязка убрана**
+
+- Ключевое место: ИНН публичен, поэтому блокирует только при живом аккаунте
+  [`serializers.py:171`](../../backend/apps/users/serializers.py#L171)
+
+- `create()` всегда заводит новую заявку — запись 1С не изменяется ничем
+  [`serializers.py:203`](../../backend/apps/users/serializers.py#L203)
+
+- Список разрешённых ролей вместо запрета одной: `admin` тоже был доступен
+  [`serializers.py:85`](../../backend/apps/users/serializers.py#L85)
+
+- Поиск по ИНН списком кандидатов вместо `.get()` — источник HTTP 500
+  [`identity_resolution.py:116`](../../backend/apps/users/services/identity_resolution.py#L116)
+
+**Дефекты, найденные ревью за границами исходной задачи**
+
+- Одобрение теперь активирует заявку — без этого весь B2B-путь не работал
+  [`admin.py:340`](../../backend/apps/users/admin.py#L340)
+
+- Password-reset не выдаёт доступ к записи 1С мимо менеджера; ответ остаётся обезличенным
+  [`authentication.py:355`](../../backend/apps/users/views/authentication.py#L355)
+
+- Снят открытый маршрут, менявший email и пароль записи 1С по токену
+  [`urls.py:55`](../../backend/apps/users/urls.py#L55)
+
+**Тесты и контракт**
+
+- Поведение при отключённой привязке: запись 1С нетронута, роль из формы сохраняется
+  [`test_portal_registration_1c_link.py:83`](../../backend/tests/integration/test_portal_registration_1c_link.py#L83)
+
+- Forward/reverse/идемпотентность самой рискованной части — data-миграции
+  [`test_migration_unregistered_role.py`](../../backend/tests/unit/test_migration_unregistered_role.py)
+
+- Инвариант: импорт создаёт запись, которую регистрация считает непривязанной
+  [`test_customer_processor.py`](../../backend/tests/unit/test_services/test_customer_processor.py)
+
+- РРЦ скрыта от новой роли: `userRole !== 'retail'` открывало B2B-цены
+  [`pricing.ts`](../../frontend/src/utils/pricing.ts)
