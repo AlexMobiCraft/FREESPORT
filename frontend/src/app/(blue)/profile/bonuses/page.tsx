@@ -338,6 +338,10 @@ function BonusesPageContent() {
                         >
                           №{transaction.order_number}
                         </Link>
+                      ) : transaction.order_number ? (
+                        // Заказ удалён: ссылки уже нет, но номер сохранён снимком —
+                        // без него тренер не поймёт, за что начислен бонус (§9 руководства)
+                        <span className="text-text-secondary">№{transaction.order_number}</span>
                       ) : (
                         <span className="text-text-secondary">—</span>
                       )}

@@ -7,10 +7,19 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProfileLayout from '../ProfileLayout';
+import { authSelectors } from '@/stores/authStore';
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(() => '/profile'),
+}));
+
+// Mock authStore: пункты меню фильтруются по роли и верификации пользователя
+vi.mock('@/stores/authStore', () => ({
+  authSelectors: {
+    useUser: vi.fn(() => null),
+    useIsB2BUser: vi.fn(() => false),
+  },
 }));
 
 // Mock next/link
@@ -172,6 +181,64 @@ describe('ProfileLayout', () => {
       // ASSERT - проверяем наличие desktop sidebar
       const sidebar = container.querySelector('.hidden.lg\\:block');
       expect(sidebar).toBeInTheDocument();
+    });
+  });
+
+  describe('Пункт «Бонусы»', () => {
+    /** Подменяет текущего пользователя в сторе */
+    const setUser = (user: unknown) => {
+      vi.mocked(authSelectors.useUser).mockReturnValue(
+        user as ReturnType<typeof authSelectors.useUser>
+      );
+    };
+
+    it('виден подтверждённому тренеру', () => {
+      setUser({ role: 'trainer', is_verified: true });
+
+      render(
+        <ProfileLayout>
+          <div>Content</div>
+        </ProfileLayout>
+      );
+
+      expect(screen.getAllByText('Бонусы').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('link-/profile/bonuses').length).toBeGreaterThan(0);
+    });
+
+    it('скрыт у неподтверждённого тренера', () => {
+      setUser({ role: 'trainer', is_verified: false });
+
+      render(
+        <ProfileLayout>
+          <div>Content</div>
+        </ProfileLayout>
+      );
+
+      expect(screen.queryByText('Бонусы')).not.toBeInTheDocument();
+    });
+
+    it('скрыт у розничного покупателя', () => {
+      setUser({ role: 'retail', is_verified: true });
+
+      render(
+        <ProfileLayout>
+          <div>Content</div>
+        </ProfileLayout>
+      );
+
+      expect(screen.queryByText('Бонусы')).not.toBeInTheDocument();
+    });
+
+    it('скрыт у неавторизованного пользователя', () => {
+      setUser(null);
+
+      render(
+        <ProfileLayout>
+          <div>Content</div>
+        </ProfileLayout>
+      );
+
+      expect(screen.queryByText('Бонусы')).not.toBeInTheDocument();
     });
   });
 

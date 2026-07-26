@@ -100,10 +100,13 @@ class TestAccrualThroughImport:
         OrderStatusImportService().process(_xml_for(subs[1], "Отменен"))
 
         master.refresh_from_db()
-        bonus = BonusTransaction.objects.filter(order=master).first()
-        if bonus is not None:
-            assert bonus.base_amount == Decimal("100000.00")
-            assert bonus.amount == Decimal("5000.00")
+        # Мастер со смешанными статусами агрегируется в `delivered`
+        # (у `cancelled` приоритет 0), поэтому начисление обязано произойти —
+        # но только за закрытую половину заказа
+        assert master.status == "delivered"
+        bonus = BonusTransaction.objects.get(order=master)
+        assert bonus.base_amount == Decimal("100000.00")
+        assert bonus.amount == Decimal("5000.00")
 
     def test_import_survives_when_accrual_is_impossible(self) -> None:
         """Сбой начисления не мешает импорту обновить статус заказа."""

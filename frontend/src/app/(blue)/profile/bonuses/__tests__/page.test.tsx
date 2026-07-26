@@ -72,6 +72,14 @@ const payout: BonusTransaction = {
   created_at: '2026-03-20T10:00:00Z',
 };
 
+// Заказ удалён: ссылки уже нет, но номер сохранён снимком (§9 руководства)
+const accrualForDeletedOrder: BonusTransaction = {
+  ...accrual,
+  id: 3,
+  order_id: null,
+  order_number: '2345-26008',
+};
+
 function page(results: BonusTransaction[]): PaginatedResponse<BonusTransaction> {
   return { count: results.length, next: null, previous: null, results };
 }
@@ -126,6 +134,18 @@ describe('BonusesPage', () => {
       );
     });
     expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('показывает номер удалённого заказа из снимка без ссылки', async () => {
+    vi.mocked(bonusService.getSummary).mockResolvedValue(summary);
+    vi.mocked(bonusService.getTransactions).mockResolvedValue(page([accrualForDeletedOrder]));
+
+    render(<BonusesPage />);
+
+    const table = await screen.findByRole('table');
+    // Номер обязан остаться видимым: иначе тренер не поймёт, за что начислен бонус
+    expect(within(table).getByText(/2345-26008/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /2345-26008/ })).not.toBeInTheDocument();
   });
 
   it('показывает понятное сообщение при 403, а не сетевую ошибку', async () => {

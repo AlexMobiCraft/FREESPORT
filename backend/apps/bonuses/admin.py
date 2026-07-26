@@ -80,6 +80,14 @@ class ManualBonusTransactionForm(forms.ModelForm):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+
+        # Начисления и операции удалённых тренеров открываются в режиме просмотра:
+        # `get_fields()` отдаёт только readonly-поля, и редактируемых полей у формы
+        # не остаётся. Настраивать нечего — без этой проверки страница падает
+        # с KeyError ещё до рендера.
+        if "transaction_type" not in self.fields:
+            return
+
         self.fields["transaction_type"].choices = [
             (value, label)
             for value, label in BonusTransaction.TRANSACTION_TYPES

@@ -186,64 +186,45 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
 - API Swagger UI: `/api/schema/swagger/` (на dev сервере)
 
 <!-- gitnexus:start -->
-# GitNexus — Code Intelligence (CLI)
+# GitNexus — Code Intelligence
 
-Проект индексирован GitNexus как **FREESPORT**. Используй CLI-команды `npx gitnexus` для анализа кода, оценки влияния и навигации. MCP-сервер GitNexus может быть недоступен в некоторых IDE-сессиях, поэтому CLI — основной способ.
+This project is indexed by GitNexus as **FREESPORT** (8831 symbols, 14468 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
-> **ВАЖНО:** Команды `npx gitnexus` запускай из подпапки (например, `backend/` или `scripts/`), не из корня проекта — см. правила работы с терминалом в AGENTS.md.
-
-> Если индекс устарел, запусти `npx gitnexus analyze` перед использованием других команд.
+> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
 ## Always Do
 
-- **ОБЯЗАТЕЛЬНО запускай impact-анализ перед редактированием любого символа.** Перед изменением функции, класса или метода выполни:
-  ```bash
-  npx gitnexus impact <symbolName> --direction upstream
-  ```
-  и сообщи пользователю blast radius (прямые callers, затронутые процессы, уровень риска).
-- **ОБЯЗАТЕЛЬНО запускай detect-changes перед коммитом** для проверки, что изменения затрагивают только ожидаемые символы и потоки выполнения:
-  ```bash
-  npx gitnexus detect-changes --scope all
-  ```
-- **ОБЯЗАТЕЛЬНО предупреди пользователя**, если impact-анализ возвращает HIGH или CRITICAL риск.
-- При исследовании незнакомого кода используй query для поиска потоков выполнения вместо grep:
-  ```bash
-  npx gitnexus query "<концепция или ключевое слово>"
-  ```
-- Для полного контекста конкретного символа (callers, callees, потоки выполнения):
-  ```bash
-  npx gitnexus context <symbolName>
-  ```
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
 
 ## Never Do
 
-- НИКОГДА не редактируй функцию, класс или метод без предварительного `npx gitnexus impact <symbolName> --direction upstream`.
-- НИКОГДА не игнорируй предупреждения HIGH или CRITICAL риска из impact-анализа.
-- НИКОГДА не переименовывай символы через find-and-replace — используй `npx gitnexus context <oldName>` для поиска всех ссылок, затем аккуратно переименовывай вручную.
-- НИКОГДА не коммить изменения без `npx gitnexus detect-changes --scope all`.
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
 
-## CLI-команды
+## Resources
 
-| Команда | Назначение |
-|---------|-----------|
-| `npx gitnexus status` | Проверка актуальности индекса |
-| `npx gitnexus analyze` | Построение/обновление индекса |
-| `npx gitnexus impact <target> --direction upstream` | Blast radius: что сломается при изменении символа |
-| `npx gitnexus detect-changes --scope all` | Маппинг git diff на символы и потоки выполнения |
-| `npx gitnexus query "<запрос>"` | Поиск потоков выполнения по концепции |
-| `npx gitnexus context <name>` | 360° контекст символа: callers, callees, процессы |
-| `npx gitnexus cypher "<Cypher>"` | Прямые Cypher-запросы к графу знаний |
-| `npx gitnexus list` | Список всех индексированных репозиториев |
-| `npx gitnexus wiki` | Генерация документации из графа |
+| Resource | Use for |
+|----------|---------|
+| `gitnexus://repo/FREESPORT/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/FREESPORT/clusters` | All functional areas |
+| `gitnexus://repo/FREESPORT/processes` | All execution flows |
+| `gitnexus://repo/FREESPORT/process/{name}` | Step-by-step execution trace |
 
-## Skill-файлы для подробных инструкций
+## CLI
 
-| Задача | Skill-файл |
-|--------|-----------|
-| Архитектура / "Как работает X?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "Что сломается?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Трассировка багов / "Почему X не работает?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Рефакторинг / переименование | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| CLI-команды (analyze, status, clean, wiki) | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
