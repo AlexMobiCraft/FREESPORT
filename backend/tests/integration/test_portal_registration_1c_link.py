@@ -29,7 +29,6 @@ from apps.users.models import User
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 
 REGISTER_URL = "/api/v1/auth/register/"
-PORTAL_LINK_CONFIRM_URL = "/api/v1/auth/portal-link/confirm/"
 PASSWORD_RESET_URL = "/api/v1/auth/password-reset/"
 
 
@@ -523,3 +522,77 @@ class TestPasswordResetForUnlinked1CCustomer:
         assert linked_response.status_code == status.HTTP_200_OK
         assert unknown_response.status_code == status.HTTP_200_OK
         assert linked_response.data == unknown_response.data
+
+    @patch("apps.users.views.authentication.send_password_reset_email.delay")
+    def test_reset_email_is_not_sent_for_1c_record(self, mock_reset_email):
+        """
+        Ответ обезличен, но письмо уходить не должно.
+
+        Иначе получатель почты контрагента задаёт пароль и входит в аккаунт
+        с реквизитами юрлица: логин блокирует только статус "pending", а у
+        импортированной записи он "unverified".
+        """
+        customer = create_1c_customer()
+        client = APIClient()
+
+        response = client.post(PASSWORD_RESET_URL, {"email": customer.email}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_reset_email.assert_not_called()
+
+        customer.refresh_from_db()
+        assert customer.password == ""
+
+    @patch("apps.users.views.authentication.send_password_reset_email.delay")
+    def test_reset_email_is_sent_for_real_account(self, mock_reset_email):
+        """Обычный пользователь сброс пароля получает."""
+        user = User.objects.create_user(
+            email=unique_email("real_account"),
+            password="StrongPassword123!",
+            role="retail",
+        )
+        client = APIClient()
+
+        response = client.post(PASSWORD_RESET_URL, {"email": user.email}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_reset_email.assert_called_once()
+
+
+class TestB2BApprovalActivatesAccount:
+    """
+    Регистрация создаёт B2B-заявку с is_active=False; одобрение обязано её
+    активировать, иначе логин выдаёт токены, но каждый следующий запрос
+    отклоняется как обращение неактивного пользователя.
+    """
+
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    def test_approve_action_activates_applicant(self, mock_admin_email):
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+
+        from apps.users.admin import UserAdmin
+
+        client = APIClient()
+        payload = b2b_registration_payload()
+        assert client.post(REGISTER_URL, payload, format="json").status_code == status.HTTP_201_CREATED
+
+        applicant = User.objects.get(email=payload["email"])
+        assert applicant.is_active is False
+
+        request = RequestFactory().post("/admin/")
+        request.user = User.objects.create_superuser(email=unique_email("root"), password="StrongPassword123!")
+        # message_user требует поддержки сообщений — в тестовом запросе её нет
+        request._messages = _DummyMessages()
+
+        UserAdmin(User, AdminSite()).approve_b2b_users(request, User.objects.filter(pk=applicant.pk))
+
+        applicant.refresh_from_db()
+        assert applicant.verification_status == "verified"
+        assert applicant.is_verified is True
+        assert applicant.is_active is True
+
+
+class _DummyMessages:
+    def add(self, *args, **kwargs):
+        return None

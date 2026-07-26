@@ -14,7 +14,7 @@ from .views import (
     OrderHistoryView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
-    PortalLinkConfirmView,
+    PortalLinkConfirmView,  # noqa: F401  — маршрут снят, импорт держит ссылку на view
     UserDashboardView,
     UserLoginView,
     UserProfileView,
@@ -52,11 +52,16 @@ urlpatterns = [
         PasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
     ),
-    path(
-        "auth/portal-link/confirm/",
-        PortalLinkConfirmView.as_view(),
-        name="portal_link_confirm",
-    ),
+    # Маршрут снят 2026-07-26 вместе с отключением автопривязки регистрации
+    # к записи 1С (spec-1c-unregistered-role). View и сериализатор оставлены
+    # в коде, но эндпоинт был открытым (AllowAny, без аутентификации) и по
+    # подписанному токену менял email и пароль записи 1С — держать его
+    # доступным ради кода, который никто не вызывает, небезопасно.
+    # path(
+    #     "auth/portal-link/confirm/",
+    #     PortalLinkConfirmView.as_view(),
+    #     name="portal_link_confirm",
+    # ),
     # Профиль пользователя
     path("users/profile/", UserProfileView.as_view(), name="profile"),
     # Личный кабинет

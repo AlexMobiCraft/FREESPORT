@@ -334,7 +334,11 @@ class UserAdmin(BaseUserAdmin):
         for user in b2b_users:
             user.is_verified = True
             user.verification_status = "verified"
-            user.save(update_fields=["is_verified", "verification_status", "updated_at"])
+            # Регистрация создаёт B2B-заявку с is_active=False. Без активации
+            # здесь пользователь проходит логин (блокируется только статус
+            # "pending"), но получает отказ на каждом следующем запросе.
+            user.is_active = True
+            user.save(update_fields=["is_verified", "verification_status", "is_active", "updated_at"])
 
             # AuditLog запись
             AuditLog.log_action(

@@ -352,6 +352,22 @@ class PasswordResetRequestView(APIView):
             try:
                 user = User.objects.get(email=email, is_active=True)
 
+                if user.is_unlinked_1c_record:
+                    # Контрагент, импортированный из 1С, портального аккаунта
+                    # ещё не имеет. Сброс пароля дал бы вход в аккаунт с
+                    # реквизитами юрлица и историей заказов, минуя проверку
+                    # менеджера: логин блокирует только статус "pending", а у
+                    # импортированной записи он "unverified". Такой клиент
+                    # должен пройти регистрацию.
+                    logger.info(
+                        "Password reset skipped for unlinked 1C record",
+                        extra={"user_id": user.id},
+                    )
+                    return Response(
+                        {"detail": "Password reset email sent."},
+                        status=status.HTTP_200_OK,
+                    )
+
                 # Генерируем uid и token
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 token = password_reset_token.make_token(user)
