@@ -2,8 +2,8 @@
 title: 'Роль unregistered для контрагентов 1С и восстановление привязки при регистрации'
 type: 'bugfix'
 created: '2026-07-26'
-status: 'in-review'
-review_loop_iteration: 1
+status: 'done'
+review_loop_iteration: 2
 baseline_commit: '530e542057ed7e32a9c1f77ecaf9bd1b75256797'
 context:
   - '{project-root}/project-context.md'
