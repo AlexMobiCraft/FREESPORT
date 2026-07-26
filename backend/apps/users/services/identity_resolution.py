@@ -30,6 +30,11 @@ class CustomerIdentityResolver:
         "email",  # Приоритет 4: email для B2C клиентов
     ]
 
+    # Возвращается вместо метода идентификации, когда ИНН принадлежит
+    # нескольким контрагентам и сузить их по email не удалось. Отличается
+    # от None ("не найден"): вызывающий обязан отказать, а не создавать запись.
+    AMBIGUOUS_TAX_ID = "tax_id_ambiguous"
+
     def identify_customer(self, onec_customer_data: dict) -> Tuple[Optional[User], Optional[str]]:
         """
         Главный метод идентификации клиента.
@@ -58,10 +63,28 @@ class CustomerIdentityResolver:
         if tax_id := onec_customer_data.get("tax_id"):
             normalized_inn = self.normalize_inn(tax_id)
             if normalized_inn and self._validate_inn(normalized_inn):
-                customer = self._find_by_tax_id(normalized_inn)
-                if customer:
+                candidates = self._find_by_tax_id(normalized_inn)
+
+                if len(candidates) > 1:
+                    # ИНН принадлежит нескольким контрагентам — пробуем сузить
+                    # по email заявителя, иначе привязка была бы к случайной
+                    # компании из десятков возможных.
+                    candidates = self._narrow_by_email(candidates, onec_customer_data.get("email"))
+
+                if len(candidates) == 1:
+                    customer = candidates[0]
                     self._log_identification("tax_id", customer, onec_customer_data)
                     return customer, "tax_id"
+
+                if len(candidates) > 1:
+                    logger.warning(
+                        "Неоднозначный ИНН %s: %s кандидатов (id=%s), автоматическая привязка невозможна",
+                        normalized_inn,
+                        len(candidates),
+                        [candidate.id for candidate in candidates],
+                    )
+                    self._log_identification("tax_id_ambiguous", None, onec_customer_data)
+                    return None, self.AMBIGUOUS_TAX_ID
 
         # Приоритет 4: Поиск B2C по email
         if email := onec_customer_data.get("email"):
@@ -90,12 +113,35 @@ class CustomerIdentityResolver:
         except User.DoesNotExist:
             return None
 
-    def _find_by_tax_id(self, tax_id: str) -> Optional[User]:
-        """Точный поиск по ИНН (B2B клиенты)"""
-        try:
-            return User.objects.get(tax_id=tax_id)
-        except User.DoesNotExist:
-            return None
+    def _find_by_tax_id(self, tax_id: str) -> list[User]:
+        """
+        Поиск по ИНН (B2B клиенты).
+
+        ИНН не уникален: одно юрлицо ведётся в 1С как несколько контрагентов
+        (филиалы, точки, договоры), поэтому возвращается список кандидатов,
+        а не одна запись. Порядок по id — для детерминированного логирования.
+        """
+        return list(User.objects.filter(tax_id=tax_id).order_by("id"))
+
+    def _narrow_by_email(self, candidates: list[User], email: Optional[str]) -> list[User]:
+        """
+        Сужает список кандидатов по email заявителя.
+
+        Args:
+            candidates: Записи с совпавшим ИНН
+            email: Email из формы регистрации
+
+        Returns:
+            Кандидаты с совпавшим email, либо исходный список, если
+            совпадений нет — тогда решение остаётся за вызывающим.
+        """
+        normalized_email = self.normalize_email(email) if email else None
+        if not normalized_email:
+            return candidates
+
+        matched = [candidate for candidate in candidates if self.normalize_email(candidate.email) == normalized_email]
+
+        return matched or candidates
 
     def _find_by_email(self, email: str) -> Optional[User]:
         """Точный поиск по email (B2C клиенты)"""

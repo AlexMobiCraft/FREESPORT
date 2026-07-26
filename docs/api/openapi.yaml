@@ -4453,6 +4453,7 @@ components:
       - trainer
       - federation_rep
       - admin
+      - unregistered
       type: string
       description: |-
         * `retail` - Розничный покупатель
@@ -4462,6 +4463,7 @@ components:
         * `trainer` - Тренер/Фитнес-клуб
         * `federation_rep` - Представитель федерации
         * `admin` - Администратор
+        * `unregistered` - Не зарегистрирован на портале
     StatusEnum:
       enum:
       - pending

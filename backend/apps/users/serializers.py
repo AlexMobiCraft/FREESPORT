@@ -132,18 +132,35 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         matched_customer, method = resolver.identify_customer({"email": attrs["email"], "tax_id": attrs.get("tax_id")})
 
+        if method == CustomerIdentityResolver.AMBIGUOUS_TAX_ID:
+            # ИНН принадлежит нескольким контрагентам 1С, и email заявку не
+            # сузил. Привязать наугад нельзя — заявитель попал бы в чужую
+            # компанию, поэтому заявку обрабатывает менеджер.
+            raise serializers.ValidationError(
+                {
+                    "tax_id": (
+                        "По данному ИНН зарегистрировано несколько организаций. "
+                        "Обратитесь к менеджеру для завершения регистрации."
+                    )
+                }
+            )
+
         if matched_customer is not None:
             if (
                 matched_customer.created_in_1c
                 and matched_customer.verification_status == "unverified"
-                and matched_customer.role != "retail"
+                and matched_customer.role == User.ROLE_UNREGISTERED
             ):
-                # B2B-клиент из 1С без пароля — привязываем регистрацию вместо
-                # создания дубля (см. create()). Строго "unverified", а не
-                # "!= verified": запись, уже переведённая в pending этой же
-                # фичей (заявка ждёт одобрения администратора), повторно не
-                # матчится — иначе второй заявитель может перезаписать пароль
-                # до одобрения (round 4, 2026-07-09).
+                # Контрагент из 1С без портального аккаунта — привязываем
+                # регистрацию вместо создания дубля (см. create()). Критерий —
+                # роль "unregistered", которую импорт ставит новым записям:
+                # опираться на "role != retail" нельзя, розничный покупатель
+                # портала тоже прошёл бы такую проверку.
+                # Строго "unverified", а не "!= verified": запись, уже
+                # переведённая в pending этой же фичей (заявка ждёт одобрения
+                # администратора), повторно не матчится — иначе второй
+                # заявитель может перезаписать пароль до одобрения
+                # (round 4, 2026-07-09).
                 if (
                     attrs["email"] != resolver.normalize_email(matched_customer.email)
                     and User.objects.filter(email=attrs["email"]).exists()
@@ -153,9 +170,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
                 self._matched_1c_customer = matched_customer
             else:
-                # Дубликат (портальный аккаунт/уже верифицированная 1С-запись/
-                # уже pending через эту фичу) или retail-матч по email из 1С —
-                # временно вне скоупа (round 3)
+                # Дубликат: портальный аккаунт, уже верифицированная 1С-запись,
+                # уже pending через эту фичу либо розничный покупатель портала.
+                # Все они принадлежат живому пользователю, привязка запрещена.
                 if method == "tax_id":
                     raise serializers.ValidationError({"tax_id": "Компания с данным ИНН уже зарегистрирована."})
                 raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})

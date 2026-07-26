@@ -2608,6 +2608,7 @@ export interface components {
      *     * `trainer` - Тренер/Фитнес-клуб
      *     * `federation_rep` - Представитель федерации
      *     * `admin` - Администратор
+     *     * `unregistered` - Не зарегистрирован на портале
      * @enum {string}
      */
     RoleEnum:
@@ -2617,7 +2618,8 @@ export interface components {
       | 'wholesale_level3'
       | 'trainer'
       | 'federation_rep'
-      | 'admin';
+      | 'admin'
+      | 'unregistered';
     /**
      * @description * `pending` - Ожидает обработки
      *     * `confirmed` - Подтвержден

@@ -62,7 +62,9 @@ def create_1c_customer(**overrides) -> User:
         "last_name": "Петров",
         "company_name": "ООО 1С Компания",
         "tax_id": unique_tax_id(),
-        "role": "wholesale_level1",
+        # Импорт 1С ставит новым контрагентам нейтральную роль — по ней
+        # регистрация и отличает запись без портального аккаунта.
+        "role": "unregistered",
         "created_in_1c": True,
         "verification_status": "unverified",
         "onec_id": f"1C-{time.time_ns()}",
@@ -123,7 +125,9 @@ class TestB2BMatchSameEmail:
         assert customer.first_name == "Оригинал"
         assert customer.last_name == "1С"
         assert customer.company_name == "ООО Оригинал"
-        assert customer.role == "wholesale_level1"
+        # Роль формы (wholesale_level3) не применяется: уровень цен назначает
+        # менеджер при одобрении заявки, до этого запись остаётся нейтральной.
+        assert customer.role == "unregistered"
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     def test_pending_1c_customer_cannot_be_rematched(self, mock_admin_email):
@@ -404,7 +408,7 @@ class TestTrainerRoleRequiresTaxId:
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     def test_trainer_matched_by_tax_id_links_1c_record_without_duplicate(self, mock_admin_email):
-        customer = create_1c_customer(role="trainer", company_name="Спортклуб 1С")
+        customer = create_1c_customer(company_name="Спортклуб 1С")
         users_before = User.objects.count()
         client = APIClient()
 
@@ -427,9 +431,10 @@ class TestTrainerRoleRequiresTaxId:
         assert customer.check_password("StrongPassword123!")
         assert User.objects.count() == users_before
         assert User.objects.filter(tax_id=customer.tax_id).count() == 1
-        # "1C wins": данные формы не перезаписывают найденную запись
+        # "1C wins": данные формы не перезаписывают найденную запись.
+        # Роль остаётся unregistered — её выдаст менеджер при одобрении заявки.
         assert customer.company_name == "Спортклуб 1С"
-        assert customer.role == "trainer"
+        assert customer.role == "unregistered"
 
         mock_admin_email.assert_called_once_with(customer.id)
 
@@ -497,6 +502,54 @@ class TestDuplicates:
         assert second_response.status_code == status.HTTP_400_BAD_REQUEST
         assert second_response.data["tax_id"] == ["Компания с данным ИНН уже зарегистрирована."]
         assert User.objects.filter(tax_id=tax_id).count() == 1
+
+
+class TestAmbiguousTaxId:
+    """
+    Один ИНН — несколько контрагентов 1С.
+
+    На проде это норма: юрлицо ведётся как набор контрагентов (филиалы,
+    точки, договоры), до 74 записей на ИНН. Раньше такой ИНН приводил к
+    MultipleObjectsReturned и HTTP 500.
+    """
+
+    def test_ambiguous_tax_id_returns_400_not_500(self):
+        tax_id = unique_tax_id()
+        create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 1")
+        create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 2")
+        users_before = User.objects.count()
+        client = APIClient()
+
+        response = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(email=unique_email("ambiguous"), tax_id=tax_id),
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "менеджеру" in response.data["tax_id"][0]
+        assert User.objects.count() == users_before
+
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    def test_ambiguous_tax_id_narrowed_by_email_links_record(self, mock_admin_email):
+        tax_id = unique_tax_id()
+        create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 1")
+        target = create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 2")
+        users_before = User.objects.count()
+        client = APIClient()
+
+        response = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(email=target.email, tax_id=tax_id),
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+
+        target.refresh_from_db()
+        assert target.verification_status == "pending"
+        assert target.check_password("StrongPassword123!")
+        assert User.objects.count() == users_before
 
 
 class TestPasswordResetForUnlinked1CCustomer:

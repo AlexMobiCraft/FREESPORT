@@ -149,6 +149,67 @@ class TestCustomerIdentityResolver:
         assert customer.id == b2b_user.id
         assert method == "tax_id"
 
+    def test_identify_by_tax_id_ambiguous_returns_marker(self, resolver, b2b_user):
+        """
+        Несколько контрагентов с одним ИНН и без совпадения по email —
+        отказ вместо привязки к случайной компании.
+        """
+        User.objects.create_user(
+            email="branch@example.com",
+            password="testpass123",
+            first_name="Филиал",
+            last_name="Второй",
+            role="unregistered",
+            tax_id="1234567890",
+            onec_id="1C-B2B-002",
+        )
+
+        customer, method = resolver.identify_customer({"tax_id": "1234567890", "email": "newcomer@example.com"})
+
+        assert customer is None
+        assert method == CustomerIdentityResolver.AMBIGUOUS_TAX_ID
+
+    def test_identify_by_tax_id_ambiguous_narrowed_by_email(self, resolver, b2b_user):
+        """Совпадение email сужает нескольких кандидатов до одного"""
+        branch = User.objects.create_user(
+            email="branch@example.com",
+            password="testpass123",
+            first_name="Филиал",
+            last_name="Второй",
+            role="unregistered",
+            tax_id="1234567890",
+            onec_id="1C-B2B-003",
+        )
+
+        customer, method = resolver.identify_customer({"tax_id": "1234567890", "email": "Branch@Example.com"})
+
+        assert customer is not None
+        assert customer.id == branch.id
+        assert method == "tax_id"
+
+    def test_identify_by_tax_id_does_not_raise_on_duplicates(self, resolver, b2b_user):
+        """
+        Дубли ИНН не приводят к MultipleObjectsReturned.
+
+        ИНН неуникален по природе данных 1С: одно юрлицо ведётся как
+        несколько контрагентов (филиалы, точки, договоры).
+        """
+        for index in range(3):
+            User.objects.create_user(
+                email=f"dup{index}@example.com",
+                password="testpass123",
+                first_name="Дубль",
+                last_name=str(index),
+                role="unregistered",
+                tax_id="1234567890",
+                onec_id=f"1C-DUP-{index}",
+            )
+
+        customer, method = resolver.identify_customer({"tax_id": "1234567890"})
+
+        assert customer is None
+        assert method == CustomerIdentityResolver.AMBIGUOUS_TAX_ID
+
     def test_identify_by_tax_id_invalid_length(self, resolver):
         """Тест идентификации по ИНН с неверной длиной"""
         onec_data = {

@@ -1,3 +1,28 @@
+## Ревизия отложенных пунктов spec-trainer-registration-inn (2026-07-26, по данным прод-БД)
+
+- **ОТМЕНЕНО: partial unique constraint на `User.tax_id` накладывать НЕЛЬЗЯ.** Замеры прод-БД
+  (`5.35.124.149`, БД `freesport`, 2026-07-26): 65 групп дублей `tax_id`, 502 строки, до **74**
+  аккаунтов на один ИНН (например `6952003172` — 74 записи, у каждой свой `company_name`, все с
+  `onec_id`). Это не грязь: одно юрлицо ведётся в 1С как несколько контрагентов (филиалы, точки,
+  договоры). Миграция с `UniqueConstraint(condition=~Q(tax_id=''))` упадёт и не должна
+  накладываться. Не брать в работу пункт ниже в исходной формулировке — устранять надо
+  `MultipleObjectsReturned` в `_find_by_tax_id`, а не уникальность.
+  Дополнительно: 13 записей имеют ИНН длиной 1/8/9/11 символов — не проходят валидатор `len in [10, 12]`.
+- **УТОЧНЕНО: валидаторы ИНН в трёх сериализаторах НЕ идентичны.** `UserRegistrationSerializer.validate_tax_id`
+  выполняет только нормализацию (`re.sub(r"[^0-9]", "", value)`), а длину проверяет `validate()`
+  **с учётом страны** (РФ → 10/12, Беларусь/Казахстан → 8–12). Совпадают лишь `UserProfileSerializer`
+  и `CompanySerializer`. Слияние «трёх в один» сломает мультистрановую поддержку — выносить
+  надо параметризуемый валидатор.
+- **ДОБАВЛЕНО к пункту про смену ИНН: есть второй путь записи.** `CompanyView.put`
+  (`backend/apps/users/views/personal_cabinet.py:311-319`) валидирует через `CompanySerializer`
+  и затем синхронизирует `user.tax_id = serializer.validated_data.get("tax_id", user.tax_id)`.
+  Закрытие проверки только в `UserProfileSerializer` оставит обход через `PUT /users/company/`.
+- **Первопричина найдена и вынесена в отдельную спеку `spec-1c-unregistered-role`** — импорт 1С
+  присваивает всем контрагентам `role='retail'` (рассинхрон `parser._determine_customer_type` →
+  `legal_entity|individual_entrepreneur|individual` и `processor.ROLE_MAPPING` → `Опт 1|Тренерская|РРЦ`,
+  всегда fallback). Из-за этого ветка привязки в `UserRegistrationSerializer.validate` (требует
+  `role != "retail"`) мертва, и B2B-регистрация с любым из 3712 известных 1С ИНН отклоняется.
+
 ## Deferred from: code review of spec-trainer-registration-inn (2026-07-26)
 
 - **`tax_id` не уникален в БД, а `_find_by_tax_id` использует `.get()`** — при наличии двух `User` с одинаковым ИНН (импорт из 1С + легаси-портальный аккаунт) любая регистрация с этим ИНН падает в `MultipleObjectsReturned` → HTTP 500 вместо 400. Pre-existing: поле `tax_id = CharField(blank=True)` без `unique`/`UniqueConstraint`, проверка дубля выполняется вне транзакции, поэтому две одновременные регистрации с одним ИНН тоже создадут дубль. Требует миграции с частичным unique-констрейнтом (`condition=~Q(tax_id='')`) + `select_for_update`. Обязательность ИНН для всех B2B-ролей повышает плотность значений в колонке и, соответственно, вероятность срабатывания. [`backend/apps/users/models.py:122`, `backend/apps/users/services/identity_resolution.py:93-98`, `backend/apps/users/serializers.py:114-124`]

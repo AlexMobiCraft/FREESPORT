@@ -62,6 +62,7 @@ class User(AbstractUser):
                 "trainer": "Тренер/Фитнес-клуб",
                 "federation_rep": "Представитель федерации",
                 "admin": "Администратор",
+                "unregistered": "Не зарегистрирован на портале",
             }
             return role_map.get(self.role, self.role)
 
@@ -74,7 +75,16 @@ class User(AbstractUser):
         ("trainer", "Тренер/Фитнес-клуб"),
         ("federation_rep", "Представитель федерации"),
         ("admin", "Администратор"),
+        # Контрагент, импортированный из 1С и ещё не зарегистрированный на
+        # портале. Не B2B-роль: цены розничные, B2B-функции недоступны.
+        # Реальную роль назначает менеджер при верификации заявки.
+        ("unregistered", "Не зарегистрирован на портале"),
     ]
+
+    # Роль контрагентов 1С без портального аккаунта. По ней
+    # UserRegistrationSerializer отличает запись, к которой можно привязать
+    # регистрацию, от аккаунта, уже заведённого на портале.
+    ROLE_UNREGISTERED = "unregistered"
 
     # Убираем username, используем email для авторизации
     username = None  # type: ignore[assignment]
@@ -235,7 +245,12 @@ class User(AbstractUser):
         self.customer_code = self.customer_code or None
         if self.pk is not None:
             previous = type(self).objects.filter(pk=self.pk).only("customer_code").first()
-            if previous and previous.customer_code and previous.customer_code != self.customer_code and self.orders.exists():
+            if (
+                previous
+                and previous.customer_code
+                and previous.customer_code != self.customer_code
+                and self.orders.exists()
+            ):
                 raise ValidationError({"customer_code": "Нельзя менять customer_code после создания заказа."})
         super().save(*args, **kwargs)
 

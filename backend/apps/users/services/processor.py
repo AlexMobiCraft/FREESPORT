@@ -30,14 +30,15 @@ class CustomerDataProcessor:
     Обрабатывает данные из парсера и создает/обновляет пользователей
     """
 
-    # Маппинг ролей 1С → роли платформы (утверждено PO 22.09.2025)
-    ROLE_MAPPING = {
-        "Опт 1": "wholesale_level1",
-        "Опт 2": "wholesale_level2",
-        "Опт 3": "wholesale_level3",
-        "Тренерская": "trainer",
-        "РРЦ": "retail",
-    }
+    # Значение <Роль> в выгрузке контрагентов CommerceML, которое подлежит
+    # импорту. Поставщики, конкуренты и прочие контрагенты клиентами портала
+    # не являются и пропускаются.
+    ONEC_BUYER_ROLE = "Покупатель"
+
+    # Импорт не определяет уровень цен: в выгрузке контрагентов его нет
+    # (тип цены живёт в договорах и priceLists). Новый контрагент получает
+    # нейтральную роль, реальную назначает менеджер при верификации заявки.
+    IMPORTED_CUSTOMER_ROLE = User.ROLE_UNREGISTERED
 
     def __init__(self, session_id: int):
         """
@@ -50,17 +51,17 @@ class CustomerDataProcessor:
 
         self.session = ImportSession.objects.get(pk=session_id)
 
-    def map_role(self, onec_role: str) -> str:
+    def is_buyer(self, customer_data: dict[str, Any]) -> bool:
         """
-        Маппинг роли из 1С на роль платформы.
+        Является ли контрагент покупателем.
 
         Args:
-            onec_role: Тип клиента из 1С
+            customer_data: Словарь с данными клиента из парсера
 
         Returns:
-            str: Роль в системе платформы
+            bool: True, если <Роль> контрагента — "Покупатель"
         """
-        return self.ROLE_MAPPING.get(onec_role, "retail")  # fallback к retail
+        return customer_data.get("role", "") == self.ONEC_BUYER_ROLE
 
     def process_customer(self, customer_data: dict[str, Any]) -> User | None:
         """
@@ -75,6 +76,16 @@ class CustomerDataProcessor:
         onec_id = customer_data.get("onec_id")
         if not onec_id:
             logger.error("Отсутствует onec_id в данных клиента")
+            return None
+
+        # Поставщики и прочие не-покупатели портальными клиентами не становятся
+        if not self.is_buyer(customer_data):
+            logger.info(
+                "Контрагент %s пропущен: роль в 1С '%s', ожидается '%s'",
+                onec_id,
+                customer_data.get("role", ""),
+                self.ONEC_BUYER_ROLE,
+            )
             return None
 
         try:
@@ -99,33 +110,31 @@ class CustomerDataProcessor:
                     # Email отсутствует - логируем warning но продолжаем
                     logger.info(f"Клиент {onec_id} не имеет email адреса")
 
-                # Определение роли
-                customer_type_from_1c = customer_data.get("customer_type", "")
-                role = self.map_role(customer_type_from_1c)
-
                 if existing_user:
-                    # Обновление существующего клиента
-                    user = self._update_customer(existing_user, customer_data, role)
+                    # Обновление существующего клиента. Роль не трогаем:
+                    # её мог выдать менеджер при верификации заявки, и
+                    # импорт не должен её сбрасывать.
+                    user = self._update_customer(existing_user, customer_data)
                     self._log_operation(
                         user=user,
                         onec_id=onec_id,
                         operation_type="updated",
                         status="success",
                         details={
-                            "previous_role": existing_user.role,
-                            "new_role": role,
+                            "role": user.role,
+                            "role_preserved": True,
                         },
                     )
                 else:
                     # Создание нового клиента
-                    user = self._create_customer(customer_data, role)
+                    user = self._create_customer(customer_data, self.IMPORTED_CUSTOMER_ROLE)
                     self._log_operation(
                         user=user,
                         onec_id=onec_id,
                         operation_type="created",
                         status="success",
                         details={
-                            "role": role,
+                            "role": self.IMPORTED_CUSTOMER_ROLE,
                             "has_email": bool(email),
                             "customer_type": customer_data.get("customer_type"),
                         },
@@ -350,14 +359,16 @@ class CustomerDataProcessor:
         logger.info(f"Создан новый пользователь: {str(user.email or onec_id)} (role={role})")
         return user
 
-    def _update_customer(self, user: User, customer_data: dict[str, Any], role: str) -> User:
+    def _update_customer(self, user: User, customer_data: dict[str, Any]) -> User:
         """
         Обновляет существующего пользователя данными из 1С.
+
+        Роль намеренно не обновляется: её назначает менеджер при верификации
+        заявки, и перезапись из импорта сбросила бы выданный уровень цен.
 
         Args:
             user: Существующий пользователь
             customer_data: Словарь с данными клиента
-            role: Новая роль пользователя
 
         Returns:
             User: Обновленный пользователь
@@ -365,7 +376,6 @@ class CustomerDataProcessor:
         # Обновляем поля из 1С
         user.first_name = customer_data.get("first_name", user.first_name)
         user.last_name = customer_data.get("last_name", user.last_name)
-        user.role = role
         # Нормализуем телефон перед обновлением
         phone = customer_data.get("phone", "")
         if phone:
@@ -385,7 +395,7 @@ class CustomerDataProcessor:
         if customer_type in ["legal_entity", "individual_entrepreneur"]:
             self._create_or_update_company(user, customer_data)
 
-        logger.info(f"Обновлен пользователь: {str(user.email or user.onec_id)} (role={role})")
+        logger.info(f"Обновлен пользователь: {str(user.email or user.onec_id)} (role={user.role} сохранена)")
         return user
 
     def _log_operation(

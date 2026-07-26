@@ -36,30 +36,73 @@ class TestCustomerDataProcessor:
         """Фикстура для создания процессора"""
         return CustomerDataProcessor(session_id=session.pk)
 
-    def test_role_mapping_wholesale_level1(self, processor):
-        """Тест маппинга роли Опт 1"""
-        assert processor.map_role("Опт 1") == "wholesale_level1"
+    def test_is_buyer_accepts_purchaser_role(self, processor):
+        """Контрагент с ролью Покупатель подлежит импорту"""
+        assert processor.is_buyer({"role": "Покупатель"}) is True
 
-    def test_role_mapping_wholesale_level2(self, processor):
-        """Тест маппинга роли Опт 2"""
-        assert processor.map_role("Опт 2") == "wholesale_level2"
+    def test_is_buyer_rejects_other_roles(self, processor):
+        """Поставщики и контрагенты без роли клиентами портала не становятся"""
+        assert processor.is_buyer({"role": "Поставщик"}) is False
+        assert processor.is_buyer({"role": ""}) is False
+        assert processor.is_buyer({}) is False
 
-    def test_role_mapping_wholesale_level3(self, processor):
-        """Тест маппинга роли Опт 3"""
-        assert processor.map_role("Опт 3") == "wholesale_level3"
+    def test_skip_non_buyer_customer(self, processor):
+        """Контрагент-поставщик пропускается импортом"""
+        customer_data = {
+            "onec_id": "TEST-SUPPLIER-001",
+            "role": "Поставщик",
+            "email": "supplier@example.com",
+            "first_name": "Иван",
+            "last_name": "Поставщиков",
+            "customer_type": "legal_entity",
+        }
 
-    def test_role_mapping_trainer(self, processor):
-        """Тест маппинга роли Тренерская"""
-        assert processor.map_role("Тренерская") == "trainer"
+        assert processor.process_customer(customer_data) is None
+        assert not User.objects.filter(onec_id="TEST-SUPPLIER-001").exists()
 
-    def test_role_mapping_retail(self, processor):
-        """Тест маппинга роли РРЦ"""
-        assert processor.map_role("РРЦ") == "retail"
+    def test_new_customer_gets_unregistered_role(self, processor):
+        """Новый контрагент получает нейтральную роль, а не retail"""
+        customer_data = {
+            "onec_id": "TEST-ROLE-001",
+            "role": "Покупатель",
+            "email": "roletest@example.com",
+            "first_name": "Роль",
+            "last_name": "Тестов",
+            "customer_type": "legal_entity",
+            "company_name": "ООО Роль",
+            "tax_id": "7707083893",
+        }
 
-    def test_role_mapping_unknown_fallback(self, processor):
-        """Тест fallback к retail для неизвестной роли"""
-        assert processor.map_role("Неизвестная роль") == "retail"
-        assert processor.map_role("") == "retail"
+        user = processor.process_customer(customer_data)
+
+        assert user.role == "unregistered"
+        assert user.is_b2b_user is False
+
+    def test_import_preserves_role_assigned_by_manager(self, processor):
+        """Импорт не сбрасывает роль, выданную менеджером при верификации"""
+        existing_user = User.objects.create(
+            email="wholesale@example.com",
+            onec_id="TEST-PRESERVE-001",
+            first_name="Опт",
+            last_name="Клиентов",
+            role="wholesale_level2",
+            verification_status="verified",
+        )
+
+        customer_data = {
+            "onec_id": "TEST-PRESERVE-001",
+            "role": "Покупатель",
+            "email": "wholesale@example.com",
+            "first_name": "Опт",
+            "last_name": "Обновлённый",
+            "customer_type": "legal_entity",
+        }
+
+        user = processor.process_customer(customer_data)
+
+        assert user.pk == existing_user.pk
+        assert user.role == "wholesale_level2"
+        assert user.last_name == "Обновлённый"
 
     def test_create_new_customer_with_email(self, processor):
         """Тест создания нового клиента с email"""
@@ -68,7 +111,8 @@ class TestCustomerDataProcessor:
             "email": "newcustomer@example.com",
             "first_name": "Иван",
             "last_name": "Петров",
-            "customer_type": "Опт 1",
+            "role": "Покупатель",
+            "customer_type": "legal_entity",
             "phone": "+79001234567",
             "company_name": "ООО Тест",
             "tax_id": "1234567890",
@@ -81,7 +125,7 @@ class TestCustomerDataProcessor:
         assert user.email == "newcustomer@example.com"
         assert user.first_name == "Иван"
         assert user.last_name == "Петров"
-        assert user.role == "wholesale_level1"
+        assert user.role == "unregistered"
         assert user.phone == "+79001234567"
         assert user.company_name == "ООО Тест"
         assert user.tax_id == "1234567890"
@@ -103,7 +147,8 @@ class TestCustomerDataProcessor:
             "email": "",  # Пустой email
             "first_name": "Петр",
             "last_name": "Сидоров",
-            "customer_type": "Опт 2",
+            "role": "Покупатель",
+            "customer_type": "legal_entity",
         }
 
         user = processor.process_customer(customer_data)
@@ -112,7 +157,7 @@ class TestCustomerDataProcessor:
         assert user is not None
         assert user.onec_id == "TEST-NO-EMAIL-001"
         assert user.email is None  # None вместо пустой строки для уникальности
-        assert user.role == "wholesale_level2"
+        assert user.role == "unregistered"
         assert user.created_in_1c is True
 
         # Проверка логирования success с warning
@@ -133,7 +178,8 @@ class TestCustomerDataProcessor:
             "email": "invalid-email-format",  # Невалидный формат
             "first_name": "Тест",
             "last_name": "Тестов",
-            "customer_type": "РРЦ",
+            "role": "Покупатель",
+            "customer_type": "legal_entity",
         }
 
         user = processor.process_customer(customer_data)
@@ -163,7 +209,8 @@ class TestCustomerDataProcessor:
             "email": "existing@example.com",
             "first_name": "Новое",
             "last_name": "Имя",
-            "customer_type": "Опт 3",
+            "role": "Покупатель",
+            "customer_type": "legal_entity",
         }
 
         user = processor.process_customer(customer_data)
@@ -171,7 +218,8 @@ class TestCustomerDataProcessor:
         assert user.pk == existing_user.pk
         assert user.first_name == "Новое"
         assert user.last_name == "Имя"
-        assert user.role == "wholesale_level3"
+        # Роль существующей записи импорт не меняет
+        assert user.role == "retail"
         assert user.sync_status == "synced"
 
         # Проверка логирования
@@ -193,7 +241,8 @@ class TestCustomerDataProcessor:
             "email": "duplicate@example.com",
             "first_name": "Новое имя",
             "last_name": "Новая фамилия",
-            "customer_type": "Опт 1",
+            "role": "Покупатель",
+            "customer_type": "legal_entity",
         }
 
         user = processor.process_customer(customer_data)
@@ -215,7 +264,8 @@ class TestCustomerDataProcessor:
                 "email": f"batch{i}@example.com",
                 "first_name": f"Клиент{i}",
                 "last_name": "Тестовый",
-                "customer_type": "Опт 1",
+                "role": "Покупатель",
+                "customer_type": "legal_entity",
             }
             for i in range(10)
         ]
@@ -239,14 +289,16 @@ class TestCustomerDataProcessor:
                 "email": "valid@example.com",
                 "first_name": "Валидный",
                 "last_name": "Клиент",
-                "customer_type": "РРЦ",
+                "role": "Покупатель",
+                "customer_type": "legal_entity",
             },
             {
                 "onec_id": "TEST-INVALID-001",
                 "email": "invalid-email",  # Невалидный email
                 "first_name": "Невалидный",
                 "last_name": "Клиент",
-                "customer_type": "РРЦ",
+                "role": "Покупатель",
+                "customer_type": "legal_entity",
             },
         ]
 
