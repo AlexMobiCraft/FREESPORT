@@ -46,6 +46,7 @@ export async function getUserRole(): Promise<UserRole> {
       'trainer',
       'federation_rep',
       'admin',
+      'unregistered',
       'guest',
     ];
 

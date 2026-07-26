@@ -1,3 +1,21 @@
+## Deferred from: code review of spec-1c-unregistered-role (2026-07-26)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md`
+  summary: Мёртвый код привязки — `_link_matched_1c_customer`, `PortalLinkConfirmView`, `PortalLinkConfirmSerializer`, URL `auth/portal-link/confirm/`, задача `send_portal_link_confirmation_email` и фронт-страница `/portal-link/confirm/[token]` остались в кодовой базе неиспользуемыми после отключения автопривязки.
+  evidence: Решение человека 2026-07-26: не удалять сейчас, привязку могут вернуть — но с настоящим доказательством права на компанию (подтверждение по email из 1С, проверка менеджером, документы). Токены никто не выдаёт, эндпоинт без валидного токена ничего не делает. Отдельная задача — либо удалить оба слоя, либо реализовать безопасную привязку.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md`
+  summary: Гонка при одновременной регистрации — между чтением в `validate()` и записью в `create()` нет `select_for_update`, два параллельных запроса с одним email проходят проверку дубля.
+  evidence: Pre-existing (тот же паттерн отмечен в отложенных пунктах spec-trainer-registration-inn). После отключения автопривязки последствие ослаблено: запись 1С больше не изменяется, конкурируют только вставки нового пользователя, где ловит `unique` на `email`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md`
+  summary: Владелец импортированной записи 1С может задать пароль через password-reset и войти со статусом `unverified`, минуя заявку и одобрение менеджера.
+  evidence: Pre-existing: `PasswordResetRequestView` фильтрует только по `is_active=True`, а все 4606 записей 1С активны; `UserLoginView` блокирует лишь `verification_status == "pending"`. Не вводится этой правкой, но после неё такой пользователь попадает в интерфейс с ролью `unregistered`. Тест `TestPasswordResetForUnlinked1CCustomer` патчит задачу письма и не проверяет мок — покрытия у этой ветки фактически нет.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md`
+  summary: Нет индекса на `users.tax_id` — поиск кандидатов по ИНН при каждой B2B-регистрации выполняет seq scan (~4700 строк).
+  evidence: `migrations/0003_add_performance_indexes.py:67` индексирует `companies.tax_id`, но не `users.tax_id`. Pre-existing (прежний `.get()` тоже сканировал), объём пока небольшой; при росте базы контрагентов потребуется индекс.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md`
+  summary: ИНН длиной 8, 9 и 11 символов не доходит до поиска кандидатов — `normalize_inn` принимает только 10 и 12 цифр.
+  evidence: Pre-existing в `identity_resolution.normalize_inn`. При этом регистрация из Беларуси/Казахстана валидирует 8–12 цифр (`serializers.validate`), и в проде есть 13 записей с длиной 1/8/9/11. Такой заявитель не будет сопоставлен с существующим контрагентом — рассинхрон двух правил длины ИНН.
+
 ## Ревизия отложенных пунктов spec-trainer-registration-inn (2026-07-26, по данным прод-БД)
 
 - **ОТМЕНЕНО: partial unique constraint на `User.tax_id` накладывать НЕЛЬЗЯ.** Замеры прод-БД

@@ -272,6 +272,23 @@ class User(AbstractUser):
         return self.role in b2b_roles
 
     @property
+    def is_unlinked_1c_record(self) -> bool:
+        """
+        Контрагент, импортированный из 1С и не заведённый на портале.
+
+        Такие записи не блокируют регистрацию по ИНН: одно юрлицо ведётся в 1С
+        как несколько контрагентов, и отказ закрыл бы вход всей компании.
+        Проверяются все три признака сразу — роль ставит импорт, пустой пароль
+        означает невозможность входа, `unverified` отсекает поданные заявки.
+        """
+        return (
+            self.created_in_1c
+            and self.role == self.ROLE_UNREGISTERED
+            and self.verification_status == "unverified"
+            and not self.password
+        )
+
+    @property
     def is_wholesale_user(self) -> bool:
         """Является ли пользователь оптовым покупателем"""
         wholesale_roles = [

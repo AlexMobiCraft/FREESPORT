@@ -63,7 +63,7 @@ class CustomerIdentityResolver:
         if tax_id := onec_customer_data.get("tax_id"):
             normalized_inn = self.normalize_inn(tax_id)
             if normalized_inn and self._validate_inn(normalized_inn):
-                candidates = self._find_by_tax_id(normalized_inn)
+                candidates = self.find_by_tax_id(normalized_inn)
 
                 if len(candidates) > 1:
                     # ИНН принадлежит нескольким контрагентам — пробуем сузить
@@ -83,7 +83,7 @@ class CustomerIdentityResolver:
                         len(candidates),
                         [candidate.id for candidate in candidates],
                     )
-                    self._log_identification("tax_id_ambiguous", None, onec_customer_data)
+                    self._log_identification(self.AMBIGUOUS_TAX_ID, None, onec_customer_data)
                     return None, self.AMBIGUOUS_TAX_ID
 
         # Приоритет 4: Поиск B2C по email
@@ -113,9 +113,12 @@ class CustomerIdentityResolver:
         except User.DoesNotExist:
             return None
 
-    def _find_by_tax_id(self, tax_id: str) -> list[User]:
+    def find_by_tax_id(self, tax_id: str) -> list[User]:
         """
         Поиск по ИНН (B2B клиенты).
+
+        Публичный: используется и идентификацией 1С, и регистрацией, которой
+        нужен список кандидатов, чтобы решить, принадлежит ли ИНН аккаунту.
 
         ИНН не уникален: одно юрлицо ведётся в 1С как несколько контрагентов
         (филиалы, точки, договоры), поэтому возвращается список кандидатов,

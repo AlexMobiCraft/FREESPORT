@@ -42,8 +42,10 @@ def user_roles_view(request):
     """
     Возвращает список доступных ролей пользователей
     """
-    # Исключаем роль admin из публичного API
-    public_roles = [choice for choice in User.ROLE_CHOICES if choice[0] != "admin"]
+    # Исключаем служебные роли: admin и unregistered (её ставит только импорт
+    # 1С контрагентам без портального аккаунта — выбирать её нельзя).
+    hidden_roles = {"admin", User.ROLE_UNREGISTERED}
+    public_roles = [choice for choice in User.ROLE_CHOICES if choice[0] not in hidden_roles]
 
     roles_data = [{"key": role[0], "display": role[1]} for role in public_roles]
 

@@ -131,3 +131,23 @@ class TestPriceFallbackLogic:
 
         price = variant.get_price_for_user(user)
         assert price == Decimal("80.00")
+
+    def test_unregistered_1c_contragent_sees_retail_price(self, variant):
+        """
+        Контрагент 1С без портального аккаунта получает розничную цену.
+
+        Роль unregistered отсутствует в role_price_mapping, поэтому цена
+        берётся из fallback — оптовые цены такому пользователю недоступны.
+        """
+        user = User.objects.create_user(
+            email="unregistered@example.com",
+            password="password",
+            role="unregistered",
+        )
+        variant.retail_price = Decimal("100.00")
+        variant.opt1_price = Decimal("60.00")
+        variant.trainer_price = Decimal("70.00")
+        variant.save()
+
+        assert variant.get_price_for_user(user) == Decimal("100.00")
+        assert user.is_b2b_user is False

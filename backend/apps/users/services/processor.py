@@ -55,13 +55,21 @@ class CustomerDataProcessor:
         """
         Является ли контрагент покупателем.
 
+        Регистр и пробелы игнорируются, значение из нескольких ролей через
+        запятую разбирается поэлементно: выгрузка формируется на стороне 1С,
+        и строгое сравнение отсекло бы всех контрагентов разом при малейшем
+        изменении формата.
+
         Args:
             customer_data: Словарь с данными клиента из парсера
 
         Returns:
-            bool: True, если <Роль> контрагента — "Покупатель"
+            bool: True, если среди <Роль> контрагента есть "Покупатель"
         """
-        return customer_data.get("role", "") == self.ONEC_BUYER_ROLE
+        raw_role = str(customer_data.get("role") or "")
+        roles = {part.strip().casefold() for part in raw_role.split(",")}
+
+        return self.ONEC_BUYER_ROLE.casefold() in roles
 
     def process_customer(self, customer_data: dict[str, Any]) -> User | None:
         """
@@ -85,6 +93,15 @@ class CustomerDataProcessor:
                 onec_id,
                 customer_data.get("role", ""),
                 self.ONEC_BUYER_ROLE,
+            )
+            # Без этой записи process_customers засчитает пропуск как ошибку:
+            # он отличает skipped от errors только по логу.
+            self._log_operation(
+                user=None,
+                onec_id=onec_id,
+                operation_type="skipped",
+                status="success",
+                details={"reason": "not_buyer", "role": customer_data.get("role", "")},
             )
             return None
 

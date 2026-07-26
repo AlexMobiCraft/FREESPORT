@@ -2,6 +2,7 @@
 Serializers для API управления пользователями
 """
 
+import logging
 import re
 from decimal import Decimal
 from typing import Any, cast
@@ -22,6 +23,8 @@ from .tasks import (
     send_portal_link_confirmation_email,
     send_user_pending_email,
 )
+
+logger = logging.getLogger(__name__)
 
 PORTAL_LINK_CONFIRM_SALT = "portal-link-confirm"
 
@@ -74,6 +77,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "email": {"required": True, "validators": []},
             "first_name": {"required": True},
         }
+
+    def validate_role(self, value: str) -> str:
+        """
+        Запрещает выбор служебной роли при регистрации.
+
+        `unregistered` ставит только импорт 1С. Аккаунт, самостоятельно
+        созданный с этой ролью, не попал бы в admin-действие верификации
+        (оно фильтрует B2B-роли) и остался бы навсегда неодобряемым.
+        """
+        if value == User.ROLE_UNREGISTERED:
+            raise serializers.ValidationError("Недопустимая роль для регистрации.")
+        return value
 
     def validate_tax_id(self, value: str) -> str:
         """
@@ -130,54 +145,47 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         resolver = CustomerIdentityResolver()
         attrs["email"] = resolver.normalize_email(attrs["email"]) or attrs["email"].strip().lower()
 
-        matched_customer, method = resolver.identify_customer({"email": attrs["email"], "tax_id": attrs.get("tax_id")})
+        # Email — единственный признак, по которому регистрация отклоняется
+        # как дубль аккаунта: он уникален и принадлежит конкретному человеку.
+        if User.objects.filter(email=attrs["email"]).exists():
+            raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
 
-        if method == CustomerIdentityResolver.AMBIGUOUS_TAX_ID:
-            # ИНН принадлежит нескольким контрагентам 1С, и email заявку не
-            # сузил. Привязать наугад нельзя — заявитель попал бы в чужую
-            # компанию, поэтому заявку обрабатывает менеджер.
-            raise serializers.ValidationError(
-                {
-                    "tax_id": (
-                        "По данному ИНН зарегистрировано несколько организаций. "
-                        "Обратитесь к менеджеру для завершения регистрации."
-                    )
-                }
-            )
-
-        if matched_customer is not None:
-            if (
-                matched_customer.created_in_1c
-                and matched_customer.verification_status == "unverified"
-                and matched_customer.role == User.ROLE_UNREGISTERED
-            ):
-                # Контрагент из 1С без портального аккаунта — привязываем
-                # регистрацию вместо создания дубля (см. create()). Критерий —
-                # роль "unregistered", которую импорт ставит новым записям:
-                # опираться на "role != retail" нельзя, розничный покупатель
-                # портала тоже прошёл бы такую проверку.
-                # Строго "unverified", а не "!= verified": запись, уже
-                # переведённая в pending этой же фичей (заявка ждёт одобрения
-                # администратора), повторно не матчится — иначе второй
-                # заявитель может перезаписать пароль до одобрения
-                # (round 4, 2026-07-09).
-                if (
-                    attrs["email"] != resolver.normalize_email(matched_customer.email)
-                    and User.objects.filter(email=attrs["email"]).exists()
-                ):
-                    # Новый email формы уже занят другим аккаунтом — отклоняем
-                    # сразу, а не на confirm-клике (иначе там IntegrityError).
-                    raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
-                self._matched_1c_customer = matched_customer
-            else:
-                # Дубликат: портальный аккаунт, уже верифицированная 1С-запись,
-                # уже pending через эту фичу либо розничный покупатель портала.
-                # Все они принадлежат живому пользователю, привязка запрещена.
-                if method == "tax_id":
-                    raise serializers.ValidationError({"tax_id": "Компания с данным ИНН уже зарегистрирована."})
-                raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
+        # ИНН публичен (ЕГРЮЛ, счета, сайт компании), поэтому сам по себе
+        # правом на контрагента 1С не является: заявка не привязывается к
+        # найденной записи и ничего в ней не меняет. Связывание с 1С выполняет
+        # менеджер при верификации — он сверяет реквизиты вне портала.
+        if tax_id := attrs.get("tax_id"):
+            self._reject_if_tax_id_belongs_to_account(resolver, tax_id)
 
         return attrs
+
+    def _reject_if_tax_id_belongs_to_account(self, resolver: CustomerIdentityResolver, tax_id: str) -> None:
+        """
+        Отклоняет регистрацию, если ИНН уже принадлежит живому аккаунту.
+
+        Записи, импортированные из 1С и не заведённые на портале, регистрацию
+        не блокируют: по одному ИНН в 1С заводят десятки контрагентов
+        (филиалы, точки, договоры), и отказ закрыл бы вход всей компании.
+        """
+        normalized_inn = resolver.normalize_inn(tax_id)
+        if not normalized_inn:
+            return
+
+        candidates = resolver.find_by_tax_id(normalized_inn)
+        if not candidates:
+            return
+
+        if any(not candidate.is_unlinked_1c_record for candidate in candidates):
+            raise serializers.ValidationError({"tax_id": "Компания с данным ИНН уже зарегистрирована."})
+
+        # Заявку пропускаем, но менеджеру нужен след: с каким контрагентом 1С
+        # её предстоит связать при одобрении.
+        logger.info(
+            "Регистрация по ИНН %s: найдено %s непривязанных записей 1С (id=%s), связывание вручную",
+            normalized_inn,
+            len(candidates),
+            [candidate.id for candidate in candidates],
+        )
 
     def create(self, validated_data: dict[str, Any]) -> User:
         """Создание нового пользователя"""
@@ -188,10 +196,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         # Извлекаем пароль
         password = validated_data.pop("password")
-
-        matched_customer = getattr(self, "_matched_1c_customer", None)
-        if matched_customer is not None:
-            return self._link_matched_1c_customer(matched_customer, validated_data["email"], password)
 
         # Создаем пользователя
         user = User.objects.create_user(password=password, **validated_data)
@@ -222,11 +226,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def _link_matched_1c_customer(self, customer: User, form_email: str, password: str) -> User:
         """
-        Привязывает регистрацию к существующей 1С-записи вместо создания дубля.
+        НЕ ИСПОЛЬЗУЕТСЯ. Автопривязка отключена 2026-07-26.
 
-        "1C wins": ФИО/роль/компания формы не применяются к найденной записи.
-        Email — единственное исключение, и то лишь после подтверждения владения
-        новым адресом (см. PortalLinkConfirmView).
+        Метод ставил пароль на запись 1С, найденную по ИНН, а при несовпадении
+        email отправлял ссылку подтверждения на адрес заявителя и затем
+        переписывал на него email записи. ИНН публичен, а email заполнен лишь
+        у 149 из 4606 записей 1С — то есть знание одного ИНН позволяло занять
+        контрагента чужой компании.
+
+        Оставлен в коде вместе с PortalLinkConfirmView по решению 2026-07-26:
+        привязку могут вернуть, но только с настоящим доказательством права
+        на компанию. Вызовов нет — регистрация создаёт обычную заявку.
         """
         resolver = CustomerIdentityResolver()
         existing_email = resolver.normalize_email(customer.email)

@@ -8,7 +8,7 @@
 
 import logging
 
-from django.db import migrations, models
+from django.db import migrations
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,13 @@ def _target_queryset(user_model):
     Пустой password — надёжный отличительный признак: контрагент из 1С
     создаётся через User.objects.create() без пароля и войти не может,
     тогда как у любого портального аккаунта пароль захеширован.
+    Поле NOT NULL, поэтому проверяется только пустая строка.
     """
     return user_model.objects.filter(
         created_in_1c=True,
         verification_status="unverified",
-    ).filter(models.Q(password="") | models.Q(password__isnull=True))
+        password="",
+    )
 
 
 def set_unregistered_role(apps, schema_editor):
@@ -40,12 +42,13 @@ def restore_retail_role(apps, schema_editor):
     """
     unregistered → retail.
 
-    Роль unregistered назначается только импортом 1С, поэтому обратный
-    переход безопасно применять ко всем записям с этой ролью.
+    Фильтр повторяет forward, а не берёт все записи с ролью unregistered:
+    иначе reverse затронул бы строки, которых forward не касался, и заявка,
+    успевшая перейти в pending, была бы понижена до retail без возврата.
     """
     User = apps.get_model("users", "User")
 
-    restored = User.objects.filter(role="unregistered").update(role="retail")
+    restored = _target_queryset(User).filter(role="unregistered").update(role="retail")
 
     logger.info("Возвращено в role='retail': %s записей", restored)
 

@@ -12,6 +12,8 @@ export type UserRole =
   | 'trainer'
   | 'federation_rep'
   | 'admin'
+  // Контрагент 1С без портального аккаунта: цены розничные (ветка default)
+  | 'unregistered'
   | 'guest';
 
 /**

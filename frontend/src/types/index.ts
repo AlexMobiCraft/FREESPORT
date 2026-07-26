@@ -25,7 +25,9 @@ export type UserRole =
   | 'wholesale_level3'
   | 'trainer'
   | 'federation_rep'
-  | 'admin';
+  | 'admin'
+  // Контрагент 1С без портального аккаунта — не B2B, видит розничные цены
+  | 'unregistered';
 
 export interface AuthTokens {
   access: string;

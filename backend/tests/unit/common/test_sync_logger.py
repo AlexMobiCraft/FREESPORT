@@ -43,7 +43,7 @@ class TestCustomerSyncLogger:
         customer_data = {
             "id": "1C_12345",
             "email": "customer@example.com",
-            "customer_type": "Опт 1",
+            "customer_type": "legal_entity",
         }
 
         result = {

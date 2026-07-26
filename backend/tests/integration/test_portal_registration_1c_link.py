@@ -1,13 +1,16 @@
 """
-Integration-тесты привязки существующего 1С-клиента к регистрации на портале.
+Integration-тесты регистрации при наличии контрагента 1С с тем же ИНН.
 
-Покрывает I/O-матрицу спеки spec-1c-client-portal-linking.md:
-- B2B-матч по ИНН, email формы совпадает с 1С -> сразу pending
-- B2B-матч по ИНН, email формы отличается -> confirm-ссылка на новый email
-- Confirm-эндпоинт применяет email/пароль/pending
-- Просроченный/неверный/повторный токен -> 404/410
-- Retail-матч по email -> 400 (временно вне скоупа)
-- Дубликаты (портальный аккаунт / уже верифицированная 1С-запись) -> 400
+Автопривязка отключена (spec-1c-unregistered-role, 2026-07-26): ИНН публичен,
+поэтому сам по себе правом на контрагента не является. Регистрация создаёт
+обычную заявку, запись 1С не изменяется, связывание выполняет менеджер.
+
+Покрывает I/O-матрицу спеки:
+- ИНН известен 1С -> создаётся заявка, запись 1С нетронута
+- Неоднозначный ИНН (несколько контрагентов) -> заявка создаётся, не 500
+- ИНН принадлежит живому аккаунту -> 400
+- Email занят -> 400
+- role='unregistered' в запросе -> 400
 - Сброс пароля непривязанного 1С-клиента -> 200 как для несуществующего email
 """
 
@@ -17,12 +20,10 @@ import time
 from unittest.mock import patch
 
 import pytest
-from django.core import signing
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.users.models import User
-from apps.users.serializers import PORTAL_LINK_CONFIRM_SALT
 
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 
@@ -71,144 +72,78 @@ def create_1c_customer(**overrides) -> User:
     }
     defaults.update(overrides)
     customer = User(**defaults)
-    # Импортированный из 1С клиент ещё не имеет пароля на портале
-    customer.set_unusable_password()
+    # Импорт 1С создаёт запись через User.objects.create() без пароля, поэтому
+    # password остаётся пустой строкой. Именно по ней отличается контрагент
+    # без портального аккаунта — set_unusable_password() дал бы "!<random>"
+    # и разошёлся бы с продакшеном (там все 4606 записей имеют "").
     customer.save()
     return customer
 
 
-class TestB2BMatchSameEmail:
+class Test1CRecordUntouchedByRegistration:
+    """
+    Регистрация с ИНН, известным 1С, не изменяет запись контрагента.
+
+    Именно изменение записи (установка пароля, подмена email) позволяло
+    занять контрагента чужой компании, зная лишь публичный ИНН.
+    """
+
     @patch("apps.users.serializers.send_admin_verification_email.delay")
-    def test_password_and_pending_set_atomically_no_new_user(self, mock_admin_email):
+    def test_registration_creates_new_request_and_leaves_1c_record_intact(self, mock_admin_email):
         customer = create_1c_customer()
+        before = {
+            "password": customer.password,
+            "email": customer.email,
+            "verification_status": customer.verification_status,
+            "role": customer.role,
+        }
+        users_before = User.objects.count()
+        client = APIClient()
+
+        response = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(tax_id=customer.tax_id),
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert User.objects.count() == users_before + 1
+
+        customer.refresh_from_db()
+        assert customer.password == before["password"]
+        assert customer.email == before["email"]
+        assert customer.verification_status == before["verification_status"]
+        assert customer.role == before["role"]
+
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    def test_new_request_keeps_role_from_form(self, mock_admin_email):
+        """Роль из формы сохраняется — иначе заявку не одобрить в админке."""
+        customer = create_1c_customer()
+        client = APIClient()
+        payload = b2b_registration_payload(tax_id=customer.tax_id, role="trainer")
+
+        response = client.post(REGISTER_URL, payload, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        applicant = User.objects.get(email=payload["email"])
+        assert applicant.role == "trainer"
+        assert applicant.verification_status == "pending"
+        assert applicant.is_active is False
+        assert applicant.created_in_1c is False
+
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    def test_matching_email_of_1c_record_is_rejected_as_duplicate(self, mock_admin_email):
+        """
+        Email записи 1С занят: заявку отклоняем, пароль на запись не ставим.
+        Раньше этот путь давал 201 и устанавливал пароль на чужую запись.
+        """
+        customer = create_1c_customer()
+        assert customer.email
         client = APIClient()
 
         response = client.post(
             REGISTER_URL,
             b2b_registration_payload(email=customer.email, tax_id=customer.tax_id),
-            format="json",
-        )
-
-        assert response.status_code == status.HTTP_201_CREATED
-        assert "access" not in response.data
-        assert "refresh" not in response.data
-        assert "user" not in response.data
-
-        customer.refresh_from_db()
-        assert customer.verification_status == "pending"
-        assert customer.check_password("StrongPassword123!")
-        assert User.objects.filter(email=customer.email).count() == 1
-
-        mock_admin_email.assert_called_once_with(customer.id)
-
-    @patch("apps.users.serializers.send_admin_verification_email.delay")
-    def test_1c_wins_form_fields_do_not_override_matched_customer(self, mock_admin_email):
-        customer = create_1c_customer(first_name="Оригинал", last_name="1С", company_name="ООО Оригинал")
-        client = APIClient()
-
-        response = client.post(
-            REGISTER_URL,
-            b2b_registration_payload(
-                email=customer.email,
-                tax_id=customer.tax_id,
-                first_name="Подделка",
-                last_name="Формы",
-                company_name="ООО Подделка",
-                role="wholesale_level3",
-            ),
-            format="json",
-        )
-
-        assert response.status_code == status.HTTP_201_CREATED
-
-        customer.refresh_from_db()
-        assert customer.first_name == "Оригинал"
-        assert customer.last_name == "1С"
-        assert customer.company_name == "ООО Оригинал"
-        # Роль формы (wholesale_level3) не применяется: уровень цен назначает
-        # менеджер при одобрении заявки, до этого запись остаётся нейтральной.
-        assert customer.role == "unregistered"
-
-    @patch("apps.users.serializers.send_admin_verification_email.delay")
-    def test_pending_1c_customer_cannot_be_rematched(self, mock_admin_email):
-        customer = create_1c_customer()
-        client = APIClient()
-
-        first_response = client.post(
-            REGISTER_URL,
-            b2b_registration_payload(email=customer.email, tax_id=customer.tax_id),
-            format="json",
-        )
-        assert first_response.status_code == status.HTTP_201_CREATED
-        customer.refresh_from_db()
-        assert customer.verification_status == "pending"
-        assert customer.check_password("StrongPassword123!")
-
-        second_response = client.post(
-            REGISTER_URL,
-            b2b_registration_payload(
-                email=customer.email,
-                tax_id=customer.tax_id,
-                password="AttackerPassword1!",
-                password_confirm="AttackerPassword1!",
-            ),
-            format="json",
-        )
-
-        assert second_response.status_code == status.HTTP_400_BAD_REQUEST
-        assert second_response.data["tax_id"] == ["Компания с данным ИНН уже зарегистрирована."]
-
-        customer.refresh_from_db()
-        assert customer.check_password("StrongPassword123!")
-        assert not customer.check_password("AttackerPassword1!")
-
-
-class TestB2BMatchMismatchedEmail:
-    @patch("apps.users.serializers.send_portal_link_confirmation_email.delay")
-    def test_password_not_saved_confirmation_sent_to_new_email(self, mock_confirmation_email):
-        customer = create_1c_customer()
-        new_email = unique_email("new_address")
-        client = APIClient()
-
-        response = client.post(
-            REGISTER_URL,
-            b2b_registration_payload(email=new_email, tax_id=customer.tax_id),
-            format="json",
-        )
-
-        assert response.status_code == status.HTTP_201_CREATED
-
-        customer.refresh_from_db()
-        assert customer.verification_status == "unverified"
-        assert not customer.check_password("StrongPassword123!")
-        assert customer.email != new_email
-
-        mock_confirmation_email.assert_called_once()
-        called_args = mock_confirmation_email.call_args[0]
-        assert called_args[0] == customer.id
-        assert called_args[1] == new_email
-
-        token = called_args[2].rsplit("/", 2)[-2]
-        data = signing.loads(token, salt=PORTAL_LINK_CONFIRM_SALT)
-        assert data == {"user_id": customer.id, "new_email": new_email}
-
-    def test_new_email_already_taken_rejected_at_registration(self):
-        customer = create_1c_customer()
-        taken_email = unique_email("already_taken")
-        User.objects.create_user(
-            email=taken_email,
-            password="ExistingPass1!",
-            first_name="Занял",
-            last_name="Раньше",
-            role="retail",
-            verification_status="verified",
-            is_verified=True,
-        )
-        client = APIClient()
-
-        response = client.post(
-            REGISTER_URL,
-            b2b_registration_payload(email=taken_email, tax_id=customer.tax_id),
             format="json",
         )
 
@@ -216,77 +151,31 @@ class TestB2BMatchMismatchedEmail:
         assert response.data["email"] == ["Пользователь с таким email уже существует."]
 
         customer.refresh_from_db()
+        assert customer.password == ""
         assert customer.verification_status == "unverified"
-        assert not customer.check_password("StrongPassword123!")
 
-
-class TestPortalLinkConfirmView:
-    def _make_token(self, customer: User, new_email: str) -> str:
-        return signing.dumps({"user_id": customer.id, "new_email": new_email}, salt=PORTAL_LINK_CONFIRM_SALT)
-
-    @patch("apps.users.views.authentication.send_admin_verification_email.delay")
-    def test_confirm_applies_email_password_and_pending(self, mock_admin_email):
-        customer = create_1c_customer()
-        new_email = unique_email("confirmed")
-        token = self._make_token(customer, new_email)
+    def test_unregistered_role_is_rejected(self):
+        """Служебную роль нельзя выбрать при регистрации."""
         client = APIClient()
 
         response = client.post(
-            PORTAL_LINK_CONFIRM_URL,
-            {
-                "token": token,
-                "new_password": "AnotherStrongPass1!",
-                "new_password_confirm": "AnotherStrongPass1!",
-            },
+            REGISTER_URL,
+            b2b_registration_payload(role="unregistered"),
             format="json",
         )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "role" in response.data
+
+    def test_unregistered_role_not_offered_by_roles_endpoint(self):
+        client = APIClient()
+
+        response = client.get("/api/v1/users/roles/")
 
         assert response.status_code == status.HTTP_200_OK
-        assert "access" not in response.data
-        assert "refresh" not in response.data
-
-        customer.refresh_from_db()
-        assert customer.email == new_email
-        assert customer.verification_status == "pending"
-        assert customer.check_password("AnotherStrongPass1!")
-
-        mock_admin_email.assert_called_once_with(customer.id)
-
-    @patch("apps.users.views.authentication.send_admin_verification_email.delay")
-    def test_invalid_token_returns_404(self, mock_admin_email):
-        client = APIClient()
-
-        response = client.post(
-            PORTAL_LINK_CONFIRM_URL,
-            {
-                "token": "not-a-valid-token",
-                "new_password": "AnotherStrongPass1!",
-                "new_password_confirm": "AnotherStrongPass1!",
-            },
-            format="json",
-        )
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-        mock_admin_email.assert_not_called()
-
-    @patch("apps.users.views.authentication.send_admin_verification_email.delay")
-    def test_replayed_token_returns_410(self, mock_admin_email):
-        customer = create_1c_customer()
-        new_email = unique_email("replay")
-        token = self._make_token(customer, new_email)
-        client = APIClient()
-
-        payload = {
-            "token": token,
-            "new_password": "AnotherStrongPass1!",
-            "new_password_confirm": "AnotherStrongPass1!",
-        }
-
-        first_response = client.post(PORTAL_LINK_CONFIRM_URL, payload, format="json")
-        assert first_response.status_code == status.HTTP_200_OK
-
-        second_response = client.post(PORTAL_LINK_CONFIRM_URL, payload, format="json")
-        assert second_response.status_code == status.HTTP_410_GONE
+        keys = {role["key"] for role in response.data["roles"]}
+        assert "unregistered" not in keys
+        assert "admin" not in keys
 
 
 class TestRetailMatchOutOfScope:
@@ -407,36 +296,35 @@ class TestTrainerRoleRequiresTaxId:
         assert user.tax_id == tax_id
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
-    def test_trainer_matched_by_tax_id_links_1c_record_without_duplicate(self, mock_admin_email):
+    def test_trainer_with_known_tax_id_creates_request_without_touching_1c(self, mock_admin_email):
+        """Тренер с ИНН из 1С заводит заявку; контрагент остаётся нетронутым."""
         customer = create_1c_customer(company_name="Спортклуб 1С")
         users_before = User.objects.count()
         client = APIClient()
-
-        response = client.post(
-            REGISTER_URL,
-            b2b_registration_payload(
-                email=customer.email,
-                tax_id=customer.tax_id,
-                role="trainer",
-                company_name="Спортклуб",
-            ),
-            format="json",
+        payload = b2b_registration_payload(
+            tax_id=customer.tax_id,
+            role="trainer",
+            company_name="Спортклуб",
         )
 
+        response = client.post(REGISTER_URL, payload, format="json")
+
         assert response.status_code == status.HTTP_201_CREATED
-        assert "user" not in response.data
+        assert User.objects.count() == users_before + 1
+        # Обе записи с одним ИНН сосуществуют: связывание — за менеджером
+        assert User.objects.filter(tax_id=customer.tax_id).count() == 2
+
+        applicant = User.objects.get(email=payload["email"])
+        assert applicant.role == "trainer"
+        assert applicant.company_name == "Спортклуб"
 
         customer.refresh_from_db()
-        assert customer.verification_status == "pending"
-        assert customer.check_password("StrongPassword123!")
-        assert User.objects.count() == users_before
-        assert User.objects.filter(tax_id=customer.tax_id).count() == 1
-        # "1C wins": данные формы не перезаписывают найденную запись.
-        # Роль остаётся unregistered — её выдаст менеджер при одобрении заявки.
+        assert customer.verification_status == "unverified"
+        assert customer.password == ""
         assert customer.company_name == "Спортклуб 1С"
         assert customer.role == "unregistered"
 
-        mock_admin_email.assert_called_once_with(customer.id)
+        mock_admin_email.assert_called_once_with(applicant.id)
 
 
 class TestDuplicates:
@@ -513,10 +401,12 @@ class TestAmbiguousTaxId:
     MultipleObjectsReturned и HTTP 500.
     """
 
-    def test_ambiguous_tax_id_returns_400_not_500(self):
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    def test_ambiguous_tax_id_does_not_block_registration(self, mock_admin_email):
+        """Раньше такой ИНН давал MultipleObjectsReturned и HTTP 500."""
         tax_id = unique_tax_id()
-        create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 1")
-        create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 2")
+        first = create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 1")
+        second = create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 2")
         users_before = User.objects.count()
         client = APIClient()
 
@@ -526,30 +416,31 @@ class TestAmbiguousTaxId:
             format="json",
         )
 
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "менеджеру" in response.data["tax_id"][0]
-        assert User.objects.count() == users_before
+        assert response.status_code == status.HTTP_201_CREATED
+        assert User.objects.count() == users_before + 1
+
+        # Ни один из кандидатов не тронут — выбор делает менеджер
+        for candidate in (first, second):
+            candidate.refresh_from_db()
+            assert candidate.password == ""
+            assert candidate.verification_status == "unverified"
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
-    def test_ambiguous_tax_id_narrowed_by_email_links_record(self, mock_admin_email):
+    def test_many_candidates_do_not_raise(self, mock_admin_email):
+        """Воспроизводит продовую группу из десятков контрагентов на один ИНН."""
         tax_id = unique_tax_id()
-        create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 1")
-        target = create_1c_customer(tax_id=tax_id, company_name="ООО Ромашка Филиал 2")
-        users_before = User.objects.count()
+        for index in range(12):
+            create_1c_customer(tax_id=tax_id, company_name=f"ООО Ромашка Точка {index}")
         client = APIClient()
 
         response = client.post(
             REGISTER_URL,
-            b2b_registration_payload(email=target.email, tax_id=tax_id),
+            b2b_registration_payload(email=unique_email("many"), tax_id=tax_id),
             format="json",
         )
 
         assert response.status_code == status.HTTP_201_CREATED
-
-        target.refresh_from_db()
-        assert target.verification_status == "pending"
-        assert target.check_password("StrongPassword123!")
-        assert User.objects.count() == users_before
+        assert User.objects.filter(tax_id=tax_id).count() == 13
 
 
 class TestPasswordResetForUnlinked1CCustomer:
