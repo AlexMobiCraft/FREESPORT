@@ -139,10 +139,13 @@ class TestPriceFallbackLogic:
         Роль unregistered отсутствует в role_price_mapping, поэтому цена
         берётся из fallback — оптовые цены такому пользователю недоступны.
         """
-        user = User.objects.create_user(
+        # Импорт 1С создаёт запись без пароля — воспроизводим её форму,
+        # а не аккаунт с паролем, которого у контрагента быть не может
+        user = User.objects.create(
             email="unregistered@example.com",
-            password="password",
             role="unregistered",
+            created_in_1c=True,
+            verification_status="unverified",
         )
         variant.retail_price = Decimal("100.00")
         variant.opt1_price = Decimal("60.00")

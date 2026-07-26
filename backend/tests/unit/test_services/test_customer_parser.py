@@ -61,6 +61,56 @@ class TestCustomerDataParser:
         assert "full_name" in first_customer
         assert "customer_type" in first_customer
 
+    @pytest.mark.django_db
+    def test_role_extracted_for_every_real_contragent(self, parser, real_xml_file):
+        """
+        Все контрагенты реальной выгрузки проходят фильтр импорта.
+
+        Фильтр по <Роль> отсекает не-покупателей, поэтому ошибка в разборе
+        тега привела бы к пропуску всей базы контрагентов разом.
+        """
+        from apps.products.models import ImportSession
+        from apps.users.services.processor import CustomerDataProcessor
+
+        result = parser.parse(real_xml_file)
+        assert all(customer["role"] for customer in result)
+
+        session = ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CUSTOMERS,
+            status=ImportSession.ImportStatus.STARTED,
+        )
+        processor = CustomerDataProcessor(session_id=session.pk)
+
+        skipped = [customer for customer in result if not processor.is_buyer(customer)]
+        assert skipped == [], f"Фильтр отсеял {len(skipped)} реальных контрагентов"
+
+    def test_multiple_role_elements_are_all_collected(self, parser, tmp_path):
+        """
+        Несколько <Роль> у одного контрагента собираются целиком.
+
+        CommerceML повторяет элемент, а не перечисляет роли в одном теге:
+        чтение только первого пропустило бы покупателя, у которого первой
+        указана роль поставщика.
+        """
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<КоммерческаяИнформация xmlns="urn:1C.ru:commerceml_3" ВерсияСхемы="3.1">'
+            "<Контрагенты><Контрагент>"
+            "<Ид>test-multi-role</Ид>"
+            "<Наименование>ООО Смешанная роль</Наименование>"
+            "<Роль>Поставщик</Роль><Роль>Покупатель</Роль>"
+            "<ИНН>7707083893</ИНН><КПП>770701001</КПП>"
+            "</Контрагент></Контрагенты></КоммерческаяИнформация>"
+        )
+        xml_file = tmp_path / "multi_role.xml"
+        xml_file.write_text(xml, encoding="utf-8")
+
+        result = parser.parse(str(xml_file))
+
+        assert len(result) == 1
+        assert "Покупатель" in result[0]["role"]
+        assert "Поставщик" in result[0]["role"]
+
     def test_parse_individual_entrepreneur(self, parser, real_xml_file):
         """Тест парсинга ИП (Индивидуальный предприниматель)"""
         result = parser.parse(real_xml_file)

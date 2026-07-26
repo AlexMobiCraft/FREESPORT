@@ -70,23 +70,32 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "marketing_consent",
         ]
         extra_kwargs = {
-            # Уникальность email проверяется вручную в validate() через
-            # CustomerIdentityResolver — это позволяет привязать регистрацию
-            # к существующей 1С-записи вместо жёсткого отказа. Автогенерируемый
-            # UniqueValidator сработал бы раньше validate() и заблокировал сценарий.
+            # Уникальность email проверяется вручную в validate(): порядок
+            # проверок важен, сообщение об уже занятом адресе должно быть
+            # единым для портальных аккаунтов и импортированных записей 1С.
+            # Автогенерируемый UniqueValidator сработал бы раньше validate().
             "email": {"required": True, "validators": []},
             "first_name": {"required": True},
         }
 
-    def validate_role(self, value: str) -> str:
-        """
-        Запрещает выбор служебной роли при регистрации.
+    # Роли, которые заявитель вправе выбрать сам. Именно список разрешённых,
+    # а не запрет отдельных: `admin` даёт метку администратора в интерфейсе,
+    # `unregistered` ставит только импорт 1С, и такой аккаунт не попал бы в
+    # admin-действие верификации (оно фильтрует B2B-роли).
+    SELF_SERVICE_ROLES = frozenset(
+        {
+            "retail",
+            "wholesale_level1",
+            "wholesale_level2",
+            "wholesale_level3",
+            "trainer",
+            "federation_rep",
+        }
+    )
 
-        `unregistered` ставит только импорт 1С. Аккаунт, самостоятельно
-        созданный с этой ролью, не попал бы в admin-действие верификации
-        (оно фильтрует B2B-роли) и остался бы навсегда неодобряемым.
-        """
-        if value == User.ROLE_UNREGISTERED:
+    def validate_role(self, value: str) -> str:
+        """Разрешает при регистрации только клиентские роли."""
+        if value not in self.SELF_SERVICE_ROLES:
             raise serializers.ValidationError("Недопустимая роль для регистрации.")
         return value
 
@@ -95,8 +104,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         Нормализация ИНН: остаются только ASCII-цифры.
 
         Разделители и пробелы (частый случай при копировании из счёта или 1С)
-        убираются здесь, поэтому в CustomerIdentityResolver и в БД попадает
-        значение, которое normalize_inn() не отбросит и найдёт точным поиском.
+        убираются здесь, поэтому в поиске кандидатов и в БД оказывается
+        значение, которое найдётся точным сравнением.
         Длина проверяется в validate(), т.к. зависит от страны регистрации.
         """
         if not value:
@@ -128,8 +137,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 )
 
             # ИНН требуется для всех B2B ролей, включая trainer: по нему
-            # CustomerIdentityResolver находит существующую запись из 1С
-            # (иначе создается дубль) и определяется региональный менеджер.
+            # менеджер сверяет заявку с контрагентом 1С при верификации, и по
+            # нему же определяется региональный менеджер (region_routing).
             tax_id = attrs.get("tax_id")
             if not tax_id:
                 raise serializers.ValidationError({"tax_id": "ИНН обязателен для B2B пользователей."})
@@ -167,7 +176,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         не блокируют: по одному ИНН в 1С заводят десятки контрагентов
         (филиалы, точки, договоры), и отказ закрыл бы вход всей компании.
         """
-        normalized_inn = resolver.normalize_inn(tax_id)
+        # Нормализация не через resolver.normalize_inn: тот принимает только
+        # 10 и 12 цифр, а validate() допускает 8-12 для Беларуси и Казахстана,
+        # и 9-значный УНП молча проскакивал бы проверку дублей.
+        # validate_tax_id уже оставил в значении одни цифры.
+        normalized_inn = tax_id.strip()
         if not normalized_inn:
             return
 

@@ -16,6 +16,7 @@ Integration-тесты регистрации при наличии контра
 
 from __future__ import annotations
 
+import itertools
 import time
 from unittest.mock import patch
 
@@ -36,8 +37,14 @@ def unique_email(prefix: str) -> str:
     return f"{prefix}_{time.time_ns()}@example.com"
 
 
+_tax_id_counter = itertools.count()
+
+
 def unique_tax_id() -> str:
-    return str(1000000000 + (time.time_ns() % 900000000))
+    # Только time_ns() давал период повторения 0.9 с — тесты, создающие
+    # по десятку записей с одним ИНН и сверяющие точные count(), ловили
+    # случайные пересечения. Счётчик снимает зависимость от таймера.
+    return str(1000000000 + ((time.time_ns() + next(_tax_id_counter) * 7919) % 900000000))
 
 
 def b2b_registration_payload(**overrides):
@@ -166,6 +173,66 @@ class Test1CRecordUntouchedByRegistration:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "role" in response.data
+
+    def test_admin_role_is_rejected(self):
+        """Роль администратора нельзя получить самозаписью."""
+        client = APIClient()
+
+        response = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(role="admin"),
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "role" in response.data
+
+    def test_non_russian_tax_id_duplicate_is_rejected(self):
+        """
+        9-значный УНП тоже проверяется на дубли.
+
+        Раньше проверка шла через normalize_inn (только 10 и 12 цифр),
+        поэтому белорусские и казахстанские номера её не проходили.
+        """
+        tax_id = "191234567"
+        client = APIClient()
+
+        first = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(email=unique_email("by_first"), tax_id=tax_id, country="Беларусь"),
+            format="json",
+        )
+        assert first.status_code == status.HTTP_201_CREATED
+
+        second = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(email=unique_email("by_second"), tax_id=tax_id, country="Беларусь"),
+            format="json",
+        )
+
+        assert second.status_code == status.HTTP_400_BAD_REQUEST
+        assert second.data["tax_id"] == ["Компания с данным ИНН уже зарегистрирована."]
+
+    def test_1c_record_with_unusable_password_does_not_block_registration(self):
+        """
+        Запись 1С с паролем-заглушкой "!<random>" остаётся непривязанной.
+
+        Django считает пустой пароль usable, поэтому признак проверяет оба
+        варианта: пустую строку и заглушку от create_user(password=None).
+        """
+        customer = create_1c_customer()
+        customer.set_unusable_password()
+        customer.save(update_fields=["password"])
+        assert customer.is_unlinked_1c_record is True
+
+        client = APIClient()
+        response = client.post(
+            REGISTER_URL,
+            b2b_registration_payload(tax_id=customer.tax_id),
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
 
     def test_unregistered_role_not_offered_by_roles_endpoint(self):
         client = APIClient()
@@ -392,13 +459,14 @@ class TestDuplicates:
         assert User.objects.filter(tax_id=tax_id).count() == 1
 
 
-class TestAmbiguousTaxId:
+class TestTaxIdSharedByManyContragents:
     """
     Один ИНН — несколько контрагентов 1С.
 
     На проде это норма: юрлицо ведётся как набор контрагентов (филиалы,
-    точки, договоры), до 74 записей на ИНН. Раньше такой ИНН приводил к
-    MultipleObjectsReturned и HTTP 500.
+    точки, договоры), до 74 записей на ИНН. Проверяется путь регистрации
+    (`_reject_if_tax_id_belongs_to_account` → `find_by_tax_id`): раньше
+    поиск шёл через `.get()` и падал с `MultipleObjectsReturned` → HTTP 500.
     """
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")

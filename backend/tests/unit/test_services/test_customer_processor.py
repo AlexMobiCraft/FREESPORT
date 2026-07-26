@@ -78,6 +78,47 @@ class TestCustomerDataProcessor:
         assert user.role == "unregistered"
         assert user.is_b2b_user is False
 
+    def test_created_customer_satisfies_unlinked_invariant(self, processor):
+        """
+        Импорт обязан создавать запись, которую регистрация считает
+        непривязанной, — иначе ИНН заблокирует регистрацию всей компании.
+        """
+        customer_data = {
+            "onec_id": "TEST-INVARIANT-001",
+            "role": "Покупатель",
+            "email": "invariant@example.com",
+            "first_name": "Инвариант",
+            "last_name": "Тестов",
+            "customer_type": "legal_entity",
+            "tax_id": "7707083893",
+        }
+
+        user = processor.process_customer(customer_data)
+
+        assert user.is_unlinked_1c_record is True
+
+    def test_is_buyer_accepts_multiple_roles(self, processor):
+        """Контрагент, совмещающий роли, остаётся покупателем."""
+        assert processor.is_buyer({"role": "Поставщик,Покупатель"}) is True
+        assert processor.is_buyer({"role": " покупатель "}) is True
+
+    def test_skip_non_buyer_is_logged_as_skipped(self, processor):
+        """Пропуск должен попасть в skipped, а не в errors."""
+        customer_data = {
+            "onec_id": "TEST-SKIPLOG-001",
+            "role": "Поставщик",
+            "email": "skiplog@example.com",
+            "first_name": "Иван",
+            "last_name": "Поставщиков",
+            "customer_type": "legal_entity",
+        }
+
+        assert processor.process_customer(customer_data) is None
+
+        log = CustomerSyncLog.objects.filter(onec_id="TEST-SKIPLOG-001").first()
+        assert log is not None
+        assert log.operation_type == CustomerSyncLog.OperationType.SKIPPED
+
     def test_import_preserves_role_assigned_by_manager(self, processor):
         """Импорт не сбрасывает роль, выданную менеджером при верификации"""
         existing_user = User.objects.create(

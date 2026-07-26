@@ -94,7 +94,10 @@ class CustomerDataParser:
             or self._get_text(customer_node, "ОфициальноеНаименование")
             or name
         )
-        role = self._get_text(customer_node, "Роль", default="Покупатель")
+        # У контрагента может быть несколько <Роль> — в CommerceML это
+        # повторяющиеся элементы, а не перечисление в одном. Берём все:
+        # по первому «Поставщик» иначе пропустили бы настоящего покупателя.
+        role = ",".join(self._get_all_texts(customer_node, "Роль")) or "Покупатель"
         tax_id = self._get_text(customer_node, "ИНН")
         kpp = self._get_text(customer_node, "КПП")
 
@@ -241,6 +244,23 @@ class CustomerDataParser:
             return element.text.strip()
 
         return default
+
+    def _get_all_texts(self, node: Any, tag_name: str) -> list[str]:
+        """
+        Возвращает текст всех одноимённых дочерних элементов.
+
+        Args:
+            node: XML узел
+            tag_name: Имя тега без namespace
+
+        Returns:
+            list[str]: Непустые значения в порядке следования
+        """
+        elements = node.findall(f"cml:{tag_name}", self.COMMERCEML_NS)
+        if not elements:
+            elements = node.findall(tag_name)
+
+        return [element.text.strip() for element in elements if element is not None and element.text]
 
     def _parse_name(self, name: str, customer_type: str) -> tuple[str, str]:
         """

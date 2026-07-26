@@ -35,7 +35,7 @@ import { ProductBadge } from '@/components/common/ProductBadge';
 import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
-import { formatPrice, type UserRole } from '@/utils/pricing';
+import { formatPrice, isB2BRole, type UserRole } from '@/utils/pricing';
 export type { UserRole };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -435,7 +435,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 </p>
 
                 {/* RRP/MSRP для B2B */}
-                {(mode === 'b2b' || userRole !== 'retail') && product.rrp && product.rrp > 0 && (
+                {(mode === 'b2b' || isB2BRole(userRole)) && product.rrp && product.rrp > 0 && (
                   <div className="mt-1 space-y-0.5">
                     <p className="text-body-s text-[var(--color-text-secondary)]">
                       РРЦ: {formatPrice(product.rrp)}
@@ -559,7 +559,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
               </p>
 
               {/* RRP/MSRP для B2B */}
-              {(mode === 'b2b' || userRole !== 'retail') && product.rrp && product.rrp > 0 && (
+              {(mode === 'b2b' || isB2BRole(userRole)) && product.rrp && product.rrp > 0 && (
                 <div className="mt-1 space-y-0.5">
                   <p className="text-body-s text-[var(--color-text-secondary)]">
                     РРЦ: {formatPrice(product.rrp)}

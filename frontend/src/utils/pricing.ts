@@ -17,6 +17,22 @@ export type UserRole =
   | 'guest';
 
 /**
+ * Видит ли роль B2B-информацию (РРЦ, МРЦ, оптовые условия).
+ *
+ * Не «всё, кроме retail»: гость, а также контрагент 1С без портального
+ * аккаунта (`unregistered`) к B2B-ценам доступа не имеют.
+ */
+export function isB2BRole(role: UserRole | undefined): boolean {
+  return (
+    role === 'wholesale_level1' ||
+    role === 'wholesale_level2' ||
+    role === 'wholesale_level3' ||
+    role === 'trainer' ||
+    role === 'federation_rep'
+  );
+}
+
+/**
  * Получает цену для конкретной роли пользователя
  * @param price - Объект цен товара
  * @param userRole - Роль пользователя

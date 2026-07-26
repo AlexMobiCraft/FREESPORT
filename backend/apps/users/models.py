@@ -81,9 +81,9 @@ class User(AbstractUser):
         ("unregistered", "Не зарегистрирован на портале"),
     ]
 
-    # Роль контрагентов 1С без портального аккаунта. По ней
-    # UserRegistrationSerializer отличает запись, к которой можно привязать
-    # регистрацию, от аккаунта, уже заведённого на портале.
+    # Роль контрагентов 1С без портального аккаунта. По ней регистрация
+    # отличает импортированную запись (она не блокирует заявку по ИНН) от
+    # аккаунта живого пользователя — см. is_unlinked_1c_record.
     ROLE_UNREGISTERED = "unregistered"
 
     # Убираем username, используем email для авторизации
@@ -278,14 +278,17 @@ class User(AbstractUser):
 
         Такие записи не блокируют регистрацию по ИНН: одно юрлицо ведётся в 1С
         как несколько контрагентов, и отказ закрыл бы вход всей компании.
-        Проверяются все три признака сразу — роль ставит импорт, пустой пароль
-        означает невозможность входа, `unverified` отсекает поданные заявки.
+
+        Признак «войти нельзя» проверяется двумя способами: импорт оставляет
+        пустую строку, а `create_user(password=None)` записывает `"!<случайное>"`.
+        Django считает пустой пароль usable (`is_password_usable("")` → True),
+        поэтому одного `has_usable_password()` недостаточно.
         """
         return (
             self.created_in_1c
             and self.role == self.ROLE_UNREGISTERED
             and self.verification_status == "unverified"
-            and not self.password
+            and (not self.password or not self.has_usable_password())
         )
 
     @property
