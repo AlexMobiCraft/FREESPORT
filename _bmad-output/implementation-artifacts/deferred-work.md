@@ -434,3 +434,38 @@
   Решение (вариант «сохранять `status_1c`»): семантика `STATUS_PRIORITY` не тронута — переход по-прежнему блокируется, но `_record_blocked_status_1c()` фиксирует фактический статус 1С и `sent_to_1c_at`. Расхождение с 1С видно в карточке заказа и админке, а не только в счётчике `skipped_status_regression`. Применено к обеим веткам блокировки (финальные статусы и приоритетная регрессия). [`backend/apps/orders/services/order_status_import.py`]
 
 **Попутно исправлено:** `test_bulk_fetch_orders_optimization` (`assertNumQueries(11)`) был сломан ещё коммитом бонусной программы `72c99a51` — сигнал `post_save` добавил 3 запроса (savepoint + чтение настроек + release). Счётчик обновлён до 14 с разбивкой в комментарии.
+
+## Закрыто спекой spec-1c-manager-link-counterparty (2026-07-28)
+
+- **ЗАКРЫТО: индекс на `users.tax_id`** (пункт от 2026-07-26 в разделе «Deferred from: code review of
+  spec-1c-unregistered-role», строки 12-14). Индекс добавлен миграцией
+  `backend/apps/users/migrations/0019_add_users_tax_id_index.py` (`users_tax_id_idx`, обычный b-tree,
+  объявлен в `User.Meta.indexes`). Поводом стала колонка-индикатор «Кандидат 1С» в changelist
+  админки: correlated subquery по строкам страницы без индекса давал seq scan на каждую строку.
+  Unique-констрейнт по-прежнему запрещён — 65 групп дублей, до 74 строк на один ИНН.
+
+## Deferred from: code review of spec-1c-manager-link-counterparty (2026-07-28)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Гонка привязки с параллельным импортом 1С — импорт может прочитать запись-источник до коммита привязки и сохранить её со старым `onec_id` уже после, получив `IntegrityError` по unique.
+  evidence: `processor.py:_update_customer` читает пользователя без `select_for_update` и сохраняет полным `save()`. Привязка держит блокировки только на своих строках. Окно узкое, `process_customer` ловит исключение и логирует ошибку по контрагенту (сессия импорта не падает), следующий импорт исправит. Чинить надо в `processor.py`, который спека прямо запретила трогать.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Деактивированная запись-источник сохраняет `tax_id` и уникальный email — она продолжает участвовать в `find_by_tax_id` (неоднозначность ИНН) и может быть «подобрана» другим контрагентом через поиск по email в `_find_duplicate`.
+  evidence: `identity_resolution.find_by_tax_id:127` не фильтрует по `is_active`; `processor._find_duplicate:260-265` ищет по email без такого фильтра. Во втором сценарии контрагент B, выгруженный из 1С с общим для филиалов email, получит `onec_id` на деактивированной строке и станет невидим для `find_link_candidates` (тот требует `is_active=True`). Спека фиксирует, что источник только деактивируется («Только `is_active=False` со снятием идентификаторов»), поэтому очистка email/ИНН у ghost-строки — отдельное решение человека.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Регистрация второго филиала с тем же ИНН отклоняется после того, как первый филиал стал живым B2B-аккаунтом.
+  evidence: `serializers._reject_if_tax_id_belongs_to_account` отказывает, если хотя бы один кандидат по ИНН — не непривязанная запись 1С. Pre-existing: первый же зарегистрировавшийся заявитель создаёт живой аккаунт с этим ИНН и блокирует остальных независимо от привязки. Противоречит обоснованию «отказ закрыл бы вход всей компании», но лежит в логике регистрации, которую спека запретила менять.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Верификация B2B через форму карточки (правка `is_verified`/`verification_status` вручную) не выдаёт предупреждения о кандидатах 1С — оно есть только у массового действия `approve_b2b_users`.
+  evidence: `_warn_about_1c_candidates` вызывается только из действия. Частично компенсировано блоком кандидатов в самой карточке, который менеджер видит на том же экране. Полное покрытие требует хука в `save_model`, вне скоупа спеки.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: `link_target_q()` не требует `is_active=True` у цели — идентичность контрагента 1С можно перенести на заблокированный аккаунт.
+  evidence: Спека определяет цель как B2B-аккаунт без идентичности 1С и не упоминает активность. Последствие обратимо (админ снимает блокировку), но менеджер не получает предупреждения. Добавление условия — решение человека: оно же закроет привязку до одобрения заявки, если та создаётся с `is_active=False`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Нет теста на конкурентную привязку одного контрагента к двум заявкам — `select_for_update` и порядок захвата по возрастанию pk не покрыты падающим при регрессии тестом.
+  evidence: `test_double_submit_is_rejected_without_partial_write` последователен и пройдёт при полностью удалённом `select_for_update`. Настоящая проверка требует `pytest.mark.django_db(transaction=True)` и потоков, что в проекте избегается (см. отложенный пункт W7-2 про изоляцию тестов).

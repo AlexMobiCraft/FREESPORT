@@ -13,7 +13,7 @@ from django.test import RequestFactory, TestCase
 from django.utils.html import strip_tags
 
 from apps.common.models import AuditLog
-from apps.users.admin import CompanyAdmin, UserAdmin
+from apps.users.admin import CompanyAdmin, Has1CCandidateFilter, UserAdmin
 from apps.users.models import Address, Company
 
 User = get_user_model()
@@ -81,6 +81,7 @@ class TestUserAdmin(TestCase):
             "customer_code",
             "role_display",
             "verification_status_display",
+            "has_1c_candidate",
             "phone",
             "created_at",
         ]
@@ -92,11 +93,20 @@ class TestUserAdmin(TestCase):
             "role",
             "is_verified",
             "verification_status",
+            Has1CCandidateFilter,
             "created_at",
             "is_active",
             "is_staff",
         ]
         self.assertEqual(self.admin.list_filter, expected_filters)
+
+    def test_has_1c_candidate_column_is_not_sortable(self):
+        """
+        Колонка считается аннотацией на весь changelist; сортировка по ней
+        добавила бы лишний скан ради второстепенного порядка.
+        """
+        self.assertFalse(hasattr(self.admin.has_1c_candidate, "admin_order_field"))
+        self.assertTrue(self.admin.has_1c_candidate.boolean)
 
     def test_search_fields(self):
         """Тест конфигурации search_fields"""
@@ -116,6 +126,7 @@ class TestUserAdmin(TestCase):
         expected_readonly = [
             "onec_id",
             "onec_guid",
+            "onec_link_candidates",
             "last_sync_at",
             "last_sync_from_1c",
             "created_at",
@@ -493,6 +504,7 @@ class TestUserAdmin(TestCase):
         expected_actions = [
             "approve_b2b_users",
             "reject_b2b_users",
+            "link_1c_customer",
             "block_users",
         ]
         self.assertEqual(self.admin.actions, expected_actions)

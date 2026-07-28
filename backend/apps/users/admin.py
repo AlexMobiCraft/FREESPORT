@@ -3,16 +3,29 @@ Django Admin конфигурация для управления пользов
 Включает UserAdmin с поддержкой B2B верификации и интеграции с 1С
 """
 
+from typing import Any
+from urllib.parse import quote
+
 from django.contrib import admin
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.db.models import QuerySet
-from django.http import HttpRequest
-from django.utils.html import format_html
+from django.db.models import BooleanField, Exists, ExpressionWrapper, OuterRef, Q, QuerySet
+from django.db.models.functions import Trim
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import render
+from django.urls import reverse
+from django.utils.html import format_html, format_html_join
 
 from apps.common.models import AuditLog
 from apps.common.utils.consent_audit import get_client_ip
+from apps.users.services.link_1c_customer import (
+    LinkCandidateError,
+    find_link_candidates,
+    link_target_q,
+)
+from apps.users.services.link_1c_customer import link_1c_customer as link_1c_customer_service
 
-from .models import Address, Company, Favorite, User
+from .models import Address, Company, Favorite, User, matches_q
 
 
 class CompanyInline(admin.StackedInline):
@@ -69,6 +82,63 @@ class AddressInline(admin.TabularInline):
     readonly_fields = ("created_at",)
 
 
+def _company_legal_address(user: User) -> str:
+    """Юридический адрес из связанной Company или прочерк."""
+    company = getattr(user, "company", None)
+    return (company.legal_address if company else "") or "—"
+
+
+def has_1c_candidate_expression() -> ExpressionWrapper:
+    """
+    Индикатор «у заявки есть непривязанный контрагент 1С» одной аннотацией.
+
+    Correlated subquery выполняется по строкам страницы changelist, а не по
+    всей таблице, и не превращается в запрос на строку. Условия кандидата
+    берутся из `User.objects.unlinked_1c_records()`, условия цели — из
+    `link_target_q()`: те же наборы условий проверяются под блокировкой при
+    самой привязке, поэтому показанный индикатор не расходится с действием.
+    """
+    # Trim — то же правило сравнения ИНН, что у normalize_tax_id в сервисе:
+    # иначе заявка с ИНН в пробелах имела бы кандидата в карточке и пустую
+    # колонку в списке, то есть постоянный носитель сигнала о ней бы молчал.
+    # exclude(pk=OuterRef("pk")) не нужен: кандидат обязан иметь роль
+    # `unregistered`, а внешняя строка — роль из B2B_ROLES, множества не
+    # пересекаются. Лишний NOT-подзапрос внутри коррелированного EXISTS
+    # ничего не отсекает и стоит запроса на каждую строку страницы.
+    candidates = User.objects.unlinked_1c_records().filter(tax_id=Trim(OuterRef("tax_id")), is_active=True)
+    return ExpressionWrapper(
+        link_target_q() & ~Q(tax_id="") & Exists(candidates),
+        output_field=BooleanField(),
+    )
+
+
+class Has1CCandidateFilter(admin.SimpleListFilter):
+    """
+    Фильтр «Есть кандидат 1С» — постоянный носитель сигнала.
+
+    Всплывающее сообщение при одобрении исчезает после перезагрузки и тонет
+    при массовых операциях, а фильтр превращает проблему в рабочую очередь.
+    """
+
+    title = "Кандидат в 1С"
+    parameter_name = "has_1c_candidate"
+
+    def lookups(self, request: HttpRequest, model_admin: admin.ModelAdmin) -> list[tuple[str, str]]:
+        return [("yes", "Есть кандидат 1С"), ("no", "Нет кандидата 1С")]
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet[User]) -> QuerySet[User]:
+        if self.value() not in ("yes", "no"):
+            return queryset
+
+        # Обычно аннотацию уже навесил UserAdmin.get_queryset. Но фильтр
+        # достижим и там, где этого не случилось (вторая AdminSite, сохранённая
+        # ссылка `?has_1c_candidate=yes` из чужого контекста), и без страховки
+        # это FieldError вместо списка. Выражение то же самое — копии условий нет.
+        if "_has_1c_candidate" not in queryset.query.annotations:
+            queryset = queryset.annotate(_has_1c_candidate=has_1c_candidate_expression())
+        return queryset.filter(_has_1c_candidate=self.value() == "yes")
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     """
@@ -92,6 +162,7 @@ class UserAdmin(BaseUserAdmin):
         "customer_code",
         "role_display",
         "verification_status_display",
+        "has_1c_candidate",
         "phone",
         "created_at",
     ]
@@ -101,6 +172,7 @@ class UserAdmin(BaseUserAdmin):
         "role",
         "is_verified",
         "verification_status",
+        Has1CCandidateFilter,
         "created_at",
         "is_active",
         "is_staff",
@@ -124,6 +196,7 @@ class UserAdmin(BaseUserAdmin):
     readonly_fields = [
         "onec_id",
         "onec_guid",
+        "onec_link_candidates",
         "last_sync_at",
         "last_sync_from_1c",
         "created_at",
@@ -187,6 +260,7 @@ class UserAdmin(BaseUserAdmin):
                 "fields": (
                     "onec_id",
                     "onec_guid",
+                    "onec_link_candidates",
                     "sync_status",
                     "created_in_1c",
                     "needs_1c_export",
@@ -236,10 +310,84 @@ class UserAdmin(BaseUserAdmin):
     actions = [
         "approve_b2b_users",
         "reject_b2b_users",
+        "link_1c_customer",
         "block_users",
     ]
 
+    # Queryset и fieldsets
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
+        queryset = super().get_queryset(request)
+        # Аннотация нужна только списку: на карточке пользователя одна строка,
+        # и лишний подзапрос там ничего не даёт.
+        if self._is_changelist_request(request):
+            queryset = queryset.annotate(_has_1c_candidate=has_1c_candidate_expression())
+        return queryset
+
+    def _is_changelist_request(self, request: HttpRequest) -> bool:
+        resolver_match = getattr(request, "resolver_match", None)
+        if resolver_match is None:
+            return False
+        return bool(resolver_match.url_name == f"{self.opts.app_label}_{self.opts.model_name}_changelist")
+
+    def get_fieldsets(self, request: HttpRequest, obj: User | None = None) -> Any:
+        fieldsets = super().get_fieldsets(request, obj)
+        # Тот же критерий цели, что у колонки в списке и у проверки под
+        # блокировкой: иначе карточка звала бы связать аккаунт, которому
+        # действие всегда откажет (уже привязан либо не B2B).
+        if obj is not None and matches_q(link_target_q(), obj) and find_link_candidates(obj):
+            return fieldsets
+
+        # Кандидатов нет — блок в карточке не выводится.
+        return tuple(
+            (
+                name,
+                {**options, "fields": tuple(f for f in options.get("fields", ()) if f != "onec_link_candidates")},
+            )
+            for name, options in fieldsets
+        )
+
     # Custom display methods
+
+    @admin.display(description="Кандидат 1С", boolean=True)
+    def has_1c_candidate(self, obj: User) -> bool:
+        """Индикатор из аннотации changelist'а — не запрос на строку."""
+        return bool(getattr(obj, "_has_1c_candidate", False))
+
+    @admin.display(description="Непривязанные контрагенты 1С с этим ИНН")
+    def onec_link_candidates(self, obj: User) -> str:
+        """
+        Кандидаты на привязку в карточке заявки.
+
+        Все значения приходят из 1С, поэтому экранируются через format_html;
+        mark_safe на сырых данных недопустим.
+        """
+        candidates = find_link_candidates(obj)
+        if not candidates:
+            return "—"
+
+        rows = format_html_join(
+            "",
+            "<li>ID в 1С: <b>{}</b> — {} — {}</li>",
+            (
+                (
+                    candidate.onec_id or "—",
+                    candidate.company_name or candidate.full_name or "—",
+                    _company_legal_address(candidate),
+                )
+                for candidate in candidates
+            ),
+        )
+        # Ссылка на список, отфильтрованный по этому же ИНН: без неё менеджеру
+        # пришлось бы искать ту же строку среди 4606 пользователей вручную.
+        changelist_url = f"{reverse('admin:users_user_changelist')}?q={quote(obj.tax_id or '')}"
+        return format_html(
+            '<ul style="margin: 0; padding-left: 18px;">{}</ul>'
+            '<p style="margin-top: 6px;">Свяжите заявку действием '
+            '«🔗 Связать с контрагентом 1С» в <a href="{}">списке пользователей с этим ИНН</a>.</p>',
+            rows,
+            changelist_url,
+        )
 
     @admin.display(description="Юридический адрес компании")
     def company_legal_address(self, obj: User) -> str:
@@ -303,15 +451,7 @@ class UserAdmin(BaseUserAdmin):
     def approve_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовая верификация B2B пользователей"""
         # Input validation: проверка наличия B2B пользователей
-        b2b_users = queryset.filter(
-            role__in=[
-                "wholesale_level1",
-                "wholesale_level2",
-                "wholesale_level3",
-                "trainer",
-                "federation_rep",
-            ]
-        )
+        b2b_users = queryset.filter(role__in=User.B2B_ROLES)
 
         if not b2b_users.exists():
             self.message_user(
@@ -330,8 +470,10 @@ class UserAdmin(BaseUserAdmin):
             )
             return
 
+        approved_ids: list[int] = []
         count = 0
         for user in b2b_users:
+            approved_ids.append(user.pk)
             user.is_verified = True
             user.verification_status = "verified"
             # Регистрация создаёт B2B-заявку с is_active=False. Без активации
@@ -361,20 +503,170 @@ class UserAdmin(BaseUserAdmin):
             f"Успешно верифицировано {count} B2B пользователей",
             level="success",
         )
+        self._warn_about_1c_candidates(request, approved_ids)
+
+    def _warn_about_1c_candidates(self, request: HttpRequest, approved_ids: list[int]) -> None:
+        """
+        Одно агрегированное предупреждение на вызов действия, а не по одному
+        на заявку: на пачке из 20 заявок 20 сообщений никто не читает.
+
+        Само сообщение эфемерно — постоянный носитель сигнала — колонка
+        «Кандидат 1С» и одноимённый фильтр в списке.
+        """
+        if not approved_ids:
+            return
+
+        # Одним запросом: аннотация вычисляется на стороне БД, а не по строке.
+        flagged = list(
+            User.objects.filter(pk__in=approved_ids)
+            .annotate(_has_1c_candidate=has_1c_candidate_expression())
+            .filter(_has_1c_candidate=True)
+            .order_by("pk")
+        )
+        if not flagged:
+            return
+
+        links = format_html_join(
+            ", ",
+            '<a href="{}">{}</a>',
+            (
+                (
+                    reverse("admin:users_user_change", args=[user.pk]),
+                    user.email or f"ID {user.pk}",
+                )
+                for user in flagged
+            ),
+        )
+        self.message_user(
+            request,
+            format_html(
+                "Для {} из одобренных заявок найдены непривязанные контрагенты 1С: {}. "
+                "Свяжите их действием «🔗 Связать с контрагентом 1С», иначе экспорт заказа "
+                "заведёт в 1С нового контрагента. Найти все такие заявки можно фильтром «Кандидат 1С».",
+                len(flagged),
+                links,
+            ),
+            level="warning",
+        )
+
+    @admin.action(description="🔗 Связать с контрагентом 1С", permissions=["change"])
+    def link_1c_customer(self, request: HttpRequest, queryset: QuerySet[User]) -> HttpResponse | None:
+        """
+        Привязка заявки к контрагенту 1С через страницу подтверждения.
+
+        Выбор кандидата всегда явный: на один ИНН приходится до 74 записей,
+        и «взять первого» здесь означало бы связать заявку со случайным
+        филиалом. Сама логика переноса живёт в сервисе.
+        """
+        targets = list(queryset[:2])
+        if len(targets) != 1:
+            self.message_user(
+                request,
+                "Привязка выполняется по одной заявке: выберите ровно одного пользователя.",
+                level="error",
+            )
+            return None
+
+        target = targets[0]
+        if target.role not in User.B2B_ROLES:
+            self.message_user(
+                request,
+                f"Связывать с контрагентом 1С можно только B2B-аккаунт, "
+                f"а роль заявителя — «{target.get_role_display()}».",
+                level="error",
+            )
+            return None
+        if target.onec_id or target.onec_guid:
+            self.message_user(
+                request,
+                f"Аккаунт {target.email or target.pk} уже связан с 1С. " f"Перепривязка выполняется вручную.",
+                level="error",
+            )
+            return None
+
+        candidates = find_link_candidates(target)
+        if not candidates:
+            self.message_user(
+                request,
+                f"Непривязанных контрагентов 1С с ИНН {target.tax_id or '—'} не найдено.",
+                level="warning",
+            )
+            return None
+
+        if request.POST.get("apply"):
+            return self._apply_link_1c_customer(request, target, candidates)
+
+        return render(
+            request,
+            "admin/users/link_1c_customer.html",
+            context={
+                **self.admin_site.each_context(request),
+                "title": "Связывание заявки с контрагентом 1С",
+                "target": target,
+                "candidates": candidates,
+                "opts": self.model._meta,
+                "action_checkbox_name": ACTION_CHECKBOX_NAME,
+            },
+        )
+
+    def _apply_link_1c_customer(
+        self, request: HttpRequest, target: User, candidates: list[User]
+    ) -> HttpResponseRedirect:
+        """Обработка подтверждения: сверка выбора и вызов сервиса."""
+        # Радиокнопка несёт пару «pk источника : показанный onec_id»: оба
+        # значения проверяются повторно под блокировкой в сервисе, поэтому
+        # двойная отправка и устаревшая вкладка отклоняются.
+        raw_source_pk, _, expected_onec_id = (request.POST.get("candidate") or "").partition(":")
+
+        allowed_pks = {str(candidate.pk) for candidate in candidates}
+        if raw_source_pk not in allowed_pks:
+            self.message_user(
+                request,
+                "Выберите контрагента 1С из списка — данные на странице могли устареть.",
+                level="error",
+            )
+            return HttpResponseRedirect(request.get_full_path())
+
+        source = next(candidate for candidate in candidates if str(candidate.pk) == raw_source_pk)
+        source_code = source.customer_code
+
+        try:
+            linked = link_1c_customer_service(
+                target_id=target.pk,
+                source_id=int(raw_source_pk),
+                expected_onec_id=expected_onec_id,
+                actor=request.user if isinstance(request.user, User) else None,
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except LinkCandidateError as exc:
+            self.message_user(request, str(exc), level="error")
+            return HttpResponseRedirect(request.get_full_path())
+
+        self.message_user(
+            request,
+            f"Заявка {linked.email or linked.pk} связана с контрагентом 1С "
+            f"(ID в 1С: {linked.onec_id}). Исходная запись деактивирована.",
+            level="success",
+        )
+        if source_code and linked.customer_code and source_code != linked.customer_code:
+            # Код заявителя уже вшит в номера его заказов и сменён быть не может.
+            # Расхождение с 1С не ошибка привязки, но менеджер обязан его увидеть:
+            # номера заказов портала и код контрагента в 1С разойдутся навсегда.
+            self.message_user(
+                request,
+                f"Код клиента расходится с 1С: у заявителя {linked.customer_code}, "
+                f"у контрагента {source_code}. Код заявителя не меняется — он уже "
+                f"использован в номерах его заказов. Сверьте код в 1С вручную.",
+                level="warning",
+            )
+        return HttpResponseRedirect(request.get_full_path())
 
     @admin.action(description="✗ Отклонить верификацию выбранных B2B пользователей")
     def reject_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовый отказ в верификации B2B пользователей"""
         # Input validation: проверка наличия B2B пользователей
-        b2b_users = queryset.filter(
-            role__in=[
-                "wholesale_level1",
-                "wholesale_level2",
-                "wholesale_level3",
-                "trainer",
-                "federation_rep",
-            ]
-        )
+        b2b_users = queryset.filter(role__in=User.B2B_ROLES)
 
         if not b2b_users.exists():
             self.message_user(
