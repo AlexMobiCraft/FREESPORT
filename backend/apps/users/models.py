@@ -14,10 +14,93 @@ if TYPE_CHECKING:
     pass  # Используется для type hints
 
 
+def matches_q(condition: models.Q, obj: Any) -> bool:
+    """
+    Проверяет Q-предикат на объекте в памяти, без запроса в БД.
+
+    Нужен, чтобы условие имело ровно один источник истины: тот же Q уходит и в
+    `filter()`, и в property модели. Две независимые формулировки (SQL и Python)
+    неизбежно разъезжаются, а расхождение здесь означает, что показанный
+    менеджеру кандидат не пройдёт проверку под блокировкой.
+
+    Поддерживаются только лукапы и коннекторы, реально используемые
+    предикатами этого модуля. Всё незнакомое — исключение, а не «молча False»:
+    тихая ошибка вернула бы неверный ответ вместо падения, то есть ровно то
+    расхождение, ради предотвращения которого функция и написана.
+    """
+    results: list[bool] = []
+
+    for child in condition.children:
+        if isinstance(child, models.Q):
+            results.append(matches_q(child, obj))
+            continue
+        if not (isinstance(child, tuple) and len(child) == 2):
+            # Q можно комбинировать с выражениями (Exists и т. п.) — они
+            # вычислимы только в SQL, и молча их пропустить нельзя.
+            raise ValueError(f"matches_q не поддерживает условие '{child!r}': вычислимо только в БД")
+
+        lookup, expected = child
+        field_name, _, operation = lookup.partition("__")
+        value = getattr(obj, field_name)
+
+        if operation in ("", "exact"):
+            results.append(value == expected)
+        elif operation == "isnull":
+            results.append((value is None) is bool(expected))
+        elif operation == "startswith":
+            results.append(bool(value) and str(value).startswith(expected))
+        elif operation == "in":
+            results.append(value in expected)
+        else:
+            raise ValueError(f"matches_q не поддерживает лукап '{operation}' (условие '{lookup}')")
+
+    if condition.connector == models.Q.AND:
+        matched = all(results)
+    elif condition.connector == models.Q.OR:
+        matched = any(results)
+    else:
+        # Q.XOR (Django 4.1+) и любой будущий коннектор: трактовать его как AND
+        # означало бы вернуть не то множество, что вернёт SQL.
+        raise ValueError(f"matches_q не поддерживает коннектор '{condition.connector}'")
+
+    return not matched if condition.negated else matched
+
+
 class UserManager(BaseUserManager["User"]):
     """
     Кастомный менеджер для модели User с email аутентификацией
     """
+
+    @staticmethod
+    def unlinked_1c_record_q() -> models.Q:
+        """
+        Единственный источник истины для критерия «непривязанная запись 1С».
+
+        Через него выражаются и queryset-фильтр (`unlinked_1c_records`), и
+        property модели (`User.is_unlinked_1c_record`).
+
+        Признак «войти нельзя» проверяется двумя способами: импорт оставляет
+        пустую строку, а `create_user(password=None)` записывает `"!<случайное>"`.
+        Django считает пустой пароль usable (`is_password_usable("")` → True),
+        поэтому одного `has_usable_password()` недостаточно. `password__isnull`
+        в БД недостижим (колонка NOT NULL) и оставлен ради несохранённых
+        экземпляров, где `password` может быть None.
+        """
+        return (
+            models.Q(created_in_1c=True)
+            & models.Q(role=User.ROLE_UNREGISTERED)
+            & models.Q(verification_status="unverified")
+            & (models.Q(password="") | models.Q(password__isnull=True) | models.Q(password__startswith="!"))
+        )
+
+    def unlinked_1c_records(self) -> "models.QuerySet[User]":
+        """
+        Контрагенты, импортированные из 1С и не заведённые на портале.
+
+        Только такие записи могут быть источником привязки: живой аккаунт
+        источником быть не может.
+        """
+        return self.get_queryset().filter(self.unlinked_1c_record_q())
 
     def create_user(self, email: str, password: str | None = None, **extra_fields: Any) -> "User":
         """Создание обычного пользователя"""
@@ -85,6 +168,18 @@ class User(AbstractUser):
     # отличает импортированную запись (она не блокирует заявку по ИНН) от
     # аккаунта живого пользователя — см. is_unlinked_1c_record.
     ROLE_UNREGISTERED = "unregistered"
+
+    # Роли, дающие B2B-уровень цен и B2B-функции. Единственный источник истины:
+    # через эту константу выражаются is_b2b_user и admin-действия, чтобы список
+    # не расходился по копиям. `admin` собственной цены не имеет и B2B-ролью
+    # не является; `unregistered` — запись 1С без портального аккаунта.
+    B2B_ROLES = (
+        "wholesale_level1",
+        "wholesale_level2",
+        "wholesale_level3",
+        "trainer",
+        "federation_rep",
+    )
 
     # Убираем username, используем email для авторизации
     username = None  # type: ignore[assignment]
@@ -237,6 +332,13 @@ class User(AbstractUser):
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
         db_table = "users"
+        indexes = [
+            # Поиск кандидатов 1С по ИНН идёт при каждом рендере changelist
+            # пользователей и каждой B2B-регистрации. Индекс обычный, не
+            # unique: на один ИНН приходится до 74 контрагентов (филиалы,
+            # точки, договоры) — уникальность здесь наложить нельзя.
+            models.Index(fields=["tax_id"], name="users_tax_id_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.email or ''} ({self.get_role_display()})"
@@ -262,14 +364,7 @@ class User(AbstractUser):
     @property
     def is_b2b_user(self) -> bool:
         """Является ли пользователь B2B клиентом"""
-        b2b_roles = [
-            "wholesale_level1",
-            "wholesale_level2",
-            "wholesale_level3",
-            "trainer",
-            "federation_rep",
-        ]
-        return self.role in b2b_roles
+        return self.role in self.B2B_ROLES
 
     @property
     def is_unlinked_1c_record(self) -> bool:
@@ -279,17 +374,11 @@ class User(AbstractUser):
         Такие записи не блокируют регистрацию по ИНН: одно юрлицо ведётся в 1С
         как несколько контрагентов, и отказ закрыл бы вход всей компании.
 
-        Признак «войти нельзя» проверяется двумя способами: импорт оставляет
-        пустую строку, а `create_user(password=None)` записывает `"!<случайное>"`.
-        Django считает пустой пароль usable (`is_password_usable("")` → True),
-        поэтому одного `has_usable_password()` недостаточно.
+        Условия не дублируются здесь, а берутся из queryset-предиката
+        `UserManager.unlinked_1c_record_q()`: показанный менеджеру кандидат
+        обязан проходить ту же проверку под блокировкой.
         """
-        return (
-            self.created_in_1c
-            and self.role == self.ROLE_UNREGISTERED
-            and self.verification_status == "unverified"
-            and (not self.password or not self.has_usable_password())
-        )
+        return matches_q(UserManager.unlinked_1c_record_q(), self)
 
     @property
     def is_wholesale_user(self) -> bool:
