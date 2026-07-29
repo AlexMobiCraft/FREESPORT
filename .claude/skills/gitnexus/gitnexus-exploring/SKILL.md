@@ -16,11 +16,11 @@ description: "Use when the user asks how code works, wants to understand archite
 ## Workflow
 
 ```
-1. READ gitnexus://repos                          → Discover indexed repos
-2. READ gitnexus://repo/{name}/context             → Codebase overview, check staleness
-3. gitnexus_query({query: "<what you want to understand>"})  → Find related execution flows
-4. gitnexus_context({name: "<symbol>"})            → Deep dive on specific symbol
-5. READ gitnexus://repo/{name}/process/{name}      → Trace full execution flow
+1. npx gitnexus list                          → Discover indexed repos
+2. npx gitnexus status             → Codebase overview, check staleness
+3. npx gitnexus query "<what you want to understand>"  → Find related execution flows
+4. npx gitnexus context <symbol>            → Deep dive on specific symbol
+5. npx gitnexus query "<flow>"      → Trace full execution flow
 ```
 
 > If step 2 says "Index is stale" → run `npx gitnexus analyze` in terminal.
@@ -28,37 +28,41 @@ description: "Use when the user asks how code works, wants to understand archite
 ## Checklist
 
 ```
-- [ ] READ gitnexus://repo/{name}/context
-- [ ] gitnexus_query for the concept you want to understand
+- [ ] npx gitnexus status
+- [ ] npx gitnexus query for the concept you want to understand
 - [ ] Review returned processes (execution flows)
-- [ ] gitnexus_context on key symbols for callers/callees
+- [ ] npx gitnexus context on key symbols for callers/callees
 - [ ] READ process resource for full execution traces
 - [ ] Read source files for implementation details
 ```
 
-## Resources
+## Navigation commands (CLI)
 
-| Resource                                | What you get                                            |
-| --------------------------------------- | ------------------------------------------------------- |
-| `gitnexus://repo/{name}/context`        | Stats, staleness warning (~150 tokens)                  |
-| `gitnexus://repo/{name}/clusters`       | All functional areas with cohesion scores (~300 tokens) |
-| `gitnexus://repo/{name}/cluster/{name}` | Area members with file paths (~500 tokens)              |
-| `gitnexus://repo/{name}/process/{name}` | Step-by-step execution trace (~200 tokens)              |
+MCP resources (`gitnexus://...`) are not available — this project has no `.mcp.json`.
+Use these commands instead:
+
+| Instead of resource | Run                                     | What you get                          |
+| ------------------- | --------------------------------------- | ------------------------------------- |
+| `.../context`       | `npx gitnexus status`                   | Index stats and staleness             |
+| `.../clusters`      | `npx gitnexus query "<area>" --limit 10`| Functional areas by concept           |
+| `.../cluster/{name}`| `npx gitnexus query "<area>" --limit 10`| Area members with file paths          |
+| `.../process/{name}`| `npx gitnexus query "<flow>" --limit 1` | Execution flow with its symbols       |
+| repo discovery      | `npx gitnexus list`                     | All indexed repositories              |
 
 ## Tools
 
-**gitnexus_query** — find execution flows related to a concept:
+**npx gitnexus query** — find execution flows related to a concept:
 
 ```
-gitnexus_query({query: "payment processing"})
+npx gitnexus query "payment processing"
 → Processes: CheckoutFlow, RefundFlow, WebhookHandler
 → Symbols grouped by flow with file locations
 ```
 
-**gitnexus_context** — 360-degree view of a symbol:
+**npx gitnexus context** — 360-degree view of a symbol:
 
 ```
-gitnexus_context({name: "validateUser"})
+npx gitnexus context validateUser
 → Incoming calls: loginHandler, apiMiddleware
 → Outgoing calls: checkToken, getUserById
 → Processes: LoginFlow (step 2/5), TokenRefresh (step 1/3)
@@ -67,11 +71,11 @@ gitnexus_context({name: "validateUser"})
 ## Example: "How does payment processing work?"
 
 ```
-1. READ gitnexus://repo/my-app/context       → 918 symbols, 45 processes
-2. gitnexus_query({query: "payment processing"})
+1. npx gitnexus status       → 918 symbols, 45 processes
+2. npx gitnexus query "payment processing"
    → CheckoutFlow: processPayment → validateCard → chargeStripe
    → RefundFlow: initiateRefund → calculateRefund → processRefund
-3. gitnexus_context({name: "processPayment"})
+3. npx gitnexus context processPayment
    → Incoming: checkoutHandler, webhookHandler
    → Outgoing: validateCard, chargeStripe, saveTransaction
 4. Read src/payments/processor.ts for implementation details
