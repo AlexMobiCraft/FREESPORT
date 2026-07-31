@@ -158,6 +158,15 @@ _Например:_ `git add .; git commit -m "..."; git push`
   _Пример команды:_
   `docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
 
+## Критические правила и runbook'и
+
+Постоянные инварианты и продакшен-инструкции вынесены в отдельные rule-файлы:
+
+- [`.windsurf/rules/security-and-git.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/security-and-git.md) — запрет прямого пуша в public remote, обновление продакшена.
+- [`.windsurf/rules/production-operations.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/production-operations.md) — типовые инциденты: 502, Server Action mismatch, restart nginx.
+- [`.windsurf/rules/order-numbering.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/order-numbering.md) — форматы мастер/субзаказов и поиск в админке.
+- [`.windsurf/rules/1c-import-diagnostics.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/1c-import-diagnostics.md) — диагностика ошибок полной выгрузки 1С.
+
 ## Справочная информация
 
 Справочная информация о проекте (архитектура, стек, команды запуска и тесты) находится в файле [PROJECT_INFO.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/PROJECT_INFO.md).
@@ -219,12 +228,12 @@ _Например:_ `git add .; git commit -m "..."; git push`
 
 | Задача | Файл |
 |---|---|
-| Понять архитектуру / «Как работает X?» | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / «Что сломается, если поменять X?» | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Отладка / «Почему X падает?» | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Переименование и рефакторинг | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Справочник по командам и схеме графа | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Индекс, статус, очистка, wiki | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Понять архитектуру / «Как работает X?» | `.windsurf/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius / «Что сломается, если поменять X?» | `.windsurf/skills/gitnexus-impact-analysis/SKILL.md` |
+| Отладка / «Почему X падает?» | `.windsurf/skills/gitnexus-debugging/SKILL.md` |
+| Переименование и рефакторинг | `.windsurf/skills/gitnexus-refactoring/SKILL.md` |
+| Справочник по командам и схеме графа | `.windsurf/skills/gitnexus-guide/SKILL.md` |
+| Индекс, статус, очистка, wiki | `.windsurf/skills/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:start -->
 <!-- Автогенерируется `npx gitnexus analyze`. Содержимое между маркерами носит справочный
