@@ -1734,9 +1734,7 @@ class VariantImportProcessor:
                         category_map[onec_id] = repair_anchor
                         self._valid_category_onec_ids.add(onec_id)
                         result["updated"] += 1
-                        logger.info(
-                            f"Repair-якорь '{name}' обновлён реальным onec_id={onec_id}"
-                        )
+                        logger.info(f"Repair-якорь '{name}' обновлён реальным onec_id={onec_id}")
                         continue
 
                 category, created = Category.objects.update_or_create(
