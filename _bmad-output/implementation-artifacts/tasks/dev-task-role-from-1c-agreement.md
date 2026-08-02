@@ -283,7 +283,7 @@ XSD-макет `БУС_НастройкиОбмена.СхемаXSDОбмена`
 | `backend/apps/products/models.py:899` | Поле `ProductVariant.opt4_price`, `help_text="Цена для роли wholesale_level4"` |
 | `backend/apps/products/models.py:724` | `PriceType.product_field` — choice `("opt4_price", "Оптовая цена уровень 4")` |
 | `backend/apps/products/models.py:1177` | `get_price_for_user`: `"wholesale_level4": self.opt4_price or self.retail_price` |
-| миграция `products` | Поле + CheckConstraint `products_opt4_price_positive` по образцу `0003_add_constraints.py:37` |
+| миграция `products` | Поле + CheckConstraint `products_opt4_price_positive` **на `ProductVariant`**. У `ProductVariant.Meta` нет атрибута `constraints` — заводится с нуля; образец формы в том же файле: `ImportSession.Meta.constraints` (`models.py:665`), `models.Q(...)` + `condition=`. Ценовые constraint'ы из `0003_add_constraints.py` относились к `Product` и сняты миграцией `0004` |
 | миграция данных `products` | `PriceType`: GUID `4c1962d2-f8ed-11eb-81f3-00155d3cae02`, `onec_name="Опт 4 (до 50 тыс.руб в квартал)"`, `product_field="opt4_price"`, `user_role="wholesale_level4"` |
 | `backend/apps/users/models.py:144,157,179` | `ROLE_CHOICES`, `B2B_ROLES`, `role_map` в `TYPE_CHECKING` |
 | миграция `users` | `AlterField` для `role` по образцу `0017_add_unregistered_role.py` |

@@ -126,8 +126,8 @@ development_status:
   # Релиз: отдельный, не дожидаясь эпика 40 (решение Alex, 2026-08-01).
   # Предусловие 39.2: обновлённый снимок data/import_1c/priceLists/ (7 видов цен).
   # ========================================
-  epic-39: backlog
-  39-1-wholesale-level4-role-and-opt4-price-model: backlog
+  epic-39: in-progress
+  39-1-wholesale-level4-role-and-opt4-price-model: ready-for-dev
   39-2-import-opt4-prices-from-1c: backlog
   39-3-catalog-admin-api-opt4-price: backlog
   39-4-frontend-opt4-price-display: backlog
