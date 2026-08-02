@@ -142,6 +142,7 @@ class User(AbstractUser):
                 "wholesale_level1": "Оптовик уровень 1",
                 "wholesale_level2": "Оптовик уровень 2",
                 "wholesale_level3": "Оптовик уровень 3",
+                "wholesale_level4": "Оптовик уровень 4",
                 "trainer": "Тренер/Фитнес-клуб",
                 "federation_rep": "Представитель федерации",
                 "admin": "Администратор",
@@ -155,6 +156,7 @@ class User(AbstractUser):
         ("wholesale_level1", "Оптовик уровень 1"),
         ("wholesale_level2", "Оптовик уровень 2"),
         ("wholesale_level3", "Оптовик уровень 3"),
+        ("wholesale_level4", "Оптовик уровень 4"),
         ("trainer", "Тренер/Фитнес-клуб"),
         ("federation_rep", "Представитель федерации"),
         ("admin", "Администратор"),
@@ -177,6 +179,7 @@ class User(AbstractUser):
         "wholesale_level1",
         "wholesale_level2",
         "wholesale_level3",
+        "wholesale_level4",
         "trainer",
         "federation_rep",
     )

@@ -1,6 +1,10 @@
+---
+baseline_commit: bdd5ec9c25c77f4b918d392fa75c6e2c7d7007cb
+---
+
 # Story 39.1: Роль wholesale_level4 и цена opt4_price в модели
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -26,45 +30,45 @@ so that **я мог назначить его клиенту с оборотом
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Поле `ProductVariant.opt4_price` + constraint (AC: 1, 2)
-  - [ ] 1.1: Добавить `opt4_price` после `opt3_price` в `products/models.py` (точный код — в Dev Notes)
-  - [ ] 1.2: Обновить комментарий-заголовок блока цен: `# Цены для различных ролей (6 типов)` → `(7 типов)`
-  - [ ] 1.3: Добавить в `ProductVariant.Meta` **новый** атрибут `constraints` с `CheckConstraint(condition=..., name="products_opt4_price_positive")` — сегодня у `ProductVariant.Meta` нет `constraints` вообще
-  - [ ] 1.4: `makemigrations products --name add_opt4_price` → должна получиться `0052_add_opt4_price.py`
-- [ ] Task 2: Choice `opt4_price` в `PriceType.product_field` (AC: 3)
-  - [ ] 2.1: Добавить `("opt4_price", "Оптовая цена уровень 4")` после `opt3_price` в `PriceType.product_field.choices` (`products/models.py:724`)
-  - [ ] 2.2: Убедиться, что `AlterField` для `pricetype.product_field` попал в ту же миграцию `0052_*` (не создавать отдельную)
-- [ ] Task 3: Data-миграция — запись `PriceType` для «Опт 4» (AC: 4)
-  - [ ] 3.1: `makemigrations products --empty --name seed_price_type_opt4` → `0053_seed_price_type_opt4.py`
-  - [ ] 3.2: Написать `forwards`/`backwards` через `apps.get_model("products", "PriceType")` (точный код — в Dev Notes)
-  - [ ] 3.3: Идемпотентность — `update_or_create(onec_id=GUID, defaults={...})`
-  - [ ] 3.4: `reverse` — `filter(onec_id=GUID).delete()`, никаких массовых удалений
-- [ ] Task 4: Роль `wholesale_level4` в модели `User` (AC: 5, 6)
-  - [ ] 4.1: `ROLE_CHOICES` — вставить `("wholesale_level4", "Оптовик уровень 4")` **после** `wholesale_level3` и **до** `trainer`
-  - [ ] 4.2: `B2B_ROLES` — добавить `"wholesale_level4"` после `"wholesale_level3"`
-  - [ ] 4.3: `role_map` в блоке `if TYPE_CHECKING` (`users/models.py:140`) — добавить ту же пару
-  - [ ] 4.4: `makemigrations users --name add_wholesale_level4_role` → `0020_add_wholesale_level4_role.py`, проверить что это `AlterField` поля `role` с полным списком choices
-- [ ] Task 5: `get_price_for_user` (AC: 7, 8)
-  - [ ] 5.1: Добавить `"wholesale_level4": self.opt4_price or self.retail_price` в `role_price_mapping` (`products/models.py:1173`) после `wholesale_level3`
-- [ ] Task 6: Настройки обмена с 1С (AC: 9, 10)
-  - [ ] 6.1: `PRICE_TYPE_BY_ROLE["wholesale_level4"] = "Опт 4 (до 50 тыс.руб в квартал)"` (после `wholesale_level3`)
-  - [ ] 6.2: `PRICE_TYPE_ID_BY_NAME["Опт 4 (до 50 тыс.руб в квартал)"] = "4c1962d2-f8ed-11eb-81f3-00155d3cae02"`
-  - [ ] 6.3: Убедиться, что `orders/services/order_export.py` **не тронут**
-- [ ] Task 7: Применить миграции и проверить схему (AC: 2, 11)
-  - [ ] 7.1: `migrate products` и `migrate users` в Docker на PostgreSQL
-  - [ ] 7.2: Проверить, что constraint реально отклоняет отрицательное значение
-  - [ ] 7.3: `makemigrations --check --dry-run` — пусто
-- [ ] Task 8: Тесты (AC: 2, 4, 5, 7, 8, 9, 10, 11)
-  - [ ] 8.1: `get_price_for_user` для `wholesale_level4`: цена заполнена → `opt4_price`; цена пустая → `retail_price`
-  - [ ] 8.2: Constraint: `ProductVariant` с `opt4_price = Decimal("-1")` → `IntegrityError`
-  - [ ] 8.3: Data-миграция: прямой вызов `forwards`/`backwards` (см. Dev Notes — на живую БД в тестах полагаться нельзя)
-  - [ ] 8.4: Роль: `"wholesale_level4" in User.B2B_ROLES`, `User(role="wholesale_level4").is_b2b_user is True`, роль есть в `ROLE_CHOICES`
-  - [ ] 8.5: Настройки: `settings.ONEC_EXCHANGE["PRICE_TYPE_BY_ROLE"]["wholesale_level4"]` и соответствующий GUID в `PRICE_TYPE_ID_BY_NAME` — тест на **реальных** настройках, без подмены через фикстуру `settings`
-  - [ ] 8.6: Экспорт заказа: `_get_price_type(order)` для пользователя `wholesale_level4` на реальных настройках → «Опт 4 (до 50 тыс.руб в квартал)»; `<ВидЦены>/<Ид>` в XML содержит GUID
-  - [ ] 8.7: Все новые тесты помечены маркерами
-- [ ] Task 9: Прогон и регресс (AC: 11)
-  - [ ] 9.1: `make test-unit` целиком (не только новые файлы) — новая роль автоматически попадает в параметризованные регресс-тесты, см. Dev Notes
-  - [ ] 9.2: `make lint` / Black + Flake8
+- [x] Task 1: Поле `ProductVariant.opt4_price` + constraint (AC: 1, 2)
+  - [x] 1.1: Добавить `opt4_price` после `opt3_price` в `products/models.py` (точный код — в Dev Notes)
+  - [x] 1.2: Обновить комментарий-заголовок блока цен: `# Цены для различных ролей (6 типов)` → `(7 типов)`
+  - [x] 1.3: Добавить в `ProductVariant.Meta` **новый** атрибут `constraints` с `CheckConstraint(condition=..., name="products_opt4_price_positive")` — сегодня у `ProductVariant.Meta` нет `constraints` вообще
+  - [x] 1.4: `makemigrations products --name add_opt4_price` → должна получиться `0052_add_opt4_price.py`
+- [x] Task 2: Choice `opt4_price` в `PriceType.product_field` (AC: 3)
+  - [x] 2.1: Добавить `("opt4_price", "Оптовая цена уровень 4")` после `opt3_price` в `PriceType.product_field.choices` (`products/models.py:724`)
+  - [x] 2.2: Убедиться, что `AlterField` для `pricetype.product_field` попал в ту же миграцию `0052_*` (не создавать отдельную)
+- [x] Task 3: Data-миграция — запись `PriceType` для «Опт 4» (AC: 4)
+  - [x] 3.1: `makemigrations products --empty --name seed_price_type_opt4` → `0053_seed_price_type_opt4.py`
+  - [x] 3.2: Написать `forwards`/`backwards` через `apps.get_model("products", "PriceType")` (точный код — в Dev Notes)
+  - [x] 3.3: Идемпотентность — `update_or_create(onec_id=GUID, defaults={...})`
+  - [x] 3.4: `reverse` — `filter(onec_id=GUID).delete()`, никаких массовых удалений
+- [x] Task 4: Роль `wholesale_level4` в модели `User` (AC: 5, 6)
+  - [x] 4.1: `ROLE_CHOICES` — вставить `("wholesale_level4", "Оптовик уровень 4")` **после** `wholesale_level3` и **до** `trainer`
+  - [x] 4.2: `B2B_ROLES` — добавить `"wholesale_level4"` после `"wholesale_level3"`
+  - [x] 4.3: `role_map` в блоке `if TYPE_CHECKING` (`users/models.py:140`) — добавить ту же пару
+  - [x] 4.4: `makemigrations users --name add_wholesale_level4_role` → `0020_add_wholesale_level4_role.py`, проверить что это `AlterField` поля `role` с полным списком choices
+- [x] Task 5: `get_price_for_user` (AC: 7, 8)
+  - [x] 5.1: Добавить `"wholesale_level4": self.opt4_price or self.retail_price` в `role_price_mapping` (`products/models.py:1173`) после `wholesale_level3`
+- [x] Task 6: Настройки обмена с 1С (AC: 9, 10)
+  - [x] 6.1: `PRICE_TYPE_BY_ROLE["wholesale_level4"] = "Опт 4 (до 50 тыс.руб в квартал)"` (после `wholesale_level3`)
+  - [x] 6.2: `PRICE_TYPE_ID_BY_NAME["Опт 4 (до 50 тыс.руб в квартал)"] = "4c1962d2-f8ed-11eb-81f3-00155d3cae02"`
+  - [x] 6.3: Убедиться, что `orders/services/order_export.py` **не тронут**
+- [x] Task 7: Применить миграции и проверить схему (AC: 2, 11)
+  - [x] 7.1: `migrate products` и `migrate users` в Docker на PostgreSQL
+  - [x] 7.2: Проверить, что constraint реально отклоняет отрицательное значение
+  - [x] 7.3: `makemigrations --check --dry-run` — пусто
+- [x] Task 8: Тесты (AC: 2, 4, 5, 7, 8, 9, 10, 11)
+  - [x] 8.1: `get_price_for_user` для `wholesale_level4`: цена заполнена → `opt4_price`; цена пустая → `retail_price`
+  - [x] 8.2: Constraint: `ProductVariant` с `opt4_price = Decimal("-1")` → `IntegrityError`
+  - [x] 8.3: Data-миграция: прямой вызов `forwards`/`backwards` (см. Dev Notes — на живую БД в тестах полагаться нельзя)
+  - [x] 8.4: Роль: `"wholesale_level4" in User.B2B_ROLES`, `User(role="wholesale_level4").is_b2b_user is True`, роль есть в `ROLE_CHOICES`
+  - [x] 8.5: Настройки: `settings.ONEC_EXCHANGE["PRICE_TYPE_BY_ROLE"]["wholesale_level4"]` и соответствующий GUID в `PRICE_TYPE_ID_BY_NAME` — тест на **реальных** настройках, без подмены через фикстуру `settings`
+  - [x] 8.6: Экспорт заказа: `_get_price_type(order)` для пользователя `wholesale_level4` на реальных настройках → «Опт 4 (до 50 тыс.руб в квартал)»; `<ВидЦены>/<Ид>` в XML содержит GUID
+  - [x] 8.7: Все новые тесты помечены маркерами
+- [x] Task 9: Прогон и регресс (AC: 11)
+  - [x] 9.1: `make test-unit` целиком (не только новые файлы) — новая роль автоматически попадает в параметризованные регресс-тесты, см. Dev Notes
+  - [x] 9.2: `make lint` / Black + Flake8
 
 ## Dev Notes
 
@@ -380,8 +384,58 @@ PostgreSQL обязателен — SQLite в проекте не поддерж
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, dev-story workflow)
+
 ### Debug Log References
+
+- Blast radius перед правкой: `npx gitnexus impact get_price_for_user --direction upstream` → `risk: LOW`, 3 прямых вызывающих (`products/serializers.py` ×2, `products/serializers_variant.py`), 0 затронутых процессов. Индекс по-прежнему stale (не видит `cart/models.py:154` и `cart/views.py:142`), но изменение аддитивное — новый ключ словаря, ни одна из пяти точек вызова правок не требует.
+- Перед завершением: `npx gitnexus detect-changes --scope all` → 10 файлов, 16 символов, `Affected processes: 0`, `Risk level: low`. Затронуты только ожидаемые символы (`ProductVariant`, `PriceType`, `product_field`, `User`, `ROLE_CHOICES`, `role_map`).
+- RED-фаза зафиксирована: до реализации прогон новых тестов дал `ModuleNotFoundError: apps.products.migrations.0053_seed_price_type_opt4` (collection error) + 7 failed (роль, настройки, `_get_price_type`, XML). После реализации — 16 passed.
+- Миграции применены на PostgreSQL в dev-контейнере: `products.0052_add_opt4_price` OK, `products.0053_seed_price_type_opt4` OK, `users.0020_add_wholesale_level4_role` OK.
+- Constraint проверен непосредственно в PostgreSQL: `SELECT conname, pg_get_constraintdef(...) FROM pg_constraint WHERE conrelid = 'product_variants'::regclass` → `products_opt4_price_positive | CHECK (((opt4_price >= (0)::numeric) OR (opt4_price IS NULL)))`.
+- Data-миграция проверена на живой dev-БД: в `price_types` появилась восьмая запись `Опт 4 (до 50 тыс.руб в квартал) | opt4_price | wholesale_level4 | is_active=t`; остальные семь записей не изменились.
+- `makemigrations --check --dry-run` → `No changes detected`.
+- `make`-бинарь в оболочке сессии недоступен, поэтому таргеты выполнены их же командами: `docker compose -p freesport-test --env-file ../.env -f docker-compose.test.yml run --rm backend pytest -m unit` (эквивалент `make test-unit`) и `flake8` / `black --check` / `mypy` в backend-контейнере (эквивалент `make lint`).
+- `mypy` выдавал `Unexpected keyword argument "condition" for "CheckConstraint"` на `products/models.py:1119` и ещё на 5 предсуществующих местах (`apps/bonuses/models.py:110,303`, `apps/common/models.py:638`, `apps/orders/models.py:306,311`) плюс в миграциях `bonuses`. Корень — `django-stubs==4.2.6` (стабы для Django 4.2) при Django 5.2.7: `condition=` появился в Django 5.1 взамен устаревшего `check=`. Обходить через `check=` нельзя (запрещено Dev Notes, даёт `RemovedInDjango60Warning`).
+- Апгрейд стабов замерен в одноразовом контейнере (`django-stubs 5.2.9` + `djangorestframework-stubs 3.16.9` + `mypy 1.17.1`): **108 → 116** ошибок. Класс `condition=` уходит вместе с ~23 другими устаревшими, но появляется **39 новых** в 10 файлах, включая зарезервированные за стори 39.3 (`products/serializers.py`, `products/admin.py`, `users/admin.py`). Среди новых — потенциально реальный дефект `users/admin.py:139: Cannot resolve keyword '_has_1c_candidate' into field`, который старые стабы прятали. Апгрейд вынесен в отдельную задачу (решение Alex, 2026-08-02).
+- **Фикс по запросу Alex после реализации:** на все 6 вызовов `CheckConstraint(condition=...)` в коде приложений поставлен точечный `# type: ignore[call-arg]` с указанием причины; миграции `bonuses` добавлены в `ignore_errors` в `mypy.ini` — по образцу уже перечисленных там `users`/`products`/`orders`/`cart`/`common`. В шапке `mypy.ini` задокументированы причина, замер апгрейда и условие снятия ignore. Так как в конфиге включён `warn_unused_ignores = True`, mypy сам потребует снять эти ignore, когда стабы обновят. Итог: **108 → 98** ошибок, ни одной `condition=`/`CheckConstraint` не осталось, `Unused "type: ignore"` не появилось. `makemigrations --check` по-прежнему чист (правки — только комментарии), `black --check` и `flake8` чисты, целевой прогон `apps/bonuses apps/common apps/orders apps/products tests/unit/test_models` — **354 passed**.
 
 ### Completion Notes List
 
+- **AC1, AC2** — `ProductVariant.opt4_price` добавлено сразу после `opt3_price` по образцу соседних полей (`cast(Decimal | None, ...)`, `MinValueValidator(Decimal("0"))`, `help_text="Цена для роли wholesale_level4"`). Комментарий блока цен обновлён на «(7 типов)». В `ProductVariant.Meta` заведён новый атрибут `constraints` с `CheckConstraint(condition=..., name="products_opt4_price_positive")`; ранее у модели constraint'ов не было вовсе.
+- **AC3** — choice `("opt4_price", "Оптовая цена уровень 4")` добавлен в `PriceType.product_field` между `opt3_price` и `trainer_price`.
+- **AC4** — data-миграция `0053_seed_price_type_opt4.py` заводит запись через `update_or_create(onec_id=GUID, ...)` (идемпотентно), `reverse_code` удаляет строго `filter(onec_id=GUID)`. Проверено тестами: повторный прогон не даёт дубля, откат оставляет контрольные записи «Опт 3» и «РРЦ» нетронутыми.
+- **AC5, AC6** — `wholesale_level4` добавлена в `ROLE_CHOICES` (строго между `wholesale_level3` и `trainer`), в `B2B_ROLES` и в `role_map` блока `TYPE_CHECKING`. `is_b2b_user` правок не потребовал — работает через `B2B_ROLES`. Миграция `users/0020` — один `AlterField` поля `role` с полным списком из 9 choices.
+- **AC7, AC8** — в `role_price_mapping` добавлен ключ `"wholesale_level4": self.opt4_price or self.retail_price`. Fallback ведёт сразу на `retail_price`; тест явно проверяет, что заполненные `opt1_price`/`opt3_price` в fallback не участвуют.
+- **AC9, AC10** — `PRICE_TYPE_BY_ROLE` и `PRICE_TYPE_ID_BY_NAME` в `base.py` дополнены. `orders/services/order_export.py` не изменялся: `_get_price_type` и `_get_price_type_id` подхватывают вид цен исключительно из настроек — подтверждено тестом на реальных настройках (без фикстуры `settings`) и проверкой `<ВидЦены>/<Ид>` в сгенерированном XML.
+- **AC11** — все 16 новых тестов помечены `@pytest.mark.unit`. Полный `make test-unit`: **1035 passed, 1 skipped** (регрессий нет). Полный integration-прогон (`make test-integration`): **726 passed, 2 skipped** — падений нет. `makemigrations --check --dry-run` чистый. Black и Flake8 по всем изменённым файлам чистые.
+- Запреты Dev Notes соблюдены: не тронуты `products/services/parser.py`, `products/services/variant_import.py`, `products/filters.py`, `products/serializers*.py`, `products/views.py`, `products/admin.py`, `products/factories.py`, `users/serializers.py`, `users/admin.py`, `banners/services.py`, `orders/services/order_export.py`, `frontend/`, `docs/api/openapi.yaml`. Модель `Product` не затронута — ценовые поля живут только на `ProductVariant`.
+- Известное промежуточное состояние релизной ветки (по Dev Notes, чинится в 39.2/39.3, здесь править не нужно): импорт цен из 1С перетрёт `product_field` на `retail_price`, пока нет ветки «Опт 4» в `_map_price_type_to_field`; роль уже видна в публичном `user_roles_view`, но `UserRegistrationSerializer.SELF_SERVICE_ROLES` её пока не принимает.
+
 ### File List
+
+- `backend/apps/products/models.py` — изменён (поле `opt4_price`, `Meta.constraints`, choice `opt4_price` в `PriceType.product_field`, ключ роли в `get_price_for_user`, комментарий «(7 типов)», `# type: ignore[call-arg]` на `CheckConstraint`)
+- `backend/apps/products/migrations/0052_add_opt4_price.py` — новый (AddField + AlterField + AddConstraint)
+- `backend/apps/products/migrations/0053_seed_price_type_opt4.py` — новый (обратимая data-миграция `PriceType` «Опт 4»)
+- `backend/apps/users/models.py` — изменён (`role_map`, `ROLE_CHOICES`, `B2B_ROLES`)
+- `backend/apps/users/migrations/0020_add_wholesale_level4_role.py` — новый (`AlterField` поля `role`)
+- `backend/freesport/settings/base.py` — изменён (`ONEC_EXCHANGE.PRICE_TYPE_BY_ROLE`, `ONEC_EXCHANGE.PRICE_TYPE_ID_BY_NAME`)
+- `backend/apps/products/tests/unit/test_price_logic.py` — изменён (классы `TestOpt4PriceForUser`, `TestOpt4PriceConstraint`, `TestPriceTypeOpt4Choice`, `TestSeedOpt4PriceType`)
+- `backend/tests/unit/test_models/test_user_models.py` — изменён (класс `TestWholesaleLevel4Role`)
+- `backend/tests/unit/test_order_export_service.py` — изменён (класс `TestOpt4PriceTypeRealSettings` на реальных настройках)
+- `_bmad-output/implementation-artifacts/Story/39-1-wholesale-level4-role-and-opt4-price-model.md` — изменён (frontmatter, чекбоксы, Dev Agent Record, File List, Change Log, Status)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён (статус стори)
+
+Дополнительно, вне исходного объёма 39.1 — сквозной фикс mypy по запросу Alex (см. Debug Log):
+
+- `backend/mypy.ini` — изменён (документация причины в шапке, `ignore_errors` для миграций `bonuses`)
+- `backend/apps/bonuses/models.py` — изменён (`# type: ignore[call-arg]` на 2 вызовах `CheckConstraint`)
+- `backend/apps/common/models.py` — изменён (`# type: ignore[call-arg]` на 1 вызове `CheckConstraint`)
+- `backend/apps/orders/models.py` — изменён (`# type: ignore[call-arg]` на 2 вызовах `CheckConstraint`)
+
+## Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-02 | Реализована story 39.1: поле `ProductVariant.opt4_price` с `CheckConstraint`, choice и data-миграция `PriceType` «Опт 4», роль `wholesale_level4` в `User`, ветка роли в `get_price_for_user`, вид цен «Опт 4» в `ONEC_EXCHANGE`. Добавлено 16 unit-тестов. Статус → review. |
+| 2026-08-02 | Вне исходного объёма, по запросу Alex: устранён класс mypy-ошибок `CheckConstraint(condition=...)` из-за устаревших `django-stubs==4.2.6`. Точечные `# type: ignore[call-arg]` на 6 вызовах в `products`/`bonuses`/`common`/`orders`, миграции `bonuses` добавлены в `ignore_errors`, причина и замер апгрейда стабов задокументированы в шапке `mypy.ini`. Итог 108 → 98 ошибок. Полный апгрейд `django-stubs` вынесен в отдельную задачу. |

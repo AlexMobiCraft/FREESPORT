@@ -107,7 +107,7 @@ class BonusProgramSettings(models.Model):
         constraints = [
             # choices проверяются только в full_clean(); констрейнт закрывает
             # прямое присвоение через ORM, loaddata и SQL-правки
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=~Q(accrual_status__in=NON_ACCRUAL_STATUSES),
                 name="check_bonus_accrual_status_not_terminal",
             ),
@@ -300,7 +300,7 @@ class BonusTransaction(models.Model):
         ]
         constraints = [
             # Знак суммы жёстко связан с типом операции
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=(Q(transaction_type="accrual") & Q(amount__gt=0))
                 | (Q(transaction_type__in=["payout", "writeoff"]) & Q(amount__lt=0)),
                 name="check_bonus_amount_sign",

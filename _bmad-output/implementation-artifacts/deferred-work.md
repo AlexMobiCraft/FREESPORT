@@ -1,3 +1,19 @@
+## Deferred from: story 39.1 — технический долг типизации (2026-08-02)
+
+- **TD-3901-1. Полный апгрейд django-stubs 4.2.6 → 5.2.9 (+ drf-stubs 3.16.9, mypy 1.17.1)** — `django-stubs` запинен на стабах для Django 4.2, тогда как проект работает на Django 5.2.7. Отставание на три мажорные версии. Прямое следствие, уже обойдённое точечно: стабы не знают `CheckConstraint(condition=...)` (аргумент введён в Django 5.1 взамен устаревшего `check=`), из-за чего в `products`/`bonuses`/`common`/`orders` стоят 6 подавлений `# type: ignore[call-arg]`, а миграции `bonuses` целиком выведены из проверки в `mypy.ini`.
+
+  **Замер апгрейда уже выполнен (2026-08-02, одноразовый контейнер) — повторять не нужно:** `108 → 116` ошибок. Уходят ~30 устаревших (весь класс `condition=` плюс шум в `bonuses/admin.py`, `bonuses/views.py`, `users/admin.py`, `common/utils/consent_audit.py`), приходят **39 новых в 10 файлах**. Разбор новых по трудоёмкости:
+  - тривиальные (~12): `Redundant cast to "ImageField"/"FileField"` ×7 в `products/models.py` и `banners/models.py`, `Redundant cast to "dict"` ×3, `Unused "type: ignore"` ×2 в `products/admin.py` и `products/serializers.py`;
+  - содержательные (~27): `common/serializers.py` — 9 шт. `"_ST" has no attribute id/name/slug`; `orders/services/order_create.py` — 4 шт. `"BaseManager..."`; `bonuses/views.py` — 4 шт. `int | None` в lookup `user_id`; `common/models.py` — 2 шт. `ForeignKey is nullable but its generic get type parameter is not optional`; прочее по одному.
+
+  **Условие закрытия:** после апгрейда снять все 6 `# type: ignore[call-arg]` — в `mypy.ini` включён `warn_unused_ignores = True`, поэтому mypy сам их потребует. Вернуть `[mypy-apps.bonuses.migrations.*]` под общее правило только если ошибок там не останется. **Осторожно:** апгрейд затрагивает `products/serializers.py`, `products/admin.py`, `users/admin.py` — файлы, зарезервированные за стори 39.3; не начинать до её завершения либо согласовать пересечение. [`backend/requirements.txt:29-33,47`, `backend/mypy.ini`, `backend/apps/products/models.py`, `backend/apps/bonuses/models.py`, `backend/apps/common/models.py`, `backend/apps/orders/models.py`]
+
+- **TD-3901-2. `users/admin.py:139` — `Cannot resolve keyword '_has_1c_candidate' into field`: ПРОВЕРЕНО, ложное срабатывание, кода не касаться** — ошибка появляется только на новых стабах (`django-stubs 5.2.9`) и выглядит как реальный `FieldError`, но код разобран построчно и **корректен**: строки 137-138 — защитный `annotate(_has_1c_candidate=has_1c_candidate_expression())` ровно перед `filter` на строке 139, с комментарием, объясняющим, зачем страховка (фильтр достижим там, где `UserAdmin.get_queryset` аннотацию не навесил — вторая AdminSite, сохранённая ссылка `?has_1c_candidate=yes`). Аннотация к моменту фильтрации существует всегда.
+
+  Причина срабатывания — ограничение `mypy_django_plugin`: он не отслеживает `annotate()`, выполненный внутри `if`. Тот же паттерн в цепочке (`users/admin.py:522-523`, `.annotate(...).filter(...)`) плагин понимает и не ругается.
+
+  **Действие при работе над TD-3901-1:** не «чинить» код, а поставить точечное подавление на строке 139 с ссылкой на этот пункт. Запись оставлена, чтобы находку не подняли повторно как дефект. [`backend/apps/users/admin.py:137-139`, `backend/apps/users/admin.py:522-523`]
+
 ## Deferred from: code review of spec-1c-unregistered-role (2026-07-26)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md`
