@@ -191,9 +191,9 @@ dmypy.json
 Исправить.md
 
 # Обменные файлы
-./backend/data/import_1c
-./data/import_1c
-data/import_1c/
+./backend/data
+./data
+data
 backend/celerybeat-schedule.dat
 import_1c.tar.gz
 

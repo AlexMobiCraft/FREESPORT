@@ -256,6 +256,7 @@ class TestExtractFromName(TestCase):
 # ============================================================================
 
 
+@pytest.mark.integration
 @pytest.mark.django_db(transaction=True)
 class TestVariantImportProcessor(TransactionTestCase):
     """Integration тесты для VariantImportProcessor"""
@@ -483,6 +484,85 @@ class TestVariantImportProcessor(TransactionTestCase):
         assert variant.retail_price == Decimal("1500.00")
         assert variant.opt1_price == Decimal("1200.00")
         assert self.processor.stats["prices_updated"] == 1
+
+    def test_update_variant_prices_ignores_unmapped_price_type(self):
+        """Цена вида без маппинга не пишется ни в одно поле и не трогает розницу.
+
+        Регресс на инцидент с видом цен «Партнер»: прежде неопознанный вид цен
+        получал product_field="retail_price" и затирал розничную цену.
+        """
+        PriceType.objects.create(
+            onec_id="price-type-unmapped",
+            onec_name="Партнер",
+            product_field="",
+            is_active=True,
+        )
+        product = Product.objects.create(
+            name="Товар с неопознанным видом цен",
+            slug="test-product-unmapped-price",
+            onec_id="test-product-unmapped",
+            parent_onec_id="test-product-unmapped",
+            brand=self.brand,
+            category=self.category,
+            description="",
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="TEST-UNMAPPED-42",
+            onec_id="test-product-unmapped#variant-001",
+            retail_price=Decimal("999.00"),
+        )
+
+        price_data = {
+            "id": "test-product-unmapped#variant-001",
+            "prices": [
+                {"price_type_id": "price-type-unmapped", "value": Decimal("100.00")},
+            ],
+        }
+
+        result = self.processor.update_variant_prices(price_data)
+
+        assert result is False, "Обновление без единого сопоставленного поля не должно считаться успешным"
+        variant.refresh_from_db()
+        assert variant.retail_price == Decimal("999.00"), "Розничная цена не должна быть затёрта"
+
+    def test_update_variant_prices_unmapped_does_not_shadow_mapped(self):
+        """Неопознанный вид цен не мешает применить остальные цены того же предложения."""
+        PriceType.objects.create(
+            onec_id="price-type-unmapped-2",
+            onec_name="Партнер",
+            product_field="",
+            is_active=True,
+        )
+        product = Product.objects.create(
+            name="Товар со смешанными видами цен",
+            slug="test-product-mixed-price",
+            onec_id="test-product-mixed",
+            parent_onec_id="test-product-mixed",
+            brand=self.brand,
+            category=self.category,
+            description="",
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="TEST-MIXED-42",
+            onec_id="test-product-mixed#variant-001",
+            retail_price=Decimal("0"),
+        )
+
+        price_data = {
+            "id": "test-product-mixed#variant-001",
+            "prices": [
+                {"price_type_id": "price-type-unmapped-2", "value": Decimal("100.00")},
+                {"price_type_id": "price-type-retail", "value": Decimal("1500.00")},
+            ],
+        }
+
+        result = self.processor.update_variant_prices(price_data)
+
+        assert result is True
+        variant.refresh_from_db()
+        assert variant.retail_price == Decimal("1500.00")
 
     def test_update_variant_stock(self):
         """AC8: rests.xml обновляет остатки ProductVariant"""

@@ -299,6 +299,7 @@ class VariantImportProcessor:
         self._stock_buffer: dict[str, dict[str, Any]] = {}
         self._missing_products_logged: set[str] = set()
         self._missing_variants_logged: set[str] = set()
+        self._unmapped_price_types_logged: set[str] = set()
         # Маппинг parent_onec_id → vat_rate из goods.xml
         self._product_vat_rates: dict[str, Decimal] = {}
 
@@ -1081,6 +1082,16 @@ class VariantImportProcessor:
 
                 if price_type:
                     field_name = price_type.product_field
+                    # Вид цен без маппинга (product_field="") не применяем ни к одному
+                    # полю — иначе цена уехала бы в розницу через прежний fallback
+                    if not field_name:
+                        if price_type_id not in self._unmapped_price_types_logged:
+                            logger.warning(
+                                f"Вид цен '{price_type.onec_name}' ({price_type_id}) "
+                                f"не сопоставлен полю ProductVariant — цены этого вида пропускаются"
+                            )
+                            self._unmapped_price_types_logged.add(price_type_id)
+                        continue
                     price_updates[field_name] = price_value
 
             # Auto-populate retail_price from RRP if not provided

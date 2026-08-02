@@ -2,6 +2,7 @@
 Unit-тесты для XMLDataParser
 """
 
+import logging
 import os
 import tempfile
 from decimal import Decimal
@@ -243,7 +244,27 @@ class TestXMLDataParser:
         assert parser._map_price_type_to_field("РРЦ Рекомендованная") == "rrp"
         assert parser._map_price_type_to_field("МРЦ") == "msrp"
         assert parser._map_price_type_to_field("РРЦ") == "retail_price"
-        assert parser._map_price_type_to_field("Неизвестный тип") == "retail_price"  # fallback
+        # Неопознанный вид цен НЕ маппится никуда: пустая строка вместо retail_price.
+        # Прежний else-fallback на retail_price молча портил розничные цены
+        # (реальный инцидент: вид цен «Партнер» из выгрузки 1С).
+        assert parser._map_price_type_to_field("Неизвестный тип") == ""
+
+    def test_map_price_type_to_field_unknown_returns_empty(self):
+        """Неопознанный вид цен не отображается ни на какое поле Product."""
+        parser = XMLDataParser()
+
+        assert parser._map_price_type_to_field("Партнер") == ""
+        assert parser._map_price_type_to_field("Цена закупки") == ""
+        assert parser._map_price_type_to_field("") == ""
+
+    def test_map_price_type_to_field_unknown_logs_warning(self, caplog):
+        """Неопознанный вид цен диагностируется предупреждением, а не молча."""
+        parser = XMLDataParser()
+
+        with caplog.at_level(logging.WARNING, logger="import_products"):
+            parser._map_price_type_to_field("Партнер")
+
+        assert any("Партнер" in record.message for record in caplog.records)
 
     def test_map_price_type_to_field_branch_order(self):
         """Сторож порядка веток: «Опт 4» не должен перехватывать соседние уровни.
