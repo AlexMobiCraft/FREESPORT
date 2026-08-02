@@ -4,7 +4,7 @@ baseline_commit: bdd5ec9c25c77f4b918d392fa75c6e2c7d7007cb
 
 # Story 39.1: Роль wholesale_level4 и цена opt4_price в модели
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
