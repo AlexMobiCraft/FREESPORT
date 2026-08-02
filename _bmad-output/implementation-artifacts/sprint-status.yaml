@@ -1,13 +1,19 @@
-# Sprint Status - Security & Bugfix Sprint (2026-Q2)
-# ===================================================
+# Sprint Status - FREESPORT
+# ==========================
 # generated: 2026-05-18
+# last_updated: 2026-08-02
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
-# story_location: "{project-root}/_bmad-output/implementation-artifacts"
+# story_location: "{project-root}/_bmad-output/implementation-artifacts/Story"
 #
 # Предыдущий спринт (1C-HTTP-EXCHANGE) завершён 2026-05-18.
 # Архив: sprint-status-archive-2026-05-18.yaml
+#
+# Файл покрывает два потока работ, оба описаны в planning-artifacts/epics.md:
+#   - Security & Bugfix Sprint (2026-Q2): эпики 36-38;
+#   - Роль клиента из 1С + четвёртый оптовый уровень (2026-Q3): эпики 39-40.
+# Эпик 33 завершён ранее и включён для соответствия epics.md 1:1.
 #
 # STATUS DEFINITIONS:
 # ==================
@@ -31,20 +37,30 @@
 #   - optional: Can be completed but not required
 #   - done: Retrospective has been completed
 #
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+#
 # WORKFLOW NOTES:
 # ===============
 # - Epic transitions to 'in-progress' automatically when first story is created
 # - Stories can be worked in parallel if team capacity allows
 # - Developer typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: "2026-05-19"
+last_updated: "2026-08-02"
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
+# 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
+# 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
+#             хранения story-файлов. Корень implementation-artifacts занят
+#             другими артефактами (spec-*.md, tasks/, tech-spec/, retro/).
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
-story_location: "{project-root}/_bmad-output/implementation-artifacts"
+story_location: "{project-root}/_bmad-output/implementation-artifacts/Story"
 
 development_status:
   # ========================================
@@ -99,3 +115,42 @@ development_status:
   38-2-account-switching-safety: backlog
   38-3-temp-file-cleanup-gc: backlog
   epic-38-retrospective: optional
+
+  # ========================================
+  # Epic 39: Четвёртый оптовый уровень «Опт 4»
+  # Goal: Роль wholesale_level4 с ценой opt4_price — от модели и импорта цен
+  #       до каталога, админки, API и витрины.
+  # Priority: 🟠 HIGH
+  # Source: tasks/dev-task-role-from-1c-agreement.md, часть B
+  # Порядок стори: 39.1 → {39.2, 39.3} → 39.4
+  # Релиз: отдельный, не дожидаясь эпика 40 (решение Alex, 2026-08-01).
+  # Предусловие 39.2: обновлённый снимок data/import_1c/priceLists/ (7 видов цен).
+  # ========================================
+  epic-39: backlog
+  39-1-wholesale-level4-role-and-opt4-price-model: backlog
+  39-2-import-opt4-prices-from-1c: backlog
+  39-3-catalog-admin-api-opt4-price: backlog
+  39-4-frontend-opt4-price-display: backlog
+  epic-39-retrospective: optional
+
+  # ========================================
+  # Epic 40: Уровень цен клиента приходит из 1С
+  # Goal: Соглашение об условиях продаж в 1С — источник истины по уровню цен;
+  #       смена роли видна в AuditLog и в отчёте сессии импорта.
+  # Priority: 🟠 HIGH
+  # Source: tasks/dev-task-role-from-1c-agreement.md, часть C
+  # Порядок стори: {40.1, 40.2} → 40.3 → 40.4 → 40.5
+  # Зависимости: эпик 39 (выкатывается ранее отдельным релизом).
+  # ВНЕШНЯЯ БЛОКИРУЮЩАЯ: патч расширения БУС «ОбменСБитриксУправлениеСайтомУТ»
+  #   во второй редакции (реквизит СоглашениеСтатус, решение Alex, 2026-08-02)
+  #   должен быть перенесён на прод администратором 1С — вне BMAD-трекинга.
+  #   Артефакт закрытия зависимости — AC-предохранитель в стори 40.1.
+  #   Пока патча нет на проде, весь эпик наблюдаемо работает в режиме no_data.
+  # ========================================
+  epic-40: backlog
+  40-1-parser-price-type-and-export-regression-detector: backlog
+  40-2-price-type-role-mapping-and-resolver: backlog
+  40-3-store-onec-price-type-id: backlog
+  40-4-import-applies-role-to-linked-accounts: backlog
+  40-5-link-transfers-price-type-and-role: backlog
+  epic-40-retrospective: optional
