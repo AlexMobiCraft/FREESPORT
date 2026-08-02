@@ -12,83 +12,6 @@
 - **`integration`**: Интеграционные тесты
 - **`data_dependent`**: Тесты, зависящие от внешних данных
 
-### Примеры использования:
-
-```bash
-# Запуск только unit-тестов
-pytest -m unit
-
-# Запуск только интеграционных тестов
-pytest -m integration
-
-# Запуск тестов, не зависящих от внешних данных
-pytest -m "not data_dependent"
-
-# Запуск всех тестов с покрытием
-pytest -v --cov=apps --cov-report=term-missing
-```
-
-## Команды Makefile для работы с документацией
-
-Проект включает специализированные команды для управления документацией:
-
-### Валидация и синхронизация документации:
-
-- **`docs-validate`**: Полная валидация документации
-
-  ```bash
-  make docs-validate
-  ```
-
-- **`docs-sync-api`**: Сверка API (код ↔ документация)
-
-  ```bash
-  make docs-sync-api
-  ```
-
-- **`docs-sync-decisions`**: Сверка решений (docs ↔ код)
-
-  ```bash
-  make docs-sync-decisions
-  ```
-
-- **`docs-sync-all`**: Выполнить все синхронизации
-  ```bash
-  make docs-sync-all
-  ```
-
-### Проверка документации:
-
-- **`docs-check-links`**: Проверка кросс-ссылок
-
-  ```bash
-  make docs-check-links
-  ```
-
-- **`docs-check-api`**: Проверка покрытия API
-
-  ```bash
-  make docs-check-api
-  ```
-
-- **`docs-search-obsolete`**: Поиск устаревших терминов
-  ```bash
-  make docs-search-obsolete
-  ```
-
-### Управление индексами:
-
-- **`docs-update-index`**: Обновление индекса документации
-
-  ```bash
-  make docs-update-index
-  ```
-
-- **`docs-update-index-apply`**: Обновление индексов с записью
-  ```bash
-  make docs-update-index-apply
-  ```
-
 ## Конфигурация ESLint и Prettier для frontend
 
 Конфигурация **ESLint** и **Prettier** для frontend является встроенной в **Next.js** и не требует отдельных конфигурационных файлов. Это означает:
@@ -238,7 +161,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **FREESPORT** (8945 symbols, 14664 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **FREESPORT** (8940 symbols, 14661 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

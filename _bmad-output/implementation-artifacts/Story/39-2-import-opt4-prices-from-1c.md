@@ -19,10 +19,10 @@ so that **портал перестал выбрасывать эти цены �
 1. **AC1 (NFR-3940-01), предусловие.** Снимки реальных выгрузок в `backend/data/import_1c/` пригодны для тестов:
    - `priceLists/` содержит вид цен `4c1962d2-f8ed-11eb-81f3-00155d3cae02` («Опт 4 (до 50 тыс.руб в квартал)») — **уже выполнено**, снимок переснят 2026-08-02 (см. Dev Notes);
    - `prices/` содержит **хотя бы одно** `<Цена>` с `<ИдТипаЦены>4c1962d2-f8ed-11eb-81f3-00155d3cae02</ИдТипаЦены>` — **на момент создания стори НЕ выполнено**, требуется переснять выгрузку цен (блокирует AC4).
-2. **AC2 (FR-39-05).** `XMLDataParser._map_price_type_to_field` (`backend/apps/products/services/parser.py:536`) для наименования, содержащего `"опт 4"` или `"опт4"` в любом регистре, возвращает `"opt4_price"`. Ветка стоит **после** `«опт 3»` и **до** ветки `«тренер»` — то есть раньше любой ветки, способной перехватить строку с «опт», и раньше `else`-fallback'а на `retail_price`.
+2. **AC2 (FR-39-05).** `XMLDataParser._map_price_type_to_field` (`backend/apps/products/services/parser.py:540`) для наименования, содержащего `"опт 4"` или `"опт4"` в любом регистре, возвращает `"opt4_price"`. Ветка стоит **после** `«опт 3»` и **до** ветки `«тренер»` — то есть раньше любой ветки, способной перехватить строку с «опт», и раньше `else`-fallback'а на `retail_price`.
 3. **AC3 (FR-39-05).** Разбор **реального** файла `backend/data/import_1c/priceLists/priceLists_1_1_*.xml` даёт для GUID `4c1962d2-f8ed-11eb-81f3-00155d3cae02` запись с `product_field == "opt4_price"`, а `VariantImportProcessor.process_price_types` записывает это значение в `PriceType`. Тем самым импорт больше не перетирает `product_field` записи «Опт 4» на `retail_price` (дыра, зафиксированная в Dev Notes стори 39.1), а `user_role="wholesale_level4"` остаётся нетронутым.
 4. **AC4 (FR-39-05).** На реальном XML из `backend/data/import_1c/prices/`, содержащем цену вида «Опт 4», `VariantImportProcessor.update_variant_prices` заполняет `ProductVariant.opt4_price` значением из выгрузки.
-5. **AC5 (FR-39-05).** В обоих местах создания `ProductVariant` внутри `variant_import.py` (`:841-845` — `process_variant_from_offer`, `:999-1003` — `create_default_variants`) в списке начальных значений ценовых полей присутствует `opt4_price=None` наравне с `opt1_price` … `federation_price`.
+5. **AC5 (FR-39-05).** В обоих местах создания `ProductVariant` внутри `variant_import.py` (`:840-847` — `_create_new_variant`, вызывается из `process_variant_from_offer`; `:1000-1006` — `create_default_variants`) в списке начальных значений ценовых полей присутствует `opt4_price=None` (фактически `:845` и `:1004`) наравне с `opt1_price` … `federation_price`.
 6. **AC6 (NFR-3940-08).** Повторный прогон того же файла цен не меняет значения `opt4_price` и не создаёт дублирующих `PriceType`/`ProductVariant`.
 7. **AC7 (NFR-3940-01, -02).** Тесты, работающие с XML-файлами, используют **только** реальные выгрузки из `backend/data/import_1c/` (синтетические XML запрещены); каждый новый тест помечен `@pytest.mark.unit` либо `@pytest.mark.integration`, тесты на реальных файлах дополнительно — `@pytest.mark.data_dependent` и корректно `skip`-аются при отсутствии датасета.
 
@@ -62,6 +62,12 @@ so that **портал перестал выбрасывать эти цены �
   - [x] 5.2: Полный integration-прогон (≈ 27 мин, запускать в фоне)
   - [x] 5.3: `black --check` + `flake8` по изменённым файлам
   - [x] 5.4: `npx gitnexus detect-changes --scope all` перед коммитом
+
+### Review Findings
+
+- [x] [Review][Patch] Задокументировать принятое решение Alex: сохранить широкое правило `data` в `.gitignore` и удаление отслеживаемого снимка priceLists; привести раздел «Замечание по артефактам выгрузки в git» и File List в соответствие фактическому diff. [`.gitignore`:193-196; `data/webdata/Обмен локальный/priceLists/priceLists_1_1_cf9c66b9-08cc-4b54-97c8-f5390a466841.xml`:1]
+- [x] [Review][Decision] `process_price_types` перезаписывает корректный `product_field` пустой строкой, если 1С переименует вид цен — `update_or_create(defaults={... "product_field": price_type_data["product_field"] ...})` запишет `""` поверх существующего `"opt4_price"` (и любого другого маппинга), после чего цены этого вида начнут молча пропускаться guard'ом. До снятия fallback та же переименование давало `"retail_price"` (хуже), но дыра «переименование в 1С ломает маппинг» осталась. Варианты: (а) не включать `product_field=""` в `defaults` для существующих записей (сохранять прежний маппинг); (б) оставить как есть — warning в логе считать достаточной диагностикой. [`backend/apps/products/services/variant_import.py`:1549-1556]
+- [x] [Review][Patch] Привести номера строк в стори к фактическому коду: AC2 ссылается на `parser.py:536` (метод), фактически `:540`, ветка «Опт 4» — `:561-562` (Completion Notes: `:547-548`); AC5 ссылается на `variant_import.py:841-845` / `:999-1003`, фактически `opt4_price=None` — `:845` и `:1004`. [`39-2-import-opt4-prices-from-1c.md` AC2, AC5, Completion Notes]
 
 ## Dev Notes
 
@@ -321,7 +327,7 @@ claude-opus-5 (Claude Code, bmad-dev-story)
 - `VariantImportProcessor`, `_create_new_variant`, `create_default_variants`, `variant` (`variant_import.py`)
 - потоки: `Process_variant_from_offer → _ensure_unique_sku`, `Process_variant_from_offer → _log_error`
 
-Неожиданных символов нет. Примечание: конструктор из AC5, названный в стори `process_variant_from_offer`, фактически расположен в приватном методе `_create_new_variant` — правка сделана именно там (`variant_import.py:844`).
+Неожиданных символов нет. Примечание: конструктор из AC5, названный в стори `process_variant_from_offer`, фактически расположен в приватном методе `_create_new_variant` — правка сделана именно там (`variant_import.py:845`).
 
 **Состояние снимков данных — прогон 1 (до Task 0.2), 2026-08-02.**
 
@@ -363,6 +369,34 @@ Alex переснял выгрузку скриптом `run-opt4-prices-export.
 | `pytest -q -m integration` (полный) | **744 passed**, 2 skipped, 27:20 |
 | `black --check` + `flake8` по изменённым файлам | чисто |
 
+**Верификационный прогон после закрытия review-пункта (2026-08-02).** Пункт был документационным, кодовых правок не вносилось, дерево кода байт-в-байт равно коммиту `02207dc8`. Регресс прогнан заново, чтобы подтвердить состояние фактом, а не записью:
+
+| Прогон | Результат |
+|---|---|
+| `pytest -q -m unit` (полный) | **1039 passed**, 1 skipped, 1598 deselected, 6:57 |
+| `pytest -q -rs -m integration` (полный) | **744 passed**, 2 skipped, 1892 deselected, 29:57 |
+
+Обе цифры совпали с предыдущим прогоном. Оба скипа — прежние `test_auth_api.py:43` и `:72`.
+
+**Прогон после закрытия review-пункта [Decision] — вариант (а), 2026-08-02.**
+
+Pre-flight `npx gitnexus impact process_price_types --direction upstream` → **risk: LOW**: depth 1 — `Command._import_price_types`, depth 2 — `Command.handle`; 1 затронутый процесс, 1 модуль (Commands).
+
+| Прогон | Результат |
+|---|---|
+| RED: `TestProcessPriceTypes` до правки | **1 failed** — `AssertionError: assert '' == 'opt4_price'` (`test_empty_product_field_keeps_existing_mapping`), 4 passed |
+| GREEN: `TestProcessPriceTypes` + `tests/integration/test_import_opt4_prices.py` | **10 passed**, 27 с |
+| `pytest -q -m unit` (полный) | **1041 passed**, 1 skipped, 1598 deselected, 7:15 |
+| `pytest -q -rs -m integration` (полный) | **744 passed**, 2 skipped, 1894 deselected, 30:09 |
+| `flake8` по `variant_import.py` + `test_variant_import_migrated.py` | чисто |
+| `black --check` по `variant_import.py` | чисто |
+
+Прирост unit 1039 → 1041 — ровно два новых теста `TestProcessPriceTypes`. Integration 744 → 744 без изменений, оба скипа — прежние `test_auth_api.py:43` и `:72`.
+
+Уточнение к записи выше о предсуществующем долге `black`: долг в `variant_import.py` (`logger.info(f"Repair-якорь …")` в `process_categories`) **уже устранён** коммитом `da280ac7`, файл у `black` чист. Актуальный остаточный долг — `apps/products/tests/unit/test_variant_import_migrated.py`: `black --check` даёт замечания в строках 521+, 549+, 646+ (`assert ... , "сообщение"` в старых тестах). Проверено `black --diff` — **ни один ханк не касается добавленного блока** (строки 146-210); долг предсуществующий, к объёму 39.2 не относится, не исправлял.
+
+`npx gitnexus detect-changes --scope all` после правки — 6 файлов, 4 символа, risk **medium**, 3 потока. Ожидаемые символы: `VariantImportProcessor`, `process_price_types`. `process_categories` и потоки `Handle → …` — дельта **stale-индекса** (проиндексирован `65ab060`, в HEAD уже `da280ac7` с форматированием `process_categories`), не результат этой правки. `CLAUDE.md` — незакоммиченная правка вне стори. Неожиданных символов нет.
+
 Прирост integration 731 → 744 — это 13 тестов класса `TestVariantImportProcessor`, которые начали попадать в `-m integration` после добавления пропущенного маркера (2 из них новые). Оба скипа — те же предсуществующие `test_auth_api.py`.
 
 Оба скипа финального прогона — предсуществующие и к 1С не относятся: `test_auth_api.py:43` (генерация схемы падает на импорте `Decimal`), `test_auth_api.py:72` (Swagger UI не сконфигурирован в тестовом окружении). Прирост 729 → 731 — это ровно два теста «Опт 4», позеленевших после смены снимка.
@@ -373,13 +407,34 @@ Alex переснял выгрузку скриптом `run-opt4-prices-export.
 
 **Реализовано и проверено:**
 
-- **AC2 ✅** — ветка `elif "опт 4" in name_lower or "опт4" in name_lower: return "opt4_price"` вставлена в `_map_price_type_to_field` строго между `«опт 3»` и `«тренер»` (`parser.py:547-548`). Метод не рефакторился, правка однострочная по образцу соседей. `parse_price_lists_xml` правок не потребовал (Task 1.2).
+- **AC2 ✅** — ветка `elif "опт 4" in name_lower or "опт4" in name_lower: return "opt4_price"` вставлена в `_map_price_type_to_field` (`parser.py:540`) строго между `«опт 3»` (`:559`) и `«тренер»` (`:563`) — фактические строки ветки `:561-562`. Метод не рефакторился, правка однострочная по образцу соседей. `parse_price_lists_xml` правок не потребовал (Task 1.2).
 - **AC3 ✅** — подтверждено на **реальном** `priceLists_1_1_cf9c66b9-*.xml`: запись GUID `4c1962d2-f8ed-11eb-81f3-00155d3cae02` парсится в `product_field == "opt4_price"`, `process_price_types` пишет это значение в `PriceType`. Отдельным тестом закрыт регресс 39.1: при предсуществующей записи с `user_role="wholesale_level4"` импорт не сбивает ни `product_field`, ни `user_role`. Запрет «не запускать импорт цен между 39.1 и 39.2» снят.
-- **AC5 ✅** — `opt4_price=None` добавлен в оба конструктора `ProductVariant`: `variant_import.py:844` (`_create_new_variant`) и `variant_import.py:1003` (`create_default_variants`). Логику очистки цен в `update_variant_prices` **не добавлял** (Task 2.3, Dev Notes).
+- **AC5 ✅** — `opt4_price=None` добавлен в оба конструктора `ProductVariant`: `variant_import.py:845` (`_create_new_variant`) и `variant_import.py:1004` (`create_default_variants`). Логику очистки цен в `update_variant_prices` **не добавлял** (Task 2.3, Dev Notes).
 - **AC1 ✅** — оба снимка пригодны для тестов: `priceLists` содержит вид цен «Опт 4» (переснят 09:44), `prices` содержит 7219 цен этого вида (переснят 16:57-16:58, Task 0.2 выполнена Alex).
 - **AC4 ✅** — на реальном `prices_1_1_fbdb877c-*.xml` `update_variant_prices` заполняет `ProductVariant.opt4_price` значением из выгрузки. Тест `test_real_prices_fill_variant_opt4_price` зелёный.
 - **AC6 ✅** — обе части: повторный прогон `process_price_types` не плодит `PriceType` (`count() == 1`) и не меняет `product_field`/`user_role`; повторный прогон `update_variant_prices` не меняет `opt4_price` и не создаёт дублирующих `ProductVariant`.
 - **AC7 ✅** — синтетических XML не создавал. Unit-тест маппера оперирует строками; интеграционный файл работает только с реальными выгрузками, помечен `[integration, data_dependent, django_db]` и корректно скипается с внятным текстом при отсутствии данных (проверено эмпирически: на старом снимке скипался, на новом позеленел без правок).
+
+✅ Resolved review finding [Decision]: перезапись `product_field` пустой строкой в `process_price_types` устранена по **варианту (а)** (решение Alex, 2026-08-02). `defaults` для `update_or_create` собирается пошагово: `product_field` попадает туда **только если маппер вернул непустое значение**. Следствия:
+
+- Переименование вида цен в 1С больше не сбивает рабочий маппинг существующей записи `PriceType` — `"opt4_price"`, засеянный data-миграцией `0053`, переживает и переименование, и любой промежуточный импорт.
+- Для **новой** записи с неопознанным видом цен `product_field` остаётся пустым (Django-дефолт `CharField` = `""`) — цены такого вида по-прежнему пропускаются guard'ом в `update_variant_prices`, поведение не изменилось.
+- `user_role` как и раньше отсутствует в `defaults` — импорт его не трогает.
+
+Правка формально **вне ACs 39.2** (как и снятие `else`-fallback) — оформлена тем же порядком: по прямому указанию Alex, с отдельной строкой в File List и Change Log. Blast radius `process_price_types` — **risk LOW** (1 прямой вызывающий `Command._import_price_types`, глубина 2 — `Command.handle`).
+
+✅ Resolved review finding [Patch]: номера строк в стори приведены к фактическому коду (правка AC2/AC5 разрешена Alex явно, семантика требований не менялась — только цитаты):
+
+| Было | Стало |
+|---|---|
+| AC2 → `parser.py:536` | `:540` (метод), ветка «Опт 4» — `:561-562` |
+| AC5 → `:841-845` / `:999-1003` | `:840-847` / `:1000-1006`, само `opt4_price=None` — `:845` и `:1004` |
+| Completion Notes → `:547-548`, `:844`, `:1003` | `:561-562`, `:845`, `:1004` |
+| Completion Notes → `variant_import.py:1082` | `:1095` (`price_updates[field_name] = price_value`) |
+
+Секция Dev Notes → References с её ссылками (`parser.py:536-558`, `variant_import.py:1521-1548` и др.) намеренно **не правилась** — пункт ревью её не называл, а Dev Notes вне разрешённых к правке секций. Актуальные номера после этой стори: `_map_price_type_to_field` — `parser.py:540-579`, `update_variant_prices` — `variant_import.py:1042`, `process_price_types` — `variant_import.py:1534`.
+
+✅ Resolved review finding [Patch]: задокументировано принятое решение Alex по артефактам выгрузки в git — раздел «Замечание по артефактам выгрузки в git» переписан в «Артефакты выгрузки в git — решение принято» (широкое правило `data` в `.gitignore`, удаление отслеживаемого снимка priceLists, известное следствие для `.windsurf/skills/*/data/`), File List дополнен двумя фактическими позициями diff — `.gitignore` и удалённым `priceLists_1_1_cf9c66b9-*.xml`. Расхождение документации с фактическим diff устранено; кодовых правок пункт не требовал.
 
 **Отклонение от буквы стори (осознанное):** Task 4.5 (тест D) разделён на два теста вместо одного — `test_price_types_import_is_idempotent` (только `priceLists`) и `test_repeated_price_import_keeps_opt4_price_stable` (нужен `prices`). Мотив: на момент написания единый тест целиком скипался бы вместе с частью AC6, которую данные позволяли проверить сразу. Разделение оставлено и после получения данных — оно точнее локализует падение.
 
@@ -398,7 +453,7 @@ Alex переснял выгрузку скриптом `run-opt4-prices-export.
 
 **Итог: 31 вариант получит испорченный `retail_price` при первом же полном импорте цен.**
 
-Критично, что 6608 предложений спасает **только порядок элементов в XML** — оба вида цен маппятся в одно поле `retail_price`, и в `update_variant_prices` (`variant_import.py:1082`) применяется `price_updates[field_name] = price_value`, где побеждает последний по порядку. Если 1С когда-нибудь изменит порядок `<Цена>` внутри `<Предложение>`, порча мгновенно расширится с 31 варианта до 6639.
+Критично, что 6608 предложений спасает **только порядок элементов в XML** — оба вида цен маппятся в одно поле `retail_price`, и в `update_variant_prices` (`variant_import.py:1095`) применяется `price_updates[field_name] = price_value`, где побеждает последний по порядку. Если 1С когда-нибудь изменит порядок `<Цена>` внутри `<Предложение>`, порча мгновенно расширится с 31 варианта до 6639.
 
 **Первопричина найдена Alex (2026-08-02), исправляется на стороне 1С.** Состав выгружаемых видов цен задаётся белым списком в настройке обмена БУС: форма «Выгрузка информации о товарах» → вкладка **«Цены»**. В списке 8 позиций: МРЦ, Опт 1, Опт 2, Опт 3, РРЦ, Тренерская, **Партнер**, **Опт 4**. Список — по видам цен, поэтому «Опт 4» выгружается независимо от «Партнера». Решение Alex: убрать «Партнер» из списка и переснять выгрузку.
 
@@ -428,9 +483,18 @@ Alex переснял выгрузку скриптом `run-opt4-prices-export.
 - Отдельно: после удаления «Партнера» из белого списка 1С запись `PriceType` сама бы не почистилась — `process_price_types` обновляет только типы, пришедшие в файле. Строка осталась бы висеть с `is_active=True` и `product_field="retail_price"`, то есть мимо новой защиты (она ловит пустой `product_field`).
 - **Починка выполнена в dev-БД 2026-08-02** по согласованию с Alex, в одной транзакции: удалена запись `PriceType(«Партнер»)` (1 шт.) и сброшен в `0` `retail_price` у 31 варианта. Сброс шёл под защитой — обнулялись только варианты, где текущее значение точно совпадало с партнёрской ценой из XML; несовпавших не оказалось (0 пропущено). Итог: в справочнике 7 видов цен, все с корректным маппингом, «Опт 4» → `opt4_price` / `wholesale_level4`.
 
-### Замечание по артефактам выгрузки в git
+### Артефакты выгрузки в git — решение принято (Alex, 2026-08-02)
 
-`data/webdata/Обмен локальный/` **не** в `.gitignore` (в отличие от `backend/data/import_1c/`). После выгрузки там появились `prices/` (~28 МБ, 8 файлов) и новый `priceLists`, а старый `priceLists_1_1_cf9c66b9-*.xml` удалён. В File List этой стори они не включены и мной не коммитились — решение о судьбе 28 МБ XML в истории репозитория за Alex.
+**Проблема.** Каталог `data/webdata/Обмен локальный/` под `.gitignore` не подпадал (в отличие от `backend/data/import_1c/`): прежние правила были узкими — `./backend/data/import_1c`, `./data/import_1c`, `data/import_1c/`. После пересъёмки выгрузки там появились `prices/` (27 МБ, 8 файлов) и новый `priceLists_1_1_5d241e67-*.xml`, а прежний снимок `priceLists_1_1_cf9c66b9-*.xml` (111 строк) остался в индексе как отслеживаемый файл, которого больше нет на диске.
+
+**Решение Alex — принято и реализовано в коммите `02207dc8`:**
+
+1. **Широкое правило вместо трёх узких.** `.gitignore:194-196` — `./backend/data/import_1c` / `./data/import_1c` / `data/import_1c/` заменены на `./backend/data` / `./data` / **`data`**. Работает именно последняя строка: правило без слэшей матчит любой каталог с именем `data` на любом уровне вложенности. Проверено `git check-ignore -v`: и `data/webdata/Обмен локальный/…`, и `backend/data/import_1c/…` резолвятся в `.gitignore:196:data`.
+2. **Отслеживаемый снимок priceLists удалён из индекса.** `data/webdata/Обмен локальный/priceLists/priceLists_1_1_cf9c66b9-08cc-4b54-97c8-f5390a466841.xml` удалён тем же коммитом. После этого под `data/webdata/` отслеживаемых файлов **0**, все 27 МБ XML остаются только на диске и в историю репозитория не попадают.
+
+**Известное следствие широкого правила (осознанно принято).** Строка `data` затрагивает и каталоги вида `.windsurf/skills/*/data/` — там 9 отслеживаемых файлов (CSV/MD из BMAD-скиллов). На них правило **не влияет**: git не игнорирует уже отслеживаемые файлы. Но **новые** файлы в любом каталоге `data/` потребуют `git add -f`. Сужать правило не стали — приоритет в том, чтобы ни одна выгрузка 1С не утекла в историю случайно.
+
+Дубли `backend/data/import_1c/` ниже по файлу (строки 204-206, три одинаковые строки) остались нетронутыми — предсуществующий шум, к объёму стори не относится.
 
 ### File List
 
@@ -445,8 +509,21 @@ Alex переснял выгрузку скриптом `run-opt4-prices-export.
 - `backend/apps/products/services/variant_import.py` — `_unmapped_price_types_logged`, guard в `update_variant_prices`
 - `backend/tests/unit/test_services/test_xml_parser.py` — 3 теста на снятый fallback, обновлено старое утверждение
 - `backend/tests/integration/test_variant_import.py` — 2 регресс-теста + добавлен пропущенный маркер `@pytest.mark.integration` на классе
+
+Вне ACs стори, по решению Alex на review-пункте [Decision] (вариант «а» — не затирать маппинг пустым `product_field`):
+
+- `backend/apps/products/services/variant_import.py` — изменён (`process_price_types`, `:1534`: `defaults` собирается пошагово, `product_field` попадает в них только непустым; дополнен docstring)
+- `backend/apps/products/tests/unit/test_variant_import_migrated.py` — изменён (2 новых теста в `TestProcessPriceTypes`: сохранение маппинга при переименовании вида цен в 1С; создание записи с неопознанным видом цен)
+
+Гигиена репозитория, по решению Alex (см. «Артефакты выгрузки в git»):
+
+- `.gitignore` — изменён (строки 194-196: три узких правила `*/import_1c` заменены на широкие `./backend/data` / `./data` / `data`)
+- `data/webdata/Обмен локальный/priceLists/priceLists_1_1_cf9c66b9-08cc-4b54-97c8-f5390a466841.xml` — **удалён** (отслеживаемый снимок выгрузки, 111 строк; на диске заменён неотслеживаемым `priceLists_1_1_5d241e67-*.xml`)
+
+Артефакты процесса:
+
 - `_bmad-output/implementation-artifacts/Story/39-2-import-opt4-prices-from-1c.md` — изменён (frontmatter, чекбоксы, Dev Agent Record, Change Log)
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён (`39-2-…: ready-for-dev → in-progress`)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён (`39-2-…: ready-for-dev → in-progress → review`)
 
 ## Change Log
 
@@ -457,4 +534,6 @@ Alex переснял выгрузку скриптом `run-opt4-prices-export.
 | 2026-08-02 | Task 0 закрыта: Alex переснял выгрузку цен (8 файлов, 7219 вхождений GUID «Опт 4»). Тесты «Опт 4» — 5 passed, 0 skipped, без правок кода. Полный интеграционный регресс на новом датасете — 731 passed, 2 skipped (предсуществующие). **AC1-AC7 закрыты полностью**, стори переведена в `review`. |
 | 2026-08-02 | Проверка Task 0.4 сработала: вид цен «Партнер» появился в выгрузке цен (6639 вхождений), 31 вариант под порчей `retail_price`. Дефект эскалирован Alex отдельно, в объём 39.2 не входит. |
 | 2026-08-02 | Первопричина «Партнера» установлена Alex: белый список видов цен в настройке обмена БУС («Выгрузка информации о товарах» → вкладка «Цены»). Исправляется на стороне 1С удалением строки «Партнер»; «Опт 4» от этого не страдает. |
+| 2026-08-02 | Addressed code review findings — 1 item resolved: документация приведена в соответствие фактическому diff (решение Alex по `.gitignore` и удалению отслеживаемого снимка priceLists зафиксировано, File List дополнен). |
+| 2026-08-02 | Addressed code review findings — 2 items resolved: [Decision] по варианту (а) — `process_price_types` больше не затирает корректный `product_field` пустой строкой при переименовании вида цен в 1С (+2 unit-теста); [Patch] — номера строк в AC2/AC5 и Completion Notes приведены к фактическому коду. Регресс: unit **1041 passed**, integration **744 passed**. |
 | 2026-08-02 | По прямому указанию Alex, **вне ACs стори**: снят `else`-fallback в `_map_price_type_to_field` — неопознанный вид цен возвращает `""`, пишет warning и пропускается в `update_variant_prices`. +5 тестов. Попутно добавлен отсутствовавший маркер `@pytest.mark.integration` на `TestVariantImportProcessor` (13 тестов не попадали в CI-фильтры). Регресс: unit 1039 passed, integration 744 passed. |

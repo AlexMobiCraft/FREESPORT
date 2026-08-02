@@ -144,6 +144,68 @@ class TestProcessPriceTypes:
         assert count == 3
         assert PriceType.objects.filter(onec_id__startswith=f"pt_{suffix}").count() == 3
 
+    def test_empty_product_field_keeps_existing_mapping(self, processor):
+        """Неопознанный вид цен не затирает корректный product_field существующей записи
+
+        Регресс: после снятия else-fallback маппер возвращает "" для любого
+        не описанного вида цен. Если 1С переименует «Опт 4», пустая строка не
+        должна перезаписать рабочий маппинг — иначе цены этого вида начнут
+        молча пропускаться guard'ом в update_variant_prices.
+        """
+        # Arrange
+        suffix = get_unique_suffix()
+        onec_id = f"pt_{suffix}_renamed"
+
+        PriceType.objects.create(
+            onec_id=onec_id,
+            onec_name="Опт 4 (до 50 тыс.руб в квартал)",
+            product_field="opt4_price",
+            user_role="wholesale_level4",
+            is_active=True,
+        )
+
+        # 1С переименовала вид цен → маппер не опознал его и вернул ""
+        price_types_data: list[PriceTypeData] = [
+            {
+                "onec_id": onec_id,
+                "onec_name": "Оптовая четвёртого уровня",
+                "product_field": "",
+            }
+        ]
+
+        # Act
+        count = processor.process_price_types(price_types_data)
+
+        # Assert
+        assert count == 1
+        pt = PriceType.objects.get(onec_id=onec_id)
+        assert pt.product_field == "opt4_price"  # маппинг сохранён
+        assert pt.user_role == "wholesale_level4"  # user_role не в defaults, не трогается
+        assert pt.onec_name == "Оптовая четвёртого уровня"  # имя обновилось
+        assert pt.is_active is True
+
+    def test_empty_product_field_creates_unmapped_price_type(self, processor):
+        """Новый неопознанный вид цен создаётся с пустым product_field, без ошибки"""
+        # Arrange
+        suffix = get_unique_suffix()
+        onec_id = f"pt_{suffix}_unmapped"
+        price_types_data: list[PriceTypeData] = [
+            {
+                "onec_id": onec_id,
+                "onec_name": "Партнер",
+                "product_field": "",
+            }
+        ]
+
+        # Act
+        count = processor.process_price_types(price_types_data)
+
+        # Assert
+        assert count == 1
+        pt = PriceType.objects.get(onec_id=onec_id)
+        assert pt.product_field == ""
+        assert pt.onec_name == "Партнер"
+
 
 # ============================================================================
 # TestProcessCategories

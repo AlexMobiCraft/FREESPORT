@@ -1535,6 +1535,9 @@ class VariantImportProcessor:
         """
         Создание/обновление справочника PriceType
 
+        Пустой `product_field` (вид цен не опознан маппером) в defaults не
+        попадает — прежний маппинг существующей записи сохраняется.
+
         Args:
             price_types_data: Последовательность PriceTypeData
 
@@ -1546,13 +1549,23 @@ class VariantImportProcessor:
         count = 0
         for price_type_data in price_types_data:
             try:
+                defaults: dict[str, Any] = {
+                    "onec_name": price_type_data["onec_name"],
+                    "is_active": True,
+                }
+                # Пустой product_field = вид цен не опознан маппером
+                # (_map_price_type_to_field вернул ""). Не затираем им корректный
+                # маппинг существующей записи: переименование вида цен в 1С иначе
+                # сбило бы рабочее поле, и цены этого вида стали бы молча
+                # пропускаться guard'ом в update_variant_prices.
+                # Для новой записи поле останется пустым — цены не применятся,
+                # что и требуется для неопознанного вида цен.
+                if price_type_data["product_field"]:
+                    defaults["product_field"] = price_type_data["product_field"]
+
                 PriceType.objects.update_or_create(
                     onec_id=price_type_data["onec_id"],
-                    defaults={
-                        "onec_name": price_type_data["onec_name"],
-                        "product_field": price_type_data["product_field"],
-                        "is_active": True,
-                    },
+                    defaults=defaults,
                 )
                 count += 1
             except Exception as e:
