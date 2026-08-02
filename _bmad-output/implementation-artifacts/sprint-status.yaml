@@ -128,7 +128,7 @@ development_status:
   # ========================================
   epic-39: in-progress
   39-1-wholesale-level4-role-and-opt4-price-model: done
-  39-2-import-opt4-prices-from-1c: backlog
+  39-2-import-opt4-prices-from-1c: review
   39-3-catalog-admin-api-opt4-price: backlog
   39-4-frontend-opt4-price-display: backlog
   epic-39-retrospective: optional

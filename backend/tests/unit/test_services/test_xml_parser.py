@@ -235,11 +235,28 @@ class TestXMLDataParser:
         assert parser._map_price_type_to_field("Опт 1 (300-600)") == "opt1_price"
         assert parser._map_price_type_to_field("Опт 2") == "opt2_price"
         assert parser._map_price_type_to_field("Опт 3") == "opt3_price"
+        # Story 39.2: четвёртый оптовый уровень, наименование как в выгрузке 1С
+        assert parser._map_price_type_to_field("Опт 4 (до 50 тыс.руб в квартал)") == "opt4_price"
+        assert parser._map_price_type_to_field("ОПТ4") == "opt4_price"
+        assert parser._map_price_type_to_field("опт4") == "opt4_price"
         assert parser._map_price_type_to_field("Тренерская") == "trainer_price"
         assert parser._map_price_type_to_field("РРЦ Рекомендованная") == "rrp"
         assert parser._map_price_type_to_field("МРЦ") == "msrp"
         assert parser._map_price_type_to_field("РРЦ") == "retail_price"
         assert parser._map_price_type_to_field("Неизвестный тип") == "retail_price"  # fallback
+
+    def test_map_price_type_to_field_branch_order(self):
+        """Сторож порядка веток: «Опт 4» не должен перехватывать соседние уровни.
+
+        Регресс на случай перестановки веток в _map_price_type_to_field
+        (Story 39.2): каждый оптовый уровень обязан попадать в своё поле.
+        """
+        parser = XMLDataParser()
+
+        assert parser._map_price_type_to_field("Опт 1 (300-600 тыс.руб в квартал)") == "opt1_price"
+        assert parser._map_price_type_to_field("Опт 2 (150-300 тыс.руб в квартал)") == "opt2_price"
+        assert parser._map_price_type_to_field("Опт 3 (50-150 тыс.руб в квартал)") == "opt3_price"
+        assert parser._map_price_type_to_field("Опт 4 (до 50 тыс.руб в квартал)") == "opt4_price"
 
 
 @pytest.mark.unit

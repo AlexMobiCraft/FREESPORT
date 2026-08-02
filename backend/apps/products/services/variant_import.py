@@ -841,6 +841,7 @@ class VariantImportProcessor:
             opt1_price=None,
             opt2_price=None,
             opt3_price=None,
+            opt4_price=None,
             trainer_price=None,
             federation_price=None,
             stock_quantity=0,  # Будет обновлен из rests.xml
@@ -999,6 +1000,7 @@ class VariantImportProcessor:
                 opt1_price=None,
                 opt2_price=None,
                 opt3_price=None,
+                opt4_price=None,
                 trainer_price=None,
                 federation_price=None,
                 stock_quantity=0,

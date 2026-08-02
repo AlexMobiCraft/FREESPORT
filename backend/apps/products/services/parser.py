@@ -544,6 +544,8 @@ class XMLDataParser:
             return "opt2_price"
         elif "опт 3" in name_lower or "опт3" in name_lower:
             return "opt3_price"
+        elif "опт 4" in name_lower or "опт4" in name_lower:
+            return "opt4_price"
         elif "тренер" in name_lower:
             return "trainer_price"
         elif "ррц" in name_lower:
