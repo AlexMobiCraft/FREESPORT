@@ -390,6 +390,7 @@ class User(AbstractUser):
             "wholesale_level1",
             "wholesale_level2",
             "wholesale_level3",
+            "wholesale_level4",
         ]
         return self.role in wholesale_roles
 

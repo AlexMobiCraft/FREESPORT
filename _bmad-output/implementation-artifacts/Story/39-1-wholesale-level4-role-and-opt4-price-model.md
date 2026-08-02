@@ -70,6 +70,10 @@ so that **я мог назначить его клиенту с оборотом
   - [x] 9.1: `make test-unit` целиком (не только новые файлы) — новая роль автоматически попадает в параметризованные регресс-тесты, см. Dev Notes
   - [x] 9.2: `make lint` / Black + Flake8
 
+### Review Findings
+
+- [x] [Review][Patch] `wholesale_level4` не считается оптовиком в `is_wholesale_user` [backend/apps/users/models.py:387] — список `wholesale_roles` содержит только уровни 1–3, поэтому `User(role="wholesale_level4").is_wholesale_user` возвращает `False` и `UserProfileSerializer` отдаёт неверный признак в API. Добавить уровень 4 и регрессионный тест; текущие параметризованные тесты также не включают эту роль.
+
 ## Dev Notes
 
 ### Релизное правило эпика
@@ -400,6 +404,9 @@ claude-opus-5 (Claude Code, dev-story workflow)
 - Апгрейд стабов замерен в одноразовом контейнере (`django-stubs 5.2.9` + `djangorestframework-stubs 3.16.9` + `mypy 1.17.1`): **108 → 116** ошибок. Класс `condition=` уходит вместе с ~23 другими устаревшими, но появляется **39 новых** в 10 файлах, включая зарезервированные за стори 39.3 (`products/serializers.py`, `products/admin.py`, `users/admin.py`). Среди новых — потенциально реальный дефект `users/admin.py:139: Cannot resolve keyword '_has_1c_candidate' into field`, который старые стабы прятали. Апгрейд вынесен в отдельную задачу (решение Alex, 2026-08-02).
 - **Фикс по запросу Alex после реализации:** на все 6 вызовов `CheckConstraint(condition=...)` в коде приложений поставлен точечный `# type: ignore[call-arg]` с указанием причины; миграции `bonuses` добавлены в `ignore_errors` в `mypy.ini` — по образцу уже перечисленных там `users`/`products`/`orders`/`cart`/`common`. В шапке `mypy.ini` задокументированы причина, замер апгрейда и условие снятия ignore. Так как в конфиге включён `warn_unused_ignores = True`, mypy сам потребует снять эти ignore, когда стабы обновят. Итог: **108 → 98** ошибок, ни одной `condition=`/`CheckConstraint` не осталось, `Unused "type: ignore"` не появилось. `makemigrations --check` по-прежнему чист (правки — только комментарии), `black --check` и `flake8` чисты, целевой прогон `apps/bonuses apps/common apps/orders apps/products tests/unit/test_models` — **354 passed**.
 
+- **Ревью-фикс `is_wholesale_user`:** blast radius — `npx gitnexus impact "Method:backend/apps/users/models.py:User.is_wholesale_user#0" --direction upstream` → `risk: LOW`, 0 прямых вызывающих в графе, 0 затронутых процессов. Единственный внешний потребитель — `UserProfileSerializer` (`users/serializers.py:352`, `BooleanField(read_only=True)`), read-only признак в ответе API; на фронте это поле объявлено в `api.generated.ts:2740`, схема не меняется (тип тот же `boolean`). RED-фаза: до правки прогон дал **2 failed** (`test_is_wholesale_user_property[wholesale_level4-True]` и `TestWholesaleLevel4Role::test_role_is_wholesale`), после — 88 passed в файле. `wholesale_level` правки не потребовал: он парсит цифру из имени роли и для `wholesale_level4` уже возвращал `4` — тест это зафиксировал.
+- Регресс после ревью-фикса: `pytest -m unit` → **1036 passed, 1 skipped**; `pytest -m integration` → **726 passed, 2 skipped** (совпадает с прогоном до фикса — регрессий нет). `black --check` и `flake8` по обоим изменённым файлам чисты, `makemigrations --check --dry-run` → `No changes detected`. `npx gitnexus detect-changes --scope all` → затронуты только `User` и `is_wholesale_user`, `Affected processes: 0`, `Risk level: low`.
+
 ### Completion Notes List
 
 - **AC1, AC2** — `ProductVariant.opt4_price` добавлено сразу после `opt3_price` по образцу соседних полей (`cast(Decimal | None, ...)`, `MinValueValidator(Decimal("0"))`, `help_text="Цена для роли wholesale_level4"`). Комментарий блока цен обновлён на «(7 типов)». В `ProductVariant.Meta` заведён новый атрибут `constraints` с `CheckConstraint(condition=..., name="products_opt4_price_positive")`; ранее у модели constraint'ов не было вовсе.
@@ -410,6 +417,7 @@ claude-opus-5 (Claude Code, dev-story workflow)
 - **AC9, AC10** — `PRICE_TYPE_BY_ROLE` и `PRICE_TYPE_ID_BY_NAME` в `base.py` дополнены. `orders/services/order_export.py` не изменялся: `_get_price_type` и `_get_price_type_id` подхватывают вид цен исключительно из настроек — подтверждено тестом на реальных настройках (без фикстуры `settings`) и проверкой `<ВидЦены>/<Ид>` в сгенерированном XML.
 - **AC11** — все 16 новых тестов помечены `@pytest.mark.unit`. Полный `make test-unit`: **1035 passed, 1 skipped** (регрессий нет). Полный integration-прогон (`make test-integration`): **726 passed, 2 skipped** — падений нет. `makemigrations --check --dry-run` чистый. Black и Flake8 по всем изменённым файлам чистые.
 - Запреты Dev Notes соблюдены: не тронуты `products/services/parser.py`, `products/services/variant_import.py`, `products/filters.py`, `products/serializers*.py`, `products/views.py`, `products/admin.py`, `products/factories.py`, `users/serializers.py`, `users/admin.py`, `banners/services.py`, `orders/services/order_export.py`, `frontend/`, `docs/api/openapi.yaml`. Модель `Product` не затронута — ценовые поля живут только на `ProductVariant`.
+- ✅ Устранена находка ревью [Patch]: `wholesale_level4` не считалась оптовиком в `User.is_wholesale_user` (`users/models.py:387`) — локальный список `wholesale_roles` содержал только уровни 1–3, из-за чего `UserProfileSerializer` отдавал `is_wholesale_user: false` для клиентов четвёртого уровня. Роль добавлена в список. Регрессионное покрытие: новый кейс `("wholesale_level4", True)` в параметризованном `test_is_wholesale_user_property`, кейс `("wholesale_level4", 4)` в `test_wholesale_level_property`, `("wholesale_level4", True)` в `test_is_b2b_user_property`, `"wholesale_level4"` в `test_valid_role_choices` и отдельный `TestWholesaleLevel4Role::test_role_is_wholesale`. Ранее эти параметризованные тесты новую роль не проверяли вовсе — именно поэтому дефект прошёл мимо первого прогона.
 - Известное промежуточное состояние релизной ветки (по Dev Notes, чинится в 39.2/39.3, здесь править не нужно): импорт цен из 1С перетрёт `product_field` на `retail_price`, пока нет ветки «Опт 4» в `_map_price_type_to_field`; роль уже видна в публичном `user_roles_view`, но `UserRegistrationSerializer.SELF_SERVICE_ROLES` её пока не принимает.
 
 ### File List
@@ -417,11 +425,11 @@ claude-opus-5 (Claude Code, dev-story workflow)
 - `backend/apps/products/models.py` — изменён (поле `opt4_price`, `Meta.constraints`, choice `opt4_price` в `PriceType.product_field`, ключ роли в `get_price_for_user`, комментарий «(7 типов)», `# type: ignore[call-arg]` на `CheckConstraint`)
 - `backend/apps/products/migrations/0052_add_opt4_price.py` — новый (AddField + AlterField + AddConstraint)
 - `backend/apps/products/migrations/0053_seed_price_type_opt4.py` — новый (обратимая data-миграция `PriceType` «Опт 4»)
-- `backend/apps/users/models.py` — изменён (`role_map`, `ROLE_CHOICES`, `B2B_ROLES`)
+- `backend/apps/users/models.py` — изменён (`role_map`, `ROLE_CHOICES`, `B2B_ROLES`, `is_wholesale_user`)
 - `backend/apps/users/migrations/0020_add_wholesale_level4_role.py` — новый (`AlterField` поля `role`)
 - `backend/freesport/settings/base.py` — изменён (`ONEC_EXCHANGE.PRICE_TYPE_BY_ROLE`, `ONEC_EXCHANGE.PRICE_TYPE_ID_BY_NAME`)
 - `backend/apps/products/tests/unit/test_price_logic.py` — изменён (классы `TestOpt4PriceForUser`, `TestOpt4PriceConstraint`, `TestPriceTypeOpt4Choice`, `TestSeedOpt4PriceType`)
-- `backend/tests/unit/test_models/test_user_models.py` — изменён (класс `TestWholesaleLevel4Role`)
+- `backend/tests/unit/test_models/test_user_models.py` — изменён (класс `TestWholesaleLevel4Role` + кейсы `wholesale_level4` в параметризованных `test_is_b2b_user_property`, `test_is_wholesale_user_property`, `test_wholesale_level_property`, `test_valid_role_choices`)
 - `backend/tests/unit/test_order_export_service.py` — изменён (класс `TestOpt4PriceTypeRealSettings` на реальных настройках)
 - `_bmad-output/implementation-artifacts/Story/39-1-wholesale-level4-role-and-opt4-price-model.md` — изменён (frontmatter, чекбоксы, Dev Agent Record, File List, Change Log, Status)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён (статус стори)
@@ -438,4 +446,5 @@ claude-opus-5 (Claude Code, dev-story workflow)
 | Дата | Изменение |
 |---|---|
 | 2026-08-02 | Реализована story 39.1: поле `ProductVariant.opt4_price` с `CheckConstraint`, choice и data-миграция `PriceType` «Опт 4», роль `wholesale_level4` в `User`, ветка роли в `get_price_for_user`, вид цен «Опт 4» в `ONEC_EXCHANGE`. Добавлено 16 unit-тестов. Статус → review. |
+| 2026-08-02 | Устранена находка code-review (1 item, Patch): `wholesale_level4` добавлена в `User.is_wholesale_user`; роль включена в четыре параметризованных регресс-теста ролей + отдельный тест `test_role_is_wholesale`. Регресс: unit 1036 passed / 1 skipped, integration 726 passed / 2 skipped. Статус → review. |
 | 2026-08-02 | Вне исходного объёма, по запросу Alex: устранён класс mypy-ошибок `CheckConstraint(condition=...)` из-за устаревших `django-stubs==4.2.6`. Точечные `# type: ignore[call-arg]` на 6 вызовах в `products`/`bonuses`/`common`/`orders`, миграции `bonuses` добавлены в `ignore_errors`, причина и замер апгрейда стабов задокументированы в шапке `mypy.ini`. Итог 108 → 98 ошибок. Полный апгрейд `django-stubs` вынесен в отдельную задачу. |

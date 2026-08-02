@@ -112,6 +112,7 @@ class TestUserModel:
             ("wholesale_level1", True),
             ("wholesale_level2", True),
             ("wholesale_level3", True),
+            ("wholesale_level4", True),
             ("trainer", True),
             ("federation_rep", True),
             # B2C роли
@@ -133,6 +134,7 @@ class TestUserModel:
             ("wholesale_level1", True),
             ("wholesale_level2", True),
             ("wholesale_level3", True),
+            ("wholesale_level4", True),
             # Не оптовые роли
             ("retail", False),
             ("trainer", False),
@@ -154,6 +156,7 @@ class TestUserModel:
             ("wholesale_level1", 1),
             ("wholesale_level2", 2),
             ("wholesale_level3", 3),
+            ("wholesale_level4", 4),
             # Не оптовые пользователи
             ("retail", None),
             ("trainer", None),
@@ -175,6 +178,7 @@ class TestUserModel:
             "wholesale_level1",
             "wholesale_level2",
             "wholesale_level3",
+            "wholesale_level4",
             "trainer",
             "federation_rep",
             "admin",
@@ -796,6 +800,16 @@ class TestWholesaleLevel4Role:
         User = get_user_model()
         assert "wholesale_level4" in User.B2B_ROLES
         assert User(role="wholesale_level4").is_b2b_user is True
+
+    def test_role_is_wholesale(self):
+        """
+        Роль оптовая: is_wholesale_user и wholesale_level должны отдавать
+        уровень 4, иначе UserProfileSerializer вернёт неверный признак в API
+        """
+        User = get_user_model()
+        user = User(role="wholesale_level4")
+        assert user.is_wholesale_user is True
+        assert user.wholesale_level == 4
 
     def test_role_fits_field_max_length(self):
         """Значение роли помещается в max_length поля role"""
