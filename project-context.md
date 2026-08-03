@@ -72,12 +72,12 @@ optimized_for_llm: true
 
 ## 4. Тестирование
 
-- **Pytest markers проставляются автоматически по каталогу** — руками ставить не нужно. Хук `pytest_collection_modifyitems` в `backend/conftest.py` размечает каждый собранный тест:
-  - `unit` — `apps/**` и `tests/unit/`.
-  - `integration` — `tests/integration/`, `tests/functional/`, `tests/regression/`, `apps/*/tests/integration/`.
-  - `performance` — `tests/performance/`; выведены из обычного гейта (CI и `make test-unit`/`test-integration`), запускаются через `make test-performance`.
-  **Явный маркер в файле переопределяет автоматический** — так интеграционный тест внутри `apps/` остаётся `integration`. Новый тестовый каталог требует правила в `PATH_RULES` (`backend/conftest.py`), иначе сбор падает с `UsageError` — это осознанный сторож, а не баг.
-  - `@pytest.mark.data_dependent` (тесты на внешних данных) и `@pytest.mark.slow` — ортогональны автоматическим, ставятся вручную.
+- **Pytest markers проставляются автоматически по каталогу** — руками ставить не нужно. Хук `pytest_collection_modifyitems` в `backend/conftest.py` размечает каждый собранный тест по самому глубокому каталогу-категории в пути (работает на любой глубине, и в `tests/`, и внутри `apps/`):
+  - `unit/` → `unit`; `integration/`, `functional/`, `regression/` → `integration`; `performance/` → `performance`.
+  - Каталога-категории нет → умолчание: всё под `apps/` — `unit`. Для `tests/` умолчания нет: новый каталог там обрывает сбор с `UsageError`. Асимметрия осознанная (см. `backend/docs/testing-standards.md`).
+  - `unit` означает «модульный тест приложения», **не** «без БД»: тест с `django_db` внутри `apps/` штатно получает `unit`.
+  **Явный маркер в файле переопределяет автоматический.** `@pytest.mark.data_dependent` и `@pytest.mark.slow` ортогональны и ставятся вручную.
+- **Где что исполняется:** `backend-ci.yml` — быстрый unit-гейт (`not integration and not data_dependent and not performance`), он же считает покрытие; `main.yml` — весь набор без `performance` на каждом push/PR в `main`/`develop`, именно он ловит регрессии интеграционных тестов; `performance-tests.yml` — перф-тесты по расписанию (nightly) и вручную.
 - **Команды запуска** (через Docker):
   ```bash
   make test                 # все тесты
