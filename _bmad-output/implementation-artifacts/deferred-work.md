@@ -485,3 +485,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
   summary: Нет теста на конкурентную привязку одного контрагента к двум заявкам — `select_for_update` и порядок захвата по возрастанию pk не покрыты падающим при регрессии тестом.
   evidence: `test_double_submit_is_rejected_without_partial_write` последователен и пройдёт при полностью удалённом `select_for_update`. Настоящая проверка требует `pytest.mark.django_db(transaction=True)` и потоков, что в проекте избегается (см. отложенный пункт W7-2 про изоляцию тестов).
+
+## Deferred from: code review of 39-2-import-opt4-prices-from-1c (2026-08-02)
+
+- Импорт цен принимает отрицательные значения из XML без явной проверки: `Decimal` их допускает, Django-валидаторы при прямом `save()` не запускаются, а DB constraint есть только для `opt4_price`. Отрицательный RRP также копируется в `retail_price`. Проблема предсуществует для остальных ценовых полей и не вызвана стори 39.2. [`backend/apps/products/services/parser.py:408-416`, `backend/apps/products/services/variant_import.py:1097-1112`]

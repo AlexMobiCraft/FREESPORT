@@ -4,7 +4,7 @@ baseline_commit: 50e49d01aedf03375d03724d2fecfdbdcc402bef
 
 # Story 39.2: Импорт цен «Опт 4» из 1С
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -68,6 +68,7 @@ so that **портал перестал выбрасывать эти цены �
 - [x] [Review][Patch] Задокументировать принятое решение Alex: сохранить широкое правило `data` в `.gitignore` и удаление отслеживаемого снимка priceLists; привести раздел «Замечание по артефактам выгрузки в git» и File List в соответствие фактическому diff. [`.gitignore`:193-196; `data/webdata/Обмен локальный/priceLists/priceLists_1_1_cf9c66b9-08cc-4b54-97c8-f5390a466841.xml`:1]
 - [x] [Review][Decision] `process_price_types` перезаписывает корректный `product_field` пустой строкой, если 1С переименует вид цен — `update_or_create(defaults={... "product_field": price_type_data["product_field"] ...})` запишет `""` поверх существующего `"opt4_price"` (и любого другого маппинга), после чего цены этого вида начнут молча пропускаться guard'ом. До снятия fallback та же переименование давало `"retail_price"` (хуже), но дыра «переименование в 1С ломает маппинг» осталась. Варианты: (а) не включать `product_field=""` в `defaults` для существующих записей (сохранять прежний маппинг); (б) оставить как есть — warning в логе считать достаточной диагностикой. [`backend/apps/products/services/variant_import.py`:1549-1556]
 - [x] [Review][Patch] Привести номера строк в стори к фактическому коду: AC2 ссылается на `parser.py:536` (метод), фактически `:540`, ветка «Опт 4» — `:561-562` (Completion Notes: `:547-548`); AC5 ссылается на `variant_import.py:841-845` / `:999-1003`, фактически `opt4_price=None` — `:845` и `:1004`. [`39-2-import-opt4-prices-from-1c.md` AC2, AC5, Completion Notes]
+- [x] [Review][Defer] Импорт цен принимает отрицательные значения из XML без явной проверки; Django-валидаторы при `save()` не запускаются, а DB constraint есть только для `opt4_price`. Проблема предсуществует для остальных ценовых полей и не вызвана стори 39.2. [`backend/apps/products/services/parser.py`:408-416; `backend/apps/products/services/variant_import.py`:1097-1112] — deferred, pre-existing
 
 ## Dev Notes
 
