@@ -22,6 +22,7 @@ class B2BWorkflowTest(TestCase):
             email="b2b@example.com",
             password="testpass123",
             role="wholesale_level1",
+            is_verified=True,
             company_name="Test B2B Company",
             tax_id="1234567890",
             customer_code="00001",

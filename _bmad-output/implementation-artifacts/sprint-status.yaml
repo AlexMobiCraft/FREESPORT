@@ -143,7 +143,7 @@ development_status:
   # Предшествует стори 39.3 (решение Alex, 2026-08-03): гейт видимости
   # оптовых цен ставится ДО добавления opt4_price, чтобы контракт и типы
   # фронта регенерировались один раз. Источник: tech-debt.md п. 18.
-  security-wholesale-price-visibility: ready-for-dev
+  security-wholesale-price-visibility: review
 
   # ========================================
   # Epic 40: Уровень цен клиента приходит из 1С

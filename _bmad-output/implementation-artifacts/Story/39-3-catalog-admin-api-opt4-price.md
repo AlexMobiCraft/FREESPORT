@@ -1,14 +1,14 @@
 ---
-baseline_commit: 61e108057ce0c2beb853d0c0e5e9beb43b83ccad
+baseline_commit: 67045968e9fe5f9b6742eedc80bc8aff861ca169
 ---
 
 # Story 39.3: Каталог, админка и API отдают цену уровня 4
 
 Status: ready-for-dev
 
-> ⚠️ **Координаты Dev Notes действительны на `baseline_commit: 61e10805`.** Перед этой стори Alex закрывает `tech-debt.md` п. 18 (публичный каталог отдаёт оптовые цены анонимным запросам) — та правка трогает `ProductListSerializer.Meta.fields` и `to_representation`, то есть сдвигает строки `serializers.py:109`, `:478`, `:514`, `:549`, `:590`, на которые ссылаются AC2-AC4 и Task 2. **Если долг п. 18 уже закрыт, а `baseline_commit` в этом файле не обновлён — сверять строки в коде, не доверять номерам.** Правки по существу от этого не меняются.
+> ✅ **Координаты Dev Notes освежены 2026-08-03** после закрытия `tech-debt.md` п. 18 стори `security-wholesale-price-visibility`. Номера строк соответствуют рабочему дереву **с реализацией той стори поверх `67045968`** — на момент правки она ещё не была закоммичена, поэтому при расхождении сверять код, а не номера. Предупреждение о невалидных координатах на `61e10805` снято: те координаты больше не актуальны ни в каком виде.
 >
-> ⚠️ **Не «чинить попутно» утечку оптовых цен** (`opt1/2/3_price` уезжают анонимному `GET /api/v1/products/`). Это `tech-debt.md` п. 18, отдельная стори со своими AC. В объём 39.3 не входит.
+> ✅ **Утечка оптовых цен закрыта** — `opt1/2/3_price` больше не уезжают анонимному `GET /api/v1/products/`. Гейт живёт в `backend/apps/products/pricing_policy.py` и применяется в `ProductListSerializer.to_representation`. **Что это меняет для 39.3:** `opt4_price` обязан попасть в `WHOLESALE_PRICE_FIELDS` (Task 2.5), иначе новое поле останется единственным неприкрытым и утечёт анонимам ровно так, как утекали три предыдущих. Литеральных списков `allowed_roles` в сериализаторах больше **нет** — правки ролевых белых списков делаются в `pricing_policy.py`.
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,10 +20,10 @@ so that **я мог работать с порталом так же, как к�
 
 ## Acceptance Criteria
 
-1. **AC1 (FR-39-06). Фильтры каталога.** В `ProductFilter.filter_min_price` (`backend/apps/products/filters.py:270-286`) и `filter_max_price` (`:305-321`) появляется ветка `wholesale_level4`, отдающая `Q(opt4_price__gte=value) | Q(opt4_price__isnull=True, retail_price__gte=value)` (и `__lte` соответственно) — по образцу ветки `wholesale_level3`. Ветка стоит **между** `wholesale_level3` и `trainer`; `else`-fallback на `retail_price` перестаёт перехватывать эту роль.
-2. **AC2 (FR-39-07). Поле `opt4_price` в API товара.** `ProductListSerializer` (`backend/apps/products/serializers.py:452`) объявляет `opt4_price = serializers.SerializerMethodField()` (рядом с `:478`), включает `"opt4_price"` в `Meta.fields` (рядом с `:514`) и реализует `get_opt4_price` по образцу `get_opt3_price` (`:628-633`). `ProductDetailSerializer` наследует `Meta.fields` от списочного и поле получает автоматически — отдельной правки не требует.
-3. **AC3 (FR-39-07). Признак наличия цены у варианта.** Товар, у которого из ценовых полей заполнена **только** `opt4_price`, попадает в выдачу: условие `Q(...) | Q(opt4_price__gt=0)` добавлено в **обоих** местах — `ProductListSerializer._get_first_variant` (`serializers.py:544-555`) и `Prefetch` в `ProductViewSet.get_queryset` (`backend/apps/products/views.py:50`, блок `:83-90`). Пропуск любого из двух даёт молчаливый дефект: в детальной карточке цена есть, в списке — нет (или наоборот).
-4. **AC4 (FR-39-07). Инфо-цены РРЦ/МРЦ.** Роль `wholesale_level4` добавлена в списки `allowed_roles`, управляющие видимостью `rrp`/`msrp`: `ProductVariantSerializer.to_representation` (`serializers.py:106-112`) и `ProductListSerializer.to_representation` (`:587-593`). Четвёртый уровень — оптовый, поэтому видит РРЦ/МРЦ наравне с уровнями 1-3; комментарии «оптовики (1-3)» рядом обновлены на «(1-4)».
+1. **AC1 (FR-39-06). Фильтры каталога.** В `ProductFilter.filter_min_price` (`backend/apps/products/filters.py:267-286`) и `filter_max_price` (`:301-319`) появляется ветка `wholesale_level4`, отдающая `Q(opt4_price__gte=value) | Q(opt4_price__isnull=True, retail_price__gte=value)` (и `__lte` соответственно) — по образцу ветки `wholesale_level3`. Ветка стоит **между** `wholesale_level3` и `trainer`; `else`-fallback на `retail_price` перестаёт перехватывать эту роль. Роль берётся из `resolve_pricing_role(...)`, а не из `request.user.role` — значит **неверифицированный** `wholesale_level4` в эту ветку не попадёт и отфильтруется по `retail_price`; это требуемое поведение, а не дефект.
+2. **AC2 (FR-39-07). Поле `opt4_price` в API товара.** `ProductListSerializer` (`backend/apps/products/serializers.py:439`) объявляет `opt4_price = serializers.SerializerMethodField()` (рядом с `:465`), включает `"opt4_price"` в `Meta.fields` (рядом с `:501`) и реализует `get_opt4_price` по образцу `get_opt3_price` (`:612-617`). `ProductDetailSerializer` наследует `Meta.fields` от списочного и поле получает автоматически — отдельной правки не требует.
+3. **AC3 (FR-39-07). Признак наличия цены у варианта.** Товар, у которого из ценовых полей заполнена **только** `opt4_price`, попадает в выдачу: условие `Q(...) | Q(opt4_price__gt=0)` добавлено в **обоих** местах — `ProductListSerializer._get_first_variant` (`serializers.py:531-542`) и `Prefetch` в `ProductViewSet.get_queryset` (`backend/apps/products/views.py:50`, блок `:83-90`). Пропуск любого из двух даёт молчаливый дефект: в детальной карточке цена есть, в списке — нет (или наоборот).
+4. **AC4 (FR-39-07). Инфо-цены РРЦ/МРЦ и гейт оптового поля.** Списков `allowed_roles` в сериализаторах больше нет — видимостью управляет `backend/apps/products/pricing_policy.py`. Требуются **две** правки в нём: (а) `"wholesale_level4"` добавлен в `INFO_PRICE_ROLES` — четвёртый уровень оптовый и видит РРЦ/МРЦ наравне с уровнями 1-3; (б) `"opt4_price"` добавлен в `WHOLESALE_PRICE_FIELDS` — иначе новое поле окажется **единственным неприкрытым** и уедет анонимному `GET /api/v1/products/` (ровно тот дефект, который закрыт стори `security-wholesale-price-visibility`). Обе константы несут комментарий «стори 39.3 добавляет сюда …» — он ставился специально под эту правку и после неё снимается.
 5. **AC5 (FR-39-08). Админка варианта товара.** В fieldset «Ценообразование» `ProductVariantAdmin` (`backend/apps/products/admin.py:632-646`) поле `opt4_price` стоит сразу после `opt3_price`. `list_display` и `ProductVariantInline` оптовых цен не показывают вовсе — их **не трогать**.
 6. **AC6 (FR-39-08). Бейдж роли в админке пользователей.** `UserAdmin.role_display` (`backend/apps/users/admin.py:411-427`) отдаёт для `wholesale_level4` собственный цвет, отличный от всех семи существующих. Без записи в `role_colors` роль молча получает серый дефолт `#6c757d` и визуально сливается с `retail`.
 7. **AC7 (FR-39-09). Регистрация с ролью уровня 4.** `UserRegistrationSerializer.SELF_SERVICE_ROLES` (`backend/apps/users/serializers.py:85-95`) содержит `wholesale_level4`, и `validate_role` эту роль принимает. Сегодня роль уже видна в публичном `/api/v1/users/roles/` (список строится из `User.ROLE_CHOICES`), но регистрация с ней падает с 400 «Недопустимая роль для регистрации» — этот промежуточный дефект релизной ветки закрывается здесь.
@@ -36,17 +36,18 @@ so that **я мог работать с порталом так же, как к�
 
 - [ ] **Task 1: Фильтры каталога** (AC: 1)
   - [ ] 1.1: `filters.py` — ветка `wholesale_level4` в `filter_min_price` после ветки `wholesale_level3` (`:275-276`)
-  - [ ] 1.2: `filters.py` — то же в `filter_max_price` (`:310-311`), с `__lte`
-  - [ ] 1.3: Ничего больше в файле не менять — `_variant_filters`, `qs`-property и subquery-оптимизация правок не требуют
+  - [ ] 1.2: `filters.py` — то же в `filter_max_price` (`:308-309`), с `__lte`
+  - [ ] 1.3: Ничего больше в файле не менять — `_variant_filters`, `qs`-property, subquery-оптимизация и вызов `resolve_pricing_role` правок не требуют
 
-- [ ] **Task 2: Сериализаторы товаров** (AC: 2, 3, 4)
-  - [ ] 2.1: `serializers.py:478` — объявить `opt4_price = serializers.SerializerMethodField()` после `opt3_price`
-  - [ ] 2.2: `serializers.py:514` — добавить `"opt4_price"` в `Meta.fields` после `"opt3_price"`
-  - [ ] 2.3: `serializers.py:633` — реализовать `get_opt4_price` по образцу `get_opt3_price` (точный код — в Dev Notes)
-  - [ ] 2.4: `serializers.py:549` — добавить `| Q(opt4_price__gt=0)` в фильтр `_get_first_variant`
-  - [ ] 2.5: `serializers.py:109` и `:590` — добавить `"wholesale_level4"` в оба списка `allowed_roles` (РРЦ/МРЦ)
-  - [ ] 2.6: `serializers.py:462`, `:104`, `:586` — обновить docstring/комментарии («…opt3_price, opt4_price», «оптовики (1-4)»)
+- [ ] **Task 2: Сериализаторы товаров и политика цен** (AC: 2, 3, 4)
+  - [ ] 2.1: `serializers.py:465` — объявить `opt4_price = serializers.SerializerMethodField()` после `opt3_price`
+  - [ ] 2.2: `serializers.py:501` — добавить `"opt4_price"` в `Meta.fields` после `"opt3_price"`
+  - [ ] 2.3: `serializers.py:617` — реализовать `get_opt4_price` по образцу `get_opt3_price` (точный код — в Dev Notes)
+  - [ ] 2.4: `serializers.py:536` — добавить `| Q(opt4_price__gt=0)` в фильтр `_get_first_variant`
+  - [ ] 2.5: `apps/products/pricing_policy.py` — добавить `"opt4_price"` в `WHOLESALE_PRICE_FIELDS` (гейт нового поля) **и** `"wholesale_level4"` в `INFO_PRICE_ROLES` (РРЦ/МРЦ); снять комментарии-подсказки «стори 39.3 добавляет сюда …». Списков `allowed_roles` в сериализаторах больше нет — искать их бессмысленно
+  - [ ] 2.6: `serializers.py:449` — обновить docstring («…opt3_price, opt4_price»)
   - [ ] 2.7: `ProductDetailSerializer` **не править** — наследует `Meta.fields`
+  - [ ] 2.8: `to_representation` обоих сериализаторов (`:94`, `:562`) **не править** — они уже выражены через предикаты `pricing_policy`, новое поле подхватится из константы
 
 - [ ] **Task 3: Prefetch во вью каталога** (AC: 3)
   - [ ] 3.1: `views.py:87` — добавить `| Q(opt4_price__gt=0)` в `Prefetch` `first_variant_list`
@@ -113,13 +114,13 @@ so that **я мог работать с порталом так же, как к�
 |---|---|---|
 | `ProductFilter.filter_min_price` | **LOW** | 0 (вызывается django-filter по имени метода) |
 | `ProductFilter.filter_max_price` | **LOW** | 0 (то же) |
-| `ProductListSerializer._get_first_variant` | **MEDIUM** | **9**, все внутри модуля Products: `get_retail_price`, `get_current_price`, `get_sku`, `get_rrp`, `get_msrp`, `get_opt1_price`, `get_opt2_price`, `get_opt3_price`, `get_stock_quantity` |
+| `ProductListSerializer._get_first_variant` (`serializers.py:520`) | **MEDIUM** | **9**, все внутри модуля Products: `get_retail_price`, `get_current_price`, `get_sku`, `get_rrp`, `get_msrp`, `get_opt1_price`, `get_opt2_price`, `get_opt3_price`, `get_stock_quantity` |
 | `banners.services._get_role_filter` | **LOW** | 2 — `get_active_banners_queryset`, `compute_cache_ttl` |
 | `UserRegistrationSerializer.validate_role` | **LOW** | 0 (вызывается DRF по соглашению об именах) |
 
 ⚠️ **MEDIUM у `_get_first_variant`** — единственная точка стори с нетривиальным радиусом. Правка **строго аддитивная**: один дизъюнкт `| Q(opt4_price__gt=0)` в фильтре fallback-запроса. Сигнатура, возвращаемый тип и порядок `order_by("retail_price")` не меняются, поэтому все девять вызывающих продолжают работать как прежде. Расширение отбора может добавить в выдачу варианты, которые раньше отсеивались (ровно те, у которых заполнена только `opt4_price`) — это и есть требование AC3, а не регресс.
 
-⚠️ Индекс GitNexus помечен `stale` (проиндексирован `98862f8`, HEAD `61e1080`), но расхождение — единственный docs-коммит (`AGENTS.md`, `CLAUDE.md`, story-файлы, `sprint-status.yaml`), кода он не касается. Если `impact`/`context` вернёт `{"error": "Symbol ... not found"}` на заведомо существующий символ — попроси Alex выполнить `! npx gitnexus analyze`.
+⚠️ Индекс GitNexus на `67045968` был `up-to-date`, но **реализация стори `security-wholesale-price-visibility` в него не попала** — модуль `pricing_policy.py` и его функции (`resolve_pricing_role`, `can_see_wholesale_prices`, `can_see_info_prices`) индексу неизвестны. `context`/`impact` по ним вернёт `{"error": "Symbol ... not found"}` — это устаревший индекс, а не отсутствие кода. Попроси Alex выполнить `! npx gitnexus analyze` до pre-flight.
 
 ### Точный код: фильтры
 
@@ -145,19 +146,19 @@ so that **я мог работать с порталом так же, как к�
 
 `backend/apps/products/serializers.py`.
 
-1. Объявление поля (после `:478`):
+1. Объявление поля (после `:465`):
 
 ```python
     opt4_price = serializers.SerializerMethodField()
 ```
 
-2. `Meta.fields` (после `"opt3_price",`, `:514`):
+2. `Meta.fields` (после `"opt3_price",`, `:501`):
 
 ```python
             "opt4_price",
 ```
 
-3. Метод (после `get_opt3_price`, `:633`):
+3. Метод (после `get_opt3_price`, `:617`):
 
 ```python
     def get_opt4_price(self, obj: Product) -> float:
@@ -168,17 +169,32 @@ so that **я мог работать с порталом так же, как к�
         return 0.0
 ```
 
-4. Фильтр в `_get_first_variant` (после `| Q(opt3_price__gt=0)`, `:549`):
+4. Фильтр в `_get_first_variant` (после `| Q(opt3_price__gt=0)`, `:536`):
 
 ```python
                 | Q(opt4_price__gt=0)
 ```
 
-5. Оба списка `allowed_roles` — `ProductVariantSerializer.to_representation` (`:106-112`) и `ProductListSerializer.to_representation` (`:587-593`) — получают `"wholesale_level4",` после `"wholesale_level3",`.
+5. `backend/apps/products/pricing_policy.py` — **две** константы, обе с комментарием-подсказкой, оставленным специально под эту стори:
 
-**Почему РРЦ/МРЦ доступны уровню 4.** Списки управляют видимостью инфо-цен: их видят оптовики 1-3, тренеры, админы; розница, гости и `federation_rep` — нет. Четвёртый уровень — оптовый (`B2B_ROLES`), и задание (`dev-task-role-from-1c-agreement.md` §B2, строка про `serializers.py:109,…,590`) прямо относит эти строки к правкам стори. Пропуск даст неотличимый от бага перекос: оптовик уровня 4 в карточке товара не увидит РРЦ, которую видит уровень 3.
+```python
+# Сырые оптовые поля ответа каталога. Стори 39.3 добавляет сюда "opt4_price".
+WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price", "opt4_price")
 
-**`ProductDetailSerializer` (`:709`) правок не требует** — `class Meta(ProductListSerializer.Meta)` строит `fields` как `ProductListSerializer.Meta.fields + [...]`, а `to_representation` делегирует родителю. Поле и роль подхватятся сами. Не дублировать.
+INFO_PRICE_ROLES = frozenset(
+    {"wholesale_level1", "wholesale_level2", "wholesale_level3", "wholesale_level4", "trainer", "admin"}
+)
+```
+
+Комментарии «Стори 39.3 добавляет сюда …» после правки снять — они выполнили роль.
+
+**Почему `opt4_price` обязан попасть в `WHOLESALE_PRICE_FIELDS`.** Константа — единственное место, где перечислены поля, обнуляемые для ролей без права. Поле, добавленное в `Meta.fields` мимо константы, вернётся анонимному запросу с фактическим значением: три предыдущих оптовых поля так и утекали (`tech-debt.md` п. 18). Сторож `backend/tests/integration/test_catalog_price_visibility.py` сформулирован по всем ключам `opt*_price`, поэтому пропуск этой правки **упадёт тестом**, а не уедет на прод молча — но чинить надо константу, а не тест.
+
+**Почему РРЦ/МРЦ доступны уровню 4.** `INFO_PRICE_ROLES` управляет видимостью инфо-цен: их видят оптовики 1-3, тренеры, админы; розница, гости и `federation_rep` — нет. Четвёртый уровень — оптовый (`B2B_ROLES`), и задание (`dev-task-role-from-1c-agreement.md` §B2) прямо относит эту правку к стори. Пропуск даст неотличимый от бага перекос: оптовик уровня 4 в карточке товара не увидит РРЦ, которую видит уровень 3.
+
+**`ProductDetailSerializer` (`:693`) правок не требует** — `class Meta(ProductListSerializer.Meta)` строит `fields` как `ProductListSerializer.Meta.fields + [...]`, а `to_representation` делегирует родителю. Поле и роль подхватятся сами. Не дублировать.
+
+**⚠️ Мина для тестов этой стори: `is_verified`.** После закрытия `tech-debt.md` п. 18 B2B-роль без `is_verified=True` понижается до `retail` — и в ценах, и в фильтрах, и в видимости РРЦ/МРЦ. Любой пользователь `wholesale_level4`, создаваемый в тестах **ради проверки цены или инфо-цен** (AC2, AC4, кейсы `test_wholesale_level4_sees_rrp_and_msrp`, фильтры по `opt4_price`), обязан создаваться с `is_verified=True`, иначе тест проверит розничную ветку и «докажет» отсутствие фичи. Фикстуры `wholesale_user` / `trainer_user` / `admin_user` из `backend/tests/conftest.py` флаг уже ставят. В `test_all_role_price_mappings` (`tests/unit/test_product_filters.py`) пользователь — `Mock()`, у которого любой атрибут truthy, поэтому добавление роли в `roles_to_test` (Task 7.1) работает как есть.
 
 ### Точный код: вью каталога
 
@@ -265,7 +281,23 @@ git diff --stat docs/api/openapi.yaml
 git diff docs/api/openapi.yaml | head -200
 ```
 
-**Ожидаемый diff:** `opt4_price` в `properties` и `required` схем `ProductList` (`:3957`, `:4055`) и `ProductDetail` (`:4207`, `:4276`), плюс `wholesale_level4` в `enum` и в текстовом описании `RoleEnum`. Дополнительно допустимы небольшие ханки из двух коммитов по users/auth — это законная синхронизация контракта, оставить и перечислить в File List. **Если diff оказался структурным** (переупорядочивание всего файла, смена версии OpenAPI, массовое переименование `operationId`) — не коммитить, остановиться и спросить Alex: значит, версия drf-spectacular в контейнере разошлась с той, которой сгенерирован закоммиченный файл.
+**Ожидаемый diff:** `opt4_price` в `properties` и `required` схем `ProductList` (`:3957`, `:4055`) и `ProductDetail` (`:4207`, `:4276`), плюс `wholesale_level4` в `enum` и в текстовом описании `RoleEnum`.
+
+⚠️ **Дрейф измерен 2026-08-03 (стори `security-wholesale-price-visibility`, Task 7.1) — он больше, чем предполагалось, и diff будет шумным:**
+
+1. **Закоммиченный файл разошёлся с генерацией целиком**, а не точечно: 4913 строк генерации против 4826 закоммиченных. Ожидать аккуратного diff из двух-трёх ханков не нужно.
+2. **Сам генератор недетерминирован.** Два прогона `manage.py spectacular` на *неизменном* коде дают ~275 строк diff: HTTP-методы (`post` / `patch` / `delete`) переставляются местами внутри путей `/users/addresses/`, `/users/favorites/`, `/orders/`, `/cart/items/`. Поэтому **побайтовое сравнение регенерации бессмысленно** — ни с коммитом, ни между прогонами.
+3. **Как проверять на самом деле:** сравнивать `components.schemas` и множество пар «путь → метод», а не текст файла. Рабочий приём (им доказан AC9 предыдущей стори):
+
+```python
+import yaml
+b = yaml.safe_load(open("before.yaml", encoding="utf-8"))
+a = yaml.safe_load(open("after.yaml", encoding="utf-8"))
+print(b["components"]["schemas"]["ProductList"] == a["components"]["schemas"]["ProductList"])
+print({(p, m) for p, ops in b["paths"].items() for m in ops} == {(p, m) for p, ops in a["paths"].items() for m in ops})
+```
+
+**Что считать успехом AC10:** в `components.schemas.ProductList` и `.ProductDetail` появились `opt4_price` (в `properties` и `required`), в `RoleEnum` — `wholesale_level4`; множество операций путей не изменилось. Прочий шум в тексте файла — следствие пунктов 1-2, он законен. **Останавливаться и спрашивать Alex** нужно при смене версии OpenAPI, исчезновении путей или массовом переименовании `operationId` — то есть при расхождении по *множеству операций*, а не по порядку строк.
 
 ### Мина: тестовые файлы без маркеров
 
@@ -386,10 +418,11 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 - **НЕ** трогать `products/models.py`, миграции, `ONEC_EXCHANGE` — сделано в **39.1**.
 - **НЕ** трогать `products/services/parser.py` и `variant_import.py` — сделано в **39.2**.
 - **НЕ** заполнять `PriceType.user_role` у остальных записей справочника и **не** регистрировать `PriceType` в админке — это стори **40.2**.
-- **НЕ** рефакторить списки ролей к единому предикату/константе — сознательно принятый долг эпика (`tech-debt.md` п. 17), рефакторинг в объём **не входит**.
+- **НЕ** рефакторить списки ролей к единому предикату/константе **на фронте** — сознательно принятый долг эпика (`tech-debt.md` п. 17), рефакторинг в объём **не входит**. На бэкенде такой предикат уже есть (`apps/products/pricing_policy.py`) — им и пользоваться, литеральных списков ролей не заводить.
 - **НЕ** выносить дублирующееся условие `Q(retail_price__gt=0) | …` в общую константу — горячий путь каталога, рефакторинг вне объёма.
 - **НЕ** править `ProductDetailSerializer` — наследует `Meta.fields`.
-- **НЕ** добавлять `opt4_price` в `ProductVariantSerializer.Meta.fields`: этот сериализатор сырых ценовых полей не отдаёт вовсе, только `current_price`. Добавление раскрыло бы оптовые цены всем ролям, включая гостей.
+- **НЕ** добавлять `opt4_price` в `ProductVariantSerializer.Meta.fields`: этот сериализатор сырых ценовых полей не отдаёт вовсе, только `current_price`. Его `to_representation` гейтит лишь `rrp`/`msrp`, поэтому добавленное поле утекло бы всем ролям, включая гостей.
+- **НЕ** ставить проверку прав внутрь `get_opt4_price` — гейт живёт в одном месте (`to_representation` + `WHOLESALE_PRICE_FIELDS`); дублирование в методе разведёт источники истины.
 - **НЕ** добавлять `opt4_price` в `list_display`/`ProductVariantInline` админки — там нет ни одной оптовой цены.
 - **НЕ** менять сортировку каталога и аннотацию `min_retail_price` — она осталась розничной осознанно.
 - **НЕ** чинить маркеры у предсуществующих тест-классов без отдельного решения Alex.
@@ -412,13 +445,14 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 - [Source: _bmad-output/implementation-artifacts/tasks/dev-task-role-from-1c-agreement.md#B2 Прикладной код — полный список файлов и строк]
 - [Source: _bmad-output/implementation-artifacts/Story/39-2-import-opt4-prices-from-1c.md#Релизное правило эпика — дефект SELF_SERVICE_ROLES передан в 39.3]
 - [Source: _bmad-output/implementation-artifacts/Story/39-2-import-opt4-prices-from-1c.md#Мина: маркеры тестов и базовые линии прогонов]
-- [Source: backend/apps/products/filters.py:270-286, :305-321 — filter_min_price / filter_max_price, ветки по ролям]
-- [Source: backend/apps/products/serializers.py:106-112 — allowed_roles в ProductVariantSerializer]
-- [Source: backend/apps/products/serializers.py:474-523 — объявления полей и Meta.fields ProductListSerializer]
-- [Source: backend/apps/products/serializers.py:533-555 — _get_first_variant, фильтр наличия цены]
-- [Source: backend/apps/products/serializers.py:575-597 — to_representation, скрытие rrp/msrp]
-- [Source: backend/apps/products/serializers.py:614-633 — get_opt1/2/3_price, образец для get_opt4_price]
-- [Source: backend/apps/products/serializers.py:709-731 — ProductDetailSerializer наследует Meta.fields]
+- [Source: backend/apps/products/filters.py:267-286, :301-319 — filter_min_price / filter_max_price, ветки по ролям через resolve_pricing_role]
+- [Source: backend/apps/products/pricing_policy.py — WHOLESALE_PRICE_FIELDS, INFO_PRICE_ROLES, предикаты видимости цен]
+- [Source: backend/apps/products/serializers.py:94-105 — ProductVariantSerializer.to_representation через can_see_info_prices]
+- [Source: backend/apps/products/serializers.py:461-510 — объявления полей и Meta.fields ProductListSerializer]
+- [Source: backend/apps/products/serializers.py:520-542 — _get_first_variant, фильтр наличия цены]
+- [Source: backend/apps/products/serializers.py:562-581 — to_representation, скрытие rrp/msrp и обнуление оптовых полей]
+- [Source: backend/apps/products/serializers.py:598-617 — get_opt1/2/3_price, образец для get_opt4_price]
+- [Source: backend/apps/products/serializers.py:693-715 — ProductDetailSerializer наследует Meta.fields]
 - [Source: backend/apps/products/views.py:81-93 — Prefetch first_variant_list]
 - [Source: backend/apps/products/admin.py:632-646 — fieldset «Ценообразование» ProductVariantAdmin]
 - [Source: backend/apps/products/factories.py:91-103, :140-147 — variant_fields и ценовые поля фабрики]
@@ -427,7 +461,8 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 - [Source: backend/apps/users/views/misc.py:41-53 — user_roles_view строит список из ROLE_CHOICES]
 - [Source: backend/apps/users/models.py:153-186, :387-404 — ROLE_CHOICES, B2B_ROLES, is_wholesale_user, wholesale_level]
 - [Source: backend/apps/banners/services.py:30-33, :116-144 — _ALL_ROLE_KEYS и _get_role_filter]
-- [Source: backend/apps/products/models.py:912-923, :1188-1203 — opt4_price и get_price_for_user]
+- [Source: backend/apps/products/models.py:912-923, :1188-1206 — opt4_price и get_price_for_user через resolve_pricing_role]
+- [Source: backend/tests/integration/test_catalog_price_visibility.py — сторож утечки по всем ключам opt*_price]
 - [Source: backend/apps/products/tests/unit/test_price_logic.py:167-199 — тесты 39.1, зависящие от пустой opt4_price]
 - [Source: backend/tests/unit/test_product_filters.py:304-340 — test_all_role_price_mappings, образец]
 - [Source: backend/tests/unit/test_users_admin.py:20, :152-160 — pytestmark unit, тест role_display]

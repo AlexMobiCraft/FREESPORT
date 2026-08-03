@@ -337,3 +337,74 @@ class TestProductFilterIntegration:
             product_filter.filter_max_price(queryset, "max_price", 1000)
 
             assert hasattr(product_filter, "_variant_filters")
+
+
+@pytest.mark.unit
+class TestProductFilterPricingPolicy:
+    """
+    Ценовые фильтры согласованы с политикой видимости цен.
+
+    Стори `security-wholesale-price-visibility`, AC5: пользователь
+    фильтруется по той цене, которую ему показывают. Неверифицированный
+    оптовик видит розничную цену — значит и фильтруется по `retail_price`.
+    """
+
+    @staticmethod
+    def _filter_with_user(role, is_verified):
+        """ProductFilter с mock-запросом от имени пользователя с заданной ролью"""
+        mock_user = Mock()
+        mock_user.is_authenticated = True
+        mock_user.role = role
+        # ЯВНО: у Mock любой атрибут truthy, поэтому is_verified=False
+        # обязано задаваться руками, иначе тест молча проверит не то
+        mock_user.is_verified = is_verified
+
+        mock_request = Mock()
+        mock_request.user = mock_user
+
+        product_filter = ProductFilter()
+        product_filter.request = mock_request
+        return product_filter
+
+    def test_unverified_wholesale_filters_by_retail_price(self):
+        """Неверифицированный оптовик фильтруется по retail_price"""
+        product_filter = self._filter_with_user("wholesale_level1", is_verified=False)
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        assert product_filter._variant_filters == Q(retail_price__gte=100)
+
+    def test_verified_wholesale_filters_by_opt1_price(self):
+        """Верифицированный оптовик фильтруется по своей оптовой цене"""
+        product_filter = self._filter_with_user("wholesale_level1", is_verified=True)
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        expected = Q(opt1_price__gte=100) | Q(opt1_price__isnull=True, retail_price__gte=100)
+        assert product_filter._variant_filters == expected
+
+    def test_unverified_trainer_max_price_by_retail(self):
+        """То же для filter_max_price и роли trainer"""
+        product_filter = self._filter_with_user("trainer", is_verified=False)
+
+        product_filter.filter_max_price(Mock(), "max_price", 1000)
+
+        assert product_filter._variant_filters == Q(retail_price__lte=1000)
+
+    def test_verified_trainer_max_price_by_trainer_price(self):
+        """Верифицированный тренер фильтруется по trainer_price"""
+        product_filter = self._filter_with_user("trainer", is_verified=True)
+
+        product_filter.filter_max_price(Mock(), "max_price", 1000)
+
+        expected = Q(trainer_price__lte=1000) | Q(trainer_price__isnull=True, retail_price__lte=1000)
+        assert product_filter._variant_filters == expected
+
+    def test_anonymous_request_filters_by_retail_price(self):
+        """Без request (аноним) роль резолвится в retail — поведение не изменилось"""
+        product_filter = ProductFilter()
+        product_filter.request = None
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        assert product_filter._variant_filters == Q(retail_price__gte=100)

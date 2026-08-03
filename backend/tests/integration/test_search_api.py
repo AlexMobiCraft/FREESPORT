@@ -91,7 +91,9 @@ class SearchAPITest(TestCase):
         # Создаем тестовых пользователей
         self.retail_user = User.objects.create_user(email="retail@test.com", password="testpass123", role="retail")
 
-        self.trainer_user = User.objects.create_user(email="trainer@test.com", password="testpass123", role="trainer")
+        self.trainer_user = User.objects.create_user(
+            email="trainer@test.com", password="testpass123", role="trainer", is_verified=True
+        )
 
     def test_search_basic_functionality(self):
         """Тест базовой функциональности поиска"""

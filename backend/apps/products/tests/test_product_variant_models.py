@@ -105,7 +105,9 @@ class TestProductVariant:
 
     def test_get_price_for_wholesale_level1(self, variant, db):
         """AC7: get_price_for_user возвращает opt1_price для wholesale_level1"""
-        user = User.objects.create_user(email="ws1@test.com", password="pass", role="wholesale_level1")
+        user = User.objects.create_user(
+            email="ws1@test.com", password="pass", role="wholesale_level1", is_verified=True
+        )
         price = variant.get_price_for_user(user)
         assert price == variant.opt1_price
 
@@ -113,7 +115,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает opt2_price для wholesale_level2"""
         variant.opt2_price = Decimal("850.00")
         variant.save()
-        user = User.objects.create_user(email="ws2@test.com", password="pass", role="wholesale_level2")
+        user = User.objects.create_user(
+            email="ws2@test.com", password="pass", role="wholesale_level2", is_verified=True
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("850.00")
 
@@ -121,7 +125,9 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает opt3_price для wholesale_level3"""
         variant.opt3_price = Decimal("800.00")
         variant.save()
-        user = User.objects.create_user(email="ws3@test.com", password="pass", role="wholesale_level3")
+        user = User.objects.create_user(
+            email="ws3@test.com", password="pass", role="wholesale_level3", is_verified=True
+        )
         price = variant.get_price_for_user(user)
         assert price == Decimal("800.00")
 
@@ -129,7 +135,7 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает trainer_price для trainer"""
         variant.trainer_price = Decimal("750.00")
         variant.save()
-        user = User.objects.create_user(email="trainer@test.com", password="pass", role="trainer")
+        user = User.objects.create_user(email="trainer@test.com", password="pass", role="trainer", is_verified=True)
         price = variant.get_price_for_user(user)
         assert price == Decimal("750.00")
 
@@ -137,7 +143,7 @@ class TestProductVariant:
         """AC7: get_price_for_user возвращает federation_price для federation_rep"""
         variant.federation_price = Decimal("700.00")
         variant.save()
-        user = User.objects.create_user(email="fed@test.com", password="pass", role="federation_rep")
+        user = User.objects.create_user(email="fed@test.com", password="pass", role="federation_rep", is_verified=True)
         price = variant.get_price_for_user(user)
         assert price == Decimal("700.00")
 

@@ -13,6 +13,7 @@ from django.db import connection
 from django.db.models import Q, QuerySet
 
 from .models import Attribute, Brand, Category, Product
+from .pricing_policy import resolve_pricing_role
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
@@ -264,26 +265,25 @@ class ProductFilter(django_filters.FilterSet):
             self._variant_filters = Q()
 
         request = self.request
-        if not request or not request.user.is_authenticated:
-            self._variant_filters &= Q(retail_price__gte=value)
+        # Фильтруем по той цене, которую пользователь видит: неверифицированный
+        # B2B понижается до retail (см. pricing_policy)
+        user_role = resolve_pricing_role(getattr(request, "user", None) if request else None)
+        if user_role == "wholesale_level1":
+            self._variant_filters &= Q(opt1_price__gte=value) | Q(opt1_price__isnull=True, retail_price__gte=value)
+        elif user_role == "wholesale_level2":
+            self._variant_filters &= Q(opt2_price__gte=value) | Q(opt2_price__isnull=True, retail_price__gte=value)
+        elif user_role == "wholesale_level3":
+            self._variant_filters &= Q(opt3_price__gte=value) | Q(opt3_price__isnull=True, retail_price__gte=value)
+        elif user_role == "trainer":
+            self._variant_filters &= Q(trainer_price__gte=value) | Q(
+                trainer_price__isnull=True, retail_price__gte=value
+            )
+        elif user_role == "federation_rep":
+            self._variant_filters &= Q(federation_price__gte=value) | Q(
+                federation_price__isnull=True, retail_price__gte=value
+            )
         else:
-            user_role = request.user.role
-            if user_role == "wholesale_level1":
-                self._variant_filters &= Q(opt1_price__gte=value) | Q(opt1_price__isnull=True, retail_price__gte=value)
-            elif user_role == "wholesale_level2":
-                self._variant_filters &= Q(opt2_price__gte=value) | Q(opt2_price__isnull=True, retail_price__gte=value)
-            elif user_role == "wholesale_level3":
-                self._variant_filters &= Q(opt3_price__gte=value) | Q(opt3_price__isnull=True, retail_price__gte=value)
-            elif user_role == "trainer":
-                self._variant_filters &= Q(trainer_price__gte=value) | Q(
-                    trainer_price__isnull=True, retail_price__gte=value
-                )
-            elif user_role == "federation_rep":
-                self._variant_filters &= Q(federation_price__gte=value) | Q(
-                    federation_price__isnull=True, retail_price__gte=value
-                )
-            else:
-                self._variant_filters &= Q(retail_price__gte=value)
+            self._variant_filters &= Q(retail_price__gte=value)
 
         return queryset
 
@@ -299,26 +299,24 @@ class ProductFilter(django_filters.FilterSet):
             self._variant_filters = Q()
 
         request = self.request
-        if not request or not request.user.is_authenticated:
-            self._variant_filters &= Q(retail_price__lte=value)
+        # Симметрично filter_min_price: роль берём из политики видимости цен
+        user_role = resolve_pricing_role(getattr(request, "user", None) if request else None)
+        if user_role == "wholesale_level1":
+            self._variant_filters &= Q(opt1_price__lte=value) | Q(opt1_price__isnull=True, retail_price__lte=value)
+        elif user_role == "wholesale_level2":
+            self._variant_filters &= Q(opt2_price__lte=value) | Q(opt2_price__isnull=True, retail_price__lte=value)
+        elif user_role == "wholesale_level3":
+            self._variant_filters &= Q(opt3_price__lte=value) | Q(opt3_price__isnull=True, retail_price__lte=value)
+        elif user_role == "trainer":
+            self._variant_filters &= Q(trainer_price__lte=value) | Q(
+                trainer_price__isnull=True, retail_price__lte=value
+            )
+        elif user_role == "federation_rep":
+            self._variant_filters &= Q(federation_price__lte=value) | Q(
+                federation_price__isnull=True, retail_price__lte=value
+            )
         else:
-            user_role = request.user.role
-            if user_role == "wholesale_level1":
-                self._variant_filters &= Q(opt1_price__lte=value) | Q(opt1_price__isnull=True, retail_price__lte=value)
-            elif user_role == "wholesale_level2":
-                self._variant_filters &= Q(opt2_price__lte=value) | Q(opt2_price__isnull=True, retail_price__lte=value)
-            elif user_role == "wholesale_level3":
-                self._variant_filters &= Q(opt3_price__lte=value) | Q(opt3_price__isnull=True, retail_price__lte=value)
-            elif user_role == "trainer":
-                self._variant_filters &= Q(trainer_price__lte=value) | Q(
-                    trainer_price__isnull=True, retail_price__lte=value
-                )
-            elif user_role == "federation_rep":
-                self._variant_filters &= Q(federation_price__lte=value) | Q(
-                    federation_price__isnull=True, retail_price__lte=value
-                )
-            else:
-                self._variant_filters &= Q(retail_price__lte=value)
+            self._variant_filters &= Q(retail_price__lte=value)
 
         return queryset
 

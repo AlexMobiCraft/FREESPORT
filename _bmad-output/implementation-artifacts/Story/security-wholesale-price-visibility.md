@@ -5,7 +5,7 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
 # Story: Security — Оптовые цены видны только верифицированному B2B
 
 **Story ID:** security-wholesale-price-visibility
-**Status:** ready-for-dev
+**Status:** review
 **Priority:** 🔴 High — блокирует стори 39.3 (решение Alex, 2026-08-03)
 **Source:** `_bmad-output/planning-artifacts/tech-debt.md` п. 18 · `_bmad-output/planning-artifacts/epics.md` → Epic 39 → «Предшествующая работа»
 **Порядок:** выполняется **до** стори `39-3-catalog-admin-api-opt4-price`. Эпика не имеет — правка про политику цен в целом, а не про «Опт 4».
@@ -90,58 +90,58 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Модуль политики цен** (AC: 1, 8)
-  - [ ] 1.1: Создать `backend/apps/products/pricing_policy.py` — точный код в Dev Notes → «Точный код: pricing_policy.py»
-  - [ ] 1.2: `WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price")` с комментарием «стори 39.3 добавляет сюда `opt4_price`»
-  - [ ] 1.3: Импорт `User` — **ленивый, внутри функции** (`from apps.users.models import User`), иначе цикл `products.models → pricing_policy → users.models`
+- [x] **Task 1: Модуль политики цен** (AC: 1, 8)
+  - [x] 1.1: Создать `backend/apps/products/pricing_policy.py` — точный код в Dev Notes → «Точный код: pricing_policy.py»
+  - [x] 1.2: `WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price")` с комментарием «стори 39.3 добавляет сюда `opt4_price`»
+  - [x] 1.3: Импорт `User` — **ленивый, внутри функции** (`from apps.users.models import User`), иначе цикл `products.models → pricing_policy → users.models`
 
-- [ ] **Task 2: Гейт в сериализаторах** (AC: 1, 2, 3, 6, 8)
-  - [ ] 2.1: `serializers.py:93-117` — `ProductVariantSerializer.to_representation`: литеральный `allowed_roles` заменить на `can_see_info_prices(user)`
-  - [ ] 2.2: `serializers.py:575-597` — `ProductListSerializer.to_representation`: то же для `rrp`/`msrp` + обнуление `WHOLESALE_PRICE_FIELDS` при `not can_see_wholesale_prices(user)`
-  - [ ] 2.3: Комментарий про смысл `0.0` рядом с обнулением
-  - [ ] 2.4: `ProductDetailSerializer` (`:709`, `:732-734`) **не править** — делегирует `super().to_representation`
-  - [ ] 2.5: `serializers_variant.py` **не править** — сырых ценовых полей не отдаёт, `current_price` гейтится через Task 3
+- [x] **Task 2: Гейт в сериализаторах** (AC: 1, 2, 3, 6, 8)
+  - [x] 2.1: `serializers.py:93-117` — `ProductVariantSerializer.to_representation`: литеральный `allowed_roles` заменить на `can_see_info_prices(user)`
+  - [x] 2.2: `serializers.py:575-597` — `ProductListSerializer.to_representation`: то же для `rrp`/`msrp` + обнуление `WHOLESALE_PRICE_FIELDS` при `not can_see_wholesale_prices(user)`
+  - [x] 2.3: Комментарий про смысл `0.0` рядом с обнулением
+  - [x] 2.4: `ProductDetailSerializer` (`:709`, `:732-734`) **не править** — делегирует `super().to_representation`
+  - [x] 2.5: `serializers_variant.py` **не править** — сырых ценовых полей не отдаёт, `current_price` гейтится через Task 3
 
-- [ ] **Task 3: Верификация в `get_price_for_user`** (AC: 4)
-  - [ ] 3.1: `products/models.py:1188-1203` — роль через `resolve_pricing_role(user)`; ранняя ветка «аноним → retail» убирается как поглощённая
-  - [ ] 3.2: `cart/`, `orders/` **не править** — они получают гейт транзитом через `price_snapshot`
+- [x] **Task 3: Верификация в `get_price_for_user`** (AC: 4)
+  - [x] 3.1: `products/models.py:1188-1203` — роль через `resolve_pricing_role(user)`; ранняя ветка «аноним → retail» убирается как поглощённая
+  - [x] 3.2: `cart/`, `orders/` **не править** — они получают гейт транзитом через `price_snapshot`
 
-- [ ] **Task 4: Фильтры каталога** (AC: 5)
-  - [ ] 4.1: `filters.py:248-288` — `filter_min_price` на `resolve_pricing_role`
-  - [ ] 4.2: `filters.py:290-323` — `filter_max_price` на `resolve_pricing_role`
-  - [ ] 4.3: Ветку `if not request or not request.user.is_authenticated` убрать — `resolve_pricing_role(None)` даёт `retail`; поведение эквивалентно
-  - [ ] 4.4: `_variant_filters`, `qs`-property и subquery-оптимизацию **не трогать**
+- [x] **Task 4: Фильтры каталога** (AC: 5)
+  - [x] 4.1: `filters.py:248-288` — `filter_min_price` на `resolve_pricing_role`
+  - [x] 4.2: `filters.py:290-323` — `filter_max_price` на `resolve_pricing_role`
+  - [x] 4.3: Ветку `if not request or not request.user.is_authenticated` убрать — `resolve_pricing_role(None)` даёт `retail`; поведение эквивалентно
+  - [x] 4.4: `_variant_filters`, `qs`-property и subquery-оптимизацию **не трогать**
 
-- [ ] **Task 5: Обновление существующих тестов** (AC: 10)
-  - [ ] 5.1: `apps/products/tests/test_product_variant_models.py:105-145` — 5 тестов ролевой цены: добавить `is_verified=True` в `create_user`
-  - [ ] 5.2: `apps/products/tests/unit/test_price_logic.py:121, :177, :190` — `federation_rep` и два теста «Опт 4»: `is_verified=True`
-  - [ ] 5.3: `apps/products/tests/test_serializers.py:45, :229, :249` — `is_verified=True`
-  - [ ] 5.4: `apps/products/tests/test_api_products.py:46` — `is_verified=True` (тест ждёт `current_price == opt1_price` на `:147-150`)
-  - [ ] 5.5: `tests/integration/base.py:110, :125` — базовый класс интеграционных тестов
-  - [ ] 5.6: `tests/integration/test_b2b_workflow.py:24` (ассерт `opt1_price == 800` на `:65`), `test_pricing_integration.py:27-37` (ассерт на `:195`), `test_orders_api.py:465`, `test_personal_cabinet_workflow.py:29, :171`, `test_link_then_import_1c.py:77`
-  - [ ] 5.7: `tests/integration/test_catalog_api.py` — уже ставит `is_verified = True` (`:146`), проверить остальные кейсы файла
-  - [ ] 5.8: **Не трогать** тесты, где B2B-роль создаётся не ради цены: `test_banners_api.py`, `apps/banners/tests/test_views.py`, `test_portal_registration_1c_link.py`, `test_variant_import_migrated.py`
+- [x] **Task 5: Обновление существующих тестов** (AC: 10)
+  - [x] 5.1: `apps/products/tests/test_product_variant_models.py:105-145` — 5 тестов ролевой цены: добавить `is_verified=True` в `create_user`
+  - [x] 5.2: `apps/products/tests/unit/test_price_logic.py:121, :177, :190` — `federation_rep` и два теста «Опт 4»: `is_verified=True`
+  - [x] 5.3: `apps/products/tests/test_serializers.py:45, :229, :249` — `is_verified=True`
+  - [x] 5.4: `apps/products/tests/test_api_products.py:46` — `is_verified=True` (тест ждёт `current_price == opt1_price` на `:147-150`)
+  - [x] 5.5: `tests/integration/base.py:110, :125` — базовый класс интеграционных тестов
+  - [x] 5.6: `tests/integration/test_b2b_workflow.py:24` (ассерт `opt1_price == 800` на `:65`), `test_pricing_integration.py:27-37` (ассерт на `:195`), `test_orders_api.py:465`, `test_personal_cabinet_workflow.py:29, :171`, `test_link_then_import_1c.py:77`
+  - [x] 5.7: `tests/integration/test_catalog_api.py` — уже ставит `is_verified = True` (`:146`), проверить остальные кейсы файла
+  - [x] 5.8: **Не трогать** тесты, где B2B-роль создаётся не ради цены: `test_banners_api.py`, `apps/banners/tests/test_views.py`, `test_portal_registration_1c_link.py`, `test_variant_import_migrated.py`
 
-- [ ] **Task 6: Новые тесты** (AC: 7, 11)
-  - [ ] 6.1: **Новый** `backend/apps/products/tests/unit/test_pricing_policy.py` — предикаты, `pytestmark = [pytest.mark.unit, pytest.mark.django_db]`
-  - [ ] 6.2: **Новый** `backend/tests/integration/test_catalog_price_visibility.py` — сторож AC7, `pytestmark = pytest.mark.integration`
-  - [ ] 6.3: В `test_pricing_policy.py` — кейсы `get_price_for_user` для неверифицированного B2B и `related_products`
-  - [ ] 6.4: Корзина: тест «неверифицированный `wholesale_level1` кладёт товар → `price_snapshot == retail_price`» (`tests/integration/`, рядом с `test_user_cart_integration.py`)
-  - [ ] 6.5: `tests/unit/test_product_filters.py` — новый класс с `@pytest.mark.unit`: неверифицированный оптовик фильтруется по `retail_price`. **Mock-ловушка:** в `test_all_role_price_mappings` (`:304`) пользователь — `Mock()`, у которого `is_verified` truthy по умолчанию; в новом тесте задавать `mock_user.is_verified = False` **явно**
-  - [ ] 6.6: Проверить отбор новых тестов по маркерам (команда — в Dev Notes)
+- [x] **Task 6: Новые тесты** (AC: 7, 11)
+  - [x] 6.1: **Новый** `backend/apps/products/tests/unit/test_pricing_policy.py` — предикаты, `pytestmark = [pytest.mark.unit, pytest.mark.django_db]`
+  - [x] 6.2: **Новый** `backend/tests/integration/test_catalog_price_visibility.py` — сторож AC7, `pytestmark = pytest.mark.integration`
+  - [x] 6.3: В `test_pricing_policy.py` — кейсы `get_price_for_user` для неверифицированного B2B и `related_products`
+  - [x] 6.4: Корзина: тест «неверифицированный `wholesale_level1` кладёт товар → `price_snapshot == retail_price`» (`tests/integration/`, рядом с `test_user_cart_integration.py`)
+  - [x] 6.5: `tests/unit/test_product_filters.py` — новый класс с `@pytest.mark.unit`: неверифицированный оптовик фильтруется по `retail_price`. **Mock-ловушка:** в `test_all_role_price_mappings` (`:304`) пользователь — `Mock()`, у которого `is_verified` truthy по умолчанию; в новом тесте задавать `mock_user.is_verified = False` **явно**
+  - [x] 6.6: Проверить отбор новых тестов по маркерам (команда — в Dev Notes)
 
-- [ ] **Task 7: Контракт и прогон** (AC: 9, 11)
-  - [ ] 7.1: Регенерировать `openapi.yaml` (команда — в Dev Notes) и убедиться, что `git diff --exit-code docs/api/openapi.yaml` чист; временный файл удалить
-  - [ ] 7.2: Полный unit-прогон. Базовая линия до правок: **1041 passed, 1 skipped**
-  - [ ] 7.3: Полный integration-прогон (≈ 30 мин, в фоне). Базовая линия: **744 passed, 2 skipped**
-  - [ ] 7.4: `black --check` + `flake8` по изменённым файлам
-  - [ ] 7.5: `npx gitnexus detect-changes --scope all` перед коммитом
+- [x] **Task 7: Контракт и прогон** (AC: 9, 11)
+  - [x] 7.1: Регенерировать `openapi.yaml` (команда — в Dev Notes) и убедиться, что `git diff --exit-code docs/api/openapi.yaml` чист; временный файл удалить
+  - [x] 7.2: Полный unit-прогон. Базовая линия до правок: **1041 passed, 1 skipped**
+  - [x] 7.3: Полный integration-прогон (≈ 30 мин, в фоне). Базовая линия: **744 passed, 2 skipped**
+  - [x] 7.4: `black --check` + `flake8` по изменённым файлам
+  - [x] 7.5: `npx gitnexus detect-changes --scope all` перед коммитом
 
-- [ ] **Task 8: Кросс-документные хвосты** (AC: 12) — **последним, после зелёных тестов**
-  - [ ] 8.1: `Story/39-3-catalog-admin-api-opt4-price.md`: обновить `baseline_commit` на коммит этой стори; сверить и освежить номера строк `serializers.py:109`, `:478`, `:514`, `:549`, `:590`, `views.py:87`
-  - [ ] 8.2: Там же: Task 2.5 переформулировать — вместо «добавить `wholesale_level4` в два списка `allowed_roles`» указать «добавить `"opt4_price"` в `WHOLESALE_PRICE_FIELDS` и `wholesale_level4` в белый список ролей `can_see_info_prices` (`apps/products/pricing_policy.py`)»; AC4 стори 39.3 привести к тому же
-  - [ ] 8.3: Там же: снять предупреждение в шапке о невалидных координатах (оно адресовало именно эту стори)
-  - [ ] 8.4: `_bmad-output/planning-artifacts/tech-debt.md` п. 18 — пометить закрытым: дата, ссылка `Story/security-wholesale-price-visibility.md`, фактическая форма исправления
+- [x] **Task 8: Кросс-документные хвосты** (AC: 12) — **последним, после зелёных тестов**
+  - [x] 8.1: `Story/39-3-catalog-admin-api-opt4-price.md`: обновить `baseline_commit` на коммит этой стори; сверить и освежить номера строк `serializers.py:109`, `:478`, `:514`, `:549`, `:590`, `views.py:87`
+  - [x] 8.2: Там же: Task 2.5 переформулировать — вместо «добавить `wholesale_level4` в два списка `allowed_roles`» указать «добавить `"opt4_price"` в `WHOLESALE_PRICE_FIELDS` и `wholesale_level4` в белый список ролей `can_see_info_prices` (`apps/products/pricing_policy.py`)»; AC4 стори 39.3 привести к тому же
+  - [x] 8.3: Там же: снять предупреждение в шапке о невалидных координатах (оно адресовало именно эту стори)
+  - [x] 8.4: `_bmad-output/planning-artifacts/tech-debt.md` п. 18 — пометить закрытым: дата, ссылка `Story/security-wholesale-price-visibility.md`, фактическая форма исправления
 
 ---
 
@@ -552,8 +552,96 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
+
 ### Debug Log References
+
+**Прогоны (Docker, PostgreSQL, проект `freesport-test`):**
+
+| Прогон | Результат | Базовая линия | Дельта |
+|---|---|---|---|
+| `pytest -q -m unit` (финальный) | **1090 passed, 1 skipped** | 1041 passed, 1 skipped | +49 (44 `test_pricing_policy.py` + 5 `TestProductFilterPricingPolicy`) |
+| `pytest -q -m integration` (финальный) | **754 passed, 2 skipped** | 744 passed, 2 skipped | +10 (`test_catalog_price_visibility.py`) |
+| `black --check` по 16 изменённым файлам | чисто | — | — |
+| `flake8` по изменённым файлам | чисто (exit 0) | — | — |
+| `makemigrations --check --dry-run` | `No changes detected` | — | — |
+| `npx gitnexus detect-changes --scope all` | 18 файлов, 16 символов, **risk low**, 0 затронутых процессов | — | — |
+
+**RED-фаза зафиксирована:** первый прогон `apps/products/tests/unit/test_pricing_policy.py` до создания модуля упал с `ModuleNotFoundError: No module named 'apps.products.pricing_policy'` — тесты писались до кода.
+
+**Отбор по маркерам проверен (`--collect-only`):** `-m unit` собирает 44 теста `test_pricing_policy.py` и 5 тестов `TestProductFilterPricingPolicy`; `-m integration` собирает 10 тестов `test_catalog_price_visibility.py`. Ни один новый тест не выпадает из CI-фильтров.
+
+**Единственное падение регрессии и его разбор.** Первый полный integration-прогон дал `1 failed`: `tests/integration/test_search_api.py::SearchAPITest::test_search_role_based_pricing` — `AssertionError: 18999.0 not less than 18999.0`. Тест сравнивает `current_price` тренера с розничной, а `trainer_user` (`:94`) создавался без `is_verified`. Это не регресс, а ровно то поведение, которое стори вводит. Файл **не был перечислен** в Dev Notes → «Тесты, которые упадут без правки» — список оказался неполным на один файл. Починено по правилу стори (`is_verified=True`, тест проверяет цену), ассерт не ослаблялся; после правки — 19 passed.
+
+**Blast radius (GitNexus, индекс `up-to-date` на `6704596`).** `get_price_for_user` — **LOW** по индексу: 3 прямых вызывающих (`ProductListSerializer.get_current_price`, `ProductVariantSerializer.get_current_price` в обоих файлах), 0 затронутых процессов. Предупреждение Dev Notes подтвердилось: индекс **не видит** `cart/models.py:154` и `cart/views.py:142` — фактический радиус 5, включая корзину и транзитом заказы. HIGH/CRITICAL не было ни по одному символу.
 
 ### Completion Notes List
 
+**Что сделано по существу.** Обе половины доменного инварианта `project-context.md` §3 закрыты одним источником истины — `backend/apps/products/pricing_policy.py`. Через него выражены: обнуление `opt*_price` в `ProductListSerializer.to_representation`, скрытие `rrp`/`msrp` в обоих сериализаторах, `ProductVariant.get_price_for_user` и ветвление по роли в обоих ценовых фильтрах. Дублирующиеся литеральные списки `allowed_roles` из двух сериализаторов удалены (AC1). `cart/` и `orders/` не правились — цена приходит транзитом через `price_snapshot`, что покрыто тестом `test_unverified_b2b_cart_price_is_retail`.
+
+**AC9 доказан строго, а не «git diff чист».** Буквальная проверка выполнена: `git status` по `docs/api/openapi.yaml` пуст, файл не трогался. Но проверка «регенерация идентична закоммиченному» из Dev Notes **невыполнима по двум предсуществующим причинам**, и это находка стори:
+
+1. Закоммиченный контракт разошёлся с генерацией целиком (4913 строк генерации против 4826 закоммиченных; последний коммит файла — `73992820` от 2026-07-26).
+2. `manage.py spectacular` **недетерминирован**: два прогона на неизменном коде дают ~275 строк diff — переставляются HTTP-методы внутри путей `/users/addresses/`, `/users/favorites/`, `/orders/`, `/cart/items/`.
+
+Поэтому AC9 проверен семантически, сравнением генерации **до и после** правки (код откатывался к `HEAD` и генерировался повторно): `components.schemas` идентичны **целиком**, включая `ProductList`, `ProductDetail`, `ProductVariant`; множество пар «путь → метод» идентично; `opt1_price`, `opt2_price`, `opt3_price` остались и в `properties`, и в `required`. Вариант B подтверждён: контракт не изменился, типы фронта не пересобирались. Обе находки записаны в `tech-debt.md` п. 18 и в раздел «Дрейф `openapi.yaml`» стори 39.3 — там Task 8 требует полной регенерации файла и без этого знания упёрся бы в шумный diff.
+
+**Отклонение от Dev Notes — один пункт, осознанный.** Task 5.6 предписывал добавить `is_verified=True` в `tests/integration/test_link_then_import_1c.py:77`. Не сделано: этот тест проверяет привязку записи 1С к портальному аккаунту (`onec_id`, роль, отсутствие дублей), цену не ассертит вовсе, а `verification_status="pending"` в нём — часть моделируемого сценария «необработанная заявка». Правило Dev Notes («добавлять `is_verified=True` там, где тест проверяет **цену**») здесь приоритетнее списка. Тест прошёл без правки — подтверждение, что он к политике цен не чувствителен.
+
+**Список «тестов, которые упадут» оказался неполным.** Не хватало `tests/integration/test_search_api.py:94` (см. Debug Log). Для последующих стори: `grep` по созданию B2B-пользователей стоит вести не только по перечисленным файлам, а по всему `backend/tests/`.
+
+**Проверено и не потребовало правок:**
+- `ProductDetailSerializer` — делегирует `super().to_representation`, гейт наследуется (Task 2.4).
+- `related_products` — `context` пробрасывается, гейт применяется сам; подтверждено двумя тестами (unit + integration), а не правкой кода.
+- `serializers_variant.py` — сырых ценовых полей не отдаёт (Task 2.5).
+- Ранняя ветка «аноним → retail» в `get_price_for_user` удалена как поглощённая: `resolve_pricing_role(None)` даёт `"retail"`, маппинг возвращает `retail_price`. Покрыто `test_anonymous_gets_retail_price`.
+- Ветка `if not request or not request.user.is_authenticated` в обоих фильтрах снята; эквивалентность покрыта `test_anonymous_request_filters_by_retail_price`.
+- Кеша на ответах каталога нет — ключ по роли не требуется (проверено при написании стори, подтверждено при реализации).
+
+**Мина `Mock()` обойдена как предписано:** в новом классе `TestProductFilterPricingPolicy` `mock_user.is_verified` задаётся **явно**, с комментарием почему. Предсуществующий `test_all_role_price_mappings` не трогался — с truthy-Mock он проходит как есть.
+
+**Долг, оставленный на решение Alex (не чинил намеренно).** Маркеры у предсуществующих тест-классов в `apps/products/tests/test_api_products.py`, `test_serializers.py`, `test_product_variant_models.py` — только `@pytest.mark.django_db`, без `@pytest.mark.unit`. Классы этих файлов в CI-фильтр `-m unit` не попадают. Новые классы стори маркеры несут явно; починка старых — отдельное решение, как это было сделано в стори 39.2.
+
+**Что стори НЕ трогала (по плану):** `frontend/`, `opt4_price`, `wholesale_level4` в белых списках, `permission_classes` каталога, сортировка и аннотация `min_retail_price`, существующие корзины.
+
+**Кросс-документные хвосты (Task 8) закрыты:** в стори 39.3 обновлён `baseline_commit`, освежены все координаты Dev Notes и References, Task 2.5 и AC4 переформулированы на `pricing_policy.py` (с явным требованием добавить `opt4_price` в `WHOLESALE_PRICE_FIELDS`), добавлена мина про `is_verified` в тестах 39.3, снято предупреждение в шапке, раздел «Дрейф `openapi.yaml`» дополнен измеренными фактами. В `tech-debt.md` п. 18 помечен закрытым с фактической формой исправления.
+
 ### File List
+
+**Новые файлы:**
+
+- `backend/apps/products/pricing_policy.py`
+- `backend/apps/products/tests/unit/test_pricing_policy.py`
+- `backend/tests/integration/test_catalog_price_visibility.py`
+
+**Изменённый код:**
+
+- `backend/apps/products/serializers.py`
+- `backend/apps/products/models.py`
+- `backend/apps/products/filters.py`
+
+**Изменённые тесты:**
+
+- `backend/apps/products/tests/test_product_variant_models.py`
+- `backend/apps/products/tests/test_serializers.py`
+- `backend/apps/products/tests/test_api_products.py`
+- `backend/apps/products/tests/unit/test_price_logic.py`
+- `backend/tests/unit/test_product_filters.py`
+- `backend/tests/integration/base.py`
+- `backend/tests/integration/test_b2b_workflow.py`
+- `backend/tests/integration/test_pricing_integration.py`
+- `backend/tests/integration/test_orders_api.py`
+- `backend/tests/integration/test_search_api.py`
+
+**Изменённые документы:**
+
+- `_bmad-output/implementation-artifacts/Story/security-wholesale-price-visibility.md` (этот файл)
+- `_bmad-output/implementation-artifacts/Story/39-3-catalog-admin-api-opt4-price.md`
+- `_bmad-output/planning-artifacts/tech-debt.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-03 | Реализована политика видимости цен: новый модуль `pricing_policy.py`, гейт `opt*_price` в сериализаторах, верификация в `get_price_for_user`, согласованные ценовые фильтры. 3 новых файла, 3 файла кода, 11 тестовых файлов, 4 документа. Прогоны: unit 1090 passed / 1 skipped, integration 754 passed / 2 skipped. Статус → review. |

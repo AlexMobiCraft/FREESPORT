@@ -1187,8 +1187,10 @@ class ProductVariant(models.Model):
 
     def get_price_for_user(self, user: User | None) -> Decimal:
         """Получить цену варианта для конкретного пользователя на основе его роли"""
-        if not user or not user.is_authenticated:
-            return self.retail_price
+        from apps.products.pricing_policy import resolve_pricing_role
+
+        # Неверифицированный B2B и гость понижаются до retail (project-context.md §3)
+        role = resolve_pricing_role(user)
 
         role_price_mapping = {
             "retail": self.retail_price,
@@ -1200,7 +1202,7 @@ class ProductVariant(models.Model):
             "federation_rep": self.federation_price or self.retail_price,
         }
 
-        return role_price_mapping.get(user.role, self.retail_price)
+        return role_price_mapping.get(role, self.retail_price)
 
 
 class Attribute(models.Model):

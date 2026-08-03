@@ -118,7 +118,9 @@ class TestPriceFallbackLogic:
         """Test AC4: federation_rep sees retail_price if federation_price is missing"""
 
         # Setup user
-        user = User.objects.create_user(email="fed@example.com", password="password", role="federation_rep")
+        user = User.objects.create_user(
+            email="fed@example.com", password="password", role="federation_rep", is_verified=True
+        )
 
         # Case 1: No federation price
         variant.retail_price = Decimal("100.00")
@@ -175,6 +177,7 @@ class TestOpt4PriceForUser:
             email="opt4-filled@example.com",
             password="password",
             role="wholesale_level4",
+            is_verified=True,
         )
         variant.retail_price = Decimal("100.00")
         variant.opt4_price = Decimal("85.00")
@@ -188,6 +191,7 @@ class TestOpt4PriceForUser:
             email="opt4-empty@example.com",
             password="password",
             role="wholesale_level4",
+            is_verified=True,
         )
         variant.retail_price = Decimal("100.00")
         variant.opt4_price = None

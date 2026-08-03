@@ -108,6 +108,7 @@ class BaseFunctionalTest(APITestCase):
                 last_name="Сидорова",
                 phone="+79001234568",
                 role="wholesale_level1",
+                is_verified=True,
                 company_name="ООО Тест",
                 tax_id="1234567890",
             )
@@ -123,6 +124,7 @@ class BaseFunctionalTest(APITestCase):
                 last_name="Федоров",
                 phone="+79001234569",
                 role="federation_rep",
+                is_verified=True,
                 company_name="Федерация Спорта",
             )
         else:

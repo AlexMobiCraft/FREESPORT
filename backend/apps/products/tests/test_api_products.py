@@ -44,6 +44,7 @@ class TestProductRetrieveWithVariants:
             email="wholesale@test.com",
             password="testpass123",
             role="wholesale_level1",
+            is_verified=True,
         )
 
     @pytest.fixture
