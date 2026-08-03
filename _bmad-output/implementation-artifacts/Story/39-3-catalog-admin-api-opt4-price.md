@@ -6,6 +6,10 @@ baseline_commit: 61e108057ce0c2beb853d0c0e5e9beb43b83ccad
 
 Status: ready-for-dev
 
+> ⚠️ **Координаты Dev Notes действительны на `baseline_commit: 61e10805`.** Перед этой стори Alex закрывает `tech-debt.md` п. 18 (публичный каталог отдаёт оптовые цены анонимным запросам) — та правка трогает `ProductListSerializer.Meta.fields` и `to_representation`, то есть сдвигает строки `serializers.py:109`, `:478`, `:514`, `:549`, `:590`, на которые ссылаются AC2-AC4 и Task 2. **Если долг п. 18 уже закрыт, а `baseline_commit` в этом файле не обновлён — сверять строки в коде, не доверять номерам.** Правки по существу от этого не меняются.
+>
+> ⚠️ **Не «чинить попутно» утечку оптовых цен** (`opt1/2/3_price` уезжают анонимному `GET /api/v1/products/`). Это `tech-debt.md` п. 18, отдельная стори со своими AC. В объём 39.3 не входит.
+
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
 ## Story
