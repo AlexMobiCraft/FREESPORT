@@ -50,7 +50,9 @@ def wholesale_client(db):
     from rest_framework.test import APIClient
 
     api_client = APIClient()
-    user = UserFactory.create(role="wholesale_level1")
+    # is_verified=True обязателен: неверифицированный B2B не видит ни оптовых,
+    # ни инфо-цен РРЦ/МРЦ (см. apps/products/pricing_policy)
+    user = UserFactory.create(role="wholesale_level1", is_verified=True)
     from rest_framework_simplejwt.tokens import RefreshToken
 
     refresh = RefreshToken.for_user(user)

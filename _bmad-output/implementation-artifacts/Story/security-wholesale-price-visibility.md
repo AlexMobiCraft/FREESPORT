@@ -143,6 +143,11 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
   - [x] 8.3: Там же: снять предупреждение в шапке о невалидных координатах (оно адресовало именно эту стори)
   - [x] 8.4: `_bmad-output/planning-artifacts/tech-debt.md` п. 18 — пометить закрытым: дата, ссылка `Story/security-wholesale-price-visibility.md`, фактическая форма исправления
 
+### Review Findings
+
+- [x] [Review][Patch] Существующие тесты ролевого ценообразования не обновлены для B2B-верификации [backend/tests/unit/test_models/test_product_models.py:185] — AC10 нарушен: тесты создают `wholesale_level1…3`, `trainer` и `federation_rep` через `UserFactory` с `is_verified=False` по умолчанию, но ожидают оптовые цены. Аналогичные неверные ожидания остаются в `backend/tests/unit/test_models/test_order_models.py:285` и `backend/tests/integration/test_product_detail_api.py:53`. Нужно установить `is_verified=True` только в фикстурах, проверяющих оптовую цену или RRP/MSRP, не ослабляя ассерты.
+  - **Закрыто 2026-08-03.** Находка подтверждена прогоном (4 падения по трём названным файлам). Исправлено добавлением `is_verified=True` в 4 фикстуры/теста, ассерты не ослаблялись. Сверх находки полным прогоном без фильтра по маркерам найден **пятый** случай — `tests/integration/test_user_cart_integration.py:23` (`test_role_based_pricing_in_cart`, `AssertionError: 100.0 not less than 100.0`), тоже исправлен. Корневая причина промаха разобрана ниже («Корневая причина: 852 теста вне CI-фильтров»).
+
 ---
 
 ## Dev Notes
@@ -567,6 +572,18 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 | `makemigrations --check --dry-run` | `No changes detected` | — | — |
 | `npx gitnexus detect-changes --scope all` | 18 файлов, 16 символов, **risk low**, 0 затронутых процессов | — | — |
 
+**Прогоны сессии 2 (закрытие находки ревью, 2026-08-03):**
+
+| Прогон | Результат |
+|---|---|
+| `pytest -q` по трём файлам находки (RED, до правки) | **4 failed, 88 passed** |
+| Те же три файла (GREEN, после правки) | **92 passed** |
+| `pytest -q` **весь пакет без `-m`** (первый) | **1 failed, 2694 passed, 4 skipped** — падение в `test_user_cart_integration.py` |
+| `pytest -q tests/integration/test_user_cart_integration.py` (после правки) | **4 passed** |
+| `pytest -q` **весь пакет без `-m`** (финальный, 33 мин) | **2695 passed, 4 skipped, 0 failed** |
+| `black --check` + `flake8` по 4 изменённым файлам | чисто (exit 0) |
+| `npx gitnexus detect-changes --scope all` | 6 файлов, 2 символа (заголовки `AGENTS.md`/`CLAUDE.md`), **risk low**, 0 затронутых процессов |
+
 **RED-фаза зафиксирована:** первый прогон `apps/products/tests/unit/test_pricing_policy.py` до создания модуля упал с `ModuleNotFoundError: No module named 'apps.products.pricing_policy'` — тесты писались до кода.
 
 **Отбор по маркерам проверен (`--collect-only`):** `-m unit` собирает 44 теста `test_pricing_policy.py` и 5 тестов `TestProductFilterPricingPolicy`; `-m integration` собирает 10 тестов `test_catalog_price_visibility.py`. Ни один новый тест не выпадает из CI-фильтров.
@@ -602,6 +619,28 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 
 **Долг, оставленный на решение Alex (не чинил намеренно).** Маркеры у предсуществующих тест-классов в `apps/products/tests/test_api_products.py`, `test_serializers.py`, `test_product_variant_models.py` — только `@pytest.mark.django_db`, без `@pytest.mark.unit`. Классы этих файлов в CI-фильтр `-m unit` не попадают. Новые классы стори маркеры несут явно; починка старых — отдельное решение, как это было сделано в стори 39.2.
 
+---
+
+### Сессия 2 — закрытие находки ревью (2026-08-03)
+
+**Что исправлено.** Пять мест, где B2B-пользователь создавался без `is_verified=True`, но тест ассертил оптовую цену или РРЦ/МРЦ. Везде добавлен `is_verified=True` с русским комментарием-ссылкой на `pricing_policy.resolve_pricing_role`; **ни один ассерт не ослаблен**, гейт нигде не снимался — то есть AC10 закрыт по букве.
+
+| Файл | Место | Что ассертит |
+|---|---|---|
+| `tests/unit/test_models/test_product_models.py` | `test_product_pricing_for_different_roles` — 5 B2B-ролей | `get_price_for_user` == opt1/opt2/opt3/trainer/federation |
+| `tests/unit/test_models/test_product_models.py` | `test_product_price_fallback_to_retail` — 2 роли | fallback при пустой `opt1_price` |
+| `tests/unit/test_models/test_order_models.py` | `test_order_item_with_different_user_role_pricing` | `unit_price` позиции заказа |
+| `tests/integration/test_product_detail_api.py` | фикстура `wholesale_client` | наличие `rrp`/`msrp` в ответе |
+| `tests/integration/test_user_cart_integration.py` | `setUp` → `b2b_user` | `unit_price` в корзине ниже розничной |
+
+**Не тронуто по правилу «`is_verified=True` только там, где тест проверяет цену»:** `test_order_models.py:141` (`test_order_for_different_user_roles` — ассертит только `user.role`) и фикстура `trainer_client` в `test_product_detail_api.py:117` (`test_discount_calculation` — единственный ценовой ассерт в нём закомментирован). Оба прошли без правки, что это правило и подтверждает.
+
+**Корневая причина: 852 теста вне CI-фильтров.** Измерено `--collect-only`: всего в пакете **2699** тестов, `-m unit` собирает **1091**, `-m integration` — **756**. Итого **852 теста (31 %) не попадают ни в `make test-unit`, ни в `make test-integration`** — именно поэтому финальные прогоны сессии 1 (unit 1090 + integration 754) были зелёными при пяти сломанных тестах. Все пять найденных мест лежат в файлах без маркера: `tests/unit/test_models/test_product_models.py` и `test_order_models.py` несут только `@pytest.mark.django_db`, `test_product_detail_api.py` — только `pytestmark = pytest.mark.django_db`, а `test_user_cart_integration.py` — **вообще ни одного** маркера.
+
+Практический вывод для следующих стори: **прогон по маркерам не является доказательством отсутствия регрессии в этом репозитории.** Финальную проверку вести полным `pytest -q` без `-m` (33 мин против 7+30 по фильтрам — дешевле, а покрытие полное).
+
+**Расширение долга по маркерам (по-прежнему на решение Alex, не чинил).** К трём файлам из сессии 1 добавляются как минимум `tests/unit/test_models/test_product_models.py`, `tests/unit/test_models/test_order_models.py`, `tests/integration/test_product_detail_api.py`, `tests/integration/test_user_cart_integration.py`. Реальный масштаб — 852 теста; это отдельная задача уровня «навести маркеры по всему `backend/tests/`», а не побочная правка ценовой стори. Пока она не сделана, CI-гейт `make test-unit`/`test-integration` даёт ложно-зелёный результат на трети пакета.
+
 **Что стори НЕ трогала (по плану):** `frontend/`, `opt4_price`, `wholesale_level4` в белых списках, `permission_classes` каталога, сортировка и аннотация `min_retail_price`, существующие корзины.
 
 **Кросс-документные хвосты (Task 8) закрыты:** в стори 39.3 обновлён `baseline_commit`, освежены все координаты Dev Notes и References, Task 2.5 и AC4 переформулированы на `pricing_policy.py` (с явным требованием добавить `opt4_price` в `WHOLESALE_PRICE_FIELDS`), добавлена мина про `is_verified` в тестах 39.3, снято предупреждение в шапке, раздел «Дрейф `openapi.yaml`» дополнен измеренными фактами. В `tech-debt.md` п. 18 помечен закрытым с фактической формой исправления.
@@ -633,6 +672,13 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 - `backend/tests/integration/test_orders_api.py`
 - `backend/tests/integration/test_search_api.py`
 
+**Изменённые тесты (сессия 2, закрытие находки ревью):**
+
+- `backend/tests/unit/test_models/test_product_models.py`
+- `backend/tests/unit/test_models/test_order_models.py`
+- `backend/tests/integration/test_product_detail_api.py`
+- `backend/tests/integration/test_user_cart_integration.py`
+
 **Изменённые документы:**
 
 - `_bmad-output/implementation-artifacts/Story/security-wholesale-price-visibility.md` (этот файл)
@@ -645,3 +691,4 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 | Дата | Изменение |
 |---|---|
 | 2026-08-03 | Реализована политика видимости цен: новый модуль `pricing_policy.py`, гейт `opt*_price` в сериализаторах, верификация в `get_price_for_user`, согласованные ценовые фильтры. 3 новых файла, 3 файла кода, 11 тестовых файлов, 4 документа. Прогоны: unit 1090 passed / 1 skipped, integration 754 passed / 2 skipped. Статус → review. |
+| 2026-08-03 | Закрыта находка code review — 1 item (AC10): `is_verified=True` добавлен в 5 фикстур/тестов ролевого ценообразования в 4 файлах, ассерты не ослаблялись. Пятый случай (`test_user_cart_integration.py`) найден сверх находки полным прогоном без фильтра по маркерам. Зафиксирована корневая причина: 852 из 2699 тестов не попадают в CI-фильтры `-m unit`/`-m integration`. Финальный прогон всего пакета: **2695 passed, 4 skipped, 0 failed**. Статус → review. |
