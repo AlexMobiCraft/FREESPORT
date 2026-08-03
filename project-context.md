@@ -72,16 +72,18 @@ optimized_for_llm: true
 
 ## 4. Тестирование
 
-- **Pytest markers обязательны** на каждом backend-тесте:
-  - `@pytest.mark.unit` — модульные тесты внутри `apps/*/tests/`.
-  - `@pytest.mark.integration` — интеграционные в `backend/tests/`.
-  - `@pytest.mark.data_dependent` — тесты, зависящие от внешних данных.
-  Без маркера тест выпадет из CI-фильтров `make test-unit`/`test-integration`.
+- **Pytest markers проставляются автоматически по каталогу** — руками ставить не нужно. Хук `pytest_collection_modifyitems` в `backend/conftest.py` размечает каждый собранный тест:
+  - `unit` — `apps/**` и `tests/unit/`.
+  - `integration` — `tests/integration/`, `tests/functional/`, `tests/regression/`, `apps/*/tests/integration/`.
+  - `performance` — `tests/performance/`; выведены из обычного гейта (CI и `make test-unit`/`test-integration`), запускаются через `make test-performance`.
+  **Явный маркер в файле переопределяет автоматический** — так интеграционный тест внутри `apps/` остаётся `integration`. Новый тестовый каталог требует правила в `PATH_RULES` (`backend/conftest.py`), иначе сбор падает с `UsageError` — это осознанный сторож, а не баг.
+  - `@pytest.mark.data_dependent` (тесты на внешних данных) и `@pytest.mark.slow` — ортогональны автоматическим, ставятся вручную.
 - **Команды запуска** (через Docker):
   ```bash
   make test                 # все тесты
   make test-unit            # только unit
   make test-integration     # только integration
+  make test-performance     # только перф-тесты
   # Прямой запуск конкретного теста в test-контейнере с .env.test:
   docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend pytest <путь>
   ```
