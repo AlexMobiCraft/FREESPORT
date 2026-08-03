@@ -85,7 +85,7 @@ context:
 **Acceptance Criteria:**
 - ✅ Given рабочее дерево после правки, when выполнен `pytest --collect-only -q -m "unit or integration or performance"`, then собрано столько же тестов, сколько даёт полный `pytest --collect-only -q`. **Проверено:** оба сбора дают 2738 (2699 до правки + 39 тестов самого правила); `unit` 1789 + `integration` 922 + `performance` 27 = 2738 ровно, пересечений нет.
 - ✅ Given файл с явным `mark.integration` внутри `apps/`, when выполнен `pytest --collect-only -q -m unit`, then он в выборку не попадает. **Проверено** арифметикой сбора и прямым тестом хука `test_explicit_marker_wins`.
-- ✅ Given полный прогон `pytest -q -p no:randomly`, when он завершается, then число прошедших и упавших совпадает с прогоном до правки — хук меняет маркировку, не поведение.
+- ✅ Given полный прогон `pytest -q -p no:randomly`, when он завершается, then число прошедших и упавших совпадает с прогоном до правки — хук меняет маркировку, не поведение. **Проверено дважды.** Итерация 1: 2715 passed, 4 skipped, 0 failed (42:35). Итерация 2: 2731 passed, 6 skipped, **1 failed** (37:47) — сумма 2738 сходится со сбором; +2 skipped это тесты корневого `pytest.ini`, недоступного в контейнере. Единственное падение — `apps/products/tests/test_api_products.py::TestProductAPIPerformance::test_retrieve_product_with_100_variants_under_500ms`: таймингозависимый тест, упавший под нагрузкой машины. Правкой не вызван — прошёл в итерации 1 и повторно прошёл на освободившейся машине (3 passed за 18,7 с). Отложен в `deferred-work.md` как флак, требующий вывода из PR-гейта через маркер `slow`.
 - ✅ Given `pytest tests/unit -q` изолированно, when корневой conftest уже загружен, then Django-настройки по-прежнему конфигурируются из `tests/unit/conftest.py` без ошибок. **Проверено:** 1161 passed, 2 skipped, 0 failed.
 - ✅ Given новый тестовый файл в каталоге без категории, when запускается pytest, then сбор падает с `UsageError`, называющим файл. **Проверено** вручную на временном `tests/smoke/` и тестами `test_unmapped_item_raises_usage_error` / `test_usage_error_lists_every_unmapped_file`.
 
@@ -134,3 +134,51 @@ DEFAULT_PREFIX_RULES = ((("apps",), "unit"),)  # запасной вариант
 
 **Manual checks:**
 - `docker-compose.test.yml` монтирует `../backend:/app` — новый `conftest.py` подхватывается без пересборки образа.
+
+## Suggested Review Order
+
+**Правило разметки — сердце изменения**
+
+- Таблица категорий и умолчание: единственное место, где определяется маркер
+  [`conftest.py:35`](../../backend/conftest.py#L35)
+
+- Поиск самого глубокого каталога-категории — почему работает на любой вложенности
+  [`conftest.py:51`](../../backend/conftest.py#L51)
+
+- `tryfirst` обязателен: разметка должна опережать деселект по `-m`
+  [`conftest.py:84`](../../backend/conftest.py#L84)
+
+- Сторож: непокрытый путь обрывает сбор вместо тихого выпадения теста
+  [`conftest.py:108`](../../backend/conftest.py#L108)
+
+**Состав прогонов — здесь пряталась главная находка ревью**
+
+- Исключающий фильтр: после разметки 166 интеграционных тестов вышли из покрывающего прогона
+  [`backend-ci.yml:195`](../../.github/workflows/backend-ci.yml#L195)
+
+- Полный набор на каждом PR — именно он ловит те 166
+  [`main.yml:123`](../../.github/workflows/main.yml#L123)
+
+- Новый дом перф-тестов: до правки они шли в `main.yml`, после — нигде
+  [`performance-tests.yml:1`](../../.github/workflows/performance-tests.yml#L1)
+
+**Конфигурация**
+
+- Корневой `pytest.ini` действует при запуске не из `backend/` — маркер там тоже нужен
+  [`pytest.ini:5`](../../pytest.ini#L5)
+
+- `norecursedirs`: без него venv с нестандартным именем валит весь прогон
+  [`pytest.ini:12`](../../backend/pytest.ini#L12)
+
+**Тесты правила**
+
+- Главный инвариант: явный маркер хук не переписывает
+  [`test_pytest_marker_autotagging.py:138`](../../backend/tests/unit/test_pytest_marker_autotagging.py#L138)
+
+- Обход реального дерева — ловит новый каталог за миллисекунды вместо 6-минутного сбора
+  [`test_pytest_marker_autotagging.py:189`](../../backend/tests/unit/test_pytest_marker_autotagging.py#L189)
+
+**Документация**
+
+- Асимметрия `apps/` против `tests/` и таблица «где что исполняется»
+  [`testing-standards.md:3`](../../backend/docs/testing-standards.md#L3)

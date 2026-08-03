@@ -1,3 +1,18 @@
+## Deferred from: code review of spec-tech-debt-19-pytest-marker-autotagging (2026-08-03)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+  summary: «Перф-тест» определён местоположением файла, а не свойством теста — стресс-тесты `PagesCachePerformanceTest` и `PagesAPIStressTest` в `tests/integration/test_pages_performance.py` имеют явный `@pytest.mark.integration` и потому остаются в обычном гейте, тогда как `tests/performance/` из него выведен.
+  evidence: Pre-existing классификация, авторазметкой не вводится (явный маркер она не трогает). Но цель «перф-тесты не гоняются на каждом PR» достигнута лишь наполовину. Кандидат на явный `@pytest.mark.performance` на этом файле — механизм для этого уже есть.
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+  summary: Маркер `slow` объявлен в обоих `pytest.ini`, но не используется ни одним make-таргетом и ни одним workflow — отсечение медленных тестов работает только по каталогу.
+  evidence: Наблюдалось на практике 2026-08-03: `apps/products/tests/test_api_products.py::TestProductAPIPerformance::test_retrieve_product_with_100_variants_under_500ms` (помечен `slow`, лежит в `apps/` → получает `unit`) прошёл в полном прогоне и **упал** в замере покрытия часом позже на той же ревизии — тест таймингозависимый и флакует под нагрузкой машины. Он был в быстром гейте и до авторазметки, то есть это pre-existing, но `slow` даёт готовый рычаг вывести такие тесты из PR-гейта, и рычаг не подключён.
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+  summary: Тест, чей путь уходит за пределы `backend/` (симлинк наружу, `--pyargs`, явно переданный путь), хук молча пропускает — маркера не получает и в фильтры не попадает.
+  evidence: Ветка `except ValueError: return None` в `_relative_parts` не отличает «чужое дерево» от «сломался расчёт пути». Воспроизведено ревьюером: `pytest -m unit /tmp/exttests/test_outside.py ...` отбирает файл без маркера. Вероятность в этом проекте низкая (тесты живут внутри `backend/`), но это ровно тот класс тихого выпадения, ради которого хук написан.
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+  summary: Все таргеты `make test-*`, включая новый `test-performance`, неработоспособны — они ищут `docker/.env`, которого в репозитории нет.
+  evidence: Pre-existing и явно выведено за объём спеки. Но `test-performance` заявлен в документации как локальная точка входа в перф-тесты, поэтому пока перф-тесты запускаются только через `performance-tests.yml` или прямой вызов pytest в контейнере.
+
 ## Deferred from: story 39.1 — технический долг типизации (2026-08-02)
 
 - **TD-3901-1. Полный апгрейд django-stubs 4.2.6 → 5.2.9 (+ drf-stubs 3.16.9, mypy 1.17.1)** — `django-stubs` запинен на стабах для Django 4.2, тогда как проект работает на Django 5.2.7. Отставание на три мажорные версии. Прямое следствие, уже обойдённое точечно: стабы не знают `CheckConstraint(condition=...)` (аргумент введён в Django 5.1 взамен устаревшего `check=`), из-за чего в `products`/`bonuses`/`common`/`orders` стоят 6 подавлений `# type: ignore[call-arg]`, а миграции `bonuses` целиком выведены из проверки в `mypy.ini`.
@@ -489,3 +504,9 @@
 ## Deferred from: code review of 39-2-import-opt4-prices-from-1c (2026-08-02)
 
 - Импорт цен принимает отрицательные значения из XML без явной проверки: `Decimal` их допускает, Django-валидаторы при прямом `save()` не запускаются, а DB constraint есть только для `opt4_price`. Отрицательный RRP также копируется в `retail_price`. Проблема предсуществует для остальных ценовых полей и не вызвана стори 39.2. [`backend/apps/products/services/parser.py:408-416`, `backend/apps/products/services/variant_import.py:1097-1112`]
+
+## Deferred from: tech-debt п. 20, split 2026-08-03
+
+- source_spec: none
+  summary: Типизировать DTO-слой фронта от генерации — `ApiProductDetailResponse = components['schemas']['ProductDetail']`, `Product = components['schemas']['ProductList']`, с последующими правками `productsService.ts`, `types/api.ts`, `utils/pricing.ts`.
+  evidence: Разделено с целью «CI-гейт синхронизации контракта» (тех.долг п. 20, рекомендация 1). Обе цели независимо шиппабельны: гейт работает и при рукописных типах, типизация работает и без гейта. Порядок выбран сознательно — типизация от генерации требует свежего `docs/api/openapi.yaml`, который приводит в актуальное состояние первая спека; при дрейфе с 2026-07-26 `tsc` покраснел бы массово и не по делу.
