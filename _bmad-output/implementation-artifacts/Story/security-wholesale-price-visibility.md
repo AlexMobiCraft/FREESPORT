@@ -5,7 +5,7 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
 # Story: Security — Оптовые цены видны только верифицированному B2B
 
 **Story ID:** security-wholesale-price-visibility
-**Status:** review
+**Status:** done
 **Priority:** 🔴 High — блокирует стори 39.3 (решение Alex, 2026-08-03)
 **Source:** `_bmad-output/planning-artifacts/tech-debt.md` п. 18 · `_bmad-output/planning-artifacts/epics.md` → Epic 39 → «Предшествующая работа»
 **Порядок:** выполняется **до** стори `39-3-catalog-admin-api-opt4-price`. Эпика не имеет — правка про политику цен в целом, а не про «Опт 4».
@@ -639,7 +639,9 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 
 Практический вывод для следующих стори: **прогон по маркерам не является доказательством отсутствия регрессии в этом репозитории.** Финальную проверку вести полным `pytest -q` без `-m` (33 мин против 7+30 по фильтрам — дешевле, а покрытие полное).
 
-**Расширение долга по маркерам (по-прежнему на решение Alex, не чинил).** К трём файлам из сессии 1 добавляются как минимум `tests/unit/test_models/test_product_models.py`, `tests/unit/test_models/test_order_models.py`, `tests/integration/test_product_detail_api.py`, `tests/integration/test_user_cart_integration.py`. Реальный масштаб — 852 теста; это отдельная задача уровня «навести маркеры по всему `backend/tests/`», а не побочная правка ценовой стори. Пока она не сделана, CI-гейт `make test-unit`/`test-integration` даёт ложно-зелёный результат на трети пакета.
+**Расширение долга по маркерам (не чинил — вынесено в отдельный долг).** К трём файлам из сессии 1 добавляются как минимум `tests/unit/test_models/test_product_models.py`, `tests/unit/test_models/test_order_models.py`, `tests/integration/test_product_detail_api.py`, `tests/integration/test_user_cart_integration.py`. Реальный масштаб — 852 теста; это отдельная задача, а не побочная правка ценовой стори.
+
+**Судьба долга решена 2026-08-03 — записана в `tech-debt.md` п. 19.** Спека не заводилась: намерение уже зафиксировано в `project-context.md` §4, разметка детерминирована путём. Решения Alex: механизм — хук `pytest_collection_modifyitems` в новом `backend/conftest.py` (явный маркер приоритетнее автоматического), а не массовая правка ~100 файлов; `tests/functional/` → `integration`, `tests/performance/` → новый маркер `performance` вне обычного гейта; чинить **после стори 39.3**. До исправления финальную проверку регрессии вести полным `pytest -q` без `-m`.
 
 **Что стори НЕ трогала (по плану):** `frontend/`, `opt4_price`, `wholesale_level4` в белых списках, `permission_classes` каталога, сортировка и аннотация `min_retail_price`, существующие корзины.
 
@@ -683,7 +685,7 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 
 - `_bmad-output/implementation-artifacts/Story/security-wholesale-price-visibility.md` (этот файл)
 - `_bmad-output/implementation-artifacts/Story/39-3-catalog-admin-api-opt4-price.md`
-- `_bmad-output/planning-artifacts/tech-debt.md`
+- `_bmad-output/planning-artifacts/tech-debt.md` (п. 18 закрыт; п. 19 — новый долг по маркерам pytest)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
