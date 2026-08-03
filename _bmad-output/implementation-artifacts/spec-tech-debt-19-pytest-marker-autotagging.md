@@ -2,7 +2,7 @@
 title: 'Автоматическая разметка pytest-маркеров по каталогу (тех.долг п. 19)'
 type: 'chore'
 created: '2026-08-03'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '0e005137'
 review_loop_iteration: 0
 context:
