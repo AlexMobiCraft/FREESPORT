@@ -58,6 +58,8 @@ last_updated: "2026-08-03"
 #             хранения story-файлов. Корень implementation-artifacts занят
 #             другими артефактами (spec-*.md, tasks/, tech-spec/, retro/).
 # 2026-08-03: Story 39.3 создана (create-story), backlog → ready-for-dev.
+# 2026-08-03: Создана внеэпиковая стори security-wholesale-price-visibility
+#             (tech-debt.md п. 18) — выполняется ДО стори 39.3.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -133,6 +135,15 @@ development_status:
   39-3-catalog-admin-api-opt4-price: ready-for-dev
   39-4-frontend-opt4-price-display: backlog
   epic-39-retrospective: optional
+
+  # ========================================
+  # Стори вне эпиков: технический долг, закрываемый отдельно
+  # Ключи без префикса эпика — файлы лежат там же, в Story/.
+  # ========================================
+  # Предшествует стори 39.3 (решение Alex, 2026-08-03): гейт видимости
+  # оптовых цен ставится ДО добавления opt4_price, чтобы контракт и типы
+  # фронта регенерировались один раз. Источник: tech-debt.md п. 18.
+  security-wholesale-price-visibility: ready-for-dev
 
   # ========================================
   # Epic 40: Уровень цен клиента приходит из 1С
