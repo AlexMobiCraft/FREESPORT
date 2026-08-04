@@ -21,6 +21,23 @@ API_URL="https://api.github.com"
 echo "🔧 Настройка правил защиты веток для репозитория $REPO_OWNER/$REPO_NAME"
 
 # Функция для создания правила защиты ветки
+# ⚠️ ПЕРЕД ПРИМЕНЕНИЕМ ПРОЧИТАЙ (проверено 2026-08-04 через gh api):
+#
+# 1. Ни main, ни develop сейчас НЕ защищены — оба отдают «Branch not protected».
+#    Этот скрипт не применялся; всё, что ниже, — намерение, а не текущее состояние.
+# 2. Три из четырёх строк в contexts, скорее всего, ни с чем не совпадают. GitHub
+#    именует check-run по имени джобы (плюс матрица), а не «workflow (job)»: реальный
+#    чек последнего прогона называется `build (3.12)`, а не «Django CI (build)».
+#    У backend-ci.yml и frontend-ci.yml джобы обе называются `test` — их чеки
+#    неразличимы между собой, это отдельная проблема.
+# 3. Required-контекст у workflow с фильтром `paths` НЕ сообщает статус на PR, который
+#    эти пути не трогает: GitHub показывает «Expected — waiting for status» и мерж
+#    блокируется бессрочно. Такой фильтр есть у backend-ci.yml, frontend-ci.yml и
+#    api-contract.yml. Прежде чем делать их обязательными, нужна джоба-заглушка без
+#    paths, которая всегда сообщает успех.
+#
+# Строка «Контракт синхронен с кодом» — имя джобы из api-contract.yml (tech-debt п. 20),
+# она задана явно и потому однозначна. Остальные требуют сверки с живым репозиторием.
 create_branch_protection() {
     local branch=$1
     local description=$2
@@ -41,7 +58,8 @@ create_branch_protection() {
             "contexts": [
                 "Backend CI/CD (test)",
                 "Frontend CI/CD (test)",
-                "Django CI (build)"
+                "Django CI (build)",
+                "Контракт синхронен с кодом"
             ]
         }' \
         --field enforce_admins=true \
@@ -76,7 +94,8 @@ create_branch_protection() {
                 "contexts": [
                     "Backend CI/CD (test)",
                     "Frontend CI/CD (test)",
-                    "Django CI (build)"
+                    "Django CI (build)",
+                    "Контракт синхронен с кодом"
                 ]
             }' \
             --field enforce_admins=true \

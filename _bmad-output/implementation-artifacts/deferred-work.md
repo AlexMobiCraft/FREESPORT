@@ -510,3 +510,21 @@
 - source_spec: none
   summary: Типизировать DTO-слой фронта от генерации — `ApiProductDetailResponse = components['schemas']['ProductDetail']`, `Product = components['schemas']['ProductList']`, с последующими правками `productsService.ts`, `types/api.ts`, `utils/pricing.ts`.
   evidence: Разделено с целью «CI-гейт синхронизации контракта» (тех.долг п. 20, рекомендация 1). Обе цели независимо шиппабельны: гейт работает и при рукописных типах, типизация работает и без гейта. Порядок выбран сознательно — типизация от генерации требует свежего `docs/api/openapi.yaml`, который приводит в актуальное состояние первая спека; при дрейфе с 2026-07-26 `tsc` покраснел бы массово и не по делу.
+
+## Deferred from: code review of spec-tech-debt-20-api-contract-ci-gate (2026-08-04)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: Защита веток в репозитории не настроена вовсе, а строки required-контекстов в `.github/scripts/setup-branch-protection.sh` не совпадают с реальными именами check-run — применять скрипт как есть нельзя.
+  evidence: Проверено 2026-08-04 через `gh api`: `repos/AlexMobiCraft/FREESPORT/branches/{main,develop}/protection` отдают «Branch not protected». Имя чека последнего прогона — `build (3.12)`, тогда как в скрипте записано «Django CI (build)». Джобы в `backend-ci.yml` и `frontend-ci.yml` обе называются `test`, их check-run неразличимы. Плюс общее свойство GitHub: required-контекст у workflow с фильтром `paths` не сообщает статус на PR, не трогающем эти пути, и блокирует мерж бессрочно — нужна джоба-заглушка без `paths`. Предупреждение вписано в шапку скрипта; исправление требует сверки с живым репозиторием и решения человека. Pre-existing, п. 20 лишь вскрыл.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: `CLAUDE.md` называет `main` и `develop` защищёнными ветками — фактически защиты нет ни на одной.
+  evidence: Тот же замер `gh api` от 2026-08-04. Раздел «Git Workflow» в `CLAUDE.md` описывает намерение, а не состояние; агент, читающий его как факт, будет исходить из несуществующих гарантий.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: `collect_differences` сравнивает списки `parameters` поэлементно по индексу, поэтому при разном составе списков одинаковой длины отчёт называет пути, вводящие в заблуждение.
+  evidence: Воспроизведено ревьюером: код `[query/a, query/b]` против файла `[query/b, query/c]` даёт «`parameters[0].name`: 'a' vs 'b'» и «`parameters[1].name`: 'b' vs 'c'», хотя фактически добавился `a` и удалился `c`. Расхождение не пропускается — гейт краснеет верно, страдает только точность формулировки. Честное решение — сравнивать множества по ключу `(in, name)`; отложено как несоразмерное выигрышу.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: Нормализация списков узаконивает «слегка устаревший» YAML: если код и файл различаются только порядком в `enum`/`required`/`tags`/`parameters`, оба гейта зелёные, а честная регенерация даст дифф следующему разработчику.
+  evidence: Прямое следствие требования «Always» из спеки (нормализовать эти списки) — сознательный размен точности на устойчивость к недетерминизму drf-spectacular. Семантика OpenAPI от порядка в этих списках не зависит, поэтому вред ограничен неожиданным диффом. Убрать размен можно, только если удастся доказать детерминированность порядка в генерации.

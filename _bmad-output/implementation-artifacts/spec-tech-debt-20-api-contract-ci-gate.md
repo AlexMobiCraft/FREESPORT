@@ -2,9 +2,9 @@
 title: 'CI-гейт синхронизации API-контракта (тех.долг п. 20, цель 1)'
 type: 'chore'
 created: '2026-08-03'
-status: 'in-progress'
-baseline_commit: 'eda4d984'
-review_loop_iteration: 0
+status: 'in-review'
+baseline_commit: '65569e5c'
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/planning-artifacts/tech-debt.md'
 ---
@@ -69,9 +69,17 @@ context:
 - [x] `backend/freesport/settings/base.py` -- в `SPECTACULAR_SETTINGS["TAGS"]` добавлен тег `Bonuses` (решение Alex, 2026-08-04; см. Design Notes — отступление от «Never»)
 - [x] `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts` -- разовая регенерация; 50 семантических расхождений устранено, состав endpoint'ов не изменился
 - [x] `.github/workflows/api-contract.yml` -- создан: `pull_request` + `push` в `main`/`develop`, paths `backend/**`, `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts`, `frontend/package.json`
-- [x] `.github/workflows/backend-ci.yml` -- поглощённый шаг «Validate OpenAPI schema generation» убран, на его месте комментарий с отсылкой к новому workflow
+- [x] ~~`.github/workflows/backend-ci.yml` -- поглощённый шаг «Validate OpenAPI schema generation» убран~~ **Отменено по итогам ревью (итерация 1):** шаг возвращён, потому что живёт в джобе из required-контекстов, а новый workflow туда пока не входит
 - [x] `_bmad-output/planning-artifacts/epics.md` -- NFR-3940-07 переписан: гейт появился; отдельно названо, чего он не проверяет
 - [x] `_bmad-output/planning-artifacts/tech-debt.md` -- рекомендация (1) отмечена закрытой, цель (2) — отложенной
+
+**Итерация 1 (по итогам ревью):**
+- [x] `backend/apps/common/management/commands/check_openapi_sync.py` -- `_sort_key` (разнотипные скаляры и ключи), сверка типа при сравнении, `_short` (усечение отчёта), `load_schema` (`YAMLError`/`OSError` → `CommandError`), обёртка отказа генерации, guard на пустую схему, `options.get("limit")`, `--validate` в подсказке
+- [x] `.github/workflows/api-contract.yml` -- `paths` дополнены (`package-lock.json`, `.prettierrc`, `.prettierignore`, `backend-ci.yml`); `git ls-files --error-unmatch` + `git status --porcelain` вместо `git diff --exit-code`; подсказка привязана к `id` шагов; добавлены служба redis, `concurrency`, `permissions`, `timeout-minutes`
+- [x] `.github/scripts/setup-branch-protection.sh` -- контекст `Контракт синхронен с кодом` добавлен в оба блока; в шапку вписано предупреждение о трёх минах применения
+- [x] `backend/tests/unit/test_check_openapi_sync.py` -- 45 тестов (было 22): смешанные типы, нестроковые ключи, `0`/`False`, усечение, битый и пустой YAML, нечитаемый файл, полный путь `handle()` с подменённой генерацией, лимит отчёта, отказ генерации
+- [x] `_bmad-output/planning-artifacts/epics.md` -- NFR-3940-07 ослаблен до фактического: гейт краснеет, но не блокирует, пока защита веток не применена
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- отложены четыре находки: незастроенная защита веток и несовпадающие имена контекстов, неверная запись про защиту в `CLAUDE.md`, поиндексное сравнение `parameters`, размен на нормализации списков
 
 **Acceptance Criteria:**
 - ✅ Given дерево сразу после разовой регенерации, when выполнен `python manage.py check_openapi_sync`, then exit 0. **Проверено:** «Контракт синхронен с кодом».
@@ -80,6 +88,21 @@ context:
 - ✅ Given `openapi.yaml` перегенерирован, а `api.generated.ts` нет, when отработал `api-contract.yml`, then workflow падает на непустом `git diff`. **Проверено на закоммиченном дереве** (как в CI): `git diff --exit-code` даёт `0` при синхронном состоянии и `1` при внесённом расхождении. Сам workflow как целое исполнится впервые на PR — локально проверены его шаги, не оркестрация GitHub Actions.
 
 ## Spec Change Log
+
+### 2026-08-04 — итерация 1, состязательное ревью (Blind Hunter + Edge Case Hunter)
+
+**Что вскрылось (самое тяжёлое):** удаление шага «Validate OpenAPI schema generation» из `backend-ci.yml` меняло блокирующую проверку на необязательную — новый workflow не входил в required-контексты `setup-branch-protection.sh`. Спека предписала удаление, не рассмотрев слой принуждения вовсе.
+
+**Проверка гипотезы изменила её вес.** `gh api` показал, что ни `main`, ни `develop` не защищены — «Branch not protected». Обязательных контекстов сегодня нет ни одного, так что регрессии блокировки фактически не было. Но строки в скрипте вдобавок не совпадают с реальными именами check-run (реальное — `build (3.12)`, в скрипте — «Django CI (build)»), и у трёх workflow есть фильтр `paths`, из-за которого required-контекст вешает PR бессрочно.
+
+**Решения (Alex, 2026-08-04):**
+1. Шаг в `backend-ci.yml` **возвращён** с комментарием, объясняющим, почему дублирование намеренно и когда его можно снять.
+2. Контекст `Контракт синхронен с кодом` добавлен в оба блока `setup-branch-protection.sh`; в шапку скрипта вписано предупреждение о трёх минах применения.
+3. Формулировка NFR-3940-07 ослаблена до фактической: гейт — сигнал, а не замок, пока защита не применена.
+
+**Что ещё исправлено (патч-класс):** два подтверждённых `TypeError` — `normalize` на `enum` со смешанными типами и `None` (OpenAPI 3.1 это разрешает) и `collect_differences` на нестроковых ключах YAML (незакавыченный код ответа даёт `int`); пропуск расхождений `0`/`False` и `1`/`1.0` из-за питоновского равенства скаляров — добавлена сверка типа; необработанные `yaml.YAMLError`, `OSError` и отказ генерации схемы давали traceback вместо `CommandError`, вопреки строке I/O-матрицы; `options["limit"]` ронял `KeyError` при вызове `handle()` минуя argparse — именно так вызывают тесты; отчёт печатал `repr` целых поддеревьев без усечения; `git diff --exit-code` был слеп к удалённому из индекса `api.generated.ts` (регенерация создавала его заново как untracked, гейт зеленел) — добавлены `git ls-files --error-unmatch` и `git status --porcelain`; в `paths` не было `package-lock.json`, `.prettierrc`, `.prettierignore` и `backend-ci.yml`; `if: failure()` рапортовал «рассинхрон контракта» на обрыве `npm ci`; не было службы redis при заданном `REDIS_URL` и `django_redis` в кэше; добавлены `concurrency`, `permissions: contents: read`, `timeout-minutes`.
+
+**KEEP (сохранить при любой переделке):** сравнение разобранных структур вместо текста — центральный аргумент подтверждён ревьюером независимо (`paths` и методы внутри пути суть YAML-отображения, `SORT_OPERATIONS: False` подтверждает источник недетерминизма); `_sort_key` с именем типа в ключе — без него первый же `enum` с `null` роняет команду; проход `prettier --write` внутри `generate:types`, иначе гейт падает на 100 % PR; разделение на два коммита — регенерация отдельно от кода гейта.
 
 ## Design Notes
 

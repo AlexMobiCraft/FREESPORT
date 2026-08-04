@@ -4,6 +4,9 @@ name: API Contract
 # frontend/src/types/api.generated.ts коммитились, но ничем не проверялись: tsc
 # сгенерированный файл не видит, CI его не пересобирал, и рассинхрон обнаруживался
 # только чтением диффа глазами. Подробности — tech-debt.md, пункт 20.
+#
+# Списки paths продублированы для pull_request и push намеренно: GitHub Actions не
+# поддерживает YAML-якоря в workflow. При правке менять ОБА списка.
 on:
   pull_request:
     branches: [main, develop]
@@ -12,6 +15,15 @@ on:
       - "docs/api/openapi.yaml"
       - "frontend/src/types/api.generated.ts"
       - "frontend/package.json"
+      # Меняют вывод генерации, не меняя её вход: версии openapi-typescript и prettier,
+      # конфиг и список исключений форматтера. Без них бамп зависимости проезжает мимо
+      # гейта, а красным становится следующий, ни в чём не виноватый PR.
+      - "frontend/package-lock.json"
+      - "frontend/.prettierrc"
+      - "frontend/.prettierignore"
+      # Валидация генерации схемы жила здесь до переноса — правки этого файла тоже
+      # обязаны проходить через гейт.
+      - ".github/workflows/backend-ci.yml"
       - ".github/workflows/api-contract.yml"
   push:
     branches: [main, develop]
@@ -20,7 +32,19 @@ on:
       - "docs/api/openapi.yaml"
       - "frontend/src/types/api.generated.ts"
       - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/.prettierrc"
+      - "frontend/.prettierignore"
+      - ".github/workflows/backend-ci.yml"
       - ".github/workflows/api-contract.yml"
+
+# push в develop и pull_request на тот же коммит дают два прогона; устаревшие отменяем.
+concurrency:
+  group: api-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   PYTHON_VERSION: "3.12"
@@ -31,6 +55,7 @@ jobs:
   contract:
     name: Контракт синхронен с кодом
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       DJANGO_SETTINGS_MODULE: freesport.settings.test
       SECRET_KEY: test-secret-key-for-ci-cd-only
@@ -42,8 +67,9 @@ jobs:
       DB_PORT: 5432
       REDIS_URL: redis://localhost:6379/0
 
-    # Схема строится без обращения к БД, но Django поднимает соединение при старте
-    # приложений. Служба дешевле, чем разбирательство с плавающим падением в CI.
+    # Схема строится без запросов к БД, но Django поднимает соединения и кэш при
+    # инициализации приложений. Обе службы дешевле, чем разбирательство с падением,
+    # которое из-за общей ошибки выглядело бы как рассинхрон контракта.
     services:
       postgres:
         image: postgres:15
@@ -58,6 +84,16 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -87,6 +123,7 @@ jobs:
       # Сравниваются разобранные структуры, а не текст: drf-spectacular недетерминирован
       # в порядке ключей, поэтому побайтовое сравнение давало бы ложные падения.
       - name: Сверка openapi.yaml с кодом
+        id: schema_sync
         run: |
           cd backend
           source venv/bin/activate
@@ -108,16 +145,28 @@ jobs:
       # закоммиченного YAML детерминированно (проверено — повторный запуск даёт ту же
       # контрольную сумму). Шаг generate:types включает прогон Prettier, без него
       # форматирование расходится с закоммиченным файлом целиком.
+      #
+      # git diff недостаточно: если файл удалён из индекса, регенерация создаст его
+      # заново как untracked, и diff окажется пустым — гейт был бы зелёным при
+      # отсутствующем в репозитории контракте. git status видит и это.
       - name: Сверка сгенерированных типов
+        id: types_sync
         run: |
           cd frontend
+          git ls-files --error-unmatch src/types/api.generated.ts > /dev/null
           npm run generate:types
-          git diff --exit-code -- src/types/api.generated.ts
+          if [ -n "$(git status --porcelain -- src/types/api.generated.ts)" ]; then
+            echo "Сгенерированные типы разошлись с закоммиченными:"
+            git --no-pager diff -- src/types/api.generated.ts | head -100
+            exit 1
+          fi
 
+      # Условие привязано к конкретным шагам: без этого подсказка печаталась бы и при
+      # обрыве npm ci или pip, отправляя человека чинить несуществующий рассинхрон.
       - name: Подсказка при расхождении
-        if: failure()
+        if: failure() && (steps.schema_sync.outcome == 'failure' || steps.types_sync.outcome == 'failure')
         run: |
           echo "::error::Контракт API рассинхронизирован."
           echo "Перегенерируйте оба артефакта и закоммитьте:"
-          echo "  cd backend && python manage.py spectacular --file ../docs/api/openapi.yaml --format openapi"
+          echo "  cd backend && python manage.py spectacular --file ../docs/api/openapi.yaml --format openapi --validate"
           echo "  cd frontend && npm run generate:types"

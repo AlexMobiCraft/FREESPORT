@@ -28,6 +28,29 @@ UNORDERED_SCALAR_KEYS = ("tags", "required", "enum")
 # иначе занимает экраны и прячет первое — самое информативное — расхождение.
 MAX_REPORTED_DIFFERENCES = 20
 
+# Предел длины значения в отчёте. Без него смена типа крупного узла выкидывает в лог CI
+# repr целого поддерева — одной строкой, ровно тогда, когда лог нужно читать.
+MAX_VALUE_REPR = 200
+
+
+def _sort_key(value):
+    """Ключ сортировки, устойчивый к разнотипным элементам.
+
+    OpenAPI 3.1 допускает `enum: [..., null]`, а незакавыченный код ответа YAML разбирает
+    как `int`. Голый `sorted()` на таких списках падает `TypeError`, то есть команда
+    рушилась бы traceback'ом ровно в том случае, ради которого написана, — при ручной
+    правке контракта. Имя типа в ключе даёт полный порядок на любой смеси значений.
+    """
+    return (type(value).__name__, str(value))
+
+
+def _short(value):
+    """Repr значения, урезанный до читаемой длины."""
+    text = repr(value)
+    if len(text) <= MAX_VALUE_REPR:
+        return text
+    return f"{text[:MAX_VALUE_REPR]}… (обрезано, всего {len(text)} символов)"
+
 
 def _all_scalar(items):
     """Все ли элементы списка — скаляры (сортировать можно только такие)."""
@@ -49,7 +72,7 @@ def _normalize_value(key, value):
     """Нормализует значение с учётом имени ключа, под которым оно лежит."""
     if isinstance(value, list):
         if key in UNORDERED_SCALAR_KEYS and _all_scalar(value):
-            return sorted(value)
+            return sorted(value, key=_sort_key)
         if key == "parameters":
             return sorted((normalize(item) for item in value), key=_parameter_sort_key)
     return normalize(value)
@@ -72,7 +95,7 @@ def collect_differences(from_code, from_file, path=""):
     сообщение «файлы отличаются» не помогает понять, что именно забыли перегенерировать.
     """
     if isinstance(from_code, dict) and isinstance(from_file, dict):
-        for key in sorted(set(from_code) | set(from_file)):
+        for key in sorted(set(from_code) | set(from_file), key=_sort_key):
             child = f"{path}.{key}" if path else str(key)
             if key not in from_file:
                 yield (child, "есть в коде, отсутствует в openapi.yaml")
@@ -86,8 +109,11 @@ def collect_differences(from_code, from_file, path=""):
         else:
             for index, (code_item, file_item) in enumerate(zip(from_code, from_file)):
                 yield from collect_differences(code_item, file_item, f"{path}[{index}]")
-    elif from_code != from_file:
-        yield (path, f"значения различаются: в коде {from_code!r}, в файле {from_file!r}")
+    # Тип сверяется отдельно от значения: в Python `False == 0` и `1 == 1.0`, поэтому
+    # голое `!=` пропустило бы подмену булева значения числовым — а `openapi-typescript`
+    # сгенерирует по ним разный TypeScript.
+    elif type(from_code) is not type(from_file) or from_code != from_file:
+        yield (path, f"значения различаются: в коде {_short(from_code)}, в файле {_short(from_file)}")
 
 
 def default_schema_path():
@@ -95,13 +121,44 @@ def default_schema_path():
     return Path(settings.BASE_DIR).parent / "docs" / "api" / "openapi.yaml"
 
 
+def load_schema(path):
+    """Читает и разбирает YAML-документ, переводя любой отказ в `CommandError`.
+
+    Без этого битый YAML или нечитаемый файл дают traceback парсера, тогда как команда
+    обязана объяснять человеку, что именно не так с его контрактом.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise CommandError(f"Не удалось прочитать файл контракта {path}: {exc}") from exc
+
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise CommandError(f"Файл контракта не разбирается как YAML: {path}\n{exc}") from exc
+
+
 def generate_schema():
     """Строит схему из текущего кода тем же путём, что и `manage.py spectacular`."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         target = Path(tmp_dir) / "schema.yaml"
-        # --validate сохраняет проверку, которая раньше жила отдельным шагом backend-ci.yml.
-        call_command("spectacular", "--file", str(target), "--format", "openapi", "--validate")
-        return yaml.safe_load(target.read_text(encoding="utf-8"))
+        try:
+            # --validate сохраняет проверку, которая раньше жила отдельным шагом backend-ci.yml.
+            call_command("spectacular", "--file", str(target), "--format", "openapi", "--validate")
+        except CommandError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — любой отказ генерации нужно объяснить человеком
+            raise CommandError(
+                f"Не удалось построить схему из кода ({type(exc).__name__}): {exc}\n"
+                "Это отказ самой генерации, а не рассинхрон контракта: чините сериализаторы "
+                "и вью, регенерация файла тут не поможет."
+            ) from exc
+
+        generated = load_schema(target)
+
+    if not isinstance(generated, dict):
+        raise CommandError("Генерация схемы дала пустой результат — сверять нечего.")
+    return generated
 
 
 class Command(BaseCommand):
@@ -123,11 +180,15 @@ class Command(BaseCommand):
             "--limit",
             type=int,
             default=MAX_REPORTED_DIFFERENCES,
-            help=f"Сколько расхождений напечатать (по умолчанию {MAX_REPORTED_DIFFERENCES}); 0 — все.",
+            help=(
+                f"Сколько расхождений напечатать (по умолчанию {MAX_REPORTED_DIFFERENCES}); "
+                "0 или отрицательное — все."
+            ),
         )
 
     def handle(self, *args, **options):
-        schema_path = Path(options["schema_file"]) if options["schema_file"] else default_schema_path()
+        schema_file = options.get("schema_file")
+        schema_path = Path(schema_file) if schema_file else default_schema_path()
 
         if not schema_path.is_file():
             raise CommandError(
@@ -136,7 +197,7 @@ class Command(BaseCommand):
                 "backend/, поэтому docs/api/openapi.yaml туда не попадает."
             )
 
-        committed = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+        committed = load_schema(schema_path)
         if not isinstance(committed, dict):
             raise CommandError(f"Файл контракта не является отображением YAML: {schema_path}")
 
@@ -149,7 +210,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Контракт синхронен с кодом: {schema_path}"))
             return
 
-        self._report(schema_path, differences, options["limit"])
+        # .get: команду вызывают и напрямую из тестов, минуя argparse, — тогда ключа нет.
+        self._report(schema_path, differences, options.get("limit", MAX_REPORTED_DIFFERENCES))
 
     def _report(self, schema_path, differences, limit):
         """Печатает расхождения и завершает команду ошибкой."""
@@ -165,6 +227,8 @@ class Command(BaseCommand):
 
         raise CommandError(
             f"{schema_path} не соответствует коду. Перегенерируйте контракт и типы фронта:\n"
-            "  python manage.py spectacular --file ../docs/api/openapi.yaml --format openapi\n"
-            "  cd frontend && npm run generate:types"
+            "  python manage.py spectacular --file ../docs/api/openapi.yaml --format openapi --validate\n"
+            "  cd frontend && npm run generate:types\n"
+            "Флаг --validate обязателен: гейт генерирует схему именно с ним, и без него "
+            "локально будет чисто, а в CI — падение на валидации."
         )
