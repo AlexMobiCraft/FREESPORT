@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getPriceForRole, formatPrice } from '../pricing';
+import { getPriceForRole, formatPrice, isB2BRole } from '../pricing';
 import type { ProductPrice } from '@/types/api';
 
 describe('getPriceForRole', () => {
@@ -13,6 +13,7 @@ describe('getPriceForRole', () => {
       level1: 11890,
       level2: 11290,
       level3: 10790,
+      level4: 10490,
     },
     trainer: 10990,
     federation: 9990,
@@ -33,6 +34,10 @@ describe('getPriceForRole', () => {
 
   it('возвращает wholesale level3 для роли wholesale_level3', () => {
     expect(getPriceForRole(mockPrice, 'wholesale_level3')).toBe(10790);
+  });
+
+  it('возвращает wholesale level4 для роли wholesale_level4', () => {
+    expect(getPriceForRole(mockPrice, 'wholesale_level4')).toBe(10490);
   });
 
   it('возвращает trainer цену для роли trainer', () => {
@@ -59,6 +64,7 @@ describe('getPriceForRole', () => {
     expect(getPriceForRole(priceWithoutWholesale, 'wholesale_level1')).toBe(12990);
     expect(getPriceForRole(priceWithoutWholesale, 'wholesale_level2')).toBe(12990);
     expect(getPriceForRole(priceWithoutWholesale, 'wholesale_level3')).toBe(12990);
+    expect(getPriceForRole(priceWithoutWholesale, 'wholesale_level4')).toBe(12990);
   });
 
   it('fallback на retail если trainer цена отсутствует', () => {
@@ -82,13 +88,24 @@ describe('getPriceForRole', () => {
       retail: 12990,
       wholesale: {
         level1: 11890,
-        // level2 и level3 отсутствуют
+        // level2, level3 и level4 отсутствуют
       },
       currency: 'RUB',
     };
     expect(getPriceForRole(partialWholesale, 'wholesale_level1')).toBe(11890);
     expect(getPriceForRole(partialWholesale, 'wholesale_level2')).toBe(12990); // fallback
     expect(getPriceForRole(partialWholesale, 'wholesale_level3')).toBe(12990); // fallback
+    expect(getPriceForRole(partialWholesale, 'wholesale_level4')).toBe(12990); // fallback
+  });
+});
+
+describe('isB2BRole', () => {
+  it('относит wholesale_level4 к B2B', () => {
+    expect(isB2BRole('wholesale_level4')).toBe(true);
+  });
+
+  it('не относит unregistered к B2B', () => {
+    expect(isB2BRole('unregistered')).toBe(false);
   });
 });
 

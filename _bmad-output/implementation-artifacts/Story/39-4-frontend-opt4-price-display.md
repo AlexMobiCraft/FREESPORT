@@ -4,7 +4,7 @@ baseline_commit: 0e005137f0fae00a93cfcc3535a6cef3a3adb0ba
 
 # Story 39.4: Фронтенд показывает цену уровня 4
 
-Status: ready-for-dev
+Status: review
 
 > 🚧 **БЛОКИРУЮЩЕЕ ПРЕДУСЛОВИЕ — стори 39.3 должна быть реализована и влита.**
 > Проверено на `0e005137`: `docs/api/openapi.yaml` содержит **0** вхождений `opt4_price` и **0** вхождений `wholesale_level4`. Пока 39.3 не сдана, AC1 физически невыполним — `npm run generate:types` перегенерирует `api.generated.ts` без нового поля и роли, и Task 1 «пройдёт» вхолостую.
@@ -37,70 +37,70 @@ so that **я видел актуальные для меня условия, а 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0: Проверка блокирующего предусловия** (AC: 1)
-  - [ ] 0.1: Из корня репозитория выполнить `grep -c "opt4_price" docs/api/openapi.yaml` и `grep -c "wholesale_level4" docs/api/openapi.yaml`
-  - [ ] 0.2: Если хотя бы один результат `0` — **остановиться**, сообщить Alex «стори 39.3 не влита, 39.4 стартовать нельзя». Не править `openapi.yaml` и не дописывать `api.generated.ts` руками
-  - [ ] 0.3: Если оба > 0 — зафиксировать в Completion Notes фактический коммит 39.3, поверх которого работаешь
+- [x] **Task 0: Проверка блокирующего предусловия** (AC: 1)
+  - [x] 0.1: Из корня репозитория выполнить `grep -c "opt4_price" docs/api/openapi.yaml` и `grep -c "wholesale_level4" docs/api/openapi.yaml`
+  - [x] 0.2: Если хотя бы один результат `0` — **остановиться**, сообщить Alex «стори 39.3 не влита, 39.4 стартовать нельзя». Не править `openapi.yaml` и не дописывать `api.generated.ts` руками
+  - [x] 0.3: Если оба > 0 — зафиксировать в Completion Notes фактический коммит 39.3, поверх которого работаешь
 
-- [ ] **Task 1: Регенерация типов** (AC: 1, 9)
-  - [ ] 1.1: С хоста, из каталога `frontend/`: `npm run generate:types`
-  - [ ] 1.2: Проверить diff: `opt4_price` в `ProductList` и `ProductDetail`, `wholesale_level4` в `RoleEnum`
-  - [ ] 1.3: Привести файл к стилю проекта: `npx prettier --write src/types/api.generated.ts` (иначе `format:check` упадёт на кавычках)
-  - [ ] 1.4: Файл руками **не** править — он помечен `Do not make direct changes to the file`
+- [x] **Task 1: Регенерация типов** (AC: 1, 9)
+  - [x] 1.1: С хоста, из каталога `frontend/`: `npm run generate:types`
+  - [x] 1.2: Проверить diff: `opt4_price` в `ProductList` и `ProductDetail`, `wholesale_level4` в `RoleEnum`
+  - [x] 1.3: Привести файл к стилю проекта: `npx prettier --write src/types/api.generated.ts` (иначе `format:check` упадёт на кавычках)
+  - [x] 1.4: Файл руками **не** править — он помечен `Do not make direct changes to the file`
 
-- [ ] **Task 2: Рукописные типы** (AC: 2)
-  - [ ] 2.1: `src/types/index.ts:25` — `| 'wholesale_level4'` после `'wholesale_level3'`
-  - [ ] 2.2: `src/types/api.ts:18` — то же в union `User['role']`
-  - [ ] 2.3: `src/types/api.ts:47` — `opt4_price?: number;` после `opt3_price?: number;`
-  - [ ] 2.4: `src/types/api.ts:299` — `level4?: number;` в `ProductPrice.wholesale` после `level3?: number;`
-  - [ ] 2.5: Делать **до** остальных задач: `authStore.B2B_ROLES` типизирован как `Array<User['role']>`, и без 2.2 правка AC4 не скомпилируется
+- [x] **Task 2: Рукописные типы** (AC: 2)
+  - [x] 2.1: `src/types/index.ts:25` — `| 'wholesale_level4'` после `'wholesale_level3'`
+  - [x] 2.2: `src/types/api.ts:18` — то же в union `User['role']`
+  - [x] 2.3: `src/types/api.ts:47` — `opt4_price?: number;` после `opt3_price?: number;`
+  - [x] 2.4: `src/types/api.ts:299` — `level4?: number;` в `ProductPrice.wholesale` после `level3?: number;`
+  - [x] 2.5: Делать **до** остальных задач: `authStore.B2B_ROLES` типизирован как `Array<User['role']>`, и без 2.2 правка AC4 не скомпилируется
 
-- [ ] **Task 3: Утилита `pricing.ts`** (AC: 3)
-  - [ ] 3.1: `:11` — `| 'wholesale_level4'` в union `UserRole` после `'wholesale_level3'`
-  - [ ] 3.2: `:29` — `role === 'wholesale_level4' ||` в `isB2BRole` после ветки level3
-  - [ ] 3.3: `:49` — `case 'wholesale_level4': return price.wholesale?.level4 || price.retail;` после кейса level3
-  - [ ] 3.4: Комментарий над `isB2BRole` про `unregistered`/`guest` **не трогать** — он объясняет исключения, а не состав
+- [x] **Task 3: Утилита `pricing.ts`** (AC: 3)
+  - [x] 3.1: `:11` — `| 'wholesale_level4'` в union `UserRole` после `'wholesale_level3'`
+  - [x] 3.2: `:29` — `role === 'wholesale_level4' ||` в `isB2BRole` после ветки level3
+  - [x] 3.3: `:49` — `case 'wholesale_level4': return price.wholesale?.level4 || price.retail;` после кейса level3
+  - [x] 3.4: Комментарий над `isB2BRole` про `unregistered`/`guest` **не трогать** — он объясняет исключения, а не состав
 
-- [ ] **Task 4: Списки B2B-ролей** (AC: 4)
-  - [ ] 4.1: `src/utils/server-auth.ts:45` — `'wholesale_level4',` в `validRoles` после `'wholesale_level3',`
-  - [ ] 4.2: `src/stores/authStore.ts:137` — то же в `B2B_ROLES`
-  - [ ] 4.3: `src/schemas/authSchemas.ts:167` — `'wholesale_level4',` в `z.enum` поля `role` схемы `b2bRegisterSchema`
-  - [ ] 4.4: `registerSchema` (`authSchemas.ts:54`) и `ROLE_OPTIONS` (`components/auth/RegisterForm.tsx:52-57`) **не трогать** — там нет ни уровня 2, ни уровня 3 (см. Dev Notes → «Мина: две схемы регистрации»)
+- [x] **Task 4: Списки B2B-ролей** (AC: 4)
+  - [x] 4.1: `src/utils/server-auth.ts:45` — `'wholesale_level4',` в `validRoles` после `'wholesale_level3',`
+  - [x] 4.2: `src/stores/authStore.ts:137` — то же в `B2B_ROLES`
+  - [x] 4.3: `src/schemas/authSchemas.ts:167` — `'wholesale_level4',` в `z.enum` поля `role` схемы `b2bRegisterSchema`
+  - [x] 4.4: `registerSchema` (`authSchemas.ts:54`) и `ROLE_OPTIONS` (`components/auth/RegisterForm.tsx:52-57`) **не трогать** — там нет ни уровня 2, ни уровня 3 (см. Dev Notes → «Мина: две схемы регистрации»)
 
-- [ ] **Task 5: Сервис товаров** (AC: 5)
-  - [ ] 5.1: `src/services/productsService.ts:43` — `opt4_price?: number;` после `opt3_price?: number;` в `ApiProductDetailResponse`
-  - [ ] 5.2: `src/services/productsService.ts:125` — `level4: apiProduct.opt4_price,` после строки `level3: …`
+- [x] **Task 5: Сервис товаров** (AC: 5)
+  - [x] 5.1: `src/services/productsService.ts:43` — `opt4_price?: number;` после `opt3_price?: number;` в `ApiProductDetailResponse`
+  - [x] 5.2: `src/services/productsService.ts:125` — `level4: apiProduct.opt4_price,` после строки `level3: …`
 
-- [ ] **Task 6: Каскад в `ProductCard`** (AC: 6)
-  - [ ] 6.1: `ProductCard.tsx` — ветка `case 'wholesale_level4'` после level3 (точный код — в Dev Notes; однострочником не влезает в `printWidth: 100`)
-  - [ ] 6.2: Ветки `trainer` / `federation_rep` / `default` **не трогать**
-  - [ ] 6.3: `isB2BRole` в `ProductCard:438,562` правок не требует — подхватится из `pricing.ts` (Task 3.2)
+- [x] **Task 6: Каскад в `ProductCard`** (AC: 6)
+  - [x] 6.1: `ProductCard.tsx` — ветка `case 'wholesale_level4'` после level3 (точный код — в Dev Notes; однострочником не влезает в `printWidth: 100`)
+  - [x] 6.2: Ветки `trainer` / `federation_rep` / `default` **не трогать**
+  - [x] 6.3: `isB2BRole` в `ProductCard:438,562` правок не требует — подхватится из `pricing.ts` (Task 3.2)
 
-- [ ] **Task 7: Восемь точек списков оптовых ролей** (AC: 7)
-  - [ ] 7.1: `src/components/product/ProductInfo.tsx:61` — `'wholesale_level4',` после `'wholesale_level3',`; обновить комментарий на `:57` («оптовики (1-4)»)
-  - [ ] 7.2: `src/app/(blue)/catalog/page.tsx:381` — то же в `isB2B`
-  - [ ] 7.3: `src/components/home/HitsSection.tsx:107` — то же
-  - [ ] 7.4: `src/components/home/NewArrivalsSection.tsx:45` — то же
-  - [ ] 7.5: `src/components/home/PromoSection.tsx:44` — то же
-  - [ ] 7.6: `src/components/home/SaleSection.tsx:44` — то же
-  - [ ] 7.7: `src/components/home/HeroSection.tsx:100` — `|| user?.role === 'wholesale_level4'` в цепочку `if`
-  - [ ] 7.8: `src/components/home/ElectricHeroSection.tsx:137` — то же
-  - [ ] 7.9: Контроль полноты: `grep -rn "wholesale_level3" frontend/src --include=*.ts --include=*.tsx` — рядом с каждым вхождением в **исходниках** должен появиться уровень 4 (тестовые файлы и `api.generated.ts` — исключения, см. Dev Notes)
+- [x] **Task 7: Восемь точек списков оптовых ролей** (AC: 7)
+  - [x] 7.1: `src/components/product/ProductInfo.tsx:61` — `'wholesale_level4',` после `'wholesale_level3',`; обновить комментарий на `:57` («оптовики (1-4)»)
+  - [x] 7.2: `src/app/(blue)/catalog/page.tsx:381` — то же в `isB2B`
+  - [x] 7.3: `src/components/home/HitsSection.tsx:107` — то же
+  - [x] 7.4: `src/components/home/NewArrivalsSection.tsx:45` — то же
+  - [x] 7.5: `src/components/home/PromoSection.tsx:44` — то же
+  - [x] 7.6: `src/components/home/SaleSection.tsx:44` — то же
+  - [x] 7.7: `src/components/home/HeroSection.tsx:100` — `|| user?.role === 'wholesale_level4'` в цепочку `if`
+  - [x] 7.8: `src/components/home/ElectricHeroSection.tsx:137` — то же
+  - [x] 7.9: Контроль полноты: `grep -rn "wholesale_level3" frontend/src --include=*.ts --include=*.tsx` — рядом с каждым вхождением в **исходниках** должен появиться уровень 4 (тестовые файлы и `api.generated.ts` — исключения, см. Dev Notes)
 
-- [ ] **Task 8: Тесты** (AC: 8)
-  - [ ] 8.1: `src/utils/__tests__/pricing.test.ts` — `level4: 10490` в `mockPrice.wholesale`; кейс «возвращает wholesale level4 для роли wholesale_level4»
-  - [ ] 8.2: Там же — кейс fallback: `priceWithoutWholesale` и `partialWholesale` уже существуют (`:55-61`, `:80-91`), добавить в них проверку роли уровня 4
-  - [ ] 8.3: Там же — новый `describe('isB2BRole')` либо кейс внутри существующего: `isB2BRole('wholesale_level4') === true`, `isB2BRole('unregistered') === false` (сторож обратной стороны)
-  - [ ] 8.4: `ProductCard.test.tsx` — `opt4_price: 700` в `mockProduct` (`:74-82`); кейс `displays wholesale level 4 pricing` → `700 ₽`
-  - [ ] 8.5: Там же — кейс каскада: `{ ...mockProduct, opt4_price: undefined }` с `userRole="wholesale_level4"` → `800 ₽` (падение на `opt3_price`)
-  - [ ] 8.6: Проверить, что существующие кейсы уровней 1-3 (`:225-243`) не сломались от нового поля в `mockProduct`
+- [x] **Task 8: Тесты** (AC: 8)
+  - [x] 8.1: `src/utils/__tests__/pricing.test.ts` — `level4: 10490` в `mockPrice.wholesale`; кейс «возвращает wholesale level4 для роли wholesale_level4»
+  - [x] 8.2: Там же — кейс fallback: `priceWithoutWholesale` и `partialWholesale` уже существуют (`:55-61`, `:80-91`), добавить в них проверку роли уровня 4
+  - [x] 8.3: Там же — новый `describe('isB2BRole')` либо кейс внутри существующего: `isB2BRole('wholesale_level4') === true`, `isB2BRole('unregistered') === false` (сторож обратной стороны)
+  - [x] 8.4: `ProductCard.test.tsx` — `opt4_price: 700` в `mockProduct` (`:74-82`); кейс `displays wholesale level 4 pricing` → `700 ₽`
+  - [x] 8.5: Там же — кейс каскада: `{ ...mockProduct, opt4_price: undefined }` с `userRole="wholesale_level4"` → `800 ₽` (падение на `opt3_price`)
+  - [x] 8.6: Проверить, что существующие кейсы уровней 1-3 (`:225-243`) не сломались от нового поля в `mockProduct`
 
-- [ ] **Task 9: Прогон, стиль, сборка** (AC: 9)
-  - [ ] 9.1: `npx tsc --noEmit` из `frontend/`
-  - [ ] 9.2: `npm run test` — сверить с базовой линией из Dev Notes
-  - [ ] 9.3: `npm run lint` и `npm run format:check`
-  - [ ] 9.4: `docker compose --env-file .env -f docker/docker-compose.yml restart frontend` — правки `frontend/src/` требуют рестарта контейнера (`project-context.md` §1)
-  - [ ] 9.5: `npx gitnexus detect-changes --scope all` перед коммитом
+- [x] **Task 9: Прогон, стиль, сборка** (AC: 9)
+  - [x] 9.1: `npx tsc --noEmit` из `frontend/`
+  - [x] 9.2: `npm run test` — сверить с базовой линией из Dev Notes
+  - [x] 9.3: `npm run lint` и `npm run format:check`
+  - [x] 9.4: `docker compose --env-file .env -f docker/docker-compose.yml restart frontend` — правки `frontend/src/` требуют рестарта контейнера (`project-context.md` §1)
+  - [x] 9.5: `npx gitnexus detect-changes --scope all` перед коммитом
 
 ## Dev Notes
 
@@ -479,8 +479,89 @@ E2E (Playwright) стори не затрагивает — ролевых сц�
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, workflow `bmad-dev-story`)
+
 ### Debug Log References
+
+| Проверка | Команда | Результат |
+|---|---|---|
+| Предусловие 39.3 (Task 0) | `grep -c "opt4_price\|wholesale_level4" docs/api/openapi.yaml` | 5 и 2 вхождения → 39.3 влита (HEAD `16ea6d2d`) |
+| GitNexus pre-flight | `npx gitnexus status`, `impact` по 4 символам | индекс up-to-date на `16ea6d2`; `getProductPrice` — **CRITICAL** (1 прямой, 8 процессов, 4 модуля), `getPriceForRole` / `adaptProductToDetail` — LOW, `isB2BRole` — UNKNOWN (омоним локальной константы в `RegisterForm`) |
+| Регенерация типов (Task 1) | `npm run generate:types` | 13 вставок / 2 удаления в `api.generated.ts` |
+| RED-прогон новых тестов | `npx vitest run pricing.test.ts ProductCard.test.tsx` | **4 failed, 56 passed** — падения ровно в новых кейсах (AC3, AC6, AC8) |
+| GREEN-прогон тех же файлов | та же команда после Tasks 3-7 | **60 passed** (pricing 20, ProductCard 40) |
+| Контроль полноты (Task 7.9) | `grep -rn "wholesale_level3" frontend/src` | 24 вхождения; без пары остались только 4 ожидаемых (`api.generated.ts`, `ProfileForm.test.tsx`, `pricing.test.ts`, `ProductCard.test.tsx`) |
+| Типы (Task 9.1) | `npx tsc --noEmit` | exit 0, чисто |
+| Полный Vitest (Task 9.2) | `npm run test` | **144 files passed, 2426 passed \| 16 skipped** (99 с) — базовая линия 2421 + 5 новых кейсов |
+| Линт и стиль (Task 9.3) | `npm run lint`, `npm run format:check` | eslint чисто (`--max-warnings=0`); «All matched files use Prettier code style!» |
+| Рестарт окружения (Task 9.4) | `docker compose … restart frontend` | `Container freesport-frontend Started` |
+| GitNexus (Task 9.5) | `npx gitnexus detect-changes --scope all` | 24 файла, 40 символов, 25 процессов, risk critical — ожидаемо для `getProductPrice`; посторонних символов нет |
+
+`prettier --write` по `api.generated.ts` (Task 1.3) отдельной командой не потребовался — он уже входит в npm-скрипт `generate:types` (`openapi-typescript … && prettier --write ./src/types/api.generated.ts`). `format:check` это подтвердил.
 
 ### Completion Notes List
 
+**Реализовано по ACs**
+
+- **AC1** — типы перегенерированы поверх коммита 39.3 `16ea6d2d` (Task 0.3). `readonly opt4_price: number;` появился в схемах `ProductList` и `ProductDetail`; `'wholesale_level4'` в `RoleEnum` **уже присутствовал** до правки (см. расхождение 1). Файл правился только генератором.
+- **AC2** — все четыре правки внесены: `wholesale_level4` в union `UserRole` (`types/index.ts`) и в `User['role']` (`types/api.ts`), `opt4_price?: number;` в `Product`, `level4?: number;` в `ProductPrice.wholesale`. Последняя — та, которой нет в задании §B3; без неё `tsc` падает на `pricing.ts` и `productsService.ts`.
+- **AC3** — `pricing.ts`: роль в union, в предикате `isB2BRole` и ветка `case 'wholesale_level4': return price.wholesale?.level4 || price.retail;`. Каскад намеренно не вводился — форма один в один с уровнями 1-3.
+- **AC4** — роль добавлена во все три списка: `server-auth.validRoles`, `authStore.B2B_ROLES`, `authSchemas.b2bRegisterSchema`. `registerSchema` и `ROLE_OPTIONS` не тронуты (там нет и уровней 2-3).
+- **AC5** — `opt4_price?: number;` в DTO `ApiProductDetailResponse` и `level4: apiProduct.opt4_price,` в маппинге `adaptProductToDetail`.
+- **AC6** — ветка `case 'wholesale_level4'` в `getProductPrice` с каскадом `opt4 → opt3 → opt2 → opt1 → retail`, записана сразу в развёрнутом виде под `printWidth: 100`. Ветки `trainer` / `federation_rep` / `default` и соседние уровни не тронуты — именно это делает CRITICAL-радиус безопасным.
+- **AC7** — все восемь точек закрыты: шесть массивов (`ProductInfo.canSeeRrp`, `catalog/page.tsx`, `HitsSection`, `NewArrivalsSection`, `PromoSection`, `SaleSection`) и две цепочки сравнений (`HeroSection`, `ElectricHeroSection`) — вторые правились по своей форме, не копипастой массива. Комментарий в `ProductInfo.tsx` обновлён на «оптовики (1-4)».
+- **AC8** — `pricing.test.ts`: кейс значения `level4`, проверки fallback в обоих существующих сценариях, новый `describe('isB2BRole')` со сторожем `unregistered → false`. `ProductCard.test.tsx`: `opt4_price: 700` в `mockProduct`, кейс отображения `700 ₽` и кейс каскада (`opt4_price: undefined` → `800 ₽`). Новых файлов не заведено.
+- **AC9** — `tsc --noEmit`, `npm run lint`, `npm run format:check`, `npm run test` зелёные; регрессий относительно базовой линии нет (144 файла как было, +5 кейсов).
+
+**Расхождения со спекой стори (обнаружены по факту, не дефекты реализации)**
+
+1. **`wholesale_level4` уже был в `api.generated.ts`.** Спека ожидала его появления в diff регенерации. Фактически роль попала в закоммиченный файл раньше — вместе с регенерацией по тех.долгу п. 20 (`4708dd8a`), после того как 39.1 добавила её в `ROLE_CHOICES`. AC1 в части `RoleEnum` выполнен состоянием файла, в части `opt4_price` — этой стори.
+2. **В diff `api.generated.ts` попал один посторонний ханк** — у операции получения категории `id: string` заменился на `id: number` с описанием. Это накопленный дрейф закоммиченного файла относительно контракта (типы не регенерировались после правок категорий), а не следствие правок стори. Файл правится только генератором, поэтому ханк оставлен как есть; на компиляцию и тесты не влияет (`api.generated.ts` в приложении не импортируется — мина №1 Dev Notes).
+3. **Базовая линия тестов совпала точно** (2421 → 2426 при неизменных 144 файлах и 16 skipped), в отличие от 39.3, где линии в спеке устарели.
+
+**Вне объёма — к сведению Alex**
+
+- **Гейт `api-contract.yml` после этой стори должен позеленеть.** Он падал на шаге `npm run generate:types` + `git status --porcelain`: контракт содержал `opt4_price`, а типы фронта — нет. Теперь типы приведены в соответствие с контрактом; расхождение релизной ветки, о котором предупреждала 39.3, снято.
+- **Приёмка эпика 39 не закрыта зелёными тестами.** По замеру прода `opt4_price` пуст у 100 % вариантов (16 309 из 16 309) — клиент с ролью уровня 4 увидит розничную цену, и это корректная работа кода. Для закрытия эпика нужны два шага в 1С: заполнить вид цен «Опт 4» и прогнать выгрузку цен.
+- **Долг не трогался** (в соответствии с антипаттернами): списки оптовых ролей не сведены к единому предикату (`tech-debt.md` п. 17); `api.generated.ts` по-прежнему не импортируется приложением (п. 20); моки `src/__mocks__/products.ts` и `productDetail.ts` уровень 4 не получили.
+
 ### File List
+
+**Изменённые — типы**
+
+- `frontend/src/types/api.generated.ts` (перегенерирован)
+- `frontend/src/types/api.ts`
+- `frontend/src/types/index.ts`
+
+**Изменённые — логика и компоненты**
+
+- `frontend/src/utils/pricing.ts`
+- `frontend/src/utils/server-auth.ts`
+- `frontend/src/stores/authStore.ts`
+- `frontend/src/schemas/authSchemas.ts`
+- `frontend/src/services/productsService.ts`
+- `frontend/src/components/business/ProductCard/ProductCard.tsx`
+- `frontend/src/components/product/ProductInfo.tsx`
+- `frontend/src/app/(blue)/catalog/page.tsx`
+- `frontend/src/components/home/HitsSection.tsx`
+- `frontend/src/components/home/NewArrivalsSection.tsx`
+- `frontend/src/components/home/PromoSection.tsx`
+- `frontend/src/components/home/SaleSection.tsx`
+- `frontend/src/components/home/HeroSection.tsx`
+- `frontend/src/components/home/ElectricHeroSection.tsx`
+
+**Изменённые — тесты**
+
+- `frontend/src/utils/__tests__/pricing.test.ts`
+- `frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx`
+
+**Изменённые — артефакты процесса**
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/39-4-frontend-opt4-price-display.md`
+
+## Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-04 | Реализована стори 39.4: типы фронта перегенерированы из контракта с `opt4_price`; роль `wholesale_level4` добавлена в рукописные типы, `pricing.ts` (union, `isB2BRole`, `getPriceForRole`), три списка B2B-ролей, DTO и маппинг `productsService`, каскад `getProductPrice` в `ProductCard` и все восемь точек списков оптовых ролей. Добавлено 5 кейсов Vitest в два существующих файла. Статус → review. |

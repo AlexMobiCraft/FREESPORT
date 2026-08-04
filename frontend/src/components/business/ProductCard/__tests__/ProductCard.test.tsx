@@ -80,6 +80,7 @@ describe('ProductCard', () => {
     opt1_price: 1000,
     opt2_price: 900,
     opt3_price: 800,
+    opt4_price: 700,
     is_in_stock: true,
     stock_quantity: 50,
     category: {
@@ -237,6 +238,28 @@ describe('ProductCard', () => {
     it('displays wholesale level 3 pricing', () => {
       render(
         <ProductCard product={mockProduct} userRole="wholesale_level3" mode="b2b" layout="grid" />
+      );
+
+      expect(screen.getByText('800 ₽')).toBeInTheDocument();
+    });
+
+    it('displays wholesale level 4 pricing', () => {
+      render(
+        <ProductCard product={mockProduct} userRole="wholesale_level4" mode="b2b" layout="grid" />
+      );
+
+      expect(screen.getByText('700 ₽')).toBeInTheDocument();
+    });
+
+    it('falls back to level 3 price when opt4 is missing', () => {
+      const productWithoutOpt4 = { ...mockProduct, opt4_price: undefined };
+      render(
+        <ProductCard
+          product={productWithoutOpt4}
+          userRole="wholesale_level4"
+          mode="b2b"
+          layout="grid"
+        />
       );
 
       expect(screen.getByText('800 ₽')).toBeInTheDocument();

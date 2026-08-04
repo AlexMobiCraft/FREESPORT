@@ -9,6 +9,7 @@ export type UserRole =
   | 'wholesale_level1'
   | 'wholesale_level2'
   | 'wholesale_level3'
+  | 'wholesale_level4'
   | 'trainer'
   | 'federation_rep'
   | 'admin'
@@ -27,6 +28,7 @@ export function isB2BRole(role: UserRole | undefined): boolean {
     role === 'wholesale_level1' ||
     role === 'wholesale_level2' ||
     role === 'wholesale_level3' ||
+    role === 'wholesale_level4' ||
     role === 'trainer' ||
     role === 'federation_rep'
   );
@@ -48,6 +50,8 @@ export function getPriceForRole(price: ProductPrice, userRole: UserRole): number
       return price.wholesale?.level2 || price.retail;
     case 'wholesale_level3':
       return price.wholesale?.level3 || price.retail;
+    case 'wholesale_level4':
+      return price.wholesale?.level4 || price.retail;
     case 'trainer':
       return price.trainer || price.retail;
     case 'federation_rep':

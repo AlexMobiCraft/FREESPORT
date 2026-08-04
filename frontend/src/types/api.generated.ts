@@ -2318,6 +2318,11 @@ export interface components {
        * @description Получить оптовую цену уровня 3 из первого варианта
        */
       readonly opt3_price: number;
+      /**
+       * Format: double
+       * @description Получить оптовую цену уровня 4 из первого варианта
+       */
+      readonly opt4_price: number;
       /** @description Получить суммарное количество на складе по всем вариантам */
       readonly stock_quantity: number;
       /** @description Проверить наличие товара (любой вариант в наличии) */
@@ -2372,7 +2377,7 @@ export interface components {
      *     в ProductDetailSerializer.
      *
      *     Вычисляемые поля для обратной совместимости (данные из вариантов):
-     *     - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+     *     - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
      *     - stock_quantity: суммарное количество на складе по всем вариантам
      *     - is_in_stock: есть ли хотя бы один вариант в наличии
      *     - main_image: изображение из первого варианта или base_images
@@ -2464,6 +2469,11 @@ export interface components {
        * @description Получить оптовую цену уровня 3 из первого варианта
        */
       readonly opt3_price: number;
+      /**
+       * Format: double
+       * @description Получить оптовую цену уровня 4 из первого варианта
+       */
+      readonly opt4_price: number;
       /** @description Получить суммарное количество на складе по всем вариантам */
       readonly stock_quantity: number;
       /** @description Проверить наличие товара (любой вариант в наличии) */
@@ -4144,7 +4154,8 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        /** @description A unique integer value identifying this Категория. */
+        id: number;
       };
       cookie?: never;
     };

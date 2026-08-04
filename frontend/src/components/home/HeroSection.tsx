@@ -97,7 +97,8 @@ const HeroSection = () => {
     if (
       user?.role === 'wholesale_level1' ||
       user?.role === 'wholesale_level2' ||
-      user?.role === 'wholesale_level3'
+      user?.role === 'wholesale_level3' ||
+      user?.role === 'wholesale_level4'
     ) {
       return STATIC_BANNERS[0];
     }

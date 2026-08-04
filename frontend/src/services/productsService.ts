@@ -41,6 +41,7 @@ interface ApiProductDetailResponse {
   opt1_price?: number;
   opt2_price?: number;
   opt3_price?: number;
+  opt4_price?: number;
   trainer_price?: number;
   federation_price?: number;
   stock_quantity: number;
@@ -123,6 +124,7 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
         level1: apiProduct.opt1_price,
         level2: apiProduct.opt2_price,
         level3: apiProduct.opt3_price,
+        level4: apiProduct.opt4_price,
       },
       trainer: apiProduct.trainer_price,
       federation: apiProduct.federation_price,
