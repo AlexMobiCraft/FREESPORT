@@ -511,6 +511,10 @@
   summary: Типизировать DTO-слой фронта от генерации — `ApiProductDetailResponse = components['schemas']['ProductDetail']`, `Product = components['schemas']['ProductList']`, с последующими правками `productsService.ts`, `types/api.ts`, `utils/pricing.ts`.
   evidence: Разделено с целью «CI-гейт синхронизации контракта» (тех.долг п. 20, рекомендация 1). Обе цели независимо шиппабельны: гейт работает и при рукописных типах, типизация работает и без гейта. Порядок выбран сознательно — типизация от генерации требует свежего `docs/api/openapi.yaml`, который приводит в актуальное состояние первая спека; при дрейфе с 2026-07-26 `tsc` покраснел бы массово и не по делу.
 
+## Deferred from: code review of security-wholesale-price-visibility (2026-08-04)
+
+- Нулевая специальная цена расходится с фильтрами каталога: `ProductVariant.get_price_for_user()` трактует допустимое `0.00` как отсутствие специальной цены и возвращает `retail_price`, но `ProductFilter.filter_min_price` / `filter_max_price` переходят к рознице только при `NULL`. При `opt1_price=0`, `retail_price=1000`, `min_price=500` товар не попадёт в выдачу, хотя отображается по 1000. Предсуществующая проблема; требуется унифицировать fallback для `NULL` и `0`. [`backend/apps/products/filters.py:271-285`, `backend/apps/products/filters.py:306-320`]
+
 ## Deferred from: code review of spec-tech-debt-20-api-contract-ci-gate (2026-08-04)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`

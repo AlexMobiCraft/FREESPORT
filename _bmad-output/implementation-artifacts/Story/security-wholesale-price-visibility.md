@@ -5,7 +5,7 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
 # Story: Security — Оптовые цены видны только верифицированному B2B
 
 **Story ID:** security-wholesale-price-visibility
-**Status:** done
+**Status:** review
 **Priority:** 🔴 High — блокирует стори 39.3 (решение Alex, 2026-08-03)
 **Source:** `_bmad-output/planning-artifacts/tech-debt.md` п. 18 · `_bmad-output/planning-artifacts/epics.md` → Epic 39 → «Предшествующая работа»
 **Порядок:** выполняется **до** стори `39-3-catalog-admin-api-opt4-price`. Эпика не имеет — правка про политику цен в целом, а не про «Опт 4».
@@ -147,6 +147,11 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
 
 - [x] [Review][Patch] Существующие тесты ролевого ценообразования не обновлены для B2B-верификации [backend/tests/unit/test_models/test_product_models.py:185] — AC10 нарушен: тесты создают `wholesale_level1…3`, `trainer` и `federation_rep` через `UserFactory` с `is_verified=False` по умолчанию, но ожидают оптовые цены. Аналогичные неверные ожидания остаются в `backend/tests/unit/test_models/test_order_models.py:285` и `backend/tests/integration/test_product_detail_api.py:53`. Нужно установить `is_verified=True` только в фикстурах, проверяющих оптовую цену или RRP/MSRP, не ослабляя ассерты.
   - **Закрыто 2026-08-03.** Находка подтверждена прогоном (4 падения по трём названным файлам). Исправлено добавлением `is_verified=True` в 4 фикстуры/теста, ассерты не ослаблялись. Сверх находки полным прогоном без фильтра по маркерам найден **пятый** случай — `tests/integration/test_user_cart_integration.py:23` (`test_role_based_pricing_in_cart`, `AssertionError: 100.0 not less than 100.0`), тоже исправлен. Корневая причина промаха разобрана ниже («Корневая причина: 852 теста вне CI-фильтров»).
+- [x] [Review][Defer] Нулевая специальная цена расходится с фильтрами каталога [backend/apps/products/filters.py:271] — `get_price_for_user` трактует допустимое значение `0.00` как отсутствие специальной цены и возвращает `retail_price`, но `filter_min_price` / `filter_max_price` переходят к рознице только при `NULL`. Поэтому выдача по `min_price`/`max_price` для верифицированного B2B может не совпасть с отображаемой ценой. Проблема существовала до этой story; отложена как предсуществующая.
+- [x] [Review][Patch] Сторож AC7 не ловит утечку `opt4_price` и удаление ключей [backend/tests/integration/test_catalog_price_visibility.py:51] — fixture заполняет только `opt1…opt3`, поэтому `opt4_price=0` проходит даже при снятом гейте. В ряде веток `all(...)` вызывается для пустого списка, что не обнаруживает удаление всех `opt*_price`; также нет проверок `detail` для retail и неверифицированного B2B. Заполнить `opt4_price` ненулевым, проверять ожидаемые ключи и нули для list/detail/related_products у всех ролей из AC7.
+  - **Закрыто 2026-08-04.** Находка подтверждена мутационным прогоном (см. Debug Log → сессия 3). Фикстура заполняет каждое поле `WHOLESALE_PRICE_FIELDS` ненулевой ценой, набор `opt*`-ключей ответа **сверяется** с политикой (а не «список не пуст»), матрица list × detail × related_products прогоняется по 6 ролям из AC7/AC2. Сторож самого сторожа `test_fixture_fills_every_gated_field` падает, если в политику добавят уровень без цены в фикстуре.
+- [x] [Review][Patch] Нет сквозного теста цены заказа для неверифицированного B2B [backend/tests/integration/test_catalog_price_visibility.py:201] — AC4 требует подтвердить транзит `CartItem.price_snapshot → OrderItem.unit_price`, но текущий тест проверяет только итог корзины. Добавить checkout и assert для `OrderItem.unit_price == retail_price`.
+  - **Закрыто 2026-08-04.** Добавлены `test_unverified_b2b_order_unit_price_is_retail` и контрольный `test_verified_b2b_order_unit_price_is_wholesale`: корзина → `POST /api/v1/orders/` → `OrderItem.unit_price` и `total_price` в субзаказе. Позиции читаются через `order__parent_order_id` — master прямых `items` не содержит (стори 34.2).
 
 ---
 
@@ -557,7 +562,7 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 
 ### Agent Model Used
 
-claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
+claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03 (сессии 1-2), 2026-08-04 (сессия 3).
 
 ### Debug Log References
 
@@ -589,6 +594,21 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 **Отбор по маркерам проверен (`--collect-only`):** `-m unit` собирает 44 теста `test_pricing_policy.py` и 5 тестов `TestProductFilterPricingPolicy`; `-m integration` собирает 10 тестов `test_catalog_price_visibility.py`. Ни один новый тест не выпадает из CI-фильтров.
 
 **Единственное падение регрессии и его разбор.** Первый полный integration-прогон дал `1 failed`: `tests/integration/test_search_api.py::SearchAPITest::test_search_role_based_pricing` — `AssertionError: 18999.0 not less than 18999.0`. Тест сравнивает `current_price` тренера с розничной, а `trainer_user` (`:94`) создавался без `is_verified`. Это не регресс, а ровно то поведение, которое стори вводит. Файл **не был перечислен** в Dev Notes → «Тесты, которые упадут без правки» — список оказался неполным на один файл. Починено по правилу стори (`is_verified=True`, тест проверяет цену), ассерт не ослаблялся; после правки — 19 passed.
+
+**Прогоны сессии 3 (закрытие двух находок ревью по сторожу AC7, 2026-08-04, baseline `638d4fb1`):**
+
+| Прогон | Результат |
+|---|---|
+| `pytest -q tests/integration/test_catalog_price_visibility.py` (после переписывания) | **32 passed** (было 10) |
+| **Мутация 1** — гейт пропускает `opt4_price` (`field != "opt4_price"` в цикле `to_representation`) | сторож **упал**: `утечка оптовых цен: {'opt4_price': 600.0}` в списке, карточке и `related_products` по всем 6 ролям |
+| **Мутация 2** — вариант A, `data.pop(field)` вместо обнуления | сторож **упал**: `набор оптовых ключей ответа [] разошёлся с политикой ['opt1_price'…'opt4_price']` |
+| `git diff backend/apps/products/serializers.py` после отката мутаций | пуст — код вернулся байт-в-байт |
+| `pytest -q` **весь пакет без `-m`** (финальный, 36 мин 39 с) | **2823 passed, 6 skipped, 0 failed** |
+| `pytest -m integration --collect-only` по файлу сторожа | **32 tests collected** — ни один параметризованный кейс не выпадает из CI-фильтра |
+| `black --check` + `flake8` по изменённому файлу | чисто (exit 0) |
+| `npx gitnexus detect-changes --scope all` | 7 файлов, 2 символа (заголовки `AGENTS.md`/`CLAUDE.md`), **risk low**, 0 затронутых процессов — продакшн-символы не тронуты |
+
+**Почему мутационный прогон, а не «тест зелёный».** Обе находки — про то, что сторож проходит **вхолостую**. Зелёный прогон переписанного сторожа этого не доказывает: он был зелёным и до правки. Доказательство — что сторож падает на каждой из двух конкретных поломок, которые старая версия пропускала. Мутации вносились в `serializers.py` временно и откачены; чистота отката подтверждена пустым `git diff`.
 
 **Blast radius (GitNexus, индекс `up-to-date` на `6704596`).** `get_price_for_user` — **LOW** по индексу: 3 прямых вызывающих (`ProductListSerializer.get_current_price`, `ProductVariantSerializer.get_current_price` в обоих файлах), 0 затронутых процессов. Предупреждение Dev Notes подтвердилось: индекс **не видит** `cart/models.py:154` и `cart/views.py:142` — фактический радиус 5, включая корзину и транзитом заказы. HIGH/CRITICAL не было ни по одному символу.
 
@@ -647,6 +667,35 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 
 **Кросс-документные хвосты (Task 8) закрыты:** в стори 39.3 обновлён `baseline_commit`, освежены все координаты Dev Notes и References, Task 2.5 и AC4 переформулированы на `pricing_policy.py` (с явным требованием добавить `opt4_price` в `WHOLESALE_PRICE_FIELDS`), добавлена мина про `is_verified` в тестах 39.3, снято предупреждение в шапке, раздел «Дрейф `openapi.yaml`» дополнен измеренными фактами. В `tech-debt.md` п. 18 помечен закрытым с фактической формой исправления.
 
+---
+
+### Сессия 3 — закрытие двух находок ревью по сторожу AC7 (2026-08-04)
+
+✅ Resolved review finding [Patch]: сторож AC7 не ловил утечку `opt4_price` и удаление ключей
+✅ Resolved review finding [Patch]: не было сквозного теста цены заказа для неверифицированного B2B
+
+**Что было не так.** Сторож проходил вхолостую по трём причинам сразу:
+
+1. Фикстура заполняла только `opt1…opt3`. К моменту ревью стори 39.3 уже добавила `opt4_price` и в сериализатор, и в `WHOLESALE_PRICE_FIELDS`, но в фикстуре поле оставалось пустым → `get_opt4_price` возвращал `0.0` **и без всякого гейта**. Ровно та ловушка, о которой предупреждает AC8: «нет права» и «цены нет» дают один и тот же ноль.
+2. Проверка формулировалась как `all(value == 0 for value in values)`. Для пустого списка `all()` истинно, поэтому удаление ключей из ответа (отклонённый вариант A) сторож бы не заметил — при том что смысл варианта B именно в сохранении ключей.
+3. `detail` проверялся только для анонима; retail и неверифицированный B2B — только в списке.
+
+**Как исправлено.**
+
+- Ненулевая цена для **каждого** поля `WHOLESALE_PRICE_FIELDS` — словарь `WHOLESALE_PRICES` + вариант собирается через `**WHOLESALE_PRICES`.
+- Вместо «список не пуст» — сверка множеств: `_wholesale_keys(payload) == set(WHOLESALE_PRICE_FIELDS)`. Это ловит и удаление ключей, и появление в ответе нового `opt*`-поля, не заведённого в политику: рассинхрон падает, вынуждая обновить гейт, а не тест.
+- `test_fixture_fills_every_gated_field` — сторож самого сторожа: `set(WHOLESALE_PRICES) == set(WHOLESALE_PRICE_FIELDS)` и все цены > 0. Если стори N добавит `opt5_price` в политику и забудет фикстуру, падение случится сразу, а не через полгода утечкой на проде.
+- Матрица `@pytest.mark.parametrize` по 6 ролям (аноним, `retail`, `unregistered`, неверифицированные `wholesale_level1`, `wholesale_level3`, `trainer`) × 4 проверки (список, карточка, `related_products`, отсутствие РРЦ/МРЦ). Плюс `current_price == retail_price` в каждой — гейт полей и расчётная цена проверяются вместе.
+- Обратная сторона гейта расширена: верифицированный B2B видит **все** поля сетки (а не два из четырёх), в том числе внутри `related_products`.
+- Сквозной AC4: `test_unverified_b2b_order_unit_price_is_retail` — корзина → `POST /api/v1/orders/` → `OrderItem.unit_price == retail_price` и `total_price == retail_price × 2`; рядом контрольный кейс для верифицированного. Итого файл вырос с 10 тестов до 32.
+
+**Две детали реализации, которые стоит знать при правке этого файла.**
+
+- Позиции заказа лежат **в субзаказах**: `OrderItem.objects.filter(order__parent_order_id=...)`. У master-заказа `items.count() == 0` (стори 34.2).
+- Для любой `wholesale*`-роли `payment_method="card"` отклоняется валидацией (`orders/serializers.py:245`) — проверка идёт по **сырой** `user.role`, а не по `resolve_pricing_role`. Неверифицированный оптовик платит как B2B, но по розничной цене. Это не противоречие: политика цен и правила оплаты — разные вещи, менять поведение оплаты стори не поручено. Checkout в тестах использует `bank_transfer`.
+
+**Продакшн-код не менялся.** `git diff` по `backend/apps/` пуст: обе находки — про качество теста-сторожа, а не про сам гейт. Мутационные прогоны подтвердили, что гейт корректен, а новый сторож ловит именно те две поломки, которые старый пропускал.
+
 ### File List
 
 **Новые файлы:**
@@ -693,4 +742,5 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03.
 | Дата | Изменение |
 |---|---|
 | 2026-08-03 | Реализована политика видимости цен: новый модуль `pricing_policy.py`, гейт `opt*_price` в сериализаторах, верификация в `get_price_for_user`, согласованные ценовые фильтры. 3 новых файла, 3 файла кода, 11 тестовых файлов, 4 документа. Прогоны: unit 1090 passed / 1 skipped, integration 754 passed / 2 skipped. Статус → review. |
+| 2026-08-04 | Закрыты 2 находки code review по сторожу AC7: фикстура заполняет каждое поле `WHOLESALE_PRICE_FIELDS` ненулевой ценой, набор `opt*`-ключей сверяется с политикой (ловит удаление ключей), матрица list × detail × related_products по 6 ролям, добавлен сквозной тест `OrderItem.unit_price` для неверифицированного B2B. Файл сторожа: 10 → 32 теста. Продакшн-код не менялся. Корректность сторожа доказана двумя мутационными прогонами. Полный прогон: **2823 passed, 6 skipped, 0 failed**. Статус → review. |
 | 2026-08-03 | Закрыта находка code review — 1 item (AC10): `is_verified=True` добавлен в 5 фикстур/тестов ролевого ценообразования в 4 файлах, ассерты не ослаблялись. Пятый случай (`test_user_cart_integration.py`) найден сверх находки полным прогоном без фильтра по маркерам. Зафиксирована корневая причина: 852 из 2699 тестов не попадают в CI-фильтры `-m unit`/`-m integration`. Финальный прогон всего пакета: **2695 passed, 4 skipped, 0 failed**. Статус → review. |
