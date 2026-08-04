@@ -4,7 +4,7 @@ baseline_commit: 0e005137f0fae00a93cfcc3535a6cef3a3adb0ba
 
 # Story 39.4: Фронтенд показывает цену уровня 4
 
-Status: review
+Status: done
 
 > 🚧 **БЛОКИРУЮЩЕЕ ПРЕДУСЛОВИЕ — стори 39.3 должна быть реализована и влита.**
 > Проверено на `0e005137`: `docs/api/openapi.yaml` содержит **0** вхождений `opt4_price` и **0** вхождений `wholesale_level4`. Пока 39.3 не сдана, AC1 физически невыполним — `npm run generate:types` перегенерирует `api.generated.ts` без нового поля и роли, и Task 1 «пройдёт» вхолостую.
