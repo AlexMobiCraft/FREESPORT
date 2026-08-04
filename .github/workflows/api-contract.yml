@@ -1,0 +1,123 @@
+name: API Contract
+
+# Гейт синхронизации контракта API. До его появления docs/api/openapi.yaml и
+# frontend/src/types/api.generated.ts коммитились, но ничем не проверялись: tsc
+# сгенерированный файл не видит, CI его не пересобирал, и рассинхрон обнаруживался
+# только чтением диффа глазами. Подробности — tech-debt.md, пункт 20.
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - "docs/api/openapi.yaml"
+      - "frontend/src/types/api.generated.ts"
+      - "frontend/package.json"
+      - ".github/workflows/api-contract.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - "docs/api/openapi.yaml"
+      - "frontend/src/types/api.generated.ts"
+      - "frontend/package.json"
+      - ".github/workflows/api-contract.yml"
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22.x"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  contract:
+    name: Контракт синхронен с кодом
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: freesport.settings.test
+      SECRET_KEY: test-secret-key-for-ci-cd-only
+      DEBUG: "False"
+      DB_NAME: freesport_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      REDIS_URL: redis://localhost:6379/0
+
+    # Схема строится без обращения к БД, но Django поднимает соединение при старте
+    # приложений. Служба дешевле, чем разбирательство с плавающим падением в CI.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: freesport_test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Сравниваются разобранные структуры, а не текст: drf-spectacular недетерминирован
+      # в порядке ключей, поэтому побайтовое сравнение давало бы ложные падения.
+      - name: Сверка openapi.yaml с кодом
+        run: |
+          cd backend
+          source venv/bin/activate
+          python manage.py check_openapi_sync
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      # Здесь сравнение побайтовое и это корректно: типы генерируются из уже
+      # закоммиченного YAML детерминированно (проверено — повторный запуск даёт ту же
+      # контрольную сумму). Шаг generate:types включает прогон Prettier, без него
+      # форматирование расходится с закоммиченным файлом целиком.
+      - name: Сверка сгенерированных типов
+        run: |
+          cd frontend
+          npm run generate:types
+          git diff --exit-code -- src/types/api.generated.ts
+
+      - name: Подсказка при расхождении
+        if: failure()
+        run: |
+          echo "::error::Контракт API рассинхронизирован."
+          echo "Перегенерируйте оба артефакта и закоммитьте:"
+          echo "  cd backend && python manage.py spectacular --file ../docs/api/openapi.yaml --format openapi"
+          echo "  cd frontend && npm run generate:types"

@@ -144,13 +144,9 @@ jobs:
           python manage.py check_api_docs --verbose || true
         continue-on-error: true # Не блокируем сборку из-за неполной документации API
 
-      - name: Validate OpenAPI schema generation
-        run: |
-          cd backend
-          source venv/bin/activate
-          echo "📋 Генерация и валидация OpenAPI схемы..."
-          python manage.py spectacular --color --file /tmp/schema.yml --validate
-          echo "✅ OpenAPI схема сгенерирована успешно"
+      # Шаг «Validate OpenAPI schema generation» убран: он генерировал схему в /tmp и
+      # выбрасывал результат. Его поглотил api-contract.yml — там та же генерация с
+      # --validate, но результат ещё и сверяется с закоммиченным docs/api/openapi.yaml.
 
       - name: Run database migrations
         env:
