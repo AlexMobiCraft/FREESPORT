@@ -4,7 +4,7 @@ baseline_commit: 638d4fb16bec6c5ee2cbe430a5034d99e81df5e6
 
 # Story 40.1: Парсер читает вид цен из выгрузки и ловит регресс выгрузки
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -103,6 +103,10 @@ so that **молчаливая поломка выгрузки после обн
   - [x] 6.2: Регресс существующих тестов импорта контрагентов: `tests/unit/test_services/test_customer_processor.py`, `tests/integration/test_management_commands/test_import_customers.py`, `tests/integration/test_link_then_import_1c.py`
   - [x] 6.3: `black` + `flake8` на изменённых файлах
   - [x] 6.4: `npx gitnexus detect-changes --scope all` — убедиться, что затронуты только `_parse_customer_node`, новый `_extract_attribute_values`, `process_customers`, `Command.handle` — выполнено с оговоркой: в worktree индекса нет, детали в Debug Log
+
+### Review Findings
+
+- [x] [Review][Defer] Блокирующий AC1 не закрыт [Story 40.1:25] — deferred, pre-existing: контрольная выгрузка с продакшена после установки второй редакции патча БУС отсутствует; Task 0.5 и action item CP-4a остаются открытыми. Кодом Story 40.1 это не устранить.
 
 ## Dev Notes
 

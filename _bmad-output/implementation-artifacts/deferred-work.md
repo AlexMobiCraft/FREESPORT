@@ -523,6 +523,10 @@
 
 - Нулевая специальная цена расходится с фильтрами каталога: `ProductVariant.get_price_for_user()` трактует допустимое `0.00` как отсутствие специальной цены и возвращает `retail_price`, но `ProductFilter.filter_min_price` / `filter_max_price` переходят к рознице только при `NULL`. При `opt1_price=0`, `retail_price=1000`, `min_price=500` товар не попадёт в выдачу, хотя отображается по 1000. Предсуществующая проблема; требуется унифицировать fallback для `NULL` и `0`. [`backend/apps/products/filters.py:271-285`, `backend/apps/products/filters.py:306-320`]
 
+## Deferred from: code review of 40-1-parser-price-type-and-export-regression-detector (2026-08-04)
+
+- Контрольная выгрузка контрагентов с продакшена после переноса второй редакции патча БУС отсутствует, поэтому AC1 Story 40.1 не подтверждён. Task 0.5 и action item CP-4a остаются открытыми; устранение требует действий администратора 1С и получения продового снимка, а не изменений кода.
+
 ## Deferred from: code review of spec-tech-debt-20-api-contract-ci-gate (2026-08-04)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
