@@ -393,9 +393,6 @@ docker system prune -a --volumes
 ```bash
 # Очистка каталога с подтверждением
 docker compose --env-file .env -f docker/docker-compose.yml exec backend python manage.py clear_catalog --confirm
-
-# Или через скрипт (рекомендуется)
-./scripts/inport_from_1C/clear_catalog.ps1
 ```
 
 **⚠️ Важно:**
@@ -404,6 +401,8 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend python 
 - Операция необратима - данные невозможно восстановить
 - Перед очисткой рекомендуется создать бэкап базы данных
 - Используйте флаг `--confirm` для подтверждения удаления
+- **Справочник видов цен (`PriceType`) НЕ удаляется.** Импорт `priceLists` восстанавливает из XML только название, активность и поле товара; маппинг «вид цен 1С → роль портала» (`user_role`) из выгрузки не выводится и вернулся бы только повторным прогоном миграции `0054`
+- Скрипт `scripts/inport_from_1C/clear_catalog.ps1` **не использовать**: он обращается к несуществующим именам таблиц и по умолчанию нацелен на тестовый стек (см. `_bmad-output/implementation-artifacts/deferred-work.md`)
 
 **Сценарии использования:**
 
