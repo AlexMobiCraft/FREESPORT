@@ -21,6 +21,25 @@ WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price", "opt4_price"
 # Инфо-цены B2B. Не участвуют в расчётах, но так же закрыты от розницы.
 INFO_PRICE_FIELDS = ("rrp", "msrp")
 
+# Роль → поле специальной цены варианта. Роли вне карты (retail, unregistered,
+# admin, аноним) считаются по retail_price.
+#
+# Единственный источник истины для `ProductVariant.get_price_for_user` и для
+# ценовых фильтров каталога. Раньше карта была продублирована в обоих местах и
+# разошлась: расчёт цены откатывался на розницу и при NULL, и при 0.00
+# (`self.opt1_price or self.retail_price`), а фильтр — только при NULL. Из-за
+# этого выдача по min_price/max_price не совпадала с ценой в карточке
+# (находка ревью 2026-08-04). Правило одно: специальная цена задана, только
+# если она строго больше нуля.
+ROLE_PRICE_FIELDS = {
+    "wholesale_level1": "opt1_price",
+    "wholesale_level2": "opt2_price",
+    "wholesale_level3": "opt3_price",
+    "wholesale_level4": "opt4_price",
+    "trainer": "trainer_price",
+    "federation_rep": "federation_price",
+}
+
 # Роли, которым видны РРЦ/МРЦ. federation_rep исключён намеренно —
 # поведение перенесено как есть из литеральных списков сериализаторов.
 INFO_PRICE_ROLES = frozenset(

@@ -5,7 +5,7 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
 # Story: Security — Оптовые цены видны только верифицированному B2B
 
 **Story ID:** security-wholesale-price-visibility
-**Status:** review
+**Status:** done
 **Priority:** 🔴 High — блокирует стори 39.3 (решение Alex, 2026-08-03)
 **Source:** `_bmad-output/planning-artifacts/tech-debt.md` п. 18 · `_bmad-output/planning-artifacts/epics.md` → Epic 39 → «Предшествующая работа»
 **Порядок:** выполняется **до** стори `39-3-catalog-admin-api-opt4-price`. Эпика не имеет — правка про политику цен в целом, а не про «Опт 4».
@@ -147,11 +147,13 @@ baseline_commit: 61dfeb88aa8855360e310526331c6411cf2a19b3
 
 - [x] [Review][Patch] Существующие тесты ролевого ценообразования не обновлены для B2B-верификации [backend/tests/unit/test_models/test_product_models.py:185] — AC10 нарушен: тесты создают `wholesale_level1…3`, `trainer` и `federation_rep` через `UserFactory` с `is_verified=False` по умолчанию, но ожидают оптовые цены. Аналогичные неверные ожидания остаются в `backend/tests/unit/test_models/test_order_models.py:285` и `backend/tests/integration/test_product_detail_api.py:53`. Нужно установить `is_verified=True` только в фикстурах, проверяющих оптовую цену или RRP/MSRP, не ослабляя ассерты.
   - **Закрыто 2026-08-03.** Находка подтверждена прогоном (4 падения по трём названным файлам). Исправлено добавлением `is_verified=True` в 4 фикстуры/теста, ассерты не ослаблялись. Сверх находки полным прогоном без фильтра по маркерам найден **пятый** случай — `tests/integration/test_user_cart_integration.py:23` (`test_role_based_pricing_in_cart`, `AssertionError: 100.0 not less than 100.0`), тоже исправлен. Корневая причина промаха разобрана ниже («Корневая причина: 852 теста вне CI-фильтров»).
-- [x] [Review][Defer] Нулевая специальная цена расходится с фильтрами каталога [backend/apps/products/filters.py:271] — `get_price_for_user` трактует допустимое значение `0.00` как отсутствие специальной цены и возвращает `retail_price`, но `filter_min_price` / `filter_max_price` переходят к рознице только при `NULL`. Поэтому выдача по `min_price`/`max_price` для верифицированного B2B может не совпасть с отображаемой ценой. Проблема существовала до этой story; отложена как предсуществующая.
+- [x] [Review][Defer] Нулевая специальная цена расходится с фильтрами каталога [backend/apps/products/filters.py:271] — `get_price_for_user` трактует допустимое значение `0.00` как отсутствие специальной цены и возвращает `retail_price`, но `filter_min_price` / `filter_max_price` переходят к рознице только при `NULL`. Поэтому выдача по `min_price`/`max_price` для верифицированного B2B может не совпасть с отображаемой ценой. Проблема существовала до этой story; отложена как предсуществующая. **Отложенность отменена: находка переоткрыта ниже как `[Patch]` и закрыта 2026-08-04 (сессия 4).**
 - [x] [Review][Patch] Сторож AC7 не ловит утечку `opt4_price` и удаление ключей [backend/tests/integration/test_catalog_price_visibility.py:51] — fixture заполняет только `opt1…opt3`, поэтому `opt4_price=0` проходит даже при снятом гейте. В ряде веток `all(...)` вызывается для пустого списка, что не обнаруживает удаление всех `opt*_price`; также нет проверок `detail` для retail и неверифицированного B2B. Заполнить `opt4_price` ненулевым, проверять ожидаемые ключи и нули для list/detail/related_products у всех ролей из AC7.
   - **Закрыто 2026-08-04.** Находка подтверждена мутационным прогоном (см. Debug Log → сессия 3). Фикстура заполняет каждое поле `WHOLESALE_PRICE_FIELDS` ненулевой ценой, набор `opt*`-ключей ответа **сверяется** с политикой (а не «список не пуст»), матрица list × detail × related_products прогоняется по 6 ролям из AC7/AC2. Сторож самого сторожа `test_fixture_fills_every_gated_field` падает, если в политику добавят уровень без цены в фикстуре.
 - [x] [Review][Patch] Нет сквозного теста цены заказа для неверифицированного B2B [backend/tests/integration/test_catalog_price_visibility.py:201] — AC4 требует подтвердить транзит `CartItem.price_snapshot → OrderItem.unit_price`, но текущий тест проверяет только итог корзины. Добавить checkout и assert для `OrderItem.unit_price == retail_price`.
   - **Закрыто 2026-08-04.** Добавлены `test_unverified_b2b_order_unit_price_is_retail` и контрольный `test_verified_b2b_order_unit_price_is_wholesale`: корзина → `POST /api/v1/orders/` → `OrderItem.unit_price` и `total_price` в субзаказе. Позиции читаются через `order__parent_order_id` — master прямых `items` не содержит (стори 34.2).
+- [x] [Review][Patch] Фильтры каталога не совпадают с показанной ценой при `0.00` [backend/apps/products/filters.py:271] — AC5: `get_price_for_user` рассматривает допустимые `0.00` в `opt*`/`trainer_price`/`federation_price` как отсутствующую специальную цену и показывает `retail_price`, а `filter_min_price` и `filter_max_price` откатываются к retail только при `NULL`. Нужно учитывать нулевую специальную цену тем же fallback и добавить матричные тесты min/max для каждого ценового поля.
+  - **Закрыто 2026-08-04 (сессия 4).** Находка подтверждена RED-прогоном (12 падений матрицы) и мутационным прогоном на интеграционных тестах. Исправлено в корне: карта «роль → поле специальной цены» вынесена в `pricing_policy.ROLE_PRICE_FIELDS` и стала общей для `get_price_for_user` и обоих фильтров; фильтры строятся через `filters.visible_price_q`, где специальная цена считается заданной только при `> 0`. Матричные тесты min/max по всем шести ценовым полям добавлены на двух уровнях (БД и API).
 
 ---
 
@@ -610,6 +612,21 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03 (сессии
 
 **Почему мутационный прогон, а не «тест зелёный».** Обе находки — про то, что сторож проходит **вхолостую**. Зелёный прогон переписанного сторожа этого не доказывает: он был зелёным и до правки. Доказательство — что сторож падает на каждой из двух конкретных поломок, которые старая версия пропускала. Мутации вносились в `serializers.py` временно и откачены; чистота отката подтверждена пустым `git diff`.
 
+**Прогоны сессии 4 (закрытие находки про нулевую специальную цену, 2026-08-04, baseline `c549b04e`):**
+
+| Прогон | Результат |
+|---|---|
+| `pytest -q tests/unit/test_product_filters.py` (RED, до правки кода) | **16 failed, 31 passed** — 12 падений матрицы + 4 обновлённых ожидания `Q` |
+| Тот же файл (GREEN, после правки) | **47 passed** (было 31) |
+| `pytest -q tests/integration/test_catalog_price_filters.py` | **31 passed** (новый файл) |
+| **Мутация** — старый откат «только при `NULL`» в `visible_price_q` | матрица **упала**: 12 failed по всем шести полям и обеим границам |
+| `md5sum` `filters.py` после отката мутации | совпал с дофиксовым — код вернулся байт-в-байт |
+| `pytest -q apps/products tests/unit tests/integration/test_catalog_*.py` | **1772 passed, 4 skipped** |
+| `pytest -q` **весь пакет без `-m`** (финальный, 31 мин 51 с) | **2872 passed, 6 skipped, 19 subtests passed, 0 failed** (было 2823 passed — дельта +49 ровно на новые тесты: 18 unit + 31 integration) |
+| `black --check` + `flake8` по 5 изменённым файлам | чисто (exit 0) |
+| `makemigrations --check --dry-run` | `No changes detected` |
+| `npx gitnexus impact` по `filter_min_price` / `get_price_for_user` | **LOW** / **LOW** (3 прямых вызывающих), HIGH и CRITICAL не было |
+
 **Blast radius (GitNexus, индекс `up-to-date` на `6704596`).** `get_price_for_user` — **LOW** по индексу: 3 прямых вызывающих (`ProductListSerializer.get_current_price`, `ProductVariantSerializer.get_current_price` в обоих файлах), 0 затронутых процессов. Предупреждение Dev Notes подтвердилось: индекс **не видит** `cart/models.py:154` и `cart/views.py:142` — фактический радиус 5, включая корзину и транзитом заказы. HIGH/CRITICAL не было ни по одному символу.
 
 ### Completion Notes List
@@ -696,6 +713,37 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03 (сессии
 
 **Продакшн-код не менялся.** `git diff` по `backend/apps/` пуст: обе находки — про качество теста-сторожа, а не про сам гейт. Мутационные прогоны подтвердили, что гейт корректен, а новый сторож ловит именно те две поломки, которые старый пропускал.
 
+### Сессия 4 — закрытие находки про нулевую специальную цену (2026-08-04)
+
+✅ Resolved review finding [Patch]: фильтры каталога не совпадали с показанной ценой при `0.00`
+
+**Что было не так.** Две ветки одной и той же логики разошлись в трактовке «цены нет»:
+
+| Место | «Специальной цены нет», если | Результат для `opt1_price = 0.00` |
+|---|---|---|
+| `ProductVariant.get_price_for_user` | `not self.opt1_price` — то есть **и `NULL`, и `0.00`** | карточка показывает `retail_price` = 1000 ₽ |
+| `ProductFilter.filter_min_price` / `filter_max_price` | `opt1_price__isnull=True` — **только `NULL`** | фильтр сравнивает границу с 0 ₽ |
+
+Практически: запрос «до 600 ₽» возвращал товар, у которого в той же выдаче `current_price = 1000`, а запрос «от 900 ₽» такой товар терял. Расхождение касалось всех шести ценовых полей (`opt1…opt4`, `trainer_price`, `federation_price`), а не только опта.
+
+**Как исправлено — в корне, а не в шести ветках.** Причина расхождения не в конкретном условии, а в том, что карта «роль → поле цены» существовала двумя копиями: словарь в `get_price_for_user` и лестница `if/elif` в каждом фильтре. Поэтому:
+
+- Карта вынесена в `pricing_policy.ROLE_PRICE_FIELDS` — общая для расчёта цены и для фильтров. Роль вне карты (`retail`, `unregistered`, `admin`, аноним) считается по `retail_price`, как и раньше.
+- `get_price_for_user` берёт поле из карты; семантика `... or self.retail_price` сохранена буквально — поведение не изменилось ни в одном кейсе (подтверждено прогоном корзины, заказов и каталога).
+- Появилась `filters.visible_price_q(price_field, lookup, value)`: специальная цена применяется только при `> 0`, откат на розницу — при `NULL` **или** `0`. Обе лестницы `if/elif` (2 × 7 веток, 54 строки) заменены одним вызовом.
+- Роль, добавленная в `ROLE_PRICE_FIELDS`, автоматически получает и цену, и фильтр, и тестовое покрытие — рассинхрон такого рода больше не собирается руками.
+
+**Матричные тесты — на двух уровнях, оба параметризованы по `ROLE_PRICE_FIELDS`:**
+
+- `tests/unit/test_product_filters.py::TestZeroSpecialPriceFallsBackToRetail` — проверка на **реальных строках БД**, а не на структуре `Q`: три варианта (нулевая, пустая и заполненная специальная цена) прогоняются через накопленный фильтр, и отдельный тест сверяет отбор с тем, что вернёт `get_price_for_user`. Структура `Q` — деталь реализации, отбор строк — контракт.
+- `tests/integration/test_catalog_price_filters.py` (новый, 31 тест) — то же через HTTP: `current_price` из карточки и присутствие товара в выдаче `min_price` / `max_price` проверяются вместе, в одном тесте. Плюс контрольные стороны: заполненная цена фильтрует по себе, пустая — по рознице, неверифицированный оптовик — по рознице (AC5).
+
+**Почему мутационный прогон.** Матрица зелёная и на старом коде — если её написать «по мотивам реализации». Поэтому старый откат («только `NULL`») временно возвращён в `visible_price_q`: интеграционная матрица упала 12 тестами по всем шести полям и обеим границам. Мутация откачена, совпадение `md5sum` файла подтверждено.
+
+**Существующие ожидания `Q` обновлены, а не ослаблены.** Четыре теста (`TestProductFilterPricingPolicy`, `TestOpt4PriceFilter`) сверяли выражение фильтра побайтово; выражение изменилось по существу, поэтому ожидание переписано на новое — с сохранением точного равенства. Ни один ассерт не заменён на «содержит подстроку» и не удалён.
+
+**Контракт и фронт не затронуты.** Правка внутри `filter_*` и `get_price_for_user`, ни одного изменения в `Meta.fields` и сериализаторах → `docs/api/openapi.yaml` не трогался, типы фронта не пересобирались, миграций нет (`makemigrations --check` чист).
+
 ### File List
 
 **Новые файлы:**
@@ -730,6 +778,14 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03 (сессии
 - `backend/tests/integration/test_product_detail_api.py`
 - `backend/tests/integration/test_user_cart_integration.py`
 
+**Сессия 4 (закрытие находки про нулевую специальную цену):**
+
+- `backend/tests/integration/test_catalog_price_filters.py` — **новый** (матрица min/max по всем ценовым полям)
+- `backend/apps/products/pricing_policy.py` — добавлена карта `ROLE_PRICE_FIELDS`
+- `backend/apps/products/filters.py` — `visible_price_q`, обе лестницы `if/elif` заменены вызовом
+- `backend/apps/products/models.py` — `get_price_for_user` берёт поле цены из общей карты
+- `backend/tests/unit/test_product_filters.py` — класс `TestZeroSpecialPriceFallsBackToRetail`, обновлены 4 ожидания `Q`
+
 **Изменённые документы:**
 
 - `_bmad-output/implementation-artifacts/Story/security-wholesale-price-visibility.md` (этот файл)
@@ -741,6 +797,7 @@ claude-opus-5 (Claude Code, workflow `bmad-dev-story`), 2026-08-03 (сессии
 
 | Дата | Изменение |
 |---|---|
+| 2026-08-04 | Закрыта находка code review про нулевую специальную цену (AC5): карта «роль → поле цены» вынесена в `pricing_policy.ROLE_PRICE_FIELDS` и стала общей для `get_price_for_user` и ценовых фильтров; фильтры строятся через новую `filters.visible_price_q` — специальная цена применяется только при `> 0`, откат на розницу при `NULL` **или** `0`. Две лестницы `if/elif` (2 × 7 веток) заменены одним вызовом. Добавлены матричные тесты min/max по всем шести ценовым полям: `TestZeroSpecialPriceFallsBackToRetail` (на строках БД) и новый `tests/integration/test_catalog_price_filters.py` (31 тест через HTTP). Корректность матрицы доказана мутационным прогоном. Полный прогон: **2872 passed, 6 skipped, 0 failed**. Контракт API и фронт не затронуты. Статус → review. |
 | 2026-08-03 | Реализована политика видимости цен: новый модуль `pricing_policy.py`, гейт `opt*_price` в сериализаторах, верификация в `get_price_for_user`, согласованные ценовые фильтры. 3 новых файла, 3 файла кода, 11 тестовых файлов, 4 документа. Прогоны: unit 1090 passed / 1 skipped, integration 754 passed / 2 skipped. Статус → review. |
 | 2026-08-04 | Закрыты 2 находки code review по сторожу AC7: фикстура заполняет каждое поле `WHOLESALE_PRICE_FIELDS` ненулевой ценой, набор `opt*`-ключей сверяется с политикой (ловит удаление ключей), матрица list × detail × related_products по 6 ролям, добавлен сквозной тест `OrderItem.unit_price` для неверифицированного B2B. Файл сторожа: 10 → 32 теста. Продакшн-код не менялся. Корректность сторожа доказана двумя мутационными прогонами. Полный прогон: **2823 passed, 6 skipped, 0 failed**. Статус → review. |
 | 2026-08-03 | Закрыта находка code review — 1 item (AC10): `is_verified=True` добавлен в 5 фикстур/тестов ролевого ценообразования в 4 файлах, ассерты не ослаблялись. Пятый случай (`test_user_cart_integration.py`) найден сверх находки полным прогоном без фильтра по маркерам. Зафиксирована корневая причина: 852 из 2699 тестов не попадают в CI-фильтры `-m unit`/`-m integration`. Финальный прогон всего пакета: **2695 passed, 4 skipped, 0 failed**. Статус → review. |
