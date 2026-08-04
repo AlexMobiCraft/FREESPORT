@@ -23,6 +23,17 @@ class CustomerDataParser:
     # Namespace для CommerceML 3.1
     COMMERCEML_NS = {"cml": "urn:1C.ru:commerceml_3"}
 
+    # Наименования реквизитов в блоке <ЗначенияРеквизитов> выгрузки контрагентов.
+    # Формирует патч расширения БУС (см. docs/integrations/1c/bus-extension-patch/).
+    ATTR_PRICE_TYPE_ID = "ТипЦенId"
+    ATTR_PRICE_TYPE_NAME = "ТипЦенНаименование"
+    ATTR_AGREEMENT_NAME = "СоглашениеНаименование"
+    ATTR_AGREEMENT_IS_STANDARD = "СоглашениеТиповое"
+    ATTR_AGREEMENT_STATUS = "СоглашениеСтатус"
+
+    # Значения, которые 1С отдаёт как истину в булевом реквизите.
+    TRUE_VALUES = frozenset({"true", "истина", "1", "да"})
+
     def parse(self, file_path: str) -> list[dict[str, Any]]:
         """
         Парсит XML файл contragents.xml и возвращает список клиентов.
@@ -124,6 +135,9 @@ class CustomerDataParser:
         if customer_type in ["legal_entity", "individual_entrepreneur"]:
             company_name = name
 
+        # Вид цен из соглашения об условиях продаж (патч расширения БУС).
+        price_type_ids, price_type_meta, agreement_status = self._extract_attribute_values(customer_node)
+
         customer_data = {
             "onec_id": onec_id,
             "name": name,
@@ -138,6 +152,9 @@ class CustomerDataParser:
             "address": address,
             "customer_type": customer_type,
             "company_name": company_name,
+            "price_type_ids": price_type_ids,
+            "price_type_meta": price_type_meta,
+            "agreement_status": agreement_status,
         }
 
         return customer_data
@@ -173,6 +190,76 @@ class CustomerDataParser:
                         contact_info["phone"] = contact_value
 
         return contact_info
+
+    def _extract_attribute_values(self, customer_node: ET.Element) -> tuple[list[str], list[dict[str, Any]], str]:
+        """
+        Разбирает блок <ЗначенияРеквизитов> узла <Контрагент>.
+
+        Блок — плоский список пар Наименование/Значение. У контрагента может
+        быть несколько соглашений, тогда четвёрки реквизитов идут подряд:
+        новая четвёрка начинается с ТипЦенId.
+
+        Args:
+            customer_node: XML элемент <Контрагент>
+
+        Returns:
+            tuple: (price_type_ids, price_type_meta, agreement_status)
+                price_type_ids — GUID в нижнем регистре, без пробелов, без
+                    повторов, в порядке появления. Дедупликация обязательна:
+                    у маркетплейсов два соглашения («Выкуп …» и
+                    «Комиссионное …») висят на одном виде цен, и повтор GUID
+                    не является конфликтом видов цен.
+                price_type_meta — диагностика, по словарю на каждую четвёрку;
+                    НЕ дедуплицируется, обе четвёрки маркетплейса видны.
+                agreement_status — значение СоглашениеСтатус или "".
+        """
+        attributes_node = customer_node.find("cml:ЗначенияРеквизитов", self.COMMERCEML_NS)
+        if attributes_node is None:
+            attributes_node = customer_node.find("ЗначенияРеквизитов")
+
+        if attributes_node is None:
+            return [], [], ""
+
+        price_type_ids: list[str] = []
+        price_type_meta: list[dict[str, Any]] = []
+        agreement_status = ""
+        current: dict[str, Any] | None = None
+
+        items = attributes_node.findall("cml:ЗначениеРеквизита", self.COMMERCEML_NS)
+        if not items:
+            items = attributes_node.findall("ЗначениеРеквизита")
+
+        for item in items:
+            name = self._get_text(item, "Наименование")
+            value = self._get_text(item, "Значение")
+
+            if name == self.ATTR_PRICE_TYPE_ID:
+                if not value:
+                    # Пустой GUID соглашения не описывает: вторая редакция
+                    # патча отдаёт в этом случае СоглашениеСтатус.
+                    current = None
+                    continue
+                guid = value.lower()
+                if guid not in price_type_ids:
+                    price_type_ids.append(guid)
+                current = {
+                    "price_type_id": guid,
+                    "price_type_name": "",
+                    "agreement_name": "",
+                    "agreement_is_standard": False,
+                }
+                price_type_meta.append(current)
+            elif name == self.ATTR_AGREEMENT_STATUS:
+                agreement_status = value
+            elif current is not None:
+                if name == self.ATTR_PRICE_TYPE_NAME:
+                    current["price_type_name"] = value
+                elif name == self.ATTR_AGREEMENT_NAME:
+                    current["agreement_name"] = value
+                elif name == self.ATTR_AGREEMENT_IS_STANDARD:
+                    current["agreement_is_standard"] = value.strip().lower() in self.TRUE_VALUES
+
+        return price_type_ids, price_type_meta, agreement_status
 
     def _determine_customer_type(self, customer_data: dict[str, Any]) -> str:
         """

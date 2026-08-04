@@ -248,3 +248,133 @@ class TestCustomerDataParser:
 
         for customer in business_customers:
             assert customer.get("company_name"), f"company_name должен быть заполнен для {customer['customer_type']}"
+
+
+def _import_1c_dir() -> Path:
+    """
+    Каталог реальных выгрузок 1С.
+
+    Путь считается от settings.BASE_DIR (каталог backend/), а не от
+    расположения тестового файла: локально и в контейнере это единственный
+    вариант, дающий один и тот же каталог.
+    """
+    from django.conf import settings
+
+    return Path(settings.BASE_DIR) / "data" / "import_1c"
+
+
+def _parse_dir(directory: Path) -> list[dict]:
+    """Разбирает все файлы contragents*.xml каталога одним списком.
+
+    Имена файлов задаёт 1С (шаблон contragents_<пакет>_<GUID>.xml, GUID
+    новый при каждой выгрузке) — поэтому только глоб, никаких зашитых имён.
+    """
+    files = sorted(directory.glob("contragents*.xml"))
+    if not files:
+        pytest.skip(f"Реальный dataset 1С не найден: {directory}")
+
+    parser = CustomerDataParser()
+    customers: list[dict] = []
+    for file_path in files:
+        customers.extend(parser.parse(str(file_path)))
+    return customers
+
+
+@pytest.fixture(scope="module")
+def pricetype_customers() -> list[dict]:
+    """Контрагенты снимка со второй редакцией патча (разбор один раз на модуль)."""
+    return _parse_dir(_import_1c_dir() / "contragents_pricetype")
+
+
+@pytest.fixture(scope="module")
+def legacy_customers() -> list[dict]:
+    """Контрагенты старого снимка — блока реквизитов нет ни у кого."""
+    return _parse_dir(_import_1c_dir() / "contragents")
+
+
+@pytest.mark.unit
+@pytest.mark.data_dependent
+class TestCustomerParserPriceType:
+    """
+    Разбор блока <ЗначенияРеквизитов> — вид цен из соглашения об условиях продаж.
+
+    Блок формирует патч тиражного расширения БУС; тесты идут только на
+    реальных выгрузках (NFR-3940-01), синтетический XML под эти проверки
+    запрещён.
+    """
+
+    def test_price_type_id_and_meta_extracted(self, pricetype_customers):
+        """AC2: GUID вида цен и диагностическая четвёрка попадают в customer_data."""
+        with_price_type = [c for c in pricetype_customers if c["price_type_ids"]]
+        assert with_price_type, "В снимке нет ни одного контрагента с ТипЦенId"
+
+        for customer in with_price_type:
+            for guid in customer["price_type_ids"]:
+                assert guid == guid.lower(), f"GUID не приведён к нижнему регистру: {guid}"
+                assert guid == guid.strip()
+            assert customer["price_type_meta"], "Есть GUID, но нет диагностической четвёрки"
+            for meta in customer["price_type_meta"]:
+                assert set(meta) == {
+                    "price_type_id",
+                    "price_type_name",
+                    "agreement_name",
+                    "agreement_is_standard",
+                }
+                assert isinstance(meta["agreement_is_standard"], bool)
+                assert meta["price_type_id"] in customer["price_type_ids"]
+
+        # Наименование вида цен и признак типового соглашения реально читаются,
+        # а не остаются значениями по умолчанию.
+        assert any(m["price_type_name"] for c in with_price_type for m in c["price_type_meta"])
+        assert any(m["agreement_is_standard"] is True for c in with_price_type for m in c["price_type_meta"])
+
+    def test_duplicate_price_type_id_deduplicated(self, pricetype_customers):
+        """
+        AC4: один вид цен на двух соглашениях даёт один GUID, но обе четвёрки.
+
+        У маркетплейсов соглашения «Выкуп …» и «Комиссионное …» висят на
+        РРЦ. Без дедупликации в парсере такой контрагент получил бы ложный
+        ambiguous при разрешении роли (стори 40.2).
+        """
+        duplicated = [c for c in pricetype_customers if len(c["price_type_meta"]) > len(c["price_type_ids"])]
+        assert duplicated, "В снимке нет контрагентов с повторяющимся ТипЦенId"
+
+        for customer in duplicated:
+            ids = customer["price_type_ids"]
+            assert len(ids) == len(set(ids)), f"Повтор GUID в price_type_ids: {ids}"
+
+        # Эталонный случай снимка: один GUID, две четвёрки.
+        marketplace = [c for c in duplicated if len(c["price_type_ids"]) == 1 and len(c["price_type_meta"]) == 2]
+        assert marketplace, "Не найден контрагент с одним видом цен на двух соглашениях"
+
+    def test_keys_present_when_attributes_block_absent(self, legacy_customers):
+        """AC5: старая выгрузка без блока разбирается без исключений, ключи есть и пусты."""
+        assert legacy_customers
+
+        for customer in legacy_customers:
+            assert customer["price_type_ids"] == []
+            assert customer["price_type_meta"] == []
+            assert customer["agreement_status"] == ""
+
+    def test_agreement_status_no_agreement(self, pricetype_customers):
+        """
+        AC3: контрагент без действующего соглашения помечается статусом.
+
+        Слово-маркер живёт в отдельном реквизите: ТипЦенId остаётся полем
+        под GUID, иначе «НетСоглашения» ушло бы в разрешение роли как
+        неизвестный вид цен.
+        """
+        without_agreement = [c for c in pricetype_customers if c["agreement_status"] == "НетСоглашения"]
+        assert without_agreement, "В снимке нет контрагентов со статусом НетСоглашения — снимок первой редакции?"
+
+        for customer in without_agreement:
+            assert customer["price_type_ids"] == []
+
+        for customer in pricetype_customers:
+            for guid in customer["price_type_ids"]:
+                assert "соглашен" not in guid.lower(), f"Слово-маркер попало в price_type_ids: {guid}"
+
+    def test_role_parsing_not_affected(self, pricetype_customers):
+        """AC6 (регресс): разбор <Роль> не тронут — роль есть у каждого контрагента."""
+        assert all(customer["role"] for customer in pricetype_customers)
+        assert any("Покупатель" in customer["role"] for customer in pricetype_customers)

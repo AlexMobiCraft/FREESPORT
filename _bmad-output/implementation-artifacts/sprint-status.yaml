@@ -70,6 +70,10 @@ last_updated: "2026-08-04"
 #             ⚠️ Требует решения Alex: ключ security-wholesale-price-visibility стоит
 #             in-progress, тогда как в самом story-файле Status: done и стори влита
 #             коммитом 0e005137. Ретроспектива значение не меняла.
+# 2026-08-04: Story 40.1 реализована, ready-for-dev -> review. AC1 (контрольная
+#             выгрузка с прода) НЕ проверен — патч БУС 2-й редакции на прод не
+#             перенесён. Решение Alex: закрыть стори без AC1, долг записан в
+#             deferred-work.md и в action_items ниже (пункт CP-4a).
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -176,7 +180,7 @@ development_status:
   #   Пока патча нет на проде, весь эпик наблюдаемо работает в режиме no_data.
   # ========================================
   epic-40: in-progress
-  40-1-parser-price-type-and-export-regression-detector: ready-for-dev
+  40-1-parser-price-type-and-export-regression-detector: review
   40-2-price-type-role-mapping-and-resolver: backlog
   40-3-store-onec-price-type-id: backlog
   40-4-import-applies-role-to-linked-accounts: backlog
@@ -209,6 +213,10 @@ action_items:
     status: open
   - epic: 39
     action: "CP-4: патч расширения БУС 2-й редакции (реквизит СоглашениеСтатус) на прод — блокер AC-предохранителя стори 40.1"
+    owner: "Alex"
+    status: open
+  - epic: 40
+    action: "CP-4a: ВЕРНУТЬСЯ К AC1 стори 40.1 — после переноса патча на прод снять контрольную выгрузку контрагентов в backend/data/import_1c/contragents_pricetype_prod/, замерить всего/с ТипЦенId/с НетСоглашения, записать в Dev Agent Record. Стори закрыта без этого AC решением Alex 2026-08-04; обязательно до выката эпика 40 на прод. Детали — deferred-work.md, секция story 40.1"
     owner: "Alex"
     status: open
   - epic: 39
