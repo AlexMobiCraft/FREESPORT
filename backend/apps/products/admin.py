@@ -639,6 +639,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "opt1_price",
                     "opt2_price",
                     "opt3_price",
+                    "opt4_price",
                     "trainer_price",
                     "federation_price",
                     "vat_rate",

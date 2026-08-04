@@ -415,6 +415,7 @@ class UserAdmin(BaseUserAdmin):
             "wholesale_level1": "#0dcaf0",  # голубой
             "wholesale_level2": "#0d6efd",  # синий
             "wholesale_level3": "#6610f2",  # фиолетовый
+            "wholesale_level4": "#d63384",  # розовый
             "trainer": "#198754",  # зеленый
             "federation_rep": "#fd7e14",  # оранжевый
             "admin": "#dc3545",  # красный

@@ -15,16 +15,17 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from apps.users.models import User
 
-# Сырые оптовые поля ответа каталога. Стори 39.3 добавляет сюда "opt4_price".
-WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price")
+# Сырые оптовые поля ответа каталога.
+WHOLESALE_PRICE_FIELDS = ("opt1_price", "opt2_price", "opt3_price", "opt4_price")
 
 # Инфо-цены B2B. Не участвуют в расчётах, но так же закрыты от розницы.
 INFO_PRICE_FIELDS = ("rrp", "msrp")
 
 # Роли, которым видны РРЦ/МРЦ. federation_rep исключён намеренно —
 # поведение перенесено как есть из литеральных списков сериализаторов.
-# Стори 39.3 добавляет сюда "wholesale_level4".
-INFO_PRICE_ROLES = frozenset({"wholesale_level1", "wholesale_level2", "wholesale_level3", "trainer", "admin"})
+INFO_PRICE_ROLES = frozenset(
+    {"wholesale_level1", "wholesale_level2", "wholesale_level3", "wholesale_level4", "trainer", "admin"}
+)
 
 
 def resolve_pricing_role(user: "User | Any | None") -> str:

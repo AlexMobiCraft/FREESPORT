@@ -311,6 +311,7 @@ class TestProductFilterIntegration:
             "wholesale_level1",
             "wholesale_level2",
             "wholesale_level3",
+            "wholesale_level4",
             "trainer",
             "federation_rep",
         ]
@@ -404,6 +405,62 @@ class TestProductFilterPricingPolicy:
         """Без request (аноним) роль резолвится в retail — поведение не изменилось"""
         product_filter = ProductFilter()
         product_filter.request = None
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        assert product_filter._variant_filters == Q(retail_price__gte=100)
+
+
+@pytest.mark.unit
+class TestOpt4PriceFilter:
+    """
+    Стори 39.3, AC1: фильтры каталога знают про цену четвёртого уровня.
+
+    До правки роль проваливалась в else-ветку и фильтровалась по
+    retail_price — оптовик уровня 4 получал выдачу чужого ценового уровня.
+    """
+
+    @staticmethod
+    def _filter_with_user(is_verified: bool = True):
+        """ProductFilter с mock-запросом от имени пользователя уровня 4"""
+        mock_user = Mock()
+        mock_user.is_authenticated = True
+        mock_user.role = "wholesale_level4"
+        # ЯВНО: у Mock любой атрибут truthy — is_verified задаётся руками
+        mock_user.is_verified = is_verified
+
+        mock_request = Mock()
+        mock_request.user = mock_user
+
+        product_filter = ProductFilter()
+        product_filter.request = mock_request
+        return product_filter
+
+    def test_min_price_filters_by_opt4_price(self):
+        """min_price сравнивается с opt4_price, с откатом на retail при пустой цене"""
+        product_filter = self._filter_with_user()
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        expected = Q(opt4_price__gte=100) | Q(opt4_price__isnull=True, retail_price__gte=100)
+        assert product_filter._variant_filters == expected
+
+    def test_max_price_filters_by_opt4_price(self):
+        """max_price — симметрично, через __lte"""
+        product_filter = self._filter_with_user()
+
+        product_filter.filter_max_price(Mock(), "max_price", 1000)
+
+        expected = Q(opt4_price__lte=1000) | Q(opt4_price__isnull=True, retail_price__lte=1000)
+        assert product_filter._variant_filters == expected
+
+    def test_unverified_level4_filters_by_retail_price(self):
+        """
+        Неверифицированный уровень 4 фильтруется по retail_price.
+
+        Это требуемое поведение (роль берётся из resolve_pricing_role), а не дефект.
+        """
+        product_filter = self._filter_with_user(is_verified=False)
 
         product_filter.filter_min_price(Mock(), "min_price", 100)
 

@@ -446,7 +446,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     в ProductDetailSerializer.
 
     Вычисляемые поля для обратной совместимости (данные из вариантов):
-    - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+    - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
     - stock_quantity: суммарное количество на складе по всем вариантам
     - is_in_stock: есть ли хотя бы один вариант в наличии
     - main_image: изображение из первого варианта или base_images
@@ -463,6 +463,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     opt1_price = serializers.SerializerMethodField()
     opt2_price = serializers.SerializerMethodField()
     opt3_price = serializers.SerializerMethodField()
+    opt4_price = serializers.SerializerMethodField()
     stock_quantity = serializers.SerializerMethodField()
     is_in_stock = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
@@ -499,6 +500,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "opt1_price",
             "opt2_price",
             "opt3_price",
+            "opt4_price",
             "stock_quantity",
             "is_in_stock",
             "main_image",
@@ -534,6 +536,7 @@ class ProductListSerializer(serializers.ModelSerializer):
                 | Q(opt1_price__gt=0)
                 | Q(opt2_price__gt=0)
                 | Q(opt3_price__gt=0)
+                | Q(opt4_price__gt=0)
                 | Q(trainer_price__gt=0)
                 | Q(federation_price__gt=0)
             )
@@ -614,6 +617,13 @@ class ProductListSerializer(serializers.ModelSerializer):
         variant = self._get_first_variant(obj)
         if variant and variant.opt3_price:
             return float(variant.opt3_price)
+        return 0.0
+
+    def get_opt4_price(self, obj: Product) -> float:
+        """Получить оптовую цену уровня 4 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt4_price:
+            return float(variant.opt4_price)
         return 0.0
 
     def get_stock_quantity(self, obj: Product) -> int:

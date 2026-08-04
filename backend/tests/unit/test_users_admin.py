@@ -631,3 +631,55 @@ class TestAuditLogIntegration(TestCase):
         self.assertEqual(log.changes["email"], "b2b@test.com")
         self.assertEqual(log.changes["role"], "wholesale_level1")
         self.assertTrue(log.changes["verified"])
+
+
+@pytest.mark.django_db
+class TestRoleDisplayWholesaleLevel4(TestCase):
+    """
+    Стори 39.3, AC6: у роли уровня 4 собственный цвет бейджа.
+
+    Без записи в role_colors роль молча получает серый дефолт #6c757d и
+    визуально сливается с retail — дефект, неотличимый от «так и задумано».
+    """
+
+    def setUp(self):
+        self.admin = UserAdmin(User, AdminSite())
+        self.level4_user = User.objects.create_user(
+            email="opt4-badge@test.com",
+            password="testpass123",
+            role="wholesale_level4",
+            is_verified=True,
+        )
+
+    def test_badge_is_not_default_grey(self):
+        """Цвет отличается от серого дефолта, который получает роль без записи"""
+        result = self.admin.role_display(self.level4_user)
+
+        self.assertIn("●", result)
+        self.assertIn("Оптовик уровень 4", result)
+        self.assertNotIn("#6c757d", result)
+
+    def test_badge_color_is_unique_among_roles(self):
+        """Цвет не совпадает ни с одной из семи существующих ролей"""
+        colors = {}
+        for role, _ in User.ROLE_CHOICES:
+            user = User.objects.create_user(
+                email=f"badge-{role}@test.com",
+                password="testpass123",
+                role=role,
+            )
+            colors[role] = self.admin.role_display(user)
+
+        level4_color = colors["wholesale_level4"]
+        others = [markup for role, markup in colors.items() if role != "wholesale_level4"]
+        # unregistered намеренно без своего цвета — падает в серый дефолт,
+        # поэтому сравниваем именно с ролями, у которых цвет объявлен
+        for markup in others:
+            if "#6c757d" in markup:
+                continue
+            self.assertNotEqual(_extract_badge_color(markup), _extract_badge_color(level4_color))
+
+
+def _extract_badge_color(markup: str) -> str:
+    """HEX-цвет из разметки бейджа role_display"""
+    return markup.split("color: ", 1)[1].split(";", 1)[0]

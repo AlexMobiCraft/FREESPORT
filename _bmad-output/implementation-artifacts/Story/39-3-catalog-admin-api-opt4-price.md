@@ -4,7 +4,7 @@ baseline_commit: 67045968e9fe5f9b6742eedc80bc8aff861ca169
 
 # Story 39.3: Каталог, админка и API отдают цену уровня 4
 
-Status: ready-for-dev
+Status: review
 
 > ✅ **Координаты Dev Notes освежены 2026-08-03** после закрытия `tech-debt.md` п. 18 стори `security-wholesale-price-visibility`. Номера строк соответствуют рабочему дереву **с реализацией той стори поверх `67045968`** — на момент правки она ещё не была закоммичена, поэтому при расхождении сверять код, а не номера. Предупреждение о невалидных координатах на `61e10805` снято: те координаты больше не актуальны ни в каком виде.
 >
@@ -34,57 +34,57 @@ so that **я мог работать с порталом так же, как к�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Фильтры каталога** (AC: 1)
-  - [ ] 1.1: `filters.py` — ветка `wholesale_level4` в `filter_min_price` после ветки `wholesale_level3` (`:275-276`)
-  - [ ] 1.2: `filters.py` — то же в `filter_max_price` (`:308-309`), с `__lte`
-  - [ ] 1.3: Ничего больше в файле не менять — `_variant_filters`, `qs`-property, subquery-оптимизация и вызов `resolve_pricing_role` правок не требуют
+- [x] **Task 1: Фильтры каталога** (AC: 1)
+  - [x] 1.1: `filters.py` — ветка `wholesale_level4` в `filter_min_price` после ветки `wholesale_level3` (`:275-276`)
+  - [x] 1.2: `filters.py` — то же в `filter_max_price` (`:308-309`), с `__lte`
+  - [x] 1.3: Ничего больше в файле не менять — `_variant_filters`, `qs`-property, subquery-оптимизация и вызов `resolve_pricing_role` правок не требуют
 
-- [ ] **Task 2: Сериализаторы товаров и политика цен** (AC: 2, 3, 4)
-  - [ ] 2.1: `serializers.py:465` — объявить `opt4_price = serializers.SerializerMethodField()` после `opt3_price`
-  - [ ] 2.2: `serializers.py:501` — добавить `"opt4_price"` в `Meta.fields` после `"opt3_price"`
-  - [ ] 2.3: `serializers.py:617` — реализовать `get_opt4_price` по образцу `get_opt3_price` (точный код — в Dev Notes)
-  - [ ] 2.4: `serializers.py:536` — добавить `| Q(opt4_price__gt=0)` в фильтр `_get_first_variant`
-  - [ ] 2.5: `apps/products/pricing_policy.py` — добавить `"opt4_price"` в `WHOLESALE_PRICE_FIELDS` (гейт нового поля) **и** `"wholesale_level4"` в `INFO_PRICE_ROLES` (РРЦ/МРЦ); снять комментарии-подсказки «стори 39.3 добавляет сюда …». Списков `allowed_roles` в сериализаторах больше нет — искать их бессмысленно
-  - [ ] 2.6: `serializers.py:449` — обновить docstring («…opt3_price, opt4_price»)
-  - [ ] 2.7: `ProductDetailSerializer` **не править** — наследует `Meta.fields`
-  - [ ] 2.8: `to_representation` обоих сериализаторов (`:94`, `:562`) **не править** — они уже выражены через предикаты `pricing_policy`, новое поле подхватится из константы
+- [x] **Task 2: Сериализаторы товаров и политика цен** (AC: 2, 3, 4)
+  - [x] 2.1: `serializers.py:465` — объявить `opt4_price = serializers.SerializerMethodField()` после `opt3_price`
+  - [x] 2.2: `serializers.py:501` — добавить `"opt4_price"` в `Meta.fields` после `"opt3_price"`
+  - [x] 2.3: `serializers.py:617` — реализовать `get_opt4_price` по образцу `get_opt3_price` (точный код — в Dev Notes)
+  - [x] 2.4: `serializers.py:536` — добавить `| Q(opt4_price__gt=0)` в фильтр `_get_first_variant`
+  - [x] 2.5: `apps/products/pricing_policy.py` — добавить `"opt4_price"` в `WHOLESALE_PRICE_FIELDS` (гейт нового поля) **и** `"wholesale_level4"` в `INFO_PRICE_ROLES` (РРЦ/МРЦ); снять комментарии-подсказки «стори 39.3 добавляет сюда …». Списков `allowed_roles` в сериализаторах больше нет — искать их бессмысленно
+  - [x] 2.6: `serializers.py:449` — обновить docstring («…opt3_price, opt4_price»)
+  - [x] 2.7: `ProductDetailSerializer` **не править** — наследует `Meta.fields`
+  - [x] 2.8: `to_representation` обоих сериализаторов (`:94`, `:562`) **не править** — они уже выражены через предикаты `pricing_policy`, новое поле подхватится из константы
 
-- [ ] **Task 3: Prefetch во вью каталога** (AC: 3)
-  - [ ] 3.1: `views.py:87` — добавить `| Q(opt4_price__gt=0)` в `Prefetch` `first_variant_list`
-  - [ ] 3.2: Аннотации `min_retail_price` / `total_stock` / `has_stock` **не трогать** — сортировка по цене осталась розничной осознанно (вне объёма эпика)
+- [x] **Task 3: Prefetch во вью каталога** (AC: 3)
+  - [x] 3.1: `views.py:87` — добавить `| Q(opt4_price__gt=0)` в `Prefetch` `first_variant_list`
+  - [x] 3.2: Аннотации `min_retail_price` / `total_stock` / `has_stock` **не трогать** — сортировка по цене осталась розничной осознанно (вне объёма эпика)
 
-- [ ] **Task 4: Админка** (AC: 5, 6)
-  - [ ] 4.1: `products/admin.py:641` — `"opt4_price"` в fieldset «Ценообразование» после `"opt3_price"`
-  - [ ] 4.2: `users/admin.py:417` — `"wholesale_level4": "#d63384",  # розовый` в `role_colors` после `wholesale_level3`
+- [x] **Task 4: Админка** (AC: 5, 6)
+  - [x] 4.1: `products/admin.py:641` — `"opt4_price"` в fieldset «Ценообразование» после `"opt3_price"`
+  - [x] 4.2: `users/admin.py:417` — `"wholesale_level4": "#d63384",  # розовый` в `role_colors` после `wholesale_level3`
 
-- [ ] **Task 5: Роль в пользовательском API и баннерах** (AC: 7, 8)
-  - [ ] 5.1: `users/serializers.py:90` — `"wholesale_level4"` в `SELF_SERVICE_ROLES` после `"wholesale_level3"`
-  - [ ] 5.2: `banners/services.py:138` — `"wholesale_level4"` в множество оптовых ролей
-  - [ ] 5.3: `banners/services.py:_ALL_ROLE_KEYS` (`:32`) **не трогать** — строится из `User.ROLE_CHOICES`, роль там уже есть
+- [x] **Task 5: Роль в пользовательском API и баннерах** (AC: 7, 8)
+  - [x] 5.1: `users/serializers.py:90` — `"wholesale_level4"` в `SELF_SERVICE_ROLES` после `"wholesale_level3"`
+  - [x] 5.2: `banners/services.py:138` — `"wholesale_level4"` в множество оптовых ролей
+  - [x] 5.3: `banners/services.py:_ALL_ROLE_KEYS` (`:32`) **не трогать** — строится из `User.ROLE_CHOICES`, роль там уже есть
 
-- [ ] **Task 6: Фабрики** (AC: 9)
-  - [ ] 6.1: `factories.py:95` — `"opt4_price"` в список `variant_fields` метода `ProductFactory._create`
-  - [ ] 6.2: `factories.py:146` — `opt4_price = fuzzy.FuzzyDecimal(90.0, 9000.0, 2)` с комментарием (обоснование диапазона — в Dev Notes)
+- [x] **Task 6: Фабрики** (AC: 9)
+  - [x] 6.1: `factories.py:95` — `"opt4_price"` в список `variant_fields` метода `ProductFactory._create`
+  - [x] 6.2: `factories.py:146` — `opt4_price = fuzzy.FuzzyDecimal(90.0, 9000.0, 2)` с комментарием (обоснование диапазона — в Dev Notes)
 
-- [ ] **Task 7: Тесты** (AC: 11, покрывают 1-9)
-  - [ ] 7.1: `backend/tests/unit/test_product_filters.py` — добавить `"wholesale_level4"` в `roles_to_test` (`:313`) и новый класс `TestOpt4PriceFilter` с `@pytest.mark.unit`: min/max-фильтр для роли даёт `Q` по `opt4_price`
-  - [ ] 7.2: **Новый** `backend/apps/products/tests/unit/test_opt4_catalog_api.py`, `pytestmark = [pytest.mark.unit, pytest.mark.django_db]` — AC2, AC3, AC4, AC5 (структура — в Dev Notes)
-  - [ ] 7.3: `backend/tests/unit/test_serializers/test_user_serializers.py` — новый класс с явным `@pytest.mark.unit`: регистрация с `role="wholesale_level4"` валидна (AC7)
-  - [ ] 7.4: `backend/apps/banners/tests/test_services.py` — новый класс с `@pytest.mark.unit`: `_get_role_filter("wholesale_level4")` даёт оптовый `Q`, а не гостевой (AC8)
-  - [ ] 7.5: `backend/tests/unit/test_users_admin.py` (файл целиком `pytestmark = pytest.mark.unit`) — цвет бейджа для роли уровня 4 существует и уникален (AC6)
-  - [ ] 7.6: Проверить, что новые тесты действительно попадают в `-m unit` (см. «Мина: тестовые файлы без маркеров»)
+- [x] **Task 7: Тесты** (AC: 11, покрывают 1-9)
+  - [x] 7.1: `backend/tests/unit/test_product_filters.py` — добавить `"wholesale_level4"` в `roles_to_test` (`:313`) и новый класс `TestOpt4PriceFilter` с `@pytest.mark.unit`: min/max-фильтр для роли даёт `Q` по `opt4_price`
+  - [x] 7.2: **Новый** `backend/apps/products/tests/unit/test_opt4_catalog_api.py`, `pytestmark = [pytest.mark.unit, pytest.mark.django_db]` — AC2, AC3, AC4, AC5 (структура — в Dev Notes)
+  - [x] 7.3: `backend/tests/unit/test_serializers/test_user_serializers.py` — новый класс с явным `@pytest.mark.unit`: регистрация с `role="wholesale_level4"` валидна (AC7)
+  - [x] 7.4: `backend/apps/banners/tests/test_services.py` — новый класс с `@pytest.mark.unit`: `_get_role_filter("wholesale_level4")` даёт оптовый `Q`, а не гостевой (AC8)
+  - [x] 7.5: `backend/tests/unit/test_users_admin.py` (файл целиком `pytestmark = pytest.mark.unit`) — цвет бейджа для роли уровня 4 существует и уникален (AC6)
+  - [x] 7.6: Проверить, что новые тесты действительно попадают в `-m unit` (см. «Мина: тестовые файлы без маркеров»)
 
-- [ ] **Task 8: API-контракт** (AC: 10)
-  - [ ] 8.1: Перегенерировать `docs/api/openapi.yaml` (точная команда — в Dev Notes)
-  - [ ] 8.2: Проверить diff: должны появиться `opt4_price` в двух схемах товара и `wholesale_level4` в `RoleEnum`
-  - [ ] 8.3: Если в diff есть посторонние ханки — оценить их по Dev Notes → «Дрейф openapi.yaml»; при структурном расхождении остановиться и спросить Alex
-  - [ ] 8.4: `frontend/` **не трогать** — `npm run generate:types` выполняется в стори 39.4
+- [x] **Task 8: API-контракт** (AC: 10)
+  - [x] 8.1: Перегенерировать `docs/api/openapi.yaml` (точная команда — в Dev Notes)
+  - [x] 8.2: Проверить diff: должны появиться `opt4_price` в двух схемах товара и `wholesale_level4` в `RoleEnum`
+  - [x] 8.3: Если в diff есть посторонние ханки — оценить их по Dev Notes → «Дрейф openapi.yaml»; при структурном расхождении остановиться и спросить Alex
+  - [x] 8.4: `frontend/` **не трогать** — `npm run generate:types` выполняется в стори 39.4
 
-- [ ] **Task 9: Прогон и регресс** (AC: 11)
-  - [ ] 9.1: Полный unit-прогон (эквивалент `make test-unit`, команды — в Dev Notes). Базовая линия после 39.2: **1041 passed, 1 skipped**
-  - [ ] 9.2: Полный integration-прогон (≈ 30 мин, запускать в фоне). Базовая линия: **744 passed, 2 skipped**
-  - [ ] 9.3: `black --check` + `flake8` по изменённым файлам
-  - [ ] 9.4: `npx gitnexus detect-changes --scope all` перед коммитом
+- [x] **Task 9: Прогон и регресс** (AC: 11)
+  - [x] 9.1: Полный unit-прогон (эквивалент `make test-unit`, команды — в Dev Notes). Базовая линия после 39.2: **1041 passed, 1 skipped**
+  - [x] 9.2: Полный integration-прогон (≈ 30 мин, запускать в фоне). Базовая линия: **744 passed, 2 skipped**
+  - [x] 9.3: `black --check` + `flake8` по изменённым файлам
+  - [x] 9.4: `npx gitnexus detect-changes --scope all` перед коммитом
 
 ## Dev Notes
 
@@ -478,8 +478,85 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend \
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, workflow `bmad-dev-story`)
+
 ### Debug Log References
+
+| Проверка | Команда | Результат |
+|---|---|---|
+| RED-прогон новых тестов | `pytest -q apps/products/tests/unit/test_opt4_catalog_api.py tests/unit/test_product_filters.py::TestOpt4PriceFilter` | 9 failed, 4 passed — падения ровно в ожидаемых точках (AC1-AC5) |
+| GREEN-прогон затронутых файлов | тот же набор + `tests/unit/test_users_admin.py`, `tests/unit/test_serializers/test_user_serializers.py`, `apps/banners/tests/test_services.py` | 161 passed |
+| Маркеры новых тестов (Task 7.6) | `pytest -q -m unit --collect-only <новые классы>` | 21 tests collected — все новые тесты попадают в `-m unit` |
+| Полный unit (Task 9.1) | `pytest -q -m unit` | итог: **1851 passed, 4 skipped, 949 deselected** (первый прогон дал 1 failed — см. ниже) |
+| Полный integration (Task 9.2) | `pytest -q -m integration` | **920 passed, 2 skipped, 1882 deselected, 15 subtests passed** (28:29) |
+| `flake8` (Task 9.3) | 14 изменённых файлов | exit 0 |
+| `black --check` (Task 9.3) | те же 14 файлов | 14 files would be left unchanged |
+| `makemigrations --check` | dev-контейнер | `No changes detected` — стори миграций не вводит |
+| Сверка контракта (AC10) | `manage.py check_openapi_sync --schema-file …` | `Контракт синхронен с кодом` |
+| GitNexus (Task 9.4) | `npx gitnexus detect-changes --scope all` | 16 files, 23 symbols, affected processes 0, **risk low** |
+
+Единственное падение полного unit-прогона — `apps/products/tests/unit/test_pricing_policy.py::TestResolvePricingRole::test_field_constants`: сторож предыдущей стори сверял `WHOLESALE_PRICE_FIELDS` с точным кортежем из трёх полей. Константа расширена по Task 2.5, ожидание в тесте обновлено вместе с комментарием, зачем поле там обязано быть.
 
 ### Completion Notes List
 
+**Реализовано по ACs**
+
+- **AC1** — ветка `wholesale_level4` добавлена в `filter_min_price` и `filter_max_price` между `wholesale_level3` и `trainer`. Роль берётся из `resolve_pricing_role`, поэтому неверифицированный уровень 4 штатно уходит в розничную ветку (закреплено тестом `test_unverified_level4_filters_by_retail_price`).
+- **AC2** — `opt4_price` объявлено `SerializerMethodField`, включено в `Meta.fields`, реализован `get_opt4_price` по образцу `get_opt3_price` (пустая цена → `0.0`, не `None`). `ProductDetailSerializer` не правился — наследует `Meta.fields`.
+- **AC3** — `| Q(opt4_price__gt=0)` добавлено в **оба** обязательных места: `ProductListSerializer._get_first_variant` и `Prefetch("variants", …)` в `ProductViewSet.get_queryset`. Оба покрыты отдельными тестами, чтобы пропуск одного не дал молчаливого расхождения «список против карточки».
+- **AC4** — в `pricing_policy.py` внесены обе правки: `"opt4_price"` в `WHOLESALE_PRICE_FIELDS` (гейт нового поля) и `"wholesale_level4"` в `INFO_PRICE_ROLES` (РРЦ/МРЦ). Комментарии-подсказки «Стори 39.3 добавляет сюда …» сняты. Утечка нового поля анониму закрыта тестом `test_anonymous_does_not_see_opt4_price`.
+- **AC5** — `opt4_price` в fieldset «Ценообразование» `ProductVariantAdmin`, сразу после `opt3_price`. `list_display` и `ProductVariantInline` не тронуты; добавлен сторож `test_admin_list_display_has_no_wholesale_prices`.
+- **AC6** — `"wholesale_level4": "#d63384"` в `role_colors`. Уникальность цвета среди всех ролей закреплена тестом (роли, намеренно падающие в серый дефолт — `retail`, `unregistered` — из сравнения исключены).
+- **AC7** — `"wholesale_level4"` в `SELF_SERVICE_ROLES`. Промежуточный дефект релизной ветки (роль публикуется в `/api/v1/users/roles/`, но регистрация отдаёт 400) закрыт.
+- **AC8** — роль добавлена в множество оптовых в `_get_role_filter`; фильтр совпадает с фильтром уровня 3, гостевой fallback больше не срабатывает.
+- **AC9** — `"opt4_price"` в `variant_fields` метода `ProductFactory._create` и `opt4_price = fuzzy.FuzzyDecimal(90.0, 9000.0, 2)` в `ProductVariantFactory` с комментарием об обосновании диапазона.
+- **AC10** — `docs/api/openapi.yaml` перегенерирован. Семантическая сверка (структурная, не побайтовая): `opt4_price` появилось в `properties` и `required` схем `ProductList` и `ProductDetail`; множество пар «путь → метод» не изменилось; версия OpenAPI (3.1.0) та же; схем не добавлено и не удалено; изменились ровно две схемы — `ProductList` и `ProductDetail`.
+- **AC11** — новые тесты покрывают AC1-AC8; каждый новый класс несёт явный `@pytest.mark.unit`, проверено через `--collect-only -m unit`.
+
+**Расхождения со спекой стори (обнаружены по факту, не дефекты реализации)**
+
+1. **`RoleEnum` уже содержал `wholesale_level4`.** Dev Notes ожидали его появления в diff и описывали дрейф `openapi.yaml` в ~4900 строк. К моменту разработки контракт уже был приведён в соответствие с кодом коммитом `4708dd8a` (тех.долг п. 20), поэтому фактический diff — 154/141 строк, а роль в `RoleEnum` присутствовала до правки. AC10 в части `RoleEnum` выполнен состоянием файла, в части схем товара — этой стори.
+2. **Базовые линии прогонов в Task 9.1/9.2 устарели.** Спека называла 1041 passed (unit) и 744 passed (integration); фактические цифры до и после правки — порядка 1851 и 920. Разница не связана со стори: между написанием спеки и разработкой были закрыты тех.долг п. 18 и п. 20 с новыми тестами. Регресс проверялся по составу падений, а не по абсолютному числу.
+
+**⚠️ Требует решения Alex (за рамками объёма стори)**
+
+- **Гейт `api-contract.yml` на этой ветке будет красным.** Workflow `.github/workflows/api-contract.yml` (появился в тех.долге п. 20, коммит `898d971e`, то есть **после** написания спеки 39.3) сверяет два артефакта: `docs/api/openapi.yaml` против кода (шаг `check_openapi_sync` — сейчас **проходит**) и `frontend/src/types/api.generated.ts` против закоммиченного YAML (шаг `npm run generate:types` + `git status --porcelain` — сейчас **упадёт**, т.к. контракт содержит `opt4_price`, а сгенерированные типы — ещё нет). Task 8.4 стори прямо запрещает трогать `frontend/`, регенерация типов — AC1 стори 39.4, поэтому правка сюда не вносилась. Варианты: (а) оставить как есть — гейт станет зелёным после влития 39.4, что согласуется с релизным правилом эпика («стори 39 на прод по одной не выкатываются»); (б) выполнить `cd frontend && npm run generate:types` уже здесь, приняв выход за объём стори. Нужно решение.
+- **Предсуществующий долг маркеров не чинился** (в соответствии с антипаттернами стори): у классов в `backend/tests/unit/test_serializers/test_user_serializers.py` и `backend/apps/products/tests/test_api_products.py` стоит только `@pytest.mark.django_db`. Новые классы маркер получили явно.
+
 ### File List
+
+**Изменённые — код**
+
+- `backend/apps/products/filters.py`
+- `backend/apps/products/serializers.py`
+- `backend/apps/products/views.py`
+- `backend/apps/products/admin.py`
+- `backend/apps/products/factories.py`
+- `backend/apps/products/pricing_policy.py`
+- `backend/apps/users/serializers.py`
+- `backend/apps/users/admin.py`
+- `backend/apps/banners/services.py`
+
+**Новые — тесты**
+
+- `backend/apps/products/tests/unit/test_opt4_catalog_api.py`
+
+**Изменённые — тесты**
+
+- `backend/apps/products/tests/unit/test_pricing_policy.py`
+- `backend/tests/unit/test_product_filters.py`
+- `backend/tests/unit/test_serializers/test_user_serializers.py`
+- `backend/tests/unit/test_users_admin.py`
+- `backend/apps/banners/tests/test_services.py`
+
+**Изменённые — контракт и артефакты процесса**
+
+- `docs/api/openapi.yaml` (перегенерирован)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/39-3-catalog-admin-api-opt4-price.md`
+
+## Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-04 | Реализована стори 39.3: цена уровня 4 в фильтрах каталога, ответе API, политике видимости цен, админке варианта и бейдже роли; роль `wholesale_level4` разрешена при регистрации и отнесена к оптовым в баннерах; фабрики заполняют `opt4_price`; `docs/api/openapi.yaml` перегенерирован. Добавлен модуль `test_opt4_catalog_api.py` (10 тестов) и 11 тестов в четыре существующих файла. Статус → review. |

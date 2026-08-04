@@ -51,7 +51,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: "2026-08-03"
+last_updated: "2026-08-04"
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -135,7 +135,7 @@ development_status:
   epic-39: in-progress
   39-1-wholesale-level4-role-and-opt4-price-model: done
   39-2-import-opt4-prices-from-1c: done
-  39-3-catalog-admin-api-opt4-price: ready-for-dev
+  39-3-catalog-admin-api-opt4-price: review
   # Стартует только после влития 39.3: AC1 требует opt4_price в docs/api/openapi.yaml.
   39-4-frontend-opt4-price-display: ready-for-dev
   epic-39-retrospective: optional

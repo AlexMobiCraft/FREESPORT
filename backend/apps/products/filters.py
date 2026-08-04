@@ -274,6 +274,8 @@ class ProductFilter(django_filters.FilterSet):
             self._variant_filters &= Q(opt2_price__gte=value) | Q(opt2_price__isnull=True, retail_price__gte=value)
         elif user_role == "wholesale_level3":
             self._variant_filters &= Q(opt3_price__gte=value) | Q(opt3_price__isnull=True, retail_price__gte=value)
+        elif user_role == "wholesale_level4":
+            self._variant_filters &= Q(opt4_price__gte=value) | Q(opt4_price__isnull=True, retail_price__gte=value)
         elif user_role == "trainer":
             self._variant_filters &= Q(trainer_price__gte=value) | Q(
                 trainer_price__isnull=True, retail_price__gte=value
@@ -307,6 +309,8 @@ class ProductFilter(django_filters.FilterSet):
             self._variant_filters &= Q(opt2_price__lte=value) | Q(opt2_price__isnull=True, retail_price__lte=value)
         elif user_role == "wholesale_level3":
             self._variant_filters &= Q(opt3_price__lte=value) | Q(opt3_price__isnull=True, retail_price__lte=value)
+        elif user_role == "wholesale_level4":
+            self._variant_filters &= Q(opt4_price__lte=value) | Q(opt4_price__isnull=True, retail_price__lte=value)
         elif user_role == "trainer":
             self._variant_filters &= Q(trainer_price__lte=value) | Q(
                 trainer_price__isnull=True, retail_price__lte=value

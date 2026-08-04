@@ -741,6 +741,25 @@ paths:
                 $ref: '#/components/schemas/Address'
           description: ''
   /users/addresses/{id}/:
+    get:
+      operationId: users_addresses_retrieve
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
     delete:
       operationId: users_addresses_destroy
       description: ViewSet для управления адресами пользователя
@@ -756,6 +775,36 @@ paths:
       responses:
         '204':
           description: No response body
+    patch:
+      operationId: users_addresses_partial_update
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAddressRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
     put:
       operationId: users_addresses_update
       description: ViewSet для управления адресами пользователя
@@ -780,55 +829,6 @@ paths:
             schema:
               $ref: '#/components/schemas/AddressRequest'
         required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
-    get:
-      operationId: users_addresses_retrieve
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
-    patch:
-      operationId: users_addresses_partial_update
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedAddressRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedAddressRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedAddressRequest'
       responses:
         '200':
           content:
@@ -893,6 +893,25 @@ paths:
                 $ref: '#/components/schemas/FavoriteCreate'
           description: ''
   /users/favorites/{id}/:
+    get:
+      operationId: users_favorites_retrieve
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
     delete:
       operationId: users_favorites_destroy
       description: ViewSet для управления избранными товарами
@@ -908,6 +927,36 @@ paths:
       responses:
         '204':
           description: No response body
+    patch:
+      operationId: users_favorites_partial_update
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFavoriteRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
     put:
       operationId: users_favorites_update
       description: ViewSet для управления избранными товарами
@@ -932,55 +981,6 @@ paths:
             schema:
               $ref: '#/components/schemas/FavoriteRequest'
         required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Favorite'
-          description: ''
-    get:
-      operationId: users_favorites_retrieve
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - users
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Favorite'
-          description: ''
-    patch:
-      operationId: users_favorites_partial_update
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedFavoriteRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedFavoriteRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedFavoriteRequest'
       responses:
         '200':
           content:
@@ -1321,7 +1321,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: A unique integer value identifying this Категория.
         required: true
       tags:
       - categories-tree
@@ -1575,6 +1576,33 @@ paths:
         '401':
           description: Пользователь не авторизован
   /orders/{id}/:
+    get:
+      operationId: orders_retrieve
+      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
+        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
+        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
+        404.
+      summary: Детали заказа
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - Orders
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заказ не найден
     delete:
       operationId: orders_destroy
       description: |-
@@ -1597,6 +1625,43 @@ paths:
       responses:
         '204':
           description: No response body
+    patch:
+      operationId: orders_partial_update
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrderDetailRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
     put:
       operationId: orders_update
       description: |-
@@ -1628,70 +1693,6 @@ paths:
             schema:
               $ref: '#/components/schemas/OrderDetailRequest'
         required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-    get:
-      operationId: orders_retrieve
-      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
-        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
-        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
-        404.
-      summary: Детали заказа
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - Orders
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-        '401':
-          description: Пользователь не авторизован
-        '404':
-          description: Заказ не найден
-    patch:
-      operationId: orders_partial_update
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - orders
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedOrderDetailRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedOrderDetailRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedOrderDetailRequest'
       responses:
         '200':
           content:
@@ -1788,34 +1789,6 @@ paths:
         '204':
           description: No response body
   /cart/items/:
-    post:
-      operationId: cart_items_create
-      description: Добавление варианта товара (variant_id) в корзину с автоматическим
-        объединением одинаковых вариантов. Цена фиксируется в момент добавления.
-      summary: Добавить вариант товара в корзину
-      tags:
-      - Cart Items
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-        required: true
-      security:
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartItemCreate'
-          description: ''
     get:
       operationId: cart_items_list
       description: Получение списка всех товаров в корзине пользователя
@@ -1850,24 +1823,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedCartItemList'
           description: ''
-  /cart/items/{id}/:
-    delete:
-      operationId: cart_items_destroy
-      description: Удаление товара из корзины
-      summary: Удалить товар из корзины
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
+    post:
+      operationId: cart_items_create
+      description: Добавление варианта товара (variant_id) в корзину с автоматическим
+        объединением одинаковых вариантов. Цена фиксируется в момент добавления.
+      summary: Добавить вариант товара в корзину
       tags:
       - Cart Items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+        required: true
       security:
       - {}
       responses:
-        '204':
-          description: No response body
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemCreate'
+          description: ''
+  /cart/items/{id}/:
     get:
       operationId: cart_items_retrieve
       description: Получение детальной информации о товаре в корзине
@@ -1891,6 +1875,23 @@ paths:
           description: ''
         '404':
           description: Товар в корзине не найден
+    delete:
+      operationId: cart_items_destroy
+      description: Удаление товара из корзины
+      summary: Удалить товар из корзины
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
     patch:
       operationId: cart_items_partial_update
       description: Частичное изменение количества товара в корзине
@@ -4025,6 +4026,11 @@ components:
           format: double
           description: Получить оптовую цену уровня 3 из первого варианта
           readOnly: true
+        opt4_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 4 из первого варианта
+          readOnly: true
         stock_quantity:
           type: integer
           description: Получить суммарное количество на складе по всем вариантам
@@ -4119,6 +4125,7 @@ components:
       - opt1_price
       - opt2_price
       - opt3_price
+      - opt4_price
       - related_products
       - retail_price
       - rrp
@@ -4164,7 +4171,7 @@ components:
         в ProductDetailSerializer.
 
         Вычисляемые поля для обратной совместимости (данные из вариантов):
-        - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+        - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
         - stock_quantity: суммарное количество на складе по всем вариантам
         - is_in_stock: есть ли хотя бы один вариант в наличии
         - main_image: изображение из первого варианта или base_images
@@ -4275,6 +4282,11 @@ components:
           format: double
           description: Получить оптовую цену уровня 3 из первого варианта
           readOnly: true
+        opt4_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 4 из первого варианта
+          readOnly: true
         stock_quantity:
           type: integer
           description: Получить суммарное количество на складе по всем вариантам
@@ -4340,6 +4352,7 @@ components:
       - opt1_price
       - opt2_price
       - opt3_price
+      - opt4_price
       - retail_price
       - rrp
       - sku

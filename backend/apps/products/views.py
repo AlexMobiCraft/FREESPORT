@@ -85,6 +85,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                         | Q(opt1_price__gt=0)
                         | Q(opt2_price__gt=0)
                         | Q(opt3_price__gt=0)
+                        | Q(opt4_price__gt=0)
                         | Q(trainer_price__gt=0)
                         | Q(federation_price__gt=0)
                     ).order_by("retail_price"),

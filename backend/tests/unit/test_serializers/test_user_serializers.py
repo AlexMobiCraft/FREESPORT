@@ -122,6 +122,47 @@ class TestUserRegistrationSerializer:
         assert "company_name" in serializer.errors
 
 
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestWholesaleLevel4Registration:
+    """
+    Стори 39.3, AC7: роль уровня 4 доступна для самостоятельной регистрации.
+
+    До правки роль уже публиковалась в /api/v1/users/roles/ (список строится
+    из User.ROLE_CHOICES), но регистрация с ней падала с 400 «Недопустимая
+    роль для регистрации» — витрина предлагала то, чего бэкенд не принимал.
+    """
+
+    def test_role_is_self_service(self):
+        """Роль входит в белый список самостоятельно выбираемых"""
+        assert "wholesale_level4" in UserRegistrationSerializer.SELF_SERVICE_ROLES
+
+    def test_valid_wholesale_level4_registration(self, user_factory):
+        """Регистрация с ролью уровня 4 проходит валидацию и создаёт пользователя"""
+        data = {
+            "email": "opt4@test.com",
+            "password": "TestPass123!",
+            "password_confirm": "TestPass123!",
+            "first_name": "Опт",
+            "last_name": "Четвёртый",
+            "phone": "+79991234570",
+            "role": "wholesale_level4",
+            "company_name": "ООО Опт 4",
+            "tax_id": "1234567890",
+            "pdp_consent": True,
+        }
+
+        serializer = UserRegistrationSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+
+        user = serializer.save()
+        assert user.role == "wholesale_level4"
+
+    def test_validate_role_accepts_level4(self):
+        """validate_role возвращает роль без ошибки"""
+        assert UserRegistrationSerializer().validate_role("wholesale_level4") == "wholesale_level4"
+
+
 @pytest.mark.django_db
 class TestUserLoginSerializer:
     """Тесты сериализатора входа пользователя"""

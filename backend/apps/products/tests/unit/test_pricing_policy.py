@@ -145,7 +145,9 @@ class TestResolvePricingRole:
 
     def test_field_constants(self):
         """AC1: константы полей — единственный источник истины"""
-        assert WHOLESALE_PRICE_FIELDS == ("opt1_price", "opt2_price", "opt3_price")
+        # opt4_price добавлено стори 39.3 — новое оптовое поле обязано быть
+        # под гейтом, иначе оно единственное уедет анонимному запросу
+        assert WHOLESALE_PRICE_FIELDS == ("opt1_price", "opt2_price", "opt3_price", "opt4_price")
         assert INFO_PRICE_FIELDS == ("rrp", "msrp")
 
 
