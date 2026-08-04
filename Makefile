@@ -3,7 +3,7 @@
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 DOCS_SCRIPTS_DIR := $(ROOT_DIR)scripts/docs
 
-.PHONY: help build build-frontend up down test test-unit test-integration clean logs shell \
+.PHONY: help build build-frontend up down test test-unit test-integration test-performance clean logs shell \
          format lint migrate createsuperuser collectstatic \
          docs-validate docs-search-obsolete docs-check-links docs-check-api docs-update-index \
          check-env-consistency fix-black-quick fix-existing-venv remove-venv
@@ -32,6 +32,7 @@ help:
 	@echo "  test           - Запустить все тесты в Docker с PostgreSQL"
 	@echo "  test-unit      - Запустить только unit-тесты"
 	@echo "  test-integration - Запустить интеграционные тесты"
+	@echo "  test-performance - Перф-тесты (вне обычного гейта)"
 	@echo "  test-fast      - Быстрые тесты (без пересборки образов)"
 	@echo "  test-fast-tools - Быстрые тесты через lightweight Docker"
 	@echo "  test-local     - Локальное тестирование (требует venv)"
@@ -92,6 +93,13 @@ test-integration:
 	@echo "Запуск интеграционных тестов..."
 	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
 	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
+
+# Перф-тесты (вне обычного гейта — медленные и шумные)
+test-performance:
+	@echo "Запуск перф-тестов..."
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m performance
 	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
 
 # Быстрые тесты (без сборки образов)

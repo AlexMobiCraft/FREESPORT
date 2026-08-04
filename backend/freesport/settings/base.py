@@ -427,6 +427,7 @@ SPECTACULAR_SETTINGS = {
         },
         {"name": "Cart", "description": "Корзина покупок"},
         {"name": "Orders", "description": "Управление заказами и их статусами"},
+        {"name": "Bonuses", "description": "Бонусная программа для тренеров"},
         {"name": "Search", "description": "Поиск и фильтрация товаров"},
         {"name": "System", "description": "Системные эндпоинты для мониторинга"},
         {"name": "Webhooks", "description": "Уведомления от внешних сервисов"},

@@ -72,16 +72,18 @@ optimized_for_llm: true
 
 ## 4. Тестирование
 
-- **Pytest markers обязательны** на каждом backend-тесте:
-  - `@pytest.mark.unit` — модульные тесты внутри `apps/*/tests/`.
-  - `@pytest.mark.integration` — интеграционные в `backend/tests/`.
-  - `@pytest.mark.data_dependent` — тесты, зависящие от внешних данных.
-  Без маркера тест выпадет из CI-фильтров `make test-unit`/`test-integration`.
+- **Pytest markers проставляются автоматически по каталогу** — руками ставить не нужно. Хук `pytest_collection_modifyitems` в `backend/conftest.py` размечает каждый собранный тест по самому глубокому каталогу-категории в пути (работает на любой глубине, и в `tests/`, и внутри `apps/`):
+  - `unit/` → `unit`; `integration/`, `functional/`, `regression/` → `integration`; `performance/` → `performance`.
+  - Каталога-категории нет → умолчание: всё под `apps/` — `unit`. Для `tests/` умолчания нет: новый каталог там обрывает сбор с `UsageError`. Асимметрия осознанная (см. `backend/docs/testing-standards.md`).
+  - `unit` означает «модульный тест приложения», **не** «без БД»: тест с `django_db` внутри `apps/` штатно получает `unit`.
+  **Явный маркер в файле переопределяет автоматический.** `@pytest.mark.data_dependent` и `@pytest.mark.slow` ортогональны и ставятся вручную.
+- **Где что исполняется:** `backend-ci.yml` — быстрый unit-гейт (`not integration and not data_dependent and not performance`), он же считает покрытие; `main.yml` — весь набор без `performance` на каждом push/PR в `main`/`develop`, именно он ловит регрессии интеграционных тестов; `performance-tests.yml` — перф-тесты по расписанию (nightly) и вручную.
 - **Команды запуска** (через Docker):
   ```bash
   make test                 # все тесты
   make test-unit            # только unit
   make test-integration     # только integration
+  make test-performance     # только перф-тесты
   # Прямой запуск конкретного теста в test-контейнере с .env.test:
   docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend pytest <путь>
   ```
