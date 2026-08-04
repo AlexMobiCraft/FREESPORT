@@ -467,46 +467,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/users/bonuses/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Сводка по бонусному счёту
-     * @description Баланс, суммы начислений и выплат, действующий процент программы.
-     */
-    get: operations['users_bonuses_retrieve'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/users/bonuses/transactions/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * История бонусных операций
-     * @description Список операций тренера с пагинацией и фильтром по типу.
-     */
-    get: operations['users_bonuses_transactions_list'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/users/roles/': {
     parameters: {
       query?: never;
@@ -1165,6 +1125,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/users/bonuses/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Сводка по бонусному счёту
+     * @description Баланс, суммы начислений и выплат, действующий процент программы.
+     */
+    get: operations['users_bonuses_retrieve'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/users/bonuses/transactions/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * История бонусных операций
+     * @description Список операций тренера с пагинацией и фильтром по типу.
+     */
+    get: operations['users_bonuses_transactions_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/integration/1c/exchange/': {
     parameters: {
       query?: never;
@@ -1348,7 +1348,7 @@ export interface components {
        */
       readonly cta_link: string;
     };
-    /** @description Сводка по бонусному счёту тренера */
+    /** @description Сводка по бонусному счёту тренера. */
     BonusSummary: {
       /**
        * Format: decimal
@@ -1373,39 +1373,44 @@ export interface components {
       /** @description Программа активна */
       is_active: boolean;
     };
-    /** @description Операция журнала бонусов */
+    /** @description Операция журнала для истории в личном кабинете. */
     BonusTransaction: {
       readonly id: number;
-      transaction_type: components['schemas']['BonusTransactionTypeEnum'];
-      readonly transaction_type_display?: string;
+      /** Тип операции */
+      readonly transaction_type: components['schemas']['TransactionTypeEnum'];
+      readonly transaction_type_display: string;
       /**
+       * Сумма
        * Format: decimal
-       * @description Сумма со знаком; начисление положительное, выплата и списание отрицательные
+       * @description Начисление — положительная, выплата и списание — отрицательная
        */
-      amount: string;
-      readonly order_id?: number | null;
-      readonly order_number?: string | null;
+      readonly amount: string;
+      readonly order_id: number | null;
+      /** @description Номер заказа: живой заказ либо снимок на момент начисления. */
+      readonly order_number: string | null;
       /**
+       * Применённый процент
        * Format: decimal
        * @description Снимок процента на момент начисления
        */
-      percent_applied?: string | null;
+      readonly percent_applied: string | null;
       /**
+       * База начисления
        * Format: decimal
        * @description Снимок стоимости товаров на момент начисления
        */
-      base_amount?: string | null;
-      comment?: string;
-      /** Format: date-time */
+      readonly base_amount: string | null;
+      /**
+       * Комментарий
+       * @description Обязателен для выплат и списаний: основание операции
+       */
+      readonly comment: string;
+      /**
+       * Дата создания
+       * Format: date-time
+       */
       readonly created_at: string;
     };
-    /**
-     * @description * `accrual` - Начисление
-     *     * `payout` - Выплата
-     *     * `writeoff` - Списание
-     * @enum {string}
-     */
-    BonusTransactionTypeEnum: 'accrual' | 'payout' | 'writeoff';
     /** @description Serializer для брендов */
     Brand: {
       readonly id: number;
@@ -1542,6 +1547,13 @@ export interface components {
       /** Порядок сортировки */
       sort_order?: number;
     };
+    /**
+     * @description * `Россия` - Россия
+     *     * `Беларусь` - Беларусь
+     *     * `Казахстан` - Казахстан
+     * @enum {string}
+     */
+    CountryEnum: 'Россия' | 'Беларусь' | 'Казахстан';
     /** @description Сериализатор для способа доставки. */
     DeliveryMethod: {
       readonly id: string;
@@ -1931,21 +1943,6 @@ export interface components {
       previous?: string | null;
       results?: components['schemas']['Address'][];
     };
-    PaginatedBonusTransactionList: {
-      /** @example 123 */
-      count?: number;
-      /**
-       * Format: uri
-       * @example http://api.example.org/accounts/?page=4
-       */
-      next?: string | null;
-      /**
-       * Format: uri
-       * @example http://api.example.org/accounts/?page=2
-       */
-      previous?: string | null;
-      results?: components['schemas']['BonusTransaction'][];
-    };
     PaginatedAttributeFilterList: {
       /** @example 123 */
       count?: number;
@@ -1960,6 +1957,21 @@ export interface components {
        */
       previous?: string | null;
       results?: components['schemas']['AttributeFilter'][];
+    };
+    PaginatedBonusTransactionList: {
+      /** @example 123 */
+      count?: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results?: components['schemas']['BonusTransaction'][];
     };
     PaginatedBrandList: {
       /** @example 123 */
@@ -2605,6 +2617,7 @@ export interface components {
      *     * `wholesale_level1` - Оптовик уровень 1
      *     * `wholesale_level2` - Оптовик уровень 2
      *     * `wholesale_level3` - Оптовик уровень 3
+     *     * `wholesale_level4` - Оптовик уровень 4
      *     * `trainer` - Тренер/Фитнес-клуб
      *     * `federation_rep` - Представитель федерации
      *     * `admin` - Администратор
@@ -2616,6 +2629,7 @@ export interface components {
       | 'wholesale_level1'
       | 'wholesale_level2'
       | 'wholesale_level3'
+      | 'wholesale_level4'
       | 'trainer'
       | 'federation_rep'
       | 'admin'
@@ -2663,6 +2677,13 @@ export interface components {
     TokenRefreshRequest: {
       refresh: string;
     };
+    /**
+     * @description * `accrual` - Начисление
+     *     * `payout` - Выплата
+     *     * `writeoff` - Списание
+     * @enum {string}
+     */
+    TransactionTypeEnum: 'accrual' | 'payout' | 'writeoff';
     /**
      * @description * `hero` - Геройский (Hero)
      *     * `marketing` - Маркетинговый
@@ -2796,6 +2817,15 @@ export interface components {
        * @description ИНН для B2B пользователей
        */
       tax_id?: string;
+      /**
+       * Страна
+       * @description Страна регистрации B2B-клиента (для маршрутизации на менеджера)
+       *
+       *     * `Россия` - Россия
+       *     * `Беларусь` - Беларусь
+       *     * `Казахстан` - Казахстан
+       */
+      country?: components['schemas']['CountryEnum'];
       pdp_consent: boolean;
       /** @default false */
       marketing_consent: boolean;
@@ -3578,79 +3608,6 @@ export interface operations {
         content: {
           'application/json': components['schemas']['OrderHistory'][];
         };
-      };
-    };
-  };
-  users_bonuses_retrieve: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['BonusSummary'];
-        };
-      };
-      /** @description Пользователь не авторизован */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Доступ только для подтверждённых тренеров */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  users_bonuses_transactions_list: {
-    parameters: {
-      query?: {
-        /** @description Фильтр по типу операции */
-        type?: 'accrual' | 'payout' | 'writeoff';
-        /** @description A page number within the paginated result set. */
-        page?: number;
-        /** @description Number of results to return per page. */
-        page_size?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['PaginatedBonusTransactionList'];
-        };
-      };
-      /** @description Пользователь не авторизован */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Доступ только для подтверждённых тренеров */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
       };
     };
   };
@@ -4865,6 +4822,95 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Banner'][];
+        };
+      };
+    };
+  };
+  users_bonuses_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BonusSummary'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  users_bonuses_transactions_list: {
+    parameters: {
+      query?: {
+        /** @description Which field to use when ordering the results. */
+        ordering?: string;
+        /** @description A page number within the paginated result set. */
+        page?: number;
+        /** @description Number of results to return per page. */
+        page_size?: number;
+        /** @description A search term. */
+        search?: string;
+        /** @description Фильтр по типу операции */
+        type?: 'accrual' | 'payout' | 'writeoff';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PaginatedBonusTransactionList'];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
         };
       };
     };
