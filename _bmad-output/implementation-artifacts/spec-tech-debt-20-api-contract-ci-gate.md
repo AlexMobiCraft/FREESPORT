@@ -2,7 +2,7 @@
 title: 'CI-гейт синхронизации API-контракта (тех.долг п. 20, цель 1)'
 type: 'chore'
 created: '2026-08-03'
-status: 'in-review'
+status: 'done'
 baseline_commit: '65569e5c'
 review_loop_iteration: 1
 context:
@@ -142,3 +142,57 @@ def normalize(node):
 **Manual checks:**
 - Дифф разовой регенерации просмотрен: 50 расхождений, все объясняются правками кода; состав endpoint'ов не изменился (проверено сравнением множеств путей), поэтому предохранитель «Ask First» не сработал.
 - Полноценно workflow `api-contract.yml` исполнится впервые на PR — локально проверены его шаги, но не оркестрация GitHub Actions.
+
+## Suggested Review Order
+
+**Ядро сравнения — почему разобранные структуры, а не текст**
+
+- Точка входа: сравнение документов, дающее точный путь расхождения вместо «файлы отличаются».
+  [`check_openapi_sync.py:90`](../../backend/apps/common/management/commands/check_openapi_sync.py#L90)
+
+- Сверка типа отдельно от значения: без неё `0`/`False` и `1`/`1.0` проходили как совпадение.
+  [`check_openapi_sync.py:115`](../../backend/apps/common/management/commands/check_openapi_sync.py#L115)
+
+- Нормализация списков, чей порядок в OpenAPI не значим, — цена устойчивости к недетерминизму.
+  [`check_openapi_sync.py:81`](../../backend/apps/common/management/commands/check_openapi_sync.py#L81)
+
+- Устойчивый ключ сортировки: голый `sorted()` падал на `enum` с `null` и на нестроковых ключах.
+  [`check_openapi_sync.py:36`](../../backend/apps/common/management/commands/check_openapi_sync.py#L36)
+
+**Отказы, которые обязаны объясняться человеку**
+
+- Любой отказ чтения и разбора YAML переводится в `CommandError`, а не в traceback парсера.
+  [`check_openapi_sync.py:124`](../../backend/apps/common/management/commands/check_openapi_sync.py#L124)
+
+- Сбой генерации отделён от рассинхрона: чинить надо код, а не регенерировать файл.
+  [`check_openapi_sync.py:141`](../../backend/apps/common/management/commands/check_openapi_sync.py#L141)
+
+**Гейт в CI**
+
+- Сверка типов через `git status`, а не `git diff`: удалённый из индекса файл иначе даёт зелёный.
+  [`api-contract.yml:152`](../../.github/workflows/api-contract.yml#L152)
+
+- Фильтр путей включает конфиги и версии форматтера — они меняют вывод, не меняя вход.
+  [`api-contract.yml:13`](../../.github/workflows/api-contract.yml#L13)
+
+- Подсказка привязана к `id` шагов, иначе обрыв `npm ci` рапортует о рассинхроне контракта.
+  [`api-contract.yml:166`](../../.github/workflows/api-contract.yml#L166)
+
+**Слой принуждения — главная находка ревью**
+
+- Шаг возвращён намеренно: он в джобе из required-контекстов, новый workflow туда не входит.
+  [`backend-ci.yml:153`](../../.github/workflows/backend-ci.yml#L153)
+
+- Три мины применения скрипта; защита веток сейчас не настроена вовсе.
+  [`setup-branch-protection.sh:24`](../../.github/scripts/setup-branch-protection.sh#L24)
+
+**Периферия**
+
+- Проход Prettier в генерации: без него гейт падал бы на каждом PR диффом в 4867 строк.
+  [`package.json:22`](../../frontend/package.json#L22)
+
+- Тег, существовавший только в YAML; источником истины стал код.
+  [`base.py:430`](../../backend/freesport/settings/base.py#L430)
+
+- 45 тестов: нормализация, отказы команды, полный путь `handle()` с подменённой генерацией.
+  [`test_check_openapi_sync.py:1`](../../backend/tests/unit/test_check_openapi_sync.py#L1)
