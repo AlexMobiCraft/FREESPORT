@@ -4,13 +4,15 @@ baseline_commit: 638d4fb16bec6c5ee2cbe430a5034d99e81df5e6
 
 # Story 40.1: Парсер читает вид цен из выгрузки и ловит регресс выгрузки
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
-> ✅ **Тестовые данные готовы.** Снимок `backend/data/import_1c/contragents_pricetype/` переснят 2026-08-04 со **второй** редакцией патча БУС: 10 файлов, **4735** контрагентов, блок `<ЗначенияРеквизитов>` у **всех 4735**, без блока — **0**, с непустым `ТипЦенId` — **485**, со статусом `НетСоглашения` — **4250**. Обе ветки патча проверены, AC3 и AC7 закрываемы.
->
-> 🚧 **Остаётся открытым AC1 — контрольная выгрузка с ПРОДА.** Патч второй редакции на прод не переносился (задача администратора 1С, вне BMAD). Стори реализуется и тестируется полностью, но **закрыть её без AC1 нельзя**: это единственный артефакт, подтверждающий закрытие внешней зависимости части A.
+> 🚧 **БЛОКИРУЮЩЕЕ ПРЕДУСЛОВИЕ — снимок `backend/data/import_1c/contragents_pricetype/` относится к ПЕРВОЙ редакции патча БУС.**
+> Проверено на `638d4fb1` (04.08.2026): в снимке 10 файлов, **4735** контрагентов, из них **485** с блоком `<ЗначенияРеквизитов>`; вхождений `СоглашениеСтатус` — **0**, вхождений `НетСоглашения` — **0**.
+> Значит ветка «нет соглашения» второй редакции (`dev-task-bus-agreement-status.md`) **на прод и на тест ещё не наложена**, и AC1, AC3, AC7 на текущих данных физически непроверяемы.
+> **Первое действие дева:** выполнить проверку из Task 0. Если `grep -c СоглашениеСтатус` даёт 0 — остановиться и сообщить Alex. Обходить синтетическим XML **запрещено** (NFR-3940-01).
+> Код парсера и детектора (Task 1–3) писать можно и нужно: ветки «блок есть с GUID» и «блока нет» закрываются на текущих снимках. Гейтом является только приёмка AC1/AC3/AC7.
 
 ## Story
 
@@ -54,76 +56,76 @@ so that **молчаливая поломка выгрузки после обн
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 (действие Alex + разработчик 1С): вторая редакция патча и контрольные выгрузки** (AC: 1, 3, 7)
-  - [x] 0.1: Проверить факт на снимке первой редакции: `СоглашениеСтатус` — 0 вхождений во всех 10 файлах ✅ подтверждено 2026-08-04
-  - [x] 0.2: Выполнить `dev-task-bus-agreement-status.md` на `test_base` ✅ 2026-08-04. Модуль пропатчен точечно по маркерам (`Module.bsl.orig` в дереве исходников отсутствовал), загружен `load-ext-module.ps1` (`EXIT=0`), `/CheckConfig` чист — 30 ошибок, все предсуществующие по `Обработка.DataMobileLoad`
-  - [x] 0.3: Переснять `backend/data/import_1c/contragents_pricetype/` ✅ 2026-08-04, старый снимок удалён, 10 новых файлов
-  - [x] 0.4: Проверить обе ветки ✅ 4735 контрагентов, блок у всех, `ТипЦенId` — 485, `НетСоглашения` — 4250, без блока — 0, с >1 различным GUID — 0, с дублем GUID — 40
-  - [ ] 0.5: Передать патч второй редакции администратору 1С, получить контрольную выгрузку **с прода**, положить её в `backend/data/import_1c/contragents_pricetype_prod/`, снять на ней ту же тройку показателей → записать в Dev Agent Record (**закрывает AC1, единственный оставшийся блокер стори**)
-  - [ ] 0.6: Если получить продовую выгрузку невозможно — остановиться и сообщить Alex. Синтетический XML под `СоглашениеСтатус` **не изготавливать**
+- [ ] **Task 0 (БЛОКИРУЮЩЕЕ, действие Alex + разработчик 1С): вторая редакция патча и контрольные выгрузки** (AC: 1, 3, 7)
+  - [x] 0.1: Проверить факт на текущем снимке: `grep -c СоглашениеСтатус backend/data/import_1c/contragents_pricetype/*.xml` — на `638d4fb1` даёт 0 во всех 10 файлах
+  - [x] 0.2: Выполнить `dev-task-bus-agreement-status.md` на `test_base` (откат модуля → правка `fragments/03_code.bsl` → повторное наложение патча → пообъектная загрузка)
+  - [x] 0.3: Переснять `backend/data/import_1c/contragents_pricetype/` с `test_base` **второй** редакцией, **удалив старый снимок целиком** (см. Dev Notes → «Куда класть снимки»). Каталог в `.gitignore` (строка 204) — коммитить не нужно
+  - [x] 0.4: Проверить на новом снимке обе ветки: есть контрагенты с непустым `ТипЦенId`, есть со статусом `НетСоглашения`, контрагентов **без** блока — ноль
+  - [ ] 0.5: Передать патч второй редакции администратору 1С, получить контрольную выгрузку **с прода**, положить её в `backend/data/import_1c/contragents_pricetype_prod/`, снять на ней ту же тройку показателей → записать в Dev Agent Record (закрывает AC1) — **ОТЛОЖЕНО решением Alex 2026-08-04**: сейчас невыполнимо, патч на прод не перенесён. Долг записан в `deferred-work.md` (секция story 40.1) и в `sprint-status.yaml` → `action_items` → CP-4a. Пункт остаётся неотмеченным намеренно — AC1 не проверен
+  - [x] 0.6: Если переснять или получить продовую выгрузку невозможно — остановиться и сообщить Alex. Синтетический XML под `СоглашениеСтатус` **не изготавливать** — синтетика не изготавливалась, блокер вынесен в Completion Notes
 
-- [ ] **Task 1: Парсер читает `<ЗначенияРеквизитов>`** (AC: 2, 3, 4, 5, 6)
-  - [ ] 1.1: Добавить в `CustomerDataParser` приватный метод `_extract_attribute_values(customer_node)` → `tuple[list[str], list[dict], str]` (точный код — в Dev Notes). Разместить рядом с `_extract_contact_info` (`parser.py:145`), по образцу его структуры
-  - [ ] 1.2: В `_parse_customer_node` вызвать метод и добавить три ключа в словарь `customer_data` (`parser.py:127-141`) — **после** `company_name`, чтобы diff был аддитивным
-  - [ ] 1.3: НЕ трогать `role = ",".join(self._get_all_texts(customer_node, "Роль"))` (`parser.py:100`) и `_get_all_texts` (`parser.py:248`)
-  - [ ] 1.4: НЕ менять `_validate_customer_data` — новые поля необязательные, контрагент без блока валиден
+- [x] **Task 1: Парсер читает `<ЗначенияРеквизитов>`** (AC: 2, 3, 4, 5, 6)
+  - [x] 1.1: Добавить в `CustomerDataParser` приватный метод `_extract_attribute_values(customer_node)` → `tuple[list[str], list[dict], str]` (точный код — в Dev Notes). Разместить рядом с `_extract_contact_info` (`parser.py:145`), по образцу его структуры
+  - [x] 1.2: В `_parse_customer_node` вызвать метод и добавить три ключа в словарь `customer_data` (`parser.py:127-141`) — **после** `company_name`, чтобы diff был аддитивным
+  - [x] 1.3: НЕ трогать `role = ",".join(self._get_all_texts(customer_node, "Роль"))` (`parser.py:100`) и `_get_all_texts` (`parser.py:248`)
+  - [x] 1.4: НЕ менять `_validate_customer_data` — новые поля необязательные, контрагент без блока валиден
 
-- [ ] **Task 2: Счётчики блока в процессоре** (AC: 8, 9, 10)
-  - [ ] 2.1: В `CustomerDataProcessor.process_customers` (`processor.py:183`) добавить в `stats` (`processor.py:194-200`) ключи `attributes_block_present` и `attributes_block_missing` — целые, по умолчанию 0
-  - [ ] 2.2: Считать их в цикле `for i, customer_data in enumerate(...)` (`processor.py:202`) **до** вызова `process_customer` и **независимо** от фильтра `is_buyer`: детектор измеряет здоровье выгрузки, а не бизнес-результат импорта. Признак наличия блока — `bool(customer_data.get("price_type_ids")) or bool(customer_data.get("agreement_status"))`
-  - [ ] 2.3: Флаг аномалии в процессоре **не вычислять** — он определяется по всем файлам разом, это ответственность команды
-  - [ ] 2.4: Обновить docstring `process_customers` (перечень возвращаемых ключей) — комментарии на русском
+- [x] **Task 2: Счётчики блока в процессоре** (AC: 8, 9, 10)
+  - [x] 2.1: В `CustomerDataProcessor.process_customers` (`processor.py:183`) добавить в `stats` (`processor.py:194-200`) ключи `attributes_block_present` и `attributes_block_missing` — целые, по умолчанию 0
+  - [x] 2.2: Считать их в цикле `for i, customer_data in enumerate(...)` (`processor.py:202`) **до** вызова `process_customer` и **независимо** от фильтра `is_buyer`: детектор измеряет здоровье выгрузки, а не бизнес-результат импорта. Признак наличия блока — `bool(customer_data.get("price_type_ids")) or bool(customer_data.get("agreement_status"))`
+  - [x] 2.3: Флаг аномалии в процессоре **не вычислять** — он определяется по всем файлам разом, это ответственность команды
+  - [x] 2.4: Обновить docstring `process_customers` (перечень возвращаемых ключей) — комментарии на русском
 
-- [ ] **Task 3: Отчёт и предупреждение в команде** (AC: 8, 9, 10)
-  - [ ] 3.1: В `import_customers_from_1c.Command.handle` добавить оба новых ключа в инициализацию `total_stats` (`import_customers_from_1c.py:116-122`). ⚠️ Без этого суммирование `for key in total_stats.keys()` (`:142-143`) молча их отбросит — см. Dev Notes → «Мина: суммирование по ключам»
-  - [ ] 3.2: После цикла по файлам вычислить `anomaly = total_stats["total"] > 0 and total_stats["attributes_block_present"] == 0` и положить в `report_details` ключом `attributes_block_anomaly`
-  - [ ] 3.3: Добавить три строки в итоговый вывод (`:177-192`): контрагентов с блоком, без блока, признак аномалии
-  - [ ] 3.4: Печатать предупреждение `self.style.WARNING(...)` при `anomaly` — **в обоих режимах**, включая `--dry-run` (в dry-run итоговый блок не печатается, `:167-168`), иначе dry-run перед прогоном на проде не покажет поломку
-  - [ ] 3.5: НЕ менять места создания/переиспользования `ImportSession` (`:89-108`) и обработку ошибок (`:194-211`)
+- [x] **Task 3: Отчёт и предупреждение в команде** (AC: 8, 9, 10)
+  - [x] 3.1: В `import_customers_from_1c.Command.handle` добавить оба новых ключа в инициализацию `total_stats` (`import_customers_from_1c.py:116-122`). ⚠️ Без этого суммирование `for key in total_stats.keys()` (`:142-143`) молча их отбросит — см. Dev Notes → «Мина: суммирование по ключам»
+  - [x] 3.2: После цикла по файлам вычислить `anomaly = total_stats["total"] > 0 and total_stats["attributes_block_present"] == 0` и положить в `report_details` ключом `attributes_block_anomaly`
+  - [x] 3.3: Добавить три строки в итоговый вывод (`:177-192`): контрагентов с блоком, без блока, признак аномалии
+  - [x] 3.4: Печатать предупреждение `self.style.WARNING(...)` при `anomaly` — **в обоих режимах**, включая `--dry-run` (в dry-run итоговый блок не печатается, `:167-168`), иначе dry-run перед прогоном на проде не покажет поломку
+  - [x] 3.5: НЕ менять места создания/переиспользования `ImportSession` (`:89-108`) и обработку ошибок (`:194-211`)
 
-- [ ] **Task 4: Unit-тесты парсера** (AC: 2, 4, 5, 6, 11)
-  - [ ] 4.1: Расширить `backend/tests/unit/test_services/test_customer_parser.py` новым классом `TestCustomerParserPriceType`; путь к данным брать через фикстуру `onec_data_dir` из `backend/tests/conftest.py:419` — **не копировать** сломанный локальный путь из фикстуры `real_xml_file` (см. Dev Notes → «Мина: путь к данным»)
-  - [ ] 4.2: Тест A (AC2): на `contragents_pricetype/*.xml` найти контрагента с непустым `price_type_ids` → GUID в нижнем регистре, `price_type_meta` содержит все четыре ключа, `agreement_is_standard is True`
-  - [ ] 4.3: Тест B (AC4): найти контрагента, у которого в блоке `ТипЦенId` повторяется, → `len(price_type_ids) == len(set(price_type_ids)) == 1`, а `len(price_type_meta) == 2`. На снимке 2026-08-01 таких контрагентов 40 (вид цен РРЦ)
-  - [ ] 4.4: Тест C (AC5): на старом снимке `contragents/*.xml` (блока нет ни у кого) — у каждого контрагента ключи присутствуют и пусты, исключений нет
-  - [ ] 4.5: Тест D (AC3): контрагент со статусом → `agreement_status == "НетСоглашения"`, `price_type_ids == []`, и ни один элемент `price_type_ids` во всём снимке не равен `"нетсоглашения"`. **Требует снимка второй редакции (Task 0)**
-  - [ ] 4.6: Маркеры: каталог `tests/unit/` даёт `unit` автоматически; добавить `@pytest.mark.data_dependent` вручную
+- [x] **Task 4: Unit-тесты парсера** (AC: 2, 4, 5, 6, 11)
+  - [x] 4.1: Расширить `backend/tests/unit/test_services/test_customer_parser.py` новым классом `TestCustomerParserPriceType`; путь к данным брать через фикстуру `onec_data_dir` из `backend/tests/conftest.py:419` — **не копировать** сломанный локальный путь из фикстуры `real_xml_file` (см. Dev Notes → «Мина: путь к данным»)
+  - [x] 4.2: Тест A (AC2): на `contragents_pricetype/*.xml` найти контрагента с непустым `price_type_ids` → GUID в нижнем регистре, `price_type_meta` содержит все четыре ключа, `agreement_is_standard is True`
+  - [x] 4.3: Тест B (AC4): найти контрагента, у которого в блоке `ТипЦенId` повторяется, → `len(price_type_ids) == len(set(price_type_ids)) == 1`, а `len(price_type_meta) == 2`. На снимке 2026-08-01 таких контрагентов 40 (вид цен РРЦ)
+  - [x] 4.4: Тест C (AC5): на старом снимке `contragents/*.xml` (блока нет ни у кого) — у каждого контрагента ключи присутствуют и пусты, исключений нет
+  - [x] 4.5: Тест D (AC3): контрагент со статусом → `agreement_status == "НетСоглашения"`, `price_type_ids == []`, и ни один элемент `price_type_ids` во всём снимке не равен `"нетсоглашения"`. **Требует снимка второй редакции (Task 0)**
+  - [x] 4.6: Маркеры: каталог `tests/unit/` даёт `unit` автоматически; добавить `@pytest.mark.data_dependent` вручную
 
-- [ ] **Task 5: Тест инвариантов снимка и интеграционный тест детектора** (AC: 7, 8, 9, 10, 11)
-  - [ ] 5.1: Создать `backend/tests/integration/test_customers_price_type_detector.py`
-  - [ ] 5.2: Тест инвариантов снимка (AC7): разобрать все файлы `contragents_pricetype/`, проверить два инварианта из AC7. **Абсолютных чисел не зашивать** — снимок обновляемый. **Требует снимка второй редакции**
-  - [ ] 5.3: Тест детектора «блок есть» (AC9, AC10): прогнать `call_command("import_customers_from_1c", data_dir=<tmp с contragents/ → симлинк/копия файлов contragents_pricetype>)` → `report_details["attributes_block_anomaly"] is False`, `attributes_block_present > 0`, `present + missing == total`. Команда ищет подкаталог **`contragents/`** — см. Dev Notes → «Мина: имя подкаталога»
-  - [ ] 5.4: Тест детектора «блока нет ни у кого» (AC8): прогнать команду на старом снимке `contragents/` → `attributes_block_anomaly is True`, `attributes_block_present == 0`, в stdout есть предупреждение
-  - [ ] 5.5: Маркеры: каталог `tests/integration/` даёт `integration` автоматически; добавить `@pytest.mark.data_dependent`; `pytest.mark.django_db` обязателен
+- [x] **Task 5: Тест инвариантов снимка и интеграционный тест детектора** (AC: 7, 8, 9, 10, 11)
+  - [x] 5.1: Создать `backend/tests/integration/test_customers_price_type_detector.py`
+  - [x] 5.2: Тест инвариантов снимка (AC7): разобрать все файлы `contragents_pricetype/`, проверить два инварианта из AC7. **Абсолютных чисел не зашивать** — снимок обновляемый. **Требует снимка второй редакции**
+  - [x] 5.3: Тест детектора «блок есть» (AC9, AC10): прогнать `call_command("import_customers_from_1c", data_dir=<tmp с contragents/ → симлинк/копия файлов contragents_pricetype>)` → `report_details["attributes_block_anomaly"] is False`, `attributes_block_present > 0`, `present + missing == total`. Команда ищет подкаталог **`contragents/`** — см. Dev Notes → «Мина: имя подкаталога»
+  - [x] 5.4: Тест детектора «блока нет ни у кого» (AC8): прогнать команду на старом снимке `contragents/` → `attributes_block_anomaly is True`, `attributes_block_present == 0`, в stdout есть предупреждение
+  - [x] 5.5: Маркеры: каталог `tests/integration/` даёт `integration` автоматически; добавить `@pytest.mark.data_dependent`; `pytest.mark.django_db` обязателен
 
-- [ ] **Task 6: Прогон, регресс и pre-commit** (AC: 6, 11)
-  - [ ] 6.1: `pytest -q backend/tests/unit/test_services/test_customer_parser.py backend/tests/integration/test_customers_price_type_detector.py` в тест-контейнере (команда — в Dev Notes)
-  - [ ] 6.2: Регресс существующих тестов импорта контрагентов: `tests/unit/test_services/test_customer_processor.py`, `tests/integration/test_management_commands/test_import_customers.py`, `tests/integration/test_link_then_import_1c.py`
-  - [ ] 6.3: `black` + `flake8` на изменённых файлах
-  - [ ] 6.4: `npx gitnexus detect-changes --scope all` — убедиться, что затронуты только `_parse_customer_node`, новый `_extract_attribute_values`, `process_customers`, `Command.handle`
+- [x] **Task 6: Прогон, регресс и pre-commit** (AC: 6, 11)
+  - [x] 6.1: `pytest -q backend/tests/unit/test_services/test_customer_parser.py backend/tests/integration/test_customers_price_type_detector.py` в тест-контейнере (команда — в Dev Notes)
+  - [x] 6.2: Регресс существующих тестов импорта контрагентов: `tests/unit/test_services/test_customer_processor.py`, `tests/integration/test_management_commands/test_import_customers.py`, `tests/integration/test_link_then_import_1c.py`
+  - [x] 6.3: `black` + `flake8` на изменённых файлах
+  - [x] 6.4: `npx gitnexus detect-changes --scope all` — убедиться, что затронуты только `_parse_customer_node`, новый `_extract_attribute_values`, `process_customers`, `Command.handle` — выполнено с оговоркой: в worktree индекса нет, детали в Debug Log
+
+### Review Findings
+
+- [x] [Review][Defer] Блокирующий AC1 не закрыт [Story 40.1:25] — deferred, pre-existing: контрольная выгрузка с продакшена после установки второй редакции патча БУС отсутствует; Task 0.5 и action item CP-4a остаются открытыми. Кодом Story 40.1 это не устранить.
 
 ## Dev Notes
 
-### Первое, что нужно знать: состояние снимков данных (замерено 04.08.2026)
+### ⚠️ Первое, что нужно знать: состояние снимков данных (замерено 04.08.2026 на `638d4fb1`)
 
-| Каталог | Состояние | Для чего |
+| Каталог | Состояние | Вывод |
 |---|---|---|
-| `backend/data/import_1c/contragents/` | 7 файлов, снимок 11.04.2026, блока `<ЗначенияРеквизитов>` нет **ни у кого** | AC5 и AC8 — ветка «блока нет» / детектор аномалии |
-| `backend/data/import_1c/contragents_pricetype/` | 10 файлов, снимок 04.08.2026, **вторая** редакция патча | AC2, AC3, AC4, AC7, AC9, AC10 |
+| `backend/data/import_1c/contragents/` | 7 файлов, снимок 11.04.2026, блока `<ЗначенияРеквизитов>` нет **ни у кого** | Идеальные данные для AC5 и AC8 (ветка «блока нет») |
+| `backend/data/import_1c/contragents_pricetype/` | 10 файлов, снимок 01.08.2026, **первая** редакция патча | Ветка «блок с GUID» закрывается. Ветка `НетСоглашения` — **нет** |
 
-Замеры по `contragents_pricetype/` после переснятия:
+Замеры по `contragents_pricetype/` (скрипт разбора — в Debug Log при исполнении):
 
 | Показатель | Значение |
 |---|---|
 | Контрагентов всего | 4735 |
-| С блоком `<ЗначенияРеквизитов>` | **4735 (100 %)** |
-| **Без** блока | **0** |
-| С непустым `ТипЦенId` | **485** |
-| Со статусом `НетСоглашения` | **4250** |
+| С блоком `<ЗначенияРеквизитов>` | 485 |
+| С `СоглашениеСтатус` / `НетСоглашения` | **0 / 0** |
 | С повторяющимся `ТипЦенId` внутри блока | **40** |
 | С более чем одним **различным** `ТипЦенId` | **0** |
-
-Контроль: 485 + 4250 = 4735 — каждый контрагент несёт либо вид цен, либо явный статус. Именно это и проверяет AC7; абсолютные числа в тест не зашивать.
 
 Распределение `ТипЦенId` (контрагентов):
 
@@ -498,8 +500,78 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend flak
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, workflow `bmad-dev-story`)
+
 ### Debug Log References
+
+**Замер снимка `contragents_pricetype/` (Task 0.1, 0.4), 04.08.2026.**
+Снимок к моменту разработки уже переснят второй редакцией патча (файлы от 04.08.2026 19:00), поэтому шапка стори с замерами от `638d4fb1` устарела. Проверка `grep -c СоглашениеСтатус` даёт ненулевые значения во всех 10 файлах (203–464 на файл).
+
+Разбор снимка целиком (диагностический скрипт на `ElementTree`, вне дерева исходников):
+
+| Показатель | Первая редакция (`638d4fb1`) | **Вторая редакция (текущий снимок)** |
+|---|---|---|
+| Файлов | 10 | 10 |
+| Контрагентов всего | 4735 | **4735** |
+| С блоком `<ЗначенияРеквизитов>` | 485 | **4735** |
+| Без блока | 4250 | **0** |
+| С непустым `ТипЦенId` | 485 | **485** |
+| С `СоглашениеСтатус` = `НетСоглашения` | 0 | **4250** |
+| С повторяющимся `ТипЦенId` внутри блока | 40 | **40** |
+| С более чем одним **различным** `ТипЦенId` | 0 | **0** |
+| Слово-маркер в `ТипЦенId` | 0 | **0** |
+
+Распределение `ТипЦенId` не изменилось: Опт 3 — 176, Опт 4 — 123, Опт 2 — 78, Опт 1 — 64, РРЦ — 42 (из них 40 с дублем GUID), «Детский мир Залоговая» — 2.
+
+**Окружение разработки — git worktree.** Работа велась в `C:\Users\1\DEV\FREESPORT-40-1` (ветка `feature/40-1-parser-price-type`). Каталог `backend/data/import_1c/` в `.gitignore` и существует только в основном клоне, поэтому снимки `contragents/` и `contragents_pricetype/` скопированы в worktree (22 МБ) — иначе `volume ../backend/data/import_1c` монтирует пустой каталог и все `data_dependent`-тесты молча скипаются.
+
+**Прогоны тестов** (тест-контейнер worktree, БД/Redis — общие контейнеры `freesport-test`):
+
+```bash
+cd docker
+docker compose -f docker-compose.test.yml run --rm -T --no-deps backend \
+  pytest -q tests/unit/test_services/test_customer_parser.py \
+           tests/integration/test_customers_price_type_detector.py
+```
+
+- RED (до реализации): 4 unit-теста падали с `KeyError: 'agreement_status'`, 3 интеграционных — на отсутствии `attributes_block_*` в `report_details`. Тест инвариантов снимка (AC7) прошёл сразу после парсера — он не зависит от команды.
+- GREEN: `tests/unit/.../test_customer_parser.py` — 21 passed; `tests/integration/test_customers_price_type_detector.py` — 4 passed.
+- Регресс (Task 6.2): `test_customer_processor.py`, `test_import_customers.py`, `test_link_then_import_1c.py` — 32 passed (7 мин 30 с).
+- Проверка скипа (AC11): при временно переименованном каталоге `contragents_pricetype/` четыре теста класса корректно `SKIPPED` с указанием пути, падений нет.
+- Маркеры (AC11): `-m 'unit and data_dependent'` собирает 21 тест парсера, `-m 'integration and data_dependent'` — 4 теста детектора.
+- Линтеры (Task 6.3): `black --check` — 5 файлов без изменений, `flake8` — пусто.
+- Полный регресс backend (`pytest -q` без `-m`, весь набор): **2827 passed, 11 skipped, 0 failed** за 34 мин 16 с. Фильтр `-m` намеренно не применялся: часть тестов проекта вне CI-маркеров.
+
+**GitNexus (Task 6.4).** `npx gitnexus detect-changes --scope all` в worktree возвращает `No changes detected`, потому что индекс привязан к основному клону (`npx gitnexus status` в worktree — `Repository not indexed`). Pre-flight `impact` выполнен в основном клоне на том же коммите `c549b04`: `_parse_customer_node` — risk **LOW**, impacted 2 (`CustomerDataParser.parse` → `Command.handle`), затронутых процессов 0; `process_customers` — risk **LOW**, impacted 1 (`Command.handle`). Фактический периметр правки подтверждён `git diff --stat`: три файла приложения и два файла тестов, изменения аддитивные (новые ключи словарей, новый приватный метод), ни одна сигнатура не изменена.
 
 ### Completion Notes List
 
+- **AC1 НЕ ПРОВЕРЕН — стори закрыта без него решением Alex от 2026-08-04.** Контрольная выгрузка **с продуктивной базы** отсутствует: каталога `backend/data/import_1c/contragents_pricetype_prod/` нет, патч расширения БУС второй редакции на прод не перенесён (action item CP-4 ретроспективы эпика 39), и перенести его сейчас невозможно. Синтетический XML под `СоглашениеСтатус` не изготавливался (NFR-3940-01). Task 0.5 оставлен неотмеченным намеренно — это единственный незакрытый пункт стори.
+
+  **Долг зафиксирован в двух местах, к нему необходимо вернуться до выката эпика 40 на прод:**
+  - `_bmad-output/implementation-artifacts/deferred-work.md` — секция «story 40.1», с порядком действий и оценкой риска;
+  - `_bmad-output/implementation-artifacts/sprint-status.yaml` → `action_items` → пункт **CP-4a** (epic 40, owner Alex, status open).
+
+  **Чем это грозит, пока AC1 не закрыт:** проверена только та половина патча, что работает на `test_base`. Пока блок не приходит с прода, эпик 40 наблюдаемо работает в режиме `no_data` — роли не меняются, а детектор регресса (AC8) выдаёт аномалию на каждом прогоне импорта, и отличить «патч не накачен» от «патч затёрт обновлением БУС» по одному предупреждению нельзя.
+- **AC3 и AC7 закрыты на снимке `test_base` второй редакции** — обе ветки патча присутствуют в данных: 485 контрагентов с `ТипЦенId`, 4250 со статусом `НетСоглашения`, контрагентов без блока — ноль.
+- AC2, AC4, AC5, AC6, AC11 закрыты unit-тестами парсера на реальных выгрузках; AC8, AC9, AC10 — интеграционными тестами детектора.
+- Дедупликация `price_type_ids` выполняется в парсере: 40 контрагентов снимка (вид цен РРЦ, соглашения «Выкуп …» и «Комиссионное …») дали бы ложный `ambiguous` в стори 40.2. `price_type_meta` сохраняет обе четвёрки.
+- Предупреждение об аномалии печатается до ветвления на dry-run, поэтому прогон `--dry-run` перед импортом на проде покажет поломку выгрузки (проверено отдельным тестом).
+- Изменений API-контракта, миграций и фронтенда нет — `openapi.yaml` и типы фронта не трогались.
+
 ### File List
+
+- `backend/apps/users/services/parser.py` — 5 констант реквизитов + `TRUE_VALUES`, новый метод `_extract_attribute_values`, три ключа в `customer_data`
+- `backend/apps/users/services/processor.py` — счётчики `attributes_block_present` / `attributes_block_missing` в `process_customers`, обновлённый docstring
+- `backend/apps/users/management/commands/import_customers_from_1c.py` — счётчики в `total_stats`, флаг `attributes_block_anomaly`, предупреждение, три строки итогового отчёта
+- `backend/tests/unit/test_services/test_customer_parser.py` — класс `TestCustomerParserPriceType` (5 тестов) + модульные фикстуры снимков
+- `backend/tests/integration/test_customers_price_type_detector.py` — **NEW**, инварианты снимка (AC7) и детектор аномалии (AC8–AC10)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус стори `ready-for-dev` → `review`, новый action item CP-4a
+- `_bmad-output/implementation-artifacts/deferred-work.md` — секция «story 40.1» с отложенной приёмкой AC1
+
+## Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-04 | Реализованы Task 1–6: парсер читает `<ЗначенияРеквизитов>`, процессор и команда считают контрагентов с блоком и без него, команда сообщает об аномалии выгрузки. Добавлено 9 тестов на реальных выгрузках. Task 0.5 (контрольная выгрузка с прода, AC1) заблокирован — патч БУС второй редакции на прод не перенесён |
+| 2026-08-04 | Решение Alex: закрыть стори без AC1, статус → `review`. Долг по контрольной выгрузке с прода вынесен в `deferred-work.md` (секция story 40.1) и в action item CP-4a спринта. Приняты 10 из 11 AC |

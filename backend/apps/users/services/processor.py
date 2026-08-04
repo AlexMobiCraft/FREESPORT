@@ -189,7 +189,9 @@ class CustomerDataProcessor:
             chunk_size: Размер пакета для обработки
 
         Returns:
-            Dict: Статистика обработки (total, created, updated, skipped, errors)
+            Dict: Статистика обработки — total, created, updated, skipped,
+                errors, а также счётчики здоровья выгрузки
+                attributes_block_present и attributes_block_missing
         """
         stats = {
             "total": len(customers_data),
@@ -197,10 +199,22 @@ class CustomerDataProcessor:
             "updated": 0,
             "skipped": 0,
             "errors": 0,
+            # Детектор регресса выгрузки: блок <ЗначенияРеквизитов> формирует
+            # патч тиражного расширения БУС и теряется при его обновлении.
+            # Отказ тихий — файлы приходят, блока в них нет.
+            "attributes_block_present": 0,
+            "attributes_block_missing": 0,
         }
 
         for i, customer_data in enumerate(customers_data, 1):
             logger.debug(f"Обработка клиента {i}/{len(customers_data)}")
+
+            # Считаем по всем разобранным контрагентам, включая не-покупателей:
+            # детектор измеряет здоровье выгрузки, а не результат импорта.
+            if customer_data.get("price_type_ids") or customer_data.get("agreement_status"):
+                stats["attributes_block_present"] += 1
+            else:
+                stats["attributes_block_missing"] += 1
 
             # Получаем onec_id перед обработкой для логирования
             onec_id = customer_data.get("onec_id", f"unknown-{i}")
