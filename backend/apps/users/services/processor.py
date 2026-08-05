@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from apps.common.models import CustomerSyncLog
 from apps.users.models import Company, User
+from apps.users.services.price_type_role import AGREEMENT_STATUS_NONE
 
 if TYPE_CHECKING:
     from apps.products.models import ImportSession
@@ -339,6 +340,44 @@ class CustomerDataProcessor:
         logger.warning(f"Не удалось нормализовать телефон: {phone}")
         return ""
 
+    def _price_type_id_to_store(self, customer_data: dict[str, Any], current: str) -> str:
+        """
+        Определяет, каким должно стать поле onec_price_type_id.
+
+        Роль здесь НЕ разрешается и справочник PriceType НЕ читается: поле
+        обязано заполняться и для видов цен, роли не несущих (РРЦ, «Детский
+        мир Залоговая»), — иначе накопление данных, ради которого стори
+        выкатывается отдельно, потеряет часть контрагентов.
+
+        Args:
+            customer_data: словарь из парсера (ключи price_type_ids и
+                agreement_status кладёт _extract_attribute_values, стори 40.1).
+            current: сохранённое значение поля; возвращается без изменений,
+                когда данных для решения нет.
+
+        Returns:
+            str: новое значение поля.
+        """
+        agreement_status = str(customer_data.get("agreement_status") or "")
+        if agreement_status.strip().casefold() == AGREEMENT_STATUS_NONE.casefold():
+            # 1С подтвердила, что действующего соглашения нет. Прежний вид цен
+            # хранить нельзя: по нему привязка (стори 40.5) выдала бы роль по
+            # соглашению, снятому в 1С месяцы назад, без единой ошибки в логах.
+            return ""
+
+        guids = {str(guid).strip().lower() for guid in (customer_data.get("price_type_ids") or []) if str(guid).strip()}
+
+        if len(guids) == 1:
+            return next(iter(guids))
+
+        # Два и более различных вида цен — два разных соглашения. Сохранить один
+        # из них означает солгать: стори 40.5 разрешает роль по единственному
+        # сохранённому GUID и выдала бы роль там, где резолвер обязан ответить
+        # ambiguous. Пустой список без статуса — признак поломки выгрузки
+        # (после второй редакции патча блок приходит у каждого контрагента),
+        # и обнуление уничтожило бы данные у всех разом.
+        return current
+
     def _create_customer(self, customer_data: dict[str, Any], role: str) -> User:
         """
         Создает нового пользователя из данных клиента.
@@ -377,6 +416,7 @@ class CustomerDataProcessor:
             company_name=company_name,
             tax_id=tax_id,
             onec_id=onec_id,
+            onec_price_type_id=self._price_type_id_to_store(customer_data, ""),
             created_in_1c=True,
             sync_status="synced",
             last_sync_at=timezone.now(),
@@ -397,6 +437,10 @@ class CustomerDataProcessor:
         Роль намеренно не обновляется: её назначает менеджер при верификации
         заявки, и перезапись из импорта сбросила бы выданный уровень цен.
 
+        Вид цен (onec_price_type_id), напротив, обновляется всегда — и у
+        привязанных аккаунтов, и у непривязанных записей 1С. Портал его
+        накапливает, роль по нему выдаётся отдельной стори.
+
         Args:
             user: Существующий пользователь
             customer_data: Словарь с данными клиента
@@ -416,6 +460,9 @@ class CustomerDataProcessor:
         # Обновляем onec_id если его не было (дубликат найден по email)
         if not user.onec_id:
             user.onec_id = customer_data.get("onec_id")
+        # Вид цен пишется всегда — и привязанным аккаунтам, и записям 1С.
+        # Роль по нему выдаёт стори 40.4, здесь она не трогается.
+        user.onec_price_type_id = self._price_type_id_to_store(customer_data, user.onec_price_type_id)
         user.sync_status = "synced"
         user.last_sync_at = timezone.now()
 

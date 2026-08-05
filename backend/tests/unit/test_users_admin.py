@@ -13,6 +13,7 @@ from django.test import RequestFactory, TestCase
 from django.utils.html import strip_tags
 
 from apps.common.models import AuditLog
+from apps.products.models import PriceType
 from apps.users.admin import CompanyAdmin, Has1CCandidateFilter, UserAdmin
 from apps.users.models import Address, Company
 
@@ -126,6 +127,10 @@ class TestUserAdmin(TestCase):
         expected_readonly = [
             "onec_id",
             "onec_guid",
+            # Стори 40.3: вид цен приходит из 1С, ручная правка разошлась бы
+            # с ближайшим импортом
+            "onec_price_type_id",
+            "onec_price_type_name",
             "onec_link_candidates",
             "last_sync_at",
             "last_sync_from_1c",
@@ -683,3 +688,94 @@ class TestRoleDisplayWholesaleLevel4(TestCase):
 def _extract_badge_color(markup: str) -> str:
     """HEX-цвет из разметки бейджа role_display"""
     return markup.split("color: ", 1)[1].split(";", 1)[0]
+
+
+@pytest.mark.django_db
+class TestUserAdminPriceType(TestCase):
+    """
+    Отображение вида цен из 1С в карточке пользователя (стори 40.3).
+
+    GUID и наименование только читаются: значение приходит из 1С, ручная
+    правка разошлась бы с ближайшим импортом.
+    """
+
+    # Реальный GUID вида цен «РРЦ» из выгрузки контрагентов. Записи «Опт 4»
+    # (4c1962d2-...) в тестах избегаем: её заводит миграция products/0053,
+    # а тестовая БД строится с миграциями — создание дало бы duplicate key.
+    RRP_PRICE_TYPE_GUID = "3d1482c4-bd77-11e4-afc8-20cf3073dde3"
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = UserAdmin(User, self.site)
+
+    def _make_user(self, price_type_id: str) -> User:
+        return User.objects.create_user(
+            email=f"price-type-{price_type_id or 'empty'}@test.com",
+            password="testpass123",
+            onec_price_type_id=price_type_id,
+        )
+
+    def test_price_type_fields_are_readonly(self):
+        """AC7: оба поля объявлены readonly"""
+        self.assertIn("onec_price_type_id", self.admin.readonly_fields)
+        self.assertIn("onec_price_type_name", self.admin.readonly_fields)
+
+    def test_price_type_fields_in_1c_fieldset(self):
+        """AC7: оба поля выведены в блоке «Интеграция с 1С»"""
+        section = next(fs for fs in self.admin.fieldsets if fs[0] == "Интеграция с 1С")
+        fields = section[1]["fields"]
+
+        self.assertIn("onec_price_type_id", fields)
+        self.assertIn("onec_price_type_name", fields)
+        # Порядок: рядом с onec_guid и до блока кандидатов на привязку
+        self.assertLess(fields.index("onec_guid"), fields.index("onec_price_type_id"))
+        self.assertLess(fields.index("onec_price_type_name"), fields.index("onec_link_candidates"))
+
+    def test_price_type_fields_not_in_list_display_or_search(self):
+        """
+        AC7: GUID в списке пользователей не выводится и не ищется.
+
+        В changelist'е он нечитаем, а в search_fields дал бы лишний OR по
+        полю, которое менеджер никогда не набирает руками.
+        """
+        self.assertNotIn("onec_price_type_id", self.admin.list_display)
+        self.assertNotIn("onec_price_type_name", self.admin.list_display)
+        self.assertNotIn("onec_price_type_id", self.admin.search_fields)
+
+    def test_price_type_name_resolved_from_reference(self):
+        """AC8: GUID есть в справочнике — показывается наименование"""
+        price_type, _ = PriceType.objects.get_or_create(
+            onec_id=self.RRP_PRICE_TYPE_GUID,
+            defaults={"onec_name": "РРЦ", "product_field": "rrp"},
+        )
+        user = self._make_user(self.RRP_PRICE_TYPE_GUID)
+
+        self.assertEqual(self.admin.onec_price_type_name(user), price_type.onec_name)
+
+    def test_price_type_name_is_case_insensitive(self):
+        """
+        AC8: регистр GUID роли не играет.
+
+        Регистр onec_id в справочнике не нормализован (выяснено в 40.2),
+        поэтому сравнение идёт через iexact.
+        """
+        PriceType.objects.get_or_create(
+            onec_id=self.RRP_PRICE_TYPE_GUID.upper(),
+            defaults={"onec_name": "РРЦ", "product_field": "rrp"},
+        )
+        user = self._make_user(self.RRP_PRICE_TYPE_GUID)
+
+        self.assertEqual(self.admin.onec_price_type_name(user), "РРЦ")
+
+    def test_price_type_name_empty_guid(self):
+        """AC8: поле пусто — прочерк, без обращения к справочнику"""
+        user = self._make_user("")
+
+        self.assertEqual(self.admin.onec_price_type_name(user), "—")
+
+    def test_price_type_name_unknown_guid(self):
+        """AC8: GUID справочнику неизвестен — прочерк, а не исключение"""
+        user = self._make_user(self.RRP_PRICE_TYPE_GUID)
+        self.assertFalse(PriceType.objects.filter(onec_id__iexact=self.RRP_PRICE_TYPE_GUID).exists())
+
+        self.assertEqual(self.admin.onec_price_type_name(user), "—")

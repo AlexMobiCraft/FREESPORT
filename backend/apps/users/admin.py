@@ -196,6 +196,8 @@ class UserAdmin(BaseUserAdmin):
     readonly_fields = [
         "onec_id",
         "onec_guid",
+        "onec_price_type_id",
+        "onec_price_type_name",
         "onec_link_candidates",
         "last_sync_at",
         "last_sync_from_1c",
@@ -260,6 +262,8 @@ class UserAdmin(BaseUserAdmin):
                 "fields": (
                     "onec_id",
                     "onec_guid",
+                    "onec_price_type_id",
+                    "onec_price_type_name",
                     "onec_link_candidates",
                     "sync_status",
                     "created_in_1c",
@@ -388,6 +392,25 @@ class UserAdmin(BaseUserAdmin):
             rows,
             changelist_url,
         )
+
+    @admin.display(description="Вид цен из 1С")
+    def onec_price_type_name(self, obj: User) -> str:
+        """
+        Человекочитаемое наименование вида цен по сохранённому GUID.
+
+        Импорт PriceType локальный: приложение users не зависит от products
+        на уровне модуля, и заводить эту связь ради одной подписи не нужно.
+        Сравнение регистронезависимое — регистр onec_id в справочнике не
+        нормализован (обнаружено в стори 40.2).
+        """
+        from apps.products.models import PriceType
+
+        guid = (obj.onec_price_type_id or "").strip()
+        if not guid:
+            return "—"
+
+        price_type = PriceType.objects.filter(onec_id__iexact=guid).values_list("onec_name", flat=True).first()
+        return price_type or "—"
 
     @admin.display(description="Юридический адрес компании")
     def company_legal_address(self, obj: User) -> str:

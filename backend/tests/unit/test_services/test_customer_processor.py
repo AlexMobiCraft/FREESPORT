@@ -388,3 +388,243 @@ class TestCustomerDataProcessor:
         assert log.operation_type == CustomerSyncLog.OperationType.CREATED
         assert log.status == CustomerSyncLog.StatusType.SUCCESS
         assert log.details == {"test": "data"}
+
+
+# ---------------------------------------------------------------------------
+# Стори 40.3: хранение вида цен из 1С (onec_price_type_id)
+# ---------------------------------------------------------------------------
+#
+# Данные берутся из реального снимка выгрузки (NFR-3940-01). Путь считается
+# напрямую из settings.BASE_DIR, а не через фикстуру onec_data_dir: та зависит
+# от function-scoped фикстуры settings, и scope="module" дал бы ScopeMismatch.
+
+
+def _snapshot_customers(subdir: str) -> list[dict]:
+    """
+    Разбирает первый файл снимка выгрузки контрагентов.
+
+    Имена файлов задаёт 1С (contragents_<пакет>_<GUID>.xml, GUID новый при
+    каждой выгрузке) — зашивать имя нельзя. Одного файла достаточно: тесты
+    проверяют логику на контрагенте, а не объём снимка.
+    """
+    from pathlib import Path
+
+    from django.conf import settings
+
+    from apps.users.services.parser import CustomerDataParser
+
+    snapshot = Path(settings.BASE_DIR) / "data" / "import_1c" / subdir
+    files = sorted(snapshot.glob("contragents*.xml"))
+    if not files:
+        pytest.skip(f"Нет снимка выгрузки контрагентов: {snapshot}")
+
+    # parse(file_path) → list[dict], БД не трогает
+    return CustomerDataParser().parse(str(files[0]))
+
+
+@pytest.fixture(scope="module")
+def real_customers():
+    """Контрагенты из реального снимка второй редакции патча БУС."""
+    return _snapshot_customers("contragents_pricetype")
+
+
+@pytest.fixture(scope="module")
+def real_customers_without_block():
+    """Снимок 11.04.2026: блока <ЗначенияРеквизитов> нет ни у кого."""
+    return _snapshot_customers("contragents")
+
+
+@pytest.fixture(scope="module")
+def customer_with_price_type(real_customers):
+    """Контрагент-покупатель ровно с одним видом цен."""
+    for data in real_customers:
+        if len(set(data.get("price_type_ids") or [])) == 1 and "Покупатель" in str(data.get("role") or ""):
+            return data
+    pytest.skip("В снимке нет контрагента-покупателя с одним ТипЦенId")
+
+
+@pytest.fixture(scope="module")
+def customer_without_agreement(real_customers):
+    """Контрагент-покупатель со статусом «НетСоглашения»."""
+    for data in real_customers:
+        if data.get("agreement_status") == "НетСоглашения" and "Покупатель" in str(data.get("role") or ""):
+            return data
+    pytest.skip("В снимке нет контрагента-покупателя со статусом НетСоглашения")
+
+
+@pytest.fixture(scope="module")
+def customer_without_attributes_block(real_customers_without_block):
+    """Контрагент-покупатель без блока реквизитов: ни вида цен, ни статуса."""
+    for data in real_customers_without_block:
+        if (
+            not data.get("price_type_ids")
+            and not data.get("agreement_status")
+            and "Покупатель" in str(data.get("role") or "")
+        ):
+            return data
+    pytest.skip("В старом снимке нет контрагента-покупателя без блока реквизитов")
+
+
+@pytest.fixture(scope="module")
+def snapshot_price_type_guids(real_customers):
+    """Все различные GUID видов цен, встреченные в снимке."""
+    guids = sorted({guid for data in real_customers for guid in (data.get("price_type_ids") or [])})
+    if len(guids) < 2:
+        pytest.skip("В снимке меньше двух различных ТипЦенId")
+    return guids
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+@pytest.mark.data_dependent
+class TestCustomerPriceTypeStorage:
+    """
+    Хранение вида цен из 1С в User.onec_price_type_id (стори 40.3).
+
+    Роль здесь не меняется ни в одном сценарии — её применение заводит
+    стори 40.4. Тесты проверяют это явно.
+    """
+
+    # Фикстуры session/processor объявлены методами TestCustomerDataProcessor
+    # и этому классу не видны — дублируем, чтобы не править существующий класс.
+    @pytest.fixture
+    def session(self):
+        """Фикстура для создания сессии импорта"""
+        return ImportSession.objects.create(
+            import_type=ImportSession.ImportType.CUSTOMERS,
+            status=ImportSession.ImportStatus.STARTED,
+        )
+
+    @pytest.fixture
+    def processor(self, session):
+        """Фикстура для создания процессора"""
+        return CustomerDataProcessor(session_id=session.pk)
+
+    def test_create_stores_single_price_type(self, processor, customer_with_price_type):
+        """AC2: при создании контрагента вид цен записывается, роль — unregistered."""
+        expected_guid = customer_with_price_type["price_type_ids"][0]
+
+        user = processor.process_customer(dict(customer_with_price_type))
+
+        assert user is not None
+        assert user.onec_price_type_id == expected_guid
+        assert user.role == User.ROLE_UNREGISTERED
+
+    def test_update_stores_price_type_for_linked_account(self, processor, customer_with_price_type):
+        """AC3: привязанный аккаунт с выданной ролью тоже получает вид цен."""
+        expected_guid = customer_with_price_type["price_type_ids"][0]
+        existing = User.objects.create(
+            email="linked-price-type@example.com",
+            onec_id=customer_with_price_type["onec_id"],
+            role="wholesale_level1",
+            created_in_1c=False,
+        )
+
+        user = processor.process_customer(dict(customer_with_price_type))
+
+        assert user is not None
+        assert user.pk == existing.pk
+        assert user.onec_price_type_id == expected_guid
+        # Роль в 40.3 неприкосновенна: её применение — стори 40.4
+        assert user.role == "wholesale_level1"
+
+    def test_price_type_stored_even_if_unknown_to_reference(self, processor, customer_with_price_type):
+        """AC3: GUID, которого нет в справочнике PriceType, всё равно записан."""
+        from apps.products.models import PriceType
+
+        guid = customer_with_price_type["price_type_ids"][0]
+        assert not PriceType.objects.filter(onec_id__iexact=guid).exists(), (
+            "Тест проверяет запись вида цен в обход справочника — GUID не должен "
+            "быть в PriceType; поправьте выбор контрагента, если справочник пополнился"
+        )
+
+        user = processor.process_customer(dict(customer_with_price_type))
+
+        assert user is not None
+        assert user.onec_price_type_id == guid
+
+    def test_no_agreement_clears_price_type(self, processor, customer_without_agreement, snapshot_price_type_guids):
+        """AC4: статус «НетСоглашения» гасит ранее сохранённое значение."""
+        existing = User.objects.create(
+            email="no-agreement@example.com",
+            onec_id=customer_without_agreement["onec_id"],
+            onec_price_type_id=snapshot_price_type_guids[0],
+            created_in_1c=True,
+        )
+
+        user = processor.process_customer(dict(customer_without_agreement))
+
+        assert user is not None
+        assert user.pk == existing.pk
+        assert user.onec_price_type_id == ""
+
+    def test_missing_attributes_block_keeps_price_type(
+        self, processor, customer_without_attributes_block, snapshot_price_type_guids
+    ):
+        """AC5: блока реквизитов нет — сохранённое значение не затирается."""
+        stored_guid = snapshot_price_type_guids[0]
+        existing = User.objects.create(
+            email="no-block@example.com",
+            onec_id=customer_without_attributes_block["onec_id"],
+            onec_price_type_id=stored_guid,
+            created_in_1c=True,
+        )
+
+        user = processor.process_customer(dict(customer_without_attributes_block))
+
+        assert user is not None
+        assert user.pk == existing.pk
+        assert user.onec_price_type_id == stored_guid
+
+    def test_ambiguous_price_types_leave_stored_value(
+        self, processor, customer_with_price_type, snapshot_price_type_guids
+    ):
+        """AC6: два различных GUID — сохранённое значение не меняется."""
+        stored_guid = snapshot_price_type_guids[0]
+        ambiguous_data = dict(customer_with_price_type)
+        ambiguous_data["price_type_ids"] = snapshot_price_type_guids[:2]
+        existing = User.objects.create(
+            email="ambiguous-stored@example.com",
+            onec_id=customer_with_price_type["onec_id"],
+            onec_price_type_id=stored_guid,
+            created_in_1c=True,
+        )
+
+        user = processor.process_customer(ambiguous_data)
+
+        assert user is not None
+        assert user.pk == existing.pk
+        assert user.onec_price_type_id == stored_guid
+
+    def test_ambiguous_price_types_leave_field_empty_on_create(
+        self, processor, customer_with_price_type, snapshot_price_type_guids
+    ):
+        """AC6: два различных GUID при создании — поле остаётся пустым."""
+        ambiguous_data = dict(customer_with_price_type)
+        ambiguous_data["price_type_ids"] = snapshot_price_type_guids[:2]
+
+        user = processor.process_customer(ambiguous_data)
+
+        assert user is not None
+        assert user.onec_price_type_id == ""
+        assert user.role == User.ROLE_UNREGISTERED
+
+    def test_repeated_run_is_idempotent(self, processor, customer_with_price_type):
+        """AC9: повторный прогон не меняет значение и не плодит записи журнала."""
+        from apps.common.models import AuditLog
+
+        expected_guid = customer_with_price_type["price_type_ids"][0]
+
+        first = processor.process_customer(dict(customer_with_price_type))
+        assert first is not None
+        logs_after_first = CustomerSyncLog.objects.count()
+
+        second = processor.process_customer(dict(customer_with_price_type))
+
+        assert second is not None
+        assert second.pk == first.pk
+        assert second.onec_price_type_id == expected_guid
+        # Обновление пишет ровно одну запись журнала синхронизации
+        assert CustomerSyncLog.objects.count() == logs_after_first + 1
+        # AuditLog заводит стори 40.4 — здесь его быть не должно
+        assert AuditLog.objects.count() == 0
