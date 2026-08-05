@@ -181,7 +181,7 @@ development_status:
   # ========================================
   epic-40: in-progress
   40-1-parser-price-type-and-export-regression-detector: done
-  40-2-price-type-role-mapping-and-resolver: review
+  40-2-price-type-role-mapping-and-resolver: done
   40-3-store-onec-price-type-id: backlog
   40-4-import-applies-role-to-linked-accounts: backlog
   40-5-link-transfers-price-type-and-role: backlog
