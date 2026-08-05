@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-04
+# last_updated: 2026-08-05
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -182,7 +182,7 @@ development_status:
   epic-40: in-progress
   40-1-parser-price-type-and-export-regression-detector: done
   40-2-price-type-role-mapping-and-resolver: done
-  40-3-store-onec-price-type-id: backlog
+  40-3-store-onec-price-type-id: ready-for-dev
   40-4-import-applies-role-to-linked-accounts: backlog
   40-5-link-transfers-price-type-and-role: backlog
   epic-40-retrospective: optional
