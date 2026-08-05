@@ -4,7 +4,7 @@ baseline_commit: f8c905a738ab8a7f0ba507abc8f0947397a3f141
 
 # Story 40.3: Портал хранит вид цен из 1С, роли не трогая
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
