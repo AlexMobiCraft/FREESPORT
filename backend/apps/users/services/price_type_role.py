@@ -43,9 +43,29 @@ def load_price_type_role_map() -> dict[str, str]:
     Кэшировать результат на уровне модуля или через ``lru_cache``
     ЗАПРЕЩЕНО: маппинг правится менеджером из админки, а Celery-воркер
     живёт долго и продолжил бы отдавать отменённое значение.
+
+    Ключ приводится к нижнему регистру, а уникальность ``onec_id`` в
+    PostgreSQL регистрозависима — значит, две записи с одним GUID в разном
+    регистре легальны для БД и схлопнулись бы в один ключ. Если роли у них
+    расходятся, победитель определялся бы порядком выборки, то есть
+    произвольно; такие GUID исключаются из маппинга целиком, и резолвер
+    отвечает по ним ``unknown_price_type`` — роль не применяется. Форма
+    админки заводить регистровых двойников не даёт (``PriceTypeAdminForm``),
+    но записи, созданные до неё или импортом, отсеиваются здесь.
     """
     rows = PriceType.objects.filter(is_active=True).exclude(user_role="").values_list("onec_id", "user_role")
-    return {str(onec_id).strip().lower(): user_role for onec_id, user_role in rows}
+
+    mapping: dict[str, str] = {}
+    conflicting: set[str] = set()
+    for onec_id, user_role in rows:
+        key = str(onec_id).strip().lower()
+        if key in mapping and mapping[key] != user_role:
+            conflicting.add(key)
+        mapping[key] = user_role
+
+    if conflicting:
+        return {key: role for key, role in mapping.items() if key not in conflicting}
+    return mapping
 
 
 def resolve_role_from_price_types(

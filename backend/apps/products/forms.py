@@ -65,3 +65,22 @@ class PriceTypeAdminForm(forms.ModelForm):
                 "У «РРЦ» и «МРЦ» поле обязано остаться пустым."
             ),
         )
+
+    def clean_onec_id(self) -> str:
+        """
+        Нормализует GUID и не даёт завести регистрового двойника.
+
+        Резолвер роли (``apps.users.services.price_type_role``) ищет по GUID
+        в нижнем регистре, а уникальность ``onec_id`` в PostgreSQL
+        регистрозависима: записи «GUID» и «guid» ужились бы в БД, но дали бы
+        один ключ маппинга — и роль стала бы зависеть от порядка выборки.
+        """
+        onec_id = (self.cleaned_data["onec_id"] or "").strip().lower()
+
+        duplicates = PriceType.objects.filter(onec_id__iexact=onec_id)
+        if self.instance.pk:
+            duplicates = duplicates.exclude(pk=self.instance.pk)
+        if duplicates.exists():
+            raise forms.ValidationError("Вид цен с таким UUID уже заведён (возможно, в другом регистре).")
+
+        return onec_id
