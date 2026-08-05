@@ -4,7 +4,7 @@ baseline_commit: c87d17b6e52e70beeb3e1f29729276f8d66749a9
 
 # Story 40.4: Импорт применяет роль привязанным аккаунтам
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -71,74 +71,74 @@ so that **я перестал вести уровни вручную, а рас�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Ролевой контракт в процессоре** (AC: 1, 2, 4, 17)
-  - [ ] 1.1: Расширить импорт из `apps.users.services.price_type_role` (`processor.py:19`): добавить `REASON_AMBIGUOUS`, `REASON_NO_AGREEMENT`, `REASON_NO_DATA`, `REASON_UNKNOWN`, `RoleResolution`, `load_price_type_role_map`, `resolve_role_from_price_types`. `AGREEMENT_STATUS_NONE` уже импортирован — не дублировать; `REASON_RESOLVED` не импортировать (решение принимается по `resolution.role is None`, неиспользуемый импорт покраснеет во flake8)
-  - [ ] 1.2: Импортировать `matches_q` из `apps.users.models` (`processor.py:18` — там уже `from apps.users.models import Company, User`)
-  - [ ] 1.3: Объявить на уровне модуля `ROLE_STATS_KEYS` и `SKIP_COUNTER_BY_REASON` (точный код — в Dev Notes). `ROLE_STATS_KEYS` — единственный источник истины набора счётчиков: команда импортирует его же (см. мину «команда суммирует только объявленные ключи»)
-  - [ ] 1.4: В `__init__` (`processor.py:44`) завести `self._role_map: dict[str, str] | None = None`, `self._role_stats: dict[str, int] = {}`, `self.last_role_outcome: str = ""`
-  - [ ] 1.5: Добавить property `role_map` с ленивой загрузкой через `load_price_type_role_map()` — AC17. НЕ вешать `lru_cache`, НЕ выносить кэш на уровень модуля
-  - [ ] 1.6: Добавить приватный метод `_resolve_role_change(user, customer_data) -> RoleChange` (точный код в Dev Notes). Он **не сохраняет** пользователя и **не пишет** `AuditLog` — только решает
+- [x] **Task 1: Ролевой контракт в процессоре** (AC: 1, 2, 4, 17)
+  - [x] 1.1: Расширить импорт из `apps.users.services.price_type_role` (`processor.py:19`): добавить `REASON_AMBIGUOUS`, `REASON_NO_AGREEMENT`, `REASON_NO_DATA`, `REASON_UNKNOWN`, `RoleResolution`, `load_price_type_role_map`, `resolve_role_from_price_types`. `AGREEMENT_STATUS_NONE` уже импортирован — не дублировать; `REASON_RESOLVED` не импортировать (решение принимается по `resolution.role is None`, неиспользуемый импорт покраснеет во flake8)
+  - [x] 1.2: Импортировать `matches_q` из `apps.users.models` (`processor.py:18` — там уже `from apps.users.models import Company, User`)
+  - [x] 1.3: Объявить на уровне модуля `ROLE_STATS_KEYS` и `SKIP_COUNTER_BY_REASON` (точный код — в Dev Notes). `ROLE_STATS_KEYS` — единственный источник истины набора счётчиков: команда импортирует его же (см. мину «команда суммирует только объявленные ключи»)
+  - [x] 1.4: В `__init__` (`processor.py:44`) завести `self._role_map: dict[str, str] | None = None`, `self._role_stats: dict[str, int] = {}`, `self.last_role_outcome: str = ""`
+  - [x] 1.5: Добавить property `role_map` с ленивой загрузкой через `load_price_type_role_map()` — AC17. НЕ вешать `lru_cache`, НЕ выносить кэш на уровень модуля
+  - [x] 1.6: Добавить приватный метод `_resolve_role_change(user, customer_data) -> RoleChange` (точный код в Dev Notes). Он **не сохраняет** пользователя и **не пишет** `AuditLog` — только решает
 
-- [ ] **Task 2: Применение роли и AuditLog** (AC: 2, 3, 5, 6, 14)
-  - [ ] 2.1: В `_update_customer` (`processor.py:433`) вычислить `change = self._resolve_role_change(user, customer_data)` **до** `user.save()`, при `change.applied` присвоить `user.role = change.new_role`. Строку `user.onec_price_type_id = self._price_type_id_to_store(...)` (`processor.py:465`) не трогать — 40.3 работает как есть
-  - [ ] 2.2: После `user.save()` при `change.applied` вызвать `self._log_role_change(user, change)` — `AuditLog.log_action(...)` (точный код в Dev Notes). Порядок обязателен: логировать до сохранения значит записать смену, которой может не случиться
-  - [ ] 2.3: Записать `self.last_role_outcome = change.outcome` в конце `_update_customer`. Сигнатуру метода **не менять** — она читается вызывающим `process_customer`, и смена возвращаемого типа расширила бы blast radius
-  - [ ] 2.4: В `process_customer` (`processor.py:75`) сбросить `self.last_role_outcome = ""` **в начале** метода — иначе исход предыдущего контрагента протечёт на создание/пропуск
-  - [ ] 2.5: В ветке `if existing_user:` (`processor.py:131-145`) заменить `"role_preserved": True` на вычисляемое значение и добавить `"role_outcome"` (точный код в Dev Notes). Комментарий над веткой (`processor.py:132-134`) переписать: роль привязанного аккаунта теперь приезжает из 1С
-  - [ ] 2.6: Обновить docstring `_update_customer` (`processor.py:434-450`) и строку `logger.info(... роль=... сохранена)` (`processor.py:476`) — утверждение «роль сохранена» стало ложным
-  - [ ] 2.7: НЕ трогать `_create_customer`: новая запись получает `IMPORTED_CUSTOMER_ROLE` всегда (§5). Комментарий у `IMPORTED_CUSTOMER_ROLE` (`processor.py:39-42`) устарел по существу («в выгрузке уровня цен нет») — привести в соответствие, не меняя значение константы
+- [x] **Task 2: Применение роли и AuditLog** (AC: 2, 3, 5, 6, 14)
+  - [x] 2.1: В `_update_customer` (`processor.py:433`) вычислить `change = self._resolve_role_change(user, customer_data)` **до** `user.save()`, при `change.applied` присвоить `user.role = change.new_role`. Строку `user.onec_price_type_id = self._price_type_id_to_store(...)` (`processor.py:465`) не трогать — 40.3 работает как есть
+  - [x] 2.2: После `user.save()` при `change.applied` вызвать `self._log_role_change(user, change)` — `AuditLog.log_action(...)` (точный код в Dev Notes). Порядок обязателен: логировать до сохранения значит записать смену, которой может не случиться
+  - [x] 2.3: Записать `self.last_role_outcome = change.outcome` в конце `_update_customer`. Сигнатуру метода **не менять** — она читается вызывающим `process_customer`, и смена возвращаемого типа расширила бы blast radius
+  - [x] 2.4: В `process_customer` (`processor.py:75`) сбросить `self.last_role_outcome = ""` **в начале** метода — иначе исход предыдущего контрагента протечёт на создание/пропуск
+  - [x] 2.5: В ветке `if existing_user:` (`processor.py:131-145`) заменить `"role_preserved": True` на вычисляемое значение и добавить `"role_outcome"` (точный код в Dev Notes). Комментарий над веткой (`processor.py:132-134`) переписать: роль привязанного аккаунта теперь приезжает из 1С
+  - [x] 2.6: Обновить docstring `_update_customer` (`processor.py:434-450`) и строку `logger.info(... роль=... сохранена)` (`processor.py:476`) — утверждение «роль сохранена» стало ложным
+  - [x] 2.7: НЕ трогать `_create_customer`: новая запись получает `IMPORTED_CUSTOMER_ROLE` всегда (§5). Комментарий у `IMPORTED_CUSTOMER_ROLE` (`processor.py:39-42`) устарел по существу («в выгрузке уровня цен нет») — привести в соответствие, не меняя значение константы
 
-- [ ] **Task 3: Счётчики сессии импорта** (AC: 7, 8, 9, 10)
-  - [ ] 3.1: В `process_customers` (`processor.py:184`) инициализировать `self._role_stats = {key: 0 for key in ROLE_STATS_KEYS}` **до** цикла — счётчики пофайловые, команда суммирует их сама
-  - [ ] 3.2: После `result = self.process_customer(customer_data)` (`processor.py:226`) инкрементировать `self._role_stats[self.last_role_outcome]`, если `result` не `None` и `self.last_role_outcome` непуст. Счёт **вне** `transaction.atomic()` — откат внутри `process_customer` не должен оставлять фантомный инкремент
-  - [ ] 3.3: Перед `return stats` вычислить `roles_updated` как сумму двух слагаемых и влить `self._role_stats` в `stats` (точный код в Dev Notes)
-  - [ ] 3.4: Обновить docstring `process_customers` (`processor.py:185-196`): перечислить новые ключи
-  - [ ] 3.5: Счётчики `attributes_block_present` / `attributes_block_missing` (40.1) и их логику (`processor.py:213-218`) **не менять**
+- [x] **Task 3: Счётчики сессии импорта** (AC: 7, 8, 9, 10)
+  - [x] 3.1: В `process_customers` (`processor.py:184`) инициализировать `self._role_stats = {key: 0 for key in ROLE_STATS_KEYS}` **до** цикла — счётчики пофайловые, команда суммирует их сама
+  - [x] 3.2: После `result = self.process_customer(customer_data)` (`processor.py:226`) инкрементировать `self._role_stats[self.last_role_outcome]`, если `result` не `None` и `self.last_role_outcome` непуст. Счёт **вне** `transaction.atomic()` — откат внутри `process_customer` не должен оставлять фантомный инкремент
+  - [x] 3.3: Перед `return stats` вычислить `roles_updated` как сумму двух слагаемых и влить `self._role_stats` в `stats` (точный код в Dev Notes)
+  - [x] 3.4: Обновить docstring `process_customers` (`processor.py:185-196`): перечислить новые ключи
+  - [x] 3.5: Счётчики `attributes_block_present` / `attributes_block_missing` (40.1) и их логику (`processor.py:213-218`) **не менять**
 
-- [ ] **Task 4: Отчёт команды** (AC: 7, 8, 9)
-  - [ ] 4.1: В `import_customers_from_1c.py` импортировать `ROLE_STATS_KEYS` из `apps.users.services.processor` и добавить ключи в `total_stats` (`import_customers_from_1c.py:116-126`). ⚠️ Мина: цикл суммирования идёт по `total_stats.keys()` (`:146-147`) — незаявленный ключ молча потеряется
-  - [ ] 4.2: Дополнить итоговый вывод (`:200-219`) блоком ролевых счётчиков (точный текст в Dev Notes). `roles_updated_from_assigned` — **отдельной строкой** (AC8)
-  - [ ] 4.3: Блок печатается в той же ветке `else` (не dry-run), рядом с существующими строками; предупреждение об аномалии выгрузки (`:180-188`) не трогать
-  - [ ] 4.4: НЕ добавлять новых аргументов команды и НЕ менять поведение `--dry-run`
+- [x] **Task 4: Отчёт команды** (AC: 7, 8, 9)
+  - [x] 4.1: В `import_customers_from_1c.py` импортировать `ROLE_STATS_KEYS` из `apps.users.services.processor` и добавить ключи в `total_stats` (`import_customers_from_1c.py:116-126`). ⚠️ Мина: цикл суммирования идёт по `total_stats.keys()` (`:146-147`) — незаявленный ключ молча потеряется
+  - [x] 4.2: Дополнить итоговый вывод (`:200-219`) блоком ролевых счётчиков (точный текст в Dev Notes). `roles_updated_from_assigned` — **отдельной строкой** (AC8)
+  - [x] 4.3: Блок печатается в той же ветке `else` (не dry-run), рядом с существующими строками; предупреждение об аномалии выгрузки (`:180-188`) не трогать
+  - [x] 4.4: НЕ добавлять новых аргументов команды и НЕ менять поведение `--dry-run`
 
-- [ ] **Task 5: Unit-тесты процессора** (AC: 1–6, 11–14, 17, 20)
-  - [ ] 5.1: Новый класс `TestCustomerRoleFromPriceType` в `backend/tests/unit/test_services/test_customer_processor.py`, маркеры `@pytest.mark.unit`, `@pytest.mark.django_db`, `@pytest.mark.data_dependent`. Фикстуры `session`/`processor` продублировать по образцу `TestCustomerPriceTypeStorage` (`test_customer_processor.py:490-501`) — они объявлены методами класса и новому классу не видны
-  - [ ] 5.2: Переиспользовать module-scoped фикстуры реального снимка (`real_customers`, `customer_with_price_type`, `customer_without_agreement`, `customer_without_attributes_block`, `snapshot_price_type_guids`, `test_customer_processor.py:425-475`) — новых не заводить
-  - [ ] 5.3: Добавить фикстуру `customer_with_opt4` — `dict(customer_with_price_type)` с `price_type_ids`, подменённым на `["4c1962d2-f8ed-11eb-81f3-00155d3cae02"]` («Опт 4»: единственный GUID, засеянный миграцией `products/0053` с `user_role="wholesale_level4"`). ⚠️ **Не искать такого контрагента в снимке**: 40.3 показала, что в первом файле 32 контрагента с одним `ТипЦенId`, но какие именно это виды цен — не зафиксировано, и поиск дал бы недетерминированный `skip`. Подмена `price_type_ids` — вариация входа сервиса, а не синтетический XML (то же решение, что для ветки `ambiguous` в 40.3)
-  - [ ] 5.4: Тест AC1: непривязанная запись 1С (созданная предыдущим прогоном импорта) + GUID «Опт 4» → `role == "unregistered"`, `onec_price_type_id` заполнен, `AuditLog` нет, `last_role_outcome == "roles_skipped_unlinked_record"`
-  - [ ] 5.5: Тест AC2/AC4: привязанный аккаунт (`created_in_1c=False`, роль `wholesale_level1`, пароль задан) + «Опт 4» → `role == "wholesale_level4"`; тот же сценарий для «Опт 2» после `get_or_create` записи `PriceType` (GUID `a91bdb02-…`, `user_role="wholesale_level2"`)
-  - [ ] 5.6: Тест AC3/AC5: роль выставлена вручную (`wholesale_level3`), 1С отдаёт «Опт 4» → роль перетёрта, ровно одна запись `AuditLog` с `action="role_from_1c"`, в `changes` — `previous_role="wholesale_level3"`, `new_role="wholesale_level4"`, непустые `price_type_id`, `price_type_name`, `agreement_name`
-  - [ ] 5.7: Тест AC6: роль уже совпадает → `AuditLog.objects.count() == 0`, `last_role_outcome == "roles_already_actual"`; повторный прогон на тех же данных → по-прежнему одна запись `AuditLog` (после сценария 5.6) и роль не «дёргается»
-  - [ ] 5.8: Тест AC11: привязанный аккаунт + GUID, отсутствующий в `PriceType`, и отдельным случаем — GUID **известный, но с пустым `user_role`** (создать через `get_or_create` РРЦ `3d1482c4-…`, `user_role=""`) → роль не изменилась, исход `roles_skipped_unknown_price_type`
-  - [ ] 5.9: Тест AC12: два GUID, каждый с ролью («Опт 4» + созданный «Опт 2») → роль не изменилась, исход `roles_skipped_ambiguous`
-  - [ ] 5.10: Тест AC13: `customer_without_attributes_block` (старый снимок) → роль не изменилась, исход `roles_skipped_no_data`
-  - [ ] 5.11: Тест AC14: `customer_without_agreement` → роль не изменилась, исход `roles_skipped_no_agreement`, `onec_price_type_id == ""`
-  - [ ] 5.12: Тест AC17: `process_customers` на списке из ≥ 20 контрагентов делает **один** запрос к `price_types` (перехватить через `django_assert_num_queries` на изолированном участке либо через `CaptureQueriesContext` с фильтром по `price_types`); `processor.role_map` дважды подряд — один запрос
-  - [ ] 5.13: Тест AC10: `process_customers` на реальном списке → сумма ролевых счётчиков равна `stats["updated"]`, `roles_updated == from_unregistered + from_assigned`
-  - [ ] 5.14: ⚠️ **Проверить и поправить существующие тесты** (список и ожидаемая реакция — в Dev Notes → «Мины в существующих тестах»). Формально они остаются зелёными, но их комментарии утверждают отменённое правило
+- [x] **Task 5: Unit-тесты процессора** (AC: 1–6, 11–14, 17, 20)
+  - [x] 5.1: Новый класс `TestCustomerRoleFromPriceType` в `backend/tests/unit/test_services/test_customer_processor.py`, маркеры `@pytest.mark.unit`, `@pytest.mark.django_db`, `@pytest.mark.data_dependent`. Фикстуры `session`/`processor` продублировать по образцу `TestCustomerPriceTypeStorage` (`test_customer_processor.py:490-501`) — они объявлены методами класса и новому классу не видны
+  - [x] 5.2: Переиспользовать module-scoped фикстуры реального снимка (`real_customers`, `customer_with_price_type`, `customer_without_agreement`, `customer_without_attributes_block`, `snapshot_price_type_guids`, `test_customer_processor.py:425-475`) — новых не заводить
+  - [x] 5.3: Добавить фикстуру `customer_with_opt4` — `dict(customer_with_price_type)` с `price_type_ids`, подменённым на `["4c1962d2-f8ed-11eb-81f3-00155d3cae02"]` («Опт 4»: единственный GUID, засеянный миграцией `products/0053` с `user_role="wholesale_level4"`). ⚠️ **Не искать такого контрагента в снимке**: 40.3 показала, что в первом файле 32 контрагента с одним `ТипЦенId`, но какие именно это виды цен — не зафиксировано, и поиск дал бы недетерминированный `skip`. Подмена `price_type_ids` — вариация входа сервиса, а не синтетический XML (то же решение, что для ветки `ambiguous` в 40.3)
+  - [x] 5.4: Тест AC1: непривязанная запись 1С (созданная предыдущим прогоном импорта) + GUID «Опт 4» → `role == "unregistered"`, `onec_price_type_id` заполнен, `AuditLog` нет, `last_role_outcome == "roles_skipped_unlinked_record"`
+  - [x] 5.5: Тест AC2/AC4: привязанный аккаунт (`created_in_1c=False`, роль `wholesale_level1`, пароль задан) + «Опт 4» → `role == "wholesale_level4"`; тот же сценарий для «Опт 2» после `get_or_create` записи `PriceType` (GUID `a91bdb02-…`, `user_role="wholesale_level2"`)
+  - [x] 5.6: Тест AC3/AC5: роль выставлена вручную (`wholesale_level3`), 1С отдаёт «Опт 4» → роль перетёрта, ровно одна запись `AuditLog` с `action="role_from_1c"`, в `changes` — `previous_role="wholesale_level3"`, `new_role="wholesale_level4"`, непустые `price_type_id`, `price_type_name`, `agreement_name`
+  - [x] 5.7: Тест AC6: роль уже совпадает → `AuditLog.objects.count() == 0`, `last_role_outcome == "roles_already_actual"`; повторный прогон на тех же данных → по-прежнему одна запись `AuditLog` (после сценария 5.6) и роль не «дёргается»
+  - [x] 5.8: Тест AC11: привязанный аккаунт + GUID, отсутствующий в `PriceType`, и отдельным случаем — GUID **известный, но с пустым `user_role`** (создать через `get_or_create` РРЦ `3d1482c4-…`, `user_role=""`) → роль не изменилась, исход `roles_skipped_unknown_price_type`
+  - [x] 5.9: Тест AC12: два GUID, каждый с ролью («Опт 4» + созданный «Опт 2») → роль не изменилась, исход `roles_skipped_ambiguous`
+  - [x] 5.10: Тест AC13: `customer_without_attributes_block` (старый снимок) → роль не изменилась, исход `roles_skipped_no_data`
+  - [x] 5.11: Тест AC14: `customer_without_agreement` → роль не изменилась, исход `roles_skipped_no_agreement`, `onec_price_type_id == ""`
+  - [x] 5.12: Тест AC17: `process_customers` на списке из ≥ 20 контрагентов делает **один** запрос к `price_types` (перехватить через `django_assert_num_queries` на изолированном участке либо через `CaptureQueriesContext` с фильтром по `price_types`); `processor.role_map` дважды подряд — один запрос
+  - [x] 5.13: Тест AC10: `process_customers` на реальном списке → сумма ролевых счётчиков равна `stats["updated"]`, `roles_updated == from_unregistered + from_assigned`
+  - [x] 5.14: ⚠️ **Проверить и поправить существующие тесты** (список и ожидаемая реакция — в Dev Notes → «Мины в существующих тестах»). Формально они остаются зелёными, но их комментарии утверждают отменённое правило
 
-- [ ] **Task 6: Интеграционный тест на реальной выгрузке** (AC: 5, 7, 8, 9, 15, 16, 20)
-  - [ ] 6.1: Создать `backend/tests/integration/test_import_role_from_1c.py`; маркеры: `integration` автоматически по каталогу, добавить `@pytest.mark.data_dependent` и `@pytest.mark.django_db`. Сборку временного каталога и выбор файла снимка взять из `tests/integration/test_import_customers_price_type.py` (40.3) — не изобретать заново; команда требует подкаталог именно `contragents/`
-  - [ ] 6.2: Тест AC15: прогнать `call_command("import_customers_from_1c", data_dir=<tmp>)`; ORM-эквивалент критерия #4 — `User.objects.filter(created_in_1c=True, onec_id__isnull=False, password="").values_list("role", flat=True).distinct()` возвращает ровно `{"unregistered"}`
-  - [ ] 6.3: Тест AC7/AC9: `ImportSession.report_details` последней завершённой сессии содержит все ключи `ROLE_STATS_KEYS`; на прогоне «с нуля» `roles_updated == 0`, а `roles_skipped_unlinked_record == 0` (все записи создаются, не обновляются). Повторный прогон того же файла даёт `roles_skipped_unlinked_record > 0` — это и есть наблюдаемая норма прода
-  - [ ] 6.4: Тест AC2/AC5 на живых данных. ⚠️ **Не зашивать «Опт 4»**: в выбранном файле снимка контрагента с этим GUID может не быть (40.3 зафиксировала лишь число контрагентов с одним `ТипЦенId`, но не состав видов цен). Порядок: (1) разобрать файл, взять первого покупателя с ровно одним GUID; (2) `PriceType.objects.get_or_create(onec_id=<этот GUID>, defaults={"onec_name": "…", "product_field": "opt2_price", "user_role": "wholesale_level2", "is_active": True})` — `get_or_create`, а не `create`: GUID может оказаться «Опт 4», уже засеянным `products/0053`, и `create` даст `duplicate key`; (3) завести привязанный аккаунт с `onec_id` этого контрагента, роль `wholesale_level1`, пароль задан; (4) после прогона роль равна `user_role` записи справочника, есть `AuditLog(action="role_from_1c")`, в `report_details` `roles_updated == 1` и `roles_updated_from_assigned == 1`. Ожидаемую роль брать из созданной записи `PriceType`, а не из литерала
-  - [ ] 6.5: Тест AC16: после прогона `User.objects.unlinked_1c_records().exists()`; `find_link_candidates(<заявка с ИНН из выгрузки>)` не пуст; `User.objects.annotate(_has_1c_candidate=has_1c_candidate_expression()).filter(_has_1c_candidate=True).exists()`
-  - [ ] 6.6: Тест AC16 (регистрация): POST на `REGISTER_URL` с ИНН, известным выгрузке, → HTTP 201. Образец полезной нагрузки и мока письма админу — `tests/integration/test_portal_registration_1c_link.py:98-124`
-  - [ ] 6.7: ⚠️ Мина объёма: копировать в tmp-каталог **один** файл снимка, не все 10 (4735 `User` + столько же `CustomerSyncLog` — десятки минут)
+- [x] **Task 6: Интеграционный тест на реальной выгрузке** (AC: 5, 7, 8, 9, 15, 16, 20)
+  - [x] 6.1: Создать `backend/tests/integration/test_import_role_from_1c.py`; маркеры: `integration` автоматически по каталогу, добавить `@pytest.mark.data_dependent` и `@pytest.mark.django_db`. Сборку временного каталога и выбор файла снимка взять из `tests/integration/test_import_customers_price_type.py` (40.3) — не изобретать заново; команда требует подкаталог именно `contragents/`
+  - [x] 6.2: Тест AC15: прогнать `call_command("import_customers_from_1c", data_dir=<tmp>)`; ORM-эквивалент критерия #4 — `User.objects.filter(created_in_1c=True, onec_id__isnull=False, password="").values_list("role", flat=True).distinct()` возвращает ровно `{"unregistered"}`
+  - [x] 6.3: Тест AC7/AC9: `ImportSession.report_details` последней завершённой сессии содержит все ключи `ROLE_STATS_KEYS`; на прогоне «с нуля» `roles_updated == 0`, а `roles_skipped_unlinked_record == 0` (все записи создаются, не обновляются). Повторный прогон того же файла даёт `roles_skipped_unlinked_record > 0` — это и есть наблюдаемая норма прода
+  - [x] 6.4: Тест AC2/AC5 на живых данных. ⚠️ **Не зашивать «Опт 4»**: в выбранном файле снимка контрагента с этим GUID может не быть (40.3 зафиксировала лишь число контрагентов с одним `ТипЦенId`, но не состав видов цен). Порядок: (1) разобрать файл, взять первого покупателя с ровно одним GUID; (2) `PriceType.objects.get_or_create(onec_id=<этот GUID>, defaults={"onec_name": "…", "product_field": "opt2_price", "user_role": "wholesale_level2", "is_active": True})` — `get_or_create`, а не `create`: GUID может оказаться «Опт 4», уже засеянным `products/0053`, и `create` даст `duplicate key`; (3) завести привязанный аккаунт с `onec_id` этого контрагента, роль `wholesale_level1`, пароль задан; (4) после прогона роль равна `user_role` записи справочника, есть `AuditLog(action="role_from_1c")`, в `report_details` `roles_updated == 1` и `roles_updated_from_assigned == 1`. Ожидаемую роль брать из созданной записи `PriceType`, а не из литерала
+  - [x] 6.5: Тест AC16: после прогона `User.objects.unlinked_1c_records().exists()`; `find_link_candidates(<заявка с ИНН из выгрузки>)` не пуст; `User.objects.annotate(_has_1c_candidate=has_1c_candidate_expression()).filter(_has_1c_candidate=True).exists()`
+  - [x] 6.6: Тест AC16 (регистрация): POST на `REGISTER_URL` с ИНН, известным выгрузке, → HTTP 201. Образец полезной нагрузки и мока письма админу — `tests/integration/test_portal_registration_1c_link.py:98-124`
+  - [x] 6.7: ⚠️ Мина объёма: копировать в tmp-каталог **один** файл снимка, не все 10 (4735 `User` + столько же `CustomerSyncLog` — десятки минут)
 
-- [ ] **Task 7: Правка спеки** (AC: 19)
-  - [ ] 7.1: В `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md` вычеркнуть (`~~…~~`) отменённое правило во всех четырёх местах — точный список строк в Dev Notes → «Правка спеки»
-  - [ ] 7.2: Добавить запись в раздел **Spec Change Log** датой реализации: что отменено, чем заменено, ссылка на стори 40.4 и FR-40-07/FR-40-12
-  - [ ] 7.3: Правка затрагивает блок `<frozen-after-approval>` — это санкционировано AC стори 40.4 в `epics.md` (решение Alex). В записи Change Log указать это явно; остальное содержимое frozen-блока не трогать
+- [x] **Task 7: Правка спеки** (AC: 19)
+  - [x] 7.1: В `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md` вычеркнуть (`~~…~~`) отменённое правило во всех четырёх местах — точный список строк в Dev Notes → «Правка спеки»
+  - [x] 7.2: Добавить запись в раздел **Spec Change Log** датой реализации: что отменено, чем заменено, ссылка на стори 40.4 и FR-40-07/FR-40-12
+  - [x] 7.3: Правка затрагивает блок `<frozen-after-approval>` — это санкционировано AC стори 40.4 в `epics.md` (решение Alex). В записи Change Log указать это явно; остальное содержимое frozen-блока не трогать
 
-- [ ] **Task 8: Прогон, регресс, линтеры** (AC: 18, 20)
-  - [ ] 8.1: Прогон новых тестов в тест-контейнере (команды — в Dev Notes → «Тестирование: как запускать»)
-  - [ ] 8.2: Регресс обязательным списком: `tests/unit/test_services/test_customer_processor.py`, `tests/unit/test_services/test_customer_parser.py`, `tests/unit/test_services/test_price_type_role.py`, `tests/unit/test_services/test_link_1c_customer.py`, `tests/unit/test_users_admin.py`, `tests/integration/test_import_customers_price_type.py`, `tests/integration/test_customers_price_type_detector.py`, `tests/integration/test_management_commands/test_import_customers.py`, `tests/integration/test_link_then_import_1c.py`, `tests/integration/test_portal_registration_1c_link.py`, `tests/integration/test_admin_link_1c_customer.py`
-  - [ ] 8.3: Полный прогон `pytest -q` **без** `-m`: маркер-фильтры CI оставляют 852 теста вне гейтов, регрессия ловится только полным набором
-  - [ ] 8.4: `manage.py makemigrations --check --dry-run` → `No changes detected` (доказывает, что модели не тронуты, AC18)
-  - [ ] 8.5: `black` + `flake8` на изменённых файлах
-  - [ ] 8.6: `git diff HEAD --stat` — убедиться, что в диффе нет `apps/users/models.py`, `apps/users/admin.py`, `apps/users/serializers.py`, `apps/users/services/parser.py`, `apps/users/services/price_type_role.py`, `apps/users/services/link_1c_customer.py`, `apps/products/**`, `docs/api/openapi.yaml`, `frontend/**` (AC18)
-  - [ ] 8.7: `npx gitnexus detect-changes --scope all` из основного клона. Ожидаемые символы: `_update_customer`, `process_customer`, `process_customers`, новые `_resolve_role_change` / `_log_role_change` / `role_map`, `Command.handle`
+- [x] **Task 8: Прогон, регресс, линтеры** (AC: 18, 20)
+  - [x] 8.1: Прогон новых тестов в тест-контейнере (команды — в Dev Notes → «Тестирование: как запускать»)
+  - [x] 8.2: Регресс обязательным списком: `tests/unit/test_services/test_customer_processor.py`, `tests/unit/test_services/test_customer_parser.py`, `tests/unit/test_services/test_price_type_role.py`, `tests/unit/test_services/test_link_1c_customer.py`, `tests/unit/test_users_admin.py`, `tests/integration/test_import_customers_price_type.py`, `tests/integration/test_customers_price_type_detector.py`, `tests/integration/test_management_commands/test_import_customers.py`, `tests/integration/test_link_then_import_1c.py`, `tests/integration/test_portal_registration_1c_link.py`, `tests/integration/test_admin_link_1c_customer.py`
+  - [x] 8.3: Полный прогон `pytest -q` **без** `-m`: маркер-фильтры CI оставляют 852 теста вне гейтов, регрессия ловится только полным набором
+  - [x] 8.4: `manage.py makemigrations --check --dry-run` → `No changes detected` (доказывает, что модели не тронуты, AC18)
+  - [x] 8.5: `black` + `flake8` на изменённых файлах
+  - [x] 8.6: `git diff HEAD --stat` — убедиться, что в диффе нет `apps/users/models.py`, `apps/users/admin.py`, `apps/users/serializers.py`, `apps/users/services/parser.py`, `apps/users/services/price_type_role.py`, `apps/users/services/link_1c_customer.py`, `apps/products/**`, `docs/api/openapi.yaml`, `frontend/**` (AC18)
+  - [x] 8.7: `npx gitnexus detect-changes --scope all` из основного клона. Ожидаемые символы: `_update_customer`, `process_customer`, `process_customers`, новые `_resolve_role_change` / `_log_role_change` / `role_map`, `Command.handle`
 
 ## Dev Notes
 
@@ -571,14 +571,55 @@ API-контракт не меняется: `openapi.yaml` и типы фрон�
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, bmad-dev-story)
+
 ### Debug Log References
+
+- `black` + `flake8` по изменённым файлам — чисто (`flake8 apps/users/ tests/...` без замечаний).
+- `manage.py makemigrations --check --dry-run` → `No changes detected` (AC18: модели не тронуты).
+- Новый unit-класс `TestCustomerRoleFromPriceType` — 16 тестов, зелёные.
+- Новый интеграционный файл `tests/integration/test_import_role_from_1c.py` — 8 тестов, зелёные (79 с).
+- Регресс обязательным списком (11 файлов, Task 8.2) — 223 теста, зелёные (626 с).
+- Полный прогон `pytest -q` **без** `-m` (Task 8.3): **2981 passed, 6 skipped, 19 subtests passed** за 35 мин — регрессий нет.
+- Покрытие затронутых модулей (AC20): `apps/users/services/processor.py` — **97 %**, `apps/users/management/commands/import_customers_from_1c.py` — **99 %** (непокрыта одна строка `else`-ветки внешнего обработчика, достижимая только при `session is None`).
+- `git diff HEAD --stat` (Task 8.6): в диффе нет `models.py`, `admin.py`, `serializers.py`, `parser.py`, `price_type_role.py`, `link_1c_customer.py`, `apps/products/**`, `openapi.yaml`, `frontend/**`.
+- `npx gitnexus detect-changes --scope all` (Task 8.7): 7 файлов, 22 символа, **affected processes: 0**, **risk: low**; из прикладного кода затронуты только `processor.py` и `import_customers_from_1c.py`.
+- Индекс GitNexus на момент разработки помечен `stale` (indexed `6f82bda`, HEAD `7344692`); blast radius взят из pre-flight, зафиксированного в Dev Notes. **Перед мержем стоит выполнить `npx gitnexus analyze`.**
 
 ### Completion Notes List
 
+**Реализовано.**
+
+1. **Ролевой контракт в процессоре** (`processor.py`): модульные `ROLE_STATS_KEYS` (9 ключей) и `SKIP_COUNTER_BY_REASON` (словарь причина→счётчик, чтобы шестая причина резолвера падала `KeyError`, а не терялась), `NamedTuple RoleChange`, ленивое свойство `role_map` с кэшем на экземпляре (без `lru_cache` и модульного кэша — AC17), приватный `_resolve_role_change`, который решает и ничего не сохраняет.
+2. **Порядок проверок неизменяем**: сначала `matches_q(User.objects.unlinked_1c_record_q(), user)` — предикат в памяти, без запроса, — и только потом резолвер. Непривязанная запись 1С роли не получает никогда (AC1).
+3. **Применение и журнал** (`_update_customer`): решение принимается до `user.role = ...`, `AuditLog` пишется строго **после** `user.save()`. `_log_role_change` берёт наименования вида цен и соглашения из `customer_data["price_type_meta"]` — без дополнительных запросов (AC5).
+4. **Отступление от «точного кода» Dev Notes (осознанное).** Сопоставление `price_type_meta` с GUID из `resolution.matched` сделано регистронезависимым: резолвер нормализует GUID в нижний регистр, парсер отдаёт как в выгрузке, и строгое `==` молча вернуло бы пустые `price_type_name` / `agreement_name`. Поведение при совпадающем регистре идентично.
+5. **Счётчики** (`process_customers`): инициализация до цикла, инкремент по `last_role_outcome` вне `transaction.atomic()`, `roles_updated` вычисляется как сумма двух слагаемых перед `return`. `attributes_block_*` не тронуты.
+6. **Отчёт команды**: `ROLE_STATS_KEYS` импортируется из процессора (мина «цикл суммирует только объявленные ключи» закрыта), блок из девяти строк добавлен в итоговый вывод, `roles_updated_from_assigned` — отдельной строкой (AC8). Аргументы команды и `--dry-run` не менялись.
+7. **Спека** (`spec-1c-unregistered-role.md`): отменённое правило вычеркнуто во всех четырёх местах (Boundaries → Always, строка I/O-матрицы, Acceptance Criterion, пункт 1 блока KEEP) со ссылкой на новую запись Spec Change Log «2026-08-05 — итерация 3»; правка внутри `<frozen-after-approval>` помечена как санкционированная (AC19).
+8. **Комментарии-мины в существующих тестах** приведены в соответствие (5 штук, Task 5.14): каждый теперь объясняет, что роль сохраняется из-за конкретной причины резолвера (`no_data` / `unknown_price_type` / «непривязанная запись»), а не по отменённому правилу.
+
+**Проверено на реальных данных.** Синтетических XML не создавалось. Ветка «два вида цен» собрана вариацией входа сервиса (подмена `price_type_ids` в разобранном снимке) — в снимке контрагентов с двумя различными GUID ноль по построению. Фикстура `customer_with_opt4` подменяет GUID на «Опт 4» (единственный, засеянный миграцией `products/0053` с непустым `user_role`) вместо поиска в снимке — состав видов цен внутри файла не зафиксирован, и поиск дал бы недетерминированный `skip`.
+
+**Отложенный эффект подтверждён тестом.** `test_first_run_reports_no_role_activity` и `test_second_run_reports_unlinked_records` фиксируют норму прода: `roles_updated = 0`, а объяснение нуля даёт `roles_skipped_unlinked_record > 0`.
+
+**Дополнение сверх списка File List стори (обоснование).** В `tests/integration/test_management_commands/test_import_customers.py` добавлены 4 теста на пути ошибок команды. Причина: AC20 требует ≥ 90 % на затронутых модулях, а модуль команды давал 80 % — недоставали ветки `CommandError` (нет подкаталога `contragents/`, нет файлов), пофайловый обработчик сбоя и внешний обработчик критической ошибки. Все четыре — пути, существовавшие до стори и не покрытые ранее; продуктовый код команды в них не менялся. После добавления — 99 %.
+
 ### File List
+
+- `backend/apps/users/services/processor.py` — UPDATE
+- `backend/apps/users/management/commands/import_customers_from_1c.py` — UPDATE
+- `backend/tests/unit/test_services/test_customer_processor.py` — UPDATE
+- `backend/tests/integration/test_import_role_from_1c.py` — NEW
+- `backend/tests/integration/test_link_then_import_1c.py` — UPDATE
+- `backend/tests/integration/test_management_commands/test_import_customers.py` — UPDATE (4 теста на пути ошибок команды ради порога покрытия AC20)
+- `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md` — UPDATE
+- `_bmad-output/implementation-artifacts/Story/40-4-import-applies-role-to-linked-accounts.md` — UPDATE
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — UPDATE
 
 ## Change Log
 
 | Дата | Версия | Описание | Автор |
 |---|---|---|---|
 | 2026-08-05 | 0.1 | Создана стори 40.4 (импорт применяет роль привязанным аккаунтам), статус ready-for-dev | claude-opus-5 |
+| 2026-08-05 | 1.0 | Реализация: применение роли из вида цен 1С привязанным аккаунтам, `AuditLog(action="role_from_1c")`, девять ролевых счётчиков в отчёте сессии и выводе команды, отмена правила «импорт не меняет роль» в спеке. 28 новых тестов (16 unit + 8 integration + 4 на пути ошибок команды), полный прогон 2981 passed, покрытие 97 % / 99 %. Статус → review | claude-opus-5 |

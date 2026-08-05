@@ -101,7 +101,11 @@ def test_link_then_reimport_updates_applicant_without_duplicate(processor, custo
 
     applicant.refresh_from_db()
     assert applicant.email == applicant_email, "Импорт перезаписал логин заявителя"
-    assert applicant.role == applicant_role, "Импорт сбросил выданный менеджером уровень цен"
+    # Роль сохраняется потому, что в старом снимке contragents/ блока
+    # <ЗначенияРеквизитов> нет ни у кого: резолвер отвечает no_data.
+    # С 40.4 импорт роль привязанного аккаунта меняет — но только когда
+    # 1С отдала вид цен (см. tests/integration/test_import_role_from_1c.py).
+    assert applicant.role == applicant_role, "Импорт изменил роль, хотя вида цен в выгрузке нет"
     assert applicant.onec_id == customer_data["onec_id"]
 
     imported.refresh_from_db()

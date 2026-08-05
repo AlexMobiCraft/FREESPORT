@@ -16,7 +16,7 @@ from apps.common.models import CustomerSyncLog
 from apps.products.models import ImportSession
 from apps.users.models import User
 from apps.users.services.parser import CustomerDataParser
-from apps.users.services.processor import CustomerDataProcessor
+from apps.users.services.processor import ROLE_STATS_KEYS, CustomerDataProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +123,9 @@ class Command(BaseCommand):
                 # поэтому счётчики процессора обязаны быть в этом словаре.
                 "attributes_block_present": 0,
                 "attributes_block_missing": 0,
+                # Набор ролевых ключей объявляет процессор — перечислять их
+                # здесь заново значило бы потерять новый счётчик молча.
+                **{key: 0 for key in ROLE_STATS_KEYS},
             }
 
             for idx, file_path in enumerate(contragents_files, 1):
@@ -214,6 +217,19 @@ class Command(BaseCommand):
                         f"  Контрагентов с видом цен из 1С: {total_stats['attributes_block_present']}\n"
                         f"  Контрагентов без блока реквизитов: {total_stats['attributes_block_missing']}\n"
                         f"  Аномалия выгрузки: {'ДА' if attributes_anomaly else 'нет'}\n"
+                        f"\nРоли из 1С:\n"
+                        f"  Обновлено ролей: {total_stats['roles_updated']}\n"
+                        f"    из них были unregistered: {total_stats['roles_updated_from_unregistered']}\n"
+                        f"    из них перетёрта роль, выданная менеджером: "
+                        f"{total_stats['roles_updated_from_assigned']}\n"
+                        f"  Роль уже актуальна: {total_stats['roles_already_actual']}\n"
+                        f"  Пропущено (непривязанная запись 1С): "
+                        f"{total_stats['roles_skipped_unlinked_record']}\n"
+                        f"  Пропущено (нет данных о виде цен): {total_stats['roles_skipped_no_data']}\n"
+                        f"  Пропущено (нет соглашения): {total_stats['roles_skipped_no_agreement']}\n"
+                        f"  Пропущено (вид цен не даёт роли): "
+                        f"{total_stats['roles_skipped_unknown_price_type']}\n"
+                        f"  Пропущено (несколько видов цен): {total_stats['roles_skipped_ambiguous']}\n"
                         f"{'=' * 60}"
                     )
                 )

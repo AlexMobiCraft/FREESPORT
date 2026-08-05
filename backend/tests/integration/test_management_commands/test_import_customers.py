@@ -240,3 +240,77 @@ class TestImportCustomersCommand:
         for user in users:
             assert user.sync_status == "synced"
             assert user.last_sync_at is not None
+
+    def test_command_requires_contragents_subdirectory(self, tmp_path):
+        """Каталог без подкаталога contragents/ отвергается до создания сессии."""
+        from django.core.management.base import CommandError
+
+        with pytest.raises(CommandError) as exc_info:
+            call_command("import_customers_from_1c", data_dir=str(tmp_path))
+
+        assert "contragents" in str(exc_info.value)
+        assert not ImportSession.objects.filter(import_type=ImportSession.ImportType.CUSTOMERS).exists()
+
+    def test_command_requires_at_least_one_file(self, tmp_path):
+        """Пустой contragents/ — это не «импортировано ноль», а отказ."""
+        from django.core.management.base import CommandError
+
+        (tmp_path / "contragents").mkdir()
+
+        with pytest.raises(CommandError) as exc_info:
+            call_command("import_customers_from_1c", data_dir=str(tmp_path))
+
+        assert "contragents*.xml" in str(exc_info.value)
+
+    def test_broken_file_does_not_abort_remaining_files(self, tmp_path, real_data_dir):
+        """
+        Сбой на одном файле не отменяет импорт остальных.
+
+        Битый файл 1С обязан стоить одного файла, а не всей выгрузки:
+        обмен идёт по расписанию, и повтор случится только через сутки.
+        """
+        import shutil
+
+        source = sorted((Path(real_data_dir) / "contragents").glob("contragents*.xml"))
+        if not source:
+            pytest.skip("Реальный dataset 1С не найден: contragents")
+
+        data_dir = tmp_path / "import_1c"
+        (data_dir / "contragents").mkdir(parents=True)
+        # Имя битого файла сортируется раньше реального: проверяем, что
+        # обработка продолжается ПОСЛЕ сбоя, а не только до него.
+        (data_dir / "contragents" / "contragents_broken.xml").write_text(
+            "<КоммерческаяИнформация><Контрагенты>", encoding="utf-8"
+        )
+        shutil.copy(source[0], data_dir / "contragents" / source[0].name)
+
+        out = StringIO()
+        call_command("import_customers_from_1c", data_dir=str(data_dir), stdout=out)
+
+        session = ImportSession.objects.filter(import_type=ImportSession.ImportType.CUSTOMERS).latest("started_at")
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+        assert session.report_details["errors"] >= 1
+        assert session.report_details["created"] > 0
+        assert "Ошибка обработки файла" in out.getvalue()
+
+    def test_critical_failure_marks_session_failed(self, tmp_path, real_data_dir, monkeypatch):
+        """Отказ вне обработки файла помечает сессию failed и поднимает CommandError."""
+        from django.core.management.base import CommandError
+
+        import apps.users.management.commands.import_customers_from_1c as command_module
+
+        source = sorted((Path(real_data_dir) / "contragents").glob("contragents*.xml"))
+        if not source:
+            pytest.skip("Реальный dataset 1С не найден: contragents")
+
+        def _explode(*args, **kwargs):
+            raise RuntimeError("Парсер недоступен")
+
+        monkeypatch.setattr(command_module, "CustomerDataParser", _explode)
+
+        with pytest.raises(CommandError):
+            call_command("import_customers_from_1c", data_dir=real_data_dir)
+
+        session = ImportSession.objects.filter(import_type=ImportSession.ImportType.CUSTOMERS).latest("started_at")
+        assert session.status == ImportSession.ImportStatus.FAILED
+        assert "Парсер недоступен" in session.error_message
