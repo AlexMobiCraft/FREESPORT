@@ -398,6 +398,15 @@ Pre-flight (обязательный, CLAUDE.md §GitNexus):
 - `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md` — MODIFIED
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — MODIFIED
 - `_bmad-output/implementation-artifacts/Story/40-5-link-transfers-price-type-and-role.md` — MODIFIED (этот файл)
+- `AGENTS.md` — MODIFIED (попало в коммит `c352e200`; см. Review Findings)
+- `CLAUDE.md` — MODIFIED (попало в коммит `c352e200`; см. Review Findings)
+
+> **О `AGENTS.md` / `CLAUDE.md`.** Изменение — единственная строка автогенерируемого блока GitNexus между маркерами `<!-- gitnexus:start -->` / `<!-- gitnexus:end -->` (счётчики `9071 symbols / 14887 relationships` → `9081 / 14897`), обновлённая `npx gitnexus analyze` в ходе работы над стори. К функциональной части стори отношения не имеет: код, тесты, спека, sprint-status этим изменениям не обязаны. Перенос в отдельный коммит невозможен — `c352e200` уже в `origin/develop`, а force-push запрещён правилом `.windsurf/rules/security-and-git.md`. Оба файла удаляются из public remote workflow'ом `sync-to-public.yml`, так что в публичный репозиторий изменение не попадёт. Решение ревью — оставить в составе story-коммита и отразить здесь.
+
+### Review Findings
+
+- [x] [Review][Patch] Незаявленные файлы в story-коммите [AGENTS.md:164, CLAUDE.md:166] — коммит `c352e200` включает изменения метаданных GitNexus в этих файлах, но их нет в File List и Project Structure story. Вынести изменения из story-коммита либо явно отразить и объяснить их в File List.
+  - **Резолюция (2026-08-05).** Выбран второй вариант условия («явно отразить и объяснить в File List»). Перенос в отдельный коммит невозможен: `c352e200` уже в `origin/develop`, force-push запрещён `security-and-git.md`. Изменение — единственная строка автогенерируемого блока GitNexus между маркерами `gitnexus:start`/`gitnexus:end` (счётчики символов/рёбер), обновлённая `npx gitnexus analyze`; к коду/тестам/спеке стори не относится. Оба файла исключаются из public remote workflow'ом `sync-to-public.yml` — утечки нет. Файлы добавлены в File List выше с пояснением.
 
 ## Change Log
 
