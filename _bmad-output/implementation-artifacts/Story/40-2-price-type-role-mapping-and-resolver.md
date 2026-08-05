@@ -101,6 +101,11 @@ so that **появление нового вида цен в 1С не требо
   - [x] 6.4: `black` + `flake8` на изменённых файлах
   - [x] 6.5: `npx gitnexus detect-changes --scope all` — ожидаемые затронутые символы: новый модуль `price_type_role`, `PriceTypeAdmin`, `PriceTypeAdminForm`, новая миграция. `_get_price_type` в списке быть не должно
 
+### Review Findings
+
+- [x] [AI-Review][Med] Case-colliding GUID дают произвольную роль [`backend/apps/users/services/price_type_role.py:47`](../../../backend/apps/users/services/price_type_role.py#L47) — **закрыто 2026-08-05** (решение Alex: «загрузчик + нормализация в форме»). `load_price_type_role_map()` выявляет регистровых двойников с расходящимися ролями и исключает такой GUID из маппинга целиком — резолвер отвечает по нему `unknown_price_type`, роль не применяется. `PriceTypeAdminForm.clean_onec_id()` приводит GUID к нижнему регистру и отвергает ввод, если запись с тем же GUID в другом регистре уже есть. Существующие данные не мигрируются (схемных и data-миграций не добавлено). 4 новых теста.
+- [x] [AI-Review][Low] Reverse-миграция не различает роль миграции и такую же ручную роль [`backend/apps/products/migrations/0054_price_type_user_role.py:62`](../../../backend/apps/products/migrations/0054_price_type_user_role.py#L62) — **закрыто 2026-08-05** (решение Alex: «явно ослабить контракт + тест»). Поведение оставлено прежним, ограничение зафиксировано в docstring `clear_user_roles()` и характеризующим тестом `test_clears_manual_role_that_matches_expected_value`. Хранить происхождение значения означало бы схемную миграцию, запрещённую Task 1.6.
+
 ## Dev Notes
 
 ### Что уже есть и переиспользуется (не изобретать)
@@ -492,7 +497,22 @@ claude-opus-5 (Claude Code, dev-story workflow)
 | Полный набор `pytest -q` (без `-m`) | 2837 passed, 10 failed, 24 skipped (28:39) |
 | Перепроверка 10 падений после копирования снимка 1С | 12 passed (8:30) |
 
-**Разбор 10 падений полного прогона.** Все десять — в `tests/integration/test_management_commands/test_import_customers.py`,
+**Прогон закрытия review-находок (2026-08-05, основной клон `C:\Users\1\DEV\FREESPORT`, ветка `feature/40-2-review-findings`).**
+В отличие от первой итерации работа шла в основном клоне, а не в worktree, поэтому снимки 1С из `data/import_1c/` на месте
+и полный набор проходит без падений импорта контрагентов.
+
+| Прогон | Результат |
+|---|---|
+| RED: новые тесты до правок кода | 4 failed, 60 passed — ровно ожидаемые: 2 на коллизию GUID в резолвере, 2 на нормализацию GUID в форме |
+| GREEN: `test_price_type_role.py` + `test_products_admin.py` + `test_migration_price_type_user_role.py` | 64 passed |
+| Регресс: `test_order_export_service`, `test_settings_onec`, `test_price_logic`, `test_onec_export`, `test_clear_catalog` | 139 passed |
+| `manage.py makemigrations --check --dry-run` | `No changes detected`, exit 0 |
+| `black --check` / `flake8 apps/users/ apps/products/ tests/unit/` | 6 files unchanged / exit 0 |
+| `npx gitnexus detect-changes --scope all` | risk **low**, 0 затронутых процессов, 3 символа — все в `price_type_role.py`. `_get_price_type` в списке нет |
+| `git diff HEAD -- backend/apps/orders/services/order_export.py` | 0 строк — AC14 держится |
+| Полный набор `pytest -q` (без `-m`, чтобы обойти пробел в маркерах) | **2938 passed, 6 skipped, 0 failed**, 19 subtests (37:53) |
+
+**Разбор 10 падений полного прогона (первая итерация, worktree).** Все десять — в `tests/integration/test_management_commands/test_import_customers.py`,
 причина одна: `CommandError: Поддиректория contragents не найдена в /app/data/import_1c`. Каталог `data` в `.gitignore`,
 поэтому снимки 1С в worktree `FREESPORT-40-2` не попали. К стори отношения не имеют: 40.2 не трогает ни одного файла
 импорта контрагентов. Доказано прямо: после `cp -r` каталога `contragents/` из основного клона тот же файл даёт 12 passed.
@@ -533,7 +553,45 @@ claude-opus-5 (Claude Code, dev-story workflow)
 `scripts/inport_from_1C/clear_catalog.ps1`. Коммит не входит в объём 40.2 и не пересекается с её файлами.
 В `deferred-work.md` записаны два следствия: канарейка на пустой маппинг для стори 40.4 и разбор сломанного `.ps1`.
 
-**GitNexus.** `impact PriceType --direction upstream` → `risk: CRITICAL`, 63 зависимости, 36 прямых — предупреждение
+**Закрытие review-находок (2026-08-05).** Обе находки были помечены `[Defer]` предыдущей сессией и выполнены здесь.
+
+✅ Resolved review finding [Med]: **Case-colliding GUID дают произвольную роль.** Решение Alex — «загрузчик + нормализация
+в форме», обе половины сделаны.
+- `load_price_type_role_map()` собирает маппинг в цикле по той же единственной выборке и запоминает ключи, у которых
+  регистровые двойники несут **разные** роли; такие GUID выбрасываются из маппинга целиком. Резолвер отвечает по ним
+  `unknown_price_type` — то есть роль молча не применяется, вместо того чтобы выдать произвольную. Одинаковая роль у
+  двойников конфликтом не считается: какой бы записью GUID ни разрешился, ответ один. AC12 не нарушен — запрос
+  по-прежнему ровно один (доказано `django_assert_num_queries(1)` на данных с коллизией).
+- `PriceTypeAdminForm.clean_onec_id()` приводит GUID к нижнему регистру и отвергает ввод, если запись с тем же GUID в
+  другом регистре уже существует (`onec_id__iexact`, с исключением самой редактируемой записи по `pk`).
+- Существующие данные **не** нормализуются: data-миграция `UPDATE onec_id = lower(onec_id)` упала бы на
+  `UniqueViolation`, если коллизия в БД уже есть, а защита в загрузчике делает такую нормализацию необязательной.
+- Тестов добавлено 8: 4 в `test_price_type_role.py` (конфликт гасит только свой GUID, одинаковая роль по-прежнему
+  разрешается, однократность запроса), 4 в `test_products_admin.py` (нижний регистр, обрезка пробелов, отказ двойнику,
+  повторное сохранение той же записи).
+
+✅ Resolved review finding [Low]: **Reverse-миграция не различает роль миграции и такую же ручную роль.** Решение Alex —
+«явно ослабить контракт». Поведение `clear_user_roles()` не менялось; ограничение зафиксировано в docstring функции и
+характеризующим тестом `test_clears_manual_role_that_matches_expected_value`. Обоснование: происхождение значения хранить
+негде — поля-маркера у `PriceType` нет, заводить его означало бы схемную миграцию, прямо запрещённую Task 1.6. Цена
+ошибки мала: reverse запускается только при откате на `0053`, а повторное применение `0054` вернёт то же значение. Роль,
+**отличную** от ожидаемой, reverse по-прежнему не трогает (`test_does_not_touch_manual_role`).
+
+⚠️ **Расхождение с буквой AC2.** AC2 обещает, что `reverse` очищает `user_role` только у записей, которые заполнила эта
+миграция. Принятое решение это обещание осознанно ослабляет: без хранения происхождения отличить «поставила миграция» от
+«менеджер выставил ровно то же самое» невозможно. Текст AC не правился (раздел вне зоны правок dev-агента) — расхождение
+зафиксировано здесь и в docstring миграции для ревьюера.
+
+Две записи, заведённые предыдущей сессией в `deferred-work.md` под эти находки, удалены: работа выполнена, отложенной
+больше нет.
+
+**GitNexus (закрытие находок).** `impact load_price_type_role_map --direction upstream` → `risk: LOW`, 1 вызывающий
+(`resolve_role_from_price_types`); `impact PriceTypeAdminForm --direction upstream` → `risk: LOW`, 1 импорт (`admin.py`);
+`clear_user_roles` в графе нет — функции миграций не индексируются. `detect-changes --scope all` в основном клоне
+отработал штатно (в отличие от worktree первой итерации): `risk: low`, 0 затронутых процессов, 3 символа, все в
+`price_type_role.py`; `_get_price_type` в списке отсутствует.
+
+**GitNexus (первая итерация).** `impact PriceType --direction upstream` → `risk: CRITICAL`, 63 зависимости, 36 прямых — предупреждение
 выдано пользователю до правок. Все 63 — импорты класса; модель не менялась (доказано `makemigrations --check`), меняются
 только данные в колонке `user_role`, которую до этой стори никто не читал. Реальный blast radius нулевой.
 `detect-changes --scope all` в worktree отработать не может: индекс GitNexus лежит только в основном клоне
@@ -553,8 +611,19 @@ claude-opus-5 (Claude Code, dev-story workflow)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — UPDATE (статус стори)
 - `_bmad-output/implementation-artifacts/Story/40-2-price-type-role-mapping-and-resolver.md` — UPDATE (этот файл)
 
+Закрытие review-находок (2026-08-05) — изменены дополнительно:
+
+- `backend/apps/users/services/price_type_role.py` — UPDATE (`load_price_type_role_map`: выявление регистровых коллизий GUID)
+- `backend/apps/products/forms.py` — UPDATE (`PriceTypeAdminForm.clean_onec_id`)
+- `backend/apps/products/migrations/0054_price_type_user_role.py` — UPDATE (docstring `clear_user_roles`: ослабленный контракт reverse)
+- `backend/tests/unit/test_services/test_price_type_role.py` — UPDATE (класс `TestGuidCaseCollisions`, 4 теста)
+- `backend/tests/unit/test_admin/test_products_admin.py` — UPDATE (4 теста нормализации GUID, хелперы `_form_data`/`_create_price_type`)
+- `backend/tests/unit/test_migration_price_type_user_role.py` — UPDATE (`test_clears_manual_role_that_matches_expected_value`)
+- `_bmad-output/implementation-artifacts/deferred-work.md` — UPDATE (удалён раздел «Deferred from: code review of story 40.2» — работа выполнена)
+
 ## Change Log
 
 | Дата | Изменение |
 |---|---|
+| 2026-08-05 | Закрыты обе review-находки (2 items resolved): защита от регистровых коллизий GUID в `load_price_type_role_map()` + нормализация `onec_id` в `PriceTypeAdminForm`; контракт обратимости `0054` явно ослаблен в docstring и зафиксирован тестом. Тестов добавлено 9, всего по стори 64. Схемных миграций не добавлено (`makemigrations --check` чист). Статус: `in-progress` → `review`. |
 | 2026-08-04 | Реализована стори 40.2: data-миграция `0054` заполняет `PriceType.user_role`, справочник видов цен заведён в админку с ограничением роли по `User.ROLE_CHOICES`, добавлен модуль-резолвер `price_type_role` с пятью причинами решения и сторожем согласованности прямого/обратного маппинга. Тестов добавлено 42 (резолвер 20, миграция 12, админка 10). Статус: `ready-for-dev` → `in-progress` → `review`. |

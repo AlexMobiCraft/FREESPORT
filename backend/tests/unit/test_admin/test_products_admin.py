@@ -354,14 +354,24 @@ class TestPriceTypeAdmin(TestCase):
         self.site = AdminSite()
         self.admin = PriceTypeAdmin(PriceType, self.site)
 
-    def _form_data(self, user_role: str) -> dict:
+    GUID_OPT1 = "90d2c899-b3f2-11ea-81c3-00155d3cae02"
+
+    def _form_data(self, user_role: str, onec_id: str | None = None) -> dict:
         return {
-            "onec_id": "90d2c899-b3f2-11ea-81c3-00155d3cae02",
+            "onec_id": onec_id if onec_id is not None else self.GUID_OPT1,
             "onec_name": "Опт 1 (300-600 тыс.руб в квартал)",
             "product_field": "opt1_price",
             "user_role": user_role,
             "is_active": True,
         }
+
+    def _create_price_type(self, onec_id: str, user_role: str = "wholesale_level1") -> PriceType:
+        return PriceType.objects.create(
+            onec_id=onec_id,
+            onec_name="Опт 1 (300-600 тыс.руб в квартал)",
+            product_field="opt1_price",
+            user_role=user_role,
+        )
 
     def test_model_is_registered_in_admin(self):
         """AC3: модель зарегистрирована на стандартном сайте админки"""
@@ -423,5 +433,41 @@ class TestPriceTypeAdmin(TestCase):
 
     def test_form_accepts_empty_role(self):
         form = PriceTypeAdminForm(data=self._form_data(""))
+
+        assert form.is_valid(), form.errors
+
+    def test_form_lowercases_onec_id(self):
+        """
+        Review-находка 40.2: резолвер ищет роль по GUID в нижнем регистре.
+
+        Нормализация на записи не даёт завести регистрового двойника, из-за
+        которого роль стала бы зависеть от порядка выборки.
+        """
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level1", onec_id=self.GUID_OPT1.upper()))
+
+        assert form.is_valid(), form.errors
+        assert form.cleaned_data["onec_id"] == self.GUID_OPT1
+
+    def test_form_strips_whitespace_in_onec_id(self):
+        """GUID из 1С копируют вручную — пробелы по краям не должны сохраняться."""
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level1", onec_id=f"  {self.GUID_OPT1}  "))
+
+        assert form.is_valid(), form.errors
+        assert form.cleaned_data["onec_id"] == self.GUID_OPT1
+
+    def test_form_rejects_case_variant_of_existing_guid(self):
+        """Review-находка 40.2: двойник в другом регистре — ошибка валидации."""
+        self._create_price_type(self.GUID_OPT1)
+
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level2", onec_id=self.GUID_OPT1.upper()))
+
+        assert not form.is_valid()
+        assert "onec_id" in form.errors
+
+    def test_form_allows_resaving_the_same_record(self):
+        """Проверка дублей не должна ловить саму редактируемую запись."""
+        record = self._create_price_type(self.GUID_OPT1)
+
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level2"), instance=record)
 
         assert form.is_valid(), form.errors

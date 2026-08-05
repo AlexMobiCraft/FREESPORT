@@ -242,6 +242,59 @@ class TestPriceTypeRoleMapLoading:
         assert result.reason == REASON_UNKNOWN
 
 
+class TestGuidCaseCollisions:
+    """
+    Review-находка 40.2: ключ маппинга приводится к нижнему регистру, а
+    уникальность ``PriceType.onec_id`` в PostgreSQL регистрозависима.
+
+    Значит, две записи с одним GUID в разном регистре — легальное состояние
+    БД (данные до нормализации формы, импорт priceLists). Если роли у них
+    расходятся, победитель определялся бы порядком выборки, то есть
+    произвольно. Роль в такой ситуации не выдаётся вовсе.
+    """
+
+    def test_conflicting_roles_on_case_variants_are_not_resolved(self, clean_price_types):
+        """Расхождение ролей у регистровых двойников — роль не выдаётся."""
+        _make_price_type(GUID_OPT1, "Опт 1 (300-600 тыс.руб в квартал)", "opt1_price", "wholesale_level1")
+        _make_price_type(GUID_OPT1.upper(), "Опт 1 (двойник в верхнем регистре)", "opt2_price", "wholesale_level2")
+
+        result = resolve_role_from_price_types([GUID_OPT1])
+
+        assert result.role is None
+        assert result.reason == REASON_UNKNOWN
+        assert result.matched == []
+
+    def test_conflicting_pair_does_not_hide_other_price_types(self, clean_price_types):
+        """Конфликт гасит только свой GUID, остальной справочник работает."""
+        _make_price_type(GUID_OPT1, "Опт 1 (300-600 тыс.руб в квартал)", "opt1_price", "wholesale_level1")
+        _make_price_type(GUID_OPT1.upper(), "Опт 1 (двойник в верхнем регистре)", "opt2_price", "wholesale_level2")
+        _make_price_type(GUID_OPT2, "Опт 2 (150-300 тыс.руб в квартал)", "opt2_price", "wholesale_level2")
+
+        assert load_price_type_role_map() == {GUID_OPT2: "wholesale_level2"}
+        assert resolve_role_from_price_types([GUID_OPT2]).role == "wholesale_level2"
+
+    def test_same_role_on_case_variants_still_resolves(self, clean_price_types):
+        """
+        Одинаковая роль у двойников неоднозначности не создаёт: какой бы
+        записью ни разрешился GUID, ответ один и тот же.
+        """
+        _make_price_type(GUID_OPT1, "Опт 1 (300-600 тыс.руб в квартал)", "opt1_price", "wholesale_level1")
+        _make_price_type(GUID_OPT1.upper(), "Опт 1 (двойник в верхнем регистре)", "opt1_price", "wholesale_level1")
+
+        result = resolve_role_from_price_types([GUID_OPT1])
+
+        assert result.role == "wholesale_level1"
+        assert result.reason == REASON_RESOLVED
+
+    def test_collision_detection_keeps_single_query(self, clean_price_types, django_assert_num_queries):
+        """AC12 не нарушен: выявление конфликтов идёт по той же выборке."""
+        _make_price_type(GUID_OPT1, "Опт 1 (300-600 тыс.руб в квартал)", "opt1_price", "wholesale_level1")
+        _make_price_type(GUID_OPT1.upper(), "Опт 1 (двойник в верхнем регистре)", "opt2_price", "wholesale_level2")
+
+        with django_assert_num_queries(1):
+            load_price_type_role_map()
+
+
 class TestForwardBackwardMappingConsistency:
     """
     AC13 (FR-40-13): сторож согласованности прямого и обратного маппинга.

@@ -206,6 +206,29 @@ class TestReverseMigration:
 
         assert _role_of("Опт 3 (50-150 тыс.руб в квартал)") == "trainer"
 
+    def test_clears_manual_role_that_matches_expected_value(self):
+        """
+        Осознанно ослабленный контракт обратимости (review-находка 40.2).
+
+        Происхождение значения нигде не хранится: поля-маркера у PriceType
+        нет, а заводить его — схемная миграция, которую стори запрещает.
+        Поэтому reverse гасит и роль, выставленную менеджером вручную, если
+        она СОВПАЛА с ожидаемой. Цена ошибки мала: reverse запускается только
+        при откате на 0053, а повторное применение 0054 вернёт то же самое
+        значение. Роль, отличную от ожидаемой, reverse по-прежнему не трогает
+        (см. test_does_not_touch_manual_role).
+        """
+        _seed()
+        # Менеджер выставил ровно ту же роль руками — до прогона миграции
+        PriceType.objects.filter(onec_id=ID_BY_NAME["Опт 1 (300-600 тыс.руб в квартал)"]).update(
+            user_role="wholesale_level1"
+        )
+        _run_forward()
+
+        _run_reverse()
+
+        assert _role_of("Опт 1 (300-600 тыс.руб в квартал)") == ""
+
     def test_round_trip_keeps_record_count(self):
         _seed()
         count_before = PriceType.objects.count()
