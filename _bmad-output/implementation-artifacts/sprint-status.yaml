@@ -183,7 +183,7 @@ development_status:
   40-1-parser-price-type-and-export-regression-detector: done
   40-2-price-type-role-mapping-and-resolver: done
   40-3-store-onec-price-type-id: done
-  40-4-import-applies-role-to-linked-accounts: review
+  40-4-import-applies-role-to-linked-accounts: done
   40-5-link-transfers-price-type-and-role: backlog
   epic-40-retrospective: optional
 

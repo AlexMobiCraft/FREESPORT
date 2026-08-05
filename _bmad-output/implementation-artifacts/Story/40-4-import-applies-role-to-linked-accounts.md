@@ -4,7 +4,7 @@ baseline_commit: c87d17b6e52e70beeb3e1f29729276f8d66749a9
 
 # Story 40.4: Импорт применяет роль привязанным аккаунтам
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
