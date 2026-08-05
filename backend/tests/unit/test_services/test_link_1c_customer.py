@@ -15,6 +15,7 @@ from unittest.mock import patch
 import pytest
 
 from apps.common.models import AuditLog
+from apps.products.models import PriceType
 from apps.users.models import Company, User
 from apps.users.services.link_1c_customer import (
     LinkCandidateError,
@@ -347,6 +348,14 @@ class TestLink1CCustomer:
         assert source.customer_code == "12345"
 
     def test_does_not_touch_identity_fields_of_target(self):
+        """
+        ⚠️ Роль здесь сохраняется не «по правилу», а по данным: с 40.5 привязка
+        выводит роль из перенесённого вида цен, а `make_1c_record` его не задаёт
+        (`onec_price_type_id=""` → резолвер отвечает `no_data` → роль не меняется).
+        Ассерт про `role` остаётся осмысленным как проверка ветки «вида цен нет»;
+        утверждения про email, password, verification_status и is_active — это
+        по-прежнему безусловный запрет спеки, ослаблять их нельзя.
+        """
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id)
         target = make_applicant(tax_id)
@@ -361,6 +370,218 @@ class TestLink1CCustomer:
         assert (linked.email, linked.role, linked.verification_status) == (email, role, status)
         assert linked.password == password
         assert linked.is_active is target.is_active
+
+
+class TestLinkAppliesPriceTypeAndRole:
+    """
+    Привязка переносит вид цен из соглашения 1С и выводит из него роль (FR-40-11).
+
+    До стори 40.5 роль приезжала только следующим обменом: менеджер связывал
+    заявку, а клиент до ближайшего импорта видел чужой уровень цен.
+    """
+
+    # GUID из реального снимка contragents_pricetype/. «Опт 4» засеян
+    # миграцией products/0053, РРЦ — нет; оба заводятся через get_or_create,
+    # потому что тестовая БД строится С миграциями (create даст duplicate key).
+    OPT4_GUID = "4c1962d2-f8ed-11eb-81f3-00155d3cae02"
+    RRP_GUID = "3d1482c4-bd77-11e4-afc8-20cf3073dde3"
+
+    @staticmethod
+    def ensure_price_type(onec_id: str, user_role: str, *, product_field: str = "opt4_price") -> PriceType:
+        """Вид цен в справочнике с нужной ролью — независимо от того, засеян он миграцией или нет."""
+        price_type, _ = PriceType.objects.get_or_create(
+            onec_id=onec_id,
+            defaults={
+                "onec_name": f"Вид цен {onec_id[:8]}",
+                "product_field": product_field,
+                "user_role": user_role,
+                "is_active": True,
+            },
+        )
+        if price_type.user_role != user_role:
+            price_type.user_role = user_role
+            price_type.save(update_fields=["user_role"])
+        return price_type
+
+    def test_transfers_price_type_and_applies_resolved_role(self):
+        """AC1, AC3, AC4: вид цен перенесён, роль выведена из него — в одной транзакции."""
+        price_type = self.ensure_price_type(self.OPT4_GUID, "wholesale_level4")
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=self.OPT4_GUID)
+        target = make_applicant(tax_id, role="wholesale_level1")
+
+        linked = link_1c_customer(
+            target_id=target.pk,
+            source_id=source.pk,
+            expected_onec_id=source.onec_id,
+        )
+
+        assert linked.onec_price_type_id == self.OPT4_GUID
+        assert linked.role == price_type.user_role == "wholesale_level4"
+        # refresh_from_db доказывает, что оба поля попали в update_fields,
+        # а не остались изменёнными только в памяти.
+        linked.refresh_from_db()
+        assert linked.onec_price_type_id == self.OPT4_GUID
+        assert linked.role == "wholesale_level4"
+
+    def test_empty_source_price_type_does_not_wipe_target(self):
+        """AC2: пустое значение источника ничего не затирает и роль не меняет."""
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id="")
+        target = make_applicant(tax_id, role="wholesale_level2")
+
+        linked = link_1c_customer(
+            target_id=target.pk,
+            source_id=source.pk,
+            expected_onec_id=source.onec_id,
+        )
+
+        linked.refresh_from_db()
+        assert linked.onec_price_type_id == ""
+        assert linked.role == "wholesale_level2"
+        assert linked.onec_id is not None
+
+    def test_unknown_price_type_transfers_field_but_keeps_role(self):
+        """
+        AC5: GUID неизвестен справочнику → роль не меняется, но вид цен перенесён.
+
+        Перенос и применение роли независимы: менеджер должен видеть в карточке,
+        какой вид цен пришёл из 1С, даже если справочник его ещё не знает.
+        """
+        guid = f"unknown-{uuid.uuid4()}"
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=guid)
+        target = make_applicant(tax_id, role="wholesale_level1")
+
+        linked = link_1c_customer(
+            target_id=target.pk,
+            source_id=source.pk,
+            expected_onec_id=source.onec_id,
+        )
+
+        linked.refresh_from_db()
+        assert linked.onec_price_type_id == guid
+        assert linked.role == "wholesale_level1"
+
+    def test_known_price_type_without_role_keeps_role(self):
+        """
+        AC5: вид цен известен, но роли не несёт (РРЦ, МРЦ) — та же ветка unknown_price_type.
+
+        Такие виды цен не попадают в маппинг вовсе: иначе маркетплейсы на РРЦ
+        уехали бы в retail.
+        """
+        self.ensure_price_type(self.RRP_GUID, "", product_field="rrp")
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=self.RRP_GUID)
+        target = make_applicant(tax_id, role="wholesale_level1")
+
+        linked = link_1c_customer(
+            target_id=target.pk,
+            source_id=source.pk,
+            expected_onec_id=source.onec_id,
+        )
+
+        linked.refresh_from_db()
+        assert linked.onec_price_type_id == self.RRP_GUID
+        assert linked.role == "wholesale_level1"
+
+    def test_non_b2b_resolved_role_is_not_applied(self):
+        """
+        AC6: не-B2B роль из справочника не применяется, привязка при этом выполняется.
+
+        Сценарий реален: PriceTypeAdminForm предлагает менеджеру весь
+        ROLE_CHOICES. Применённый retail выбил бы аккаунт из link_target_q(),
+        is_b2b_user и всех B2B-сценариев разом.
+        """
+        price_type = self.ensure_price_type(f"retail-{uuid.uuid4()}", "retail", product_field="retail_price")
+        assert price_type.user_role not in User.B2B_ROLES
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=price_type.onec_id)
+        target = make_applicant(tax_id, role="wholesale_level1")
+
+        linked = link_1c_customer(
+            target_id=target.pk,
+            source_id=source.pk,
+            expected_onec_id=source.onec_id,
+        )
+
+        linked.refresh_from_db()
+        assert linked.role == "wholesale_level1"
+        assert linked.onec_price_type_id == price_type.onec_id
+        assert linked.onec_id is not None
+
+    def test_audit_log_records_role_change_and_previous_values(self):
+        """AC7, AC8, AC9: смена роли и перенос вида цен попадают в журнал вместе с «что было»."""
+        self.ensure_price_type(self.OPT4_GUID, "wholesale_level4")
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=self.OPT4_GUID)
+        target = make_applicant(tax_id, role="wholesale_level1")
+
+        link_1c_customer(
+            target_id=target.pk,
+            source_id=source.pk,
+            expected_onec_id=source.onec_id,
+        )
+
+        changes = AuditLog.objects.get(action="link_1c_customer").changes
+        assert "role" in changes["transferred_fields"]
+        assert "onec_price_type_id" in changes["transferred_fields"]
+        assert changes["previous_values"]["role"] == "wholesale_level1"
+        assert changes["previous_values"]["onec_price_type_id"] == ""
+
+    def test_unchanged_role_is_not_listed_as_transferred(self):
+        """
+        AC7: список перенесённых полей отражает реальные изменения.
+
+        Прежняя роль при этом всё равно записана: previous_values пишется
+        безусловно — привязка необратима.
+        """
+        self.ensure_price_type(self.OPT4_GUID, "wholesale_level4")
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=self.OPT4_GUID)
+        target = make_applicant(tax_id, role="wholesale_level4")
+
+        link_1c_customer(
+            target_id=target.pk,
+            source_id=source.pk,
+            expected_onec_id=source.onec_id,
+        )
+
+        changes = AuditLog.objects.get(action="link_1c_customer").changes
+        assert "role" not in changes["transferred_fields"]
+        assert "onec_price_type_id" in changes["transferred_fields"]
+        assert changes["previous_values"]["role"] == "wholesale_level4"
+
+    def test_failure_after_role_applied_rolls_back_everything(self):
+        """
+        AC11: сбой после применения роли откатывает и роль, и вид цен.
+
+        Частичное состояние здесь опаснее отказа: у цели была бы роль из 1С
+        без идентификаторов, а у источника — идентификаторы при is_active=False.
+        """
+        self.ensure_price_type(self.OPT4_GUID, "wholesale_level4")
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id, onec_price_type_id=self.OPT4_GUID)
+        target = make_applicant(tax_id, role="wholesale_level1")
+        onec_id = source.onec_id
+
+        with patch(
+            "apps.users.services.link_1c_customer.AuditLog.log_action",
+            side_effect=RuntimeError("сбой на последнем шаге"),
+        ):
+            with pytest.raises(RuntimeError):
+                link_1c_customer(
+                    target_id=target.pk,
+                    source_id=source.pk,
+                    expected_onec_id=onec_id,
+                )
+
+        target.refresh_from_db()
+        source.refresh_from_db()
+        assert target.role == "wholesale_level1"
+        assert target.onec_price_type_id == ""
+        assert source.onec_id == onec_id
+        assert source.is_active is True
 
 
 class TestLink1CCustomerRefusals:

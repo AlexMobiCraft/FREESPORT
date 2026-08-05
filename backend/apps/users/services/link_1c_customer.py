@@ -18,13 +18,18 @@ from django.db import models, transaction
 
 from apps.common.models import AuditLog
 from apps.users.models import Company, User, matches_q
+from apps.users.services.price_type_role import resolve_role_from_price_types
 
 logger = logging.getLogger(__name__)
 
 # Поля User, переносимые с контрагента 1С на аккаунт заявителя.
-# email, password, role, verification_status и is_active не переносятся
-# намеренно: email — логин заявителя, role — выданный менеджером уровень цен.
-TRANSFERRED_USER_FIELDS = ("onec_id", "onec_guid", "company_name", "tax_id")
+# email, password, verification_status и is_active не переносятся намеренно:
+# email — логин заявителя. role не переносится тоже, но по другой причине:
+# у записи 1С она всегда unregistered, а роль аккаунта ВЫВОДИТСЯ из
+# перенесённого вида цен через resolve_role_from_price_types (FR-40-11).
+# Кортеж документирует поведение и переносом не управляет — фактический
+# список полей собирается ниже по факту изменения значений.
+TRANSFERRED_USER_FIELDS = ("onec_id", "onec_guid", "company_name", "tax_id", "onec_price_type_id")
 
 # Поля Company, заполняемые импортом 1С (_create_or_update_company).
 TRANSFERRED_COMPANY_FIELDS = ("legal_name", "tax_id", "kpp", "legal_address")
@@ -108,6 +113,14 @@ def link_1c_customer(
     """
     Переносит идентификаторы и реквизиты с контрагента 1С на аккаунт заявителя.
 
+    Вместе с реквизитами переносится вид цен из соглашения 1С
+    (`onec_price_type_id`), а роль аккаунта ВЫВОДИТСЯ из него справочником
+    `PriceType.user_role` — сама роль не переносится: у записи 1С она всегда
+    `unregistered` (FR-40-11). Клиент видит свои цены с первого входа, не
+    дожидаясь ближайшего обмена. Роль меняется только когда вид цен разрешился
+    в B2B-роль; отсутствие вида цен, неизвестный GUID и не-B2B роль привязку
+    не отменяют — она выполняется, роль остаётся прежней.
+
     Принимает id, а не инстансы: объекты, прочитанные до транзакции, устарели
     по определению — актуальные строки берутся уже под select_for_update().
 
@@ -181,6 +194,10 @@ def link_1c_customer(
             "company_name": target.company_name,
             "tax_id": target.tax_id,
             "customer_code": target.customer_code,
+            # Прежняя роль и вид цен пишутся безусловно — как три ключа выше:
+            # привязка необратима, и разбор ошибочного случая строится на «что было».
+            "role": target.role,
+            "onec_price_type_id": target.onec_price_type_id,
         }
         transferred: list[str] = ["onec_id", "onec_guid"]
 
@@ -219,6 +236,29 @@ def link_1c_customer(
             target.customer_code = customer_code
             target_fields.append("customer_code")
             transferred.append("customer_code")
+
+        # Вид цен переносится по тому же правилу, что и прочие реквизиты:
+        # пустое значение источника ничего не затирает (привязка необратима).
+        if source.onec_price_type_id and source.onec_price_type_id != target.onec_price_type_id:
+            target.onec_price_type_id = source.onec_price_type_id
+            target_fields.append("onec_price_type_id")
+            transferred.append("onec_price_type_id")
+
+        # Роль не переносится, а выводится: у записи 1С она всегда
+        # unregistered (§5 задания). Источник GUID — именно source: при
+        # пустом значении источника поле цели не менялось (правило выше).
+        # Статус соглашения на портале не хранится — параметр не передаётся.
+        resolution = resolve_role_from_price_types([source.onec_price_type_id or ""])
+        # Проверять role is None, а не reason: перечисление причин сломалось
+        # бы молча, если резолвер заведёт шестую.
+        if resolution.role is not None and resolution.role != target.role:
+            # Вид цен, дающий не-B2B роль, применять нельзя: PriceTypeAdminForm
+            # предлагает менеджеру весь ROLE_CHOICES, а retail/admin выбили бы
+            # аккаунт из link_target_q(), is_b2b_user и B2B-сценариев целиком.
+            if resolution.role in User.B2B_ROLES:
+                target.role = resolution.role
+                target_fields.append("role")
+                transferred.append("role")
         target.save(update_fields=target_fields)
 
         company_fields, company_previous = _transfer_company(source, target)
@@ -248,10 +288,11 @@ def link_1c_customer(
         )
 
     logger.info(
-        "Заявка %s связана с контрагентом 1С %s (onec_id=%s), исходная запись деактивирована",
+        "Заявка %s связана с контрагентом 1С %s (onec_id=%s), исходная запись деактивирована, роль=%s",
         target.pk,
         source.pk,
         onec_id,
+        target.role,
     )
     return target
 

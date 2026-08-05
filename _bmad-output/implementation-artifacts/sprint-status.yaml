@@ -74,6 +74,10 @@ last_updated: "2026-08-05"
 #             выгрузка с прода) НЕ проверен — патч БУС 2-й редакции на прод не
 #             перенесён. Решение Alex: закрыть стори без AC1, долг записан в
 #             deferred-work.md и в action_items ниже (пункт CP-4a).
+# 2026-08-05: Story 40.5 реализована, ready-for-dev -> review. Привязка переносит
+#             вид цен и выводит из него роль (FR-40-11). Заведён пункт выката
+#             в action_items (пересекается по смыслу с CP-5 эпика 39 — решение
+#             о схлопывании за Alex).
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -184,7 +188,7 @@ development_status:
   40-2-price-type-role-mapping-and-resolver: done
   40-3-store-onec-price-type-id: done
   40-4-import-applies-role-to-linked-accounts: done
-  40-5-link-transfers-price-type-and-role: backlog
+  40-5-link-transfers-price-type-and-role: review
   epic-40-retrospective: optional
 
 # ========================================
@@ -221,6 +225,12 @@ action_items:
     status: open
   - epic: 39
     action: "CP-5: ручная привязка тестового аккаунта к контрагенту с известным видом цен — без неё критерии приёмки #1-#3 эпика 40 непроверяемы"
+    owner: "Alex"
+    status: open
+  # Заведён стори 40.5 (AC13). Пересекается с CP-5 выше: тот же шаг, но записан
+  # за эпиком 40 — теперь у него есть код, который этим шагом и проверяется.
+  - epic: 40
+    action: "Выкат: вручную привязать тестовый аккаунт к контрагенту 1С с известным видом цен — без этого критерии приёмки #1-#3 задания непроверяемы (живых привязанных клиентских аккаунтов на проде нет)"
     owner: "Alex"
     status: open
   # --- Процесс ---
