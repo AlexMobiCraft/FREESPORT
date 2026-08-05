@@ -284,6 +284,17 @@ class User(AbstractUser):
         unique=True,
         help_text="Уникальный GUID клиента в 1С",
     )
+    onec_price_type_id = models.CharField(
+        "GUID вида цен в 1С",
+        max_length=100,
+        blank=True,
+        default="",
+        help_text=(
+            "Вид цен из соглашения об условиях продаж (реквизит ТипЦенId выгрузки "
+            "контрагентов). Заполняется импортом 1С; роль портала по нему выдаётся "
+            "отдельно. Пустое значение означает «соглашения нет» либо «GUID неоднозначен»."
+        ),
+    )
     sync_status = models.CharField(
         "Статус синхронизации",
         max_length=20,

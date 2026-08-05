@@ -4,7 +4,7 @@ baseline_commit: f8c905a738ab8a7f0ba507abc8f0947397a3f141
 
 # Story 40.3: Портал хранит вид цен из 1С, роли не трогая
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -46,62 +46,62 @@ so that **к моменту выката 40.4 данные уже были на�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Поле модели и миграция** (AC: 1, 12)
-  - [ ] 1.1: Добавить `onec_price_type_id` в `User` (`backend/apps/users/models.py`) сразу **после** `onec_guid` (`models.py:280-286`) — точный код в Dev Notes. Комментарии и `help_text` на русском
-  - [ ] 1.2: Создать схемную миграцию: `python manage.py makemigrations users --name add_user_onec_price_type_id` → ожидаемое имя `apps/users/migrations/0021_add_user_onec_price_type_id.py`, зависимость `("users", "0020_add_wholesale_level4_role")`
-  - [ ] 1.3: Применить миграцию в Docker на PostgreSQL, убедиться, что `makemigrations --check --dry-run` после этого чист
-  - [ ] 1.4: НЕ добавлять `null=True` — у `CharField` это дало бы третье состояние «NULL vs пустая строка» при одинаковом смысле; `""` — единственное «значения нет» (см. Dev Notes → «Почему не null и не unique»)
-  - [ ] 1.5: НЕ добавлять поле в `UserSerializer` и прочие сериализаторы (`apps/users/serializers.py`) — AC12. В `apps/users/serializers.py` все `Meta.fields` заданы явными списками, поэтому поле не протечёт само; проверить это глазами, а не полагаться на догадку
+- [x] **Task 1: Поле модели и миграция** (AC: 1, 12)
+  - [x] 1.1: Добавить `onec_price_type_id` в `User` (`backend/apps/users/models.py`) сразу **после** `onec_guid` (`models.py:280-286`) — точный код в Dev Notes. Комментарии и `help_text` на русском
+  - [x] 1.2: Создать схемную миграцию: `python manage.py makemigrations users --name add_user_onec_price_type_id` → ожидаемое имя `apps/users/migrations/0021_add_user_onec_price_type_id.py`, зависимость `("users", "0020_add_wholesale_level4_role")`
+  - [x] 1.3: Применить миграцию в Docker на PostgreSQL, убедиться, что `makemigrations --check --dry-run` после этого чист
+  - [x] 1.4: НЕ добавлять `null=True` — у `CharField` это дало бы третье состояние «NULL vs пустая строка» при одинаковом смысле; `""` — единственное «значения нет» (см. Dev Notes → «Почему не null и не unique»)
+  - [x] 1.5: НЕ добавлять поле в `UserSerializer` и прочие сериализаторы (`apps/users/serializers.py`) — AC12. В `apps/users/serializers.py` все `Meta.fields` заданы явными списками, поэтому поле не протечёт само; проверить это глазами, а не полагаться на догадку
 
-- [ ] **Task 2: Запись вида цен в процессоре** (AC: 2, 3, 4, 5, 6, 9)
-  - [ ] 2.1: Добавить в `CustomerDataProcessor` приватный метод `_price_type_id_to_store(customer_data, current) -> str` (полный код — в Dev Notes). Разместить рядом с `_normalize_phone` (`processor.py:302`)
-  - [ ] 2.2: Импортировать `AGREEMENT_STATUS_NONE` из `apps.users.services.price_type_role` (модульный импорт безопасен — цикла нет, см. Dev Notes → «Импорт константы»). Литерал `"НетСоглашения"` в `processor.py` **не дублировать**
-  - [ ] 2.3: В `_create_customer` (`processor.py:371-383`) добавить `onec_price_type_id=self._price_type_id_to_store(customer_data, "")` в вызов `User.objects.create(...)`
-  - [ ] 2.4: В `_update_customer` (перед `user.save()`, `processor.py:419-422`) добавить `user.onec_price_type_id = self._price_type_id_to_store(customer_data, user.onec_price_type_id)`
-  - [ ] 2.5: Роль **не трогать**: `_update_customer` по-прежнему не присваивает `user.role`, `role_preserved: True` в `_log_operation` (`processor.py:141-142`) остаётся как есть — его снимает стори 40.4
-  - [ ] 2.6: НЕ вызывать `resolve_role_from_price_types` и НЕ читать справочник `PriceType` из процессора — см. Dev Notes → «Почему резолвер здесь не нужен»
-  - [ ] 2.7: НЕ добавлять счётчики `roles_*` в `stats` — это 40.4. Счётчики `attributes_block_present` / `attributes_block_missing` из 40.1 не менять
-  - [ ] 2.8: Обновить docstring `_update_customer` (`processor.py:394-406`): роль по-прежнему не обновляется, а вид цен — обновляется всегда
+- [x] **Task 2: Запись вида цен в процессоре** (AC: 2, 3, 4, 5, 6, 9)
+  - [x] 2.1: Добавить в `CustomerDataProcessor` приватный метод `_price_type_id_to_store(customer_data, current) -> str` (полный код — в Dev Notes). Разместить рядом с `_normalize_phone` (`processor.py:302`)
+  - [x] 2.2: Импортировать `AGREEMENT_STATUS_NONE` из `apps.users.services.price_type_role` (модульный импорт безопасен — цикла нет, см. Dev Notes → «Импорт константы»). Литерал `"НетСоглашения"` в `processor.py` **не дублировать**
+  - [x] 2.3: В `_create_customer` (`processor.py:371-383`) добавить `onec_price_type_id=self._price_type_id_to_store(customer_data, "")` в вызов `User.objects.create(...)`
+  - [x] 2.4: В `_update_customer` (перед `user.save()`, `processor.py:419-422`) добавить `user.onec_price_type_id = self._price_type_id_to_store(customer_data, user.onec_price_type_id)`
+  - [x] 2.5: Роль **не трогать**: `_update_customer` по-прежнему не присваивает `user.role`, `role_preserved: True` в `_log_operation` (`processor.py:141-142`) остаётся как есть — его снимает стори 40.4
+  - [x] 2.6: НЕ вызывать `resolve_role_from_price_types` и НЕ читать справочник `PriceType` из процессора — см. Dev Notes → «Почему резолвер здесь не нужен»
+  - [x] 2.7: НЕ добавлять счётчики `roles_*` в `stats` — это 40.4. Счётчики `attributes_block_present` / `attributes_block_missing` из 40.1 не менять
+  - [x] 2.8: Обновить docstring `_update_customer` (`processor.py:394-406`): роль по-прежнему не обновляется, а вид цен — обновляется всегда
 
-- [ ] **Task 3: Отображение вида цен в админке** (AC: 7, 8)
-  - [ ] 3.1: Добавить display-метод `onec_price_type_name` в `UserAdmin` (`backend/apps/users/admin.py`) рядом с `onec_link_candidates` (`admin.py:357`) — точный код в Dev Notes. Импорт `PriceType` — **локальный, внутри метода**
-  - [ ] 3.2: Добавить `"onec_price_type_id"` и `"onec_price_type_name"` в `readonly_fields` (`admin.py:196-205`), после `"onec_guid"`
-  - [ ] 3.3: Добавить оба поля в fieldset «Интеграция с 1С» (`admin.py:257-273`), после `"onec_guid"` и **до** `"onec_link_candidates"`
-  - [ ] 3.4: НЕ добавлять поля в `list_display` и `search_fields` — GUID в списке пользователей не читаем и не ищется; `test_search_fields` (`tests/unit/test_users_admin.py:111`) сверяет список точным равенством и покраснеет
-  - [ ] 3.5: НЕ трогать `get_fieldsets` (`admin.py:333`) — он вырезает только `onec_link_candidates`, новые поля проходят насквозь
+- [x] **Task 3: Отображение вида цен в админке** (AC: 7, 8)
+  - [x] 3.1: Добавить display-метод `onec_price_type_name` в `UserAdmin` (`backend/apps/users/admin.py`) рядом с `onec_link_candidates` (`admin.py:357`) — точный код в Dev Notes. Импорт `PriceType` — **локальный, внутри метода**
+  - [x] 3.2: Добавить `"onec_price_type_id"` и `"onec_price_type_name"` в `readonly_fields` (`admin.py:196-205`), после `"onec_guid"`
+  - [x] 3.3: Добавить оба поля в fieldset «Интеграция с 1С» (`admin.py:257-273`), после `"onec_guid"` и **до** `"onec_link_candidates"`
+  - [x] 3.4: НЕ добавлять поля в `list_display` и `search_fields` — GUID в списке пользователей не читаем и не ищется; `test_search_fields` (`tests/unit/test_users_admin.py:111`) сверяет список точным равенством и покраснеет
+  - [x] 3.5: НЕ трогать `get_fieldsets` (`admin.py:333`) — он вырезает только `onec_link_candidates`, новые поля проходят насквозь
 
-- [ ] **Task 4: Тесты процессора** (AC: 2, 3, 4, 5, 6, 9, 11)
-  - [ ] 4.1: Дописать класс `TestCustomerPriceTypeStorage` в `backend/tests/unit/test_services/test_customer_processor.py` с декораторами `@pytest.mark.django_db`. ⚠️ Фикстуры `session` и `processor` объявлены **методами класса** `TestCustomerDataProcessor` (`test_customer_processor.py:26-38`), а не на уровне модуля — новому классу они не видны. Продублировать их в новом классе (4 строки) либо вынести на уровень модуля; второй вариант затрагивает существующий класс, поэтому предпочтителен первый
-  - [ ] 4.2: Тест AC2: создание контрагента с одним GUID → `onec_price_type_id == guid`, `role == "unregistered"`
-  - [ ] 4.3: Тест AC3: обновление существующей записи → GUID записан; отдельный случай — **привязанный** аккаунт (`created_in_1c=False` или роль не `unregistered`) тоже получает GUID
-  - [ ] 4.4: Тест AC3 (GUID вне справочника): GUID, которого нет в `PriceType`, всё равно записан — справочник процессором не читается
-  - [ ] 4.5: Тест AC4: у записи было значение, приходит `agreement_status="НетСоглашения"` → поле стало `""`
-  - [ ] 4.6: Тест AC5: у записи было значение, приходит `price_type_ids=[]` и `agreement_status=""` → значение сохранилось
-  - [ ] 4.7: Тест AC6: два разных GUID → значение не изменилось (проверить оба случая: было пусто → осталось пусто; было значение → осталось прежним)
-  - [ ] 4.8: Тест AC9: два прогона `process_customer` на одних данных → значение то же, число `CustomerSyncLog` выросло ровно на ожидаемое (по одной записи на прогон), `AuditLog` не создан
-  - [ ] 4.9: Данные для тестов этого класса собираются из **реальной выгрузки** через `CustomerDataParser` (фикстуры — в Dev Notes → «Откуда брать данные в unit-тестах»), а не из вручную набранных словарей с выдуманными GUID
+- [x] **Task 4: Тесты процессора** (AC: 2, 3, 4, 5, 6, 9, 11)
+  - [x] 4.1: Дописать класс `TestCustomerPriceTypeStorage` в `backend/tests/unit/test_services/test_customer_processor.py` с декораторами `@pytest.mark.django_db`. ⚠️ Фикстуры `session` и `processor` объявлены **методами класса** `TestCustomerDataProcessor` (`test_customer_processor.py:26-38`), а не на уровне модуля — новому классу они не видны. Продублировать их в новом классе (4 строки) либо вынести на уровень модуля; второй вариант затрагивает существующий класс, поэтому предпочтителен первый
+  - [x] 4.2: Тест AC2: создание контрагента с одним GUID → `onec_price_type_id == guid`, `role == "unregistered"`
+  - [x] 4.3: Тест AC3: обновление существующей записи → GUID записан; отдельный случай — **привязанный** аккаунт (`created_in_1c=False` или роль не `unregistered`) тоже получает GUID
+  - [x] 4.4: Тест AC3 (GUID вне справочника): GUID, которого нет в `PriceType`, всё равно записан — справочник процессором не читается
+  - [x] 4.5: Тест AC4: у записи было значение, приходит `agreement_status="НетСоглашения"` → поле стало `""`
+  - [x] 4.6: Тест AC5: у записи было значение, приходит `price_type_ids=[]` и `agreement_status=""` → значение сохранилось
+  - [x] 4.7: Тест AC6: два разных GUID → значение не изменилось (проверить оба случая: было пусто → осталось пусто; было значение → осталось прежним)
+  - [x] 4.8: Тест AC9: два прогона `process_customer` на одних данных → значение то же, число `CustomerSyncLog` выросло ровно на ожидаемое (по одной записи на прогон), `AuditLog` не создан
+  - [x] 4.9: Данные для тестов этого класса собираются из **реальной выгрузки** через `CustomerDataParser` (фикстуры — в Dev Notes → «Откуда брать данные в unit-тестах»), а не из вручную набранных словарей с выдуманными GUID
 
-- [ ] **Task 5: Тест админки** (AC: 7, 8, 11)
-  - [ ] 5.1: Дописать тесты в `backend/tests/unit/test_users_admin.py`, класс `TestUserAdmin` или новый `TestUserAdminPriceType` (файл на `TestCase` + `pytestmark = pytest.mark.unit`)
-  - [ ] 5.2: Тест AC7: `onec_price_type_id` и `onec_price_type_name` присутствуют в fieldset «Интеграция с 1С» и в `readonly_fields`
-  - [ ] 5.3: Тест AC8: пользователь с GUID, для которого создана запись `PriceType` → метод возвращает `onec_name`; пустой GUID → `—`; GUID вне справочника → `—`; GUID в другом регистре, чем в справочнике → `onec_name` (регистронезависимость)
-  - [ ] 5.4: ⚠️ **Обновить существующий `test_readonly_fields`** (`tests/unit/test_users_admin.py:124-136`): он сверяет `readonly_fields` **точным равенством списка** и упадёт от Task 3.2. Это ожидаемая правка теста, а не поломка — см. Dev Notes → «Мина: тесты со строгим равенством»
-  - [ ] 5.5: `test_fieldsets_structure` (`test_users_admin.py:512`) проверяет только число секций (6) и их названия — правки не требует; убедиться прогоном
+- [x] **Task 5: Тест админки** (AC: 7, 8, 11)
+  - [x] 5.1: Дописать тесты в `backend/tests/unit/test_users_admin.py`, класс `TestUserAdmin` или новый `TestUserAdminPriceType` (файл на `TestCase` + `pytestmark = pytest.mark.unit`)
+  - [x] 5.2: Тест AC7: `onec_price_type_id` и `onec_price_type_name` присутствуют в fieldset «Интеграция с 1С» и в `readonly_fields`
+  - [x] 5.3: Тест AC8: пользователь с GUID, для которого создана запись `PriceType` → метод возвращает `onec_name`; пустой GUID → `—`; GUID вне справочника → `—`; GUID в другом регистре, чем в справочнике → `onec_name` (регистронезависимость)
+  - [x] 5.4: ⚠️ **Обновить существующий `test_readonly_fields`** (`tests/unit/test_users_admin.py:124-136`): он сверяет `readonly_fields` **точным равенством списка** и упадёт от Task 3.2. Это ожидаемая правка теста, а не поломка — см. Dev Notes → «Мина: тесты со строгим равенством»
+  - [x] 5.5: `test_fieldsets_structure` (`test_users_admin.py:512`) проверяет только число секций (6) и их названия — правки не требует; убедиться прогоном
 
-- [ ] **Task 6: Интеграционный тест на реальной выгрузке** (AC: 10, 11)
-  - [ ] 6.1: Создать `backend/tests/integration/test_import_customers_price_type.py`, маркеры: каталог даёт `integration` автоматически, добавить `@pytest.mark.data_dependent` и `@pytest.mark.django_db`
-  - [ ] 6.2: Тест AC10: прогнать `call_command("import_customers_from_1c", data_dir=<tmp>)` **дважды**; снять `{onec_id: role}` до второго прогона и после → словари равны. Один файл снимка, не весь (см. Dev Notes → «Мина: объём данных»)
-  - [ ] 6.3: Тест «поле реально заполняется на живых данных»: после прогона существует хотя бы один `User` с непустым `onec_price_type_id`, и все непустые значения — в нижнем регистре, без пробелов
-  - [ ] 6.4: Тест AC4 на реальных данных: у контрагента со статусом `НетСоглашения` после прогона `onec_price_type_id == ""`
-  - [ ] 6.5: Собирать временный каталог по образцу `tests/integration/test_customers_price_type_detector.py` (40.1): команда требует подкаталог именно **`contragents/`**
+- [x] **Task 6: Интеграционный тест на реальной выгрузке** (AC: 10, 11)
+  - [x] 6.1: Создать `backend/tests/integration/test_import_customers_price_type.py`, маркеры: каталог даёт `integration` автоматически, добавить `@pytest.mark.data_dependent` и `@pytest.mark.django_db`
+  - [x] 6.2: Тест AC10: прогнать `call_command("import_customers_from_1c", data_dir=<tmp>)` **дважды**; снять `{onec_id: role}` до второго прогона и после → словари равны. Один файл снимка, не весь (см. Dev Notes → «Мина: объём данных»)
+  - [x] 6.3: Тест «поле реально заполняется на живых данных»: после прогона существует хотя бы один `User` с непустым `onec_price_type_id`, и все непустые значения — в нижнем регистре, без пробелов
+  - [x] 6.4: Тест AC4 на реальных данных: у контрагента со статусом `НетСоглашения` после прогона `onec_price_type_id == ""`
+  - [x] 6.5: Собирать временный каталог по образцу `tests/integration/test_customers_price_type_detector.py` (40.1): команда требует подкаталог именно **`contragents/`**
 
-- [ ] **Task 7: Прогон, регресс, линтеры, pre-commit** (AC: 11, 12)
-  - [ ] 7.1: Прогон новых тестов в тест-контейнере (команда — в Dev Notes → «Тестирование: как запускать»)
-  - [ ] 7.2: Регресс: `tests/unit/test_services/test_customer_processor.py`, `tests/unit/test_users_admin.py`, `tests/unit/test_services/test_customer_parser.py`, `tests/integration/test_customers_price_type_detector.py`, `tests/integration/test_management_commands/test_import_customers.py`, `tests/integration/test_link_then_import_1c.py`, `tests/unit/test_services/test_link_1c_customer.py`
-  - [ ] 7.3: `manage.py makemigrations --check --dry-run` → `No changes detected` (доказывает, что кроме `0021` модель не менялась)
-  - [ ] 7.4: `black` + `flake8` на изменённых файлах
-  - [ ] 7.5: `git diff HEAD --stat` — убедиться, что `apps/users/services/price_type_role.py`, `apps/users/services/link_1c_customer.py`, `apps/users/serializers.py`, `docs/api/openapi.yaml` и `frontend/` в диффе отсутствуют (AC12)
-  - [ ] 7.6: `npx gitnexus detect-changes --scope all` — ожидаемые символы: `_create_customer`, `_update_customer`, новый `_price_type_id_to_store`, `UserAdmin`. Выполнять из основного клона
+- [x] **Task 7: Прогон, регресс, линтеры, pre-commit** (AC: 11, 12)
+  - [x] 7.1: Прогон новых тестов в тест-контейнере (команда — в Dev Notes → «Тестирование: как запускать»)
+  - [x] 7.2: Регресс: `tests/unit/test_services/test_customer_processor.py`, `tests/unit/test_users_admin.py`, `tests/unit/test_services/test_customer_parser.py`, `tests/integration/test_customers_price_type_detector.py`, `tests/integration/test_management_commands/test_import_customers.py`, `tests/integration/test_link_then_import_1c.py`, `tests/unit/test_services/test_link_1c_customer.py`
+  - [x] 7.3: `manage.py makemigrations --check --dry-run` → `No changes detected` (доказывает, что кроме `0021` модель не менялась)
+  - [x] 7.4: `black` + `flake8` на изменённых файлах
+  - [x] 7.5: `git diff HEAD --stat` — убедиться, что `apps/users/services/price_type_role.py`, `apps/users/services/link_1c_customer.py`, `apps/users/serializers.py`, `docs/api/openapi.yaml` и `frontend/` в диффе отсутствуют (AC12)
+  - [x] 7.6: `npx gitnexus detect-changes --scope all` — ожидаемые символы: `_create_customer`, `_update_customer`, новый `_price_type_id_to_store`, `UserAdmin`. Выполнять из основного клона
 
 ## Dev Notes
 
@@ -439,8 +439,98 @@ docker compose --env-file .env -f docker/docker-compose.yml exec -T backend flak
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, workflow `bmad-dev-story`)
+
 ### Debug Log References
+
+Pre-flight GitNexus (индекс актуален, коммит `01737c5`):
+
+- `npx gitnexus impact _create_customer --direction upstream` → `risk: LOW`, 3 затронутых символа
+- `npx gitnexus impact _update_customer --direction upstream` → `risk: LOW`, 3 затронутых символа
+- Цепочка одна и та же: `process_customer` → `process_customers` → `Command.handle`; затронутых процессов 0
+
+Проверка красной фазы (Task 4): две строки присваивания в `_create_customer` / `_update_customer` временно
+удалялись — 5 из 8 новых тестов упали (`test_create_stores_single_price_type`,
+`test_update_stores_price_type_for_linked_account`, `test_price_type_stored_even_if_unknown_to_reference`,
+`test_no_agreement_clears_price_type`, `test_repeated_run_is_idempotent`). Три оставшихся проходят и без кода
+намеренно: AC5 и AC6 описывают «поле не трогаем», это охранные инварианты, а не проверка записи.
+
+Прогоны (тест-контейнер `freesport-test`, PostgreSQL):
+
+- `pytest -q tests/unit/test_services/test_customer_processor.py` → 27 passed
+- `pytest -q tests/unit/test_users_admin.py` → 43 passed
+- `pytest -q tests/integration/test_import_customers_price_type.py` → 4 passed (42 s)
+- Регресс по списку Task 7.2 (8 файлов) → 144 passed (8 m 16 s)
+- Полный набор `pytest -q` без фильтров по маркерам → **2957 passed, 6 skipped, 0 failed** (32 m 51 s).
+  Прогон без `-m` намеренный: маркер-фильтры CI оставляют часть тестов вне гейтов
+
+Прочее:
+
+- `manage.py makemigrations --check --dry-run` → `No changes detected`
+- `black` переформатировал `processor.py` и `test_import_customers_price_type.py` (только длина строк)
+- `flake8 apps/users/ <новые тесты>` → exit 0
+- `npx gitnexus detect-changes --scope all` → 8 файлов, 23 символа, affected processes 0, risk low; вне
+  `apps/users/**` затронуты только `AGENTS.md` / `CLAUDE.md`, изменённые до старта стори
+- `pytest --timeout=...` в проекте не работает: плагин `pytest-timeout` не установлен
 
 ### Completion Notes List
 
+**Что сделано.** Портал начал накапливать вид цен из 1С, роль не трогая:
+
+1. **Модель.** `User.onec_price_type_id` — `CharField(max_length=100, blank=True, default="")`, без `null`,
+   без `unique`, без индекса. Миграция `users/0021_add_user_onec_price_type_id` применена на PostgreSQL.
+2. **Процессор.** Приватный метод `CustomerDataProcessor._price_type_id_to_store(customer_data, current)`
+   решает по сырым данным парсера: `НетСоглашения` → `""`; ровно один GUID → GUID; два и более различных
+   GUID или пусто без статуса → прежнее значение. Справочник `PriceType` процессором не читается вовсе,
+   дополнительных SQL-запросов на контрагента нет (NFR-3940-09 выполняется автоматически).
+   Встраивание — две строки: в `User.objects.create(...)` и перед `user.save()`.
+3. **Админка.** Readonly-поля `onec_price_type_id` и display-метод `onec_price_type_name` в блоке
+   «Интеграция с 1С»; наименование ищется по `onec_id__iexact`, при пустом или неизвестном GUID — `—`.
+4. **Тесты.** 8 unit-тестов процессора на реальном снимке, 6 тестов админки, 4 интеграционных теста на
+   прогоне `import_customers_from_1c`. Обновлён `test_readonly_fields` (сверяет список точным равенством —
+   ожидаемая правка от AC7).
+
+**Роль не изменена ни в одной строке кода.** `role_preserved: True` в `_log_operation` оставлен как есть —
+его снимает стори 40.4. `resolve_role_from_price_types` не вызывается, `AuditLog` не пишется, счётчики
+`roles_*` не заводятся. Интеграционный тест `test_roles_unchanged_after_import` фиксирует это на реальной
+выгрузке: снимок `{onec_id: role}` до и после повторного прогона совпадает посимвольно.
+
+**Наблюдения, полезные для 40.4 / 40.5:**
+
+- Импорт константы `AGREEMENT_STATUS_NONE` из `apps.users.services.price_type_role` на уровне модуля
+  `processor.py` цикла не даёт — `manage.py check` чист, запасной вариант с локальным импортом не понадобился.
+- В справочнике `PriceType` миграциями засеян ровно один GUID — «Опт 4» (`4c1962d2-…`, `products/0053`).
+  Остальные GUID снимка справочнику неизвестны, поэтому реальный контрагент с «Опт 2» — готовый вход для
+  проверки «вид цен пишется в обход справочника». В тестах админки используется GUID «РРЦ»
+  (`3d1482c4-…`) через `get_or_create`, чтобы не столкнуться с `duplicate key` на «Опт 4».
+- Первый файл снимка `contragents_pricetype/` — 235 контрагентов, все покупатели: 32 с одним ТипЦенId,
+  203 со статусом `НетСоглашения`, контрагентов с двумя различными GUID нет. Случай AC6 собирается
+  вариацией входа сервиса (два GUID из того же снимка), синтетический XML не создавался.
+- Интеграционный тест выбирает файл снимка **по содержимому** (наименьший, где есть обе ветки), а не по
+  имени и не по размеру: состав пакетов меняется при каждом переснятии выгрузки.
+- Ветка стори — `feature/40-3-store-onec-price-type-id` от `01737c5`.
+
+**Границы (AC12) соблюдены.** В диффе отсутствуют `apps/users/services/price_type_role.py`,
+`apps/users/services/link_1c_customer.py`, `apps/products/**`, `apps/users/serializers.py`,
+`docs/api/openapi.yaml`, `frontend/**`. Все `Meta.fields` в `apps/users/serializers.py` заданы явными
+списками (проверено глазами) — поле в API не протекает.
+
 ### File List
+
+- `backend/apps/users/models.py` — MODIFIED: поле `User.onec_price_type_id`
+- `backend/apps/users/migrations/0021_add_user_onec_price_type_id.py` — NEW: схемная миграция
+- `backend/apps/users/services/processor.py` — MODIFIED: импорт `AGREEMENT_STATUS_NONE`, метод
+  `_price_type_id_to_store`, две строки присваивания, docstring `_update_customer`
+- `backend/apps/users/admin.py` — MODIFIED: `onec_price_type_name`, `readonly_fields`, fieldset «Интеграция с 1С»
+- `backend/tests/unit/test_services/test_customer_processor.py` — MODIFIED: класс `TestCustomerPriceTypeStorage`
+  и фикстуры реального снимка
+- `backend/tests/unit/test_users_admin.py` — MODIFIED: класс `TestUserAdminPriceType`, обновлён
+  `test_readonly_fields`
+- `backend/tests/integration/test_import_customers_price_type.py` — NEW: прогон реальной выгрузки
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — MODIFIED: статус стори
+
+## Change Log
+
+| Дата | Версия | Описание | Автор |
+|---|---|---|---|
+| 2026-08-05 | 1.0 | Реализована стори 40.3: поле `User.onec_price_type_id`, запись вида цен в процессоре импорта, отображение в админке, 18 тестов (8 unit процессора, 6 unit админки, 4 интеграционных). Роль не изменяется. | claude-opus-5 |
