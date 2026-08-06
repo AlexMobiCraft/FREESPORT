@@ -86,6 +86,9 @@ last_updated: "2026-08-06"
 #             интеграционном тесте, содержательный тест AC2, эта запись
 #             журнала, tech-debt.md в File List). Статус сохранён review.
 #             Продакшен-код не менялся.
+# 2026-08-06: Story 40.5 — финальный review завершён: исправлена неточность
+#             audit trail GitNexus в story-файле; 41 targeted tests passed.
+#             Статус review -> done.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -196,7 +199,7 @@ development_status:
   40-2-price-type-role-mapping-and-resolver: done
   40-3-store-onec-price-type-id: done
   40-4-import-applies-role-to-linked-accounts: done
-  40-5-link-transfers-price-type-and-role: review
+  40-5-link-transfers-price-type-and-role: done
   epic-40-retrospective: optional
 
 # ========================================

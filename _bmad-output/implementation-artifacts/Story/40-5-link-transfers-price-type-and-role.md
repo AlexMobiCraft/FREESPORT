@@ -4,7 +4,7 @@ baseline_commit: c880773b
 
 # Story 40.5: Привязка заявки переносит вид цен и сразу выдаёт роль
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -430,7 +430,7 @@ Pre-flight (обязательный, CLAUDE.md §GitNexus):
 
 > **О `tech-debt.md`.** Изменение — новый пункт 21 «mypy: 101 ошибка типов, шаг в CI красный и при этом необязательный», заведённый в ходе работы над стори по красному шагу `Run type checking with mypy` в `backend-ci.yml`. К функциональной части стори отношения не имеет и это фиксирует сам пункт: правка не входит в объём 40.5 и эпика 40, ни одна из 101 ошибки не приходится на затронутые стори файлы (`backend/tests/` исключён из проверки правилом `[mypy-tests.*] ignore_errors = True`, `link_1c_customer.py` в списке ошибок отсутствует). Перенос в отдельный коммит невозможен по той же причине, что и для `AGENTS.md`/`CLAUDE.md`: коммит уже в `origin/develop`, force-push запрещён.
 
-> **О `AGENTS.md` / `CLAUDE.md`.** Изменение — единственная строка автогенерируемого блока GitNexus между маркерами `<!-- gitnexus:start -->` / `<!-- gitnexus:end -->` (счётчики `9071 symbols / 14887 relationships` → `9081 / 14897`), обновлённая `npx gitnexus analyze` в ходе работы над стори. К функциональной части стори отношения не имеет: код, тесты, спека, sprint-status этим изменениям не обязаны. Перенос в отдельный коммит невозможен — `c352e200` уже в `origin/develop`, а force-push запрещён правилом `.windsurf/rules/security-and-git.md`. Оба файла удаляются из public remote workflow'ом `sync-to-public.yml`, так что в публичный репозиторий изменение не попадёт. Решение ревью — оставить в составе story-коммита и отразить здесь.
+> **О `AGENTS.md` / `CLAUDE.md`.** Изменение — единственная строка автогенерируемого блока GitNexus между маркерами `<!-- gitnexus:start -->` / `<!-- gitnexus:end -->` (счётчики `9071 symbols / 14887 relationships` → `9082 / 14900`), обновлённая `npx gitnexus analyze` в ходе работы над стори. К функциональной части стори отношения не имеет: код, тесты, спека, sprint-status этим изменениям не обязаны. Перенос в отдельный коммит невозможен — `c352e200` уже в `origin/develop`, а force-push запрещён правилом `.windsurf/rules/security-and-git.md`. Оба файла удаляются из public remote workflow'ом `sync-to-public.yml`, так что в публичный репозиторий изменение не попадёт. Решение ревью — оставить в составе story-коммита и отразить здесь.
 
 ### Review Findings
 
@@ -451,6 +451,8 @@ Pre-flight (обязательный, CLAUDE.md §GitNexus):
 
 - [x] [Review][Patch] Незаявленный файл техдолга в story-диффе [_bmad-output/planning-artifacts/tech-debt.md:201] — `c880773b..HEAD` содержит самостоятельную запись о mypy, но её нет в Project Structure Notes и File List, а AC14 не включает planning-artifacts. Поскольку коммит уже опубликован, явно добавить файл и пояснить несвязанный scope в File List, по принятому для `AGENTS.md`/`CLAUDE.md` правилу.
   - **Резолюция (2026-08-06).** Замечание принято, выбран предложенный вариант — файл заявлен в File List. Project Structure Notes при этом не правились: раздел входит в Dev Notes, который dev-story-workflow изменять запрещает, и по тому же правилу в нём не значатся `AGENTS.md`/`CLAUDE.md` из предыдущего замечания. `_bmad-output/planning-artifacts/tech-debt.md` добавлен в File List с пояснением: изменение — новый пункт 21 (mypy: 101 ошибка, шаг CI помечен `continue-on-error`), заведённый в ходе работы над стори, но к её объёму не относящийся. Сам пункт это фиксирует: «правка не входит в объём стори 40.5 и эпика 40; ни одна из 101 ошибки не приходится на затронутые ею файлы» (`backend/tests/` исключён из проверки правилом `[mypy-tests.*] ignore_errors = True`, а `link_1c_customer.py` в списке ошибок отсутствует). Дробить опубликованный коммит нельзя — `c352e200`/`c880773b` уже в `origin/develop`, force-push запрещён `.windsurf/rules/security-and-git.md`.
+
+- [x] [Review][Patch] Неверные счётчики GitNexus в обосновании несвязанного scope [Story/40-5-link-transfers-price-type-and-role.md:433] — текст указывает изменение `9071 symbols / 14887 relationships` → `9081 / 14897`, но содержимое `AGENTS.md` и `CLAUDE.md` в проверяемом диапазоне `c880773b..c7efabd` фиксирует `9082 symbols / 14900 relationships`. Исправлено: числа в обосновании приведены к содержимому закоммиченных артефактов.
 
 ## Change Log
 
