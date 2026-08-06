@@ -120,4 +120,6 @@ jobs:
       - name: Run tests
         run: |
           cd backend
-          pytest --tb=short -v -m "not performance" --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py
+          # Весь набор, кроме перф- и медленных: и те и другие меряют время, поэтому падают
+          # от загрузки раннера, а не от дефекта в PR. Исполняются в performance-tests.yml.
+          pytest --tb=short -v -m "not performance and not slow" --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py

@@ -1,3 +1,23 @@
+## Deferred from: spec-tech-debt-19-followups — порог покрытия `backend-ci.yml` (2026-08-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: **`backend-ci.yml` красный на `develop` с 2026-08-05: покрытие 64,92 % против порога `--cov-fail-under=65`.** Тесты зелёные (`1930 passed, 2 skipped`) — падает исключительно порог. Требуется решение человека: поднять покрытие, понизить порог или сузить `--cov=.` так, чтобы тестовые файлы не попадали в знаменатель.
+  evidence: Pre-existing, началось на стори 40.4 (2026-08-05 17:42, 4 прогона подряд `failure`). Правки 2026-08-06 к этому не причастны: замер на одном дереве дал 64,99 % без `and not slow` и 64,93 % с ним — порог не берётся в обоих случаях. Отдельно опровергнут вывод от 2026-08-03 «порог берётся благодаря округлению»: порог проверяет pytest-cov сырым сравнением `self.cov_total < cov_fail_under` (`pytest_cov/plugin.py:283`), округления там нет вовсе, поэтому запаса не было никогда.
+  what_to_do: (1) решить, чем закрывать разрыв в 0,01–0,07 п.п. — новыми тестами или пересмотром порога; (2) отдельно рассмотреть `--cov=.`: он держит в знаменателе сами тестовые файлы, из-за чего исключение любого теста из гейта механически понижает метрику, хотя покрытие продакшен-кода не меняется; (3) до принятия решения помнить, что зелёный `backend-ci.yml` сейчас недостижим и его краснота не сигнализирует о регрессии.
+  risk_if_skipped: Постоянно красный гейт перестаёт быть сигналом — следующая настоящая регрессия покрытия или упавший тест утонут в привычной красноте. Защита веток отсутствует (см. `project_branch_protection_absent`), поэтому мержу это не мешает и заметить проблему больше нечем.
+
+## Deferred from: code review of spec-tech-debt-19-followups (2026-08-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: `UnmarkedTestWarning` — предупреждение, а не гейт: оно не влияет на exit code, тонет в общей сводке рядом с `RemovedInDjango60Warning` и в CI-логе на несколько тысяч строк прочитано не будет. Внутри `backend/` за ту же ошибку хук рвёт сбор `UsageError`, снаружи — шепчет.
+  evidence: Асимметрия намеренная (обрывать чужой сбор нельзя), но промежуточные варианты не рассмотрены: `-W error::conftest.UnmarkedTestWarning` в CI-вызовах, `filterwarnings` в обоих `pytest.ini`, ужесточение при явном `-m`, отдельный CI-шаг с `grep -q UnmarkedTestWarning`. Плюс предупреждение глушится `-p no:warnings` и `--disable-warnings` — сейчас их никто не использует, но ничто не мешает.
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: Nightly `performance-tests.yml` — единственное место исполнения перф- и медленных тестов — не имеет никакого оповещения о падении: ни `if: failure()`, ни issue, ни сообщения в мессенджер.
+  evidence: Pre-existing (workflow создан спекой tech-debt-19 2026-08-03), но правки 2026-08-06 повысили ставку: теперь туда же выведены `slow`, а `deploy.yml` деплоит в прод, не выполнив ни одного тайминг-теста. С учётом отсутствия защиты веток (`project_branch_protection_absent`) красный nightly не заметит никто, и «вывели из гейта в nightly» рискует означать «вывели в никуда».
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: Документация вне `project-context.md` продолжает учить старому вызову тестов — `CLAUDE.md` раздел «Тестирование», `.claude/skills/docker-test-run/` и его зеркало в `.agents/skills/docker-test-run/` содержат `--env-file .env` и `exec` вместо `run --rm`.
+  evidence: Из корня репозитория `--env-file .env` резолвится (файл там есть), поэтому команда не сломана — но `exec` требует запущенного контейнера, которого после любого test-таргета нет. Это первые файлы, которые читает агент; расхождение с Makefile гарантирует повторное появление вопроса.
+
 ## Deferred from: story 40.1 — приёмка AC1 (контрольная выгрузка с прода) отложена (2026-08-04)
 
 - source_story: `_bmad-output/implementation-artifacts/Story/40-1-parser-price-type-and-export-regression-detector.md`
@@ -8,18 +28,27 @@
 
 ## Deferred from: code review of spec-tech-debt-19-pytest-marker-autotagging (2026-08-03)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+> ✅ **ВСЕ ЧЕТЫРЕ ПУНКТА ЗАКРЫТЫ 2026-08-06** спекой `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md` (baseline `22b99629`). Записи оставлены с отметками — они объясняют, почему механизм выглядел доведённым наполовину.
+
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
   summary: «Перф-тест» определён местоположением файла, а не свойством теста — стресс-тесты `PagesCachePerformanceTest` и `PagesAPIStressTest` в `tests/integration/test_pages_performance.py` имеют явный `@pytest.mark.integration` и потому остаются в обычном гейте, тогда как `tests/performance/` из него выведен.
   evidence: Pre-existing классификация, авторазметкой не вводится (явный маркер она не трогает). Но цель «перф-тесты не гоняются на каждом PR» достигнута лишь наполовину. Кандидат на явный `@pytest.mark.performance` на этом файле — механизм для этого уже есть.
-- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+  **Как закрыт:** маркеры расставлены **по методам**, а не по классам. Шесть тестов с жёстким ассертом на время получили `performance` и ушли в nightly; `test_cache_invalidation_accuracy_under_load` оставлен `integration` — ассертов на время в нём нет вовсе, он проверяет корректность инвалидации кэша при конкурентной записи, и вывод его из PR-гейтов был бы потерей покрытия (одиночную инвалидацию покрывает `test_pages_api.py::PagesAPICachingTest`, конкурентную — больше ничто). Файл оставлен в `tests/integration/`: маркер задаёт свойство теста и побеждает каталог.
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
   summary: Маркер `slow` объявлен в обоих `pytest.ini`, но не используется ни одним make-таргетом и ни одним workflow — отсечение медленных тестов работает только по каталогу.
   evidence: Наблюдалось на практике 2026-08-03: `apps/products/tests/test_api_products.py::TestProductAPIPerformance::test_retrieve_product_with_100_variants_under_500ms` (помечен `slow`, лежит в `apps/` → получает `unit`) прошёл в полном прогоне и **упал** в замере покрытия часом позже на той же ревизии — тест таймингозависимый и флакует под нагрузкой машины. Он был в быстром гейте и до авторазметки, то есть это pre-existing, но `slow` даёт готовый рычаг вывести такие тесты из PR-гейта, и рычаг не подключён.
-- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+  **Как закрыт:** `and not slow` добавлен в `backend-ci.yml`, `deploy.yml`, `main.yml`; nightly `performance-tests.yml` переведён на `-m "performance or slow"`; добавлен таргет `make test-slow`. Флак покинул PR-гейт, но продолжает исполняться ночью.
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
   summary: Тест, чей путь уходит за пределы `backend/` (симлинк наружу, `--pyargs`, явно переданный путь), хук молча пропускает — маркера не получает и в фильтры не попадает.
   evidence: Ветка `except ValueError: return None` в `_relative_parts` не отличает «чужое дерево» от «сломался расчёт пути». Воспроизведено ревьюером: `pytest -m unit /tmp/exttests/test_outside.py ...` отбирает файл без маркера. Вероятность в этом проекте низкая (тесты живут внутри `backend/`), но это ровно тот класс тихого выпадения, ради которого хук написан.
-- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`
+  **Как закрыт (частично — читай границу):** `_relative_parts` возвращает сентинел `OUTSIDE_BACKEND` вместо второго `None`; хук копит такие элементы и выдаёт `UnmarkedTestWarning` со списком файлов и числом тестов в каждом. `UsageError` для непокрытых путей внутри `backend/` не тронут: обрывать чужой сбор своим правилом нельзя.
+  **⚠️ Граница, вскрытая состязательным ревью и проверенная на месте:** предупреждение появляется только там, где `backend/conftest.py` вообще загружен — то есть когда rootdir равен `backend/` либо среди аргументов есть хотя бы один путь внутри него. Вызов `pytest /tmp/ext/test_x.py` **без единого внутреннего пути** даёт другой rootdir, conftest не подхватывается, и ни одна наша строка не исполняется — предупреждения нет. Проверено: смешанные аргументы → предупреждение есть; только внешний путь → нет. Закрыть этот случай из conftest невозможно в принципе, он требует плагина, установленного в окружение (entry point или `-p`). Ограничение задокументировано в шапке `backend/conftest.py`.
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
   summary: Все таргеты `make test-*`, включая новый `test-performance`, неработоспособны — они ищут `docker/.env`, которого в репозитории нет.
   evidence: Pre-existing и явно выведено за объём спеки. Но `test-performance` заявлен в документации как локальная точка входа в перф-тесты, поэтому пока перф-тесты запускаются только через `performance-tests.yml` или прямой вызов pytest в контейнере.
+  **Как закрыт:** `--env-file` снят со всех вызовов `docker-compose.test.yml` (`test`, `test-unit`, `test-integration`, `test-performance`, `test-slow`, `test-fast`, `logs`, `shell`, `db-shell`). Файл не нужен: в `docker-compose.test.yml` нет ни одной подстановки переменных — теперь это не обещание в комментарии, а тест `test_test_compose_has_no_variable_substitution`. Побочная выгода — таргеты работают в worktree без `.env`.
+  **Ревью показало, что снятия `--env-file` мало:** `db-shell` ходил под `-U freesport_user -d freesport`, тогда как тестовый контейнер поднимает `postgres`/`freesport_test` — исправлено. `shell` и `db-shell` использовали `exec`, хотя у сервиса `backend` команда по умолчанию `pytest` и все test-таргеты завершаются `down`, то есть подключаться обычно не к чему — переведены на `run --rm`. Первоначальное заявление «побочно исправлены logs/shell/db-shell» было верно синтаксически и неверно по факту.
+  **Осталось за объёмом (проверено, не чинилось):** `clean` (строка с `cd docker && docker compose --env-file .env -f docker-compose.yml`) падает ровно с тем же `couldn't find env file`; `format`/`lint` указывают на `-f docker-compose.yml` из корня, где файла нет; `lint` зовёт устаревший `docker-compose`; `createsuperuser`/`collectstatic` — та же ошибка пути; у таргета `migrate` вообще нет тела; `.PHONY` не перечисляет `test-fast`, `test-fast-tools`, `test-local`, `logs`, `shell`, `db-shell`, `clean`. Отдельная задача — «привести Makefile целиком в рабочее состояние».
 
 ## Deferred from: story 39.1 — технический долг типизации (2026-08-02)
 

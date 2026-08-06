@@ -11,6 +11,8 @@
 
 import configparser
 import os
+import re
+import warnings
 from pathlib import Path
 
 import pytest
@@ -42,10 +44,12 @@ def _is_test_file(name):
 
 
 class FakeItem:
-    """Минимальная замена элемента сбора: хук трогает только эти три вещи."""
+    """Минимальная замена элемента сбора: хук трогает только эти четыре вещи."""
 
-    def __init__(self, path, markers=()):
+    def __init__(self, path, markers=(), nodeid="fake::test_x"):
         self.path = path
+        if nodeid is not None:
+            self.nodeid = nodeid
         self._explicit = set(markers)
         self.added = []
 
@@ -56,8 +60,20 @@ class FakeItem:
         self.added.append(mark.name)
 
 
-def make_item(rel_path, markers=()):
-    return FakeItem(root_conftest.BACKEND_ROOT / rel_path, markers)
+class PathlessItem(FakeItem):
+    """Элемент сбора без файла и без `nodeid` — проверяет запасную ветку `_identify`."""
+
+    def __init__(self):
+        super().__init__(None, nodeid=None)
+
+
+def unmarked_warnings(record):
+    """Только `UnmarkedTestWarning` из записи: `pytest.warns` собирает все предупреждения блока."""
+    return [w for w in record if issubclass(w.category, root_conftest.UnmarkedTestWarning)]
+
+
+def make_item(rel_path, markers=(), nodeid=None):
+    return FakeItem(root_conftest.BACKEND_ROOT / rel_path, markers, nodeid or f"{rel_path}::test_x")
 
 
 class TestMarkerForPath:
@@ -149,15 +165,89 @@ class TestHook:
         root_conftest.pytest_collection_modifyitems(None, [item])
         assert item.added == ["integration"]
 
-    def test_item_outside_backend_is_skipped(self):
-        item = FakeItem(root_conftest.BACKEND_ROOT.parent / "frontend" / "test_x.py")
-        root_conftest.pytest_collection_modifyitems(None, [item])
+    def test_item_outside_backend_is_not_marked_but_reported(self):
+        """Чужое дерево размечать нечем, но тихо терять тест нельзя — должно быть слышно."""
+        item = FakeItem(root_conftest.BACKEND_ROOT.parent / "frontend" / "test_x.py", nodeid="::test_x")
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            root_conftest.pytest_collection_modifyitems(None, [item])
         assert item.added == []
+        message = str(unmarked_warnings(record)[0].message)
+        assert "путь вне backend/" in message
+        # Именно путь, а не nodeid: у файла снаружи rootdir pytest вырождает nodeid в `::test_x`,
+        # и предупреждение без имени файла не даёт понять, какой тест выпал.
+        assert str(item.path) in message
 
-    def test_item_without_path_is_skipped(self):
-        item = FakeItem(None)
-        root_conftest.pytest_collection_modifyitems(None, [item])
+    def test_pathless_item_is_reported_by_nodeid(self):
+        """Файла нет — назвать тест можно только по nodeid."""
+        item = FakeItem(None, nodeid="tests/unit/test_x.py::test_generated")
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            root_conftest.pytest_collection_modifyitems(None, [item])
         assert item.added == []
+        message = str(unmarked_warnings(record)[0].message)
+        assert "tests/unit/test_x.py::test_generated" in message
+        assert "нет пути к файлу" in message
+
+    def test_item_without_path_and_nodeid_is_still_reported(self):
+        """Крайний случай: ни файла, ни nodeid — предупреждение всё равно выдаётся."""
+        item = PathlessItem()
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            root_conftest.pytest_collection_modifyitems(None, [item])
+        assert item.added == []
+        assert "<элемент сбора без пути>" in str(unmarked_warnings(record)[0].message)
+
+    def test_every_unmarkable_item_lands_in_one_warning(self):
+        """Одно предупреждение на весь сбор, но со всеми виновниками поимённо."""
+        outside = root_conftest.BACKEND_ROOT.parent
+        items = [
+            FakeItem(outside / "a" / "test_a.py"),
+            FakeItem(outside / "b" / "test_b.py"),
+            PathlessItem(),
+        ]
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            root_conftest.pytest_collection_modifyitems(None, items)
+        warned = unmarked_warnings(record)
+        assert len(warned) == 1
+        message = str(warned[0].message)
+        assert str(items[0].path) in message
+        assert str(items[1].path) in message
+        assert "<элемент сбора без пути>" in message
+
+    def test_warning_counts_tests_per_file(self):
+        """Несколько тестов одного файла схлопываются в строку — счётчик не даёт потерять их число."""
+        outside_file = root_conftest.BACKEND_ROOT.parent / "ext" / "test_many.py"
+        items = [FakeItem(outside_file), FakeItem(outside_file), FakeItem(outside_file)]
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            root_conftest.pytest_collection_modifyitems(None, items)
+        assert "тестов: 3" in str(unmarked_warnings(record)[0].message)
+
+    def test_normal_item_produces_no_warning(self):
+        """Сторож не должен шуметь на обычном прогоне — иначе его перестанут читать."""
+        item = make_item("tests/integration/test_x.py")
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            root_conftest.pytest_collection_modifyitems(None, [item])
+        assert unmarked_warnings(record) == []
+        assert item.added == ["integration"]
+
+    def test_explicitly_marked_outside_item_produces_no_warning(self):
+        """Маркер уже стоит — тест в прогон по `-m` попадёт, предупреждать не о чем."""
+        item = FakeItem(root_conftest.BACKEND_ROOT.parent / "test_x.py", markers=["unit"])
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            root_conftest.pytest_collection_modifyitems(None, [item])
+        assert unmarked_warnings(record) == []
+
+    def test_warning_does_not_suppress_usage_error(self):
+        """Тест вне дерева и непокрытый путь внутри — сторож обязан сработать всё равно."""
+        items = [
+            FakeItem(root_conftest.BACKEND_ROOT.parent / "test_out.py"),
+            make_item("tests/smoke/test_x.py"),
+        ]
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            with pytest.raises(pytest.UsageError) as exc:
+                root_conftest.pytest_collection_modifyitems(None, items)
+        assert "tests/smoke/test_x.py" in str(exc.value)
+        assert str(items[0].path) in str(unmarked_warnings(record)[0].message)
 
     def test_unmapped_item_raises_usage_error(self):
         item = make_item("tests/smoke/test_x.py")
@@ -229,6 +319,18 @@ class TestConfigConsistency:
         missing = set(root_conftest.AUTO_MARKERS) - declared
         assert not missing, f"{ini_relative}: не объявлены маркеры {sorted(missing)}"
 
+    @pytest.mark.parametrize("ini_relative", INI_FILES)
+    def test_orthogonal_markers_are_declared(self, ini_relative):
+        """`slow` и `data_dependent` объявлены: на них завязаны фильтры CI, а не только хук.
+
+        Фильтрация по незаявленному маркеру работает и без объявления — но даёт
+        `PytestUnknownMarkWarning`, а под `--strict-markers` роняет сбор. Держим объявленными,
+        потому что `slow` теперь определяет состав трёх PR-гейтов и nightly.
+        """
+        declared = self._markers(ini_relative)
+        missing = set(root_conftest.ORTHOGONAL_MARKERS) - declared
+        assert not missing, f"{ini_relative}: не объявлены маркеры {sorted(missing)}"
+
     def test_both_ini_files_declare_the_same_markers(self):
         assert self._markers("pytest.ini") == self._markers("../pytest.ini")
 
@@ -242,3 +344,66 @@ class TestConfigConsistency:
         for prefix, _ in root_conftest.DEFAULT_PREFIX_RULES:
             probe = prefix + ("app", "tests", "integration", "test_x.py")
             assert marker_for_path(probe) == "integration"
+
+
+class TestCIFilters:
+    """Состав каждого прогона CI держится на именах маркеров — сторож против опечатки в YAML.
+
+    Хук защищает от «разметка разошлась с реальностью» внутри Python, но после подключения
+    `slow` к гейтам тот же класс ошибки переехал на уровень YAML: `-m "not slo"` отфильтрует
+    ровно ничего и молча вернёт флак в PR-прогон, а `-m "performance or slwo"` так же молча
+    отберёт ноль тестов в nightly. Ни pytest, ни GitHub Actions такую опечатку не заметят.
+
+    Файлы лежат вне `backend/`, а тест-контейнер монтирует только его — там проверки
+    пропускаются вместо ложного падения.
+    """
+
+    PR_GATES = ("backend-ci.yml", "deploy.yml", "main.yml")
+    ALL_WORKFLOWS = PR_GATES + ("performance-tests.yml",)
+
+    def _repo_file(self, *parts):
+        path = root_conftest.BACKEND_ROOT.parent.joinpath(*parts)
+        if not path.exists():
+            pytest.skip(f"{'/'.join(parts)} недоступен в этом окружении (вне смонтированного backend/)")
+        return path
+
+    def _pytest_filters(self, workflow):
+        """Все выражения из `-m "..."` в workflow. `python -m venv` под шаблон не подпадает."""
+        text = self._repo_file(".github", "workflows", workflow).read_text(encoding="utf-8")
+        return re.findall(r'-m\s+"([^"]+)"', text)
+
+    @pytest.mark.parametrize("workflow", PR_GATES)
+    def test_pr_gates_exclude_performance_and_slow(self, workflow):
+        """Ни один PR-гейт не должен гонять тесты, меряющие время."""
+        filters = self._pytest_filters(workflow)
+        assert filters, f"{workflow}: не найдено ни одного фильтра -m — гейт гоняет весь набор"
+        for expression in filters:
+            assert "not performance" in expression, f"{workflow}: перф-тесты не исключены ({expression})"
+            assert "not slow" in expression, f"{workflow}: медленные тесты не исключены ({expression})"
+
+    def test_nightly_runs_what_pr_gates_dropped(self):
+        """Выведенное из гейтов обязано исполняться в nightly, иначе оно не исполняется нигде.
+
+        Сравниваем множество: выражение встречается и в вызове pytest, и в комментарии-шапке,
+        и они обязаны совпадать — разошедшийся комментарий вводит в заблуждение не меньше,
+        чем неверный фильтр.
+        """
+        assert set(self._pytest_filters("performance-tests.yml")) == {"performance or slow"}
+
+    @pytest.mark.parametrize("workflow", ALL_WORKFLOWS)
+    def test_ci_filters_mention_only_declared_markers(self, workflow):
+        """Опечатка в имени маркера превращает фильтр в тихий no-op — ловим её здесь."""
+        known = set(root_conftest.AUTO_MARKERS) | set(root_conftest.ORTHOGONAL_MARKERS)
+        for expression in self._pytest_filters(workflow):
+            names = set(re.findall(r"[A-Za-z_][A-Za-z_0-9]*", expression)) - {"not", "and", "or"}
+            unknown = names - known
+            assert not unknown, f"{workflow}: неизвестные маркеры в `-m {expression}`: {sorted(unknown)}"
+
+    def test_test_compose_has_no_variable_substitution(self):
+        """Makefile зовёт `docker-compose.test.yml` без `--env-file` — это верно, пока нет `${}`.
+
+        Появится первая подстановка — она молча резолвится в пустую строку. Правило записано
+        комментарием в Makefile; здесь оно обеспечено.
+        """
+        text = self._repo_file("docker", "docker-compose.test.yml").read_text(encoding="utf-8")
+        assert "${" not in text, "в docker-compose.test.yml появилась подстановка — верните --env-file в Makefile"

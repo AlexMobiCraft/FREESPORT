@@ -76,16 +76,20 @@ optimized_for_llm: true
   - `unit/` → `unit`; `integration/`, `functional/`, `regression/` → `integration`; `performance/` → `performance`.
   - Каталога-категории нет → умолчание: всё под `apps/` — `unit`. Для `tests/` умолчания нет: новый каталог там обрывает сбор с `UsageError`. Асимметрия осознанная (см. `backend/docs/testing-standards.md`).
   - `unit` означает «модульный тест приложения», **не** «без БД»: тест с `django_db` внутри `apps/` штатно получает `unit`.
-  **Явный маркер в файле переопределяет автоматический.** `@pytest.mark.data_dependent` и `@pytest.mark.slow` ортогональны и ставятся вручную.
-- **Где что исполняется:** `backend-ci.yml` — быстрый unit-гейт (`not integration and not data_dependent and not performance`), он же считает покрытие; `main.yml` — весь набор без `performance` на каждом push/PR в `main`/`develop`, именно он ловит регрессии интеграционных тестов; `performance-tests.yml` — перф-тесты по расписанию (nightly) и вручную.
+  **Явный маркер в файле переопределяет автоматический** и задаёт свойство теста, а не каталог: перф-тест в `tests/integration/` достаточно пометить `@pytest.mark.performance`, переносить файл не нужно. `@pytest.mark.data_dependent` и `@pytest.mark.slow` ортогональны и ставятся вручную; `slow` — рычаг вывода таймингозависимого теста из PR-гейта.
+  Тест вне дерева `backend/` разметить нечем — хук его пропускает, но выдаёт `UnmarkedTestWarning` со списком: молча выпасть из прогонов по `-m` он не должен.
+- **Где что исполняется:** `backend-ci.yml` — быстрый unit-гейт (`not integration and not data_dependent and not performance and not slow`), он же считает покрытие; `main.yml` — весь остальной набор (`not performance and not slow`) на каждом push/PR в `main`/`develop`, именно он ловит регрессии интеграционных тестов и единственный гоняет `data_dependent`; `performance-tests.yml` — `performance or slow` по расписанию (nightly) и вручную.
+  ⚠️ `backend-ci.yml` красный на `develop` с 2026-08-05 из-за порога `--cov-fail-under=65` (покрытие 64,92 % при зелёных тестах), а не из-за регрессии. Решение по порогу не принято — см. `deferred-work.md`.
 - **Команды запуска** (через Docker):
   ```bash
   make test                 # все тесты
   make test-unit            # только unit
   make test-integration     # только integration
   make test-performance     # только перф-тесты
-  # Прямой запуск конкретного теста в test-контейнере с .env.test:
-  docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend pytest <путь>
+  make test-slow            # только медленные (маркер slow)
+  # Прямой запуск конкретного теста в test-контейнере (--env-file не нужен:
+  # в docker-compose.test.yml нет подстановок переменных, всё зашито литералами):
+  cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest <путь>
   ```
 - **API-контракт sync**: после правки serializer/view → обновить `docs/api/openapi.yaml` и регенерировать типы фронта `npm run generate:types`. Рассинхрон ломает TypeScript-сборку frontend.
 - **Frontend**: Vitest (`npm run test`, не Jest), E2E — Playwright (`npm run test:e2e`). API-моки — MSW (`__mocks__/handlers.ts`). A11y — axe-core / vitest-axe.

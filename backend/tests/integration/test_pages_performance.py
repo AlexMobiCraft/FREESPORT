@@ -1,6 +1,18 @@
 """
 Performance тесты для Pages API (Story 2.10)
 Fix PERF-001: Тесты производительности кэширования под нагрузкой
+
+Файл лежит в `tests/integration/`, но размечен явными маркерами: маркер задаёт свойство теста,
+а не каталог, поэтому переносить файл не нужно.
+
+Маркеры расставлены по методам, а не по классу, и вот почему. Шесть из семи тестов содержат
+жёсткий ассерт на время (`assertLess(..., 2.0)` и подобные) — их падение почти всегда означает
+загрузку машины, а не дефект в PR; они помечены `performance` и исполняются в
+`performance-tests.yml` (nightly). Единственное исключение — `test_cache_invalidation_accuracy_
+under_load`: ассертов на время в нём нет вовсе, он проверяет корректность инвалидации кэша при
+конкурентной записи. Пометить весь класс `performance` означало бы вывести эту проверку из всех
+PR-гейтов; одиночную инвалидацию покрывает `test_pages_api.py::PagesAPICachingTest`, но
+конкурентную — больше ничто. Поэтому у него явный `integration`.
 """
 
 import concurrent.futures
@@ -17,9 +29,11 @@ from rest_framework.test import APIClient
 from apps.pages.models import Page
 
 
-@pytest.mark.integration
 class PagesCachePerformanceTest(TransactionTestCase):
-    """Тесты производительности кэширования Pages API - Fix PERF-001"""
+    """Тесты производительности кэширования Pages API - Fix PERF-001
+
+    Маркеры — на методах: см. docstring модуля.
+    """
 
     def setUp(self):
         """Настройка тестовых данных для performance тестов"""
@@ -42,6 +56,7 @@ class PagesCachePerformanceTest(TransactionTestCase):
 
         self.test_pages = Page.objects.bulk_create(pages_data)
 
+    @pytest.mark.performance
     def test_cache_invalidation_performance(self):
         """Тест производительности инвалидации кэша при массовых обновлениях"""
         url = reverse("pages:pages-list")
@@ -73,6 +88,7 @@ class PagesCachePerformanceTest(TransactionTestCase):
         updated_count = sum(1 for title in updated_titles if title.startswith("Updated"))
         self.assertEqual(updated_count, 5)
 
+    @pytest.mark.performance
     def test_concurrent_cache_access_performance(self):
         """Тест производительности кэша при конкурентном доступе"""
         from django.db import connection
@@ -127,6 +143,7 @@ class PagesCachePerformanceTest(TransactionTestCase):
         data_lengths = [r["data_length"] for r in results]
         self.assertTrue(all(length == data_lengths[0] for length in data_lengths))
 
+    @pytest.mark.performance
     def test_cache_memory_usage_under_load(self):
         """Тест использования памяти кэшем под нагрузкой"""
         # Создаем больше страниц для тестирования
@@ -165,8 +182,13 @@ class PagesCachePerformanceTest(TransactionTestCase):
         # Общее время выполнения должно быть разумным
         self.assertLess(total_time, 5.0, f"Cache load test too slow: {total_time}s")
 
+    @pytest.mark.integration
     def test_cache_invalidation_accuracy_under_load(self):
-        """Тест точности инвалидации кэша при высокой нагрузке"""
+        """Тест точности инвалидации кэша при высокой нагрузке.
+
+        Ассертов на время здесь нет — проверяется только корректность, поэтому тест остаётся
+        в PR-гейте `main.yml`. Конкурентную инвалидацию не покрывает больше ничто.
+        """
         from django.db import connection
 
         list_url = reverse("pages:pages-list")
@@ -216,6 +238,7 @@ class PagesCachePerformanceTest(TransactionTestCase):
         self.assertGreaterEqual(final_count - initial_count, 4)
         self.assertLessEqual(final_count - initial_count, 6)
 
+    @pytest.mark.performance
     def test_detail_page_cache_performance(self):
         """Тест производительности кэширования детальных страниц"""
         page = Page.objects.first()
@@ -244,7 +267,7 @@ class PagesCachePerformanceTest(TransactionTestCase):
         self.assertLess(avg_cache_time, 0.1, f"Cached requests too slow: {avg_cache_time}s")
 
 
-@pytest.mark.integration
+@pytest.mark.performance
 class PagesAPIStressTest(TestCase):
     """Стресс-тесты для Pages API"""
 

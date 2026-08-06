@@ -3,7 +3,7 @@
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 DOCS_SCRIPTS_DIR := $(ROOT_DIR)scripts/docs
 
-.PHONY: help build build-frontend up down test test-unit test-integration test-performance clean logs shell \
+.PHONY: help build build-frontend up down test test-unit test-integration test-performance test-slow clean logs shell \
          format lint migrate createsuperuser collectstatic \
          docs-validate docs-search-obsolete docs-check-links docs-check-api docs-update-index \
          check-env-consistency fix-black-quick fix-existing-venv remove-venv
@@ -33,6 +33,7 @@ help:
 	@echo "  test-unit      - Запустить только unit-тесты"
 	@echo "  test-integration - Запустить интеграционные тесты"
 	@echo "  test-performance - Перф-тесты (вне обычного гейта)"
+	@echo "  test-slow      - Медленные тесты (маркер slow, вне обычного гейта)"
 	@echo "  test-fast      - Быстрые тесты (без пересборки образов)"
 	@echo "  test-fast-tools - Быстрые тесты через lightweight Docker"
 	@echo "  test-local     - Локальное тестирование (требует venv)"
@@ -74,50 +75,67 @@ up:
 down:
 	cd docker && docker compose down
 
+# ВАЖНО: `--env-file` для docker-compose.test.yml не указывается намеренно. Файла docker/.env
+# в репозитории нет (`.env` лежит в корне), и с ним все таргеты ниже падали на
+# `couldn't find env file`. Он и не нужен: в docker-compose.test.yml нет ни одной подстановки
+# переменных — имя проекта, пароли и порты 5433/6380 зашиты литералами. Побочная выгода:
+# таргеты работают в worktree, где `.env` отсутствует.
+
 # Все тесты
 test:
 	@echo "Запуск всех тестов..."
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans --volumes
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans --volumes
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
 
 # Unit-тесты
 test-unit:
 	@echo "Запуск unit-тестов..."
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
 
 # Интеграционные тесты
 test-integration:
 	@echo "Запуск интеграционных тестов..."
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
 
 # Перф-тесты (вне обычного гейта — медленные и шумные)
 test-performance:
 	@echo "Запуск перф-тестов..."
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v -m performance
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml down
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m performance
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
+
+# Медленные тесты (маркер slow, ставится вручную; в CI гоняются только nightly)
+test-slow:
+	@echo "Запуск медленных тестов..."
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m slow
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
 
 # Быстрые тесты (без сборки образов)
 test-fast:
 	@echo "Быстрый запуск тестов (без пересборки)..."
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml run --rm backend pytest -v --tb=short
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v --tb=short
 
 # Логи всех сервисов
 logs:
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml logs -f
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml logs -f
 
-# Shell в backend контейнере
+# Shell в backend контейнере.
+# `run --rm`, а не `exec`: у сервиса backend в docker-compose.test.yml команда по умолчанию —
+# pytest, контейнер отрабатывает и выходит, а все test-таргеты завершаются `down`, поэтому
+# подключаться `exec` обычно не к чему.
 shell:
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml exec backend bash
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend bash
 
-# Подключение к БД
+# Подключение к тестовой БД. Учётные данные — из docker-compose.test.yml (postgres/freesport_test),
+# а не из dev-окружения: прежние `-U freesport_user -d freesport` в тестовом контейнере не существуют.
 db-shell:
-	cd docker && docker compose -p freesport-test --env-file .env -f docker-compose.test.yml exec db psql -U freesport_user -d freesport
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm db psql -h db -U postgres -d freesport_test
 
 # Очистка Docker volumes и неиспользуемых образов
 clean:
