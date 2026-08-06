@@ -28,6 +28,11 @@ from apps.users.services.processor import CustomerDataProcessor
 
 pytestmark = [pytest.mark.django_db, pytest.mark.data_dependent]
 
+# Роль, которую сценарий назначает виду цен из снимка. Выбрана так, чтобы
+# отличаться от исходной роли заявителя (wholesale_level1) и оставаться в
+# User.B2B_ROLES: только тогда смена роли доказывает работу сервиса.
+EXPECTED_ROLE = "wholesale_level2"
+
 
 def _snapshot_files(onec_data_dir: Path) -> list[Path]:
     """Файлы снимка второй редакции патча.
@@ -120,17 +125,21 @@ def test_link_applies_role_from_agreement_without_reimport(processor, customer_w
         defaults={
             "onec_name": "Опт 2 (150-300 тыс.руб в квартал)",
             "product_field": "opt2_price",
-            "user_role": "wholesale_level2",
+            "user_role": EXPECTED_ROLE,
             "is_active": True,
         },
     )
     # defaults срабатывают только при создании: у уже существующей записи
     # справочника (GUID снимка может быть засеян миграцией) роль и признак
-    # активности довзводятся явно. resolve_role_from_price_types читает
-    # только активные записи — без этого тест зависел бы от состояния БД.
+    # активности задаются принудительно. Довзводить роль только из пустой
+    # недостаточно: у засеянной записи там может стоять retail (сервис по AC6
+    # такую роль намеренно не применяет) или wholesale_level1 (совпадает с
+    # исходной ролью заявителя) — в обоих случаях тест упал бы ложно, проверяя
+    # состояние справочника, а не поведение привязки. resolve_role_from_price_types
+    # читает только активные записи, поэтому is_active довзводится наравне.
     stale_fields = []
-    if not price_type.user_role:
-        price_type.user_role = "wholesale_level2"
+    if price_type.user_role != EXPECTED_ROLE:
+        price_type.user_role = EXPECTED_ROLE
         stale_fields.append("user_role")
     if not price_type.is_active:
         price_type.is_active = True

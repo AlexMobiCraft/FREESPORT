@@ -438,10 +438,18 @@ class TestLinkAppliesPriceTypeAndRole:
         assert linked.role == "wholesale_level4"
 
     def test_empty_source_price_type_does_not_wipe_target(self):
-        """AC2: пустое значение источника ничего не затирает и роль не меняет."""
+        """
+        AC2: пустое значение источника не затирает вид цен цели и роль не меняет.
+
+        У цели вид цен намеренно непустой: на пустой цели ассерт не отличал бы
+        «не затёрли» от «затёрли пустым». GUID взят «говорящий» — «Опт 4» даёт
+        wholesale_level4, и сохранение роли wholesale_level2 заодно доказывает,
+        что резолвер читает источник, а не уже присвоенное значение цели.
+        """
+        self.ensure_price_type(self.OPT4_GUID, "wholesale_level4")
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id, onec_price_type_id="")
-        target = make_applicant(tax_id, role="wholesale_level2")
+        target = make_applicant(tax_id, role="wholesale_level2", onec_price_type_id=self.OPT4_GUID)
 
         linked = link_1c_customer(
             target_id=target.pk,
@@ -450,9 +458,14 @@ class TestLinkAppliesPriceTypeAndRole:
         )
 
         linked.refresh_from_db()
-        assert linked.onec_price_type_id == ""
+        assert linked.onec_price_type_id == self.OPT4_GUID
         assert linked.role == "wholesale_level2"
         assert linked.onec_id is not None
+
+        changes = AuditLog.objects.get(action="link_1c_customer").changes
+        assert "onec_price_type_id" not in changes["transferred_fields"]
+        assert "role" not in changes["transferred_fields"]
+        assert changes["previous_values"]["onec_price_type_id"] == self.OPT4_GUID
 
     def test_unknown_price_type_transfers_field_but_keeps_role(self):
         """
