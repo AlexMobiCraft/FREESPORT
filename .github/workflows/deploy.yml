@@ -110,10 +110,12 @@ jobs:
           cd backend
           source venv/bin/activate
           python manage.py migrate --noinput
+          # Порог покрытия снят 2026-08-06 по той же причине, что и в backend-ci.yml: набор
+          # здесь тот же узкий, интеграционных тестов он не исполняет, поэтому его метрика
+          # занижена систематически. Покрытие с порогом меряет main.yml на полном наборе.
           pytest --ignore=tests/integration/test_management_commands/test_import_customers.py \
                  --ignore=tests/unit/test_services/test_customer_parser.py \
-                 -m "not integration and not data_dependent and not performance and not slow" \
-                 --cov=. --cov-fail-under=60
+                 -m "not integration and not data_dependent and not performance and not slow"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

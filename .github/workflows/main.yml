@@ -117,9 +117,25 @@ jobs:
           python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
           python manage.py migrate --noinput
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           cd backend
           # Весь набор, кроме перф- и медленных: и те и другие меряют время, поэтому падают
           # от загрузки раннера, а не от дефекта в PR. Исполняются в performance-tests.yml.
-          pytest --tb=short -v -m "not performance and not slow" --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py
+          #
+          # Покрытие считается здесь, а не в backend-ci.yml, потому что покрытие обязан мерить
+          # тот прогон, который реально исполняет покрывающие тесты. Быстрый гейт запускает
+          # ~1900 тестов из ~3000 и не видит интеграционных: на нём то же продакшен-покрытие
+          # даёт 62 %, здесь — 76 % (замер 2026-08-06). Пока мерил быстрый гейт, каждая стори
+          # с интеграционными тестами опускала метрику, и порог ломался сам собой.
+          # Состав знаменателя (без тестов и миграций) задан в backend/pyproject.toml.
+          pytest --tb=short -v -m "not performance and not slow" --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}

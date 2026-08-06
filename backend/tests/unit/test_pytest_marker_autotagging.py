@@ -399,6 +399,35 @@ class TestCIFilters:
             unknown = names - known
             assert not unknown, f"{workflow}: неизвестные маркеры в `-m {expression}`: {sorted(unknown)}"
 
+    def test_coverage_is_measured_only_on_the_full_run(self):
+        """Покрытие меряет тот прогон, который исполняет покрывающие тесты, — и только он.
+
+        Замер 2026-08-06: на быстром гейте то же продакшен-покрытие даёт 62,5 %, на полном
+        наборе — 76,4 %. Пока порог стоял в `backend-ci.yml`, каждая стори, покрывшая новый
+        код интеграционными тестами, опускала метрику, и гейт краснел без регрессии. Тест
+        не даёт вернуть подсчёт в узкий прогон.
+        """
+        for workflow in self.PR_GATES:
+            text = self._repo_file(".github", "workflows", workflow).read_text(encoding="utf-8")
+            if workflow == "main.yml":
+                assert "--cov-fail-under" in text, "main.yml обязан считать покрытие с порогом"
+                continue
+            assert "--cov-fail-under" not in text, (
+                f"{workflow} снова считает покрытие: его набор уже интеграционных тестов, "
+                "метрика будет систематически занижена"
+            )
+
+    def test_coverage_denominator_excludes_tests(self):
+        """Тесты и миграции — вне знаменателя, иначе метрика меряет сама себя.
+
+        При `--cov=.` две трети объёма приходилось на код самих тестов, и исключение любого
+        теста из прогона механически понижало покрытие, не меняя покрытия продукта.
+        """
+        text = self._repo_file("backend", "pyproject.toml").read_text(encoding="utf-8")
+        assert "[tool.coverage.run]" in text, "конфиг покрытия пропал из backend/pyproject.toml"
+        for pattern in ('"*/tests/*"', '"*/test_*.py"', '"*/migrations/*"'):
+            assert pattern in text, f"из omit пропал {pattern}"
+
     def test_test_compose_has_no_variable_substitution(self):
         """Makefile зовёт `docker-compose.test.yml` без `--env-file` — это верно, пока нет `${}`.
 
