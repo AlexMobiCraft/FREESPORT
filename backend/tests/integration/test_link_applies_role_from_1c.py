@@ -124,9 +124,19 @@ def test_link_applies_role_from_agreement_without_reimport(processor, customer_w
             "is_active": True,
         },
     )
+    # defaults срабатывают только при создании: у уже существующей записи
+    # справочника (GUID снимка может быть засеян миграцией) роль и признак
+    # активности довзводятся явно. resolve_role_from_price_types читает
+    # только активные записи — без этого тест зависел бы от состояния БД.
+    stale_fields = []
     if not price_type.user_role:
         price_type.user_role = "wholesale_level2"
-        price_type.save(update_fields=["user_role"])
+        stale_fields.append("user_role")
+    if not price_type.is_active:
+        price_type.is_active = True
+        stale_fields.append("is_active")
+    if stale_fields:
+        price_type.save(update_fields=stale_fields)
     expected_role = price_type.user_role
 
     applicant = User.objects.create_user(

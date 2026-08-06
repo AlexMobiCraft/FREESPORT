@@ -388,7 +388,14 @@ class TestLinkAppliesPriceTypeAndRole:
 
     @staticmethod
     def ensure_price_type(onec_id: str, user_role: str, *, product_field: str = "opt4_price") -> PriceType:
-        """Вид цен в справочнике с нужной ролью — независимо от того, засеян он миграцией или нет."""
+        """
+        Вид цен в справочнике с нужной ролью — независимо от того, засеян он миграцией или нет.
+
+        ``is_active`` довзводится наравне с ``user_role``: ``defaults``
+        применяются только при создании, а ``load_price_type_role_map``
+        читает исключительно активные записи. Иначе тест зависел бы от
+        состояния справочника в тестовой БД и мог бы упасть ложно.
+        """
         price_type, _ = PriceType.objects.get_or_create(
             onec_id=onec_id,
             defaults={
@@ -398,9 +405,15 @@ class TestLinkAppliesPriceTypeAndRole:
                 "is_active": True,
             },
         )
+        stale_fields = []
         if price_type.user_role != user_role:
             price_type.user_role = user_role
-            price_type.save(update_fields=["user_role"])
+            stale_fields.append("user_role")
+        if not price_type.is_active:
+            price_type.is_active = True
+            stale_fields.append("is_active")
+        if stale_fields:
+            price_type.save(update_fields=stale_fields)
         return price_type
 
     def test_transfers_price_type_and_applies_resolved_role(self):

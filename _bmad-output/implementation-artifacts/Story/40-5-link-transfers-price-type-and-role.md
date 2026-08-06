@@ -379,6 +379,16 @@ Pre-flight (обязательный, CLAUDE.md §GitNexus):
 - Покрытие `apps/users/services/link_1c_customer.py` — **97 %** (110 stmts, 3 miss: недостижимые в этих трёх файлах ветки `LinkCandidateError` при отсутствующей цели и две ветви `_transfer_company`), порог AC15 ≥ 90 % выполнен.
 - `git diff HEAD --stat` — в диффе нет `processor.py`, `parser.py`, `price_type_role.py`, `models.py`, `admin.py`, `serializers.py`, `apps/products/**`, `apps/orders/**`, `openapi.yaml`, `frontend/**` (AC14 подтверждён).
 
+Закрытие замечания ревью (2026-08-06, только тестовые файлы):
+
+- `pytest -q tests/unit/test_services/test_link_1c_customer.py tests/integration/test_link_applies_role_from_1c.py` → **41 passed**.
+- Проверка механизма временным тестом (создан и удалён): при `PriceType(is_active=False)` резолвер отдаёт `role is None`; после `ensure_price_type` запись активна и роль разрешается → **2 passed**.
+- Регресс Task 6.2 (9 файлов) + новый интеграционный — **219 passed**, 3:22.
+- Полный прогон `pytest -q` **без** `-m` — **2994 passed, 6 skipped, 19 subtests passed, 0 failed**, 47:50. Регрессий нет, состав совпадает с прогоном 2026-08-05.
+- `black --check` + `flake8` на обоих тестовых файлах — чисто.
+- `git diff HEAD --stat` — продакшен-код не затронут (AC14): в диффе только два тестовых файла, story-файл, `sprint-status.yaml` и автогенерируемая строка GitNexus в `AGENTS.md`/`CLAUDE.md`.
+- `npx gitnexus detect-changes --scope all` → risk `low`, affected processes 0; изменённые символы — только блоки GitNexus в `AGENTS.md`/`CLAUDE.md` (тестовые символы в индекс не попали, индексация была до их появления).
+
 ### Completion Notes List
 
 - **Сервис (AC1–AC11).** Перенос `onec_price_type_id` и применение роли встроены в **существующую** `transaction.atomic()` между блоком `customer_code` и единственным `target.save(update_fields=target_fields)`. Своей транзакции, второго `save()` и записи вне блока `with` нет. Роль разрешается по значению **источника** (`source.onec_price_type_id`), `agreement_status` не передаётся. Решение о применении принимается по `resolution.role is None`, не по перечислению `reason` (AC5), плюс гейт `resolution.role in User.B2B_ROLES` (AC6).
@@ -389,6 +399,7 @@ Pre-flight (обязательный, CLAUDE.md §GitNexus):
 - **Спека (AC12).** Вычеркнуты два места внутри `<frozen-after-approval>` (Never → строка про `email/password/role/...`; строка I/O-матрицы «Импорт после привязки»), обе — со ссылкой на новую запись. Создан раздел `## Spec Change Log` (его в спеке не было) с записью «2026-08-05 — итерация 2» из четырёх подзаголовков; санкция на правку frozen-блока указана явно. Часть про `role` в строке I/O-матрицы была отменена ещё стори 40.4 — это отражено в записи.
 - **План выката (AC13).** Пункт добавлен в `action_items` с `epic: 40`, `owner: "Alex"`, `status: open`, текст — из Dev Notes дословно. ⚠️ Он **пересекается по смыслу** с существующим CP-5 (`epic: 39`, «ручная привязка тестового аккаунта к контрагенту с известным видом цен»). Существующие пункты по требованию Task 3.1 не правились; чтобы дубль не выглядел случайным, над новым пунктом оставлен YAML-комментарий со ссылкой на CP-5. Решение о схлопывании двух пунктов в один — за Alex.
 - **Границы (AC14).** Миграций нет, сигнатуры не менялись, новых исключений нет, `requirements.txt` не трогался. `templates/admin/users/link_1c_customer.html` не изменялся.
+- ✅ **Resolved review finding [Patch]: фикстуры видов цен не гарантировали `is_active=True`.** Правка затронула только тестовые файлы (`ensure_price_type` в unit-тестах и подготовка справочника в интеграционном) — продакшен-код стори не менялся, границы AC14 подтверждены `git diff HEAD --stat`.
 
 ### File List
 
@@ -408,9 +419,13 @@ Pre-flight (обязательный, CLAUDE.md §GitNexus):
 - [x] [Review][Patch] Незаявленные файлы в story-коммите [AGENTS.md:164, CLAUDE.md:166] — коммит `c352e200` включает изменения метаданных GitNexus в этих файлах, но их нет в File List и Project Structure story. Вынести изменения из story-коммита либо явно отразить и объяснить их в File List.
   - **Резолюция (2026-08-05).** Выбран второй вариант условия («явно отразить и объяснить в File List»). Перенос в отдельный коммит невозможен: `c352e200` уже в `origin/develop`, force-push запрещён `security-and-git.md`. Изменение — единственная строка автогенерируемого блока GitNexus между маркерами `gitnexus:start`/`gitnexus:end` (счётчики символов/рёбер), обновлённая `npx gitnexus analyze`; к коду/тестам/спеке стори не относится. Оба файла исключаются из public remote workflow'ом `sync-to-public.yml` — утечки нет. Файлы добавлены в File List выше с пояснением.
 
+- [x] [Review][Patch] Фикстуры видов цен не гарантируют активность записи [backend/tests/unit/test_services/test_link_1c_customer.py:390; backend/tests/integration/test_link_applies_role_from_1c.py:118] — при уже существующем `PriceType(is_active=False)` тесты меняют/ожидают `user_role`, но `resolve_role_from_price_types()` намеренно читает только активные записи. Поэтому оба теста зависят от внешнего состояния справочника и могут ложно упасть. В setup нужно также гарантировать `is_active=True`.
+  - **Резолюция (2026-08-06).** Замечание принято. В обеих точках `is_active` теперь довзводится по тому же образцу, что и `user_role`: `defaults` у `get_or_create` применяются только при создании, поэтому у уже существующей (в том числе засеянной миграцией `products/0053`) записи ни роль, ни признак активности из `defaults` не берутся. Оба места собирают список действительно изменённых полей и делают один `save(update_fields=...)` — лишней записи в БД при штатном состоянии справочника нет. Механизм подтверждён временным тестом (удалён после прогона): при `PriceType(is_active=False)` резолвер отдаёт `role is None` — ровно тот ложный отказ, который описан в замечании, — а после `ensure_price_type` запись снова активна и роль разрешается. Прогоны: 41 passed (оба файла стори), 219 passed (регресс Task 6.2 + новый интеграционный), `black --check` и `flake8` чисто.
+
 ## Change Log
 
 | Дата | Версия | Описание | Автор |
 |---|---|---|---|
 | 2026-08-05 | 0.1 | Создана стори 40.5 (привязка переносит вид цен и применяет роль), статус ready-for-dev | claude-opus-5 |
 | 2026-08-05 | 1.0 | Реализация: перенос `onec_price_type_id` и вывод роли из него в `link_1c_customer`, состав `AuditLog`, 8 unit-тестов + интеграционный на реальном снимке, правка спеки (Spec Change Log, итерация 2), пункт выката в `action_items`. Статус → review | claude-opus-5 |
+| 2026-08-06 | 1.1 | Закрыто замечание ревью — 1 пункт: фикстуры видов цен довзводят `is_active=True` (unit + интеграционный тест). Продакшен-код не менялся. Статус → review | claude-opus-5 |

@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-05
+# last_updated: 2026-08-06
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -51,7 +51,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: "2026-08-05"
+last_updated: "2026-08-06"
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -78,6 +78,8 @@ last_updated: "2026-08-05"
 #             вид цен и выводит из него роль (FR-40-11). Заведён пункт выката
 #             в action_items (пересекается по смыслу с CP-5 эпика 39 — решение
 #             о схлопывании за Alex).
+# 2026-08-06: Story 40.5 — закрыто замечание ревью (фикстуры видов цен довзводят
+#             is_active=True), in-progress -> review. Затронуты только тесты.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
