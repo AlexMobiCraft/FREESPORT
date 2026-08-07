@@ -215,7 +215,7 @@ check_ssl() {
     log_info "Проверка SSL сертификата..."
     
     if command -v curl &> /dev/null; then
-        local ssl_expiry=$(curl -sI https://freesport.ru 2>/dev/null | grep -i "start date\|expire date" || echo "SSL не настроен")
+        local ssl_expiry=$(curl -sI https://optisport.ru 2>/dev/null | grep -i "start date\|expire date" || echo "SSL не настроен")
         if [[ "$ssl_expiry" == *"SSL не настроен"* ]]; then
             log_warn "SSL сертификат не настроен"
         else

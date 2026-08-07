@@ -3,7 +3,7 @@ info:
   title: FREESPORT API
   version: 1.0.0
   x-logo:
-    url: https://api.freesport.ru/static/logo.png
+    url: https://optisport.ru/static/logo.png
     altText: FREESPORT API
   description: RESTful API для B2B/B2C платформы спортивных товаров FREESPORT
 paths:
@@ -4904,7 +4904,7 @@ components:
 servers:
 - url: http://127.0.0.1:8001
   description: Development server
-- url: https://api.freesport.ru
+- url: https://optisport.ru
   description: Production server
 tags:
 - name: Authentication

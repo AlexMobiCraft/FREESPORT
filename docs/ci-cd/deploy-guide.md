@@ -30,7 +30,7 @@
 | ---------------------------------------- | ---------------------------------------------------------- |
 | `SSH_PRIVATE_KEY`                        | Приватный ключ, которым GitHub Actions подключается по SSH |
 | `NEXT_PUBLIC_API_URL`                    | URL API для frontend (                                     |
-| например, `https://freesport.ru/api/v1`) |
+| например, `https://optisport.ru/api/v1`) |
 | `CODECOV_TOKEN`                          | Токен Codecov (опционально)                                |
 
 #### Production
@@ -40,7 +40,7 @@
 | `PRODUCTION_SERVER_HOST` | IP или hostname production сервера                          |
 | `PRODUCTION_SERVER_USER` | Пользователь SSH на production                              |
 | `PRODUCTION_DEPLOY_PATH` | Путь к проекту на production                                |
-| `PRODUCTION_URL`         | URL production окружения (например, `https://freesport.ru`) |
+| `PRODUCTION_URL`         | URL production окружения (например, `https://optisport.ru`) |
 
 ### GitHub Environments
 
@@ -83,7 +83,7 @@ gh workflow run deploy.yml -f skip_tests=true
 | Файл                               | Окружение   | Особенности                            |
 | ---------------------------------- | ----------- | -------------------------------------- |
 | `docker/nginx/conf.d/local.conf`   | Development | HTTP only, localhost                   |
-| `docker/nginx/conf.d/default.conf` | Production  | HTTPS, SSL (LetsEncrypt), freesport.ru |
+| `docker/nginx/conf.d/default.conf` | Production  | HTTPS, SSL (LetsEncrypt), optisport.ru |
 
 ### Монтирование в Docker Compose
 
@@ -139,10 +139,10 @@ REDIS_PASSWORD=<secure_password>
 
 # Django
 SECRET_KEY=<secure_key>
-CORS_ALLOWED_ORIGINS=https://freesport.ru,https://www.freesport.ru
+CORS_ALLOWED_ORIGINS=https://optisport.ru,https://www.optisport.ru
 
 # Frontend
-NEXT_PUBLIC_API_URL=https://freesport.ru/api/v1
+NEXT_PUBLIC_API_URL=https://optisport.ru/api/v1
 
 # Docker images
 BACKEND_IMAGE=ghcr.io/alexmobicraft/freesport/backend:production

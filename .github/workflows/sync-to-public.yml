@@ -95,7 +95,7 @@ jobs:
           # Инициализируем абсолютно новый чистый репозиторий с веткой main
           git init -b main
           git config user.name "Freesport Sync Bot"
-          git config user.email "bot@freesport.ru"
+          git config user.email "bot@optisport.ru"
 
           git add .
           git commit -m "chore: public release $(date +'%Y-%m-%d %H:%M')"

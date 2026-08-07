@@ -26,9 +26,12 @@ COPY . .
 
 # Создание .env.local для сборки
 ARG NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+# metadataBase (canonical/OG-ссылки) вычисляется на этапе сборки, поэтому нужен ARG, а не только env
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 ARG NODE_ENV=production
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NODE_ENV=$NODE_ENV
 ENV NEXT_TELEMETRY_DISABLED=1
 

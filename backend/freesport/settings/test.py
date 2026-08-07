@@ -86,7 +86,7 @@ CONFLICT_NOTIFICATION_EMAIL = os.environ.get(
 )
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL",
-    "admin@freesport.ru",
+    "admin@optisport.ru",
 )
 
 # Отключаем логирование в консоль, чтобы вывод тестов был чистым.

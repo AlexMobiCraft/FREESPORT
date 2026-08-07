@@ -89,7 +89,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec nginx
 curl -I http://localhost/
 
 # Проверка SSL (если настроен)
-curl -I https://freesport.ru/
+curl -I https://optisport.ru/
 ```
 
 ### 6. Celery Worker
@@ -233,7 +233,7 @@ send_alert() {
     local subject=$1
     local message=$2
 
-    echo "$message" | mail -s "$subject" admin@freesport.ru
+    echo "$message" | mail -s "$subject" admin@optisport.ru
 }
 
 # Использование в скрипте:

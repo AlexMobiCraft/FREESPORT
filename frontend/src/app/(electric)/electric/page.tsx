@@ -53,7 +53,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'FREESPORT - Спортивные товары оптом и в розницу',
     description: 'Крупнейший интернет-магазин спортивной одежды и экипировки в России.',
-    url: 'https://freesport.ru',
+    url: 'https://optisport.ru',
     siteName: 'FREESPORT',
     images: [
       {

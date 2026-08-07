@@ -102,5 +102,5 @@ EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 
 # Домен для email будет настраиваться через переменные
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
-SERVER_EMAIL = config("SERVER_EMAIL", default="admin@freesport.ru")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@optisport.ru")
+SERVER_EMAIL = config("SERVER_EMAIL", default="admin@optisport.ru")

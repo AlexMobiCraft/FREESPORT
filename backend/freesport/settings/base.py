@@ -434,19 +434,19 @@ SPECTACULAR_SETTINGS = {
     ],
     "SERVERS": [
         {"url": "http://127.0.0.1:8001", "description": "Development server"},
-        {"url": "https://api.freesport.ru", "description": "Production server"},
+        {"url": "https://optisport.ru", "description": "Production server"},
     ],
     # OpenAPI 3.1 Extensions для будущих webhooks (ЮКасса)
     "EXTENSIONS_INFO": {
         "x-logo": {
-            "url": "https://api.freesport.ru/static/logo.png",
+            "url": "https://optisport.ru/static/logo.png",
             "altText": "FREESPORT API",
         }
     },
 }
 
 # Настройки для разрешения конфликтов синхронизации (Story 3.2.2)
-CONFLICT_NOTIFICATION_EMAIL = config("CONFLICT_NOTIFICATION_EMAIL", default="admin@freesport.ru")
+CONFLICT_NOTIFICATION_EMAIL = config("CONFLICT_NOTIFICATION_EMAIL", default="admin@optisport.ru")
 
 # ============================================================================
 # Email Configuration (Story 29.3)
@@ -467,7 +467,7 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 
 # Адрес отправителя по умолчанию
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@optisport.ru")
 SERVER_EMAIL = config("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 
 # Парсинг списка администраторов из ADMIN_EMAILS

@@ -6,7 +6,7 @@ description: Продакшен runbook FREESPORT — частые инциде�
 
 ## Frontend остановился после деплоя / спинер вокруг favicon
 
-**Симптомы:** `https://freesport.ru/` возвращает 502; `docker compose ps -a` показывает `freesport-frontend Exited (0)`; в логах `Failed to find Server Action "x"`.
+**Симптомы:** `https://optisport.ru/` возвращает 502; `docker compose ps -a` показывает `freesport-frontend Exited (0)`; в логах `Failed to find Server Action "x"`.
 
 **Причина:** рассинхрон старого клиентского JS/кэша и новой серверной сборки либо смешанные версии деплоя.
 

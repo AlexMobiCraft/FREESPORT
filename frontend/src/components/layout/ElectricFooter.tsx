@@ -117,10 +117,10 @@ const ElectricFooter: React.FC = () => {
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-[var(--color-primary)] flex-shrink-0" />
                 <a
-                  href="mailto:info@freesport.ru"
+                  href="mailto:info@optisport.ru"
                   className="hover:text-[var(--foreground)] transition-colors"
                 >
-                  info@freesport.ru
+                  info@optisport.ru
                 </a>
               </li>
             </ul>

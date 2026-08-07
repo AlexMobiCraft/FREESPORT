@@ -42,15 +42,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'freesport.ru',
+        hostname: 'optisport.ru',
       },
       {
         protocol: 'https',
-        hostname: 'cdn.freesport.ru',
+        hostname: 'cdn.optisport.ru',
       },
       {
         protocol: 'https',
-        hostname: '**.freesport.ru',
+        hostname: '**.optisport.ru',
       },
       {
         protocol: 'https',

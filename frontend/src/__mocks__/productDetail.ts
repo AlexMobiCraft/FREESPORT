@@ -27,19 +27,19 @@ export const MOCK_PRODUCT_DETAIL_API = {
   images: [
     {
       id: 1,
-      url: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/main.jpg',
+      url: 'https://cdn.optisport.ru/products/asics-gel-blast-ff/main.jpg',
       alt_text: 'ASICS Gel-Blast FF front',
       is_main: true,
     },
     {
       id: 2,
-      url: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/side.jpg',
+      url: 'https://cdn.optisport.ru/products/asics-gel-blast-ff/side.jpg',
       alt_text: 'ASICS Gel-Blast FF side',
       is_main: false,
     },
     {
       id: 3,
-      url: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/back.jpg',
+      url: 'https://cdn.optisport.ru/products/asics-gel-blast-ff/back.jpg',
       alt_text: 'ASICS Gel-Blast FF back',
       is_main: false,
     },
@@ -103,19 +103,19 @@ export const MOCK_PRODUCT_DETAIL: ProductDetail = {
   images: [
     {
       id: 1,
-      image: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/main.jpg',
+      image: 'https://cdn.optisport.ru/products/asics-gel-blast-ff/main.jpg',
       alt_text: 'ASICS Gel-Blast FF front',
       is_primary: true,
     },
     {
       id: 2,
-      image: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/side.jpg',
+      image: 'https://cdn.optisport.ru/products/asics-gel-blast-ff/side.jpg',
       alt_text: 'ASICS Gel-Blast FF side',
       is_primary: false,
     },
     {
       id: 3,
-      image: 'https://cdn.freesport.ru/products/asics-gel-blast-ff/back.jpg',
+      image: 'https://cdn.optisport.ru/products/asics-gel-blast-ff/back.jpg',
       alt_text: 'ASICS Gel-Blast FF back',
       is_primary: false,
     },
@@ -300,13 +300,13 @@ export const MOCK_PRODUCT_WITH_VARIANTS: ProductDetailWithVariants = {
   images: [
     {
       id: 1,
-      image: 'https://cdn.freesport.ru/products/nike-air-max/main.jpg',
+      image: 'https://cdn.optisport.ru/products/nike-air-max/main.jpg',
       alt_text: 'Nike Air Max front',
       is_primary: true,
     },
     {
       id: 2,
-      image: 'https://cdn.freesport.ru/products/nike-air-max/side.jpg',
+      image: 'https://cdn.optisport.ru/products/nike-air-max/side.jpg',
       alt_text: 'Nike Air Max side',
       is_primary: false,
     },

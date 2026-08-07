@@ -64,7 +64,7 @@ const resolveImageUrl = (path?: string | null): string | null => {
       return path.replace('http://nginx', publicBase);
     }
 
-    // Если путь уже публичный (например, https://freesport.ru), оставляем как есть
+    // Если путь уже публичный (например, https://optisport.ru), оставляем как есть
     return path;
   }
 

@@ -291,18 +291,18 @@ mkdir -p docker/ssl
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml stop nginx
 
 sudo certbot certonly --standalone \
-  -d freesport.ru -d www.freesport.ru \
+  -d optisport.ru -d www.optisport.ru \
   --agree-tos --no-eff-email \
-  -m admin@freesport.ru
+  -m admin@optisport.ru
 ```
 
-Сертификаты появятся в каталоге `/etc/letsencrypt/live/freesport.ru/`.
+Сертификаты появятся в каталоге `/etc/letsencrypt/live/optisport.ru/`.
 
 #### Копирование сертификатов в проект
 
 ```bash
-sudo cp /etc/letsencrypt/live/freesport.ru/fullchain.pem docker/ssl/fullchain.pem
-sudo cp /etc/letsencrypt/live/freesport.ru/privkey.pem docker/ssl/privkey.pem
+sudo cp /etc/letsencrypt/live/optisport.ru/fullchain.pem docker/ssl/fullchain.pem
+sudo cp /etc/letsencrypt/live/optisport.ru/privkey.pem docker/ssl/privkey.pem
 sudo chmod 600 docker/ssl/privkey.pem
 ```
 
@@ -313,7 +313,7 @@ sudo chmod 600 docker/ssl/privkey.pem
 ```nginx
 server {
     listen 443 ssl;
-    server_name freesport.ru www.freesport.ru;
+    server_name optisport.ru www.optisport.ru;
 
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
@@ -325,7 +325,7 @@ server {
 
 server {
     listen 80;
-    server_name freesport.ru www.freesport.ru;
+    server_name optisport.ru www.optisport.ru;
     return 301 https://$host$request_uri;
 }
 ```
@@ -337,7 +337,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d ngin
 
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec nginx nginx -t
 
-curl -I https://freesport.ru/
+curl -I https://optisport.ru/
 curl -k -I https://localhost/api/v1/health/
 ```
 
@@ -348,8 +348,8 @@ Certbot создаёт systemd timer, но после продления нуж�
 ```bash
 sudo certbot renew --dry-run
 
-sudo cp /etc/letsencrypt/live/freesport.ru/fullchain.pem docker/ssl/fullchain.pem
-sudo cp /etc/letsencrypt/live/freesport.ru/privkey.pem docker/ssl/privkey.pem
+sudo cp /etc/letsencrypt/live/optisport.ru/fullchain.pem docker/ssl/fullchain.pem
+sudo cp /etc/letsencrypt/live/optisport.ru/privkey.pem docker/ssl/privkey.pem
 
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml restart nginx
 ```

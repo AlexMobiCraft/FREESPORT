@@ -1,6 +1,6 @@
 # Установка Docker и развертывание FREESPORT Platform
 
-Эта страница содержит краткое руководство по установке Docker и развертыванию платформы FREESPORT на сервере <SERVER_IP> для домена freesport.ru.
+Эта страница содержит краткое руководство по установке Docker и развертыванию платформы FREESPORT на сервере <SERVER_IP> для домена optisport.ru.
 
 ## 🚀 Быстрый старт
 
@@ -61,7 +61,7 @@ cd /home/freesport/freesport
 docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml logs
 
 # Проверка доступности сайта
-curl -I https://freesport.ru
+curl -I https://optisport.ru
 ```
 
 **Ожидаемые результаты:**
@@ -186,7 +186,7 @@ docker compose --env-file .env.prod  -f docker/docker-compose.prod.yml up -d
 - **Storage**: 20+ ГБ SSD
 - **OS**: Ubuntu 20.04+ / CentOS 8+ / Debian 11+
 - **IP**: <SERVER_IP>
-- **Домен**: freesport.ru
+- **Домен**: optisport.ru
 
 ### Шаг 2: Установка Docker
 
@@ -235,8 +235,8 @@ nano .env.prod
 - `SECRET_KEY` - сгенерируйте новый ключ
 - `DB_PASSWORD` - установите надежный пароль
 - `REDIS_PASSWORD` - установите надежный пароль
-- `ALLOWED_HOSTS` - уже настроено для freesport.ru и IP <SERVER_IP>
-- `CORS_ALLOWED_ORIGINS` - уже настроено для freesport.ru
+- `ALLOWED_HOSTS` - уже настроено для optisport.ru и IP <SERVER_IP>
+- `CORS_ALLOWED_ORIGINS` - уже настроено для optisport.ru
 
 ### Шаг 4: Развертывание
 
@@ -255,7 +255,7 @@ nano .env.prod
 sudo apt install -y certbot python3-certbot-nginx
 
 # Получение SSL сертификата
-sudo certbot --nginx -d freesport.ru
+sudo certbot --nginx -d optisport.ru
 ```
 
 ## 🛠️ Управление платформой
@@ -307,7 +307,7 @@ docker system prune -a
 
 ```bash
 # Проверка здоровья всех сервисов
-curl https://freesport.ru/api/v1/health/
+curl https://optisport.ru/api/v1/health/
 
 # Комплексная проверка
 ./scripts/deploy/health-check.sh
