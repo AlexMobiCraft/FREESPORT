@@ -257,7 +257,9 @@ describe('NewsPage (/news)', () => {
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
       expect(metadata.openGraph?.title).toBe('Новости | FREESPORT');
-      expect(metadata.openGraph?.description).toBe('Новости компании FREESPORT');
+      expect(metadata.openGraph?.description).toBe(
+        'Новости компании FREESPORT. Акции, события, обновления каталога.'
+      );
     });
   });
 

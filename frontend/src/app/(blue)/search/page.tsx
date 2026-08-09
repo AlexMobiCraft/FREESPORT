@@ -18,6 +18,7 @@
 
 import type { Metadata } from 'next';
 import { SearchPageClient } from '@/components/business/SearchPageClient';
+import { buildMetadata } from '@/utils/seo';
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string; page?: string }>;
@@ -30,23 +31,16 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
   const params = await searchParams;
   const query = params.q || '';
 
-  return {
+  // Страницы результатов поиска закрыты от индексации (и в robots.txt тоже):
+  // они дублируют каталог и плодят мусорные URL с query-параметрами
+  return buildMetadata({
     title: query ? `Поиск: ${query}` : 'Поиск товаров',
     description: query
       ? `Результаты поиска по запросу "${query}" в магазине FREESPORT. Найдите спортивные товары по лучшим ценам.`
       : 'Поиск спортивных товаров в магазине FREESPORT',
-    robots: {
-      index: true,
-      follow: true,
-    },
-    openGraph: {
-      title: query ? `Поиск: ${query}` : 'Поиск товаров',
-      description: query
-        ? `Результаты поиска по запросу "${query}" в магазине FREESPORT`
-        : 'Поиск спортивных товаров в магазине FREESPORT',
-      type: 'website',
-    },
-  };
+    path: '/search',
+    noIndex: true,
+  });
 }
 
 /**

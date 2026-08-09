@@ -21,6 +21,7 @@ interface ProductPageProps {
 }
 
 import { getUserRole } from '@/utils/server-auth';
+import { DEFAULT_OG_IMAGE, buildMetadata } from '@/utils/seo';
 
 /**
  * Генерирует метаданные для SEO
@@ -32,25 +33,21 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
     const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
 
-    return {
+    return buildMetadata({
       title: `${product.name} - ${product.brand} | FREESPORT`,
       description: product.description.substring(0, 160),
-      openGraph: {
-        title: product.name,
-        description: product.description,
-        images: primaryImage
-          ? [{ url: primaryImage.image, alt: primaryImage.alt_text || product.name }]
-          : [],
-        type: 'website',
-      },
-      alternates: {
-        canonical: `/product/${product.slug}`,
-      },
-    };
+      ogTitle: product.name,
+      ogDescription: product.description,
+      path: `/product/${product.slug}`,
+      image: primaryImage
+        ? { url: primaryImage.image, alt: primaryImage.alt_text || product.name }
+        : DEFAULT_OG_IMAGE,
+    });
   } catch {
     return {
       title: 'Товар не найден | FREESPORT',
       description: 'Запрошенный товар не найден',
+      robots: { index: false, follow: true },
     };
   }
 }

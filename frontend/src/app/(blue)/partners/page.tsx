@@ -16,12 +16,14 @@ import {
   Button,
 } from '@/components/ui';
 import type { ProcessStep, AccordionItemData } from '@/components/ui';
+import { buildMetadata } from '@/utils/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Партнёрам — условия сотрудничества | FREESPORT',
   description:
     'Станьте партнёром FREESPORT. Оптовые поставки спортивных товаров, персональный менеджер, гибкие условия сотрудничества.',
-};
+  path: '/partners',
+});
 
 // Типы клиентов
 const clientTypes = [

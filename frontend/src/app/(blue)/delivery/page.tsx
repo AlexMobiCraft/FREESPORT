@@ -8,13 +8,15 @@ import type { Metadata } from 'next';
 import { Truck, MapPin, Mail, AlertTriangle } from 'lucide-react';
 import { Breadcrumb, Badge, Card } from '@/components/ui';
 import { cn } from '@/utils/cn';
+import { buildMetadata } from '@/utils/seo';
 
 // SEO Metadata
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Доставка | FREESPORT',
   description:
     'Условия доставки FREESPORT. Бесплатная доставка до ТК от 35 000 ₽. Самовывоз со склада в Ставрополе от 1 500 ₽.',
-};
+  path: '/delivery',
+});
 
 // Данные для доставки
 const deliveryOptions = {

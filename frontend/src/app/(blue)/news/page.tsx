@@ -12,15 +12,13 @@ import { Newspaper } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
 import { NewsCard } from '@/components/home/NewsCard';
 import { newsService } from '@/services/newsService';
+import { buildMetadata } from '@/utils/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Новости | FREESPORT',
   description: 'Новости компании FREESPORT. Акции, события, обновления каталога.',
-  openGraph: {
-    title: 'Новости | FREESPORT',
-    description: 'Новости компании FREESPORT',
-  },
-};
+  path: '/news',
+});
 
 interface NewsPageProps {
   searchParams: Promise<{ page?: string }>;
