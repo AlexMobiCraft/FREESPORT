@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import uuid
+from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence, TypedDict
@@ -31,6 +32,14 @@ if TYPE_CHECKING:
     from apps.products.models import Product, ProductVariant
 
 logger = logging.getLogger("import_products")
+
+# Предохранитель массовой деактивации категорий.
+# Если под одним раскрытым родителем гасится больше этой доли его активных детей,
+# деактивация детей именно этого родителя отменяется (частичная выгрузка 1С).
+MAX_CATEGORY_DEACTIVATION_RATIO = 0.3
+# Порог не применяется к родителям с малым числом активных детей: штатное удаление
+# 1 категории из 3 даёт 33 % и блокировалось бы навсегда, засоряя лог ошибками.
+MIN_CHILDREN_FOR_DEACTIVATION_RATIO = 4
 
 
 # ============================================================================
@@ -287,6 +296,9 @@ class VariantImportProcessor:
             "brand_fallbacks": 0,
             "category_fallbacks": 0,
             "attributes_missing_mapping": 0,
+            # Сколько категорий предохранитель отказался гасить (0 = сработок не было).
+            # Инициализируем здесь, чтобы отличать «не сработал» от «код не задеплоен».
+            "categories_deactivation_skipped": 0,
         }
 
         # Story 13.2+ Debugging: Track specific updated items
@@ -309,6 +321,16 @@ class VariantImportProcessor:
 
         # Коллекция всех валидных категорий для деактивации устаревших
         self._valid_category_onec_ids: set[str] = set()
+
+        # onec_id родителей, реально «раскрытых» в обработанных XML: под ними в выгрузке
+        # перечислен хотя бы один прошедший allowed-фильтр ребёнок. Только дети этих
+        # родителей попадают в зону деактивации. Множество накапливается между groups*.xml.
+        self._expanded_parent_onec_ids: set[str] = set()
+
+        # onec_id корневых категорий (без parent_id), встреченных в обработанных XML.
+        # Копится между файлами: корень может прийти в одном groups*.xml, а его дети —
+        # в другом, и guard «чужой корень не раскрыт» должен работать в обоих случаях.
+        self._root_category_onec_ids: set[str] = set()
 
     # ========================================================================
     # Helper methods
@@ -1621,6 +1643,9 @@ class VariantImportProcessor:
                     cat_id = cat.get("id")
                     if cat_id:
                         root_ids.add(cat_id)
+            # Накапливаем корни между файлами выгрузки — см. guard при сборе
+            # «раскрытых» родителей ниже.
+            self._root_category_onec_ids.update(root_ids)
 
             # 1. Ищем якорную среди корневых
             for cat in categories_data:
@@ -1784,6 +1809,31 @@ class VariantImportProcessor:
                 logger.error(f"Error processing category {category_data}: {e}")
                 result["errors"] += 1
 
+        # ======================================================================
+        # Сбор «раскрытых» родителей: под ними в выгрузке перечислен хотя бы один
+        # ребёнок. Только дети таких родителей попадут в зону деактивации
+        # (см. deactivate_obsolete_categories). Множество накапливается между файлами
+        # groups*.xml, поэтому здесь оно не сбрасывается.
+        #
+        # Считаем ребёнка только после ШАГ 1 и только если он реально записан
+        # (есть в category_map). Иначе битая строка XML (без name) или упавшая запись
+        # открыла бы зону деактивации для всей ветки родителя, а сама попала бы
+        # в кандидаты на деактивацию — родитель «раскрыт», ребёнок «невалиден».
+        # Присутствие в category_map также означает, что allowed-фильтр пройден.
+        # ======================================================================
+        for category_data in categories_data:
+            parent_onec_id = category_data.get("parent_id")
+            child_onec_id = category_data.get("id")
+            if not parent_onec_id or not child_onec_id or child_onec_id not in category_map:
+                continue
+            # Тот же guard, что в ШАГ 2: чужой корень не считается раскрытым,
+            # иначе его дети попадут в зону деактивации. Множество корней копится
+            # между файлами: корень может быть объявлен в одном groups*.xml,
+            # а его дети — в другом.
+            if filtering_active and parent_onec_id in self._root_category_onec_ids and parent_onec_id != anchor_id:
+                continue
+            self._expanded_parent_onec_ids.add(parent_onec_id)
+
         # ШАГ 2: Устанавливаем родительские связи с валидацией циклов
         for category_data in categories_data:
             try:
@@ -1830,19 +1880,114 @@ class VariantImportProcessor:
         return result
 
     def deactivate_obsolete_categories(self) -> None:
-        """Деактивация устаревших категорий после обработки всех XML файлов"""
-        if not self._valid_category_onec_ids:
+        """Деактивация устаревших категорий после обработки всех XML файлов.
+
+        Витрину от схлопывания на частичной выгрузке 1С защищают два независимых барьера:
+
+        1. Зона деактивации ограничена активными детьми «раскрытых» родителей — тех,
+           под которыми в выгрузке пришёл хотя бы один прошедший allowed-фильтр ребёнок.
+           Категории под нераскрытыми ветками не трогаются вовсе.
+        2. Для каждого раскрытого родителя **отдельно**: если деактивация затронет больше
+           MAX_CATEGORY_DEACTIVATION_RATIO его активных детей, чистка детей именно этого
+           родителя отменяется с logger.error; под остальными родителями она проходит штатно.
+           Порог не применяется к родителям, у которых меньше
+           MIN_CHILDREN_FOR_DEACTIVATION_RATIO активных детей.
+
+        Осознанный компромисс барьера 1: корневые категории (parent IS NULL) выпадают из
+        зоны деактивации, хотя старый код их гасил. Витрину это не затрагивает
+        (CategoryTreeViewSet отдаёт только детей якоря), но устаревший корень остаётся
+        видимым в плоском /api/v1/categories/ — тот фильтрует только по is_active.
+        """
+        # Нечего сверять или ни одного раскрытого родителя — деактивировать нечего.
+        if not self._valid_category_onec_ids or not self._expanded_parent_onec_ids:
             return
 
         from apps.products.models import Category
 
-        obsolete_categories_updated = (
-            Category.objects.filter(onec_id__isnull=False)
-            .exclude(onec_id__in=self._valid_category_onec_ids)
-            .update(is_active=False)
-        )
+        skipped_candidates = 0
+        skipped_parents: list[str] = []
+        deactivated = 0
 
-        logger.info(f"Deactivated {obsolete_categories_updated} obsolete categories.")
+        with transaction.atomic():
+            # Один запрос без N+1: активные дети всех раскрытых родителей.
+            # Пустой onec_id исключаем наравне с NULL: в _valid_category_onec_ids
+            # пустая строка не попадает никогда, иначе такая запись — вечный кандидат.
+            rows = (
+                Category.objects.filter(
+                    is_active=True,
+                    parent__onec_id__in=self._expanded_parent_onec_ids,
+                )
+                .exclude(onec_id__isnull=True)
+                .exclude(onec_id="")
+                .values_list("pk", "onec_id", "parent__onec_id", "parent__name")
+            )
+
+            by_parent: dict[str, list[tuple[int, str]]] = defaultdict(list)
+            parent_names: dict[str, str] = {}
+            for pk, onec_id, parent_onec_id, parent_name in rows:
+                by_parent[parent_onec_id].append((pk, onec_id))
+                parent_names[parent_onec_id] = parent_name
+
+            to_deactivate: list[int] = []
+            for parent_onec_id, kids in by_parent.items():
+                doomed = [pk for pk, oid in kids if oid not in self._valid_category_onec_ids]
+                if not doomed:
+                    continue
+                # Умножение вместо деления: доля 3/10 против порога 0.3 не должна
+                # зависеть от округления double.
+                over_threshold = len(doomed) > len(kids) * MAX_CATEGORY_DEACTIVATION_RATIO
+
+                if len(kids) < MIN_CHILDREN_FOR_DEACTIVATION_RATIO:
+                    # Порог не применяется — иначе штатное удаление 1 категории из 3
+                    # блокировалось бы навсегда. Но крупную потерю в малой ветке
+                    # всё равно фиксируем: гасить 2 из 3 молча недопустимо.
+                    if over_threshold:
+                        logger.warning(
+                            "Малая ветка теряет большинство детей: родитель '%s' (onec_id=%s), "
+                            "гасим %s из %s активных детей. Порог не применён — детей меньше %s.",
+                            parent_names.get(parent_onec_id),
+                            parent_onec_id,
+                            len(doomed),
+                            len(kids),
+                            MIN_CHILDREN_FOR_DEACTIVATION_RATIO,
+                        )
+                    to_deactivate.extend(doomed)
+                    continue
+
+                if over_threshold:
+                    logger.error(
+                        "Деактивация категорий отменена для родителя '%s' (onec_id=%s): "
+                        "кандидатов на деактивацию %s из %s активных детей — "
+                        "превышен порог %s. Вероятна частичная выгрузка 1С.",
+                        parent_names.get(parent_onec_id),
+                        parent_onec_id,
+                        len(doomed),
+                        len(kids),
+                        MAX_CATEGORY_DEACTIVATION_RATIO,
+                    )
+                    skipped_candidates += len(doomed)
+                    skipped_parents.append(parent_onec_id)
+                    continue
+                to_deactivate.extend(doomed)
+
+            if to_deactivate:
+                # Обновляем по явному списку pk: parent__onec_id__in — это join, по нему
+                # update() невозможен. QuerySet.update() намеренно не трогает auto_now-поле
+                # updated_at — поведение сохраняем.
+                deactivated = Category.objects.filter(pk__in=to_deactivate).update(is_active=False)
+
+        if skipped_candidates:
+            # Наблюдаемость: при фоновом Celery-импорте оператор видит только ImportSession.
+            # stats доедет до report_details (finalize_session сохраняет их после деактивации),
+            # log_progress пишет в report немедленно.
+            self.stats["categories_deactivation_skipped"] = skipped_candidates
+            self.log_progress(
+                f"ВНИМАНИЕ: предохранитель отменил деактивацию категорий "
+                f"у {len(skipped_parents)} родител(ей): не погашено {skipped_candidates} "
+                f"категорий. Вероятна частичная выгрузка 1С."
+            )
+
+        logger.info(f"Deactivated {deactivated} obsolete categories.")
 
     def _has_circular_reference(
         self,

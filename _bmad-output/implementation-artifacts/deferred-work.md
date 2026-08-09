@@ -593,3 +593,21 @@
 - source_spec: `_bmad-output/implementation-artifacts/Story/40-2-price-type-role-mapping-and-resolver.md`
   summary: `scripts/inport_from_1C/clear_catalog.ps1` нерабочий — TRUNCATE по несуществующим таблицам; при «починке» имён он воспроизведёт только что устранённый дефект.
   evidence: Скрипт выполняет `TRUNCATE products_product`, `products_brand`, `products_category`, `products_productimage`, `products_pricetype`, `products_importsession`. Реальные имена переопределены через `Meta.db_table`: `products`, `brands`, `categories`, `product_images`, `price_types`, `import_sessions` (`backend/apps/products/models.py:68,222,469,546,659,755`). Скрипт падает на первом же `TRUNCATE`, поэтому сегодня безвреден. Дополнительно он по умолчанию бьёт в `docker-compose.test.yml`, то есть в тестовый стек, а не в dev. Чинить нужно вместе: имена таблиц **и** исключение `price_types` из списка — иначе обёртка вернёт потерю маппинга ролей, которую убрали из management-команды. Кандидат на удаление: management-команда `clear_catalog` покрывает сценарий полностью и безопаснее.
+
+## Deferred from: review loop 1 of spec-fix-catalog-categories-deactivation (2026-08-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-catalog-categories-deactivation.md`
+  summary: Корневые категории (`parent IS NULL`) больше никогда не деактивируются импортом — прямое следствие барьера «гасим только детей раскрытых родителей», незадокументированное изменение поведения относительно старого `filter(onec_id__isnull=False)`.
+  evidence: Новая зона деактивации строится по `parent__onec_id__in=...`, поэтому записи без родителя в неё не попадают физически. На витрину не влияет: `CategoryTreeViewSet.get_queryset()` отдаёт только детей якоря. Устаревший корень, удалённый в 1С, может всплыть в плоском `/api/v1/categories/` (`views.py:~286` фильтрует только `is_active`). При активном `ROOT_CATEGORY_NAME` чужие корни и так не импортируются, поэтому практический масштаб мал.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-catalog-categories-deactivation.md`
+  summary: Список технических категорий-исключений (`uncategorized`, `onec-unresolved-category`, `Без категории`, placeholder-regex) продублирован минимум в трёх местах и нигде не вынесен в общую константу.
+  evidence: Независимые копии живут в `apps/products/views.py:358-360` (`CategoryTreeViewSet`), `apps/products/serializers.py:~858` и теперь в новой команде `reactivate_catalog_categories.py`. Добавление служебной категории потребует правки всех трёх, расхождение проявится молча — тесты каждой копии сравнивают её саму с собой. Вынос в `category_utils` заблокирован frozen-границей «не менять `CategoryTreeViewSet`» в рамках этой стори.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-catalog-categories-deactivation.md`
+  summary: Команда `reactivate_catalog_categories --execute` не отличает категорию, погашенную багом импорта, от погашенной осознанно (снята с продажи, скрыта админом) — поднимает обе, отката нет.
+  evidence: Кандидаты выбираются единственным условием `is_active=False` среди потомков якоря. `updated_at` при массовом `update()` не пишется (как и в импорте), поэтому восстановить прежнее состояние после ошибочного прогона нечем. Возможные направления: флаг `--since <дата>` по `updated_at`, ограничение веткой, дамп прежнего состояния перед записью. Для текущего прод-инцидента не блокирует: осознанно скрытых категорий на проде, по имеющимся данным, нет.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-catalog-categories-deactivation.md`
+  summary: Порог предохранителя зашит константами модуля (`MAX_CATEGORY_DEACTIVATION_RATIO`, `MIN_CHILDREN_FOR_DEACTIVATION_RATIO`) без возможности переопределения через settings/env/флаг команды.
+  evidence: Легитимная массовая чистка категорий в 1С (>30 % под одним родителем) упрётся в предохранитель, и единственный выход — деплой кода. Операционного обходного пути (`--force`, разовый override) не предусмотрено. Осознанно оставлено вне стори: пока нет ни одного зафиксированного случая такой чистки, а конфигурируемость порога снижает его ценность как защиты.
