@@ -218,7 +218,7 @@ class OrderExportService:
 
         self._add_requisite(doc_props, "Отменен", "false")
         self._add_requisite(doc_props, "Проведен", "false")
-        self._add_requisite(doc_props, "Сайт", "freesport.ru")
+        self._add_requisite(doc_props, "Сайт", "optisport.ru")
 
         document.append(doc_props)
 

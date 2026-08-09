@@ -60,7 +60,7 @@
 ### Site Map
 
 ```
-🏠 Главная (freesport.ru)
+🏠 Главная (optisport.ru)
 │
 ├── 📦 [Тизер 1] «Почему FREESPORT?» ────→ /partners
 │   └── 4 преимущества + CTA

@@ -27,7 +27,7 @@ class Command(BaseCommand):
     Импорт изображений товаров из директории 1С.
 
     Использует то же поведение что и пункт меню "Только изображения товаров"
-    в Django Admin (https://freesport.ru/admin/integrations/import_1c/).
+    в Django Admin (https://optisport.ru/admin/integrations/import_1c/).
     """
 
     help = "Импорт изображений товаров из директории 1С"

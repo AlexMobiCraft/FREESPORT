@@ -27,7 +27,7 @@ const requisites: ReadonlyArray<{ label: string; value: string }> = [
     label: 'Телефон',
     value: '+7 (8652) 22-50-78, +7 (8652) 90-97-71, +7 (968) 273-21-68',
   },
-  { label: 'Электронная почта', value: 'info@freesport.ru' },
+  { label: 'Электронная почта', value: 'info@optisport.ru' },
   { label: 'Руководитель', value: 'Терещенко Руслан Гумметович' },
 ];
 

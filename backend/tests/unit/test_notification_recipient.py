@@ -21,7 +21,7 @@ from apps.orders.tasks import send_order_notification_email
 def notification_recipient(db):
     """Фикстура для создания тестового получателя уведомлений."""
     return NotificationRecipient.objects.create(
-        email="admin@freesport.ru",
+        email="admin@optisport.ru",
         name="Admin",
         is_active=True,
         notify_new_orders=True,
@@ -37,7 +37,7 @@ def notification_recipient(db):
 def inactive_recipient(db):
     """Фикстура для неактивного получателя."""
     return NotificationRecipient.objects.create(
-        email="inactive@freesport.ru",
+        email="inactive@optisport.ru",
         name="Inactive Admin",
         is_active=False,
         notify_new_orders=True,
@@ -51,7 +51,7 @@ class TestNotificationRecipientModel:
 
     def test_create_recipient_with_all_flags(self, notification_recipient):
         """Тест создания получателя со всеми флагами."""
-        assert notification_recipient.email == "admin@freesport.ru"
+        assert notification_recipient.email == "admin@optisport.ru"
         assert notification_recipient.name == "Admin"
         assert notification_recipient.is_active is True
         assert notification_recipient.notify_new_orders is True
@@ -63,35 +63,35 @@ class TestNotificationRecipientModel:
         """Тест уникальности email."""
         with pytest.raises(Exception):  # IntegrityError
             NotificationRecipient.objects.create(
-                email="admin@freesport.ru",
+                email="admin@optisport.ru",
                 name="Another Admin",
             )
 
     def test_email_normalized_to_lowercase(self, db):
         """Тест нормализации email в нижний регистр."""
         recipient = NotificationRecipient(
-            email="ADMIN@FREESPORT.RU",
+            email="ADMIN@OPTISPORT.RU",
             name="Caps Admin",
         )
         recipient.clean()
-        assert recipient.email == "admin@freesport.ru"
+        assert recipient.email == "admin@optisport.ru"
 
     def test_str_representation_with_name(self, notification_recipient):
         """Тест строкового представления с именем."""
-        assert str(notification_recipient) == "Admin <admin@freesport.ru>"
+        assert str(notification_recipient) == "Admin <admin@optisport.ru>"
 
     def test_str_representation_without_name(self, db):
         """Тест строкового представления без имени."""
         recipient = NotificationRecipient.objects.create(
-            email="noname@freesport.ru",
+            email="noname@optisport.ru",
             is_active=True,
         )
-        assert str(recipient) == "noname@freesport.ru"
+        assert str(recipient) == "noname@optisport.ru"
 
     def test_default_values(self, db):
         """Тест значений по умолчанию."""
         recipient = NotificationRecipient.objects.create(
-            email="default@freesport.ru",
+            email="default@optisport.ru",
         )
         assert recipient.is_active is True
         assert recipient.notify_new_orders is False
@@ -184,7 +184,7 @@ class TestSendOrderNotificationEmail:
         """Отправка нескольким получателям."""
         # Создаём второго получателя
         NotificationRecipient.objects.create(
-            email="admin2@freesport.ru",
+            email="admin2@optisport.ru",
             name="Admin 2",
             is_active=True,
             notify_new_orders=True,
@@ -198,8 +198,8 @@ class TestSendOrderNotificationEmail:
         call_kwargs = mock_send_mail.call_args
         recipient_list = call_kwargs.kwargs["recipient_list"]
         assert len(recipient_list) == 2
-        assert "admin@freesport.ru" in recipient_list
-        assert "admin2@freesport.ru" in recipient_list
+        assert "admin@optisport.ru" in recipient_list
+        assert "admin2@optisport.ru" in recipient_list
 
 
 @pytest.mark.unit
@@ -246,7 +246,7 @@ class TestMigratedUserVerificationTasks:
 
         # Создаём получателя для pending_queue alerts
         NotificationRecipient.objects.create(
-            email="alerts@freesport.ru",
+            email="alerts@optisport.ru",
             is_active=True,
             notify_pending_queue=True,
         )
@@ -266,4 +266,4 @@ class TestMigratedUserVerificationTasks:
         mock_send_mail.assert_called_once()
 
         call_kwargs = mock_send_mail.call_args
-        assert "alerts@freesport.ru" in call_kwargs.kwargs["recipient_list"]
+        assert "alerts@optisport.ru" in call_kwargs.kwargs["recipient_list"]

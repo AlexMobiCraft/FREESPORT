@@ -3,8 +3,8 @@ Management command для тестирования email конфигураци�
 Story 29.3: Email Server Configuration
 
 Использование:
-    python manage.py test_email --to admin@freesport.ru
-    python manage.py test_email --to admin@freesport.ru --verbose
+    python manage.py test_email --to admin@optisport.ru
+    python manage.py test_email --to admin@optisport.ru --verbose
 """
 
 from django.conf import settings
@@ -93,7 +93,7 @@ class Command(BaseCommand):
 
 --
 FREESPORT Platform
-https://freesport.ru
+https://optisport.ru
 """.format(
             host=settings.EMAIL_HOST,
             port=settings.EMAIL_PORT,

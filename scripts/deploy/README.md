@@ -36,7 +36,7 @@ sudo ./scripts/deploy/server-setup.sh
 
 **Конфигурация:**
 
-- Домен: freesport.ru
+- Домен: optisport.ru
 - IP: 5.35.124.149
 - Репозиторий: <https://github.com/AlexMobiCraft/FREESPORT.git>
 - Директория проекта: /opt/freesport
