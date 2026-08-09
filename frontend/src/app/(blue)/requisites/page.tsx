@@ -1,12 +1,14 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { Breadcrumb, Card } from '@/components/ui';
+import { buildMetadata } from '@/utils/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Реквизиты | FREESPORT',
   description:
     'Реквизиты ООО «ФРИСПОРТ»: ИНН, КПП, ОГРН, юридический и фактический адрес, контакты.',
-};
+  path: '/requisites',
+});
 
 // TODO: в дальнейшем заменить на fetch из API (модель Company или аналог)
 const companyName = 'Общество с ограниченной ответственностью «ФРИСПОРТ»';

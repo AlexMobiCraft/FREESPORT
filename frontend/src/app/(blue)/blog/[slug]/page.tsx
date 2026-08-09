@@ -14,6 +14,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
 import { blogService } from '@/services/blogService';
 import { normalizeImageUrl } from '@/utils/media';
+import { DEFAULT_OG_IMAGE, buildMetadata } from '@/utils/seo';
 
 interface BlogDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -27,19 +28,20 @@ export async function generateMetadata({ params }: BlogDetailPageProps): Promise
 
   try {
     const post = await blogService.getBlogPostBySlug(slug);
-    return {
+    return buildMetadata({
       title: `${post.meta_title || post.title} | Блог FREESPORT`,
       description: post.meta_description || post.excerpt,
-      openGraph: {
-        title: post.meta_title || post.title,
-        description: post.meta_description || post.excerpt,
-        images: post.image ? [post.image] : [],
-      },
-    };
+      ogTitle: post.meta_title || post.title,
+      path: `/blog/${slug}`,
+      image: post.image || DEFAULT_OG_IMAGE,
+      ogType: 'article',
+      openGraphExtra: post.published_at ? { publishedTime: post.published_at } : undefined,
+    });
   } catch {
     return {
       title: 'Статья не найдена | FREESPORT',
       description: 'Запрашиваемая статья не найдена',
+      robots: { index: false, follow: true },
     };
   }
 }

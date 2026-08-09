@@ -118,11 +118,11 @@ See `frontend/src/app/` for details.
 Set `ACTIVE_THEME` in `.env` to control root URL (`/`) redirect:
 
 - `coming_soon` → `/coming-soon` (placeholder page)
-- `blue` → `/home` (Blue Theme - Main Page)
+- `blue` → `/home` (Blue Theme - Main Page) — **основная тема с 2026-08-09**
 - `electric_orange` → `/electric` (Electric Orange Theme)
 
 > [!IMPORTANT]
-> In production, ensure `ACTIVE_THEME` is explicitly set in `.env.prod`. If not set, it defaults to `coming_soon`.
+> In production, ensure `ACTIVE_THEME` is explicitly set in `.env.prod`. Docker Compose falls back to `blue` if the variable is missing; the code default in `frontend/src/app/page.tsx` remains `coming_soon`.
 
 ### **Performance & Troubleshooting**
 

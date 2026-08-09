@@ -14,6 +14,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
 import { newsService } from '@/services/newsService';
 import { normalizeImageUrl } from '@/utils/media';
+import { DEFAULT_OG_IMAGE, buildMetadata } from '@/utils/seo';
 
 interface NewsDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -27,19 +28,20 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
 
   try {
     const news = await newsService.getNewsBySlug(slug);
-    return {
+    return buildMetadata({
       title: `${news.title} | Новости FREESPORT`,
       description: news.excerpt,
-      openGraph: {
-        title: news.title,
-        description: news.excerpt,
-        images: news.image ? [news.image] : [],
-      },
-    };
+      ogTitle: news.title,
+      path: `/news/${slug}`,
+      image: news.image || DEFAULT_OG_IMAGE,
+      ogType: 'article',
+      openGraphExtra: news.published_at ? { publishedTime: news.published_at } : undefined,
+    });
   } catch {
     return {
       title: 'Новость не найдена | FREESPORT',
       description: 'Запрашиваемая новость не найдена',
+      robots: { index: false, follow: true },
     };
   }
 }

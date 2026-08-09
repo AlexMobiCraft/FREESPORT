@@ -273,13 +273,13 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       expect(metadata.openGraph?.images).toEqual(['http://example.com/blog-image.jpg']);
     });
 
-    it('должна возвращать OpenGraph без изображения', async () => {
+    it('должна подставлять изображение по умолчанию, если у статьи его нет', async () => {
       const postWithoutImage = { ...mockBlogPost, image: null };
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(postWithoutImage);
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.openGraph?.images).toEqual([]);
+      expect(metadata.openGraph?.images).toEqual(['/og-image.jpg']);
     });
 
     it('должна обрабатывать ошибку при генерации метаданных', async () => {

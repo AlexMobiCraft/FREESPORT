@@ -12,15 +12,13 @@ import { BookOpen } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
 import { BlogPostCard } from '@/components/home/BlogPostCard';
 import { blogService } from '@/services/blogService';
+import { buildMetadata } from '@/utils/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'Блог | FREESPORT',
   description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT.',
-  openGraph: {
-    title: 'Блог | FREESPORT',
-    description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT',
-  },
-};
+  path: '/blog',
+});
 
 interface BlogPageProps {
   searchParams: Promise<{ page?: string }>;

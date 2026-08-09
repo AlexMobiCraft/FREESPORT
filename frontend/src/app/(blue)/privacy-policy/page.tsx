@@ -7,6 +7,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Breadcrumb, Card } from '@/components/ui';
 import { extractBodyContent } from '@/utils/htmlContent';
+import { buildMetadata } from '@/utils/seo';
 
 interface PageData {
   title: string;
@@ -81,10 +82,11 @@ const fetchPrivacyPolicy = cache(async (): Promise<PageData | null> => {
 export async function generateMetadata(): Promise<Metadata> {
   const page = await fetchPrivacyPolicy();
 
-  return {
+  return buildMetadata({
     title: page?.seo_title || DEFAULT_TITLE,
     description: page?.seo_description || '',
-  };
+    path: '/privacy-policy',
+  });
 }
 
 const breadcrumbItems = [

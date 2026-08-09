@@ -16,16 +16,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Zap, Check, Lightbulb, Shield } from 'lucide-react';
 import { Breadcrumb, FeatureCard, StatCounter, Button } from '@/components/ui';
+import { buildMetadata } from '@/utils/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: 'О компании',
   description:
     'Федеральный оптовый поставщик и производитель спортивных товаров. Более 1000 товаров, 50+ брендов, 10+ лет на рынке.',
-  openGraph: {
-    title: 'О компании',
-    description: 'Федеральный оптовый поставщик спортивных товаров',
-  },
-};
+  path: '/about',
+});
 
 // Данные для ценностей
 const values = [

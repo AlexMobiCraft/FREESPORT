@@ -220,11 +220,11 @@ describe('NewsDetailPage (/news/[slug])', () => {
       expect(metadata.openGraph?.images).toEqual(['http://example.com/news-image.jpg']);
     });
 
-    it('должна возвращать OpenGraph без изображения', async () => {
+    it('должна подставлять изображение по умолчанию, если у новости его нет', async () => {
       const newsWithoutImage = { ...mockNewsItem, image: null };
       vi.mocked(newsService.getNewsBySlug).mockResolvedValue(newsWithoutImage);
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test-news' }) });
-      expect(metadata.openGraph?.images).toEqual([]);
+      expect(metadata.openGraph?.images).toEqual(['/og-image.jpg']);
     });
 
     it('должна обрабатывать ошибку при генерации метаданных', async () => {

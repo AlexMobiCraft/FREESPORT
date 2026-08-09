@@ -1,8 +1,9 @@
 import React, { cache } from 'react';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import NotFoundView from '@/app/not-found';
 import { Breadcrumb, Card } from '@/components/ui';
 import { extractBodyContent } from '@/utils/htmlContent';
+import { buildMetadata } from '@/utils/seo';
 
 interface PageData {
   title: string;
@@ -56,18 +57,31 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const page = await fetchPage(slug);
-  if (!page) return {};
-  return {
+  // Страница не найдена: Next.js в App Router отдаёт такой ответ со статусом 200
+  // (стриминг фиксирует статус до вызова notFound()), поэтому закрываем от индексации
+  // метатегом — иначе поисковик проиндексирует soft-404 по произвольному адресу
+  if (!page) {
+    return {
+      title: 'Страница не найдена | FREESPORT',
+      robots: { index: false, follow: true },
+    };
+  }
+  return buildMetadata({
     title: page.seo_title || `${page.title} | FREESPORT`,
     description: page.seo_description || '',
-  };
+    path: `/${page.slug}`,
+  });
 }
 
 export default async function CmsPage({ params }: Props) {
   const { slug } = await params;
   const page = await fetchPage(slug);
 
-  if (!page) notFound();
+  // Через этот catch-all проходят все несуществующие адреса верхнего уровня.
+  // notFound() здесь отдал бы статус 200 (ограничение App Router) и при этом
+  // потерял бы метатег noindex из generateMetadata — поисковик проиндексировал бы
+  // soft-404. Поэтому рендерим ту же 404-разметку сами, сохраняя метаданные.
+  if (!page) return <NotFoundView />;
 
   const breadcrumbItems = [{ label: 'Главная', href: '/' }, { label: page.title }];
 
