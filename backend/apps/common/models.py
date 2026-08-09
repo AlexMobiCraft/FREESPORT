@@ -635,7 +635,7 @@ class UserConsent(models.Model):
         verbose_name_plural = "Согласия пользователей"
         ordering = ["-given_at"]
         constraints = [
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=models.Q(user__isnull=False) | ~models.Q(session_key=""),
                 name="userconsent_user_or_session_required",
             ),

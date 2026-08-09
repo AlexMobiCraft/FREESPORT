@@ -22,11 +22,11 @@ FREESPORT использует email для:
 | `EMAIL_PORT`          | Порт SMTP                      | `587`                                         |
 | `EMAIL_USE_TLS`       | Использовать TLS               | `True`                                        |
 | `EMAIL_USE_SSL`       | Использовать SSL               | `False`                                       |
-| `EMAIL_HOST_USER`     | Логин SMTP                     | `noreply@freesport.ru`                        |
+| `EMAIL_HOST_USER`     | Логин SMTP                     | `noreply@optisport.ru`                        |
 | `EMAIL_HOST_PASSWORD` | Пароль SMTP                    | `your-app-password`                           |
-| `DEFAULT_FROM_EMAIL`  | Адрес отправителя              | `noreply@freesport.ru`                        |
-| `SERVER_EMAIL`        | Email сервера для ошибок       | `noreply@freesport.ru`                        |
-| `ADMIN_EMAILS`        | Список админов (через запятую) | `admin1@freesport.ru,admin2@freesport.ru`     |
+| `DEFAULT_FROM_EMAIL`  | Адрес отправителя              | `noreply@optisport.ru`                        |
+| `SERVER_EMAIL`        | Email сервера для ошибок       | `noreply@optisport.ru`                        |
+| `ADMIN_EMAILS`        | Список админов (через запятую) | `admin1@optisport.ru,admin2@optisport.ru`     |
 
 ### Development окружение
 
@@ -53,12 +53,12 @@ EMAIL_USE_TLS=False
 
 #### 1. Yandex.Connect (Яндекс 360 для бизнеса)
 
-**Рекомендуется для домена freesport.ru**
+**Рекомендуется для домена optisport.ru**
 
 **Шаг 1: Подключение домена**
 
 1. Перейдите в [Яндекс 360 для бизнеса](https://360.yandex.ru/business/) и войдите/зарегистрируйтесь.
-2. Добавьте домен (например, `freesport.ru`).
+2. Добавьте домен (например, `optisport.ru`).
 3. **Подтверждение владения:** Добавьте TXT-запись в DNS регистратора (значение выдаст Яндекс).
 4. **MX-записи:** Удалите старые MX и добавьте новую:
    - Host: `@`
@@ -70,7 +70,7 @@ EMAIL_USE_TLS=False
 
 **Шаг 2: Создание ящика и пароля**
 
-1. Создайте сотрудника с логином `noreply` (итоговый адрес `noreply@freesport.ru`).
+1. Создайте сотрудника с логином `noreply` (итоговый адрес `noreply@optisport.ru`).
 2. Войдите под этим аккаунтом в Яндекс ID.
 3. Перейдите в **Управление аккаунтом -> Безопасность -> Пароли приложений**.
 4. Создайте новый пароль "Django Backend". **Скопируйте 16-значный код.**
@@ -82,10 +82,10 @@ EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.yandex.ru
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
-EMAIL_HOST_USER=noreply@freesport.ru
+EMAIL_HOST_USER=noreply@optisport.ru
 EMAIL_HOST_PASSWORD=ваш_16_значный_пароль_приложения
-DEFAULT_FROM_EMAIL=FREESPORT <noreply@freesport.ru>
-ADMIN_EMAILS=admin@freesport.ru
+DEFAULT_FROM_EMAIL=FREESPORT <noreply@optisport.ru>
+ADMIN_EMAILS=admin@optisport.ru
 ```
 
 #### 2. Google Workspace (Свой домен) или Gmail
@@ -140,11 +140,11 @@ DEFAULT_FROM_EMAIL=your-email@gmail.com
 
 ```bash
 # В Docker контейнере
-docker exec -it freesport-backend python manage.py test_email --to admin@freesport.ru
+docker exec -it freesport-backend python manage.py test_email --to admin@optisport.ru
 
 # Локально (с активированным venv)
 cd backend
-python manage.py test_email --to admin@freesport.ru
+python manage.py test_email --to admin@optisport.ru
 ```
 
 ### Django Shell
@@ -157,7 +157,7 @@ docker exec -it freesport-backend python manage.py shell
 ...     'Test Email',
 ...     'Тестовое сообщение от FREESPORT',
 ...     None,  # Использует DEFAULT_FROM_EMAIL
-...     ['admin@freesport.ru'],
+...     ['admin@optisport.ru'],
 ...     fail_silently=False,
 ... )
 1  # Возвращает 1 при успехе

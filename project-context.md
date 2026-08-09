@@ -72,18 +72,24 @@ optimized_for_llm: true
 
 ## 4. Тестирование
 
-- **Pytest markers обязательны** на каждом backend-тесте:
-  - `@pytest.mark.unit` — модульные тесты внутри `apps/*/tests/`.
-  - `@pytest.mark.integration` — интеграционные в `backend/tests/`.
-  - `@pytest.mark.data_dependent` — тесты, зависящие от внешних данных.
-  Без маркера тест выпадет из CI-фильтров `make test-unit`/`test-integration`.
+- **Pytest markers проставляются автоматически по каталогу** — руками ставить не нужно. Хук `pytest_collection_modifyitems` в `backend/conftest.py` размечает каждый собранный тест по самому глубокому каталогу-категории в пути (работает на любой глубине, и в `tests/`, и внутри `apps/`):
+  - `unit/` → `unit`; `integration/`, `functional/`, `regression/` → `integration`; `performance/` → `performance`.
+  - Каталога-категории нет → умолчание: всё под `apps/` — `unit`. Для `tests/` умолчания нет: новый каталог там обрывает сбор с `UsageError`. Асимметрия осознанная (см. `backend/docs/testing-standards.md`).
+  - `unit` означает «модульный тест приложения», **не** «без БД»: тест с `django_db` внутри `apps/` штатно получает `unit`.
+  **Явный маркер в файле переопределяет автоматический** и задаёт свойство теста, а не каталог: перф-тест в `tests/integration/` достаточно пометить `@pytest.mark.performance`, переносить файл не нужно. `@pytest.mark.data_dependent` и `@pytest.mark.slow` ортогональны и ставятся вручную; `slow` — рычаг вывода таймингозависимого теста из PR-гейта.
+  Тест вне дерева `backend/` разметить нечем — хук его пропускает, но выдаёт `UnmarkedTestWarning` со списком: молча выпасть из прогонов по `-m` он не должен.
+- **Где что исполняется:** `backend-ci.yml` — быстрый unit-гейт (`not integration and not data_dependent and not performance and not slow`), покрытие не считает; `main.yml` — весь остальной набор (`not performance and not slow`) на каждом push/PR в `main`/`develop`, ловит регрессии интеграционных тестов, единственный гоняет `data_dependent` **и считает покрытие**; `performance-tests.yml` — `performance or slow` по расписанию (nightly) и вручную.
+- **Покрытие меряет `main.yml`, порог 73** (`--cov=apps --cov=freesport`, тесты/миграции исключены через `[tool.coverage.run] omit` в `backend/pyproject.toml`). Замеры 2026-08-07: локально **76,43 %**, в CI **74,92 %** — разрыв в 1,5 п.п. стабильный, потому что `backend/data/import_1c/` в `.gitignore` и на раннере пропускается ~32 теста импорта 1С. **Порог калибруется по CI, не по локальному прогону.** И **не возвращать подсчёт в быстрый гейт:** он запускает ~1900 тестов из ~3000 и даёт 62,5 % на том же коде, из-за чего порог ломался от каждой стори с интеграционными тестами.
 - **Команды запуска** (через Docker):
   ```bash
   make test                 # все тесты
   make test-unit            # только unit
   make test-integration     # только integration
-  # Прямой запуск конкретного теста в test-контейнере с .env.test:
-  docker compose --env-file .env -f docker/docker-compose.test.yml exec -T backend pytest <путь>
+  make test-performance     # только перф-тесты
+  make test-slow            # только медленные (маркер slow)
+  # Прямой запуск конкретного теста в test-контейнере (--env-file не нужен:
+  # в docker-compose.test.yml нет подстановок переменных, всё зашито литералами):
+  cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest <путь>
   ```
 - **API-контракт sync**: после правки serializer/view → обновить `docs/api/openapi.yaml` и регенерировать типы фронта `npm run generate:types`. Рассинхрон ломает TypeScript-сборку frontend.
 - **Frontend**: Vitest (`npm run test`, не Jest), E2E — Playwright (`npm run test:e2e`). API-моки — MSW (`__mocks__/handlers.ts`). A11y — axe-core / vitest-axe.

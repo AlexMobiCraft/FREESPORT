@@ -20,11 +20,14 @@ class UserCartIntegrationTest(TestCase):
 
         # Создаем пользователей
         self.retail_user = User.objects.create_user(email="retail@example.com", password="testpass123", role="retail")
+        # is_verified=True обязателен: неверифицированный B2B понижается до retail
+        # (см. apps/products/pricing_policy.resolve_pricing_role)
         self.b2b_user = User.objects.create_user(
             email="b2b@example.com",
             password="testpass123",
             role="wholesale_level1",
             company_name="Test Company",
+            is_verified=True,
         )
 
         # Создаем товар через фабрику (она создаст вариант с указанными параметрами)

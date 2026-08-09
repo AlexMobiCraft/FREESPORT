@@ -1,0 +1,94 @@
+name: Performance Tests (nightly)
+
+# Перф- и медленные тесты выведены из обычного гейта: они меряют время, и их падение почти
+# всегда означает деградацию окружения, а не дефект в PR. Но исполняться где-то они обязаны,
+# иначе регрессия производительности каталога, поиска и оформления заказа перестаёт
+# детектироваться. Здесь гоняется `-m "performance or slow"` — оба класса разом.
+on:
+  schedule:
+    # 02:00 UTC ежедневно
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.12"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    env:
+      DB_NAME: freesport_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      REDIS_URL: redis://localhost:6379/0
+      DJANGO_SETTINGS_MODULE: freesport.settings.test
+      SECRET_KEY: test-secret-key-for-ci-cd-only
+      DEBUG: "False"
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: freesport_test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-django
+
+      - name: Run database migrations
+        run: |
+          cd backend
+          source venv/bin/activate
+          python manage.py migrate --noinput
+
+      - name: Run performance and slow tests
+        run: |
+          cd backend
+          source venv/bin/activate
+          # slow идёт вместе с performance: он тоже выведен из PR-гейтов, но исполняться
+          # обязан — иначе таймингозависимая регрессия перестаёт детектироваться вовсе.
+          pytest -m "performance or slow" -v --tb=short

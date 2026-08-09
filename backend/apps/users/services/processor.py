@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -14,14 +14,66 @@ from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
 
-from apps.common.models import CustomerSyncLog
-from apps.users.models import Company, User
+from apps.common.models import AuditLog, CustomerSyncLog
+from apps.users.models import Company, User, matches_q
+from apps.users.services.price_type_role import (
+    AGREEMENT_STATUS_NONE,
+    REASON_AMBIGUOUS,
+    REASON_NO_AGREEMENT,
+    REASON_NO_DATA,
+    REASON_UNKNOWN,
+    RoleResolution,
+    load_price_type_role_map,
+    resolve_role_from_price_types,
+)
 
 if TYPE_CHECKING:
     from apps.products.models import ImportSession
 
 
 logger = logging.getLogger(__name__)
+
+
+# Ключи ролевых счётчиков сессии импорта. Единственный источник истины:
+# команда import_customers_from_1c суммирует ТОЛЬКО объявленные у себя ключи,
+# поэтому она импортирует этот кортеж, а не перечисляет имена заново.
+ROLE_STATS_KEYS = (
+    "roles_updated",
+    "roles_updated_from_unregistered",
+    "roles_updated_from_assigned",
+    "roles_already_actual",
+    "roles_skipped_unlinked_record",
+    "roles_skipped_no_data",
+    "roles_skipped_no_agreement",
+    "roles_skipped_unknown_price_type",
+    "roles_skipped_ambiguous",
+)
+
+# Причина отказа резолвера → счётчик отчёта. Словарь, а не цепочка if:
+# добавление шестой причины в price_type_role.py обязано падать здесь
+# явным KeyError, а не молча теряться в отчёте.
+SKIP_COUNTER_BY_REASON = {
+    REASON_NO_DATA: "roles_skipped_no_data",
+    REASON_NO_AGREEMENT: "roles_skipped_no_agreement",
+    REASON_UNKNOWN: "roles_skipped_unknown_price_type",
+    REASON_AMBIGUOUS: "roles_skipped_ambiguous",
+}
+
+
+class RoleChange(NamedTuple):
+    """
+    Исход разрешения роли для одной записи.
+
+    Отдаётся вызывающему через ``CustomerDataProcessor.last_role_outcome``,
+    а не возвращаемым значением ``_update_customer``: смена сигнатуры
+    расширила бы blast radius на ``process_customer`` и тесты.
+    """
+
+    outcome: str  # ключ из ROLE_STATS_KEYS
+    applied: bool  # роль реально меняется
+    previous_role: str
+    new_role: str
+    resolution: RoleResolution | None
 
 
 class CustomerDataProcessor:
@@ -35,9 +87,11 @@ class CustomerDataProcessor:
     # не являются и пропускаются.
     ONEC_BUYER_ROLE = "Покупатель"
 
-    # Импорт не определяет уровень цен: в выгрузке контрагентов его нет
-    # (тип цены живёт в договорах и priceLists). Новый контрагент получает
-    # нейтральную роль, реальную назначает менеджер при верификации заявки.
+    # Новая запись 1С портального аккаунта ещё не имеет, и роль ей не
+    # разрешается ни при каком виде цен (§5 задания эпика 40): роль,
+    # отличная от unregistered, выбила бы запись из выборки кандидатов на
+    # привязку. Вид цен из выгрузки при этом сохраняется (стори 40.3), а
+    # роль по нему приезжает при первом же импорте ПОСЛЕ привязки.
     IMPORTED_CUSTOMER_ROLE = User.ROLE_UNREGISTERED
 
     def __init__(self, session_id: int):
@@ -50,6 +104,14 @@ class CustomerDataProcessor:
         from apps.products.models import ImportSession
 
         self.session = ImportSession.objects.get(pk=session_id)
+        # Справочник видов цен читается один раз на сессию импорта (NFR-3940-09).
+        # Кэш живёт на экземпляре, а не на модуле: lru_cache пережил бы правку
+        # user_role в админке внутри долгоживущего Celery-воркера.
+        self._role_map: dict[str, str] | None = None
+        self._role_stats: dict[str, int] = {}
+        # Исход разрешения роли для последнего обработанного контрагента.
+        # Пустая строка — роль не разрешалась (создание, пропуск, ошибка).
+        self.last_role_outcome: str = ""
 
     def is_buyer(self, customer_data: dict[str, Any]) -> bool:
         """
@@ -81,6 +143,10 @@ class CustomerDataProcessor:
         Returns:
             Optional[User]: Созданный/обновленный пользователь или None при ошибке
         """
+        # Исход прошлого контрагента не должен протечь: create/skip/error
+        # ролевых счётчиков не трогают вовсе.
+        self.last_role_outcome = ""
+
         onec_id = customer_data.get("onec_id")
         if not onec_id:
             logger.error("Отсутствует onec_id в данных клиента")
@@ -128,9 +194,9 @@ class CustomerDataProcessor:
                     logger.info(f"Клиент {onec_id} не имеет email адреса")
 
                 if existing_user:
-                    # Обновление существующего клиента. Роль не трогаем:
-                    # её мог выдать менеджер при верификации заявки, и
-                    # импорт не должен её сбрасывать.
+                    # Обновление существующего клиента. Роль привязанного
+                    # аккаунта теперь приезжает из 1С (FR-40-12); запись 1С
+                    # без портального аккаунта роли по-прежнему не получает.
                     user = self._update_customer(existing_user, customer_data)
                     self._log_operation(
                         user=user,
@@ -139,7 +205,11 @@ class CustomerDataProcessor:
                         status="success",
                         details={
                             "role": user.role,
-                            "role_preserved": True,
+                            "role_outcome": self.last_role_outcome,
+                            # Флаг перестал быть константой: у привязанного
+                            # аккаунта роль теперь приезжает из 1С (FR-40-12).
+                            "role_preserved": self.last_role_outcome
+                            not in ("roles_updated_from_unregistered", "roles_updated_from_assigned"),
                         },
                     )
                 else:
@@ -189,18 +259,40 @@ class CustomerDataProcessor:
             chunk_size: Размер пакета для обработки
 
         Returns:
-            Dict: Статистика обработки (total, created, updated, skipped, errors)
+            Dict: Статистика обработки — total, created, updated, skipped,
+                errors, счётчики здоровья выгрузки attributes_block_present
+                и attributes_block_missing, а также ролевые счётчики
+                ROLE_STATS_KEYS (roles_updated и его два слагаемых,
+                roles_already_actual, roles_skipped_unlinked_record,
+                roles_skipped_no_data, roles_skipped_no_agreement,
+                roles_skipped_unknown_price_type, roles_skipped_ambiguous).
+                Сумма ролевых исходов равна числу обновлённых записей.
         """
+        # Счётчики пофайловые: команда суммирует результаты по файлам сама.
+        self._role_stats = {key: 0 for key in ROLE_STATS_KEYS}
+
         stats = {
             "total": len(customers_data),
             "created": 0,
             "updated": 0,
             "skipped": 0,
             "errors": 0,
+            # Детектор регресса выгрузки: блок <ЗначенияРеквизитов> формирует
+            # патч тиражного расширения БУС и теряется при его обновлении.
+            # Отказ тихий — файлы приходят, блока в них нет.
+            "attributes_block_present": 0,
+            "attributes_block_missing": 0,
         }
 
         for i, customer_data in enumerate(customers_data, 1):
             logger.debug(f"Обработка клиента {i}/{len(customers_data)}")
+
+            # Считаем по всем разобранным контрагентам, включая не-покупателей:
+            # детектор измеряет здоровье выгрузки, а не результат импорта.
+            if customer_data.get("price_type_ids") or customer_data.get("agreement_status"):
+                stats["attributes_block_present"] += 1
+            else:
+                stats["attributes_block_missing"] += 1
 
             # Получаем onec_id перед обработкой для логирования
             onec_id = customer_data.get("onec_id", f"unknown-{i}")
@@ -211,6 +303,11 @@ class CustomerDataProcessor:
             result = self.process_customer(customer_data)
 
             if result:
+                # Инкремент вне transaction.atomic() процессора: откат внутри
+                # process_customer не должен оставлять фантомный счётчик.
+                if self.last_role_outcome:
+                    self._role_stats[self.last_role_outcome] += 1
+
                 # Определяем, была ли это операция создания или обновления
                 if existing_user:
                     stats["updated"] += 1
@@ -234,6 +331,11 @@ class CustomerDataProcessor:
             f"создано={stats['created']}, обновлено={stats['updated']}, "
             f"пропущено={stats['skipped']}, ошибок={stats['errors']}"
         )
+
+        self._role_stats["roles_updated"] = (
+            self._role_stats["roles_updated_from_unregistered"] + self._role_stats["roles_updated_from_assigned"]
+        )
+        stats.update(self._role_stats)
 
         return stats
 
@@ -325,6 +427,106 @@ class CustomerDataProcessor:
         logger.warning(f"Не удалось нормализовать телефон: {phone}")
         return ""
 
+    def _price_type_id_to_store(self, customer_data: dict[str, Any], current: str) -> str:
+        """
+        Определяет, каким должно стать поле onec_price_type_id.
+
+        Роль здесь НЕ разрешается и справочник PriceType НЕ читается: поле
+        обязано заполняться и для видов цен, роли не несущих (РРЦ, «Детский
+        мир Залоговая»), — иначе накопление данных, ради которого стори
+        выкатывается отдельно, потеряет часть контрагентов.
+
+        Args:
+            customer_data: словарь из парсера (ключи price_type_ids и
+                agreement_status кладёт _extract_attribute_values, стори 40.1).
+            current: сохранённое значение поля; возвращается без изменений,
+                когда данных для решения нет.
+
+        Returns:
+            str: новое значение поля.
+        """
+        agreement_status = str(customer_data.get("agreement_status") or "")
+        if agreement_status.strip().casefold() == AGREEMENT_STATUS_NONE.casefold():
+            # 1С подтвердила, что действующего соглашения нет. Прежний вид цен
+            # хранить нельзя: по нему привязка (стори 40.5) выдала бы роль по
+            # соглашению, снятому в 1С месяцы назад, без единой ошибки в логах.
+            return ""
+
+        guids = {str(guid).strip().lower() for guid in (customer_data.get("price_type_ids") or []) if str(guid).strip()}
+
+        if len(guids) == 1:
+            return next(iter(guids))
+
+        # Два и более различных вида цен — два разных соглашения. Сохранить один
+        # из них означает солгать: стори 40.5 разрешает роль по единственному
+        # сохранённому GUID и выдала бы роль там, где резолвер обязан ответить
+        # ambiguous. Пустой список без статуса — признак поломки выгрузки
+        # (после второй редакции патча блок приходит у каждого контрагента),
+        # и обнуление уничтожило бы данные у всех разом.
+        return current
+
+    @property
+    def role_map(self) -> dict[str, str]:
+        """Маппинг GUID вида цен → роль портала, один запрос на сессию импорта."""
+        if self._role_map is None:
+            self._role_map = load_price_type_role_map()
+        return self._role_map
+
+    def _resolve_role_change(self, user: User, customer_data: dict[str, Any]) -> RoleChange:
+        """
+        Решает, менять ли роль существующего пользователя по данным из 1С.
+
+        Пользователя НЕ сохраняет и AuditLog НЕ пишет — это делает
+        _update_customer, чтобы запись в журнал не опередила сохранение.
+
+        Непривязанная запись 1С роли не получает никогда (§5 задания):
+        unlinked_1c_record_q() включает role='unregistered', и смена роли
+        выбила бы запись из выборки кандидатов на привязку — вернулся бы
+        баг, чинившийся миграцией 0018.
+
+        Args:
+            user: существующая запись (поля роли ещё не тронуты).
+            customer_data: словарь из парсера.
+
+        Returns:
+            RoleChange: исход для счётчика отчёта и решение о применении.
+        """
+        current_role = user.role
+
+        # Предикат в памяти, а не запрос: тот же Q, что и у queryset-фильтра.
+        if matches_q(User.objects.unlinked_1c_record_q(), user):
+            return RoleChange("roles_skipped_unlinked_record", False, current_role, current_role, None)
+
+        resolution = resolve_role_from_price_types(
+            customer_data.get("price_type_ids") or [],
+            str(customer_data.get("agreement_status") or ""),
+            role_map=self.role_map,
+        )
+
+        # Проверять именно role is None, а не reason != REASON_RESOLVED:
+        # резолвер отдаёт непустую роль ровно при reason="resolved", и
+        # сравнение по reason дало бы KeyError на несуществующей комбинации.
+        if resolution.role is None:
+            return RoleChange(
+                SKIP_COUNTER_BY_REASON[resolution.reason],
+                False,
+                current_role,
+                current_role,
+                resolution,
+            )
+
+        if resolution.role == current_role:
+            # Роль уже актуальна: перезапись породила бы запись AuditLog на
+            # каждом обмене и сделала бы журнал нечитаемым (NFR-3940-08).
+            return RoleChange("roles_already_actual", False, current_role, current_role, resolution)
+
+        outcome = (
+            "roles_updated_from_unregistered"
+            if current_role == User.ROLE_UNREGISTERED
+            else "roles_updated_from_assigned"
+        )
+        return RoleChange(outcome, True, current_role, resolution.role, resolution)
+
     def _create_customer(self, customer_data: dict[str, Any], role: str) -> User:
         """
         Создает нового пользователя из данных клиента.
@@ -363,6 +565,7 @@ class CustomerDataProcessor:
             company_name=company_name,
             tax_id=tax_id,
             onec_id=onec_id,
+            onec_price_type_id=self._price_type_id_to_store(customer_data, ""),
             created_in_1c=True,
             sync_status="synced",
             last_sync_at=timezone.now(),
@@ -380,8 +583,14 @@ class CustomerDataProcessor:
         """
         Обновляет существующего пользователя данными из 1С.
 
-        Роль намеренно не обновляется: её назначает менеджер при верификации
-        заявки, и перезапись из импорта сбросила бы выданный уровень цен.
+        Роль привязанного аккаунта приезжает из 1С: источник истины по
+        уровню цен — соглашение в 1С, а не значение, выданное менеджером
+        вручную (FR-40-07, FR-40-12). Смена роли пишется в AuditLog.
+        Непривязанная запись 1С роли не получает никогда — решение
+        принимает _resolve_role_change.
+
+        Вид цен (onec_price_type_id) обновляется всегда — и у привязанных
+        аккаунтов, и у непривязанных записей 1С (стори 40.3).
 
         Args:
             user: Существующий пользователь
@@ -402,18 +611,75 @@ class CustomerDataProcessor:
         # Обновляем onec_id если его не было (дубликат найден по email)
         if not user.onec_id:
             user.onec_id = customer_data.get("onec_id")
+        # Решение о роли принимается ДО присвоения user.role: предикат
+        # «непривязанная запись 1С» опирается в том числе на текущую роль.
+        role_change = self._resolve_role_change(user, customer_data)
+        if role_change.applied:
+            user.role = role_change.new_role
+        # Вид цен пишется всегда — и привязанным аккаунтам, и записям 1С.
+        user.onec_price_type_id = self._price_type_id_to_store(customer_data, user.onec_price_type_id)
         user.sync_status = "synced"
         user.last_sync_at = timezone.now()
 
         user.save()
+
+        # Журнал строго после сохранения: запись о смене роли, которой не
+        # случилось, хуже отсутствия записи.
+        if role_change.applied:
+            self._log_role_change(user, role_change, customer_data)
+        self.last_role_outcome = role_change.outcome
 
         # Создаем/обновляем объект Company для B2B клиентов
         customer_type = customer_data.get("customer_type", "")
         if customer_type in ["legal_entity", "individual_entrepreneur"]:
             self._create_or_update_company(user, customer_data)
 
-        logger.info(f"Обновлен пользователь: {str(user.email or user.onec_id)} (role={user.role} сохранена)")
+        logger.info(
+            f"Обновлен пользователь: {str(user.email or user.onec_id)} "
+            f"(role={user.role}, исход разрешения роли={role_change.outcome})"
+        )
         return user
+
+    def _log_role_change(self, user: User, change: RoleChange, customer_data: dict[str, Any]) -> None:
+        """
+        Пишет AuditLog о смене роли по данным 1С (FR-40-08).
+
+        Наименования вида цен и соглашения берутся из price_type_meta
+        парсера, а не запросом в PriceType: в пакете тысячи контрагентов,
+        и запрос за подписью свёл бы на нет экономию role_map.
+
+        actor отсутствует: смену выполняет импорт, а не человек.
+        """
+        guid = change.resolution.matched[0] if change.resolution and change.resolution.matched else ""
+        # Резолвер отдаёт GUID в нижнем регистре, парсер — как в выгрузке.
+        # Регистрозависимое сравнение молча вернуло бы пустые наименования.
+        meta = next(
+            (
+                item
+                for item in (customer_data.get("price_type_meta") or [])
+                if str(item.get("price_type_id") or "").strip().lower() == guid
+            ),
+            {},
+        )
+
+        AuditLog.log_action(
+            user=None,
+            action="role_from_1c",
+            resource_type="User",
+            resource_id=user.pk,
+            details={
+                "source": "import_1c",
+                "session_id": str(self.session.pk),
+                "onec_id": user.onec_id or "",
+            },
+            changes={
+                "previous_role": change.previous_role,
+                "new_role": change.new_role,
+                "price_type_id": guid,
+                "price_type_name": str(meta.get("price_type_name") or ""),
+                "agreement_name": str(meta.get("agreement_name") or ""),
+            },
+        )
 
     def _log_operation(
         self,

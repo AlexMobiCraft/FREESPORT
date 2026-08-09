@@ -2,6 +2,7 @@
 XMLDataParser - парсер для XML файлов из 1С (CommerceML 3.1)
 """
 
+import logging
 import os
 from decimal import Decimal
 from typing import Any, Iterator, TypedDict, cast
@@ -9,6 +10,8 @@ from xml.etree.ElementTree import Element, ElementTree
 
 import defusedxml.ElementTree as ET
 from django.conf import settings
+
+logger = logging.getLogger("import_products")
 
 
 class PropertyValueData(TypedDict):
@@ -535,7 +538,18 @@ class XMLDataParser:
         return categories_list
 
     def _map_price_type_to_field(self, onec_name: str) -> str:
-        """Маппинг названия типа цены из 1С на поле Product"""
+        """Маппинг названия типа цены из 1С на поле Product
+
+        Returns:
+            Имя поля ProductVariant либо пустую строку, если вид цен не опознан.
+
+        Неопознанный вид цен НЕ отображается на `retail_price`: раньше здесь стоял
+        else-fallback, и любой не описанный тип молча затирал розничную цену.
+        Реальный инцидент — вид цен «Партнер», добавленный в белый список выгрузки
+        1С: он уезжал в `retail_price` и портил розницу без единой ошибки в логах.
+        Пустая строка на выходе означает «цену этого вида не применять» —
+        `VariantImportProcessor.update_variant_prices` такие цены пропускает.
+        """
         name_lower = onec_name.lower()
 
         if "опт 1" in name_lower or "опт1" in name_lower:
@@ -544,6 +558,8 @@ class XMLDataParser:
             return "opt2_price"
         elif "опт 3" in name_lower or "опт3" in name_lower:
             return "opt3_price"
+        elif "опт 4" in name_lower or "опт4" in name_lower:
+            return "opt4_price"
         elif "тренер" in name_lower:
             return "trainer_price"
         elif "ррц" in name_lower:
@@ -555,8 +571,12 @@ class XMLDataParser:
         elif "рознич" in name_lower:
             return "retail_price"
         else:
-            # По умолчанию - розничная цена
-            return "retail_price"
+            logger.warning(
+                f"Неопознанный вид цен из 1С: '{onec_name}' — цена не будет импортирована. "
+                f"Добавьте ветку в _map_price_type_to_field или уберите вид цен "
+                f"из выгрузки 1С («Выгрузка информации о товарах» → вкладка «Цены»)."
+            )
+            return ""
 
     def parse_properties_goods_xml(self, file_path: str) -> list[BrandData]:
         """

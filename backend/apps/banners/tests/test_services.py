@@ -441,3 +441,28 @@ class TestGetRoleFilterReturnsQ:
         q = _get_role_filter("unknown_role")
         assert isinstance(q, Q)
         assert "show_to_guests" in str(q)
+
+
+@pytest.mark.unit
+class TestWholesaleLevel4RoleFilter:
+    """
+    Стори 39.3, AC8: роль уровня 4 относится к оптовым.
+
+    Без правки роль проваливалась в else-ветку `_get_role_filter` и получала
+    гостевой фильтр — авторизованный оптовик видел баннеры для анонимов.
+    """
+
+    def test_level4_gets_wholesale_filter(self):
+        """Фильтр — базовый authenticated ИЛИ оптовый флаг, как у уровней 1-3"""
+        q = _get_role_filter("wholesale_level4")
+        q_str = str(q)
+        assert "show_to_authenticated" in q_str
+        assert "show_to_wholesale" in q_str
+
+    def test_level4_is_not_treated_as_guest(self):
+        """Гостевой fallback для этой роли не применяется"""
+        assert "show_to_guests" not in str(_get_role_filter("wholesale_level4"))
+
+    def test_level4_filter_matches_level3(self):
+        """Фильтр совпадает с фильтром третьего уровня — уровни равноправны"""
+        assert _get_role_filter("wholesale_level4") == _get_role_filter("wholesale_level3")

@@ -182,12 +182,14 @@ class ProductComputedPropertiesTest(TestCase):
         variant = product.variants.first()
 
         # Тест для разных ролей пользователей
+        # is_verified=True обязателен: неверифицированный B2B понижается до retail
+        # (см. apps/products/pricing_policy.resolve_pricing_role)
         retail_user = UserFactory.create(role="retail")
-        opt1_user = UserFactory.create(role="wholesale_level1")
-        opt2_user = UserFactory.create(role="wholesale_level2")
-        opt3_user = UserFactory.create(role="wholesale_level3")
-        trainer_user = UserFactory.create(role="trainer")
-        federation_user = UserFactory.create(role="federation_rep")
+        opt1_user = UserFactory.create(role="wholesale_level1", is_verified=True)
+        opt2_user = UserFactory.create(role="wholesale_level2", is_verified=True)
+        opt3_user = UserFactory.create(role="wholesale_level3", is_verified=True)
+        trainer_user = UserFactory.create(role="trainer", is_verified=True)
+        federation_user = UserFactory.create(role="federation_rep", is_verified=True)
 
         assert variant.get_price_for_user(retail_user) == Decimal("1000.00")
         assert variant.get_price_for_user(opt1_user) == Decimal("900.00")
@@ -207,8 +209,9 @@ class ProductComputedPropertiesTest(TestCase):
         # Получаем вариант товара
         variant = product.variants.first()
 
-        opt1_user = UserFactory.create(role="wholesale_level1")
-        opt2_user = UserFactory.create(role="wholesale_level2")
+        # is_verified=True обязателен: неверифицированный B2B понижается до retail
+        opt1_user = UserFactory.create(role="wholesale_level1", is_verified=True)
+        opt2_user = UserFactory.create(role="wholesale_level2", is_verified=True)
 
         assert variant.get_price_for_user(opt1_user) == Decimal("1000.00")  # Fallback
         assert variant.get_price_for_user(opt2_user) == Decimal("800.00")

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Скрипт первоначальной настройки сервера для FREESPORT Platform
-# Настройка сервера 5.35.124.149 для домена freesport.ru
+# Настройка сервера 5.35.124.149 для домена optisport.ru
 
 set -e
 
@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Конфигурация
 REPO_URL="https://github.com/AlexMobiCraft/FREESPORT.git"
-DOMAIN="freesport.ru"
+DOMAIN="optisport.ru"
 SERVER_IP="5.35.124.149"
 PROJECT_DIR="/freesport"
 

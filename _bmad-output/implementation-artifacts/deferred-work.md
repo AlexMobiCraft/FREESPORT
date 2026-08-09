@@ -1,3 +1,81 @@
+## Deferred from: spec-tech-debt-19-followups — порог покрытия `backend-ci.yml` (2026-08-06)
+
+> ✅ **ЗАКРЫТ 2026-08-06 в тот же день.** Решение Alex: мерить продакшен-код на полном наборе. Подсчёт покрытия перенесён из `backend-ci.yml` в `main.yml` (`--cov=apps --cov=freesport`, порог 75), знаменатель очищен от тестов и миграций через `[tool.coverage.run] omit` в `backend/pyproject.toml`, пороги в `backend-ci.yml` и `deploy.yml` сняты. Замер на полном наборе: 13832 оператора, 3260 непокрытых — **76,4 %**, то есть проектный стандарт «≥ 70 %» выполнялся всё это время и просто не был виден. Подробности — в разделе «Покрытие» файла `backend/docs/testing-standards.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: **`backend-ci.yml` красный на `develop` с 2026-08-05: покрытие 64,92 % против порога `--cov-fail-under=65`.** Тесты зелёные (`1930 passed, 2 skipped`) — падает исключительно порог. Требуется решение человека: поднять покрытие, понизить порог или сузить `--cov=.` так, чтобы тестовые файлы не попадали в знаменатель.
+  evidence: Pre-existing, началось на стори 40.4 (2026-08-05 17:42, 4 прогона подряд `failure`). Правки 2026-08-06 к этому не причастны: замер на одном дереве дал 64,99 % без `and not slow` и 64,93 % с ним — порог не берётся в обоих случаях. Отдельно опровергнут вывод от 2026-08-03 «порог берётся благодаря округлению»: порог проверяет pytest-cov сырым сравнением `self.cov_total < cov_fail_under` (`pytest_cov/plugin.py:283`), округления там нет вовсе, поэтому запаса не было никогда.
+  what_to_do: (1) решить, чем закрывать разрыв в 0,01–0,07 п.п. — новыми тестами или пересмотром порога; (2) отдельно рассмотреть `--cov=.`: он держит в знаменателе сами тестовые файлы, из-за чего исключение любого теста из гейта механически понижает метрику, хотя покрытие продакшен-кода не меняется; (3) до принятия решения помнить, что зелёный `backend-ci.yml` сейчас недостижим и его краснота не сигнализирует о регрессии.
+  risk_if_skipped: Постоянно красный гейт перестаёт быть сигналом — следующая настоящая регрессия покрытия или упавший тест утонут в привычной красноте. Защита веток отсутствует (см. `project_branch_protection_absent`), поэтому мержу это не мешает и заметить проблему больше нечем.
+
+## Deferred: тесты импорта 1С не исполняются ни в одном прогоне CI (2026-08-07)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: **~32 теста импорта 1С пропускаются на раннере во всех workflow — не только их покрытие, но и сама проверка импорта в CI отсутствует.** Каталог `backend/data/import_1c/` явно перечислен в `.gitignore` (строки 204-206) и в репозиторий не попадает, а правило проекта требует тестировать импорт только на реальных выгрузках.
+  evidence: Вскрыто 2026-08-07 при калибровке порога покрытия. Прогон `main.yml`: 50 skipped против 18 локально; в пропущенных — `tests/unit/test_services/test_customer_processor.py` (23), `tests/integration/test_import_role_from_1c.py` (8), `test_import_opt4_prices.py` (5), `test_import_customers_price_type.py` (4), `test_customers_price_type_detector.py` (4) и другие. Это ровно та область, которую правили стори 40.2–40.5. Следствие для метрики: покрытие в CI структурно на 1,5 п.п. ниже локального (74,92 % против 76,43 %), и порог пришлось калибровать по CI.
+  what_to_do: (1) решить, чем питать эти тесты на раннере — обезличенным набором фикстур, сокращённой выгрузкой в репозитории или секретом с архивом; прямой коммит реальных выгрузок исключён (персональные данные контрагентов + репозиторий зеркалится в публичный через `sync-to-public.yml`); (2) до этого не считать зелёный CI подтверждением работоспособности импорта 1С — проверять локально; (3) после появления данных в CI поднять `--cov-fail-under` до локального уровня.
+  risk_if_skipped: Регрессия в парсере, процессоре контрагентов или оркестраторе импорта проходит все гейты незамеченной. Именно этот код активнее всего менялся в эпике 40, и именно он даёт самые низкие показатели покрытия среди продакшен-модулей.
+
+## Deferred from: code review of spec-tech-debt-19-followups (2026-08-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: `UnmarkedTestWarning` — предупреждение, а не гейт: оно не влияет на exit code, тонет в общей сводке рядом с `RemovedInDjango60Warning` и в CI-логе на несколько тысяч строк прочитано не будет. Внутри `backend/` за ту же ошибку хук рвёт сбор `UsageError`, снаружи — шепчет.
+  evidence: Асимметрия намеренная (обрывать чужой сбор нельзя), но промежуточные варианты не рассмотрены: `-W error::conftest.UnmarkedTestWarning` в CI-вызовах, `filterwarnings` в обоих `pytest.ini`, ужесточение при явном `-m`, отдельный CI-шаг с `grep -q UnmarkedTestWarning`. Плюс предупреждение глушится `-p no:warnings` и `--disable-warnings` — сейчас их никто не использует, но ничто не мешает.
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: Nightly `performance-tests.yml` — единственное место исполнения перф- и медленных тестов — не имеет никакого оповещения о падении: ни `if: failure()`, ни issue, ни сообщения в мессенджер.
+  evidence: Pre-existing (workflow создан спекой tech-debt-19 2026-08-03), но правки 2026-08-06 повысили ставку: теперь туда же выведены `slow`, а `deploy.yml` деплоит в прод, не выполнив ни одного тайминг-теста. С учётом отсутствия защиты веток (`project_branch_protection_absent`) красный nightly не заметит никто, и «вывели из гейта в nightly» рискует означать «вывели в никуда».
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md`
+  summary: Документация вне `project-context.md` продолжает учить старому вызову тестов — `CLAUDE.md` раздел «Тестирование», `.claude/skills/docker-test-run/` и его зеркало в `.agents/skills/docker-test-run/` содержат `--env-file .env` и `exec` вместо `run --rm`.
+  evidence: Из корня репозитория `--env-file .env` резолвится (файл там есть), поэтому команда не сломана — но `exec` требует запущенного контейнера, которого после любого test-таргета нет. Это первые файлы, которые читает агент; расхождение с Makefile гарантирует повторное появление вопроса.
+
+## Deferred from: story 40.1 — приёмка AC1 (контрольная выгрузка с прода) отложена (2026-08-04)
+
+- source_story: `_bmad-output/implementation-artifacts/Story/40-1-parser-price-type-and-export-regression-detector.md`
+  summary: **AC1 стори 40.1 не проверен — патч расширения БУС второй редакции (реквизит `СоглашениеСтатус`) на прод не перенесён, контрольной выгрузки с продуктивной базы нет.** Стори закрыта решением Alex 2026-08-04 без этого AC; вернуться к нему обязательно перед выкатом эпика 40 на прод.
+  evidence: Проверено 2026-08-04 на снимке `test_base` (10 файлов, 4735 контрагентов): вторая редакция патча работает — 485 контрагентов с непустым `ТипЦенId`, 4250 со статусом `НетСоглашения`, контрагентов без блока `<ЗначенияРеквизитов>` — ноль. На проде патч не накачен, каталога `backend/data/import_1c/contragents_pricetype_prod/` не существует. Синтетический XML под `СоглашениеСтатус` не изготавливался (NFR-3940-01).
+  what_to_do: (1) передать патч второй редакции администратору 1С и перенести на прод (action item CP-4 ретро эпика 39); (2) снять контрольную выгрузку контрагентов с прода в `backend/data/import_1c/contragents_pricetype_prod/`; (3) замерить на ней тройку показателей — всего контрагентов / с `ТипЦенId` / со статусом `НетСоглашения` — обе ветки патча обязаны быть непустыми; (4) записать числа в Dev Agent Record стори 40.1 и закрыть AC1.
+  risk_if_skipped: Половина правки расширения может быть накачена вхолостую, и это не будет видно: пока блок не приходит с прода, эпик 40 наблюдаемо работает в режиме `no_data` — роли не меняются, детектор регресса (AC8) выдаёт аномалию на каждом прогоне импорта. Отличить «патч не накачен» от «патч затёрт обновлением БУС» по одному лишь предупреждению нельзя.
+
+## Deferred from: code review of spec-tech-debt-19-pytest-marker-autotagging (2026-08-03)
+
+> ✅ **ВСЕ ЧЕТЫРЕ ПУНКТА ЗАКРЫТЫ 2026-08-06** спекой `_bmad-output/implementation-artifacts/spec-tech-debt-19-followups.md` (baseline `22b99629`). Записи оставлены с отметками — они объясняют, почему механизм выглядел доведённым наполовину.
+
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
+  summary: «Перф-тест» определён местоположением файла, а не свойством теста — стресс-тесты `PagesCachePerformanceTest` и `PagesAPIStressTest` в `tests/integration/test_pages_performance.py` имеют явный `@pytest.mark.integration` и потому остаются в обычном гейте, тогда как `tests/performance/` из него выведен.
+  evidence: Pre-existing классификация, авторазметкой не вводится (явный маркер она не трогает). Но цель «перф-тесты не гоняются на каждом PR» достигнута лишь наполовину. Кандидат на явный `@pytest.mark.performance` на этом файле — механизм для этого уже есть.
+  **Как закрыт:** маркеры расставлены **по методам**, а не по классам. Шесть тестов с жёстким ассертом на время получили `performance` и ушли в nightly; `test_cache_invalidation_accuracy_under_load` оставлен `integration` — ассертов на время в нём нет вовсе, он проверяет корректность инвалидации кэша при конкурентной записи, и вывод его из PR-гейтов был бы потерей покрытия (одиночную инвалидацию покрывает `test_pages_api.py::PagesAPICachingTest`, конкурентную — больше ничто). Файл оставлен в `tests/integration/`: маркер задаёт свойство теста и побеждает каталог.
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
+  summary: Маркер `slow` объявлен в обоих `pytest.ini`, но не используется ни одним make-таргетом и ни одним workflow — отсечение медленных тестов работает только по каталогу.
+  evidence: Наблюдалось на практике 2026-08-03: `apps/products/tests/test_api_products.py::TestProductAPIPerformance::test_retrieve_product_with_100_variants_under_500ms` (помечен `slow`, лежит в `apps/` → получает `unit`) прошёл в полном прогоне и **упал** в замере покрытия часом позже на той же ревизии — тест таймингозависимый и флакует под нагрузкой машины. Он был в быстром гейте и до авторазметки, то есть это pre-existing, но `slow` даёт готовый рычаг вывести такие тесты из PR-гейта, и рычаг не подключён.
+  **Как закрыт:** `and not slow` добавлен в `backend-ci.yml`, `deploy.yml`, `main.yml`; nightly `performance-tests.yml` переведён на `-m "performance or slow"`; добавлен таргет `make test-slow`. Флак покинул PR-гейт, но продолжает исполняться ночью.
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
+  summary: Тест, чей путь уходит за пределы `backend/` (симлинк наружу, `--pyargs`, явно переданный путь), хук молча пропускает — маркера не получает и в фильтры не попадает.
+  evidence: Ветка `except ValueError: return None` в `_relative_parts` не отличает «чужое дерево» от «сломался расчёт пути». Воспроизведено ревьюером: `pytest -m unit /tmp/exttests/test_outside.py ...` отбирает файл без маркера. Вероятность в этом проекте низкая (тесты живут внутри `backend/`), но это ровно тот класс тихого выпадения, ради которого хук написан.
+  **Как закрыт (частично — читай границу):** `_relative_parts` возвращает сентинел `OUTSIDE_BACKEND` вместо второго `None`; хук копит такие элементы и выдаёт `UnmarkedTestWarning` со списком файлов и числом тестов в каждом. `UsageError` для непокрытых путей внутри `backend/` не тронут: обрывать чужой сбор своим правилом нельзя.
+  **⚠️ Граница, вскрытая состязательным ревью и проверенная на месте:** предупреждение появляется только там, где `backend/conftest.py` вообще загружен — то есть когда rootdir равен `backend/` либо среди аргументов есть хотя бы один путь внутри него. Вызов `pytest /tmp/ext/test_x.py` **без единого внутреннего пути** даёт другой rootdir, conftest не подхватывается, и ни одна наша строка не исполняется — предупреждения нет. Проверено: смешанные аргументы → предупреждение есть; только внешний путь → нет. Закрыть этот случай из conftest невозможно в принципе, он требует плагина, установленного в окружение (entry point или `-p`). Ограничение задокументировано в шапке `backend/conftest.py`.
+- ~~source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-19-pytest-marker-autotagging.md`~~ ✅ **ЗАКРЫТ**
+  summary: Все таргеты `make test-*`, включая новый `test-performance`, неработоспособны — они ищут `docker/.env`, которого в репозитории нет.
+  evidence: Pre-existing и явно выведено за объём спеки. Но `test-performance` заявлен в документации как локальная точка входа в перф-тесты, поэтому пока перф-тесты запускаются только через `performance-tests.yml` или прямой вызов pytest в контейнере.
+  **Как закрыт:** `--env-file` снят со всех вызовов `docker-compose.test.yml` (`test`, `test-unit`, `test-integration`, `test-performance`, `test-slow`, `test-fast`, `logs`, `shell`, `db-shell`). Файл не нужен: в `docker-compose.test.yml` нет ни одной подстановки переменных — теперь это не обещание в комментарии, а тест `test_test_compose_has_no_variable_substitution`. Побочная выгода — таргеты работают в worktree без `.env`.
+  **Ревью показало, что снятия `--env-file` мало:** `db-shell` ходил под `-U freesport_user -d freesport`, тогда как тестовый контейнер поднимает `postgres`/`freesport_test` — исправлено. `shell` и `db-shell` использовали `exec`, хотя у сервиса `backend` команда по умолчанию `pytest` и все test-таргеты завершаются `down`, то есть подключаться обычно не к чему — переведены на `run --rm`. Первоначальное заявление «побочно исправлены logs/shell/db-shell» было верно синтаксически и неверно по факту.
+  **Осталось за объёмом (проверено, не чинилось):** `clean` (строка с `cd docker && docker compose --env-file .env -f docker-compose.yml`) падает ровно с тем же `couldn't find env file`; `format`/`lint` указывают на `-f docker-compose.yml` из корня, где файла нет; `lint` зовёт устаревший `docker-compose`; `createsuperuser`/`collectstatic` — та же ошибка пути; у таргета `migrate` вообще нет тела; `.PHONY` не перечисляет `test-fast`, `test-fast-tools`, `test-local`, `logs`, `shell`, `db-shell`, `clean`. Отдельная задача — «привести Makefile целиком в рабочее состояние».
+
+## Deferred from: story 39.1 — технический долг типизации (2026-08-02)
+
+- **TD-3901-1. Полный апгрейд django-stubs 4.2.6 → 5.2.9 (+ drf-stubs 3.16.9, mypy 1.17.1)** — `django-stubs` запинен на стабах для Django 4.2, тогда как проект работает на Django 5.2.7. Отставание на три мажорные версии. Прямое следствие, уже обойдённое точечно: стабы не знают `CheckConstraint(condition=...)` (аргумент введён в Django 5.1 взамен устаревшего `check=`), из-за чего в `products`/`bonuses`/`common`/`orders` стоят 6 подавлений `# type: ignore[call-arg]`, а миграции `bonuses` целиком выведены из проверки в `mypy.ini`.
+
+  **Замер апгрейда уже выполнен (2026-08-02, одноразовый контейнер) — повторять не нужно:** `108 → 116` ошибок. Уходят ~30 устаревших (весь класс `condition=` плюс шум в `bonuses/admin.py`, `bonuses/views.py`, `users/admin.py`, `common/utils/consent_audit.py`), приходят **39 новых в 10 файлах**. Разбор новых по трудоёмкости:
+  - тривиальные (~12): `Redundant cast to "ImageField"/"FileField"` ×7 в `products/models.py` и `banners/models.py`, `Redundant cast to "dict"` ×3, `Unused "type: ignore"` ×2 в `products/admin.py` и `products/serializers.py`;
+  - содержательные (~27): `common/serializers.py` — 9 шт. `"_ST" has no attribute id/name/slug`; `orders/services/order_create.py` — 4 шт. `"BaseManager..."`; `bonuses/views.py` — 4 шт. `int | None` в lookup `user_id`; `common/models.py` — 2 шт. `ForeignKey is nullable but its generic get type parameter is not optional`; прочее по одному.
+
+  **Условие закрытия:** после апгрейда снять все 6 `# type: ignore[call-arg]` — в `mypy.ini` включён `warn_unused_ignores = True`, поэтому mypy сам их потребует. Вернуть `[mypy-apps.bonuses.migrations.*]` под общее правило только если ошибок там не останется. **Осторожно:** апгрейд затрагивает `products/serializers.py`, `products/admin.py`, `users/admin.py` — файлы, зарезервированные за стори 39.3; не начинать до её завершения либо согласовать пересечение. [`backend/requirements.txt:29-33,47`, `backend/mypy.ini`, `backend/apps/products/models.py`, `backend/apps/bonuses/models.py`, `backend/apps/common/models.py`, `backend/apps/orders/models.py`]
+
+- **TD-3901-2. `users/admin.py:139` — `Cannot resolve keyword '_has_1c_candidate' into field`: ПРОВЕРЕНО, ложное срабатывание, кода не касаться** — ошибка появляется только на новых стабах (`django-stubs 5.2.9`) и выглядит как реальный `FieldError`, но код разобран построчно и **корректен**: строки 137-138 — защитный `annotate(_has_1c_candidate=has_1c_candidate_expression())` ровно перед `filter` на строке 139, с комментарием, объясняющим, зачем страховка (фильтр достижим там, где `UserAdmin.get_queryset` аннотацию не навесил — вторая AdminSite, сохранённая ссылка `?has_1c_candidate=yes`). Аннотация к моменту фильтрации существует всегда.
+
+  Причина срабатывания — ограничение `mypy_django_plugin`: он не отслеживает `annotate()`, выполненный внутри `if`. Тот же паттерн в цепочке (`users/admin.py:522-523`, `.annotate(...).filter(...)`) плагин понимает и не ругается.
+
+  **Действие при работе над TD-3901-1:** не «чинить» код, а поставить точечное подавление на строке 139 с ссылкой на этот пункт. Запись оставлена, чтобы находку не подняли повторно как дефект. [`backend/apps/users/admin.py:137-139`, `backend/apps/users/admin.py:522-523`]
+
 ## Deferred from: code review of spec-1c-unregistered-role (2026-07-26)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-unregistered-role.md`
@@ -434,3 +512,84 @@
   Решение (вариант «сохранять `status_1c`»): семантика `STATUS_PRIORITY` не тронута — переход по-прежнему блокируется, но `_record_blocked_status_1c()` фиксирует фактический статус 1С и `sent_to_1c_at`. Расхождение с 1С видно в карточке заказа и админке, а не только в счётчике `skipped_status_regression`. Применено к обеим веткам блокировки (финальные статусы и приоритетная регрессия). [`backend/apps/orders/services/order_status_import.py`]
 
 **Попутно исправлено:** `test_bulk_fetch_orders_optimization` (`assertNumQueries(11)`) был сломан ещё коммитом бонусной программы `72c99a51` — сигнал `post_save` добавил 3 запроса (savepoint + чтение настроек + release). Счётчик обновлён до 14 с разбивкой в комментарии.
+
+## Закрыто спекой spec-1c-manager-link-counterparty (2026-07-28)
+
+- **ЗАКРЫТО: индекс на `users.tax_id`** (пункт от 2026-07-26 в разделе «Deferred from: code review of
+  spec-1c-unregistered-role», строки 12-14). Индекс добавлен миграцией
+  `backend/apps/users/migrations/0019_add_users_tax_id_index.py` (`users_tax_id_idx`, обычный b-tree,
+  объявлен в `User.Meta.indexes`). Поводом стала колонка-индикатор «Кандидат 1С» в changelist
+  админки: correlated subquery по строкам страницы без индекса давал seq scan на каждую строку.
+  Unique-констрейнт по-прежнему запрещён — 65 групп дублей, до 74 строк на один ИНН.
+
+## Deferred from: code review of spec-1c-manager-link-counterparty (2026-07-28)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Гонка привязки с параллельным импортом 1С — импорт может прочитать запись-источник до коммита привязки и сохранить её со старым `onec_id` уже после, получив `IntegrityError` по unique.
+  evidence: `processor.py:_update_customer` читает пользователя без `select_for_update` и сохраняет полным `save()`. Привязка держит блокировки только на своих строках. Окно узкое, `process_customer` ловит исключение и логирует ошибку по контрагенту (сессия импорта не падает), следующий импорт исправит. Чинить надо в `processor.py`, который спека прямо запретила трогать.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Деактивированная запись-источник сохраняет `tax_id` и уникальный email — она продолжает участвовать в `find_by_tax_id` (неоднозначность ИНН) и может быть «подобрана» другим контрагентом через поиск по email в `_find_duplicate`.
+  evidence: `identity_resolution.find_by_tax_id:127` не фильтрует по `is_active`; `processor._find_duplicate:260-265` ищет по email без такого фильтра. Во втором сценарии контрагент B, выгруженный из 1С с общим для филиалов email, получит `onec_id` на деактивированной строке и станет невидим для `find_link_candidates` (тот требует `is_active=True`). Спека фиксирует, что источник только деактивируется («Только `is_active=False` со снятием идентификаторов»), поэтому очистка email/ИНН у ghost-строки — отдельное решение человека.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Регистрация второго филиала с тем же ИНН отклоняется после того, как первый филиал стал живым B2B-аккаунтом.
+  evidence: `serializers._reject_if_tax_id_belongs_to_account` отказывает, если хотя бы один кандидат по ИНН — не непривязанная запись 1С. Pre-existing: первый же зарегистрировавшийся заявитель создаёт живой аккаунт с этим ИНН и блокирует остальных независимо от привязки. Противоречит обоснованию «отказ закрыл бы вход всей компании», но лежит в логике регистрации, которую спека запретила менять.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Верификация B2B через форму карточки (правка `is_verified`/`verification_status` вручную) не выдаёт предупреждения о кандидатах 1С — оно есть только у массового действия `approve_b2b_users`.
+  evidence: `_warn_about_1c_candidates` вызывается только из действия. Частично компенсировано блоком кандидатов в самой карточке, который менеджер видит на том же экране. Полное покрытие требует хука в `save_model`, вне скоупа спеки.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: `link_target_q()` не требует `is_active=True` у цели — идентичность контрагента 1С можно перенести на заблокированный аккаунт.
+  evidence: Спека определяет цель как B2B-аккаунт без идентичности 1С и не упоминает активность. Последствие обратимо (админ снимает блокировку), но менеджер не получает предупреждения. Добавление условия — решение человека: оно же закроет привязку до одобрения заявки, если та создаётся с `is_active=False`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1c-manager-link-counterparty.md`
+  summary: Нет теста на конкурентную привязку одного контрагента к двум заявкам — `select_for_update` и порядок захвата по возрастанию pk не покрыты падающим при регрессии тестом.
+  evidence: `test_double_submit_is_rejected_without_partial_write` последователен и пройдёт при полностью удалённом `select_for_update`. Настоящая проверка требует `pytest.mark.django_db(transaction=True)` и потоков, что в проекте избегается (см. отложенный пункт W7-2 про изоляцию тестов).
+
+## Deferred from: code review of 39-2-import-opt4-prices-from-1c (2026-08-02)
+
+- Импорт цен принимает отрицательные значения из XML без явной проверки: `Decimal` их допускает, Django-валидаторы при прямом `save()` не запускаются, а DB constraint есть только для `opt4_price`. Отрицательный RRP также копируется в `retail_price`. Проблема предсуществует для остальных ценовых полей и не вызвана стори 39.2. [`backend/apps/products/services/parser.py:408-416`, `backend/apps/products/services/variant_import.py:1097-1112`]
+
+## Deferred from: tech-debt п. 20, split 2026-08-03
+
+- source_spec: none
+  summary: Типизировать DTO-слой фронта от генерации — `ApiProductDetailResponse = components['schemas']['ProductDetail']`, `Product = components['schemas']['ProductList']`, с последующими правками `productsService.ts`, `types/api.ts`, `utils/pricing.ts`.
+  evidence: Разделено с целью «CI-гейт синхронизации контракта» (тех.долг п. 20, рекомендация 1). Обе цели независимо шиппабельны: гейт работает и при рукописных типах, типизация работает и без гейта. Порядок выбран сознательно — типизация от генерации требует свежего `docs/api/openapi.yaml`, который приводит в актуальное состояние первая спека; при дрейфе с 2026-07-26 `tsc` покраснел бы массово и не по делу.
+
+## Deferred from: code review of security-wholesale-price-visibility (2026-08-04)
+
+- Нулевая специальная цена расходится с фильтрами каталога: `ProductVariant.get_price_for_user()` трактует допустимое `0.00` как отсутствие специальной цены и возвращает `retail_price`, но `ProductFilter.filter_min_price` / `filter_max_price` переходят к рознице только при `NULL`. При `opt1_price=0`, `retail_price=1000`, `min_price=500` товар не попадёт в выдачу, хотя отображается по 1000. Предсуществующая проблема; требуется унифицировать fallback для `NULL` и `0`. [`backend/apps/products/filters.py:271-285`, `backend/apps/products/filters.py:306-320`]
+
+## Deferred from: code review of 40-1-parser-price-type-and-export-regression-detector (2026-08-04)
+
+- Контрольная выгрузка контрагентов с продакшена после переноса второй редакции патча БУС отсутствует, поэтому AC1 Story 40.1 не подтверждён. Task 0.5 и action item CP-4a остаются открытыми; устранение требует действий администратора 1С и получения продового снимка, а не изменений кода.
+
+## Deferred from: code review of spec-tech-debt-20-api-contract-ci-gate (2026-08-04)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: Защита веток в репозитории не настроена вовсе, а строки required-контекстов в `.github/scripts/setup-branch-protection.sh` не совпадают с реальными именами check-run — применять скрипт как есть нельзя.
+  evidence: Проверено 2026-08-04 через `gh api`: `repos/AlexMobiCraft/FREESPORT/branches/{main,develop}/protection` отдают «Branch not protected». Имя чека последнего прогона — `build (3.12)`, тогда как в скрипте записано «Django CI (build)». Джобы в `backend-ci.yml` и `frontend-ci.yml` обе называются `test`, их check-run неразличимы. Плюс общее свойство GitHub: required-контекст у workflow с фильтром `paths` не сообщает статус на PR, не трогающем эти пути, и блокирует мерж бессрочно — нужна джоба-заглушка без `paths`. Предупреждение вписано в шапку скрипта; исправление требует сверки с живым репозиторием и решения человека. Pre-existing, п. 20 лишь вскрыл.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: `CLAUDE.md` называет `main` и `develop` защищёнными ветками — фактически защиты нет ни на одной.
+  evidence: Тот же замер `gh api` от 2026-08-04. Раздел «Git Workflow» в `CLAUDE.md` описывает намерение, а не состояние; агент, читающий его как факт, будет исходить из несуществующих гарантий.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: `collect_differences` сравнивает списки `parameters` поэлементно по индексу, поэтому при разном составе списков одинаковой длины отчёт называет пути, вводящие в заблуждение.
+  evidence: Воспроизведено ревьюером: код `[query/a, query/b]` против файла `[query/b, query/c]` даёт «`parameters[0].name`: 'a' vs 'b'» и «`parameters[1].name`: 'b' vs 'c'», хотя фактически добавился `a` и удалился `c`. Расхождение не пропускается — гейт краснеет верно, страдает только точность формулировки. Честное решение — сравнивать множества по ключу `(in, name)`; отложено как несоразмерное выигрышу.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-tech-debt-20-api-contract-ci-gate.md`
+  summary: Нормализация списков узаконивает «слегка устаревший» YAML: если код и файл различаются только порядком в `enum`/`required`/`tags`/`parameters`, оба гейта зелёные, а честная регенерация даст дифф следующему разработчику.
+  evidence: Прямое следствие требования «Always» из спеки (нормализовать эти списки) — сознательный размен точности на устойчивость к недетерминизму drf-spectacular. Семантика OpenAPI от порядка в этих списках не зависит, поэтому вред ограничен неожиданным диффом. Убрать размен можно, только если удастся доказать детерминированность порядка в генерации.
+
+## Deferred from: story 40.2 — справочник видов цен и резолвер роли (2026-08-04)
+
+- source_spec: `_bmad-output/implementation-artifacts/Story/40-2-price-type-role-mapping-and-resolver.md`
+  summary: **Канарейка на пустой маппинг ролей — реализовать в стори 40.4.** Если `load_price_type_role_map()` вернул пустой словарь, а в выгрузке есть контрагенты с непустыми `price_type_ids`, писать `logger.error`, а не молча накручивать счётчик `roles_skipped_unknown_price_type`.
+  evidence: Справочник `PriceType.user_role` заполняется миграцией `0054`, которая повторно не выполняется, и правится менеджером из админки. Любое обнуление справочника (чистка таблицы, массовое снятие `is_active`, ручная ошибка в админке) выключает назначение ролей целиком и полностью бесшумно: резолвер отдаёт `role=None`, что по контракту означает «роль не менять» — данные не портятся, но и не обновляются. Каталог при этом выглядит здоровым. Прямой вектор `clear_catalog` закрыт в рамках 40.2 (`PriceType.objects.all().delete()` убран, регресс-тесты в `apps/products/tests/unit/test_clear_catalog.py`), но остальные способы обнулить справочник остаются, и признак у них общий — пустой маппинг при непустом входе.
+
+- source_spec: `_bmad-output/implementation-artifacts/Story/40-2-price-type-role-mapping-and-resolver.md`
+  summary: `scripts/inport_from_1C/clear_catalog.ps1` нерабочий — TRUNCATE по несуществующим таблицам; при «починке» имён он воспроизведёт только что устранённый дефект.
+  evidence: Скрипт выполняет `TRUNCATE products_product`, `products_brand`, `products_category`, `products_productimage`, `products_pricetype`, `products_importsession`. Реальные имена переопределены через `Meta.db_table`: `products`, `brands`, `categories`, `product_images`, `price_types`, `import_sessions` (`backend/apps/products/models.py:68,222,469,546,659,755`). Скрипт падает на первом же `TRUNCATE`, поэтому сегодня безвреден. Дополнительно он по умолчанию бьёт в `docker-compose.test.yml`, то есть в тестовый стек, а не в dev. Чинить нужно вместе: имена таблиц **и** исключение `price_types` из списка — иначе обёртка вернёт потерю маппинга ролей, которую убрали из management-команды. Кандидат на удаление: management-команда `clear_catalog` покрывает сценарий полностью и безопаснее.

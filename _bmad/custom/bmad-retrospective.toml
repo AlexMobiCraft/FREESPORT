@@ -1,0 +1,9 @@
+# Team override: путь хранения story-файлов в проекте FREESPORT.
+# Коммитить в репозиторий — командная политика.
+
+[workflow]
+
+persistent_facts = [
+  'ПУТЬ ХРАНЕНИЯ STORY-ФАЙЛОВ (проект FREESPORT): story-файлы лежат в подкаталоге {implementation_artifacts}/Story/, а не в корне {implementation_artifacts}. Чтение стори эпика выполнять по шаблону {implementation_artifacts}/Story/{epic_number}-{story_num}-*.md. Значение implementation_artifacts в _bmad/bmm/config.yaml менять НЕЛЬЗЯ — оно задаёт корень всех артефактов реализации.',
+  'ВЫВОД РЕТРОСПЕКТИВЫ: сам документ ретроспективы в подкаталог Story/ НЕ кладётся — он сохраняется в {implementation_artifacts}/retro/, где уже лежат предыдущие ретро проекта.',
+]

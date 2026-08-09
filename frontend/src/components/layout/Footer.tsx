@@ -73,7 +73,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     title: 'Контакты',
     links: [
       { label: '+7 968 273-21-68', href: 'tel:+79682732168' },
-      { label: 'info@freesport.ru', href: 'mailto:info@freesport.ru' },
+      { label: 'info@optisport.ru', href: 'mailto:info@optisport.ru' },
       { label: 'г. Ставрополь, ул. Коломийцева, 40/1', href: '/delivery#pickup' },
     ],
   },

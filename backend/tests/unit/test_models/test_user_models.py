@@ -112,6 +112,7 @@ class TestUserModel:
             ("wholesale_level1", True),
             ("wholesale_level2", True),
             ("wholesale_level3", True),
+            ("wholesale_level4", True),
             ("trainer", True),
             ("federation_rep", True),
             # B2C роли
@@ -133,6 +134,7 @@ class TestUserModel:
             ("wholesale_level1", True),
             ("wholesale_level2", True),
             ("wholesale_level3", True),
+            ("wholesale_level4", True),
             # Не оптовые роли
             ("retail", False),
             ("trainer", False),
@@ -154,6 +156,7 @@ class TestUserModel:
             ("wholesale_level1", 1),
             ("wholesale_level2", 2),
             ("wholesale_level3", 3),
+            ("wholesale_level4", 4),
             # Не оптовые пользователи
             ("retail", None),
             ("trainer", None),
@@ -175,6 +178,7 @@ class TestUserModel:
             "wholesale_level1",
             "wholesale_level2",
             "wholesale_level3",
+            "wholesale_level4",
             "trainer",
             "federation_rep",
             "admin",
@@ -769,3 +773,51 @@ class TestAddressModel:
         """
         address = AddressFactory.create(address_type=address_type)
         assert address.get_address_type_display() == expected_display
+
+
+@pytest.mark.unit
+class TestWholesaleLevel4Role:
+    """
+    Четвёртый оптовый уровень в модели User (story 39.1, AC5)
+    """
+
+    def test_role_present_in_choices(self):
+        """Роль есть в ROLE_CHOICES с ожидаемым отображаемым названием"""
+        User = get_user_model()
+        assert ("wholesale_level4", "Оптовик уровень 4") in User.ROLE_CHOICES
+
+    def test_role_ordered_between_level3_and_trainer(self):
+        """
+        Порядок в списке задаёт порядок в админке и в публичном списке ролей
+        """
+        User = get_user_model()
+        keys = [key for key, _ in User.ROLE_CHOICES]
+        assert keys.index("wholesale_level3") + 1 == keys.index("wholesale_level4")
+        assert keys.index("wholesale_level4") + 1 == keys.index("trainer")
+
+    def test_role_is_b2b(self):
+        """Роль входит в B2B_ROLES и даёт is_b2b_user is True"""
+        User = get_user_model()
+        assert "wholesale_level4" in User.B2B_ROLES
+        assert User(role="wholesale_level4").is_b2b_user is True
+
+    def test_role_is_wholesale(self):
+        """
+        Роль оптовая: is_wholesale_user и wholesale_level должны отдавать
+        уровень 4, иначе UserProfileSerializer вернёт неверный признак в API
+        """
+        User = get_user_model()
+        user = User(role="wholesale_level4")
+        assert user.is_wholesale_user is True
+        assert user.wholesale_level == 4
+
+    def test_role_fits_field_max_length(self):
+        """Значение роли помещается в max_length поля role"""
+        User = get_user_model()
+        assert len("wholesale_level4") <= User._meta.get_field("role").max_length
+
+    @pytest.mark.django_db
+    def test_role_display(self):
+        """get_role_display возвращает русское название роли"""
+        user = UserFactory.create(role="wholesale_level4")
+        assert user.get_role_display() == "Оптовик уровень 4"

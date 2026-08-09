@@ -9,8 +9,9 @@ from django.contrib import messages
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory, TestCase
 
-from apps.products.admin import Brand1CMappingAdmin, Brand1CMappingInline, BrandAdmin, ProductAdmin
-from apps.products.models import Brand, Brand1CMapping, Product
+from apps.products.admin import Brand1CMappingAdmin, Brand1CMappingInline, BrandAdmin, PriceTypeAdmin, ProductAdmin
+from apps.products.forms import PriceTypeAdminForm
+from apps.products.models import Brand, Brand1CMapping, PriceType, Product
 from tests.factories import Brand1CMappingFactory, BrandFactory, CategoryFactory, ProductFactory, UserFactory
 
 
@@ -343,3 +344,130 @@ class TestBrand1CMappingAdmin(TestCase):
 
         mapping.refresh_from_db()
         assert mapping.brand == brand2
+
+
+@pytest.mark.django_db
+class TestPriceTypeAdmin(TestCase):
+    """Стори 40.2: справочник видов цен правится менеджером из админки"""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = PriceTypeAdmin(PriceType, self.site)
+
+    GUID_OPT1 = "90d2c899-b3f2-11ea-81c3-00155d3cae02"
+
+    def _form_data(self, user_role: str, onec_id: str | None = None) -> dict:
+        return {
+            "onec_id": onec_id if onec_id is not None else self.GUID_OPT1,
+            "onec_name": "Опт 1 (300-600 тыс.руб в квартал)",
+            "product_field": "opt1_price",
+            "user_role": user_role,
+            "is_active": True,
+        }
+
+    def _create_price_type(self, onec_id: str, user_role: str = "wholesale_level1") -> PriceType:
+        return PriceType.objects.create(
+            onec_id=onec_id,
+            onec_name="Опт 1 (300-600 тыс.руб в квартал)",
+            product_field="opt1_price",
+            user_role=user_role,
+        )
+
+    def test_model_is_registered_in_admin(self):
+        """AC3: модель зарегистрирована на стандартном сайте админки"""
+        from django.contrib import admin as django_admin
+
+        assert django_admin.site.is_registered(PriceType), "PriceType должен быть зарегистрирован в админке"
+
+    def test_list_display_contains_required_columns(self):
+        """AC3: список показывает вид цен, поле товара, роль и активность"""
+        for field in ("onec_name", "product_field", "user_role", "is_active"):
+            assert field in self.admin.list_display, f"{field} должен быть в list_display"
+
+    def test_user_role_is_editable(self):
+        """AC3: роль правится менеджером, значит не readonly"""
+        readonly_fields = self.admin.get_readonly_fields(request=None, obj=None)
+
+        assert "user_role" not in readonly_fields
+
+    def test_search_by_onec_id_and_name(self):
+        """AC3: справочник ищется по наименованию и GUID"""
+        assert "onec_name" in self.admin.search_fields
+        assert "onec_id" in self.admin.search_fields
+
+    def test_list_editable_not_used(self):
+        """
+        Мина: ModelAdmin.get_changelist_form игнорирует self.form и строит
+        форму списка через modelform_factory — в changelist user_role стал бы
+        свободным текстовым полем, и AC4 был бы обойдён.
+        """
+        assert not getattr(self.admin, "list_editable", ())
+
+    def test_form_limits_user_role_to_choice_field(self):
+        """AC4: свободный ввод роли запрещён"""
+        from django import forms as django_forms
+
+        form = PriceTypeAdminForm()
+
+        assert isinstance(form.fields["user_role"], django_forms.ChoiceField)
+
+    def test_form_offers_empty_choice(self):
+        """AC4: пустое значение остаётся допустимым (РРЦ, МРЦ)"""
+        form = PriceTypeAdminForm()
+        values = [value for value, _label in form.fields["user_role"].choices]
+
+        assert "" in values
+        assert "wholesale_level1" in values
+
+    def test_form_rejects_typo_in_role(self):
+        """AC4: опечатка «wholesale_level_2» не должна доехать до аккаунта"""
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level_2"))
+
+        assert not form.is_valid()
+        assert "user_role" in form.errors
+
+    def test_form_accepts_existing_role(self):
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level1"))
+
+        assert form.is_valid(), form.errors
+
+    def test_form_accepts_empty_role(self):
+        form = PriceTypeAdminForm(data=self._form_data(""))
+
+        assert form.is_valid(), form.errors
+
+    def test_form_lowercases_onec_id(self):
+        """
+        Review-находка 40.2: резолвер ищет роль по GUID в нижнем регистре.
+
+        Нормализация на записи не даёт завести регистрового двойника, из-за
+        которого роль стала бы зависеть от порядка выборки.
+        """
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level1", onec_id=self.GUID_OPT1.upper()))
+
+        assert form.is_valid(), form.errors
+        assert form.cleaned_data["onec_id"] == self.GUID_OPT1
+
+    def test_form_strips_whitespace_in_onec_id(self):
+        """GUID из 1С копируют вручную — пробелы по краям не должны сохраняться."""
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level1", onec_id=f"  {self.GUID_OPT1}  "))
+
+        assert form.is_valid(), form.errors
+        assert form.cleaned_data["onec_id"] == self.GUID_OPT1
+
+    def test_form_rejects_case_variant_of_existing_guid(self):
+        """Review-находка 40.2: двойник в другом регистре — ошибка валидации."""
+        self._create_price_type(self.GUID_OPT1)
+
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level2", onec_id=self.GUID_OPT1.upper()))
+
+        assert not form.is_valid()
+        assert "onec_id" in form.errors
+
+    def test_form_allows_resaving_the_same_record(self):
+        """Проверка дублей не должна ловить саму редактируемую запись."""
+        record = self._create_price_type(self.GUID_OPT1)
+
+        form = PriceTypeAdminForm(data=self._form_data("wholesale_level2"), instance=record)
+
+        assert form.is_valid(), form.errors

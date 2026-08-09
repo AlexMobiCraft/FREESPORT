@@ -85,6 +85,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                         | Q(opt1_price__gt=0)
                         | Q(opt2_price__gt=0)
                         | Q(opt3_price__gt=0)
+                        | Q(opt4_price__gt=0)
                         | Q(trainer_price__gt=0)
                         | Q(federation_price__gt=0)
                     ).order_by("retail_price"),
@@ -324,6 +325,12 @@ class CategoryTreeViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = CategoryTreeSerializer
     pagination_class = None  # дерево всегда возвращается целиком, без обрезки по PAGE_SIZE
+    # Только для drf-spectacular: модель для path-параметра `id` берётся отсюда, иначе
+    # генератор зовёт get_queryset(), а тот считает якоря запросом к БД. Там, где таблиц
+    # нет (CI гейта контракта), запрос падает, модель не определяется и `id` уезжает в
+    # `type: string` без описания — контракт расходится с закоммиченным файлом. На runtime
+    # атрибут не влияет: get_queryset() переопределён, basename роутеру задан явно.
+    queryset = Category.objects.none()
 
     def get_queryset(self):
         """Публичные root-категории: прямые дети якорной СПОРТ.

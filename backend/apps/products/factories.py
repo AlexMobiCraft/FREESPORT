@@ -93,6 +93,7 @@ class ProductFactory(factory.django.DjangoModelFactory):
             "opt1_price",
             "opt2_price",
             "opt3_price",
+            "opt4_price",
             "trainer_price",
             "federation_price",
             "stock_quantity",
@@ -144,6 +145,9 @@ class ProductVariantFactory(factory.django.DjangoModelFactory):
     opt1_price = fuzzy.FuzzyDecimal(80.0, 8000.0, 2)
     opt2_price = fuzzy.FuzzyDecimal(60.0, 6000.0, 2)
     opt3_price = fuzzy.FuzzyDecimal(50.0, 5000.0, 2)
+    # Опт 4 — наименьший объём закупки (до 50 тыс. руб./квартал), поэтому
+    # скидка наименьшая: диапазон лежит между розницей и первым уровнем
+    opt4_price = fuzzy.FuzzyDecimal(90.0, 9000.0, 2)
     trainer_price = fuzzy.FuzzyDecimal(40.0, 4000.0, 2)
     federation_price = fuzzy.FuzzyDecimal(45.0, 4500.0, 2)
 

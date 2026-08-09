@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 from decimal import Decimal
 
 import pytest
+from django.conf import settings as django_settings
 
 from apps.orders.models import Order, OrderItem
 from apps.orders.services import OrderExportService
@@ -2548,3 +2549,52 @@ class TestLegacyOrderWithoutSubOrders:
         assert len(docs) == 0
         assert legacy_order.pk in skipped_ids
         assert legacy_order.pk not in exported_ids
+
+
+# Вид цен «Опт 4»: наименование и GUID из справочника 1С (story 39.1)
+OPT4_PRICE_TYPE_NAME = "Опт 4 (до 50 тыс.руб в квартал)"
+OPT4_PRICE_TYPE_ID = "4c1962d2-f8ed-11eb-81f3-00155d3cae02"
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+class TestOpt4PriceTypeRealSettings:
+    """Вид цен «Опт 4» на РЕАЛЬНЫХ настройках ONEC_EXCHANGE (AC9, AC10).
+
+    Остальные тесты этого модуля подменяют ONEC_EXCHANGE фикстурой settings,
+    поэтому опечатка в наименовании или GUID в base.py прошла бы мимо них.
+    Здесь настройки намеренно НЕ подменяются.
+    """
+
+    def test_settings_map_role_to_opt4_price_type(self):
+        """AC9: роль wholesale_level4 → «Опт 4», наименование → GUID."""
+        onec_exchange = django_settings.ONEC_EXCHANGE
+
+        assert onec_exchange["PRICE_TYPE_BY_ROLE"]["wholesale_level4"] == OPT4_PRICE_TYPE_NAME
+        assert onec_exchange["PRICE_TYPE_ID_BY_NAME"][OPT4_PRICE_TYPE_NAME] == OPT4_PRICE_TYPE_ID
+
+    def test_get_price_type_returns_opt4_for_level4_user(self):
+        """AC10: _get_price_type отдаёт «Опт 4» без правок order_export.py."""
+        user = UserFactory(email=f"ws4-{get_unique_suffix()}@example.com", role="wholesale_level4")
+        variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
+        order = _make_order_with_variant(variant, user=user)
+
+        service = OrderExportService()
+        assert service._get_price_type(order) == OPT4_PRICE_TYPE_NAME
+
+    def test_vid_tseny_in_xml_for_level4_user(self):
+        """AC10: <ВидЦены> в XML содержит GUID и наименование «Опт 4»."""
+        user = UserFactory(email=f"ws4-{get_unique_suffix()}@example.com", role="wholesale_level4")
+        variant = ProductVariantFactory(onec_id=f"v-{get_unique_suffix()}", retail_price=Decimal("100"))
+        order = _make_order_with_variant(variant, user=user)
+
+        service = OrderExportService()
+        xml_str = service.generate_xml(Order.objects.filter(id=order.id))
+        root = ET.fromstring(xml_str)
+
+        vid_ceny_id = root.find(".//Товар/ВидЦены/Ид")
+        vid_ceny_name = root.find(".//Товар/ВидЦены/Наименование")
+        assert vid_ceny_id is not None
+        assert vid_ceny_id.text == OPT4_PRICE_TYPE_ID
+        assert vid_ceny_name is not None
+        assert vid_ceny_name.text == OPT4_PRICE_TYPE_NAME

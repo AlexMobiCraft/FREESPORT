@@ -351,6 +351,7 @@ ONEC_EXCHANGE = {
         "wholesale_level1": "Опт 1 (300-600 тыс.руб в квартал)",
         "wholesale_level2": "Опт 2 (150-300 тыс.руб в квартал)",
         "wholesale_level3": "Опт 3 (50-150 тыс.руб в квартал)",
+        "wholesale_level4": "Опт 4 (до 50 тыс.руб в квартал)",
         "trainer": "Тренерская",
         "federation_rep": "Партнер",
         "admin": "РРЦ",
@@ -360,6 +361,7 @@ ONEC_EXCHANGE = {
         "Опт 1 (300-600 тыс.руб в квартал)": "90d2c899-b3f2-11ea-81c3-00155d3cae02",
         "Опт 2 (150-300 тыс.руб в квартал)": "a91bdb02-b3f2-11ea-81c3-00155d3cae02",
         "Опт 3 (50-150 тыс.руб в квартал)": "c05f0e2b-b3f2-11ea-81c3-00155d3cae02",
+        "Опт 4 (до 50 тыс.руб в квартал)": "4c1962d2-f8ed-11eb-81f3-00155d3cae02",
         "Тренерская": "b86fb8c5-ea2d-11eb-81f3-00155d3cae02",
         "МРЦ": "37c47a93-e1b8-11ec-a301-04421a23d8e8",
     },
@@ -425,25 +427,26 @@ SPECTACULAR_SETTINGS = {
         },
         {"name": "Cart", "description": "Корзина покупок"},
         {"name": "Orders", "description": "Управление заказами и их статусами"},
+        {"name": "Bonuses", "description": "Бонусная программа для тренеров"},
         {"name": "Search", "description": "Поиск и фильтрация товаров"},
         {"name": "System", "description": "Системные эндпоинты для мониторинга"},
         {"name": "Webhooks", "description": "Уведомления от внешних сервисов"},
     ],
     "SERVERS": [
         {"url": "http://127.0.0.1:8001", "description": "Development server"},
-        {"url": "https://api.freesport.ru", "description": "Production server"},
+        {"url": "https://optisport.ru", "description": "Production server"},
     ],
     # OpenAPI 3.1 Extensions для будущих webhooks (ЮКасса)
     "EXTENSIONS_INFO": {
         "x-logo": {
-            "url": "https://api.freesport.ru/static/logo.png",
+            "url": "https://optisport.ru/static/logo.png",
             "altText": "FREESPORT API",
         }
     },
 }
 
 # Настройки для разрешения конфликтов синхронизации (Story 3.2.2)
-CONFLICT_NOTIFICATION_EMAIL = config("CONFLICT_NOTIFICATION_EMAIL", default="admin@freesport.ru")
+CONFLICT_NOTIFICATION_EMAIL = config("CONFLICT_NOTIFICATION_EMAIL", default="admin@optisport.ru")
 
 # ============================================================================
 # Email Configuration (Story 29.3)
@@ -464,7 +467,7 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 
 # Адрес отправителя по умолчанию
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@freesport.ru")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@optisport.ru")
 SERVER_EMAIL = config("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 
 # Парсинг списка администраторов из ADMIN_EMAILS

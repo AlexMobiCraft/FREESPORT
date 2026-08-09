@@ -6,7 +6,7 @@
 
 - Сервер с Ubuntu 20.04+ или CentOS 8+
 - Установленный Docker и Docker Compose
-- Доменное имя freesport.ru
+- Доменное имя optisport.ru
 - IP адрес: <SERVER_IP>
 - Git
 
@@ -44,9 +44,9 @@ nano .env.prod
 - `SECRET_KEY` - сгенерируйте новый ключ
 - `DB_PASSWORD` - установите надежный пароль
 - `REDIS_PASSWORD` - установите надежный пароль
-- `ALLOWED_HOSTS` - уже настроено для freesport.ru и IP <SERVER_IP>
-- `CORS_ALLOWED_ORIGINS` - уже настроено для freesport.ru
-- `NEXT_PUBLIC_API_URL` - уже настроено для freesport.ru
+- `ALLOWED_HOSTS` - уже настроено для optisport.ru и IP <SERVER_IP>
+- `CORS_ALLOWED_ORIGINS` - уже настроено для optisport.ru
+- `NEXT_PUBLIC_API_URL` - уже настроено для optisport.ru
 
 ## Шаг 3: Настройка Nginx для SSL
 
@@ -87,7 +87,7 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
 sudo apt install -y certbot python3-certbot-nginx
 
 # Получение SSL сертификата
-sudo certbot --nginx -d freesport.ru -d www.freesport.ru
+sudo certbot --nginx -d optisport.ru -d www.optisport.ru
 
 # Настройка автоматического обновления сертификата
 echo "0 12 * * * /usr/bin/certbot renew --quiet" | sudo crontab -
@@ -97,10 +97,10 @@ echo "0 12 * * * /usr/bin/certbot renew --quiet" | sudo crontab -
 
 ```bash
 # Проверка доступности сайта
-curl -I https://freesport.ru
+curl -I https://optisport.ru
 
 # Проверка API
-curl https://freesport.ru/api/v1/health/
+curl https://optisport.ru/api/v1/health/
 
 # Просмотр логов
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml logs -f
@@ -231,13 +231,13 @@ nano scripts/health-check.sh
 # Проверка работоспособности сервисов
 
 # Проверка доступности сайта
-if ! curl -f -s https://freesport.ru > /dev/null; then
-    echo "Сайт недоступен" | mail -s "FREESPORT Alert" admin@freesport.ru
+if ! curl -f -s https://optisport.ru > /dev/null; then
+    echo "Сайт недоступен" | mail -s "FREESPORT Alert" admin@optisport.ru
 fi
 
 # Проверка работы API
-if ! curl -f -s https://freesport.ru/api/v1/health/ > /dev/null; then
-    echo "API недоступен" | mail -s "FREESPORT Alert" admin@freesport.ru
+if ! curl -f -s https://optisport.ru/api/v1/health/ > /dev/null; then
+    echo "API недоступен" | mail -s "FREESPORT Alert" admin@optisport.ru
 fi
 ```
 

@@ -16,7 +16,7 @@ from apps.common.models import CustomerSyncLog
 from apps.products.models import ImportSession
 from apps.users.models import User
 from apps.users.services.parser import CustomerDataParser
-from apps.users.services.processor import CustomerDataProcessor
+from apps.users.services.processor import ROLE_STATS_KEYS, CustomerDataProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +119,13 @@ class Command(BaseCommand):
                 "updated": 0,
                 "skipped": 0,
                 "errors": 0,
+                # Суммируются только объявленные здесь ключи (см. цикл ниже),
+                # поэтому счётчики процессора обязаны быть в этом словаре.
+                "attributes_block_present": 0,
+                "attributes_block_missing": 0,
+                # Набор ролевых ключей объявляет процессор — перечислять их
+                # здесь заново значило бы потерять новый счётчик молча.
+                **{key: 0 for key in ROLE_STATS_KEYS},
             }
 
             for idx, file_path in enumerate(contragents_files, 1):
@@ -163,6 +170,26 @@ class Command(BaseCommand):
                     # Продолжаем обработку остальных файлов
                     total_stats["errors"] += 1
 
+            # Блок <ЗначенияРеквизитов> приходит у каждого контрагента начиная
+            # со второй редакции патча БУС. Ноль за весь прогон означает не
+            # «ни у кого нет соглашения», а затёртую правку расширения.
+            # Флаг кладётся после цикла суммирования: bool += int сложился бы
+            # в число.
+            attributes_anomaly = total_stats["total"] > 0 and total_stats["attributes_block_present"] == 0
+            total_stats["attributes_block_anomaly"] = attributes_anomaly
+
+            # Предупреждение печатается до ветвления на dry-run: иначе прогон
+            # «на посмотреть» перед импортом на проде промолчал бы о поломке.
+            if attributes_anomaly:
+                self.stdout.write(
+                    self.style.WARNING(
+                        "\n⚠️  Блок <ЗначенияРеквизитов> не встретился ни у одного из "
+                        f"{total_stats['total']} контрагентов. Вероятная причина — правка "
+                        "расширения ОбменСБитриксУправлениеСайтомУТ затёрта обновлением модуля БУС. "
+                        "См. docs/integrations/1c/bus-extension-patch/README.md"
+                    )
+                )
+
             # Dry-run сообщение
             if dry_run:
                 self.stdout.write(self.style.WARNING("\n⚠️  DRY-RUN режим: изменения не сохранены"))
@@ -187,6 +214,22 @@ class Command(BaseCommand):
                         f"  Обновлено: {total_stats['updated']}\n"
                         f"  Пропущено: {total_stats['skipped']}\n"
                         f"  Ошибок: {total_stats['errors']}\n"
+                        f"  Контрагентов с видом цен из 1С: {total_stats['attributes_block_present']}\n"
+                        f"  Контрагентов без блока реквизитов: {total_stats['attributes_block_missing']}\n"
+                        f"  Аномалия выгрузки: {'ДА' if attributes_anomaly else 'нет'}\n"
+                        f"\nРоли из 1С:\n"
+                        f"  Обновлено ролей: {total_stats['roles_updated']}\n"
+                        f"    из них были unregistered: {total_stats['roles_updated_from_unregistered']}\n"
+                        f"    из них перетёрта роль, выданная менеджером: "
+                        f"{total_stats['roles_updated_from_assigned']}\n"
+                        f"  Роль уже актуальна: {total_stats['roles_already_actual']}\n"
+                        f"  Пропущено (непривязанная запись 1С): "
+                        f"{total_stats['roles_skipped_unlinked_record']}\n"
+                        f"  Пропущено (нет данных о виде цен): {total_stats['roles_skipped_no_data']}\n"
+                        f"  Пропущено (нет соглашения): {total_stats['roles_skipped_no_agreement']}\n"
+                        f"  Пропущено (вид цен не даёт роли): "
+                        f"{total_stats['roles_skipped_unknown_price_type']}\n"
+                        f"  Пропущено (несколько видов цен): {total_stats['roles_skipped_ambiguous']}\n"
                         f"{'=' * 60}"
                     )
                 )

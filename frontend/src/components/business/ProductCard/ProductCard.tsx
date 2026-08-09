@@ -64,7 +64,7 @@ const resolveImageUrl = (path?: string | null): string | null => {
       return path.replace('http://nginx', publicBase);
     }
 
-    // Если путь уже публичный (например, https://freesport.ru), оставляем как есть
+    // Если путь уже публичный (например, https://optisport.ru), оставляем как есть
     return path;
   }
 
@@ -118,6 +118,14 @@ function getProductPrice(product: Product, userRole: UserRole): number {
       return product.opt2_price || product.opt1_price || product.retail_price;
     case 'wholesale_level3':
       return product.opt3_price || product.opt2_price || product.opt1_price || product.retail_price;
+    case 'wholesale_level4':
+      return (
+        product.opt4_price ||
+        product.opt3_price ||
+        product.opt2_price ||
+        product.opt1_price ||
+        product.retail_price
+      );
     case 'trainer':
       return (
         (product as Product & { trainer_price?: number }).trainer_price || product.retail_price

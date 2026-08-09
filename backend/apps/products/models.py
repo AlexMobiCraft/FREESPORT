@@ -722,6 +722,7 @@ class PriceType(models.Model):
                 ("opt1_price", "Оптовая цена уровень 1"),
                 ("opt2_price", "Оптовая цена уровень 2"),
                 ("opt3_price", "Оптовая цена уровень 3"),
+                ("opt4_price", "Оптовая цена уровень 4"),
                 ("trainer_price", "Цена для тренера"),
                 ("federation_price", "Цена для представителя федерации"),
                 (
@@ -861,7 +862,7 @@ class ProductVariant(models.Model):
         ),
     )
 
-    # Цены для различных ролей (6 типов)
+    # Цены для различных ролей (7 типов)
     retail_price = cast(
         Decimal,
         models.DecimalField(
@@ -906,6 +907,18 @@ class ProductVariant(models.Model):
             blank=True,
             validators=[MinValueValidator(Decimal("0"))],
             help_text="Цена для роли wholesale_level3",
+        ),
+    )
+    opt4_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Оптовая цена уровень 4",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text="Цена для роли wholesale_level4",
         ),
     )
     trainer_price = cast(
@@ -1101,6 +1114,13 @@ class ProductVariant(models.Model):
                 name="idx_variant_product_price",
             ),
         ]
+        constraints = [
+            # Цена четвёртого оптового уровня не может быть отрицательной
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=models.Q(opt4_price__gte=0) | models.Q(opt4_price__isnull=True),
+                name="products_opt4_price_positive",
+            ),
+        ]
 
     def __str__(self) -> str:
         """Строковое представление варианта товара"""
@@ -1167,19 +1187,20 @@ class ProductVariant(models.Model):
 
     def get_price_for_user(self, user: User | None) -> Decimal:
         """Получить цену варианта для конкретного пользователя на основе его роли"""
-        if not user or not user.is_authenticated:
+        from apps.products.pricing_policy import ROLE_PRICE_FIELDS, resolve_pricing_role
+
+        # Неверифицированный B2B и гость понижаются до retail (project-context.md §3)
+        role = resolve_pricing_role(user)
+
+        price_field = ROLE_PRICE_FIELDS.get(role)
+        if price_field is None:
+            # retail, unregistered, admin и аноним — своей цены не имеют
             return self.retail_price
 
-        role_price_mapping = {
-            "retail": self.retail_price,
-            "wholesale_level1": self.opt1_price or self.retail_price,
-            "wholesale_level2": self.opt2_price or self.retail_price,
-            "wholesale_level3": self.opt3_price or self.retail_price,
-            "trainer": self.trainer_price or self.retail_price,
-            "federation_rep": self.federation_price or self.retail_price,
-        }
-
-        return role_price_mapping.get(user.role, self.retail_price)
+        # Пустая и нулевая специальная цена одинаково означают «цены для роли
+        # нет». Ровно тот же откат делают ценовые фильтры каталога
+        # (`filters.visible_price_q`) — карта полей у них общая.
+        return getattr(self, price_field) or self.retail_price
 
 
 class Attribute(models.Model):

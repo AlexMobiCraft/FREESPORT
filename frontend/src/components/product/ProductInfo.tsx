@@ -54,11 +54,12 @@ export default function ProductInfo({
 
   const stockStatus = getStockStatus();
 
-  // RRP видят только оптовики (1-3), тренеры и админы
+  // RRP видят только оптовики (1-4), тренеры и админы
   const canSeeRrp = [
     'wholesale_level1',
     'wholesale_level2',
     'wholesale_level3',
+    'wholesale_level4',
     'trainer',
     'admin',
   ].includes(userRole);

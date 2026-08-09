@@ -3,7 +3,7 @@ info:
   title: FREESPORT API
   version: 1.0.0
   x-logo:
-    url: https://api.freesport.ru/static/logo.png
+    url: https://optisport.ru/static/logo.png
     altText: FREESPORT API
   description: RESTful API для B2B/B2C платформы спортивных товаров FREESPORT
 paths:
@@ -672,65 +672,6 @@ paths:
                 items:
                   $ref: '#/components/schemas/OrderHistory'
           description: ''
-  /users/bonuses/:
-    get:
-      operationId: users_bonuses_retrieve
-      description: Баланс, суммы начислений и выплат, действующий процент программы.
-      summary: Сводка по бонусному счёту
-      tags:
-      - Bonuses
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BonusSummary'
-          description: ''
-        '401':
-          description: Пользователь не авторизован
-        '403':
-          description: Доступ только для подтверждённых тренеров
-  /users/bonuses/transactions/:
-    get:
-      operationId: users_bonuses_transactions_list
-      description: Список операций тренера с пагинацией и фильтром по типу.
-      summary: История бонусных операций
-      parameters:
-      - name: type
-        required: false
-        in: query
-        description: Фильтр по типу операции
-        schema:
-          type: string
-          enum:
-          - accrual
-          - payout
-          - writeoff
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      tags:
-      - Bonuses
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedBonusTransactionList'
-          description: ''
-        '401':
-          description: Пользователь не авторизован
-        '403':
-          description: Доступ только для подтверждённых тренеров
   /users/roles/:
     get:
       operationId: users_roles_retrieve
@@ -800,6 +741,40 @@ paths:
                 $ref: '#/components/schemas/Address'
           description: ''
   /users/addresses/{id}/:
+    get:
+      operationId: users_addresses_retrieve
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
+    delete:
+      operationId: users_addresses_destroy
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
     patch:
       operationId: users_addresses_partial_update
       description: ViewSet для управления адресами пользователя
@@ -830,21 +805,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
-    delete:
-      operationId: users_addresses_destroy
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
     put:
       operationId: users_addresses_update
       description: ViewSet для управления адресами пользователя
@@ -869,25 +829,6 @@ paths:
             schema:
               $ref: '#/components/schemas/AddressRequest'
         required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
-    get:
-      operationId: users_addresses_retrieve
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
       responses:
         '200':
           content:
@@ -952,6 +893,40 @@ paths:
                 $ref: '#/components/schemas/FavoriteCreate'
           description: ''
   /users/favorites/{id}/:
+    get:
+      operationId: users_favorites_retrieve
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
+    delete:
+      operationId: users_favorites_destroy
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
     patch:
       operationId: users_favorites_partial_update
       description: ViewSet для управления избранными товарами
@@ -982,21 +957,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
-    delete:
-      operationId: users_favorites_destroy
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
     put:
       operationId: users_favorites_update
       description: ViewSet для управления избранными товарами
@@ -1021,25 +981,6 @@ paths:
             schema:
               $ref: '#/components/schemas/FavoriteRequest'
         required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Favorite'
-          description: ''
-    get:
-      operationId: users_favorites_retrieve
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - users
       responses:
         '200':
           content:
@@ -1380,7 +1321,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: A unique integer value identifying this Категория.
         required: true
       tags:
       - categories-tree
@@ -1634,6 +1576,55 @@ paths:
         '401':
           description: Пользователь не авторизован
   /orders/{id}/:
+    get:
+      operationId: orders_retrieve
+      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
+        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
+        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
+        404.
+      summary: Детали заказа
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - Orders
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '401':
+          description: Пользователь не авторизован
+        '404':
+          description: Заказ не найден
+    delete:
+      operationId: orders_destroy
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      responses:
+        '204':
+          description: No response body
     patch:
       operationId: orders_partial_update
       description: |-
@@ -1671,28 +1662,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
-    delete:
-      operationId: orders_destroy
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - orders
-      responses:
-        '204':
-          description: No response body
     put:
       operationId: orders_update
       description: |-
@@ -1731,33 +1700,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
-    get:
-      operationId: orders_retrieve
-      description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
-        позиции всех связанных субзаказов, `subtotal`, `total_items`, `calculated_total`
-        считаются суммарно. Попытка открыть id субзаказа (`is_master=False`) возвращает
-        404.
-      summary: Детали заказа
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - Orders
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-        '401':
-          description: Пользователь не авторизован
-        '404':
-          description: Заказ не найден
   /orders/{id}/cancel/:
     post:
       operationId: orders_cancel_create
@@ -1847,34 +1789,6 @@ paths:
         '204':
           description: No response body
   /cart/items/:
-    post:
-      operationId: cart_items_create
-      description: Добавление варианта товара (variant_id) в корзину с автоматическим
-        объединением одинаковых вариантов. Цена фиксируется в момент добавления.
-      summary: Добавить вариант товара в корзину
-      tags:
-      - Cart Items
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-        required: true
-      security:
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartItemCreate'
-          description: ''
     get:
       operationId: cart_items_list
       description: Получение списка всех товаров в корзине пользователя
@@ -1909,7 +1823,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedCartItemList'
           description: ''
+    post:
+      operationId: cart_items_create
+      description: Добавление варианта товара (variant_id) в корзину с автоматическим
+        объединением одинаковых вариантов. Цена фиксируется в момент добавления.
+      summary: Добавить вариант товара в корзину
+      tags:
+      - Cart Items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemCreate'
+          description: ''
   /cart/items/{id}/:
+    get:
+      operationId: cart_items_retrieve
+      description: Получение детальной информации о товаре в корзине
+      summary: Детали товара в корзине
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItem'
+          description: ''
+        '404':
+          description: Товар в корзине не найден
+    delete:
+      operationId: cart_items_destroy
+      description: Удаление товара из корзины
+      summary: Удалить товар из корзины
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
     patch:
       operationId: cart_items_partial_update
       description: Частичное изменение количества товара в корзине
@@ -1944,46 +1926,6 @@ paths:
           description: ''
         '400':
           description: Ошибки валидации
-        '404':
-          description: Товар в корзине не найден
-    delete:
-      operationId: cart_items_destroy
-      description: Удаление товара из корзины
-      summary: Удалить товар из корзины
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - Cart Items
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
-    get:
-      operationId: cart_items_retrieve
-      description: Получение детальной информации о товаре в корзине
-      summary: Детали товара в корзине
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - Cart Items
-      security:
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartItem'
-          description: ''
         '404':
           description: Товар в корзине не найден
   /pages/:
@@ -2156,6 +2098,100 @@ paths:
                       cta_link: /wholesale
                   summary: Успешный ответ
                   description: Список активных баннеров для пользователя
+          description: ''
+  /users/bonuses/:
+    get:
+      operationId: users_bonuses_retrieve
+      description: Баланс, суммы начислений и выплат, действующий процент программы.
+      summary: Сводка по бонусному счёту
+      tags:
+      - Bonuses
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BonusSummary'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+  /users/bonuses/transactions/:
+    get:
+      operationId: users_bonuses_transactions_list
+      description: Список операций тренера с пагинацией и фильтром по типу.
+      summary: История бонусных операций
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: type
+        schema:
+          type: string
+          enum:
+          - accrual
+          - payout
+          - writeoff
+        description: Фильтр по типу операции
+      tags:
+      - Bonuses
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBonusTransactionList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+                description: Unspecified response body
           description: ''
   /api/integration/1c/exchange/:
     get:
@@ -2432,88 +2468,109 @@ components:
       - type
     BonusSummary:
       type: object
-      description: Сводка по бонусному счёту тренера
+      description: Сводка по бонусному счёту тренера.
       properties:
         balance:
           type: string
           format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           description: Текущий баланс
         total_accrued:
           type: string
           format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           description: Всего начислено
         total_paid_out:
           type: string
           format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           description: Всего выплачено и списано (положительное число)
         current_percent:
           type: string
           format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           description: Действующий процент
         is_active:
           type: boolean
           description: Программа активна
       required:
       - balance
-      - total_accrued
-      - total_paid_out
       - current_percent
       - is_active
+      - total_accrued
+      - total_paid_out
     BonusTransaction:
       type: object
-      description: Операция журнала бонусов
+      description: Операция журнала для истории в личном кабинете.
       properties:
         id:
           type: integer
           readOnly: true
         transaction_type:
-          $ref: '#/components/schemas/BonusTransactionTypeEnum'
+          allOf:
+          - $ref: '#/components/schemas/TransactionTypeEnum'
+          readOnly: true
+          title: Тип операции
         transaction_type_display:
           type: string
           readOnly: true
         amount:
           type: string
           format: decimal
-          description: Сумма со знаком; начисление положительное, выплата и списание отрицательные
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Сумма
+          description: Начисление — положительная, выплата и списание — отрицательная
         order_id:
-          type: integer
-          nullable: true
+          type:
+          - integer
+          - 'null'
           readOnly: true
         order_number:
-          type: string
-          nullable: true
+          type:
+          - string
+          - 'null'
+          description: 'Номер заказа: живой заказ либо снимок на момент начисления.'
           readOnly: true
         percent_applied:
-          type: string
+          type:
+          - string
+          - 'null'
           format: decimal
-          nullable: true
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Применённый процент
           description: Снимок процента на момент начисления
         base_amount:
-          type: string
+          type:
+          - string
+          - 'null'
           format: decimal
-          nullable: true
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: База начисления
           description: Снимок стоимости товаров на момент начисления
         comment:
           type: string
+          readOnly: true
+          title: Комментарий
+          description: 'Обязателен для выплат и списаний: основание операции'
         created_at:
           type: string
           format: date-time
           readOnly: true
+          title: Дата создания
       required:
-      - id
-      - transaction_type
       - amount
+      - base_amount
+      - comment
       - created_at
-    BonusTransactionTypeEnum:
-      enum:
-      - accrual
-      - payout
-      - writeoff
-      type: string
-      description: |-
-        * `accrual` - Начисление
-        * `payout` - Выплата
-        * `writeoff` - Списание
+      - id
+      - order_id
+      - order_number
+      - percent_applied
+      - transaction_type
+      - transaction_type_display
     Brand:
       type: object
       description: Serializer для брендов
@@ -2761,6 +2818,16 @@ components:
       - name
       - products_count
       - slug
+    CountryEnum:
+      enum:
+      - Россия
+      - Беларусь
+      - Казахстан
+      type: string
+      description: |-
+        * `Россия` - Россия
+        * `Беларусь` - Беларусь
+        * `Казахстан` - Казахстан
     DeliveryMethod:
       type: object
       description: Сериализатор для способа доставки.
@@ -3959,6 +4026,11 @@ components:
           format: double
           description: Получить оптовую цену уровня 3 из первого варианта
           readOnly: true
+        opt4_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 4 из первого варианта
+          readOnly: true
         stock_quantity:
           type: integer
           description: Получить суммарное количество на складе по всем вариантам
@@ -4053,6 +4125,7 @@ components:
       - opt1_price
       - opt2_price
       - opt3_price
+      - opt4_price
       - related_products
       - retail_price
       - rrp
@@ -4098,7 +4171,7 @@ components:
         в ProductDetailSerializer.
 
         Вычисляемые поля для обратной совместимости (данные из вариантов):
-        - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+        - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
         - stock_quantity: суммарное количество на складе по всем вариантам
         - is_in_stock: есть ли хотя бы один вариант в наличии
         - main_image: изображение из первого варианта или base_images
@@ -4209,6 +4282,11 @@ components:
           format: double
           description: Получить оптовую цену уровня 3 из первого варианта
           readOnly: true
+        opt4_price:
+          type: number
+          format: double
+          description: Получить оптовую цену уровня 4 из первого варианта
+          readOnly: true
         stock_quantity:
           type: integer
           description: Получить суммарное количество на складе по всем вариантам
@@ -4274,6 +4352,7 @@ components:
       - opt1_price
       - opt2_price
       - opt3_price
+      - opt4_price
       - retail_price
       - rrp
       - sku
@@ -4450,6 +4529,7 @@ components:
       - wholesale_level1
       - wholesale_level2
       - wholesale_level3
+      - wholesale_level4
       - trainer
       - federation_rep
       - admin
@@ -4460,6 +4540,7 @@ components:
         * `wholesale_level1` - Оптовик уровень 1
         * `wholesale_level2` - Оптовик уровень 2
         * `wholesale_level3` - Оптовик уровень 3
+        * `wholesale_level4` - Оптовик уровень 4
         * `trainer` - Тренер/Фитнес-клуб
         * `federation_rep` - Представитель федерации
         * `admin` - Администратор
@@ -4533,6 +4614,16 @@ components:
           minLength: 1
       required:
       - refresh
+    TransactionTypeEnum:
+      enum:
+      - accrual
+      - payout
+      - writeoff
+      type: string
+      description: |-
+        * `accrual` - Начисление
+        * `payout` - Выплата
+        * `writeoff` - Списание
     TypeEnum:
       enum:
       - hero
@@ -4774,6 +4865,16 @@ components:
           title: ИНН
           description: ИНН для B2B пользователей
           maxLength: 12
+        country:
+          allOf:
+          - $ref: '#/components/schemas/CountryEnum'
+          title: Страна
+          description: |-
+            Страна регистрации B2B-клиента (для маршрутизации на менеджера)
+
+            * `Россия` - Россия
+            * `Беларусь` - Беларусь
+            * `Казахстан` - Казахстан
         pdp_consent:
           type: boolean
           writeOnly: true
@@ -4803,7 +4904,7 @@ components:
 servers:
 - url: http://127.0.0.1:8001
   description: Development server
-- url: https://api.freesport.ru
+- url: https://optisport.ru
   description: Production server
 tags:
 - name: Authentication

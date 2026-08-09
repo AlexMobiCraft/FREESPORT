@@ -16,6 +16,7 @@ export interface User {
     | 'wholesale_level1'
     | 'wholesale_level2'
     | 'wholesale_level3'
+    | 'wholesale_level4'
     | 'trainer'
     | 'federation_rep'
     | 'admin';
@@ -45,6 +46,7 @@ export interface Product {
   opt1_price?: number;
   opt2_price?: number;
   opt3_price?: number;
+  opt4_price?: number;
   is_in_stock: boolean;
   stock_quantity?: number;
   /** Основное изображение, возвращаемое списочным API */
@@ -297,6 +299,7 @@ export interface ProductPrice {
     level1?: number;
     level2?: number;
     level3?: number;
+    level4?: number;
   };
   trainer?: number;
   federation?: number;

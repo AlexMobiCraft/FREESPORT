@@ -1,5 +1,5 @@
-# Team override: обязательный GitNexus-анализ в bmad-create-story
-# Коммитить в репозиторий — это командная политика.
+# Team override: обязательный GitNexus-анализ + путь хранения story-файлов
+# в bmad-create-story. Коммитить в репозиторий — это командная политика.
 
 [workflow]
 
@@ -10,4 +10,6 @@ activation_steps_append = [
 persistent_facts = [
   'ПРАВИЛО АНАЛИЗА КОДА (обязательно): В шагах 2–4 ЗАПРЕЩЕНО запускать Explore-субагента (subagent_type=Explore) для исследования кодовой базы. Вместо этого использовать GitNexus CLI через Bash (MCP-сервер в проекте не подключён): npx gitnexus query "<концепция>" — поиск потоков выполнения; npx gitnexus context <symbol> — анализ символов. Читать файлы (Read) только для тех путей, которые вернул GitNexus. Это обязательное требование проекта FREESPORT.',
   'ПРИЗНАК УСТАРЕВШЕГО ИНДЕКСА: ответ {"error": "Symbol ... not found"} на заведомо существующий символ означает, что индекс не содержит свежий код, а не что кода нет. В этом случае сообщить пользователю про ! npx gitnexus analyze.',
+  'ПУТЬ ХРАНЕНИЯ STORY-ФАЙЛОВ (проект FREESPORT): story-файлы лежат в подкаталоге {implementation_artifacts}/Story/, а не в корне {implementation_artifacts}. Корень занят другими артефактами реализации: sprint-status.yaml, spec-*.md, deferred-work.md, tasks/, tech-spec/, retro/. Значение implementation_artifacts в _bmad/bmm/config.yaml менять НЕЛЬЗЯ — оно задаёт корень всех артефактов реализации, а не только стори.',
+  'ПЕРЕОПРЕДЕЛЕНИЕ ПЕРЕМЕННЫХ ПУТЕЙ: default_output_file = {implementation_artifacts}/Story/{{story_key}}.md. Поиск предыдущей стори эпика вести в {implementation_artifacts}/Story/ по шаблону {{epic_num}}-{{previous_story_num}}-*.md. Путь sprint_status при этом НЕ меняется — sprint-status.yaml остаётся в корне {implementation_artifacts}.',
 ]

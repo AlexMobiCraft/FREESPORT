@@ -74,8 +74,8 @@ DB_SSLMODE=prefer
 REDIS_PASSWORD=production-redis-password
 
 # === НАСТРОЙКИ ДОМЕНОВ ===
-ALLOWED_HOSTS=freesport.ru,www.freesport.ru,<SERVER_IP>
-CORS_ALLOWED_ORIGINS=https://freesport.ru,https://www.freesport.ru
+ALLOWED_HOSTS=optisport.ru,www.optisport.ru,<SERVER_IP>
+CORS_ALLOWED_ORIGINS=https://optisport.ru,https://www.optisport.ru
 
 # === НАСТРОЙКИ БЕЗОПАСНОСТИ ===
 DEBUG=False

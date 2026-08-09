@@ -3,6 +3,7 @@ Unit-тесты для фильтров товаров (Story 2.9: filtering-api
 Тестируем фильтрацию по размерам, брендам, ценам, наличию
 """
 
+from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -10,8 +11,10 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.test import RequestFactory
 
+from apps.products.factories import ProductFactory
 from apps.products.filters import ProductFilter
-from apps.products.models import Product
+from apps.products.models import Product, ProductVariant
+from apps.products.pricing_policy import ROLE_PRICE_FIELDS
 
 User = get_user_model()
 
@@ -311,6 +314,7 @@ class TestProductFilterIntegration:
             "wholesale_level1",
             "wholesale_level2",
             "wholesale_level3",
+            "wholesale_level4",
             "trainer",
             "federation_rep",
         ]
@@ -337,3 +341,235 @@ class TestProductFilterIntegration:
             product_filter.filter_max_price(queryset, "max_price", 1000)
 
             assert hasattr(product_filter, "_variant_filters")
+
+
+@pytest.mark.unit
+class TestProductFilterPricingPolicy:
+    """
+    Ценовые фильтры согласованы с политикой видимости цен.
+
+    Стори `security-wholesale-price-visibility`, AC5: пользователь
+    фильтруется по той цене, которую ему показывают. Неверифицированный
+    оптовик видит розничную цену — значит и фильтруется по `retail_price`.
+    """
+
+    @staticmethod
+    def _filter_with_user(role, is_verified):
+        """ProductFilter с mock-запросом от имени пользователя с заданной ролью"""
+        mock_user = Mock()
+        mock_user.is_authenticated = True
+        mock_user.role = role
+        # ЯВНО: у Mock любой атрибут truthy, поэтому is_verified=False
+        # обязано задаваться руками, иначе тест молча проверит не то
+        mock_user.is_verified = is_verified
+
+        mock_request = Mock()
+        mock_request.user = mock_user
+
+        product_filter = ProductFilter()
+        product_filter.request = mock_request
+        return product_filter
+
+    def test_unverified_wholesale_filters_by_retail_price(self):
+        """Неверифицированный оптовик фильтруется по retail_price"""
+        product_filter = self._filter_with_user("wholesale_level1", is_verified=False)
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        assert product_filter._variant_filters == Q(retail_price__gte=100)
+
+    def test_verified_wholesale_filters_by_opt1_price(self):
+        """Верифицированный оптовик фильтруется по своей оптовой цене"""
+        product_filter = self._filter_with_user("wholesale_level1", is_verified=True)
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        # Специальная цена применяется, только если она строго больше нуля:
+        # 0.00 и NULL одинаково означают «цены для роли нет» (см. AC5)
+        expected = (Q(opt1_price__gt=0) & Q(opt1_price__gte=100)) | (
+            (Q(opt1_price__isnull=True) | Q(opt1_price=0)) & Q(retail_price__gte=100)
+        )
+        assert product_filter._variant_filters == expected
+
+    def test_unverified_trainer_max_price_by_retail(self):
+        """То же для filter_max_price и роли trainer"""
+        product_filter = self._filter_with_user("trainer", is_verified=False)
+
+        product_filter.filter_max_price(Mock(), "max_price", 1000)
+
+        assert product_filter._variant_filters == Q(retail_price__lte=1000)
+
+    def test_verified_trainer_max_price_by_trainer_price(self):
+        """Верифицированный тренер фильтруется по trainer_price"""
+        product_filter = self._filter_with_user("trainer", is_verified=True)
+
+        product_filter.filter_max_price(Mock(), "max_price", 1000)
+
+        expected = (Q(trainer_price__gt=0) & Q(trainer_price__lte=1000)) | (
+            (Q(trainer_price__isnull=True) | Q(trainer_price=0)) & Q(retail_price__lte=1000)
+        )
+        assert product_filter._variant_filters == expected
+
+    def test_anonymous_request_filters_by_retail_price(self):
+        """Без request (аноним) роль резолвится в retail — поведение не изменилось"""
+        product_filter = ProductFilter()
+        product_filter.request = None
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        assert product_filter._variant_filters == Q(retail_price__gte=100)
+
+
+@pytest.mark.unit
+class TestOpt4PriceFilter:
+    """
+    Стори 39.3, AC1: фильтры каталога знают про цену четвёртого уровня.
+
+    До правки роль проваливалась в else-ветку и фильтровалась по
+    retail_price — оптовик уровня 4 получал выдачу чужого ценового уровня.
+    """
+
+    @staticmethod
+    def _filter_with_user(is_verified: bool = True):
+        """ProductFilter с mock-запросом от имени пользователя уровня 4"""
+        mock_user = Mock()
+        mock_user.is_authenticated = True
+        mock_user.role = "wholesale_level4"
+        # ЯВНО: у Mock любой атрибут truthy — is_verified задаётся руками
+        mock_user.is_verified = is_verified
+
+        mock_request = Mock()
+        mock_request.user = mock_user
+
+        product_filter = ProductFilter()
+        product_filter.request = mock_request
+        return product_filter
+
+    def test_min_price_filters_by_opt4_price(self):
+        """min_price сравнивается с opt4_price, с откатом на retail при пустой цене"""
+        product_filter = self._filter_with_user()
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        expected = (Q(opt4_price__gt=0) & Q(opt4_price__gte=100)) | (
+            (Q(opt4_price__isnull=True) | Q(opt4_price=0)) & Q(retail_price__gte=100)
+        )
+        assert product_filter._variant_filters == expected
+
+    def test_max_price_filters_by_opt4_price(self):
+        """max_price — симметрично, через __lte"""
+        product_filter = self._filter_with_user()
+
+        product_filter.filter_max_price(Mock(), "max_price", 1000)
+
+        expected = (Q(opt4_price__gt=0) & Q(opt4_price__lte=1000)) | (
+            (Q(opt4_price__isnull=True) | Q(opt4_price=0)) & Q(retail_price__lte=1000)
+        )
+        assert product_filter._variant_filters == expected
+
+    def test_unverified_level4_filters_by_retail_price(self):
+        """
+        Неверифицированный уровень 4 фильтруется по retail_price.
+
+        Это требуемое поведение (роль берётся из resolve_pricing_role), а не дефект.
+        """
+        product_filter = self._filter_with_user(is_verified=False)
+
+        product_filter.filter_min_price(Mock(), "min_price", 100)
+
+        assert product_filter._variant_filters == Q(retail_price__gte=100)
+
+
+@pytest.mark.unit
+class TestZeroSpecialPriceFallsBackToRetail:
+    """
+    Находка ревью 2026-08-04 (AC5): нулевая специальная цена — это «цены нет».
+
+    `ProductVariant.get_price_for_user` показывает `retail_price`, когда
+    специальная цена пустая ИЛИ нулевая (`self.opt1_price or self.retail_price`).
+    Ценовые фильтры обязаны отбирать по той же видимой цене, иначе выдача по
+    `min_price`/`max_price` расходится с ценой в карточке товара.
+
+    Проверка идёт на реальных строках БД, а не на структуре `Q`: смысл в том,
+    какие варианты фильтр отбирает, а не как выглядит выражение. Матрица
+    строится по `ROLE_PRICE_FIELDS` — новая роль в политике автоматически
+    попадает под проверку и падает, пока фильтр её не знает.
+    """
+
+    RETAIL_PRICE = Decimal("1000.00")
+    SPECIAL_PRICE = Decimal("500.00")
+
+    @staticmethod
+    def _filter_for_role(role):
+        """ProductFilter от имени верифицированного пользователя с ролью role"""
+        mock_user = Mock()
+        mock_user.is_authenticated = True
+        mock_user.role = role
+        # ЯВНО: у Mock любой атрибут truthy, верификацию задаём руками
+        mock_user.is_verified = True
+
+        mock_request = Mock()
+        mock_request.user = mock_user
+
+        product_filter = ProductFilter()
+        product_filter.request = mock_request
+        return product_filter
+
+    def _variants(self, price_field):
+        """Три варианта с одной розничной ценой: нулевая, пустая и заполненная специальная"""
+
+        def variant(special_price):
+            product = ProductFactory(retail_price=self.RETAIL_PRICE, **{price_field: special_price})
+            return product.variants.first()
+
+        return variant(Decimal("0.00")), variant(None), variant(self.SPECIAL_PRICE)
+
+    @staticmethod
+    def _matched_ids(product_filter):
+        """Варианты, которые отберёт накопленный фильтр"""
+        return set(ProductVariant.objects.filter(product_filter._variant_filters).values_list("id", flat=True))
+
+    @pytest.mark.parametrize("role,price_field", sorted(ROLE_PRICE_FIELDS.items()))
+    def test_min_price_uses_retail_for_zero_special_price(self, role, price_field):
+        """min_price=900: видимая цена варианта с нулевой спеццена — розничная 1000"""
+        zero, empty, filled = self._variants(price_field)
+
+        product_filter = self._filter_for_role(role)
+        product_filter.filter_min_price(Mock(), "min_price", 900)
+        matched = self._matched_ids(product_filter)
+
+        assert zero.id in matched, (
+            f"{role}: вариант с {price_field}=0.00 показывается по {self.RETAIL_PRICE}, "
+            f"значит обязан проходить min_price=900"
+        )
+        assert empty.id in matched, f"{role}: вариант с пустым {price_field} показывается по розничной цене"
+        assert filled.id not in matched, f"{role}: видимая цена {self.SPECIAL_PRICE} ниже границы 900"
+
+    @pytest.mark.parametrize("role,price_field", sorted(ROLE_PRICE_FIELDS.items()))
+    def test_max_price_uses_retail_for_zero_special_price(self, role, price_field):
+        """max_price=600: вариант с нулевой спеццена стоит 1000 и в выдачу не попадает"""
+        zero, empty, filled = self._variants(price_field)
+
+        product_filter = self._filter_for_role(role)
+        product_filter.filter_max_price(Mock(), "max_price", 600)
+        matched = self._matched_ids(product_filter)
+
+        assert zero.id not in matched, (
+            f"{role}: вариант с {price_field}=0.00 показывается по {self.RETAIL_PRICE} — "
+            f"выдача max_price=600 обещала бы цену, которой в карточке нет"
+        )
+        assert empty.id not in matched, f"{role}: вариант с пустым {price_field} стоит {self.RETAIL_PRICE}"
+        assert filled.id in matched, f"{role}: видимая цена {self.SPECIAL_PRICE} укладывается в границу 600"
+
+    @pytest.mark.parametrize("role,price_field", sorted(ROLE_PRICE_FIELDS.items()))
+    def test_filter_matches_price_shown_to_user(self, role, price_field):
+        """Связь с показанной ценой: get_price_for_user и фильтр смотрят на одно и то же"""
+        zero, empty, filled = self._variants(price_field)
+        user = Mock()
+        user.is_authenticated = True
+        user.role = role
+        user.is_verified = True
+
+        assert zero.get_price_for_user(user) == self.RETAIL_PRICE
+        assert empty.get_price_for_user(user) == self.RETAIL_PRICE
+        assert filled.get_price_for_user(user) == self.SPECIAL_PRICE

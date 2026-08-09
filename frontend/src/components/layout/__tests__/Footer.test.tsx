@@ -100,8 +100,8 @@ describe('Footer', () => {
       const phoneLink = screen.getByRole('link', { name: '+7 968 273-21-68' });
       expect(phoneLink).toHaveAttribute('href', 'tel:+79682732168');
 
-      const emailLink = screen.getByRole('link', { name: 'info@freesport.ru' });
-      expect(emailLink).toHaveAttribute('href', 'mailto:info@freesport.ru');
+      const emailLink = screen.getByRole('link', { name: 'info@optisport.ru' });
+      expect(emailLink).toHaveAttribute('href', 'mailto:info@optisport.ru');
     });
 
     it('renders warehouse address as a link to pickup section on delivery page', () => {

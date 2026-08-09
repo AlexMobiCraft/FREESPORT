@@ -43,6 +43,7 @@ class TestProductVariantSerializer:
             email="wholesale@test.com",
             password="testpass123",
             role="wholesale_level1",
+            is_verified=True,
         )
 
     @pytest.fixture
@@ -227,6 +228,7 @@ class TestProductVariantSerializer:
             email="trainer@test.com",
             password="testpass123",
             role="trainer",
+            is_verified=True,
         )
         variant.trainer_price = Decimal("700.00")
         variant.save()
@@ -247,6 +249,7 @@ class TestProductVariantSerializer:
             email="federation@test.com",
             password="testpass123",
             role="federation_rep",
+            is_verified=True,
         )
         variant.federation_price = Decimal("750.00")
         variant.save()

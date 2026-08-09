@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Комната №3 — Стори 39.3 «Опт 4» · 2026-08-03</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --plane:      #0d0d0d;
+    --surface:    #1a1a19;
+    --surface-2:  #201f1e;
+    --ink:        #ffffff;
+    --ink-2:      #c3c2b7;
+    --muted:      #898781;
+    --grid:       #2c2c2a;
+    --axis:       #383835;
+    --border:     rgba(255,255,255,0.10);
+    --series-1:   #3987e5;
+    --critical:   #d03b3b;
+    --good:       #0ca30c;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--plane);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    letter-spacing: -0.006em;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  /* ---------- заголовок ---------- */
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 44px); line-height: 1.12; margin: 0 0 18px;
+    font-weight: 640; letter-spacing: -0.028em;
+  }
+  h1 .thin { color: var(--ink-2); font-weight: 380; }
+  .standfirst {
+    color: var(--ink-2); font-size: 17px; max-width: 60ch; margin: 0 0 8px;
+  }
+  .meta {
+    margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 8px 28px;
+    font-size: 13px; color: var(--muted);
+  }
+  .meta b { color: var(--ink-2); font-weight: 560; }
+
+  /* ---------- стол ---------- */
+  .table-wrap { display: flex; justify-content: center; margin: 52px 0 8px; }
+  .table {
+    position: relative; width: 260px; height: 260px;
+    display: grid; place-items: center;
+  }
+  .table svg { position: absolute; inset: 0; }
+  .ring { fill: none; stroke: var(--axis); stroke-width: 1; }
+  .ring-dash {
+    fill: none; stroke: var(--series-1); stroke-width: 1.5;
+    stroke-dasharray: 6 340; stroke-linecap: round; opacity: 0.85;
+    animation: orbit 14s linear infinite;
+  }
+  @keyframes orbit { to { stroke-dashoffset: -346; } }
+  .table-core {
+    position: relative; text-align: center; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  }
+  .seat {
+    position: absolute; top: 50%; left: 50%; width: 44px; height: 44px;
+    margin: -22px 0 0 -22px; display: grid; place-items: center;
+    font-size: 21px; line-height: 1;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 50%;
+    transform: rotate(var(--a)) translateY(-104px) rotate(calc(-1 * var(--a)));
+    animation: seatIn .7s cubic-bezier(.2,.7,.3,1) backwards;
+    animation-delay: var(--d);
+  }
+  @keyframes seatIn { from { opacity: 0; scale: .6; } }
+
+  /* ---------- персоны ---------- */
+  h2 {
+    font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted); font-weight: 620;
+    margin: 64px 0 20px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(248px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 18px 16px;
+    animation: cardIn .6s cubic-bezier(.2,.7,.3,1) backwards; animation-delay: var(--d);
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } }
+  .card .who { display: flex; align-items: baseline; gap: 9px; }
+  .card .ico { font-size: 19px; line-height: 1; }
+  .card .nm { font-weight: 640; font-size: 17px; letter-spacing: -0.014em; }
+  .card .rl { font-size: 12px; color: var(--muted); margin: 2px 0 10px 29px; }
+  .card blockquote {
+    margin: 0 0 12px; padding-left: 11px; border-left: 2px solid var(--axis);
+    color: var(--ink-2); font-size: 14.5px; line-height: 1.5;
+  }
+  .tag {
+    display: inline-block; font-size: 11px; letter-spacing: 0.05em;
+    color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 9px;
+  }
+  .tag.win { color: var(--good); border-color: rgba(12,163,12,.35); }
+
+  /* ---------- разговор ---------- */
+  .talk { margin-top: 4px; }
+  .turn { display: grid; grid-template-columns: 26px 1fr; gap: 12px; padding: 11px 0; }
+  .turn + .turn { border-top: 1px solid var(--grid); }
+  .turn .ico { font-size: 17px; line-height: 1.5; }
+  .turn .nm { font-weight: 640; margin-right: 7px; letter-spacing: -0.012em; }
+  .turn p { margin: 0; color: var(--ink-2); }
+  .turn p .nm { color: var(--ink); }
+  .stage {
+    grid-column: 2; color: var(--muted); font-size: 13.5px; font-style: italic;
+    padding: 2px 0;
+  }
+  .beat {
+    margin: 22px 0; padding: 16px 18px; background: var(--surface-2);
+    border-left: 2px solid var(--series-1); border-radius: 0 10px 10px 0;
+    font-size: 15px; color: var(--ink-2);
+  }
+  .beat b { color: var(--ink); font-weight: 620; }
+
+  /* ---------- фигура ---------- */
+  figure { margin: 30px 0 0; background: var(--surface); border: 1px solid var(--border);
+           border-radius: 14px; padding: 20px 20px 16px; }
+  figcaption { font-size: 15px; font-weight: 620; letter-spacing: -0.012em; margin-bottom: 3px; }
+  .sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart .lbl { fill: var(--ink-2); font: 13px var(--sans); }
+  .chart .val { fill: var(--ink); font: 600 13px var(--sans); font-variant-numeric: tabular-nums; }
+  .chart .note { fill: var(--muted); font: 12px var(--sans); }
+  .chart .axis { stroke: var(--axis); stroke-width: 1; }
+  .chart .tick { stroke: var(--grid); stroke-width: 1; }
+  .chart .bar { fill: var(--series-1); }
+  .chart .bar-crit { fill: var(--critical); }
+  #reveal { animation: sweep 1.15s .35s cubic-bezier(.25,.8,.3,1) backwards; }
+  @keyframes sweep { from { width: 0; } }
+  details { margin-top: 14px; font-size: 13px; color: var(--ink-2); }
+  summary { cursor: pointer; color: var(--muted); }
+  table { border-collapse: collapse; margin-top: 10px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 5px 20px 5px 0; border-bottom: 1px solid var(--grid); }
+  th { color: var(--muted); font-weight: 560; font-size: 12px; }
+
+  /* ---------- решения ---------- */
+  .decisions { display: grid; gap: 10px; }
+  .dec {
+    display: grid; grid-template-columns: 26px 1fr; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .dec .n { color: var(--muted); font-size: 12px; font-weight: 640; padding-top: 3px; }
+  .dec b { font-weight: 620; }
+  .dec span { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+  code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: .88em; color: var(--ink-2);
+    background: rgba(255,255,255,.055); padding: 1px 5px; border-radius: 4px;
+  }
+  .files { font-size: 13.5px; color: var(--ink-2); }
+  .files li { margin-bottom: 7px; }
+
+  footer {
+    margin-top: 66px; padding-top: 20px; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 13px; display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .curtain { font-style: italic; color: var(--ink-2); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+    #reveal { width: 620px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Party mode · комната №3 · FREESPORT</p>
+  <h1>Стори была чистой.<br><span class="thin">Дыра лежала рядом.</span></h1>
+  <p class="standfirst">Круглый стол по стори 39.3 «Каталог, админка и API отдают цену уровня 4». Начали с проверки одиннадцати критериев приёмки. Закончили двумя записями в тех. долг, переигранным порядком работ и одним числом, которое обнулило весь эпик.</p>
+  <div class="meta">
+    <span><b>3 августа 2026</b></span>
+    <span>baseline <code>61e10805</code></span>
+    <span>шесть голосов</span>
+    <span><b>2</b> перевёрнутых решения</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table">
+      <svg viewBox="0 0 260 260" aria-hidden="true">
+        <circle class="ring" cx="130" cy="130" r="55"/>
+        <circle class="ring-dash" cx="130" cy="130" r="55"/>
+      </svg>
+      <div class="table-core">39.3<br>Опт&nbsp;4</div>
+      <span class="seat" style="--a:0deg;   --d:.05s">📊</span>
+      <span class="seat" style="--a:60deg;  --d:.13s">📋</span>
+      <span class="seat" style="--a:120deg; --d:.21s">🏗️</span>
+      <span class="seat" style="--a:180deg; --d:.29s">💻</span>
+      <span class="seat" style="--a:240deg; --d:.37s">🎨</span>
+      <span class="seat" style="--a:300deg; --d:.45s">📚</span>
+    </div>
+  </div>
+
+  <h2>Кто был за столом</h2>
+  <div class="cast">
+
+    <div class="card" style="--d:.05s">
+      <div class="who"><span class="ico">💻</span><span class="nm">Amelia</span></div>
+      <div class="rl">Старший инженер · говорит строками файлов</div>
+      <blockquote>«Скажу вещь, которую говорю раз в квартал: стори исполнима как написана.»</blockquote>
+      <span class="tag">нашла запертую не ту дверь</span>
+    </div>
+
+    <div class="card" style="--d:.11s">
+      <div class="who"><span class="ico">📊</span><span class="nm">Mary</span></div>
+      <div class="rl">Бизнес-аналитик · держит цифры</div>
+      <blockquote>«Три поля. После этой стори — четыре.»</blockquote>
+      <span class="tag">третий эпик подряд обнулила числом</span>
+    </div>
+
+    <div class="card" style="--d:.17s">
+      <div class="who"><span class="ico">🏗️</span><span class="nm">Winston</span></div>
+      <div class="rl">Архитектор · раскладывает компромиссы</div>
+      <blockquote>«Долг, на который в стори есть ссылка, — уже не потерянный долг.»</blockquote>
+      <span class="tag">доказал, что «сначала» дешевле «потом»</span>
+    </div>
+
+    <div class="card" style="--d:.23s">
+      <div class="who"><span class="ico">📋</span><span class="nm">John</span></div>
+      <div class="rl">Продакт · один вопрос, три раза</div>
+      <blockquote>«Клиент уровня 4, первый день после выката. Что он видит?»</blockquote>
+      <span class="tag">спросил трижды — ответ ухудшался</span>
+    </div>
+
+    <div class="card" style="--d:.29s">
+      <div class="who"><span class="ico">🎨</span><span class="nm">Sally</span></div>
+      <div class="rl">UX · за человека перед экраном</div>
+      <blockquote>«Это не баг сериализатора. Это коммерческая политика, которую никто не принимал.»</blockquote>
+      <span class="tag win">две победы подряд — впервые</span>
+    </div>
+
+    <div class="card" style="--d:.35s">
+      <div class="who"><span class="ico">📚</span><span class="nm">Paige</span></div>
+      <div class="rl">Техписатель · ловит расхождения документа и реальности</div>
+      <blockquote>«Дефект, записанный в машиночитаемый контракт, перестаёт быть дефектом и становится фичей.»</blockquote>
+      <span class="tag win">выиграла после двух проигрышей</span>
+    </div>
+
+  </div>
+
+  <h2>Как это случилось</h2>
+  <div class="talk">
+
+    <div class="turn"><span class="ico">💻</span><p><span class="nm">Amelia:</span> Прочитала. Одиннадцать AC, девять тасков, номера строк совпадают с реальностью. Дев не будет ничего додумывать.</p></div>
+
+    <div class="turn"><span class="ico">📋</span><p><span class="nm">John:</span> Хорошо. Тогда мой вопрос. Клиент уровня 4 в первый день после выката — что он сможет?</p></div>
+
+    <div class="turn"><span class="ico">🏗️</span><p><span class="nm">Winston:</span> AC2 добавляет <code>opt4_price</code> в <code>Meta.fields</code>. А в инварианте написано: оптовые цены — только верифицированным. А в коде — <code>permission_classes = [AllowAny]</code>, и <code>to_representation</code> вырезает только <code>rrp</code> и <code>msrp</code>.</p></div>
+
+    <div class="turn"><span class="ico">💻</span><p><span class="nm">Amelia:</span> Подтверждаю. <code>GET /api/v1/products/</code> без токена возвращает три оптовых прайса. Сейчас. На проде.</p></div>
+
+    <div class="turn"><span class="ico">💻</span><p><span class="nm">Amelia:</span> Но я нашла кое-что получше. Антипаттерны стори: «НЕ добавлять <code>opt4_price</code> в <code>ProductVariantSerializer</code> — раскрыло бы оптовые цены всем ролям, включая гостей».</p></div>
+
+    <p class="stage">пауза</p>
+
+    <div class="turn"><span class="ico">💻</span><p><span class="nm">Amelia:</span> Автор стори знает про утечку. Называет её своими словами. И запирает одну дверь — ту, где цен и так нет. Соседняя стоит нараспашку год.</p></div>
+
+    <div class="beat"><b>Первый переворот.</b> Alex: «зафиксировать в тех. долг». Через один ход — «займусь им перед реализацией 39.3». Комната поддержала: если гейт поставить первым, <code>opt4_price</code> попадёт в контракт уже в правильной форме — одна регенерация вместо двух, без ломающего изменения.</div>
+
+    <div class="turn"><span class="ico">📚</span><p><span class="nm">Paige:</span> Пока искала место для п.18, нашла кое-что. Блок <code>required</code> схемы <code>ProductList</code>. Там оптовые цены. И там же — <code>msrp</code> и <code>rrp</code>.</p></div>
+
+    <div class="turn"><span class="ico">🏗️</span><p><span class="nm">Winston:</span> Которые вырезаются в <code>to_representation</code>.</p></div>
+
+    <div class="turn"><span class="ico">📚</span><p><span class="nm">Paige:</span> Которые вырезаются в <code>to_representation</code>. Контракт <em>уже</em> врёт, и врёт давно. Значит «просто вырежем поле» — не решение, а размножение того же разрыва.</p></div>
+
+    <div class="turn"><span class="ico">🎨</span><p><span class="nm">Sally:</span> Возражу один раз, для протокола. При варианте B «нет права» и «цены нет» становятся неразличимы. Через год кто-то посмотрит на <code>0.0</code> и «починит» гейт обратно.</p></div>
+
+    <div class="turn"><span class="ico">📋</span><p><span class="nm">John:</span> Рекомендация комнаты: вариант B. Ноль правок фронта, ноль правок контракта.</p></div>
+
+    <div class="turn"><span class="ico">🎨</span><p><span class="nm">Sally:</span> Тогда пусть сторож будет в AC.</p></div>
+
+    <div class="turn"><span class="ico">🎨</span><p><span class="nm">Sally:</span> Ты сегодня второй раз согласился со мной первым. Мне некомфортно.</p></div>
+
+    <div class="turn"><span class="ico">📋</span><p><span class="nm">John:</span> Не привыкай.</p></div>
+
+  </div>
+
+  <h2>Число, которое обнулило эпик</h2>
+
+  <div class="turn" style="border:0"><span class="ico">📊</span><p><span class="nm">Mary:</span> А теперь то, что я отложила.</p></div>
+
+  <figure>
+    <figcaption>Доля незаполненных оптовых цен, прод FREESPORT</figcaption>
+    <p class="sub">16 309 вариантов товара · замер 3 августа 2026 · нулевых значений нет ни в одном поле, только <code>NULL</code></p>
+
+    <svg class="chart" viewBox="0 0 780 200" role="img"
+         aria-label="Доля NULL: opt1_price 52 процента, opt2_price 54, opt3_price 54, opt4_price 100 процентов — поле не используется">
+      <defs>
+        <clipPath id="clip"><rect id="reveal" x="92" y="0" width="620" height="200"/></clipPath>
+      </defs>
+
+      <!-- ось и деления -->
+      <line class="tick" x1="402" y1="6" x2="402" y2="172"/>
+      <line class="tick" x1="712" y1="6" x2="712" y2="172"/>
+      <line class="axis" x1="92" y1="6" x2="92" y2="172"/>
+      <text class="note" x="402" y="190" text-anchor="middle">50%</text>
+      <text class="note" x="712" y="190" text-anchor="middle">100%</text>
+
+      <!-- полосы -->
+      <g clip-path="url(#clip)">
+        <path class="bar"      d="M92,10 H406 a4,4 0 0 1 4,4 V34 a4,4 0 0 1 -4,4 H92 Z"/>
+        <path class="bar"      d="M92,50 H418 a4,4 0 0 1 4,4 V74 a4,4 0 0 1 -4,4 H92 Z"/>
+        <path class="bar"      d="M92,90 H418 a4,4 0 0 1 4,4 V114 a4,4 0 0 1 -4,4 H92 Z"/>
+        <path class="bar-crit" d="M92,130 H708 a4,4 0 0 1 4,4 V154 a4,4 0 0 1 -4,4 H92 Z"/>
+      </g>
+
+      <!-- подписи строк -->
+      <text class="lbl" x="84" y="29"  text-anchor="end">opt1_price</text>
+      <text class="lbl" x="84" y="69"  text-anchor="end">opt2_price</text>
+      <text class="lbl" x="84" y="109" text-anchor="end">opt3_price</text>
+      <text class="lbl" x="84" y="149" text-anchor="end">opt4_price</text>
+
+      <!-- прямые подписи значений -->
+      <text class="val" x="420" y="29">52%</text>
+      <text class="val" x="432" y="69">54%</text>
+      <text class="val" x="432" y="109">54%</text>
+      <text class="val" x="722" y="149">100%</text>
+      <text class="note" x="712" y="170" text-anchor="end">поле не используется ни у одного варианта</text>
+    </svg>
+
+    <details>
+      <summary>Таблица значений</summary>
+      <table>
+        <thead><tr><th>Поле</th><th>Записей с NULL</th><th>Доля</th></tr></thead>
+        <tbody>
+          <tr><td><code>opt1_price</code></td><td>8 555</td><td>~52%</td></tr>
+          <tr><td><code>opt2_price</code></td><td>8 731</td><td>~54%</td></tr>
+          <tr><td><code>opt3_price</code></td><td>8 736</td><td>~54%</td></tr>
+          <tr><td><code>opt4_price</code></td><td>16 309</td><td>100%</td></tr>
+        </tbody>
+      </table>
+    </details>
+  </figure>
+
+  <div class="talk" style="margin-top:26px">
+    <div class="turn"><span class="ico">📋</span><p><span class="nm">John:</span> <em>(медленно)</em> То есть я задаю свой вопрос в третий раз. Клиент уровня 4, первый день после выката. Что он видит?</p></div>
+    <div class="turn"><span class="ico">📊</span><p><span class="nm">Mary:</span> Розничную цену. Ровно ту же, что видел гостем. Шестнадцать тысяч триста девять раз.</p></div>
+    <div class="turn"><span class="ico">💻</span><p><span class="nm">Amelia:</span> Технически всё работает. Все четыре стори закроются как выполненные, тесты зелёные, контракт синхронен.</p></div>
+    <div class="turn"><span class="ico">🎨</span><p><span class="nm">Sally:</span> И человек за экраном не увидит никакой разницы.</p></div>
+    <div class="turn"><span class="ico">🏗️</span><p><span class="nm">Winston:</span> <em>(к Mary)</em> Как в эпике 40 с <code>roles_updated = 0</code>.</p></div>
+    <div class="turn"><span class="ico">📊</span><p><span class="nm">Mary:</span> Тот же класс. Второй раз за две сессии.</p></div>
+  </div>
+
+  <h2>Что решено</h2>
+  <div class="decisions">
+    <div class="dec"><span class="n">01</span><div><b>Вариант B — роль без права получает <code>0.0</code>.</b><span>Поля остаются в ответе и в <code>required</code>. Ноль правок контракта, ноль правок фронта: <code>0.0</code> уже штатный ответ «цены нет» для половины каталога. Взамен — тест-сторож в AC.</span></div></div>
+    <div class="dec"><span class="n">02</span><div><b>Порядок: тех. долг п.18 → стори 39.3 → 39.4.</b><span>Гейт первым, чтобы <code>opt4_price</code> попал в контракт уже защищённым. Одна регенерация вместо двух, без ломающего изменения.</span></div></div>
+    <div class="dec"><span class="n">03</span><div><b>Утечка — отдельная стори с AC, не правка руками.</b><span>Обе половины инварианта: гейт полей <em>и</em> верификация в <code>get_price_for_user</code>.</span></div></div>
+    <div class="dec"><span class="n">04</span><div><b>Эпик 39 не закрывается по зелёным тестам.</b><span>Критерий — непустой <code>opt4_price</code> в проде. В план выката: заполнить «Опт 4» в 1С, прогнать выгрузку цен.</span></div></div>
+  </div>
+
+  <h2>Что легло на диск</h2>
+  <ul class="files">
+    <li><code>tech-debt.md</code> — <b>п.18</b>: координаты утечки, находка про <code>rrp</code>/<code>msrp</code> в <code>required</code>, вторая половина инварианта, решение «вариант B», тест-сторож, владелец шага «освежить координаты».</li>
+    <li><code>epics.md</code> — Epic 39: <b>«Приёмка на проде»</b> и <b>«Предшествующая работа»</b>.</li>
+    <li><code>Story/39-3-catalog-admin-api-opt4-price.md</code> — два предупреждения в шапке: валидность координат на <code>61e10805</code> и запрет «чинить попутно».</li>
+  </ul>
+
+  <footer>
+    <span>Комната №3 · 3 августа 2026 · память комнаты пополнена</span>
+    <span class="curtain">«Комната свободна.»</span>
+  </footer>
+
+</div>
+</body>
+</html>

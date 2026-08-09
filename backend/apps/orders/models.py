@@ -303,12 +303,12 @@ class Order(models.Model):
                 condition=Q(is_master=False, parent_order__isnull=False, suborder_sequence__isnull=False),
                 name="uniq_suborder_parent_sequence",
             ),
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=Q(customer_year_sequence__isnull=True)
                 | (Q(customer_year_sequence__gte=1) & Q(customer_year_sequence__lte=999)),
                 name="check_customer_year_sequence_range",
             ),
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=Q(suborder_sequence__isnull=True) | Q(suborder_sequence__gte=1),
                 name="check_suborder_sequence_positive",
             ),

@@ -135,7 +135,7 @@ def _get_role_filter(role_key: str) -> Q:
         return base
     elif role_key == "trainer":
         return base | Q(show_to_trainers=True)
-    elif role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3"}:
+    elif role_key in {"wholesale_level1", "wholesale_level2", "wholesale_level3", "wholesale_level4"}:
         return base | Q(show_to_wholesale=True)
     elif role_key == "federation_rep":
         return base | Q(show_to_federation=True)

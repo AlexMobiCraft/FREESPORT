@@ -379,6 +379,7 @@ const CatalogContent: React.FC = () => {
     'wholesale_level1',
     'wholesale_level2',
     'wholesale_level3',
+    'wholesale_level4',
     'trainer',
     'federation_rep',
     'admin',

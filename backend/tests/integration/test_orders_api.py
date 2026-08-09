@@ -237,8 +237,9 @@ class TestOrderAPI:
         }
 
         url = reverse("orders:order-list")
-        with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, \
-             patch("apps.orders.tasks.send_order_notification_email") as mock_admin:
+        with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, patch(
+            "apps.orders.tasks.send_order_notification_email"
+        ) as mock_admin:
             response = self.client.post(url, order_data)
 
         assert response.status_code == status.HTTP_201_CREATED
@@ -463,6 +464,7 @@ class TestOrderAPI:
             email="b2b@example.com",
             password="testpass",
             role="wholesale_level1",
+            is_verified=True,
             customer_code="04622",
         )
         self.client.force_authenticate(user=b2b_user)

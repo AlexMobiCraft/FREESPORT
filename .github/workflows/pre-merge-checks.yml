@@ -171,8 +171,10 @@ jobs:
                   continue
                   ;;
               esac
-              # Проверяем наличие потенциальных секретов
-              if grep -q -E "(password|secret|key|token)\s*=\s*['\"][^'\"]{8,}" "$file" 2>/dev/null; then
+              # Проверяем наличие потенциальных секретов.
+              # Голое "key" давало ложные срабатывания на cache_key/sort_key и подобных —
+              # проверяем только те виды ключей, которые действительно бывают секретами.
+              if grep -q -E "(password|secret|token|api_?key|access_?key|private_?key|encryption_?key)\s*=\s*['\"][^'\"]{8,}" "$file" 2>/dev/null; then
                 echo "⚠️ Обнаружены потенциальные секреты в файле: $file"
                 SECRETS_FOUND=true
               fi

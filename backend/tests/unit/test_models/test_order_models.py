@@ -282,9 +282,11 @@ class TestOrderItemModel:
         variant = product.variants.first()
 
         # Создаем заказы для разных пользователей
+        # is_verified=True обязателен: неверифицированный B2B понижается до retail
+        # (см. apps/products/pricing_policy.resolve_pricing_role)
         retail_user = UserFactory.create(role="retail")
-        wholesale_user = UserFactory.create(role="wholesale_level1")
-        trainer_user = UserFactory.create(role="trainer")
+        wholesale_user = UserFactory.create(role="wholesale_level1", is_verified=True)
+        trainer_user = UserFactory.create(role="trainer", is_verified=True)
 
         retail_order = OrderFactory.create(user=retail_user)
         wholesale_order = OrderFactory.create(user=wholesale_user)

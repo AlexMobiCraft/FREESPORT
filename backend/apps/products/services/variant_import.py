@@ -299,6 +299,7 @@ class VariantImportProcessor:
         self._stock_buffer: dict[str, dict[str, Any]] = {}
         self._missing_products_logged: set[str] = set()
         self._missing_variants_logged: set[str] = set()
+        self._unmapped_price_types_logged: set[str] = set()
         # Маппинг parent_onec_id → vat_rate из goods.xml
         self._product_vat_rates: dict[str, Decimal] = {}
 
@@ -841,6 +842,7 @@ class VariantImportProcessor:
             opt1_price=None,
             opt2_price=None,
             opt3_price=None,
+            opt4_price=None,
             trainer_price=None,
             federation_price=None,
             stock_quantity=0,  # Будет обновлен из rests.xml
@@ -999,6 +1001,7 @@ class VariantImportProcessor:
                 opt1_price=None,
                 opt2_price=None,
                 opt3_price=None,
+                opt4_price=None,
                 trainer_price=None,
                 federation_price=None,
                 stock_quantity=0,
@@ -1079,6 +1082,16 @@ class VariantImportProcessor:
 
                 if price_type:
                     field_name = price_type.product_field
+                    # Вид цен без маппинга (product_field="") не применяем ни к одному
+                    # полю — иначе цена уехала бы в розницу через прежний fallback
+                    if not field_name:
+                        if price_type_id not in self._unmapped_price_types_logged:
+                            logger.warning(
+                                f"Вид цен '{price_type.onec_name}' ({price_type_id}) "
+                                f"не сопоставлен полю ProductVariant — цены этого вида пропускаются"
+                            )
+                            self._unmapped_price_types_logged.add(price_type_id)
+                        continue
                     price_updates[field_name] = price_value
 
             # Auto-populate retail_price from RRP if not provided
@@ -1522,6 +1535,9 @@ class VariantImportProcessor:
         """
         Создание/обновление справочника PriceType
 
+        Пустой `product_field` (вид цен не опознан маппером) в defaults не
+        попадает — прежний маппинг существующей записи сохраняется.
+
         Args:
             price_types_data: Последовательность PriceTypeData
 
@@ -1533,13 +1549,23 @@ class VariantImportProcessor:
         count = 0
         for price_type_data in price_types_data:
             try:
+                defaults: dict[str, Any] = {
+                    "onec_name": price_type_data["onec_name"],
+                    "is_active": True,
+                }
+                # Пустой product_field = вид цен не опознан маппером
+                # (_map_price_type_to_field вернул ""). Не затираем им корректный
+                # маппинг существующей записи: переименование вида цен в 1С иначе
+                # сбило бы рабочее поле, и цены этого вида стали бы молча
+                # пропускаться guard'ом в update_variant_prices.
+                # Для новой записи поле останется пустым — цены не применятся,
+                # что и требуется для неопознанного вида цен.
+                if price_type_data["product_field"]:
+                    defaults["product_field"] = price_type_data["product_field"]
+
                 PriceType.objects.update_or_create(
                     onec_id=price_type_data["onec_id"],
-                    defaults={
-                        "onec_name": price_type_data["onec_name"],
-                        "product_field": price_type_data["product_field"],
-                        "is_active": True,
-                    },
+                    defaults=defaults,
                 )
                 count += 1
             except Exception as e:
@@ -1734,9 +1760,7 @@ class VariantImportProcessor:
                         category_map[onec_id] = repair_anchor
                         self._valid_category_onec_ids.add(onec_id)
                         result["updated"] += 1
-                        logger.info(
-                            f"Repair-якорь '{name}' обновлён реальным onec_id={onec_id}"
-                        )
+                        logger.info(f"Repair-якорь '{name}' обновлён реальным onec_id={onec_id}")
                         continue
 
                 category, created = Category.objects.update_or_create(

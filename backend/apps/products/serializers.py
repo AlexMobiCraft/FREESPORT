@@ -14,6 +14,7 @@ from rest_framework import serializers
 
 from .category_utils import FULL_PLACEHOLDER_CATEGORY_RE_PATTERN
 from .models import Attribute, AttributeValue, Brand, Category, ColorMapping, Product, ProductImage, ProductVariant
+from .pricing_policy import WHOLESALE_PRICE_FIELDS, can_see_info_prices, can_see_wholesale_prices
 
 # Константы для отображения диапазонов остатков
 STOCK_RANGE_LIMITS = {
@@ -91,26 +92,12 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         read_only_fields = fields  # Все поля read-only
 
     def to_representation(self, instance: ProductVariant) -> dict[str, Any]:
-        """Логика скрытия полей RRP/MSRP для разных ролей"""
+        """Скрытие инфо-цен РРЦ/МРЦ от ролей без права (см. pricing_policy)"""
         data: dict[str, Any] = super().to_representation(instance)
         request = self.context.get("request")
         user = getattr(request, "user", None) if request else None
 
-        # Определяем роль (retail для анонимов)
-        role = "retail"
-        if user and user.is_authenticated:
-            role = getattr(user, "role", "retail")
-
-        # RRP/MSRP видят только оптовики (1-3), тренеры и админы
-        # Представители федерации, розница и гости НЕ видят
-        allowed_roles = [
-            "wholesale_level1",
-            "wholesale_level2",
-            "wholesale_level3",
-            "trainer",
-            "admin",
-        ]
-        if role not in allowed_roles:
+        if not can_see_info_prices(user):
             data.pop("rrp", None)
             data.pop("msrp", None)
 
@@ -459,7 +446,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     в ProductDetailSerializer.
 
     Вычисляемые поля для обратной совместимости (данные из вариантов):
-    - retail_price, opt1_price, opt2_price, opt3_price: цены из первого варианта
+    - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
     - stock_quantity: суммарное количество на складе по всем вариантам
     - is_in_stock: есть ли хотя бы один вариант в наличии
     - main_image: изображение из первого варианта или base_images
@@ -476,6 +463,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     opt1_price = serializers.SerializerMethodField()
     opt2_price = serializers.SerializerMethodField()
     opt3_price = serializers.SerializerMethodField()
+    opt4_price = serializers.SerializerMethodField()
     stock_quantity = serializers.SerializerMethodField()
     is_in_stock = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
@@ -512,6 +500,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "opt1_price",
             "opt2_price",
             "opt3_price",
+            "opt4_price",
             "stock_quantity",
             "is_in_stock",
             "main_image",
@@ -547,6 +536,7 @@ class ProductListSerializer(serializers.ModelSerializer):
                 | Q(opt1_price__gt=0)
                 | Q(opt2_price__gt=0)
                 | Q(opt3_price__gt=0)
+                | Q(opt4_price__gt=0)
                 | Q(trainer_price__gt=0)
                 | Q(federation_price__gt=0)
             )
@@ -573,27 +563,24 @@ class ProductListSerializer(serializers.ModelSerializer):
         return f"{price:.2f}"
 
     def to_representation(self, instance):
-        """Логика скрытия полей для разных ролей"""
+        """Скрытие оптовых и инфо-цен от ролей без права (см. pricing_policy)"""
         data = super().to_representation(instance)
         request = self.context.get("request")
         user = getattr(request, "user", None) if request else None
 
-        # Определяем роль пользователя (по умолчанию retail для анонимов)
-        role = "retail"
-        if user and user.is_authenticated:
-            role = getattr(user, "role", "retail")
-
-        # Скрываем RRP и MSRP для розничных пользователей, гостей и федераций
-        allowed_roles = [
-            "wholesale_level1",
-            "wholesale_level2",
-            "wholesale_level3",
-            "trainer",
-            "admin",
-        ]
-        if role not in allowed_roles:
+        if not can_see_info_prices(user):
             data.pop("rrp", None)
             data.pop("msrp", None)
+
+        if not can_see_wholesale_prices(user):
+            # 0.0 здесь означает «роль не имеет права видеть оптовую цену»,
+            # а не «цена не заполнена»: пустая цена даёт тот же 0.0 в
+            # get_optN_price. Ключи намеренно остаются в ответе — они
+            # объявлены required в docs/api/openapi.yaml (tech-debt.md п. 18).
+            for field in WHOLESALE_PRICE_FIELDS:
+                if field in data:
+                    data[field] = 0.0
+
         return data
 
     def get_sku(self, obj: Product) -> str:
@@ -630,6 +617,13 @@ class ProductListSerializer(serializers.ModelSerializer):
         variant = self._get_first_variant(obj)
         if variant and variant.opt3_price:
             return float(variant.opt3_price)
+        return 0.0
+
+    def get_opt4_price(self, obj: Product) -> float:
+        """Получить оптовую цену уровня 4 из первого варианта"""
+        variant = self._get_first_variant(obj)
+        if variant and variant.opt4_price:
+            return float(variant.opt4_price)
         return 0.0
 
     def get_stock_quantity(self, obj: Product) -> int:

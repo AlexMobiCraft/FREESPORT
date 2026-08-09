@@ -23,7 +23,7 @@ cd /freesport
 docker compose -f docker/docker-compose.prod.yml logs
 
 # Проверка доступности сайта
-curl -I https://freesport.ru
+curl -I https://optisport.ru
 ```
 
 **Ожидаемые результаты:**
@@ -243,7 +243,7 @@ docker compose -f docker/docker-compose.prod.yml exec nginx nginx -t
 sudo ufw status
 
 # Проверка DNS
-nslookup freesport.ru
+nslookup optisport.ru
 
 # Проверка SSL сертификата
 sudo certbot certificates
@@ -359,7 +359,7 @@ docker compose -f docker/docker-compose.prod.yml exec redis redis-cli -a [REDIS_
 sudo apt install -y certbot python3-certbot-nginx
 
 # Получение сертификата
-sudo certbot --nginx -d freesport.ru -d www.freesport.ru
+sudo certbot --nginx -d optisport.ru -d www.optisport.ru
 
 # Автоматическое обновление
 echo "0 12 * * * /usr/bin/certbot renew --quiet" | sudo crontab -

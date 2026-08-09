@@ -18,7 +18,12 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.html import format_html
 
-from .forms import MergeAttributesActionForm, MergeBrandsActionForm, TransferMappingsActionForm
+from .forms import (
+    MergeAttributesActionForm,
+    MergeBrandsActionForm,
+    PriceTypeAdminForm,
+    TransferMappingsActionForm,
+)
 from .models import (
     Attribute,
     Attribute1CMapping,
@@ -29,6 +34,7 @@ from .models import (
     Category,
     ColorMapping,
     HomepageCategory,
+    PriceType,
     Product,
     ProductImage,
     ProductVariant,
@@ -577,6 +583,18 @@ class ColorMappingAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
 
+@admin.register(PriceType)
+class PriceTypeAdmin(admin.ModelAdmin):
+    """Справочник видов цен 1С: поле товара и роль портала."""
+
+    form = PriceTypeAdminForm
+    list_display = ("onec_name", "onec_id", "product_field", "user_role", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("onec_name", "onec_id")
+    readonly_fields = ("created_at",)
+    ordering = ("onec_name",)
+
+
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
     """Admin для модели ProductVariant"""
@@ -639,6 +657,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "opt1_price",
                     "opt2_price",
                     "opt3_price",
+                    "opt4_price",
                     "trainer_price",
                     "federation_price",
                     "vat_rate",
