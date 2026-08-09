@@ -57,7 +57,7 @@ async function fetchAll(endpoint: string): Promise<ListItem[]> {
       const data = (await res.json()) as { results?: unknown; next?: unknown };
       if (!Array.isArray(data.results)) break;
 
-      items.push(...(data.results as ListItem[]).filter((i) => typeof i.slug === 'string'));
+      items.push(...(data.results as ListItem[]).filter(i => typeof i.slug === 'string'));
 
       if (!data.next) break;
     }
@@ -73,7 +73,7 @@ function toEntries(
   prefix: string,
   options: { changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number }
 ): MetadataRoute.Sitemap {
-  return items.map((item) => ({
+  return items.map(item => ({
     url: absoluteUrl(`${prefix}/${item.slug as string}`),
     lastModified: pickLastModified(item),
     changeFrequency: options.changeFrequency,
@@ -95,7 +95,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       { url: absoluteUrl('/blog'), changeFrequency: 'weekly', priority: 0.6 },
       { url: absoluteUrl('/news'), changeFrequency: 'weekly', priority: 0.6 },
     ] satisfies MetadataRoute.Sitemap
-  ).map((route) => ({ ...route, lastModified: now }));
+  ).map(route => ({ ...route, lastModified: now }));
 
   const [products, blogPosts, news, pages] = await Promise.all([
     fetchAll('products'),

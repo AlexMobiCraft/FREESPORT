@@ -75,7 +75,7 @@ export function buildMetadata({
   const canonical = normalizePath(path);
   const images = image ? [image] : undefined;
   // Twitter не понимает объект с alt — для него оставляем только URL
-  const twitterImages = images?.map((i) => (typeof i === 'string' ? i : i.url));
+  const twitterImages = images?.map(i => (typeof i === 'string' ? i : i.url));
   const socialTitle = ogTitle ?? title;
   const socialDescription = ogDescription ?? description;
 
