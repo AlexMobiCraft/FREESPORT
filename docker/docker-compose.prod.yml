@@ -119,7 +119,7 @@ services:
       - NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL}
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
       - INTERNAL_API_URL=http://backend:8000
-      - ACTIVE_THEME=${ACTIVE_THEME:-coming_soon}
+      - ACTIVE_THEME=${ACTIVE_THEME:-blue}
     healthcheck:
       test:
         [
