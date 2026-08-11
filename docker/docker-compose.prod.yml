@@ -154,6 +154,7 @@ services:
       - ../data/prod/static:/var/www/static
       - ../data/prod/media:/var/www/media
       - ../data/prod/certbot-webroot:/var/www/certbot
+      - ./nginx/coming-soon:/var/www/coming-soon:ro
     ports:
       - "80:80"
       - "443:443"
