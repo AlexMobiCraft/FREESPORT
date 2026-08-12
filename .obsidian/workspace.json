@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Исправить.md",
+                "file": "docs/deploy/accounts-and-billing.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Исправить"
+              "title": "accounts-and-billing"
             }
           }
         ]
@@ -185,8 +185,8 @@
   },
   "active": "4513498424e52642",
   "lastOpenFiles": [
-    "Без названия.md",
     "Исправить.md",
+    "Без названия.md",
     "backend/apps/products/management/commands/fix_category_tree_public_roots.py",
     "backend/apps/products/tests/unit/test_fix_category_tree_public_roots.py",
     "_bmad-output/implementation-artifacts/Story/category-tree-root-cause-fix.md",
