@@ -10,13 +10,44 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
+# Два прогона разом недопустимы по двум независимым причинам: перф-тесты меряют время и на
+# общем раннере искажают показания друг друга, а оповещение читает список issue перед
+# записью — параллельные прогоны не увидят issue друг друга и заведут дубликаты.
+# cancel-in-progress: false — начатый ночной прогон дороже, чем ожидание ручного.
+# Группа привязана к ref: иначе ручной запуск с feature-ветки делил бы очередь с ночным
+# и мог вытеснить его из состояния pending, то есть отменить прогон, ради которого всё это.
+concurrency:
+  group: nightly-performance-tests-${{ github.ref }}
+  cancel-in-progress: false
+
+# Пусто по умолчанию: права выдаются пожобово и только те, что нужны. Без этой строки
+# любой job, дописанный сюда позже, молча унаследует дефолт репозитория — а он шире.
+permissions: {}
+
 env:
   PYTHON_VERSION: "3.12"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  # Метка — то единственное, по чему job `notify` находит ранее заведённый issue, и по чему
+  # человек отличит автоматическую задачу от своей. Значение вынесено сюда, чтобы правка
+  # была одна: скрипт использует его и при поиске, и при создании, и рассинхрон этих двух
+  # мест сломал бы дедупликацию бесшумно.
+  NIGHTLY_LABEL: nightly-failure
 
 jobs:
   performance:
     runs-on: ubuntu-latest
+
+    # Только чтение. Права на запись в issues живут в job `notify`, который не выполняет
+    # ни checkout, ни чужой код: здесь же идёт установка зависимостей из PyPI и исполнение
+    # тестов, а репозиторий публичный — выдавать этим шагам `issues: write` незачем.
+    permissions:
+      contents: read
+
+    # Исход шага тестов нужен job-у оповещения, чтобы отличить «тесты падают» от «до тестов
+    # дело не дошло». Пустая строка — легитимное значение: шаг мог не исполниться вовсе.
+    outputs:
+      tests_outcome: ${{ steps.tests.outcome }}
+
     env:
       DB_NAME: freesport_test
       DB_USER: postgres
@@ -86,9 +117,208 @@ jobs:
           python manage.py migrate --noinput
 
       - name: Run performance and slow tests
+        id: tests
         run: |
           cd backend
           source venv/bin/activate
           # slow идёт вместе с performance: он тоже выведен из PR-гейтов, но исполняться
           # обязан — иначе таймингозависимая регрессия перестаёт детектироваться вовсе.
           pytest -m "performance or slow" -v --tb=short
+
+  # Оповещение вынесено в отдельный job по двум независимым причинам.
+  #
+  # 1. ОХВАТ. Шаговый `failure()` требует, чтобы шаг был достигнут. Job выше поднимает
+  #    postgres и redis как service-контейнеры с health-check: если контейнер не встал,
+  #    прогон падает на фазе «Initialize containers», не исполнив ни одного шага. Шаг
+  #    оповещения внутри того job-а промолчал бы ровно в том классе отказов, ради которого
+  #    он написан. `needs` + `if: always()` срабатывают и в этом случае.
+  # 2. ПРАВА. `issues: write` не должен действовать там, где ставятся зависимости из PyPI
+  #    и исполняется тестовый код: репозиторий публичный, и скомпрометированная транзитивная
+  #    зависимость получила бы право записи в issues. Здесь не выкачивается дерево
+  #    репозитория и не исполняется код проекта — только `actions/github-script`.
+  #
+  # Оба исхода обслуживает один шаг с ветвлением по `needs.performance.result` — поиск issue,
+  # отсев PR и сборка ссылок существуют в единственном экземпляре, а не копией на каждый исход.
+  #
+  # ГРАНИЦА: отмена прогона сигнала не даёт и не должна — намеренную отмену человеком
+  # от таймаута здесь не отличить. См. раздел «Nightly» в backend/docs/testing-standards.md.
+  #
+  # Отбор по ветке НЕ вынесен в `if`: пропущенный job — серый квадрат без единой строки в логе,
+  # то есть отказ в сторону тишины у механизма, чья задача — не молчать. Проверка живёт внутри
+  # скрипта, где несовпадение можно назвать вслух.
+  notify:
+    needs: performance
+    if: always()
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+
+    steps:
+      - name: Синхронизировать issue nightly-failure
+        uses: actions/github-script@v7
+        env:
+          RUN_RESULT: ${{ needs.performance.result }}
+          TESTS_OUTCOME: ${{ needs.performance.outputs.tests_outcome }}
+        with:
+          script: |
+            const label = process.env.NIGHTLY_LABEL;
+            const result = process.env.RUN_RESULT;
+
+            // Предохранитель, а не проверка стиля: при пустой метке `listForRepo` вернёт ВСЕ
+            // открытые issue репозитория, и ветка зелёного прогона закроет их скопом.
+            // Переименование переменной наверху файла не должно стоить трекера.
+            if (!label) {
+              core.setFailed('NIGHTLY_LABEL не задан — без метки поиск issue вернёт весь трекер.');
+              return;
+            }
+
+            // Отбор по ветке. Ручной `workflow_dispatch` с feature-ветки оповещать не должен,
+            // но и молчать об этом нельзя: `core.notice` оставляет след, чего пропущенный job
+            // не делает. Фолбэк на 'develop' — на случай, если `repository` не придёт в payload:
+            // отказ этой проверки обязан быть громким, а не выключать оповещение целиком.
+            const defaultBranch = context.payload.repository?.default_branch || 'develop';
+            const branch = process.env.GITHUB_REF_NAME;
+            if (branch !== defaultBranch) {
+              core.notice(`Прогон на ветке ${branch}, а не ${defaultBranch} — issue не трогаем.`);
+              return;
+            }
+
+            // Отмена и пропуск состояния не меняют: закрывать issue не на чем, а поднимать
+            // его на намеренную отмену человеком — шум.
+            if (result !== 'success' && result !== 'failure') {
+              core.info(`Прогон завершился со статусом «${result}» — issue не трогаем.`);
+              return;
+            }
+
+            const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
+            const runUrl = `${repoUrl}/actions/runs/${context.runId}`;
+            // Номер и попытка прогона, а не только время: перезапуск даёт тот же URL,
+            // и без них два комментария неотличимы друг от друга.
+            const runRef = `прогон #${context.runNumber}, попытка ${process.env.GITHUB_RUN_ATTEMPT}`;
+            const commitUrl = `${repoUrl}/commit/${context.sha}`;
+
+            // Порядок фиксируем явно: по умолчанию listForRepo отдаёт created desc, и при
+            // случайном дубликате комментарии уходили бы в самый новый issue, а самый старый
+            // оставался бы открытым навсегда. asc — всегда та же, самая ранняя запись.
+            const items = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo,
+              state: 'open',
+              labels: label,
+              sort: 'created',
+              direction: 'asc',
+              per_page: 100,
+            });
+            // listForRepo возвращает и pull requests: issues.update по номеру PR закрыл бы PR.
+            const open = items.filter((item) => !item.pull_request);
+
+            if (result === 'success') {
+              if (open.length === 0) {
+                core.info(`Открытых issue с меткой ${label} нет — закрывать нечего.`);
+                return;
+              }
+              // Закрываются все найденные, а не первый: дубликат, появившийся из гонки или
+              // заведённый человеком, иначе останется вечным ложным «сейчас сломано».
+              // try/catch внутри итерации: сбой на одном issue не должен оставлять остальные.
+              for (const issue of open) {
+                let closed = false;
+                try {
+                  // Сначала закрытие, потом комментарий: обратный порядок оставляет
+                  // «закрыт автоматически» в открытом issue, если update упадёт.
+                  await github.rest.issues.update({
+                    ...context.repo,
+                    issue_number: issue.number,
+                    state: 'closed',
+                    state_reason: 'completed',
+                  });
+                  closed = true;
+                  await github.rest.issues.createComment({
+                    ...context.repo,
+                    issue_number: issue.number,
+                    body: `✅ Зелёный ${runRef} — [лог](${runUrl}). Issue закрыт автоматически.`,
+                  });
+                  core.info(`Закрыт issue #${issue.number}`);
+                } catch (error) {
+                  // Вину приписываем точно: в try два вызова, и падение второго означает
+                  // «issue закрыт, но без пояснения», а не «закрыть не удалось». Единая
+                  // формулировка на оба случая заставила бы читателя искать открытый issue,
+                  // которого нет. Незакрытый issue виден сам по себе — он остаётся открытым.
+                  core.warning(
+                    closed
+                      ? `Issue #${issue.number} закрыт, но комментарий не записан: ${error.message}`
+                      : `Не удалось закрыть issue #${issue.number}: ${error.message}`
+                  );
+                }
+              }
+              return;
+            }
+
+            // Диагноз различает три исхода. Двоичная проверка кодировала бы «тесты прошли»
+            // и «шаг не исполнялся» одним значением, и любой шаг, дописанный после тестов,
+            // при своём падении молча выдавал бы «до тестов дело не дошло».
+            const outcome = process.env.TESTS_OUTCOME;
+            const cause = outcome === 'failure'
+              ? '❌ **Тесты падают.**'
+              : outcome === 'success'
+                ? '⚠️ **Тесты прошли — упал шаг после них.**'
+                : '⚠️ **До тестов дело не дошло** — прогон оборвался раньше; что именно упало, видно в логе.';
+
+            const line = `${cause} Упавший ${runRef} — [лог](${runUrl}), коммит [\`${context.sha.slice(0, 7)}\`](${commitUrl}).`;
+
+            if (open.length > 0) {
+              // Комментарий вместо нового issue: один живой issue на одну непрерывную полосу
+              // падений. Issue за ночь хуже молчания — его перестанут читать.
+              const target = open[0];
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: target.number,
+                body: line,
+              });
+              core.info(`Дописан комментарий в issue #${target.number}`);
+              return;
+            }
+
+            // Метку заводить отдельным шагом не нужно: отсутствующую GitHub создаёт сам.
+            // Заголовок нейтрален к причине намеренно: issue переживает несколько прогонов,
+            // и первая по времени причина не должна навсегда определять название задачи.
+            const created = await github.rest.issues.create({
+              ...context.repo,
+              title: '🌙 Nightly: прогон перф- и медленных тестов падает',
+              body: [
+                `Workflow **${context.workflow}** упал на ветке \`${process.env.GITHUB_REF_NAME}\`.`,
+                '',
+                line,
+                '',
+                'Это единственный прогон, исполняющий тесты с маркерами `performance` и `slow` —',
+                'в PR-гейтах их нет. Issue закроется автоматически, когда прогон снова станет зелёным.',
+                '',
+                '> Отмена прогона issue не поднимает — её видно только в списке прогонов.',
+              ].join('\n'),
+              labels: [label],
+              assignees: [context.repo.owner],
+            });
+            core.info(`Создан issue #${created.data.number}`);
+
+            // GitHub молча отбрасывает недопустимого assignee и не применившуюся метку,
+            // возвращая при этом 200. Обе потери тихие и обе дорогие: без адресата issue
+            // никто не получит, без метки сломается дедупликация — каждую ночь будет новый
+            // issue, и ни один из них не закроется, потому что поиск идёт по той же метке.
+            const problems = [];
+            if ((created.data.assignees || []).length === 0) {
+              problems.push(`адресат не назначен (\`${context.repo.owner}\` отклонён GitHub)`);
+            }
+            if (!(created.data.labels || []).some((l) => (l.name || l) === label)) {
+              problems.push(`метка \`${label}\` не применилась — дедупликация работать не будет`);
+            }
+
+            if (problems.length > 0) {
+              const text = problems.map((p) => `- ${p}`).join('\n');
+              core.warning(`Issue #${created.data.number} создан с изъянами:\n${text}`);
+              // Аннотация лежит в логе прогона, а весь смысл этого job-а в том, что логи
+              // не читают. Поэтому то же самое дописывается в сам issue — он-то виден.
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: created.data.number,
+                body: `⚠️ Оповещение создано не полностью:\n${text}\n\nПочините \`notify\` в \`.github/workflows/performance-tests.yml\`.`,
+              });
+            }
