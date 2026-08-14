@@ -63,7 +63,8 @@
 | `main.yml` (push/PR в `main`, `develop`) | `-m "not performance and not slow"` — весь остальной набор; ловит регрессии в интеграционных тестах **и считает покрытие** |
 | `deploy.yml` | тот же фильтр, что в `backend-ci.yml`, без порога покрытия |
 | `performance-tests.yml` | `-m "performance or slow"`, ежедневно по расписанию + вручную; см. «Nightly» ниже |
-| `make test-unit` / `test-integration` / `test-performance` / `test-slow` | по одному маркеру локально (`-m` задан → гейт возможен) |
+| `make test-unit` / `test-integration` | `-m "unit and not slow"` / `-m "integration and not slow"` — зеркалят фильтр PR-гейтов |
+| `make test-performance` / `test-slow` | `-m performance` / `-m slow` — то, что выведено из гейтов |
 | `make test` / `make test-fast` | весь набор, **без `-m`** — мягкий режим |
 
 Маркер `data_dependent` (тесты на реальных выгрузках 1С) исключён и в `backend-ci.yml`, и в `deploy.yml`, а в nightly не включён — исполняется он ровно в одном месте, в `main.yml`.
