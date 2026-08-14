@@ -36,7 +36,34 @@
 из PR-гейта» (`backend/docs/testing-standards.md`, раздел «Маркеры pytest»). Рычаг работает в CI
 и не работает локально.
 
-## Развилка — решить до правки
+## Решение принято — не переигрывать
+
+**Alex, 2026-08-14: вариант A, обе цели.** `Makefile:95` → `-m "unit and not slow"`,
+`Makefile:102` → `-m "integration and not slow"`. Цель — чтобы локальные команды были зеркалом
+PR-гейтов; `test-integration` правится ради симметрии, эффекта сегодня там нет.
+
+**Замеры, на которых основано решение** (сделаны 2026-08-14 на `5f91f79c`, командой
+`pytest -m "<выражение>" --collect-only`, ~2,5 минуты каждый):
+
+| Выражение | Тестов |
+|---|---|
+| `unit and slow` | **2** |
+| `integration and slow` | **0** |
+| `slow` всего | 5 |
+
+Оба уходящих теста — в `backend/apps/products/tests/test_api_products.py`, класс
+`TestProductAPIPerformance`:
+
+- `test_retrieve_product_with_100_variants_under_500ms`:248 — ассерт `elapsed_time <= 500`;
+- `test_response_time_scales_linearly`:295 — сравнивает тайминги на 10/50/100 вариантах.
+
+**Функциональное покрытие при этом не теряется:** третий тест класса,
+`test_prefetch_related_used_no_n_plus_one`:271, маркера `slow` не имеет и остаётся во всех
+гейтах — он считает SQL-запросы (`django_assert_num_queries(20, exact=False)`), а не время,
+и проверяет `len(data["variants"]) == 10`. То есть и защита от N+1, и проверка «все варианты
+пришли в ответе» остаются в PR-гейте. Уезжает ровно то, что меряет время.
+
+## Развилка (зафиксирована для истории — решена выше)
 
 | Вариант | Суть | Цена |
 |---|---|---|
@@ -85,16 +112,19 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
   pytest -q -m "unit and not slow"
 ```
 
-Эталон для сравнения на `da386139`: `-m unit` даёт **2027 passed, 17 skipped, 1023 deselected**.
-После правки число passed должно уменьшиться ровно на количество тестов с маркером `slow`
-внутри `unit` — посчитать его заранее:
+Эталон для сравнения: `-m unit` на `da386139` дал **2027 passed, 17 skipped, 1023 deselected**
+(состав тестов с тех пор не менялся — в `develop` приезжали только документационные коммиты).
+После правки ожидается **2025 passed**: уходят ровно два теста, перечисленные выше в разделе
+«Решение принято». Любое другое число — повод разбираться, а не принимать.
+
+Проверить, что уехали именно они:
 
 ```bash
 cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend \
   pytest -q -m "unit and slow" --collect-only | tail -3
 ```
 
-После прогона — `down`.
+Ожидается `2/3067 tests collected`. После прогона — `down`.
 
 ## После выполнения
 
