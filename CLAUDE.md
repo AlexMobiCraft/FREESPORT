@@ -37,14 +37,16 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
 
 ### Тестирование (ТОЛЬКО через Docker с PostgreSQL)
 
-Таргеты — в `Makefile`. Конкретный backend-тест:
+Таргеты — в `Makefile` (цели `test`, `test-unit`, `test-integration`, `test-performance`, `test-slow`, `test-fast`). Конкретный backend-тест:
 
 ```bash
-docker compose --env-file .env -f docker/docker-compose.test.yml exec backend \
-  pytest -xvs apps/products/tests/test_models.py::TestProductModel::test_create_product
+cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend \
+  pytest -xvs apps/products/tests/test_product_variant_models.py::TestProductVariant::test_create_variant_with_valid_data
 ```
 
-**Покрытие:** общее ≥ 70%, критические модули ≥ 90%.
+**`--env-file` тестовому compose не передаётся:** файла `docker/.env` нет, и с ним команда падает на `couldn't find env file`. Он и не нужен — в `docker-compose.test.yml` нет подстановок переменных. **`run --rm`, а не `exec`:** у сервиса `backend` команда по умолчанию `pytest`, контейнер отрабатывает и выходит, поэтому после test-таргетов подключаться `exec` не к чему.
+
+**Покрытие:** общее ≥ 70%, критические модули ≥ 90%. Порог в CI и то, какой прогон его считает, — в `backend/docs/testing-standards.md`.
 
 ### Python: виртуальное окружение
 
