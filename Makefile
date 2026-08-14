@@ -88,18 +88,22 @@ test:
 	cd docker && docker compose -p freesport-test -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
 	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
 
-# Unit-тесты
+# Unit-тесты. `and not slow` — не случайность: цель зеркалит фильтр PR-гейтов
+# (`backend-ci.yml`, `main.yml`, `deploy.yml` все исключают slow). Таймингозависимые
+# тесты падают от загрузки машины, а не от дефекта, и гоняются целью test-slow.
 test-unit:
 	@echo "Запуск unit-тестов..."
 	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m "unit and not slow" --cov=apps --cov-report=term-missing
 	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
 
-# Интеграционные тесты
+# Интеграционные тесты. `and not slow` — по той же причине, что и в test-unit.
+# Сейчас под `integration and slow` не подпадает ни один тест; фильтр стоит ради
+# симметрии, чтобы первый же помеченный slow интеграционный тест не влез в цель.
 test-integration:
 	@echo "Запуск интеграционных тестов..."
 	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
-	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+	cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m "integration and not slow" --cov=apps --cov-report=term-missing
 	cd docker && docker compose -p freesport-test -f docker-compose.test.yml down
 
 # Перф-тесты (вне обычного гейта — медленные и шумные)
