@@ -1,9 +1,14 @@
 """
 Тесты правила автоматической разметки pytest-маркеров по каталогу.
 
-Проверяется корневой `backend/conftest.py`: чистая функция `marker_for_path` и сам хук
-`pytest_collection_modifyitems`. Хук вызывается напрямую на подставных элементах сбора —
-без Django и без реального прогона, поэтому весь файл отрабатывает за доли секунды.
+Проверяется корневой `backend/conftest.py`: чистые функции разметки и сам хук
+`pytest_collection_modifyitems`. Хук — обёртка (`wrapper=True`), поэтому в большинстве тестов
+он прогоняется хелпером `run_hook` на подставных элементах сбора: без Django и без реального
+прогона это отрабатывает за доли секунды.
+
+Исключение — класс `TestRealRun`: факт деселекта, порядок хуков относительно `_pytest.mark`,
+код возврата и неглушимость `--disable-warnings` подставным config проверить нельзя в принципе,
+поэтому там pytest запускается настоящим подпроцессом.
 
 Сам файл маркера не имеет намеренно: он лежит в `tests/unit/` и получает `unit`
 автоматически — ровно тем механизмом, который проверяет.
@@ -12,6 +17,9 @@
 import configparser
 import os
 import re
+import subprocess
+import sys
+import types
 import warnings
 from pathlib import Path
 
@@ -67,13 +75,58 @@ class PathlessItem(FakeItem):
         super().__init__(None, nodeid=None)
 
 
+class FakeConfig:
+    """Минимальная замена `pytest.Config`: хук читает из него ровно `option.markexpr`."""
+
+    def __init__(self, markexpr=""):
+        self.option = types.SimpleNamespace(markexpr=markexpr)
+
+
 def unmarked_warnings(record):
     """Только `UnmarkedTestWarning` из записи: `pytest.warns` собирает все предупреждения блока."""
     return [w for w in record if issubclass(w.category, root_conftest.UnmarkedTestWarning)]
 
 
+INNER_RESULT = object()  # то, что pluggy отдаёт обёртке как результат нижележащей цепочки
+
+
+def run_hook(items, markexpr="", deselect=(), inner_error=None):
+    """Прогоняет хук-обёртку целиком, эмулируя отбор pytest между её половинами.
+
+    Хук объявлен как `@pytest.hookimpl(wrapper=True)`, то есть это генератор: часть до `yield`
+    размечает, часть после — сверяет, кто уцелел. Здесь мы играем роль pluggy: пускаем первую
+    половину, вычёркиваем из `items` то, что «отобрал» pytest, и пускаем вторую.
+
+    `deselect` — элементы, которые отбор отбросил. Пустой по умолчанию: не выпал никто.
+    `markexpr` — то, что пришло бы из `-m`; пустая строка означает, что отбора нет.
+    `inner_error` — исключение «от нижележащего хука»: pluggy в этом случае бросает его в точку
+    `yield`, и вторая половина обёртки не выполняется.
+
+    Возвращает то, что вернул генератор: контракт `wrapper=True` обязывает отдать результат
+    нижележащей цепочки, и без этой проверки его потерю не заметил бы ни один тест.
+    """
+    gen = root_conftest.pytest_collection_modifyitems(FakeConfig(markexpr), items)
+    next(gen)
+    if deselect:
+        dropped = {id(item) for item in deselect}
+        items[:] = [item for item in items if id(item) not in dropped]
+    if inner_error is not None:
+        gen.throw(inner_error)
+        return None
+    try:
+        gen.send(INNER_RESULT)
+    except StopIteration as stop:
+        return stop.value
+    return None
+
+
 def make_item(rel_path, markers=(), nodeid=None):
     return FakeItem(root_conftest.BACKEND_ROOT / rel_path, markers, nodeid or f"{rel_path}::test_x")
+
+
+def outside_item(name="test_x.py"):
+    """Элемент сбора из чужого дерева — разметить его нечем."""
+    return FakeItem(root_conftest.BACKEND_ROOT.parent / "ext" / name)
 
 
 class TestMarkerForPath:
@@ -148,7 +201,7 @@ class TestHook:
 
     def test_marks_unmarked_item(self):
         item = make_item("tests/integration/test_x.py")
-        root_conftest.pytest_collection_modifyitems(None, [item])
+        run_hook([item])
         assert item.added == ["integration"]
 
     @pytest.mark.parametrize("explicit", ["unit", "integration", "performance"])
@@ -156,20 +209,20 @@ class TestHook:
         """Главный инвариант: явный маркер хук не переписывает и не дополняет."""
         # Путь говорит `unit`, но в файле стоит другой маркер — победить должен файл.
         item = make_item("apps/products/tests/test_x.py", markers=[explicit])
-        root_conftest.pytest_collection_modifyitems(None, [item])
+        run_hook([item])
         assert item.added == []
 
     def test_orthogonal_marker_does_not_block_autotagging(self):
         """`django_db` / `slow` автоматической разметке не мешают."""
         item = make_item("tests/integration/test_x.py", markers=["django_db", "slow"])
-        root_conftest.pytest_collection_modifyitems(None, [item])
+        run_hook([item])
         assert item.added == ["integration"]
 
     def test_item_outside_backend_is_not_marked_but_reported(self):
         """Чужое дерево размечать нечем, но тихо терять тест нельзя — должно быть слышно."""
         item = FakeItem(root_conftest.BACKEND_ROOT.parent / "frontend" / "test_x.py", nodeid="::test_x")
         with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
-            root_conftest.pytest_collection_modifyitems(None, [item])
+            run_hook([item])
         assert item.added == []
         message = str(unmarked_warnings(record)[0].message)
         assert "путь вне backend/" in message
@@ -181,7 +234,7 @@ class TestHook:
         """Файла нет — назвать тест можно только по nodeid."""
         item = FakeItem(None, nodeid="tests/unit/test_x.py::test_generated")
         with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
-            root_conftest.pytest_collection_modifyitems(None, [item])
+            run_hook([item])
         assert item.added == []
         message = str(unmarked_warnings(record)[0].message)
         assert "tests/unit/test_x.py::test_generated" in message
@@ -191,7 +244,7 @@ class TestHook:
         """Крайний случай: ни файла, ни nodeid — предупреждение всё равно выдаётся."""
         item = PathlessItem()
         with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
-            root_conftest.pytest_collection_modifyitems(None, [item])
+            run_hook([item])
         assert item.added == []
         assert "<элемент сбора без пути>" in str(unmarked_warnings(record)[0].message)
 
@@ -204,7 +257,7 @@ class TestHook:
             PathlessItem(),
         ]
         with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
-            root_conftest.pytest_collection_modifyitems(None, items)
+            run_hook(items)
         warned = unmarked_warnings(record)
         assert len(warned) == 1
         message = str(warned[0].message)
@@ -217,7 +270,7 @@ class TestHook:
         outside_file = root_conftest.BACKEND_ROOT.parent / "ext" / "test_many.py"
         items = [FakeItem(outside_file), FakeItem(outside_file), FakeItem(outside_file)]
         with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
-            root_conftest.pytest_collection_modifyitems(None, items)
+            run_hook(items)
         assert "тестов: 3" in str(unmarked_warnings(record)[0].message)
 
     def test_normal_item_produces_no_warning(self):
@@ -225,7 +278,7 @@ class TestHook:
         item = make_item("tests/integration/test_x.py")
         with warnings.catch_warnings(record=True) as record:
             warnings.simplefilter("always")
-            root_conftest.pytest_collection_modifyitems(None, [item])
+            run_hook([item])
         assert unmarked_warnings(record) == []
         assert item.added == ["integration"]
 
@@ -234,7 +287,7 @@ class TestHook:
         item = FakeItem(root_conftest.BACKEND_ROOT.parent / "test_x.py", markers=["unit"])
         with warnings.catch_warnings(record=True) as record:
             warnings.simplefilter("always")
-            root_conftest.pytest_collection_modifyitems(None, [item])
+            run_hook([item])
         assert unmarked_warnings(record) == []
 
     def test_warning_does_not_suppress_usage_error(self):
@@ -245,23 +298,194 @@ class TestHook:
         ]
         with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
             with pytest.raises(pytest.UsageError) as exc:
-                root_conftest.pytest_collection_modifyitems(None, items)
+                run_hook(items)
         assert "tests/smoke/test_x.py" in str(exc.value)
         assert str(items[0].path) in str(unmarked_warnings(record)[0].message)
 
     def test_unmapped_item_raises_usage_error(self):
         item = make_item("tests/smoke/test_x.py")
         with pytest.raises(pytest.UsageError) as exc:
-            root_conftest.pytest_collection_modifyitems(None, [item])
+            run_hook([item])
         assert "tests/smoke/test_x.py" in str(exc.value)
 
     def test_usage_error_lists_every_unmapped_file(self):
         items = [make_item("tests/smoke/test_a.py"), make_item("scripts/test_b.py")]
         with pytest.raises(pytest.UsageError) as exc:
-            root_conftest.pytest_collection_modifyitems(None, items)
+            run_hook(items)
         message = str(exc.value)
         assert "tests/smoke/test_a.py" in message
         assert "scripts/test_b.py" in message
+
+
+class TestDeselectGate:
+    """Гейт срабатывает по факту выпадения теста из отбора, а не по виду выражения `-m`.
+
+    Предупреждение не влияет на код возврата и глушится `--disable-warnings`; когда тест
+    действительно выпал, этого мало. Но и рвать сбор всегда при `-m` нельзя: неразмеченный
+    тест проходит любое отрицательное выражение (`-m "not slow"`), а такие выражения — это
+    три из четырёх прогонов CI.
+    """
+
+    def test_dropped_item_under_markexpr_raises(self):
+        item = outside_item()
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            with pytest.raises(pytest.UsageError) as exc:
+                run_hook([item], markexpr="unit", deselect=[item])
+        message = str(exc.value)
+        assert str(item.path) in message
+        assert "отбором текущего прогона отброшены" in message
+        # Ошибка говорит то же самое — дублировать её предупреждением незачем.
+        assert unmarked_warnings(record) == []
+
+    def test_gate_message_does_not_blame_markexpr(self):
+        """Причину выпадения не называем: при `-m unit --lf` отбросить мог и не маркер.
+
+        Узнать, кто именно выбросил элемент, из хука нельзя — `-k`, `--deselect` и `--lf`
+        мутируют `items` в той же фазе. Утверждать «виноват `-m`» значит врать в единственном
+        сообщении, которое увидит человек.
+        """
+        item = outside_item()
+        with pytest.raises(pytest.UsageError) as exc:
+            run_hook([item], markexpr="unit", deselect=[item])
+        message = str(exc.value)
+        assert "отбором по `-m`" not in message
+        # И не обещаем, что тест не исполнится нигде: `make test` идёт без `-m`.
+        assert "ни в каком другом прогоне" not in message
+
+    def test_hook_returns_inner_result(self):
+        """Контракт `wrapper=True`: обёртка обязана вернуть результат нижележащей цепочки."""
+        assert run_hook([make_item("tests/unit/test_x.py")]) is INNER_RESULT
+
+    def test_surviving_item_under_markexpr_only_warns(self):
+        """Ключевой случай: отрицательное выражение неразмеченный тест пропускает.
+
+        `-m "not performance and not slow"` — фильтр `backend-ci`, `main` и `deploy`. Тест
+        без маркеров ему удовлетворяет и исполняется, поэтому рвать сбор не за что.
+        """
+        item = outside_item()
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            run_hook([item], markexpr="not performance and not slow")
+        assert "Сейчас они исполняются" in str(unmarked_warnings(record)[0].message)
+
+    def test_dropped_without_markexpr_only_warns(self):
+        """Деселекта мало: без `-m` тест могли отбросить по `-k` — это выбор запускающего."""
+        item = outside_item()
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            run_hook([item], markexpr="", deselect=[item])
+        message = str(unmarked_warnings(record)[0].message)
+        # Текст обязан признать факт: тест отброшен, и говорить «сейчас они исполняются» — ложь.
+        assert "отбор текущего прогона отбросил" in message
+        assert "Сейчас они исполняются" not in message
+
+    @pytest.mark.parametrize("markexpr", ["", "   "], ids=["пустое", "пробелы"])
+    def test_blank_markexpr_is_no_selection(self, markexpr):
+        """`-m ""` и `-m "   "` не отбирают ничего — включаться гейту не на что."""
+        item = outside_item()
+        with pytest.warns(root_conftest.UnmarkedTestWarning):
+            run_hook([item], markexpr=markexpr, deselect=[item])
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            None,
+            object(),
+            types.SimpleNamespace(option=types.SimpleNamespace(markexpr=["unit"])),
+            types.SimpleNamespace(option=types.SimpleNamespace(markexpr=None)),
+        ],
+        ids=["none", "без option", "markexpr не строка", "markexpr None"],
+    )
+    def test_unusable_config_degrades_to_warning(self, config):
+        """Компромисс защитного чтения: гейт молчит, но сбор остаётся жив, а не падает.
+
+        Проверяется поведение хука целиком, а не только `_markexpr`: обрыв сбора `AttributeError`
+        из второй половины обёртки — ровно то, от чего защита и ставилась. Элемент при этом
+        ещё и «выпадает» из отбора, то есть попадает в самую опасную ветку.
+        """
+        assert root_conftest._markexpr(config) == ""
+
+        item = outside_item()
+        items = [item]
+        gen = root_conftest.pytest_collection_modifyitems(config, items)
+        next(gen)
+        items[:] = []  # отбор отбросил всё — при рабочем config тут сработал бы гейт
+        with pytest.warns(root_conftest.UnmarkedTestWarning):
+            with pytest.raises(StopIteration):
+                gen.send(INNER_RESULT)
+
+    def test_survivors_are_named_alongside_the_dropped(self):
+        """Обрыв сбора не должен уносить с собой тех, кто просто остался без маркера."""
+        dropped = outside_item("test_dropped.py")
+        survived = outside_item("test_survived.py")
+        with pytest.raises(pytest.UsageError) as exc:
+            run_hook([dropped, survived], markexpr="unit", deselect=[dropped])
+        message = str(exc.value)
+        assert "test_dropped.py" in message
+        # Уцелевший назван, но отдельной секцией — путать его с выпавшим нельзя.
+        assert "test_survived.py" in message
+        assert message.index("test_dropped.py") < message.index("Заодно")
+
+    def test_mixed_reasons_produce_both_advices(self):
+        """Причины разные — советов два, и склейка не даёт лишних пробелов."""
+        outside = outside_item()
+        pathless = PathlessItem()
+        with pytest.raises(pytest.UsageError) as exc:
+            run_hook([outside, pathless], markexpr="unit", deselect=[outside, pathless])
+        message = str(exc.value)
+        assert "перенесите его под backend/" in message
+        assert "перенос не поможет" in message
+        # Пустой совет склеился бы в двойной пробел — проверяем построчно, чтобы переводы
+        # строк между абзацами не считались за него.
+        for line in message.splitlines():
+            assert "  " not in line.strip(), f"двойной пробел в строке: {line!r}"
+
+    def test_pathless_item_gets_applicable_advice(self):
+        """«Перенесите файл» бесполезно там, где файла нет вовсе."""
+        item = PathlessItem()
+        with pytest.raises(pytest.UsageError) as exc:
+            run_hook([item], markexpr="unit", deselect=[item])
+        message = str(exc.value)
+        assert "перенос не поможет" in message
+        assert "перенесите его под backend/" not in message
+
+    def test_gate_does_not_touch_markable_items(self):
+        """Размеченный тест выпадает из отбора штатно — это не повод рвать сбор."""
+        item = make_item("tests/integration/test_x.py")
+        with warnings.catch_warnings(record=True) as record:
+            warnings.simplefilter("always")
+            run_hook([item], markexpr="unit", deselect=[item])
+        assert item.added == ["integration"]
+        assert unmarked_warnings(record) == []
+
+    def test_unmapped_error_fires_before_selection(self):
+        """Сторож для путей внутри `backend/` срабатывает до отбора и не зависит от `-m`."""
+        inside = make_item("tests/smoke/test_x.py")
+        with pytest.raises(pytest.UsageError) as exc:
+            run_hook([inside], markexpr="unit")
+        assert "tests/smoke/test_x.py" in str(exc.value)
+
+    def test_unmapped_guard_still_reports_unmarkable_items(self):
+        """Обрыв сбора не должен унести с собой перечень неразмечаемых тестов."""
+        outside = outside_item("test_out.py")
+        inside = make_item("tests/smoke/test_x.py")
+        with pytest.warns(root_conftest.UnmarkedTestWarning) as record:
+            with pytest.raises(pytest.UsageError) as exc:
+                run_hook([outside, inside], markexpr="unit")
+        assert "tests/smoke/test_x.py" in str(exc.value)
+        assert str(outside.path) in str(unmarked_warnings(record)[0].message)
+
+    def test_unmapped_guard_survives_a_failing_inner_hook(self):
+        """Сторож обязан сработать раньше, чем упадёт что-то ниже по цепочке.
+
+        Регрессионный сторож: пока проверка `unmapped` стояла после `yield`, исключение из
+        нижележащего хука (битое выражение `-m "unit and"`, падение чужого плагина) отменяло её
+        целиком — про непокрытый каталог разработчик не узнавал вовсе. Документация при этом
+        обещает, что этот сторож срабатывает всегда.
+        """
+        inside = make_item("tests/smoke/test_x.py")
+        with pytest.raises(pytest.UsageError) as exc:
+            run_hook([inside], markexpr="unit", inner_error=RuntimeError("чужой плагин упал"))
+        assert "tests/smoke/test_x.py" in str(exc.value)
 
 
 class TestRealTree:
@@ -333,6 +557,35 @@ class TestConfigConsistency:
 
     def test_both_ini_files_declare_the_same_markers(self):
         assert self._markers("pytest.ini") == self._markers("../pytest.ini")
+
+    @pytest.mark.parametrize("ini_relative", INI_FILES)
+    def test_no_addopts_in_ini(self, ini_relative):
+        """`addopts` не должен появиться ни в одном из двух конфигов.
+
+        Гейт включается только там, где идёт отбор по маркеру. Строка вида
+        `addopts = -m "not slow"` подмешала бы отбор в каждый прогон — включая `make test`
+        и `make test-fast`, которые идут без `-m` намеренно, — и мягкий режим исчез бы
+        бесшумно, без единого падения, которое на это указало бы.
+        """
+        path = root_conftest.BACKEND_ROOT / ini_relative
+        parser = configparser.ConfigParser()
+        if not parser.read(path, encoding="utf-8"):
+            pytest.skip(f"{ini_relative} недоступен в этом окружении (вне смонтированного backend/)")
+        assert not parser.has_option(
+            "pytest", "addopts"
+        ), f"{ini_relative}: появился addopts — убедитесь, что он не подмешивает -m"
+
+    def test_no_pytest_addopts_in_pyproject(self):
+        """`pyproject.toml` — второй легальный дом для `addopts`, и он тоже должен быть пуст.
+
+        Сторож по `pytest.ini` его не видит: секции `[tool.pytest.ini_options]` там сейчас нет,
+        но появиться она может в любой момент, и `-m` из неё подмешался бы в каждый прогон.
+        """
+        text = (root_conftest.BACKEND_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        if "[tool.pytest.ini_options]" not in text:
+            return
+        section = text.split("[tool.pytest.ini_options]", 1)[1].split("\n[", 1)[0]
+        assert "addopts" not in section, "в pyproject.toml появился addopts — проверьте, нет ли в нём -m"
 
     def test_rules_produce_only_known_markers(self):
         produced = set(root_conftest.CATEGORY_DIRS.values())
@@ -436,3 +689,74 @@ class TestCIFilters:
         """
         text = self._repo_file("docker", "docker-compose.test.yml").read_text(encoding="utf-8")
         assert "${" not in text, "в docker-compose.test.yml появилась подстановка — верните --env-file в Makefile"
+
+
+class TestRealRun:
+    """Настоящий прогон pytest подпроцессом — то, что подставным config проверить нельзя.
+
+    Здесь и только здесь проверяются: реальный порядок обёртки относительно деселекта в
+    `_pytest.mark`, ненулевой код возврата и то, что ошибку не глушат флаги подавления
+    предупреждений. Всё это — утверждения о поведении самого pytest, а не о нашей логике,
+    и на подставных объектах они держались бы на честном слове.
+
+    Прогоны стоят несколько секунд каждый. Маркер `slow` намеренно не ставится: тесты
+    детерминированы и ничего не меряют по времени, а `slow` вывел бы их из PR-гейтов.
+    """
+
+    # Быстрый узел внутри `backend/`. Он обязателен: без единого внутреннего пути rootdir
+    # оказывается другим, корневой conftest не подхватывается, и проверять было бы нечего.
+    INSIDE_NODE = "tests/unit/test_pytest_marker_autotagging.py::TestMarkerForPath::test_empty_path_returns_none"
+
+    def _run(self, tmp_path, *args):
+        """Прогон pytest на внешнем файле вместе с внутренним узлом. `tmp_path` вне `backend/`.
+
+        Окружение чистится намеренно: `PYTEST_ADDOPTS` подмешал бы `-m` во вложенный прогон и
+        покрасил бы тест от конфигурации, а не от дефекта; `COV_*` заставили бы вложенный pytest
+        писать свои `.coverage.*` в смонтированный `backend/`, и они попали бы в `combine`
+        внешнего прогона, который считает порог покрытия.
+        """
+        external = tmp_path / "test_outside_tree.py"
+        external.write_text("def test_outside():\n    pass\n", encoding="utf-8")
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("PYTEST_", "COV_"))}
+        return subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *args, str(external), self.INSIDE_NODE],
+            cwd=root_conftest.BACKEND_ROOT,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=300,
+        )
+
+    def test_inside_node_exists(self):
+        """Сторож связки: `INSIDE_NODE` — жёстко зашитый nodeid, и его переименование должно
+        падать понятной ошибкой здесь, а не тремя «no tests ran» ниже."""
+        class_name, method = self.INSIDE_NODE.rsplit("::", 2)[-2:]
+        assert hasattr(globals()[class_name], method), f"узел {self.INSIDE_NODE} больше не существует"
+
+    def test_gate_fails_the_run_despite_warning_suppression(self, tmp_path):
+        """Положительное выражение: тест выпал → прогон обязан покраснеть, что бы ни глушили."""
+        result = self._run(tmp_path, "-m", "unit", "--disable-warnings", "-p", "no:warnings")
+        output = result.stdout + result.stderr
+        assert result.returncode != 0, output
+        assert "отбором текущего прогона отброшены" in output, output
+
+    def test_negative_expression_keeps_the_run_green(self, tmp_path):
+        """Отрицательное выражение: тест исполняется → прогон зелёный.
+
+        Регрессионный сторож против первой реализации гейта, которая рвала сбор на любом
+        непустом `-m` и тем самым ломала три из четырёх прогонов CI.
+        """
+        result = self._run(tmp_path, "-m", "not performance and not slow")
+        output = result.stdout + result.stderr
+        assert result.returncode == 0, output
+        # Ноль сам по себе получился бы и если бы внешний тест перестал собираться,
+        # поэтому проверяем, что исполнились оба.
+        assert "2 passed" in output, output
+
+    def test_no_markexpr_keeps_the_run_green(self, tmp_path):
+        """Без `-m` поведение прежнее: предупреждение, сбор продолжается."""
+        result = self._run(tmp_path)
+        output = result.stdout + result.stderr
+        assert result.returncode == 0, output
+        assert "2 passed" in output, output
+        assert "UnmarkedTestWarning" in output, output
