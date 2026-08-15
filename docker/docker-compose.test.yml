@@ -70,6 +70,9 @@ services:
       - ../backend:/app
       # Реальные XML для 1C-импорта лежат в backend/data/import_1c
       - ../backend/data/import_1c:/app/data/import_1c
+      # Story 36.1: тест nginx-гардов /media/1c_import|1c_temp читает конфиги
+      # (в контейнер смонтирован только backend/, конфиги вне его дерева)
+      - ../docker/nginx:/app/docker/nginx:ro
       - test_coverage:/app/htmlcov
     depends_on:
       db:

@@ -69,6 +69,11 @@ def process_1c_import_task(
         # Files (including ZIPs) are already moved to import_dir by the view (handle_complete).
         # We need to find them there and unpack.
         target_import_dir = Path(data_dir) if data_dir else Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
+        # Story 36.1: единый резолвленный путь для management-команд. Без него
+        # вызов задачи без data_dir уводил импорт товаров на ONEC_DATA_DIR
+        # (ручные выгрузки data/import_1c/), хотя ZIP и контрагенты в этой же
+        # задаче уже читаются из приватного ONEC_EXCHANGE["IMPORT_DIR"].
+        effective_data_dir = data_dir or str(target_import_dir)
 
         if target_import_dir.exists():
             zip_files = list(target_import_dir.glob("*.zip"))
@@ -207,7 +212,6 @@ def process_1c_import_task(
         )
 
         if has_contragents:
-            effective_data_dir = data_dir or str(target_import_dir)
             logger.info(
                 f"Starting 1C customers import for session {session_id} "
                 f"(key={session.session_key}, data_dir={effective_data_dir})"
@@ -220,9 +224,8 @@ def process_1c_import_task(
                 "celery_task_id": self.request.id,
                 "file_type": detected_file_type,
                 "import_session_id": session_id,
+                "data_dir": effective_data_dir,
             }
-            if data_dir:
-                options["data_dir"] = data_dir
 
             logger.info(
                 f"Starting 1C import for session {session_id} "

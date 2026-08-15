@@ -17,6 +17,24 @@ from rest_framework.test import APIClient
 
 User = get_user_model()
 
+# Реальные выгрузки 1С (CommerceML 3.1) — синтетические XML для импорта запрещены
+# правилами проекта. Каталог хранится в репозитории, поэтому доступен и в CI.
+ONEC_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "1c-data"
+
+# Порядок соответствует реальной последовательности выгрузки из 1С.
+CATALOG_XML_FILES = (
+    ONEC_FIXTURES / "groups" / "groups.xml",
+    ONEC_FIXTURES / "units" / "units.xml",
+    ONEC_FIXTURES / "storages" / "storages.xml",
+    ONEC_FIXTURES / "priceLists" / "priceLists.xml",
+    ONEC_FIXTURES / "goods" / "import_files" / "goods.xml",
+    ONEC_FIXTURES / "offers" / "offers.xml",
+    ONEC_FIXTURES / "prices" / "prices.xml",
+    ONEC_FIXTURES / "rests" / "rests.xml",
+)
+
+CONTRAGENTS_XML = ONEC_FIXTURES / "contragents" / "contragents.xml"
+
 
 def get_response_content(response) -> bytes:
     """Helper to get content from both HttpResponse and FileResponse."""
@@ -87,6 +105,27 @@ def onec_private_dirs(monkeypatch, settings, tmp_path):
         "temp_dir": temp_dir,
         "import_dir": import_dir,
     }
+
+
+@pytest.fixture
+def celery_eager():
+    """Исполнять Celery-задачи синхронно, не подменяя их моками.
+
+    Нужно для честного E2E: `process_1c_import_task` должен реально отработать
+    (распаковка, management-команда импорта, финализация ImportSession),
+    а не просто зафиксировать факт вызова `.delay`.
+    """
+    from freesport.celery import app as celery_app
+
+    previous_eager = celery_app.conf.task_always_eager
+    previous_propagates = celery_app.conf.task_eager_propagates
+    celery_app.conf.task_always_eager = True
+    celery_app.conf.task_eager_propagates = False
+    try:
+        yield
+    finally:
+        celery_app.conf.task_always_eager = previous_eager
+        celery_app.conf.task_eager_propagates = previous_propagates
 
 
 # ============================================================
@@ -168,14 +207,7 @@ class TestAsyncImportDispatch:
 
     def test_real_xml_upload_and_import_use_private_dirs(self, authenticated_client, onec_private_dirs):
         """Real XML from backend/data/import_1c should stay outside MEDIA_ROOT."""
-        real_xml = (
-            Path(__file__).resolve().parents[1]
-            / "fixtures"
-            / "1c-data"
-            / "goods"
-            / "import_files"
-            / "goods.xml"
-        )
+        real_xml = ONEC_FIXTURES / "goods" / "import_files" / "goods.xml"
         payload = real_xml.read_bytes()
         filename = real_xml.name
         session_key = authenticated_client.session.session_key
@@ -211,6 +243,100 @@ class TestAsyncImportDispatch:
         assert routed_file.exists()
         assert routed_file.read_bytes() == payload
         assert not temp_file.exists()
+
+    def test_full_http_exchange_imports_catalog_from_private_dir(
+        self, authenticated_client, onec_private_dirs, celery_eager
+    ):
+        """AC-3 E2E: checkauth → init → file → complete на реальных XML из 1С.
+
+        Celery работает в eager-режиме, поэтому `process_1c_import_task`
+        исполняется по-настоящему: management-команда импорта отрабатывает,
+        сессия доходит до COMPLETED, каталог наполняется. Ни один файл при этом
+        не появляется под MEDIA_ROOT.
+        """
+        from apps.products.models import Category, ImportSession, Product
+
+        assert Product.objects.count() == 0
+
+        session_key = authenticated_client.session.session_key
+
+        init_response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "init", "sessid": session_key},
+        )
+        assert init_response.status_code == 200
+        assert f"sessid={session_key}" in init_response.content.decode("utf-8")
+
+        for source in CATALOG_XML_FILES:
+            self._upload(authenticated_client, session_key, source)
+            uploaded = onec_private_dirs["temp_dir"] / session_key / source.name
+            assert uploaded.exists(), f"{source.name} не попал в приватный temp-каталог"
+
+        complete_response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "complete", "sessid": session_key},
+        )
+        assert complete_response.status_code == 200
+        assert "success" in get_response_content(complete_response).decode("utf-8")
+
+        session = ImportSession.objects.filter(session_key=session_key).latest("pk")
+        assert session.status == ImportSession.ImportStatus.COMPLETED, (
+            f"Сессия не завершилась: status={session.status}, "
+            f"error={session.error_message}, report={session.report}"
+        )
+        assert session.celery_task_id, "Задача Celery не отработала — celery_task_id пуст"
+
+        assert Product.objects.count() > 0, "Реальный goods.xml не создал ни одного товара"
+        assert Category.objects.count() > 0, "Реальный groups.xml не создал ни одной категории"
+
+        media_root = onec_private_dirs["media_root"]
+        assert not (media_root / "1c_import").exists()
+        assert not (media_root / "1c_temp").exists()
+
+    def test_full_http_exchange_imports_contragents_from_private_dir(
+        self, authenticated_client, onec_private_dirs, celery_eager
+    ):
+        """AC-3 E2E: тот же цикл для выгрузки контрагентов."""
+        from apps.products.models import ImportSession
+        from apps.users.models import Company
+
+        companies_before = Company.objects.count()
+        session_key = authenticated_client.session.session_key
+
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "init", "sessid": session_key},
+        )
+        self._upload(authenticated_client, session_key, CONTRAGENTS_XML)
+
+        complete_response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "complete", "sessid": session_key},
+        )
+        assert complete_response.status_code == 200
+        assert "success" in get_response_content(complete_response).decode("utf-8")
+
+        session = ImportSession.objects.filter(session_key=session_key).latest("pk")
+        assert session.status == ImportSession.ImportStatus.COMPLETED, (
+            f"Сессия не завершилась: status={session.status}, "
+            f"error={session.error_message}, report={session.report}"
+        )
+        assert Company.objects.count() > companies_before, "Реальный contragents.xml не создал ни одной компании"
+
+        media_root = onec_private_dirs["media_root"]
+        assert not (media_root / "1c_import").exists()
+        assert not (media_root / "1c_temp").exists()
+
+    @staticmethod
+    def _upload(client, session_key: str, source: Path) -> None:
+        """Один шаг mode=file протокола обмена."""
+        response = client.post(
+            f"/api/integration/1c/exchange/?mode=file&filename={source.name}&sessid={session_key}",
+            data=source.read_bytes(),
+            content_type="application/octet-stream",
+        )
+        assert response.status_code == 200
+        assert response.content.decode("utf-8") == "success", f"Загрузка {source.name} провалилась"
 
     def test_execute_no_call_command(self):
         """Import orchestrator must not use call_command (synchronous)."""

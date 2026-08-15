@@ -180,6 +180,51 @@ class TestImportOrchestrationTasks:
         assert "Архив data.zip успешно распакован" in session.report
 
     @patch("apps.products.tasks.call_command")
+    def test_product_import_without_data_dir_uses_private_import_dir(self, mock_call_command, settings, tmp_path):
+        """Story 36.1 review: без data_dir задача обязана передать приватный IMPORT_DIR.
+
+        Иначе `import_products_from_1c` уходит на fallback `ONEC_DATA_DIR`
+        (`data/import_1c/` — ручные тестовые выгрузки), хотя ZIP и контрагенты
+        в этой же задаче уже читаются из `ONEC_EXCHANGE["IMPORT_DIR"]`.
+        """
+        import_dir = tmp_path / "var" / "onec" / "1c_import"
+        import_dir.mkdir(parents=True)
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "IMPORT_DIR": import_dir,
+        }
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        result = process_1c_import_task.apply(args=(session.id,), task_id="task-private-fallback").get()
+
+        assert result == "success"
+        args, kwargs = mock_call_command.call_args
+        assert args[0] == "import_products_from_1c"
+        assert kwargs["data_dir"] == str(import_dir)
+        assert kwargs["data_dir"] != settings.ONEC_DATA_DIR
+
+    @patch("apps.products.tasks.call_command")
+    def test_contragents_import_without_data_dir_uses_private_import_dir(self, mock_call_command, settings, tmp_path):
+        """Ветка контрагентов тоже обязана резолвить приватный IMPORT_DIR."""
+        import_dir = tmp_path / "var" / "onec" / "1c_import"
+        (import_dir / "contragents").mkdir(parents=True)
+        (import_dir / "contragents" / "contragents_1.xml").write_bytes(b"<root/>")
+        settings.ONEC_EXCHANGE = {
+            **settings.ONEC_EXCHANGE,
+            "IMPORT_DIR": import_dir,
+        }
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        result = process_1c_import_task.apply(args=(session.id,), task_id="task-private-contragents").get()
+
+        assert result == "success"
+        args, kwargs = mock_call_command.call_args
+        assert args[0] == "import_customers_from_1c"
+        assert kwargs["data_dir"] == str(import_dir)
+
+    @patch("apps.products.tasks.call_command")
     def test_process_1c_import_task_ensures_completed_status(self, mock_call_command):
         """
         Test that the task explicitly sets status to COMPLETED upon success,

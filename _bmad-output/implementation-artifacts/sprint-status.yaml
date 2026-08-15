@@ -93,6 +93,9 @@ last_updated: "2026-08-15"
 #             взятый пункт эпика 36 после двух обходов подряд. Закрыт
 #             tech-debt.md #7. Найдено при разборе deferred-work.md: дефект
 #             там не значился, хотя ломал сброс пароля на проде целиком.
+# 2026-08-15: Review Story 36.1: три findings оставлены action items; статус
+#             review -> in-progress до закрытия защиты legacy-файлов, fallback
+#             Celery и полного E2E HTTP-обмена.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -119,7 +122,7 @@ development_status:
   # Source: tech-debt.md (#15, #16, #7)
   # ========================================
   epic-36: in-progress
-  36-1-move-1c-import-files-from-public-media-root: review
+  36-1-move-1c-import-files-from-public-media-root: in-progress
   36-2-fix-delivery-cost-in-order-xml-export: ready-for-dev
   36-3-fix-hardcoded-site-url: review
   epic-36-retrospective: optional

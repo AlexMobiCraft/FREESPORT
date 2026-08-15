@@ -2,7 +2,7 @@
 
 **Epic:** 36 — Critical Security & Export Fixes (Week 1)
 **Story ID:** 36.1
-**Status:** review
+**Status:** in-progress
 **Priority:** 🔴 CRITICAL
 **Source:** tech-debt.md #15
 
@@ -309,7 +309,13 @@ make test-integration
 - [x] Integration-тест: полный цикл обмена на реальных XML из `data/import_1c/` проходит без регрессий
 - [x] Файлы импорта недоступны по `/media/...`-URL (AC-2)
 - [x] `make test-unit` и `make test-integration` проходят
-- [ ] Black / Flake8 / isort / mypy без ошибок
+- [x] Black / Flake8 / isort / mypy без ошибок (по изменённым файлам; репозиторный mypy-долг вне scope — в CI он `continue-on-error`)
+
+### Review Findings
+
+- [x] [Review][Patch] Закрыть legacy-файлы в старом `media/1c_import` [docker/nginx/conf.d/default.conf:104] — production media volume сохраняется; без 404-guard и очистки/миграции старые payloads из незавершённых обменов останутся доступны по публичному URL.
+- [x] [Review][Patch] Передавать resolved private fallback в product-import [backend/apps/products/tasks.py:224] — при поддерживаемом вызове задачи без `data_dir` продуктовый импорт получает `ONEC_DATA_DIR`, хотя ZIP/контрагенты уже читаются из `ONEC_EXCHANGE["IMPORT_DIR"]`.
+- [x] [Review][Patch] Добавить настоящий E2E полного HTTP-обмена [backend/tests/integration/test_onec_import.py:195] — текущий тест с реальным XML подменяет Celery и не проверяет `mode=complete`, `ImportSession.COMPLETED` либо результат импорта товаров/контрагентов (AC-3).
 
 ---
 
@@ -317,7 +323,7 @@ make test-integration
 
 ### Agent Model Used
 
-GPT-5.5
+GPT-5.5 (первичная реализация), Claude Opus 5 (закрытие review findings)
 
 ### Debug Log References
 
@@ -329,6 +335,14 @@ GPT-5.5
 - Локальный `make` в этой оболочке отсутствует; проверял эквивалентные docker-команды из Makefile.
 - Репозиторный `flake8`/`mypy` остаются шумными из-за существующего debt вне scope story.
 
+**Итерация закрытия review findings (2026-08-15):**
+
+- Finding 1 (legacy `media/1c_import`): добавлены 404-гарды на `/media/1c_import/` и `/media/1c_temp/` в `default.conf` и `local.conf` (раньше был закрыт только `1c_temp` и только в `default.conf`); написана идемпотентная команда `purge_legacy_1c_media` для физического удаления остатков с media-тома; разовые шаги внесены в `docs/deployment-prod-checklist.md`.
+- Finding 2 (fallback product-import): в `process_1c_import_task` введён `effective_data_dir`; `data_dir` теперь передаётся в `import_products_from_1c` всегда, а не только когда пришёл аргументом. Раньше вызов без `data_dir` уводил импорт товаров на `ONEC_DATA_DIR` (`data/import_1c/`).
+- Finding 3 (E2E): добавлены два теста полного HTTP-цикла (`checkauth → init → file → complete`) на реальных XML из `backend/tests/fixtures/1c-data/`. Celery включается в eager-режим фикстурой `celery_eager` — задача исполняется по-настоящему, моков нет; проверяются `ImportSession.COMPLETED`, факт создания `Product`/`Category`/`Company` и отсутствие каталогов обмена под `MEDIA_ROOT`.
+- Каталог `docker/nginx` смонтирован в тестовый контейнер (`docker-compose.test.yml`), иначе тест nginx-гардов скипался бы: в контейнер мапится только `backend/`.
+- Валидация: `nginx -t` на обоих конфигах успешен; `black`/`flake8`/`isort` чисты по изменённым файлам; `mypy` не даёт ошибок в изменённых модулях (5 оставшихся — pre-existing долг в `settings/staging.py`, `settings/development.py`, `orders/`).
+
 ### Completion Notes List
 
 - Файлы 1С для HTTP-обмена теперь пишутся в приватный каталог вне публичного `MEDIA_ROOT`.
@@ -336,6 +350,13 @@ GPT-5.5
 - Реальные XML из `backend/data/import_1c` продолжили работать через HTTP-обмен и асинхронный импорт.
 - Проверено, что `1c_import` и `1c_temp` больше не живут под `/media`.
 - Проверка `pytest -m unit` завершилась `763 passed`, `pytest -m integration` завершилась `684 passed`.
+
+**Закрытие review findings (2026-08-15):**
+
+- ✅ Resolved review finding [Patch]: закрыты legacy-файлы в старом `media/1c_import` — 404-гарды в обоих nginx-конфигах + команда `purge_legacy_1c_media` + разовые шаги в чек-листе деплоя.
+- ✅ Resolved review finding [Patch]: `process_1c_import_task` всегда передаёт резолвленный приватный `IMPORT_DIR` в `import_products_from_1c`; уход на `ONEC_DATA_DIR` больше невозможен.
+- ✅ Resolved review finding [Patch]: добавлен настоящий E2E полного HTTP-обмена (каталог и контрагенты) с реальным исполнением Celery-задачи и проверкой `ImportSession.COMPLETED` + фактически импортированных сущностей.
+- Регресс после правок: `pytest -m "unit and not slow"` — `2036 passed, 17 skipped`; `pytest -m "integration and not slow"` — см. Change Log.
 
 ### File List
 
@@ -352,6 +373,14 @@ GPT-5.5
 - `backend/apps/products/tests/integration/test_import_orchestration.py`
 - `backend/apps/products/tests/test_import_orchestration_tasks.py`
 - `backend/apps/integrations/tests/test_import_orchestration_view.py`
+
+Добавлено при закрытии review findings (2026-08-15):
+
+- `backend/apps/common/management/commands/purge_legacy_1c_media.py` [NEW]
+- `backend/apps/common/tests/test_purge_legacy_1c_media.py` [NEW]
+- `backend/tests/unit/test_nginx_media_guards.py` [NEW]
+- `docker/nginx/conf.d/local.conf` [MODIFY]
+- `docs/deployment-prod-checklist.md` [MODIFY]
 
 ## Change Log
 
