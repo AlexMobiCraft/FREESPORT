@@ -353,6 +353,24 @@ class TestDeselectGate:
         # И не обещаем, что тест не исполнится нигде: `make test` идёт без `-m`.
         assert "ни в каком другом прогоне" not in message
 
+    def test_gate_message_scopes_filter_removal_to_local_runs(self):
+        """Снятие отбора — выход только локальный, и текст обязан это различать.
+
+        Состав фильтров всех четырёх прогонов CI задан явно и застережён тестом
+        `test_pr_gates_exclude_performance_and_slow` в этом же файле. Безусловное «уберите отбор»
+        отправляло читателя лога CI за выходом, которого там нет, — совет, запрещённый
+        собственными тестами проекта. Без этого теста формулировка ничем не держится и вернётся
+        при первой же правке текста.
+        """
+        item = outside_item()
+        with pytest.raises(pytest.UsageError) as exc:
+            run_hook([item], markexpr="unit", deselect=[item])
+        message = str(exc.value)
+        assert "Локально помогает и снятие отбора" in message
+        assert "В CI такого выхода нет" in message
+        # Прежняя безусловная формулировка не должна вернуться ни целиком, ни обрывком.
+        assert "Либо уберите отбор" not in message
+
     def test_hook_returns_inner_result(self):
         """Контракт `wrapper=True`: обёртка обязана вернуть результат нижележащей цепочки."""
         assert run_hook([make_item("tests/unit/test_x.py")]) is INNER_RESULT
