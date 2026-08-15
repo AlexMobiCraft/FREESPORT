@@ -374,7 +374,10 @@ class PasswordResetRequestView(APIView):
 
                 # Используем Celery task для отправки email
                 # В development (если configured console backend) это тоже сработает
-                reset_url = f"http://localhost:3000/password-reset/confirm/{uid}/{token}/"
+                # Адрес берётся из окружения: захардкоженный localhost уводил
+                # получателя письма на его собственную машину (Story 36.3).
+                # rstrip: SITE_URL с завершающим слэшем дал бы "//password-reset".
+                reset_url = f"{settings.SITE_URL.rstrip('/')}/password-reset/confirm/{uid}/{token}/"
 
                 # Запускаем задачу асинхронно
                 send_password_reset_email.delay(user.id, reset_url)

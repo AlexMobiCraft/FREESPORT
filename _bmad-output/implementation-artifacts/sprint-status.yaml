@@ -51,7 +51,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: "2026-08-06"
+last_updated: "2026-08-15"
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -89,6 +89,10 @@ last_updated: "2026-08-06"
 # 2026-08-06: Story 40.5 — финальный review завершён: исправлена неточность
 #             audit trail GitNexus в story-файле; 41 targeted tests passed.
 #             Статус review -> done.
+# 2026-08-15: Story 36.3 реализована, ready-for-dev -> review (PR #92). Первый
+#             взятый пункт эпика 36 после двух обходов подряд. Закрыт
+#             tech-debt.md #7. Найдено при разборе deferred-work.md: дефект
+#             там не значился, хотя ломал сброс пароля на проде целиком.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -117,7 +121,7 @@ development_status:
   epic-36: in-progress
   36-1-move-1c-import-files-from-public-media-root: review
   36-2-fix-delivery-cost-in-order-xml-export: ready-for-dev
-  36-3-fix-hardcoded-site-url: ready-for-dev
+  36-3-fix-hardcoded-site-url: review
   epic-36-retrospective: optional
 
   # ========================================

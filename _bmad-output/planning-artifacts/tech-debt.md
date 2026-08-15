@@ -36,10 +36,16 @@ Step Id: 59
     - **Суть:** Логика удаления токенов и очистки состояния дублируется в трех местах.
     - **Рекомендация:** Централизовать в общую функцию `clearAuthState()`.
 
-7.  **Хардкод SITE_URL в Backend:**
-    - **Где:** `apps/users/views/authentication.py` (Password Reset).
-    - **Суть:** Используется `localhost:3000` в коде вместо `settings.SITE_URL`.
-    - **Рекомендация:** Использовать значение из `settings`.
+7.  ~~**Хардкод SITE_URL в Backend:**~~ ✅ **ЗАКРЫТ 2026-08-15**
+    - **Закрыт стори:** `_bmad-output/implementation-artifacts/Story/36-3-fix-hardcoded-site-url.md` (baseline `ba52e28b`, PR #92).
+    - **Где было:** `apps/users/views/authentication.py` (Password Reset).
+    - **Суть:** Использовался `localhost:3000` в коде вместо `settings.SITE_URL` — на проде письмо сброса пароля уводило получателя на его собственную машину, то есть **восстановление пароля было неработоспособно для всех пользователей**, а не только косметически неверно.
+    - **Фактическая форма исправления:** одна строка — `f"{settings.SITE_URL.rstrip('/')}/password-reset/confirm/{uid}/{token}/"`. `rstrip` закрывает завершающий слэш в переменной окружения (AC-3 стори). Импорт `settings` правки не потребовал — он уже стоял в файле, вопреки анализу в story-файле. Celery-задача `send_password_reset_email` и шаблоны письма не менялись: `reset_url` приходит к ним готовым.
+    - **Тест-сторож поставлен:** `backend/tests/integration/test_password_reset_link.py` — хост берётся из `SITE_URL` (параметризовано по наличию завершающего слэша), путь совпадает с маршрутом фронта `/password-reset/confirm/[uid]/[token]`, плюс регресс «неизвестный email → 200 без письма». До правки тесты падали дословно на дефекте.
+    - **Прочие места проверены (AC-4 стори):** других хардкодов адреса сайта в `backend/apps` нет. `apps/orders/tasks.py:203,305` используют `getattr(settings, "SITE_URL", ...)` — defensive-fallback, а не хардкод; на него опираются тесты `tests/integration/test_onec_export.py:767-815`. В `backend/templates/emails/` абсолютных адресов нет.
+    - **⚠️ Условие, без которого закрытие ничего не чинит:** `SITE_URL` обязана быть задана в `.env.prod`. Дефолт в `backend/freesport/settings/base.py:577` — тот же `http://localhost:3000`, а `docker/docker-compose.prod.yml:72` подставляет `${SITE_URL}` без дефолта. По `docs/deploy/domain-migration-optisport.md:221` переменная задана (`https://optisport.ru`), но на сервере это не подтверждалось.
+    - **Остаточное наблюдение (в объём не входило):** `apps/users/serializers.py:276` собирает `confirm_url` для portal-link той же склейкой без `rstrip('/')`. Код относится к отключённой автопривязке (мёртвый слой, см. `deferred-work.md` от 2026-07-26), поэтому не правился.
+    - **Как обнаружен:** при разборе `deferred-work.md` 2026-08-15 — где этого дефекта не было. Долг лежал здесь и в `epics.md` (стори 36.3, `ready-for-dev` с 2026-05-18), но эпик 36 обходили дважды подряд (см. ретро эпика 39, «Принятый риск»), поэтому CRITICAL-дефект продакшена простоял три месяца.
 
 8.  **Middleware: Проверка токена без валидации:**
     - **Где:** `frontend/src/middleware.ts`.
