@@ -24,6 +24,7 @@ import warnings
 from pathlib import Path
 
 import pytest
+import yaml
 
 import conftest as root_conftest
 
@@ -633,10 +634,16 @@ class TestCIFilters:
     ALL_WORKFLOWS = PR_GATES + ("performance-tests.yml",)
 
     def _repo_file(self, *parts):
-        path = root_conftest.BACKEND_ROOT.parent.joinpath(*parts)
-        if not path.exists():
-            pytest.skip(f"{'/'.join(parts)} недоступен в этом окружении (вне смонтированного backend/)")
-        return path
+        # Второй кандидат — раскладка тест-контейнера: backend смонтирован в /app, а то, что
+        # лежит вне его дерева, подмонтировано внутрь (см. volumes в docker-compose.test.yml).
+        candidates = (
+            root_conftest.BACKEND_ROOT.parent.joinpath(*parts),
+            root_conftest.BACKEND_ROOT.joinpath(*parts),
+        )
+        for path in candidates:
+            if path.exists():
+                return path
+        pytest.skip(f"{'/'.join(parts)} недоступен в этом окружении (вне смонтированного backend/)")
 
     def _pytest_filters(self, workflow):
         """Все выражения из `-m "..."` в workflow. `python -m venv` под шаблон не подпадает."""
@@ -723,6 +730,61 @@ class TestCIFilters:
         )
         assert "ONEC_DATA_TOKEN" in text, (
             "main.yml: секрет ONEC_DATA_TOKEN не используется — checkout data-репо не сработает"
+        )
+
+    def _main_build_job(self):
+        text = self._repo_file(".github", "workflows", "main.yml").read_text(encoding="utf-8")
+        return yaml.safe_load(text)["jobs"]["build"]
+
+    def test_data_checkout_is_skipped_for_fork_pull_requests(self):
+        """PR из fork не получает Actions secrets — безусловный checkout приватного репо его валит.
+
+        `ONEC_DATA_TOKEN` приходит в fork-прогон пустым, `actions/checkout` падает на приватном
+        `FREESPORT-1c-test-data`, и job краснеет до первого теста: внешний контрибьютор физически
+        не может получить зелёный CI. Шаг обязан быть условным, а условие — различать доверенный
+        прогон (push или PR из этого же репозитория) и прогон из fork.
+        """
+        job = self._main_build_job()
+        flag = str(job.get("env", {}).get("ONEC_DATA_AVAILABLE", ""))
+        assert flag, "main.yml: флаг ONEC_DATA_AVAILABLE пропал из env job'а — fork-ветка не различима"
+        assert "github.event.pull_request.head.repo.full_name" in flag and "github.repository" in flag, (
+            f"main.yml: ONEC_DATA_AVAILABLE не сравнивает репозиторий head'а PR с текущим "
+            f"({flag}) — fork определяется неверно"
+        )
+
+        checkouts = [
+            step
+            for step in job["steps"]
+            if "FREESPORT-1c-test-data" in str(step.get("with", {}).get("repository", ""))
+        ]
+        assert len(checkouts) == 1, "main.yml: ожидался ровно один шаг checkout data-репо"
+        assert "ONEC_DATA_AVAILABLE" in str(checkouts[0].get("if", "")), (
+            "main.yml: checkout приватного data-репо снова безусловный — PR из fork упадёт на нём"
+        )
+
+    def test_coverage_gate_has_a_fork_path_without_1c_data(self):
+        """Без data-репо порог 75 недостижим — у fork-прогона обязан быть свой, более низкий.
+
+        Замер 2026-08-07: без реальных выгрузок CI даёт 74,92 % — прогон из fork упёрся бы в
+        порог 75 и покраснел на ровном месте. Поэтому fork-ветка исключает `data_dependent`
+        (эти тесты всё равно скипаются без данных) и меряет покрытие по историческому порогу
+        без данных, который обязан быть строго ниже основного.
+        """
+        text = self._repo_file(".github", "workflows", "main.yml").read_text(encoding="utf-8")
+        invocations = re.findall(r'pytest [^\n]*-m\s+"([^"]+)"[^\n]*--cov-fail-under=(\d+)', text)
+        assert len(invocations) == 2, (
+            f"main.yml: ожидались два вызова pytest с порогом (с данными и без), найдено {len(invocations)}"
+        )
+
+        with_data = [(m, int(t)) for m, t in invocations if "data_dependent" not in m]
+        without_data = [(m, int(t)) for m, t in invocations if "not data_dependent" in m]
+        assert len(with_data) == 1, "main.yml: не найден основной прогон, включающий data_dependent-тесты"
+        assert len(without_data) == 1, (
+            "main.yml: не найден fork-прогон с `not data_dependent` — без данных он упрётся в порог"
+        )
+        assert without_data[0][1] < with_data[0][1], (
+            f"main.yml: порог fork-прогона ({without_data[0][1]}) не ниже основного ({with_data[0][1]}) — "
+            "без реальных выгрузок покрытие ниже, гейт покраснеет без регрессии"
         )
 
     def test_pr_gates_have_no_ignore_for_data_dependent_files(self):

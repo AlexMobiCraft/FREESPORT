@@ -24,6 +24,13 @@ jobs:
       DB_PORT: 5432
       REDIS_URL: redis://localhost:6379/0
       DJANGO_SETTINGS_MODULE: freesport.settings.test
+      # Доступны ли реальные выгрузки 1С этому прогону.
+      # GitHub не передаёт Actions secrets в workflow, запущенный из fork: `ONEC_DATA_TOKEN`
+      # приходит пустым, checkout приватного FREESPORT-1c-test-data падает, и job краснеет
+      # до первого теста — внешний контрибьютор не может получить зелёный CI в принципе.
+      # true  — push или PR из этого же репозитория: данные есть, гоняем весь набор.
+      # false — PR из fork: data_dependent-тесты исключаются, порог покрытия — без данных.
+      ONEC_DATA_AVAILABLE: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
     strategy:
       max-parallel: 4
@@ -52,6 +59,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout 1C test data
+        if: env.ONEC_DATA_AVAILABLE == 'true'
         uses: actions/checkout@v4
         with:
           repository: AlexMobiCraft/FREESPORT-1c-test-data
@@ -60,8 +68,10 @@ jobs:
         # Приватный репо с реальными XML-выгрузками 1С для data_dependent-тестов.
         # Без этого шага ~32 теста импорта 1С скипаются (pytest.skip), а покрываемый
         # ими код идёт в непокрытое — порог покрытия занижен на ~1,5 п.п.
-        # Если секрет не настроен, шаг падает — это намеренно: лучше красный CI,
-        # чем молчаливая деградация покрытия. См. scripts/prep-1c-test-data.sh.
+        # На доверенном прогоне ненастроенный секрет валит шаг — это намеренно: лучше
+        # красный CI, чем молчаливая деградация покрытия. См. scripts/prep-1c-test-data.sh.
+        # На PR из fork шаг пропускается целиком (секретов там нет по устройству GitHub),
+        # и прогон уходит на ветку без данных — см. шаг «Run tests with coverage».
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -148,7 +158,17 @@ jobs:
           # выше), тесты исполняются, и разрыв в 1,5 п.п. между локальным и CI замером закрыт.
           # Замеры 2026-08-07: локально 76,43 %, в CI 74,92 % без данных; с данными — ожидаемо
           # ~76 %. Порог 75 оставляет запас в 1 п.п. на флуктуацию.
-          pytest --tb=short -v -m "not performance and not slow" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+          #
+          # Ветка без данных — PR из fork: секретов там нет, приватный data-репо не подключён.
+          # data_dependent-тесты и так скипнулись бы сами, но исключаем их явно, чтобы прогон
+          # честно сообщал состав; порог — историческое значение без данных (73), при 75 такой
+          # PR краснел бы на замере 74,92 % без всякой регрессии.
+          if [ "$ONEC_DATA_AVAILABLE" = "true" ]; then
+            pytest --tb=short -v -m "not performance and not slow" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+          else
+            echo "::notice::PR из fork: приватный data-репо недоступен, data_dependent-тесты исключены, порог покрытия 73"
+            pytest --tb=short -v -m "not performance and not slow and not data_dependent" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=73
+          fi
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4

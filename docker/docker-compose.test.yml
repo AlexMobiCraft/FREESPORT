@@ -73,6 +73,9 @@ services:
       # Story 36.1: тест nginx-гардов /media/1c_import|1c_temp читает конфиги
       # (в контейнер смонтирован только backend/, конфиги вне его дерева)
       - ../docker/nginx:/app/docker/nginx:ro
+      # Story 36.1: сторожа CI-фильтров (TestCIFilters) читают workflow-файлы; без монтирования
+      # они скипаются локально и падают только в CI, где чинить их дороже
+      - ../.github:/app/.github:ro
       - test_coverage:/app/htmlcov
     depends_on:
       db:

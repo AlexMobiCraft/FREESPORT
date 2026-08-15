@@ -326,6 +326,10 @@ make test-integration
 - [x] [Review][Patch] Проверять фактические settings private-путей [backend/tests/unit/test_file_routing.py:522] — тест строит две независимые временные `Path`, но не читает `settings.ONEC_EXCHANGE`/`ONEC_PRIVATE_DIR`; возврат default-конфигурации под `MEDIA_ROOT` останется незамеченным.
 - [x] [Review][Patch] Восстановить SSH host по умолчанию [scripts/server/ssh_server.ps1:12] — значение параметра `IP` заменено строкой docker-команды, поэтому документированный запуск без `-IP` формирует недопустимый SSH host и не подключается к серверу. **Уже исправлено** коммитом `97f3e7b0` до начала этой итерации — правок не требовалось, состояние проверено.
 
+### Review Findings — повторный review 2026-08-15 (CI)
+
+- [x] [Review][Patch] Разрешить CI для PR из fork без доступа к приватному data-репозиторию [.github/workflows/main.yml:54] — workflow запускается на `pull_request`, но безусловно передаёт `secrets.ONEC_DATA_TOKEN` в checkout приватного `FREESPORT-1c-test-data`. GitHub не передаёт Actions secrets workflow из fork, поэтому такой PR падает до тестов. Нужно условно пропускать checkout данных и не запускать data-dependent/coverage gate, требующий эти данные, для fork PR.
+
 ---
 
 ## Dev Agent Record
@@ -364,6 +368,14 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - Добавлен `tests/unit/test_media_url_guards.py`: guard резолвится в root urlconf, выигрывает у `static()` при `DEBUG=True` (urlconf перезагружается под `override_settings`), обычные media-файлы не задеты, HTTP-ответ — 404.
 - Валидация: `nginx -t` успешен на обоих конфигах (со stub-сертификатами и `--add-host backend/frontend`); `black`/`isort`/`flake8` чисты по изменённым файлам; `mypy` не даёт ошибок в изменённых модулях (7 оставшихся — pre-existing долг в `settings/staging.py`, `settings/development.py`, `orders/`, `common/admin.py`).
 
+**Итерация закрытия review findings (2026-08-15, CI / fork PR):**
+
+- Finding CI-1 (PR из fork): в job-env `main.yml` добавлен флаг `ONEC_DATA_AVAILABLE` = `github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository`. Шаг checkout приватного `FREESPORT-1c-test-data` стал условным (`if: env.ONEC_DATA_AVAILABLE == 'true'`) — раньше он безусловно требовал `secrets.ONEC_DATA_TOKEN`, который GitHub в fork-прогон не передаёт, и job краснел до первого теста.
+- Шаг «Run tests with coverage» разветвлён на два вызова pytest с **литеральными** маркер-выражениями: доверенный прогон — `not performance and not slow` с порогом 75, fork-прогон — `not performance and not slow and not data_dependent` с порогом 73. Порог 73 — историческое значение замера без данных (в CI 74,92 % на 2026-08-07): при 75 внешний PR краснел бы без регрессии. Выражения записаны литералами намеренно: подстановка вида `-m "$MARKERS"` обошла бы сторожа `test_ci_filters_mention_only_declared_markers` (он читает YAML регуляркой и не резолвит переменные оболочки).
+- Сторожа в `test_pytest_marker_autotagging.py::TestCIFilters`: `test_data_checkout_is_skipped_for_fork_pull_requests` (парсит `main.yml` через `yaml.safe_load`, требует флаг с корректным сравнением репозиториев и `if` у шага checkout) и `test_coverage_gate_has_a_fork_path_without_1c_data` (требует ровно два вызова pytest с порогами и порог fork-ветки строго ниже основного). Оба проверены в RED-состоянии до правки workflow.
+- `_repo_file` в `TestCIFilters` научен второй раскладке путей (`BACKEND_ROOT/...` в дополнение к `BACKEND_ROOT.parent/...`), а в `docker-compose.test.yml` смонтирован `../.github:/app/.github:ro`. До этого весь класс `TestCIFilters` (15 тестов) локально скипался — сторожа CI жили только в CI. Каталог `.github` начинается с точки и исключён из обхода дерева в `test_*_autotagging` (`SKIPPED_DIRS`-фильтр по `startswith(".")`), так что новые монтирования разметку не ломают.
+- Валидация: `main.yml` парсится `yaml.safe_load`, тело шага тестов проходит `bash -n`; `isort`/`flake8` чисты по изменённому файлу. `black` предлагает переформатировать файл в стиль 23.11, но это **pre-existing**: тот же diff даёт версия файла из HEAD, репозиторно так же выглядят 12 файлов, а в CI `black .` запускается без `--check` и гейтом не является.
+
 ### Completion Notes List
 
 - Файлы 1С для HTTP-обмена теперь пишутся в приватный каталог вне публичного `MEDIA_ROOT`.
@@ -388,6 +400,12 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - ✅ Resolved review finding [Patch]: тест приватных путей читает фактические `settings.ONEC_EXCHANGE`/`ONEC_PRIVATE_DIR`.
 - ✅ Resolved review finding [Patch]: SSH host по умолчанию — правок не потребовалось, дефект устранён коммитом `97f3e7b0` до начала итерации; состояние проверено.
 - Регресс: `pytest -m "unit and not slow"` — `2049 passed, 17 skipped`; `pytest -m "integration and not slow"` — `995 passed, 2 skipped, 15 subtests passed` (прогон стартовал, пока E2E на корпусе ещё нёс лишний маркер `slow`). После снятия маркера файл `tests/integration/test_onec_import.py` под тем же фильтром даёт `19 passed`, включая E2E на корпусе и ZIP-сценарий. Регрессий нет.
+
+**Закрытие review findings (2026-08-15, CI / fork PR):**
+
+- ✅ Resolved review finding [Patch]: PR из fork больше не падает на checkout приватного data-репо — шаг условный, а прогон без данных исключает `data_dependent` и меряет покрытие по порогу 73. Доверенный прогон (push и PR из этого же репозитория) не изменился: те же данные, тот же порог 75.
+- Побочный эффект правки тестовой инфраструктуры: `TestCIFilters` теперь исполняется и локально (раньше — 15 skip), поэтому сторожа CI-фильтров ловят опечатку в YAML до пуша.
+- Регресс: `pytest -m "unit and not slow"` — `2062 passed, 8 skipped`; `pytest -m "integration and not slow"` — `996 passed, 2 skipped, 15 subtests passed`. Прирост числа passed относительно прошлой итерации — раскрытые скипы `TestCIFilters` плюс два новых сторожа. Регрессий нет.
 
 ### File List
 
@@ -424,8 +442,16 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - `docker/docker-compose.prod.yml` [MODIFY] — комментарии о требуемом владельце bind-mount'а
 - `docs/deployment-prod-checklist.md` [MODIFY] — `chown 1000:1000` + проба записи в приватный каталог
 
+Изменено при закрытии review findings по CI (2026-08-15):
+
+- `.github/workflows/main.yml` [MODIFY] — флаг `ONEC_DATA_AVAILABLE`, условный checkout data-репо, ветка прогона без данных с порогом 73
+- `backend/tests/unit/test_pytest_marker_autotagging.py` [MODIFY] — два сторожа fork-ветки CI + вторая раскладка путей в `_repo_file`
+- `docker/docker-compose.test.yml` [MODIFY] — монтирование `../.github` для сторожей CI-фильтров
+- `backend/docs/testing-standards.md` [MODIFY] — описание fork-ветки и второго порога покрытия
+
 ## Change Log
 
+- 2026-08-15: Addressed code review findings (CI) — 1 item resolved: `main.yml` больше не валит PR из fork на checkout приватного data-репо (условный шаг + ветка прогона без `data_dependent` с порогом покрытия 73). Добавлены два сторожа в `TestCIFilters`, класс сторожей CI-фильтров начал исполняться локально. Регресс: unit `2062 passed`, integration `996 passed`. Status: in-progress → review.
 - 2026-05-18: Создана Story 36.1 (bmad-create-story). Status: ready-for-dev.
 - 2026-05-19: Перенёс runtime-каталоги 1С из публичного `MEDIA_ROOT` в `ONEC_PRIVATE_DIR`, обновил оркестратор, fallback задачи, production compose и тестовое покрытие. Status: review.
 - 2026-08-15: Addressed code review findings (повторный review) — 6 items resolved: 404-гарды во внутреннем vhost nginx и в Django urlconf, права private bind-mount в чек-листе деплоя, E2E на назначенном корпусе `data/import_1c`, E2E ZIP-ветки, чтение фактических settings в тесте приватных путей, проверка уже исправленного SSH host. Регресс: unit `2049 passed`, integration `995 passed` + `19 passed` по файлу обмена. Status: in-progress → review.
