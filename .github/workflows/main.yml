@@ -51,6 +51,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Checkout 1C test data
+        uses: actions/checkout@v4
+        with:
+          repository: AlexMobiCraft/FREESPORT-1c-test-data
+          path: backend/data/import_1c
+          token: ${{ secrets.ONEC_DATA_TOKEN }}
+        # Приватный репо с реальными XML-выгрузками 1С для data_dependent-тестов.
+        # Без этого шага ~32 теста импорта 1С скипаются (pytest.skip), а покрываемый
+        # ими код идёт в непокрытое — порог покрытия занижен на ~1,5 п.п.
+        # Если секрет не настроен, шаг падает — это намеренно: лучше красный CI,
+        # чем молчаливая деградация покрытия. См. scripts/prep-1c-test-data.sh.
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -130,13 +142,13 @@ jobs:
           # с интеграционными тестами опускала метрику, и порог ломался сам собой.
           # Состав знаменателя (без тестов и миграций) задан в backend/pyproject.toml.
           #
-          # Порог 73 откалиброван ПО ЭТОМУ ОКРУЖЕНИЮ, а не по локальному контейнеру. В CI
-          # покрытие структурно ниже примерно на 1,5 п.п.: каталог backend/data/import_1c/
-          # в .gitignore и в репозиторий не попадает, поэтому ~32 теста импорта 1С здесь
-          # пропускаются (locally 18 skipped, в CI 50), а покрываемый ими код идёт в непокрытое.
-          # Замеры 2026-08-07: локально 76,43 %, в CI 74,92 %. Не поднимать порог по локальной
-          # цифре — она недостижима в CI, пока выгрузки 1С недоступны раннеру.
-          pytest --tb=short -v -m "not performance and not slow" --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=73
+          # Порог 75: до 2026-08-15 порог был 73 — каталог backend/data/import_1c/ в .gitignore
+          # и ~32 теста импорта 1С скипались на раннере, покрываемый ими код шёл в непокрытое.
+          # Теперь данные подключаются из приватного репо FREESPORT-1c-test-data (шаг checkout
+          # выше), тесты исполняются, и разрыв в 1,5 п.п. между локальным и CI замером закрыт.
+          # Замеры 2026-08-07: локально 76,43 %, в CI 74,92 % без данных; с данными — ожидаемо
+          # ~76 %. Порог 75 оставляет запас в 1 п.п. на флуктуацию.
+          pytest --tb=short -v -m "not performance and not slow" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=75
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4

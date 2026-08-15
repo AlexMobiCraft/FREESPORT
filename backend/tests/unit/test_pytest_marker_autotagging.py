@@ -708,6 +708,42 @@ class TestCIFilters:
         text = self._repo_file("docker", "docker-compose.test.yml").read_text(encoding="utf-8")
         assert "${" not in text, "в docker-compose.test.yml появилась подстановка — верните --env-file в Makefile"
 
+    def test_main_yml_checks_out_1c_test_data(self):
+        """main.yml обязан подключать приватный data-репо — без него ~32 теста скипаются.
+
+        До 2026-08-15 каталог backend/data/import_1c/ был в .gitignore и не попадал на раннер:
+        data_dependent-тесты скипались, покрываемый ими код шёл в непокрытое, порог был
+        занижен на 1,5 п.п. Шаг checkout data-репо закрывает этот разрыв. Если шаг пропал —
+        порог 75 недостижим и CI краснеет, но лучше красный CI, чем молчаливая деградация.
+        """
+        text = self._repo_file(".github", "workflows", "main.yml").read_text(encoding="utf-8")
+        assert "FREESPORT-1c-test-data" in text, (
+            "main.yml: шаг checkout data-репо FREESPORT-1c-test-data пропал — "
+            "~32 теста импорта 1С снова скипаются, порог покрытия занижен"
+        )
+        assert "ONEC_DATA_TOKEN" in text, (
+            "main.yml: секрет ONEC_DATA_TOKEN не используется — checkout data-репо не сработает"
+        )
+
+    def test_pr_gates_have_no_ignore_for_data_dependent_files(self):
+        """--ignore для data_dependent-файлов избыточен и скрывает проблемы.
+
+        До 2026-08-15 test_import_customers.py и test_customer_parser.py были --ignore'д
+        вручную, потому что у первого не было маркера data_dependent, а у второго был баг пути.
+        Теперь оба имеют @pytest.mark.data_dependent и исключаются фильтром "not data_dependent"
+        в backend-ci.yml и deploy.yml. Возвращение --ignore скрыло бы регрессию маркера.
+        """
+        for workflow in ("backend-ci.yml", "deploy.yml", "main.yml"):
+            text = self._repo_file(".github", "workflows", workflow).read_text(encoding="utf-8")
+            assert "--ignore=tests/integration/test_management_commands/test_import_customers" not in text, (
+                f"{workflow}: --ignore test_import_customers вернулся — "
+                "он избыточен при @pytest.mark.data_dependent и скрывает регрессию маркера"
+            )
+            assert "--ignore=tests/unit/test_services/test_customer_parser" not in text, (
+                f"{workflow}: --ignore test_customer_parser вернулся — "
+                "он избыточен при @pytest.mark.data_dependent и скрывает регрессию маркера"
+            )
+
 
 class TestRealRun:
     """Настоящий прогон pytest подпроцессом — то, что подставным config проверить нельзя.

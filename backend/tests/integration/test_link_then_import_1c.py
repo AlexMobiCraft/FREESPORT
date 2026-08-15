@@ -39,8 +39,8 @@ def real_xml_file() -> str:
     if os.path.exists("/app/data"):
         xml_path = Path("/app/data/import_1c/contragents") / CONTRAGENTS_FILE
     else:
-        base_path = Path(__file__).resolve().parents[3]
-        xml_path = base_path / "data" / "import_1c" / "contragents" / CONTRAGENTS_FILE
+        # backend/tests/integration/test_link_then_import_1c.py → parents[2] = backend/
+        xml_path = Path(__file__).resolve().parents[2] / "data" / "import_1c" / "contragents" / CONTRAGENTS_FILE
     if not xml_path.exists():
         pytest.skip(f"Реальный dataset 1С не найден: {xml_path}")
     return str(xml_path)
