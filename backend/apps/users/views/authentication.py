@@ -376,7 +376,8 @@ class PasswordResetRequestView(APIView):
                 # В development (если configured console backend) это тоже сработает
                 # Адрес берётся из окружения: захардкоженный localhost уводил
                 # получателя письма на его собственную машину (Story 36.3).
-                reset_url = f"{settings.SITE_URL}/password-reset/confirm/{uid}/{token}/"
+                # rstrip: SITE_URL с завершающим слэшем дал бы "//password-reset".
+                reset_url = f"{settings.SITE_URL.rstrip('/')}/password-reset/confirm/{uid}/{token}/"
 
                 # Запускаем задачу асинхронно
                 send_password_reset_email.delay(user.id, reset_url)
