@@ -206,7 +206,11 @@ jobs:
           # 62 % против 76 % на полном наборе. Порог падал не от регрессии, а от того, что
           # очередная стори покрывала новый код интеграционными тестами. Покрытие меряет
           # main.yml — прогон, который эти тесты исполняет.
-          pytest --ignore=tests/integration/test_management_commands/test_import_customers.py --ignore=tests/unit/test_services/test_customer_parser.py -m "not integration and not data_dependent and not performance and not slow" --reuse-db -v
+          #
+          # --ignore для test_import_customers и test_customer_parser снят 2026-08-15:
+          # оба файла теперь имеют @pytest.mark.data_dependent и исключаются фильтром
+          # "not data_dependent". data-репо в этот гейт не подключается (быстрый прогон).
+          pytest -m "not integration and not data_dependent and not performance and not slow" --reuse-db -v
 
       # Codecov-выгрузка переехала в main.yml вместе с подсчётом покрытия (2026-08-06):
       # отчёт должен строить прогон, который исполняет покрывающие тесты.

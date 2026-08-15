@@ -22,23 +22,28 @@ User = cast(Type[CustomUserModel], get_user_model())
 
 @pytest.mark.django_db
 @pytest.mark.integration
+@pytest.mark.data_dependent
 class TestImportCustomersCommand:
     """Integration-тесты для команды import_customers_from_1c"""
 
     @pytest.fixture
     def real_data_dir(self):
-        """Путь к директории с данными 1С"""
-        # В Docker контейнере data смонтирована в /app/data
-        # Локально - из корня проекта
+        """Путь к директории с данными 1С.
+
+        Docker: data смонтирована в /app/data.
+        Локально/CI: backend/data/import_1c/ (BASE_DIR = backend/).
+        Пропуск, если данных нет — тесты не падают, а скипаются.
+        """
         import os
 
         if os.path.exists("/app/data/import_1c"):
-            # Docker environment
             data_path = Path("/app/data/import_1c")
         else:
-            # Local environment
-            base_path = Path(__file__).parent.parent.parent.parent.parent
-            data_path = base_path / "data" / "import_1c"
+            # backend/tests/integration/test_management_commands/test_import_customers.py
+            # → parents[3] = backend/
+            data_path = Path(__file__).resolve().parents[3] / "data" / "import_1c"
+        if not (data_path / "contragents").exists():
+            pytest.skip(f"Реальный dataset 1С не найден: {data_path / 'contragents'}")
         return str(data_path)
 
     def test_command_imports_real_customers(self, real_data_dir):

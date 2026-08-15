@@ -24,19 +24,19 @@ class TestCustomerDataParser:
 
     @pytest.fixture
     def real_xml_file(self):
-        """Путь к реальному XML файлу из 1С"""
-        # В Docker контейнере data смонтирована в /app/data
-        # Локально - из корня проекта
+        """Путь к реальному XML файлу из 1С.
+
+        Docker: data смонтирована в /app/data.
+        Локально/CI: backend/data/import_1c/ (BASE_DIR = backend/).
+        """
         import os
 
         if os.path.exists("/app/data"):
-            # Docker environment
-            xml_path = Path("/app/data/import_1c/contragents/" "contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml")
+            xml_path = Path("/app/data/import_1c/contragents/contragents_1_564750cd-8a00-4926-a2a4-7a1c995605c0.xml")
         else:
-            # Local environment
-            base_path = Path(__file__).parent.parent.parent.parent.parent
+            # backend/tests/unit/test_services/test_customer_parser.py → parents[3] = backend/
             xml_path = (
-                base_path
+                Path(__file__).resolve().parents[3]
                 / "data"
                 / "import_1c"
                 / "contragents"
