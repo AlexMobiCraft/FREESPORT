@@ -519,14 +519,35 @@ class TestRoutingServiceInit:
 class TestOneCPrivatePathConfiguration:
     """Private 1C runtime paths must live outside MEDIA_ROOT."""
 
-    def test_private_import_dirs_are_outside_media_root(self, tmp_path):
-        media_root = tmp_path / "media"
-        private_root = tmp_path / "var" / "onec"
-        temp_dir = private_root / "1c_temp"
-        import_dir = private_root / "1c_import"
+    @pytest.mark.parametrize("key", ["TEMP_DIR", "IMPORT_DIR"])
+    def test_configured_exchange_dir_is_outside_media_root(self, key):
+        """AC-1/AC-4: читаем ФАКТИЧЕСКИЕ settings, а не сконструированные пути.
 
-        assert media_root not in temp_dir.parents
-        assert media_root not in import_dir.parents
+        Предыдущая версия теста строила две независимые временные Path и
+        сравнивала их между собой — откат ONEC_EXCHANGE обратно под MEDIA_ROOT
+        такой тест не заметил бы.
+        """
+        from django.conf import settings as django_settings
+
+        media_root = Path(str(django_settings.MEDIA_ROOT)).resolve()
+        configured = Path(str(django_settings.ONEC_EXCHANGE[key])).resolve()
+
+        assert configured != media_root
+        assert media_root not in configured.parents, (
+            f"ONEC_EXCHANGE['{key}'] = {configured} лежит под MEDIA_ROOT "
+            f"({media_root}) — файлы обмена 1С снова раздаются публично"
+        )
+
+    @pytest.mark.parametrize("key", ["TEMP_DIR", "IMPORT_DIR"])
+    def test_configured_exchange_dir_lives_under_private_root(self, key):
+        """Оба каталога обмена берутся из ONEC_PRIVATE_DIR, а не собираются вручную."""
+        from django.conf import settings as django_settings
+
+        private_root = Path(str(django_settings.ONEC_PRIVATE_DIR)).resolve()
+        configured = Path(str(django_settings.ONEC_EXCHANGE[key])).resolve()
+
+        assert configured.parent == private_root
+        assert configured.name == {"TEMP_DIR": "1c_temp", "IMPORT_DIR": "1c_import"}[key]
 
     def test_orchestrator_uses_import_dir_from_settings(self, tmp_path):
         media_root = tmp_path / "media"

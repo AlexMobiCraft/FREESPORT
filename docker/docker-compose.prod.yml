@@ -75,6 +75,11 @@ services:
       - ../backend/logs:/app/logs
       - ../data/prod/static:/app/staticfiles
       - ../data/prod/media:/app/media
+      # Story 36.1: приватный каталог обмена 1С, общий с celery (вне MEDIA_ROOT).
+      # Каталог на хосте ОБЯЗАН принадлежать 1000:1000 — см. user ниже:
+      # созданный root'ом bind-mount делает первый mode=file PermissionError.
+      # Права выставляет scripts/deploy/deploy.sh (шаг 3.5) либо
+      # docs/deployment-prod-checklist.md, §5 Story 36.1.
       - ../data/prod/onec_private:/app/var/onec
       - ${ONEC_DATA_DIR}:/app/data/import_1c
     user: "1000:1000"
@@ -205,6 +210,8 @@ services:
       - ../backend/logs:/app/logs
       - ${ONEC_DATA_DIR}:/app/data/import_1c
       - ../data/prod/media:/app/media
+      # Story 36.1: тот же приватный каталог, что и у backend — воркер читает
+      # файлы, записанные backend'ом. Владелец на хосте — 1000:1000 (см. user).
       - ../data/prod/onec_private:/app/var/onec
     user: "1000:1000"
     depends_on:

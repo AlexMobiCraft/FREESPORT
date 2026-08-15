@@ -2,7 +2,7 @@
 
 **Epic:** 36 — Critical Security & Export Fixes (Week 1)
 **Story ID:** 36.1
-**Status:** in-progress
+**Status:** review
 **Priority:** 🔴 CRITICAL
 **Source:** tech-debt.md #15
 
@@ -317,6 +317,15 @@ make test-integration
 - [x] [Review][Patch] Передавать resolved private fallback в product-import [backend/apps/products/tasks.py:224] — при поддерживаемом вызове задачи без `data_dir` продуктовый импорт получает `ONEC_DATA_DIR`, хотя ZIP/контрагенты уже читаются из `ONEC_EXCHANGE["IMPORT_DIR"]`.
 - [x] [Review][Patch] Добавить настоящий E2E полного HTTP-обмена [backend/tests/integration/test_onec_import.py:195] — текущий тест с реальным XML подменяет Celery и не проверяет `mode=complete`, `ImportSession.COMPLETED` либо результат импорта товаров/контрагентов (AC-3).
 
+### Review Findings — повторный review 2026-08-15
+
+- [x] [Review][Patch] Закрыть legacy media-пути во всех способах раздачи [docker/nginx/conf.d/default.conf:34; backend/freesport/urls.py:42] — 404-guards есть лишь в HTTPS vhost: HTTP vhost `server_name nginx` по `Host: nginx` напрямую отдаёт сохранённые XML. В development стандартный `static()` аналогично обслуживает старые `media/1c_import` и `media/1c_temp`. Это нарушает AC-2.
+- [x] [Review][Patch] Выдать private bind-mount права runtime UID [docker/docker-compose.prod.yml:78] — `backend` и `celery` работают как `1000:1000`, но документированный `mkdir -p .../onec_private` создаёт каталог root:root/0755. Первый `mode=file` не сможет создать `1c_temp/<session>` и завершится `PermissionError` (AC-3).
+- [x] [Review][Patch] Использовать назначенный corpus реальных XML в E2E [backend/tests/integration/test_onec_import.py:20] — E2E берёт XML из `tests/fixtures/1c-data`, тогда как Story прямо требует файлы из `backend/data/import_1c`; это не подтверждает регрессию на назначенных runtime-выгрузках.
+- [x] [Review][Patch] Покрыть ZIP-ветку реальным HTTP E2E [backend/tests/integration/test_onec_import.py:247] — новые сценарии передают только отдельные XML; распаковка ZIP в private directory проверяется лишь mock-based тестом и не доказывает AC-3.
+- [x] [Review][Patch] Проверять фактические settings private-путей [backend/tests/unit/test_file_routing.py:522] — тест строит две независимые временные `Path`, но не читает `settings.ONEC_EXCHANGE`/`ONEC_PRIVATE_DIR`; возврат default-конфигурации под `MEDIA_ROOT` останется незамеченным.
+- [x] [Review][Patch] Восстановить SSH host по умолчанию [scripts/server/ssh_server.ps1:12] — значение параметра `IP` заменено строкой docker-команды, поэтому документированный запуск без `-IP` формирует недопустимый SSH host и не подключается к серверу. **Уже исправлено** коммитом `97f3e7b0` до начала этой итерации — правок не требовалось, состояние проверено.
+
 ---
 
 ## Dev Agent Record
@@ -343,6 +352,18 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - Каталог `docker/nginx` смонтирован в тестовый контейнер (`docker-compose.test.yml`), иначе тест nginx-гардов скипался бы: в контейнер мапится только `backend/`.
 - Валидация: `nginx -t` на обоих конфигах успешен; `black`/`flake8`/`isort` чисты по изменённым файлам; `mypy` не даёт ошибок в изменённых модулях (5 оставшихся — pre-existing долг в `settings/staging.py`, `settings/development.py`, `orders/`).
 
+**Итерация закрытия повторного review (2026-08-15, вторая):**
+
+- Finding 1 (legacy media-пути): 404-гарды добавлены во **внутренний** HTTP-vhost `server_name nginx` в `default.conf` — раньше они стояли только в HTTPS-vhost, и запрос с `Host: nginx` шёл мимо. На стороне Django добавлен `re_path`-guard `legacy_onec_media_gone` в `freesport/urls.py`, зарегистрированный **до** `static(MEDIA_URL, ...)`: в DEBUG Django раздавал весь `MEDIA_ROOT` целиком и воспроизводил ту же дыру.
+- Finding 2 (права private bind-mount): чек-лист деплоя приведён к тому, что реально делает `scripts/deploy/deploy.sh` (шаг 3.5) — `mkdir` подкаталогов `1c_temp`/`1c_import`, `chown -R 1000:1000`, `chmod -R u+rwX,g+rwX` плюс проба записи изнутри контейнера. В `docker-compose.prod.yml` у обоих bind-mount'ов появился комментарий о требуемом владельце.
+- Finding 3 (назначенный корпус): добавлен E2E `test_full_http_exchange_on_designated_runtime_corpus` на `backend/data/import_1c` — берёт наименьший реальный сегмент каждого раздела (`groups`…`rests`), помечен только `data_dependent` (каталог в `.gitignore`, в CI скипается тем же механизмом, что и остальные ~32 теста корпуса). Маркер `slow` сознательно не ставился: в проекте он означает «таймингозависимый» и вывел бы тест из `make test-integration`. Локально проходит на реальных выгрузках (~35 с).
+- Finding 4 (ZIP-ветка): добавлен `test_full_http_exchange_unpacks_zip_inside_private_dir` — полный HTTP-цикл с настоящим архивом и настоящей Celery-задачей (eager). Доказательство пути — лог задачи `Unpacked: catalog.zip to <private import_dir>`; отчёт сессии как проба непригоден, в eager-режиме оркестратор перетирает его устаревшим объектом после `.delay()`.
+- Finding 5 (фактические settings): `TestOneCPrivatePathConfiguration` переписан на чтение `django.conf.settings` — проверяет, что `ONEC_EXCHANGE["TEMP_DIR"]/["IMPORT_DIR"]` не лежат под `MEDIA_ROOT` и берутся из `ONEC_PRIVATE_DIR`, а не сконструированы в самом тесте.
+- Finding 6 (SSH host): правок не потребовалось — дефект уже устранён коммитом `97f3e7b0`, review смотрел на состояние до него. Значение `[string]$IP = "5.35.124.149"` проверено в рабочем дереве.
+- Усилен `test_nginx_media_guards.py`: добавлен `test_every_media_vhost_has_guard`, который разбирает конфиг на блоки `location /media/` с учётом вложенных скобок и требует гардов в каждом. Старый поиск по всему файлу давал зелёный свет дырявому конфигу — проверено на дофиксовой версии `default.conf`: 2 media-блока, блок №0 без гардов.
+- Добавлен `tests/unit/test_media_url_guards.py`: guard резолвится в root urlconf, выигрывает у `static()` при `DEBUG=True` (urlconf перезагружается под `override_settings`), обычные media-файлы не задеты, HTTP-ответ — 404.
+- Валидация: `nginx -t` успешен на обоих конфигах (со stub-сертификатами и `--add-host backend/frontend`); `black`/`isort`/`flake8` чисты по изменённым файлам; `mypy` не даёт ошибок в изменённых модулях (7 оставшихся — pre-existing долг в `settings/staging.py`, `settings/development.py`, `orders/`, `common/admin.py`).
+
 ### Completion Notes List
 
 - Файлы 1С для HTTP-обмена теперь пишутся в приватный каталог вне публичного `MEDIA_ROOT`.
@@ -356,7 +377,17 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - ✅ Resolved review finding [Patch]: закрыты legacy-файлы в старом `media/1c_import` — 404-гарды в обоих nginx-конфигах + команда `purge_legacy_1c_media` + разовые шаги в чек-листе деплоя.
 - ✅ Resolved review finding [Patch]: `process_1c_import_task` всегда передаёт резолвленный приватный `IMPORT_DIR` в `import_products_from_1c`; уход на `ONEC_DATA_DIR` больше невозможен.
 - ✅ Resolved review finding [Patch]: добавлен настоящий E2E полного HTTP-обмена (каталог и контрагенты) с реальным исполнением Celery-задачи и проверкой `ImportSession.COMPLETED` + фактически импортированных сущностей.
-- Регресс после правок: `pytest -m "unit and not slow"` — `2036 passed, 17 skipped`; `pytest -m "integration and not slow"` — см. Change Log.
+- Регресс после правок: `pytest -m "unit and not slow"` — `2036 passed, 17 skipped`; `pytest -m "integration and not slow"` — `994 passed, 2 skipped, 15 subtests passed`. Регрессий нет.
+
+**Закрытие повторного review (2026-08-15):**
+
+- ✅ Resolved review finding [Patch]: legacy media-пути закрыты во всех способах раздачи — 404-гарды добавлены во внутренний HTTP-vhost nginx (`server_name nginx`), а в Django появился `re_path`-guard перед `static(MEDIA_URL)`, закрывающий ту же дыру в DEBUG.
+- ✅ Resolved review finding [Patch]: приватный bind-mount получает права runtime UID — чек-лист деплоя приведён в соответствие с `scripts/deploy/deploy.sh` (`chown -R 1000:1000`, `chmod -R u+rwX,g+rwX`, проба записи из `backend` и `celery`).
+- ✅ Resolved review finding [Patch]: E2E гоняется на назначенном корпусе `backend/data/import_1c`.
+- ✅ Resolved review finding [Patch]: ZIP-ветка покрыта настоящим HTTP E2E с реальным исполнением Celery-задачи.
+- ✅ Resolved review finding [Patch]: тест приватных путей читает фактические `settings.ONEC_EXCHANGE`/`ONEC_PRIVATE_DIR`.
+- ✅ Resolved review finding [Patch]: SSH host по умолчанию — правок не потребовалось, дефект устранён коммитом `97f3e7b0` до начала итерации; состояние проверено.
+- Регресс: `pytest -m "unit and not slow"` — `2049 passed, 17 skipped`; `pytest -m "integration and not slow"` — `995 passed, 2 skipped, 15 subtests passed` (прогон стартовал, пока E2E на корпусе ещё нёс лишний маркер `slow`). После снятия маркера файл `tests/integration/test_onec_import.py` под тем же фильтром даёт `19 passed`, включая E2E на корпусе и ZIP-сценарий. Регрессий нет.
 
 ### File List
 
@@ -382,7 +413,20 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - `docker/nginx/conf.d/local.conf` [MODIFY]
 - `docs/deployment-prod-checklist.md` [MODIFY]
 
+Добавлено/изменено при закрытии повторного review (2026-08-15):
+
+- `backend/freesport/urls.py` [MODIFY] — 404-guard `legacy_onec_media_gone` перед `static(MEDIA_URL)`
+- `backend/tests/unit/test_media_url_guards.py` [NEW] — guard в urlconf, приоритет над `static()`, код ответа
+- `backend/tests/unit/test_nginx_media_guards.py` [MODIFY] — проверка каждого блока `location /media/`
+- `backend/tests/unit/test_file_routing.py` [MODIFY] — private-пути читаются из фактических settings
+- `backend/tests/integration/test_onec_import.py` [MODIFY] — E2E на `data/import_1c` + E2E ZIP-ветки
+- `docker/nginx/conf.d/default.conf` [MODIFY] — гарды во внутреннем HTTP-vhost `server_name nginx`
+- `docker/docker-compose.prod.yml` [MODIFY] — комментарии о требуемом владельце bind-mount'а
+- `docs/deployment-prod-checklist.md` [MODIFY] — `chown 1000:1000` + проба записи в приватный каталог
+
 ## Change Log
 
 - 2026-05-18: Создана Story 36.1 (bmad-create-story). Status: ready-for-dev.
 - 2026-05-19: Перенёс runtime-каталоги 1С из публичного `MEDIA_ROOT` в `ONEC_PRIVATE_DIR`, обновил оркестратор, fallback задачи, production compose и тестовое покрытие. Status: review.
+- 2026-08-15: Addressed code review findings (повторный review) — 6 items resolved: 404-гарды во внутреннем vhost nginx и в Django urlconf, права private bind-mount в чек-листе деплоя, E2E на назначенном корпусе `data/import_1c`, E2E ZIP-ветки, чтение фактических settings в тесте приватных путей, проверка уже исправленного SSH host. Регресс: unit `2049 passed`, integration `995 passed` + `19 passed` по файлу обмена. Status: in-progress → review.
+- 2026-08-15: Addressed code review findings — 3 items resolved (legacy-файлы в `media/1c_import`, resolved private fallback в product-import, настоящий E2E полного HTTP-обмена). Добавлены команда `purge_legacy_1c_media`, nginx-гарды в обоих конфигах, разовые шаги деплоя. Регресс: unit `2036 passed`, integration `994 passed`. Status: in-progress → review.

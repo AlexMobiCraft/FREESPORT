@@ -2,15 +2,40 @@
 URL конфигурация для проекта FREESPORT
 """
 
+import re
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.http import Http404
+from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from apps.common.admin import monitoring_dashboard_view
 
+# Story 36.1: runtime-каталоги обмена 1С вынесены в приватный ONEC_PRIVATE_DIR,
+# но media-том переживает деплой — файлы незавершённых обменов, записанные до
+# переезда, физически остаются под MEDIA_ROOT. В DEBUG весь MEDIA_ROOT целиком
+# раздаётся django.conf.urls.static(), поэтому Django обслуживал бы их так же,
+# как раньше это делал nginx. Guard повторяет 404-правила из
+# docker/nginx/conf.d/*.conf и регистрируется ДО static() — иначе не сработает.
+LEGACY_ONEC_MEDIA_DIRS = ("1c_import", "1c_temp")
+
+
+def legacy_onec_media_gone(request, *args, **kwargs):
+    """Всегда 404 для legacy-путей обмена 1С под MEDIA_URL (AC-2 Story 36.1)."""
+    raise Http404("1C exchange files are not served from MEDIA_ROOT")
+
+
+_LEGACY_ONEC_MEDIA_PATTERN = r"^{prefix}(?:{dirs})/".format(
+    prefix=re.escape(settings.MEDIA_URL.lstrip("/")),
+    dirs="|".join(re.escape(name) for name in LEGACY_ONEC_MEDIA_DIRS),
+)
+
 urlpatterns = [
+    # Должен стоять первым: перехватывает legacy media-пути обмена 1С
+    # раньше, чем их подхватит static() в DEBUG-режиме ниже.
+    re_path(_LEGACY_ONEC_MEDIA_PATTERN, legacy_onec_media_gone),
     # Админ панель Django
     path(
         "admin/monitoring/",

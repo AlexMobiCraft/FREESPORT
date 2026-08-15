@@ -7,6 +7,7 @@ Moved from test_onec_export.py for better test organization.
 import base64
 import inspect
 import io
+import logging
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -18,7 +19,9 @@ from rest_framework.test import APIClient
 User = get_user_model()
 
 # Реальные выгрузки 1С (CommerceML 3.1) — синтетические XML для импорта запрещены
-# правилами проекта. Каталог хранится в репозитории, поэтому доступен и в CI.
+# правилами проекта. Здесь закоммиченный срез реальных выгрузок: он доступен в CI,
+# поэтому на нём держатся тесты обязательного гейта. Полный назначенный корпус —
+# ONEC_RUNTIME_CORPUS ниже.
 ONEC_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "1c-data"
 
 # Порядок соответствует реальной последовательности выгрузки из 1С.
@@ -34,6 +37,48 @@ CATALOG_XML_FILES = (
 )
 
 CONTRAGENTS_XML = ONEC_FIXTURES / "contragents" / "contragents.xml"
+
+# Назначенный правилами проекта корпус runtime-выгрузок 1С (backend/data/import_1c).
+# Каталог в .gitignore, поэтому на раннере его нет — тесты на нём помечаются
+# data_dependent и штатно скипаются в CI (как ещё ~32 теста импорта 1С).
+ONEC_RUNTIME_CORPUS = Path(__file__).resolve().parents[2] / "data" / "import_1c"
+
+# Разделы выгрузки в порядке, в котором их присылает 1С.
+RUNTIME_CORPUS_SECTIONS = (
+    "groups",
+    "units",
+    "storages",
+    "priceLists",
+    "goods",
+    "offers",
+    "prices",
+    "rests",
+)
+
+
+def _smallest_corpus_segment(section: str) -> Path | None:
+    """Наименьший реальный сегмент раздела назначенного корпуса.
+
+    Сегменты одного раздела равнозначны по структуре и отличаются только объёмом,
+    поэтому берём самый лёгкий: E2E гоняет настоящий протокол обмена, а не
+    измеряет пропускную способность.
+    """
+    directory = ONEC_RUNTIME_CORPUS / section
+    if not directory.is_dir():
+        return None
+    segments = sorted(directory.glob("*.xml"), key=lambda path: path.stat().st_size)
+    return segments[0] if segments else None
+
+
+def _runtime_corpus_files() -> list[Path]:
+    """Полный набор разделов корпуса или пустой список, если корпуса нет."""
+    selected: list[Path] = []
+    for section in RUNTIME_CORPUS_SECTIONS:
+        segment = _smallest_corpus_segment(section)
+        if segment is None:
+            return []
+        selected.append(segment)
+    return selected
 
 
 def get_response_content(response) -> bytes:
@@ -206,7 +251,7 @@ class TestAsyncImportDispatch:
                 mock_task.delay.assert_called_once_with(999, str(onec_private_dirs["import_dir"]))
 
     def test_real_xml_upload_and_import_use_private_dirs(self, authenticated_client, onec_private_dirs):
-        """Real XML from backend/data/import_1c should stay outside MEDIA_ROOT."""
+        """Реальный XML обмена не должен появляться под MEDIA_ROOT."""
         real_xml = ONEC_FIXTURES / "goods" / "import_files" / "goods.xml"
         payload = real_xml.read_bytes()
         filename = real_xml.name
@@ -326,6 +371,133 @@ class TestAsyncImportDispatch:
         media_root = onec_private_dirs["media_root"]
         assert not (media_root / "1c_import").exists()
         assert not (media_root / "1c_temp").exists()
+
+    @pytest.mark.data_dependent
+    def test_full_http_exchange_on_designated_runtime_corpus(
+        self, authenticated_client, onec_private_dirs, celery_eager
+    ):
+        """AC-3 E2E на назначенном корпусе backend/data/import_1c.
+
+        Правило проекта требует прогонять импорт 1С именно на runtime-выгрузках
+        из `data/import_1c/`, а не только на закоммиченном срезе в
+        `tests/fixtures/1c-data/`. Каталог в .gitignore, поэтому на раннере тест
+        скипается — как и остальные ~32 теста корпуса, помеченные data_dependent.
+        Маркера slow здесь нет намеренно: он означает «таймингозависимый», а этот
+        тест зависит от данных, и из `make test-integration` выпадать не должен.
+        """
+        from apps.products.models import ImportSession, Product
+
+        corpus_files = _runtime_corpus_files()
+        if not corpus_files:
+            pytest.skip(
+                f"Назначенный корпус выгрузок 1С недоступен: {ONEC_RUNTIME_CORPUS} "
+                f"(нужны разделы {', '.join(RUNTIME_CORPUS_SECTIONS)})"
+            )
+
+        session_key = authenticated_client.session.session_key
+
+        init_response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "init", "sessid": session_key},
+        )
+        assert init_response.status_code == 200
+
+        for source in corpus_files:
+            self._upload(authenticated_client, session_key, source)
+            uploaded = onec_private_dirs["temp_dir"] / session_key / source.name
+            assert uploaded.exists(), f"{source.name} не попал в приватный temp-каталог"
+            assert not (onec_private_dirs["media_root"] / "1c_temp" / session_key / source.name).exists()
+
+        complete_response = authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "complete", "sessid": session_key},
+        )
+        assert complete_response.status_code == 200
+        assert "success" in get_response_content(complete_response).decode("utf-8")
+
+        session = ImportSession.objects.filter(session_key=session_key).latest("pk")
+        assert session.status == ImportSession.ImportStatus.COMPLETED, (
+            f"Сессия не завершилась на реальном корпусе: status={session.status}, "
+            f"error={session.error_message}, report={session.report}"
+        )
+        assert Product.objects.count() > 0, "Реальная выгрузка 1С не создала ни одного товара"
+
+        media_root = onec_private_dirs["media_root"]
+        assert not (media_root / "1c_import").exists()
+        assert not (media_root / "1c_temp").exists()
+
+    def test_full_http_exchange_unpacks_zip_inside_private_dir(
+        self, authenticated_client, onec_private_dirs, celery_eager, caplog
+    ):
+        """AC-3 E2E: ZIP-выгрузка распаковывается и маршрутизируется в приватном каталоге.
+
+        1С штатно присылает архив, а не отдельные XML. Ветка распаковки раньше
+        подтверждалась только mock-based тестом — здесь она проходит настоящий
+        протокол обмена и настоящую Celery-задачу.
+        """
+        from apps.products.models import Category, ImportSession, Product
+
+        archive_buffer = io.BytesIO()
+        with zipfile.ZipFile(archive_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for source in CATALOG_XML_FILES:
+                archive.writestr(source.name, source.read_bytes())
+        payload = archive_buffer.getvalue()
+
+        session_key = authenticated_client.session.session_key
+
+        authenticated_client.get(
+            "/api/integration/1c/exchange/",
+            data={"mode": "init", "sessid": session_key},
+        )
+
+        upload_response = authenticated_client.post(
+            f"/api/integration/1c/exchange/?mode=file&filename=catalog.zip&sessid={session_key}",
+            data=payload,
+            content_type="application/octet-stream",
+        )
+        assert upload_response.status_code == 200
+        assert upload_response.content.decode("utf-8") == "success"
+
+        uploaded_archive = onec_private_dirs["temp_dir"] / session_key / "catalog.zip"
+        assert uploaded_archive.exists(), "Архив не попал в приватный temp-каталог"
+
+        # Логгер задачи импорта объявлен как getLogger("import_tasks"), не по __name__.
+        with caplog.at_level(logging.INFO, logger="import_tasks"):
+            complete_response = authenticated_client.get(
+                "/api/integration/1c/exchange/",
+                data={"mode": "complete", "sessid": session_key},
+            )
+        assert complete_response.status_code == 200
+        assert "success" in get_response_content(complete_response).decode("utf-8")
+
+        session = ImportSession.objects.filter(session_key=session_key).latest("pk")
+        assert session.status == ImportSession.ImportStatus.COMPLETED, (
+            f"Сессия не завершилась: status={session.status}, "
+            f"error={session.error_message}, report={session.report}"
+        )
+
+        # Отчёт сессии здесь ненадёжен: в eager-режиме задача отрабатывает внутри
+        # `.delay()`, и оркестратор дописывает свой (устаревший) объект следом.
+        # Лог задачи фиксирует и факт распаковки, и каталог назначения.
+        unpack_records = [
+            record for record in caplog.records if record.getMessage().startswith("Unpacked: catalog.zip")
+        ]
+        assert (
+            unpack_records
+        ), f"Нет записи о распаковке архива в логах задачи: {[r.getMessage() for r in caplog.records]}"
+        assert (
+            str(onec_private_dirs["import_dir"]) in unpack_records[0].getMessage()
+        ), f"Архив распакован не в приватный каталог: {unpack_records[0].getMessage()}"
+
+        # Импорт читает распакованные файлы только из ONEC_EXCHANGE["IMPORT_DIR"],
+        # поэтому созданные сущности доказывают, что распаковка шла в приватный каталог.
+        assert Product.objects.count() > 0, "ZIP-выгрузка не создала ни одного товара"
+        assert Category.objects.count() > 0, "ZIP-выгрузка не создала ни одной категории"
+
+        media_root = onec_private_dirs["media_root"]
+        assert not (media_root / "1c_import").exists()
+        assert not (media_root / "1c_temp").exists()
+        assert not (onec_private_dirs["import_dir"] / "catalog.zip").exists(), "Архив не удалён после распаковки"
 
     @staticmethod
     def _upload(client, session_key: str, source: Path) -> None:

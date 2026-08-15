@@ -96,6 +96,21 @@ last_updated: "2026-08-15"
 # 2026-08-15: Review Story 36.1: три findings оставлены action items; статус
 #             review -> in-progress до закрытия защиты legacy-файлов, fallback
 #             Celery и полного E2E HTTP-обмена.
+# 2026-08-15: Story 36.1: все три findings закрыты (nginx-гарды + команда
+#             purge_legacy_1c_media, resolved private fallback в product-import,
+#             настоящий E2E полного HTTP-обмена на реальных XML). Регресс:
+#             unit 2036 passed, integration 994 passed. Статус -> review.
+# 2026-08-15: Повторный code review выявил 6 action items, включая обход
+#             404-guard через HTTP vhost и права private bind-mount. Статус
+#             review -> in-progress до их закрытия.
+# 2026-08-15: Story 36.1: все 6 findings повторного review закрыты. Ключевое:
+#             404-гарды продублированы во внутренний HTTP vhost nginx и в
+#             Django urlconf (в DEBUG static() раздавал MEDIA_ROOT целиком);
+#             права private bind-mount внесены в чек-лист деплоя; добавлены
+#             E2E на назначенном корпусе data/import_1c и E2E ZIP-ветки; тест
+#             приватных путей переведён на фактические settings. Находка про
+#             SSH host была уже исправлена коммитом 97f3e7b0. Регресс: unit
+#             2049 passed, integration 995 passed. Статус -> review.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -122,7 +137,7 @@ development_status:
   # Source: tech-debt.md (#15, #16, #7)
   # ========================================
   epic-36: in-progress
-  36-1-move-1c-import-files-from-public-media-root: in-progress
+  36-1-move-1c-import-files-from-public-media-root: review
   36-2-fix-delivery-cost-in-order-xml-export: ready-for-dev
   36-3-fix-hardcoded-site-url: review
   epic-36-retrospective: optional

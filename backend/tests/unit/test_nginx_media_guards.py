@@ -38,6 +38,28 @@ def _guard_pattern(subdir: str) -> re.Pattern[str]:
     )
 
 
+def _media_location_blocks(content: str) -> list[str]:
+    """Все блоки `location /media/ { ... }` конфига, с учётом вложенных скобок.
+
+    Проверять файл целиком нельзя: guard'ы в HTTPS-vhost удовлетворяют поиску по
+    всему тексту, а внутренний HTTP-vhost (`server_name nginx`) при этом остаётся
+    открытым. Каждый vhost, раздающий media, обязан закрывать legacy-каталоги сам.
+    """
+    blocks: list[str] = []
+    for match in re.finditer(r"location\s+/media/\s*\{", content):
+        opening = content.index("{", match.start())
+        depth = 0
+        for pos in range(opening, len(content)):
+            if content[pos] == "{":
+                depth += 1
+            elif content[pos] == "}":
+                depth -= 1
+                if depth == 0:
+                    blocks.append(content[opening : pos + 1])
+                    break
+    return blocks
+
+
 conf_dir = _nginx_conf_dir()
 
 pytestmark = pytest.mark.skipif(
@@ -64,4 +86,25 @@ class TestLegacyOneCMediaGuards:
             f"{conf_name}: нет 404-guard для /media/{subdir}/. "
             "Legacy-файлы обмена 1С на сохранившемся media-volume останутся "
             "доступны анонимно по прямой ссылке."
+        )
+
+    @pytest.mark.parametrize("conf_name", ["default.conf", "local.conf"])
+    @pytest.mark.parametrize("subdir", ["1c_import", "1c_temp"])
+    def test_every_media_vhost_has_guard(self, conf_name: str, subdir: str) -> None:
+        """Guard обязан быть в каждом vhost, который раздаёт media.
+
+        Регресс на находке повторного review: в default.conf 404-правила стояли
+        только в HTTPS-vhost, а внутренний `server_name nginx` (listen 80)
+        отдавал те же файлы по Host: nginx напрямую.
+        """
+        assert conf_dir is not None
+        content = (conf_dir / conf_name).read_text(encoding="utf-8")
+
+        blocks = _media_location_blocks(content)
+        assert blocks, f"{conf_name}: не найдено ни одного блока location /media/"
+
+        unguarded = [index for index, block in enumerate(blocks) if not _guard_pattern(subdir).search(block)]
+        assert not unguarded, (
+            f"{conf_name}: блок(и) location /media/ №{unguarded} раздают media "
+            f"без 404-guard для /media/{subdir}/. Всего блоков: {len(blocks)}."
         )
