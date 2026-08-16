@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-# В тестовом контейнере смонтирован только backend/ (как /app), а docker/nginx
-# подключается отдельным volume в /app/docker/nginx. В CI и локальном venv
+# В тестовом контейнере смонтирован только backend/ (как /app), а каталог docker/
+# подключается отдельным volume в /app/docker. В CI и локальном venv
 # pytest стартует из backend/ полного checkout — там конфиги лежат на уровень выше.
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _NGINX_CONF_CANDIDATES = (

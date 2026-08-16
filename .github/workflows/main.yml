@@ -28,9 +28,13 @@ jobs:
       # GitHub не передаёт Actions secrets в workflow, запущенный из fork: `ONEC_DATA_TOKEN`
       # приходит пустым, checkout приватного FREESPORT-1c-test-data падает, и job краснеет
       # до первого теста — внешний контрибьютор не может получить зелёный CI в принципе.
-      # true  — push или PR из этого же репозитория: данные есть, гоняем весь набор.
-      # false — PR из fork: data_dependent-тесты исключаются, порог покрытия — без данных.
-      ONEC_DATA_AVAILABLE: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+      # Та же беда у Dependabot, хотя его ветка `dependabot/...` лежит в самом репозитории и
+      # сравнение репозиториев ниже даёт true: у Dependabot отдельное хранилище секретов
+      # (Settings → Secrets and variables → Dependabot), обычные Actions secrets ему не видны.
+      # Поэтому он исключается явно, а не через принадлежность head-ветки.
+      # true  — push или PR из этого же репозитория (кроме Dependabot): гоняем весь набор.
+      # false — PR из fork или от Dependabot: data_dependent исключаются, порог — без данных.
+      ONEC_DATA_AVAILABLE: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
 
     strategy:
       max-parallel: 4
@@ -70,8 +74,9 @@ jobs:
         # ими код идёт в непокрытое — порог покрытия занижен на ~1,5 п.п.
         # На доверенном прогоне ненастроенный секрет валит шаг — это намеренно: лучше
         # красный CI, чем молчаливая деградация покрытия. См. scripts/prep-1c-test-data.sh.
-        # На PR из fork шаг пропускается целиком (секретов там нет по устройству GitHub),
-        # и прогон уходит на ветку без данных — см. шаг «Run tests with coverage».
+        # На PR из fork и на прогоне Dependabot шаг пропускается целиком (секретов там нет
+        # по устройству GitHub), и прогон уходит на ветку без данных — см. шаг «Run tests
+        # with coverage».
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -159,14 +164,14 @@ jobs:
           # Замеры 2026-08-07: локально 76,43 %, в CI 74,92 % без данных; с данными — ожидаемо
           # ~76 %. Порог 75 оставляет запас в 1 п.п. на флуктуацию.
           #
-          # Ветка без данных — PR из fork: секретов там нет, приватный data-репо не подключён.
-          # data_dependent-тесты и так скипнулись бы сами, но исключаем их явно, чтобы прогон
-          # честно сообщал состав; порог — историческое значение без данных (73), при 75 такой
-          # PR краснел бы на замере 74,92 % без всякой регрессии.
+          # Ветка без данных — PR из fork и прогон Dependabot: секретов там нет, приватный
+          # data-репо не подключён. data_dependent-тесты и так скипнулись бы сами, но исключаем
+          # их явно, чтобы прогон честно сообщал состав; порог — историческое значение без
+          # данных (73), при 75 такой PR краснел бы на замере 74,92 % без всякой регрессии.
           if [ "$ONEC_DATA_AVAILABLE" = "true" ]; then
             pytest --tb=short -v -m "not performance and not slow" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=75
           else
-            echo "::notice::PR из fork: приватный data-репо недоступен, data_dependent-тесты исключены, порог покрытия 73"
+            echo "::notice::Прогон без Actions secrets (PR из fork или Dependabot): приватный data-репо недоступен, data_dependent-тесты исключены, порог покрытия 73"
             pytest --tb=short -v -m "not performance and not slow and not data_dependent" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=73
           fi
 

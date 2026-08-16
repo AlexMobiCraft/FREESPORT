@@ -330,6 +330,11 @@ make test-integration
 
 - [x] [Review][Patch] Разрешить CI для PR из fork без доступа к приватному data-репозиторию [.github/workflows/main.yml:54] — workflow запускается на `pull_request`, но безусловно передаёт `secrets.ONEC_DATA_TOKEN` в checkout приватного `FREESPORT-1c-test-data`. GitHub не передаёт Actions secrets workflow из fork, поэтому такой PR падает до тестов. Нужно условно пропускать checkout данных и не запускать data-dependent/coverage gate, требующий эти данные, для fork PR.
 
+### Review Findings — follow-up CI 2026-08-15
+
+- [x] [Review][Patch] Исключить Dependabot из ветки с приватными данными [.github/workflows/main.yml:33] — условие считает Dependabot PR доверенным, потому что его head-ветка принадлежит тому же репозиторию. Однако Dependabot не получает Actions secret `ONEC_DATA_TOKEN`; checkout приватного data-репозитория снова падает до тестов. Переводить Dependabot на ветку без данных (или использовать отдельный Dependabot secret).
+- [x] [Review][Patch] Сделать все сторожа CI доступными в Docker [backend/tests/unit/test_pytest_marker_autotagging.py:636; docker/docker-compose.test.yml:78] — добавлен только mount `.github`, поэтому локальный Docker-прогон всё ещё скипает проверку `backend/pyproject.toml` и `docker/docker-compose.test.yml`. Подтверждено: два targeted test дали `ss`; инварианты coverage denominator и отсутствия `${}` не проверяются до CI.
+
 ---
 
 ## Dev Agent Record
@@ -376,6 +381,15 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - `_repo_file` в `TestCIFilters` научен второй раскладке путей (`BACKEND_ROOT/...` в дополнение к `BACKEND_ROOT.parent/...`), а в `docker-compose.test.yml` смонтирован `../.github:/app/.github:ro`. До этого весь класс `TestCIFilters` (15 тестов) локально скипался — сторожа CI жили только в CI. Каталог `.github` начинается с точки и исключён из обхода дерева в `test_*_autotagging` (`SKIPPED_DIRS`-фильтр по `startswith(".")`), так что новые монтирования разметку не ломают.
 - Валидация: `main.yml` парсится `yaml.safe_load`, тело шага тестов проходит `bash -n`; `isort`/`flake8` чисты по изменённому файлу. `black` предлагает переформатировать файл в стиль 23.11, но это **pre-existing**: тот же diff даёт версия файла из HEAD, репозиторно так же выглядят 12 файлов, а в CI `black .` запускается без `--check` и гейтом не является.
 
+**Итерация закрытия follow-up review (2026-08-15, CI):**
+
+- Finding CI-2 (Dependabot): флаг `ONEC_DATA_AVAILABLE` дополнен условием `github.actor != 'dependabot[bot]'`. Принадлежность head-ветки репозиторию Dependabot проходит (ветка `dependabot/...` живёт в самом репозитории), но секреты ему выдаются из отдельного хранилища (Settings → Secrets and variables → Dependabot), поэтому `secrets.ONEC_DATA_TOKEN` в его прогоне пустой и безусловный checkout приватного data-репо валил job. Теперь Dependabot идёт той же веткой, что PR из fork: без `data_dependent`, порог покрытия 73. Сторож `test_dependabot_pull_requests_take_the_path_without_1c_data` читает флаг из `main.yml` через `yaml.safe_load`; проверен в RED (падал с текстом фактического выражения до правки). Взят `github.actor`, а не `github.event.pull_request.user.login`: при пуше человека в ветку Dependabot секреты уже доступны, и прогон корректно уходит на полную ветку с данными.
+- Finding CI-3 (сторожа в Docker): было `82 passed, 6 skipped` по файлу сторожей — стало `90 passed, 0 skipped`. Три причины скипов закрыты по-разному: `backend/pyproject.toml` лежит **внутри** `backend/` и читается напрямую от `BACKEND_ROOT` (через `_repo_file` он резолвился от корня репо и в контейнере не находился); `docker/docker-compose.test.yml` — монтированием всего каталога `../docker:/app/docker:ro` вместо прежнего `../docker/nginx` (тест nginx-гардов от этого не пострадал, путь `/app/docker/nginx` сохранился); корневой `pytest.ini` — монтированием `../pytest.ini:/pytest.ini:ro`, что повторяет раскладку репозитория относительно `/app` и не требует правок в тестах.
+- Добавлен мета-сторож `test_test_compose_mounts_everything_the_guards_read`: разбирает `docker-compose.test.yml` и требует в volume'ах сервиса `backend` источники `../.github`, `../docker`, `../pytest.ini`. Удалённое монтирование теперь роняет тест, а не возвращает тихий скип — именно этот класс дефекта и был предметом finding'а. Проверен в RED на host-раскладке: до правки отсутствовали `../docker` и `../pytest.ini`.
+- Побочно проверено, что мета-сторож не тавтологичен: первая версия комментария к монтированию содержала литерал подстановки переменной и уронила соседний сторож `test_test_compose_has_no_variable_substitution` — то есть сторожа читают именно фактический файл.
+- `rootdir` контейнерного прогона от нового `/pytest.ini` не изменился (`rootdir: /app`, `configfile: pytest.ini`) — проверено явно, так как посторонний ini выше по дереву мог бы переопределить корень.
+- Валидация: `main.yml` парсится `yaml.safe_load`, тело шага тестов проходит `bash -n`; `flake8`/`isort` чисты по изменённому тестовому файлу. `black` предлагает переформатировать три места — все они pre-existing (диффы затрагивают только код прошлой итерации, ни одной новой строки), в CI `black` запускается без `--check` и гейтом не является.
+
 ### Completion Notes List
 
 - Файлы 1С для HTTP-обмена теперь пишутся в приватный каталог вне публичного `MEDIA_ROOT`.
@@ -406,6 +420,12 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - ✅ Resolved review finding [Patch]: PR из fork больше не падает на checkout приватного data-репо — шаг условный, а прогон без данных исключает `data_dependent` и меряет покрытие по порогу 73. Доверенный прогон (push и PR из этого же репозитория) не изменился: те же данные, тот же порог 75.
 - Побочный эффект правки тестовой инфраструктуры: `TestCIFilters` теперь исполняется и локально (раньше — 15 skip), поэтому сторожа CI-фильтров ловят опечатку в YAML до пуша.
 - Регресс: `pytest -m "unit and not slow"` — `2062 passed, 8 skipped`; `pytest -m "integration and not slow"` — `996 passed, 2 skipped, 15 subtests passed`. Прирост числа passed относительно прошлой итерации — раскрытые скипы `TestCIFilters` плюс два новых сторожа. Регрессий нет.
+
+**Закрытие follow-up review (2026-08-15, CI):**
+
+- ✅ Resolved review finding [Patch]: PR от Dependabot больше не падает на checkout приватного data-репо — флаг `ONEC_DATA_AVAILABLE` исключает `dependabot[bot]`, прогон уходит на ветку без данных с порогом 73. Альтернатива (завести токен в Dependabot-хранилище секретов) зафиксирована в `testing-standards.md`.
+- ✅ Resolved review finding [Patch]: сторожа CI-инвариантов больше не скипаются в Docker — файл сторожей даёт `90 passed, 0 skipped` (было `82 passed, 6 skipped`), а новый мета-сторож роняет прогон при удалении любого из трёх монтирований.
+- Регресс: `pytest -m "unit and not slow"` — `2030 passed, 42 skipped`; `pytest -m "integration and not slow"` — `965 passed, 33 skipped, 15 subtests passed`. Падений нет. Число скипов выше прошлой итерации (было 8 и 2) не из-за правок: на машине сейчас отсутствуют разделы `contragents/` и `units/` корпуса `backend/data/import_1c`, и все скипы — это `Реальный dataset 1С не найден`. В CI эти же тесты исполняются на данных из приватного репо.
 
 ### File List
 
@@ -449,8 +469,17 @@ GPT-5.5 (первичная реализация), Claude Opus 5 (закрыти
 - `docker/docker-compose.test.yml` [MODIFY] — монтирование `../.github` для сторожей CI-фильтров
 - `backend/docs/testing-standards.md` [MODIFY] — описание fork-ветки и второго порога покрытия
 
+Изменено при закрытии follow-up review по CI (2026-08-15):
+
+- `.github/workflows/main.yml` [MODIFY] — `ONEC_DATA_AVAILABLE` исключает `dependabot[bot]`, комментарии и notice приведены к «прогон без Actions secrets»
+- `backend/tests/unit/test_pytest_marker_autotagging.py` [MODIFY] — сторож Dependabot-ветки, мета-сторож монтирований, чтение `pyproject.toml` от `BACKEND_ROOT`
+- `docker/docker-compose.test.yml` [MODIFY] — монтирование всего `../docker` и корневого `../pytest.ini`
+- `backend/tests/unit/test_nginx_media_guards.py` [MODIFY] — комментарий о новом монтировании каталога `docker/`
+- `backend/docs/testing-standards.md` [MODIFY] — Dependabot в описании ветки прогона без данных
+
 ## Change Log
 
+- 2026-08-15: Addressed code review findings (follow-up CI) — 2 items resolved: прогон Dependabot переведён на ветку без приватных данных (`ONEC_DATA_AVAILABLE` исключает `dependabot[bot]`), сторожа CI-инвариантов стали исполняться в Docker (`90 passed, 0 skipped` вместо `82 passed, 6 skipped`) плюс мета-сторож на монтирования. Регресс: unit `2030 passed`, integration `965 passed`. Status: in-progress → review.
 - 2026-08-15: Addressed code review findings (CI) — 1 item resolved: `main.yml` больше не валит PR из fork на checkout приватного data-репо (условный шаг + ветка прогона без `data_dependent` с порогом покрытия 73). Добавлены два сторожа в `TestCIFilters`, класс сторожей CI-фильтров начал исполняться локально. Регресс: unit `2062 passed`, integration `996 passed`. Status: in-progress → review.
 - 2026-05-18: Создана Story 36.1 (bmad-create-story). Status: ready-for-dev.
 - 2026-05-19: Перенёс runtime-каталоги 1С из публичного `MEDIA_ROOT` в `ONEC_PRIVATE_DIR`, обновил оркестратор, fallback задачи, production compose и тестовое покрытие. Status: review.

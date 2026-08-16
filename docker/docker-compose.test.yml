@@ -70,12 +70,17 @@ services:
       - ../backend:/app
       # Реальные XML для 1C-импорта лежат в backend/data/import_1c
       - ../backend/data/import_1c:/app/data/import_1c
-      # Story 36.1: тест nginx-гардов /media/1c_import|1c_temp читает конфиги
-      # (в контейнер смонтирован только backend/, конфиги вне его дерева)
-      - ../docker/nginx:/app/docker/nginx:ro
-      # Story 36.1: сторожа CI-фильтров (TestCIFilters) читают workflow-файлы; без монтирования
-      # они скипаются локально и падают только в CI, где чинить их дороже
+      # Story 36.1: сторожа инвариантов читают файлы вне backend/ — в контейнер смонтирован
+      # только backend/ (как /app), поэтому всё остальное подмонтировано явно. Без этих трёх
+      # строк тесты не падают, а тихо скипаются: инвариант проверяется впервые уже в CI.
+      # docker/ — конфиги nginx (гарды /media/1c_import|1c_temp) и сам docker-compose.test.yml
+      # (сторож, запрещающий здесь подстановку переменных окружения).
+      - ../docker:/app/docker:ro
+      # .github/ — workflow-файлы для сторожей CI-фильтров (TestCIFilters).
       - ../.github:/app/.github:ro
+      # Корневой pytest.ini лежит на уровень выше backend/ — сторожа сверяют объявленные
+      # маркеры двух конфигов. Путь в контейнере повторяет раскладку репозитория: /app/../.
+      - ../pytest.ini:/pytest.ini:ro
       - test_coverage:/app/htmlcov
     depends_on:
       db:

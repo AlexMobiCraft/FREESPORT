@@ -541,8 +541,9 @@ class TestConfigConsistency:
     def _markers(self, ini_relative):
         """Маркеры, объявленные в pytest.ini.
 
-        Корневой `../pytest.ini` лежит вне `backend/`, а тест-контейнер монтирует только
-        `backend/` — там файла нет, и проверка пропускается вместо ложного падения.
+        Корневой `../pytest.ini` лежит вне `backend/`; в тест-контейнер он подмонтирован
+        как `/pytest.ini` — ровно на уровень выше `/app` (см. `docker-compose.test.yml`).
+        Скип остаётся для окружения, где файла нет вовсе, — вместо ложного падения.
         """
         path = root_conftest.BACKEND_ROOT / ini_relative
         parser = configparser.ConfigParser()
@@ -626,8 +627,9 @@ class TestCIFilters:
     ровно ничего и молча вернёт флак в PR-прогон, а `-m "performance or slwo"` так же молча
     отберёт ноль тестов в nightly. Ни pytest, ни GitHub Actions такую опечатку не заметят.
 
-    Файлы лежат вне `backend/`, а тест-контейнер монтирует только его — там проверки
-    пропускаются вместо ложного падения.
+    Файлы лежат вне `backend/`. Тест-контейнер монтирует их отдельными volume'ами
+    (см. `docker-compose.test.yml`), так что проверки исполняются и локально; скип остаётся
+    только для урезанного окружения без этих каталогов — вместо ложного падения.
     """
 
     PR_GATES = ("backend-ci.yml", "deploy.yml", "main.yml")
@@ -701,7 +703,9 @@ class TestCIFilters:
         При `--cov=.` две трети объёма приходилось на код самих тестов, и исключение любого
         теста из прогона механически понижало покрытие, не меняя покрытия продукта.
         """
-        text = self._repo_file("backend", "pyproject.toml").read_text(encoding="utf-8")
+        # Файл лежит внутри backend/ и доступен в любой раскладке — читаем напрямую, а не через
+        # `_repo_file`: тот резолвил его от корня репозитория и в тест-контейнере скипал проверку.
+        text = (root_conftest.BACKEND_ROOT / "pyproject.toml").read_text(encoding="utf-8")
         assert "[tool.coverage.run]" in text, "конфиг покрытия пропал из backend/pyproject.toml"
         for pattern in ('"*/tests/*"', '"*/test_*.py"', '"*/migrations/*"'):
             assert pattern in text, f"из omit пропал {pattern}"
@@ -714,6 +718,27 @@ class TestCIFilters:
         """
         text = self._repo_file("docker", "docker-compose.test.yml").read_text(encoding="utf-8")
         assert "${" not in text, "в docker-compose.test.yml появилась подстановка — верните --env-file в Makefile"
+
+    def test_test_compose_mounts_everything_the_guards_read(self):
+        """Сторожа обязаны исполняться и в Docker-прогоне, а не только в CI.
+
+        Тест-контейнер монтирует `backend/` как `/app`; всё, что лежит вне его дерева, обязано
+        быть подмонтировано явно, иначе `_repo_file` (и `_markers` для корневого `pytest.ini`)
+        не находит файл и тест скипается. Скип тихий: локально видно `s`, а нарушенный инвариант
+        всплывает уже красным CI. Список — репо-относительные источники volume'ов сервиса
+        `backend`, которые нужны сторожам этого модуля.
+        """
+        compose = yaml.safe_load(self._repo_file("docker", "docker-compose.test.yml").read_text(encoding="utf-8"))
+        sources = {str(entry).split(":", 1)[0] for entry in compose["services"]["backend"]["volumes"]}
+        for required, reason in (
+            ("../.github", "сторожа CI-фильтров читают .github/workflows/*.yml"),
+            ("../docker", "сторожа читают docker-compose.test.yml и конфиги nginx"),
+            ("../pytest.ini", "сторожа сверяют корневой pytest.ini с backend/pytest.ini"),
+        ):
+            assert required in sources, (
+                f"docker-compose.test.yml: пропало монтирование {required} — {reason}; "
+                "без него сторожа скипаются локально и живут только в CI"
+            )
 
     def test_main_yml_checks_out_1c_test_data(self):
         """main.yml обязан подключать приватный data-репо — без него ~32 теста скипаются.
@@ -760,6 +785,22 @@ class TestCIFilters:
         assert len(checkouts) == 1, "main.yml: ожидался ровно один шаг checkout data-репо"
         assert "ONEC_DATA_AVAILABLE" in str(checkouts[0].get("if", "")), (
             "main.yml: checkout приватного data-репо снова безусловный — PR из fork упадёт на нём"
+        )
+
+    def test_dependabot_pull_requests_take_the_path_without_1c_data(self):
+        """Dependabot тоже не получает `ONEC_DATA_TOKEN` — его PR обязан идти веткой без данных.
+
+        Проверка «head-ветка принадлежит этому же репозиторию» считает Dependabot доверенным:
+        ветка `dependabot/...` действительно живёт в самом репозитории, и сравнение репозиториев
+        даёт `true`. Но Actions secrets Dependabot'у не передаются — у него отдельное хранилище
+        (Settings → Secrets and variables → Dependabot), и `secrets.ONEC_DATA_TOKEN` приходит
+        пустым. Без явного исключения checkout приватного data-репо снова валит job до первого
+        теста, и обновления зависимостей нельзя ни проверить, ни смержить.
+        """
+        flag = str(self._main_build_job().get("env", {}).get("ONEC_DATA_AVAILABLE", ""))
+        assert "dependabot" in flag, (
+            f"main.yml: ONEC_DATA_AVAILABLE не исключает Dependabot ({flag}) — "
+            "Actions secrets ему не передаются, checkout приватного data-репо упадёт до тестов"
         )
 
     def test_coverage_gate_has_a_fork_path_without_1c_data(self):
