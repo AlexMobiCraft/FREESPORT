@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-15
+# last_updated: 2026-08-16
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -111,6 +111,16 @@ last_updated: "2026-08-15"
 #             приватных путей переведён на фактические settings. Находка про
 #             SSH host была уже исправлена коммитом 97f3e7b0. Регресс: unit
 #             2049 passed, integration 995 passed. Статус -> review.
+# 2026-08-16: Создана внеэпиковая стори infra-onec-data-dir-unification
+#             (create-story), backlog -> ready-for-dev. Канон каталога выгрузок
+#             1С — корневой data/import_1c: это вариант B задания, а не A.
+#             Решение Alex 2026-08-16 при разборе прод-пути: 1С выгружает в
+#             корневой каталог, прод остаётся как есть, меняются test/CI и
+#             резолв пути (сводится к settings.ONEC_DATA_DIR). Побочно:
+#             docker-compose.dev.yml удаляется, мёртвый backend/backend/
+#             settings.py удаляется, sync-to-public чистит оба каталога.
+#             Ручной шаг вне кода — перенастройка выгрузки 1С на dev-машине,
+#             заведён в action_items.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -201,6 +211,12 @@ development_status:
   # оптовых цен ставится ДО добавления opt4_price, чтобы контракт и типы
   # фронта регенерировались один раз. Источник: tech-debt.md п. 18.
   security-wholesale-price-visibility: done
+
+  # Инфраструктурный долг: /app/data/import_1c смонтирован из РАЗНЫХ хостовых
+  # каталогов в dev (data/), test и CI (backend/data/). Канон — корневой
+  # data/import_1c (вариант B задания, решение Alex 2026-08-16); прод не трогаем.
+  # Источник: tasks/dev-task-onec-data-dir-unification.md.
+  infra-onec-data-dir-unification: ready-for-dev
 
   # ========================================
   # Epic 40: Уровень цен клиента приходит из 1С
@@ -300,4 +316,9 @@ action_items:
   - epic: 39
     action: "Долг: frontend/src/types/api.generated.ts не импортируется приложением — регенерация не защищает от расхождения типов в рантайме"
     owner: "не назначен"
+    status: open
+  # --- Ручной шаг стори infra-onec-data-dir-unification (вне кода) ---
+  - epic: "infra-onec-data-dir-unification"
+    action: "Перенастроить выгрузку 1С (расширение БУС на dev-машине) на каталог <repo>/data/import_1c. Кодом не закрывается: пока 1С пишет в backend/data/import_1c, канон будет наполняться руками"
+    owner: "Alex"
     status: open
