@@ -6,7 +6,7 @@ import { CheckoutPageClient } from './CheckoutPageClient';
  * Оптимизированы для SEO
  */
 export const metadata: Metadata = {
-  title: 'Оформление заказа | FREESPORT',
+  title: 'Оформление заказа | OPTISPORT',
   description:
     'Оформите заказ на спортивные товары с удобной формой доставки. Быстрое оформление с автозаполнением данных.',
   robots: 'noindex, nofollow', // Checkout страницы не индексируются

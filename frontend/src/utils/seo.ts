@@ -9,9 +9,9 @@
 import type { Metadata } from 'next';
 
 export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-export const SITE_NAME = 'FREESPORT';
+export const SITE_NAME = 'OPTISPORT';
 export const OG_LOCALE = 'ru_RU';
-export const DEFAULT_OG_IMAGE = '/og-image.jpg';
+export const DEFAULT_OG_IMAGE = '/image.jpg';
 
 export interface PageSeoOptions {
   /** Заголовок страницы (он же og:title / twitter:title) */
@@ -76,12 +76,14 @@ export function buildMetadata({
   const images = image ? [image] : undefined;
   // Twitter не понимает объект с alt — для него оставляем только URL
   const twitterImages = images?.map(i => (typeof i === 'string' ? i : i.url));
-  const socialTitle = ogTitle ?? title;
-  const socialDescription = ogDescription ?? description;
+  const normalizedTitle = title.replaceAll('FREESPORT', SITE_NAME);
+  const normalizedDescription = description.replaceAll('FREESPORT', SITE_NAME);
+  const socialTitle = (ogTitle ?? title).replaceAll('FREESPORT', SITE_NAME);
+  const socialDescription = (ogDescription ?? description).replaceAll('FREESPORT', SITE_NAME);
 
   return {
-    title,
-    description,
+    title: normalizedTitle,
+    description: normalizedDescription,
     ...(keywords ? { keywords } : {}),
     alternates: { canonical },
     openGraph: {

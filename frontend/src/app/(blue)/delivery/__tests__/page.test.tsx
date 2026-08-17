@@ -38,11 +38,11 @@ describe('DeliveryPage (/delivery)', () => {
 
   describe('SEO Metadata', () => {
     it('должна иметь корректный title', () => {
-      expect(metadata.title).toBe('Доставка | FREESPORT');
+      expect(metadata.title).toBe('Доставка | OPTISPORT');
     });
 
     it('должна иметь корректное description', () => {
-      expect(metadata.description).toContain('Условия доставки FREESPORT');
+      expect(metadata.description).toContain('Условия доставки OPTISPORT');
       expect(metadata.description).toContain('Бесплатная доставка до ТК от 35 000 ₽');
       expect(metadata.description).toContain('Самовывоз со склада в Ставрополе от 1 500 ₽');
     });

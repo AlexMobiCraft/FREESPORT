@@ -12,8 +12,8 @@ import { BlogPostCard } from '@/components/home/BlogPostCard';
 import { blogService } from '@/services/blogService';
 
 export const metadata: Metadata = {
-  title: 'Блог | FREESPORT (Electric)',
-  description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT.',
+  title: 'Блог | OPTISPORT (Electric)',
+  description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов OPTISPORT.',
 };
 
 interface BlogPageProps {
@@ -51,7 +51,7 @@ export default async function ElectricBlogPage({ searchParams }: BlogPageProps) 
             <span className="inline-block transform skew-x-12">Блог</span>
           </h1>
           <p className="text-lg text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-            Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT
+            Полезные статьи о спорте, тренировках и экипировке от экспертов OPTISPORT
           </p>
         </div>
       </section>

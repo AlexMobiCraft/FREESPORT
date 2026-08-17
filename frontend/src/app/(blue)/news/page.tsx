@@ -15,8 +15,8 @@ import { newsService } from '@/services/newsService';
 import { buildMetadata } from '@/utils/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Новости | FREESPORT',
-  description: 'Новости компании FREESPORT. Акции, события, обновления каталога.',
+  title: 'Новости | OPTISPORT',
+  description: 'Новости компании OPTISPORT. Акции, события, обновления каталога.',
   path: '/news',
 });
 

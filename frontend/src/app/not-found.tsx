@@ -4,7 +4,7 @@ import Link from 'next/link';
 // Страница рендерится внутри корневого layout, поэтому своих <html>/<body> здесь быть
 // не должно — вложенный документ ломает разметку 404-ответа.
 export const metadata: Metadata = {
-  title: 'Страница не найдена | FREESPORT',
+  title: 'Страница не найдена | OPTISPORT',
   robots: { index: false, follow: false },
 };
 

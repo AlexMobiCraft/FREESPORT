@@ -39,28 +39,28 @@ export const revalidate = 3600;
 
 // SEO Metadata
 export const metadata: Metadata = {
-  title: 'FREESPORT - Спортивные товары оптом и в розницу',
+  title: 'OPTISPORT - Спортивные товары оптом и в розницу',
   description:
     'Крупнейший интернет-магазин спортивной одежды и экипировки в России. Более 10 000 товаров от ведущих брендов. Выгодные цены для B2B клиентов.',
   keywords: [
     'спортивные товары',
     'спортивная одежда',
     'оптом',
-    'FREESPORT',
+    'OPTISPORT',
     'B2B спорттовары',
     'экипировка',
   ],
   openGraph: {
-    title: 'FREESPORT - Спортивные товары оптом и в розницу',
+    title: 'OPTISPORT - Спортивные товары оптом и в розницу',
     description: 'Крупнейший интернет-магазин спортивной одежды и экипировки в России.',
     url: 'https://optisport.ru',
-    siteName: 'FREESPORT',
+    siteName: 'OPTISPORT',
     images: [
       {
-        url: '/og-image.jpg',
+        url: '/image.jpg',
         width: 1200,
         height: 630,
-        alt: 'FREESPORT',
+        alt: 'OPTISPORT',
       },
     ],
     locale: 'ru_RU',
@@ -68,9 +68,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FREESPORT - Спортивные товары',
+    title: 'OPTISPORT - Спортивные товары',
     description: 'Более 10 000 товаров от ведущих брендов',
-    images: ['/og-image.jpg'],
+    images: ['/image.jpg'],
   },
 };
 

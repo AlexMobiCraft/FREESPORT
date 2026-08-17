@@ -36,8 +36,8 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
   return buildMetadata({
     title: query ? `Поиск: ${query}` : 'Поиск товаров',
     description: query
-      ? `Результаты поиска по запросу "${query}" в магазине FREESPORT. Найдите спортивные товары по лучшим ценам.`
-      : 'Поиск спортивных товаров в магазине FREESPORT',
+      ? `Результаты поиска по запросу "${query}" в магазине OPTISPORT. Найдите спортивные товары по лучшим ценам.`
+      : 'Поиск спортивных товаров в магазине OPTISPORT',
     path: '/search',
     noIndex: true,
   });

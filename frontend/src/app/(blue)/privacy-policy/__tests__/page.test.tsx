@@ -152,7 +152,7 @@ describe('PrivacyPolicyPage (/privacy-policy)', () => {
 
     const metadata = await generateMetadata();
 
-    expect(metadata.title).toBe('Политика ПДн | FREESPORT');
-    expect(metadata.description).toBe('Правила обработки персональных данных FREESPORT');
+    expect(metadata.title).toBe('Политика ПДн | OPTISPORT');
+    expect(metadata.description).toBe('Правила обработки персональных данных OPTISPORT');
   });
 });

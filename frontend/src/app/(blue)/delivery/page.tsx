@@ -12,9 +12,9 @@ import { buildMetadata } from '@/utils/seo';
 
 // SEO Metadata
 export const metadata: Metadata = buildMetadata({
-  title: 'Доставка | FREESPORT',
+  title: 'Доставка | OPTISPORT',
   description:
-    'Условия доставки FREESPORT. Бесплатная доставка до ТК от 35 000 ₽. Самовывоз со склада в Ставрополе от 1 500 ₽.',
+    'Условия доставки OPTISPORT. Бесплатная доставка до ТК от 35 000 ₽. Самовывоз со склада в Ставрополе от 1 500 ₽.',
   path: '/delivery',
 });
 

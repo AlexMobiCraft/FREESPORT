@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: OrderDetailPageProps) {
   const { id } = await params;
 
   return {
-    title: `Заказ #${id} | FREESPORT`,
+    title: `Заказ #${id} | OPTISPORT`,
     description: 'Детальная информация о заказе',
   };
 }

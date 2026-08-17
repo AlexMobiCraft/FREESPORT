@@ -10,8 +10,8 @@ import Link from 'next/link';
 import { PasswordResetConfirmForm } from '@/components/auth/PasswordResetConfirmForm';
 
 export const metadata = {
-  title: 'Установка нового пароля | FREESPORT',
-  description: 'Установите новый пароль для вашего аккаунта FREESPORT.',
+  title: 'Установка нового пароля | OPTISPORT',
+  description: 'Установите новый пароль для вашего аккаунта OPTISPORT.',
 };
 
 interface PasswordResetConfirmPageProps {

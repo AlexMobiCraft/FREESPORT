@@ -234,7 +234,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.title).toBe('SEO заголовок статьи | Блог FREESPORT');
+      expect(metadata.title).toBe('SEO заголовок статьи | Блог OPTISPORT');
     });
 
     it('должна использовать title если meta_title отсутствует', async () => {
@@ -243,7 +243,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.title).toBe('Тестовая статья блога | Блог FREESPORT');
+      expect(metadata.title).toBe('Тестовая статья блога | Блог OPTISPORT');
     });
 
     it('должна использовать meta_description если он есть', async () => {
@@ -279,7 +279,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.openGraph?.images).toEqual(['/og-image.jpg']);
+      expect(metadata.openGraph?.images).toEqual(['/image.jpg']);
     });
 
     it('должна обрабатывать ошибку при генерации метаданных', async () => {
@@ -287,7 +287,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.title).toBe('Статья не найдена | FREESPORT');
+      expect(metadata.title).toBe('Статья не найдена | OPTISPORT');
       expect(metadata.description).toBe('Запрашиваемая статья не найдена');
     });
   });

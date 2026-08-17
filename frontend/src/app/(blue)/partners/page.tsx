@@ -19,9 +19,9 @@ import type { ProcessStep, AccordionItemData } from '@/components/ui';
 import { buildMetadata } from '@/utils/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Партнёрам — условия сотрудничества | FREESPORT',
+  title: 'Партнёрам — условия сотрудничества | OPTISPORT',
   description:
-    'Станьте партнёром FREESPORT. Оптовые поставки спортивных товаров, персональный менеджер, гибкие условия сотрудничества.',
+    'Станьте партнёром OPTISPORT. Оптовые поставки спортивных товаров, персональный менеджер, гибкие условия сотрудничества.',
   path: '/partners',
 });
 

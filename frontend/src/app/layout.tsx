@@ -17,7 +17,7 @@ const robotoCondensed = Roboto_Condensed({
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-const title = 'FREESPORT Platform | B2B/B2C спортивные товары';
+const title = 'OPTISPORT Platform | B2B/B2C спортивные товары';
 const description =
   'Ведущая платформа продаж спортивных товаров. B2B/B2C решения для тренеров, федераций и дистрибьюторов.';
 

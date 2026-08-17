@@ -11,7 +11,7 @@ import type { Metadata } from 'next';
 import { CartPage } from '@/components/cart';
 
 export const metadata: Metadata = {
-  title: 'Корзина | FREESPORT',
+  title: 'Корзина | OPTISPORT',
   description: 'Ваша корзина покупок. Просмотрите добавленные товары и оформите заказ.',
   robots: {
     index: false,

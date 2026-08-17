@@ -17,7 +17,7 @@ interface PageData {
   seo_description?: string;
 }
 
-const DEFAULT_TITLE = 'Политика обработки персональных данных | FREESPORT';
+const DEFAULT_TITLE = 'Политика обработки персональных данных | OPTISPORT';
 const PRIVACY_POLICY_ENDPOINT = '/pages/privacy-policy/';
 
 function getApiUrl(): string {

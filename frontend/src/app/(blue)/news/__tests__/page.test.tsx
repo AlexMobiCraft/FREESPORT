@@ -245,20 +245,20 @@ describe('NewsPage (/news)', () => {
 
   describe('SEO Metadata', () => {
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe('Новости | FREESPORT');
+      expect(metadata.title).toBe('Новости | OPTISPORT');
     });
 
     it('должна содержать правильный description', () => {
-      expect(metadata.description).toContain('Новости компании FREESPORT');
+      expect(metadata.description).toContain('Новости компании OPTISPORT');
       expect(metadata.description).toContain('Акции');
       expect(metadata.description).toContain('события');
     });
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('Новости | FREESPORT');
+      expect(metadata.openGraph?.title).toBe('Новости | OPTISPORT');
       expect(metadata.openGraph?.description).toBe(
-        'Новости компании FREESPORT. Акции, события, обновления каталога.'
+        'Новости компании OPTISPORT. Акции, события, обновления каталога.'
       );
     });
   });

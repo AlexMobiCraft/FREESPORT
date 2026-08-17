@@ -172,7 +172,7 @@ describe('Главная страница (/)', () => {
     it('должна содержать OpenGraph изображение', () => {
       expect(metadata.openGraph?.images).toBeDefined();
       expect(Array.isArray(metadata.openGraph?.images)).toBe(true);
-      expect(metadata.openGraph?.images).toContain('/og-image.jpg');
+      expect(metadata.openGraph?.images).toContain('/image.jpg');
     });
 
     it('должна содержать Twitter метатеги', () => {

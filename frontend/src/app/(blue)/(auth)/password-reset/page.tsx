@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { PasswordResetRequestForm } from '@/components/auth/PasswordResetRequestForm';
 
 export const metadata = {
-  title: 'Восстановление пароля | FREESPORT',
+  title: 'Восстановление пароля | OPTISPORT',
   description: 'Запросить ссылку для сброса пароля. Введите ваш email для получения инструкций.',
 };
 

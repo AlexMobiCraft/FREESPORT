@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: BlogDetailPageProps): Promise
   try {
     const post = await blogService.getBlogPostBySlug(slug);
     return buildMetadata({
-      title: `${post.meta_title || post.title} | Блог FREESPORT`,
+      title: `${post.meta_title || post.title} | Блог OPTISPORT`,
       description: post.meta_description || post.excerpt,
       ogTitle: post.meta_title || post.title,
       path: `/blog/${slug}`,
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: BlogDetailPageProps): Promise
     });
   } catch {
     return {
-      title: 'Статья не найдена | FREESPORT',
+      title: 'Статья не найдена | OPTISPORT',
       description: 'Запрашиваемая статья не найдена',
       robots: { index: false, follow: true },
     };

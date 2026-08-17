@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { PortalLinkConfirmForm } from '@/components/auth/PortalLinkConfirmForm';
 
 export const metadata = {
-  title: 'Подтверждение привязки аккаунта | FREESPORT',
+  title: 'Подтверждение привязки аккаунта | OPTISPORT',
   description: 'Подтвердите привязку регистрации к записи в 1С и задайте пароль.',
 };
 

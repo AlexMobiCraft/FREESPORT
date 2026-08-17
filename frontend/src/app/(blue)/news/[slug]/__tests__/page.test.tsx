@@ -203,7 +203,7 @@ describe('NewsDetailPage (/news/[slug])', () => {
     it('должна возвращать правильный title', async () => {
       vi.mocked(newsService.getNewsBySlug).mockResolvedValue(mockNewsItem);
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test-news' }) });
-      expect(metadata.title).toBe('Тестовая новость | Новости FREESPORT');
+      expect(metadata.title).toBe('Тестовая новость | Новости OPTISPORT');
     });
 
     it('должна возвращать excerpt как description', async () => {
@@ -224,13 +224,13 @@ describe('NewsDetailPage (/news/[slug])', () => {
       const newsWithoutImage = { ...mockNewsItem, image: null };
       vi.mocked(newsService.getNewsBySlug).mockResolvedValue(newsWithoutImage);
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test-news' }) });
-      expect(metadata.openGraph?.images).toEqual(['/og-image.jpg']);
+      expect(metadata.openGraph?.images).toEqual(['/image.jpg']);
     });
 
     it('должна обрабатывать ошибку при генерации метаданных', async () => {
       vi.mocked(newsService.getNewsBySlug).mockRejectedValue(new Error('News not found'));
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test-news' }) });
-      expect(metadata.title).toBe('Новость не найдена | FREESPORT');
+      expect(metadata.title).toBe('Новость не найдена | OPTISPORT');
       expect(metadata.description).toBe('Запрашиваемая новость не найдена');
     });
   });

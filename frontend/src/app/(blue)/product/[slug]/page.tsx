@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
 
     return buildMetadata({
-      title: `${product.name} - ${product.brand} | FREESPORT`,
+      title: `${product.name} - ${product.brand} | OPTISPORT`,
       description: product.description.substring(0, 160),
       ogTitle: product.name,
       ogDescription: product.description,
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     });
   } catch {
     return {
-      title: 'Товар не найден | FREESPORT',
+      title: 'Товар не найден | OPTISPORT',
       description: 'Запрошенный товар не найден',
       robots: { index: false, follow: true },
     };

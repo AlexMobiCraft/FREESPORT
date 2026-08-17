@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
   try {
     const news = await newsService.getNewsBySlug(slug);
     return buildMetadata({
-      title: `${news.title} | Новости FREESPORT`,
+      title: `${news.title} | Новости OPTISPORT`,
       description: news.excerpt,
       ogTitle: news.title,
       path: `/news/${slug}`,
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
     });
   } catch {
     return {
-      title: 'Новость не найдена | FREESPORT',
+      title: 'Новость не найдена | OPTISPORT',
       description: 'Запрашиваемая новость не найдена',
       robots: { index: false, follow: true },
     };

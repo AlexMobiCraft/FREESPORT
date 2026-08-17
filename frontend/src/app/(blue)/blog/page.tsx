@@ -15,8 +15,8 @@ import { blogService } from '@/services/blogService';
 import { buildMetadata } from '@/utils/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Блог | FREESPORT',
-  description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов FREESPORT.',
+  title: 'Блог | OPTISPORT',
+  description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов OPTISPORT.',
   path: '/blog',
 });
 

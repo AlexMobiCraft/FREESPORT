@@ -11,9 +11,9 @@ import { Breadcrumb } from '@/components/ui';
 import type { ProcessStep, AccordionItemData } from '@/components/ui';
 
 export const metadata: Metadata = {
-  title: 'Партнёрам — условия сотрудничества | FREESPORT (Electric)',
+  title: 'Партнёрам — условия сотрудничества | OPTISPORT (Electric)',
   description:
-    'Станьте партнёром FREESPORT. Оптовые поставки спортивных товаров, персональный менеджер, гибкие условия сотрудничества.',
+    'Станьте партнёром OPTISPORT. Оптовые поставки спортивных товаров, персональный менеджер, гибкие условия сотрудничества.',
 };
 
 // Типы клиентов (Same as Blue for now)

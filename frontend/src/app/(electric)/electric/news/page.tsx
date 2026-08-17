@@ -12,8 +12,8 @@ import { NewsCard } from '@/components/home/NewsCard';
 import { newsService } from '@/services/newsService';
 
 export const metadata: Metadata = {
-  title: 'Новости | FREESPORT (Electric)',
-  description: 'Новости компании FREESPORT. Акции, события, обновления каталога.',
+  title: 'Новости | OPTISPORT (Electric)',
+  description: 'Новости компании OPTISPORT. Акции, события, обновления каталога.',
 };
 
 interface NewsPageProps {
@@ -51,7 +51,7 @@ export default async function ElectricNewsPage({ searchParams }: NewsPageProps) 
             <span className="inline-block transform skew-x-12">Новости</span>
           </h1>
           <p className="text-lg text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-            Актуальные новости, акции и события компании FREESPORT
+            Актуальные новости, акции и события компании OPTISPORT
           </p>
         </div>
       </section>

@@ -248,7 +248,7 @@ describe('BlogPage (/blog)', () => {
 
   describe('SEO Metadata', () => {
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe('Блог | FREESPORT');
+      expect(metadata.title).toBe('Блог | OPTISPORT');
     });
 
     it('должна содержать правильный description', () => {
@@ -259,7 +259,7 @@ describe('BlogPage (/blog)', () => {
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('Блог | FREESPORT');
+      expect(metadata.openGraph?.title).toBe('Блог | OPTISPORT');
       expect(metadata.openGraph?.description).toContain('Полезные статьи о спорте');
     });
   });

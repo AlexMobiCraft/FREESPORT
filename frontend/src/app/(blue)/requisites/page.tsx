@@ -4,7 +4,7 @@ import { Breadcrumb, Card } from '@/components/ui';
 import { buildMetadata } from '@/utils/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Реквизиты | FREESPORT',
+  title: 'Реквизиты | OPTISPORT',
   description:
     'Реквизиты ООО «ФРИСПОРТ»: ИНН, КПП, ОГРН, юридический и фактический адрес, контакты.',
   path: '/requisites',

@@ -62,12 +62,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // метатегом — иначе поисковик проиндексирует soft-404 по произвольному адресу
   if (!page) {
     return {
-      title: 'Страница не найдена | FREESPORT',
+      title: 'Страница не найдена | OPTISPORT',
       robots: { index: false, follow: true },
     };
   }
   return buildMetadata({
-    title: page.seo_title || `${page.title} | FREESPORT`,
+    title: page.seo_title || `${page.title} | OPTISPORT`,
     description: page.seo_description || '',
     path: `/${page.slug}`,
   });
