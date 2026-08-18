@@ -23,6 +23,7 @@ class BannerAdmin(admin.ModelAdmin):
         "title",
         "type",
         "image_preview",
+        "is_advertisement",
         "get_is_active_display",
         "priority",
         "target_groups_display",
@@ -32,13 +33,14 @@ class BannerAdmin(admin.ModelAdmin):
     list_filter = (
         "type",
         "is_active",
+        "is_advertisement",
         "show_to_guests",
         "show_to_authenticated",
         "show_to_trainers",
         "show_to_wholesale",
         "show_to_federation",
     )
-    search_fields = ("title", "subtitle")
+    search_fields = ("title", "subtitle", "advertiser_name", "advertiser_inn")
     readonly_fields = ("created_at", "updated_at", "image_preview", "mobile_image_preview")
 
     fieldsets = (
@@ -70,6 +72,22 @@ class BannerAdmin(admin.ModelAdmin):
                     "show_to_federation",
                 ),
                 "description": ("Выберите целевые группы пользователей для показа баннера"),
+            },
+        ),
+        (
+            "Маркировка рекламы",
+            {
+                "fields": (
+                    "is_advertisement",
+                    "advertiser_name",
+                    "advertiser_inn",
+                    "erid",
+                ),
+                "description": (
+                    "Включите «Является рекламой», чтобы показать на баннере метку «Реклама» "
+                    "с реквизитами. Наименование и ИНН обязательны при включённой маркировке. "
+                    "Доступно только для маркетинговых баннеров."
+                ),
             },
         ),
         (

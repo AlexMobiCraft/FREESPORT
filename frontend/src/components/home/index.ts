@@ -14,6 +14,7 @@ export { PromoSection } from './PromoSection';
 export { CategoriesSection } from './CategoriesSection';
 export { QuickLinksSection } from './QuickLinksSection';
 export { MarketingBannersSection } from './MarketingBannersSection';
+export { AdDisclosure } from './AdDisclosure';
 export { CategoryCard } from './CategoryCard';
 export { NewsSection } from './NewsSection';
 export { BlogSection } from './BlogSection';

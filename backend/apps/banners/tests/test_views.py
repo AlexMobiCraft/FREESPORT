@@ -15,7 +15,7 @@ from django.core.cache import cache
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.banners.factories import BannerFactory
+from apps.banners.factories import AdvertisementBannerFactory, BannerFactory
 from apps.banners.models import Banner
 
 User = get_user_model()
@@ -355,3 +355,49 @@ class TestActiveBannersViewMarketingLimit:
         response = self.client.get("/api/v1/banners/", {"type": "marketing"})
         assert response.status_code == 200
         assert len(response.data) == 3
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestActiveBannersViewAdvertisementFields:
+    """Реквизиты доезжают до клиента через API, включая путь через кеш."""
+
+    def setup_method(self):
+        cache.clear()
+
+    def test_marketing_response_contains_requisites(self):
+        """GET /api/banners/?type=marketing отдаёт реквизиты рекламного баннера."""
+        AdvertisementBannerFactory(show_to_guests=True, advertiser_inn="7718933790")
+
+        response = APIClient().get("/api/v1/banners/", {"type": "marketing"})
+
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        payload = response.data[0]
+        assert payload["is_advertisement"] is True
+        assert payload["advertiser_inn"] == "7718933790"
+        assert payload["advertiser_name"]
+
+    def test_requisites_survive_cache_roundtrip(self):
+        """Второй запрос обслуживается из кеша и содержит те же поля."""
+        AdvertisementBannerFactory(show_to_guests=True, erid="2VfnxwCached")
+        client = APIClient()
+
+        first = client.get("/api/v1/banners/", {"type": "marketing"})
+        second = client.get("/api/v1/banners/", {"type": "marketing"})
+
+        assert first.data == second.data
+        assert second.data[0]["erid"] == "2VfnxwCached"
+
+    def test_non_advertisement_banner_returns_empty_requisites(self):
+        """Нерекламный баннер отдаёт пустые реквизиты — фронт скрывает метку."""
+        BannerFactory(
+            type=Banner.BannerType.MARKETING,
+            show_to_guests=True,
+        )
+
+        response = APIClient().get("/api/v1/banners/", {"type": "marketing"})
+
+        payload = response.data[0]
+        assert payload["is_advertisement"] is False
+        assert payload["advertiser_inn"] == ""

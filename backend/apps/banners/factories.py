@@ -59,6 +59,12 @@ class BannerFactory(factory.django.DjangoModelFactory):
     show_to_wholesale = False
     show_to_federation = False
 
+    # Поля маркировки рекламы - по умолчанию выключена
+    is_advertisement = False
+    advertiser_name = ""
+    advertiser_inn = ""
+    erid = ""
+
     # Поля управления
     is_active = True
     priority = 0
@@ -142,3 +148,12 @@ class MarketingBannerWithMobileImageFactory(MarketingBannerFactory):
     """Factory для маркетинговых баннеров с мобильным изображением"""
 
     mobile_image = factory.LazyFunction(generate_test_image)
+
+
+class AdvertisementBannerFactory(MarketingBannerFactory):
+    """Factory для маркетинговых баннеров с рекламной маркировкой"""
+
+    is_advertisement = True
+    advertiser_name = 'ООО "Прайм Спорт Рус"'
+    advertiser_inn = "7718933790"
+    erid = factory.LazyFunction(lambda: f"2Vfnxw{get_unique_suffix()}")

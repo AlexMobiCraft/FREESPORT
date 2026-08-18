@@ -5,11 +5,12 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlsplit
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.db import models
 from django.db.models import Q, QuerySet
 from django.utils import timezone
@@ -19,6 +20,15 @@ if TYPE_CHECKING:
 
 
 UNSAFE_CTA_SCHEMES = ("javascript:", "data:", "vbscript:")
+
+# ИНН: 10 цифр у юрлиц, 12 — у ИП и физлиц. Контрольная сумма не проверяется намеренно:
+# реквизиты вводит менеджер вручную, ложное отклонение валидного ИНН дороже опечатки.
+#
+# Класс задан как [0-9], а не \d: в Python \d для str-паттернов Unicode-aware и матчит
+# арабо-индийские и деванагари-цифры, из-за чего "١٢٣٤٥٦٧٨٩٠" прошёл бы как валидный ИНН.
+# По той же причине здесь не переиспользован CustomerIdentityResolver._validate_inn —
+# он опирается на str.isdigit(), у которого ровно тот же дефект.
+INN_PATTERN = re.compile(r"^[0-9]{10}$|^[0-9]{12}$")
 
 
 def is_safe_internal_cta_link(link: str) -> bool:
@@ -157,6 +167,43 @@ class Banner(models.Model):
         ),
     )
 
+    # Поля маркировки рекламы (ФЗ «О рекламе»)
+    is_advertisement = cast(
+        bool,
+        models.BooleanField(
+            "Является рекламой",
+            default=False,
+            help_text="Показывать на баннере метку «Реклама» с реквизитами рекламодателя",
+        ),
+    )
+    advertiser_name = cast(
+        str,
+        models.CharField(
+            "Наименование рекламодателя",
+            max_length=255,
+            blank=True,
+            help_text='Например: ООО "Прайм Спорт Рус". Обязательно, если баннер помечен как реклама',
+        ),
+    )
+    advertiser_inn = cast(
+        str,
+        models.CharField(
+            "ИНН рекламодателя",
+            max_length=12,
+            blank=True,
+            help_text="10 цифр для юрлиц, 12 — для ИП и физлиц. Обязательно, если баннер помечен как реклама",
+        ),
+    )
+    erid = cast(
+        str,
+        models.CharField(
+            "Токен ERID",
+            max_length=64,
+            blank=True,
+            help_text="Идентификатор рекламного креатива из ОРД. Необязателен",
+        ),
+    )
+
     # Поля управления
     type = cast(
         str,
@@ -222,6 +269,7 @@ class Banner(models.Model):
         Валидация модели:
         - Image обязательна для Marketing баннеров (AC2)
         - CTA ссылка должна быть безопасным внутренним относительным путём
+        - При is_advertisement=True обязательны реквизиты рекламодателя
         """
         super().clean()
 
@@ -241,6 +289,79 @@ class Banner(models.Model):
 
         if self.type == self.BannerType.MARKETING and not self.image:
             raise ValidationError({"image": "Изображение обязательно для маркетинговых баннеров."})
+
+        self._clean_advertisement_fields()
+
+    def clean_fields(self, exclude: Any = None) -> None:
+        """
+        Нормализует рекламные реквизиты до проверки полей.
+
+        Обрезка пробелов обязана происходить именно здесь: full_clean() вызывает
+        clean_fields() раньше clean(), и ИНН вида "  7718933790  " иначе отбивается
+        по max_length=12 ещё до того, как clean() успеет его нормализовать.
+        """
+        self._normalize_advertisement_fields()
+        # ModelForm._update_errors роняет ValueError, если clean() положит ошибку на поле,
+        # которого в форме нет. Запоминаем exclude, чтобы перенаправить такие ошибки.
+        self._validation_exclude = set(exclude or ())
+        super().clean_fields(exclude=exclude)
+
+    def _normalize_advertisement_fields(self) -> None:
+        """Обрезает пробелы по краям рекламных реквизитов. Идемпотентна."""
+        self.advertiser_name = self.advertiser_name.strip() if isinstance(self.advertiser_name, str) else ""
+        self.advertiser_inn = self.advertiser_inn.strip() if isinstance(self.advertiser_inn, str) else ""
+        self.erid = self.erid.strip() if isinstance(self.erid, str) else ""
+
+    def _clean_advertisement_fields(self) -> None:
+        """
+        Валидирует блок рекламной маркировки.
+
+        Обязательность реквизитов проверяется только при is_advertisement=True —
+        чтобы обычные баннеры не ломались от пустых полей.
+        """
+        self._normalize_advertisement_fields()
+
+        if not self.is_advertisement:
+            return
+
+        errors: dict[str, str] = {}
+
+        # Метка «Реклама» рисуется только в маркетинговой карусели. Молча принятый флаг
+        # на hero-баннере означал бы рекламу без обязательной по закону маркировки,
+        # поэтому лучше отказать менеджеру в момент сохранения.
+        if self.type != self.BannerType.MARKETING:
+            errors["is_advertisement"] = (
+                "Маркировка рекламы поддерживается только для маркетинговых баннеров: "
+                "на баннерах других типов метка «Реклама» не отображается."
+            )
+
+        if not self.advertiser_name:
+            errors["advertiser_name"] = "Наименование рекламодателя обязательно для рекламного баннера."
+
+        if not self.advertiser_inn:
+            errors["advertiser_inn"] = "ИНН рекламодателя обязателен для рекламного баннера."
+        elif not INN_PATTERN.match(self.advertiser_inn):
+            errors["advertiser_inn"] = "ИНН должен состоять из 10 цифр (юрлицо) или 12 цифр (ИП, физлицо)."
+
+        if errors:
+            raise ValidationError(self._route_errors_around_exclude(errors))
+
+    def _route_errors_around_exclude(self, errors: dict[str, str]) -> dict[str, list[str]] | dict[str, str]:
+        """
+        Перенаправляет ошибки исключённых полей в NON_FIELD_ERRORS.
+
+        Без этого частичная ModelForm (inline, list_editable, кастомная форма без
+        рекламных полей) получала бы ValueError вместо ошибки валидации.
+        """
+        excluded = getattr(self, "_validation_exclude", None)
+        if not excluded:
+            return errors
+
+        routed: dict[str, list[str]] = {}
+        for field, message in errors.items():
+            key = NON_FIELD_ERRORS if field in excluded else field
+            routed.setdefault(key, []).append(message)
+        return routed
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Вызывает full_clean() перед сохранением для обеспечения валидации."""

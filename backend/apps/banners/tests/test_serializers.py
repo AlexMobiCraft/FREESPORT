@@ -7,7 +7,7 @@
 
 import pytest
 
-from apps.banners.factories import BannerFactory
+from apps.banners.factories import AdvertisementBannerFactory, BannerFactory
 from apps.banners.models import Banner
 from apps.banners.serializers import BannerSerializer
 
@@ -56,3 +56,75 @@ class TestBannerSerializerTypeField:
         assert serializer.is_valid(), serializer.errors
         # type не должен измениться — поле read-only
         assert serializer.validated_data.get("type") is None
+
+
+@pytest.mark.django_db
+class TestBannerSerializerAdvertisementFields:
+    """Реквизиты рекламодателя доступны фронту тем же запросом /api/banners/."""
+
+    AD_FIELDS = ("is_advertisement", "advertiser_name", "advertiser_inn", "erid")
+
+    def test_advertisement_fields_present_in_output(self):
+        """Все четыре поля маркировки присутствуют в ответе сериализатора."""
+        banner = AdvertisementBannerFactory()
+        data = BannerSerializer(banner).data
+        for field in self.AD_FIELDS:
+            assert field in data
+
+    def test_advertisement_values_serialized(self):
+        """Значения реквизитов отдаются как есть."""
+        banner = AdvertisementBannerFactory(
+            advertiser_name='ООО "Прайм Спорт Рус"',
+            advertiser_inn="7718933790",
+            erid="2VfnxwTestToken",
+        )
+        data = BannerSerializer(banner).data
+        assert data["is_advertisement"] is True
+        assert data["advertiser_name"] == 'ООО "Прайм Спорт Рус"'
+        assert data["advertiser_inn"] == "7718933790"
+        assert data["erid"] == "2VfnxwTestToken"
+
+    def test_regular_banner_returns_empty_requisites(self):
+        """Нерекламный баннер отдаёт False и пустые строки — фронт скрывает метку."""
+        banner = BannerFactory()
+        data = BannerSerializer(banner).data
+        assert data["is_advertisement"] is False
+        assert data["advertiser_name"] == ""
+        assert data["advertiser_inn"] == ""
+        assert data["erid"] == ""
+
+    def test_advertisement_fields_ignored_on_input(self):
+        """Поля маркировки не принимаются на запись: проверяем поведение, а не константу."""
+        banner = AdvertisementBannerFactory()
+        serializer = BannerSerializer(
+            banner,
+            data={"advertiser_inn": "0000000000", "erid": "hacked", "is_advertisement": False},
+            partial=True,
+        )
+        assert serializer.is_valid(), serializer.errors
+        for field in self.AD_FIELDS:
+            assert serializer.validated_data.get(field) is None
+
+    def test_requisites_suppressed_when_flag_disabled(self):
+        """Реквизиты гасятся, если галочка снята, но данные остались в БД.
+
+        ИНН ИП или физлица — персональные данные: в публичном ответе гостям их быть
+        не должно, когда баннер уже не рекламный.
+        """
+        banner = AdvertisementBannerFactory()
+        # Обходим full_clean: воспроизводим состояние «галочку сняли, реквизиты остались»
+        Banner.objects.filter(pk=banner.pk).update(is_advertisement=False)
+        banner.refresh_from_db()
+
+        data = BannerSerializer(banner).data
+
+        assert data["is_advertisement"] is False
+        assert data["advertiser_name"] == ""
+        assert data["advertiser_inn"] == ""
+        assert data["erid"] == ""
+
+    def test_requisites_present_while_flag_enabled(self):
+        """При включённой маркировке реквизиты не гасятся."""
+        banner = AdvertisementBannerFactory(advertiser_inn="7718933790")
+        data = BannerSerializer(banner).data
+        assert data["advertiser_inn"] == "7718933790"

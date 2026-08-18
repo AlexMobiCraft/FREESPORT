@@ -36,6 +36,10 @@ class BannerSerializer(serializers.ModelSerializer):
             "image_alt",
             "cta_text",
             "cta_link",
+            "is_advertisement",
+            "advertiser_name",
+            "advertiser_inn",
+            "erid",
         )
         read_only_fields = (
             "id",
@@ -47,7 +51,26 @@ class BannerSerializer(serializers.ModelSerializer):
             "image_alt",
             "cta_text",
             "cta_link",
+            "is_advertisement",
+            "advertiser_name",
+            "advertiser_inn",
+            "erid",
         )
+
+    def to_representation(self, instance: Banner) -> dict:
+        """
+        Скрывает реквизиты рекламодателя у нерекламных баннеров.
+
+        Поля остаются в контракте (состав ключей не меняется), но значения гасятся:
+        после снятия галочки «Является рекламой» реквизиты остаются в БД, а ИНН ИП или
+        физлица — персональные данные, которым нечего делать в публичном ответе гостям.
+        """
+        data = super().to_representation(instance)
+        if not instance.is_advertisement:
+            data["advertiser_name"] = ""
+            data["advertiser_inn"] = ""
+            data["erid"] = ""
+        return data
 
     def get_image_url(self, obj: Banner) -> str:
         """

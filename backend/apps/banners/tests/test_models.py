@@ -12,12 +12,12 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-from django.core.exceptions import ValidationError
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.db import IntegrityError
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.banners.factories import BannerFactory, generate_test_image
+from apps.banners.factories import AdvertisementBannerFactory, BannerFactory, generate_test_image
 from apps.banners.models import Banner, is_safe_internal_cta_link
 
 
@@ -347,3 +347,116 @@ class TestGetForUserTemporalFiltering:
         with patch("apps.banners.models.timezone.now", return_value=now):
             qs = Banner.get_for_user(None)
             assert qs.count() == 1
+
+
+@pytest.mark.django_db
+class TestBannerAdvertisementFields:
+    """Маркировка рекламы: обязательность и формат реквизитов при is_advertisement=True."""
+
+    def test_regular_banner_has_advertisement_disabled_by_default(self):
+        """Обычный баннер создаётся без маркировки и с пустыми реквизитами."""
+        banner = BannerFactory()
+        assert banner.is_advertisement is False
+        assert banner.advertiser_name == ""
+        assert banner.advertiser_inn == ""
+        assert banner.erid == ""
+
+    def test_regular_banner_ignores_empty_requisites(self):
+        """Пустые реквизиты не мешают сохранить нерекламный баннер."""
+        banner = BannerFactory(is_advertisement=False, advertiser_name="", advertiser_inn="")
+        banner.full_clean()  # не должно бросать
+
+    def test_advertisement_banner_with_valid_requisites(self):
+        """Рекламный баннер с корректными реквизитами сохраняется."""
+        banner = AdvertisementBannerFactory()
+        assert banner.is_advertisement is True
+        assert banner.advertiser_inn == "7718933790"
+        assert banner.advertiser_name
+
+    def test_missing_advertiser_name_raises(self):
+        """Пустое наименование рекламодателя блокирует сохранение."""
+        with pytest.raises(ValidationError) as exc:
+            AdvertisementBannerFactory(advertiser_name="")
+        assert "advertiser_name" in exc.value.message_dict
+
+    def test_missing_advertiser_inn_raises(self):
+        """Пустой ИНН блокирует сохранение."""
+        with pytest.raises(ValidationError) as exc:
+            AdvertisementBannerFactory(advertiser_inn="")
+        assert "advertiser_inn" in exc.value.message_dict
+
+    @pytest.mark.parametrize("bad_inn", ["12345", "771893379", "77189337901", "abcdefghij"])
+    def test_invalid_inn_format_raises(self, bad_inn):
+        """ИНН неверной длины или с нецифровыми символами отклоняется."""
+        with pytest.raises(ValidationError) as exc:
+            AdvertisementBannerFactory(advertiser_inn=bad_inn)
+        assert "advertiser_inn" in exc.value.message_dict
+
+    @pytest.mark.parametrize("good_inn", ["7718933790", "771893379012"])
+    def test_valid_inn_lengths_accepted(self, good_inn):
+        """ИНН из 10 (юрлицо) и 12 (ИП/физлицо) цифр принимается."""
+        banner = AdvertisementBannerFactory(advertiser_inn=good_inn)
+        assert banner.advertiser_inn == good_inn
+
+    def test_requisites_are_stripped(self):
+        """Пробелы по краям реквизитов обрезаются при сохранении."""
+        banner = AdvertisementBannerFactory(
+            advertiser_name="  ООО Тест  ",
+            advertiser_inn="  7718933790  ",
+            erid="  2Vfnxabc  ",
+        )
+        assert banner.advertiser_name == "ООО Тест"
+        assert banner.advertiser_inn == "7718933790"
+        assert banner.erid == "2Vfnxabc"
+
+    def test_erid_is_optional_for_advertisement(self):
+        """Пустой ERID допустим — токен присваивается ОРД не всегда сразу."""
+        banner = AdvertisementBannerFactory(erid="")
+        assert banner.erid == ""
+        assert banner.is_advertisement is True
+
+
+@pytest.mark.django_db
+class TestBannerAdvertisementTypeGuard:
+    """Маркировка допустима только у маркетинговых баннеров."""
+
+    def test_hero_banner_rejects_advertisement_flag(self):
+        """Флаг на hero-баннере блокируется: метка там не рисуется, реклама была бы без маркировки."""
+        with pytest.raises(ValidationError) as exc:
+            AdvertisementBannerFactory(type=Banner.BannerType.HERO)
+        assert "is_advertisement" in exc.value.message_dict
+
+    def test_marketing_banner_accepts_advertisement_flag(self):
+        """Маркетинговый баннер с маркировкой сохраняется штатно."""
+        banner = AdvertisementBannerFactory(type=Banner.BannerType.MARKETING)
+        assert banner.is_advertisement is True
+
+    def test_hero_banner_without_flag_unaffected(self):
+        """Обычный hero-баннер новой проверкой не затронут."""
+        banner = BannerFactory(type=Banner.BannerType.HERO)
+        assert banner.is_advertisement is False
+
+    def test_inn_rejects_non_ascii_digits(self):
+        """Арабо-индийские цифры не ИНН: класс задан как [0-9], а не через Unicode-aware шорткат."""
+        with pytest.raises(ValidationError) as exc:
+            AdvertisementBannerFactory(advertiser_inn="١٢٣٤٥٦٧٨٩٠")
+        assert "advertiser_inn" in exc.value.message_dict
+
+    def test_inn_longer_than_max_length_rejected(self):
+        """ИНН длиннее 12 символов отклоняется (проверка max_length поля)."""
+        with pytest.raises(ValidationError) as exc:
+            AdvertisementBannerFactory(advertiser_inn="7718933790123")
+        assert "advertiser_inn" in exc.value.message_dict
+
+    def test_excluded_field_errors_routed_to_non_field(self):
+        """Ошибка по полю вне формы уходит в NON_FIELD_ERRORS, а не роняет ModelForm."""
+        banner = BannerFactory.build(
+            type=Banner.BannerType.MARKETING,
+            is_advertisement=True,
+            advertiser_name="",
+            advertiser_inn="",
+        )
+        with pytest.raises(ValidationError) as exc:
+            banner.full_clean(exclude={"advertiser_name", "advertiser_inn", "image"})
+        assert NON_FIELD_ERRORS in exc.value.message_dict
+        assert "advertiser_name" not in exc.value.message_dict

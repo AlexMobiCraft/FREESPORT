@@ -69,6 +69,10 @@ describe('HeroSection Component', () => {
           image_alt: 'Test banner',
           cta_text: 'Shop now',
           cta_link: '/catalog',
+          is_advertisement: false,
+          advertiser_name: '',
+          advertiser_inn: '',
+          erid: '',
         },
       ]);
 
@@ -103,6 +107,10 @@ describe('HeroSection Component', () => {
           image_alt: 'First banner',
           cta_text: 'Click here',
           cta_link: '/first',
+          is_advertisement: false,
+          advertiser_name: '',
+          advertiser_inn: '',
+          erid: '',
         },
         {
           id: 2,
@@ -114,6 +122,10 @@ describe('HeroSection Component', () => {
           image_alt: 'Second banner',
           cta_text: 'Click there',
           cta_link: '/second',
+          is_advertisement: false,
+          advertiser_name: '',
+          advertiser_inn: '',
+          erid: '',
         },
       ]);
 
@@ -351,6 +363,10 @@ describe('HeroSection Component', () => {
           image_alt: 'Test banner',
           cta_text: 'Click here',
           cta_link: '/custom-link',
+          is_advertisement: false,
+          advertiser_name: '',
+          advertiser_inn: '',
+          erid: '',
         },
       ]);
 
@@ -407,6 +423,10 @@ describe('HeroSection Component', () => {
           image_alt: 'Test banner alt text',
           cta_text: 'Click here',
           cta_link: '/test',
+          is_advertisement: false,
+          advertiser_name: '',
+          advertiser_inn: '',
+          erid: '',
         },
       ]);
 
