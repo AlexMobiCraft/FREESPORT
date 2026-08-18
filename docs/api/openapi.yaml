@@ -2087,6 +2087,10 @@ paths:
                       image_alt: Баннер новой коллекции
                       cta_text: Перейти в каталог
                       cta_link: /catalog
+                      is_advertisement: false
+                      advertiser_name: ''
+                      advertiser_inn: ''
+                      erid: ''
                     - id: 2
                       type: marketing
                       title: Специальные цены для оптовиков
@@ -2096,6 +2100,10 @@ paths:
                       image_alt: Баннер оптовых цен
                       cta_text: Узнать больше
                       cta_link: /wholesale
+                      is_advertisement: true
+                      advertiser_name: ООО "Прайм Спорт Рус"
+                      advertiser_inn: '7718933790'
+                      erid: 2VfnxwPqRs7
                   summary: Успешный ответ
                   description: Список активных баннеров для пользователя
           description: ''
@@ -2456,12 +2464,38 @@ components:
           readOnly: true
           title: Ссылка кнопки
           description: URL для перехода по клику
+        is_advertisement:
+          type: boolean
+          readOnly: true
+          title: Является рекламой
+          description: Показывать на баннере метку «Реклама» с реквизитами рекламодателя
+        advertiser_name:
+          type: string
+          readOnly: true
+          title: Наименование рекламодателя
+          description: 'Например: ООО "Прайм Спорт Рус". Обязательно, если баннер
+            помечен как реклама'
+        advertiser_inn:
+          type: string
+          readOnly: true
+          title: ИНН рекламодателя
+          description: 10 цифр для юрлиц, 12 — для ИП и физлиц. Обязательно, если
+            баннер помечен как реклама
+        erid:
+          type: string
+          readOnly: true
+          title: Токен ERID
+          description: Идентификатор рекламного креатива из ОРД. Необязателен
       required:
+      - advertiser_inn
+      - advertiser_name
       - cta_link
       - cta_text
+      - erid
       - id
       - image_alt
       - image_url
+      - is_advertisement
       - mobile_image_url
       - subtitle
       - title

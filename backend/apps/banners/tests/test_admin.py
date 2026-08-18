@@ -89,3 +89,37 @@ class TestBannerAdminFieldsets:
         for _, options in admin.fieldsets:
             all_fields.extend(cast(Any, options["fields"]))
         assert "type" in all_fields
+
+
+@pytest.mark.unit
+class TestBannerAdminAdvertisementFields:
+    """Fieldset «Маркировка рекламы» и видимость флага в списке."""
+
+    def _all_fields(self) -> list[str]:
+        admin = BannerAdmin(Banner, AdminSite())
+        fields: list[str] = []
+        for _, options in admin.fieldsets:
+            fields.extend(cast(Any, options["fields"]))
+        return fields
+
+    @pytest.mark.parametrize("field", ["is_advertisement", "advertiser_name", "advertiser_inn", "erid"])
+    def test_advertisement_field_in_fieldsets(self, field):
+        """Все четыре поля маркировки доступны в форме админки."""
+        assert field in self._all_fields()
+
+    def test_advertisement_fieldset_present(self):
+        """Отдельная секция «Маркировка рекламы» существует."""
+        admin = BannerAdmin(Banner, AdminSite())
+        titles = [title for title, _ in admin.fieldsets]
+        assert "Маркировка рекламы" in titles
+
+    def test_is_advertisement_visible_in_list(self):
+        """Флаг с юридическими последствиями виден в списке, а не только в фильтре."""
+        admin = BannerAdmin(Banner, AdminSite())
+        assert "is_advertisement" in admin.list_display
+        assert "is_advertisement" in admin.list_filter
+
+    def test_advertiser_name_searchable(self):
+        """По рекламодателю можно искать — иначе не найти его баннеры при проверке."""
+        admin = BannerAdmin(Banner, AdminSite())
+        assert "advertiser_name" in admin.search_fields

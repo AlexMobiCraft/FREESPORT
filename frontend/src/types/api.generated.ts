@@ -1347,6 +1347,26 @@ export interface components {
        * @description URL для перехода по клику
        */
       readonly cta_link: string;
+      /**
+       * Является рекламой
+       * @description Показывать на баннере метку «Реклама» с реквизитами рекламодателя
+       */
+      readonly is_advertisement: boolean;
+      /**
+       * Наименование рекламодателя
+       * @description Например: ООО "Прайм Спорт Рус". Обязательно, если баннер помечен как реклама
+       */
+      readonly advertiser_name: string;
+      /**
+       * ИНН рекламодателя
+       * @description 10 цифр для юрлиц, 12 — для ИП и физлиц. Обязательно, если баннер помечен как реклама
+       */
+      readonly advertiser_inn: string;
+      /**
+       * Токен ERID
+       * @description Идентификатор рекламного креатива из ОРД. Необязателен
+       */
+      readonly erid: string;
     };
     /** @description Сводка по бонусному счёту тренера. */
     BonusSummary: {

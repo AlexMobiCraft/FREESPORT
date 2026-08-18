@@ -14,6 +14,7 @@ import React, { useState, useEffect, useCallback, Component } from 'react';
 import Link from 'next/link';
 import bannersService from '@/services/bannersService';
 import { useBannerCarousel } from '@/hooks/useBannerCarousel';
+import { AdDisclosure } from './AdDisclosure';
 import type { Banner } from '@/types/banners';
 
 // ---------------------------------------------------------------------------
@@ -106,13 +107,14 @@ const MarketingBannersCarousel: React.FC = () => {
   const visibleBanners = banners.filter(b => !failedImages.has(b.id));
   const shouldAnimate = visibleBanners.length > 1;
 
-  const { emblaRef, selectedIndex, onDotButtonClick } = useBannerCarousel({
-    loop: shouldAnimate,
-    autoplay: shouldAnimate,
-    autoplayDelay: MARKETING_BANNER_AUTOPLAY_DELAY,
-    stopOnInteraction: false,
-    stopOnMouseEnter: true,
-  });
+  const { emblaRef, selectedIndex, onDotButtonClick, pauseAutoplay, resumeAutoplay } =
+    useBannerCarousel({
+      loop: shouldAnimate,
+      autoplay: shouldAnimate,
+      autoplayDelay: MARKETING_BANNER_AUTOPLAY_DELAY,
+      stopOnInteraction: false,
+      stopOnMouseEnter: true,
+    });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -139,6 +141,19 @@ const MarketingBannersCarousel: React.FC = () => {
       controller.abort();
     };
   }, []);
+
+  // stopOnMouseEnter покрывает только мышь: при открытии тапом или с клавиатуры слайд
+  // уезжал бы через 3 секунды вместе с реквизитами, которые пользователь обязан успеть прочесть
+  const handleDisclosureOpenChange = useCallback(
+    (isDisclosureOpen: boolean) => {
+      if (isDisclosureOpen) {
+        pauseAutoplay();
+      } else {
+        resumeAutoplay();
+      }
+    },
+    [pauseAutoplay, resumeAutoplay]
+  );
 
   const handleImageError = useCallback((bannerId: number) => {
     setFailedImages(prev => {
@@ -171,7 +186,7 @@ const MarketingBannersCarousel: React.FC = () => {
     >
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className="flex">
-          {visibleBanners.map(banner => {
+          {visibleBanners.map((banner, index) => {
             const picture = (
               <picture>
                 {banner.mobile_image_url && (
@@ -188,6 +203,10 @@ const MarketingBannersCarousel: React.FC = () => {
                 />
               </picture>
             );
+
+            // Embla держит все слайды в DOM. inert вешаем только на метку рекламы, а не на
+            // весь слайд: слайд целиком выпал бы из a11y-дерева вместе со ссылкой баннера.
+            const isVisibleSlide = index === selectedIndex;
 
             return (
               <div className="flex-[0_0_100%] min-w-0 relative" key={banner.id}>
@@ -206,6 +225,19 @@ const MarketingBannersCarousel: React.FC = () => {
                   >
                     {picture}
                   </div>
+                )}
+
+                {/* Маркировка рекламы — сосед ссылки, а не потомок: вложенные
+                    интерактивные элементы недопустимы и уводили бы на cta_link */}
+                {banner.is_advertisement && (
+                  <AdDisclosure
+                    advertiserName={banner.advertiser_name}
+                    advertiserInn={banner.advertiser_inn}
+                    erid={banner.erid}
+                    onOpenChange={handleDisclosureOpenChange}
+                    inert={!isVisibleSlide}
+                    className="absolute right-0 top-1/2 z-10 -translate-y-1/2"
+                  />
                 )}
               </div>
             );

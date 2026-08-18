@@ -74,6 +74,8 @@ vi.mock('@/hooks/useBannerCarousel', () => ({
     scrollPrev: vi.fn(),
     onDotButtonClick: mockOnDotButtonClick,
     scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
   })),
 }));
 
@@ -95,6 +97,10 @@ const mockMarketingBanners: Banner[] = [
     image_alt: 'Летняя распродажа баннер',
     cta_text: 'Купить со скидкой',
     cta_link: '/catalog?sale=summer',
+    is_advertisement: false,
+    advertiser_name: '',
+    advertiser_inn: '',
+    erid: '',
   },
   {
     id: 11,
@@ -106,6 +112,10 @@ const mockMarketingBanners: Banner[] = [
     image_alt: 'Коллекция кроссовок',
     cta_text: 'Смотреть коллекцию',
     cta_link: '/catalog/sneakers',
+    is_advertisement: false,
+    advertiser_name: '',
+    advertiser_inn: '',
+    erid: '',
   },
 ];
 
@@ -121,6 +131,10 @@ const threeBanners: Banner[] = [
     image_alt: 'Зимний сезон баннер',
     cta_text: 'Смотреть',
     cta_link: '/catalog/winter',
+    is_advertisement: false,
+    advertiser_name: '',
+    advertiser_inn: '',
+    erid: '',
   },
 ];
 
@@ -144,6 +158,8 @@ describe('MarketingBannersSection', () => {
       scrollPrev: vi.fn(),
       onDotButtonClick: mockOnDotButtonClick,
       scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
     });
   });
 
@@ -290,6 +306,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -319,6 +337,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -348,6 +368,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -377,6 +399,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -406,6 +430,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -435,6 +461,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -540,6 +568,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -580,6 +610,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -669,6 +701,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       const { container } = render(<MarketingBannersSection />);
@@ -697,6 +731,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -732,6 +768,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -830,6 +868,8 @@ describe('MarketingBannersSection', () => {
         scrollPrev: vi.fn(),
         onDotButtonClick: mockOnDotButtonClick,
         scrollTo: vi.fn(),
+    pauseAutoplay: vi.fn(),
+    resumeAutoplay: vi.fn(),
       });
 
       render(<MarketingBannersSection />);
@@ -871,5 +911,74 @@ describe('MarketingBannersSection', () => {
   // -------------------------------------------------------------------------
   it('должен иметь displayName', () => {
     expect(MarketingBannersSection.displayName).toBe('MarketingBannersSection');
+  });
+
+  // -------------------------------------------------------------------------
+  // Маркировка рекламы
+  // -------------------------------------------------------------------------
+  describe('Маркировка рекламы', () => {
+    const advertisementBanner: Banner[] = [
+      {
+        ...mockMarketingBanners[0],
+        is_advertisement: true,
+        advertiser_name: 'ООО "Прайм Спорт Рус"',
+        advertiser_inn: '7718933790',
+        erid: '2VfnxwTestToken',
+      },
+    ];
+
+    it('должен рендерить метку «Реклама» при is_advertisement=true', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(advertisementBanner);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('ad-disclosure-trigger')).toBeInTheDocument();
+    });
+
+    it('не должен рендерить метку при is_advertisement=false', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(mockMarketingBanners);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('marketing-banners-section')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('ad-disclosure-trigger')).not.toBeInTheDocument();
+    });
+
+    it('должен раскрывать реквизиты рекламодателя по наведению', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(advertisementBanner);
+
+      render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ad-disclosure')).toBeInTheDocument();
+      });
+
+      fireEvent.pointerEnter(screen.getByTestId('ad-disclosure'), { pointerType: 'mouse' });
+
+      expect(screen.getByTestId('ad-disclosure-panel')).toHaveTextContent(
+        'ИНН 7718933790, ООО "Прайм Спорт Рус"'
+      );
+    });
+
+    it('должен держать метку вне ссылки баннера, чтобы клик не уводил на cta_link', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue(advertisementBanner);
+
+      const { container } = render(<MarketingBannersSection />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('ad-disclosure')).toBeInTheDocument();
+      });
+
+      const link = container.querySelector('a[href="/catalog?sale=summer"]');
+      expect(link).not.toBeNull();
+      expect(link?.contains(screen.getByTestId('ad-disclosure'))).toBe(false);
+    });
   });
 });

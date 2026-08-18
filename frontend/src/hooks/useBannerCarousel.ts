@@ -66,6 +66,16 @@ export interface UseBannerCarouselReturn {
   onDotButtonClick: (index: number) => void;
   /** Прокрутить к слайду по индексу (прямой API) */
   scrollTo: (index: number) => void;
+  /**
+   * Приостановить автопрокрутку вручную.
+   *
+   * Опция stopOnMouseEnter покрывает только мышь: тап и клавиатура автопрокрутку
+   * не останавливают, а при stopOnInteraction=false её не останавливает и свайп.
+   * Нужно, когда поверх слайда открыт контент, который пользователь читает.
+   */
+  pauseAutoplay: () => void;
+  /** Возобновить автопрокрутку после pauseAutoplay */
+  resumeAutoplay: () => void;
 }
 
 /**
@@ -299,6 +309,22 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     }
   }, [emblaApi, autoplay]);
 
+  const pauseAutoplay = useCallback(() => {
+    if (!emblaApi || !autoplay) return;
+
+    try {
+      const plugins = emblaApi.plugins();
+      if (!plugins || typeof plugins.autoplay !== 'object') return;
+
+      const autoplayPlugin = plugins.autoplay;
+      if (typeof autoplayPlugin.stop === 'function' && autoplayPlugin.isPlaying()) {
+        autoplayPlugin.stop();
+      }
+    } catch {
+      // Плагин может быть ещё не инициализирован — молча игнорируем, как и в startAutoplay
+    }
+  }, [emblaApi, autoplay]);
+
   useEffect(() => {
     startAutoplay();
 
@@ -330,5 +356,7 @@ export function useBannerCarousel(options: UseBannerCarouselOptions = {}): UseBa
     scrollPrev,
     onDotButtonClick: safeScrollTo,
     scrollTo: safeScrollTo,
+    pauseAutoplay,
+    resumeAutoplay: startAutoplay,
   };
 }

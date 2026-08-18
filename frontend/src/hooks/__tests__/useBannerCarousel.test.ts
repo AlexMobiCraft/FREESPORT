@@ -1230,7 +1230,7 @@ describe('useBannerCarousel', () => {
       expect(typeof result.current.scrollTo).toBe('function');
     });
 
-    it('should have all 9 properties in the return object', () => {
+    it('should have all 11 properties in the return object', () => {
       const { result } = renderHook(() => useBannerCarousel());
 
       const keys = Object.keys(result.current);
@@ -1243,7 +1243,9 @@ describe('useBannerCarousel', () => {
       expect(keys).toContain('scrollPrev');
       expect(keys).toContain('onDotButtonClick');
       expect(keys).toContain('scrollTo');
-      expect(keys).toHaveLength(9);
+      expect(keys).toContain('pauseAutoplay');
+      expect(keys).toContain('resumeAutoplay');
+      expect(keys).toHaveLength(11);
     });
   });
 
