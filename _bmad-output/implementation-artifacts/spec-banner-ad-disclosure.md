@@ -75,7 +75,7 @@ context: ['{project-root}/project-context.md']
 - [x] `backend/apps/banners/factories.py` — `AdvertisementBannerFactory` на базе `MarketingBannerFactory` с валидными реквизитами для тестов.
 - [x] `backend/apps/banners/tests/test_models.py`, `tests/test_serializers.py` — покрыть строки матрицы «Сохранение без реквизитов», «Некорректный ИНН», «Обычный баннер» и наличие полей в ответе сериализатора.
 - [x] `frontend/src/types/banners.ts` — расширить интерфейс `Banner` полями `is_advertisement: boolean`, `advertiser_name: string`, `advertiser_inn: string`, `erid: string`.
-- [x] `frontend/src/components/home/AdDisclosure.tsx` — новый клиентский компонент: вертикальная метка «РЕКЛАМА» (`writing-mode: vertical-rl`) + тёмное всплывающее окно с реквизитами и копированием ERID; вся логика открытия/закрытия и clipboard внутри.
+- [x] `frontend/src/components/home/AdDisclosure.tsx` — новый клиентский компонент: вертикальная метка «РЕКЛАМА» (`writing-mode: vertical-rl` + разворот текста на 180°, чтение снизу вверх) + тёмное всплывающее окно с реквизитами и копированием ERID; вся логика открытия/закрытия и clipboard внутри.
 - [x] `frontend/src/components/home/MarketingBannersSection.tsx` — рендерить `<AdDisclosure>` соседом `<Link>` внутри слайда при `banner.is_advertisement`, поверх картинки (`absolute`, правый край, `z-10`).
 - [x] `frontend/src/components/home/__tests__/AdDisclosure.test.tsx` — покрыть строки матрицы «Рекламный баннер», «ERID не заполнен», «Копирование токена», «Клавиатура», включая отказ Clipboard API.
 - [x] `frontend/src/components/home/__tests__/MarketingBannersSection.test.tsx` — добавить кейсы: метка есть при `is_advertisement=true`, отсутствует при `false`.
@@ -107,7 +107,7 @@ context: ['{project-root}/project-context.md']
 
 ## Design Notes
 
-Метка позиционируется абсолютно у правого края слайда, текст повёрнут через `writing-mode: vertical-rl`; окно раскрывается влево от метки, чтобы не выходить за границу карусели:
+Метка позиционируется абсолютно у правого края слайда, текст повёрнут через `writing-mode: vertical-rl` и развёрнут на 180° (`rotate-180` на самой надписи, не на кнопке — иначе уезжает скругление), поэтому читается снизу вверх; окно раскрывается влево от метки, чтобы не выходить за границу карусели:
 
 ```tsx
 <div className="flex-[0_0_100%] min-w-0 relative">

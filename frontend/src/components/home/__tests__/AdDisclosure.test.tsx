@@ -57,6 +57,17 @@ describe('AdDisclosure', () => {
       expect(screen.queryByTestId('ad-disclosure-panel')).not.toBeInTheDocument();
     });
 
+    // Направление чтения — требование к маркировке, а не оформление: без этой проверки
+    // разворот молча переживёт любой рефакторинг разметки кнопки (jsdom не считает
+    // Tailwind-стили, поэтому фиксируем сам класс)
+    it('разворачивает надпись на 180° — метка читается снизу вверх', () => {
+      render(<AdDisclosure {...REQUISITES} />);
+
+      const label = screen.getByTestId('ad-disclosure-label');
+      expect(label).toHaveClass('rotate-180');
+      expect(screen.getByTestId('ad-disclosure-trigger')).toContainElement(label);
+    });
+
     it('показывает реквизиты при наведении мышью', () => {
       render(<AdDisclosure {...REQUISITES} />);
 
