@@ -732,3 +732,25 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-optisport-header-logo.md`
   summary: У компонента `ElectricHeader.tsx` нет ни одного теста, тогда как для `Header.tsx`, `Footer.tsx`, `ProfileLayout.tsx` и `CookieConsentBanner.tsx` тесты есть.
   evidence: В `frontend/src/components/layout/__tests__/` четыре файла, ElectricHeader среди них отсутствует. При замене логотипа правка в этом компоненте не была ничем прикрыта — регрессию поймал только ручной анализ, автоматической защиты нет. Пресуществующий пробел, не вызван этой стори.
+
+## Deferred from: code review of spec-requisites-page-update (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-requisites-page-update.md`
+  summary: Страница `/requisites` не покрыта ни одним тестом, хотя содержит юридически значимые данные, а соседняя правовая страница покрыта.
+  evidence: Найдено Blind Hunter. В `frontend/src/app/(blue)/privacy-policy/__tests__/page.test.tsx` тест есть, для `requisites` — ни unit, ни e2e. Следующая правка вёрстки или очередной «ребрендинг текстом» может потерять блок или строку с ОГРНИП при зелёном CI. Направление: smoke-тест «оба ИНН и оба ОГРНИП присутствуют в разметке» — около десяти строк.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-requisites-page-update.md`
+  summary: Реквизиты захардкожены во фронтенде, хотя в проекте уже работает CMS-механизм страниц (`apps/pages`), которым питается privacy-policy.
+  evidence: Найдено Blind Hunter. `TODO` в `page.tsx` указывает на гипотетическую модель `Company`, тогда как `backend/apps/pages/models.py` со `slug` и потребитель `frontend/src/app/(blue)/privacy-policy/page.tsx` (`/pages/privacy-policy/`) существуют. Смена банка у ИП (сейчас ВТБ и Сбербанк) потребует PR, ревью, пересборки образа и ручного деплоя по SSH вместо правки в админке. Пресуществующее решение, не вызвано этой стори.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-requisites-page-update.md`
+  summary: Источник реквизитов — untracked `tmp/rekvizty.html`, происхождение опубликованных данных невосстановимо.
+  evidence: Найдено Blind Hunter. `/tmp/` в `.gitignore`; спека сама фиксирует «вне репозитория». При будущем споре «верен ли к/с» сверить не с чем. Направление: положить исходный документ в `docs/legal/` (через `git add -f`, см. правило про широкое игнорирование `data`) либо сослаться на выписку ЕГРИП.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-requisites-page-update.md`
+  summary: Для B2B-платформы на странице нет данных, нужных бухгалтерии контрагента: отметки об отсутствии КПП у ИП, системы налогообложения и статуса по НДС.
+  evidence: Найдено Blind Hunter. Бухгалтер юрлица-покупателя заводит карточку контрагента перед первой отгрузкой и не может определить, будет ли счёт-фактура и входящий НДС. Данных нет и в источнике `tmp/rekvizty.html` — требуется решение владельца, а не правка кода.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-requisites-page-update.md`
+  summary: На странице нет ни даты актуальности реквизитов, ни JSON-LD разметки `Organization` с `taxID`/`address`.
+  evidence: Найдено Blind Hunter. JSON-LD в проекте уже применяется (`frontend/src/components/product/ProductPageClient.tsx`), страница реквизитов — очевидное место для структурированных данных. Дата актуальности — первый вопрос при сверке платежа. Вне объёма текущей замены контента.
