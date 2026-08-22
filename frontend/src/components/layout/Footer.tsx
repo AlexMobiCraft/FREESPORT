@@ -49,6 +49,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
       { label: 'Личный кабинет', href: '/profile' },
       { label: 'Реквизиты', href: '/requisites' },
       { label: 'Политика конфиденциальности', href: '/privacy-policy' },
+      { label: 'Пользовательское соглашение', href: '/oferta' },
     ],
   },
   {
@@ -58,7 +59,6 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
       { label: 'Новости', href: '/news' },
       { label: 'Условия сотрудничества', href: '/partners' },
       { label: 'Условия доставки', href: '/delivery' },
-      { label: 'Розница', href: '/home' },
     ],
   },
   {

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { Footer, type FooterColumn, type SocialLink } from '../Footer';
 
 describe('Footer', () => {
@@ -83,6 +83,30 @@ describe('Footer', () => {
         'href',
         '/partners'
       );
+    });
+
+    it('renders user agreement link in company column', () => {
+      render(<Footer />);
+
+      const companyColumn = screen.getByRole('heading', { level: 3, name: 'Компания' })
+        .parentElement as HTMLElement;
+      const agreementLink = within(companyColumn).getByRole('link', {
+        name: 'Пользовательское соглашение',
+      });
+
+      expect(agreementLink).toHaveAttribute('href', '/oferta');
+    });
+
+    it('does not render retail link in clients column', () => {
+      render(<Footer />);
+
+      const clientsColumn = screen.getByRole('heading', { level: 3, name: 'Клиентам' })
+        .parentElement as HTMLElement;
+      const clientsLinks = within(clientsColumn).getAllByRole('link');
+
+      // Колонка должна быть непустой — иначе проверка отсутствия проходит вакуумно
+      expect(clientsLinks.length).toBeGreaterThan(0);
+      expect(clientsLinks.map(link => link.textContent)).not.toContain('Розница');
     });
 
     it('renders news link in clients column', () => {

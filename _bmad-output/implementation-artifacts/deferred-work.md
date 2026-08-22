@@ -726,3 +726,27 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-label-rotate.md`
   summary: `hasRequisites` через `||` пропускает юридически неполную маркировку — метка отрисуется с одним ИНН без наименования рекламодателя.
   evidence: Найдено Blind Hunter. `AdDisclosure.tsx:76` рисует метку при любом из двух заполненных реквизитов, тогда как ФЗ «О рекламе» требует оба. Комментарий рядом (`:74-75`) оправдывает выбор тем, что «показывать „ИНН , “ хуже», но висячий разделитель и так снимается `filter(Boolean).join(', ')` (`:172-174`) — то есть аргумент относится к join, а не к выбору `||` вместо `&&`. Пресуществующее, к развороту надписи отношения не имеет. Направление: `&&` плюс серверный CheckConstraint (см. запись про валидацию в обход `save()` выше).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-links-oferta.md`
+  summary: Ссылка «Возврат» → `/returns` в колонке «Информация» мертва, и её адрес зафиксирован зелёным тестом.
+  evidence: Найдено Blind Hunter, проверено. Маршрута `returns` в `frontend/src/app` нет (`find src/app -ipath "*returns*"` пуст), CMS-записи с таким slug на проде тоже нет — на проде всего три страницы: `oferta`, `privacy-policy`, `requisites`. Адрес уходит в catch-all `(blue)/[slug]/page.tsx` и отдаёт `NotFoundView` с `robots: noindex`. При этом `Footer.test.tsx:62` утверждает `expect(...'Возврат').toHaveAttribute('href', '/returns')`, то есть тестовый набор охраняет неработающий линк. Пресуществующее. Направление: решить — завести CMS-страницу `returns` или убрать пункт; тест привести в соответствие.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-links-oferta.md`
+  summary: «Памятка клиенту» в колонке «Клиентам» ведёт на главную (`/home`) — тот же дефект, что и удалённая «Розница».
+  evidence: Найдено Blind Hunter. `Footer.tsx` DEFAULT_COLUMNS, колонка «Клиентам»: `{ label: 'Памятка клиенту', href: '/home' }`. Ссылка-заглушка на главную того же класса, что и удалённая в этой правке «Розница» → `/home`; чистка колонки сделана наполовину. Пресуществующее, в объём задачи пользователя не входило. Направление: завести CMS-страницу под памятку либо убрать пункт.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-links-oferta.md`
+  summary: `/delivery` продублирован в двух колонках подвала — «Условия доставки» («Клиентам») и «Доставка» («Информация»).
+  evidence: Найдено Blind Hunter. Два пункта с разными подписями указывают на один адрес; после удаления «Розницы» колонка «Клиентам» сократилась до четырёх пунктов и дублирование стало заметнее. Пресуществующее. Направление: свести к одному пункту при следующей ревизии структуры подвала.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-links-oferta.md`
+  summary: В подвале остался старый бренд: `© 2026 FREESPORT` и соцссылки `vk.com/freesport`, `t.me/freesport`, `youtube.com/@freesport`.
+  evidence: Найдено Blind Hunter. Ребрендинг FREESPORT → OPTISPORT прошёл коммитом `866cbe05`, телефон и почта в том же массиве `DEFAULT_COLUMNS` уже переведены на `optisport.ru`, а copyright и соцсети — нет; то же в `ElectricFooter.tsx`. Пресуществующее. Требует решения владельца: реальные адреса аккаунтов OPTISPORT в VK/Telegram/YouTube неизвестны — менять вслепую нельзя.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-links-oferta.md`
+  summary: Три юридические страницы обслуживаются тремя разными способами, а CMS-запись `oferta` не воспроизводится из кода.
+  evidence: Найдено Blind Hunter, проверено. `/privacy-policy` — выделенный маршрут `(blue)/privacy-policy/page.tsx` с `DEFAULT_TITLE` и `notFound()`; `/requisites` — статическая страница; `/oferta` — единственная, что реально идёт через catch-all `(blue)/[slug]`. Следствия: H1 и метаданные берутся из CMS-поля как есть, то есть капслоком («ОФЕРТА И ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ ПЛАТФОРМЫ OPTISPORT.RU»); фикстуры/data-миграции для страницы в репозитории нет, поэтому на чистом локальном или тестовом окружении ссылка отдаёт 404; снятие записи с публикации проявится молчаливым 404 с задержкой до суток (кэш `page_detail_{slug}` в `apps/pages/views.py` + `revalidate: 3600` на фронте). Направление: либо выделенный маршрут для `/oferta` по образцу `privacy-policy`, либо сид/фикстура плюс инвалидация кэша.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-links-oferta.md`
+  summary: В sitemap дублируются URL юридических страниц — они попадают и как статические маршруты, и через `fetchAll('pages')`.
+  evidence: Найдено Blind Hunter. `sitemap.ts:94` перечисляет `/requisites` статически, при этом та же страница есть в CMS и выгружается обходом `pages`; аналогично `/privacy-policy`. Пресуществующее. Направление: исключать из динамической выборки slug'и, у которых есть выделенный маршрут.

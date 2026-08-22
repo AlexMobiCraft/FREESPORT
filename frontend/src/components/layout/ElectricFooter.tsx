@@ -140,7 +140,7 @@ const ElectricFooter: React.FC = () => {
               Политика конфиденциальности
             </Link>
             <Link
-              href="#"
+              href="/oferta"
               className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Пользовательское соглашение
