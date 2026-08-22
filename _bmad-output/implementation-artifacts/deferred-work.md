@@ -750,3 +750,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-footer-links-oferta.md`
   summary: В sitemap дублируются URL юридических страниц — они попадают и как статические маршруты, и через `fetchAll('pages')`.
   evidence: Найдено Blind Hunter. `sitemap.ts:94` перечисляет `/requisites` статически, при этом та же страница есть в CMS и выгружается обходом `pages`; аналогично `/privacy-policy`. Пресуществующее. Направление: исключать из динамической выборки slug'и, у которых есть выделенный маршрут.
+
+## Deferred from: code review of spec-optisport-header-logo (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-optisport-header-logo.md`
+  summary: У компонента `ElectricHeader.tsx` нет ни одного теста, тогда как для `Header.tsx`, `Footer.tsx`, `ProfileLayout.tsx` и `CookieConsentBanner.tsx` тесты есть.
+  evidence: В `frontend/src/components/layout/__tests__/` четыре файла, ElectricHeader среди них отсутствует. При замене логотипа правка в этом компоненте не была ничем прикрыта — регрессию поймал только ручной анализ, автоматической защиты нет. Пресуществующий пробел, не вызван этой стори.
