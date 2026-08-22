@@ -163,7 +163,7 @@ describe('DeliveryPage (/delivery)', () => {
       const { container } = render(<DeliveryPage />);
       const iframe = container.querySelector('iframe');
 
-      expect(iframe).toHaveAttribute('title', 'Пункт самовывоза FREESPORT');
+      expect(iframe).toHaveAttribute('title', 'Пункт самовывоза OPTISPORT');
     });
   });
 
@@ -187,10 +187,10 @@ describe('DeliveryPage (/delivery)', () => {
 
     it('должна отображать email как ссылку mailto:', () => {
       render(<DeliveryPage />);
-      const emailLink = screen.getByText('logist@freesportopt.ru').closest('a');
+      const emailLink = screen.getByText('logist@optisport.ru').closest('a');
 
       expect(emailLink).toBeInTheDocument();
-      expect(emailLink).toHaveAttribute('href', 'mailto:logist@freesportopt.ru');
+      expect(emailLink).toHaveAttribute('href', 'mailto:logist@optisport.ru');
     });
   });
 
@@ -240,7 +240,7 @@ describe('DeliveryPage (/delivery)', () => {
 
     it('должна использовать transition для плавных анимаций', () => {
       render(<DeliveryPage />);
-      const emailLink = screen.getByText('logist@freesportopt.ru').closest('a');
+      const emailLink = screen.getByText('logist@optisport.ru').closest('a');
 
       expect(emailLink).toHaveClass('transition-colors');
     });

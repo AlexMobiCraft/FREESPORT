@@ -176,7 +176,7 @@ const HeroSection = () => {
             <div className="relative w-full max-w-[480px] aspect-[7/4]">
               <Image
                 src="/og-image.jpg"
-                alt="FREESPORT — подборка спортивных товаров"
+                alt="OPTISPORT — подборка спортивных товаров"
                 fill
                 className="rounded-[32px] object-cover shadow-[0_35px_120px_rgba(0,0,0,0.15)]"
                 priority

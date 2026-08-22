@@ -274,7 +274,7 @@ export async function generateOrderPdf(order: Order): Promise<void> {
   doc.setFont('Arial', 'normal');
   doc.setTextColor(128);
   doc.text(
-    `Документ сформирован ${new Date().toLocaleString('ru-RU')} | FREESPORT`,
+    `Документ сформирован ${new Date().toLocaleString('ru-RU')} | OPTISPORT`,
     pageWidth / 2,
     yPosition,
     { align: 'center' }

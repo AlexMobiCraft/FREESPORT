@@ -472,7 +472,7 @@ export default function DesignComparisonPage() {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Сравнение цветовых схем FREESPORT
+            Сравнение цветовых схем OPTISPORT
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Визуальное сравнение предыдущей синей схемы и новой оранжевой палитры для принятия
