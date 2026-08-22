@@ -704,3 +704,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-disclosure.md`
   summary: Ссылки баннеров невидимых слайдов карусели остаются в таб-порядке — Embla держит все слайды в DOM, а `aria-hidden`/`inert` на слайд секция не проставляет.
   evidence: Найдено Blind Hunter. `inert` для метки рекламы в этой правке добавлен адресно, но распространить его на слайд целиком нельзя: существующий тест `должен рендерить ссылки для всех баннеров` (`MarketingBannersSection.test.tsx`) прямо утверждает, что в документе присутствуют ссылки всех баннеров, и слайд целиком выпал бы из a11y-дерева. Пресуществующее поведение, требует отдельного решения по контракту карусели.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-optisport-header-logo.md`
+  summary: У компонента `ElectricHeader.tsx` нет ни одного теста, тогда как для `Header.tsx`, `Footer.tsx`, `ProfileLayout.tsx` и `CookieConsentBanner.tsx` тесты есть.
+  evidence: В `frontend/src/components/layout/__tests__/` четыре файла, ElectricHeader среди них отсутствует. При замене логотипа правка в этом компоненте не была ничем прикрыта — регрессию поймал только ручной анализ, автоматической защиты нет. Пресуществующий пробел, не вызван этой стори.
