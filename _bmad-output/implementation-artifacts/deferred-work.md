@@ -726,3 +726,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-label-rotate.md`
   summary: `hasRequisites` через `||` пропускает юридически неполную маркировку — метка отрисуется с одним ИНН без наименования рекламодателя.
   evidence: Найдено Blind Hunter. `AdDisclosure.tsx:76` рисует метку при любом из двух заполненных реквизитов, тогда как ФЗ «О рекламе» требует оба. Комментарий рядом (`:74-75`) оправдывает выбор тем, что «показывать „ИНН , “ хуже», но висячий разделитель и так снимается `filter(Boolean).join(', ')` (`:172-174`) — то есть аргумент относится к join, а не к выбору `||` вместо `&&`. Пресуществующее, к развороту надписи отношения не имеет. Направление: `&&` плюс серверный CheckConstraint (см. запись про валидацию в обход `save()` выше).
+
+## Deferred from: code review of spec-optisport-header-logo (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-optisport-header-logo.md`
+  summary: У компонента `ElectricHeader.tsx` нет ни одного теста, тогда как для `Header.tsx`, `Footer.tsx`, `ProfileLayout.tsx` и `CookieConsentBanner.tsx` тесты есть.
+  evidence: В `frontend/src/components/layout/__tests__/` четыре файла, ElectricHeader среди них отсутствует. При замене логотипа правка в этом компоненте не была ничем прикрыта — регрессию поймал только ручной анализ, автоматической защиты нет. Пресуществующий пробел, не вызван этой стори.
