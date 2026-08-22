@@ -142,7 +142,7 @@ describe('Header', () => {
 
     it('should render logo', () => {
       render(<Header />);
-      expect(screen.getByAltText('FREESPORT')).toBeInTheDocument();
+      expect(screen.getByAltText('OPTISPORT')).toBeInTheDocument();
     });
 
     it('should render navigation items', () => {

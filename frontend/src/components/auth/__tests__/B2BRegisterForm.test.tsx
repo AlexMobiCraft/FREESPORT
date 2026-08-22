@@ -33,7 +33,7 @@ describe('B2BRegisterForm consent checkboxes', () => {
 
   const getMarketingConsent = () =>
     screen.getByRole('checkbox', {
-      name: /получать рекламные и информационные рассылки от freesport/i,
+      name: /получать рекламные и информационные рассылки от optisport/i,
     });
 
   const fillValidB2BForm = async (user: ReturnType<typeof userEvent.setup>) => {

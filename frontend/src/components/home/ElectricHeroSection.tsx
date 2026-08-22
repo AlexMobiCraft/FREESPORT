@@ -44,7 +44,7 @@ const STATIC_BANNERS: BannerContent[] = [
     cta: { text: 'В каталог', link: '/electric/catalog' },
   },
   {
-    title: 'FREESPORT — ВАШ СПОРТИВНЫЙ ПАРТНЁР',
+    title: 'OPTISPORT — ВАШ СПОРТИВНЫЙ ПАРТНЁР',
     subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
     cta: { text: 'Начать покупки', link: '/electric/catalog' },
   },
@@ -160,7 +160,7 @@ export const ElectricHeroSection = () => {
   const ctaText = currentBanner?.cta_text || currentStatic?.cta.text || '';
   const ctaLink = currentBanner?.cta_link || currentStatic?.cta.link || '/';
   const imageUrl = currentBanner?.image_url || '/og-image.jpg';
-  const imageAlt = currentBanner?.image_alt || 'FREESPORT';
+  const imageAlt = currentBanner?.image_alt || 'OPTISPORT';
 
   return (
     <section

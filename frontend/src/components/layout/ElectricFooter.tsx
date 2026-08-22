@@ -16,7 +16,7 @@ const ElectricFooter: React.FC = () => {
               <span className="transform skew-x-12 inline-block">О КОМПАНИИ</span>
             </h3>
             <p className="font-inter text-[var(--color-text-secondary)] text-[12px] md:text-[14px] leading-relaxed mb-4 md:mb-6">
-              FREESPORT — ваш надежный партнер в мире спорта. Мы предлагаем только качественное
+              OPTISPORT — ваш надежный партнер в мире спорта. Мы предлагаем только качественное
               оборудование и экипировку для профессионалов и любителей.
             </p>
             <div className="flex gap-4">
@@ -130,7 +130,7 @@ const ElectricFooter: React.FC = () => {
         {/* Bottom Bar */}
         <div className="border-t border-[var(--border-default)] pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)]">
-            © 2026 FREESPORT. Все права защищены.
+            © 2026 OPTISPORT. Все права защищены.
           </p>
           <div className="flex gap-6">
             <Link

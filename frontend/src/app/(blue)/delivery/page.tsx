@@ -43,8 +43,8 @@ const deliveryOptions = {
 const contacts = {
   phone: '+7 968 273-21-68',
   phoneLink: 'tel:+79682732168',
-  email: 'logist@freesportopt.ru',
-  emailLink: 'mailto:logist@freesportopt.ru',
+  email: 'logist@optisport.ru',
+  emailLink: 'mailto:logist@optisport.ru',
 };
 
 // Breadcrumb данные
@@ -61,7 +61,7 @@ const MapEmbed: React.FC = () => {
         width="100%"
         height="300"
         loading="lazy"
-        title="Пункт самовывоза FREESPORT"
+        title="Пункт самовывоза OPTISPORT"
         className="border-0"
       />
     </div>

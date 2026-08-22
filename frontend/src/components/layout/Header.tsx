@@ -82,7 +82,7 @@ const Header: React.FC = () => {
             <Link href="/home" className="flex items-center gap-2">
               <Image
                 src="/LOGO-NEW_Freesport.png"
-                alt="FREESPORT"
+                alt="OPTISPORT"
                 width={120}
                 height={32}
                 className="h-8 w-auto"

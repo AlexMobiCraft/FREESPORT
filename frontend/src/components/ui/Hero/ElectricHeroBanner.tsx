@@ -49,7 +49,7 @@ const ElectricHeroBanner: React.FC = () => {
 
       {/* Floating / Decorative Elements */}
       <div className="absolute bottom-10 right-10 text-[var(--border-default)] font-roboto-condensed font-black text-[120px] opacity-10 select-none transform -skew-x-12 pointer-events-none">
-        FREESPORT
+        OPTISPORT
       </div>
     </section>
   );

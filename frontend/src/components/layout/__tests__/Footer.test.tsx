@@ -168,7 +168,7 @@ describe('Footer', () => {
       render(<Footer />);
 
       const vkLink = screen.getByLabelText('VK');
-      expect(vkLink).toHaveAttribute('href', 'https://vk.com/freesport');
+      expect(vkLink).toHaveAttribute('href', 'https://vk.com/optisport');
       expect(vkLink).toHaveAttribute('target', '_blank');
       expect(vkLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
@@ -177,7 +177,7 @@ describe('Footer', () => {
       render(<Footer />);
 
       const telegramLink = screen.getByLabelText('Telegram');
-      expect(telegramLink).toHaveAttribute('href', 'https://t.me/freesport');
+      expect(telegramLink).toHaveAttribute('href', 'https://t.me/optisport');
       expect(telegramLink).toHaveAttribute('target', '_blank');
       expect(telegramLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
@@ -186,7 +186,7 @@ describe('Footer', () => {
       render(<Footer />);
 
       const youtubeLink = screen.getByLabelText('YouTube');
-      expect(youtubeLink).toHaveAttribute('href', 'https://youtube.com/@freesport');
+      expect(youtubeLink).toHaveAttribute('href', 'https://youtube.com/@optisport');
       expect(youtubeLink).toHaveAttribute('target', '_blank');
       expect(youtubeLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
@@ -231,7 +231,7 @@ describe('Footer', () => {
     it('renders default copyright text', () => {
       render(<Footer />);
 
-      expect(screen.getByText('© 2026 FREESPORT. Все права защищены.')).toBeInTheDocument();
+      expect(screen.getByText('© 2026 OPTISPORT. Все права защищены.')).toBeInTheDocument();
     });
 
     it('renders custom copyright when provided', () => {
@@ -243,7 +243,7 @@ describe('Footer', () => {
     it('applies correct typography to copyright (text-xs text-neutral-500)', () => {
       render(<Footer />);
 
-      const copyrightText = screen.getByText('© 2026 FREESPORT. Все права защищены.');
+      const copyrightText = screen.getByText('© 2026 OPTISPORT. Все права защищены.');
       expect(copyrightText).toHaveClass('text-xs', 'text-neutral-500');
     });
   });

@@ -31,7 +31,7 @@ const ElectricHeader: React.FC = () => {
             <div className="relative h-8 w-auto transform -skew-x-12 transition-transform group-hover:scale-105">
               <Image
                 src="/LOGO-NEW_Freesport.png"
-                alt="FREESPORT"
+                alt="OPTISPORT"
                 width={150}
                 height={32}
                 className="h-full w-auto object-contain"
