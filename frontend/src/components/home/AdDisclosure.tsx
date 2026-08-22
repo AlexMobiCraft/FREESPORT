@@ -211,7 +211,11 @@ export function AdDisclosure({
         style={{ writingMode: 'vertical-rl' }}
         data-testid="ad-disclosure-trigger"
       >
-        Реклама
+        {/* Разворот на span, а не на кнопке: rotate на триггере утащил бы за собой
+            и скругление rounded-l-md, которым метка прижата к краю баннера */}
+        <span className="rotate-180" data-testid="ad-disclosure-label">
+          Реклама
+        </span>
       </button>
 
       {/* Панель идёт после кнопки в DOM (иначе кнопка копирования недостижима прямым Tab)
@@ -222,7 +226,11 @@ export function AdDisclosure({
           className={cn(
             'absolute right-full top-1/2 mr-1 -translate-y-1/2',
             'max-h-[80%] w-max max-w-[min(20rem,60vw)] overflow-y-auto overscroll-contain',
-            'rounded-lg bg-gray-900/95 px-3 py-2 text-left shadow-lg',
+            // Подложка полупрозрачная, но с backdrop-blur: реквизиты лежат поверх
+            // произвольной картинки рекламодателя, и без размытия фона контраст текста
+            // зависел бы от того, что загрузил менеджер, — закон требует «чётко и
+            // хорошо различимо»
+            'rounded-lg bg-gray-900/60 px-3 py-2 text-left shadow-lg backdrop-blur-sm',
             'text-xs leading-snug text-white'
           )}
           data-testid="ad-disclosure-panel"

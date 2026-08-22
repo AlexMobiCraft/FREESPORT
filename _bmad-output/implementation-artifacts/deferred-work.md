@@ -704,3 +704,25 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-disclosure.md`
   summary: Ссылки баннеров невидимых слайдов карусели остаются в таб-порядке — Embla держит все слайды в DOM, а `aria-hidden`/`inert` на слайд секция не проставляет.
   evidence: Найдено Blind Hunter. `inert` для метки рекламы в этой правке добавлен адресно, но распространить его на слайд целиком нельзя: существующий тест `должен рендерить ссылки для всех баннеров` (`MarketingBannersSection.test.tsx`) прямо утверждает, что в документе присутствуют ссылки всех баннеров, и слайд целиком выпал бы из a11y-дерева. Пресуществующее поведение, требует отдельного решения по контракту карусели.
+
+## Deferred from: code review of spec-banner-ad-label-rotate (2026-08-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-label-rotate.md`
+  summary: На тач-экране первый тап по метке «Реклама» визуально не делает ничего — `onFocus` контейнера и `onClick` кнопки спорят за одно состояние.
+  evidence: Найдено Blind Hunter, приоритет высокий. Chrome/Edge на Android шлют `focus` до `click`: guard `pointerType === 'mouse'` (`AdDisclosure.tsx:150`) гасит синтезированный pointerenter, затем `focus` всплывает до контейнера (`:187`) и ставит `isOpen=true`, следом приходящий `click` (`:198`) видит окно открытым и закрывает его. Существующий тест «раскрывает окно с первого тапа» шлёт только `pointerEnter` + `click` без `focus`, поэтому зелёный ложно. Пресуществующее, этой правкой не внесено. Направление: один источник истины — флаг pointerdown/ref вместо параллельных `onFocus` и toggle. Требует подтверждения на реальном Android-устройстве (iOS Safari фокус кнопке по тапу не даёт).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-label-rotate.md`
+  summary: `max-h-[80%]` режет панель реквизитов примерно до 35px — обязательная по закону маркировка превращается в микро-скроллбокс.
+  evidence: Найдено Blind Hunter, приоритет высокий. Панель абсолютна (`AdDisclosure.tsx:227`), её containing block — обёртка `absolute right-0 top-1/2 z-10` (`MarketingBannersSection.tsx:239`), высота которой равна высоте кнопки, то есть `min-h-[44px]` (`:204`). Процент от auto-высоты для абсолютно позиционированного элемента разрешается (исключение CSS 2.1 §10.7 действует только для не-abspos), значит `max-height ≈ 35px` при контенте в 3–4 строки, а `overflow-y-auto` (`:228`) прячет остальное под скролл. Пресуществующее. Направление: считать ограничение от высоты слайда (`max-h-[80vh]` или контейнер-референс), а не от высоты метки. Подтвердить в браузере на реальном рекламном баннере.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-label-rotate.md`
+  summary: Эффект `onOpenChange?.(isOpen)` возобновляет автопрокрутку карусели там, где её никто не ставил на паузу.
+  evidence: Найдено Blind Hunter. Эффект (`AdDisclosure.tsx:91-93`) выстреливает на монтировании с `false` → `handleDisclosureOpenChange` (`MarketingBannersSection.tsx:147-156`) → `resumeAutoplay` → безусловный `play()` (`hooks/useBannerCarousel.ts:293-310`). Тот же путь на `pointerleave` стартует автопрокрутку, когда курсор ещё над каруселью, вопреки `stopOnMouseEnter: true`. Нет ни счётчика причин паузы, ни проверки hover. Пресуществующее. Направление: счётчик причин паузы либо ранний выход эффекта на первом рендере.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-label-rotate.md`
+  summary: Смена `inert` при уходе слайда не закрывает уже раскрытое окно — автопрокрутка залипает на паузе бессрочно.
+  evidence: Найдено Blind Hunter. Эффекта на проп `inert` (`AdDisclosure.tsx:183`) в компоненте нет: если окно открыто и слайд уезжает свайпом, `isOpen` остаётся `true`, `onOpenChange(false)` не вызывается никогда, а при возврате на слайд окно уже раскрыто за пределами вьюпорта. Пресуществующее. Направление: `useEffect` на `inert`, закрывающий окно при переходе в `true`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-banner-ad-label-rotate.md`
+  summary: `hasRequisites` через `||` пропускает юридически неполную маркировку — метка отрисуется с одним ИНН без наименования рекламодателя.
+  evidence: Найдено Blind Hunter. `AdDisclosure.tsx:76` рисует метку при любом из двух заполненных реквизитов, тогда как ФЗ «О рекламе» требует оба. Комментарий рядом (`:74-75`) оправдывает выбор тем, что «показывать „ИНН , “ хуже», но висячий разделитель и так снимается `filter(Boolean).join(', ')` (`:172-174`) — то есть аргумент относится к join, а не к выбору `||` вместо `&&`. Пресуществующее, к развороту надписи отношения не имеет. Направление: `&&` плюс серверный CheckConstraint (см. запись про валидацию в обход `save()` выше).
