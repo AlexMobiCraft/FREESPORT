@@ -245,7 +245,7 @@ export interface paths {
     put?: never;
     /**
      * Регистрация пользователя
-     * @description Создание нового пользователя с указанием роли (retail, wholesale_level1-3, trainer, federation_rep)
+     * @description Создание нового пользователя. Роль обязательна и выбирается из B2B-ролей (wholesale_level1-4, trainer, federation_rep). Розничная саморегистрация недоступна.
      */
     post: operations['auth_register_create'];
     delete?: never;
@@ -476,7 +476,7 @@ export interface paths {
     };
     /**
      * Информация о ролях пользователей
-     * @description Получение списка доступных ролей пользователей в системе
+     * @description Получение списка ролей, доступных при саморегистрации (розничная роль недоступна)
      */
     get: operations['users_roles_retrieve'];
     put?: never;
@@ -2836,7 +2836,7 @@ export interface components {
       /** Номер телефона */
       phone?: string;
       /** Роль пользователя */
-      role?: components['schemas']['RoleEnum'];
+      role: components['schemas']['RoleEnum'];
       /**
        * Название компании
        * @description Для B2B пользователей

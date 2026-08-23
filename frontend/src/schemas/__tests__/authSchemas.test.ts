@@ -123,16 +123,26 @@ describe('loginSchema', () => {
 });
 
 describe('registerSchema', () => {
+  // Розничная регистрация отключена: роль обязательна, вместе с ней —
+  // название компании и ИНН. Базовый валидный набор для всех кейсов ниже.
+  const validRegisterBase = {
+    first_name: 'Иван',
+    email: 'ivan@example.com',
+    password: 'SecurePass123',
+    confirmPassword: 'SecurePass123',
+    role: 'trainer',
+    company_name: 'Спортклуб',
+    tax_id: '1234567890',
+    pdp_consent: true,
+  };
+
   test('should narrow parsed pdp consent to literal true while form input still accepts false default', () => {
     expectTypeOf<RegisterFormInput['pdp_consent']>().toEqualTypeOf<boolean>();
     expectTypeOf<RegisterFormData['pdp_consent']>().toEqualTypeOf<true>();
 
     const result = registerSchema.safeParse({
-      first_name: 'Иван',
+      ...validRegisterBase,
       email: 'ivan.literal@example.com',
-      password: 'SecurePass123',
-      confirmPassword: 'SecurePass123',
-      pdp_consent: true,
     });
 
     expect(result.success).toBe(true);
@@ -165,26 +175,16 @@ describe('registerSchema', () => {
 
   describe('valid data', () => {
     test('should validate correct registration data', () => {
-      const validData = {
-        first_name: 'Иван',
-        email: 'ivan@example.com',
-        password: 'SecurePass123',
-        confirmPassword: 'SecurePass123',
-        pdp_consent: true,
-      };
-
-      const result = registerSchema.safeParse(validData);
+      const result = registerSchema.safeParse(validRegisterBase);
       expect(result.success).toBe(true);
     });
 
     test('should validate with long first name (150 chars)', () => {
       const longName = 'А'.repeat(150);
       const result = registerSchema.safeParse({
+        ...validRegisterBase,
         first_name: longName,
         email: 'user@example.com',
-        password: 'SecurePass123',
-        confirmPassword: 'SecurePass123',
-        pdp_consent: true,
       });
 
       expect(result.success).toBe(true);
@@ -228,11 +228,9 @@ describe('registerSchema', () => {
   describe('password confirmation', () => {
     test('should reject when passwords do not match', () => {
       const result = registerSchema.safeParse({
-        first_name: 'Иван',
+        ...validRegisterBase,
         email: 'user@example.com',
-        password: 'SecurePass123',
         confirmPassword: 'DifferentPass456',
-        pdp_consent: true,
       });
 
       expect(result.success).toBe(false);
@@ -387,16 +385,40 @@ describe('registerSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    test('should accept retail without tax_id', () => {
+    // Розничная регистрация отключена: роли `retail` в схеме больше нет
+    test('should reject retail role', () => {
       const result = registerSchema.safeParse({
-        first_name: 'Иван',
-        email: 'retail@example.com',
-        password: 'SecurePass123',
-        confirmPassword: 'SecurePass123',
-        pdp_consent: true,
+        ...b2bBase,
+        role: 'retail',
+        tax_id: '1234567890',
       });
 
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toEqual(
+          expect.arrayContaining([expect.objectContaining({ path: ['role'] })])
+        );
+      }
+    });
+
+    // Без роли форма не отправляется: дефолта у поля нет
+    test('should reject payload without role', () => {
+      const result = registerSchema.safeParse({
+        ...b2bBase,
+        tax_id: '1234567890',
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              path: ['role'],
+              message: 'Выберите тип аккаунта',
+            }),
+          ])
+        );
+      }
     });
   });
 });

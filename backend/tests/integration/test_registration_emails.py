@@ -86,8 +86,8 @@ class TestRegistrationEmailsIntegration:
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")
     @patch("apps.users.serializers.send_user_pending_email.delay")
-    def test_retail_registration_does_not_trigger_emails(self, mock_user_email, mock_admin_email):
-        """Retail регистрация НЕ вызывает отправку verification emails."""
+    def test_retail_registration_is_rejected_without_emails(self, mock_user_email, mock_admin_email):
+        """Розничная заявка отклоняется: аккаунта нет, письма не ставятся в очередь."""
         client = APIClient()
 
         response = client.post(
@@ -104,18 +104,12 @@ class TestRegistrationEmailsIntegration:
             format="json",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "role" in response.data
+        assert not User.objects.filter(email="retail@example.com").exists()
 
-        user = User.objects.get(email="retail@example.com")
-
-        # Email tasks НЕ должны вызываться для retail
         mock_admin_email.assert_not_called()
         mock_user_email.assert_not_called()
-
-        # Retail пользователи сразу активны
-        assert user.is_active is True
-        assert user.verification_status == "verified"
-        assert user.is_verified is True
 
     @patch("apps.users.serializers.send_manager_region_email.delay")
     @patch("apps.users.serializers.send_admin_verification_email.delay")
@@ -153,8 +147,8 @@ class TestRegistrationEmailsIntegration:
         assert user.country == "Россия"
 
     @patch("apps.users.serializers.send_manager_region_email.delay")
-    def test_retail_registration_skips_manager_region_email(self, mock_manager_email):
-        """Retail регистрация НЕ ставит письмо менеджеру региона."""
+    def test_rejected_retail_registration_skips_manager_region_email(self, mock_manager_email):
+        """Отклонённая розничная заявка не ставит письмо менеджеру региона."""
         client = APIClient()
 
         response = client.post(
@@ -171,7 +165,7 @@ class TestRegistrationEmailsIntegration:
             format="json",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
         mock_manager_email.assert_not_called()
 
     @patch("apps.users.serializers.send_admin_verification_email.delay")

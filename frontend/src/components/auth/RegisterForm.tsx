@@ -5,7 +5,8 @@
  *
  * Форма регистрации с выбором роли и условными B2B полями
  *
- * Story 28.1 AC 2: B2C Registration Flow с автологином
+ * Story 28.1 AC 2: Registration Flow (автологина нет: розничная регистрация
+ *                   отключена, все роли формы требуют верификации менеджером)
  * Story 28.1 AC 3: Client-side валидация (Zod)
  * Story 28.1 AC 4: Error Handling и Loading States
  * Story 28.1 AC 5: Интеграция с authService
@@ -13,8 +14,8 @@
  * Story 28.1 AC 7: Responsive Design
  * Story 28.1 AC 10: Accessibility
  *
- * Story 29.1 AC 1: Поле выбора роли с 4 опциями
- * Story 29.1 AC 2: Retail выбран по умолчанию
+ * Story 29.1 AC 1: Поле выбора роли (3 B2B-опции, розничной нет)
+ * Story 29.1 AC 2: Роль не предвыбрана — выбор обязателен
  * Story 29.1 AC 3: InfoPanel для B2B ролей
  * Story 29.1 AC 4: Передача роли в API
  * Story 29.1 AC 5, 6: Accessibility
@@ -48,9 +49,10 @@ import {
   type BackendFieldErrorMap,
 } from '@/utils/validationErrorParser';
 
-// Story 29.1 AC 1: Константа с опциями ролей
+// Story 29.1 AC 1: Константа с опциями ролей.
+// Розничного покупателя в списке нет: портал — B2B-площадка, саморегистрация
+// доступна только ролям, которые проходят верификацию менеджером.
 const ROLE_OPTIONS = [
-  { value: 'retail' as const, label: 'Розничный покупатель' },
   { value: 'trainer' as const, label: 'Тренер / Спортивный клуб' },
   { value: 'wholesale_level1' as const, label: 'Оптовик' },
   { value: 'federation_rep' as const, label: 'Представитель спортивной федерации' },
@@ -78,6 +80,8 @@ export interface RegisterFormProps {
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectUrl }) => {
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
+  // Заявка принята и ждёт верификации менеджером: токенов нет, входить некуда
+  const [isPending, setIsPending] = useState(false);
 
   const {
     register,
@@ -87,9 +91,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormInput, unknown, RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    // Story 29.1 AC 2: Retail роль по умолчанию
+    // Роль не предвыбрана: пользователь обязан осознанно указать тип аккаунта.
+    // Пустая строка — значение плейсхолдера в <select>, схема её отклоняет.
     defaultValues: {
-      role: 'retail',
+      role: '' as unknown as RegisterFormInput['role'],
       country: 'Россия',
       pdp_consent: false,
       marketing_consent: false,
@@ -97,7 +102,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
   });
 
   // Story 29.1: Отслеживаем выбранную роль для условной логики
-  const selectedRole = watch('role') ?? 'retail';
+  const selectedRole = watch('role');
   const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
   // Кнопка регистрации активна только при согласии на обработку ПДн
   const pdpConsentChecked = watch('pdp_consent') === true;
@@ -113,26 +118,33 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         password: data.password,
         password_confirm: data.confirmPassword,
         first_name: data.first_name,
-        last_name: '', // B2C registration может не требовать фамилию
-        phone: '', // B2C может не требовать телефон при регистрации
-        role: data.role ?? 'retail', // Story 29.1 AC 4: Используем выбранную роль
-        // Story 29.1 AC 8: Условные B2B поля.
-        // Для retail поле ИНН скрыто, но RHF сохраняет значение, введённое
-        // до переключения роли — отправлять его нельзя: бэкенд ищет по ИНН
-        // клиента 1С и привязал бы розничную заявку к чужому юрлицу.
+        // Фамилию и телефон эта форма не собирает — их запрашивает строгая
+        // B2B-форма /b2b-register (см. deferred-work.md)
+        last_name: '',
+        phone: '',
+        role: data.role, // Story 29.1 AC 4: Используем выбранную роль
+        // Story 29.1 AC 8: B2B-поля обязательны для всех доступных ролей
         company_name: data.company_name,
-        tax_id: data.role !== 'retail' ? data.tax_id?.trim() : undefined,
+        tax_id: data.tax_id?.trim(),
         country: data.country,
         pdp_consent: data.pdp_consent,
         marketing_consent: data.marketing_consent ?? false,
       };
 
-      // AC 2: Автоматический вход после регистрации
-      await authService.register(registerData);
+      const response = await authService.register(registerData);
 
       // Callback при успехе
       if (onSuccess) {
         onSuccess();
+      }
+
+      // После отключения розничной регистрации автологина не бывает: все роли
+      // формы — B2B, аккаунт создаётся неверифицированным и токенов не получает.
+      // Молчаливый редирект на главную выглядел бы как потеря заявки, поэтому
+      // показываем то же состояние ожидания, что и B2B-форма.
+      if (!response.user || response.user.is_verified === false) {
+        setIsPending(true);
+        return;
       }
 
       // Story 28.1 AC 2: Редирект на главную (или redirectUrl) после успешной регистрации
@@ -172,8 +184,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
     }
   };
 
-  // Story 29.1 AC 3: Проверяем, выбрана ли B2B роль
-  const isB2BRole = selectedRole !== 'retail';
+  // Story 29.1 AC 3: B2B-блоки показываются, как только роль выбрана —
+  // все доступные в форме роли являются B2B.
+  const isB2BRole = Boolean(selectedRole);
   // Story 29.1 AC 8: Определяем, нужно ли поле ИНН.
   // ИНН обязателен для ВСЕХ B2B-ролей (включая trainer): без него
   // CustomerIdentityResolver не находит существующего клиента из 1С
@@ -186,6 +199,58 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
     selectedCountry === 'Россия'
       ? 'Тренер как физлицо или ИП указывает свой ИНН (12 цифр), клуб — ИНН организации (10 цифр). Один ИНН — один аккаунт.'
       : 'Налоговый номер организации: от 8 до 12 цифр. Один номер — один аккаунт.';
+
+  // Состояние «заявка на рассмотрении» — единственный успешный исход формы,
+  // пока розничная регистрация отключена (см. onSubmit)
+  if (isPending) {
+    return (
+      <div className="w-full max-w-md mx-auto p-6 space-y-4">
+        <div
+          className="p-6 rounded-md bg-primary-subtle border border-primary/20"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start space-x-3">
+            <svg
+              className="w-6 h-6 text-primary flex-shrink-0 mt-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                Заявка на рассмотрении
+              </h3>
+              <p className="text-body-m text-text-primary mb-3">
+                Ваша заявка на регистрацию успешно отправлена.
+              </p>
+              <p className="text-body-s text-text-secondary">
+                Мы проверим предоставленные данные и свяжемся с вами в течение 1-2 рабочих дней.
+                После одобрения заявки вы сможете войти в личный кабинет.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          onClick={() => router.push('/')}
+          variant="secondary"
+          className="w-full"
+        >
+          На главную
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md mx-auto p-6 space-y-4">
@@ -232,8 +297,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           {...register('role')}
           disabled={isSubmitting}
           aria-label="Выберите тип аккаунта"
+          aria-invalid={Boolean(errors.role?.message) || undefined}
+          aria-describedby={errors.role?.message ? 'register-role-error' : undefined}
           className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         >
+          <option value="">Выберите тип аккаунта</option>
           {ROLE_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -241,7 +309,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           ))}
         </select>
         {errors.role?.message && (
-          <p className="text-body-xs text-[var(--color-accent-danger)]" role="alert">
+          <p
+            id="register-role-error"
+            className="text-body-xs text-[var(--color-accent-danger)]"
+            role="alert"
+          >
             {errors.role.message}
           </p>
         )}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import time
 from unittest.mock import patch
 
@@ -14,18 +15,48 @@ from apps.users.models import User
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 
 
+_INN_COUNTER = itertools.count(1)
+
+
 def unique_email(prefix: str) -> str:
     return f"{prefix}_{time.time_ns()}@example.com"
 
 
-def retail_payload(**overrides):
+def unique_inn() -> str:
+    """
+    Уникальный 10-значный ИНН на каждую регистрацию.
+
+    Повтор ИНН отклоняется `_reject_if_tax_id_belongs_to_account`, поэтому
+    фиксированное значение сделало бы вторую регистрацию в тесте невозможной.
+    """
+    return f"77{next(_INN_COUNTER) % 10**8:08d}"
+
+
+@pytest.fixture(autouse=True)
+def _mute_b2b_notification_tasks():
+    """
+    Регистрация B2B ставит в очередь три письма. Розничной регистрации больше
+    нет, поэтому очередь дёргает каждый тест файла — задачи глушим.
+    """
+    with (
+        patch("apps.users.serializers.send_admin_verification_email.delay"),
+        patch("apps.users.serializers.send_user_pending_email.delay"),
+        patch("apps.users.serializers.send_manager_region_email.delay"),
+    ):
+        yield
+
+
+def trainer_payload(**overrides):
+    """Заявка тренера — базовый сценарий саморегистрации после отказа от retail."""
     payload = {
-        "email": unique_email("consent_retail"),
+        "email": unique_email("consent_trainer"),
         "password": "StrongPassword123!",
         "password_confirm": "StrongPassword123!",
         "first_name": "Consent",
-        "last_name": "Retail",
-        "role": "retail",
+        "last_name": "Trainer",
+        "role": "trainer",
+        "company_name": "Consent Club",
+        "tax_id": unique_inn(),
         "pdp_consent": True,
         "marketing_consent": False,
     }
@@ -42,7 +73,7 @@ def b2b_payload(**overrides):
         "last_name": "B2B",
         "role": "wholesale_level1",
         "company_name": "Consent Company",
-        "tax_id": "1234567890",
+        "tax_id": unique_inn(),
         "pdp_consent": True,
         "marketing_consent": False,
     }
@@ -56,7 +87,7 @@ def post_register(client: APIClient, payload: dict, **headers):
 
 def test_registration_requires_pdp_consent():
     client = APIClient()
-    payload = retail_payload()
+    payload = trainer_payload()
     payload.pop("pdp_consent")
 
     response = post_register(client, payload)
@@ -69,7 +100,7 @@ def test_registration_requires_pdp_consent():
 def test_registration_rejects_pdp_consent_false():
     client = APIClient()
 
-    response = post_register(client, retail_payload(pdp_consent=False))
+    response = post_register(client, trainer_payload(pdp_consent=False))
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "pdp_consent" in response.data
@@ -79,7 +110,7 @@ def test_registration_rejects_pdp_consent_false():
 def test_registration_rejects_invalid_pdp_consent_with_contract_message(invalid_value):
     client = APIClient()
 
-    response = post_register(client, retail_payload(pdp_consent=invalid_value))
+    response = post_register(client, trainer_payload(pdp_consent=invalid_value))
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
@@ -89,19 +120,19 @@ def test_registration_rejects_invalid_pdp_consent_with_contract_message(invalid_
 def test_registration_accepts_drf_truthy_pdp_consent_values_by_decision(truthy_value):
     client = APIClient()
 
-    response = post_register(client, retail_payload(pdp_consent=truthy_value))
+    response = post_register(client, trainer_payload(pdp_consent=truthy_value))
 
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
     assert UserConsent.objects.filter(user=user, consent_type="pdp_contract").exists()
 
 
-def test_retail_registration_creates_pdp_consent_record():
+def test_trainer_registration_creates_pdp_consent_record():
     client = APIClient()
 
     response = post_register(
         client,
-        retail_payload(marketing_consent=False),
+        trainer_payload(marketing_consent=False),
         REMOTE_ADDR="1.2.3.4",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -116,12 +147,12 @@ def test_retail_registration_creates_pdp_consent_record():
     assert consent.user_agent == "ConsentTestAgent/1.0"
 
 
-def test_retail_registration_with_marketing_creates_two_records():
+def test_trainer_registration_with_marketing_creates_two_records():
     client = APIClient()
 
     response = post_register(
         client,
-        retail_payload(marketing_consent=True),
+        trainer_payload(marketing_consent=True),
         REMOTE_ADDR="1.2.3.4",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -193,7 +224,7 @@ def test_consent_record_captures_ip_and_user_agent_from_proxy_headers():
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR="1.2.3.4, 5.6.7.8",
         HTTP_USER_AGENT=long_user_agent,
     )
@@ -210,7 +241,7 @@ def test_registration_normalizes_ipv4_mapped_ipv6_for_consent_record():
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR="::ffff:8.8.8.8",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -226,7 +257,7 @@ def test_registration_ignores_invalid_forwarded_ip_for_consent_record():
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR="not-a-valid-ip, 5.6.7.8",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -243,7 +274,7 @@ def test_registration_falls_back_to_remote_addr_when_forwarded_ip_first_hop_is_b
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR=", 5.6.7.8",
         REMOTE_ADDR="8.8.8.8",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
@@ -260,7 +291,7 @@ def test_registration_falls_back_to_remote_addr_when_forwarded_ip_is_whitespace(
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR=" ",
         REMOTE_ADDR="8.8.4.4",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
@@ -285,7 +316,7 @@ def test_registration_normalizes_forwarded_ip_with_port(forwarded_ip, expected_i
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR=forwarded_ip,
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -301,7 +332,7 @@ def test_registration_rejects_forwarded_ipv4_with_invalid_port_for_consent_recor
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR="1.2.3.4:99999",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -317,7 +348,7 @@ def test_registration_rejects_bracketed_ipv6_with_invalid_port_for_consent_recor
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR="[2606:4700:4700::1111]:99999",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -334,7 +365,7 @@ def test_registration_accepts_non_global_forwarded_ip_for_consent_record(forward
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR=forwarded_ip,
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -351,7 +382,7 @@ def test_registration_normalizes_forwarded_ipv6_zone_id_for_consent_record():
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         HTTP_X_FORWARDED_FOR="fe80::1%eth0",
         HTTP_USER_AGENT="ConsentTestAgent/1.0",
     )
@@ -368,7 +399,7 @@ def test_registration_logs_warning_when_remote_addr_is_unknown(caplog):
     with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
-            retail_payload(),
+            trainer_payload(),
             REMOTE_ADDR="unknown",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
         )
@@ -384,7 +415,7 @@ def test_registration_sanitizes_invalid_ip_before_warning_log(caplog):
     with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
-            retail_payload(),
+            trainer_payload(),
             HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
             REMOTE_ADDR="unknown",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
@@ -404,7 +435,7 @@ def test_registration_sanitizes_surrogate_from_invalid_ip_warning_log(caplog):
     with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
-            retail_payload(),
+            trainer_payload(),
             HTTP_X_FORWARDED_FOR=f"{invalid_ip}, 5.6.7.8",
             REMOTE_ADDR="unknown",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
@@ -422,7 +453,7 @@ def test_registration_does_not_split_escape_sequence_when_truncating_warning_log
     with caplog.at_level("WARNING", logger="apps.common.consent_audit"):
         response = post_register(
             client,
-            retail_payload(),
+            trainer_payload(),
             HTTP_X_FORWARDED_FOR=("A" * 127) + "\r\n",
             REMOTE_ADDR="unknown",
             HTTP_USER_AGENT="ConsentTestAgent/1.0",
@@ -439,7 +470,7 @@ def test_registration_sanitizes_invalid_user_agent_surrogates():
 
     response = post_register(
         client,
-        retail_payload(),
+        trainer_payload(),
         REMOTE_ADDR="1.2.3.4",
         HTTP_USER_AGENT="Agent\udcff" + "A" * 600,
     )
@@ -455,7 +486,7 @@ def test_registration_sanitizes_invalid_user_agent_surrogates():
 def test_consent_records_have_default_policy_version():
     client = APIClient()
 
-    response = post_register(client, retail_payload(marketing_consent=True))
+    response = post_register(client, trainer_payload(marketing_consent=True))
 
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])

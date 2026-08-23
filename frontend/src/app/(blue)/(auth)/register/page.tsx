@@ -69,7 +69,7 @@ export default function RegisterPage() {
             Регистрация
           </h1>
           <p className="text-body-m text-[var(--color-text-muted)]">
-            Создайте аккаунт для доступа к платформе
+            Оставьте заявку на аккаунт бизнес-партнёра — доступ откроется после проверки
           </p>
         </div>
 

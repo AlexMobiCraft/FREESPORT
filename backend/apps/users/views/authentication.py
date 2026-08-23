@@ -64,7 +64,9 @@ class UserRegistrationView(APIView):
     @extend_schema(
         summary="Регистрация пользователя",
         description=(
-            "Создание нового пользователя с указанием роли " "(retail, wholesale_level1-3, trainer, federation_rep)"
+            "Создание нового пользователя. Роль обязательна и выбирается из "
+            "B2B-ролей (wholesale_level1-4, trainer, federation_rep). "
+            "Розничная саморегистрация недоступна."
         ),
         request=UserRegistrationSerializer,
         responses={
@@ -72,19 +74,17 @@ class UserRegistrationView(APIView):
                 description="Пользователь успешно зарегистрирован",
                 examples=[
                     OpenApiExample(
-                        name="successful_registration_retail",
-                        summary="Retail user (auto-login)",
+                        name="successful_registration_trainer",
+                        summary="Trainer (pending verification)",
                         value={
                             "message": "Пользователь успешно зарегистрирован",
-                            "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                            "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
                             "user": {
                                 "id": 1,
                                 "email": "user@example.com",
                                 "first_name": "Иван",
                                 "last_name": "Петров",
-                                "role": "retail",
-                                "is_verified": True,
+                                "role": "trainer",
+                                "is_verified": False,
                             },
                         },
                     ),
@@ -113,6 +113,7 @@ class UserRegistrationView(APIView):
                         value={
                             "email": ["Пользователь с таким email уже существует."],
                             "password_confirm": ["Пароли не совпадают."],
+                            "role": ["Недопустимая роль для регистрации."],
                         },
                     )
                 ],

@@ -1,3 +1,6 @@
+import itertools
+from unittest.mock import patch
+
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -8,6 +11,13 @@ from apps.users.models import User
 pytestmark = pytest.mark.django_db
 
 TEST_USER_PASSWORD = "TestPassword123!"
+
+_TAX_ID_COUNTER = itertools.count(1)
+
+
+def unique_tax_id() -> str:
+    """Уникальный 10-значный ИНН: повтор отклоняется валидацией регистрации."""
+    return f"77{next(_TAX_ID_COUNTER) % 10**8:08d}"
 
 
 @pytest.fixture
@@ -22,13 +32,15 @@ def create_user_and_get_token(api_client):
     Фикстура для регистрации и авторизации пользователя, возвращает токен.
     """
 
-    def _create_user_and_get_token(role="retail", email=None):
+    def _create_user_and_get_token(role="wholesale_level1", email=None):
         if email is None:
             email = f"test_user_{role}@example.com"
 
         # Удаляем пользователя, если он существует, для чистоты теста
         User.objects.filter(email=email).delete()
 
+        # Розничная саморегистрация отключена: доступны только B2B-роли,
+        # каждой из которых обязательны название компании и уникальный ИНН
         registration_data = {
             "email": email,
             "password": TEST_USER_PASSWORD,
@@ -36,16 +48,30 @@ def create_user_and_get_token(api_client):
             "first_name": "Тест",
             "last_name": f"Пользователь {role}",
             "role": role,
+            "company_name": f"Тестовая компания {role}",
+            "tax_id": unique_tax_id(),
             "pdp_consent": True,
         }
-        if role != "retail":
-            registration_data.update({"company_name": f"Тестовая компания {role}", "tax_id": "1234567890"})
 
-        # Регистрация
+        # Регистрация. Заявка B2B ставит в очередь три письма — глушим, чтобы
+        # тесты пользовательского API не зависели от брокера.
         url = reverse("users:register")
-        response = api_client.post(url, registration_data, format="json")
+        with (
+            patch("apps.users.serializers.send_admin_verification_email.delay"),
+            patch("apps.users.serializers.send_user_pending_email.delay"),
+            patch("apps.users.serializers.send_manager_region_email.delay"),
+        ):
+            response = api_client.post(url, registration_data, format="json")
         assert response.status_code == 201, (
             f"Registration failed for role {role} with status {response.status_code}: " f"{response.json()}"
+        )
+
+        # B2B-заявка создаётся неверифицированной и неактивной — логин
+        # возможен только после верификации менеджером
+        User.objects.filter(email=email).update(
+            is_active=True,
+            is_verified=True,
+            verification_status="verified",
         )
 
         # Авторизация
@@ -69,7 +95,9 @@ def test_user_registration(api_client):
         "password_confirm": TEST_USER_PASSWORD,
         "first_name": "New",
         "last_name": "User",
-        "role": "retail",
+        "role": "trainer",
+        "company_name": "Новый клуб",
+        "tax_id": unique_tax_id(),
         "pdp_consent": True,
     }
     response = api_client.post(url, data, format="json")
@@ -115,7 +143,7 @@ def test_token_refresh(api_client, create_user_and_get_token):
 
 def test_user_profile_get_patch(api_client, create_user_and_get_token):
     """Тестирование GET/PATCH /users/profile/ (AC 4)"""
-    token = create_user_and_get_token(role="retail", email="profile_test@example.com")
+    token = create_user_and_get_token(email="profile_test@example.com")
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     url = reverse("users:profile")
 
@@ -137,7 +165,13 @@ def test_user_roles_endpoint(api_client):
     url = reverse("users:roles")
     response = api_client.get(url)
     assert response.status_code == 200
-    assert isinstance(response.json()["roles"], list)
-    assert len(response.json()["roles"]) > 0
-    # Проверяем, что одна из ролей присутствует
-    assert any(role["key"] == "retail" for role in response.json()["roles"])
+    roles = response.json()["roles"]
+    assert isinstance(roles, list)
+    assert len(roles) > 0
+    keys = {role["key"] for role in roles}
+    # Эндпоинт отдаёт ровно роли саморегистрации: без служебных и без розницы
+    assert "wholesale_level1" in keys
+    assert "trainer" in keys
+    assert "retail" not in keys
+    assert "admin" not in keys
+    assert "unregistered" not in keys

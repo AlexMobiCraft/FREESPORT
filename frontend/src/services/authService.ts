@@ -50,10 +50,10 @@ class AuthService {
     // Сохранить tokens в store только если они пришли (Story 32.1 fix: avoid undefined tokens)
     if (access && refresh) {
       useAuthStore.getState().setTokens(access, refresh);
-    }
 
-    if (user) {
-      useAuthStore.getState().setUser(user);
+      if (user) {
+        useAuthStore.getState().setUser(user);
+      }
     }
 
     return response.data;
@@ -77,13 +77,17 @@ class AuthService {
     const { access, refresh, user } = response.data;
 
     // Story 28.2 - AC 6: Сохранение токенов если они сгенерированы (только для активных юзеров)
-    // Story 32.1 fix: Для pending B2B юзеров токены не приходят, избегаем 'undefined' в store
+    // Story 32.1 fix: Для pending B2B юзеров токены не приходят, избегаем 'undefined' в store.
+    // `user` кладём в store только вместе с токенами: без них аккаунт ещё не
+    // авторизован, а потребители store определяют вход по наличию user
+    // (например CheckoutForm: `isAuthenticated = !!user`) и ушли бы делать
+    // запросы к защищённым endpoints без Authorization.
     if (access && refresh) {
       useAuthStore.getState().setTokens(access, refresh);
-    }
 
-    if (user) {
-      useAuthStore.getState().setUser(user);
+      if (user) {
+        useAuthStore.getState().setUser(user);
+      }
     }
 
     return response.data;

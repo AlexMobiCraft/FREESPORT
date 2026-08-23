@@ -23,10 +23,10 @@ User = get_user_model()
 class TestUserRegistrationVerification:
     """Unit тесты для логики верификации при регистрации"""
 
-    def test_retail_registration_sets_active_and_verified(self) -> None:
+    def test_retail_registration_is_rejected(self) -> None:
         """
-        AC 1: Retail пользователь получает is_active=True,
-        verification_status='verified'
+        Розничная саморегистрация отключена: сериализатор не принимает роль
+        retail, поэтому активный верифицированный аккаунт так не создать.
         """
         data = {
             "email": "retail@example.com",
@@ -37,12 +37,9 @@ class TestUserRegistrationVerification:
             "pdp_consent": True,
         }
         serializer = UserRegistrationSerializer(data=data)
-        assert serializer.is_valid(), serializer.errors
-        user = serializer.save()
 
-        assert user.is_active is True
-        assert user.verification_status == "verified"
-        assert user.is_verified is True
+        assert not serializer.is_valid()
+        assert serializer.errors["role"] == ["Недопустимая роль для регистрации."]
 
     def test_b2b_trainer_registration_sets_pending_and_inactive(self) -> None:
         """

@@ -23,15 +23,16 @@ function B2BRegisterContent() {
     <div className="bg-white rounded-lg shadow-[var(--shadow-default)] p-8">
       <B2BRegisterForm redirectUrl={redirectUrl} />
 
-      {/* AC 3: Ссылка на B2C регистрацию */}
+      {/* Альтернативный вход: форма без ОГРН и юридического адреса —
+          для тренеров, клубов и федераций. Розничной регистрации нет нигде. */}
       <div className="mt-6 pt-6 border-t border-gray-200 text-center">
         <p className="text-body-s text-[var(--color-text-muted)]">
-          Не бизнес-клиент?{' '}
+          Тренер, клуб или федерация?{' '}
           <Link
             href="/register"
             className="font-medium text-primary hover:text-primary-hover transition-colors"
           >
-            Обычная регистрация
+            Упрощённая регистрация
           </Link>
         </p>
       </div>

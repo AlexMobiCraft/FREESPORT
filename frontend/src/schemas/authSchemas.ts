@@ -50,8 +50,13 @@ export const registerSchema = z
       .regex(/[0-9]/, 'Пароль должен содержать хотя бы 1 цифру')
       .regex(/[A-Z]/, 'Пароль должен содержать хотя бы 1 заглавную букву'),
     confirmPassword: z.string().min(1, 'Подтверждение пароля обязательно'),
-    // Story 29.1: Role selection
-    role: z.enum(['retail', 'trainer', 'wholesale_level1', 'federation_rep']).default('retail'),
+    // Story 29.1: Role selection.
+    // Роль розничного покупателя недоступна: портал работает как B2B-площадка,
+    // саморегистрация возможна только для ролей, проходящих верификацию.
+    // Дефолта нет намеренно — выбор роли осознанный, форма его требует.
+    role: z.enum(['trainer', 'wholesale_level1', 'federation_rep'], {
+      message: 'Выберите тип аккаунта',
+    }),
     // Story 29.1: Условные B2B поля
     company_name: z.string().optional(),
     tax_id: z.string().optional(),
@@ -67,8 +72,9 @@ export const registerSchema = z
   })
   .refine(
     data => {
-      // Story 29.1: AC 8 - company_name обязательно для всех B2B ролей
-      if (data.role !== 'retail' && (!data.company_name || data.company_name.trim() === '')) {
+      // Story 29.1: AC 8 - company_name обязательно для всех ролей формы
+      // (после отключения розничной регистрации все они B2B)
+      if (!data.company_name || data.company_name.trim() === '') {
         return false;
       }
       return true;
@@ -82,7 +88,7 @@ export const registerSchema = z
     data => {
       // tax_id обязателен для всех B2B ролей, включая trainer: без ИНН
       // бэкенд не может найти существующего клиента из 1С и создает дубль.
-      if (data.role !== 'retail' && (!data.tax_id || data.tax_id.trim() === '')) {
+      if (!data.tax_id || data.tax_id.trim() === '') {
         return false;
       }
       return true;
@@ -97,7 +103,7 @@ export const registerSchema = z
       // Маска российского ИНН применима только к клиентам из РФ:
       // у Беларуси УНП — 9 цифр, у Казахстана БИН/ИИН — 12.
       const taxId = data.tax_id?.trim();
-      if (data.role === 'retail' || !taxId) {
+      if (!taxId) {
         return true;
       }
       return data.country === 'Россия' ? validateINN(taxId) : /^\d{8,12}$/.test(taxId);

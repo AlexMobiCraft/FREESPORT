@@ -76,15 +76,22 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             # Автогенерируемый UniqueValidator сработал бы раньше validate().
             "email": {"required": True, "validators": []},
             "first_name": {"required": True},
+            # У модели `role` есть default="retail", поэтому без явного
+            # required запрос без поля создал бы розничный аккаунт в обход
+            # SELF_SERVICE_ROLES: validate_role() вызывается только для
+            # полей, реально пришедших в запросе.
+            "role": {"required": True},
         }
 
     # Роли, которые заявитель вправе выбрать сам. Именно список разрешённых,
     # а не запрет отдельных: `admin` даёт метку администратора в интерфейсе,
     # `unregistered` ставит только импорт 1С, и такой аккаунт не попал бы в
     # admin-действие верификации (оно фильтрует B2B-роли).
+    # `retail` исключён намеренно: портал работает как B2B-площадка, розничные
+    # саморегистрации не верифицируются менеджером. Существующие розничные
+    # аккаунты продолжают работать — запрет только на создание новых.
     SELF_SERVICE_ROLES = frozenset(
         {
-            "retail",
             "wholesale_level1",
             "wholesale_level2",
             "wholesale_level3",

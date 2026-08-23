@@ -24,8 +24,8 @@ User = get_user_model()
 class TestUserRegistrationSerializer:
     """Тесты сериализатора регистрации пользователей"""
 
-    def test_valid_retail_user_registration(self, user_factory):
-        """Тест создания retail пользователя"""
+    def test_retail_role_is_rejected(self, user_factory):
+        """Розничная саморегистрация отключена: роль не проходит валидацию"""
         data = {
             "email": "test@test.com",
             "password": "TestPass123!",
@@ -38,12 +38,52 @@ class TestUserRegistrationSerializer:
         }
 
         serializer = UserRegistrationSerializer(data=data)
-        assert serializer.is_valid(), serializer.errors
+        assert not serializer.is_valid()
+        assert serializer.errors["role"] == ["Недопустимая роль для регистрации."]
 
-        user = serializer.save()
-        assert user.email == "test@test.com"
-        assert user.role == "retail"
-        assert user.is_active is True
+    @pytest.mark.parametrize("service_role", ["admin", "unregistered"])
+    def test_service_roles_are_rejected(self, user_factory, service_role):
+        """
+        SELF_SERVICE_ROLES — белый список: служебные роли заявитель назначить
+        себе не может. `admin` дал бы метку администратора в интерфейсе,
+        `unregistered` ставит только импорт 1С, и такой аккаунт не попал бы
+        в admin-действие верификации.
+        """
+        data = {
+            "email": "service_role@test.com",
+            "password": "TestPass123!",
+            "password_confirm": "TestPass123!",
+            "first_name": "Тест",
+            "last_name": "Пользователь",
+            "phone": "+79991234568",
+            "role": service_role,
+            "company_name": "Тест Клуб",
+            "tax_id": "7712345670",
+            "pdp_consent": True,
+        }
+
+        serializer = UserRegistrationSerializer(data=data)
+        assert not serializer.is_valid()
+        assert serializer.errors["role"] == ["Недопустимая роль для регистрации."]
+
+    def test_missing_role_is_rejected(self, user_factory):
+        """
+        Без явной роли заявка отклоняется: модельный default="retail" иначе
+        молча создал бы розничный аккаунт.
+        """
+        data = {
+            "email": "test@test.com",
+            "password": "TestPass123!",
+            "password_confirm": "TestPass123!",
+            "first_name": "Тест",
+            "last_name": "Пользователь",
+            "phone": "+79991234568",
+            "pdp_consent": True,
+        }
+
+        serializer = UserRegistrationSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "role" in serializer.errors
 
     def test_valid_b2b_user_registration(self, user_factory):
         """Тест создания B2B пользователя"""
@@ -77,7 +117,9 @@ class TestUserRegistrationSerializer:
             "first_name": "Тест",
             "last_name": "Пользователь",
             "phone": "+79991234568",
-            "role": "retail",
+            "role": "trainer",
+            "company_name": "Тест Клуб",
+            "tax_id": "7712345678",
             "pdp_consent": True,
         }
 
@@ -96,7 +138,9 @@ class TestUserRegistrationSerializer:
             "first_name": "Тест",
             "last_name": "Пользователь",
             "phone": "+79991234568",
-            "role": "retail",
+            "role": "trainer",
+            "company_name": "Тест Клуб",
+            "tax_id": "7712345679",
             "pdp_consent": True,
         }
 
