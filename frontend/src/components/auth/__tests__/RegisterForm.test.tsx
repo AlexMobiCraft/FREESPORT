@@ -844,6 +844,23 @@ describe('RegisterForm', () => {
       expect(screen.queryByRole('option', { name: /розничный покупатель/i })).toBeNull();
     });
 
+    // Плейсхолдер выглядит как подсказка, а не как выбранное значение:
+    // до выбора роли текст приглушён тем же токеном, что и placeholder в Input
+    test('should mute placeholder text until a role is selected', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+
+      expect(roleSelect).toHaveClass('text-[var(--color-neutral-500)]');
+      expect(roleSelect).not.toHaveClass('text-[var(--color-text-primary)]');
+
+      await user.selectOptions(roleSelect, 'trainer');
+
+      expect(roleSelect).toHaveClass('text-[var(--color-text-primary)]');
+      expect(roleSelect).not.toHaveClass('text-[var(--color-neutral-500)]');
+    });
+
     // Роль обязательна: без неё submit не уходит на бэкенд
     test('should block submit and show error when role is not selected', async () => {
       const user = userEvent.setup();

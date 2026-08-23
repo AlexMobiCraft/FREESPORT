@@ -794,3 +794,23 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
   summary: Фронтенд не читает `/users/roles/`: список ролей в форме зашит в `ROLE_OPTIONS`, поэтому флаг `REGISTRATION_ALLOW_RETAIL` управляет бэкендом, но не витриной.
   evidence: Бэкенд переведён на флаг, включение розницы там не требует релиза. Текущему фронтенду розница не нужна — она вернётся отдельным сайтом, поэтому расхождение осознанное. Если розничный сценарий когда-нибудь понадобится на этом же фронте, форма должна строить список ролей из эндпоинта, а не из константы.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-role-placeholder-color.md`
+  summary: Плейсхолдерный токен дизайн-системы `--color-neutral-500` (#8f9bb3) даёт на белом фоне контраст 2,8:1 при требуемых WCAG 1.4.3 — 4,5:1.
+  evidence: Найдено Blind Hunter. Тот же токен уже используется для placeholder во всех `Input` (`frontend/src/components/ui/Input/Input.tsx:85`), так что дефект пресуществующий и системный. Текущая правка осознанно выравнивает select по этому же токену по прямому требованию пользователя. Починка = смена токена в дизайн-системе (кандидат — #4b5c7a, 6,75:1), а не точечная правка одной формы.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-role-placeholder-color.md`
+  summary: При `disabled:opacity-50` (состояние отправки формы) приглушённый плейсхолдер уходит в ~1,6:1 и практически нечитаем.
+  evidence: Найдено Blind Hunter. Производное от предыдущего пункта и от общего паттерна «graying out через opacity», который применён и в `Input`. Лечится вместе с токеном или заменой opacity на отдельный disabled-токен текста.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-role-placeholder-color.md`
+  summary: Форма регистрации рисует два самодельных `<select>` вместо компонента дизайн-системы `ui/Select`.
+  evidence: Найдено Blind Hunter. `frontend/src/components/ui/Select/Select.tsx` уже даёт label, helper, error и стилизованную стрелку; из-за хардкода в `RegisterForm` правка плейсхолдера не распространяется на остальные select в проекте (`Select.tsx:87`). Миграция двух полей на общий компонент — отдельная задача с регрессом по вёрстке.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-role-placeholder-color.md`
+  summary: Соседний select «Страна» ссылается на несуществующий токен `--color-primary-500`, поэтому его кольцо фокуса рисуется currentcolor, а не фирменным цветом.
+  evidence: Найдено Blind Hunter, проверено grep: `--color-primary-500` во всём репозитории только используется и нигде не объявлен (есть только `--color-primary: #ff6600`, `frontend/src/app/globals.css:15`). В select роли токен исправлен в рамках этой правки (там он стал регрессией), в select страны — пресуществующий дефект вне объёма.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-role-placeholder-color.md`
+  summary: Цвет `<option>` не применяется в Safari и Chrome на Android — там весь список ролей будет приглушённым, пока роль не выбрана.
+  evidence: Найдено Blind Hunter; инструментально не проверено — требует ручного прогона на iOS Safari и Android Chrome. Неустранимо для нативного `<select>`: системный попап берёт color у самого select. Полное решение — кастомный dropdown (`ui/Select/SelectDropdown.tsx` уже есть в проекте), что шире текущей задачи.
