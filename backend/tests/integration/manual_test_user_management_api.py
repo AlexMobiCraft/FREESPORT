@@ -38,13 +38,18 @@ def test_user_registration():
     # Удаляем тестового пользователя если существует
     User.objects.filter(email="test@example.com").delete()
 
+    # Розничная саморегистрация отключена: доступны только B2B-роли,
+    # каждой из которых обязательны название компании и ИНН
     data = {
         "email": "test@example.com",
         "password": "testpass123!",
         "password_confirm": "testpass123!",
         "first_name": "Test",
         "last_name": "User",
-        "role": "retail",
+        "role": "trainer",
+        "company_name": "Тестовый клуб",
+        "tax_id": "7712345678",
+        "pdp_consent": True,
     }
 
     response = requests.post(f"{BASE_URL}/auth/register/", json=data)

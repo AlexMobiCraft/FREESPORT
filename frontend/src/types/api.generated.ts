@@ -245,7 +245,7 @@ export interface paths {
     put?: never;
     /**
      * Регистрация пользователя
-     * @description Создание нового пользователя с указанием роли (retail, wholesale_level1-3, trainer, federation_rep)
+     * @description Создание нового пользователя. Роль обязательна и выбирается из B2B-ролей (wholesale_level1-4, trainer, federation_rep). Розничная саморегистрация недоступна.
      */
     post: operations['auth_register_create'];
     delete?: never;
@@ -476,7 +476,7 @@ export interface paths {
     };
     /**
      * Информация о ролях пользователей
-     * @description Получение списка доступных ролей пользователей в системе
+     * @description Получение списка ролей, доступных при саморегистрации (розничная роль недоступна)
      */
     get: operations['users_roles_retrieve'];
     put?: never;
@@ -2643,28 +2643,6 @@ export interface components {
       }[];
     };
     /**
-     * @description * `retail` - Розничный покупатель
-     *     * `wholesale_level1` - Оптовик уровень 1
-     *     * `wholesale_level2` - Оптовик уровень 2
-     *     * `wholesale_level3` - Оптовик уровень 3
-     *     * `wholesale_level4` - Оптовик уровень 4
-     *     * `trainer` - Тренер/Фитнес-клуб
-     *     * `federation_rep` - Представитель федерации
-     *     * `admin` - Администратор
-     *     * `unregistered` - Не зарегистрирован на портале
-     * @enum {string}
-     */
-    RoleEnum:
-      | 'retail'
-      | 'wholesale_level1'
-      | 'wholesale_level2'
-      | 'wholesale_level3'
-      | 'wholesale_level4'
-      | 'trainer'
-      | 'federation_rep'
-      | 'admin'
-      | 'unregistered';
-    /**
      * @description * `pending` - Ожидает обработки
      *     * `confirmed` - Подтвержден
      *     * `processing` - В обработке
@@ -2771,7 +2749,7 @@ export interface components {
       /** Номер телефона */
       phone?: string;
       /** Роль пользователя */
-      readonly role: components['schemas']['RoleEnum'];
+      readonly role: components['schemas']['UserProfileRoleEnum'];
       /**
        * Название компании
        * @description Для B2B пользователей
@@ -2820,6 +2798,28 @@ export interface components {
        */
       tax_id?: string;
     };
+    /**
+     * @description * `retail` - Розничный покупатель
+     *     * `wholesale_level1` - Оптовик уровень 1
+     *     * `wholesale_level2` - Оптовик уровень 2
+     *     * `wholesale_level3` - Оптовик уровень 3
+     *     * `wholesale_level4` - Оптовик уровень 4
+     *     * `trainer` - Тренер/Фитнес-клуб
+     *     * `federation_rep` - Представитель федерации
+     *     * `admin` - Администратор
+     *     * `unregistered` - Не зарегистрирован на портале
+     * @enum {string}
+     */
+    UserProfileRoleEnum:
+      | 'retail'
+      | 'wholesale_level1'
+      | 'wholesale_level2'
+      | 'wholesale_level3'
+      | 'wholesale_level4'
+      | 'trainer'
+      | 'federation_rep'
+      | 'admin'
+      | 'unregistered';
     /** @description Serializer для регистрации новых пользователей */
     UserRegistrationRequest: {
       /**
@@ -2835,8 +2835,7 @@ export interface components {
       last_name?: string;
       /** Номер телефона */
       phone?: string;
-      /** Роль пользователя */
-      role?: components['schemas']['RoleEnum'];
+      role: components['schemas']['UserRegistrationRoleEnum'];
       /**
        * Название компании
        * @description Для B2B пользователей
@@ -2860,6 +2859,22 @@ export interface components {
       /** @default false */
       marketing_consent: boolean;
     };
+    /**
+     * @description * `wholesale_level1` - Оптовик уровень 1
+     *     * `wholesale_level2` - Оптовик уровень 2
+     *     * `wholesale_level3` - Оптовик уровень 3
+     *     * `wholesale_level4` - Оптовик уровень 4
+     *     * `trainer` - Тренер/Фитнес-клуб
+     *     * `federation_rep` - Представитель федерации
+     * @enum {string}
+     */
+    UserRegistrationRoleEnum:
+      | 'wholesale_level1'
+      | 'wholesale_level2'
+      | 'wholesale_level3'
+      | 'wholesale_level4'
+      | 'trainer'
+      | 'federation_rep';
     /** @description Serializer для валидации токена сброса пароля */
     ValidateTokenRequest: {
       uid: string;

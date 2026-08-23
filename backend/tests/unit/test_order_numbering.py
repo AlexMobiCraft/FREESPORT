@@ -172,8 +172,9 @@ class TestEmailSignalIsMasterGuard:
             suborder_sequence=1,
         )
 
-        with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, \
-             patch("apps.orders.tasks.send_order_notification_email") as mock_admin:
+        with patch("apps.orders.tasks.send_order_confirmation_to_customer") as mock_customer, patch(
+            "apps.orders.tasks.send_order_notification_email"
+        ) as mock_admin:
             suborder.save()
             mock_customer.delay.assert_not_called()
             mock_admin.delay.assert_not_called()

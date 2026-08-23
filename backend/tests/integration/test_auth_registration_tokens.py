@@ -1,19 +1,18 @@
 import pytest
-from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from apps.users.models import User
 
 
 @pytest.mark.django_db
 class TestRegistrationTokens:
-    def test_retail_registration_returns_tokens(self):
+    def test_retail_registration_is_rejected(self):
         """
-        AC 1: При регистрации розничного пользователя ответ сервера (201)
-        содержит access и refresh токены.
+        Розничная саморегистрация отключена: портал работает как B2B-площадка,
+        такая заявка не проходит верификацию и не должна создавать аккаунт.
         """
         client = APIClient()
-        # url = reverse('user-register') - Убрали, так как вызывает ошибку
-        url = "/api/v1/auth/register/"
 
         data = {
             "email": "new_retail_user@example.com",
@@ -25,18 +24,33 @@ class TestRegistrationTokens:
             "pdp_consent": True,
         }
 
-        # Используем прямой путь, так как reverse может отличаться
         response = client.post("/api/v1/auth/register/", data, format="json")
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "role" in response.data
+        assert not User.objects.filter(email="new_retail_user@example.com").exists()
 
-        # Проверяем наличие токенов
-        assert "access" in response.data, "Access token missing in registration response"
-        assert "refresh" in response.data, "Refresh token missing in registration response"
+    def test_registration_without_role_is_rejected(self):
+        """
+        Без явной роли заявка отклоняется: у модели `role` есть default="retail",
+        и молчаливая подстановка создала бы розничный аккаунт в обход запрета.
+        """
+        client = APIClient()
 
-        # Проверяем структуру user
-        assert response.data["user"]["role"] == "retail"
-        assert response.data["user"]["is_verified"] is True
+        data = {
+            "email": "no_role_user@example.com",
+            "password": "StrongPassword123!",
+            "password_confirm": "StrongPassword123!",
+            "first_name": "No",
+            "last_name": "Role",
+            "pdp_consent": True,
+        }
+
+        response = client.post("/api/v1/auth/register/", data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "role" in response.data
+        assert not User.objects.filter(email="no_role_user@example.com").exists()
 
     def test_b2b_registration_does_not_return_tokens_if_pending(self):
         """

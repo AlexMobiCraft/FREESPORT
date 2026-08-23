@@ -753,9 +753,9 @@ class TestCIFilters:
             "main.yml: шаг checkout data-репо FREESPORT-1c-test-data пропал — "
             "~32 теста импорта 1С снова скипаются, порог покрытия занижен"
         )
-        assert "ONEC_DATA_TOKEN" in text, (
-            "main.yml: секрет ONEC_DATA_TOKEN не используется — checkout data-репо не сработает"
-        )
+        assert (
+            "ONEC_DATA_TOKEN" in text
+        ), "main.yml: секрет ONEC_DATA_TOKEN не используется — checkout data-репо не сработает"
 
     def _main_build_job(self):
         text = self._repo_file(".github", "workflows", "main.yml").read_text(encoding="utf-8")
@@ -778,14 +778,12 @@ class TestCIFilters:
         )
 
         checkouts = [
-            step
-            for step in job["steps"]
-            if "FREESPORT-1c-test-data" in str(step.get("with", {}).get("repository", ""))
+            step for step in job["steps"] if "FREESPORT-1c-test-data" in str(step.get("with", {}).get("repository", ""))
         ]
         assert len(checkouts) == 1, "main.yml: ожидался ровно один шаг checkout data-репо"
-        assert "ONEC_DATA_AVAILABLE" in str(checkouts[0].get("if", "")), (
-            "main.yml: checkout приватного data-репо снова безусловный — PR из fork упадёт на нём"
-        )
+        assert "ONEC_DATA_AVAILABLE" in str(
+            checkouts[0].get("if", "")
+        ), "main.yml: checkout приватного data-репо снова безусловный — PR из fork упадёт на нём"
 
     def test_dependabot_pull_requests_take_the_path_without_1c_data(self):
         """Dependabot тоже не получает `ONEC_DATA_TOKEN` — его PR обязан идти веткой без данных.
@@ -813,16 +811,16 @@ class TestCIFilters:
         """
         text = self._repo_file(".github", "workflows", "main.yml").read_text(encoding="utf-8")
         invocations = re.findall(r'pytest [^\n]*-m\s+"([^"]+)"[^\n]*--cov-fail-under=(\d+)', text)
-        assert len(invocations) == 2, (
-            f"main.yml: ожидались два вызова pytest с порогом (с данными и без), найдено {len(invocations)}"
-        )
+        assert (
+            len(invocations) == 2
+        ), f"main.yml: ожидались два вызова pytest с порогом (с данными и без), найдено {len(invocations)}"
 
         with_data = [(m, int(t)) for m, t in invocations if "data_dependent" not in m]
         without_data = [(m, int(t)) for m, t in invocations if "not data_dependent" in m]
         assert len(with_data) == 1, "main.yml: не найден основной прогон, включающий data_dependent-тесты"
-        assert len(without_data) == 1, (
-            "main.yml: не найден fork-прогон с `not data_dependent` — без данных он упрётся в порог"
-        )
+        assert (
+            len(without_data) == 1
+        ), "main.yml: не найден fork-прогон с `not data_dependent` — без данных он упрётся в порог"
         assert without_data[0][1] < with_data[0][1], (
             f"main.yml: порог fork-прогона ({without_data[0][1]}) не ниже основного ({with_data[0][1]}) — "
             "без реальных выгрузок покрытие ниже, гейт покраснеет без регрессии"

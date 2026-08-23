@@ -2,17 +2,23 @@
 Regression тесты для Epic 28 функциональности
 
 Story 29.2: Backend Verification Logic & Access Control
-AC 6: Существующая функциональность Epic 28 (retail registration, login, password reset)
-      продолжает работать без изменений
+AC 6: Существующая функциональность Epic 28 (login, password reset) продолжает
+      работать без изменений
 
 Проверяем что изменения Epic 29.2 не сломали Epic 28:
-- Retail регистрация работает
-- Retail вход работает
-- Password reset flow работает
 - B2B регистрация (Epic 28) продолжает работать
+- Вход существующего retail-аккаунта работает
+- Password reset flow работает
+
+Отклонение от исходной AC 6: розничная саморегистрация из Epic 28 намеренно
+отключена (портал работает как B2B-площадка). Сценарий сохранён как проверка
+отказа, а не как проверка успешного создания розничного аккаунта; уже
+существующие retail-аккаунты продолжают входить и работать.
 """
 
 from __future__ import annotations
+
+from unittest.mock import patch
 
 import pytest
 from rest_framework import status
@@ -29,8 +35,33 @@ class TestEpic28Regression:
     def setup_method(self) -> None:
         self.client = APIClient()
 
-    def test_retail_registration_still_works(self) -> None:
-        """Retail регистрация из Epic 28 продолжает работать"""
+    @patch("apps.users.serializers.send_manager_region_email.delay")
+    @patch("apps.users.serializers.send_admin_verification_email.delay")
+    @patch("apps.users.serializers.send_user_pending_email.delay")
+    def test_b2b_registration_still_works(self, _user_email, _admin_email, _manager_email) -> None:
+        """Саморегистрация B2B из Epic 28 продолжает работать"""
+        response = self.client.post(
+            "/api/v1/auth/register/",
+            {
+                "email": "newtrainer@example.com",
+                "password": "SecurePass123!",
+                "password_confirm": "SecurePass123!",
+                "first_name": "New",
+                "role": "trainer",
+                "company_name": "Новый клуб",
+                "tax_id": "7712345678",
+                "pdp_consent": True,
+            },
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert "user" in response.data
+        # B2B-заявка ждёт верификации: токены не выдаются
+        assert response.data["user"]["is_verified"] is False
+        assert "access" not in response.data
+
+    def test_retail_registration_is_rejected(self) -> None:
+        """Розничная саморегистрация отключена (замена сценария Epic 28)"""
         response = self.client.post(
             "/api/v1/auth/register/",
             {
@@ -43,18 +74,8 @@ class TestEpic28Regression:
             },
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
-        assert "user" in response.data
-
-        # Проверяем что пользователь может войти
-        # (Epic 29.2: retail должны иметь is_active=True)
-        login_response = self.client.post(
-            "/api/v1/auth/login/",
-            {"email": "newretail@example.com", "password": "SecurePass123!"},
-        )
-        assert login_response.status_code == status.HTTP_200_OK
-        assert "access" in login_response.data
-        assert "refresh" in login_response.data
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "role" in response.data
 
     def test_retail_login_still_works(self) -> None:
         """Retail вход из Epic 28 продолжает работать"""

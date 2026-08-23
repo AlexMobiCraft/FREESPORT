@@ -344,21 +344,21 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
 
     # Проверяем организации по vat_group (AC5: разные org для vat=5 и vat=22)
     org_by_number = {doc.findtext("Номер"): doc.findtext("Организация") for doc in documents}
-    assert org_by_number[sub1.order_number] == "ИП Терещенко Л.В.", (
-        f"sub1 (vat_group=5): ожидали 'ИП Терещенко Л.В.', получили {org_by_number[sub1.order_number]!r}"
-    )
-    assert org_by_number[sub2.order_number] == "ИП Семерюк Д.В.", (
-        f"sub2 (vat_group=22): ожидали 'ИП Семерюк Д.В.', получили {org_by_number[sub2.order_number]!r}"
-    )
+    assert (
+        org_by_number[sub1.order_number] == "ИП Терещенко Л.В."
+    ), f"sub1 (vat_group=5): ожидали 'ИП Терещенко Л.В.', получили {org_by_number[sub1.order_number]!r}"
+    assert (
+        org_by_number[sub2.order_number] == "ИП Семерюк Д.В."
+    ), f"sub2 (vat_group=22): ожидали 'ИП Семерюк Д.В.', получили {org_by_number[sub2.order_number]!r}"
 
     # Проверяем склады по vat_group (AC5: ORGANIZATION_BY_VAT задаёт и Склад)
     warehouse_by_number = {doc.findtext("Номер"): doc.findtext("Склад") for doc in documents}
-    assert warehouse_by_number[sub1.order_number] == "2 ТЛВ склад", (
-        f"sub1 (vat_group=5): ожидали '2 ТЛВ склад', получили {warehouse_by_number[sub1.order_number]!r}"
-    )
-    assert warehouse_by_number[sub2.order_number] == "1 СДВ склад", (
-        f"sub2 (vat_group=22): ожидали '1 СДВ склад', получили {warehouse_by_number[sub2.order_number]!r}"
-    )
+    assert (
+        warehouse_by_number[sub1.order_number] == "2 ТЛВ склад"
+    ), f"sub1 (vat_group=5): ожидали '2 ТЛВ склад', получили {warehouse_by_number[sub1.order_number]!r}"
+    assert (
+        warehouse_by_number[sub2.order_number] == "1 СДВ склад"
+    ), f"sub2 (vat_group=22): ожидали '1 СДВ склад', получили {warehouse_by_number[sub2.order_number]!r}"
 
     # ACT 2 — mode=success: помечаем как отправленные
     resp_success = _get_exchange(auth_client, "success")
@@ -373,18 +373,20 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
     assert master.sent_to_1c_at is not None, "master.sent_to_1c_at должен быть заполнен"
 
     # ACT 3 — импорт: POST orders.xml с разными статусами
-    xml_data = _build_multi_orders_xml([
-        {
-            "order_id": f"order-{sub1.pk}",
-            "order_number": sub1.order_number,
-            "status_1c": "Отгружен",
-        },
-        {
-            "order_id": f"order-{sub2.pk}",
-            "order_number": sub2.order_number,
-            "status_1c": "Подтвержден",
-        },
-    ])
+    xml_data = _build_multi_orders_xml(
+        [
+            {
+                "order_id": f"order-{sub1.pk}",
+                "order_number": sub1.order_number,
+                "status_1c": "Отгружен",
+            },
+            {
+                "order_id": f"order-{sub2.pk}",
+                "order_number": sub2.order_number,
+                "status_1c": "Подтвержден",
+            },
+        ]
+    )
     resp_import = _post_orders_xml(auth_client, xml_data)
     assert resp_import.status_code == 200
     assert resp_import.content.decode("utf-8").startswith("success")
@@ -397,6 +399,6 @@ def test_full_vat_split_export_import_cycle(auth_client, log_dir, db, settings):
 
     # ASSERT — мастер агрегирован (min-priority: confirmed(2) < shipped(4))
     master.refresh_from_db()
-    assert master.status == "confirmed", (
-        f"master.status={master.status!r}, ожидали 'confirmed' (min-priority агрегация)"
-    )
+    assert (
+        master.status == "confirmed"
+    ), f"master.status={master.status!r}, ожидали 'confirmed' (min-priority агрегация)"

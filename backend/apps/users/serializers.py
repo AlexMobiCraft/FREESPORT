@@ -30,6 +30,31 @@ PORTAL_LINK_CONFIRM_SALT = "portal-link-confirm"
 
 PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
 
+INVALID_SELF_SERVICE_ROLE_MESSAGE = "Недопустимая роль для регистрации."
+
+
+def get_self_service_roles() -> frozenset[str]:
+    """
+    Роли, которые заявитель вправе выбрать себе сам при регистрации.
+
+    Это именно белый список, а не запрет отдельных ролей: `admin` дал бы метку
+    администратора в интерфейсе, `unregistered` ставит только импорт 1С, и такой
+    аккаунт не попал бы в admin-действие верификации (оно фильтрует B2B-роли).
+
+    Базой служит `User.B2B_ROLES` — тот же источник истины, что у `is_b2b_user`
+    и admin-действий, иначе списки разошлись бы при добавлении новой роли.
+    Розница добавляется флагом `REGISTRATION_ALLOW_RETAIL`: сейчас она выключена
+    (портал — B2B-площадка), но отключение временное, поэтому включение не должно
+    требовать релиза. Единый источник для choices поля `role`, серверной проверки
+    и ответа GET /api/v1/users/roles/.
+    """
+    roles = set(User.B2B_ROLES)
+
+    if getattr(settings, "REGISTRATION_ALLOW_RETAIL", False):
+        roles.add("retail")
+
+    return frozenset(roles)
+
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
@@ -42,6 +67,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         style={"input_type": "password"},
     )
     password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
+    # Роль объявлена явно, чтобы схема API перечисляла ровно то, что принимает
+    # сервер: модельное поле дало бы все значения ROLE_CHOICES, включая admin и
+    # unregistered. Список подставляется в __init__ — он зависит от настройки.
+    role = serializers.ChoiceField(
+        choices=[],
+        required=True,
+        error_messages={"invalid_choice": INVALID_SELF_SERVICE_ROLE_MESSAGE},
+    )
     pdp_consent = serializers.BooleanField(
         write_only=True,
         required=True,
@@ -78,26 +111,28 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "first_name": {"required": True},
         }
 
-    # Роли, которые заявитель вправе выбрать сам. Именно список разрешённых,
-    # а не запрет отдельных: `admin` даёт метку администратора в интерфейсе,
-    # `unregistered` ставит только импорт 1С, и такой аккаунт не попал бы в
-    # admin-действие верификации (оно фильтрует B2B-роли).
-    SELF_SERVICE_ROLES = frozenset(
-        {
-            "retail",
-            "wholesale_level1",
-            "wholesale_level2",
-            "wholesale_level3",
-            "wholesale_level4",
-            "trainer",
-            "federation_rep",
-        }
-    )
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Список читается на каждое создание сериализатора, а не на импорт
+        # модуля: иначе смена REGISTRATION_ALLOW_RETAIL (в том числе через
+        # override_settings в тестах) не дошла бы до поля.
+        # Пары (значение, подпись) из ROLE_CHOICES: плоский список ролей дал бы
+        # в схеме подписи вида «trainer - trainer» вместо человекочитаемых.
+        allowed = get_self_service_roles()
+        self.fields["role"].choices = [choice for choice in User.ROLE_CHOICES if choice[0] in allowed]
 
     def validate_role(self, value: str) -> str:
-        """Разрешает при регистрации только клиентские роли."""
-        if value not in self.SELF_SERVICE_ROLES:
-            raise serializers.ValidationError("Недопустимая роль для регистрации.")
+        """
+        Разрешает при регистрации только клиентские роли.
+
+        Дублирует проверку `ChoiceField` намеренно: поле отсекает значение по
+        списку, зафиксированному при создании сериализатора, а этот метод
+        сверяется с актуальным. Роль обязательна (`required=True`) — у модели
+        есть default="retail", и без этого запрос без поля создал бы розничный
+        аккаунт в обход запрета.
+        """
+        if value not in get_self_service_roles():
+            raise serializers.ValidationError(INVALID_SELF_SERVICE_ROLE_MESSAGE)
         return value
 
     def validate_tax_id(self, value: str) -> str:

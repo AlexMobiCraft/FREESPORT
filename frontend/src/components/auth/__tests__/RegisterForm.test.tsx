@@ -48,6 +48,23 @@ describe('RegisterForm', () => {
       name: /получать рекламные и информационные рассылки от optisport/i,
     });
 
+  /**
+   * После отключения розничной регистрации роль обязательна, а вместе с ней
+   * обязательны «Название компании» и «ИНН» — без них форма не отправляется.
+   */
+  const fillB2BFields = async (
+    user: ReturnType<typeof userEvent.setup>,
+    {
+      role = 'trainer',
+      company = 'Клуб Тест',
+      taxId = '1234567890',
+    }: { role?: string; company?: string; taxId?: string } = {}
+  ) => {
+    await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), role);
+    await user.type(screen.getByLabelText(/название компании/i), company);
+    await user.type(screen.getByLabelText(/^инн$/i), taxId);
+  };
+
   describe('Rendering', () => {
     test('should render all form fields', () => {
       render(<RegisterForm />);
@@ -183,6 +200,9 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'DifferentPass456');
+      // Роль и B2B-поля обязательны: пока объект не проходит парсинг схемы,
+      // cross-field проверки (совпадение паролей) в Zod не выполняются
+      await fillB2BFields(user);
       await user.click(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME }));
       await user.click(submitButton);
 
@@ -256,16 +276,16 @@ describe('RegisterForm', () => {
     test('should submit form with valid data', async () => {
       const user = userEvent.setup();
       const mockRegister = vi.mocked(authService.register);
+      // Реальный ответ бэкенда на B2B-заявку: 201 без токенов, is_verified=false
       mockRegister.mockResolvedValue({
-        access: 'mock-token',
-        refresh: 'mock-refresh',
+        message: 'Пользователь успешно зарегистрирован',
         user: {
           id: 2,
           email: 'newuser@example.com',
           first_name: 'Новый',
           last_name: '',
           phone: '',
-          role: 'retail',
+          role: 'trainer',
           is_verified: false,
         },
       });
@@ -282,6 +302,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'newuser@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
@@ -293,19 +314,19 @@ describe('RegisterForm', () => {
           first_name: 'Новый',
           last_name: '',
           phone: '',
-          role: 'retail',
-          company_name: undefined,
-          tax_id: undefined,
+          role: 'trainer',
+          company_name: 'Клуб Тест',
+          tax_id: '1234567890',
           country: 'Россия',
           pdp_consent: true,
           marketing_consent: false,
         });
       });
 
-      // Should redirect to root after successful registration
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/');
-      });
+      // Заявка ждёт верификации: вместо редиректа показывается её статус,
+      // иначе успешная отправка выглядела бы как потеря заявки
+      expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
+      expect(mockPush).not.toHaveBeenCalled();
     });
 
     test('should call onSuccess callback after successful registration', async () => {
@@ -313,16 +334,16 @@ describe('RegisterForm', () => {
       const mockRegister = vi.mocked(authService.register);
       const mockOnSuccess = vi.fn();
 
+      // Реальный ответ бэкенда на B2B-заявку: 201 без токенов, is_verified=false
       mockRegister.mockResolvedValue({
-        access: 'mock-token',
-        refresh: 'mock-refresh',
+        message: 'Пользователь успешно зарегистрирован',
         user: {
           id: 2,
           email: 'newuser@example.com',
           first_name: 'Новый',
           last_name: '',
           phone: '',
-          role: 'retail',
+          role: 'trainer',
           is_verified: false,
         },
       });
@@ -339,6 +360,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'newuser@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
@@ -347,7 +369,10 @@ describe('RegisterForm', () => {
       });
     });
 
-    test('should redirect to redirectUrl when provided', async () => {
+    // Ветка редиректа сохраняется для верифицированного ответа: заявка,
+    // одобренная сразу (например уже верифицированный контрагент), уводит
+    // пользователя на redirectUrl, а не на экран ожидания
+    test('should redirect to redirectUrl when registration returns a verified user', async () => {
       const user = userEvent.setup();
       const mockRegister = vi.mocked(authService.register);
       mockRegister.mockResolvedValue({
@@ -357,7 +382,7 @@ describe('RegisterForm', () => {
           id: 2,
           email: 'user@example.com',
           first_name: 'Test',
-          role: 'retail',
+          role: 'trainer',
           is_verified: true,
           last_name: '',
           phone: '',
@@ -370,6 +395,7 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'test@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
@@ -390,7 +416,7 @@ describe('RegisterForm', () => {
           first_name: 'Marketing',
           last_name: '',
           phone: '',
-          role: 'retail',
+          role: 'trainer',
           is_verified: true,
         },
       });
@@ -401,6 +427,7 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-false@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
@@ -426,7 +453,7 @@ describe('RegisterForm', () => {
           first_name: 'Marketing',
           last_name: '',
           phone: '',
-          role: 'retail',
+          role: 'trainer',
           is_verified: true,
         },
       });
@@ -437,6 +464,7 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'marketing-true@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(getMarketingConsent());
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
@@ -476,6 +504,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'existing@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
@@ -512,6 +541,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'WeakPass1');
       await user.type(confirmInput, 'WeakPass1');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
@@ -534,6 +564,7 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
@@ -566,6 +597,7 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
@@ -598,6 +630,7 @@ describe('RegisterForm', () => {
       await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
 
@@ -626,6 +659,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'ivan@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
@@ -652,7 +686,7 @@ describe('RegisterForm', () => {
                     first_name: 'Test',
                     last_name: '',
                     phone: '',
-                    role: 'retail',
+                    role: 'trainer',
                     is_verified: false,
                   },
                 }),
@@ -673,15 +707,17 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'test@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
       // Button should be disabled during submission
       expect(submitButton).toBeDisabled();
 
-      await waitFor(() => {
-        expect(submitButton).not.toBeDisabled();
-      });
+      // По завершении форма уступает место экрану «заявка на рассмотрении»,
+      // поэтому кнопка не разблокируется, а исчезает вместе с формой
+      expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /зарегистрироваться/i })).toBeNull();
     });
 
     test('should disable form inputs during submission', async () => {
@@ -702,7 +738,7 @@ describe('RegisterForm', () => {
                     first_name: 'Test',
                     last_name: '',
                     phone: '',
-                    role: 'retail',
+                    role: 'trainer',
                     is_verified: false,
                   },
                 }),
@@ -723,6 +759,7 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'test@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
@@ -732,9 +769,9 @@ describe('RegisterForm', () => {
       expect(passwordInput).toBeDisabled();
       expect(confirmInput).toBeDisabled();
 
-      await waitFor(() => {
-        expect(nameInput).not.toBeDisabled();
-      });
+      // После успеха поля не разблокируются: форма заменяется экраном статуса
+      expect(await screen.findByText(/заявка на рассмотрении/i)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/электронная почта/i)).toBeNull();
     });
   });
 
@@ -775,30 +812,54 @@ describe('RegisterForm', () => {
       await user.type(emailInput, 'existing@example.com');
       await user.type(passwordInput, 'SecurePass123');
       await user.type(confirmInput, 'SecurePass123');
+      await fillB2BFields(user);
       await acceptPdpConsent(user);
       await user.click(submitButton);
 
-      const alert = await screen.findByRole('alert');
-      expect(alert).toBeInTheDocument();
+      // RoleInfoPanel тоже имеет role="alert", поэтому ищем именно баннер
+      // с сообщением API-ошибки
+      const alerts = await screen.findAllByRole('alert');
+      const apiErrorBanner = alerts.find(el =>
+        el.textContent?.includes('User with this email already exists')
+      );
+      expect(apiErrorBanner).toBeInTheDocument();
     });
   });
 
   // Story 29.1: Role Selection UI & Warnings Tests
   describe('Role Selection (Story 29.1)', () => {
-    // AC 1, 2: Role field with 4 options and retail default
-    test('should have role selector with retail selected by default', () => {
+    // AC 1: три B2B-роли, розничной нет, предвыбора нет
+    test('should have role selector without retail option and without preselection', () => {
       render(<RegisterForm />);
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i) as HTMLSelectElement;
       expect(roleSelect).toBeInTheDocument();
-      expect(roleSelect.value).toBe('retail');
+      // Плейсхолдер: роль не выбрана до действия пользователя
+      expect(roleSelect.value).toBe('');
 
-      // AC 1: Should have all 4 role options
       const options = Array.from(roleSelect.options).map(opt => opt.value);
-      expect(options).toContain('retail');
-      expect(options).toContain('trainer');
-      expect(options).toContain('wholesale_level1');
-      expect(options).toContain('federation_rep');
+      expect(options).toEqual(['', 'trainer', 'wholesale_level1', 'federation_rep']);
+      expect(options).not.toContain('retail');
+      expect(screen.getByRole('option', { name: 'Выберите тип аккаунта' })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /розничный покупатель/i })).toBeNull();
+    });
+
+    // Роль обязательна: без неё submit не уходит на бэкенд
+    test('should block submit and show error when role is not selected', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'no-role@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      // selector: 'p' отсекает одноимённый плейсхолдер <option> и aria-label
+      expect(await screen.findByText('Выберите тип аккаунта', { selector: 'p' })).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
     });
 
     // AC 3: InfoPanel appears when B2B role is selected
@@ -808,7 +869,7 @@ describe('RegisterForm', () => {
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
 
-      // Initially retail, InfoPanel should not be visible
+      // Роль не выбрана — InfoPanel скрыт
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
       // Select trainer (B2B role)
@@ -830,7 +891,7 @@ describe('RegisterForm', () => {
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
 
-      // Initially retail, company_name should not be visible
+      // Роль не выбрана — поле компании скрыто
       expect(screen.queryByLabelText(/название компании/i)).not.toBeInTheDocument();
 
       // Select wholesale (B2B role)
@@ -847,7 +908,7 @@ describe('RegisterForm', () => {
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
 
-      // Initially retail, tax_id should not be visible
+      // Роль не выбрана — поле ИНН скрыто
       expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
 
       // Select wholesale_level1
@@ -863,8 +924,8 @@ describe('RegisterForm', () => {
       await user.selectOptions(roleSelect, 'trainer');
       expect(screen.getByLabelText(/инн/i)).toBeInTheDocument();
 
-      // Обратно на retail — поле снова скрыто
-      await user.selectOptions(roleSelect, 'retail');
+      // Обратно на плейсхолдер — поле снова скрыто
+      await user.selectOptions(roleSelect, '');
       expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
     });
 
@@ -875,7 +936,7 @@ describe('RegisterForm', () => {
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
 
-      // Initially retail, country should not be visible
+      // Роль не выбрана — селектор страны скрыт
       expect(screen.queryByLabelText(/страна/i)).not.toBeInTheDocument();
 
       // Select wholesale (B2B role)
@@ -888,8 +949,8 @@ describe('RegisterForm', () => {
       const options = Array.from(countrySelect.options).map(opt => opt.value);
       expect(options).toEqual(['Россия', 'Беларусь', 'Казахстан']);
 
-      // Switch back to retail - country should hide again
-      await user.selectOptions(roleSelect, 'retail');
+      // Обратно на плейсхолдер — селектор страны снова скрыт
+      await user.selectOptions(roleSelect, '');
       expect(screen.queryByLabelText(/страна/i)).not.toBeInTheDocument();
     });
 
@@ -1026,25 +1087,12 @@ describe('RegisterForm', () => {
       expect(mockRegister).not.toHaveBeenCalled();
     });
 
-    // ИНН, введённый до переключения на retail, не должен уходить на бэкенд:
-    // иначе розничная заявка привяжется к 1С-записи чужого юрлица
-    test('should not submit tax_id after switching from B2B role back to retail', async () => {
+    // Возврат к плейсхолдеру скрывает B2B-поля и блокирует отправку:
+    // заявка без роли на бэкенд уйти не должна
+    test('should block submit after switching role back to placeholder', async () => {
       const user = userEvent.setup();
       const mockRegister = vi.mocked(authService.register);
-      mockRegister.mockResolvedValue({
-        access: 'mock-token',
-        refresh: 'mock-refresh',
-        user: {
-          id: 4,
-          email: 'retail-switch@example.com',
-          first_name: 'Розница',
-          last_name: '',
-          phone: '',
-          role: 'retail',
-          company_name: '',
-          is_verified: true,
-        },
-      });
+      mockRegister.mockClear();
 
       render(<RegisterForm />);
 
@@ -1053,14 +1101,14 @@ describe('RegisterForm', () => {
 
       const companyInput = await screen.findByLabelText(/название компании/i);
       await user.type(companyInput, 'Спортклуб');
-      await user.type(screen.getByLabelText(/инн/i), '123456789012');
+      await user.type(screen.getByLabelText(/^инн$/i), '123456789012');
 
-      // Пользователь передумал и вернулся к рознице
-      await user.selectOptions(roleSelect, 'retail');
-      expect(screen.queryByLabelText(/инн/i)).not.toBeInTheDocument();
+      // Пользователь передумал и снял выбор роли
+      await user.selectOptions(roleSelect, '');
+      expect(screen.queryByLabelText(/^инн$/i)).not.toBeInTheDocument();
 
-      await user.type(screen.getByLabelText(/имя/i), 'Розница');
-      await user.type(screen.getByLabelText(/электронная почта/i), 'retail-switch@example.com');
+      await user.type(screen.getByLabelText(/имя/i), 'Без роли');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'no-role-switch@example.com');
       await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
       await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
       await acceptPdpConsent(user);
@@ -1068,10 +1116,8 @@ describe('RegisterForm', () => {
         screen.getByRole('button', { name: /зарегистрироваться/i }).closest('form') as HTMLFormElement
       );
 
-      await waitFor(() => expect(mockRegister).toHaveBeenCalled());
-      expect(mockRegister).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'retail', tax_id: undefined })
-      );
+      expect(await screen.findByText('Выберите тип аккаунта', { selector: 'p' })).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
     });
 
     // AC 8: Validation for required B2B fields (covered by submit test above + Zod schema tests)

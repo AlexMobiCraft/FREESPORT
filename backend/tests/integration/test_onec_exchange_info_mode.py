@@ -222,7 +222,7 @@ class Test1CInfoMode:
         body = self._decode(response)
 
         # Зеркало production-логики handle_info: fallback "Не согласован" всегда присутствует.
-        defaults = (getattr(django_settings, "ONEC_EXCHANGE", {}).get("ORDER_DEFAULTS") or {})
+        defaults = getattr(django_settings, "ONEC_EXCHANGE", {}).get("ORDER_DEFAULTS") or {}
         default_status = defaults.get("STATUS", "Не согласован")
         expected = len(STATUS_MAPPING) + (1 if default_status not in STATUS_MAPPING else 0)
         assert body.count("<Элемент>") == expected

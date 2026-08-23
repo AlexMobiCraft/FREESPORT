@@ -245,27 +245,31 @@ class Test1CRecordUntouchedByRegistration:
 
 
 class TestRetailMatchOutOfScope:
-    def test_retail_match_by_email_returns_400_same_as_duplicate(self):
+    def test_match_by_email_with_retail_1c_record_returns_400_same_as_duplicate(self):
+        """Розничная запись 1С совпала по email — заявка отклоняется как дубль."""
         customer = create_1c_customer(role="retail", tax_id="")
         client = APIClient()
 
         response = client.post(
             REGISTER_URL,
-            {
-                "email": customer.email,
-                "password": "StrongPassword123!",
-                "password_confirm": "StrongPassword123!",
-                "first_name": "Форма",
-                "last_name": "Регистрации",
-                "role": "retail",
-                "pdp_consent": True,
-            },
+            b2b_registration_payload(email=customer.email),
             format="json",
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data["email"] == ["Пользователь с таким email уже существует."]
         assert User.objects.filter(email=customer.email).count() == 1
+
+    def test_retail_role_is_rejected(self):
+        """Розничная саморегистрация отключена на уровне сериализатора."""
+        client = APIClient()
+        payload = b2b_registration_payload(role="retail")
+
+        response = client.post(REGISTER_URL, payload, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["role"] == ["Недопустимая роль для регистрации."]
+        assert not User.objects.filter(email=payload["email"]).exists()
 
 
 class TestTrainerRoleRequiresTaxId:
@@ -319,29 +323,19 @@ class TestTrainerRoleRequiresTaxId:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data["tax_id"] == ["ИНН должен содержать 10 или 12 цифр."]
 
-    def test_retail_tax_id_is_ignored_and_not_matched(self):
-        """ИНН, оставшийся в форме после переключения на retail, не должен искать клиента 1С."""
+    def test_retail_role_with_tax_id_is_rejected_and_leaves_1c_record_intact(self):
+        """Розничная заявка с чужим ИНН отклоняется и не трогает запись 1С."""
         customer = create_1c_customer()
         client = APIClient()
 
         response = client.post(
             REGISTER_URL,
-            {
-                "email": unique_email("retail_with_tax_id"),
-                "password": "StrongPassword123!",
-                "password_confirm": "StrongPassword123!",
-                "first_name": "Розница",
-                "last_name": "Покупатель",
-                "role": "retail",
-                "tax_id": customer.tax_id,
-                "pdp_consent": True,
-            },
+            b2b_registration_payload(role="retail", tax_id=customer.tax_id),
             format="json",
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
-        new_user = User.objects.get(email=response.data["user"]["email"])
-        assert new_user.tax_id == ""
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["role"] == ["Недопустимая роль для регистрации."]
         customer.refresh_from_db()
         assert customer.verification_status == "unverified"
 
@@ -408,15 +402,7 @@ class TestDuplicates:
 
         response = client.post(
             REGISTER_URL,
-            {
-                "email": existing.email,
-                "password": "StrongPassword123!",
-                "password_confirm": "StrongPassword123!",
-                "first_name": "Форма",
-                "last_name": "Регистрации",
-                "role": "retail",
-                "pdp_consent": True,
-            },
+            b2b_registration_payload(email=existing.email),
             format="json",
         )
 

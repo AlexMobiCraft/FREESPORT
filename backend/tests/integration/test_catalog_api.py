@@ -1,5 +1,7 @@
+import random
 import time
 import uuid
+from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -111,7 +113,11 @@ def setup_test_data():
 
 def register_and_login_user(api_client, role="retail"):
     """
-    Регистрирует и авторизует пользователя с указанной ролью, возвращая токен.
+    Заводит и авторизует пользователя с указанной ролью, возвращая токен.
+
+    Розничная саморегистрация отключена, но розничные аккаунты в системе
+    остаются (импорт 1С, регистрации прошлых лет) и должны видеть retail-цены,
+    поэтому такой пользователь создаётся напрямую, а не через API регистрации.
     """
     api_client.credentials()  # Сбрасываем аутентификацию перед регистрацией
     email = f"test_catalog_{role}@example.com"
@@ -119,6 +125,24 @@ def register_and_login_user(api_client, role="retail"):
     # Удаляем пользователя, если он существует, для чистоты теста
     User.objects.filter(email=email).delete()
 
+    if role == "retail":
+        User.objects.create_user(
+            email=email,
+            password=TEST_USER_PASSWORD,
+            first_name="Тест",
+            last_name=f"Пользователь {role}",
+            role=role,
+            is_active=True,
+            is_verified=True,
+            verification_status="verified",
+        )
+        url = reverse("users:login")
+        response = api_client.post(url, {"email": email, "password": TEST_USER_PASSWORD}, format="json")
+        assert response.status_code == 200, f"Login failed for role {role} with status {response.status_code}"
+        return response.data["access"]
+
+    # Уникальный ИНН на роль: повтор отклоняется валидацией регистрации
+    tax_id = "".join([str(random.randint(0, 9)) for _ in range(10)])
     registration_data = {
         "email": email,
         "password": TEST_USER_PASSWORD,
@@ -126,27 +150,28 @@ def register_and_login_user(api_client, role="retail"):
         "first_name": "Тест",
         "last_name": f"Пользователь {role}",
         "role": role,
+        "company_name": f"Тестовая компания {role}",
+        "tax_id": tax_id,
         "pdp_consent": True,
     }
-    if role != "retail":
-        # Используем уникальный ИНН для каждой роли
-        import random
 
-        tax_id = "".join([str(random.randint(0, 9)) for _ in range(10)])
-        registration_data.update({"company_name": f"Тестовая компания {role}", "tax_id": tax_id})
-
-    # Регистрация
-    url = reverse("users:register")  # Предполагается, что у вас есть именованный URL 'register'
-    response = api_client.post(url, registration_data, format="json")
+    # Регистрация. Заявка ставит в очередь три письма — глушим, чтобы тест
+    # каталога не зависел от брокера.
+    url = reverse("users:register")
+    with (
+        patch("apps.users.serializers.send_admin_verification_email.delay"),
+        patch("apps.users.serializers.send_user_pending_email.delay"),
+        patch("apps.users.serializers.send_manager_region_email.delay"),
+    ):
+        response = api_client.post(url, registration_data, format="json")
     assert response.status_code == 201, f"Registration failed for role {role} with status {response.status_code}"
 
     # Верифицируем B2B пользователей, иначе они не смогут войти (Story 2.1)
-    if role != "retail":
-        user = User.objects.get(email=email)
-        user.is_verified = True
-        user.is_active = True
-        user.verification_status = "verified"
-        user.save()
+    user = User.objects.get(email=email)
+    user.is_verified = True
+    user.is_active = True
+    user.verification_status = "verified"
+    user.save()
 
     # Авторизация
     url = reverse("users:login")  # Предполагается, что у вас есть именованный URL 'login'

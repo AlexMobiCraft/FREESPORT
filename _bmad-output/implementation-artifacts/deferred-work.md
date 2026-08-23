@@ -778,3 +778,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-requisites-page-update.md`
   summary: На странице нет ни даты актуальности реквизитов, ни JSON-LD разметки `Organization` с `taxID`/`address`.
   evidence: Найдено Blind Hunter. JSON-LD в проекте уже применяется (`frontend/src/components/product/ProductPageClient.tsx`), страница реквизитов — очевидное место для структурированных данных. Дата актуальности — первый вопрос при сверке платежа. Вне объёма текущей замены контента.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
+  summary: `SELF_SERVICE_ROLES` разрешает 6 ролей, а форма предлагает 3 — `wholesale_level2/3/4` заявитель может назначить себе только прямым запросом к API.
+  evidence: Найдено Blind Hunter. Расхождение существовало и до отключения розницы, но теперь `/users/roles/` официально публикует все 6. `wholesale_level4` — глубочайший ценовой уровень, а массовое действие `approve_b2b_users` роль не пересматривает. Требует продуктового решения: сузить список саморегистрации или показать все уровни в форме.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
+  summary: `/register` отправляет заявку без фамилии и телефона (`last_name: ''`, `phone: ''`), хотя теперь порождает исключительно лиды бизнес-партнёров для ручной верификации.
+  evidence: Найдено Blind Hunter. Менеджеру приходит заявка «Иван, ООО …, ИНН …» без контакта для обратной связи; `send_manager_region_email` отправляет её региональному менеджеру. `B2BRegisterForm` оба поля собирает. Расширение состава полей формы вне объёма спеки.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
+  summary: Две формы регистрации с пересекающейся аудиторией: оптовик может зарегистрироваться через `/register` в обход сбора ОГРН и юридического адреса на `/b2b-register`.
+  evidence: Найдено Blind Hunter. Роль `wholesale_level1` присутствует в `ROLE_OPTIONS`, а в навигации ссылка только на `/register` — строгая форма перестала быть обязательным путём для тех, ради кого написана. Требует продуктового решения о разделении аудиторий, а не правки кода.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
+  summary: Фронтенд не читает `/users/roles/`: список ролей в форме зашит в `ROLE_OPTIONS`, поэтому флаг `REGISTRATION_ALLOW_RETAIL` управляет бэкендом, но не витриной.
+  evidence: Бэкенд переведён на флаг, включение розницы там не требует релиза. Текущему фронтенду розница не нужна — она вернётся отдельным сайтом, поэтому расхождение осознанное. Если розничный сценарий когда-нибудь понадобится на этом же фронте, форма должна строить список ролей из эндпоинта, а не из константы.
