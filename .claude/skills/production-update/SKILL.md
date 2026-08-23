@@ -90,6 +90,9 @@ cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesp
 cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml up -d --build frontend
 ```
 
+> [!DANGER]
+> **Даже при «фронтенд-only» деплое ВСЕГДА проверяй и применяй миграции** (см. правило в разделе «Важные замечания»). Feature-ветки часто содержат backend-миграции, и пропуск `migrate` ломает API для нового frontend-кода.
+
 ## Важные замечания
 
 > [!DANGER]
@@ -100,6 +103,17 @@ cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesp
 
 > [!WARNING]
 > На сервере часто появляются коммиты от `Freesport Sync Bot`. Поэтому **ВСЕГДА** используй `git reset --hard origin/main` вместо `git pull`, чтобы избежать ошибок слияния ("divergent branches").
+
+> [!DANGER]
+> **При ЛЮБОМ деплое ВСЕГДА проверяй `showmigrations` и запускай `migrate`, даже если кажется, что backend не менялся.** Feature-ветки часто содержат миграции в backend-коде, которые легко пропустить при «фронтенд-only» деплое. Неприменённая миграция приводит к 500-м ошибкам API (`column ... does not exist`) и недоступности данных для frontend. Инцидент 2026-08-23: деплой feature-ветки с миграцией `banners.0007_banner_ad_disclosure` без `migrate` сломал `/api/v1/banners/`.
+>
+> **Обязательный шаг после `git reset --hard origin/main` и перед/после пересборки контейнеров:**
+> ```bash
+> # Проверить статус миграций
+> cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend python manage.py showmigrations | grep -E "\[ \]"
+> # Применить миграции (даже если предыдущая команда ничего не вывела — запусти для надёжности)
+> cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate
+> ```
 
 > [!IMPORTANT]
 > После обновления фронтенда всегда проверяй доступность сайта. Из-за особенностей Docker иногда требуется `restart nginx`, если upstream перестал отвечать.
