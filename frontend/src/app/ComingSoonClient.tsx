@@ -56,7 +56,7 @@ export default function ComingSoon() {
             className="mb-8"
           >
             <h1 className="text-5xl md:text-7xl text-white mb-2 tracking-tight font-bold">
-              FREE<span className="text-[var(--color-primary)]">SPORT</span>
+              OPTI<span className="text-[var(--color-primary)]">SPORT</span>
               .RU
             </h1>
             <div className="w-32 h-1 bg-[var(--color-primary)] mx-auto"></div>
