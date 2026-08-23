@@ -175,7 +175,7 @@ export const SubscribeForm: React.FC = () => {
               rel="noopener noreferrer"
               className="text-primary underline hover:text-primary-hover"
             >
-              «Политикой обработки персональных данных ООО „Фриспорт“»
+              «Политикой обработки персональных данных»
             </Link>
           </span>
         </div>

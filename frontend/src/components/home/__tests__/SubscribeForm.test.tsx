@@ -11,8 +11,8 @@ import { toast } from 'react-hot-toast';
 
 const PDP_CONSENT_NAME =
   'Я даю согласие на обработку моих персональных данных в соответствии с ' +
-  '«Политикой обработки персональных данных ООО „Фриспорт“»';
-const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных ООО „Фриспорт“»';
+  '«Политикой обработки персональных данных»';
+const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
 
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({

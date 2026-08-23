@@ -361,7 +361,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
               rel="noopener noreferrer"
               className="text-primary underline hover:text-primary-hover"
             >
-              «Политикой обработки персональных данных ООО „Фриспорт“»
+              «Политикой обработки персональных данных»
             </Link>
           </span>
         </div>
@@ -387,7 +387,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           htmlFor="register-marketing-consent"
           className="text-body-s text-text-primary cursor-pointer select-none"
         >
-          Я согласен (на) получать рекламные и информационные рассылки от ООО „Фриспорт“
+          Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT
         </label>
       </div>
 

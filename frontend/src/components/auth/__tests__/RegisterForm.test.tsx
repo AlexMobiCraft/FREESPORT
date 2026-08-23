@@ -15,8 +15,8 @@ import authService from '@/services/authService';
 
 const PDP_CONSENT_NAME =
   'Я даю согласие на обработку моих персональных данных в соответствии с ' +
-  '«Политикой обработки персональных данных ООО „Фриспорт“»';
-const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных ООО „Фриспорт“»';
+  '«Политикой обработки персональных данных»';
+const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
 
 // Mock next/navigation
 const mockPush = vi.fn();
@@ -45,7 +45,7 @@ describe('RegisterForm', () => {
 
   const getMarketingConsent = () =>
     screen.getByRole('checkbox', {
-      name: /получать рекламные и информационные рассылки от ооо/i,
+      name: /получать рекламные и информационные рассылки от optisport/i,
     });
 
   describe('Rendering', () => {
