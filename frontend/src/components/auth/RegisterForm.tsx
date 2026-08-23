@@ -29,6 +29,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/utils/cn';
 import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
@@ -299,11 +300,23 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           aria-label="Выберите тип аккаунта"
           aria-invalid={Boolean(errors.role?.message) || undefined}
           aria-describedby={errors.role?.message ? 'register-role-error' : undefined}
-          className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className={cn(
+            'w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
+            // Пока роль не выбрана, текст плейсхолдера приглушён тем же токеном,
+            // что и placeholder в Input («Иван»): --color-neutral-500
+            selectedRole ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-neutral-500)]'
+          )}
         >
-          <option value="">Выберите тип аккаунта</option>
+          {/* Опциям списка цвет задан явно: в выпадающем списке они наследуют color у <select> */}
+          <option value="" className="text-[var(--color-neutral-500)]">
+            Выберите тип аккаунта
+          </option>
           {ROLE_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
+            <option
+              key={option.value}
+              value={option.value}
+              className="text-[var(--color-text-primary)]"
+            >
               {option.label}
             </option>
           ))}
