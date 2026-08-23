@@ -2,6 +2,7 @@ import itertools
 from unittest.mock import patch
 
 import pytest
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -173,5 +174,22 @@ def test_user_roles_endpoint(api_client):
     assert "wholesale_level1" in keys
     assert "trainer" in keys
     assert "retail" not in keys
+    assert "admin" not in keys
+    assert "unregistered" not in keys
+
+
+@override_settings(REGISTRATION_ALLOW_RETAIL=True)
+def test_user_roles_endpoint_follows_retail_flag(api_client):
+    """
+    Список ролей идёт из того же источника, что и проверка регистрации:
+    при включённой рознице витрина не должна отставать от бэкенда.
+    """
+    url = reverse("users:roles")
+    response = api_client.get(url)
+
+    assert response.status_code == 200
+    keys = {role["key"] for role in response.json()["roles"]}
+    assert "retail" in keys
+    # Служебные роли не появляются ни при каком значении флага
     assert "admin" not in keys
     assert "unregistered" not in keys

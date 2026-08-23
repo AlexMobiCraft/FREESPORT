@@ -780,16 +780,8 @@
   evidence: Найдено Blind Hunter. JSON-LD в проекте уже применяется (`frontend/src/components/product/ProductPageClient.tsx`), страница реквизитов — очевидное место для структурированных данных. Дата актуальности — первый вопрос при сверке платежа. Вне объёма текущей замены контента.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
-  summary: Поле `role` в `UserRegistrationRequest` остаётся модельным `RoleEnum`, поэтому контракт публично разрешает `retail`, `admin` и `unregistered`, которые рантайм отклоняет 400.
-  evidence: Найдено Blind Hunter и Edge Case Hunter независимо. Интегратор, генерирующий клиента из `docs/api/openapi.yaml`, отправит валидное по схеме значение и получит 400. Направление: сузить `ChoiceField` поля `role` в `UserRegistrationSerializer` до `SELF_SERVICE_ROLES` — тогда схема и рантайм совпадут автоматически. Вне объёма: меняет публичный контракт и требует регенерации типов.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
   summary: `SELF_SERVICE_ROLES` разрешает 6 ролей, а форма предлагает 3 — `wholesale_level2/3/4` заявитель может назначить себе только прямым запросом к API.
   evidence: Найдено Blind Hunter. Расхождение существовало и до отключения розницы, но теперь `/users/roles/` официально публикует все 6. `wholesale_level4` — глубочайший ценовой уровень, а массовое действие `approve_b2b_users` роль не пересматривает. Требует продуктового решения: сузить список саморегистрации или показать все уровни в форме.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
-  summary: `SELF_SERVICE_ROLES` посимвольно дублирует `User.B2B_ROLES`, но живёт отдельно и ничем не связано.
-  evidence: Найдено Blind Hunter. После удаления `retail` множества стали идентичны. Добавление новой B2B-роли в `B2B_ROLES` без правки `SELF_SERVICE_ROLES` даст admin-верификацию для роли, с которой регистрация падает 400. Направление: `SELF_SERVICE_ROLES = frozenset(User.B2B_ROLES)`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
   summary: `/register` отправляет заявку без фамилии и телефона (`last_name: ''`, `phone: ''`), хотя теперь порождает исключительно лиды бизнес-партнёров для ручной верификации.
@@ -800,5 +792,5 @@
   evidence: Найдено Blind Hunter. Роль `wholesale_level1` присутствует в `ROLE_OPTIONS`, а в навигации ссылка только на `/register` — строгая форма перестала быть обязательным путём для тех, ради кого написана. Требует продуктового решения о разделении аудиторий, а не правки кода.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
-  summary: Отключение канала привлечения зашито в код (`frozenset` + `ROLE_OPTIONS`) — вернуть розницу можно только релизом бэкенда и фронтенда.
-  evidence: Найдено Blind Hunter. Продуктовое решение такого класса обычно живёт в настройке, из которой строятся и `SELF_SERVICE_ROLES`, и ответ `/users/roles/`, и список ролей формы. Введение settings-флага вне объёма спеки.
+  summary: Фронтенд не читает `/users/roles/`: список ролей в форме зашит в `ROLE_OPTIONS`, поэтому флаг `REGISTRATION_ALLOW_RETAIL` управляет бэкендом, но не витриной.
+  evidence: Бэкенд переведён на флаг, включение розницы там не требует релиза. Текущему фронтенду розница не нужна — она вернётся отдельным сайтом, поэтому расхождение осознанное. Если розничный сценарий когда-нибудь понадобится на этом же фронте, форма должна строить список ролей из эндпоинта, а не из константы.

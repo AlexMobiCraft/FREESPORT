@@ -2,8 +2,11 @@
 Тесты для User Serializers - Story 2.2 User Management API
 """
 
+from unittest.mock import patch
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 
 from apps.users.serializers import (
     AddressSerializer,
@@ -14,6 +17,7 @@ from apps.users.serializers import (
     UserLoginSerializer,
     UserProfileSerializer,
     UserRegistrationSerializer,
+    get_self_service_roles,
 )
 from apps.users.views.personal_cabinet import DashboardData
 
@@ -40,6 +44,93 @@ class TestUserRegistrationSerializer:
         serializer = UserRegistrationSerializer(data=data)
         assert not serializer.is_valid()
         assert serializer.errors["role"] == ["Недопустимая роль для регистрации."]
+
+    @override_settings(REGISTRATION_ALLOW_RETAIL=True)
+    def test_retail_registration_when_flag_enabled(self, user_factory):
+        """
+        Отключение розницы временное: при REGISTRATION_ALLOW_RETAIL=True заявка
+        снова проходит, а аккаунт создаётся сразу активным и верифицированным —
+        розничному покупателю верификация менеджером не нужна.
+        """
+        data = {
+            "email": "retail_enabled@test.com",
+            "password": "TestPass123!",
+            "password_confirm": "TestPass123!",
+            "first_name": "Розница",
+            "last_name": "Покупатель",
+            "phone": "+79991234571",
+            "role": "retail",
+            "pdp_consent": True,
+        }
+
+        serializer = UserRegistrationSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+
+        user = serializer.save()
+        assert user.role == "retail"
+        assert user.is_active is True
+        assert user.is_verified is True
+        assert user.verification_status == "verified"
+
+    @override_settings(REGISTRATION_ALLOW_RETAIL=True)
+    def test_retail_tax_id_is_discarded_when_flag_enabled(self, user_factory):
+        """
+        ИНН, оставшийся в форме после переключения роли, розничной заявке не
+        принадлежит: матч по нему (приоритет выше email) привязал бы её к чужому
+        юрлицу из 1С.
+        """
+        data = {
+            "email": "retail_tax@test.com",
+            "password": "TestPass123!",
+            "password_confirm": "TestPass123!",
+            "first_name": "Розница",
+            "last_name": "Покупатель",
+            "phone": "+79991234572",
+            "role": "retail",
+            "tax_id": "7712345678",
+            "pdp_consent": True,
+        }
+
+        serializer = UserRegistrationSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+
+        user = serializer.save()
+        assert user.tax_id == ""
+
+    @override_settings(REGISTRATION_ALLOW_RETAIL=True)
+    def test_retail_registration_does_not_queue_b2b_emails(self, user_factory):
+        """Розничная заявка не требует верификации — письма менеджеру не идут."""
+        data = {
+            "email": "retail_no_mail@test.com",
+            "password": "TestPass123!",
+            "password_confirm": "TestPass123!",
+            "first_name": "Розница",
+            "last_name": "Покупатель",
+            "phone": "+79991234573",
+            "role": "retail",
+            "pdp_consent": True,
+        }
+
+        serializer = UserRegistrationSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+
+        with (
+            patch("apps.users.serializers.send_admin_verification_email.delay") as admin_email,
+            patch("apps.users.serializers.send_user_pending_email.delay") as user_email,
+            patch("apps.users.serializers.send_manager_region_email.delay") as manager_email,
+        ):
+            serializer.save()
+
+        admin_email.assert_not_called()
+        user_email.assert_not_called()
+        manager_email.assert_not_called()
+
+    def test_self_service_roles_follow_the_flag(self):
+        """Флаг — единственный переключатель состава ролей саморегистрации."""
+        assert get_self_service_roles() == frozenset(User.B2B_ROLES)
+
+        with override_settings(REGISTRATION_ALLOW_RETAIL=True):
+            assert get_self_service_roles() == frozenset(User.B2B_ROLES) | {"retail"}
 
     @pytest.mark.parametrize("service_role", ["admin", "unregistered"])
     def test_service_roles_are_rejected(self, user_factory, service_role):
@@ -179,7 +270,7 @@ class TestWholesaleLevel4Registration:
 
     def test_role_is_self_service(self):
         """Роль входит в белый список самостоятельно выбираемых"""
-        assert "wholesale_level4" in UserRegistrationSerializer.SELF_SERVICE_ROLES
+        assert "wholesale_level4" in get_self_service_roles()
 
     def test_valid_wholesale_level4_registration(self, user_factory):
         """Регистрация с ролью уровня 4 проходит валидацию и создаёт пользователя"""

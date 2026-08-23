@@ -793,21 +793,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
-    delete:
-      operationId: users_addresses_destroy
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
     patch:
       operationId: users_addresses_partial_update
       description: ViewSet для управления адресами пользователя
@@ -838,6 +823,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
+    delete:
+      operationId: users_addresses_destroy
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
   /users/favorites/:
     post:
       operationId: users_favorites_create
@@ -945,21 +945,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
-    delete:
-      operationId: users_favorites_destroy
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
     patch:
       operationId: users_favorites_partial_update
       description: ViewSet для управления избранными товарами
@@ -990,6 +975,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
+    delete:
+      operationId: users_favorites_destroy
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
   /products/:
     get:
       operationId: products_list
@@ -1643,28 +1643,6 @@ paths:
           description: Пользователь не авторизован
         '404':
           description: Заказ не найден
-    delete:
-      operationId: orders_destroy
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - orders
-      responses:
-        '204':
-          description: No response body
     patch:
       operationId: orders_partial_update
       description: |-
@@ -1702,6 +1680,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
+    delete:
+      operationId: orders_destroy
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      responses:
+        '204':
+          description: No response body
   /orders/{id}/cancel/:
     post:
       operationId: orders_cancel_create
@@ -1877,23 +1877,6 @@ paths:
           description: ''
         '404':
           description: Товар в корзине не найден
-    delete:
-      operationId: cart_items_destroy
-      description: Удаление товара из корзины
-      summary: Удалить товар из корзины
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - Cart Items
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
     patch:
       operationId: cart_items_partial_update
       description: Частичное изменение количества товара в корзине
@@ -1930,6 +1913,23 @@ paths:
           description: Ошибки валидации
         '404':
           description: Товар в корзине не найден
+    delete:
+      operationId: cart_items_destroy
+      description: Удаление товара из корзины
+      summary: Удалить товар из корзины
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
   /pages/:
     get:
       operationId: pages_list
@@ -4559,28 +4559,6 @@ components:
       - sku
       - stock_quantity
       - stock_range
-    RoleEnum:
-      enum:
-      - retail
-      - wholesale_level1
-      - wholesale_level2
-      - wholesale_level3
-      - wholesale_level4
-      - trainer
-      - federation_rep
-      - admin
-      - unregistered
-      type: string
-      description: |-
-        * `retail` - Розничный покупатель
-        * `wholesale_level1` - Оптовик уровень 1
-        * `wholesale_level2` - Оптовик уровень 2
-        * `wholesale_level3` - Оптовик уровень 3
-        * `wholesale_level4` - Оптовик уровень 4
-        * `trainer` - Тренер/Фитнес-клуб
-        * `federation_rep` - Представитель федерации
-        * `admin` - Администратор
-        * `unregistered` - Не зарегистрирован на портале
     StatusEnum:
       enum:
       - pending
@@ -4780,7 +4758,7 @@ components:
           maxLength: 255
         role:
           allOf:
-          - $ref: '#/components/schemas/RoleEnum'
+          - $ref: '#/components/schemas/UserProfileRoleEnum'
           readOnly: true
           title: Роль пользователя
         company_name:
@@ -4855,6 +4833,28 @@ components:
           title: ИНН
           description: ИНН для B2B пользователей
           maxLength: 12
+    UserProfileRoleEnum:
+      enum:
+      - retail
+      - wholesale_level1
+      - wholesale_level2
+      - wholesale_level3
+      - wholesale_level4
+      - trainer
+      - federation_rep
+      - admin
+      - unregistered
+      type: string
+      description: |-
+        * `retail` - Розничный покупатель
+        * `wholesale_level1` - Оптовик уровень 1
+        * `wholesale_level2` - Оптовик уровень 2
+        * `wholesale_level3` - Оптовик уровень 3
+        * `wholesale_level4` - Оптовик уровень 4
+        * `trainer` - Тренер/Фитнес-клуб
+        * `federation_rep` - Представитель федерации
+        * `admin` - Администратор
+        * `unregistered` - Не зарегистрирован на портале
     UserRegistrationRequest:
       type: object
       description: Serializer для регистрации новых пользователей
@@ -4888,9 +4888,7 @@ components:
           pattern: ^\+7\d{10}$
           maxLength: 255
         role:
-          allOf:
-          - $ref: '#/components/schemas/RoleEnum'
-          title: Роль пользователя
+          $ref: '#/components/schemas/UserRegistrationRoleEnum'
         company_name:
           type: string
           title: Название компании
@@ -4925,6 +4923,22 @@ components:
       - password_confirm
       - pdp_consent
       - role
+    UserRegistrationRoleEnum:
+      enum:
+      - wholesale_level1
+      - wholesale_level2
+      - wholesale_level3
+      - wholesale_level4
+      - trainer
+      - federation_rep
+      type: string
+      description: |-
+        * `wholesale_level1` - Оптовик уровень 1
+        * `wholesale_level2` - Оптовик уровень 2
+        * `wholesale_level3` - Оптовик уровень 3
+        * `wholesale_level4` - Оптовик уровень 4
+        * `trainer` - Тренер/Фитнес-клуб
+        * `federation_rep` - Представитель федерации
     ValidateTokenRequest:
       type: object
       description: Serializer для валидации токена сброса пароля
