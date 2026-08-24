@@ -130,6 +130,13 @@ last_updated: "2026-08-24"
 #             регулятора (ФЗ-152 / ЗоЗПП). Эпик standalone, зависимостей от
 #             эпиков 36-40 нет. Внутри эпика жёсткая зависимость только у 41.0
 #             (меняет исходные данные для SEO-стори), остальные независимы.
+# 2026-08-24: Создана стори 41.0 (create-story) — Story/41-0-real-404-for-
+#             nonexistent-urls.md, статус ready-for-dev; epic-41 переведён
+#             в in-progress. Объём: настоящий 404 в frontend/src/middleware.ts
+#             (список известных маршрутов + кэш CMS-слагов, fail-open),
+#             плюс ARG NEXT_PUBLIC_API_URL_INTERNAL в frontend/Dockerfile и
+#             build.args прод-compose — без него edge-бандл middleware
+#             остаётся без внутреннего адреса API.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -270,10 +277,10 @@ development_status:
   #   записей marketing_email на проде — необратимая операция над данными;
   #   блокирующий предшественник — стори 41.3).
   # ========================================
-  epic-41: backlog
+  epic-41: in-progress
   # Ключевая: гасит 5 замечаний аудита, убирая 14 фантомных адресов из обхода
   # сканера. Ставится первой — меняет исходные данные для всех SEO-требований.
-  41-0-real-404-for-nonexistent-urls: backlog
+  41-0-real-404-for-nonexistent-urls: ready-for-dev
   41-1-cookie-decline-and-change-choice: backlog
   41-2-consent-record-on-1c-link: backlog
   # Останавливает порчу журнала согласий (раздельные согласия ПДн / рассылка).
