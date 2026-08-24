@@ -28,10 +28,15 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
 # metadataBase (canonical/OG-ссылки) вычисляется на этапе сборки, поэтому нужен ARG, а не только env
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Внутренний адрес API для middleware: в edge-бандл переменные подставляются на
+# этапе сборки, и попадают туда только NEXT_PUBLIC_*. Без этого ARG middleware
+# в проде остаётся без внутреннего адреса backend и уходит наружу через nginx.
+ARG NEXT_PUBLIC_API_URL_INTERNAL=http://backend:8000/api/v1
 ARG NODE_ENV=production
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_API_URL_INTERNAL=$NEXT_PUBLIC_API_URL_INTERNAL
 ENV NODE_ENV=$NODE_ENV
 ENV NEXT_TELEMETRY_DISABLED=1
 

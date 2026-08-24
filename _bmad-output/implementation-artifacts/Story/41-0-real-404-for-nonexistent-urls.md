@@ -4,7 +4,7 @@ baseline_commit: a041e1b0
 
 # Story 41.0: Несуществующие адреса отдают настоящий 404
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -52,42 +52,42 @@ so that **несуществующие страницы не попадали в
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Список известных маршрутов и разбор пути** (AC: 3, 5, 8, 9)
-  - [ ] 1.1: В `frontend/src/middleware.ts` добавить константу `KNOWN_TOP_LEVEL_ROUTES: ReadonlySet<string>` с 24 значениями из AC3. Комментарием зафиксировать: список сверяется тестом-стражем, `electric-orange` — rewrite на статику, а не страница
-  - [ ] 1.2: Добавить хелпер `getSingleSegment(pathname: string): string | null` — возвращает единственный сегмент пути либо `null` для корня и многосегментных путей (AC5)
-  - [ ] 1.3: Сделать `middleware` асинхронной (`export async function middleware`). Auth-ветки оставить **без изменений и первыми**; проверку 404 разместить непосредственно перед финальным `return NextResponse.next()` (AC8)
-  - [ ] 1.4: `matcher` не трогать (AC9)
+- [x] **Task 1: Список известных маршрутов и разбор пути** (AC: 3, 5, 8, 9)
+  - [x] 1.1: В `frontend/src/middleware.ts` добавить константу `KNOWN_TOP_LEVEL_ROUTES: ReadonlySet<string>` с 24 значениями из AC3. Комментарием зафиксировать: список сверяется тестом-стражем, `electric-orange` — rewrite на статику, а не страница
+  - [x] 1.2: Добавить хелпер `getSingleSegment(pathname: string): string | null` — возвращает единственный сегмент пути либо `null` для корня и многосегментных путей (AC5)
+  - [x] 1.3: Сделать `middleware` асинхронной (`export async function middleware`). Auth-ветки оставить **без изменений и первыми**; проверку 404 разместить непосредственно перед финальным `return NextResponse.next()` (AC8)
+  - [x] 1.4: `matcher` не трогать (AC9)
 
-- [ ] **Task 2: Кэш опубликованных слагов** (AC: 6, 7, 10)
-  - [ ] 2.1: Константы с русскими комментариями: `SLUG_CACHE_TTL_MS = 5 * 60 * 1000` и `SLUGS_FETCH_TIMEOUT_MS = 2000`. Обоснование TTL — в Dev Notes → «Почему 5 минут»
-  - [ ] 2.2: Модульное состояние: `slugCache: { slugs: Set<string>; fetchedAt: number } | null` и `inflight: Promise<Set<string> | null> | null` (single-flight)
-  - [ ] 2.3: `getApiBaseUrl()` — цепочка `NEXT_PUBLIC_API_URL_INTERNAL` → `NEXT_PUBLIC_API_URL` → литерал `http://backend:8000/api/v1`. **Только `NEXT_PUBLIC_*`**: остальные в edge-бандл не попадают (AC10). Не копировать `getApiUrl()` из `[slug]/page.tsx:17-23` — там первым идёт `INTERNAL_API_URL`, который в middleware не работает
-  - [ ] 2.4: `fetchPublishedSlugs()` — `GET {api}/pages/?page_size=1000` с `AbortSignal.timeout(SLUGS_FETCH_TIMEOUT_MS)`, разбор `data.results[].slug` с проверками `res.ok`, `Array.isArray(data.results)` и `typeof slug === 'string'`. `page_size=1000` обязателен: DRF по умолчанию отдаёт 20 записей (`PAGE_SIZE`, `backend/freesport/settings/base.py:169`), и 21-я CMS-страница молча начала бы отдавать 404. Ошибку не пробрасывать — вернуть `null` и залогировать `console.warn`
-  - [ ] 2.5: `getPublishedSlugs()` — свежий кэш отдаётся сразу; протухший отдаётся сразу, обновление запускается фоном без `await`; пустого кэша ждём с таймаутом; параллельные промахи используют общий `inflight`-промис (AC6)
-  - [ ] 2.6: Фоновое обновление обязано глотать собственные ошибки (`.catch()`), иначе unhandled rejection уронит воркер
+- [x] **Task 2: Кэш опубликованных слагов** (AC: 6, 7, 10)
+  - [x] 2.1: Константы с русскими комментариями: `SLUG_CACHE_TTL_MS = 5 * 60 * 1000` и `SLUGS_FETCH_TIMEOUT_MS = 2000`. Обоснование TTL — в Dev Notes → «Почему 5 минут»
+  - [x] 2.2: Модульное состояние: `slugCache: { slugs: Set<string>; fetchedAt: number } | null` и `inflight: Promise<Set<string> | null> | null` (single-flight)
+  - [x] 2.3: `getApiBaseUrl()` — цепочка `NEXT_PUBLIC_API_URL_INTERNAL` → `NEXT_PUBLIC_API_URL` → литерал `http://backend:8000/api/v1`. **Только `NEXT_PUBLIC_*`**: остальные в edge-бандл не попадают (AC10). Не копировать `getApiUrl()` из `[slug]/page.tsx:17-23` — там первым идёт `INTERNAL_API_URL`, который в middleware не работает
+  - [x] 2.4: `fetchPublishedSlugs()` — `GET {api}/pages/?page_size=1000` с `AbortSignal.timeout(SLUGS_FETCH_TIMEOUT_MS)`, разбор `data.results[].slug` с проверками `res.ok`, `Array.isArray(data.results)` и `typeof slug === 'string'`. `page_size=1000` обязателен: DRF по умолчанию отдаёт 20 записей (`PAGE_SIZE`, `backend/freesport/settings/base.py:169`), и 21-я CMS-страница молча начала бы отдавать 404. Ошибку не пробрасывать — вернуть `null` и залогировать `console.warn`
+  - [x] 2.5: `getPublishedSlugs()` — свежий кэш отдаётся сразу; протухший отдаётся сразу, обновление запускается фоном без `await`; пустого кэша ждём с таймаутом; параллельные промахи используют общий `inflight`-промис (AC6)
+  - [x] 2.6: Фоновое обновление обязано глотать собственные ошибки (`.catch()`), иначе unhandled rejection уронит воркер
 
-- [ ] **Task 3: Возврат 404** (AC: 1, 2, 7)
-  - [ ] 3.1: Слаг не в `KNOWN_TOP_LEVEL_ROUTES` → получить список слагов. `null` (fail-open) → `console.warn` + `NextResponse.next()` (AC7). Слаг в списке → `NextResponse.next()` (AC2). Иначе → `NextResponse.rewrite(new URL('/_not-found', request.url), { status: 404 })`
-  - [ ] 3.2: Комментарием у `rewrite` зафиксировать механику и запасной вариант — оба разобраны в Dev Notes → «Как middleware отдаёт 404»
+- [x] **Task 3: Возврат 404** (AC: 1, 2, 7)
+  - [x] 3.1: Слаг не в `KNOWN_TOP_LEVEL_ROUTES` → получить список слагов. `null` (fail-open) → `console.warn` + `NextResponse.next()` (AC7). Слаг в списке → `NextResponse.next()` (AC2). Иначе → `NextResponse.rewrite(new URL('/_not-found', request.url), { status: 404 })`
+  - [x] 3.2: Комментарием у `rewrite` зафиксировать механику и запасной вариант — оба разобраны в Dev Notes → «Как middleware отдаёт 404»
 
-- [ ] **Task 4: Доставка URL API в сборку** (AC: 10)
-  - [ ] 4.1: `frontend/Dockerfile`: рядом с существующими `ARG NEXT_PUBLIC_API_URL` / `ARG NEXT_PUBLIC_APP_URL` (строки 27-30) добавить `ARG NEXT_PUBLIC_API_URL_INTERNAL=http://backend:8000/api/v1` и `ENV NEXT_PUBLIC_API_URL_INTERNAL=$NEXT_PUBLIC_API_URL_INTERNAL` — обязательно **выше** `RUN npm run build` (строка 39)
-  - [ ] 4.2: `docker/docker-compose.prod.yml`, сервис `frontend`, блок `build.args` (строки 113-117): добавить `NEXT_PUBLIC_API_URL_INTERNAL: http://backend:8000/api/v1`
-  - [ ] 4.3: `Dockerfile.dev` и `docker/docker-compose.yml` не трогать — dev читает окружение в runtime, `NEXT_PUBLIC_API_URL_INTERNAL` там уже задан (`docker-compose.yml:115`)
+- [x] **Task 4: Доставка URL API в сборку** (AC: 10)
+  - [x] 4.1: `frontend/Dockerfile`: рядом с существующими `ARG NEXT_PUBLIC_API_URL` / `ARG NEXT_PUBLIC_APP_URL` (строки 27-30) добавить `ARG NEXT_PUBLIC_API_URL_INTERNAL=http://backend:8000/api/v1` и `ENV NEXT_PUBLIC_API_URL_INTERNAL=$NEXT_PUBLIC_API_URL_INTERNAL` — обязательно **выше** `RUN npm run build` (строка 39)
+  - [x] 4.2: `docker/docker-compose.prod.yml`, сервис `frontend`, блок `build.args` (строки 113-117): добавить `NEXT_PUBLIC_API_URL_INTERNAL: http://backend:8000/api/v1`
+  - [x] 4.3: `Dockerfile.dev` и `docker/docker-compose.yml` не трогать — dev читает окружение в runtime, `NEXT_PUBLIC_API_URL_INTERNAL` там уже задан (`docker-compose.yml:115`)
 
-- [ ] **Task 5: Тесты middleware** (AC: 1, 2, 3, 5, 6, 7, 8, 12)
-  - [ ] 5.1: В `frontend/src/__tests__/middleware.test.ts` дополнить мок `next/server`: к `next` и `redirect` добавить `rewrite: vi.fn()` (сейчас его нет — новые тесты упадут на «не функция»)
-  - [ ] 5.2: Существующие четыре теста перевести на `await middleware(req)` — функция стала асинхронной
-  - [ ] 5.3: **Сбрасывать модульное состояние между тестами**: `vi.resetModules()` в `beforeEach` и импорт middleware динамически (`const { middleware } = await import('../middleware')`). Иначе кэш слагов протечёт из теста в тест и результат станет зависеть от порядка выполнения
-  - [ ] 5.4: Мок `global.fetch` (`vi.stubGlobal('fetch', ...)`), ответ вида `{ results: [{ slug: 'oferta' }] }`; в `afterEach` — `vi.unstubAllGlobals()`
-  - [ ] 5.5: Кейсы: `/offer` → `rewrite` с `/_not-found` и `{ status: 404 }`; `/oferta` → `next()`; `/about` и `/electric-orange` → `next()` **без обращения к fetch**; `/foo/bar` и `/` → `next()` без fetch; fetch reject → `next()` + `console.warn`; `res.ok === false` → `next()`; два запроса подряд → ровно один fetch; после истечения TTL (фейковые таймеры) — повторный fetch; `/profile` без токена → `redirect` на `/login`, fetch не вызывался
-  - [ ] 5.6: Новый файл `frontend/src/__tests__/app-routes-allowlist.test.ts` — тест-страж (AC4). Обходит `src/app` через `node:fs`, собирает односегментные публичные маршруты (каталоги в скобках раскрывает, `[...]` пропускает, требует наличия `page.tsx`), сверяет со списком. Путь к `src/app` строить от `import.meta.url`, не от `process.cwd()`
+- [x] **Task 5: Тесты middleware** (AC: 1, 2, 3, 5, 6, 7, 8, 12)
+  - [x] 5.1: В `frontend/src/__tests__/middleware.test.ts` дополнить мок `next/server`: к `next` и `redirect` добавить `rewrite: vi.fn()` (сейчас его нет — новые тесты упадут на «не функция»)
+  - [x] 5.2: Существующие четыре теста перевести на `await middleware(req)` — функция стала асинхронной
+  - [x] 5.3: **Сбрасывать модульное состояние между тестами**: `vi.resetModules()` в `beforeEach` и импорт middleware динамически (`const { middleware } = await import('../middleware')`). Иначе кэш слагов протечёт из теста в тест и результат станет зависеть от порядка выполнения
+  - [x] 5.4: Мок `global.fetch` (`vi.stubGlobal('fetch', ...)`), ответ вида `{ results: [{ slug: 'oferta' }] }`; в `afterEach` — `vi.unstubAllGlobals()`
+  - [x] 5.5: Кейсы: `/offer` → `rewrite` с `/_not-found` и `{ status: 404 }`; `/oferta` → `next()`; `/about` и `/electric-orange` → `next()` **без обращения к fetch**; `/foo/bar` и `/` → `next()` без fetch; fetch reject → `next()` + `console.warn`; `res.ok === false` → `next()`; два запроса подряд → ровно один fetch; после истечения TTL (фейковые таймеры) — повторный fetch; `/profile` без токена → `redirect` на `/login`, fetch не вызывался
+  - [x] 5.6: Новый файл `frontend/src/__tests__/app-routes-allowlist.test.ts` — тест-страж (AC4). Обходит `src/app` через `node:fs`, собирает односегментные публичные маршруты (каталоги в скобках раскрывает, `[...]` пропускает, требует наличия `page.tsx`), сверяет со списком. Путь к `src/app` строить от `import.meta.url`, не от `process.cwd()`
 
-- [ ] **Task 6: Проверка на живом контейнере** (AC: 12, 13)
-  - [ ] 6.0: Локальные гейты CI перед пересборкой: `npm run lint`, `npm run format:check` (или `npx prettier --check`), `npm run test` — `frontend-ci.yml` гоняет ESLint и Prettier до тестов, и падение форматирования блокирует PR
-  - [ ] 6.1: `docker compose --env-file .env -f docker/docker-compose.yml up -d --build frontend`
-  - [ ] 6.2: Прогнать проверочный набор из Dev Notes → «Ручная проверка», вывод приложить в Completion Notes
-  - [ ] 6.3: Убедиться, что `/oferta` отдаёт 200 с текстом оферты, а ссылка в подвале рабочая
+- [x] **Task 6: Проверка на живом контейнере** (AC: 12, 13)
+  - [x] 6.0: Локальные гейты CI перед пересборкой: `npm run lint`, `npm run format:check` (или `npx prettier --check`), `npm run test` — `frontend-ci.yml` гоняет ESLint и Prettier до тестов, и падение форматирования блокирует PR
+  - [x] 6.1: `docker compose --env-file .env -f docker/docker-compose.yml up -d --build frontend` (выполнено; backend пересоздался вместе с фронтом → дополнительно `restart nginx`)
+  - [x] 6.2: Прогнать проверочный набор из Dev Notes → «Ручная проверка», вывод приложить в Completion Notes
+  - [x] 6.3: Убедиться, что `/oferta` отдаёт 200 с текстом оферты, а ссылка в подвале рабочая
 
 ## Dev Notes
 
@@ -205,8 +205,77 @@ npx gitnexus impact middleware --direction upstream
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, dev-story)
+
 ### Debug Log References
+
+- `npx vitest run src/__tests__/middleware.test.ts src/__tests__/app-routes-allowlist.test.ts` — RED-фаза: 16 падений / 15 существующих зелёных; после реализации 31/31 зелёные
+- `npx vitest run` (полный набор фронта) — 146 файлов, 2478 passed, 16 skipped, регрессий нет
+- `npm run lint` (`eslint . --max-warnings=0`) — чисто; `npx prettier --check` по изменённым файлам — чисто
+- `npx gitnexus detect-changes --scope all` — `Risk level: low`, затронуты только символы `frontend/src/middleware.ts` (правки `AGENTS.md`/`CLAUDE.md` в выводе — чужие незакоммиченные изменения рабочего дерева, к стори не относятся)
 
 ### Completion Notes List
 
+**Реализация.** `frontend/src/middleware.ts` стал асинхронным: после существующих auth-веток (они не изменены и по-прежнему первые) добавлена проверка односегментного пути. Сегмент не из `KNOWN_TOP_LEVEL_ROUTES` и не из списка опубликованных CMS-слагов → `NextResponse.rewrite(new URL('/_not-found', request.url), { status: 404 })`. Список слагов кэшируется в памяти модуля (TTL 5 минут, stale-while-revalidate, single-flight, таймаут запроса 2 с) и на любую неудачу отвечает fail-open с `console.warn`.
+
+**Механика 404 подтверждена на живом сервере — запасной вариант не понадобился.** Основной вариант (`rewrite` на `/_not-found` со `status: 404`) отдаёт настоящий 404, как и предполагал разбор исходников Next 15.5.18.
+
+**AC13 — проверено дважды: на локальной production-сборке и в Docker.** Сначала (Docker-демон был недоступен) — `next build` + `next start -p 3100` против живого backend; затем, после запуска Docker, — штатным путём: `up -d --build frontend`, `restart nginx` (backend пересоздался вместе с фронтом, nginx иначе держит старый IP апстрима). Результаты обоих прогонов совпали.
+
+Фактический вывод в Docker (контейнер `:3000` и через nginx `:80`):
+
+```
+=== должны быть 404 ===        === должны быть 200 ===
+/offer       404               /oferta            200
+/terms       404               /about             200
+/korzina     404               /catalog           200
+/basket      404               /home              200
+/order       404               /login             200
+/product     404               /coming-soon       200
+/aaa         404               /electric-orange   200
+                               /privacy-policy    200
+=== через nginx :80 ===        /requisites        200
+/offer         404             /blog              200
+/terms         404             /news              200
+/korzina       404
+/oferta        200
+/about         200
+/catalog       200
+/robots.txt    200
+/sitemap.xml   200  (94 с в dev-режиме — генерация обходит API; к стори не относится)
+/foo/bar       404  (Next сам, middleware не вмешивался)
+/profile       307  (редирект анонима на /login — регрессии нет)
+```
+
+Тело `/offer` и через контейнер, и через nginx: `<title>Страница не найдена | OPTISPORT</title>`, заголовок «404», текст «Страница не найдена» — AC1 по телу выполнен. nginx статус не подменяет: `proxy_intercept_errors on` объявляет `error_page` только для 502/503/504.
+
+**Fail-open (AC7) проверен вживую, а не только тестами.** `stop backend` + `restart frontend` (холодный кэш) → `/offer` и `/oferta` отдали **200** (запрос пропущен дальше по прежнему пути), в логах контейнера:
+
+```
+[middleware] Не удалось получить список CMS-слагов: TimeoutError: The operation was aborted due to timeout
+[middleware] Проверка адреса /offer пропущена: список слагов недоступен
+```
+
+Таймаут 2 с сработал — недоступный backend сайт не подвесил. После `start backend` + `restart nginx` `/offer` немедленно вернулся к 404, `/oferta` — 200.
+
+**Кэш (AC6) проверен по логам backend:** пять обращений к разным несуществующим адресам подряд дали **0** запросов `GET /api/v1/pages/?page_size=1000` — список брался из кэша.
+
+**Границы соблюдены.** `(blue)/[slug]/page.tsx`, `not-found.tsx`, `robots.ts`, `sitemap.ts`, `seo.ts`, `next.config.ts`, nginx и бэкенд не изменялись; новых зависимостей нет.
+
+**Работа велась в ветке `feature/story-41-0-real-404`** (от `develop`, коммит не делался — по правилу проекта коммит/пуш только по явной просьбе).
+
+### Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-24 | Реализована стори 41.0: настоящий HTTP 404 для несуществующих адресов верхнего уровня (middleware + кэш CMS-слагов + fail-open), `ARG NEXT_PUBLIC_API_URL_INTERNAL` в сборку фронта, тест-страж списка маршрутов. Статус → review |
+
 ### File List
+
+- `frontend/src/middleware.ts` — изменён: список известных маршрутов, кэш слагов, ветка 404, функция стала async
+- `frontend/src/__tests__/middleware.test.ts` — изменён: async-вызовы, мок `NextResponse.rewrite` и `fetch`, изоляция модульного состояния, 21 новый тест
+- `frontend/src/__tests__/app-routes-allowlist.test.ts` — добавлен: тест-страж соответствия списка маршрутов структуре `src/app`
+- `frontend/Dockerfile` — изменён: `ARG`/`ENV NEXT_PUBLIC_API_URL_INTERNAL` до `npm run build`
+- `docker/docker-compose.prod.yml` — изменён: `NEXT_PUBLIC_API_URL_INTERNAL` в `build.args` сервиса `frontend`
+- `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md` — изменён: чекбоксы задач, Dev Agent Record, статус
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён: статус стори `ready-for-dev` → `in-progress` → `review`
