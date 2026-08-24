@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
+from .cache_keys import PAGES_LIST_CACHE_KEY
 from .models import Page
 
 logger = logging.getLogger(__name__)
@@ -18,8 +19,13 @@ logger = logging.getLogger(__name__)
 
 @receiver([post_save, post_delete], sender=Page)
 def invalidate_page_cache(sender, instance, **kwargs):
-    """Инвалидация кэша при изменении страницы"""
-    cache.delete("pages_list")
+    """Инвалидация кэша при изменении страницы.
+
+    Список кэшируется целиком под одним ключом (см. `PageViewSet.list`), поэтому
+    удаления этого ключа достаточно для любых вариантов пагинации: и для запроса
+    без параметров, и для `?page_size=1000` от middleware фронтенда.
+    """
+    cache.delete(PAGES_LIST_CACHE_KEY)
     cache.delete(f"page_detail_{instance.slug}")
 
     thread = threading.Thread(

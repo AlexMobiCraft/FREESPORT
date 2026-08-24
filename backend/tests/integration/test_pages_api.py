@@ -406,3 +406,97 @@ class PagesAPIPerformanceTest(TestCase):
 
         # Response time должно быть очень быстрым для одной страницы
         self.assertLess(response_time, 0.5, f"Response time too slow: {response_time}s")
+
+
+@pytest.mark.integration
+class PagesListCachePaginationTest(TestCase):
+    """Кэш выдачи списка страниц не должен смешивать разные окна пагинации.
+
+    Middleware фронтенда запрашивает `?page_size=1000`, чтобы получить полный
+    список опубликованных слагов и по нему решать, отдавать ли настоящий 404.
+    Если кэш списка не учитывает параметры пагинации, такому запросу может
+    достаться закэшированная первая страница из 20 записей (`PAGE_SIZE` DRF),
+    и 21-я CMS-страница молча начнёт отдавать 404.
+    """
+
+    PAGES_COUNT = 25
+
+    def setUp(self):
+        """Создаёт заведомо больше страниц, чем помещается на страницу выдачи"""
+        self.client = APIClient()
+        cache.clear()
+        Page.objects.all().delete()
+
+        for index in range(self.PAGES_COUNT):
+            Page.objects.create(
+                title=f"Страница {index:02d}",
+                slug=f"page-{index:02d}",
+                content="<p>Контент</p>",
+                is_published=True,
+            )
+
+    def test_full_list_request_not_served_from_default_page_cache(self):
+        """Запрос с page_size не должен получать закэшированную выдачу по умолчанию"""
+        url = reverse("pages:pages-list")
+
+        default_response = self.client.get(url)
+        self.assertEqual(len(default_response.data["results"]), 20)
+
+        full_response = self.client.get(url, {"page_size": 1000})
+
+        self.assertEqual(full_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(full_response.data["results"]), self.PAGES_COUNT)
+
+    def test_default_page_request_not_served_from_full_list_cache(self):
+        """Обратное направление: запрос без параметров не получает полную выдачу"""
+        url = reverse("pages:pages-list")
+
+        self.client.get(url, {"page_size": 1000})
+        default_response = self.client.get(url)
+
+        self.assertEqual(default_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(default_response.data["results"]), 20)
+
+    def test_second_page_not_served_from_first_page_cache(self):
+        """Вторая страница выдачи не должна подменяться первой из кэша"""
+        url = reverse("pages:pages-list")
+
+        self.client.get(url)
+        second_page = self.client.get(url, {"page": 2})
+
+        slugs = [page["slug"] for page in second_page.data["results"]]
+        self.assertEqual(slugs, [f"page-{index:02d}" for index in range(20, self.PAGES_COUNT)])
+
+    def test_publication_invalidates_every_pagination_variant(self):
+        """Публикация страницы сбрасывает кэш всех вариантов пагинации сразу"""
+        url = reverse("pages:pages-list")
+
+        # Прогреваем оба варианта кэша
+        self.client.get(url)
+        self.client.get(url, {"page_size": 1000})
+
+        Page.objects.create(
+            title="Аренда инвентаря",
+            slug="arenda",
+            content="<p>Новая страница</p>",
+            is_published=True,
+        )
+
+        full_response = self.client.get(url, {"page_size": 1000})
+        self.assertIn("arenda", [page["slug"] for page in full_response.data["results"]])
+
+        default_response = self.client.get(url)
+        self.assertEqual(default_response.data["count"], self.PAGES_COUNT + 1)
+
+    def test_unpublishing_invalidates_full_list_cache(self):
+        """Снятие с публикации также сбрасывает кэш полной выдачи"""
+        url = reverse("pages:pages-list")
+
+        self.client.get(url, {"page_size": 1000})
+
+        page = Page.objects.get(slug="page-00")
+        page.is_published = False
+        page.save()
+
+        full_response = self.client.get(url, {"page_size": 1000})
+        self.assertNotIn("page-00", [item["slug"] for item in full_response.data["results"]])

@@ -313,4 +313,189 @@ describe('Middleware: настоящий 404 для несуществующих
     const init = fetchMock.mock.calls[0][1] as RequestInit | undefined;
     expect(init?.signal).toBeDefined();
   });
+
+  it('схлопывает параллельные промахи холодного кэша в один запрос к API', async () => {
+    // Запрос к API «зависает», пока мы не отпустим его вручную: только так
+    // второй запрос попадёт в кэш ровно в момент, когда первый ещё в полёте.
+    let releaseFetch: () => void = () => {};
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releaseFetch = () => resolve(slugsResponse(['oferta']));
+        })
+    );
+
+    const { middleware, NextResponse } = await loadMiddleware();
+
+    const first = middleware(anonymousRequest('/offer'));
+    const second = middleware(anonymousRequest('/terms'));
+
+    // Второй промах обязан переиспользовать незавершённый запрос первого
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    releaseFetch();
+    await Promise.all([first, second]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Middleware: протухший кэш не даёт оснований для 404', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  /** Прогревает кэш слагов и сдвигает время за пределы TTL */
+  async function warmCacheAndExpire(middleware: (req: NextRequest) => Promise<unknown>) {
+    await middleware(anonymousRequest('/oferta'));
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+  }
+
+  it('вновь опубликованная страница открывается, а не получает 404 из устаревшего списка', async () => {
+    vi.useFakeTimers();
+    const { middleware, NextResponse } = await loadMiddleware();
+    await warmCacheAndExpire(middleware);
+
+    // Страница опубликована уже после того, как кэш был наполнен
+    fetchMock.mockImplementationOnce(async () => slugsResponse(['oferta', 'arenda']));
+    await middleware(anonymousRequest('/arenda'));
+
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(NextResponse.next).toHaveBeenCalledTimes(2);
+  });
+
+  it('fail-open: протухший кэш и недоступный backend не дают ложного 404', async () => {
+    vi.useFakeTimers();
+    const { middleware, NextResponse } = await loadMiddleware();
+    await warmCacheAndExpire(middleware);
+
+    fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    await middleware(anonymousRequest('/arenda'));
+
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(NextResponse.next).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('положительное решение по протухшему кэшу принимается сразу, обновление идёт фоном', async () => {
+    vi.useFakeTimers();
+    const { middleware, NextResponse } = await loadMiddleware();
+    await warmCacheAndExpire(middleware);
+
+    // Фоновое обновление «зависает» — ответ пользователю ждать его не должен
+    fetchMock.mockImplementationOnce(() => new Promise(() => {}));
+    await middleware(anonymousRequest('/oferta'));
+
+    expect(NextResponse.next).toHaveBeenCalledTimes(2);
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Middleware: неполный или невалидный ответ API не становится allowlist-ом', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  /** Ответ API, который не должен приниматься за полный список слагов */
+  const apiResponse = (payload: unknown) => ({
+    ok: true,
+    status: 200,
+    json: async () => payload,
+  });
+
+  it('fail-open: элемент выдачи без строкового slug', async () => {
+    fetchMock.mockResolvedValueOnce(
+      apiResponse({ count: 2, results: [{ slug: 'oferta' }, { title: 'без слага' }] })
+    );
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('fail-open: выдача обрезана пагинацией (есть next)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      apiResponse({
+        count: 25,
+        next: 'http://backend:8000/api/v1/pages/?page=2',
+        results: [{ slug: 'oferta' }],
+      })
+    );
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('fail-open: count не совпадает с числом полученных записей', async () => {
+    fetchMock.mockResolvedValueOnce(apiResponse({ count: 25, results: [{ slug: 'oferta' }] }));
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('пустой список страниц — валидный ответ, а не признак поломки', async () => {
+    fetchMock.mockResolvedValueOnce(apiResponse({ count: 0, results: [] }));
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+  });
 });

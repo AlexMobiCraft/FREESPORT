@@ -113,16 +113,37 @@ async function fetchPublishedSlugs(): Promise<Set<string> | null> {
       return null;
     }
 
-    const data = (await res.json()) as { results?: unknown };
+    const data = (await res.json()) as { results?: unknown; count?: unknown; next?: unknown };
 
     if (!Array.isArray(data.results)) {
       console.warn('[middleware] Ответ со списком CMS-слагов не разобрался');
       return null;
     }
 
+    // Выдача, обрезанная пагинацией, полным списком не является: непопавшие в
+    // неё страницы получили бы 404. Полнота проверяется по обоим признакам DRF —
+    // ссылке на следующую страницу и общему числу записей.
+    if (data.next) {
+      console.warn('[middleware] Список CMS-слагов обрезан пагинацией — считаем неполным');
+      return null;
+    }
+
+    if (typeof data.count === 'number' && data.count !== data.results.length) {
+      console.warn(
+        `[middleware] Список CMS-слагов неполон: count=${data.count}, получено ${data.results.length}`
+      );
+      return null;
+    }
+
     const slugs = new Set<string>();
     for (const item of data.results as Array<{ slug?: unknown }>) {
-      if (item && typeof item.slug === 'string') slugs.add(item.slug);
+      // Молча пропускать нераспознанный элемент нельзя: неполный список тут же
+      // стал бы авторитетным allowlist-ом и превратил реальную страницу в 404.
+      if (!item || typeof item !== 'object' || typeof item.slug !== 'string' || !item.slug) {
+        console.warn('[middleware] В списке CMS-слагов есть запись без строкового slug');
+        return null;
+      }
+      slugs.add(item.slug);
     }
 
     return slugs;
@@ -148,24 +169,47 @@ function refreshSlugCache(): Promise<Set<string> | null> {
   return inflightSlugsRequest;
 }
 
+/** Читает кэш слагов вместе с признаком протухания */
+function readSlugCache(): { slugs: Set<string>; isStale: boolean } | null {
+  if (!slugCache) return null;
+
+  return {
+    slugs: slugCache.slugs,
+    isStale: Date.now() - slugCache.fetchedAt > SLUG_CACHE_TTL_MS,
+  };
+}
+
 /**
- * Отдаёт список опубликованных слагов.
+ * Отвечает, опубликована ли CMS-страница с таким слагом:
+ * `true` — да, `false` — точно нет, `null` — выяснить не удалось (fail-open).
  *
- * Свежий кэш возвращается сразу; протухший тоже возвращается сразу, а обновление
- * идёт фоном (stale-while-revalidate) — протухание не должно добавлять задержку
- * в запрос пользователя. Пустой кэш приходится ждать.
+ * Положительное и отрицательное решения намеренно несимметричны:
+ *
+ * - положительное принимается и по протухшему кэшу, а обновление идёт фоном
+ *   (stale-while-revalidate) — страница уже была опубликована, лишний 200
+ *   безвреден, а снятие с публикации подстрахует ветка `if (!page)` с `noindex`
+ *   в `(blue)/[slug]/page.tsx`;
+ * - отрицательное (то есть 404) по протухшему кэшу принимать НЕЛЬЗЯ: отсутствие
+ *   слага в устаревшем списке не доказывает, что страницы нет. Иначе вновь
+ *   опубликованная страница получала бы 404 в первом запросе после TTL, а при
+ *   недоступном backend — постоянно, в обход fail-open. Поэтому здесь список
+ *   приходится дождаться, и «не знаю» (null) снова означает пропуск запроса.
  */
-async function getPublishedSlugs(): Promise<Set<string> | null> {
-  if (slugCache) {
-    const isStale = Date.now() - slugCache.fetchedAt > SLUG_CACHE_TTL_MS;
-    if (isStale) {
+async function isPublishedSlug(segment: string): Promise<boolean | null> {
+  const cached = readSlugCache();
+
+  if (cached?.slugs.has(segment)) {
+    if (cached.isStale) {
       // Фоновое обновление обязано глотать свои ошибки, иначе unhandled rejection
       void refreshSlugCache().catch(() => null);
     }
-    return slugCache.slugs;
+    return true;
   }
 
-  return refreshSlugCache();
+  if (cached && !cached.isStale) return false;
+
+  const fresh = await refreshSlugCache().catch(() => null);
+  return fresh === null ? null : fresh.has(segment);
 }
 
 /**
@@ -239,16 +283,16 @@ export async function middleware(request: NextRequest) {
   // Проверка идёт последней: редиректы выше не должны ждать сетевой запрос.
   const segment = getSingleSegment(pathname);
   if (segment && !KNOWN_TOP_LEVEL_ROUTES.has(segment)) {
-    const publishedSlugs = await getPublishedSlugs();
+    const isPublished = await isPublishedSlug(segment);
 
-    if (publishedSlugs === null) {
+    if (isPublished === null) {
       // Fail-open: список получить не удалось — вслепую 404 не отдаём,
       // иначе недоступный backend превратит весь сайт в 404.
       console.warn(`[middleware] Проверка адреса ${pathname} пропущена: список слагов недоступен`);
       return NextResponse.next();
     }
 
-    if (!publishedSlugs.has(segment)) {
+    if (!isPublished) {
       // Rewrite на внутренний маршрут `/_not-found` со статусом 404: Next
       // переносит статус ответа middleware на ответ (resolve-routes) и рендерит
       // `app/not-found.tsx` (base-server). Если статус когда-нибудь перестанет
