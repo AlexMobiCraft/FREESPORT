@@ -19,7 +19,7 @@ export default async function RootPage() {
   const refreshToken = cookieStore.get('refreshToken')?.value;
   const isAuthenticated = !!refreshToken;
 
-  const activeTheme = (process.env.ACTIVE_THEME || 'coming_soon') as ThemeKey;
+  const activeTheme = (process.env.ACTIVE_THEME || 'blue') as ThemeKey;
 
   // Smart redirect: authenticated users bypass 'coming_soon' placeholder
   let targetTheme = activeTheme;
