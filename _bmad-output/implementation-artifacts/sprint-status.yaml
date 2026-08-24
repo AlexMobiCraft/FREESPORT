@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-16
+# last_updated: 2026-08-24
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -10,9 +10,11 @@
 # Предыдущий спринт (1C-HTTP-EXCHANGE) завершён 2026-05-18.
 # Архив: sprint-status-archive-2026-05-18.yaml
 #
-# Файл покрывает два потока работ, оба описаны в planning-artifacts/epics.md:
+# Файл покрывает три потока работ, все перечислены в planning-artifacts/epics.md:
 #   - Security & Bugfix Sprint (2026-Q2): эпики 36-38;
-#   - Роль клиента из 1С + четвёртый оптовый уровень (2026-Q3): эпики 39-40.
+#   - Роль клиента из 1С + четвёртый оптовый уровень (2026-Q3): эпики 39-40;
+#   - Устранение недочётов аудита сайта (2026-Q3): эпик 41 — полный текст
+#     вынесен в planning-artifacts/epic-41-site-audit.md.
 # Эпик 33 завершён ранее и включён для соответствия epics.md 1:1.
 #
 # STATUS DEFINITIONS:
@@ -51,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: "2026-08-15"
+last_updated: "2026-08-24"
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -121,6 +123,13 @@ last_updated: "2026-08-15"
 #             settings.py удаляется, sync-to-public чистит оба каталога.
 #             Ручной шаг вне кода — перенастройка выгрузки 1С на dev-машине,
 #             заведён в action_items.
+# 2026-08-24: Добавлен эпик 41 «Устранение недочётов аудита сайта optisport.ru»
+#             (sprint-planning по planning-artifacts/epic-41-site-audit.md).
+#             Девять стори 41.0-41.8, все в backlog: story-файлов в Story/ нет.
+#             Приоритет 🔴 CRITICAL, драйвер — запуск сайта и требования
+#             регулятора (ФЗ-152 / ЗоЗПП). Эпик standalone, зависимостей от
+#             эпиков 36-40 нет. Внутри эпика жёсткая зависимость только у 41.0
+#             (меняет исходные данные для SEO-стори), остальные независимы.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -239,6 +248,45 @@ development_status:
   40-4-import-applies-role-to-linked-accounts: done
   40-5-link-transfers-price-type-and-role: done
   epic-40-retrospective: optional
+
+  # ========================================
+  # Epic 41: Устранение недочётов аудита сайта optisport.ru
+  # Goal: Сайт соответствует собственной опубликованной политике обработки ПДн
+  #       и требованиям ФЗ-152 / ЗоЗПП в точках сбора данных и оплаты,
+  #       корректно представлен в поиске и отдаёт непротиворечивые заголовки
+  #       безопасности на всех ответах, включая статику и пользовательские загрузки.
+  # Priority: 🔴 CRITICAL (драйвер — запуск сайта, требования регулятора)
+  # Source: planning-artifacts/epic-41-site-audit.md (эпик вынесен из epics.md);
+  #         внешний аудит optisport.ru от 2026-08-24, оценка 20/100.
+  #         Триаж: implementation-artifacts/intent-site-audit-2026-08-24.md.
+  # Состав: 25 FR, 7 NFR, 9 стори, 47 критериев приёмки.
+  # Свежесть координат: проверено на коммите db125f82.
+  # Порядок стори: 41.0 -> 41.5 -> 41.3 -> {41.1, 41.2, 41.4, 41.6, 41.7} -> 41.8.
+  #   Порядок отражает приоритет, а не зависимости: после 41.0 остальные
+  #   независимы и распараллеливаются.
+  # Standalone: да, зависимостей от эпиков 36-40 нет.
+  # Вне объёма эпика: tech-debt.md п. 22 (2FA в админке), п. 23 (декоративный CSP),
+  #   tasks/dev-task-marketing-consent-journal-cleanup.md (чистка недостоверных
+  #   записей marketing_email на проде — необратимая операция над данными;
+  #   блокирующий предшественник — стори 41.3).
+  # ========================================
+  epic-41: backlog
+  # Ключевая: гасит 5 замечаний аудита, убирая 14 фантомных адресов из обхода
+  # сканера. Ставится первой — меняет исходные данные для всех SEO-требований.
+  41-0-real-404-for-nonexistent-urls: backlog
+  41-1-cookie-decline-and-change-choice: backlog
+  41-2-consent-record-on-1c-link: backlog
+  # Останавливает порчу журнала согласий (раздельные согласия ПДн / рассылка).
+  41-3-separate-pdn-and-marketing-consents: backlog
+  41-4-checkout-trade-info-and-policy-link: backlog
+  # Содержит работающую уязвимость (FR-41-22): add_header внутри location в nginx
+  # затирает унаследованный набор — /media/ с файлами выгрузки 1С идёт без nosniff.
+  41-5-security-headers-single-source-all-locations: backlog
+  41-6-unique-metadata-og-image-jsonld: backlog
+  41-7-pdn-registry-numbers-and-login-form-justification: backlog
+  # Единственная стори не из подтверждённого дефекта; ценность в доступности.
+  41-8-text-separator-badge-brand-product-name: backlog
+  epic-41-retrospective: optional
 
 # ========================================
 # Action items ретроспектив.
