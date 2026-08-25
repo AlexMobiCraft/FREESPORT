@@ -28,15 +28,22 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
 # metadataBase (canonical/OG-ссылки) вычисляется на этапе сборки, поэтому нужен ARG, а не только env
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
-# Внутренний адрес API для middleware: в edge-бандл переменные подставляются на
+# Внутренний адрес API ДЛЯ MIDDLEWARE: в edge-бандл переменные подставляются на
 # этапе сборки, и попадают туда только NEXT_PUBLIC_*. Без этого ARG middleware
 # в проде остаётся без внутреннего адреса backend и уходит наружу через nginx.
-ARG NEXT_PUBLIC_API_URL_INTERNAL=http://backend:8000/api/v1
+#
+# Переменная выделенная, а не общий NEXT_PUBLIC_API_URL_INTERNAL, и это принципиально:
+# подстановка на этапе сборки действует на ВЕСЬ код, включая серверные компоненты.
+# Общее имя переключило бы на внутренний http://backend:8000 и страницы /oferta,
+# /privacy-policy, а они не шлют X-Forwarded-Proto — при штатном SECURE_SSL_REDIRECT=True
+# их запрос уехал бы на https://backend:8000, где TLS нет, и CMS-страницы остались бы
+# без данных. Заголовок протокола ставит только запрос из middleware.
+ARG NEXT_PUBLIC_MIDDLEWARE_API_URL=http://backend:8000/api/v1
 ARG NODE_ENV=production
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
-ENV NEXT_PUBLIC_API_URL_INTERNAL=$NEXT_PUBLIC_API_URL_INTERNAL
+ENV NEXT_PUBLIC_MIDDLEWARE_API_URL=$NEXT_PUBLIC_MIDDLEWARE_API_URL
 ENV NODE_ENV=$NODE_ENV
 ENV NEXT_TELEMETRY_DISABLED=1
 

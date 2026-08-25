@@ -123,9 +123,24 @@ let slugsFailedAt: number | null = null;
  * попадают туда только `NEXT_PUBLIC_*`. Поэтому `INTERNAL_API_URL`, с которого
  * начинают цепочку серверные компоненты (`app/sitemap.ts`, `(blue)/[slug]/page.tsx`),
  * здесь неприменим — в собранном middleware он будет undefined.
+ *
+ * Первым звеном стоит ВЫДЕЛЕННАЯ переменная `NEXT_PUBLIC_MIDDLEWARE_API_URL`, и
+ * это не косметика. Подстановка на этапе сборки действует не только на
+ * middleware: `process.env.NEXT_PUBLIC_*` инлайнится во весь код, включая
+ * серверные компоненты. Общий `NEXT_PUBLIC_API_URL_INTERNAL`, переданный в
+ * сборку прода, переключил бы на внутренний `http://backend:8000` и страницы
+ * `/oferta`, `/privacy-policy` — а они, в отличие от запроса ниже, не шлют
+ * `X-Forwarded-Proto: https`, и при штатном `SECURE_SSL_REDIRECT=True` backend
+ * увёл бы их в `https://backend:8000`, где TLS нет. Собственная переменная
+ * оставляет остальному фронтенду прежний источник API.
+ *
+ * `NEXT_PUBLIC_API_URL_INTERNAL` остаётся вторым звеном для dev-контейнера:
+ * там middleware компилируется на лету и читает окружение в runtime
+ * (`docker/docker-compose.yml`), а build-arg не участвует.
  */
 function getApiBaseUrl(): string {
   const base =
+    process.env.NEXT_PUBLIC_MIDDLEWARE_API_URL ||
     process.env.NEXT_PUBLIC_API_URL_INTERNAL ||
     process.env.NEXT_PUBLIC_API_URL ||
     'http://backend:8000/api/v1';
@@ -339,16 +354,19 @@ function decodeSegment(segment: string): string {
  * percent-encoding (`/%D0%BE%D1%84%D0%B5%D1%80%D1%82%D0%B0`), а в списке из API
  * лежит обычная строка. Без декодирования опубликованная страница с нелатинским
  * адресом получала бы ложный 404.
+ *
+ * Закодированный слэш (`%2F`) разделителем сегментов для Next НЕ является:
+ * `/foo%2Fbar` остаётся односегментным путём и попадает в тот же catch-all,
+ * поэтому пропускать его «как многосегментный» нельзя — живой запрос отдавал бы
+ * soft-404 со статусом 200. Такой сегмент проверяется на общих основаниях и в
+ * allowlist не попадёт никогда: `Page.slug` — это `SlugField`, слэша в нём быть
+ * не может.
  */
 function getSingleSegment(pathname: string): string | null {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length !== 1) return null;
 
-  const decoded = decodeSegment(segments[0]);
-
-  // Закодированный слэш (%2F) делает путь многосегментным: зоной catch-all он
-  // уже не является, вмешиваться не нужно.
-  return decoded.includes('/') ? null : decoded;
+  return decodeSegment(segments[0]);
 }
 
 /**

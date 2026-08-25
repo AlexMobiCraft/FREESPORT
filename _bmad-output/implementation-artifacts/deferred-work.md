@@ -1,6 +1,7 @@
 ## Deferred from: code review of 41-0-real-404-for-nonexistent-urls (2026-08-25)
 
 - **Недоступный Redis при сохранении Page может вернуть 500 уже после записи в БД и оставить серверный список страниц неинвалидированным.** `invalidate_page_cache` вызывает операции `cache.delete/get/incr` без обработки исключений; в autocommit сигнал выполняется после SQL-записи, а в транзакции — из `on_commit`. Проблема существовала до story 41.0: прежний signal так же синхронно вызывал `cache.delete`. Нужна отдельная политика деградации кэша — логирование и best-effort invalidation либо outbox/retry, чтобы повтор клиентского запроса не был единственным механизмом восстановления. [`backend/apps/pages/signals.py:40,57-66`, `backend/freesport/settings/production.py:53-64`]
+- **Префиксная проверка auth-маршрутов редиректит авторизованного с несуществующих адресов вместо 404.** `isAuthRoute()` использует `startsWith`, поэтому `/login-foo`, `/register-old` и `/b2b-register-invalid` считаются auth-маршрутами и получают редирект на `/`. Поведение существовало до story 41.0, а AC8 этой стори явно требует сохранить auth-ветки без изменений; исправление следует выполнять отдельно с тестами точных маршрутов и допустимых подмаршрутов. [`frontend/src/middleware.ts:365-367,395-407`]
 
 ## Deferred from: spec-tech-debt-19-followups — порог покрытия `backend-ci.yml` (2026-08-06)
 

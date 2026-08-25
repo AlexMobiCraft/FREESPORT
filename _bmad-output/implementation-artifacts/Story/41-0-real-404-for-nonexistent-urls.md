@@ -4,7 +4,7 @@ baseline_commit: a041e1b0
 
 # Story 41.0: Несуществующие адреса отдают настоящий 404
 
-Status: in-progress
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -42,7 +42,9 @@ so that **несуществующие страницы не попадали в
 
 9. **AC9 (FR-41-21).** `matcher` по-прежнему исключает `_next/static`, `_next/image`, `favicon.ico`, любые пути с точкой (шаблон `.*\..*` покрывает `/robots.txt`, `/sitemap.xml`, `/media/...`, файлы из `public/`) и `api/`. **Уточнение раунда 3:** к списку исключений добавлен якорь `api$` — ровно путь `/api` без завершающего слэша под `api/` не подпадал, попадал в middleware и перехватывался логикой 404 раньше, чем срабатывал rewrite `/api/:path*` из `next.config.ts`. Других изменений `matcher` не вносится: он трогает маршрутизацию всего сайта.
 
-10. **AC10 (доставка URL API в edge-бандл).** Middleware обращается к API по **внутреннему** адресу Docker-сети. В `frontend/Dockerfile` добавлен `ARG NEXT_PUBLIC_API_URL_INTERNAL` с дефолтом `http://backend:8000/api/v1` и соответствующий `ENV` **до** `RUN npm run build`; в `docker/docker-compose.prod.yml` он передан в `build.args` сервиса `frontend`. Причина обязательна к пониманию: в edge-бандл middleware переменные подставляются **на этапе сборки**, и попадают туда только `NEXT_PUBLIC_*`. Сейчас `INTERNAL_API_URL` и `NEXT_PUBLIC_API_URL_INTERNAL` заданы в проде только в `environment` (runtime) — в собранном middleware они будут `undefined`, и запрос уйдёт по публичному `https://optisport.ru/api/v1` наружу и обратно через nginx либо не уйдёт вовсе. `Dockerfile.dev` не меняется: dev-контейнер компилирует на лету и читает окружение в runtime.
+10. **AC10 (доставка URL API в edge-бандл).** Middleware обращается к API по **внутреннему** адресу Docker-сети. В `frontend/Dockerfile` добавлен `ARG NEXT_PUBLIC_MIDDLEWARE_API_URL` с дефолтом `http://backend:8000/api/v1` и соответствующий `ENV` **до** `RUN npm run build`; в `docker/docker-compose.prod.yml` он передан в `build.args` сервиса `frontend`. Причина обязательна к пониманию: в edge-бандл middleware переменные подставляются **на этапе сборки**, и попадают туда только `NEXT_PUBLIC_*`. Сейчас `INTERNAL_API_URL` и `NEXT_PUBLIC_API_URL_INTERNAL` заданы в проде только в `environment` (runtime) — в собранном middleware они будут `undefined`, и запрос уйдёт по публичному `https://optisport.ru/api/v1` наружу и обратно через nginx либо не уйдёт вовсе. `Dockerfile.dev` не меняется: dev-контейнер компилирует на лету и читает окружение в runtime.
+
+    **Уточнение раунда 6:** переменная сборки — **выделенная** (`NEXT_PUBLIC_MIDDLEWARE_API_URL`), а не общий `NEXT_PUBLIC_API_URL_INTERNAL`. Подстановка на этапе сборки действует не только на middleware: `process.env.NEXT_PUBLIC_*` инлайнится во весь код, включая серверные компоненты. Общее имя в `build.args` переключило бы на внутренний `http://backend:8000` и страницы `/oferta` и `/privacy-policy`, а они не шлют `X-Forwarded-Proto` — при штатном `SECURE_SSL_REDIRECT=True` их запрос уехал бы на `https://backend:8000`, где TLS нет. В цепочке `getApiBaseUrl()` выделенная переменная стоит первой, `NEXT_PUBLIC_API_URL_INTERNAL` остаётся вторым звеном для dev-контейнера (runtime-окружение из `docker/docker-compose.yml`). Контракт закреплён тест-стражем `frontend/src/__tests__/middleware-build-env.test.ts`.
 
 11. **AC11 (границы стори).** **Не изменяются:** `(blue)/[slug]/page.tsx` (ветка `if (!page)` с `noindex` остаётся страховкой на случай fail-open и гонки «slug в списке, но страница уже снята»), `app/not-found.tsx`, `app/robots.ts`, `app/sitemap.ts`, `utils/seo.ts`, `next.config.ts`, `docker/nginx/**` (заголовки — объём стори 41.5). Новых зависимостей в `package.json` нет.
 
@@ -51,7 +53,7 @@ so that **несуществующие страницы не попадали в
     - `backend/tests/integration/test_pages_api.py` — тесты на пагинацию, инвалидацию, поздний writer и сортировку;
     - `docs/api/openapi.yaml` и `frontend/src/types/api.generated.ts` — параметр `page_size` у `GET /pages/` и регенерация типов.
 
-    Изменяются, кроме перечисленного: `frontend/src/middleware.ts`, `frontend/src/__tests__/middleware.test.ts`, новый файл теста-стража, `frontend/Dockerfile`, `docker/docker-compose.prod.yml`.
+    Изменяются, кроме перечисленного: `frontend/src/middleware.ts`, `frontend/src/__tests__/middleware.test.ts`, новые файлы тестов-стражей (`app-routes-allowlist.test.ts`, `middleware-build-env.test.ts` — раунд 6), `frontend/Dockerfile`, `docker/docker-compose.prod.yml`.
 
 12. **AC12 (NFR-41-01, NFR-41-03).** Покрытие тестами по AC1–AC8; пороги vitest (`functions/lines/branches/statements ≥ 65`, `vitest.config.mts:36-41`) не снижаются. Комментарии и docstrings нового кода — на русском. **E2E-тест на 404 не добавляется** — обоснование в Dev Notes → «Почему не Playwright».
 
@@ -78,8 +80,8 @@ so that **несуществующие страницы не попадали в
   - [x] 3.2: Комментарием у `rewrite` зафиксировать механику и запасной вариант — оба разобраны в Dev Notes → «Как middleware отдаёт 404»
 
 - [x] **Task 4: Доставка URL API в сборку** (AC: 10)
-  - [x] 4.1: `frontend/Dockerfile`: рядом с существующими `ARG NEXT_PUBLIC_API_URL` / `ARG NEXT_PUBLIC_APP_URL` (строки 27-30) добавить `ARG NEXT_PUBLIC_API_URL_INTERNAL=http://backend:8000/api/v1` и `ENV NEXT_PUBLIC_API_URL_INTERNAL=$NEXT_PUBLIC_API_URL_INTERNAL` — обязательно **выше** `RUN npm run build` (строка 39)
-  - [x] 4.2: `docker/docker-compose.prod.yml`, сервис `frontend`, блок `build.args` (строки 113-117): добавить `NEXT_PUBLIC_API_URL_INTERNAL: http://backend:8000/api/v1`
+  - [x] 4.1: `frontend/Dockerfile`: рядом с существующими `ARG NEXT_PUBLIC_API_URL` / `ARG NEXT_PUBLIC_APP_URL` (строки 27-30) добавить `ARG NEXT_PUBLIC_MIDDLEWARE_API_URL=http://backend:8000/api/v1` и `ENV NEXT_PUBLIC_MIDDLEWARE_API_URL=$NEXT_PUBLIC_MIDDLEWARE_API_URL` — обязательно **выше** `RUN npm run build` (строка 39). Имя выделенное, а не общий `NEXT_PUBLIC_API_URL_INTERNAL` (уточнение раунда 6 в AC10)
+  - [x] 4.2: `docker/docker-compose.prod.yml`, сервис `frontend`, блок `build.args` (строки 113-117): добавить `NEXT_PUBLIC_MIDDLEWARE_API_URL: http://backend:8000/api/v1`
   - [x] 4.3: `Dockerfile.dev` и `docker/docker-compose.yml` не трогать — dev читает окружение в runtime, `NEXT_PUBLIC_API_URL_INTERNAL` там уже задан (`docker-compose.yml:115`)
 
 - [x] **Task 5: Тесты middleware** (AC: 1, 2, 3, 5, 6, 7, 8, 12)
@@ -127,6 +129,13 @@ so that **несуществующие страницы не попадали в
 - [x] [Review][Patch] **[Low] Добавить доказательство части AC2 про метаданные опубликованной CMS-страницы: текущий тест `/oferta` проверяет только `NextResponse.next()`, но не вызов `buildMetadata` и отсутствие `noindex`.** [`frontend/src/__tests__/middleware.test.ts:222-228`, `frontend/src/app/(blue)/[slug]/page.tsx:57-73`]
 - [x] [Review][Patch] **[Low] Актуализировать Dev Agent Record: заменить `RESULT_PLACEHOLDER` фактическим результатом либо отметить непройденный gate и убрать устаревшее утверждение первого раунда, что backend не изменялся.** [`_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:277,325`]
 - [x] [Review][Defer] **[High] Недоступный Redis во время signal/on_commit оставляет уже сохранённое изменение Page с ответом 500 и без гарантированной инвалидации кэша.** [`backend/apps/pages/signals.py:40,57-66`] — deferred, pre-existing
+
+#### Раунд 6 — независимое ревью после исправлений раунда 5 (2026-08-25)
+
+- [x] [Review][Patch] **[High] Build-time `NEXT_PUBLIC_API_URL_INTERNAL` меняет источник API не только для middleware: production-сборка направляет CMS-страницы на внутренний HTTP backend без `X-Forwarded-Proto`, поэтому при штатном `SECURE_SSL_REDIRECT=True` `/oferta` и `/privacy-policy` перестают получать данные.** [`frontend/Dockerfile:34-44`, `frontend/src/app/(blue)/[slug]/page.tsx:16-49`, `frontend/src/app/(blue)/privacy-policy/page.tsx:23-79`]
+- [x] [Review][Patch] **[Medium] Закодированный слэш обходит настоящий 404: `getSingleSegment()` возвращает `null` для `/foo%2Fbar`, но Next всё равно передаёт исходный encoded-сегмент catch-all странице, и живой запрос отдаёт HTTP 200 soft-404.** [`frontend/src/middleware.ts:343-351`]
+- [x] [Review][Patch] **[Low] Добавить `deferred-work.md` в File List: файл реально изменён в baseline-diff записью отложенной находки про Redis, но в итоговом перечне отсутствует.** [`_bmad-output/implementation-artifacts/deferred-work.md:1-3`, `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:533-557`]
+- [x] [Review][Defer] **[Medium] Префиксная проверка auth-маршрутов редиректит авторизованного с несуществующих `/login-foo`, `/register-old` и `/b2b-register-invalid` вместо 404.** [`frontend/src/middleware.ts:365-367,395-407`] — deferred, pre-existing
 
 ## Dev Notes
 
@@ -251,6 +260,12 @@ claude-opus-5 (Claude Code, dev-story)
 - `npx vitest run src/__tests__/middleware.test.ts src/__tests__/app-routes-allowlist.test.ts` — RED-фаза: 16 падений / 15 существующих зелёных; после реализации 31/31 зелёные
 - `npx vitest run` (полный набор фронта) — 146 файлов, 2478 passed, 16 skipped, регрессий нет
 - `npm run lint` (`eslint . --max-warnings=0`) — чисто; `npx prettier --check` по изменённым файлам — чисто
+- **Раунд 6:** `npx vitest run src/__tests__/middleware.test.ts src/__tests__/middleware-build-env.test.ts` — RED-фаза: 7 падений (3 закодированный слэш, 1 приоритет переменной, 3 тест-страж сборки) / 61 зелёный; после реализации 74/74 зелёные вместе с тестом-стражем маршрутов
+- **Раунд 6:** `npx vitest run` (полный набор фронта) — 148 файлов, 2524 passed, 16 skipped, регрессий нет; `npm run lint` и `npx prettier --check` по изменённым файлам — чисто
+- **Раунд 6:** `docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -q tests/integration/test_pages_api.py` — 30 passed (бэкенд в этом раунде не менялся, прогон контрольный)
+- **Раунд 6:** `npx gitnexus detect-changes --scope unstaged` — risk low, affected processes 0, затронуты только `middleware.ts` и его хелперы
+- **Раунд 6:** `npx vitest run src/__tests__/middleware.test.ts src/__tests__/middleware-build-env.test.ts` — RED-фаза: 7 падений (3 закодированный слэш, 1 приоритет переменной, 3 страж переменных сборки); после реализации 74/74 зелёные
+- **Раунд 6:** `npx vitest run` (полный набор фронта) — 148 файлов, 2524 passed, 16 skipped, регрессий нет; `npm run lint` и `npx prettier --check` — чисто
 - `npx gitnexus detect-changes --scope all` — `Risk level: low`, затронуты только символы `frontend/src/middleware.ts` (правки `AGENTS.md`/`CLAUDE.md` в выводе — чужие незакоммиченные изменения рабочего дерева, к стори не относятся)
 
 **Раунд 2 — правки по ревью (2026-08-24):**
@@ -293,7 +308,7 @@ claude-opus-5 (Claude Code, dev-story)
 - `npm run test:coverage` (полный набор фронта) — 147 файлов, **2514 passed, 16 skipped**; пороги vitest (65 %) держатся: All files 78.42 / 71.21 / 73.8 / 79.83, `middleware.ts` — 98.24 lines / 94.8 branches / 87.5 functions / 100 statements
 - `npm run lint` — чисто; `npm run format:check` (Prettier по всему проекту) — чисто; `npx tsc --noEmit` — чисто
 - `pytest tests/integration/test_pages_api.py apps/pages` — 40 passed; `black --check` + `flake8` по `apps/pages/views.py` — чисто (изменение комментарное)
-- `pytest -m "not performance and not slow"` (полный набор бэкенда) — BACKEND_ROUND5
+- `pytest -m "not performance and not slow"` (полный набор бэкенда) — **3052 passed, 75 skipped, 35 deselected** за 29:20, регрессий нет
 
 ### Completion Notes List
 
@@ -520,6 +535,40 @@ GET /api/v1/pages/?page_size=1000 -> count 3  ['oferta','privacy-policy','requis
 /oferta 200 /about 200  /catalog 200  /requisites1 200  /electric-orange 200
 ```
 
+---
+
+## Раунд 6 — устранение находок независимого ревью (2026-08-25)
+
+✅ **Resolved review finding [High]: build-time `NEXT_PUBLIC_API_URL_INTERNAL` менял источник API всему фронтенду, а не только middleware.** Правка AC10 добавляла переменную в сборку прод-образа, но подстановка на этапе сборки действует не на один edge-бандл: `process.env.NEXT_PUBLIC_*` инлайнится во **весь** код, включая серверные компоненты. До стори в проде эта переменная не задавалась нигде, поэтому `(blue)/[slug]/page.tsx` и `(blue)/privacy-policy/page.tsx` уходили по публичному `NEXT_PUBLIC_API_URL` через nginx — который и ставит `X-Forwarded-Proto`. После правки они получили бы внутренний `http://backend:8000/api/v1` **без** этого заголовка, и при штатном `SECURE_SSL_REDIRECT=True` Django увёл бы их запрос на `https://backend:8000`, где TLS нет: `/oferta` (ссылка в подвале) и `/privacy-policy` остались бы без данных. Заголовок протокола ставит только запрос из middleware (раунд 3) — на серверные компоненты он не распространяется.
+
+Исправлено разделением переменных: в сборку идёт **выделенная** `NEXT_PUBLIC_MIDDLEWARE_API_URL`, которую читает только `getApiBaseUrl()` в middleware. Общий `NEXT_PUBLIC_API_URL_INTERNAL` из `Dockerfile` и `docker/docker-compose.prod.yml` убран, поэтому источник API для всего остального фронтенда вернулся к дособытийному состоянию. В цепочке `getApiBaseUrl()` выделенная переменная стоит первой, `NEXT_PUBLIC_API_URL_INTERNAL` — вторым звеном: в dev-контейнере middleware компилируется на лету и читает её из runtime-окружения (`docker/docker-compose.yml:115`), там ничего менять не пришлось. Правку прикрывает новый тест-страж `frontend/src/__tests__/middleware-build-env.test.ts`: он требует `ARG`/`ENV` выделенной переменной **до** `RUN npm run build` и запрещает `NEXT_PUBLIC_API_URL_INTERNAL` в `Dockerfile` и в `build.args` прод-compose — то есть ловит именно возврат этой находки, а не её симптом.
+
+Нормативный текст приведён в соответствие: AC10 дополнен уточнением раунда 6, Task 4.1/4.2 названы новой переменной.
+
+✅ **Resolved review finding [Medium]: закодированный слэш обходил настоящий 404.** `%2F` разделителем сегментов для Next не является: `/foo%2Fbar` остаётся односегментным путём и попадает в тот же catch-all `(blue)/[slug]`. Введённая в раунде 3 проверка «после декодирования в сегменте оказался слэш → не наша зона» опиралась на неверную посылку и отдавала такие адреса на soft-404 со статусом **200** — ровно то, что стори должна устранять. Теперь декодированный сегмент возвращается всегда и проверяется на общих основаниях; в allowlist он не попадёт никогда, потому что `Page.slug` — это `SlugField`, слэша в нём быть не может. Fail-open при недоступном backend сохраняется: решение по-прежнему принимается через `isPublishedSlug()`. Покрыто тремя кейсами (`/foo%2Fbar`, `/%2F`, `/foo%2f`) плюс тестом, что настоящий многосегментный путь `/foo/bar` middleware не трогает и в сеть не ходит.
+
+✅ **Resolved review finding [Low]: `deferred-work.md` отсутствовал в File List.** Файл действительно изменён в диапазоне стори — в него вынесены две отложенные находки (недоступный Redis при инвалидации кэша Page; префиксная проверка auth-маршрутов). Внесён в раздел «Инфраструктура и документация».
+
+### Живая проверка раунда 6
+
+Dev-контейнер (`restart frontend`; middleware компилируется на лету, `Dockerfile` в dev не участвует), напрямую на `:3000` и через nginx на `:80`:
+
+```
+=== 404 ===                              === 200 ===
+/foo%2Fbar   /%2F   /foo%2f              /oferta   /about       /catalog
+/offer       /terms /foo/bar             /privacy-policy /requisites1
+                                         /electric-orange /robots.txt /sitemap.xml
+
+=== через nginx :80 ===
+/foo%2Fbar 404  /offer 404  /oferta 200  /about 200
+```
+
+Тело `/foo%2Fbar`: `<title>Страница не найдена | OPTISPORT</title>` — то есть настоящий 404 с разметкой, а не пустой ответ. `/oferta` отдаёт `<title>ОФЕРТА И ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ ПЛАТФОРМЫ OPTISPORT.RU</title>` — ссылка в подвале жива. Предупреждений `[middleware]` в логах фронта нет: список слагов получен, то есть цепочка `getApiBaseUrl()` в dev работает через `NEXT_PUBLIC_API_URL_INTERNAL` из runtime-окружения.
+
+**Что проверить на проде после выката.** Находка [High] воспроизводится только в собранном прод-образе, поэтому после `up -d --build frontend` на сервере обязательны две проверки: `/oferta` и `/privacy-policy` отдают 200 **с содержимым страницы** (а не пустой каркас), и `/offer` отдаёт 404. Первая доказывает, что серверные компоненты остались на прежнем источнике API, вторая — что middleware получил внутренний адрес из выделенной переменной.
+
+**Тесты и гейты раунда 6.** `npx vitest run` — 148 файлов, 2524 passed, 16 skipped, регрессий нет (было 2478 passed до раунда 5 включительно + новые тесты). `npm run lint` (`eslint . --max-warnings=0`) — чисто, `npx prettier --check` по изменённым файлам — чисто.
+
 ### Change Log
 
 | Дата | Изменение |
@@ -529,15 +578,17 @@ GET /api/v1/pages/?page_size=1000 -> count 3  ['oferta','privacy-policy','requis
 | 2026-08-24 | Устранены находки повторного (третьего) ревью — 11 пунктов (1 Critical, 1 High, 8 Medium, 1 Low): внутренний запрос помечается `X-Forwarded-Proto: https` (иначе `SECURE_SSL_REDIRECT` уводил его в несуществующий TLS), кэш списка страниц версионирован (поздний writer больше не воскрешает устаревший список), добавлена пауза-backoff 30 с после отказа API, ужесточена проверка полноты ответа, percent-encoded слаги декодируются, точный `/api` исключён из matcher, тест-страж видит группы внутри сегмента; нормативные AC6/AC9/AC11 приведены в соответствие с реализацией, File List дополнен |
 | 2026-08-25 | Устранена находка ревью [High]: инвалидация кэша страниц переведена на `transaction.on_commit` — сигнал больше не сбрасывает кэш до commit, поэтому параллельный GET не может закэшировать допубликационный список на сутки. Существующие тесты инвалидации переведены на `captureOnCommitCallbacks` |
 | 2026-08-25 | Устранены находки раунда 5 — 5 пунктов (2 Medium, 3 Low): признак `next` принимается только как явный `null`, базовый URL API нормализуется от завершающего слэша, граница TTL считается протухшей, добавлен тест метаданных CMS-страницы (AC2), актуализирован Dev Agent Record. По решению владельца закрыта находка [Decision]: предел 1000 CMS-страниц зафиксирован явно с обеих сторон и снабжён предупреждением при приближении |
+| 2026-08-25 | Устранены находки раунда 6 — 3 пункта (1 High, 1 Medium, 1 Low): адрес API для middleware доставляется в сборку выделенной переменной `NEXT_PUBLIC_MIDDLEWARE_API_URL` (общее имя переключало на внутренний HTTP-адрес и серверные компоненты CMS-страниц, у которых нет `X-Forwarded-Proto`), закодированный слэш больше не обходит настоящий 404, File List дополнен `deferred-work.md`. Добавлен тест-страж переменных сборки |
 
 ### File List
 
 **Фронтенд**
 
-- `frontend/src/middleware.ts` — изменён: список известных маршрутов, кэш слагов, ветка 404, функция стала async; **раунд 2** — `isPublishedSlug()`/`readSlugCache()` вместо `getPublishedSlugs()` (асимметрия положительного и отрицательного решения), проверка полноты и валидности ответа API; **раунд 3** — заголовок `X-Forwarded-Proto` и `redirect: 'manual'` у запроса к API, пауза-backoff `SLUGS_FAILURE_BACKOFF_MS`, обязательные `count`/`next` в ответе, `decodeSegment()` для percent-encoded слагов, якорь `api$` в matcher; **раунд 5** — строгий `data.next === null`, нормализация завершающего слэша в `getApiBaseUrl()`, нестрогая граница TTL в `readSlugCache()`, поддерживаемый предел числа CMS-страниц и порог предупреждения `SLUGS_COUNT_WARN_THRESHOLD`
-- `frontend/src/__tests__/middleware.test.ts` — изменён: async-вызовы, мок `NextResponse.rewrite` и `fetch`, изоляция модульного состояния, 21 новый тест; **раунд 2** — ещё 8 тестов (протухший кэш, неполный/невалидный ответ, single-flight на параллельных cold miss'ах); **раунд 3** — ещё 10 тестов (пауза-backoff, заголовок протокола, отсутствующие `count`/`next`, percent-encoding, matcher); **раунд 5** — ещё 5 тестов (три формы невалидного `next`, завершающий слэш базового URL, точная граница TTL) и ещё 3 теста на поддерживаемый предел числа CMS-страниц
+- `frontend/src/middleware.ts` — изменён: список известных маршрутов, кэш слагов, ветка 404, функция стала async; **раунд 2** — `isPublishedSlug()`/`readSlugCache()` вместо `getPublishedSlugs()` (асимметрия положительного и отрицательного решения), проверка полноты и валидности ответа API; **раунд 3** — заголовок `X-Forwarded-Proto` и `redirect: 'manual'` у запроса к API, пауза-backoff `SLUGS_FAILURE_BACKOFF_MS`, обязательные `count`/`next` в ответе, `decodeSegment()` для percent-encoded слагов, якорь `api$` в matcher; **раунд 5** — строгий `data.next === null`, нормализация завершающего слэша в `getApiBaseUrl()`, нестрогая граница TTL в `readSlugCache()`, поддерживаемый предел числа CMS-страниц и порог предупреждения `SLUGS_COUNT_WARN_THRESHOLD`; **раунд 6** — выделенная переменная сборки `NEXT_PUBLIC_MIDDLEWARE_API_URL` первым звеном `getApiBaseUrl()`, закодированный слэш больше не выводит путь из зоны проверки (`getSingleSegment()`)
+- `frontend/src/__tests__/middleware.test.ts` — изменён: async-вызовы, мок `NextResponse.rewrite` и `fetch`, изоляция модульного состояния, 21 новый тест; **раунд 2** — ещё 8 тестов (протухший кэш, неполный/невалидный ответ, single-flight на параллельных cold miss'ах); **раунд 3** — ещё 10 тестов (пауза-backoff, заголовок протокола, отсутствующие `count`/`next`, percent-encoding, matcher); **раунд 5** — ещё 5 тестов (три формы невалидного `next`, завершающий слэш базового URL, точная граница TTL) и ещё 3 теста на поддерживаемый предел числа CMS-страниц; **раунд 6** — ещё 7 тестов (четыре на закодированный слэш и настоящий многосегментный путь, три на источник адреса API)
 - `frontend/src/__tests__/app-routes-allowlist.test.ts` — добавлен: тест-страж соответствия списка маршрутов структуре `src/app`; **раунд 3** — `hasOwnPage()` раскрывает группы внутри сегмента, три теста на временных фикстурах
 - `frontend/src/app/(blue)/[slug]/__tests__/page.test.tsx` — **добавлен (раунд 5)**: доказательство части AC2 — метаданные опубликованной CMS-страницы собираются `buildMetadata` без `noindex`, ветка «страницы нет» остаётся закрытой от индексации
+- `frontend/src/__tests__/middleware-build-env.test.ts` — **добавлен (раунд 6)**: тест-страж переменных сборки — выделенная переменная объявлена до `npm run build`, а общий `NEXT_PUBLIC_API_URL_INTERNAL` в `Dockerfile` и `build.args` прод-compose запрещён
 - `frontend/src/types/api.generated.ts` — **изменён (раунд 2)**: регенерирован из openapi (`npm run generate:types`)
 
 **Бэкенд**
@@ -550,8 +601,9 @@ GET /api/v1/pages/?page_size=1000 -> count 3  ['oferta','privacy-policy','requis
 
 **Инфраструктура и документация**
 
-- `frontend/Dockerfile` — изменён: `ARG`/`ENV NEXT_PUBLIC_API_URL_INTERNAL` до `npm run build`
-- `docker/docker-compose.prod.yml` — изменён: `NEXT_PUBLIC_API_URL_INTERNAL` в `build.args` сервиса `frontend`
+- `frontend/Dockerfile` — изменён: `ARG`/`ENV NEXT_PUBLIC_MIDDLEWARE_API_URL` до `npm run build`; **раунд 6** — переменная переименована из общей `NEXT_PUBLIC_API_URL_INTERNAL` в выделенную, чтобы сборка не переключала на внутренний HTTP-адрес серверные компоненты CMS-страниц
+- `docker/docker-compose.prod.yml` — изменён: `NEXT_PUBLIC_MIDDLEWARE_API_URL` в `build.args` сервиса `frontend` (**раунд 6** — вместо общей `NEXT_PUBLIC_API_URL_INTERNAL`)
 - `AGENTS.md`, `CLAUDE.md` — изменены: автогенерируемый блок GitNexus между маркерами `<!-- gitnexus:start -->` обновлён счётчиками символов при `npx gitnexus analyze`, который выполнялся по требованию стори. Содержательных правил не меняли; файлы попали в диапазон коммитов стори и внесены сюда по находке ревью [Low]
 - `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md` — изменён: чекбоксы задач и находок ревью, Dev Agent Record, статус; **раунд 3** — нормативные AC6/AC9/AC11 приведены в соответствие с реализацией
+- `_bmad-output/implementation-artifacts/deferred-work.md` — изменён: вынесены две отложенные находки ревью — недоступный Redis при инвалидации кэша `Page` и префиксная проверка auth-маршрутов (обе pre-existing). Внесён сюда по находке ревью [Low] раунда 6
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён: статус стори `ready-for-dev` → `in-progress` → `review`

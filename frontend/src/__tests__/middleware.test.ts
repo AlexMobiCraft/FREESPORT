@@ -914,3 +914,117 @@ describe('Middleware: поддерживаемый лимит числа CMS-с�
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('1000'));
   });
 });
+
+describe('Middleware: закодированный слэш в адресе', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  // `%2F` разделителем сегментов для Next не является: путь остаётся
+  // односегментным и попадает в catch-all `(blue)/[slug]`, то есть в зону 404.
+  // Пропускать такой адрес «как многосегментный» — значит вернуть soft-404 с 200.
+  it.each([
+    ['/foo%2Fbar', 'обычный'],
+    ['/%2F', 'только слэш'],
+    ['/foo%2f', 'строчная форма и хвостовой слэш'],
+  ])('несуществующий адрес с %s закодированным слэшем отдаёт 404 (%s)', async pathname => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest(pathname));
+
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+    expect(NextResponse.next).not.toHaveBeenCalled();
+  });
+
+  it('настоящий многосегментный путь по-прежнему не трогаем', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/foo/bar'));
+
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('Middleware: источник адреса API', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  it('приоритет у выделенной переменной middleware', async () => {
+    // Переменная нужна отдельная: общий `NEXT_PUBLIC_API_URL_INTERNAL`,
+    // подставленный на этапе сборки, переключил бы на внутренний HTTP-адрес и
+    // серверные компоненты CMS-страниц, у которых нет `X-Forwarded-Proto`.
+    vi.stubEnv('NEXT_PUBLIC_MIDDLEWARE_API_URL', 'http://backend:8000/api/v1');
+    vi.stubEnv('NEXT_PUBLIC_API_URL_INTERNAL', 'http://wrong-host:9999/api/v1');
+    const { middleware } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('http://backend:8000/api/v1/pages/');
+  });
+
+  it('без неё используется NEXT_PUBLIC_API_URL_INTERNAL — так работает dev-контейнер', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL_INTERNAL', 'http://backend:8000/api/v1');
+    const { middleware } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('http://backend:8000/api/v1/pages/');
+  });
+
+  it('завершающий слэш срезается и у выделенной переменной', async () => {
+    vi.stubEnv('NEXT_PUBLIC_MIDDLEWARE_API_URL', 'http://backend:8000/api/v1/');
+    const { middleware } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('//pages/');
+  });
+});
