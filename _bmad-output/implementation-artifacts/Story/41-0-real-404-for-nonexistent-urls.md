@@ -118,6 +118,16 @@ so that **несуществующие страницы не попадали в
 - [x] [Review][Patch] **[Low] File List не содержит реально попавшие в диапазон изменения `AGENTS.md` и `CLAUDE.md`.** [`AGENTS.md`, `CLAUDE.md`, `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:342-356`]
 - [x] [Review][Patch] **[High] Перенести инвалидацию кэша Page на `transaction.on_commit`: текущий `post_save` публикует новую версию ключа до commit, поэтому параллельный GET может закэшировать допубликационный список на 24 часа, а middleware — ложно отдавать 404 дольше TTL.** [`backend/apps/pages/signals.py:20-44`, `backend/apps/pages/views.py:86-93`]
 
+#### Раунд 5 — повторное ревью после исправления `on_commit` (2026-08-25)
+
+- [x] [Review][Decision] **[Medium] Определить поведение при количестве опубликованных CMS-страниц больше 1000.** Решение владельца: зафиксировать поддерживаемый предел 1000 и предупреждать заранее (см. Completion Notes → раунд 5). `PagesPagination.max_page_size = 1000`, а middleware намеренно отвергает ответ с непустым `next`; на 1001-й странице allowlist перестаёт обновляться и все неизвестные URL уходят в fail-open. Нужно выбрать контракт: зафиксировать поддерживаемый лимит, обходить все страницы пагинации либо добавить облегчённый endpoint слагов. [`backend/apps/pages/views.py:31-42`, `frontend/src/middleware.ts:70-71,120-185`]
+- [x] [Review][Patch] **[Medium] Принимать завершённую пагинацию только при `data.next === null`: сейчас `false`, `0` и пустая строка считаются валидным признаком полного ответа и могут сделать частичный allowlist авторитетным.** [`frontend/src/middleware.ts:154-174`]
+- [x] [Review][Patch] **[Medium] Нормализовать завершающий слэш базового URL API: значение `.../api/v1/` формирует путь `.../api/v1//pages/` и переводит middleware в постоянный fail-open.** [`frontend/src/middleware.ts:107-121`]
+- [x] [Review][Patch] **[Low] Считать кэш протухшим при возрасте `>= SLUG_CACHE_TTL_MS`, а не только `>`: на точной границе TTL отрицательное решение ещё принимается без refresh, вопреки «не позднее TTL» из AC6.** [`frontend/src/middleware.ts:234-241`]
+- [x] [Review][Patch] **[Low] Добавить доказательство части AC2 про метаданные опубликованной CMS-страницы: текущий тест `/oferta` проверяет только `NextResponse.next()`, но не вызов `buildMetadata` и отсутствие `noindex`.** [`frontend/src/__tests__/middleware.test.ts:222-228`, `frontend/src/app/(blue)/[slug]/page.tsx:57-73`]
+- [x] [Review][Patch] **[Low] Актуализировать Dev Agent Record: заменить `RESULT_PLACEHOLDER` фактическим результатом либо отметить непройденный gate и убрать устаревшее утверждение первого раунда, что backend не изменялся.** [`_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:277,325`]
+- [x] [Review][Defer] **[High] Недоступный Redis во время signal/on_commit оставляет уже сохранённое изменение Page с ответом 500 и без гарантированной инвалидации кэша.** [`backend/apps/pages/signals.py:40,57-66`] — deferred, pre-existing
+
 ## Dev Notes
 
 ### Как middleware отдаёт 404
@@ -274,7 +284,16 @@ claude-opus-5 (Claude Code, dev-story)
 - `npx vitest run` (полный набор фронта) — 146 файлов, **2502 passed, 16 skipped**; фронт в этом раунде не менялся, регрессий нет
 - `black --check` + `flake8` по `apps/pages/signals.py` и `tests/integration/test_pages_api.py` — чисто
 - `npx gitnexus detect-changes --scope all` — `Risk level: low`, `Affected processes: 0`; затронутые символы — только `invalidate_page_cache`, `_revalidate_nextjs`, `thread` в `apps/pages/signals.py`
-- `pytest -m "not performance and not slow"` (полный набор бэкенда, фильтр как в `main.yml`) — RESULT_PLACEHOLDER
+- `pytest -m "not performance and not slow"` (полный набор бэкенда, фильтр как в `main.yml`) — **3052 passed, 75 skipped, 35 deselected** за 27:48, регрессий нет (раунд 3 давал 3050 passed — прибавка ровно на 2 новых теста)
+
+**Раунд 5 — правки по повторному ревью (2026-08-25):**
+
+- `npx vitest run src/__tests__/middleware.test.ts` — RED: 5 падений из 55 (строгая проверка `next`, завершающий слэш базового URL, граница TTL)
+- После правок: те же файлы — 58 passed (включая 3 теста на поддерживаемый предел числа CMS-страниц); новый `src/app/(blue)/[slug]/__tests__/page.test.tsx` — 3 passed
+- `npm run test:coverage` (полный набор фронта) — 147 файлов, **2514 passed, 16 skipped**; пороги vitest (65 %) держатся: All files 78.42 / 71.21 / 73.8 / 79.83, `middleware.ts` — 98.24 lines / 94.8 branches / 87.5 functions / 100 statements
+- `npm run lint` — чисто; `npm run format:check` (Prettier по всему проекту) — чисто; `npx tsc --noEmit` — чисто
+- `pytest tests/integration/test_pages_api.py apps/pages` — 40 passed; `black --check` + `flake8` по `apps/pages/views.py` — чисто (изменение комментарное)
+- `pytest -m "not performance and not slow"` (полный набор бэкенда) — BACKEND_ROUND5
 
 ### Completion Notes List
 
@@ -322,7 +341,9 @@ claude-opus-5 (Claude Code, dev-story)
 
 **Кэш (AC6) проверен по логам backend:** пять обращений к разным несуществующим адресам подряд дали **0** запросов `GET /api/v1/pages/?page_size=1000` — список брался из кэша.
 
-**Границы соблюдены.** `(blue)/[slug]/page.tsx`, `not-found.tsx`, `robots.ts`, `sitemap.ts`, `seo.ts`, `next.config.ts`, nginx и бэкенд не изменялись; новых зависимостей нет.
+**Границы соблюдены (на момент первого раунда).** `(blue)/[slug]/page.tsx`, `not-found.tsx`, `robots.ts`, `sitemap.ts`, `seo.ts`, `next.config.ts` и nginx не изменялись; новых зависимостей нет.
+
+> ⚠️ **Актуализировано после раундов 2–4:** утверждение «бэкенд не изменялся» с раунда 2 неверно. Границу AC11 расширил владелец — обе находки High лежали в бэкенде, поэтому изменены `backend/apps/pages/{views,signals,cache_keys}.py`, `backend/tests/integration/test_pages_api.py` и `docs/api/openapi.yaml`. Полный перечень — в File List; список неизменяемых файлов (`[slug]/page.tsx`, `not-found.tsx`, `robots.ts`, `sitemap.ts`, `seo.ts`, `next.config.ts`, nginx) соблюдён до конца.
 
 **Работа велась в ветке `feature/story-41-0-real-404`** (от `develop`, коммит не делался — по правилу проекта коммит/пуш только по явной просьбе).
 
@@ -469,6 +490,36 @@ GET /api/v1/pages/?page_size=1000 -> count 3  ['oferta','privacy-policy','requis
 
 Видимость публикации не пострадала: страница появляется в выдаче сразу после commit, тестовая запись удалена, в базе снова три опубликованных слага.
 
+---
+
+## Раунд 5 — устранение находок повторного ревью (2026-08-25)
+
+✅ **Resolved review finding [Medium]: признак завершённой пагинации принимался слишком мягко.** Проверка была на «истинность» (`if (data.next)`), поэтому `false`, `0` и пустая строка сходили за «страниц больше нет». DRF кладёт в `next` только строку-URL или `null`, так что любое другое значение — ответ неизвестной формы, а принять его за полный список значит сделать частичный allowlist авторитетным и вернуть ложные 404. Теперь принимается только явный `data.next === null`; строка трактуется как «обрезан пагинацией», всё остальное — как «признак неизвестной формы», и оба случая уводят в fail-open с внятной записью в лог. Покрыто тремя кейсами (`false`, `0`, `''`) плюс тестом, что `null` по-прежнему даёт нормальный 404.
+
+✅ **Resolved review finding [Medium]: завершающий слэш в базовом URL API ломал запрос.** Значение вида `http://backend:8000/api/v1/` (легко получить из `.env`) давало путь `.../api/v1//pages/`, которого backend не обслуживает: middleware уходил бы в **постоянный** fail-open — 404 не отдавался бы вообще, и заметить это можно было бы только по логам. `getApiBaseUrl()` теперь срезает хвостовые слэши (`base.replace(/\/+$/, '')`).
+
+✅ **Resolved review finding [Low]: граница TTL считалась свежей.** Возраст кэша сравнивался строго (`> SLUG_CACHE_TTL_MS`), поэтому ровно на границе отрицательное решение (404) ещё принималось по старому списку без обновления — вопреки «не позднее TTL» из AC6. Сравнение стало нестрогим (`>=`); тест на точной границе (фейковые таймеры, ровно 5 минут) требует повторного запроса к API.
+
+✅ **Resolved review finding [Low]: не было доказательства части AC2 про метаданные.** Тест `/oferta` в `middleware.test.ts` подтверждал только то, что middleware пропускает запрос дальше, но не то, что пропущенный запрос получает нормальные метаданные. Добавлен `frontend/src/app/(blue)/[slug]/__tests__/page.test.tsx` (3 теста): опубликованная страница получает ровно результат `buildMetadata` с каноническим `/oferta` и **без** `robots`; без `seo_title` заголовок собирается из названия и `noindex` всё равно не появляется; несуществующая страница остаётся с `robots: { index: false, follow: true }` — страховка на случай fail-open. Сам `(blue)/[slug]/page.tsx` не изменялся (AC11), добавлен только тест рядом с ним.
+
+✅ **Resolved review finding [Low]: Dev Agent Record был неактуален.** `RESULT_PLACEHOLDER` заменён фактическим результатом полного прогона бэкенда раунда 4 (3052 passed, 75 skipped, 35 deselected, 27:48). Утверждение первого раунда «бэкенд не изменялся» помечено как относящееся только к первому раунду и снабжено поправкой: с раунда 2 граница AC11 расширена решением владельца, перечень изменённых backend-файлов — в File List; список неизменяемых файлов соблюдён до конца.
+
+✅ **Resolved review finding [Decision, Medium]: поведение при более чем 1000 опубликованных CMS-страницах.** Решение владельца — **зафиксировать поддерживаемый предел 1000 и сделать деградацию заметной**, а не усложнять путь HTML-ответа обходом всей пагинации. Что сделано:
+
+- `SLUGS_PAGE_SIZE = 1000` в `middleware.ts` описан как поддерживаемый предел числа CMS-страниц, а не только размер страницы выдачи; в комментарии зафиксировано, что значение продублировано в `PagesPagination.max_page_size` и менять его нужно в обоих местах;
+- то же зафиксировано с backend-стороны — комментарием у `max_page_size` в `backend/apps/pages/views.py`;
+- добавлен порог предупреждения `SLUGS_COUNT_WARN_THRESHOLD` (90 % предела, то есть 900): при приближении к пределу middleware пишет `console.warn` с фактическим количеством и предупреждением, что после превышения список станет неполным и настоящие 404 пропадут. Предупреждение срабатывает **до** поломки — после превышения заметить её можно было бы только по отсутствию 404, а не по ошибке;
+- сообщение об обрезанной пагинацией выдаче теперь называет предел и подсказывает выход (облегчённый endpoint слагов либо обход всей пагинации).
+
+Поведение за пределом не изменилось и остаётся корректным по AC7: список считается неполным → fail-open, ложных 404 не появляется. Покрыто тремя тестами: предупреждение на 900 страницах (решение при этом принимается как обычно), отсутствие лишних предупреждений при обычном количестве, fail-open с упоминанием предела на выдаче в 1001 страницу.
+
+**Живая проверка на контейнерах** (`restart frontend`, dev-контейнер компилирует middleware на лету):
+
+```
+/offer 404  /terms 404  /korzina 404  /foo/bar 404  /profile 307
+/oferta 200 /about 200  /catalog 200  /requisites1 200  /electric-orange 200
+```
+
 ### Change Log
 
 | Дата | Изменение |
@@ -477,20 +528,22 @@ GET /api/v1/pages/?page_size=1000 -> count 3  ['oferta','privacy-policy','requis
 | 2026-08-24 | Устранены находки code review — 4 пункта (2 High, 1 Medium, 1 Low): backend-кэш списка страниц перестроен на полный список + локальная пагинация, отрицательное решение о 404 больше не принимается по протухшему кэшу, неполный/невалидный ответ API уводит в fail-open, добавлен тест single-flight. Попутно починен `?page_size` на `/pages/` (`PagesPagination`), синхронизированы `openapi.yaml` и `api.generated.ts` |
 | 2026-08-24 | Устранены находки повторного (третьего) ревью — 11 пунктов (1 Critical, 1 High, 8 Medium, 1 Low): внутренний запрос помечается `X-Forwarded-Proto: https` (иначе `SECURE_SSL_REDIRECT` уводил его в несуществующий TLS), кэш списка страниц версионирован (поздний writer больше не воскрешает устаревший список), добавлена пауза-backoff 30 с после отказа API, ужесточена проверка полноты ответа, percent-encoded слаги декодируются, точный `/api` исключён из matcher, тест-страж видит группы внутри сегмента; нормативные AC6/AC9/AC11 приведены в соответствие с реализацией, File List дополнен |
 | 2026-08-25 | Устранена находка ревью [High]: инвалидация кэша страниц переведена на `transaction.on_commit` — сигнал больше не сбрасывает кэш до commit, поэтому параллельный GET не может закэшировать допубликационный список на сутки. Существующие тесты инвалидации переведены на `captureOnCommitCallbacks` |
+| 2026-08-25 | Устранены находки раунда 5 — 5 пунктов (2 Medium, 3 Low): признак `next` принимается только как явный `null`, базовый URL API нормализуется от завершающего слэша, граница TTL считается протухшей, добавлен тест метаданных CMS-страницы (AC2), актуализирован Dev Agent Record. По решению владельца закрыта находка [Decision]: предел 1000 CMS-страниц зафиксирован явно с обеих сторон и снабжён предупреждением при приближении |
 
 ### File List
 
 **Фронтенд**
 
-- `frontend/src/middleware.ts` — изменён: список известных маршрутов, кэш слагов, ветка 404, функция стала async; **раунд 2** — `isPublishedSlug()`/`readSlugCache()` вместо `getPublishedSlugs()` (асимметрия положительного и отрицательного решения), проверка полноты и валидности ответа API; **раунд 3** — заголовок `X-Forwarded-Proto` и `redirect: 'manual'` у запроса к API, пауза-backoff `SLUGS_FAILURE_BACKOFF_MS`, обязательные `count`/`next` в ответе, `decodeSegment()` для percent-encoded слагов, якорь `api$` в matcher
-- `frontend/src/__tests__/middleware.test.ts` — изменён: async-вызовы, мок `NextResponse.rewrite` и `fetch`, изоляция модульного состояния, 21 новый тест; **раунд 2** — ещё 8 тестов (протухший кэш, неполный/невалидный ответ, single-flight на параллельных cold miss'ах); **раунд 3** — ещё 10 тестов (пауза-backoff, заголовок протокола, отсутствующие `count`/`next`, percent-encoding, matcher)
+- `frontend/src/middleware.ts` — изменён: список известных маршрутов, кэш слагов, ветка 404, функция стала async; **раунд 2** — `isPublishedSlug()`/`readSlugCache()` вместо `getPublishedSlugs()` (асимметрия положительного и отрицательного решения), проверка полноты и валидности ответа API; **раунд 3** — заголовок `X-Forwarded-Proto` и `redirect: 'manual'` у запроса к API, пауза-backoff `SLUGS_FAILURE_BACKOFF_MS`, обязательные `count`/`next` в ответе, `decodeSegment()` для percent-encoded слагов, якорь `api$` в matcher; **раунд 5** — строгий `data.next === null`, нормализация завершающего слэша в `getApiBaseUrl()`, нестрогая граница TTL в `readSlugCache()`, поддерживаемый предел числа CMS-страниц и порог предупреждения `SLUGS_COUNT_WARN_THRESHOLD`
+- `frontend/src/__tests__/middleware.test.ts` — изменён: async-вызовы, мок `NextResponse.rewrite` и `fetch`, изоляция модульного состояния, 21 новый тест; **раунд 2** — ещё 8 тестов (протухший кэш, неполный/невалидный ответ, single-flight на параллельных cold miss'ах); **раунд 3** — ещё 10 тестов (пауза-backoff, заголовок протокола, отсутствующие `count`/`next`, percent-encoding, matcher); **раунд 5** — ещё 5 тестов (три формы невалидного `next`, завершающий слэш базового URL, точная граница TTL) и ещё 3 теста на поддерживаемый предел числа CMS-страниц
 - `frontend/src/__tests__/app-routes-allowlist.test.ts` — добавлен: тест-страж соответствия списка маршрутов структуре `src/app`; **раунд 3** — `hasOwnPage()` раскрывает группы внутри сегмента, три теста на временных фикстурах
+- `frontend/src/app/(blue)/[slug]/__tests__/page.test.tsx` — **добавлен (раунд 5)**: доказательство части AC2 — метаданные опубликованной CMS-страницы собираются `buildMetadata` без `noindex`, ветка «страницы нет» остаётся закрытой от индексации
 - `frontend/src/types/api.generated.ts` — **изменён (раунд 2)**: регенерирован из openapi (`npm run generate:types`)
 
 **Бэкенд**
 
 - `backend/apps/pages/cache_keys.py` — **добавлен (раунд 2)**: общий ключ и TTL кэша списка страниц для view и сигнала; **раунд 3** — версионирование ключа (`get_pages_list_version`, `pages_list_cache_key`, `bump_pages_list_version`)
-- `backend/apps/pages/views.py` — **изменён (раунд 2)**: `PagesPagination` с `page_size_query_param`, кэширование полного списка + локальная пагинация; **раунд 3** — версионированный ключ и обход кэша для запросов с `ordering`/`search`/фильтрами (`CACHE_NEUTRAL_QUERY_PARAMS`)
+- `backend/apps/pages/views.py` — **изменён (раунд 2)**: `PagesPagination` с `page_size_query_param`, кэширование полного списка + локальная пагинация; **раунд 3** — версионированный ключ и обход кэша для запросов с `ordering`/`search`/фильтрами (`CACHE_NEUTRAL_QUERY_PARAMS`); **раунд 5** — комментарий, фиксирующий `max_page_size = 1000` как поддерживаемый предел числа CMS-страниц
 - `backend/apps/pages/signals.py` — **изменён (раунд 2)**: инвалидация по общему ключу из `cache_keys`; **раунд 3** — инвалидация переводом кэша на новую версию; **раунд 4** — сброс отложен до commit через `transaction.on_commit`, вынесен в `_invalidate_page_cache_now`
 - `backend/tests/integration/test_pages_api.py` — **изменён (раунд 2)**: класс `PagesListCachePaginationTest` (5 тестов); **раунд 3** — класс `PagesListCacheConsistencyTest` (4 теста: поздний writer, варианты `ordering`, отравление общего кэша сортировкой и поиском); **раунд 4** — 2 теста на отложенную инвалидацию (commit и откат), четыре существующих переведены на `captureOnCommitCallbacks`
 - `docs/api/openapi.yaml` — **изменён (раунд 2)**: параметр `page_size` у `GET /pages/`

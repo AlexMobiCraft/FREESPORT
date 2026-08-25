@@ -754,3 +754,163 @@ describe('Middleware: matcher', () => {
     expect(pattern.test('/apiary')).toBe(true);
   });
 });
+
+describe('Middleware: строгость признаков ответа и базового URL', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  const apiResponse = (payload: unknown) => ({
+    ok: true,
+    status: 200,
+    json: async () => payload,
+  });
+
+  // DRF отдаёт в `next` либо строку-URL, либо null. Любое другое значение —
+  // ответ неизвестной формы: считать его признаком завершённой пагинации нельзя,
+  // иначе частичный список станет авторитетным allowlist-ом и даст ложные 404.
+  it.each([
+    ['false', false],
+    ['ноль', 0],
+    ['пустая строка', ''],
+  ])('fail-open: признак next неизвестной формы (%s)', async (_label, nextValue) => {
+    fetchMock.mockResolvedValueOnce(
+      apiResponse({ count: 1, next: nextValue, results: [{ slug: 'oferta' }] })
+    );
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('next === null по-прежнему принимается за полный список', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+  });
+
+  it('базовый URL с завершающим слэшем не даёт двойного слэша в пути', async () => {
+    // `.../api/v1/` + `/pages/` = `.../api/v1//pages/` — такой адрес backend не
+    // обслуживает, и middleware уходил бы в постоянный fail-open.
+    vi.stubEnv('NEXT_PUBLIC_API_URL_INTERNAL', 'http://backend:8000/api/v1/');
+    const { middleware } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    const requestedUrl = String(fetchMock.mock.calls[0][0]);
+    expect(requestedUrl).not.toContain('//pages/');
+    expect(requestedUrl).toContain('http://backend:8000/api/v1/pages/');
+  });
+
+  it('кэш считается протухшим ровно на границе TTL', async () => {
+    // AC6 обещает видимость «не позднее TTL»: на точной границе отрицательное
+    // решение уже не должно приниматься по старому списку без обновления.
+    vi.useFakeTimers();
+    const { middleware } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    await middleware(anonymousRequest('/terms'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Middleware: поддерживаемый лимит числа CMS-страниц', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  const manySlugs = (count: number) => Array.from({ length: count }, (_, i) => `page-${i}`);
+
+  it('предупреждает, когда число страниц подбирается к лимиту выдачи', async () => {
+    // Решение владельца: поддерживаемый предел — 1000 CMS-страниц. За ним список
+    // обрезается пагинацией, middleware уходит в вечный fail-open и 404 исчезают
+    // молча. Предупреждение обязано появиться ДО того, как это случится.
+    fetchMock.mockResolvedValueOnce(slugsResponse(manySlugs(900)));
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    // Решение принимается как обычно — предупреждение ничего не ломает
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('1000'));
+  });
+
+  it('при обычном количестве страниц не предупреждает', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('за пределами лимита список считается неполным и middleware уходит в fail-open', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        count: 1001,
+        next: 'http://backend:8000/api/v1/pages/?page=2&page_size=1000',
+        results: manySlugs(1000).map(slug => ({ slug })),
+      }),
+    });
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('1000'));
+  });
+});

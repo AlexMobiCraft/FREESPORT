@@ -1,3 +1,7 @@
+## Deferred from: code review of 41-0-real-404-for-nonexistent-urls (2026-08-25)
+
+- **Недоступный Redis при сохранении Page может вернуть 500 уже после записи в БД и оставить серверный список страниц неинвалидированным.** `invalidate_page_cache` вызывает операции `cache.delete/get/incr` без обработки исключений; в autocommit сигнал выполняется после SQL-записи, а в транзакции — из `on_commit`. Проблема существовала до story 41.0: прежний signal так же синхронно вызывал `cache.delete`. Нужна отдельная политика деградации кэша — логирование и best-effort invalidation либо outbox/retry, чтобы повтор клиентского запроса не был единственным механизмом восстановления. [`backend/apps/pages/signals.py:40,57-66`, `backend/freesport/settings/production.py:53-64`]
+
 ## Deferred from: spec-tech-debt-19-followups — порог покрытия `backend-ci.yml` (2026-08-06)
 
 > ✅ **ЗАКРЫТ 2026-08-06 в тот же день.** Решение Alex: мерить продакшен-код на полном наборе. Подсчёт покрытия перенесён из `backend-ci.yml` в `main.yml` (`--cov=apps --cov=freesport`, порог 75), знаменатель очищен от тестов и миграций через `[tool.coverage.run] omit` в `backend/pyproject.toml`, пороги в `backend-ci.yml` и `deploy.yml` сняты. Замер на полном наборе: 13832 оператора, 3260 непокрытых — **76,4 %**, то есть проектный стандарт «≥ 70 %» выполнялся всё это время и просто не был виден. Подробности — в разделе «Покрытие» файла `backend/docs/testing-standards.md`.

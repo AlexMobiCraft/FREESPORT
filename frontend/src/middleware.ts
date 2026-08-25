@@ -67,8 +67,28 @@ const SLUG_CACHE_TTL_MS = 5 * 60 * 1000;
 /** Предельное время ожидания списка слагов: недоступный backend не должен подвешивать сайт */
 const SLUGS_FETCH_TIMEOUT_MS = 2000;
 
-/** Размер страницы выдачи: DRF по умолчанию отдаёт 20 записей, этого мало */
+/**
+ * Размер страницы выдачи: DRF по умолчанию отдаёт 20 записей, этого мало.
+ *
+ * Это же значение — ПОДДЕРЖИВАЕМЫЙ ПРЕДЕЛ числа опубликованных CMS-страниц
+ * (решение владельца по находке ревью). Оно совпадает с `max_page_size`
+ * пагинации на бэкенде (`PagesPagination`, `backend/apps/pages/views.py`), и
+ * менять его нужно в обоих местах сразу. За пределом выдача обрезается
+ * пагинацией, список перестаёт считаться полным, и middleware навсегда уходит
+ * в fail-open: настоящие 404 просто исчезают. Чтобы деградация не была
+ * молчаливой, приближение к пределу логируется (см. SLUGS_COUNT_WARN_THRESHOLD).
+ */
 const SLUGS_PAGE_SIZE = 1000;
+
+/**
+ * Порог предупреждения о приближении к пределу (90 % от него).
+ *
+ * Предупреждение выводится ЗАРАНЕЕ: после пересечения предела 404 пропадут
+ * сами собой, и заметить это можно будет только по отсутствию статуса, а не по
+ * ошибке. Девяти сотен страниц достаточно, чтобы успеть выбрать решение
+ * (облегчённый endpoint слагов либо обход всей пагинации).
+ */
+const SLUGS_COUNT_WARN_THRESHOLD = Math.floor(SLUGS_PAGE_SIZE * 0.9);
 
 /**
  * Пауза после неудачной попытки получить список слагов.
@@ -105,11 +125,15 @@ let slugsFailedAt: number | null = null;
  * здесь неприменим — в собранном middleware он будет undefined.
  */
 function getApiBaseUrl(): string {
-  return (
+  const base =
     process.env.NEXT_PUBLIC_API_URL_INTERNAL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    'http://backend:8000/api/v1'
-  );
+    'http://backend:8000/api/v1';
+
+  // Завершающий слэш в переменной окружения даёт путь `.../api/v1//pages/`,
+  // которого backend не обслуживает: middleware ушёл бы в постоянный fail-open
+  // и перестал бы отдавать 404 вообще — молча, только с записями в логе.
+  return base.replace(/\/+$/, '');
 }
 
 /**
@@ -168,14 +192,32 @@ async function fetchPublishedSlugs(): Promise<Set<string> | null> {
       return null;
     }
 
-    if (data.next) {
-      console.warn('[middleware] Список CMS-слагов обрезан пагинацией — считаем неполным');
+    // DRF кладёт в `next` строку-URL следующей страницы либо null. Проверка на
+    // «истинность» тут слишком мягкая: `false`, `0` и пустая строка сошли бы за
+    // признак полного списка, хотя это ответ неизвестной формы. Принимаем
+    // только явный null — остальное уводит в fail-open.
+    if (data.next !== null) {
+      const reason =
+        typeof data.next === 'string'
+          ? `обрезан пагинацией — опубликованных страниц больше поддерживаемого предела ${SLUGS_PAGE_SIZE}, ` +
+            'настоящие 404 отдаваться перестанут: нужен облегчённый endpoint слагов или обход всей пагинации'
+          : `признак next неизвестной формы (${JSON.stringify(data.next)})`;
+      console.warn(`[middleware] Список CMS-слагов считаем неполным: ${reason}`);
       return null;
     }
 
     if (typeof data.count !== 'number') {
       console.warn('[middleware] В ответе со списком CMS-слагов нет числового count');
       return null;
+    }
+
+    if (data.count >= SLUGS_COUNT_WARN_THRESHOLD) {
+      // Предел ещё не перейдён, решение принимается как обычно — но дальше
+      // молчаливая деградация, поэтому предупреждаем заранее.
+      console.warn(
+        `[middleware] Опубликованных CMS-страниц ${data.count} при поддерживаемом пределе ${SLUGS_PAGE_SIZE}: ` +
+          'после его превышения список слагов станет неполным и настоящие 404 пропадут'
+      );
     }
 
     if (data.count !== data.results.length) {
@@ -237,7 +279,10 @@ function readSlugCache(): { slugs: Set<string>; isStale: boolean } | null {
 
   return {
     slugs: slugCache.slugs,
-    isStale: Date.now() - slugCache.fetchedAt > SLUG_CACHE_TTL_MS,
+    // Сравнение нестрогое: AC6 обещает видимость новой страницы «не позднее
+    // TTL», поэтому ровно на границе список уже считается протухшим и
+    // отрицательное решение (404) без обновления не принимается.
+    isStale: Date.now() - slugCache.fetchedAt >= SLUG_CACHE_TTL_MS,
   };
 }
 
