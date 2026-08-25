@@ -114,6 +114,13 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_APP_URL: ${SITE_URL}
+        # Нужен именно как build-arg: middleware читает переменную из edge-бандла,
+        # куда значения попадают на этапе сборки, а не из environment в runtime.
+        # Имя выделенное: общий NEXT_PUBLIC_API_URL_INTERNAL инлайнится на этапе
+        # сборки во весь код и увёл бы на внутренний HTTP-адрес backend также
+        # серверные компоненты CMS-страниц (/oferta, /privacy-policy), которые не
+        # шлют X-Forwarded-Proto и при SECURE_SSL_REDIRECT=True остались бы без данных
+        NEXT_PUBLIC_MIDDLEWARE_API_URL: http://backend:8000/api/v1
         NODE_ENV: production
     image: ${FRONTEND_IMAGE:-freesport-frontend:local}
     container_name: freesport-frontend
