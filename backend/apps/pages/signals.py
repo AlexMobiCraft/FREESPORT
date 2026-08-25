@@ -8,6 +8,7 @@ import threading
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
@@ -19,7 +20,28 @@ logger = logging.getLogger(__name__)
 
 @receiver([post_save, post_delete], sender=Page)
 def invalidate_page_cache(sender, instance, **kwargs):
-    """Инвалидация кэша при изменении страницы.
+    """Инвалидация кэша при изменении страницы — строго ПОСЛЕ commit.
+
+    Сигналы `post_save`/`post_delete` срабатывают внутри открытой транзакции,
+    поэтому сбрасывать кэш прямо здесь нельзя: между сбросом и commit остаётся
+    окно, в котором параллельный GET новую страницу ещё не видит (она не
+    закоммичена), но уже заполняет свежий ключ допубликационным списком. Такая
+    запись живёт сутки (`PAGES_LIST_CACHE_TTL`), и middleware фронтенда отдаёт
+    по новой странице ложный 404 намного дольше собственного TTL в 5 минут.
+
+    `transaction.on_commit` откладывает сброс до фактического commit; при
+    откате транзакции сброса не происходит вовсе — данные не менялись. Вне
+    транзакции (autocommit) callback выполняется немедленно.
+
+    Slug захватывается сейчас, а не читается из `instance` в момент коллбэка:
+    объект к тому времени может быть изменён вызывающим кодом.
+    """
+    slug = instance.slug
+    transaction.on_commit(lambda: _invalidate_page_cache_now(slug))
+
+
+def _invalidate_page_cache_now(slug: str) -> None:
+    """Фактический сброс кэшей страницы (вызывается после commit).
 
     Список кэшируется целиком под одним версионированным ключом
     (см. `PageViewSet.list`), поэтому смены версии достаточно для любых
@@ -34,11 +56,11 @@ def invalidate_page_cache(sender, instance, **kwargs):
     """
     cache.delete(pages_list_cache_key(get_pages_list_version()))
     bump_pages_list_version()
-    cache.delete(f"page_detail_{instance.slug}")
+    cache.delete(f"page_detail_{slug}")
 
     thread = threading.Thread(
         target=_revalidate_nextjs,
-        args=(f"/{instance.slug}",),
+        args=(f"/{slug}",),
         daemon=True,
     )
     thread.start()

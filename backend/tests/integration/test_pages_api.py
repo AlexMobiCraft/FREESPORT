@@ -195,13 +195,16 @@ class PagesAPICachingTest(TestCase):
         response1 = self.client.get(url)
         self.assertEqual(response1.status_code, status.HTTP_200_OK)
 
-        # Создаем новую страницу
-        Page.objects.create(
-            title="Новая страница",
-            slug="new-page",
-            content="<p>Новый контент</p>",
-            is_published=True,
-        )
+        # Создаем новую страницу. Инвалидация кэша отложена до commit
+        # (`transaction.on_commit`), а `TestCase` держит тест в транзакции —
+        # поэтому коллбэки исполняем явно.
+        with self.captureOnCommitCallbacks(execute=True):
+            Page.objects.create(
+                title="Новая страница",
+                slug="new-page",
+                content="<p>Новый контент</p>",
+                is_published=True,
+            )
 
         # Запрос должен показать обновленные данные
         response2 = self.client.get(url)
@@ -480,12 +483,13 @@ class PagesListCachePaginationTest(TestCase):
         self.client.get(url)
         self.client.get(url, {"page_size": 1000})
 
-        Page.objects.create(
-            title="Аренда инвентаря",
-            slug="arenda",
-            content="<p>Новая страница</p>",
-            is_published=True,
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            Page.objects.create(
+                title="Аренда инвентаря",
+                slug="arenda",
+                content="<p>Новая страница</p>",
+                is_published=True,
+            )
 
         full_response = self.client.get(url, {"page_size": 1000})
         self.assertIn("arenda", [page["slug"] for page in full_response.data["results"]])
@@ -501,7 +505,8 @@ class PagesListCachePaginationTest(TestCase):
 
         page = Page.objects.get(slug="page-00")
         page.is_published = False
-        page.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            page.save()
 
         full_response = self.client.get(url, {"page_size": 1000})
         self.assertNotIn("page-00", [item["slug"] for item in full_response.data["results"]])
@@ -545,14 +550,15 @@ class PagesListCacheConsistencyTest(TestCase):
         stale_payload = cache.get(pages_list_cache_key(version_before))
         self.assertIsNotNone(stale_payload)
 
-        Page.objects.create(
-            title="Аренда инвентаря",
-            slug="arenda",
-            content="<p>Новая страница</p>",
-            is_published=True,
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            Page.objects.create(
+                title="Аренда инвентаря",
+                slug="arenda",
+                content="<p>Новая страница</p>",
+                is_published=True,
+            )
 
-        # Поздний writer завершает работу уже после сигнала и пишет старый список
+        # Поздний writer завершает работу уже после инвалидации и пишет старый список
         cache.set(pages_list_cache_key(version_before), stale_payload, PAGES_LIST_CACHE_TTL)
 
         response = self.client.get(url, {"page_size": 1000})
@@ -588,3 +594,61 @@ class PagesListCacheConsistencyTest(TestCase):
         default_response = self.client.get(url, {"page_size": 1000})
 
         self.assertEqual(len(default_response.data["results"]), self.PAGES_COUNT)
+
+    def test_invalidation_is_deferred_until_commit(self):
+        """Инвалидация обязана происходить после commit, а не в момент `save()`.
+
+        Сигнал `post_save` срабатывает внутри открытой транзакции. Если версия
+        кэша поднимается там же, между инвалидацией и commit остаётся окно:
+        параллельный GET новую страницу ещё не видит (она не закоммичена), но
+        уже читает и заполняет НОВУЮ версию ключа допубликационным списком. Такой
+        список живёт сутки, и middleware фронтенда отдаёт по новой странице
+        ложный 404 гораздо дольше собственного TTL в 5 минут.
+        """
+        url = reverse("pages:pages-list")
+
+        self.client.get(url, {"page_size": 1000})
+        stale_payload = cache.get(pages_list_cache_key(get_pages_list_version()))
+        self.assertIsNotNone(stale_payload)
+
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            Page.objects.create(
+                title="Аренда инвентаря",
+                slug="arenda",
+                content="<p>Новая страница</p>",
+                is_published=True,
+            )
+
+            # Читатель внутри окна «сигнал сработал, commit ещё не прошёл»:
+            # новой страницы он не видит и кладёт старый список под ТЕКУЩИЙ ключ.
+            cache.set(
+                pages_list_cache_key(get_pages_list_version()),
+                stale_payload,
+                PAGES_LIST_CACHE_TTL,
+            )
+
+        # Сигнал обязан отложить инвалидацию до commit, а не выполнить её сразу.
+        self.assertEqual(len(callbacks), 1)
+
+        response = self.client.get(url, {"page_size": 1000})
+        self.assertIn("arenda", [page["slug"] for page in response.data["results"]])
+
+    def test_rollback_does_not_invalidate_cache(self):
+        """Откат транзакции не должен сбрасывать кэш: страница так и не появилась"""
+        url = reverse("pages:pages-list")
+
+        self.client.get(url, {"page_size": 1000})
+        version_before = get_pages_list_version()
+
+        with self.assertRaises(RuntimeError):
+            with transaction.atomic():
+                Page.objects.create(
+                    title="Откат",
+                    slug="rollback",
+                    content="<p>Не доедет до базы</p>",
+                    is_published=True,
+                )
+                raise RuntimeError("откат транзакции")
+
+        self.assertEqual(get_pages_list_version(), version_before)
+        self.assertIsNotNone(cache.get(pages_list_cache_key(version_before)))

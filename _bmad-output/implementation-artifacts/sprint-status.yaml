@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-24
+# last_updated: 2026-08-25
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-08-24
+last_updated: 2026-08-25
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -289,7 +289,7 @@ development_status:
   epic-41: in-progress
   # Ключевая: гасит 5 замечаний аудита, убирая 14 фантомных адресов из обхода
   # сканера. Ставится первой — меняет исходные данные для всех SEO-требований.
-  41-0-real-404-for-nonexistent-urls: review
+  41-0-real-404-for-nonexistent-urls: in-progress
   41-1-cookie-decline-and-change-choice: backlog
   41-2-consent-record-on-1c-link: backlog
   # Останавливает порчу журнала согласий (раздельные согласия ПДн / рассылка).

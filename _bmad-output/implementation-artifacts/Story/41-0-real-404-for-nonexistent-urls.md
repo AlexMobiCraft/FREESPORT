@@ -4,7 +4,7 @@ baseline_commit: a041e1b0
 
 # Story 41.0: Несуществующие адреса отдают настоящий 404
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -116,6 +116,7 @@ so that **несуществующие страницы не попадали в
 - [x] [Review][Patch] **[Medium] Нормативный AC6 всё ещё обещает немедленный stale-ответ для любого slug, хотя исправленная отрицательная ветка намеренно ждёт refresh.** [`_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:37,293-295`]
 - [x] [Review][Patch] **[Medium] Нормативный AC11 по-прежнему запрещает backend/OpenAPI-правки, хотя раунд 2 расширил границу story.** [`_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:47,287-297,349-354`]
 - [x] [Review][Patch] **[Low] File List не содержит реально попавшие в диапазон изменения `AGENTS.md` и `CLAUDE.md`.** [`AGENTS.md`, `CLAUDE.md`, `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:342-356`]
+- [x] [Review][Patch] **[High] Перенести инвалидацию кэша Page на `transaction.on_commit`: текущий `post_save` публикует новую версию ключа до commit, поэтому параллельный GET может закэшировать допубликационный список на 24 часа, а middleware — ложно отдавать 404 дольше TTL.** [`backend/apps/pages/signals.py:20-44`, `backend/apps/pages/views.py:86-93`]
 
 ## Dev Notes
 
@@ -264,6 +265,16 @@ claude-opus-5 (Claude Code, dev-story)
 - `npm run lint` — чисто; `npm run format:check` (Prettier по всему проекту) — чисто (`middleware.ts` пришлось прогнать через `--write`); `black --check` + `flake8` по изменённым backend-файлам — чисто
 - `npx gitnexus detect-changes --scope all` — `Risk level: low`, `Affected processes: 0`
 - `pytest -m "not performance and not slow"` (полный набор бэкенда, фильтр как в `main.yml`) — **3050 passed, 75 skipped, 35 deselected** за 31:27, регрессий нет (раунд 2 давал 3046 passed — прибавка ровно на 4 новых теста)
+
+**Раунд 4 — правка по последней находке ревью (2026-08-25):**
+
+- `npx gitnexus impact invalidate_page_cache --direction upstream` — `risk: LOW`, `impactedCount: 0` (signal-receiver, прямых вызывающих нет)
+- `pytest tests/integration/test_pages_api.py::PagesListCacheConsistencyTest` — RED: `AssertionError: 0 != 1` (сигнал сбрасывал кэш прямо в `post_save`, ни одного отложенного коллбэка на commit не регистрировалось)
+- После правки: `pytest tests/integration/test_pages_api.py apps/pages` — **40 passed** (было 38, прибавка ровно на 2 новых теста)
+- `npx vitest run` (полный набор фронта) — 146 файлов, **2502 passed, 16 skipped**; фронт в этом раунде не менялся, регрессий нет
+- `black --check` + `flake8` по `apps/pages/signals.py` и `tests/integration/test_pages_api.py` — чисто
+- `npx gitnexus detect-changes --scope all` — `Risk level: low`, `Affected processes: 0`; затронутые символы — только `invalidate_page_cache`, `_revalidate_nextjs`, `thread` в `apps/pages/signals.py`
+- `pytest -m "not performance and not slow"` (полный набор бэкенда, фильтр как в `main.yml`) — RESULT_PLACEHOLDER
 
 ### Completion Notes List
 
@@ -432,6 +443,32 @@ recovered /oferta -> 200
 
 Видно ровно ожидаемое: попытка достучаться до API одна на ~30 секунд, между ними решение принимается мгновенно и без сети, все семь запросов — fail-open (200). До правки каждый из них платил бы свои 2 секунды таймаута и создавал свой запрос. После `start backend` + `restart nginx`: `/offer` → **404**, `/oferta` → 200, `/about` → 200 — восстановление немедленное, пауза короче TTL.
 
+---
+
+## Раунд 4 — устранение последней находки ревью (2026-08-25)
+
+✅ **Resolved review finding [High]: инвалидация кэша выполнялась до commit.** `post_save`/`post_delete` срабатывают **внутри** открытой транзакции, поэтому старый код поднимал версию кэша до фиксации данных. Между этими двумя моментами укладывается параллельный GET: новую страницу он ещё не видит (она не закоммичена), но уже читает **новую** версию ключа, промахивается и записывает туда допубликационный список — на сутки (`PAGES_LIST_CACHE_TTL`). После commit сбрасывать уже нечего: свежий ключ занят устаревшими данными, и middleware отдаёт по новой странице ложный 404 намного дольше собственного TTL в 5 минут. Версионирование ключа (раунд 3) эту гонку не закрывает — оно спасает от позднего writer'а, пишущего под **старый** ключ, а здесь writer пишет под новый.
+
+Теперь `invalidate_page_cache` только регистрирует коллбэк: `transaction.on_commit(lambda: _invalidate_page_cache_now(slug))`. Сам сброс (удаление данных текущей версии, `bump_pages_list_version`, удаление `page_detail_{slug}` и фоновая ревалидация ISR Next.js) вынесен в `_invalidate_page_cache_now` и выполняется после фактического commit; вне транзакции (autocommit) — немедленно, как и раньше. Побочный выигрыш: при **откате** транзакции кэш больше не сбрасывается вовсе — раньше неудавшаяся публикация всё равно обнуляла список и заставляла пересобирать его на ровном месте. Slug захватывается в момент сигнала, а не читается из `instance` внутри коллбэка: к тому времени объект мог быть изменён вызывающим кодом.
+
+**Тесты.** Добавлены два: `test_invalidation_is_deferred_until_commit` (RED до правки — `0 != 1`: воспроизводит ровно окно «сигнал сработал, commit не прошёл», читатель кладёт старый список под текущий ключ) и `test_rollback_does_not_invalidate_cache` (откат не трогает ни версию, ни данные). Четыре существующих теста инвалидации переведены на `self.captureOnCommitCallbacks(execute=True)`: `TestCase` держит тест в транзакции, которая никогда не коммитится, поэтому отложенные коллбэки нужно исполнять явно — это стандартный способ Django и заодно фиксирует в тестах новый контракт «после commit».
+
+**Живая проверка на контейнерах** (`restart backend`, dev-контейнер):
+
+```
+версия до: 3 | данные v3 в кэше: True
+внутри транзакции -> версия: 3 | данные v3 в кэше: True     <- до правки здесь было бы 4
+после commit  -> версия: 4
+GET /api/v1/pages/?page_size=1000 -> count 4  ['oferta','privacy-policy','oncommit-check','requisites1']
+
+версия до отката:    4
+версия после отката: 4 | страница в базе: False              <- откат кэш не сбрасывает
+после удаления тестовой страницы -> версия: 5
+GET /api/v1/pages/?page_size=1000 -> count 3  ['oferta','privacy-policy','requisites1']
+```
+
+Видимость публикации не пострадала: страница появляется в выдаче сразу после commit, тестовая запись удалена, в базе снова три опубликованных слага.
+
 ### Change Log
 
 | Дата | Изменение |
@@ -439,6 +476,7 @@ recovered /oferta -> 200
 | 2026-08-24 | Реализована стори 41.0: настоящий HTTP 404 для несуществующих адресов верхнего уровня (middleware + кэш CMS-слагов + fail-open), `ARG NEXT_PUBLIC_API_URL_INTERNAL` в сборку фронта, тест-страж списка маршрутов. Статус → review |
 | 2026-08-24 | Устранены находки code review — 4 пункта (2 High, 1 Medium, 1 Low): backend-кэш списка страниц перестроен на полный список + локальная пагинация, отрицательное решение о 404 больше не принимается по протухшему кэшу, неполный/невалидный ответ API уводит в fail-open, добавлен тест single-flight. Попутно починен `?page_size` на `/pages/` (`PagesPagination`), синхронизированы `openapi.yaml` и `api.generated.ts` |
 | 2026-08-24 | Устранены находки повторного (третьего) ревью — 11 пунктов (1 Critical, 1 High, 8 Medium, 1 Low): внутренний запрос помечается `X-Forwarded-Proto: https` (иначе `SECURE_SSL_REDIRECT` уводил его в несуществующий TLS), кэш списка страниц версионирован (поздний writer больше не воскрешает устаревший список), добавлена пауза-backoff 30 с после отказа API, ужесточена проверка полноты ответа, percent-encoded слаги декодируются, точный `/api` исключён из matcher, тест-страж видит группы внутри сегмента; нормативные AC6/AC9/AC11 приведены в соответствие с реализацией, File List дополнен |
+| 2026-08-25 | Устранена находка ревью [High]: инвалидация кэша страниц переведена на `transaction.on_commit` — сигнал больше не сбрасывает кэш до commit, поэтому параллельный GET не может закэшировать допубликационный список на сутки. Существующие тесты инвалидации переведены на `captureOnCommitCallbacks` |
 
 ### File List
 
@@ -453,8 +491,8 @@ recovered /oferta -> 200
 
 - `backend/apps/pages/cache_keys.py` — **добавлен (раунд 2)**: общий ключ и TTL кэша списка страниц для view и сигнала; **раунд 3** — версионирование ключа (`get_pages_list_version`, `pages_list_cache_key`, `bump_pages_list_version`)
 - `backend/apps/pages/views.py` — **изменён (раунд 2)**: `PagesPagination` с `page_size_query_param`, кэширование полного списка + локальная пагинация; **раунд 3** — версионированный ключ и обход кэша для запросов с `ordering`/`search`/фильтрами (`CACHE_NEUTRAL_QUERY_PARAMS`)
-- `backend/apps/pages/signals.py` — **изменён (раунд 2)**: инвалидация по общему ключу из `cache_keys`; **раунд 3** — инвалидация переводом кэша на новую версию
-- `backend/tests/integration/test_pages_api.py` — **изменён (раунд 2)**: класс `PagesListCachePaginationTest` (5 тестов); **раунд 3** — класс `PagesListCacheConsistencyTest` (4 теста: поздний writer, варианты `ordering`, отравление общего кэша сортировкой и поиском)
+- `backend/apps/pages/signals.py` — **изменён (раунд 2)**: инвалидация по общему ключу из `cache_keys`; **раунд 3** — инвалидация переводом кэша на новую версию; **раунд 4** — сброс отложен до commit через `transaction.on_commit`, вынесен в `_invalidate_page_cache_now`
+- `backend/tests/integration/test_pages_api.py` — **изменён (раунд 2)**: класс `PagesListCachePaginationTest` (5 тестов); **раунд 3** — класс `PagesListCacheConsistencyTest` (4 теста: поздний writer, варианты `ordering`, отравление общего кэша сортировкой и поиском); **раунд 4** — 2 теста на отложенную инвалидацию (commit и откат), четыре существующих переведены на `captureOnCommitCallbacks`
 - `docs/api/openapi.yaml` — **изменён (раунд 2)**: параметр `page_size` у `GET /pages/`
 
 **Инфраструктура и документация**
