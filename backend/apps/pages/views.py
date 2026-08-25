@@ -8,9 +8,24 @@ from rest_framework import permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
-from .cache_keys import PAGES_LIST_CACHE_KEY, PAGES_LIST_CACHE_TTL
+from .cache_keys import (
+    PAGES_LIST_CACHE_TTL,
+    get_pages_list_version,
+    pages_list_cache_key,
+)
 from .models import Page
 from .serializers import PageSerializer
+
+
+# Параметры запроса, которые не меняют ни состав, ни порядок списка: пагинация
+# нарезает уже готовый общий список, а `format` влияет только на рендерер.
+# Всё остальное (`ordering`, `search`, фильтры) обязано идти мимо общего кэша.
+CACHE_NEUTRAL_QUERY_PARAMS = frozenset({"page", "page_size", "format"})
+
+
+def _is_cache_neutral_request(request) -> bool:
+    """Можно ли обслужить запрос из общего кэша списка"""
+    return all(param in CACHE_NEUTRAL_QUERY_PARAMS for param in request.query_params)
 
 
 class PagesPagination(PageNumberPagination):
@@ -47,24 +62,35 @@ class PageViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         """Получить список страниц с кэшированием.
 
-        Кэшируется ПОЛНЫЙ сериализованный список опубликованных страниц, а
-        пагинация применяется к нему уже на каждом запросе. Раньше кэшировался
-        готовый ответ под одним ключом `pages_list` независимо от параметров:
-        клиент, запросивший `?page_size=1000`, получал закэшированную первую
-        страницу из 20 записей (`PAGE_SIZE` DRF). Для middleware фронтенда,
-        который по этому списку решает, отдавать ли настоящий 404, это означало
-        молчаливый 404 на 21-й и далее CMS-странице.
+        Кэшируется ПОЛНЫЙ сериализованный список опубликованных страниц в
+        каноническом порядке (`Page.Meta.ordering`), а пагинация применяется к
+        нему уже на каждом запросе. Раньше кэшировался готовый ответ под одним
+        ключом независимо от параметров: клиент, запросивший `?page_size=1000`,
+        получал закэшированную первую страницу из 20 записей (`PAGE_SIZE` DRF).
+        Для middleware фронтенда, который по этому списку решает, отдавать ли
+        настоящий 404, это означало молчаливый 404 на 21-й и далее CMS-странице.
 
-        Один ключ на всю выдачу выбран намеренно: он не даёт размножать записи
-        кэша произвольными значениями `page_size` и оставляет инвалидацию
-        точечной — сигнал удаляет ровно один ключ (`signals.invalidate_page_cache`).
+        Запрос с сортировкой, поиском или фильтрами общий кэш НЕ использует и не
+        наполняет: состав и порядок его выдачи другие, и первый такой запрос
+        отравил бы список своим порядком — последующие варианты `ordering`
+        перестали бы применяться вовсе.
+
+        Ключ данных версионирован (`pages_list_cache_key`). Это закрывает гонку
+        с «поздним writer'ом»: запрос, начавший сериализацию до публикации
+        страницы, допишет устаревший список под старым ключом, который после
+        инвалидации уже никто не читает.
         """
-        serialized_pages = cache.get(PAGES_LIST_CACHE_KEY)
+        if not _is_cache_neutral_request(request):
+            return super().list(request, *args, **kwargs)
+
+        cache_key = pages_list_cache_key(get_pages_list_version())
+        serialized_pages = cache.get(cache_key)
 
         if serialized_pages is None:
-            queryset = self.filter_queryset(self.get_queryset())
-            serialized_pages = list(self.get_serializer(queryset, many=True).data)
-            cache.set(PAGES_LIST_CACHE_KEY, serialized_pages, PAGES_LIST_CACHE_TTL)
+            # Осознанно `get_queryset`, а не `filter_queryset`: в кэш обязан
+            # попасть канонический список, не зависящий от параметров запроса.
+            serialized_pages = list(self.get_serializer(self.get_queryset(), many=True).data)
+            cache.set(cache_key, serialized_pages, PAGES_LIST_CACHE_TTL)
 
         page = self.paginate_queryset(serialized_pages)
         if page is not None:

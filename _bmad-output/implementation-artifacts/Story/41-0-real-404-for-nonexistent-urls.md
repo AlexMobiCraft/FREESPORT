@@ -34,17 +34,24 @@ so that **несуществующие страницы не попадали в
 
 5. **AC5 (FR-41-21).** Middleware вмешивается **только** когда путь состоит ровно из одного сегмента — это в точности зона перехвата catch-all `(blue)/[slug]`. Многосегментные несуществующие пути (`/foo/bar`) Next отдаёт с 404 сам, и трогать их не нужно. Корень `/` (пустой путь) не затрагивается — там `redirect()` по теме (`app/page.tsx:22-31`).
 
-6. **AC6 (FR-41-21).** Список опубликованных слагов кэшируется в памяти модуля. TTL задан **именованной константой с комментарием** (обязательное требование эпика), запрос к API выполняется не чаще одного раза за TTL. При истёкшем TTL отдаётся прежний список, а обновление идёт фоном (stale-while-revalidate), чтобы протухание кэша не добавляло задержку в запрос пользователя. Параллельные промахи кэша схлопываются в один запрос (single-flight): без этого всплеск трафика на холодном кэше даст лавину запросов к бэкенду. Вновь опубликованный в админке slug отдаёт 200 не позднее TTL.
+6. **AC6 (FR-41-21).** Список опубликованных слагов кэшируется в памяти модуля. TTL задан **именованной константой с комментарием** (обязательное требование эпика), запрос к API выполняется не чаще одного раза за TTL. Решение по протухшему кэшу **несимметрично** (уточнено в раунде 2 ревью): slug, который в устаревшем списке **есть**, сразу получает 200, а обновление идёт фоном (stale-while-revalidate) — задержки в ответ это не добавляет; slug, которого в устаревшем списке **нет**, обновления **дожидается**, потому что отсутствие в протухшем списке не доказывает, что страницы нет (иначе вновь опубликованная страница получала бы 404 в первом же запросе после TTL). Параллельные промахи кэша схлопываются в один запрос (single-flight): без этого всплеск трафика на холодном кэше даст лавину запросов к бэкенду. После неудачного обращения к API включается **пауза-backoff** именованной константой (`SLUGS_FAILURE_BACKOFF_MS`, 30 с): в течение неё новые запросы к API не создаются, а решение сразу считается «не знаю» → fail-open по AC7. Вновь опубликованный в админке slug отдаёт 200 не позднее TTL.
 
 7. **AC7 (FR-41-21, fail-open).** Если список слагов получить не удалось — бэкенд недоступен, таймаут, статус ≥ 400, ответ не разобрался — middleware **не отдаёт 404 вслепую**, а пропускает запрос дальше по прежнему пути (`NextResponse.next()`), и факт пишется в лог (`console.warn` с путём и причиной). Запрос к API ограничен явным таймаутом: без него недоступный бэкенд подвесит каждый HTML-запрос сайта.
 
 8. **AC8 (регрессия).** Существующее поведение middleware сохранено полностью: редирект неавторизованного с `/profile`, `/orders`, `/b2b-dashboard` на `/login` с параметром `next`; редирект авторизованного с `/login`, `/register`, `/password-reset`, `/b2b-register` на `/` или на безопасный `next`/`redirect` через `isSafeRedirectUrl`. Проверка 404 выполняется **после** auth-веток и только на пути, который иначе вернул бы `NextResponse.next()` — сетевой запрос не должен вклиниваться в редиректы. Существующие тесты `frontend/src/__tests__/middleware.test.ts` продолжают проходить.
 
-9. **AC9 (FR-41-21).** `matcher` по-прежнему исключает `_next/static`, `_next/image`, `favicon.ico`, любые пути с точкой (шаблон `.*\..*` покрывает `/robots.txt`, `/sitemap.xml`, `/media/...`, файлы из `public/`) и `api/`. Расширять или сужать `matcher` в этой стори не требуется — он уже исключает всё нужное; изменение matcher'а без необходимости трогает маршрутизацию всего сайта.
+9. **AC9 (FR-41-21).** `matcher` по-прежнему исключает `_next/static`, `_next/image`, `favicon.ico`, любые пути с точкой (шаблон `.*\..*` покрывает `/robots.txt`, `/sitemap.xml`, `/media/...`, файлы из `public/`) и `api/`. **Уточнение раунда 3:** к списку исключений добавлен якорь `api$` — ровно путь `/api` без завершающего слэша под `api/` не подпадал, попадал в middleware и перехватывался логикой 404 раньше, чем срабатывал rewrite `/api/:path*` из `next.config.ts`. Других изменений `matcher` не вносится: он трогает маршрутизацию всего сайта.
 
 10. **AC10 (доставка URL API в edge-бандл).** Middleware обращается к API по **внутреннему** адресу Docker-сети. В `frontend/Dockerfile` добавлен `ARG NEXT_PUBLIC_API_URL_INTERNAL` с дефолтом `http://backend:8000/api/v1` и соответствующий `ENV` **до** `RUN npm run build`; в `docker/docker-compose.prod.yml` он передан в `build.args` сервиса `frontend`. Причина обязательна к пониманию: в edge-бандл middleware переменные подставляются **на этапе сборки**, и попадают туда только `NEXT_PUBLIC_*`. Сейчас `INTERNAL_API_URL` и `NEXT_PUBLIC_API_URL_INTERNAL` заданы в проде только в `environment` (runtime) — в собранном middleware они будут `undefined`, и запрос уйдёт по публичному `https://optisport.ru/api/v1` наружу и обратно через nginx либо не уйдёт вовсе. `Dockerfile.dev` не меняется: dev-контейнер компилирует на лету и читает окружение в runtime.
 
-11. **AC11 (границы стори).** **Не изменяются:** `(blue)/[slug]/page.tsx` (ветка `if (!page)` с `noindex` остаётся страховкой на случай fail-open и гонки «slug в списке, но страница уже снята»), `app/not-found.tsx`, `app/robots.ts`, `app/sitemap.ts`, `utils/seo.ts`, `next.config.ts`, `docker/nginx/**` (заголовки — объём стори 41.5), любой код бэкенда, `docs/api/openapi.yaml`. Новых зависимостей в `package.json` нет. Изменяются ровно: `frontend/src/middleware.ts`, `frontend/src/__tests__/middleware.test.ts`, новый файл теста-стража, `frontend/Dockerfile`, `docker/docker-compose.prod.yml`.
+11. **AC11 (границы стори).** **Не изменяются:** `(blue)/[slug]/page.tsx` (ветка `if (!page)` с `noindex` остаётся страховкой на случай fail-open и гонки «slug в списке, но страница уже снята»), `app/not-found.tsx`, `app/robots.ts`, `app/sitemap.ts`, `utils/seo.ts`, `next.config.ts`, `docker/nginx/**` (заголовки — объём стори 41.5). Новых зависимостей в `package.json` нет.
+
+    **Граница расширена решением владельца по итогам ревью** — исходная формулировка запрещала любые правки бэкенда и `openapi.yaml`, но обе находки High оказались именно там: список слагов, на который опирается middleware, приходил неполным и мог воскресать из кэша. Дополнительно изменяются:
+    - `backend/apps/pages/views.py`, `backend/apps/pages/signals.py`, `backend/apps/pages/cache_keys.py` — пагинация `?page_size`, версионированный кэш полного списка и его инвалидация;
+    - `backend/tests/integration/test_pages_api.py` — тесты на пагинацию, инвалидацию, поздний writer и сортировку;
+    - `docs/api/openapi.yaml` и `frontend/src/types/api.generated.ts` — параметр `page_size` у `GET /pages/` и регенерация типов.
+
+    Изменяются, кроме перечисленного: `frontend/src/middleware.ts`, `frontend/src/__tests__/middleware.test.ts`, новый файл теста-стража, `frontend/Dockerfile`, `docker/docker-compose.prod.yml`.
 
 12. **AC12 (NFR-41-01, NFR-41-03).** Покрытие тестами по AC1–AC8; пороги vitest (`functions/lines/branches/statements ≥ 65`, `vitest.config.mts:36-41`) не снижаются. Комментарии и docstrings нового кода — на русском. **E2E-тест на 404 не добавляется** — обоснование в Dev Notes → «Почему не Playwright».
 
@@ -95,6 +102,20 @@ so that **несуществующие страницы не попадали в
 - [x] [Review][Patch] **[High] Протухший allowlist используется для отрицательного решения и обходит fail-open.** После TTL код запускает обновление фоном, но сразу возвращает старый `Set`; отсутствующий в нём вновь опубликованный slug получает 404 в первом запросе после TTL, а при недоступном backend — продолжает получать ложный 404, несмотря на AC6/AC7. Отсутствие slug в stale-кэше нельзя считать доказательством 404. [`frontend/src/middleware.ts:158-165,240-257`]
 - [x] [Review][Patch] **[Medium] Частично невалидный или неполный ответ API становится авторитетным allowlist.** Элементы без строкового `slug` молча пропускаются, а пустой/частичный `Set` затем превращает реальные CMS-страницы в 404; это нарушает fail-open для ответа, который не удалось полностью разобрать. Нужно валидировать элементы и признаки полноты (`count`/`next`) и возвращать `null` при несогласованности. [`frontend/src/middleware.ts:116-128`]
 - [x] [Review][Patch] **[Low] Single-flight не покрыт тестом параллельных cold misses.** Текущий тест ждёт первый запрос до запуска второго, поэтому ветка `if (inflightSlugsRequest)` не исполняется и обязательное поведение AC6 остаётся непроверенным. [`frontend/src/__tests__/middleware.test.ts:279-298`]
+
+#### Раунд 3 — повторное ревью после исправлений
+
+- [x] [Review][Patch] **[Medium] Добавить 30-секундный backoff после быстрого отказа API.** Решение владельца: после HTTP 500, невалидного JSON или сетевого отказа middleware продолжает fail-open, но в течение 30 секунд не создаёт новые запросы списка CMS-слагов; single-flight остаётся защитой параллельных запросов. [`frontend/src/middleware.ts:105-169,198-212`]
+- [x] [Review][Patch] **[Critical] Внутренний HTTP URL не работает при штатном `SECURE_SSL_REDIRECT=True`: backend редиректит запрос на `https://backend:8000`, где TLS нет; middleware уходит в fail-open, а другие потребители нового build-time ENV теряют CMS-страницы.** [`frontend/src/middleware.ts:92-109`, `frontend/Dockerfile:28-44`, `docker/docker-compose.prod.yml:114-120`, `backend/freesport/settings/production.py:30-42`]
+- [x] [Review][Patch] **[High] Поздний writer холодного кэша может записать устаревший список после сигнала инвалидации и сохранить ложные 404 на 24 часа.** [`backend/apps/pages/views.py:62-67`, `backend/apps/pages/signals.py:20-29`]
+- [x] [Review][Patch] **[Medium] Ответ API без числового `count` и явного признака завершённой пагинации принимается за полный allowlist вместо fail-open.** [`frontend/src/middleware.ts:116-149`, `frontend/src/__tests__/middleware.test.ts:420-501`]
+- [x] [Review][Patch] **[Medium] Первый запрос с `ordering` отравляет общий кэш своим порядком, а последующие варианты ordering больше не применяются.** [`backend/apps/pages/views.py:62-73`, `backend/freesport/settings/base.py:163-169`]
+- [x] [Review][Patch] **[Medium] Тест-страж не обнаруживает односегментный маршрут, если `page.tsx` лежит в route group после статического сегмента.** [`frontend/src/__tests__/app-routes-allowlist.test.ts:29-47`]
+- [x] [Review][Patch] **[Medium] Percent-encoded опубликованный slug сравнивается до декодирования и получает ложный 404.** [`frontend/src/middleware.ts:222-224,284-301`]
+- [x] [Review][Patch] **[Medium] Точный `/api` не исключён matcher-ом и перехватывается 404-логикой до существующего rewrite `/api/:path*`.** [`frontend/src/middleware.ts:314-325`, `frontend/next.config.ts:66-76`]
+- [x] [Review][Patch] **[Medium] Нормативный AC6 всё ещё обещает немедленный stale-ответ для любого slug, хотя исправленная отрицательная ветка намеренно ждёт refresh.** [`_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:37,293-295`]
+- [x] [Review][Patch] **[Medium] Нормативный AC11 по-прежнему запрещает backend/OpenAPI-правки, хотя раунд 2 расширил границу story.** [`_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:47,287-297,349-354`]
+- [x] [Review][Patch] **[Low] File List не содержит реально попавшие в диапазон изменения `AGENTS.md` и `CLAUDE.md`.** [`AGENTS.md`, `CLAUDE.md`, `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md:342-356`]
 
 ## Dev Notes
 
@@ -232,6 +253,18 @@ claude-opus-5 (Claude Code, dev-story)
 - `pytest -m "not performance and not slow"` (полный набор бэкенда, фильтр как в `main.yml`) — **3046 passed, 75 skipped, 35 deselected**, регрессий нет (27:55)
 - `npx gitnexus detect-changes --scope all` — `Risk level: low`, `Affected processes: 0`
 
+**Раунд 3 — правки по повторному ревью (2026-08-24):**
+
+- `npx gitnexus impact PageViewSet|invalidate_page_cache --direction upstream` — обе `risk: LOW`, `impactedCount` 1/0
+- `pytest tests/integration/test_pages_api.py::PagesListCacheConsistencyTest` — RED: `ImportError: cannot import name 'get_pages_list_version'` (версионирования ключа ещё не было)
+- `npx vitest run src/__tests__/middleware.test.ts src/__tests__/app-routes-allowlist.test.ts` — RED: 10 падений из 54 (пауза-backoff, заголовок протокола, строгая проверка `count`/`next`, percent-decoding, `/api` в matcher, группы в тесте-страже)
+- После правок: `pytest tests/integration/test_pages_api.py apps/pages` — 38 passed; те же vitest-файлы — 54 passed
+- `npx vitest run` (полный набор фронта) — 146 файлов, **2502 passed, 16 skipped**
+- `npm run test:coverage` — пороги vitest (65 % по всем метрикам) держатся: All files 78.5 / 71.2 / 73.84 / 79.82; `middleware.ts` — **98.16 lines / 94.52 branches / 87.5 functions / 100 statements**
+- `npm run lint` — чисто; `npm run format:check` (Prettier по всему проекту) — чисто (`middleware.ts` пришлось прогнать через `--write`); `black --check` + `flake8` по изменённым backend-файлам — чисто
+- `npx gitnexus detect-changes --scope all` — `Risk level: low`, `Affected processes: 0`
+- `pytest -m "not performance and not slow"` (полный набор бэкенда, фильтр как в `main.yml`) — **3050 passed, 75 skipped, 35 deselected** за 31:27, регрессий нет (раунд 2 давал 3046 passed — прибавка ровно на 4 новых теста)
+
 ### Completion Notes List
 
 **Реализация.** `frontend/src/middleware.ts` стал асинхронным: после существующих auth-веток (они не изменены и по-прежнему первые) добавлена проверка односегментного пути. Сегмент не из `KNOWN_TOP_LEVEL_ROUTES` и не из списка опубликованных CMS-слагов → `NextResponse.rewrite(new URL('/_not-found', request.url), { status: 404 })`. Список слагов кэшируется в памяти модуля (TTL 5 минут, stale-while-revalidate, single-flight, таймаут запроса 2 с) и на любую неудачу отвечает fail-open с `console.warn`.
@@ -332,25 +365,102 @@ recovered /oferta -> 200
 
 **Наблюдение вне объёма находок (код не менялся).** При недоступном backend каждый запрос к неизвестному адресу платит 2 с таймаута. Так было и раньше для холодного кэша; правка Finding 2 распространила это на протухший. Лечится паузой-backoff после неудачи (в течение неё сразу возвращать `null`), но это код вне задач стори — вынесено на решение владельца.
 
+---
+
+## Раунд 3 — устранение находок повторного ревью (2026-08-24)
+
+✅ **Resolved review finding [Critical]: внутренний HTTP-запрос не работал при штатном `SECURE_SSL_REDIRECT=True`.** Django на проде редиректил `http://backend:8000/api/v1/pages/` на `https://backend:8000/...`, где TLS нет: запрос из middleware падал бы по таймауту, и стори тихо выродилась бы в вечный fail-open — 404 не вернулся бы на проде **никогда**, а в логах остались бы только `warn`. Доверенный признак протокола Django берёт из `SECURE_PROXY_SSL_HEADER` (`HTTP_X_FORWARDED_PROTO`), поэтому запрос из middleware теперь идёт с заголовком `X-Forwarded-Proto: https` — ровно так же, как его ставит nginx. Модель доверия не меняется: заголовок отправляет контейнер внутри той же Docker-сети, что и nginx, снаружи он не подделывается. Дополнительно у запроса стоит `redirect: 'manual'` и отдельная ветка логирования редиректа: если конфигурация протокола когда-нибудь снова разъедется, в логе будет внятная причина, а не молчаливый двухсекундный таймаут. `SECURE_SSL_REDIRECT` и настройки прода не трогались.
+
+✅ **Resolved review finding [High]: поздний writer холодного кэша воскрешал устаревший список на 24 часа.** Между `cache.get` (промах) и `cache.set` во view укладывается публикация страницы: сигнал удалял ключ, а начавший раньше запрос дописывал в него список **без** новой страницы — и она отдавала ложный 404 сутки. Удаления ключа для этой гонки принципиально недостаточно, поэтому кэш **версионирован**: ключ данных теперь `pages_list_serialized_v{N}`, а инвалидация увеличивает счётчик `pages_list_version` (`bump_pages_list_version`). Поздняя запись ложится под старый ключ, который уже никто не читает, и истекает по своему TTL. Счётчик хранится без срока жизни (`timeout=None`) — он обязан пережить данные, которые версионирует; создаётся через `cache.add`, чтобы не затирать значение, поднятое параллельным процессом.
+
+**Что это означает при выкате.** Ключ данных сменил имя ещё раз (`pages_list_serialized` → `pages_list_serialized_v{N}`), поэтому первый запрос после деплоя видит промах и пересобирает список — это одна лишняя сериализация трёх CMS-страниц, не операция. Осиротевшее значение под старым именем никто не читает, и оно истекает по собственному TTL в течение суток; чистить Redis руками не нужно. Счётчик `pages_list_version` создаётся сам при первом обращении.
+
+✅ **Resolved review finding [Medium]: пауза-backoff после быстрого отказа API.** Реализовано ровно по решению владельца: после сетевого отказа, таймаута, HTTP ≥ 400 или неразобранного ответа middleware 30 секунд (`SLUGS_FAILURE_BACKOFF_MS`) не создаёт новых запросов к API — `refreshSlugCache()` сразу возвращает `null`, то есть «не знаю» → fail-open по AC7. Single-flight остаётся защитой параллельных запросов и работает поверх паузы. Успешный ответ паузу снимает. Тридцать секунд выбраны сознательно короче TTL кэша: поднявшийся backend возвращает настоящие 404 почти сразу.
+
+✅ **Resolved review finding [Medium]: ответ без числового `count` и явного признака завершённой пагинации принимался за полный allowlist.** Теперь `fetchPublishedSlugs()` требует обоих признаков DRF: ключ `next` обязан присутствовать и быть пустым, `count` — быть числом и совпадать с числом полученных записей. Любое расхождение → `console.warn` + `null` → fail-open. Ответ неизвестной формы больше не может стать авторитетным списком и превратить реальные CMS-страницы в 404.
+
+✅ **Resolved review finding [Medium]: первый запрос с `ordering` отравлял общий кэш своим порядком.** `PageViewSet.list()` обслуживает из общего кэша только запросы, параметры которых не меняют ни состав, ни порядок выдачи (`page`, `page_size`, `format` — константа `CACHE_NEUTRAL_QUERY_PARAMS`). Запрос с `ordering`, `search` или фильтром идёт обычным путём DRF (`super().list()`) и общий ключ не наполняет. Сам кэш строится от `get_queryset()`, а не `filter_queryset()`, — в нём лежит канонический порядок `Page.Meta.ordering`.
+
+✅ **Resolved review finding [Medium]: тест-страж не видел маршрут с `page.tsx` в группе после статического сегмента.** `app/oferta/(blue)/page.tsx` даёт URL `/oferta`, но сборщик проверял только `oferta/page.tsx` — такая страница молча начинала бы отдавать 404, то есть страж не защищал ровно от того, ради чего написан. Добавлен `hasOwnPage()`: он спускается через любое число вложенных групп и распознаёт все варианты имени файла страницы (`page.tsx|ts|jsx|js|mdx`). Поведение зафиксировано тремя тестами на временных каталогах-фикстурах.
+
+✅ **Resolved review finding [Medium]: percent-encoded slug сравнивался до декодирования.** В `pathname` кириллический адрес приходит как `/%D0%BE%D1%84%D0%B5%D1%80%D1%82%D0%B0`, а в списке из API лежит обычная строка — опубликованная страница с нелатинским slug получала ложный 404. `getSingleSegment()` декодирует сегмент (`decodeSegment` глотает битую percent-последовательность и возвращает исходную строку) и не вмешивается, если после декодирования в сегменте оказался слэш — такой путь зоной catch-all уже не является.
+
+✅ **Resolved review finding [Medium]: точный `/api` не был исключён matcher-ом.** Шаблон `api/` не покрывает путь `/api` без завершающего слэша: он попадал в middleware и перехватывался логикой 404 раньше, чем срабатывал rewrite `/api/:path*` из `next.config.ts`. В отрицательный lookahead добавлен якорь `api$`. Намерение зафиксировано юнит-тестом, который собирает регулярку из самой константы `config.matcher[0]` и проверяет `/api`, `/api/v1/pages/`, `/robots.txt`, `/_next/static/...`, `/offer` и `/apiary` (последний обязан остаться под действием middleware).
+
+✅ **Resolved review finding [Medium]: AC6 обещал немедленный stale-ответ для любого slug.** Формулировка приведена в соответствие с реализацией раунда 2: несимметричность решения описана явно — положительное принимается по протухшему кэшу (обновление фоном), отрицательное обновления дожидается. Туда же добавлена пауза-backoff.
+
+✅ **Resolved review finding [Medium]: AC11 запрещал backend/OpenAPI-правки.** Граница стори переписана: расширение зафиксировано как решение владельца с причиной (обе находки High лежали в backend — списке слагов, на который опирается middleware), и перечислены конкретные файлы. AC9 дополнен уточнением про `api$`.
+
+✅ **Resolved review finding [Low]: File List не содержал `AGENTS.md` и `CLAUDE.md`.** Оба файла попали в диапазон коммитов стори (`a041e1b0..HEAD`) и внесены в список с пометкой о происхождении правки.
+
+### Живая проверка раунда 3
+
+Статусы после `restart backend frontend` + `restart nginx` (dev-контейнер компилирует middleware на лету, Dockerfile в этом раунде не менялся):
+
+```
+=== 404 ===                       === 200 ===
+/offer  /terms  /korzina          /oferta  /requisites1  /privacy-policy
+/basket /order  /product          /about   /catalog      /home
+/aaa                              /login   /coming-soon  /electric-orange
+                                  /blog    /news
+
+=== через nginx :80 ===
+/offer 404  /terms 404  /foo/bar 404  /profile 307
+/oferta 200 /requisites1 200 /about 200 /catalog 200 /robots.txt 200
+```
+
+Тело `/offer`: `<title>Страница не найдена | OPTISPORT</title>`, текст «Страница не найдена».
+
+**Точный `/api` (Critical-соседняя находка Medium) проверен вживую:** `http://localhost:3000/api` → **301** (уходит по rewrite к backend), а не 404 от middleware. `GET /api/v1/pages/?page_size=1000` через nginx → `count 3, next null, results 3`.
+
+**Сортировка (Medium) проверена вживую:** `?ordering=-title` → `['requisites1', 'privacy-policy', 'oferta']`, обычный запрос → `['oferta', 'privacy-policy', 'requisites1']`. До правки второй запрос получал бы порядок первого.
+
+**Percent-decoding (Medium) проверено вживую на настоящей CMS-записи.** Временно создана опубликованная страница со слагом `аренда-инвентаря`; запрос `/%D0%B0%D1%80%D0%B5%D0%BD%D0%B4%D0%B0-%D0%B8%D0%BD%D0%B2%D0%B5%D0%BD%D1%82%D0%B0%D1%80%D1%8F` вернул **200** после истечения TTL кэша слагов (первые четыре попытки — 404 из ещё свежего кэша, это штатное «не позднее TTL» по AC6). Страница удалена, в базе снова три опубликованных слага.
+
+**Пауза-backoff (Medium) проверена вживую по логам.** `stop backend` + `restart frontend` (холодный кэш), затем семь запросов к разным несуществующим адресам подряд:
+
+```
+[middleware] Не удалось получить список CMS-слагов: TimeoutError: The operation was aborted due to timeout
+[middleware] Проверка адреса /aaa-backoff-2 пропущена: список слагов недоступен
+[middleware] Проверка адреса /aaa-backoff-3 пропущена: список слагов недоступен
+[middleware] Проверка адреса /aaa-backoff-4 пропущена: список слагов недоступен
+[middleware] Не удалось получить список CMS-слагов: TimeoutError: The operation was aborted due to timeout
+[middleware] Проверка адреса /aaa-backoff-5 пропущена: список слагов недоступен
+[middleware] Проверка адреса /aaa-backoff-6 пропущена: список слагов недоступен
+[middleware] Проверка адреса /aaa-backoff-7 пропущена: список слагов недоступен
+```
+
+Видно ровно ожидаемое: попытка достучаться до API одна на ~30 секунд, между ними решение принимается мгновенно и без сети, все семь запросов — fail-open (200). До правки каждый из них платил бы свои 2 секунды таймаута и создавал свой запрос. После `start backend` + `restart nginx`: `/offer` → **404**, `/oferta` → 200, `/about` → 200 — восстановление немедленное, пауза короче TTL.
+
 ### Change Log
 
 | Дата | Изменение |
 |---|---|
 | 2026-08-24 | Реализована стори 41.0: настоящий HTTP 404 для несуществующих адресов верхнего уровня (middleware + кэш CMS-слагов + fail-open), `ARG NEXT_PUBLIC_API_URL_INTERNAL` в сборку фронта, тест-страж списка маршрутов. Статус → review |
 | 2026-08-24 | Устранены находки code review — 4 пункта (2 High, 1 Medium, 1 Low): backend-кэш списка страниц перестроен на полный список + локальная пагинация, отрицательное решение о 404 больше не принимается по протухшему кэшу, неполный/невалидный ответ API уводит в fail-open, добавлен тест single-flight. Попутно починен `?page_size` на `/pages/` (`PagesPagination`), синхронизированы `openapi.yaml` и `api.generated.ts` |
+| 2026-08-24 | Устранены находки повторного (третьего) ревью — 11 пунктов (1 Critical, 1 High, 8 Medium, 1 Low): внутренний запрос помечается `X-Forwarded-Proto: https` (иначе `SECURE_SSL_REDIRECT` уводил его в несуществующий TLS), кэш списка страниц версионирован (поздний writer больше не воскрешает устаревший список), добавлена пауза-backoff 30 с после отказа API, ужесточена проверка полноты ответа, percent-encoded слаги декодируются, точный `/api` исключён из matcher, тест-страж видит группы внутри сегмента; нормативные AC6/AC9/AC11 приведены в соответствие с реализацией, File List дополнен |
 
 ### File List
 
-- `frontend/src/middleware.ts` — изменён: список известных маршрутов, кэш слагов, ветка 404, функция стала async; **раунд 2** — `isPublishedSlug()`/`readSlugCache()` вместо `getPublishedSlugs()` (асимметрия положительного и отрицательного решения), проверка полноты и валидности ответа API
-- `frontend/src/__tests__/middleware.test.ts` — изменён: async-вызовы, мок `NextResponse.rewrite` и `fetch`, изоляция модульного состояния, 21 новый тест; **раунд 2** — ещё 8 тестов (протухший кэш, неполный/невалидный ответ, single-flight на параллельных cold miss'ах)
-- `frontend/src/__tests__/app-routes-allowlist.test.ts` — добавлен: тест-страж соответствия списка маршрутов структуре `src/app`
+**Фронтенд**
+
+- `frontend/src/middleware.ts` — изменён: список известных маршрутов, кэш слагов, ветка 404, функция стала async; **раунд 2** — `isPublishedSlug()`/`readSlugCache()` вместо `getPublishedSlugs()` (асимметрия положительного и отрицательного решения), проверка полноты и валидности ответа API; **раунд 3** — заголовок `X-Forwarded-Proto` и `redirect: 'manual'` у запроса к API, пауза-backoff `SLUGS_FAILURE_BACKOFF_MS`, обязательные `count`/`next` в ответе, `decodeSegment()` для percent-encoded слагов, якорь `api$` в matcher
+- `frontend/src/__tests__/middleware.test.ts` — изменён: async-вызовы, мок `NextResponse.rewrite` и `fetch`, изоляция модульного состояния, 21 новый тест; **раунд 2** — ещё 8 тестов (протухший кэш, неполный/невалидный ответ, single-flight на параллельных cold miss'ах); **раунд 3** — ещё 10 тестов (пауза-backoff, заголовок протокола, отсутствующие `count`/`next`, percent-encoding, matcher)
+- `frontend/src/__tests__/app-routes-allowlist.test.ts` — добавлен: тест-страж соответствия списка маршрутов структуре `src/app`; **раунд 3** — `hasOwnPage()` раскрывает группы внутри сегмента, три теста на временных фикстурах
+- `frontend/src/types/api.generated.ts` — **изменён (раунд 2)**: регенерирован из openapi (`npm run generate:types`)
+
+**Бэкенд**
+
+- `backend/apps/pages/cache_keys.py` — **добавлен (раунд 2)**: общий ключ и TTL кэша списка страниц для view и сигнала; **раунд 3** — версионирование ключа (`get_pages_list_version`, `pages_list_cache_key`, `bump_pages_list_version`)
+- `backend/apps/pages/views.py` — **изменён (раунд 2)**: `PagesPagination` с `page_size_query_param`, кэширование полного списка + локальная пагинация; **раунд 3** — версионированный ключ и обход кэша для запросов с `ordering`/`search`/фильтрами (`CACHE_NEUTRAL_QUERY_PARAMS`)
+- `backend/apps/pages/signals.py` — **изменён (раунд 2)**: инвалидация по общему ключу из `cache_keys`; **раунд 3** — инвалидация переводом кэша на новую версию
+- `backend/tests/integration/test_pages_api.py` — **изменён (раунд 2)**: класс `PagesListCachePaginationTest` (5 тестов); **раунд 3** — класс `PagesListCacheConsistencyTest` (4 теста: поздний writer, варианты `ordering`, отравление общего кэша сортировкой и поиском)
+- `docs/api/openapi.yaml` — **изменён (раунд 2)**: параметр `page_size` у `GET /pages/`
+
+**Инфраструктура и документация**
+
 - `frontend/Dockerfile` — изменён: `ARG`/`ENV NEXT_PUBLIC_API_URL_INTERNAL` до `npm run build`
 - `docker/docker-compose.prod.yml` — изменён: `NEXT_PUBLIC_API_URL_INTERNAL` в `build.args` сервиса `frontend`
-- `backend/apps/pages/cache_keys.py` — **добавлен (раунд 2)**: общий ключ и TTL кэша списка страниц для view и сигнала
-- `backend/apps/pages/views.py` — **изменён (раунд 2)**: `PagesPagination` с `page_size_query_param`, кэширование полного списка + локальная пагинация
-- `backend/apps/pages/signals.py` — **изменён (раунд 2)**: инвалидация по общему ключу из `cache_keys`
-- `backend/tests/integration/test_pages_api.py` — **изменён (раунд 2)**: класс `PagesListCachePaginationTest` (5 тестов на смешение окон пагинации и инвалидацию)
-- `docs/api/openapi.yaml` — **изменён (раунд 2)**: параметр `page_size` у `GET /pages/`
-- `frontend/src/types/api.generated.ts` — **изменён (раунд 2)**: регенерирован из openapi (`npm run generate:types`)
-- `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md` — изменён: чекбоксы задач и находок ревью, Dev Agent Record, статус
+- `AGENTS.md`, `CLAUDE.md` — изменены: автогенерируемый блок GitNexus между маркерами `<!-- gitnexus:start -->` обновлён счётчиками символов при `npx gitnexus analyze`, который выполнялся по требованию стори. Содержательных правил не меняли; файлы попали в диапазон коммитов стори и внесены сюда по находке ревью [Low]
+- `_bmad-output/implementation-artifacts/Story/41-0-real-404-for-nonexistent-urls.md` — изменён: чекбоксы задач и находок ревью, Dev Agent Record, статус; **раунд 3** — нормативные AC6/AC9/AC11 приведены в соответствие с реализацией
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён: статус стори `ready-for-dev` → `in-progress` → `review`

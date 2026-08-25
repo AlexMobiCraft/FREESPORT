@@ -13,6 +13,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.pages.cache_keys import (
+    PAGES_LIST_CACHE_TTL,
+    get_pages_list_version,
+    pages_list_cache_key,
+)
 from apps.pages.models import Page
 
 
@@ -500,3 +505,86 @@ class PagesListCachePaginationTest(TestCase):
 
         full_response = self.client.get(url, {"page_size": 1000})
         self.assertNotIn("page-00", [item["slug"] for item in full_response.data["results"]])
+
+
+@pytest.mark.integration
+class PagesListCacheConsistencyTest(TestCase):
+    """Общий кэш списка страниц не должен переживать инвалидацию и сортировку.
+
+    Раунд 3 ревью стори 41.0 нашёл в кэше два изъяна, из-за которых middleware
+    фронтенда мог получить неверный список слагов и отдать ложный 404:
+
+    1. поздний writer, начавший сериализацию до сигнала инвалидации, записывал
+       устаревший список уже ПОСЛЕ удаления ключа — и он жил там сутки;
+    2. первый запрос с `?ordering=` клал в общий ключ выдачу в своём порядке,
+       после чего другие варианты сортировки переставали применяться.
+    """
+
+    PAGES_COUNT = 25
+
+    def setUp(self):
+        self.client = APIClient()
+        cache.clear()
+        Page.objects.all().delete()
+
+        for index in range(self.PAGES_COUNT):
+            Page.objects.create(
+                title=f"Страница {index:02d}",
+                slug=f"page-{index:02d}",
+                content="<p>Контент</p>",
+                is_published=True,
+            )
+
+    def test_late_writer_cannot_resurrect_list_from_before_invalidation(self):
+        """Запись устаревшего списка после сигнала не должна попадать читателям"""
+        url = reverse("pages:pages-list")
+
+        # Прогрев: writer прочитал версию кэша и сериализовал текущий список
+        self.client.get(url, {"page_size": 1000})
+        version_before = get_pages_list_version()
+        stale_payload = cache.get(pages_list_cache_key(version_before))
+        self.assertIsNotNone(stale_payload)
+
+        Page.objects.create(
+            title="Аренда инвентаря",
+            slug="arenda",
+            content="<p>Новая страница</p>",
+            is_published=True,
+        )
+
+        # Поздний writer завершает работу уже после сигнала и пишет старый список
+        cache.set(pages_list_cache_key(version_before), stale_payload, PAGES_LIST_CACHE_TTL)
+
+        response = self.client.get(url, {"page_size": 1000})
+        self.assertIn("arenda", [page["slug"] for page in response.data["results"]])
+
+    def test_ordering_variants_are_not_served_from_shared_cache(self):
+        """Разные значения ordering дают разный порядок, а не один закэшированный"""
+        url = reverse("pages:pages-list")
+
+        ascending = self.client.get(url, {"page_size": 1000, "ordering": "title"})
+        descending = self.client.get(url, {"page_size": 1000, "ordering": "-title"})
+
+        asc_slugs = [page["slug"] for page in ascending.data["results"]]
+        desc_slugs = [page["slug"] for page in descending.data["results"]]
+
+        self.assertEqual(desc_slugs, list(reversed(asc_slugs)))
+
+    def test_ordering_request_does_not_poison_default_cache(self):
+        """Запрос с ordering не отравляет общий кэш своим порядком"""
+        url = reverse("pages:pages-list")
+
+        self.client.get(url, {"page_size": 1000, "ordering": "-title"})
+        default_response = self.client.get(url, {"page_size": 1000})
+
+        slugs = [page["slug"] for page in default_response.data["results"]]
+        self.assertEqual(slugs, sorted(slugs))
+
+    def test_search_request_does_not_poison_default_cache(self):
+        """Фильтрующий параметр тоже не должен попадать в общий кэш"""
+        url = reverse("pages:pages-list")
+
+        self.client.get(url, {"page_size": 1000, "search": "Страница 01"})
+        default_response = self.client.get(url, {"page_size": 1000})
+
+        self.assertEqual(len(default_response.data["results"]), self.PAGES_COUNT)

@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: "2026-08-24"
+last_updated: 2026-08-24
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -137,6 +137,15 @@ last_updated: "2026-08-24"
 #             плюс ARG NEXT_PUBLIC_API_URL_INTERNAL в frontend/Dockerfile и
 #             build.args прод-compose — без него edge-бандл middleware
 #             остаётся без внутреннего адреса API.
+# 2026-08-24: Story 41.0 реализована и прошла три раунда code review;
+#             ready-for-dev -> in-progress -> review. Раунд 3 закрыл 11 находок
+#             (1 Critical, 1 High, 8 Medium, 1 Low). Ключевое: внутренний запрос
+#             middleware к API помечается X-Forwarded-Proto (при штатном
+#             SECURE_SSL_REDIRECT=True он уходил в несуществующий TLS, и на проде
+#             404 не вернулся бы никогда); кэш списка страниц версионирован —
+#             поздний writer больше не воскрешает устаревший список на сутки.
+#             Граница AC11 расширена решением владельца: правки backend
+#             (apps/pages) и openapi.yaml входят в объём стори.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"

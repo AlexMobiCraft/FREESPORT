@@ -11,7 +11,7 @@ from django.core.cache import cache
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from .cache_keys import PAGES_LIST_CACHE_KEY
+from .cache_keys import bump_pages_list_version, get_pages_list_version, pages_list_cache_key
 from .models import Page
 
 logger = logging.getLogger(__name__)
@@ -21,11 +21,19 @@ logger = logging.getLogger(__name__)
 def invalidate_page_cache(sender, instance, **kwargs):
     """Инвалидация кэша при изменении страницы.
 
-    Список кэшируется целиком под одним ключом (см. `PageViewSet.list`), поэтому
-    удаления этого ключа достаточно для любых вариантов пагинации: и для запроса
-    без параметров, и для `?page_size=1000` от middleware фронтенда.
+    Список кэшируется целиком под одним версионированным ключом
+    (см. `PageViewSet.list`), поэтому смены версии достаточно для любых
+    вариантов пагинации: и для запроса без параметров, и для `?page_size=1000`
+    от middleware фронтенда.
+
+    Порядок важен: сначала удаляем данные текущей версии, затем увеличиваем
+    счётчик. Одного удаления мало — запрос, начавший сериализацию до публикации,
+    допишет устаревший список уже после удаления и вернёт ложные 404 в кэш ещё
+    на сутки. После инкремента такая поздняя запись ложится под старый ключ,
+    который никто не читает.
     """
-    cache.delete(PAGES_LIST_CACHE_KEY)
+    cache.delete(pages_list_cache_key(get_pages_list_version()))
+    bump_pages_list_version()
     cache.delete(f"page_detail_{instance.slug}")
 
     thread = threading.Thread(

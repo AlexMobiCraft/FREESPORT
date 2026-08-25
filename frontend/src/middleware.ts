@@ -70,6 +70,18 @@ const SLUGS_FETCH_TIMEOUT_MS = 2000;
 /** Размер страницы выдачи: DRF по умолчанию отдаёт 20 записей, этого мало */
 const SLUGS_PAGE_SIZE = 1000;
 
+/**
+ * Пауза после неудачной попытки получить список слагов.
+ *
+ * Пока backend лежит, каждый запрос к неизвестному адресу платил полный таймаут
+ * и создавал новый запрос к API. Пауза убирает и то и другое: 30 секунд после
+ * отказа middleware отвечает «не знаю» сразу и в сеть не ходит, оставаясь при
+ * этом в fail-open (запрос идёт дальше, 404 не отдаётся). Тридцать секунд —
+ * компромисс: заметно короче TTL кэша, поэтому поднявшийся backend возвращает
+ * настоящие 404 почти сразу, но достаточно долго, чтобы не долбить лежащий сервис.
+ */
+const SLUGS_FAILURE_BACKOFF_MS = 30 * 1000;
+
 interface SlugCache {
   slugs: Set<string>;
   fetchedAt: number;
@@ -80,6 +92,9 @@ let slugCache: SlugCache | null = null;
 
 /** Текущий запрос за списком — схлопывает параллельные промахи кэша в один вызов API */
 let inflightSlugsRequest: Promise<Set<string> | null> | null = null;
+
+/** Момент последней неудачи запроса к API — начало паузы (см. SLUGS_FAILURE_BACKOFF_MS) */
+let slugsFailedAt: number | null = null;
 
 /**
  * Базовый URL API для запроса из middleware.
@@ -106,7 +121,30 @@ async function fetchPublishedSlugs(): Promise<Set<string> | null> {
   const url = `${getApiBaseUrl()}/pages/?page_size=${SLUGS_PAGE_SIZE}`;
 
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(SLUGS_FETCH_TIMEOUT_MS) });
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(SLUGS_FETCH_TIMEOUT_MS),
+      // На проде у backend включён SECURE_SSL_REDIRECT, а доверенный признак
+      // протокола он берёт из SECURE_PROXY_SSL_HEADER (X-Forwarded-Proto).
+      // Без этого заголовка внутренний http://backend:8000 отвечает редиректом
+      // на https://backend:8000, где TLS нет: запрос падал бы по таймауту, и
+      // стори тихо выродилась бы в вечный fail-open — 404 не вернулся бы никогда.
+      headers: { 'X-Forwarded-Proto': 'https' },
+      // Молча идти за редиректом нельзя: это скрыло бы саму проблему за
+      // двухсекундным таймаутом вместо внятной записи в логе.
+      redirect: 'manual',
+    });
+
+    if (
+      res.redirected ||
+      res.type === 'opaqueredirect' ||
+      (res.status >= 300 && res.status < 400)
+    ) {
+      console.warn(
+        `[middleware] Запрос списка CMS-слагов уехал в редирект (HTTP ${res.status}): ` +
+          'проверь SECURE_SSL_REDIRECT и SECURE_PROXY_SSL_HEADER на backend'
+      );
+      return null;
+    }
 
     if (!res.ok) {
       console.warn(`[middleware] Список CMS-слагов недоступен: HTTP ${res.status}`);
@@ -121,14 +159,26 @@ async function fetchPublishedSlugs(): Promise<Set<string> | null> {
     }
 
     // Выдача, обрезанная пагинацией, полным списком не является: непопавшие в
-    // неё страницы получили бы 404. Полнота проверяется по обоим признакам DRF —
-    // ссылке на следующую страницу и общему числу записей.
+    // неё страницы получили бы 404. Полнота обязана подтверждаться ОБОИМИ
+    // признаками DRF — ссылкой на следующую страницу и общим числом записей.
+    // Отсутствие любого из них означает неизвестную форму ответа, а не полный
+    // список: молча принять её за allowlist — значит вернуть ложные 404.
+    if (!('next' in data)) {
+      console.warn('[middleware] В ответе нет признака завершённой пагинации (next)');
+      return null;
+    }
+
     if (data.next) {
       console.warn('[middleware] Список CMS-слагов обрезан пагинацией — считаем неполным');
       return null;
     }
 
-    if (typeof data.count === 'number' && data.count !== data.results.length) {
+    if (typeof data.count !== 'number') {
+      console.warn('[middleware] В ответе со списком CMS-слагов нет числового count');
+      return null;
+    }
+
+    if (data.count !== data.results.length) {
       console.warn(
         `[middleware] Список CMS-слагов неполон: count=${data.count}, получено ${data.results.length}`
       );
@@ -157,9 +207,21 @@ async function fetchPublishedSlugs(): Promise<Set<string> | null> {
 function refreshSlugCache(): Promise<Set<string> | null> {
   if (inflightSlugsRequest) return inflightSlugsRequest;
 
+  if (slugsFailedAt !== null && Date.now() - slugsFailedAt < SLUGS_FAILURE_BACKOFF_MS) {
+    // Пауза после отказа: отвечаем «не знаю» немедленно. Это по-прежнему
+    // fail-open — вызывающий пропустит запрос дальше, — но без похода в сеть
+    // и без таймаута в каждом HTML-ответе, пока backend недоступен.
+    return Promise.resolve(null);
+  }
+
   inflightSlugsRequest = fetchPublishedSlugs()
     .then(slugs => {
-      if (slugs) slugCache = { slugs, fetchedAt: Date.now() };
+      if (slugs) {
+        slugCache = { slugs, fetchedAt: Date.now() };
+        slugsFailedAt = null;
+      } else {
+        slugsFailedAt = Date.now();
+      }
       return slugs;
     })
     .finally(() => {
@@ -212,16 +274,36 @@ async function isPublishedSlug(segment: string): Promise<boolean | null> {
   return fresh === null ? null : fresh.has(segment);
 }
 
+/** Декодирует сегмент пути; битую percent-последовательность оставляет как есть */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 /**
- * Возвращает единственный сегмент пути или null.
+ * Возвращает единственный сегмент пути в декодированном виде или null.
  *
  * Один сегмент — в точности зона перехвата catch-all `(blue)/[slug]`.
  * Корень и многосегментные пути Next обрабатывает сам и на несуществующие
  * из них уже отдаёт 404.
+ *
+ * Декодирование обязательно: в `pathname` кириллический slug приходит в
+ * percent-encoding (`/%D0%BE%D1%84%D0%B5%D1%80%D1%82%D0%B0`), а в списке из API
+ * лежит обычная строка. Без декодирования опубликованная страница с нелатинским
+ * адресом получала бы ложный 404.
  */
 function getSingleSegment(pathname: string): string | null {
   const segments = pathname.split('/').filter(Boolean);
-  return segments.length === 1 ? segments[0] : null;
+  if (segments.length !== 1) return null;
+
+  const decoded = decodeSegment(segments[0]);
+
+  // Закодированный слэш (%2F) делает путь многосегментным: зоной catch-all он
+  // уже не является, вмешиваться не нужно.
+  return decoded.includes('/') ? null : decoded;
 }
 
 /**
@@ -320,7 +402,11 @@ export const config = {
      * - favicon.ico (favicon)
      * - public folder
      * - API routes (handled separately)
+     *
+     * `api$` рядом с `api/` — не дубль: без него ровно путь `/api` (без
+     * завершающего слэша) попадал в middleware и перехватывался логикой 404
+     * раньше, чем срабатывал rewrite `/api/:path*` из next.config.ts.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|api/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|api/|api$).*)',
   ],
 };

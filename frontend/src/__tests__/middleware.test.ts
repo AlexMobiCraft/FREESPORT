@@ -33,7 +33,11 @@ function slugsResponse(slugs: string[]) {
   return {
     ok: true,
     status: 200,
-    json: async () => ({ count: slugs.length, results: slugs.map(slug => ({ slug })) }),
+    json: async () => ({
+      count: slugs.length,
+      next: null,
+      results: slugs.map(slug => ({ slug })),
+    }),
   };
 }
 
@@ -267,7 +271,11 @@ describe('Middleware: настоящий 404 для несуществующих
   });
 
   it('fail-open: пропускает запрос, когда ответ API не разобрался', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ results: 42 }) });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ count: 1, next: null, results: 42 }),
+    });
     const { middleware, NextResponse } = await loadMiddleware();
     await middleware(anonymousRequest('/offer'));
 
@@ -455,7 +463,7 @@ describe('Middleware: неполный или невалидный ответ AP
 
   it('fail-open: элемент выдачи без строкового slug', async () => {
     fetchMock.mockResolvedValueOnce(
-      apiResponse({ count: 2, results: [{ slug: 'oferta' }, { title: 'без слага' }] })
+      apiResponse({ count: 2, next: null, results: [{ slug: 'oferta' }, { title: 'без слага' }] })
     );
     const { middleware, NextResponse } = await loadMiddleware();
     await middleware(anonymousRequest('/offer'));
@@ -482,7 +490,31 @@ describe('Middleware: неполный или невалидный ответ AP
   });
 
   it('fail-open: count не совпадает с числом полученных записей', async () => {
-    fetchMock.mockResolvedValueOnce(apiResponse({ count: 25, results: [{ slug: 'oferta' }] }));
+    fetchMock.mockResolvedValueOnce(
+      apiResponse({ count: 25, next: null, results: [{ slug: 'oferta' }] })
+    );
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('fail-open: в ответе нет числового count', async () => {
+    // Без count непонятно, полон ли список: принимать его за allowlist нельзя.
+    fetchMock.mockResolvedValueOnce(apiResponse({ next: null, results: [{ slug: 'oferta' }] }));
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('fail-open: в ответе нет признака завершённой пагинации', async () => {
+    // DRF всегда отдаёт next; его отсутствие означает неизвестную форму ответа.
+    fetchMock.mockResolvedValueOnce(apiResponse({ count: 1, results: [{ slug: 'oferta' }] }));
     const { middleware, NextResponse } = await loadMiddleware();
     await middleware(anonymousRequest('/offer'));
 
@@ -492,10 +524,233 @@ describe('Middleware: неполный или невалидный ответ AP
   });
 
   it('пустой список страниц — валидный ответ, а не признак поломки', async () => {
-    fetchMock.mockResolvedValueOnce(apiResponse({ count: 0, results: [] }));
+    fetchMock.mockResolvedValueOnce(apiResponse({ count: 0, next: null, results: [] }));
     const { middleware, NextResponse } = await loadMiddleware();
     await middleware(anonymousRequest('/offer'));
 
     expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Middleware: пауза после неудачного запроса к API', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  it('после сетевого отказа не долбит API до конца паузы, продолжая fail-open', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    const { middleware, NextResponse } = await loadMiddleware();
+
+    await middleware(anonymousRequest('/offer'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Пауза ещё держится: нового запроса нет, но и ложного 404 тоже
+    vi.advanceTimersByTime(29 * 1000);
+    await middleware(anonymousRequest('/terms'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(NextResponse.next).toHaveBeenCalledTimes(2);
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+  });
+
+  it('после окончания паузы снова обращается к API и возвращается к 404', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    const { middleware, NextResponse } = await loadMiddleware();
+
+    await middleware(anonymousRequest('/offer'));
+    vi.advanceTimersByTime(31 * 1000);
+    await middleware(anonymousRequest('/offer'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+  });
+
+  it('пауза включается и на быстрый отказ вида HTTP 500', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
+    const { middleware } = await loadMiddleware();
+
+    await middleware(anonymousRequest('/offer'));
+    vi.advanceTimersByTime(10 * 1000);
+    await middleware(anonymousRequest('/terms'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('успешный ответ паузу не включает: обновление после TTL уходит сразу', async () => {
+    vi.useFakeTimers();
+    const { middleware } = await loadMiddleware();
+
+    await middleware(anonymousRequest('/offer'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // TTL истёк — обновление должно уйти немедленно, а не ждать паузы
+    vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+    await middleware(anonymousRequest('/terms'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Middleware: запрос к API из edge-рантайма', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  it('помечает внутренний запрос как пришедший по HTTPS', async () => {
+    // В проде у backend включён SECURE_SSL_REDIRECT: без этого заголовка Django
+    // редиректит http://backend:8000 на https://backend:8000, где TLS нет.
+    const { middleware } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-Forwarded-Proto']).toBe('https');
+  });
+
+  it('fail-open: backend ответил редиректом вместо списка', async () => {
+    // Ровно то, что делает SECURE_SSL_REDIRECT при запросе по http://backend:8000.
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 301,
+      redirected: true,
+      json: async () => ({}),
+    });
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('редирект'));
+  });
+
+  it('не следует за редиректом молча', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/offer'));
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.redirect).toBe('manual');
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Middleware: percent-encoded адреса', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['аренда-инвентаря']));
+    vi.stubGlobal('fetch', fetchMock);
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    warnSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  const anonymousRequest = (pathname: string) => {
+    const url = new URL(`http://localhost:3000${pathname}`);
+    const req = {
+      nextUrl: url,
+      cookies: { get: () => undefined },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  it('опубликованный slug в percent-encoding не получает ложный 404', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest(`/${encodeURIComponent('аренда-инвентаря')}`));
+
+    expect(NextResponse.next).toHaveBeenCalled();
+    expect(NextResponse.rewrite).not.toHaveBeenCalled();
+  });
+
+  it('несуществующий адрес в percent-encoding по-прежнему отдаёт 404', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest(`/${encodeURIComponent('такой-страницы-нет')}`));
+
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+  });
+
+  it('битая percent-последовательность не роняет middleware', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(anonymousRequest('/%E0%A4%A'));
+
+    expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Middleware: matcher', () => {
+  it('не применяется к путям API, включая точный /api', async () => {
+    // Приблизительная проверка намерения: Next компилирует matcher сам, но
+    // отрицательный lookahead в нём — обычная регулярка. Точный `/api` до
+    // правки проходил в middleware и перехватывался логикой 404 раньше, чем
+    // срабатывал rewrite `/api/:path*` из next.config.ts.
+    vi.resetModules();
+    const { config } = await import('../middleware');
+    const pattern = new RegExp(`^${config.matcher[0]}$`);
+
+    expect(pattern.test('/api')).toBe(false);
+    expect(pattern.test('/api/v1/pages/')).toBe(false);
+    expect(pattern.test('/robots.txt')).toBe(false);
+    expect(pattern.test('/_next/static/chunk.js')).toBe(false);
+    expect(pattern.test('/offer')).toBe(true);
+    expect(pattern.test('/apiary')).toBe(true);
   });
 });
