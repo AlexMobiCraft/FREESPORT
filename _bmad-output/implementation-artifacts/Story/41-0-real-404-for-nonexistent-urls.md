@@ -4,7 +4,7 @@ baseline_commit: a041e1b0
 
 # Story 41.0: Несуществующие адреса отдают настоящий 404
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

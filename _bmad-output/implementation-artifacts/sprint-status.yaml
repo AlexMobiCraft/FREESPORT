@@ -289,7 +289,7 @@ development_status:
   epic-41: in-progress
   # Ключевая: гасит 5 замечаний аудита, убирая 14 фантомных адресов из обхода
   # сканера. Ставится первой — меняет исходные данные для всех SEO-требований.
-  41-0-real-404-for-nonexistent-urls: review
+  41-0-real-404-for-nonexistent-urls: done
   41-1-cookie-decline-and-change-choice: backlog
   41-2-consent-record-on-1c-link: backlog
   # Останавливает порчу журнала согласий (раздельные согласия ПДн / рассылка).
