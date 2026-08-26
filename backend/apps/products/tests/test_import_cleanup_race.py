@@ -11,15 +11,18 @@
 - сериализация `process_1c_import_task` через лок каталога обмена в Redis.
 
 XML берутся из закоммиченного среза реальной выгрузки 1С
-(`backend/tests/fixtures/1c-data/`) — синтетику проект запрещает. Сегменты
-имитируются побайтовыми копиями реального файла под именами, которые 1С даёт
-сегментам: содержимое остаётся настоящим, а число записей в сегменте известно.
+(`backend/tests/fixtures/1c-data/rests/segments/`) — синтетику проект запрещает.
+Это восемь **разных** сегментов настоящей выгрузки, сохранившие исходные имена
+файлов 1С и непересекающиеся наборы предложений: копия одного файла под восемью
+именами не отличила бы «каждый сегмент прочитан ровно один раз» от «один и тот же
+файл прочитан восемь раз».
 """
 
 from __future__ import annotations
 
 import re
 import shutil
+import threading
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -28,6 +31,8 @@ import pytest
 from celery.exceptions import MaxRetriesExceededError, Retry
 from django.core.cache import cache
 from django.core.management import CommandError, call_command
+from django.db import connection
+from kombu.exceptions import OperationalError
 
 from apps.integrations.onec_exchange.file_type_detection import detect_file_type
 from apps.products.management.commands.import_products_from_1c import Command
@@ -37,18 +42,31 @@ from apps.products.services.variant_import import VariantImportProcessor
 from apps.products.tasks import _release_import_lock, process_1c_import_task
 
 ONEC_FIXTURES = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "1c-data"
-REAL_RESTS_XML = ONEC_FIXTURES / "rests" / "rests.xml"
+
+# Восемь реальных сегментов остатков с исходными именами 1С (`rests_1_<N>_<guid>.xml`).
+# Порядок — числовой по номеру сегмента, а не лексикографический: `rests_1_10`
+# идёт раньше `rests_1_9`, и на порядковые номера закладываться нельзя.
+REAL_SEGMENTS = sorted(
+    (ONEC_FIXTURES / "rests" / "segments").glob("rests_1_*.xml"),
+    key=lambda p: int(p.name.split("_")[2]),
+)
 
 # Назначенный правилами проекта корпус runtime-выгрузок (в .gitignore, на раннере
-# отсутствует) — источник по-настоящему разных сегментов для data_dependent теста.
+# отсутствует) — источник полноразмерных сегментов для data_dependent теста.
 ONEC_RUNTIME_RESTS = Path(__file__).resolve().parents[3] / "data" / "import_1c" / "rests"
 
 RECORDS_RE = re.compile(r"записей остатков (\d+)")
+SEGMENT_LINE_RE = re.compile(r"• (\S+\.xml): записей остатков (\d+)")
+
+
+def _segment_path(index: int) -> Path:
+    """Реальный сегмент по порядковому номеру (1-based)."""
+    return REAL_SEGMENTS[index - 1]
 
 
 def _segment_name(index: int) -> str:
-    """Имя сегмента в формате, который присылает 1С."""
-    return f"rests_1_{index}_00000000-0000-0000-0000-{index:012d}.xml"
+    """Имя сегмента ровно в том виде, в котором его присылает 1С."""
+    return _segment_path(index).name
 
 
 def _make_exchange_dir(base: Path) -> Path:
@@ -59,28 +77,35 @@ def _make_exchange_dir(base: Path) -> Path:
 
 
 def _stage_segment(data_dir: Path, index: int) -> Path:
-    """Положить в каталог обмена очередной сегмент остатков."""
+    """Положить в каталог обмена очередной реальный сегмент остатков."""
     target = data_dir / "rests" / _segment_name(index)
-    shutil.copyfile(REAL_RESTS_XML, target)
+    shutil.copyfile(_segment_path(index), target)
     return target
 
 
-def _run_import(data_dir: Path, session: ImportSession) -> str:
+def _run_import(data_dir: Path, session: ImportSession, source_filename: str | None = None) -> str:
     """Прогон команды импорта остатков поверх существующей сессии."""
     out = StringIO()
-    call_command(
-        "import_products_from_1c",
-        data_dir=str(data_dir),
-        file_type="rests",
-        import_session_id=session.pk,
-        stdout=out,
-        stderr=StringIO(),
-    )
+    options: dict[str, object] = {
+        "data_dir": str(data_dir),
+        "file_type": "rests",
+        "import_session_id": session.pk,
+        "stdout": out,
+        "stderr": StringIO(),
+    }
+    if source_filename is not None:
+        options["source_filename"] = source_filename
+    call_command("import_products_from_1c", **options)
     return out.getvalue()
 
 
 def _records_in(output: str) -> int:
     return sum(int(m) for m in RECORDS_RE.findall(output))
+
+
+def _segments_in(output: str) -> dict[str, int]:
+    """Какие сегменты прочитаны прогоном и сколько записей дал каждый."""
+    return {name: int(count) for name, count in SEGMENT_LINE_RE.findall(output)}
 
 
 @pytest.fixture
@@ -106,7 +131,7 @@ class TestPinpointCleanup:
 
         def stage_neighbour(processor, *args, **kwargs):
             # Момент гонки: сосед принял файл между сбором списка и cleanup.
-            shutil.copyfile(REAL_RESTS_XML, neighbour)
+            shutil.copyfile(_segment_path(2), neighbour)
             return original_finalize(processor, *args, **kwargs)
 
         with patch.object(VariantImportProcessor, "finalize_session", stage_neighbour):
@@ -127,6 +152,31 @@ class TestPinpointCleanup:
         match = re.search(r"Удалено XML файлов: (\d+)", output)
         assert match is not None
         assert int(match.group(1)) == 2
+
+    def test_replaced_file_with_same_name_survives_cleanup(self, tmp_path):
+        """Файл подменён под тем же именем после парсинга — удалять его нельзя.
+
+        1С переиспользует имена (`rests.xml` без сегментации), и путь сам по себе
+        не доказывает, что на диске всё ещё лежит именно распарсенный файл.
+        """
+        data_dir = _make_exchange_dir(tmp_path)
+        own = _stage_segment(data_dir, 1)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        original_finalize = VariantImportProcessor.finalize_session
+
+        def replace_own(processor, *args, **kwargs):
+            # Сосед снёс наш файл и положил под тем же именем свой сегмент.
+            own.unlink()
+            shutil.copyfile(_segment_path(2), own)
+            return original_finalize(processor, *args, **kwargs)
+
+        with patch.object(VariantImportProcessor, "finalize_session", replace_own):
+            _run_import(data_dir, session)
+
+        assert own.exists(), "Под этим именем лежит уже другой файл — он не наш и не удаляется"
+        assert own.read_bytes() == _segment_path(2).read_bytes()
 
     def test_cleanup_files_ignores_unparsed_neighbours(self, tmp_path):
         """`_cleanup_files` без списка обработанного не удаляет ничего."""
@@ -199,12 +249,128 @@ class TestMissingFileResilience:
 
 
 @pytest.mark.django_db
+class TestExpectedSegmentIsMandatory:
+    """Решение Alex 2026-08-26: у сегмента с конкретным именем нет права на тихий успех.
+
+    Если 1С прислала `rests_1_12_….xml`, а к моменту `_collect_xml_files` файла
+    в каталоге уже нет — его увёл сосед. Это потеря данных, и сессия обязана быть
+    `FAILED`. Пустой список остаётся успехом только там, где конкретного файла
+    не обещали: `mode=complete` и ручной общий импорт.
+    """
+
+    def test_own_segment_stolen_before_collect_fails(self, tmp_path):
+        """Своего сегмента нет, чужой лежит — это не повод отчитаться успехом."""
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 2)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        with pytest.raises(CommandError):
+            _run_import(data_dir, session, source_filename=_segment_name(1))
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.FAILED
+        assert _segment_name(1) in session.error_message
+
+    def test_empty_directory_with_expected_segment_fails(self, tmp_path):
+        """Каталог пуст, а сегмент обещан — сценарий сессий 62672/62674."""
+        data_dir = _make_exchange_dir(tmp_path)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        with pytest.raises(CommandError):
+            _run_import(data_dir, session, source_filename=_segment_name(5))
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.FAILED
+
+    def test_expected_segment_vanished_before_parse_fails(self, tmp_path):
+        """Файл собран, но исчез до парсинга — тоже потеря именно нашего сегмента."""
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 1)
+        _stage_segment(data_dir, 2)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        original_parse = XMLDataParser.parse_rests_xml
+
+        def parse_or_vanish(parser, file_path):
+            if Path(file_path).name == _segment_name(1):
+                Path(file_path).unlink(missing_ok=True)
+            return original_parse(parser, file_path)
+
+        with patch.object(XMLDataParser, "parse_rests_xml", parse_or_vanish):
+            with pytest.raises(CommandError):
+                _run_import(data_dir, session, source_filename=_segment_name(1))
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.FAILED
+
+    def test_own_segment_present_completes(self, tmp_path):
+        """Свой сегмент на месте — строгая проверка не мешает штатному прогону."""
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 3)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        output = _run_import(data_dir, session, source_filename=_segment_name(3))
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+        assert _segment_name(3) in _segments_in(output)
+
+    def test_manual_import_without_expected_segment_still_succeeds(self, tmp_path):
+        """Ручной общий импорт имени файла не обещает — прежнее поведение."""
+        data_dir = _make_exchange_dir(tmp_path)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        output = _run_import(data_dir, session)
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+        assert "Файлы rests.xml не найдены" in output
+
+
+@pytest.mark.django_db
+class TestTaskPropagatesExpectedSegment:
+    """Задача обязана донести имя сегмента до команды, иначе строгость AC не работает."""
+
+    @patch("apps.products.tasks.call_command")
+    def test_concrete_segment_reaches_command(self, mock_call_command, clean_cache, tmp_path):
+        data_dir = str(tmp_path / "1c_import")
+        Path(data_dir).mkdir(parents=True)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": data_dir, "source_filename": _segment_name(4)},
+            task_id="task-expect-1",
+        ).get()
+
+        assert mock_call_command.call_args.kwargs["source_filename"] == _segment_name(4)
+
+    @patch("apps.products.tasks.call_command")
+    def test_complete_mode_does_not_promise_a_file(self, mock_call_command, clean_cache, tmp_path):
+        data_dir = str(tmp_path / "1c_import")
+        Path(data_dir).mkdir(parents=True)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": data_dir, "source_filename": "complete"},
+            task_id="task-expect-2",
+        ).get()
+
+        assert mock_call_command.call_args.kwargs["file_type"] == "all"
+        assert mock_call_command.call_args.kwargs.get("source_filename") is None
+
+
+@pytest.mark.django_db
 class TestCleanupRaceRegression:
     """AC8 — восемь наложенных сессий не теряют ни одного сегмента."""
 
     SESSIONS = 8
 
     def test_eight_overlapping_sessions_lose_nothing(self, tmp_path):
+        assert len(REAL_SEGMENTS) >= self.SESSIONS, "Нужны восемь реальных сегментов в фикстурах"
+
         data_dir = _make_exchange_dir(tmp_path)
         _stage_segment(data_dir, 1)
 
@@ -219,29 +385,32 @@ class TestCleanupRaceRegression:
                 staged["next"] += 1
             return original_finalize(processor, *args, **kwargs)
 
-        total_records = 0
+        seen: dict[str, int] = {}
         sessions = []
         with patch.object(VariantImportProcessor, "finalize_session", stage_next):
-            for _ in range(self.SESSIONS):
+            for index in range(1, self.SESSIONS + 1):
                 session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
                 sessions.append(session)
-                total_records += _records_in(_run_import(data_dir, session))
+                read = _segments_in(_run_import(data_dir, session, source_filename=_segment_name(index)))
+                overlap = set(read) & set(seen)
+                assert not overlap, f"Сегмент прочитан повторно: {overlap}"
+                seen.update(read)
 
         statuses = [ImportSession.objects.get(pk=s.pk).status for s in sessions]
         assert ImportSession.ImportStatus.FAILED not in statuses
 
-        # Эталон: сколько записей в одном сегменте при изолированном прогоне.
-        probe_dir = _make_exchange_dir(tmp_path / "probe")
-        _stage_segment(probe_dir, 1)
-        probe_session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
-        expected_per_file = _records_in(_run_import(probe_dir, probe_session))
-
-        assert expected_per_file > 0
-        assert total_records == expected_per_file * self.SESSIONS
+        # Каждый сегмент прочитан ровно один раз, и записи из него не потеряны.
+        expected = {
+            _segment_name(i): len(XMLDataParser().parse_rests_xml(str(_segment_path(i))))
+            for i in range(1, self.SESSIONS + 1)
+        }
+        assert all(count > 0 for count in expected.values())
+        assert seen == expected
+        assert not list((data_dir / "rests").glob("*.xml")), "Каталог обмена должен опустеть"
 
     @pytest.mark.data_dependent
     def test_real_runtime_segments_lose_nothing(self, tmp_path):
-        """То же самое на реально разных сегментах назначенного корпуса."""
+        """То же самое на полноразмерных сегментах назначенного корпуса."""
         if not ONEC_RUNTIME_RESTS.exists():
             pytest.skip("Назначенный корпус data/import_1c отсутствует (в .gitignore)")
 
@@ -262,13 +431,15 @@ class TestCleanupRaceRegression:
                 staged["next"] += 1
             return original_finalize(processor, *args, **kwargs)
 
-        seen = 0
+        seen: dict[str, int] = {}
         with patch.object(VariantImportProcessor, "finalize_session", stage_next):
-            for _ in segments:
+            for segment in segments:
                 session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
-                seen += len(RECORDS_RE.findall(_run_import(data_dir, session)))
+                read = _segments_in(_run_import(data_dir, session, source_filename=segment.name))
+                assert not set(read) & set(seen), "Сегмент прочитан повторно"
+                seen.update(read)
 
-        assert seen == len(segments), "Каждый сегмент обязан быть прочитан ровно один раз"
+        assert set(seen) == {s.name for s in segments}, "Каждый сегмент обязан быть прочитан ровно один раз"
 
 
 class TestDetectFileType:
@@ -411,6 +582,27 @@ class TestImportDirectoryLock:
         assert session.status == ImportSession.ImportStatus.FAILED
         assert session.error_message
 
+    @patch("apps.products.tasks.call_command")
+    def test_retry_publish_failure_marks_session_failed(self, mock_call_command, clean_cache, tmp_path):
+        """Брокер недоступен: `retry` не доехал — сессия не имеет права висеть IN_PROGRESS."""
+        data_dir = str(tmp_path / "1c_import")
+        Path(data_dir).mkdir(parents=True)
+        cache.add(self._lock_key(data_dir), "other-task", 60)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        with patch.object(process_1c_import_task, "retry", side_effect=OperationalError("broker down")):
+            result = process_1c_import_task.apply(
+                args=(session.id,), kwargs={"data_dir": data_dir}, task_id="task-lock-5"
+            ).get()
+
+        assert result == "failure"
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.FAILED
+        assert "broker down" in session.error_message
+        mock_call_command.assert_not_called()
+        assert cache.get(self._lock_key(data_dir)) == "other-task", "Чужой лок трогать нельзя"
+
     def test_lock_ttl_is_configured(self, settings):
         """Упавший воркер не блокирует обмен навсегда — лок живёт по TTL из настроек."""
         assert settings.ONEC_IMPORT_LOCK_TTL > 0
@@ -453,3 +645,112 @@ class TestTaskUsesSourceFilename:
         process_1c_import_task.apply(args=(session.id,), kwargs={"data_dir": data_dir}, task_id="task-ft-2").get()
 
         assert mock_call_command.call_args.kwargs["file_type"] == "all"
+
+
+@pytest.mark.django_db(transaction=True)
+class TestImportLockUnderConcurrency:
+    """AC2 «ровно одна задача на каталог» — проверка настоящим параллелизмом.
+
+    Проверять сериализацию последовательными вызовами бессмысленно: они не
+    пересекаются по времени и разошлись бы и без лока. Здесь одна задача
+    физически находится внутри импорта (поток удерживается на `call_command`),
+    пока вторая пытается зайти на тот же каталог.
+
+    Лок живёт в Redis, а не в памяти процесса, — поэтому механизм не зависит
+    от `--concurrency` воркера: соседний prefork-процесс упирается в тот же ключ.
+    """
+
+    LOCK_HOLD_TIMEOUT = 15
+
+    @staticmethod
+    def _lock_key(data_dir: str) -> str:
+        return f"onec:import:lock:{data_dir}"
+
+    def test_second_task_cannot_enter_while_first_is_importing(self, clean_cache, tmp_path):
+        data_dir = str(tmp_path / "1c_import")
+        Path(data_dir).mkdir(parents=True)
+
+        holder = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        contender = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        inside_lock = threading.Lock()
+        inside: list[int] = []
+        peak: list[int] = []
+        entered = threading.Event()
+        release = threading.Event()
+
+        def guarded_call_command(*args, **kwargs):
+            with inside_lock:
+                inside.append(kwargs.get("import_session_id"))
+                peak.append(len(inside))
+            try:
+                if kwargs.get("import_session_id") == holder.pk:
+                    entered.set()
+                    release.wait(timeout=self.LOCK_HOLD_TIMEOUT)
+            finally:
+                with inside_lock:
+                    inside.pop()
+
+        retry_calls: list[dict] = []
+
+        def fake_retry(*args, **kwargs):
+            retry_calls.append(kwargs)
+            raise Retry()
+
+        holder_result: list[str] = []
+
+        def run_holder():
+            try:
+                holder_result.append(
+                    process_1c_import_task.apply(
+                        args=(holder.pk,), kwargs={"data_dir": data_dir}, task_id="task-conc-holder"
+                    ).get()
+                )
+            finally:
+                connection.close()
+
+        with (
+            patch("apps.products.tasks.call_command", side_effect=guarded_call_command),
+            patch.object(process_1c_import_task, "retry", side_effect=fake_retry),
+        ):
+            worker = threading.Thread(target=run_holder, daemon=True)
+            worker.start()
+            assert entered.wait(timeout=self.LOCK_HOLD_TIMEOUT), "Первая задача не дошла до импорта"
+
+            # Первая задача сейчас физически внутри импорта.
+            assert cache.get(self._lock_key(data_dir)) == "task-conc-holder"
+
+            process_1c_import_task.apply(
+                args=(contender.pk,), kwargs={"data_dir": data_dir}, task_id="task-conc-contender"
+            )
+
+            assert len(retry_calls) == 1, "Вторая задача обязана уйти в retry, а не работать параллельно"
+            assert [s for s in inside if s == contender.pk] == [], "Вторая задача вошла в импорт при занятом локе"
+
+            release.set()
+            worker.join(timeout=self.LOCK_HOLD_TIMEOUT)
+
+        assert not worker.is_alive()
+        assert holder_result == ["success"]
+        assert max(peak) == 1, "Одновременно в импорте была больше чем одна задача"
+        assert cache.get(self._lock_key(data_dir)) is None, "Лок обязан освободиться после первой задачи"
+
+    def test_lock_is_released_for_the_next_task(self, clean_cache, tmp_path):
+        """После освобождения лока следующая задача заходит без retry."""
+        data_dir = str(tmp_path / "1c_import")
+        Path(data_dir).mkdir(parents=True)
+
+        first = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        second = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        entered: list[int] = []
+
+        def record(*args, **kwargs):
+            entered.append(kwargs.get("import_session_id"))
+
+        with patch("apps.products.tasks.call_command", side_effect=record):
+            for session, task_id in ((first, "task-seq-1"), (second, "task-seq-2")):
+                process_1c_import_task.apply(args=(session.pk,), kwargs={"data_dir": data_dir}, task_id=task_id).get()
+
+        assert entered == [first.pk, second.pk]
+        assert cache.get(self._lock_key(data_dir)) is None

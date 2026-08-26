@@ -187,12 +187,15 @@ class TestImportOrchestration:
         assert session.finished_at is not None
 
         # Check call_command
+        # source_filename=None: 1С конкретного сегмента не обещала (file_type="all"),
+        # поэтому строгая проверка «обещанный файл обязан быть прочитан» не включается.
         mock_call_command.assert_called_once_with(
             "import_products_from_1c",
             celery_task_id="fake-task-id",
             file_type="all",
             import_session_id=session.pk,
             data_dir=str(data_dir),
+            source_filename=None,
         )
 
     @patch("apps.products.tasks.call_command")

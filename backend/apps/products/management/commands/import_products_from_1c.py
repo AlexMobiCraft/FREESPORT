@@ -63,6 +63,26 @@ class Command(BaseCommand):
         self._processed_files: list[str] = []
         # Файлы, исчезнувшие из каталога между сбором списка и парсингом.
         self._missing_files: list[str] = []
+        # Отпечаток файла на момент парсинга — см. `_file_signature`.
+        self._file_signatures: dict[str, tuple[int, int, int, int]] = {}
+        # Имя файла, которое 1С обещала этому прогону (`rests_1_12_….xml`).
+        # None означает «конкретного файла не обещали»: ручной общий импорт
+        # или mode=complete.
+        self._expected_filename: str | None = None
+
+    @staticmethod
+    def _file_signature(file_path: str) -> tuple[int, int, int, int] | None:
+        """Отпечаток файла: устройство, inode, mtime и размер.
+
+        Каталог обмена общий, и путь сам по себе не доказывает, что на диске
+        лежит тот же файл: сосед мог снести наш и положить свой под тем же
+        именем (1С переиспользует имена, когда не сегментирует выгрузку).
+        """
+        try:
+            st = os.stat(file_path)
+        except OSError:
+            return None
+        return (st.st_dev, st.st_ino, st.st_mtime_ns, st.st_size)
 
     def _parse_or_skip(self, file_path: str, parse: Callable[[str], Any]) -> Any | None:
         """Распарсить файл, пережив его исчезновение из общего каталога обмена.
@@ -70,6 +90,7 @@ class Command(BaseCommand):
         Сосед может удалить файл между `_collect_xml_files` и парсингом.
         Пропавший файл — предупреждение и пропуск, а не падение всего импорта.
         """
+        signature = self._file_signature(file_path)
         try:
             data = parse(file_path)
         except FileNotFoundError as exc:
@@ -80,6 +101,8 @@ class Command(BaseCommand):
             return None
 
         self._processed_files.append(file_path)
+        if signature is not None:
+            self._file_signatures[file_path] = signature
         return data
 
     def add_arguments(self, parser):
@@ -163,6 +186,16 @@ class Command(BaseCommand):
             default=None,
             help="ID существующей сессии ImportSession для консолидации логов.",
         )
+        parser.add_argument(
+            "--source-filename",
+            type=str,
+            default=None,
+            help=(
+                "Имя файла, который 1С прислала этому прогону (`rests_1_12_….xml`). "
+                "Если файл не будет обработан — импорт завершится ошибкой, а не "
+                "тихим успехом с нулём записей. Не указывать для ручного общего импорта."
+            ),
+        )
 
     def handle(self, *args, **options):
         """Основная логика команды"""
@@ -176,6 +209,13 @@ class Command(BaseCommand):
         # подряд) — состояние прогона обязано начинаться пустым.
         self._processed_files = []
         self._missing_files = []
+        self._file_signatures = {}
+
+        # Конкретный файл от 1С обещан только при вызове из задачи обмена.
+        # Ручной прогон и mode=complete имени не передают — там пустой каталог
+        # по-прежнему штатная ситуация.
+        source_filename = options.get("source_filename") or None
+        self._expected_filename = os.path.basename(source_filename) if source_filename else None
 
         dry_run = options.get("dry_run", False)
         batch_size = options.get("batch_size", 500)
@@ -352,6 +392,13 @@ class Command(BaseCommand):
                 )
                 if not self._processed_files:
                     raise CommandError(f"Все файлы импорта исчезли из каталога обмена до парсинга: {missing_names}")
+
+            # Обещанный сегмент обязан быть прочитан. Именно здесь на проде
+            # 25.08.2026 рождалась тихая потеря: файл увёл сосед, команда
+            # написала «Файлы rests.xml не найдены» и отчиталась COMPLETED
+            # с нулём записей (сессии 62672, 62674). 1С такой сегмент не
+            # повторит, поэтому единственный честный статус — FAILED.
+            self._assert_expected_file_processed(variant_processor)
 
             # Финализация сессии
             variant_processor.finalize_session(status=ImportSession.ImportStatus.COMPLETED)
@@ -592,6 +639,32 @@ class Command(BaseCommand):
         stats = processor.get_stats()
         self.stdout.write(self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}"))
 
+    def _assert_expected_file_processed(self, processor: VariantImportProcessor) -> None:
+        """Проверить, что файл, обещанный 1С этому прогону, действительно прочитан.
+
+        Проверка включается только когда имя файла передано (`--source-filename`),
+        то есть при вызове из задачи обмена. Ручной общий импорт и `mode=complete`
+        конкретного файла не обещают — там пустой каталог остаётся успехом.
+        """
+        expected = self._expected_filename
+        if not expected:
+            return
+
+        processed_names = {Path(p).name.lower() for p in self._processed_files}
+        if expected.lower() in processed_names:
+            return
+
+        missing_names = {Path(p).name.lower() for p in self._missing_files}
+        reason = (
+            "исчез из каталога обмена до парсинга"
+            if expected.lower() in missing_names
+            else "не найден в каталоге обмена"
+        )
+        consequence = "данные этого файла не попали в БД, а 1С его не повторит"
+        message = f"Сегмент {expected}, присланный 1С, {reason}: {consequence}."
+        processor.log_progress(message)
+        raise CommandError(message)
+
     def _cleanup_files(self, data_dir: str, file_type: str, processed_files: list[str] | None = None) -> None:
         """
         Удаление обработанных файлов после успешного импорта.
@@ -604,6 +677,12 @@ class Command(BaseCommand):
         не его дело: их уберёт `FileRoutingService.cleanup_import_dir`, когда
         активных сессий не останется.
 
+        Перед удалением сверяется отпечаток файла (`_file_signature`): путь сам
+        по себе не доказывает, что на диске всё ещё лежит распарсенный файл —
+        сосед мог снести наш и положить свой под тем же именем. Микроскопическое
+        окно между `stat` и `unlink` остаётся (TOCTOU неустраним без работы по
+        дескриптору), но вместо секунд обработки это доли миллисекунды.
+
         Папки с изображениями по-прежнему чистятся по каталогу: они не
         сегментируются по сессиям, и гонки там не наблюдалось.
         """
@@ -613,6 +692,15 @@ class Command(BaseCommand):
         deleted_xml_count = 0
         for raw_path in processed_files or []:
             file_path = Path(raw_path)
+            expected_signature = self._file_signatures.get(raw_path)
+            if expected_signature is not None and self._file_signature(raw_path) != expected_signature:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   ⚠️ {file_path.name} подменён после парсинга — удаление пропущено, "
+                        "файл принадлежит другому прогону"
+                    )
+                )
+                continue
             try:
                 file_path.unlink(missing_ok=True)
                 deleted_xml_count += 1

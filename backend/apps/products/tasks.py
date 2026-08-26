@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from celery import shared_task
-from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
+from celery.exceptions import MaxRetriesExceededError, Retry, SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.cache import cache
 from django.core.management import CommandError, call_command
@@ -123,12 +123,25 @@ def process_1c_import_task(
                 countdown=settings.ONEC_IMPORT_LOCK_RETRY_COUNTDOWN,
                 max_retries=settings.ONEC_IMPORT_LOCK_MAX_RETRIES,
             )
+        except Retry:
+            # Штатный путь: задача вернулась в брокер, сессия остаётся IN_PROGRESS.
+            raise
         except MaxRetriesExceededError:
             _mark_session_failed(
                 session_id,
                 f"Каталог обмена {effective_data_dir} оставался занят дольше допустимого "
                 f"({settings.ONEC_IMPORT_LOCK_MAX_RETRIES} попыток × "
                 f"{settings.ONEC_IMPORT_LOCK_RETRY_COUNTDOWN} с) — импорт не запущен.",
+            )
+            return "failure"
+        except Exception as exc:
+            # Переотправка не доехала до брокера (Redis недоступен, kombu
+            # OperationalError). Без этой ветки сессия осталась бы IN_PROGRESS
+            # навсегда — до порога `cleanup_stale_import_sessions` в 2 часа.
+            logger.error(f"Failed to reschedule session {session_id} after busy lock: {exc}")
+            _mark_session_failed(
+                session_id,
+                f"Каталог обмена {effective_data_dir} занят, а переотправить задачу не удалось: {exc}",
             )
             return "failure"
 
@@ -304,6 +317,11 @@ def process_1c_import_task(
                 "file_type": detected_file_type,
                 "import_session_id": session_id,
                 "data_dir": effective_data_dir,
+                # Имя передаётся только когда 1С обещала конкретный сегмент.
+                # Тогда команда обязана его прочитать, иначе сессия FAILED:
+                # тихий успех с нулём записей — это и есть потеря данных.
+                # Для "all" (mode=complete, ручной прогон) обещания нет.
+                "source_filename": source_filename if detected_file_type != "all" else None,
             }
 
             logger.info(

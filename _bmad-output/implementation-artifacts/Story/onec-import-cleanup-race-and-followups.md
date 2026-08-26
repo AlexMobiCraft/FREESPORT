@@ -220,6 +220,16 @@ except Exception as e:
 - [~] **T8. `size_value` (AC7).** Отделено в `deferred-work.md` (Split 2026-08-26) — требует отдельной миграции схемы, ревьюится независимо.
 - [ ] **T9. Проверка на проде (AC9).** По чек-листу из раздела «Выкат и восстановление данных». Выполняется после ручного выката — см. Completion Notes.
 
+### Review Findings
+
+- [x] [Review][Patch] Для конкретного `source_filename` отсутствие ожидаемого сегмента до `_collect_xml_files` должно переводить сессию в `FAILED`; успех с пустым списком сохраняется только для `mode=complete` и ручного общего импорта. Решение Alex 2026-08-26. [`backend/apps/products/management/commands/import_products_from_1c.py:345-357,572-576`, `backend/apps/products/tasks.py:282-314`]
+- [x] [Review][Patch] Точечный cleanup проверяет только путь и может удалить новый файл, подменивший распарсенный файл с тем же именем [`backend/apps/products/management/commands/import_products_from_1c.py:612-618`]
+- [x] [Review][Patch] Ошибка публикации `self.retry()` в брокер, отличная от `MaxRetriesExceededError`, оставляет сессию в `IN_PROGRESS` [`backend/apps/products/tasks.py:121-133`]
+- [x] [Review][Patch] AC2 отмечен выполненным без конкурентного прогона двух задач и проверки единственного входа в импорт [`backend/apps/products/tests/test_import_cleanup_race.py:335-426`]
+- [x] [Review][Patch] Основной AC8-тест создаёт восемь копий одного fixture вместо обязательных реальных сегментов из `data/import_1c/` [`backend/apps/products/tests/test_import_cleanup_race.py:39-65,207-271`]
+- [x] [Review][Defer] Post-import cleanup имеет TOCTOU между проверкой активных сессий и рекурсивным удалением общего каталога [`backend/apps/products/tasks.py:325-344`] — deferred, pre-existing
+- [x] [Review][Defer] Каталожная очистка `goods/offers/import_files` может удалить изображения уже ожидающей сессии, поскольку HTTP-upload не участвует в Redis-локе [`backend/apps/products/management/commands/import_products_from_1c.py:624-652`] — deferred, pre-existing
+
 ## Dev Notes
 
 ### Карта координат (коммит `2d6b1ac9`)
@@ -310,8 +320,9 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 ## Definition of Done
 
 - [x] AC1–AC4 и AC8 выполнены, тест из T1 зелёный (красный до правок), остальные тесты импорта не сломаны. AC5–AC7 отделены в `deferred-work.md` (Split 2026-08-26).
-- [x] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (8 файлов, 51 символ, 10 процессов; всё из Code Map спеки).
-- [x] Покрытие не ниже действующих порогов: локальный полный прогон `-m "not performance and not slow"` — **79 %** (TOTAL 14146 строк, 2955 не покрыто) при пороге CI 73–75. 3081 passed, 75 skipped, 0 failed.
+- [x] Все замечания ревью (5 items) закрыты правками и тестами; итерация ревью 2026-08-26.
+- [x] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (после ревью: 10 файлов, 18 символов, 8 процессов; всё из Code Map спеки, лишнее — сдвиг строк).
+- [x] Покрытие не ниже действующих порогов: локальный полный прогон `-m "not performance and not slow"` — **79 %** (TOTAL 14186 строк, 2954 не покрыто) при пороге CI 73–75. 3093 passed, 75 skipped, 0 failed.
 - [ ] AC9 проверен на проде после реальной выгрузки, результат записан в Dev Agent Record. **Ожидает ручного выката** — см. Completion Notes.
 - [~] Если T8 решён усечением, а не миграцией — остаток по `size_value` занесён в `tech-debt.md`. T8 не решался: отделён в `deferred-work.md`.
 
@@ -324,6 +335,7 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 | 2026-08-26 | 0.1 | Стори создана по разбору инцидента выгрузки 25.08.2026 | Claude |
 | 2026-08-26 | 0.2 | Объём сужен до ядра гонки (T1-T5); T6/T7/T8 отделены в `deferred-work.md` | Alex |
 | 2026-08-26 | 1.0 | Реализовано ядро: точечный cleanup, лок каталога обмена, устойчивость к исчезнувшему файлу, передача `source_filename`. 30 новых тестов, регрессии зелёные | Claude |
+| 2026-08-26 | 1.1 | Закрыты замечания ревью — 5 items: строгий статус для обещанного сегмента, сверка отпечатка файла при cleanup, обработка ошибки публикации `retry`, конкурентный тест AC2, реальные разные сегменты в фикстурах AC8 | Claude |
 
 ## Dev Agent Record
 
@@ -337,6 +349,59 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 claude-opus-5 (Claude Code, скилл `bmad-dev-story`).
 
 ### Debug Log References
+
+**Итерация ревью 2026-08-26.**
+
+Blast radius перед правками (`npx gitnexus impact … --direction upstream`, индекс на `3f5bc8b`):
+
+| Символ | risk | impacted |
+|---|---|---|
+| `_cleanup_files` | LOW | 1 |
+| `process_1c_import_task` | LOW | 0 |
+| `_parse_or_skip` | MEDIUM | 8 |
+| `handle` / `add_arguments` | UNKNOWN | 0 |
+
+HIGH/CRITICAL нет. Сигнатура `_parse_or_skip` не менялась — внутрь добавлен только
+съём отпечатка файла, все 8 вызывающих (шаги импорта в том же файле) работают как прежде.
+
+**RED до правок** (`pytest apps/products/tests/test_import_cleanup_race.py`): 9 падений —
+`test_replaced_file_with_same_name_survives_cleanup`, четыре теста
+`TestExpectedSegmentIsMandatory`, `test_concrete_segment_reaches_command`,
+`test_eight_overlapping_sessions_lose_nothing`, `test_real_runtime_segments_lose_nothing`,
+`test_retry_publish_failure_marks_session_failed`. `TestImportLockUnderConcurrency` был
+зелёным с самого начала — и это правильно: замечание ревью касалось отсутствия проверки,
+а не поломки лока.
+
+**GREEN после правок:** 41 passed в файле регрессии; 81 passed + 1 skipped на связке
+`test_import_cleanup_race.py` + `test_import_orchestration_tasks.py` +
+`test_handle_init_cleanup_race.py` + `integration/test_import_orchestration.py` +
+`management/commands/test_import_products_fix.py` + `tests/integration/test_onec_import.py`.
+
+**Регрессия в существующем тесте — один ассерт на точные kwargs `call_command`.**
+`integration/test_import_orchestration.py::test_process_1c_import_task_logic` сверял вызов
+буквально; добавился `source_filename=None`. Обновлён до нового контракта — это
+проверяемое изменение поведения, а не подгонка теста под код.
+
+`npx gitnexus detect-changes --scope all`: 10 файлов, 18 символов, 8 процессов.
+Все правки в командном файле — чистые вставки (`89 +`, ни одного `-`), поэтому
+`_import_brands`, `_clear_existing_data`, `_print_stats`, `_collect_xml_files` и
+локальные переменные попали в список только из-за сдвига строк; их тела не менялись.
+Потоки — `Handle → *` и `Process_1c_import_task → Get_file_path`, всё из Code Map спеки.
+
+**Полный backend-прогон после правок** (`-m "not performance and not slow" --cov=apps --cov=freesport`,
+29 мин): **3093 passed, 75 skipped, 35 deselected, 0 failed**; покрытие **79 %**
+(TOTAL 14186 строк, 2954 не покрыто) при пороге CI 73 (без `data_dependent`) / 75 (с ними).
+
+**Грабли прогона (для протокола).** Первый полный прогон дал 292 failed и 1159 errors —
+это был артефакт метода, а не кода: параллельно с ним запускались точечные `pytest` в том
+же проекте `freesport-test`, и две сессии дрались за одну тестовую БД
+(`psycopg2.errors.DeadlockDetected` на `TRUNCATE` в autouse-фикстуре очистки).
+Повторный прогон в одиночку — зелёный. Вывод на будущее: `docker-compose.test.yml`
+поднимает одну БД на проект, параллельные прогоны по нему невозможны.
+
+**Качество.** Black применён, Flake8 — чисто. Mypy по изменённым файлам новых ошибок
+не даёт (те же 8 предсуществующих в `staging.py`, `development.py`, `order_numbering.py`,
+`variant_import.py`).
 
 **Blast radius перед правками** (`npx gitnexus impact … --direction upstream`, индекс на `2d6b1ac`):
 
@@ -379,6 +444,57 @@ risk `high` — затронуты ровно символы и потоки и�
 порог калибруется по CI.
 
 ### Completion Notes List
+
+**Итерация ревью 2026-08-26 — 5 items закрыто.**
+
+✅ Resolved review finding [High]: для конкретного `source_filename` отсутствие
+ожидаемого сегмента переводит сессию в `FAILED`. Команда получила опцию
+`--source-filename`; задача передаёт имя в `call_command` **только** когда
+`detect_file_type` дал конкретный тип (`rests`/`goods`/`offers`/`prices`), для `all`
+передаётся `None`. Новый `_assert_expected_file_processed` вызывается перед
+`finalize_session` и бросает `CommandError` с указанием причины («не найден в каталоге
+обмена» / «исчез из каталога обмена до парсинга»). Пустой каталог остаётся успехом
+ровно там, где конкретного файла не обещали: `mode=complete` и ручной общий импорт.
+
+✅ Resolved review finding [High]: точечный cleanup сверяет отпечаток файла, а не
+путь. `_file_signature` снимает `(st_dev, st_ino, st_mtime_ns, st_size)` в момент
+парсинга (в `_parse_or_skip`, до вызова парсера); `_cleanup_files` перед `unlink`
+сверяет отпечаток заново и при расхождении пропускает файл с предупреждением —
+под этим именем уже лежит чужой файл. Остаточное окно TOCTOU между `stat` и `unlink`
+неустранимо без работы по дескриптору, но это доли миллисекунды вместо секунд обработки;
+отмечено в docstring.
+
+✅ Resolved review finding [Med]: ошибка публикации `self.retry()` больше не оставляет
+сессию в `IN_PROGRESS`. Ветка `except Retry: raise` сохраняет штатный путь,
+`MaxRetriesExceededError` обрабатывается как прежде, а любое другое исключение
+(`kombu.exceptions.OperationalError` при недоступном брокере) логируется и переводит
+сессию в `FAILED` с текстом ошибки. Чужой лок при этом не трогается.
+
+✅ Resolved review finding [Med]: AC2 закрыт настоящим конкурентным прогоном.
+`TestImportLockUnderConcurrency` (с `transaction=True`) удерживает первую задачу
+физически внутри `call_command` в отдельном потоке и в это время запускает вторую на
+тот же каталог: вторая уходит в `retry`, в импорт не входит, `max(peak) == 1`. Второй
+тест класса проверяет, что после освобождения лока следующая задача заходит без retry —
+то есть лок не залипает. Лок живёт в Redis, поэтому проверка отражает и межпроцессный
+случай (`--concurrency > 1`).
+
+✅ Resolved review finding [Med]: основной AC8-тест переведён на реальные разные
+сегменты. В `backend/tests/fixtures/1c-data/rests/segments/` закоммичены **восемь
+срезов настоящей выгрузки** (по 4 предложения из соответствующих
+`data/import_1c/rests/rests_1_1…8`), с исходными именами 1С и непересекающимися
+наборами `Ид` — проверено при генерации. Тест теперь утверждает не «сумма записей
+сошлась», а «множество прочитанных сегментов равно множеству ожидаемых, ни один не
+прочитан дважды, каталог обмена опустел»: восемь копий одного файла такую проверку
+не прошли бы. `data_dependent`-тест на полноразмерном корпусе сохранён и усилен той же
+проверкой по именам.
+
+**Осознанное следствие строгого статуса.** Когда прогон падает по
+`_assert_expected_file_processed`, `_cleanup_files` не вызывается — файлы, которые
+этот прогон успел распарсить (в том числе чужой сегмент, оказавшийся в каталоге
+вместо нашего), остаются на диске и достаются своему хозяину. Двойная обработка
+сегмента остатков безопасна: `stock_quantity` перезаписывается, а не суммируется
+между процессами (`variant_import.py:1181-1187`). Потери данных этот путь не создаёт,
+а неверный `completed` — создавал.
 
 **Что сделано (ядро гонки, T1–T5).**
 
@@ -464,6 +580,14 @@ risk `high` — затронуты ровно символы и потоки и�
 **Добавлено:**
 - `backend/apps/integrations/onec_exchange/file_type_detection.py`
 - `backend/apps/products/tests/test_import_cleanup_race.py`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_1_4a5f6f6b-3b16-4cee-8327-79c093def766.xml`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_2_56e28a80-12ac-4880-a106-c63f1f82de95.xml`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_3_c9b163cc-2dec-4f36-879b-987d87fee84e.xml`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_4_e1b8365d-c2dd-4d4f-92ab-bc0fc0d94436.xml`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_5_eed92aac-ccc4-4129-841c-11a0fb1215c3.xml`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_6_01c9a333-8eaa-4696-98bb-0cc054cc43ae.xml`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_7_6e4a27ec-accc-4ebc-8ad4-abaddc4bbff3.xml`
+- `backend/tests/fixtures/1c-data/rests/segments/rests_1_8_2d10e98f-331c-447d-8c41-25f5379a3883.xml`
 
 **Изменено:**
 - `backend/apps/products/tasks.py`

@@ -811,3 +811,8 @@
 - source_spec: none
   summary: `ProductVariant.size_value` (`models.py:858`) — `max_length=50`, на проде `max(length) = 49`: 12 вариантов в окне offers 17:20-17:24 25.08.2026 не сохранились с `value too long for type character varying(50)`.
   evidence: Отделено от стори `onec-import-cleanup-race-and-followups` решением Alex 2026-08-26 (Split, ядро гонки T1-T5). Дефект E стори; требует отдельной миграции схемы либо осознанной нормализации на входе — к гонке cleanup отношения не имеет и ревьюится независимо. Соответствует AC7 исходной стори.
+
+## Deferred from: code review of onec-import-cleanup-race-and-followups (2026-08-26)
+
+- **Post-import cleanup имеет TOCTOU между проверкой активных сессий и рекурсивным удалением общего каталога.** После `other_active=False` новый HTTP-запрос может перенести XML и отметить соседнюю сессию `IN_PROGRESS`, а завершающаяся задача затем вызовет `cleanup_import_dir()` и удалит новый файл. Блок предсуществует и исполняемая спека запрещает менять его в этой стори; требуется отдельная синхронизация upload/cleanup с локом или атомарный протокол владения каталогом. [`backend/apps/products/tasks.py:325-344`]
+- **Каталожная очистка `goods/offers/import_files` может удалить изображения ожидающей сессии.** XML-задачи сериализованы Redis-локом, но HTTP-upload кладёт изображения в общий каталог до получения задачи; текущий импорт по-прежнему удаляет все файлы `import_files` по каталогу. Поведение предсуществует и явно оставлено за объёмом этой стори, но при перекрывающихся goods/offers-сегментах может дать товары без изображений. [`backend/apps/products/management/commands/import_products_from_1c.py:624-652`]
