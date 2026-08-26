@@ -162,6 +162,11 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # Стори 41.5: сниппеты заголовков безопасности. nginx монтируется
+      # пофайлово, поэтому новый каталог без этого пункта в контейнер не
+      # попадёт и nginx упадёт на старте. Добавление bind-mount требует
+      # ПЕРЕСОЗДАНИЯ контейнера (`up -d nginx`), reload его не увидит.
+      - ./nginx/snippets:/etc/nginx/snippets:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - ../data/prod/static:/var/www/static
       - ../data/prod/media:/var/www/media
