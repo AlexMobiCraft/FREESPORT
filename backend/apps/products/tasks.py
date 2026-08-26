@@ -4,15 +4,55 @@ from pathlib import Path
 from typing import Any
 
 from celery import shared_task
-from celery.exceptions import SoftTimeLimitExceeded
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from django.conf import settings
+from django.core.cache import cache
 from django.core.management import CommandError, call_command
+from django.db.models import F, Value
+from django.db.models.functions import Concat
 from django.utils import timezone
 
 from apps.integrations.onec_exchange.file_service import FileStreamService
+from apps.integrations.onec_exchange.file_type_detection import detect_file_type
 from apps.products.models import ImportSession
 
 logger = logging.getLogger("import_tasks")
+
+IMPORT_LOCK_KEY_PREFIX = "onec:import:lock:"
+
+
+def _import_lock_key(data_dir: str) -> str:
+    """Ключ лока каталога обмена. Лок именно на каталог, а не на сессию."""
+    return f"{IMPORT_LOCK_KEY_PREFIX}{data_dir}"
+
+
+def _release_import_lock(lock_key: str, lock_token: str) -> None:
+    """Снять лок каталога обмена, но только если владелец — эта задача.
+
+    Сверка значения нужна, чтобы задача, пережившая истечение TTL, не сняла
+    лок, который к тому моменту успел перезахватить сосед. Гонка «прочитали
+    своё значение → TTL истёк → сосед захватил → удалили чужой лок» остаётся
+    теоретически возможной, но требует импорта дольше ONEC_IMPORT_LOCK_TTL
+    (по умолчанию 1800 с). При таком запасе это принимаемый риск.
+    """
+    try:
+        if cache.get(lock_key) == lock_token:
+            cache.delete(lock_key)
+    except Exception as exc:  # pragma: no cover - падение Redis не должно валить импорт
+        logger.warning(f"Failed to release import lock {lock_key}: {exc}")
+
+
+def _mark_session_failed(session_id: int, message: str) -> None:
+    """Пометить сессию как FAILED, дописав причину в отчёт."""
+    try:
+        session = ImportSession.objects.get(pk=session_id)
+        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+        session.status = ImportSession.ImportStatus.FAILED
+        session.error_message = message
+        session.report += f"[{timestamp}] {message}\n"
+        session.save(update_fields=["status", "error_message", "report", "updated_at"])
+    except Exception as exc:  # pragma: no cover - диагностика, не влияет на результат
+        logger.critical(f"Failed to mark session {session_id} as failed: {exc}")
 
 
 @shared_task(name="apps.products.tasks.process_1c_import_task", bind=True)
@@ -21,6 +61,7 @@ def process_1c_import_task(
     session_id: int,
     data_dir: str | None = None,
     zip_filename: str | None = None,
+    source_filename: str | None = None,
 ) -> str:
     """
     Задача для асинхронного запуска импорта из 1С.
@@ -29,10 +70,68 @@ def process_1c_import_task(
         session_id: ID сессии ImportSession
         data_dir: Путь к директории с файлами (опционально)
         zip_filename: Имя ZIP-архива для асинхронной распаковки
+        source_filename: Имя файла, присланного 1С (`rests_1_16_….xml`).
+            Определяет шаг импорта. Отдельный параметр, а не `zip_filename`:
+            последний включает ветку распаковки архива.
 
     Returns:
         Результат выполнения ('success' или 'failure')
     """
+    # Story 3.2: Defered Unpacking
+    # Files (including ZIPs) are already moved to import_dir by the view (handle_complete).
+    # We need to find them there and unpack.
+    target_import_dir = Path(data_dir) if data_dir else Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
+    # Story 36.1: единый резолвленный путь для management-команд. Без него
+    # вызов задачи без data_dir уводил импорт товаров на ONEC_DATA_DIR
+    # (ручные выгрузки data/import_1c/), хотя ZIP и контрагенты в этой же
+    # задаче уже читаются из приватного ONEC_EXCHANGE["IMPORT_DIR"].
+    effective_data_dir = data_dir or str(target_import_dir)
+
+    # Лок каталога обмена: 1С отдаёт сегмент каждые ~6,5 с при обработке 7-8 с,
+    # а воркер prefork держит nproc процессов — без сериализации соседние задачи
+    # чистят файлы друг друга. cache.add на Redis — атомарный SETNX.
+    #
+    # Захват и retry живут ВНЕ внешнего try/except: celery.exceptions.Retry
+    # наследует Exception, и обработчик ниже пометил бы сессию FAILED.
+    lock_key = _import_lock_key(effective_data_dir)
+    lock_token = self.request.id or f"session-{session_id}"
+
+    if not cache.add(lock_key, lock_token, settings.ONEC_IMPORT_LOCK_TTL):
+        holder = cache.get(lock_key)
+        logger.info(
+            f"Import directory {effective_data_dir} is locked by {holder}; "
+            f"retrying session {session_id} (attempt {self.request.retries + 1})"
+        )
+        # Отчёт засоряется только один раз за задачу, а не на каждой попытке.
+        if self.request.retries == 0:
+            try:
+                ImportSession.objects.filter(pk=session_id).update(
+                    report=Concat(
+                        F("report"),
+                        Value(
+                            f"[{timezone.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                            f"Каталог обмена занят другим импортом, задача отложена.\n"
+                        ),
+                    ),
+                    updated_at=timezone.now(),
+                )
+            except Exception as exc:  # pragma: no cover - диагностика
+                logger.warning(f"Failed to log lock wait for session {session_id}: {exc}")
+
+        try:
+            raise self.retry(
+                countdown=settings.ONEC_IMPORT_LOCK_RETRY_COUNTDOWN,
+                max_retries=settings.ONEC_IMPORT_LOCK_MAX_RETRIES,
+            )
+        except MaxRetriesExceededError:
+            _mark_session_failed(
+                session_id,
+                f"Каталог обмена {effective_data_dir} оставался занят дольше допустимого "
+                f"({settings.ONEC_IMPORT_LOCK_MAX_RETRIES} попыток × "
+                f"{settings.ONEC_IMPORT_LOCK_RETRY_COUNTDOWN} с) — импорт не запущен.",
+            )
+            return "failure"
+
     try:
         session = ImportSession.objects.get(pk=session_id)
         session.status = ImportSession.ImportStatus.IN_PROGRESS
@@ -64,16 +163,6 @@ def process_1c_import_task(
                 session.save(update_fields=["status", "error_message", "report"])
                 logger.error(f"Unpack failed for session {session_id}: {e}")
                 return "failure"
-
-        # Story 3.2: Defered Unpacking
-        # Files (including ZIPs) are already moved to import_dir by the view (handle_complete).
-        # We need to find them there and unpack.
-        target_import_dir = Path(data_dir) if data_dir else Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
-        # Story 36.1: единый резолвленный путь для management-команд. Без него
-        # вызов задачи без data_dir уводил импорт товаров на ONEC_DATA_DIR
-        # (ручные выгрузки data/import_1c/), хотя ZIP и контрагенты в этой же
-        # задаче уже читаются из приватного ONEC_EXCHANGE["IMPORT_DIR"].
-        effective_data_dir = data_dir or str(target_import_dir)
 
         if target_import_dir.exists():
             zip_files = list(target_import_dir.glob("*.zip"))
@@ -190,20 +279,10 @@ def process_1c_import_task(
             except Exception as e:
                 logger.warning(f"Failed to list directory contents: {e}")
 
-        # Determine file type based on zip_filename (if provided by 1C)
+        # Determine file type based on the name 1C sent.
         # This prevents running unnecessary steps and allows 1C to trigger
-        # granular imports (e.g. only stocks or only prices)
-        detected_file_type = "all"
-        if zip_filename:
-            fn_lower = zip_filename.lower()
-            if fn_lower.startswith("goods") or fn_lower.startswith("import") or fn_lower.startswith("propertiesgoods"):
-                detected_file_type = "goods"
-            elif fn_lower.startswith("offers"):
-                detected_file_type = "offers"
-            elif fn_lower.startswith("prices") or fn_lower.startswith("pricelists"):
-                detected_file_type = "prices"
-            elif fn_lower.startswith("rests"):
-                detected_file_type = "rests"
+        # granular imports (e.g. only stocks or only prices).
+        detected_file_type = detect_file_type(source_filename or zip_filename)
 
         # Определяем тип импорта: контрагенты или товарный каталог
         contragents_dir = target_import_dir / "contragents" if target_import_dir.exists() else None
@@ -229,7 +308,8 @@ def process_1c_import_task(
 
             logger.info(
                 f"Starting 1C import for session {session_id} "
-                f"(key={session.session_key}, file_type={detected_file_type}, file={zip_filename})"
+                f"(key={session.session_key}, file_type={detected_file_type}, "
+                f"file={source_filename or zip_filename})"
             )
             call_command("import_products_from_1c", *args, **options)
 
@@ -302,6 +382,9 @@ def process_1c_import_task(
             logger.critical(f"Failed to update session status after error: {db_err}")
 
         return "failure"
+
+    finally:
+        _release_import_lock(lock_key, lock_token)
 
 
 @shared_task(name="apps.products.tasks.cleanup_stale_import_sessions")

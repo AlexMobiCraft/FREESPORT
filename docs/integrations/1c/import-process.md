@@ -83,6 +83,57 @@ flowchart TD
 
 Order creation and CommerceML export use the VAT and warehouse data imported here. The current split rule is documented in [VAT-split и складской routing заказов для 1С](./order-vat-warehouse-routing.md): sub-orders are grouped by `(vat_rate, warehouse_name)`, not only by VAT.
 
+## Concurrency contract (shared exchange directory)
+
+Каталог обмена `ONEC_EXCHANGE["IMPORT_DIR"]` **общий для всех сессий** — он намеренно
+не разбит по `sessid`, потому что парсер ждёт файлы в `<import_dir>/goods`,
+`<import_dir>/rests` и т. д. Из этого следуют три обязательных правила, которые
+нельзя ослаблять без замены раскладки каталога.
+
+### 1. Один импорт на каталог одновременно
+
+`process_1c_import_task` берёт распределённый лок на каталог обмена **до** начала
+работы: `cache.add("onec:import:lock:<data_dir>", <task_id>, ONEC_IMPORT_LOCK_TTL)`
+(атомарный `SETNX` в Redis). Если лок занят — задача уходит в `self.retry()` и
+возвращается в брокер, а не ждёт блокирующе: воркер prefork держит `nproc`
+процессов, и блокирующее ожидание съедало бы слот пула.
+
+| Настройка | Умолчание | Смысл |
+|---|---|---|
+| `ONEC_IMPORT_LOCK_TTL` | 1800 с | Переживает полный импорт каталога; истекает сам, чтобы упавший воркер не заблокировал обмен навсегда |
+| `ONEC_IMPORT_LOCK_RETRY_COUNTDOWN` | 10 с | Пауза между попытками (1С отдаёт сегмент каждые ~6,5 с) |
+| `ONEC_IMPORT_LOCK_MAX_RETRIES` | 180 | 30 минут ожидания; исчерпание переводит сессию в `failed` с внятным текстом |
+
+Лок снимается в `finally` и **только владельцем** (сверка значения с `task_id`).
+Механизм не зависит от `--concurrency` воркера: рост числа процессов не возвращает гонку.
+
+### 2. Cleanup удаляет только прочитанное
+
+`import_products_from_1c._cleanup_files` удаляет **исключительно те XML, которые
+этот прогон реально распарсил** (`self._processed_files`, путь добавляется после
+успешного парсинга, а не после сбора списка). Удаление по маске `glob` запрещено:
+`glob("rests/rests*.xml")` сносил файлы соседних задач раньше, чем те успевали их
+прочитать — выгрузка 25.08.2026 потеряла 6 из 16 сегментов остатков (~18 000 строк),
+причём две сессии отчитались `completed` с нулём записей.
+
+Файлы, которых прогон не читал, — не его дело: их уберёт
+`FileRoutingService.cleanup_import_dir`, когда активных сессий не останется
+(guard по `IN_PROGRESS` в `tasks.py` и `views.handle_init`).
+
+Исчезнувший файл больше не валит импорт целиком: `FileNotFoundError` на конкретном
+файле — предупреждение в лог и в `report`, цикл продолжается. Если исчезли **все**
+файлы непустого списка, сессия завершается `failed` с их перечнем, а не `completed`
+с нулём записей.
+
+### 3. Тип сегмента доезжает до задачи
+
+Оба места диспатча (`_dispatch_import` и `_dispatch_or_dryrun`) передают
+`source_filename=self.filename` в `process_1c_import_task`. Задача определяет шаг
+импорта через общий `apps/integrations/onec_exchange/file_type_detection.detect_file_type`
+— единственную копию логики (раньше их было две, и они разошлись). Без этого каждый
+сегмент остатков запускал полный импорт каталога, расширяя окно гонки на
+`goods`/`offers`/`prices`.
+
 ## Usage
 
 See `README.md` or `CLAUDE.md` for quick start commands.

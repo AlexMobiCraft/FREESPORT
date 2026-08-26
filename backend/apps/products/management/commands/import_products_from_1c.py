@@ -26,6 +26,7 @@ Trade-offs:
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
@@ -53,6 +54,33 @@ class Command(BaseCommand):
     """
 
     help = "Импорт каталога товаров из файлов 1С (CommerceML 3.1) " "с поддержкой ProductVariant"
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Пути, которые этот прогон действительно распарсил. Основа точечного
+        # cleanup: каталог обмена общий для всех сессий, и удалять по маске
+        # нельзя — снесём файлы соседних задач.
+        self._processed_files: list[str] = []
+        # Файлы, исчезнувшие из каталога между сбором списка и парсингом.
+        self._missing_files: list[str] = []
+
+    def _parse_or_skip(self, file_path: str, parse: Callable[[str], Any]) -> Any | None:
+        """Распарсить файл, пережив его исчезновение из общего каталога обмена.
+
+        Сосед может удалить файл между `_collect_xml_files` и парсингом.
+        Пропавший файл — предупреждение и пропуск, а не падение всего импорта.
+        """
+        try:
+            data = parse(file_path)
+        except FileNotFoundError as exc:
+            self._missing_files.append(file_path)
+            self.stdout.write(
+                self.style.WARNING(f"   ⚠️ Файл исчез до парсинга, пропуск: {Path(file_path).name} ({exc})")
+            )
+            return None
+
+        self._processed_files.append(file_path)
+        return data
 
     def add_arguments(self, parser):
         """Добавление аргументов команды"""
@@ -143,6 +171,11 @@ class Command(BaseCommand):
         data_dir = options["data_dir"]
         if not data_dir:
             data_dir = settings.ONEC_DATA_DIR
+
+        # Команда может переиспользоваться в одном процессе (тесты, call_command
+        # подряд) — состояние прогона обязано начинаться пустым.
+        self._processed_files = []
+        self._missing_files = []
 
         dry_run = options.get("dry_run", False)
         batch_size = options.get("batch_size", 500)
@@ -309,12 +342,23 @@ class Command(BaseCommand):
                 variant_processor.log_progress("Обновление остатков из rests.xml...")
                 self._import_variant_stocks(data_dir, parser, variant_processor)
 
+            # Статус по факту, а не по факту дохода до конца метода.
+            # Раньше сессия, чей файл увёл сосед, отчитывалась COMPLETED
+            # с нулём записей — успех в отчёте, дырка в данных.
+            if self._missing_files:
+                missing_names = ", ".join(Path(p).name for p in self._missing_files)
+                variant_processor.log_progress(
+                    f"Файлы исчезли из каталога обмена до парсинга ({len(self._missing_files)}): {missing_names}"
+                )
+                if not self._processed_files:
+                    raise CommandError(f"Все файлы импорта исчезли из каталога обмена до парсинга: {missing_names}")
+
             # Финализация сессии
             variant_processor.finalize_session(status=ImportSession.ImportStatus.COMPLETED)
 
             # Очистка файлов после успешного импорта
             if not dry_run and not options.get("keep_files", False):
-                self._cleanup_files(data_dir, file_type)
+                self._cleanup_files(data_dir, file_type, self._processed_files)
 
             # Вывод статистики
             self._print_stats(variant_processor.get_stats())
@@ -334,7 +378,9 @@ class Command(BaseCommand):
         if groups_files:
             total_categories = 0
             for file_path in groups_files:
-                categories_data = parser.parse_groups_xml(file_path)
+                categories_data = self._parse_or_skip(file_path, parser.parse_groups_xml)
+                if categories_data is None:
+                    continue
                 result = processor.process_categories(categories_data)
                 total_categories += result["created"] + result["updated"]
                 self.stdout.write(f"   • {Path(file_path).name}: категорий {len(categories_data)}")
@@ -357,7 +403,9 @@ class Command(BaseCommand):
             total_brands = 0
             total_mappings = 0
             for file_path in properties_files:
-                brands_data = parser.parse_properties_goods_xml(file_path)
+                brands_data = self._parse_or_skip(file_path, parser.parse_properties_goods_xml)
+                if brands_data is None:
+                    continue
                 result = processor.process_brands(brands_data)
                 total_brands += result["brands_created"]
                 total_mappings += result["mappings_created"]
@@ -375,7 +423,9 @@ class Command(BaseCommand):
         if price_list_files:
             total_price_types = 0
             for file_path in price_list_files:
-                price_types_data = parser.parse_price_lists_xml(file_path)
+                price_types_data = self._parse_or_skip(file_path, parser.parse_price_lists_xml)
+                if price_types_data is None:
+                    continue
                 for price_type in price_types_data:
                     processor.process_price_types([price_type])
                 total_price_types += len(price_types_data)
@@ -401,7 +451,9 @@ class Command(BaseCommand):
             return
 
         for file_path in goods_files:
-            goods_data = parser.parse_goods_xml(file_path)
+            goods_data = self._parse_or_skip(file_path, parser.parse_goods_xml)
+            if goods_data is None:
+                continue
             base_dir = os.path.join(data_dir, "goods", "import_files")
 
             for i, goods_item in enumerate(tqdm(goods_data, desc=f"   Обработка {Path(file_path).name}")):
@@ -438,7 +490,9 @@ class Command(BaseCommand):
             return
 
         for file_path in offers_files:
-            offers_data = parser.parse_offers_xml(file_path)
+            offers_data = self._parse_or_skip(file_path, parser.parse_offers_xml)
+            if offers_data is None:
+                continue
             base_dir = os.path.join(data_dir, "offers", "import_files")
             # Fallback: Если папка offers/import_files не существует, пробуем goods/import_files
             # (так как FileRoutingService по умолчанию кладет все картинки в goods/import_files)
@@ -491,7 +545,9 @@ class Command(BaseCommand):
             return
 
         for file_path in prices_files:
-            prices_data = parser.parse_prices_xml(file_path)
+            prices_data = self._parse_or_skip(file_path, parser.parse_prices_xml)
+            if prices_data is None:
+                continue
 
             for i, price_item in enumerate(tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")):
                 processor.update_variant_prices(cast("dict[str, Any]", price_item))
@@ -520,7 +576,9 @@ class Command(BaseCommand):
             return
 
         for file_path in rests_files:
-            rests_data = parser.parse_rests_xml(file_path)
+            rests_data = self._parse_or_skip(file_path, parser.parse_rests_xml)
+            if rests_data is None:
+                continue
 
             for i, rest_item in enumerate(tqdm(rests_data, desc=f"   Обработка {Path(file_path).name}")):
                 processor.update_variant_stock(cast("dict[str, Any]", rest_item))
@@ -534,48 +592,32 @@ class Command(BaseCommand):
         stats = processor.get_stats()
         self.stdout.write(self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}"))
 
-    def _cleanup_files(self, data_dir: str, file_type: str) -> None:
+    def _cleanup_files(self, data_dir: str, file_type: str, processed_files: list[str] | None = None) -> None:
         """
         Удаление обработанных файлов после успешного импорта.
-        Удаляет XML файлы и очищает папки с изображениями.
-        """
-        import shutil
 
+        Удаляются ТОЛЬКО те XML, которые этот прогон реально распарсил
+        (`processed_files`). Маска glob как приём удаления не используется:
+        каталог обмена общий для всех сессий, и `glob("rests/rests*.xml")`
+        сносил файлы соседних задач раньше, чем те успевали их прочитать
+        (инцидент выгрузки 25.08.2026). Файлы, которых этот прогон не читал, —
+        не его дело: их уберёт `FileRoutingService.cleanup_import_dir`, когда
+        активных сессий не останется.
+
+        Папки с изображениями по-прежнему чистятся по каталогу: они не
+        сегментируются по сессиям, и гонки там не наблюдалось.
+        """
         self.stdout.write(self.style.WARNING("\n🧹 Очистка обработанных файлов..."))
 
-        # 1. Удаление XML файлов
-        xml_patterns = []
-        if file_type in ["all", "goods"]:
-            xml_patterns.extend(
-                [
-                    "goods/goods*.xml",
-                    "goods/import*.xml",
-                    "goods/groups*.xml",
-                    "goods/properties*.xml",
-                ]
-            )
-        if file_type in ["all", "offers"]:
-            xml_patterns.extend(
-                [
-                    "offers/offers*.xml",
-                    "offers/rests*.xml",
-                    "offers/prices*.xml",
-                    "offers/properties*.xml",
-                ]
-            )
-        if file_type in ["all", "prices"]:
-            xml_patterns.extend(["prices/prices*.xml", "priceLists/priceLists*.xml"])
-        if file_type in ["all", "rests"]:
-            xml_patterns.extend(["rests/rests*.xml"])
-
+        # 1. Удаление XML файлов, распарсенных этим прогоном
         deleted_xml_count = 0
-        for pattern in xml_patterns:
-            for file_path in Path(data_dir).glob(pattern):
-                try:
-                    file_path.unlink()
-                    deleted_xml_count += 1
-                except OSError as e:
-                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка удаления {file_path.name}: {e}"))
+        for raw_path in processed_files or []:
+            file_path = Path(raw_path)
+            try:
+                file_path.unlink(missing_ok=True)
+                deleted_xml_count += 1
+            except OSError as e:
+                self.stdout.write(self.style.ERROR(f"   ❌ Ошибка удаления {file_path.name}: {e}"))
 
         self.stdout.write(f"   ✅ Удалено XML файлов: {deleted_xml_count}")
 

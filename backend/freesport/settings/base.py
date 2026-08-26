@@ -303,6 +303,18 @@ ONEC_PRIVATE_DIR = Path(os.environ.get("ONEC_PRIVATE_DIR", str(BASE_DIR / "var" 
 # Подкатегории этой категории импортируются как корневые на сайте
 ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")
 
+# Сериализация импорта 1С: каталог обмена общий для всех сессий, а воркер
+# Celery работает в prefork на nproc процессов. Без лока соседние задачи
+# обрабатывают один каталог одновременно и сносят файлы друг друга
+# (инцидент выгрузки 25.08.2026 — потеряно ~18 000 строк остатков).
+# TTL обязан переживать самый долгий импорт (полный каталог — минуты),
+# но истекать сам, чтобы упавший воркер не заблокировал обмен навсегда.
+ONEC_IMPORT_LOCK_TTL = config("ONEC_IMPORT_LOCK_TTL", default=1800, cast=int)
+# Пауза перед повторной попыткой взять лок: 1С отдаёт сегмент каждые ~6,5 с.
+ONEC_IMPORT_LOCK_RETRY_COUNTDOWN = config("ONEC_IMPORT_LOCK_RETRY_COUNTDOWN", default=10, cast=int)
+# 180 попыток × 10 с = 30 минут ожидания — с запасом на очередь из 16 сегментов.
+ONEC_IMPORT_LOCK_MAX_RETRIES = config("ONEC_IMPORT_LOCK_MAX_RETRIES", default=180, cast=int)
+
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 

@@ -19,6 +19,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .file_service import FileStreamService
+from .file_type_detection import detect_file_type
 from .routing_service import XML_ROUTING_RULES, FileRoutingService
 
 if TYPE_CHECKING:
@@ -321,22 +322,24 @@ class ImportOrchestratorService:
         session.report += f"[{timezone.now()}] Celery import task dispatched " f"(file_type={file_type})\n"
         session.save(update_fields=["status", "report", "updated_at"])
 
-        task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
+        # source_filename — аддитивный аргумент: без него задача не знает,
+        # какой сегмент прислала 1С, и гоняет полный импорт каталога на каждом
+        # файле, расширяя окно гонки на goods/offers/prices.
+        task_result = process_1c_import_task.delay(
+            session.pk,
+            str(self.import_dir),
+            source_filename=self.filename,
+        )
 
         logger.info(f"[IMPORT] Celery task dispatched: task_id={task_result.id}, " f"session_id={session.pk}")
 
     def _detect_file_type(self) -> str:
-        """Determine import file type from filename."""
-        fn_lower = self.filename.lower() if self.filename else ""
-        if fn_lower.startswith("goods") or fn_lower.startswith("import"):
-            return "goods"
-        elif fn_lower.startswith("offers"):
-            return "offers"
-        elif fn_lower.startswith("prices") or fn_lower.startswith("pricelists"):
-            return "prices"
-        elif fn_lower.startswith("rests"):
-            return "rests"
-        return "all"
+        """Determine import file type from filename.
+
+        Логика вынесена в `file_type_detection`: раньше здесь жила копия,
+        разошедшаяся с копией в `apps/products/tasks.py`.
+        """
+        return detect_file_type(self.filename)
 
     def finalize_batch(self, dry_run: bool = False) -> tuple[bool, str]:
         """
@@ -453,7 +456,11 @@ class ImportOrchestratorService:
                 logger.info(
                     f"[COMPLETE] Dispatching Celery task for " f"session_id={session.pk}, import_dir={self.import_dir}"
                 )
-                task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
+                task_result = process_1c_import_task.delay(
+                    session.pk,
+                    str(self.import_dir),
+                    source_filename=self.filename,
+                )
                 logger.info(f"[COMPLETE] Celery task dispatched: task_id={task_result.id}")
                 session.report += f"[{timezone.now()}] Celery task запущен: {task_result.id}\n"
                 session.save(update_fields=["report", "updated_at"])

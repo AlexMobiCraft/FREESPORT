@@ -799,3 +799,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-disable-retail.md`
   summary: Фронтенд не читает `/users/roles/`: список ролей в форме зашит в `ROLE_OPTIONS`, поэтому флаг `REGISTRATION_ALLOW_RETAIL` управляет бэкендом, но не витриной.
   evidence: Бэкенд переведён на флаг, включение розницы там не требует релиза. Текущему фронтенду розница не нужна — она вернётся отдельным сайтом, поэтому расхождение осознанное. Если розничный сценарий когда-нибудь понадобится на этом же фронте, форма должна строить список ролей из эндпоинта, а не из константы.
+
+- source_spec: none
+  summary: `import_products_from_1c.py:322-327` — `except` фиксирует ошибку через полный `session.save()` без `update_fields` и затирает `report`, накопленный `VariantImportProcessor.log_progress` в БД: у failed-сессий пропадает весь прогресс до падения.
+  evidence: Отделено от стори `onec-import-cleanup-race-and-followups` решением Alex 2026-08-26 (Split, ядро гонки T1-T5). Дефект C стори; независимо отгружаемая правка на одну строку, к механике гонки отношения не имеет — влияет только на наблюдаемость упавших сессий. Соответствует AC5 исходной стори.
+
+- source_spec: none
+  summary: `backup_db.py:48` — `BACKUP_DIR` по умолчанию относительный (`"backend/backup_db"`), в контейнере резолвится от `/app` и падает с `Permission denied`; ошибка проглатывается в `import_products_from_1c.py:195`, полный импорт каталога на проде идёт без бэкапа неизвестно сколько времени.
+  evidence: Отделено от стори `onec-import-cleanup-race-and-followups` решением Alex 2026-08-26 (Split, ядро гонки T1-T5). Дефект B стори; независимый деплой-вопрос (абсолютный путь из настроек + права каталога в образе либо явное отключение шага флагом). Соответствует AC6 исходной стори.
+
+- source_spec: none
+  summary: `ProductVariant.size_value` (`models.py:858`) — `max_length=50`, на проде `max(length) = 49`: 12 вариантов в окне offers 17:20-17:24 25.08.2026 не сохранились с `value too long for type character varying(50)`.
+  evidence: Отделено от стори `onec-import-cleanup-race-and-followups` решением Alex 2026-08-26 (Split, ядро гонки T1-T5). Дефект E стори; требует отдельной миграции схемы либо осознанной нормализации на входе — к гонке cleanup отношения не имеет и ревьюится независимо. Соответствует AC7 исходной стори.

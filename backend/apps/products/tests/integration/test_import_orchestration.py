@@ -89,7 +89,13 @@ class TestImportOrchestration:
             assert "test.xml" in session.report
 
             # Check task triggered
-            mock_task.assert_called_once_with(session.pk, str(onec_private_dirs["import_dir"]))
+            # source_filename обязателен: без него задача теряет тип сегмента и
+            # гоняет полный импорт каталога на каждом файле выгрузки.
+            mock_task.assert_called_once_with(
+                session.pk,
+                str(onec_private_dirs["import_dir"]),
+                source_filename="test.xml",
+            )
 
     def test_mode_import_blocks_duplicate(self, api_client, exchange_user):
         """TC7: mode=import blocks if another import is active"""

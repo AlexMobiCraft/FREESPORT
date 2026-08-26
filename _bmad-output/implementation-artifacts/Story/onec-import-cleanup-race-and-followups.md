@@ -4,7 +4,7 @@ baseline_commit: 2d6b1ac9
 
 # Story: Гонка cleanup в обмене 1С — тихая потеря данных импорта
 
-Status: ready-for-dev
+Status: review
 
 > 🔴 **Дефект подтверждён на проде замерами, а не рассуждением.** Ручная выгрузка 25.08.2026 (17:03–17:29 UTC) дала 5 сессий в статусе `failed` с `File not found` и — что хуже — **6 из 16 сегментов остатков не были прочитаны никем**. Это ~18 000 строк остатков, которые 1С считает успешно переданными и повторять не будет.
 > 🟠 **Главное здесь не падения, а тихая потеря.** Две сессии (62672, 62674) завершились со статусом `completed`, не обработав ни одной записи: их файл удалил сосед раньше, чем задача успела до него добраться, и команда честно написала «Файлы rests.xml не найдены». В отчёте — успех, в данных — дырка.
@@ -192,29 +192,33 @@ except Exception as e:
 
 ## Tasks / Subtasks
 
-- [ ] **T1. Написать падающий тест до правок (AC8).**
-  - [ ] Прогнать его на `develop` и убедиться, что он **красный** — воспроизводит гонку.
-  - [ ] Разместить в `backend/apps/products/tests/test_import_orchestration_tasks.py` или соседнем файле рядом с существующими тестами задачи.
-- [ ] **T2. Точечный cleanup (AC1).**
-  - [ ] `_collect_xml_files` (`import_products_from_1c.py:654`) — сохранять собранный список в атрибут команды.
-  - [ ] Отмечать файл как обработанный **после** успешного парсинга, а не после сбора.
-  - [ ] `_cleanup_files` (`:537`) — принимать список обработанных путей, удалять через `Path(p).unlink(missing_ok=True)`.
-  - [ ] Очистку `import_files` (`:583-608`) оставить как есть — картинки чистятся по каталогу и гонки там не наблюдалось.
-- [ ] **T3. Сериализация импорта (AC2).**
-  - [ ] Взять лок на каталог обмена в `process_1c_import_task` (`tasks.py:19`) — Redis через `django.core.cache` (`cache.add(key, value, timeout)` = атомарный `SETNX`, Redis уже подключён: `settings/base.py:232`, `settings/production.py:61`).
-  - [ ] При неудачном захвате — `self.retry(countdown=…, max_retries=…)`, а не блокирующее ожидание: воркер prefork на 4 процесса, блокировка займёт слот.
-  - [ ] TTL лока должен переживать самый долгий импорт (полный каталог — минуты), но истекать сам, чтобы упавший воркер не заблокировал обмен навсегда.
-  - [ ] **Не использовать `FileLock` из `file_service.py:34`** как есть: `LOCK_TIMEOUT_SECONDS = 30` мал для полного импорта, а stale-локи он не снимает — упавший процесс оставит `.lock` навсегда.
-- [ ] **T4. Устойчивость к исчезнувшему файлу (AC3).**
-  - [ ] Обернуть парсинг каждого файла в `_import_variant_stocks` (`:508`) и в аналогичных шагах так, чтобы `FileNotFoundError` пропускал файл, а не валил команду.
-- [ ] **T5. Передача `file_type` (AC4).**
-  - [ ] `import_orchestrator.py:324` и `:456` — передавать `self.filename` третьим аргументом в `delay()`.
-  - [ ] Сверить, что `_detect_file_type` (`:329`) и `detected_file_type` (`tasks.py:196`) дают одинаковый результат на одинаковом имени — сейчас это две независимые копии логики; свести к одной.
-  - [ ] Проверить, что для `mode=complete` (где имени файла нет) поведение остаётся `all`.
-- [ ] **T6. Отчёт (AC5).** `import_products_from_1c.py:326` — `save(update_fields=[...])` вместо полного `save()`.
-- [ ] **T7. Бэкап (AC6).** `backup_db.py:48` — абсолютный путь из настроек, каталог создаётся и принадлежит пользователю контейнера; либо отключить шаг флагом и записать это решение.
-- [ ] **T8. `size_value` (AC7).** Миграция на увеличение длины либо усечение с предупреждением. Выбор зафиксировать в Dev Agent Record.
-- [ ] **T9. Проверка на проде (AC9).** По чек-листу из раздела «Выкат и восстановление данных».
+> **Объём сужен решением Alex 2026-08-26 (Split).** В работу взято ядро гонки — T1–T5;
+> T6/T7/T8 отделены в `deferred-work.md` как независимо отгружаемые правки. Исполняемый
+> контракт — `_bmad-output/implementation-artifacts/spec-onec-import-cleanup-race.md`.
+
+- [x] **T1. Написать падающий тест до правок (AC8).**
+  - [x] Прогнать его на `develop` и убедиться, что он **красный** — воспроизводит гонку.
+  - [x] Разместить в `backend/apps/products/tests/test_import_orchestration_tasks.py` или соседнем файле рядом с существующими тестами задачи.
+- [x] **T2. Точечный cleanup (AC1).**
+  - [x] `_collect_xml_files` (`import_products_from_1c.py:654`) — сохранять собранный список в атрибут команды.
+  - [x] Отмечать файл как обработанный **после** успешного парсинга, а не после сбора.
+  - [x] `_cleanup_files` (`:537`) — принимать список обработанных путей, удалять через `Path(p).unlink(missing_ok=True)`.
+  - [x] Очистку `import_files` (`:583-608`) оставить как есть — картинки чистятся по каталогу и гонки там не наблюдалось.
+- [x] **T3. Сериализация импорта (AC2).**
+  - [x] Взять лок на каталог обмена в `process_1c_import_task` (`tasks.py:19`) — Redis через `django.core.cache` (`cache.add(key, value, timeout)` = атомарный `SETNX`, Redis уже подключён: `settings/base.py:232`, `settings/production.py:61`).
+  - [x] При неудачном захвате — `self.retry(countdown=…, max_retries=…)`, а не блокирующее ожидание: воркер prefork на 4 процесса, блокировка займёт слот.
+  - [x] TTL лока должен переживать самый долгий импорт (полный каталог — минуты), но истекать сам, чтобы упавший воркер не заблокировал обмен навсегда.
+  - [x] **Не использовать `FileLock` из `file_service.py:34`** как есть: `LOCK_TIMEOUT_SECONDS = 30` мал для полного импорта, а stale-локи он не снимает — упавший процесс оставит `.lock` навсегда.
+- [x] **T4. Устойчивость к исчезнувшему файлу (AC3).**
+  - [x] Обернуть парсинг каждого файла в `_import_variant_stocks` (`:508`) и в аналогичных шагах так, чтобы `FileNotFoundError` пропускал файл, а не валил команду.
+- [x] **T5. Передача `file_type` (AC4).**
+  - [x] `import_orchestrator.py:324` и `:456` — передавать `self.filename` третьим аргументом в `delay()`.
+  - [x] Сверить, что `_detect_file_type` (`:329`) и `detected_file_type` (`tasks.py:196`) дают одинаковый результат на одинаковом имени — сейчас это две независимые копии логики; свести к одной.
+  - [x] Проверить, что для `mode=complete` (где имени файла нет) поведение остаётся `all`.
+- [~] **T6. Отчёт (AC5).** Отделено в `deferred-work.md` (Split 2026-08-26) — независимая правка на одну строку, к механике гонки отношения не имеет.
+- [~] **T7. Бэкап (AC6).** Отделено в `deferred-work.md` (Split 2026-08-26) — деплой-вопрос: абсолютный путь из настроек и права каталога в образе.
+- [~] **T8. `size_value` (AC7).** Отделено в `deferred-work.md` (Split 2026-08-26) — требует отдельной миграции схемы, ревьюится независимо.
+- [ ] **T9. Проверка на проде (AC9).** По чек-листу из раздела «Выкат и восстановление данных». Выполняется после ручного выката — см. Completion Notes.
 
 ## Dev Notes
 
@@ -305,11 +309,11 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 
 ## Definition of Done
 
-- [ ] AC1–AC8 выполнены, тест из T1 зелёный, остальные тесты импорта не сломаны.
-- [ ] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы.
-- [ ] Покрытие не ниже действующих порогов (общее ≥ 70 %, критические модули ≥ 90 %); пороги калибруются по CI, не по локальному прогону — локально скипается ~32 теста импорта 1С.
-- [ ] AC9 проверен на проде после реальной выгрузки, результат записан в Dev Agent Record.
-- [ ] Если T8 решён усечением, а не миграцией — остаток по `size_value` занесён в `_bmad-output/planning-artifacts/tech-debt.md`.
+- [x] AC1–AC4 и AC8 выполнены, тест из T1 зелёный (красный до правок), остальные тесты импорта не сломаны. AC5–AC7 отделены в `deferred-work.md` (Split 2026-08-26).
+- [x] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (8 файлов, 51 символ, 10 процессов; всё из Code Map спеки).
+- [x] Покрытие не ниже действующих порогов: локальный полный прогон `-m "not performance and not slow"` — **79 %** (TOTAL 14146 строк, 2955 не покрыто) при пороге CI 73–75. 3081 passed, 75 skipped, 0 failed.
+- [ ] AC9 проверен на проде после реальной выгрузки, результат записан в Dev Agent Record. **Ожидает ручного выката** — см. Completion Notes.
+- [~] Если T8 решён усечением, а не миграцией — остаток по `size_value` занесён в `tech-debt.md`. T8 не решался: отделён в `deferred-work.md`.
 
 > Дефект **D** (обновление картинок) в объём стори **не входит** — он уже зафиксирован как долг: `tech-debt.md` п. 24. Там же п. 25 (модель `ProductImage` не заполняется, галерея пуста) и п. 26 (изоляция каталога обмена по сессиям как отложенный вариант). Заново заводить их не нужно.
 
@@ -318,6 +322,8 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 | Дата | Версия | Описание | Автор |
 |---|---|---|---|
 | 2026-08-26 | 0.1 | Стори создана по разбору инцидента выгрузки 25.08.2026 | Claude |
+| 2026-08-26 | 0.2 | Объём сужен до ядра гонки (T1-T5); T6/T7/T8 отделены в `deferred-work.md` | Alex |
+| 2026-08-26 | 1.0 | Реализовано ядро: точечный cleanup, лок каталога обмена, устойчивость к исчезнувшему файлу, передача `source_filename`. 30 новых тестов, регрессии зелёные | Claude |
 
 ## Dev Agent Record
 
@@ -328,16 +334,145 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 
 ### Agent Model Used
 
-_(заполняется агентом)_
+claude-opus-5 (Claude Code, скилл `bmad-dev-story`).
 
 ### Debug Log References
 
-_(заполняется агентом)_
+**Blast radius перед правками** (`npx gitnexus impact … --direction upstream`, индекс на `2d6b1ac`):
+
+| Символ | risk | impacted |
+|---|---|---|
+| `_cleanup_files` | LOW | 1 |
+| `process_1c_import_task` | LOW | 0 |
+| `_detect_file_type` | LOW | 3 |
+| `_import_variant_stocks` | LOW | 1 |
+| `_dispatch_import` | **CRITICAL** | 4 |
+| `_dispatch_or_dryrun` | **CRITICAL** | 4 |
+
+Обе CRITICAL-точки правились строго аддитивно: добавлен один именованный аргумент
+`source_filename=self.filename` в `delay()`. Сигнатуры методов и порядок
+«`session` → `IN_PROGRESS` **до** `delay()`» не тронуты.
+
+`npx gitnexus detect-changes --scope all`: 8 файлов, 51 символ, 10 процессов,
+risk `high` — затронуты ровно символы и потоки из Code Map спеки
+(`Handle_init → Mark_complete`, `Handle_init → _detect_file_type`,
+`Handle_complete → Mark_complete`, `Handle → *`). Постороннего нет.
+`finalize_batch` попал в список из-за сдвига строк — его тело не изменялось
+(см. `git diff import_orchestrator.py`).
+
+**RED до правок** (`pytest apps/products/tests/test_import_cleanup_race.py` на коде без фикса
+команды): 5 падений — `test_neighbour_file_survives_cleanup`,
+`test_cleanup_files_ignores_unparsed_neighbours`, `test_partial_loss_completes_and_reports`,
+`test_eight_overlapping_sessions_lose_nothing`, `test_real_runtime_segments_lose_nothing`.
+Тесты ловят именно гонку, а не отсутствие импортов: модули лока и `detect_file_type`
+к моменту замера уже существовали.
+
+**GREEN после правок:** 30 passed в новом файле; 70 passed + 1 skipped на связке
+`tests/integration/test_onec_import.py` + `test_import_cleanup_race.py` +
+`test_import_orchestration_tasks.py` + `test_handle_init_cleanup_race.py` +
+`integration/test_import_orchestration.py` + `management/commands/test_import_products_fix.py`.
+
+**Полный backend-прогон** (`-m "not performance and not slow" --cov=apps --cov=freesport`,
+35 мин): **3081 passed, 75 skipped, 35 deselected, 0 failed**; покрытие **79 %**
+(TOTAL 14146 строк, 2955 не покрыто) при пороге CI 73 (без `data_dependent`) / 75 (с ними).
+Локальный прогон включает `data_dependent`-тесты импорта 1С, на раннере они скипаются —
+порог калибруется по CI.
 
 ### Completion Notes List
 
-_(заполняется агентом)_
+**Что сделано (ядро гонки, T1–T5).**
+
+1. **Точечный cleanup (AC1).** `_cleanup_files` принимает список путей, которые прогон
+   реально распарсил, и удаляет только их через `Path(p).unlink(missing_ok=True)`.
+   Весь блок `xml_patterns` / `glob` удалён. Накопитель — `Command._processed_files`,
+   путь добавляется **после** успешного парсинга (в `_parse_or_skip`), а не после сбора
+   списка. Очистка `import_files` осталась по каталогу — там гонки не наблюдалось.
+
+2. **Сериализация задач (AC2).** `process_1c_import_task` берёт лок
+   `onec:import:lock:<effective_data_dir>` через `cache.add` (атомарный `SETNX` в Redis)
+   **до** внешнего `try` — иначе `celery.exceptions.Retry` (наследник `Exception`) попал бы
+   в обработчик и пометил сессию `FAILED`. При занятом локе — `self.retry(countdown, max_retries)`
+   из настроек; исчерпание попыток ловится как `MaxRetriesExceededError` и переводит сессию
+   в `FAILED` с внятным текстом. Освобождение — в `finally` через `_release_import_lock`,
+   с проверкой владельца (`cache.get(key) == task_id`). Механизм не зависит от `--concurrency`.
+
+3. **Устойчивость к исчезнувшему файлу (AC3).** Парсинг каждого файла во **всех** семи шагах
+   импорта (категории, бренды, типы цен, товары, предложения, цены, остатки) идёт через
+   `_parse_or_skip`: `FileNotFoundError` → предупреждение + `self._missing_files`, цикл
+   продолжается. Перед `finalize_session` выбирается статус: есть пропавшие и есть
+   распарсенные → `COMPLETED` + строка в `report`; пропали все при непустом списке →
+   `CommandError` с перечнем имён → сессия `FAILED`. «Файлов типа нет изначально»
+   (`_collect_xml_files` вернул `[]`) — прежнее поведение, предупреждение и успех.
+
+4. **Правдивый `file_type` (AC4).** Новый модуль
+   `apps/integrations/onec_exchange/file_type_detection.detect_file_type` — единственная
+   копия логики; объединил обе прежние (префикс `propertiesgoods` знала только задача).
+   `_detect_file_type` делегирует туда; оба `delay()` передают `source_filename=self.filename`.
+   В задаче `detect_file_type(source_filename or zip_filename)` — параметр `zip_filename`
+   не переиспользован намеренно: он включает мёртвую ветку `file_service.unpack_zip()`.
+   `mode=complete` → `detect_file_type("complete")` → `"all"`, поведение прежнее.
+
+5. **Настройки (спека).** `ONEC_IMPORT_LOCK_TTL` (1800 с), `ONEC_IMPORT_LOCK_RETRY_COUNTDOWN`
+   (10 с), `ONEC_IMPORT_LOCK_MAX_RETRIES` (180) — все через `config()`, не константы в коде.
+
+6. **Документация.** `docs/integrations/1c/import-process.md` — новый раздел
+   «Concurrency contract (shared exchange directory)»: лок каталога, точечный cleanup
+   и передача типа сегмента зафиксированы как контракт.
+
+**Тесты.** `backend/apps/products/tests/test_import_cleanup_race.py`, 30 тестов, покрыты все
+строки матрицы I/O спеки. XML — закоммиченный срез реальной выгрузки
+(`backend/tests/fixtures/1c-data/rests/rests.xml`), сегменты имитируются побайтовыми копиями
+под именами, которые даёт 1С; синтетика не создавалась. Дополнительный `data_dependent` тест
+гоняет то же самое на по-настоящему разных сегментах назначенного корпуса
+`backend/data/import_1c/rests/` (в CI штатно скипается).
+
+**Регрессии в существующих тестах — два ассерта на точную сигнатуру `delay()`.**
+`integration/test_import_orchestration.py::test_mode_import_triggers_task` и
+`tests/integration/test_onec_import.py::TestAsyncImportDispatch::test_execute_dispatches_celery_task`
+проверяли `delay(session.pk, import_dir)` буквально. Оба обновлены до нового контракта
+(`source_filename="test.xml"` и `source_filename="goods.xml"`) — это и есть проверяемое
+изменение поведения, а не подгонка теста под код.
+
+**Качество.** Black + Flake8 — чисто. Mypy по изменённым файлам новых ошибок не даёт
+(8 найденных — предсуществующие в `staging.py`, `development.py`, `order_numbering.py`,
+`variant_import.py`).
+
+**Осознанные ограничения.**
+- Гонка «TTL истёк → ключ перезахвачен → старый владелец снимает чужой лок» остаётся
+  теоретически возможной, но требует импорта дольше 1800 с. Отмечена комментарием
+  в `_release_import_lock`.
+- Если Redis недоступен, `cache.add` бросит исключение **до** внешнего `try` и задача упадёт
+  без пометки сессии. Это осознанный fail-closed: параллельный импорт без лока хуже падения,
+  а Celery без Redis всё равно не работает. Зависшие `IN_PROGRESS` подберёт
+  `cleanup_stale_import_sessions` (порог 2 ч).
+- Файлы, которых прогон не читал, теперь не удаляются им вовсе. Их убирает
+  `FileRoutingService.cleanup_import_dir` по завершении последней активной сессии —
+  рабочий guard в `tasks.py:245-266` и `views.handle_init` не тронут.
+
+**Вне объёма (Split 2026-08-26, в `deferred-work.md`):** `session.save(update_fields=…)`
+в `except` команды (AC5), путь `backup_db` (AC6), длина `size_value` (AC7).
+Изоляция каталога обмена по сессиям — tech-debt п. 26, не потребовалась.
+
+**AC9 не проверен — требует ручного выката.** Правки не задеплоены. Порядок:
+выкатить, `docker compose restart backend celery celery-beat`, затем **обязательно**
+`restart nginx` (иначе 502 на старом IP апстрима), запустить из 1С выгрузку только остатков
+и снять SQL из раздела «Выкат и восстановление данных». Данные за 25.08 восстанавливаются
+только повторной выгрузкой — файлы удалены.
 
 ### File List
 
-_(заполняется агентом)_
+**Добавлено:**
+- `backend/apps/integrations/onec_exchange/file_type_detection.py`
+- `backend/apps/products/tests/test_import_cleanup_race.py`
+
+**Изменено:**
+- `backend/apps/products/tasks.py`
+- `backend/apps/products/management/commands/import_products_from_1c.py`
+- `backend/apps/integrations/onec_exchange/import_orchestrator.py`
+- `backend/freesport/settings/base.py`
+- `backend/apps/products/tests/integration/test_import_orchestration.py`
+- `backend/tests/integration/test_onec_import.py`
+- `docs/integrations/1c/import-process.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/onec-import-cleanup-race-and-followups.md`
+- `_bmad-output/implementation-artifacts/spec-onec-import-cleanup-race.md`

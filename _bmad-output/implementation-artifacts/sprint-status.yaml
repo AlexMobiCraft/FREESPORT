@@ -270,7 +270,7 @@ development_status:
   # _cleanup_files в import_products_from_1c удаляет по маске glob.
   # ⚠️ done — только после прод-замера по AC9 (повторная выгрузка остатков
   # без failed-сессий), а не по мержу.
-  onec-import-cleanup-race-and-followups: ready-for-dev
+  onec-import-cleanup-race-and-followups: review
 
   # ========================================
   # Epic 40: Уровень цен клиента приходит из 1С

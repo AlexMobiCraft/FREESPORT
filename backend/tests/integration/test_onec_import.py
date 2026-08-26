@@ -248,7 +248,13 @@ class TestAsyncImportDispatch:
 
                 success, msg = svc.execute()
                 assert success is True
-                mock_task.delay.assert_called_once_with(999, str(onec_private_dirs["import_dir"]))
+                # source_filename обязателен: без него задача теряет тип сегмента
+                # и гоняет полный импорт каталога на каждом файле выгрузки.
+                mock_task.delay.assert_called_once_with(
+                    999,
+                    str(onec_private_dirs["import_dir"]),
+                    source_filename="goods.xml",
+                )
 
     def test_real_xml_upload_and_import_use_private_dirs(self, authenticated_client, onec_private_dirs):
         """Реальный XML обмена не должен появляться под MEDIA_ROOT."""
