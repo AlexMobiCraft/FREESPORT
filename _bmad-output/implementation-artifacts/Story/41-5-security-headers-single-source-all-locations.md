@@ -4,7 +4,7 @@ baseline_commit: 460b3b6f
 
 # Story 41.5: Единый источник заголовков безопасности и их доставка во все локации
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -200,6 +200,11 @@ so that **браузер применял политику предсказуе�
   - [x] 13.1 Завести `_bmad-output/implementation-artifacts/deploy-plan-41-5.md`: пронумерованный порядок команд на проде (fetch/reset → `up -d --build frontend` → `up -d nginx` → `restart backend celery celery-beat` → `restart nginx` → `nginx -t` → замеры), с однострочным обоснованием каждого шага, который неочевиден. Обязательные к записи: почему `up -d nginx`, а не `reload`; почему `restart nginx` после каждого пересоздания апстрима; почему проверка идёт глазами, а не по коду ответа.
   - [x] 13.2 Порядок команд обязан жить отдельным файлом, а не только в Dev Notes: стори после закрытия никто не откроет, а выкат будет выполняться человеком по SSH вечером. Прецедент — план выката эпика 40.
   - [x] 13.3 В плане отметить, что этот выкат — первая проверка гипотезы «пересоздание фронта маскируется заглушкой». Если гипотеза подтвердится замером — завести отдельный пункт в `tech-debt.md` про то, что `error_page 502 503 504 =200` скрывает падение от мониторинга. В объём 41.5 правка этого поведения **не** входит.
+
+### Review Findings
+
+- [ ] [Review][Patch] Специальная локация `/_next/webpack-hmr` задваивает заголовки Next и унаследованный серверный набор [`docker/nginx/conf.d/default.conf`:307]
+- [ ] [Review][Patch] Cross-source тесты CSP и Permissions-Policy молча пропускаются в основном frontend Docker-контейнере [`frontend/src/__tests__/next-config-headers.test.ts`:105]
 
 ## Dev Notes
 

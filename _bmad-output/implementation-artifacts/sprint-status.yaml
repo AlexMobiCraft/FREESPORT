@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-25
+# last_updated: 2026-08-26
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-08-25
+last_updated: 2026-08-26
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -345,7 +345,7 @@ development_status:
   # 2026-08-25: реализация закончена, ветка feature/story-41-5-security-headers.
   # Прод НЕ тронут: выкат отдельным заходом по deploy-plan-41-5.md.
   # В done — только после прод-замера (AC3, AC13), а не по мержу.
-  41-5-security-headers-single-source-all-locations: review
+  41-5-security-headers-single-source-all-locations: in-progress
   41-6-unique-metadata-og-image-jsonld: backlog
   41-7-pdn-registry-numbers-and-login-form-justification: backlog
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.
