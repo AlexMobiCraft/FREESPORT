@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-25
+# last_updated: 2026-08-26
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-08-25
+last_updated: 2026-08-26
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -146,6 +146,27 @@ last_updated: 2026-08-25
 #             поздний writer больше не воскрешает устаревший список на сутки.
 #             Граница AC11 расширена решением владельца: правки backend
 #             (apps/pages) и openapi.yaml входят в объём стори.
+# 2026-08-26: Создана внеэпиковая стори onec-import-cleanup-race-and-followups,
+#             статус ready-for-dev. Повод — разбор ручной выгрузки 1С 25.08.2026:
+#             5 сессий failed с "File not found", и, что важнее, 6 из 16 сегментов
+#             остатков (~18 000 строк) не прочитаны никем — две сессии при этом
+#             отчитались статусом completed. Причина: _cleanup_files в команде
+#             import_products_from_1c удаляет XML по маске glob и сносит файлы
+#             соседних сессий из общего каталога обмена. Это ТРЕТИЙ независимый
+#             источник той же гонки: cleanup_import_dir закрыт хотфиксами ff0bbc0a
+#             и 057afc41, его guard работает, а cleanup в команде не проверял
+#             ничего. Объём (решение Alex, 2026-08-26): точечный cleanup по списку
+#             обработанных файлов + сериализация задач импорта на каталог, плюс
+#             сопутствующие дефекты — потерянный file_type при delay() (каждый
+#             сегмент запускал полный импорт "all"), затирающий report session.save()
+#             без update_fields, неработающий backup_db (Permission denied на
+#             относительном пути) и size_value varchar(50). Изоляция каталога по
+#             сессиям в объём НЕ входит — вынесена в tech-debt.md п. 26. Туда же
+#             п. 24 (перерисованное в 1С фото не доезжает: пропуск по имени файла)
+#             и п. 25 (модель ProductImage не заполняется, product_images пуст).
+#             ⚠️ Данные за 25.08 восстанавливаются только повторной выгрузкой
+#             остатков из 1С — файлы удалены. На проде 963 варианта с ненулевым
+#             остатком торгуются по данным предыдущего обмена.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -242,6 +263,14 @@ development_status:
   # data/import_1c (вариант B задания, решение Alex 2026-08-16); прод не трогаем.
   # Источник: tasks/dev-task-onec-data-dir-unification.md.
   infra-onec-data-dir-unification: ready-for-dev
+
+  # Инцидентная стори: гонка cleanup в обмене 1С. Подтверждена замерами прода
+  # (выгрузка 25.08.2026): 5 сессий failed, 6 из 16 сегментов остатков потеряны
+  # молча. Третий источник гонки после хотфиксов ff0bbc0a и 057afc41 —
+  # _cleanup_files в import_products_from_1c удаляет по маске glob.
+  # ⚠️ done — только после прод-замера по AC9 (повторная выгрузка остатков
+  # без failed-сессий), а не по мержу.
+  onec-import-cleanup-race-and-followups: ready-for-dev
 
   # ========================================
   # Epic 40: Уровень цен клиента приходит из 1С
