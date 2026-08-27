@@ -258,6 +258,11 @@ class VariantImportProcessor:
     DEFAULT_PLACEHOLDER_IMAGE = "products/placeholder.png"
     BATCH_SIZE = 500  # NFR4: batch processing
 
+    # AC7: сколько отброшенных размеров попадёт в текстовый report поимённо.
+    # Дальше растёт только счётчик: аномальная выгрузка не должна устроить
+    # лавину UPDATE по полю report.
+    SIZE_VALUE_REPORT_LIMIT = 50
+
     def __init__(
         self,
         session_id: int,
@@ -272,6 +277,8 @@ class VariantImportProcessor:
             batch_size: Размер batch для bulk операций (default 500)
             skip_validation: Пропустить валидацию данных
         """
+        from apps.products.models import ProductVariant
+
         self.session_id = session_id
         self.batch_size = batch_size
         self.skip_validation = skip_validation
@@ -287,6 +294,9 @@ class VariantImportProcessor:
             "skipped": 0,
             "errors": 0,
             "warnings": 0,
+            # AC7: сколько «размеров» не влезло в поле и было отброшено.
+            # Инициализируем здесь, чтобы отличать «не сработало» от «код не задеплоен».
+            "size_value_dropped": 0,
             "images_copied": 0,
             "images_skipped": 0,
             "images_errors": 0,
@@ -310,6 +320,14 @@ class VariantImportProcessor:
         self._variant_cache: dict[str, Any] = {}
         self._stock_buffer: dict[str, dict[str, Any]] = {}
         self._missing_products_logged: set[str] = set()
+        # AC7: сколько отброшенных размеров уже названо в текстовом report
+        self._size_value_reports: int = 0
+        # AC7: onec_id, у которых размер уже отбракован — счётчик считает
+        # варианты, а не встречи одного оффера в разных сегментах
+        self._size_value_dropped_logged: set[str] = set()
+        # AC7: лимит колонки неизменен в рамках процесса — снимаем один раз,
+        # а не на каждый из ~16 тыс. офферов полного каталога
+        self._size_value_max_length: int | None = ProductVariant._meta.get_field("size_value").max_length
         self._missing_variants_logged: set[str] = set()
         self._unmapped_price_types_logged: set[str] = set()
         # Маппинг parent_onec_id → vat_rate из goods.xml
@@ -778,8 +796,11 @@ class VariantImportProcessor:
         name = offer_data.get("name", "")
         if not parsed_chars["color_name"]:
             parsed_chars["color_name"] = extract_color_from_name(name)
+        # AC7: непомещающуюся характеристику бракуем ДО fallback — иначе она
+        # блокирует извлечение валидного размера из наименования и он теряется
+        parsed_chars["size_value"] = self._normalize_size_value(parsed_chars["size_value"], variant.onec_id)
         if not parsed_chars["size_value"]:
-            parsed_chars["size_value"] = extract_size_from_name(name)
+            parsed_chars["size_value"] = self._normalize_size_value(extract_size_from_name(name), variant.onec_id)
 
         if parsed_chars["color_name"] and variant.color_name != parsed_chars["color_name"]:
             variant.color_name = parsed_chars["color_name"]
@@ -842,8 +863,11 @@ class VariantImportProcessor:
         name = offer_data.get("name", "")
         if not parsed_chars["color_name"]:
             parsed_chars["color_name"] = extract_color_from_name(name)
+        # AC7: непомещающуюся характеристику бракуем ДО fallback — иначе она
+        # блокирует извлечение валидного размера из наименования и он теряется
+        parsed_chars["size_value"] = self._normalize_size_value(parsed_chars["size_value"], onec_id)
         if not parsed_chars["size_value"]:
-            parsed_chars["size_value"] = extract_size_from_name(name)
+            parsed_chars["size_value"] = self._normalize_size_value(extract_size_from_name(name), onec_id)
 
         # SKU
         article = offer_data.get("article")
@@ -1530,6 +1554,52 @@ class VariantImportProcessor:
             unique_sku = f"{sku}-{counter}"
 
         return unique_sku
+
+    def _normalize_size_value(self, size_value: str, onec_id: str) -> str:
+        """Отбрасывает «размер», не влезающий в колонку (AC7).
+
+        Импорт пишет `size_value` напрямую, минуя `full_clean()`. Без этой
+        проверки длинное значение возвращает `DataError` и вариант не создаётся
+        вообще — так 25.08.2026 потерялись 12 вариантов. Соседние `color_name`
+        и `sku` уязвимы тем же механизмом, но по замерам 27.08.2026 держатся
+        втрое-восьмеро ниже своего лимита; они вынесены в deferred-work.
+
+        Значение отбрасывается целиком, а не усекается: обрезок вроде
+        «Romana 501.96.00 Оборудование спор» — тот же мусор, только теперь ещё
+        и в `db_index`, и в композитном индексе `idx_variant_characteristics`.
+        Пустое поле честнее.
+
+        Порог берётся из самой модели, чтобы он не мог разойтись с колонкой.
+        Счётчик считает варианты, а не события: один и тот же оффер приезжает
+        в нескольких сегментах `offers_*.xml`, и в отчёте нужно число товаров,
+        а не число встреч.
+        """
+        max_length = self._size_value_max_length
+        # max_length is None — это TextField вместо CharField, то есть колонка,
+        # которая не переполняется. Проверять нечего, значение проходит как есть.
+        if not size_value or max_length is None or len(size_value) <= max_length:
+            return size_value
+
+        if onec_id in self._size_value_dropped_logged:
+            return ""
+        self._size_value_dropped_logged.add(onec_id)
+
+        self.stats["size_value_dropped"] += 1
+        # Общий счётчик warnings намеренно не трогаем: длинные наименования
+        # приезжают каждой выгрузкой, и постоянный фон растворил бы в себе
+        # настоящие предупреждения сессии.
+        preview = " ".join(size_value.split())[:max_length]
+        logger.warning(
+            f"size_value из выгрузки не записан для {onec_id}: {len(size_value)} символов "
+            f"при лимите {max_length} — {preview!r}"
+        )
+        if self._size_value_reports < self.SIZE_VALUE_REPORT_LIMIT:
+            self._size_value_reports += 1
+            self.log_progress(
+                f"size_value из выгрузки не записан ({len(size_value)} символов "
+                f"при лимите {max_length}): {onec_id} — {preview}"
+            )
+        return ""
 
     def _log_error(self, message: str, data: Any) -> None:
         """Логирование ошибки"""

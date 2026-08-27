@@ -820,3 +820,21 @@
 
 - **Post-import cleanup имеет TOCTOU между проверкой активных сессий и рекурсивным удалением общего каталога.** После `other_active=False` новый HTTP-запрос может перенести XML и отметить соседнюю сессию `IN_PROGRESS`, а завершающаяся задача затем вызовет `cleanup_import_dir()` и удалит новый файл. Блок предсуществует и исполняемая спека запрещает менять его в этой стори; требуется отдельная синхронизация upload/cleanup с локом или атомарный протокол владения каталогом. [`backend/apps/products/tasks.py:325-344`]
 - **Каталожная очистка `goods/offers/import_files` может удалить изображения ожидающей сессии.** XML-задачи сериализованы Redis-локом, но HTTP-upload кладёт изображения в общий каталог до получения задачи; текущий импорт по-прежнему удаляет все файлы `import_files` по каталогу. Поведение предсуществует и явно оставлено за объёмом этой стори, но при перекрывающихся goods/offers-сегментах может дать товары без изображений. [`backend/apps/products/management/commands/import_products_from_1c.py:624-652`]
+
+## Deferred from: code review of spec-ac7-size-value-overflow (2026-08-27)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ac7-size-value-overflow.md`
+  summary: `color_name` (`varchar(100)`) и `sku` (`varchar(100)`) у `ProductVariant` пишутся импортом тем же способом, что и `size_value` — напрямую, минуя `full_clean()`, — и переполнение любого из них так же теряет вариант целиком.
+  evidence: Механизм идентичен закрытому AC7, но замер 27.08.2026 показывает запас: на проде `max(length(color_name)) = 12` и `max(length(sku)) = 36` при лимите 100 у обоих, значений длиннее 80 символов нет ни одного; в 31 файле корпуса `data/import_1c/offers/` максимальная характеристика «Цвет» — 7 символов. Дефект реален как класс, срабатываний в данных нет. Отдельная деталь: `_ensure_unique_sku` добавляет суффикс `-N` без учёта лимита, то есть артикул в 99 символов при коллизии дал бы 101.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ac7-size-value-overflow.md`
+  summary: `_update_existing_variant` не умеет очищать `size_value`: guard `if parsed_chars["size_value"] and ...` пропускает пустое значение, поэтому размер, однажды записанный в БД, нельзя убрать через выгрузку 1С.
+  evidence: Поведение предсуществует правке AC7 и в ней намеренно не менялось. Практическое следствие: если в 1С починят реквизит и пришлют пустой размер, поле сохранит старое значение навсегда; вычистить мусор из 674 записей длиной 11–20 импортом не получится — только `fix_variant_sizes` или SQL.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ac7-size-value-overflow.md`
+  summary: `finalize_session` присваивает `session.report_details = self.stats` целиком, поэтому при переиспользовании одной `ImportSession` несколькими прогонами процессора счётчики предыдущего прогона затираются нулями нового.
+  evidence: Касается всех счётчиков сессии, не только `size_value_dropped`; вскрыто ревью AC7. Родственно закрытому AC5 (затирание текстового `report`), но лежит в другом поле и другим механизмом — слияние вместо присваивания.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ac7-size-value-overflow.md`
+  summary: `ProductVariant.Meta.ordering = ["color_name", "size_value"]` не имеет детерминированного tiebreaker, а пустой `size_value` — самое частое значение в таблице (8361 из 16 619 на 27.08.2026).
+  evidence: При пагинации вариантов с одинаковой парой `(color_name, size_value)` PostgreSQL не гарантирует стабильный порядок между запросами: строки могут продублироваться на границе страницы или пропасть. Предсуществует AC7 — правка добавляет к 8361 пустому значению единицы, а не создаёт условие.
