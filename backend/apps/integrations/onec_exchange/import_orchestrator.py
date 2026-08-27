@@ -45,6 +45,11 @@ class ImportOrchestratorService:
         self.sessid = sessid
         self.filename = filename
         self.import_dir = Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
+        # XML, распакованный из архивов этого прогона. Архив 1С распаковывается
+        # здесь, в HTTP-обработчике `mode=import`, а не в задаче — значит и
+        # связь «архив → его сегменты» устанавливается здесь. Без неё задача
+        # архива не знает, что ей принадлежит, и гребёт весь каталог обмена.
+        self._unpacked_xml_names: list[str] = []
 
     def execute(self) -> tuple[bool, str]:
         """
@@ -244,7 +249,12 @@ class ImportOrchestratorService:
             session.save(update_fields=["report"])
 
     def _route_unpacked_files(self, unpacked_files: list[str]) -> int:
-        """Route unpacked files to subdirectories based on naming rules."""
+        """Route unpacked files to subdirectories based on naming rules.
+
+        Побочно накапливает `self._unpacked_xml_names` — имена XML, которые
+        этот прогон достал из архива. Именно они, а не имя архива, служат
+        обещанием задаче импорта.
+        """
         routed_count = 0
         for unpacked_name in unpacked_files:
             file_path = self.import_dir / unpacked_name
@@ -280,6 +290,8 @@ class ImportOrchestratorService:
                 try:
                     shutil.move(str(file_path), str(dest_path))
                     routed_count += 1
+                    if suffix == ".xml":
+                        self._unpacked_xml_names.append(dest_path.name)
                 except Exception as move_err:
                     logger.warning(f"[IMPORT] Failed to route {unpacked_name}: {move_err}")
 
@@ -325,13 +337,30 @@ class ImportOrchestratorService:
         # source_filename — аддитивный аргумент: без него задача не знает,
         # какой сегмент прислала 1С, и гоняет полный импорт каталога на каждом
         # файле, расширяя окно гонки на goods/offers/prices.
+        #
+        # Для архива передаётся и его имя, и XML, который из него распакован
+        # выше по `execute()`: к моменту старта задачи архива на диске уже нет,
+        # и восстановить связь «архив → его сегменты» она сама не сможет.
         task_result = process_1c_import_task.delay(
             session.pk,
             str(self.import_dir),
-            source_filename=self.filename,
+            source_filename=self._promised_names(),
         )
 
         logger.info(f"[IMPORT] Celery task dispatched: task_id={task_result.id}, " f"session_id={session.pk}")
+
+    def _promised_names(self) -> str | list[str]:
+        """Что 1С обещала этому прогону: имя файла или содержимое архива.
+
+        Обычный XML — само имя. Архив — его имя плюс распакованный из него XML:
+        имя архива само по себе обещанием быть не может (команда собирает XML и
+        файла `import_files.zip` не найдёт никогда), но задача обязана отличать
+        «архив без своих сегментов» от «конкретного файла не обещали вовсе».
+        """
+        if not self.filename or not self.filename.lower().endswith(".zip"):
+            return self.filename
+
+        return [self.filename, *self._unpacked_xml_names]
 
     def _detect_file_type(self) -> str:
         """Determine import file type from filename.

@@ -20,6 +20,11 @@ logger = logging.getLogger("import_tasks")
 
 IMPORT_LOCK_KEY_PREFIX = "onec:import:lock:"
 
+# Типы, которые команда `import_products_from_1c` действительно собирает.
+# `contragents` — маршрут на отдельную команду, `all` — «имя ни о чём не
+# говорит»; ни то, ни другое обещанием конкретного файла быть не может.
+_CATALOG_TYPES = frozenset({"goods", "offers", "prices", "rests"})
+
 
 def _import_lock_key(data_dir: str) -> str:
     """Ключ лока каталога обмена. Лок именно на каталог, а не на сессию."""
@@ -61,7 +66,7 @@ def process_1c_import_task(
     session_id: int,
     data_dir: str | None = None,
     zip_filename: str | None = None,
-    source_filename: str | None = None,
+    source_filename: str | list[str] | None = None,
 ) -> str:
     """
     Задача для асинхронного запуска импорта из 1С.
@@ -70,9 +75,12 @@ def process_1c_import_task(
         session_id: ID сессии ImportSession
         data_dir: Путь к директории с файлами (опционально)
         zip_filename: Имя ZIP-архива для асинхронной распаковки
-        source_filename: Имя файла, присланного 1С (`rests_1_16_….xml`).
-            Определяет шаг импорта. Отдельный параметр, а не `zip_filename`:
-            последний включает ветку распаковки архива.
+        source_filename: Имя файла, присланного 1С (`rests_1_16_….xml`), либо
+            список имён. Определяет шаг импорта. Список приходит от архива:
+            имя `.zip` плюс XML, распакованный из него обработчиком
+            `mode=import` (к старту задачи архива на диске уже нет).
+            Отдельный параметр, а не `zip_filename`: последний включает ветку
+            распаковки архива.
 
     Returns:
         Результат выполнения ('success' или 'failure')
@@ -194,6 +202,12 @@ def process_1c_import_task(
                 logger.error(f"Unpack failed for session {session_id}: {e}")
                 return "failure"
 
+        # XML, который эта задача сама достала из архивов. Архив, распакованный
+        # здесь, тут же удаляется — значит его содержимое принадлежит этому
+        # прогону, и именно оно (а не файлы, лежавшие в общем каталоге до нас)
+        # становится обещанием. См. `promised_filenames` ниже.
+        unpacked_xml_names: list[str] = []
+
         if target_import_dir.exists():
             zip_files = list(target_import_dir.glob("*.zip"))
             if zip_files:
@@ -249,6 +263,13 @@ def process_1c_import_task(
                                 dest_dir = target_import_dir / target_subdir
                                 dest_dir.mkdir(parents=True, exist_ok=True)
                                 dest_path = dest_dir / filename
+                                # Имя внутри архива может нести свой каталог
+                                # (`import_files/photo.jpg`) — без создания
+                                # родителя move падал, и картинка оставалась
+                                # в корне каталога обмена, где её не ищет
+                                # ни один шаг импорта. В копии этой логики в
+                                # `routing_service._unpack_and_route` строка есть.
+                                dest_path.parent.mkdir(parents=True, exist_ok=True)
 
                                 try:
                                     # Move file
@@ -256,6 +277,8 @@ def process_1c_import_task(
 
                                     shutil.move(str(file_path), str(dest_path))
                                     routed_count += 1
+                                    if suffix == ".xml":
+                                        unpacked_xml_names.append(dest_path.name)
                                 except Exception as move_err:
                                     logger.warning(f"Failed to route {filename}: {move_err}")
 
@@ -312,12 +335,52 @@ def process_1c_import_task(
         # Determine file type based on the name 1C sent.
         # This prevents running unnecessary steps and allows 1C to trigger
         # granular imports (e.g. only stocks or only prices).
-        detected_file_type = detect_file_type(source_filename or zip_filename)
-        promised_filename = (
-            source_filename
-            if detected_file_type != "all" and source_filename and source_filename.lower().endswith(".xml")
-            else None
-        )
+        # Что этот прогон обязан прочитать. Имя файла — обещание только тогда,
+        # когда команда импорта такой файл вообще собирает.
+        #
+        # Имя архива обещанием быть не может: `detect_file_type("import_files.zip")`
+        # даёт `goods`, но XML с таким именем команда не найдёт никогда. Раньше
+        # это означало «обещания нет» — и задача архива уходила в несужаемый
+        # импорт, забирая backlog соседних `goods*.xml` из общего каталога.
+        # Теперь связь архива с сегментами явная: обещание архива — XML, который
+        # он принёс. Распаковать архив мог как обработчик `mode=import` (тогда
+        # имена приходят списком в `source_filename`), так и сама задача
+        # (`mode=complete`, накопившиеся в каталоге zip) — тогда их даёт
+        # `unpacked_xml_names`.
+        if isinstance(source_filename, (list, tuple)):
+            source_names = [str(name) for name in source_filename if name]
+        elif source_filename:
+            source_names = [str(source_filename)]
+        else:
+            source_names = []
+
+        archive_names = [name for name in source_names if name.lower().endswith(".zip")]
+        xml_names = [name for name in source_names if name.lower().endswith(".xml")]
+        if archive_names:
+            xml_names += unpacked_xml_names
+
+        promised_filenames: list[str] | None
+        skip_catalog_import = False
+        promised = sorted({name for name in xml_names if detect_file_type(name) in _CATALOG_TYPES})
+
+        if promised:
+            types = {detect_file_type(name) for name in promised}
+            detected_file_type = types.pop() if len(types) == 1 else "all"
+            promised_filenames = promised
+        elif any(detect_file_type(name) == "contragents" for name in xml_names):
+            detected_file_type = "contragents"
+            promised_filenames = None
+        elif archive_names:
+            # Архив без своих XML: собственного сегмента у него нет, а сгребать
+            # чужие — та самая потеря данных. Изображения остаются в
+            # goods/import_files и достанутся задаче своего goods-сегмента;
+            # cleanup команды при этом не выполняется.
+            detected_file_type = detect_file_type(archive_names[0])
+            skip_catalog_import = True
+            promised_filenames = None
+        else:
+            detected_file_type = detect_file_type((source_names[0] if source_names else None) or zip_filename)
+            promised_filenames = None
 
         # Определяем тип импорта: контрагенты или товарный каталог.
         #
@@ -332,7 +395,9 @@ def process_1c_import_task(
         has_contragents = bool(
             contragents_dir and contragents_dir.exists() and list(contragents_dir.glob("contragents*.xml"))
         )
-        import_customers = detected_file_type == "contragents" or (detected_file_type == "all" and has_contragents)
+        import_customers = detected_file_type == "contragents" or (
+            detected_file_type == "all" and has_contragents and not promised_filenames
+        )
 
         if import_customers:
             logger.info(
@@ -340,6 +405,17 @@ def process_1c_import_task(
                 f"(key={session.session_key}, data_dir={effective_data_dir})"
             )
             call_command("import_customers_from_1c", data_dir=effective_data_dir)
+        elif skip_catalog_import:
+            message = (
+                f"Архив {archive_names[0]} не принёс ни одного XML-сегмента "
+                f"(только изображения либо он уже распакован соседней задачей). "
+                f"Файлы оставлены в каталоге обмена, импорт каталога не запускается: "
+                f"чужие сегменты этому прогону не принадлежат."
+            )
+            logger.info(f"Session {session_id}: {message}")
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+            session.report += f"[{timestamp}] {message}\n"
+            session.save(update_fields=["report", "updated_at"])
         else:
             # Запуск management команды импорта товарного каталога
             args: list[Any] = []
@@ -348,19 +424,18 @@ def process_1c_import_task(
                 "file_type": detected_file_type,
                 "import_session_id": session_id,
                 "data_dir": effective_data_dir,
-                # Имя передаётся только когда 1С обещала конкретный XML-сегмент.
-                # Тогда команда обязана его прочитать, иначе сессия FAILED:
+                # Имена передаются только когда 1С обещала конкретные XML.
+                # Тогда команда обязана их прочитать, иначе сессия FAILED:
                 # тихий успех с нулём записей — это и есть потеря данных.
-                # Для "all" (mode=complete, ручной прогон) обещания нет; имя
-                # архива (`import_files.zip`) — тоже не обещание: команда
-                # собирает XML, и такой файл она не найдёт никогда.
-                "source_filename": promised_filename,
+                # Для "all" (mode=complete, ручной прогон) обещания нет.
+                # У архива обещание — XML, который распаковала эта же задача.
+                "source_filename": promised_filenames,
             }
 
             logger.info(
                 f"Starting 1C import for session {session_id} "
                 f"(key={session.session_key}, file_type={detected_file_type}, "
-                f"file={source_filename or zip_filename})"
+                f"file={', '.join(source_names) or zip_filename})"
             )
             call_command("import_products_from_1c", *args, **options)
 

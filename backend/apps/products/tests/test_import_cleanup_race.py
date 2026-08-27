@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 import shutil
 import threading
+import zipfile
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -345,7 +346,9 @@ class TestTaskPropagatesExpectedSegment:
             task_id="task-expect-1",
         ).get()
 
-        assert mock_call_command.call_args.kwargs["source_filename"] == _segment_name(4)
+        # Контракт списка: одиночный сегмент — список из одного имени. Список,
+        # а не строка, потому что задача архива обещает весь свой распакованный XML.
+        assert mock_call_command.call_args.kwargs["source_filename"] == [_segment_name(4)]
 
     @patch("apps.products.tasks.call_command")
     def test_complete_mode_does_not_promise_a_file(self, mock_call_command, clean_cache, tmp_path):
@@ -507,6 +510,39 @@ class TestOrchestratorPassesFilename:
     def test_complete_mode_still_means_all(self, tmp_path):
         service = self._orchestrator(tmp_path, "complete")
         assert service._detect_file_type() == "all"
+
+    def test_archive_dispatch_carries_unpacked_xml(self, tmp_path):
+        """`mode=import` распаковывает архив в HTTP-обработчике, а не в задаче.
+
+        К старту задачи архива на диске уже нет, и связь «архив → его сегменты»
+        она восстановить не может. Значит имена обязан передать оркестратор.
+        """
+        service = self._orchestrator(tmp_path, "import_files.zip")
+        (service.import_dir / "rests").mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(service.import_dir / "import_files.zip", "w") as archive:
+            archive.write(_segment_path(1), _segment_name(1))
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        service._unpack_zips(session)
+
+        with patch("apps.products.tasks.process_1c_import_task.delay") as mock_delay:
+            service._dispatch_import(session)
+
+        assert mock_delay.call_args.kwargs["source_filename"] == ["import_files.zip", _segment_name(1)]
+
+    def test_archive_without_xml_dispatches_its_own_name(self, tmp_path):
+        """Архив изображений: задача обязана видеть, что обещали именно архив."""
+        service = self._orchestrator(tmp_path, "import_files.zip")
+        with zipfile.ZipFile(service.import_dir / "import_files.zip", "w") as archive:
+            archive.writestr("import_files/photo.jpg", bytes.fromhex("ffd8ffe0") + b"jpeg-stub")
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+        service._unpack_zips(session)
+
+        with patch("apps.products.tasks.process_1c_import_task.delay") as mock_delay:
+            service._dispatch_import(session)
+
+        assert mock_delay.call_args.kwargs["source_filename"] == ["import_files.zip"]
 
 
 @pytest.mark.django_db
@@ -869,7 +905,7 @@ class TestContragentsDoNotSwallowPromisedSegment:
         assert "import_products_from_1c" in commands, "Обещанный сегмент обязан быть импортирован"
         assert "import_customers_from_1c" not in commands, "Чужие контрагенты не отменяют наш сегмент"
         assert mock_call_command.call_args.kwargs["file_type"] == "rests"
-        assert mock_call_command.call_args.kwargs["source_filename"] == _segment_name(2)
+        assert mock_call_command.call_args.kwargs["source_filename"] == [_segment_name(2)]
 
     @patch("apps.products.tasks.call_command")
     def test_contragents_file_still_routes_to_customers(self, mock_call_command, clean_cache, tmp_path):
@@ -947,7 +983,7 @@ class TestCollectionIsLimitedToPromisedFile:
         _stage_segment(data_dir, 1)
 
         command = self._command()
-        command._expected_filename = "offers_1_1_abc.xml"
+        command._expected_filenames = {"offers_1_1_abc.xml"}
 
         assert command._collect_xml_files(str(data_dir), "rests", "rests.xml") == []
 
@@ -957,7 +993,7 @@ class TestCollectionIsLimitedToPromisedFile:
         _stage_segment(data_dir, 2)
 
         command = self._command()
-        command._expected_filename = _segment_name(2)
+        command._expected_filenames = {_segment_name(2).lower()}
 
         collected = command._collect_xml_files(str(data_dir), "rests", "rests.xml")
         assert [Path(p).name for p in collected] == [_segment_name(2)]
@@ -968,32 +1004,184 @@ class TestCollectionIsLimitedToPromisedFile:
         _stage_segment(data_dir, 2)
 
         command = self._command()
-        command._expected_filename = None
+        command._expected_filenames = None
 
         collected = command._collect_xml_files(str(data_dir), "rests", "rests.xml")
         assert {Path(p).name for p in collected} == {_segment_name(1), _segment_name(2)}
 
 
 @pytest.mark.django_db
-class TestArchiveNameIsNotAPromise:
-    """Имя архива — не обещание XML-сегмента.
+class TestArchiveOwnsOnlyItsOwnXml:
+    """Замечание ревью 2026-08-27: задача архива забирала чужие XML.
 
-    `detect_file_type("import_files.zip")` даёт `goods`, но команда собирает
-    XML и файла с таким именем не найдёт никогда — строгая проверка утопила бы
-    штатную выгрузку изображений в `FAILED`.
+    `detect_file_type("import_files.zip")` даёт `goods`, но XML с таким именем
+    команда не найдёт никогда — значит обещания нет, значит сбор не сужается,
+    значит прогон архива сгребал весь накопившийся backlog соседних
+    `goods*.xml`. Решение Alex: связь архива с сегментом обязана быть явной.
+    Обещание архива — тот XML, который распаковала и удалила именно эта задача.
     """
 
+    @staticmethod
+    def _archive(data_dir: Path, name: str, *, xml_indexes: tuple[int, ...] = (), with_image: bool = False) -> Path:
+        """Архив 1С в корне каталога обмена: реальные сегменты и/или картинка."""
+        archive = data_dir / name
+        with zipfile.ZipFile(archive, "w") as zf:
+            for index in xml_indexes:
+                zf.write(_segment_path(index), _segment_name(index))
+            if with_image:
+                zf.writestr("import_files/photo.jpg", bytes.fromhex("ffd8ffe0") + b"jpeg-stub")
+        return archive
+
     @patch("apps.products.tasks.call_command")
-    def test_zip_filename_is_not_passed_as_expected_segment(self, mock_call_command, clean_cache, tmp_path):
-        data_dir = str(tmp_path / "1c_import")
-        Path(data_dir).mkdir(parents=True)
+    def test_own_xml_from_archive_becomes_the_promise(self, mock_call_command, clean_cache, tmp_path):
+        """XML из архива — обещание прогона, и тип берётся из него, а не из имени архива."""
+        data_dir = _make_exchange_dir(tmp_path)
+        self._archive(data_dir, "import_files.zip", xml_indexes=(1,), with_image=True)
         session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
 
         process_1c_import_task.apply(
             args=(session.id,),
-            kwargs={"data_dir": data_dir, "source_filename": "import_files.zip"},
-            task_id="task-zip-1",
+            kwargs={"data_dir": str(data_dir), "source_filename": "import_files.zip"},
+            task_id="task-archive-own-1",
         ).get()
 
-        assert mock_call_command.call_args.kwargs["file_type"] == "goods"
-        assert mock_call_command.call_args.kwargs["source_filename"] is None
+        kwargs = mock_call_command.call_args.kwargs
+        assert kwargs["source_filename"] == [_segment_name(1)]
+        assert kwargs["file_type"] == "rests", "Тип обязан следовать за содержимым архива, а не за его именем"
+
+    @patch("apps.products.tasks.call_command")
+    def test_image_only_archive_does_not_start_catalog_import(self, mock_call_command, clean_cache, tmp_path):
+        """Архив без XML своего сегмента не имеет — чужие ему не принадлежат."""
+        data_dir = _make_exchange_dir(tmp_path)
+        self._archive(data_dir, "import_files.zip", with_image=True)
+        neighbour = _stage_segment(data_dir, 3)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": "import_files.zip"},
+            task_id="task-archive-images-1",
+        ).get()
+
+        mock_call_command.assert_not_called()
+        assert neighbour.exists(), "Сегмент соседней сессии обязан дождаться своей задачи"
+        assert (data_dir / "goods" / "import_files" / "photo.jpg").exists(), "Картинки должны остаться на месте"
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+        assert "не принёс ни одного XML-сегмента" in session.report
+
+    @patch("apps.products.tasks.call_command")
+    def test_promise_list_from_orchestrator_is_honoured(self, mock_call_command, clean_cache, tmp_path):
+        """Архив распакован обработчиком `mode=import` — задача получает список имён."""
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 1)
+        _stage_segment(data_dir, 4)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={
+                "data_dir": str(data_dir),
+                "source_filename": ["import_files.zip", _segment_name(1)],
+            },
+            task_id="task-archive-list-1",
+        ).get()
+
+        kwargs = mock_call_command.call_args.kwargs
+        assert kwargs["source_filename"] == [_segment_name(1)]
+        assert kwargs["file_type"] == "rests"
+
+    @patch("apps.products.tasks.call_command")
+    def test_archive_without_xml_from_orchestrator_skips_import(self, mock_call_command, clean_cache, tmp_path):
+        """Список из одного имени архива — «своих сегментов нет», а не «обещания нет»."""
+        data_dir = _make_exchange_dir(tmp_path)
+        neighbour = _stage_segment(data_dir, 5)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": ["import_files.zip"]},
+            task_id="task-archive-list-2",
+        ).get()
+
+        mock_call_command.assert_not_called()
+        assert neighbour.exists()
+
+    def test_archive_run_does_not_eat_neighbour_segment(self, clean_cache, tmp_path):
+        """Сквозной прогон: архив читает только свой сегмент, соседний уцелел."""
+        data_dir = _make_exchange_dir(tmp_path)
+        self._archive(data_dir, "import_files.zip", xml_indexes=(1,))
+        neighbour = _stage_segment(data_dir, 2)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": "import_files.zip"},
+            task_id="task-archive-e2e-1",
+        ).get()
+
+        assert neighbour.exists(), "Задача архива не имеет права ни читать, ни удалять чужой сегмент"
+        assert not (data_dir / "rests" / _segment_name(1)).exists(), "Свой сегмент прочитан и убран"
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+
+
+@pytest.mark.django_db
+class TestUnknownSignatureIsNotDeleted:
+    """Замечание ревью 2026-08-27: cleanup был fail-open при неснятом отпечатке.
+
+    Если `os.stat()` в момент парсинга вернул None, а парсер файл всё же открыл,
+    путь попадал в `_processed_files` без отпечатка — и удалялся безусловно.
+    Подмена файла до cleanup снова сносила файл соседа.
+    """
+
+    def test_file_without_signature_survives_cleanup(self, tmp_path):
+        data_dir = _make_exchange_dir(tmp_path)
+        own = _stage_segment(data_dir, 1)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        with patch.object(Command, "_file_signature", staticmethod(lambda path: None)):
+            output = _run_import(data_dir, session, source_filename=_segment_name(1))
+
+        assert own.exists(), "Без отпечатка сверять нечего — удалять вслепую нельзя"
+        assert "Отпечаток" in output
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+
+
+class TestAmbiguousPromisedSegment:
+    """Замечание ревью 2026-08-27: два файла, различающиеся регистром, как один сегмент.
+
+    `_collect_xml_files` ищет регистронезависимо (`rests_*.xml`, `Rests_*.xml`),
+    и на регистрозависимой ФС оба физических файла проходят сравнение через
+    `.lower()`. Один прогон обработал бы и удалил оба, второй ушёл бы в `FAILED`.
+    """
+
+    def test_case_variants_of_promised_name_raise(self, tmp_path):
+        data_dir = _make_exchange_dir(tmp_path)
+        lower = _stage_segment(data_dir, 1)
+        upper = data_dir / "rests" / lower.name.capitalize()
+        shutil.copyfile(_segment_path(2), upper)
+        if not lower.exists() or upper.name == lower.name or lower.read_bytes() == upper.read_bytes():
+            pytest.skip("Регистронезависимая ФС: два таких файла рядом не существуют")
+
+        command = Command()
+        command.stdout = StringIO()
+        command._expected_filenames = {lower.name.lower()}
+
+        with pytest.raises(CommandError, match="различаются только регистром"):
+            command._collect_xml_files(str(data_dir), "rests", "rests.xml")
+
+    def test_single_match_is_not_ambiguous(self, tmp_path):
+        data_dir = _make_exchange_dir(tmp_path)
+        own = _stage_segment(data_dir, 1)
+
+        command = Command()
+        command.stdout = StringIO()
+        command._expected_filenames = {own.name.lower()}
+
+        collected = command._collect_xml_files(str(data_dir), "rests", "rests.xml")
+        assert [Path(path).name for path in collected] == [own.name]

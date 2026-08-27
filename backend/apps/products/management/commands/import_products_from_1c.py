@@ -64,11 +64,14 @@ class Command(BaseCommand):
         # Файлы, исчезнувшие из каталога между сбором списка и парсингом.
         self._missing_files: list[str] = []
         # Отпечаток файла на момент парсинга — см. `_file_signature`.
-        self._file_signatures: dict[str, tuple[int, int, int, int]] = {}
-        # Имя файла, которое 1С обещала этому прогону (`rests_1_12_….xml`).
-        # None означает «конкретного файла не обещали»: ручной общий импорт
-        # или mode=complete.
-        self._expected_filename: str | None = None
+        # Значение None означает «снять отпечаток не удалось»: такой файл
+        # cleanup не трогает, иначе удалял бы вслепую (см. `_cleanup_files`).
+        self._file_signatures: dict[str, tuple[int, int, int, int] | None] = {}
+        # Имена файлов (в нижнем регистре), которые 1С обещала этому прогону.
+        # None означает «конкретных файлов не обещали»: ручной общий импорт
+        # или mode=complete. Обычно это один сегмент (`rests_1_12_….xml`), но
+        # задача архива обещает весь XML, который сама из него распаковала.
+        self._expected_filenames: set[str] | None = None
 
     @staticmethod
     def _file_signature(file_path: str) -> tuple[int, int, int, int] | None:
@@ -101,12 +104,13 @@ class Command(BaseCommand):
             return None
 
         self._processed_files.append(file_path)
-        if signature is not None:
-            self._file_signatures[file_path] = signature
+        # Отпечаток пишется всегда, включая None: «отпечатка нет» — это факт,
+        # который cleanup обязан увидеть, а не отсутствие записи в словаре.
+        self._file_signatures[file_path] = signature
         return data
 
     def _restrict_to_expected(self, collected: list[str]) -> list[str]:
-        """Оставить из собранного только файл, обещанный этому прогону.
+        """Оставить из собранного только файлы, обещанные этому прогону.
 
         Каталог обмена общий, и один присланный файл обязан обрабатывать ровно
         одна задача — та, которой его обещали. Лок сериализовал задачи, но не
@@ -123,16 +127,43 @@ class Command(BaseCommand):
         `propertiesGoods.xml`, `priceLists.xml`) приходят своими файлами и
         обрабатываются своими сессиями.
 
-        Ручной общий импорт и `mode=complete` конкретного файла не обещают
-        (`_expected_filename is None`) — там список не сужается вовсе.
+        Ручной общий импорт и `mode=complete` конкретных файлов не обещают
+        (`_expected_filenames is None`) — там список не сужается вовсе.
+
+        Raises:
+            CommandError: если одному обещанному имени соответствует несколько
+                физических файлов. `_collect_xml_files` ищет регистронезависимо
+                (`rests_*.xml`, `Rests_*.xml`), и на регистрозависимой ФС в
+                каталоге могут лежать оба. Какой из них прислала 1С — неизвестно,
+                а взять оба значит съесть и удалить файл соседней сессии.
         """
-        expected = self._expected_filename
-        if not expected or not collected:
+        expected = self._expected_filenames
+        if expected is None or not collected:
             return collected
 
-        expected_lower = expected.lower()
-        own = [path for path in collected if Path(path).name.lower() == expected_lower]
-        skipped = [path for path in collected if path not in own]
+        own: list[str] = []
+        skipped: list[str] = []
+        by_name: dict[str, list[str]] = {}
+        for path in collected:
+            name = Path(path).name.lower()
+            if name in expected:
+                own.append(path)
+                by_name.setdefault(name, []).append(path)
+            else:
+                skipped.append(path)
+
+        duplicated = {name: paths for name, paths in by_name.items() if len(paths) > 1}
+        if duplicated:
+            details = "; ".join(
+                f"{name} → {', '.join(sorted(Path(p).name for p in paths))}"
+                for name, paths in sorted(duplicated.items())
+            )
+            raise CommandError(
+                "В каталоге обмена нескольким физическим файлам соответствует одно обещанное имя "
+                f"(различаются только регистром): {details}. Какой из них прислала 1С — неизвестно, "
+                "а обработать оба значит удалить файл соседней сессии, поэтому импорт остановлен."
+            )
+
         if skipped:
             names = ", ".join(sorted(Path(path).name for path in skipped))
             self.stdout.write(
@@ -227,11 +258,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--source-filename",
             type=str,
+            action="append",
             default=None,
             help=(
                 "Имя файла, который 1С прислала этому прогону (`rests_1_12_….xml`). "
-                "Если файл не будет обработан — импорт завершится ошибкой, а не "
-                "тихим успехом с нулём записей. Не указывать для ручного общего импорта."
+                "Можно указать несколько раз: задача архива обещает весь XML, "
+                "который сама из него распаковала. Если обещанный файл не будет "
+                "обработан — импорт завершится ошибкой, а не тихим успехом с нулём "
+                "записей. Не указывать для ручного общего импорта."
             ),
         )
 
@@ -248,12 +282,20 @@ class Command(BaseCommand):
         self._processed_files = []
         self._missing_files = []
         self._file_signatures = {}
+        self._expected_filenames = None
 
-        # Конкретный файл от 1С обещан только при вызове из задачи обмена.
-        # Ручной прогон и mode=complete имени не передают — там пустой каталог
+        # Конкретные файлы от 1С обещаны только при вызове из задачи обмена.
+        # Ручной прогон и mode=complete имён не передают — там пустой каталог
         # по-прежнему штатная ситуация.
-        source_filename = options.get("source_filename") or None
-        self._expected_filename = os.path.basename(source_filename) if source_filename else None
+        #
+        # call_command передаёт значение как есть, минуя action="append":
+        # строка от одиночного сегмента и список от задачи архива одинаково
+        # допустимы, поэтому нормализуем оба вида на входе.
+        source_filenames = options.get("source_filename") or []
+        if isinstance(source_filenames, str):
+            source_filenames = [source_filenames]
+        expected_filenames = {os.path.basename(name).lower() for name in source_filenames if name}
+        self._expected_filenames = expected_filenames or None
 
         dry_run = options.get("dry_run", False)
         batch_size = options.get("batch_size", 500)
@@ -678,28 +720,29 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"   ✅ Обновлено остатков: {stats['stocks_updated']}"))
 
     def _assert_expected_file_processed(self, processor: VariantImportProcessor) -> None:
-        """Проверить, что файл, обещанный 1С этому прогону, действительно прочитан.
+        """Проверить, что файлы, обещанные 1С этому прогону, действительно прочитаны.
 
-        Проверка включается только когда имя файла передано (`--source-filename`),
+        Проверка включается только когда имена переданы (`--source-filename`),
         то есть при вызове из задачи обмена. Ручной общий импорт и `mode=complete`
-        конкретного файла не обещают — там пустой каталог остаётся успехом.
+        конкретных файлов не обещают — там пустой каталог остаётся успехом.
         """
-        expected = self._expected_filename
+        expected = self._expected_filenames
         if not expected:
             return
 
         processed_names = {Path(p).name.lower() for p in self._processed_files}
-        if expected.lower() in processed_names:
+        unread = sorted(expected - processed_names)
+        if not unread:
             return
 
         missing_names = {Path(p).name.lower() for p in self._missing_files}
-        reason = (
-            "исчез из каталога обмена до парсинга"
-            if expected.lower() in missing_names
-            else "не найден в каталоге обмена"
+        details = "; ".join(
+            f"{name} — "
+            + ("исчез из каталога обмена до парсинга" if name in missing_names else "не найден в каталоге обмена")
+            for name in unread
         )
-        consequence = "данные этого файла не попали в БД, а 1С его не повторит"
-        message = f"Сегмент {expected}, присланный 1С, {reason}: {consequence}."
+        consequence = "данные не попали в БД, а 1С их не повторит"
+        message = f"Файлы, присланные 1С этому прогону, не прочитаны ({details}): {consequence}."
         processor.log_progress(message)
         raise CommandError(message)
 
@@ -719,7 +762,10 @@ class Command(BaseCommand):
         по себе не доказывает, что на диске всё ещё лежит распарсенный файл —
         сосед мог снести наш и положить свой под тем же именем. Микроскопическое
         окно между `stat` и `unlink` остаётся (TOCTOU неустраним без работы по
-        дескриптору), но вместо секунд обработки это доли миллисекунды.
+        дескриптору), но вместо секунд обработки это доли миллисекунды. Если
+        отпечаток снять не удалось вовсе (`os.stat` упал, а парсер файл всё же
+        открыл), сверять нечего — такой файл не удаляется: fail-open здесь снова
+        означал бы удаление чужого файла под тем же именем.
 
         Папки с изображениями по-прежнему чистятся по каталогу: они не
         сегментируются по сессиям, и гонки там не наблюдалось.
@@ -731,7 +777,17 @@ class Command(BaseCommand):
         for raw_path in processed_files or []:
             file_path = Path(raw_path)
             expected_signature = self._file_signatures.get(raw_path)
-            if expected_signature is not None and self._file_signature(raw_path) != expected_signature:
+            if expected_signature is None:
+                # Отпечаток снять не удалось — сверить нечего. Удалять вслепую
+                # нельзя: под этим именем уже может лежать файл соседа.
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   ⚠️ Отпечаток {file_path.name} на момент парсинга неизвестен — "
+                        "удаление пропущено, файл уберёт cleanup каталога обмена"
+                    )
+                )
+                continue
+            if self._file_signature(raw_path) != expected_signature:
                 self.stdout.write(
                     self.style.WARNING(
                         f"   ⚠️ {file_path.name} подменён после парсинга — удаление пропущено, "

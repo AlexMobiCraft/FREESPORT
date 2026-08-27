@@ -232,6 +232,10 @@ except Exception as e:
 - [x] [Review][Patch] Задача конкретного сегмента собирает, обрабатывает и удаляет все уже ожидающие сегменты того же типа; их собственные задачи затем завершаются `FAILED`, поэтому AC8 не воспроизводит реальную очередь с накопившимся backlog [`backend/apps/products/management/commands/import_products_from_1c.py:784-833`, `backend/apps/products/tests/test_import_cleanup_race.py:371-409`]
 - [x] [Review][Patch] Наличие любого `contragents*.xml` полностью обходит импорт обещанного товарного сегмента: задача вызывает `import_customers_from_1c`, после чего помечает сессию сегмента успешной [`backend/apps/products/tasks.py:295-332`]
 - [x] [Review][Patch] Ошибка Redis во время первичного `cache.add` возникает вне обработчиков, оставляя сессию `IN_PROGRESS` до stale-cleanup, хотя отказ публикации `retry` уже переводит её в `FAILED` [`backend/apps/products/tasks.py:94-99`]
+- [x] [Review][Patch] Связать `import_files.zip` с конкретным goods XML: архив сейчас определяется как `goods`, но не считается обещанием, поэтому задача запускает несужаемый импорт и может забрать backlog соседних `goods*.xml`. Решение Alex: сохранить строгий per-session контракт через явную связь image ZIP → owning goods segment; до реализации нельзя позволять задаче архива собирать чужие XML. [`backend/apps/products/tasks.py:312-365`, `backend/apps/products/management/commands/import_products_from_1c.py:108-144,523-555`]
+- [x] [Review][Patch] Ветка содержит несвязанный откат story 41.5: удаляются security-тесты и nginx snippets, ослабляются заголовки Next/nginx; перед merge нужно восстановить эти файлы или перебазировать ветку на актуальный `develop` [`frontend/next.config.ts:98-139`, `docker/nginx/conf.d/default.conf`, `backend/tests/unit/test_nginx_security_headers.py`]
+- [x] [Review][Patch] Cleanup fail-open при отсутствии отпечатка: если `os.stat()` вернул `None`, но парсер затем успешно открыл файл, путь попадает в `_processed_files` без signature и безусловно удаляется; подмена до cleanup снова может удалить файл соседа. При неизвестном отпечатке удаление должно пропускаться [`backend/apps/products/management/commands/import_products_from_1c.py:73-106,731-746`]
+- [x] [Review][Patch] Case-insensitive сужение может выбрать несколько физических файлов как один обещанный сегмент: `rests_….xml` и `Rests_….xml` собираются разными glob-паттернами, после чего оба проходят сравнение через `.lower()`; одна задача обработает и удалит оба, а вторая завершится `FAILED`. При нескольких совпадениях команда должна завершаться явной ошибкой [`backend/apps/products/management/commands/import_products_from_1c.py:108-144,822-871`]
 
 ## Dev Notes
 
@@ -323,9 +327,9 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 ## Definition of Done
 
 - [x] AC1–AC4 и AC8 выполнены, тест из T1 зелёный (красный до правок), остальные тесты импорта не сломаны. AC5–AC7 отделены в `deferred-work.md` (Split 2026-08-26).
-- [x] Все замечания ревью закрыты правками и тестами: 5 items в итерации 1.1 + 3 items в итерации 1.2 (2026-08-26). Два пункта `[Review][Defer]` осознанно отложены как pre-existing.
-- [x] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (итерация 1.2: 8 файлов, 12 символов, 5 процессов, risk `medium`; по существу изменены `detect_file_type`, `_PREFIXES` и `process_1c_import_task`, остальное — сдвиг строк).
-- [x] Покрытие не ниже действующих порогов: локальный полный прогон `-m "not performance and not slow"` — **79 %** (TOTAL 14206 строк, 2954 не покрыто) при пороге CI 73–75. Итерация 1.2: 3109 passed, 75 skipped, 0 failed.
+- [x] Все замечания ревью закрыты правками и тестами: 5 items в итерации 1.1 + 3 items в итерации 1.2 (2026-08-26) + 4 items в итерации 1.3 (2026-08-27). Два пункта `[Review][Defer]` осознанно отложены как pre-existing.
+- [x] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (итерация 1.3: 8 файлов, 40 символов, 16 процессов, risk `critical`. Critical даёт `_dispatch_import`; по `git diff -U0` правки в оркестраторе строго аддитивные — новое поле в `__init__`, накопление имён в `_route_unpacked_files`, один аргумент в `delay()` и новый `_promised_names`. Тела `execute`, `_detect_file_type`, `finalize_batch` не менялись и попали в список из-за сдвига строк).
+- [x] Покрытие не ниже действующих порогов: локальный полный прогон `-m "not performance and not slow"` — **79 %** (TOTAL 14263 строки, 2932 не покрыто) при пороге CI 73–75. Итерация 1.3 (2026-08-27, 31 мин 28 с): 3118 passed, 75 skipped, 35 deselected, 15 subtests passed, 0 failed.
 - [ ] AC9 проверен на проде после реальной выгрузки, результат записан в Dev Agent Record. **Ожидает ручного выката** — см. Completion Notes.
 - [~] Если T8 решён усечением, а не миграцией — остаток по `size_value` занесён в `tech-debt.md`. T8 не решался: отделён в `deferred-work.md`.
 
@@ -339,6 +343,7 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 | 2026-08-26 | 0.2 | Объём сужен до ядра гонки (T1-T5); T6/T7/T8 отделены в `deferred-work.md` | Alex |
 | 2026-08-26 | 1.0 | Реализовано ядро: точечный cleanup, лок каталога обмена, устойчивость к исчезнувшему файлу, передача `source_filename`. 30 новых тестов, регрессии зелёные | Claude |
 | 2026-08-26 | 1.1 | Закрыты замечания ревью — 5 items: строгий статус для обещанного сегмента, сверка отпечатка файла при cleanup, обработка ошибки публикации `retry`, конкурентный тест AC2, реальные разные сегменты в фикстурах AC8 | Claude |
+| 2026-08-27 | 1.3 | Закрыты последние 4 замечания ревью: явная связь «архив → его XML-сегменты» (обещание передаёт оркестратор, распаковывающий архив в HTTP-обработчике), cleanup fail-closed при неснятом отпечатке, `CommandError` на неоднозначном имени сегмента, ветка перебазирована на `develop` (откат story 41.5 отсутствует) | Claude |
 | 2026-08-26 | 1.2 | Закрыты оставшиеся 3 замечания ревью: прогон читает только обещанный файл (backlog соседей не съедается ни одним шагом), `contragents*.xml` не отменяет обещанный товарный сегмент, отказ Redis на захвате лока переводит сессию в `FAILED`. Попутно: `groups.xml` → тип `goods`, имя архива не считается обещанием | Claude |
 
 ## Dev Agent Record
@@ -353,6 +358,64 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 claude-opus-5 (Claude Code, скилл `bmad-dev-story`).
 
 ### Debug Log References
+
+**Итерация ревью 2026-08-27 (третья, 4 items).**
+
+Blast radius перед правками (`npx gitnexus impact … --direction upstream`, индекс на `41bf7a8`):
+
+| Символ | risk | impacted |
+|---|---|---|
+| `_restrict_to_expected` | LOW | 10 |
+| `_parse_or_skip` | MEDIUM | 8 |
+| `_cleanup_files` | LOW | 1 |
+| `_assert_expected_file_processed` | LOW | 1 |
+| `process_1c_import_task` | LOW | 0 |
+
+HIGH/CRITICAL нет. Сигнатуры `_parse_or_skip` и `_cleanup_files` не менялись.
+
+**Замечание про откат story 41.5 закрыто перебазированием, а не правкой файлов.**
+`git merge-base develop HEAD` = `460b3b6f` = `origin/develop@HEAD`, то есть ветка
+лежит прямо поверх текущего `develop`. `git diff develop...HEAD` не содержит ни
+`frontend/next.config.ts`, ни `docker/nginx/conf.d/default.conf`, ни
+`backend/tests/unit/test_nginx_security_headers.py`. Story 41.5 (коммит `2d6b1ac9`,
+он же прежний `baseline_commit` этой стори) в `develop` не влита и живёт на своей
+ветке `feature/story-41-5-security-headers` — ревью сравнивало с ней как с базой.
+Ничего не откатывалось; восстанавливать нечего.
+
+**RED до правок** (сорсы откачены на `HEAD`, тесты новые;
+`pytest -k "ArchiveOwnsOnlyItsOwnXml or UnknownSignature or AmbiguousPromisedSegment or CollectionIsLimitedToPromisedFile"`):
+**7 падений** — `test_own_xml_from_archive_becomes_the_promise`,
+`test_image_only_archive_does_not_start_catalog_import`,
+`test_archive_run_does_not_eat_neighbour_segment`,
+`test_file_without_signature_survives_cleanup`,
+`test_foreign_family_is_not_collected`, `test_promised_file_is_collected`,
+`test_case_variants_of_promised_name_raise`. Два теста выборки были зелёными —
+они фиксируют неизменность прежнего поведения (ручной прогон, единственное совпадение).
+
+**Находка по ходу правки, изменившая решение.** Первая версия связывала архив с
+его XML **внутри задачи** — по тому, что она сама распаковала. Это работает только
+для архивов, накопившихся в каталоге. Штатный `mode=import` распаковывает архив
+**в HTTP-обработчике**: `ImportOrchestratorService.execute` зовёт `_unpack_zips`
+(и удаляет `.zip`) до `_dispatch_import`, поэтому к старту задачи архива на диске
+уже нет, `unpacked_xml_names` пуст — и задача уходила бы в «архив без XML», то есть
+**не импортировала бы ничего**. Связь перенесена в оркестратор: `_route_unpacked_files`
+копит `_unpacked_xml_names`, `_promised_names()` отдаёт `[<имя архива>, <его XML>…]`,
+задача принимает `source_filename` как строку или список.
+
+**GREEN после правок:** 66 тестов в файле регрессии (было 53 + 13 новых);
+106 passed + 1 skipped на связке `test_import_cleanup_race.py` +
+`test_import_orchestration_tasks.py` + `test_handle_init_cleanup_race.py` +
+`integration/test_import_orchestration.py` +
+`management/commands/test_import_products_fix.py` + `tests/integration/test_onec_import.py`.
+
+**Регрессия в собственных тестах — два ассерта на форму контракта.**
+`test_concrete_segment_reaches_command` и `test_promised_segment_wins_over_leftover_contragents`
+сверяли `source_filename` со строкой; теперь команда получает список (одиночный
+сегмент — список из одного имени). Это проверяемое изменение контракта, а не
+подгонка теста под код. Тесты оркестратора (`delay(...)` со строкой) не менялись:
+для не-архива `_promised_names()` возвращает прежнюю строку.
+
+**Качество.** Black (`--line-length 120`) переформатировал командный файл, Flake8 — чисто.
 
 **Итерация ревью 2026-08-26 (вторая, 3 items).**
 
@@ -499,6 +562,70 @@ risk `high` — затронуты ровно символы и потоки и�
 порог калибруется по CI.
 
 ### Completion Notes List
+
+**Итерация ревью 2026-08-27 (третья) — 4 items закрыто.**
+
+✅ Resolved review finding [High]: у архива появился собственный сегмент, и чужие
+он больше не трогает. Прежде обещанием считалось только имя XML, а имя архива —
+нет; из этого следовало «обещания нет», а значит сбор не сужается, и задача
+`import_files.zip` сгребала весь ожидающий backlog соседних `goods*.xml`,
+обрабатывала и удаляла его, топя собственные задачи этих файлов в `FAILED`.
+Связь установлена явно: **обещание архива — XML, который он принёс**.
+Оркестратор, распаковывающий архив в HTTP-обработчике `mode=import`, копит имена
+в `_unpacked_xml_names` и передаёт задаче `source_filename=[<архив>, <его XML>…]`
+(`_promised_names`); архивы, накопившиеся в каталоге, распаковывает сама задача и
+берёт имена оттуда. Тип сегмента для архива теперь следует за содержимым, а не за
+именем (`rests_1_1_….xml` внутри → `file_type=rests`; разнотипный → `all` при
+сохранённом сужении). Архив, не принёсший ни одного XML (только картинки либо он
+уже распакован соседом), **не запускает импорт каталога вовсе**: своего сегмента
+нет, чужие не его. Изображения при этом остаются в `goods/import_files/` — cleanup
+команды не выполняется, тогда как раньше прогон архива их же и стирал.
+
+**Побочный дефект, найденный здесь же (закрыт).** В копии маршрутизации внутри
+задачи (`tasks.py`) не создавался родительский каталог для имени с путём внутри
+архива (`import_files/photo.jpg`): `shutil.move` падал, картинка оставалась в корне
+каталога обмена, где её не ищет ни один шаг импорта. В копии оркестратора
+(`_route_unpacked_files`) эта строка была. Копии выровнены.
+
+✅ Resolved review finding [Med]: cleanup стал fail-closed при неснятом отпечатке.
+`_parse_or_skip` писал отпечаток в `_file_signatures` только когда `os.stat()`
+удался; если он упал, а парсер файл затем всё же открыл, путь попадал в
+`_processed_files` без отпечатка — и `_cleanup_files` удалял его безусловно
+(`expected_signature is not None and …`). Подмена файла до cleanup снова сносила
+файл соседа. Теперь отпечаток пишется всегда, включая `None` («снять не удалось» —
+это факт, а не отсутствие записи), и при неизвестном отпечатке удаление
+пропускается с предупреждением: файл уберёт `cleanup_import_dir`.
+
+✅ Resolved review finding [Med]: неоднозначное имя сегмента останавливает импорт.
+`_collect_xml_files` ищет регистронезависимо (`rests_*.xml`, `Rests_*.xml`), а
+сравнение с обещанным именем идёт через `.lower()` — на регистрозависимой ФС оба
+физических файла проходили как «наш сегмент». Один прогон прочитал и удалил бы оба,
+второй ушёл бы в `FAILED`. `_restrict_to_expected` теперь группирует совпадения по
+имени и при нескольких физических файлах на одно обещанное имя бросает
+`CommandError` с перечнем: угадывание здесь означало бы удаление чужого файла.
+
+✅ Resolved review finding [Med]: отката story 41.5 в ветке нет — она перебазирована
+на `develop`. Проверено: `git merge-base develop HEAD` = `460b3b6f` = `origin/develop@HEAD`,
+а `git diff develop...HEAD` не содержит `frontend/next.config.ts`,
+`docker/nginx/conf.d/default.conf` и `backend/tests/unit/test_nginx_security_headers.py`.
+Story 41.5 в `develop` не влита, живёт на `feature/story-41-5-security-headers`
+(коммит `2d6b1ac9` — прежний `baseline_commit` этой стори), и ревью сравнивало с ней
+как с базой. Восстанавливать нечего; база для PR — `develop`, как требует CLAUDE.md.
+
+**Изменение контракта задачи.** `process_1c_import_task(source_filename=…)` принимает
+строку или список; `--source-filename` команды стал повторяемым (`action="append"`),
+а `Command._expected_filename` превратился в `_expected_filenames: set[str] | None`.
+`None` по-прежнему значит «конкретных файлов не обещали» (ручной прогон,
+`mode=complete`) — там сужение и строгая проверка выключены, поведение прежнее.
+
+**Тесты итерации.** +13 к файлу регрессии (53 → 66):
+`TestArchiveOwnsOnlyItsOwnXml` (пять тестов: XML из архива становится обещанием и
+задаёт тип; архив только с картинками не запускает импорт и не трогает соседа;
+список имён от оркестратора отрабатывается; список из одного имени архива читается
+как «своих сегментов нет»; сквозной прогон архива не съедает соседний сегмент),
+`TestUnknownSignatureIsNotDeleted`, `TestAmbiguousPromisedSegment` (два теста:
+регистровые двойники → `CommandError`, единственное совпадение — как раньше),
+плюс два теста оркестратора в `TestOrchestratorPassesFilename`.
 
 **Итерация ревью 2026-08-26 (вторая) — 3 items закрыто.**
 
