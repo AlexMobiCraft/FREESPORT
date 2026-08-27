@@ -803,6 +803,8 @@
 - source_spec: none
   summary: `import_products_from_1c.py:322-327` — `except` фиксирует ошибку через полный `session.save()` без `update_fields` и затирает `report`, накопленный `VariantImportProcessor.log_progress` в БД: у failed-сессий пропадает весь прогресс до падения.
   evidence: Отделено от стори `onec-import-cleanup-race-and-followups` решением Alex 2026-08-26 (Split, ядро гонки T1-T5). Дефект C стори; независимо отгружаемая правка на одну строку, к механике гонки отношения не имеет — влияет только на наблюдаемость упавших сессий. Соответствует AC5 исходной стори.
+  closed: 2026-08-27. `session.save()` в обработчике ошибки заменён на `session.save(update_fields=["status", "error_message", "updated_at"])`. Объект `session` загружается в начале прогона и в памяти держит пустой `report`, тогда как `VariantImportProcessor.log_progress` всё это время дописывает его прямо в БД F-выражением; полный `save()` записывал строку целиком и стирал прогресс. RED до правки: отчёт упавшей сессии оказывался пустой строкой. Покрыто `apps/products/tests/test_import_session_report.py` (3 теста: шаги до падения уцелели, отчёт не стал короче, причина падения в отчёте есть).
+  not_touched: `load_product_stocks.py` использует голый `session.save()`, но дефекта там нет — команда не пишет `report` через `log_progress`, конкурирующего писателя в ту же строку не существует.
 
 - source_spec: none
   summary: `backup_db.py:48` — `BACKUP_DIR` по умолчанию относительный (`"backend/backup_db"`), в контейнере резолвится от `/app` и падает с `Permission denied`; ошибка проглатывается в `import_products_from_1c.py:195`, полный импорт каталога на проде идёт без бэкапа неизвестно сколько времени.

@@ -559,7 +559,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"\n❌ ОШИБКА ИМПОРТА: {e}"))
             session.status = ImportSession.ImportStatus.FAILED
             session.error_message = str(e)
-            session.save()
+            # ТОЛЬКО эти поля. Объект `session` загружен в начале прогона, а
+            # `VariantImportProcessor.log_progress` всё это время дописывал
+            # `report` прямо в БД через F-выражение — в памяти он остался
+            # пустым. Полный `save()` записывал строку целиком и стирал весь
+            # прогресс упавшей сессии: именно поэтому у пяти failed-сессий
+            # инцидента 25.08.2026 в отчёте не видно, что они успели сделать.
+            session.save(update_fields=["status", "error_message", "updated_at"])
             raise CommandError(f"Импорт завершился с ошибкой: {e}")
 
     def _import_categories(self, data_dir: str, parser: XMLDataParser, processor: VariantImportProcessor) -> None:
