@@ -33,6 +33,7 @@ from django.core.cache import cache
 from django.core.management import CommandError, call_command
 from django.db import connection
 from kombu.exceptions import OperationalError
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from apps.integrations.onec_exchange.file_type_detection import detect_file_type
 from apps.products.management.commands.import_products_from_1c import Command
@@ -451,10 +452,15 @@ class TestDetectFileType:
             ("goods_1_1_abc.xml", "goods"),
             ("import.xml", "goods"),
             ("propertiesGoods_1_1.xml", "goods"),
+            ("groups.xml", "goods"),
+            ("groups_1_1_abc.xml", "goods"),
+            ("units.xml", "all"),
+            ("storages.xml", "all"),
             ("offers_1_3_abc.xml", "offers"),
             ("prices_1_2_abc.xml", "prices"),
             ("priceLists.xml", "prices"),
             ("rests_1_16_5e505506.xml", "rests"),
+            ("contragents_1_1_abc.xml", "contragents"),
             ("complete", "all"),
             ("unknown.xml", "all"),
             ("", "all"),
@@ -754,3 +760,240 @@ class TestImportLockUnderConcurrency:
 
         assert entered == [first.pk, second.pk]
         assert cache.get(self._lock_key(data_dir)) is None
+
+
+@pytest.mark.django_db
+class TestSegmentBacklogBelongsToItsOwnTask:
+    """Замечание ревью 2026-08-26: чужой сегмент нельзя ни читать, ни удалять.
+
+    Сериализация лока превратила параллельную гонку в очередь, но не убрала
+    проблему: пока задача держит лок, 1С успевает положить в общий каталог
+    следующие сегменты. `_collect_xml_files` собирал их по маске `rests_*.xml`,
+    прогон обрабатывал и удалял **весь** накопившийся backlog, а собственные
+    задачи этих сегментов затем падали `FAILED` — «сегмент не найден».
+    Данные при этом в БД попадали, но выгрузка отчитывалась провалом,
+    и AC8 («ни одна сессия не в статусе failed») нарушался.
+    """
+
+    def test_waiting_segments_are_left_untouched(self, tmp_path):
+        """Backlog из четырёх сегментов: прогон читает свой, три ждут своих задач."""
+        data_dir = _make_exchange_dir(tmp_path)
+        for index in (1, 2, 3, 4):
+            _stage_segment(data_dir, index)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        read = _segments_in(_run_import(data_dir, session, source_filename=_segment_name(1)))
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+        assert set(read) == {_segment_name(1)}, "Прогон обязан прочитать только обещанный ему сегмент"
+
+        remaining = {p.name for p in (data_dir / "rests").glob("*.xml")}
+        assert remaining == {_segment_name(i) for i in (2, 3, 4)}, "Чужие сегменты обязаны дождаться своих задач"
+
+    def test_full_backlog_queue_loses_nothing_and_fails_nobody(self, tmp_path):
+        """Восемь сегментов уже лежат в каталоге, задачи идут по очереди (как под локом)."""
+        assert len(REAL_SEGMENTS) >= 8, "Нужны восемь реальных сегментов в фикстурах"
+
+        data_dir = _make_exchange_dir(tmp_path)
+        for index in range(1, 9):
+            _stage_segment(data_dir, index)
+
+        seen: dict[str, int] = {}
+        sessions = []
+        for index in range(1, 9):
+            session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+            sessions.append(session)
+            read = _segments_in(_run_import(data_dir, session, source_filename=_segment_name(index)))
+            assert set(read) == {_segment_name(index)}, f"Сегмент {index} прочитал чужие файлы: {set(read)}"
+            assert not set(read) & set(seen), "Сегмент прочитан повторно"
+            seen.update(read)
+
+        statuses = [ImportSession.objects.get(pk=s.pk).status for s in sessions]
+        assert ImportSession.ImportStatus.FAILED not in statuses, "Backlog не имеет права топить чужие сессии"
+
+        expected = {_segment_name(i): len(XMLDataParser().parse_rests_xml(str(_segment_path(i)))) for i in range(1, 9)}
+        assert all(count > 0 for count in expected.values())
+        assert seen == expected
+        assert not list((data_dir / "rests").glob("*.xml")), "Каталог обмена должен опустеть"
+
+    def test_manual_import_still_takes_everything(self, tmp_path):
+        """Ручной прогон конкретного файла не обещал — забирает весь каталог, как раньше."""
+        data_dir = _make_exchange_dir(tmp_path)
+        for index in (1, 2, 3):
+            _stage_segment(data_dir, index)
+
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        read = _segments_in(_run_import(data_dir, session))
+
+        assert set(read) == {_segment_name(i) for i in (1, 2, 3)}
+        assert not list((data_dir / "rests").glob("*.xml"))
+
+
+@pytest.mark.django_db
+class TestContragentsDoNotSwallowPromisedSegment:
+    """Замечание ревью 2026-08-26: `contragents*.xml` в каталоге обходил товарный импорт.
+
+    Задача проверяла наличие любых `contragents*.xml` и, найдя их, звала
+    `import_customers_from_1c` вместо импорта обещанного сегмента, после чего
+    помечала сессию успешной. Файл контрагентов, оставшийся от соседней сессии,
+    таким образом молча съедал сегмент остатков — ровно та потеря данных,
+    против которой написана эта стори.
+    """
+
+    @staticmethod
+    def _exchange_dir(tmp_path: Path) -> Path:
+        data_dir = tmp_path / "1c_import"
+        (data_dir / "contragents").mkdir(parents=True)
+        (data_dir / "contragents" / "contragents_1_1.xml").write_text(
+            '<?xml version="1.0" encoding="UTF-8"?><КоммерческаяИнформация/>', encoding="utf-8"
+        )
+        return data_dir
+
+    @staticmethod
+    def _commands(mock_call_command) -> list[str]:
+        return [call.args[0] for call in mock_call_command.call_args_list]
+
+    @patch("apps.products.tasks.call_command")
+    def test_promised_segment_wins_over_leftover_contragents(self, mock_call_command, clean_cache, tmp_path):
+        data_dir = self._exchange_dir(tmp_path)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": _segment_name(2)},
+            task_id="task-contragents-1",
+        ).get()
+
+        commands = self._commands(mock_call_command)
+        assert "import_products_from_1c" in commands, "Обещанный сегмент обязан быть импортирован"
+        assert "import_customers_from_1c" not in commands, "Чужие контрагенты не отменяют наш сегмент"
+        assert mock_call_command.call_args.kwargs["file_type"] == "rests"
+        assert mock_call_command.call_args.kwargs["source_filename"] == _segment_name(2)
+
+    @patch("apps.products.tasks.call_command")
+    def test_contragents_file_still_routes_to_customers(self, mock_call_command, clean_cache, tmp_path):
+        data_dir = self._exchange_dir(tmp_path)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": "contragents_1_1.xml"},
+            task_id="task-contragents-2",
+        ).get()
+
+        assert self._commands(mock_call_command) == ["import_customers_from_1c"]
+
+    @patch("apps.products.tasks.call_command")
+    def test_complete_mode_with_contragents_keeps_legacy_route(self, mock_call_command, clean_cache, tmp_path):
+        """`mode=complete` конкретного файла не обещает — прежний маршрут сохраняется."""
+        data_dir = self._exchange_dir(tmp_path)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": "complete"},
+            task_id="task-contragents-3",
+        ).get()
+
+        assert self._commands(mock_call_command) == ["import_customers_from_1c"]
+
+
+@pytest.mark.django_db
+class TestLockBackendFailure:
+    """Замечание ревью 2026-08-26: падение Redis на захвате лока оставляло сессию IN_PROGRESS.
+
+    Отказ публикации `retry` уже переводил сессию в `FAILED`, а отказ самого
+    `cache.add` — нет: исключение летело вне обработчиков, и сессия висела
+    `IN_PROGRESS` до `cleanup_stale_import_sessions` (порог 2 часа).
+    """
+
+    @patch("apps.products.tasks.call_command")
+    def test_cache_failure_marks_session_failed(self, mock_call_command, clean_cache, tmp_path):
+        data_dir = str(tmp_path / "1c_import")
+        Path(data_dir).mkdir(parents=True)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+
+        with patch("apps.products.tasks.cache.add", side_effect=RedisConnectionError("redis down")):
+            result = process_1c_import_task.apply(
+                args=(session.id,), kwargs={"data_dir": data_dir}, task_id="task-lock-backend-1"
+            ).get()
+
+        assert result == "failure"
+        mock_call_command.assert_not_called()
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.FAILED
+        assert "redis down" in session.error_message
+
+
+class TestCollectionIsLimitedToPromisedFile:
+    """Сужение сбора действует на все шаги прогона, а не только на шаг своего типа.
+
+    Сегмент `offers_….xml` запускает ещё и шаги цен и остатков
+    (`file_type in ["all", "prices", "offers"]`). Без сужения такой прогон
+    съедал бы уже ожидающие `prices_*`/`rests_*` — тот же backlog, только
+    через другое семейство файлов.
+    """
+
+    @staticmethod
+    def _command() -> Command:
+        command = Command()
+        command.stdout = StringIO()
+        return command
+
+    def test_foreign_family_is_not_collected(self, tmp_path):
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 1)
+
+        command = self._command()
+        command._expected_filename = "offers_1_1_abc.xml"
+
+        assert command._collect_xml_files(str(data_dir), "rests", "rests.xml") == []
+
+    def test_promised_file_is_collected(self, tmp_path):
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 1)
+        _stage_segment(data_dir, 2)
+
+        command = self._command()
+        command._expected_filename = _segment_name(2)
+
+        collected = command._collect_xml_files(str(data_dir), "rests", "rests.xml")
+        assert [Path(p).name for p in collected] == [_segment_name(2)]
+
+    def test_manual_run_collects_everything(self, tmp_path):
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 1)
+        _stage_segment(data_dir, 2)
+
+        command = self._command()
+        command._expected_filename = None
+
+        collected = command._collect_xml_files(str(data_dir), "rests", "rests.xml")
+        assert {Path(p).name for p in collected} == {_segment_name(1), _segment_name(2)}
+
+
+@pytest.mark.django_db
+class TestArchiveNameIsNotAPromise:
+    """Имя архива — не обещание XML-сегмента.
+
+    `detect_file_type("import_files.zip")` даёт `goods`, но команда собирает
+    XML и файла с таким именем не найдёт никогда — строгая проверка утопила бы
+    штатную выгрузку изображений в `FAILED`.
+    """
+
+    @patch("apps.products.tasks.call_command")
+    def test_zip_filename_is_not_passed_as_expected_segment(self, mock_call_command, clean_cache, tmp_path):
+        data_dir = str(tmp_path / "1c_import")
+        Path(data_dir).mkdir(parents=True)
+        session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(session.id,),
+            kwargs={"data_dir": data_dir, "source_filename": "import_files.zip"},
+            task_id="task-zip-1",
+        ).get()
+
+        assert mock_call_command.call_args.kwargs["file_type"] == "goods"
+        assert mock_call_command.call_args.kwargs["source_filename"] is None

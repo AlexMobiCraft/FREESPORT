@@ -96,8 +96,25 @@ def process_1c_import_task(
     lock_key = _import_lock_key(effective_data_dir)
     lock_token = self.request.id or f"session-{session_id}"
 
-    if not cache.add(lock_key, lock_token, settings.ONEC_IMPORT_LOCK_TTL):
-        holder = cache.get(lock_key)
+    try:
+        lock_acquired = cache.add(lock_key, lock_token, settings.ONEC_IMPORT_LOCK_TTL)
+    except Exception as exc:
+        # Redis лёг: взять лок нечем, а импортировать без него — вернуть ту самую
+        # гонку. Падаем закрыто, но сессия обязана это показать: без пометки она
+        # висела бы IN_PROGRESS до `cleanup_stale_import_sessions` (порог 2 часа),
+        # хотя отказ публикации `retry` ниже сессию уже переводит в FAILED.
+        logger.error(f"Failed to acquire import lock for session {session_id}: {exc}")
+        _mark_session_failed(
+            session_id,
+            f"Не удалось взять лок каталога обмена {effective_data_dir} — импорт не запущен: {exc}",
+        )
+        return "failure"
+
+    if not lock_acquired:
+        try:
+            holder = cache.get(lock_key)
+        except Exception:  # pragma: no cover - только для текста лога
+            holder = "unknown"
         logger.info(
             f"Import directory {effective_data_dir} is locked by {holder}; "
             f"retrying session {session_id} (attempt {self.request.retries + 1})"
@@ -296,14 +313,28 @@ def process_1c_import_task(
         # This prevents running unnecessary steps and allows 1C to trigger
         # granular imports (e.g. only stocks or only prices).
         detected_file_type = detect_file_type(source_filename or zip_filename)
+        promised_filename = (
+            source_filename
+            if detected_file_type != "all" and source_filename and source_filename.lower().endswith(".xml")
+            else None
+        )
 
-        # Определяем тип импорта: контрагенты или товарный каталог
+        # Определяем тип импорта: контрагенты или товарный каталог.
+        #
+        # Наличие `contragents*.xml` в общем каталоге само по себе НЕ означает,
+        # что импортировать надо контрагентов: файл мог остаться от соседней
+        # сессии. Если 1С обещала этому прогону конкретный товарный сегмент
+        # (`rests_1_12_….xml`), маршрут определяет имя файла — иначе сегмент
+        # молча съедался чужим импортом контрагентов, а сессия отчитывалась
+        # успехом. По каталогу решаем только там, где имени не обещали:
+        # `mode=complete` и ручной прогон.
         contragents_dir = target_import_dir / "contragents" if target_import_dir.exists() else None
         has_contragents = bool(
             contragents_dir and contragents_dir.exists() and list(contragents_dir.glob("contragents*.xml"))
         )
+        import_customers = detected_file_type == "contragents" or (detected_file_type == "all" and has_contragents)
 
-        if has_contragents:
+        if import_customers:
             logger.info(
                 f"Starting 1C customers import for session {session_id} "
                 f"(key={session.session_key}, data_dir={effective_data_dir})"
@@ -317,11 +348,13 @@ def process_1c_import_task(
                 "file_type": detected_file_type,
                 "import_session_id": session_id,
                 "data_dir": effective_data_dir,
-                # Имя передаётся только когда 1С обещала конкретный сегмент.
+                # Имя передаётся только когда 1С обещала конкретный XML-сегмент.
                 # Тогда команда обязана его прочитать, иначе сессия FAILED:
                 # тихий успех с нулём записей — это и есть потеря данных.
-                # Для "all" (mode=complete, ручной прогон) обещания нет.
-                "source_filename": source_filename if detected_file_type != "all" else None,
+                # Для "all" (mode=complete, ручной прогон) обещания нет; имя
+                # архива (`import_files.zip`) — тоже не обещание: команда
+                # собирает XML, и такой файл она не найдёт никогда.
+                "source_filename": promised_filename,
             }
 
             logger.info(

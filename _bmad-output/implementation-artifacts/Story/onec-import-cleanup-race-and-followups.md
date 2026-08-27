@@ -229,6 +229,9 @@ except Exception as e:
 - [x] [Review][Patch] Основной AC8-тест создаёт восемь копий одного fixture вместо обязательных реальных сегментов из `data/import_1c/` [`backend/apps/products/tests/test_import_cleanup_race.py:39-65,207-271`]
 - [x] [Review][Defer] Post-import cleanup имеет TOCTOU между проверкой активных сессий и рекурсивным удалением общего каталога [`backend/apps/products/tasks.py:325-344`] — deferred, pre-existing
 - [x] [Review][Defer] Каталожная очистка `goods/offers/import_files` может удалить изображения уже ожидающей сессии, поскольку HTTP-upload не участвует в Redis-локе [`backend/apps/products/management/commands/import_products_from_1c.py:624-652`] — deferred, pre-existing
+- [x] [Review][Patch] Задача конкретного сегмента собирает, обрабатывает и удаляет все уже ожидающие сегменты того же типа; их собственные задачи затем завершаются `FAILED`, поэтому AC8 не воспроизводит реальную очередь с накопившимся backlog [`backend/apps/products/management/commands/import_products_from_1c.py:784-833`, `backend/apps/products/tests/test_import_cleanup_race.py:371-409`]
+- [x] [Review][Patch] Наличие любого `contragents*.xml` полностью обходит импорт обещанного товарного сегмента: задача вызывает `import_customers_from_1c`, после чего помечает сессию сегмента успешной [`backend/apps/products/tasks.py:295-332`]
+- [x] [Review][Patch] Ошибка Redis во время первичного `cache.add` возникает вне обработчиков, оставляя сессию `IN_PROGRESS` до stale-cleanup, хотя отказ публикации `retry` уже переводит её в `FAILED` [`backend/apps/products/tasks.py:94-99`]
 
 ## Dev Notes
 
@@ -320,9 +323,9 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 ## Definition of Done
 
 - [x] AC1–AC4 и AC8 выполнены, тест из T1 зелёный (красный до правок), остальные тесты импорта не сломаны. AC5–AC7 отделены в `deferred-work.md` (Split 2026-08-26).
-- [x] Все замечания ревью (5 items) закрыты правками и тестами; итерация ревью 2026-08-26.
-- [x] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (после ревью: 10 файлов, 18 символов, 8 процессов; всё из Code Map спеки, лишнее — сдвиг строк).
-- [x] Покрытие не ниже действующих порогов: локальный полный прогон `-m "not performance and not slow"` — **79 %** (TOTAL 14186 строк, 2954 не покрыто) при пороге CI 73–75. 3093 passed, 75 skipped, 0 failed.
+- [x] Все замечания ревью закрыты правками и тестами: 5 items в итерации 1.1 + 3 items в итерации 1.2 (2026-08-26). Два пункта `[Review][Defer]` осознанно отложены как pre-existing.
+- [x] `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (итерация 1.2: 8 файлов, 12 символов, 5 процессов, risk `medium`; по существу изменены `detect_file_type`, `_PREFIXES` и `process_1c_import_task`, остальное — сдвиг строк).
+- [x] Покрытие не ниже действующих порогов: локальный полный прогон `-m "not performance and not slow"` — **79 %** (TOTAL 14206 строк, 2954 не покрыто) при пороге CI 73–75. Итерация 1.2: 3109 passed, 75 skipped, 0 failed.
 - [ ] AC9 проверен на проде после реальной выгрузки, результат записан в Dev Agent Record. **Ожидает ручного выката** — см. Completion Notes.
 - [~] Если T8 решён усечением, а не миграцией — остаток по `size_value` занесён в `tech-debt.md`. T8 не решался: отделён в `deferred-work.md`.
 
@@ -336,6 +339,7 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 | 2026-08-26 | 0.2 | Объём сужен до ядра гонки (T1-T5); T6/T7/T8 отделены в `deferred-work.md` | Alex |
 | 2026-08-26 | 1.0 | Реализовано ядро: точечный cleanup, лок каталога обмена, устойчивость к исчезнувшему файлу, передача `source_filename`. 30 новых тестов, регрессии зелёные | Claude |
 | 2026-08-26 | 1.1 | Закрыты замечания ревью — 5 items: строгий статус для обещанного сегмента, сверка отпечатка файла при cleanup, обработка ошибки публикации `retry`, конкурентный тест AC2, реальные разные сегменты в фикстурах AC8 | Claude |
+| 2026-08-26 | 1.2 | Закрыты оставшиеся 3 замечания ревью: прогон читает только обещанный файл (backlog соседей не съедается ни одним шагом), `contragents*.xml` не отменяет обещанный товарный сегмент, отказ Redis на захвате лока переводит сессию в `FAILED`. Попутно: `groups.xml` → тип `goods`, имя архива не считается обещанием | Claude |
 
 ## Dev Agent Record
 
@@ -349,6 +353,57 @@ SELECT count(*) FILTER (WHERE last_sync_at >= '<начало выгрузки>')
 claude-opus-5 (Claude Code, скилл `bmad-dev-story`).
 
 ### Debug Log References
+
+**Итерация ревью 2026-08-26 (вторая, 3 items).**
+
+Blast radius перед правками (`npx gitnexus impact … --direction upstream`, индекс на `0f98501`):
+
+| Символ | risk | impacted |
+|---|---|---|
+| `_collect_xml_files` | MEDIUM | 9 |
+| `detect_file_type` | LOW | 4 |
+| `process_1c_import_task` | LOW | 0 |
+
+HIGH/CRITICAL нет. Сигнатура `_collect_xml_files` не менялась — изменился только
+возврат (список пропускается через новый `_restrict_to_expected`), и сужение
+включается исключительно при переданном `--source-filename`. Все девять вызывающих
+(шаги импорта и `_dry_run_import`) при ручном прогоне получают прежний список.
+
+**RED до правок** (`pytest apps/products/tests/test_import_cleanup_race.py -k "Backlog or Contragents or LockBackendFailure or detect_file_type"`):
+5 падений — `test_waiting_segments_are_left_untouched`,
+`test_full_backlog_queue_loses_nothing_and_fails_nobody`,
+`test_promised_segment_wins_over_leftover_contragents`,
+`test_cache_failure_marks_session_failed`,
+`test_detect_file_type[contragents_1_1_abc.xml-contragents]`.
+Остальные 14 из выборки были зелёными с самого начала — они фиксируют, что правки
+не забирают прежнее поведение (ручной импорт, `mode=complete`, маршрут контрагентов).
+
+**GREEN после правок:** 49 passed в файле регрессии (было 41);
+89 passed + 1 skipped на связке `test_import_cleanup_race.py` +
+`test_import_orchestration_tasks.py` + `test_handle_init_cleanup_race.py` +
+`integration/test_import_orchestration.py` +
+`management/commands/test_import_products_fix.py` + `tests/integration/test_onec_import.py`.
+Существующие тесты править не пришлось: сужение списка не срабатывает там, где
+имя файла не передаётся, а маршрут контрагентов сохранён для `all`.
+
+`npx gitnexus detect-changes --scope all`: 8 файлов, 10 символов, 5 процессов,
+risk `medium`. Из символов по существу изменены `detect_file_type` и
+`process_1c_import_task`; `Command`, `add_arguments`, `_dry_run_import`, `fn_lower`,
+`holder`, `options` попали в список из-за сдвига строк (вставка `_restrict_to_expected`
+и `try` вокруг `cache.add`). Потоки — `Handle_init → Detect_file_type`,
+`Process_1c_import_task → Get_file_path`, три `Handle → *`; постороннего нет.
+Файлы `AGENTS.md` и `CLAUDE.md` в списке — незакоммиченные изменения рабочей копии,
+к этой итерации отношения не имеют.
+
+**Полный backend-прогон после правок** (`-m "not performance and not slow" --cov=apps --cov=freesport`,
+31 мин 48 с): **3109 passed, 75 skipped, 35 deselected, 15 subtests passed, 0 failed**;
+покрытие **79 %** (TOTAL 14206 строк, 2954 не покрыто) при пороге CI 73 (без
+`data_dependent`) / 75 (с ними). Существующие тесты не правились ни одного:
+сужение сбора не срабатывает без переданного имени файла, а маршрут контрагентов
+сохранён для `all`.
+
+**Качество.** Black (`--line-length 120`, как в `backend/pyproject.toml`) — файлы
+без изменений, Flake8 — чисто.
 
 **Итерация ревью 2026-08-26.**
 
@@ -445,6 +500,84 @@ risk `high` — затронуты ровно символы и потоки и�
 
 ### Completion Notes List
 
+**Итерация ревью 2026-08-26 (вторая) — 3 items закрыто.**
+
+✅ Resolved review finding [High]: сегмент читает **только свой** файл. Лок
+превратил параллельную гонку в очередь, но не убрал её следствие: пока задача
+держит лок, 1С успевает положить в общий каталог следующие сегменты, и
+`_collect_xml_files` забирал весь накопившийся backlog по маске `rests_*.xml`.
+Прогон обрабатывал и удалял чужие файлы, а их собственные задачи затем падали
+`FAILED` — «сегмент не найден». Данные в БД доезжали, но выгрузка отчитывалась
+провалом, и AC8 («ни одна сессия не в статусе failed») нарушался на реальной
+очереди. Новый `Command._restrict_to_expected` сужает собранный список до
+обещанного имени на **всех** шагах прогона; пропущенные чужие файлы пишутся
+предупреждением в отчёт. Ручной общий импорт и `mode=complete` имени не обещают —
+там список не сужается, каталог забирается целиком, как раньше.
+
+Первая версия правки сужала список только внутри «семейства» файлов (сбор
+остатков — по префиксу `rests`, товаров — `goods`/`import`), и этого оказалось
+мало: сегмент `offers_….xml` запускает ещё и шаги цен и остатков
+(`file_type in ["all", "prices", "offers"]`), то есть съедал бы уже ожидающие
+`prices_*`/`rests_*` — тот же backlog через другое семейство. На выгрузке
+25.08.2026 это достижимо: 32 сегмента `offers` разбираются по очереди под локом,
+а 1С в это время уже шлёт `prices`. Сужение распространено на все шаги;
+справочники (`groups.xml`, `propertiesGoods.xml`, `priceLists.xml`) приходят
+своими файлами и обрабатываются своими сессиями.
+
+✅ Resolved review finding [High]: `contragents*.xml` больше не съедает
+обещанный товарный сегмент. Задача выбирала маршрут по содержимому каталога:
+нашла любой `contragents*.xml` → звала `import_customers_from_1c` и помечала
+сессию успешной, даже если ей обещали `rests_1_12_….xml`. Файл контрагентов,
+оставшийся от соседней сессии, таким образом молча уничтожал сегмент. Теперь
+`detect_file_type` знает тип `contragents`, и маршрут выбирается по имени файла;
+по содержимому каталога — только там, где имени не обещали (`mode=complete`,
+ручной прогон), то есть прежнее поведение сохранено ровно в прежней области.
+
+**Второй пробел того же класса (закрыт здесь же).** `groups.xml` не имел префикса
+в `detect_file_type` и давал `all` — то есть каждая выгрузка справочника групп
+запускала несужаемый полный проход по каталогу и сгребала весь ожидающий backlog.
+Файл при этом команда читает (`_import_categories`), поэтому префикс `groups`
+добавлен в группу `goods`. `units`, `storages`, `propertiesOffers` намеренно
+оставлены в `all`: команда их не собирает вовсе, и обещание «этот файл обязан
+быть прочитан» утопило бы такие сессии в `FAILED`. Ограничение отмечено
+комментарием в `file_type_detection.py`.
+
+**Побочный дефект, найденный при этой правке (закрыт здесь же).** Строгость,
+введённая в итерации 1.1, обещанием считала любое имя, для которого
+`detect_file_type` дал конкретный тип — включая имя архива:
+`detect_file_type("import_files.zip")` → `goods`, а команда собирает XML и файла
+с таким именем не найдёт никогда. Штатная выгрузка изображений архивом уходила бы
+в `FAILED`. Теперь обещанием считается только имя, оканчивающееся на `.xml`.
+
+✅ Resolved review finding [Med]: отказ бэкенда лока переводит сессию в `FAILED`.
+`cache.add` вызывался вне обработчиков: при недоступном Redis задача падала, а
+сессия висела `IN_PROGRESS` до `cleanup_stale_import_sessions` (порог 2 часа) —
+хотя отказ публикации `retry` уже обрабатывался и давал `FAILED`. Теперь захват
+обёрнут в `try/except`: импорт не запускается (работа без лока вернула бы
+гонку — fail-closed сохранён), но сессия честно получает `FAILED` с текстом
+ошибки. Чтение `holder` для лога тоже защищено — оно нужно только тексту
+сообщения.
+
+**Тесты итерации.** +12 к файлу регрессии (41 → 53):
+`TestSegmentBacklogBelongsToItsOwnTask` (три теста: backlog из четырёх сегментов
+не тронут; полная очередь из восьми сегментов, уже лежащих в каталоге, не теряет
+ничего и никого не топит в `FAILED`; ручной прогон по-прежнему забирает всё),
+`TestContragentsDoNotSwallowPromisedSegment` (три теста: обещанный сегмент
+выигрывает у чужих контрагентов, файл контрагентов по-прежнему уходит в
+`import_customers_from_1c`, `mode=complete` сохраняет прежний маршрут),
+`TestLockBackendFailure` (падение `cache.add` → `FAILED`, `call_command` не
+вызван), `TestCollectionIsLimitedToPromisedFile` (три теста на сужение сбора,
+включая чужое семейство и неизменный ручной прогон),
+`TestArchiveNameIsNotAPromise` (имя архива не передаётся как обещанный сегмент),
+плюс кейсы `contragents_1_1_abc.xml → contragents`, `groups.xml → goods`,
+`groups_1_1_abc.xml → goods`, `units.xml → all`, `storages.xml → all`
+в параметризации `detect_file_type`.
+
+Ключевое отличие нового AC8-теста от прежнего: раньше следующий сегмент
+подкладывался в каталог на `finalize_session`, то есть **после** сбора списка —
+такая расстановка backlog не воспроизводила. Теперь все восемь сегментов лежат
+в каталоге **до** первого прогона, ровно как под локом на проде.
+
 **Итерация ревью 2026-08-26 — 5 items закрыто.**
 
 ✅ Resolved review finding [High]: для конкретного `source_filename` отсутствие
@@ -527,6 +660,8 @@ risk `high` — затронуты ровно символы и потоки и�
    В задаче `detect_file_type(source_filename or zip_filename)` — параметр `zip_filename`
    не переиспользован намеренно: он включает мёртвую ветку `file_service.unpack_zip()`.
    `mode=complete` → `detect_file_type("complete")` → `"all"`, поведение прежнее.
+   Итерация 1.2 добавила туда тип `contragents`: по имени файла выбирается не только
+   шаг импорта, но и сам маршрут (каталог товаров или `import_customers_from_1c`).
 
 5. **Настройки (спека).** `ONEC_IMPORT_LOCK_TTL` (1800 с), `ONEC_IMPORT_LOCK_RETRY_COUNTDOWN`
    (10 с), `ONEC_IMPORT_LOCK_MAX_RETRIES` (180) — все через `config()`, не константы в коде.
@@ -557,10 +692,19 @@ risk `high` — затронуты ровно символы и потоки и�
 - Гонка «TTL истёк → ключ перезахвачен → старый владелец снимает чужой лок» остаётся
   теоретически возможной, но требует импорта дольше 1800 с. Отмечена комментарием
   в `_release_import_lock`.
-- Если Redis недоступен, `cache.add` бросит исключение **до** внешнего `try` и задача упадёт
-  без пометки сессии. Это осознанный fail-closed: параллельный импорт без лока хуже падения,
-  а Celery без Redis всё равно не работает. Зависшие `IN_PROGRESS` подберёт
-  `cleanup_stale_import_sessions` (порог 2 ч).
+- Если Redis недоступен, импорт не запускается вовсе — осознанный fail-closed: параллельный
+  импорт без лока хуже падения, а Celery без Redis всё равно не работает. Начиная с итерации
+  ревью 1.2 сессия при этом переводится в `FAILED` с текстом ошибки, а не остаётся
+  `IN_PROGRESS` до `cleanup_stale_import_sessions` (порог 2 ч).
+- Строгость «обещанный файл обязан быть прочитан» действует только на товарный
+  каталог. Маршрут `contragents` её не получил: если файл контрагентов исчез до
+  прогона, `import_customers_from_1c` отчитается успехом с нулём записей. Это
+  отдельная команда со своим контрактом, в объём стори она не входит.
+- Файлы, тип которых `detect_file_type` определить не смог (`units.xml`,
+  `storages.xml`, `propertiesOffers*.xml`, произвольные имена), по-прежнему
+  запускают полный несужаемый импорт: `all` по определению означает «сгрести
+  каталог целиком», и обещанного файла там нет. В штатной выгрузке такие файлы
+  идут блоком справочников, до сегментов, поэтому забирать им нечего.
 - Файлы, которых прогон не читал, теперь не удаляются им вовсе. Их убирает
   `FileRoutingService.cleanup_import_dir` по завершении последней активной сессии —
   рабочий guard в `tasks.py:245-266` и `views.handle_init` не тронут.

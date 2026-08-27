@@ -105,6 +105,44 @@ class Command(BaseCommand):
             self._file_signatures[file_path] = signature
         return data
 
+    def _restrict_to_expected(self, collected: list[str]) -> list[str]:
+        """Оставить из собранного только файл, обещанный этому прогону.
+
+        Каталог обмена общий, и один присланный файл обязан обрабатывать ровно
+        одна задача — та, которой его обещали. Лок сериализовал задачи, но не
+        убрал следствие гонки: пока одна держит лок, 1С успевает положить в
+        каталог следующие файлы, а сбор по маске (`rests_*.xml`) забирал весь
+        накопившийся backlog. Прогон читал и удалял чужое, их собственные задачи
+        затем падали `FAILED` («сегмент не найден») — данные доезжали, но
+        выгрузка отчитывалась провалом.
+
+        Сужение действует на **все** шаги прогона, а не только на шаг своего
+        типа: сегмент `offers_….xml` запускает ещё и шаги цен и остатков
+        (`file_type in ["all", "prices", "offers"]`), и без сужения съедал бы
+        уже ожидающие `prices_*`/`rests_*`. Справочники (`groups.xml`,
+        `propertiesGoods.xml`, `priceLists.xml`) приходят своими файлами и
+        обрабатываются своими сессиями.
+
+        Ручной общий импорт и `mode=complete` конкретного файла не обещают
+        (`_expected_filename is None`) — там список не сужается вовсе.
+        """
+        expected = self._expected_filename
+        if not expected or not collected:
+            return collected
+
+        expected_lower = expected.lower()
+        own = [path for path in collected if Path(path).name.lower() == expected_lower]
+        skipped = [path for path in collected if path not in own]
+        if skipped:
+            names = ", ".join(sorted(Path(path).name for path in skipped))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"   ⚠️ Пропущены файлы соседних сессий ({len(skipped)}): {names} — "
+                    f"их обработают собственные задачи"
+                )
+            )
+        return own
+
     def add_arguments(self, parser):
         """Добавление аргументов команды"""
         parser.add_argument(
@@ -830,7 +868,7 @@ class Command(BaseCommand):
                 if legacy_file.exists() and legacy_file not in collected:
                     collected.append(legacy_file)
 
-        return [str(path) for path in collected]
+        return self._restrict_to_expected([str(path) for path in collected])
 
     def _dry_run_import(self, data_dir: str) -> None:
         """Тестовый запуск импорта без записи в БД"""
