@@ -399,12 +399,45 @@ def process_1c_import_task(
             detected_file_type == "all" and has_contragents and not promised_filenames
         )
 
+        # Прогон без обещания сгребает каталог целиком — и потому не имеет права
+        # работать, пока живы другие сессии. Их файлы уже обещаны собственным
+        # задачам, которые стоят в очереди за локом.
+        #
+        # Прод-прогон AC9 2026-08-27: 223 сессии, 53 `failed`, и 48 из 48
+        # объяснённых падений имели потребителем именно `mode=complete`. 1С шлёт
+        # `mode=import` на каждый файл и `mode=complete` следом, каждые пару
+        # секунд; сегмент уходил в очередь («Каталог обмена занят»), подоспевший
+        # `complete` забирал его вместе со всем каталогом и удалял, а задача
+        # сегмента, получив лок, падала «не найден в каталоге обмена». Данные
+        # доезжали, но выгрузка отчитывалась провалом.
+        #
+        # Это тот же guard, что уже стоит на post-import cleanup ниже и в
+        # `views.handle_init`. Файлы без хозяина по-прежнему забирает `complete`:
+        # при отсутствии других активных сессий сбор идёт как раньше.
+        defer_to_active_sessions = False
+        if not promised_filenames and not import_customers and not skip_catalog_import:
+            defer_to_active_sessions = (
+                ImportSession.objects.filter(status=ImportSession.ImportStatus.IN_PROGRESS)
+                .exclude(pk=session.pk)
+                .exists()
+            )
+
         if import_customers:
             logger.info(
                 f"Starting 1C customers import for session {session_id} "
                 f"(key={session.session_key}, data_dir={effective_data_dir})"
             )
             call_command("import_customers_from_1c", data_dir=effective_data_dir)
+        elif defer_to_active_sessions:
+            message = (
+                "Импорт каталога пропущен: в работе другие сессии обмена, и файлы "
+                "в каталоге обещаны их задачам. Несужаемый сбор забрал бы чужие "
+                "сегменты и утопил их сессии в FAILED."
+            )
+            logger.info(f"Session {session_id}: {message}")
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+            session.report += f"[{timestamp}] {message}\n"
+            session.save(update_fields=["report", "updated_at"])
         elif skip_catalog_import:
             message = (
                 f"Архив {archive_names[0]} не принёс ни одного XML-сегмента "

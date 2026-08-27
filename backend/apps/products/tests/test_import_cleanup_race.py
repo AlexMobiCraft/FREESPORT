@@ -745,7 +745,14 @@ class TestImportLockUnderConcurrency:
             try:
                 holder_result.append(
                     process_1c_import_task.apply(
-                        args=(holder.pk,), kwargs={"data_dir": data_dir}, task_id="task-conc-holder"
+                        args=(holder.pk,),
+                        # Имена сегментов обязательны: прогон без обещания
+                        # сгребает каталог целиком и потому уступает дорогу
+                        # активным сессиям (см. TestCompleteDoesNotStealPromisedSegments).
+                        # На проде каждый сегмент приходит своим mode=import —
+                        # именно эти прогоны лок и обязан сериализовать.
+                        kwargs={"data_dir": data_dir, "source_filename": _segment_name(1)},
+                        task_id="task-conc-holder",
                     ).get()
                 )
             finally:
@@ -763,7 +770,9 @@ class TestImportLockUnderConcurrency:
             assert cache.get(self._lock_key(data_dir)) == "task-conc-holder"
 
             process_1c_import_task.apply(
-                args=(contender.pk,), kwargs={"data_dir": data_dir}, task_id="task-conc-contender"
+                args=(contender.pk,),
+                kwargs={"data_dir": data_dir, "source_filename": _segment_name(2)},
+                task_id="task-conc-contender",
             )
 
             assert len(retry_calls) == 1, "Вторая задача обязана уйти в retry, а не работать параллельно"
@@ -791,8 +800,12 @@ class TestImportLockUnderConcurrency:
             entered.append(kwargs.get("import_session_id"))
 
         with patch("apps.products.tasks.call_command", side_effect=record):
-            for session, task_id in ((first, "task-seq-1"), (second, "task-seq-2")):
-                process_1c_import_task.apply(args=(session.pk,), kwargs={"data_dir": data_dir}, task_id=task_id).get()
+            for index, (session, task_id) in enumerate(((first, "task-seq-1"), (second, "task-seq-2")), start=1):
+                process_1c_import_task.apply(
+                    args=(session.pk,),
+                    kwargs={"data_dir": data_dir, "source_filename": _segment_name(index)},
+                    task_id=task_id,
+                ).get()
 
         assert entered == [first.pk, second.pk]
         assert cache.get(self._lock_key(data_dir)) is None
@@ -1185,3 +1198,100 @@ class TestAmbiguousPromisedSegment:
 
         collected = command._collect_xml_files(str(data_dir), "rests", "rests.xml")
         assert [Path(path).name for path in collected] == [own.name]
+
+
+@pytest.mark.django_db
+class TestCompleteDoesNotStealPromisedSegments:
+    """Прод-прогон AC9 2026-08-27: `mode=complete` воровал сегменты из очереди.
+
+    Штатный протокол этой 1С шлёт `mode=import` на каждый файл **и**
+    `mode=complete` следом, каждые пару секунд. Сегмент уходит в очередь за
+    локом («Каталог обмена занят»), а подоспевший `complete` обещания не имеет,
+    сбор не сужает, забирает каталог целиком — вместе с чужим сегментом — и
+    удаляет его. Задача сегмента, получив лок, своего файла не находит и падает.
+
+    Замер прода: 223 сессии, 53 `failed`, и **48 из 48** объяснённых падений
+    имели потребителем именно `mode=complete`. Данные при этом доезжали, но
+    выгрузка отчитывалась провалом, а пять файлов не прочитал никто.
+
+    Контракт: прогон без обещания не трогает каталог, пока живы другие сессии
+    в `IN_PROGRESS` — их файлы заберут собственные задачи. Ровно тот же guard,
+    что уже стоит на post-import cleanup и в `views.handle_init`.
+    """
+
+    @patch("apps.products.tasks.call_command")
+    def test_complete_skips_sweep_while_other_sessions_active(self, mock_call_command, clean_cache, tmp_path):
+        data_dir = _make_exchange_dir(tmp_path)
+        promised = _stage_segment(data_dir, 6)
+
+        # Сессия соседнего сегмента: её задача стоит в очереди за локом.
+        ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        complete_session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(complete_session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": "complete"},
+            task_id="task-complete-guard-1",
+        ).get()
+
+        mock_call_command.assert_not_called()
+        assert promised.exists(), "Файл обещан другой сессии — complete не имеет права его забирать"
+
+        complete_session.refresh_from_db()
+        assert complete_session.status == ImportSession.ImportStatus.COMPLETED
+        assert "другие сессии" in complete_session.report
+
+    @patch("apps.products.tasks.call_command")
+    def test_complete_sweeps_when_no_other_sessions_active(self, mock_call_command, clean_cache, tmp_path):
+        """Прежнее поведение там, где оно нужно: файлы без хозяина забирает complete."""
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 7)
+        complete_session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(complete_session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": "complete"},
+            task_id="task-complete-guard-2",
+        ).get()
+
+        kwargs = mock_call_command.call_args.kwargs
+        assert mock_call_command.call_args.args[0] == "import_products_from_1c"
+        assert kwargs["file_type"] == "all"
+        assert kwargs["source_filename"] is None
+
+    @patch("apps.products.tasks.call_command")
+    def test_promised_segment_runs_even_with_other_sessions_active(self, mock_call_command, clean_cache, tmp_path):
+        """Guard бьёт только по несужаемому сбору: свой сегмент идёт как шёл."""
+        data_dir = _make_exchange_dir(tmp_path)
+        _stage_segment(data_dir, 8)
+
+        ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        own_session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(own_session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": _segment_name(8)},
+            task_id="task-complete-guard-3",
+        ).get()
+
+        kwargs = mock_call_command.call_args.kwargs
+        assert kwargs["source_filename"] == [_segment_name(8)]
+        assert kwargs["file_type"] == "rests"
+
+    @patch("apps.products.tasks.call_command")
+    def test_unknown_file_type_also_defers_to_active_sessions(self, mock_call_command, clean_cache, tmp_path):
+        """`units.xml` тип не определяет и тоже сгребал бы каталог целиком."""
+        data_dir = _make_exchange_dir(tmp_path)
+        promised = _stage_segment(data_dir, 2)
+
+        ImportSession.objects.create(status=ImportSession.ImportStatus.IN_PROGRESS)
+        units_session = ImportSession.objects.create(status=ImportSession.ImportStatus.PENDING)
+
+        process_1c_import_task.apply(
+            args=(units_session.id,),
+            kwargs={"data_dir": str(data_dir), "source_filename": "units.xml"},
+            task_id="task-complete-guard-4",
+        ).get()
+
+        mock_call_command.assert_not_called()
+        assert promised.exists()
