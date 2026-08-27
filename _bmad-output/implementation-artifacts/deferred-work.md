@@ -814,6 +814,7 @@
 - source_spec: none
   summary: `ProductVariant.size_value` (`models.py:858`) — `max_length=50`, на проде `max(length) = 49`: 12 вариантов в окне offers 17:20-17:24 25.08.2026 не сохранились с `value too long for type character varying(50)`.
   evidence: Отделено от стори `onec-import-cleanup-race-and-followups` решением Alex 2026-08-26 (Split, ядро гонки T1-T5). Дефект E стори; требует отдельной миграции схемы либо осознанной нормализации на входе — к гонке cleanup отношения не имеет и ревьюится независимо. Соответствует AC7 исходной стори.
+  task_brief: `_bmad-output/implementation-artifacts/tasks/dev-task-size-value-overflow.md` (2026-08-27). Замер прода изменил постановку: длинные значения — не размеры, а комплектация, состав ткани и наименования услуг (9 записей из 16 619 в диапазоне 41-50 символов при типичных `M`/`S`/`L`/`36`/`42`). Расширение колонки сохранило бы мусор в поле размера, в его индексе и в составном ограничении `(color_name, size_value)`; развилка А/Б/В вынесена в бриф на решение Alex.
 
 ## Deferred from: code review of onec-import-cleanup-race-and-followups (2026-08-26)
 
