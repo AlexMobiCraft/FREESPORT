@@ -20,7 +20,7 @@ class Command(BaseCommand):
         python manage.py backup_db
         python manage.py backup_db --encrypt
 
-    Backup файлы сохраняются в BACKUP_DIR (default: backend/backup_db/)
+    Backup файлы сохраняются в settings.BACKUP_DIR (абсолютный путь)
     Автоматически сохраняются последние 3 копии (ротация)
     """
 
@@ -44,10 +44,34 @@ class Command(BaseCommand):
         encrypt = options.get("encrypt", False)
         custom_output = options.get("output")
 
-        # Определяем директорию для бэкапов
-        backup_dir = getattr(settings, "BACKUP_DIR", "backend/backup_db")
+        # Определяем директорию для бэкапов.
+        #
+        # Путь обязан быть абсолютным. Прежнее умолчание `backend/backup_db`
+        # было относительным, а команда исполняется с рабочим каталогом `/app`:
+        # получался `/app/backend/backup_db`, каталог uid 999 при процессе под
+        # 1000:1000 (`user` в docker-compose.prod.yml). Каждый полный импорт
+        # получал `Permission denied`, а вызывающий код глотал это в WARNING —
+        # прод жил без бэкапов неизвестно сколько.
+        backup_dir = getattr(settings, "BACKUP_DIR", None) or str(Path(settings.BASE_DIR) / "backup_db")
         backup_path = Path(backup_dir)
-        backup_path.mkdir(parents=True, exist_ok=True)
+        if not backup_path.is_absolute():
+            raise CommandError(
+                f"BACKUP_DIR должен быть абсолютным путём, получено {backup_dir!r}. "
+                f"Относительный путь резолвится от рабочего каталога процесса и в контейнере "
+                f"указывает не туда, куда ожидает администратор."
+            )
+        try:
+            backup_path.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise CommandError(
+                f"Каталог бэкапов {backup_path} недоступен: {exc}. В контейнере он обязан быть "
+                f"на постоянном томе и принадлежать пользователю процесса."
+            )
+        if not os.access(backup_path, os.W_OK):
+            raise CommandError(
+                f"Каталог бэкапов {backup_path} существует, но недоступен на запись "
+                f"пользователю {os.getuid() if hasattr(os, 'getuid') else 'процесса'}."
+            )
 
         # Создаем имя файла бэкапа
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

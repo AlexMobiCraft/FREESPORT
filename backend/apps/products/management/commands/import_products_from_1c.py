@@ -25,6 +25,7 @@ Trade-offs:
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from pathlib import Path
@@ -37,6 +38,8 @@ from tqdm import tqdm
 from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
+
+logger = logging.getLogger("import_tasks")
 
 
 class Command(BaseCommand):
@@ -55,6 +58,10 @@ class Command(BaseCommand):
 
     help = "Импорт каталога товаров из файлов 1С (CommerceML 3.1) " "с поддержкой ProductVariant"
 
+    # Отметка «бэкап в этом окне уже делался». Ключ общий для всех прогонов:
+    # защищаемся мы от лавины бэкапов внутри одной выгрузки 1С.
+    BACKUP_MARKER_KEY = "onec:import:backup:last"
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         # Пути, которые этот прогон действительно распарсил. Основа точечного
@@ -72,6 +79,9 @@ class Command(BaseCommand):
         # или mode=complete. Обычно это один сегмент (`rests_1_12_….xml`), но
         # задача архива обещает весь XML, который сама из него распаковала.
         self._expected_filenames: set[str] | None = None
+        # Текст о неудавшемся бэкапе — переносится в отчёт сессии, когда она
+        # появится: шаг бэкапа выполняется до её создания.
+        self._backup_note: str | None = None
 
     @staticmethod
     def _file_signature(file_path: str) -> tuple[int, int, int, int] | None:
@@ -269,6 +279,59 @@ class Command(BaseCommand):
             ),
         )
 
+    def _backup_before_import(self) -> None:
+        """Бэкап БД перед полным импортом каталога.
+
+        Три вещи, которых здесь раньше не было.
+
+        **Путь.** Умолчание было относительным (`backend/backup_db`), а команда
+        исполняется с рабочим каталогом `/app` — получался `/app/backend/backup_db`,
+        каталог uid 999 при процессе под 1000:1000. `Permission denied` на каждом
+        полном импорте, ошибка глоталась в WARNING, прод жил без бэкапов.
+
+        **Частота.** Бэкап нельзя дёргать на каждом прогоне с `file_type="all"`:
+        на прод-выгрузке 27.08.2026 из 172 сессий 37 пришли с этим типом
+        (`mode=complete`, забирающий остатки каталога). Тридцать семь полных
+        `pg_dump` базы подряд во время обмена — это нагрузка, а не защита.
+        Отметка в кэше (Redis) пропускает повторы внутри
+        `BACKUP_MIN_INTERVAL_SECONDS`; ставится она на **попытку**, а не на успех,
+        иначе сломанный бэкап писал бы ошибку по десятку раз за выгрузку.
+
+        **Громкость.** Провал больше не тонет в WARNING: он идёт в лог как ERROR
+        и попадает в отчёт сессии (`self._backup_note`), видимый в админке.
+        Импорт при этом продолжается осознанно: 1С сегмент не повторит, и
+        остановка обмена из-за неудавшегося бэкапа стоила бы дороже, чем импорт
+        без него. Совсем выключить шаг можно настройкой `BACKUP_BEFORE_IMPORT`.
+        """
+        from django.conf import settings
+        from django.core.cache import cache
+        from django.utils import timezone
+
+        if not getattr(settings, "BACKUP_BEFORE_IMPORT", True):
+            self.stdout.write(self.style.WARNING("\n💾 Бэкап перед импортом отключён настройкой BACKUP_BEFORE_IMPORT"))
+            return
+
+        interval = getattr(settings, "BACKUP_MIN_INTERVAL_SECONDS", 3600)
+        try:
+            first_in_window = cache.add(self.BACKUP_MARKER_KEY, timezone.now().isoformat(), interval)
+        except Exception as exc:  # pragma: no cover - кэш недоступен, бэкап важнее отметки
+            logger.warning(f"Не удалось проверить отметку бэкапа: {exc}")
+            first_in_window = True
+
+        if not first_in_window:
+            self.stdout.write(f"\n💾 Бэкап пропущен: уже делался в последние {interval} с")
+            return
+
+        self.stdout.write(self.style.WARNING("\n💾 Создание backup перед импортом..."))
+        try:
+            call_command("backup_db")
+            self.stdout.write(self.style.SUCCESS("✅ Backup создан успешно"))
+        except Exception as exc:
+            note = f"Бэкап перед импортом НЕ создан: {exc}. Импорт продолжен без него — " "откатить его будет нечем."
+            logger.error(note)
+            self._backup_note = note
+            self.stdout.write(self.style.ERROR(f"❌ {note}"))
+
     def handle(self, *args, **options):
         """Основная логика команды"""
         from django.conf import settings
@@ -283,6 +346,7 @@ class Command(BaseCommand):
         self._missing_files = []
         self._file_signatures = {}
         self._expected_filenames = None
+        self._backup_note = None
 
         # Конкретные файлы от 1С обещаны только при вызове из задачи обмена.
         # Ручной прогон и mode=complete имён не передают — там пустой каталог
@@ -341,12 +405,7 @@ class Command(BaseCommand):
 
         # Автоматический backup перед полным импортом
         if not dry_run and file_type == "all" and not skip_backup:
-            self.stdout.write(self.style.WARNING("\n💾 Создание backup перед импортом..."))
-            try:
-                call_command("backup_db")
-                self.stdout.write(self.style.SUCCESS("✅ Backup создан успешно"))
-            except Exception as e:
-                self.stdout.write(self.style.WARNING(f"⚠️ Не удалось создать backup: {e}. Продолжаем импорт..."))
+            self._backup_before_import()
 
         # Очистка существующих данных
         if clear_existing:
@@ -421,6 +480,12 @@ class Command(BaseCommand):
                 batch_size=batch_size,
                 skip_validation=skip_validation,
             )
+
+            # Провал бэкапа обязан быть виден там же, где смотрят результат
+            # импорта, а не только в логах воркера. Сам шаг выполняется до
+            # создания сессии, поэтому текст едет сюда через `_backup_note`.
+            if self._backup_note:
+                variant_processor.log_progress(self._backup_note)
 
             # ШАГ 0.5: Загрузка категорий из groups.xml
             if file_type in ["all", "goods"]:

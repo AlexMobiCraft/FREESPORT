@@ -315,6 +315,28 @@ ONEC_IMPORT_LOCK_RETRY_COUNTDOWN = config("ONEC_IMPORT_LOCK_RETRY_COUNTDOWN", de
 # 180 попыток × 10 с = 30 минут ожидания — с запасом на очередь из 16 сегментов.
 ONEC_IMPORT_LOCK_MAX_RETRIES = config("ONEC_IMPORT_LOCK_MAX_RETRIES", default=180, cast=int)
 
+# Каталог резервных копий БД. Путь ОБЯЗАН быть абсолютным: команда `backup_db`
+# исполняется с рабочим каталогом `/app`, и прежний относительный умолчательный
+# путь `backend/backup_db` резолвился в `/app/backend/backup_db` — каталог
+# принадлежит uid 999, а процесс работает под 1000:1000 (`user` в
+# docker-compose.prod.yml). Итог: `Permission denied` на каждом полном импорте,
+# ошибка глоталась в WARNING, и прод жил без бэкапов неизвестно сколько.
+# В проде каталог обязан быть на постоянном bind-mount, иначе копии исчезают
+# при первой же пересборке контейнера.
+BACKUP_DIR = config("BACKUP_DIR", default=str(BASE_DIR / "backup_db"))
+
+# Бэкап перед полным импортом каталога. Отключать — только осознанно: смысл шага
+# в том, чтобы полный импорт из 1С можно было откатить.
+BACKUP_BEFORE_IMPORT = config("BACKUP_BEFORE_IMPORT", default=True, cast=bool)
+
+# Минимальный интервал между бэкапами перед импортом. Без него одна выгрузка 1С
+# даёт десятки полных `pg_dump`: на прод-прогоне 27.08.2026 из 172 сессий 37
+# пришли с `file_type=all` (это `mode=complete`, забирающий остатки каталога), и
+# каждая дёргала бэкап. Тридцать семь копий одного и того же состояния подряд —
+# это нагрузка на БД во время обмена, а не защита. Первый бэкап в окне делается,
+# остальные пропускаются с явной записью в лог.
+BACKUP_MIN_INTERVAL_SECONDS = config("BACKUP_MIN_INTERVAL_SECONDS", default=3600, cast=int)
+
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 

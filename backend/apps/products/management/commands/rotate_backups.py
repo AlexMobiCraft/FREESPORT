@@ -47,7 +47,9 @@ class Command(BaseCommand):
             return
 
         # Определяем директорию с бэкапами
-        backup_dir = getattr(settings, "BACKUP_DIR", "backend/backup_db")
+        # Тот же источник пути, что и у `backup_db`: относительное умолчание
+        # в контейнере указывало на чужой каталог (см. комментарий там).
+        backup_dir = getattr(settings, "BACKUP_DIR", None) or str(Path(settings.BASE_DIR) / "backup_db")
         backup_path = Path(backup_dir)
 
         if not backup_path.exists():
