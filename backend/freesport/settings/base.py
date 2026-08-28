@@ -258,6 +258,19 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.products.tasks.cleanup_stale_import_sessions",
         "schedule": 60 * 60,  # Раз в час (Story 3.1 AC6)
     },
+    # Уборка осиротевших каталогов обмена 1С (стори onec-exchange-dir-isolation, AC5).
+    #
+    # Расписание объявлено дважды — здесь и в `freesport/celery.py`. Замер в
+    # контейнере 28.08.2026 показал, что побеждает ИМЕННО ЭТОТ словарь:
+    # `app.conf` ленив, присваивание `app.conf.beat_schedule` в celery.py
+    # выполняется до финализации конфига, и загруженные из настроек значения
+    # ложатся поверх (эффективное расписание `cleanup-stale-import-sessions` —
+    # 3600 с отсюда, а не `crontab(minute="30")` оттуда). Поэтому регистрация
+    # обязана быть здесь; дубль в celery.py оставлен как страховка.
+    "cleanup-stale-exchange-dirs": {
+        "task": "apps.products.tasks.cleanup_stale_exchange_dirs",
+        "schedule": 60 * 60 * 6,  # Каждые 6 часов, порог уборки — 24 ч
+    },
 }
 
 # Баннеры

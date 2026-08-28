@@ -5,7 +5,7 @@ spec: _bmad-output/specs/spec-onec-exchange-dir-isolation/SPEC.md
 
 # Story: Изоляция каталога обмена 1С по сессии
 
-Status: ready-for-dev
+Status: review
 
 > 🟢 **Канонический контракт — не этот файл.** Требования задаёт `_bmad-output/specs/spec-onec-exchange-dir-isolation/SPEC.md` и его компаньоны (`evidence.md`, `affected-code.md`, `post-deploy-verification.md`, `project-context.md`). Стори добавляет к ним координаты, проверенные чтением кода, и разбор трёх мест, где контракт молчит или расходится сам с собой (см. «Развилки, решённые в стори»).
 > 🟢 **Свежесть координат: все строки проверены чтением файлов на коммите `7c9e8525`** (28.08.2026). Номера строк — ориентир; якорь — имя символа.
@@ -160,54 +160,54 @@ def _import_lock_key(data_dir: str) -> str:
 
 ### T1. Раскладка каталога обмена — по сессии (AC1, AC2)
 
-- [ ] **Перед первой правкой:** `! npx gitnexus analyze`, затем `npx gitnexus impact FileRoutingService --direction upstream` и `npx gitnexus impact cleanup_import_dir --direction upstream`; blast radius показать Alex (`cleanup_import_dir` ожидается `CRITICAL`).
-- [ ] `routing_service.py`, `FileRoutingService.__init__` (стр. 79-83): `self.import_dir = self.import_base / session_id`. Снять комментарий `FIXED: Import directory should be shared/root, not session-isolated` — он фиксирует ровно то поведение, которое чинится. Docstring класса и модуля (стр. 1-10, 47-57) уже описывают сессионную раскладку — сверить, что описание совпало с фактом.
-- [ ] `routing_service.py`, `move_to_import` / `_ensure_import_dir`: исключение для картинок — маршрут `import_files` кладёт файл в **общий** `import_base / "import_files"`, сохраняя подкаталог `<xx>` из имени. Остальные маршруты — под сессионный `import_dir`.
-- [ ] `import_orchestrator.py`, `__init__` (стр. 47): `self.import_dir` = каталог **своей** сессии (`IMPORT_DIR / sessid`). ⚠️ У оркестратора **собственная копия пути**, мимо `FileRoutingService` — правки одного `routing_service.py` недостаточно, изоляция останется дырявой. Через эту копию идут: `_unpack_zips` (`:202`, `:214-217`), `_route_unpacked_files` (`:260`, `:287`), `_dispatch_import` (`:310`, `:344-346`), `_dispatch_or_dryrun` (`:468`, `:488-490`).
-- [ ] `import_orchestrator.py`, `_route_unpacked_files` (стр. 287): картинки из архива → общий `import_files`; XML → сессионный каталог.
-- [ ] 🔴 `tasks.py` (стр. ~255-275): **вторая, дублирующая копия** той же логики маршрутизации распакованного (`target_subdir = "goods"` / `"goods/import_files"`). Правится **обеими** — иначе `mode=complete` с накопившимися zip разложит картинки мимо общего каталога. Это самая пропускаемая точка работы.
-- [ ] `.dry_run` остаётся в корне общего `import_base`. Точки: `import_orchestrator.py:310` и `:421-424` — обе должны смотреть на `import_base / ".dry_run"`, а не на сессионный каталог.
+- [x] **Перед первой правкой:** `! npx gitnexus analyze`, затем `npx gitnexus impact FileRoutingService --direction upstream` и `npx gitnexus impact cleanup_import_dir --direction upstream`; blast radius показать Alex (`cleanup_import_dir` ожидается `CRITICAL`).
+- [x] `routing_service.py`, `FileRoutingService.__init__` (стр. 79-83): `self.import_dir = self.import_base / session_id`. Снять комментарий `FIXED: Import directory should be shared/root, not session-isolated` — он фиксирует ровно то поведение, которое чинится. Docstring класса и модуля (стр. 1-10, 47-57) уже описывают сессионную раскладку — сверить, что описание совпало с фактом.
+- [x] `routing_service.py`, `move_to_import` / `_ensure_import_dir`: исключение для картинок — маршрут `import_files` кладёт файл в **общий** `import_base / "import_files"`, сохраняя подкаталог `<xx>` из имени. Остальные маршруты — под сессионный `import_dir`.
+- [x] `import_orchestrator.py`, `__init__` (стр. 47): `self.import_dir` = каталог **своей** сессии (`IMPORT_DIR / sessid`). ⚠️ У оркестратора **собственная копия пути**, мимо `FileRoutingService` — правки одного `routing_service.py` недостаточно, изоляция останется дырявой. Через эту копию идут: `_unpack_zips` (`:202`, `:214-217`), `_route_unpacked_files` (`:260`, `:287`), `_dispatch_import` (`:310`, `:344-346`), `_dispatch_or_dryrun` (`:468`, `:488-490`).
+- [x] `import_orchestrator.py`, `_route_unpacked_files` (стр. 287): картинки из архива → общий `import_files`; XML → сессионный каталог.
+- [x] 🔴 `tasks.py` (стр. ~255-275): **вторая, дублирующая копия** той же логики маршрутизации распакованного (`target_subdir = "goods"` / `"goods/import_files"`). Правится **обеими** — иначе `mode=complete` с накопившимися zip разложит картинки мимо общего каталога. Это самая пропускаемая точка работы.
+- [x] `.dry_run` остаётся в корне общего `import_base`. Точки: `import_orchestrator.py:310` и `:421-424` — обе должны смотреть на `import_base / ".dry_run"`, а не на сессионный каталог.
   - ⚠️ **`file_service.py:255-262` НЕ трогать.** Компаньон называет её четвёртой точкой `.dry_run`, но это ошибка: `FileStreamService.session_dir = TEMP_DIR / session_id` (`file_service.py:150-151`) — там свой `.dry_run` во временном каталоге, к `import_base` отношения не имеющий.
   - Маркер `.exchange_complete` изоляции не касается — живёт в `session_dir` временного каталога (`file_service.py:283-296`), который и так был сессионным.
-- [ ] `import_products_from_1c.py:655` и `:694-701` — развязка путей картинок по правилу из Развилки 2 + фолбэк на легаси-раскладку из Развилки 3. `_collect_xml_files` и обработку `data_dir` (`handle`, стр. 338-341) **не трогать** — они заработают как есть.
-- [ ] `tasks.py`, `_import_lock_key` (стр. 29-31) и вызов (стр. 104) — ключ от общего корня по правилу из Развилки 1 (AC6).
-- [ ] 🔒 `routing_service.py`, `FileRoutingService.__init__`: валидировать `session_id` как **один безопасный сегмент пути** — отклонять `/`, `\`, `..` и пустое (сейчас проверяется только непустота, стр. 68-72). `sessid` приходит прямо из query-параметра (`views.py:174-177`) и нигде не санитизируется. До изоляции `cleanup_import_dir` работал по фиксированному пути; после — по пути, сегмент которого задаёт клиент, и `shutil.rmtree` пойдёт туда, куда его увели. Эндпоинт закрыт `Basic1CAuthentication` + `Is1CExchangeUser` (`views.py:196-197`), поэтому это укрепление, а не открытая дыра, — но вводить рычаг удаления по внешнему пути без проверки нельзя.
+- [x] `import_products_from_1c.py:655` и `:694-701` — развязка путей картинок по правилу из Развилки 2 + фолбэк на легаси-раскладку из Развилки 3. `_collect_xml_files` и обработку `data_dir` (`handle`, стр. 338-341) **не трогать** — они заработают как есть.
+- [x] `tasks.py`, `_import_lock_key` (стр. 29-31) и вызов (стр. 104) — ключ от общего корня по правилу из Развилки 1 (AC6).
+- [x] 🔒 `routing_service.py`, `FileRoutingService.__init__`: валидировать `session_id` как **один безопасный сегмент пути** — отклонять `/`, `\`, `..` и пустое (сейчас проверяется только непустота, стр. 68-72). `sessid` приходит прямо из query-параметра (`views.py:174-177`) и нигде не санитизируется. До изоляции `cleanup_import_dir` работал по фиксированному пути; после — по пути, сегмент которого задаёт клиент, и `shutil.rmtree` пойдёт туда, куда его увели. Эндпоинт закрыт `Basic1CAuthentication` + `Is1CExchangeUser` (`views.py:196-197`), поэтому это укрепление, а не открытая дыра, — но вводить рычаг удаления по внешнему пути без проверки нельзя.
 
 ### T2. `mode=complete` больше не сгребает каталог (AC3)
 
-- [ ] `tasks.py`: прогон без `promised_filenames` при сессионной раскладке видит только свой пустой каталог. Убедиться, что он завершается `COMPLETED`, а не пытается импортировать пустоту.
-- [ ] Пометка «своих файлов нет» пишется в `session.report` (`tasks.py:480-482` — туда уже накапливаются строки `[{timestamp}] …`). Отдельного поля и миграции не требуется. Текст выбрать стабильным: тест AC3 вешается на подстроку.
-- [ ] `defer_to_active_sessions` (`tasks.py:414-423`) **не удалять** — после изоляции избыточен для этого сценария, но остаётся страховкой для ручных прогонов с `data_dir` по умолчанию.
+- [x] `tasks.py`: прогон без `promised_filenames` при сессионной раскладке видит только свой пустой каталог. Убедиться, что он завершается `COMPLETED`, а не пытается импортировать пустоту.
+- [x] Пометка «своих файлов нет» пишется в `session.report` (`tasks.py:480-482` — туда уже накапливаются строки `[{timestamp}] …`). Отдельного поля и миграции не требуется. Текст выбрать стабильным: тест AC3 вешается на подстроку.
+- [x] `defer_to_active_sessions` (`tasks.py:414-423`) **не удалять** — после изоляции избыточен для этого сценария, но остаётся страховкой для ручных прогонов с `data_dir` по умолчанию.
 
 ### T3. Уборка (AC4, AC5)
 
-- [ ] `routing_service.py`, `cleanup_import_dir` (стр. 192-230): чистит **свою** папку. Переписать docstring — сейчас он прямо описывает общий каталог («As the import directory is shared across sessions…»).
-- [ ] Проверить вызывающих: `views.py:452-453` (`handle_init`, guard стр. 427-453), `tasks.py:501-502` (post-import, guard `other_active` стр. 486-506), комментарий `import_orchestrator.py:328`. Guard-ы **не удалять** (Non-goal SPEC).
+- [x] `routing_service.py`, `cleanup_import_dir` (стр. 192-230): чистит **свою** папку. Переписать docstring — сейчас он прямо описывает общий каталог («As the import directory is shared across sessions…»).
+- [x] Проверить вызывающих: `views.py:452-453` (`handle_init`, guard стр. 427-453), `tasks.py:501-502` (post-import, guard `other_active` стр. 486-506), комментарий `import_orchestrator.py:328`. Guard-ы **не удалять** (Non-goal SPEC).
   - Ожидаемое следствие, не регресс: `session_key` уникален на файл, поэтому `cleanup_import_dir(force=True)` в `handle_init` почти всегда попадёт на свежий (пустой или несуществующий) каталог и станет практически no-op. Уборку чужого мусора берёт на себя задача из AC5. Guard оставить как есть.
-- [ ] `backend/apps/integrations/tests/test_handle_init_cleanup_race.py` — 6 ассертов на вызовы/невызовы метода. Router там мокается, так что тесты должны остаться зелёными; если поехали — разобраться, а не подгонять.
-- [ ] Удаление каталога сессии в `1c_temp` и `1c_import` после завершения обмена (сегодня копится 32 276 пустых папок).
-- [ ] Новая периодическая задача уборки осиротевших сессионных каталогов старше **24 часов** в `1c_temp` и `1c_import`. Место — `apps/products/tasks.py`, рядом с `cleanup_stale_import_sessions`.
+- [x] `backend/apps/integrations/tests/test_handle_init_cleanup_race.py` — 6 ассертов на вызовы/невызовы метода. Router там мокается, так что тесты должны остаться зелёными; если поехали — разобраться, а не подгонять.
+- [x] Удаление каталога сессии в `1c_temp` и `1c_import` после завершения обмена (сегодня копится 32 276 пустых папок).
+- [x] Новая периодическая задача уборки осиротевших сессионных каталогов старше **24 часов** в `1c_temp` и `1c_import`. Место — `apps/products/tasks.py`, рядом с `cleanup_stale_import_sessions`.
   - ⚠️ Каталоги сессий в `1c_import` **не будут пустыми**: `tasks.py:311-325` («Defensive directory creation») создаёт в `data_dir` подпапки `goods`, `offers`, `prices`, `rests`, `priceLists` на каждом прогоне. Удаление — `shutil.rmtree`, а не `rmdir`; возраст считать по каталогу сессии, а не по файлам внутри.
-- [ ] 🔴 Зарегистрировать задачу в `backend/freesport/celery.py` (`app.conf.beat_schedule`), **не только** в `settings/base.py`. См. «Мина: два расписания beat» в Dev Notes — регистрация только в настройках означает, что задача не запустится никогда.
-- [ ] Разовую зачистку накопленных 32 276 каталогов **не делать** — Alex выполняет вручную вне этой работы. Миграцию/management-команду под это не писать.
+- [x] 🔴 Зарегистрировать задачу в `backend/freesport/celery.py` (`app.conf.beat_schedule`), **не только** в `settings/base.py`. См. «Мина: два расписания beat» в Dev Notes — регистрация только в настройках означает, что задача не запустится никогда.
+- [x] Разовую зачистку накопленных 32 276 каталогов **не делать** — Alex выполняет вручную вне этой работы. Миграцию/management-команду под это не писать.
 
 ### T4. Тесты (AC1-AC6)
 
-- [ ] **RED-first, обязателен:** регрессионный тест AC1. Сначала прогнать на коде до правки и зафиксировать падение в Dev Agent Record.
-- [ ] Тест AC3: `mode=complete` при заполненных каталогах чужих сессий.
-- [ ] Тест AC2: XML из сессионного каталога + картинка в общем `import_files`.
-- [ ] Тест AC4: `cleanup_import_dir` сессии A против каталога сессии B.
-- [ ] Тест AC6: конкуренция двух сессий за один ключ лока.
-- [ ] Тест AC5: порог 24 часа у задачи уборки.
-- [ ] Только реальные выгрузки. Синтетические XML запрещены.
+- [x] **RED-first, обязателен:** регрессионный тест AC1. Сначала прогнать на коде до правки и зафиксировать падение в Dev Agent Record.
+- [x] Тест AC3: `mode=complete` при заполненных каталогах чужих сессий.
+- [x] Тест AC2: XML из сессионного каталога + картинка в общем `import_files`.
+- [x] Тест AC4: `cleanup_import_dir` сессии A против каталога сессии B.
+- [x] Тест AC6: конкуренция двух сессий за один ключ лока.
+- [x] Тест AC5: порог 24 часа у задачи уборки.
+- [x] Только реальные выгрузки. Синтетические XML запрещены.
 
 ### T5. Документация и сдача
 
-- [ ] Обновить `docs/integrations/1c/import-process.md` — раскладка каталога обмена меняется структурно.
-- [ ] `_bmad-output/planning-artifacts/tech-debt.md` п. 26 — закрыть или переписать по факту.
-- [ ] `npx gitnexus detect-changes --scope all` перед коммитом: затронуты только ожидаемые символы и процессы.
-- [ ] Black + Flake8 (навык `backend-lint`).
-- [ ] Обновить статус в `sprint-status.yaml`.
+- [x] Обновить `docs/integrations/1c/import-process.md` — раскладка каталога обмена меняется структурно.
+- [x] `_bmad-output/planning-artifacts/tech-debt.md` п. 26 — закрыть или переписать по факту.
+- [x] `npx gitnexus detect-changes --scope all` перед коммитом: затронуты только ожидаемые символы и процессы.
+- [x] Black + Flake8 (навык `backend-lint`).
+- [x] Обновить статус в `sprint-status.yaml`.
 
 ---
 
@@ -357,10 +357,115 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, `/bmad-dev-story`), 28.08.2026.
+
 ### Debug Log References
 
-<!-- Обязательно: вывод RED-прогона теста AC1 на коде до правки. -->
+**GitNexus, индекс актуален (`d9f8c00`, `status: up-to-date`) — `analyze` не потребовался.**
+
+| Символ | impactedCount | direct | risk |
+|---|---|---|---|
+| `cleanup_import_dir` | 13 | 2 | **CRITICAL** — 7 процессов (`handle_init`, `post`, `handle_success`, `handle_import`, `handle_query`, `handle_file_upload`, …) |
+| `FileRoutingService` | 4 | 3 | LOW |
+| `route_file` | 4 | 1 | LOW |
+| `process_1c_import_task` | 0 | 0 | LOW |
+
+`detect-changes --scope all`: 15 файлов, 61 символ, 26 процессов, `risk: critical` — весь список внутри потока обмена 1С (`handle_init → route_file / _ensure_import_dir / _route_unpacked_files`, `process_variant_from_offer → _build_destination_path`). Постороннего не задето.
+
+**RED-прогон AC1 на коде до правки** (`pytest apps/products/tests/test_exchange_dir_isolation.py`, 15 failed / 5 passed):
+
+```
+E   AssertionError: Чужой сегмент прогон без обещания читать не вправе
+    assert False
+/app/apps/products/tests/test_exchange_dir_isolation.py:167: AssertionError
+```
+
+Файл сессии B (`rests_1_2_….xml`) на общем каталоге съеден прогоном сессии A (`mode=complete`) — ровно механика прода 66453/66454. Сопутствующие RED того же прогона:
+
+```
+:137  assert PosixPath('…/1c_import') == (PosixPath('…/1c_import') / 'sess-a')
+:144  assert PosixPath('…/1c_import/rests/rests_1_1_….xml') == (…/'sess-a'/'rests'/'rests_1_1_….xml')
+:183  Failed: DID NOT RAISE ValueError        # sessid не валидировался как сегмент пути
+:269  assert 'В каталоге обмена этой сессии нет своих XML-файлов' in '…Импорт завершен со статусом: Завершено…'
+```
+
+**GREEN после правки:** `test_exchange_dir_isolation.py` — 20 passed.
+
+**🔴 Dev Note стори про расписание beat оказалась ИНВЕРТИРОВАНА — исправлено по замеру.**
+Стори утверждала, что `app.conf.beat_schedule` в `celery.py` затирает `CELERY_BEAT_SCHEDULE` из настроек. Замер в контейнере 28.08.2026:
+
+```
+effective: {'monitor-pending-verification-queue': '28800', 'cleanup-stale-import-sessions': '3600'}
+settings : ['monitor-pending-verification-queue', 'cleanup-stale-import-sessions']
+```
+
+Эффективное расписание `cleanup-stale-import-sessions` — **3600 с из `settings/base.py`**, а не `crontab(minute="30")` из `celery.py`; ключа `cleanup-stale-import-sessions-every-hour` из `celery.py` в `app.conf.beat_schedule` нет вовсе. Причина: `app.conf` ленив, присваивание в `celery.py` выполняется до финализации конфига, и значения из `config_from_object` ложатся поверх. Вывод стори («регистрация только в настройках не запустится никогда») верен по форме, но указывает не на тот файл. Задача зарегистрирована в **обоих** местах, оба комментария переписаны по факту, тест AC5 проверяет `app.conf.beat_schedule` — то есть эффективное расписание, а не источник.
 
 ### Completion Notes List
 
+**Что сделано (AC1-AC7).**
+
+- **AC1.** `FileRoutingService.import_dir = import_base / session_id`; у `ImportOrchestratorService` собственная копия пути переведена туда же через `session_import_dir(sessid)`. Комментарий `FIXED: Import directory should be shared/root…` снят — он фиксировал ровно чинимое поведение.
+- **AC2.** Единое детерминированное правило вынесено в `routing_service` (`is_session_import_dir` / `images_dir_for` / `legacy_images_dir_for` / `dry_run_flag_for`) и применяется во всех четырёх местах: роутер, оркестратор, дубль маршрутизации в `tasks.py`, команда импорта. Картинки уходят в общий `IMPORT_DIR/import_files/`, подкаталог `<xx>` из имени внутри архива сохраняется (`image_relative_name`).
+- **AC3.** Прогон без обещанных имён при сессионной раскладке и пустом своём каталоге импорт не запускает и пишет в `session.report` стабильную пометку `SESSION_HAS_NO_OWN_FILES`. `defer_to_active_sessions` сохранён и проверяется раньше — он остаётся страховкой ручных прогонов.
+- **AC4.** `cleanup_import_dir` работает в границах своей папки; docstring переписан по-русски. Guard-ы вызывающих (`views.handle_init`, post-import) не тронуты. Общий `import_files` под уборку сессии не попадает — он в корне обмена.
+- **AC5.** `remove_session_dirs()` удаляет каталоги сессии в `1c_import` и `1c_temp` после обмена; временный сносится только если в нём не осталось полезных файлов (1С может дослать файл в ту же сессию). Осиротевшее подбирает `cleanup_stale_exchange_dirs` с порогом 24 ч.
+- **AC6.** `_import_lock_key` считает ключ от общего корня обмена при сессионной раскладке; ручной прогон и тесты с `tmp_path` ключуются по себе. Сериализация задач сохранена, тест проверяет и равенство ключей, и живой `Retry` с прежней формулировкой.
+- **AC7.** `apps/products` + `apps/integrations` + `tests/unit/test_file_routing.py` + `tests/integration/test_onec_import.py` — **692 passed, 1 skipped, 0 failed**. Полный backend-набор — см. Change Log. Black и Flake8 чисто. Mypy по изменённым файлам новых ошибок не даёт: все 9 сообщений вне изменённых диапазонов (`variant_import.py:2167-2168`, `import_products_from_1c.py:488`, `orders/*`, `settings/*`) — они были и до правки.
+
+**Решения по развилкам стори.**
+
+- **Развилка 1 (лок)** — реализована как предписано: ключ от `IMPORT_DIR`, а не от `data_dir`.
+- **Развилка 2 (картинки)** — правка команды в двух точках, как предписано. Отдельного CLI-аргумента не заведено.
+- **Развилка 3 (легаси-раскладка)** — реализована **пофайлово**, а не покаталожно. Стори допускала «несколько строк» на выбор каталога, но покаталожный выбор здесь неверен: `cleanup_import_dir` после изоляции легаси-папку больше не чистит, поэтому обе раскладки сосуществуют неопределённо долго, и одна картинка товара может лежать в новой, другая — в старой. `_import_base_images(mirror_composition=True)` при частичном разрешении обрезает состав фото — ровно тот сценарий порчи данных, ради которого фолбэк и вводился. Поэтому `VariantImportProcessor` получил атрибут `image_fallback_dirs` (по умолчанию пуст — прежнее поведение) и helper `_resolve_image_source`, а список каталогов задаёт команда: решение о раскладке остаётся у неё.
+
+**Что сделано сверх списка задач и почему.**
+
+- **Подрезка общего `import_files` в задаче уборки.** До изоляции общий каталог картинок вычищался `cleanup_import_dir` вместе со всем каталогом обмена. После изоляции его не чистит ни одна сессия — то есть изменение само по себе вводило неограниченный рост диска. Та же задача AC5 удаляет из него файлы старше 24 ч. Защищённые имена (`SHARED_ROOT_NAMES`) исключают снос самого `import_files`, легаси-раскладки и подпапок типов, накопленных до выката.
+- **Комментарии, описывавшие каталог как общий**, переписаны в `views.handle_init`, `import_orchestrator._dispatch_import` и `routing_service.should_route` — иначе следующий читатель получил бы неверную модель.
+
+**Правки чужих тестов (все — ожидания, прибитые к старой раскладке; логика тестов сохранена).**
+
+- `test_import_orchestration.py`, `test_import_orchestration_view.py`, `test_onec_import.py` — три ассерта на `data_dir` в `delay()`, ровно те, о которых предупреждала стори в «Уроках предыдущей стори».
+- `tests/unit/test_file_routing.py` — 12 ожиданий раскладки (XML и ZIP теперь под `<sessid>/`, картинки — в общем `import_files/`) плюс `test_orchestrator_uses_import_dir_from_settings`.
+- `test_handle_init_cleanup_race.py` (6 ассертов) — правок не потребовал, как и предполагала стори.
+
+**Область, оставленная нетронутой:** `_cleanup_files`, `defer_to_active_sessions`, guard-ы активных сессий, `file_service.py`, `_collect_xml_files`, `_restrict_to_expected`, разовая зачистка 32 276 каталогов.
+
+**⚠️ AC8 закрыт быть не может до выката** — это прод-замер (сутки без «не найден в каталоге обмена» + контрольная выгрузка номенклатуры), процедура в `post-deploy-verification.md`. Статус `done` ставится по нему, а не по мержу.
+
+**Порядок выката:** `celery` и `celery-beat` пересобираются **вместе** с `backend`, после пересборки backend обязателен `docker compose restart nginx` (иначе весь внешний API и обмен 1С падают в 502 на старом IP апстрима). Новая beat-задача требует перезапуска именно `celery-beat`.
+
 ### File List
+
+**Продакшен-код**
+
+- `backend/apps/integrations/onec_exchange/routing_service.py` — ядро изоляции: сессионный `import_dir`, валидация `sessid`, общий маршрут картинок, `remove_session_dirs`, модульные хелперы раскладки
+- `backend/apps/integrations/onec_exchange/import_orchestrator.py` — своя копия пути переведена на каталог сессии; маршрутизация распакованного и оба `.dry_run`
+- `backend/apps/integrations/onec_exchange/views.py` — комментарий `handle_init` про общий каталог
+- `backend/apps/products/tasks.py` — ключ лока от общего корня, дубль маршрутизации распакованного, пометка AC3, удаление каталогов сессии, задача `cleanup_stale_exchange_dirs`
+- `backend/apps/products/management/commands/import_products_from_1c.py` — `_images_base_dir` (Развилки 2 и 3), две точки вызова
+- `backend/apps/products/services/variant_import.py` — `image_fallback_dirs` + `_resolve_image_source`, три точки разрешения исходника картинки
+- `backend/freesport/settings/base.py` — регистрация `cleanup-stale-exchange-dirs` (эффективное расписание)
+- `backend/freesport/celery.py` — дубль регистрации + комментарий по факту замера
+
+**Тесты**
+
+- `backend/apps/products/tests/test_exchange_dir_isolation.py` — новый: AC1-AC6, 20 тестов
+- `backend/apps/products/tests/integration/test_import_orchestration.py` — ожидания `data_dir`
+- `backend/apps/integrations/tests/test_import_orchestration_view.py` — ожидание `data_dir`
+- `backend/tests/integration/test_onec_import.py` — ожидания `data_dir` и пути маршрутизации
+- `backend/tests/unit/test_file_routing.py` — ожидания раскладки
+
+**Документация**
+
+- `docs/integrations/1c/import-process.md` — раздел «Раскладка каталога обмена», правило ключа лока, п. 6 про прогон без обещания
+- `_bmad-output/planning-artifacts/tech-debt.md` — п. 26 закрыт
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус стори
+- `_bmad-output/implementation-artifacts/Story/onec-exchange-dir-isolation.md` — этот файл
+
+### Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-28 | Реализована изоляция каталога обмена 1С по сессии (AC1-AC6). Ключ лока переведён на общий корень, чтобы сериализация задач сохранилась. Картинки остались общими, добавлен пофайловый фолбэк на легаси-раскладку. Уборка сужена до своего каталога, добавлена периодическая `cleanup_stale_exchange_dirs` (порог 24 ч). Регресс зелёный, AC8 ждёт прод-замера. Статус → `review`. |

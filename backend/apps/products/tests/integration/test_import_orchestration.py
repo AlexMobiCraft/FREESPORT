@@ -91,9 +91,11 @@ class TestImportOrchestration:
             # Check task triggered
             # source_filename обязателен: без него задача теряет тип сегмента и
             # гоняет полный импорт каталога на каждом файле выгрузки.
+            # data_dir — каталог СВОЕЙ сессии: каталог обмена изолирован
+            # (стори onec-exchange-dir-isolation).
             mock_task.assert_called_once_with(
                 session.pk,
-                str(onec_private_dirs["import_dir"]),
+                str(onec_private_dirs["import_dir"] / session_key),
                 source_filename="test.xml",
             )
 
@@ -152,7 +154,8 @@ class TestImportOrchestration:
                 args = mock_task.call_args[0]
                 # args[0]: session_id, args[1]: data_dir
                 assert len(args) == 2
-                assert str(onec_private_dirs["import_dir"]) == args[1]
+                # Каталог обмена изолирован по сессии, а не общий на всех.
+                assert str(onec_private_dirs["import_dir"] / session_key) == args[1]
 
     @patch("apps.products.tasks.call_command")
     def test_process_1c_import_task_logic(self, mock_call_command, db, tmp_path):

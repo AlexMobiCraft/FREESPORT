@@ -446,7 +446,9 @@ class ICExchangeView(APIView):
                         logger.info(f"New exchange cycle detected for {sessid}. Performing full cleanup.")
                         file_service.cleanup_session(force=True)
 
-                        # Also clean up the shared import directory to prevent loops with old XML segments
+                        # Убрать и каталог обмена ЭТОЙ сессии, чтобы старые XML-сегменты
+                        # не зацикливали обмен. Соседние каталоги не затрагиваются —
+                        # их подберёт периодическая cleanup_stale_exchange_dirs.
                         from .routing_service import FileRoutingService
 
                         routing_service = FileRoutingService(sessid)

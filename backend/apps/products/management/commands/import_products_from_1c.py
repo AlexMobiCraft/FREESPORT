@@ -633,6 +633,46 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING("   ⚠️ Файлы priceLists*.xml не найдены"))
 
+    def _images_base_dir(self, data_dir: str, xml_subdir: str, processor: VariantImportProcessor) -> str:
+        """Каталог изображений для этого прогона.
+
+        Правило детерминированное, без эвристик: если `data_dir` — каталог
+        обмена конкретной сессии (`IMPORT_DIR/<sessid>`), картинки берутся из
+        ОБЩЕГО `IMPORT_DIR/import_files`. Их присылает отдельный обмен со своим
+        `sessid`, и связи «архив картинок ↔ XML-сессия» протокол 1С не даёт —
+        изолируй картинки, и goods.xml перестанет их находить.
+
+        Во всех прочих случаях (ручной прогон по `ONEC_DATA_DIR`, тесты)
+        поведение прежнее: `<data_dir>/<xml_subdir>/import_files` с фолбэком на
+        `goods/import_files`, куда роутер складывал картинки исторически.
+
+        Побочно ставит процессору фолбэк на легаси-раскладку: на время
+        переходного окна выката картинка может лежать ещё в старом месте, а
+        ЧАСТИЧНОЕ разрешение состава обрезает фото товара
+        (`_import_base_images(mirror_composition=True)`).
+        """
+        from apps.integrations.onec_exchange.routing_service import (
+            images_dir_for,
+            is_session_import_dir,
+            legacy_images_dir_for,
+        )
+
+        if is_session_import_dir(data_dir):
+            legacy = legacy_images_dir_for(data_dir)
+            processor.image_fallback_dirs = [str(legacy)] if legacy else []
+            return str(images_dir_for(data_dir))
+
+        processor.image_fallback_dirs = []
+        base_dir = os.path.join(data_dir, xml_subdir, "import_files")
+        # Fallback: если папка <xml_subdir>/import_files не существует, пробуем
+        # goods/import_files — историческое место всех картинок обмена.
+        if not os.path.exists(base_dir):
+            alt_dir = os.path.join(data_dir, "goods", "import_files")
+            if os.path.exists(alt_dir):
+                base_dir = alt_dir
+                self.stdout.write(f"   ℹ️ Изображения будут загружаться из: {Path(base_dir).relative_to(data_dir)}")
+        return base_dir
+
     def _import_products_from_goods(
         self,
         data_dir: str,
@@ -652,7 +692,7 @@ class Command(BaseCommand):
             goods_data = self._parse_or_skip(file_path, parser.parse_goods_xml)
             if goods_data is None:
                 continue
-            base_dir = os.path.join(data_dir, "goods", "import_files")
+            base_dir = self._images_base_dir(data_dir, "goods", processor)
 
             for i, goods_item in enumerate(tqdm(goods_data, desc=f"   Обработка {Path(file_path).name}")):
                 processor.process_product_from_goods(
@@ -691,14 +731,7 @@ class Command(BaseCommand):
             offers_data = self._parse_or_skip(file_path, parser.parse_offers_xml)
             if offers_data is None:
                 continue
-            base_dir = os.path.join(data_dir, "offers", "import_files")
-            # Fallback: Если папка offers/import_files не существует, пробуем goods/import_files
-            # (так как FileRoutingService по умолчанию кладет все картинки в goods/import_files)
-            if not os.path.exists(base_dir):
-                alt_dir = os.path.join(data_dir, "goods", "import_files")
-                if os.path.exists(alt_dir):
-                    base_dir = alt_dir
-                    self.stdout.write(f"   ℹ️ Изображения будут загружаться из: {Path(base_dir).relative_to(data_dir)}")
+            base_dir = self._images_base_dir(data_dir, "offers", processor)
 
             for i, offer_item in enumerate(tqdm(offers_data, desc=f"   Обработка {Path(file_path).name}")):
                 processor.process_variant_from_offer(

@@ -20,7 +20,14 @@ from django.utils import timezone
 
 from .file_service import FileStreamService
 from .file_type_detection import detect_file_type
-from .routing_service import XML_ROUTING_RULES, FileRoutingService
+from .routing_service import (
+    XML_ROUTING_RULES,
+    FileRoutingService,
+    dry_run_flag_for,
+    image_relative_name,
+    images_dir_for,
+    session_import_dir,
+)
 
 if TYPE_CHECKING:
     from apps.products.models import ImportSession
@@ -44,7 +51,15 @@ class ImportOrchestratorService:
     def __init__(self, sessid: str, filename: str = "unknown"):
         self.sessid = sessid
         self.filename = filename
-        self.import_dir = Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
+        # Каталог обмена СВОЕЙ сессии. У оркестратора собственная копия пути,
+        # мимо `FileRoutingService`: через неё идут распаковка архивов,
+        # маршрутизация распакованного и оба dispatch-а задачи. Оставь её общей —
+        # и изоляция окажется дырявой, хотя роутер уже развёл файлы по сессиям.
+        if sessid:
+            self.import_dir = session_import_dir(sessid)
+        else:
+            # Без sessid оркестратор всё равно отказывает в `_resolve_session`.
+            self.import_dir = Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
         # XML, распакованный из архивов этого прогона. Архив 1С распаковывается
         # здесь, в HTTP-обработчике `mode=import`, а не в задаче — значит и
         # связь «архив → его сегменты» устанавливается здесь. Без неё задача
@@ -263,7 +278,7 @@ class ImportOrchestratorService:
 
             name_lower = unpacked_name.lower()
             suffix = file_path.suffix.lower()
-            target_subdir = None
+            dest_path = None
 
             if suffix == ".xml":
                 sorted_rules = sorted(
@@ -275,17 +290,16 @@ class ImportOrchestratorService:
                     # Сравнение case-insensitive: 1С присылает 'priceLists_*.xml' (mixed case),
                     # а name_lower уже lowercased — без .lower() на префиксе матчинг проваливается
                     if name_lower.startswith(prefix.lower()):
-                        target_subdir = subdir.rstrip("/")
+                        dest_path = self.import_dir / subdir.rstrip("/") / unpacked_name
                         break
             elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
-                if name_lower.startswith("import_files/"):
-                    target_subdir = "goods"
-                else:
-                    target_subdir = "goods/import_files"
+                # Картинки уходят в ОБЩИЙ каталог мимо сессионного: связи
+                # «архив картинок ↔ XML-сессия» протокол 1С не даёт. Подкаталог
+                # `<xx>` из имени внутри архива сохраняется — ровно по нему
+                # goods.xml и адресует файл.
+                dest_path = images_dir_for(self.import_dir) / image_relative_name(unpacked_name)
 
-            if target_subdir:
-                dest_dir = self.import_dir / target_subdir
-                dest_path = dest_dir / unpacked_name
+            if dest_path is not None:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
                     shutil.move(str(file_path), str(dest_path))
@@ -307,7 +321,9 @@ class ImportOrchestratorService:
         """
         from apps.products.tasks import process_1c_import_task
 
-        dry_run = (self.import_dir / ".dry_run").exists()
+        # Флаг `.dry_run` — режим всего обмена, а не отдельной сессии: он
+        # лежит в общем корне каталога обмена, а не в сессионном подкаталоге.
+        dry_run = dry_run_flag_for(self.import_dir).exists()
 
         if dry_run:
             logger.info("[IMPORT] DRY RUN mode - skipping import")
@@ -325,8 +341,8 @@ class ImportOrchestratorService:
         # Race-fix (same as _dispatch_or_dryrun): перевести session в IN_PROGRESS ДО
         # dispatch. Иначе session остаётся PENDING в окне очереди Celery, и
         # handle_init guard на другом потоке обмена не видит её как активную —
-        # cleanup_import_dir(force=True) стирает shared import dir раньше, чем
-        # воркер успевает обработать файл. process_1c_import_task сам повторно
+        # cleanup_import_dir(force=True) стирает каталог обмена этой же сессии
+        # раньше, чем воркер успевает обработать файл. process_1c_import_task сам повторно
         # установит IN_PROGRESS на старте — операция идемпотентна.
         from apps.products.models import ImportSession
 
@@ -419,7 +435,7 @@ class ImportOrchestratorService:
             return False, f"File transfer failed: {msg}"
 
         # Check for file-flag .dry_run
-        if not dry_run and (self.import_dir / ".dry_run").exists():
+        if not dry_run and dry_run_flag_for(self.import_dir).exists():
             dry_run = True
             logger.info("[COMPLETE] Detected .dry_run flag file")
 

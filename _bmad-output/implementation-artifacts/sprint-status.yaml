@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-08-27
+last_updated: 2026-08-28
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -213,6 +213,20 @@ last_updated: 2026-08-27
 #             для развязки путей картинок (компаньон affected-code.md
 #             противоречит себе) и фолбэк на легаси-раскладку картинок на время
 #             переходного окна выката.
+# 2026-08-28: onec-exchange-dir-isolation реализована, статус review. AC1-AC7
+#             закрыты; AC8 — прод-замер, до выката закрыт быть не может, статус
+#             done ставится по нему. Полный регресс: 3207 passed, 75 skipped,
+#             0 failed (было 3187 + 20 новых тестов изоляции). Black/Flake8
+#             чисто, mypy новых ошибок не даёт.
+#             ⚠️ Dev Note стори про два расписания beat оказалась инвертирована:
+#             замер в контейнере показал, что побеждает CELERY_BEAT_SCHEDULE из
+#             settings/base.py, а НЕ app.conf.beat_schedule из celery.py
+#             (app.conf ленив, присваивание идёт до финализации конфига).
+#             Задача уборки зарегистрирована в обоих местах, комментарии в коде
+#             переписаны по факту, тест проверяет эффективное расписание.
+#             Развилка 3 реализована пофайлово, а не покаталожно: легаси-папку
+#             картинок после изоляции не чистит никто, раскладки сосуществуют
+#             долго, и покаталожный выбор обрезал бы состав фото товара.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -333,7 +347,7 @@ development_status:
   # ⚠️ done — только после прод-замера по AC8 (ноль «не найден» за сутки +
   # контрольная выгрузка номенклатуры), а не по мержу.
   # Источник: specs/spec-onec-exchange-dir-isolation/SPEC.md.
-  onec-exchange-dir-isolation: ready-for-dev
+  onec-exchange-dir-isolation: review
 
   # ========================================
   # Epic 40: Уровень цен клиента приходит из 1С

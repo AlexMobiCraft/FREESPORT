@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -169,8 +170,9 @@ class TestICExchangeViewImport:
         assert mock_task_delay.called
         args = mock_task_delay.call_args[0]
         assert len(args) == 2
-        # args[0] is session_id, args[1] is import_path
-        assert args[1] == str(settings.ONEC_EXCHANGE["IMPORT_DIR"])
+        # args[0] is session_id, args[1] is import_path — каталог СВОЕЙ сессии:
+        # каталог обмена изолирован (стори onec-exchange-dir-isolation).
+        assert args[1] == str(Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"])) / self.session_key)
 
     @patch("apps.integrations.onec_exchange.import_orchestrator.FileStreamService")
     def test_complete_after_import_idempotency(self, mock_file_service_cls):

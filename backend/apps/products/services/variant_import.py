@@ -283,6 +283,11 @@ class VariantImportProcessor:
         self.batch_size = batch_size
         self.skip_validation = skip_validation
 
+        # Запасные каталоги изображений, проверяемые ПОФАЙЛОВО, когда файла нет
+        # в основном `base_dir`. Список задаёт вызывающая команда — она одна
+        # знает раскладку каталога обмена. Пустой список = прежнее поведение.
+        self.image_fallback_dirs: list[str] = []
+
         self.stats: dict[str, Any] = {
             "products_created": 0,
             "products_updated": 0,
@@ -359,6 +364,28 @@ class VariantImportProcessor:
     # Резервный минимум — используется когда нет изображений >= 100KB
     FALLBACK_MIN_IMAGE_SIZE_BYTES = 8 * 1024
 
+    def _resolve_image_source(self, base_dir: str, normalized_path: str) -> Path:
+        """Исходник картинки: основной каталог, иначе первый подходящий запасной.
+
+        Проверка пофайловая, а не покаталожная. Переходное окно выката оставляет
+        картинки одного товара в двух раскладках сразу, а ЧАСТИЧНОЕ разрешение
+        состава обрезает фото товара (`_import_base_images(mirror_composition=True)`):
+        выбор одного каталога на весь прогон терял бы половину картинок молча.
+
+        Возврат по умолчанию — путь в основном каталоге: так сообщения об
+        отсутствующем файле и опрос хранилища остаются прежними.
+        """
+        primary = Path(base_dir) / normalized_path
+        if primary.exists() or not self.image_fallback_dirs:
+            return primary
+
+        for fallback_dir in self.image_fallback_dirs:
+            candidate = Path(fallback_dir) / normalized_path
+            if candidate.exists():
+                return candidate
+
+        return primary
+
     def _build_destination_path(self, image_path: str, destination_prefix: str) -> str:
         """
         Собирает путь копии изображения в хранилище.
@@ -417,7 +444,7 @@ class VariantImportProcessor:
         """
         for image_path in image_paths:
             normalized_path = normalize_image_path(image_path)
-            source_path = Path(base_dir) / normalized_path
+            source_path = self._resolve_image_source(base_dir, normalized_path)
             try:
                 if source_path.exists():
                     if source_path.stat().st_size >= self.MIN_IMAGE_SIZE_BYTES:
@@ -751,7 +778,7 @@ class VariantImportProcessor:
             try:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
-                source_path = Path(base_dir) / normalized_path
+                source_path = self._resolve_image_source(base_dir, normalized_path)
                 saved_path = self._save_image_if_not_exists(
                     source_path, normalized_path, "base", min_size_bytes=effective_min
                 )
@@ -1071,7 +1098,7 @@ class VariantImportProcessor:
             try:
                 # Нормализация пути (убираем import_files/ если есть)
                 normalized_path = normalize_image_path(image_path)
-                source_path = Path(base_dir) / normalized_path
+                source_path = self._resolve_image_source(base_dir, normalized_path)
                 saved_path = self._save_image_if_not_exists(
                     source_path, normalized_path, "variants", min_size_bytes=effective_min
                 )

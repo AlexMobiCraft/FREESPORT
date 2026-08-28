@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from apps.integrations.onec_exchange.file_service import FileStreamService
 from apps.integrations.onec_exchange.file_type_detection import detect_file_type
+from apps.integrations.onec_exchange.routing_service import get_import_base, is_session_import_dir
 from apps.products.models import ImportSession
 
 logger = logging.getLogger("import_tasks")
@@ -25,10 +26,27 @@ IMPORT_LOCK_KEY_PREFIX = "onec:import:lock:"
 # говорит»; ни то, ни другое обещанием конкретного файла быть не может.
 _CATALOG_TYPES = frozenset({"goods", "offers", "prices", "rests"})
 
+# Пометка прогона, которому 1С не обещала имён и в чьём каталоге обмена нет
+# своих XML. Текст стабилен: на подстроку вешается приёмочный тест, и менять
+# его нельзя без правки теста.
+SESSION_HAS_NO_OWN_FILES = "В каталоге обмена этой сессии нет своих XML-файлов"
+
+# Порог автоматической уборки осиротевших каталогов обмена. Зафиксирован
+# контрактом стори `onec-exchange-dir-isolation` (AC5), а не «на усмотрение».
+STALE_EXCHANGE_DIR_HOURS = 24
+
 
 def _import_lock_key(data_dir: str) -> str:
-    """Ключ лока каталога обмена. Лок именно на каталог, а не на сессию."""
-    return f"{IMPORT_LOCK_KEY_PREFIX}{data_dir}"
+    """Ключ лока каталога обмена. Лок именно на каталог, а не на сессию.
+
+    После изоляции `data_dir` у каждой сессии свой, и ключ от него дал бы
+    каждой задаче собственный лок: сериализация задач исчезла бы целиком и
+    молча, вопреки Non-goal спеки «не устранять само ожидание лока». Поэтому
+    для сессионной раскладки ключ считается от ОБЩЕГО корня обмена. Ручной
+    прогон (`ONEC_DATA_DIR`) и тесты с `tmp_path` ключуются по себе, как раньше.
+    """
+    key_source = str(get_import_base()) if is_session_import_dir(data_dir) else data_dir
+    return f"{IMPORT_LOCK_KEY_PREFIX}{key_source}"
 
 
 def _release_import_lock(lock_key: str, lock_token: str) -> None:
@@ -214,7 +232,11 @@ def process_1c_import_task(
                 logger.info(f"Found {len(zip_files)} ZIP files in import dir. Unpacking...")
                 import zipfile
 
-                from apps.integrations.onec_exchange.routing_service import XML_ROUTING_RULES
+                from apps.integrations.onec_exchange.routing_service import (
+                    XML_ROUTING_RULES,
+                    image_relative_name,
+                    images_dir_for,
+                )
 
                 for zf in zip_files:
                     try:
@@ -235,7 +257,7 @@ def process_1c_import_task(
                             # Logic similar to FileRoutingService.route_file
                             name_lower = filename.lower()
                             suffix = file_path.suffix.lower()
-                            target_subdir = None
+                            dest_path = None
 
                             if suffix == ".xml":
                                 # Sort rules by length of prefix descending to match most specific first
@@ -247,28 +269,25 @@ def process_1c_import_task(
                                 )
                                 for prefix, subdir in sorted_rules:
                                     if name_lower.startswith(prefix):
-                                        target_subdir = subdir.rstrip("/")
+                                        dest_path = target_import_dir / subdir.rstrip("/") / filename
                                         break
                             elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
-                                # Story 13.2: Handle images inside import_files folder or at root
-                                if name_lower.startswith("import_files/"):
-                                    # If file is already in import_files/ folder in ZIP,
-                                    # target should be just 'goods' so it lands in goods/import_files/file.jpg
-                                    target_subdir = "goods"
-                                else:
-                                    # If file is at root, put it into import_files
-                                    target_subdir = "goods/import_files"
+                                # Картинки — в ОБЩИЙ каталог мимо сессионного.
+                                # Это вторая, дублирующая копия маршрутизации
+                                # распакованного (первая — в
+                                # `ImportOrchestratorService._route_unpacked_files`):
+                                # архивы, накопившиеся в каталоге, распаковывает
+                                # сама задача при `mode=complete`. Правится
+                                # только вместе с первой, иначе картинки
+                                # разъедутся мимо общего каталога.
+                                dest_path = images_dir_for(target_import_dir) / image_relative_name(filename)
 
-                            if target_subdir:
-                                dest_dir = target_import_dir / target_subdir
-                                dest_dir.mkdir(parents=True, exist_ok=True)
-                                dest_path = dest_dir / filename
+                            if dest_path is not None:
                                 # Имя внутри архива может нести свой каталог
                                 # (`import_files/photo.jpg`) — без создания
                                 # родителя move падал, и картинка оставалась
                                 # в корне каталога обмена, где её не ищет
-                                # ни один шаг импорта. В копии этой логики в
-                                # `routing_service._unpack_and_route` строка есть.
+                                # ни один шаг импорта.
                                 dest_path.parent.mkdir(parents=True, exist_ok=True)
 
                                 try:
@@ -422,6 +441,20 @@ def process_1c_import_task(
                 .exists()
             )
 
+        # Прогон без обещанных имён при сессионной раскладке видит только свой
+        # каталог. Если своих XML в нём нет — импортировать нечего, и молчать об
+        # этом нельзя: тихий COMPLETED неотличим от «данные доехали».
+        # `defer_to_active_sessions` остаётся страховкой для ручных прогонов по
+        # общему каталогу и потому проверяется первым.
+        session_dir_has_no_own_files = (
+            not promised_filenames
+            and not import_customers
+            and not skip_catalog_import
+            and not defer_to_active_sessions
+            and is_session_import_dir(effective_data_dir)
+            and not any(target_import_dir.rglob("*.xml"))
+        )
+
         if import_customers:
             logger.info(
                 f"Starting 1C customers import for session {session_id} "
@@ -433,6 +466,15 @@ def process_1c_import_task(
                 "Импорт каталога пропущен: в работе другие сессии обмена, и файлы "
                 "в каталоге обещаны их задачам. Несужаемый сбор забрал бы чужие "
                 "сегменты и утопил их сессии в FAILED."
+            )
+            logger.info(f"Session {session_id}: {message}")
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+            session.report += f"[{timestamp}] {message}\n"
+            session.save(update_fields=["report", "updated_at"])
+        elif session_dir_has_no_own_files:
+            message = (
+                f"{SESSION_HAS_NO_OWN_FILES}: импорт каталога пропущен. "
+                f"Файлы соседних сессий этому прогону не принадлежат и не читаются."
             )
             logger.info(f"Session {session_id}: {message}")
             timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -481,9 +523,11 @@ def process_1c_import_task(
             session.report += f"[{timestamp}] Импорт успешно завершен.\n"
             session.save(update_fields=["status", "finished_at", "report", "updated_at"])
 
-        # Clean up shared import directory only if no other sessions are active.
-        # Multiple sessions share the same import_dir; cleaning up while another
-        # session's Celery task is still running would delete its files mid-import.
+        # Уборка каталога обмена СВОЕЙ сессии. Guard `other_active` сохранён
+        # (Non-goal спеки): он всё ещё нужен ручным прогонам по общему каталогу,
+        # где `data_dir` у всех один. После изоляции область уборки сузилась до
+        # собственной папки, а сама папка следом удаляется — иначе каталоги
+        # копятся навсегда (на проде накопилось 32 276 штук).
         try:
             other_active = (
                 ImportSession.objects.filter(
@@ -501,6 +545,9 @@ def process_1c_import_task(
                 routing_service = FileRoutingService(str(session.session_key))
                 cleaned = routing_service.cleanup_import_dir()
                 logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")
+                if is_session_import_dir(routing_service.import_dir):
+                    removed_dirs = routing_service.remove_session_dirs()
+                    logger.info(f"Post-import cleanup removed {removed_dirs} session directories.")
             else:
                 logger.warning("Session key is missing, skipping cleanup.")
         except Exception as cleanup_err:
@@ -569,3 +616,69 @@ def cleanup_stale_import_sessions() -> int:
             session.save(update_fields=["status", "error_message", "report", "updated_at"])
 
     return count
+
+
+@shared_task(name="apps.products.tasks.cleanup_stale_exchange_dirs")
+def cleanup_stale_exchange_dirs(max_age_hours: int = STALE_EXCHANGE_DIR_HOURS) -> int:
+    """Убрать осиротевшие каталоги обмена 1С старше порога.
+
+    После изоляции каждая сессия получает собственный каталог в `1c_temp` и
+    `1c_import`. Штатно он удаляется по завершении обмена, но воркер может
+    упасть до уборки — тогда каталог остаётся навсегда (на проде так накопилось
+    32 276 папок). Порог — `STALE_EXCHANGE_DIR_HOURS`, зафиксирован контрактом.
+
+    Заодно подрезаются старые файлы общего каталога картинок: он единственный,
+    что остаётся общим, и после изоляции его не чистит ни одна сессия.
+
+    Возраст считается по самому каталогу сессии, а не по файлам внутри: задача
+    на каждом прогоне создаёт в нём подпапки `goods`/`offers`/…, поэтому пустым
+    он не бывает и `rmdir` тут не годится — только `shutil.rmtree`.
+    """
+    import shutil
+    import time
+
+    from apps.integrations.onec_exchange.routing_service import (
+        IMAGES_SUBDIR,
+        SHARED_ROOT_NAMES,
+        get_import_base,
+        get_temp_base,
+    )
+
+    threshold = time.time() - max_age_hours * 3600
+    removed = 0
+
+    for root in (get_import_base(), get_temp_base()):
+        if not root.exists():
+            continue
+        for item in root.iterdir():
+            # Общий каталог картинок, легаси-раскладка типов и флаг `.dry_run`
+            # каталогами сессий не являются: снести их — потерять картинки,
+            # которые ещё нужны XML других сессий.
+            if item.name in SHARED_ROOT_NAMES or not item.is_dir():
+                continue
+            try:
+                if item.stat().st_mtime >= threshold:
+                    continue
+                shutil.rmtree(item)
+                removed += 1
+                logger.info(f"Removed stale exchange dir: {item}")
+            except OSError as exc:
+                logger.warning(f"Failed to remove stale exchange dir {item}: {exc}")
+
+    shared_images = get_import_base() / IMAGES_SUBDIR
+    if shared_images.exists():
+        for image in shared_images.rglob("*"):
+            if not image.is_file():
+                continue
+            try:
+                if image.stat().st_mtime >= threshold:
+                    continue
+                image.unlink()
+                removed += 1
+            except OSError as exc:
+                logger.warning(f"Failed to remove stale exchange image {image}: {exc}")
+
+    if removed:
+        logger.info(f"Stale exchange cleanup removed {removed} items (threshold {max_age_hours}h)")
+
+    return removed

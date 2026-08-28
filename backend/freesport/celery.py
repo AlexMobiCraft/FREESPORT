@@ -41,6 +41,21 @@ app.conf.beat_schedule = {
             "expires": 3500,
         },
     },
+    # Уборка осиротевших каталогов обмена 1С (стори onec-exchange-dir-isolation, AC5).
+    #
+    # Дубль записи из `CELERY_BEAT_SCHEDULE` в settings/base.py. Замер в
+    # контейнере 28.08.2026: при чтении `app.conf.beat_schedule` побеждает
+    # словарь ИЗ НАСТРОЕК — `app.conf` ленив, это присваивание выполняется до
+    # финализации конфига, и значения из `config_from_object` ложатся поверх.
+    # Запись здесь работает только как страховка на случай, если настройки
+    # перестанут объявлять расписание.
+    "cleanup-stale-exchange-dirs": {
+        "task": "apps.products.tasks.cleanup_stale_exchange_dirs",
+        "schedule": crontab(minute="15", hour="*/6"),  # Каждые 6 часов, порог уборки — 24 ч
+        "options": {
+            "expires": 3600,
+        },
+    },
 }
 
 
