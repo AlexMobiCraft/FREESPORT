@@ -32,9 +32,12 @@ from django.core.cache import cache
 from django.core.management import call_command
 
 from apps.integrations.onec_exchange.file_service import FileStreamService
-from apps.integrations.onec_exchange.routing_service import FileRoutingService
+from apps.integrations.onec_exchange.routing_service import SHARED_ROOT_NAMES, FileRoutingService
+from apps.products.factories import ProductFactory
 from apps.products.management.commands.import_products_from_1c import Command
-from apps.products.models import ImportSession, Product
+from apps.products.models import ImportSession, Product, ProductVariant
+from apps.products.services.parser import XMLDataParser
+from apps.products.services.variant_import import VariantImportProcessor
 from apps.products.tasks import (
     SESSION_HAS_NO_OWN_FILES,
     _import_lock_key,
@@ -57,6 +60,14 @@ GOODS_SOURCE_DIR = ONEC_FIXTURES / "goods" / "import_files"
 GOODS_XML = GOODS_SOURCE_DIR / "goods.xml"
 # Товар из этой выгрузки, у которого есть <Картинка> в каталоге `01/`.
 GOODS_PRODUCT_WITH_IMAGES = "018d777d-9094-11ec-a2ff-04421a23d8e8"
+
+# Реальная выгрузка торговых предложений. Изображений она не несёт: во всём
+# корпусе `data/import_1c/offers/` (31 файл) ноль тегов <Картинка> — 1С отдаёт
+# состав фото только в goods.xml. Поэтому тест AC2 для варианта берёт из XML
+# настоящее предложение, а ссылку на картинку подставляет ровно в той форме
+# `import_files/<xx>/<file>.jpg`, в какой её пишет 1С: выдумывать XML проект
+# запрещает, а разрешение исходника проверить надо.
+OFFERS_XML = ONEC_FIXTURES / "offers" / "offers.xml"
 
 
 def _segment_path(index: int) -> Path:
@@ -177,11 +188,81 @@ class TestSessionDirIsolation:
         assert session_b.status == ImportSession.ImportStatus.COMPLETED
         assert not neighbour.exists(), "Свой сегмент сессия B обязана прочитать сама"
 
+    def test_locked_dir_defers_neighbour_and_both_sessions_complete(self, exchange, clean_cache):
+        """AC1 целиком: занятый общий лок → Retry соседа → обе сессии COMPLETED.
+
+        Приёмка стори требует одного прогона от начала до конца, а не двух
+        разрозненных проверок: изоляция считается работающей только если очередь
+        за локом сохранилась (AC6), а обе задачи, отстояв её, прочитали ровно
+        свой сегмент. На проде рвалась именно эта связка (сессии 66453/66454).
+
+        Держателем лока выступает сессия A: её задача берёт лок первой, а B в
+        этот момент уже стоит в очереди. Лок ставится тестом напрямую, потому
+        что задача A снимает его в `finally` — иначе окно «B пришла, пока A
+        работает» одним потоком не воспроизвести.
+        """
+        session_a = _session("sess-a", ImportSession.ImportStatus.PENDING)
+        session_b = _session("sess-b", ImportSession.ImportStatus.PENDING)
+
+        own_a = _upload("sess-a", _segment_path(1))
+        own_b = _upload("sess-b", _segment_path(2))
+
+        lock_key = _import_lock_key(str(_import_dir("sess-a")))
+        assert lock_key == _import_lock_key(str(_import_dir("sess-b"))), "Лок обязан остаться общим"
+
+        cache.add(lock_key, "task-ac1-a", 60)
+
+        with patch.object(process_1c_import_task, "retry", side_effect=Retry()) as mock_retry:
+            process_1c_import_task.apply(
+                args=(session_b.pk,),
+                kwargs={"data_dir": str(_import_dir("sess-b")), "source_filename": _segment_name(2)},
+                task_id="task-ac1-b-deferred",
+            )
+
+        mock_retry.assert_called_once()
+        session_b.refresh_from_db()
+        assert "Каталог обмена занят другим импортом, задача отложена" in session_b.report
+        assert own_b.exists(), "Отложенный сегмент обязан дождаться своей задачи"
+
+        # Держатель лока отработал и освободил каталог обмена.
+        cache.delete(lock_key)
+        with patch.object(Command, "_backup_before_import"):
+            assert _run_task(session_a, "sess-a", "complete", "task-ac1-a") == "success"
+
+        assert not own_a.exists(), "Свой сегмент прогон A обязан прочитать"
+        assert own_b.exists(), "Прогон без обещания не вправе трогать сегмент соседа"
+
+        session_b.status = ImportSession.ImportStatus.IN_PROGRESS
+        session_b.save(update_fields=["status"])
+        assert _run_task(session_b, "sess-b", _segment_name(2), "task-ac1-b") == "success"
+
+        assert not own_b.exists(), "Свой сегмент сессия B обязана прочитать сама"
+        session_a.refresh_from_db()
+        session_b.refresh_from_db()
+        assert session_a.status == ImportSession.ImportStatus.COMPLETED
+        assert session_b.status == ImportSession.ImportStatus.COMPLETED
+
     def test_session_id_must_be_single_path_segment(self, exchange):
         """`sessid` приходит из query-параметра и становится сегментом пути под rmtree."""
         for evil in ("../escape", "a/b", "a\\b", "..", ""):
             with pytest.raises(ValueError):
                 FileRoutingService(evil)
+
+    def test_session_id_must_not_collide_with_shared_dirs(self, exchange):
+        """`sessid`, совпавший с общим каталогом, отдал бы его под уборку сессии.
+
+        `sessid=import_files` даёт каталог сессии `IMPORT_DIR/import_files` —
+        то есть общий каталог картинок целиком, вместе с `cleanup_import_dir` и
+        `remove_session_dirs` этой сессии. `sessid=goods` уносит легаси-раскладку,
+        на которую опирается фолбэк переходного окна.
+        """
+        for shared in sorted(SHARED_ROOT_NAMES):
+            with pytest.raises(ValueError):
+                FileRoutingService(shared)
+
+        # Регистр файловая система не различает — проверка тоже не должна.
+        with pytest.raises(ValueError):
+            FileRoutingService("Import_Files")
 
 
 @pytest.mark.django_db
@@ -220,6 +301,53 @@ class TestSharedImages:
         product = Product.objects.get(onec_id=GOODS_PRODUCT_WITH_IMAGES)
         assert product.base_images, "Картинки из общего каталога обязаны разрешиться"
         assert shared_images.exists(), "Общий каталог картинок чистит не сессия"
+
+    def test_offers_variant_binds_image_from_shared_dir(self, exchange, tmp_path, settings):
+        """AC2 для ProductVariant: шаг offers тоже смотрит в общий `import_files`.
+
+        `_images_base_dir` вызывается ДВАЖДЫ — с `xml_subdir="goods"` и с
+        `xml_subdir="offers"`, — и проверки `Product.base_images` мало: ветка
+        вариантов могла бы остаться на сессионном каталоге и молча потерять фото.
+
+        XML здесь настоящий. Изображений реальный offers.xml не несёт (их состав
+        1С отдаёт только в goods.xml), поэтому ссылка на картинку добавляется к
+        уже распарсенному предложению — в той же форме `import_files/<xx>/<file>`,
+        какую пишет 1С. Родительский товар создан фабрикой: в фикстурном
+        goods.xml родителей этих предложений нет, а выдумывать XML нельзя.
+        """
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+
+        data_dir = _import_dir("sess-offers")
+        (data_dir / "offers").mkdir(parents=True)
+        shutil.copyfile(OFFERS_XML, data_dir / "offers" / "offers.xml")
+
+        # Картинки приехали отдельным обменом со своим sessid — общий каталог.
+        shared_images = exchange.imports / "import_files"
+        shutil.copytree(GOODS_SOURCE_DIR / "01", shared_images / "01")
+
+        session = _session("sess-offers", ImportSession.ImportStatus.IN_PROGRESS)
+        processor = VariantImportProcessor(session_id=session.pk)
+        base_dir = Command()._images_base_dir(str(data_dir), "offers", processor)
+
+        assert Path(base_dir) == shared_images, "Шаг offers обязан брать картинки из общего каталога"
+
+        offer = XMLDataParser().parse_offers_xml(str(data_dir / "offers" / "offers.xml"))[0]
+        parent_onec_id = str(offer["id"]).split("#")[0]
+        parent = ProductFactory(create_variant=False)
+        Product.objects.filter(pk=parent.pk).update(onec_id=parent_onec_id)
+
+        # Самый крупный файл каталога: порог `MIN_IMAGE_SIZE_BYTES` — 100 КБ,
+        # и на превью тест проверял бы резервную ветку, а не разрешение пути.
+        image = max((shared_images / "01").glob("*.jpg"), key=lambda f: f.stat().st_size)
+        offer["images"] = [f"import_files/01/{image.name}"]
+
+        variant = processor.process_variant_from_offer(dict(offer), base_dir=base_dir, skip_images=False)
+
+        assert variant is not None, "Вариант реального предложения обязан создаться"
+        assert variant.main_image, "Картинка общего каталога обязана привязаться к варианту"
+        assert ProductVariant.objects.get(pk=variant.pk).main_image
+        assert (Path(settings.MEDIA_ROOT) / str(variant.main_image)).exists()
+        assert image.exists(), "Общий каталог картинок остаётся нетронутым"
 
     def test_legacy_image_layout_still_resolves(self, exchange, tmp_path, settings):
         """Переходное окно выката: картинки лежат в старой раскладке `goods/import_files`.
@@ -282,6 +410,28 @@ class TestPromiselessRunKeepsHandsOff:
         assert SESSION_HAS_NO_OWN_FILES not in session.report
         assert not own.exists(), "Свой сегмент прогон обязан прочитать"
 
+    def test_own_files_are_imported_despite_active_neighbour(self, exchange, clean_cache):
+        """Чужая активная сессия изолированный `mode=complete` больше не тормозит.
+
+        Guard `defer_to_active_sessions` писался под ОБЩИЙ каталог, где сбор без
+        обещания забирал чужие сегменты. В сессионной раскладке чужого в папке
+        нет по построению, а активная соседка есть практически всегда: 1С шлёт
+        `mode=import` на каждый файл и `mode=complete` следом каждые пару секунд.
+        Оставить guard включённым — значит не импортировать собственный XML почти
+        никогда.
+        """
+        session = _session("sess-own-busy", ImportSession.ImportStatus.PENDING)
+        _session("sess-neighbour", ImportSession.ImportStatus.IN_PROGRESS)
+        own = _upload("sess-own-busy", _segment_path(6))
+
+        with patch.object(Command, "_backup_before_import"):
+            assert _run_task(session, "sess-own-busy", "complete", "task-own-busy") == "success"
+
+        session.refresh_from_db()
+        assert session.status == ImportSession.ImportStatus.COMPLETED
+        assert "Импорт каталога пропущен" not in session.report
+        assert not own.exists(), "Свой сегмент прогон обязан прочитать"
+
 
 @pytest.mark.django_db
 class TestCleanupStaysInOwnDir:
@@ -316,6 +466,24 @@ class TestCleanupStaysInOwnDir:
         assert not (exchange.imports / "sess-a").exists()
         assert not (exchange.temp / "sess-a").exists()
 
+    def test_session_dir_removed_even_with_active_neighbour(self, exchange, clean_cache):
+        """Свой каталог удаляется независимо от чужих `IN_PROGRESS`-сессий.
+
+        Историческому guard-у здесь держать нечего: каталог принадлежит завершённой
+        сессии целиком. Пока guard действовал и на изолированную раскладку, папки
+        не удалялись почти никогда — на проде их накопилось 32 276.
+        """
+        session = _session("sess-done", ImportSession.ImportStatus.PENDING)
+        _session("sess-neighbour", ImportSession.ImportStatus.IN_PROGRESS)
+        _upload("sess-done", _segment_path(7))
+        neighbour = _upload("sess-neighbour", _segment_path(8))
+
+        assert _run_task(session, "sess-done", _segment_name(7), "task-done") == "success"
+
+        assert not (exchange.imports / "sess-done").exists(), "Каталог завершённой сессии обязан уйти"
+        assert not (exchange.temp / "sess-done").exists()
+        assert neighbour.exists(), "Каталог активной соседки уборке не подлежит"
+
 
 @pytest.mark.django_db
 class TestStaleExchangeDirCleanup:
@@ -323,8 +491,16 @@ class TestStaleExchangeDirCleanup:
 
     @staticmethod
     def _age(path: Path, hours: float) -> None:
+        """Состарить каталог ЦЕЛИКОМ, вместе с содержимым.
+
+        Возраст одного корня ничего не значит: уборка смотрит на самую свежую
+        метку в дереве, потому что свежий XML внутри — признак живой сессии,
+        стоящей в очереди за локом.
+        """
         old = time.time() - hours * 3600
-        os.utime(path, (old, old))
+        targets = [path, *path.rglob("*")] if path.is_dir() else [path]
+        for target in sorted(targets, reverse=True):
+            os.utime(target, (old, old))
 
     def test_stale_dirs_removed_fresh_kept(self, exchange):
         _upload("sess-old", _segment_path(1))
@@ -348,6 +524,36 @@ class TestStaleExchangeDirCleanup:
         assert cleanup_stale_exchange_dirs() == 0
         assert (exchange.imports / "sess-young").exists()
 
+    def test_fresh_file_inside_old_dir_keeps_it(self, exchange):
+        """Свежий файл внутри старого каталога — это сессия, ждущая лока.
+
+        `shutil.move` кладёт XML внутрь, не обязательно трогая mtime родителя.
+        Удаление по возрасту одного корня унесло бы уже принятый файл, и сессия
+        упала бы «не найден в каталоге обмена» — тем самым дефектом, ради
+        которого делалась изоляция.
+        """
+        segment = _upload("sess-waiting", _segment_path(1))
+        self._age(exchange.imports / "sess-waiting", 48)
+        os.utime(segment, None)
+
+        assert cleanup_stale_exchange_dirs() == 0
+        assert segment.exists(), "Файл ждущей сессии уборке не подлежит"
+
+    def test_active_session_dir_is_kept(self, exchange):
+        """Каталог живой сессии не удаляется, каким бы старым ни был его mtime.
+
+        Задача может стоять в очереди за локом сколько угодно долго: соседние
+        сегменты идут каждые ~6,5 с, а лимит ожидания задан ретраями, а не
+        порогом уборки.
+        """
+        _session("sess-waiting", ImportSession.ImportStatus.PENDING)
+        _upload("sess-waiting", _segment_path(1))
+        self._age(exchange.imports / "sess-waiting", 48)
+        self._age(exchange.temp / "sess-waiting", 48)
+
+        assert cleanup_stale_exchange_dirs() == 0
+        assert (exchange.imports / "sess-waiting").exists()
+
     def test_shared_dirs_are_protected(self, exchange):
         """Общий каталог картинок и легаси-раскладка каталогами сессий не являются."""
         image = next((GOODS_SOURCE_DIR / "01").glob("*.jpg"))
@@ -363,23 +569,28 @@ class TestStaleExchangeDirCleanup:
         assert shared.exists(), "Каталог общих картинок сносить нельзя"
         assert (legacy / "keep.jpg").exists(), "Легаси-раскладка нужна фолбэку картинок"
 
-    def test_stale_shared_images_are_pruned(self, exchange):
-        """Общий каталог картинок больше никто не чистит — он не вправе расти вечно."""
-        image = next((GOODS_SOURCE_DIR / "01").glob("*.jpg"))
-        old_image = _upload("sess-a", image)
-        fresh_image = _upload("sess-b", next((GOODS_SOURCE_DIR / "03").glob("*.jpg")))
-        self._age(old_image, 25)
+    def test_old_shared_images_are_never_pruned(self, exchange):
+        """Картинка старше суток — законный источник для XML, который приедет завтра.
 
-        cleanup_stale_exchange_dirs()
+        Контракт связи «обмен изображениями ↔ будущий XML» не задаёт, и 1С её не
+        передаёт. Подрезка общего каталога по возрасту прямо ломала бы AC2: у
+        товара, чей goods.xml приехал позже, состав фото обрезался бы
+        `mirror_composition=True` по частично разрешённому набору.
+        """
+        old_image = _upload("sess-a", next((GOODS_SOURCE_DIR / "01").glob("*.jpg")))
+        self._age(old_image, 240)
 
-        assert not old_image.exists()
-        assert fresh_image.exists()
+        assert cleanup_stale_exchange_dirs() == 0
+        assert old_image.exists(), "Общие картинки по возрасту не удаляются"
 
     def test_task_is_registered_in_beat_schedule(self):
-        """Расписание из `celery.py` затирает `CELERY_BEAT_SCHEDULE` настроек целиком.
+        """Проверяется ЭФФЕКТИВНОЕ расписание, а не источник объявления.
 
-        Регистрация только в `settings/base.py` означает, что задача не
-        запустится никогда, и тест на саму функцию этого не покажет.
+        Расписание объявлено дважды — в `settings/base.py` и в `celery.py`, — и
+        замер в контейнере 28.08.2026 показал, что побеждает `CELERY_BEAT_SCHEDULE`
+        из настроек: `app.conf` ленив, присваивание в `celery.py` выполняется до
+        финализации конфига. Отсюда и форма теста: он смотрит в `app.conf`, а
+        значит останется верным при любой перестановке этих двух мест.
         """
         from freesport.celery import app
 

@@ -1,4 +1,6 @@
 import logging
+import time
+import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -34,6 +36,22 @@ SESSION_HAS_NO_OWN_FILES = "В каталоге обмена этой сесси
 # Порог автоматической уборки осиротевших каталогов обмена. Зафиксирован
 # контрактом стори `onec-exchange-dir-isolation` (AC5), а не «на усмотрение».
 STALE_EXCHANGE_DIR_HOURS = 24
+
+# Статусы, при которых каталог сессии считается живым и под уборку не идёт,
+# каким бы старым ни выглядел его mtime. `IN_PROGRESS` одного мало: сессия
+# успевает пролежать в `PENDING`/`STARTED`, пока её задача стоит в очереди за
+# локом каталога обмена, а файл уже лежит на диске.
+ACTIVE_SESSION_STATUSES = (
+    ImportSession.ImportStatus.PENDING,
+    ImportSession.ImportStatus.STARTED,
+    ImportSession.ImportStatus.IN_PROGRESS,
+)
+
+# Префикс каталога, изъятого уборкой из обмена переименованием. Собственные
+# каталоги сессий так называться не могут: `validate_session_segment` режет
+# `sessid` с `/`, а точку в начале имени 1С не присылает — но даже совпадение
+# безопасно, потому что изъятый каталог удаляется, а не переиспользуется.
+QUARANTINE_PREFIX = ".stale-"
 
 
 def _import_lock_key(data_dir: str) -> str:
@@ -433,8 +451,19 @@ def process_1c_import_task(
         # Это тот же guard, что уже стоит на post-import cleanup ниже и в
         # `views.handle_init`. Файлы без хозяина по-прежнему забирает `complete`:
         # при отсутствии других активных сессий сбор идёт как раньше.
+        #
+        # После изоляции guard действует ТОЛЬКО на общий каталог. В сессионной
+        # раскладке прогон видит собственную папку, чужих файлов в ней нет по
+        # построению, и откладываться ему не от чего: `mode=complete` со своим
+        # XML пропускал бы импорт при любой чужой `IN_PROGRESS`-сессии, а 1С
+        # шлёт их непрерывно — сегмент молча не доезжал бы вовсе.
         defer_to_active_sessions = False
-        if not promised_filenames and not import_customers and not skip_catalog_import:
+        if (
+            not promised_filenames
+            and not import_customers
+            and not skip_catalog_import
+            and not is_session_import_dir(effective_data_dir)
+        ):
             defer_to_active_sessions = (
                 ImportSession.objects.filter(status=ImportSession.ImportStatus.IN_PROGRESS)
                 .exclude(pk=session.pk)
@@ -444,13 +473,12 @@ def process_1c_import_task(
         # Прогон без обещанных имён при сессионной раскладке видит только свой
         # каталог. Если своих XML в нём нет — импортировать нечего, и молчать об
         # этом нельзя: тихий COMPLETED неотличим от «данные доехали».
-        # `defer_to_active_sessions` остаётся страховкой для ручных прогонов по
-        # общему каталогу и потому проверяется первым.
+        # Ветки взаимоисключающие: `defer_to_active_sessions` теперь возможен
+        # только вне сессионной раскладки.
         session_dir_has_no_own_files = (
             not promised_filenames
             and not import_customers
             and not skip_catalog_import
-            and not defer_to_active_sessions
             and is_session_import_dir(effective_data_dir)
             and not any(target_import_dir.rglob("*.xml"))
         )
@@ -523,33 +551,41 @@ def process_1c_import_task(
             session.report += f"[{timestamp}] Импорт успешно завершен.\n"
             session.save(update_fields=["status", "finished_at", "report", "updated_at"])
 
-        # Уборка каталога обмена СВОЕЙ сессии. Guard `other_active` сохранён
-        # (Non-goal спеки): он всё ещё нужен ручным прогонам по общему каталогу,
-        # где `data_dir` у всех один. После изоляции область уборки сузилась до
-        # собственной папки, а сама папка следом удаляется — иначе каталоги
-        # копятся навсегда (на проде накопилось 32 276 штук).
+        # Уборка каталога обмена СВОЕЙ сессии.
+        #
+        # Исторический guard `other_active` сохранён (Non-goal спеки), но только
+        # там, где он что-то значит: в ручном прогоне по ОБЩЕМУ каталогу
+        # `data_dir` у всех один, и уборка забрала бы чужие файлы. Каталог
+        # изолированной сессии принадлежит ей целиком, чужого в нём нет по
+        # построению — держать его из-за посторонних `IN_PROGRESS` значит не
+        # удалить почти никогда: 1С шлёт сессии непрерывно, и активная соседка
+        # есть практически всегда. Ровно так на проде и накопилось 32 276 папок.
         try:
-            other_active = (
-                ImportSession.objects.filter(
-                    status=ImportSession.ImportStatus.IN_PROGRESS,
-                )
-                .exclude(pk=session.pk)
-                .exists()
-            )
-
-            if other_active:
-                logger.info("Skipping import directory cleanup — other sessions are still IN_PROGRESS.")
-            elif session.session_key:
+            if not session.session_key:
+                logger.warning("Session key is missing, skipping cleanup.")
+            else:
                 from apps.integrations.onec_exchange.routing_service import FileRoutingService
 
                 routing_service = FileRoutingService(str(session.session_key))
-                cleaned = routing_service.cleanup_import_dir()
-                logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")
-                if is_session_import_dir(routing_service.import_dir):
-                    removed_dirs = routing_service.remove_session_dirs()
-                    logger.info(f"Post-import cleanup removed {removed_dirs} session directories.")
-            else:
-                logger.warning("Session key is missing, skipping cleanup.")
+                isolated = is_session_import_dir(routing_service.import_dir)
+
+                other_active = (
+                    not isolated
+                    and ImportSession.objects.filter(
+                        status=ImportSession.ImportStatus.IN_PROGRESS,
+                    )
+                    .exclude(pk=session.pk)
+                    .exists()
+                )
+
+                if other_active:
+                    logger.info("Skipping import directory cleanup — other sessions are still IN_PROGRESS.")
+                else:
+                    cleaned = routing_service.cleanup_import_dir()
+                    logger.info(f"Post-import cleanup removed {cleaned} items from import directory.")
+                    if isolated:
+                        removed_dirs = routing_service.remove_session_dirs()
+                        logger.info(f"Post-import cleanup removed {removed_dirs} session directories.")
         except Exception as cleanup_err:
             logger.warning(f"Failed post-import cleanup: {cleanup_err}")
 
@@ -618,6 +654,67 @@ def cleanup_stale_import_sessions() -> int:
     return count
 
 
+def _newest_mtime(directory: Path) -> float:
+    """Самая свежая метка времени в дереве каталога, включая сам каталог.
+
+    Возраст корня каталога сессии о его занятости не говорит: `shutil.move`
+    кладёт внутрь свежий XML, не трогая mtime родителя на части файловых
+    систем, а задача импорта заново создаёт подпапки `goods`/`offers`/… уже
+    после того, как каталог был создан. Каталог, куда только что приехал файл
+    ждущей лока сессии, обязан выглядеть свежим.
+
+    Нечитаемое дерево считается свежим (`inf`): удалять то, чего не разглядели,
+    нельзя.
+    """
+    try:
+        newest = directory.stat().st_mtime
+    except OSError:
+        return float("inf")
+
+    try:
+        entries = directory.rglob("*")
+        for entry in entries:
+            try:
+                newest = max(newest, entry.lstat().st_mtime)
+            except OSError:  # pragma: no cover - файл исчез между обходом и stat
+                continue
+    except OSError:  # pragma: no cover - каталог исчез или недоступен
+        return float("inf")
+
+    return newest
+
+
+def _quarantine_exchange_dir(directory: Path) -> Path | None:
+    """Изъять каталог из обмена переименованием — до удаления, а не после.
+
+    Между проверкой возраста и `shutil.rmtree` лежит окно, в которое 1С успевает
+    прислать файл в ту же сессию: `rmtree` тогда унесёт его вместе с каталогом,
+    а сессия упадёт «не найден в каталоге обмена» — ровно тот дефект, ради
+    которого делалась изоляция. Переименование атомарно: после него ни один
+    писатель, ищущий каталог по пути `IMPORT_DIR/<sessid>`, в изъятое дерево не
+    попадёт, и возраст можно пересверить уже безопасно.
+    """
+    target = directory.with_name(f"{QUARANTINE_PREFIX}{directory.name}-{uuid.uuid4().hex[:8]}")
+    try:
+        directory.rename(target)
+    except OSError as exc:
+        logger.warning(f"Failed to quarantine stale exchange dir {directory}: {exc}")
+        return None
+    return target
+
+
+def _remove_quarantined_dir(directory: Path) -> int:
+    import shutil
+
+    try:
+        shutil.rmtree(directory)
+        logger.info(f"Removed stale exchange dir: {directory}")
+        return 1
+    except OSError as exc:
+        logger.warning(f"Failed to remove stale exchange dir {directory}: {exc}")
+        return 0
+
+
 @shared_task(name="apps.products.tasks.cleanup_stale_exchange_dirs")
 def cleanup_stale_exchange_dirs(max_age_hours: int = STALE_EXCHANGE_DIR_HOURS) -> int:
     """Убрать осиротевшие каталоги обмена 1С старше порога.
@@ -627,58 +724,81 @@ def cleanup_stale_exchange_dirs(max_age_hours: int = STALE_EXCHANGE_DIR_HOURS) -
     упасть до уборки — тогда каталог остаётся навсегда (на проде так накопилось
     32 276 папок). Порог — `STALE_EXCHANGE_DIR_HOURS`, зафиксирован контрактом.
 
-    Заодно подрезаются старые файлы общего каталога картинок: он единственный,
-    что остаётся общим, и после изоляции его не чистит ни одна сессия.
+    Каталог не удаляется, если выполняется хоть одно из трёх:
 
-    Возраст считается по самому каталогу сессии, а не по файлам внутри: задача
-    на каждом прогоне создаёт в нём подпапки `goods`/`offers`/…, поэтому пустым
-    он не бывает и `rmdir` тут не годится — только `shutil.rmtree`.
+    1. его имя — `session_key` сессии в `ACTIVE_SESSION_STATUSES` (задача может
+       стоять в очереди за локом сколько угодно долго, оставаясь живой);
+    2. внутри есть файл свежее порога (возраст корня о содержимом не говорит);
+    3. имя занято общим каталогом обмена (`SHARED_ROOT_NAMES`).
+
+    Удаление идёт в два шага — изъятие переименованием, пересверка возраста,
+    `rmtree`, — чтобы файл, приехавший между проверкой и удалением, не пропал
+    вместе с каталогом.
+
+    Общий `import_files` эта задача НЕ подрезает: контракт не связывает обмен
+    изображениями с будущим XML, и картинка старше суток остаётся законным
+    источником для `goods.xml`, который приедет завтра (AC2). Рост общего
+    каталога вынесен в tech-debt отдельным пунктом.
     """
-    import shutil
-    import time
-
     from apps.integrations.onec_exchange.routing_service import (
-        IMAGES_SUBDIR,
         SHARED_ROOT_NAMES,
         get_import_base,
         get_temp_base,
     )
 
     threshold = time.time() - max_age_hours * 3600
+    active_keys = {
+        key
+        for key in ImportSession.objects.filter(status__in=ACTIVE_SESSION_STATUSES).values_list(
+            "session_key", flat=True
+        )
+        if key
+    }
     removed = 0
 
     for root in (get_import_base(), get_temp_base()):
         if not root.exists():
             continue
-        for item in root.iterdir():
+
+        for item in sorted(root.iterdir()):
+            if not item.is_dir():
+                continue
+
+            if item.name.startswith(QUARANTINE_PREFIX):
+                # Хвост прошлого прогона: каталог уже изъят из обмена, писать в
+                # него некому — доудалить, не сверяя возраст заново.
+                removed += _remove_quarantined_dir(item)
+                continue
+
             # Общий каталог картинок, легаси-раскладка типов и флаг `.dry_run`
             # каталогами сессий не являются: снести их — потерять картинки,
             # которые ещё нужны XML других сессий.
-            if item.name in SHARED_ROOT_NAMES or not item.is_dir():
+            if item.name in SHARED_ROOT_NAMES:
                 continue
-            try:
-                if item.stat().st_mtime >= threshold:
-                    continue
-                shutil.rmtree(item)
-                removed += 1
-                logger.info(f"Removed stale exchange dir: {item}")
-            except OSError as exc:
-                logger.warning(f"Failed to remove stale exchange dir {item}: {exc}")
 
-    shared_images = get_import_base() / IMAGES_SUBDIR
-    if shared_images.exists():
-        for image in shared_images.rglob("*"):
-            if not image.is_file():
+            if item.name in active_keys:
+                logger.debug(f"Keeping exchange dir of an active session: {item}")
                 continue
-            try:
-                if image.stat().st_mtime >= threshold:
-                    continue
-                image.unlink()
-                removed += 1
-            except OSError as exc:
-                logger.warning(f"Failed to remove stale exchange image {image}: {exc}")
+
+            if _newest_mtime(item) >= threshold:
+                continue
+
+            quarantined = _quarantine_exchange_dir(item)
+            if quarantined is None:
+                continue
+
+            if _newest_mtime(quarantined) >= threshold:
+                # Файл приехал в окне между проверкой и изъятием — вернуть
+                # каталог обмену и оставить его следующему прогону уборки.
+                try:
+                    quarantined.rename(item)
+                except OSError as exc:  # pragma: no cover - вернуть не удалось
+                    logger.warning(f"Failed to restore quarantined exchange dir {quarantined}: {exc}")
+                continue
+
+            removed += _remove_quarantined_dir(quarantined)
 
     if removed:
-        logger.info(f"Stale exchange cleanup removed {removed} items (threshold {max_age_hours}h)")
+        logger.info(f"Stale exchange cleanup removed {removed} directories (threshold {max_age_hours}h)")
 
     return removed

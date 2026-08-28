@@ -209,6 +209,21 @@ def _import_lock_key(data_dir: str) -> str:
 - [x] Black + Flake8 (навык `backend-lint`).
 - [x] Обновить статус в `sprint-status.yaml`.
 
+### Review Findings
+
+- [x] [Review][Patch] Запретить `sessid`, совпадающие с общими каталогами: `import_files`, `goods` и другими `SHARED_ROOT_NAMES`; иначе cleanup сессии удаляет общие данные [`backend/apps/integrations/onec_exchange/routing_service.py:65-70,142-157,184-195`]
+- [x] [Review][Patch] Не удалять активный сессионный каталог только по старому `mtime` корня: учитывать статус/лок и свежесть вложенных файлов, закрыв также TOCTOU между проверкой возраста и `rmtree` [`backend/apps/products/tasks.py:621-666`]
+- [x] [Review][Patch] Убрать очистку общих изображений по 24-часовому `mtime`: контракт не задаёт связь между обменом изображений и будущим XML, поэтому такая уборка нарушает AC2 [`backend/apps/products/tasks.py:630-631,668-679`]
+- [x] [Review][Patch] Ограничить `defer_to_active_sessions` ручным общим каталогом: изолированный `mode=complete` с собственным XML сейчас молча пропускает импорт при любой чужой `IN_PROGRESS`-сессии [`backend/apps/products/tasks.py:436-475`]
+- [x] [Review][Patch] Удалять каталог завершённой изолированной сессии независимо от чужих `IN_PROGRESS`-сессий, сохранив исторический guard только для общего ручного каталога [`backend/apps/products/tasks.py:526-550`]
+- [x] [Review][Patch] Добавить единый приёмочный тест AC1: занятый общий лок → Retry второй реальной задачи → освобождение лока → обе сессии COMPLETED и каждая обработала только свой сегмент [`backend/apps/products/tests/test_exchange_dir_isolation.py:147-178,406-435`]
+- [x] [Review][Patch] Дополнить AC2 тестом `offers.xml`, проверяющим привязку изображения из общего `import_files` к `ProductVariant`, а не только к `Product.base_images` [`backend/apps/products/tests/test_exchange_dir_isolation.py:199-222`]
+- [x] [Review][Defer] `mode=file` допускает path traversal через `FileStreamService(sessid)` до вызова нового валидатора [`backend/apps/integrations/onec_exchange/file_service.py:139-160`] — deferred, pre-existing: произвольная запись вне `TEMP_DIR` существовала до текущего diff; исправить отдельной security-задачей с общей валидацией на входе протокола
+- [x] [Review][Defer] Ошибка публикации `.delay()` оставляет сессию `IN_PROGRESS` без Celery-задачи, а повторный запрос получает ложный успех [`backend/apps/integrations/onec_exchange/import_orchestrator.py:82-87,341-364,473-520`] — deferred, pre-existing: текущая story не меняла обработку ошибки брокера
+- [x] [Review][Defer] XML во вложенном каталоге ZIP маршрутизируется по полному имени member и может не распознаться по префиксу [`backend/apps/integrations/onec_exchange/import_orchestrator.py:266-310`, `backend/apps/products/tasks.py:250-303`] — deferred, pre-existing: алгоритм сравнивал полное имя и до изоляции
+- [x] [Review][Defer] `mode=complete` в dry-run после переноса ZIP читает список архивов из уже опустевшего temp-каталога и может отметить цикл завершённым без распаковки [`backend/apps/integrations/onec_exchange/import_orchestrator.py:428-443,473-487`] — deferred, pre-existing
+- [x] [Review][Defer] При частично отсутствующем наборе изображений `mirror_composition=True` способен сократить ранее сохранённый состав; новый legacy fallback исправляет только наличие файла во второй раскладке [`backend/apps/products/services/variant_import.py:747-810,1066-1135`] — deferred, pre-existing
+
 ---
 
 ## Dev Notes
@@ -401,8 +416,54 @@ settings : ['monitor-pending-verification-queue', 'cleanup-stale-import-sessions
 
 Эффективное расписание `cleanup-stale-import-sessions` — **3600 с из `settings/base.py`**, а не `crontab(minute="30")` из `celery.py`; ключа `cleanup-stale-import-sessions-every-hour` из `celery.py` в `app.conf.beat_schedule` нет вовсе. Причина: `app.conf` ленив, присваивание в `celery.py` выполняется до финализации конфига, и значения из `config_from_object` ложатся поверх. Вывод стори («регистрация только в настройках не запустится никогда») верен по форме, но указывает не на тот файл. Задача зарегистрирована в **обоих** местах, оба комментария переписаны по факту, тест AC5 проверяет `app.conf.beat_schedule` — то есть эффективное расписание, а не источник.
 
-### Completion Notes List
+**Раунд 2 — исправление 7 patch-findings код-ревью (28.08.2026).**
 
+`npx gitnexus status`: индекс актуален (`87edbf7`), `analyze` не потребовался.
+
+| Символ | impactedCount | direct | risk |
+|---|---|---|---|
+| `validate_session_segment` | 3 | 2 (`FileRoutingService.__init__`, `session_import_dir`) | LOW |
+| `cleanup_stale_exchange_dirs` | 0 | 0 | LOW |
+| `process_1c_import_task` | 0 | 0 | LOW |
+
+HIGH/CRITICAL нет: `cleanup_import_dir` в этом раунде не правился.
+
+**RED-прогон новых тестов на коде до правок** (прод-код убран `git stash`, тесты
+оставлены; `pytest apps/products/tests/test_exchange_dir_isolation.py`):
+**7 failed, 20 passed**.
+
+```
+FAILED …::TestSessionDirIsolation::test_session_id_must_not_collide_with_shared_dirs
+FAILED …::TestPromiselessRunKeepsHandsOff::test_own_files_are_imported_despite_active_neighbour
+FAILED …::TestCleanupStaysInOwnDir::test_session_dir_removed_even_with_active_neighbour
+FAILED …::TestStaleExchangeDirCleanup::test_fresh_file_inside_old_dir_keeps_it
+FAILED …::TestStaleExchangeDirCleanup::test_active_session_dir_is_kept
+FAILED …::TestStaleExchangeDirCleanup::test_shared_dirs_are_protected
+FAILED …::TestStaleExchangeDirCleanup::test_old_shared_images_are_never_pruned
+E       assert 1 == 0
+E        +  where 1 = cleanup_stale_exchange_dirs()   # общие картинки подрезались по возрасту
+```
+
+Падения покрывают findings 1-5 ровно по одному-двум тестам на находку. Тесты
+findings 6 и 7 (`test_locked_dir_defers_neighbour_and_both_sessions_complete`,
+`test_offers_variant_binds_image_from_shared_dir`) на старом коде **зелёные** — и
+это ожидаемо: ревью просило закрыть пробел в приёмочном покрытии, а не дефект
+поведения. Отмечено явно, чтобы их зелёность не читалась как «тест ничего не ловит».
+
+**GREEN после правок:** `test_exchange_dir_isolation.py` — 27 passed.
+Регресс `apps/products` + `apps/integrations` + `tests/unit/test_file_routing.py`
++ `tests/integration/test_onec_import.py` — **699 passed, 1 skipped, 0 failed**
+(было 692 + 7 новых тестов). Полный backend-набор — **3214 passed, 75 skipped,
+0 failed, 19 subtests passed** (было 3207 + те же 7). Black и Flake8 чисто. Mypy по изменённым файлам:
+5 сообщений, все вне изменённых диапазонов (`settings/staging.py:50`,
+`settings/development.py:59`, `orders/services/order_numbering.py:84,117`,
+`orders/tasks.py:23`) — они были и до правок.
+
+`detect-changes --scope all`: 10 файлов, 14 символов, 7 процессов — весь список
+внутри потока обмена 1С (`Handle_init`, `Process_1c_import_task`,
+`Finalize_batch`). Постороннего не задето.
+
+### Completion Notes List
 **Что сделано (AC1-AC7).**
 
 - **AC1.** `FileRoutingService.import_dir = import_base / session_id`; у `ImportOrchestratorService` собственная копия пути переведена туда же через `session_import_dir(sessid)`. Комментарий `FIXED: Import directory should be shared/root…` снят — он фиксировал ровно чинимое поведение.
@@ -436,14 +497,81 @@ settings : ['monitor-pending-verification-queue', 'cleanup-stale-import-sessions
 
 **Порядок выката:** `celery` и `celery-beat` пересобираются **вместе** с `backend`, после пересборки backend обязателен `docker compose restart nginx` (иначе весь внешний API и обмен 1С падают в 502 на старом IP апстрима). Новая beat-задача требует перезапуска именно `celery-beat`.
 
+---
+
+**Раунд 2 — 7 patch-findings код-ревью закрыты (28.08.2026).**
+
+1. **Коллизия `sessid` с общими каталогами.** `validate_session_segment` теперь
+   отклоняет и имена из `SHARED_ROOT_NAMES` — регистронезависимо, потому что
+   NTFS и APFS регистр не различают. Без этого `sessid=import_files` давал
+   каталог сессии `IMPORT_DIR/import_files`, то есть общий каталог картинок
+   целиком, вместе с `cleanup_import_dir` и `remove_session_dirs` этой сессии;
+   `sessid=goods` уносил легаси-раскладку, на которой держится фолбэк
+   переходного окна. Проверка стоит на входе, а не в уборке: такой каталог
+   не должен существовать вовсе.
+2. **Уборка осиротевших каталогов больше не смотрит на один `mtime` корня.**
+   Каталог удаляется, только если выполнены **все три** условия: имя не
+   принадлежит сессии в `PENDING`/`STARTED`/`IN_PROGRESS`; в дереве нет файла
+   свежее порога (`_newest_mtime`); имя не занято общим каталогом. `IN_PROGRESS`
+   одного было мало — сессия лежит в `PENDING`, пока её задача стоит в очереди
+   за локом, а файл уже на диске. TOCTOU между проверкой и `rmtree` закрыт
+   изъятием каталога переименованием в `.stale-<name>-<hex>` с пересверкой
+   возраста; каталог, куда файл приехал в окне, возвращается обмену. Хвосты
+   прошлых прогонов (`.stale-*`) доудаляются в начале следующего.
+3. **Подрезка общего `import_files` по возрасту убрана.** Контракт связи «обмен
+   изображениями ↔ будущий XML» не задаёт, и 1С её не передаёт: картинка старше
+   суток остаётся законным источником для `goods.xml`, который приедет завтра.
+   Правка предыдущего раунда прямо ломала AC2. Рост каталога — реальная
+   проблема, но лечится не возрастом файла: заведён **tech-debt п. 27** с
+   указанием искать критерий по фактической ссылочности (картинка перенесена в
+   `media/` и не упомянута ни одним товаром/вариантом), а первым шагом — снять
+   размер каталога на проде.
+4. **`defer_to_active_sessions` ограничен общим ручным каталогом.** Guard писался
+   под раскладку, где `data_dir` у всех один. В сессионной раскладке чужого в
+   папке нет по построению, а активная соседка есть практически всегда (1С шлёт
+   `mode=import` на файл и `mode=complete` следом каждые пару секунд) — guard
+   означал «изолированный `mode=complete` со своим XML не импортирует почти
+   никогда». Ветка `session_dir_has_no_own_files` упрощена: пересечься с
+   `defer` она больше не может.
+5. **Каталог завершённой изолированной сессии удаляется независимо от чужих
+   `IN_PROGRESS`.** Исторический guard оставлен только для ручного прогона по
+   общему каталогу. Именно из-за него после изоляции папки не удалялись бы почти
+   никогда — тот же механизм, что дал на проде 32 276 каталогов.
+6. **Единый приёмочный тест AC1** (`test_locked_dir_defers_neighbour_and_both_sessions_complete`):
+   занятый **общий** лок → реальная задача сессии B получает `Retry` с прежней
+   формулировкой → лок освобождён → `mode=complete` сессии A читает только свой
+   сегмент, файл B цел → B отрабатывает свой сегмент → обе `COMPLETED`. Раньше
+   это проверялось двумя разными тестами, и связка «очередь сохранилась И каждая
+   прочитала своё» приёмкой не покрывалась.
+7. **AC2 дополнен тестом для `ProductVariant`** (`test_offers_variant_binds_image_from_shared_dir`):
+   `_images_base_dir` вызывается дважды — с `xml_subdir="goods"` и `"offers"`, —
+   и проверки `Product.base_images` было мало. XML настоящий; изображений
+   реальный `offers.xml` не несёт (во всём корпусе `data/import_1c/offers/`,
+   31 файл, ноль тегов `<Картинка>` — состав фото 1С отдаёт только в `goods.xml`),
+   поэтому ссылка добавляется к уже распарсенному предложению в той же форме
+   `import_files/<xx>/<file>.jpg`, какую пишет 1С. Родительский товар создан
+   фабрикой: в фикстурном `goods.xml` родителей этих предложений нет, а выдумывать
+   XML проект запрещает.
+
+**Попутно исправлено:** docstring теста расписания beat нёс инвертированное
+утверждение из Dev Notes стори (будто `celery.py` затирает настройки), хотя замер
+раунда 1 показал обратное. Переписан по факту: тест смотрит в `app.conf` — то есть
+в эффективное расписание — и остаётся верным при любой перестановке двух мест
+объявления.
+
+**Deferred-findings не трогались:** пять `[Review][Defer]` записаны в
+`deferred-work.md` и остаются открытыми.
+
+**AC8 по-прежнему открыт** — это прод-замер, статус `done` ставится по нему.
+
 ### File List
 
 **Продакшен-код**
 
-- `backend/apps/integrations/onec_exchange/routing_service.py` — ядро изоляции: сессионный `import_dir`, валидация `sessid`, общий маршрут картинок, `remove_session_dirs`, модульные хелперы раскладки
+- `backend/apps/integrations/onec_exchange/routing_service.py` — ядро изоляции: сессионный `import_dir`, валидация `sessid` (сегмент пути + запрет коллизии с `SHARED_ROOT_NAMES`), общий маршрут картинок, `remove_session_dirs`, модульные хелперы раскладки
 - `backend/apps/integrations/onec_exchange/import_orchestrator.py` — своя копия пути переведена на каталог сессии; маршрутизация распакованного и оба `.dry_run`
 - `backend/apps/integrations/onec_exchange/views.py` — комментарий `handle_init` про общий каталог
-- `backend/apps/products/tasks.py` — ключ лока от общего корня, дубль маршрутизации распакованного, пометка AC3, удаление каталогов сессии, задача `cleanup_stale_exchange_dirs`
+- `backend/apps/products/tasks.py` — ключ лока от общего корня, дубль маршрутизации распакованного, пометка AC3, удаление каталогов сессии, задача `cleanup_stale_exchange_dirs` (+ хелперы `_newest_mtime`, `_quarantine_exchange_dir`, `_remove_quarantined_dir`, константы `ACTIVE_SESSION_STATUSES`/`QUARANTINE_PREFIX`); `defer_to_active_sessions` ограничен общим каталогом; post-import cleanup удаляет свой каталог независимо от чужих `IN_PROGRESS`
 - `backend/apps/products/management/commands/import_products_from_1c.py` — `_images_base_dir` (Развилки 2 и 3), две точки вызова
 - `backend/apps/products/services/variant_import.py` — `image_fallback_dirs` + `_resolve_image_source`, три точки разрешения исходника картинки
 - `backend/freesport/settings/base.py` — регистрация `cleanup-stale-exchange-dirs` (эффективное расписание)
@@ -451,7 +579,7 @@ settings : ['monitor-pending-verification-queue', 'cleanup-stale-import-sessions
 
 **Тесты**
 
-- `backend/apps/products/tests/test_exchange_dir_isolation.py` — новый: AC1-AC6, 20 тестов
+- `backend/apps/products/tests/test_exchange_dir_isolation.py` — новый: AC1-AC6, **27 тестов** (20 в раунде 1 + 7 по findings ревью)
 - `backend/apps/products/tests/integration/test_import_orchestration.py` — ожидания `data_dir`
 - `backend/apps/integrations/tests/test_import_orchestration_view.py` — ожидание `data_dir`
 - `backend/tests/integration/test_onec_import.py` — ожидания `data_dir` и пути маршрутизации
@@ -459,8 +587,9 @@ settings : ['monitor-pending-verification-queue', 'cleanup-stale-import-sessions
 
 **Документация**
 
-- `docs/integrations/1c/import-process.md` — раздел «Раскладка каталога обмена», правило ключа лока, п. 6 про прогон без обещания
-- `_bmad-output/planning-artifacts/tech-debt.md` — п. 26 закрыт
+- `docs/integrations/1c/import-process.md` — раздел «Раскладка каталога обмена», правило ключа лока, п. 6 про прогон без обещания; раздел «Уборка» переписан по findings 2/3/5
+- `_bmad-output/planning-artifacts/tech-debt.md` — п. 26 закрыт и дополнен; заведён п. 27 (рост общего `import_files`)
+- `_bmad-output/implementation-artifacts/deferred-work.md` — пять `[Review][Defer]` находок ревью
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус стори
 - `_bmad-output/implementation-artifacts/Story/onec-exchange-dir-isolation.md` — этот файл
 
@@ -469,3 +598,4 @@ settings : ['monitor-pending-verification-queue', 'cleanup-stale-import-sessions
 | Дата | Изменение |
 |---|---|
 | 2026-08-28 | Реализована изоляция каталога обмена 1С по сессии (AC1-AC6). Ключ лока переведён на общий корень, чтобы сериализация задач сохранилась. Картинки остались общими, добавлен пофайловый фолбэк на легаси-раскладку. Уборка сужена до своего каталога, добавлена периодическая `cleanup_stale_exchange_dirs` (порог 24 ч). Регресс зелёный, AC8 ждёт прод-замера. Статус → `review`. |
+| 2026-08-28 | Закрыты 7 patch-findings код-ревью: запрет `sessid`, совпадающего с общими каталогами; уборка осиротевших каталогов учитывает живые сессии, свежесть вложенных файлов и закрывает TOCTOU изъятием каталога переименованием; подрезка общего `import_files` по возрасту снята (ломала AC2) и вынесена в tech-debt п. 27; `defer_to_active_sessions` ограничен общим ручным каталогом; каталог завершённой изолированной сессии удаляется независимо от чужих `IN_PROGRESS`; добавлены единый приёмочный тест AC1 и тест AC2 для `ProductVariant`. Регресс: затронутые приложения 699 passed / 1 skipped, полный backend-набор 3214 passed / 75 skipped, 0 failed. Статус → `review`. |

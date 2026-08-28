@@ -227,6 +227,27 @@ last_updated: 2026-08-28
 #             Развилка 3 реализована пофайлово, а не покаталожно: легаси-папку
 #             картинок после изоляции не чистит никто, раскладки сосуществуют
 #             долго, и покаталожный выбор обрезал бы состав фото товара.
+# 2026-08-28: Code review onec-exchange-dir-isolation выявил 7 patch-findings;
+#             Alex оставил их action items. Статус review -> in-progress до
+#             исправления коллизий sessid, опасной stale-уборки, complete-ветки
+#             и недостающих приёмочных тестов AC1/AC2.
+# 2026-08-28: Все 7 patch-findings исправлены, статус in-progress -> review.
+#             Запрещён sessid, совпадающий с SHARED_ROOT_NAMES; уборка
+#             осиротевших каталогов учитывает живые сессии (PENDING/STARTED/
+#             IN_PROGRESS), свежесть вложенных файлов и закрывает TOCTOU
+#             изъятием каталога переименованием перед rmtree; подрезка общего
+#             import_files по 24-часовому mtime СНЯТА — она ломала AC2, рост
+#             каталога вынесен в tech-debt п. 27 (критерий должен быть по
+#             ссылочности, не по возрасту); defer_to_active_sessions ограничен
+#             общим ручным каталогом; каталог завершённой изолированной сессии
+#             удаляется независимо от чужих IN_PROGRESS. Добавлены единый
+#             приёмочный тест AC1 (занятый общий лок -> Retry -> обе COMPLETED)
+#             и тест AC2 для ProductVariant. RED зафиксирован: 7 новых тестов
+#             падали на коде до правок. Регресс apps/products + apps/integrations
+#             + test_file_routing + test_onec_import: 699 passed, 1 skipped,
+#             0 failed. Полный backend-набор: 3214 passed, 75 skipped, 0 failed
+#             (было 3207). Black/Flake8 чисто, mypy новых ошибок не даёт.
+#             ⚠️ AC8 (прод-замер) по-прежнему открыт — статус done по нему.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"

@@ -69,6 +69,10 @@ SHARED_ROOT_NAMES = frozenset({IMAGES_SUBDIR, ".dry_run"}) | {
     subdir.rstrip("/").split("/")[0] for subdir in XML_ROUTING_RULES.values()
 }
 
+# То же множество для сверки `sessid`. Регистр снят: NTFS и APFS его не
+# различают, и `Import_Files` увёл бы сессию ровно в общий каталог картинок.
+_SHARED_ROOT_NAMES_FOLDED = frozenset(name.casefold() for name in SHARED_ROOT_NAMES)
+
 
 def get_import_base() -> Path:
     """Общий корень каталога обмена (`ONEC_EXCHANGE["IMPORT_DIR"]`)."""
@@ -154,6 +158,15 @@ def validate_session_segment(session_id: str) -> str:
     if session_id in {".", ".."} or "/" in session_id or "\\" in session_id:
         raise ValueError(f"session_id must be a single safe path segment, got: {session_id!r}")
 
+    # Сегмент, совпавший с общим именем в корне обмена, превращает каталог
+    # сессии в общий каталог: `sessid=import_files` даёт `IMPORT_DIR/import_files`,
+    # и `cleanup_import_dir`/`remove_session_dirs` этой сессии сносят картинки
+    # всех остальных, а `sessid=goods` — легаси-раскладку, на которую опирается
+    # фолбэк переходного окна. Проверка идёт здесь, а не в уборке: каталог не
+    # должен существовать вовсе.
+    if session_id.casefold() in _SHARED_ROOT_NAMES_FOLDED:
+        raise ValueError(f"session_id must not collide with a shared exchange directory, got: {session_id!r}")
+
     return session_id
 
 
@@ -178,8 +191,9 @@ class FileRoutingService:
             session_id: Django session key for isolation
 
         Raises:
-            ValueError: если session_id пуст или не является одним безопасным
-                сегментом пути (см. `validate_session_segment`)
+            ValueError: если session_id пуст, не является одним безопасным
+                сегментом пути или совпадает с общим каталогом в корне обмена
+                (см. `validate_session_segment`)
         """
         self.session_id = validate_session_segment(session_id)
 
