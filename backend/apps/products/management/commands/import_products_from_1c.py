@@ -550,7 +550,7 @@ class Command(BaseCommand):
 
             # Очистка файлов после успешного импорта
             if not dry_run and not options.get("keep_files", False):
-                self._cleanup_files(data_dir, file_type, self._processed_files)
+                self._cleanup_files(self._processed_files, variant_processor)
 
             # Вывод статистики
             self._print_stats(variant_processor.get_stats())
@@ -850,7 +850,11 @@ class Command(BaseCommand):
         processor.log_progress(message)
         raise CommandError(message)
 
-    def _cleanup_files(self, data_dir: str, file_type: str, processed_files: list[str] | None = None) -> None:
+    def _cleanup_files(
+        self,
+        processed_files: list[str] | None = None,
+        processor: VariantImportProcessor | None = None,
+    ) -> None:
         """
         Удаление обработанных файлов после успешного импорта.
 
@@ -871,8 +875,17 @@ class Command(BaseCommand):
         открыл), сверять нечего — такой файл не удаляется: fail-open здесь снова
         означал бы удаление чужого файла под тем же именем.
 
-        Папки с изображениями по-прежнему чистятся по каталогу: они не
-        сегментируются по сессиям, и гонки там не наблюдалось.
+        Картинки удаляются ПОФАЙЛОВО и только те, что этот прогон реально
+        потребил (`processor.consumed_image_sources` — копия подтверждена в
+        хранилище). Раньше здесь чистились каталоги `<data_dir>/goods/import_files`
+        и `<data_dir>/offers/import_files`; после изоляции каталога обмена
+        картинки лежат в ОБЩЕМ `IMPORT_DIR/import_files`, и та уборка потеряла
+        цель — общий каталог перестал чиститься вовсе. Каталогом его убирать и
+        нельзя: он общий, и в нём лежат картинки, ещё не забранные goods.xml
+        соседних сессий.
+
+        Превью ниже порога размера не удаляются: копии в хранилище у них не
+        появляется, и признака «потреблено» для них не существует.
         """
         self.stdout.write(self.style.WARNING("\n🧹 Очистка обработанных файлов..."))
 
@@ -907,35 +920,60 @@ class Command(BaseCommand):
 
         self.stdout.write(f"   ✅ Удалено XML файлов: {deleted_xml_count}")
 
-        # 2. Очистка папок с изображениями (goods/import_files, offers/import_files)
-        # Удаляем сами папки import_files, так как изображения уже скопированы в media/products
-        img_dirs = []
-        if file_type in ["all", "goods"]:
-            img_dirs.append(Path(data_dir) / "goods" / "import_files")
-        if file_type in ["all", "offers"]:
-            img_dirs.append(Path(data_dir) / "offers" / "import_files")
+        # 2. Удаление потреблённых исходников картинок
+        self._cleanup_consumed_images(processor)
 
-        deleted_img_dir_count = 0
-        for img_dir in img_dirs:
-            if img_dir.exists() and img_dir.is_dir():
-                try:
-                    # Удаляем только файлы внутри папки, сохраняя саму папку
-                    files_deleted = 0
-                    for img_file in img_dir.iterdir():
-                        if img_file.is_file():
-                            try:
-                                img_file.unlink()
-                                files_deleted += 1
-                            except OSError:
-                                pass
+    def _cleanup_consumed_images(self, processor: VariantImportProcessor | None) -> None:
+        """Удалить исходники картинок, копии которых уже лежат в хранилище.
 
-                    if files_deleted > 0:
-                        self.stdout.write(
-                            f"   ✅ Очищена папка {img_dir.relative_to(data_dir)}: удалено {files_deleted} файлов"
-                        )
-                        deleted_img_dir_count += 1
-                except OSError as e:
-                    self.stdout.write(self.style.ERROR(f"   ❌ Ошибка очистки папки {img_dir.name}: {e}"))
+        Область строго ограничена каталогом обмена (`ONEC_EXCHANGE["IMPORT_DIR"]`).
+        Ручной корпус `ONEC_DATA_DIR` (`data/import_1c/`) не трогается никогда:
+        это исходные выгрузки, на которых работают тесты и повторные прогоны,
+        и удалять их — значит уничтожать входные данные разработчика.
+
+        Удаление безопасно по построению: в `consumed_image_sources` попадают
+        только те файлы, для которых копия в хранилище подтверждена, а
+        `_save_image_if_not_exists` при отсутствии исходника берёт копию оттуда
+        и состав фото не обрезает.
+        """
+        if processor is None:
+            return
+
+        sources = getattr(processor, "consumed_image_sources", None)
+        if not sources:
+            return
+
+        from apps.integrations.onec_exchange.routing_service import get_import_base
+
+        try:
+            exchange_base = get_import_base().resolve()
+        except OSError:  # pragma: no cover - защита от битого пути в настройках
+            return
+
+        deleted = 0
+        skipped_outside = 0
+        for raw_source in sorted(sources):
+            source = Path(raw_source)
+            try:
+                if not source.resolve().is_relative_to(exchange_base):
+                    skipped_outside += 1
+                    continue
+            except OSError:  # pragma: no cover - файл исчез между прогоном и уборкой
+                continue
+
+            try:
+                source.unlink(missing_ok=True)
+                deleted += 1
+            except OSError as e:
+                self.stdout.write(self.style.WARNING(f"   ⚠️ Не удалось удалить {source.name}: {e}"))
+
+        if deleted:
+            self.stdout.write(f"   ✅ Удалено перенесённых изображений: {deleted}")
+        if skipped_outside:
+            self.stdout.write(
+                f"   ℹ️ Вне каталога обмена, не тронуто: {skipped_outside} "
+                f"(ручной корпус ONEC_DATA_DIR не чистится)"
+            )
 
     def _clear_existing_data(self) -> None:
         """Очистка существующих данных"""

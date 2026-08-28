@@ -379,6 +379,123 @@ class TestSharedImages:
 
 
 @pytest.mark.django_db
+class TestConsumedImagesAreReclaimed:
+    """Tech-debt п. 27 — общий `import_files` не растёт без ограничения.
+
+    До изоляции каталог картинок вычищался `cleanup_import_dir` вместе со всем
+    каталогом обмена. После изоляции его не чистит ни одна сессия, а полная
+    выгрузка с картинками кладёт туда практически весь каталог исходных JPEG
+    (на проде 28.08.2026 сохранённых копий 4,9 ГБ при 20 ГБ свободного диска).
+    Критерий уборки строго ссылочный: копия подтверждена в хранилище.
+    """
+
+    def test_command_deletes_sources_it_stored(self, exchange, tmp_path, settings):
+        """Потреблённый исходник убирается сразу прогоном, который его перенёс."""
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+
+        data_dir = _import_dir("sess-consumed")
+        (data_dir / "goods").mkdir(parents=True)
+        shutil.copyfile(GOODS_XML, data_dir / "goods" / "goods.xml")
+
+        shared_images = exchange.imports / "import_files"
+        for sub in ("01", "03", "06"):
+            shutil.copytree(GOODS_SOURCE_DIR / sub, shared_images / sub)
+        before = {f for f in shared_images.rglob("*") if f.is_file()}
+
+        session = _session("sess-consumed", ImportSession.ImportStatus.IN_PROGRESS)
+        call_command(
+            "import_products_from_1c",
+            data_dir=str(data_dir),
+            file_type="goods",
+            import_session_id=session.pk,
+        )
+
+        product = Product.objects.get(onec_id=GOODS_PRODUCT_WITH_IMAGES)
+        assert product.base_images, "Картинки обязаны разрешиться до всякой уборки"
+
+        after = {f for f in shared_images.rglob("*") if f.is_file()}
+        assert after < before, "Перенесённые исходники обязаны быть убраны"
+
+        media = Path(settings.MEDIA_ROOT)
+        for stored in product.base_images:
+            assert (media / str(stored)).exists(), "Копия в хранилище обязана пережить уборку"
+
+    def test_reimport_after_cleanup_keeps_composition(self, exchange, tmp_path, settings):
+        """Повторный goods.xml без исходников не обрезает состав фото.
+
+        Ровно тот сценарий, ради которого ревью запретило уборку по возрасту.
+        Здесь он безопасен: `_save_image_if_not_exists` берёт подтверждённую
+        копию из хранилища, и `mirror_composition=True` зеркалирует полный состав.
+        """
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+
+        data_dir = _import_dir("sess-twice")
+        (data_dir / "goods").mkdir(parents=True)
+        shared_images = exchange.imports / "import_files"
+        for sub in ("01", "03", "06"):
+            shutil.copytree(GOODS_SOURCE_DIR / sub, shared_images / sub)
+
+        session = _session("sess-twice", ImportSession.ImportStatus.IN_PROGRESS)
+        for run in ("first", "second"):
+            shutil.copyfile(GOODS_XML, data_dir / "goods" / "goods.xml")
+            call_command(
+                "import_products_from_1c",
+                data_dir=str(data_dir),
+                file_type="goods",
+                import_session_id=session.pk,
+            )
+            if run == "first":
+                first_composition = list(Product.objects.get(onec_id=GOODS_PRODUCT_WITH_IMAGES).base_images)
+
+        second_composition = list(Product.objects.get(onec_id=GOODS_PRODUCT_WITH_IMAGES).base_images)
+        assert second_composition == first_composition, "Состав фото обязан пережить исчезновение исходников"
+
+    def test_manual_corpus_is_never_touched(self, exchange, tmp_path, settings):
+        """Ручной корпус `ONEC_DATA_DIR` уборке не подлежит — это входные данные.
+
+        Прогон по каталогу вне обмена (`data/import_1c/`) читает те же картинки,
+        но удалять их нельзя: на них работают тесты и повторные прогоны.
+        """
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+
+        manual = tmp_path / "manual_corpus"
+        (manual / "goods").mkdir(parents=True)
+        shutil.copyfile(GOODS_XML, manual / "goods" / "goods.xml")
+        manual_images = manual / "goods" / "import_files"
+        for sub in ("01", "03", "06"):
+            shutil.copytree(GOODS_SOURCE_DIR / sub, manual_images / sub)
+        before = {f for f in manual_images.rglob("*") if f.is_file()}
+
+        session = _session("sess-manual", ImportSession.ImportStatus.IN_PROGRESS)
+        call_command(
+            "import_products_from_1c",
+            data_dir=str(manual),
+            file_type="goods",
+            import_session_id=session.pk,
+        )
+
+        after = {f for f in manual_images.rglob("*") if f.is_file()}
+        assert after == before, "Картинки ручного корпуса удалять нельзя"
+
+    def test_periodic_prune_removes_only_stored_copies(self, exchange, tmp_path, settings):
+        """Страховка: убирается то, что в хранилище, паркуется то, чего там нет."""
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+
+        shared_images = exchange.imports / "import_files"
+        shutil.copytree(GOODS_SOURCE_DIR / "01", shared_images / "01")
+        stored, parked = sorted((shared_images / "01").glob("*.jpg"))[:2]
+
+        # Копия в хранилище есть только у первого файла.
+        destination = Path(settings.MEDIA_ROOT) / "products" / "base" / "01" / stored.name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(stored, destination)
+
+        assert cleanup_stale_exchange_dirs() >= 1
+        assert not stored.exists(), "Перенесённый исходник обязан уйти"
+        assert parked.exists(), "Без копии в хранилище файл трогать нельзя"
+
+
+@pytest.mark.django_db
 class TestPromiselessRunKeepsHandsOff:
     """AC3 — `mode=complete` не сгребает каталог."""
 

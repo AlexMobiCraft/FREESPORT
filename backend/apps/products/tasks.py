@@ -715,6 +715,91 @@ def _remove_quarantined_dir(directory: Path) -> int:
         return 0
 
 
+def _prune_imported_exchange_images() -> int:
+    """Убрать из общего каталога картинок исходники, уже перенесённые в хранилище.
+
+    Штатно это делает сама команда импорта сразу после прогона
+    (`_cleanup_consumed_images`). Задача — страховка: прогон мог упасть между
+    переносом картинки и уборкой, и тогда исходник остаётся навсегда. До
+    изоляции общий каталог вычищался `cleanup_import_dir` вместе со всем
+    каталогом обмена; после изоляции его не чистит ни одна сессия.
+
+    Критерий строго ссылочный, без возраста: файл удаляется, только если его
+    копия лежит в хранилище (`products/base/<xx>/<name>` либо
+    `products/variants/<xx>/<name>`). Возраст здесь неприменим — контракт не
+    связывает обмен изображениями с будущим XML, и картинка старше суток
+    остаётся законным источником для `goods.xml`, который приедет завтра.
+
+    Превью ниже порога `MIN_IMAGE_SIZE_BYTES` импорт сознательно не сохраняет,
+    копии в хранилище у них не появляется, и этот критерий их не трогает. Их
+    объём логируется отдельно: имена файлов 1С детерминированы, повторная
+    выгрузка их перезаписывает, поэтому класс ограничен одним каталогом — но
+    наблюдать за ним надо (tech-debt п. 27).
+    """
+    from django.core.files.storage import default_storage
+
+    from apps.integrations.onec_exchange.routing_service import (
+        IMAGES_SUBDIR,
+        LEGACY_IMAGES_SUBDIR,
+        get_import_base,
+    )
+
+    base = get_import_base()
+    pruned = 0
+    parked = 0
+    parked_bytes = 0
+
+    for images_dir in (base / IMAGES_SUBDIR, base / LEGACY_IMAGES_SUBDIR):
+        if not images_dir.exists():
+            continue
+
+        for image in images_dir.rglob("*"):
+            if not image.is_file():
+                continue
+
+            try:
+                relative = image.relative_to(images_dir).as_posix()
+            except ValueError:  # pragma: no cover - защита от гонки обхода
+                continue
+
+            stored = any(
+                _stored_copy_exists(default_storage, f"products/{prefix}/{relative}") for prefix in ("base", "variants")
+            )
+
+            if not stored:
+                parked += 1
+                try:
+                    parked_bytes += image.stat().st_size
+                except OSError:  # pragma: no cover - файл исчез во время обхода
+                    pass
+                continue
+
+            try:
+                image.unlink()
+                pruned += 1
+            except OSError as exc:
+                logger.warning(f"Failed to prune imported exchange image {image}: {exc}")
+
+    if pruned:
+        logger.info(f"Pruned {pruned} exchange images already present in storage")
+    if parked:
+        logger.info(
+            f"Exchange images kept (no stored copy): {parked} files, "
+            f"{parked_bytes / (1024 * 1024):.1f} MB — see tech-debt #27"
+        )
+
+    return pruned
+
+
+def _stored_copy_exists(storage: Any, destination_path: str) -> bool:
+    """Есть ли перенесённая копия в хранилище. Ошибку хранилища читаем как «нет»."""
+    try:
+        return bool(storage.exists(destination_path))
+    except Exception as exc:  # pragma: no cover - хранилище недоступно
+        logger.warning(f"Storage lookup failed for {destination_path}: {exc}")
+        return False
+
+
 @shared_task(name="apps.products.tasks.cleanup_stale_exchange_dirs")
 def cleanup_stale_exchange_dirs(max_age_hours: int = STALE_EXCHANGE_DIR_HOURS) -> int:
     """Убрать осиротевшие каталоги обмена 1С старше порога.
@@ -735,10 +820,11 @@ def cleanup_stale_exchange_dirs(max_age_hours: int = STALE_EXCHANGE_DIR_HOURS) -
     `rmtree`, — чтобы файл, приехавший между проверкой и удалением, не пропал
     вместе с каталогом.
 
-    Общий `import_files` эта задача НЕ подрезает: контракт не связывает обмен
-    изображениями с будущим XML, и картинка старше суток остаётся законным
-    источником для `goods.xml`, который приедет завтра (AC2). Рост общего
-    каталога вынесен в tech-debt отдельным пунктом.
+    Общий `import_files` эта задача **по возрасту не трогает**: контракт не
+    связывает обмен изображениями с будущим XML, и картинка старше суток
+    остаётся законным источником для `goods.xml`, который приедет завтра (AC2).
+    Вместо возраста применяется ссылочный критерий — см.
+    `_prune_imported_exchange_images`.
     """
     from apps.integrations.onec_exchange.routing_service import (
         SHARED_ROOT_NAMES,
@@ -800,5 +886,9 @@ def cleanup_stale_exchange_dirs(max_age_hours: int = STALE_EXCHANGE_DIR_HOURS) -
 
     if removed:
         logger.info(f"Stale exchange cleanup removed {removed} directories (threshold {max_age_hours}h)")
+
+    # Страховка по картинкам — критерий ссылочный, порога возраста не имеет и
+    # от `max_age_hours` не зависит.
+    removed += _prune_imported_exchange_images()
 
     return removed

@@ -288,6 +288,14 @@ class VariantImportProcessor:
         # знает раскладку каталога обмена. Пустой список = прежнее поведение.
         self.image_fallback_dirs: list[str] = []
 
+        # Исходники картинок, которые этот прогон реально потребил: копия лежит
+        # в хранилище, значит файл в каталоге обмена больше не нужен. Удаляет их
+        # команда (`_cleanup_files`) — она одна знает, какой каталог её, а какой
+        # принадлежит ручному корпусу `ONEC_DATA_DIR`, который трогать нельзя.
+        # Превью ниже порога размера сюда НЕ попадают: копии в хранилище у них
+        # не появляется никогда, и удалять их по этому признаку было бы нечестно.
+        self.consumed_image_sources: set[str] = set()
+
         self.stats: dict[str, Any] = {
             "products_created": 0,
             "products_updated": 0,
@@ -495,9 +503,10 @@ class VariantImportProcessor:
         subdir = image_path.split("/")[0] if "/" in image_path else ""
 
         if not source_path.exists():
-            # 1С подчищает import_files после импорта, а goods.xml с теми же
-            # товарами приходит снова. Уже перенесённая копия — не потеря файла,
-            # иначе каждый прогон выдаёт сотни ложных Image not found.
+            # Исходник уже убран — как самой 1С, так и уборкой потреблённого
+            # ниже. goods.xml с теми же товарами приходит снова, и уже
+            # перенесённая копия — не потеря файла, иначе каждый прогон выдаёт
+            # сотни ложных Image not found.
             if self._stored_image_exists(destination_path):
                 self.stats["images_skipped"] += 1
                 copy_size = self._get_stored_image_size(destination_path)
@@ -523,6 +532,7 @@ class VariantImportProcessor:
         # Проверка существования
         if default_storage.exists(destination_path):
             self.stats["images_skipped"] += 1
+            self.consumed_image_sources.add(str(source_path))
             return destination_path
 
         # Создание директории
@@ -535,6 +545,7 @@ class VariantImportProcessor:
             with open(source_path, "rb") as f:
                 saved_path = default_storage.save(destination_path, ContentFile(f.read()))
             self.stats["images_copied"] += 1
+            self.consumed_image_sources.add(str(source_path))
             return saved_path
         except Exception as e:
             logger.error(f"Error saving image {image_path}: {e}")

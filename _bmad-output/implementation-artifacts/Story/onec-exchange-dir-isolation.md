@@ -463,6 +463,28 @@ findings 6 и 7 (`test_locked_dir_defers_neighbour_and_both_sessions_complete`,
 внутри потока обмена 1С (`Handle_init`, `Process_1c_import_task`,
 `Finalize_batch`). Постороннего не задето.
 
+**База сравнения для AC8, снята с прода 28.08.2026 ДО выката.**
+
+Каталоги: `1c_import` — 0 записей, `1c_temp` — 0 записей (разовая зачистка Alex
+выполнена). Это и есть исходный счётчик для п. 3 `post-deploy-verification.md`.
+
+Сессии за последние 24 часа:
+
+| Метрика | Значение |
+|---|---|
+| Всего сессий | 614 |
+| `completed` | 605 |
+| `failed` | **9** |
+| из них `error_message LIKE '%не найден в каталоге обмена%'` | **9** |
+| из них `report LIKE '%Каталог обмена занят%'` | **9** |
+
+Корреляция «упало ↔ ждало лока» — 100 %, как и в замере за 7 дней (85 из 85).
+Дефект на момент выката живой, приёмка AC8 (`not_found = 0`) измерима.
+
+Хранилище картинок: `media/products/base` — 3,6 ГБ / 15 438 файлов,
+`media/products/variants` — 1,3 ГБ / 5 889, всего `media/products` 6,4 ГБ.
+Диск: свободно 20 ГБ из 79 (74 % занято).
+
 ### Completion Notes List
 **Что сделано (AC1-AC7).**
 
@@ -564,6 +586,63 @@ findings 6 и 7 (`test_locked_dir_defers_neighbour_and_both_sessions_complete`,
 
 **AC8 по-прежнему открыт** — это прод-замер, статус `done` ставится по нему.
 
+---
+
+**Раунд 3 — закрыт tech-debt п. 27 (рост общего `import_files`), 28.08.2026.**
+
+Finding 3 ревью снял уборку общего каталога картинок как ломающую AC2 — и тем
+самым вернул неограниченный рост. Замер прода показал, что откладывать нельзя:
+
+| Что | Значение |
+|---|---|
+| `1c_import` / `1c_temp` | пусты — разовая зачистка Alex сделана, катим на чистое |
+| `media/products/base` | 3,6 ГБ / 15 438 файлов |
+| `media/products/variants` | 1,3 ГБ / 5 889 файлов |
+| `media/products` всего | 6,4 ГБ |
+| Диск | **свободно 20 ГБ из 79 (74 % занято)** |
+
+Полная выгрузка с принудительными картинками положила бы в общий каталог
+практически весь каталог исходных JPEG — 5–8 ГБ, навсегда. То есть п. 27 был
+условием прод-проверки, а не отложенной уборкой.
+
+**Находка, снявшая необходимость изобретать критерий.** Уборка картинок в команде
+уже существовала (`_cleanup_files`, «Очистка папок с изображениями») и целилась в
+`<data_dir>/goods/import_files`. После изоляции картинки переехали в общий
+`IMPORT_DIR/import_files`, и эта уборка просто **потеряла цель** — вот откуда рост.
+Вдобавок `_save_image_if_not_exists` (`variant_import.py:497-514`) с самого начала
+спроектирован под исчезнувший исходник: при наличии копии в хранилище он берёт её
+оттуда, и состав фото не обрезается. Значит ссылочный критерий — не изобретение, а
+то, подо что код уже написан; возраст не нужен вовсе.
+
+**Сделано (два слоя, оба без порога времени):**
+
+1. `VariantImportProcessor.consumed_image_sources` копит исходники, для которых
+   копия в хранилище **подтверждена**; `Command._cleanup_consumed_images` их
+   удаляет сразу после успешного прогона. Область строго ограничена
+   `ONEC_EXCHANGE["IMPORT_DIR"]` — ручной корпус `ONEC_DATA_DIR` (`data/import_1c/`)
+   не трогается никогда, это входные данные тестов и повторных прогонов.
+2. `_prune_imported_exchange_images` в периодической задаче — страховка для
+   прогонов, упавших между переносом и уборкой: файл удаляется, только если копия
+   есть в `products/base/<xx>/<name>` либо `products/variants/<xx>/<name>`.
+
+Мёртвый параметр `file_type` из `_cleanup_files` убран вместе со старым блоком —
+его единственным потребителем был именно он.
+
+**Осознанно оставлено:** превью ниже `MIN_IMAGE_SIZE_BYTES` (100 КБ) импорт не
+сохраняет, копии у них не появляется, ссылочный критерий их не удаляет. Класс
+ограничен — имена 1С детерминированы, повторная выгрузка их перезаписывает, — и
+задача логирует их число и объём (`Exchange images kept (no stored copy)`).
+**Решение Alex 28.08.2026: оставить и замерить через неделю после выката.**
+Отвергнуты: удаление по «товар уже импортирован» (снесёт исходник для goods.xml,
+стоящего в очереди) и удаление по длинному возрасту (тот же класс, что отвергнутые
+ревью 24 часа).
+
+**RED:** с убранным прод-кодом падают `test_command_deletes_sources_it_stored` и
+`test_periodic_prune_removes_only_stored_copies`. Два других теста класса
+(`test_reimport_after_cleanup_keeps_composition`, `test_manual_corpus_is_never_touched`)
+на старом коде зелёные — они сторожат инварианты, которые правка не должна сломать,
+а не дефект.
+
 ### File List
 
 **Продакшен-код**
@@ -572,14 +651,15 @@ findings 6 и 7 (`test_locked_dir_defers_neighbour_and_both_sessions_complete`,
 - `backend/apps/integrations/onec_exchange/import_orchestrator.py` — своя копия пути переведена на каталог сессии; маршрутизация распакованного и оба `.dry_run`
 - `backend/apps/integrations/onec_exchange/views.py` — комментарий `handle_init` про общий каталог
 - `backend/apps/products/tasks.py` — ключ лока от общего корня, дубль маршрутизации распакованного, пометка AC3, удаление каталогов сессии, задача `cleanup_stale_exchange_dirs` (+ хелперы `_newest_mtime`, `_quarantine_exchange_dir`, `_remove_quarantined_dir`, константы `ACTIVE_SESSION_STATUSES`/`QUARANTINE_PREFIX`); `defer_to_active_sessions` ограничен общим каталогом; post-import cleanup удаляет свой каталог независимо от чужих `IN_PROGRESS`
-- `backend/apps/products/management/commands/import_products_from_1c.py` — `_images_base_dir` (Развилки 2 и 3), две точки вызова
-- `backend/apps/products/services/variant_import.py` — `image_fallback_dirs` + `_resolve_image_source`, три точки разрешения исходника картинки
+- `backend/apps/products/management/commands/import_products_from_1c.py` — `_images_base_dir` (Развилки 2 и 3), две точки вызова; `_cleanup_consumed_images` вместо потерявшей цель уборки каталогов картинок, из `_cleanup_files` убраны мёртвые параметры `data_dir`/`file_type`
+- `backend/apps/products/services/variant_import.py` — `image_fallback_dirs` + `_resolve_image_source`, три точки разрешения исходника картинки; `consumed_image_sources` (учёт потреблённых исходников, tech-debt п. 27)
 - `backend/freesport/settings/base.py` — регистрация `cleanup-stale-exchange-dirs` (эффективное расписание)
 - `backend/freesport/celery.py` — дубль регистрации + комментарий по факту замера
 
 **Тесты**
 
-- `backend/apps/products/tests/test_exchange_dir_isolation.py` — новый: AC1-AC6, **27 тестов** (20 в раунде 1 + 7 по findings ревью)
+- `backend/apps/products/tests/test_exchange_dir_isolation.py` — новый: AC1-AC6, **31 тест** (20 в раунде 1 + 7 по findings ревью + 4 по tech-debt п. 27)
+- `backend/apps/products/tests/test_import_cleanup_race.py` — вызов `_cleanup_files` под новую сигнатуру
 - `backend/apps/products/tests/integration/test_import_orchestration.py` — ожидания `data_dir`
 - `backend/apps/integrations/tests/test_import_orchestration_view.py` — ожидание `data_dir`
 - `backend/tests/integration/test_onec_import.py` — ожидания `data_dir` и пути маршрутизации
@@ -588,7 +668,7 @@ findings 6 и 7 (`test_locked_dir_defers_neighbour_and_both_sessions_complete`,
 **Документация**
 
 - `docs/integrations/1c/import-process.md` — раздел «Раскладка каталога обмена», правило ключа лока, п. 6 про прогон без обещания; раздел «Уборка» переписан по findings 2/3/5
-- `_bmad-output/planning-artifacts/tech-debt.md` — п. 26 закрыт и дополнен; заведён п. 27 (рост общего `import_files`)
+- `_bmad-output/planning-artifacts/tech-debt.md` — п. 26 закрыт и дополнен; п. 27 заведён и закрыт по основной части (ссылочная уборка), остаток превью — под наблюдением
 - `_bmad-output/implementation-artifacts/deferred-work.md` — пять `[Review][Defer]` находок ревью
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус стори
 - `_bmad-output/implementation-artifacts/Story/onec-exchange-dir-isolation.md` — этот файл

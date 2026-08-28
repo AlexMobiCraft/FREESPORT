@@ -187,7 +187,7 @@ class TestPinpointCleanup:
 
         command = Command()
         command.stdout = StringIO()
-        command._cleanup_files(str(data_dir), "rests", [])
+        command._cleanup_files([])
 
         assert stranger.exists()
 
