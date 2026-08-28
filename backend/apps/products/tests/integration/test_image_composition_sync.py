@@ -277,7 +277,8 @@ class TestVariantImagesMirroring:
 
     def test_filled_main_image_does_not_raise(self, processor, variant, media_root, import_dir):
         """AC8: аддитивный режим на заполненном main_image не падает TypeError."""
-        variant.main_image = write_copy(media_root, "variants", "old.jpg")
+        old_path = write_copy(media_root, "variants", "old.jpg")
+        variant.main_image = old_path
         variant.save(update_fields=["main_image"])
         write_source(import_dir, "new.jpg")
 
@@ -289,6 +290,8 @@ class TestVariantImagesMirroring:
             )
 
         variant.refresh_from_db()
+        # AC7: аддитивный режим главное изображение не переназначает
+        assert variant.main_image.name == old_path
         assert variant.gallery_images == ["products/variants/xx/new.jpg"]
 
 
