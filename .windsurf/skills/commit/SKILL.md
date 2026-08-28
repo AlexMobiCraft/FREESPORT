@@ -70,7 +70,7 @@ perf(frontend): оптимизировать ре-рендер списка тр
 git commit -m "$(cat <<'EOF'
 type(scope): описание на русском
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+Co-Authored-By: AI Agent <alex.mobicraft@gmail.com>
 EOF
 )"
 ```
