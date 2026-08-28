@@ -1013,7 +1013,13 @@ class Command(BaseCommand):
 
         self.stdout.write("\n📸 ИЗОБРАЖЕНИЯ:")
         self.stdout.write(f"   Скопировано:             {stats.get('images_copied', 0)}")
-        self.stdout.write(f"   Пропущено (существуют):  {stats.get('images_skipped', 0)}")
+        self.stdout.write(f"   Заменено (новое содержимое): {stats.get('images_replaced', 0)}")
+        # Раньше здесь стояла одна строка «Пропущено (существуют)» на сумму трёх
+        # исходов — и она врала: мелкое превью не «существует», а отброшено, а
+        # «узнано по копии» вообще означает разрешённую картинку, а не пропуск.
+        self.stdout.write(f"   Уже в хранилище:         {stats.get('images_skipped_existing', 0)}")
+        self.stdout.write(f"   Отсеяно по размеру:      {stats.get('images_skipped_small', 0)}")
+        self.stdout.write(f"   Узнано по копии:         {stats.get('images_resolved_from_copy', 0)}")
         self.stdout.write(f"   Ошибок:                  {stats.get('images_errors', 0)}")
         self.stdout.write("=" * 60)
 

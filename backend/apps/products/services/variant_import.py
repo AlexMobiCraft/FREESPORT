@@ -311,7 +311,18 @@ class VariantImportProcessor:
             # Инициализируем здесь, чтобы отличать «не сработало» от «код не задеплоен».
             "size_value_dropped": 0,
             "images_copied": 0,
+            # CAP-5: содержимое сменилось при том же имени файла — копия перезаписана.
+            "images_replaced": 0,
+            # Сумма трёх исходов ниже. Оставлена ради совместимости: значение уже
+            # лежит в `report_details` прошлых сессий и читается админкой.
             "images_skipped": 0,
+            # Три исхода, которые раньше сливались в `images_skipped` и делали
+            # отчёт нечитаемым (tech-debt п. 24: на проде 11 186 в одной куче).
+            # Смысл у них разный вплоть до противоположного: «узнано по копии» —
+            # это картинка РАЗРЕШЕНА, а не отброшена.
+            "images_skipped_existing": 0,
+            "images_skipped_small": 0,
+            "images_resolved_from_copy": 0,
             "images_errors": 0,
             "attributes_linked": 0,
             "attributes_missing": 0,
@@ -472,6 +483,42 @@ class VariantImportProcessor:
                 return self.MIN_IMAGE_SIZE_BYTES
         return self.FALLBACK_MIN_IMAGE_SIZE_BYTES
 
+    # Исходы, попадающие в текстовый отчёт сессии. Порядок фиксирован: по нему
+    # строится строка, на которую вешаются тесты и грепы по проду.
+    IMAGE_OUTCOMES = (
+        ("images_copied", "скопировано"),
+        ("images_replaced", "заменено"),
+        ("images_skipped_existing", "уже в хранилище"),
+        ("images_skipped_small", "отсеяно по размеру"),
+        ("images_resolved_from_copy", "узнано по копии"),
+        ("images_errors", "ошибок"),
+    )
+
+    def _count_image_skip(self, outcome: str) -> None:
+        """Учесть исход-«пропуск» и детально, и в общей сумме.
+
+        `images_skipped` остаётся суммой трёх детальных счётчиков: значение уже
+        лежит в `report_details` прошлых сессий и читается админкой, и менять
+        его смысл задним числом нельзя.
+        """
+        self.stats[outcome] += 1
+        self.stats["images_skipped"] += 1
+
+    def image_report_line(self) -> str:
+        """Строка про изображения для текстового отчёта сессии.
+
+        До этого числа жили только в JSONB `report_details`, а `images_skipped`
+        смешивал три разных исхода — оператор видел одну кучу (на проде 11 186)
+        и не мог сказать, сколько фото отброшено, а сколько просто узнано по уже
+        перенесённой копии. Пустая строка для прогонов без картинок: сегменты
+        остатков и цен не должны получать шумную строку в отчёте.
+        """
+        if not any(self.stats.get(key) for key, _ in self.IMAGE_OUTCOMES):
+            return ""
+
+        parts = ", ".join(f"{label} {self.stats.get(key, 0)}" for key, label in self.IMAGE_OUTCOMES)
+        return f"Изображения: {parts}"
+
     def _save_image_if_not_exists(
         self,
         source_path: Path,
@@ -508,14 +555,20 @@ class VariantImportProcessor:
             # перенесённая копия — не потеря файла, иначе каждый прогон выдаёт
             # сотни ложных Image not found.
             if self._stored_image_exists(destination_path):
-                self.stats["images_skipped"] += 1
                 copy_size = self._get_stored_image_size(destination_path)
                 if copy_size is not None and copy_size < effective_min:
+                    # Отсев по размеру, просто замеренный на копии, а не на
+                    # исходнике: исход тот же, что и у мелкого превью ниже.
+                    self._count_image_skip("images_skipped_small")
                     logger.debug(
                         f"Stored image too small, skipping: {destination_path} "
                         f"({copy_size / 1024:.1f}KB < {effective_min // 1024}KB)"
                     )
                     return None
+                # Картинка РАЗРЕШЕНА копией, а не отброшена. На проде это самый
+                # частый исход, и в общей куче `images_skipped` он читался как
+                # потеря — отсюда отдельный счётчик.
+                self._count_image_skip("images_resolved_from_copy")
                 return destination_path
 
             logger.warning(f"Image not found: {source_path}")
@@ -526,14 +579,40 @@ class VariantImportProcessor:
         if file_size < effective_min:
             size_kb = file_size / 1024
             logger.debug(f"Image too small, skipping: {source_path} " f"({size_kb:.1f}KB < {effective_min // 1024}KB)")
-            self.stats["images_skipped"] += 1
+            self._count_image_skip("images_skipped_small")
             return None
 
-        # Проверка существования
+        # CAP-5. Решение «копировать или пропустить» больше не принимается по
+        # одному лишь имени файла. Имя детерминировано парой GUID товара и
+        # картинки, поэтому замена СОДЕРЖИМОГО снимка в 1С без смены GUID
+        # оставляла на сайте старую версию — молча, без ошибок и следов в
+        # отчёте. Сверяем размер: это дёшево (хранилище отдаёт его одним
+        # вызовом) и ловит подавляющее большинство реальных замен.
+        replacing = False
         if default_storage.exists(destination_path):
-            self.stats["images_skipped"] += 1
-            self.consumed_image_sources.add(str(source_path))
-            return destination_path
+            stored_size = self._get_stored_image_size(destination_path)
+
+            if stored_size is None or stored_size == file_size:
+                # Размер совпал либо хранилище его не отдаёт — считаем копию
+                # актуальной. Побайтовое сравнение здесь стоило бы чтения всего
+                # каталога на каждом прогоне (6,4 ГБ на проде) ради случая,
+                # когда подменённый снимок весит ровно столько же.
+                self._count_image_skip("images_skipped_existing")
+                self.consumed_image_sources.add(str(source_path))
+                return destination_path
+
+            # Размеры разошлись — 1С прислала другое содержимое под тем же
+            # именем. `default_storage.save` на занятый путь завёл бы файл с
+            # суффиксом, а карточка осталась бы на старом, поэтому копию
+            # удаляем и пишем заново.
+            try:
+                default_storage.delete(destination_path)
+                replacing = True
+            except Exception as exc:
+                logger.warning(f"Failed to delete stale image copy {destination_path}: {exc}")
+                self._count_image_skip("images_skipped_existing")
+                self.consumed_image_sources.add(str(source_path))
+                return destination_path
 
         # Создание директории
         if subdir:
@@ -544,7 +623,12 @@ class VariantImportProcessor:
         try:
             with open(source_path, "rb") as f:
                 saved_path = default_storage.save(destination_path, ContentFile(f.read()))
-            self.stats["images_copied"] += 1
+            self.stats["images_replaced" if replacing else "images_copied"] += 1
+            if replacing:
+                logger.info(
+                    f"Image content replaced under the same name: {destination_path} "
+                    f"({stored_size} -> {file_size} bytes)"
+                )
             self.consumed_image_sources.add(str(source_path))
             return saved_path
         except Exception as e:
@@ -2493,6 +2577,12 @@ class VariantImportProcessor:
             timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
             status_display = dict(ImportSession.ImportStatus.choices).get(status, status)
             completion_message = f"[{timestamp}] Импорт завершен со статусом: {status_display}\n"
+
+            # CAP-7 в части изображений: числа обязаны быть видны в тексте
+            # отчёта, а не только в JSONB `report_details`.
+            images_line = self.image_report_line()
+            if images_line:
+                completion_message += f"[{timestamp}] {images_line}\n"
             if error_message:
                 completion_message += f"[{timestamp}] Ошибка: {error_message}\n"
                 session.error_message = error_message
