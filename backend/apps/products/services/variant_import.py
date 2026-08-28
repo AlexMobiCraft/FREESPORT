@@ -359,22 +359,82 @@ class VariantImportProcessor:
     # Резервный минимум — используется когда нет изображений >= 100KB
     FALLBACK_MIN_IMAGE_SIZE_BYTES = 8 * 1024
 
-    def _get_effective_min_size(self, image_paths: list[str], base_dir: str) -> int:
+    def _build_destination_path(self, image_path: str, destination_prefix: str) -> str:
+        """
+        Собирает путь копии изображения в хранилище.
+
+        Args:
+            image_path: НОРМАЛИЗОВАННЫЙ путь изображения (без префикса 'import_files/').
+                Подкаталог берётся из первого сегмента пути, поэтому на сыром пути
+                из XML он выродился бы в 'import_files' и целевые пути разъехались
+                бы у всего каталога.
+            destination_prefix: Префикс директории назначения ('base' или 'variants')
+
+        Returns:
+            Относительный путь копии в default_storage
+        """
+        filename = Path(image_path).name
+        subdir = image_path.split("/")[0] if "/" in image_path else ""
+        if subdir:
+            return f"products/{destination_prefix}/{subdir}/{filename}"
+        return f"products/{destination_prefix}/{filename}"
+
+    def _stored_image_exists(self, destination_path: str) -> bool:
+        """Проверяет наличие уже перенесённой копии изображения в хранилище."""
+        from django.core.files.storage import default_storage
+
+        try:
+            return bool(default_storage.exists(destination_path))
+        except OSError:
+            return False
+
+    def _get_stored_image_size(self, destination_path: str) -> int | None:
+        """
+        Размер уже перенесённой копии в хранилище.
+
+        Returns:
+            Размер в байтах или None, если хранилище его не отдаёт.
+        """
+        from django.core.files.storage import default_storage
+
+        try:
+            return default_storage.size(destination_path)
+        except (OSError, NotImplementedError):
+            return None
+
+    def _get_effective_min_size(self, image_paths: list[str], base_dir: str, destination_prefix: str) -> int:
         """
         Определяет эффективный минимальный размер изображения.
 
         Если среди image_paths есть хотя бы одно изображение >= MIN_IMAGE_SIZE_BYTES,
         возвращает MIN_IMAGE_SIZE_BYTES. Иначе возвращает FALLBACK_MIN_IMAGE_SIZE_BYTES,
         чтобы не оставлять товар/вариант вообще без изображений.
+
+        Размер берётся у фактически доступного файла: исходника из выгрузки либо,
+        если 1С уже подчистила import_files, у перенесённой копии в хранилище.
+        Без этого после подчистки порог падал бы до резервного и отсеянные ранее
+        мелкие превью возвращались бы в состав.
         """
         for image_path in image_paths:
             normalized_path = normalize_image_path(image_path)
             source_path = Path(base_dir) / normalized_path
             try:
-                if source_path.exists() and source_path.stat().st_size >= self.MIN_IMAGE_SIZE_BYTES:
-                    return self.MIN_IMAGE_SIZE_BYTES
+                if source_path.exists():
+                    if source_path.stat().st_size >= self.MIN_IMAGE_SIZE_BYTES:
+                        return self.MIN_IMAGE_SIZE_BYTES
+                    continue
             except OSError:
                 continue
+
+            # Хранилище опрашивается СТРОГО в ветке отсутствующего исходника:
+            # в существующих тестах импорта default_storage подменяется моком,
+            # и безусловный вызов size() вернул бы мок вместо числа.
+            destination_path = self._build_destination_path(normalized_path, destination_prefix)
+            if not self._stored_image_exists(destination_path):
+                continue
+            copy_size = self._get_stored_image_size(destination_path)
+            if copy_size is not None and copy_size >= self.MIN_IMAGE_SIZE_BYTES:
+                return self.MIN_IMAGE_SIZE_BYTES
         return self.FALLBACK_MIN_IMAGE_SIZE_BYTES
 
     def _save_image_if_not_exists(
@@ -400,27 +460,38 @@ class VariantImportProcessor:
         from django.core.files.base import ContentFile
         from django.core.files.storage import default_storage
 
+        effective_min = min_size_bytes if min_size_bytes is not None else self.MIN_IMAGE_SIZE_BYTES
+
+        # Целевой путь вычисляется ДО проверки исходника: без него нельзя узнать,
+        # что картинка уже перенесена в хранилище прошлым прогоном.
+        destination_path = self._build_destination_path(image_path, destination_prefix)
+        subdir = image_path.split("/")[0] if "/" in image_path else ""
+
         if not source_path.exists():
+            # 1С подчищает import_files после импорта, а goods.xml с теми же
+            # товарами приходит снова. Уже перенесённая копия — не потеря файла,
+            # иначе каждый прогон выдаёт сотни ложных Image not found.
+            if self._stored_image_exists(destination_path):
+                self.stats["images_skipped"] += 1
+                copy_size = self._get_stored_image_size(destination_path)
+                if copy_size is not None and copy_size < effective_min:
+                    logger.debug(
+                        f"Stored image too small, skipping: {destination_path} "
+                        f"({copy_size / 1024:.1f}KB < {effective_min // 1024}KB)"
+                    )
+                    return None
+                return destination_path
+
             logger.warning(f"Image not found: {source_path}")
             self.stats["images_errors"] += 1
             return None
 
-        effective_min = min_size_bytes if min_size_bytes is not None else self.MIN_IMAGE_SIZE_BYTES
         file_size = source_path.stat().st_size
         if file_size < effective_min:
             size_kb = file_size / 1024
             logger.debug(f"Image too small, skipping: {source_path} " f"({size_kb:.1f}KB < {effective_min // 1024}KB)")
             self.stats["images_skipped"] += 1
             return None
-
-        # Сохранение структуры директорий
-        filename = source_path.name
-        subdir = image_path.split("/")[0] if "/" in image_path else ""
-        destination_path = (
-            f"products/{destination_prefix}/{subdir}/{filename}"
-            if subdir
-            else f"products/{destination_prefix}/{filename}"
-        )
 
         # Проверка существования
         if default_storage.exists(destination_path):
@@ -552,9 +623,10 @@ class VariantImportProcessor:
         if vat_rate is not None:
             self._sync_product_variants_vat_rate(product, vat_rate)
 
-        # Импорт изображений в base_images (Hybrid подход)
+        # Импорт изображений в base_images (Hybrid подход).
+        # goods.xml — источник истины по составу, поэтому зеркалируем.
         if not skip_images and base_dir and "images" in goods_data:
-            self._import_base_images(product, goods_data["images"], base_dir)
+            self._import_base_images(product, goods_data["images"], base_dir, mirror_composition=True)
 
         self.stats["products_updated"] += 1
         self.updated_products.append(str(product.onec_id))
@@ -610,9 +682,10 @@ class VariantImportProcessor:
             logger.info(f"Product created: {product.onec_id}")
             self.stats["products_created"] += 1
 
-            # Импорт изображений в base_images (Hybrid подход)
+            # Импорт изображений в base_images (Hybrid подход).
+            # goods.xml — источник истины по составу, поэтому зеркалируем.
             if not skip_images and base_dir and "images" in goods_data:
-                self._import_base_images(product, goods_data["images"], base_dir)
+                self._import_base_images(product, goods_data["images"], base_dir, mirror_composition=True)
 
             return product
 
@@ -649,6 +722,8 @@ class VariantImportProcessor:
         product: Any,
         image_paths: list[str],
         base_dir: str,
+        *,
+        mirror_composition: bool = False,
     ) -> None:
         """
         Импорт изображений в Product.base_images (Hybrid подход AC6)
@@ -657,24 +732,20 @@ class VariantImportProcessor:
             product: Product instance
             image_paths: Список путей к изображениям из goods.xml
             base_dir: Базовая директория импорта
+            mirror_composition: True — состав и порядок берутся из выгрузки
+                (goods.xml — источник истины, снятая в 1С картинка уходит).
+                False — прежнее аддитивное поведение; используется импортом
+                сканированием каталога, где список собран по остаткам на диске
+                и зеркалирование обрезало бы всё, чего на диске уже нет.
         """
         if not image_paths:
             return
 
-        # Дедупликация существующих base_images по filename (исправление бага дублей)
-        existing_images = product.base_images or []
-        seen_filenames: set[str] = set()
-        base_images: list[str] = []
+        effective_min = self._get_effective_min_size(image_paths, base_dir, "base")
 
-        for img_path in existing_images:
-            filename = Path(img_path).name if img_path else ""
-            if filename and filename not in seen_filenames:
-                base_images.append(img_path)
-                seen_filenames.add(filename)
-
-        seen_paths: set[str] = set(base_images)
-
-        effective_min = self._get_effective_min_size(image_paths, base_dir)
+        # Разрешение картинок выгрузки строго в её порядке
+        resolved: list[str] = []
+        resolved_filenames: set[str] = set()
 
         for image_path in image_paths:
             try:
@@ -687,17 +758,49 @@ class VariantImportProcessor:
 
                 if saved_path:
                     saved_filename = Path(saved_path).name
-                    # Проверяем и по пути, и по filename
-                    if saved_filename in seen_filenames:
+                    # 1С может прислать один и тот же файл дважды
+                    if saved_filename in resolved_filenames:
                         continue
-                    if saved_path not in seen_paths:
-                        base_images.append(saved_path)
-                        seen_paths.add(saved_path)
-                        seen_filenames.add(saved_filename)
+                    resolved.append(saved_path)
+                    resolved_filenames.add(saved_filename)
 
             except Exception as e:
                 logger.error(f"Error copying image {image_path}: {e}")
                 self.stats["images_errors"] += 1
+
+        if mirror_composition:
+            if not resolved:
+                # Сбой обмена, подчищенный каталог и «в 1С сняли все фото»
+                # неотличимы — состав остаётся прежним.
+                logger.warning(
+                    f"Product {product.onec_id}: ни одна картинка выгрузки не разрешилась, "
+                    f"base_images оставлены без изменений"
+                )
+                return
+            base_images = resolved
+        else:
+            # Дедупликация существующих base_images по filename (исправление бага дублей)
+            existing_images = product.base_images or []
+            seen_filenames: set[str] = set()
+            base_images = []
+
+            for img_path in existing_images:
+                filename = Path(img_path).name if img_path else ""
+                if filename and filename not in seen_filenames:
+                    base_images.append(img_path)
+                    seen_filenames.add(filename)
+
+            seen_paths: set[str] = set(base_images)
+
+            for saved_path in resolved:
+                saved_filename = Path(saved_path).name
+                # Проверяем и по пути, и по filename
+                if saved_filename in seen_filenames:
+                    continue
+                if saved_path not in seen_paths:
+                    base_images.append(saved_path)
+                    seen_paths.add(saved_path)
+                    seen_filenames.add(saved_filename)
 
         # Сохранение base_images
         if base_images != list(product.base_images or []):
@@ -823,11 +926,12 @@ class VariantImportProcessor:
         if fields_to_update:
             variant.save(update_fields=fields_to_update)
 
-        # Импорт изображений варианта (AC6)
+        # Импорт изображений варианта (AC6).
+        # offers.xml — источник истины по составу, поэтому зеркалируем.
         if not skip_images and base_dir:
             images = offer_data.get("images", [])
             if images:
-                self._import_variant_images(variant, images, base_dir)
+                self._import_variant_images(variant, images, base_dir, mirror_composition=True)
 
         # Story 14.4: Связывание атрибутов с ProductVariant (offers.xml)
         characteristics = offer_data.get("characteristics", [])
@@ -910,11 +1014,12 @@ class VariantImportProcessor:
                 product.sync_status = product.SyncStatus.IN_PROGRESS
                 product.save(update_fields=["is_active", "sync_status"])
 
-            # Импорт изображений варианта (AC6)
+            # Импорт изображений варианта (AC6).
+            # offers.xml — источник истины по составу, поэтому зеркалируем.
             if not skip_images and base_dir:
                 images = offer_data.get("images", [])
                 if images:
-                    self._import_variant_images(variant, images, base_dir)
+                    self._import_variant_images(variant, images, base_dir, mirror_composition=True)
 
             # Story 14.4: Связывание атрибутов с ProductVariant (offers.xml)
             characteristics = offer_data.get("characteristics", [])
@@ -936,38 +1041,31 @@ class VariantImportProcessor:
         variant: Any,
         image_paths: list[str],
         base_dir: str,
+        *,
+        mirror_composition: bool = False,
     ) -> None:
         """
         Импорт изображений в ProductVariant (AC6 - Hybrid подход)
 
         Первое изображение → main_image
         Остальные → gallery_images
+
+        Args:
+            variant: ProductVariant instance
+            image_paths: Список путей к изображениям из offers.xml
+            base_dir: Базовая директория импорта
+            mirror_composition: True — состав и порядок берутся из выгрузки,
+                уже заполненное main_image переназначается. False — прежнее
+                аддитивное поведение для импорта сканированием каталога.
         """
         if not image_paths:
             return
 
-        main_image_set = bool(variant.main_image)
+        effective_min = self._get_effective_min_size(image_paths, base_dir, "variants")
 
-        # Дедупликация существующих gallery_images по filename (исправление бага дублей)
-        existing_gallery = variant.gallery_images or []
-        seen_filenames: set[str] = set()
-        gallery_images: list[str] = []
-
-        # Добавляем main_image filename в seen_filenames
-        if variant.main_image:
-            main_filename = Path(variant.main_image).name
-            if main_filename:
-                seen_filenames.add(main_filename)
-
-        for img_path in existing_gallery:
-            filename = Path(img_path).name if img_path else ""
-            if filename and filename not in seen_filenames:
-                gallery_images.append(img_path)
-                seen_filenames.add(filename)
-
-        seen_paths: set[str] = set(gallery_images)
-
-        effective_min = self._get_effective_min_size(image_paths, base_dir)
+        # Разрешение картинок выгрузки строго в её порядке
+        resolved: list[str] = []
+        resolved_filenames: set[str] = set()
 
         for image_path in image_paths:
             try:
@@ -980,22 +1078,66 @@ class VariantImportProcessor:
 
                 if saved_path:
                     saved_filename = Path(saved_path).name
-                    # Проверяем и по пути, и по filename
-                    if saved_filename in seen_filenames:
+                    # 1С может прислать один и тот же файл дважды
+                    if saved_filename in resolved_filenames:
                         continue
-
-                    if not main_image_set:
-                        variant.main_image = saved_path
-                        main_image_set = True
-                        seen_filenames.add(saved_filename)
-                    elif saved_path not in seen_paths:
-                        gallery_images.append(saved_path)
-                        seen_paths.add(saved_path)
-                        seen_filenames.add(saved_filename)
+                    resolved.append(saved_path)
+                    resolved_filenames.add(saved_filename)
 
             except Exception as e:
                 logger.error(f"Error copying variant image {image_path}: {e}")
                 self.stats["images_errors"] += 1
+
+        if mirror_composition:
+            if not resolved:
+                # Пустое разрешение состав варианта не меняет — см. _import_base_images
+                logger.warning(
+                    f"Variant {variant.onec_id}: ни одна картинка выгрузки не разрешилась, "
+                    f"состав изображений оставлен без изменений"
+                )
+                return
+
+            variant.main_image = resolved[0]
+            variant.gallery_images = resolved[1:]
+            variant.save(update_fields=["main_image", "gallery_images"])
+            return
+
+        main_image_set = bool(variant.main_image)
+
+        # Дедупликация существующих gallery_images по filename (исправление бага дублей)
+        existing_gallery = variant.gallery_images or []
+        seen_filenames: set[str] = set()
+        gallery_images: list[str] = []
+
+        # Добавляем main_image filename в seen_filenames.
+        # Path() принимает только str: main_image — ImageFieldFile, берём .name.
+        if variant.main_image:
+            main_filename = Path(variant.main_image.name).name
+            if main_filename:
+                seen_filenames.add(main_filename)
+
+        for img_path in existing_gallery:
+            filename = Path(img_path).name if img_path else ""
+            if filename and filename not in seen_filenames:
+                gallery_images.append(img_path)
+                seen_filenames.add(filename)
+
+        seen_paths: set[str] = set(gallery_images)
+
+        for saved_path in resolved:
+            saved_filename = Path(saved_path).name
+            # Проверяем и по пути, и по filename
+            if saved_filename in seen_filenames:
+                continue
+
+            if not main_image_set:
+                variant.main_image = saved_path
+                main_image_set = True
+                seen_filenames.add(saved_filename)
+            elif saved_path not in seen_paths:
+                gallery_images.append(saved_path)
+                seen_paths.add(saved_path)
+                seen_filenames.add(saved_filename)
 
         # Сохранение
         variant.gallery_images = gallery_images

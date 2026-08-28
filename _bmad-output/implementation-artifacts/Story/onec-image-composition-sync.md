@@ -5,7 +5,7 @@ spec: _bmad-output/specs/spec-image-sync-from-1c/SPEC.md
 
 # Story: Состав изображений товара синхронизируется с 1С, а не только пополняется
 
-Status: ready-for-dev
+Status: review
 
 > 🟢 **Свежесть координат: все номера строк проверены чтением файлов на коммите `1c0fac85`** (27.08.2026). Совпадают с координатами в брифе и в `current-behavior.md`.
 > 🔴 **Дефект подтверждён замерами прода, а не рассуждением.** Товар 9194 отдаёт `main_image` = картинка чужого товара 14 КБ, верное фото приехало 25.08 и легло вторым. По каталогу таких перекосов минимум **104** при 2 467 товарах с непустым `base_images`. Плюс **195 тысяч ложных `Image not found` в сутки** — 253 на каждый прогон goods, полтора месяца, ни одного сигнала.
@@ -38,51 +38,51 @@ so that **обновлённое в 1С фото становилось глав
 
 ## Tasks / Subtasks
 
-- [ ] **T0. Пре-флайт (до первой правки)**
-  - [ ] `! npx gitnexus analyze` — индекс устарел, в диапазоне менялся `variant_import.py`
-  - [ ] `npx gitnexus impact _save_image_if_not_exists --direction upstream`, то же для `_import_base_images`, `_import_variant_images`, `_get_effective_min_size`; сообщить blast radius Alex (ожидание — LOW; на 27.08 по обоим методам состава 9 узлов, 4 прямых вызывающих)
+- [x] **T0. Пре-флайт (до первой правки)**
+  - [x] `! npx gitnexus analyze` — индекс устарел, в диапазоне менялся `variant_import.py`
+  - [x] `npx gitnexus impact _save_image_if_not_exists --direction upstream`, то же для `_import_base_images`, `_import_variant_images`, `_get_effective_min_size`; сообщить blast radius Alex (ожидание — LOW; на 27.08 по обоим методам состава 9 узлов, 4 прямых вызывающих)
 
-- [ ] **T1. AC1 — копия в хранилище разрешает картинку** (`variant_import.py:380-445`)
-  - [ ] Вынести вычисление `destination_path` в helper `_build_destination_path(image_path, destination_prefix)` и вызвать его **до** проверки существования исходника
-  - [ ] ⚠️ Helper обязан получать **нормализованный** путь (тот же, что уходит в `_save_image_if_not_exists` из `:684` и `:977`). Подставишь сырой путь из XML — `subdir` станет `import_files`, целевые пути разъедутся у всего каталога: копии перестанут находиться, а импорт начнёт плодить дубли рядом
-  - [ ] Ветка «исходника нет»: если `default_storage.exists(destination_path)` — вернуть путь, `images_skipped += 1`; иначе прежнее поведение (`images_errors += 1`, `None`)
-  - [ ] Проверку размера применить и к копии (см. T4) — картинка, разрешённая через копию, обязана проходить тот же порог
-  - [ ] Тест: исходник удалён, копия в `media` есть → возвращён путь, `images_skipped` вырос, `images_errors` не вырос
-  - [ ] Тест-регрессия: нет ни исходника, ни копии → `images_errors` растёт (существующий `test_image_not_found_logs_error` должен остаться зелёным)
+- [x] **T1. AC1 — копия в хранилище разрешает картинку** (`variant_import.py:380-445`)
+  - [x] Вынести вычисление `destination_path` в helper `_build_destination_path(image_path, destination_prefix)` и вызвать его **до** проверки существования исходника
+  - [x] ⚠️ Helper обязан получать **нормализованный** путь (тот же, что уходит в `_save_image_if_not_exists` из `:684` и `:977`). Подставишь сырой путь из XML — `subdir` станет `import_files`, целевые пути разъедутся у всего каталога: копии перестанут находиться, а импорт начнёт плодить дубли рядом
+  - [x] Ветка «исходника нет»: если `default_storage.exists(destination_path)` — вернуть путь, `images_skipped += 1`; иначе прежнее поведение (`images_errors += 1`, `None`)
+  - [x] Проверку размера применить и к копии (см. T4) — картинка, разрешённая через копию, обязана проходить тот же порог
+  - [x] Тест: исходник удалён, копия в `media` есть → возвращён путь, `images_skipped` вырос, `images_errors` не вырос
+  - [x] Тест-регрессия: нет ни исходника, ни копии → `images_errors` растёт (существующий `test_image_not_found_logs_error` должен остаться зелёным)
 
-- [ ] **T2. AC2 + AC3 + AC4 — зеркалирование `base_images`** (`variant_import.py:647-712`)
-  - [ ] Добавить keyword-only параметр `mirror_composition: bool = False` в `_import_base_images`
-  - [ ] В режиме зеркала собрать `resolved: list[str]` строго в порядке `image_paths`; при `not resolved` — выйти **не сохраняя** (AC3)
-  - [ ] При непустом `resolved` — `product.base_images = resolved`, сохранить только при фактическом отличии (сохранить текущее поведение `if base_images != list(product.base_images or [])`)
-  - [ ] Дедупликацию по filename сохранить внутри `resolved` (1С может прислать один файл дважды)
-  - [ ] Проставить `mirror_composition=True` в вызовах `:557` и `:615`. Вызовы из `tasks.py` и `import_images_from_1c` **не трогать** — default `False` оставляет их аддитивными (AC7)
-  - [ ] Тесты: снятая картинка уходит; порядок совпадает с XML; нулевое разрешение состав не трогает; нет ключа `images` — состав не трогается
+- [x] **T2. AC2 + AC3 + AC4 — зеркалирование `base_images`** (`variant_import.py:647-712`)
+  - [x] Добавить keyword-only параметр `mirror_composition: bool = False` в `_import_base_images`
+  - [x] В режиме зеркала собрать `resolved: list[str]` строго в порядке `image_paths`; при `not resolved` — выйти **не сохраняя** (AC3)
+  - [x] При непустом `resolved` — `product.base_images = resolved`, сохранить только при фактическом отличии (сохранить текущее поведение `if base_images != list(product.base_images or [])`)
+  - [x] Дедупликацию по filename сохранить внутри `resolved` (1С может прислать один файл дважды)
+  - [x] Проставить `mirror_composition=True` в вызовах `:557` и `:615`. Вызовы из `tasks.py` и `import_images_from_1c` **не трогать** — default `False` оставляет их аддитивными (AC7)
+  - [x] Тесты: снятая картинка уходит; порядок совпадает с XML; нулевое разрешение состав не трогает; нет ключа `images` — состав не трогается
 
-- [ ] **T3. AC5 — переназначение `main_image` варианта** (`variant_import.py:934-1002`)
-  - [ ] Тот же `mirror_composition: bool = False`; в режиме зеркала снять конструктивный запрет `if not main_image_set` (`:987`)
-  - [ ] `resolved[0]` → `main_image`, `resolved[1:]` → `gallery_images`; при `not resolved` — выйти не сохраняя (AC3)
-  - [ ] Проставить `mirror_composition=True` в вызовах `:830` и `:917`
-  - [ ] Тесты: у варианта с непустым `main_image` первая картинка выгрузки становится главной, прежняя уходит в галерею; нулевое разрешение состав варианта не меняет
+- [x] **T3. AC5 — переназначение `main_image` варианта** (`variant_import.py:934-1002`)
+  - [x] Тот же `mirror_composition: bool = False`; в режиме зеркала снять конструктивный запрет `if not main_image_set` (`:987`)
+  - [x] `resolved[0]` → `main_image`, `resolved[1:]` → `gallery_images`; при `not resolved` — выйти не сохраняя (AC3)
+  - [x] Проставить `mirror_composition=True` в вызовах `:830` и `:917`
+  - [x] Тесты: у варианта с непустым `main_image` первая картинка выгрузки становится главной, прежняя уходит в галерею; нулевое разрешение состав варианта не меняет
 
-- [ ] **T4. AC6 — порог по фактически доступному файлу** (`variant_import.py:362-378`)
-  - [ ] Добавить в `_get_effective_min_size` параметр `destination_prefix: str` — без него целевой путь копии не вычислить
-  - [ ] Для каждой картинки: если исходника нет — взять размер копии через `default_storage.size(destination_path)`; ошибки хранилища глушить как `OSError` сейчас
-  - [ ] `default_storage.size()` вызывать **только** в ветке «исходника нет». Существующий `test_stats_updated_on_image_import` (`test_image_import.py:174`) подменяет весь `default_storage` на `MagicMock` — безусловный вызов `size()` вернёт мок вместо числа и уронит сравнение с порогом
-  - [ ] Обновить оба вызова: `:677` → `"base"`, `:970` → `"variants"`
-  - [ ] Тест: исходников нет, копии крупные → порог остаётся 100 КБ, мелкая копия в состав не попадает
+- [x] **T4. AC6 — порог по фактически доступному файлу** (`variant_import.py:362-378`)
+  - [x] Добавить в `_get_effective_min_size` параметр `destination_prefix: str` — без него целевой путь копии не вычислить
+  - [x] Для каждой картинки: если исходника нет — взять размер копии через `default_storage.size(destination_path)`; ошибки хранилища глушить как `OSError` сейчас
+  - [x] `default_storage.size()` вызывать **только** в ветке «исходника нет». Существующий `test_stats_updated_on_image_import` (`test_image_import.py:174`) подменяет весь `default_storage` на `MagicMock` — безусловный вызов `size()` вернёт мок вместо числа и уронит сравнение с порогом
+  - [x] Обновить оба вызова: `:677` → `"base"`, `:970` → `"variants"`
+  - [x] Тест: исходников нет, копии крупные → порог остаётся 100 КБ, мелкая копия в состав не попадает
 
-- [ ] **T5. AC8 — `Path` от `ImageFieldFile`** (`variant_import.py:958`)
-  - [ ] `Path(variant.main_image).name` → `Path(variant.main_image.name).name`
-  - [ ] Тест: `_import_variant_images` в аддитивном режиме на варианте с непустым `main_image` не падает
+- [x] **T5. AC8 — `Path` от `ImageFieldFile`** (`variant_import.py:958`)
+  - [x] `Path(variant.main_image).name` → `Path(variant.main_image.name).name`
+  - [x] Тест: `_import_variant_images` в аддитивном режиме на варианте с непустым `main_image` не падает
 
-- [ ] **T6. AC7 — аддитивность режима сканирования**
-  - [ ] Тест: `_import_base_images` без `mirror_composition` у товара с непустым `base_images` только дописывает в хвост и не переставляет порядок
+- [x] **T6. AC7 — аддитивность режима сканирования**
+  - [x] Тест: `_import_base_images` без `mirror_composition` у товара с непустым `base_images` только дописывает в хвост и не переставляет порядок
 
-- [ ] **T7. Прогон и проверка**
-  - [ ] Показать RED каждого нового теста **до** правки (AC9), зафиксировать в Debug Log
-  - [ ] Полный прогон тестов импорта 1С — регрессий нет
-  - [ ] `npx gitnexus detect-changes --scope all` перед коммитом
-  - [ ] После выката — проверки из `verification.md` (AC10)
+- [ ] **T7. Прогон и проверка** (открыт: последний подпункт — гейт выката, не реализации)
+  - [x] Показать RED каждого нового теста **до** правки (AC9), зафиксировать в Debug Log
+  - [x] Полный прогон тестов импорта 1С — регрессий нет
+  - [x] `npx gitnexus detect-changes --scope all` перед коммитом
+  - [ ] После выката — проверки из `verification.md` (AC10) — закрывается Alex после ручного деплоя и следующей выгрузки 1С
 
 ## Dev Notes
 
@@ -164,8 +164,69 @@ so that **обновлённое в 1С фото становилось глав
 
 ### Agent Model Used
 
+claude-opus-5 (Claude Code, workflow `bmad-dev-story`)
+
 ### Debug Log References
+
+**T0 — пре-флайт.** `npx gitnexus status` показал индекс на коммите `7660d10` = текущий HEAD, статус `up-to-date`: предупреждение стори об устаревшем индексе (`e583d43`) на момент реализации уже неактуально, `analyze` не потребовался. Blast radius `--direction upstream`, все четыре символа — **LOW**:
+
+| Символ | impacted | risk | прямых вызывающих |
+|---|---|---|---|
+| `_save_image_if_not_exists` | 12 | LOW | 2 |
+| `_import_base_images` | 9 | LOW | 4 |
+| `_import_variant_images` | 9 | LOW | 4 |
+| `_get_effective_min_size` | 12 | LOW | 2 |
+
+**AC9 — RED до правки.** Прогон нового файла на неизменённом коде: `10 failed, 3 passed`. Падали ровно тесты новой функциональности; три зелёных — намеренная фиксация существующего поведения (регрессия AC1 «нет ни исходника, ни копии», guard AC4, аддитивность AC7):
+
+```
+FAILED TestCopyResolvesMissingSource::test_copy_in_storage_resolves_image
+FAILED TestCopyResolvesMissingSource::test_small_copy_does_not_pass_threshold
+FAILED TestBaseImagesMirroring::test_dropped_image_leaves_composition
+FAILED TestBaseImagesMirroring::test_import_files_prefix_resolves_to_same_copy
+FAILED TestBaseImagesMirroring::test_zero_resolved_keeps_composition
+FAILED TestVariantImagesMirroring::test_main_image_is_reassigned
+FAILED TestVariantImagesMirroring::test_zero_resolved_keeps_variant_composition
+FAILED TestVariantImagesMirroring::test_filled_main_image_does_not_raise
+FAILED TestEffectiveMinSize::test_threshold_uses_copy_when_source_is_gone
+FAILED TestEffectiveMinSize::test_small_copy_not_returned_to_composition
+```
+
+AC8 падал именно заявленной ошибкой, а не побочной:
+`TypeError: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'ImageFieldFile'` (`pathlib.py:373`).
+
+**GREEN.** После правок — `13 passed` по новому файлу.
+
+**Регрессия.** `apps/products apps/integrations` — **605 passed**. Полный прогон всего backend (`pytest -q`, без фильтра по маркерам, поэтому включая `performance`/`slow`) — **3187 passed, 75 skipped, 0 failed, 19 subtests passed** за 27:25.
+
+**Линтеры.** `black --check` — `2 files would be left unchanged`; `flake8` — `EXIT=0`.
+
+**GitNexus detect-changes (`--scope all`).** 5 файлов, 24 символа, 5 процессов, risk `medium`. Изменённые символы — только в `variant_import.py`; часть из них (`brand_id`, `characteristics`, `_create_new_variant`, `_update_existing_variant`) попала в список из-за сдвига номеров строк, а не правки логики — по diff эти функции не менялись. Затронутые потоки — `Process_variant_from_offer → …`, то есть ожидаемый путь импорта вариантов.
 
 ### Completion Notes List
 
+Реализовано ровно в границах T1–T6, без выхода за объём стори.
+
+- **AC1** — в `_save_image_if_not_exists` целевой путь вычисляется до проверки исходника (новый helper `_build_destination_path`, принимает нормализованный путь). В ветке «исходника нет» опрашивается хранилище: копия есть — путь возвращается и учитывается как `images_skipped`; ни исходника, ни копии — прежнее поведение с `images_errors`. Копия проходит тот же порог размера, что и исходник.
+- **AC2/AC3/AC4** — `_import_base_images` получил keyword-only `mirror_composition: bool = False`. В режиме зеркала состав и порядок берутся из выгрузки; при пустом `resolved` метод выходит **не сохраняя** (защита от потери каталога) и пишет предупреждение в лог. Guard `"images" in goods_data` не тронут.
+- **AC5** — `_import_variant_images` в режиме зеркала переназначает `main_image` = `resolved[0]`, `gallery_images` = `resolved[1:]`; та же защита при пустом `resolved`.
+- **AC6** — `_get_effective_min_size` принимает `destination_prefix` и при отсутствии исходника берёт размер перенесённой копии. Хранилище опрашивается строго в этой ветке: существующий `test_stats_updated_on_image_import` подменяет `default_storage` моком, и безусловный вызов `size()` уронил бы сравнение с порогом.
+- **AC7** — сканирующие вызовы (`integrations/tasks.py:301`, `:311`; `import_images_from_1c.py:199`, `:208`) не менялись: они передают аргументы по ключевым словам и подхватывают default `mirror_composition=False`. Аддитивная ветка сохранена дословно, включая безусловное сохранение варианта.
+- **AC8** — `Path(variant.main_image)` → `Path(variant.main_image.name)`.
+- **AC9** — RED показан по каждому новому тесту (Debug Log выше).
+- **AC10 — НЕ закрыт и закрыт быть не может до выката.** Статус `done` ставится по прод-замеру из `verification.md` после ручного деплоя и следующей выгрузки 1С, а не по мержу. Также остаётся в силе гейт выката: перехватить живой `goods.xml` товара с несколькими фото и убедиться, что список `<Картинка>` полный.
+
+Миграций не потребовалось. Правки только в `variant_import.py` (4 метода + 2 новых helper'а + 4 вызова), плюс новый тестовый файл.
+
 ### File List
+
+- `backend/apps/products/services/variant_import.py` — изменён
+- `backend/apps/products/tests/integration/test_image_composition_sync.py` — добавлен
+- `_bmad-output/implementation-artifacts/Story/onec-image-composition-sync.md` — изменён (ход работ)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён (статус стори)
+
+## Change Log
+
+| Дата | Изменение |
+|---|---|
+| 2026-08-27 | AC1–AC9 реализованы: состав изображений зеркалит XML 1С, перенесённая копия перестала считаться потерей, порог размера считается по копиям, снят `TypeError` на заполненном `main_image`. Режим сканирования каталога остался аддитивным. Статус `ready-for-dev` → `in-progress` → `review`. AC10 остаётся открытым до прод-замера. |

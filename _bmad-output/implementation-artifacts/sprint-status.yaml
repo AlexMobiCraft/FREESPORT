@@ -190,6 +190,19 @@ last_updated: 2026-08-27
 #             ⚠️ tech-debt.md п. 24 называет неверную причину (пропуск по имени
 #             файла) — переписать после этой стори.
 #             Источник: specs/spec-image-sync-from-1c/SPEC.md.
+# 2026-08-27: Story onec-image-composition-sync реализована, ready-for-dev ->
+#             in-progress -> review. AC1-AC9 закрыты кодом и тестами: перенесённая
+#             копия в media больше не считается потерей (уходит корень 195 тыс.
+#             ложных Image not found в сутки), состав base_images и main_image
+#             зеркалит XML 1С через keyword-only mirror_composition, порог размера
+#             считается по копиям, снят TypeError на заполненном main_image.
+#             Режим сканирования каталога остался аддитивным — правки в tasks.py
+#             и import_images_from_1c не потребовались (default False).
+#             Регресс: полный прогон 3187 passed, 75 skipped, 0 failed.
+#             ⚠️ AC10 НЕ закрыт и до выката закрыт быть не может: статус done
+#             ставится по прод-замеру (images_errors в goods-сессии, товар 9194),
+#             а не по мержу. Гейт выката из action_items (перехват живого
+#             goods.xml с полным списком <Картинка>) тоже остаётся открытым.
 project: "FREESPORT"
 project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
@@ -300,7 +313,7 @@ development_status:
   # 195 тыс. ложных Image not found в сутки. AC1 — предусловие остальных.
   # ⚠️ done — только после прод-замера по AC10 (images_errors упали, товар 9194
   # отдаёт верное главное фото), а не по мержу.
-  onec-image-composition-sync: ready-for-dev
+  onec-image-composition-sync: review
 
   # ========================================
   # Epic 40: Уровень цен клиента приходит из 1С
