@@ -80,6 +80,58 @@ const parsePageNumber = (value: string | null): number => {
   return Number.isSafeInteger(page) && page >= 1 ? page : 1;
 };
 
+/** Белый список значений <select> сортировки: всё остальное — сортировка по умолчанию */
+const ORDERING_OPTIONS: readonly string[] = [
+  '-created_at',
+  'min_retail_price',
+  '-min_retail_price',
+  'name',
+  '-name',
+];
+
+/** Мусор в `?ordering=` не должен уезжать в запрос — страница молча берёт умолчание */
+const parseOrdering = (value: string | null): string =>
+  value && ORDERING_OPTIONS.includes(value) ? value : DEFAULT_ORDERING;
+
+/**
+ * Один конец диапазона цены. Всё, что не является целым числом в
+ * [PRICE_MIN, PRICE_MAX], заменяется умолчанием СВОЕГО конца. Clamp запрещён:
+ * бэкенд отрицательное значение и так игнорирует, а зажатие `max_price=-5`
+ * к PRICE_MIN дало бы пользователю пустую выдачу вместо всего каталога.
+ */
+const parsePriceBound = (value: string | null, fallback: number): number => {
+  if (!value || !/^\d+$/.test(value)) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= PRICE_MIN && parsed <= PRICE_MAX
+    ? parsed
+    : fallback;
+};
+
+/**
+ * Разбор пары концов диапазона одним правилом, а не двумя независимыми:
+ * инвертированный диапазон (`?min_price=9000&max_price=1000`) сбрасывает ОБА
+ * конца к умолчаниям — ни swap, ни подтягивание одного конца к другому, иначе
+ * пользователь не поймёт, почему выдача не соответствует ссылке.
+ * Правило идемпотентно, поэтому канонизация URL не зациклится.
+ */
+const parsePriceRange = (minParam: string | null, maxParam: string | null): PriceRange => {
+  const min = parsePriceBound(minParam, PRICE_MIN);
+  const max = parsePriceBound(maxParam, PRICE_MAX);
+  return min > max ? DEFAULT_PRICE_RANGE : { min, max };
+};
+
+/** `in_stock` живёт в URL только выключенным: умолчание фильтра — «в наличии» */
+const parseInStock = (value: string | null): boolean => value !== 'false';
+
+/** `?brand=nike,adidas` → ['nike', 'adidas']; пустые значения отбрасываются */
+const parseBrandSlugs = (value: string | null): string[] =>
+  (value ?? '')
+    .split(',')
+    .map(slug => slug.trim())
+    .filter(Boolean);
+
 const getNodeKey = (path: number[]) => path.join(' > ');
 
 const mapCategoryTreeNode = (node: CategoryTreeResponse): CategoryNode => ({
@@ -356,6 +408,10 @@ const CatalogContent: React.FC = () => {
   const isNewParam = searchParams?.get('is_new') ?? null;
   const isHitParam = searchParams?.get('is_hit') ?? null;
   const isSaleParam = searchParams?.get('is_sale') ?? null;
+  const orderingParam = searchParams?.get('ordering') ?? null;
+  const minPriceParam = searchParams?.get('min_price') ?? null;
+  const maxPriceParam = searchParams?.get('max_price') ?? null;
+  const inStockParam = searchParams?.get('in_stock') ?? null;
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
@@ -387,7 +443,11 @@ const CatalogContent: React.FC = () => {
   const [isBrandsLoading, setIsBrandsLoading] = useState(true);
   const [brandsError, setBrandsError] = useState<string | null>(null);
 
-  const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
+  // Фильтры зеркалятся в URL той же схемой, что и page: ленивая инициализация
+  // из адресной строки переживает F5, «назад» и открытие ссылки в новой вкладке.
+  const [priceRange, setPriceRange] = useState<PriceRange>(() =>
+    parsePriceRange(minPriceParam, maxPriceParam)
+  );
   // Синхронная инициализация из URL: иначе на /catalog?search=x&page=3 первый
   // запрос ушёл бы без search, поймал 404 и сбросил страницу у корректной закладки
   const [searchQuery, setSearchQuery] = useState(() => searchParam ?? '');
@@ -398,11 +458,12 @@ const CatalogContent: React.FC = () => {
   // router.push обновляет searchParams асинхронно, и производное от URL значение
   // давало бы лишний запрос со старой страницей при смене фильтра.
   const [page, setPage] = useState(() => parsePageNumber(pageParam));
-  const [ordering, setOrdering] = useState(DEFAULT_ORDERING);
+  const [ordering, setOrdering] = useState(() => parseOrdering(orderingParam));
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isProductsLoading, setIsProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
-  const [inStock, setInStock] = useState(true); // По умолчанию показываем только товары в наличии
+  // По умолчанию показываем только товары в наличии; в URL это состояние не пишется
+  const [inStock, setInStock] = useState(() => parseInStock(inStockParam));
 
   // Auth integration
   const user = useAuthStore(state => state.user);
@@ -492,6 +553,78 @@ const CatalogContent: React.FC = () => {
     return base;
   }, [activePathNodes, activeCategoryId, activeCategoryLabel]);
 
+  // Разобранные параметры URL — единый источник для инициализации состояния,
+  // синхронизации по «назад»/«вперёд» и канонизации адресной строки. Три
+  // независимых разбора неизбежно разъехались бы между собой.
+  const urlFilters = useMemo(
+    () => ({
+      ordering: parseOrdering(orderingParam),
+      price: parsePriceRange(minPriceParam, maxPriceParam),
+      inStock: parseInStock(inStockParam),
+      brandSlugs: parseBrandSlugs(brandSlugParam),
+    }),
+    [orderingParam, minPriceParam, maxPriceParam, inStockParam, brandSlugParam]
+  );
+
+  // Категория в URL — slug, в состоянии — id. Пока дерево не загружено,
+  // соответствие неизвестно, и «расхождения» с состоянием не существует.
+  const urlActiveCategoryId = useMemo(() => {
+    if (!categorySlugParam || categoryTree.length === 0) {
+      return null;
+    }
+    return findCategoryBySlug(categoryTree, categorySlugParam)?.id ?? null;
+  }, [categorySlugParam, categoryTree]);
+
+  // Бренды в URL — slug'и, в состоянии — id. null означает «соответствие ещё
+  // невозможно»: справочник брендов не загружен. Slug'и, которых в справочнике
+  // нет, отбрасываются: такое расхождение сменой состояния не устраняется —
+  // его снимает канонизация URL.
+  const urlBrandIds = useMemo(() => {
+    if (isBrandsLoading) {
+      return null;
+    }
+    const ids = new Set<number>();
+    urlFilters.brandSlugs.forEach(slug => {
+      const found = brands.find(brand => brand.slug === slug);
+      if (found) {
+        ids.add(found.id);
+      }
+    });
+    return ids;
+  }, [urlFilters.brandSlugs, brands, isBrandsLoading]);
+
+  const brandStateMatchesUrl = useMemo(() => {
+    if (urlBrandIds === null) {
+      return false;
+    }
+    if (urlBrandIds.size !== selectedBrandIds.size) {
+      return false;
+    }
+    for (const id of urlBrandIds) {
+      if (!selectedBrandIds.has(id)) {
+        return false;
+      }
+    }
+    return true;
+  }, [urlBrandIds, selectedBrandIds]);
+
+  // Гейт запроса товаров по брендам: пока бренд задан в URL, но набор в состоянии
+  // ему не равен, запрос ушёл бы без фильтра бренда. Проверять один только
+  // isBrandsLoading мало — в том же проходе эффектов, где бренды догрузились,
+  // эффект запроса ещё видит пустой selectedBrandIds и успел бы сходить в API:
+  // лишний запрос и мигание выдачи на закладке /catalog?brand=nike.
+  // Гейт держится только при наличии параметра: собственный выбор пользователя
+  // (URL ещё пуст) — это уже актуальное состояние, ждать его зеркала незачем.
+  // Ошибка загрузки брендов гейт не держит: brands пуст, набор из URL тоже пуст,
+  // и на ?brand=нет-такого расхождение снимается канонизацией, а не состоянием.
+  const isBrandFilterPending = Boolean(brandSlugParam) && !brandStateMatchesUrl;
+
+  // Дерево категорий грузится РОВНО ОДИН РАЗ за монтирование. Прежние
+  // зависимости [categorySlugParam, hasBadgeFilter, inStock] после
+  // зеркалирования фильтров в URL менялись бы от каждого действия пользователя:
+  // getTree() уходил бы в API заново, а setExpandedKeys(new Set(...)) — replace,
+  // не merge — схлопывал бы раскрытые ветки на каждом выборе категории.
+  // hasBadgeFilter в теле эффекта не использовался вовсе — паразитная зависимость.
   useEffect(() => {
     let isMounted = true;
 
@@ -499,37 +632,7 @@ const CatalogContent: React.FC = () => {
       try {
         const tree = await categoriesService.getTree();
         if (!isMounted) return;
-        const mapped = sortCategoryTree(tree.map(mapCategoryTreeNode));
-        setCategoryTree(mapped);
-
-        // Первичная фильтрация по in_stock_count (до получения visible-categories)
-        // устраняет flash пустых категорий при загрузке с inStock=true
-        if (inStock) {
-          const initialVisible = new Set<number>();
-          const collectVisible = (nodes: CategoryNode[]) => {
-            for (const n of nodes) {
-              if (n.inStockCount > 0) initialVisible.add(n.id);
-              if (n.children) collectVisible(n.children);
-            }
-          };
-          collectVisible(mapped);
-          setSidebarVisibleIds(initialVisible);
-        }
-
-        let initialCategory: CategoryNode | null = null;
-
-        if (categorySlugParam) {
-          initialCategory = findCategoryBySlug(mapped, categorySlugParam);
-        }
-
-        // auto-select убран: при /catalog без параметров activeCategoryId остаётся null
-
-        if (initialCategory) {
-          setActiveCategoryId(initialCategory.id);
-          setActiveCategoryLabel(initialCategory.label);
-          const pathNodes = findCategoryPathById(mapped, initialCategory.id);
-          setExpandedKeys(new Set(getKeysForPath(pathNodes)));
-        }
+        setCategoryTree(sortCategoryTree(tree.map(mapCategoryTreeNode)));
       } catch (error) {
         console.error('Не удалось загрузить дерево категорий', error);
         if (isMounted) {
@@ -548,7 +651,43 @@ const CatalogContent: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [categorySlugParam, hasBadgeFilter, inStock]);
+  }, []);
+
+  // Первичная фильтрация сайдбара по in_stock_count (до ответа visible-categories)
+  // устраняет flash пустых категорий. Это производное от уже загруженного дерева,
+  // перезапроса не требует. Отдельный эффект нужен и для «назад» на ?in_stock=false:
+  // раньше сброс видимости делал только обработчик чекбокса, и после внешней
+  // навигации сайдбар оставался сужённым.
+  useEffect(() => {
+    if (!inStock) {
+      setSidebarVisibleIds(null);
+      setSidebarVisibleBrandIds(null);
+      return;
+    }
+    if (categoryTree.length === 0) {
+      return;
+    }
+    const initialVisible = new Set<number>();
+    const collectVisible = (nodes: CategoryNode[]) => {
+      for (const n of nodes) {
+        if (n.inStockCount > 0) initialVisible.add(n.id);
+        if (n.children) collectVisible(n.children);
+      }
+    };
+    collectVisible(categoryTree);
+    setSidebarVisibleIds(initialVisible);
+  }, [categoryTree, inStock]);
+
+  // Категория из URL → состояние. Зависимости только «урловые»: собственный push
+  // обработчика меняет состояние раньше, чем searchParams, и эффект с
+  // зависимостью от activeCategoryId откатил бы выбор до commit навигации.
+  // Раскрытие пути и подпись категории делает эффект [activeCategoryId, categoryTree] ниже.
+  useEffect(() => {
+    setActiveCategoryId(prev => (prev === urlActiveCategoryId ? prev : urlActiveCategoryId));
+    if (urlActiveCategoryId === null) {
+      setActiveCategoryLabel('');
+    }
+  }, [urlActiveCategoryId]);
 
   // Внешняя смена search в URL (кнопка «назад», переход из шапки)
   useEffect(() => {
@@ -585,17 +724,24 @@ const CatalogContent: React.FC = () => {
     };
   }, []);
 
-  // Синхронизация фильтра бренда с URL
+  // Синхронизация фильтра бренда с URL — двусторонняя: набор в состоянии всегда
+  // равен набору, распарсенному из URL по загруженному справочнику. Прежний гард
+  // `if (brandSlugParam && brands.length > 0)` не снимал выбор при исчезновении
+  // параметра: «назад» с ?brand=nike на /catalog оставлял Nike в запросе при
+  // пустом URL. Гард на совпадение сохранён, чтобы собственный push мультивыбора
+  // не пересоздавал Set вхолостую. Зависимость только «урловая» (urlBrandIds):
+  // зависимость от selectedBrandIds откатывала бы выбор до commit навигации.
   useEffect(() => {
-    // Если есть параметр в URL и бренды загружены
-    if (brandSlugParam && brands.length > 0) {
-      const foundBrand = brands.find(b => b.slug === brandSlugParam);
-      if (foundBrand) {
-        // Устанавливаем фильтр (заменяем текущий выбор или добавляем - логичнее заменить при прямом переходе)
-        setSelectedBrandIds(new Set([foundBrand.id]));
-      }
+    if (urlBrandIds === null) {
+      return;
     }
-  }, [brandSlugParam, brands]);
+    setSelectedBrandIds(prev => {
+      if (prev.size === urlBrandIds.size && Array.from(urlBrandIds).every(id => prev.has(id))) {
+        return prev;
+      }
+      return new Set(urlBrandIds);
+    });
+  }, [urlBrandIds]);
 
   useEffect(() => {
     if (!activeCategoryId || !categoryTree.length) return;
@@ -630,9 +776,11 @@ const CatalogContent: React.FC = () => {
         return;
       }
 
-      const newUrl = params.toString()
-        ? `${pathname || '/'}?${params.toString()}`
-        : pathname || '/';
+      // Запятая — sub-delim, URLSearchParams кодирует её в %2C. Для CSV-параметров
+      // (brand) это ломает читаемость ссылки, которой делятся; на разбор не влияет:
+      // и браузер, и searchParams.get() трактуют обе формы одинаково.
+      const query = params.toString().replace(/%2C/g, ',');
+      const newUrl = query ? `${pathname || '/'}?${query}` : pathname || '/';
 
       if (options?.replace) {
         router.replace(newUrl, { scroll: false });
@@ -679,35 +827,129 @@ const CatalogContent: React.FC = () => {
   // номера страницы в URL с состоянием и означает такую внешнюю навигацию;
   // сразу за ним sync-эффект меняет page, то есть следующий запрос гарантирован
   // и обесцененный ответ не оставит висеть скелетон.
+  //
+  // Ключ расхождения считается теми же парсерами, что и sync-эффект ниже, иначе
+  // инвалидация разъедется с фактической синхронизацией. Бампится только то
+  // расхождение, которое sync-эффект гарантированно устранит в том же цикле:
+  // бамп без последующего запроса оставил бы висеть скелетон, потому что
+  // finally в fetchProducts снимает isProductsLoading лишь при seq === requestSeq.
+  // Отсюда исключения по brand: пока справочник грузится (urlBrandIds === null)
+  // и для slug'ов, которых в справочнике нет, — они в urlBrandIds не попадают.
   useIsomorphicLayoutEffect(() => {
-    if (parsePageNumber(pageParam) !== page) {
+    const diverges =
+      parsePageNumber(pageParam) !== page ||
+      urlFilters.ordering !== ordering ||
+      urlFilters.price.min !== priceRange.min ||
+      urlFilters.price.max !== priceRange.max ||
+      urlFilters.inStock !== inStock ||
+      urlActiveCategoryId !== activeCategoryId ||
+      (urlBrandIds !== null && !brandStateMatchesUrl);
+
+    if (diverges) {
       requestSeq.current += 1;
     }
-  }, [pageParam, page]);
+  }, [
+    pageParam,
+    page,
+    urlFilters,
+    ordering,
+    priceRange.min,
+    priceRange.max,
+    inStock,
+    urlActiveCategoryId,
+    activeCategoryId,
+    urlBrandIds,
+    brandStateMatchesUrl,
+  ]);
 
   // Сброс на первую страницу при смене любого фильтра: состояние и URL разом.
   // setPage в одном обработчике с фильтром батчится в один рендер → один запрос.
-  const resetPage = useCallback(() => {
-    invalidateOnPageChange(1);
-    setPage(1);
-    updateSearchParams({ page: null });
-  }, [invalidateOnPageChange, updateSearchParams]);
+  // Дополнительные ключи пишутся тем же пушем: два последовательных вызова
+  // updateSearchParams в одном обработчике затирали бы друг друга.
+  const resetPage = useCallback(
+    (updates: Record<string, string | null> = {}) => {
+      invalidateOnPageChange(1);
+      setPage(1);
+      updateSearchParams({ ...updates, page: null });
+    },
+    [invalidateOnPageChange, updateSearchParams]
+  );
 
   // Синхронизация состояния из URL для кнопок «назад»/«вперёд».
-  // Функциональный setPage не требует page в зависимостях; при совпадении — no-op.
+  // Функциональные сеттеры не требуют состояния в зависимостях; при совпадении — no-op.
+  // Зависимости только «урловые»: собственный push обработчика меняет состояние
+  // раньше searchParams, и зависимость от состояния откатывала бы фильтр.
   useEffect(() => {
     const urlPage = parsePageNumber(pageParam);
     setPage(prev => (prev === urlPage ? prev : urlPage));
+    setOrdering(prev => (prev === urlFilters.ordering ? prev : urlFilters.ordering));
+    setPriceRange(prev =>
+      prev.min === urlFilters.price.min && prev.max === urlFilters.price.max
+        ? prev
+        : urlFilters.price
+    );
+    setInStock(prev => (prev === urlFilters.inStock ? prev : urlFilters.inStock));
 
-    // Канонизация первой страницы: `?page=1`, `?page=01` и мусор (`?page=abc`,
-    // `?page=0`) означают первую страницу, но параметр остаётся в адресной строке.
-    // Канонический URL первой страницы — без `page` (SEO). replace, а не push:
-    // чистка пришедшей извне ссылки не должна плодить записи в истории.
-    // Удаляется только `page` — остальные параметры сохраняются.
+    // Канонизация адресной строки одним replace: значения по умолчанию, мусор и
+    // несуществующие slug'и брендов в ней не остаются. `?page=1`, `?page=01` и
+    // мусор (`?page=abc`, `?page=0`) означают первую страницу, канонический URL
+    // которой не содержит параметра (SEO). replace, а не push: чистка пришедшей
+    // извне ссылки не должна плодить записи в истории. Парсеры возвращают
+    // канонические значения сами, поэтому повторный проход ничего не меняет и
+    // replace не зацикливается.
+    const canonical: Record<string, string | null> = {};
+
     if (pageParam !== null && urlPage === 1) {
-      updateSearchParamsRef.current({ page: null }, { replace: true });
+      canonical.page = null;
     }
-  }, [pageParam]);
+
+    const canonicalOrdering = urlFilters.ordering === DEFAULT_ORDERING ? null : urlFilters.ordering;
+    if (orderingParam !== canonicalOrdering) {
+      canonical.ordering = canonicalOrdering;
+    }
+
+    const canonicalMinPrice =
+      urlFilters.price.min === PRICE_MIN ? null : String(urlFilters.price.min);
+    if (minPriceParam !== canonicalMinPrice) {
+      canonical.min_price = canonicalMinPrice;
+    }
+
+    const canonicalMaxPrice =
+      urlFilters.price.max === PRICE_MAX ? null : String(urlFilters.price.max);
+    if (maxPriceParam !== canonicalMaxPrice) {
+      canonical.max_price = canonicalMaxPrice;
+    }
+
+    const canonicalInStock = urlFilters.inStock ? null : 'false';
+    if (inStockParam !== canonicalInStock) {
+      canonical.in_stock = canonicalInStock;
+    }
+
+    // Бренды канонизируются только по загруженному справочнику: пустой brands
+    // (ещё грузится или отвалился) — не повод стирать валидный параметр.
+    if (brands.length > 0) {
+      const knownSlugs = Array.from(
+        new Set(urlFilters.brandSlugs.filter(slug => brands.some(brand => brand.slug === slug)))
+      );
+      const canonicalBrand = knownSlugs.length > 0 ? knownSlugs.join(',') : null;
+      if (brandSlugParam !== canonicalBrand) {
+        canonical.brand = canonicalBrand;
+      }
+    }
+
+    if (Object.keys(canonical).length > 0) {
+      updateSearchParamsRef.current(canonical, { replace: true });
+    }
+  }, [
+    pageParam,
+    orderingParam,
+    minPriceParam,
+    maxPriceParam,
+    inStockParam,
+    brandSlugParam,
+    urlFilters,
+    brands,
+  ]);
 
   // Обработчик изменения поискового запроса
   const handleSearchChange = useCallback(
@@ -835,10 +1077,15 @@ const CatalogContent: React.FC = () => {
     // Ждём пока попытка загрузки категорий завершится (даже с ошибкой — F3),
     // чтобы URL-параметр category успел установить activeCategoryId.
     // При badge-фильтре грузим сразу.
+    // Бренды: пока набор в состоянии не совпал с набором из URL, запрос ушёл бы
+    // с неверным фильтром (см. isBrandFilterPending).
+    if (isBrandFilterPending) {
+      return;
+    }
     if (isCategoryLoadAttempted || hasBadgeFilter) {
       fetchProducts();
     }
-  }, [fetchProducts, isCategoryLoadAttempted, hasBadgeFilter]);
+  }, [fetchProducts, isCategoryLoadAttempted, hasBadgeFilter, isBrandFilterPending]);
 
   // Ref для поля поиска
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -868,7 +1115,7 @@ const CatalogContent: React.FC = () => {
   const handleSelectCategory = (node: CategoryNode) => {
     setActiveCategoryId(node.id);
     setActiveCategoryLabel(node.label);
-    resetPage();
+    resetPage({ category: node.slug ?? null });
   };
 
   const handleSelectAllCategories = () => {
@@ -880,50 +1127,66 @@ const CatalogContent: React.FC = () => {
       setActiveCategoryId(null);
       setActiveCategoryLabel('');
       setExpandedKeys(new Set()); // Очищаем развёрнутые подкатегории
-      resetPage();
+      resetPage({ category: null });
       // Фильтр НЕ сворачиваем
     }
   };
 
   const handlePriceRangeChange = (value: PriceRange) => {
     setPriceRange(value);
-    resetPage();
+    resetPage({
+      min_price: value.min === PRICE_MIN ? null : String(value.min),
+      max_price: value.max === PRICE_MAX ? null : String(value.max),
+    });
   };
 
   const handleBrandToggle = (brandId: number) => {
-    setSelectedBrandIds(prev => {
-      const next = new Set(prev);
-      if (next.has(brandId)) {
-        next.delete(brandId);
-      } else {
-        next.add(brandId);
-      }
-      return next;
-    });
-    resetPage();
+    const next = new Set(selectedBrandIds);
+    if (next.has(brandId)) {
+      next.delete(brandId);
+    } else {
+      next.add(brandId);
+    }
+    setSelectedBrandIds(next);
+
+    // CSV slug'ов строится от СЛЕДУЮЩЕГО набора, а не от текущего состояния:
+    // setSelectedBrandIds ещё не применён в момент записи URL.
+    const slugs = Array.from(next)
+      .map(id => brands.find(brand => brand.id === id)?.slug)
+      .filter((slug): slug is string => Boolean(slug));
+    resetPage({ brand: slugs.length > 0 ? slugs.join(',') : null });
   };
 
   const handleOrderingChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setOrdering(event.target.value);
-    resetPage();
+    const value = parseOrdering(event.target.value);
+    setOrdering(value);
+    resetPage({ ordering: value === DEFAULT_ORDERING ? null : value });
   };
 
   const handleResetFilters = () => {
-    invalidateOnPageChange(1);
     setSelectedBrandIds(new Set());
     setPriceRange(DEFAULT_PRICE_RANGE);
     setOrdering(DEFAULT_ORDERING);
     setInStock(true); // Сбрасываем фильтр "В наличии" в true
     setSearchQuery(''); // Сбрасываем поисковый запрос
-    setPage(1);
-
-    // Очищаем search и номер страницы из URL одним пушем
-    updateSearchParams({ search: null, page: null });
 
     // Сбрасываем категорию в «Все»
     setActiveCategoryId(null);
     setActiveCategoryLabel('');
     setExpandedKeys(new Set()); // Очищаем развёрнутые подкатегории
+
+    // Один push со всеми ключами фильтров сайдбара. Бейджи is_new/is_hit/is_sale
+    // намеренно переживают сброс: они приходят внешним контекстом (переход с
+    // главной) и в сайдбаре как фильтр не показаны.
+    resetPage({
+      category: null,
+      brand: null,
+      ordering: null,
+      min_price: null,
+      max_price: null,
+      in_stock: null,
+      search: null,
+    });
   };
 
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
@@ -1263,20 +1526,19 @@ const CatalogContent: React.FC = () => {
                   label="В наличии"
                   checked={inStock}
                   onChange={e => {
-                    setInStock(e.target.checked);
-                    resetPage();
-                    if (!e.target.checked) {
-                      setSidebarVisibleIds(null);
-                      setSidebarVisibleBrandIds(null);
-                    }
+                    const checked = e.target.checked;
+                    setInStock(checked);
+                    // Видимость сайдбара пересчитывает эффект [categoryTree, inStock] —
+                    // он же отрабатывает и «назад» на ?in_stock=false
+                    resetPage({ in_stock: checked ? null : 'false' });
                   }}
                 />
               </div>
 
               <div className="flex flex-col gap-3">
-                <Button variant="primary" size="small" onClick={fetchProducts}>
-                  Применить
-                </Button>
+                {/* Кнопки «Применить» больше нет: каждый фильтр применяется в своём
+                    обработчике и зеркалится в URL, а кнопка была вторым, невидимым
+                    в адресной строке способом запустить тот же запрос. */}
                 <Button variant="secondary" size="small" onClick={handleResetFilters}>
                   Сбросить
                 </Button>
