@@ -592,8 +592,15 @@ const CatalogContent: React.FC = () => {
   // Условие Boolean(categorySlugParam) обязательно: собственный выбор категории
   // меняет состояние раньше URL, и без него гейт закрывал бы уже актуальный запрос.
   // Несуществующий slug гейт не держит: urlActiveCategoryId === null === состояние.
+  // Условие !isCategoryLoadAttempted обязательно: до загрузки дерева
+  // urlActiveCategoryId равен null, как и состояние, — расхождения «не видно»,
+  // и при badge-фильтре (он снимает ожидание дерева в эффекте запроса) ссылка
+  // /catalog?category=obuv&is_new=true уходила бы в API дважды: сначала без
+  // category_id, затем с ним. Ошибка загрузки дерева гейт не держит:
+  // isCategoryLoadAttempted ставится и в ветке ошибки.
   const isCategoryFilterPending =
-    Boolean(categorySlugParam) && urlActiveCategoryId !== activeCategoryId;
+    Boolean(categorySlugParam) &&
+    (!isCategoryLoadAttempted || urlActiveCategoryId !== activeCategoryId);
 
   // Бренды в URL — slug'и, в состоянии — id. null означает «соответствие ещё
   // невозможно»: справочник брендов не загружен. Slug'и, которых в справочнике
@@ -775,12 +782,37 @@ const CatalogContent: React.FC = () => {
     setActiveCategoryLabel(pathNodes[pathNodes.length - 1]?.label ?? '');
   }, [activeCategoryId, categoryTree]);
 
+  // Очередь наших собственных, ещё не закоммиченных записей в адресную строку.
+  // router.push в App Router — transition: до его commit useSearchParams отдаёт
+  // прежний снимок. Два быстрых действия подряд (бренд, следом сортировка)
+  // строились бы от одного и того же URL, и вторая навигация теряла бы первую.
+  const pendingQueriesRef = React.useRef<string[]>([]);
+
+  useEffect(() => {
+    const committed = searchParams?.toString() ?? '';
+    const queue = pendingQueriesRef.current;
+    if (queue.length === 0) {
+      return;
+    }
+    const index = queue.indexOf(committed);
+    if (index === -1) {
+      // Снимок не совпал ни с одной нашей записью — URL увели «назад»/«вперёд»
+      // или внешним переходом, и наша база больше не действительна.
+      queue.length = 0;
+    } else {
+      // Запись приземлилась: она и всё, что было до неё, больше не «в полёте».
+      queue.splice(0, index + 1);
+    }
+  }, [searchParams]);
+
   // Обновление URL-параметров без перезагрузки страницы.
   // Принимает сразу несколько ключей: два последовательных вызова в одном
   // обработчике затирали бы друг друга, так как оба строятся от одного searchParams.
   const updateSearchParams = useCallback(
     (updates: Record<string, string | null>, options?: { replace?: boolean }) => {
-      const current = searchParams?.toString() ?? '';
+      const committed = searchParams?.toString() ?? '';
+      // База — последняя наша ещё не закоммиченная запись, иначе снимок роутера
+      const current = pendingQueriesRef.current.at(-1) ?? committed;
       const params = new URLSearchParams(current);
 
       Object.entries(updates).forEach(([key, value]) => {
@@ -796,10 +828,13 @@ const CatalogContent: React.FC = () => {
         return;
       }
 
+      const next = params.toString();
+      pendingQueriesRef.current.push(next);
+
       // Запятая — sub-delim, URLSearchParams кодирует её в %2C. Для CSV-параметров
       // (brand) это ломает читаемость ссылки, которой делятся; на разбор не влияет:
       // и браузер, и searchParams.get() трактуют обе формы одинаково.
-      const query = params.toString().replace(/%2C/g, ',');
+      const query = next.replace(/%2C/g, ',');
       const newUrl = query ? `${pathname || '/'}?${query}` : pathname || '/';
 
       if (options?.replace) {
@@ -950,6 +985,18 @@ const CatalogContent: React.FC = () => {
     );
     setInStock(prev => (prev === urlFilters.inStock ? prev : urlFilters.inStock));
 
+    // Канонизация ждёт, пока станут разрешимы ВСЕ пришедшие в ссылке slug'и:
+    // иначе смешанная мусорная ссылка чистится двумя replace — сначала по
+    // параметрам, разбираемым без справочников, потом по бренду и категории.
+    // Контракт требует одну атомарную замену. Ждём только загрузку, но не
+    // успех: отвалившийся справочник разрешимым уже не станет, и остальные
+    // параметры не должны застрять в URL из-за него.
+    const awaitsBrands = Boolean(brandSlugParam) && isBrandsLoading;
+    const awaitsCategory = Boolean(categorySlugParam) && !isCategoryLoadAttempted;
+    if (awaitsBrands || awaitsCategory) {
+      return;
+    }
+
     // Канонизация адресной строки одним replace: значения по умолчанию, мусор и
     // несуществующие slug'и брендов в ней не остаются. `?page=1`, `?page=01` и
     // мусор (`?page=abc`, `?page=0`) означают первую страницу, канонический URL
@@ -985,9 +1032,12 @@ const CatalogContent: React.FC = () => {
       canonical.in_stock = canonicalInStock;
     }
 
-    // Бренды канонизируются только по загруженному справочнику: пустой brands
-    // (ещё грузится или отвалился) — не повод стирать валидный параметр.
-    if (brands.length > 0) {
+    // Бренды канонизируются по УСПЕШНО загруженному справочнику. Проверять
+    // brands.length нельзя: успешно загруженный пустой справочник — такое же
+    // основание считать slug мусорным, как и непустой, а при таком гарде
+    // неизвестный бренд оставался бы в URL навсегда. Ошибка загрузки — другое
+    // дело: знать, мусорный slug или нет, страница не может, параметр остаётся.
+    if (!isBrandsLoading && brandsError === null) {
       const knownSlugs = Array.from(
         new Set(urlFilters.brandSlugs.filter(slug => brands.some(brand => brand.slug === slug)))
       );
@@ -995,6 +1045,14 @@ const CatalogContent: React.FC = () => {
       if (brandSlugParam !== canonicalBrand) {
         canonical.brand = canonicalBrand;
       }
+    }
+
+    // Категория, которой нет в загруженном дереве, — такой же мусор, как
+    // неизвестный бренд: сайдбар показывает «Все категории», запрос уходит без
+    // category_id, и ложный активный фильтр в адресной строке ссылку только
+    // портит. Пустое дерево (не загрузилось) поводом стирать параметр не служит.
+    if (categorySlugParam && categoryTree.length > 0 && urlActiveCategoryId === null) {
+      canonical.category = null;
     }
 
     if (Object.keys(canonical).length > 0) {
@@ -1007,8 +1065,14 @@ const CatalogContent: React.FC = () => {
     maxPriceParam,
     inStockParam,
     brandSlugParam,
+    categorySlugParam,
     urlFilters,
     brands,
+    isBrandsLoading,
+    brandsError,
+    isCategoryLoadAttempted,
+    categoryTree,
+    urlActiveCategoryId,
   ]);
 
   // Обработчик изменения поискового запроса
@@ -1087,23 +1151,36 @@ const CatalogContent: React.FC = () => {
       setIsProductsLoading(true);
       setProductsError(null);
 
+      // Ответы сайдбара проверяют версию запроса каждый сам: они приходят
+      // независимо от выдачи товаров, и медленный ответ по прежним фильтрам
+      // иначе сузил бы дерево и список брендов уже после смены фильтра.
+      const isCurrent = () => seq === requestSeq.current;
+
       const [response] = await Promise.all([
         productsService.getAll(filters),
         // Параллельно обновляем видимость категорий по текущим фильтрам
         categoriesService
           .getVisibleCategories(filters)
-          .then(ids => setSidebarVisibleIds(new Set(ids)))
-          .catch(() => setSidebarVisibleIds(null)), // fallback: показать всё дерево
+          .then(ids => {
+            if (isCurrent()) setSidebarVisibleIds(new Set(ids));
+          })
+          .catch(() => {
+            if (isCurrent()) setSidebarVisibleIds(null); // fallback: показать всё дерево
+          }),
         // Бренды сужаем только в режиме "В наличии"; при снятии чекбокса показываем весь первичный список
         filters.in_stock
           ? brandsService
               .getVisibleBrands(filters)
-              .then(ids => setSidebarVisibleBrandIds(new Set(ids)))
+              .then(ids => {
+                if (isCurrent()) setSidebarVisibleBrandIds(new Set(ids));
+              })
               .catch(error => {
                 console.warn('Не удалось загрузить видимые бренды', error);
-                setSidebarVisibleBrandIds(null);
+                if (isCurrent()) setSidebarVisibleBrandIds(null);
               })
-          : Promise.resolve().then(() => setSidebarVisibleBrandIds(null)),
+          : Promise.resolve().then(() => {
+              if (isCurrent()) setSidebarVisibleBrandIds(null);
+            }),
       ]);
 
       if (seq !== requestSeq.current) return;
@@ -1240,6 +1317,12 @@ const CatalogContent: React.FC = () => {
 
   const handleResetFilters = () => {
     setSelectedBrandIds(new Set());
+    // Отложенный commit цены отменяется здесь, а не эффектом синхронизации
+    // драфта: если priceRange уже равен DEFAULT_PRICE_RANGE по идентичности
+    // (сброс после сброса), сеттер ничего не меняет, эффект не перезапускается,
+    // и переживший сброс таймер применил бы драфт, от которого пользователь ушёл.
+    cancelPriceCommit();
+    setPriceDraft(DEFAULT_PRICE_RANGE);
     setPriceRange(DEFAULT_PRICE_RANGE);
     setOrdering(DEFAULT_ORDERING);
     setInStock(true); // Сбрасываем фильтр "В наличии" в true
