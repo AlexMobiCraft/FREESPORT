@@ -854,6 +854,8 @@ describe('RegisterForm', () => {
 
       expect(roleSelect).toHaveClass('text-[var(--color-neutral-500)]');
       expect(roleSelect).not.toHaveClass('text-[var(--color-text-primary)]');
+      expect(roleSelect).toHaveClass('focus:ring-[var(--color-primary)]');
+      expect(roleSelect).not.toHaveClass('focus:ring-[var(--color-primary-500)]');
 
       await user.selectOptions(roleSelect, 'trainer');
 
