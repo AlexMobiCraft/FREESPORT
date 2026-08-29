@@ -844,6 +844,22 @@ describe('RegisterForm', () => {
       expect(screen.queryByRole('option', { name: /розничный покупатель/i })).toBeNull();
     });
 
+    test('should mute the role placeholder and use an existing focus-ring token', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      const roleSelect = screen.getByLabelText(/тип аккаунта/i);
+
+      expect(roleSelect).toHaveClass('text-[var(--color-neutral-500)]');
+      expect(roleSelect).toHaveClass('focus:ring-[var(--color-primary)]');
+      expect(roleSelect).not.toHaveClass('focus:ring-[var(--color-primary-500)]');
+
+      await user.selectOptions(roleSelect, 'trainer');
+
+      expect(roleSelect).toHaveClass('text-[var(--color-text-primary)]');
+      expect(roleSelect).not.toHaveClass('text-[var(--color-neutral-500)]');
+    });
+
     // Роль обязательна: без неё submit не уходит на бэкенд
     test('should block submit and show error when role is not selected', async () => {
       const user = userEvent.setup();

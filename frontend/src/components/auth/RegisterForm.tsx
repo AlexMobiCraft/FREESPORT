@@ -301,7 +301,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           aria-invalid={Boolean(errors.role?.message) || undefined}
           aria-describedby={errors.role?.message ? 'register-role-error' : undefined}
           className={cn(
-            'w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
+            'w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
             // Пока роль не выбрана, текст плейсхолдера приглушён тем же токеном,
             // что и placeholder в Input («Иван»): --color-neutral-500
             selectedRole ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-neutral-500)]'
