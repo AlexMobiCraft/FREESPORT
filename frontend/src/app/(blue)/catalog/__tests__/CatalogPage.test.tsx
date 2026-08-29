@@ -764,6 +764,21 @@ const lastNavigation = (): Navigation | null => navigationLog.at(-1) ?? null;
 /** Последний URL, переданный в push/replace */
 const lastNavigationUrl = () => lastNavigation()?.url ?? null;
 
+/**
+ * Барьер «страница смонтирована и монтажный запрос товаров уже ушёл».
+ * Отрисовки брендов для этого мало: справочник брендов и дерево категорий
+ * грузятся независимо, а первый getAll уходит только после попытки загрузки
+ * дерева (isCategoryLoadAttempted). Под нагрузкой бренды успевают отрисоваться
+ * раньше — и mockClear() после такого барьера стирал бы счётчик ДО монтажного
+ * запроса, засчитывая его следующему действию пользователя.
+ */
+const settleCatalog = async () => {
+  await screen.findByLabelText('Nike');
+  await waitFor(() => {
+    expect(productsService.getAll).toHaveBeenCalled();
+  });
+};
+
 describe('CatalogPage — сохранение страницы пагинации в URL', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -870,7 +885,7 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     render(<CatalogPage />);
 
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
     (productsService.getAll as Mock).mockClear();
     mockPush.mockClear();
 
@@ -1374,7 +1389,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     render(<CatalogPage />);
 
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
     (productsService.getAll as Mock).mockClear();
     (categoriesService.getTree as Mock).mockClear();
 
@@ -1393,7 +1408,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
   it('пишет диапазон цены в URL, не записывая значения по умолчанию', async () => {
     render(<CatalogPage />);
 
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
     const [minInput, maxInput] = rangeInputs();
 
     await act(async () => {
@@ -1433,7 +1448,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
   it('применяет диапазон цены один раз после паузы, не записывая промежуточные шаги', async () => {
     render(<CatalogPage />);
 
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
     (productsService.getAll as Mock).mockClear();
     navigationLog.length = 0;
 
@@ -1757,7 +1772,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     render(<CatalogPage />);
 
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
     navigationLog.length = 0;
     // До commit транзишена useSearchParams отдаёт прежний снимок: вторая
     // навигация обязана достроиться к первой, а не строиться от URL до неё.
@@ -1779,7 +1794,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     const user = userEvent.setup();
 
     render(<CatalogPage />);
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
 
     // Первый сброс приводит priceRange к константе умолчаний: со второго раза
     // setPriceRange(DEFAULT_PRICE_RANGE) не меняет идентичность объекта, эффект
@@ -1841,7 +1856,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     render(<CatalogPage />);
 
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
     await user.selectOptions(orderingSelect(), '-created_at');
 
     await waitFor(() => {
@@ -1875,7 +1890,7 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
 
     render(<CatalogPage />);
 
-    await screen.findByLabelText('Nike');
+    await settleCatalog();
     await user.selectOptions(orderingSelect(), '-created_at');
 
     await waitFor(() => {
@@ -1949,5 +1964,91 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     await waitFor(() => {
       expect(productSkeletonCount()).toBe(0);
     });
+  });
+  it('отменяет отложенный commit цены при «назад», не менявшем диапазон', async () => {
+    resetSearchParams('ordering=-created_at');
+
+    const { rerender } = render(<CatalogPage />);
+    await settleCatalog();
+
+    const [minInput] = rangeInputs();
+    await act(async () => {
+      fireEvent.change(minInput, { target: { value: '3000' } });
+    });
+
+    // «Назад» на URL без ordering. Применённый priceRange при этом не меняется
+    // (в обеих ссылках цена — умолчания), поэтому setPriceRange остаётся no-op,
+    // эффект синхронизации драфта не перезапускается и таймер debounce переживает
+    // внешнюю навигацию, если её не обнаружить отдельно.
+    resetSearchParams('');
+    (productsService.getAll as Mock).mockClear();
+    rerender(<CatalogPage />);
+
+    // Пауза заведомо длиннее PRICE_COMMIT_DELAY_MS (300 мс)
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 400));
+    });
+
+    expect(navigationLog.some(navigation => navigation.url.includes('min_price'))).toBe(false);
+    expect(productsService.getAll).not.toHaveBeenCalledWith(
+      expect.objectContaining({ min_price: 3000 })
+    );
+    // Драфт возвращается к применённому диапазону, а не остаётся на 3000
+    expect((minInput as HTMLInputElement).value).toBe('1');
+  });
+
+  it('не отменяет debounce цены собственной навигацией другого фильтра', async () => {
+    const user = userEvent.setup();
+
+    render(<CatalogPage />);
+    await settleCatalog();
+
+    const [minInput] = rangeInputs();
+    await act(async () => {
+      fireEvent.change(minInput, { target: { value: '3000' } });
+    });
+
+    // Собственный push другого фильтра тоже меняет снимок searchParams, но
+    // намерение пользователя по цене остаётся в силе — отменять его нельзя
+    await user.click(screen.getByLabelText('Nike'));
+
+    await waitFor(
+      () => {
+        expect(lastNavigationUrl()).toBe('/catalog?brand=nike&min_price=3000');
+      },
+      { timeout: 3000 }
+    );
+  });
+
+  it('вычищает категорию из URL, когда дерево категорий успешно пустое', async () => {
+    (categoriesService.getTree as Mock).mockResolvedValue([]);
+    resetSearchParams('category=obuv');
+
+    render(<CatalogPage />);
+
+    // Успешно загруженное пустое дерево — такое же основание считать slug
+    // мусорным, как и непустое: сопоставить его не с чем
+    await waitFor(() => {
+      expect(lastNavigationUrl()).toBe('/catalog');
+    });
+    expect(lastNavigation()?.type).toBe('replace');
+    expect(navigationLog).toHaveLength(1);
+    await waitFor(() => {
+      expect(productSkeletonCount()).toBe(0);
+    });
+  });
+
+  it('оставляет категорию в URL, если дерево категорий не загрузилось', async () => {
+    (categoriesService.getTree as Mock).mockRejectedValue(new Error('network'));
+    resetSearchParams('category=obuv');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalled();
+    });
+    // Ошибка загрузки — не повод стирать валидный параметр: знать, что он
+    // мусорный, страница не может
+    expect(navigationLog).toEqual([]);
   });
 });

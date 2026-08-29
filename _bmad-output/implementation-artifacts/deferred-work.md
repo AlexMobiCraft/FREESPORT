@@ -1,3 +1,7 @@
+## Deferred from: code review of spec-catalog-filters-url-state (2026-08-29)
+
+- **Незавершённый запрос товаров после размонтирования может выполнить устаревший `router.replace` при позднем 404 и вернуть пользователя в каталог.** `fetchProducts` проверяет только `requestSeq`, который при unmount не меняется; если запрос страницы `page > 1` завершится 404 уже после ухода пользователя, catch вызовет `updateSearchParamsRef.current({ page: null }, { replace: true })` со старым pathname. Риск существовал в baseline `3141b3a2` и не внесён текущей правкой; нужен отдельный lifecycle/abort guard для всего запроса. [`frontend/src/app/(blue)/catalog/page.tsx:1147-1211`]
+
 ## Deferred from: code review of 41-0-real-404-for-nonexistent-urls (2026-08-25)
 
 - **Недоступный Redis при сохранении Page может вернуть 500 уже после записи в БД и оставить серверный список страниц неинвалидированным.** `invalidate_page_cache` вызывает операции `cache.delete/get/incr` без обработки исключений; в autocommit сигнал выполняется после SQL-записи, а в транзакции — из `on_commit`. Проблема существовала до story 41.0: прежний signal так же синхронно вызывал `cache.delete`. Нужна отдельная политика деградации кэша — логирование и best-effort invalidation либо outbox/retry, чтобы повтор клиентского запроса не был единственным механизмом восстановления. [`backend/apps/pages/signals.py:40,57-66`, `backend/freesport/settings/production.py:53-64`]

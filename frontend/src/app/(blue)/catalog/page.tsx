@@ -786,24 +786,58 @@ const CatalogContent: React.FC = () => {
   // router.push в App Router — transition: до его commit useSearchParams отдаёт
   // прежний снимок. Два быстрых действия подряд (бренд, следом сортировка)
   // строились бы от одного и того же URL, и вторая навигация теряла бы первую.
+  const priceCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Объект, который положил в priceRange наш собственный отложенный commit.
+  // Сравнение по идентичности — единственный надёжный признак источника
+  // изменения: по значениям «свой commit» и «внешняя навигация на тот же
+  // диапазон» неразличимы, а реакция на них разная.
+  const committedPriceRef = React.useRef<PriceRange | null>(null);
+  const cancelPriceCommit = useCallback(() => {
+    if (priceCommitTimerRef.current !== null) {
+      clearTimeout(priceCommitTimerRef.current);
+      priceCommitTimerRef.current = null;
+    }
+  }, []);
+
   const pendingQueriesRef = React.useRef<string[]>([]);
+
+  // Снимок URL, на котором эффект отработал в прошлый раз. Без него внешнюю
+  // навигацию при пустой очереди не отличить от обычного ререндера.
+  const lastCommittedQueryRef = React.useRef(searchParams?.toString() ?? '');
 
   useEffect(() => {
     const committed = searchParams?.toString() ?? '';
-    const queue = pendingQueriesRef.current;
-    if (queue.length === 0) {
+    if (committed === lastCommittedQueryRef.current) {
       return;
     }
+    lastCommittedQueryRef.current = committed;
+
+    const queue = pendingQueriesRef.current;
     const index = queue.indexOf(committed);
-    if (index === -1) {
-      // Снимок не совпал ни с одной нашей записью — URL увели «назад»/«вперёд»
-      // или внешним переходом, и наша база больше не действительна.
-      queue.length = 0;
-    } else {
+    if (index !== -1) {
       // Запись приземлилась: она и всё, что было до неё, больше не «в полёте».
       queue.splice(0, index + 1);
+      return;
     }
-  }, [searchParams]);
+
+    // Снимок не совпал ни с одной нашей записью — URL увели «назад»/«вперёд»
+    // или внешним переходом, и наша база больше не действительна.
+    queue.length = 0;
+
+    // Отложенный commit цены отменяется здесь, а не эффектом синхронизации
+    // драфта: тот висит на priceRange, а внешняя навигация может применённый
+    // диапазон не менять вовсе (`?ordering=-created_at` → `/catalog`). Тогда
+    // setPriceRange — no-op, эффект не перезапускается, и переживший навигацию
+    // таймер записал бы в URL драфт, от которого пользователь уже ушёл, уведя
+    // его обратно из только что открытой записи истории. Собственные навигации
+    // сюда не попадают: намерение пользователя по цене они не отменяют.
+    cancelPriceCommit();
+    setPriceDraft(prev =>
+      prev.min === urlFilters.price.min && prev.max === urlFilters.price.max
+        ? prev
+        : urlFilters.price
+    );
+  }, [searchParams, cancelPriceCommit, urlFilters]);
 
   // Обновление URL-параметров без перезагрузки страницы.
   // Принимает сразу несколько ключей: два последовательных вызова в одном
@@ -938,19 +972,6 @@ const CatalogContent: React.FC = () => {
     resetPageRef.current = resetPage;
   }, [resetPage]);
 
-  const priceCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Объект, который положил в priceRange наш собственный отложенный commit.
-  // Сравнение по идентичности — единственный надёжный признак источника
-  // изменения: по значениям «свой commit» и «внешняя навигация на тот же
-  // диапазон» неразличимы, а реакция на них разная.
-  const committedPriceRef = React.useRef<PriceRange | null>(null);
-  const cancelPriceCommit = useCallback(() => {
-    if (priceCommitTimerRef.current !== null) {
-      clearTimeout(priceCommitTimerRef.current);
-      priceCommitTimerRef.current = null;
-    }
-  }, []);
-
   // Драфт следует за применённым диапазоном, когда тот меняется не ползунком:
   // «назад»/«вперёд», F5, кнопка «Сбросить». Отложенный commit при этом отменяется —
   // иначе он вернул бы на экран диапазон, от которого пользователь уже ушёл.
@@ -1050,8 +1071,16 @@ const CatalogContent: React.FC = () => {
     // Категория, которой нет в загруженном дереве, — такой же мусор, как
     // неизвестный бренд: сайдбар показывает «Все категории», запрос уходит без
     // category_id, и ложный активный фильтр в адресной строке ссылку только
-    // портит. Пустое дерево (не загрузилось) поводом стирать параметр не служит.
-    if (categorySlugParam && categoryTree.length > 0 && urlActiveCategoryId === null) {
+    // портит. Признак — успешная загрузка дерева, а не categoryTree.length:
+    // успешно пришедшее пустое дерево сопоставить slug не с чем ровно так же,
+    // как непустое, и по длине его не отличить от неудачной загрузки, при
+    // которой параметр трогать нельзя (симметрично бренду выше).
+    if (
+      categorySlugParam &&
+      isCategoryLoadAttempted &&
+      categoriesError === null &&
+      urlActiveCategoryId === null
+    ) {
       canonical.category = null;
     }
 
@@ -1071,7 +1100,7 @@ const CatalogContent: React.FC = () => {
     isBrandsLoading,
     brandsError,
     isCategoryLoadAttempted,
-    categoryTree,
+    categoriesError,
     urlActiveCategoryId,
   ]);
 
