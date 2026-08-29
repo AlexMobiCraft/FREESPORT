@@ -4764,6 +4764,8 @@ export interface operations {
         ordering?: string;
         /** @description A page number within the paginated result set. */
         page?: number;
+        /** @description Number of results to return per page. */
+        page_size?: number;
         /** @description A search term. */
         search?: string;
       };

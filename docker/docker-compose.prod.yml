@@ -58,6 +58,12 @@ services:
       - CSRF_TRUSTED_ORIGINS=http://5.35.124.149,http://optisport.ru,https://5.35.124.149,https://optisport.ru,https://www.optisport.ru,http://www.optisport.ru
       - ONEC_DATA_DIR=/app/data/import_1c
       - ONEC_PRIVATE_DIR=/app/var/onec
+      # AC6: путь абсолютный и на постоянном томе. Прежнее относительное
+      # умолчание резолвилось в /app/backend/backup_db (uid 999) и давало
+      # Permission denied на каждом полном импорте.
+      - BACKUP_DIR=/app/var/backups
+      - BACKUP_BEFORE_IMPORT=${BACKUP_BEFORE_IMPORT:-True}
+      - BACKUP_MIN_INTERVAL_SECONDS=${BACKUP_MIN_INTERVAL_SECONDS:-3600}
       - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT}
       # Email настройки
       - EMAIL_BACKEND=${EMAIL_BACKEND}
@@ -82,6 +88,10 @@ services:
       # docs/deployment-prod-checklist.md, §5 Story 36.1.
       - ../data/prod/onec_private:/app/var/onec
       - ${ONEC_DATA_DIR}:/app/data/import_1c
+      # AC6: каталог бэкапов БД. Постоянный том обязателен — иначе копии
+      # исчезают при первой пересборке контейнера. Каталог на хосте должен
+      # принадлежать 1000:1000, как и onec_private выше.
+      - ../data/prod/backups:/app/var/backups
     user: "1000:1000"
     healthcheck:
       test:
@@ -114,6 +124,13 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_APP_URL: ${SITE_URL}
+        # Нужен именно как build-arg: middleware читает переменную из edge-бандла,
+        # куда значения попадают на этапе сборки, а не из environment в runtime.
+        # Имя выделенное: общий NEXT_PUBLIC_API_URL_INTERNAL инлайнится на этапе
+        # сборки во весь код и увёл бы на внутренний HTTP-адрес backend также
+        # серверные компоненты CMS-страниц (/oferta, /privacy-policy), которые не
+        # шлют X-Forwarded-Proto и при SECURE_SSL_REDIRECT=True остались бы без данных
+        NEXT_PUBLIC_MIDDLEWARE_API_URL: http://backend:8000/api/v1
         NODE_ENV: production
     image: ${FRONTEND_IMAGE:-freesport-frontend:local}
     container_name: freesport-frontend
@@ -195,6 +212,12 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - ONEC_DATA_DIR=/app/data/import_1c
       - ONEC_PRIVATE_DIR=/app/var/onec
+      # AC6: путь абсолютный и на постоянном томе. Прежнее относительное
+      # умолчание резолвилось в /app/backend/backup_db (uid 999) и давало
+      # Permission denied на каждом полном импорте.
+      - BACKUP_DIR=/app/var/backups
+      - BACKUP_BEFORE_IMPORT=${BACKUP_BEFORE_IMPORT:-True}
+      - BACKUP_MIN_INTERVAL_SECONDS=${BACKUP_MIN_INTERVAL_SECONDS:-3600}
       # Email настройки
       - EMAIL_BACKEND=${EMAIL_BACKEND}
       - EMAIL_HOST=${EMAIL_HOST}
@@ -210,6 +233,10 @@ services:
     volumes:
       - ../backend/logs:/app/logs
       - ${ONEC_DATA_DIR}:/app/data/import_1c
+      # AC6: каталог бэкапов БД. Постоянный том обязателен — иначе копии
+      # исчезают при первой пересборке контейнера. Каталог на хосте должен
+      # принадлежать 1000:1000, как и onec_private выше.
+      - ../data/prod/backups:/app/var/backups
       - ../data/prod/media:/app/media
       # Story 36.1: тот же приватный каталог, что и у backend — воркер читает
       # файлы, записанные backend'ом. Владелец на хосте — 1000:1000 (см. user).

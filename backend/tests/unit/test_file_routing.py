@@ -106,7 +106,7 @@ class TestXMLGoodsRouting:
             target_path = router.move_to_import(filename)
 
         # Assert: File is in goods/ subdirectory
-        expected_dir = import_base / "goods"
+        expected_dir = import_base / session_id / "goods"
         assert target_path.parent == expected_dir
         assert target_path.name == filename
         assert target_path.exists()
@@ -140,7 +140,7 @@ class TestXMLOffersRouting:
             target_path = router.move_to_import(filename)
 
         # Assert: File is in offers/ subdirectory
-        expected_dir = import_base / "offers"
+        expected_dir = import_base / session_id / "offers"
         assert target_path.parent == expected_dir
         assert target_path.exists()
 
@@ -151,7 +151,7 @@ class TestXMLOffersRouting:
 
 
 class TestImageJpgRouting:
-    """TC3: Загрузка image.jpg -> перемещён в 1c_import/goods/import_files/"""
+    """TC3: Загрузка image.jpg -> перемещён в ОБЩИЙ 1c_import/import_files/"""
 
     def test_jpg_image_routed_to_import_files(self, routing_service, file_service, import_base, session_id):
         """JPG images should be moved to import_files/ directory."""
@@ -171,8 +171,8 @@ class TestImageJpgRouting:
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
 
-        # Assert: File is in import_files/ subdirectory
-        expected_dir = import_base / "goods" / "import_files"
+        # Assert: картинки общие для всех сессий — они в корне каталога обмена
+        expected_dir = import_base / "import_files"
         assert target_path.parent == expected_dir
         assert target_path.exists()
 
@@ -183,7 +183,7 @@ class TestImageJpgRouting:
 
 
 class TestImageUppercaseRouting:
-    """TC4: Загрузка photo.PNG (uppercase) -> перемещён в goods/import_files/"""
+    """TC4: Загрузка photo.PNG (uppercase) -> перемещён в общий import_files/"""
 
     def test_uppercase_png_routed_to_import_files(self, routing_service, file_service, import_base, session_id):
         """Uppercase image extensions should be handled case-insensitively."""
@@ -203,8 +203,8 @@ class TestImageUppercaseRouting:
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
 
-        # Assert: File is in goods/import_files/
-        expected_dir = import_base / "goods" / "import_files"
+        # Assert: File is in the shared import_files/
+        expected_dir = import_base / "import_files"
         assert target_path.parent == expected_dir
 
 
@@ -214,7 +214,7 @@ class TestImageUppercaseRouting:
 
 
 class TestZipRouting:
-    """TC5: Загрузка import.zip -> перемещён в 1c_import/"""
+    """TC5: Загрузка import.zip -> перемещён в 1c_import/<sessid>/"""
 
     def test_zip_file_routed_to_import_root(self, file_service, import_base, session_id):
         """ZIP files should be routed to import root for later unpacking."""
@@ -235,7 +235,7 @@ class TestZipRouting:
             target_path = router.move_to_import(filename)
 
         # Assert: ZIP moved to import root
-        assert target_path.parent == import_base
+        assert target_path.parent == import_base / session_id
         assert target_path.exists()
         assert not file_service.file_exists(filename), "ZIP should be moved from temp"
 
@@ -246,7 +246,7 @@ class TestZipRouting:
 
 
 class TestZipUppercaseRouting:
-    """TC6: Загрузка archive.ZIP (uppercase) -> перемещён в 1c_import/"""
+    """TC6: Загрузка archive.ZIP (uppercase) -> перемещён в 1c_import/<sessid>/"""
 
     def test_uppercase_zip_routed(self, file_service, import_base, session_id):
         """Uppercase ZIP extensions should also be routed."""
@@ -266,8 +266,8 @@ class TestZipUppercaseRouting:
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
 
-        # Assert: ZIP moved to import root
-        assert target_path.parent == import_base
+        # Assert: ZIP moved to the session's import root
+        assert target_path.parent == import_base / session_id
         assert target_path.exists()
 
 
@@ -277,7 +277,7 @@ class TestZipUppercaseRouting:
 
 
 class TestUnknownFileRouting:
-    """TC7: Загрузка unknown.dat -> перемещён в корень 1c_import/"""
+    """TC7: Загрузка unknown.dat -> перемещён в корень 1c_import/<sessid>/"""
 
     def test_unknown_extension_routed_to_import_root(self, file_service, import_base, session_id):
         """Files with unknown extensions should be moved to import root."""
@@ -297,8 +297,8 @@ class TestUnknownFileRouting:
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
 
-        # Assert: File is in import root (not a subdirectory)
-        expected_dir = import_base
+        # Assert: File is in the session's import root (not a subdirectory)
+        expected_dir = import_base / session_id
         assert target_path.parent == expected_dir
         assert target_path.exists()
 
@@ -309,7 +309,7 @@ class TestUnknownFileRouting:
 
 
 class TestSessionIsolation:
-    """TC8: Temp изолирован по сессиям, import очередь общая."""
+    """TC8: и temp, и каталог обмена изолированы по сессиям."""
 
     def test_files_isolated_between_sessions(self, tmp_path):
         """Files from different sessions should not interfere with each other."""
@@ -357,9 +357,9 @@ class TestSessionIsolation:
             path1 = router1.move_to_import(filename1)
             path2 = router2.move_to_import(filename2)
 
-            # Assert: Import queue is shared (no session isolation)
-            assert path1.parent == import_base / "goods"
-            assert path2.parent == import_base / "offers"
+            # Assert: каталог обмена изолирован по сессии
+            assert path1.parent == import_base / session1 / "goods"
+            assert path2.parent == import_base / session2 / "offers"
 
             # Verify contents are preserved
             assert path1.read_bytes() == content1
@@ -454,7 +454,7 @@ class TestRoutingRules:
             target_path = router.move_to_import(filename)
 
         # Assert
-        expected_dir = import_base / expected_subdir
+        expected_dir = import_base / session_id / expected_subdir
         assert target_path.parent == expected_dir
 
     @pytest.mark.parametrize("extension", [".jpg", ".jpeg", ".png", ".gif", ".webp"])
@@ -476,8 +476,8 @@ class TestRoutingRules:
             router = FileRoutingService(session_id)
             target_path = router.move_to_import(filename)
 
-        # Assert
-        expected_dir = import_base / "goods" / "import_files"
+        # Assert: картинки общие, а не сессионные
+        expected_dir = import_base / "import_files"
         assert target_path.parent == expected_dir
 
 
@@ -562,11 +562,15 @@ class TestOneCPrivatePathConfiguration:
             "IMPORT_DIR": import_dir,
         }
 
-        with patch("apps.integrations.onec_exchange.import_orchestrator.settings", mock):
+        with (
+            patch("apps.integrations.onec_exchange.import_orchestrator.settings", mock),
+            patch("apps.integrations.onec_exchange.routing_service.settings", mock),
+        ):
             from apps.integrations.onec_exchange.import_orchestrator import ImportOrchestratorService
 
             service = ImportOrchestratorService("session-1")
-            assert service.import_dir == import_dir
+            # Оркестратор держит каталог СВОЕЙ сессии, а не общий корень обмена.
+            assert service.import_dir == import_dir / "session-1"
             assert media_root not in service.import_dir.parents
 
 

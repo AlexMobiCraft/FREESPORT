@@ -248,7 +248,15 @@ class TestAsyncImportDispatch:
 
                 success, msg = svc.execute()
                 assert success is True
-                mock_task.delay.assert_called_once_with(999, str(onec_private_dirs["import_dir"]))
+                # source_filename обязателен: без него задача теряет тип сегмента
+                # и гоняет полный импорт каталога на каждом файле выгрузки.
+                # data_dir — каталог СВОЕЙ сессии: каталог обмена изолирован
+                # (стори onec-exchange-dir-isolation).
+                mock_task.delay.assert_called_once_with(
+                    999,
+                    str(onec_private_dirs["import_dir"] / "test-sessid"),
+                    source_filename="goods.xml",
+                )
 
     def test_real_xml_upload_and_import_use_private_dirs(self, authenticated_client, onec_private_dirs):
         """Реальный XML обмена не должен появляться под MEDIA_ROOT."""
@@ -282,9 +290,9 @@ class TestAsyncImportDispatch:
             assert import_response.status_code == 200
             assert import_response.content.decode("utf-8") == "success"
             mock_task.assert_called_once()
-            assert mock_task.call_args[0][1] == str(onec_private_dirs["import_dir"])
+            assert mock_task.call_args[0][1] == str(onec_private_dirs["import_dir"] / session_key)
 
-        routed_file = onec_private_dirs["import_dir"] / "goods" / filename
+        routed_file = onec_private_dirs["import_dir"] / session_key / "goods" / filename
         assert routed_file.exists()
         assert routed_file.read_bytes() == payload
         assert not temp_file.exists()

@@ -258,6 +258,19 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.products.tasks.cleanup_stale_import_sessions",
         "schedule": 60 * 60,  # Раз в час (Story 3.1 AC6)
     },
+    # Уборка осиротевших каталогов обмена 1С (стори onec-exchange-dir-isolation, AC5).
+    #
+    # Расписание объявлено дважды — здесь и в `freesport/celery.py`. Замер в
+    # контейнере 28.08.2026 показал, что побеждает ИМЕННО ЭТОТ словарь:
+    # `app.conf` ленив, присваивание `app.conf.beat_schedule` в celery.py
+    # выполняется до финализации конфига, и загруженные из настроек значения
+    # ложатся поверх (эффективное расписание `cleanup-stale-import-sessions` —
+    # 3600 с отсюда, а не `crontab(minute="30")` оттуда). Поэтому регистрация
+    # обязана быть здесь; дубль в celery.py оставлен как страховка.
+    "cleanup-stale-exchange-dirs": {
+        "task": "apps.products.tasks.cleanup_stale_exchange_dirs",
+        "schedule": 60 * 60 * 6,  # Каждые 6 часов, порог уборки — 24 ч
+    },
 }
 
 # Баннеры
@@ -302,6 +315,40 @@ ONEC_PRIVATE_DIR = Path(os.environ.get("ONEC_PRIVATE_DIR", str(BASE_DIR / "var" 
 # Имя корневой категории 1С для фильтрации при импорте
 # Подкатегории этой категории импортируются как корневые на сайте
 ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")
+
+# Сериализация импорта 1С: каталог обмена общий для всех сессий, а воркер
+# Celery работает в prefork на nproc процессов. Без лока соседние задачи
+# обрабатывают один каталог одновременно и сносят файлы друг друга
+# (инцидент выгрузки 25.08.2026 — потеряно ~18 000 строк остатков).
+# TTL обязан переживать самый долгий импорт (полный каталог — минуты),
+# но истекать сам, чтобы упавший воркер не заблокировал обмен навсегда.
+ONEC_IMPORT_LOCK_TTL = config("ONEC_IMPORT_LOCK_TTL", default=1800, cast=int)
+# Пауза перед повторной попыткой взять лок: 1С отдаёт сегмент каждые ~6,5 с.
+ONEC_IMPORT_LOCK_RETRY_COUNTDOWN = config("ONEC_IMPORT_LOCK_RETRY_COUNTDOWN", default=10, cast=int)
+# 180 попыток × 10 с = 30 минут ожидания — с запасом на очередь из 16 сегментов.
+ONEC_IMPORT_LOCK_MAX_RETRIES = config("ONEC_IMPORT_LOCK_MAX_RETRIES", default=180, cast=int)
+
+# Каталог резервных копий БД. Путь ОБЯЗАН быть абсолютным: команда `backup_db`
+# исполняется с рабочим каталогом `/app`, и прежний относительный умолчательный
+# путь `backend/backup_db` резолвился в `/app/backend/backup_db` — каталог
+# принадлежит uid 999, а процесс работает под 1000:1000 (`user` в
+# docker-compose.prod.yml). Итог: `Permission denied` на каждом полном импорте,
+# ошибка глоталась в WARNING, и прод жил без бэкапов неизвестно сколько.
+# В проде каталог обязан быть на постоянном bind-mount, иначе копии исчезают
+# при первой же пересборке контейнера.
+BACKUP_DIR = config("BACKUP_DIR", default=str(BASE_DIR / "backup_db"))
+
+# Бэкап перед полным импортом каталога. Отключать — только осознанно: смысл шага
+# в том, чтобы полный импорт из 1С можно было откатить.
+BACKUP_BEFORE_IMPORT = config("BACKUP_BEFORE_IMPORT", default=True, cast=bool)
+
+# Минимальный интервал между бэкапами перед импортом. Без него одна выгрузка 1С
+# даёт десятки полных `pg_dump`: на прод-прогоне 27.08.2026 из 172 сессий 37
+# пришли с `file_type=all` (это `mode=complete`, забирающий остатки каталога), и
+# каждая дёргала бэкап. Тридцать семь копий одного и того же состояния подряд —
+# это нагрузка на БД во время обмена, а не защита. Первый бэкап в окне делается,
+# остальные пропускаются с явной записью в лог.
+BACKUP_MIN_INTERVAL_SECONDS = config("BACKUP_MIN_INTERVAL_SECONDS", default=3600, cast=int)
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict

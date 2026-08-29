@@ -19,7 +19,15 @@ from django.db import transaction
 from django.utils import timezone
 
 from .file_service import FileStreamService
-from .routing_service import XML_ROUTING_RULES, FileRoutingService
+from .file_type_detection import detect_file_type
+from .routing_service import (
+    XML_ROUTING_RULES,
+    FileRoutingService,
+    dry_run_flag_for,
+    image_relative_name,
+    images_dir_for,
+    session_import_dir,
+)
 
 if TYPE_CHECKING:
     from apps.products.models import ImportSession
@@ -43,7 +51,20 @@ class ImportOrchestratorService:
     def __init__(self, sessid: str, filename: str = "unknown"):
         self.sessid = sessid
         self.filename = filename
-        self.import_dir = Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
+        # Каталог обмена СВОЕЙ сессии. У оркестратора собственная копия пути,
+        # мимо `FileRoutingService`: через неё идут распаковка архивов,
+        # маршрутизация распакованного и оба dispatch-а задачи. Оставь её общей —
+        # и изоляция окажется дырявой, хотя роутер уже развёл файлы по сессиям.
+        if sessid:
+            self.import_dir = session_import_dir(sessid)
+        else:
+            # Без sessid оркестратор всё равно отказывает в `_resolve_session`.
+            self.import_dir = Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"]))
+        # XML, распакованный из архивов этого прогона. Архив 1С распаковывается
+        # здесь, в HTTP-обработчике `mode=import`, а не в задаче — значит и
+        # связь «архив → его сегменты» устанавливается здесь. Без неё задача
+        # архива не знает, что ей принадлежит, и гребёт весь каталог обмена.
+        self._unpacked_xml_names: list[str] = []
 
     def execute(self) -> tuple[bool, str]:
         """
@@ -243,7 +264,12 @@ class ImportOrchestratorService:
             session.save(update_fields=["report"])
 
     def _route_unpacked_files(self, unpacked_files: list[str]) -> int:
-        """Route unpacked files to subdirectories based on naming rules."""
+        """Route unpacked files to subdirectories based on naming rules.
+
+        Побочно накапливает `self._unpacked_xml_names` — имена XML, которые
+        этот прогон достал из архива. Именно они, а не имя архива, служат
+        обещанием задаче импорта.
+        """
         routed_count = 0
         for unpacked_name in unpacked_files:
             file_path = self.import_dir / unpacked_name
@@ -252,7 +278,7 @@ class ImportOrchestratorService:
 
             name_lower = unpacked_name.lower()
             suffix = file_path.suffix.lower()
-            target_subdir = None
+            dest_path = None
 
             if suffix == ".xml":
                 sorted_rules = sorted(
@@ -264,21 +290,22 @@ class ImportOrchestratorService:
                     # Сравнение case-insensitive: 1С присылает 'priceLists_*.xml' (mixed case),
                     # а name_lower уже lowercased — без .lower() на префиксе матчинг проваливается
                     if name_lower.startswith(prefix.lower()):
-                        target_subdir = subdir.rstrip("/")
+                        dest_path = self.import_dir / subdir.rstrip("/") / unpacked_name
                         break
             elif suffix in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
-                if name_lower.startswith("import_files/"):
-                    target_subdir = "goods"
-                else:
-                    target_subdir = "goods/import_files"
+                # Картинки уходят в ОБЩИЙ каталог мимо сессионного: связи
+                # «архив картинок ↔ XML-сессия» протокол 1С не даёт. Подкаталог
+                # `<xx>` из имени внутри архива сохраняется — ровно по нему
+                # goods.xml и адресует файл.
+                dest_path = images_dir_for(self.import_dir) / image_relative_name(unpacked_name)
 
-            if target_subdir:
-                dest_dir = self.import_dir / target_subdir
-                dest_path = dest_dir / unpacked_name
+            if dest_path is not None:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
                     shutil.move(str(file_path), str(dest_path))
                     routed_count += 1
+                    if suffix == ".xml":
+                        self._unpacked_xml_names.append(dest_path.name)
                 except Exception as move_err:
                     logger.warning(f"[IMPORT] Failed to route {unpacked_name}: {move_err}")
 
@@ -294,7 +321,9 @@ class ImportOrchestratorService:
         """
         from apps.products.tasks import process_1c_import_task
 
-        dry_run = (self.import_dir / ".dry_run").exists()
+        # Флаг `.dry_run` — режим всего обмена, а не отдельной сессии: он
+        # лежит в общем корне каталога обмена, а не в сессионном подкаталоге.
+        dry_run = dry_run_flag_for(self.import_dir).exists()
 
         if dry_run:
             logger.info("[IMPORT] DRY RUN mode - skipping import")
@@ -312,8 +341,8 @@ class ImportOrchestratorService:
         # Race-fix (same as _dispatch_or_dryrun): перевести session в IN_PROGRESS ДО
         # dispatch. Иначе session остаётся PENDING в окне очереди Celery, и
         # handle_init guard на другом потоке обмена не видит её как активную —
-        # cleanup_import_dir(force=True) стирает shared import dir раньше, чем
-        # воркер успевает обработать файл. process_1c_import_task сам повторно
+        # cleanup_import_dir(force=True) стирает каталог обмена этой же сессии
+        # раньше, чем воркер успевает обработать файл. process_1c_import_task сам повторно
         # установит IN_PROGRESS на старте — операция идемпотентна.
         from apps.products.models import ImportSession
 
@@ -321,22 +350,41 @@ class ImportOrchestratorService:
         session.report += f"[{timezone.now()}] Celery import task dispatched " f"(file_type={file_type})\n"
         session.save(update_fields=["status", "report", "updated_at"])
 
-        task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
+        # source_filename — аддитивный аргумент: без него задача не знает,
+        # какой сегмент прислала 1С, и гоняет полный импорт каталога на каждом
+        # файле, расширяя окно гонки на goods/offers/prices.
+        #
+        # Для архива передаётся и его имя, и XML, который из него распакован
+        # выше по `execute()`: к моменту старта задачи архива на диске уже нет,
+        # и восстановить связь «архив → его сегменты» она сама не сможет.
+        task_result = process_1c_import_task.delay(
+            session.pk,
+            str(self.import_dir),
+            source_filename=self._promised_names(),
+        )
 
         logger.info(f"[IMPORT] Celery task dispatched: task_id={task_result.id}, " f"session_id={session.pk}")
 
+    def _promised_names(self) -> str | list[str]:
+        """Что 1С обещала этому прогону: имя файла или содержимое архива.
+
+        Обычный XML — само имя. Архив — его имя плюс распакованный из него XML:
+        имя архива само по себе обещанием быть не может (команда собирает XML и
+        файла `import_files.zip` не найдёт никогда), но задача обязана отличать
+        «архив без своих сегментов» от «конкретного файла не обещали вовсе».
+        """
+        if not self.filename or not self.filename.lower().endswith(".zip"):
+            return self.filename
+
+        return [self.filename, *self._unpacked_xml_names]
+
     def _detect_file_type(self) -> str:
-        """Determine import file type from filename."""
-        fn_lower = self.filename.lower() if self.filename else ""
-        if fn_lower.startswith("goods") or fn_lower.startswith("import"):
-            return "goods"
-        elif fn_lower.startswith("offers"):
-            return "offers"
-        elif fn_lower.startswith("prices") or fn_lower.startswith("pricelists"):
-            return "prices"
-        elif fn_lower.startswith("rests"):
-            return "rests"
-        return "all"
+        """Determine import file type from filename.
+
+        Логика вынесена в `file_type_detection`: раньше здесь жила копия,
+        разошедшаяся с копией в `apps/products/tasks.py`.
+        """
+        return detect_file_type(self.filename)
 
     def finalize_batch(self, dry_run: bool = False) -> tuple[bool, str]:
         """
@@ -387,7 +435,7 @@ class ImportOrchestratorService:
             return False, f"File transfer failed: {msg}"
 
         # Check for file-flag .dry_run
-        if not dry_run and (self.import_dir / ".dry_run").exists():
+        if not dry_run and dry_run_flag_for(self.import_dir).exists():
             dry_run = True
             logger.info("[COMPLETE] Detected .dry_run flag file")
 
@@ -453,7 +501,11 @@ class ImportOrchestratorService:
                 logger.info(
                     f"[COMPLETE] Dispatching Celery task for " f"session_id={session.pk}, import_dir={self.import_dir}"
                 )
-                task_result = process_1c_import_task.delay(session.pk, str(self.import_dir))
+                task_result = process_1c_import_task.delay(
+                    session.pk,
+                    str(self.import_dir),
+                    source_filename=self.filename,
+                )
                 logger.info(f"[COMPLETE] Celery task dispatched: task_id={task_result.id}")
                 session.report += f"[{timezone.now()}] Celery task запущен: {task_result.id}\n"
                 session.save(update_fields=["report", "updated_at"])

@@ -2,11 +2,10 @@
  * Unit-тесты для интеграции поиска в CatalogPage (Story 18.4)
  */
 
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll, type Mock } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CatalogPage from '../page';
-import { useSearchParams } from 'next/navigation';
 
 // Mock данные для тестов
 const mockProducts = [
@@ -122,14 +121,45 @@ vi.mock('@/components/ui/Toast', () => ({
   })),
 }));
 
-// Mock для next/navigation
+// Mock для next/navigation.
+let mockSearchParams = new URLSearchParams();
+
+/** Хронологический журнал навигаций: push и replace в одном порядке вызова */
+type Navigation = { type: 'push' | 'replace'; url: string };
+const navigationLog: Navigation[] = [];
+
+const applyNavigation = (type: Navigation['type']) => (url: string) => {
+  const queryIndex = url.indexOf('?');
+  mockSearchParams = new URLSearchParams(queryIndex === -1 ? '' : url.slice(queryIndex + 1));
+  navigationLog.push({ type, url });
+};
+
+const resetSearchParams = (query = '') => {
+  mockSearchParams = new URLSearchParams(query);
+  navigationLog.length = 0;
+};
+
+// По умолчанию роутер-мок — пустышка: навигация без последствий, как было
+// до появления пагинации в URL. Блоки, которым нужна честная навигация,
+// включают её через enableRouterNavigation() и возвращают исходные
+// реализации через restoreRouterMocks() в afterAll.
 const mockPush = vi.fn();
-const mockSearchParams = new URLSearchParams();
+const mockReplace = vi.fn();
+
+const enableRouterNavigation = () => {
+  mockPush.mockImplementation(applyNavigation('push'));
+  mockReplace.mockImplementation(applyNavigation('replace'));
+};
+
+const restoreRouterMocks = () => {
+  mockPush.mockReset();
+  mockReplace.mockReset();
+};
 
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
   })),
   useSearchParams: vi.fn(() => mockSearchParams),
   usePathname: vi.fn(() => '/catalog'),
@@ -139,7 +169,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    mockSearchParams.delete('search');
+    resetSearchParams();
     mockPush.mockClear();
 
     // Mock matchMedia for responsive filter state
@@ -223,6 +253,10 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
   it('AC 3: должен удалять параметр search из URL при пустом запросе', async () => {
     const user = userEvent.setup();
 
+    // Запрос уже в URL: SearchAutocomplete держит текст поля во внутреннем
+    // состоянии, поэтому вводим его и в поле — только так очистка меняет URL
+    resetSearchParams('search=test');
+
     render(<CatalogPage />);
 
     await waitFor(() => {
@@ -251,6 +285,10 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
 
   it('AC 5: должен сбрасывать поисковый запрос при нажатии кнопки "Сбросить"', async () => {
     const user = userEvent.setup();
+
+    // Запрос уже в URL — иначе сбрасывать в адресной строке нечего
+    resetSearchParams('search=nike');
+
     render(<CatalogPage />);
 
     await waitFor(() => {
@@ -303,8 +341,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
 
   it('должен читать параметр search из URL при загрузке страницы', async () => {
     // Устанавливаем параметр search в URL
-    mockSearchParams.set('search', 'adidas');
-    (useSearchParams as Mock).mockReturnValue(mockSearchParams);
+    resetSearchParams('search=adidas');
 
     const productsService = await import('@/services/productsService');
 
@@ -454,6 +491,7 @@ describe('CatalogPage — сортировка и скрытие пустых к
   beforeEach(() => {
     vi.clearAllMocks();
     mockMatchMedia();
+    resetSearchParams();
     // Сбрасываем getVisibleCategories к дефолтному значению
     (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
   });
@@ -578,6 +616,7 @@ describe('CatalogPage — видимость брендов по наличию 
   beforeEach(() => {
     vi.clearAllMocks();
     mockMatchMedia();
+    resetSearchParams();
     (categoriesService.getTree as Mock).mockResolvedValue([
       { id: 1, name: 'Футбол', slug: 'football', in_stock_count: 5, products_count: 5, children: [] },
     ]);
@@ -672,5 +711,427 @@ describe('CatalogPage — видимость брендов по наличию 
       expect(screen.getByLabelText('Nike')).toBeInTheDocument();
       expect(screen.getByLabelText('Adidas')).toBeInTheDocument();
     });
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Тесты сохранения номера страницы в URL
+// (bugfix: пагинация сбрасывалась на первую страницу при обновлении браузера)
+// ---------------------------------------------------------------------------
+import productsService from '@/services/productsService';
+
+/** 40 товаров при PAGE_SIZE=12 → 4 страницы пагинации */
+const buildProductsResponse = (count: number) => ({
+  count,
+  next: null,
+  previous: null,
+  results: mockProducts,
+});
+
+/** Последняя навигация по хронологии — не по склейке двух массивов вызовов */
+const lastNavigation = (): Navigation | null => navigationLog.at(-1) ?? null;
+
+/** Последний URL, переданный в push/replace */
+const lastNavigationUrl = () => lastNavigation()?.url ?? null;
+
+describe('CatalogPage — сохранение страницы пагинации в URL', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMatchMedia();
+    // Честный роутер-мок: push/replace меняют то, что вернёт следующий
+    // useSearchParams(). Пустышка делала бы навигацию беспоследственной,
+    // и регрессии «клик по странице перезапускает эффекты на [searchParams]»
+    // были бы не видны в тестах.
+    enableRouterNavigation();
+    resetSearchParams();
+    (productsService.getAll as Mock).mockResolvedValue(buildProductsResponse(40));
+    (categoriesService.getTree as Mock).mockResolvedValue(mockCategories);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
+    (brandsService.getAll as Mock).mockResolvedValue(mockBrands);
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1, 2]);
+  });
+
+  afterAll(() => {
+    // Возвращаем исходные (пустышечные) реализации, чтобы честная навигация
+    // не протекала в блоки, написанные под беспоследственный push
+    restoreRouterMocks();
+    resetSearchParams();
+  });
+
+  it('читает номер страницы из URL при монтировании (сценарий F5)', async () => {
+    resetSearchParams('page=3');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+  });
+
+  it('пишет page в URL при клике по номеру страницы', async () => {
+    const user = userEvent.setup();
+
+    render(<CatalogPage />);
+
+    await user.click(await screen.findByRole('button', { name: '3' }));
+
+    expect(lastNavigationUrl()).toBe('/catalog?page=3');
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+  });
+
+  it('делает ровно один запрос товаров на клик по странице', async () => {
+    const user = userEvent.setup();
+
+    render(<CatalogPage />);
+
+    await screen.findByRole('button', { name: '3' });
+    (productsService.getAll as Mock).mockClear();
+    (categoriesService.getTree as Mock).mockClear();
+
+    await user.click(screen.getByRole('button', { name: '3' }));
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+    // Смена URL не должна перезапускать эффекты, завязанные на searchParams
+    expect(productsService.getAll).toHaveBeenCalledTimes(1);
+    expect(categoriesService.getTree).not.toHaveBeenCalled();
+  });
+
+  it('убирает page из URL при возврате на первую страницу', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('page=3');
+
+    render(<CatalogPage />);
+
+    await user.click(await screen.findByRole('button', { name: '1' }));
+
+    expect(lastNavigationUrl()).toBe('/catalog');
+  });
+
+  it('помечает активную страницу через aria-current', async () => {
+    resetSearchParams('page=2');
+
+    render(<CatalogPage />);
+
+    const active = await screen.findByRole('button', { name: '2' });
+    expect(active).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: '3' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('сохраняет остальные параметры URL при смене страницы', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('search=nike&page=2');
+
+    render(<CatalogPage />);
+
+    await user.click(await screen.findByRole('button', { name: '3' }));
+
+    const url = lastNavigationUrl() ?? '';
+    expect(url).toContain('search=nike');
+    expect(url).toContain('page=3');
+  });
+
+  it('сбрасывает страницу одним запросом при смене фильтра', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('page=3');
+
+    render(<CatalogPage />);
+
+    await screen.findByLabelText('Nike');
+    (productsService.getAll as Mock).mockClear();
+    mockPush.mockClear();
+
+    await user.click(screen.getByLabelText('Nike'));
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    });
+    // Ровно один запрос: старая страница вместе с новым фильтром не запрашивается
+    expect(productsService.getAll).toHaveBeenCalledTimes(1);
+    expect(lastNavigationUrl()).toBe('/catalog');
+  });
+
+  it('не откатывает выбранную в сайдбаре категорию при клике по странице', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('category=sport');
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      { id: 1, name: 'Спорт', slug: 'sport', in_stock_count: 5, products_count: 5, children: [] },
+      { id: 2, name: 'Обувь', slug: 'shoes', in_stock_count: 5, products_count: 5, children: [] },
+    ]);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1, 2]);
+
+    render(<CatalogPage />);
+
+    await user.click(await screen.findByText('Обувь'));
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ category_id: 2 })
+      );
+    });
+
+    (productsService.getAll as Mock).mockClear();
+    await user.click(await screen.findByRole('button', { name: '2' }));
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+    });
+    // Категория из URL (sport) не должна вытеснить выбранную в сайдбаре (shoes)
+    expect(productsService.getAll).toHaveBeenLastCalledWith(
+      expect.objectContaining({ category_id: 2, page: 2 })
+    );
+  });
+
+  it('не схлопывает мультивыбор брендов при клике по странице', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('brand=nike');
+
+    render(<CatalogPage />);
+
+    await user.click(await screen.findByLabelText('Adidas'));
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ brand: '1,2' })
+      );
+    });
+
+    (productsService.getAll as Mock).mockClear();
+    await user.click(await screen.findByRole('button', { name: '2' }));
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenLastCalledWith(
+        expect.objectContaining({ brand: '1,2', page: 2 })
+      );
+    });
+  });
+
+  it.each(['page=abc', 'page=0', 'page=-1', 'page=1.5', 'page=3abc', 'page=1e3', 'page='])(
+    'трактует мусорное значение "%s" как первую страницу',
+    async query => {
+      resetSearchParams(query);
+
+      render(<CatalogPage />);
+
+      await waitFor(() => {
+        expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+      });
+    }
+  );
+
+  it.each(['page=1', 'page=01', 'page=abc', 'page=0', 'page='])(
+    'убирает неканоничный "%s" из URL через replace',
+    async query => {
+      resetSearchParams(query);
+
+      render(<CatalogPage />);
+
+      await waitFor(() => {
+        expect(lastNavigationUrl()).toBe('/catalog');
+      });
+      // replace, а не push: канонизация внешней ссылки не плодит историю
+      expect(lastNavigation()?.type).toBe('replace');
+      expect(mockPush).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+      });
+      expect(productsService.getAll).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('при канонизации первой страницы удаляет только page', async () => {
+    resetSearchParams('category=sport&page=1');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(lastNavigationUrl()).toBe('/catalog?category=sport');
+    });
+    expect(lastNavigation()?.type).toBe('replace');
+  });
+
+  it('не трогает URL, когда page уже канонична', async () => {
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    });
+    expect(lastNavigation()).toBeNull();
+  });
+
+  it('откатывается на первую страницу через replace, когда API отдаёт 404', async () => {
+    resetSearchParams('page=999');
+    (productsService.getAll as Mock)
+      .mockRejectedValueOnce({ response: { status: 404 } })
+      .mockResolvedValue(buildProductsResponse(24));
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    });
+    expect(screen.queryByText('Не удалось загрузить товары')).not.toBeInTheDocument();
+    // replace, а не push: иначе «назад» возвращает на битую страницу
+    expect(mockReplace).toHaveBeenCalledWith('/catalog', expect.anything());
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('показывает ошибку, если 404 пришёл уже на первой странице', async () => {
+    (productsService.getAll as Mock).mockRejectedValue({ response: { status: 404 } });
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Не удалось загрузить товары')).toBeInTheDocument();
+    });
+  });
+
+  it('подхватывает страницу из URL при навигации «назад»', async () => {
+    resetSearchParams('page=3');
+
+    const { rerender } = render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+
+    // Кнопка «назад»: URL сменился, компонент остался смонтированным
+    resetSearchParams('page=2');
+    rerender(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+    });
+  });
+
+  it('не выдёргивает пользователя с новой страницы устаревшим 404', async () => {
+    let rejectStale: (reason: unknown) => void = () => {};
+    const stalePageThree = new Promise<never>((_, reject) => {
+      rejectStale = reject;
+    });
+    // Ответ по 3-й странице «зависает» и провалится 404 уже после того,
+    // как пользователь ушёл на 2-ю
+    (productsService.getAll as Mock).mockImplementation((filters: { page?: number }) =>
+      filters.page === 3 ? stalePageThree : Promise.resolve(buildProductsResponse(40))
+    );
+
+    render(<CatalogPage />);
+
+    const pageThree = await screen.findByRole('button', { name: '3' });
+    await act(async () => {
+      pageThree.click();
+    });
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+    // История вызовов до критической секции неинтересна: запрос 1-й страницы
+    // при монтировании легитимен, проверяем только последствия устаревшего 404
+    (productsService.getAll as Mock).mockClear();
+    mockReplace.mockClear();
+
+    // Гонка из находки ревью: 404 по прежней странице приходит уже после того,
+    // как пользователь ушёл на другую. В React 19 и сам дискретный клик
+    // обрабатывается микрозадачей, поэтому продолжение упавшего запроса
+    // успевает отработать даже ДО commit нового page — инвалидации по commit
+    // (layout-эффект) для этого мало, версия обязана расти уже в момент
+    // намерения пользователя, в обработчике события.
+    //
+    // act-окружение отключаем намеренно: под act клик, рендер и эффекты
+    // сливаются в одну очередь и гонки нет. Порядок задан явно (отказ → один
+    // microtask hop → клик), чтобы продолжение catch гарантированно опередило
+    // микрозадачу React, а не зависело от деталей его планировщика.
+    const actGlobal = globalThis as typeof globalThis & {
+      IS_REACT_ACT_ENVIRONMENT?: boolean;
+    };
+    const prevActEnv = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+    actGlobal.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      rejectStale({ response: { status: 404 } });
+      // Один hop: реакция Promise.all уже отработала, продолжение catch стоит
+      // следующим в очереди — клик вклинивается ровно перед ним
+      await Promise.resolve();
+      screen.getByRole('button', { name: '2' }).click();
+
+      await waitFor(() => {
+        expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+      });
+    } finally {
+      actGlobal.IS_REACT_ACT_ENVIRONMENT = prevActEnv;
+    }
+
+    // Устаревший 404 не откатывает ни состояние, ни URL
+    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page');
+    expect(productsService.getAll).not.toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(lastNavigationUrl()).toBe('/catalog?page=2');
+  });
+  it('не отменяет навигацию «назад»/«вперёд» устаревшим 404', async () => {
+    let rejectStale: (reason: unknown) => void = () => {};
+    const stalePageThree = new Promise<never>((_, reject) => {
+      rejectStale = reject;
+    });
+    (productsService.getAll as Mock).mockImplementation((filters: { page?: number }) =>
+      filters.page === 3 ? stalePageThree : Promise.resolve(buildProductsResponse(40))
+    );
+
+    resetSearchParams('page=3');
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+    (productsService.getAll as Mock).mockClear();
+    mockReplace.mockClear();
+    navigationLog.length = 0;
+
+    // Кнопка «назад» отличается от клика по пагинации: обработчика события у нас
+    // нет, состояние page в первом render после смены URL ещё равно 3, а
+    // productFilters не меняется — инвалидация по productFilters не успевает
+    // сработать до passive-эффекта синхронизации. Если в это окно прилетит 404
+    // по прежней странице, его seq всё ещё актуален и откат на первую страницу
+    // отменит навигацию пользователя.
+    //
+    // act-окружение отключаем намеренно: под act commit и passive-эффекты
+    // сливаются в одну очередь, и окна между ними не существует.
+    const actGlobal = globalThis as typeof globalThis & {
+      IS_REACT_ACT_ENVIRONMENT?: boolean;
+    };
+    const prevActEnv = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+    actGlobal.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      // Браузер сменил URL на предыдущую запись истории
+      resetSearchParams('page=2');
+      // Ререндер с новым URL. В приложении его вызывает router-transition,
+      // в тесте — любое безобидное локальное состояние: важен сам факт commit
+      // нового pageParam, а не то, что его инициировало.
+      screen.getByRole('button', { name: 'Список' }).click();
+      // Дискретный клик React 19 обрабатывает микрозадачей: после этих hop'ов
+      // render, commit и layout-эффекты отработали, а passive-эффекты
+      // (в том числе синхронизация page из URL) ещё ждут макрозадачи
+      await Promise.resolve();
+      await Promise.resolve();
+
+      rejectStale({ response: { status: 404 } });
+      // Макрозадача: продолжение catch отработало, отложенные passive-эффекты
+      // (синхронизация page из URL и следующий запрос) успели сработать
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Устаревший 404 не отменил переход браузера: ни отката состояния, ни чистки URL
+      expect(mockReplace).not.toHaveBeenCalled();
+      expect(navigationLog).toEqual([]);
+
+      await waitFor(() => {
+        expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+      });
+    } finally {
+      actGlobal.IS_REACT_ACT_ENVIRONMENT = prevActEnv;
+    }
+
+    expect(productsService.getAll).not.toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page');
   });
 });
