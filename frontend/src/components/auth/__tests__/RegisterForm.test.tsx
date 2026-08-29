@@ -844,13 +844,16 @@ describe('RegisterForm', () => {
       expect(screen.queryByRole('option', { name: /розничный покупатель/i })).toBeNull();
     });
 
-    test('should mute the role placeholder and use an existing focus-ring token', async () => {
+    // Плейсхолдер выглядит как подсказка, а не как выбранное значение:
+    // до выбора роли текст приглушён тем же токеном, что и placeholder в Input
+    test('should mute placeholder text until a role is selected', async () => {
       const user = userEvent.setup();
       render(<RegisterForm />);
 
       const roleSelect = screen.getByLabelText(/тип аккаунта/i);
 
       expect(roleSelect).toHaveClass('text-[var(--color-neutral-500)]');
+      expect(roleSelect).not.toHaveClass('text-[var(--color-text-primary)]');
       expect(roleSelect).toHaveClass('focus:ring-[var(--color-primary)]');
       expect(roleSelect).not.toHaveClass('focus:ring-[var(--color-primary-500)]');
 
@@ -961,6 +964,8 @@ describe('RegisterForm', () => {
       const countrySelect = (await screen.findByLabelText(/страна/i)) as HTMLSelectElement;
       expect(countrySelect).toBeInTheDocument();
       expect(countrySelect.value).toBe('Россия');
+      expect(countrySelect).toHaveClass('focus:ring-[var(--color-primary)]');
+      expect(countrySelect).not.toHaveClass('focus:ring-[var(--color-primary-500)]');
 
       const options = Array.from(countrySelect.options).map(opt => opt.value);
       expect(options).toEqual(['Россия', 'Беларусь', 'Казахстан']);
