@@ -2,8 +2,8 @@
 title: 'Каталог: сохранение номера страницы пагинации в URL'
 type: 'bugfix'
 created: '2026-08-28'
-status: 'in-review'
-review_loop_iteration: 1
+status: 'review'
+review_loop_iteration: 2
 baseline_commit: '3cbbf1cfb333effe9fe867e621679aa25af87a99'
 context: []
 ---
@@ -119,6 +119,15 @@ context: []
   I/O-матрицы плюс регрессии: один запрос товаров на клик по странице, сохранение выбранной
   категории и мультивыбора брендов при пагинации на URL с `category`/`brand`.
 
+### Review Findings
+
+- [x] [Review][Patch] Прямая ссылка на первую или невалидную страницу сохраняет неканонический `page` [`frontend/src/app/(blue)/catalog/page.tsx:663`] — `parsePageNumber()` корректно переводит `page=1`, `page=01` и мусор в состояние `1`, однако query-параметр остаётся в адресной строке. Это противоречит требованию канонического URL первой страницы без `page`; нужен безопасный `router.replace` с удалением только `page` и регрессионные тесты.
+  **Исправлено (итерация 2):** sync-эффект после `setPage` канонизирует URL — при `pageParam !== null && urlPage === 1` делает `updateSearchParamsRef.current({ page: null }, { replace: true })`. Удаляется только `page`, остальные параметры сохраняются; `replace`, а не `push` — чистка внешней ссылки не плодит записи в истории. Через ref, чтобы не вернуть в зависимости нестабильный `updateSearchParams`.
+- [x] [Review][Patch] Роутер-мок не отвечает критериям из задачи [`frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx:139`] — `afterAll` сбрасывает только query-состояние, проверки старых тестов продолжают использовать историю вызовов, а `lastNavigation()` склеивает массивы `push` и `replace`, теряя хронологию. Восстановить исходные реализации моков после блока и проверять последний релевантный вызов напрямую.
+  **Исправлено (итерация 2):** честная навигация стала opt-in — `mockPush`/`mockReplace` по умолчанию пустышки (исходное поведение), блок пагинации включает её через `enableRouterNavigation()` в `beforeEach` и возвращает исходные реализации через `restoreRouterMocks()` в `afterAll`; старые describe-блоки снова работают на беспоследственном push. Заведён хронологический `navigationLog` (`{ type, url }`), `lastNavigation()` отдаёт последнюю запись по времени, `lastNavigationUrl()` — её URL; тип навигации (`push` vs `replace`) проверяется явно.
+- [x] [Review][Defer] Внешнее удаление `search` не очищает поисковое состояние [`frontend/src/app/(blue)/catalog/page.tsx:553`] — deferred, pre-existing. При возврате браузера с `?search=term` на URL без `search` эффект не вызывает `setSearchQuery('')`, поэтому API продолжает получать прежний поисковый фильтр. Та же условная ветка была в baseline.
+- [x] [Review][Defer] Устаревшие ответы видимости могут перезаписать сайдбар [`frontend/src/app/(blue)/catalog/page.tsx:718`] — deferred, pre-existing. `requestSeq` защищает товары, но `getVisibleCategories` и `getVisibleBrands` меняют state внутри `.then/.catch` до проверки последовательности; тот же шаблон присутствовал в baseline.
+
 **Acceptance Criteria:**
 - Given пользователь на третьей странице каталога, when он обновляет браузер, then он остаётся на
   третьей странице с теми же товарами.
@@ -159,6 +168,24 @@ context: []
 - Правку двух существующих тестов поиска (`AC 3`, `AC 5`): URL предзаполняется `search=`, иначе
   no-op-гард законно гасит push. Правка корректна, переделывать не нужно.
 - Ref для `updateSearchParams` внутри `fetchProducts` — нужен, но сам по себе недостаточен.
+
+### Итерация 2 — 2026-08-29 (закрытие находок ревью)
+
+**Что сделано:** закрыты оба `[Review][Patch]`. Оба `[Review][Defer]` перенесены в
+`_bmad-output/implementation-artifacts/deferred-work.md` как предсуществующие в baseline `3cbbf1cf`.
+
+**Файлы:**
+- `frontend/src/app/(blue)/catalog/page.tsx` — канонизация URL первой страницы в sync-эффекте.
+- `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx` — opt-in честного роутер-мока
+  с восстановлением в `afterAll`, хронологический `navigationLog`, 6 новых регрессий
+  (`it.each` на `page=1|01|abc|0|` пусто, «удаляется только `page`», негативный контроль
+  «канонична — URL не трогаем»).
+
+**Red-green:** без правки `page.tsx` 5 из 6 новых проверок падают, негативный контроль проходит.
+
+**Верификация (2026-08-29):** `npx tsc --noEmit` — 0 ошибок; `npm run lint` (`--max-warnings=0`) —
+чисто; `npx vitest run "src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx"` — 48/48;
+`npx vitest run` — 148 файлов, 2550 passed, 16 skipped, 0 failed (базовая линия 2536 → +14 проверок).
 
 ## Design Notes
 

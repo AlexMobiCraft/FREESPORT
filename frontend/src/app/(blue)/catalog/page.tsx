@@ -663,6 +663,15 @@ const CatalogContent: React.FC = () => {
   useEffect(() => {
     const urlPage = parsePageNumber(pageParam);
     setPage(prev => (prev === urlPage ? prev : urlPage));
+
+    // Канонизация первой страницы: `?page=1`, `?page=01` и мусор (`?page=abc`,
+    // `?page=0`) означают первую страницу, но параметр остаётся в адресной строке.
+    // Канонический URL первой страницы — без `page` (SEO). replace, а не push:
+    // чистка пришедшей извне ссылки не должна плодить записи в истории.
+    // Удаляется только `page` — остальные параметры сохраняются.
+    if (pageParam !== null && urlPage === 1) {
+      updateSearchParamsRef.current({ page: null }, { replace: true });
+    }
   }, [pageParam]);
 
   // Обработчик изменения поискового запроса

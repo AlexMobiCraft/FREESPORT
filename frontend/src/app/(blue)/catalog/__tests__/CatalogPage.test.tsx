@@ -122,22 +122,39 @@ vi.mock('@/components/ui/Toast', () => ({
 }));
 
 // Mock для next/navigation.
-// ВАЖНО: push/replace реально меняют то, что вернёт следующий useSearchParams().
-// Пустышка вместо этого делала бы навигацию беспоследственной, и регрессии
-// «клик по странице перезапускает эффекты на [searchParams]» были бы невидимы.
 let mockSearchParams = new URLSearchParams();
 
-const applyNavigation = (url: string) => {
+/** Хронологический журнал навигаций: push и replace в одном порядке вызова */
+type Navigation = { type: 'push' | 'replace'; url: string };
+const navigationLog: Navigation[] = [];
+
+const applyNavigation = (type: Navigation['type']) => (url: string) => {
   const queryIndex = url.indexOf('?');
   mockSearchParams = new URLSearchParams(queryIndex === -1 ? '' : url.slice(queryIndex + 1));
+  navigationLog.push({ type, url });
 };
 
 const resetSearchParams = (query = '') => {
   mockSearchParams = new URLSearchParams(query);
+  navigationLog.length = 0;
 };
 
-const mockPush = vi.fn((url: string) => applyNavigation(url));
-const mockReplace = vi.fn((url: string) => applyNavigation(url));
+// По умолчанию роутер-мок — пустышка: навигация без последствий, как было
+// до появления пагинации в URL. Блоки, которым нужна честная навигация,
+// включают её через enableRouterNavigation() и возвращают исходные
+// реализации через restoreRouterMocks() в afterAll.
+const mockPush = vi.fn();
+const mockReplace = vi.fn();
+
+const enableRouterNavigation = () => {
+  mockPush.mockImplementation(applyNavigation('push'));
+  mockReplace.mockImplementation(applyNavigation('replace'));
+};
+
+const restoreRouterMocks = () => {
+  mockPush.mockReset();
+  mockReplace.mockReset();
+};
 
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({
@@ -712,16 +729,21 @@ const buildProductsResponse = (count: number) => ({
   results: mockProducts,
 });
 
+/** Последняя навигация по хронологии — не по склейке двух массивов вызовов */
+const lastNavigation = (): Navigation | null => navigationLog.at(-1) ?? null;
+
 /** Последний URL, переданный в push/replace */
-const lastNavigation = () => {
-  const calls = [...mockPush.mock.calls, ...mockReplace.mock.calls];
-  return calls.length ? (calls[calls.length - 1][0] as string) : null;
-};
+const lastNavigationUrl = () => lastNavigation()?.url ?? null;
 
 describe('CatalogPage — сохранение страницы пагинации в URL', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMatchMedia();
+    // Честный роутер-мок: push/replace меняют то, что вернёт следующий
+    // useSearchParams(). Пустышка делала бы навигацию беспоследственной,
+    // и регрессии «клик по странице перезапускает эффекты на [searchParams]»
+    // были бы не видны в тестах.
+    enableRouterNavigation();
     resetSearchParams();
     (productsService.getAll as Mock).mockResolvedValue(buildProductsResponse(40));
     (categoriesService.getTree as Mock).mockResolvedValue(mockCategories);
@@ -731,6 +753,9 @@ describe('CatalogPage — сохранение страницы пагинаци
   });
 
   afterAll(() => {
+    // Возвращаем исходные (пустышечные) реализации, чтобы честная навигация
+    // не протекала в блоки, написанные под беспоследственный push
+    restoreRouterMocks();
     resetSearchParams();
   });
 
@@ -751,7 +776,7 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     await user.click(await screen.findByRole('button', { name: '3' }));
 
-    expect(lastNavigation()).toBe('/catalog?page=3');
+    expect(lastNavigationUrl()).toBe('/catalog?page=3');
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
     });
@@ -784,7 +809,7 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     await user.click(await screen.findByRole('button', { name: '1' }));
 
-    expect(lastNavigation()).toBe('/catalog');
+    expect(lastNavigationUrl()).toBe('/catalog');
   });
 
   it('помечает активную страницу через aria-current', async () => {
@@ -805,7 +830,7 @@ describe('CatalogPage — сохранение страницы пагинаци
 
     await user.click(await screen.findByRole('button', { name: '3' }));
 
-    const url = lastNavigation() ?? '';
+    const url = lastNavigationUrl() ?? '';
     expect(url).toContain('search=nike');
     expect(url).toContain('page=3');
   });
@@ -827,7 +852,7 @@ describe('CatalogPage — сохранение страницы пагинаци
     });
     // Ровно один запрос: старая страница вместе с новым фильтром не запрашивается
     expect(productsService.getAll).toHaveBeenCalledTimes(1);
-    expect(lastNavigation()).toBe('/catalog');
+    expect(lastNavigationUrl()).toBe('/catalog');
   });
 
   it('не откатывает выбранную в сайдбаре категорию при клике по странице', async () => {
@@ -897,6 +922,46 @@ describe('CatalogPage — сохранение страницы пагинаци
       });
     }
   );
+
+  it.each(['page=1', 'page=01', 'page=abc', 'page=0', 'page='])(
+    'убирает неканоничный "%s" из URL через replace',
+    async query => {
+      resetSearchParams(query);
+
+      render(<CatalogPage />);
+
+      await waitFor(() => {
+        expect(lastNavigationUrl()).toBe('/catalog');
+      });
+      // replace, а не push: канонизация внешней ссылки не плодит историю
+      expect(lastNavigation()?.type).toBe('replace');
+      expect(mockPush).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+      });
+      expect(productsService.getAll).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('при канонизации первой страницы удаляет только page', async () => {
+    resetSearchParams('category=sport&page=1');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(lastNavigationUrl()).toBe('/catalog?category=sport');
+    });
+    expect(lastNavigation()?.type).toBe('replace');
+  });
+
+  it('не трогает URL, когда page уже канонична', async () => {
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    });
+    expect(lastNavigation()).toBeNull();
+  });
 
   it('откатывается на первую страницу через replace, когда API отдаёт 404', async () => {
     resetSearchParams('page=999');
