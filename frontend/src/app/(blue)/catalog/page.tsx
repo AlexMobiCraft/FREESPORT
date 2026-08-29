@@ -19,6 +19,7 @@ import { ProductCard as BusinessProductCard } from '@/components/business/Produc
 import productsService, { type ProductFilters } from '@/services/productsService';
 import categoriesService from '@/services/categoriesService';
 import brandsService from '@/services/brandsService';
+import type { AxiosError } from 'axios';
 import type { Product, CategoryTree as CategoryTreeResponse, Brand } from '@/types/api';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -65,6 +66,19 @@ const DESKTOP_BREAKPOINT = '(min-width: 1024px)'; // Синхронизиров�
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+/**
+ * Разбирает query-параметр `page`. Всё, что не является строкой из одних цифр
+ * (`abc`, `3abc`, `1e3`, `2.9`, `-1`, пустая строка), и всё вне безопасного
+ * диапазона трактуется как первая страница — каталог не должен падать на кривой ссылке.
+ */
+const parsePageNumber = (value: string | null): number => {
+  if (!value || !/^\d+$/.test(value)) {
+    return 1;
+  }
+  const page = Number(value);
+  return Number.isSafeInteger(page) && page >= 1 ? page : 1;
+};
 
 const getNodeKey = (path: number[]) => path.join(' > ');
 
@@ -328,6 +342,20 @@ const CatalogContent: React.FC = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+
+  // ВАЖНО: useSearchParams() отдаёт НОВЫЙ объект при каждой навигации, а номер
+  // страницы теперь живёт в URL. Любой useMemo/useEffect с зависимостью
+  // [searchParams] сработал бы на каждом клике по пагинации (лишний запрос
+  // товаров, перезагрузка дерева категорий, откат выбранных фильтров).
+  // Поэтому ниже всё завязано на примитивные значения параметров.
+  const categorySlugParam = searchParams?.get('category') ?? null;
+  const brandSlugParam = searchParams?.get('brand') ?? null;
+  const searchParam = searchParams?.get('search') ?? null;
+  const focusSearchParam = searchParams?.get('focusSearch') ?? null;
+  const pageParam = searchParams?.get('page') ?? null;
+  const isNewParam = searchParams?.get('is_new') ?? null;
+  const isHitParam = searchParams?.get('is_hit') ?? null;
+  const isSaleParam = searchParams?.get('is_sale') ?? null;
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
@@ -338,16 +366,14 @@ const CatalogContent: React.FC = () => {
   const [isBrandsOpen, setIsBrandsOpen] = useState(false);
 
   // Badge-фильтры из URL (is_new, is_hit, is_sale)
-  const activeBadge = useMemo(() => {
-    const isNew = searchParams?.get('is_new');
-    const isHit = searchParams?.get('is_hit');
-    const isSale = searchParams?.get('is_sale');
-    return {
-      is_new: isNew === 'true' ? true : undefined,
-      is_hit: isHit === 'true' ? true : undefined,
-      is_sale: isSale === 'true' ? true : undefined,
-    };
-  }, [searchParams]);
+  const activeBadge = useMemo(
+    () => ({
+      is_new: isNewParam === 'true' ? true : undefined,
+      is_hit: isHitParam === 'true' ? true : undefined,
+      is_sale: isSaleParam === 'true' ? true : undefined,
+    }),
+    [isNewParam, isHitParam, isSaleParam]
+  );
   const hasBadgeFilter = Boolean(activeBadge.is_new || activeBadge.is_hit || activeBadge.is_sale);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
@@ -362,10 +388,16 @@ const CatalogContent: React.FC = () => {
   const [brandsError, setBrandsError] = useState<string | null>(null);
 
   const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
-  const [searchQuery, setSearchQuery] = useState('');
+  // Синхронная инициализация из URL: иначе на /catalog?search=x&page=3 первый
+  // запрос ушёл бы без search, поймал 404 и сбросил страницу у корректной закладки
+  const [searchQuery, setSearchQuery] = useState(() => searchParam ?? '');
   const [products, setProducts] = useState<Product[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [page, setPage] = useState(1);
+  // Номер страницы зеркалится в URL (?page=N), чтобы переживать F5, «назад» и
+  // открытие ссылки в новой вкладке. Источник истины для запроса — состояние:
+  // router.push обновляет searchParams асинхронно, и производное от URL значение
+  // давало бы лишний запрос со старой страницей при смене фильтра.
+  const [page, setPage] = useState(() => parsePageNumber(pageParam));
   const [ordering, setOrdering] = useState(DEFAULT_ORDERING);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isProductsLoading, setIsProductsLoading] = useState(false);
@@ -484,11 +516,10 @@ const CatalogContent: React.FC = () => {
           setSidebarVisibleIds(initialVisible);
         }
 
-        const categorySlug = searchParams?.get('category');
         let initialCategory: CategoryNode | null = null;
 
-        if (categorySlug) {
-          initialCategory = findCategoryBySlug(mapped, categorySlug);
+        if (categorySlugParam) {
+          initialCategory = findCategoryBySlug(mapped, categorySlugParam);
         }
 
         // auto-select убран: при /catalog без параметров activeCategoryId остаётся null
@@ -517,15 +548,14 @@ const CatalogContent: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, hasBadgeFilter, inStock]);
+  }, [categorySlugParam, hasBadgeFilter, inStock]);
 
-  // Чтение параметра search из URL при инициализации
+  // Внешняя смена search в URL (кнопка «назад», переход из шапки)
   useEffect(() => {
-    const searchFromUrl = searchParams?.get('search');
-    if (searchFromUrl) {
-      setSearchQuery(searchFromUrl);
+    if (searchParam) {
+      setSearchQuery(searchParam);
     }
-  }, [searchParams]);
+  }, [searchParam]);
 
   useEffect(() => {
     let isMounted = true;
@@ -557,16 +587,15 @@ const CatalogContent: React.FC = () => {
 
   // Синхронизация фильтра бренда с URL
   useEffect(() => {
-    const brandSlug = searchParams?.get('brand');
     // Если есть параметр в URL и бренды загружены
-    if (brandSlug && brands.length > 0) {
-      const foundBrand = brands.find(b => b.slug === brandSlug);
+    if (brandSlugParam && brands.length > 0) {
+      const foundBrand = brands.find(b => b.slug === brandSlugParam);
       if (foundBrand) {
         // Устанавливаем фильтр (заменяем текущий выбор или добавляем - логичнее заменить при прямом переходе)
         setSelectedBrandIds(new Set([foundBrand.id]));
       }
     }
-  }, [searchParams, brands]);
+  }, [brandSlugParam, brands]);
 
   useEffect(() => {
     if (!activeCategoryId || !categoryTree.length) return;
@@ -580,38 +609,78 @@ const CatalogContent: React.FC = () => {
     setActiveCategoryLabel(pathNodes[pathNodes.length - 1]?.label ?? '');
   }, [activeCategoryId, categoryTree]);
 
-  // Функция для обновления URL параметров без перезагрузки страницы
+  // Обновление URL-параметров без перезагрузки страницы.
+  // Принимает сразу несколько ключей: два последовательных вызова в одном
+  // обработчике затирали бы друг друга, так как оба строятся от одного searchParams.
   const updateSearchParams = useCallback(
-    (key: string, value: string | null) => {
-      const params = searchParams
-        ? new URLSearchParams(searchParams.toString())
-        : new URLSearchParams();
+    (updates: Record<string, string | null>, options?: { replace?: boolean }) => {
+      const current = searchParams?.toString() ?? '';
+      const params = new URLSearchParams(current);
 
-      if (value === null || value === '') {
-        params.delete(key);
-      } else {
-        params.set(key, value);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === '') {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+
+      // Ничего не изменилось — не засоряем историю браузера
+      if (params.toString() === current) {
+        return;
       }
 
       const newUrl = params.toString()
         ? `${pathname || '/'}?${params.toString()}`
         : pathname || '/';
-      router.push(newUrl, { scroll: false });
+
+      if (options?.replace) {
+        router.replace(newUrl, { scroll: false });
+      } else {
+        router.push(newUrl, { scroll: false });
+      }
     },
     [pathname, router, searchParams]
   );
+
+  // updateSearchParams меняет идентичность при каждой смене URL. Внутри
+  // fetchProducts он доступен только через ref — прямая зависимость вернула бы
+  // ту самую нестабильность, ради устранения которой заведены примитивы выше.
+  const updateSearchParamsRef = React.useRef(updateSearchParams);
+  useEffect(() => {
+    updateSearchParamsRef.current = updateSearchParams;
+  }, [updateSearchParams]);
+
+  // Сброс на первую страницу при смене любого фильтра: состояние и URL разом.
+  // setPage в одном обработчике с фильтром батчится в один рендер → один запрос.
+  const resetPage = useCallback(() => {
+    setPage(1);
+    updateSearchParams({ page: null });
+  }, [updateSearchParams]);
+
+  // Синхронизация состояния из URL для кнопок «назад»/«вперёд».
+  // Функциональный setPage не требует page в зависимостях; при совпадении — no-op.
+  useEffect(() => {
+    const urlPage = parsePageNumber(pageParam);
+    setPage(prev => (prev === urlPage ? prev : urlPage));
+  }, [pageParam]);
 
   // Обработчик изменения поискового запроса
   const handleSearchChange = useCallback(
     (query: string) => {
       setSearchQuery(query);
-      updateSearchParams('search', query || null);
       setPage(1);
+      updateSearchParams({ search: query || null, page: null });
     },
     [updateSearchParams]
   );
 
+  // Порядковый номер запроса: медленный ответ по прошлым фильтрам не должен
+  // перерисовать данные поверх актуальных и не должен утащить пользователя на 1-ю страницу
+  const requestSeq = React.useRef(0);
+
   const fetchProducts = useCallback(async () => {
+    const seq = ++requestSeq.current;
     try {
       setIsProductsLoading(true);
       setProductsError(null);
@@ -662,13 +731,30 @@ const CatalogContent: React.FC = () => {
           : Promise.resolve().then(() => setSidebarVisibleBrandIds(null)),
       ]);
 
+      if (seq !== requestSeq.current) return;
+
       setProducts(response.results);
       setTotalProducts(response.count);
     } catch (error) {
+      if (seq !== requestSeq.current) return;
+
+      // Страница за пределом выдачи (устаревшая закладка, сузившийся каталог):
+      // DRF отдаёт 404 с телом {"detail": "Invalid page."} — молча возвращаемся
+      // на первую. replace, а не push: иначе «назад» возвращает на битую
+      // страницу, которая снова отталкивает вперёд.
+      const status = (error as AxiosError)?.response?.status;
+      if (status === 404 && page > 1) {
+        setPage(1);
+        updateSearchParamsRef.current({ page: null }, { replace: true });
+        return;
+      }
+
       console.error('Не удалось загрузить товары', error);
       setProductsError('Не удалось загрузить товары');
     } finally {
-      setIsProductsLoading(false);
+      if (seq === requestSeq.current) {
+        setIsProductsLoading(false);
+      }
     }
   }, [
     activeCategoryId,
@@ -696,13 +782,13 @@ const CatalogContent: React.FC = () => {
 
   useEffect(() => {
     // Если перешли с параметром focusSearch=true, фокусируемся на поле поиска
-    if (searchParams?.get('focusSearch') === 'true') {
+    if (focusSearchParam === 'true') {
       // Небольшая задержка чтобы убедиться что компонент смонтирован и анимации прошли
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
     }
-  }, [searchParams]);
+  }, [focusSearchParam]);
 
   const handleToggle = (key: string) => {
     setExpandedKeys(prev => {
@@ -719,7 +805,7 @@ const CatalogContent: React.FC = () => {
   const handleSelectCategory = (node: CategoryNode) => {
     setActiveCategoryId(node.id);
     setActiveCategoryLabel(node.label);
-    setPage(1);
+    resetPage();
   };
 
   const handleSelectAllCategories = () => {
@@ -731,14 +817,14 @@ const CatalogContent: React.FC = () => {
       setActiveCategoryId(null);
       setActiveCategoryLabel('');
       setExpandedKeys(new Set()); // Очищаем развёрнутые подкатегории
-      setPage(1);
+      resetPage();
       // Фильтр НЕ сворачиваем
     }
   };
 
   const handlePriceRangeChange = (value: PriceRange) => {
     setPriceRange(value);
-    setPage(1);
+    resetPage();
   };
 
   const handleBrandToggle = (brandId: number) => {
@@ -751,12 +837,12 @@ const CatalogContent: React.FC = () => {
       }
       return next;
     });
-    setPage(1);
+    resetPage();
   };
 
   const handleOrderingChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setOrdering(event.target.value);
-    setPage(1);
+    resetPage();
   };
 
   const handleResetFilters = () => {
@@ -767,8 +853,8 @@ const CatalogContent: React.FC = () => {
     setSearchQuery(''); // Сбрасываем поисковый запрос
     setPage(1);
 
-    // Очищаем параметр search из URL
-    updateSearchParams('search', null);
+    // Очищаем search и номер страницы из URL одним пушем
+    updateSearchParams({ search: null, page: null });
 
     // Сбрасываем категорию в «Все»
     setActiveCategoryId(null);
@@ -781,6 +867,8 @@ const CatalogContent: React.FC = () => {
   const handlePageChange = (nextPage: number) => {
     if (nextPage < 1 || nextPage > totalPages) return;
     setPage(nextPage);
+    // Первая страница остаётся каноническим /catalog без параметра (SEO)
+    updateSearchParams({ page: nextPage === 1 ? null : String(nextPage) });
   };
 
   const visiblePages = useMemo(() => {
@@ -1111,7 +1199,7 @@ const CatalogContent: React.FC = () => {
                   checked={inStock}
                   onChange={e => {
                     setInStock(e.target.checked);
-                    setPage(1);
+                    resetPage();
                     if (!e.target.checked) {
                       setSidebarVisibleIds(null);
                       setSidebarVisibleBrandIds(null);
@@ -1185,7 +1273,7 @@ const CatalogContent: React.FC = () => {
                 <button
                   className="h-10 w-10 rounded-[6px] border border-neutral-300 text-neutral-500 hover:border-primary hover:text-primary disabled:opacity-40 transition-colors"
                   onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
+                  disabled={page <= 1}
                   aria-label="Предыдущая страница"
                 >
                   ←
@@ -1195,6 +1283,7 @@ const CatalogContent: React.FC = () => {
                   <button
                     key={pageNumber}
                     onClick={() => handlePageChange(pageNumber)}
+                    aria-current={pageNumber === page ? 'page' : undefined}
                     className={
                       pageNumber === page
                         ? 'h-10 w-10 rounded-[6px] bg-primary text-white hover:bg-primary-hover'
@@ -1208,7 +1297,7 @@ const CatalogContent: React.FC = () => {
                 <button
                   className="h-10 w-10 rounded-[6px] border border-neutral-300 text-neutral-500 hover:border-primary hover:text-primary disabled:opacity-40 transition-colors"
                   onClick={() => handlePageChange(page + 1)}
-                  disabled={page === totalPages}
+                  disabled={page >= totalPages}
                   aria-label="Следующая страница"
                 >
                   →
