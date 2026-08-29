@@ -962,6 +962,8 @@ describe('RegisterForm', () => {
       const countrySelect = (await screen.findByLabelText(/страна/i)) as HTMLSelectElement;
       expect(countrySelect).toBeInTheDocument();
       expect(countrySelect.value).toBe('Россия');
+      expect(countrySelect).toHaveClass('focus:ring-[var(--color-primary)]');
+      expect(countrySelect).not.toHaveClass('focus:ring-[var(--color-primary-500)]');
 
       const options = Array.from(countrySelect.options).map(opt => opt.value);
       expect(options).toEqual(['Россия', 'Беларусь', 'Казахстан']);

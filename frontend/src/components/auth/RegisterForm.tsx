@@ -379,7 +379,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
             disabled={isSubmitting}
             aria-invalid={Boolean(errors.country?.message) || undefined}
             aria-describedby={errors.country?.message ? 'register-country-error' : undefined}
-            className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary-500)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border border-gray-300 rounded-sm shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="Россия">Россия</option>
             <option value="Беларусь">Беларусь</option>
