@@ -1069,4 +1069,69 @@ describe('CatalogPage — сохранение страницы пагинаци
     expect(mockReplace).not.toHaveBeenCalled();
     expect(lastNavigationUrl()).toBe('/catalog?page=2');
   });
+  it('не отменяет навигацию «назад»/«вперёд» устаревшим 404', async () => {
+    let rejectStale: (reason: unknown) => void = () => {};
+    const stalePageThree = new Promise<never>((_, reject) => {
+      rejectStale = reject;
+    });
+    (productsService.getAll as Mock).mockImplementation((filters: { page?: number }) =>
+      filters.page === 3 ? stalePageThree : Promise.resolve(buildProductsResponse(40))
+    );
+
+    resetSearchParams('page=3');
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+    (productsService.getAll as Mock).mockClear();
+    mockReplace.mockClear();
+    navigationLog.length = 0;
+
+    // Кнопка «назад» отличается от клика по пагинации: обработчика события у нас
+    // нет, состояние page в первом render после смены URL ещё равно 3, а
+    // productFilters не меняется — инвалидация по productFilters не успевает
+    // сработать до passive-эффекта синхронизации. Если в это окно прилетит 404
+    // по прежней странице, его seq всё ещё актуален и откат на первую страницу
+    // отменит навигацию пользователя.
+    //
+    // act-окружение отключаем намеренно: под act commit и passive-эффекты
+    // сливаются в одну очередь, и окна между ними не существует.
+    const actGlobal = globalThis as typeof globalThis & {
+      IS_REACT_ACT_ENVIRONMENT?: boolean;
+    };
+    const prevActEnv = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+    actGlobal.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      // Браузер сменил URL на предыдущую запись истории
+      resetSearchParams('page=2');
+      // Ререндер с новым URL. В приложении его вызывает router-transition,
+      // в тесте — любое безобидное локальное состояние: важен сам факт commit
+      // нового pageParam, а не то, что его инициировало.
+      screen.getByRole('button', { name: 'Список' }).click();
+      // Дискретный клик React 19 обрабатывает микрозадачей: после этих hop'ов
+      // render, commit и layout-эффекты отработали, а passive-эффекты
+      // (в том числе синхронизация page из URL) ещё ждут макрозадачи
+      await Promise.resolve();
+      await Promise.resolve();
+
+      rejectStale({ response: { status: 404 } });
+      // Макрозадача: продолжение catch отработало, отложенные passive-эффекты
+      // (синхронизация page из URL и следующий запрос) успели сработать
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Устаревший 404 не отменил переход браузера: ни отката состояния, ни чистки URL
+      expect(mockReplace).not.toHaveBeenCalled();
+      expect(navigationLog).toEqual([]);
+
+      await waitFor(() => {
+        expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+      });
+    } finally {
+      actGlobal.IS_REACT_ACT_ENVIRONMENT = prevActEnv;
+    }
+
+    expect(productsService.getAll).not.toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page');
+  });
 });
