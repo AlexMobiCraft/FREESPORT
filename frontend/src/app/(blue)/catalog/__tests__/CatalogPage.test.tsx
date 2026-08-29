@@ -1007,4 +1007,66 @@ describe('CatalogPage — сохранение страницы пагинаци
       expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
     });
   });
+
+  it('не выдёргивает пользователя с новой страницы устаревшим 404', async () => {
+    let rejectStale: (reason: unknown) => void = () => {};
+    const stalePageThree = new Promise<never>((_, reject) => {
+      rejectStale = reject;
+    });
+    // Ответ по 3-й странице «зависает» и провалится 404 уже после того,
+    // как пользователь ушёл на 2-ю
+    (productsService.getAll as Mock).mockImplementation((filters: { page?: number }) =>
+      filters.page === 3 ? stalePageThree : Promise.resolve(buildProductsResponse(40))
+    );
+
+    render(<CatalogPage />);
+
+    const pageThree = await screen.findByRole('button', { name: '3' });
+    await act(async () => {
+      pageThree.click();
+    });
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 3 }));
+    });
+    // История вызовов до критической секции неинтересна: запрос 1-й страницы
+    // при монтировании легитимен, проверяем только последствия устаревшего 404
+    (productsService.getAll as Mock).mockClear();
+    mockReplace.mockClear();
+
+    // Гонка из находки ревью: 404 по прежней странице приходит уже после того,
+    // как пользователь ушёл на другую. В React 19 и сам дискретный клик
+    // обрабатывается микрозадачей, поэтому продолжение упавшего запроса
+    // успевает отработать даже ДО commit нового page — инвалидации по commit
+    // (layout-эффект) для этого мало, версия обязана расти уже в момент
+    // намерения пользователя, в обработчике события.
+    //
+    // act-окружение отключаем намеренно: под act клик, рендер и эффекты
+    // сливаются в одну очередь и гонки нет. Порядок задан явно (отказ → один
+    // microtask hop → клик), чтобы продолжение catch гарантированно опередило
+    // микрозадачу React, а не зависело от деталей его планировщика.
+    const actGlobal = globalThis as typeof globalThis & {
+      IS_REACT_ACT_ENVIRONMENT?: boolean;
+    };
+    const prevActEnv = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+    actGlobal.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      rejectStale({ response: { status: 404 } });
+      // Один hop: реакция Promise.all уже отработала, продолжение catch стоит
+      // следующим в очереди — клик вклинивается ровно перед ним
+      await Promise.resolve();
+      screen.getByRole('button', { name: '2' }).click();
+
+      await waitFor(() => {
+        expect(productsService.getAll).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }));
+      });
+    } finally {
+      actGlobal.IS_REACT_ACT_ENVIRONMENT = prevActEnv;
+    }
+
+    // Устаревший 404 не откатывает ни состояние, ни URL
+    expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page');
+    expect(productsService.getAll).not.toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(lastNavigationUrl()).toBe('/catalog?page=2');
+  });
 });

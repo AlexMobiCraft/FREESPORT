@@ -651,12 +651,33 @@ const CatalogContent: React.FC = () => {
     updateSearchParamsRef.current = updateSearchParams;
   }, [updateSearchParams]);
 
+  // Порядковый номер запроса: медленный ответ по прошлым фильтрам не должен
+  // перерисовать данные поверх актуальных и не должен утащить пользователя на 1-ю страницу
+  const requestSeq = React.useRef(0);
+
+  // Смена номера страницы обесценивает уже летящий запрос сразу, в момент
+  // намерения пользователя. Ждать старта следующего запроса нельзя: React
+  // обрабатывает setPage не синхронно с обработчиком события, и 404 по прежней
+  // странице, пришедший в этом промежутке, откатил бы пользователя на первую
+  // страницу уже после навигации. Условие обязательно: без реальной смены
+  // страницы следующего запроса может не быть, и обесцененный ответ оставил бы
+  // висеть скелетон загрузки.
+  const invalidateOnPageChange = useCallback(
+    (nextPage: number) => {
+      if (nextPage !== page) {
+        requestSeq.current += 1;
+      }
+    },
+    [page]
+  );
+
   // Сброс на первую страницу при смене любого фильтра: состояние и URL разом.
   // setPage в одном обработчике с фильтром батчится в один рендер → один запрос.
   const resetPage = useCallback(() => {
+    invalidateOnPageChange(1);
     setPage(1);
     updateSearchParams({ page: null });
-  }, [updateSearchParams]);
+  }, [invalidateOnPageChange, updateSearchParams]);
 
   // Синхронизация состояния из URL для кнопок «назад»/«вперёд».
   // Функциональный setPage не требует page в зависимостях; при совпадении — no-op.
@@ -677,49 +698,78 @@ const CatalogContent: React.FC = () => {
   // Обработчик изменения поискового запроса
   const handleSearchChange = useCallback(
     (query: string) => {
+      invalidateOnPageChange(1);
       setSearchQuery(query);
       setPage(1);
       updateSearchParams({ search: query || null, page: null });
     },
-    [updateSearchParams]
+    [invalidateOnPageChange, updateSearchParams]
   );
 
-  // Порядковый номер запроса: медленный ответ по прошлым фильтрам не должен
-  // перерисовать данные поверх актуальных и не должен утащить пользователя на 1-ю страницу
-  const requestSeq = React.useRef(0);
+  // Производные значения фильтров — примитивы, чтобы productFilters ниже менял
+  // идентичность только вместе с содержимым запроса, а не на каждый ререндер
+  const brandFilter = selectedBrandIds.size > 0 ? Array.from(selectedBrandIds).join(',') : '';
+  const searchFilter = searchQuery.trim().length >= 2 ? searchQuery.trim() : '';
+
+  // Параметры запроса товаров собраны в одном месте: они же служат ключом
+  // инвалидации ниже, поэтому ключ не может разъехаться с фактическим запросом
+  const productFilters = useMemo<ProductFilters>(() => {
+    const filters: ProductFilters = {
+      page,
+      page_size: PAGE_SIZE,
+      ordering,
+      min_price: priceRange.min,
+      max_price: priceRange.max,
+      ...activeBadge,
+    };
+
+    if (activeCategoryId) {
+      filters.category_id = activeCategoryId;
+    }
+
+    if (brandFilter) {
+      filters.brand = brandFilter;
+    }
+
+    // Фильтр по наличию
+    if (inStock) {
+      filters.in_stock = true;
+    }
+
+    // Добавляем поисковый запрос
+    if (searchFilter) {
+      filters.search = searchFilter;
+    }
+
+    return filters;
+  }, [
+    page,
+    ordering,
+    priceRange.min,
+    priceRange.max,
+    activeBadge,
+    activeCategoryId,
+    brandFilter,
+    inStock,
+    searchFilter,
+  ]);
+
+  // Инвалидация версии — синхронно на commit новых параметров, а не в момент
+  // старта следующего запроса. Между commit и passive-эффектом с fetchProducts
+  // есть окно: ответ по прежним параметрам ещё считался бы актуальным, и его
+  // 404 выдёргивал бы пользователя на первую страницу уже после навигации.
+  // Обычно React успевает сбросить passive-эффекты микрозадачей раньше, но это
+  // деталь его планировщика, а не контракт, — корректность на неё не опирается.
+  useIsomorphicLayoutEffect(() => {
+    requestSeq.current += 1;
+  }, [productFilters]);
 
   const fetchProducts = useCallback(async () => {
     const seq = ++requestSeq.current;
+    const filters = productFilters;
     try {
       setIsProductsLoading(true);
       setProductsError(null);
-
-      const filters: ProductFilters = {
-        page,
-        page_size: PAGE_SIZE,
-        ordering,
-        min_price: priceRange.min,
-        max_price: priceRange.max,
-        ...activeBadge,
-      };
-
-      if (activeCategoryId) {
-        filters.category_id = activeCategoryId;
-      }
-
-      if (selectedBrandIds.size > 0) {
-        filters.brand = Array.from(selectedBrandIds).join(',');
-      }
-
-      // Фильтр по наличию
-      if (inStock) {
-        filters.in_stock = true;
-      }
-
-      // Добавляем поисковый запрос
-      if (searchQuery.trim().length >= 2) {
-        filters.search = searchQuery.trim();
-      }
 
       const [response] = await Promise.all([
         productsService.getAll(filters),
@@ -752,7 +802,7 @@ const CatalogContent: React.FC = () => {
       // на первую. replace, а не push: иначе «назад» возвращает на битую
       // страницу, которая снова отталкивает вперёд.
       const status = (error as AxiosError)?.response?.status;
-      if (status === 404 && page > 1) {
+      if (status === 404 && (filters.page ?? 1) > 1) {
         setPage(1);
         updateSearchParamsRef.current({ page: null }, { replace: true });
         return;
@@ -765,17 +815,7 @@ const CatalogContent: React.FC = () => {
         setIsProductsLoading(false);
       }
     }
-  }, [
-    activeCategoryId,
-    ordering,
-    page,
-    priceRange.max,
-    priceRange.min,
-    selectedBrandIds,
-    inStock,
-    searchQuery,
-    activeBadge,
-  ]);
+  }, [productFilters]);
 
   useEffect(() => {
     // Ждём пока попытка загрузки категорий завершится (даже с ошибкой — F3),
@@ -855,6 +895,7 @@ const CatalogContent: React.FC = () => {
   };
 
   const handleResetFilters = () => {
+    invalidateOnPageChange(1);
     setSelectedBrandIds(new Set());
     setPriceRange(DEFAULT_PRICE_RANGE);
     setOrdering(DEFAULT_ORDERING);
@@ -874,7 +915,8 @@ const CatalogContent: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
 
   const handlePageChange = (nextPage: number) => {
-    if (nextPage < 1 || nextPage > totalPages) return;
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return;
+    invalidateOnPageChange(nextPage);
     setPage(nextPage);
     // Первая страница остаётся каноническим /catalog без параметра (SEO)
     updateSearchParams({ page: nextPage === 1 ? null : String(nextPage) });

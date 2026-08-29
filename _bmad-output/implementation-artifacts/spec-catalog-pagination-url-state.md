@@ -3,7 +3,7 @@ title: 'Каталог: сохранение номера страницы па�
 type: 'bugfix'
 created: '2026-08-28'
 status: 'review'
-review_loop_iteration: 2
+review_loop_iteration: 3
 baseline_commit: '3cbbf1cfb333effe9fe867e621679aa25af87a99'
 context: []
 ---
@@ -127,6 +127,8 @@ context: []
   **Исправлено (итерация 2):** честная навигация стала opt-in — `mockPush`/`mockReplace` по умолчанию пустышки (исходное поведение), блок пагинации включает её через `enableRouterNavigation()` в `beforeEach` и возвращает исходные реализации через `restoreRouterMocks()` в `afterAll`; старые describe-блоки снова работают на беспоследственном push. Заведён хронологический `navigationLog` (`{ type, url }`), `lastNavigation()` отдаёт последнюю запись по времени, `lastNavigationUrl()` — её URL; тип навигации (`push` vs `replace`) проверяется явно.
 - [x] [Review][Defer] Внешнее удаление `search` не очищает поисковое состояние [`frontend/src/app/(blue)/catalog/page.tsx:553`] — deferred, pre-existing. При возврате браузера с `?search=term` на URL без `search` эффект не вызывает `setSearchQuery('')`, поэтому API продолжает получать прежний поисковый фильтр. Та же условная ветка была в baseline.
 - [x] [Review][Defer] Устаревшие ответы видимости могут перезаписать сайдбар [`frontend/src/app/(blue)/catalog/page.tsx:718`] — deferred, pre-existing. `requestSeq` защищает товары, но `getVisibleCategories` и `getVisibleBrands` меняют state внутри `.then/.catch` до проверки последовательности; тот же шаблон присутствовал в baseline.
+- [x] [Review][Patch] Устаревший 404 может отменить более новую навигацию [`frontend/src/app/(blue)/catalog/page.tsx:691-758`] — `requestSeq` увеличивается только при старте `fetchProducts` в passive effect. После commit нового `page`/фильтра, но до запуска следующего effect, старый запрос ещё имеет актуальный `seq`; его 404 выполняет `setPage(1)` и `router.replace` с URL прошлого render. Это нарушает требование, что устаревший ответ не должен выдёргивать пользователя на первую страницу. Инвалидацию версии нужно выполнять синхронно при commit изменения параметров запроса (например, layout-effect по их ключу), а затем добавить тест с контролируемым старым 404, завершённым между новой навигацией и стартом её запроса.
+  **Исправлено (итерация 3):** инвалидация выполняется в двух местах. (1) `invalidateOnPageChange(nextPage)` поднимает `requestSeq` **в момент намерения пользователя** — в `handlePageChange`, `resetPage`, `handleSearchChange`, `handleResetFilters`. Одного commit-time layout-эффекта оказалось мало: React 19 обрабатывает и сам дискретный клик в микрозадаче, поэтому продолжение упавшего запроса успевает отработать ещё до commit нового `page` (проверено экспериментально — при только layout-эффекте тест остаётся красным: `replace=["/catalog"]`, активна страница 1). Бамп условный (`nextPage !== page`): без реальной смены страницы следующего запроса может не быть, и обесцененный ответ оставил бы висеть скелетон. (2) `useIsomorphicLayoutEffect` по `productFilters` закрывает окно между commit и passive-эффектом для остальных параметров запроса. Параметры запроса вынесены в мемо `productFilters` — оно же служит ключом инвалидации, поэтому ключ не может разъехаться с фактическим запросом; `fetchProducts` зависит теперь ровно от него.
 
 **Acceptance Criteria:**
 - Given пользователь на третьей странице каталога, when он обновляет браузер, then он остаётся на
@@ -186,6 +188,41 @@ context: []
 **Верификация (2026-08-29):** `npx tsc --noEmit` — 0 ошибок; `npm run lint` (`--max-warnings=0`) —
 чисто; `npx vitest run "src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx"` — 48/48;
 `npx vitest run` — 148 файлов, 2550 passed, 16 skipped, 0 failed (базовая линия 2536 → +14 проверок).
+
+### Итерация 3 — 2026-08-29 (закрытие последней находки ревью)
+
+**Что сделано:** закрыт последний `[Review][Patch]` — устаревший 404 больше не отменяет более
+новую навигацию.
+
+**Находка при реализации:** предписанного спекой commit-time layout-эффекта **недостаточно**.
+В React 19 дискретный клик тоже обрабатывается микрозадачей, поэтому продолжение упавшего запроса
+успевает отработать до commit нового `page`, когда `requestSeq` ещё актуален. Замерено на живом
+тесте: с одним layout-эффектом — `pages=1`, `replace=["/catalog"]`, `aria-current` на «1»
+(пользователя выбрасывает); после добавления инвалидации в момент намерения — `pages=2`,
+`replace=[]`, `aria-current` на «2». Поэтому реализованы оба уровня: намерение (обработчики
+события) и commit (layout-эффект по `productFilters`).
+
+**Файлы:**
+- `frontend/src/app/(blue)/catalog/page.tsx` — мемо `productFilters` (единственный источник
+  параметров запроса и ключ инвалидации), `invalidateOnPageChange`, layout-эффект инвалидации,
+  ранний выход `handlePageChange` при клике по текущей странице, `fetchProducts` зависит от
+  `productFilters`.
+- `frontend/src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx` — регрессия «не выдёргивает
+  пользователя с новой страницы устаревшим 404».
+
+**Red-green:** тест красный на baseline (`pages=1`, `replace=["/catalog"]`, активна страница 1)
+и красный с одним лишь commit-time эффектом; зелёный после инвалидации по намерению.
+
+**Порядок в тесте задан явно** (`rejectStale` → один microtask hop → клик): продолжение упавшего
+запроса гарантированно опережает микрозадачу React. Обычно React успевает первым, но это деталь
+его планировщика (time-slicing, отложенный Scheduler), а не контракт, — корректность не должна
+от неё зависеть. Для этого блока отключается act-окружение: под `act` всё сливается в одну
+очередь и окна нет.
+
+**Верификация (2026-08-29):** `npx tsc --noEmit` — 0 ошибок; `npm run lint` (`--max-warnings=0`) —
+чисто; `npx vitest run "src/app/(blue)/catalog/__tests__/CatalogPage.test.tsx"` — 49/49;
+`npx vitest run` — 148 файлов, 2551 passed, 16 skipped, 0 failed (было 2550 → +1 проверка);
+`npx gitnexus detect-changes --scope all` — затронут только каталог.
 
 ## Design Notes
 
