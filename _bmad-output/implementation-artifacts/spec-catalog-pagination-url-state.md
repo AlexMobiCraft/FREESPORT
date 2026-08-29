@@ -2,7 +2,7 @@
 title: 'Каталог: сохранение номера страницы пагинации в URL'
 type: 'bugfix'
 created: '2026-08-28'
-status: 'review'
+status: 'done'
 review_loop_iteration: 4
 baseline_commit: '3cbbf1cfb333effe9fe867e621679aa25af87a99'
 context: []
