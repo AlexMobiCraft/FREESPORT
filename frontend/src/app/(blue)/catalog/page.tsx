@@ -52,6 +52,10 @@ const PRICE_MIN = 1;
 const PRICE_MAX = 50000;
 const DEFAULT_PRICE_RANGE: PriceRange = { min: PRICE_MIN, max: PRICE_MAX };
 const PRICE_STEP = 500;
+// Пауза перед применением диапазона цены. Ползунок шлёт onChange на КАЖДЫЙ шаг
+// перетаскивания: без паузы каждый шаг создавал бы запись в истории браузера и
+// отдельный запрос товаров. UI ползунка при этом двигается сразу (см. priceDraft).
+const PRICE_COMMIT_DELAY_MS = 300;
 const PAGE_SIZE = 12;
 const MAX_VISIBLE_PAGES = 5;
 const DEFAULT_ORDERING = 'name';
@@ -448,6 +452,10 @@ const CatalogContent: React.FC = () => {
   const [priceRange, setPriceRange] = useState<PriceRange>(() =>
     parsePriceRange(minPriceParam, maxPriceParam)
   );
+  // Драфт диапазона цены — то, что видит пользователь на ползунке прямо сейчас.
+  // Источником истины для запроса и URL остаётся priceRange: он принимает драфт
+  // одним шагом через PRICE_COMMIT_DELAY_MS после последнего движения ползунка.
+  const [priceDraft, setPriceDraft] = useState<PriceRange>(priceRange);
   // Синхронная инициализация из URL: иначе на /catalog?search=x&page=3 первый
   // запрос ушёл бы без search, поймал 404 и сбросил страницу у корректной закладки
   const [searchQuery, setSearchQuery] = useState(() => searchParam ?? '');
@@ -574,6 +582,18 @@ const CatalogContent: React.FC = () => {
     }
     return findCategoryBySlug(categoryTree, categorySlugParam)?.id ?? null;
   }, [categorySlugParam, categoryTree]);
+
+  // Гейт запроса товаров по категории — та же логика, что и по брендам.
+  // Дерево приходит одним коммитом с isCategoryLoadAttempted, но activeCategoryId
+  // ставит passive-эффект синхронизации, то есть в том же проходе эффектов
+  // замыкание fetchProducts построено ещё на activeCategoryId === null:
+  // ссылка /catalog?category=obuv уходила бы в API дважды — сначала без
+  // category_id, затем с ним (лишний запрос и мигание выдачи).
+  // Условие Boolean(categorySlugParam) обязательно: собственный выбор категории
+  // меняет состояние раньше URL, и без него гейт закрывал бы уже актуальный запрос.
+  // Несуществующий slug гейт не держит: urlActiveCategoryId === null === состояние.
+  const isCategoryFilterPending =
+    Boolean(categorySlugParam) && urlActiveCategoryId !== activeCategoryId;
 
   // Бренды в URL — slug'и, в состоянии — id. null означает «соответствие ещё
   // невозможно»: справочник брендов не загружен. Slug'и, которых в справочнике
@@ -875,6 +895,46 @@ const CatalogContent: React.FC = () => {
     [invalidateOnPageChange, updateSearchParams]
   );
 
+  // resetPage меняет идентичность вместе с searchParams. Отложенный commit цены
+  // срабатывает уже после нескольких рендеров, поэтому берёт его через ref —
+  // тот же приём, что и updateSearchParamsRef выше.
+  const resetPageRef = React.useRef(resetPage);
+  useEffect(() => {
+    resetPageRef.current = resetPage;
+  }, [resetPage]);
+
+  const priceCommitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Объект, который положил в priceRange наш собственный отложенный commit.
+  // Сравнение по идентичности — единственный надёжный признак источника
+  // изменения: по значениям «свой commit» и «внешняя навигация на тот же
+  // диапазон» неразличимы, а реакция на них разная.
+  const committedPriceRef = React.useRef<PriceRange | null>(null);
+  const cancelPriceCommit = useCallback(() => {
+    if (priceCommitTimerRef.current !== null) {
+      clearTimeout(priceCommitTimerRef.current);
+      priceCommitTimerRef.current = null;
+    }
+  }, []);
+
+  // Драфт следует за применённым диапазоном, когда тот меняется не ползунком:
+  // «назад»/«вперёд», F5, кнопка «Сбросить». Отложенный commit при этом отменяется —
+  // иначе он вернул бы на экран диапазон, от которого пользователь уже ушёл.
+  // Ранний выход по собственному commit обязателен: между срабатыванием таймера
+  // и этим эффектом пользователь успевает двинуть ползунок снова, и безусловный
+  // cancel убил бы уже поставленный таймер следующего шага — диапазон завис бы
+  // в драфте и не доехал ни до URL, ни до запроса.
+  useEffect(() => {
+    if (priceRange === committedPriceRef.current) {
+      return;
+    }
+    cancelPriceCommit();
+    setPriceDraft(prev =>
+      prev.min === priceRange.min && prev.max === priceRange.max ? prev : priceRange
+    );
+  }, [priceRange, cancelPriceCommit]);
+
+  useEffect(() => cancelPriceCommit, [cancelPriceCommit]);
+
   // Синхронизация состояния из URL для кнопок «назад»/«вперёд».
   // Функциональные сеттеры не требуют состояния в зависимостях; при совпадении — no-op.
   // Зависимости только «урловые»: собственный push обработчика меняет состояние
@@ -1079,13 +1139,19 @@ const CatalogContent: React.FC = () => {
     // При badge-фильтре грузим сразу.
     // Бренды: пока набор в состоянии не совпал с набором из URL, запрос ушёл бы
     // с неверным фильтром (см. isBrandFilterPending).
-    if (isBrandFilterPending) {
+    if (isBrandFilterPending || isCategoryFilterPending) {
       return;
     }
     if (isCategoryLoadAttempted || hasBadgeFilter) {
       fetchProducts();
     }
-  }, [fetchProducts, isCategoryLoadAttempted, hasBadgeFilter, isBrandFilterPending]);
+  }, [
+    fetchProducts,
+    isCategoryLoadAttempted,
+    hasBadgeFilter,
+    isBrandFilterPending,
+    isCategoryFilterPending,
+  ]);
 
   // Ref для поля поиска
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -1132,12 +1198,21 @@ const CatalogContent: React.FC = () => {
     }
   };
 
+  // Ползунок двигается сразу, а URL и запрос получают только итог перетаскивания:
+  // каждый промежуточный шаг иначе стал бы отдельной записью в истории браузера
+  // и отдельным запросом товаров.
   const handlePriceRangeChange = (value: PriceRange) => {
-    setPriceRange(value);
-    resetPage({
-      min_price: value.min === PRICE_MIN ? null : String(value.min),
-      max_price: value.max === PRICE_MAX ? null : String(value.max),
-    });
+    setPriceDraft(value);
+    cancelPriceCommit();
+    priceCommitTimerRef.current = setTimeout(() => {
+      priceCommitTimerRef.current = null;
+      committedPriceRef.current = value;
+      setPriceRange(value);
+      resetPageRef.current({
+        min_price: value.min === PRICE_MIN ? null : String(value.min),
+        max_price: value.max === PRICE_MAX ? null : String(value.max),
+      });
+    }, PRICE_COMMIT_DELAY_MS);
   };
 
   const handleBrandToggle = (brandId: number) => {
@@ -1459,7 +1534,7 @@ const CatalogContent: React.FC = () => {
                 min={PRICE_MIN}
                 max={PRICE_MAX}
                 step={PRICE_STEP}
-                value={priceRange}
+                value={priceDraft}
                 onChange={handlePriceRangeChange}
               />
 

@@ -1241,6 +1241,42 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     expect(productsService.getAll).toHaveBeenCalledTimes(1);
   });
 
+  it('делает один запрос на ссылке только с категорией', async () => {
+    resetSearchParams('category=obuv');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ category_id: 2 })
+      );
+    });
+    // Промежуточного запроса без category_id быть не должно: slug → id
+    // резолвится из дерева, и до синхронизации запрос ждёт
+    expect(productsService.getAll).toHaveBeenCalledTimes(1);
+    expect(lastNavigation()).toBeNull();
+    await waitFor(() => {
+      expect(productSkeletonCount()).toBe(0);
+    });
+  });
+
+  it('не оставляет висеть скелетон на ссылке с несуществующей категорией', async () => {
+    resetSearchParams('category=нет-такой');
+
+    render(<CatalogPage />);
+
+    // Гейт по категории не должен закрыться навсегда: slug в дереве не найден,
+    // расхождения с состоянием (null === null) нет, запрос уходит без category_id
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalled();
+    });
+    expect((productsService.getAll as Mock).mock.calls[0][0]).not.toHaveProperty('category_id');
+    await waitFor(() => {
+      expect(productSkeletonCount()).toBe(0);
+    });
+    expect(productsService.getAll).toHaveBeenCalledTimes(1);
+  });
+
   // --- Запись фильтров в URL ------------------------------------------------
 
   it('пишет категорию в URL, не перезапрашивая дерево и не схлопывая ветки', async () => {
@@ -1335,18 +1371,59 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
       fireEvent.change(minInput, { target: { value: '1000' } });
     });
     // Верхняя граница по умолчанию в URL не пишется
-    expect(lastNavigationUrl()).toBe('/catalog?min_price=1000');
+    await waitFor(() => {
+      expect(lastNavigationUrl()).toBe('/catalog?min_price=1000');
+    });
 
     await act(async () => {
       fireEvent.change(maxInput, { target: { value: '5000' } });
     });
-    expect(lastNavigationUrl()).toBe('/catalog?min_price=1000&max_price=5000');
+    await waitFor(() => {
+      expect(lastNavigationUrl()).toBe('/catalog?min_price=1000&max_price=5000');
+    });
 
     await waitFor(() => {
       expect(productsService.getAll).toHaveBeenCalledWith(
         expect.objectContaining({ min_price: 1000, max_price: 5000 })
       );
     });
+  });
+
+  it('применяет диапазон цены один раз после паузы, не записывая промежуточные шаги', async () => {
+    render(<CatalogPage />);
+
+    await screen.findByLabelText('Nike');
+    (productsService.getAll as Mock).mockClear();
+    navigationLog.length = 0;
+
+    const [minInput] = rangeInputs();
+
+    // Перетаскивание ползунка: onChange на каждый шаг
+    await act(async () => {
+      fireEvent.change(minInput, { target: { value: '1000' } });
+      fireEvent.change(minInput, { target: { value: '1500' } });
+      fireEvent.change(minInput, { target: { value: '2000' } });
+    });
+
+    // UI ползунка реагирует на каждый шаг сразу
+    expect((minInput as HTMLInputElement).value).toBe('2000');
+    // Промежуточные шаги не уходят ни в историю, ни в API
+    expect(navigationLog).toEqual([]);
+    expect(productsService.getAll).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(lastNavigationUrl()).toBe('/catalog?min_price=2000');
+    });
+    // Одна запись в истории на всё перетаскивание
+    expect(navigationLog).toHaveLength(1);
+    expect(navigationLog[0].type).toBe('push');
+
+    await waitFor(() => {
+      expect(productsService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ min_price: 2000 })
+      );
+    });
+    expect(productsService.getAll).toHaveBeenCalledTimes(1);
   });
 
   it('пишет только снятое «в наличии» и не перезапрашивает дерево категорий', async () => {
