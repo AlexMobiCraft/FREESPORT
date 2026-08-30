@@ -559,7 +559,7 @@ development_status:
   41-1-cookie-decline-and-change-choice: backlog
   41-2-consent-record-on-1c-link: backlog
   # Редакция 2: текст чекбокса покрывает и ПДн, и рассылку; бэкенд не трогаем.
-  41-3-separate-pdn-and-marketing-consents: ready-for-dev
+  41-3-separate-pdn-and-marketing-consents: review
   41-4-checkout-trade-info-and-policy-link: backlog
   # Дефект FR-41-22: add_header внутри location в nginx затирает унаследованный
   # набор — /media/ идёт без nosniff. Путь эксплуатации ограничен (уточнено

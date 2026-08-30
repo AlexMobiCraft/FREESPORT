@@ -6,12 +6,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import * as axeMatchers from 'vitest-axe';
+import { axe } from 'vitest-axe';
 import { SubscribeForm } from '../SubscribeForm';
 import { toast } from 'react-hot-toast';
 
+// Подключение матчеров доступности
+// @ts-expect-error vitest-axe types mismatch with vitest
+expect.extend(axeMatchers);
+
 const PDP_CONSENT_NAME =
   'Я даю согласие на обработку моих персональных данных в соответствии с ' +
-  '«Политикой обработки персональных данных»';
+  '«Политикой обработки персональных данных» и согласен(на) получать ' +
+  'информационные и рекламные рассылки от OPTISPORT по электронной почте';
 const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
 
 // Mock react-hot-toast
@@ -70,6 +77,24 @@ describe('SubscribeForm', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link.closest('label')).toBeNull();
+  });
+
+  it('mentions email newsletter in the consent checkbox accessible name', () => {
+    render(<SubscribeForm />);
+
+    // Согласие получено одним чекбоксом на оба смысла: обработка ПДн и рассылка
+    expect(
+      screen.getByRole('checkbox', {
+        name: /рассылки от OPTISPORT по электронной почте/i,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it('has no accessibility violations', async () => {
+    const { container } = render(<SubscribeForm />);
+
+    const results = await axe(container);
+    expect(results.violations).toHaveLength(0);
   });
 
   it('shows validation error for invalid email pattern', async () => {
