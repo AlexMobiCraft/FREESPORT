@@ -125,6 +125,15 @@ services:
       - ../frontend:/app
       - frontend_node_modules:/app/node_modules
       - /app/.next
+      # Стори 41.5: тесты-стражи фронта читают файлы ВНЕ frontend/ — сниппеты
+      # заголовков (docker/nginx/snippets/) и docker-compose.prod.yml. В контейнер
+      # смонтирован только ../frontend (как /app), поэтому без этого пункта такие
+      # тесты не падают, а тихо скипаются, и расхождение CSP между next.config.ts
+      # и nginx впервые всплывает уже в CI. Точка монтирования — /docker, а не
+      # /app/docker: тесты считают корнем репозитория родителя /app, и вложенный
+      # bind-mount создал бы на хосте пустой каталог frontend/docker.
+      # Тот же приём, что и в docker-compose.test.yml для backend (стори 36.1).
+      - ../docker:/docker:ro
     ports:
       - "3000:3000"
     depends_on:

@@ -102,9 +102,20 @@ describe('next.config.ts: заголовки безопасности HTML', () 
 });
 
 describe('Сверка с nginx: одна политика — два источника', () => {
-  const snippetExists = fs.existsSync(SNIPPET_NO_HSTS);
+  it('сниппет nginx доступен из этого окружения', () => {
+    // Намеренно НЕ skipIf. Эта сверка — единственная защита от расхождения двух
+    // источников одной политики, и пропуск её обессмысливает. В контейнере
+    // frontend каталог docker/ смонтирован в /docker (docker-compose.yml,
+    // сервис frontend); на хосте и в CI он лежит рядом с frontend/.
+    expect(
+      fs.existsSync(SNIPPET_NO_HSTS),
+      `Не найден ${SNIPPET_NO_HSTS}. В контейнере frontend нужен volume ` +
+        '`../docker:/docker:ro` (docker-compose.yml). Пропускать эту проверку нельзя: ' +
+        'без неё CSP в next.config.ts и в сниппетах nginx расходятся молча.'
+    ).toBe(true);
+  });
 
-  it.skipIf(!snippetExists)('CSP совпадает со сниппетом nginx посимвольно', async () => {
+  it('CSP совпадает со сниппетом nginx посимвольно', async () => {
     const fromNginx = snippetHeader(SNIPPET_NO_HSTS, 'Content-Security-Policy');
     const fromNext = (await htmlHeaders())['Content-Security-Policy'];
 
@@ -113,7 +124,7 @@ describe('Сверка с nginx: одна политика — два источ
     expect(fromNext).toBe(fromNginx);
   });
 
-  it.skipIf(!snippetExists)('Permissions-Policy совпадает со сниппетом nginx', async () => {
+  it('Permissions-Policy совпадает со сниппетом nginx', async () => {
     const fromNginx = snippetHeader(SNIPPET_NO_HSTS, 'Permissions-Policy');
     const fromNext = (await htmlHeaders())['Permissions-Policy'];
 

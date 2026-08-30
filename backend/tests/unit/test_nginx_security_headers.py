@@ -79,6 +79,9 @@ _UPSTREAM_OWNED_LOCATIONS = {
     # location / → Next.js. Весь набор ставит frontend/next.config.ts,
     # nginx добавляет только HSTS: TLS терминируется на нём, Next о нём не знает.
     "/": {"Strict-Transport-Security"},
+    # Тот же апстрим, то же правило. Без собственного add_header локация
+    # наследовала серверный набор и задваивала его с заголовками Next.
+    "/_next/webpack-hmr": {"Strict-Transport-Security"},
 }
 
 
@@ -333,6 +336,46 @@ class TestLocationsReDeclareHeaders:
             f"{conf_name}: экземпляр(ы) локации {location} №{uncovered} из {len(covered)} "
             "не подключают ни одного сниппета заголовков"
         )
+
+
+class TestUpstreamOwnedLocations:
+    """Локации, проксируемые в Next: набор ставит апстрим, nginx — только HSTS."""
+
+    @pytest.mark.parametrize("location", sorted(_UPSTREAM_OWNED_LOCATIONS))
+    def test_declares_own_header_and_no_snippet(self, location: str) -> None:
+        """Отсутствие своего `add_header` здесь — не «чисто», а дефект.
+
+        Предыдущий страж пропускает локацию без единого `add_header`: она
+        наследует серверный набор, и для того, что nginx отдаёт сам, это
+        правильно. Но эти локации отдаёт Next, который ставит набор сам, —
+        унаследованное от сервера складывается с ним, и каждый заголовок
+        приходит дважды. Ровно так задваивал `/_next/webpack-hmr`.
+        """
+        allowed = _UPSTREAM_OWNED_LOCATIONS[location]
+        content = _read("conf.d", "default.conf")
+        instances = [
+            own_body
+            for server_name, body in _server_blocks(content)
+            if server_name not in EXCLUDED_VHOSTS
+            for loc, own_body in _location_blocks(body)
+            if loc == location
+        ]
+
+        assert instances, f"default.conf: локация {location} исчезла из конфига"
+
+        for index, own_body in enumerate(instances):
+            headers = set(_header_names(own_body))
+            assert headers == allowed, (
+                f"default.conf: локация {location} №{index} объявляет add_header {sorted(headers)}, "
+                f"ожидалось ровно {sorted(allowed)}. Пустой набор означает, что локация "
+                "наследует серверный и задваивает заголовки с апстримом; лишний — "
+                "что тот же заголовок придёт и от nginx, и от Next."
+            )
+            includes = _directive_values(own_body, "include")
+            assert not any("snippets/" in value for value in includes), (
+                f"default.conf: локация {location} №{index} подключает сниппет. "
+                "Здесь он не нужен и приведёт к дублированию: набор ставит апстрим."
+            )
 
 
 class TestSnippetsMounted:

@@ -203,8 +203,8 @@ so that **браузер применял политику предсказуе�
 
 ### Review Findings
 
-- [ ] [Review][Patch] Специальная локация `/_next/webpack-hmr` задваивает заголовки Next и унаследованный серверный набор [`docker/nginx/conf.d/default.conf`:307]
-- [ ] [Review][Patch] Cross-source тесты CSP и Permissions-Policy молча пропускаются в основном frontend Docker-контейнере [`frontend/src/__tests__/next-config-headers.test.ts`:105]
+- [x] [Review][Patch] Специальная локация `/_next/webpack-hmr` задваивает заголовки Next и унаследованный серверный набор [`docker/nginx/conf.d/default.conf`:307] — закрыто в раунде 2
+- [x] [Review][Patch] Cross-source тесты CSP и Permissions-Policy молча пропускаются в основном frontend Docker-контейнере [`frontend/src/__tests__/next-config-headers.test.ts`:105] — закрыто в раунде 2
 
 ## Dev Notes
 
@@ -502,6 +502,8 @@ npx gitnexus context nextConfig
 | 2026-08-25 | Dev Notes → «Встраивание»: факт «`FileField` только под иконки категорий» заменён на проверенный список из девяти полей | Факт был неверен и использовался как опора в решении про `SAMEORIGIN` |
 | 2026-08-25 (dev) | **AC11 уточнён: у стража Task 10.1 появилось второе явное исключение — `location /`.** Правило «локация со своим `add_header` обязана подключить сниппет» на этой локации неприменимо по построению: Task 3.3 вешает туда одиночный `add_header Strict-Transport-Security` НАМЕРЕННО, чтобы вытеснить серверный набор (остальное ставит Next). Исключение задано словарём `_UPSTREAM_OWNED_LOCATIONS` и сужено до состава заголовков: разрешён ровно HSTS, любой второй `add_header` там снова роняет тест | Без исключения тест падал бы на корректной конфигурации — та же природа, что и исключение двух vhost'ов из Task 3.7. Правка AC отдельным пунктом, а не «по факту реализации» — урок стори 41.0 |
 | 2026-08-25 (dev) | **AC6 уточнён: «ошибок CSP в консоли нет» выполняется не буквально.** Замер Playwright на production-сборке: на `/delivery` остаётся ровно ОДНО нарушение `script-src ← eval` из чанка приложения (`_next/static/chunks/2025-*.js`). Это не регрессия — часть политики, отвечающая за скрипты, стори не менялась (добавлена только `frame-ancestors`), и та же строка приходила от nginx до правки. Кандидат в tech-debt п. 23 | Формулировка AC требовала нуля. Записать «выполнено» было бы неправдой, а молча ужесточить CSP запрещает AC4 |
+| 2026-08-30 (раунд 2) | **`_UPSTREAM_OWNED_LOCATIONS` пополнился `/_next/webpack-hmr`, и у словаря появился собственный страж `TestUpstreamOwnedLocations`.** Прежний страж проверял только «локация со своим `add_header` подключает сниппет» и на локации **без** `add_header` молчал — а именно это и был дефект: пустой набор означает наследование серверного, которое складывается с набором от Next | Исключение из правила само нуждается в правиле. Без положительного стража список `_UPSTREAM_OWNED_LOCATIONS` описывает намерение, но не проверяет его: удали `add_header` из `location /` — тест останется зелёным, а каждый заголовок HTML начнёт приходить дважды |
+| 2026-08-30 (раунд 2) | **Сверка CSP и Permissions-Policy между Next и nginx перестала быть пропускаемой** (`it.skipIf` → жёсткая проверка доступности сниппета), в сервис `frontend` добавлен volume `../docker:/docker:ro` | Пропуск обессмысливал единственную защиту от расхождения двух источников одной политики ровно там, где разработчик чаще всего и гоняет тесты. Точка монтирования `/docker`, а не `/app/docker`: тесты считают корнем репозитория родителя `/app`, а вложенный bind-mount создал бы на хосте пустой `frontend/docker` — как `backend/docker` от `docker-compose.test.yml` |
 | 2026-08-25 (dev) | **Новое ЛОКАЛЬНОЕ следствие, которого не было в объёме: в dev-режиме Next тот же CSP даёт 118 нарушений `script-src ← eval`** (dev-сборка использует `eval` для source maps). Прод не затронут: там production-сборка, где нарушение одно. Раньше локально CSP не приходил вовсе — `local.conf` не имел ни одного `add_header` | Прямое следствие паритета dev из AC10: вместе с заголовками в дев приезжает и их эффект. Функциональность проверена — страницы, карта и изображения работают; шум в консоли остаётся |
 
 ## Dev Agent Record
@@ -586,22 +588,111 @@ production-сборке Next (`next build` + `next start`), потому что 
 Линтеры: `prettier --check`, `eslint`, `black`, `flake8` — чисто (`black` переформатировал два новых
 тестовых файла, после чего оба прогнаны повторно).
 
+---
+
+## Раунд 2 — устранение находок ревью (2026-08-30)
+
+✅ **Resolved review finding [Patch]: `/_next/webpack-hmr` задваивала заголовки.** Локация уходит в тот же
+апстрим, что и `location /`, но собственного `add_header` не имела — то есть наследовала серверный набор,
+а Next на том же ответе ставил свой. Каждый заголовок приходил дважды. Добавлен одиночный
+`add_header Strict-Transport-Security "max-age=31536000" always;` — ровно тот приём, что и на `location /`:
+он вытесняет унаследованный набор и оставляет Next единственным источником.
+
+**Дефект пропустил не только аудит, но и собственный страж стори** — и это вторая половина находки.
+`test_location_with_own_add_header_includes_snippet` начинается с `if not headers: continue`: локация без
+единого `add_header` считается «чистой», потому что для того, что nginx отдаёт **сам**, наследование
+серверного набора и есть правильное поведение. Для локации, которую отдаёт **апстрим**, тот же признак
+означает противоположное — дублирование. Словарь `_UPSTREAM_OWNED_LOCATIONS` описывал намерение, но ничем
+не проверялся: удали `add_header` из `location /` — тест остался бы зелёным.
+
+Поэтому вместе с правкой конфига заведён положительный страж `TestUpstreamOwnedLocations`: для каждой
+записи словаря состав `add_header` обязан совпадать с разрешённым **точно** (ни пустого набора, ни лишнего
+заголовка) и сниппет подключаться не должен. Страж проверен от обратного: на конфиге до правки падает
+ровно `TestUpstreamOwnedLocations::test_declares_own_header_and_no_snippet[/_next/webpack-hmr]`, остальные
+27 остаются зелёными.
+
+Локация оставлена в `default.conf`, а не удалена, хотя HMR в проде не существует: удаление ничего не
+ломает (`location /` несёт те же `proxy_set_header`, включая upgrade), но это правка поведения сверх
+находки. Одинаковое правило на обеих локациях фронта дешевле в чтении, чем частный случай с историей.
+
+**Дублирование показано замером, а не выведено из текста конфига.** Прод-конфиг локально не исполняется
+(dev-nginx поднят на `local.conf`), поэтому `default.conf` проверен вторым процессом nginx внутри
+работающего контейнера по процедуре из Dev Notes → «Ручная проверка»: `nginx -t -c` — синтаксис верен,
+затем замер обеих редакций на одном и том же апстриме.
+
+| Заголовок на `/_next/webpack-hmr` (HTTP 404 от Next) | До правки | После |
+|---|---|---|
+| `X-Frame-Options` | **2 ×** `SAMEORIGIN` | 1 × `SAMEORIGIN` |
+| `X-Content-Type-Options` | **2 ×** `nosniff` | 1 × `nosniff` |
+| `Referrer-Policy` | **2 ×** `strict-origin-when-cross-origin` | 1 × |
+| `Content-Security-Policy` | **2 ×** (идентичные строки) | 1 × |
+| `Permissions-Policy` | **2 ×** (идентичные строки) | 1 × |
+| `X-XSS-Protection` | **2 ×** `1; mode=block` | 1 × |
+| `Strict-Transport-Security` | 1 × | 1 × |
+
+HSTS и до правки приходил в одном экземпляре — его источником был только серверный уровень nginx, Next
+его не выставляет. Остальные шесть удваивались ровно потому, что их выставляют оба слоя. Контрольные
+локации в том же прогоне не изменились: `/` — по одному экземпляру всех семи, `/health` — по одному,
+`/api/v1/pages/` — по одному (`Referrer-Policy: same-origin` и `frame-ancestors 'none'` от Django,
+как и задумано границей ответственности).
+
+✅ **Resolved review finding [Patch]: сверка CSP и Permissions-Policy молча пропускалась в контейнере.**
+Два теста стояли под `it.skipIf(!fs.existsSync(SNIPPET_NO_HSTS))`, а в сервис `frontend` смонтирован
+только `../frontend` — значит в самом ходовом окружении разработчика единственная защита от расхождения
+двух источников одной политики не выполнялась и не сообщала об этом. В CI они работают (полный checkout),
+и именно это делало пропуск опасным: расхождение всплывало бы не там, где его внесли.
+
+Закрыто двумя правками, которые обязаны идти вместе:
+- `docker/docker-compose.yml`, сервис `frontend`: volume `../docker:/docker:ro`. Точка монтирования
+  выбрана **`/docker`, а не `/app/docker`**: тесты вычисляют корень репозитория как родителя `/app`,
+  так что `/docker` попадает точно под существующий расчёт пути и код тестов трогать не нужно; вложенный
+  же bind-mount создал бы на хосте пустой каталог `frontend/docker` — ровно такой `backend/docker`
+  уже лежит в рабочем дереве от `docker-compose.test.yml`.
+- `next-config-headers.test.ts`: `skipIf` снят, вместо него отдельный тест, который падает с указанием
+  недостающего volume. Прецедент — `docker-compose.test.yml` из стори 36.1, где ту же проблему решили
+  монтированием, а не пропуском.
+
+Попутно в том же контейнере оживают три теста `middleware-build-env.test.ts` (стори 41.0) — они искали
+`docker/docker-compose.prod.yml` по тому же пути. Их код не менялся.
+
+**Проверено в самом контейнере, а не рассуждением.** На контейнере со старым определением (volume ещё
+нет) прогон падает с `ENOENT: /docker/nginx/snippets/security-headers-no-hsts.conf` — то есть проверка
+теперь сообщает о себе вместо молчаливого пропуска. После `up -d frontend` (и обязательного
+`restart nginx` следом — пересозданный фронт получает новый IP, а nginx держит старый) те же файлы дают
+**13 passed, 0 skipped** внутри контейнера. Каталог `frontend/docker` на хосте не появился — точка
+монтирования вынесена за пределы `/app` именно ради этого.
+
+**Прогон раунда 2.** Регрессий нет.
+
+| Прогон | Раунд 1 | Раунд 2 |
+|---|---|---|
+| Фронт на хосте, `npx vitest run` | 2533 passed, 16 skipped | **2534 passed, 16 skipped** |
+| Фронт внутри контейнера, два файла-стража | 3 skipped из 13 | **13 passed, 0 skipped** |
+| Бэкенд в тестовом контейнере, `-m "not performance and not slow"` | 3091 passed, 75 skipped, 35 deselected, 15 subtests | **3093 passed, 75 skipped, 35 deselected, 15 subtests** за 24:48 |
+| Стражи заголовков в `test_nginx_security_headers.py` | 26 | **28** |
+
+Прирост ровно на новые проверки: +1 тест на фронте (доступность сниппета), +2 на бэкенде (два
+параметризованных случая `TestUpstreamOwnedLocations`). Число пропусков не выросло нигде.
+Линтеры по изменённым файлам: `black --check`, `flake8`, `prettier --check`, `eslint` — чисто.
+`npx gitnexus detect-changes --scope all` — `No changes detected`: символов приложения правки не
+затрагивают, всё лежит в конфигурации и тестах.
+
 ### File List
 
 Новые:
 - `docker/nginx/snippets/security-headers.conf`
 - `docker/nginx/snippets/security-headers-no-hsts.conf`
 - `docker/nginx/snippets/app-headers.conf`
-- `backend/tests/unit/test_nginx_security_headers.py`
+- `backend/tests/unit/test_nginx_security_headers.py` — **раунд 2**: `/_next/webpack-hmr` в `_UPSTREAM_OWNED_LOCATIONS` и положительный страж `TestUpstreamOwnedLocations`
 - `backend/tests/unit/test_security_settings.py`
-- `frontend/src/__tests__/next-config-headers.test.ts`
+- `frontend/src/__tests__/next-config-headers.test.ts` — **раунд 2**: `it.skipIf` снят, доступность сниппета проверяется отдельным тестом
 - `_bmad-output/implementation-artifacts/deploy-plan-41-5.md`
 - `_bmad-output/implementation-artifacts/Story/41-5-security-headers-single-source-all-locations.md` (этот файл)
 
 Изменённые:
-- `docker/nginx/conf.d/default.conf`
+- `docker/nginx/conf.d/default.conf` — **раунд 2**: одиночный HSTS на `/_next/webpack-hmr`
 - `docker/nginx/conf.d/local.conf`
-- `docker/docker-compose.yml`
+- `docker/docker-compose.yml` — **раунд 2**: volume `../docker:/docker:ro` в сервисе `frontend`
 - `docker/docker-compose.prod.yml`
 - `backend/freesport/settings/base.py`
 - `backend/freesport/settings/production.py`
