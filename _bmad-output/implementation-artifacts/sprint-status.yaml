@@ -467,6 +467,22 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts/Story"
 #             exit 0, gitnexus detect-changes — No changes detected.
 #             Состав стори вырос с 14 файлов до 15 — за счёт нового теста.
 
+# 2026-08-30: Шестой раунд ревью 41.3 (dev-story). Одна находка [Patch],
+#             severity medium, закрыта. Самоссылочный story_commits (снимок-
+#             перечисление, отстававший от HEAD четыре раунда подряд —
+#             c3e8f145 в нём отсутствовал) заменён на модель review_head
+#             (решение Alex, 2026-08-30, вариант 1). Во frontmatter стори:
+#             story_commits удалён, добавлен review_head: c3e8f145. Область
+#             приёмки = git log --oneline 13917d4a..c3e8f145 минус
+#             excluded_commits, выводится из трёх координат без ручного
+#             списка. review_head не сдвигается документационными правками
+#             метаданных — разрывает самоссылочность, из-за которой
+#             закрывающий коммит не мог включить свой хеш до создания.
+#             Раздел changeset и Task 8 переписаны под новую модель; состав
+#             перепроверен — те же 15 файлов. Код и тесты не тронуты
+#             (gitnexus detect-changes — 0 процессов, risk low). Статус
+#             стори in-progress -> review, синхронизирован с story-файлом.
+
 development_status:
   # ========================================
   # Epic 33: Brands Block Implementation
