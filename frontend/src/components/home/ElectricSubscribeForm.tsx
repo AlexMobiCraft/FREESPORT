@@ -226,7 +226,7 @@ export const ElectricSubscribeForm: React.FC = () => {
           </div>
           <span className="font-inter text-xs md:text-sm uppercase leading-relaxed text-[var(--color-text-secondary)]">
             <label id={pdpConsentLabelPrefixId} htmlFor={pdpConsentId} className="cursor-pointer">
-              Я даю согласие на
+              Я даю согласие на обработку моих персональных данных в соответствии с
             </label>{' '}
             <Link
               id={pdpConsentPolicyLinkId}
@@ -235,11 +235,11 @@ export const ElectricSubscribeForm: React.FC = () => {
               rel="noopener noreferrer"
               className="text-[var(--color-primary)] underline hover:text-[var(--foreground)]"
             >
-              обработку моих персональных данных
+              «Политикой обработки персональных данных»
             </Link>{' '}
             <label id={pdpConsentLabelSuffixId} htmlFor={pdpConsentId} className="cursor-pointer">
-              в соответствии с Политикой и согласен(на) получать информационные и рекламные
-              рассылки от OPTISPORT по электронной почте
+              и согласен(на) получать информационные и рекламные рассылки от OPTISPORT по
+              электронной почте
             </label>
           </span>
         </div>

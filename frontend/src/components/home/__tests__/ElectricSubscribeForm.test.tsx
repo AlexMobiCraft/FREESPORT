@@ -29,8 +29,14 @@ vi.mock('@/services/subscribeService', () => ({
 
 import { subscribeService } from '@/services/subscribeService';
 
-const getPdpCheckbox = () =>
-  screen.getByRole('checkbox', { name: /обработку моих персональных данных/i });
+// Дословная формулировка согласия из AC1 стори 41.3 — общая для обеих форм подписки
+const PDP_CONSENT_NAME =
+  'Я даю согласие на обработку моих персональных данных в соответствии с ' +
+  '«Политикой обработки персональных данных» и согласен(на) получать ' +
+  'информационные и рекламные рассылки от OPTISPORT по электронной почте';
+const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
+
+const getPdpCheckbox = () => screen.getByRole('checkbox', { name: PDP_CONSENT_NAME });
 
 const clickPdpCheckbox = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(getPdpCheckbox());
@@ -45,13 +51,18 @@ describe('ElectricSubscribeForm', () => {
     render(<ElectricSubscribeForm />);
 
     expect(getPdpCheckbox()).toBeInTheDocument();
-    const link = screen.getByRole('link', {
-      name: /обработку моих персональных данных/i,
-    });
+    const link = screen.getByRole('link', { name: PDP_CONSENT_POLICY_LINK_NAME });
     expect(link).toHaveAttribute('href', '/privacy-policy');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link.closest('label')).toBeNull();
+  });
+
+  it('uses the approved consent wording verbatim', () => {
+    render(<ElectricSubscribeForm />);
+
+    // Дословный текст AC1: одна формулировка на обе формы подписки
+    expect(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })).toBeInTheDocument();
   });
 
   it('mentions email newsletter in the consent checkbox accessible name', () => {

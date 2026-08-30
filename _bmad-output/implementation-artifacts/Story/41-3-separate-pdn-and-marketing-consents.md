@@ -131,9 +131,10 @@ so that **записанное в журнале согласие соответ
   - [x] Backend прогонять не обязательно — код бэкенда не менялся; для страховки один прогон `pytest tests/integration/test_common_subscribe_api.py` в тестовом контейнере должен быть зелёным **без единой правки тестов** (это и есть доказательство, что стори бэкенд не задела)
   - [x] Ручная проверка: `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`; открыть `/home` — один чекбокс с полным текстом, ссылка на политику кликается; подписаться; убедиться **в БД**, что записаны две `UserConsent` (`pdp_contract` + `marketing_email`) с одинаковой привязкой; открыть `/electric` — тот же текст в стиле темы; открыть `/coming-soon` — формы нет
 
-- [ ] **Task 7. Разовая чистка тестовых согласий** (решение Alex, 2026-08-30)
-  - [ ] Данные в БД тестовые, реальных пользователей нет — накопленные записи `marketing_email` удаляются без церемоний. Выполняется владельцем или по его явной просьбе, **после** мержа
+- [x] **Task 7. Разовая чистка тестовых согласий** (решение Alex, 2026-08-30)
+  - [x] Данные в БД тестовые, реальных пользователей нет — накопленные записи `marketing_email` удаляются без церемоний. Выполняется владельцем или по его явной просьбе, **после** мержа
   - [x] Задача `tasks/dev-task-marketing-consent-journal-cleanup.md` закрыта как неактуальная 2026-08-30 (основания — в шапке файла)
+  - [x] **Выполнено 2026-08-30.** В локальной БД `freesport` удалены все тестовые записи: `common_userconsent` — 11 строк (5 `marketing_email` + 6 `pdp_contract`, включая проверочную пару id 13/14 session `pc8mrem6…`), `common_newsletter` — 4 строки (включая `story413check@example.com` id 4 и три `manual-*-35-3@example.com` из стори 35.3). Обе таблицы пусты. Продакшен-БД была чиста изначально (0 записей в `common_userconsent` и `common_newsletter`). Пользователь выбрал полный объём чистки («Все тестовые»), а не только `marketing_email`
 
 - [x] **Task 8. Перед коммитом**
   - [x] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"`
@@ -254,6 +255,8 @@ toast.success('Спасибо! Мы уведомим вас о запуске.')
 | 2026-08-30 | В AC4 зафиксировано: подписка гейтится только `pdp_consent` | Решение Alex, 2026-08-30 |
 | 2026-08-30 | **Редакция 2 — стори переписана целиком.** Отменено деление на два чекбокса и вся бэкендовая часть; вместо этого переписывается текст единственного чекбокса, покрывая и ПДн, и рассылку. Отменены: поле `marketing_consent`, правка `views.py`, регенерация контракта API, правка восьми backend-тестов, хук `useSubscribeForm`. Сохранено: удаление формы с `coming-soon`. Снят жёсткий порядок «стори → чистка журнала» | Круглый стол 2026-08-30: подписка в проекте одна и на всё, отдельное маркетинговое согласие в форме подписки лишено смысла; реальных пользователей в БД нет. Три решения подтверждены Alex: один чекбокс с объединённым текстом, формулировка, регистрация не трогается |
 | 2026-08-30 | **Реализация завершена.** Текст чекбокса согласия переписан в обеих формах подписки (blue `SubscribeForm`, electric `ElectricSubscribeForm`) — теперь покрывает и обработку ПДн, и рассылку; в blue добавлена третья часть метки и дописана в `aria-labelledby`. Фиктивная форма подписки удалена с `/coming-soon`. Тесты: `PDP_CONSENT_NAME` приведена к новому тексту, добавлено по два теста в каждый файл (упоминание рассылки в доступном имени + axe). Бэкенд не тронут — 42 backend-теста подписки зелёные без правок | Story 41.3, AC1–AC8 |
+| 2026-08-30 | **Task 7 выполнен.** Чистка тестовых согласий в локальной БД `freesport`: удалены 11 строк `common_userconsent` (5 `marketing_email` + 6 `pdp_contract`, включая проверочную пару `story413check@example.com`) и 4 строки `common_newsletter` (включая `story413check@example.com` и три тестовых из стори 35.3). Обе таблицы пусты. Продакшен-БД была чиста изначально | Решение Alex 2026-08-30, явная просьба владельца |
+| 2026-08-30 | **Закрыты находки код-ревью — 2 пункта.** (1) Метка electric-формы приведена к дословному тексту AC1: ссылка теперь охватывает фрагмент «Политикой обработки персональных данных», а не «обработку моих персональных данных»; тесты electric-формы получили константы точного доступного имени и отдельную проверку утверждённой формулировки. (2) File List пересобран по полному diff — добавлены `deferred-work.md`, `tasks/dev-task-marketing-consent-journal-cleanup.md`, `planning-artifacts/epic-41-site-audit.md`, `party-mode/.memlog.md`, а также `AGENTS.md` и `CLAUDE.md` (автогенерируемый счётчик GitNexus) | Код-ревью стори 41.3, `Review Findings` |
 
 ## Dev Agent Record
 
@@ -275,6 +278,13 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 | Бэкенд (страховка, AC3) | `docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest tests/integration/test_common_subscribe_api.py` | **42 passed** без единой правки тестов |
 | Живая подписка | `POST /api/v1/subscribe/` (`story413check@example.com`) | `200`, обе записи `UserConsent` в БД |
 | Blast radius | `npx gitnexus detect-changes --scope all` | 6 файлов, 5 символов, 0 процессов, **risk: low** |
+| **Правки по ревью** — impact electric-формы | `npx gitnexus impact "Function:frontend/src/components/home/ElectricSubscribeForm.tsx:ElectricSubscribeForm" --direction upstream` | 2 затронутых символа (`ElectricSubscribeSection` → `ElectricHomePage`), **risk: LOW** |
+| RED после правки electric-теста | `npx vitest run src/components/home/__tests__/ElectricSubscribeForm.test.tsx` | 12 failed / 3 passed — падают ровно тесты, зависящие от текста метки |
+| GREEN после правки electric-компонента | `npx vitest run .../ElectricSubscribeForm.test.tsx .../SubscribeForm.test.tsx` | **34 passed** (33 до правок + 1 новый тест на дословность) |
+| Полный прогон frontend после правок ревью | `npm run test` | 149 файлов, **2603 passed**, 16 skipped — регрессий нет |
+| Типы после правок ревью | `npx tsc --noEmit` | exit 0 |
+| Линт после правок ревью | `npm run lint` | exit 0 |
+| Живая сборка `/electric` | restart `frontend` + `curl /electric`, grep по `.next/static/chunks` | новый текст в чанке есть, старая формулировка «в соответствии с Политикой и согласен» — **0 вхождений** |
 
 ### Completion Notes List
 
@@ -292,7 +302,11 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 
 **Ограничение проверки.** Визуальный осмотр `/home` и `/electric` в браузере выполнить не удалось: расширение Claude in Chrome в этой сессии не подключено, а SSR-HTML этих страниц контент форм не содержит (`BlueHomePage` — клиентский компонент). Текст и доступное имя подтверждены jsdom-тестами (то же дерево доступности, что читает скринридер), присутствием строк в собранных чанках и живой записью в БД. `/coming-soon` отдаётся в SSR и проверен напрямую через `curl`: формы нет, `info@optisport.ru` на месте. **Визуальный осмотр вёрстки двух форм остаётся за владельцем.**
 
-**Task 7 не выполнена намеренно.** По тексту стори разовая чистка тестовых записей `marketing_email` выполняется владельцем или по его явной просьбе и **после мержа**. Проверочная запись `story413check@example.com` из ручной проверки оставлена в БД и попадёт под ту же чистку.
+**Task 7 выполнена 2026-08-30.** Разовая чистка тестовых согласий проведена в локальной БД `freesport` после явной просьбы владельца. Удалены все тестовые записи: `common_userconsent` — 11 строк (5 `marketing_email` + 6 `pdp_contract`, включая проверочную пару id 13/14 session `pc8mrem6…` из ручной проверки Task 6), `common_newsletter` — 4 строки (включая `story413check@example.com` id 4 и три `manual-*-35-3@example.com` из стори 35.3). Обе таблицы пусты. Продакшен-БД проверена — была чиста изначально (0 записей). Владелец выбрал полный объём чистки («Все тестовые»), а не только `marketing_email`.
+
+**✅ Устранена находка ревью [Patch]: electric-форма не соответствовала дословному тексту AC1.** До правки метка читалась «Я даю согласие на **обработку моих персональных данных** *(ссылка)* в соответствии с Политикой и согласен(на)…» — ссылка охватывала не тот фрагмент, а слово «Политикой» шло без раскрытия. AC1 требует ссылкой именно «Политикой обработки персональных данных». Метка перестроена по образцу blue-формы: префикс «Я даю согласие на обработку моих персональных данных в соответствии с», ссылка ««Политикой обработки персональных данных»», суффикс «и согласен(на) получать информационные и рекламные рассылки от OPTISPORT по электронной почте». Порядок слов темы сохранён — ссылка по-прежнему в середине фразы; `aria-labelledby` не менялся (те же три части, тот же порядок); `uppercase` остаётся классом, на доступное имя не влияет. Тесты electric-формы усилены: заведены `PDP_CONSENT_NAME` и `PDP_CONSENT_POLICY_LINK_NAME` (зеркало blue-теста), `getPdpCheckbox` ищет чекбокс по **точному** доступному имени вместо регулярки, ссылка проверяется по точному имени, добавлен тест `uses the approved consent wording verbatim`. Обе формы теперь дают побайтово одинаковый текст согласия. Проверено и на живой сборке: старая формулировка исчезла из клиентских чанков (0 вхождений).
+
+**✅ Устранена находка ревью [Patch]: неполный File List.** Список пересобран по `git diff --name-only 13917d4a..HEAD` вместе с `git status --porcelain`, а не по памяти. Добавлены четыре названных ревью файла и ещё два, которые ревью не назвало: `AGENTS.md` и `CLAUDE.md` — там менялся только автогенерируемый блок GitNexus (счётчик символов), к содержанию стори это отношения не имеет, но в diff попадает и потому в списке отражено.
 
 ### File List
 
@@ -303,7 +317,20 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 | `frontend/src/app/ComingSoonClient.tsx` | Изменён — удалена фиктивная форма подписки, её состояние, обработчик и ставшие лишними импорты |
 | `frontend/src/components/home/__tests__/SubscribeForm.test.tsx` | Изменён — `PDP_CONSENT_NAME` под новый текст, +2 теста (рассылка в доступном имени, axe) |
 | `frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx` | Изменён — +2 теста (рассылка в доступном имени, axe) |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Изменён — статус стори `ready-for-dev` → `in-progress` → `review` |
-| `_bmad-output/implementation-artifacts/Story/41-3-separate-pdn-and-marketing-consents.md` | Изменён — чекбоксы задач, Dev Agent Record, File List, Change Log, Status |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Изменён — статус стори `ready-for-dev` → `in-progress` → `review` → `in-progress` (правки по ревью) → `review` |
+| `_bmad-output/implementation-artifacts/Story/41-3-separate-pdn-and-marketing-consents.md` | Изменён — чекбоксы задач, Dev Agent Record, File List, Change Log, Review Findings, Status |
+| `_bmad-output/implementation-artifacts/deferred-work.md` | Изменён — заведена первая запись техдолга: общий хук `useSubscribeForm` (вынесен из стори) |
+| `_bmad-output/implementation-artifacts/tasks/dev-task-marketing-consent-journal-cleanup.md` | Изменён — задача закрыта как неактуальная (данные тестовые, реальных пользователей нет) |
+| `_bmad-output/planning-artifacts/epic-41-site-audit.md` | Изменён — FR-41-05 переписан в редакцию 2, снят «хвост» про жёсткий порядок «стори → чистка» |
+| `_bmad-output/party-mode/memories/installed/.memlog.md` | Изменён — записи круглого стола по стори 41.3 (автоведение party-mode) |
+| `AGENTS.md` | Изменён — **не относится к стори**: автогенерируемый блок GitNexus между маркерами `<!-- gitnexus:start -->`, счётчик символов обновился при `npx gitnexus analyze` |
+| `CLAUDE.md` | Изменён — то же, что `AGENTS.md`: автогенерируемый счётчик GitNexus |
 
-Сверено с `git diff --name-only` (6 файлов кода и артефактов + сам story-файл); список составлен по выводу git, не по памяти.
+Список пересобран по `git diff --name-only 13917d4a..HEAD` + `git status --porcelain` (13 файлов), а не по памяти. Файлы кода — 5 (`SubscribeForm.tsx`, `ElectricSubscribeForm.tsx`, `ComingSoonClient.tsx` и два тест-файла); остальные — артефакты BMAD и автогенерируемые блоки.
+
+### Review Findings
+
+- [x] [Review][Patch] Electric-форма не соответствует дословному тексту и linked-фрагменту AC1 [frontend/src/components/home/ElectricSubscribeForm.tsx:228] — ссылка охватывает только «обработку моих персональных данных», а не требуемый фрагмент «Политикой обработки персональных данных»; тест не фиксирует утверждённую формулировку.
+  - **Устранено 2026-08-30.** Метка electric-формы приведена к дословному тексту AC1: префикс — «Я даю согласие на обработку моих персональных данных в соответствии с», ссылка на `/privacy-policy` — «Политикой обработки персональных данных», суффикс — «и согласен(на) получать информационные и рекламные рассылки от OPTISPORT по электронной почте». Ссылка осталась в середине фразы (порядок слов темы сохранён), `aria-labelledby` не менялся — части те же три. В `ElectricSubscribeForm.test.tsx` заведены константы `PDP_CONSENT_NAME` и `PDP_CONSENT_POLICY_LINK_NAME` (зеркало blue-теста), `getPdpCheckbox` ищет чекбокс по **точному** доступному имени, проверка ссылки — по точному имени фрагмента политики, добавлен отдельный тест `uses the approved consent wording verbatim`.
+- [x] [Review][Patch] File List стори неполон относительно заявленной сверки с полным diff [_bmad-output/implementation-artifacts/Story/41-3-separate-pdn-and-marketing-consents.md:311] — не указаны изменения `deferred-work.md`, `tasks/dev-task-marketing-consent-journal-cleanup.md`, `party-mode/memories/installed/.memlog.md` и `planning-artifacts/epic-41-site-audit.md`.
+  - **Устранено 2026-08-30.** File List пересобран по `git diff --name-only 13917d4a..HEAD` + `git status --porcelain`; добавлены все четыре названных файла, а также `AGENTS.md` и `CLAUDE.md` (автогенерируемый счётчик GitNexus), которые ревью не назвало, но которые тоже попадают в diff.
