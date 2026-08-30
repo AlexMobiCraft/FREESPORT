@@ -5,14 +5,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import * as axeMatchers from 'vitest-axe';
 import { axe } from 'vitest-axe';
 import { ElectricSubscribeForm } from '../ElectricSubscribeForm';
 import { toast } from 'react-hot-toast';
-
-// Подключение матчеров доступности
-// @ts-expect-error vitest-axe types mismatch with vitest
-expect.extend(axeMatchers);
 
 vi.mock('react-hot-toast', () => ({
   toast: {

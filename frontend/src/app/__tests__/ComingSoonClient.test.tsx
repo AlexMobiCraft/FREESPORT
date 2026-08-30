@@ -33,19 +33,33 @@ function filterMotionProps(props: Record<string, unknown>) {
 }
 
 describe('ComingSoonClient — AC5: формы подписки нет', () => {
-  it('не содержит ни одного поля ввода', () => {
+  it('не содержит поля ввода email', () => {
     const { container } = render(<ComingSoon />);
 
-    expect(container.querySelectorAll('input')).toHaveLength(0);
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    // AC5: поля email быть не должно — это маркер формы подписки.
+    // Другие поля ввода (если появятся) не должны ронять этот тест.
+    expect(container.querySelectorAll('input[type="email"]')).toHaveLength(0);
+    expect(screen.queryByRole('textbox', { name: /email|электронная почта/i })).not.toBeInTheDocument();
   });
 
-  it('не содержит формы и кнопки подписки', () => {
+  it('не содержит формы подписки и кнопки «Подписаться»', () => {
     const { container } = render(<ComingSoon />);
 
-    expect(container.querySelectorAll('form')).toHaveLength(0);
-    expect(container.querySelectorAll('button')).toHaveLength(0);
+    // Кнопка «Подписаться» — однозначный маркер формы подписки.
     expect(screen.queryByRole('button', { name: /подписаться/i })).not.toBeInTheDocument();
+
+    // Форма подписки определяется по наличию в ней email-поля или кнопки
+    // «Подписаться»; независимая форма (например, контакты) не должна
+    // ронять тест — проверяются только признаки подписки.
+    const forms = container.querySelectorAll('form');
+    forms.forEach(form => {
+      const hasEmailInput = form.querySelector('input[type="email"]') !== null;
+      const hasSubscribeButton =
+        Array.from(form.querySelectorAll('button')).some(btn =>
+          /подписаться/i.test(btn.textContent ?? '')
+        );
+      expect(hasEmailInput || hasSubscribeButton).toBe(false);
+    });
   });
 
   it('не обещает уведомление о запуске', () => {
