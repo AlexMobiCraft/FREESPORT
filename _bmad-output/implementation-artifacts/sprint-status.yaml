@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-28
+# last_updated: 2026-08-30
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-08-28
+last_updated: 2026-08-30
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -324,6 +324,23 @@ project_key: "SECURITY-BUGFIX"
 tracking_system: "file-system"
 story_location: "{project-root}/_bmad-output/implementation-artifacts/Story"
 
+# 2026-08-30: Стори 41.5 закрыта раундом 2 и выкатом на прод. Раунд 2 — две
+#             находки ревью: (1) location /_next/webpack-hmr задваивала заголовки
+#             Next и унаследованный серверный набор (замер: шесть заголовков по
+#             два экземпляра); попутно вскрылось, что страж этого не ловил —
+#             правило проверяло только локации СО своим add_header, а дефект был
+#             в локации БЕЗ него. Заведён положительный страж
+#             TestUpstreamOwnedLocations. (2) Сверка CSP между next.config.ts и
+#             сниппетами nginx молча скипалась в контейнере frontend (смонтирован
+#             только ../frontend); добавлен volume ../docker:/docker:ro, skipIf
+#             снят. Прогоны: фронт 2534 passed, бэкенд 3093 passed, 0 падений.
+#             Выкат прошёл ОДНОЙ командой up -d --build на все сервисы вместо
+#             шести пошаговых из deploy-plan-41-5.md — при полном пересоздании
+#             план избыточен, он нужен для частичного выката. Попутно найден
+#             посторонний дефект: ссылка «Возврат» в подвале ведёт на
+#             несуществующий /returns (deferred-work.md, по существу — FR-41-15
+#             стори 41.4).
+
 development_status:
   # ========================================
   # Epic 33: Brands Block Implementation
@@ -498,10 +515,11 @@ development_status:
   # 2026-08-25): публичной загрузки файлов нет, все девять полей админские,
   # единственный вход без админки — изображения из обмена 1С. Срочности нет,
   # выкат отдельным заходом; done — по прод-замеру, не по мержу. 41.3 не блокирует.
-  # 2026-08-25: реализация закончена, ветка feature/story-41-5-security-headers.
-  # Прод НЕ тронут: выкат отдельным заходом по deploy-plan-41-5.md.
-  # В done — только после прод-замера (AC3, AC13), а не по мержу.
-  41-5-security-headers-single-source-all-locations: in-progress
+  # 2026-08-30: DONE по прод-замеру. Выкачено (af951c6e -> 02f899a6), проверено
+  # на https://optisport.ru: HSTS max-age=31536000 без includeSubDomains/preload,
+  # X-Frame-Options ровно 1 экземпляр, /health 7 из 7 заголовков, /media/ отдаёт
+  # nosniff даже на 404, HTML s-maxage=3600 вместо 31536000. Регрессий нет.
+  41-5-security-headers-single-source-all-locations: done
   41-6-unique-metadata-og-image-jsonld: backlog
   41-7-pdn-registry-numbers-and-login-form-justification: backlog
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.
