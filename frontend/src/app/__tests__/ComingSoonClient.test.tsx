@@ -7,9 +7,10 @@
  * существует, чтобы её возврат падал в CI, а не проходил незамеченным.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import ComingSoon from '../ComingSoonClient';
+import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
 
 // Мок motion/react: анимации в тестах не нужны, важна только разметка
 vi.mock('motion/react', () => ({
@@ -33,6 +34,13 @@ function filterMotionProps(props: Record<string, unknown>) {
 }
 
 describe('ComingSoonClient — AC5: формы подписки нет', () => {
+  // Подвал страницы содержит CookieSettingsButton с модульным стором.
+  beforeEach(() => {
+    __resetCookieConsentStoreForTests();
+    window.localStorage.removeItem('cookie_consent');
+    window.localStorage.removeItem('cookie_consent_accepted');
+  });
+
   it('не содержит поля ввода email', () => {
     const { container } = render(<ComingSoon />);
 
@@ -80,5 +88,16 @@ describe('ComingSoonClient — AC5: формы подписки нет', () => {
 
     expect(screen.getByRole('heading', { name: /мы скоро вернемся/i })).toBeInTheDocument();
     expect(screen.getByText(/разработка идет по плану/i)).toBeInTheDocument();
+  });
+  // Story 41.1 — AC3 (FR-41-02): /coming-soon — боевая тема прода, а Footer
+  // здесь не используется. Без своей кнопки отказавшийся посетитель прода
+  // не смог бы передумать.
+  it('содержит кнопку «Настройки cookie» в подвале страницы', () => {
+    render(<ComingSoon />);
+
+    const button = screen.getByRole('button', { name: 'Настройки cookie' });
+
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('type', 'button');
   });
 });

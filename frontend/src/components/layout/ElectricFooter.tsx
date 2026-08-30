@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Facebook, Instagram, Youtube, Mail, Phone, MapPin } from 'lucide-react';
+import CookieSettingsButton from './CookieSettingsButton';
 
 const ElectricFooter: React.FC = () => {
   return (
@@ -145,6 +146,7 @@ const ElectricFooter: React.FC = () => {
             >
               Пользовательское соглашение
             </Link>
+            <CookieSettingsButton className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors" />
           </div>
         </div>
       </div>

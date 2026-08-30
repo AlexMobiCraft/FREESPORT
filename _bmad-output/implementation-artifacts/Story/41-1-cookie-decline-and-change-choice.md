@@ -4,7 +4,7 @@ baseline_commit: 905a3e8f
 
 # Story 41.1: Отказ от cookie и изменение выбора
 
-Status: ready-for-dev
+Status: review
 
 > 🟢 **Blast radius LOW** (GitNexus, `--repo C:\Users\1\DEV\FREESPORT`, 2026-08-30). `useCookieConsent` → 1 прямой потребитель (`CookieConsentBanner`), 1 процесс, модуль `Home`. `CookieConsentBanner`, `Footer`, `ElectricFooter`, `ComingSoon` — 0 upstream-потребителей каждый. HIGH/CRITICAL нет.
 > ⚠️ **Индекс GitNexus был `stale` на момент создания стори** — расхождение ровно один коммит `905a3e8f`, меняющий только статус стори 41.3 в markdown. Кода это не касается, координаты ниже проверены чтением файлов.
@@ -107,64 +107,64 @@ so that **мой выбор был осознанным, а не единств�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1. Ветка и baseline**
-  - [ ] `git switch -c feature/story-41-1-cookie-decline` от `develop` (прямые коммиты в `develop` запрещены)
-  - [ ] `git rev-parse --short HEAD` → сверить с `baseline_commit: 905a3e8f`; при расхождении перечитать координаты из Dev Notes, не доверять номерам строк вслепую
+- [x] **Task 1. Ветка и baseline**
+  - [x] `git switch -c feature/story-41-1-cookie-decline` от `develop` (прямые коммиты в `develop` запрещены)
+  - [x] `git rev-parse --short HEAD` → сверить с `baseline_commit: 905a3e8f`; при расхождении перечитать координаты из Dev Notes, не доверять номерам строк вслепую
 
-- [ ] **Task 2. Переписать `useCookieConsent` на внешнее хранилище** (AC2, AC4, AC5)
-  - [ ] Файл `frontend/src/hooks/useCookieConsent.ts` — переписывается целиком по эталону из Dev Notes → «Общее состояние: как именно»
-  - [ ] Экспортировать тип `CookieConsentStatus` и обновлённый `UseCookieConsentReturn`; в `frontend/src/hooks/index.ts:4-5` дописать экспорт нового типа
-  - [ ] Модульный стор: `snapshot` пересоздаётся **только** при изменении (AC4), `SERVER_SNAPSHOT` — замороженная константа со статусом `'unknown'`
-  - [ ] Ленивое чтение хранилища — в `subscribe` при первой подписке, не в `useEffect`
-  - [ ] Миграция legacy-ключа `cookie_consent_accepted === '1'` → записать `cookie_consent = 'accepted'`, удалить старый ключ (AC2)
-  - [ ] `reopen()` выставляет транзиентный флаг `isForced`; `accept()`/`decline()` сбрасывают его. Флаг **не** пишется в `localStorage`
-  - [ ] Подписка на событие `storage` окна — согласие, данное в другой вкладке, закрывает баннер и здесь
-  - [ ] Оба `console.error`-сообщения оставить дословно (AC5)
-  - [ ] Комментарии и docstrings — на русском (NFR-41-03). Отдельным комментарием зафиксировать: будущая аналитика подключается **только** при `status === 'accepted'`
+- [x] **Task 2. Переписать `useCookieConsent` на внешнее хранилище** (AC2, AC4, AC5)
+  - [x] Файл `frontend/src/hooks/useCookieConsent.ts` — переписывается целиком по эталону из Dev Notes → «Общее состояние: как именно»
+  - [x] Экспортировать тип `CookieConsentStatus` и обновлённый `UseCookieConsentReturn`; в `frontend/src/hooks/index.ts:4-5` дописать экспорт нового типа
+  - [x] Модульный стор: `snapshot` пересоздаётся **только** при изменении (AC4), `SERVER_SNAPSHOT` — замороженная константа со статусом `'unknown'`
+  - [x] Ленивое чтение хранилища — в `subscribe` при первой подписке, не в `useEffect`
+  - [x] Миграция legacy-ключа `cookie_consent_accepted === '1'` → записать `cookie_consent = 'accepted'`, удалить старый ключ (AC2)
+  - [x] `reopen()` выставляет транзиентный флаг `isForced`; `accept()`/`decline()` сбрасывают его. Флаг **не** пишется в `localStorage`
+  - [x] Подписка на событие `storage` окна — согласие, данное в другой вкладке, закрывает баннер и здесь
+  - [x] Оба `console.error`-сообщения оставить дословно (AC5)
+  - [x] Комментарии и docstrings — на русском (NFR-41-03). Отдельным комментарием зафиксировать: будущая аналитика подключается **только** при `status === 'accepted'`
 
-- [ ] **Task 3. Баннер: вторая кнопка, новый текст, фокус** (AC1, AC6)
-  - [ ] `frontend/src/components/layout/CookieConsentBanner.tsx` — заменить текст на дословный из AC1; ссылка на `/privacy-policy` остаётся `target="_blank" rel="noopener noreferrer"`
-  - [ ] Добавить `<Button variant="secondary" size="medium" onClick={decline}>Отклонить</Button>` рядом с существующей «Принять» (`variant="primary" size="medium"`)
-  - [ ] Кнопки обернуть в контейнер с `shrink-0` и разумным `gap`; на узком экране они не должны наезжать на текст
-  - [ ] Условие показа: `isBannerVisible` из хука вместо `!isLoaded || isAccepted`
-  - [ ] На корневой `<div role="region">` повесить `ref` и `tabIndex={-1}`; при открытии по `isForced` вызвать `ref.current?.focus()` в `useEffect` (AC6)
-  - [ ] Не менять `aria-label="Уведомление об использовании cookie"` — по нему ищут существующие тесты
+- [x] **Task 3. Баннер: вторая кнопка, новый текст, фокус** (AC1, AC6)
+  - [x] `frontend/src/components/layout/CookieConsentBanner.tsx` — заменить текст на дословный из AC1; ссылка на `/privacy-policy` остаётся `target="_blank" rel="noopener noreferrer"`
+  - [x] Добавить `<Button variant="secondary" size="medium" onClick={decline}>Отклонить</Button>` рядом с существующей «Принять» (`variant="primary" size="medium"`)
+  - [x] Кнопки обернуть в контейнер с `shrink-0` и разумным `gap`; на узком экране они не должны наезжать на текст
+  - [x] Условие показа: `isBannerVisible` из хука вместо `!isLoaded || isAccepted`
+  - [x] На корневой `<div role="region">` повесить `ref` и `tabIndex={-1}`; при открытии по `isForced` вызвать `ref.current?.focus()` в `useEffect` (AC6)
+  - [x] Не менять `aria-label="Уведомление об использовании cookie"` — по нему ищут существующие тесты
 
-- [ ] **Task 4. Общий компонент кнопки подвала** (AC3)
-  - [ ] Завести `frontend/src/components/layout/CookieSettingsButton.tsx`, директива `'use client'`
-  - [ ] Разметка: `<button type="button" onClick={reopen} className={className}>Настройки cookie</button>`; собственных цветов не задавать — принимать `className` пропом, чтобы каждый подвал передал свою палитру
-  - [ ] Не рендерить условно по состоянию согласия (AC3) — SSR-разметка обязана совпадать с клиентской
+- [x] **Task 4. Общий компонент кнопки подвала** (AC3)
+  - [x] Завести `frontend/src/components/layout/CookieSettingsButton.tsx`, директива `'use client'`
+  - [x] Разметка: `<button type="button" onClick={reopen} className={className}>Настройки cookie</button>`; собственных цветов не задавать — принимать `className` пропом, чтобы каждый подвал передал свою палитру
+  - [x] Не рендерить условно по состоянию согласия (AC3) — SSR-разметка обязана совпадать с клиентской
 
-- [ ] **Task 5. Встроить кнопку в три подвала** (AC3)
-  - [ ] `frontend/src/components/layout/Footer.tsx` — в нижнюю панель (строка 170, `border-t … flex … justify-between`), **рядом с копирайтом**, не отдельной колонкой. `Footer` остаётся Server Component; `CookieSettingsButton` — клиентский потомок, это допустимо. Классы под тёмный фон: `text-xs text-neutral-500 hover:text-white transition-colors underline-offset-2 hover:underline`
-  - [ ] `frontend/src/components/layout/ElectricFooter.tsx` — в ряд ссылок нижней панели (блок `Link` после копирайта, строки 134-149), классы темы: `font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors`
-  - [ ] `frontend/src/app/ComingSoonClient.tsx` — в блок подвала (строки 106-114), под строкой `info@optisport.ru`, классы под светлый текст на затемнённом фоне: `mt-2 text-white/80 hover:text-white underline-offset-2 hover:underline transition-colors`
-  - [ ] Мёртвую ссылку `/returns` (`Footer.tsx:69`) **не** трогать — стори 41.4 (AC8)
+- [x] **Task 5. Встроить кнопку в три подвала** (AC3)
+  - [x] `frontend/src/components/layout/Footer.tsx` — в нижнюю панель (строка 170, `border-t … flex … justify-between`), **рядом с копирайтом**, не отдельной колонкой. `Footer` остаётся Server Component; `CookieSettingsButton` — клиентский потомок, это допустимо. Классы под тёмный фон: `text-xs text-neutral-500 hover:text-white transition-colors underline-offset-2 hover:underline`
+  - [x] `frontend/src/components/layout/ElectricFooter.tsx` — в ряд ссылок нижней панели (блок `Link` после копирайта, строки 134-149), классы темы: `font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors`
+  - [x] `frontend/src/app/ComingSoonClient.tsx` — в блок подвала (строки 106-114), под строкой `info@optisport.ru`, классы под светлый текст на затемнённом фоне: `mt-2 text-white/80 hover:text-white underline-offset-2 hover:underline transition-colors`
+  - [x] Мёртвую ссылку `/returns` (`Footer.tsx:69`) **не** трогать — стори 41.4 (AC8)
 
-- [ ] **Task 6. Тесты** (AC7, AC6)
-  - [ ] **Сначала** зафиксировать baseline: `cd frontend && npx vitest run src/hooks/__tests__/useCookieConsent.test.ts src/components/layout/__tests__/CookieConsentBanner.test.tsx src/components/layout/__tests__/Footer.test.tsx` — записать число зелёных до правок
-  - [ ] `useCookieConsent.test.ts`: обновить константы (`STORAGE_KEY = 'cookie_consent'`), добавить тесты на `decline`, `reopen`, миграцию legacy-ключа, **синхронизацию двух `renderHook` одного стора**, чужое значение в ключе → `'unset'`. Существующие тесты сбоя чтения/записи сохранить, подправив под новый API
-  - [ ] **Важно для тестов модульного стора:** состояние переживает `render`, поэтому между тестами его нужно сбрасывать. Экспортировать из хука `__resetCookieConsentStoreForTests()` (имя явно тестовое, с docstring «только для тестов») и звать в `beforeEach` — иначе тесты начнут зависеть от порядка выполнения
-  - [ ] `CookieConsentBanner.test.tsx`: две кнопки, одинаковый `size` (проверять по классу высоты `h-11` у обеих), скрытие и запись `'declined'` после «Отклонить», новый текст, отсутствие фразы «Продолжая пользоваться сайтом», axe. Существующий тест на текст (`CookieConsentBanner.test.tsx:22`) сломается — это ожидаемо, привести к новому тексту
-  - [ ] Новый `CookieSettingsButton.test.tsx`: роль `button`, доступное имя, `reopen` вызывается по клику, применяется переданный `className`
-  - [ ] `Footer.test.tsx`: добавить проверку кнопки; убедиться, что `expect(headings.length).toBe(5)` в **двух** местах (строки 55 и 339) не сломан
-  - [ ] Интеграционный тест на AC4: отрендерить в одном дереве `<CookieSettingsButton/>` и `<CookieConsentBanner/>`, принять cookie, нажать кнопку → баннер снова в документе
-  - [ ] axe-шаблон — `frontend/src/components/cart/__tests__/accessibility.test.tsx:13-25`
+- [x] **Task 6. Тесты** (AC7, AC6)
+  - [x] **Сначала** зафиксировать baseline: `cd frontend && npx vitest run src/hooks/__tests__/useCookieConsent.test.ts src/components/layout/__tests__/CookieConsentBanner.test.tsx src/components/layout/__tests__/Footer.test.tsx` — записать число зелёных до правок
+  - [x] `useCookieConsent.test.ts`: обновить константы (`STORAGE_KEY = 'cookie_consent'`), добавить тесты на `decline`, `reopen`, миграцию legacy-ключа, **синхронизацию двух `renderHook` одного стора**, чужое значение в ключе → `'unset'`. Существующие тесты сбоя чтения/записи сохранить, подправив под новый API
+  - [x] **Важно для тестов модульного стора:** состояние переживает `render`, поэтому между тестами его нужно сбрасывать. Экспортировать из хука `__resetCookieConsentStoreForTests()` (имя явно тестовое, с docstring «только для тестов») и звать в `beforeEach` — иначе тесты начнут зависеть от порядка выполнения
+  - [x] `CookieConsentBanner.test.tsx`: две кнопки, одинаковый `size` (проверять по классу высоты `h-11` у обеих), скрытие и запись `'declined'` после «Отклонить», новый текст, отсутствие фразы «Продолжая пользоваться сайтом», axe. Существующий тест на текст (`CookieConsentBanner.test.tsx:22`) сломается — это ожидаемо, привести к новому тексту
+  - [x] Новый `CookieSettingsButton.test.tsx`: роль `button`, доступное имя, `reopen` вызывается по клику, применяется переданный `className`
+  - [x] `Footer.test.tsx`: добавить проверку кнопки; убедиться, что `expect(headings.length).toBe(5)` в **двух** местах (строки 55 и 339) не сломан
+  - [x] Интеграционный тест на AC4: отрендерить в одном дереве `<CookieSettingsButton/>` и `<CookieConsentBanner/>`, принять cookie, нажать кнопку → баннер снова в документе
+  - [x] axe-шаблон — `frontend/src/components/cart/__tests__/accessibility.test.tsx:13-25`
 
-- [ ] **Task 7. Проверка целиком**
-  - [ ] `cd frontend && npm run test` (baseline на `905a3e8f` — 2603 passed / 16 skipped; ожидается столько же плюс новые, без падений в чужих файлах), `npm run lint` (`--max-warnings=0`), `npx tsc --noEmit`
-  - [ ] Если падает что-то помимо перечисленных в Task 6 файлов — остановиться и разобраться, а не подгонять тест (урок стори 41.3)
-  - [ ] Ручная проверка: `docker compose --env-file .env -f docker/docker-compose.yml restart frontend` (пересбор не нужен — `next.config.ts` и зависимости не менялись)
-  - [ ] Локально `ACTIVE_THEME=blue`: открыть `/home` → баннер с двумя кнопками; «Отклонить» → `localStorage.cookie_consent === 'declined'`, перезагрузка → баннера нет; подвал → «Настройки cookie» → баннер появился **без перезагрузки**, фокус на баннере
-  - [ ] Проверить миграцию: вручную `localStorage.setItem('cookie_consent_accepted','1')`, удалить `cookie_consent`, перезагрузить → баннера нет, в хранилище `cookie_consent='accepted'`, старого ключа нет
-  - [ ] Открыть `/electric` — кнопка в подвале темы на месте и работает
-  - [ ] Открыть `/coming-soon` — кнопка в подвале страницы на месте и работает (это боевая страница прода)
-  - [ ] Клавиатура: Tab до обеих кнопок баннера, видимый фокус, Enter срабатывает
+- [x] **Task 7. Проверка целиком**
+  - [x] `cd frontend && npm run test` (baseline на `905a3e8f` — 2603 passed / 16 skipped; ожидается столько же плюс новые, без падений в чужих файлах), `npm run lint` (`--max-warnings=0`), `npx tsc --noEmit`
+  - [x] Если падает что-то помимо перечисленных в Task 6 файлов — остановиться и разобраться, а не подгонять тест (урок стори 41.3)
+  - [x] Ручная проверка: `docker compose --env-file .env -f docker/docker-compose.yml restart frontend` (пересбор не нужен — `next.config.ts` и зависимости не менялись)
+  - [x] Локально `ACTIVE_THEME=blue`: открыть `/home` → баннер с двумя кнопками; «Отклонить» → `localStorage.cookie_consent === 'declined'`, перезагрузка → баннера нет; подвал → «Настройки cookie» → баннер появился **без перезагрузки**, фокус на баннере
+  - [x] Проверить миграцию: вручную `localStorage.setItem('cookie_consent_accepted','1')`, удалить `cookie_consent`, перезагрузить → баннера нет, в хранилище `cookie_consent='accepted'`, старого ключа нет
+  - [x] Открыть `/electric` — кнопка в подвале темы на месте и работает
+  - [x] Открыть `/coming-soon` — кнопка в подвале страницы на месте и работает (это боевая страница прода)
+  - [x] Клавиатура: Tab до обеих кнопок баннера, видимый фокус, Enter срабатывает
 
-- [ ] **Task 8. Перед коммитом**
-  - [ ] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — убедиться, что затронуты только ожидаемые символы
-  - [ ] `File List` собрать по `git diff --name-only 905a3e8f..HEAD` + `git status --porcelain`, **не по памяти** (находка ревью в 41.0, 41.5 и 41.3 — трижды)
-  - [ ] Коммит и push — только по явной просьбе владельца
+- [x] **Task 8. Перед коммитом**
+  - [x] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — убедиться, что затронуты только ожидаемые символы
+  - [x] `File List` собрать по `git diff --name-only 905a3e8f..HEAD` + `git status --porcelain`, **не по памяти** (находка ревью в 41.0, 41.5 и 41.3 — трижды)
+  - [x] Коммит и push — только по явной просьбе владельца
 
 ## Dev Notes
 
@@ -330,35 +330,103 @@ export interface UseCookieConsentReturn {
 |---|---|---|
 | 2026-08-30 | Стори создана | `bmad-create-story` по эпику 41, FR-41-01, FR-41-02 |
 | 2026-08-30 | Readiness-review: выявлено 9 открытых замечаний, включая 3 P0 | `bmad-party-mode`: независимые ревью Bob, Sally, Winston и Amelia; результаты проверены по полному тексту стори, текущему коду и Git-истории. До устранения P0 реализацию не начинать; замечания — в `Review Findings` |
+| 2026-08-30 | Реализация завершена: 9 замечаний readiness-review закрыты (3 P0, 5 P1, 1 P2), все задачи выполнены | `bmad-dev-story`. Решения по P0 — в `Completion Notes List` |
+| 2026-08-30 | **Правка AC5** по находке P1: «до конца сессии» → «до полной перезагрузки страницы»; «баннер повторно не открывается» → «не открывается самопроизвольно, но по кнопке «Настройки cookie» открывается всегда» | Модульный стор физически не переживает перезагрузку документа, а прежняя формулировка запрещала обязательный `reopen()` из FR-41-02. Реализация и тест «после сбоя записи баннер всё равно открывается по reopen» следуют исправленной редакции |
+| 2026-08-30 | **Уточнение AC7** по находке P1: «остаётся зелёным без правки» для `CookieConsentBanner.test.tsx:32-42` читается как «без изменения тела теста и его legacy-входа» | Импорт `__resetCookieConsentStoreForTests` и очистка обоих ключей в `beforeEach` обязательны для всех файлов, использующих singleton-стор. Тело теста и legacy-вход не тронуты, тест зелёный |
 
 ## Dev Agent Record
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
+
 ### Debug Log References
+
+- **База реализации — `585988cc`**, не `905a3e8f`. Frontmatter `baseline_commit: 905a3e8f` сохранён как точка, на которой проверялись координаты кода при создании стори (требование workflow — не перезаписывать существующее значение). Ветка `feature/story-41-1-cookie-decline` создана от `develop` = `585988cc`; `File List` собран по `git status --porcelain`, а не по `git diff 905a3e8f..HEAD` — иначе в него примешались бы коммиты самой стори. Координаты строк из Dev Notes перепроверены чтением файлов: все совпали.
+- **Baseline тестов до правок:** 4 затронутых файла — 59 зелёных; полный прогон — 2603 passed / 16 skipped.
+- **После реализации:** 152 файла, **2643 passed / 16 skipped**, падений нет (+40 тестов). `npm run lint` (`--max-warnings=0`) и `npx tsc --noEmit` — чисто.
+- **Шаблон axe в проекте иной, чем указано в стори.** Матчер `toHaveNoViolations` в этом репозитории не зарегистрирован так, как предполагает шаблон: `vitest.setup.ts:20` импортирует `vitest-axe/extend-expect`, а фактический стиль проверки в проекте — `expect(results.violations).toHaveLength(0)` (`components/cart/__tests__/accessibility.test.tsx:148`). Локальный `expect.extend(axeMatchers)` ломает матчер («Invalid Chai property»). Использован проектный стиль.
+- **`ElectricFooter` целиком axe не проходит из-за предсуществующего дефекта** — соцсети-иконки `<Link href="#">` без доступного имени (нарушение `link-name`); в `Footer` темы blue у них есть `aria-label`. Дефект внесён не этой стори и своей стори не имеет; по AC8 не чинится. axe-проверка сужена до нижней панели с кнопкой, причина зафиксирована комментарием в тесте. **Требует решения владельца — кандидат в `deferred-work.md`.**
+- **Ручная проверка выполнена автоматически через Playwright** (`@playwright/test` уже в зависимостях), а не глазами: 24 проверки на живом контейнере — `/home`, `/electric`, `/coming-soon`, миграция legacy-ключа, фокус после `reopen`, клавиатура, отсутствие предупреждений гидрации и циклов ре-рендера. Плюс отдельная проверка вёрстки на viewport 375 px: текст и кнопки не наезжают, кнопки в пределах экрана. Скрипты временные, в репозиторий не добавлялись.
+- **Подвалы тем blue и electric не попадают в SSR-разметку** — `LayoutWrapper` клиентский (`usePathname`), поэтому `curl` их не видит; это поведение существовало до стори. Проверка кнопки на `/home` и `/electric` возможна только в браузере (сделана), на `/coming-soon` кнопка есть и в серверном ответе.
+- `npx gitnexus detect-changes --scope all` — затронуты только ожидаемые символы (`useCookieConsent`, `CookieConsentBanner`, `Footer`, `ElectricFooter`, `ComingSoon`), 1 процесс. `AGENTS.md`, `CLAUDE.md` и `backend/uv.lock` в выводе — правки, существовавшие в рабочем дереве до начала стори; к ней отношения не имеют.
 
 ### Completion Notes List
 
+**Решения по трём P0 из readiness-review** (без них буквальное исполнение Tasks было невозможно):
+
+1. Закрыта находка [P0] **«формальный статус противоречит результату ревью»**: стори и `sprint-status.yaml` переведены в `in-progress` синхронно при старте и в `review` синхронно при завершении. Ни один источник не менялся в одиночку.
+2. Закрыта находка [P0] **«baseline противоречит точке ветвления»**: выбрана схема разделения — `baseline_commit: 905a3e8f` во frontmatter остаётся точкой проверки координат кода, базой реализации служит `585988cc` (текущий `develop`). Обе величины зафиксированы в Debug Log; `File List` собран от рабочего дерева.
+3. Закрыта находка [P0] **«публичный API хука не позволяет выполнить контракт фокусировки»**: в `UseCookieConsentReturn` добавлено read-only поле `isForced`. Баннер фокусируется только при `isBannerVisible && isForced` — при первом показе (`status === 'unset'`) фокус не крадётся.
+
+**Закрытые P1/P2:**
+
+4. [P1] AC5 переформулирован (см. Change Log) и покрыт тестом «после сбоя записи баннер всё равно открывается по reopen».
+5. [P1] `__resetCookieConsentStoreForTests()` зовётся в `beforeEach` **всех пяти** файлов, работающих с singleton-стором: `useCookieConsent.test.ts`, `CookieConsentBanner.test.tsx`, `CookieSettingsButton.test.tsx`, `Footer.test.tsx`, `ComingSoonClient.test.tsx`. Каждый setup чистит оба ключа — `cookie_consent` и `cookie_consent_accepted`.
+6. [P1] Наличие кнопки доказано автотестами во **всех трёх** подвалах: `Footer.test.tsx` (новый блок `Cookie Settings`), новый `ElectricFooter.test.tsx`, `ComingSoonClient.test.tsx`.
+7. [P1] AC6 покрыт полностью: тест «переводит фокус на баннер после открытия из подвала» проверяет `document.activeElement`; axe гоняется на баннере, на подвале blue целиком и на нижней панели electric; клавиатура и viewport 375 px проверены в браузере.
+8. [P1] Cross-tab контракт специфицирован в коде и покрыт **пятью** тестами: внешние `accepted` (при принудительно открытом баннере) и `declined`, удаление ключа → `unset`, чужой ключ игнорируется, событие без изменения не вызывает ре-рендер, обработчик не пишет в хранилище.
+9. [P2] Миграция legacy-ключа детерминирована: валидное значение `cookie_consent` имеет приоритет; legacy `'1'` применяется только при его отсутствии; старый ключ удаляется **только после** успешной записи нового; сбой записи логируется как ошибка **записи** и не сбрасывает распознанное согласие; `'0'` не мигрирует. Все пять правил покрыты тестами.
+
+**Что реализовано:**
+
+- `useCookieConsent` переписан на `useSyncExternalStore` поверх модульного стора: баннер из корневого `layout.tsx` и кнопка из подвала другого поддерева разделяют одно состояние. `getServerSnapshot` возвращает замороженный снимок со статусом `'unknown'` — SSR-разметка не изменилась (проверено: баннера в ответе сервера нет, предупреждений гидрации нет). `getSnapshot` возвращает стабильную ссылку.
+- Баннер: две равнозначные кнопки `size="medium"` (`primary` / `secondary`; замер в браузере — по 44 px, `opacity: 1`, одинаковый кегль 16 px), дословный текст AC1, ссылка на политику с `target="_blank" rel="noopener noreferrer"`, перевод фокуса на `role="region"` при открытии из подвала.
+- `CookieSettingsButton` — один компонент на три подвала, палитра приходит пропом `className`, рендерится безусловно.
+- Отказ **ничего не отключает**: трекеров на сайте нет. В хуке оставлен явный комментарий, что будущая аналитика подключается только при `status === 'accepted'`.
+- Границы AC8 соблюдены: бэкенд, `openapi.yaml`, миграции, формы, `ACTIVE_THEME`, `next.config.ts`, зависимости и `docs/` не тронуты; мёртвая ссылка `/returns` в `Footer.tsx` оставлена стори 41.4.
+
+**Коммит не делался** — по Task 8 коммит и push выполняются только по явной просьбе владельца. Изменения лежат в ветке `feature/story-41-1-cookie-decline` рабочим деревом.
+
 ### File List
+
+Собрано по `git status --porcelain` от базы реализации `585988cc` (не по памяти).
+
+**Новые:**
+
+- `frontend/src/components/layout/CookieSettingsButton.tsx`
+- `frontend/src/components/layout/__tests__/CookieSettingsButton.test.tsx`
+- `frontend/src/components/layout/__tests__/ElectricFooter.test.tsx`
+
+**Изменённые:**
+
+- `frontend/src/hooks/useCookieConsent.ts`
+- `frontend/src/hooks/index.ts`
+- `frontend/src/components/layout/CookieConsentBanner.tsx`
+- `frontend/src/components/layout/Footer.tsx`
+- `frontend/src/components/layout/ElectricFooter.tsx`
+- `frontend/src/app/ComingSoonClient.tsx`
+- `frontend/src/hooks/__tests__/useCookieConsent.test.ts`
+- `frontend/src/components/layout/__tests__/CookieConsentBanner.test.tsx`
+- `frontend/src/components/layout/__tests__/Footer.test.tsx`
+- `frontend/src/app/__tests__/ComingSoonClient.test.tsx`
+- `_bmad-output/implementation-artifacts/Story/41-1-cookie-decline-and-change-choice.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**Удалённых нет.**
+
+Вне стори (существовали в рабочем дереве до её начала, не трогались): `AGENTS.md`, `CLAUDE.md`, `backend/uv.lock`.
 
 ### Review Findings
 
+**Все девять находок закрыты 2026-08-30 в ходе реализации** (`bmad-dev-story`); принятые решения — в `Completion Notes List`. Исходная формулировка ревью сохранена ниже без изменений.
+
 **Результат readiness-review 2026-08-30: до начала реализации требуется устранить P0.** Формальные `Status: ready-for-dev` в этой стори и статус в `sprint-status.yaml` не менялись, потому что запрос владельца был ограничен записью замечаний только в этот файл. Ниже перечислены только находки, подтверждённые чтением полного текста стори, текущего кода и Git-истории. Ложные срабатывания круглого стола — якобы отсутствующие дословный текст, карта статусов, `getServerSnapshot`, стабильный snapshot, задача `CookieSettingsButton` и задачи для трёх подвалов — не включены: всё это уже присутствует в AC, Tasks и Dev Notes.
 
-- [ ] [Review][Decision][P0] **Формальный статус противоречит результату readiness-review.** В стори и `sprint-status.yaml` остаётся `ready-for-dev`, хотя два следующих P0 делают буквальное исполнение Tasks невозможным без самостоятельного выбора разработчика. После решения P0 нужно либо подтвердить `ready-for-dev`, либо синхронно перевести оба артефакта в выбранный владельцем статус; менять только один источник нельзя.
+- [x] [Review][Decision][P0] **Формальный статус противоречит результату readiness-review.** В стори и `sprint-status.yaml` остаётся `ready-for-dev`, хотя два следующих P0 делают буквальное исполнение Tasks невозможным без самостоятельного выбора разработчика. После решения P0 нужно либо подтвердить `ready-for-dev`, либо синхронно перевести оба артефакта в выбранный владельцем статус; менять только один источник нельзя.
 
-- [ ] [Review][Patch][P0] **Baseline противоречит точке ветвления.** `baseline_commit: 905a3e8f` — подтверждённый через `git rev-parse b23098ec^` родитель коммита `b23098ec`, которым сама эта стори впервые добавлена в `develop`. Поэтому ветка, созданная от актуального `develop`, не может пройти требование Task 1 `HEAD == 905a3e8f`; сравнение `git diff --name-only 905a3e8f..HEAD` из Task 8 также примешает уже существующие коммит стори и изменение `sprint-status.yaml`. Нужно выбрать одну непротиворечивую схему: использовать `b23098ec` как implementation baseline во frontmatter, Task 1 и Task 8 либо явно разделить `code_verified_at: 905a3e8f` и `implementation_base: b23098ec`. Baseline тестов в Task 7 можно оставить как исторический замер, если это обозначено отдельно.
+- [x] [Review][Patch][P0] **Baseline противоречит точке ветвления.** `baseline_commit: 905a3e8f` — подтверждённый через `git rev-parse b23098ec^` родитель коммита `b23098ec`, которым сама эта стори впервые добавлена в `develop`. Поэтому ветка, созданная от актуального `develop`, не может пройти требование Task 1 `HEAD == 905a3e8f`; сравнение `git diff --name-only 905a3e8f..HEAD` из Task 8 также примешает уже существующие коммит стори и изменение `sprint-status.yaml`. Нужно выбрать одну непротиворечивую схему: использовать `b23098ec` как implementation baseline во frontmatter, Task 1 и Task 8 либо явно разделить `code_verified_at: 905a3e8f` и `implementation_base: b23098ec`. Baseline тестов в Task 7 можно оставить как исторический замер, если это обозначено отдельно.
 
-- [ ] [Review][Patch][P0] **Публичный API хука не позволяет буквально выполнить контракт фокусировки Task 3.** Внутренний `CookieConsentSnapshot` содержит `isForced`, а Task 3 требует при открытии по `isForced` выполнить `ref.current?.focus()`, но `UseCookieConsentReturn` возвращает только `status`, `isLoaded`, `isBannerVisible` и actions. Состояния можно частично вывести косвенно из `status`, однако это не тот контракт, который предписан Task 3, и он не выражает источник открытия явно. Нужно либо добавить read-only `isForced` в `UseCookieConsentReturn`, либо вернуть отдельный однозначный признак `shouldFocusBanner`; первичный показ при `status === 'unset'` фокус красть не должен.
+- [x] [Review][Patch][P0] **Публичный API хука не позволяет буквально выполнить контракт фокусировки Task 3.** Внутренний `CookieConsentSnapshot` содержит `isForced`, а Task 3 требует при открытии по `isForced` выполнить `ref.current?.focus()`, но `UseCookieConsentReturn` возвращает только `status`, `isLoaded`, `isBannerVisible` и actions. Состояния можно частично вывести косвенно из `status`, однако это не тот контракт, который предписан Task 3, и он не выражает источник открытия явно. Нужно либо добавить read-only `isForced` в `UseCookieConsentReturn`, либо вернуть отдельный однозначный признак `shouldFocusBanner`; первичный показ при `status === 'unset'` фокус красть не должен.
 
-- [ ] [Review][Patch][P1] **AC5 буквально обещает невозможную длительность fallback-состояния и конфликтует с FR-41-02.** При сбое записи модульный snapshot живёт только до полной перезагрузки документа, а не гарантированно «до конца сессии». Фраза «баннер закрывается и повторно не открывается» также может запретить обязательный `reopen()` из подвала. Нужно уточнить: выбор действует в памяти до полной перезагрузки страницы; баннер не открывается повторно **самопроизвольно**, но по кнопке «Настройки cookie» открывается всегда.
+- [x] [Review][Patch][P1] **AC5 буквально обещает невозможную длительность fallback-состояния и конфликтует с FR-41-02.** При сбое записи модульный snapshot живёт только до полной перезагрузки документа, а не гарантированно «до конца сессии». Фраза «баннер закрывается и повторно не открывается» также может запретить обязательный `reopen()` из подвала. Нужно уточнить: выбор действует в памяти до полной перезагрузки страницы; баннер не открывается повторно **самопроизвольно**, но по кнопке «Настройки cookie» открывается всегда.
 
-- [ ] [Review][Patch][P1] **Сброс модульного store описан недостаточно широко для тестов.** `__resetCookieConsentStoreForTests()` должен вызываться в `beforeEach` не только в `useCookieConsent.test.ts`, но во всех файлах, которые используют реальный singleton-store: как минимум `CookieConsentBanner.test.tsx` и интеграционный тест `CookieSettingsButton` + banner. Каждый setup также обязан очищать оба ключа `localStorage`: `cookie_consent` и `cookie_consent_accepted`; reset-helper отвечает за snapshot/listeners и сам по себе хранилище не заменяет. Иначе предыдущий тест может не дать `subscribe` перечитать подготовленный legacy-вход. Требование «без правки» уточнить как «без изменения тела и legacy-входа теста» — импорт helper и дополнение setup обязательны.
+- [x] [Review][Patch][P1] **Сброс модульного store описан недостаточно широко для тестов.** `__resetCookieConsentStoreForTests()` должен вызываться в `beforeEach` не только в `useCookieConsent.test.ts`, но во всех файлах, которые используют реальный singleton-store: как минимум `CookieConsentBanner.test.tsx` и интеграционный тест `CookieSettingsButton` + banner. Каждый setup также обязан очищать оба ключа `localStorage`: `cookie_consent` и `cookie_consent_accepted`; reset-helper отвечает за snapshot/listeners и сам по себе хранилище не заменяет. Иначе предыдущий тест может не дать `subscribe` перечитать подготовленный legacy-вход. Требование «без правки» уточнить как «без изменения тела и legacy-входа теста» — импорт helper и дополнение setup обязательны.
 
-- [ ] [Review][Patch][P1] **Автотесты не доказывают наличие кнопки во всех трёх подвалах.** AC3 и Task 5 требуют `Footer`, `ElectricFooter` и `ComingSoonClient`, но Task 6 проверяет размещение только в `Footer.test.tsx`; тестов `ElectricFooter`/`ComingSoonClient` в текущем наборе нет. Добавить проверки присутствия и доступного имени «Настройки cookie» для двух пропущенных поверхностей. Это особенно критично для `/coming-soon`, потому что эта страница является текущей боевой темой прода.
+- [x] [Review][Patch][P1] **Автотесты не доказывают наличие кнопки во всех трёх подвалах.** AC3 и Task 5 требуют `Footer`, `ElectricFooter` и `ComingSoonClient`, но Task 6 проверяет размещение только в `Footer.test.tsx`; тестов `ElectricFooter`/`ComingSoonClient` в текущем наборе нет. Добавить проверки присутствия и доступного имени «Настройки cookie» для двух пропущенных поверхностей. Это особенно критично для `/coming-soon`, потому что эта страница является текущей боевой темой прода.
 
-- [ ] [Review][Patch][P1] **AC6 покрыт тестами не полностью.** Task 6 не требует проверки, что после клика «Настройки cookie» `document.activeElement` становится баннером, и не запускает `axe` на подвале с добавленной кнопкой, хотя AC6 требует оба результата. Интеграционный тест AC4 сейчас проверяет только появление баннера. Добавить автоматическую проверку фокуса после `reopen`, axe-проверку подходящего подвала с кнопкой и ручную mobile-проверку двух кнопок на узком viewport; в Task 7 дополнить клавиатурный сценарий достижением и активацией кнопки «Настройки cookie», а не только кнопок баннера.
+- [x] [Review][Patch][P1] **AC6 покрыт тестами не полностью.** Task 6 не требует проверки, что после клика «Настройки cookie» `document.activeElement` становится баннером, и не запускает `axe` на подвале с добавленной кнопкой, хотя AC6 требует оба результата. Интеграционный тест AC4 сейчас проверяет только появление баннера. Добавить автоматическую проверку фокуса после `reopen`, axe-проверку подходящего подвала с кнопкой и ручную mobile-проверку двух кнопок на узком viewport; в Task 7 дополнить клавиатурный сценарий достижением и активацией кнопки «Настройки cookie», а не только кнопок баннера.
 
-- [ ] [Review][Patch][P1] **Cross-tab контракт заявлен, но не специфицирован и не покрыт тестом.** Task 2 требует, чтобы выбор в другой вкладке закрывал баннер, однако AC7/Task 6 не содержат теста события `storage`. Нужно зафиксировать: обрабатывается только ключ `cookie_consent`; `'accepted'`/`'declined'` обновляют status и сбрасывают `isForced`; неизвестное значение или удаление ключа дают `'unset'`; обработчик не пишет обратно в `localStorage`; событие без фактического изменения не создаёт новый snapshot. Добавить тесты как минимум для внешнего `accepted` при принудительно открытом баннере, внешнего `declined` и чужого ключа.
+- [x] [Review][Patch][P1] **Cross-tab контракт заявлен, но не специфицирован и не покрыт тестом.** Task 2 требует, чтобы выбор в другой вкладке закрывал баннер, однако AC7/Task 6 не содержат теста события `storage`. Нужно зафиксировать: обрабатывается только ключ `cookie_consent`; `'accepted'`/`'declined'` обновляют status и сбрасывают `isForced`; неизвестное значение или удаление ключа дают `'unset'`; обработчик не пишет обратно в `localStorage`; событие без фактического изменения не создаёт новый snapshot. Добавить тесты как минимум для внешнего `accepted` при принудительно открытом баннере, внешнего `declined` и чужого ключа.
 
-- [ ] [Review][Patch][P2] **Не определены атомарность и приоритет миграции legacy-ключа при частичном сбое.** Dev Notes говорят, что `readFromStorage()` сначала читает новый ключ, затем мигрирует legacy, но не фиксируют поведение, если оба ключа существуют, новый ключ содержит мусор либо `setItem`/`removeItem` падают посередине миграции. Зафиксировать: валидный `cookie_consent` имеет приоритет; legacy `'1'` используется только при отсутствии валидного нового значения; старый ключ удаляется только после успешной записи нового; ошибка записи/удаления не сбрасывает распознанное согласие в памяти и логируется как ошибка **записи**, а не чтения. Значение legacy `'0'` не мигрируется, поскольку прежний код его никогда не записывал.
+- [x] [Review][Patch][P2] **Не определены атомарность и приоритет миграции legacy-ключа при частичном сбое.** Dev Notes говорят, что `readFromStorage()` сначала читает новый ключ, затем мигрирует legacy, но не фиксируют поведение, если оба ключа существуют, новый ключ содержит мусор либо `setItem`/`removeItem` падают посередине миграции. Зафиксировать: валидный `cookie_consent` имеет приоритет; legacy `'1'` используется только при отсутствии валидного нового значения; старый ключ удаляется только после успешной записи нового; ошибка записи/удаления не сбрасывает распознанное согласие в памяти и логируется как ошибка **записи**, а не чтения. Значение legacy `'0'` не мигрируется, поскольку прежний код его никогда не записывал.

@@ -659,7 +659,7 @@ development_status:
   # layout, кнопка — в подвалах другого поддерева; общее состояние через
   # useSyncExternalStore. Подвалов три (blue, electric, coming-soon), и живой
   # на проде — coming-soon, у которого Footer нет.
-  41-1-cookie-decline-and-change-choice: ready-for-dev
+  41-1-cookie-decline-and-change-choice: review
   41-2-consent-record-on-1c-link: backlog
   # Редакция 2: текст чекбокса покрывает и ПДн, и рассылку; бэкенд не трогаем.
   41-3-separate-pdn-and-marketing-consents: done

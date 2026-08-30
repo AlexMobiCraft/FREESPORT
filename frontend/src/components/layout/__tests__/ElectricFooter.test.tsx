@@ -1,0 +1,57 @@
+/**
+ * Тесты подвала темы electric.
+ * Story 41.1 — AC3 (FR-41-02): кнопка «Настройки cookie» обязана быть во всех
+ * трёх подвалах. Прецедент 41.3: правка в одной теме и пропуск другой вернулись
+ * находкой код-ревью.
+ */
+
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
+import ElectricFooter from '../ElectricFooter';
+import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
+
+describe('ElectricFooter', () => {
+  beforeEach(() => {
+    __resetCookieConsentStoreForTests();
+    window.localStorage.removeItem('cookie_consent');
+    window.localStorage.removeItem('cookie_consent_accepted');
+  });
+
+  it('содержит кнопку «Настройки cookie» в нижней панели', () => {
+    render(<ElectricFooter />);
+
+    const button = screen.getByRole('button', { name: 'Настройки cookie' });
+
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('type', 'button');
+  });
+
+  it('сохраняет ссылки нижней панели', () => {
+    render(<ElectricFooter />);
+
+    expect(screen.getByRole('link', { name: 'Политика конфиденциальности' })).toHaveAttribute(
+      'href',
+      '/privacy-policy'
+    );
+    expect(screen.getByRole('link', { name: 'Пользовательское соглашение' })).toHaveAttribute(
+      'href',
+      '/oferta'
+    );
+  });
+
+  it('нижняя панель с кнопкой не имеет нарушений доступности по axe', async () => {
+    render(<ElectricFooter />);
+
+    // Проверяется нижняя панель — та часть подвала, куда добавлена кнопка (AC6).
+    // Подвал целиком axe не проходит из-за ПРЕДСУЩЕСТВУЮЩЕГО дефекта темы
+    // electric: соцсети-иконки — <Link href="#"> без доступного имени
+    // (нарушение link-name). В теме blue у них есть aria-label. Дефект внесён
+    // не этой стори, своей стори не имеет и здесь намеренно не чинится (AC8).
+    const bottomBar = screen.getByRole('button', { name: 'Настройки cookie' })
+      .parentElement as HTMLElement;
+
+    const results = await axe(bottomBar);
+    expect(results.violations).toHaveLength(0);
+  });
+});

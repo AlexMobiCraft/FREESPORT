@@ -2,6 +2,7 @@
 
 import { ShoppingCart, Users, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
+import CookieSettingsButton from '@/components/layout/CookieSettingsButton';
 
 const backgroundImage = '/coming-soon-bg.png';
 
@@ -111,6 +112,7 @@ export default function ComingSoon() {
           >
             <p>© 2025-2026 OPTISPORT — Все права защищены</p>
             <p className="mt-2">По вопросам сотрудничества: info@optisport.ru</p>
+            <CookieSettingsButton className="mt-2 text-white/80 hover:text-white underline-offset-2 hover:underline transition-colors" />
           </motion.div>
         </motion.div>
       </div>
