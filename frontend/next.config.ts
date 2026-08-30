@@ -98,15 +98,34 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Заголовки безопасности
+  // Заголовки безопасности HTML фронтенда (стори 41.5).
+  //
+  // Граница ответственности: на `location /` nginx выставляет ТОЛЬКО
+  // Strict-Transport-Security, и этот одиночный add_header вытесняет там весь
+  // унаследованный серверный набор. Значит всё остальное на HTML обязан
+  // поставить этот файл — включая X-XSS-Protection, который Django перестал
+  // отдавать в 4.0, а nginx на этой локации больше не добавляет.
+  //
+  // CSP и Permissions-Policy обязаны совпадать ПОСИМВОЛЬНО с
+  // docker/nginx/snippets/security-headers*.conf. Общего файла у Next и nginx
+  // нет и быть не может, поэтому расхождение ловит тест-страж
+  // src/__tests__/next-config-headers.test.ts.
+  //
+  // Cache-Control здесь НЕ задаётся: в production Next перезаписывает значение
+  // из конфига. Срок жизни HTML управляется сегментной опцией `revalidate`
+  // (см. src/app/layout.tsx).
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
           {
+            // SAMEORIGIN, а не DENY: запас на встраивание CMS-страниц сайта
+            // друг в друга. Обязан идти согласованно с frame-ancestors ниже —
+            // в поддерживающих браузерах CSP перекрывает X-Frame-Options,
+            // и пара «SAMEORIGIN + 'none'» молча свела бы запас на нет.
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN',
           },
           {
             key: 'X-Content-Type-Options',
@@ -115,6 +134,30 @@ const nextConfig: NextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
+          },
+          {
+            // Заголовок устарел (браузеры его не применяют), но его удаление
+            // не входит в объём эпика и отдельно объяснялось бы перед
+            // регулятором. Источник ровно один — здесь для HTML, сниппеты
+            // nginx для остальных поверхностей.
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            // default-src переносится посимвольно из прежнего конфига nginx;
+            // добавлена ровно одна директива — frame-ancestors. Ужесточение
+            // политики вынесено в tech-debt п. 23: любое сужение default-src
+            // ломает встроенную карту Яндекса на /delivery.
+            key: 'Content-Security-Policy',
+            value:
+              "default-src 'self' http: https: data: blob: 'unsafe-inline'; frame-ancestors 'self'",
+          },
+          {
+            // Без interest-cohort: директива снята в Chrome 115+ и даёт
+            // "Unrecognized feature" в консоли.
+            key: 'Permissions-Policy',
+            value:
+              'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
           },
         ],
       },
