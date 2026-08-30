@@ -27,6 +27,18 @@ describe('ElectricFooter', () => {
     expect(button).toHaveAttribute('type', 'button');
   });
 
+  it('кнопка использует токен с достаточным контрастом (AC6)', () => {
+    // Регрессия код-ревью: --color-text-muted (#666666) на --bg-card (#1a1a1a)
+    // даёт 3.03:1 при требуемых для кегля 10-12 px 4.5:1.
+    // --color-text-secondary (#a0a0a0) — 6.66:1.
+    render(<ElectricFooter />);
+
+    const button = screen.getByRole('button', { name: 'Настройки cookie' });
+
+    expect(button.className).toContain('text-[var(--color-text-secondary)]');
+    expect(button.className).not.toContain('text-[var(--color-text-muted)]');
+  });
+
   it('сохраняет ссылки нижней панели', () => {
     render(<ElectricFooter />);
 

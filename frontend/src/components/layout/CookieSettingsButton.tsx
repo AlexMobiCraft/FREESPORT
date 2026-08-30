@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { useCookieConsent } from '@/hooks/useCookieConsent';
 
 export interface CookieSettingsButtonProps {
@@ -17,9 +18,16 @@ export interface CookieSettingsButtonProps {
  */
 export default function CookieSettingsButton({ className }: CookieSettingsButtonProps) {
   const { reopen } = useCookieConsent();
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <button type="button" onClick={reopen} className={className}>
+    <button
+      ref={buttonRef}
+      type="button"
+      // Кнопка передаёт себя, чтобы баннер вернул ей фокус при закрытии (AC6).
+      onClick={() => reopen(buttonRef.current)}
+      className={className}
+    >
       Настройки cookie
     </button>
   );

@@ -4,6 +4,7 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -42,20 +43,41 @@ describe('CookieSettingsButton', () => {
     expect(button).toHaveClass('hover:text-white');
   });
 
-  it('рендерится независимо от сохранённого выбора (SSR-разметка стабильна)', async () => {
+  it.each(['accepted', 'declined', null])(
+    'рендерится при сохранённом выборе %s',
+    async storedValue => {
+      // Стор сбрасывается только между отрисовками, когда предыдущий
+      // потребитель уже размонтирован: сброс при живой подписке снял бы её
+      // слушатель и сделал результат теста зависящим от порядка.
+      if (storedValue === null) {
+        window.localStorage.removeItem(CONSENT_KEY);
+      } else {
+        window.localStorage.setItem(CONSENT_KEY, storedValue);
+      }
+      __resetCookieConsentStoreForTests();
+
+      const { unmount } = render(<CookieSettingsButton />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Настройки cookie' })).toBeInTheDocument();
+      });
+
+      unmount();
+    }
+  );
+
+  it('серверная разметка совпадает с клиентской (SSR-разметка стабильна)', () => {
     window.localStorage.setItem(CONSENT_KEY, 'accepted');
 
-    render(<CookieSettingsButton />);
+    // На сервере хранилища нет: кнопка обязана присутствовать в SSR-выводе,
+    // иначе гидрация даст расхождение разметки.
+    const serverHtml = renderToStaticMarkup(<CookieSettingsButton className="footer-link" />);
+    expect(serverHtml).toContain('Настройки cookie');
+    expect(serverHtml).toContain('type="button"');
 
-    expect(screen.getByRole('button', { name: 'Настройки cookie' })).toBeInTheDocument();
+    const { container } = render(<CookieSettingsButton className="footer-link" />);
 
-    window.localStorage.setItem(CONSENT_KEY, 'declined');
-    __resetCookieConsentStoreForTests();
-    render(<CookieSettingsButton />);
-
-    await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: 'Настройки cookie' })).toHaveLength(2);
-    });
+    expect(container.innerHTML).toBe(serverHtml);
   });
 
   it('не имеет нарушений доступности по axe', async () => {
@@ -122,6 +144,53 @@ describe('CookieSettingsButton', () => {
       await waitFor(() => {
         expect(document.activeElement).toBe(banner);
       });
+    });
+
+    it('возвращает фокус на кнопку подвала после закрытия баннера (AC6)', async () => {
+      // Иначе после «Принять»/«Отклонить» фокус остаётся на body и
+      // клавиатурный пользователь теряет позицию в подвале.
+      const user = userEvent.setup();
+      window.localStorage.setItem(CONSENT_KEY, 'accepted');
+
+      render(
+        <>
+          <CookieConsentBanner />
+          <footer>
+            <CookieSettingsButton />
+          </footer>
+        </>
+      );
+
+      const settingsButton = screen.getByRole('button', { name: 'Настройки cookie' });
+      await user.click(settingsButton);
+      await user.click(await screen.findByRole('button', { name: 'Отклонить' }));
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(settingsButton);
+      });
+    });
+
+    it('не крадёт фокус, когда баннер закрылся без принудительного открытия', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <>
+          <CookieConsentBanner />
+          <footer>
+            <CookieSettingsButton />
+          </footer>
+        </>
+      );
+
+      const settingsButton = screen.getByRole('button', { name: 'Настройки cookie' });
+      await user.click(await screen.findByRole('button', { name: 'Принять' }));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('region', { name: 'Уведомление об использовании cookie' })
+        ).not.toBeInTheDocument();
+      });
+      expect(document.activeElement).not.toBe(settingsButton);
     });
 
     it('повторный выбор в открытом баннере перезаписывает сохранённый', async () => {

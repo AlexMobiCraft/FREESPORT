@@ -1,3 +1,7 @@
+## Deferred from: code review of 41-1-cookie-decline-and-change-choice (2026-08-30)
+
+- **Ссылки социальных сетей в `ElectricFooter` не имеют доступных имён.** Три `<Link href="#">` содержат только SVG-иконки Facebook, Instagram и YouTube без текста или `aria-label`, поэтому полный подвал не проходит `axe` с нарушением `link-name`. Решение Alex: не исправлять в Story 41.1 и сузить её AC6 до изменённых областей подвалов. Причина: дефект существовал до Story 41.1 и не относится к функциональности cookie. Исправление: добавить каждой ссылке уникальное доступное имя и вернуть axe-проверку всего `ElectricFooter`. [`frontend/src/components/layout/ElectricFooter.tsx:23-41`]
+
 ## Deferred from: code review of 41-3-separate-pdn-and-marketing-consents (2026-08-30)
 
 - **Email-поле `ElectricSubscribeForm` не объявляет обязательность и не связывает ошибку с полем для assistive technologies.** `react-hook-form` валидирует значение, а красная рамка и `<p>` показывают ошибку визуально, но сам `<input type="email">` не получает `aria-required`, `aria-invalid` и `aria-describedby`; у текста ошибки нет соответствующего `id`. Дефект существовал до baseline `13917d4a` и не относится к изменению текста согласия. Исправление: создать уникальный `emailErrorId`, передать ARIA-атрибуты в input и связать `<p>` ошибки по id. [`frontend/src/components/home/ElectricSubscribeForm.tsx:164-189`]

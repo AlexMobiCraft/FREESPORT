@@ -3,18 +3,29 @@
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui';
-import { useCookieConsent } from '@/hooks/useCookieConsent';
+import { consumeCookieConsentTrigger, useCookieConsent } from '@/hooks/useCookieConsent';
 
 export default function CookieConsentBanner() {
   const { isBannerVisible, isForced, accept, decline } = useCookieConsent();
   const bannerRef = useRef<HTMLDivElement>(null);
+  // Баннер был открыт кнопкой подвала — значит, при закрытии фокус нужно вернуть.
+  const openedFromTriggerRef = useRef(false);
 
   // Баннер перекрывает подвал, откуда его открыли. Без перевода фокуса
   // клавиатурный пользователь не заметит, что что-то произошло (AC6).
   // При первом показе фокус не крадём — открытие не было действием пользователя.
   useEffect(() => {
     if (isBannerVisible && isForced) {
+      openedFromTriggerRef.current = true;
       bannerRef.current?.focus();
+      return;
+    }
+
+    // Баннер закрылся: фокус со скрытой области ушёл бы на body, поэтому
+    // возвращаем его кнопке «Настройки cookie», которая баннер и открыла.
+    if (!isBannerVisible && openedFromTriggerRef.current) {
+      openedFromTriggerRef.current = false;
+      consumeCookieConsentTrigger()?.focus();
     }
   }, [isBannerVisible, isForced]);
 

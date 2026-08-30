@@ -146,7 +146,14 @@ const ElectricFooter: React.FC = () => {
             >
               Пользовательское соглашение
             </Link>
-            <CookieSettingsButton className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors" />
+            {/*
+              Кегль 10-12 px — обычный текст по WCAG, нужен контраст 4.5:1.
+              --color-text-muted (#666) на --bg-card (#1a1a1a) даёт лишь 3.03:1,
+              поэтому у кнопки --color-text-secondary (#a0a0a0) — 6.66:1.
+              Соседние ссылки остались на muted: их контраст — предсуществующий
+              дефект темы, он вынесен в deferred-work.md (AC8).
+            */}
+            <CookieSettingsButton className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-secondary)] hover:text-[var(--foreground)] transition-colors" />
           </div>
         </div>
       </div>

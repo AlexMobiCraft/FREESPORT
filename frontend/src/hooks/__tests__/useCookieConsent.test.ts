@@ -328,7 +328,11 @@ describe('useCookieConsent', () => {
 
       act(() => {
         window.dispatchEvent(
-          new StorageEvent('storage', { key: STORAGE_KEY, newValue: 'accepted' })
+          new StorageEvent('storage', {
+            key: STORAGE_KEY,
+            newValue: 'accepted',
+            storageArea: window.localStorage,
+          })
         );
       });
 
@@ -344,7 +348,11 @@ describe('useCookieConsent', () => {
 
       act(() => {
         window.dispatchEvent(
-          new StorageEvent('storage', { key: STORAGE_KEY, newValue: 'declined' })
+          new StorageEvent('storage', {
+            key: STORAGE_KEY,
+            newValue: 'declined',
+            storageArea: window.localStorage,
+          })
         );
       });
 
@@ -358,7 +366,13 @@ describe('useCookieConsent', () => {
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
       act(() => {
-        window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null }));
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: STORAGE_KEY,
+            newValue: null,
+            storageArea: window.localStorage,
+          })
+        );
       });
 
       expect(result.current.status).toBe('unset');
@@ -371,7 +385,13 @@ describe('useCookieConsent', () => {
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
       act(() => {
-        window.dispatchEvent(new StorageEvent('storage', { key: 'other_key', newValue: 'declined' }));
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'other_key',
+            newValue: 'declined',
+            storageArea: window.localStorage,
+          })
+        );
       });
 
       expect(result.current.status).toBe('accepted');
@@ -389,23 +409,104 @@ describe('useCookieConsent', () => {
       const rendersBefore = renderCount;
       act(() => {
         window.dispatchEvent(
-          new StorageEvent('storage', { key: STORAGE_KEY, newValue: 'accepted' })
+          new StorageEvent('storage', {
+            key: STORAGE_KEY,
+            newValue: 'accepted',
+            storageArea: window.localStorage,
+          })
         );
       });
 
       expect(renderCount).toBe(rendersBefore);
     });
 
+    it('событие из sessionStorage с тем же ключом игнорируется', async () => {
+      // sessionStorage — другое хранилище: одноимённый ключ в нём не является
+      // сохранённым согласием и не должен закрывать баннер.
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+      expect(result.current.status).toBe('unset');
+
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: STORAGE_KEY,
+            newValue: 'accepted',
+            storageArea: window.sessionStorage,
+          })
+        );
+      });
+
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
+    });
+
+    it('событие без storageArea игнорируется', async () => {
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      act(() => {
+        window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: 'accepted' }));
+      });
+
+      expect(result.current.status).toBe('unset');
+    });
+
+    it('localStorage.clear() в другой вкладке возвращает статус unset', async () => {
+      // Полная очистка приходит событием с key === null: без её обработки
+      // здесь остался бы устаревший статус и баннер больше не показался бы.
+      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+      expect(result.current.status).toBe('accepted');
+
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: null,
+            newValue: null,
+            storageArea: window.localStorage,
+          })
+        );
+      });
+
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
+    });
+
+    it('очистка sessionStorage в другой вкладке статус не трогает', async () => {
+      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: null,
+            newValue: null,
+            storageArea: window.sessionStorage,
+          })
+        );
+      });
+
+      expect(result.current.status).toBe('accepted');
+    });
+
     it('обработчик события не пишет обратно в localStorage', async () => {
-      const setItem = vi.fn();
-      mockLocalStorage({ setItem });
+      // Шпион вместо подмены объекта: обработчик сверяет event.storageArea
+      // именно с window.localStorage, поэтому хранилище должно остаться настоящим.
+      const setItem = vi.spyOn(window.localStorage, 'setItem');
 
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
       act(() => {
         window.dispatchEvent(
-          new StorageEvent('storage', { key: STORAGE_KEY, newValue: 'declined' })
+          new StorageEvent('storage', {
+            key: STORAGE_KEY,
+            newValue: 'declined',
+            storageArea: window.localStorage,
+          })
         );
       });
 

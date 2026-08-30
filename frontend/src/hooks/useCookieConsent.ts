@@ -45,6 +45,13 @@ let snapshot: CookieConsentSnapshot = SERVER_SNAPSHOT;
 const listeners = new Set<() => void>();
 
 /**
+ * Элемент, из которого баннер открыли принудительно, — чтобы вернуть ему фокус
+ * после закрытия. Хранится ВНЕ снимка: DOM-узел в рендере не участвует, и
+ * попадание его в снимок означало бы лишние ре-рендеры потребителей.
+ */
+let forcedTrigger: HTMLElement | null = null;
+
+/**
  * Снимок пересоздаётся ТОЛЬКО здесь. getSnapshot обязан возвращать стабильную
  * ссылку, иначе useSyncExternalStore уходит в бесконечный ре-рендер.
  */
@@ -116,15 +123,24 @@ function readFromStorage(): void {
 
 /**
  * Согласие, данное в другой вкладке, применяется и здесь.
- * Обрабатывается только ключ `cookie_consent`; обратно в хранилище
- * обработчик ничего не пишет.
+ *
+ * Учитывается только `localStorage`: событие `storage` приходит и от
+ * `sessionStorage`, где одноимённый ключ согласием не является. Событие с
+ * `key === null` — это `localStorage.clear()` в другой вкладке; без его
+ * обработки здесь остался бы устаревший статус и баннер больше не показался
+ * бы. Обратно в хранилище обработчик ничего не пишет.
  */
 function handleStorageEvent(event: StorageEvent): void {
-  if (event.key !== STORAGE_KEY) {
+  if (typeof window === 'undefined' || event.storageArea !== window.localStorage) {
     return;
   }
 
-  const nextStatus = parseStatus(event.newValue);
+  const isFullClear = event.key === null;
+  if (!isFullClear && event.key !== STORAGE_KEY) {
+    return;
+  }
+
+  const nextStatus = isFullClear ? 'unset' : parseStatus(event.newValue);
   // Событие без фактического изменения не должно создавать новый снимок.
   if (nextStatus === snapshot.status && !snapshot.isForced) {
     return;
@@ -176,9 +192,26 @@ function decline(): void {
   setSnapshot({ status: 'declined', isForced: false });
 }
 
-/** Открыть баннер заново, не стирая сохранённый выбор. */
-function reopen(): void {
+/**
+ * Открыть баннер заново, не стирая сохранённый выбор.
+ *
+ * @param trigger элемент, инициировавший открытие. Баннер вернёт ему фокус,
+ * когда закроется: иначе после выбора фокус остаётся на `body` и клавиатурный
+ * пользователь теряет позицию в подвале (AC6).
+ */
+function reopen(trigger?: HTMLElement | null): void {
+  forcedTrigger = trigger ?? null;
   setSnapshot({ isForced: true });
+}
+
+/**
+ * Забирает элемент-инициатор и обнуляет его: фокус возвращается ровно один раз.
+ * Внутренний контракт хука и баннера, а не публичный API страниц.
+ */
+export function consumeCookieConsentTrigger(): HTMLElement | null {
+  const trigger = forcedTrigger;
+  forcedTrigger = null;
+  return trigger;
 }
 
 /**
@@ -192,6 +225,7 @@ function reopen(): void {
 export function __resetCookieConsentStoreForTests(): void {
   snapshot = SERVER_SNAPSHOT;
   listeners.clear();
+  forcedTrigger = null;
   if (typeof window !== 'undefined') {
     window.removeEventListener('storage', handleStorageEvent);
   }
@@ -210,8 +244,11 @@ export interface UseCookieConsentReturn {
   accept: () => void;
   /** Зафиксировать отказ. */
   decline: () => void;
-  /** Открыть баннер заново, не стирая сохранённый выбор. */
-  reopen: () => void;
+  /**
+   * Открыть баннер заново, не стирая сохранённый выбор. Переданный элемент
+   * получит фокус обратно после закрытия баннера.
+   */
+  reopen: (trigger?: HTMLElement | null) => void;
 }
 
 export function useCookieConsent(): UseCookieConsentReturn {
