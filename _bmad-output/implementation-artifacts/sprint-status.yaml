@@ -146,6 +146,48 @@ last_updated: 2026-08-28
 #             поздний writer больше не воскрешает устаревший список на сутки.
 #             Граница AC11 расширена решением владельца: правки backend
 #             (apps/pages) и openapi.yaml входят в объём стори.
+# 2026-08-25: Создана стори 41.5 (create-story) — Story/41-5-security-headers-
+#             single-source-all-locations.md, статус ready-for-dev. Порядок эпика
+#             соблюдён: 41.0 -> 41.5. Объём: сниппеты docker/nginx/snippets/ и их
+#             подключение в каждую локацию с собственным add_header (в nginx
+#             add_header ЗАМЕНЯЕТ унаследованный набор — отсюда /media/ без
+#             nosniff), новый volume-mount каталога сниппетов в обоих compose,
+#             CSP frame-ancestors и Permissions-Policy в next.config.ts, снятие
+#             HSTS с Django (второй источник, отдаёт запрещённый preload),
+#             revalidate в корневом layout против s-maxage=31536000 и правка
+#             docs/architecture/11-security-performance.md.
+# 2026-08-25: Стори 41.5 — разбор круглым столом, девять правок внесены в файл
+#             стори (см. её Change Log). Существенное: (а) план правок в исходной
+#             редакции сносил X-XSS-Protection с пяти поверхностей из шести —
+#             заголовок приходит ТОЛЬКО от nginx, SECURE_BROWSER_XSS_FILTER мёртв
+#             с Django 4.0; AC12 переформулирован, заголовок проведён в сниппеты
+#             и в next.config.ts. (б) Отказ от includeSubDomains переобоснован:
+#             причина не «сломается веб-почта» (ей не пользуются), а необратимость
+#             записи на год при нулевой выгоде; вывод прежний. (в) Схема сниппетов
+#             упрощена до трёх плоских файлов без вложенных include. (г) Найдено,
+#             что up -d --build frontend пересоздаёт контейнер, nginx держит старый
+#             IP, а proxy_intercept_errors + error_page 502..=200 отдают заглушку
+#             «Скоро открытие» со СТАТУСОМ 200 — падение сайта невидимо для проверок
+#             по коду ответа; в стори заведён обязательный порядок «фронт -> nginx»
+#             и Task 13 «План выката» (deploy-plan-41-5.md). (д) Срочность снята:
+#             41.5 делается ради свежего контекста и как репетиция выката перед 41.3,
+#             которая идёт параллельно. (е) docs/architecture/11-security-performance.md
+#             содержит четыре несуществующих класса в одном code-fence — помечается,
+#             переписывание раздела вне объёма.
+# 2026-08-25: Стори 41.5 — три решения Alex по итогам разбора вопросов стори.
+#             (1) HSTS без includeSubDomains и без preload: замер показал, что
+#             http://mail.optisport.ru отдаёт веб-почту по HTTP, а по HTTPS
+#             предъявляет чужой сертификат *.hosting.reg.ru. includeSubDomains
+#             уже отдаётся Django на /api/ и /admin/ — то есть веб-почта уже
+#             недоступна из браузеров админов; правка стори это чинит.
+#             (2) CSP и Permissions-Policy для /api/, /admin/, /swagger/, /redoc/
+#             даёт nginx: Django их настройками не умеет, django-csp покрывает
+#             половину, свой middleware преждевременен. Условие пересмотра
+#             записано в tech-debt.md п. 23 (Task 9.3 стори).
+#             (3) X-Frame-Options SAMEORIGIN + frame-ancestors 'self' на сайте —
+#             запас на встраивание CMS-страниц друг в друга; Django-локации
+#             остаются DENY + 'none', чтобы не открывать клик-джекинг на форму
+#             входа в админку. Статус стори не менялся: ready-for-dev.
 # 2026-08-26: Создана внеэпиковая стори onec-import-cleanup-race-and-followups,
 #             статус ready-for-dev. Повод — разбор ручной выгрузки 1С 25.08.2026:
 #             5 сессий failed с "File not found", и, что важнее, 6 из 16 сегментов
@@ -451,9 +493,15 @@ development_status:
   # Останавливает порчу журнала согласий (раздельные согласия ПДн / рассылка).
   41-3-separate-pdn-and-marketing-consents: backlog
   41-4-checkout-trade-info-and-policy-link: backlog
-  # Содержит работающую уязвимость (FR-41-22): add_header внутри location в nginx
-  # затирает унаследованный набор — /media/ с файлами выгрузки 1С идёт без nosniff.
-  41-5-security-headers-single-source-all-locations: backlog
+  # Дефект FR-41-22: add_header внутри location в nginx затирает унаследованный
+  # набор — /media/ идёт без nosniff. Путь эксплуатации ограничен (уточнено
+  # 2026-08-25): публичной загрузки файлов нет, все девять полей админские,
+  # единственный вход без админки — изображения из обмена 1С. Срочности нет,
+  # выкат отдельным заходом; done — по прод-замеру, не по мержу. 41.3 не блокирует.
+  # 2026-08-25: реализация закончена, ветка feature/story-41-5-security-headers.
+  # Прод НЕ тронут: выкат отдельным заходом по deploy-plan-41-5.md.
+  # В done — только после прод-замера (AC3, AC13), а не по мержу.
+  41-5-security-headers-single-source-all-locations: in-progress
   41-6-unique-metadata-og-image-jsonld: backlog
   41-7-pdn-registry-numbers-and-login-form-justification: backlog
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.

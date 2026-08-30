@@ -198,6 +198,14 @@ class OneCSecurityLog(models.Model):
 
 **OWASP Top 10 Defense:**
 
+> ⚠️ **Код ниже — проектное намерение 2025 года, в кодовой базе он не реализован.**
+> Ни одного из четырёх классов (`SecureQuerySet`, `XSSProtectionMiddleware`,
+> `CSRFExemptMixin`, `DataMaskingMixin`) в `backend/` не существует; рукописных
+> middleware в `backend/apps/` нет вообще. Фактическое поведение по заголовкам
+> безопасности описано в разделе 1.5 ниже — читать надо его, а не этот фрагмент.
+> (Проверено 2026-08-25, стори 41.5. Переписывать остальные три пункта — отдельная
+> задача, в объём 41.5 она не входила.)
+
 ```python
 # 1. SQL Injection Protection
 class SecureQuerySet(models.QuerySet):
@@ -244,6 +252,69 @@ class DataMaskingMixin:
             return f"{str(value)[:2]}***{str(value)[-2:]}"
         return value
 ```
+
+### 1.5. Заголовки безопасности: фактическая граница ответственности
+
+Установлена стори 41.5 (FR-41-06 … FR-41-10, FR-41-22, FR-41-23). Описывает то,
+что реально приходит клиенту, а не намерение.
+
+| Поверхность | Кто отдаёт ответ | Источник заголовков |
+|---|---|---|
+| HTML сайта (`location /`) | Next.js | `frontend/next.config.ts` → `headers()`; HSTS добавляет nginx |
+| `/static/`, `/media/`, `/products/*.jpg`, `/health`, `/coming-soon/` | nginx | `docker/nginx/snippets/security-headers.conf` |
+| внутренний vhost `server_name nginx`, локальный `local.conf` | nginx | `docker/nginx/snippets/security-headers-no-hsts.conf` (TLS нет → HSTS нет) |
+| `/api/`, `/admin/`, `/swagger/`, `/redoc/` | Django | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` — Django `settings`; CSP, `Permissions-Policy`, `X-XSS-Protection` — `docker/nginx/snippets/app-headers.conf` |
+| HSTS на всех поверхностях | nginx | единственный источник; в Django `SECURE_HSTS_SECONDS = 0` |
+
+**Почему CSP и `Permissions-Policy` для Django-локаций даёт nginx.** Django
+настройками умеет только `X_FRAME_OPTIONS`, `SECURE_CONTENT_TYPE_NOSNIFF`,
+`SECURE_REFERRER_POLICY`, `SECURE_HSTS_*` и `SECURE_CROSS_ORIGIN_OPENER_POLICY`.
+Ни CSP, ни `Permissions-Policy` в этот список не входят, а рукописных middleware
+в проекте нет. nginx добавляет этим локациям ровно те заголовки, которых Django
+не ставит, — дублирования не возникает. **Условие пересмотра:** при переводе CSP
+в боевой режим (tech-debt п. 23) политика с nonce и хэшами обязана формироваться
+приложением, а не статической строкой в конфиге, и источник CSP для `/api/`,
+`/admin/`, `/swagger/`, `/redoc/` переезжает в Django.
+
+**Политика встраивания — два согласованных заголовка.** Сайт: `X-Frame-Options:
+SAMEORIGIN` + `frame-ancestors 'self'` (запас на встраивание CMS-страниц друг в
+друга). Django-локации: `X-Frame-Options: DENY` + `frame-ancestors 'none'`
+(встраивать нечего, а `'self'` открыл бы клик-джекинг на форму входа в админку).
+Эти два заголовка обязаны меняться **только вместе**: в поддерживающих браузерах
+`frame-ancestors` перекрывает `X-Frame-Options`, поэтому пара «`SAMEORIGIN` +
+`'none'`» молча даёт запрет, а «`DENY` + `'self'`» — молча даёт разрешение в
+одних браузерах и запрет в других.
+
+#### Два правила, без которых конфигурация ломается молча
+
+1. **`add_header` внутри `location` заменяет унаследованный набор, а не
+   дополняет его.** nginx наследует `add_header` с верхнего уровня только пока
+   на текущем уровне нет ни одной собственной директивы. Первый же свой
+   `add_header` (например `Cache-Control`) стирает весь серверный набор целиком.
+   Именно так `/static/`, `/media/`, картинки товаров и `/health` годами
+   отдавались без `X-Content-Type-Options: nosniff` — это дефект FR-41-22.
+   Отсюда требование: **любая локация с собственным `add_header` обязана
+   переобъявить набор через `include` сниппета.** Страж —
+   `backend/tests/unit/test_nginx_security_headers.py`.
+   Флаг `always` обязателен: без него заголовки не доходят на ответы вне списка
+   200/204/301/302/304, а под `/media/` живут `return 404` и `deny all`.
+
+2. **`X-XSS-Protection` живёт только в nginx и в `next.config.ts`.** Настройка
+   `SECURE_BROWSER_XSS_FILTER` в `settings/base.py` и `settings/production.py`
+   **мертва**: Django перестал отдавать этот заголовок в версии 4.0 (в проекте
+   5.2), замер прода это подтверждает. Настройка оставлена как есть, но полагаться
+   на неё нельзя — она вводит в заблуждение. Заголовок устарел и браузерами не
+   применяется; сохраняется потому, что его удаление не входило в требования
+   эпика 41 и отдельно объяснялось бы перед регулятором.
+
+**HSTS.** Значение — ровно `max-age=31536000`, без `includeSubDomains` и без
+`preload`. Причина отказа — необратимость: запись живёт в браузере год и не
+отзывается снятием заголовка, а веб-поддоменов кроме `www` (он защищается
+собственным заголовком при первом HTTPS-визите) у домена нет. Возврат к
+`includeSubDomains` возможен, когда у `mail.optisport.ru` появится валидный
+сертификат и заведётся веб-поддомен, ради которого это имеет смысл.
+`manage.py check --deploy` из-за `SECURE_HSTS_SECONDS = 0` отдаёт W004 — это
+ожидаемо.
 
 ---
 

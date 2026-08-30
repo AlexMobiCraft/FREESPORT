@@ -30,9 +30,17 @@ DATABASES = {
 # Настройки безопасности для продакшена
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_HSTS_SECONDS = 31536000  # 1 год
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+# HSTS: единственный источник — nginx (стори 41.5).
+# Django выставлял `max-age=31536000; includeSubDomains; preload` на /api/ и
+# /admin/, nginx — свой заголовок на всём остальном: два источника с разными
+# значениями на одном домене. Оставлен nginx, потому что он покрывает и
+# статику, и HTML, которых Django не отдаёт. `includeSubDomains` и `preload`
+# сняты сознательно: это запись в браузере на год, которую снятием заголовка
+# не отозвать, а веб-поддоменов кроме www у домена нет.
+# `manage.py check --deploy` будет отдавать W004 — это ожидаемо.
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
 SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
