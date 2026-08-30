@@ -392,6 +392,25 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts/Story"
 #             пользователей в БД нет, записи принадлежат тестовым логинам.
 #             FR-41-05 в эпике переписан (редакция 2).
 
+# 2026-08-30: Создана стори 41.1 (create-story) — Story/41-1-cookie-decline-and-
+#             change-choice.md, статус ready-for-dev. Приоритетный порядок
+#             соблюдён: 41.0 -> 41.5 -> 41.3 -> 41.1. Объём: кнопка отказа в
+#             cookie-баннере (FR-41-01) + возврат к выбору из подвала
+#             (FR-41-02). Разбор выявил три вещи сверх текста эпика:
+#             (а) баннер сидит в корневом app/layout.tsx, а кнопка «изменить
+#             выбор» — в подвалах другого поддерева, поэтому два вызова
+#             useCookieConsent дают несвязанные состояния — нужен общий стор
+#             (выбран useSyncExternalStore; zustand+persist отвергнут по
+#             project-context.md:124 — hydration mismatch); (б) текст баннера
+#             «Продолжая пользоваться сайтом, вы соглашаетесь» несовместим с
+#             кнопкой отказа и переписывается дословно в AC1; (в) подвалов
+#             три, и боевой прод сейчас на coming-soon, у которого Footer нет
+#             — без правки ComingSoonClient FR-41-02 не выполнен там, где
+#             реально ходят посетители. Blast radius LOW по всем символам.
+# 2026-08-30: Замечено расхождение: Story/41-3-*.md несёт Status: done
+#             (коммит 905a3e8f), а здесь ключ 41-3 остался в review.
+#             Не тронуто в рамках create-story — решение за владельцем.
+
 development_status:
   # ========================================
   # Epic 33: Brands Block Implementation
@@ -556,7 +575,11 @@ development_status:
   # Ключевая: гасит 5 замечаний аудита, убирая 14 фантомных адресов из обхода
   # сканера. Ставится первой — меняет исходные данные для всех SEO-требований.
   41-0-real-404-for-nonexistent-urls: done
-  41-1-cookie-decline-and-change-choice: backlog
+  # Кнопка отказа + возврат к выбору из подвала. Ключевое: баннер в корневом
+  # layout, кнопка — в подвалах другого поддерева; общее состояние через
+  # useSyncExternalStore. Подвалов три (blue, electric, coming-soon), и живой
+  # на проде — coming-soon, у которого Footer нет.
+  41-1-cookie-decline-and-change-choice: ready-for-dev
   41-2-consent-record-on-1c-link: backlog
   # Редакция 2: текст чекбокса покрывает и ПДн, и рассылку; бэкенд не трогаем.
   41-3-separate-pdn-and-marketing-consents: review
