@@ -4,7 +4,7 @@ baseline_commit: 13917d4a
 
 # Story 41.3: Честный текст согласия в форме подписки
 
-Status: ready-for-dev
+Status: review
 
 > ♻️ **Редакция 2 (2026-08-30). Первая редакция отменена целиком.** Она делила согласие на два чекбокса и правила бэкенд. Разбор с владельцем показал, что посылка была неверной: **подписка в проекте одна и на всё** — деления на «информационную» и «рекламную» рассылки нет и не планируется. Человек, нажимающий «Подписаться» под заголовком «Подписаться на рассылку», приходит именно за рассылкой; спрашивать его отдельной опциональной галочкой, хочет ли он то, что только что запросил, — бессмыслица.
 > 🔴 **Настоящий дефект — не в бэкенде, а в тексте.** `backend/apps/common/views.py:427-428` пишет две записи `UserConsent` — `pdp_contract` и `marketing_email`. Это **правильно**. Недостоверна не вторая запись, а **формулировка, которой получено согласие**: единственный чекбокс (`SubscribeForm.tsx:167-180`) говорит только про обработку ПДн и ни слова про рассылку. Согласие на рекламную коммуникацию (ФЗ-38 ст. 18) записывается, а текстом не подтверждено.
@@ -86,59 +86,59 @@ so that **записанное в журнале согласие соответ
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1. Ветка и baseline**
-  - [ ] `git switch -c feature/story-41-3-subscribe-consent-text` от `develop` (прямые коммиты в `develop` запрещены)
-  - [ ] `git rev-parse --short HEAD` → сверить с `baseline_commit: 13917d4a`; при расхождении перечитать координаты из Dev Notes
+- [x] **Task 1. Ветка и baseline**
+  - [x] `git switch -c feature/story-41-3-subscribe-consent-text` от `develop` (прямые коммиты в `develop` запрещены)
+  - [x] `git rev-parse --short HEAD` → сверить с `baseline_commit: 13917d4a`; при расхождении перечитать координаты из Dev Notes
 
-- [ ] **Task 2. `SubscribeForm` (тема blue): текст согласия** (AC1, AC6)
-  - [ ] `frontend/src/components/home/SubscribeForm.tsx`, блок `<span>` со строк 167-180. Сейчас метка состоит из двух частей: `<label>` (строка 169) + `<Link>` (178). Добавить **третью** — суффикс после ссылки:
+- [x] **Task 2. `SubscribeForm` (тема blue): текст согласия** (AC1, AC6)
+  - [x] `frontend/src/components/home/SubscribeForm.tsx`, блок `<span>` со строк 167-180. Сейчас метка состоит из двух частей: `<label>` (строка 169) + `<Link>` (178). Добавить **третью** — суффикс после ссылки:
         ```
         Я даю согласие на обработку моих персональных данных в соответствии с   ← существующий label
         «Политикой обработки персональных данных»                               ← существующий Link
         и согласен(на) получать информационные и рекламные рассылки от OPTISPORT ← новый label-суффикс
         по электронной почте
         ```
-  - [ ] Суффикс оформить вторым `<label htmlFor={pdpConsentId}>` с собственным `id` от существующего `consentBaseId` (`React.useId()`), по образцу `ElectricSubscribeForm.tsx:240-242` (`pdpConsentLabelSuffixId`)
-  - [ ] **Обязательно:** дописать новый id в `aria-labelledby` чекбокса (строка 159) — сейчас там две части, станет три. Без этого доступное имя не будет содержать текст про рассылку и AC6 не выполнен
-  - [ ] Заголовок формы (строка 129) и подпись (130-131) не трогать
-  - [ ] Кнопку и правило блокировки не трогать (AC2)
+  - [x] Суффикс оформить вторым `<label htmlFor={pdpConsentId}>` с собственным `id` от существующего `consentBaseId` (`React.useId()`), по образцу `ElectricSubscribeForm.tsx:240-242` (`pdpConsentLabelSuffixId`)
+  - [x] **Обязательно:** дописать новый id в `aria-labelledby` чекбокса (строка 159) — сейчас там две части, станет три. Без этого доступное имя не будет содержать текст про рассылку и AC6 не выполнен
+  - [x] Заголовок формы (строка 129) и подпись (130-131) не трогать
+  - [x] Кнопку и правило блокировки не трогать (AC2)
 
-- [ ] **Task 3. `ElectricSubscribeForm` (тема electric): текст согласия** (AC1, AC6)
-  - [ ] `frontend/src/components/home/ElectricSubscribeForm.tsx`, блок `<span>` со строк 227-243. Метка уже состоит из трёх частей (`label` + `Link` + `label`-суффикс «в соответствии с Политикой») — дописать текст про рассылку в **существующий** суффикс (строка 241) либо добавить четвёртую часть
-  - [ ] Порядок слов темы сохранить: ссылка стоит в середине фразы, регистр — `uppercase` через класс (строка 227), в исходнике текст пишется обычным регистром
-  - [ ] Если добавляется четвёртая часть — её `id` (от существующего `formBaseId`) дописать в `aria-labelledby` чекбокса
-  - [ ] Итоговое доступное имя обязано содержать подстроку «обработку моих персональных данных» — по ней ищут существующие тесты (`ElectricSubscribeForm.test.tsx:26-27`)
+- [x] **Task 3. `ElectricSubscribeForm` (тема electric): текст согласия** (AC1, AC6)
+  - [x] `frontend/src/components/home/ElectricSubscribeForm.tsx`, блок `<span>` со строк 227-243. Метка уже состоит из трёх частей (`label` + `Link` + `label`-суффикс «в соответствии с Политикой») — дописать текст про рассылку в **существующий** суффикс (строка 241) либо добавить четвёртую часть
+  - [x] Порядок слов темы сохранить: ссылка стоит в середине фразы, регистр — `uppercase` через класс (строка 227), в исходнике текст пишется обычным регистром
+  - [x] Если добавляется четвёртая часть — её `id` (от существующего `formBaseId`) дописать в `aria-labelledby` чекбокса
+  - [x] Итоговое доступное имя обязано содержать подстроку «обработку моих персональных данных» — по ней ищут существующие тесты (`ElectricSubscribeForm.test.tsx:26-27`)
 
-- [ ] **Task 4. Удаление формы с `coming-soon`** (AC5, FR-41-04)
-  - [ ] `frontend/src/app/ComingSoonClient.tsx`: удалить блок `{/* Email Subscription Form */}` целиком (строки 124-154) вместе с текстом «Узнайте первым о нашем запуске»
-  - [ ] Удалить `handleSubmit` (строки 14-26) и состояние `email` / `isSubmitting` (строки 11-12)
-  - [ ] Удалить ставшие неиспользуемыми импорты: `useState`, `Mail`, `ArrowRight`, `toast`, `Toaster`, а также сам элемент `<Toaster />` (строка 32)
-  - [ ] Оставить: `ShoppingCart`, `Users`, `TrendingUp`, `motion`, переменную `progress`, подвал с `info@optisport.ru`
-  - [ ] Директиву `'use client'` **сохранить** — компонент продолжает использовать `motion/react`
-  - [ ] Проверить вёрстку карточки после удаления формы (нижний отступ блока прогресса)
-  - [ ] `cd frontend && npx eslint src/app/ComingSoonClient.tsx --max-warnings=0` → зелёный
+- [x] **Task 4. Удаление формы с `coming-soon`** (AC5, FR-41-04)
+  - [x] `frontend/src/app/ComingSoonClient.tsx`: удалить блок `{/* Email Subscription Form */}` целиком (строки 124-154) вместе с текстом «Узнайте первым о нашем запуске»
+  - [x] Удалить `handleSubmit` (строки 14-26) и состояние `email` / `isSubmitting` (строки 11-12)
+  - [x] Удалить ставшие неиспользуемыми импорты: `useState`, `Mail`, `ArrowRight`, `toast`, `Toaster`, а также сам элемент `<Toaster />` (строка 32)
+  - [x] Оставить: `ShoppingCart`, `Users`, `TrendingUp`, `motion`, переменную `progress`, подвал с `info@optisport.ru`
+  - [x] Директиву `'use client'` **сохранить** — компонент продолжает использовать `motion/react`
+  - [x] Проверить вёрстку карточки после удаления формы (нижний отступ блока прогресса)
+  - [x] `cd frontend && npx eslint src/app/ComingSoonClient.tsx --max-warnings=0` → зелёный
 
-- [ ] **Task 5. Frontend-тесты** (AC7, AC6)
-  - [ ] **Сначала** прогнать оба тест-файла форм на неизменённом коде и зафиксировать число зелёных — правка текста не должна ронять ничего, кроме одной константы
-  - [ ] `frontend/src/components/home/__tests__/SubscribeForm.test.tsx:12-15`: привести `PDP_CONSENT_NAME` к новому тексту целиком. `PDP_CONSENT_POLICY_LINK_NAME` (строка 15) не меняется — ссылка та же
-  - [ ] Добавить в оба файла проверку: доступное имя чекбокса содержит `/рассылки от OPTISPORT по электронной почте/i`
-  - [ ] Проверить, что ссылка на политику по-прежнему находится и несёт `target="_blank"`, `rel="noopener noreferrer"` (тест уже есть — убедиться, что он зелёный)
-  - [ ] axe-тест на форму (AC6) — шаблон `frontend/src/components/cart/__tests__/accessibility.test.tsx:13-25`
-  - [ ] Прогон: `cd frontend && npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx`
+- [x] **Task 5. Frontend-тесты** (AC7, AC6)
+  - [x] **Сначала** прогнать оба тест-файла форм на неизменённом коде и зафиксировать число зелёных — правка текста не должна ронять ничего, кроме одной константы
+  - [x] `frontend/src/components/home/__tests__/SubscribeForm.test.tsx:12-15`: привести `PDP_CONSENT_NAME` к новому тексту целиком. `PDP_CONSENT_POLICY_LINK_NAME` (строка 15) не меняется — ссылка та же
+  - [x] Добавить в оба файла проверку: доступное имя чекбокса содержит `/рассылки от OPTISPORT по электронной почте/i`
+  - [x] Проверить, что ссылка на политику по-прежнему находится и несёт `target="_blank"`, `rel="noopener noreferrer"` (тест уже есть — убедиться, что он зелёный)
+  - [x] axe-тест на форму (AC6) — шаблон `frontend/src/components/cart/__tests__/accessibility.test.tsx:13-25`
+  - [x] Прогон: `cd frontend && npm run test -- src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx`
 
-- [ ] **Task 6. Проверка целиком** (AC7)
-  - [ ] Frontend: `npm run test`, `npm run lint`, `npx tsc --noEmit`
-  - [ ] Backend прогонять не обязательно — код бэкенда не менялся; для страховки один прогон `pytest tests/integration/test_common_subscribe_api.py` в тестовом контейнере должен быть зелёным **без единой правки тестов** (это и есть доказательство, что стори бэкенд не задела)
-  - [ ] Ручная проверка: `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`; открыть `/home` — один чекбокс с полным текстом, ссылка на политику кликается; подписаться; убедиться **в БД**, что записаны две `UserConsent` (`pdp_contract` + `marketing_email`) с одинаковой привязкой; открыть `/electric` — тот же текст в стиле темы; открыть `/coming-soon` — формы нет
+- [x] **Task 6. Проверка целиком** (AC7)
+  - [x] Frontend: `npm run test`, `npm run lint`, `npx tsc --noEmit`
+  - [x] Backend прогонять не обязательно — код бэкенда не менялся; для страховки один прогон `pytest tests/integration/test_common_subscribe_api.py` в тестовом контейнере должен быть зелёным **без единой правки тестов** (это и есть доказательство, что стори бэкенд не задела)
+  - [x] Ручная проверка: `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`; открыть `/home` — один чекбокс с полным текстом, ссылка на политику кликается; подписаться; убедиться **в БД**, что записаны две `UserConsent` (`pdp_contract` + `marketing_email`) с одинаковой привязкой; открыть `/electric` — тот же текст в стиле темы; открыть `/coming-soon` — формы нет
 
 - [ ] **Task 7. Разовая чистка тестовых согласий** (решение Alex, 2026-08-30)
   - [ ] Данные в БД тестовые, реальных пользователей нет — накопленные записи `marketing_email` удаляются без церемоний. Выполняется владельцем или по его явной просьбе, **после** мержа
   - [x] Задача `tasks/dev-task-marketing-consent-journal-cleanup.md` закрыта как неактуальная 2026-08-30 (основания — в шапке файла)
 
-- [ ] **Task 8. Перед коммитом**
-  - [ ] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"`
-  - [ ] `File List` сверить с `git diff --name-only 13917d4a..HEAD`, а не с памятью (находка ревью в 41.0 и 41.5 — дважды)
-  - [ ] Коммит и push — только по явной просьбе владельца
+- [x] **Task 8. Перед коммитом**
+  - [x] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"`
+  - [x] `File List` сверить с `git diff --name-only 13917d4a..HEAD`, а не с памятью (находка ревью в 41.0 и 41.5 — дважды)
+  - [x] Коммит и push — только по явной просьбе владельца
 
 ## Dev Notes
 
@@ -253,13 +253,57 @@ toast.success('Спасибо! Мы уведомим вас о запуске.')
 | 2026-08-30 | Добавлен AC13 «единый источник логики подписки» (`useSubscribeForm`) | Решение Alex, 2026-08-30 |
 | 2026-08-30 | В AC4 зафиксировано: подписка гейтится только `pdp_consent` | Решение Alex, 2026-08-30 |
 | 2026-08-30 | **Редакция 2 — стори переписана целиком.** Отменено деление на два чекбокса и вся бэкендовая часть; вместо этого переписывается текст единственного чекбокса, покрывая и ПДн, и рассылку. Отменены: поле `marketing_consent`, правка `views.py`, регенерация контракта API, правка восьми backend-тестов, хук `useSubscribeForm`. Сохранено: удаление формы с `coming-soon`. Снят жёсткий порядок «стори → чистка журнала» | Круглый стол 2026-08-30: подписка в проекте одна и на всё, отдельное маркетинговое согласие в форме подписки лишено смысла; реальных пользователей в БД нет. Три решения подтверждены Alex: один чекбокс с объединённым текстом, формулировка, регистрация не трогается |
+| 2026-08-30 | **Реализация завершена.** Текст чекбокса согласия переписан в обеих формах подписки (blue `SubscribeForm`, electric `ElectricSubscribeForm`) — теперь покрывает и обработку ПДн, и рассылку; в blue добавлена третья часть метки и дописана в `aria-labelledby`. Фиктивная форма подписки удалена с `/coming-soon`. Тесты: `PDP_CONSENT_NAME` приведена к новому тексту, добавлено по два теста в каждый файл (упоминание рассылки в доступном имени + axe). Бэкенд не тронут — 42 backend-теста подписки зелёные без правок | Story 41.3, AC1–AC8 |
 
 ## Dev Agent Record
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
+
 ### Debug Log References
+
+| Проверка | Команда | Результат |
+|---|---|---|
+| Baseline обеих форм до правок | `npx vitest run src/components/home/__tests__/SubscribeForm.test.tsx src/components/home/__tests__/ElectricSubscribeForm.test.tsx` | 29 passed (17 blue + 12 electric) |
+| RED после правки тестов | та же | 18 failed / 15 passed — падают ровно те, что зависят от текста метки |
+| GREEN после правки компонентов | та же | 33 passed (29 baseline + 4 новых) |
+| Полный прогон frontend | `npm run test` | 149 файлов, 2602 passed, 16 skipped — регрессий нет |
+| Типы | `npx tsc --noEmit` | exit 0 |
+| Линт | `npm run lint` (`eslint . --max-warnings=0`) | exit 0 |
+| Линт `coming-soon` | `npx eslint src/app/ComingSoonClient.tsx --max-warnings=0` | exit 0 |
+| Бэкенд (страховка, AC3) | `docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest tests/integration/test_common_subscribe_api.py` | **42 passed** без единой правки тестов |
+| Живая подписка | `POST /api/v1/subscribe/` (`story413check@example.com`) | `200`, обе записи `UserConsent` в БД |
+| Blast radius | `npx gitnexus detect-changes --scope all` | 6 файлов, 5 символов, 0 процессов, **risk: low** |
 
 ### Completion Notes List
 
+**Что сделано**
+
+- **AC1, AC6 — `SubscribeForm` (blue).** Метка чекбокса собиралась из двух частей (`label`-префикс + `Link` на политику). Добавлена третья — `label`-суффикс с новым `pdpConsentLabelSuffixId` от того же `React.useId()`, и **его id дописан в `aria-labelledby`** (без этого доступное имя не содержало бы текст про рассылку). Итоговое доступное имя дословно совпадает со строкой из AC1.
+- **AC1, AC6 — `ElectricSubscribeForm` (electric).** Метка уже состояла из трёх частей; текст про рассылку дописан в **существующий** суффикс (`pdpConsentLabelSuffixId`), поэтому `aria-labelledby` не менялся. Структура темы сохранена: ссылка на `/privacy-policy` остаётся в середине фразы и несёт текст «обработку моих персональных данных» — подстрока, по которой ищут существующие тесты. Итоговое имя: «Я даю согласие на обработку моих персональных данных в соответствии с Политикой и согласен(на) получать информационные и рекламные рассылки от OPTISPORT по электронной почте».
+- **AC5 — `/coming-soon`.** Удалены форма целиком, строка «Узнайте первым о нашем запуске», `handleSubmit`, состояние `email`/`isSubmitting`, импорты `useState`, `Mail`, `ArrowRight`, `toast`, `Toaster` и элемент `<Toaster />`. `'use client'` сохранена (компонент использует `motion/react`). Блок прогресса стал последним в карточке — снят его нижний отступ `mb-8`, чтобы паддинг карточки остался симметричным. `info@optisport.ru` в подвале на месте.
+- **AC7 — тесты.** `PDP_CONSENT_NAME` приведена к новому тексту; `PDP_CONSENT_POLICY_LINK_NAME` не менялась. В **оба** файла добавлены тест на упоминание рассылки в доступном имени (`getByRole('checkbox', { name: /рассылки от OPTISPORT по электронной почте/i })`) и axe-тест по шаблону `cart/__tests__/accessibility.test.tsx`. Остальные тесты обеих форм зелёные без правок.
+- **AC2, AC3, AC4, AC8 — не тронуто.** `views.py`, `serializers.py`, `openapi.yaml`, типы фронта, `subscribeService.ts`, чекбокс регистрации, cookie-баннер, модель `UserConsent` — без изменений. Правило `disabled={isSubmitting || !pdpConsent}` не менялось. Хук `useSubscribeForm` не выносился.
+
+**Проверка на живой БД (AC3, AC4).** Реальная подписка через `POST /api/v1/subscribe/` вернула `200`; в `UserConsent` легли **две** записи — `pdp_contract` и `marketing_email` — с одинаковой привязкой (`session_key=pc8mre…`), `policy_version=1.0`, `ip_address` и `user_agent`. Поведение сервера прежнее.
+
+**Проверка сборки.** Новый текст присутствует в клиентских чанках обеих форм (`.next/static/chunks/src_02b20641._.js` — суффикс blue, `src_f348aca5._.js` — объединённый суффикс electric); строка «Узнайте первым о нашем запуске» из сборки исчезла (0 вхождений).
+
+**Ограничение проверки.** Визуальный осмотр `/home` и `/electric` в браузере выполнить не удалось: расширение Claude in Chrome в этой сессии не подключено, а SSR-HTML этих страниц контент форм не содержит (`BlueHomePage` — клиентский компонент). Текст и доступное имя подтверждены jsdom-тестами (то же дерево доступности, что читает скринридер), присутствием строк в собранных чанках и живой записью в БД. `/coming-soon` отдаётся в SSR и проверен напрямую через `curl`: формы нет, `info@optisport.ru` на месте. **Визуальный осмотр вёрстки двух форм остаётся за владельцем.**
+
+**Task 7 не выполнена намеренно.** По тексту стори разовая чистка тестовых записей `marketing_email` выполняется владельцем или по его явной просьбе и **после мержа**. Проверочная запись `story413check@example.com` из ручной проверки оставлена в БД и попадёт под ту же чистку.
+
 ### File List
+
+| Файл | Изменение |
+|---|---|
+| `frontend/src/components/home/SubscribeForm.tsx` | Изменён — третья часть метки согласия + новый id в `aria-labelledby` |
+| `frontend/src/components/home/ElectricSubscribeForm.tsx` | Изменён — текст про рассылку дописан в существующий суффикс метки |
+| `frontend/src/app/ComingSoonClient.tsx` | Изменён — удалена фиктивная форма подписки, её состояние, обработчик и ставшие лишними импорты |
+| `frontend/src/components/home/__tests__/SubscribeForm.test.tsx` | Изменён — `PDP_CONSENT_NAME` под новый текст, +2 теста (рассылка в доступном имени, axe) |
+| `frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx` | Изменён — +2 теста (рассылка в доступном имени, axe) |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Изменён — статус стори `ready-for-dev` → `in-progress` → `review` |
+| `_bmad-output/implementation-artifacts/Story/41-3-separate-pdn-and-marketing-consents.md` | Изменён — чекбоксы задач, Dev Agent Record, File List, Change Log, Status |
+
+Сверено с `git diff --name-only` (6 файлов кода и артефактов + сам story-файл); список составлен по выводу git, не по памяти.

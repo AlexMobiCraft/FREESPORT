@@ -238,7 +238,8 @@ export const ElectricSubscribeForm: React.FC = () => {
               обработку моих персональных данных
             </Link>{' '}
             <label id={pdpConsentLabelSuffixId} htmlFor={pdpConsentId} className="cursor-pointer">
-              в соответствии с Политикой
+              в соответствии с Политикой и согласен(на) получать информационные и рекламные
+              рассылки от OPTISPORT по электронной почте
             </label>
           </span>
         </div>
