@@ -1,10 +1,10 @@
 ---
-baseline_commit: 905a3e8f
+baseline_commit: 585988cc
 ---
 
 # Story 41.1: Отказ от cookie и изменение выбора
 
-Status: review
+Status: in-progress
 
 > 🟢 **Blast radius LOW** (GitNexus, `--repo C:\Users\1\DEV\FREESPORT`, 2026-08-30). `useCookieConsent` → 1 прямой потребитель (`CookieConsentBanner`), 1 процесс, модуль `Home`. `CookieConsentBanner`, `Footer`, `ElectricFooter`, `ComingSoon` — 0 upstream-потребителей каждый. HIGH/CRITICAL нет.
 > ⚠️ **Индекс GitNexus был `stale` на момент создания стори** — расхождение ровно один коммит `905a3e8f`, меняющий только статус стори 41.3 в markdown. Кода это не касается, координаты ниже проверены чтением файлов.
@@ -338,6 +338,7 @@ export interface UseCookieConsentReturn {
 | 2026-08-30 | **Правка AC5 фактически внесена в текст** (в прошлый раз была только заявлена в Change Log): «до конца сессии» → «до полной перезагрузки страницы»; «повторно не открывается» → «самопроизвольно повторно не открывается, но по кнопке «Настройки cookie» открывается всегда» | Находка код-ревью P1: действующий текст AC противоречил и Change Log, и коду |
 | 2026-08-30 | **Дополнение AC6**: после закрытия баннера, открытого из подвала, фокус возвращается на кнопку «Настройки cookie»; при обычном закрытии не переводится | Находка код-ревью P1: перевод фокуса на баннер без возврата оставлял клавиатурного пользователя на `body` |
 | 2026-08-30 | **Уточнение AC7** по находке P1: «остаётся зелёным без правки» для `CookieConsentBanner.test.tsx:32-42` читается как «без изменения тела теста и его legacy-входа» | Импорт `__resetCookieConsentStoreForTests` и очистка обоих ключей в `beforeEach` обязательны для всех файлов, использующих singleton-стор. Тело теста и legacy-вход не тронуты, тест зелёный |
+| 2026-08-30 | **`baseline_commit` переведён с `905a3e8f` на `585988cc`**; `File List` пересобран по `git diff --name-status 585988cc..HEAD` | Находка повторного код-ревью P2: диапазон от `905a3e8f` включал восемь чужих коммитов (стори 41.3 — `backend/apps/common/models.py`, тесты subscribe-форм), из-за чего diff стори нарушал AC8. `585988cc` — родитель первого коммита реализации `1603e890`; `905a3e8f` остаётся в тексте стори как code-verification point |
 
 ## Dev Agent Record
 
@@ -348,7 +349,7 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 ### Debug Log References
 
 - **Работа закоммичена как `1603e890`** «feat(story-41-1): отказ от cookie и изменение выбора» — 17 файлов. Прежняя запись «коммит не делался» была недостоверна (находка код-ревью P1) и исправлена. В коммит попали также `AGENTS.md` и `CLAUDE.md`: это автогенерируемый блок GitNexus между маркерами `<!-- gitnexus:start -->` (счётчики символов после `npx gitnexus analyze`), к функциональности стори он отношения не имеет, но фактически в коммите стори лежит. Правки раунда код-ревью поверх `1603e890` пока не закоммичены.
-- **База реализации — `585988cc`**, не `905a3e8f`. Frontmatter `baseline_commit: 905a3e8f` сохранён как точка, на которой проверялись координаты кода при создании стори (требование workflow — не перезаписывать существующее значение). Ветка `feature/story-41-1-cookie-decline` создана от `develop` = `585988cc`; `File List` собран по `git status --porcelain`, а не по `git diff 905a3e8f..HEAD` — иначе в него примешались бы коммиты самой стори. Координаты строк из Dev Notes перепроверены чтением файлов: все совпали.
+- **База реализации — `585988cc`**, и именно она теперь стоит во frontmatter `baseline_commit` (правка по находке P2 повторного ревью). Прежнее значение `905a3e8f` было родителем коммита `b23098ec`, которым сама стори добавлена в `develop`, и тянуло в review-диапазон восемь чужих коммитов стори 41.3 (в том числе `backend/apps/common/models.py` и тесты subscribe-форм) — нарушение AC8. Как code-verification point `905a3e8f` остаётся упомянут в тексте Task 1/Task 8 и во вводной сноске — это точка, на которой сверялись координаты кода при создании стори; тело задач и Dev Notes dev-агенту править запрещено, поэтому авторитетный источник диапазона — frontmatter. Ветка `feature/story-41-1-cookie-decline` создана от `develop` = `585988cc`; `File List` собран по `git diff --name-status 585988cc..HEAD` плюс `git status --porcelain`. Координаты строк из Dev Notes перепроверены чтением файлов: все совпали.
 - **Baseline тестов до правок:** 4 затронутых файла — 59 зелёных; полный прогон — 2603 passed / 16 skipped.
 - **После реализации:** 152 файла, **2643 passed / 16 skipped**, падений нет (+40 тестов). `npm run lint` (`--max-warnings=0`) и `npx tsc --noEmit` — чисто.
 - **Шаблон axe в проекте иной, чем указано в стори.** Матчер `toHaveNoViolations` в этом репозитории не зарегистрирован так, как предполагает шаблон: `vitest.setup.ts:20` импортирует `vitest-axe/extend-expect`, а фактический стиль проверки в проекте — `expect(results.violations).toHaveLength(0)` (`components/cart/__tests__/accessibility.test.tsx:148`). Локальный `expect.extend(axeMatchers)` ломает матчер («Invalid Chai property»). Использован проектный стиль.
@@ -365,7 +366,7 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 **Решения по трём P0 из readiness-review** (без них буквальное исполнение Tasks было невозможно):
 
 1. Закрыта находка [P0] **«формальный статус противоречит результату ревью»**: стори и `sprint-status.yaml` переведены в `in-progress` синхронно при старте и в `review` синхронно при завершении. Ни один источник не менялся в одиночку.
-2. Закрыта находка [P0] **«baseline противоречит точке ветвления»**: выбрана схема разделения — `baseline_commit: 905a3e8f` во frontmatter остаётся точкой проверки координат кода, базой реализации служит `585988cc` (текущий `develop`). Обе величины зафиксированы в Debug Log; `File List` собран от рабочего дерева.
+2. Закрыта находка [P0] **«baseline противоречит точке ветвления»** — и доведена до конца повторным ревью: первый заход ограничился пояснением в Debug Log, а frontmatter продолжал указывать на `905a3e8f`, то есть любой собранный по нему diff нарушал AC8. Сейчас `baseline_commit: 585988cc` — родитель коммита `1603e890`; review-диапазон стори — `585988cc..HEAD` (18 файлов, чужих правок нет). `905a3e8f` сохранён в тексте стори как code-verification point.
 3. Закрыта находка [P0] **«публичный API хука не позволяет выполнить контракт фокусировки»**: в `UseCookieConsentReturn` добавлено read-only поле `isForced`. Баннер фокусируется только при `isBannerVisible && isForced` — при первом показе (`status === 'unset'`) фокус не крадётся.
 
 **Закрытые P1/P2:**
@@ -395,19 +396,23 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 15. [P2] Тест «SSR-разметка стабильна» разделён на два: `it.each` по трём сохранённым значениям (со `unmount` перед сбросом стора — прежний вариант снимал слушатель живой подписки) и настоящий серверный рендер через `renderToStaticMarkup` со сравнением с клиентской разметкой.
 16. [P1] Debug Log и File List приведены в соответствие с фактическим коммитом `1603e890`.
 
-**Состояние коммитов.** Реализация закоммичена как `1603e890` в ветке `feature/story-41-1-cookie-decline`. Правки раунда код-ревью лежат рабочим деревом: по Task 8 коммит и push выполняются только по явной просьбе владельца.
+**Закрытая находка повторного код-ревью (2026-08-30, 1 P2):**
+
+17. [P2] `baseline_commit` переведён с `905a3e8f` на `585988cc`. Проверка: `git log --oneline 905a3e8f..585988cc` — восемь чужих коммитов (стори 41.3 и создание самой 41.1), среди затронутых файлов — `backend/apps/common/models.py`, `ElectricSubscribeForm.test.tsx`, `SubscribeForm.test.tsx`, `epic-41-site-audit.md`. После правки `git diff --name-status 585988cc..HEAD` содержит ровно 18 файлов стори 41.1 — AC8 восстановлен. `File List` пересобран по этому диапазону, а не по памяти.
+
+**Состояние коммитов.** Реализация — `1603e890`, первый раунд код-ревью — `84b161ac`, оба в ветке `feature/story-41-1-cookie-decline`. Правки повторного ревью (frontmatter, `File List`, Dev Agent Record, Change Log, `sprint-status.yaml`) лежат рабочим деревом: по Task 8 коммит и push выполняются только по явной просьбе владельца.
 
 ### File List
 
-Собрано по `git show --stat 1603e890` (реализация) и `git status --porcelain` (раунд код-ревью), а не по памяти.
+Собрано по `git diff --name-status 585988cc..HEAD` (весь код стори — коммиты `1603e890` и `84b161ac`) и `git status --porcelain` (незакоммиченное), а не по памяти. `585988cc` — родитель первого коммита реализации и потому корректный implementation baseline; исторический `905a3e8f` для сборки File List непригоден — между ним и точкой ветвления лежат восемь чужих коммитов (стори 41.3).
 
-**Новые (коммит `1603e890`):**
+**Новые (`A`):**
 
 - `frontend/src/components/layout/CookieSettingsButton.tsx`
 - `frontend/src/components/layout/__tests__/CookieSettingsButton.test.tsx`
 - `frontend/src/components/layout/__tests__/ElectricFooter.test.tsx`
 
-**Изменённые (коммит `1603e890`):**
+**Изменённые — код и тесты (`M`):**
 
 - `frontend/src/hooks/useCookieConsent.ts`
 - `frontend/src/hooks/index.ts`
@@ -419,27 +424,22 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 - `frontend/src/components/layout/__tests__/CookieConsentBanner.test.tsx`
 - `frontend/src/components/layout/__tests__/Footer.test.tsx`
 - `frontend/src/app/__tests__/ComingSoonClient.test.tsx`
-- `_bmad-output/implementation-artifacts/Story/41-1-cookie-decline-and-change-choice.md`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `AGENTS.md`, `CLAUDE.md` — **попали в коммит стори**, хотя её изменениями не являются: это автогенерируемый блок GitNexus между маркерами `<!-- gitnexus:start -->` (счётчики символов после переиндексации). Прежняя запись «вне стори» была недостоверна — находка код-ревью
 
-**Изменённые в раунде код-ревью (пока не закоммичено):**
+**Изменённые — артефакты BMAD (`M`):**
 
-- `frontend/src/hooks/useCookieConsent.ts`
-- `frontend/src/components/layout/CookieConsentBanner.tsx`
-- `frontend/src/components/layout/CookieSettingsButton.tsx`
-- `frontend/src/components/layout/ElectricFooter.tsx`
-- `frontend/src/hooks/__tests__/useCookieConsent.test.ts`
-- `frontend/src/components/layout/__tests__/CookieSettingsButton.test.tsx`
-- `frontend/src/components/layout/__tests__/ElectricFooter.test.tsx`
 - `_bmad-output/implementation-artifacts/Story/41-1-cookie-decline-and-change-choice.md`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `AGENTS.md`, `CLAUDE.md` — снова только автогенерируемый блок GitNexus, к стори отношения не имеют
+
+**Изменённые, но содержательно к стори не относящиеся:**
+
+- `AGENTS.md`, `CLAUDE.md` — только автогенерируемый блок GitNexus между маркерами `<!-- gitnexus:start -->` (счётчики символов после переиндексации: 9603→9608 символов, 15800→15808 связей). Попали в коммиты стори; правил для агентов не меняют
+
+**Не закоммичено на момент закрытия стори** (`git status --porcelain`): `AGENTS.md`, `CLAUDE.md`, `_bmad-output/implementation-artifacts/Story/41-1-cookie-decline-and-change-choice.md`, `_bmad-output/implementation-artifacts/sprint-status.yaml`.
 
 **Удалённых нет.**
 
-Не относится к стори и в её коммит не входило: неотслеживаемый `backend/uv.lock`.
+Не относится к стори и в её коммиты не входило: неотслеживаемый `backend/uv.lock`.
 
 ### Review Findings
 
@@ -476,3 +476,13 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 - [x] [Review][Patch][P1] Действующий AC5 не содержит заявленной в Change Log правки и противоречит коду: в нём всё ещё написано «до конца сессии» и «повторно не открывается», тогда как реализация хранит fallback до перезагрузки и разрешает `reopen()` [`41-1-cookie-decline-and-change-choice.md:69-76,334,364`] — **исправлено**: правка, заявленная в Change Log 2026-08-30, наконец внесена в текст AC5
 - [x] [Review][Patch][P2] Тест «SSR-разметка стабильна» вызывает reset при ещё смонтированном consumer, очищает его listener и при этом не выполняет SSR/hydration; тест нужно переписать без повреждения живой подписки и с корректным названием/проверкой [`frontend/src/components/layout/__tests__/CookieSettingsButton.test.tsx:45-58`, `frontend/src/hooks/useCookieConsent.ts:192-197`] — **исправлено**: разделён на два. `it.each` по трём сохранённым значениям размонтирует предыдущего потребителя перед сбросом стора, а новый тест действительно выполняет серверный рендер через `renderToStaticMarkup` и сравнивает его с клиентской разметкой байт в байт
 - [x] [Review][Patch][P1] Dev Agent Record и File List недостоверны относительно фактического коммита `1603e890`: запись утверждает, что коммита нет, а включённые в него `AGENTS.md` и `CLAUDE.md` объявлены файлами вне стори [`41-1-cookie-decline-and-change-choice.md:352,379,381-408`] — **исправлено**: Debug Log и File List переписаны по фактическому составу `git show --stat 1603e890` и `git status --porcelain`
+
+#### Code review 2026-08-30 — повторный запуск
+
+- [x] [Review][Patch][P2] **`baseline_commit` по-прежнему загрязняет review-диапазон чужими стори.** [`41-1-cookie-decline-and-change-choice.md:2`] — `git diff 905a3e8f..HEAD` включает изменения Story 41.3: юридический комментарий `UserConsent` в `backend/apps/common/models.py:590-601` (commit `8962a6b6`) и тесты subscribe-форм (commit `c3e8f145`), что нарушает AC8 и не позволяет считать этот diff исключительно реализацией 41.1. Реализация 41.1 — коммиты `1603e890` и `84b161ac` поверх `585988cc`; нужно зафиксировать корректный implementation/review range и обновить связанные Task 1/Task 8 или явно разделить исторический baseline и implementation baseline. — **исправлено**: во frontmatter `baseline_commit` переведён на `585988cc` — подтверждённый `git rev-parse 1603e890^` родитель первого коммита реализации. `git diff --name-status 585988cc..HEAD` даёт ровно 18 файлов стори 41.1; чужих правок — `backend/apps/common/models.py`, `ElectricSubscribeForm.test.tsx`, `SubscribeForm.test.tsx`, `Story/41-3-*.md`, `epic-41-site-audit.md` — в диапазоне больше нет, AC8 восстановлен. File List пересобран по этому диапазону. Исторический `905a3e8f` остаётся в тексте Task 1/Task 8 и во вводной сноске как code-verification point (координаты кода, сверенные при создании стори): тело задач и Dev Notes — вне зон, разрешённых dev-агенту к правке. Авторитетный источник implementation/review range — frontmatter
+
+#### Code review 2026-08-31
+
+- [ ] [Review][Patch][P2] **Устаревшее `storage`-событие может перезаписать более новый локальный выбор.** [`frontend/src/hooks/useCookieConsent.ts:138-149`] — обработчик безусловно принимает `event.newValue`. Если событие другой вкладки с `accepted` уже поставлено в очередь, а до его доставки пользователь в этой вкладке выбрал `declined`, в `localStorage` остаётся `declined`, но snapshot становится `accepted`. Читать актуальное значение `cookie_consent` из `localStorage` при обработке события и добавить регрессионный тест такой гонки.
+
+- [ ] [Review][Patch][P3] **Повторный `reopen()` пересоздаёт snapshot без изменения состояния.** [`frontend/src/hooks/useCookieConsent.ts:58-60`, `:202-205`] — `setSnapshot()` всегда создаёт объект и уведомляет подписчиков, хотя при уже `isForced === true` значения `status` и `isForced` не меняются. Добавить equality-guard и тест отсутствия лишнего ре-рендера; это сохраняет гарантию AC4 о стабильном snapshot.
