@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-08-31
+# last_updated: 2026-09-03
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-08-30
+last_updated: 2026-09-04
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -482,6 +482,31 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts/Story"
 #             перепроверен — те же 15 файлов. Код и тесты не тронуты
 #             (gitnexus detect-changes — 0 процессов, risk low). Статус
 #             стори in-progress -> review, синхронизирован с story-файлом.
+# 2026-09-03: Раунд ревью 41.1 от 2026-08-31 закрыт (dev-story). Две находки
+#             [Patch] — P2 (устаревшее storage-событие перезаписывало более
+#             новый локальный выбор) и P3 (повторный reopen() пересоздавал
+#             snapshot) — устранены в useCookieConsent.ts: обработчик читает
+#             актуальный localStorage, setSnapshot получил equality-guard.
+#             +4 теста (2657 passed / 16 skipped), lint и tsc чисты. Статус
+#             стори in-progress -> review, синхронизирован с story-файлом.
+# 2026-09-03: Раунд ревью 41.1 от 2026-09-03 закрыт (dev-story). Три находки
+#             P2: cross-tab обработчик не видел legacy-ключ, записанный старым
+#             бандлом во время выката; ряд нижней панели ElectricFooter без
+#             переноса давал overflow на 320 px; backend/uv.lock нарушал AC8 и
+#             удалён из ветки по решению владельца. +5 тестов (2662 passed /
+#             16 skipped), lint и tsc чисты. Живой замер вёрстки на 320 px не
+#             выполнен — Docker-демон не запущен, подтверждение за владельцем.
+#             Статус стори in-progress -> review, синхронизирован с story-файлом.
+# 2026-09-04: Раунд ревью 41.1 от 2026-09-04 закрыт (dev-story). Правок кода не
+#             потребовалось: три находки из четырёх дублировали уже закрытые
+#             (2026-08-31 и 2026-09-03) и оказались неактуальны — ревью шло по
+#             закоммиченному HEAD, а правки лежали рабочим деревом. Четвёртая
+#             (backend/uv.lock в диапазоне стори вопреки AC8) закрыта коммитом:
+#             по решению владельца рабочее дерево закоммичено целиком, включая
+#             удаление uv.lock. Прогон без изменений — 2662 passed / 16 skipped,
+#             lint и tsc чисты; gitnexus detect-changes — risk low, 0 процессов.
+#             Push не выполнялся. Статус стори in-progress -> review,
+#             синхронизирован с story-файлом.
 
 development_status:
   # ========================================
@@ -659,7 +684,7 @@ development_status:
   # layout, кнопка — в подвалах другого поддерева; общее состояние через
   # useSyncExternalStore. Подвалов три (blue, electric, coming-soon), и живой
   # на проде — coming-soon, у которого Footer нет.
-  41-1-cookie-decline-and-change-choice: in-progress
+  41-1-cookie-decline-and-change-choice: review
   41-2-consent-record-on-1c-link: backlog
   # Редакция 2: текст чекбокса покрывает и ПДн, и рассылку; бэкенд не трогаем.
   41-3-separate-pdn-and-marketing-consents: done

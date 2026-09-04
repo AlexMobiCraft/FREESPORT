@@ -52,6 +52,21 @@ describe('ElectricFooter', () => {
     );
   });
 
+  it('ряд ссылок нижней панели переносится по строкам', () => {
+    // Регрессия код-ревью: кнопка стала третьим элементом ряда. Без переноса
+    // на 320 px flex ужимает каждую ссылку до узкого столбца и рвёт подпись
+    // посреди слова (замер в браузере: 30 px высоты против 15 px). JSDOM не
+    // считает раскладку, поэтому проверяется контракт классов контейнера.
+    render(<ElectricFooter />);
+
+    const row = screen.getByRole('button', { name: 'Настройки cookie' })
+      .parentElement as HTMLElement;
+
+    expect(row.className).toContain('flex-wrap');
+    expect(row.className).toContain('justify-center');
+    expect(row.className).not.toMatch(/(?<!-)gap-6/);
+  });
+
   it('нижняя панель с кнопкой не имеет нарушений доступности по axe', async () => {
     render(<ElectricFooter />);
 

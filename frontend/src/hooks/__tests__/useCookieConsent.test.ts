@@ -316,6 +316,10 @@ describe('useCookieConsent', () => {
   });
 
   describe('синхронизация между вкладками', () => {
+    // В браузере событие storage приходит уже ПОСЛЕ того, как запись другой
+    // вкладки стала видна в общем localStorage, а обработчик читает именно
+    // хранилище, а не event.newValue. Поэтому тесты имитируют другую вкладку
+    // явно: сначала меняют localStorage, затем шлют событие.
     it('внешнее accepted закрывает принудительно открытый баннер', async () => {
       window.localStorage.setItem(STORAGE_KEY, 'declined');
       const { result } = renderHook(() => useCookieConsent());
@@ -326,6 +330,7 @@ describe('useCookieConsent', () => {
       });
       expect(result.current.isBannerVisible).toBe(true);
 
+      window.localStorage.setItem(STORAGE_KEY, 'accepted');
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
@@ -346,6 +351,7 @@ describe('useCookieConsent', () => {
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
       expect(result.current.isBannerVisible).toBe(true);
 
+      window.localStorage.setItem(STORAGE_KEY, 'declined');
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
@@ -365,6 +371,7 @@ describe('useCookieConsent', () => {
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
+      window.localStorage.removeItem(STORAGE_KEY);
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
@@ -460,6 +467,7 @@ describe('useCookieConsent', () => {
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
       expect(result.current.status).toBe('accepted');
 
+      window.localStorage.clear();
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
@@ -500,6 +508,10 @@ describe('useCookieConsent', () => {
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
+      // Запись другой вкладки — не запись обработчика: после неё счётчик обнуляется.
+      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      setItem.mockClear();
+
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
@@ -512,6 +524,206 @@ describe('useCookieConsent', () => {
 
       expect(result.current.status).toBe('declined');
       expect(setItem).not.toHaveBeenCalled();
+      setItem.mockRestore();
+    });
+
+    it('устаревшее событие не перезаписывает более новый локальный выбор', async () => {
+      // Гонка: событие другой вкладки с accepted уже поставлено в очередь, но до
+      // его доставки пользователь в этой вкладке нажал «Отклонить». Источник
+      // истины — текущее содержимое localStorage, а не event.newValue.
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      act(() => {
+        result.current.decline();
+      });
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: STORAGE_KEY,
+            newValue: 'accepted',
+            storageArea: window.localStorage,
+          })
+        );
+      });
+
+      expect(result.current.status).toBe('declined');
+      expect(result.current.isBannerVisible).toBe(false);
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+    });
+
+    it('при сбое чтения во время события используется event.newValue и логируется ошибка чтения', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      // Spy снимается явно: vi.restoreAllMocks() в afterEach его не восстанавливает,
+      // и сломанный getItem утёк бы в следующие тесты.
+      const getItem = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('storage is unavailable');
+      });
+
+      try {
+        act(() => {
+          window.dispatchEvent(
+            new StorageEvent('storage', {
+              key: STORAGE_KEY,
+              newValue: 'accepted',
+              storageArea: window.localStorage,
+            })
+          );
+        });
+      } finally {
+        getItem.mockRestore();
+      }
+
+      expect(result.current.status).toBe('accepted');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'useCookieConsent: чтение localStorage не удалось',
+        expect.any(Error)
+      );
+    });
+
+    it('legacy-ключ, записанный старой вкладкой во время выката, читается как accepted', async () => {
+      // Во время выката вкладка со старым бандлом пишет cookie_consent_accepted='1'.
+      // Открытая вкладка с новым бандлом обязана принять это согласие, а не
+      // держать баннер до перезагрузки.
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+      expect(result.current.isBannerVisible).toBe(true);
+
+      window.localStorage.setItem(LEGACY_STORAGE_KEY, LEGACY_ACCEPTED_VALUE);
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: LEGACY_STORAGE_KEY,
+            newValue: LEGACY_ACCEPTED_VALUE,
+            storageArea: window.localStorage,
+          })
+        );
+      });
+
+      expect(result.current.status).toBe('accepted');
+      expect(result.current.isBannerVisible).toBe(false);
+      // Та же безопасная миграция, что и при чтении хранилища.
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('accepted');
+      expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+    });
+
+    it('legacy-событие не перебивает валидное значение нового ключа', async () => {
+      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      window.localStorage.setItem(LEGACY_STORAGE_KEY, LEGACY_ACCEPTED_VALUE);
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: LEGACY_STORAGE_KEY,
+            newValue: LEGACY_ACCEPTED_VALUE,
+            storageArea: window.localStorage,
+          })
+        );
+      });
+
+      expect(result.current.status).toBe('declined');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+    });
+
+    it('legacy-событие со значением, отличным от 1, статус не меняет', async () => {
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      window.localStorage.setItem(LEGACY_STORAGE_KEY, '0');
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: LEGACY_STORAGE_KEY,
+            newValue: '0',
+            storageArea: window.localStorage,
+          })
+        );
+      });
+
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it('при сбое чтения legacy-событие принимается по event.newValue', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      const getItem = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('storage is unavailable');
+      });
+
+      try {
+        act(() => {
+          window.dispatchEvent(
+            new StorageEvent('storage', {
+              key: LEGACY_STORAGE_KEY,
+              newValue: LEGACY_ACCEPTED_VALUE,
+              storageArea: window.localStorage,
+            })
+          );
+        });
+      } finally {
+        getItem.mockRestore();
+      }
+
+      expect(result.current.status).toBe('accepted');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'useCookieConsent: чтение localStorage не удалось',
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('стабильность снимка (AC4)', () => {
+    it('повторный reopen не пересоздаёт снимок и не вызывает ре-рендер', async () => {
+      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      let renderCount = 0;
+      const { result } = renderHook(() => {
+        renderCount += 1;
+        return useCookieConsent();
+      });
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      act(() => {
+        result.current.reopen();
+      });
+      expect(result.current.isForced).toBe(true);
+      const rendersAfterFirstReopen = renderCount;
+
+      act(() => {
+        result.current.reopen();
+      });
+
+      expect(renderCount).toBe(rendersAfterFirstReopen);
+      expect(result.current.isForced).toBe(true);
+      expect(result.current.isBannerVisible).toBe(true);
+    });
+
+    it('повторный accept с тем же статусом не вызывает ре-рендер', async () => {
+      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      let renderCount = 0;
+      const { result } = renderHook(() => {
+        renderCount += 1;
+        return useCookieConsent();
+      });
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      const rendersBefore = renderCount;
+      act(() => {
+        result.current.accept();
+      });
+
+      expect(renderCount).toBe(rendersBefore);
+      expect(result.current.status).toBe('accepted');
     });
   });
 });

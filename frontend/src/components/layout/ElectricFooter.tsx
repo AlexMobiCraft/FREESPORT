@@ -133,7 +133,15 @@ const ElectricFooter: React.FC = () => {
           <p className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)]">
             © 2026 OPTISPORT. Все права защищены.
           </p>
-          <div className="flex gap-6">
+          {/*
+            Перенос: с тремя элементами ряд на 320 px ужимал каждую ссылку до
+            ширины столбца и рвал подписи посреди слова (замер: высота ссылки
+            30 px против 15 px, то есть две строки внутри одной подписи).
+            flex-wrap раскладывает элементы по строкам целиком. Горизонтального
+            overflow ряд не давал и до правки — контейнер сжимался, — так что
+            это читаемость, а не поломка раскладки.
+          */}
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             <Link
               href="/privacy-policy"
               className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"

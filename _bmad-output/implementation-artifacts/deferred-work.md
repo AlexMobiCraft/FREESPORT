@@ -903,3 +903,8 @@
 ## Deferred from: code review of 41-3-separate-pdn-and-marketing-consents (2026-08-30)
 
 - **Обязательность чекбокса согласия не объявлена assistive technologies через `required`/`aria-required`.** В обеих формах кнопка отправки блокируется до установки согласия, но checkbox передаёт только `aria-invalid`, `aria-labelledby` и условный `aria-describedby`; скринридер не получает семантику обязательного поля. Проблема существовала до baseline `13917d4a` и текущей сменой текста не внесена. Исправлять отдельно и синхронно в обеих формах с тестом доступного состояния. [`frontend/src/components/home/SubscribeForm.tsx:151-161`, `frontend/src/components/home/ElectricSubscribeForm.tsx:195-207`]
+
+## Deferred from: code review of 41-1-cookie-decline-and-change-choice (2026-09-03)
+
+- **Страница `/electric` даёт горизонтальный overflow на узких экранах.** На viewport 320 px `document.documentElement.scrollWidth` = 390 при `clientWidth` = 320; на 375 px — те же 390. Виновники по замеру в браузере: `H1` героя «Оптовые поставки спортивных товаров» (ширина 322 px, `left` = −1) и карточки блока новостей (`right` до 378 px). Подвал и добавленная стори 41.1 кнопка «Настройки cookie» к overflow отношения не имеют — ряд нижней панели укладывается в ширину контейнера и до, и после правки.
+  evidence: Вскрыто при проверке находки код-ревью 41.1 об overflow нижней панели. Сама находка замером опровергнута (ряд: `scrollWidth` = `clientWidth` в обеих версиях), но замер обнажил настоящий overflow страницы. Дефект предсуществует стори 41.1 и по AC8 в ней не чинится. Тема electric живой на проде сейчас не является (`ACTIVE_THEME=coming_soon`), поэтому срочности нет; брать ли в объём — решает владелец.

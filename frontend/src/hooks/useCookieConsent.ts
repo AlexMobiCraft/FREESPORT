@@ -54,9 +54,19 @@ let forcedTrigger: HTMLElement | null = null;
 /**
  * Снимок пересоздаётся ТОЛЬКО здесь. getSnapshot обязан возвращать стабильную
  * ссылку, иначе useSyncExternalStore уходит в бесконечный ре-рендер.
+ *
+ * Если ни одно поле не меняется, снимок остаётся прежним и подписчики не
+ * уведомляются: повторный `reopen()` при уже открытом баннере или событие
+ * `storage` без фактического изменения не должны давать лишний ре-рендер (AC4).
  */
 function setSnapshot(next: Partial<CookieConsentSnapshot>): void {
-  snapshot = { ...snapshot, ...next };
+  const status = next.status ?? snapshot.status;
+  const isForced = next.isForced ?? snapshot.isForced;
+  if (status === snapshot.status && isForced === snapshot.isForced) {
+    return;
+  }
+
+  snapshot = { status, isForced };
   listeners.forEach(listener => listener());
 }
 
@@ -83,42 +93,61 @@ function persist(status: 'accepted' | 'declined'): void {
   }
 }
 
+interface StorageReadResult {
+  status: CookieConsentStatus;
+  /** Согласие распознано по legacy-ключу и требует переноса в новый формат. */
+  needsMigration: boolean;
+}
+
 /**
- * Читает состояние из хранилища при первой подписке.
+ * Читает актуальное состояние хранилища.
  *
  * Приоритет: валидное значение нового ключа → legacy-ключ `'1'` → «выбор не
- * сделан». Legacy-значение мигрирует в новый формат; старый ключ удаляется
- * только после успешной записи нового, а сбой этой записи не сбрасывает уже
- * распознанное согласие и логируется как ошибка ЗАПИСИ, а не чтения.
+ * сделан». При сбое чтения возвращает `null` и пишет в лог — решение о
+ * запасном источнике принимает вызывающая сторона.
  */
+function readStorage(): StorageReadResult | null {
+  try {
+    const status = parseStatus(window.localStorage.getItem(STORAGE_KEY));
+    if (status !== 'unset') {
+      return { status, needsMigration: false };
+    }
+
+    const legacyValue = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    return legacyValue === LEGACY_ACCEPTED_VALUE
+      ? { status: 'accepted', needsMigration: true }
+      : { status: 'unset', needsMigration: false };
+  } catch (error) {
+    console.error('useCookieConsent: чтение localStorage не удалось', error);
+    return null;
+  }
+}
+
+/**
+ * Применяет прочитанное состояние к снимку и, если согласие распознано по
+ * legacy-ключу, переносит его в новый формат.
+ *
+ * Старый ключ удаляется только после успешной записи нового, а сбой этой
+ * записи не сбрасывает уже распознанное согласие и логируется как ошибка
+ * ЗАПИСИ, а не чтения (см. `persist`).
+ */
+function applyReadResult(result: StorageReadResult): void {
+  setSnapshot({ status: result.status, isForced: false });
+  if (result.needsMigration) {
+    // Посетитель, принявший cookie до этой стори, баннер повторно не увидит.
+    persist('accepted');
+  }
+}
+
+/** Читает состояние из хранилища при первой подписке. */
 function readFromStorage(): void {
   if (typeof window === 'undefined') {
     setSnapshot({ status: 'unset' });
     return;
   }
 
-  let status: CookieConsentStatus;
-  let legacyValue: string | null = null;
-
-  try {
-    status = parseStatus(window.localStorage.getItem(STORAGE_KEY));
-    if (status === 'unset') {
-      legacyValue = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-    }
-  } catch (error) {
-    console.error('useCookieConsent: чтение localStorage не удалось', error);
-    setSnapshot({ status: 'unset' });
-    return;
-  }
-
-  if (status === 'unset' && legacyValue === LEGACY_ACCEPTED_VALUE) {
-    // Посетитель, принявший cookie до этой стори, баннер повторно не увидит.
-    setSnapshot({ status: 'accepted' });
-    persist('accepted');
-    return;
-  }
-
-  setSnapshot({ status });
+  const result = readStorage();
+  applyReadResult(result ?? { status: 'unset', needsMigration: false });
 }
 
 /**
@@ -129,6 +158,14 @@ function readFromStorage(): void {
  * `key === null` — это `localStorage.clear()` в другой вкладке; без его
  * обработки здесь остался бы устаревший статус и баннер больше не показался
  * бы. Обратно в хранилище обработчик ничего не пишет.
+ *
+ * Событие может устареть: пока оно ждало доставки, пользователь мог сделать
+ * выбор в этой вкладке. Поэтому источник истины — текущее содержимое
+ * хранилища, а `event.newValue` — лишь запасной вариант на случай сбоя чтения.
+ *
+ * Legacy-ключ обрабатывается наравне с новым: во время выката вкладка со
+ * старым бандлом пишет `cookie_consent_accepted='1'`, и без этого открытая
+ * вкладка с новым бандлом держала бы баннер до перезагрузки.
  */
 function handleStorageEvent(event: StorageEvent): void {
   if (typeof window === 'undefined' || event.storageArea !== window.localStorage) {
@@ -136,17 +173,32 @@ function handleStorageEvent(event: StorageEvent): void {
   }
 
   const isFullClear = event.key === null;
-  if (!isFullClear && event.key !== STORAGE_KEY) {
+  if (!isFullClear && event.key !== STORAGE_KEY && event.key !== LEGACY_STORAGE_KEY) {
     return;
   }
 
-  const nextStatus = isFullClear ? 'unset' : parseStatus(event.newValue);
-  // Событие без фактического изменения не должно создавать новый снимок.
-  if (nextStatus === snapshot.status && !snapshot.isForced) {
-    return;
+  // Событие без фактического изменения новый снимок не создаёт — это
+  // гарантирует equality-guard в setSnapshot.
+  applyReadResult(readStorage() ?? fallbackFromEvent(event));
+}
+
+/**
+ * Запасной источник статуса, когда чтение хранилища во время события упало.
+ * Миграцию в этом случае не запускаем: писать в неработающее хранилище нечего.
+ */
+function fallbackFromEvent(event: StorageEvent): StorageReadResult {
+  if (event.key === LEGACY_STORAGE_KEY) {
+    return {
+      status: event.newValue === LEGACY_ACCEPTED_VALUE ? 'accepted' : 'unset',
+      needsMigration: false,
+    };
   }
 
-  setSnapshot({ status: nextStatus, isForced: false });
+  // key === null — это localStorage.clear() в другой вкладке.
+  return {
+    status: event.key === null ? 'unset' : parseStatus(event.newValue),
+    needsMigration: false,
+  };
 }
 
 /**
