@@ -4,7 +4,7 @@ baseline_commit: 585988cc
 
 # Story 41.1: Отказ от cookie и изменение выбора
 
-Status: review
+Status: done
 
 > 🟢 **Blast radius LOW** (GitNexus, `--repo C:\Users\1\DEV\FREESPORT`, 2026-08-30). `useCookieConsent` → 1 прямой потребитель (`CookieConsentBanner`), 1 процесс, модуль `Home`. `CookieConsentBanner`, `Footer`, `ElectricFooter`, `ComingSoon` — 0 upstream-потребителей каждый. HIGH/CRITICAL нет.
 > ⚠️ **Индекс GitNexus был `stale` на момент создания стори** — расхождение ровно один коммит `905a3e8f`, меняющий только статус стори 41.3 в markdown. Кода это не касается, координаты ниже проверены чтением файлов.
