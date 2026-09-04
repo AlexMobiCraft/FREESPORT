@@ -8,11 +8,20 @@
  * - External links security (rel="noopener noreferrer")
  */
 
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import { axe } from 'vitest-axe';
 import { Footer, type FooterColumn, type SocialLink } from '../Footer';
+import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
 
 describe('Footer', () => {
+  // Подвал содержит CookieSettingsButton, а его стор — модульный синглтон.
+  beforeEach(() => {
+    __resetCookieConsentStoreForTests();
+    window.localStorage.removeItem('cookie_consent');
+    window.localStorage.removeItem('cookie_consent_accepted');
+  });
+
   describe('Rendering - Basic Structure', () => {
     it('renders footer with contentinfo role for accessibility', () => {
       render(<Footer />);
@@ -440,6 +449,31 @@ describe('Footer', () => {
   describe('Component Metadata', () => {
     it('has displayName set for debugging', () => {
       expect(Footer.displayName).toBe('Footer');
+    });
+  });
+
+  describe('Cookie Settings (Story 41.1 - AC3)', () => {
+    it('renders «Настройки cookie» button in the bottom bar', () => {
+      render(<Footer />);
+
+      const button = screen.getByRole('button', { name: 'Настройки cookie' });
+
+      expect(button).toBeInTheDocument();
+      expect(button).toHaveAttribute('type', 'button');
+    });
+
+    it('cookie settings button does not add a new column heading', () => {
+      render(<Footer />);
+
+      const footer = screen.getByRole('contentinfo');
+      expect(footer.querySelectorAll('h3').length).toBe(5);
+    });
+
+    it('footer with cookie settings button has no axe violations', async () => {
+      const { container } = render(<Footer />);
+
+      const results = await axe(container);
+      expect(results.violations).toHaveLength(0);
     });
   });
 });

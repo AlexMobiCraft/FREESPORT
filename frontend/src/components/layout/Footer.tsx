@@ -4,6 +4,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import CookieSettingsButton from './CookieSettingsButton';
 
 export interface FooterColumn {
   title: string;
@@ -184,8 +185,11 @@ export const Footer: React.FC<FooterProps> = ({
             ))}
           </div>
 
-          {/* Copyright */}
-          <p className="text-xs text-neutral-500">{copyright}</p>
+          {/* Copyright и настройки cookie */}
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
+            <p className="text-xs text-neutral-500">{copyright}</p>
+            <CookieSettingsButton className="text-xs text-neutral-500 hover:text-white transition-colors underline-offset-2 hover:underline" />
+          </div>
         </div>
       </div>
     </footer>
