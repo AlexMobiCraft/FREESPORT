@@ -5,11 +5,13 @@ import time
 from unittest.mock import patch
 
 import pytest
+from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.common.models import UserConsent
 from apps.users.models import User
+from apps.users.serializers import UserRegistrationSerializer
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
@@ -491,3 +493,187 @@ def test_consent_records_have_default_policy_version():
     assert response.status_code == status.HTTP_201_CREATED
     user = User.objects.get(email=response.data["user"]["email"])
     assert set(UserConsent.objects.filter(user=user).values_list("policy_version", flat=True)) == {"1.0"}
+
+
+# ---------------------------------------------------------------------------
+# Story 41.2 — ветка привязки к записи 1С
+#
+# Ветка недостижима через HTTP с коммита ffee94d5 (2026-07-26): `validate()`
+# больше не ищет `_matched_1c_customer`, поэтому никакой payload флаги
+# `_pending_admin_review` / `_pending_link_confirmation` не выставит. Дефект
+# латентный, и достать его можно только патчем `create()` — продовый код ради
+# тестируемости не правится.
+# ---------------------------------------------------------------------------
+
+
+def _pending_create(flag_name: str):
+    """
+    Обёртка над настоящим `create()`: помечает результат флагом привязки к 1С.
+
+    Транзакция, форма ответа и helper'ы IP/UA при этом исполняются боевые —
+    подменяется только признак, по которому view раньше пропускал запись
+    согласия.
+    """
+    original_create = UserRegistrationSerializer.create
+
+    def create_with_pending(self, validated_data):
+        user = original_create(self, validated_data)
+        setattr(user, flag_name, True)
+        return user
+
+    return patch.object(UserRegistrationSerializer, "create", create_with_pending)
+
+
+def _historic_link_create(customer: User):
+    """
+    Эмулирует `create()` до ffee94d5: возврат найденной записи 1С вместо нового `User`.
+
+    Тело `create()` подменяется целиком, поэтому присваивание `_marketing_consent`,
+    оставленное только в текущем теле, эта обёртка обойдёт. Ровно это и требуется
+    проверить: флаг обязан жить на пути `_link_matched_1c_customer`, иначе
+    вернувший привязку потеряет отметку рассылки молча.
+    """
+
+    def create_via_link(self, validated_data):
+        validated_data.pop("password_confirm", None)
+        password = validated_data.pop("password")
+        return self._link_matched_1c_customer(customer, validated_data["email"], password)
+
+    return patch.object(UserRegistrationSerializer, "create", create_via_link)
+
+
+def make_1c_customer(**overrides) -> User:
+    """Импортированная из 1С запись без портального аккаунта — источник привязки."""
+    fields = {
+        "email": unique_email("consent_1c_record"),
+        "password": None,
+        "first_name": "Контрагент",
+        "last_name": "ИзОдинС",
+        "role": User.ROLE_UNREGISTERED,
+        "verification_status": "unverified",
+        "created_in_1c": True,
+        "company_name": "Импортированное ООО",
+    }
+    fields.update(overrides)
+    return User.objects.create_user(**fields)
+
+
+PENDING_LINK_MESSAGE = "Если данные совпадают с записью в 1С, дальнейшие инструкции отправлены на указанный email."
+
+
+@pytest.mark.parametrize("flag_name", ["_pending_admin_review", "_pending_link_confirmation"])
+def test_pending_1c_link_registration_creates_pdp_consent(flag_name):
+    """AC1 + AC2: согласие пишется в ветке привязки, ответ и PII не меняются."""
+    client = APIClient()
+    payload = trainer_payload(marketing_consent=False)
+
+    with _pending_create(flag_name):
+        response = post_register(
+            client,
+            payload,
+            REMOTE_ADDR="1.2.3.4",
+            HTTP_USER_AGENT="ConsentTestAgent/1.0",
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    # AC2: ни access, ни refresh, ни объект user — PII записи 1С не раскрывается.
+    assert set(response.data) == {"message"}
+    assert response.data["message"] == PENDING_LINK_MESSAGE
+
+    # Email берётся из payload: в ответе ветки привязки его нет.
+    user = User.objects.get(email=payload["email"])
+    consents = UserConsent.objects.filter(user=user)
+    assert consents.count() == 1
+    consent = consents.get()
+    assert consent.consent_type == "pdp_contract"
+    assert consent.ip_address == "1.2.3.4"
+    assert consent.user_agent == "ConsentTestAgent/1.0"
+    # AC1: policy_version в этой стори осмысленно не заполняется (объём 41.9).
+    assert consent.policy_version == "1.0"
+
+
+def test_pending_1c_link_registration_without_marketing_creates_single_consent():
+    """AC3 негативный: без отметки рассылки — ровно одна запись."""
+    client = APIClient()
+    payload = trainer_payload(marketing_consent=False)
+
+    with _pending_create("_pending_admin_review"):
+        response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=payload["email"])
+    assert list(UserConsent.objects.filter(user=user).values_list("consent_type", flat=True)) == ["pdp_contract"]
+
+
+def test_historic_1c_link_path_keeps_marketing_consent():
+    """
+    AC3 позитивный: отметка рассылки переживает возврат мёртвой ветки.
+
+    Проверка идёт через `_historic_link_create`, а не через `_pending_create`:
+    только она проходит по пути `_link_matched_1c_customer` и различает
+    реализации Task 3.
+    """
+    client = APIClient()
+    customer = make_1c_customer()
+    payload = trainer_payload(marketing_consent=True)
+
+    with (
+        _historic_link_create(customer),
+        patch("apps.users.serializers.send_portal_link_confirmation_email.delay"),
+    ):
+        response = post_register(
+            client,
+            payload,
+            REMOTE_ADDR="1.2.3.4",
+            HTTP_USER_AGENT="ConsentTestAgent/1.0",
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert set(response.data) == {"message"}
+
+    # Согласие крепится к объекту, который вернул serializer.save(), — то есть
+    # к найденной записи 1С, а не к новому пользователю: его тут не создают.
+    assert not User.objects.filter(email=payload["email"]).exists()
+    consents = list(UserConsent.objects.filter(user=customer).order_by("consent_type"))
+    assert {consent.consent_type for consent in consents} == {"pdp_contract", "marketing_email"}
+    assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
+    assert {consent.user_agent for consent in consents} == {"ConsentTestAgent/1.0"}
+
+
+def test_historic_1c_link_path_without_marketing_creates_single_consent():
+    """AC3 негативный на историческом пути: лишней записи рассылки не появляется."""
+    client = APIClient()
+    customer = make_1c_customer()
+    payload = trainer_payload(marketing_consent=False)
+
+    with (
+        _historic_link_create(customer),
+        patch("apps.users.serializers.send_portal_link_confirmation_email.delay"),
+    ):
+        response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert list(UserConsent.objects.filter(user=customer).values_list("consent_type", flat=True)) == ["pdp_contract"]
+
+
+def test_consent_failure_rolls_back_pending_1c_link_registration():
+    """
+    AC5: сбой записи согласия откатывает регистрацию целиком.
+
+    Постановка писем в очередь не проверяется намеренно: `.delay` вызывается
+    внутри `create()`, Celery живёт вне транзакции, и при откате задачи уже
+    поставлены. Это известное свойство кода, а не дефект стори.
+    """
+    client = APIClient()
+    payload = trainer_payload()
+
+    with _pending_create("_pending_admin_review"):
+        with patch(
+            "apps.users.views.authentication.UserConsent.objects.create",
+            side_effect=DatabaseError("consent insert failed"),
+        ):
+            with pytest.raises(DatabaseError):
+                post_register(client, payload)
+
+    assert not User.objects.filter(email=payload["email"]).exists()
+    assert not UserConsent.objects.filter(user__email=payload["email"]).exists()

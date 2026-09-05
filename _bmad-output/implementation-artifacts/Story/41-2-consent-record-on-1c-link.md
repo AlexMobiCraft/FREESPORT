@@ -4,7 +4,7 @@ baseline_commit: 8c8f69c5
 
 # Story 41.2: Фиксация согласия при привязке к записи 1С
 
-Status: ready-for-dev
+Status: done
 
 > 🟢 **Blast radius LOW** (GitNexus CLI, `--repo C:\Users\1\DEV\FREESPORT`, индекс `up-to-date` на `8c8f69c`, 2026-09-05). `UserRegistrationView` — 0 upstream-потребителей, 0 затронутых процессов. `UserRegistrationSerializer._link_matched_1c_customer` — 0 upstream-потребителей (вызовов нет вообще). HIGH/CRITICAL нет.
 > 🔴 **Главное, что нужно знать до первой строки кода: ветка, которую чинит эта стори, сегодня недостижима.** Guard `if not pending_1c_link:` (`authentication.py:139`) на `8c8f69c5` **никогда не срабатывает**: флаги `_pending_admin_review` / `_pending_link_confirmation` выставляет только `UserRegistrationSerializer._link_matched_1c_customer`, а он не вызывается ни из одного места (`create()` перестал его вызывать в коммите `ffee94d5` от 2026-07-26, «отключить автопривязку регистрации к записи 1С по ИНН»). Маршрут `PortalLinkConfirmView` тоже снят (`urls.py:55-65`, закомментирован). Значит **прямо сейчас согласие пишется при любой регистрации**, и наблюдаемого бага нет.
@@ -90,35 +90,35 @@ so that **по каждому человеку, чью форму мы прин�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Зафиксировать точку отсчёта** (AC: 4)
-  - [ ] Ветка `feature/story-41-2-consent-on-1c-link` от `develop`
-  - [ ] Прогнать до правок: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest tests/integration/test_auth_registration_consent.py tests/integration/test_portal_registration_1c_link.py tests/unit/test_serializers/test_user_serializers.py` — записать число passed в Debug Log
-- [ ] **Task 2 — Снять guard с записи согласия** (AC: 1, 2)
-  - [ ] `backend/apps/users/views/authentication.py:129-156`: вынести создание `UserConsent` из-под `if not pending_1c_link:` — согласие пишется всегда, когда `serializer.save()` отработал
-  - [ ] Переменную `pending_1c_link` **сохранить**: она по-прежнему управляет формой ответа (строка 158)
-  - [ ] Переписать комментарий на строках 132-134: нынешний текст утверждает «не создаём consent-запись … это не новая регистрация, а привязка» — это и есть исправляемая ошибка. Новый комментарий (на русском, NFR-41-03) должен объяснять: форму заполнил человек, галочку он поставил, ПДн уже обрабатываются — согласие фиксируется независимо от того, чем регистрация закончилась; `pending_1c_link` влияет только на ответ
-  - [ ] Убедиться, что запись осталась **внутри** `with transaction.atomic()` (AC5)
-- [ ] **Task 3 — Не терять отметку рассылки в ветке привязки** (AC: 3)
-  - [ ] `backend/apps/users/serializers.py:239-274`: выставить `_marketing_consent` на возвращаемом объекте и на пути `_link_matched_1c_customer`, а не только на новом `user` (строка 273)
-  - [ ] **Способ выбирает дев.** Требование одно и оно проверяемое: флаг должен пережить возврат мёртвой ветки **без дополнительных действий со стороны того, кто её вернёт**. Сегодня в `create()` ровно одна точка выхода (строка 274), и присваивание на строке 273 её покрывает — то есть правка «на месте» ничего не гарантирует на будущее: вернувший привязку добавит второй `return` и снова потеряет флаг
-  - [ ] Приёмка этого требования — тест `_historic_link_create` из Task 4: он подменяет `create()` историческим вариантом и проходит по пути `_link_matched_1c_customer`. Зелёный тест означает, что флаг живёт **на пути привязки**, а не только в текущем теле `create()`. Где именно его поставить, чтобы тест прошёл, — решение дева
-  - [ ] Комментарием (на русском) зафиксировать: флаг читается во view (`authentication.py:150`) и без него отмеченное согласие на рассылку теряется молча
-- [ ] **Task 4 — Тесты ветки привязки** (AC: 1, 2, 3, 5, 6)
-  - [ ] В `backend/tests/integration/test_auth_registration_consent.py` добавить helper, воспроизводящий ветку патчем `UserRegistrationSerializer.create` (рецепт — Dev Notes)
-  - [ ] Тест AC1+AC2: `_pending_admin_review` → одна запись `pdp_contract` у вернувшегося `User`, `ip_address`/`user_agent` заполнены, ответ = ровно `{"message": ...}` без `access`/`refresh`/`user`
-  - [ ] Тест того же для `_pending_link_confirmation` (вторая ветка флага)
-  - [ ] Тест AC3 негативный: без `marketing_consent` — ровно одна запись
-  - [ ] Тест AC3 позитивный: с `marketing_consent: true` — две записи, оба типа. **Обязательно через `_historic_link_create`**, а не через `_pending_create`: только он проходит по пути `_link_matched_1c_customer` и различает реализации Task 3
-  - [ ] Тест AC5: патч `UserConsent.objects.create` на `DatabaseError` → проверить откат (объект `User` не сохранён / состояние не изменено); **не** проверять отсутствие `.delay`
-- [ ] **Task 5 — Регрессия и качество** (AC: 4, 6)
-  - [ ] Прогнать целиком: `make test-integration`, затем `make test-unit`; сверить с числами Task 1
-  - [ ] Отдельно убедиться в зелёности `tests/unit/test_serializers/test_user_serializers.py` и `tests/regression/test_epic_28_intact.py` — Task 3 правит `create()`, который они покрывают
-  - [ ] `black` + `flake8` через навык `backend-lint` (или Docker) — CI гоняет их с нулевым допуском
-  - [ ] Убедиться, что `docs/api/openapi.yaml` и `frontend/src/types/api.ts` **не** изменились (`git status`)
-- [ ] **Task 6 — Сдача** (AC: 7)
-  - [ ] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — убедиться, что затронуты только `UserRegistrationView.post`, `UserRegistrationSerializer.create` и тестовый файл
-  - [ ] `File List` собрать по `git diff --name-only develop...HEAD`, **не** по памяти (трижды был неполон в 41.0, 41.3, 41.5)
-  - [ ] Записать в Completion Notes, что дефект был латентным и как именно тесты достают ветку
+- [x] **Task 1 — Зафиксировать точку отсчёта** (AC: 4)
+  - [x] Ветка `feature/story-41-2-consent-on-1c-link` от `develop`
+  - [x] Прогнать до правок: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest tests/integration/test_auth_registration_consent.py tests/integration/test_portal_registration_1c_link.py tests/unit/test_serializers/test_user_serializers.py` — записать число passed в Debug Log
+- [x] **Task 2 — Снять guard с записи согласия** (AC: 1, 2)
+  - [x] `backend/apps/users/views/authentication.py:129-156`: вынести создание `UserConsent` из-под `if not pending_1c_link:` — согласие пишется всегда, когда `serializer.save()` отработал
+  - [x] Переменную `pending_1c_link` **сохранить**: она по-прежнему управляет формой ответа (строка 158)
+  - [x] Переписать комментарий на строках 132-134: нынешний текст утверждает «не создаём consent-запись … это не новая регистрация, а привязка» — это и есть исправляемая ошибка. Новый комментарий (на русском, NFR-41-03) должен объяснять: форму заполнил человек, галочку он поставил, ПДн уже обрабатываются — согласие фиксируется независимо от того, чем регистрация закончилась; `pending_1c_link` влияет только на ответ
+  - [x] Убедиться, что запись осталась **внутри** `with transaction.atomic()` (AC5)
+- [x] **Task 3 — Не терять отметку рассылки в ветке привязки** (AC: 3)
+  - [x] `backend/apps/users/serializers.py:239-274`: выставить `_marketing_consent` на возвращаемом объекте и на пути `_link_matched_1c_customer`, а не только на новом `user` (строка 273)
+  - [x] **Способ выбирает дев.** Требование одно и оно проверяемое: флаг должен пережить возврат мёртвой ветки **без дополнительных действий со стороны того, кто её вернёт**. Сегодня в `create()` ровно одна точка выхода (строка 274), и присваивание на строке 273 её покрывает — то есть правка «на месте» ничего не гарантирует на будущее: вернувший привязку добавит второй `return` и снова потеряет флаг
+  - [x] Приёмка этого требования — тест `_historic_link_create` из Task 4: он подменяет `create()` историческим вариантом и проходит по пути `_link_matched_1c_customer`. Зелёный тест означает, что флаг живёт **на пути привязки**, а не только в текущем теле `create()`. Где именно его поставить, чтобы тест прошёл, — решение дева
+  - [x] Комментарием (на русском) зафиксировать: флаг читается во view (`authentication.py:150`) и без него отмеченное согласие на рассылку теряется молча
+- [x] **Task 4 — Тесты ветки привязки** (AC: 1, 2, 3, 5, 6)
+  - [x] В `backend/tests/integration/test_auth_registration_consent.py` добавить helper, воспроизводящий ветку патчем `UserRegistrationSerializer.create` (рецепт — Dev Notes)
+  - [x] Тест AC1+AC2: `_pending_admin_review` → одна запись `pdp_contract` у вернувшегося `User`, `ip_address`/`user_agent` заполнены, ответ = ровно `{"message": ...}` без `access`/`refresh`/`user`
+  - [x] Тест того же для `_pending_link_confirmation` (вторая ветка флага)
+  - [x] Тест AC3 негативный: без `marketing_consent` — ровно одна запись
+  - [x] Тест AC3 позитивный: с `marketing_consent: true` — две записи, оба типа. **Обязательно через `_historic_link_create`**, а не через `_pending_create`: только он проходит по пути `_link_matched_1c_customer` и различает реализации Task 3
+  - [x] Тест AC5: патч `UserConsent.objects.create` на `DatabaseError` → проверить откат (объект `User` не сохранён / состояние не изменено); **не** проверять отсутствие `.delay`
+- [x] **Task 5 — Регрессия и качество** (AC: 4, 6)
+  - [x] Прогнать целиком: `make test-integration`, затем `make test-unit`; сверить с числами Task 1
+  - [x] Отдельно убедиться в зелёности `tests/unit/test_serializers/test_user_serializers.py` и `tests/regression/test_epic_28_intact.py` — Task 3 правит `create()`, который они покрывают
+  - [x] `black` + `flake8` через навык `backend-lint` (или Docker) — CI гоняет их с нулевым допуском
+  - [x] Убедиться, что `docs/api/openapi.yaml` и `frontend/src/types/api.ts` **не** изменились (`git status`)
+- [x] **Task 6 — Сдача** (AC: 7)
+  - [x] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — убедиться, что затронуты только `UserRegistrationView.post`, `UserRegistrationSerializer.create` и тестовый файл
+  - [x] `File List` собрать по `git diff --name-only develop...HEAD`, **не** по памяти (трижды был неполон в 41.0, 41.3, 41.5)
+  - [x] Записать в Completion Notes, что дефект был латентным и как именно тесты достают ветку
   - [ ] Коммит и push — **только** по явной просьбе владельца
 
 ## Dev Notes
@@ -310,13 +310,86 @@ def _historic_link_create(customer):
 | Дата | Версия | Изменение | Автор |
 |---|---|---|---|
 | 2026-09-05 | 1.0 | Стори создана. Ключевое отличие от текста эпика: дефект признан латентным — ветка привязки недостижима с `ffee94d5` (2026-07-26). Добавлены AC3 (потеря `_marketing_consent`) и AC6 (рецепт тестирования мёртвой ветки) сверх скелета эпика. | Alex / create-story |
+| 2026-09-05 | 1.1 | Реализация. Guard `if not pending_1c_link:` снят во `UserRegistrationView.post`; `_marketing_consent` продублирован в `_link_matched_1c_customer`; добавлено 6 integration-тестов ветки привязки. AC не менялись. | Amelia / dev-story |
 
 ## Dev Agent Record
 
+### Результат независимого ревью — 2026-09-05
+
+- Область: `8c8f69c5` → рабочее дерево на HEAD `1cce1cc`; три файла кода/тестов, +219/−14 строк. Изменения счётчиков GitNexus в `AGENTS.md` и `CLAUDE.md` не относятся к реализации.
+- Все три слоя (Blind Hunter, Edge Case Hunter, Acceptance Auditor) завершены. После триажа: 0 обязательных исправлений, 0 новых отложенных замечаний. AC1–AC7 соблюдены в заданных границах; автопривязка остаётся отключённой. Вопрос атрибуции согласия до подтверждения привязки уже описан в Dev Notes и не является новой находкой.
+- Независимый прогон через `docker-compose.test.yml`, PostgreSQL: `pytest tests/integration/test_auth_registration_consent.py tests/integration/test_portal_registration_1c_link.py tests/unit/test_serializers/test_user_serializers.py tests/regression/test_epic_28_intact.py --no-cov -q` — **106 passed, 6 warnings, 141.10s, exit 0**. Предупреждения — Django deprecation в модели корзины и DRF URL converter. Полные unit/integration-наборы в этом ревью повторно не запускались.
+- GitNexus: `status` — up-to-date; `detect-changes --scope all --repo C:\Users\1\DEV\FREESPORT` — LOW, 0 процессов. Impact view и `_link_matched_1c_customer` — LOW, 0 upstream. Для `create` запрос по точному UID вернул `partial: true` с ошибкой read-only pool adapter; его граф не считается полным доказательством, вывод подтверждён чтением кода и тестами.
+- Статус Story и соответствующий ключ sprint tracker переведены из `review` в `done`. Код не изменялся; коммит и push не выполнялись.
+
 ### Agent Model Used
+
+Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 
 ### Debug Log References
 
+**Точка отсчёта (Task 1, до правок), `docker-compose.test.yml`:**
+
+```
+pytest tests/integration/test_auth_registration_consent.py        tests/integration/test_portal_registration_1c_link.py        tests/unit/test_serializers/test_user_serializers.py
+→ 95 passed (129.95s)
+```
+
+**RED-фаза (новые тесты до правок кода):** 6 failed, 32 deselected — ветка привязки записи согласия не создавала, что и требовалось показать.
+
+**GREEN-фаза:** `tests/integration/test_auth_registration_consent.py` → 38 passed (32 прежних + 6 новых).
+
+**Контрольный эксперимент по Task 3.** Чтобы доказать, что тест `test_historic_1c_link_path_keeps_marketing_consent` действительно различает реализации, строка `customer._marketing_consent = ...` была временно удалена из `_link_matched_1c_customer` и прогон повторён:
+
+```
+FAILED test_historic_1c_link_path_keeps_marketing_consent
+AssertionError: assert {'pdp_contract'} == {'marketing_email', 'pdp_contract'}
+```
+
+После возврата строки — зелёный. Требование Task 3 («флаг переживает возврат мёртвой ветки без дополнительных действий») подтверждено, а не заявлено.
+
+**Регрессия (Task 5):**
+
+| Прогон | Результат |
+|---|---|
+| `pytest -m "integration and not slow"` | **1008 passed, 33 skipped**, 2305 deselected (23:20) |
+| `pytest -m "unit and not slow"` | **2228 passed, 42 skipped**, 1076 deselected (05:54) |
+| `test_user_serializers.py` + `test_epic_28_intact.py` + `test_portal_registration_1c_link.py` | **68 passed** (01:09) |
+| `black --check` + `flake8` по трём изменённым файлам | чисто |
+
+**GitNexus (Task 6):** индекс `up-to-date` на `1cce1cc`. `impact --direction upstream` для `UserRegistrationView.post`, `UserRegistrationSerializer.create` и `_link_matched_1c_customer` — во всех трёх `impactedCount: 0`, `risk: LOW`, 0 затронутых процессов. `detect-changes --scope all` → risk low, 0 affected processes; затронутые символы ровно ожидаемые: `UserRegistrationView.post` (+ локальные `pending_1c_link`, `ip_address`), `UserRegistrationSerializer.create`, `_link_matched_1c_customer`.
+
 ### Completion Notes List
 
+**Дефект был латентным, и это главное, что нужно знать при ревью.** Ветка привязки к записи 1С недостижима через HTTP с коммита `ffee94d5` (2026-07-26): `validate()` больше не ищет `_matched_1c_customer`, `_link_matched_1c_customer` не вызывается ниоткуда, маршрут `PortalLinkConfirmView` закомментирован. Поэтому наблюдаемого бага на проде нет и не было — согласие сегодня пишется при любой регистрации. Починен путь, который станет боевым в тот день, когда привязку вернут (решение 2026-07-26 это прямо допускает).
+
+**Как тесты достают мёртвую ветку.** Продовый код ради тестируемости не правился. Использованы две обёртки над `UserRegistrationSerializer.create`:
+
+- `_pending_create(flag_name)` — вызывает **настоящий** `create()` и помечает результат флагом `_pending_admin_review` / `_pending_link_confirmation`. Транзакция, форма ответа и helper'ы IP/UA исполняются боевые. Покрывает AC1, AC2, AC5 и негативный AC3.
+- `_historic_link_create(customer)` — воспроизводит `create()` **до** `ffee94d5`: возврат найденной записи 1С через `_link_matched_1c_customer`, минуя хвост `create()`. Только эта обёртка различает реализации Task 3, поэтому позитивный AC3 проверяется именно ею.
+
+Форма запроса в `_historic_link_create` идёт по подветке `_pending_link_confirmation`: `validate()` отклоняет регистрацию на email, уже занятый записью 1С, поэтому email формы обязан отличаться от email контрагента. Побочно это дало покрытие второй подветке флага.
+
+**Реализация Task 3.** Флаг выставляется в начале `_link_matched_1c_customer`, значение читается из `self.validated_data` — DRF передаёт в `create()` копию словаря (`save()` делает `{**self.validated_data, **kwargs}`), и вызывающий может её уже опустошить, что исторический `create()` и делал. Присваивание в конце `create()` **оставлено**: обычная регистрация продолжает работать через него, у двух путей две разные точки возврата.
+
+**AC5 — что именно проверяется.** Патч `apps.users.views.authentication.UserConsent.objects.create` на `DatabaseError`; тест утверждает, что после отката пользователя в БД нет. Отсутствие постановки писем в очередь **не** проверяется намеренно: `.delay` вызывается внутри `create()`, Celery живёт вне транзакции, задачи уже поставлены — это известное свойство кода, зафиксированное в AC5, а не дефект.
+
+**Границы (AC7) соблюдены.** Мёртвый код не удалён, автопривязка не включена, модель `UserConsent`, `CONSENT_TYPE_CHOICES`, миграции и `policy_version` не тронуты, `PortalLinkConfirmView` согласие не пишет, фронтенд не менялся. `docs/api/openapi.yaml` и `frontend/src/types/api.ts` отсутствуют в `git status` — контракт эндпоинта прежний, регенерация типов не требуется. Записи задним числом для 4606 импортированных контрагентов не создавались.
+
+**Не сделано осознанно.** Подзадача Task 6 «Коммит и push» оставлена неотмеченной: по тексту стори это делается только по явной просьбе владельца, а её не было. Изменения лежат в рабочем дереве ветки `feature/story-41-2-consent-on-1c-link`.
+
+**Про `AGENTS.md` / `CLAUDE.md` в `git status`.** Они были изменены до начала работы (`npx gitnexus analyze` обновил счётчики символов: 9606 → 9616). К стори отношения не имеют и в File List не включены.
+
 ### File List
+
+Собрано по `git status --porcelain` (не по памяти).
+
+**Изменены:**
+
+- `backend/apps/users/views/authentication.py` — снят guard `if not pending_1c_link:` вокруг записи `UserConsent`; комментарий переписан; `pending_1c_link` сохранена и управляет только формой ответа
+- `backend/apps/users/serializers.py` — `_marketing_consent` выставляется в `_link_matched_1c_customer`; комментарий у присваивания в `create()`
+- `backend/tests/integration/test_auth_registration_consent.py` — helper'ы `_pending_create`, `_historic_link_create`, `make_1c_customer` и 5 тест-функций (одна параметризована по двум флагам → 6 тест-кейсов)
+- `_bmad-output/implementation-artifacts/Story/41-2-consent-record-on-1c-link.md` — этот файл
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус стори
+
+**Создано / удалено:** нет. Миграций, зависимостей и правок API-контракта стори не вводит.
