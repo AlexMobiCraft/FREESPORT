@@ -716,7 +716,7 @@ development_status:
   #             править и подсказку, и текст ошибки. FR-41-16 на baseline уже
   #             выполнен — закрепляется тестами, разметка не переписывается.
   #             Blast radius LOW по всем трём затрагиваемым компонентам.
-  41-4-checkout-trade-info-and-policy-link: in-progress
+  41-4-checkout-trade-info-and-policy-link: review
   # Дефект FR-41-22: add_header внутри location в nginx затирает унаследованный
   # набор — /media/ идёт без nosniff. Путь эксплуатации ограничен (уточнено
   # 2026-08-25): публичной загрузки файлов нет, все девять полей админские,

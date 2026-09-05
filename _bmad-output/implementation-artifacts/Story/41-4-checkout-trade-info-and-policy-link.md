@@ -1,6 +1,6 @@
 ---
 baseline_commit: 87b00945
-review_head:
+review_head: 99358186
 # Канонический changeset стори. Область приёмки =
 #   git log --oneline 87b00945..review_head  МИНУС excluded_commits.
 # review_head устанавливается один раз по завершении содержательной работы и
@@ -10,7 +10,7 @@ excluded_commits: []
 
 # Story 41.4: Торговая информация и ссылка на политику при оплате
 
-Status: in-progress
+Status: review
 
 > 🔴 **AC эпика про `/oferta` устарел — ссылаться нужно на `/partners#returns`.** Текст `### Story 41.4` в эпике говорит «ссылка на условия возврата (`/oferta`)», но уточнение к FR-41-15 от 2026-08-30 (прод-верификация стори 41.5) это опровергло: **в тексте оферты слов «возврат» и «обмен» нет ни одного**, там только претензионный порядок (п. 8, срок ответа 10 дней). Фактические условия возврата живут в `frontend/src/app/(blue)/partners/page.tsx:154-175`, раздел «Рекламации и возвраты». Ссылка на `/oferta` формально закрыла бы AC и **не** закрыла бы требование ЗоЗПП. Решение владельца 2026-09-05: **`/partners#returns`**, якорь заводится этой же стори.
 > 🔴 **Якоря `id` на `/partners` нет ни одного** (`grep -n "id=" partners/page.tsx` пуст). Без `id="returns"` на секции `#returns` молча деградирует в переход на верх длинной страницы условий сотрудничества. Добавление якоря — часть стори, а не опция.
@@ -216,9 +216,9 @@ so that **я принимал решение об оплате, располаг
 
 Проверка 2026-09-05: диапазон `87b00945..d0772737`, AC1–AC9; три независимых прохода с последующей проверкой находок основным агентом. Статусы Story и tracker пока не изменены, исправления реализации не применялись.
 
-- [ ] [Review][Patch][P2] Сохранить заполненную форму при чтении условий возврата через одноразовый in-memory `checkoutDraft` — владелец выбрал этот вариант 2026-09-05. Текущее рабочее дерево уже реализует сохранение перед переходом в текущей вкладке и восстановление после Back; решение требуется закрепить тестами и включить в changeset. [frontend/src/components/common/ReturnsAndSupportNotice.tsx:40; frontend/src/components/checkout/CheckoutForm.tsx:73-115,305-319; frontend/src/utils/checkout/checkoutDraft.ts:1-35]
-- [ ] [Review][Patch][P3] Согласовать метаданные changeset — `review_head` пуст при отмеченной выполненной Task 11; утверждение «коммитов нет» устарело после `d0772737`. Закрепить проверяемую границу после завершения текущей доработки, актуализировать пояснение и включить в File List изменения счётчиков GitNexus в `AGENTS.md` и `CLAUDE.md`, `CheckoutForm.tsx` и новый `checkoutDraft.ts`. [_bmad-output/implementation-artifacts/Story/41-4-checkout-trade-info-and-policy-link.md:3,209-213,339-366]
-- [ ] [Review][Patch][P2] Добавить регрессионные тесты механизма черновика — текущие 51 целевых тестов проходят, но ни один не кликает `/partners#returns`, не проверяет восстановление всех полей/выбранного адреса/флага сохранения и очистку при смене пользователя или успешном заказе. Поломка `readCheckoutDraft`/`saveCheckoutDraft` останется незамеченной, поэтому исправление исходного P2 пока не защищено. [frontend/src/components/checkout/CheckoutForm.tsx:73-115,305-319; frontend/src/utils/checkout/checkoutDraft.ts:15-35]
+- [x] [Review][Patch][P2] Сохранить заполненную форму при чтении условий возврата через одноразовый in-memory `checkoutDraft` — владелец выбрал этот вариант 2026-09-05. Текущее рабочее дерево уже реализует сохранение перед переходом в текущей вкладке и восстановление после Back; решение требуется закрепить тестами и включить в changeset. [frontend/src/components/common/ReturnsAndSupportNotice.tsx:40; frontend/src/components/checkout/CheckoutForm.tsx:73-115,305-319; frontend/src/utils/checkout/checkoutDraft.ts:1-35]
+- [x] [Review][Patch][P3] Согласовать метаданные changeset — `review_head` пуст при отмеченной выполненной Task 11; утверждение «коммитов нет» устарело после `d0772737`. Закрепить проверяемую границу после завершения текущей доработки, актуализировать пояснение и включить в File List изменения счётчиков GitNexus в `AGENTS.md` и `CLAUDE.md`, `CheckoutForm.tsx` и новый `checkoutDraft.ts`. [_bmad-output/implementation-artifacts/Story/41-4-checkout-trade-info-and-policy-link.md:3,209-213,339-366]
+- [x] [Review][Patch][P2] Добавить регрессионные тесты механизма черновика — текущие 51 целевых тестов проходят, но ни один не кликает `/partners#returns`, не проверяет восстановление всех полей/выбранного адреса/флага сохранения и очистку при смене пользователя или успешном заказе. Поломка `readCheckoutDraft`/`saveCheckoutDraft` останется незамеченной, поэтому исправление исходного P2 пока не защищено. [frontend/src/components/checkout/CheckoutForm.tsx:73-115,305-319; frontend/src/utils/checkout/checkoutDraft.ts:15-35]
 - [x] [Review][Defer][P2] Холодный вход `/partners#returns` не прокручивает к условиям — существующая проблема, уже описанная в deferred-work; новый browser-check подтвердил `scrollY=0`, координату секции `y=1186`. При клике внутри приложения секция находится на `y=96`, `scrollY=1090`. AC2 подтверждён только для перехода внутри приложения, не для холодного входа. Исправление не применялось. [frontend/src/providers/AuthProvider.tsx; _bmad-output/implementation-artifacts/deferred-work.md, раздел стори 41.4]
 
 Проверки текущего review: целевой Vitest — **19 файлов, 380 passed, 4 skipped**, exit 0; ESLint изменённых production-файлов — exit 0; `npx tsc --noEmit --incremental false` — exit 0. В тестах есть предупреждения React `act(...)`; полный frontend suite в этом review не запускался. GitNexus: `detect-changes --scope compare --base-ref 87b00945` — 21 файл, 14 символов, 2 процесса, MEDIUM; impact `OrderSummary`, `ContactSection`, `CartSummary`, `PartnersPage` — LOW. Ограничение независимости Blind Hunter: при первом чтении общего diff ему также попал текст Story; дальнейший анализ выполнен по коду, находка независимо воспроизведена основным агентом.
@@ -310,6 +310,17 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 - Итоговый полный прогон: `npm run test` → **154 файла, 2683 passed, 16 skipped**. `npm run lint` — чисто, `npm run format:check` — чисто, `npx tsc --noEmit` — без ошибок.
 - Ручная проверка (Task 10) выполнена не глазами, а браузером: браузерные MCP-инструменты в сессии недоступны, поэтому проверка проведена **временным Playwright-спеком** `tests/e2e/tmp-story-41-4-check.spec.ts` (7 сценариев на AC1-AC8, все зелёные) со скриншотами `/cart`, `/checkout` и `/partners#returns`. Спек и скриншоты после прогона удалены — в объём стори E2E-тесты не входят, файл был инструментом проверки.
 - `npx gitnexus detect-changes --scope all` → 18 файлов, 6 символов, risk **medium**, ни одного HIGH/CRITICAL. Затронутые символы ровно ожидаемые: `PartnersPage`, `ContactSection`, `OrderSummary`, `OrderSummaryProps`, `DEFAULT_COLUMNS`, `checkoutSchema`. Процессы: `CheckoutPage`, `PartnersPage`.
+**Доработка по итогам ревью (2026-09-05, второй проход)**
+
+- Целевой прогон до правок: `npm run test -- --run src/components/checkout src/components/cart src/components/common src/components/layout/__tests__/Footer.test.tsx` → **20 файлов, 392 passed, 4 skipped**. После добавления тестов черновика (с `src/utils/checkout`) → **22 файла, 412 passed, 4 skipped**.
+- Полный прогон фронтенда: `npm run test` → **156 файлов, 2703 passed, 16 skipped**, exit 0. `npm run lint` — exit 0, `npx tsc --noEmit` — exit 0, `npm run format:check` — чисто (после `prettier --write` двух файлов из `52d5392c`, которые в коммит попали неотформатированными).
+- **Мутационная проверка новых тестов** — каждая поломка механизма ловится, тесты не декоративные:
+  - `readCheckoutDraft` игнорирует `userId` + `saveCheckoutDraft` не копирует `values` → 3 падения в `checkoutDraft.test.ts`;
+  - ранний `return` в `onClickCapture` (черновик не пишется) → 6 падений в `CheckoutForm.draft.test.tsx`;
+  - убран `...initialDraft?.values` из `defaultValues` (черновик не восстанавливается) → 4 падения;
+  - убран `clearCheckoutDraft()` в `onSubmit` (не чистится после заказа) → 1 падение;
+  - убран `clearCheckoutDraft()` в `useEffect` монтирования (черновик перестал быть одноразовым) → 1 падение.
+- `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` → 4 файла, 4 символа, risk **medium**, HIGH/CRITICAL нет. Затронутые символы: `CheckoutFormFields`, `link` (обработчик `onClickCapture`) и счётчики GitNexus в `AGENTS.md`/`CLAUDE.md`. Процессы: `CheckoutPage → ReadCheckoutDraft / SaveCheckoutDraft / ClearCheckoutDraft / SplitFullName`.
 - Локальный контейнер frontend **не подхватывает правки через HMR** (bind-mount `../frontend:/app` на Windows не пробрасывает inotify): изменение `scroll-mt-24` стало видно только после `docker compose restart frontend`. После рестарта фронтенда nginx отдаёт 502 на новый IP — лечится `docker compose restart nginx` (см. память `project_prod_nginx_upstream_dns`).
 
 ### Completion Notes List
@@ -322,6 +333,18 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 - Три плейсхолдера-нарушителя убраны (AC4), регулярка `/^\+7\d{10}$/` не тронута.
 - Подвал ведёт на `/partners#returns` (AC7), тест приведён к новому адресу, записи в `deferred-work.md` помечены закрытыми.
 - Тесты: новый `ReturnsAndSupportNotice.test.tsx` (5), новый `OrderSummary.test.tsx` (9, закрывает AC3/AC5/AC6/AC1), блок в `CartSummary.test.tsx` (4, включая проверку **отсутствия** ссылки на политику в корзине), axe и проверка доступных имён в `cart/__tests__/accessibility.test.tsx` (3).
+
+**Закрытие находок ревью (2026-09-05)**
+
+✅ **[P2] Черновик формы при переходе к условиям возврата.** Механизм (`utils/checkout/checkoutDraft.ts` + `onClickCapture` на форме + `initialDraft` в `defaultValues`) реализован коммитом `52d5392c` и теперь **закреплён тестами**, а не только рабочим деревом. Почему именно так: ссылка «Условия возврата и рекламаций» уходит в той же вкладке, и без черновика Back стирал бы всё введённое. Хранилище — модульная переменная, не `localStorage` и не `sessionStorage`: ПДн покупателя не должны переживать вкладку. Черновик одноразовый (стирается в `useEffect` монтирования) и привязан к `userId`, а подписка на `authStore` стирает его при входе/выходе — черновик одного пользователя не может попасть в форму другого.
+
+✅ **[P2] Регрессионные тесты механизма.** 20 новых тестов в двух файлах:
+- `src/utils/checkout/__tests__/checkoutDraft.test.ts` (10) — чтение/запись/очистка, изоляция по `userId` (включая случай анонима), копирование `values` при сохранении, очистка при смене пользователя и при выходе, отсутствие ложной очистки при изменении постороннего поля стора.
+- `src/components/checkout/__tests__/CheckoutForm.draft.test.tsx` (10) — клик именно по `/partners#returns` внутри формы, сохранение незавершённого ввода, восстановление всех девяти полей, восстановление выбранного адреса (`aria-checked`) и флага «Запомнить этот адрес в профиле», одноразовость (третий заход даёт чистую форму), приоритет восстановленного ввода над автозаполнением default-адреса, отсутствие записи при Ctrl-клике и клике средней кнопкой, отсутствие записи при клике по ссылке на политику ПДн, изоляция черновика анонима от авторизованного пользователя, очистка после успешного заказа.
+
+Все 20 проверены мутациями (см. Debug Log): каждая поломка механизма роняет тесты.
+
+✅ **[P3] Метаданные changeset.** `review_head` установлен, File List приведён к `git diff --name-only`, утверждение «коммитов нет» заменено фактическим составом коммитов. Заодно `prettier --write` привёл `CheckoutForm.tsx` и `checkoutDraft.ts` к стилю проекта — в `52d5392c` они попали неотформатированными, `format:check` на них падал.
 
 **Отклонения от текста задач — сознательные, с обоснованием**
 
@@ -337,7 +360,7 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 
 Бэкенд не тронут, `npm run generate:types` не запускался, чекбокс согласия не добавлен, `PasswordResetRequestForm.tsx` и четыре места хардкода контактов не мигрированы (вынесено в `deferred-work.md`), `ElectricFooter.tsx` не тронут, маршрут `/returns` не заводился, логика сумм и гидратации не менялась.
 
-**`review_head` не установлен:** коммитов нет — по правилу проекта коммит и push делаются только по явной просьбе владельца. Поле следует заполнить коммитом, завершающим содержательную работу, после того как Alex разрешит коммит.
+**`review_head` установлен.** Содержательная работа стори — три коммита: `d0772737` (торговая информация и ссылка на политику), `52d5392c` (черновик формы при переходе к условиям возврата) и коммит доработки по ревью, на который и указывает `review_head`. Документационная правка метаданных идёт отдельным коммитом **после** `review_head` и границу приёмки не сдвигает — по правилу из шапки файла. Коммиты и push сделаны по явному разрешению Alex 2026-09-05.
 
 ### File List
 
@@ -347,6 +370,9 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 - `frontend/src/components/common/ReturnsAndSupportNotice.tsx`
 - `frontend/src/components/common/__tests__/ReturnsAndSupportNotice.test.tsx`
 - `frontend/src/components/checkout/__tests__/OrderSummary.test.tsx`
+- `frontend/src/utils/checkout/checkoutDraft.ts`
+- `frontend/src/utils/checkout/__tests__/checkoutDraft.test.ts`
+- `frontend/src/components/checkout/__tests__/CheckoutForm.draft.test.tsx`
 - `_bmad-output/implementation-artifacts/Story/41-4-checkout-trade-info-and-policy-link.md` (сам файл стори)
 
 **Изменённые файлы**
@@ -355,6 +381,7 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 - `frontend/src/components/cart/CartSummary.tsx`
 - `frontend/src/components/checkout/OrderSummary.tsx`
 - `frontend/src/components/checkout/ContactSection.tsx`
+- `frontend/src/components/checkout/CheckoutForm.tsx`
 - `frontend/src/components/layout/Footer.tsx`
 - `frontend/src/components/common/index.ts`
 - `frontend/src/schemas/checkoutSchema.ts`
@@ -363,11 +390,15 @@ Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`.
 - `frontend/src/components/checkout/__tests__/CheckoutForm.test.tsx`
 - `frontend/src/components/checkout/__tests__/ContactSection.test.tsx`
 - `frontend/src/components/layout/__tests__/Footer.test.tsx`
+- `AGENTS.md`, `CLAUDE.md` — счётчики символов GitNexus, перезаписанные `npx gitnexus analyze` при проверке blast radius (9623 → 9632 символов, 15837 → 15860 связей)
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+Список сверен с `git diff --name-only 87b00945..HEAD` плюс некоммитнутое из `git status --short`, а не с памятью.
 
 ## Change Log
 
 | Дата | Изменение |
 |---|---|
+| 2026-09-05 | Закрыты находки ревью — 3 пункта (2×P2, 1×P3): механизм черновика формы заказа закреплён 20 регрессионными тестами (`checkoutDraft.test.ts`, `CheckoutForm.draft.test.tsx`), каждый проверен мутацией; `review_head` установлен на `99358186`, File List сверен с `git diff --name-only`. Полный прогон фронтенда зелёный (156 файлов, 2703 passed). Статус: in-progress → review. |
 | 2026-09-05 | Реализованы AC1-AC9 стори 41.4: общий блок условий возврата и поддержки в корзине и оформлении заказа, якорь `#returns` на `/partners`, ссылка на политику ПДн в сводке заказа, русскоязычные плейсхолдеры, починка мёртвой ссылки подвала. Добавлен 21 тест, полный прогон фронтенда зелёный (2683 passed). Статус: ready-for-dev → review. |
