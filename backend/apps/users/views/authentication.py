@@ -130,30 +130,34 @@ class UserRegistrationView(APIView):
                 user = serializer.save()
 
                 # Привязка к существующей 1С-записи (см. serializers._link_matched_1c_customer):
-                # не создаём consent-запись и не выдаём JWT/PII найденной записи —
-                # это не новая регистрация, а привязка ожидающая подтверждения/ручного одобрения.
+                # JWT и PII найденной записи не выдаём — это не новая регистрация,
+                # а привязка, ожидающая подтверждения или ручного одобрения.
+                # На запись согласия признак НЕ влияет (Story 41.2): форму заполнил
+                # живой человек, галочку поставил он, его ПДн уже обрабатываются —
+                # значит доказательство согласия обязано лечь в журнал независимо
+                # от того, чем регистрация закончилась. `pending_1c_link` управляет
+                # только формой ответа (строка ниже, `if pending_1c_link:`).
                 pending_1c_link = getattr(user, "_pending_admin_review", False) or getattr(
                     user, "_pending_link_confirmation", False
                 )
 
-                if not pending_1c_link:
-                    ip_address = get_consent_ip_address(request)
-                    user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
+                ip_address = get_consent_ip_address(request)
+                user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
 
+                UserConsent.objects.create(
+                    user=user,
+                    consent_type="pdp_contract",
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                )
+
+                if getattr(user, "_marketing_consent", False):
                     UserConsent.objects.create(
                         user=user,
-                        consent_type="pdp_contract",
+                        consent_type="marketing_email",
                         ip_address=ip_address,
                         user_agent=user_agent,
                     )
-
-                    if getattr(user, "_marketing_consent", False):
-                        UserConsent.objects.create(
-                            user=user,
-                            consent_type="marketing_email",
-                            ip_address=ip_address,
-                            user_agent=user_agent,
-                        )
 
             if pending_1c_link:
                 return Response(

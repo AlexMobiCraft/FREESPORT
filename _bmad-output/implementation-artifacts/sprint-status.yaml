@@ -699,7 +699,9 @@ development_status:
   #             согласие крепится к найденной записи 1С, которую вернул
   #             serializer.save(). Тесты требуют патча UserRegistrationSerializer
   #             .create — через HTTP ветка недостижима. Мёртвый код не удаляется.
-  41-2-consent-record-on-1c-link: ready-for-dev
+  # 2026-09-05: Независимое ревью — три слоя завершены, замечаний нет.
+  #             Docker/PostgreSQL: 106 targeted tests passed; review -> done.
+  41-2-consent-record-on-1c-link: done
   # Редакция 2: текст чекбокса покрывает и ПДн, и рассылку; бэкенд не трогаем.
   41-3-separate-pdn-and-marketing-consents: done
   41-4-checkout-trade-info-and-policy-link: backlog
