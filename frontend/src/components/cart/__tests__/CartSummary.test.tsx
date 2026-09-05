@@ -280,6 +280,51 @@ describe('CartSummary', () => {
     });
   });
 
+  // ================== Блок возврата и поддержки (Story 41.4) ==================
+  describe('Условия возврата и поддержка (Story 41.4, AC1)', () => {
+    it('рендерит блок returns-support-notice внутри cart-summary', async () => {
+      setCartState({ items: mockCartItems, totalPrice: 13990, totalItems: 3 });
+      render(<CartSummary />);
+
+      const summary = screen.getByTestId('cart-summary');
+      const notice = screen.getByTestId('returns-support-notice');
+      expect(summary).toContainElement(notice);
+    });
+
+    it('ведёт на /partners#returns, а не на несуществующий /returns', () => {
+      render(<CartSummary />);
+
+      expect(screen.getByRole('link', { name: 'Условия возврата и рекламаций' })).toHaveAttribute(
+        'href',
+        '/partners#returns'
+      );
+    });
+
+    it('показывает телефон и почту поддержки', () => {
+      render(<CartSummary />);
+
+      expect(screen.getByRole('link', { name: '+7 968 273-21-68' })).toHaveAttribute(
+        'href',
+        'tel:+79682732168'
+      );
+      expect(screen.getByRole('link', { name: 'info@optisport.ru' })).toHaveAttribute(
+        'href',
+        'mailto:info@optisport.ru'
+      );
+    });
+
+    it('НЕ дублирует ссылку на политику ПДн: FR-41-20 относится к оформлению заказа (AC3)', () => {
+      setCartState({ items: mockCartItems, totalPrice: 13990, totalItems: 3 });
+      render(<CartSummary />);
+
+      expect(
+        screen.queryByText(/Нажимая кнопку, вы соглашаетесь с условиями обработки/)
+      ).not.toBeInTheDocument();
+      const hrefs = screen.getAllByRole('link').map(link => link.getAttribute('href'));
+      expect(hrefs).not.toContain('/privacy-policy');
+    });
+  });
+
   // ================== Hydration ==================
   describe('Hydration', () => {
     it('correctly handles hydration with mounted state', async () => {

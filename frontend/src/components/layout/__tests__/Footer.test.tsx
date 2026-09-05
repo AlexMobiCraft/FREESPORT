@@ -69,7 +69,10 @@ describe('Footer', () => {
 
       expect(screen.getByRole('link', { name: 'О нас' })).toHaveAttribute('href', '/about');
       expect(screen.getByRole('link', { name: 'Доставка' })).toHaveAttribute('href', '/delivery');
-      expect(screen.getByRole('link', { name: 'Возврат' })).toHaveAttribute('href', '/returns');
+      expect(screen.getByRole('link', { name: 'Возврат' })).toHaveAttribute(
+        'href',
+        '/partners#returns'
+      );
     });
 
     it('renders Каталог column links', () => {

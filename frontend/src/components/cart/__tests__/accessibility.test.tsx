@@ -17,6 +17,7 @@ import { CartItemCard } from '../CartItemCard';
 import { CartSummary } from '../CartSummary';
 import { EmptyCart } from '../EmptyCart';
 import { QuantitySelector } from '../QuantitySelector';
+import { ReturnsAndSupportNotice } from '@/components/common';
 import { useCartStore } from '@/stores/cartStore';
 import type { CartItem } from '@/types/cart';
 
@@ -255,6 +256,34 @@ describe('Cart Components Accessibility', () => {
         const button = screen.getByTestId('checkout-button');
         expect(button).toHaveAttribute('aria-disabled', 'true');
       });
+    });
+  });
+
+  // ============ ReturnsAndSupportNotice Accessibility (Story 41.4, AC8) ============
+
+  describe('ReturnsAndSupportNotice', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(<ReturnsAndSupportNotice />);
+
+      const results = await axe(container);
+      expect(results.violations).toHaveLength(0);
+    });
+
+    it('группа ссылок имеет доступное имя', () => {
+      render(<ReturnsAndSupportNotice />);
+
+      expect(screen.getByRole('region', { name: 'Условия возврата и поддержка' })).toBeInTheDocument();
+    });
+
+    it('все ссылки имеют осмысленные доступные имена (WCAG 2.4.4)', () => {
+      render(<ReturnsAndSupportNotice />);
+
+      const names = screen.getAllByRole('link').map(link => link.textContent?.trim());
+      expect(names).toEqual([
+        'Условия возврата и рекламаций',
+        '+7 968 273-21-68',
+        'info@optisport.ru',
+      ]);
     });
   });
 

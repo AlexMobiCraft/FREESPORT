@@ -67,7 +67,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     links: [
       { label: 'О нас', href: '/about' },
       { label: 'Доставка', href: '/delivery' },
-      { label: 'Возврат', href: '/returns' },
+      { label: 'Возврат', href: '/partners#returns' },
     ],
   },
   {
