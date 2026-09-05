@@ -152,7 +152,7 @@ export default function PartnersPage() {
       </section>
 
       {/* Рекламации и возвраты */}
-      <section className="mb-16">
+      <section id="returns" className="mb-16 scroll-mt-24">
         <h2 className="mb-6 text-center text-3xl font-semibold text-gray-900">
           Рекламации и возвраты
         </h2>

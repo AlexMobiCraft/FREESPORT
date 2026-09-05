@@ -207,7 +207,7 @@ describe('CheckoutForm', () => {
       fireEvent.blur(phoneInput);
 
       await waitFor(() => {
-        expect(screen.getByText(/Формат: \+7XXXXXXXXXX/)).toBeInTheDocument();
+        expect(screen.getByText(/Формат: \+7 и 10 цифр номера/)).toBeInTheDocument();
       });
     });
   });

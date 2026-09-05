@@ -119,7 +119,7 @@ describe('ContactSection', () => {
       fireEvent.blur(phoneInput);
 
       await waitFor(() => {
-        expect(screen.getByText(/Формат: \+7XXXXXXXXXX/)).toBeInTheDocument();
+        expect(screen.getByText(/Формат: \+7 и 10 цифр номера/)).toBeInTheDocument();
       });
     });
 
@@ -131,7 +131,7 @@ describe('ContactSection', () => {
       fireEvent.blur(phoneInput);
 
       await waitFor(() => {
-        // Подсказка "Формат: +7XXXXXXXXXX" отображается всегда как hint
+        // Подсказка "Формат: +7 и 10 цифр номера" отображается всегда как hint
         // Проверяем, что поле не имеет aria-invalid="true" (нет ошибки)
         expect(phoneInput).toHaveAttribute('aria-invalid', 'false');
       });

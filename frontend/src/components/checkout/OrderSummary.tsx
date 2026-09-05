@@ -1,7 +1,10 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui';
+import { ReturnsAndSupportNotice } from '@/components/common';
 import { cn } from '@/utils/cn';
 
 export interface OrderSummaryProps {
@@ -18,12 +21,15 @@ export interface OrderSummaryProps {
  *
  * Story 15.1: Checkout страница и упрощённая форма
  * Story 15.2: Интеграция с Orders API
+ * Story 41.4: Торговая информация и ссылка на политику при оплате
  *
  * Отображает:
  * - Список товаров из корзины (название, количество, цена)
  * - Итоговую сумму заказа
  * - Стоимость доставки (placeholder "Уточняется")
  * - Кнопку "Оформить заказ" (submit формы)
+ * - Блок условий возврата и поддержки (Story 41.4, только при непустой корзине)
+ * - Информирование о политике обработки ПДн со ссылкой на неё (Story 41.4)
  *
  * Адаптивная вёрстка:
  * - Mobile: под формой
@@ -132,10 +138,24 @@ export function OrderSummary({ isSubmitting, submitError, isCartEmpty }: OrderSu
             {isSubmitting ? 'Оформление...' : 'Оформить заказ'}
           </Button>
 
-          {/* Дополнительная информация */}
+          {/* Информирование о политике ПДн (Story 41.4, FR-41-20).
+              Чекбокс согласия здесь не нужен: создание заказа требует авторизации,
+              согласие получено при регистрации. */}
           <p className="mt-4 text-center text-xs text-gray-500">
-            Нажимая кнопку, вы соглашаетесь с условиями обработки персональных данных
+            Нажимая кнопку, вы соглашаетесь с условиями обработки персональных данных в соответствии
+            с{' '}
+            <Link
+              href="/privacy-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:no-underline"
+            >
+              «Политикой обработки персональных данных»
+            </Link>
           </p>
+
+          {/* Условия возврата и канал поддержки (Story 41.4, FR-41-15) */}
+          <ReturnsAndSupportNotice className="text-center text-xs text-gray-500" />
         </>
       )}
     </div>
