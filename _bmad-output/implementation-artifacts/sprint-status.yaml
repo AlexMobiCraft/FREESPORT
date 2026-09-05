@@ -704,7 +704,19 @@ development_status:
   41-2-consent-record-on-1c-link: done
   # Редакция 2: текст чекбокса покрывает и ПДн, и рассылку; бэкенд не трогаем.
   41-3-separate-pdn-and-marketing-consents: done
-  41-4-checkout-trade-info-and-policy-link: backlog
+  # 2026-09-05: Создана стори 41.4 (create-story) — Story/41-4-checkout-trade-
+  #             info-and-policy-link.md. Разбор дал три поправки к тексту эпика:
+  #             (а) AC эпика ссылается на /oferta, но условий возврата там нет —
+  #             ссылка ведёт на /partners#returns по уточнению FR-41-15 от
+  #             2026-08-30; (б) якорей id на /partners нет ни одного, id="returns"
+  #             заводится этой стори; (в) плейсхолдеров-нарушителей три, а не два —
+  #             третий в тексте ошибки Zod (checkoutSchema.ts:16). Решения владельца
+  #             2026-09-05: чинить мёртвую ссылку «Возврат» → /returns в подвале
+  #             в объёме этой стори (расширение объёма эпика принято осознанно);
+  #             править и подсказку, и текст ошибки. FR-41-16 на baseline уже
+  #             выполнен — закрепляется тестами, разметка не переписывается.
+  #             Blast radius LOW по всем трём затрагиваемым компонентам.
+  41-4-checkout-trade-info-and-policy-link: done
   # Дефект FR-41-22: add_header внутри location в nginx затирает унаследованный
   # набор — /media/ идёт без nosniff. Путь эксплуатации ограничен (уточнено
   # 2026-08-25): публичной загрузки файлов нет, все девять полей админские,
@@ -715,7 +727,21 @@ development_status:
   # X-Frame-Options ровно 1 экземпляр, /health 7 из 7 заголовков, /media/ отдаёт
   # nosniff даже на 404, HTML s-maxage=3600 вместо 31536000. Регрессий нет.
   41-5-security-headers-single-source-all-locations: done
-  41-6-unique-metadata-og-image-jsonld: backlog
+  # 2026-09-05: Создана стори 41.6 (create-story) — Story/41-6-unique-metadata-
+  #             og-image-jsonld.md. Разбор дал четыре поправки к тексту эпика:
+  #             (а) og-image.jpg НЕ неиспользуемый — его читают HeroSection.tsx:178
+  #             и ElectricHeroSection.tsx:162 как fallback hero; удаление заменено
+  #             переименованием в hero-fallback.jpg; (б) /login — Client Component,
+  #             metadata из него не экспортируется, заводится login/layout.tsx по
+  #             образцу catalog/layout.tsx; (в) единственное место, где размеры
+  #             og:image объявлены — (electric)/electric/page.tsx:60-63 — объявляет
+  #             их неверно (1200x630 при файле 1040x680); (г) SearchAction в WebSite
+  #             исключён: /search в Disallow robots.txt. Blast radius buildMetadata —
+  #             CRITICAL (14 прямых вызывающих), поэтому сигнатура не меняется,
+  #             размеры подставляются нормализацией значения по умолчанию.
+  #             Зависимость: ветку заводить от develop ПОСЛЕ мержа PR стори 41.4 —
+  #             JSON-LD берёт контакты из frontend/src/config/contacts.ts.
+  41-6-unique-metadata-og-image-jsonld: ready-for-dev
   41-7-pdn-registry-numbers-and-login-form-justification: backlog
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.
   41-8-text-separator-badge-brand-product-name: backlog
