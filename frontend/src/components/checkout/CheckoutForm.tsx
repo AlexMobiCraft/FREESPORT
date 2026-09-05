@@ -28,6 +28,11 @@ import { DeliveryOptions } from './DeliveryOptions';
 import { OrderCommentSection } from './OrderCommentSection';
 import { OrderSummary } from './OrderSummary';
 import { InfoPanel } from '@/components/ui';
+import {
+  clearCheckoutDraft,
+  readCheckoutDraft,
+  saveCheckoutDraft,
+} from '@/utils/checkout/checkoutDraft';
 
 export interface CheckoutFormProps {
   user: User | null;
@@ -59,14 +64,22 @@ const ADDRESS_FIELDS = [
  *   создания заказа, чтобы не блокировать UX перехода на success-страницу)
  */
 export function CheckoutForm({ user }: CheckoutFormProps) {
+  // Смена владельца сбрасывает не только черновик, но и уже открытую форму.
+  return <CheckoutFormFields key={user?.id ?? 'guest'} user={user} />;
+}
+
+function CheckoutFormFields({ user }: CheckoutFormProps) {
   const router = useRouter();
+  const [initialDraft] = useState(() => readCheckoutDraft(user?.id ?? null));
 
   const { createOrder, isSubmitting, error: orderError, clearOrder } = useOrderStore();
   const { items: cartItems } = useCartStore();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
-  const [saveAddress, setSaveAddress] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(
+    initialDraft?.selectedAddressId ?? null
+  );
+  const [saveAddress, setSaveAddress] = useState(initialDraft?.saveAddress ?? false);
   // True после первого resolve getAddresses. Защищает от race-условия:
   // юзер успевает заполнить и засабмитить форму до того как API ответит,
   // тогда `addresses.length === 0` ложно сигнализирует «новый адрес → is_default=true».
@@ -92,11 +105,14 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
       deliveryMethod: defaultCheckoutFormValues.deliveryMethod,
       paymentMethod: defaultCheckoutFormValues.paymentMethod,
       comment: defaultCheckoutFormValues.comment,
+      ...initialDraft?.values,
     },
   });
 
   // Очистка ошибок заказа при монтировании
   useEffect(() => {
+    // Черновик одноразовый. Следующий переход к условиям сохранит свежие поля.
+    clearCheckoutDraft();
     clearOrder();
   }, [clearOrder]);
 
@@ -137,7 +153,8 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
         const shipping = list.filter(a => a.address_type === 'shipping');
         setAddresses(shipping);
         setAddressesLoaded(true);
-        if (shipping.length === 0) return;
+        // Восстановленный ввод, включая намеренно пустые поля, важнее default-адреса.
+        if (shipping.length === 0 || initialDraft) return;
 
         // Race-guard: если пользователь уже что-то ввёл в адресные поля до
         // резолва промиса, не перезаписываем его данные.
@@ -159,7 +176,7 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, applyAddressToForm, form]);
+  }, [isAuthenticated, applyAddressToForm, form, initialDraft]);
 
   // Подписка на изменения адресных полей: вычисляем «правил ли пользователь вручную».
   const watchedValues = form.watch(ADDRESS_FIELDS);
@@ -254,6 +271,7 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
 
       const orderId = useOrderStore.getState().currentOrder?.id;
       if (!orderId) return;
+      clearCheckoutDraft();
 
       // Fire-and-forget сохранение адреса в профиль. Заказ уже создан —
       // ошибка POST /users/addresses/ не должна блокировать редирект.
@@ -282,7 +300,25 @@ export function CheckoutForm({ user }: CheckoutFormProps) {
   const isCartEmpty = !cartItems || cartItems.length === 0;
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      onClickCapture={event => {
+        // Сохраняем даже незавершённый/невалидный ввод перед обычным переходом
+        // к условиям. Ctrl/Meta/Shift-клик оставляет текущую форму на месте.
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+          return;
+        }
+        const link = (event.target as Element).closest('a');
+        if (link?.getAttribute('href') !== '/partners#returns') return;
+        saveCheckoutDraft({
+          userId: user?.id ?? null,
+          values: form.getValues(),
+          selectedAddressId,
+          saveAddress,
+        });
+      }}
+      noValidate
+    >
       {isCartEmpty && (
         <InfoPanel
           variant="warning"

@@ -10,7 +10,7 @@ excluded_commits: []
 
 # Story 41.4: Торговая информация и ссылка на политику при оплате
 
-Status: review
+Status: in-progress
 
 > 🔴 **AC эпика про `/oferta` устарел — ссылаться нужно на `/partners#returns`.** Текст `### Story 41.4` в эпике говорит «ссылка на условия возврата (`/oferta`)», но уточнение к FR-41-15 от 2026-08-30 (прод-верификация стори 41.5) это опровергло: **в тексте оферты слов «возврат» и «обмен» нет ни одного**, там только претензионный порядок (п. 8, срок ответа 10 дней). Фактические условия возврата живут в `frontend/src/app/(blue)/partners/page.tsx:154-175`, раздел «Рекламации и возвраты». Ссылка на `/oferta` формально закрыла бы AC и **не** закрыла бы требование ЗоЗПП. Решение владельца 2026-09-05: **`/partners#returns`**, якорь заводится этой же стори.
 > 🔴 **Якоря `id` на `/partners` нет ни одного** (`grep -n "id=" partners/page.tsx` пуст). Без `id="returns"` на секции `#returns` молча деградирует в переход на верх длинной страницы условий сотрудничества. Добавление якоря — часть стори, а не опция.
@@ -211,6 +211,17 @@ so that **я принимал решение об оплате, располаг
   - [x] `File List` сверять с `git diff --name-only 87b00945..HEAD`, а не с памятью (находка ревью в 41.0 и 41.5 — дважды)
   - [x] Установить `review_head` в frontmatter на коммит, завершающий содержательную работу
   - [x] Коммит и push — только по явной просьбе владельца
+
+### Review Findings
+
+Проверка 2026-09-05: диапазон `87b00945..d0772737`, AC1–AC9; три независимых прохода с последующей проверкой находок основным агентом. Статусы Story и tracker пока не изменены, исправления реализации не применялись.
+
+- [ ] [Review][Patch][P2] Сохранить заполненную форму при чтении условий возврата через одноразовый in-memory `checkoutDraft` — владелец выбрал этот вариант 2026-09-05. Текущее рабочее дерево уже реализует сохранение перед переходом в текущей вкладке и восстановление после Back; решение требуется закрепить тестами и включить в changeset. [frontend/src/components/common/ReturnsAndSupportNotice.tsx:40; frontend/src/components/checkout/CheckoutForm.tsx:73-115,305-319; frontend/src/utils/checkout/checkoutDraft.ts:1-35]
+- [ ] [Review][Patch][P3] Согласовать метаданные changeset — `review_head` пуст при отмеченной выполненной Task 11; утверждение «коммитов нет» устарело после `d0772737`. Закрепить проверяемую границу после завершения текущей доработки, актуализировать пояснение и включить в File List изменения счётчиков GitNexus в `AGENTS.md` и `CLAUDE.md`, `CheckoutForm.tsx` и новый `checkoutDraft.ts`. [_bmad-output/implementation-artifacts/Story/41-4-checkout-trade-info-and-policy-link.md:3,209-213,339-366]
+- [ ] [Review][Patch][P2] Добавить регрессионные тесты механизма черновика — текущие 51 целевых тестов проходят, но ни один не кликает `/partners#returns`, не проверяет восстановление всех полей/выбранного адреса/флага сохранения и очистку при смене пользователя или успешном заказе. Поломка `readCheckoutDraft`/`saveCheckoutDraft` останется незамеченной, поэтому исправление исходного P2 пока не защищено. [frontend/src/components/checkout/CheckoutForm.tsx:73-115,305-319; frontend/src/utils/checkout/checkoutDraft.ts:15-35]
+- [x] [Review][Defer][P2] Холодный вход `/partners#returns` не прокручивает к условиям — существующая проблема, уже описанная в deferred-work; новый browser-check подтвердил `scrollY=0`, координату секции `y=1186`. При клике внутри приложения секция находится на `y=96`, `scrollY=1090`. AC2 подтверждён только для перехода внутри приложения, не для холодного входа. Исправление не применялось. [frontend/src/providers/AuthProvider.tsx; _bmad-output/implementation-artifacts/deferred-work.md, раздел стори 41.4]
+
+Проверки текущего review: целевой Vitest — **19 файлов, 380 passed, 4 skipped**, exit 0; ESLint изменённых production-файлов — exit 0; `npx tsc --noEmit --incremental false` — exit 0. В тестах есть предупреждения React `act(...)`; полный frontend suite в этом review не запускался. GitNexus: `detect-changes --scope compare --base-ref 87b00945` — 21 файл, 14 символов, 2 процесса, MEDIUM; impact `OrderSummary`, `ContactSection`, `CartSummary`, `PartnersPage` — LOW. Ограничение независимости Blind Hunter: при первом чтении общего diff ему также попал текст Story; дальнейший анализ выполнен по коду, находка независимо воспроизведена основным агентом.
 
 ## Dev Notes
 
