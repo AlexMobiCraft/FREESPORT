@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-04
+last_updated: 2026-09-05
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -685,7 +685,21 @@ development_status:
   # useSyncExternalStore. Подвалов три (blue, electric, coming-soon), и живой
   # на проде — coming-soon, у которого Footer нет.
   41-1-cookie-decline-and-change-choice: done
-  41-2-consent-record-on-1c-link: backlog
+  # 2026-09-05: Создана стори 41.2 (create-story) — Story/41-2-consent-record-
+  #             on-1c-link.md. Разбор выявил, что FR-41-03 описывает ЛАТЕНТНЫЙ
+  #             дефект: guard `if not pending_1c_link:` (authentication.py:139)
+  #             недостижим с коммита ffee94d5 (2026-07-26) — автопривязка
+  #             отключена, _link_matched_1c_customer не вызывается, маршрут
+  #             PortalLinkConfirmView снят. Сегодня согласие пишется при любой
+  #             регистрации. Стори закрывает дефект на случай возврата привязки
+  #             (решение 2026-07-26 его прямо допускает) и добавляет два пункта
+  #             сверх текста эпика: (а) в ветке привязки терялся бы флаг
+  #             _marketing_consent — create() выходил бы через return до
+  #             строки 273; (б) «созданного пользователя» в этой ветке нет,
+  #             согласие крепится к найденной записи 1С, которую вернул
+  #             serializer.save(). Тесты требуют патча UserRegistrationSerializer
+  #             .create — через HTTP ветка недостижима. Мёртвый код не удаляется.
+  41-2-consent-record-on-1c-link: ready-for-dev
   # Редакция 2: текст чекбокса покрывает и ПДн, и рассылку; бэкенд не трогаем.
   41-3-separate-pdn-and-marketing-consents: done
   41-4-checkout-trade-info-and-policy-link: backlog
