@@ -13,6 +13,27 @@ export const SITE_NAME = 'OPTISPORT';
 export const OG_LOCALE = 'ru_RU';
 export const DEFAULT_OG_IMAGE = '/image.jpg';
 
+/**
+ * Фактические параметры файла public/image.jpg. Меняются вместе с файлом —
+ * расхождение ловит тест-страж соцпревью в src/__tests__/.
+ */
+export const DEFAULT_OG_IMAGE_WIDTH = 1040;
+export const DEFAULT_OG_IMAGE_HEIGHT = 680;
+export const DEFAULT_OG_IMAGE_TYPE = 'image/jpeg';
+
+/**
+ * Готовый объект соцпревью по умолчанию. Next разворачивает его в
+ * `og:image`, `og:image:width`, `og:image:height`, `og:image:type` и
+ * `og:image:alt`; голая строка дала бы только `og:image`.
+ */
+export const DEFAULT_OG_IMAGE_META = {
+  url: DEFAULT_OG_IMAGE,
+  width: DEFAULT_OG_IMAGE_WIDTH,
+  height: DEFAULT_OG_IMAGE_HEIGHT,
+  type: DEFAULT_OG_IMAGE_TYPE,
+  alt: 'OPTISPORT — платформа продаж спортивных товаров',
+} as const;
+
 export interface PageSeoOptions {
   /** Заголовок страницы (он же og:title / twitter:title) */
   title: string;
@@ -28,8 +49,16 @@ export interface PageSeoOptions {
   /** Описание для соцсетей, если оно должно отличаться от `description` */
   ogDescription?: string;
   keywords?: string;
-  /** Картинка для соцсетей. `null` — отдать превью без картинки */
-  image?: string | { url: string; alt?: string } | null;
+  /**
+   * Картинка для соцсетей. `null` — отдать превью без картинки.
+   *
+   * Размеры передавать не нужно: картинке по умолчанию их подставляет сама
+   * `buildMetadata`, а у чужих изображений они неизвестны.
+   */
+  image?:
+    | string
+    | { url: string; alt?: string; width?: number; height?: number; type?: string }
+    | null;
   /**
    * Тип Open Graph: `website` по умолчанию. Типы Next.js не включают `product`,
    * поэтому карточки товаров остаются `website`.
@@ -60,6 +89,16 @@ export function absoluteUrl(path: string): string {
   return `${SITE_URL}${normalizePath(path)}`;
 }
 
+/**
+ * Дополняет размерами ровно картинку по умолчанию: габариты чужих
+ * изображений (карточки товара, обложки статей) нам неизвестны.
+ */
+function withDefaultImageMeta(image: NonNullable<PageSeoOptions['image']>) {
+  const url = typeof image === 'string' ? image : image.url;
+  if (url !== DEFAULT_OG_IMAGE) return image;
+  return typeof image === 'string' ? DEFAULT_OG_IMAGE_META : { ...DEFAULT_OG_IMAGE_META, ...image };
+}
+
 export function buildMetadata({
   title,
   description,
@@ -73,7 +112,7 @@ export function buildMetadata({
   openGraphExtra,
 }: PageSeoOptions): Metadata {
   const canonical = normalizePath(path);
-  const images = image ? [image] : undefined;
+  const images = image ? [withDefaultImageMeta(image)] : undefined;
   // Twitter не понимает объект с alt — для него оставляем только URL
   const twitterImages = images?.map(i => (typeof i === 'string' ? i : i.url));
   const normalizedTitle = title.replaceAll('FREESPORT', SITE_NAME);

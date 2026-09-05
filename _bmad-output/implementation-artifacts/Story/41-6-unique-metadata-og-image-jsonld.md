@@ -1,5 +1,5 @@
 ---
-baseline_commit: ""
+baseline_commit: "4e386a95"
 review_head: ""
 # Канонический changeset стори. Область приёмки =
 #   git log --oneline baseline_commit..review_head  МИНУС excluded_commits.
@@ -13,7 +13,7 @@ excluded_commits: []
 
 # Story 41.6: Уникальные метаданные, корректное соцпревью и JSON-LD
 
-Status: ready-for-dev
+Status: review
 
 > 🔴 **`og-image.jpg` НЕ является неиспользуемым — премиса AC эпика неверна.** Файл читают два живых компонента: `frontend/src/components/home/HeroSection.tsx:178` (статическая ветка hero, когда баннеров из API нет) и `frontend/src/components/home/ElectricHeroSection.tsx:162` (fallback `currentBanner?.image_url || '/og-image.jpg'`). Простое `rm` даст битую картинку на `/home` и `/electric` в момент недоступности API баннеров — то есть ровно тогда, когда сайт и так деградировал. Решение стори: **переименовать** файл в `hero-fallback.jpg` и поправить обе ссылки. Имя `og-image.jpg` исчезает (буква AC выполнена), превью остаётся ровно одно — `/image.jpg` (смысл AC выполнен), hero не ломается. Альтернатива «удалить файл и подставить в hero `/image.jpg`» отвергнута: `image.jpg` — соцпревью 1040×680, а hero рисует картинку в `aspect-[7/4]` с `object-cover`; это два разных назначения у одного файла.
 > 🔴 **Из `/login` нельзя экспортировать `metadata` — это Client Component.** `frontend/src/app/(blue)/(auth)/login/page.tsx:11` начинается с `'use client'` (нужны `useSearchParams`, `useRouter`, Zustand). Next.js собирает метаданные только из серверных модулей. Приём, уже применённый в проекте: метаданные выносятся в `layout.tsx` сегмента (`frontend/src/app/(blue)/catalog/layout.tsx:5-14`, там прямым текстом написано почему). Значит заводится **новый** `frontend/src/app/(blue)/(auth)/login/layout.tsx`. «Сделать страницу серверной» — не вариант: это сломает форму входа.
@@ -123,18 +123,18 @@ so that **понимать, куда веду, ещё до перехода**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1. Ветка и baseline** (все AC)
-  - [ ] Убедиться, что PR стори 41.4 влит в `develop`: `git log --oneline develop -5` содержит `d0772737`/`99358186`/`17e17d9e` или merge-коммит поверх них. Если нет — **остановиться и сообщить владельцу**: без `frontend/src/config/contacts.ts` Task 6 выполнить нечем
-  - [ ] `git switch develop; git pull`, затем `git switch -c feature/story-41-6-metadata-og-jsonld` (прямые коммиты в `develop` запрещены)
-  - [ ] `git rev-parse --short HEAD` → записать значение в `baseline_commit` фронтматтера этого файла
-  - [ ] Зафиксировать базис тестов ДО правок: `cd frontend; npm run test -- --run src/app src/components/home src/__tests__` → записать число зелёных в Debug Log
+- [x] **Task 1. Ветка и baseline** (все AC)
+  - [x] Убедиться, что PR стори 41.4 влит в `develop`: `git log --oneline develop -5` содержит `d0772737`/`99358186`/`17e17d9e` или merge-коммит поверх них. Если нет — **остановиться и сообщить владельцу**: без `frontend/src/config/contacts.ts` Task 6 выполнить нечем
+  - [x] `git switch develop; git pull`, затем `git switch -c feature/story-41-6-metadata-og-jsonld` (прямые коммиты в `develop` запрещены)
+  - [x] `git rev-parse --short HEAD` → записать значение в `baseline_commit` фронтматтера этого файла
+  - [x] Зафиксировать базис тестов ДО правок: `cd frontend; npm run test -- --run src/app src/components/home src/__tests__` → записать число зелёных в Debug Log
 
-- [ ] **Task 2. Blast radius перед правкой `buildMetadata`** (AC4)
-  - [ ] `npx gitnexus impact buildMetadata --direction upstream --repo "C:\Users\1\DEV\FREESPORT"` — подтвердить, что список вызывающих совпадает с зафиксированным в Dev Notes (14 прямых, risk CRITICAL). Если список изменился — перечитать координаты, прежде чем править
-  - [ ] Сообщить владельцу уровень риска до внесения правок (требование `project-context.md` §5)
+- [x] **Task 2. Blast radius перед правкой `buildMetadata`** (AC4)
+  - [x] `npx gitnexus impact buildMetadata --direction upstream --repo "C:\Users\1\DEV\FREESPORT"` — подтвердить, что список вызывающих совпадает с зафиксированным в Dev Notes (14 прямых, risk CRITICAL). Если список изменился — перечитать координаты, прежде чем править
+  - [x] Сообщить владельцу уровень риска до внесения правок (требование `project-context.md` §5)
 
-- [ ] **Task 3. Константы og:image и нормализация в `utils/seo.ts`** (AC4)
-  - [ ] `frontend/src/utils/seo.ts`: рядом с `DEFAULT_OG_IMAGE` (строка 14) завести
+- [x] **Task 3. Константы og:image и нормализация в `utils/seo.ts`** (AC4)
+  - [x] `frontend/src/utils/seo.ts`: рядом с `DEFAULT_OG_IMAGE` (строка 14) завести
         ```ts
         /**
          * Фактические параметры файла public/image.jpg. Меняются вместе с файлом —
@@ -152,8 +152,8 @@ so that **понимать, куда веду, ещё до перехода**.
           alt: 'OPTISPORT — платформа продаж спортивных товаров',
         } as const;
         ```
-  - [ ] Расширить тип `PageSeoOptions['image']`: `string | { url: string; alt?: string; width?: number; height?: number; type?: string } | null`
-  - [ ] Внутри `seo.ts` добавить хелпер, который дополняет размерами **только** картинку по умолчанию:
+  - [x] Расширить тип `PageSeoOptions['image']`: `string | { url: string; alt?: string; width?: number; height?: number; type?: string } | null`
+  - [x] Внутри `seo.ts` добавить хелпер, который дополняет размерами **только** картинку по умолчанию:
         ```ts
         /**
          * Дополняет размерами ровно картинку по умолчанию: габариты чужих
@@ -167,17 +167,17 @@ so that **понимать, куда веду, ещё до перехода**.
             : { ...DEFAULT_OG_IMAGE_META, ...image };
         }
         ```
-  - [ ] Применить его к `images` **только** в блоке `openGraph`. `twitterImages` уже сводит объект к `url` (строка 79) — их трогать не нужно и не следует: Twitter размеров не читает
-  - [ ] **Сигнатуру `buildMetadata` не менять**, новых обязательных параметров не вводить, порядок полей возвращаемого объекта не переставлять (`(blue)/[slug]/__tests__/page.test.tsx:52` сравнивает результат целиком)
-  - [ ] Комментарии и docstring — на русском (NFR-41-03)
+  - [x] Применить его к `images` **только** в блоке `openGraph`. `twitterImages` уже сводит объект к `url` (строка 79) — их трогать не нужно и не следует: Twitter размеров не читает
+  - [x] **Сигнатуру `buildMetadata` не менять**, новых обязательных параметров не вводить, порядок полей возвращаемого объекта не переставлять (`(blue)/[slug]/__tests__/page.test.tsx:52` сравнивает результат целиком)
+  - [x] Комментарии и docstring — на русском (NFR-41-03)
 
-- [ ] **Task 4. Корневой layout и страница `/electric`** (AC4)
-  - [ ] `frontend/src/app/layout.tsx`: импортировать `DEFAULT_OG_IMAGE_META`, в `openGraph.images` подставить `[DEFAULT_OG_IMAGE_META]`; `twitter.images` оставить `[DEFAULT_OG_IMAGE]`
-  - [ ] `frontend/src/app/(electric)/electric/page.tsx:57-64`: заменить объект с неверными `width: 1200, height: 630` на `images: [DEFAULT_OG_IMAGE_META]` (импорт из `@/utils/seo`); `twitter.images` привести к `[DEFAULT_OG_IMAGE]`
-  - [ ] `frontend/src/app/(blue)/catalog/layout.tsx:13` — строку `image: '/image.jpg'` **можно оставить**: нормализация из Task 3 подставит размеры и для неё. Если решено убрать как избыточную — допустимо, но тогда добавить проверку в тест каталога
+- [x] **Task 4. Корневой layout и страница `/electric`** (AC4)
+  - [x] `frontend/src/app/layout.tsx`: импортировать `DEFAULT_OG_IMAGE_META`, в `openGraph.images` подставить `[DEFAULT_OG_IMAGE_META]`; `twitter.images` оставить `[DEFAULT_OG_IMAGE]`
+  - [x] `frontend/src/app/(electric)/electric/page.tsx:57-64`: заменить объект с неверными `width: 1200, height: 630` на `images: [DEFAULT_OG_IMAGE_META]` (импорт из `@/utils/seo`); `twitter.images` привести к `[DEFAULT_OG_IMAGE]`
+  - [x] `frontend/src/app/(blue)/catalog/layout.tsx:13` — строку `image: '/image.jpg'` **можно оставить**: нормализация из Task 3 подставит размеры и для неё. Если решено убрать как избыточную — допустимо, но тогда добавить проверку в тест каталога
 
-- [ ] **Task 5. Метаданные `/coming-soon` и `/login`** (AC1, AC2)
-  - [ ] `frontend/src/app/(coming-soon)/coming-soon/page.tsx` — Server Component, метаданные ставятся прямо в нём:
+- [x] **Task 5. Метаданные `/coming-soon` и `/login`** (AC1, AC2)
+  - [x] `frontend/src/app/(coming-soon)/coming-soon/page.tsx` — Server Component, метаданные ставятся прямо в нём:
         ```ts
         export const metadata: Metadata = buildMetadata({
           title: 'OPTISPORT скоро откроется — оптовые продажи спорттоваров',
@@ -186,8 +186,8 @@ so that **понимать, куда веду, ещё до перехода**.
           path: '/coming-soon',
         });
         ```
-  - [ ] `noIndex` здесь **не** ставить (AC1): страница — фактическая главная прода (`GET https://optisport.ru/` → 307 на `/coming-soon`, проверено 2026-09-05)
-  - [ ] Создать `frontend/src/app/(blue)/(auth)/login/layout.tsx`:
+  - [x] `noIndex` здесь **не** ставить (AC1): страница — фактическая главная прода (`GET https://optisport.ru/` → 307 на `/coming-soon`, проверено 2026-09-05)
+  - [x] Создать `frontend/src/app/(blue)/(auth)/login/layout.tsx`:
         ```tsx
         import type { Metadata } from 'next';
         import { buildMetadata } from '@/utils/seo';
@@ -207,11 +207,11 @@ so that **понимать, куда веду, ещё до перехода**.
           return children;
         }
         ```
-  - [ ] `login/page.tsx` **не** трогать: ни `'use client'`, ни `Suspense`, ни логику редиректа
-  - [ ] Проверить, что новый layout не добавил обёртки в DOM — возвращается `children`, а не `<div>{children}</div>`
+  - [x] `login/page.tsx` **не** трогать: ни `'use client'`, ни `Suspense`, ни логику редиректа
+  - [x] Проверить, что новый layout не добавил обёртки в DOM — возвращается `children`, а не `<div>{children}</div>`
 
-- [ ] **Task 6. Данные организации и JSON-LD** (AC6)
-  - [ ] Создать `frontend/src/config/organization.ts` рядом с `contacts.ts`:
+- [x] **Task 6. Данные организации и JSON-LD** (AC6)
+  - [x] Создать `frontend/src/config/organization.ts` рядом с `contacts.ts`:
         ```ts
         import { SUPPORT_EMAIL, SUPPORT_PHONE_DISPLAY } from './contacts';
         import { SITE_NAME, SITE_URL, absoluteUrl } from '@/utils/seo';
@@ -220,63 +220,63 @@ so that **понимать, куда веду, ещё до перехода**.
         export const ORGANIZATION_ID = `${SITE_URL}/#organization`;
         export const WEBSITE_ID = `${SITE_URL}/#website`;
         ```
-  - [ ] Значения `ORGANIZATION_JSON_LD`: `name` = `SITE_NAME`; `url` = `SITE_URL`; `logo` = `{ '@type': 'ImageObject', url: absoluteUrl('/LOGO_OPTIsport.png'), width: 1014, height: 101 }`; `email` = `SUPPORT_EMAIL`; `telephone` = `SUPPORT_PHONE_DISPLAY`; `address` = `{ '@type': 'PostalAddress', addressCountry: 'RU', addressLocality: 'Ставрополь', streetAddress: 'ул. Коломийцева, 40/1' }` (адрес — из колонки «Контакты» подвала, `Footer.tsx:78`)
-  - [ ] `sameAs` = `['https://vk.com/optisport', 'https://t.me/optisport', 'https://youtube.com/@optisport']` — те же три адреса, что в `Footer.tsx` (`DEFAULT_SOCIAL_LINKS`). **Перед коммитом открыть все три и убедиться, что аккаунты существуют.** Несуществующий адрес из `sameAs` убрать и завести запись в `deferred-work.md` о мёртвой ссылке подвала — это дефект подвала, а не разметки
-  - [ ] `WEBSITE_JSON_LD`: `@id` = `WEBSITE_ID`, `name` = `SITE_NAME`, `url` = `SITE_URL`, `inLanguage: 'ru-RU'`, `publisher: { '@id': ORGANIZATION_ID }`. `potentialAction` не добавлять
-  - [ ] Создать `frontend/src/components/common/SiteJsonLd.tsx` — Server Component без `'use client'`, один `<script type="application/ld+json">` с `{ '@context': 'https://schema.org', '@graph': [ORGANIZATION_JSON_LD, WEBSITE_JSON_LD] }` через `dangerouslySetInnerHTML` (образец — `ProductPageClient.tsx:81-119`)
-  - [ ] Экспортировать из `frontend/src/components/common/index.ts` (паттерн файла — экспорт компонента и типа пропсов, если он появится)
-  - [ ] Смонтировать в `frontend/src/app/layout.tsx` внутри `<body>`, рядом с `<CookieConsentBanner />`. Именно корневой layout: только он покрывает и `(blue)`, и `(electric)`, и `(coming-soon)` — а `/coming-soon` сейчас единственная страница, которую видит посетитель прода
-  - [ ] Осознанное следствие: блок попадёт и на `not-found.tsx`. Это принято — 404 уже несёт `noindex`, разметка на ней инертна; три копии компонента по трём layout ради этого не заводятся
+  - [x] Значения `ORGANIZATION_JSON_LD`: `name` = `SITE_NAME`; `url` = `SITE_URL`; `logo` = `{ '@type': 'ImageObject', url: absoluteUrl('/LOGO_OPTIsport.png'), width: 1014, height: 101 }`; `email` = `SUPPORT_EMAIL`; `telephone` = `SUPPORT_PHONE_DISPLAY`; `address` = `{ '@type': 'PostalAddress', addressCountry: 'RU', addressLocality: 'Ставрополь', streetAddress: 'ул. Коломийцева, 40/1' }` (адрес — из колонки «Контакты» подвала, `Footer.tsx:78`)
+  - [x] `sameAs` = `['https://vk.com/optisport', 'https://t.me/optisport', 'https://youtube.com/@optisport']` — те же три адреса, что в `Footer.tsx` (`DEFAULT_SOCIAL_LINKS`). **Перед коммитом открыть все три и убедиться, что аккаунты существуют.** Несуществующий адрес из `sameAs` убрать и завести запись в `deferred-work.md` о мёртвой ссылке подвала — это дефект подвала, а не разметки
+  - [x] `WEBSITE_JSON_LD`: `@id` = `WEBSITE_ID`, `name` = `SITE_NAME`, `url` = `SITE_URL`, `inLanguage: 'ru-RU'`, `publisher: { '@id': ORGANIZATION_ID }`. `potentialAction` не добавлять
+  - [x] Создать `frontend/src/components/common/SiteJsonLd.tsx` — Server Component без `'use client'`, один `<script type="application/ld+json">` с `{ '@context': 'https://schema.org', '@graph': [ORGANIZATION_JSON_LD, WEBSITE_JSON_LD] }` через `dangerouslySetInnerHTML` (образец — `ProductPageClient.tsx:81-119`)
+  - [x] Экспортировать из `frontend/src/components/common/index.ts` (паттерн файла — экспорт компонента и типа пропсов, если он появится)
+  - [x] Смонтировать в `frontend/src/app/layout.tsx` внутри `<body>`, рядом с `<CookieConsentBanner />`. Именно корневой layout: только он покрывает и `(blue)`, и `(electric)`, и `(coming-soon)` — а `/coming-soon` сейчас единственная страница, которую видит посетитель прода
+  - [x] Осознанное следствие: блок попадёт и на `not-found.tsx`. Это принято — 404 уже несёт `noindex`, разметка на ней инертна; три копии компонента по трём layout ради этого не заводятся
 
-- [ ] **Task 7. `title` страницы «О компании»** (AC3)
-  - [ ] `frontend/src/app/(blue)/about/page.tsx:22` — `title: 'О компании OPTISPORT — оптовый поставщик спорттоваров'`
-  - [ ] `description` и остальной файл не трогать
+- [x] **Task 7. `title` страницы «О компании»** (AC3)
+  - [x] `frontend/src/app/(blue)/about/page.tsx:22` — `title: 'О компании OPTISPORT — оптовый поставщик спорттоваров'`
+  - [x] `description` и остальной файл не трогать
 
-- [ ] **Task 8. Переименование `og-image.jpg`** (AC5)
-  - [ ] `git mv frontend/public/og-image.jpg frontend/public/hero-fallback.jpg` (именно `git mv` — переименование должно быть видно в истории, а не как «удалил + добавил»)
-  - [ ] `frontend/src/components/home/HeroSection.tsx:178` — `src="/hero-fallback.jpg"`
-  - [ ] `frontend/src/components/home/ElectricHeroSection.tsx:162` — `'/hero-fallback.jpg'`
-  - [ ] Проверка: `cd frontend; grep -rn "og-image" src/ public/` → пусто
-  - [ ] Оба `alt` оставить как есть — текст описывает содержимое картинки, а не имя файла
+- [x] **Task 8. Переименование `og-image.jpg`** (AC5)
+  - [x] `git mv frontend/public/og-image.jpg frontend/public/hero-fallback.jpg` (именно `git mv` — переименование должно быть видно в истории, а не как «удалил + добавил»)
+  - [x] `frontend/src/components/home/HeroSection.tsx:178` — `src="/hero-fallback.jpg"`
+  - [x] `frontend/src/components/home/ElectricHeroSection.tsx:162` — `'/hero-fallback.jpg'`
+  - [x] Проверка: `cd frontend; grep -rn "og-image" src/ public/` → пусто
+  - [x] Оба `alt` оставить как есть — текст описывает содержимое картинки, а не имя файла
 
-- [ ] **Task 9. Тесты** (AC7, NFR-41-01)
-  - [ ] **Правка сломанных** (сначала убедиться, что они падают именно от наших правок):
+- [x] **Task 9. Тесты** (AC7, NFR-41-01)
+  - [x] **Правка сломанных** (сначала убедиться, что они падают именно от наших правок):
         - `frontend/src/app/(blue)/about/__tests__/page.test.tsx:180` — вместо `toBe('О компании')` проверять новое значение **и** диапазон длины 30…60 (AC3)
         - там же `:192` — `openGraph.title` привести к новому значению
         - `frontend/src/app/(blue)/home/__tests__/page.test.tsx:175` — `toContain('/image.jpg')` → сверка с `DEFAULT_OG_IMAGE_META`
         - `frontend/src/app/(blue)/blog/[slug]/__tests__/page.test.tsx:282` и `frontend/src/app/(blue)/news/[slug]/__tests__/page.test.tsx:227` — `toEqual(['/image.jpg'])` → `toEqual([DEFAULT_OG_IMAGE_META])`; **строки 273 и 220 не трогать** — там чужие картинки статей, и они обязаны остаться голыми строками
-  - [ ] **Новый тест-страж** `frontend/src/__tests__/og-image.test.ts`:
+  - [x] **Новый тест-страж** `frontend/src/__tests__/og-image.test.ts`:
         - читает `frontend/public/image.jpg` через `node:fs`, разбирает SOF-маркер JPEG и сверяет ширину/высоту с `DEFAULT_OG_IMAGE_WIDTH`/`DEFAULT_OG_IMAGE_HEIGHT` (образец работы с `fs` в тесте — `src/__tests__/next-config-headers.test.ts:19-33`)
         - проверяет, что `DEFAULT_OG_IMAGE` заканчивается на `.jpg`, а `DEFAULT_OG_IMAGE_TYPE` = `image/jpeg`
         - проверяет, что `frontend/public/og-image.jpg` **не существует**, а `hero-fallback.jpg` существует
         - рекурсивно обходит `frontend/src` и проверяет отсутствие подстроки `og-image`
-  - [ ] **Новый тест** `frontend/src/utils/__tests__/seo.test.ts` (каталог существует): `buildMetadata` без `image` отдаёт `openGraph.images = [DEFAULT_OG_IMAGE_META]`; с явным `image: '/image.jpg'` — то же самое; с чужим URL — голую строку без размеров; `twitter.images` во всех случаях остаётся массивом строк
-  - [ ] **Новые тесты метаданных**: `frontend/src/app/(coming-soon)/coming-soon/__tests__/page.test.tsx` (каталог создаётся) и `frontend/src/app/(blue)/(auth)/login/__tests__/layout.test.tsx` — точные `title`/`description`, отличие от корневых значений, `robots` (есть у `/login`, нет у `/coming-soon`), `alternates.canonical`
-  - [ ] **Новый тест** `frontend/src/components/common/__tests__/SiteJsonLd.test.tsx`: ровно один `script[type="application/ld+json"]`; `JSON.parse` содержимого даёт `@graph` из двух узлов нужных типов; `publisher['@id']` равен `@id` организации; `potentialAction` отсутствует; `telephone`/`email` совпадают с константами из `config/contacts.ts`
-  - [ ] Прогон: `cd frontend; npm run test`, `npm run lint`, `npm run format:check`, `npx tsc --noEmit`
-  - [ ] Backend не прогонять — код бэкенда не менялся
+  - [x] **Новый тест** `frontend/src/utils/__tests__/seo.test.ts` (каталог существует): `buildMetadata` без `image` отдаёт `openGraph.images = [DEFAULT_OG_IMAGE_META]`; с явным `image: '/image.jpg'` — то же самое; с чужим URL — голую строку без размеров; `twitter.images` во всех случаях остаётся массивом строк
+  - [x] **Новые тесты метаданных**: `frontend/src/app/(coming-soon)/coming-soon/__tests__/page.test.tsx` (каталог создаётся) и `frontend/src/app/(blue)/(auth)/login/__tests__/layout.test.tsx` — точные `title`/`description`, отличие от корневых значений, `robots` (есть у `/login`, нет у `/coming-soon`), `alternates.canonical`
+  - [x] **Новый тест** `frontend/src/components/common/__tests__/SiteJsonLd.test.tsx`: ровно один `script[type="application/ld+json"]`; `JSON.parse` содержимого даёт `@graph` из двух узлов нужных типов; `publisher['@id']` равен `@id` организации; `potentialAction` отсутствует; `telephone`/`email` совпадают с константами из `config/contacts.ts`
+  - [x] Прогон: `cd frontend; npm run test`, `npm run lint`, `npm run format:check`, `npx tsc --noEmit`
+  - [x] Backend не прогонять — код бэкенда не менялся
 
-- [ ] **Task 10. Ручная проверка** (AC1–AC6)
-  - [ ] `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`; при 502 после рестарта — `docker compose --env-file .env -f docker/docker-compose.yml restart nginx`
-  - [ ] `curl -s http://localhost:3000/coming-soon | grep -o '<title>[^<]*</title>'` — новый заголовок; то же для `/login` и `/about`
-  - [ ] `curl -s http://localhost:3000/home | grep -o 'og:image[^>]*'` — присутствуют `og:image`, `og:image:width`, `og:image:height`, `og:image:type`
-  - [ ] `curl -s http://localhost:3000/home | grep -c 'application/ld+json'` — ровно одно вхождение; повторить на `/coming-soon`
-  - [ ] Скопировать содержимое JSON-LD в https://validator.schema.org (Code snippet) — ошибок нет; результат записать в Dev Agent Record
-  - [ ] Открыть `/home` при недоступном API баннеров — картинка hero отображается, в консоли нет 404 на `/hero-fallback.jpg`
-  - [ ] Открыть три адреса из `sameAs` — все три существуют (Task 6)
+- [x] **Task 10. Ручная проверка** (AC1–AC6)
+  - [x] `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`; при 502 после рестарта — `docker compose --env-file .env -f docker/docker-compose.yml restart nginx`
+  - [x] `curl -s http://localhost:3000/coming-soon | grep -o '<title>[^<]*</title>'` — новый заголовок; то же для `/login` и `/about`
+  - [x] `curl -s http://localhost:3000/home | grep -o 'og:image[^>]*'` — присутствуют `og:image`, `og:image:width`, `og:image:height`, `og:image:type`
+  - [x] `curl -s http://localhost:3000/home | grep -c 'application/ld+json'` — ровно одно вхождение; повторить на `/coming-soon`
+  - [x] Скопировать содержимое JSON-LD в https://validator.schema.org (Code snippet) — ошибок нет; результат записать в Dev Agent Record
+  - [x] Открыть `/home` при недоступном API баннеров — картинка hero отображается, в консоли нет 404 на `/hero-fallback.jpg`
+  - [x] Открыть три адреса из `sameAs` — все три существуют (Task 6)
 
-- [ ] **Task 11. Записи в `deferred-work.md`** (AC8)
-  - [ ] `/register`, `/b2b-register` и страницы `/profile/*` по-прежнему наследуют корневые `title`/`description` — FR-41-11 сужен решением 2026-08-24 до двух страниц; правка тривиальна (по `layout.tsx` на сегмент), но за пределами эпика
-  - [ ] `public/image.jpg` имеет пропорцию 1.53 против эталонной 1.905 (1200×630) — соцсети срежут превью примерно по 20 % сверху и снизу; замена файла требует нового изображения от владельца
-  - [ ] `logo` организации 1014×101 — высота ниже рекомендованных Google 112 px для `Organization.logo`
-  - [ ] `ProductPageClient.tsx:96` хардкодит `https://optisport.ru` вместо `absoluteUrl()`
-  - [ ] JSON-LD `Organization` с `taxID` на `/requisites` и `BreadcrumbList` — расширение разметки за пределами FR-41-14 (перекликается с существующей записью по `spec-requisites-page-update.md`)
+- [x] **Task 11. Записи в `deferred-work.md`** (AC8)
+  - [x] `/register`, `/b2b-register` и страницы `/profile/*` по-прежнему наследуют корневые `title`/`description` — FR-41-11 сужен решением 2026-08-24 до двух страниц; правка тривиальна (по `layout.tsx` на сегмент), но за пределами эпика
+  - [x] `public/image.jpg` имеет пропорцию 1.53 против эталонной 1.905 (1200×630) — соцсети срежут превью примерно по 20 % сверху и снизу; замена файла требует нового изображения от владельца
+  - [x] `logo` организации 1014×101 — высота ниже рекомендованных Google 112 px для `Organization.logo`
+  - [x] `ProductPageClient.tsx:96` хардкодит `https://optisport.ru` вместо `absoluteUrl()`
+  - [x] JSON-LD `Organization` с `taxID` на `/requisites` и `BreadcrumbList` — расширение разметки за пределами FR-41-14 (перекликается с существующей записью по `spec-requisites-page-update.md`)
 
-- [ ] **Task 12. Перед коммитом**
-  - [ ] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — затронуты только ожидаемые символы; HIGH/CRITICAL в отчёте объяснены
-  - [ ] `File List` сверить с `git diff --name-only <baseline_commit>..HEAD`, а не с памятью (находка ревью в 41.0, 41.4 и 41.5)
-  - [ ] Установить `review_head` на коммит, завершающий содержательную работу
-  - [ ] Коммит и push — только по явной просьбе владельца
+- [x] **Task 12. Перед коммитом**
+  - [x] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — затронуты только ожидаемые символы; HIGH/CRITICAL в отчёте объяснены
+  - [x] `File List` сверить с `git diff --name-only <baseline_commit>..HEAD`, а не с памятью (находка ревью в 41.0, 41.4 и 41.5)
+  - [x] Установить `review_head` на коммит, завершающий содержательную работу
+  - [x] Коммит и push — только по явной просьбе владельца
 
 ## Dev Notes
 
@@ -427,15 +427,119 @@ Layout возвращает `children` без обёртки — иначе в D
 
 ### Agent Model Used
 
+Claude Opus 5 (claude-opus-5), workflow `bmad-dev-story`.
+
 ### Debug Log References
+
+**Базис ДО правок (Task 1).** `cd frontend; npm run test -- --run src/app src/components/home src/__tests__` на `4e386a95` — **45 файлов, 782 passed, 2 skipped**, exit 0. Ни одного падения на неизменённом коде, поэтому всё, что упало дальше, — следствие правок стори.
+
+**Блокирующая находка перед Task 1: стори 41.4 не была влита в `develop`.** `sprint-status.yaml` держал ключ `41-4-checkout-trade-info-and-policy-link: done`, но `frontend/src/config/contacts.ts` в рабочем дереве отсутствовал. Разбор: коммит `79542d70` перенёс на `develop` только документацию — файлы стори 41.4/41.6, `deferred-work.md`, `sprint-status.yaml`; код стори 41.4 (`contacts.ts`, `CheckoutForm.tsx`, `ReturnsAndSupportNotice.tsx`, `checkoutDraft.ts` и около 700 строк тестов) остался на `origin/feature/story-41-4-checkout-trade-info`, PR для него не заводился (`gh pr list`: последний PR стори — #128 для 41.2). Для сравнения, стори 41.5 в `develop` присутствует. По решению владельца ветка 41.4 была домержена (`develop` влит в неё, три конфликта — только документация, во всех взята версия `develop` как более поздняя), выпущен **PR #131** и влит в `develop` (`4e386a95`). Только после этого заведена ветка 41.6.
+
+**Task 2, blast radius.** `npx gitnexus impact buildMetadata --direction upstream --repo "C:\Users\1\DEV\FREESPORT"`: `impactedCount: 14`, `"risk": "CRITICAL"`, `processes_affected: 6`, `modules_affected: 2`. Совпало с зафиксированным в Dev Notes. Владелец предупреждён до внесения правок; сигнатура не менялась, ни один из 14 вызовов править не потребовалось. Индекс GitNexus на момент проверки был `stale` на один коммит (`79542d7` против `4e386a9`), список вызывающих при этом совпал — расхождение пришлось на перенос документации.
+
+**Порядок red-green по задачам.** Task 3: `src/utils/__tests__/seo.test.ts` до правки `seo.ts` — 3 failed / 8 passed, после — 11 passed. Task 5: тесты `/coming-soon` и `/login` до создания модулей падали на резолве импорта, после — 11 passed. Task 6: `SiteJsonLd.test.tsx` до создания компонента падал на резолве, после — 10 passed. Task 7: тест `about` после правки ожиданий — 2 failed, после правки `page.tsx` — 32 passed.
+
+**Мок `next/font/google` в двух новых тестах.** Тесты `/coming-soon` и `/login` импортируют корневой layout, чтобы доказать отличие от корневых `title`/`description`. Корневой layout вызывает `Inter()`/`Roboto_Condensed()`, которые в тестовой среде не резолвятся (`TypeError: Inter is not a function`), поэтому в обоих файлах заведена заглушка. Сверка с реальным корневым layout — единственный способ проверить AC1 «оба значения отличаются от значений корневого layout» без дублирования этих значений константами.
+
+**Тест-страж дважды поймал собственные комментарии.** Проверка «в `src/` нет ссылок на `/og-image`» сработала сначала на комментарии в `seo.ts`, называвшем файл теста, затем — на комментариях в двух hero-тестах, упоминавших старое имя файла. Все три переформулированы. Это ожидаемое поведение стража, а не его дефект.
+
+**Финальный прогон.** `npm run test` — **162 файла, 2745 passed, 16 skipped**, exit 0. `npm run lint` — 0. `npm run format:check` — 0 (потребовался один `prettier --write src/utils/seo.ts`). `npx tsc --noEmit` — 0. Backend не прогонялся: код бэкенда не менялся.
+
+**Task 10, замеры на живом контейнере** (`docker compose restart frontend`, рестарт nginx не понадобился):
+
+```
+GET /coming-soon -> <title>OPTISPORT скоро откроется — оптовые продажи спорттоваров</title>
+GET /login       -> <title>Вход в личный кабинет | OPTISPORT</title>
+GET /about       -> <title>О компании OPTISPORT — оптовый поставщик спорттоваров</title>
+GET /home        -> og:image=http://localhost/image.jpg, og:image:width=1040,
+                    og:image:height=680, og:image:type=image/jpeg,
+                    og:image:alt=OPTISPORT — платформа продаж спортивных товаров
+GET /hero-fallback.jpg -> 200 image/jpeg 64347 bytes
+GET /og-image.jpg      -> text/html (файла нет; 200 вместо 404 — известный soft-404 Next 15.5.18)
+```
+
+Блоков `<script type="application/ld+json">` — ровно **1** на `/home`, `/coming-soon`, `/about`, `/electric` (второе вхождение строки `application/ld+json` в HTML — сериализованный RSC-пейлоад dev-сборки, не тег).
+
+**Валидатор schema.org (AC6).** Сгенерированный JSON отправлен на `https://validator.schema.org/validate`. Результат: `"numErrors": 0, "numWarnings": 0, "numNodesWithError": 0, "numNodesWithWarning": 0`. Оба узла распознаны (`typeGroup: WebSite`, `typeGroup: Organization`), `publisher` разрешился в узел организации по `@id`, вложенные `ImageObject` и `PostalAddress` — без ошибок, `addressCountry: RU` распознан как `Country`.
+
+**Task 12, detect-changes.** `npx gitnexus detect-changes --scope all` — 16 файлов, 15 символов, 11 процессов, риск **high**. Состав ожидаемый: `buildMetadata` и `PageSeoOptions` (Task 3), `metadata` в четырёх точках (Tasks 4/5/7), `HeroSection`/`ElectricHeroSection` (Task 8), `RootLayout` (Task 6). `normalizePath` и `absoluteUrl` попали в список только из-за сдвига строк в `seo.ts` — их тела не менялись. Уровень high — следствие того, что `buildMetadata` лежит на 14 путях вызова; именно поэтому её сигнатура и порядок полей результата оставлены нетронутыми.
 
 ### Completion Notes List
 
+**AC1** — `/coming-soon` получила собственные `title`/`description` через `buildMetadata` с `path: '/coming-soon'`; `robots` не задан, индексируемость страницы не менялась. Проверено тестом на точные значения и живым запросом.
+
+**AC2** — метаданные `/login` объявлены в новом `(blue)/(auth)/login/layout.tsx` с `noIndex: true`; `login/page.tsx` не тронут ни строкой. Layout возвращает `children` без обёртки — закреплено тестом на `container.firstElementChild.tagName === 'SPAN'` и `childElementCount === 1`.
+
+**AC3** — `title` страницы «О компании» = `О компании OPTISPORT — оптовый поставщик спорттоваров`, **53 символа**. Длина закреплена **диапазоном** 30…60, а не только точной строкой. `description` не менялся: три существующие проверки на её содержимое остались зелёными без правок.
+
+**AC4** — размеры объявлены единожды, константами в `utils/seo.ts`, и подставляются нормализацией внутри `buildMetadata`. Из `(electric)/electric/page.tsx` убраны неверные `width: 1200, height: 630`. Страницы с чужой картинкой (`blog/[slug]`, `news/[slug]`, `product/[slug]`) размеров не получают — закреплено отдельными тестами.
+
+**AC5** — `og-image.jpg` переименован в `hero-fallback.jpg` через `git mv`; git видит это как `R100` (переименование без изменения содержимого), обе hero-ветки переведены на новое имя.
+
+**AC6** — один `@graph` с `Organization` и `WebSite`, связанными через `publisher` → `@id`; `potentialAction` отсутствует; контакты берутся из `config/contacts.ts`; все абсолютные URL строятся из `SITE_URL`. Валидатор schema.org — 0 ошибок, 0 предупреждений.
+
+**AC7** — 28 новых тестов в шести файлах, четыре сломанных приведены к новым значениям. `npm run test`, `lint`, `format:check`, `tsc --noEmit` — все зелёные.
+
+**AC8** — бэкенд, `openapi.yaml`, `api.generated.ts`, `robots.ts`, `sitemap.ts`, `middleware.ts`, `next.config.ts`, `docker/nginx/**` не тронуты; `generate:types` не запускался. `catalog/layout.tsx:13` оставлен как есть — нормализация из Task 3 подставляет размеры и для него (проверено тестом `buildMetadata` с явным `image: '/image.jpg'`).
+
+#### Отклонения от буквы AC — три, все осознанные
+
+1. **Буквальный `grep -rn "og-image" frontend/src frontend/public` из AC5 неисполним и заменён проверкой по пути.** `og-image` — подстрока имени `blog-image.jpg`, чужой фикстуры в тесте блога (`blog/[slug]/__tests__/page.test.tsx:57,273`), которую Task 9 прямо запрещает трогать. Требования «grep пуст» и «строку 273 не трогать» противоречат друг другу. Страж проверяет ссылку на **путь** — регулярное выражение `(^|[^\w-])og-image`, что даёт ноль ложных срабатываний и ловит любое реальное возвращение файла (доказано трижды на живых правках, см. Debug Log). Смысл AC5 — «ссылок на удалённый файл не осталось» — выполнен полностью.
+
+2. **Ручной осмотр `/home` при недоступном API баннеров заменён тестами.** Браузерные инструменты в сессии оказались недоступны, а через `curl` эта ветка ненаблюдаема в принципе: `HeroSection` — клиентский компонент, SSR отдаёт скелетон (`isLoading: true`), fallback появляется только после того, как клиентский запрос баннеров завершился ошибкой. Вместо разового осмотра заведены три теста, проверяющие `src="/hero-fallback.jpg"` в обеих fallback-ветках (`HeroSection` при ошибке API; `ElectricHeroSection` при ошибке и при пустом ответе). Это сильнее разового взгляда: проверка остаётся в наборе. Отдельно подтверждено, что файл отдаётся живым сервером — `200 image/jpeg 64347 bytes`.
+
+3. **Существование `https://vk.com/optisport` не подтверждено, адрес оставлен.** Task 6 требует открыть три адреса `sameAs`. Telegram (`Telegram: Contact @optisport`) и YouTube (`Optisport - YouTube`) отвечают 200. VK на запросы из этого окружения отдаёт антибот-заглушку (418 на HEAD, 404 на GET с браузерным User-Agent), домен заблокирован для `WebFetch` — отличить «страницы нет» от «запрос отклонён» без браузера нельзя. Адрес оставлен как есть, потому что он совпадает с подвалом: если аккаунта нет, это дефект **подвала**, и убирать ссылку нужно синхронно в обоих местах. Заведена запись в `deferred-work.md`; **владельцу достаточно открыть адрес в браузере**, правка — одна строка в `config/organization.ts`.
+
+#### Наблюдение вне объёма
+
+`GET /never-existed-abcxyz.jpg` на локальном dev-сервере отдаёт **200** `text/html` со страницей «Страница не найдена» и `noindex`. Проверено на пути, который стори не трогала, — то есть к переименованию `og-image.jpg` отношения не имеет; это известный soft-404 Next 15.5.18, уже обойдённый через `noindex` (стори 41.0). Записано в `deferred-work.md` как контрольный замер: он же доказывает, что `og-image.jpg` действительно исчез — запрос к нему отдаёт `text/html`, а не `image/jpeg`.
+
 ### File List
+
+Диапазон сверен командой `git diff --name-status 4e386a95` плюс `git ls-files --others --exclude-standard`, не по памяти.
+
+**Новые файлы (9):**
+
+- `frontend/src/app/(blue)/(auth)/login/layout.tsx`
+- `frontend/src/config/organization.ts`
+- `frontend/src/components/common/SiteJsonLd.tsx`
+- `frontend/src/__tests__/og-image.test.ts`
+- `frontend/src/utils/__tests__/seo.test.ts`
+- `frontend/src/app/(coming-soon)/coming-soon/__tests__/page.test.tsx`
+- `frontend/src/app/(blue)/(auth)/login/__tests__/layout.test.tsx`
+- `frontend/src/components/common/__tests__/SiteJsonLd.test.tsx`
+- `frontend/src/components/home/__tests__/ElectricHeroSection.test.tsx`
+
+**Переименован (1):**
+
+- `frontend/public/og-image.jpg` → `frontend/public/hero-fallback.jpg` (`git mv`, `R100` — содержимое байт в байт прежнее)
+
+**Изменённые (14):**
+
+- `frontend/src/utils/seo.ts`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/app/(electric)/electric/page.tsx`
+- `frontend/src/app/(coming-soon)/coming-soon/page.tsx`
+- `frontend/src/app/(blue)/about/page.tsx`
+- `frontend/src/components/home/HeroSection.tsx`
+- `frontend/src/components/home/ElectricHeroSection.tsx`
+- `frontend/src/components/common/index.ts`
+- `frontend/src/app/(blue)/about/__tests__/page.test.tsx`
+- `frontend/src/app/(blue)/home/__tests__/page.test.tsx`
+- `frontend/src/app/(blue)/blog/[slug]/__tests__/page.test.tsx`
+- `frontend/src/app/(blue)/news/[slug]/__tests__/page.test.tsx`
+- `frontend/src/components/home/__tests__/HeroSection.test.tsx`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+
+**Метаданные процесса (2):**
+
+- `_bmad-output/implementation-artifacts/Story/41-6-unique-metadata-og-image-jsonld.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 | Дата | Изменение |
 |---|---|
+| 2026-09-05 | Стори реализована (dev-story). Перед стартом обнаружено и устранено блокирующее расхождение: стори 41.4 числилась `done`, но её код в `develop` не был влит — PR #131 заведён и влит, `baseline_commit` = `4e386a95`. Реализованы AC1–AC8: метаданные `/coming-soon` и `/login`, `title` `/about` (53 симв.), размеры `og:image` из одного источника, переименование `og-image.jpg` в `hero-fallback.jpg`, JSON-LD `Organization` + `WebSite`. Тесты: 162 файла, 2745 passed, 16 skipped; lint/format/tsc — 0. Валидатор schema.org — 0 ошибок. Три осознанных отклонения от буквы AC (grep-проверка AC5, ручной осмотр hero, непроверяемый VK) описаны в Completion Notes. Статус: ready-for-dev → review. |
 | 2026-09-05 | Решения владельца по трём открытым вопросам разбора: (1) `og-image.jpg` **переименовать** в `hero-fallback.jpg`, не удалять; (2) `/register` и `/b2b-register` в объём **не брать** — в `deferred-work.md`; (3) объявлять **фактические** 1040×680, новый файл 1200×630 не ждать. Все три совпали с решениями, уже заложенными в AC — текст стори не менялся. |
 | 2026-09-05 | Стори создана (create-story). Разбор дал четыре поправки к тексту эпика: (а) `og-image.jpg` используется двумя hero-компонентами — удаление заменено переименованием; (б) `/login` — Client Component, метаданные требуют нового `layout.tsx`; (в) единственное объявление размеров `og:image` (`(electric)/electric/page.tsx:60-63`) сегодня лживо — 1200×630 при файле 1040×680; (г) `SearchAction` в `WebSite` исключён, `/search` в `Disallow`. Blast radius `buildMetadata` — **CRITICAL** (14 прямых вызывающих), поэтому сигнатура не меняется. Статус: backlog → ready-for-dev. |

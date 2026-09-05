@@ -177,7 +177,15 @@ describe('AboutPage (/about)', () => {
 
   describe('SEO Metadata', () => {
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe('О компании');
+      expect(metadata.title).toBe('О компании OPTISPORT — оптовый поставщик спорттоваров');
+    });
+
+    // Длина проверяется диапазоном, а не только точной строкой: переформулировка
+    // заголовка не должна молча вывести его за границы 30–60 символов (FR-41-12).
+    it('должна держать длину title в диапазоне 30-60 символов', () => {
+      const title = metadata.title as string;
+      expect(title.length).toBeGreaterThanOrEqual(30);
+      expect(title.length).toBeLessThanOrEqual(60);
     });
 
     it('должна содержать правильный description', () => {
@@ -189,7 +197,7 @@ describe('AboutPage (/about)', () => {
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('О компании');
+      expect(metadata.openGraph?.title).toBe(metadata.title);
       expect(metadata.openGraph?.description).toContain('Федеральный оптовый поставщик');
     });
   });

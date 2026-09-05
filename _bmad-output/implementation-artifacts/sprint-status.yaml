@@ -741,7 +741,7 @@ development_status:
   #             размеры подставляются нормализацией значения по умолчанию.
   #             Зависимость: ветку заводить от develop ПОСЛЕ мержа PR стори 41.4 —
   #             JSON-LD берёт контакты из frontend/src/config/contacts.ts.
-  41-6-unique-metadata-og-image-jsonld: ready-for-dev
+  41-6-unique-metadata-og-image-jsonld: review
   41-7-pdn-registry-numbers-and-login-form-justification: backlog
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.
   41-8-text-separator-badge-brand-product-name: backlog

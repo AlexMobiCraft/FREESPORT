@@ -11,3 +11,5 @@ export type { RecommendationsRowProps } from './RecommendationsRow';
 
 export { ReturnsAndSupportNotice } from './ReturnsAndSupportNotice';
 export type { ReturnsAndSupportNoticeProps } from './ReturnsAndSupportNotice';
+
+export { SiteJsonLd } from './SiteJsonLd';

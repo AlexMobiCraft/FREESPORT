@@ -196,6 +196,28 @@ describe('HeroSection Component', () => {
       });
     });
 
+    // Стори 41.6 переименовала заглушку hero в hero-fallback.jpg. Ссылка
+    // проверяется именно здесь — статическая ветка видна только при недоступном
+    // API баннеров, то есть тогда, когда сайт и так деградировал.
+    it('должен показывать картинку hero-fallback.jpg в статической ветке', async () => {
+      vi.mocked(bannersService.getActive).mockRejectedValue(new Error('API Error'));
+
+      vi.mocked(useAuthStore).mockReturnValue({
+        user: null,
+        isAuthenticated: false,
+        accessToken: null,
+        setTokens: vi.fn(),
+        setUser: vi.fn(),
+        logout: vi.fn(),
+        getRefreshToken: vi.fn(),
+      });
+
+      render(<HeroSection />);
+
+      const image = await screen.findByAltText('OPTISPORT — подборка спортивных товаров');
+      expect(image).toHaveAttribute('src', '/hero-fallback.jpg');
+    });
+
     it('должен отображать B2B статический баннер для wholesale пользователя при ошибке API', async () => {
       vi.mocked(bannersService.getActive).mockRejectedValue(new Error('API Error'));
 

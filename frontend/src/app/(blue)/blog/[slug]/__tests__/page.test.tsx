@@ -16,6 +16,7 @@ import { render, screen } from '@testing-library/react';
 import BlogDetailPage, { generateMetadata } from '../page';
 import { blogService } from '@/services/blogService';
 import type { BlogItem } from '@/types/api';
+import { DEFAULT_OG_IMAGE_META } from '@/utils/seo';
 
 // Mock Next.js navigation
 // Mock Next.js navigation
@@ -279,7 +280,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.openGraph?.images).toEqual(['/image.jpg']);
+      expect(metadata.openGraph?.images).toEqual([DEFAULT_OG_IMAGE_META]);
     });
 
     it('должна обрабатывать ошибку при генерации метаданных', async () => {

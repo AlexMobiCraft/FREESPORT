@@ -159,7 +159,7 @@ export const ElectricHeroSection = () => {
   const subtitle = currentBanner?.subtitle || currentStatic?.subtitle || '';
   const ctaText = currentBanner?.cta_text || currentStatic?.cta.text || '';
   const ctaLink = currentBanner?.cta_link || currentStatic?.cta.link || '/';
-  const imageUrl = currentBanner?.image_url || '/og-image.jpg';
+  const imageUrl = currentBanner?.image_url || '/hero-fallback.jpg';
   const imageAlt = currentBanner?.image_alt || 'OPTISPORT';
 
   return (
