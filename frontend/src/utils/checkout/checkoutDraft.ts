@@ -26,10 +26,7 @@ export function clearCheckoutDraft(): void {
 
 // Подписка живёт дольше формы: выход на странице условий тоже удаляет черновик.
 useAuthStore.subscribe((state, previous) => {
-  if (
-    state.user?.id !== previous.user?.id ||
-    state.isAuthenticated !== previous.isAuthenticated
-  ) {
+  if (state.user?.id !== previous.user?.id || state.isAuthenticated !== previous.isAuthenticated) {
     clearCheckoutDraft();
   }
 });

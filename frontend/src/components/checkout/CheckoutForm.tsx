@@ -305,7 +305,13 @@ function CheckoutFormFields({ user }: CheckoutFormProps) {
       onClickCapture={event => {
         // Сохраняем даже незавершённый/невалидный ввод перед обычным переходом
         // к условиям. Ctrl/Meta/Shift-клик оставляет текущую форму на месте.
-        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+        if (
+          event.button !== 0 ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
           return;
         }
         const link = (event.target as Element).closest('a');
