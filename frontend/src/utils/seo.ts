@@ -8,7 +8,19 @@
 
 import type { Metadata } from 'next';
 
-export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+/**
+ * Срезает хвостовые слэши базового адреса. Значение приходит из окружения
+ * (`NEXT_PUBLIC_APP_URL`), а там `https://optisport.ru/` пишут так же часто,
+ * как `https://optisport.ru`. Без нормализации `absoluteUrl` и идентификаторы
+ * узлов JSON-LD получают двойной слэш: `https://optisport.ru//#organization`.
+ */
+export function normalizeSiteUrl(url: string): string {
+  return url.replace(/\/+$/, '');
+}
+
+export const SITE_URL = normalizeSiteUrl(
+  process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+);
 export const SITE_NAME = 'OPTISPORT';
 export const OG_LOCALE = 'ru_RU';
 export const DEFAULT_OG_IMAGE = '/image.jpg';
@@ -96,7 +108,19 @@ export function absoluteUrl(path: string): string {
 function withDefaultImageMeta(image: NonNullable<PageSeoOptions['image']>) {
   const url = typeof image === 'string' ? image : image.url;
   if (url !== DEFAULT_OG_IMAGE) return image;
-  return typeof image === 'string' ? DEFAULT_OG_IMAGE_META : { ...DEFAULT_OG_IMAGE_META, ...image };
+  if (typeof image === 'string') return DEFAULT_OG_IMAGE_META;
+
+  // Габариты и MIME-тип — свойства файла, а не мнение вызывающего: значения
+  // из констант ставятся ПОСЛЕ разворачивания `image`, поэтому переданный
+  // страницей `width: 1200` не может сделать метатеги лживыми. Всё остальное
+  // (прежде всего `alt`) вызывающий переопределяет свободно.
+  return {
+    ...DEFAULT_OG_IMAGE_META,
+    ...image,
+    width: DEFAULT_OG_IMAGE_WIDTH,
+    height: DEFAULT_OG_IMAGE_HEIGHT,
+    type: DEFAULT_OG_IMAGE_TYPE,
+  };
 }
 
 export function buildMetadata({

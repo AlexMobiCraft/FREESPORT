@@ -11,7 +11,7 @@
  *     значит противоречить самим себе.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 
 import { SiteJsonLd } from '../SiteJsonLd';
@@ -128,5 +128,36 @@ describe('SiteJsonLd: абсолютные URL', () => {
       ? (json.match(new RegExp(SITE_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length
       : 0;
     expect(hardcoded.length).toBe(fromSiteUrl);
+  });
+});
+
+describe('SiteJsonLd: экранирование при сериализации', () => {
+  it('не выпускает в разметку литеральный `<`, пришедший из окружения', async () => {
+    // `SITE_URL` берётся из `NEXT_PUBLIC_APP_URL` — это значение окружения, а не
+    // литеральная константа модуля. Литеральный `</script>` внутри инлайн-скрипта
+    // закрывает тег, поэтому `<` уходит в разметку только как `\\u003c`.
+    vi.resetModules();
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://x.test/</script><img src=x>');
+
+    const { SiteJsonLd: Reloaded } = await import('../SiteJsonLd');
+    const { container } = render(<Reloaded />);
+    const script = container.querySelector('script[type="application/ld+json"]')!;
+    const html = script.innerHTML;
+
+    expect(html).not.toContain('<');
+    expect(html).toContain('\\u003c');
+    // Экранирование не должно ломать разбор: робот обязан прочитать тот же граф
+    expect(JSON.parse(script.textContent ?? '')['@graph']).toHaveLength(2);
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('оставляет разметку валидным JSON при обычных данных', () => {
+    const { container } = render(<SiteJsonLd />);
+    const script = container.querySelector('script[type="application/ld+json"]')!;
+
+    expect(script.innerHTML).not.toContain('<');
+    expect(() => JSON.parse(script.textContent ?? '')).not.toThrow();
   });
 });

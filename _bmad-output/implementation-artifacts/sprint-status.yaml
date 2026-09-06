@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-03
+# last_updated: 2026-09-06
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-05
+last_updated: 2026-09-06
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -741,6 +741,17 @@ development_status:
   #             размеры подставляются нормализацией значения по умолчанию.
   #             Зависимость: ветку заводить от develop ПОСЛЕ мержа PR стори 41.4 —
   #             JSON-LD берёт контакты из frontend/src/config/contacts.ts.
+  # 2026-09-06: Закрыты находки код-ревью — 8 из 8 [Review][Patch]. Код: запрет
+  #             переопределять фактические размеры картинки по умолчанию;
+  #             normalizeSiteUrl срезает хвостовой слэш SITE_URL (JSON-LD получал
+  #             //#organization); экранирование < при сериализации JSON-LD;
+  #             корректность JPEG-стража (fill-байты FF FF, SOI, границы сегмента).
+  #             Документация: AC6 уточнён — «ровно один» про разметку уровня сайта,
+  #             маршрутный Product допустим (решение владельца, вариант 1); AC5
+  #             приведён к проверке пути вместо неисполнимого буквального grep.
+  #             Две ручные проверки подтверждены владельцем: VK-сообщество
+  #             существует, осмотр /home с недоступным API баннеров выполнен.
+  #             Тесты: 162 файла, 2758 passed, 16 skipped; lint/format/tsc — 0.
   41-6-unique-metadata-og-image-jsonld: review
   41-7-pdn-registry-numbers-and-login-form-justification: backlog
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.

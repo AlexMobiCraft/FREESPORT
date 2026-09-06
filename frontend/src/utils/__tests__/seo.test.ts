@@ -10,7 +10,7 @@
  * размеров не читает, а объект вместо строки там ломает карточку.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   buildMetadata,
@@ -19,6 +19,7 @@ import {
   DEFAULT_OG_IMAGE_META,
   DEFAULT_OG_IMAGE_TYPE,
   DEFAULT_OG_IMAGE_WIDTH,
+  normalizeSiteUrl,
 } from '../seo';
 
 const base = {
@@ -129,5 +130,76 @@ describe('buildMetadata: неизменность прочего контрак�
       url: '/some-page',
       type: 'website',
     });
+  });
+});
+
+describe('buildMetadata: фактические размеры картинки по умолчанию неотменяемы', () => {
+  it('игнорирует переданные вызывающим width/height/type для картинки по умолчанию', () => {
+    // Габариты `/image.jpg` — свойство файла, а не мнение вызывающего.
+    // Прежний эталон 1200×630 живёт в старом коде и в чужих памятках; если
+    // страница передаст его объектом, метатеги обязаны остаться правдивыми.
+    const metadata = buildMetadata({
+      ...base,
+      image: { url: DEFAULT_OG_IMAGE, width: 1200, height: 630, type: 'image/png' },
+    });
+
+    expect(metadata.openGraph?.images).toEqual([
+      {
+        url: DEFAULT_OG_IMAGE,
+        width: DEFAULT_OG_IMAGE_WIDTH,
+        height: DEFAULT_OG_IMAGE_HEIGHT,
+        type: DEFAULT_OG_IMAGE_TYPE,
+        alt: DEFAULT_OG_IMAGE_META.alt,
+      },
+    ]);
+  });
+
+  it('по-прежнему разрешает переопределить только alt', () => {
+    const metadata = buildMetadata({
+      ...base,
+      image: { url: DEFAULT_OG_IMAGE, alt: 'Свой альт', width: 999 },
+    });
+
+    expect(metadata.openGraph?.images).toEqual([
+      { ...DEFAULT_OG_IMAGE_META, alt: 'Свой альт' },
+    ]);
+  });
+});
+
+describe('SITE_URL: хвостовой слэш', () => {
+  it('normalizeSiteUrl срезает хвостовые слэши', () => {
+    expect(normalizeSiteUrl('https://optisport.ru/')).toBe('https://optisport.ru');
+    expect(normalizeSiteUrl('https://optisport.ru///')).toBe('https://optisport.ru');
+    expect(normalizeSiteUrl('https://optisport.ru')).toBe('https://optisport.ru');
+    expect(normalizeSiteUrl('http://localhost:3000/')).toBe('http://localhost:3000');
+  });
+
+  it('absoluteUrl не даёт двойного слэша при SITE_URL с хвостовым слэшем', async () => {
+    vi.resetModules();
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://optisport.ru/');
+
+    const seo = await import('../seo');
+
+    expect(seo.SITE_URL).toBe('https://optisport.ru');
+    expect(seo.absoluteUrl('/LOGO_OPTIsport.png')).toBe('https://optisport.ru/LOGO_OPTIsport.png');
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('идентификаторы узлов JSON-LD не получают двойного слэша', async () => {
+    vi.resetModules();
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://optisport.ru/');
+
+    const organization = await import('@/config/organization');
+
+    expect(organization.ORGANIZATION_ID).toBe('https://optisport.ru/#organization');
+    expect(organization.WEBSITE_ID).toBe('https://optisport.ru/#website');
+    expect(organization.ORGANIZATION_JSON_LD.logo.url).toBe(
+      'https://optisport.ru/LOGO_OPTIsport.png'
+    );
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 });

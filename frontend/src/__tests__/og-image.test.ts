@@ -15,6 +15,7 @@
 
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,12 +33,21 @@ const PUBLIC_DIR = path.join(FRONTEND_DIR, 'public');
 /**
  * Разбирает габариты JPEG по маркеру SOF (0xFFC0…0xFFCF, кроме 0xC4/0xC8/0xCC).
  * Заголовок читается напрямую, чтобы не тянуть в тесты графическую зависимость.
+ *
+ * Страж обязан падать с внятным сообщением, а не возвращать правдоподобный
+ * мусор: молча разобранные «размеры» испорченного файла — худший исход, чем
+ * упавший тест. Отсюда проверки SOI, границ сегмента и его минимальной длины.
  */
 function readJpegSize(file: string): { width: number; height: number } {
   const data = fs.readFileSync(file);
+
+  if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) {
+    throw new Error(`Файл ${file} не начинается с маркера SOI (0xFFD8) — это не JPEG`);
+  }
+
   let offset = 2; // пропускаем SOI (0xFFD8)
 
-  while (offset < data.length) {
+  while (offset + 1 < data.length) {
     if (data[offset] !== 0xff) {
       offset += 1;
       continue;
@@ -45,17 +55,44 @@ function readJpegSize(file: string): { width: number; height: number } {
 
     const marker = data[offset + 1];
 
+    // Байт-заполнитель: перед маркером стандарт разрешает сколько угодно 0xFF.
+    // Сдвигаемся на один байт, иначе `FF FF C0` разберётся как маркер 0xFF,
+    // а следующие два байта — как его длина, то есть как мусор.
+    if (marker === 0xff) {
+      offset += 1;
+      continue;
+    }
+
     // Маркеры без полезной нагрузки
-    if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
       offset += 2;
       continue;
     }
 
+    // EOI: дальше данных нет, SOF уже не встретится
+    if (marker === 0xd9) break;
+
+    if (offset + 4 > data.length) {
+      throw new Error(`Обрезанный сегмент JPEG в файле ${file}: не хватает поля длины`);
+    }
+
     const segmentLength = data.readUInt16BE(offset + 2);
+
+    if (segmentLength < 2 || offset + 2 + segmentLength > data.length) {
+      throw new Error(
+        `Некорректный сегмент JPEG в файле ${file}: длина ${segmentLength} выходит за границы`
+      );
+    }
+
     const isStartOfFrame =
       marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
 
     if (isStartOfFrame) {
+      // SOF: длина(2) + точность(1) + высота(2) + ширина(2) = минимум 7 байт
+      if (segmentLength < 7) {
+        throw new Error(`Сегмент SOF в файле ${file} короче обязательных 7 байт`);
+      }
+
       return {
         height: data.readUInt16BE(offset + 5),
         width: data.readUInt16BE(offset + 7),
@@ -121,5 +158,98 @@ describe('Заглушка hero: og-image.jpg не вернулся', () => {
     });
 
     expect(offenders.map(file => path.relative(FRONTEND_DIR, file))).toEqual([]);
+  });
+});
+
+describe('Разбор JPEG: корректность самого стража', () => {
+  /** Собирает минимальный JPEG: SOI + произвольные сегменты + SOF0 */
+  function buildJpeg({
+    width,
+    height,
+    fillBytes = 0,
+    withApp0 = true,
+  }: {
+    width: number;
+    height: number;
+    fillBytes?: number;
+    withApp0?: boolean;
+  }): Buffer {
+    const parts: Buffer[] = [Buffer.from([0xff, 0xd8])];
+
+    if (withApp0) {
+      // APP0 с двумя байтами полезной нагрузки: длина считает саму себя
+      parts.push(Buffer.from([0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46]));
+    }
+
+    // Байты-заполнители: по стандарту перед маркером их может быть сколько угодно
+    if (fillBytes > 0) parts.push(Buffer.alloc(fillBytes, 0xff));
+
+    const sof = Buffer.alloc(11);
+    sof.writeUInt8(0xff, 0);
+    sof.writeUInt8(0xc0, 1);
+    sof.writeUInt16BE(9, 2); // длина сегмента
+    sof.writeUInt8(8, 4); // точность
+    sof.writeUInt16BE(height, 5);
+    sof.writeUInt16BE(width, 7);
+    sof.writeUInt8(1, 9); // число компонентов
+    parts.push(sof);
+
+    return Buffer.concat(parts);
+  }
+
+  /** Кладёт буфер во временный файл — страж работает с путями, не с буферами */
+  function withTempFile(buffer: Buffer, run: (file: string) => void): void {
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'og-image-guard-')),
+      'sample.jpg'
+    );
+    fs.writeFileSync(file, buffer);
+
+    try {
+      run(file);
+    } finally {
+      fs.rmSync(path.dirname(file), { recursive: true, force: true });
+    }
+  }
+
+  it('читает размеры из обычного JPEG', () => {
+    withTempFile(buildJpeg({ width: 1040, height: 680 }), file => {
+      expect(readJpegSize(file)).toEqual({ width: 1040, height: 680 });
+    });
+  });
+
+  it('не сбивается на байтах-заполнителях 0xFF перед маркером', () => {
+    // `FF FF C0` — валидная последовательность: лишние 0xFF просто пропускаются.
+    // Наивный разбор принимает второй 0xFF за маркер и читает мусорную длину.
+    withTempFile(buildJpeg({ width: 800, height: 600, fillBytes: 3 }), file => {
+      expect(readJpegSize(file)).toEqual({ width: 800, height: 600 });
+    });
+  });
+
+  it('отвергает файл без SOI-маркера', () => {
+    withTempFile(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00]), file => {
+      expect(() => readJpegSize(file)).toThrow(/SOI/);
+    });
+  });
+
+  it('отвергает сегмент с длиной за границей файла', () => {
+    const broken = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x7f, 0xff, 0x00]);
+    withTempFile(broken, file => {
+      expect(() => readJpegSize(file)).toThrow(/сегмент/i);
+    });
+  });
+
+  it('отвергает сегмент с длиной меньше двух байт', () => {
+    const broken = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x01, 0x00, 0x00]);
+    withTempFile(broken, file => {
+      expect(() => readJpegSize(file)).toThrow(/сегмент/i);
+    });
+  });
+
+  it('сообщает об отсутствии SOF, а не возвращает мусор', () => {
+    const noSof = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46, 0xff, 0xd9]);
+    withTempFile(noSof, file => {
+      expect(() => readJpegSize(file)).toThrow(/SOF/);
+    });
   });
 });

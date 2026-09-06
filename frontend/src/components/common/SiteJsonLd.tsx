@@ -9,9 +9,12 @@
  * `(electric)`, и `(coming-soon)`. Осознанное следствие: блок попадает и на
  * `not-found.tsx`; страница 404 уже несёт `noindex`, разметка на ней инертна.
  *
- * `dangerouslySetInnerHTML` здесь безопасен: данные — статические константы
- * модуля, пользовательского ввода нет. Появится динамика — потребуется
- * экранирование `<` в `<`.
+ * Перед вставкой через `dangerouslySetInnerHTML` каждый `<` заменяется на
+ * `\\u003c`. Данные разметки — константы модуля, но не литеральные: `SITE_URL`
+ * приходит из `NEXT_PUBLIC_APP_URL`, то есть из окружения сборки. Литеральный
+ * `</script>` внутри инлайн-скрипта закрывает тег и выносит остаток графа в
+ * документ как разметку; для JSON `\\u003c` — та же строка, робот читает её без
+ * изменений.
  */
 
 import { ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from '@/config/organization';
@@ -21,11 +24,11 @@ const SITE_GRAPH = {
   '@graph': [ORGANIZATION_JSON_LD, WEBSITE_JSON_LD],
 };
 
+/** JSON графа, безопасный для вставки внутрь `<script>` */
+const SITE_GRAPH_JSON = JSON.stringify(SITE_GRAPH).replaceAll('<', '\\u003c');
+
 export function SiteJsonLd() {
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_GRAPH) }}
-    />
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: SITE_GRAPH_JSON }} />
   );
 }
