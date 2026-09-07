@@ -6,11 +6,13 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+  # paths-фильтр у pull_request снят намеренно: этот чек входит в required-контексты
+  # защиты веток, а required-контекст у workflow с фильтром путей не сообщает статус на
+  # PR, который эти пути не трогает, — GitHub показывает «Expected — waiting for status»
+  # и мерж блокируется бессрочно. У push фильтр сохранён: защита оценивается по PR, а
+  # на push от него зависят сборка и деплой.
   pull_request:
     branches: [main, develop]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
 
 env:
   NODE_VERSION: "22.x"
@@ -19,6 +21,9 @@ env:
 jobs:
   # Этап 1: Качество кода и тестирование
   test:
+    # Имя задано явно: без него check-run называется по id джобы («test»), а такое же
+    # имя у джобы в backend-ci.yml — как required-контексты они неразличимы.
+    name: "Фронтенд: тесты"
     runs-on: ubuntu-latest
 
     steps:
