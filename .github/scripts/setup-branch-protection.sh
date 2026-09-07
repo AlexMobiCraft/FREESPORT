@@ -1,188 +1,264 @@
 #!/bin/bash
 
-# Скрипт для настройки правил защиты веток в GitHub репозитории
-# Использование: ./setup-branch-protection.sh [repo_owner] [repo_name] [github_token]
+# Настройка правил защиты веток в GitHub репозитории.
+#
+# Использование:
+#   MODE=check ./setup-branch-protection.sh [repo_owner] [repo_name] [github_token]
+#   MODE=apply ./setup-branch-protection.sh [repo_owner] [repo_name] [github_token]
+#
+# MODE=check (по умолчанию) — только читает и печатает текущее состояние, ничего не меняет.
+# MODE=apply               — применяет правила; перед этим проверяет, что все требуемые
+#                            контексты реально существуют (см. preflight ниже).
+#
+# ⚠️ ПЕРЕД ПРИМЕНЕНИЕМ ПРОЧИТАЙ (проверено 2026-09-07 через gh api):
+#
+# 0. Скрипту нужен PAT с правами администратора репозитория (в CI — секрет
+#    BRANCH_PROTECTION_TOKEN). GITHUB_TOKEN не подходит: и чтение, и запись branch
+#    protection требуют admin, а области `administration` в блоке `permissions`
+#    workflow не существует.
+# 1. Ни main, ни develop сейчас НЕ защищены — оба отдают «Branch not protected».
+#    Этот скрипт ни разу не применился успешно; всё, что ниже, — намерение, а не
+#    текущее состояние.
+# 2. GitHub именует check-run по имени джобы (плюс значения матрицы), а не
+#    «workflow (job)»: чек Django CI называется `build (3.12)`. Прежний список
+#    контекстов был выдуман и не совпадал ни с одним реальным чеком; исправлено
+#    2026-09-07 вместе с двумя причинами, из-за которых совпасть было нельзя:
+#    джобы backend-ci и frontend-ci обе назывались `test` (теперь у них явные
+#    разные `name`), а paths-фильтры не давали чекам появиться на части PR
+#    (сняты у pull_request). MODE=apply всё равно гоняет preflight и отказывается
+#    применять правила, если хоть один контекст не найден среди реальных чеков
+#    ветки: иначе PR встанет на «Expected — waiting for status» навсегда.
+#    E2E Tests в список намеренно не включён — он красный с 2026-09-05.
+# 3. В репозитории один коллаборатор (проверено 2026-09-07). Поэтому
+#    required_approving_review_count = 0, а require_last_push_approval = false:
+#    свой PR апрувить нельзя, и любое ненулевое требование ревью вместе с
+#    enforce_admins = true намертво блокирует мерж, снять который можно только
+#    сняв защиту. PR при этом всё равно обязателен — прямой push в main/develop
+#    запрещён, и обязательные проверки статуса действуют. Как только появится
+#    второй мейнтейнер, оба значения имеет смысл вернуть к 1 и true.
+# 4. Ни у одного workflow из REQUIRED_CONTEXTS больше нет paths-фильтра на
+#    pull_request — это условие обязательно и его нельзя вернуть, не сломав мерж.
+#    Добавляя контекст в список, проверь, что его workflow срабатывает на КАЖДОМ PR
+#    в main/develop. Preflight этого не гарантирует: он смотрит один коммит, где
+#    нужные пути могли быть затронуты.
 
-set -e
+set -euo pipefail
 
-# Параметры по умолчанию
-REPO_OWNER=${1:-$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)}
-REPO_NAME=${2:-$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f2)}
-GITHUB_TOKEN=${3:-$GITHUB_TOKEN}
+REPO_OWNER=${1:-$(echo "${GITHUB_REPOSITORY:-}" | cut -d'/' -f1)}
+REPO_NAME=${2:-$(echo "${GITHUB_REPOSITORY:-}" | cut -d'/' -f2)}
+GITHUB_TOKEN=${3:-${GITHUB_TOKEN:-}}
+MODE=${MODE:-check}
+
+export GITHUB_TOKEN
 
 if [[ -z "$GITHUB_TOKEN" ]]; then
-    echo "❌ Требуется GitHub токен"
-    echo "Использование: $0 [repo_owner] [repo_name] [github_token]"
+    echo "❌ Токен не задан."
+    echo "   Нужен PAT с правами администратора репозитория: classic со scope 'repo'"
+    echo "   либо fine-grained с разрешением «Administration: Read and write»."
+    echo "   В CI он приходит из секрета BRANCH_PROTECTION_TOKEN; штатный GITHUB_TOKEN"
+    echo "   не подходит — область administration в блоке permissions недоступна."
+    echo "Использование: MODE=check|apply $0 [repo_owner] [repo_name] [github_token]"
     exit 1
 fi
 
-API_URL="https://api.github.com"
+if [[ -z "$REPO_OWNER" || -z "$REPO_NAME" ]]; then
+    echo "❌ Не определён репозиторий: передай owner и name аргументами или задай GITHUB_REPOSITORY"
+    exit 1
+fi
 
-echo "🔧 Настройка правил защиты веток для репозитория $REPO_OWNER/$REPO_NAME"
+if [[ "$MODE" != "check" && "$MODE" != "apply" ]]; then
+    echo "❌ MODE должен быть 'check' или 'apply', получено: '$MODE'"
+    exit 1
+fi
 
-# Функция для создания правила защиты ветки
-# ⚠️ ПЕРЕД ПРИМЕНЕНИЕМ ПРОЧИТАЙ (проверено 2026-08-04 через gh api):
+# На ubuntu-latest оба предустановлены, но проверка дешевле, чем разбор невнятного падения.
+for tool in gh jq; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "❌ Не найден $tool — он обязателен для работы скрипта"
+        exit 1
+    fi
+done
+
+BRANCHES=("main" "develop")
+
+# Контексты, которые станут обязательными. Менять только вместе с preflight-проверкой —
+# см. предупреждение в шапке.
+REQUIRED_CONTEXTS=(
+    "Бэкенд: тесты"
+    "Фронтенд: тесты"
+    "build (3.12)"
+    "Контракт синхронен с кодом"
+    "Проверки качества кода"
+)
+
+FAILED=0
+
+echo "🔧 Репозиторий: $REPO_OWNER/$REPO_NAME"
+echo "🔧 Режим: $MODE"
+echo ""
+
+# Собирает JSON тела запроса. Контексты подставляются через jq, а не склейкой строк:
+# имена содержат пробелы, скобки и кириллицу.
 #
-# 1. Ни main, ни develop сейчас НЕ защищены — оба отдают «Branch not protected».
-#    Этот скрипт не применялся; всё, что ниже, — намерение, а не текущее состояние.
-# 2. Три из четырёх строк в contexts, скорее всего, ни с чем не совпадают. GitHub
-#    именует check-run по имени джобы (плюс матрица), а не «workflow (job)»: реальный
-#    чек последнего прогона называется `build (3.12)`, а не «Django CI (build)».
-#    У backend-ci.yml и frontend-ci.yml джобы обе называются `test` — их чеки
-#    неразличимы между собой, это отдельная проблема.
-# 3. Required-контекст у workflow с фильтром `paths` НЕ сообщает статус на PR, который
-#    эти пути не трогает: GitHub показывает «Expected — waiting for status» и мерж
-#    блокируется бессрочно. Такой фильтр есть у backend-ci.yml, frontend-ci.yml и
-#    api-contract.yml. Прежде чем делать их обязательными, нужна джоба-заглушка без
-#    paths, которая всегда сообщает успех.
-#
-# Строка «Контракт синхронен с кодом» — имя джобы из api-contract.yml (tech-debt п. 20),
-# она задана явно и потому однозначна. Остальные требуют сверки с живым репозиторием.
-create_branch_protection() {
+# Раньше тело собиралось через `gh api --field required_status_checks='{...}'`. Это
+# ошибка: --field передаёт значение строкой, объектом оно не становится, и API отвечает
+# 422. Правильный способ — отдать готовый JSON через --input -.
+protection_payload() {
+    printf '%s\n' "${REQUIRED_CONTEXTS[@]}" | jq -R . | jq -s '{
+        required_status_checks: {
+            strict: true,
+            contexts: .
+        },
+        enforce_admins: true,
+        required_pull_request_reviews: {
+            required_approving_review_count: 0,
+            dismiss_stale_reviews: true,
+            require_code_owner_reviews: false,
+            require_last_push_approval: false
+        },
+        restrictions: null,
+        allow_force_pushes: false,
+        allow_deletions: false,
+        block_creations: false,
+        required_conversation_resolution: true,
+        lock_branch: false,
+        allow_fork_syncing: false,
+        required_linear_history: false
+    }'
+}
+
+# Проверяет, что каждый требуемый контекст реально сообщал статус на HEAD ветки.
+# Без этого применение правил вешает все будущие PR на «Expected — waiting for status».
+preflight_contexts() {
     local branch=$1
-    local description=$2
-    
-    echo "📋 Настройка правил для ветки: $branch ($description)"
-    
-    # Проверяем существование ветки
-    if ! gh api --silent "repos/$REPO_OWNER/$REPO_NAME/branches/$branch"; then
-        echo "⚠️ Ветка $branch не существует, пропускаем настройку"
-        return 0
+    local sha reported missing=0
+
+    if ! sha=$(gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$branch" --jq '.sha' 2>&1); then
+        echo "  ❌ Не удалось получить HEAD ветки $branch:"
+        echo "$sha" | sed 's/^/    /'
+        return 1
     fi
-    
-    # Создаем правило защиты ветки
-    response=$(gh api --method PUT \
-        "repos/$REPO_OWNER/$REPO_NAME/branches/$branch/protection" \
-        --field required_status_checks='{
-            "strict": true,
-            "contexts": [
-                "Backend CI/CD (test)",
-                "Frontend CI/CD (test)",
-                "Django CI (build)",
-                "Контракт синхронен с кодом"
-            ]
-        }' \
-        --field enforce_admins=true \
-        --field required_pull_request_reviews='{
-            "required_approving_review_count": 1,
-            "dismiss_stale_reviews": true,
-            "require_code_owner_reviews": false,
-            "require_last_push_approval": true,
-            "bypass_pull_request_allowances": {
-                "users": [],
-                "teams": []
-            }
-        }' \
-        --field restrictions=null \
-        --field allow_force_pushes=false \
-        --field allow_deletions=false \
-        --field block_creations=false \
-        --field required_conversation_resolution=true \
-        --field lock_branch=false \
-        --field allow_fork_syncing=false \
-        --field required_linear_history=false 2>/dev/null || echo "FAILED")
-    
-    if [[ "$response" == "FAILED" ]]; then
-        echo "⚠️ Не удалось обновить правила для ветки $branch (возможно, они уже существуют)"
-        
-        # Пытаемся обновить существующие правила
-        echo "🔄 Попытка обновления существующих правил..."
-        response=$(gh api --method PATCH \
-            "repos/$REPO_OWNER/$REPO_NAME/branches/$branch/protection" \
-            --field required_status_checks='{
-                "strict": true,
-                "contexts": [
-                    "Backend CI/CD (test)",
-                    "Frontend CI/CD (test)",
-                    "Django CI (build)",
-                    "Контракт синхронен с кодом"
-                ]
-            }' \
-            --field enforce_admins=true \
-            --field required_pull_request_reviews='{
-                "required_approving_review_count": 1,
-                "dismiss_stale_reviews": true,
-                "require_code_owner_reviews": false,
-                "require_last_push_approval": true,
-                "bypass_pull_request_allowances": {
-                    "users": [],
-                    "teams": []
-                }
-            }' \
-            --field restrictions=null \
-            --field allow_force_pushes=false \
-            --field allow_deletions=false \
-            --field block_creations=false \
-            --field required_conversation_resolution=true \
-            --field lock_branch=false \
-            --field allow_fork_syncing=false \
-            --field required_linear_history=false 2>/dev/null || echo "FAILED")
-        
-        if [[ "$response" == "FAILED" ]]; then
-            echo "❌ Не удалось обновить правила для ветки $branch"
-            return 1
+
+    # Имена check-run (GitHub Actions) и контексты commit status (внешние сервисы).
+    reported=$(
+        {
+            gh api --paginate "repos/$REPO_OWNER/$REPO_NAME/commits/$sha/check-runs" \
+                --jq '.check_runs[].name' 2>/dev/null || true
+            gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$sha/status" \
+                --jq '.statuses[].context' 2>/dev/null || true
+        } | sort -u
+    )
+
+    if [[ -z "$reported" ]]; then
+        echo "  ❌ На коммите $sha нет ни одного чека — применять правила нельзя"
+        return 1
+    fi
+
+    echo "  🔍 Preflight по коммиту $sha"
+    for ctx in "${REQUIRED_CONTEXTS[@]}"; do
+        if grep -Fxq "$ctx" <<<"$reported"; then
+            echo "    ✅ найден контекст: $ctx"
         else
-            echo "✅ Правила для ветки $branch успешно обновлены"
+            echo "    ❌ контекст НЕ найден: $ctx"
+            missing=$((missing + 1))
         fi
-    else
-        echo "✅ Правила для ветки $branch успешно созданы"
+    done
+
+    if [[ $missing -gt 0 ]]; then
+        echo "  ❌ Не найдено контекстов: $missing. Фактические чеки на коммите:"
+        sed 's/^/    - /' <<<"$reported"
+        echo "  ⛔ Применение отменено: такие правила заблокировали бы мерж навсегда."
+        return 1
     fi
-    
+
     return 0
 }
 
-# Создаем правила для основной ветки (main)
-create_branch_protection "main" "Основная ветка для продакшена"
+apply_branch_protection() {
+    local branch=$1
+    local description=$2
+    local out
 
-# Создаем правила для ветки разработки (develop)
-create_branch_protection "develop" "Ветка для разработки и тестирования"
+    echo "📋 Применение правил для ветки: $branch ($description)"
 
-echo ""
-echo "📊 Текущие правила защиты веток:"
+    if ! out=$(gh api --silent "repos/$REPO_OWNER/$REPO_NAME/branches/$branch" 2>&1); then
+        echo "  ⚠️ Ветка $branch не существует или недоступна:"
+        echo "$out" | sed 's/^/    /'
+        return 1
+    fi
 
-# Выводим текущие правила для всех защищенных веток
-branches=("main" "develop")
-for branch in "${branches[@]}"; do
+    if ! preflight_contexts "$branch"; then
+        return 1
+    fi
+
+    if ! out=$(protection_payload | gh api --method PUT \
+        "repos/$REPO_OWNER/$REPO_NAME/branches/$branch/protection" --input - 2>&1); then
+        echo "  ❌ API отклонил запрос для ветки $branch:"
+        echo "$out" | sed 's/^/    /'
+        return 1
+    fi
+
+    # Успех PUT ещё не гарантирует состояние — перечитываем.
+    if ! out=$(gh api "repos/$REPO_OWNER/$REPO_NAME/branches/$branch/protection" 2>&1); then
+        echo "  ❌ PUT прошёл, но ветка $branch по-прежнему не защищена:"
+        echo "$out" | sed 's/^/    /'
+        return 1
+    fi
+
+    echo "  ✅ Правила для ветки $branch применены и подтверждены чтением"
+    return 0
+}
+
+report_branch_protection() {
+    local branch=$1
+    local protection
+
     echo ""
     echo "🔒 Ветка: $branch"
-    
-    if protection=$(gh api "repos/$REPO_OWNER/$REPO_NAME/branches/$branch/protection" 2>/dev/null); then
-        echo "  ✅ Ветка защищена"
-        
-        # Проверяем требуемые проверки статуса
-        required_checks=$(echo "$protection" | jq -r '.required_status_checks.contexts[]?' 2>/dev/null || echo "Нет данных")
-        if [[ -n "$required_checks" ]]; then
-            echo "  📋 Требуемые проверки:"
-            echo "$required_checks" | while read -r check; do
-                echo "    - $check"
-            done
+
+    if ! protection=$(gh api "repos/$REPO_OWNER/$REPO_NAME/branches/$branch/protection" 2>&1); then
+        if grep -q "Branch not protected" <<<"$protection"; then
+            echo "  ❌ Ветка НЕ защищена"
+        else
+            echo "  ❌ Не удалось прочитать правила (нужен доступ administration):"
+            echo "$protection" | sed 's/^/    /'
         fi
-        
-        # Проверяем требуемые ревью
-        if reviews=$(echo "$protection" | jq -r '.required_pull_request_reviews.required_approving_review_count' 2>/dev/null); then
-            echo "  👥 Требуемые одобрения: $reviews"
+        return 1
+    fi
+
+    echo "  ✅ Ветка защищена"
+    echo "  📋 Требуемые проверки:"
+    jq -r '.required_status_checks.contexts[]? // empty' <<<"$protection" | sed 's/^/    - /'
+    echo "  👥 Требуемые одобрения: $(jq -r '.required_pull_request_reviews.required_approving_review_count // "нет"' <<<"$protection")"
+    echo "  🔄 Строгий статус: $(jq -r '.required_status_checks.strict // "нет"' <<<"$protection")"
+    echo "  👑 Применять к админам: $(jq -r '.enforce_admins.enabled // "нет"' <<<"$protection")"
+    echo "  🗑️ Отклонять устаревшие: $(jq -r '.required_pull_request_reviews.dismiss_stale_reviews // "нет"' <<<"$protection")"
+    return 0
+}
+
+if [[ "$MODE" == "apply" ]]; then
+    apply_branch_protection "main" "Основная ветка для продакшена" || FAILED=1
+    apply_branch_protection "develop" "Ветка для разработки и тестирования" || FAILED=1
+    echo ""
+fi
+
+echo "📊 Текущее состояние защиты веток:"
+for branch in "${BRANCHES[@]}"; do
+    if ! report_branch_protection "$branch"; then
+        if [[ "$MODE" == "apply" ]]; then
+            FAILED=1
         fi
-        
-        # Проверяем другие настройки
-        strict=$(echo "$protection" | jq -r '.required_status_checks.strict' 2>/dev/null)
-        echo "  🔄 Строгий статус: $strict"
-        
-        enforce_admins=$(echo "$protection" | jq -r '.enforce_admins.enabled' 2>/dev/null)
-        echo "  👑 Применять к админам: $enforce_admins"
-        
-        dismiss_stale=$(echo "$protection" | jq -r '.required_pull_request_reviews.dismiss_stale_reviews' 2>/dev/null)
-        echo "  🗑️ Отклонять устаревшие: $dismiss_stale"
-        
-    else
-        echo "  ❌ Ветка не защищена или не существует"
     fi
 done
 
 echo ""
-echo "🎉 Настройка правил защиты веток завершена!"
-echo ""
-echo "📝 Рекомендации:"
-echo "1. Регулярно проверяйте актуальность требуемых проверок статуса"
-echo "2. Рассмотрите возможность добавления дополнительных проверок для критических изменений"
-echo "3. Настройте уведомления об изменениях в защищенных ветках"
-echo "4. Периодически проверяйте права доступа к репозиторию"
+if [[ $FAILED -ne 0 ]]; then
+    echo "❌ Настройка правил защиты веток НЕ выполнена — см. ошибки выше."
+    exit 1
+fi
+
+if [[ "$MODE" == "check" ]]; then
+    echo "ℹ️ Режим check: ничего не изменено. Для применения запусти workflow с mode=apply."
+else
+    echo "🎉 Правила защиты веток применены."
+fi

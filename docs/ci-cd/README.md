@@ -19,7 +19,7 @@
 | --------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------- |
 | [`deploy.yml`](../.github/workflows/deploy.yml)                                   | **Деплой на сервер**         | Ручной запуск (workflow_dispatch)  |
 | [`merge-branches.yml`](../.github/workflows/merge-branches.yml)                   | Автоматическое слияние веток | Расписание/ручной запуск           |
-| [`setup-branch-protection.yml`](../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты      | Создание репозитория/ручной запуск |
+| [`setup-branch-protection.yml`](../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты      | Только ручной запуск (mode=check/apply) |
 | [`pre-merge-checks.yml`](../.github/workflows/pre-merge-checks.yml)               | Проверки перед слиянием      | Pull Request                       |
 | [`backend-ci.yml`](../.github/workflows/backend-ci.yml)                           | CI/CD для бэкенда            | Push/PR в main/develop             |
 | [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)                         | CI/CD для фронтенда          | Push/PR в main/develop             |
@@ -98,9 +98,9 @@ gh workflow run "Автоматическое слияние веток"
    - Причина: ошибки в тестах или сборке
    - Решение: исправьте ошибки в исходной ветке
 
-3. **Отсутствие одобрений**
-   - Причина: требуется ревью для слияния
-   - Решение: запросите ревью у коллеги
+3. **Отсутствие обязательных проверок**
+   - Причина: required-контекст не сообщил статус (например, workflow с фильтром `paths` не запускался)
+   - Решение: убедитесь, что все обязательные проверки отработали на HEAD ветки
 
 ### Поддержка
 

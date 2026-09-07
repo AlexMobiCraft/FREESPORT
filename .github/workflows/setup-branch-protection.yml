@@ -1,72 +1,49 @@
 name: Настройка правил защиты веток
 
+# Запуск ТОЛЬКО вручную и осознанно.
+#
+# Раньше здесь были триггеры `create` и `push`. Оба удалены 2026-09-07:
+#   * `create` срабатывает на создание ЛЮБОЙ ветки или тега (комментарий «при создании
+#     репозитория» был неверен) — каждая новая ветка заводила issue «настройка выполнена»,
+#     накопилось 63 штуки, при том что защита ни разу не применилась;
+#   * `push` с фильтром путей на этот же файл означал, что мерж любой правки workflow
+#     запускает его самого.
+#
+# ⚠️ Нужен PAT в секрете BRANCH_PROTECTION_TOKEN. Штатный GITHUB_TOKEN здесь бесполезен:
+# и чтение, и запись branch protection требуют прав администратора репозитория, а среди
+# ключей блока `permissions` области `administration` попросту нет (попытка её указать
+# ломает компиляцию workflow). Нужен classic PAT со scope `repo` либо fine-grained PAT
+# с разрешением «Administration: Read and write» на этот репозиторий.
+#
+# Подробности — в deferred-work.md.
+
 on:
-  # Запуск при создании репозитория
-  create:
-  # Запуск вручную
   workflow_dispatch:
-  # Запуск при изменении workflow файлов
-  push:
-    paths:
-      - ".github/workflows/setup-branch-protection.yml"
-      - ".github/scripts/setup-branch-protection.sh"
-    branches: [main, develop]
+    inputs:
+      mode:
+        description: "check — только показать текущее состояние; apply — применить правила"
+        required: true
+        default: check
+        type: choice
+        options:
+          - check
+          - apply
 
 jobs:
   setup-branch-protection:
     name: Настройка правил защиты веток
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-      repository-projects: write
-      issues: write
+      contents: read
 
     steps:
       - name: Checkout кода
-        uses: actions/checkout@v4
-
-      - name: Установка зависимостей
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+        uses: actions/checkout@v7
 
       - name: Настройка правил защиты веток
         run: |
           chmod +x .github/scripts/setup-branch-protection.sh
           .github/scripts/setup-branch-protection.sh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Создание ISSUE для отслеживания
-        if: github.event_name == 'create' || github.event_name == 'workflow_dispatch'
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '🔧 Настройка правил защиты веток выполнена',
-              body: `## 📋 Настройка правил защиты веток
-              
-              ### ✅ Выполненные действия:
-              - [x] Настроены правила для ветки \`main\`
-              - [x] Настроены правила для ветки \`develop\`
-              - [x] Включены обязательные проверки CI/CD
-              - [x] Требуется минимум 1 одобрение для PR
-              - [x] Включена проверка на устаревшие коммиты
-              
-              ### 🔒 Текущие правила:
-              - **main**: основная ветка для продакшена
-              - **develop**: ветка для разработки и тестирования
-              
-              ### 📝 Рекомендации:
-              1. Регулярно проверяйте актуальность требуемых проверок
-              2. Рассмотрите возможность добавления дополнительных проверок
-              3. Настройте уведомления об изменениях в защищенных ветках
-              
-              ---
-              *Это issue создано автоматически при настройке репозитория*`,
-              labels: ['infrastructure', 'branch-protection']
-            })
+          GITHUB_TOKEN: ${{ secrets.BRANCH_PROTECTION_TOKEN }}
+          MODE: ${{ inputs.mode }}
