@@ -26,7 +26,14 @@
 #    это отдельная проблема. Поэтому MODE=apply сначала гоняет preflight и отказывается
 #    применять правила, если хоть один контекст не найден среди реальных чеков ветки:
 #    иначе PR встанет на «Expected — waiting for status» навсегда.
-# 3. Required-контекст у workflow с фильтром `paths` НЕ сообщает статус на PR, который
+# 3. В репозитории один коллаборатор (проверено 2026-09-07). Поэтому
+#    required_approving_review_count = 0, а require_last_push_approval = false:
+#    свой PR апрувить нельзя, и любое ненулевое требование ревью вместе с
+#    enforce_admins = true намертво блокирует мерж, снять который можно только
+#    сняв защиту. PR при этом всё равно обязателен — прямой push в main/develop
+#    запрещён, и обязательные проверки статуса действуют. Как только появится
+#    второй мейнтейнер, оба значения имеет смысл вернуть к 1 и true.
+# 4. Required-контекст у workflow с фильтром `paths` НЕ сообщает статус на PR, который
 #    эти пути не трогает: GitHub показывает «Expected — waiting for status» и мерж
 #    блокируется бессрочно. Такой фильтр есть у backend-ci.yml, frontend-ci.yml и
 #    api-contract.yml. Прежде чем делать их обязательными, нужна джоба-заглушка без
@@ -62,6 +69,14 @@ if [[ "$MODE" != "check" && "$MODE" != "apply" ]]; then
     exit 1
 fi
 
+# На ubuntu-latest оба предустановлены, но проверка дешевле, чем разбор невнятного падения.
+for tool in gh jq; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "❌ Не найден $tool — он обязателен для работы скрипта"
+        exit 1
+    fi
+done
+
 BRANCHES=("main" "develop")
 
 # Контексты, которые станут обязательными. Менять только вместе с preflight-проверкой —
@@ -93,10 +108,10 @@ protection_payload() {
         },
         enforce_admins: true,
         required_pull_request_reviews: {
-            required_approving_review_count: 1,
+            required_approving_review_count: 0,
             dismiss_stale_reviews: true,
             require_code_owner_reviews: false,
-            require_last_push_approval: true
+            require_last_push_approval: false
         },
         restrictions: null,
         allow_force_pushes: false,
