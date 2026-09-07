@@ -12,6 +12,10 @@
 #
 # ⚠️ ПЕРЕД ПРИМЕНЕНИЕМ ПРОЧИТАЙ (проверено 2026-09-07 через gh api):
 #
+# 0. Скрипту нужен PAT с правами администратора репозитория (в CI — секрет
+#    BRANCH_PROTECTION_TOKEN). GITHUB_TOKEN не подходит: и чтение, и запись branch
+#    protection требуют admin, а области `administration` в блоке `permissions`
+#    workflow не существует.
 # 1. Ни main, ни develop сейчас НЕ защищены — оба отдают «Branch not protected».
 #    Этот скрипт ни разу не применился успешно; всё, что ниже, — намерение, а не
 #    текущее состояние.
@@ -39,7 +43,11 @@ MODE=${MODE:-check}
 export GITHUB_TOKEN
 
 if [[ -z "$GITHUB_TOKEN" ]]; then
-    echo "❌ Требуется GitHub токен"
+    echo "❌ Токен не задан."
+    echo "   Нужен PAT с правами администратора репозитория: classic со scope 'repo'"
+    echo "   либо fine-grained с разрешением «Administration: Read and write»."
+    echo "   В CI он приходит из секрета BRANCH_PROTECTION_TOKEN; штатный GITHUB_TOKEN"
+    echo "   не подходит — область administration в блоке permissions недоступна."
     echo "Использование: MODE=check|apply $0 [repo_owner] [repo_name] [github_token]"
     exit 1
 fi

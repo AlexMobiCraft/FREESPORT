@@ -8,6 +8,13 @@ name: Настройка правил защиты веток
 #     накопилось 12 штук, при том что защита ни разу не применилась;
 #   * `push` с фильтром путей на этот же файл означал, что мерж любой правки workflow
 #     запускает его самого.
+#
+# ⚠️ Нужен PAT в секрете BRANCH_PROTECTION_TOKEN. Штатный GITHUB_TOKEN здесь бесполезен:
+# и чтение, и запись branch protection требуют прав администратора репозитория, а среди
+# ключей блока `permissions` области `administration` попросту нет (попытка её указать
+# ломает компиляцию workflow). Нужен classic PAT со scope `repo` либо fine-grained PAT
+# с разрешением «Administration: Read and write» на этот репозиторий.
+#
 # Подробности — в deferred-work.md.
 
 on:
@@ -28,9 +35,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # administration:write обязателен и для чтения, и для записи branch protection.
-      # Без него GITHUB_TOKEN получает 403, а раньше это молча выдавалось за успех.
-      administration: write
 
     steps:
       - name: Checkout кода
@@ -41,5 +45,5 @@ jobs:
           chmod +x .github/scripts/setup-branch-protection.sh
           .github/scripts/setup-branch-protection.sh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BRANCH_PROTECTION_TOKEN }}
           MODE: ${{ inputs.mode }}
