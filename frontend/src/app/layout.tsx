@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter, Roboto_Condensed } from 'next/font/google';
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
-import { DEFAULT_OG_IMAGE, OG_LOCALE, SITE_NAME } from '@/utils/seo';
+import { SiteJsonLd } from '@/components/common/SiteJsonLd';
+import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_META, OG_LOCALE, SITE_NAME } from '@/utils/seo';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: OG_LOCALE,
     type: 'website',
-    images: [DEFAULT_OG_IMAGE],
+    images: [DEFAULT_OG_IMAGE_META],
   },
   twitter: {
     card: 'summary_large_image',
@@ -72,6 +73,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${robotoCondensed.variable} font-sans antialiased`}>
         {children}
         <CookieConsentBanner />
+        <SiteJsonLd />
       </body>
     </html>
   );

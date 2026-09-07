@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import BlueHomePage, { metadata, revalidate } from '../page';
 import { ToastProvider } from '@/components/ui/Toast/ToastProvider';
+import { DEFAULT_OG_IMAGE_META } from '@/utils/seo';
 
 // Mock authStore state (mutable)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -169,10 +170,12 @@ describe('Главная страница (/)', () => {
       expect(metadata.openGraph?.description).toContain('Платформа для оптовых и розничных продаж');
     });
 
-    it('должна содержать OpenGraph изображение', () => {
+    it('должна содержать OpenGraph изображение с размерами файла', () => {
       expect(metadata.openGraph?.images).toBeDefined();
       expect(Array.isArray(metadata.openGraph?.images)).toBe(true);
-      expect(metadata.openGraph?.images).toContain('/image.jpg');
+      // Картинка по умолчанию отдаётся объектом с width/height/type (стори 41.6):
+      // голая строка дала бы только og:image, без объявленных размеров.
+      expect(metadata.openGraph?.images).toEqual([DEFAULT_OG_IMAGE_META]);
     });
 
     it('должна содержать Twitter метатеги', () => {
