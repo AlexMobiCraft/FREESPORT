@@ -1,3 +1,7 @@
+## Deferred from: code review of 41-6-unique-metadata-og-image-jsonld (2026-09-06)
+
+- **Product JSON-LD допускает закрытие script-тега данными товара и XSS при SSR.** `product.name` и `product.description` сериализуются через сырой `JSON.stringify` и вставляются в `<script type="application/ld+json">` через `dangerouslySetInnerHTML`. Значение с `</script>` завершает элемент до конца JSON и превращает остаток в HTML. Дефект присутствует в baseline Story 41.6 и не внесён её changeset. Исправление: сериализованный JSON перед вставкой должен заменять каждый `<` на литеральную JSON escape-последовательность `\\u003c`, по уже безопасному паттерну `SiteJsonLd.tsx`, с регрессионным тестом на данные товара, содержащие `</script>`. [`frontend/src/components/product/ProductPageClient.tsx:79-120`]
+
 ## Deferred from: code review of 41-1-cookie-decline-and-change-choice (2026-08-30)
 
 - **Ссылки социальных сетей в `ElectricFooter` не имеют доступных имён.** Три `<Link href="#">` содержат только SVG-иконки Facebook, Instagram и YouTube без текста или `aria-label`, поэтому полный подвал не проходит `axe` с нарушением `link-name`. Решение Alex: не исправлять в Story 41.1 и сузить её AC6 до изменённых областей подвалов. Причина: дефект существовал до Story 41.1 и не относится к функциональности cookie. Исправление: добавить каждой ссылке уникальное доступное имя и вернуть axe-проверку всего `ElectricFooter`. [`frontend/src/components/layout/ElectricFooter.tsx:23-41`]

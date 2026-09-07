@@ -11,13 +11,48 @@
  *     значит противоречить самим себе.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { SiteJsonLd } from '../SiteJsonLd';
 import { SUPPORT_EMAIL, SUPPORT_PHONE_DISPLAY } from '@/config/contacts';
 import { ORGANIZATION_ID, WEBSITE_ID } from '@/config/organization';
 import { SITE_NAME, SITE_URL } from '@/utils/seo';
+
+const FRONTEND_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  '..'
+);
+const LOGO_FILE = path.join(FRONTEND_DIR, 'public', 'LOGO_OPTIsport.png');
+
+/**
+ * Разбирает габариты PNG по чанку IHDR: подпись(8) + длина(4) + тип(4) +
+ * ширина(4) + высота(4). Файл читается напрямую, чтобы страж сверял разметку с
+ * самим логотипом, а не с копией тех же литералов рядом.
+ *
+ * Как и JPEG-страж соцпревью, при непонятном файле обязан падать с внятным
+ * сообщением: молча разобранный мусор хуже упавшего теста.
+ */
+function readPngSize(file: string): { width: number; height: number } {
+  const data = fs.readFileSync(file);
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+  if (data.length < 24 || !data.subarray(0, 8).equals(signature)) {
+    throw new Error(`Файл ${file} не начинается с подписи PNG`);
+  }
+
+  if (data.subarray(12, 16).toString('ascii') !== 'IHDR') {
+    throw new Error(`В файле ${file} первый чанк не IHDR — заголовок PNG повреждён`);
+  }
+
+  return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) };
+}
 
 /** Разбирает единственный ld+json-блок компонента */
 function renderGraph() {
@@ -64,14 +99,27 @@ describe('SiteJsonLd: узел Organization', () => {
   });
 
   it('объявляет логотип с фактическими размерами файла', () => {
+    // Размеры берутся из самого `public/LOGO_OPTIsport.png`: сверка двух копий
+    // одних и тех же литералов ничего не доказывает — при замене логотипа она
+    // осталась бы зелёной, а разметка врала бы роботу.
+    const { width, height } = readPngSize(LOGO_FILE);
     const { organization } = renderGraph();
 
     expect(organization.logo).toEqual({
       '@type': 'ImageObject',
       url: `${SITE_URL}/LOGO_OPTIsport.png`,
-      width: 1014,
-      height: 101,
+      width,
+      height,
     });
+  });
+
+  it('файл логотипа лежит по объявленному в разметке пути', () => {
+    const { organization } = renderGraph();
+    const logoUrl = (organization.logo as { url: string }).url;
+
+    expect(logoUrl.startsWith(SITE_URL)).toBe(true);
+    expect(path.join(FRONTEND_DIR, 'public', logoUrl.slice(SITE_URL.length))).toBe(LOGO_FILE);
+    expect(fs.existsSync(LOGO_FILE)).toBe(true);
   });
 
   it('берёт телефон и почту из config/contacts, а не из своей копии', () => {
@@ -132,6 +180,15 @@ describe('SiteJsonLd: абсолютные URL', () => {
 });
 
 describe('SiteJsonLd: экранирование при сериализации', () => {
+  // Очистка вынесена в afterEach, а не в конец теста: подмена окружения,
+  // снятая после assertions, при первом же падении переживает свой тест —
+  // подменённый NEXT_PUBLIC_APP_URL и кеш модулей утекают дальше и прячут
+  // первопричину за каскадом чужих ошибок.
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
   it('не выпускает в разметку литеральный `<`, пришедший из окружения', async () => {
     // `SITE_URL` берётся из `NEXT_PUBLIC_APP_URL` — это значение окружения, а не
     // литеральная константа модуля. Литеральный `</script>` внутри инлайн-скрипта
@@ -148,9 +205,6 @@ describe('SiteJsonLd: экранирование при сериализации
     expect(html).toContain('\\u003c');
     // Экранирование не должно ломать разбор: робот обязан прочитать тот же граф
     expect(JSON.parse(script.textContent ?? '')['@graph']).toHaveLength(2);
-
-    vi.unstubAllEnvs();
-    vi.resetModules();
   });
 
   it('оставляет разметку валидным JSON при обычных данных', () => {

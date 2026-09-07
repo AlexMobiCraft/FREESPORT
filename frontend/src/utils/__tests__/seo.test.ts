@@ -10,7 +10,7 @@
  * размеров не читает, а объект вместо строки там ломает карточку.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
 import {
   buildMetadata,
@@ -167,6 +167,15 @@ describe('buildMetadata: фактические размеры картинки 
 });
 
 describe('SITE_URL: хвостовой слэш', () => {
+  // Снятие подмены окружения и сброс кеша модулей — только здесь: если делать
+  // это в конце теста, после assertions, то первое же падение оставит
+  // NEXT_PUBLIC_APP_URL подменённым и утащит за собой соседние тесты,
+  // спрятав первопричину за каскадом чужих ошибок.
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
   it('normalizeSiteUrl срезает хвостовые слэши', () => {
     expect(normalizeSiteUrl('https://optisport.ru/')).toBe('https://optisport.ru');
     expect(normalizeSiteUrl('https://optisport.ru///')).toBe('https://optisport.ru');
@@ -182,9 +191,6 @@ describe('SITE_URL: хвостовой слэш', () => {
 
     expect(seo.SITE_URL).toBe('https://optisport.ru');
     expect(seo.absoluteUrl('/LOGO_OPTIsport.png')).toBe('https://optisport.ru/LOGO_OPTIsport.png');
-
-    vi.unstubAllEnvs();
-    vi.resetModules();
   });
 
   it('идентификаторы узлов JSON-LD не получают двойного слэша', async () => {
@@ -198,8 +204,6 @@ describe('SITE_URL: хвостовой слэш', () => {
     expect(organization.ORGANIZATION_JSON_LD.logo.url).toBe(
       'https://optisport.ru/LOGO_OPTIsport.png'
     );
-
-    vi.unstubAllEnvs();
-    vi.resetModules();
   });
+
 });
