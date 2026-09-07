@@ -270,6 +270,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             # Дополнительно — уведомление регионального менеджера по стране/ИНН.
             send_manager_region_email.delay(user.id)
 
+        # Флаг читает view (authentication.py, ветка `_marketing_consent`) —
+        # без него отмеченное пользователем согласие на рассылку теряется молча,
+        # запись `marketing_email` просто не создаётся. Второй такой же
+        # присваивание есть в `_link_matched_1c_customer`: у ветки привязки
+        # собственная точка возврата, и одной строкой здесь она не покрывается.
         user._marketing_consent = marketing_consent  # type: ignore[attr-defined]
         return user
 
@@ -287,6 +292,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         привязку могут вернуть, но только с настоящим доказательством права
         на компанию. Вызовов нет — регистрация создаёт обычную заявку.
         """
+        # Отметка рассылки ставится здесь, а не только в конце `create()`:
+        # путь привязки возвращает найденную запись 1С своим `return`, минуя
+        # хвост `create()`. Значение берётся из `validated_data` сериализатора —
+        # DRF передаёт в `create()` копию словаря, и вызывающий может её уже
+        # опустошить (именно так делал `create()` до ffee94d5). Без этой строки
+        # возврат привязки молча потерял бы согласие на рассылку.
+        customer._marketing_consent = bool(  # type: ignore[attr-defined]
+            self.validated_data.get("marketing_consent", False)
+        )
+
         resolver = CustomerIdentityResolver()
         existing_email = resolver.normalize_email(customer.email)
 

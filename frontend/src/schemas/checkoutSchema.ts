@@ -13,7 +13,7 @@ export const checkoutSchema = z.object({
   // ========== Контактные данные ==========
   email: z.string().min(1, 'Email обязателен').email('Некорректный формат email'),
 
-  phone: z.string().regex(/^\+7\d{10}$/, 'Формат: +7XXXXXXXXXX (например, +79001234567)'),
+  phone: z.string().regex(/^\+7\d{10}$/, 'Формат: +7 и 10 цифр номера (например, +79001234567)'),
 
   firstName: z.string().min(2, 'Минимум 2 символа').max(50, 'Максимум 50 символов'),
 

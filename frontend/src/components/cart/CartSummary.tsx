@@ -9,8 +9,11 @@
  * - Hydration паттерн с mounted state
  * - Accessibility: aria-live для динамических сумм
  *
+ * - Блок условий возврата и поддержки (Story 41.4)
+ *
  * @see Story 26.3: Cart Summary & Checkout CTA
  * @see Story 26.4: Promo Code Integration
+ * @see Story 41.4: Торговая информация и ссылка на политику при оплате
  */
 'use client';
 
@@ -19,6 +22,7 @@ import Link from 'next/link';
 import { useCartStore } from '@/stores/cartStore';
 import { formatPrice } from '@/utils/pricing';
 import { cn } from '@/utils/cn';
+import { ReturnsAndSupportNotice } from '@/components/common';
 import PromoCodeInput from './PromoCodeInput';
 
 /**
@@ -109,6 +113,12 @@ export const CartSummary = () => {
           Перейти к оформлению
         </Link>
       )}
+
+      {/* Условия возврата и канал поддержки (Story 41.4, FR-41-15).
+          Отдельного условия не нужно: при пустой корзине CartPage рендерит EmptyCart
+          и CartSummary на экран не попадает. Ссылку на политику ПДн здесь не выводим —
+          FR-41-20 относится к оформлению заказа, а не к корзине. */}
+      <ReturnsAndSupportNotice className="text-body-s text-[var(--color-text-secondary)]" />
     </div>
   );
 };

@@ -1,35 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { Mail, ArrowRight, ShoppingCart, Users, TrendingUp } from 'lucide-react';
+import { ShoppingCart, Users, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
-import { toast, Toaster } from 'sonner';
+import CookieSettingsButton from '@/components/layout/CookieSettingsButton';
 
 const backgroundImage = '/coming-soon-bg.png';
 
 export default function ComingSoon() {
-  const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setIsSubmitting(true);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    toast.success('Спасибо! Мы уведомим вас о запуске.');
-    setEmail('');
-    setIsSubmitting(false);
-  };
-
   const progress = 95; // Development progress percentage
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
-      <Toaster position="top-center" />
       {/* Background Image */}
       <div
         className="absolute inset-0 bg-cover bg-center"
@@ -102,7 +83,7 @@ export default function ComingSoon() {
             </div>
 
             {/* Progress Bar */}
-            <div className="mb-8">
+            <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600 font-medium">РАЗРАБОТКА ИДЕТ ПО ПЛАНУ!</span>
                 <span className="text-sm text-[var(--color-primary)] font-bold">{progress}%</span>
@@ -120,38 +101,6 @@ export default function ComingSoon() {
                 ></motion.div>
               </div>
             </div>
-
-            {/* Email Subscription Form */}
-            <form onSubmit={handleSubmit} className="max-w-md mx-auto">
-              <p className="text-gray-700 mb-4 font-medium">Узнайте первым о нашем запуске</p>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="Ваш email"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  {isSubmitting ? (
-                    <span>...</span>
-                  ) : (
-                    <>
-                      <span className="hidden sm:inline">Подписаться</span>
-                      <ArrowRight className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
           </motion.div>
 
           {/* Footer */}
@@ -163,6 +112,7 @@ export default function ComingSoon() {
           >
             <p>© 2025-2026 OPTISPORT — Все права защищены</p>
             <p className="mt-2">По вопросам сотрудничества: info@optisport.ru</p>
+            <CookieSettingsButton className="mt-2 text-white/80 hover:text-white underline-offset-2 hover:underline transition-colors" />
           </motion.div>
         </motion.div>
       </div>

@@ -66,6 +66,7 @@ export const SubscribeForm: React.FC = () => {
   const pdpConsentId = `${consentBaseId}-subscribe-pdp-consent`;
   const pdpConsentLabelPrefixId = `${consentBaseId}-subscribe-pdp-consent-label-prefix`;
   const pdpConsentPolicyLinkId = `${consentBaseId}-subscribe-pdp-consent-policy-link`;
+  const pdpConsentLabelSuffixId = `${consentBaseId}-subscribe-pdp-consent-label-suffix`;
   const pdpConsentErrorId = `${consentBaseId}-subscribe-pdp-consent-error`;
 
   const {
@@ -156,7 +157,7 @@ export const SubscribeForm: React.FC = () => {
             checked={pdpConsent}
             disabled={isSubmitting}
             aria-invalid={hasPdpConsentError || undefined}
-            aria-labelledby={`${pdpConsentLabelPrefixId} ${pdpConsentPolicyLinkId}`}
+            aria-labelledby={`${pdpConsentLabelPrefixId} ${pdpConsentPolicyLinkId} ${pdpConsentLabelSuffixId}`}
             aria-describedby={hasPdpConsentError ? pdpConsentErrorId : undefined}
             className={
               hasPdpConsentError
@@ -176,7 +177,11 @@ export const SubscribeForm: React.FC = () => {
               className="text-primary underline hover:text-primary-hover"
             >
               «Политикой обработки персональных данных»
-            </Link>
+            </Link>{' '}
+            <label id={pdpConsentLabelSuffixId} htmlFor={pdpConsentId} className="cursor-pointer">
+              и согласен(на) получать информационные и рекламные рассылки от OPTISPORT по
+              электронной почте
+            </label>
           </span>
         </div>
         {errors.pdp_consent?.message && (

@@ -15,7 +15,7 @@ export interface ContactSectionProps {
  *
  * Поля:
  * - Email (обязательно, формат email)
- * - Телефон (обязательно, формат +7XXXXXXXXXX)
+ * - Телефон (обязательно, формат: +7 и 10 цифр номера)
  * - Имя (обязательно, минимум 2 символа)
  * - Фамилия (обязательно, минимум 2 символа)
  *
@@ -41,7 +41,7 @@ export function ContactSection({ form }: ContactSectionProps) {
             {...register('email')}
             label="Электронная почта"
             type="email"
-            placeholder="example@mail.com"
+            placeholder="pochta@mail.ru"
             error={errors.email?.message}
             aria-required="true"
             aria-invalid={!!errors.email}
@@ -62,7 +62,7 @@ export function ContactSection({ form }: ContactSectionProps) {
             label="Телефон"
             placeholder="+79001234567"
             error={errors.phone?.message}
-            helper="Формат: +7XXXXXXXXXX"
+            helper="Формат: +7 и 10 цифр номера"
             aria-required="true"
             aria-invalid={!!errors.phone}
             aria-describedby={errors.phone ? 'phone-error' : undefined}
