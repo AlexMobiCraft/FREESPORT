@@ -36,6 +36,11 @@
 #    сняв защиту. PR при этом всё равно обязателен — прямой push в main/develop
 #    запрещён, и обязательные проверки статуса действуют. Как только появится
 #    второй мейнтейнер, оба значения имеет смысл вернуть к 1 и true.
+# 3a. strict = false и required_conversation_resolution = false — сознательный выбор
+#    для репозитория с одним мейнтейнером (2026-09-07). strict потребовал бы
+#    подтягивать develop в каждую ветку перед мержем, а resolution блокировал бы мерж
+#    из-за незакрытого треда бота claude-review. Запрет прямого push и пять
+#    обязательных проверок — то, ради чего защита включается, — сохранены.
 # 4. Ни у одного workflow из REQUIRED_CONTEXTS больше нет paths-фильтра на
 #    pull_request — это условие обязательно и его нельзя вернуть, не сломав мерж.
 #    Добавляя контекст в список, проверь, что его workflow срабатывает на КАЖДОМ PR
@@ -106,7 +111,7 @@ echo ""
 protection_payload() {
     printf '%s\n' "${REQUIRED_CONTEXTS[@]}" | jq -R . | jq -s '{
         required_status_checks: {
-            strict: true,
+            strict: false,
             contexts: .
         },
         enforce_admins: true,
@@ -120,7 +125,7 @@ protection_payload() {
         allow_force_pushes: false,
         allow_deletions: false,
         block_creations: false,
-        required_conversation_resolution: true,
+        required_conversation_resolution: false,
         lock_branch: false,
         allow_fork_syncing: false,
         required_linear_history: false
