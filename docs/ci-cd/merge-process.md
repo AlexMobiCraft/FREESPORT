@@ -9,7 +9,7 @@
 ### Основные компоненты
 
 1. **[Автоматическое слияние веток](../../.github/workflows/merge-branches.yml)** - основной workflow для слияния
-2. **[Настройка правил защиты веток](../../.github/workflows/setup-branch-protection.yml)** - автоматическая настройка branch protection
+2. **[Настройка правил защиты веток](../../.github/workflows/setup-branch-protection.yml)** - ручная настройка branch protection (⚠️ защита пока не применена, см. `deferred-work.md`)
 3. **[Проверки перед слиянием](../../.github/workflows/pre-merge-checks.yml)** - комплексная проверка качества кода
 4. **[Скрипт настройки](../../.github/scripts/setup-branch-protection.sh)** - скрипт для настройки правил защиты
 

@@ -19,7 +19,7 @@
 | --------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------- |
 | [`deploy.yml`](../.github/workflows/deploy.yml)                                   | **Деплой на сервер**         | Ручной запуск (workflow_dispatch)  |
 | [`merge-branches.yml`](../.github/workflows/merge-branches.yml)                   | Автоматическое слияние веток | Расписание/ручной запуск           |
-| [`setup-branch-protection.yml`](../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты      | Создание репозитория/ручной запуск |
+| [`setup-branch-protection.yml`](../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты      | Только ручной запуск (mode=check/apply) |
 | [`pre-merge-checks.yml`](../.github/workflows/pre-merge-checks.yml)               | Проверки перед слиянием      | Pull Request                       |
 | [`backend-ci.yml`](../.github/workflows/backend-ci.yml)                           | CI/CD для бэкенда            | Push/PR в main/develop             |
 | [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)                         | CI/CD для фронтенда          | Push/PR в main/develop             |

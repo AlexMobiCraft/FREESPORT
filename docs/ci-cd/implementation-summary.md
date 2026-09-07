@@ -11,7 +11,7 @@
 | Файл                                                                                                   | Назначение                   | Ключевые функции                           |
 | ------------------------------------------------------------------------------------------------------ | ---------------------------- | ------------------------------------------ |
 | [`.github/workflows/merge-branches.yml`](../../.github/workflows/merge-branches.yml)                   | Автоматическое слияние веток | Проверка готовности, создание PR, слияние  |
-| [`.github/workflows/setup-branch-protection.yml`](../../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты      | Автоматическая настройка branch protection |
+| [`.github/workflows/setup-branch-protection.yml`](../../.github/workflows/setup-branch-protection.yml) | Настройка правил защиты      | Ручной запуск: mode=check показывает состояние, mode=apply применяет |
 | [`.github/workflows/pre-merge-checks.yml`](../../.github/workflows/pre-merge-checks.yml)               | Проверки перед слиянием      | Анализ качества, безопасность, тесты       |
 
 ### 2. Вспомогательные компоненты
