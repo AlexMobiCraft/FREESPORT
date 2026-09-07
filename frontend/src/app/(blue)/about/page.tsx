@@ -19,7 +19,7 @@ import { Breadcrumb, FeatureCard, StatCounter, Button } from '@/components/ui';
 import { buildMetadata } from '@/utils/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'О компании',
+  title: 'О компании OPTISPORT — оптовый поставщик спорттоваров',
   description:
     'Федеральный оптовый поставщик и производитель спортивных товаров. Более 1000 товаров, 50+ брендов, 10+ лет на рынке.',
   path: '/about',

@@ -20,6 +20,8 @@
 
 import type { Metadata } from 'next';
 
+import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_META } from '@/utils/seo';
+
 // Electric-specific components
 import { ElectricHeroSection } from '@/components/home/ElectricHeroSection';
 import { ElectricCategorySection } from '@/components/home/ElectricCategorySection';
@@ -55,14 +57,7 @@ export const metadata: Metadata = {
     description: 'Крупнейший интернет-магазин спортивной одежды и экипировки в России.',
     url: 'https://optisport.ru',
     siteName: 'OPTISPORT',
-    images: [
-      {
-        url: '/image.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'OPTISPORT',
-      },
-    ],
+    images: [DEFAULT_OG_IMAGE_META],
     locale: 'ru_RU',
     type: 'website',
   },
@@ -70,7 +65,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'OPTISPORT - Спортивные товары',
     description: 'Более 10 000 товаров от ведущих брендов',
-    images: ['/image.jpg'],
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 

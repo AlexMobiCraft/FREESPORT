@@ -16,6 +16,7 @@ import { render, screen } from '@testing-library/react';
 import NewsDetailPage, { generateMetadata } from '../page';
 import { newsService } from '@/services/newsService';
 import type { NewsItem } from '@/types/api';
+import { DEFAULT_OG_IMAGE_META } from '@/utils/seo';
 
 // Mock Next.js navigation
 // Mock Next.js navigation
@@ -224,7 +225,7 @@ describe('NewsDetailPage (/news/[slug])', () => {
       const newsWithoutImage = { ...mockNewsItem, image: null };
       vi.mocked(newsService.getNewsBySlug).mockResolvedValue(newsWithoutImage);
       const metadata = await generateMetadata({ params: Promise.resolve({ slug: 'test-news' }) });
-      expect(metadata.openGraph?.images).toEqual(['/image.jpg']);
+      expect(metadata.openGraph?.images).toEqual([DEFAULT_OG_IMAGE_META]);
     });
 
     it('должна обрабатывать ошибку при генерации метаданных', async () => {
