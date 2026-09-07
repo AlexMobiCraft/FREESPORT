@@ -127,34 +127,58 @@ protection_payload() {
     }'
 }
 
-# Проверяет, что каждый требуемый контекст реально сообщал статус на HEAD ветки.
+# Собирает имена чеков (check-run от Actions и commit status от внешних сервисов),
+# сообщённые на указанном коммите.
+reported_checks_for() {
+    local sha=$1
+    {
+        gh api --paginate "repos/$REPO_OWNER/$REPO_NAME/commits/$sha/check-runs"             --jq '.check_runs[].name' 2>/dev/null || true
+        gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$sha/status"             --jq '.statuses[].context' 2>/dev/null || true
+    } | sort -u
+}
+
+# Проверяет, что каждый требуемый контекст реально где-то сообщался.
 # Без этого применение правил вешает все будущие PR на «Expected — waiting for status».
+#
+# Смотрим ДВА коммита, и это не перестраховка. Required-контексты оцениваются на head
+# коммите PR, а часть workflow срабатывает только на одном из событий: pre-merge-checks
+# запускается исключительно на `pull_request`, поэтому на HEAD ветки (push-событие) его
+# чека нет вовсе; наоборот, у backend-ci и frontend-ci `paths`-фильтр остался на push,
+# так что на конкретном PR-коммите они есть, а на некоторых push-коммитах — нет.
+# Объединение покрывает оба случая.
 preflight_contexts() {
     local branch=$1
-    local sha reported missing=0
+    local head_sha pr_sha reported missing=0 sources=""
 
-    if ! sha=$(gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$branch" --jq '.sha' 2>&1); then
+    if ! head_sha=$(gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$branch" --jq '.sha' 2>&1); then
         echo "  ❌ Не удалось получить HEAD ветки $branch:"
-        echo "$sha" | sed 's/^/    /'
+        echo "$head_sha" | sed 's/^/    /'
         return 1
     fi
+    sources="HEAD ${head_sha:0:8}"
 
-    # Имена check-run (GitHub Actions) и контексты commit status (внешние сервисы).
+    # Head последнего PR в эту ветку — именно там появляются чеки, привязанные к
+    # событию pull_request.
+    pr_sha=$(gh api "repos/$REPO_OWNER/$REPO_NAME/pulls?base=$branch&state=all&sort=updated&direction=desc&per_page=1"         --jq '.[0].head.sha' 2>/dev/null || true)
+    if [[ -n "$pr_sha" && "$pr_sha" != "null" && "$pr_sha" != "$head_sha" ]]; then
+        sources="$sources + PR ${pr_sha:0:8}"
+    else
+        pr_sha=""
+    fi
+
     reported=$(
         {
-            gh api --paginate "repos/$REPO_OWNER/$REPO_NAME/commits/$sha/check-runs" \
-                --jq '.check_runs[].name' 2>/dev/null || true
-            gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$sha/status" \
-                --jq '.statuses[].context' 2>/dev/null || true
+            reported_checks_for "$head_sha"
+            [[ -n "$pr_sha" ]] && reported_checks_for "$pr_sha"
         } | sort -u
     )
 
     if [[ -z "$reported" ]]; then
-        echo "  ❌ На коммите $sha нет ни одного чека — применять правила нельзя"
+        echo "  ❌ Ни на одном из коммитов ($sources) нет чеков — применять правила нельзя"
         return 1
     fi
 
-    echo "  🔍 Preflight по коммиту $sha"
+    echo "  🔍 Preflight по: $sources"
     for ctx in "${REQUIRED_CONTEXTS[@]}"; do
         if grep -Fxq "$ctx" <<<"$reported"; then
             echo "    ✅ найден контекст: $ctx"
@@ -165,7 +189,7 @@ preflight_contexts() {
     done
 
     if [[ $missing -gt 0 ]]; then
-        echo "  ❌ Не найдено контекстов: $missing. Фактические чеки на коммите:"
+        echo "  ❌ Не найдено контекстов: $missing. Фактически сообщались:"
         sed 's/^/    - /' <<<"$reported"
         echo "  ⛔ Применение отменено: такие правила заблокировали бы мерж навсегда."
         return 1
