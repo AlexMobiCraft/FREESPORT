@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: ["main", "develop"]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -60,11 +57,11 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout 1C test data
         if: env.ONEC_DATA_AVAILABLE == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: AlexMobiCraft/FREESPORT-1c-test-data
           path: backend/data/import_1c
@@ -79,7 +76,7 @@ jobs:
         # with coverage».
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -176,9 +173,9 @@ jobs:
           fi
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
-          file: backend/coverage.xml
+          files: backend/coverage.xml
           flags: backend
           name: backend-coverage
           fail_ci_if_error: false

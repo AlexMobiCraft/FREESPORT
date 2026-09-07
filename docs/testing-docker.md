@@ -422,7 +422,7 @@ pytest --maxfail=3           # Stop after 3 failures
     make test
 
 - name: Загрузка отчетов покрытия
-  uses: actions/upload-artifact@v4
+  uses: actions/upload-artifact@v7
   with:
     name: coverage-reports
     path: htmlcov/

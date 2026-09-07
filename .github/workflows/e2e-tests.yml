@@ -17,9 +17,6 @@ on:
       - "frontend/**"
       - ".github/workflows/e2e-tests.yml"
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   e2e-tests:
     name: E2E Tests
@@ -32,10 +29,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: "npm"
@@ -59,7 +56,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         continue-on-error: true
         with:
@@ -68,7 +65,7 @@ jobs:
           retention-days: 1
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         continue-on-error: true
         with:

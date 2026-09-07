@@ -15,7 +15,6 @@ on:
 env:
   NODE_VERSION: "22.x"
   NEXT_PUBLIC_API_URL: "http://localhost:8001/api/v1"
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # Этап 1: Качество кода и тестирование
@@ -24,10 +23,10 @@ jobs:
 
     steps:
       - name: Получение исходного кода
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Настройка Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
@@ -91,7 +90,7 @@ jobs:
           npx @next/bundle-analyzer --help || echo "Анализатор сборки не настроен"
 
       - name: Загрузка результатов тестов и покрытия
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         continue-on-error: true
         with:
@@ -101,9 +100,9 @@ jobs:
             frontend/coverage/
 
       - name: Загрузка отчетов покрытия в Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
-          file: frontend/coverage/coverage-final.json
+          files: frontend/coverage/lcov.info
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: false
@@ -123,13 +122,13 @@ jobs:
 
     steps:
       - name: Получение исходного кода
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Настройка Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Авторизация в GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -137,7 +136,7 @@ jobs:
 
       - name: Извлечение метаданных для Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}/frontend
           tags: |
@@ -147,7 +146,12 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Сборка и публикация Docker образа
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
+        env:
+          # v6 включил build summary и выгрузку build record по умолчанию;
+          # оставляем поведение как на v5, чтобы не копить .dockerbuild-артефакты
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: frontend
           file: frontend/Dockerfile
@@ -175,7 +179,7 @@ jobs:
 
     steps:
       - name: Запуск deploy workflow
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.actions.createWorkflowDispatch({
@@ -210,7 +214,7 @@ jobs:
 
     steps:
       - name: Запуск deploy workflow
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.actions.createWorkflowDispatch({
