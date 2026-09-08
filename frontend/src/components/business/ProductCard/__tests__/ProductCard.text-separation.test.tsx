@@ -98,6 +98,20 @@ describe('ProductCard: отсутствие лишних разделителе�
   const productNoBrand: Product = { ...mockProduct, brand: undefined };
   const productBare: Product = { ...mockProduct, is_new: false, brand: undefined };
 
+  const separators = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('span.sr-only'));
+
+  // Опорное число для трёх проверок ниже: у полной карточки разделителя ровно два —
+  // один внутри ProductBadge (после бейджа), второй внутри блока {brand && ...}.
+  it.each(['grid', 'list', 'compact'] as const)(
+    'layout=%s: у полной карточки ровно два разделителя — бейджа и бренда',
+    layout => {
+      const { container } = render(<ProductCard product={mockProduct} layout={layout} />);
+
+      expect(separators(container)).toHaveLength(2);
+    }
+  );
+
   it.each(['grid', 'list', 'compact'] as const)(
     'layout=%s: без маркетинговых флагов разделитель бейджа не появляется',
     layout => {
@@ -105,6 +119,14 @@ describe('ProductCard: отсутствие лишних разделителе�
       const text = container.textContent ?? '';
 
       expect(text).not.toContain('Новинка');
+      // Разделитель бейджа исчез вместе с самим бейджем: ProductBadge вернул null
+      // целиком. Явная проверка числа, а не только отсутствия текста, — иначе тест
+      // остался бы зелёным, вынеси кто-нибудь TextSeparator наружу компонента.
+      const remaining = separators(container);
+      expect(remaining).toHaveLength(1);
+      // Уцелевший разделитель — именно брендовый: стоит сразу за абзацем бренда
+      expect(remaining[0].previousElementSibling?.tagName).toBe('P');
+      expect(remaining[0].previousElementSibling?.textContent).toBe('Nike');
       // бренд на месте, разделитель бренда остаётся — он живёт в блоке бренда
       expect(text).toMatch(/Nike\s+Test Product/);
     }
@@ -117,6 +139,12 @@ describe('ProductCard: отсутствие лишних разделителе�
       const text = container.textContent ?? '';
 
       expect(text).not.toContain('Nike');
+      // Разделитель бренда исчез вместе с блоком {brand && ...}; остался только
+      // разделитель бейджа. Проверка числа страхует от выноса разделителя из условия.
+      const remaining = separators(container);
+      expect(remaining).toHaveLength(1);
+      // Уцелевший разделитель — именно бейджевый: стоит сразу за элементом Badge
+      expect(remaining[0].previousElementSibling?.textContent).toBe('Новинка');
       expect(text).toMatch(/Новинка\s+Test Product/);
     }
   );
