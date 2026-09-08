@@ -11,6 +11,7 @@
 import React from 'react';
 import { cn } from '@/utils/cn';
 import { ElectricBadge } from '../Badge';
+import { TextSeparator } from '@/components/common/TextSeparator';
 import { ElectricButton } from '../Button/ElectricButton';
 
 const formatPrice = (value: number) => {
@@ -98,15 +99,19 @@ export function ElectricProductCard({
 
         {/* Badge */}
         {badge && (
-          <div className="absolute top-2 left-2 z-10">
-            <ElectricBadge variant={badge}>
-              {badge === 'hit'
-                ? 'Хит'
-                : badge === 'sale'
-                  ? `-${Math.round(((oldPrice! - price) / oldPrice!) * 100)}%`
-                  : 'New'}
-            </ElectricBadge>
-          </div>
+          <>
+            <div className="absolute top-2 left-2 z-10">
+              <ElectricBadge variant={badge}>
+                {badge === 'hit'
+                  ? 'Хит'
+                  : badge === 'sale'
+                    ? `-${Math.round(((oldPrice! - price) / oldPrice!) * 100)}%`
+                    : 'New'}
+              </ElectricBadge>
+            </div>
+            {/* Разделяет текст бейджа и следующий за ним бренд/название (Story 41.8, FR-41-19) */}
+            <TextSeparator />
+          </>
         )}
 
         {/* Favorite Button */}
@@ -142,12 +147,16 @@ export function ElectricProductCard({
         <div>
           {/* Brand */}
           {brand && (
-            <p
-              className="text-xs text-[var(--color-text-secondary)] uppercase tracking-wide"
-              style={{ fontFamily: "'Inter', sans-serif" }}
-            >
-              {brand}
-            </p>
+            <>
+              <p
+                className="text-xs text-[var(--color-text-secondary)] uppercase tracking-wide"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                {brand}
+              </p>
+              {/* Разделяет бренд и соседний узел при извлечении текста (Story 41.8, FR-41-19) */}
+              <TextSeparator />
+            </>
           )}
 
           <h3

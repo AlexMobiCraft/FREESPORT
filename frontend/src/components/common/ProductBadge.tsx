@@ -18,6 +18,7 @@
 
 import React from 'react';
 import { Badge, type BadgeVariant } from '@/components/ui';
+import { TextSeparator } from './TextSeparator';
 import type { Product } from '@/types/api';
 
 export interface ProductBadgeProps {
@@ -83,9 +84,13 @@ export const ProductBadge: React.FC<ProductBadgeProps> = ({ product, className }
   }
 
   return (
-    <Badge variant={badge.variant} className={className}>
-      {badge.label}
-    </Badge>
+    <>
+      <Badge variant={badge.variant} className={className}>
+        {badge.label}
+      </Badge>
+      {/* Разделяет текст бейджа и следующий за ним бренд/название (Story 41.8, FR-41-19) */}
+      <TextSeparator />
+    </>
   );
 };
 

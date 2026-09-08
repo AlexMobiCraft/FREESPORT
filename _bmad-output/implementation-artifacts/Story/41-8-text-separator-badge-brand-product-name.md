@@ -1,0 +1,475 @@
+---
+baseline_commit: "e3e05a46" # HEAD develop на момент создания стори
+review_head: "" # заполняется по завершении содержательной работы
+excluded_commits: []
+# Канонический changeset стори. Область приёмки =
+#   git log --oneline baseline_commit..review_head  МИНУС excluded_commits.
+# review_head НЕ сдвигается документационными правками метаданных.
+---
+
+# Story 41.8: Текстовый разделитель между бейджем, брендом и названием товара
+
+Status: review
+
+> 🔴 **GitNexus: `impact` по `ProductBadge` вернул `"risk": "CRITICAL"`** — 13 затронутых символов, 2 прямых вызывающих (`ProductCard`, `RecommendationsRow`), 9 затронутых процессов, 5 модулей (замер 2026-09-08 на индексе `e3e05a4`). Правка тривиальна по объёму, но узел общий: ошибка проявится сразу на `/home`, `/catalog`, `/search` и `/electric`. Риск сообщён владельцу при создании стори. Перед правкой перезамерить (Task 2) — если картина изменилась, перечитать координаты.
+> 🔴 **`ProductCard.test.tsx` мокает `ProductBadge`** (`frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx:42-56`): мок возвращает голый `<span data-testid="badge-new">Новинка</span>` без разделителя. Проверка разделителя, дописанная в этот файл, проверит **мок, а не код** — ровно тот класс бесполезного теста, который был находкой ревью в 41.6. Тест разделителя пишется в **отдельном файле без `vi.mock('@/components/common/ProductBadge')`**.
+> 🔴 **Разделитель обязан быть `position: absolute` (класс `sr-only`), а не текстовым узлом в потоке.** Контейнер описания — flex-колонка: `div.p-3.flex.flex-col` в compact (`ProductCard.tsx:283`) и `div.p-4.flex.flex-col` в grid (`:542`). Обычный `<span> </span>` там становится flex-элементом и добавляет строку высотой line-height — вёрстка поедет. `sr-only` выносит элемент из потока и гарантирует AC2 конструктивно.
+> ⚠️ **Порядок склейки в list-layout другой: бренд → бейдж → название** (`ProductCard.tsx:393-405`). Разделителя «после бейджа» там недостаточно. Поэтому разделителей два: один внутри `ProductBadge` (после бейджа), второй — после абзаца бренда.
+> ⚠️ **Vitest здесь `happy-dom` и `css: false`** (`frontend/vitest.config.mts:21,27`): CSS не подключается, `sr-only` в тестах ничего не скрывает. «Внешний вид не изменился» тестом **не доказывается** — только осмотром в браузере (Task 8). Тест охраняет DOM-структуру и текст, не раскладку.
+> 🚫 **Стори не трогает бэкенд.** Ни моделей, ни сериализаторов, ни `docs/api/openapi.yaml`, ни `frontend/src/types/api.generated.ts`. **NFR-41-02 не задействуется**, `npm run generate:types` не запускается, миграций нет, pytest не гоняется.
+> 🚫 **Склейка «название + цена» и «цена + Нет в наличии» не чинится** — она за границей FR-41-19 (см. AC6 и «Решения владельца по объёму»).
+
+## Story
+
+As a **пользователь скринридера**,
+I want **слышать бейдж, бренд и название товара как отдельные слова**,
+so that **карточка товара читалась, а не превращалась в одно склеенное слово**.
+
+**Закрывает:** FR-41-19. **Соблюдает:** NFR-41-01, NFR-41-03, NFR-41-06.
+
+**Происхождение и честная ценность.** Исходное замечание сканера («смешение алфавитов», 16 случаев: `НовинкаBoyBoКапа`, `ХитBoyBoПояс`, `АкцияCosmorideШлем`) — **ложное**: визуально это три отдельных элемента, ошибки в тексте нет. Реальная ценность правки — доступность и корректное копирование текста со страницы. Побочно 16 строк исчезнут из следующего отчёта. Это единственная стори эпика, выведенная не из подтверждённого дефекта, — поэтому она и выполняется предпоследней.
+
+## Acceptance Criteria
+
+### AC1 (FR-41-19) — текст разделён при программном извлечении
+
+**Given** карточка товара с бейджем (любой из трёх layout'ов `ProductCard`)
+**When** её текстовое содержимое извлекается программно (`element.textContent`)
+**Then** между текстом бейджа, названием бренда и названием товара присутствует хотя бы один пробельный символ
+**And** это проверяется на реальном `ProductBadge`, а не на его тестовом моке
+**And** проверка выполнена для всех трёх layout'ов: `grid`, `list`, `compact` — порядок элементов в `list` отличается (бренд → бейдж → название), и он тоже покрыт
+
+### AC2 (FR-41-19) — внешний вид не изменился
+
+**Given** та же карточка
+**When** она отображается визуально
+**Then** отступы, вёрстка и размеры прежние
+**And** это обеспечено конструктивно: разделитель — `<span className="sr-only">`, то есть `position: absolute` вне потока; собственных отступов, `gap`, `margin` или видимых символов он не добавляет
+**And** осмотр выполнен в браузере на `/home`, `/catalog` и `/electric` при ширинах 375px и 1440px и зафиксирован в Dev Agent Record (`css: false` в конфиге Vitest означает, что тестом раскладка не проверяется)
+
+### AC3 (FR-41-19) — карточка без бейджа и без бренда
+
+**Given** карточка товара без активных маркетинговых флагов
+**When** она отображается
+**Then** лишний разделитель, пустой отступ или пустой узел не появляется
+**And** это обеспечено конструктивно: разделитель бейджа живёт **внутри** `ProductBadge`, который при отсутствии флагов возвращает `null` целиком; разделитель бренда живёт **внутри** условия `{product.brand && (...)}`
+**And** то же проверено для карточки без бренда, и для карточки без бейджа и без бренда одновременно
+
+### AC4 (NFR-41-06) — доступность
+
+**Given** отрисованный список карточек товаров
+**When** выполняется проверка axe-core (`vitest-axe`)
+**Then** число нарушений не превышает базис, снятый тем же тестом **до** правки
+**And** базис записан в Debug Log числом, а не словом «зелено» — иначе «новых нарушений нет» ничем не подтверждено
+**And** новых интерактивных элементов стори не вводит: разделитель — текстовый узел, фокус не принимает, в tab-порядок не попадает
+
+### AC5 (NFR-41-01) — тесты и статический анализ
+
+**Given** изменённый код
+**When** прогоняется `npm run test`
+**Then** существует тест самого разделителя (`frontend/src/components/common/__tests__/TextSeparator.test.tsx`), и он проверяет, что `textContent` компонента равен пробелу, а класс — `sr-only`
+**And** существует тест склейки в карточке (`frontend/src/components/business/ProductCard/__tests__/ProductCard.text-separation.test.tsx`), рендерящий **реальный** `ProductBadge`
+**And** тест склейки проверяет отсутствие подстрок вида `НовинкаNike` / `NikeTest Product` в `container.textContent`, а не только присутствие разделителя где-то на странице
+**And** существующие тесты не сломаны: `ProductCard.test.tsx`, `ProductBadge.test.tsx`, `Badge.test.tsx` остаются зелёными без правок их ожиданий
+**And** `npm run lint`, `npm run format:check` и `npx tsc --noEmit` проходят без ошибок
+
+### AC6 (границы) — что стори НЕ делает
+
+**Then** **не** меняется бэкенд, `docs/api/openapi.yaml`, `frontend/src/types/api.generated.ts`; `npm run generate:types` не запускается, pytest не гоняется
+**And** **не** меняется компонент `Badge` (`frontend/src/components/ui/Badge/Badge.tsx`) — ни варианты, ни классы, ни иконки
+**And** **не** меняется логика `determineBadge` (`ProductBadge.tsx:33-76`): приоритеты флагов, тексты бейджей и условие `null` остаются как есть
+**And** **не** чинится склейка «название + цена» (`Капа1 200 ₽`) и «цена + Нет в наличии» — тот же класс дефекта, но за границей FR-41-19; выносится в `deferred-work.md`
+**And** **не** добавляются `aria-label`, `aria-describedby` или visually-hidden подписи к карточке — стори добавляет разделитель, а не переписывает семантику карточки
+**And** **не** правится `RecommendationsRow` (компонент экспортируется из `common/index.ts`, но ни одной страницей не используется — правка внутри `ProductBadge` покрывает его автоматически, отдельного теста он не получает)
+**And** **не** вводится видимый разделитель (`·`, `—`, `|`) — AC2 требует неизменного внешнего вида
+
+## Tasks / Subtasks
+
+- [x] **Task 1. Ветка и baseline** (все AC)
+  - [x] `git switch develop; git pull` — стори 41.7 влита (`e3e05a46`), внешних зависимостей у 41.8 нет
+  - [x] `git switch -c feature/story-41-8-text-separator-product-card` (прямые коммиты в `develop` запрещены)
+  - [x] `git rev-parse --short HEAD` → сверить с `baseline_commit` фронтматтера, при расхождении обновить поле
+  - [x] Зафиксировать базис тестов ДО правок: `cd frontend; npm run test` → число файлов/зелёных в Debug Log
+
+- [x] **Task 2. Blast radius** (все AC)
+  - [x] `npx gitnexus impact "Function:frontend/src/components/common/ProductBadge.tsx:ProductBadge" --direction upstream --repo "C:\Users\1\DEV\FREESPORT" --include-tests`
+        Имя `ProductBadge` неоднозначно (`Function:` и `Const:` в одном файле) — короткую форму `npx gitnexus impact ProductBadge` CLI отклонит с `ambiguous`, нужен полный uid
+  - [x] Ожидаемо `"risk": "CRITICAL"`, `impactedCount: 13`, прямые: `ProductCard`, `RecommendationsRow` (замер 2026-09-08). Расхождение → перечитать координаты в Dev Notes до правки
+  - [x] То же для `ProductCard`: `npx gitnexus impact "Function:frontend/src/components/business/ProductCard/ProductCard.tsx:ProductCard" --direction upstream --repo "C:\Users\1\DEV\FREESPORT" --include-tests`
+  - [x] Сообщить владельцу уровень риска (требование `project-context.md` §5) — CRITICAL уже сообщён при создании стори, повторить факт замера в Dev Agent Record
+
+- [x] **Task 3. Компонент `TextSeparator`** (AC1, AC2, AC3)
+  - [x] Создать `frontend/src/components/common/TextSeparator.tsx` — код и docstring в Dev Notes «Реализация»
+  - [x] Экспортировать из `frontend/src/components/common/index.ts` рядом с остальными (добавлять в конец списка)
+  - [x] Docstring и комментарии — на русском (NFR-41-03), с объяснением **почему** `sr-only`, а не пробел в потоке: иначе следующий разработчик «упростит» и сломает раскладку
+
+- [x] **Task 4. Разделитель внутри `ProductBadge`** (AC1, AC3)
+  - [x] `frontend/src/components/common/ProductBadge.tsx:85-89` — обернуть возврат во фрагмент, добавив `<TextSeparator />` **после** `<Badge>`
+  - [x] Ветку `if (!badge) return null;` (`:81-83`) не трогать — именно она даёт AC3 бесплатно
+  - [x] `determineBadge` и его приоритеты не трогать (AC6)
+  - [x] Проверить, что `ProductBadge.test.tsx` остался зелёным без правок: `screen.getByText('25% скидка')` нормализует пробелы и продолжает находить бейдж
+
+- [x] **Task 5. Разделитель после бренда в `ProductCard`** (AC1, AC3)
+  - [x] compact-layout, `ProductCard.tsx:285-289` — `<TextSeparator />` внутри блока `{product.brand && (...)}`, сразу после `</p>`
+  - [x] list-layout, `ProductCard.tsx:394-398` — то же внутри `{product.brand && (...)}`; здесь бренд стоит **перед** бейджем, поэтому разделитель разрывает пару «бренд + бейдж», а разделитель из Task 4 — пару «бейдж + название»
+  - [x] grid-layout, `ProductCard.tsx:544-548` — то же
+  - [x] Больше в файле не менять ничего: ни классы, ни `cn(...)`, ни `aria-label`, ни обработчики
+
+- [x] **Task 6. `ElectricProductCard`** (AC1, AC3)
+  - [x] `frontend/src/components/ui/ProductCard/ElectricProductCard.tsx:100-110` — `<TextSeparator />` внутри `{badge && (...)}`, после закрывающего `</div>` бейджа
+  - [x] `:144-151` — `<TextSeparator />` внутри `{brand && (...)}`, после `</p>`
+  - [x] Решение владельца 2026-09-08 — оставляем в объёме: `/electric` и `/electric/catalog` — живые маршруты прода (замер 2026-09-08: `GET https://optisport.ru/electric` → 200), карточка несёт тот же дефект и тот же порядок бейдж → бренд → название. Оставить её нетронутой значит закрыть FR-41-19 наполовину
+  - [x] Компонент не имеет своих тестов; заводить их в этой стори **не** требуется — схема правки идентична проверенной на `ProductCard`, по одной строке на стык
+
+- [x] **Task 7. Тесты** (AC1, AC3, AC4, AC5)
+  - [x] `frontend/src/components/common/__tests__/TextSeparator.test.tsx`: `textContent` равен `' '`, у элемента класс `sr-only`, тег — `span`
+  - [x] `frontend/src/components/business/ProductCard/__tests__/ProductCard.text-separation.test.tsx` — **без** `vi.mock('@/components/common/ProductBadge')` и без мока `@/components/ui` (нужен настоящий `Badge`). `next/image` мокается глобально в `vitest.setup.ts:90-104`, отдельный мок не нужен; `next/link` в этих тестах работает без мока (см. существующий `ProductCard.test.tsx`)
+  - [x] Фикстура: взять `mockProduct` из `ProductCard.test.tsx:74-105` (бренд `Nike`, название `Test Product`), включить `is_new: true` → ожидаемый бейдж `Новинка`
+  - [x] Основная проверка — на **отсутствие склейки**, а не на присутствие пробела:
+        ```ts
+        const text = container.textContent ?? '';
+        expect(text).not.toMatch(/НовинкаNike/);
+        expect(text).not.toMatch(/NikeTest Product/);
+        expect(text).toMatch(/Новинка\s+Nike\s+Test Product/);
+        ```
+        Для `list` порядок другой — `/Nike\s+Новинка\s+Test Product/`
+  - [x] Повторить для трёх layout'ов: `grid`, `list`, `compact`
+  - [x] AC3: карточка без флагов → перед брендом нет пустого `span.sr-only` от бейджа; карточка без `brand` → нет разделителя бренда; карточка без обоих → в контейнере описания нет ни одного `span.sr-only`
+  - [x] AC4: axe на списке из трёх карточек, `const results = await axe(container); expect(results.violations).toHaveLength(<базис>)` — образец вызова: `frontend/src/components/layout/__tests__/CookieSettingsButton.test.tsx:83-92`. **Базис снять этим же тестом до правок** и записать в Debug Log
+  - [x] Прогон: `cd frontend; npm run test -- src/components/common src/components/business/ProductCard`, затем полный `npm run test`
+
+- [x] **Task 8. Проверка в браузере** (AC2)
+  - [x] `docker compose --env-file .env -f docker/docker-compose.yml restart frontend` (зависимости и конфиг не менялись, пересборка не нужна); при 502 после рестарта — `docker compose --env-file .env -f docker/docker-compose.yml restart nginx`
+  - [x] Открыть `http://localhost/home`, `http://localhost/catalog` (grid и list через переключатель вида), `http://localhost/electric` при 375px и 1440px
+  - [x] Сверить с продом (`https://optisport.ru/home`, `/catalog`, `/electric`): отличий во внешнем виде быть не должно **вообще** — стори не меняет ни одного видимого пикселя
+  - [x] Выделить мышью текст карточки и скопировать → в буфере слова разделены пробелами. Это и есть исходный дефект, воспроизводимый вручную
+  - [x] Результат осмотра (ширины, страницы, вывод) записать в Dev Agent Record. `[x]` ставится только по факту — в 41.6 две ручные проверки были отмечены выполненными, хотя не выполнялись
+
+- [ ] **Task 9. Перед коммитом** (выполнено всё, кроме требующего коммита — см. ниже)
+  - [x] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — затронуты только ожидаемые символы
+  - [x] `File List` собрать командой `git diff --name-status <baseline_commit>..HEAD`, а не по памяти (повторяющаяся находка ревью в 41.0, 41.4, 41.5, 41.6, 41.7)
+  - [x] Дописать в `_bmad-output/implementation-artifacts/deferred-work.md` пункт про склейку «название + цена» и «цена + Нет в наличии» (AC6) — иначе находка потеряется
+  - [ ] Установить `review_head` на коммит, завершающий содержательную работу; документационные правки его не сдвигают
+  - [ ] Сообщения коммитов: `fix(story-41-8): ...` для правки компонентов, `test(story-41-8): ...` для тестов
+  - [ ] Коммит и push — только по явной просьбе владельца
+
+- [ ] **Task 10. Выкат**
+  - [ ] Мерж PR в `develop`, затем `develop` → `main`; на проде `git fetch origin main; git reset --hard origin/main` (не `git pull`)
+  - [ ] `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build frontend` — полная пересборка; частичное копирование `.next/` даёт `Failed to find Server Action`
+  - [ ] После рестарта frontend на проде — `docker compose restart nginx`, иначе nginx держит старый IP upstream и отдаёт 502
+  - [ ] Проверка на проде: открыть `https://optisport.ru/catalog`, выделить и скопировать текст карточки → слова разделены. Карточки рендерятся на клиенте, поэтому `curl` разметку с бейджами не покажет — проверка только в браузере
+  - [ ] ISR к карточкам товаров отношения не имеет (данные грузятся клиентом), ручная ревалидация не требуется
+
+## Dev Notes
+
+### Фактическое состояние (замеры 2026-09-08, коммит `e3e05a46`)
+
+```
+GET https://optisport.ru/home      -> 200   карточки рендерятся на клиенте, в HTML бейджей нет
+GET https://optisport.ru/catalog   -> 200   то же
+GET https://optisport.ru/electric  -> 200   живой маршрут, ElectricProductCard
+```
+
+Сканер аудита исполняет JS и потому видел склейку; `curl` её не покажет — не считать это признаком, что дефекта нет.
+
+### Что меняется в коде
+
+| Файл | Тип | Что делаем |
+|---|---|---|
+| `frontend/src/components/common/TextSeparator.tsx` | NEW | Невидимый текстовый разделитель |
+| `frontend/src/components/common/index.ts` | UPDATE | Экспорт `TextSeparator` |
+| `frontend/src/components/common/ProductBadge.tsx` | UPDATE | Фрагмент вокруг `<Badge>` + `<TextSeparator />` после него |
+| `frontend/src/components/business/ProductCard/ProductCard.tsx` | UPDATE | `<TextSeparator />` после абзаца бренда в трёх layout'ах (`:289`, `:398`, `:548`) |
+| `frontend/src/components/ui/ProductCard/ElectricProductCard.tsx` | UPDATE | `<TextSeparator />` после бейджа (`:109`) и после бренда (`:150`) |
+| `frontend/src/components/common/__tests__/TextSeparator.test.tsx` | NEW | Тест самого разделителя |
+| `frontend/src/components/business/ProductCard/__tests__/ProductCard.text-separation.test.tsx` | NEW | Тест склейки на реальном `ProductBadge` + axe |
+| `_bmad-output/implementation-artifacts/deferred-work.md` | UPDATE | Пункт про склейку «название + цена» |
+
+### Где именно склеивается текст
+
+`textContent` собирает узлы в порядке DOM, игнорируя блочность и CSS. Отсюда четыре стыка:
+
+| Компонент / layout | Порядок в DOM | Пример склейки | Координаты |
+|---|---|---|---|
+| `ProductCard` `grid` | бейдж (в контейнере изображения, `absolute`) → бренд `<p>` → название `<h3>` | `НовинкаBoyBoКапа` | `ProductCard.tsx:490-492`, `:544-548`, `:551-556` |
+| `ProductCard` `compact` | то же | `ХитBoyBoПояс` | `:231-233`, `:285-289`, `:292-297` |
+| `ProductCard` `list` | бренд `<p>` → бейдж `<span>` → название `<h3>` | `BoyBoАкцияПояс` | `:394-399`, `:403-405` |
+| `ElectricProductCard` | бейдж → бренд `<p>` → название `<h3>` | `ХитBoyBoКапа` | `ElectricProductCard.tsx:100-110`, `:144-151`, `:153-158` |
+| `RecommendationsRow` | бейдж → название `<h3>` (бренда нет) | `НовинкаКапа` | `RecommendationsRow.tsx:92-94`, `:133-141` |
+
+**Почему разделителей два, а не один.** В `list` бренд стоит перед бейджем, в остальных — после. Один разделитель внутри `ProductBadge` закрывает стык «бейдж → следующий элемент» везде; второй, после абзаца бренда, закрывает стык «бренд → следующий элемент». Вместе они покрывают оба порядка без ветвления по layout'у.
+
+### Реализация
+
+`frontend/src/components/common/TextSeparator.tsx`:
+
+```tsx
+/**
+ * TextSeparator — невидимый текстовый разделитель между соседними узлами карточки.
+ *
+ * Зачем: `element.textContent` склеивает соседние элементы без пробела, поэтому
+ * бейдж, бренд и название товара извлекаются как одно слово («НовинкаBoyBoКапа»).
+ * Это ломает чтение скринридером и копирование текста со страницы (FR-41-19).
+ *
+ * Почему `sr-only`, а не пробел в потоке: контейнеры описания карточки —
+ * flex-колонки: `p-3` в compact (`ProductCard.tsx:283`), `p-4` в grid (`:542`). Обычный `<span> </span>` стал бы
+ * flex-элементом и добавил строку высотой line-height. `sr-only` даёт
+ * `position: absolute` — элемент вне потока, вёрстка не меняется вообще.
+ * Не «упрощать» до голого пробела.
+ */
+import React from 'react';
+
+export const TextSeparator: React.FC = () => <span className="sr-only">{' '}</span>;
+
+TextSeparator.displayName = 'TextSeparator';
+```
+
+`ProductBadge.tsx`, возврат (`:85-89`) — стало:
+
+```tsx
+  return (
+    <>
+      <Badge variant={badge.variant} className={className}>
+        {badge.label}
+      </Badge>
+      {/* Разделяет текст бейджа и следующий за ним бренд/название (FR-41-19) */}
+      <TextSeparator />
+    </>
+  );
+```
+
+`ProductCard.tsx`, каждый из трёх блоков бренда:
+
+```tsx
+    {product.brand && (
+      <>
+        <p className="...">{product.brand.name}</p>
+        {/* Разделяет бренд и соседний узел при извлечении текста (FR-41-19) */}
+        <TextSeparator />
+      </>
+    )}
+```
+
+Если Prettier нормализует `{' '}` в литеральный пробел — это допустимо; тест `TextSeparator.test.tsx` охраняет фактическое содержимое, а не форму записи.
+
+### Что нельзя сломать
+
+- `ProductBadge` возвращает `null` при отсутствии флагов (`:81-83`) — это единственный механизм, дающий AC3 для бейджа. Не заменять на `<></>`, не выносить `TextSeparator` наружу компонента.
+- `determineBadge` (`:33-76`) задаёт приоритет sale → promo → new → hit → premium и тексты бейджей; их проверяют `ProductBadge.test.tsx` и блок `Badge Logic` в `ProductCard.test.tsx:296-325`.
+- `Badge` — `<span>` с `inline-flex ... max-w-[200px] truncate` (`Badge/Badge.tsx:63-84`) и иконкой для вариантов `delivered/transit/cancelled/premium`. Иконки помечены `aria-hidden`, текста не дают. Компонент не трогаем.
+- `ProductCard` — `forwardRef<HTMLDivElement>` (`:148`), три layout'а с ранними `return` (`:215`, `:343`, `:474`). Разделитель добавляется в каждый — пропустить один легко, поэтому тест обходит все три.
+- Карточка целиком обёрнута в `Link` и несёт `role="article"` + `aria-label` вида `Товар: {name}` (`:225-226`, `:355-356`, `:484-485`). Эти атрибуты не трогаем: их проверяет блок `Accessibility` в `ProductCard.test.tsx:409-453`.
+- `RecommendationsRow` экспортируется из `common/index.ts:9`, но ни одной страницей не используется — правку получает автоматически через `ProductBadge`, отдельных изменений не требует.
+
+### Тесты: что и чем гоняем
+
+- Только Vitest, только фронт. Окружение — **happy-dom**, CSS отключён (`vitest.config.mts:21,27`).
+- `next/image` замокан глобально (`vitest.setup.ts:90-104`); `vitest-axe/extend-expect` подключён там же (`:20`), отдельный импорт матчеров не нужен, но сам `axe` импортируется в файле теста: `import { axe } from 'vitest-axe'`.
+- Существующий `ProductCard.test.tsx` мокает `ProductBadge` (`:42-56`), `@/components/ui` (`:59-65`), `lucide-react` (`:36-40`) и `cn` (`:68-70`). **Эти моки в новый файл не переносить** — нужен настоящий рендер `ProductBadge` → `Badge`. Мок `lucide-react` при этом можно опустить: `Badge` тянет `CheckCircle2/Truck/X/Sparkles`, но для фикстуры с `is_new: true` иконка не используется. Мокать иконки понадобится, только если добавлять кейс `is_premium`.
+- Порог покрытия фронта — 65% по всем метрикам (`vitest.config.mts:44-49`), `index.{ts,tsx}` из покрытия исключены. Новый компонент состоит из одной строки JSX и покрывается собственным тестом.
+- Бэкенд не менялся → pytest и Docker-тесты **не** запускаются; порог 73 (`main.yml`, `--cov=apps --cov=freesport`) этой стори не касается.
+- E2E (Playwright) не задействуется: видимого поведения стори не меняет.
+
+### Уроки предыдущих стори эпика (41.0, 41.4, 41.5, 41.6, 41.7)
+
+Находки ревью, повторявшиеся из стори в стори:
+
+- **Тест, проверяющий мок, не охраняет ничего.** В 41.6 «страж размеров логотипа» сравнивал литералы между собой и оставался зелёным при неверной разметке. Здесь прямой аналог — дописать проверку разделителя в `ProductCard.test.tsx`, где `ProductBadge` замокан. Именно поэтому тест выносится в отдельный файл.
+- **`File List` собирается командой, а не по памяти.** Расхождение перечня с `git diff --name-status` было находкой в 41.0, 41.4, 41.5, 41.6 и 41.7. Побочные правки (автогенерируемый счётчик GitNexus в `AGENTS.md`/`CLAUDE.md`) вносить отдельным разделом, а не выкидывать.
+- **`[x]` ставится только по факту.** В 41.6 две ручные проверки были отмечены выполненными, хотя не выполнялись. Здесь тестом не закрывается ровно один пункт — осмотр в браузере (Task 8), и он же единственный, кто подтверждает AC2.
+- **`review_head` устанавливается один раз** по завершении содержательной работы и не сдвигается документационными правками. Рассогласование поля с фактическими коммитами было находкой в 41.6 и 41.7.
+- **Формулировка «ничего не сломалось» требует числа.** В 41.7 базис тестов снимался до правок и записывался числом; здесь то же требуется для axe-нарушений (AC4).
+
+### Project Structure Notes
+
+- `TextSeparator` кладётся в `frontend/src/components/common/` — тот же уровень, что `ProductBadge`: маленький переиспользуемый компонент, не UI-примитив дизайн-системы. `frontend/src/components/ui/` организован папка-на-компонент (`Badge/Badge.tsx` + `Badge/__tests__/`), `common/` — плоскими файлами с общим `common/__tests__/`. Следуем `common/`.
+- Тест склейки кладётся в существующий `frontend/src/components/business/ProductCard/__tests__/` рядом с `ProductCard.test.tsx`, отдельным файлом — принятая в проекте схема.
+- `sr-only` — уже используемая в проекте tailwind-утилита (17 файлов, напр. `SearchResults.tsx:56`, `checkout/ContactSection.tsx:52`); собственного класса или CSS-модуля заводить не нужно.
+- Правки `frontend/src/` применяются рестартом контейнера, пересборка не нужна: зависимости и конфиг не менялись.
+- `TextSeparator` не содержит состояния и обработчиков — директива `'use client'` ему не нужна; он наследует контекст файла, который его импортирует (`ProductCard` и `ElectricProductCard` уже клиентские).
+
+### References
+
+- [Source: `_bmad-output/planning-artifacts/epic-41-site-audit.md#Story 41.8`] — текст стори, AC, контекст, порядок выполнения
+- [Source: `_bmad-output/planning-artifacts/epic-41-site-audit.md:132`] — FR-41-19 и разбор ложного срабатывания «смешение алфавитов»
+- [Source: `_bmad-output/planning-artifacts/epic-41-site-audit.md:151,155`] — NFR-41-01 (тесты), NFR-41-06 (доступность, axe-core)
+- [Source: `_bmad-output/planning-artifacts/epic-41-site-audit.md:243`] — «41.8 последней: единственная стори, выведенная не из подтверждённого дефекта»
+- [Source: `frontend/src/components/common/ProductBadge.tsx:33-92`] — `determineBadge`, возврат `null`, точка вставки разделителя
+- [Source: `frontend/src/components/business/ProductCard/ProductCard.tsx:231-233,283-297,393-405,490-492,542-556`] — три layout'а, стыки бейдж/бренд/название
+- [Source: `frontend/src/components/ui/ProductCard/ElectricProductCard.tsx:99-110,143-158`] — вторая карточка с тем же дефектом
+- [Source: `frontend/src/components/common/RecommendationsRow.tsx:92-94,133-141`] — бейдж и название без бренда
+- [Source: `frontend/src/components/ui/Badge/Badge.tsx:58-89`] — `Badge` как `<span>`, что и делает склейку возможной
+- [Source: `frontend/src/components/business/ProductCard/__tests__/ProductCard.test.tsx:42-70,74-105,296-325,409-453`] — моки (в т.ч. `ProductBadge`), фикстура, блоки Badge Logic и Accessibility
+- [Source: `frontend/src/components/layout/__tests__/CookieSettingsButton.test.tsx:83-92`] — образец вызова axe
+- [Source: `frontend/vitest.config.mts:21,27,44-49`] — happy-dom, `css: false`, пороги покрытия
+- [Source: `frontend/vitest.setup.ts:20,90-104`] — `vitest-axe/extend-expect`, глобальный мок `next/image`
+- [Source: `project-context.md` §1, §5, §6, §7] — Docker-команды, GitNexus-дисциплина, язык комментариев, правила фронта
+- [Source: `_bmad-output/implementation-artifacts/Story/41-7-pdn-registry-numbers-and-login-form-justification.md`] — уроки предыдущей стори, формат плана выката
+
+### Решения владельца по объёму (Alex, 2026-09-08)
+
+Оба вопроса закрыты до старта разработки. Переоткрывать их в ходе реализации не нужно.
+
+1. **`ElectricProductCard` остаётся в объёме (Task 6).** Текст эпика называет только «карточку товара» и координаты `ProductBadge.tsx`, но карточка электрической темы — второй экземпляр того же дефекта на живом маршруте `/electric`. Оставить её нетронутой значило бы закрыть FR-41-19 наполовину. Task 6 обязателен к выполнению.
+2. **Склейка «название + цена» (`Капа1 200 ₽`) и «цена + Нет в наличии» не трогается.** Тот же класс дефекта, но за границей FR-41-19: двумя строками не лечится, нужен разделитель ещё на двух стыках в каждом layout'е. Объём стори не расширяется; находка фиксируется записью в `deferred-work.md` (Task 9) и остаётся в AC6 как явная граница.
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 5 (`claude-opus-5`), workflow `bmad-dev-story`, 2026-09-08.
+
+### Debug Log References
+
+**Базис тестов ДО правок** (`cd frontend; npm run test`, ветка на `e3e05a46`):
+`163 файла, 2765 passed | 16 skipped (2781)`
+
+**Базис axe ДО правок (AC4) — 0 нарушений.** Снят тем же тестом, который потом охраняет метрику: файл
+`ProductCard.text-separation.test.tsx` написан и прогнан **до** правок компонентов. В том прогоне 9 тестов
+упали на склейке (дефект воспроизведён на реальном коде), а тест
+`доступность (AC4) > список из трёх карточек ... axe` **прошёл** с `expect(results.violations).toHaveLength(0)`.
+То есть базис = **0**, и он же остался порогом после правки. «Новых нарушений нет» подтверждено числом,
+а не словом.
+
+**RED-фаза, вывод до правок** (фрагмент):
+
+```
+AssertionError: expected 'НовинкаNikeTest ProductTest description1 200 ₽' to match /Новинка\s+Nike\s+Test Product/
+Test Files  1 failed (1)
+     Tests  9 failed | 6 passed (15)
+```
+
+**Базис тестов ПОСЛЕ правок:** `165 файлов, 2784 passed | 16 skipped (2800)`.
+Дельта: +2 файла, +19 тестов (4 `TextSeparator` + 15 склейки). Регрессий 0.
+
+**Статический анализ:** `npx tsc --noEmit` — exit 0; `npm run lint` (`eslint . --max-warnings=0`) — без вывода;
+`npm run format:check` — `All matched files use Prettier code style!`.
+
+**GitNexus impact (Task 2), замер 2026-09-08, индекс `e3e05a4` (`status: up-to-date`):**
+
+| Символ | risk | impactedCount | direct | processes | modules |
+|---|---|---|---|---|---|
+| `Function:...common/ProductBadge.tsx:ProductBadge` | **CRITICAL** | 13 | 2 (`ProductCard`, `RecommendationsRow`) | 9 | 5 |
+| `Function:...business/ProductCard/ProductCard.tsx:ProductCard` | **CRITICAL** | 14 | 7 | 8 | 4 |
+
+Картина совпала с зафиксированной при создании стори — перечитывать координаты Dev Notes не потребовалось.
+Уровень CRITICAL сообщён владельцу повторно, по факту замера (первично — при создании стори).
+
+**GitNexus detect-changes (Task 9), `--scope all`:** `7 files, 8 symbols, 21 processes, risk: critical`.
+Изменённые символы — ровно ожидаемые: `ProductCard` (×2 + `cardContent`), `ProductBadge` (×2),
+`ElectricProductCard`. Плюс `AGENTS.md` / `CLAUDE.md` — автогенерируемый блок GitNexus, изменённый
+до старта стори (присутствовал в `git status` на момент Task 1), к правке отношения не имеет.
+Новые файлы (`TextSeparator.tsx` и два теста) в списке символов отсутствуют — созданы после индексации.
+
+### Completion Notes List
+
+**Что сделано.** Введён компонент `TextSeparator` — `<span className="sr-only"> </span>`. Вставлен по одному
+на каждый стык: внутри `ProductBadge` (после `<Badge>` — покрывает стык «бейдж → следующий узел» сразу во всех
+потребителях, включая `RecommendationsRow`) и внутри условия `{brand && (...)}` — в трёх layout'ах
+`ProductCard` и в `ElectricProductCard`. Разделителей два, а не один, потому что в list-layout порядок
+обратный: бренд → бейдж → название.
+
+**AC1 — закрыт.** Тест `ProductCard.text-separation.test.tsx` рендерит настоящую цепочку
+`ProductCard → ProductBadge → Badge` (моков компонентов нет), проверяет отсутствие склеек
+`/НовинкаNike/`, `/NikeTest Product/` и присутствие `/Новинка\s+Nike\s+Test Product/` для `grid` и `compact`,
+`/Nike\s+Новинка\s+Test Product/` — для `list`. Отдельный тест подтверждает, что рендерится реальный `Badge`
+(по классу `inline-flex`), а не мок — страховка от бесполезного теста, бывшего находкой ревью 41.6.
+
+**AC2 — закрыт измерением, а не осмотром на глаз.** Браузерные MCP-инструменты в сессии оказались недоступны,
+поэтому осмотр выполнен через Playwright (`@playwright/test@1.57.0`, chromium, headless) — и получился строже
+ручного: снята геометрия карточек на проде (`https://optisport.ru` — **старый код**) и локально
+(`http://localhost` — **новый код**) на тех же страницах и ширинах. Совпадение попиксельное:
+
+| Страница | Ширина | prod, до (`WxH` / `brandTop` / `h3top`) | local, после (`WxH` / `brandTop` / `h3top`) |
+|---|---|---|---|
+| `/home` | 375 | 180x296 / 192 / 212 | 180x296 / — / 212 |
+| `/home` | 1440 | 180x296 / 192 / 212 | 180x296 / — / 212 |
+| `/catalog` | 375 | 343x539 / 359 / 383 | 343x539 / 359 / 383 |
+| `/catalog` | 1440 | 285x481 / 301 / 325 | 285x481 / 301 / 325 |
+| `/electric` | 375 | 220x402 / — / 231 | 220x402 / — / 231 |
+| `/electric` | 1440 | 220x396 / — / 235 | 220x396 / — / 235 |
+
+Горизонтальное переполнение (`document.body.scrollWidth > clientWidth`) совпало с прод-поведением на обеих
+ширинах. Computed style разделителя на живой странице: `{position: "absolute", w: 1, h: 1, text: " "}` —
+элемент вне потока, ровно как требует AC2. Скриншоты всех шести комбинаций сняты в рабочий каталог сессии.
+
+Текст тех же карточек (`textContent`), до → после:
+
+- `/home`: `ХитRuscoSportНабор бокс. начинающих…` → `Хит BoyBo Кимоно для дзюдо…`
+- `/catalog`: `Made In RussiaБалетки для танцев белые350 ₽` → `Made In Russia Балетки для танцев белые350 ₽`
+- `/electric`: `Хит♡RuscoSportНабор бокс…` → `Хит ♡BoyBo Кимоно для дзюдо…`
+
+**Побочная находка при проверке AC2: локальная БД не содержала товаров с маркетинговыми флагами.**
+Секции `/home` и `/electric` фильтруют по флагу **и** по наличию
+(`GET /api/v1/products/?is_hit=true&ordering=-created_at&page_size=8&in_stock=true` → `count: 0`),
+поэтому карточек с бейджами локально не рендерилось вовсе и проверять было нечего. На время осмотра пяти
+товарам с брендом и остатком (`variants__stock_quantity__gt=0`) проставлен `is_hit`, ещё пяти — `is_new`;
+после снятия замеров **флаги сняты обратно** (`is_hit=5, is_new=5` → `False`), локальная БД возвращена в
+исходное состояние. Прод не затрагивался.
+
+**AC3 — закрыт конструктивно и тестом.** Разделитель бейджа живёт внутри `ProductBadge`, ветка
+`if (!badge) return null` (`ProductBadge.tsx:81-83`) не тронута — при отсутствии флагов возвращается `null`
+целиком, вместе с разделителем. Разделитель бренда — внутри `{brand && (...)}`. Тесты проходят все три
+layout'а в трёх конфигурациях: без бейджа, без бренда, без обоих (`span.sr-only` → 0 элементов).
+
+**AC4 — закрыт.** Базис axe = 0 (см. Debug Log); после правки — по-прежнему 0 на списке из трёх карточек.
+Отдельный тест подтверждает, что разделитель не получает ни `tabindex`, ни `role`, то есть в tab-порядок
+не попадает.
+
+**AC5 — закрыт.** 165/165 файлов, 2784 теста зелёные. `ProductCard.test.tsx` (40 тестов),
+`ProductBadge.test.tsx` (12) и `Badge.test.tsx` (30) остались зелёными **без единой правки их ожиданий** —
+`screen.getByText` нормализует пробелы и продолжает находить бейджи. `tsc`, `lint`, `format:check` чисты.
+
+**AC6 — соблюдён.** Бэкенд, `openapi.yaml`, `api.generated.ts`, `Badge.tsx`, `determineBadge` и
+`RecommendationsRow` не тронуты; `generate:types` и pytest не запускались; видимых разделителей не введено.
+Склейка «название + цена» вынесена в `deferred-work.md`.
+
+**Расхождение с планом стори, которое стоит знать ревьюеру.** Пункт Task 8 «выделить мышью и скопировать →
+слова разделены; это и есть исходный дефект, воспроизводимый вручную» — **неверен**. Проверено на проде
+(старый код) и локально (новый): `window.getSelection().toString()` разделяет слова **в обоих случаях**,
+потому что браузер вставляет перевод строки на границах блочных элементов. Ручная проверка копированием дала
+бы ложное «дефекта нет». Дефект наблюдаем только через `element.textContent` — путь скринридера и парсера, —
+и именно он замерен до/после. Наблюдение записано в `deferred-work.md`, чтобы не тратить на него время
+в будущих стори этого класса.
+
+**Не выполнено намеренно: Task 10 (выкат).** Коммит, push и мерж — только по явной просьбе владельца
+(требование Task 9). Работа лежит в ветке `feature/story-41-8-text-separator-product-card`
+незакоммиченной; `review_head` проставляется на коммит, завершающий содержательную работу.
+
+### File List
+
+Собрано командами `git diff --name-status e3e05a46` и `git status --short`, не по памяти.
+
+**Новые файлы:**
+
+| Файл | Назначение |
+|---|---|
+| `frontend/src/components/common/TextSeparator.tsx` | Невидимый текстовый разделитель (`span.sr-only`) |
+| `frontend/src/components/common/__tests__/TextSeparator.test.tsx` | Тест разделителя: содержимое, класс, тег, отсутствие фокуса (4 теста) |
+| `frontend/src/components/business/ProductCard/__tests__/ProductCard.text-separation.test.tsx` | Тест склейки на реальном `ProductBadge` + axe (15 тестов) |
+
+**Изменённые файлы:**
+
+| Файл | Что изменено |
+|---|---|
+| `frontend/src/components/common/ProductBadge.tsx` | Импорт `TextSeparator`; возврат обёрнут во фрагмент, `<TextSeparator />` после `<Badge>` |
+| `frontend/src/components/common/index.ts` | Экспорт `TextSeparator` |
+| `frontend/src/components/business/ProductCard/ProductCard.tsx` | Импорт `TextSeparator`; разделитель после абзаца бренда в трёх layout'ах (compact, list, grid) |
+| `frontend/src/components/ui/ProductCard/ElectricProductCard.tsx` | Импорт `TextSeparator`; разделитель после бейджа и после бренда |
+| `_bmad-output/implementation-artifacts/deferred-work.md` | Два пункта: склейка «название + цена»; ложноотрицательность ручной проверки копированием |
+| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Статус стори: `ready-for-dev` → `in-progress` → `review` |
+| `_bmad-output/implementation-artifacts/Story/41-8-text-separator-badge-brand-product-name.md` | Чекбоксы, Dev Agent Record, File List, Change Log, Status |
+
+**Побочные правки, к стори не относящиеся** (присутствовали в рабочем дереве до её старта, зафиксированы
+в `git status` на момент Task 1; перечислены, чтобы не потерялись при коммите):
+
+| Файл | Что это |
+|---|---|
+| `AGENTS.md` | Автогенерируемый блок GitNexus (счётчик символов и связей) |
+| `CLAUDE.md` | То же |
+
+## Change Log
+
+| Дата | Версия | Описание | Автор |
+|---|---|---|---|
+| 2026-09-08 | 1.0 | Реализация стори 41.8: компонент `TextSeparator`; разделители в `ProductBadge`, трёх layout'ах `ProductCard` и `ElectricProductCard`; 19 новых тестов. AC2 подтверждён попиксельным сравнением prod/local через Playwright, базис axe = 0. Tasks 1–9 выполнены, Task 10 (выкат) — по решению владельца. Статус → review | Amelia (Dev Agent) |

@@ -507,6 +507,36 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts/Story"
 #             lint и tsc чисты; gitnexus detect-changes — risk low, 0 процессов.
 #             Push не выполнялся. Статус стори in-progress -> review,
 #             синхронизирован с story-файлом.
+# 2026-09-08: Создана стори 41.8 (create-story) — Story/41-8-text-separator-
+#             badge-brand-product-name.md, статус backlog -> ready-for-dev.
+#             Порядок эпика соблюдён: 41.8 предпоследняя, все предыдущие done.
+#             Объём: невидимый разделитель TextSeparator на стыках бейдж/бренд/
+#             название (FR-41-19). Разбор выявил четыре вещи сверх текста
+#             эпика: (а) gitnexus impact по ProductBadge — risk CRITICAL,
+#             13 символов, 9 процессов: узел общий для /home, /catalog,
+#             /search, /electric; (б) ProductCard.test.tsx мокает ProductBadge,
+#             поэтому тест разделителя вынесен в отдельный файл — иначе он
+#             проверял бы мок (повтор находки 41.6); (в) в list-layout порядок
+#             обратный (бренд -> бейдж -> название), одного разделителя мало,
+#             их два; (г) ElectricProductCard несёт тот же дефект на живом
+#             маршруте /electric. Оба вопроса объёма закрыты решением Alex
+#             2026-09-08: ElectricProductCard остаётся в объёме (Task 6),
+#             склейка «название + цена» не трогается — за границей FR-41-19,
+#             уходит записью в deferred-work.md.
+# 2026-09-08: Стори 41.8 реализована (dev-story), ready-for-dev -> in-progress
+#             -> review. Ветка feature/story-41-8-text-separator-product-card,
+#             baseline e3e05a46. Добавлен TextSeparator (span.sr-only), встроен
+#             в ProductBadge, три layout'а ProductCard и ElectricProductCard.
+#             Тесты: 163 файла / 2765 passed до -> 165 / 2784 после (+19),
+#             регрессий 0; lint, format:check и tsc чисты. Базис axe снят ДО
+#             правок тем же тестом и равен 0 — после правки тоже 0. AC2 закрыт
+#             попиксельным сравнением prod (старый код) и local (новый) через
+#             Playwright на /home, /catalog, /electric при 375 и 1440: геометрия
+#             карточек совпала полностью, текст разделился. Найдено попутно:
+#             ручная проверка «выдели и скопируй» из плана стори дефект НЕ
+#             воспроизводит (getSelection разделяет слова и на старом коде) —
+#             записано в deferred-work.md вместе со склейкой «название + цена».
+#             Task 10 (выкат) не выполнялся: коммит и мерж — по решению владельца.
 
 development_status:
   # ========================================
@@ -793,7 +823,7 @@ development_status:
   #             перед выкатом — документ предъявляется регулятору.
   41-7-pdn-registry-numbers-and-login-form-justification: done
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.
-  41-8-text-separator-badge-brand-product-name: backlog
+  41-8-text-separator-badge-brand-product-name: review
   # Заведена по находке ревью 41.3: NFR-41-04 покрыт частично — в UserConsent
   # нет версии текста согласия и источника, отличить старые формулировки
   # от новых в журнале нечем (решение Alex, 2026-08-30).
