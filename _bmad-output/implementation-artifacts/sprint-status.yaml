@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-07
+# last_updated: 2026-09-08
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -781,6 +781,16 @@ development_status:
   #             исправления тестов третьего захода. 162 файла, 2759 passed,
   #             16 skipped; lint/format/tsc прошли. Story и tracker: review -> done.
   41-6-unique-metadata-og-image-jsonld: done
+  # 2026-09-08: Code review выявил две документальные находки: обоснование
+  #             ошибочно приравнивает аутентификацию к наличию UserConsent и
+  #             не учитывает технические данные успешного входа. Alex оставил
+  #             их action items; review -> in-progress до уточнения документа.
+  # 2026-09-08: Обе находки закрыты правкой docs/legal/login-form-consent-
+  #             justification.md (редакция 2): п. 3.1 «Границы утверждения»
+  #             и п. 2.1 «Технические данные при входе». Код не менялся,
+  #             регрессия 2765 тестов зелёная. in-progress -> review.
+  #             ВНИМАНИЕ: редакция 2 требует повторного утверждения владельцем
+  #             перед выкатом — документ предъявляется регулятору.
   41-7-pdn-registry-numbers-and-login-form-justification: review
   # Единственная стори не из подтверждённого дефекта; ценность в доступности.
   41-8-text-separator-badge-brand-product-name: backlog
