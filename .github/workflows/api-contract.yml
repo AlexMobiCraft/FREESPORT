@@ -5,26 +5,22 @@ name: API Contract
 # сгенерированный файл не видит, CI его не пересобирал, и рассинхрон обнаруживался
 # только чтением диффа глазами. Подробности — tech-debt.md, пункт 20.
 #
-# Списки paths продублированы для pull_request и push намеренно: GitHub Actions не
-# поддерживает YAML-якоря в workflow. При правке менять ОБА списка.
+# paths-фильтр у pull_request снят намеренно: этот чек входит в required-контексты
+# защиты веток, а required-контекст у workflow с фильтром путей не сообщает статус на
+# PR, который эти пути не трогает, — GitHub показывает «Expected — waiting for status»
+# и мерж блокируется бессрочно. У push фильтр сохранён — там он ничему не мешает.
+#
+# Прежний список путей для pull_request сохранён здесь как справка о том, что именно
+# влияет на результат гейта:
+#   backend/**, docs/api/openapi.yaml, frontend/src/types/api.generated.ts,
+#   frontend/package.json, frontend/package-lock.json, frontend/.prettierrc,
+#   frontend/.prettierignore, .github/workflows/backend-ci.yml,
+#   .github/workflows/api-contract.yml
+# Три последних из frontend/* меняют вывод генерации, не меняя её вход: версии
+# openapi-typescript и prettier, конфиг и список исключений форматтера.
 on:
   pull_request:
     branches: [main, develop]
-    paths:
-      - "backend/**"
-      - "docs/api/openapi.yaml"
-      - "frontend/src/types/api.generated.ts"
-      - "frontend/package.json"
-      # Меняют вывод генерации, не меняя её вход: версии openapi-typescript и prettier,
-      # конфиг и список исключений форматтера. Без них бамп зависимости проезжает мимо
-      # гейта, а красным становится следующий, ни в чём не виноватый PR.
-      - "frontend/package-lock.json"
-      - "frontend/.prettierrc"
-      - "frontend/.prettierignore"
-      # Валидация генерации схемы жила здесь до переноса — правки этого файла тоже
-      # обязаны проходить через гейт.
-      - ".github/workflows/backend-ci.yml"
-      - ".github/workflows/api-contract.yml"
   push:
     branches: [main, develop]
     paths:
@@ -49,7 +45,6 @@ permissions:
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "22.x"
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   contract:
@@ -97,15 +92,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache pip packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
@@ -130,7 +125,7 @@ jobs:
           python manage.py check_openapi_sync
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
