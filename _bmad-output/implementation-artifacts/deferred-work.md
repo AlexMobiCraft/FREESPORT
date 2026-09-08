@@ -1000,3 +1000,21 @@
 - **`docs/guides/docker-setup-testing.md` содержит CI-шаблон на `actions/checkout@v3` и `codecov/codecov-action@v3`.** Живое руководство (не архив), которое после этой правки расходится с реальными workflow сильнее прежнего. В охват стори не входило — обновлены только `docs/testing-docker.md` и `scripts/docs/README.md`. [`docs/guides/docker-setup-testing.md:350,356`]
 - **Комментарий про `extraheader` в `sync-to-public.yml` устарел с checkout v6.** Строка `git config --local http.https://github.com/.extraheader ""` с пояснением «Отключаем использование учетных данных от actions/checkout» стала no-op: начиная с v6 токен пишется не в `.git/config`, а в отдельный файл в `RUNNER_TEMP`, на который добавляется `include.path`. Функционально безопасно — шаг всё равно делает `rm -rf .git` перед `git init`, — но комментарий вводит в заблуждение, а этот workflow единственный делает `--force` push в публичный репозиторий чужим PAT. [`.github/workflows/sync-to-public.yml`]
 - **Пиннинг экшенов по SHA не введён.** 12 экшенов ссылаются на плавающие мажорные теги в репозитории, чьи workflow держат `SSH_PRIVATE_KEY` прода, права записи в ghcr, `PUBLIC_REPO_TOKEN`, `ONEC_DATA_TOKEN` и ключ Anthropic. Отдельного внимания стоит `webfactory/ssh-agent@v0.10.0` — 0.x-экшен без контракта стабильности, имеющий доступ к ключу прода. Массовый бамп был естественным моментом для пиннинга; решение отложено сознательно (директива «Never» в спеке). [`.github/workflows/deploy.yml`]
+
+
+## Deferred from: выкат стори 41.7 (2026-09-08)
+
+- **Автоматическая ревалидация ISR Next.js на проде не работает вообще: `FRONTEND_INTERNAL_URL` и `REVALIDATE_SECRET` не объявлены в `docker-compose.prod.yml`.** Найдено при внесении номера `26-22-003980` в текст политики через админку прода: `GET /api/v1/pages/privacy-policy/` показал номер сразу, а `GET /privacy-policy` — нет. Замер на проде: `FRONTEND_INTERNAL_URL = ''`, `REVALIDATE_SECRET` не задан. `_revalidate_nextjs` выходит по guard'у `if not frontend_url or not secret: return` — **до** строки логирования, поэтому в логах нет ни успеха, ни ошибки, и сбой ничем себя не проявляет. Django-часть инвалидации при этом отрабатывает штатно (ключ `page_detail_<slug>` удаляется, версия списка растёт) — именно поэтому API обновляется, а страница нет, и дефект выглядит как «залипший Next», а не как отсутствующая конфигурация.
+
+  **Следствие:** любая правка CMS-текста на проде (`privacy-policy`, `oferta`, `requisites` и будущие страницы) не видна пользователям до ручной ревалидации через `x-prerender-revalidate`. Утверждение плана выката стори 41.7 «Сохранение записи само сбрасывает кэши… Отдельных действий не требуется» на текущей конфигурации прода **неверно** — оно описывает dev-окружение, где обе переменные объявлены (`docker/docker-compose.yml:77-78,122`).
+
+  **Исправление:** добавить в `docker/docker-compose.prod.yml` `FRONTEND_INTERNAL_URL=http://frontend:3000` и `REVALIDATE_SECRET=${REVALIDATE_SECRET}` в окружение сервиса `backend` и `REVALIDATE_SECRET=${REVALIDATE_SECRET}` — сервису `frontend` (route `/api/revalidate` сверяет заголовок именно с `process.env.REVALIDATE_SECRET`), завести значение в `.env.prod` и в `.env.prod.example`. Затем проверить сквозняком: сохранить страницу в админке → страница на сайте обновилась без ручных действий. В объём стори 41.7 не входило (AC6 запрещает трогать бэкенд и конфигурацию). [`docker/docker-compose.prod.yml:9-95`, `backend/apps/pages/signals.py:69-90`, `backend/freesport/settings/base.py:644-645`, `frontend/src/app/api/revalidate/route.ts`]
+
+- **Обходной путь на сегодня — ручная ревалидация ISR.** Токен и вызов (проверено 2026-09-08, ответ `x-nextjs-cache: REVALIDATED`):
+
+  ```bash
+  ssh root@5.35.124.149 'docker exec freesport-frontend node -e "console.log(require(\"/app/.next/prerender-manifest.json\").preview.previewModeId)"'
+  ssh root@5.35.124.149 'docker exec freesport-frontend sh -c "wget -q -S -O /dev/null --header=\"x-prerender-revalidate: <TOKEN>\" http://localhost:3000/<путь> 2>&1 | grep x-nextjs-cache"'
+  ```
+
+  Токен меняется при каждой пересборке контейнера — брать заново, не сохранять.
