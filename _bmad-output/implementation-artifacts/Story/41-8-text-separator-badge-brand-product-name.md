@@ -1,7 +1,7 @@
 ---
 baseline_commit: "e3e05a46" # HEAD develop на момент создания стори
 review_head: "2bc44bd3" # 2026-09-08, закрытие находок ревью: правка docstring TextSeparator + gate проверки. Сдвинут с c7017a7f по решению владельца — патч затрагивает исходный файл, а не только метаданные, и должен попасть в область приёмки
-excluded_commits: []
+excluded_commits: ["4a2379ed"] # автогенерируемый блок GitNexus в AGENTS.md/CLAUDE.md (счётчик символов), к стори отношения не имеет — попал внутрь диапазона по времени, не по смыслу
 # Канонический changeset стори. Область приёмки =
 #   git log --oneline baseline_commit..review_head  МИНУС excluded_commits.
 # review_head НЕ сдвигается документационными правками метаданных.
