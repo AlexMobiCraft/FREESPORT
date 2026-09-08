@@ -375,7 +375,11 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await expect(page.locator('text=Email обязателен').first()).toBeVisible();
 
     // Телефон - формат
-    await expect(page.locator('text=Формат: +7XXXXXXXXXX').first()).toBeVisible();
+    await expect(
+      page
+        .getByText('Формат: +7 и 10 цифр номера (например, +79001234567)', { exact: true })
+        .first()
+    ).toBeVisible();
 
     // Имя - минимум 2 символа
     await expect(page.locator('text=Минимум 2 символа').first()).toBeVisible();
@@ -413,7 +417,11 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     await page.fill('input[name="email"]', testCheckoutData.email); // blur
 
     // Проверяем ошибку формата
-    await expect(page.locator('text=Формат: +7XXXXXXXXXX').first()).toBeVisible();
+    await expect(
+      page
+        .getByText('Формат: +7 и 10 цифр номера (например, +79001234567)', { exact: true })
+        .first()
+    ).toBeVisible();
 
     // Исправляем телефон
     await page.fill('input[name="phone"]', '+79001234567');
