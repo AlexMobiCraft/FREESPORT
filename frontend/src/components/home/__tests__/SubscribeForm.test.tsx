@@ -167,13 +167,14 @@ describe('SubscribeForm', () => {
   });
 
   it('показывает требование обновить страницу, когда сервер отклонил устаревшую версию текста', async () => {
-    // Сервер отвечает 400 по полю consent_text_version, если формулировку
-    // поправили после того, как эта вкладка была отрисована. Человек должен
-    // увидеть внятное требование обновить страницу, а не общий отказ.
+    // Сервер отвечает 400 с машинным кодом `consent_text_outdated` на верхнем
+    // уровне, если формулировку поправили после отрисовки этой вкладки. Человек
+    // должен увидеть внятное требование обновить страницу, а не общий отказ.
     const outdatedMessage = 'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(
       Object.assign(new Error('validation_error'), {
+        code: 'consent_text_outdated',
         details: {
           consent_text_version: [outdatedMessage],
         },

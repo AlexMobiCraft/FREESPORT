@@ -110,7 +110,10 @@ class TestSubscribeEndpoint:
         Newsletter.objects.create(email="known-subscriber@example.com", is_active=True)
 
         url = reverse("common:subscribe")
-        data = {"email": "known-subscriber@example.com"}
+        # Версия формулировки передаётся действующая: тест про утечку статуса
+        # подписки, а не про устаревшую форму. Без неё ответ ушёл бы в ветку
+        # `consent_text_outdated` и проверял бы не то.
+        data = {"email": "known-subscriber@example.com", "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
         response = api_client.post(url, data, format="json")
 
@@ -183,7 +186,8 @@ class TestSubscribeEndpoint:
     def test_subscribe_requires_pdp_consent(self, api_client):
         """Без явного согласия подписка отклоняется."""
         url = reverse("common:subscribe")
-        data = {"email": "missing-consent@example.com"}
+        # Версия действующая: проверяется отсутствие галочки, а не устаревшая форма.
+        data = {"email": "missing-consent@example.com", "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
         response = api_client.post(url, data, format="json")
 
@@ -265,23 +269,65 @@ class TestSubscribeEndpoint:
 
         response = api_client.post(url, data, format="json")
 
+        # Проверка идёт по отрендеренному JSON, а не по `response.data`:
+        # `ErrorDetail.code` живёт только внутри Python и до клиента не доходит,
+        # поэтому машинный код обязан стоять верхним уровнем ответа.
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert response.data["consent_text_version"][0].code == CONSENT_TEXT_OUTDATED_CODE
-        assert str(response.data["consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"consent_text_version": [CONSENT_TEXT_OUTDATED]},
+        }
         assert not Newsletter.objects.filter(email=data["email"]).exists()
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_rejects_missing_consent_text_version(self, api_client):
-        """Форма старого бандла версии не присылает — это тоже устаревшая форма."""
+        """Форма старого бандла версии не присылает — это тоже устаревшая форма.
+
+        Внутренний код DRF у пропущенного поля — `required`, а не
+        `consent_text_outdated`. Клиенту от этого не легче: случай тот же, и
+        машинный код в ответе обязан быть тем же.
+        """
         url = reverse("common:subscribe")
         data = {"email": "no-version@example.com", "pdp_consent": True}
 
         response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert str(response.data["consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"consent_text_version": [CONSENT_TEXT_OUTDATED]},
+        }
         assert not Newsletter.objects.filter(email=data["email"]).exists()
         assert UserConsent.objects.count() == 0
+
+    def test_subscribe_outdated_version_response_keeps_other_field_errors(self, api_client):
+        """Попутные ошибки запроса не пропадают из-за переезда полей в `details`."""
+        url = reverse("common:subscribe")
+        data = {"email": "not-an-email", "pdp_consent": True}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        body = response.json()
+        assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
+        assert body["details"]["consent_text_version"] == [CONSENT_TEXT_OUTDATED]
+        assert body["details"]["email"], "ошибка email обязана остаться в ответе"
+
+    def test_subscribe_plain_validation_error_keeps_flat_shape(self, api_client):
+        """Обычная валидация возвращается плоским объектом — контракт не сдвинут."""
+        url = reverse("common:subscribe")
+        data = {
+            "email": "flat-shape@example.com",
+            "pdp_consent": False,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        body = response.json()
+        assert "error" not in body
+        assert body["pdp_consent"] == [PDP_CONSENT_REQUIRED]
 
     def test_subscribe_creates_two_consent_records_for_anonymous(self, api_client):
         """Анонимная подписка пишет два согласия с session_key."""

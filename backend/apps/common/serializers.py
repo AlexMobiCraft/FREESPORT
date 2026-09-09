@@ -26,10 +26,71 @@ ALREADY_SUBSCRIBED_CODE = "already_subscribed"
 CONSENT_TEXT_OUTDATED = "Текст согласия обновился. Обновите страницу и подтвердите согласие заново."
 CONSENT_TEXT_OUTDATED_CODE = "consent_text_outdated"
 
+# Поля, которыми форма доказывает, какую формулировку она показала человеку.
+# Любая ошибка на них — устаревшая версия, пустая, слишком длинная или вовсе
+# не переданная — означает одно и то же: доказать показанный текст нечем.
+# Клиент обязан развести этот случай с прочей валидацией (человеку нужно
+# обновить страницу, а не править ввод), поэтому машинный код выносится
+# на верхний уровень ответа.
+CONSENT_TEXT_VERSION_FIELDS = frozenset(
+    {
+        "consent_text_version",
+        "pdp_consent_text_version",
+        "marketing_consent_text_version",
+    }
+)
+
 
 def consent_text_outdated_error(field: str) -> serializers.ValidationError:
     """Field-level ошибка устаревшей формулировки с устойчивым machine-code."""
     return serializers.ValidationError({field: [ErrorDetail(CONSENT_TEXT_OUTDATED, code=CONSENT_TEXT_OUTDATED_CODE)]})
+
+
+def has_error_code(detail: object, code: str) -> bool:
+    """Проверить DRF ErrorDetail code в nested serializer detail."""
+    if isinstance(detail, dict):
+        return any(has_error_code(value, code) for value in detail.values())
+    if isinstance(detail, (list, tuple)):
+        return any(has_error_code(value, code) for value in detail)
+    return getattr(detail, "code", None) == code
+
+
+def _error_messages(value: object) -> list[str]:
+    """Свести любое DRF-значение ошибки к плоскому списку строк."""
+    if isinstance(value, dict):
+        return [message for nested in value.values() for message in _error_messages(nested)]
+    if isinstance(value, (list, tuple)):
+        return [message for item in value for message in _error_messages(item)]
+    return [str(value)]
+
+
+def consent_text_outdated_payload(errors: object) -> dict[str, Any] | None:
+    """Тело ответа `400`, если ошибки касаются версии показанной формулировки.
+
+    Возвращает `{"error": "consent_text_outdated", "details": {...}}` — тот же
+    вид, что у `consent_persistence_failed`. Машинный код обязан доходить до
+    клиента: `ErrorDetail.code` живёт только внутри Python, JSONRenderer отдаёт
+    голые массивы строк, а у пропущенного поля код и вовсе `required`. Без
+    верхнеуровневого кода фронт вынужден узнавать этот случай по тексту
+    сообщения — то есть ломаться от любой правки формулировки ошибки.
+
+    `details` сохраняет ВСЕ ошибки запроса массивами строк: заодно пришедшая
+    ошибка email не должна пропадать из-за того, что форма ещё и устарела.
+    None — ошибки к версии формулировки не относятся, ответ прежний.
+    """
+    if not isinstance(errors, dict):
+        return None
+
+    relevant = any(field in CONSENT_TEXT_VERSION_FIELDS for field in errors) or has_error_code(
+        errors, CONSENT_TEXT_OUTDATED_CODE
+    )
+    if not relevant:
+        return None
+
+    return {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {str(field): _error_messages(value) for field, value in errors.items()},
+    }
 
 
 def already_subscribed_error() -> serializers.ValidationError:

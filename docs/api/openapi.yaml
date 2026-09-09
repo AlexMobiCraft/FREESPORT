@@ -100,6 +100,7 @@ paths:
                 value:
                   email: user@example.com
                   pdp_consent: true
+                  consent_text_version: 2026-08-30-77dbceaf
                 summary: successful_subscription_request
         required: true
       security:
@@ -109,7 +110,36 @@ paths:
           description: Запрос на подписку обработан; новый и уже подписанный email
             возвращают одинаковый успех
         '400':
-          description: Ошибка валидации (email или pdp_consent)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ValidationError:
+                  value:
+                    email:
+                    - Введите корректный email адрес.
+                  summary: validation_error
+                PdpConsentRequired:
+                  value:
+                    pdp_consent:
+                    - Необходимо согласие на обработку персональных данных.
+                  summary: pdp_consent_required
+                ConsentTextOutdated:
+                  value:
+                    error: consent_text_outdated
+                    details:
+                      consent_text_version:
+                      - Текст согласия обновился. Обновите страницу и подтвердите согласие
+                        заново.
+                  summary: consent_text_outdated
+          description: 'Ошибка валидации `email`, `pdp_consent` или `consent_text_version`.
+            Обычные ошибки возвращаются плоским объектом «поле → список сообщений». Исключение
+            — устаревшая или непереданная версия формулировки согласия: у неё есть машинный
+            код `consent_text_outdated` на верхнем уровне, а поля переносятся в `details`.
+            Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому клиент
+            обязан отличать его от прочей валидации.'
         '503':
           content:
             application/json:
@@ -310,7 +340,35 @@ paths:
         '201':
           description: Пользователь успешно зарегистрирован
         '400':
-          description: Ошибки валидации
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                ValidationErrors:
+                  value:
+                    email:
+                    - Пользователь с таким email уже существует.
+                    password_confirm:
+                    - Пароли не совпадают.
+                    role:
+                    - Недопустимая роль для регистрации.
+                  summary: validation_errors
+                ConsentTextOutdated:
+                  value:
+                    error: consent_text_outdated
+                    details:
+                      pdp_consent_text_version:
+                      - Текст согласия обновился. Обновите страницу и подтвердите согласие
+                        заново.
+                  summary: consent_text_outdated
+          description: 'Ошибки валидации. Обычные ошибки возвращаются плоским объектом «поле
+            → список сообщений». Исключение — устаревшая или непереданная версия формулировки
+            согласия (`pdp_consent_text_version`, `marketing_consent_text_version`): у неё
+            есть машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся
+            в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому
+            клиент обязан отличать его от прочей валидации.'
   /auth/login/:
     post:
       operationId: auth_login_create

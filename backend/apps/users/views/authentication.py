@@ -12,6 +12,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
@@ -24,6 +25,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
+from apps.common.serializers import consent_text_outdated_payload
 from apps.common.utils.consent_audit import (
     get_client_ip,
     get_consent_ip_address,
@@ -107,7 +109,20 @@ class UserRegistrationView(APIView):
                 ],
             ),
             400: OpenApiResponse(
-                description="Ошибки валидации",
+                # Свободный объект: у 400 две формы — плоские ошибки полей и
+                # `{error, details}` для устаревшей версии формулировки. Без
+                # `response=` drf-spectacular выбрасывает примеры и в контракт
+                # не попадает ни одна из форм.
+                response=OpenApiTypes.OBJECT,
+                description=(
+                    "Ошибки валидации. Обычные ошибки возвращаются плоским объектом "
+                    "«поле → список сообщений». Исключение — устаревшая или непереданная "
+                    "версия формулировки согласия (`pdp_consent_text_version`, "
+                    "`marketing_consent_text_version`): у неё есть машинный код "
+                    "`consent_text_outdated` на верхнем уровне, а поля переносятся в "
+                    "`details`. Этот отказ лечится обновлением страницы, а не правкой "
+                    "ввода, поэтому клиент обязан отличать его от прочей валидации."
+                ),
                 examples=[
                     OpenApiExample(
                         name="validation_errors",
@@ -116,7 +131,19 @@ class UserRegistrationView(APIView):
                             "password_confirm": ["Пароли не совпадают."],
                             "role": ["Недопустимая роль для регистрации."],
                         },
-                    )
+                    ),
+                    OpenApiExample(
+                        name="consent_text_outdated",
+                        value={
+                            "error": "consent_text_outdated",
+                            "details": {
+                                "pdp_consent_text_version": [
+                                    "Текст согласия обновился. Обновите страницу и подтвердите согласие заново."
+                                ],
+                            },
+                        },
+                        response_only=True,
+                    ),
                 ],
             ),
         },
@@ -205,6 +232,14 @@ class UserRegistrationView(APIView):
                 response_data["access"] = str(refresh.access_token)  # type: ignore[attr-defined]
 
             return Response(response_data, status=status.HTTP_201_CREATED)
+
+        # Версия показанной формулировки не сошлась с реестром (или не пришла) —
+        # клиенту нужен машинный код на верхнем уровне: этот отказ лечится
+        # обновлением страницы, а не правкой ввода. `ErrorDetail.code` до JSON
+        # не доходит, поэтому по одному тексту сообщения его не отличить.
+        outdated_payload = consent_text_outdated_payload(serializer.errors)
+        if outdated_payload is not None:
+            return Response(outdated_payload, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

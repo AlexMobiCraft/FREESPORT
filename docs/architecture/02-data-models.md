@@ -728,6 +728,22 @@ class UserConsent(models.Model):
         ("marketing_email", "Согласие на получение рекламных рассылок"),
     ]
 
+    # Story 41.9: источник согласия. Точек записи в коде две, а источников три —
+    # `registration` и `1c_link` различаются уже вычисленным `pending_1c_link`
+    # в одной и той же паре `create`. `unknown` зарезервирован за строками,
+    # существовавшими до миграции 0019.
+    SOURCE_NEWSLETTER = "newsletter"
+    SOURCE_REGISTRATION = "registration"
+    SOURCE_1C_LINK = "1c_link"
+    SOURCE_UNKNOWN = "unknown"
+
+    SOURCE_CHOICES = [
+        (SOURCE_NEWSLETTER, "Подписка на рассылку"),
+        (SOURCE_REGISTRATION, "Регистрация"),
+        (SOURCE_1C_LINK, "Регистрация с привязкой к записи 1С"),
+        (SOURCE_UNKNOWN, "Неизвестен (запись до внедрения аудита)"),
+    ]
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,  # SET_NULL: аудит сохраняется после удаления юзера
@@ -748,6 +764,24 @@ class UserConsent(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP адрес")
     user_agent = models.CharField(max_length=512, blank=True, verbose_name="User Agent")
     policy_version = models.CharField(max_length=20, default="1.0", verbose_name="Версия политики")
+    # Story 41.9: у обоих полей ниже намеренно НЕТ `default` — со значением по
+    # умолчанию забытый источник или забытая версия тихо записались бы как
+    # «неизвестно». Одноразовое `unknown` живёт только в миграции 0019
+    # (`preserve_default=False`), чтобы сохранить строки до внедрения аудита.
+    source = models.CharField(
+        max_length=20, choices=SOURCE_CHOICES, db_index=True,
+        verbose_name="Источник согласия",
+        help_text="Где человек дал согласие: подписка, регистрация, привязка к 1С",
+    )
+    consent_text_version = models.CharField(
+        max_length=64, db_index=True,
+        verbose_name="Версия текста согласия",
+        help_text=(
+            "Версия формулировки чекбокса из реестра apps/common/consent_texts.json "
+            "(вид «метка-хеш»). Отдельна от policy_version: та описывает политику ПДн, "
+            "эта — текст, который человек фактически видел."
+        ),
+    )
 
     class Meta:
         verbose_name = "Согласие пользователя"
@@ -758,9 +792,24 @@ class UserConsent(models.Model):
             models.CheckConstraint(
                 condition=models.Q(user__isnull=False) | ~models.Q(session_key=""),
                 name="userconsent_user_or_session_required",
-            )
+            ),
+            # Story 41.9: код, забывший передать источник или версию, обязан упасть
+            # на вставке, а не записать тихий мусор в доказательство согласия.
+            models.CheckConstraint(
+                condition=~models.Q(source=""),
+                name="userconsent_source_required",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(consent_text_version=""),
+                name="userconsent_text_version_required",
+            ),
         ]
 ```
+
+> Блок сокращён: в коде каждый `CheckConstraint` несёт
+> `# type: ignore[call-arg]` (django-stubs 4.2 не знает `condition=`), а у
+> `CONSENT_TYPE_CHOICES` стоит развёрнутый комментарий о двойной записи при
+> подписке. Канонический источник — `backend/apps/common/models.py`.
 
 **Ключевые инварианты:**
 - Записи **только добавляются** (append-only) — admin заблокирован (`has_add_permission=False`, `has_change_permission=False`)
@@ -769,6 +818,8 @@ class UserConsent(models.Model):
 - `user_agent` ограничен 512 символами; обрезается через `sanitize_consent_user_agent` (`apps/common/utils/consent_audit.py`, реализовано в Story 35.2/35.3)
 - `ip_address` заполняется через `get_consent_ip_address(request)` (реализовано в Story 35.2/35.3); поддерживает IPv4/IPv6, включая адреса за proxy
 - `policy_version` фиксирует версию политики на момент согласия; не связан автоматически с содержимым `Page` (отдельная compliance-story)
+- `source` и `consent_text_version` обязательны на уровне БД (два `CheckConstraint`, Story 41.9): код, забывший их передать, падает на вставке. `unknown` в обоих полях означает строку, созданную до миграции `0019`
+- `consent_text_version` вычисляется реестром `apps/common/consent_texts.json` как `<метка>-<первые 8 hex sha256 текста>`; правка текста меняет версию сама, разрешение версии обратно в текст — `resolve_consent_text()`
 
 > [!NOTE]
 > Актуализация от `2026-05-13—2026-05-15` (Stories 35.2/35.3): `ip_address` и `user_agent` заполняются при регистрации (`UserRegistrationView`) и при подписке (`subscribe` view) через функции из `apps/common/utils/consent_audit.py`. При подписке анонима используется `request.session.session_key`; авторизованного пользователя — user FK.

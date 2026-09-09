@@ -354,6 +354,33 @@ describe('B2BRegisterForm consent checkboxes', () => {
     ).toHaveAttribute('aria-invalid', 'true');
   });
 
+  test('показывает требование обновить страницу при устаревшей версии текста согласия', async () => {
+    // Отказ по версии формулировки приходит машинным кодом на верхнем уровне,
+    // поля — в `details`: без явной обработки человек увидел бы общее
+    // «Ошибка валидации данных» и жал бы кнопку до посинения.
+    const outdatedMessage =
+      'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          error: 'consent_text_outdated',
+          details: { pdp_consent_text_version: [outdatedMessage] },
+        },
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect((await screen.findAllByText(outdatedMessage)).length).toBeGreaterThan(0);
+  });
+
   test('should show first backend validation error instead of hard-coded pdp priority', async () => {
     const user = userEvent.setup();
     const mockRegisterB2B = vi.mocked(authService.registerB2B);

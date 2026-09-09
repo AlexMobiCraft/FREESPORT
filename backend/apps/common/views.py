@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.db import DatabaseError, transaction
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
 from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
@@ -28,6 +29,8 @@ from apps.common.serializers import (
     ALREADY_SUBSCRIBED_CODE,
     UnsubscribeResponseSerializer,
     UnsubscribeSerializer,
+    consent_text_outdated_payload,
+    has_error_code,
 )
 from apps.common.services import CustomerSyncMonitor
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
@@ -37,15 +40,6 @@ from apps.common.utils.consent_audit import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _has_error_code(detail: object, code: str) -> bool:
-    """Проверить DRF ErrorDetail code в nested serializer detail."""
-    if isinstance(detail, dict):
-        return any(_has_error_code(value, code) for value in detail.values())
-    if isinstance(detail, (list, tuple)):
-        return any(_has_error_code(value, code) for value in detail)
-    return getattr(detail, "code", None) == code
 
 
 @extend_schema(
@@ -324,7 +318,14 @@ def realtime_metrics(_request: Request) -> Response:
     examples=[
         OpenApiExample(
             name="successful_subscription_request",
-            value={"email": "user@example.com", "pdp_consent": True},
+            # `consent_text_version` обязателен: форма доказывает им, какую
+            # формулировку показала. Пример без него возвращал бы 400 — именно
+            # так и было до правки по ревью стори 41.9.
+            value={
+                "email": "user@example.com",
+                "pdp_consent": True,
+                "consent_text_version": "2026-08-30-77dbceaf",
+            },
             request_only=True,
         ),
     ],
@@ -343,7 +344,20 @@ def realtime_metrics(_request: Request) -> Response:
             ],
         ),
         400: OpenApiResponse(
-            description="Ошибка валидации (email или pdp_consent)",
+            # Схема — свободный объект: у 400 две формы (плоские ошибки полей и
+            # `{error, details}` для устаревшей версии). Без `response=`
+            # drf-spectacular выбрасывает примеры целиком, и в контракт не
+            # попадает ни одна из форм — ровно этим и был вызван невалидный
+            # пример подписки, найденный ревью стори 41.9.
+            response=OpenApiTypes.OBJECT,
+            description=(
+                "Ошибка валидации `email`, `pdp_consent` или `consent_text_version`. "
+                "Обычные ошибки возвращаются плоским объектом «поле → список сообщений». "
+                "Исключение — устаревшая или непереданная версия формулировки согласия: "
+                "у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля "
+                "переносятся в `details`. Этот отказ лечится обновлением страницы, а не "
+                "правкой ввода, поэтому клиент обязан отличать его от прочей валидации."
+            ),
             examples=[
                 OpenApiExample(
                     name="validation_error",
@@ -356,6 +370,18 @@ def realtime_metrics(_request: Request) -> Response:
                     name="pdp_consent_required",
                     value={
                         "pdp_consent": ["Необходимо согласие на обработку персональных данных."],
+                    },
+                    response_only=True,
+                ),
+                OpenApiExample(
+                    name="consent_text_outdated",
+                    value={
+                        "error": "consent_text_outdated",
+                        "details": {
+                            "consent_text_version": [
+                                "Текст согласия обновился. Обновите страницу и подтвердите согласие заново."
+                            ],
+                        },
                     },
                     response_only=True,
                 ),
@@ -445,7 +471,7 @@ def subscribe(request: Request) -> Response:
                     **consent_kwargs,
                 )
         except DRFValidationError as exc:
-            if _has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
+            if has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
                 response_serializer = SubscribeResponseSerializer(
                     {
                         "message": "Вы успешно подписались на рассылку",
@@ -482,8 +508,15 @@ def subscribe(request: Request) -> Response:
             status=status.HTTP_200_OK,
         )
 
+    # Устаревшая (или не переданная) версия формулировки — отдельный машинный код
+    # на верхнем уровне ответа. Проверка идёт ДО нейтрального «уже подписан»:
+    # запрос, не доказавший показанный текст, не должен получить ложный успех.
+    outdated_payload = consent_text_outdated_payload(serializer.errors)
+    if outdated_payload is not None:
+        return Response(outdated_payload, status=status.HTTP_400_BAD_REQUEST)
+
     # Обработка ошибки "уже подписан"
-    if _has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
+    if has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
         email = ""
         if isinstance(serializer.initial_data, dict):
             raw_email = serializer.initial_data.get("email", "")

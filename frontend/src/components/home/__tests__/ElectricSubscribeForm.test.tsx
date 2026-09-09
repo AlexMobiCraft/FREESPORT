@@ -239,6 +239,38 @@ describe('ElectricSubscribeForm', () => {
     });
   });
 
+  it('показывает требование обновить страницу при устаревшей версии текста согласия', async () => {
+    // Сервер разводит этот отказ машинным кодом `consent_text_outdated` на
+    // верхнем уровне: человеку нужно обновить страницу, а не править ввод.
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        code: 'consent_text_outdated',
+        details: {
+          consent_text_version: [
+            'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.',
+          ],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await user.type(screen.getByLabelText(/email/i), 'electric-outdated@example.com');
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'ТЕКСТ СОГЛАСИЯ ОБНОВИЛСЯ. ОБНОВИТЕ СТРАНИЦУ И ПОДТВЕРДИТЕ СОГЛАСИЕ ЗАНОВО.',
+        expect.objectContaining({
+          style: expect.objectContaining({ borderRadius: '0' }),
+        })
+      );
+    });
+  });
+
   it('shows backend message on server error from subscribe service', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(

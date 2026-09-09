@@ -31,7 +31,7 @@ import {
   type B2BRegisterFormInput,
 } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
-import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
+import { CONSENT_TEXT_VERSIONS, getConsentTextOutdatedMessage } from '@/constants/consentTexts';
 import {
   applyBackendFieldErrors,
   getFirstValidationMessage,
@@ -187,6 +187,17 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         };
       };
       const responseData = err.response?.data || {};
+
+      // Устаревшая (или непереданная) версия формулировки согласия приходит
+      // отдельным машинным кодом на верхнем уровне ответа, а поля — в `details`.
+      // Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому
+      // разбирается до общей обработки полей.
+      const consentOutdatedMessage = getConsentTextOutdatedMessage(responseData);
+      if (consentOutdatedMessage) {
+        setApiError(consentOutdatedMessage);
+        return;
+      }
+
       const firstFieldError = applyBackendFieldErrors(responseData, setError, B2B_FIELD_ERROR_MAP);
 
       if (err.response?.status === 409) {

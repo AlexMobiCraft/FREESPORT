@@ -120,15 +120,23 @@ def test_registration_rejects_outdated_pdp_text_version():
 
     response = post_register(client, trainer_payload(pdp_consent_text_version="2020-01-01-deadbeef"))
 
+    # Сверка по отрендеренному JSON: `ErrorDetail.code` до клиента не доходит,
+    # поэтому машинный код стоит верхним уровнем ответа, а поля — в `details`.
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data["pdp_consent_text_version"][0].code == CONSENT_TEXT_OUTDATED_CODE
-    assert str(response.data["pdp_consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {"pdp_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
     assert User.objects.filter(email=trainer_payload()["email"]).count() == 0
     assert UserConsent.objects.count() == 0
 
 
 def test_registration_requires_pdp_text_version():
-    """Форма старого бандла версию не присылает — это тоже устаревшая форма."""
+    """Форма старого бандла версию не присылает — это тоже устаревшая форма.
+
+    Внутренний код DRF у пропущенного поля — `required`, но клиенту нужен тот же
+    машинный код: случай и лечение (обновить страницу) те же.
+    """
     client = APIClient()
     payload = trainer_payload()
     payload.pop("pdp_consent_text_version")
@@ -136,8 +144,24 @@ def test_registration_requires_pdp_text_version():
     response = post_register(client, payload)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert str(response.data["pdp_consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {"pdp_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
     assert UserConsent.objects.count() == 0
+
+
+def test_registration_plain_validation_error_keeps_flat_shape():
+    """Обычная валидация регистрации возвращается плоским объектом, как и прежде."""
+    client = APIClient()
+    payload = trainer_payload(password_confirm="Другой-пароль-123")
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    body = response.json()
+    assert "error" not in body
+    assert "password_confirm" in body or "non_field_errors" in body
 
 
 def test_registration_rejects_outdated_marketing_text_version_only_when_consent_given():
@@ -155,7 +179,10 @@ def test_registration_rejects_outdated_marketing_text_version_only_when_consent_
     )
 
     assert rejected.status_code == status.HTTP_400_BAD_REQUEST
-    assert str(rejected.data["marketing_consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+    assert rejected.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
     assert UserConsent.objects.count() == 0
 
     accepted = post_register(

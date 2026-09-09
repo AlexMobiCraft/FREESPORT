@@ -3013,12 +3013,16 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Ошибка валидации (email или pdp_consent) */
+      /** @description Ошибка валидации `email`, `pdp_consent` или `consent_text_version`. Обычные ошибки возвращаются плоским объектом «поле → список сообщений». Исключение — устаревшая или непереданная версия формулировки согласия: у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому клиент обязан отличать его от прочей валидации. */
       400: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
       };
       /** @description Согласие не удалось сохранить, подписка откатана */
       503: {
@@ -3201,12 +3205,16 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Ошибки валидации */
+      /** @description Ошибки валидации. Обычные ошибки возвращаются плоским объектом «поле → список сообщений». Исключение — устаревшая или непереданная версия формулировки согласия (`pdp_consent_text_version`, `marketing_consent_text_version`): у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому клиент обязан отличать его от прочей валидации. */
       400: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
       };
     };
   };

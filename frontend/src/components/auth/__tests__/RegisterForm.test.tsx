@@ -563,7 +563,12 @@ describe('RegisterForm', () => {
       mockRegister.mockRejectedValue({
         response: {
           status: 400,
-          data: { pdp_consent_text_version: [outdatedMessage] },
+          // Машинный код на верхнем уровне, поля — в `details` (контракт
+          // `consent_text_outdated`, доработка по ревью стори 41.9).
+          data: {
+            error: 'consent_text_outdated',
+            details: { pdp_consent_text_version: [outdatedMessage] },
+          },
         },
       });
 

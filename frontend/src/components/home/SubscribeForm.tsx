@@ -15,7 +15,11 @@ import { subscribeService } from '@/services/subscribeService';
 import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
-import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
+import {
+  CONSENT_TEXT_OUTDATED_CODE,
+  CONSENT_TEXT_OUTDATED_MESSAGE,
+  CONSENT_TEXT_VERSIONS,
+} from '@/constants/consentTexts';
 
 interface SubscribeFormData {
   email: string;
@@ -26,6 +30,7 @@ type SubscribeFormField = keyof SubscribeFormData;
 type SubscribeValidationDetails = Record<string, string[]>;
 type SubscribeValidationError = Error & {
   details?: SubscribeValidationDetails;
+  code?: string;
 };
 
 const PDP_CONSENT_REQUIRED = 'Необходимо согласие на обработку персональных данных.';
@@ -41,6 +46,14 @@ const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
 
   return getBackendMessage((error as SubscribeValidationError).details?.[field]);
 };
+
+/**
+ * Отказ по устаревшей (или непереданной) версии формулировки согласия.
+ * Признак — машинный код с верхнего уровня ответа сервера: текст сообщения
+ * правят, а HTTP-статус общий для всей валидации.
+ */
+const isConsentTextOutdatedError = (error: unknown) =>
+  error instanceof Error && (error as SubscribeValidationError).code === CONSENT_TEXT_OUTDATED_CODE;
 
 const getFirstBackendError = (error: unknown) => {
   if (!(error instanceof Error) || !('details' in error)) {
@@ -104,7 +117,12 @@ export const SubscribeForm: React.FC = () => {
       reset();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.message === 'validation_error') {
+        if (isConsentTextOutdatedError(error)) {
+          // Формулировку поправили после того, как эта вкладка была отрисована.
+          // Человеку нужно обновить страницу, а не править ввод, поэтому случай
+          // разводится по машинному коду, а не по тексту сообщения.
+          toast.error(getFirstBackendError(error) ?? CONSENT_TEXT_OUTDATED_MESSAGE);
+        } else if (error.message === 'validation_error') {
           const pdpConsentError = getBackendFieldError(error, 'pdp_consent');
           const emailError = getBackendFieldError(error, 'email');
           const backendError = getFirstBackendError(error);

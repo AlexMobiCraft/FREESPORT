@@ -54,6 +54,34 @@ describe('subscribeService', () => {
     });
   });
 
+  it('прокидывает машинный код consent_text_outdated с верхнего уровня ответа', async () => {
+    // Сервер разводит устаревшую версию формулировки и обычную валидацию кодом,
+    // а не текстом сообщения: сообщение правят, статус у всей валидации общий.
+    const details = {
+      consent_text_version: [
+        'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.',
+      ],
+    };
+    vi.mocked(apiClient.post).mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: { error: 'consent_text_outdated', details },
+      },
+    });
+
+    await expect(
+      subscribeService.subscribe({
+        email: 'stale-tab@example.com',
+        pdp_consent: true,
+        consent_text_version: 'старая-версия',
+      })
+    ).rejects.toMatchObject({
+      message: 'validation_error',
+      code: 'consent_text_outdated',
+      details,
+    });
+  });
+
   it('maps 429 responses to throttled errors with backend details', async () => {
     const details = {
       non_field_errors: ['Слишком много попыток. Попробуйте через минуту.'],
