@@ -32,6 +32,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { ProductBadge } from '@/components/common/ProductBadge';
+import { TextSeparator } from '@/components/common/TextSeparator';
 import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
@@ -283,9 +284,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           <div className="p-3 flex flex-col">
             {/* Бренд */}
             {product.brand && (
-              <p className="text-caption text-[var(--color-text-secondary)] mb-1">
-                {product.brand.name}
-              </p>
+              <>
+                <p className="text-caption text-[var(--color-text-secondary)] mb-1">
+                  {product.brand.name}
+                </p>
+                {/* Разделяет бренд и соседний узел при извлечении текста (Story 41.8, FR-41-19) */}
+                <TextSeparator />
+              </>
             )}
 
             {/* Название */}
@@ -392,9 +397,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                 {/* Бренд и Badge */}
                 <div className="flex items-center gap-2 mb-1">
                   {product.brand && (
-                    <p className="text-body-s text-[var(--color-text-secondary)]">
-                      {product.brand.name}
-                    </p>
+                    <>
+                      <p className="text-body-s text-[var(--color-text-secondary)]">
+                        {product.brand.name}
+                      </p>
+                      {/* Разделяет бренд и соседний узел при извлечении текста (Story 41.8, FR-41-19) */}
+                      <TextSeparator />
+                    </>
                   )}
                   <ProductBadge product={product} />
                 </div>
@@ -542,9 +551,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           <div className="p-4 flex flex-col">
             {/* Бренд */}
             {product.brand && (
-              <p className="text-body-s text-[var(--color-text-secondary)] mb-1">
-                {product.brand.name}
-              </p>
+              <>
+                <p className="text-body-s text-[var(--color-text-secondary)] mb-1">
+                  {product.brand.name}
+                </p>
+                {/* Разделяет бренд и соседний узел при извлечении текста (Story 41.8, FR-41-19) */}
+                <TextSeparator />
+              </>
             )}
 
             {/* Название */}
