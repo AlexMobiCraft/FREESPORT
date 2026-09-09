@@ -10,6 +10,11 @@
 в админке, хеш делает пропуск бампа механически невозможным — правка текста
 меняет версию сама, без дисциплины разработчика.
 
+История ревизий неизменяема: раздел `known_versions` в JSON перечисляет версии
+всех когда-либо действовавших формулировок, и загрузчик требует точного совпадения
+этого списка с тем, что даёт разбор ревизий. Поправить текст старой ревизии или
+удалить её «как устаревшую» тихо нельзя — реестр перестанет загружаться.
+
 Модуль намеренно не зависит от Django и ограничен стандартной библиотекой:
 тот же JSON читает кросс-граничный страж на фронте
 (`frontend/src/__tests__/consent-texts-registry.test.tsx`), который сверяет
@@ -26,6 +31,12 @@ from typing import Any, Mapping
 
 # Реестр лежит рядом с модулем и попадает в образ (`COPY . .` в backend/Dockerfile).
 REGISTRY_PATH = Path(__file__).with_name("consent_texts.json")
+
+# Версия обязана помещаться в `UserConsent.consent_text_version` (`max_length=64`).
+# Значение продублировано здесь намеренно: модуль не импортирует Django, потому
+# что тот же JSON читает страж на фронте. Расхождение с моделью ловит тест
+# `test_max_version_length_matches_model_field`.
+MAX_VERSION_LENGTH = 64
 
 
 class ConsentTextsError(RuntimeError):
@@ -51,8 +62,8 @@ class ConsentTextRegistry:
     """Разобранный и провалидированный реестр текстов согласий.
 
     Валидация выполняется в конструкторе: ссылка на несуществующую поверхность,
-    ненормализованный текст и совпадение версий двух разных ревизий
-    обнаруживаются при загрузке, а не на вставке в БД.
+    ненормализованный текст, слишком длинная версия и совпадение версий двух
+    разных ревизий обнаруживаются при загрузке, а не на вставке в БД.
     """
 
     def __init__(self, data: Any, *, origin: str = "<in-memory>") -> None:
@@ -77,6 +88,8 @@ class ConsentTextRegistry:
 
         for surface_name, surface in surfaces.items():
             self._ingest_surface(surface_name, surface)
+
+        self._check_known_versions(data.get("known_versions"))
 
         self._surface_by_pair: dict[tuple[str, str], str] = {}
         for binding_key, surface_name in bindings.items():
@@ -122,6 +135,15 @@ class ConsentTextRegistry:
                 )
 
             version = compute_consent_text_version(label, text)
+            if len(version) > MAX_VERSION_LENGTH:
+                # Версия длиннее поля молча обрезалась бы базой или роняла вставку
+                # уже на живом согласии. Ограничение упирается в длину метки:
+                # хеш всегда 8 символов.
+                raise ConsentTextsError(
+                    f"Реестр согласий {self._origin}: версия '{version}' ревизии '{label}' поверхности "
+                    f"'{surface_name}' длиннее {MAX_VERSION_LENGTH} символов "
+                    f"(получено {len(version)}) — укоротите метку ревизии"
+                )
             if version in self._texts_by_version:
                 raise ConsentTextsError(
                     f"Реестр согласий {self._origin}: версия '{version}' встречается дважды — "
@@ -131,6 +153,49 @@ class ConsentTextRegistry:
             self._texts_by_version[version] = text
             # Действующая ревизия — последняя в списке: история дополняется, а не переписывается.
             self._current_by_surface[surface_name] = version
+
+    def _check_known_versions(self, known_versions: Any) -> None:
+        """Сверить набор ревизий с append-only списком когда-либо действовавших версий.
+
+        Одних ревизий мало: текст исторической ревизии можно поправить «по мелочи»,
+        а саму ревизию — удалить как устаревшую. И то и другое тихо оборвёт связь
+        уже записанных согласий со своим текстом — доказательство по ФЗ-152 ст. 9
+        исчезнет. `known_versions` фиксирует версии отдельно от текстов, поэтому
+        любая правка истории видна как расхождение двух списков.
+
+        Сверка на точное равенство, а не на вхождение: новая ревизия тоже обязана
+        быть внесена в список. Её версию не нужно считать руками — сообщение об
+        ошибке называет готовую строку.
+        """
+        if not isinstance(known_versions, list) or not known_versions:
+            raise ConsentTextsError(
+                f"Реестр согласий {self._origin}: раздел 'known_versions' отсутствует или пуст. "
+                f"Он фиксирует версии всех ревизий и защищает историю от правки; "
+                f"ожидались: {sorted(self._texts_by_version)}"
+            )
+        if not all(isinstance(version, str) for version in known_versions):
+            raise ConsentTextsError(f"Реестр согласий {self._origin}: 'known_versions' обязан быть списком строк")
+        if len(set(known_versions)) != len(known_versions):
+            raise ConsentTextsError(f"Реестр согласий {self._origin}: в 'known_versions' есть повторы")
+
+        declared = set(known_versions)
+        computed = set(self._texts_by_version)
+
+        vanished = sorted(declared - computed)
+        if vanished:
+            raise ConsentTextsError(
+                f"Реестр согласий {self._origin}: версии {vanished} зафиксированы в 'known_versions', "
+                f"но ни одна ревизия их больше не даёт — текст исторической ревизии изменён или "
+                f"ревизия удалена. Уже записанные согласия перестанут разрешаться в свой текст; "
+                f"история дополняется новой ревизией, а не переписывается"
+            )
+
+        unrecorded = sorted(computed - declared)
+        if unrecorded:
+            raise ConsentTextsError(
+                f"Реестр согласий {self._origin}: ревизии {unrecorded} не зафиксированы в 'known_versions'. "
+                f"Внесите эти строки в раздел — он и делает историю неизменяемой"
+            )
 
     def _ingest_binding(self, binding_key: str, surface_name: Any) -> None:
         """Разобрать одну привязку вида `<источник>.<тип согласия>` к поверхности."""
@@ -183,6 +248,24 @@ class ConsentTextRegistry:
         return dict(self._texts_by_version)
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Собрать объект JSON, отбраковав повторяющиеся ключи.
+
+    `json.loads` по умолчанию оставляет последнее значение повторяющегося ключа.
+    В реестре это означало бы подмену: две привязки `registration.pdp_contract`
+    или две поверхности с одним именем разошлись бы с тем, что видит человек в
+    файле, — победила бы нижняя, а глазами читается верхняя.
+    """
+    seen: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in seen:
+            raise ConsentTextsError(
+                f"Реестр согласий: ключ '{key}' объявлен дважды — JSON молча оставил бы последнее значение"
+            )
+        seen[key] = value
+    return seen
+
+
 @lru_cache(maxsize=None)
 def load_registry(path: Path = REGISTRY_PATH) -> ConsentTextRegistry:
     """Прочитать и провалидировать реестр; результат кэшируется по пути к файлу."""
@@ -192,7 +275,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> ConsentTextRegistry:
         raise ConsentTextsError(f"Реестр согласий не читается: {path}") from exc
 
     try:
-        data = json.loads(raw)
+        data = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
     except json.JSONDecodeError as exc:
         raise ConsentTextsError(f"Реестр согласий {path} не разбирается как JSON: {exc}") from exc
 
@@ -212,3 +295,14 @@ def current_consent_text_version(source: str, consent_type: str) -> str:
 def resolve_consent_text(version: str) -> str | None:
     """Восстановить текст согласия по версии из журнала; None — версия неизвестна."""
     return load_registry().resolve_text(version)
+
+
+def is_current_consent_text_version(source: str, consent_type: str, version: str) -> bool:
+    """Совпадает ли присланная клиентом версия с действующей формулировкой.
+
+    Форма отправляет версию текста, который она показала человеку. Вкладка,
+    открытая до правки формулировки, пришлёт прежнюю версию — и такой запрос
+    обязан быть отклонён: иначе в журнал легло бы согласие с текстом, которого
+    человек не видел, и запись перестала бы быть доказательством по ФЗ-152 ст. 9.
+    """
+    return bool(version) and version == current_consent_text_version(source, consent_type)

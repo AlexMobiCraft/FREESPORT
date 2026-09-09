@@ -1,3 +1,7 @@
+## Deferred from: code review of 41-9-consent-journal-text-version-and-source (2026-09-09)
+
+- **Celery-задачи B2B-регистрации публикуются до фиксации транзакции и могут получить ID откатившегося пользователя.** `UserRegistrationSerializer.create()` вызывает три `.delay(user.id)` внутри внешнего `transaction.atomic()` из `UserRegistrationView.post`. Любая последующая ошибка, включая недоступный или повреждённый реестр текстов согласий, откатывает пользователя, но уже опубликованные задачи не откатываются. Дефект существовал до Story 41.9; исправление — ставить задачи через `transaction.on_commit()`. [`backend/apps/users/serializers.py:266-271`, `backend/apps/users/views/authentication.py:130-174`]
+
 ## Deferred from: code review of 41-6-unique-metadata-og-image-jsonld (2026-09-06)
 
 - **Product JSON-LD допускает закрытие script-тега данными товара и XSS при SSR.** `product.name` и `product.description` сериализуются через сырой `JSON.stringify` и вставляются в `<script type="application/ld+json">` через `dangerouslySetInnerHTML`. Значение с `</script>` завершает элемент до конца JSON и превращает остаток в HTML. Дефект присутствует в baseline Story 41.6 и не внесён её changeset. Исправление: сериализованный JSON перед вставкой должен заменять каждый `<` на литеральную JSON escape-последовательность `\\u003c`, по уже безопасному паттерну `SiteJsonLd.tsx`, с регрессионным тестом на данные товара, содержащие `</script>`. [`frontend/src/components/product/ProductPageClient.tsx:79-120`]

@@ -28,6 +28,11 @@
       ]
     }
   },
+  "known_versions": [
+    "2026-08-30-77dbceaf",
+    "2026-09-09-de992f50",
+    "2026-09-09-e26471e4"
+  ],
   "bindings": {
     "newsletter.pdp_contract": "newsletter_checkbox",
     "newsletter.marketing_email": "newsletter_checkbox",

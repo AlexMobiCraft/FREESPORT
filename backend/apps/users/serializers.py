@@ -13,6 +13,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.core import signing
 from rest_framework import serializers
 
+from apps.common.consent_texts import MAX_VERSION_LENGTH, is_current_consent_text_version
+from apps.common.models import UserConsent
+from apps.common.serializers import CONSENT_TEXT_OUTDATED, consent_text_outdated_error
 from apps.orders.models import Order
 
 from .models import Address, Company, Favorite, User
@@ -85,6 +88,36 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         },
     )
     marketing_consent = serializers.BooleanField(write_only=True, required=False, default=False)
+    # Версии формулировок, показанных человеку формой (стори 41.9). Приходят из
+    # константы фронта, собранной в тот же бандл, что и сами тексты: вкладка,
+    # открытая до правки формулировки, пришлёт прежнюю версию и будет отклонена.
+    pdp_consent_text_version = serializers.CharField(
+        write_only=True,
+        required=True,
+        max_length=MAX_VERSION_LENGTH,
+        error_messages={
+            "required": CONSENT_TEXT_OUTDATED,
+            "blank": CONSENT_TEXT_OUTDATED,
+            "null": CONSENT_TEXT_OUTDATED,
+            "max_length": CONSENT_TEXT_OUTDATED,
+        },
+    )
+    # Маркетинговый чекбокс необязателен, поэтому версия требуется только когда
+    # согласие действительно дано, — иначе форма без галочки была бы обязана
+    # присылать версию текста, по которому ничего не записывается.
+    marketing_consent_text_version = serializers.CharField(
+        write_only=True,
+        required=False,
+        # Пустая строка допустима: форма без отмеченного маркетингового чекбокса
+        # шлёт версию, но проверяться она будет только вместе с согласием.
+        allow_blank=True,
+        default="",
+        max_length=MAX_VERSION_LENGTH,
+        error_messages={
+            "null": CONSENT_TEXT_OUTDATED,
+            "max_length": CONSENT_TEXT_OUTDATED,
+        },
+    )
 
     class Meta:
         model = User
@@ -101,6 +134,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "country",
             "pdp_consent",
             "marketing_consent",
+            "pdp_consent_text_version",
+            "marketing_consent_text_version",
         ]
         extra_kwargs = {
             # Уникальность email проверяется вручную в validate(): порядок
@@ -157,6 +192,21 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         if not attrs.get("pdp_consent"):
             raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED_MESSAGE})
+
+        # Версии сверяются с источником `registration`. Ветка привязки к 1С
+        # (`1c_link`) ссылается на те же поверхности реестра — человек заполнял
+        # ту же форму, отличается исход, а не текст; равенство версий двух
+        # источников закреплено тестом `test_1c_link_reuses_registration_surfaces`.
+        # Здесь исход ещё не известен: он вычисляется после сохранения.
+        if not is_current_consent_text_version(
+            UserConsent.SOURCE_REGISTRATION, "pdp_contract", attrs.get("pdp_consent_text_version", "")
+        ):
+            raise consent_text_outdated_error("pdp_consent_text_version")
+
+        if attrs.get("marketing_consent") and not is_current_consent_text_version(
+            UserConsent.SOURCE_REGISTRATION, "marketing_email", attrs.get("marketing_consent_text_version", "")
+        ):
+            raise consent_text_outdated_error("marketing_consent_text_version")
 
         # Валидация B2B полей
         role = attrs.get("role", "retail")
@@ -242,6 +292,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop("password_confirm")
         marketing_consent = validated_data.pop("marketing_consent", False)
         validated_data.pop("pdp_consent")
+        # Версии уже сверены в validate(); у `User` таких полей нет — версия
+        # ложится в `UserConsent`, куда её кладёт view (значением из реестра).
+        validated_data.pop("pdp_consent_text_version", None)
+        validated_data.pop("marketing_consent_text_version", None)
 
         # Извлекаем пароль
         password = validated_data.pop("password")

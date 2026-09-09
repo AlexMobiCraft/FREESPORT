@@ -11,13 +11,25 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ErrorDetail
 
-from .models import BlogPost, Category, News, Newsletter
+from .consent_texts import MAX_VERSION_LENGTH, is_current_consent_text_version
+from .models import BlogPost, Category, News, Newsletter, UserConsent
 from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_agent
 
 
 PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
 ALREADY_SUBSCRIBED = "Этот email уже подписан на рассылку"
 ALREADY_SUBSCRIBED_CODE = "already_subscribed"
+
+# Формулировку согласия правят; вкладка, открытая до правки, продолжает
+# показывать прежний текст. Такой запрос отклоняется, а не записывается
+# действующей версией — см. `is_current_consent_text_version`.
+CONSENT_TEXT_OUTDATED = "Текст согласия обновился. Обновите страницу и подтвердите согласие заново."
+CONSENT_TEXT_OUTDATED_CODE = "consent_text_outdated"
+
+
+def consent_text_outdated_error(field: str) -> serializers.ValidationError:
+    """Field-level ошибка устаревшей формулировки с устойчивым machine-code."""
+    return serializers.ValidationError({field: [ErrorDetail(CONSENT_TEXT_OUTDATED, code=CONSENT_TEXT_OUTDATED_CODE)]})
 
 
 def already_subscribed_error() -> serializers.ValidationError:
@@ -54,6 +66,21 @@ class SubscribeSerializer(serializers.Serializer):
             "null": PDP_CONSENT_REQUIRED,
         },
     )
+    # Версия формулировки, которую форма показала человеку (стори 41.9).
+    # Значение приходит из константы фронта, собранной в тот же бандл, что и
+    # сам текст, — поэтому оно доказывает, что было на экране, а не что
+    # действует на сервере прямо сейчас.
+    consent_text_version = serializers.CharField(
+        write_only=True,
+        required=True,
+        max_length=MAX_VERSION_LENGTH,
+        error_messages={
+            "required": CONSENT_TEXT_OUTDATED,
+            "blank": CONSENT_TEXT_OUTDATED,
+            "null": CONSENT_TEXT_OUTDATED,
+            "max_length": CONSENT_TEXT_OUTDATED,
+        },
+    )
 
     def validate_email(self, value: str) -> str:
         """
@@ -73,6 +100,14 @@ class SubscribeSerializer(serializers.Serializer):
         # BooleanField коэрсит truthy-строки в True; для 152-ФЗ нужен исходный JSON boolean true.
         if self.initial_data.get("pdp_consent") is not True:
             raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED})
+
+        # Чекбокс формы подписки один и покрывает оба согласия (редакция 2 стори 41.3),
+        # но версия сверяется для каждого типа отдельно: при будущем расщеплении
+        # чекбоксов одна проверка молча пропустила бы устаревшую половину формы.
+        version = attrs.get("consent_text_version", "")
+        for consent_type, _label in UserConsent.CONSENT_TYPE_CHOICES:
+            if not is_current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, consent_type, version):
+                raise consent_text_outdated_error("consent_text_version")
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> Newsletter:
@@ -81,6 +116,9 @@ class SubscribeSerializer(serializers.Serializer):
         Если email ранее отписался - реактивируем подписку.
         """
         validated_data.pop("pdp_consent", False)
+        # Версия уже сверена в validate(); в `Newsletter` она не хранится —
+        # доказательство согласия живёт в `UserConsent` (пишет view).
+        validated_data.pop("consent_text_version", None)
         email = validated_data["email"]
 
         # Получаем IP и User-Agent из контекста (request)

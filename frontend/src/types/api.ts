@@ -153,6 +153,11 @@ export interface RegisterRequest {
   country?: string;
   pdp_consent: boolean;
   marketing_consent?: boolean;
+  // Версии формулировок, показанных формой (стори 41.9). Сервер отклоняет
+  // запрос, если версия не действующая: так вкладка со старым текстом не
+  // запишет согласие на формулировку, которой человек не видел.
+  pdp_consent_text_version: string;
+  marketing_consent_text_version?: string;
 }
 
 export interface RegisterResponse {
@@ -225,6 +230,8 @@ export interface ApiError {
 export interface SubscribeRequest {
   email: string;
   pdp_consent: boolean;
+  // Версия формулировки единственного чекбокса подписки (стори 41.9).
+  consent_text_version: string;
 }
 
 export interface SubscribeResponse {

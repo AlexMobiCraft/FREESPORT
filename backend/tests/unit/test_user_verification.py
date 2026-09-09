@@ -14,6 +14,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from apps.users.serializers import UserRegistrationSerializer
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 User = get_user_model()
 
@@ -35,6 +36,7 @@ class TestUserRegistrationVerification:
             "first_name": "Test",
             "role": "retail",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
         serializer = UserRegistrationSerializer(data=data)
 
@@ -54,6 +56,7 @@ class TestUserRegistrationVerification:
             "company_name": "Test Gym",
             "tax_id": "7704567890",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
         serializer = UserRegistrationSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -76,6 +79,7 @@ class TestUserRegistrationVerification:
             "company_name": "Test Company",
             "tax_id": "1234567890",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
         serializer = UserRegistrationSerializer(data=data)
         assert serializer.is_valid(), serializer.errors
@@ -98,6 +102,7 @@ class TestUserRegistrationVerification:
             "company_name": "Test Federation",
             "tax_id": "9876543210",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
         serializer = UserRegistrationSerializer(data=data)
         assert serializer.is_valid(), serializer.errors

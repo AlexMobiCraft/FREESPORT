@@ -153,8 +153,9 @@ backend/
 │   └── common/                       # Общие компоненты
 │       ├── models.py                 # Newsletter, UserConsent (152-ФЗ audit log, source + consent_text_version — Story 41.9)
 │       ├── admin.py                  # UserConsentAdmin (read-only, Story 35.1)
-│       ├── consent_texts.json        # Реестр текстов согласий: поверхности, ревизии, привязки (Story 41.9)
-│       ├── consent_texts.py          # Загрузчик реестра: current_consent_text_version, resolve_consent_text (Story 41.9)
+│       ├── consent_texts.json        # Реестр текстов согласий: поверхности, ревизии, привязки, known_versions (Story 41.9)
+│       ├── consent_texts.py          # Загрузчик реестра: current_consent_text_version, resolve_consent_text,
+│       │                             #   is_current_consent_text_version (сверка версии из запроса) (Story 41.9)
 │       ├── permissions.py            # Custom permissions
 │       ├── pagination.py             # Стандартизированная пагинация
 │       ├── exceptions.py             # Обработка ошибок

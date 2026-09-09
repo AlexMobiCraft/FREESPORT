@@ -15,6 +15,7 @@ import { subscribeService } from '@/services/subscribeService';
 import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 interface SubscribeFormData {
   email: string;
@@ -94,6 +95,10 @@ export const SubscribeForm: React.FC = () => {
       await subscribeService.subscribe({
         email: data.email,
         pdp_consent: data.pdp_consent,
+        // Версия формулировки, которую показала эта сборка формы (стори 41.9).
+        // Сервер отклонит запрос, если текст успели поправить, — вкладка со
+        // старым текстом не запишет согласие на чужую формулировку.
+        consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       });
       toast.success('Вы успешно подписались на рассылку');
       reset();

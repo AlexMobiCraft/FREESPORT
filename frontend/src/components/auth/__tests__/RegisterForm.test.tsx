@@ -12,6 +12,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RegisterForm } from '../RegisterForm';
 import authService from '@/services/authService';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 const PDP_CONSENT_NAME =
   'Я даю согласие на обработку моих персональных данных в соответствии с ' +
@@ -320,6 +321,8 @@ describe('RegisterForm', () => {
           country: 'Россия',
           pdp_consent: true,
           marketing_consent: false,
+          pdp_consent_text_version: CONSENT_TEXT_VERSIONS.registrationPdp,
+          marketing_consent_text_version: CONSENT_TEXT_VERSIONS.registrationMarketing,
         });
       });
 
@@ -546,6 +549,35 @@ describe('RegisterForm', () => {
       await user.click(submitButton);
 
       expect((await screen.findAllByText(/password is too weak/i)).length).toBeGreaterThan(0);
+    });
+
+    test('показывает требование обновить страницу при устаревшей версии текста согласия', async () => {
+      // Форма отправляет версию формулировки, которую показала. Если её успели
+      // поправить, сервер отвечает 400 по полю версии — человеку нужно внятное
+      // требование обновить страницу, иначе он будет жать «Зарегистрироваться»
+      // и получать один и тот же отказ.
+      const outdatedMessage =
+        'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockRejectedValue({
+        response: {
+          status: 400,
+          data: { pdp_consent_text_version: [outdatedMessage] },
+        },
+      });
+
+      render(<RegisterForm />);
+
+      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+      await fillB2BFields(user);
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect((await screen.findAllByText(outdatedMessage)).length).toBeGreaterThan(0);
     });
 
     test('should display backend pdp consent validation error inline', async () => {

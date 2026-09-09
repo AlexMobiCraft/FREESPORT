@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { StrictMode, useCallback, useState } from 'react';
 import { B2BRegisterForm } from '../B2BRegisterForm';
 import authService from '@/services/authService';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 // Формулировки унифицированы с RegisterForm (стори 41.9): обе формы регистрации
 // шлют POST /auth/register/, поэтому текст согласия обязан совпадать дословно.
@@ -134,6 +135,9 @@ describe('B2BRegisterForm consent checkboxes', () => {
         expect.objectContaining({
           pdp_consent: true,
           marketing_consent: false,
+          // Версии показанных формулировок — по ним сервер отклоняет устаревшую вкладку.
+          pdp_consent_text_version: CONSENT_TEXT_VERSIONS.registrationPdp,
+          marketing_consent_text_version: CONSENT_TEXT_VERSIONS.registrationMarketing,
         })
       );
     });
@@ -314,6 +318,9 @@ describe('B2BRegisterForm consent checkboxes', () => {
         expect.objectContaining({
           pdp_consent: true,
           marketing_consent: true,
+          // Версии показанных формулировок — по ним сервер отклоняет устаревшую вкладку.
+          pdp_consent_text_version: CONSENT_TEXT_VERSIONS.registrationPdp,
+          marketing_consent_text_version: CONSENT_TEXT_VERSIONS.registrationMarketing,
         })
       );
     });

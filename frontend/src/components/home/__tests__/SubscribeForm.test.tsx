@@ -32,6 +32,7 @@ vi.mock('@/services/subscribeService', () => ({
 }));
 
 import { subscribeService } from '@/services/subscribeService';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 const getPdpCheckbox = () =>
   screen.getByRole('checkbox', { name: PDP_CONSENT_NAME });
@@ -165,6 +166,31 @@ describe('SubscribeForm', () => {
     expect(checkbox).toHaveAttribute('aria-describedby', alert.id);
   });
 
+  it('показывает требование обновить страницу, когда сервер отклонил устаревшую версию текста', async () => {
+    // Сервер отвечает 400 по полю consent_text_version, если формулировку
+    // поправили после того, как эта вкладка была отрисована. Человек должен
+    // увидеть внятное требование обновить страницу, а не общий отказ.
+    const outdatedMessage = 'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        details: {
+          consent_text_version: [outdatedMessage],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'outdated-version@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(outdatedMessage);
+    });
+  });
+
   it('generates unique PDN ids for multiple form instances', () => {
     render(
       <>
@@ -197,6 +223,8 @@ describe('SubscribeForm', () => {
       expect(mockSubscribe).toHaveBeenCalledWith({
         email: 'new@example.com',
         pdp_consent: true,
+        // Версия показанной формулировки — по ней сервер отклоняет устаревшую вкладку.
+        consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       });
     });
   });

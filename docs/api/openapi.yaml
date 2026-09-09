@@ -4612,7 +4612,13 @@ components:
         pdp_consent:
           type: boolean
           writeOnly: true
+        consent_text_version:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 64
       required:
+      - consent_text_version
       - email
       - pdp_consent
     TokenRefresh:
@@ -4922,12 +4928,23 @@ components:
           type: boolean
           writeOnly: true
           default: false
+        pdp_consent_text_version:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 64
+        marketing_consent_text_version:
+          type: string
+          writeOnly: true
+          default: ''
+          maxLength: 64
       required:
       - email
       - first_name
       - password
       - password_confirm
       - pdp_consent
+      - pdp_consent_text_version
       - role
     UserRegistrationRoleEnum:
       enum:

@@ -14,6 +14,7 @@ import json
 import pytest
 
 from apps.common.consent_texts import (
+    MAX_VERSION_LENGTH,
     ConsentTextRegistry,
     ConsentTextsError,
     compute_consent_text_version,
@@ -27,9 +28,30 @@ from apps.common.models import UserConsent
 # Маркер `unit` проставляет pytest_collection_modifyitems по каталогу — руками не ставим.
 
 
-def _registry(surfaces: dict, bindings: dict) -> ConsentTextRegistry:
-    """Реестр из фикстуры в памяти — файл на диске не трогается."""
-    return ConsentTextRegistry({"surfaces": surfaces, "bindings": bindings}, origin="<фикстура>")
+def _known_versions(surfaces: dict) -> list[str]:
+    """Версии всех ревизий фикстуры — то, что реестр требует в `known_versions`."""
+    return [
+        compute_consent_text_version(revision["label"], revision["text"])
+        for surface in surfaces.values()
+        for revision in surface["revisions"]
+    ]
+
+
+def _registry(surfaces: dict, bindings: dict, known_versions: list[str] | None = None) -> ConsentTextRegistry:
+    """Реестр из фикстуры в памяти — файл на диске не трогается.
+
+    `known_versions` по умолчанию вычисляется из самих ревизий: тесты, которые
+    проверяют не защиту истории, а другое поведение, не должны носить хеши руками.
+    Тесты самой защиты передают список явно.
+    """
+    return ConsentTextRegistry(
+        {
+            "surfaces": surfaces,
+            "bindings": bindings,
+            "known_versions": _known_versions(surfaces) if known_versions is None else known_versions,
+        },
+        origin="<фикстура>",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -238,3 +260,147 @@ def test_broken_json_raises_with_path(tmp_path):
 
     with pytest.raises(ConsentTextsError, match="не разбирается как JSON"):
         load_registry(broken)
+
+
+# ---------------------------------------------------------------------------
+# Неизменяемость истории и границы реестра (замечания ревью стори 41.9)
+# ---------------------------------------------------------------------------
+
+
+def test_registry_file_declares_every_version_in_known_versions():
+    """Реальный реестр проекта фиксирует все свои ревизии в `known_versions`."""
+    from apps.common.consent_texts import REGISTRY_PATH
+
+    data = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    computed = {
+        compute_consent_text_version(revision["label"], revision["text"])
+        for surface in data["surfaces"].values()
+        for revision in surface["revisions"]
+    }
+
+    assert set(data["known_versions"]) == computed
+
+
+def test_editing_historical_revision_text_raises():
+    """Правка текста уже действовавшей ревизии обрывает связь записей с текстом.
+
+    Именно так выглядит «мелкая правка формулировки задним числом»: версия
+    пересчитывается, а версия, записанная в журнал, больше ничему не соответствует.
+    """
+    original = "Я даю согласие на обработку моих персональных данных"
+    frozen = compute_consent_text_version("2026-01-01", original)
+
+    with pytest.raises(ConsentTextsError, match="изменён или"):
+        _registry(
+            surfaces={"surface": {"revisions": [{"label": "2026-01-01", "text": original + " и на рассылку"}]}},
+            bindings={"registration.pdp_contract": "surface"},
+            known_versions=[frozen],
+        )
+
+
+def test_deleting_historical_revision_raises():
+    """Удаление старой ревизии «как устаревшей» обязано ронять загрузку."""
+    old_version = compute_consent_text_version("2026-01-01", "Прежняя формулировка")
+    new_text = "Действующая формулировка"
+
+    with pytest.raises(ConsentTextsError, match="ни одна ревизия их больше не даёт"):
+        _registry(
+            surfaces={"surface": {"revisions": [{"label": "2026-06-01", "text": new_text}]}},
+            bindings={"registration.pdp_contract": "surface"},
+            known_versions=[old_version, compute_consent_text_version("2026-06-01", new_text)],
+        )
+
+
+def test_new_revision_must_be_recorded_in_known_versions():
+    """Добавленная ревизия без записи в `known_versions` не проходит загрузку."""
+    old_text = "Прежняя формулировка"
+    new_text = "Новая формулировка"
+
+    with pytest.raises(ConsentTextsError, match="не зафиксированы"):
+        _registry(
+            surfaces={
+                "surface": {
+                    "revisions": [
+                        {"label": "2026-01-01", "text": old_text},
+                        {"label": "2026-06-01", "text": new_text},
+                    ]
+                }
+            },
+            bindings={"registration.pdp_contract": "surface"},
+            known_versions=[compute_consent_text_version("2026-01-01", old_text)],
+        )
+
+
+def test_missing_known_versions_section_raises():
+    """Раздел нельзя просто убрать — иначе защита истории обходится удалением."""
+    with pytest.raises(ConsentTextsError, match="known_versions"):
+        ConsentTextRegistry(
+            {
+                "surfaces": {"surface": {"revisions": [{"label": "2026-01-01", "text": "Текст"}]}},
+                "bindings": {"registration.pdp_contract": "surface"},
+            },
+            origin="<фикстура>",
+        )
+
+
+def test_duplicate_known_version_raises():
+    version = compute_consent_text_version("2026-01-01", "Текст")
+
+    with pytest.raises(ConsentTextsError, match="повторы"):
+        _registry(
+            surfaces={"surface": {"revisions": [{"label": "2026-01-01", "text": "Текст"}]}},
+            bindings={"registration.pdp_contract": "surface"},
+            known_versions=[version, version],
+        )
+
+
+def test_version_longer_than_model_field_raises():
+    """Версия обязана помещаться в `UserConsent.consent_text_version`."""
+    long_label = "2026-01-01-" + "x" * MAX_VERSION_LENGTH
+
+    with pytest.raises(ConsentTextsError, match="длиннее"):
+        _registry(
+            surfaces={"surface": {"revisions": [{"label": long_label, "text": "Текст"}]}},
+            bindings={"registration.pdp_contract": "surface"},
+        )
+
+
+def test_max_version_length_matches_model_field():
+    """Константа модуля и `max_length` поля модели не имеют права разъехаться.
+
+    Модуль не импортирует Django (тот же JSON читает страж на фронте), поэтому
+    значение продублировано — и сверяется здесь.
+    """
+    field = UserConsent._meta.get_field("consent_text_version")
+
+    assert field.max_length == MAX_VERSION_LENGTH
+
+
+def test_every_registry_version_fits_the_model_field():
+    """Ни одна живая версия реестра не обрежется при записи в журнал."""
+    for version in load_registry().versions:
+        assert len(version) <= MAX_VERSION_LENGTH
+
+
+def test_duplicate_json_keys_are_rejected(tmp_path):
+    """Повтор ключа в JSON молча оставил бы последнее значение и подменил привязку."""
+    registry_file = tmp_path / "consent_texts.json"
+    registry_file.write_text(
+        """
+        {
+          "surfaces": {
+            "a": {"revisions": [{"label": "2026-01-01", "text": "Текст A"}]},
+            "b": {"revisions": [{"label": "2026-01-01", "text": "Текст B"}]}
+          },
+          "known_versions": ["ignored"],
+          "bindings": {
+            "registration.pdp_contract": "a",
+            "registration.pdp_contract": "b"
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConsentTextsError, match="объявлен дважды"):
+        load_registry(registry_file)

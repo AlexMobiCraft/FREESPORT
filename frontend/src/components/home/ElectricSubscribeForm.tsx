@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import { subscribeService } from '@/services/subscribeService';
 import { ElectricButton } from '@/components/ui/Button/ElectricButton';
 import { cn } from '@/utils/cn';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 interface SubscribeFormData {
   email: string;
@@ -96,6 +97,10 @@ export const ElectricSubscribeForm: React.FC = () => {
       await subscribeService.subscribe({
         email: data.email,
         pdp_consent: data.pdp_consent,
+        // Версия формулировки, которую показала эта сборка формы (стори 41.9).
+        // Сервер отклонит запрос, если текст успели поправить, — вкладка со
+        // старым текстом не запишет согласие на чужую формулировку.
+        consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       });
       toast.success('ВЫ УСПЕШНО ПОДПИСАЛИСЬ НА РАССЫЛКУ!', {
         style: {

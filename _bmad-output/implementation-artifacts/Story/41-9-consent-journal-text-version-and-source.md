@@ -186,6 +186,23 @@ so that **согласие оставалось доказуемым по ФЗ-1
   - [x] `npx gitnexus detect-changes --scope all` перед коммитом; расхождения объяснить.
   - [x] `File List` собрать командой `git diff --name-status`, а не по памяти.
 
+### Review Findings
+
+- [x] [Review][Patch] Сервер должен отклонять устаревшую версию текста согласия — решение Alex: форма передаёт показанную версию, сервер сравнивает её с текущей; при несовпадении запрос отклоняется с требованием обновить страницу. Сейчас формы отправляют только boolean-согласие, а `current_consent_text_version(...)` всегда фиксирует текущую серверную версию, даже если пользователь отправил старую вкладку с прежним текстом. [`backend/apps/users/views/authentication.py:157-174`, `backend/apps/common/views.py:437-445`, `frontend/src/components/auth/RegisterForm.tsx:111-133`, `frontend/src/components/auth/B2BRegisterForm.tsx:111-129`]
+  - Версия зашита в бандл фронта (`frontend/src/constants/consentTexts.ts`), а **не** запрашивается у сервера: она обязана доказывать, какой текст был на экране. Версия, полученная запросом в момент отправки, всегда актуальна и не доказывает ничего — старая вкладка получила бы свежее значение и записала согласие на формулировку, которой не видела.
+  - `SubscribeSerializer.consent_text_version` (обязательное), `UserRegistrationSerializer.pdp_consent_text_version` (обязательное) и `marketing_consent_text_version` (обязательное при `marketing_consent: true`). Несовпадение или отсутствие — `400`, код `consent_text_outdated`, сообщение «Текст согласия обновился. Обновите страницу и подтвердите согласие заново.».
+  - В журнал по-прежнему кладётся значение из реестра, а не присланное клиентом: запрос лишь доказывает право записать текущую версию.
+  - Контракт обновлён по правилу проекта: `docs/api/openapi.yaml` (перегенерирован `spectacular`, сверен `check_openapi_sync`) и `npm run generate:types`.
+- [x] [Review][Patch] Исторические версии не защищены от изменения или удаления ревизии из реестра [`backend/apps/common/consent_texts.py:98-133`]
+  - Раздел `known_versions` — append-only список версий всех когда-либо действовавших формулировок; загрузчик требует **точного** совпадения с набором, вычисленным из ревизий. Правка текста старой ревизии и её удаление ловятся одинаково: версия исчезает из вычисленного набора, реестр перестаёт загружаться и называет пропавшие строки. Новая ревизия тоже обязана быть внесена — её версию не нужно считать руками, сообщение об ошибке печатает готовую строку.
+- [x] [Review][Patch] JSON-загрузчик молча принимает повторяющиеся ключи и может подменить поверхность либо привязку [`backend/apps/common/consent_texts.py:194-199`]
+  - `json.loads(..., object_pairs_hook=_reject_duplicate_keys)`: повтор ключа — `ConsentTextsError`, а не «побеждает нижний».
+- [x] [Review][Patch] Загрузчик допускает версию длиннее `UserConsent.consent_text_version(max_length=64)` [`backend/apps/common/consent_texts.py:105-124`]
+  - Константа `MAX_VERSION_LENGTH = 64` в модуле (Django он не импортирует — тот же JSON читает страж на фронте); расхождение с полем модели ловит `test_max_version_length_matches_model_field`.
+- [x] [Review][Patch] В diff присутствует посторонний task-файл, отсутствующий в заявленном File List [`_bmad-output/implementation-artifacts/tasks/dev-task-textcontent-price-cta-separation.md:1-6`]
+  - Файл добавлен коммитом `786881e7` («создать стори … и dev-task по склейкам textContent») — то есть частью создания стори, а не её реализации; в диффе ветки против `develop` он поэтому присутствует. Файл нужен (задача-продолжение стори 41.8) и не удаляется; он назван в File List отдельным разделом.
+- [x] [Review][Defer] Celery-задачи B2B-регистрации публикуются до фиксации транзакции и могут получить ID откатившегося пользователя [`backend/apps/users/serializers.py:266-271`] — deferred, pre-existing
+
 ## Dev Notes
 
 ### Что есть сейчас (проверено чтением файлов на `792ce210`)
@@ -348,6 +365,7 @@ so that **согласие оставалось доказуемым по ФЗ-1
 |---|---|---|---|
 | 2026-09-09 | 1.0 | Стори создана. Сверх скелета эпика: (а) источников три, а точек записи в коде две — `1c_link` различается уже вычисленным `pending_1c_link`; (б) две живые формы регистрации с разными текстами бьют в один эндпоинт и неразличимы на бэкенде, отсюда Task 5; (в) страж текста обязан жить в Vitest — backend-контейнер не видит `frontend/`; (г) версия считается как метка+хеш текста, чтобы бамп нельзя было забыть; (д) шесть файлов документации архитектуры требуют правки, включая неверное с 2026-09-05 утверждение в `18-b2b-verification-workflow.md:206`. Решение владельца по единственному открытому вопросу получено до старта: Task 5 выполняется. | Alex / create-story |
 | 2026-09-09 | 1.1 | Стори реализована. Все 11 задач и 58 подзадач закрыты. Backend 3236 → 3264 passed (+28), падений нет; frontend 2797 → 2803 passed (+6), падений нет. Обратная совместимость миграции проверена руками на dev-БД: строка, созданная до `0019`, сохранилась целиком и помечена `unknown` (вывод — в Debug Log). Единственное отклонение от текста стори — исправлен дефект в собственном тесте `test_empty_revisions_raise` (пустой `bindings` заслонял проверяемую ошибку); поведение кода не менялось. Дополнительно к плану: два новых замечания mypy закрыты точечными `# type: ignore[attr-defined]`, чтобы удержать дельту к базису на нуле (AC7). | Claude Opus 5 / dev-story |
+| 2026-09-09 | 1.2 | Закрыты пять замечаний ревью. Главное — сервер больше не проставляет версию текста «за клиента»: формы присылают версию показанной формулировки, сервер сверяет её с реестром и отклоняет несовпадение (`400`, код `consent_text_outdated`). **Утверждение шапки и AC8 «API-контракт не меняется» с этой доработкой недействительно** (правится строкой Change Log, а не задним числом в AC — урок стори 41.3): `SubscribeRequest` получил `consent_text_version`, `UserRegistrationRequest` — `pdp_consent_text_version` и `marketing_consent_text_version`; `docs/api/openapi.yaml` перегенерирован и сверен `check_openapi_sync`, типы фронта — `npm run generate:types`. Прочие четыре замечания: `known_versions` защищает историю ревизий от правки и удаления, дубли ключей JSON отбраковываются, версия длиннее `max_length=64` не проходит загрузку, посторонний task-файл объяснён и назван в File List. Frontend 2803 → 2807 passed (167 файлов, падений нет); backend — числа в Debug Log. | Claude Opus 5 / dev-story |
 
 ## Dev Agent Record
 
@@ -435,6 +453,61 @@ Claude Opus 5 (`claude-opus-5`), скилл `bmad-dev-story`.
    `Реестр текстов согласий не читается: <путь>. Он обязан существовать — по нему вычисляется
    UserConsent.consent_text_version` (в итоге `Tests: no tests`, а не «пропущено»).
 
+**Доработка по замечаниям ревью — числа прогонов (2026-09-09).**
+
+| Прогон | До доработки (версия 1.1) | После | Дельта |
+|---|---|---|---|
+| Backend, `pytest -m "not performance and not slow"` | 3264 passed, 75 skipped, 35 deselected, 0 failed | 3279 passed, 75 skipped, 35 deselected, 0 failed (32:57) | **+15 passed**, падений нет |
+| Frontend, `npm run test` | 167 файлов, 2803 passed, 16 skipped | 167 файлов, 2807 passed, 16 skipped, 0 failed | **+4 теста**, падений нет |
+
+Прирост фронтенда раскладывается: +2 в страже `consent-texts-registry.test.tsx` (константы версий совпадают с
+реестром; версии зафиксированы в `known_versions`), +1 в `SubscribeForm.test.tsx` и +1 в `RegisterForm.test.tsx`
+(сервер отклонил устаревшую версию — человеку показано требование обновить страницу). Число файлов не выросло:
+новых тест-файлов доработка не завела.
+
+Прирост backend раскладывается ровно: +10 в `apps/common/tests/test_consent_texts.py` (19 → 29 — защита истории,
+дубли ключей, длина версии, сверка константы с полем модели), +2 в `test_common_subscribe_api.py` и +3 в
+`test_auth_registration_consent.py` (отклонение устаревшей и отсутствующей версии; версия маркетинга проверяется
+только вместе с галочкой). Число skipped и deselected не изменилось — новые тесты не выпадают из фильтров CI.
+
+**Статический анализ после доработки.**
+
+- `flake8 . --max-line-length=120 --extend-ignore=E203,W503` — чисто.
+- `black --check .` — те же 8 предсуществующих файлов, что и в версии 1.1. Промежуточный прогон `black` по всему
+  дереву успел их переформатировать; правки откачены `git checkout`, потому что стори их не касается и чужой шум
+  в диффе ревью уже отмечало.
+- `mypy --config-file=mypy.ini .` — **129 ошибок, дельта к базису 0**. Первый замер дал 130: `unused-ignore` в
+  собственном новом тесте (`# type: ignore[attr-defined]` на `field.max_length` оказался лишним — mypy знает это
+  свойство `CharField`). Игнор снят; при `warn_unused_ignores = True` он сам был ошибкой.
+- `python manage.py makemigrations --check --dry-run` — `No changes detected`: доработка модель не трогала.
+- `python manage.py check_openapi_sync --schema-file …` — «Контракт синхронен с кодом». Файл правился точечно, а
+  не заменялся выводом `spectacular` целиком: генератор недетерминирован в порядке ключей и дал бы 400 строк шума
+  (об этом прямо предупреждает комментарий в `api-contract.yml`), а гейт сравнивает разобранные структуры.
+- **Целевой набор на финальном коде** (`apps/common` + подписка + согласия регистрации + unit-тесты сериализаторов
+  пользователя) — 181 passed. Прогнан повторно после снятия `unused-ignore`, потому что правка легла уже во время
+  полного прогона.
+
+**`npx gitnexus detect-changes --scope all` перед сдачей (после доработки):** 38 файлов, 54 символа, 9 затронутых
+потоков, risk **high** против 18/23/4/medium в версии 1.1. Расхождение объяснимо и ожидаемо:
+
+- `high` здесь — агрегат объёма правки, а не blast radius: `impact --direction upstream` по каждому правимому
+  символу (`SubscribeSerializer`, `UserRegistrationSerializer`, `load_registry`, `ConsentTextRegistry`) дал
+  **LOW**, и снят он был до внесения правок.
+- В списке изменённых символов — `current_text`, `resolve_text`, `bound_pairs`, `versions` и другие члены
+  `consent_texts.py`, которых доработка не касалась: вставка `_check_known_versions` сдвинула вниз всё, что
+  объявлено после неё, а сопоставление идёт по смещению строк. Та же причина, что и в версии 1.1.
+- Новые потоки в списке — `RegisterPage → …` и `OnSubmit → …`: формы теперь собирают payload с версиями. Поток
+  `Subscribe → …` присутствовал и раньше.
+
+**Blast radius доработки (GitNexus CLI, индекс `up-to-date` на `28a40a6`).** Все правимые символы — **LOW**:
+`SubscribeSerializer`, `UserRegistrationSerializer`, `load_registry`, `ConsentTextRegistry`. Предупреждать о
+HIGH/CRITICAL было не о чем.
+
+**Что осталось непокрытым автотестом.** Реальный переход «текст поправили → открытая вкладка получила отказ»
+воспроизводится только в браузере: тесты подменяют версию литералом, а не пересобирают бандл. Механика при этом
+проверена с обеих сторон — сервер отклоняет чужую версию (backend-тесты подписки и регистрации), а константа
+фронта не может разойтись с реестром (страж пересчитывает версию из текста той же формулой).
+
 **Blast radius (GitNexus CLI, индекс `up-to-date` на `786881e7`).** `UserConsent` — HIGH, 18 прямых
 зависимостей, 0 процессов, 0 модулей; как и предупреждала стори, это рёбра импорта уровня файла, а не
 вызовы. `UserConsentAdmin` — LOW (1), `UserRegistrationView` — LOW (0).
@@ -490,8 +563,40 @@ risk **medium**. Расхождения объяснимы и ожидаемы:
 **Что осталось за границей стори (сознательно).** `policy_version` остаётся константой `"1.0"`: текст
 политики ПДн живёт в БД (`Page`, slug `privacy-policy`) и ревизий не имеет, поэтому какая её редакция
 действовала в момент согласия — из журнала по-прежнему не восстановить. Запись занесена в
-`deferred-work.md`. Cookie-согласие в журнал не заводится. API-контракт не менялся: `UserConsent` не
-отдаётся ни одним сериализатором, `openapi.yaml` и типы фронта не регенерировались.
+`deferred-work.md`. Cookie-согласие в журнал не заводится. `UserConsent` по-прежнему не отдаётся ни одним
+сериализатором и ни одним эндпоинтом — читать журнал можно только в админке. (Утверждение версии 1.1 «контракт
+не менялся» относится к самой реализации; доработка по ревью его отменила — см. ниже пункт 6.)
+
+**Доработка по замечаниям ревью (2026-09-09).**
+
+1. **Версию текста теперь заявляет клиент, а сервер её проверяет.** До правки сервер сам подставлял действующую
+   версию — то есть вкладка, отрисованная до правки формулировки, записывала согласие на текст, которого человек
+   не видел. Теперь форма присылает версию показанной формулировки, сервер сверяет её с реестром и при
+   несовпадении отвечает `400` с кодом `consent_text_outdated` и требованием обновить страницу. В журнал
+   по-прежнему ложится значение из реестра, а не присланное клиентом: запрос лишь доказывает право записать
+   действующую версию.
+2. **Версия зашита в бандл фронта, а не запрашивается у сервера.** Это принципиально: значение, полученное
+   запросом в момент отправки, всегда актуально и ничего не доказывает — старая вкладка получила бы свежую
+   версию и записала согласие на невиданную формулировку. Константа `frontend/src/constants/consentTexts.ts`
+   собирается в тот же бандл, что и сам текст чекбокса, поэтому старый бандл присылает старую версию и получает
+   отказ. Расхождение константы с реестром ловит тот же страж `consent-texts-registry.test.tsx` — он пересчитывает
+   версию из текста реестра той же формулой, а не сверяет литерал с литералом.
+3. **История ревизий стала неизменяемой.** Раздел `known_versions` перечисляет версии всех когда-либо
+   действовавших формулировок; загрузчик требует точного совпадения этого списка с набором, вычисленным из
+   ревизий. Правка текста старой ревизии и её удаление ловятся одинаково — версия пропадает из вычисленного
+   набора. Новая ревизия тоже обязана быть внесена, и её строку печатает сообщение об ошибке: считать хеш руками
+   не нужно.
+4. **Две мелких дыры загрузчика закрыты.** Повторяющиеся ключи JSON (`object_pairs_hook`) больше не «побеждают
+   снизу», подменяя привязку; версия длиннее `MAX_VERSION_LENGTH = 64` не проходит загрузку — иначе она
+   обрезалась бы базой уже на живом согласии.
+5. **Тринадцать backend-файлов и пять фронтенд-тестов приведены к обязательной версии.** Payload регистрации и
+   подписки без версии теперь отклоняется — это работающая защита, а не сломанные тесты. Версии берутся из
+   общего `backend/tests/consent_versions.py`, который читает тот же реестр: литералы пришлось бы чинить при
+   каждой правке текста. Ожидания форм переведены с `objectContaining` без версий на явные значения — иначе
+   удаление поля из формы прошло бы мимо тестов.
+6. **Контракт API обновлён.** Заявление стори «API-контракт не меняется» (шапка, AC8) этой доработкой отменено —
+   расхождение зафиксировано строкой Change Log 1.2, а не переписыванием AC. `openapi.yaml` перегенерирован
+   `spectacular` и сверен `check_openapi_sync`; типы фронта — `npm run generate:types`.
 
 **Приёмка на проде** (вне объёма разработки, по уроку стори 41.5): миграция на прод накатывается вручную,
 после выката нужны `showmigrations common` и `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 там
@@ -508,19 +613,28 @@ risk **medium**. Расхождения объяснимы и ожидаемы:
 - `backend/apps/common/consent_texts.py`
 - `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py`
 - `backend/apps/common/tests/test_consent_texts.py`
+- `backend/tests/consent_versions.py` — *доработка по ревью:* общие версии для тестовых payload'ов; литералы в тринадцати файлах пришлось бы чинить при каждой правке текста
 - `frontend/src/__tests__/consent-texts-registry.test.tsx`
+- `frontend/src/constants/consentTexts.ts` — *доработка по ревью:* версии, которые формы отправляют серверу
 
 **Изменённые файлы (M):**
 
 - `backend/apps/common/models.py`
 - `backend/apps/common/views.py`
 - `backend/apps/common/admin.py`
+- `backend/apps/common/serializers.py` — *доработка по ревью*
+- `backend/apps/users/serializers.py` — *доработка по ревью*
 - `backend/apps/users/views/authentication.py`
 - `backend/apps/common/tests/test_user_consent.py`
 - `backend/tests/integration/test_common_subscribe_api.py`
 - `backend/tests/integration/test_auth_registration_consent.py`
 - `frontend/src/components/auth/B2BRegisterForm.tsx`
+- `frontend/src/components/auth/RegisterForm.tsx` — *доработка по ревью*
+- `frontend/src/components/home/SubscribeForm.tsx` — *доработка по ревью*
+- `frontend/src/components/home/ElectricSubscribeForm.tsx` — *доработка по ревью*
 - `frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx`
+- `frontend/src/types/api.ts`, `frontend/src/types/api.generated.ts` — *доработка по ревью*
+- `docs/api/openapi.yaml` — *доработка по ревью*
 - `docs/architecture/02-data-models.md`
 - `docs/architecture/04-component-structure.md`
 - `docs/architecture/09-database-schema.md`
@@ -530,6 +644,28 @@ risk **medium**. Расхождения объяснимы и ожидаемы:
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**Тесты, приведённые к обязательной версии текста** (*доработка по ревью*; payload регистрации и подписки без версии теперь отклоняется — это работающая защита, а не сломанные тесты):
+
+- `backend/tests/integration/test_auth_registration_tokens.py`
+- `backend/tests/integration/test_catalog_api.py`
+- `backend/tests/integration/test_import_role_from_1c.py`
+- `backend/tests/integration/test_portal_registration_1c_link.py`
+- `backend/tests/integration/test_registration_emails.py`
+- `backend/tests/integration/test_user_api.py`
+- `backend/tests/integration/test_verification_workflow.py`
+- `backend/tests/integration/manual_test_user_management_api.py`
+- `backend/tests/regression/test_epic_28_intact.py`
+- `backend/tests/unit/test_serializers/test_user_serializers.py`
+- `backend/tests/unit/test_user_verification.py`
+- `frontend/src/components/auth/__tests__/RegisterForm.test.tsx`
+- `frontend/src/components/home/__tests__/SubscribeForm.test.tsx`
+- `frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx`
+- `frontend/src/services/__tests__/subscribeService.test.ts`
+
+**Файл из коммита создания стори, присутствующий в диффе ветки** (замечание ревью, разобрано выше):
+
+- `_bmad-output/implementation-artifacts/tasks/dev-task-textcontent-price-cta-separation.md` — добавлен `786881e7` вместе с самой стори; к реализации не относится, но в `git diff develop...HEAD` виден. Не удаляется: это задача-продолжение стори 41.8.
 
 **Побочные правки, не относящиеся к стори** (по уроку стори 41.0–41.7 — не выкидываются, а называются):
 

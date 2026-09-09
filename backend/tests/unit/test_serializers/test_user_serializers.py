@@ -20,6 +20,7 @@ from apps.users.serializers import (
     get_self_service_roles,
 )
 from apps.users.views.personal_cabinet import DashboardData
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 User = get_user_model()
 
@@ -39,6 +40,7 @@ class TestUserRegistrationSerializer:
             "phone": "+79991234568",
             "role": "retail",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -61,6 +63,7 @@ class TestUserRegistrationSerializer:
             "phone": "+79991234571",
             "role": "retail",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -89,6 +92,7 @@ class TestUserRegistrationSerializer:
             "role": "retail",
             "tax_id": "7712345678",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -109,6 +113,7 @@ class TestUserRegistrationSerializer:
             "phone": "+79991234573",
             "role": "retail",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -151,6 +156,7 @@ class TestUserRegistrationSerializer:
             "company_name": "Тест Клуб",
             "tax_id": "7712345670",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -170,6 +176,7 @@ class TestUserRegistrationSerializer:
             "last_name": "Пользователь",
             "phone": "+79991234568",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -189,6 +196,7 @@ class TestUserRegistrationSerializer:
             "company_name": "Тест Компания",
             "tax_id": "1234567890",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -212,6 +220,7 @@ class TestUserRegistrationSerializer:
             "company_name": "Тест Клуб",
             "tax_id": "7712345678",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -233,6 +242,7 @@ class TestUserRegistrationSerializer:
             "company_name": "Тест Клуб",
             "tax_id": "7712345679",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -250,6 +260,7 @@ class TestUserRegistrationSerializer:
             "phone": "+79991234568",
             "role": "wholesale_level1",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)
@@ -285,6 +296,7 @@ class TestWholesaleLevel4Registration:
             "company_name": "ООО Опт 4",
             "tax_id": "1234567890",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         serializer = UserRegistrationSerializer(data=data)

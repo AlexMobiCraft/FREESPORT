@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { subscribeService, SubscribeServiceError } from '../subscribeService';
 import apiClient from '../api-client';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 vi.mock('../api-client');
 
@@ -20,11 +21,13 @@ describe('subscribeService', () => {
     await subscribeService.subscribe({
       email: 'new@example.com',
       pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
     });
 
     expect(apiClient.post).toHaveBeenCalledWith('/subscribe', {
       email: 'new@example.com',
       pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
     });
   });
 
@@ -43,6 +46,7 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'validation_error',
@@ -65,6 +69,7 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'throttled',
@@ -86,6 +91,7 @@ describe('subscribeService', () => {
       await subscribeService.subscribe({
         email: 'existing@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       });
       throw new Error('Expected subscribeService to reject');
     } catch (error) {
@@ -113,6 +119,7 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'server_error',
@@ -132,6 +139,7 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'server_error',

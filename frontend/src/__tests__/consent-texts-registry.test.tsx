@@ -20,12 +20,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { SubscribeForm } from '@/components/home/SubscribeForm';
 import { ElectricSubscribeForm } from '@/components/home/ElectricSubscribeForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { B2BRegisterForm } from '@/components/auth/B2BRegisterForm';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 const REGISTRY_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -46,6 +48,7 @@ interface ConsentRevision {
 interface ConsentRegistry {
   surfaces: Record<string, { revisions: ConsentRevision[] }>;
   bindings: Record<string, string>;
+  known_versions: string[];
 }
 
 /**
@@ -94,6 +97,26 @@ function currentText(surface: string): string {
     );
   }
   return revisions[revisions.length - 1].text;
+}
+
+/**
+ * Версия ревизии — та же формула, что и в `backend/apps/common/consent_texts.py`:
+ * метка плюс первые 8 hex sha256 текста. Считается здесь заново, а не берётся
+ * из реестра готовой строкой: иначе страж сверял бы литерал с литералом и
+ * остался бы зелёным при разъехавшемся тексте (урок ревью стори 41.6).
+ */
+function currentVersion(surface: string): string {
+  const revisions = registry.surfaces[surface]?.revisions;
+  if (!revisions?.length) {
+    throw new Error(`В реестре ${REGISTRY_PATH} нет поверхности '${surface}'`);
+  }
+  const revision = revisions[revisions.length - 1];
+  const digest = crypto
+    .createHash('sha256')
+    .update(revision.text, 'utf-8')
+    .digest('hex')
+    .slice(0, 8);
+  return `${revision.label}-${digest}`;
 }
 
 const NEWSLETTER_TEXT = currentText('newsletter_checkbox');
@@ -160,6 +183,23 @@ describe('Реестр текстов согласий сверен с форм�
     for (const [pair, surface] of Object.entries(registry.bindings)) {
       expect(registry.surfaces[surface], `привязка ${pair} ссылается на ${surface}`).toBeDefined();
     }
+  });
+
+  it('константы версий фронта совпадают с действующими ревизиями реестра', () => {
+    // Версия уезжает в запрос вместе с согласием и решает, примет ли её сервер.
+    // Разъехавшаяся константа означала бы отказ всех форм на проде — или, что
+    // хуже, запись согласия на формулировку, которой человек не видел.
+    expect(CONSENT_TEXT_VERSIONS.newsletter).toBe(currentVersion('newsletter_checkbox'));
+    expect(CONSENT_TEXT_VERSIONS.registrationPdp).toBe(currentVersion('registration_pdp_checkbox'));
+    expect(CONSENT_TEXT_VERSIONS.registrationMarketing).toBe(
+      currentVersion('registration_marketing_checkbox')
+    );
+  });
+
+  it('версии форм зафиксированы в known_versions реестра', () => {
+    // `known_versions` — append-only список: он не даёт поправить или удалить
+    // историческую ревизию, на которую уже ссылаются записи журнала.
+    expect(registry.known_versions).toEqual(expect.arrayContaining(Object.values(CONSENT_TEXT_VERSIONS)));
   });
 
   it('SubscribeForm показывает текст поверхности newsletter_checkbox', () => {

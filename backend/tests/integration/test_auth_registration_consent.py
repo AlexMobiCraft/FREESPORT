@@ -12,7 +12,9 @@ from rest_framework.test import APIClient
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
 from apps.users.models import User
+from apps.common.serializers import CONSENT_TEXT_OUTDATED, CONSENT_TEXT_OUTDATED_CODE
 from apps.users.serializers import UserRegistrationSerializer
+from tests.consent_versions import REGISTRATION_MARKETING_TEXT_VERSION, REGISTRATION_PDP_TEXT_VERSION
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
@@ -61,6 +63,10 @@ def trainer_payload(**overrides):
         "company_name": "Consent Club",
         "tax_id": unique_inn(),
         "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
+        # Маркетинговый чекбокс форма показывает всегда, поэтому его версию
+        # она отправляет независимо от того, стоит ли галочка.
+        "marketing_consent_text_version": REGISTRATION_MARKETING_TEXT_VERSION,
         "marketing_consent": False,
     }
     payload.update(overrides)
@@ -78,6 +84,10 @@ def b2b_payload(**overrides):
         "company_name": "Consent Company",
         "tax_id": unique_inn(),
         "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
+        # Маркетинговый чекбокс форма показывает всегда, поэтому его версию
+        # она отправляет независимо от того, стоит ли галочка.
+        "marketing_consent_text_version": REGISTRATION_MARKETING_TEXT_VERSION,
         "marketing_consent": False,
     }
     payload.update(overrides)
@@ -98,6 +108,63 @@ def test_registration_requires_pdp_consent():
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "pdp_consent" in response.data
     assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
+
+
+def test_registration_rejects_outdated_pdp_text_version():
+    """Вкладка с прежней формулировкой ПДн отклоняется, а не записывается новой версией.
+
+    Иначе в журнал легло бы согласие с текстом, которого человек не видел: форма
+    осталась старой, а версию проставил бы сервер по действующему реестру.
+    """
+    client = APIClient()
+
+    response = post_register(client, trainer_payload(pdp_consent_text_version="2020-01-01-deadbeef"))
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["pdp_consent_text_version"][0].code == CONSENT_TEXT_OUTDATED_CODE
+    assert str(response.data["pdp_consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+    assert User.objects.filter(email=trainer_payload()["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
+def test_registration_requires_pdp_text_version():
+    """Форма старого бандла версию не присылает — это тоже устаревшая форма."""
+    client = APIClient()
+    payload = trainer_payload()
+    payload.pop("pdp_consent_text_version")
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert str(response.data["pdp_consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+    assert UserConsent.objects.count() == 0
+
+
+def test_registration_rejects_outdated_marketing_text_version_only_when_consent_given():
+    """Версия маркетингового текста проверяется ровно тогда, когда галочка стоит.
+
+    Без галочки записи `marketing_email` не появится, и требовать актуальность
+    её формулировки не за что; с галочкой — согласие фиксируется, и текст обязан
+    быть тем, что человек видел.
+    """
+    client = APIClient()
+
+    rejected = post_register(
+        client,
+        trainer_payload(marketing_consent=True, marketing_consent_text_version="2020-01-01-deadbeef"),
+    )
+
+    assert rejected.status_code == status.HTTP_400_BAD_REQUEST
+    assert str(rejected.data["marketing_consent_text_version"][0]) == CONSENT_TEXT_OUTDATED
+    assert UserConsent.objects.count() == 0
+
+    accepted = post_register(
+        client,
+        trainer_payload(marketing_consent=False, marketing_consent_text_version="2020-01-01-deadbeef"),
+    )
+
+    assert accepted.status_code == status.HTTP_201_CREATED
+    assert UserConsent.objects.filter(consent_type="marketing_email").count() == 0
 
 
 def test_registration_rejects_pdp_consent_false():

@@ -31,6 +31,7 @@ import {
   type B2BRegisterFormInput,
 } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 import {
   applyBackendFieldErrors,
   getFirstValidationMessage,
@@ -126,6 +127,13 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
         country: data.country,
         pdp_consent: data.pdp_consent,
         marketing_consent: data.marketing_consent ?? false,
+        // Версии формулировок, показанных этой сборкой формы (стори 41.9).
+        // Сервер сверяет их с реестром и отклоняет запрос, если текст успели
+        // поправить: иначе в журнал легло бы согласие на формулировку, которой
+        // человек не видел. Маркетинговая версия отправляется всегда — чекбокс
+        // показан независимо от того, стоит ли галочка.
+        pdp_consent_text_version: CONSENT_TEXT_VERSIONS.registrationPdp,
+        marketing_consent_text_version: CONSENT_TEXT_VERSIONS.registrationMarketing,
       };
 
       // AC 4: Отправка через authService.registerB2B()

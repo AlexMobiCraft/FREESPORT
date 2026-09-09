@@ -23,6 +23,7 @@ vi.mock('@/services/subscribeService', () => ({
 }));
 
 import { subscribeService } from '@/services/subscribeService';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 // Дословная формулировка согласия из AC1 стори 41.3 — общая для обеих форм подписки
 const PDP_CONSENT_NAME =
@@ -155,6 +156,8 @@ describe('ElectricSubscribeForm', () => {
       expect(mockSubscribe).toHaveBeenCalledWith({
         email: 'electric@example.com',
         pdp_consent: true,
+        // Версия показанной формулировки — по ней сервер отклоняет устаревшую вкладку.
+        consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       });
     });
   });

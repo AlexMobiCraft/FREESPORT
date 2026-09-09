@@ -13,6 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.users.models import User
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 
 @pytest.mark.integration
@@ -38,6 +39,7 @@ class TestRegistrationEmailsIntegration:
                 "company_name": "Test Club",
                 "tax_id": "7701234567",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
             format="json",
         )
@@ -73,6 +75,7 @@ class TestRegistrationEmailsIntegration:
                 "company_name": "Wholesale Company",
                 "tax_id": "1234567890",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
             format="json",
         )
@@ -100,6 +103,7 @@ class TestRegistrationEmailsIntegration:
                 "last_name": "Customer",
                 "role": "retail",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
             format="json",
         )
@@ -133,6 +137,7 @@ class TestRegistrationEmailsIntegration:
                 "tax_id": "7701234567",
                 "country": "Россия",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
             format="json",
         )
@@ -161,6 +166,7 @@ class TestRegistrationEmailsIntegration:
                 "last_name": "Customer",
                 "role": "retail",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
             format="json",
         )
@@ -186,6 +192,7 @@ class TestRegistrationEmailsIntegration:
                 "company_name": "Tennis Federation",
                 "tax_id": "9876543210",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
             format="json",
         )

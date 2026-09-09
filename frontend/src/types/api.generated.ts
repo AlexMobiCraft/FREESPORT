@@ -2677,6 +2677,7 @@ export interface components {
        */
       email: string;
       pdp_consent: boolean;
+      consent_text_version: string;
     };
     TokenRefresh: {
       readonly access: string;
@@ -2858,6 +2859,9 @@ export interface components {
       pdp_consent: boolean;
       /** @default false */
       marketing_consent: boolean;
+      pdp_consent_text_version: string;
+      /** @default  */
+      marketing_consent_text_version: string;
     };
     /**
      * @description * `wholesale_level1` - Оптовик уровень 1
