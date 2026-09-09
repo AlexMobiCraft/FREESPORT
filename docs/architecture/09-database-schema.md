@@ -379,6 +379,7 @@ $$ LANGUAGE plpgsql;
 -- Append-only audit log: каждый клик «Согласен» = отдельная строка
 -- Django app: apps/common, модель UserConsent
 -- Миграции: common.0015_userconsent + common.0016_userconsent_review_fixes
+--           + common.0019_userconsent_source_and_text_version (Story 41.9)
 CREATE TABLE common_userconsent (
     id SERIAL PRIMARY KEY,
 
@@ -395,9 +396,23 @@ CREATE TABLE common_userconsent (
     user_agent VARCHAR(512) DEFAULT '',
     policy_version VARCHAR(20) DEFAULT '1.0' NOT NULL,
 
+    -- Аудитируемость формулировки (Story 41.9). DEFAULT нет намеренно:
+    -- забытое значение должно ронять вставку, а не писать тихий мусор.
+    -- Источник: newsletter | registration | 1c_link | unknown
+    -- (`unknown` — только строки, существовавшие до миграции 0019).
+    source VARCHAR(20) NOT NULL,
+    -- Версия текста чекбокса из реестра apps/common/consent_texts.json,
+    -- вид «метка-первые 8 hex sha256 текста», например 2026-08-30-77dbceaf
+    consent_text_version VARCHAR(64) NOT NULL,
+
     -- Гарантия: у каждой записи есть субъект (user или session_key)
     CONSTRAINT userconsent_user_or_session_required
-        CHECK (user_id IS NOT NULL OR session_key <> '')
+        CHECK (user_id IS NOT NULL OR session_key <> ''),
+    -- Гарантии Story 41.9: код, забывший источник или версию, падает на вставке
+    CONSTRAINT userconsent_source_required
+        CHECK (source <> ''),
+    CONSTRAINT userconsent_text_version_required
+        CHECK (consent_text_version <> '')
 );
 
 -- Индексы для compliance-запросов и admin list_filter
@@ -405,6 +420,8 @@ CREATE INDEX idx_userconsent_user ON common_userconsent(user_id) WHERE user_id I
 CREATE INDEX idx_userconsent_consent_type ON common_userconsent(consent_type);
 CREATE INDEX idx_userconsent_given_at ON common_userconsent(given_at DESC);
 CREATE INDEX idx_userconsent_session ON common_userconsent(session_key) WHERE session_key <> '';
+CREATE INDEX idx_userconsent_source ON common_userconsent(source);
+CREATE INDEX idx_userconsent_text_version ON common_userconsent(consent_text_version);
 
 -- Sync logs for 1C integration monitoring
 CREATE TABLE integrations_synclog (
@@ -525,5 +542,6 @@ $$ LANGUAGE plpgsql STABLE;
 - Append-only: admin заблокирован через `has_add_permission=False` / `has_change_permission=False`
 - Constraint `userconsent_user_or_session_required` гарантирует наличие субъекта в каждой строке
 - Страница политики ПДн доступна по `GET /api/pages/privacy-policy/` (существующий `PageViewSet`, slug `privacy-policy`)
+- Story 41.9 (2026-09-09): добавлены `source` и `consent_text_version` (миграция `0019_userconsent_source_and_text_version`, одноразовое значение `unknown` с `preserve_default=False`). Два CHECK-ограничения (`userconsent_source_required`, `userconsent_text_version_required`) и два индекса не дают записать согласие без источника и без версии показанного текста
 
 ---

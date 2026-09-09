@@ -5,6 +5,15 @@ import { StrictMode, useCallback, useState } from 'react';
 import { B2BRegisterForm } from '../B2BRegisterForm';
 import authService from '@/services/authService';
 
+// Формулировки унифицированы с RegisterForm (стори 41.9): обе формы регистрации
+// шлют POST /auth/register/, поэтому текст согласия обязан совпадать дословно.
+const PDP_CONSENT_NAME =
+  'Я даю согласие на обработку моих персональных данных в соответствии с ' +
+  '«Политикой обработки персональных данных»';
+const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
+const MARKETING_CONSENT_NAME =
+  'Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT';
+
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -27,13 +36,13 @@ describe('B2BRegisterForm consent checkboxes', () => {
 
   const acceptPdpConsent = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })
     );
   };
 
   const getMarketingConsent = () =>
     screen.getByRole('checkbox', {
-      name: /получать рекламные и информационные рассылки от optisport/i,
+      name: MARKETING_CONSENT_NAME,
     });
 
   const fillValidB2BForm = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -55,11 +64,11 @@ describe('B2BRegisterForm consent checkboxes', () => {
     render(<B2BRegisterForm />);
 
     const pdpCheckbox = screen.getByRole('checkbox', {
-      name: /обработку моих персональных данных/i,
+      name: PDP_CONSENT_NAME,
     });
     expect(pdpCheckbox).toBeInTheDocument();
     const link = screen.getByRole('link', {
-      name: /обработку моих персональных данных/i,
+      name: PDP_CONSENT_POLICY_LINK_NAME,
     });
     expect(link).toHaveAttribute('href', '/privacy-policy');
     expect(link).toHaveAttribute('target', '_blank');
@@ -331,10 +340,10 @@ describe('B2BRegisterForm consent checkboxes', () => {
         .length
     ).toBeGreaterThan(0);
     expect(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })
     ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
     expect(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })
     ).toHaveAttribute('aria-invalid', 'true');
   });
 

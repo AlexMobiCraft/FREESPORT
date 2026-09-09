@@ -604,6 +604,23 @@ class UserConsent(models.Model):
         ("marketing_email", "Согласие на получение рекламных рассылок"),
     ]
 
+    # Источник согласия (стори 41.9). Точек записи в коде две, а источников три:
+    # `registration` и `1c_link` — это одна и та же пара `create` в
+    # `UserRegistrationView.post`, различаемая уже вычисленным `pending_1c_link`.
+    # `unknown` зарезервирован за строками, существовавшими до миграции 0019;
+    # код, пишущий новое согласие, обязан передать фактический источник.
+    SOURCE_NEWSLETTER = "newsletter"
+    SOURCE_REGISTRATION = "registration"
+    SOURCE_1C_LINK = "1c_link"
+    SOURCE_UNKNOWN = "unknown"
+
+    SOURCE_CHOICES = [
+        (SOURCE_NEWSLETTER, "Подписка на рассылку"),
+        (SOURCE_REGISTRATION, "Регистрация"),
+        (SOURCE_1C_LINK, "Регистрация с привязкой к записи 1С"),
+        (SOURCE_UNKNOWN, "Неизвестен (запись до внедрения аудита)"),
+    ]
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -641,6 +658,28 @@ class UserConsent(models.Model):
         default="1.0",
         verbose_name="Версия политики",
     )
+    # `default` намеренно НЕ задан ни у одного из двух полей ниже: со значением
+    # по умолчанию забытый источник или забытая версия тихо записались бы как
+    # «неизвестно» — ровно та беда, которую чинит стори 41.9. Одноразовое
+    # значение `unknown` живёт только в миграции 0019 (`preserve_default=False`),
+    # чтобы сохранить строки, созданные до внедрения аудита.
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        db_index=True,
+        verbose_name="Источник согласия",
+        help_text="Где человек дал согласие: подписка, регистрация, привязка к 1С",
+    )
+    consent_text_version = models.CharField(
+        max_length=64,
+        db_index=True,
+        verbose_name="Версия текста согласия",
+        help_text=(
+            "Версия формулировки чекбокса из реестра apps/common/consent_texts.json "
+            "(вид «метка-хеш»). Отдельна от policy_version: та описывает политику ПДн, "
+            "эта — текст, который человек фактически видел."
+        ),
+    )
 
     class Meta:
         verbose_name = "Согласие пользователя"
@@ -650,6 +689,16 @@ class UserConsent(models.Model):
             models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=models.Q(user__isnull=False) | ~models.Q(session_key=""),
                 name="userconsent_user_or_session_required",
+            ),
+            # Код, забывший передать источник или версию, обязан упасть на вставке,
+            # а не записать тихий мусор в доказательство согласия (ФЗ-152 ст. 9).
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=~models.Q(source=""),
+                name="userconsent_source_required",
+            ),
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=~models.Q(consent_text_version=""),
+                name="userconsent_text_version_required",
             ),
         ]
 

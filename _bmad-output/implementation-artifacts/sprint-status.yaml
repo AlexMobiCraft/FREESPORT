@@ -931,7 +931,15 @@ development_status:
   #             Blast radius: GitNexus даёт HIGH по UserConsent (18 прямых), но
   #             это рёбра импорта уровня файла; по имени символ упоминают
   #             4 не-тестовых файла. backlog -> ready-for-dev.
-  41-9-consent-journal-text-version-and-source: ready-for-dev
+  #             Реализована (dev-story, 2026-09-09): все 11 задач закрыты.
+  #             Backend 3236 -> 3264 passed (+28), frontend 2797 -> 2803 (+6),
+  #             падений нет; flake8/black/tsc/eslint/prettier чисты, дельта
+  #             mypy к базису 0 (129). Обратная совместимость миграции 0019
+  #             проверена руками на dev-БД: строка, созданная до неё,
+  #             сохранилась целиком и помечена unknown. policy_version
+  #             осознанно не трогали -> deferred-work.md.
+  #             ready-for-dev -> review.
+  41-9-consent-journal-text-version-and-source: review
   epic-41-retrospective: optional
 
 # ========================================

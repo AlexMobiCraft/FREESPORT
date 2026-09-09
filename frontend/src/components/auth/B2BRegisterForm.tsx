@@ -471,7 +471,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               {...register('pdp_consent')}
               disabled={isSubmitting}
               aria-invalid={hasPdpConsentError || undefined}
-              aria-labelledby="b2b-register-pdp-consent-label-prefix b2b-register-pdp-consent-policy-link b2b-register-pdp-consent-label-suffix"
+              aria-labelledby="b2b-register-pdp-consent-label-prefix b2b-register-pdp-consent-policy-link"
               aria-describedby={
                 errors.pdp_consent?.message ? 'b2b-register-pdp-consent-error' : undefined
               }
@@ -482,12 +482,15 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
               }
             />
             <span className="text-body-s text-text-primary select-none">
+              {/* Формулировка унифицирована с RegisterForm (стори 41.9): обе формы
+                  шлют POST /auth/register/, различить их на бэкенде нечем, поэтому
+                  версия текста согласия обязана указывать на одну формулировку. */}
               <label
                 id="b2b-register-pdp-consent-label-prefix"
                 htmlFor="b2b-register-pdp-consent"
                 className="cursor-pointer"
               >
-                Я даю согласие на
+                Я даю согласие на обработку моих персональных данных в соответствии с
               </label>{' '}
               <Link
                 id="b2b-register-pdp-consent-policy-link"
@@ -496,15 +499,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
                 rel="noopener noreferrer"
                 className="text-primary underline hover:text-primary-hover"
               >
-                обработку моих персональных данных
-              </Link>{' '}
-              <label
-                id="b2b-register-pdp-consent-label-suffix"
-                htmlFor="b2b-register-pdp-consent"
-                className="cursor-pointer"
-              >
-                в соответствии с Политикой
-              </label>
+                «Политикой обработки персональных данных»
+              </Link>
             </span>
           </div>
           {errors.pdp_consent?.message && (
@@ -529,7 +525,7 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
             htmlFor="b2b-register-marketing-consent"
             className="text-body-s text-text-primary cursor-pointer select-none"
           >
-            Я согласен(на) получать рекламные и информационные рассылки от OPTISPORT
+            Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT
           </label>
         </div>
       </div>

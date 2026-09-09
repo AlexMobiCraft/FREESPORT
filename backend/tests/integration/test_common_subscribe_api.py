@@ -15,6 +15,7 @@ from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.exceptions import ErrorDetail
 
+from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import Newsletter, UserConsent
 from apps.common.serializers import ALREADY_SUBSCRIBED_CODE, SubscribeSerializer
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
@@ -241,6 +242,11 @@ class TestSubscribeEndpoint:
         assert {str(consent.ip_address) for consent in consents} == {"203.0.113.5"}
         assert all(consent.user_agent == "SubscribeTest/1.0" for consent in consents)
         assert all(consent.policy_version == "1.0" for consent in consents)
+        # Story 41.9: источник у обеих записей — подписка; версия одна на обе,
+        # потому что чекбокс формы подписки один и покрывает оба согласия.
+        assert all(consent.source == UserConsent.SOURCE_NEWSLETTER for consent in consents)
+        expected_version = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract")
+        assert {consent.consent_text_version for consent in consents} == {expected_version}
 
     def test_subscribe_newsletter_ip_uses_normalized_audit_ip(self, api_client):
         """Newsletter.latest IP использует REMOTE_ADDR fallback при невалидном proxy-IP."""
@@ -301,6 +307,10 @@ class TestSubscribeEndpoint:
         }
         assert all(consent.user == user for consent in consents)
         assert all(consent.session_key == "" for consent in consents)
+        # Story 41.9: источник и версия не зависят от того, авторизован ли подписчик.
+        assert all(consent.source == UserConsent.SOURCE_NEWSLETTER for consent in consents)
+        expected_version = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email")
+        assert {consent.consent_text_version for consent in consents} == {expected_version}
 
     def test_subscribe_consent_records_capture_ip_and_user_agent(self, api_client):
         """Audit-записи используют валидный first hop X-Forwarded-For и User-Agent."""
@@ -369,6 +379,8 @@ class TestSubscribeEndpoint:
         UserConsent.objects.create(
             session_key="old-reactivation-session",
             consent_type="pdp_contract",
+            source=UserConsent.SOURCE_NEWSLETTER,
+            consent_text_version=current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract"),
         )
         initial_consent_count = UserConsent.objects.count()
 

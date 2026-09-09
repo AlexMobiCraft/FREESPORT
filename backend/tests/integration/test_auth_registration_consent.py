@@ -9,6 +9,7 @@ from django.db import DatabaseError
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
 from apps.users.models import User
 from apps.users.serializers import UserRegistrationSerializer
@@ -496,6 +497,51 @@ def test_consent_records_have_default_policy_version():
 
 
 # ---------------------------------------------------------------------------
+# Story 41.9 — источник и версия текста согласия
+# ---------------------------------------------------------------------------
+
+
+def test_registration_consents_record_source_and_text_versions():
+    """AC3 + AC4: обычная регистрация помечается источником `registration`,
+    а версии ПДн и маркетинга различаются — это два разных чекбокса формы."""
+    client = APIClient()
+
+    response = post_register(client, trainer_payload(marketing_consent=True))
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    consents = {consent.consent_type: consent for consent in UserConsent.objects.filter(user=user)}
+
+    assert set(consents) == {"pdp_contract", "marketing_email"}
+    assert {consent.source for consent in consents.values()} == {UserConsent.SOURCE_REGISTRATION}
+
+    expected_pdp = current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "pdp_contract")
+    expected_marketing = current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "marketing_email")
+
+    assert consents["pdp_contract"].consent_text_version == expected_pdp
+    assert consents["marketing_email"].consent_text_version == expected_marketing
+    # Чекбоксов в форме регистрации два, значит и версии обязаны различаться.
+    assert expected_pdp != expected_marketing
+
+
+def test_registration_never_records_unknown_source():
+    """AC3: `unknown` зарезервирован за строками до миграции 0019.
+
+    Ни одна запись, созданная кодом, не имеет права им помечаться.
+    """
+    client = APIClient()
+
+    response = post_register(client, trainer_payload(marketing_consent=True))
+
+    assert response.status_code == status.HTTP_201_CREATED
+    user = User.objects.get(email=response.data["user"]["email"])
+    sources = set(UserConsent.objects.filter(user=user).values_list("source", flat=True))
+
+    assert UserConsent.SOURCE_UNKNOWN not in sources
+    assert all(source for source in sources)
+
+
+# ---------------------------------------------------------------------------
 # Story 41.2 — ветка привязки к записи 1С
 #
 # Ветка недостижима через HTTP с коммита ffee94d5 (2026-07-26): `validate()`
@@ -588,8 +634,14 @@ def test_pending_1c_link_registration_creates_pdp_consent(flag_name):
     assert consent.consent_type == "pdp_contract"
     assert consent.ip_address == "1.2.3.4"
     assert consent.user_agent == "ConsentTestAgent/1.0"
-    # AC1: policy_version в этой стори осмысленно не заполняется (объём 41.9).
+    # policy_version остаётся константой: версионирование текста политики ПДн
+    # в объём 41.9 не входило (см. deferred-work.md).
     assert consent.policy_version == "1.0"
+    # Story 41.9: ветка привязки к 1С помечается своим источником, а текст —
+    # тот же, что и при обычной регистрации: человек видел ту же форму.
+    assert consent.source == UserConsent.SOURCE_1C_LINK
+    assert consent.consent_text_version == current_consent_text_version(UserConsent.SOURCE_1C_LINK, "pdp_contract")
+    assert consent.consent_text_version == current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "pdp_contract")
 
 
 def test_pending_1c_link_registration_without_marketing_creates_single_consent():
@@ -638,6 +690,13 @@ def test_historic_1c_link_path_keeps_marketing_consent():
     assert {consent.consent_type for consent in consents} == {"pdp_contract", "marketing_email"}
     assert {consent.ip_address for consent in consents} == {"1.2.3.4"}
     assert {consent.user_agent for consent in consents} == {"ConsentTestAgent/1.0"}
+    # Story 41.9: обе записи ветки привязки помечены источником `1c_link`,
+    # а версии — те же, что у обычной регистрации (форма одна и та же).
+    assert {consent.source for consent in consents} == {UserConsent.SOURCE_1C_LINK}
+    assert {consent.consent_type: consent.consent_text_version for consent in consents} == {
+        "pdp_contract": current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "pdp_contract"),
+        "marketing_email": current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "marketing_email"),
+    }
 
 
 def test_historic_1c_link_path_without_marketing_creates_single_consent():

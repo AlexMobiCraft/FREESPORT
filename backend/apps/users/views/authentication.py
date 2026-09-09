@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
 from apps.common.utils.consent_audit import (
     get_client_ip,
@@ -141,14 +142,25 @@ class UserRegistrationView(APIView):
                     user, "_pending_link_confirmation", False
                 )
 
+                # Источник берётся из уже вычисленного `pending_1c_link` (стори 41.9):
+                # точка записи одна, а источников два. Человек заполнял ту же форму
+                # регистрации — отличается исход, а не текст, поэтому обе ветки
+                # ссылаются на одни и те же поверхности согласия в реестре.
+                consent_source = UserConsent.SOURCE_1C_LINK if pending_1c_link else UserConsent.SOURCE_REGISTRATION
+
                 ip_address = get_consent_ip_address(request)
                 user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
 
+                # Версия формулировки запрашивается у реестра, а не хардкодится:
+                # при правке текста чекбокса версия меняется сама (метка + хеш текста),
+                # и бамп невозможно забыть.
                 UserConsent.objects.create(
                     user=user,
                     consent_type="pdp_contract",
                     ip_address=ip_address,
                     user_agent=user_agent,
+                    source=consent_source,
+                    consent_text_version=current_consent_text_version(consent_source, "pdp_contract"),
                 )
 
                 if getattr(user, "_marketing_consent", False):
@@ -157,6 +169,8 @@ class UserRegistrationView(APIView):
                         consent_type="marketing_email",
                         ip_address=ip_address,
                         user_agent=user_agent,
+                        source=consent_source,
+                        consent_text_version=current_consent_text_version(consent_source, "marketing_email"),
                     )
 
             if pending_1c_link:

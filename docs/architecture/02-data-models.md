@@ -60,6 +60,8 @@ erDiagram
         inet ip_address "nullable"
         string user_agent "max 512"
         string policy_version "default 1.0"
+        string source "newsletter / registration / 1c_link / unknown"
+        string consent_text_version "версия текста чекбокса, метка-хеш"
     }
 ```
 

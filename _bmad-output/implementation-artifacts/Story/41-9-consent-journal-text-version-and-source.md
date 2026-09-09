@@ -4,7 +4,7 @@ baseline_commit: 792ce210
 
 # Story 41.9: Аудитируемость журнала согласий — версия текста и источник
 
-Status: ready-for-dev
+Status: review
 
 > 🟠 **Blast radius: GitNexus отдаёт HIGH по `UserConsent`** (CLI, `--repo C:\Users\1\DEV\FREESPORT`, 2026-09-09): 18 прямых зависимостей, 0 затронутых процессов, 0 модулей. **Цифра завышена** — это рёбра импорта уровня файла (`from apps.common.models import ...`); по имени символ упоминают ровно четыре не-тестовых файла, проверено `grep -rn "UserConsent" backend/apps --include=*.py`: `common/models.py`, `common/admin.py`, `common/views.py`, `users/views/authentication.py`. Остальные импортируют из того же модуля другие модели. Смежные символы: `UserRegistrationView` — LOW (0 upstream), `Function:backend/apps/common/views.py:subscribe` — LOW (0 upstream), `UserConsentAdmin` — LOW (1 upstream). Предупреждение о HIGH сделано согласно правилу проекта; фактический радиус — четыре файла плюс тесты.
 > 🔴 **Точек записи в коде ДВЕ, а источников ТРИ.** `1c_link` — не третье место в коде, а ветка того же `UserRegistrationView.post`: флаг `pending_1c_link` уже вычислен на `authentication.py:140-142`, **до** обеих вставок (строки 147 и 155). Источник выбирается по этому флагу. Не заводить третью точку записи и не переносить запись в сериализатор — стори 41.2 специально оставила её в одном месте ради этой правки.
@@ -117,74 +117,74 @@ so that **согласие оставалось доказуемым по ФЗ-1
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1. Реестр текстов согласий** (AC2)
-  - [ ] Создать `backend/apps/common/consent_texts.json` со структурой `surfaces` + `bindings` (точный вид — Dev Notes → «Реестр: структура и API»).
-  - [ ] Занести три поверхности с дословными текстами baseline: `newsletter_checkbox`, `registration_pdp_checkbox`, `registration_marketing_checkbox` (тексты — Dev Notes → «Тексты согласий на baseline»).
-  - [ ] Создать `backend/apps/common/consent_texts.py`: загрузка JSON через `Path(__file__).with_name(...)`, кэш на уровне модуля, функции `current_consent_text_version(source, consent_type) -> str` и `resolve_consent_text(version) -> str | None`.
-  - [ ] Версия считается как `f"{label}-{sha256(text.encode('utf-8')).hexdigest()[:8]}"`. Текст в JSON хранится уже нормализованным (одна строка, одиночные пробелы).
-  - [ ] Загрузчик падает с внятным исключением на непривязанной паре и на дубле версий — молчаливый `unknown` из него выйти не может.
+- [x] **Task 1. Реестр текстов согласий** (AC2)
+  - [x] Создать `backend/apps/common/consent_texts.json` со структурой `surfaces` + `bindings` (точный вид — Dev Notes → «Реестр: структура и API»).
+  - [x] Занести три поверхности с дословными текстами baseline: `newsletter_checkbox`, `registration_pdp_checkbox`, `registration_marketing_checkbox` (тексты — Dev Notes → «Тексты согласий на baseline»).
+  - [x] Создать `backend/apps/common/consent_texts.py`: загрузка JSON через `Path(__file__).with_name(...)`, кэш на уровне модуля, функции `current_consent_text_version(source, consent_type) -> str` и `resolve_consent_text(version) -> str | None`.
+  - [x] Версия считается как `f"{label}-{sha256(text.encode('utf-8')).hexdigest()[:8]}"`. Текст в JSON хранится уже нормализованным (одна строка, одиночные пробелы).
+  - [x] Загрузчик падает с внятным исключением на непривязанной паре и на дубле версий — молчаливый `unknown` из него выйти не может.
 
-- [ ] **Task 2. Модель и миграция** (AC1)
-  - [ ] `backend/apps/common/models.py`: добавить `SOURCE_CHOICES` и константы (`SOURCE_NEWSLETTER`, `SOURCE_REGISTRATION`, `SOURCE_1C_LINK`, `SOURCE_UNKNOWN`), поля `source` (`max_length=20`, `choices`, `db_index=True`, **без** `default`) и `consent_text_version` (`max_length=64`, `db_index=True`, **без** `default`).
-  - [ ] Добавить в `Meta.constraints` два `CheckConstraint` — `userconsent_source_required`, `userconsent_text_version_required` — с обязательным `# type: ignore[call-arg]  # django-stubs 4.2 не знает condition=`.
-  - [ ] Написать **вручную** `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py`: два `AddField` с `default="unknown"` и `preserve_default=False`, затем два `AddConstraint`. Зависимость — `("common", "0018_seed_manager_routing_rules")`.
-  - [ ] Проверить: `makemigrations --check --dry-run` ничего не предлагает; `migrate` в test-контейнере проходит.
-  - [ ] `__str__` не менять.
+- [x] **Task 2. Модель и миграция** (AC1)
+  - [x] `backend/apps/common/models.py`: добавить `SOURCE_CHOICES` и константы (`SOURCE_NEWSLETTER`, `SOURCE_REGISTRATION`, `SOURCE_1C_LINK`, `SOURCE_UNKNOWN`), поля `source` (`max_length=20`, `choices`, `db_index=True`, **без** `default`) и `consent_text_version` (`max_length=64`, `db_index=True`, **без** `default`).
+  - [x] Добавить в `Meta.constraints` два `CheckConstraint` — `userconsent_source_required`, `userconsent_text_version_required` — с обязательным `# type: ignore[call-arg]  # django-stubs 4.2 не знает condition=`.
+  - [x] Написать **вручную** `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py`: два `AddField` с `default="unknown"` и `preserve_default=False`, затем два `AddConstraint`. Зависимость — `("common", "0018_seed_manager_routing_rules")`.
+  - [x] Проверить: `makemigrations --check --dry-run` ничего не предлагает; `migrate` в test-контейнере проходит.
+  - [x] `__str__` не менять.
 
-- [ ] **Task 3. Точки записи** (AC3, AC4)
-  - [ ] `backend/apps/common/views.py:420-428`: добавить в `consent_kwargs` `source="newsletter"`, а версию проставить **отдельно каждой записи** — обе записи подписки берут версию `newsletter_checkbox`, но получают её через `current_consent_text_version("newsletter", <тип>)`, а не литералом.
-  - [ ] `backend/apps/users/views/authentication.py:140-160`: вычислить `consent_source = "1c_link" if pending_1c_link else "registration"` **после** существующего вычисления `pending_1c_link` и до первой вставки; передать `source` и `consent_text_version` в обе `create`.
-  - [ ] Русские комментарии у обеих правок: почему источник берётся из `pending_1c_link` и почему версия не хардкодится (NFR-41-03).
+- [x] **Task 3. Точки записи** (AC3, AC4)
+  - [x] `backend/apps/common/views.py:420-428`: добавить в `consent_kwargs` `source="newsletter"`, а версию проставить **отдельно каждой записи** — обе записи подписки берут версию `newsletter_checkbox`, но получают её через `current_consent_text_version("newsletter", <тип>)`, а не литералом.
+  - [x] `backend/apps/users/views/authentication.py:140-160`: вычислить `consent_source = "1c_link" if pending_1c_link else "registration"` **после** существующего вычисления `pending_1c_link` и до первой вставки; передать `source` и `consent_text_version` в обе `create`.
+  - [x] Русские комментарии у обеих правок: почему источник берётся из `pending_1c_link` и почему версия не хардкодится (NFR-41-03).
 
-- [ ] **Task 4. Админка** (AC6)
-  - [ ] `backend/apps/common/admin.py:302-326`: добавить `source` и `consent_text_version` в `list_display`, `list_filter` и `readonly_fields`. Запреты add/change/delete не трогать.
+- [x] **Task 4. Админка** (AC6)
+  - [x] `backend/apps/common/admin.py:302-326`: добавить `source` и `consent_text_version` в `list_display`, `list_filter` и `readonly_fields`. Запреты add/change/delete не трогать.
 
-- [ ] **Task 5. Унификация формулировок регистрации** (AC4) — *решение Alex 2026-09-09: выполнять, см. «Решения владельца по объёму»*
-  - [ ] `frontend/src/components/auth/B2BRegisterForm.tsx:486-508`: привести текст чекбокса ПДн к формулировке `RegisterForm` — префикс «Я даю согласие на обработку моих персональных данных в соответствии с», ссылка ««Политикой обработки персональных данных»», суффикса нет. Убрать `b2b-register-pdp-consent-label-suffix` из `aria-labelledby` (строка 474) вместе с самим суффиксным `<label>` — оставшийся в списке несуществующий id молча урежет доступное имя.
-  - [ ] `frontend/src/components/auth/B2BRegisterForm.tsx:532`: «Я согласен(на)» → «Я согласен (на)» (дословное совпадение с `RegisterForm.tsx:479`).
-  - [ ] Обновить затронутые ожидания в `frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx` (в т.ч. строка 36).
-  - [ ] Внешний вид, порядок элементов и поведение форм не меняются — правка только текстовая.
+- [x] **Task 5. Унификация формулировок регистрации** (AC4) — *решение Alex 2026-09-09: выполнять, см. «Решения владельца по объёму»*
+  - [x] `frontend/src/components/auth/B2BRegisterForm.tsx:486-508`: привести текст чекбокса ПДн к формулировке `RegisterForm` — префикс «Я даю согласие на обработку моих персональных данных в соответствии с», ссылка ««Политикой обработки персональных данных»», суффикса нет. Убрать `b2b-register-pdp-consent-label-suffix` из `aria-labelledby` (строка 474) вместе с самим суффиксным `<label>` — оставшийся в списке несуществующий id молча урежет доступное имя.
+  - [x] `frontend/src/components/auth/B2BRegisterForm.tsx:532`: «Я согласен(на)» → «Я согласен (на)» (дословное совпадение с `RegisterForm.tsx:479`).
+  - [x] Обновить затронутые ожидания в `frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx` (в т.ч. строка 36).
+  - [x] Внешний вид, порядок элементов и поведение форм не меняются — правка только текстовая.
 
-- [ ] **Task 6. Страж текста на фронте** (AC4)
-  - [ ] Создать `frontend/src/__tests__/consent-texts-registry.test.tsx` — рядом с существующими кросс-граничными стражами (`app-routes-allowlist.test.ts`, `next-config-headers.test.ts`).
-  - [ ] Читать `backend/apps/common/consent_texts.json` через `path.dirname(fileURLToPath(import.meta.url))` + `'..','..','..','backend','apps','common','consent_texts.json'` (образец разрешения пути — `SiteJsonLd.test.tsx:25-32`).
-  - [ ] Для каждой из четырёх форм отрисовать её и найти чекбокс по доступному имени из реестра: `screen.getByRole('checkbox', { name: <текст ревизии> })`. Так уже сделано в существующих тестах форм — там имя задано литералом; здесь оно приходит из реестра.
-  - [ ] Моки, без которых формы не отрисуются (взять из существующих тест-файлов форм): `next/navigation` → `useRouter` с `push`; `@/services/authService` → `default` с `register`, `registerB2B`, `refreshToken`; `@/services/subscribeService` → `subscribeService.subscribe`; `react-hot-toast` → `toast.success` / `toast.error`.
-  - [ ] Файл реестра отсутствует или не парсится → тест **падает** с сообщением, называющим ожидаемый путь. Никаких `skipIf`.
+- [x] **Task 6. Страж текста на фронте** (AC4)
+  - [x] Создать `frontend/src/__tests__/consent-texts-registry.test.tsx` — рядом с существующими кросс-граничными стражами (`app-routes-allowlist.test.ts`, `next-config-headers.test.ts`).
+  - [x] Читать `backend/apps/common/consent_texts.json` через `path.dirname(fileURLToPath(import.meta.url))` + `'..','..','..','backend','apps','common','consent_texts.json'` (образец разрешения пути — `SiteJsonLd.test.tsx:25-32`).
+  - [x] Для каждой из четырёх форм отрисовать её и найти чекбокс по доступному имени из реестра: `screen.getByRole('checkbox', { name: <текст ревизии> })`. Так уже сделано в существующих тестах форм — там имя задано литералом; здесь оно приходит из реестра.
+  - [x] Моки, без которых формы не отрисуются (взять из существующих тест-файлов форм): `next/navigation` → `useRouter` с `push`; `@/services/authService` → `default` с `register`, `registerB2B`, `refreshToken`; `@/services/subscribeService` → `subscribeService.subscribe`; `react-hot-toast` → `toast.success` / `toast.error`.
+  - [x] Файл реестра отсутствует или не парсится → тест **падает** с сообщением, называющим ожидаемый путь. Никаких `skipIf`.
 
-- [ ] **Task 7. Приведение существующих тестов** (AC7)
-  - [ ] `backend/apps/common/tests/test_user_consent.py`: семь прямых `UserConsent.objects.create` (строки 31, 50, 64, 76, 88, 112, 123) получают `source` и `consent_text_version`; `test_user_consent_admin_is_read_only` (161-170) приводится к новому `readonly_fields`.
-  - [ ] `backend/tests/integration/test_common_subscribe_api.py:369` — тот же приём для прямого `create`.
-  - [ ] `backend/tests/integration/test_auth_registration_consent.py:591-592` — комментарий «policy_version в этой стори осмысленно не заполняется (объём 41.9)» заменить на проверку новых полей; сам `policy_version == "1.0"` остаётся верным и сохраняется.
-  - [ ] Прогнать оба integration-файла целиком и убедиться, что упавших нет.
+- [x] **Task 7. Приведение существующих тестов** (AC7)
+  - [x] `backend/apps/common/tests/test_user_consent.py`: семь прямых `UserConsent.objects.create` (строки 31, 50, 64, 76, 88, 112, 123) получают `source` и `consent_text_version`; `test_user_consent_admin_is_read_only` (161-170) приводится к новому `readonly_fields`.
+  - [x] `backend/tests/integration/test_common_subscribe_api.py:369` — тот же приём для прямого `create`.
+  - [x] `backend/tests/integration/test_auth_registration_consent.py:591-592` — комментарий «policy_version в этой стори осмысленно не заполняется (объём 41.9)» заменить на проверку новых полей; сам `policy_version == "1.0"` остаётся верным и сохраняется.
+  - [x] Прогнать оба integration-файла целиком и убедиться, что упавших нет.
 
-- [ ] **Task 8. Новые тесты** (AC3, AC4, AC5, AC7)
-  - [ ] `backend/apps/common/tests/test_consent_texts.py` (unit): все живые пары привязаны; версия меняется при смене текста (две ревизии в фикстуре, не правкой файла); `resolve_consent_text` возвращает текст исторической ревизии; версии уникальны.
-  - [ ] `backend/apps/common/tests/test_user_consent.py`: `CheckConstraint` роняет вставку с пустым `source` и с пустой версией; `db_index` у обоих полей; `unknown` присутствует в `SOURCE_CHOICES`.
-  - [ ] `backend/tests/integration/test_common_subscribe_api.py`: `source == "newsletter"` и версия у обеих записей — анонимный и авторизованный случаи.
-  - [ ] `backend/tests/integration/test_auth_registration_consent.py`: `source == "registration"` и две версии (ПДн + маркетинг); ветка привязки через существующий помощник `_pending_create` (строки 540-562) даёт `source == "1c_link"` при тех же версиях.
-  - [ ] Маркеры руками не ставить — их проставляет `pytest_collection_modifyitems` по каталогу.
+- [x] **Task 8. Новые тесты** (AC3, AC4, AC5, AC7)
+  - [x] `backend/apps/common/tests/test_consent_texts.py` (unit): все живые пары привязаны; версия меняется при смене текста (две ревизии в фикстуре, не правкой файла); `resolve_consent_text` возвращает текст исторической ревизии; версии уникальны.
+  - [x] `backend/apps/common/tests/test_user_consent.py`: `CheckConstraint` роняет вставку с пустым `source` и с пустой версией; `db_index` у обоих полей; `unknown` присутствует в `SOURCE_CHOICES`.
+  - [x] `backend/tests/integration/test_common_subscribe_api.py`: `source == "newsletter"` и версия у обеих записей — анонимный и авторизованный случаи.
+  - [x] `backend/tests/integration/test_auth_registration_consent.py`: `source == "registration"` и две версии (ПДн + маркетинг); ветка привязки через существующий помощник `_pending_create` (строки 540-562) даёт `source == "1c_link"` при тех же версиях.
+  - [x] Маркеры руками не ставить — их проставляет `pytest_collection_modifyitems` по каталогу.
 
-- [ ] **Task 9. Проверка обратной совместимости миграции** (AC1)
-  - [ ] На локальной dev-БД: до применения `0019` вставить строку в `common_userconsent` (`docker compose --env-file .env -f docker/docker-compose.yml exec db psql -U <user> -d <db>`), применить миграцию, прочитать строку — `source` и `consent_text_version` равны `unknown`, остальные поля не изменились.
-  - [ ] Записать фактический вывод в Debug Log References. Автотест обратной совместимости **не** писать: `django-test-migrations` в проекте нет, а откат/накат общей тестовой БД внутри прогона ломает соседние тесты.
-  - [ ] Перед выкатом проверить на проде `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 было 0 строк; если появились, значение `unknown` у них ожидаемо и допустимо.
+- [x] **Task 9. Проверка обратной совместимости миграции** (AC1)
+  - [x] На локальной dev-БД: до применения `0019` вставить строку в `common_userconsent` (`docker compose --env-file .env -f docker/docker-compose.yml exec db psql -U <user> -d <db>`), применить миграцию, прочитать строку — `source` и `consent_text_version` равны `unknown`, остальные поля не изменились.
+  - [x] Записать фактический вывод в Debug Log References. Автотест обратной совместимости **не** писать: `django-test-migrations` в проекте нет, а откат/накат общей тестовой БД внутри прогона ломает соседние тесты.
+  - [x] Перед выкатом проверить на проде `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 было 0 строк; если появились, значение `unknown` у них ожидаемо и допустимо.
 
-- [ ] **Task 10. Документация** (AC1, AC6)
-  - [ ] `docs/architecture/02-data-models.md:54-63` — добавить два поля в ER-блок `UserConsent`.
-  - [ ] `docs/architecture/09-database-schema.md:378-408,522-527` — DDL, два новых CHECK-ограничения, два индекса, упоминание миграции `0019`.
-  - [ ] `docs/architecture/04-component-structure.md:154-164` — реестр `consent_texts.json` / `consent_texts.py` и миграция `0019` в перечне.
-  - [ ] `docs/architecture/11-security-performance.md:948-966` — описать источник и версию текста в разделе 152-ФЗ.
-  - [ ] `docs/architecture/18-b2b-verification-workflow.md:206` — утверждение «`UserConsent` для этого пути не создаётся» **неверно с 2026-09-05** (стори 41.2). Исправить: запись создаётся, источник `1c_link`.
-  - [ ] `docs/architecture/index.md` — строка в «История изменений».
-  - [ ] `_bmad-output/implementation-artifacts/deferred-work.md` — запись: `policy_version` остаётся константой, версия текста политики (модель `Page`, slug `privacy-policy`) не фиксируется; чекбокс ссылается на политику, но какая её редакция действовала в момент согласия — из журнала не восстановить.
+- [x] **Task 10. Документация** (AC1, AC6)
+  - [x] `docs/architecture/02-data-models.md:54-63` — добавить два поля в ER-блок `UserConsent`.
+  - [x] `docs/architecture/09-database-schema.md:378-408,522-527` — DDL, два новых CHECK-ограничения, два индекса, упоминание миграции `0019`.
+  - [x] `docs/architecture/04-component-structure.md:154-164` — реестр `consent_texts.json` / `consent_texts.py` и миграция `0019` в перечне.
+  - [x] `docs/architecture/11-security-performance.md:948-966` — описать источник и версию текста в разделе 152-ФЗ.
+  - [x] `docs/architecture/18-b2b-verification-workflow.md:206` — утверждение «`UserConsent` для этого пути не создаётся» **неверно с 2026-09-05** (стори 41.2). Исправить: запись создаётся, источник `1c_link`.
+  - [x] `docs/architecture/index.md` — строка в «История изменений».
+  - [x] `_bmad-output/implementation-artifacts/deferred-work.md` — запись: `policy_version` остаётся константой, версия текста политики (модель `Page`, slug `privacy-policy`) не фиксируется; чекбокс ссылается на политику, но какая её редакция действовала в момент согласия — из журнала не восстановить.
 
-- [ ] **Task 11. Прогон и сдача** (AC7)
-  - [ ] Backend: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest apps/common tests/integration/test_common_subscribe_api.py tests/integration/test_auth_registration_consent.py`, затем полный `make test`-эквивалент. Два прогона в одном compose-проекте параллельно **не** запускать.
-  - [ ] Backend-статика: `flake8`, `black --check`, `mypy`.
-  - [ ] Frontend: `npm run test`, `npx tsc --noEmit`, `npm run lint`, `npm run format:check`. Числа «до» и «после» записать.
-  - [ ] `npx gitnexus detect-changes --scope all` перед коммитом; расхождения объяснить.
-  - [ ] `File List` собрать командой `git diff --name-status`, а не по памяти.
+- [x] **Task 11. Прогон и сдача** (AC7)
+  - [x] Backend: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest apps/common tests/integration/test_common_subscribe_api.py tests/integration/test_auth_registration_consent.py`, затем полный `make test`-эквивалент. Два прогона в одном compose-проекте параллельно **не** запускать.
+  - [x] Backend-статика: `flake8`, `black --check`, `mypy`.
+  - [x] Frontend: `npm run test`, `npx tsc --noEmit`, `npm run lint`, `npm run format:check`. Числа «до» и «после» записать.
+  - [x] `npx gitnexus detect-changes --scope all` перед коммитом; расхождения объяснить.
+  - [x] `File List` собрать командой `git diff --name-status`, а не по памяти.
 
 ## Dev Notes
 
@@ -347,21 +347,191 @@ so that **согласие оставалось доказуемым по ФЗ-1
 | Дата | Версия | Изменение | Автор |
 |---|---|---|---|
 | 2026-09-09 | 1.0 | Стори создана. Сверх скелета эпика: (а) источников три, а точек записи в коде две — `1c_link` различается уже вычисленным `pending_1c_link`; (б) две живые формы регистрации с разными текстами бьют в один эндпоинт и неразличимы на бэкенде, отсюда Task 5; (в) страж текста обязан жить в Vitest — backend-контейнер не видит `frontend/`; (г) версия считается как метка+хеш текста, чтобы бамп нельзя было забыть; (д) шесть файлов документации архитектуры требуют правки, включая неверное с 2026-09-05 утверждение в `18-b2b-verification-workflow.md:206`. Решение владельца по единственному открытому вопросу получено до старта: Task 5 выполняется. | Alex / create-story |
+| 2026-09-09 | 1.1 | Стори реализована. Все 11 задач и 58 подзадач закрыты. Backend 3236 → 3264 passed (+28), падений нет; frontend 2797 → 2803 passed (+6), падений нет. Обратная совместимость миграции проверена руками на dev-БД: строка, созданная до `0019`, сохранилась целиком и помечена `unknown` (вывод — в Debug Log). Единственное отклонение от текста стори — исправлен дефект в собственном тесте `test_empty_revisions_raise` (пустой `bindings` заслонял проверяемую ошибку); поведение кода не менялось. Дополнительно к плану: два новых замечания mypy закрыты точечными `# type: ignore[attr-defined]`, чтобы удержать дельту к базису на нуле (AC7). | Claude Opus 5 / dev-story |
 
 ## Dev Agent Record
 
 ### Agent Model Used
 
-_Заполняется dev-агентом._
+Claude Opus 5 (`claude-opus-5`), скилл `bmad-dev-story`.
 
 ### Debug Log References
 
-_Заполняется dev-агентом. Обязательно: вывод Task 9 (значения полей у строки, созданной до миграции) и числа прогонов «до/после» по бэкенду и фронтенду._
+**Task 9 — обратная совместимость миграции (локальная dev-БД, 2026-09-09).**
+
+До применения `0019` в `common_userconsent` вставлена строка (`id=15`) при схеме на `0018`:
+
+```
+ id |      session_key       | consent_type |  ip_address  |          user_agent           | policy_version
+----+------------------------+--------------+--------------+-------------------------------+----------------
+ 15 | pre-0019-probe-session | pdp_contract | 198.51.100.7 | Story41-9 pre-migration probe | 1.0
+```
+
+`python manage.py migrate common 0019` → `Applying common.0019_userconsent_source_and_text_version... OK`.
+Та же строка после миграции:
+
+```
+ id |      session_key       | consent_type |  ip_address  |          user_agent           | policy_version | source  | consent_text_version
+----+------------------------+--------------+--------------+-------------------------------+----------------+---------+----------------------
+ 15 | pre-0019-probe-session | pdp_contract | 198.51.100.7 | Story41-9 pre-migration probe | 1.0            | unknown | unknown
+```
+
+Ни одно из существовавших полей не изменилось; оба новых заполнены одноразовым `unknown`. В схеме появились
+`source varchar(20) NOT NULL`, `consent_text_version varchar(64) NOT NULL`, ограничения
+`userconsent_source_required` (`CHECK (NOT source::text = ''::text)`) и `userconsent_text_version_required`,
+а также индексы `common_userconsent_source_e7b538c5` и `common_userconsent_consent_text_version_a95c89c4`
+(плюс парные `_like`). Синтетическая строка после снятия вывода удалена — в dev-БД снова 0 записей.
+`python manage.py makemigrations --check --dry-run` → `No changes detected`.
+
+**Числа прогонов «до» и «после».**
+
+| Прогон | До (786881e7, дерево без правок) | После | Дельта |
+|---|---|---|---|
+| Backend, `pytest -m "not performance and not slow"` | 3236 passed, 75 skipped, 35 deselected, 0 failed (27:54) | 3264 passed, 75 skipped, 35 deselected, 0 failed (37:25) | **+28 passed**, падений нет |
+| Frontend, `npm run test` | 166 файлов, 2797 passed, 16 skipped | 167 файлов, 2803 passed, 16 skipped | **+1 файл, +6 тестов**, падений нет |
+
+Прирост backend раскладывается ровно: 19 тестов `apps/common/tests/test_consent_texts.py` + 7 новых в
+`test_user_consent.py` + 2 новых в `test_auth_registration_consent.py` = 28. Прирост фронтенда — 6 тестов
+стража `consent-texts-registry.test.tsx`. Число skipped и deselected не изменилось: новые тесты не выпадают
+из фильтров CI, ничего не «спряталось».
+
+Базис снимался на дереве **без правок** (реализация временно убрана в `git stash`): первый фоновый прогон
+стартовал одновременно с правкой моделей, а тестовый контейнер монтирует `../backend:/app` — число было бы
+загрязнено, поэтому оно отброшено и снято заново.
+
+**Целевой набор** (`apps/common` + два интеграционных файла) — 129 passed, прогнан дважды: после приведения
+тестов и повторно на финальном коде, потому что переформатирование `black` в `apps/common/views.py` и
+точечные `# type: ignore` в `test_user_consent.py` легли уже во время полного прогона.
+
+**Статический анализ бэкенда.**
+
+- `flake8 . --max-line-length=120 --extend-ignore=E203,W503` — чисто (единственный блокирующий линтер).
+- `black --check .` — из файлов стори переформатирования потребовал только `apps/common/views.py` (перенос
+  одного вызова в строку), он применён. Оставшиеся 8 файлов в выводе `black --check` по репозиторию
+  (`apps/pages/models.py`, `apps/pages/tests.py`, `apps/products/category_utils.py`,
+  `apps/products/management/commands/fix_category_tree_public_roots.py`,
+  `apps/products/tests/test_visible_categories.py`,
+  `apps/products/tests/unit/test_fix_category_tree_public_roots.py`,
+  `apps/products/tests/unit/test_variant_import_migrated.py`, `tests/helpers.py`) — предсуществующие,
+  стори их не касается и не трогает.
+- `mypy --config-file=mypy.ini .` — **129 ошибок, дельта к базису 0**. Первый замер дал 131: два новых
+  замечания `"CharField[Any, Any]" has no attribute "db_index"` в новом тесте
+  `test_audit_fields_are_indexed_and_bounded`. Закрыты точечными `# type: ignore[attr-defined]` (при
+  `warn_unused_ignores = True` лишний игнор сам был бы ошибкой). Все оставшиеся ошибки в затронутых файлах —
+  на строках, которых стори не писала: `apps/common/admin.py:337,340` (`has_change_permission` /
+  `has_delete_permission`) и `apps/common/tests/test_user_consent.py:166-168` (существовавший тест индексов).
+  Новые файлы (`consent_texts.py`, `test_consent_texts.py`, миграция `0019`) не дают ни одной ошибки.
+
+**Статический анализ фронтенда:** `npx tsc --noEmit` — 0 ошибок; `npm run lint` (`eslint . --max-warnings=0`)
+— чисто; `npm run format:check` — `All matched files use Prettier code style!`.
+
+**Проверка, что страж Task 6 действительно охраняет** (красная фаза, обе правки откатаны):
+
+1. Текст маркетингового чекбокса в реестре изменён на `Я согласен(на)` (без пробела) → упали 2 теста:
+   `RegisterForm показывает тексты registration_pdp_checkbox и registration_marketing_checkbox` и
+   `B2BRegisterForm показывает те же тексты, что и RegisterForm` с сообщением
+   `Unable to find an accessible element with the role "checkbox" and name "Я согласен(на) получать..."`.
+2. Файл реестра временно убран → тест-файл упал целиком с сообщением
+   `Реестр текстов согласий не читается: <путь>. Он обязан существовать — по нему вычисляется
+   UserConsent.consent_text_version` (в итоге `Tests: no tests`, а не «пропущено»).
+
+**Blast radius (GitNexus CLI, индекс `up-to-date` на `786881e7`).** `UserConsent` — HIGH, 18 прямых
+зависимостей, 0 процессов, 0 модулей; как и предупреждала стори, это рёбра импорта уровня файла, а не
+вызовы. `UserConsentAdmin` — LOW (1), `UserRegistrationView` — LOW (0).
+
+**`npx gitnexus detect-changes --scope all` перед сдачей:** 18 файлов, 23 символа, 4 затронутых потока,
+risk **medium**. Расхождения объяснимы и ожидаемы:
+
+- В списке изменённых символов присутствуют `News`, `title`, `slug`, `content`, `image`, `author` из
+  `apps/common/models.py` и `has_add_permission` из `apps/common/admin.py`, которых стори не касалась.
+  Это следствие сопоставления символов по смещению строк: вставка полей в `UserConsent` сдвинула вниз всё,
+  что объявлено после неё в тех же файлах.
+- Затронутые потоки — `B2BRegisterPage → Cn` (правка `B2BRegisterForm`, Task 5) и три потока `Subscribe → …`
+  (правка `subscribe`, Task 3). Поток регистрации в списке не появился, что согласуется с нулевым upstream
+  у `UserRegistrationView`.
+- 18 файлов против 21 в `File List`: GitNexus считает только разбираемые им файлы кода и не учитывает
+  markdown-документацию.
 
 ### Completion Notes List
 
-_Заполняется dev-агентом._
+**Что сделано.** `UserConsent` получил два поля — `source` (`newsletter` / `registration` / `1c_link` /
+`unknown`) и `consent_text_version`, — и с ними журнал согласий впервые отвечает на главный вопрос ФЗ-152
+ст. 9: не только «когда и с какого IP», но и **на что именно** человек соглашался.
+
+**Ключевые решения по ходу реализации.**
+
+1. **Версия не хранится в коде и не проставляется руками.** Она вычисляется как
+   `<метка>-<первые 8 hex sha256 текста>` из реестра `backend/apps/common/consent_texts.json`. Правка текста
+   меняет версию сама — пропустить бамп механически невозможно. Фактические значения на baseline:
+   `2026-08-30-77dbceaf` (подписка), `2026-09-09-de992f50` (ПДн регистрации), `2026-09-09-e26471e4`
+   (маркетинг регистрации).
+2. **У полей нет `default` в модели.** Одноразовое `unknown` живёт только в миграции
+   (`preserve_default=False`). Два `CheckConstraint` роняют вставку без источника или без версии: код,
+   забывший их передать, падает сразу, а не пишет тихий мусор в доказательство согласия.
+3. **Источник берётся из уже вычисленного `pending_1c_link`.** Точка записи осталась одна (решение стори
+   41.2), третьей вставки не заведено, запись не перенесена в сериализатор.
+4. **Версия у подписки запрашивается отдельно на каждый тип согласия**, хотя чекбокс там один и версии
+   совпадают. Общее значение в `consent_kwargs` вернуло бы дефект молча при будущем расщеплении чекбоксов.
+5. **Формулировки двух форм регистрации унифицированы (Task 5, решение владельца до старта).** B2B-текст ПДн
+   приведён к формулировке `RegisterForm`: политика теперь названа по имени и на неё ведёт ссылка. Вместе с
+   текстом убран суффиксный `<label>` и его id из `aria-labelledby` — оставшийся в списке несуществующий id
+   молча урезал бы доступное имя. В маркетинговом чекбоксе `Я согласен(на)` → `Я согласен (на)`.
+   Ожидания в `B2BRegisterForm.test.tsx` переведены с регулярок на дословные константы: регулярка
+   `/обработку моих персональных данных/i` осталась бы зелёной и при неверном тексте.
+6. **Страж соответствия живёт в Vitest, а не в pytest.** Бэкенд-контейнер не видит `frontend/` (смонтирован
+   только `../backend`, плюс `docker/` и `.github/`), поэтому сверить отрисованную форму с реестром может
+   только фронтенд. Страж падает, а не пропускается: обе ветки падения проверены явно (см. Debug Log).
+
+**Отклонение от текста стори — одно, в тесте, а не в коде.** Подготовленный по Task 8 тест
+`test_empty_revisions_raise` изначально передавал пустой `bindings={}`, и загрузчик отбраковывал реестр
+раньше — на пустом разделе привязок, а не на пустом списке ревизий. Тест исправлен (привязка сделана
+непустой), поведение загрузчика не менялось. Обнаружено первым же прогоном целевого набора.
+
+**Что осталось за границей стори (сознательно).** `policy_version` остаётся константой `"1.0"`: текст
+политики ПДн живёт в БД (`Page`, slug `privacy-policy`) и ревизий не имеет, поэтому какая её редакция
+действовала в момент согласия — из журнала по-прежнему не восстановить. Запись занесена в
+`deferred-work.md`. Cookie-согласие в журнал не заводится. API-контракт не менялся: `UserConsent` не
+отдаётся ни одним сериализатором, `openapi.yaml` и типы фронта не регенерировались.
+
+**Приёмка на проде** (вне объёма разработки, по уроку стори 41.5): миграция на прод накатывается вручную,
+после выката нужны `showmigrations common` и `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 там
+было 0 строк, значение `unknown` у появившихся ожидаемо и допустимо. После рестарта backend на проде
+обязателен дополнительный `restart nginx`.
 
 ### File List
 
-_Заполняется dev-агентом по `git diff --name-status`, а не по памяти._
+Собрано командами `git diff --name-status` и `git status --porcelain`, не по памяти.
+
+**Новые файлы (A):**
+
+- `backend/apps/common/consent_texts.json`
+- `backend/apps/common/consent_texts.py`
+- `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py`
+- `backend/apps/common/tests/test_consent_texts.py`
+- `frontend/src/__tests__/consent-texts-registry.test.tsx`
+
+**Изменённые файлы (M):**
+
+- `backend/apps/common/models.py`
+- `backend/apps/common/views.py`
+- `backend/apps/common/admin.py`
+- `backend/apps/users/views/authentication.py`
+- `backend/apps/common/tests/test_user_consent.py`
+- `backend/tests/integration/test_common_subscribe_api.py`
+- `backend/tests/integration/test_auth_registration_consent.py`
+- `frontend/src/components/auth/B2BRegisterForm.tsx`
+- `frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx`
+- `docs/architecture/02-data-models.md`
+- `docs/architecture/04-component-structure.md`
+- `docs/architecture/09-database-schema.md`
+- `docs/architecture/11-security-performance.md`
+- `docs/architecture/18-b2b-verification-workflow.md`
+- `docs/architecture/index.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+**Побочные правки, не относящиеся к стори** (по уроку стори 41.0–41.7 — не выкидываются, а называются):
+
+- `AGENTS.md`, `CLAUDE.md` — автосчётчик GitNexus (`9657 symbols, 15912 relationships` → `9647, 15902`).
+  Изменения присутствовали в рабочем дереве **до** начала стори и внесены переиндексацией, а не ею.

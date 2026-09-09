@@ -17,6 +17,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import BlogPost, News, UserConsent
 from apps.common.serializers import (
     BlogPostDetailSerializer,
@@ -423,9 +424,26 @@ def subscribe(request: Request) -> Response:
                     "session_key": "" if request.user.is_authenticated else (request.session.session_key or ""),
                     "ip_address": get_consent_ip_address(request),
                     "user_agent": sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT")),
+                    # Источник одинаков для обеих записей: подписка на рассылку —
+                    # единственная точка записи с источником `newsletter` (стори 41.9).
+                    "source": UserConsent.SOURCE_NEWSLETTER,
                 }
-                UserConsent.objects.create(consent_type="pdp_contract", **consent_kwargs)
-                UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
+                # Версия текста запрашивается у реестра ОТДЕЛЬНО для каждого типа,
+                # а не хардкодится и не кладётся одним значением в общий
+                # `consent_kwargs`. Сегодня чекбокс формы подписки один и покрывает
+                # оба согласия (редакция 2 стори 41.3), поэтому версии совпадут;
+                # при будущем расщеплении чекбоксов общее значение молча записало бы
+                # человеку формулировку, которой он не видел.
+                UserConsent.objects.create(
+                    consent_type="pdp_contract",
+                    consent_text_version=current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract"),
+                    **consent_kwargs,
+                )
+                UserConsent.objects.create(
+                    consent_type="marketing_email",
+                    consent_text_version=current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email"),
+                    **consent_kwargs,
+                )
         except DRFValidationError as exc:
             if _has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
                 response_serializer = SubscribeResponseSerializer(
