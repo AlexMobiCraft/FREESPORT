@@ -200,7 +200,12 @@ class TestTrainerFilter:
     def test_non_numeric_value_does_not_crash_changelist(self, request_factory: RequestFactory) -> None:
         """?trainer=abc должен дать штатную ошибку админки, а не 500."""
         admin = BonusTransactionAdmin(BonusTransaction, AdminSite())
-        filter_instance = TrainerFilter(request_factory.get("/"), {"trainer": ["abc"]}, BonusTransaction, admin)  # type: ignore[dict-item]
+        filter_instance = TrainerFilter(
+            request_factory.get("/"),
+            {"trainer": ["abc"]},  # type: ignore[dict-item]
+            BonusTransaction,
+            admin,
+        )
 
         with pytest.raises(IncorrectLookupParameters):
             filter_instance.queryset(request_factory.get("/"), BonusTransaction.objects.all())
@@ -224,7 +229,8 @@ class TestManualForm:
         create_user(role="retail")
         form = ManualBonusTransactionForm()
 
-        assert list(form.fields["user"].queryset.values_list("id", flat=True)) == [trainer.pk]  # type: ignore[attr-defined]
+        queryset = form.fields["user"].queryset  # type: ignore[attr-defined]
+        assert list(queryset.values_list("id", flat=True)) == [trainer.pk]
 
     def test_negative_amount_is_rejected(self) -> None:
         trainer = create_user()
@@ -315,7 +321,8 @@ class TestManualForm:
 
         form = ManualBonusTransactionForm(instance=operation)
 
-        assert former_trainer.pk in list(form.fields["user"].queryset.values_list("id", flat=True))  # type: ignore[attr-defined]
+        queryset = form.fields["user"].queryset  # type: ignore[attr-defined]
+        assert former_trainer.pk in list(queryset.values_list("id", flat=True))
 
     def test_valid_writeoff_passes(self) -> None:
         trainer = create_user()

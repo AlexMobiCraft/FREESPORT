@@ -161,7 +161,9 @@ class OrderCreateService:
                 stock_quantity=F("stock_quantity") - qty
             )
             if updated == 0:
-                out_of_stock_variant: ProductVariant | None = variant_manager.filter(pk=variant_pk).only("id", "sku").first()
+                out_of_stock_variant: ProductVariant | None = (
+                    variant_manager.filter(pk=variant_pk).only("id", "sku").first()
+                )
                 sku = getattr(out_of_stock_variant, "sku", variant_pk) if out_of_stock_variant else variant_pk
                 raise serializers.ValidationError(
                     f"Недостаточно товара '{sku}' на складе. "

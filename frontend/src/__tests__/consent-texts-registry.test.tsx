@@ -100,8 +100,15 @@ function currentText(surface: string): string {
 }
 
 /**
+ * Длина хеша в версии — `VERSION_DIGEST_HEX_LENGTH` из
+ * `backend/apps/common/consent_texts.py`: 32 hex, то есть 128 бит (шестой круг
+ * ревью стори 41.9; при прежних 8 hex коллизия подбиралась перебором).
+ */
+const VERSION_DIGEST_HEX_LENGTH = 32;
+
+/**
  * Версия ревизии — та же формула, что и в `backend/apps/common/consent_texts.py`:
- * метка плюс первые 8 hex sha256 текста. Считается здесь заново, а не берётся
+ * метка плюс первые 32 hex sha256 текста. Считается здесь заново, а не берётся
  * из реестра готовой строкой: иначе страж сверял бы литерал с литералом и
  * остался бы зелёным при разъехавшемся тексте (урок ревью стори 41.6).
  */
@@ -115,7 +122,7 @@ function currentVersion(surface: string): string {
     .createHash('sha256')
     .update(revision.text, 'utf-8')
     .digest('hex')
-    .slice(0, 8);
+    .slice(0, VERSION_DIGEST_HEX_LENGTH);
   return `${revision.label}-${digest}`;
 }
 

@@ -51,20 +51,60 @@ class TestSubscribeEndpoint:
         assert Newsletter.objects.filter(email="newuser@example.com").exists()
 
     def test_subscribe_duplicate_email(self, api_client):
-        """Повторная подписка возвращает нейтральный успех без enumeration leak."""
-        Newsletter.objects.create(email="existing@example.com", is_active=True)
+        """Повторная подписка: нейтральный успех без enumeration leak — и согласие записано.
+
+        Активный подписчик снова поставил галочку и отправил форму — это новый
+        явный факт согласия (ФЗ-152 ст. 9). После правки формулировки именно он
+        доказывает согласие на новую редакцию, поэтому терять его нельзя (шестой
+        круг ревью стори 41.9). Ответ тот же, что у новой подписки, а строка
+        `Newsletter` активного подписчика не меняется.
+        """
+        Newsletter.objects.create(
+            email="existing@example.com",
+            is_active=True,
+            ip_address="192.0.2.10",
+            user_agent="Original/1.0",
+        )
 
         url = reverse("common:subscribe")
         data = {"email": "existing@example.com", "pdp_consent": True, "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
-        response = api_client.post(url, data, format="json")
+        response = api_client.post(url, data, format="json", REMOTE_ADDR="198.51.100.20", HTTP_USER_AGENT="Repeat/2.0")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {
             "message": "Вы успешно подписались на рассылку",
             "email": "existing@example.com",
         }
-        assert UserConsent.objects.count() == 0
+        consents = list(UserConsent.objects.order_by("consent_type"))
+        assert [consent.consent_type for consent in consents] == ["marketing_email", "pdp_contract"]
+        assert all(consent.source == UserConsent.SOURCE_NEWSLETTER for consent in consents)
+        assert {consent.consent_text_version for consent in consents} == {NEWSLETTER_TEXT_VERSION}
+        assert {consent.user_agent for consent in consents} == {"Repeat/2.0"}
+        subscription = Newsletter.objects.get(email="existing@example.com")
+        assert subscription.ip_address == "192.0.2.10"
+        assert subscription.user_agent == "Original/1.0"
+
+    def test_active_subscriber_reconfirmation_lands_next_to_old_records(self, api_client):
+        """Подтверждение новой редакции ложится рядом, прежние записи сохраняют свою версию (AC5)."""
+        Newsletter.objects.create(email="reconfirm@example.com", is_active=True)
+        old_version = "2026-01-01-" + "0" * 32
+        for consent_type in ("pdp_contract", "marketing_email"):
+            UserConsent.objects.create(
+                session_key="old-session",
+                consent_type=consent_type,
+                source=UserConsent.SOURCE_NEWSLETTER,
+                consent_text_version=old_version,
+            )
+
+        url = reverse("common:subscribe")
+        data = {"email": "reconfirm@example.com", "pdp_consent": True, "consent_text_version": NEWSLETTER_TEXT_VERSION}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert UserConsent.objects.filter(consent_text_version=old_version).count() == 2
+        assert UserConsent.objects.filter(consent_text_version=NEWSLETTER_TEXT_VERSION).count() == 2
 
     def test_subscribe_duplicate_non_string_email_is_not_echoed(self, api_client):
         """Нейтральный already_subscribed-ответ не эхоит list/dict из raw request."""
@@ -690,8 +730,25 @@ class TestSubscribeEndpoint:
         assert "Failed to persist newsletter consent audit" not in caplog.text
         assert not Newsletter.objects.filter(email="session-failure@example.com").exists()
 
-    def test_subscribe_returns_200_when_newsletter_unique_race_hits_integrity_error(self, api_client):
-        """Race на unique email должен возвращать нейтральный 200, а не enumeration leak."""
+    def test_subscribe_unique_race_records_consent_of_second_request(self, api_client):
+        """Гонка на уникальном email: нейтральный 200 — и согласие второго запроса записано.
+
+        Параллельный запрос успел создать подписку между чтением строки и вставкой.
+        Прежде второй запрос отвечал «уже подписан» и не писал ни одной записи —
+        явное согласие терялось (шестой круг ревью стори 41.9). Гонка воспроизводится
+        по-настоящему: строка уже есть, первое чтение её «не видит» (как до коммита
+        конкурента), а вставка падает на реальном уникальном ограничении.
+        """
+        Newsletter.objects.create(email="unique-race@example.com", is_active=True)
+        original_select_for_update = Newsletter.objects.select_for_update
+        lookups = []
+
+        def racing_select_for_update(*args, **kwargs):
+            lookups.append(True)
+            queryset = original_select_for_update(*args, **kwargs)
+            # Первое чтение — снимок до коммита параллельного запроса.
+            return queryset.none() if len(lookups) == 1 else queryset
+
         url = reverse("common:subscribe")
         data = {
             "email": "unique-race@example.com",
@@ -699,7 +756,7 @@ class TestSubscribeEndpoint:
             "consent_text_version": NEWSLETTER_TEXT_VERSION,
         }
 
-        with patch.object(Newsletter.objects, "create", side_effect=IntegrityError("duplicate")):
+        with patch.object(Newsletter.objects, "select_for_update", side_effect=racing_select_for_update):
             response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_200_OK
@@ -707,6 +764,31 @@ class TestSubscribeEndpoint:
             "message": "Вы успешно подписались на рассылку",
             "email": "unique-race@example.com",
         }
+        assert len(lookups) == 2, "после IntegrityError строка подписки не перечитана"
+        assert Newsletter.objects.filter(email="unique-race@example.com").count() == 1
+        consents = list(UserConsent.objects.order_by("consent_type"))
+        assert [consent.consent_type for consent in consents] == ["marketing_email", "pdp_contract"]
+        assert {consent.consent_text_version for consent in consents} == {NEWSLETTER_TEXT_VERSION}
+
+    def test_subscribe_integrity_error_without_subscription_row_is_not_success(self, api_client):
+        """IntegrityError, после которого строки подписки нет, — не гонка: 503 и ничего не записано.
+
+        Нейтральный успех здесь был бы неправдой: подписка не создана, согласие
+        не сохранено. Enumeration это не открывает — строки с этим email нет.
+        """
+        url = reverse("common:subscribe")
+        data = {
+            "email": "integrity-no-row@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
+
+        with patch.object(Newsletter.objects, "create", side_effect=IntegrityError("not a unique race")):
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data["error"] == "consent_persistence_failed"
+        assert not Newsletter.objects.filter(email="integrity-no-row@example.com").exists()
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_anonymous_creates_session_key(self, api_client):

@@ -9,7 +9,6 @@ from typing import Any, cast
 
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
-from rest_framework.exceptions import ErrorDetail
 
 from .consent_texts import MAX_VERSION_LENGTH, is_current_consent_text_version
 from .models import BlogPost, Category, News, Newsletter, UserConsent
@@ -17,7 +16,9 @@ from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_a
 
 
 PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
-ALREADY_SUBSCRIBED = "Этот email уже подписан на рассылку"
+# С шестого круга ревью стори 41.9 `SubscribeSerializer` этот код не выдаёт:
+# активный подписчик получает свою подписку и запись согласия, как новый.
+# Константу читает нейтральная ветка ответа в `subscribe` (защита от enumeration).
 ALREADY_SUBSCRIBED_CODE = "already_subscribed"
 
 # Формулировку согласия правят; вкладка, открытая до правки, продолжает
@@ -102,20 +103,6 @@ def consent_text_outdated_payload(errors: object) -> dict[str, Any] | None:
     }
 
 
-def already_subscribed_error() -> serializers.ValidationError:
-    """Вернуть field-level ошибку подписки с устойчивым machine-code."""
-    return serializers.ValidationError(
-        {
-            "email": [
-                ErrorDetail(
-                    ALREADY_SUBSCRIBED,
-                    code=ALREADY_SUBSCRIBED_CODE,
-                )
-            ]
-        }
-    )
-
-
 class SubscribeSerializer(serializers.Serializer):
     """
     Сериализатор для подписки на email-рассылку.
@@ -195,9 +182,10 @@ class SubscribeSerializer(serializers.Serializer):
         """
         Создание подписки.
         Если email ранее отписался - реактивируем подписку.
+        Активную подписку возвращаем как есть: запись согласия делает view.
         """
         validated_data.pop("pdp_consent", False)
-        # Версия уже сверена в validate(); в `Newsletter` она не хранится —
+        # Версия уже сверена `validate_consent_text_version()`; в `Newsletter` она не хранится —
         # доказательство согласия живёт в `UserConsent` (пишет view).
         validated_data.pop("consent_text_version", None)
         email = validated_data["email"]
@@ -216,16 +204,33 @@ class SubscribeSerializer(serializers.Serializer):
                 subscription = Newsletter.objects.select_for_update().get(email=email)
             except Newsletter.DoesNotExist:
                 try:
-                    return Newsletter.objects.create(
-                        email=email,
-                        ip_address=ip_address,
-                        user_agent=user_agent,
-                    )
-                except IntegrityError as exc:
-                    raise already_subscribed_error() from exc
+                    # Savepoint: без него IntegrityError оставил бы транзакцию
+                    # прерванной, и перечитать строку ниже было бы нельзя.
+                    with transaction.atomic():
+                        return Newsletter.objects.create(
+                            email=email,
+                            ip_address=ip_address,
+                            user_agent=user_agent,
+                        )
+                except IntegrityError:
+                    # Параллельный запрос успел создать подписку между чтением и
+                    # вставкой — для этого запроса это тот же «уже подписан».
+                    # Строка перечитывается под блокировкой, согласие ниже пишется.
+                    raced = Newsletter.objects.select_for_update().filter(email=email).first()
+                    if raced is None:
+                        # Строки нет — нарушено не уникальное ограничение email.
+                        # Нейтральный успех был бы неправдой; view ответит 503.
+                        raise
+                    subscription = raced
 
             if subscription.is_active:
-                raise already_subscribed_error()
+                # Активный подписчик снова поставил галочку и отправил форму — это
+                # новый явный факт согласия (ФЗ-152 ст. 9): после правки формулировки
+                # только он доказывает согласие на новую редакцию. Подписка
+                # возвращается как есть, view пишет обе записи `UserConsent`, а ответ
+                # неотличим от новой подписки (enumeration). `Newsletter` не журнал
+                # согласий, поэтому строку не трогаем (стори 41.9, шестой круг ревью).
+                return subscription
 
             # Реактивируем подписку
             subscription.is_active = True

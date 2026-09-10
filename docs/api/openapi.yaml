@@ -100,7 +100,7 @@ paths:
                 value:
                   email: user@example.com
                   pdp_consent: true
-                  consent_text_version: 2026-08-30-77dbceaf
+                  consent_text_version: 2026-08-30-77dbceafc3c487ffc24975cf2ce76778
                 summary: successful_subscription_request
         required: true
       security:

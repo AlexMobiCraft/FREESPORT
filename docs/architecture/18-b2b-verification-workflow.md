@@ -137,9 +137,9 @@ if user.is_b2b_user:
      "company_name": "ООО Спорт Компани",
      "tax_id": "1234567890",
      "pdp_consent": true,
-     "pdp_consent_text_version": "2026-09-09-de992f50",
+     "pdp_consent_text_version": "2026-09-09-de992f50b0456a90e96a66984010dd74",
      "marketing_consent": true,
-     "marketing_consent_text_version": "2026-09-09-e26471e4"
+     "marketing_consent_text_version": "2026-09-09-e26471e47eba2ba742a4f4488dfdda05"
    }
    ```
 

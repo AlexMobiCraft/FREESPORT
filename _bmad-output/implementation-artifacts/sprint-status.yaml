@@ -1020,7 +1020,14 @@ development_status:
   #             красный из-за незакоммиченной правки параллельной сессии
   #             владельца — не 41.9, исправляет та сессия до коммита.
   #             in-progress -> review.
-  41-9-consent-journal-text-version-and-source: review
+  # 2026-09-10: Шестой code review 41.9 — два решения владельца зафиксированы:
+  #             production-деплой через maintenance window; digest версии
+  #             увеличить до 32 hex. Пять patch findings оставлены action items:
+  #             повторное согласие активного подписчика, длина digest, красные
+  #             flake8/black на фактическом HEAD, audit trail/review_head и
+  #             противоречие AC8 об API-контракте. Код не менялся.
+  #             review -> in-progress до закрытия action items.
+  41-9-consent-journal-text-version-and-source: in-progress
   epic-41-retrospective: optional
 
 # ========================================

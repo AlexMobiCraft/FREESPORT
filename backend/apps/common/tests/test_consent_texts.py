@@ -179,6 +179,39 @@ def test_version_changes_even_when_label_stays_the_same():
     assert second.startswith("2026-01-01-")
 
 
+def test_version_digest_is_32_hex():
+    """Хеш в версии — 32 hex, то есть 128 бит (решение Alex, шестой круг ревью стори 41.9).
+
+    Проверяется и формула, и каждая версия реального реестра: `known_versions`
+    обязан быть пересчитан вместе с формулой, а не остаться короткими строками.
+    """
+    label = "2026-01-01"
+    digest = compute_consent_text_version(label, "Текст").removeprefix(f"{label}-")
+
+    assert len(digest) == 32
+    assert set(digest) <= set("0123456789abcdef")
+
+    for version in load_registry().versions:
+        assert len(version.rsplit("-", 1)[1]) == 32, f"версия {version} посчитана не 32-символьным хешем"
+
+
+def test_short_digest_collision_found_by_review_is_resolved():
+    """Две разные формулировки при одной метке не получают одну версию.
+
+    Пару нашло ревью: у «Текст согласия 1115» и «Текст согласия 1675» первые
+    8 hex sha256 совпадают. При 8-символьном хеше обе дали бы одну версию, и
+    журнал перестал бы различать две редакции согласия.
+    """
+    label = "2026-01-01"
+    first = compute_consent_text_version(label, "Текст согласия 1115")
+    second = compute_consent_text_version(label, "Текст согласия 1675")
+    start = len(f"{label}-")
+
+    # Предпосылка теста: коллизия по первым 8 hex действительно есть.
+    assert first[start : start + 8] == second[start : start + 8] == "f4ef3d1f"
+    assert first != second
+
+
 def test_unknown_version_resolves_to_none():
     """Версия, которой нет в реестре, разрешается в None, а не в чужой текст."""
     assert resolve_consent_text("1999-01-01-deadbeef") is None

@@ -80,9 +80,9 @@ class BonusSummaryView(APIView):
         # django-stubs 4.2.6 типизирует User.pk/id как BigAutoField-дескриптор
         # вместо значения; явный cast восстанавливает int (см. mypy.ini).
         user_id = cast(int, request.user.pk)
-        accrued = BonusTransaction.objects.filter(
-            user_id=user_id, transaction_type=BonusTransaction.ACCRUAL
-        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        accrued = BonusTransaction.objects.filter(user_id=user_id, transaction_type=BonusTransaction.ACCRUAL).aggregate(
+            total=Sum("amount")
+        )["total"] or Decimal("0")
 
         spent = BonusTransaction.objects.filter(
             user_id=user_id, transaction_type__in=BonusTransaction.NEGATIVE_TYPES

@@ -1,10 +1,13 @@
 ---
 baseline_commit: 792ce210
+# HEAD, на котором выполнен последний code review (шестой круг, 2026-09-10). Доработка по его
+# замечаниям лежит поверх; просмотренный ревью diff воспроизводится как `792ce210..review_head`.
+review_head: 7d4b716f
 ---
 
 # Story 41.9: Аудитируемость журнала согласий — версия текста и источник
 
-Status: review
+Status: in-progress
 
 > 🟠 **Blast radius: GitNexus отдаёт HIGH по `UserConsent`** (CLI, `--repo C:\Users\1\DEV\FREESPORT`, 2026-09-09): 18 прямых зависимостей, 0 затронутых процессов, 0 модулей. **Цифра завышена** — это рёбра импорта уровня файла (`from apps.common.models import ...`); по имени символ упоминают ровно четыре не-тестовых файла, проверено `grep -rn "UserConsent" backend/apps --include=*.py`: `common/models.py`, `common/admin.py`, `common/views.py`, `users/views/authentication.py`. Остальные импортируют из того же модуля другие модели. Смежные символы: `UserRegistrationView` — LOW (0 upstream), `Function:backend/apps/common/views.py:subscribe` — LOW (0 upstream), `UserConsentAdmin` — LOW (1 upstream). Предупреждение о HIGH сделано согласно правилу проекта; фактический радиус — четыре файла плюс тесты.
 > 🔴 **Точек записи в коде ДВЕ, а источников ТРИ.** `1c_link` — не третье место в коде, а ветка того же `UserRegistrationView.post`: флаг `pending_1c_link` уже вычислен на `authentication.py:140-142`, **до** обеих вставок (строки 147 и 155). Источник выбирается по этому флагу. Не заводить третью точку записи и не переносить запись в сериализатор — стори 41.2 специально оставила её в одном месте ради этой правки.
@@ -15,7 +18,7 @@ Status: review
 > ⚠️ **Миграцию писать руками.** Поля добавляются без `default` в модели, поэтому `makemigrations` уйдёт в интерактивный вопрос про одноразовое значение — в агентной среде это зависание. Пишем файл миграции вручную, затем сверяем `makemigrations --check --dry-run`.
 > 🚫 **Cookie-согласие в журнал не заводится.** `useCookieConsent.ts` пишет только `localStorage` (строки 88-121), бэкенда у него нет и стори 41.1 его не добавляла. Четвёртого источника не появляется.
 > 🚫 **`policy_version` не трогаем.** Остаётся `"1.0"` по умолчанию. Осмысленное версионирование политики требует ревизий у модели `Page` (текст политики живёт в БД, не в коде) — отдельная работа, уходит в `deferred-work.md` (Task 10).
-> 🚫 **API-контракт не меняется.** `UserConsent` не отдаётся ни одним сериализатором (`grep "UserConsent" backend/apps/common/serializers.py` — ноль совпадений) и ни одним эндпоинтом. `docs/api/openapi.yaml` и `npm run generate:types` **не** трогаются, NFR-41-02 не задействован.
+> 🔁 **API-контракт МЕНЯЕТСЯ** *(уточнение от 2026-09-10, шестой круг ревью; ограничение снято доработкой по ревью 2026-09-09 — Change Log 1.2)*. Исходная формулировка — ~~«API-контракт не меняется… `docs/api/openapi.yaml` и `npm run generate:types` **не** трогаются, NFR-41-02 не задействован»~~ — недействительна: сервер сверяет версию показанной формулировки, поэтому `POST /api/v1/subscribe/` получил обязательный `consent_text_version`, `POST /api/v1/auth/register/` — обязательный `pdp_consent_text_version` и `marketing_consent_text_version` (обязателен при `marketing_consent: true`), а `400` обоих эндпоинтов — именованные схемы с машинным кодом `consent_text_outdated`. NFR-41-02 задействован: `docs/api/openapi.yaml` и `frontend/src/types/api.generated.ts` перегенерированы и сверяются `check_openapi_sync`. В силе остаётся только часть про сам журнал: `UserConsent` по-прежнему не отдаётся ни одним сериализатором и ни одним эндпоинтом — читать его можно только в админке.
 
 ## Story
 
@@ -44,7 +47,7 @@ so that **согласие оставалось доказуемым по ФЗ-1
 **Given** реестр `backend/apps/common/consent_texts.json`
 **When** его читает загрузчик `backend/apps/common/consent_texts.py`
 **Then** для каждой живой пары (источник, тип согласия) есть привязка к поверхности согласия, а у поверхности — список ревизий с меткой и дословным текстом чекбокса
-**And** версия вычисляется как `<метка>-<первые 8 hex sha256 текста>` — изменить текст, не изменив версию, механически невозможно
+**And** версия вычисляется как `<метка>-<первые 32 hex sha256 текста>` — изменить текст, не изменив версию, механически невозможно *(уточнение от 2026-09-10, шестой круг ревью, решение Alex: было ~~«первые 8 hex»~~ — 32 бита допускали подбираемую коллизию, при одной метке «Текст согласия 1115» и «Текст согласия 1675» давали один хеш `f4ef3d1f`; 128 бит делают конструируемую коллизию практически недостижимой)*
 **And** ранее записанная версия разрешается обратно в свой текст: история ревизий не переписывается, а дополняется
 
 ### AC3 (NFR-41-04) — источник заполнен фактическим значением
@@ -113,8 +116,8 @@ so that **согласие оставалось доказуемым по ФЗ-1
 - Не заводит cookie-согласие в журнал.
 - Не меняет `UserConsent.__str__` — четыре теста сверяют его вывод дословно.
 - Не удаляет мёртвый код привязки (`_link_matched_1c_customer`, `PortalLinkConfirmView`) — решение 2026-07-26 в силе.
-- Не меняет API-контракт: `openapi.yaml` и типы фронта не регенерируются.
-- Единственная правка фронтенда по существу — унификация двух формулировок регистрации (Task 5); внешний вид, разметка, ARIA и логика форм не меняются.
+- ~~Не меняет API-контракт: `openapi.yaml` и типы фронта не регенерируются.~~ *(Снято доработкой по ревью 2026-09-09 — Change Log 1.2; в тексте AC уточнено 2026-09-10, шестой круг ревью.)* API-контракт меняется ровно на поля версии формулировки в запросах подписки и регистрации и на форму отказа `400 consent_text_outdated`; `openapi.yaml` и типы фронта перегенерированы (NFR-41-02). Сам `UserConsent` через API по-прежнему не отдаётся.
+- ~~Единственная правка фронтенда по существу — унификация двух формулировок регистрации (Task 5); внешний вид, разметка, ARIA и логика форм не меняются.~~ *(Уточнено 2026-09-10, шестой круг ревью: с доработки 2026-09-09 логика форм тоже меняется.)* Правки фронтенда по существу — унификация двух формулировок регистрации (Task 5) и отправка версии показанной формулировки с обработкой отказа `consent_text_outdated` во всех четырёх формах. Внешний вид, разметка и ARIA не меняются.
 
 ## Tasks / Subtasks
 
@@ -122,7 +125,7 @@ so that **согласие оставалось доказуемым по ФЗ-1
   - [x] Создать `backend/apps/common/consent_texts.json` со структурой `surfaces` + `bindings` (точный вид — Dev Notes → «Реестр: структура и API»).
   - [x] Занести три поверхности с дословными текстами baseline: `newsletter_checkbox`, `registration_pdp_checkbox`, `registration_marketing_checkbox` (тексты — Dev Notes → «Тексты согласий на baseline»).
   - [x] Создать `backend/apps/common/consent_texts.py`: загрузка JSON через `Path(__file__).with_name(...)`, кэш на уровне модуля, функции `current_consent_text_version(source, consent_type) -> str` и `resolve_consent_text(version) -> str | None`.
-  - [x] Версия считается как `f"{label}-{sha256(text.encode('utf-8')).hexdigest()[:8]}"`. Текст в JSON хранится уже нормализованным (одна строка, одиночные пробелы).
+  - [x] Версия считается как `f"{label}-{sha256(text.encode('utf-8')).hexdigest()[:32]}"` *(с 2026-09-10, шестой круг ревью; до того ~~`[:8]`~~ — см. AC2)*. Текст в JSON хранится уже нормализованным (одна строка, одиночные пробелы).
   - [x] Загрузчик падает с внятным исключением на непривязанной паре и на дубле версий — молчаливый `unknown` из него выйти не может.
 
 - [x] **Task 2. Модель и миграция** (AC1)
@@ -399,6 +402,53 @@ so that **согласие оставалось доказуемым по ФЗ-1
     строку, ничего не отрисовав). Правка помечена датой и кругом ревью; суть отложенного пункта
     (`policy_version` и ревизии `Page`) не менялась.
 
+- [x] [Review][Decision][HIGH] Выбрать стратегию совместимого production-деплоя модели и API. Текущие версии frontend/backend/схемы не имеют безопасного overlap: новый frontend со старым backend теряет присланные версии (DRF их игнорирует, а `0019` позднее помечает записи `unknown`); новый backend до миграции обращается к отсутствующим колонкам, а старый backend после `0019` вставляет строки без обязательных значений. Нужен выбор между phased-expand/contract миграцией и явно закрытым окном записи на время остановки, миграции и одновременного переключения сервисов. [`backend/apps/common/migrations/0019_userconsent_source_and_text_version.py:23-55`, `frontend/src/components/home/SubscribeForm.tsx:121-127`, `frontend/src/components/auth/RegisterForm.tsx:132-140`, `scripts/deploy/deploy.sh:73-91`]
+  - **Решение: maintenance window** (Alex, 2026-09-10). Выбрано явно закрытое окно записи
+    вместо phased-expand/contract. Обоснование:
+    1. **0 строк на проде.** `SELECT count(*) FROM common_userconsent` на 2026-08-30 = 0
+       (проверено, см. Task 9). Миграции 0019+0020 применяются мгновенно — data-migration
+       нечего, `AddField` с `default="unknown"` + `AddConstraint` на пустой таблице выполняются
+       за миллисекунды. Phased подход с его промежуточными миграциями не даёт выигрыша.
+    2. **Код уже протестирован в big-bang варианте.** Миграции 0019+0020, сериализаторы,
+       views и тесты прошли пять кругов ревью. Переделка под phased (разделение миграций на
+       expand/contract, `null=True` на expand-фазе, опциональный `consent_text_version`
+       в сериализаторах, data-migration в contract-фазу) — это риск внести регрессию в
+       юридически значимый журнал согласий (ФЗ-152 ст. 9) ради нуля данных, которые
+       нужно мигрировать.
+    3. **Low-traffic endpoints.** Затронуты только `/api/v1/subscribe/` и `/api/v1/auth/register/`.
+       Окно 5-10 минут в ночное время не приведёт к потере запросов; nginx уже отдаёт
+       coming-soon страницу при 502/503/504 (`docker/nginx/conf.d/default.conf:302-304`),
+       поэтому пользователи видят заглушку, а не ошибку.
+    4. **Phased expand/contract оправдан** при ненулевых данных, high-traffic endpoints
+       и нуле downtime как жёстком требовании. Ни одно из условий здесь не выполняется.
+  - **Порядок деплоя (maintenance window):**
+    1. Выбрать окно с минимальной нагрузкой (ночь, низкий трафик).
+    2. На сервере: `git fetch origin main; git reset --hard origin/main` (по правилам
+       проекта — не `git pull`).
+    3. Собрать новые образы: `docker compose --env-file .env.prod -f docker/docker-compose.build.yml build --no-cache`.
+    4. Остановить **только** приложение, не трогая БД и nginx:
+       `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml stop backend frontend celery celery-beat`.
+       nginx продолжит работать и отдаёт coming-soon (502 от недоступного backend/frontend → 200 coming-soon).
+    5. Применить миграции через временный контейнер:
+       `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml run --rm --no-deps backend python manage.py migrate --no-input`.
+    6. Поднять новые сервисы:
+       `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d backend celery celery-beat frontend`.
+    7. Дождаться healthcheck backend и frontend, проверить:
+       `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps`.
+    8. Проверить миграции: `docker compose ... exec -T backend python manage.py showmigrations common`.
+    9. Smoke-тест: `curl -sk https://optisport.ru/api/v1/health/` → 200.
+  - **Критическое замечание по `scripts/deploy/deploy.sh:85`** (pre-existing, вне scope 41.9):
+    скрипт использует `docker compose down -v`, где флаг `-v` удаляет named volumes,
+    включая `postgres_data` — это уничтожит БД. Для деплоя 41.9 описанный выше порядок
+    **не использует `down -v`**: `stop` сохраняет volumes и состояние БД. Исправление
+    `deploy.sh` — отдельная задача; до её закрытия деплой 41.9 выполняется вручную по
+    шагам выше, а не через `deploy.sh`.
+- [ ] [Review][Patch][MEDIUM] Увеличить digest версии текста до 32 hex (128 бит). Решение Alex от 2026-09-10: практически исключить конструируемые коллизии и синхронно обновить AC2, backend-вычисление, JSON-версии, frontend-константы и тесты. Текущие первые 8 hex допускают воспроизводимую коллизию: при одной метке строки «Текст согласия 1115» и «Текст согласия 1675» обе дают `f4ef3d1f`. [`backend/apps/common/consent_texts.py:54-57,163-171`, `_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md:45-52`]
+- [ ] [Review][Patch][HIGH] Фиксировать повторное явное согласие уже активного подписчика: сейчас endpoint возвращает нейтральный успех, но не создаёт ни одной новой записи `UserConsent`, поэтому подтверждение новой редакции текста теряется. [`backend/apps/common/serializers.py:214-228`, `backend/apps/common/views.py:434-471`, `backend/tests/integration/test_common_subscribe_api.py:53-67`]
+- [ ] [Review][Patch][HIGH] Восстановить фактическое выполнение AC7 на текущем HEAD: `flake8` падает с шестью `E501`, а `black --check .` требует форматирования четырёх файлов, внесённых коммитом `92f2beef`. [`backend/apps/bonuses/tests/test_admin.py:203`, `backend/apps/integrations/tests/test_import_orchestration_view.py:175`, `backend/apps/orders/admin.py:175`, `backend/apps/orders/services/order_create.py:164`]
+- [ ] [Review][Patch][MEDIUM] Синхронизировать воспроизводимый audit trail: добавить `review_head`, актуальные GitNexus-счётчики и внешний коммит `92f2beef` со всеми 40 файлами; отдельно признать, что функциональные field-level validators Story 41.9 находятся именно в этом коммите, хотя Change Log называет его изменения чужими и не относящимися к Story. [`_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md:1-3,569,1230-1357`, `backend/apps/users/serializers.py:191-245`]
+- [ ] [Review][Patch][MEDIUM] Убрать противоречие в действующих ограничениях Story: шапка и AC8 всё ещё запрещают изменение API-контракта, хотя обязательные consent-version поля, `400 consent_text_outdated`, OpenAPI и generated types уже намеренно изменены и Change Log признаёт прежнее ограничение недействительным. [`_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md:18,116,564,1069`]
+
 ## Dev Notes
 
 ### Что есть сейчас (проверено чтением файлов на `792ce210`)
@@ -463,7 +513,7 @@ so that **согласие оставалось доказуемым по ФЗ-1
 2. **`1c_link` ссылается на те же поверхности, что и `registration`.** Человек заполнял ту же форму регистрации; отличается исход, а не текст. Отдельных текстов для привязки заводить нельзя — их не существует.
 3. **Метка ревизии — дата, когда формулировка стала действующей.** Для подписки это `2026-08-30` (правка стори 41.3). Для обеих регистрационных поверхностей — дата **этой** стори, потому что Task 5 меняет B2B-вариант; до унификации единой действующей формулировки не было. История ревизий пуста не потому, что её решили не вести, а потому, что журнал пуст: на 2026-08-30 в `common_userconsent` на проде 0 строк.
 
-Версия: `f"{label}-{sha256(text.encode('utf-8')).hexdigest()[:8]}"`, например `2026-08-30-3f9ac21b`. Метка читается человеком в админке, хеш делает пропуск бампа невозможным: правка текста меняет версию сама, без дисциплины разработчика. `max_length=64` взят с запасом.
+Версия: `f"{label}-{sha256(text.encode('utf-8')).hexdigest()[:32]}"`, например `2026-08-30-77dbceafc3c487ffc24975cf2ce76778` *(уточнение от 2026-09-10, шестой круг ревью: было ~~`[:8]`~~ — см. AC2)*. Метка читается человеком в админке, хеш делает пропуск бампа невозможным: правка текста меняет версию сама, без дисциплины разработчика. `max_length=64` взят с запасом.
 
 `resolve_consent_text(version)` ищет по всем ревизиям всех поверхностей — иначе версия, оставшаяся в старых строках после переименования привязки, перестала бы разрешаться.
 
@@ -995,6 +1045,75 @@ risk **medium** (снят до появления внешних правок). 
 - 18 файлов против 19 в `git status`: новый `consentTexts.test.ts` ещё не под версионным контролем, и
   `detect-changes` его не видит.
 
+**Шестой круг ревью (2026-09-10).**
+
+**Числа прогонов «до» и «после».** «До» снято на HEAD `7d4b716f` (= `review_head`) до первой правки кода.
+
+| Прогон | До шестой доработки | После | Дельта |
+|---|---|---|---|
+| Backend, `pytest -q` (без фильтра маркеров) | 3335 passed, **1 failed**, 75 skipped, 19 subtests (34:07) | BACKEND_AFTER | BACKEND_DELTA |
+| Frontend, `npm run test` | 169 файлов, 2823 passed, 16 skipped | 169 файлов, 2823 passed, 16 skipped, 0 failed | 0: новых фронтовых тестов нет, страж реестра переписан на месте |
+
+Единственное падение «до» — тайминговый порог 500 мс в
+`apps/products/tests/test_api_products.py::TestProductAPIPerformance::test_retrieve_product_with_100_variants_under_500ms`.
+Вызвано самим замером: параллельно в отдельном compose-проекте шли `black --check .` и `mypy` (базис статики) и
+отнимали CPU. В изолированном прогоне вместе с RED-тестами — **PASSED**; в пятом круге на том же коде — 3336
+passed, 0 failed. «После» снималось без параллельной нагрузки.
+
+**RED → GREEN бэкенда.** Шесть новых или переписанных тестов до правки кода: **6 failed**, каждый по своей
+причине — `test_subscribe_duplicate_email` и `test_active_subscriber_reconfirmation_lands_next_to_old_records`
+нашли 0 записей согласия вместо 2; `test_subscribe_unique_race_records_consent_of_second_request` — одно чтение
+строки вместо двух (после `IntegrityError` не перечитывалась); `test_subscribe_integrity_error_without_subscription_row_is_not_success`
+— ложный `200` вместо `503`; `test_version_digest_is_32_hex` — длина хеша 8; коллизионный тест —
+`'2026-01-01-f4ef3d1f' != '2026-01-01-f4ef3d1f'`. После правки **целевой набор** (`apps/common`, оба
+интеграционных файла согласий и три переформатированных теста: `bonuses/tests/test_admin.py`,
+`integrations/tests/test_import_orchestration_view.py`, `products/tests/test_exchange_dir_isolation.py`) —
+**230 passed** (3:31).
+
+**RED → GREEN фронтового стража.** Константы фронта переведены на 32 hex раньше реестра: `consent-texts-registry.test.tsx`
+— **1 failed / 7 passed**, упал ровно `known_versions` (в реестре ещё 8-символьные строки), а сверка констант с
+версиями, пересчитанными из текста, уже прошла. После пересчёта `known_versions` — 8 passed.
+
+**Статический анализ.** Линтеры запускались в отдельном compose-проекте без БД
+(`docker compose -p freesport-lint -f docker-compose.test.yml run --rm --no-deps -T backend ...`), чтобы не
+пересекаться с pytest.
+
+| Проверка | До (HEAD `7d4b716f`) | После |
+|---|---|---|
+| `flake8 . --max-line-length=120 --extend-ignore=E203,W503` | 6 × `E501`: `apps/bonuses/tests/test_admin.py:203,227,318`, `apps/integrations/tests/test_import_orchestration_view.py:175`, `apps/orders/admin.py:175`, `apps/orders/services/order_create.py:164` | чисто |
+| `black --check .` | 4 files would be reformatted: `apps/bonuses/views.py`, `apps/orders/admin.py`, `apps/orders/services/order_create.py`, `apps/products/tests/test_exchange_dir_isolation.py` | 420 files would be left unchanged |
+| `mypy --config-file=mypy.ini .` | 1 ошибка: `conftest.py:202` (`Need type annotation for "counts"`, строка из `da386139`, 2026-08-14) | та же 1 ошибка, **дельта 0** |
+| `python manage.py makemigrations --check --dry-run` | — | No changes detected |
+| `check_openapi_sync` | — | «Контракт синхронен с кодом» |
+| Frontend: `npx tsc --noEmit` / `npm run lint` / `npm run format:check` | — | 0 ошибок / чисто / All matched files use Prettier code style! |
+
+Базис mypy — одна ошибка, а не «~108», как записано в AC7. Её убрал внешний коммит `92f2beef` («128 → 0»);
+последнюю, `conftest.py:202`, он не закрыл, потому что мерил 407 файлов, а конфиг проверяет 562. Критерий AC7 —
+отсутствие новых ошибок — выполнен.
+
+`check_openapi_sync` в тестовом контейнере по умолчанию контракт не видит: смонтирован только `backend/`.
+`docs/` подключён только на чтение отдельным томом, путь передан явно:
+`MSYS_NO_PATHCONV=1 docker compose ... run --rm --no-deps -T -v "C:/Users/1/DEV/FREESPORT/docs:/contract:ro" backend python manage.py check_openapi_sync --schema-file /contract/api/openapi.yaml`.
+Без `MSYS_NO_PATHCONV` Git Bash переписывает путь назначения тома, и команда не находит файл.
+
+**Blast radius (GitNexus CLI, `--repo "C:\Users\1\DEV\FREESPORT"`).** Снят до правок, индекс `up-to-date` на
+`7d4b716`. Все символы — **LOW**: `compute_consent_text_version` (1 прямой: `_ingest_surface`),
+`SubscribeSerializer` (4, рёбра импорта), `subscribe` (uid `Function:backend/apps/common/views.py:subscribe`, 0),
+`already_subscribed_error` (1: `SubscribeSerializer.create`), `OrderAdmin.get_search_results`,
+`OrderCreateService` (1), `BonusSummaryView` (1). HIGH и CRITICAL нет.
+
+**`npx gitnexus detect-changes --scope all` перед сдачей:** 24 файла, 25 символов, 7 затронутых потоков,
+risk **high**. Расхождения объяснимы:
+
+- Пять потоков `Subscribe → …` (`Get_client_ip`, `Normalize_consent_ip`, `Sanitize_log_value`,
+  `Current_version`, `Load_registry`) — правка `subscribe` и `SubscribeSerializer.create`, ожидаемо.
+- Два потока `Create → _get_locked_customer_code_counter` / `_get_locked_counter` — `OrderCreateService.create`.
+  В нём `black` перенёс одну строку (`order_create.py:164`); поведение не менялось.
+- `BonusSummaryView` / `get` / `accrued` — тоже только `black`.
+- `ConsentTextsError`, `ConsentTextRegistry`, `_ingest_surface`, `validate` — сдвиг строк от новой константы и
+  правки комментариев.
+- 24 файла — ровно столько, сколько в `git status --porcelain`: неотслеживаемых файлов в этом круге нет.
+
 ### Completion Notes List
 
 **Что сделано.** `UserConsent` получил два поля — `source` (`newsletter` / `registration` / `1c_link` /
@@ -1007,7 +1126,8 @@ risk **medium** (снят до появления внешних правок). 
    `<метка>-<первые 8 hex sha256 текста>` из реестра `backend/apps/common/consent_texts.json`. Правка текста
    меняет версию сама — пропустить бамп механически невозможно. Фактические значения на baseline:
    `2026-08-30-77dbceaf` (подписка), `2026-09-09-de992f50` (ПДн регистрации), `2026-09-09-e26471e4`
-   (маркетинг регистрации).
+   (маркетинг регистрации). *(С шестого круга ревью хеш — 32 hex; действующие значения — в пункте 2 раздела
+   «Шестой круг ревью» ниже. Запись оставлена как есть: на момент версии 1.1 она была верна.)*
 2. **У полей нет `default` в модели.** Одноразовое `unknown` живёт только в миграции
    (`preserve_default=False`). Два `CheckConstraint` роняют вставку без источника или без версии: код,
    забывший их передать, падает сразу, а не пишет тихий мусор в доказательство согласия.
@@ -1220,6 +1340,42 @@ risk **medium** (снят до появления внешних правок). 
    что baseline жив.
 7. **Legal-утверждение в активном пункте `deferred-work.md` ослаблено** до того, что версия фактически даёт.
 
+**Шестой круг ревью — пять замечаний** (решения владельца по стратегии деплоя и длине хеша зафиксированы
+ревью заранее).
+
+1. **Повторное согласие активного подписчика больше не теряется.** `SubscribeSerializer.create()` бросал
+   `already_subscribed`, view превращал его в нейтральный `200` и не писал ни одной записи `UserConsent`. После
+   правки формулировки это значило бы: человек подтвердил новую редакцию, а в журнале этого нет. Теперь активная
+   подписка возвращается как есть, и view пишет обе записи тем же путём, что у новой. Ответ неотличим
+   (enumeration), строка `Newsletter` не меняется — она не журнал согласий. Та же дыра была в гонке на
+   уникальном email: второй запрос ловил `IntegrityError` и тоже отвечал успехом без записи. Вставка обёрнута
+   savepoint'ом, после `IntegrityError` строка перечитывается под блокировкой. Если строки нет, это не гонка,
+   а нарушение другого ограничения: нейтральный успех был бы неправдой, ответ — `503 consent_persistence_failed`.
+   `already_subscribed_error()` удалён: вызывающих не осталось, а лежащий без дела хелпер приглашает вернуть
+   дефект. Нейтральная ветка view по `ALREADY_SUBSCRIBED_CODE` в `serializer.errors` сохранена — она
+   предсуществующая и охраняется своим тестом.
+2. **Хеш версии — 32 hex, 128 бит** (решение владельца). Коллизия из ревью воспроизведена тестом: при 8 hex
+   «Текст согласия 1115» и «Текст согласия 1675» давали одну версию `2026-01-01-f4ef3d1f`. Новые версии:
+   `2026-08-30-77dbceafc3c487ffc24975cf2ce76778` (подписка), `2026-09-09-de992f50b0456a90e96a66984010dd74`
+   (ПДн регистрации), `2026-09-09-e26471e47eba2ba742a4f4488dfdda05` (маркетинг регистрации) — 43 символа из
+   `max_length=64`, метке остаётся 31 символ. Первые 8 hex прежние, так что старые и новые значения легко
+   сопоставить глазами. Синхронно правились реестр (`known_versions`), модуль (`VERSION_DIGEST_HEX_LENGTH`),
+   константы фронта, пересчитывающий страж, пример запроса в `@extend_schema` и `openapi.yaml`, пять
+   документов архитектуры. Поле БД не менялось: миграции не нужны. Совместимость со старым форматом не
+   требуется: `0019`/`0020` на прод ещё не накатывались (выкат ручной, в maintenance window), поэтому ни одной
+   8-символьной версии в боевом журнале нет и появиться не может.
+3. **AC7 восстановлен на фактическом HEAD.** Внешний коммит `92f2beef` оставил шесть `E501` и четыре файла под
+   `black`. `black` применён к четырём файлам — два `E501` ушли вместе с ним. Оставшиеся четыре — хвостовые
+   `# type: ignore[...]`, которые `black` не переносит. Выражение разбито так, чтобы игнор остался на той же
+   строке, где mypy сообщает ошибку: иначе `warn_unused_ignores` превратил бы одну ошибку в две.
+   mypy до и после — одна и та же предсуществующая ошибка `conftest.py:202` (с `da386139`, 2026-08-14).
+4. **Audit trail воспроизводим.** Во frontmatter — `review_head: 7d4b716f`. В File List — отдельный раздел
+   `92f2beef` со всеми 40 файлами и признанием, что field-level валидаторы стори попали в историю именно этим
+   коммитом. Счётчики GitNexus пересняты по двум срезам.
+5. **Шапка и AC8 больше не противоречат Change Log.** Утверждения «API-контракт не меняется» и «логика форм не
+   меняется» зачёркнуты, а не удалены. Рядом записано действующее состояние со ссылкой на версию Change Log,
+   которая их отменила.
+
 **Приёмка на проде** (вне объёма разработки, по уроку стори 41.5): миграции на прод накатываются вручную,
 после выката нужны `showmigrations common` (ожидаются применёнными **обе** — `0019` и `0020`) и
 `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 там было 0 строк, значение `unknown` у появившихся
@@ -1334,6 +1490,19 @@ risk **medium** (снят до появления внешних правок). 
     `9749, 16083` → `9771, 16115` — переиндексация на `8ac75ef` (`npx gitnexus status`:
     `Indexed commit: 8ac75ef`).
 
+  - **Срез шестого круга ревью** (`review_head` = `7d4b716f`; числа сняты
+    `git show <коммит>:AGENTS.md` и `git diff HEAD -- AGENTS.md CLAUDE.md`):
+    - **Закоммичено** (`792ce210..7d4b716f`): `9657, 15912` → `9771, 16115`. Последнее значение внёс
+      коммит пятого круга `7d4b716f`; `92f2beef` и `e124fb66` этих файлов не касаются, у них — прежние
+      `9749, 16083`.
+    - **Не закоммичено:** `9771, 16115` → `9775, 16134` — переиндексация на `7d4b716`
+      (`npx gitnexus status`: `Indexed: 10.09.2026, 10:16:07`, `Indexed commit: 7d4b716`, `up-to-date`).
+      Она сделана **до** правок шестого круга, поэтому код этого круга в счётчик не входит; следующий
+      `npx gitnexus analyze` после коммита сдвинет его снова.
+
+  Запись пятого круга («закоммичено `→ 9749, 16083`, не закоммичено `→ 9771, 16115`») была верна на момент
+  внесения и устарела с коммитом `7d4b716f`, куда вошло значение `9771, 16115`.
+
   Запись четвёртого круга («закоммичено `→ 9743, 16069`, не закоммичено `→ 9749, 16083`») была
   верна на момент внесения и устарела с коммитом `8ac75ef6`, куда вошло значение `9749, 16083`
   (замечание ревью). Уточнение к записи второго круга: `9647, 15902` — реальное промежуточное
@@ -1355,3 +1524,82 @@ risk **medium** (снят до появления внешних правок). 
   - `backend/apps/products/tests/unit/test_fix_category_tree_public_roots.py`
   - `backend/apps/products/tests/unit/test_variant_import_migrated.py`
   - `backend/tests/helpers.py`
+
+**Внешний коммит `92f2beef`, несущий в том числе код стори** (замечание шестого круга ревью):
+
+- `92f2beef` `fix(mypy): починить все 128 ошибок mypy по проекту (128 -> 0)` — коммит параллельной сессии
+  владельца (Devin), 40 файлов. **Это не только чужой scope.** В `backend/apps/users/serializers.py` он несёт
+  функциональный код стори 41.9 пятого круга ревью — field-level валидаторы
+  `validate_pdp_consent_text_version`, `validate_marketing_consent_text_version` и `_marketing_consent_given`:
+  на момент коммита они лежали незакоммиченными в дереве, и параллельная сессия закоммитила файл целиком.
+  Тело коммита это признаёт («users/serializers.py также содержит правки Story 41-9»), а
+  `git show 92f2beef -- backend/apps/users/serializers.py` показывает все три `def` как добавленные;
+  коммит пятого круга `7d4b716f` этот файл не содержит. Поэтому запись Change Log 1.7 «файлы к стори не
+  относятся» и пометка «пятая доработка» у `backend/apps/users/serializers.py` в разделе выше неточны:
+  код валидаторов — работа стори, но в историю он попал коммитом `92f2beef` (уточнено строкой Change Log
+  1.8, прежние записи не переписываются). Прочие правки коммита — только типизация (`cast`,
+  `# type: ignore[...]`, `assert ... is not None`) и переименование переменной; поведение не меняют.
+  Файлы (`git show --name-status 92f2beef`, все `M`):
+  - `backend/apps/banners/serializers.py`
+  - `backend/apps/bonuses/admin.py`, `backend/apps/bonuses/signals.py`, `backend/apps/bonuses/views.py`,
+    `backend/apps/bonuses/tests/utils.py`
+  - `backend/apps/bonuses/tests/test_accrual.py`, `test_admin.py`, `test_admin_pages.py`,
+    `test_import_integration.py`, `test_journal_integrity.py`, `test_models.py`,
+    `test_vat_warehouse_split.py` (все — `backend/apps/bonuses/tests/`)
+  - `backend/apps/common/admin.py`, `backend/apps/common/utils/consent_audit.py`,
+    `backend/apps/common/tests/test_common_config.py`, `backend/apps/common/tests/test_user_consent.py`
+    — файлы журнала согласий, но правки в них только типизация
+  - `backend/apps/integrations/tests/test_import_orchestration_view.py`
+  - `backend/apps/orders/admin.py`, `backend/apps/orders/services/order_create.py`,
+    `backend/apps/orders/services/order_numbering.py`, `backend/apps/orders/tasks.py`
+  - `backend/apps/pages/views.py`
+  - `backend/apps/products/management/commands/fix_category_tree_public_roots.py`,
+    `backend/apps/products/management/commands/import_products_from_1c.py`,
+    `backend/apps/products/services/variant_import.py`
+  - `backend/apps/products/tests/integration/test_image_composition_sync.py`,
+    `backend/apps/products/tests/test_exchange_dir_isolation.py`,
+    `backend/apps/products/tests/test_import_cleanup_race.py`,
+    `backend/apps/products/tests/test_import_size_value_overflow.py`
+  - `backend/apps/products/tests/unit/test_category_deactivation.py`, `test_opt4_catalog_api.py`,
+    `test_price_logic.py`, `test_pricing_policy.py`, `test_reactivate_catalog_categories.py` (все —
+    `backend/apps/products/tests/unit/`)
+  - `backend/apps/users/admin.py`, `backend/apps/users/serializers.py` (см. выше — код стори),
+    `backend/apps/users/services/processor.py`
+  - `backend/freesport/settings/development.py`, `staging.py`, `test.py`
+- Этот же коммит сломал AC7 на HEAD: шесть `E501` во `flake8` и четыре файла под `black --check`. Починено
+  в шестом круге ревью — см. раздел «Шестая доработка по ревью» ниже.
+
+**Шестая доработка по ревью (2026-09-10)** — собрано `git status --porcelain` и `git diff --name-status HEAD`
+против `HEAD` = `review_head` = `7d4b716f`: 24 файла, все `M`, новых и удалённых нет.
+
+- Код стори:
+  - `M` `backend/apps/common/consent_texts.py` — `VERSION_DIGEST_HEX_LENGTH = 32`, формула версии, docstring и
+    комментарий о длине метки
+  - `M` `backend/apps/common/consent_texts.json` — `known_versions` пересчитаны под 32 hex
+  - `M` `backend/apps/common/serializers.py` — `create()`: активная подписка возвращается как есть, гонка на
+    уникальном email разрешается повторным чтением под savepoint; удалены `already_subscribed_error()`,
+    `ALREADY_SUBSCRIBED` и ставший ненужным импорт `ErrorDetail`
+  - `M` `backend/apps/common/views.py` — снята недостижимая ветка «уже подписан» в `except DRFValidationError`;
+    32-символьная версия в примере запроса
+  - `M` `frontend/src/constants/consentTexts.ts` — три версии под 32 hex
+- Тесты стори:
+  - `M` `backend/apps/common/tests/test_consent_texts.py` — `test_version_digest_is_32_hex`,
+    `test_short_digest_collision_found_by_review_is_resolved`
+  - `M` `backend/tests/integration/test_common_subscribe_api.py` — `test_subscribe_duplicate_email` теперь требует
+    две записи согласия и неизменный `Newsletter`; новые `test_active_subscriber_reconfirmation_lands_next_to_old_records`,
+    `test_subscribe_integrity_error_without_subscription_row_is_not_success`; тест гонки переписан в
+    `test_subscribe_unique_race_records_consent_of_second_request` — настоящая гонка на уникальном ограничении
+    вместо мока `create`
+  - `M` `frontend/src/__tests__/consent-texts-registry.test.tsx` — страж пересчитывает версию 32 hex
+- Восстановление AC7 (правки в чужом scope `92f2beef`, только форматирование — поведение не меняется):
+  - `M` `backend/apps/bonuses/views.py`, `backend/apps/orders/admin.py`,
+    `backend/apps/orders/services/order_create.py`, `backend/apps/products/tests/test_exchange_dir_isolation.py`
+    — `black`
+  - `M` `backend/apps/bonuses/tests/test_admin.py`, `backend/apps/integrations/tests/test_import_orchestration_view.py`
+    — `E501` с хвостовым `# type: ignore`: игнор оставлен на строке, где mypy сообщает ошибку
+- Документация: `M` `docs/api/openapi.yaml` (пример версии, сверен `check_openapi_sync`),
+  `docs/architecture/02-data-models.md`, `09-database-schema.md`, `11-security-performance.md` (32 hex и
+  повторная подписка в §5.1), `18-b2b-verification-workflow.md` (пример payload), `index.md` (строка «Истории
+  изменений»)
+- Трекер: `M` этот файл, `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `M` `AGENTS.md`, `CLAUDE.md` — автосчётчик GitNexus, см. «Побочные правки» (срез шестого круга)

@@ -324,7 +324,7 @@ def realtime_metrics(_request: Request) -> Response:
             value={
                 "email": "user@example.com",
                 "pdp_consent": True,
-                "consent_text_version": "2026-08-30-77dbceaf",
+                "consent_text_version": "2026-08-30-77dbceafc3c487ffc24975cf2ce76778",
             },
             request_only=True,
         ),
@@ -461,15 +461,9 @@ def subscribe(request: Request) -> Response:
                     **consent_kwargs,
                 )
         except DRFValidationError as exc:
-            if has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
-                response_serializer = SubscribeResponseSerializer(
-                    {
-                        "message": "Вы успешно подписались на рассылку",
-                        "email": serializer.validated_data["email"],
-                    }
-                )
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
-
+            # Ветки «уже подписан» здесь нет: `create()` возвращает подписку
+            # активного подписчика, и его согласие пишется выше, как у новой
+            # (стори 41.9, шестой круг ревью).
             return Response(
                 exc.detail,
                 status=status.HTTP_400_BAD_REQUEST,

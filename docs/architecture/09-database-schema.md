@@ -403,7 +403,7 @@ CREATE TABLE common_userconsent (
     -- (`unknown` — только строки, существовавшие до миграции 0019).
     source VARCHAR(20) NOT NULL,
     -- Версия текста чекбокса из реестра apps/common/consent_texts.json,
-    -- вид «метка-первые 8 hex sha256 текста», например 2026-08-30-77dbceaf
+    -- вид «метка-первые 32 hex sha256 текста», например 2026-08-30-77dbceafc3c487ffc24975cf2ce76778
     consent_text_version VARCHAR(64) NOT NULL,
 
     -- Гарантия: у каждой записи есть субъект (user или session_key)

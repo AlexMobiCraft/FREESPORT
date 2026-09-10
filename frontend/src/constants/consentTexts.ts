@@ -20,11 +20,11 @@ import type { components } from '@/types/api.generated';
  */
 export const CONSENT_TEXT_VERSIONS = {
   /** Единственный чекбокс форм подписки (SubscribeForm, ElectricSubscribeForm). */
-  newsletter: '2026-08-30-77dbceaf',
+  newsletter: '2026-08-30-77dbceafc3c487ffc24975cf2ce76778',
   /** Обязательный чекбокс ПДн форм регистрации (RegisterForm, B2BRegisterForm). */
-  registrationPdp: '2026-09-09-de992f50',
+  registrationPdp: '2026-09-09-de992f50b0456a90e96a66984010dd74',
   /** Необязательный маркетинговый чекбокс форм регистрации. */
-  registrationMarketing: '2026-09-09-e26471e4',
+  registrationMarketing: '2026-09-09-e26471e47eba2ba742a4f4488dfdda05',
 } as const;
 
 /**
