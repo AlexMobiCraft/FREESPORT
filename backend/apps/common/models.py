@@ -584,6 +584,14 @@ class Newsletter(models.Model):
             self.email = self.email.lower().strip()
 
 
+# Допустимые значения `UserConsent.source`. Список объявлен на уровне модуля,
+# а не в классе: тело вложенного `class Meta` не видит пространство имён внешнего
+# класса (Python пропускает class scope при разрешении имён), а CheckConstraint
+# нужен именно там. Расхождение с `SOURCE_CHOICES` ловит
+# `test_source_values_match_choices`.
+USER_CONSENT_SOURCE_VALUES = ["newsletter", "registration", "1c_link", "unknown"]
+
+
 class UserConsent(models.Model):
     """Фиксация согласий пользователей (152-ФЗ)."""
 
@@ -620,6 +628,9 @@ class UserConsent(models.Model):
         (SOURCE_1C_LINK, "Регистрация с привязкой к записи 1С"),
         (SOURCE_UNKNOWN, "Неизвестен (запись до внедрения аудита)"),
     ]
+
+    # Псевдоним модульного списка: обращаться к нему удобнее через модель.
+    SOURCE_VALUES = USER_CONSENT_SOURCE_VALUES
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -692,9 +703,13 @@ class UserConsent(models.Model):
             ),
             # Код, забывший передать источник или версию, обязан упасть на вставке,
             # а не записать тихий мусор в доказательство согласия (ФЗ-152 ст. 9).
+            # Источник проверяется не на «непустоту», а на принадлежность
+            # перечислению: `choices` в Django — валидация уровня формы, база
+            # без этого ограничения приняла бы любую непустую строку, и опечатка
+            # («registartion») легла бы в юридически значимый журнал молча.
             models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
-                condition=~models.Q(source=""),
-                name="userconsent_source_required",
+                condition=models.Q(source__in=USER_CONSENT_SOURCE_VALUES),
+                name="userconsent_source_valid",
             ),
             models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=~models.Q(consent_text_version=""),

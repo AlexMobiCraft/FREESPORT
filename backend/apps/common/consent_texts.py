@@ -282,6 +282,12 @@ def load_registry(path: Path = REGISTRY_PATH) -> ConsentTextRegistry:
         raw = path.read_text(encoding="utf-8")
     except OSError as exc:
         raise ConsentTextsError(f"Реестр согласий не читается: {path}") from exc
+    except UnicodeDecodeError as exc:
+        # `UnicodeDecodeError` наследуется от `ValueError`, а не от `OSError`:
+        # без отдельной ветки повреждённый по кодировке реестр вылетал бы мимо
+        # `ConsentTextsError` и нарушал обещание модуля — одно понятное
+        # исключение с путём к файлу.
+        raise ConsentTextsError(f"Реестр согласий {path} не читается как UTF-8: {exc}") from exc
 
     try:
         data = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)

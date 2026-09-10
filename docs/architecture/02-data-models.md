@@ -795,9 +795,12 @@ class UserConsent(models.Model):
             ),
             # Story 41.9: код, забывший передать источник или версию, обязан упасть
             # на вставке, а не записать тихий мусор в доказательство согласия.
+            # Источник проверяется на принадлежность перечислению, а не на
+            # непустоту: `choices` — валидация уровня формы, база без этого
+            # ограничения приняла бы любую строку (миграция 0020).
             models.CheckConstraint(
-                condition=~models.Q(source=""),
-                name="userconsent_source_required",
+                condition=models.Q(source__in=USER_CONSENT_SOURCE_VALUES),
+                name="userconsent_source_valid",
             ),
             models.CheckConstraint(
                 condition=~models.Q(consent_text_version=""),

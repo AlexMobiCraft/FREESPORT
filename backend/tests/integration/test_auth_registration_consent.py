@@ -117,8 +117,12 @@ def test_registration_rejects_outdated_pdp_text_version():
     осталась старой, а версию проставил бы сервер по действующему реестру.
     """
     client = APIClient()
+    # Payload сохраняется в переменную: `trainer_payload()` генерирует новый
+    # уникальный email на каждый вызов, поэтому повторный вызов в проверке
+    # искал бы несуществующий адрес и прошёл бы даже при созданном пользователе.
+    payload = trainer_payload(pdp_consent_text_version="2020-01-01-deadbeef")
 
-    response = post_register(client, trainer_payload(pdp_consent_text_version="2020-01-01-deadbeef"))
+    response = post_register(client, payload)
 
     # Сверка по отрендеренному JSON: `ErrorDetail.code` до клиента не доходит,
     # поэтому машинный код стоит верхним уровнем ответа, а поля — в `details`.
@@ -127,7 +131,7 @@ def test_registration_rejects_outdated_pdp_text_version():
         "error": CONSENT_TEXT_OUTDATED_CODE,
         "details": {"pdp_consent_text_version": [CONSENT_TEXT_OUTDATED]},
     }
-    assert User.objects.filter(email=trainer_payload()["email"]).count() == 0
+    assert User.objects.filter(email=payload["email"]).count() == 0
     assert UserConsent.objects.count() == 0
 
 
@@ -148,6 +152,30 @@ def test_registration_requires_pdp_text_version():
         "error": CONSENT_TEXT_OUTDATED_CODE,
         "details": {"pdp_consent_text_version": [CONSENT_TEXT_OUTDATED]},
     }
+    assert User.objects.filter(email=payload["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
+def test_registration_requires_marketing_text_version_when_consent_given():
+    """Галочка маркетинга без версии текста — тот же отказ, что и устаревшая версия.
+
+    Поле необязательно на уровне DRF (форма без галочки версию не доказывает),
+    обязательным его делает `validate()` при `marketing_consent=True`. Путь
+    «поле отсутствует» проходит мимо ветки сравнения версий, поэтому проверяется
+    отдельно от уже покрытой устаревшей версии.
+    """
+    client = APIClient()
+    payload = trainer_payload(marketing_consent=True)
+    payload.pop("marketing_consent_text_version")
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
+    assert User.objects.filter(email=payload["email"]).count() == 0
     assert UserConsent.objects.count() == 0
 
 

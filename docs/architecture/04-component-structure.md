@@ -164,7 +164,7 @@ backend/
 │       ├── utils/
 │       │   ├── __init__.py
 │       │   └── consent_audit.py      # get_consent_ip_address, sanitize_consent_user_agent, normalize_consent_ip (Story 35.3)
-│       └── migrations/               # 0015_userconsent, 0016_userconsent_review_fixes, 0019_userconsent_source_and_text_version
+│       └── migrations/               # 0015_userconsent, 0016_userconsent_review_fixes, 0019_userconsent_source_and_text_version, 0020_userconsent_source_valid
 ├── freesport/                        # Django настройки
 │   ├── settings/                     # Модульные настройки
 │   │   ├── base.py                   # OpenAPI 3.1, JWT, DRF, DEFAULT_THROTTLE_RATES

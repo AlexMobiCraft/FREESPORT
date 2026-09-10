@@ -262,6 +262,21 @@ def test_broken_json_raises_with_path(tmp_path):
         load_registry(broken)
 
 
+def test_broken_encoding_raises_consent_texts_error(tmp_path):
+    """Реестр, сохранённый не в UTF-8, тоже падает единым исключением с путём.
+
+    `UnicodeDecodeError` наследуется от `ValueError`, а не от `OSError`, поэтому
+    без отдельной ветки он вылетал бы мимо `ConsentTextsError` и рвал обещание
+    модуля: одно понятное исключение, называющее файл.
+    """
+    broken = tmp_path / "consent_texts.json"
+    # Кириллица в CP1251 — не декодируется как UTF-8.
+    broken.write_bytes('{"surfaces": {"а": {}}}'.encode("cp1251"))
+
+    with pytest.raises(ConsentTextsError, match="не читается как UTF-8"):
+        load_registry(broken)
+
+
 # ---------------------------------------------------------------------------
 # Страж истории ревизий и границы реестра (замечания ревью стори 41.9)
 # ---------------------------------------------------------------------------

@@ -380,6 +380,7 @@ $$ LANGUAGE plpgsql;
 -- Django app: apps/common, модель UserConsent
 -- Миграции: common.0015_userconsent + common.0016_userconsent_review_fixes
 --           + common.0019_userconsent_source_and_text_version (Story 41.9)
+--           + common.0020_userconsent_source_valid (Story 41.9, ревью)
 CREATE TABLE common_userconsent (
     id SERIAL PRIMARY KEY,
 
@@ -408,9 +409,11 @@ CREATE TABLE common_userconsent (
     -- Гарантия: у каждой записи есть субъект (user или session_key)
     CONSTRAINT userconsent_user_or_session_required
         CHECK (user_id IS NOT NULL OR session_key <> ''),
-    -- Гарантии Story 41.9: код, забывший источник или версию, падает на вставке
-    CONSTRAINT userconsent_source_required
-        CHECK (source <> ''),
+    -- Гарантии Story 41.9: код, забывший источник или версию, падает на вставке.
+    -- Источник ограничен перечислением (миграция 0020): Django `choices` базы
+    -- не касаются, и опечатка легла бы в журнал молча
+    CONSTRAINT userconsent_source_valid
+        CHECK (source IN ('newsletter', 'registration', '1c_link', 'unknown')),
     CONSTRAINT userconsent_text_version_required
         CHECK (consent_text_version <> '')
 );
@@ -542,6 +545,6 @@ $$ LANGUAGE plpgsql STABLE;
 - Append-only: admin заблокирован через `has_add_permission=False` / `has_change_permission=False`
 - Constraint `userconsent_user_or_session_required` гарантирует наличие субъекта в каждой строке
 - Страница политики ПДн доступна по `GET /api/pages/privacy-policy/` (существующий `PageViewSet`, slug `privacy-policy`)
-- Story 41.9 (2026-09-09): добавлены `source` и `consent_text_version` (миграция `0019_userconsent_source_and_text_version`, одноразовое значение `unknown` с `preserve_default=False`). Два CHECK-ограничения (`userconsent_source_required`, `userconsent_text_version_required`) и два индекса не дают записать согласие без источника и без версии показанного текста
+- Story 41.9 (2026-09-09): добавлены `source` и `consent_text_version` (миграция `0019_userconsent_source_and_text_version`, одноразовое значение `unknown` с `preserve_default=False`). Два CHECK-ограничения (`userconsent_source_valid`, `userconsent_text_version_required`) и два индекса не дают записать согласие без источника и без версии показанного текста. Ограничение источника усилено миграцией `0020_userconsent_source_valid`: прежнее `userconsent_source_required` отсекало только пустую строку, а Django `choices` на уровне БД не действуют — прямой `objects.create(source="registartion")` записал бы опечатку в юридически значимый журнал молча
 
 ---

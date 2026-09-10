@@ -271,6 +271,46 @@ describe('ElectricSubscribeForm', () => {
     });
   });
 
+  it('при устаревшей версии показывает требование обновить страницу, а не попутную ошибку email', async () => {
+    // В `details` рядом с полем версии может лежать обычная ошибка валидации.
+    // Порядок ключей в JSON произволен, и «первое значение из details» показало
+    // бы «введите корректный email» — совет, который ничего не чинит: пока
+    // вкладка старая, запрос будет отклоняться при любом адресе.
+    const emailMessage = 'Введите корректный адрес электронной почты.';
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        code: 'consent_text_outdated',
+        details: {
+          email: [emailMessage],
+          consent_text_version: [
+            'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.',
+          ],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await user.type(screen.getByLabelText(/email/i), 'electric-mixed-details@example.com');
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'ТЕКСТ СОГЛАСИЯ ОБНОВИЛСЯ. ОБНОВИТЕ СТРАНИЦУ И ПОДТВЕРДИТЕ СОГЛАСИЕ ЗАНОВО.',
+        expect.objectContaining({
+          style: expect.objectContaining({ borderRadius: '0' }),
+        })
+      );
+    });
+    expect(toast.error).not.toHaveBeenCalledWith(
+      emailMessage.toUpperCase(),
+      expect.anything()
+    );
+  });
+
   it('shows backend message on server error from subscribe service', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockRejectedValueOnce(

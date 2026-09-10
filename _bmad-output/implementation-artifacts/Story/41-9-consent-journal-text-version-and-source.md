@@ -220,6 +220,42 @@ so that **согласие оставалось доказуемым по ФЗ-1
 - [x] [Review][Patch] В diff присутствует посторонний task-файл, отсутствующий в заявленном File List [`_bmad-output/implementation-artifacts/tasks/dev-task-textcontent-price-cta-separation.md:1-6`]
   - Файл добавлен коммитом `786881e7` («создать стори … и dev-task по склейкам textContent») — то есть частью создания стори, а не её реализации; в диффе ветки против `develop` он поэтому присутствует. Файл нужен (задача-продолжение стори 41.8) и не удаляется; он назван в File List отдельным разделом.
 - [x] [Review][Defer] Celery-задачи B2B-регистрации публикуются до фиксации транзакции и могут получить ID откатившегося пользователя [`backend/apps/users/serializers.py:266-271`] — deferred, pre-existing
+- [x] [Review][Decision] Оставить в админке только `consent_text_version` — решение Alex: буквальный AC6 считается достаточным; дословный текст при необходимости разрешается через реестр и `resolve_consent_text()`, операторский интерфейс не расширяем. [`backend/apps/common/admin.py:311-332`, `backend/apps/common/consent_texts.py:304-306`]
+- [x] [Review][Patch] Ограничить `UserConsent.source` допустимыми значениями на уровне БД: Django `choices` не запрещает сохранить произвольную непустую строку, а текущий `CheckConstraint` отсекает только `""`; для юридически значимого аудита значение вне `newsletter` / `registration` / `1c_link` / `unknown` является тихим мусором. [`backend/apps/common/models.py:666-701`, `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py:57-69`]
+  - Сделано: `userconsent_source_required` (`CHECK (source <> '')`) заменён на `userconsent_source_valid`
+    (`CHECK (source IN ('newsletter','registration','1c_link','unknown'))`) миграцией
+    `0020_userconsent_source_valid`. Новое ограничение строго сильнее прежнего — пустая строка в список не
+    входит, поэтому оба существующих теста пустого источника остались зелёными без правки, а отдельное
+    `..._source_required` избыточно и снято. Список значений объявлен модульной константой
+    `USER_CONSENT_SOURCE_VALUES`, а не атрибутом класса: тело вложенного `class Meta` не видит пространство
+    имён внешнего класса (Python пропускает class scope), а `CheckConstraint` нужен именно там; синхронность
+    с `SOURCE_CHOICES` держит `test_source_values_match_choices`. Новый тест
+    `test_source_outside_choices_violates_check_constraint` роняет `objects.create(source="registartion")` —
+    путь, который `choices` не закрывают вовсе (они работают на формах и `full_clean()`).
+- [x] [Review][Patch] Оборачивать ошибку декодирования реестра в `ConsentTextsError`: `Path.read_text(encoding="utf-8")` может поднять `UnicodeDecodeError`, который не является `OSError`, поэтому повреждённый по кодировке реестр нарушает обещание загрузчика выдавать единое понятное исключение с путём. [`backend/apps/common/consent_texts.py:278-289`]
+  - Сделано: у `load_registry` добавлена ветка `except UnicodeDecodeError` (он наследуется от `ValueError`,
+    а не от `OSError`, поэтому мимо прежнего `except` проходил насквозь). Сообщение называет путь и причину
+    — «не читается как UTF-8». Тест `test_broken_encoding_raises_consent_texts_error` пишет реестр в CP1251.
+- [x] [Review][Defer] Устранить TOCTOU-гонку регистрации по email: два параллельных запроса могут одновременно пройти `exists()`, после чего второй получает необработанный `IntegrityError` на `create_user` вместо контролируемого ответа о занятом email. [`backend/apps/users/serializers.py:240-246,289-305`] — deferred, pre-existing
+- [x] [Review][Patch] При `consent_text_outdated` формы подписки должны приоритизировать сообщение поля версии: сейчас `getFirstBackendError()` берёт первое значение из `details`, поэтому смешанный ответ `{email, consent_text_version}` показывает ошибку email вместо требования обновить страницу. В `consentTexts.ts` уже есть `getConsentTextOutdatedMessage()`, который сортирует поля версии первыми. Добавить regression-тесты смешанного `details` для обеих subscribe-форм — текущие тесты передают только `consent_text_version` и пропускают дефект. [`frontend/src/components/home/SubscribeForm.tsx:55-76,120-124`, `frontend/src/components/home/ElectricSubscribeForm.tsx:56-77,129-136`, `frontend/src/constants/consentTexts.ts:61-82`, `frontend/src/components/home/__tests__/SubscribeForm.test.tsx:169-188`, `frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx:242-279`]
+  - Сделано: обе формы подписки перешли с `getFirstBackendError()` на `getConsentTextOutdatedMessage()`
+    (он уже сортировал поля версии первыми и применялся в формах регистрации) через локальный
+    `getConsentOutdatedMessage()`, собирающий из `SubscribeServiceError` тот же вид ответа `{error, details}`.
+    Regression-тесты со смешанным `details` (`{email, consent_text_version}`) добавлены обеим формам; до
+    правки падали ровно они (2 failed / 36 passed), после — 38 passed.
+- [x] [Review][Patch] Исправить ложноположительную проверку отката пользователя при устаревшей PDP-версии: тест второй раз вызывает `trainer_payload()`, который генерирует новый уникальный email, поэтому ошибочно созданный пользователь по email исходного запроса останется незамеченным. Сохранить payload в переменную и проверять именно `payload["email"]`. [`backend/tests/integration/test_auth_registration_consent.py:113-131`]
+  - Сделано: payload сохраняется в переменную, проверка идёт по `payload["email"]`. Тот же приём применён к
+    соседнему `test_registration_requires_pdp_text_version`, где проверки отката не было вовсе — отсутствие
+    пользователя там теперь тоже утверждается.
+- [x] [Review][Patch] Добавить тест отсутствующей `marketing_consent_text_version` при `marketing_consent=True`: поле опционально на уровне DRF и становится обязательным условно в `validate()`, но сейчас проверены только устаревшая версия и отсутствие PDP-версии. Тест должен ожидать `400 consent_text_outdated`, поле `marketing_consent_text_version` в `details` и отсутствие пользователя/согласий. [`backend/apps/users/serializers.py:105-119,206-209`, `backend/tests/integration/test_auth_registration_consent.py:134-195`]
+  - Сделано: `test_registration_requires_marketing_text_version_when_consent_given` — поле удаляется из
+    payload при `marketing_consent=True`, ожидается `400` с телом
+    `{error: consent_text_outdated, details: {marketing_consent_text_version: [...]}}`, отсутствие
+    пользователя по тому же email и ноль записей `UserConsent`. Путь «поле отсутствует» на уровне DRF молчит
+    (`required=False`, `default=""`) и доходит до `validate()` уже пустой строкой — ветка отказа там та же,
+    что у устаревшей версии, но добирается до неё иначе, поэтому проверяется отдельным тестом.
+- [x] [Review][Defer] Привести URL подписки к каноническому `/subscribe/`: сервис отправляет POST на `/subscribe` без завершающего slash, тогда как Django route и OpenAPI используют `/subscribe/`; при стандартном `APPEND_SLASH=True` редирект POST может потерять метод или тело. [`frontend/src/services/subscribeService.ts:75-78`, `backend/apps/common/urls.py:19`] — deferred, pre-existing
+- [x] [Review][Defer] Сделать валидацию `tax_id` в `B2BRegisterForm` зависимой от страны: текущая схема пропускает только российские 10/12 цифр и блокирует валидный 9-значный УНП Беларуси, хотя backend принимает 8–12 цифр для Беларуси/Казахстана. [`frontend/src/schemas/authSchemas.ts:154-163`, `backend/apps/users/serializers.py:232-238`] — deferred, pre-existing
 
 ## Dev Notes
 
@@ -385,6 +421,7 @@ so that **согласие оставалось доказуемым по ФЗ-1
 | 2026-09-09 | 1.1 | Стори реализована. Все 11 задач и 58 подзадач закрыты. Backend 3236 → 3264 passed (+28), падений нет; frontend 2797 → 2803 passed (+6), падений нет. Обратная совместимость миграции проверена руками на dev-БД: строка, созданная до `0019`, сохранилась целиком и помечена `unknown` (вывод — в Debug Log). Единственное отклонение от текста стори — исправлен дефект в собственном тесте `test_empty_revisions_raise` (пустой `bindings` заслонял проверяемую ошибку); поведение кода не менялось. Дополнительно к плану: два новых замечания mypy закрыты точечными `# type: ignore[attr-defined]`, чтобы удержать дельту к базису на нуле (AC7). | Claude Opus 5 / dev-story |
 | 2026-09-09 | 1.2 | Закрыты пять замечаний ревью. Главное — сервер больше не проставляет версию текста «за клиента»: формы присылают версию показанной формулировки, сервер сверяет её с реестром и отклоняет несовпадение (`400`, код `consent_text_outdated`). **Утверждение шапки и AC8 «API-контракт не меняется» с этой доработкой недействительно** (правится строкой Change Log, а не задним числом в AC — урок стори 41.3): `SubscribeRequest` получил `consent_text_version`, `UserRegistrationRequest` — `pdp_consent_text_version` и `marketing_consent_text_version`; `docs/api/openapi.yaml` перегенерирован и сверен `check_openapi_sync`, типы фронта — `npm run generate:types`. Прочие четыре замечания: `known_versions` защищает историю ревизий от правки и удаления, дубли ключей JSON отбраковываются, версия длиннее `max_length=64` не проходит загрузку, посторонний task-файл объяснён и назван в File List. Frontend 2803 → 2807 passed (167 файлов, падений нет); backend — числа в Debug Log. | Claude Opus 5 / dev-story |
 | 2026-09-09 | 1.3 | Закрыты оставшиеся восемь замечаний ревью. Главное — машинный код `consent_text_outdated` дошёл до клиента: оба эндпоинта отвечают `{error, details}` (прежде код жил только в `ErrorDetail.code`, который JSONRenderer выбрасывает, а у пропущенного поля был и вовсе `required`); фронт разводит этот отказ по коду, а не по тексту сообщения. Заодно найдена причина, по которой невалидный пример подписки не ловился контрактом: без `response=` drf-spectacular выбрасывает `examples` целиком — обоим `400` задан `OpenApiTypes.OBJECT`, и обе формы ответа теперь видны в схеме. **Уточнение к версии 1.2:** утверждение «история ревизий стала неизменяемой» отменяется — `known_versions` лежит в том же редактируемом JSON и ловит только одностороннюю правку; решение владельца — оставить процедурный страж и убрать заявления о более сильной гарантии (правится строкой Change Log, а не задним числом в тексте). Прочие замечания: Python-блок `UserConsent` в `02-data-models.md` приведён к коду; привязка к 1С в `18-b2b-verification-workflow.md` описана как отключённый латентный сценарий; из `11-security-performance.md` убрано ложное утверждение о строгом JSON boolean при регистрации; ссылки dev-task на `deferred-work.md` переведены с номеров строк на заголовки; числа побочного GitNexus-диффа сверены `git diff`. Backend 3279 → 3282 passed, frontend 2807 → 2810 passed, падений нет; `check_openapi_sync` — контракт синхронен. | Claude Opus 5 / dev-story |
+| 2026-09-09 | 1.4 | Закрыты последние пять замечаний ревью. Главное — источник согласия ограничен перечислением на уровне БД: `choices` в Django проверяются формами и `full_clean()`, а прямой `objects.create(source="registartion")` их не касается, и опечатка легла бы в юридически значимый журнал молча. Миграция `0020_userconsent_source_valid` заменяет `userconsent_source_required` (`CHECK (source <> '')`) на проверку `source IN (...)`; новое ограничение строго сильнее, поэтому прежнее снято как избыточное. **Уточнение к версиям 1.0–1.3:** имя ограничения `userconsent_source_required` в тексте Task 2 и Dev Notes с этой миграции недействительно — оно называется `userconsent_source_valid` (правится строкой Change Log, а не задним числом в тексте задачи — урок стори 41.3). Прочие замечания: `UnicodeDecodeError` при чтении реестра заворачивается в `ConsentTextsError` (он наследник `ValueError`, а не `OSError`, и проходил мимо `except`); формы подписки при `consent_text_outdated` показывают сообщение поля версии, а не попутную ошибку email (порядок ключей в `details` произволен, а совет «исправьте email» не чинит устаревшую вкладку); ложноположительная проверка отката пользователя исправлена — payload сохраняется в переменную вместо повторного вызова генератора уникального email; закрыт непроверенный путь «галочка маркетинга стоит, версии нет». Backend 3282 → 3286 passed, frontend 2810 → 2812 passed, падений нет; дополнительно полный прогон без фильтра маркеров — 3321 passed, покрытие 81 %. | Claude Opus 5 / dev-story |
 
 ## Dev Agent Record
 
@@ -607,6 +644,62 @@ risk **medium**. Расхождения объяснимы и ожидаемы:
 - 18 файлов против 21 в `File List`: GitNexus считает только разбираемые им файлы кода и не учитывает
   markdown-документацию.
 
+**Blast radius третьей доработки (GitNexus CLI, индекс `up-to-date` на `8ef9612`).** `UserConsent` — **HIGH**
+(19 прямых, 0 процессов, 0 модулей): те же рёбра импорта уровня файла, что и в прошлых кругах, а не вызовы;
+правится только `Meta.constraints`, публичный интерфейс класса не трогается. `load_registry` — LOW
+(2 прямых, 2 потока: `subscribe` и `UserRegistrationView.post`), правится единственная ветка `except`.
+Предупреждение о HIGH сделано по правилу проекта до внесения правок.
+
+**Третья доработка по замечаниям ревью — числа прогонов (2026-09-09).**
+
+| Прогон | До доработки (версия 1.3) | После | Дельта |
+|---|---|---|---|
+| Backend, `pytest -m "not performance and not slow"` | 3282 passed, 75 skipped, 35 deselected, 0 failed | 3286 passed, 75 skipped, 35 deselected, 0 failed (27:45) | **+4 passed**, падений нет |
+| Frontend, `npm run test` | 167 файлов, 2810 passed, 16 skipped | 167 файлов, 2812 passed, 16 skipped, 0 failed | **+2 теста**, падений нет |
+
+Прирост backend раскладывается ровно: +2 в `test_user_consent.py` (`test_source_outside_choices_violates_check_constraint`,
+`test_source_values_match_choices`), +1 в `test_consent_texts.py` (`test_broken_encoding_raises_consent_texts_error`),
++1 в `test_auth_registration_consent.py` (`test_registration_requires_marketing_text_version_when_consent_given`) = 4.
+Прирост фронтенда — по одному regression-тесту смешанного `details` в каждой из двух форм подписки. Число
+skipped и deselected не изменилось: новые тесты не выпадают из фильтров CI.
+
+**Дополнительно снят полный прогон без фильтра маркеров** (`make test`-эквивалент, `up --build` с
+пересборкой образа и сбросом volumes): **3321 passed, 75 skipped, 0 failed** за 32:35, покрытие
+`TOTAL 14521 / 2816 → 81%`. Он включает `performance` и `slow`, поэтому с рядом чисел выше не сопоставим и
+приводится как отдельная проверка: под тем же кодом падений нет и в наборе, который PR-гейт не гоняет.
+Разница `3321 − 3286 = 35` совпадает с числом deselected в фильтрованном прогоне.
+
+**`npx gitnexus detect-changes --scope all` перед сдачей (после третьей доработки):** 18 файлов, 24 символа,
+4 затронутых потока, risk **medium**. Расхождения те же, что и в прошлых кругах, и объяснимы:
+
+- Потоки ровно ожидаемые: `Subscribe → Load_registry` и `Post → Load_registry` (правка ветки `except` в
+  загрузчике) плюс два `OnSubmit → GetBackendMessage` (обе формы подписки).
+- Среди «изменённых символов» — `session_key`, `who`, `__str__` из `apps/common/models.py` и `details`,
+  `message`, `getFirstBackendError` из `ElectricSubscribeForm.tsx`, которых доработка не касалась: вставка
+  `USER_CONSENT_SOURCE_VALUES` и хелпера `getConsentOutdatedMessage` сдвинула вниз всё, что объявлено после
+  них, а сопоставление идёт по смещению строк.
+- 18 файлов против 19 в `git status`: новая миграция `0020_userconsent_source_valid.py` ещё не под
+  версионным контролем на момент замера, и `detect-changes` её не видит.
+
+**RED-фаза фронтенд-правки снята явно.** С заглушенными `SubscribeForm.tsx` / `ElectricSubscribeForm.tsx`
+(`git stash`) новые тесты смешанного `details` дали **2 failed / 36 passed** — падали ровно они. После
+возврата правки — **38 passed**. Дефект был реальным, а не гипотетическим.
+
+**Ограничение `userconsent_source_valid` строго сильнее заменённого.** Пустая строка не входит в список
+допустимых значений, поэтому оба теста пустого источника (`test_empty_source_violates_check_constraint` и
+его версия для `consent_text_version`) остались зелёными без правки, а прежнее `userconsent_source_required`
+стало избыточным и снято миграцией `0020`. Само переименование в тексте Task 2 и Dev Notes задним числом
+**не правится** — расхождение фиксируется строкой Change Log (урок стори 41.3).
+
+**Статика после третьей доработки.** `flake8 . --max-line-length=120 --extend-ignore=E203,W503` — чисто.
+`black --check` по шести правленым файлам — `6 files would be left unchanged`; предсуществующие 8 файлов,
+которые black переформатировал бы (`apps/pages/models.py`, `apps/products/category_utils.py` и др.), стори
+не касается. `mypy --config-file=mypy.ini .` — 129 ошибок; в правленых файлах отчёт называет только
+`test_user_consent.py:166-168` — это предсуществующий тест
+`test_user_consent_hot_fields_are_indexed_and_user_agent_is_bounded`, строки которого доработка не трогала.
+Дельта к базису — ноль. Фронт: `npx tsc --noEmit` — чисто, `npm run lint` — чисто, `npm run format:check` —
+после `prettier --write` по двум формам «All matched files use Prettier code style».
+
 ### Completion Notes List
 
 **Что сделано.** `UserConsent` получил два поля — `source` (`newsletter` / `registration` / `1c_link` /
@@ -727,9 +820,37 @@ risk **medium**. Расхождения объяснимы и ожидаемы:
    `9657/15912 → 9695/15982`; незакоммиченный сдвиг рабочего дерева `→ 9717/16022` в дифф ветки не входит.
    Прежняя запись `→ 9647, 15902` была неверна и направлением, и значениями.
 
-**Приёмка на проде** (вне объёма разработки, по уроку стори 41.5): миграция на прод накатывается вручную,
-после выката нужны `showmigrations common` и `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 там
-было 0 строк, значение `unknown` у появившихся ожидаемо и допустимо. После рестарта backend на проде
+**Третий круг ревью — пять замечаний.**
+
+1. **Источник ограничен перечислением на уровне БД.** `choices` в Django — валидация форм и `full_clean()`;
+   прямой `UserConsent.objects.create(source="registartion")` их не касается, а прежний `CheckConstraint`
+   отсекал только пустую строку. Миграция `0020_userconsent_source_valid` меняет условие на
+   `source IN ('newsletter','registration','1c_link','unknown')`. Новое ограничение строго сильнее
+   заменённого, поэтому `..._source_required` снято как избыточное, а тесты пустого источника не правились.
+   Список объявлен модульной константой `USER_CONSENT_SOURCE_VALUES`, а не атрибутом класса: тело вложенного
+   `class Meta` не видит пространство имён внешнего класса — Python пропускает class scope при разрешении
+   имён, и `SOURCE_VALUES` внутри `Meta` дал бы `NameError`. Синхронность с `SOURCE_CHOICES` держит тест.
+2. **Повреждённая кодировка реестра больше не пролетает мимо `ConsentTextsError`.** `UnicodeDecodeError`
+   наследуется от `ValueError`, а не от `OSError`, поэтому `except OSError` его не ловил и обещание модуля
+   («одно понятное исключение, называющее файл») нарушалось ровно на том случае, ради которого написано.
+3. **Формы подписки перестали показывать попутную ошибку вместо требования обновить страницу.**
+   `getFirstBackendError()` брал первое значение из `details`, а порядок ключей в JSON произволен: ответ
+   `{email, consent_text_version}` советовал бы исправить email — совет, который ничего не чинит, пока
+   вкладка старая. Обе формы перешли на `getConsentTextOutdatedMessage()`, который уже сортировал поля
+   версии первыми и применялся в формах регистрации. RED-фаза снята явно (см. Debug Log).
+4. **Ложноположительная проверка отката исправлена.** Тест звал `trainer_payload()` второй раз, а тот
+   генерирует новый уникальный email — проверка искала несуществующий адрес и прошла бы при ошибочно
+   созданном пользователе. Payload сохранён в переменную; тот же приём добавлен соседнему тесту, где
+   проверки отката не было вовсе.
+5. **Закрыт непроверенный путь маркетинговой версии.** Устаревшая версия и отсутствие PDP-версии были
+   покрыты, а «галочка маркетинга стоит, версии нет» — нет. На уровне DRF поле молчит (`required=False`,
+   `default=""`) и доходит до `validate()` пустой строкой: ветка отказа та же, но добирается до неё иначе.
+
+**Приёмка на проде** (вне объёма разработки, по уроку стори 41.5): миграции на прод накатываются вручную,
+после выката нужны `showmigrations common` (ожидаются применёнными **обе** — `0019` и `0020`) и
+`SELECT count(*) FROM common_userconsent;` — на 2026-08-30 там было 0 строк, значение `unknown` у появившихся
+ожидаемо и допустимо. `0020` добавляет CHECK и падает при накате, если в `source` найдётся значение вне
+перечисления; на такой строке чинить нужно данные, а не ослаблять ограничение. После рестарта backend на проде
 обязателен дополнительный `restart nginx`.
 
 ### File List
@@ -739,24 +860,25 @@ risk **medium**. Расхождения объяснимы и ожидаемы:
 **Новые файлы (A):**
 
 - `backend/apps/common/consent_texts.json`
-- `backend/apps/common/consent_texts.py`
+- `backend/apps/common/consent_texts.py` — *третья доработка по ревью:* `UnicodeDecodeError` заворачивается в `ConsentTextsError`
 - `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py`
-- `backend/apps/common/tests/test_consent_texts.py`
+- `backend/apps/common/migrations/0020_userconsent_source_valid.py` — *третья доработка по ревью:* источник ограничен перечислением на уровне БД
+- `backend/apps/common/tests/test_consent_texts.py` — *третья доработка по ревью*
 - `backend/tests/consent_versions.py` — *доработка по ревью:* общие версии для тестовых payload'ов; литералы в тринадцати файлах пришлось бы чинить при каждой правке текста
 - `frontend/src/__tests__/consent-texts-registry.test.tsx`
 - `frontend/src/constants/consentTexts.ts` — *доработка по ревью:* версии, которые формы отправляют серверу
 
 **Изменённые файлы (M):**
 
-- `backend/apps/common/models.py`
+- `backend/apps/common/models.py` — *третья доработка по ревью:* `USER_CONSENT_SOURCE_VALUES` и `userconsent_source_valid`
 - `backend/apps/common/views.py`
 - `backend/apps/common/admin.py`
 - `backend/apps/common/serializers.py` — *доработка по ревью*
 - `backend/apps/users/serializers.py` — *доработка по ревью*
 - `backend/apps/users/views/authentication.py`
-- `backend/apps/common/tests/test_user_consent.py`
+- `backend/apps/common/tests/test_user_consent.py` — *третья доработка по ревью*
 - `backend/tests/integration/test_common_subscribe_api.py`
-- `backend/tests/integration/test_auth_registration_consent.py`
+- `backend/tests/integration/test_auth_registration_consent.py` — *третья доработка по ревью*
 - `frontend/src/components/auth/B2BRegisterForm.tsx`
 - `frontend/src/components/auth/RegisterForm.tsx` — *доработка по ревью*
 - `frontend/src/components/home/SubscribeForm.tsx` — *доработка по ревью*
@@ -803,7 +925,8 @@ risk **medium**. Расхождения объяснимы и ожидаемы:
 
 - `AGENTS.md`, `CLAUDE.md` — автосчётчик GitNexus. Числа сверены `git diff`, а не по памяти
   (замечание ревью): в коммитах стори (`792ce210..0f6e13e3`) счётчик сдвинулся
-  `9657 symbols, 15912 relationships` → `9695, 15982`; в рабочем дереве поверх этого лежит ещё не
-  закоммиченный сдвиг `9695, 15982` → `9717, 16022` (в дифф ветки против `develop` он пока не входит).
+  `9657 symbols, 15912 relationships` → `9695, 15982`; далее коммит `8ef96123` довёл его до
+  `9717, 16022`, а в рабочем дереве поверх этого лежит ещё не закоммиченный сдвиг
+  `9717, 16022` → `9743, 16069` (переиндексация на `8ef9612` перед третьей доработкой).
   Обе правки внесены переиндексацией `npx gitnexus analyze`, а не работой над стори; строка вне
   MCP-маркеров, поэтому переживает регенерацию.

@@ -962,6 +962,21 @@ development_status:
   #             Backend 3279 -> 3282 passed, frontend 2807 -> 2810, падений нет;
   #             check_openapi_sync — контракт синхронен, дельта mypy 0 (129).
   #             in-progress -> review.
+  # 2026-09-09: Третий круг ревью 41.9 — закрыты пять последних замечаний:
+  #             (а) UserConsent.source ограничен перечислением на уровне БД,
+  #             миграция 0020_userconsent_source_valid заменяет проверку на
+  #             непустоту (Django choices базы не касаются, опечатка легла бы
+  #             в журнал молча); (б) UnicodeDecodeError при чтении реестра
+  #             заворачивается в ConsentTextsError — он наследник ValueError,
+  #             а не OSError, и проходил мимо except; (в) формы подписки при
+  #             consent_text_outdated показывают сообщение поля версии, а не
+  #             попутную ошибку email; (г) исправлена ложноположительная
+  #             проверка отката пользователя (повторный вызов генератора
+  #             уникального email); (д) добавлен тест отсутствующей
+  #             marketing_consent_text_version при marketing_consent=True.
+  #             Backend 3282 -> 3286 passed, frontend 2810 -> 2812, падений
+  #             нет; полный прогон без фильтра — 3321 passed, покрытие 81%.
+  #             Остаётся review.
   41-9-consent-journal-text-version-and-source: review
   epic-41-retrospective: optional
 

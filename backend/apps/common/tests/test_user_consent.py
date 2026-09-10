@@ -259,6 +259,31 @@ def test_empty_source_violates_check_constraint():
         )
 
 
+def test_source_outside_choices_violates_check_constraint():
+    """Опечатка в источнике падает на вставке, а не ложится в журнал молча.
+
+    `choices` в Django проверяются формами и `full_clean()`; прямой
+    `objects.create(source="registartion")` их не касается, поэтому
+    перечисление продублировано ограничением уровня БД.
+    """
+    with pytest.raises(IntegrityError):
+        UserConsent.objects.create(
+            session_key="constraint-source-typo-session",
+            consent_type="pdp_contract",
+            source="registartion",
+            consent_text_version=current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "pdp_contract"),
+        )
+
+
+def test_source_values_match_choices():
+    """Список для CheckConstraint не расходится с перечислением модели.
+
+    Он объявлен на уровне модуля (тело `class Meta` не видит пространство имён
+    внешнего класса), поэтому синхронность держится тестом, а не языком.
+    """
+    assert UserConsent.SOURCE_VALUES == [value for value, _label in UserConsent.SOURCE_CHOICES]
+
+
 def test_empty_consent_text_version_violates_check_constraint():
     """Пустая версия текста падает на CheckConstraint."""
     with pytest.raises(IntegrityError):
@@ -276,7 +301,7 @@ def test_check_constraints_are_declared_on_model():
 
     assert {
         "userconsent_user_or_session_required",
-        "userconsent_source_required",
+        "userconsent_source_valid",
         "userconsent_text_version_required",
     } <= names
 

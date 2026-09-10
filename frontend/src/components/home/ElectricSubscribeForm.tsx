@@ -16,6 +16,7 @@ import {
   CONSENT_TEXT_OUTDATED_CODE,
   CONSENT_TEXT_OUTDATED_MESSAGE,
   CONSENT_TEXT_VERSIONS,
+  getConsentTextOutdatedMessage,
 } from '@/constants/consentTexts';
 
 interface SubscribeFormData {
@@ -55,6 +56,18 @@ const getBackendFieldError = (error: unknown, field: SubscribeFormField) => {
  */
 const isConsentTextOutdatedError = (error: unknown) =>
   error instanceof Error && (error as SubscribeValidationError).code === CONSENT_TEXT_OUTDATED_CODE;
+
+/**
+ * Сообщение об устаревшей формулировке. Берётся не «первым из `details`»:
+ * в ответе рядом с полем версии может лежать попутная ошибка (например, email),
+ * и человеку показалось бы «введите корректный email» вместо единственного
+ * работающего действия — обновить страницу. `getConsentTextOutdatedMessage`
+ * ставит поля версии первыми.
+ */
+const getConsentOutdatedMessage = (error: unknown) => {
+  const { code, details } = (error ?? {}) as SubscribeValidationError;
+  return getConsentTextOutdatedMessage({ error: code, details }) ?? CONSENT_TEXT_OUTDATED_MESSAGE;
+};
 
 const getFirstBackendError = (error: unknown) => {
   if (!(error instanceof Error) || !('details' in error)) {
@@ -130,10 +143,7 @@ export const ElectricSubscribeForm: React.FC = () => {
         // Формулировку поправили после отрисовки этой вкладки: человеку нужно
         // обновить страницу, а не править ввод. Случай разводится по машинному
         // коду ответа, а не по тексту сообщения.
-        toast.error(
-          (getFirstBackendError(error) ?? CONSENT_TEXT_OUTDATED_MESSAGE).toUpperCase(),
-          electricToastErrorOptions
-        );
+        toast.error(getConsentOutdatedMessage(error).toUpperCase(), electricToastErrorOptions);
       } else if (error instanceof Error && error.message === 'validation_error') {
         const pdpConsentError = getBackendFieldError(error, 'pdp_consent');
         const emailError = getBackendFieldError(error, 'email');
