@@ -199,7 +199,7 @@ def _listing(entries):
     счётчика не видно, сколько именно их затронуто.
     """
     reasons = {}
-    counts = Counter()
+    counts: Counter[str] = Counter()
     for _, name, reason in entries:
         reasons[name] = reason
         counts[name] += 1
