@@ -156,6 +156,9 @@ backend/
 │       ├── consent_texts.json        # Реестр текстов согласий: поверхности, ревизии, привязки, known_versions (Story 41.9)
 │       ├── consent_texts.py          # Загрузчик реестра: current_consent_text_version, resolve_consent_text,
 │       │                             #   is_current_consent_text_version (сверка версии из запроса) (Story 41.9)
+│       ├── api_schema.py             # Именованные компоненты OpenAPI для двух форм ответа 400 эндпоинтов
+│       │                             #   с согласием: FieldValidationErrorResponse, ConsentTextOutdatedResponse,
+│       │                             #   ConsentValidationErrorResponse (oneOf) (Story 41.9, ревью)
 │       ├── permissions.py            # Custom permissions
 │       ├── pagination.py             # Стандартизированная пагинация
 │       ├── exceptions.py             # Обработка ошибок

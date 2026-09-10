@@ -157,7 +157,12 @@ export interface RegisterRequest {
   // запрос, если версия не действующая: так вкладка со старым текстом не
   // запишет согласие на формулировку, которой человек не видел.
   pdp_consent_text_version: string;
-  marketing_consent_text_version?: string;
+  // Обязательна, хотя backend объявляет поле `required=False` с `default=""`:
+  // при `marketing_consent: true` пустая версия отклоняется (`400`,
+  // `consent_text_outdated`), а обе формы отправляют её всегда. Необязательное
+  // поле здесь компилировало бы заведомо отклоняемый payload — и расходилось бы
+  // с `api.generated.ts`, где `default` делает поле обязательным.
+  marketing_consent_text_version: string;
 }
 
 export interface RegisterResponse {

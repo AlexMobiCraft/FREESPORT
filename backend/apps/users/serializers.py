@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core import signing
+from drf_spectacular.extensions import OpenApiSerializerExtension
 from rest_framework import serializers
 
 from apps.common.consent_texts import MAX_VERSION_LENGTH, is_current_consent_text_version
@@ -382,6 +383,48 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             customer._pending_link_confirmation = True  # type: ignore[attr-defined]
 
         return customer
+
+
+class UserRegistrationRequestSchemaExtension(OpenApiSerializerExtension):
+    """Выражает в схеме условную обязательность `marketing_consent_text_version`.
+
+    На уровне DRF поле объявлено `required=False` с `default=""` — иначе форма без
+    отмеченного маркетингового чекбокса была бы обязана доказывать текст, по которому
+    ничего не записывается. Обязательным оно становится в `validate()`, когда согласие
+    действительно дано, и без этого блока схема разрешала бы payload, который сервер
+    гарантированно отклонит `400 consent_text_outdated`.
+
+    `if`/`then` (JSON Schema 2020-12, доступна в OpenAPI 3.1), а не `dependentRequired`:
+    последний срабатывает на само присутствие `marketing_consent`, а сервер требует
+    версию только при значении `true`. Обе формы всегда шлют `marketing_consent`, в том
+    числе `false`, — `dependentRequired` требовал бы версию и от них.
+
+    Расширение регистрируется самим фактом объявления класса, поэтому живёт рядом с
+    сериализатором: `apps/users/serializers.py` импортируется вью, а отдельный модуль
+    схемы пришлось бы импортировать вручную из `AppConfig.ready()`.
+    """
+
+    target_class = UserRegistrationSerializer
+
+    def map_serializer(self, auto_schema: Any, direction: Any) -> dict[str, Any]:
+        # cast: `_map_serializer` не аннотирован, а `warn_return_any` в mypy.ini включён.
+        schema = cast(dict[str, Any], auto_schema._map_serializer(self.target, direction, bypass_extensions=True))
+
+        # Ответного компонента у сериализатора нет (все consent-поля write_only), но
+        # условие всё равно ставится только на запрос: в ответе его смысла нет.
+        if direction == "request":
+            schema["if"] = {
+                "properties": {"marketing_consent": {"const": True}},
+                "required": ["marketing_consent"],
+            }
+            schema["then"] = {
+                "required": ["marketing_consent_text_version"],
+                # Не просто «поле присутствует»: `default: ""` в схеме разрешал бы
+                # пустую строку, которую сервер отклонит тем же кодом.
+                "properties": {"marketing_consent_text_version": {"minLength": 1}},
+            }
+
+        return schema
 
 
 class PortalLinkConfirmSerializer(serializers.Serializer):

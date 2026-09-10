@@ -12,7 +12,6 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
@@ -23,6 +22,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.common.api_schema import consent_text_outdated_example, consent_validation_error_response
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
 from apps.common.serializers import consent_text_outdated_payload
@@ -108,12 +108,12 @@ class UserRegistrationView(APIView):
                     ),
                 ],
             ),
-            400: OpenApiResponse(
-                # Свободный объект: у 400 две формы — плоские ошибки полей и
-                # `{error, details}` для устаревшей версии формулировки. Без
-                # `response=` drf-spectacular выбрасывает примеры и в контракт
-                # не попадает ни одна из форм.
-                response=OpenApiTypes.OBJECT,
+            400: consent_validation_error_response(
+                # Две формы ответа связаны `oneOf` именованных компонентов (стори 41.9,
+                # четвёртый круг ревью): свободный `type: object` давал фронту
+                # `{ [key: string]: unknown }` и не типизировал ни `error`, ни `details`.
+                # `response=` обязателен и по другой причине: без него drf-spectacular
+                # выбрасывает примеры и в контракт не попадает ни одна из форм.
                 description=(
                     "Ошибки валидации. Обычные ошибки возвращаются плоским объектом "
                     "«поле → список сообщений». Исключение — устаревшая или непереданная "
@@ -132,18 +132,7 @@ class UserRegistrationView(APIView):
                             "role": ["Недопустимая роль для регистрации."],
                         },
                     ),
-                    OpenApiExample(
-                        name="consent_text_outdated",
-                        value={
-                            "error": "consent_text_outdated",
-                            "details": {
-                                "pdp_consent_text_version": [
-                                    "Текст согласия обновился. Обновите страницу и подтвердите согласие заново."
-                                ],
-                            },
-                        },
-                        response_only=True,
-                    ),
+                    consent_text_outdated_example("pdp_consent_text_version"),
                 ],
             ),
         },

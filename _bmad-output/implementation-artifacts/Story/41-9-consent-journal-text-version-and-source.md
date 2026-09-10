@@ -188,6 +188,74 @@ so that **согласие оставалось доказуемым по ФЗ-1
 
 ### Review Findings
 
+- [x] [Review][Patch] Синхронизировать ручной `RegisterRequest` с обязательной маркетинговой версией: сейчас тип допускает `marketing_consent: true` без `marketing_consent_text_version`, хотя generated-контракт помечает версию обязательной, backend отклоняет такую комбинацию, а обе формы уже всегда отправляют версию. Сделать `marketing_consent_text_version` обязательным, чтобы новый типизированный вызов `authService.register*` не компилировал заведомо отклоняемый payload. [`frontend/src/types/api.ts:143-160`]
+  - Сделано: поле стало обязательным. Расхождение закреплено стражем
+    `frontend/src/__tests__/register-request-contract.test.ts`: проверка компиляционная — payload без версии
+    помечен `@ts-expect-error`, и если поле снова сделают необязательным, `tsc` упадёт на неиспользованной
+    директиве. RED-фаза снята явно: временное `marketing_consent_text_version?: string` дало обе ожидаемые
+    ошибки (`TS2322` на присваивании и `TS2578` на директиве), после отката — чисто. Сверяются в страже
+    только consent-поля: у `country` (перечисление в контракте, `string` вручную) и `email` (`| null`)
+    типы расходятся давно и по другим причинам.
+- [x] [Review][Patch] Выразить в OpenAPI условную обязательность `marketing_consent_text_version`: при `marketing_consent: true` backend требует действующую версию, но схема разрешает поле не передавать. Описать зависимость средствами OpenAPI 3.1 и синхронизировать источник `@extend_schema`, контракт и generated types. [`docs/api/openapi.yaml:4982-5006`, `backend/apps/users/serializers.py:105-119,206-209`]
+  - Сделано: у компонента `UserRegistrationRequest` появились `if` / `then` (JSON Schema 2020-12, доступна
+    в OpenAPI 3.1): при `marketing_consent: true` версия обязательна и непуста (`minLength: 1` —
+    `default: ""` в схеме иначе разрешал бы пустую строку, которую сервер отклонит тем же кодом).
+    `dependentRequired` не подошёл: он срабатывает на само присутствие `marketing_consent`, а обе формы
+    всегда шлют его, в том числе `false`, — версию требовали бы и от них. Источник — не ручная правка YAML:
+    условие добавляет `UserRegistrationRequestSchemaExtension` (`OpenApiSerializerExtension`) рядом с
+    сериализатором, поэтому `check_openapi_sync` остаётся зелёным. Расширение живёт в
+    `apps/users/serializers.py`, а не в отдельном модуле схемы: оно регистрируется самим фактом объявления
+    класса, а отдельный модуль пришлось бы импортировать из `AppConfig.ready()`.
+- [x] [Review][Patch] Типизировать две формы ответа `400` вместо свободного `object`: сейчас `consent_text_outdated` существует только в prose/examples, а generated types получают `{ [key: string]: unknown }` и не защищают machine-code `error`/`details`. Использовать именованные схемы и `oneOf` для обычных field errors и структурированного отказа. [`docs/api/openapi.yaml:112-142,342-371`]
+  - Сделано: новый модуль `backend/apps/common/api_schema.py` объявляет три компонента —
+    `FieldValidationErrorResponse` (плоское «поле → список сообщений»), `ConsentTextOutdatedResponse`
+    (`error` + `details`) и `ConsentValidationErrorResponse` (`oneOf` из первых двух); оба эндпоинта
+    ссылаются на третий. Плоская форма не описывается обычным сериализатором — набор её ключей зависит от
+    запроса, а `Serializer` даёт фиксированный `properties`, — поэтому её схему задаёт
+    `OpenApiSerializerExtension`, а класс-маркер нужен лишь чтобы drf-spectacular зарегистрировал имя: на
+    голый dict он `$ref` не создаёт. У `error` стоит `const`, а не `enum` из одного значения: `enum`
+    хук `postprocess_schema_enums` вынес бы отдельным компонентом-перечислением. Результат в типах фронта —
+    `error: 'consent_text_outdated'` литералом и `details: { [key: string]: string[] }` вместо прежнего
+    `{ [key: string]: unknown }`. Типы не остались лежать без дела: `constants/consentTexts.ts` теперь
+    сужает ответ к сгенерированному `ConsentTextOutdatedResponse`, поэтому расхождение машинного кода
+    между сервером и фронтом становится ошибкой компиляции.
+- [x] [Review][Patch] Добавить `USER_CONSENT_SOURCE_VALUES` в сокращённый Python-пример модели: блок использует константу в `Meta.constraints`, но не объявляет её, поэтому буквальное выполнение примера даёт `NameError`. [`docs/architecture/02-data-models.md:720-815`]
+  - Сделано: константа объявлена перед классом — там же, где в коде, — вместе с комментарием, объясняющим,
+    почему она модульная, а не атрибут класса. Заодно добавлен псевдоним `SOURCE_VALUES`, который в коде
+    есть: без него пример расходился с моделью второй раз.
+- [x] [Review][Patch] Привести новые индексы `UserConsent` в DDL к фактической PostgreSQL-схеме: документ показывает вымышленные `idx_userconsent_source` / `idx_userconsent_text_version` и не отражает автоматически созданные `_like`-индексы, тогда как фактические имена уже сняты после миграции. [`docs/architecture/09-database-schema.md:421-427`]
+  - Сделано: весь блок индексов заменён на фактический, снятый запросом
+    `SELECT indexname, indexdef FROM pg_indexes WHERE tablename='common_userconsent'` к dev-БД после
+    миграции `0020`. Правились не только два новых: вымышлены были все шесть — Django не создаёт ни
+    `idx_*`-имён, ни частичных `WHERE`, ни `DESC`, а каждому индексируемому `varchar` добавляет парный
+    `_like` с `varchar_pattern_ops`. Оставить половину блока настоящей, а половину придуманной значило бы
+    сделать документ хуже, чем он был. Заодно исправлено «и два индекса» в сводке раздела: их четыре.
+- [x] [Review][Patch] Обновить пример payload B2B-регистрации: в нём отсутствуют обязательные `pdp_consent` и `pdp_consent_text_version`, поэтому показанный как действующий запрос получает `400 consent_text_outdated`; добавить consent-поля и указать источник актуальных версий. [`docs/architecture/18-b2b-verification-workflow.md:124-145`]
+  - Сделано: в пример добавлены все четыре consent-поля, а под ним — предупреждение: версии в документе
+    **устаревают** при каждой правке формулировки, поэтому копировать их отсюда нельзя; канонический
+    источник — реестр `consent_texts.json` и собранная из него константа фронта. Там же названо, что
+    `marketing_consent_text_version` обязателен только при `marketing_consent: true`. Список шагов
+    валидации дополнен сверкой версий и записью двух `UserConsent` с `source = "registration"`.
+- [x] [Review][Patch] Ослабить завышенные compliance-гарантии до фактически обеспеченных: строка версии подтверждает совместимость официального frontend-бандла, но произвольный API-клиент может прислать её без показа текста; БД гарантирует допустимый `source` и лишь непустую версию, а append-only обеспечен admin/API-путями, но не ORM/SQL. [`docs/architecture/11-security-performance.md:948-987`, `docs/architecture/02-data-models.md:817-825`]
+  - Сделано, три утверждения по отдельности. **Версия текста:** «доказывает, что было на экране» заменено
+    на то, что она фактически даёт, — отсекает вкладку, открытую до правки формулировки; произвольный
+    API-клиент пришлёт ту же строку, ничего не отрисовав, и сервер такой запрос примет. Связку
+    «версия ↔ отрисованный текст» держит только официальный фронт и стережёт Vitest-тест реестра. Та же
+    правка внесена в docstring `frontend/src/constants/consentTexts.ts` — оставлять в коде утверждение,
+    снятое в документе, значило бы разойтись с самим собой. **Ограничения БД:** названа асимметрия — у
+    `source` проверяется принадлежность перечислению, у `consent_text_version` только непустота; версию вне
+    реестра база примет, потому что набор действующих версий меняется правкой JSON и CHECK по нему требовал
+    бы миграции на каждую правку формулировки. **Append-only:** это ограничение путей (admin-запреты и
+    отсутствие API, пишущего что-либо кроме вставки), а не схемы — `objects.update()/delete()` и прямой SQL
+    журнал меняют, ни триггера, ни `REVOKE` для роли приложения нет.
+- [x] [Review][Patch] Исправить GitNexus audit trail: committed diff `792ce210..HEAD` уже заканчивается на `9743/16069`, а текущая переиндексация рабочего дерева дала `9749/16083`; story ошибочно называет `9743/16069` незакоммиченным сдвигом. [`_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md:205-206,819-820,927-932`, `AGENTS.md:164`, `CLAUDE.md:168`]
+  - Сделано: числа сняты заново двумя командами. `git diff 792ce210..HEAD -- AGENTS.md CLAUDE.md` даёт
+    `9657/15912 → 9743/16069` (по коммитам: `0f6e13e3` → `9695/15982`, `8ef96123` → `9717/16022`,
+    `34fbe487` → `9743/16069`); `git diff HEAD -- AGENTS.md CLAUDE.md` — незакоммиченный
+    `9743/16069 → 9749/16083`. Запись в File List переписана по этим двум срезам и объясняет, почему
+    прежняя формулировка устарела: `9743/16069` был незакоммиченным на момент внесения записи и стал
+    закоммиченным в `34fbe487`. Исторические заметки прошлых кругов не переписываются задним числом —
+    урок стори 41.3.
 - [x] [Review][Patch] Уточнить границы гарантии `known_versions`: список хранится в том же редактируемом JSON, поэтому защищает только от случайной односторонней правки, но не обеспечивает механическую append-only неизменяемость при согласованной замене ревизии и её хеша. Решение Alex: оставить текущий процедурный guard и убрать из кода, тестов и story утверждения о более сильной гарантии. [`backend/apps/common/consent_texts.py:13-16,157-198`, `backend/apps/common/consent_texts.json:31-35`]
   - Сделано: страж оставлен как есть, убраны утверждения о более сильной гарантии. Формулировка «история неизменяема» заменена на «страж от односторонней правки» в docstring модуля и `_check_known_versions`, в тексте ошибки («по нему сверяется история ревизий» вместо «он и делает историю неизменяемой»), в заголовке блока тестов, в комментарии фронтенд-стража, в `11-security-performance.md`, `index.md` и в Completion Notes. Границы названы явно: список лежит в том же редактируемом JSON, согласованная замена ревизии вместе с её строкой пройдёт.
 - [x] [Review][Patch] Вывести machine-code `consent_text_outdated` в реальный HTTP JSON и применять его также при отсутствующей версии. Решение Alex: контракт top-level `{error: "consent_text_outdated", details: {...}}`, сохранив массивы строк в `details`; синхронизировать оба endpoint, OpenAPI, frontend-обработку и тесты. Сейчас `ErrorDetail.code` остаётся только во внутреннем `response.data`, JSONRenderer отдаёт массив строк, а пропущенное поле имеет внутренний code `required`. [`backend/apps/common/serializers.py:23-32,73-82`, `backend/apps/users/serializers.py:94-119`, `frontend/src/constants/consentTexts.ts:24-25`]
@@ -422,6 +490,7 @@ so that **согласие оставалось доказуемым по ФЗ-1
 | 2026-09-09 | 1.2 | Закрыты пять замечаний ревью. Главное — сервер больше не проставляет версию текста «за клиента»: формы присылают версию показанной формулировки, сервер сверяет её с реестром и отклоняет несовпадение (`400`, код `consent_text_outdated`). **Утверждение шапки и AC8 «API-контракт не меняется» с этой доработкой недействительно** (правится строкой Change Log, а не задним числом в AC — урок стори 41.3): `SubscribeRequest` получил `consent_text_version`, `UserRegistrationRequest` — `pdp_consent_text_version` и `marketing_consent_text_version`; `docs/api/openapi.yaml` перегенерирован и сверен `check_openapi_sync`, типы фронта — `npm run generate:types`. Прочие четыре замечания: `known_versions` защищает историю ревизий от правки и удаления, дубли ключей JSON отбраковываются, версия длиннее `max_length=64` не проходит загрузку, посторонний task-файл объяснён и назван в File List. Frontend 2803 → 2807 passed (167 файлов, падений нет); backend — числа в Debug Log. | Claude Opus 5 / dev-story |
 | 2026-09-09 | 1.3 | Закрыты оставшиеся восемь замечаний ревью. Главное — машинный код `consent_text_outdated` дошёл до клиента: оба эндпоинта отвечают `{error, details}` (прежде код жил только в `ErrorDetail.code`, который JSONRenderer выбрасывает, а у пропущенного поля был и вовсе `required`); фронт разводит этот отказ по коду, а не по тексту сообщения. Заодно найдена причина, по которой невалидный пример подписки не ловился контрактом: без `response=` drf-spectacular выбрасывает `examples` целиком — обоим `400` задан `OpenApiTypes.OBJECT`, и обе формы ответа теперь видны в схеме. **Уточнение к версии 1.2:** утверждение «история ревизий стала неизменяемой» отменяется — `known_versions` лежит в том же редактируемом JSON и ловит только одностороннюю правку; решение владельца — оставить процедурный страж и убрать заявления о более сильной гарантии (правится строкой Change Log, а не задним числом в тексте). Прочие замечания: Python-блок `UserConsent` в `02-data-models.md` приведён к коду; привязка к 1С в `18-b2b-verification-workflow.md` описана как отключённый латентный сценарий; из `11-security-performance.md` убрано ложное утверждение о строгом JSON boolean при регистрации; ссылки dev-task на `deferred-work.md` переведены с номеров строк на заголовки; числа побочного GitNexus-диффа сверены `git diff`. Backend 3279 → 3282 passed, frontend 2807 → 2810 passed, падений нет; `check_openapi_sync` — контракт синхронен. | Claude Opus 5 / dev-story |
 | 2026-09-09 | 1.4 | Закрыты последние пять замечаний ревью. Главное — источник согласия ограничен перечислением на уровне БД: `choices` в Django проверяются формами и `full_clean()`, а прямой `objects.create(source="registartion")` их не касается, и опечатка легла бы в юридически значимый журнал молча. Миграция `0020_userconsent_source_valid` заменяет `userconsent_source_required` (`CHECK (source <> '')`) на проверку `source IN (...)`; новое ограничение строго сильнее, поэтому прежнее снято как избыточное. **Уточнение к версиям 1.0–1.3:** имя ограничения `userconsent_source_required` в тексте Task 2 и Dev Notes с этой миграции недействительно — оно называется `userconsent_source_valid` (правится строкой Change Log, а не задним числом в тексте задачи — урок стори 41.3). Прочие замечания: `UnicodeDecodeError` при чтении реестра заворачивается в `ConsentTextsError` (он наследник `ValueError`, а не `OSError`, и проходил мимо `except`); формы подписки при `consent_text_outdated` показывают сообщение поля версии, а не попутную ошибку email (порядок ключей в `details` произволен, а совет «исправьте email» не чинит устаревшую вкладку); ложноположительная проверка отката пользователя исправлена — payload сохраняется в переменную вместо повторного вызова генератора уникального email; закрыт непроверенный путь «галочка маркетинга стоит, версии нет». Backend 3282 → 3286 passed, frontend 2810 → 2812 passed, падений нет; дополнительно полный прогон без фильтра маркеров — 3321 passed, покрытие 81 %. | Claude Opus 5 / dev-story |
+| 2026-09-10 | 1.5 | Закрыты восемь замечаний четвёртого круга ревью. Главное — контракт `400` перестал быть свободным объектом: обе формы ответа стали именованными схемами (`FieldValidationErrorResponse`, `ConsentTextOutdatedResponse`) и связаны `oneOf`, поэтому в типах фронта `error` теперь литерал `'consent_text_outdated'`, а `details` — `{ [key: string]: string[] }` вместо `unknown`; `constants/consentTexts.ts` сужает ответ к этому типу, и расхождение машинного кода между сервером и фронтом ломает компиляцию. Условная обязательность `marketing_consent_text_version` выражена `if`/`then` (OpenAPI 3.1) — `dependentRequired` не подошёл, он срабатывает на присутствие `marketing_consent`, а обе формы всегда шлют его, в том числе `false`. Обе правки схемы идут из кода (`apps/common/api_schema.py`, `UserRegistrationRequestSchemaExtension`), контракт перегенерирован и сверен `check_openapi_sync`. **Уточнение к версиям 1.0–1.4:** compliance-утверждения ослаблены до фактически обеспеченных — версия текста подтверждает совместимость официального бандла, но не факт показа текста человеку (произвольный API-клиент пришлёт её, ничего не отрисовав); append-only держится запретами админки и отсутствием пишущих путей, а не схемой; база проверяет допустимость `source`, но у версии только непустоту. Прочие замечания: `marketing_consent_text_version` стал обязательным в ручном `RegisterRequest` (компиляционный страж с `@ts-expect-error`); в пример модели `02-data-models.md` добавлен `USER_CONSENT_SOURCE_VALUES`, без которого блок падал бы `NameError`; блок индексов в DDL заменён фактическим из `pg_indexes` (вымышлены были все шесть, а не два, и `_like`-индексы не показывались вовсе); пример payload B2B-регистрации дополнен consent-полями с предупреждением, что версии из документа копировать нельзя; числа GitNexus-диффа пересняты двумя срезами — закоммиченным и рабочего дерева. Backend 3321 → 3328 passed (полный прогон без фильтра маркеров, 75 skipped, падений нет), frontend 2812 → 2815 passed (168 файлов), падений нет. | Claude Opus 5 / dev-story |
 
 ## Dev Agent Record
 
@@ -700,6 +769,86 @@ skipped и deselected не изменилось: новые тесты не вы
 Дельта к базису — ноль. Фронт: `npx tsc --noEmit` — чисто, `npm run lint` — чисто, `npm run format:check` —
 после `prettier --write` по двум формам «All matched files use Prettier code style».
 
+**Четвёртая доработка по замечаниям ревью — числа прогонов (2026-09-10).**
+
+| Прогон | До четвёртой доработки | После | Дельта |
+|---|---|---|---|
+| Backend, `pytest -q` (без фильтра маркеров) | 3321 passed, 75 skipped, 19 subtests, 0 failed (38:36) | 3328 passed, 75 skipped, 19 subtests, 0 failed (27:12) | **+7 passed**, падений нет |
+| Frontend, `npm run test` | 167 файлов, 2812 passed, 16 skipped | 168 файлов, 2815 passed, 16 skipped, 0 failed | **+3 теста, +1 файл**, падений нет |
+
+Прогон бэкенда взят **без** фильтра маркеров (в прошлых кругах основной таблицей был
+`-m "not performance and not slow"`): доработка меняет схему API, а её строит один и тот же код независимо
+от маркеров, и полный набор здесь строго сильнее. Число сопоставимо с полным прогоном версии 1.4 (3321 passed).
+
+Прирост фронтенда — новый файл `src/__tests__/register-request-contract.test.ts` (3 теста): payload с обеими
+версиями принимается обоими типами; payload без маркетинговой версии и payload без версии ПДн не
+компилируются. Проверка компиляционная — её настоящий гейт `npx tsc --noEmit`, а не vitest; в vitest тесты
+нужны, чтобы файл не выглядел мёртвым и чтобы `@ts-expect-error` стоял в исполняемом коде.
+
+Прирост бэкенда раскладывается ровно: все **+7** — новый файл `apps/common/tests/test_api_schema.py`
+(две формы `400` объявлены именованными компонентами; у плоской формы свободные ключи и нет фиксированных
+`properties`; у структурированной машинный код зафиксирован `const`; общий компонент — `oneOf` из обеих;
+оба эндпоинта на него ссылаются — параметризация даёт два теста; `if`/`then` у `UserRegistrationRequest`
+и то, что версия маркетинга не стала обязательной безусловно). Число skipped, deselected и subtests не
+изменилось — новые тесты не выпадают из фильтров CI и не трогают БД.
+
+**Целевой набор** (`apps/common` + подписка + согласия регистрации + unit-тесты сериализаторов
+пользователя) — **195 passed** (04:10), против 188 до доработки.
+
+**Красная фаза backend-стража снята не подстройкой, а исправлением теста.** Первый прогон целевого набора
+дал `1 failed`: `test_consent_text_outdated_pins_machine_code` сравнивал словарь `details` целиком, а в
+схеме у него есть ещё `description` из `help_text`. Тест привязывал бы прогон к тексту подсказки и падал бы
+от любой её правки — сверка сужена до структуры (`type` + `additionalProperties`). Схему при этом не
+трогали: падал тест, а не код.
+
+
+
+**Проверка, что компиляционный страж действительно охраняет** (красная фаза, правка откатана):
+`marketing_consent_text_version` временно возвращено в необязательное (`?: string`) — `npx tsc --noEmit` дал
+обе ожидаемые ошибки: `TS2322` на присваивании ручного типа к `Pick<>` от сгенерированного
+(`Type 'undefined' is not assignable to type 'string'`) и `TS2578: Unused '@ts-expect-error' directive` в
+самом страже. После отката — чисто. Без этой проверки страж мог бы быть зелёным всегда.
+
+**Статический анализ после четвёртой доработки.**
+
+- `flake8 . --max-line-length=120 --extend-ignore=E203,W503` — чисто.
+- `black --check` по пяти правленым backend-файлам — `5 files would be left unchanged`. `black --check .`
+  по-прежнему называет те же 8 предсуществующих файлов (`apps/pages/models.py`,
+  `apps/products/category_utils.py`, `apps/pages/tests.py`, `apps/products/tests/test_visible_categories.py`,
+  `apps/products/management/commands/fix_category_tree_public_roots.py`,
+  `apps/products/tests/unit/test_fix_category_tree_public_roots.py`, `tests/helpers.py`,
+  `apps/products/tests/unit/test_variant_import_migrated.py`); ни один из них не входит в дифф ветки
+  (`git diff --name-only origin/develop...HEAD` их не содержит), стори их не касается.
+- `mypy --config-file=mypy.ini .` — **129 ошибок, дельта к базису 0**. Первый замер дал 131: два новых
+  `no-any-return` на неаннотированных вызовах drf-spectacular (`auto_schema._map_serializer`,
+  `SchemaGenerator.get_schema`) при включённом `warn_return_any`. Оба закрыты точечным `cast`, а не
+  `# type: ignore` — тип здесь известен, скрывать нечего.
+- `python manage.py check_openapi_sync` — «Контракт синхронен с кодом». В этот раз файл контракта заменён
+  выводом `spectacular --file … --validate` целиком, а не правился точечно: правки затрагивают три новых
+  компонента и два ответа, и ручная синхронизация была бы менее надёжной, чем регенерация. Дифф вышел
+  умеренный (209 вставок / 161 удаление) — большая часть шума пришлась на порядок HTTP-методов внутри путей,
+  к которому гейт нечувствителен по построению.
+- Фронтенд: `npx tsc --noEmit` — 0 ошибок; `npm run lint` (`eslint . --max-warnings=0`) — чисто;
+  `npm run format:check` — `All matched files use Prettier code style!` (`prettier --write` понадобился двум
+  файлам: `types/api.ts` и `constants/consentTexts.ts`).
+
+**`npx gitnexus detect-changes --scope all` перед сдачей (после четвёртой доработки):** 17 файлов,
+22 символа, 4 затронутых потока, risk **medium**. Команде обязателен `--repo "C:\Users\1\DEV\FREESPORT"` —
+без него CLI падает `Multiple repositories indexed` (проиндексирован ещё и worktree `FREESPORT-pr117`).
+Расхождения объяснимы:
+
+- В списке изменённых символов — `new_password`, `new_password_confirm`, `PortalLinkConfirmSerializer`,
+  `UserLoginSerializer` и два `validate`, которых доработка не касалась: вставка
+  `UserRegistrationRequestSchemaExtension` в середину `apps/users/serializers.py` сдвинула вниз всё, что
+  объявлено после неё, а сопоставление идёт по смещению строк. Та же причина, что в версиях 1.1 и 1.3.
+- Затронутые потоки — четыре ветки `OnSubmit → IsConsentTextOutdated`: в `constants/consentTexts.ts`
+  изменились `isConsentTextOutdated` (сузился к типу из контракта) и `getConsentTextOutdatedMessage`
+  (читает `data.details` вместо приведения к локальному типу). Поведение обеих функций прежнее.
+- `impact --direction upstream` по правленым символам снят до внесения правок:
+  `Function:backend/apps/common/views.py:subscribe` — **LOW** (0 upstream),
+  `UserRegistrationView` — **LOW** (0 upstream), `UserRegistrationSerializer` — **LOW** (4 прямых,
+  0 процессов, 0 модулей). HIGH/CRITICAL в этом круге нет.
+
 ### Completion Notes List
 
 **Что сделано.** `UserConsent` получил два поля — `source` (`newsletter` / `registration` / `1c_link` /
@@ -846,6 +995,57 @@ skipped и deselected не изменилось: новые тесты не вы
    покрыты, а «галочка маркетинга стоит, версии нет» — нет. На уровне DRF поле молчит (`required=False`,
    `default=""`) и доходит до `validate()` пустой строкой: ветка отказа та же, но добирается до неё иначе.
 
+**Четвёртый круг ревью — восемь замечаний.**
+
+1. **Ответ `400` перестал быть свободным объектом.** Прежняя схема `type: object` + `additionalProperties: {}`
+   давала фронту `{ [key: string]: unknown }`: машинный код `error` и структура `details` существовали
+   только в prose и примерах, а компилятор о них не знал. Новый модуль `apps/common/api_schema.py`
+   объявляет `FieldValidationErrorResponse` (плоское «поле → список сообщений»),
+   `ConsentTextOutdatedResponse` (`error` + `details`) и связывает их `oneOf` в
+   `ConsentValidationErrorResponse`, на который ссылаются оба эндпоинта. Плоскую форму обычным
+   сериализатором не описать — набор её ключей зависит от запроса, а `Serializer` даёт фиксированный
+   `properties`; схему задаёт `OpenApiSerializerExtension`, а класс-маркер нужен лишь затем, чтобы
+   drf-spectacular зарегистрировал имя: на голый dict он `$ref` не создаёт. У `error` стоит `const`, а не
+   `enum` из одного значения — `enum` хук `postprocess_schema_enums` вынес бы отдельным
+   компонентом-перечислением, за которым ничего не стоит. В типах фронта результат:
+   `error: 'consent_text_outdated'` литералом, `details: { [key: string]: string[] }`.
+2. **Типы не оставлены лежать без дела.** `constants/consentTexts.ts` сужает ответ к сгенерированному
+   `ConsentTextOutdatedResponse`, а `CONSENT_TEXT_OUTDATED_CODE` объявлен как
+   `ConsentTextOutdatedResponse['error']`: смена кода на сервере теперь ломает компиляцию фронта, а не
+   поведение в проде. Иначе «защита машинного кода» осталась бы декларацией в контракте.
+3. **Условная обязательность выражена схемой, а не словами.** У `UserRegistrationRequest` появились
+   `if` / `then`: при `marketing_consent: true` версия обязательна и непуста. `dependentRequired` был бы
+   неверен — он срабатывает на само присутствие `marketing_consent`, а обе формы всегда шлют его, в том
+   числе `false`. `minLength: 1` в `then` нужен потому, что `default: ""` иначе разрешал бы пустую строку,
+   которую сервер отклонит тем же кодом. Условие добавляет `UserRegistrationRequestSchemaExtension` рядом
+   с сериализатором — расширение регистрируется фактом объявления класса, а отдельный модуль схемы
+   пришлось бы импортировать из `AppConfig.ready()`.
+4. **Ручной `RegisterRequest` приведён к контракту.** Поле `marketing_consent_text_version` стало
+   обязательным: сгенерированный тип помечал его так с самого начала (`default` в схеме), backend
+   отклоняет комбинацию «галочка есть, версии нет», а обе формы версию всегда шлют — необязательное поле
+   позволяло собрать заведомо отклоняемый payload. Страж компиляционный: `@ts-expect-error` сам становится
+   ошибкой `tsc`, если поле снова сделают необязательным.
+5. **Compliance-утверждения ослаблены до фактически обеспеченных** — три разных завышения.
+   *Версия текста* подтверждает совместимость официального бандла (отсекает вкладку, открытую до правки
+   формулировки), но не факт показа текста человеку: произвольный API-клиент пришлёт ту же строку, ничего
+   не отрисовав. *Append-only* держится запретами админки и отсутствием пишущих путей — `objects.update()`,
+   `delete()` и прямой SQL журнал меняют, ни триггера, ни `REVOKE` нет. *Ограничения БД* неравносильны: у
+   `source` проверяется принадлежность перечислению, у версии — только непустота, потому что набор
+   действующих версий меняется правкой JSON и CHECK по нему требовал бы миграции на каждую правку текста.
+   Та же правка внесена в docstring `constants/consentTexts.ts`: оставить в коде утверждение, снятое в
+   документе, значило бы разойтись с самим собой.
+6. **Три документа приведены к фактам.** В Python-блок `02-data-models.md` добавлен
+   `USER_CONSENT_SOURCE_VALUES` — без него буквальное выполнение примера давало `NameError`. Блок индексов
+   в `09-database-schema.md` заменён снятым из `pg_indexes`: вымышлены были **все шесть** имён, а не два
+   новых (Django не создаёт ни `idx_*`, ни частичных `WHERE`, ни `DESC`), и парные `_like`-индексы не
+   показывались вовсе. Пример payload B2B-регистрации в `18-b2b-verification-workflow.md` получил
+   consent-поля и предупреждение: версии из документа копировать нельзя, они устаревают при каждой правке
+   формулировки.
+7. **Числа GitNexus сняты двумя срезами.** Прежняя запись называла `9743/16069` незакоммиченным сдвигом —
+   верно на момент внесения, неверно после коммита `34fbe487`. Теперь в File List отдельно закоммиченное
+   (`9657/15912 → 9743/16069`, с разбивкой по коммитам) и отдельно рабочее дерево
+   (`9743/16069 → 9749/16083`).
+
 **Приёмка на проде** (вне объёма разработки, по уроку стори 41.5): миграции на прод накатываются вручную,
 после выката нужны `showmigrations common` (ожидаются применёнными **обе** — `0019` и `0020`) и
 `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 там было 0 строк, значение `unknown` у появившихся
@@ -864,18 +1064,21 @@ skipped и deselected не изменилось: новые тесты не вы
 - `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py`
 - `backend/apps/common/migrations/0020_userconsent_source_valid.py` — *третья доработка по ревью:* источник ограничен перечислением на уровне БД
 - `backend/apps/common/tests/test_consent_texts.py` — *третья доработка по ревью*
+- `backend/apps/common/api_schema.py` — *четвёртая доработка по ревью:* именованные компоненты `400` и их связка `oneOf`
+- `backend/apps/common/tests/test_api_schema.py` — *четвёртая доработка по ревью:* страж схемы `400` и условной обязательности версии
+- `frontend/src/__tests__/register-request-contract.test.ts` — *четвёртая доработка по ревью:* компиляционный страж обязательных consent-версий в `RegisterRequest`
 - `backend/tests/consent_versions.py` — *доработка по ревью:* общие версии для тестовых payload'ов; литералы в тринадцати файлах пришлось бы чинить при каждой правке текста
 - `frontend/src/__tests__/consent-texts-registry.test.tsx`
-- `frontend/src/constants/consentTexts.ts` — *доработка по ревью:* версии, которые формы отправляют серверу
+- `frontend/src/constants/consentTexts.ts` — *доработка по ревью:* версии, которые формы отправляют серверу; *четвёртая доработка:* форма ответа и машинный код берутся из сгенерированного контракта
 
 **Изменённые файлы (M):**
 
 - `backend/apps/common/models.py` — *третья доработка по ревью:* `USER_CONSENT_SOURCE_VALUES` и `userconsent_source_valid`
-- `backend/apps/common/views.py`
+- `backend/apps/common/views.py` — *четвёртая доработка по ревью:* `400` подписки ссылается на именованную схему
 - `backend/apps/common/admin.py`
 - `backend/apps/common/serializers.py` — *доработка по ревью*
-- `backend/apps/users/serializers.py` — *доработка по ревью*
-- `backend/apps/users/views/authentication.py`
+- `backend/apps/users/serializers.py` — *доработка по ревью*; *четвёртая доработка:* `UserRegistrationRequestSchemaExtension` с `if`/`then`
+- `backend/apps/users/views/authentication.py` — *четвёртая доработка по ревью:* `400` регистрации ссылается на именованную схему
 - `backend/apps/common/tests/test_user_consent.py` — *третья доработка по ревью*
 - `backend/tests/integration/test_common_subscribe_api.py`
 - `backend/tests/integration/test_auth_registration_consent.py` — *третья доработка по ревью*
@@ -885,16 +1088,16 @@ skipped и deselected не изменилось: новые тесты не вы
 - `frontend/src/components/home/ElectricSubscribeForm.tsx` — *доработка по ревью*
 - `frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx`
 - `frontend/src/services/subscribeService.ts` — *вторая доработка по ревью:* машинный код с верхнего уровня ответа
-- `frontend/src/types/api.ts`, `frontend/src/types/api.generated.ts` — *доработка по ревью*
-- `docs/api/openapi.yaml` — *доработка по ревью*
+- `frontend/src/types/api.ts`, `frontend/src/types/api.generated.ts` — *доработка по ревью*; *четвёртая доработка:* `marketing_consent_text_version` обязателен в ручном типе, в сгенерированном появились три компонента `400` и `if`/`then` у `UserRegistrationRequest`
+- `docs/api/openapi.yaml` — *доработка по ревью*; *четвёртая доработка:* перегенерирован целиком (`spectacular --validate`), сверен `check_openapi_sync`
 - `frontend/src/services/__tests__/subscribeService.test.ts`, `frontend/src/components/home/__tests__/ElectricSubscribeForm.test.tsx` — *вторая доработка по ревью*
 - `_bmad-output/implementation-artifacts/tasks/dev-task-textcontent-price-cta-separation.md` — *вторая доработка по ревью:* ссылки на `deferred-work.md` переведены с номеров строк на заголовки пунктов
-- `docs/architecture/02-data-models.md`
-- `docs/architecture/04-component-structure.md`
-- `docs/architecture/09-database-schema.md`
-- `docs/architecture/11-security-performance.md`
-- `docs/architecture/18-b2b-verification-workflow.md`
-- `docs/architecture/index.md`
+- `docs/architecture/02-data-models.md` — *четвёртая доработка по ревью:* `USER_CONSENT_SOURCE_VALUES` в примере модели, ослабленные инварианты
+- `docs/architecture/04-component-structure.md` — *четвёртая доработка по ревью:* `api_schema.py` в перечне модулей `apps/common`
+- `docs/architecture/09-database-schema.md` — *четвёртая доработка по ревью:* индексы заменены фактическими из `pg_indexes`
+- `docs/architecture/11-security-performance.md` — *четвёртая доработка по ревью:* границы append-only, границы гарантии версии, асимметрия CHECK-ограничений
+- `docs/architecture/18-b2b-verification-workflow.md` — *четвёртая доработка по ревью:* consent-поля в примере payload
+- `docs/architecture/index.md` — *четвёртая доработка по ревью:* строка «История изменений» за 2026-09-10
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
@@ -924,9 +1127,16 @@ skipped и deselected не изменилось: новые тесты не вы
 **Побочные правки, не относящиеся к стори** (по уроку стори 41.0–41.7 — не выкидываются, а называются):
 
 - `AGENTS.md`, `CLAUDE.md` — автосчётчик GitNexus. Числа сверены `git diff`, а не по памяти
-  (замечание ревью): в коммитах стори (`792ce210..0f6e13e3`) счётчик сдвинулся
-  `9657 symbols, 15912 relationships` → `9695, 15982`; далее коммит `8ef96123` довёл его до
-  `9717, 16022`, а в рабочем дереве поверх этого лежит ещё не закоммиченный сдвиг
-  `9717, 16022` → `9743, 16069` (переиндексация на `8ef9612` перед третьей доработкой).
-  Обе правки внесены переиндексацией `npx gitnexus analyze`, а не работой над стори; строка вне
-  MCP-маркеров, поэтому переживает регенерацию.
+  (замечание ревью), и запись здесь ведётся по **двум** срезам, потому что каждый круг доработок
+  переиндексирует дерево и сдвигает счётчик:
+  - **Закоммичено** (`git diff 792ce210..HEAD -- AGENTS.md CLAUDE.md`):
+    `9657 symbols, 15912 relationships` → `9743, 16069`. Промежуточные значения по коммитам:
+    `0f6e13e3` довёл счётчик до `9695, 15982`, `8ef96123` — до `9717, 16022`,
+    `34fbe487` — до `9743, 16069`.
+  - **Не закоммичено** (`git diff HEAD -- AGENTS.md CLAUDE.md`, четвёртый круг ревью):
+    `9743, 16069` → `9749, 16083`.
+
+  Прежняя запись называла `9743/16069` незакоммиченным сдвигом — на момент её внесения это было
+  верно, к третьему коммиту стори перестало (замечание ревью). Все правки внесены
+  переиндексацией `npx gitnexus analyze`, а не работой над стори; строка лежит вне MCP-маркеров,
+  поэтому переживает регенерацию.

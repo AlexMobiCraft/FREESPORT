@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.db import DatabaseError, transaction
 from django.utils import timezone
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
 from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
@@ -18,6 +17,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.common.api_schema import consent_text_outdated_example, consent_validation_error_response
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import BlogPost, News, UserConsent
 from apps.common.serializers import (
@@ -343,13 +343,14 @@ def realtime_metrics(_request: Request) -> Response:
                 )
             ],
         ),
-        400: OpenApiResponse(
-            # Схема — свободный объект: у 400 две формы (плоские ошибки полей и
-            # `{error, details}` для устаревшей версии). Без `response=`
-            # drf-spectacular выбрасывает примеры целиком, и в контракт не
-            # попадает ни одна из форм — ровно этим и был вызван невалидный
-            # пример подписки, найденный ревью стори 41.9.
-            response=OpenApiTypes.OBJECT,
+        400: consent_validation_error_response(
+            # Две формы ответа связаны `oneOf` именованных компонентов (стори 41.9,
+            # четвёртый круг ревью): прежний свободный `type: object` давал фронту
+            # `{ [key: string]: unknown }` и не типизировал ни `error`, ни `details`.
+            # `response=` при этом обязателен и по другой причине: без него
+            # drf-spectacular выбрасывает примеры целиком, и в контракт не попадает
+            # ни одна из форм — ровно этим и был вызван невалидный пример подписки,
+            # найденный ревью стори 41.9.
             description=(
                 "Ошибка валидации `email`, `pdp_consent` или `consent_text_version`. "
                 "Обычные ошибки возвращаются плоским объектом «поле → список сообщений». "
@@ -373,18 +374,7 @@ def realtime_metrics(_request: Request) -> Response:
                     },
                     response_only=True,
                 ),
-                OpenApiExample(
-                    name="consent_text_outdated",
-                    value={
-                        "error": "consent_text_outdated",
-                        "details": {
-                            "consent_text_version": [
-                                "Текст согласия обновился. Обновите страницу и подтвердите согласие заново."
-                            ],
-                        },
-                    },
-                    response_only=True,
-                ),
+                consent_text_outdated_example("consent_text_version"),
             ],
         ),
         503: OpenApiResponse(

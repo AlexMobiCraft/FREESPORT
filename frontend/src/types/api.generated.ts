@@ -1568,6 +1568,27 @@ export interface components {
       sort_order?: number;
     };
     /**
+     * @description Показанная формулировка согласия устарела или версия не передана.
+     *
+     *     Отдельная форма ответа нужна потому, что этот отказ лечится обновлением страницы,
+     *     а не правкой ввода: клиент обязан отличать его от прочей валидации. Узнавать
+     *     случай по тексту сообщения нельзя — формулировку правят.
+     */
+    ConsentTextOutdatedResponse: {
+      /**
+       * @description Машинный код отказа. Всегда `consent_text_outdated`.
+       * @constant
+       */
+      error: 'consent_text_outdated';
+      /** @description Все ошибки запроса, «поле → список сообщений». Поля версии (`consent_text_version`, `pdp_consent_text_version`, `marketing_consent_text_version`) показываются человеку первыми: попутная ошибка email не должна заслонить требование обновить страницу. */
+      details: {
+        [key: string]: string[];
+      };
+    };
+    ConsentValidationErrorResponse:
+      | components['schemas']['FieldValidationErrorResponse']
+      | components['schemas']['ConsentTextOutdatedResponse'];
+    /**
      * @description * `Россия` - Россия
      *     * `Беларусь` - Беларусь
      *     * `Казахстан` - Казахстан
@@ -1648,6 +1669,10 @@ export interface components {
     FavoriteRequest: {
       /** Товар */
       product: number;
+    };
+    /** @description Обычный отказ валидации: «имя поля → список сообщений». Набор ключей зависит от запроса; ошибки уровня объекта приходят под `non_field_errors`. */
+    FieldValidationErrorResponse: {
+      [key: string]: string[];
     };
     /**
      * @description Serializer для logout endpoint.
@@ -3019,9 +3044,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': {
-            [key: string]: unknown;
-          };
+          'application/json': components['schemas']['ConsentValidationErrorResponse'];
         };
       };
       /** @description Согласие не удалось сохранить, подписка откатана */
@@ -3211,9 +3234,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': {
-            [key: string]: unknown;
-          };
+          'application/json': components['schemas']['ConsentValidationErrorResponse'];
         };
       };
     };
