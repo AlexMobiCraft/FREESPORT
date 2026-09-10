@@ -13,9 +13,7 @@ _PLACEHOLDER_RE = re.compile(PLACEHOLDER_CATEGORY_RE_PATTERN)
 
 # Расширенный шаблон для repair-команды: UUID или другой ID-подобный суффикс (hex/цифры/разделители).
 # Требует ≥ 12 символов — исключает человекочитаемые диапазоны вида «2024-2025».
-_LEGACY_PLACEHOLDER_RE = re.compile(
-    r"^Категория\s+[0-9a-fA-F_-]{12,}$"
-)
+_LEGACY_PLACEHOLDER_RE = re.compile(r"^Категория\s+[0-9a-fA-F_-]{12,}$")
 
 # Полный паттерн для ORM-фильтра API: UUID + legacy hex-ID в одном выражении.
 FULL_PLACEHOLDER_CATEGORY_RE_PATTERN = (

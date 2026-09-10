@@ -69,8 +69,7 @@ def create_master_with_subs(
     for variant, vat_rate in variants_with_vat:
         if variant.pk is None:
             raise ValueError(
-                "ProductVariant без pk (unsaved) передан в create_master_with_subs — "
-                "сохраните variant перед вызовом"
+                "ProductVariant без pk (unsaved) передан в create_master_with_subs — " "сохраните variant перед вызовом"
             )
         key = (variant.pk, vat_rate)
         if key in seen:
@@ -131,6 +130,7 @@ def create_single_sub_order(
     """
     if variant is None:
         from tests.conftest import ProductVariantFactory
+
         variant = ProductVariantFactory.create()
     assert variant is not None
 
