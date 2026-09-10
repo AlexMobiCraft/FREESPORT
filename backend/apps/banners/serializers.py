@@ -65,7 +65,7 @@ class BannerSerializer(serializers.ModelSerializer):
         после снятия галочки «Является рекламой» реквизиты остаются в БД, а ИНН ИП или
         физлица — персональные данные, которым нечего делать в публичном ответе гостям.
         """
-        data = super().to_representation(instance)
+        data = dict(super().to_representation(instance))
         if not instance.is_advertisement:
             data["advertiser_name"] = ""
             data["advertiser_inn"] = ""

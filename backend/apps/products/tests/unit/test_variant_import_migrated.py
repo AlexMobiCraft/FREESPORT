@@ -523,9 +523,9 @@ class TestProcessCategoriesFiltering:
         result = processor._get_or_create_category({"category_id": f"outside_{suffix}", "id": f"prod_{suffix}"})
 
         assert result is not None
-        assert result.slug == "onec-unresolved-category", (
-            "Категория вне allowed subtree должна направляться в техническую fallback-категорию"
-        )
+        assert (
+            result.slug == "onec-unresolved-category"
+        ), "Категория вне allowed subtree должна направляться в техническую fallback-категорию"
         assert result.is_active is False
         assert processor.stats["category_fallbacks"] >= 1
 
@@ -551,9 +551,7 @@ class TestProcessCategoriesFiltering:
             processor.process_categories(categories_data)
 
         inactive_sport.refresh_from_db()
-        assert inactive_sport.is_active is True, (
-            "Инкрементальный импорт должен реактивировать неактивный якорь СПОРТ"
-        )
+        assert inactive_sport.is_active is True, "Инкрементальный импорт должен реактивировать неактивный якорь СПОРТ"
         assert processor._category_filtering_active is True
 
     def test_get_or_create_category_does_not_create_public_placeholder_for_unknown_id(self, processor):
@@ -648,15 +646,13 @@ class TestProcessCategoriesFiltering:
         # Ровно один root — СПОРТ
         roots = list(Category.objects.filter(parent__isnull=True, is_active=True))
         root_names = [c.name for c in roots]
-        assert len([r for r in roots if r.name == "СПОРТ"]) == 1, (
-            f"Должен быть ровно один активный root СПОРТ, found: {root_names}"
-        )
+        assert (
+            len([r for r in roots if r.name == "СПОРТ"]) == 1
+        ), f"Должен быть ровно один активный root СПОРТ, found: {root_names}"
 
         # Нет UUID-placeholder в root
         for cat in roots:
-            assert not is_placeholder_category_name(cat.name), (
-                f"Найден UUID-placeholder root: {cat.name!r}"
-            )
+            assert not is_placeholder_category_name(cat.name), f"Найден UUID-placeholder root: {cat.name!r}"
 
         # Иерархия корректна
         football = Category.objects.get(onec_id=football_id)
@@ -706,9 +702,9 @@ class TestProcessCategoriesFiltering:
         repair_anchor.refresh_from_db()
         stale_root.refresh_from_db()
 
-        assert repair_anchor.onec_id == real_sport_id, (
-            "Импорт должен слить именно repair-якорь с реальным onec_id, а не stale-дубль"
-        )
+        assert (
+            repair_anchor.onec_id == real_sport_id
+        ), "Импорт должен слить именно repair-якорь с реальным onec_id, а не stale-дубль"
         assert stale_root.onec_id == stale_sport_id, "Stale-дубль не должен быть затронут merge-логикой"
         # Suммарно остаются repair-якорь (теперь real) + stale, но новый root не создаётся
         sport_roots_count = Category.objects.filter(name="СПОРТ", parent__isnull=True).count()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import pytest
 from django.contrib.admin.options import IncorrectLookupParameters
@@ -18,13 +19,16 @@ from apps.bonuses.admin import (
 from apps.bonuses.models import BonusProgramSettings, BonusTransaction
 from apps.bonuses.tests.utils import close_master, create_master_with_subs, create_user
 
+if TYPE_CHECKING:
+    from apps.users.models import User
+
 
 @pytest.fixture
 def request_factory() -> RequestFactory:
     return RequestFactory()
 
 
-def _accrual(trainer) -> BonusTransaction:
+def _accrual(trainer: User) -> BonusTransaction:
     master = create_master_with_subs(trainer, ["100000.00"])
     close_master(master)
     return BonusTransaction.objects.get(order=master)
@@ -95,6 +99,7 @@ class TestTransactionAdmin:
         request.user = create_user(role="admin")
 
         row = self.admin.get_queryset(request).first()
+        assert row is not None
 
         assert row.trainer_balance == Decimal("5000.00")
         assert not hasattr(self.admin, "_balance_cache")
@@ -146,7 +151,7 @@ class TestTransactionAdmin:
             amount=Decimal("300.00"),
             comment="Возврат товара",
         )
-        self.admin.save_model(request, operation, form=None, change=False)
+        self.admin.save_model(request, operation, form=None, change=False)  # type: ignore[arg-type]
 
         operation.refresh_from_db()
         assert operation.created_by_id == manager.pk
@@ -176,7 +181,7 @@ class TestTrainerFilter:
 
         admin = BonusTransactionAdmin(BonusTransaction, AdminSite())
         filter_instance = TrainerFilter(
-            request_factory.get("/"), {"trainer": [str(trainer.pk)]}, BonusTransaction, admin
+            request_factory.get("/"), {"trainer": [str(trainer.pk)]}, BonusTransaction, admin  # type: ignore[dict-item]
         )
         result = filter_instance.queryset(request_factory.get("/"), BonusTransaction.objects.all())
 
@@ -195,7 +200,12 @@ class TestTrainerFilter:
     def test_non_numeric_value_does_not_crash_changelist(self, request_factory: RequestFactory) -> None:
         """?trainer=abc должен дать штатную ошибку админки, а не 500."""
         admin = BonusTransactionAdmin(BonusTransaction, AdminSite())
-        filter_instance = TrainerFilter(request_factory.get("/"), {"trainer": ["abc"]}, BonusTransaction, admin)
+        filter_instance = TrainerFilter(
+            request_factory.get("/"),
+            {"trainer": ["abc"]},  # type: ignore[dict-item]
+            BonusTransaction,
+            admin,
+        )
 
         with pytest.raises(IncorrectLookupParameters):
             filter_instance.queryset(request_factory.get("/"), BonusTransaction.objects.all())
@@ -209,7 +219,7 @@ class TestManualForm:
     def test_accrual_is_not_offered(self) -> None:
         form = ManualBonusTransactionForm()
 
-        assert [value for value, _ in form.fields["transaction_type"].choices] == [
+        assert [value for value, _ in form.fields["transaction_type"].choices] == [  # type: ignore[attr-defined]
             BonusTransaction.PAYOUT,
             BonusTransaction.WRITEOFF,
         ]
@@ -219,7 +229,8 @@ class TestManualForm:
         create_user(role="retail")
         form = ManualBonusTransactionForm()
 
-        assert list(form.fields["user"].queryset.values_list("id", flat=True)) == [trainer.pk]
+        queryset = form.fields["user"].queryset  # type: ignore[attr-defined]
+        assert list(queryset.values_list("id", flat=True)) == [trainer.pk]
 
     def test_negative_amount_is_rejected(self) -> None:
         trainer = create_user()
@@ -310,7 +321,8 @@ class TestManualForm:
 
         form = ManualBonusTransactionForm(instance=operation)
 
-        assert former_trainer.pk in list(form.fields["user"].queryset.values_list("id", flat=True))
+        queryset = form.fields["user"].queryset  # type: ignore[attr-defined]
+        assert former_trainer.pk in list(queryset.values_list("id", flat=True))
 
     def test_valid_writeoff_passes(self) -> None:
         trainer = create_user()

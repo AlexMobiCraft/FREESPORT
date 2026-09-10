@@ -253,7 +253,7 @@ class TestVariantImagesMirroring:
             )
 
         variant.refresh_from_db()
-        assert variant.main_image.name == "products/variants/xx/new1.jpg"
+        assert variant.main_image.name == "products/variants/xx/new1.jpg"  # type: ignore[attr-defined]
         assert variant.gallery_images == ["products/variants/xx/new2.jpg"]
 
     def test_zero_resolved_keeps_variant_composition(self, processor, variant, media_root, import_dir):
@@ -272,7 +272,7 @@ class TestVariantImagesMirroring:
             )
 
         variant.refresh_from_db()
-        assert variant.main_image.name == old_path
+        assert variant.main_image.name == old_path  # type: ignore[attr-defined]
         assert variant.gallery_images == ["products/variants/xx/gallery.jpg"]
 
     def test_filled_main_image_does_not_raise(self, processor, variant, media_root, import_dir):
@@ -291,7 +291,7 @@ class TestVariantImagesMirroring:
 
         variant.refresh_from_db()
         # AC7: аддитивный режим главное изображение не переназначает
-        assert variant.main_image.name == old_path
+        assert variant.main_image.name == old_path  # type: ignore[attr-defined]
         assert variant.gallery_images == ["products/variants/xx/new.jpg"]
 
 

@@ -3,7 +3,7 @@ Django Admin конфигурация для управления пользов
 Включает UserAdmin с поддержкой B2B верификации и интеграции с 1С
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote
 
 from django.contrib import admin
@@ -18,6 +18,9 @@ from django.utils.html import format_html, format_html_join
 
 from apps.common.models import AuditLog
 from apps.common.utils.consent_audit import get_client_ip
+
+if TYPE_CHECKING:
+    from rest_framework.request import Request
 from apps.users.services.link_1c_customer import (
     LinkCandidateError,
     find_link_candidates,
@@ -320,13 +323,13 @@ class UserAdmin(BaseUserAdmin):
 
     # Queryset и fieldsets
 
-    def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
+    def get_queryset(self, request: HttpRequest) -> QuerySet[User]:  # type: ignore[override]
         queryset = super().get_queryset(request)
         # Аннотация нужна только списку: на карточке пользователя одна строка,
         # и лишний подзапрос там ничего не даёт.
         if self._is_changelist_request(request):
             queryset = queryset.annotate(_has_1c_candidate=has_1c_candidate_expression())
-        return queryset
+        return queryset  # type: ignore[return-value]
 
     def _is_changelist_request(self, request: HttpRequest) -> bool:
         resolver_match = getattr(request, "resolver_match", None)
@@ -334,8 +337,8 @@ class UserAdmin(BaseUserAdmin):
             return False
         return bool(resolver_match.url_name == f"{self.opts.app_label}_{self.opts.model_name}_changelist")
 
-    def get_fieldsets(self, request: HttpRequest, obj: User | None = None) -> Any:
-        fieldsets = super().get_fieldsets(request, obj)
+    def get_fieldsets(self, request: HttpRequest, obj: User | None = None) -> Any:  # type: ignore[override]
+        fieldsets = super().get_fieldsets(request, obj)  # type: ignore[arg-type]
         # Тот же критерий цели, что у колонки в списке и у проверки под
         # блокировкой: иначе карточка звала бы связать аккаунт, которому
         # действие всегда откажет (уже привязан либо не B2B).
@@ -424,8 +427,8 @@ class UserAdmin(BaseUserAdmin):
         """Отображение полного имени пользователя"""
         return obj.full_name or "-"
 
-    def get_readonly_fields(self, request: HttpRequest, obj: User | None = None):
-        readonly_fields = list(super().get_readonly_fields(request, obj))
+    def get_readonly_fields(self, request: HttpRequest, obj: User | None = None) -> list[str]:  # type: ignore[override]
+        readonly_fields = list(super().get_readonly_fields(request, obj))  # type: ignore[arg-type]
         if obj and obj.customer_code and obj.orders.exists() and "customer_code" not in readonly_fields:
             readonly_fields.append("customer_code")
         return readonly_fields
@@ -786,7 +789,7 @@ class UserAdmin(BaseUserAdmin):
 
     def _get_client_ip(self, request: HttpRequest) -> str:
         """Получение IP адреса клиента"""
-        ip_address = get_client_ip(request)
+        ip_address = get_client_ip(cast("Request", request))
         return "0.0.0.0" if ip_address == "unknown" else ip_address
 
 

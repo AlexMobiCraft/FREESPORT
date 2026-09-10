@@ -9,7 +9,22 @@ import type { SubscribeRequest, SubscribeResponse } from '@/types/api';
 export type SubscribeValidationDetails = Record<string, string[]>;
 
 type SubscribeErrorResponse = {
+  error?: unknown;
   details?: SubscribeValidationDetails;
+};
+
+/**
+ * Машинный код отказа с верхнего уровня ответа (например `consent_text_outdated`).
+ * Он и есть устойчивый признак случая: текст сообщения правят, HTTP-статус общий
+ * для всей валидации.
+ */
+const getErrorCode = (data: unknown): string | undefined => {
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+
+  const { error } = data as SubscribeErrorResponse;
+  return typeof error === 'string' ? error : undefined;
 };
 
 const isValidationDetails = (value: unknown): value is SubscribeValidationDetails => {
@@ -42,11 +57,14 @@ const getValidationDetails = (data: unknown): SubscribeValidationDetails | undef
 
 export class SubscribeServiceError extends Error {
   details?: SubscribeValidationDetails;
+  /** Машинный код с верхнего уровня ответа сервера, если он был. */
+  code?: string;
 
-  constructor(message: string, details?: SubscribeValidationDetails) {
+  constructor(message: string, details?: SubscribeValidationDetails, code?: string) {
     super(message);
     this.name = 'SubscribeServiceError';
     this.details = details;
+    this.code = code;
   }
 }
 
@@ -65,14 +83,15 @@ export const subscribeService = {
           response?: { status?: number; data?: unknown };
         };
         const details = getValidationDetails(axiosError.response?.data);
+        const code = getErrorCode(axiosError.response?.data);
         if (axiosError.response?.status === 400) {
-          throw new SubscribeServiceError('validation_error', details);
+          throw new SubscribeServiceError('validation_error', details, code);
         }
         if (axiosError.response?.status === 429) {
-          throw new SubscribeServiceError('throttled', details);
+          throw new SubscribeServiceError('throttled', details, code);
         }
         if (axiosError.response?.status && axiosError.response.status >= 500) {
-          throw new SubscribeServiceError('server_error', details);
+          throw new SubscribeServiceError('server_error', details, code);
         }
       }
       throw new SubscribeServiceError('network_error');

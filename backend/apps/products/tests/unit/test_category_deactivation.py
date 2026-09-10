@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -96,7 +97,7 @@ def cat_data(category: Category, parent: Category | None = None) -> CategoryData
     return data
 
 
-def deactivation_error_calls(mock_logger) -> list:
+def deactivation_error_calls(mock_logger: Any) -> list:
     """Отбирает вызовы logger.error, относящиеся к отмене деактивации.
 
     Проверка `call.args` обязательна: в модуле есть logger.error без позиционных
@@ -107,7 +108,7 @@ def deactivation_error_calls(mock_logger) -> list:
     ]
 
 
-def small_branch_warning_calls(mock_logger) -> list:
+def small_branch_warning_calls(mock_logger: Any) -> list:
     """Отбирает вызовы logger.warning про крупную потерю в малой ветке."""
     return [call for call in mock_logger.warning.call_args_list if call.args and "Малая ветка" in str(call.args[0])]
 

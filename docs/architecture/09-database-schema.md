@@ -379,6 +379,8 @@ $$ LANGUAGE plpgsql;
 -- Append-only audit log: каждый клик «Согласен» = отдельная строка
 -- Django app: apps/common, модель UserConsent
 -- Миграции: common.0015_userconsent + common.0016_userconsent_review_fixes
+--           + common.0019_userconsent_source_and_text_version (Story 41.9)
+--           + common.0020_userconsent_source_valid (Story 41.9, ревью)
 CREATE TABLE common_userconsent (
     id SERIAL PRIMARY KEY,
 
@@ -395,16 +397,51 @@ CREATE TABLE common_userconsent (
     user_agent VARCHAR(512) DEFAULT '',
     policy_version VARCHAR(20) DEFAULT '1.0' NOT NULL,
 
+    -- Аудитируемость формулировки (Story 41.9). DEFAULT нет намеренно:
+    -- забытое значение должно ронять вставку, а не писать тихий мусор.
+    -- Источник: newsletter | registration | 1c_link | unknown
+    -- (`unknown` — только строки, существовавшие до миграции 0019).
+    source VARCHAR(20) NOT NULL,
+    -- Версия текста чекбокса из реестра apps/common/consent_texts.json,
+    -- вид «метка-первые 32 hex sha256 текста», например 2026-08-30-77dbceafc3c487ffc24975cf2ce76778
+    consent_text_version VARCHAR(64) NOT NULL,
+
     -- Гарантия: у каждой записи есть субъект (user или session_key)
     CONSTRAINT userconsent_user_or_session_required
-        CHECK (user_id IS NOT NULL OR session_key <> '')
+        CHECK (user_id IS NOT NULL OR session_key <> ''),
+    -- Гарантии Story 41.9: код, забывший источник или версию, падает на вставке.
+    -- Источник ограничен перечислением (миграция 0020): Django `choices` базы
+    -- не касаются, и опечатка легла бы в журнал молча
+    CONSTRAINT userconsent_source_valid
+        CHECK (source IN ('newsletter', 'registration', '1c_link', 'unknown')),
+    CONSTRAINT userconsent_text_version_required
+        CHECK (consent_text_version <> '')
 );
 
--- Индексы для compliance-запросов и admin list_filter
-CREATE INDEX idx_userconsent_user ON common_userconsent(user_id) WHERE user_id IS NOT NULL;
-CREATE INDEX idx_userconsent_consent_type ON common_userconsent(consent_type);
-CREATE INDEX idx_userconsent_given_at ON common_userconsent(given_at DESC);
-CREATE INDEX idx_userconsent_session ON common_userconsent(session_key) WHERE session_key <> '';
+-- Индексы для compliance-запросов и admin list_filter.
+-- Имена и состав сняты с фактической схемы (`SELECT indexname, indexdef FROM
+-- pg_indexes WHERE tablename='common_userconsent'`, dev-БД после миграции 0020),
+-- а не придуманы: их генерирует Django из `db_index=True`, поэтому суффикс —
+-- хеш имени поля, и переименовать их вручную нельзя без миграции.
+-- Каждому индексируемому `varchar` Django добавляет парный `_like`-индекс с
+-- `varchar_pattern_ops` — он обслуживает `LIKE 'префикс%'` (в админке это
+-- поиск и `AllValuesFieldListFilter`), обычный btree такие запросы не покрывает.
+CREATE INDEX common_userconsent_user_id_6fc4be2a ON common_userconsent (user_id);
+CREATE INDEX common_userconsent_consent_type_ba4ff3e5 ON common_userconsent (consent_type);
+CREATE INDEX common_userconsent_consent_type_ba4ff3e5_like
+    ON common_userconsent (consent_type varchar_pattern_ops);
+CREATE INDEX common_userconsent_given_at_8eb55e33 ON common_userconsent (given_at);
+CREATE INDEX common_userconsent_session_key_9c25a4e4 ON common_userconsent (session_key);
+CREATE INDEX common_userconsent_session_key_9c25a4e4_like
+    ON common_userconsent (session_key varchar_pattern_ops);
+-- Story 41.9, миграция 0019
+CREATE INDEX common_userconsent_source_e7b538c5 ON common_userconsent (source);
+CREATE INDEX common_userconsent_source_e7b538c5_like
+    ON common_userconsent (source varchar_pattern_ops);
+CREATE INDEX common_userconsent_consent_text_version_a95c89c4
+    ON common_userconsent (consent_text_version);
+CREATE INDEX common_userconsent_consent_text_version_a95c89c4_like
+    ON common_userconsent (consent_text_version varchar_pattern_ops);
 
 -- Sync logs for 1C integration monitoring
 CREATE TABLE integrations_synclog (
@@ -525,5 +562,6 @@ $$ LANGUAGE plpgsql STABLE;
 - Append-only: admin заблокирован через `has_add_permission=False` / `has_change_permission=False`
 - Constraint `userconsent_user_or_session_required` гарантирует наличие субъекта в каждой строке
 - Страница политики ПДн доступна по `GET /api/pages/privacy-policy/` (существующий `PageViewSet`, slug `privacy-policy`)
+- Story 41.9 (2026-09-09): добавлены `source` и `consent_text_version` (миграция `0019_userconsent_source_and_text_version`, одноразовое значение `unknown` с `preserve_default=False`). Два CHECK-ограничения (`userconsent_source_valid`, `userconsent_text_version_required`) не дают записать согласие без источника и без версии показанного текста. `db_index=True` у обоих полей даёт четыре индекса, а не два: каждому индексируемому `varchar` Django добавляет парный `_like` с `varchar_pattern_ops` (полный список имён — в DDL выше, они сняты с фактической схемы). Ограничение источника усилено миграцией `0020_userconsent_source_valid`: прежнее `userconsent_source_required` отсекало только пустую строку, а Django `choices` на уровне БД не действуют — прямой `objects.create(source="registartion")` записал бы опечатку в юридически значимый журнал молча
 
 ---

@@ -2259,6 +2259,9 @@ class VariantImportProcessor:
             by_parent: dict[str, list[tuple[int, str]]] = defaultdict(list)
             parent_names: dict[str, str] = {}
             for pk, onec_id, parent_onec_id, parent_name in rows:
+                # Категории без родителя (parent_onec_id is None) не участвуют в группировке
+                if parent_onec_id is None or onec_id is None:
+                    continue
                 by_parent[parent_onec_id].append((pk, onec_id))
                 parent_names[parent_onec_id] = parent_name
 

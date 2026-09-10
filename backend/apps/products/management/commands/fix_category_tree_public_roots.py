@@ -33,7 +33,7 @@ class Command(BaseCommand):
         from apps.products.models import Category, Product
 
         execute = bool(options.get("execute"))
-        root_name = options.get("root_name") or getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
+        root_name: str = str(options.get("root_name") or getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ"))
 
         anchor_qs = Category.objects.filter(name=root_name, parent__isnull=True)
         if anchor_qs.count() > 1:
@@ -81,9 +81,7 @@ class Command(BaseCommand):
                 for pk, slug, prod_name in products_in_branch:
                     self.stdout.write(f"    [product] id={pk} slug={slug!r} name={prod_name!r}")
                 if total_in_branch > len(products_in_branch):
-                    self.stdout.write(
-                        f"    ... и ещё {total_in_branch - len(products_in_branch)} товар(ов) в ветке"
-                    )
+                    self.stdout.write(f"    ... и ещё {total_in_branch - len(products_in_branch)} товар(ов) в ветке")
             for cat in public_roots:
                 self.stdout.write(f"  [public_root] id={cat.pk} name={cat.name!r}")
             return

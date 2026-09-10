@@ -32,6 +32,7 @@ vi.mock('@/services/subscribeService', () => ({
 }));
 
 import { subscribeService } from '@/services/subscribeService';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 const getPdpCheckbox = () =>
   screen.getByRole('checkbox', { name: PDP_CONSENT_NAME });
@@ -165,6 +166,62 @@ describe('SubscribeForm', () => {
     expect(checkbox).toHaveAttribute('aria-describedby', alert.id);
   });
 
+  it('показывает требование обновить страницу, когда сервер отклонил устаревшую версию текста', async () => {
+    // Сервер отвечает 400 с машинным кодом `consent_text_outdated` на верхнем
+    // уровне, если формулировку поправили после отрисовки этой вкладки. Человек
+    // должен увидеть внятное требование обновить страницу, а не общий отказ.
+    const outdatedMessage = 'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        code: 'consent_text_outdated',
+        details: {
+          consent_text_version: [outdatedMessage],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'outdated-version@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(outdatedMessage);
+    });
+  });
+
+  it('при устаревшей версии показывает требование обновить страницу, а не попутную ошибку email', async () => {
+    // В `details` рядом с полем версии может лежать обычная ошибка валидации.
+    // Порядок ключей в JSON произволен, и «первое значение из details» показало
+    // бы «введите корректный email» — совет, который ничего не чинит: пока
+    // вкладка старая, запрос будет отклоняться при любом адресе.
+    const outdatedMessage = 'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
+    const emailMessage = 'Введите корректный адрес электронной почты.';
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        code: 'consent_text_outdated',
+        details: {
+          email: [emailMessage],
+          consent_text_version: [outdatedMessage],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<SubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'mixed-details@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(outdatedMessage);
+    });
+    expect(toast.error).not.toHaveBeenCalledWith(emailMessage);
+  });
+
   it('generates unique PDN ids for multiple form instances', () => {
     render(
       <>
@@ -197,6 +254,8 @@ describe('SubscribeForm', () => {
       expect(mockSubscribe).toHaveBeenCalledWith({
         email: 'new@example.com',
         pdp_consent: true,
+        // Версия показанной формулировки — по ней сервер отклоняет устаревшую вкладку.
+        consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       });
     });
   });

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
@@ -80,8 +80,6 @@ def format_order_number(value: str | None) -> str:
 
 
 def normalize_order_number_query(raw: str) -> list[str]:
-    if not isinstance(raw, str):
-        return []
     compact = raw.strip().replace(" ", "")
     if not compact or not ALLOWED_QUERY_RE.fullmatch(compact):
         return []
@@ -114,7 +112,7 @@ def build_order_number_search_query(raw: str) -> Q | None:
             query.add(Q(order_number=candidate), Q.OR)
     if not query.children:
         return None
-    return cast(Q, query)
+    return query
 
 
 class OrderNumberingService:

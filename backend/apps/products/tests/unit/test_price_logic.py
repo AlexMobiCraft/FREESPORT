@@ -251,6 +251,7 @@ class TestPriceTypeOpt4Choice:
 
     def test_opt4_price_choice_present(self):
         field = PriceType._meta.get_field("product_field")
+        assert field.choices is not None
         assert ("opt4_price", "Оптовая цена уровень 4") in field.choices
 
 

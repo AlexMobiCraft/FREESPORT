@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -19,8 +20,11 @@ from apps.bonuses.tests.utils import create_master_with_subs, create_user
 from apps.orders.constants import ORDER_ID_PREFIX
 from apps.orders.services.order_status_import import OrderStatusImportService
 
+if TYPE_CHECKING:
+    from apps.orders.models import Order
 
-def _xml_for(order, status_1c: str) -> str:
+
+def _xml_for(order: Order, status_1c: str) -> str:
     """Минимальный CommerceML 3.1 документ со статусом заказа."""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-07-25T12:00:00">
@@ -68,6 +72,7 @@ class TestAccrualThroughImport:
         trainer = create_user()
         master = create_master_with_subs(trainer, ["50000.00", "30000.00"])
         first_sub = master.sub_orders.first()
+        assert first_sub is not None
 
         OrderStatusImportService().process(_xml_for(first_sub, "Закрыт"))
 
@@ -80,6 +85,7 @@ class TestAccrualThroughImport:
         trainer = create_user()
         master = create_master_with_subs(trainer, ["20000.00"])
         sub = master.sub_orders.first()
+        assert sub is not None
         xml = _xml_for(sub, "Закрыт")
 
         first_result = OrderStatusImportService().process(xml)
@@ -117,6 +123,7 @@ class TestAccrualThroughImport:
         trainer = create_user()
         master = create_master_with_subs(trainer, ["20000.00"])
         sub = master.sub_orders.first()
+        assert sub is not None
 
         result = OrderStatusImportService().process(_xml_for(sub, "Закрыт"))
 

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Order, dispatch_uid="bonuses_accrue_on_order_status")
-def accrue_bonus_on_order_status(sender, instance: Order, **kwargs) -> None:
+def accrue_bonus_on_order_status(sender: type[Order], instance: Order, **kwargs: object) -> None:
     """Начисляет бонус тренеру при переходе мастер-заказа в целевой статус.
 
     Все проверки (активность программы, роль, верификация, целевой статус,

@@ -15,6 +15,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from tests.factories import UserFactory
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 
 @pytest.mark.integration
@@ -137,6 +138,7 @@ class TestLoginVerificationBlocking:
                 "company_name": "Workflow Gym",
                 "tax_id": "7703456789",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
         )
         assert register_response.status_code == status.HTTP_201_CREATED

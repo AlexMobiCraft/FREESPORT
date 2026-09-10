@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import pytest
 from django.test import Client
@@ -19,9 +20,12 @@ from apps.bonuses.models import BonusTransaction
 from apps.bonuses.services.accrual import create_manual_transaction, get_balance
 from apps.bonuses.tests.utils import close_master, create_master_with_subs, create_user, unique_suffix
 
+if TYPE_CHECKING:
+    from apps.users.models import User
+
 
 @pytest.fixture
-def staff_client(django_user_model) -> Client:
+def staff_client(django_user_model: type[User]) -> Client:
     """Клиент, залогиненный суперпользователем админки."""
     admin = django_user_model.objects.create_superuser(
         email=f"admin-{unique_suffix()}@freesport.test",
@@ -123,6 +127,7 @@ class TestManualOperationThroughAdmin:
     def test_payout_above_balance_is_rejected(self, staff_client: Client) -> None:
         accrual = _accrual_for_new_trainer()
         trainer = accrual.user
+        assert trainer is not None
         balance = get_balance(trainer)
 
         response = staff_client.post(
@@ -141,11 +146,13 @@ class TestManualOperationThroughAdmin:
 
     def test_payout_without_comment_is_rejected(self, staff_client: Client) -> None:
         accrual = _accrual_for_new_trainer()
+        trainer = accrual.user
+        assert trainer is not None
 
         response = staff_client.post(
             reverse("admin:bonuses_bonustransaction_add"),
             {
-                "user": accrual.user.pk,
+                "user": trainer.pk,
                 "transaction_type": "payout",
                 "amount": "100",
                 "comment": "",
@@ -158,6 +165,7 @@ class TestManualOperationThroughAdmin:
     def test_valid_payout_is_saved_with_author(self, staff_client: Client) -> None:
         accrual = _accrual_for_new_trainer()
         trainer = accrual.user
+        assert trainer is not None
 
         staff_client.post(
             reverse("admin:bonuses_bonustransaction_add"),
@@ -177,6 +185,7 @@ class TestManualOperationThroughAdmin:
     def test_writeoff_may_drive_balance_negative(self, staff_client: Client) -> None:
         accrual = _accrual_for_new_trainer()
         trainer = accrual.user
+        assert trainer is not None
 
         staff_client.post(
             reverse("admin:bonuses_bonustransaction_add"),

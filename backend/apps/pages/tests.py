@@ -105,8 +105,23 @@ class PageModelSecurityTest(TestCase):
 
         # Все безопасные теги должны сохраниться
         safe_tags = [
-            "h1", "h2", "h3", "p", "div", "span", "strong", "em", "ul", "ol", "li",
-            "a", "br", "table", "tr", "td", "img",
+            "h1",
+            "h2",
+            "h3",
+            "p",
+            "div",
+            "span",
+            "strong",
+            "em",
+            "ul",
+            "ol",
+            "li",
+            "a",
+            "br",
+            "table",
+            "tr",
+            "td",
+            "img",
         ]
         for tag in safe_tags:
             self.assertIn(f"<{tag}", page.content)

@@ -1568,6 +1568,27 @@ export interface components {
       sort_order?: number;
     };
     /**
+     * @description Показанная формулировка согласия устарела или версия не передана.
+     *
+     *     Отдельная форма ответа нужна потому, что этот отказ лечится обновлением страницы,
+     *     а не правкой ввода: клиент обязан отличать его от прочей валидации. Узнавать
+     *     случай по тексту сообщения нельзя — формулировку правят.
+     */
+    ConsentTextOutdatedResponse: {
+      /**
+       * @description Машинный код отказа. Всегда `consent_text_outdated`.
+       * @constant
+       */
+      error: 'consent_text_outdated';
+      /** @description Все ошибки запроса, «поле → список сообщений». Поля версии (`consent_text_version`, `pdp_consent_text_version`, `marketing_consent_text_version`) показываются человеку первыми: попутная ошибка email не должна заслонить требование обновить страницу. */
+      details: {
+        [key: string]: string[];
+      };
+    };
+    ConsentValidationErrorResponse:
+      | components['schemas']['FieldValidationErrorResponse']
+      | components['schemas']['ConsentTextOutdatedResponse'];
+    /**
      * @description * `Россия` - Россия
      *     * `Беларусь` - Беларусь
      *     * `Казахстан` - Казахстан
@@ -1648,6 +1669,10 @@ export interface components {
     FavoriteRequest: {
       /** Товар */
       product: number;
+    };
+    /** @description Обычный отказ валидации: «имя поля → список сообщений». Набор ключей зависит от запроса; ошибки уровня объекта приходят под `non_field_errors`. */
+    FieldValidationErrorResponse: {
+      [key: string]: string[];
     };
     /**
      * @description Serializer для logout endpoint.
@@ -2677,6 +2702,7 @@ export interface components {
        */
       email: string;
       pdp_consent: boolean;
+      consent_text_version: string;
     };
     TokenRefresh: {
       readonly access: string;
@@ -2858,6 +2884,9 @@ export interface components {
       pdp_consent: boolean;
       /** @default false */
       marketing_consent: boolean;
+      pdp_consent_text_version: string;
+      /** @default  */
+      marketing_consent_text_version: string;
     };
     /**
      * @description * `wholesale_level1` - Оптовик уровень 1
@@ -3009,12 +3038,14 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Ошибка валидации (email или pdp_consent) */
+      /** @description Ошибка валидации `email`, `pdp_consent` или `consent_text_version`. Обычные ошибки возвращаются плоским объектом «поле → список сообщений». Исключение — устаревшая или непереданная версия формулировки согласия: у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому клиент обязан отличать его от прочей валидации. */
       400: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['ConsentValidationErrorResponse'];
+        };
       };
       /** @description Согласие не удалось сохранить, подписка откатана */
       503: {
@@ -3197,12 +3228,14 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Ошибки валидации */
+      /** @description Ошибки валидации. Обычные ошибки возвращаются плоским объектом «поле → список сообщений». Исключение — устаревшая или непереданная версия формулировки согласия (`pdp_consent_text_version`, `marketing_consent_text_version`): у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому клиент обязан отличать его от прочей валидации. */
       400: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['ConsentValidationErrorResponse'];
+        };
       };
     };
   };

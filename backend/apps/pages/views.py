@@ -6,6 +6,7 @@ from django.core.cache import cache
 from drf_spectacular.utils import extend_schema
 from rest_framework import permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .cache_keys import (
@@ -23,7 +24,7 @@ from .serializers import PageSerializer
 CACHE_NEUTRAL_QUERY_PARAMS = frozenset({"page", "page_size", "format"})
 
 
-def _is_cache_neutral_request(request) -> bool:
+def _is_cache_neutral_request(request: Request) -> bool:
     """Можно ли обслужить запрос из общего кэша списка"""
     return all(param in CACHE_NEUTRAL_QUERY_PARAMS for param in request.query_params)
 

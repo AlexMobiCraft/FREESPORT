@@ -11,8 +11,12 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core import signing
+from drf_spectacular.extensions import OpenApiSerializerExtension
 from rest_framework import serializers
 
+from apps.common.consent_texts import MAX_VERSION_LENGTH, is_current_consent_text_version
+from apps.common.models import UserConsent
+from apps.common.serializers import CONSENT_TEXT_OUTDATED, consent_text_outdated_error
 from apps.orders.models import Order
 
 from .models import Address, Company, Favorite, User
@@ -85,6 +89,37 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         },
     )
     marketing_consent = serializers.BooleanField(write_only=True, required=False, default=False)
+    # Версии формулировок, которые показывает официальная форма (стори 41.9).
+    # Приходят из константы фронта, собранной в тот же бандл, что и сами тексты:
+    # вкладка, открытая до правки формулировки, пришлёт прежнюю версию и будет
+    # отклонена. Факт показа текста человеку сервер отсюда не выводит.
+    pdp_consent_text_version = serializers.CharField(
+        write_only=True,
+        required=True,
+        max_length=MAX_VERSION_LENGTH,
+        error_messages={
+            "required": CONSENT_TEXT_OUTDATED,
+            "blank": CONSENT_TEXT_OUTDATED,
+            "null": CONSENT_TEXT_OUTDATED,
+            "max_length": CONSENT_TEXT_OUTDATED,
+        },
+    )
+    # Маркетинговый чекбокс необязателен, поэтому версия требуется только когда
+    # согласие действительно дано, — иначе форма без галочки была бы обязана
+    # присылать версию текста, по которому ничего не записывается.
+    marketing_consent_text_version = serializers.CharField(
+        write_only=True,
+        required=False,
+        # Пустая строка допустима: форма без отмеченного маркетингового чекбокса
+        # шлёт версию, но проверяться она будет только вместе с согласием.
+        allow_blank=True,
+        default="",
+        max_length=MAX_VERSION_LENGTH,
+        error_messages={
+            "null": CONSENT_TEXT_OUTDATED,
+            "max_length": CONSENT_TEXT_OUTDATED,
+        },
+    )
 
     class Meta:
         model = User
@@ -101,6 +136,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "country",
             "pdp_consent",
             "marketing_consent",
+            "pdp_consent_text_version",
+            "marketing_consent_text_version",
         ]
         extra_kwargs = {
             # Уникальность email проверяется вручную в validate(): порядок
@@ -119,7 +156,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Пары (значение, подпись) из ROLE_CHOICES: плоский список ролей дал бы
         # в схеме подписи вида «trainer - trainer» вместо человекочитаемых.
         allowed = get_self_service_roles()
-        self.fields["role"].choices = [choice for choice in User.ROLE_CHOICES if choice[0] in allowed]
+        self.fields["role"].choices = [  # type: ignore[attr-defined]
+            choice for choice in User.ROLE_CHOICES if choice[0] in allowed
+        ]
 
     def validate_role(self, value: str) -> str:
         """
@@ -149,6 +188,50 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         return re.sub(r"[^0-9]", "", value)
 
+    def validate_pdp_consent_text_version(self, value: str) -> str:
+        """Сверить заявленную версию текста ПДн с действующей формулировкой.
+
+        Версии проверяются на уровне поля, а не в `validate()`: DRF не вызывает
+        `validate()` при любой field-level ошибке, а в самом `validate()` первыми
+        идут пароли — устаревшая формулировка пряталась бы за ошибкой роли или
+        несовпадением паролей и уходила бы без машинного кода `consent_text_outdated`.
+
+        Источник — `registration`. Ветка привязки к 1С (`1c_link`) ссылается на те
+        же поверхности реестра — человек заполнял ту же форму, отличается исход, а
+        не текст; равенство версий двух источников закреплено тестом
+        `test_1c_link_reuses_registration_surfaces`. Исход здесь ещё не известен:
+        он вычисляется после сохранения.
+        """
+        if not is_current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "pdp_contract", value):
+            raise consent_text_outdated_error()
+        return value
+
+    def validate_marketing_consent_text_version(self, value: str) -> str:
+        """Сверить версию маркетингового текста — только если согласие дано.
+
+        Без галочки записи `marketing_email` не появится, и требовать актуальность
+        её формулировки не за что. На уровне поля разобранных значений соседних
+        полей не видно, поэтому галочка читается из исходных данных — тем же полем
+        `marketing_consent`, что разбирает её для `validated_data`.
+        """
+        if self._marketing_consent_given() and not is_current_consent_text_version(
+            UserConsent.SOURCE_REGISTRATION, "marketing_email", value
+        ):
+            raise consent_text_outdated_error()
+        return value
+
+    def _marketing_consent_given(self) -> bool:
+        """Дано ли маркетинговое согласие — по правилам поля `marketing_consent`.
+
+        Некорректное значение галочки — её собственная ошибка валидации; версию при
+        нём не проверяем: неизвестно, дано ли согласие.
+        """
+        field = self.fields["marketing_consent"]
+        try:
+            return bool(field.run_validation(field.get_value(self.initial_data)))
+        except serializers.ValidationError:
+            return False
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Валидация полей"""
         # Проверка совпадения паролей
@@ -157,6 +240,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         if not attrs.get("pdp_consent"):
             raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED_MESSAGE})
+
+        # Версии формулировок согласия здесь не сверяются — см.
+        # `validate_pdp_consent_text_version` и `validate_marketing_consent_text_version`.
 
         # Валидация B2B полей
         role = attrs.get("role", "retail")
@@ -242,6 +328,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop("password_confirm")
         marketing_consent = validated_data.pop("marketing_consent", False)
         validated_data.pop("pdp_consent")
+        # Версии уже сверены в validate(); у `User` таких полей нет — версия
+        # ложится в `UserConsent`, куда её кладёт view (значением из реестра).
+        validated_data.pop("pdp_consent_text_version", None)
+        validated_data.pop("marketing_consent_text_version", None)
 
         # Извлекаем пароль
         password = validated_data.pop("password")
@@ -328,6 +418,49 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             customer._pending_link_confirmation = True  # type: ignore[attr-defined]
 
         return customer
+
+
+class UserRegistrationRequestSchemaExtension(OpenApiSerializerExtension):
+    """Выражает в схеме условную обязательность `marketing_consent_text_version`.
+
+    На уровне DRF поле объявлено `required=False` с `default=""` — иначе форма без
+    отмеченного маркетингового чекбокса была бы обязана присылать версию текста, по
+    которому ничего не записывается. Обязательным оно становится в
+    `validate_marketing_consent_text_version()`, когда согласие действительно дано, и
+    без этого блока схема разрешала бы payload, который сервер гарантированно отклонит
+    `400 consent_text_outdated`.
+
+    `if`/`then` (JSON Schema 2020-12, доступна в OpenAPI 3.1), а не `dependentRequired`:
+    последний срабатывает на само присутствие `marketing_consent`, а сервер требует
+    версию только при значении `true`. Обе формы всегда шлют `marketing_consent`, в том
+    числе `false`, — `dependentRequired` требовал бы версию и от них.
+
+    Расширение регистрируется самим фактом объявления класса, поэтому живёт рядом с
+    сериализатором: `apps/users/serializers.py` импортируется вью, а отдельный модуль
+    схемы пришлось бы импортировать вручную из `AppConfig.ready()`.
+    """
+
+    target_class = UserRegistrationSerializer
+
+    def map_serializer(self, auto_schema: Any, direction: Any) -> dict[str, Any]:
+        # cast: `_map_serializer` не аннотирован, а `warn_return_any` в mypy.ini включён.
+        schema = cast(dict[str, Any], auto_schema._map_serializer(self.target, direction, bypass_extensions=True))
+
+        # Ответного компонента у сериализатора нет (все consent-поля write_only), но
+        # условие всё равно ставится только на запрос: в ответе его смысла нет.
+        if direction == "request":
+            schema["if"] = {
+                "properties": {"marketing_consent": {"const": True}},
+                "required": ["marketing_consent"],
+            }
+            schema["then"] = {
+                "required": ["marketing_consent_text_version"],
+                # Не просто «поле присутствует»: `default: ""` в схеме разрешал бы
+                # пустую строку, которую сервер отклонит тем же кодом.
+                "properties": {"marketing_consent_text_version": {"minLength": 1}},
+            }
+
+        return schema
 
 
 class PortalLinkConfirmSerializer(serializers.Serializer):

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import uuid
+from typing import Any
 
 import pytest
 from django.core.management import call_command
@@ -47,14 +48,14 @@ def make_category(
 
 
 @pytest.fixture
-def root_name(settings) -> str:
+def root_name(settings: Any) -> str:
     """Уникальное имя якоря, прописанное в settings.ROOT_CATEGORY_NAME."""
     name = f"СПОРТ-{get_unique_suffix()}"
     settings.ROOT_CATEGORY_NAME = name
     return name
 
 
-def run(**options) -> str:
+def run(**options: Any) -> str:
     """Запускает команду и возвращает её stdout."""
     out = io.StringIO()
     call_command("reactivate_catalog_categories", stdout=out, **options)

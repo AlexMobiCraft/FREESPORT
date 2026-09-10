@@ -239,6 +239,8 @@ class TestAccrualStatusIsNotTerminal:
 
     def test_active_statuses_remain_available(self) -> None:
         settings = BonusProgramSettings.load()
-        available = {value for value, _ in settings._meta.get_field("accrual_status").choices}
+        field = settings._meta.get_field("accrual_status")
+        assert field.choices is not None
+        available = {value for value, _ in field.choices}
 
         assert available == {"pending", "confirmed", "processing", "shipped", "delivered"}

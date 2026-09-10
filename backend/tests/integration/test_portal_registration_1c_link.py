@@ -25,6 +25,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.users.models import User
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 
@@ -57,6 +58,7 @@ def b2b_registration_payload(**overrides):
         "company_name": "Форма Компани",
         "tax_id": unique_tax_id(),
         "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
     }
     payload.update(overrides)
     return payload

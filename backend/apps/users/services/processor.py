@@ -653,7 +653,7 @@ class CustomerDataProcessor:
         guid = change.resolution.matched[0] if change.resolution and change.resolution.matched else ""
         # Резолвер отдаёт GUID в нижнем регистре, парсер — как в выгрузке.
         # Регистрозависимое сравнение молча вернуло бы пустые наименования.
-        meta = next(
+        meta: dict[str, Any] = next(
             (
                 item
                 for item in (customer_data.get("price_type_meta") or [])
