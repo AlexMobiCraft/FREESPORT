@@ -1,5 +1,3 @@
-**Language:** Use `{communication_language}` for all output.
-**Output Language:** Use `{document_output_language}` for documents.
 **Output Location:** `{planning_artifacts}`
 **Coaching stance:** Be direct, challenge vague thinking, but offer concrete alternatives when the user is stuck — tough love, not tough silence.
 
@@ -13,17 +11,17 @@
 
 The press release is the heart of Working Backwards. It has a specific structure, and each part earns its place by forcing a different type of clarity:
 
-| Section                | What It Forces                                                                     |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| **Headline**           | Can you say what this is in one sentence a customer would understand?              |
-| **Subheadline**        | Who benefits and what changes for them?                                            |
-| **Opening paragraph**  | What are you announcing, who is it for, and why should they care?                  |
-| **Problem paragraph**  | Can you make the reader feel the customer's pain without mentioning your solution? |
-| **Solution paragraph** | What changes for the customer? (Not: what did you build.)                          |
-| **Leader quote**       | What's the vision beyond the feature list?                                         |
-| **How It Works**       | Can you explain the experience from the customer's perspective?                    |
-| **Customer quote**     | Would a real person say this? Does it sound human?                                 |
-| **Getting Started**    | Is the path to value clear and concrete?                                           |
+| Section | What It Forces |
+|---------|---------------|
+| **Headline** | Can you say what this is in one sentence a customer would understand? |
+| **Subheadline** | Who benefits and what changes for them? |
+| **Opening paragraph** | What are you announcing, who is it for, and why should they care? |
+| **Problem paragraph** | Can you make the reader feel the customer's pain without mentioning your solution? |
+| **Solution paragraph** | What changes for the customer? (Not: what did you build.) |
+| **Leader quote** | What's the vision beyond the feature list? |
+| **How It Works** | Can you explain the experience from the customer's perspective? |
+| **Customer quote** | Would a real person say this? Does it sound human? |
+| **Getting Started** | Is the path to value clear and concrete? |
 
 ## Coaching Approach
 
@@ -57,4 +55,4 @@ Before moving on, append a brief `<!-- coaching-notes-stage-2 -->` block to the 
 
 This stage is complete when the full press release reads as a coherent, compelling announcement that a real customer would find relevant. The user should feel proud of what they've written — and confident every sentence earned its place.
 
-Route to `./customer-faq.md`.
+Route to `references/customer-faq.md`.
