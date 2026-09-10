@@ -1,5 +1,3 @@
-**Language:** Use `{communication_language}` for all output.
-**Output Language:** Use `{document_output_language}` for documents.
 **Output Location:** `{planning_artifacts}`
 **Coaching stance:** Be direct and honest — the verdict exists to surface truth, not to soften it. But frame every finding constructively.
 
@@ -44,7 +42,6 @@ purpose: "Token-efficient context for downstream PRD creation"
 ```
 
 **Distillate content:** Dense bullet points grouped by theme. Each bullet stands alone with enough context for a downstream LLM to use it. Include:
-
 - Rejected framings and why they were dropped
 - Requirements signals captured during coaching
 - Technical context, constraints, and platform preferences
@@ -64,7 +61,6 @@ purpose: "Token-efficient context for downstream PRD creation"
 **Recommended next step:** Use the PRFAQ and detail pack as input for PRD creation. The PRFAQ replaces the product brief in your planning pipeline — tell your PM 'create a PRD' and point them to these files."
 
 **Headless mode output:**
-
 ```json
 {
   "status": "complete",
@@ -79,3 +75,7 @@ purpose: "Token-efficient context for downstream PRD creation"
 ## Stage Complete
 
 This is the terminal stage. If the user wants to revise, loop back to the relevant stage. Otherwise, the workflow is done.
+
+Run: `uv run {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --project-root {project-root} --key workflow.on_complete`
+
+If the resolved `workflow.on_complete` is non-empty, follow it as the final terminal instruction before exiting.
