@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import time
 from unittest.mock import patch
 
@@ -175,6 +176,81 @@ def test_registration_requires_marketing_text_version_when_consent_given():
     assert response.json() == {
         "error": CONSENT_TEXT_OUTDATED_CODE,
         "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
+    assert User.objects.filter(email=payload["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
+@pytest.mark.parametrize(
+    "version",
+    [["2020-01-01-deadbeef"], {"version": "2020-01-01-deadbeef"}, True, 20200101],
+    ids=["list", "object", "boolean", "number"],
+)
+@pytest.mark.parametrize(
+    ("field", "overrides"),
+    [
+        ("pdp_consent_text_version", {}),
+        # Маркетинговая версия сверяется с реестром только при данном согласии.
+        ("marketing_consent_text_version", {"marketing_consent": True}),
+    ],
+    ids=["pdp", "marketing"],
+)
+def test_registration_non_string_text_version_asks_to_refresh_page(field, overrides, version):
+    """Нестроковая версия получает то же требование обновить страницу, что и устаревшая.
+
+    Любая ошибка поля версии помечает ответ `consent_text_outdated`, а фронт берёт
+    текст из этого поля. DRF `CharField` на массив, объект и boolean отвечает кодом
+    `invalid` со своим «Not a valid string.» — без переопределения человек увидел
+    бы его вместо требования обновить страницу (седьмой круг ревью стори 41.9).
+    Число DRF приводит к строке, и его отклоняет сверка с реестром — вариант
+    фиксирует, что сообщение то же.
+    """
+    client = APIClient()
+    payload = trainer_payload(**overrides, **{field: version})
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {field: [CONSENT_TEXT_OUTDATED]},
+    }
+    assert User.objects.filter(email=payload["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["2020-01-01-dead\x00beef", "2020-01-01-\ud800"],
+    ids=["null-character", "lone-surrogate"],
+)
+@pytest.mark.parametrize(
+    ("field", "overrides"),
+    [
+        ("pdp_consent_text_version", {}),
+        ("marketing_consent_text_version", {"marketing_consent": True}),
+    ],
+    ids=["pdp", "marketing"],
+)
+def test_registration_version_rejected_by_field_validator_asks_to_refresh_page(field, overrides, version):
+    """Строка, отсечённая валидатором `CharField`, получает то же требование обновить страницу.
+
+    Ноль-байт и одиночный суррогат `CharField` отклоняет собственными валидаторами,
+    и их сообщения ключами `error_messages` поля не переопределяются. Текст
+    выравнивает `consent_text_outdated_payload()` — единая точка для любого отказа
+    по полю версии (седьмой круг ревью стори 41.9, решение Alex).
+    """
+    client = APIClient()
+    payload = trainer_payload(**overrides, **{field: version})
+
+    # Одиночный суррогат в UTF-8 не кодируется, поэтому тело собирается
+    # `json.dumps` с ASCII-экранированием — так его пришлёт внешний клиент.
+    response = client.post("/api/v1/auth/register/", json.dumps(payload), content_type="application/json")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {field: [CONSENT_TEXT_OUTDATED]},
     }
     assert User.objects.filter(email=payload["email"]).count() == 0
     assert UserConsent.objects.count() == 0

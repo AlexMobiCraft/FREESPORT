@@ -1027,7 +1027,33 @@ development_status:
   #             flake8/black на фактическом HEAD, audit trail/review_head и
   #             противоречие AC8 об API-контракте. Код не менялся.
   #             review -> in-progress до закрытия action items.
-  41-9-consent-journal-text-version-and-source: in-progress
+  # 2026-09-10: Все пять action items шестого круга закрыты. Код и почти вся
+  #             стори — коммит fc507169 (12:21), влит в develop PR #149
+  #             (4d6bedbd, 12:36) до окончания полного прогона: в том коммите
+  #             трекер остался in-progress, а в Debug Log — плейсхолдеры чисел.
+  #             Суть: повторное согласие активного подписчика (и гонка на
+  #             уникальном email) пишет обе записи UserConsent; хеш версии
+  #             32 hex; AC7 восстановлен на HEAD; audit trail — review_head
+  #             7d4b716f, 92f2beef с 40 файлами; шапка и AC8 приведены к
+  #             Change Log. Backend 3335 + 1 failed (перф-флейк от
+  #             параллельной нагрузки) -> 3340 passed, 0 failed; frontend
+  #             2823 -> 2823; flake8 чист, black 420 unchanged, mypy дельта 0.
+  #             in-progress -> review. Правка трекера после мержа — отдельным
+  #             PR: develop защищена.
+  # 2026-09-10: Седьмой code review дельты 7d4b716f..fc507169 оставил один
+  #             [Review][Patch]: нестроковые значения полей версии получают
+  #             machine-code consent_text_outdated, но стандартное сообщение
+  #             «Not a valid string.» вместо требования обновить страницу.
+  #             Alex оставил finding action item; review -> in-progress.
+  # 2026-09-10: Action item седьмого круга закрыт: всем трём полям версии
+  #             добавлен invalid: CONSENT_TEXT_OUTDATED; по решению Alex
+  #             consent_text_outdated_payload() выравнивает и тексты
+  #             валидаторов CharField (ноль-байт, одиночный суррогат).
+  #             +18 regression-тестов. Backend 3340 -> 3358 passed, 0 failed;
+  #             frontend 2823 -> 2823; flake8 чист, black 420 unchanged,
+  #             mypy 1 -> 0 (conftest.py:202, по просьбе Alex).
+  #             in-progress -> review.
+  41-9-consent-journal-text-version-and-source: review
   epic-41-retrospective: optional
 
 # ========================================
