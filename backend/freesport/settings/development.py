@@ -56,7 +56,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # В локальной разработке наследуем scopes из base.py и ослабляем лимиты.
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],  # type: ignore[dict-item]
     "anon": "100000/min",
     "subscribe": "100000/min",
     "unsubscribe": "100000/min",

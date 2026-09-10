@@ -18,6 +18,7 @@ import json
 import requests
 
 from apps.users.models import User
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 BASE_URL = "http://127.0.0.1:8001/api/v1"
 
@@ -50,6 +51,7 @@ def test_user_registration():
         "company_name": "Тестовый клуб",
         "tax_id": "7712345678",
         "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
     }
 
     response = requests.post(f"{BASE_URL}/auth/register/", json=data)

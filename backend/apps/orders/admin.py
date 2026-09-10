@@ -172,7 +172,9 @@ class OrderAdmin(admin.ModelAdmin):
         template = icons.get(obj.payment_status, "{}")
         return format_html(template, status_display)
 
-    def get_search_results(self, request: HttpRequest, queryset: QuerySet[Order], search_term: str):
+    def get_search_results(
+        self, request: HttpRequest, queryset: QuerySet[Order], search_term: str
+    ) -> tuple[QuerySet[Order], bool]:
         base_queryset = queryset
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         order_number_query = build_order_number_search_query(search_term)

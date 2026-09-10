@@ -7,6 +7,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.users.models import User
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 # Используем маркер pytest для доступа к БД во всех тестах этого модуля
 pytestmark = pytest.mark.django_db
@@ -52,6 +53,7 @@ def create_user_and_get_token(api_client):
             "company_name": f"Тестовая компания {role}",
             "tax_id": unique_tax_id(),
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         # Регистрация. Заявка B2B ставит в очередь три письма — глушим, чтобы
@@ -100,6 +102,7 @@ def test_user_registration(api_client):
         "company_name": "Новый клуб",
         "tax_id": unique_tax_id(),
         "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
     }
     response = api_client.post(url, data, format="json")
     assert response.status_code == 201

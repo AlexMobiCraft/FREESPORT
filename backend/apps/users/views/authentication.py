@@ -22,7 +22,10 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.common.api_schema import consent_text_outdated_example, consent_validation_error_response
+from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
+from apps.common.serializers import consent_text_outdated_payload
 from apps.common.utils.consent_audit import (
     get_client_ip,
     get_consent_ip_address,
@@ -105,8 +108,21 @@ class UserRegistrationView(APIView):
                     ),
                 ],
             ),
-            400: OpenApiResponse(
-                description="Ошибки валидации",
+            400: consent_validation_error_response(
+                # Две формы ответа связаны `oneOf` именованных компонентов (стори 41.9,
+                # четвёртый круг ревью): свободный `type: object` давал фронту
+                # `{ [key: string]: unknown }` и не типизировал ни `error`, ни `details`.
+                # `response=` обязателен и по другой причине: без него drf-spectacular
+                # выбрасывает примеры и в контракт не попадает ни одна из форм.
+                description=(
+                    "Ошибки валидации. Обычные ошибки возвращаются плоским объектом "
+                    "«поле → список сообщений». Исключение — устаревшая или непереданная "
+                    "версия формулировки согласия (`pdp_consent_text_version`, "
+                    "`marketing_consent_text_version`): у неё есть машинный код "
+                    "`consent_text_outdated` на верхнем уровне, а поля переносятся в "
+                    "`details`. Этот отказ лечится обновлением страницы, а не правкой "
+                    "ввода, поэтому клиент обязан отличать его от прочей валидации."
+                ),
                 examples=[
                     OpenApiExample(
                         name="validation_errors",
@@ -115,7 +131,8 @@ class UserRegistrationView(APIView):
                             "password_confirm": ["Пароли не совпадают."],
                             "role": ["Недопустимая роль для регистрации."],
                         },
-                    )
+                    ),
+                    consent_text_outdated_example("pdp_consent_text_version"),
                 ],
             ),
         },
@@ -141,14 +158,25 @@ class UserRegistrationView(APIView):
                     user, "_pending_link_confirmation", False
                 )
 
+                # Источник берётся из уже вычисленного `pending_1c_link` (стори 41.9):
+                # точка записи одна, а источников два. Человек заполнял ту же форму
+                # регистрации — отличается исход, а не текст, поэтому обе ветки
+                # ссылаются на одни и те же поверхности согласия в реестре.
+                consent_source = UserConsent.SOURCE_1C_LINK if pending_1c_link else UserConsent.SOURCE_REGISTRATION
+
                 ip_address = get_consent_ip_address(request)
                 user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT"))
 
+                # Версия формулировки запрашивается у реестра, а не хардкодится:
+                # при правке текста чекбокса версия меняется сама (метка + хеш текста),
+                # и бамп невозможно забыть.
                 UserConsent.objects.create(
                     user=user,
                     consent_type="pdp_contract",
                     ip_address=ip_address,
                     user_agent=user_agent,
+                    source=consent_source,
+                    consent_text_version=current_consent_text_version(consent_source, "pdp_contract"),
                 )
 
                 if getattr(user, "_marketing_consent", False):
@@ -157,6 +185,8 @@ class UserRegistrationView(APIView):
                         consent_type="marketing_email",
                         ip_address=ip_address,
                         user_agent=user_agent,
+                        source=consent_source,
+                        consent_text_version=current_consent_text_version(consent_source, "marketing_email"),
                     )
 
             if pending_1c_link:
@@ -191,6 +221,14 @@ class UserRegistrationView(APIView):
                 response_data["access"] = str(refresh.access_token)  # type: ignore[attr-defined]
 
             return Response(response_data, status=status.HTTP_201_CREATED)
+
+        # Версия показанной формулировки не сошлась с реестром (или не пришла) —
+        # клиенту нужен машинный код на верхнем уровне: этот отказ лечится
+        # обновлением страницы, а не правкой ввода. `ErrorDetail.code` до JSON
+        # не доходит, поэтому по одному тексту сообщения его не отличить.
+        outdated_payload = consent_text_outdated_payload(serializer.errors)
+        if outdated_payload is not None:
+            return Response(outdated_payload, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

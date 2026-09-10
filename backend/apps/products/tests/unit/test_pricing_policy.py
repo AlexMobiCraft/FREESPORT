@@ -6,6 +6,7 @@
 """
 
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from rest_framework.test import APIRequestFactory
@@ -62,7 +63,7 @@ def product():
     return product
 
 
-def _serialize_list(product, api_factory, user=None) -> dict:
+def _serialize_list(product: Any, api_factory: Any, user: Any = None) -> dict:
     """Сериализовать товар списочным сериализатором от имени пользователя"""
     request = api_factory.get("/api/v1/products/")
     if user is not None:

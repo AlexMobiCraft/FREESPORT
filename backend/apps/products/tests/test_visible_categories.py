@@ -259,6 +259,6 @@ class TestCategoryTreeInStockCount:
         football_data = next((c for c in results if c["id"] == football.id), None)
         assert football_data is not None, "Легитимная категория Футбол должна присутствовать в дереве"
         child_ids = {child["id"] for child in football_data.get("children", [])}
-        assert nested_placeholder.id not in child_ids, (
-            "Вложенная UUID-placeholder категория не должна появляться в дочерних элементах"
-        )
+        assert (
+            nested_placeholder.id not in child_ids
+        ), "Вложенная UUID-placeholder категория не должна появляться в дочерних элементах"

@@ -25,6 +25,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from tests.factories import UserFactory
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 
 @pytest.mark.integration
@@ -51,6 +52,7 @@ class TestEpic28Regression:
                 "company_name": "Новый клуб",
                 "tax_id": "7712345678",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
         )
 
@@ -71,6 +73,7 @@ class TestEpic28Regression:
                 "first_name": "New",
                 "role": "retail",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
         )
 
@@ -135,6 +138,7 @@ class TestEpic28Regression:
                 "company_name": "Test Company",
                 "tax_id": "7702345678",
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
         )
 

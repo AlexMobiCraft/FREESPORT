@@ -47,7 +47,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Staging явно документирует throttle rates, не полагаясь на скрытое наследование base.py.
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],  # type: ignore[dict-item]
     "anon": "6000/min",
     "subscribe": "30/min",
     "unsubscribe": "30/min",

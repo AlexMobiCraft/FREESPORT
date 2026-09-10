@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from ipaddress import ip_address as parse_ip_address
-from typing import Any, cast
+from typing import Any
 
 from rest_framework.request import Request
 
@@ -45,16 +45,16 @@ def get_client_ip(request: Request) -> str:
     if x_real_ip:
         ip = str(x_real_ip).strip()
         if ip:
-            return cast(str, ip)
+            return ip
 
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
         ip = x_forwarded_for.split(",")[0].strip()
         if ip:
-            return cast(str, ip)
+            return ip
 
     ip = request.META.get("REMOTE_ADDR", "unknown")
-    return cast(str, ip)
+    return ip
 
 
 def normalize_consent_ip(raw_ip: str) -> str | None:

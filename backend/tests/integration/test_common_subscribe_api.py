@@ -15,8 +15,14 @@ from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.exceptions import ErrorDetail
 
+from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import Newsletter, UserConsent
-from apps.common.serializers import ALREADY_SUBSCRIBED_CODE, SubscribeSerializer
+from apps.common.serializers import (
+    ALREADY_SUBSCRIBED_CODE,
+    CONSENT_TEXT_OUTDATED,
+    CONSENT_TEXT_OUTDATED_CODE,
+    SubscribeSerializer,
+)
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
@@ -24,6 +30,9 @@ pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 User = get_user_model()
 
 PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
+# Версия формулировки, которую показала форма. Берётся из реестра, а не литералом:
+# при правке текста подписки версия меняется сама, и тесты не придётся править.
+NEWSLETTER_TEXT_VERSION = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract")
 
 
 class TestSubscribeEndpoint:
@@ -32,7 +41,7 @@ class TestSubscribeEndpoint:
     def test_subscribe_success(self, api_client):
         """Проверяет успешное создание подписки."""
         url = reverse("common:subscribe")
-        data = {"email": "newuser@example.com", "pdp_consent": True}
+        data = {"email": "newuser@example.com", "pdp_consent": True, "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
         response = api_client.post(url, data, format="json")
 
@@ -42,20 +51,60 @@ class TestSubscribeEndpoint:
         assert Newsletter.objects.filter(email="newuser@example.com").exists()
 
     def test_subscribe_duplicate_email(self, api_client):
-        """Повторная подписка возвращает нейтральный успех без enumeration leak."""
-        Newsletter.objects.create(email="existing@example.com", is_active=True)
+        """Повторная подписка: нейтральный успех без enumeration leak — и согласие записано.
+
+        Активный подписчик снова поставил галочку и отправил форму — это новый
+        явный факт согласия (ФЗ-152 ст. 9). После правки формулировки именно он
+        доказывает согласие на новую редакцию, поэтому терять его нельзя (шестой
+        круг ревью стори 41.9). Ответ тот же, что у новой подписки, а строка
+        `Newsletter` активного подписчика не меняется.
+        """
+        Newsletter.objects.create(
+            email="existing@example.com",
+            is_active=True,
+            ip_address="192.0.2.10",
+            user_agent="Original/1.0",
+        )
 
         url = reverse("common:subscribe")
-        data = {"email": "existing@example.com", "pdp_consent": True}
+        data = {"email": "existing@example.com", "pdp_consent": True, "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
-        response = api_client.post(url, data, format="json")
+        response = api_client.post(url, data, format="json", REMOTE_ADDR="198.51.100.20", HTTP_USER_AGENT="Repeat/2.0")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {
             "message": "Вы успешно подписались на рассылку",
             "email": "existing@example.com",
         }
-        assert UserConsent.objects.count() == 0
+        consents = list(UserConsent.objects.order_by("consent_type"))
+        assert [consent.consent_type for consent in consents] == ["marketing_email", "pdp_contract"]
+        assert all(consent.source == UserConsent.SOURCE_NEWSLETTER for consent in consents)
+        assert {consent.consent_text_version for consent in consents} == {NEWSLETTER_TEXT_VERSION}
+        assert {consent.user_agent for consent in consents} == {"Repeat/2.0"}
+        subscription = Newsletter.objects.get(email="existing@example.com")
+        assert subscription.ip_address == "192.0.2.10"
+        assert subscription.user_agent == "Original/1.0"
+
+    def test_active_subscriber_reconfirmation_lands_next_to_old_records(self, api_client):
+        """Подтверждение новой редакции ложится рядом, прежние записи сохраняют свою версию (AC5)."""
+        Newsletter.objects.create(email="reconfirm@example.com", is_active=True)
+        old_version = "2026-01-01-" + "0" * 32
+        for consent_type in ("pdp_contract", "marketing_email"):
+            UserConsent.objects.create(
+                session_key="old-session",
+                consent_type=consent_type,
+                source=UserConsent.SOURCE_NEWSLETTER,
+                consent_text_version=old_version,
+            )
+
+        url = reverse("common:subscribe")
+        data = {"email": "reconfirm@example.com", "pdp_consent": True, "consent_text_version": NEWSLETTER_TEXT_VERSION}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert UserConsent.objects.filter(consent_text_version=old_version).count() == 2
+        assert UserConsent.objects.filter(consent_text_version=NEWSLETTER_TEXT_VERSION).count() == 2
 
     def test_subscribe_duplicate_non_string_email_is_not_echoed(self, api_client):
         """Нейтральный already_subscribed-ответ не эхоит list/dict из raw request."""
@@ -82,7 +131,11 @@ class TestSubscribeEndpoint:
         with patch("apps.common.views.SubscribeSerializer", FakeSubscribeSerializer):
             response = api_client.post(
                 url,
-                {"email": ["existing@example.com"], "pdp_consent": True},
+                {
+                    "email": ["existing@example.com"],
+                    "pdp_consent": True,
+                    "consent_text_version": NEWSLETTER_TEXT_VERSION,
+                },
                 format="json",
             )
 
@@ -97,7 +150,10 @@ class TestSubscribeEndpoint:
         Newsletter.objects.create(email="known-subscriber@example.com", is_active=True)
 
         url = reverse("common:subscribe")
-        data = {"email": "known-subscriber@example.com"}
+        # Версия формулировки передаётся действующая: тест про утечку статуса
+        # подписки, а не про устаревшую форму. Без неё ответ ушёл бы в ветку
+        # `consent_text_outdated` и проверял бы не то.
+        data = {"email": "known-subscriber@example.com", "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
         response = api_client.post(url, data, format="json")
 
@@ -116,7 +172,11 @@ class TestSubscribeEndpoint:
         )
 
         url = reverse("common:subscribe")
-        data = {"email": "unsubscribed@example.com", "pdp_consent": True}
+        data = {
+            "email": "unsubscribed@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(url, data, format="json")
 
@@ -128,7 +188,13 @@ class TestSubscribeEndpoint:
     @pytest.mark.django_db(transaction=True)
     def test_subscribe_serializer_save_can_run_outside_view_atomic(self):
         """SubscribeSerializer.save() сам открывает transaction для select_for_update."""
-        serializer = SubscribeSerializer(data={"email": "serializer-direct@example.com", "pdp_consent": True})
+        serializer = SubscribeSerializer(
+            data={
+                "email": "serializer-direct@example.com",
+                "pdp_consent": True,
+                "consent_text_version": NEWSLETTER_TEXT_VERSION,
+            }
+        )
 
         assert serializer.is_valid(), serializer.errors
         subscription = serializer.save()
@@ -139,7 +205,7 @@ class TestSubscribeEndpoint:
     def test_subscribe_invalid_email(self, api_client):
         """Возвращает 400 для некорректного email."""
         url = reverse("common:subscribe")
-        data = {"email": "invalid-email", "pdp_consent": True}
+        data = {"email": "invalid-email", "pdp_consent": True, "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
         response = api_client.post(url, data, format="json")
 
@@ -149,7 +215,7 @@ class TestSubscribeEndpoint:
     def test_subscribe_email_normalization(self, api_client):
         """Подтверждает нормализацию email в lowercase."""
         url = reverse("common:subscribe")
-        data = {"email": "TestUser@EXAMPLE.COM", "pdp_consent": True}
+        data = {"email": "TestUser@EXAMPLE.COM", "pdp_consent": True, "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
         response = api_client.post(url, data, format="json")
 
@@ -160,7 +226,8 @@ class TestSubscribeEndpoint:
     def test_subscribe_requires_pdp_consent(self, api_client):
         """Без явного согласия подписка отклоняется."""
         url = reverse("common:subscribe")
-        data = {"email": "missing-consent@example.com"}
+        # Версия действующая: проверяется отсутствие галочки, а не устаревшая форма.
+        data = {"email": "missing-consent@example.com", "consent_text_version": NEWSLETTER_TEXT_VERSION}
 
         response = api_client.post(url, data, format="json")
 
@@ -174,7 +241,13 @@ class TestSubscribeEndpoint:
         serializer.initial_data = []
 
         with pytest.raises(serializers.ValidationError) as exc_info:
-            serializer.validate({"email": "array-payload@example.com", "pdp_consent": True})
+            serializer.validate(
+                {
+                    "email": "array-payload@example.com",
+                    "pdp_consent": True,
+                    "consent_text_version": NEWSLETTER_TEXT_VERSION,
+                }
+            )
 
         assert "non_field_errors" in exc_info.value.detail
 
@@ -192,7 +265,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_rejects_pdp_consent_false(self, api_client):
         """False в pdp_consent не считается согласием."""
         url = reverse("common:subscribe")
-        data = {"email": "false-consent@example.com", "pdp_consent": False}
+        data = {
+            "email": "false-consent@example.com",
+            "pdp_consent": False,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(url, data, format="json")
 
@@ -207,6 +284,7 @@ class TestSubscribeEndpoint:
         data = {
             "email": f"truthy-consent-{truthy_value}@example.com",
             "pdp_consent": truthy_value,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
         }
 
         response = api_client.post(url, data, format="json")
@@ -215,10 +293,123 @@ class TestSubscribeEndpoint:
         assert str(response.data["pdp_consent"][0]) == PDP_CONSENT_REQUIRED
         assert not Newsletter.objects.filter(email=data["email"]).exists()
 
+    def test_subscribe_rejects_outdated_consent_text_version(self, api_client):
+        """Вкладка с прежним текстом согласия отклоняется, а не пишет чужую формулировку.
+
+        Форма присылает версию текста, который показала. Если формулировку с тех
+        пор поправили, согласие относится к тому, чего человек не видел, — такой
+        запрос обязан быть отклонён с требованием обновить страницу.
+        """
+        url = reverse("common:subscribe")
+        data = {
+            "email": "outdated-version@example.com",
+            "pdp_consent": True,
+            "consent_text_version": "2020-01-01-deadbeef",
+        }
+
+        response = api_client.post(url, data, format="json")
+
+        # Проверка идёт по отрендеренному JSON, а не по `response.data`:
+        # `ErrorDetail.code` живёт только внутри Python и до клиента не доходит,
+        # поэтому машинный код обязан стоять верхним уровнем ответа.
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"consent_text_version": [CONSENT_TEXT_OUTDATED]},
+        }
+        assert not Newsletter.objects.filter(email=data["email"]).exists()
+        assert UserConsent.objects.count() == 0
+
+    def test_subscribe_rejects_missing_consent_text_version(self, api_client):
+        """Форма старого бандла версии не присылает — это тоже устаревшая форма.
+
+        Внутренний код DRF у пропущенного поля — `required`, а не
+        `consent_text_outdated`. Клиенту от этого не легче: случай тот же, и
+        машинный код в ответе обязан быть тем же.
+        """
+        url = reverse("common:subscribe")
+        data = {"email": "no-version@example.com", "pdp_consent": True}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"consent_text_version": [CONSENT_TEXT_OUTDATED]},
+        }
+        assert not Newsletter.objects.filter(email=data["email"]).exists()
+        assert UserConsent.objects.count() == 0
+
+    def test_subscribe_outdated_version_response_keeps_other_field_errors(self, api_client):
+        """Попутные ошибки запроса не пропадают из-за переезда полей в `details`."""
+        url = reverse("common:subscribe")
+        data = {"email": "not-an-email", "pdp_consent": True}
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        body = response.json()
+        assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
+        assert body["details"]["consent_text_version"] == [CONSENT_TEXT_OUTDATED]
+        assert body["details"]["email"], "ошибка email обязана остаться в ответе"
+
+    @pytest.mark.parametrize(
+        ("overrides", "other_field"),
+        [
+            ({"email": "not-an-email"}, "email"),
+            ({"pdp_consent": None}, "pdp_consent"),
+        ],
+        ids=["invalid-email", "null-pdp-consent"],
+    )
+    def test_subscribe_outdated_version_survives_other_field_error(self, api_client, overrides, other_field):
+        """Синтаксически валидная, но устаревшая версия не теряется рядом с ошибкой другого поля.
+
+        DRF собирает field-level ошибки всех полей, а object-level `validate()` при
+        любой из них не вызывает. Сверка версии в `validate()` пропадала бы молча:
+        ответ ушёл бы плоским, без машинного кода, по которому фронт требует
+        обновить страницу, — и человек правил бы email на устаревшей форме.
+        """
+        url = reverse("common:subscribe")
+        data = {
+            "email": "outdated-and-invalid@example.com",
+            "pdp_consent": True,
+            "consent_text_version": "2020-01-01-deadbeef",
+            **overrides,
+        }
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        body = response.json()
+        assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
+        assert body["details"]["consent_text_version"] == [CONSENT_TEXT_OUTDATED]
+        assert body["details"][other_field], f"ошибка {other_field} обязана остаться в ответе"
+        assert UserConsent.objects.count() == 0
+
+    def test_subscribe_plain_validation_error_keeps_flat_shape(self, api_client):
+        """Обычная валидация возвращается плоским объектом — контракт не сдвинут."""
+        url = reverse("common:subscribe")
+        data = {
+            "email": "flat-shape@example.com",
+            "pdp_consent": False,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        body = response.json()
+        assert "error" not in body
+        assert body["pdp_consent"] == [PDP_CONSENT_REQUIRED]
+
     def test_subscribe_creates_two_consent_records_for_anonymous(self, api_client):
         """Анонимная подписка пишет два согласия с session_key."""
         url = reverse("common:subscribe")
-        data = {"email": "anonymous-consent@example.com", "pdp_consent": True}
+        data = {
+            "email": "anonymous-consent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(
             url,
@@ -241,11 +432,20 @@ class TestSubscribeEndpoint:
         assert {str(consent.ip_address) for consent in consents} == {"203.0.113.5"}
         assert all(consent.user_agent == "SubscribeTest/1.0" for consent in consents)
         assert all(consent.policy_version == "1.0" for consent in consents)
+        # Story 41.9: источник у обеих записей — подписка; версия одна на обе,
+        # потому что чекбокс формы подписки один и покрывает оба согласия.
+        assert all(consent.source == UserConsent.SOURCE_NEWSLETTER for consent in consents)
+        expected_version = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract")
+        assert {consent.consent_text_version for consent in consents} == {expected_version}
 
     def test_subscribe_newsletter_ip_uses_normalized_audit_ip(self, api_client):
         """Newsletter.latest IP использует REMOTE_ADDR fallback при невалидном proxy-IP."""
         url = reverse("common:subscribe")
-        data = {"email": "invalid-newsletter-ip@example.com", "pdp_consent": True}
+        data = {
+            "email": "invalid-newsletter-ip@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(
             url,
@@ -264,7 +464,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_accepts_private_forwarded_ip_for_audit(self, api_client):
         """Audit сохраняет любой валидный IP, включая private/loopback."""
         url = reverse("common:subscribe")
-        data = {"email": "private-ip-consent@example.com", "pdp_consent": True}
+        data = {
+            "email": "private-ip-consent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(
             url,
@@ -288,7 +492,11 @@ class TestSubscribeEndpoint:
         api_client.force_authenticate(user=user)
 
         url = reverse("common:subscribe")
-        data = {"email": "authenticated-consent@example.com", "pdp_consent": True}
+        data = {
+            "email": "authenticated-consent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(url, data, format="json")
 
@@ -301,11 +509,19 @@ class TestSubscribeEndpoint:
         }
         assert all(consent.user == user for consent in consents)
         assert all(consent.session_key == "" for consent in consents)
+        # Story 41.9: источник и версия не зависят от того, авторизован ли подписчик.
+        assert all(consent.source == UserConsent.SOURCE_NEWSLETTER for consent in consents)
+        expected_version = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email")
+        assert {consent.consent_text_version for consent in consents} == {expected_version}
 
     def test_subscribe_consent_records_capture_ip_and_user_agent(self, api_client):
         """Audit-записи используют валидный first hop X-Forwarded-For и User-Agent."""
         url = reverse("common:subscribe")
-        data = {"email": "ip-user-agent@example.com", "pdp_consent": True}
+        data = {
+            "email": "ip-user-agent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(
             url,
@@ -324,7 +540,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_consent_records_prefer_x_real_ip_over_forwarded_for(self, api_client):
         """Audit-записи и Newsletter.latest IP должны совпадать с throttle ident priority."""
         url = reverse("common:subscribe")
-        data = {"email": "x-real-ip-consent@example.com", "pdp_consent": True}
+        data = {
+            "email": "x-real-ip-consent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(
             url,
@@ -345,7 +565,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_user_agent_truncated_to_512(self, api_client):
         """User-Agent для audit-записи очищается от surrogate и режется до 512 символов."""
         url = reverse("common:subscribe")
-        data = {"email": "long-user-agent@example.com", "pdp_consent": True}
+        data = {
+            "email": "long-user-agent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
         user_agent = "A" * 510 + "\ud800" + "B" * 600
 
         response = api_client.post(url, data, format="json", HTTP_USER_AGENT=user_agent)
@@ -369,11 +593,17 @@ class TestSubscribeEndpoint:
         UserConsent.objects.create(
             session_key="old-reactivation-session",
             consent_type="pdp_contract",
+            source=UserConsent.SOURCE_NEWSLETTER,
+            consent_text_version=current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract"),
         )
         initial_consent_count = UserConsent.objects.count()
 
         url = reverse("common:subscribe")
-        data = {"email": "reactivation-consent@example.com", "pdp_consent": True}
+        data = {
+            "email": "reactivation-consent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(url, data, format="json")
 
@@ -392,7 +622,11 @@ class TestSubscribeEndpoint:
         )
 
         url = reverse("common:subscribe")
-        data = {"email": "locked-reactivation@example.com", "pdp_consent": True}
+        data = {
+            "email": "locked-reactivation@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         with CaptureQueriesContext(connection) as captured_queries:
             response = api_client.post(url, data, format="json")
@@ -403,7 +637,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_atomic_rollback_on_consent_failure(self, api_client):
         """Если consent audit не записался, клиент получает JSON 503 и Newsletter откатывается."""
         url = reverse("common:subscribe")
-        data = {"email": "rollback-consent@example.com", "pdp_consent": True}
+        data = {
+            "email": "rollback-consent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
         original_create = UserConsent.objects.create
 
         def create_first_consent_then_fail(*args, **kwargs):
@@ -426,7 +664,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_returns_structured_503_on_operational_consent_failure(self, api_client):
         """DatabaseError-подклассы при записи согласия возвращают JSON 503."""
         url = reverse("common:subscribe")
-        data = {"email": "operational-consent@example.com", "pdp_consent": True}
+        data = {
+            "email": "operational-consent@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         with patch.object(UserConsent.objects, "create", side_effect=OperationalError("db unavailable")):
             response = api_client.post(url, data, format="json")
@@ -443,7 +685,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_anonymous_session_is_saved_before_atomic_consent_write(self, api_client, monkeypatch):
         """session_key для audit создается до локального atomic-блока с Newsletter/UserConsent."""
         url = reverse("common:subscribe")
-        data = {"email": "session-before-atomic@example.com", "pdp_consent": True}
+        data = {
+            "email": "session-before-atomic@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
         original_save = SessionStore.save
         baseline_savepoint_depth = len(connection.savepoint_ids)
         save_atomic_depths = []
@@ -464,7 +710,11 @@ class TestSubscribeEndpoint:
     def test_subscribe_logs_session_materialization_failure_separately(self, api_client, monkeypatch, caplog):
         """Ошибка session.save() логируется отдельно от ошибок записи UserConsent."""
         url = reverse("common:subscribe")
-        data = {"email": "session-failure@example.com", "pdp_consent": True}
+        data = {
+            "email": "session-failure@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         def fail_session_save(self, *args, **kwargs):
             raise OperationalError("session store unavailable")
@@ -480,12 +730,33 @@ class TestSubscribeEndpoint:
         assert "Failed to persist newsletter consent audit" not in caplog.text
         assert not Newsletter.objects.filter(email="session-failure@example.com").exists()
 
-    def test_subscribe_returns_200_when_newsletter_unique_race_hits_integrity_error(self, api_client):
-        """Race на unique email должен возвращать нейтральный 200, а не enumeration leak."""
-        url = reverse("common:subscribe")
-        data = {"email": "unique-race@example.com", "pdp_consent": True}
+    def test_subscribe_unique_race_records_consent_of_second_request(self, api_client):
+        """Гонка на уникальном email: нейтральный 200 — и согласие второго запроса записано.
 
-        with patch.object(Newsletter.objects, "create", side_effect=IntegrityError("duplicate")):
+        Параллельный запрос успел создать подписку между чтением строки и вставкой.
+        Прежде второй запрос отвечал «уже подписан» и не писал ни одной записи —
+        явное согласие терялось (шестой круг ревью стори 41.9). Гонка воспроизводится
+        по-настоящему: строка уже есть, первое чтение её «не видит» (как до коммита
+        конкурента), а вставка падает на реальном уникальном ограничении.
+        """
+        Newsletter.objects.create(email="unique-race@example.com", is_active=True)
+        original_select_for_update = Newsletter.objects.select_for_update
+        lookups = []
+
+        def racing_select_for_update(*args, **kwargs):
+            lookups.append(True)
+            queryset = original_select_for_update(*args, **kwargs)
+            # Первое чтение — снимок до коммита параллельного запроса.
+            return queryset.none() if len(lookups) == 1 else queryset
+
+        url = reverse("common:subscribe")
+        data = {
+            "email": "unique-race@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
+
+        with patch.object(Newsletter.objects, "select_for_update", side_effect=racing_select_for_update):
             response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_200_OK
@@ -493,12 +764,41 @@ class TestSubscribeEndpoint:
             "message": "Вы успешно подписались на рассылку",
             "email": "unique-race@example.com",
         }
+        assert len(lookups) == 2, "после IntegrityError строка подписки не перечитана"
+        assert Newsletter.objects.filter(email="unique-race@example.com").count() == 1
+        consents = list(UserConsent.objects.order_by("consent_type"))
+        assert [consent.consent_type for consent in consents] == ["marketing_email", "pdp_contract"]
+        assert {consent.consent_text_version for consent in consents} == {NEWSLETTER_TEXT_VERSION}
+
+    def test_subscribe_integrity_error_without_subscription_row_is_not_success(self, api_client):
+        """IntegrityError, после которого строки подписки нет, — не гонка: 503 и ничего не записано.
+
+        Нейтральный успех здесь был бы неправдой: подписка не создана, согласие
+        не сохранено. Enumeration это не открывает — строки с этим email нет.
+        """
+        url = reverse("common:subscribe")
+        data = {
+            "email": "integrity-no-row@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
+
+        with patch.object(Newsletter.objects, "create", side_effect=IntegrityError("not a unique race")):
+            response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data["error"] == "consent_persistence_failed"
+        assert not Newsletter.objects.filter(email="integrity-no-row@example.com").exists()
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_anonymous_creates_session_key(self, api_client):
         """У анонимной подписки обе consent-записи получают непустой session_key."""
         url = reverse("common:subscribe")
-        data = {"email": "anonymous-session@example.com", "pdp_consent": True}
+        data = {
+            "email": "anonymous-session@example.com",
+            "pdp_consent": True,
+            "consent_text_version": NEWSLETTER_TEXT_VERSION,
+        }
 
         response = api_client.post(url, data, format="json")
 
@@ -521,7 +821,11 @@ class TestSubscribeEndpoint:
             for index in range(40):
                 response = api_client.post(
                     url,
-                    {"email": f"throttle-{index}@example.com", "pdp_consent": True},
+                    {
+                        "email": f"throttle-{index}@example.com",
+                        "pdp_consent": True,
+                        "consent_text_version": NEWSLETTER_TEXT_VERSION,
+                    },
                     format="json",
                     REMOTE_ADDR="198.51.100.77",
                 )

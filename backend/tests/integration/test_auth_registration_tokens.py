@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.users.models import User
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 
 @pytest.mark.django_db
@@ -22,6 +23,7 @@ class TestRegistrationTokens:
             "last_name": "User",
             "role": "retail",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         response = client.post("/api/v1/auth/register/", data, format="json")
@@ -44,6 +46,7 @@ class TestRegistrationTokens:
             "first_name": "No",
             "last_name": "Role",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         response = client.post("/api/v1/auth/register/", data, format="json")
@@ -71,6 +74,7 @@ class TestRegistrationTokens:
             "company_name": "Test Company",
             "tax_id": "1234567890",
             "pdp_consent": True,
+            "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
         }
 
         response = client.post(url, data, format="json")

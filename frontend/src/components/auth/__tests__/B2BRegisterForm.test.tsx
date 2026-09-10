@@ -4,6 +4,16 @@ import userEvent from '@testing-library/user-event';
 import { StrictMode, useCallback, useState } from 'react';
 import { B2BRegisterForm } from '../B2BRegisterForm';
 import authService from '@/services/authService';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
+
+// Формулировки унифицированы с RegisterForm (стори 41.9): обе формы регистрации
+// шлют POST /auth/register/, поэтому текст согласия обязан совпадать дословно.
+const PDP_CONSENT_NAME =
+  'Я даю согласие на обработку моих персональных данных в соответствии с ' +
+  '«Политикой обработки персональных данных»';
+const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
+const MARKETING_CONSENT_NAME =
+  'Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT';
 
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -27,13 +37,13 @@ describe('B2BRegisterForm consent checkboxes', () => {
 
   const acceptPdpConsent = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })
     );
   };
 
   const getMarketingConsent = () =>
     screen.getByRole('checkbox', {
-      name: /получать рекламные и информационные рассылки от optisport/i,
+      name: MARKETING_CONSENT_NAME,
     });
 
   const fillValidB2BForm = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -55,11 +65,11 @@ describe('B2BRegisterForm consent checkboxes', () => {
     render(<B2BRegisterForm />);
 
     const pdpCheckbox = screen.getByRole('checkbox', {
-      name: /обработку моих персональных данных/i,
+      name: PDP_CONSENT_NAME,
     });
     expect(pdpCheckbox).toBeInTheDocument();
     const link = screen.getByRole('link', {
-      name: /обработку моих персональных данных/i,
+      name: PDP_CONSENT_POLICY_LINK_NAME,
     });
     expect(link).toHaveAttribute('href', '/privacy-policy');
     expect(link).toHaveAttribute('target', '_blank');
@@ -125,6 +135,9 @@ describe('B2BRegisterForm consent checkboxes', () => {
         expect.objectContaining({
           pdp_consent: true,
           marketing_consent: false,
+          // Версии показанных формулировок — по ним сервер отклоняет устаревшую вкладку.
+          pdp_consent_text_version: CONSENT_TEXT_VERSIONS.registrationPdp,
+          marketing_consent_text_version: CONSENT_TEXT_VERSIONS.registrationMarketing,
         })
       );
     });
@@ -305,6 +318,9 @@ describe('B2BRegisterForm consent checkboxes', () => {
         expect.objectContaining({
           pdp_consent: true,
           marketing_consent: true,
+          // Версии показанных формулировок — по ним сервер отклоняет устаревшую вкладку.
+          pdp_consent_text_version: CONSENT_TEXT_VERSIONS.registrationPdp,
+          marketing_consent_text_version: CONSENT_TEXT_VERSIONS.registrationMarketing,
         })
       );
     });
@@ -331,11 +347,38 @@ describe('B2BRegisterForm consent checkboxes', () => {
         .length
     ).toBeGreaterThan(0);
     expect(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })
     ).toHaveAccessibleDescription(/необходимо согласие на обработку персональных данных/i);
     expect(
-      screen.getByRole('checkbox', { name: /обработку моих персональных данных/i })
+      screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })
     ).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  test('показывает требование обновить страницу при устаревшей версии текста согласия', async () => {
+    // Отказ по версии формулировки приходит машинным кодом на верхнем уровне,
+    // поля — в `details`: без явной обработки человек увидел бы общее
+    // «Ошибка валидации данных» и жал бы кнопку до посинения.
+    const outdatedMessage =
+      'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          error: 'consent_text_outdated',
+          details: { pdp_consent_text_version: [outdatedMessage] },
+        },
+      },
+    });
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect((await screen.findAllByText(outdatedMessage)).length).toBeGreaterThan(0);
   });
 
   test('should show first backend validation error instead of hard-coded pdp priority', async () => {

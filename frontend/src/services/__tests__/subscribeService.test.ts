@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { subscribeService, SubscribeServiceError } from '../subscribeService';
 import apiClient from '../api-client';
+import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 vi.mock('../api-client');
 
@@ -20,11 +21,13 @@ describe('subscribeService', () => {
     await subscribeService.subscribe({
       email: 'new@example.com',
       pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
     });
 
     expect(apiClient.post).toHaveBeenCalledWith('/subscribe', {
       email: 'new@example.com',
       pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
     });
   });
 
@@ -43,9 +46,38 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'validation_error',
+      details,
+    });
+  });
+
+  it('прокидывает машинный код consent_text_outdated с верхнего уровня ответа', async () => {
+    // Сервер разводит устаревшую версию формулировки и обычную валидацию кодом,
+    // а не текстом сообщения: сообщение правят, статус у всей валидации общий.
+    const details = {
+      consent_text_version: [
+        'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.',
+      ],
+    };
+    vi.mocked(apiClient.post).mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: { error: 'consent_text_outdated', details },
+      },
+    });
+
+    await expect(
+      subscribeService.subscribe({
+        email: 'stale-tab@example.com',
+        pdp_consent: true,
+        consent_text_version: 'старая-версия',
+      })
+    ).rejects.toMatchObject({
+      message: 'validation_error',
+      code: 'consent_text_outdated',
       details,
     });
   });
@@ -65,6 +97,7 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'throttled',
@@ -86,6 +119,7 @@ describe('subscribeService', () => {
       await subscribeService.subscribe({
         email: 'existing@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       });
       throw new Error('Expected subscribeService to reject');
     } catch (error) {
@@ -113,6 +147,7 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'server_error',
@@ -132,6 +167,7 @@ describe('subscribeService', () => {
       subscribeService.subscribe({
         email: 'new@example.com',
         pdp_consent: true,
+      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
       })
     ).rejects.toMatchObject({
       message: 'server_error',

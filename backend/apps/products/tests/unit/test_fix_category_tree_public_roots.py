@@ -63,9 +63,7 @@ def test_fix_category_tree_execute_restores_missing_sport_anchor_without_deletin
 
 def test_fix_category_tree_execute_reactivates_inactive_sport_anchor():
     """Регрессия: repair реактивирует якорь СПОРТ (is_active=False → True); публичное дерево становится видимым."""
-    sport = CategoryFactory(
-        name="СПОРТ", slug="sport-inactive", onec_id="sport-inactive", parent=None, is_active=False
-    )
+    sport = CategoryFactory(name="СПОРТ", slug="sport-inactive", onec_id="sport-inactive", parent=None, is_active=False)
     child = CategoryFactory(name="Теннис", slug="tennis-inactive-test", parent=None)
 
     out = io.StringIO()
@@ -77,9 +75,9 @@ def test_fix_category_tree_execute_reactivates_inactive_sport_anchor():
     assert sport.is_active is True, "Неактивный якорь СПОРТ должен быть реактивирован"
     assert child.parent == sport, "Публичные root должны быть перенесены под СПОРТ"
     assert "anchor=inactive" in out.getvalue(), "До исправления якорь должен быть отмечен как inactive"
-    assert "public_reparented=1" in out.getvalue(), (
-        "Дочерняя категория должна быть перенесена под реактивированный якорь"
-    )
+    assert (
+        "public_reparented=1" in out.getvalue()
+    ), "Дочерняя категория должна быть перенесена под реактивированный якорь"
 
 
 def test_fix_category_tree_multiple_anchors_raises_command_error():
@@ -98,9 +96,9 @@ def test_fix_category_tree_create_anchor_sets_sentinel_onec_id():
     call_command("fix_category_tree_public_roots", execute=True, stdout=io.StringIO())
 
     anchor = Category.objects.get(name="СПОРТ", parent=None)
-    assert anchor.onec_id == REPAIR_ANCHOR_ONEC_ID, (
-        "Repair-якорь должен иметь sentinel onec_id для корректного слияния при следующем импорте"
-    )
+    assert (
+        anchor.onec_id == REPAIR_ANCHOR_ONEC_ID
+    ), "Repair-якорь должен иметь sentinel onec_id для корректного слияния при следующем импорте"
 
 
 def test_fix_category_tree_dry_run_lists_affected_categories():
@@ -180,16 +178,14 @@ def test_fix_category_tree_cycle_guard_moves_products_to_fallback():
     fallback_cat.refresh_from_db()
     placeholder_product.refresh_from_db()
 
-    assert placeholder_product.category_id == fallback_cat.pk, (
-        "Товар из placeholder должен быть перенесён в fallback даже при cycle guard"
-    )
-    assert fallback_cat.parent_id is None, (
-        "Fallback должен быть отвязан от placeholder-родителя, чтобы не остаться в скрытой ветке"
-    )
+    assert (
+        placeholder_product.category_id == fallback_cat.pk
+    ), "Товар из placeholder должен быть перенесён в fallback даже при cycle guard"
+    assert (
+        fallback_cat.parent_id is None
+    ), "Fallback должен быть отвязан от placeholder-родителя, чтобы не остаться в скрытой ветке"
     assert placeholder.is_active is False, "Placeholder должен быть деактивирован"
-    assert "products_moved_to_fallback=1" in out.getvalue(), (
-        "В отчёте должен быть учтён 1 перенесённый товар"
-    )
+    assert "products_moved_to_fallback=1" in out.getvalue(), "В отчёте должен быть учтён 1 перенесённый товар"
 
 
 def test_fix_category_tree_dry_run_lists_products_in_placeholder_branches():

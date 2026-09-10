@@ -17,6 +17,8 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from apps.common.api_schema import consent_text_outdated_example, consent_validation_error_response
+from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import BlogPost, News, UserConsent
 from apps.common.serializers import (
     BlogPostDetailSerializer,
@@ -27,6 +29,8 @@ from apps.common.serializers import (
     ALREADY_SUBSCRIBED_CODE,
     UnsubscribeResponseSerializer,
     UnsubscribeSerializer,
+    consent_text_outdated_payload,
+    has_error_code,
 )
 from apps.common.services import CustomerSyncMonitor
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
@@ -36,15 +40,6 @@ from apps.common.utils.consent_audit import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _has_error_code(detail: object, code: str) -> bool:
-    """Проверить DRF ErrorDetail code в nested serializer detail."""
-    if isinstance(detail, dict):
-        return any(_has_error_code(value, code) for value in detail.values())
-    if isinstance(detail, (list, tuple)):
-        return any(_has_error_code(value, code) for value in detail)
-    return getattr(detail, "code", None) == code
 
 
 @extend_schema(
@@ -323,7 +318,14 @@ def realtime_metrics(_request: Request) -> Response:
     examples=[
         OpenApiExample(
             name="successful_subscription_request",
-            value={"email": "user@example.com", "pdp_consent": True},
+            # `consent_text_version` обязателен: им форма заявляет версию показанной
+            # формулировки, а сервер сверяет её с реестром. Пример без него
+            # возвращал бы 400 — именно так и было до правки по ревью стори 41.9.
+            value={
+                "email": "user@example.com",
+                "pdp_consent": True,
+                "consent_text_version": "2026-08-30-77dbceafc3c487ffc24975cf2ce76778",
+            },
             request_only=True,
         ),
     ],
@@ -341,8 +343,22 @@ def realtime_metrics(_request: Request) -> Response:
                 )
             ],
         ),
-        400: OpenApiResponse(
-            description="Ошибка валидации (email или pdp_consent)",
+        400: consent_validation_error_response(
+            # Две формы ответа связаны `oneOf` именованных компонентов (стори 41.9,
+            # четвёртый круг ревью): прежний свободный `type: object` давал фронту
+            # `{ [key: string]: unknown }` и не типизировал ни `error`, ни `details`.
+            # `response=` при этом обязателен и по другой причине: без него
+            # drf-spectacular выбрасывает примеры целиком, и в контракт не попадает
+            # ни одна из форм — ровно этим и был вызван невалидный пример подписки,
+            # найденный ревью стори 41.9.
+            description=(
+                "Ошибка валидации `email`, `pdp_consent` или `consent_text_version`. "
+                "Обычные ошибки возвращаются плоским объектом «поле → список сообщений». "
+                "Исключение — устаревшая или непереданная версия формулировки согласия: "
+                "у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля "
+                "переносятся в `details`. Этот отказ лечится обновлением страницы, а не "
+                "правкой ввода, поэтому клиент обязан отличать его от прочей валидации."
+            ),
             examples=[
                 OpenApiExample(
                     name="validation_error",
@@ -358,6 +374,7 @@ def realtime_metrics(_request: Request) -> Response:
                     },
                     response_only=True,
                 ),
+                consent_text_outdated_example("consent_text_version"),
             ],
         ),
         503: OpenApiResponse(
@@ -423,19 +440,30 @@ def subscribe(request: Request) -> Response:
                     "session_key": "" if request.user.is_authenticated else (request.session.session_key or ""),
                     "ip_address": get_consent_ip_address(request),
                     "user_agent": sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT")),
+                    # Источник одинаков для обеих записей: подписка на рассылку —
+                    # единственная точка записи с источником `newsletter` (стори 41.9).
+                    "source": UserConsent.SOURCE_NEWSLETTER,
                 }
-                UserConsent.objects.create(consent_type="pdp_contract", **consent_kwargs)
-                UserConsent.objects.create(consent_type="marketing_email", **consent_kwargs)
-        except DRFValidationError as exc:
-            if _has_error_code(exc.detail, ALREADY_SUBSCRIBED_CODE):
-                response_serializer = SubscribeResponseSerializer(
-                    {
-                        "message": "Вы успешно подписались на рассылку",
-                        "email": serializer.validated_data["email"],
-                    }
+                # Версия текста запрашивается у реестра ОТДЕЛЬНО для каждого типа,
+                # а не хардкодится и не кладётся одним значением в общий
+                # `consent_kwargs`. Сегодня чекбокс формы подписки один и покрывает
+                # оба согласия (редакция 2 стори 41.3), поэтому версии совпадут;
+                # при будущем расщеплении чекбоксов общее значение молча записало бы
+                # человеку формулировку, которой он не видел.
+                UserConsent.objects.create(
+                    consent_type="pdp_contract",
+                    consent_text_version=current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract"),
+                    **consent_kwargs,
                 )
-                return Response(response_serializer.data, status=status.HTTP_200_OK)
-
+                UserConsent.objects.create(
+                    consent_type="marketing_email",
+                    consent_text_version=current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email"),
+                    **consent_kwargs,
+                )
+        except DRFValidationError as exc:
+            # Ветки «уже подписан» здесь нет: `create()` возвращает подписку
+            # активного подписчика, и его согласие пишется выше, как у новой
+            # (стори 41.9, шестой круг ревью).
             return Response(
                 exc.detail,
                 status=status.HTTP_400_BAD_REQUEST,
@@ -464,8 +492,15 @@ def subscribe(request: Request) -> Response:
             status=status.HTTP_200_OK,
         )
 
+    # Устаревшая (или не переданная) версия формулировки — отдельный машинный код
+    # на верхнем уровне ответа. Проверка идёт ДО нейтрального «уже подписан»:
+    # запрос, не доказавший показанный текст, не должен получить ложный успех.
+    outdated_payload = consent_text_outdated_payload(serializer.errors)
+    if outdated_payload is not None:
+        return Response(outdated_payload, status=status.HTTP_400_BAD_REQUEST)
+
     # Обработка ошибки "уже подписан"
-    if _has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
+    if has_error_code(serializer.errors, ALREADY_SUBSCRIBED_CODE):
         email = ""
         if isinstance(serializer.initial_data, dict):
             raw_email = serializer.initial_data.get("email", "")

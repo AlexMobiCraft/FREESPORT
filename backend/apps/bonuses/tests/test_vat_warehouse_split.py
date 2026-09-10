@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -26,6 +27,10 @@ from apps.orders.constants import ORDER_ID_PREFIX
 from apps.orders.services.order_create import OrderCreateService
 from apps.orders.services.order_status_import import OrderStatusImportService
 from apps.products.factories import ProductVariantFactory
+
+if TYPE_CHECKING:
+    from apps.orders.models import Order
+    from apps.users.models import User
 
 # Склады из ONEC_EXCHANGE.WAREHOUSE_RULES:
 # «1 СДВ склад» — без vat_rate в правилах, ставка берётся с варианта;
@@ -42,7 +47,7 @@ ORDER_DATA = {
 }
 
 
-def _xml_for(order, status_1c: str) -> str:
+def _xml_for(order: Order, status_1c: str) -> str:
     """Минимальный CommerceML 3.1 документ со статусом заказа."""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <КоммерческаяИнформация ВерсияСхемы="3.1" ДатаФормирования="2026-07-25T12:00:00">
@@ -64,7 +69,7 @@ def _xml_for(order, status_1c: str) -> str:
 """
 
 
-def _build_cart(user, specs: list[tuple[str | None, str | None, str, int]]) -> Cart:
+def _build_cart(user: User, specs: list[tuple[str | None, str | None, str, int]]) -> Cart:
     """Корзина из позиций вида (склад, ставка НДС варианта, цена, количество).
 
     Цена фиксируется снимком, чтобы база начисления не зависела
@@ -87,7 +92,11 @@ def _build_cart(user, specs: list[tuple[str | None, str | None, str, int]]) -> C
     return cart
 
 
-def _create_order(user, specs, delivery_cost: str = "0"):
+def _create_order(
+    user: User,
+    specs: list[tuple[str | None, str | None, str, int]],
+    delivery_cost: str = "0",
+) -> Order:
     """Создаёт заказ через продакшен-сервис разбивки по VAT-группам."""
     ensure_program_started()
     cart = _build_cart(user, specs)
@@ -99,7 +108,7 @@ def _create_order(user, specs, delivery_cost: str = "0"):
     ).create()
 
 
-def _close(order, status_1c: str = "Закрыт") -> None:
+def _close(order: Order, status_1c: str = "Закрыт") -> None:
     """Прогоняет заказ через импорт статусов из 1С."""
     OrderStatusImportService().process(_xml_for(order, status_1c))
 

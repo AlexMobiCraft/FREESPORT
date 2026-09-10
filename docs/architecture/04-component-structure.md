@@ -151,8 +151,14 @@ backend/
 │   │   ├── models.py                 # Cart, CartItem
 │   │   └── views.py                  # Session-based cart
 │   └── common/                       # Общие компоненты
-│       ├── models.py                 # Newsletter, UserConsent (152-ФЗ audit log)
+│       ├── models.py                 # Newsletter, UserConsent (152-ФЗ audit log, source + consent_text_version — Story 41.9)
 │       ├── admin.py                  # UserConsentAdmin (read-only, Story 35.1)
+│       ├── consent_texts.json        # Реестр текстов согласий: поверхности, ревизии, привязки, known_versions (Story 41.9)
+│       ├── consent_texts.py          # Загрузчик реестра: current_consent_text_version, resolve_consent_text,
+│       │                             #   is_current_consent_text_version (сверка версии из запроса) (Story 41.9)
+│       ├── api_schema.py             # Именованные компоненты OpenAPI для двух форм ответа 400 эндпоинтов
+│       │                             #   с согласием: FieldValidationErrorResponse, ConsentTextOutdatedResponse,
+│       │                             #   ConsentValidationErrorResponse (oneOf) (Story 41.9, ревью)
 │       ├── permissions.py            # Custom permissions
 │       ├── pagination.py             # Стандартизированная пагинация
 │       ├── exceptions.py             # Обработка ошибок
@@ -161,7 +167,7 @@ backend/
 │       ├── utils/
 │       │   ├── __init__.py
 │       │   └── consent_audit.py      # get_consent_ip_address, sanitize_consent_user_agent, normalize_consent_ip (Story 35.3)
-│       └── migrations/               # 0015_userconsent, 0016_userconsent_review_fixes
+│       └── migrations/               # 0015_userconsent, 0016_userconsent_review_fixes, 0019_userconsent_source_and_text_version, 0020_userconsent_source_valid
 ├── freesport/                        # Django настройки
 │   ├── settings/                     # Модульные настройки
 │   │   ├── base.py                   # OpenAPI 3.1, JWT, DRF, DEFAULT_THROTTLE_RATES

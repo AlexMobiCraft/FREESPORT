@@ -303,13 +303,28 @@ class NewsletterAdmin(admin.ModelAdmin):
 class UserConsentAdmin(admin.ModelAdmin):
     """Read-only admin для согласий пользователей."""
 
-    list_display = ["user", "consent_type", "given_at", "ip_address", "policy_version"]
-    list_filter = ["consent_type", "given_at"]
+    # `source` и `consent_text_version` показаны в списке и вынесены в фильтры
+    # (стори 41.9): оператор ПДн должен видеть, где человек дал согласие и какую
+    # формулировку подтвердил, не открывая каждую запись.
+    # Для `consent_text_version` свой SimpleListFilter не нужен: у CharField без
+    # choices Django подставляет AllValuesFieldListFilter и сам собирает значения.
+    list_display = [
+        "user",
+        "consent_type",
+        "source",
+        "consent_text_version",
+        "given_at",
+        "ip_address",
+        "policy_version",
+    ]
+    list_filter = ["consent_type", "source", "consent_text_version", "given_at"]
     search_fields = ["user__email"]
     readonly_fields = [
         "user",
         "session_key",
         "consent_type",
+        "source",
+        "consent_text_version",
         "given_at",
         "ip_address",
         "user_agent",
@@ -319,10 +334,10 @@ class UserConsentAdmin(admin.ModelAdmin):
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False
 
-    def has_change_permission(self, request: HttpRequest, obj=None) -> bool:
+    def has_change_permission(self, request: HttpRequest, obj: object | None = None) -> bool:
         return False
 
-    def has_delete_permission(self, request: HttpRequest, obj=None) -> bool:
+    def has_delete_permission(self, request: HttpRequest, obj: object | None = None) -> bool:
         return False
 
 

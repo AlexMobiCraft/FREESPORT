@@ -584,6 +584,14 @@ class Newsletter(models.Model):
             self.email = self.email.lower().strip()
 
 
+# Допустимые значения `UserConsent.source`. Список объявлен на уровне модуля,
+# а не в классе: тело вложенного `class Meta` не видит пространство имён внешнего
+# класса (Python пропускает class scope при разрешении имён), а CheckConstraint
+# нужен именно там. Расхождение с `SOURCE_CHOICES` ловит
+# `test_source_values_match_choices`.
+USER_CONSENT_SOURCE_VALUES = ["newsletter", "registration", "1c_link", "unknown"]
+
+
 class UserConsent(models.Model):
     """Фиксация согласий пользователей (152-ФЗ)."""
 
@@ -603,6 +611,26 @@ class UserConsent(models.Model):
         ("pdp_contract", "Согласие на обработку ПДн для исполнения договора"),
         ("marketing_email", "Согласие на получение рекламных рассылок"),
     ]
+
+    # Источник согласия (стори 41.9). Точек записи в коде две, а источников три:
+    # `registration` и `1c_link` — это одна и та же пара `create` в
+    # `UserRegistrationView.post`, различаемая уже вычисленным `pending_1c_link`.
+    # `unknown` зарезервирован за строками, существовавшими до миграции 0019;
+    # код, пишущий новое согласие, обязан передать фактический источник.
+    SOURCE_NEWSLETTER = "newsletter"
+    SOURCE_REGISTRATION = "registration"
+    SOURCE_1C_LINK = "1c_link"
+    SOURCE_UNKNOWN = "unknown"
+
+    SOURCE_CHOICES = [
+        (SOURCE_NEWSLETTER, "Подписка на рассылку"),
+        (SOURCE_REGISTRATION, "Регистрация"),
+        (SOURCE_1C_LINK, "Регистрация с привязкой к записи 1С"),
+        (SOURCE_UNKNOWN, "Неизвестен (запись до внедрения аудита)"),
+    ]
+
+    # Псевдоним модульного списка: обращаться к нему удобнее через модель.
+    SOURCE_VALUES = USER_CONSENT_SOURCE_VALUES
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -641,6 +669,28 @@ class UserConsent(models.Model):
         default="1.0",
         verbose_name="Версия политики",
     )
+    # `default` намеренно НЕ задан ни у одного из двух полей ниже: со значением
+    # по умолчанию забытый источник или забытая версия тихо записались бы как
+    # «неизвестно» — ровно та беда, которую чинит стори 41.9. Одноразовое
+    # значение `unknown` живёт только в миграции 0019 (`preserve_default=False`),
+    # чтобы сохранить строки, созданные до внедрения аудита.
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        db_index=True,
+        verbose_name="Источник согласия",
+        help_text="Где человек дал согласие: подписка, регистрация, привязка к 1С",
+    )
+    consent_text_version = models.CharField(
+        max_length=64,
+        db_index=True,
+        verbose_name="Версия текста согласия",
+        help_text=(
+            "Версия формулировки чекбокса из реестра apps/common/consent_texts.json "
+            "(вид «метка-хеш»). Отдельна от policy_version: та описывает политику ПДн, "
+            "эта — формулировку чекбокса, действовавшую при записи и совпавшую с версией из запроса."
+        ),
+    )
 
     class Meta:
         verbose_name = "Согласие пользователя"
@@ -650,6 +700,20 @@ class UserConsent(models.Model):
             models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
                 condition=models.Q(user__isnull=False) | ~models.Q(session_key=""),
                 name="userconsent_user_or_session_required",
+            ),
+            # Код, забывший передать источник или версию, обязан упасть на вставке,
+            # а не записать тихий мусор в доказательство согласия (ФЗ-152 ст. 9).
+            # Источник проверяется не на «непустоту», а на принадлежность
+            # перечислению: `choices` в Django — валидация уровня формы, база
+            # без этого ограничения приняла бы любую непустую строку, и опечатка
+            # («registartion») легла бы в юридически значимый журнал молча.
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=models.Q(source__in=USER_CONSENT_SOURCE_VALUES),
+                name="userconsent_source_valid",
+            ),
+            models.CheckConstraint(  # type: ignore[call-arg]  # django-stubs 4.2 не знает condition=
+                condition=~models.Q(consent_text_version=""),
+                name="userconsent_text_version_required",
             ),
         ]
 

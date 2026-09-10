@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 
 from apps.products.models import Brand, Category, Product, ProductVariant
 from apps.users.models import User
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 # Используем маркер pytest для доступа к БД во всех тестах этого модуля
 pytestmark = pytest.mark.django_db
@@ -153,6 +154,7 @@ def register_and_login_user(api_client, role="retail"):
         "company_name": f"Тестовая компания {role}",
         "tax_id": tax_id,
         "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
     }
 
     # Регистрация. Заявка ставит в очередь три письма — глушим, чтобы тест

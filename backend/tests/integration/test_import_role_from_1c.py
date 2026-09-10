@@ -33,6 +33,7 @@ from apps.common.models import AuditLog
 from apps.products.models import ImportSession, PriceType
 from apps.users.services.parser import CustomerDataParser
 from apps.users.services.processor import ROLE_STATS_KEYS
+from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
 User = get_user_model()
 
@@ -347,6 +348,7 @@ class TestLinkPathsSurviveImport:
                 "company_name": "Форма Компани",
                 "tax_id": record.tax_id,
                 "pdp_consent": True,
+                "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
             format="json",
         )

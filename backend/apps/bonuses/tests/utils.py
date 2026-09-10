@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 import uuid
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from django.contrib.auth import get_user_model
 
@@ -12,7 +13,12 @@ from apps.bonuses.models import BonusProgramSettings
 from apps.orders.models import Order, OrderItem
 from apps.products.factories import ProductFactory
 
-User = get_user_model()
+if TYPE_CHECKING:
+    # Для mypy — настоящий класс User, чтобы аннотации `-> User` работали
+    # как тип, а не как `User?` (Optional) из-за get_user_model().
+    from apps.users.models import User
+else:
+    User = get_user_model()
 
 _counter = 0
 
