@@ -62,7 +62,7 @@ const isConsentTextOutdatedError = (error: unknown) =>
  * в ответе рядом с полем версии может лежать попутная ошибка (например, email),
  * и человеку показалось бы «введите корректный email» вместо единственного
  * работающего действия — обновить страницу. `getConsentTextOutdatedMessage`
- * ставит поля версии первыми.
+ * берёт текст только из полей версии, иначе — запасное сообщение.
  */
 const getConsentOutdatedMessage = (error: unknown) => {
   const { code, details } = (error ?? {}) as SubscribeValidationError;

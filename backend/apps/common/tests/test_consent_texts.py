@@ -277,6 +277,45 @@ def test_broken_encoding_raises_consent_texts_error(tmp_path):
         load_registry(broken)
 
 
+@pytest.mark.parametrize("field", ["text", "label"])
+def test_lone_surrogate_raises_consent_texts_error(tmp_path, field):
+    """Одиночный суррогат из валидного JSON escape — то же единое исключение с путём.
+
+    `"\\ud800"` — корректный JSON: `json.loads` отдаёт строку с одиночным
+    суррогатом, а `str.encode("utf-8")` на ней падает `UnicodeEncodeError`. Текст
+    хешируется при вычислении версии, метка входит в саму версию, а версия уходит
+    в БД — оба пути обязаны давать `ConsentTextsError` с файлом и поверхностью,
+    а не голое исключение кодека.
+    """
+    revision = {"label": "2026-09-10", "text": "Согласен"}
+    revision[field] += "\ud800"
+    # Для метки версия вычисляется без ошибки — список заполнен ею, чтобы до правки
+    # загрузка проходила целиком, а не падала на сверке `known_versions`.
+    known = (
+        [compute_consent_text_version(revision["label"], revision["text"])]
+        if field == "label"
+        else ["2026-09-10-00000000"]
+    )
+    registry_file = tmp_path / "consent_texts.json"
+    # `ensure_ascii` (по умолчанию) пишет суррогат escape-последовательностью.
+    registry_file.write_text(
+        json.dumps(
+            {
+                "surfaces": {"surface": {"revisions": [revision]}},
+                "bindings": {"newsletter.pdp_contract": "surface"},
+                "known_versions": known,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConsentTextsError, match="UTF-8") as excinfo:
+        load_registry(registry_file)
+
+    assert str(registry_file) in str(excinfo.value)
+    assert "surface" in str(excinfo.value)
+
+
 # ---------------------------------------------------------------------------
 # Страж истории ревизий и границы реестра (замечания ревью стори 41.9)
 # ---------------------------------------------------------------------------

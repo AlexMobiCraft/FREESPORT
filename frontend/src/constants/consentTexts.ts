@@ -50,7 +50,7 @@ type ConsentTextOutdatedResponse = components['schemas']['ConsentTextOutdatedRes
 export const CONSENT_TEXT_OUTDATED_CODE: ConsentTextOutdatedResponse['error'] =
   'consent_text_outdated';
 
-/** Запасной текст: показывается, если сервер не прислал сообщение в `details`. */
+/** Запасной текст: показывается, если сервер не прислал сообщение в полях версии `details`. */
 export const CONSENT_TEXT_OUTDATED_MESSAGE =
   'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
 
@@ -70,6 +70,11 @@ export const isConsentTextOutdated = (data: unknown): data is ConsentTextOutdate
 /**
  * Сообщение для человека из ответа `consent_text_outdated`.
  * `null` — ответ не про версию формулировки, обрабатывать как обычную валидацию.
+ *
+ * Текст берётся ТОЛЬКО из полей версии; нет там строки — запасной
+ * `CONSENT_TEXT_OUTDATED_MESSAGE`. Попутная ошибка из `details` (например, email)
+ * требования обновить страницу не передаёт: человек поправит ввод, отправит ту же
+ * устаревшую форму и получит тот же отказ.
  */
 export const getConsentTextOutdatedMessage = (data: unknown): string | null => {
   if (!isConsentTextOutdated(data)) {
@@ -80,12 +85,7 @@ export const getConsentTextOutdatedMessage = (data: unknown): string | null => {
   // остаётся, потому что сузили мы `unknown`, а не результат валидации.
   const details: Record<string, unknown> | undefined = data.details;
   if (details && typeof details === 'object') {
-    // Сначала поля версии: в `details` могут лежать и попутные ошибки запроса.
-    const ordered = [
-      ...CONSENT_TEXT_VERSION_FIELDS.filter(field => field in details),
-      ...Object.keys(details).filter(field => !CONSENT_TEXT_VERSION_FIELDS.includes(field)),
-    ];
-    for (const field of ordered) {
+    for (const field of CONSENT_TEXT_VERSION_FIELDS) {
       const messages = details[field];
       if (Array.isArray(messages) && typeof messages[0] === 'string' && messages[0]) {
         return messages[0];

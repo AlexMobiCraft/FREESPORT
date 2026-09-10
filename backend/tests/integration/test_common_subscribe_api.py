@@ -313,6 +313,39 @@ class TestSubscribeEndpoint:
         assert body["details"]["consent_text_version"] == [CONSENT_TEXT_OUTDATED]
         assert body["details"]["email"], "ошибка email обязана остаться в ответе"
 
+    @pytest.mark.parametrize(
+        ("overrides", "other_field"),
+        [
+            ({"email": "not-an-email"}, "email"),
+            ({"pdp_consent": None}, "pdp_consent"),
+        ],
+        ids=["invalid-email", "null-pdp-consent"],
+    )
+    def test_subscribe_outdated_version_survives_other_field_error(self, api_client, overrides, other_field):
+        """Синтаксически валидная, но устаревшая версия не теряется рядом с ошибкой другого поля.
+
+        DRF собирает field-level ошибки всех полей, а object-level `validate()` при
+        любой из них не вызывает. Сверка версии в `validate()` пропадала бы молча:
+        ответ ушёл бы плоским, без машинного кода, по которому фронт требует
+        обновить страницу, — и человек правил бы email на устаревшей форме.
+        """
+        url = reverse("common:subscribe")
+        data = {
+            "email": "outdated-and-invalid@example.com",
+            "pdp_consent": True,
+            "consent_text_version": "2020-01-01-deadbeef",
+            **overrides,
+        }
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        body = response.json()
+        assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
+        assert body["details"]["consent_text_version"] == [CONSENT_TEXT_OUTDATED]
+        assert body["details"][other_field], f"ошибка {other_field} обязана остаться в ответе"
+        assert UserConsent.objects.count() == 0
+
     def test_subscribe_plain_validation_error_keeps_flat_shape(self, api_client):
         """Обычная валидация возвращается плоским объектом — контракт не сдвинут."""
         url = reverse("common:subscribe")

@@ -160,7 +160,8 @@ def test_registration_requires_marketing_text_version_when_consent_given():
     """Галочка маркетинга без версии текста — тот же отказ, что и устаревшая версия.
 
     Поле необязательно на уровне DRF (форма без галочки версию не доказывает),
-    обязательным его делает `validate()` при `marketing_consent=True`. Путь
+    обязательным его делает `validate_marketing_consent_text_version()` при
+    `marketing_consent=True`. Путь
     «поле отсутствует» проходит мимо ветки сравнения версий, поэтому проверяется
     отдельно от уже покрытой устаревшей версии.
     """
@@ -190,6 +191,90 @@ def test_registration_plain_validation_error_keeps_flat_shape():
     body = response.json()
     assert "error" not in body
     assert "password_confirm" in body or "non_field_errors" in body
+
+
+def test_registration_outdated_pdp_version_survives_other_field_error():
+    """Устаревшая версия ПДн не теряется рядом с field-level ошибкой другого поля.
+
+    DRF собирает field-level ошибки всех полей, а object-level `validate()` при
+    любой из них не вызывает: сверка версии там пропадала бы молча, и ответ ушёл
+    бы плоским — без машинного кода, по которому фронт требует обновить страницу.
+    """
+    client = APIClient()
+    payload = trainer_payload(role="admin", pdp_consent_text_version="2020-01-01-deadbeef")
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    body = response.json()
+    assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
+    assert body["details"]["pdp_consent_text_version"] == [CONSENT_TEXT_OUTDATED]
+    assert body["details"]["role"], "ошибка роли обязана остаться в ответе"
+    assert User.objects.filter(email=payload["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
+def test_registration_outdated_pdp_version_wins_over_password_mismatch():
+    """Несовпадение паролей не прячет устаревшую формулировку.
+
+    Пароли сверяются в `validate()` первыми; пока версия проверялась там же,
+    ответ «пароли не совпадают» уходил без машинного кода — человек чинил бы
+    пароль на форме, которую сервер всё равно отклонит.
+    """
+    client = APIClient()
+    payload = trainer_payload(
+        password_confirm="Другой-пароль-123",
+        pdp_consent_text_version="2020-01-01-deadbeef",
+    )
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    body = response.json()
+    assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
+    assert body["details"]["pdp_consent_text_version"] == [CONSENT_TEXT_OUTDATED]
+    assert User.objects.filter(email=payload["email"]).count() == 0
+
+
+def test_registration_outdated_marketing_version_survives_other_field_error():
+    """То же для маркетинговой версии: проверка условна, но не пропадает."""
+    client = APIClient()
+    payload = trainer_payload(
+        role="admin",
+        marketing_consent=True,
+        marketing_consent_text_version="2020-01-01-deadbeef",
+    )
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    body = response.json()
+    assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
+    assert body["details"]["marketing_consent_text_version"] == [CONSENT_TEXT_OUTDATED]
+    assert body["details"]["role"], "ошибка роли обязана остаться в ответе"
+    assert UserConsent.objects.count() == 0
+
+
+def test_registration_marketing_version_is_not_checked_without_consent_next_to_other_error():
+    """Без галочки маркетинга устаревшая версия его текста отказом не считается.
+
+    Условность проверки обязана пережить перенос на уровень поля: иначе рядом с
+    любой обычной ошибкой форма без галочки получила бы «обновите страницу».
+    """
+    client = APIClient()
+    payload = trainer_payload(
+        role="admin",
+        marketing_consent=False,
+        marketing_consent_text_version="2020-01-01-deadbeef",
+    )
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    body = response.json()
+    assert "error" not in body
+    assert "marketing_consent_text_version" not in body
+    assert body["role"]
 
 
 def test_registration_rejects_outdated_marketing_text_version_only_when_consent_given():

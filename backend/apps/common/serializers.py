@@ -26,11 +26,14 @@ ALREADY_SUBSCRIBED_CODE = "already_subscribed"
 CONSENT_TEXT_OUTDATED = "Текст согласия обновился. Обновите страницу и подтвердите согласие заново."
 CONSENT_TEXT_OUTDATED_CODE = "consent_text_outdated"
 
-# Поля, которыми форма доказывает, какую формулировку она показала человеку.
-# Любая ошибка на них — устаревшая версия, пустая, слишком длинная или вовсе
-# не переданная — означает одно и то же: доказать показанный текст нечем.
-# Клиент обязан развести этот случай с прочей валидацией (человеку нужно
-# обновить страницу, а не править ввод), поэтому машинный код выносится
+# Поля, которыми клиент заявляет версию формулировки согласия. Официальная
+# форма берёт её из константы своего бандла — это отсекает вкладку, открытую
+# до правки текста. Факт показа текста человеку сервер отсюда не выводит:
+# произвольный API-клиент пришлёт ту же строку, ничего не отрисовав.
+# Любая ошибка на этих полях — устаревшая версия, пустая, слишком длинная или
+# вовсе не переданная — означает одно: действующую формулировку запрос не
+# подтвердил. Клиент обязан развести этот случай с прочей валидацией (человеку
+# нужно обновить страницу, а не править ввод), поэтому машинный код выносится
 # на верхний уровень ответа.
 CONSENT_TEXT_VERSION_FIELDS = frozenset(
     {
@@ -41,9 +44,15 @@ CONSENT_TEXT_VERSION_FIELDS = frozenset(
 )
 
 
-def consent_text_outdated_error(field: str) -> serializers.ValidationError:
-    """Field-level ошибка устаревшей формулировки с устойчивым machine-code."""
-    return serializers.ValidationError({field: [ErrorDetail(CONSENT_TEXT_OUTDATED, code=CONSENT_TEXT_OUTDATED_CODE)]})
+def consent_text_outdated_error() -> serializers.ValidationError:
+    """Field-level ошибка устаревшей формулировки с устойчивым machine-code.
+
+    Поднимается из `validate_<поле версии>`, а не из object-level `validate()`:
+    DRF собирает field-level ошибки всех полей, а `validate()` при любой из них
+    не вызывает. Сверка версии там пропадала бы рядом с ошибкой email, роли или
+    галочки, и ответ ушёл бы без машинного кода `consent_text_outdated`.
+    """
+    return serializers.ValidationError(CONSENT_TEXT_OUTDATED, code=CONSENT_TEXT_OUTDATED_CODE)
 
 
 def has_error_code(detail: object, code: str) -> bool:
@@ -127,10 +136,11 @@ class SubscribeSerializer(serializers.Serializer):
             "null": PDP_CONSENT_REQUIRED,
         },
     )
-    # Версия формулировки, которую форма показала человеку (стори 41.9).
-    # Значение приходит из константы фронта, собранной в тот же бандл, что и
-    # сам текст, — поэтому оно доказывает, что было на экране, а не что
-    # действует на сервере прямо сейчас.
+    # Версия формулировки, которую показывает официальная форма (стори 41.9).
+    # Значение приходит из константы фронта, собранной в тот же бандл, что и сам
+    # текст: вкладка, открытая до правки формулировки, пришлёт прежнюю версию и
+    # будет отклонена. Факт показа текста человеку сервер отсюда не выводит —
+    # ту же строку пришлёт и клиент, ничего не отрисовавший.
     consent_text_version = serializers.CharField(
         write_only=True,
         required=True,
@@ -153,6 +163,23 @@ class SubscribeSerializer(serializers.Serializer):
 
         return value
 
+    def validate_consent_text_version(self, value: str) -> str:
+        """Сверить заявленную версию с действующей формулировкой подписки.
+
+        Проверка на уровне поля, а не в `validate()`: рядом с ошибкой email или
+        галочки `validate()` не вызывается, и ответ ушёл бы без машинного кода
+        `consent_text_outdated` (см. `consent_text_outdated_error`).
+
+        Чекбокс формы подписки один и покрывает оба согласия (редакция 2 стори
+        41.3), но версия сверяется для каждого типа отдельно: при будущем
+        расщеплении чекбоксов одна проверка молча пропустила бы устаревшую
+        половину формы.
+        """
+        for consent_type, _label in UserConsent.CONSENT_TYPE_CHOICES:
+            if not is_current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, consent_type, value):
+                raise consent_text_outdated_error()
+        return value
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Проверить обязательное согласие на обработку ПДн."""
         if not isinstance(self.initial_data, dict):
@@ -162,13 +189,6 @@ class SubscribeSerializer(serializers.Serializer):
         if self.initial_data.get("pdp_consent") is not True:
             raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED})
 
-        # Чекбокс формы подписки один и покрывает оба согласия (редакция 2 стори 41.3),
-        # но версия сверяется для каждого типа отдельно: при будущем расщеплении
-        # чекбоксов одна проверка молча пропустила бы устаревшую половину формы.
-        version = attrs.get("consent_text_version", "")
-        for consent_type, _label in UserConsent.CONSENT_TYPE_CHOICES:
-            if not is_current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, consent_type, version):
-                raise consent_text_outdated_error("consent_text_version")
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> Newsletter:

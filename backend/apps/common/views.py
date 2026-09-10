@@ -318,9 +318,9 @@ def realtime_metrics(_request: Request) -> Response:
     examples=[
         OpenApiExample(
             name="successful_subscription_request",
-            # `consent_text_version` обязателен: форма доказывает им, какую
-            # формулировку показала. Пример без него возвращал бы 400 — именно
-            # так и было до правки по ревью стори 41.9.
+            # `consent_text_version` обязателен: им форма заявляет версию показанной
+            # формулировки, а сервер сверяет её с реестром. Пример без него
+            # возвращал бы 400 — именно так и было до правки по ревью стори 41.9.
             value={
                 "email": "user@example.com",
                 "pdp_consent": True,

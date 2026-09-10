@@ -101,7 +101,8 @@ so that **согласие оставалось доказуемым по ФЗ-1
 **And** добавлены тесты реестра: разрешение версии в текст, смена версии при смене текста, отсутствие непривязанных пар
 **And** добавлен тест `CheckConstraint`: вставка с пустым `source` или пустой версией падает `IntegrityError`
 **And** фронтенд-прогон зелёный; `npx tsc --noEmit`, `npm run lint`, `npm run format:check` — без ошибок
-**And** `flake8 . --max-line-length=120 --extend-ignore=E203,W503` чист (единственный блокирующий линтер бэкенда в `backend-ci.yml:105-109`), `black .` не предлагает переформатирования
+**And** `flake8 . --max-line-length=120 --extend-ignore=E203,W503` чист (единственный блокирующий линтер бэкенда в `backend-ci.yml:105-109`), а `black --check` не предлагает переформатирования ни для одного Python-файла из diff стори; полный `black --check .` не добавляет файлов к зафиксированному в Debug Log предсуществующему baseline
+**And** *(уточнение от 2026-09-10, коммит `e124fb66`)* предсуществующий baseline из 8 файлов закрыт отдельным коммитом `chore(backend): закрыть предсуществующий Black baseline` вне scope стори: `black --check .` теперь сообщает «420 files left unchanged», baseline пуст. На момент сдачи (версия 1.5) действовала change-scoped формулировка выше; она остаётся верной как историческая запись критерия приёмки
 **And** `mypy --config-file=mypy.ini .` не добавляет новых ошибок к текущему базису — гейтом он не является (`backend-ci.yml:116`, `continue-on-error: true`, ~108 предсуществующих ошибок), поэтому «ноль ошибок» здесь не требуется и не достижим
 **And** числа прогонов сняты **до** первой правки и после неё — «ничего не сломалось» без числа не принимается
 
@@ -325,6 +326,79 @@ so that **согласие оставалось доказуемым по ФЗ-1
 - [x] [Review][Defer] Привести URL подписки к каноническому `/subscribe/`: сервис отправляет POST на `/subscribe` без завершающего slash, тогда как Django route и OpenAPI используют `/subscribe/`; при стандартном `APPEND_SLASH=True` редирект POST может потерять метод или тело. [`frontend/src/services/subscribeService.ts:75-78`, `backend/apps/common/urls.py:19`] — deferred, pre-existing
 - [x] [Review][Defer] Сделать валидацию `tax_id` в `B2BRegisterForm` зависимой от страны: текущая схема пропускает только российские 10/12 цифр и блокирует валидный 9-значный УНП Беларуси, хотя backend принимает 8–12 цифр для Беларуси/Казахстана. [`frontend/src/schemas/authSchemas.ts:154-163`, `backend/apps/users/serializers.py:232-238`] — deferred, pre-existing
 
+- [x] [Review][Decision] Определить честный критерий приёмки Black для AC7 — решение Alex: использовать change-scoped gate. Все 27 Python-файлов diff Story 41.9 проходят `black --check`; восемь файлов полного backend-прогона остаются зафиксированным предсуществующим baseline и не расширяют scope стори. AC7 уточнён соответственно. [`_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md:104`]
+- [x] [Review][Patch] Не терять `consent_text_outdated`, когда одновременно ошибочно другое поле: DRF не вызывает object-level `validate()` при field-level ошибке, а регистрация дополнительно возвращает несовпадение паролей до проверки версий; `/subscribe/` и `/auth/register/` поэтому отвечают обычной плоской ошибкой без machine-code для синтаксически валидной, но устаревшей версии. [`backend/apps/common/serializers.py:146-171`, `backend/apps/users/serializers.py:188-210`]
+  - Сделано: сверка версий перенесена из object-level `validate()` в field-level валидаторы —
+    `SubscribeSerializer.validate_consent_text_version`, `UserRegistrationSerializer.validate_pdp_consent_text_version`
+    и `validate_marketing_consent_text_version`. DRF собирает field-level ошибки всех полей, поэтому ошибка
+    версии попадает в `serializer.errors` рядом с ошибкой email, роли или галочки, и
+    `consent_text_outdated_payload` поднимает машинный код. Несовпадение паролей (оно в `validate()`) больше
+    не прячет устаревшую версию: при ошибке версии `validate()` не вызывается вовсе. Условность маркетинговой
+    версии сохранена: field-level валидатор не видит разобранных соседних полей, поэтому
+    `_marketing_consent_given()` читает галочку из исходных данных **тем же** полем `marketing_consent`, что
+    разбирает её для `validated_data` (truthy-коэрсия и HTML-ввод совпадают); некорректная галочка — её
+    собственная ошибка, версия при ней не проверяется. `consent_text_outdated_error()` стал field-level
+    (без аргумента поля). RED: пять новых тестов падали `KeyError: 'error'` — ответ уходил плоским
+    (подписка: невалидный email и `pdp_consent: null` параметризацией; регистрация: роль `admin`, несовпадение
+    паролей, маркетинг с галочкой). Шестой — страж условности (без галочки маркетинга рядом с ошибкой роли
+    ответ остаётся плоским) — зелёный и до, и после: он охраняет рефакторинг, а не дефект.
+- [x] [Review][Patch] Ослабить оставшиеся backend-утверждения «версия доказывает, что текст был на экране / человек фактически видел»: сервер доказывает только совпадение присланной версии с текущим реестром, а факт показа гарантируется лишь официальным frontend-бандлом. [`backend/apps/common/models.py:686-692`, `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py:46-51`, `backend/apps/common/serializers.py:29-34,130-133`, `backend/apps/common/consent_texts.py:315-321`]
+  - Сделано во всех четырёх названных местах и в трёх найденных сверх списка (`grep` по «доказыва|на экране|видел»):
+    комментарий примера `successful_subscription_request` в `apps/common/views.py` («форма доказывает им,
+    какую формулировку показала»), комментарий полей версии в `apps/users/serializers.py` и docstring
+    `UserRegistrationRequestSchemaExtension` (там же «обязательным становится в `validate()`» — после переноса
+    проверки неверно). Формулировка везде одна: сервер сверяет версию с реестром — это отсекает вкладку,
+    открытую до правки текста, но не доказывает показ текста человеку. `help_text` поля `consent_text_version`
+    исправлен в модели **и** идентично в миграции `0019`: `help_text` входит в deconstruct поля, и
+    расхождение дало бы `makemigrations --check` лишний `AlterField`; схему БД правка не меняет, а `0019` на
+    прод ещё не накатывалась. `makemigrations --check --dry-run` → `No changes detected`. Тестовые docstring'и
+    («согласие с текстом, которого человек не видел») не трогались: они описывают сценарий старой вкладки
+    официальной формы, а не гарантию сервера.
+- [x] [Review][Patch] Заворачивать lone-surrogate из валидного JSON escape в `ConsentTextsError`: сейчас `compute_consent_text_version()` вызывает `text.encode("utf-8")` и пропускает наружу `UnicodeEncodeError` без пути/поверхности, нарушая единый диагностический контракт загрузчика повреждённого реестра. [`backend/apps/common/consent_texts.py:54-57,141`]
+  - Сделано: `_ingest_surface` заворачивает `UnicodeEncodeError` в `ConsentTextsError` с путём, меткой и
+    поверхностью (метка печатается через `!r`, чтобы суррогат в сообщении стал escape-последовательностью).
+    Проверяется не только текст, но и метка: она входит в саму версию, а версия уходит в БД — суррогат в метке
+    проходил загрузку молча и упал бы уже на вставке живого согласия. Тест
+    `test_lone_surrogate_raises_consent_texts_error[text|label]`: RED — вариант `text` падал голым
+    `UnicodeEncodeError`, вариант `label` не падал вовсе (в `known_versions` фикстуры стоит сама вычисленная
+    версия, поэтому реестр загружался целиком и тест не мог позеленеть на сверке списка); GREEN — оба
+    `ConsentTextsError` с путём к файлу.
+
+- [x] [Review][Patch] Не подменять требование обновить страницу посторонней ошибкой из `details`: если ответ помечен `consent_text_outdated`, но поле версии отсутствует или не содержит строки, `getConsentTextOutdatedMessage()` сейчас перебирает остальные поля и может показать, например, ошибку email. Для такого поля версии должен использоваться только его текст, иначе — безопасный `CONSENT_TEXT_OUTDATED_MESSAGE`. [`frontend/src/constants/consentTexts.ts:74-96`]
+  - Сделано: хелпер перебирает только поля версии; строки там нет — возвращается запасной текст.
+    Попутная ошибка из `details` требования обновить страницу не передаёт: человек поправит ввод,
+    отправит ту же устаревшую форму и получит тот же отказ. Новый unit-тест
+    `frontend/src/constants/__tests__/consentTexts.test.ts` (8 тестов): RED до правки — 5 failed, ровно
+    целевые случаи (нет поля версии; поле версии — пустой массив, пустая строка, не строка, не массив), во
+    всех показывалась ошибка email; после правки — 8 passed. Комментарии обеих форм подписки, ссылавшиеся на
+    прежнее «ставит поля версии первыми», приведены к новому поведению.
+- [x] [Review][Patch] Сделать компиляционный страж обязательности consent-версий двусторонним: негативные `@ts-expect-error` сейчас присваивают payload только ручному `RegisterRequest`, поэтому необязательное поле в `GeneratedRegisterRequest` не уронит тест, хотя его описание обещает проверку обоих типов. Добавить отдельные негативные присваивания сгенерированному типу для PDP- и marketing-версий. [`frontend/src/__tests__/register-request-contract.test.ts:36-87`]
+  - Сделано: в оба негативных теста добавлены присваивания сгенерированному типу, суженному `Pick` до
+    consent-полей нужной версии (`GeneratedPdpConsent`, `GeneratedMarketingConsent`) — единственной причиной
+    ошибки компиляции остаётся отсутствие версии, а не давние расхождения прочих полей. `Pick` вынесен в
+    псевдонимы типов намеренно: `@ts-expect-error` действует на одну следующую строку, а TS сообщает о
+    несовместимом присваивании на строке с именем переменной — многострочная аннотация развела бы директиву
+    и ошибку (первый вариант правки так и ошибся, исправлен до прогона). RED снят явно: временное `?:` у обоих
+    полей в `api.generated.ts` дало `npx tsc --noEmit` ровно два `TS2578: Unused '@ts-expect-error'` — строки
+    86 и 106 стража, то есть новые директивы; после отката `tsc` чист, `git diff` сгенерированного файла пуст.
+- [x] [Review][Defer] Описать содержательное тело успешного `POST /subscribe/` в OpenAPI: runtime и ручной `SubscribeResponse` возвращают `{message, email}`, но generated operation оставляет `200.content?: never`. [`docs/api/openapi.yaml:109-111`, `frontend/src/types/api.generated.ts:3033-3040`] — deferred, pre-existing
+- [x] [Review][Defer] Описать варианты содержательного тела успешного `POST /auth/register/` в OpenAPI: UI читает `message`, `user` и токены, но generated operation оставляет `201.content?: never`. [`docs/api/openapi.yaml:338-340`, `frontend/src/types/api.generated.ts:3223-3230`] — deferred, pre-existing
+- [x] [Review][Patch] Синхронизировать audit trail после внешнего коммита `e124fb66`: текущий branch diff уже включает восемь отформатированных Black-файлов, но File List их не перечисляет; запись GitNexus всё ещё заканчивается на `9749/16083`, хотя `AGENTS.md` / `CLAUDE.md` содержат `9771/16115`; комментарий tracker одновременно утверждает, что восемь файлов всё ещё остаются baseline. Назвать внешний scope в File List и привести Story/tracker к фактическому состоянию, не смешивая его с кодом 41.9. [`Story/41-9-consent-journal-text-version-and-source.md:505,1068-1154`, `sprint-status.yaml:998-1005`, `AGENTS.md:164`, `CLAUDE.md:168`]
+  - Сделано: в File List отдельный раздел «Внешний коммит в ветке, не относящийся к коду стори» — восемь
+    файлов `e124fb66` по `git show --stat`, с пометкой, что это только Black и в объём 41.9 не входит.
+    GitNexus-запись переснята по коммитам (`git show <коммит>:AGENTS.md`): закоммичено
+    `9657/15912 → 9749/16083` (`8ac75ef6` добавил последнее значение), не закоммичено
+    `9749/16083 → 9771/16115`; заодно уточнено, что `9647/15902` — реальное промежуточное значение
+    `28d40a6d`, а не ошибка. Комментарий пятого круга в `sprint-status.yaml` больше не утверждает, что
+    baseline жив: там названы `e124fb66` и «420 files left unchanged». Исторические записи Debug Log прошлых
+    кругов («те же 8 предсуществующих файлов») не переписываются — на момент внесения они были верны.
+- [x] [Review][Patch] Ослабить оставшееся legal-утверждение в активном deferred item: `consent_text_version` разрешает версию обратно в зарегистрированную формулировку и подтверждает совместимость официального бандла, но сама по себе не доказывает, какой текст человек действительно видел; текущая фраза снова обещает именно это. [`_bmad-output/implementation-artifacts/deferred-work.md:1070-1074`]
+  - Сделано: «однозначно восстанавливает текст, который человек видел рядом с галочкой» заменено на то, что
+    версия фактически даёт, — разрешается в формулировку из реестра и подтверждает совместимость официального
+    бандла, а какой текст человек видел, сама по себе не доказывает (произвольный API-клиент пришлёт ту же
+    строку, ничего не отрисовав). Правка помечена датой и кругом ревью; суть отложенного пункта
+    (`policy_version` и ревизии `Page`) не менялась.
+
 ## Dev Notes
 
 ### Что есть сейчас (проверено чтением файлов на `792ce210`)
@@ -491,6 +565,8 @@ so that **согласие оставалось доказуемым по ФЗ-1
 | 2026-09-09 | 1.3 | Закрыты оставшиеся восемь замечаний ревью. Главное — машинный код `consent_text_outdated` дошёл до клиента: оба эндпоинта отвечают `{error, details}` (прежде код жил только в `ErrorDetail.code`, который JSONRenderer выбрасывает, а у пропущенного поля был и вовсе `required`); фронт разводит этот отказ по коду, а не по тексту сообщения. Заодно найдена причина, по которой невалидный пример подписки не ловился контрактом: без `response=` drf-spectacular выбрасывает `examples` целиком — обоим `400` задан `OpenApiTypes.OBJECT`, и обе формы ответа теперь видны в схеме. **Уточнение к версии 1.2:** утверждение «история ревизий стала неизменяемой» отменяется — `known_versions` лежит в том же редактируемом JSON и ловит только одностороннюю правку; решение владельца — оставить процедурный страж и убрать заявления о более сильной гарантии (правится строкой Change Log, а не задним числом в тексте). Прочие замечания: Python-блок `UserConsent` в `02-data-models.md` приведён к коду; привязка к 1С в `18-b2b-verification-workflow.md` описана как отключённый латентный сценарий; из `11-security-performance.md` убрано ложное утверждение о строгом JSON boolean при регистрации; ссылки dev-task на `deferred-work.md` переведены с номеров строк на заголовки; числа побочного GitNexus-диффа сверены `git diff`. Backend 3279 → 3282 passed, frontend 2807 → 2810 passed, падений нет; `check_openapi_sync` — контракт синхронен. | Claude Opus 5 / dev-story |
 | 2026-09-09 | 1.4 | Закрыты последние пять замечаний ревью. Главное — источник согласия ограничен перечислением на уровне БД: `choices` в Django проверяются формами и `full_clean()`, а прямой `objects.create(source="registartion")` их не касается, и опечатка легла бы в юридически значимый журнал молча. Миграция `0020_userconsent_source_valid` заменяет `userconsent_source_required` (`CHECK (source <> '')`) на проверку `source IN (...)`; новое ограничение строго сильнее, поэтому прежнее снято как избыточное. **Уточнение к версиям 1.0–1.3:** имя ограничения `userconsent_source_required` в тексте Task 2 и Dev Notes с этой миграции недействительно — оно называется `userconsent_source_valid` (правится строкой Change Log, а не задним числом в тексте задачи — урок стори 41.3). Прочие замечания: `UnicodeDecodeError` при чтении реестра заворачивается в `ConsentTextsError` (он наследник `ValueError`, а не `OSError`, и проходил мимо `except`); формы подписки при `consent_text_outdated` показывают сообщение поля версии, а не попутную ошибку email (порядок ключей в `details` произволен, а совет «исправьте email» не чинит устаревшую вкладку); ложноположительная проверка отката пользователя исправлена — payload сохраняется в переменную вместо повторного вызова генератора уникального email; закрыт непроверенный путь «галочка маркетинга стоит, версии нет». Backend 3282 → 3286 passed, frontend 2810 → 2812 passed, падений нет; дополнительно полный прогон без фильтра маркеров — 3321 passed, покрытие 81 %. | Claude Opus 5 / dev-story |
 | 2026-09-10 | 1.5 | Закрыты восемь замечаний четвёртого круга ревью. Главное — контракт `400` перестал быть свободным объектом: обе формы ответа стали именованными схемами (`FieldValidationErrorResponse`, `ConsentTextOutdatedResponse`) и связаны `oneOf`, поэтому в типах фронта `error` теперь литерал `'consent_text_outdated'`, а `details` — `{ [key: string]: string[] }` вместо `unknown`; `constants/consentTexts.ts` сужает ответ к этому типу, и расхождение машинного кода между сервером и фронтом ломает компиляцию. Условная обязательность `marketing_consent_text_version` выражена `if`/`then` (OpenAPI 3.1) — `dependentRequired` не подошёл, он срабатывает на присутствие `marketing_consent`, а обе формы всегда шлют его, в том числе `false`. Обе правки схемы идут из кода (`apps/common/api_schema.py`, `UserRegistrationRequestSchemaExtension`), контракт перегенерирован и сверен `check_openapi_sync`. **Уточнение к версиям 1.0–1.4:** compliance-утверждения ослаблены до фактически обеспеченных — версия текста подтверждает совместимость официального бандла, но не факт показа текста человеку (произвольный API-клиент пришлёт её, ничего не отрисовав); append-only держится запретами админки и отсутствием пишущих путей, а не схемой; база проверяет допустимость `source`, но у версии только непустоту. Прочие замечания: `marketing_consent_text_version` стал обязательным в ручном `RegisterRequest` (компиляционный страж с `@ts-expect-error`); в пример модели `02-data-models.md` добавлен `USER_CONSENT_SOURCE_VALUES`, без которого блок падал бы `NameError`; блок индексов в DDL заменён фактическим из `pg_indexes` (вымышлены были все шесть, а не два, и `_like`-индексы не показывались вовсе); пример payload B2B-регистрации дополнен consent-полями с предупреждением, что версии из документа копировать нельзя; числа GitNexus-диффа пересняты двумя срезами — закоммиченным и рабочего дерева. Backend 3321 → 3328 passed (полный прогон без фильтра маркеров, 75 skipped, падений нет), frontend 2812 → 2815 passed (168 файлов), падений нет. | Claude Opus 5 / dev-story |
+| 2026-09-10 | 1.6 | Предсуществующий Black baseline закрыт отдельным коммитом `e124fb66` `chore(backend): закрыть предсуществующий Black baseline` вне scope стори. Переформатированы 8 файлов из Debug Log (строки 557-564): `apps/pages/models.py`, `apps/pages/tests.py`, `apps/products/category_utils.py`, `apps/products/management/commands/fix_category_tree_public_roots.py`, `apps/products/tests/test_visible_categories.py`, `apps/products/tests/unit/test_fix_category_tree_public_roots.py`, `apps/products/tests/unit/test_variant_import_migrated.py`, `tests/helpers.py`. После правки `black --check .` — «420 files left unchanged», baseline пуст; `flake8` на затронутых файлах чист. AC7 дополнен уточняющей строкой со ссылкой на коммит; оригинальная change-scoped формулировка сохранена как историческая запись критерия приёмки на момент сдачи версии 1.5. Код стори не тронут. | Devin / GLM-5.2 High |
+| 2026-09-10 | 1.7 | Закрыты все семь замечаний пятого круга ревью. Главное — машинный код `consent_text_outdated` больше не теряется рядом с другой ошибкой запроса. DRF не вызывает object-level `validate()`, если хоть одно поле не прошло field-level проверку, а сверка версий жила именно там: устаревшая версия рядом с невалидным email, ролью или галочкой пропадала, в регистрации её вдобавок прятало несовпадение паролей — и фронт советовал править ввод на форме, которую сервер всё равно отклонит. Сверка перенесена в field-level валидаторы (`validate_consent_text_version`, `validate_pdp_consent_text_version`, `validate_marketing_consent_text_version`), условность маркетинговой версии сохранена. Прочие замечания: backend-формулировки о «доказанном показе текста» ослаблены до сверки с реестром (`help_text` модели и `0019` синхронно, `makemigrations --check` чист); одиночный суррогат в метке или тексте реестра даёт `ConsentTextsError`, а не голый `UnicodeEncodeError`; фронт берёт текст отказа только из полей версии; компиляционный страж `RegisterRequest` стал двусторонним; audit trail приведён к дереву после `e124fb66`; legal-фраза в `deferred-work.md` ослаблена. Контракт API не менялся (схема `spectacular` структурно равна `openapi.yaml`). Backend 3328 → 3336 passed (полный прогон без фильтра маркеров), frontend 2815 → 2823 passed (169 файлов), падений нет; дельта mypy 0 (129). **Оговорка:** во время backend-прогона в дереве появились незакоммиченные правки 30 файлов из параллельной сессии владельца (mypy-чистка); число принято с этой пометкой (решение Alex), файлы к стори не относятся. Одна из этих правок даёт `flake8` E501 в `apps/users/serializers.py:159` — её исправляет та сессия до коммита. | Claude Opus 5 / dev-story |
 
 ## Dev Agent Record
 
@@ -849,6 +925,76 @@ skipped и deselected не изменилось: новые тесты не вы
   `UserRegistrationView` — **LOW** (0 upstream), `UserRegistrationSerializer` — **LOW** (4 прямых,
   0 процессов, 0 модулей). HIGH/CRITICAL в этом круге нет.
 
+**Пятая доработка по замечаниям ревью — числа прогонов (2026-09-10).**
+
+| Прогон | До пятой доработки | После | Дельта |
+|---|---|---|---|
+| Backend, `pytest -q` (без фильтра маркеров) | 3328 passed, 75 skipped, 19 subtests, 0 failed (30:27) | 3336 passed, 75 skipped, 19 subtests, 0 failed (35:14) | **+8 passed**, падений нет |
+| Frontend, `npm run test` | 168 файлов, 2815 passed, 16 skipped | 169 файлов, 2823 passed, 16 skipped, 0 failed | **+1 файл, +8 тестов**, падений нет |
+
+Базис снят заново на `e124fb66` до первой правки кода — «после» версии 1.5 без проверки в «до» не годилось,
+потому что между ними лёг внешний Black-коммит. Число совпало (3328), то есть `e124fb66` набор не сдвинул.
+Клиент первого запуска `docker compose run` система убила из-за нехватки памяти на 79 % прогона (параллельно
+шли frontend-прогон и `tsc`); контейнер с pytest при этом продолжил работу, и итог снят `docker logs -f` до
+его выхода — после выхода логи пропали бы вместе с контейнером (`AutoRemove=true`). Во втором прогоне
+страховочный `docker logs -f` подключён сразу, а frontend запускался строго после backend.
+
+Прирост раскладывается ровно. Backend: +2 в `test_common_subscribe_api.py` (параметризация
+`invalid-email` / `null-pdp-consent`), +4 в `test_auth_registration_consent.py` (роль, пароли, маркетинг,
+страж условности), +2 в `test_consent_texts.py` (`lone_surrogate[text|label]`) = 8. Frontend: +8 в новом
+`src/constants/__tests__/consentTexts.test.ts`; `register-request-contract.test.ts` по-прежнему 3 теста —
+присваивания сгенерированному типу добавлены в существующие. Skipped и subtests не изменились.
+
+**Наложение на правки параллельной сессии.** Пока шёл полный backend-прогон «после», в рабочем дереве
+появились незакоммиченные правки 30 backend-файлов из параллельной сессии владельца — чистка под mypy
+(`TYPE_CHECKING`-импорты, `# type: ignore[...]`, `cast`, аннотации; mtime 09:47–09:56). Последние ~10 минут
+прогон шёл уже с частью из них. Решение Alex: число принимается с этой пометкой. Целевой набор и статика
+(`mypy`, `black`, `flake8`, `makemigrations`) сняты **до** появления внешних правок. Эти 30 файлов к стори не
+относятся и в File List не входят.
+
+**RED → GREEN бэкенда.** Восемь новых тестов до правки кода: **7 failed / 1 passed** — пять `KeyError: 'error'`
+(ответ уходил плоским, машинный код терялся), `lone_surrogate[text]` — голый `UnicodeEncodeError`,
+`lone_surrogate[label]` — `DID NOT RAISE`; прошёл только страж условности, как и задуман. После правки
+**целевой набор** (`apps/common` + подписка + согласия регистрации + unit-тесты сериализаторов пользователя) —
+**203 passed** (3:28), против 195 до доработки.
+
+**Статический анализ после пятой доработки.**
+
+- `flake8 . --max-line-length=120 --extend-ignore=E203,W503` — чисто на дереве до внешних правок. После них
+  flake8 по `apps/users/serializers.py` даёт одну ошибку: `159:121: E501 line too long (132 > 120)` — это
+  строка из правки параллельной сессии (`# type: ignore[attr-defined]` на `self.fields["role"].choices`), а
+  не код 41.9. По решению Alex её исправляет та сессия; **до этого гейт AC7 для ветки красный**, коммитить
+  файл в таком виде нельзя.
+- `black --check .` — «420 files would be left unchanged».
+- `mypy --config-file=mypy.ini .` — **129 ошибок, дельта к базису 0**. Единственная ошибка в правленых
+  файлах — `apps/users/serializers.py:159` (`"Field" has no attribute "choices"`) — предсуществующая: строка
+  лишь сдвинулась на одну вниз из-за расширенного комментария выше. Позже её закрыл `# type: ignore` внешней
+  правки, но это в замер не входит.
+- `python manage.py makemigrations --check --dry-run` — `No changes detected`: `help_text` модели и `0019`
+  совпадают.
+- **Контракт API не сдвинулся.** Свежая схема `spectacular` из dev-контейнера структурно сравнена с
+  `docs/api/openapi.yaml` — `structurally equal: True`. Ожидаемо: поля сериализаторов и `extend_schema` не
+  менялись, `UserConsent` в API не отдаётся, поэтому `openapi.yaml` и `npm run generate:types` не трогались.
+- Фронтенд: `npx tsc --noEmit` — 0 ошибок; `npm run lint` (`eslint . --max-warnings=0`) — чисто;
+  `npm run format:check` — `All matched files use Prettier code style!`.
+
+**Blast radius пятой доработки (GitNexus CLI, `--repo "C:\Users\1\DEV\FREESPORT"`).** Снят до внесения
+правок; все символы — **LOW**: `SubscribeSerializer` (4 прямых), `UserRegistrationSerializer` (4),
+`consent_text_outdated_error` (2), `ConsentTextRegistry` (4), `compute_consent_text_version` (1),
+`is_current_consent_text_version` (2). `getConsentTextOutdatedMessage` в индексе как символ не найден
+(`UNKNOWN`). HIGH/CRITICAL нет. Индекс помечен `stale` (снят на `8ac75ef`, HEAD — `e124fb66`); расхождение —
+только восемь Black-файлов, которых доработка не касается, поэтому граф для правимых символов актуален.
+
+**`npx gitnexus detect-changes --scope all` перед сдачей:** 18 файлов, 24 символа, 5 затронутых потоков,
+risk **medium** (снят до появления внешних правок). Расхождения объяснимы:
+
+- Четыре потока `OnSubmit → IsConsentTextOutdated` — правка `getConsentTextOutdatedMessage`, ожидаемо.
+- Поток `Post → Has_error_code` и символы `has_error_code`, `create`, `tax_id`, которых доработка не
+  касалась, — сдвиг строк: вставка комментариев и field-level валидаторов сдвинула вниз всё объявленное
+  ниже, а сопоставление идёт по смещению.
+- 18 файлов против 19 в `git status`: новый `consentTexts.test.ts` ещё не под версионным контролем, и
+  `detect-changes` его не видит.
+
 ### Completion Notes List
 
 **Что сделано.** `UserConsent` получил два поля — `source` (`newsletter` / `registration` / `1c_link` /
@@ -1046,6 +1192,34 @@ skipped и deselected не изменилось: новые тесты не вы
    (`9657/15912 → 9743/16069`, с разбивкой по коммитам) и отдельно рабочее дерево
    (`9743/16069 → 9749/16083`).
 
+**Пятый круг ревью — семь замечаний.**
+
+1. **Машинный код отказа больше не теряется рядом с другой ошибкой.** DRF не вызывает object-level
+   `validate()`, если хоть одно поле не прошло field-level проверку, — а сверка версий жила именно там.
+   Устаревшая, но синтаксически валидная версия рядом с невалидным email, ролью или галочкой молча
+   пропадала, ответ уходил плоским, и фронт советовал исправить ввод на форме, которую сервер всё равно
+   отклонит. В регистрации её вдобавок прятало несовпадение паролей: оно проверялось в `validate()` первым.
+   Сверка переехала в `validate_<поле версии>`; условность маркетинговой версии сохранена чтением галочки
+   тем же полем `marketing_consent`, что разбирает её для `validated_data`.
+2. **Бэкенд перестал обещать больше, чем проверяет.** Комментарии, docstring'и и `help_text` утверждали,
+   что версия «доказывает, что было на экране». Сервер проверяет только совпадение версии с реестром;
+   вкладку, открытую до правки, это отсекает, показ текста человеку — нет. `help_text` исправлен в модели и
+   идентично в `0019`, иначе `makemigrations --check` увидел бы `AlterField`.
+3. **Одиночный суррогат в реестре — то же понятное исключение.** `"\ud800"` — валидный JSON; кодек падал
+   на хешировании текста голым `UnicodeEncodeError`, а суррогат в метке не ловился вовсе и дошёл бы до
+   вставки в БД. Оба пути теперь дают `ConsentTextsError` с путём, меткой и поверхностью.
+4. **Фронт не подменяет «обновите страницу» попутной ошибкой.** Если в ответе `consent_text_outdated` у полей
+   версии нет строки, хелпер раньше брал первое попавшееся поле `details` — например, ошибку email. Теперь
+   текст берётся только из полей версии, иначе — запасное сообщение.
+5. **Компиляционный страж стал двусторонним.** Негативные `@ts-expect-error` стояли только на ручном типе;
+   необязательная версия после перегенерации контракта прошла бы незамеченной. RED снят ослаблением
+   сгенерированного типа: ровно два `TS2578` на новых директивах.
+6. **Audit trail приведён к дереву после внешнего коммита `e124fb66`.** Восемь Black-файлов названы в
+   File List отдельным разделом как внешний scope; GitNexus-запись переснята по коммитам
+   (`9657/15912 → 9749/16083` закоммичено, `→ 9771/16115` в рабочем дереве); трекер больше не утверждает,
+   что baseline жив.
+7. **Legal-утверждение в активном пункте `deferred-work.md` ослаблено** до того, что версия фактически даёт.
+
 **Приёмка на проде** (вне объёма разработки, по уроку стори 41.5): миграции на прод накатываются вручную,
 после выката нужны `showmigrations common` (ожидаются применёнными **обе** — `0019` и `0020`) и
 `SELECT count(*) FROM common_userconsent;` — на 2026-08-30 там было 0 строк, значение `unknown` у появившихся
@@ -1102,6 +1276,28 @@ skipped и deselected не изменилось: новые тесты не вы
 - `_bmad-output/implementation-artifacts/Story/41-9-consent-journal-text-version-and-source.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
+**Пятая доработка по ревью (2026-09-10)** — собрано `git status --porcelain` против `HEAD` (`e124fb66`);
+все файлы, кроме нового теста хелпера, уже перечислены выше, здесь — что именно менялось в этом круге:
+
+- `A` `frontend/src/constants/__tests__/consentTexts.test.ts` — unit-тест `getConsentTextOutdatedMessage`
+  (текст только из полей версии, иначе запасной)
+- `M` `backend/apps/common/serializers.py` — `validate_consent_text_version` (field-level), `consent_text_outdated_error()` без аргумента, ослаблены комментарии полей версии
+- `M` `backend/apps/users/serializers.py` — `validate_pdp_consent_text_version`, `validate_marketing_consent_text_version`, `_marketing_consent_given`; проверки версий убраны из `validate()`; ослаблены комментарии
+- `M` `backend/apps/common/consent_texts.py` — `UnicodeEncodeError` (одиночный суррогат в метке или тексте) → `ConsentTextsError`; docstring `is_current_consent_text_version`
+- `M` `backend/apps/common/models.py`, `backend/apps/common/migrations/0019_userconsent_source_and_text_version.py` — идентичный `help_text` у `consent_text_version`
+- `M` `backend/apps/common/views.py` — комментарий примера `successful_subscription_request`
+- `M` `backend/apps/common/tests/test_consent_texts.py` — `test_lone_surrogate_raises_consent_texts_error[text|label]`
+- `M` `backend/tests/integration/test_common_subscribe_api.py` — `test_subscribe_outdated_version_survives_other_field_error[invalid-email|null-pdp-consent]`
+- `M` `backend/tests/integration/test_auth_registration_consent.py` — четыре теста версии рядом с другой ошибкой (роль, пароли, маркетинг, страж условности); docstring про `validate()`
+- `M` `frontend/src/constants/consentTexts.ts` — `getConsentTextOutdatedMessage` берёт текст только из полей версии
+- `M` `frontend/src/__tests__/register-request-contract.test.ts` — негативные присваивания сгенерированному типу
+- `M` `frontend/src/components/home/SubscribeForm.tsx`, `frontend/src/components/home/ElectricSubscribeForm.tsx` — только комментарий к хелперу
+- `M` `docs/architecture/11-security-performance.md` — одна фраза в §5.1: версии сверяются field-level, поэтому код `consent_text_outdated` приходит и при других ошибках запроса
+- `M` `docs/architecture/index.md` — строка пятого круга в «История изменений»
+- `M` `_bmad-output/implementation-artifacts/deferred-work.md` — ослаблено legal-утверждение пункта о `policy_version`
+- `M` `_bmad-output/implementation-artifacts/sprint-status.yaml`, этот файл — трекер
+- `M` `AGENTS.md`, `CLAUDE.md` — автосчётчик GitNexus, см. «Побочные правки» ниже
+
 **Тесты, приведённые к обязательной версии текста** (*доработка по ревью*; payload регистрации и подписки без версии теперь отклоняется — это работающая защита, а не сломанные тесты):
 
 - `backend/tests/integration/test_auth_registration_tokens.py`
@@ -1129,14 +1325,33 @@ skipped и deselected не изменилось: новые тесты не вы
 - `AGENTS.md`, `CLAUDE.md` — автосчётчик GitNexus. Числа сверены `git diff`, а не по памяти
   (замечание ревью), и запись здесь ведётся по **двум** срезам, потому что каждый круг доработок
   переиндексирует дерево и сдвигает счётчик:
-  - **Закоммичено** (`git diff 792ce210..HEAD -- AGENTS.md CLAUDE.md`):
-    `9657 symbols, 15912 relationships` → `9743, 16069`. Промежуточные значения по коммитам:
-    `0f6e13e3` довёл счётчик до `9695, 15982`, `8ef96123` — до `9717, 16022`,
-    `34fbe487` — до `9743, 16069`.
-  - **Не закоммичено** (`git diff HEAD -- AGENTS.md CLAUDE.md`, четвёртый круг ревью):
-    `9743, 16069` → `9749, 16083`.
+  - **Закоммичено** (`git diff 792ce210..HEAD -- AGENTS.md CLAUDE.md`, пятый круг ревью, HEAD =
+    `e124fb66`): `9657 symbols, 15912 relationships` → `9749, 16083`. Значения по коммитам (сняты
+    `git show <коммит>:AGENTS.md`): `28d40a6d` — `9647, 15902`, `0f6e13e3` — `9695, 15982`,
+    `8ef96123` — `9717, 16022`, `34fbe487` — `9743, 16069`, `8ac75ef6` — `9749, 16083`.
+    `e124fb66` этих файлов не касается.
+  - **Не закоммичено** (`git diff HEAD -- AGENTS.md CLAUDE.md`, пятый круг ревью):
+    `9749, 16083` → `9771, 16115` — переиндексация на `8ac75ef` (`npx gitnexus status`:
+    `Indexed commit: 8ac75ef`).
 
-  Прежняя запись называла `9743/16069` незакоммиченным сдвигом — на момент её внесения это было
-  верно, к третьему коммиту стори перестало (замечание ревью). Все правки внесены
-  переиндексацией `npx gitnexus analyze`, а не работой над стори; строка лежит вне MCP-маркеров,
-  поэтому переживает регенерацию.
+  Запись четвёртого круга («закоммичено `→ 9743, 16069`, не закоммичено `→ 9749, 16083`») была
+  верна на момент внесения и устарела с коммитом `8ac75ef6`, куда вошло значение `9749, 16083`
+  (замечание ревью). Уточнение к записи второго круга: `9647, 15902` — реальное промежуточное
+  значение первого коммита стори `28d40a6d`; неверным оно было как итог диапазона
+  `792ce210..0f6e13e3`, а не как значение. Все правки внесены переиндексацией
+  `npx gitnexus analyze`, а не работой над стори; строка лежит вне MCP-маркеров, поэтому
+  переживает регенерацию.
+
+**Внешний коммит в ветке, не относящийся к коду стори** (замечание пятого круга ревью):
+
+- `e124fb66` `chore(backend): закрыть предсуществующий Black baseline` — только переформатирование
+  Black, поведение не меняется; в дифф ветки против `develop` попадает, в объём 41.9 не входит
+  (Change Log 1.6, уточнение AC7). Файлы (`git show --stat e124fb66`):
+  - `backend/apps/pages/models.py`
+  - `backend/apps/pages/tests.py`
+  - `backend/apps/products/category_utils.py`
+  - `backend/apps/products/management/commands/fix_category_tree_public_roots.py`
+  - `backend/apps/products/tests/test_visible_categories.py`
+  - `backend/apps/products/tests/unit/test_fix_category_tree_public_roots.py`
+  - `backend/apps/products/tests/unit/test_variant_import_migrated.py`
+  - `backend/tests/helpers.py`

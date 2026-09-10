@@ -12,6 +12,12 @@
  * хотя backend такой запрос отклоняет `400 consent_text_outdated`, а обе формы
  * версию всегда шлют. Проверка — компиляционная: `@ts-expect-error` сам становится
  * ошибкой `tsc`, если поле снова сделают необязательным.
+ *
+ * Негативные присваивания стоят в ОБА типа (пятый круг ревью): страж только ручного
+ * типа остался бы зелёным, если бы необязательной версию сделала перегенерация
+ * контракта. Сгенерированный тип сужается `Pick` до consent-полей, чтобы
+ * единственной причиной ошибки компиляции было отсутствие версии, а не давние
+ * расхождения прочих полей.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -21,6 +27,15 @@ import type { RegisterRequest } from '@/types/api';
 import type { components } from '@/types/api.generated';
 
 type GeneratedRegisterRequest = components['schemas']['UserRegistrationRequest'];
+
+// Псевдонимы, а не `Pick<...>` прямо в аннотации: `@ts-expect-error` действует
+// на одну следующую строку, а TS сообщает о несовместимом присваивании на строке
+// с именем переменной — многострочная аннотация развела бы директиву и ошибку.
+type GeneratedPdpConsent = Pick<GeneratedRegisterRequest, 'pdp_consent' | 'pdp_consent_text_version'>;
+type GeneratedMarketingConsent = Pick<
+  GeneratedRegisterRequest,
+  'marketing_consent' | 'marketing_consent_text_version'
+>;
 
 /** Поля, общие для ручного и сгенерированного типа, без consent-полей. */
 const identity = {
@@ -68,7 +83,12 @@ describe('RegisterRequest: версии формулировок согласи�
     // срабатывание стража.
     const manual: RegisterRequest = withoutMarketingVersion;
 
+    // @ts-expect-error — то же в сгенерированном типе: версия обязана оставаться
+    // обязательной и после перегенерации контракта.
+    const generated: GeneratedMarketingConsent = withoutMarketingVersion;
+
     expect(manual.marketing_consent).toBe(true);
+    expect(generated.marketing_consent).toBe(true);
   });
 
   it('версия ПДн обязательна в обоих типах', () => {
@@ -83,6 +103,10 @@ describe('RegisterRequest: версии формулировок согласи�
     // при маркетинговом согласии.
     const manual: RegisterRequest = withoutPdpVersion;
 
+    // @ts-expect-error — то же в сгенерированном типе.
+    const generated: GeneratedPdpConsent = withoutPdpVersion;
+
     expect(manual.pdp_consent).toBe(true);
+    expect(generated.pdp_consent).toBe(true);
   });
 });

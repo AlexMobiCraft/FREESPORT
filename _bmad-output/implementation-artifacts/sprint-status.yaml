@@ -995,6 +995,31 @@ development_status:
   #             прогон без фильтра), frontend 2812 -> 2815, падений нет;
   #             check_openapi_sync — контракт синхронен, дельта mypy 0 (129).
   #             Остаётся review.
+  # 2026-09-10: Пятый code review, группа 1 (backend): три подтверждённых
+  #             замечания оставлены action items — потеря machine-code
+  #             consent_text_outdated при одновременной ошибке другого поля,
+  #             завышенные backend-формулировки о доказанном показе текста и
+  #             необёрнутый UnicodeEncodeError для lone-surrogate в JSON.
+  #             Решение Alex по AC7: Black gate ограничен Python-файлами diff.
+  #             Предсуществующий baseline из 8 файлов полного прогона закрыт
+  #             отдельным коммитом e124fb66 вне scope стори (black --check . —
+  #             420 files left unchanged), baseline пуст.
+  #             review -> in-progress до закрытия action items.
+  # 2026-09-10: Пятый круг ревью 41.9 — закрыты все семь action items:
+  #             (а) сверка версий перенесена в field-level валидаторы —
+  #             consent_text_outdated больше не теряется рядом с ошибкой
+  #             email / роли / галочки / паролей; (б) backend-формулировки о
+  #             «доказанном показе текста» ослаблены, help_text модели и 0019
+  #             синхронно; (в) одиночный суррогат в реестре -> ConsentTextsError;
+  #             (г) фронт берёт текст отказа только из полей версии; (д) страж
+  #             RegisterRequest стал двусторонним; (е) audit trail приведён к
+  #             дереву после e124fb66; (ж) legal-фраза в deferred-work.md.
+  #             Backend 3328 -> 3336 passed (полный прогон), frontend
+  #             2815 -> 2823, падений нет; контракт API не менялся, дельта
+  #             mypy 0 (129). flake8 apps/users/serializers.py:159 (E501)
+  #             красный из-за незакоммиченной правки параллельной сессии
+  #             владельца — не 41.9, исправляет та сессия до коммита.
+  #             in-progress -> review.
   41-9-consent-journal-text-version-and-source: review
   epic-41-retrospective: optional
 
