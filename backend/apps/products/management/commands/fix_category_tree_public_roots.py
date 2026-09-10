@@ -33,7 +33,7 @@ class Command(BaseCommand):
         from apps.products.models import Category, Product
 
         execute = bool(options.get("execute"))
-        root_name = options.get("root_name") or getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
+        root_name: str = str(options.get("root_name") or getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ"))
 
         anchor_qs = Category.objects.filter(name=root_name, parent__isnull=True)
         if anchor_qs.count() > 1:

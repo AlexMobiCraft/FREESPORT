@@ -5,6 +5,7 @@
 """
 
 from decimal import Decimal
+from typing import cast
 
 from django.db.models import QuerySet, Sum
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -76,19 +77,22 @@ class BonusSummaryView(APIView):
         tags=["Bonuses"],
     )
     def get(self, request: Request) -> Response:
+        # django-stubs 4.2.6 типизирует User.pk/id как BigAutoField-дескриптор
+        # вместо значения; явный cast восстанавливает int (см. mypy.ini).
+        user_id = cast(int, request.user.pk)
         accrued = BonusTransaction.objects.filter(
-            user_id=request.user.pk, transaction_type=BonusTransaction.ACCRUAL
+            user_id=user_id, transaction_type=BonusTransaction.ACCRUAL
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
 
         spent = BonusTransaction.objects.filter(
-            user_id=request.user.pk, transaction_type__in=BonusTransaction.NEGATIVE_TYPES
+            user_id=user_id, transaction_type__in=BonusTransaction.NEGATIVE_TYPES
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
 
         settings = BonusProgramSettings.load()
 
         serializer = BonusSummarySerializer(
             {
-                "balance": get_balance(request.user.pk),
+                "balance": get_balance(user_id),
                 "total_accrued": accrued,
                 "total_paid_out": abs(spent),
                 "current_percent": settings.percent,
@@ -106,7 +110,8 @@ class BonusTransactionListView(ListAPIView):
     pagination_class = BonusTransactionPagination
 
     def get_queryset(self) -> QuerySet[BonusTransaction]:
-        queryset = BonusTransaction.objects.filter(user_id=self.request.user.pk).select_related("order")
+        user_id = cast(int, self.request.user.pk)
+        queryset = BonusTransaction.objects.filter(user_id=user_id).select_related("order")
         transaction_type = self.request.query_params.get("type")
         if transaction_type:
             # Опечатка в типе не должна молча отдавать пустую историю —

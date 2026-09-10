@@ -130,11 +130,11 @@ def _import_dir(sessid: str) -> Path:
 
 def _run_task(session: ImportSession, sessid: str, source_filename: str | None, task_id: str) -> str:
     """Прогон задачи импорта по каталогу своей сессии."""
-    return process_1c_import_task.apply(
+    return str(process_1c_import_task.apply(
         args=(session.pk,),
         kwargs={"data_dir": str(_import_dir(sessid)), "source_filename": source_filename},
         task_id=task_id,
-    ).get()
+    ).get())
 
 
 @pytest.mark.django_db

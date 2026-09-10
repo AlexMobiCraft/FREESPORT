@@ -163,9 +163,9 @@ def test_user_consent_requires_consent_type():
 
 
 def test_user_consent_hot_fields_are_indexed_and_user_agent_is_bounded():
-    assert UserConsent._meta.get_field("session_key").db_index is True
-    assert UserConsent._meta.get_field("consent_type").db_index is True
-    assert UserConsent._meta.get_field("given_at").db_index is True
+    assert UserConsent._meta.get_field("session_key").db_index is True  # type: ignore[attr-defined]
+    assert UserConsent._meta.get_field("consent_type").db_index is True  # type: ignore[attr-defined]
+    assert UserConsent._meta.get_field("given_at").db_index is True  # type: ignore[attr-defined]
     assert UserConsent._meta.get_field("user_agent").max_length == 512
 
 

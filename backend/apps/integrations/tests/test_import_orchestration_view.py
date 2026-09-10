@@ -172,7 +172,7 @@ class TestICExchangeViewImport:
         assert len(args) == 2
         # args[0] is session_id, args[1] is import_path — каталог СВОЕЙ сессии:
         # каталог обмена изолирован (стори onec-exchange-dir-isolation).
-        assert args[1] == str(Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"])) / self.session_key)
+        assert args[1] == str(Path(str(settings.ONEC_EXCHANGE["IMPORT_DIR"])) / self.session_key)  # type: ignore[operator]
 
     @patch("apps.integrations.onec_exchange.import_orchestrator.FileStreamService")
     def test_complete_after_import_idempotency(self, mock_file_service_cls):

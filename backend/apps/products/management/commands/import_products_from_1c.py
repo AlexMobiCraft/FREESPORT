@@ -485,7 +485,7 @@ class Command(BaseCommand):
             # импорта, а не только в логах воркера. Сам шаг выполняется до
             # создания сессии, поэтому текст едет сюда через `_backup_note`.
             if self._backup_note:
-                variant_processor.log_progress(self._backup_note)
+                variant_processor.log_progress(self._backup_note)  # type: ignore[unreachable]
 
             # ШАГ 0.5: Загрузка категорий из groups.xml
             if file_type in ["all", "goods"]:

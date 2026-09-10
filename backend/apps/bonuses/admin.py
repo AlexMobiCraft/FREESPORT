@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from django import forms
 from django.contrib import admin
@@ -88,7 +88,7 @@ class ManualBonusTransactionForm(forms.ModelForm):
         if "transaction_type" not in self.fields:
             return
 
-        self.fields["transaction_type"].choices = [
+        self.fields["transaction_type"].choices = [  # type: ignore[attr-defined]
             (value, label)
             for value, label in BonusTransaction.TRANSACTION_TYPES
             if value in BonusTransaction.MANUAL_TYPES
@@ -101,20 +101,20 @@ class ManualBonusTransactionForm(forms.ModelForm):
         # и запись станет нередактируемой.
         instance = self.instance
         if instance.pk and instance.amount is not None:
-            self.initial["amount"] = abs(instance.amount)
+            self.initial["amount"] = abs(instance.amount)  # type: ignore[index]
 
         # Роль тренера могла смениться после создания операции — сам владелец
         # операции обязан остаться в списке, иначе её нельзя будет сохранить.
         user_filter = Q(role=TRAINER_ROLE)
         if instance.pk and instance.user_id:
             user_filter |= Q(pk=instance.user_id)
-        self.fields["user"].queryset = self.fields["user"].queryset.filter(user_filter)
+        self.fields["user"].queryset = self.fields["user"].queryset.filter(user_filter)  # type: ignore[attr-defined]
 
     def clean_amount(self) -> Decimal:
         amount = self.cleaned_data["amount"]
         if amount is None or amount <= 0:
             raise forms.ValidationError("Введите положительную сумму.")
-        return amount
+        return cast(Decimal, amount)
 
 
 @admin.register(BonusTransaction)
@@ -157,7 +157,8 @@ class BonusTransactionAdmin(admin.ModelAdmin):
             .annotate(total=Sum("amount"))
             .values("total")[:1]
         )
-        return (
+        return cast(
+            QuerySet,
             super()
             .get_queryset(request)
             .annotate(
@@ -165,7 +166,7 @@ class BonusTransactionAdmin(admin.ModelAdmin):
                     Subquery(balance_subquery, output_field=DecimalField(max_digits=12, decimal_places=2)),
                     Value(Decimal("0"), output_field=DecimalField(max_digits=12, decimal_places=2)),
                 )
-            )
+            ),
         )
 
     @admin.display(description="Баланс тренера", ordering="trainer_balance")
@@ -173,6 +174,7 @@ class BonusTransactionAdmin(admin.ModelAdmin):
         """Текущий баланс тренера (не остаток на момент операции)."""
         balance = getattr(obj, "trainer_balance", None)
         if balance is None:
+            assert obj.user_id is not None
             balance = get_balance(obj.user_id)
         return f"{balance} ₽"
 
@@ -256,5 +258,5 @@ class BonusTransactionAdmin(admin.ModelAdmin):
         коммита первой и видит уже уменьшенный баланс.
         """
         if obj.created_by_id is None:
-            obj.created_by_id = request.user.pk
+            obj.created_by_id = cast(int, request.user.pk)
         super().save_model(request, obj, form, change)

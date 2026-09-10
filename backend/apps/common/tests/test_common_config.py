@@ -31,7 +31,9 @@ def test_subscribe_throttle_scope_check_rejects_missing_rate():
     rest_framework = {
         **settings.REST_FRAMEWORK,
         "DEFAULT_THROTTLE_RATES": {
-            key: value for key, value in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].items() if key != "subscribe"
+            key: value
+            for key, value in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].items()  # type: ignore[attr-defined]
+            if key != "subscribe"
         },
     }
     with override_settings(REST_FRAMEWORK=rest_framework):
@@ -46,7 +48,7 @@ def test_unsubscribe_throttle_scope_check_rejects_missing_rate():
         **settings.REST_FRAMEWORK,
         "DEFAULT_THROTTLE_RATES": {
             key: value
-            for key, value in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].items()
+            for key, value in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].items()  # type: ignore[attr-defined]
             if key != "unsubscribe"
         },
     }

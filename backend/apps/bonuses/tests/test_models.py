@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -12,8 +13,11 @@ from apps.bonuses.models import BonusProgramSettings, BonusTransaction
 from apps.bonuses.services.accrual import get_balance
 from apps.bonuses.tests.utils import close_master, create_master_with_subs, create_user
 
+if TYPE_CHECKING:
+    from apps.users.models import User
 
-def _accrue(trainer, total: str = "100000.00") -> BonusTransaction:
+
+def _accrue(trainer: User, total: str = "100000.00") -> BonusTransaction:
     """Создаёт начисление через штатный путь (закрытие мастер-заказа)."""
     master = create_master_with_subs(trainer, [total])
     close_master(master)

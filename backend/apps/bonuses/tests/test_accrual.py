@@ -117,6 +117,7 @@ class TestAccrual:
         master = create_master_with_subs(trainer, ["10000.00", "10000.00", "10000.00"])
 
         sub = master.sub_orders.first()
+        assert sub is not None
         sub.status = "delivered"
         sub.save(update_fields=["status", "updated_at"])
 
@@ -171,6 +172,7 @@ class TestAccrual:
         trainer = create_user()
         master = create_master_with_subs(trainer, ["20000.00"])
         sub = master.sub_orders.first()
+        assert sub is not None
 
         assert accrue_for_order(sub) is None
 

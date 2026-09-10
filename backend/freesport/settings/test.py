@@ -94,7 +94,7 @@ LOGGING: dict[str, Any] = {}  # type: ignore[no-redef]
 
 # В тестах throttle не должен пересекаться между кейсами/worker-ами.
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],  # type: ignore[dict-item]
     "anon": "100000/min",
     "subscribe": "100000/min",
     "unsubscribe": "100000/min",

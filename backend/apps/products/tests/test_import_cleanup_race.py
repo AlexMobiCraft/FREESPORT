@@ -26,6 +26,7 @@ import threading
 import zipfile
 from io import StringIO
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -186,7 +187,7 @@ class TestPinpointCleanup:
         stranger = _stage_segment(data_dir, 7)
 
         command = Command()
-        command.stdout = StringIO()
+        command.stdout = StringIO()  # type: ignore[assignment]  # type: ignore[assignment]
         command._cleanup_files([])
 
         assert stranger.exists()
@@ -721,9 +722,9 @@ class TestImportLockUnderConcurrency:
         entered = threading.Event()
         release = threading.Event()
 
-        def guarded_call_command(*args, **kwargs):
+        def guarded_call_command(*args: Any, **kwargs: Any) -> None:
             with inside_lock:
-                inside.append(kwargs.get("import_session_id"))
+                inside.append(cast(int, kwargs.get("import_session_id")))
                 peak.append(len(inside))
             try:
                 if kwargs.get("import_session_id") == holder.pk:
@@ -796,8 +797,8 @@ class TestImportLockUnderConcurrency:
 
         entered: list[int] = []
 
-        def record(*args, **kwargs):
-            entered.append(kwargs.get("import_session_id"))
+        def record(*args: Any, **kwargs: Any) -> None:
+            entered.append(cast(int, kwargs.get("import_session_id")))
 
         with patch("apps.products.tasks.call_command", side_effect=record):
             for index, (session, task_id) in enumerate(((first, "task-seq-1"), (second, "task-seq-2")), start=1):
@@ -900,7 +901,7 @@ class TestContragentsDoNotSwallowPromisedSegment:
         return data_dir
 
     @staticmethod
-    def _commands(mock_call_command) -> list[str]:
+    def _commands(mock_call_command: Any) -> list[str]:
         return [call.args[0] for call in mock_call_command.call_args_list]
 
     @patch("apps.products.tasks.call_command")
@@ -988,7 +989,7 @@ class TestCollectionIsLimitedToPromisedFile:
     @staticmethod
     def _command() -> Command:
         command = Command()
-        command.stdout = StringIO()
+        command.stdout = StringIO()  # type: ignore[assignment]
         return command
 
     def test_foreign_family_is_not_collected(self, tmp_path):
@@ -1182,7 +1183,7 @@ class TestAmbiguousPromisedSegment:
             pytest.skip("Регистронезависимая ФС: два таких файла рядом не существуют")
 
         command = Command()
-        command.stdout = StringIO()
+        command.stdout = StringIO()  # type: ignore[assignment]
         command._expected_filenames = {lower.name.lower()}
 
         with pytest.raises(CommandError, match="различаются только регистром"):
@@ -1193,7 +1194,7 @@ class TestAmbiguousPromisedSegment:
         own = _stage_segment(data_dir, 1)
 
         command = Command()
-        command.stdout = StringIO()
+        command.stdout = StringIO()  # type: ignore[assignment]
         command._expected_filenames = {own.name.lower()}
 
         collected = command._collect_xml_files(str(data_dir), "rests", "rests.xml")

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -42,7 +43,7 @@ ONEC_RUNTIME_OFFERS = Path(__file__).resolve().parents[3] / "data" / "import_1c"
 OVERFLOW_OFFER_ID = "45d113f2-bbcb-11f0-8110-fa163ea88911#3538958e-bbde-11f0-8110-fa163ea88911"
 OVERFLOW_OFFER_FILE = "offers_1_14_e934b984-5c19-4e5a-af44-22174913fe9f.xml"
 
-SIZE_MAX_LENGTH = ProductVariant._meta.get_field("size_value").max_length
+SIZE_MAX_LENGTH: int = cast(int, ProductVariant._meta.get_field("size_value").max_length)
 
 
 def _make_parent(onec_id: str, slug: str) -> Product:
@@ -64,7 +65,7 @@ def _make_parent(onec_id: str, slug: str) -> Product:
 
 
 @pytest.fixture
-def processor(db) -> VariantImportProcessor:
+def processor(db: Any) -> VariantImportProcessor:
     session = ImportSession.objects.create(
         import_type=ImportSession.ImportType.CATALOG,
         status=ImportSession.ImportStatus.STARTED,

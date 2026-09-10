@@ -20,7 +20,7 @@ from apps.orders.models import Order, OrderItem
 logger = logging.getLogger(__name__)
 
 
-def _get_order_display_items(order: Order):
+def _get_order_display_items(order: Order) -> Any:
     """Возвращает позиции для отображения в email/admin.
 
     Для master-заказа агрегирует items из всех субзаказов.

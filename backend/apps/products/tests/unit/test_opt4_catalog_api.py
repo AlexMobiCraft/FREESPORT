@@ -12,6 +12,7 @@ B2B-роль без `is_verified=True` понижается до `retail`, по�
 """
 
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from rest_framework.test import APIRequestFactory
@@ -44,7 +45,7 @@ def _serialize(product: Product, user: User | None = None) -> dict:
     return ProductListSerializer(product, context={"request": request}).data
 
 
-def _opt4_only_variant(product: Product):
+def _opt4_only_variant(product: Product) -> Any:
     """
     Вариант, у которого из ценовых полей заполнена ТОЛЬКО opt4_price.
 
