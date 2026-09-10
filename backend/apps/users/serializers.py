@@ -101,6 +101,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "required": CONSENT_TEXT_OUTDATED,
             "blank": CONSENT_TEXT_OUTDATED,
             "null": CONSENT_TEXT_OUTDATED,
+            # Массив, объект или boolean — тот же отказ, что и прочие ошибки поля версии.
+            "invalid": CONSENT_TEXT_OUTDATED,
             "max_length": CONSENT_TEXT_OUTDATED,
         },
     )
@@ -117,6 +119,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         max_length=MAX_VERSION_LENGTH,
         error_messages={
             "null": CONSENT_TEXT_OUTDATED,
+            "invalid": CONSENT_TEXT_OUTDATED,
             "max_length": CONSENT_TEXT_OUTDATED,
         },
     )
