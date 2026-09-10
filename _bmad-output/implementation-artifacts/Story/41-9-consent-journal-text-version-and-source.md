@@ -7,7 +7,7 @@ review_head: 7d4b716f
 
 # Story 41.9: Аудитируемость журнала согласий — версия текста и источник
 
-Status: review
+Status: done
 
 > 🟠 **Blast radius: GitNexus отдаёт HIGH по `UserConsent`** (CLI, `--repo C:\Users\1\DEV\FREESPORT`, 2026-09-09): 18 прямых зависимостей, 0 затронутых процессов, 0 модулей. **Цифра завышена** — это рёбра импорта уровня файла (`from apps.common.models import ...`); по имени символ упоминают ровно четыре не-тестовых файла, проверено `grep -rn "UserConsent" backend/apps --include=*.py`: `common/models.py`, `common/admin.py`, `common/views.py`, `users/views/authentication.py`. Остальные импортируют из того же модуля другие модели. Смежные символы: `UserRegistrationView` — LOW (0 upstream), `Function:backend/apps/common/views.py:subscribe` — LOW (0 upstream), `UserConsentAdmin` — LOW (1 upstream). Предупреждение о HIGH сделано согласно правилу проекта; фактический радиус — четыре файла плюс тесты.
 > 🔴 **Точек записи в коде ДВЕ, а источников ТРИ.** `1c_link` — не третье место в коде, а ветка того же `UserRegistrationView.post`: флаг `pending_1c_link` уже вычислен на `authentication.py:140-142`, **до** обеих вставок (строки 147 и 155). Источник выбирается по этому флагу. Не заводить третью точку записи и не переносить запись в сериализатор — стори 41.2 специально оставила её в одном месте ради этой правки.
@@ -494,6 +494,9 @@ so that **согласие оставалось доказуемым по ФЗ-1
     оставлено контрольным вариантом. OpenAPI не менялся: схема текст сообщения не фиксирует, `check_openapi_sync`
     — синхронен.
 - [x] [Review][Defer] Регистрозависимая уникальность `Newsletter.email` допускает дубли одного адреса, если существующая строка попала в БД со смешанным регистром: вход нормализуется, но `unique=True` PostgreSQL и поиск `email=` регистрозависимы, а `objects.create()` не вызывает `Newsletter.clean()`. [`backend/apps/common/models.py:519-524,580-584`, `backend/apps/common/serializers.py:143-151,202-224`] — deferred, pre-existing
+
+- [x] [Review][Decision][HIGH] Определить совместимость с ранее записанными 8-hex версиями согласий — переход на 32 hex заменяет три строки `known_versions` и перестраивает `_texts_by_version` только по новой формуле, поэтому `resolve_consent_text("2026-08-30-77dbceaf")` и две прежние registration-версии возвращают `None`. Если код с 8 hex когда-либо принимал реальные согласия в любом сохраняемом окружении, это нарушает AC2/AC5 и обрывает audit trail; если он существовал только в неразвёрнутой feature-ветке и таких строк гарантированно нет, совместимость не требуется. [`backend/apps/common/consent_texts.py:121-126,172-180,261-263`, `backend/apps/common/consent_texts.json:35-39`]
+  - **Решение: legacy-поддержка не нужна** (Alex, 2026-09-10). Read-only SQL на production и локальной dev-БД показал по `0` строк в `common_userconsent`; распределение `length(consent_text_version)` пусто. Коммит с 8 hex существовал только как промежуточное состояние feature-ветки: в `origin/develop` стори вошла через PR #149 уже с исправлением до 32 hex (`fc507169` — предок merge `4d6bedbd`). Ранее записанных коротких версий нет, поэтому audit trail не обрывается.
 
 ## Dev Notes
 

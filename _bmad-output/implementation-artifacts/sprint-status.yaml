@@ -1053,7 +1053,7 @@ development_status:
   #             frontend 2823 -> 2823; flake8 чист, black 420 unchanged,
   #             mypy 1 -> 0 (conftest.py:202, по просьбе Alex).
   #             in-progress -> review.
-  41-9-consent-journal-text-version-and-source: review
+  41-9-consent-journal-text-version-and-source: done
   epic-41-retrospective: optional
 
 # ========================================
