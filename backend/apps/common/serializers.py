@@ -31,8 +31,8 @@ CONSENT_TEXT_OUTDATED_CODE = "consent_text_outdated"
 # форма берёт её из константы своего бандла — это отсекает вкладку, открытую
 # до правки текста. Факт показа текста человеку сервер отсюда не выводит:
 # произвольный API-клиент пришлёт ту же строку, ничего не отрисовав.
-# Любая ошибка на этих полях — устаревшая версия, пустая, слишком длинная или
-# вовсе не переданная — означает одно: действующую формулировку запрос не
+# Любая ошибка на этих полях — устаревшая версия, пустая, слишком длинная, не
+# строка или вовсе не переданная — означает одно: действующую формулировку запрос не
 # подтвердил. Клиент обязан развести этот случай с прочей валидацией (человеку
 # нужно обновить страницу, а не править ввод), поэтому машинный код выносится
 # на верхний уровень ответа.
@@ -86,6 +86,8 @@ def consent_text_outdated_payload(errors: object) -> dict[str, Any] | None:
 
     `details` сохраняет ВСЕ ошибки запроса массивами строк: заодно пришедшая
     ошибка email не должна пропадать из-за того, что форма ещё и устарела.
+    У полей версии сообщение всегда одно — `CONSENT_TEXT_OUTDATED`: фронт
+    показывает его человеку как требование обновить страницу.
     None — ошибки к версии формулировки не относятся, ответ прежний.
     """
     if not isinstance(errors, dict):
@@ -97,10 +99,17 @@ def consent_text_outdated_payload(errors: object) -> dict[str, Any] | None:
     if not relevant:
         return None
 
-    return {
-        "error": CONSENT_TEXT_OUTDATED_CODE,
-        "details": {str(field): _error_messages(value) for field, value in errors.items()},
-    }
+    details: dict[str, list[str]] = {}
+    for field, value in errors.items():
+        if field in CONSENT_TEXT_VERSION_FIELDS:
+            # Ключи `error_messages` поля переопределяют не всё: ноль-байт и
+            # одиночный суррогат `CharField` отсекает своими валидаторами, и их
+            # текст остался бы в ответе вместо требования обновить страницу.
+            details[str(field)] = [CONSENT_TEXT_OUTDATED]
+        else:
+            details[str(field)] = _error_messages(value)
+
+    return {"error": CONSENT_TEXT_OUTDATED_CODE, "details": details}
 
 
 class SubscribeSerializer(serializers.Serializer):
@@ -136,6 +145,8 @@ class SubscribeSerializer(serializers.Serializer):
             "required": CONSENT_TEXT_OUTDATED,
             "blank": CONSENT_TEXT_OUTDATED,
             "null": CONSENT_TEXT_OUTDATED,
+            # Массив, объект или boolean — тот же отказ, что и прочие ошибки поля версии.
+            "invalid": CONSENT_TEXT_OUTDATED,
             "max_length": CONSENT_TEXT_OUTDATED,
         },
     )

@@ -1,5 +1,6 @@
 """Интеграционные тесты публичного API подписки на рассылку."""
 
+import json
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -384,6 +385,71 @@ class TestSubscribeEndpoint:
         assert body["error"] == CONSENT_TEXT_OUTDATED_CODE
         assert body["details"]["consent_text_version"] == [CONSENT_TEXT_OUTDATED]
         assert body["details"][other_field], f"ошибка {other_field} обязана остаться в ответе"
+        assert UserConsent.objects.count() == 0
+
+    @pytest.mark.parametrize(
+        "version",
+        [["2020-01-01-deadbeef"], {"version": "2020-01-01-deadbeef"}, True, 20200101],
+        ids=["list", "object", "boolean", "number"],
+    )
+    def test_subscribe_non_string_consent_text_version_asks_to_refresh_page(self, api_client, version):
+        """Нестроковая версия получает то же требование обновить страницу, что и устаревшая.
+
+        Любая ошибка поля версии помечает ответ `consent_text_outdated`, а фронт
+        показывает текст из этого поля. DRF `CharField` на массив, объект и boolean
+        отвечает кодом `invalid` со своим «Not a valid string.» — без
+        переопределения человек увидел бы его вместо требования обновить страницу
+        (седьмой круг ревью стори 41.9). Число DRF приводит к строке, и его
+        отклоняет сверка с реестром — вариант фиксирует, что сообщение то же.
+        """
+        url = reverse("common:subscribe")
+        data = {
+            "email": "non-string-version@example.com",
+            "pdp_consent": True,
+            "consent_text_version": version,
+        }
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"consent_text_version": [CONSENT_TEXT_OUTDATED]},
+        }
+        assert not Newsletter.objects.filter(email=data["email"]).exists()
+        assert UserConsent.objects.count() == 0
+
+    @pytest.mark.parametrize(
+        "version",
+        ["2020-01-01-dead\x00beef", "2020-01-01-\ud800"],
+        ids=["null-character", "lone-surrogate"],
+    )
+    def test_subscribe_version_rejected_by_field_validator_asks_to_refresh_page(self, api_client, version):
+        """Строка, отсечённая валидатором `CharField`, получает то же требование обновить страницу.
+
+        Ноль-байт и одиночный суррогат `CharField` отклоняет собственными
+        валидаторами, и их сообщения ключами `error_messages` поля не
+        переопределяются. Текст выравнивает `consent_text_outdated_payload()` —
+        единая точка для любого отказа по полю версии (седьмой круг ревью
+        стори 41.9, решение Alex).
+        """
+        url = reverse("common:subscribe")
+        data = {
+            "email": "validator-rejected-version@example.com",
+            "pdp_consent": True,
+            "consent_text_version": version,
+        }
+
+        # Одиночный суррогат в UTF-8 не кодируется, поэтому тело собирается
+        # `json.dumps` с ASCII-экранированием — так его пришлёт внешний клиент.
+        response = api_client.post(url, json.dumps(data), content_type="application/json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"consent_text_version": [CONSENT_TEXT_OUTDATED]},
+        }
+        assert not Newsletter.objects.filter(email=data["email"]).exists()
         assert UserConsent.objects.count() == 0
 
     def test_subscribe_plain_validation_error_keeps_flat_shape(self, api_client):
