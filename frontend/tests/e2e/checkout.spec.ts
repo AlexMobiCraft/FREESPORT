@@ -321,6 +321,63 @@ test.describe('Checkout Flow E2E Tests', () => {
   });
 
   /**
+   * Story 41.10, AC6: между созданием заказа и success-страницей корзина уже очищена
+   * локально — страница обязана показать checkout-redirecting, а не checkout-empty-cart.
+   */
+  test('shows checkout-redirecting, never checkout-empty-cart, while navigating to success', async ({
+    page,
+  }) => {
+    // Фиксируем каждое появление блоков состояния: мигание дольше одного кадра не проскочит
+    await page.addInitScript(() => {
+      const seen = { redirecting: false, emptyCart: false };
+      (window as unknown as { __checkoutSeen: typeof seen }).__checkoutSeen = seen;
+      new MutationObserver(() => {
+        if (document.querySelector('[data-testid="checkout-redirecting"]')) seen.redirecting = true;
+        if (document.querySelector('[data-testid="checkout-empty-cart"]')) seen.emptyCart = true;
+      }).observe(document, { childList: true, subtree: true });
+    });
+
+    // Держим клиентскую навигацию на success-страницу, пока не проверим промежуточный кадр
+    let releaseNavigation!: () => void;
+    const navigationHeld = new Promise<void>(resolve => {
+      releaseNavigation = resolve;
+    });
+    await page.route(
+      url => url.pathname.startsWith('/checkout/success/'),
+      async route => {
+        await navigationHeld;
+        await route.continue();
+      }
+    );
+
+    await page.goto('/checkout');
+    await expect(page.locator('h2:has-text("Контактные данные")')).toBeVisible();
+    await fillCheckoutForm(page, testCheckoutData);
+    await expect(page.locator('h2:has-text("Способ доставки")')).toBeVisible();
+    await page.click('input[value="courier"]');
+    await expect(page.locator('[data-testid="cart-item"]').first()).toBeVisible({ timeout: 10000 });
+    const submitButton = page.locator('[data-testid="checkout-submit-button"]');
+    await expect(submitButton).toBeEnabled({ timeout: 10000 });
+
+    await submitButton.click();
+
+    await expect(page.getByTestId('checkout-redirecting')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Заказ оформлен. Переходим к подтверждению…')).toBeVisible();
+    await expect(page.getByTestId('checkout-empty-cart')).toHaveCount(0);
+
+    releaseNavigation();
+
+    await expect(page).toHaveURL(/\/checkout\/success\/\d+/, { timeout: 10000 });
+    await expect(page.locator('text=Заказ успешно оформлен')).toBeVisible();
+
+    const seen = await page.evaluate(
+      () => (window as unknown as { __checkoutSeen: { redirecting: boolean; emptyCart: boolean } })
+        .__checkoutSeen
+    );
+    expect(seen).toEqual({ redirecting: true, emptyCart: false });
+  });
+
+  /**
    * AC1: Переход на checkout страницу
    */
   test('navigates to checkout page', async ({ page }) => {

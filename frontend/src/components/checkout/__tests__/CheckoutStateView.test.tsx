@@ -26,6 +26,15 @@ const ALL_VIEWS: Exclude<CheckoutView, 'form'>[] = [
   'empty',
 ];
 
+/** Видимый заголовок h2 каждого блока состояния (AC8: h1 страницы → h2 блока). */
+const HEADING_BY_VIEW: Record<Exclude<CheckoutView, 'form'>, string> = {
+  loading: 'Загрузка…',
+  anonymous: 'Войдите, чтобы оформить заказ',
+  error: 'Не удалось загрузить корзину',
+  redirecting: 'Заказ оформлен. Переходим к подтверждению…',
+  empty: 'Корзина пуста',
+};
+
 describe('CheckoutStateView', () => {
   it('loading: показывает индикатор с видимым текстом "Загрузка…"', () => {
     render(<CheckoutStateView view="loading" />);
@@ -41,6 +50,20 @@ describe('CheckoutStateView', () => {
     expect(
       screen.getByText('Заказ оформлен. Переходим к подтверждению…')
     ).toBeInTheDocument();
+  });
+
+  it.each(ALL_VIEWS)('%s: ровно один h2 с видимым текстом блока (AC8)', view => {
+    render(<CheckoutStateView view={view} onRetry={() => {}} />);
+    const headings = screen.getAllByRole('heading');
+    expect(headings).toHaveLength(1);
+    expect(headings[0].tagName).toBe('H2');
+    expect(headings[0]).toHaveTextContent(HEADING_BY_VIEW[view]);
+  });
+
+  it('error: обработчик повтора обязателен на уровне типов', () => {
+    // @ts-expect-error — кнопка «Повторить» без onRetry ничего бы не делала
+    const element = <CheckoutStateView view="error" />;
+    expect(element).toBeTruthy();
   });
 
   it('anonymous: показывает приглашение войти со ссылкой next=%2Fcheckout', () => {

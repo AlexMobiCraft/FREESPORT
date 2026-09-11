@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderToString } from 'react-dom/server';
 import { CheckoutPageClient } from '../CheckoutPageClient';
@@ -174,8 +174,37 @@ describe('CheckoutPageClient (Story 41.10)', () => {
 
       const html = renderToString(<CheckoutPageClient />);
 
-      expect(html).not.toContain('name="email"');
+      for (const name of ['email', 'phone', 'city', 'comment']) {
+        expect(html).not.toContain(`name="${name}"`);
+      }
       expect(html).toContain('checkout-loading');
+    });
+
+    it('запрос корзины, упавший по таймауту apiClient, переводит loading → error', async () => {
+      mockAuthStoreState({ user: mockUser, isAuthenticated: true });
+      const cart = mockCartState();
+      let failByTimeout!: () => void;
+      // fetchCart ходит через apiClient с таймаутом axios (NEXT_PUBLIC_API_TIMEOUT, 30 с).
+      // По таймауту он не выбрасывает исключение, а пишет ошибку в стор — бессрочной загрузки нет.
+      cart.fetchCart.mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            failByTimeout = () => {
+              cart.error = 'timeout of 30000ms exceeded';
+              resolve();
+            };
+          })
+      );
+
+      render(<CheckoutPageClient />);
+
+      expect(screen.getByTestId('checkout-loading')).toBeInTheDocument();
+
+      await act(async () => failByTimeout());
+
+      expect(await screen.findByTestId('checkout-cart-error')).toBeInTheDocument();
+      expect(screen.queryByTestId('checkout-loading')).not.toBeInTheDocument();
+      expect(screen.queryByText(/timeout/)).not.toBeInTheDocument();
     });
   });
 
@@ -213,6 +242,51 @@ describe('CheckoutPageClient (Story 41.10)', () => {
 
       expect(cart.fetchCart).toHaveBeenCalledTimes(2);
     });
+
+    it.each([
+      ['товары есть → форма', mockCartItems, 'order-summary'],
+      ['товаров нет → пустое состояние', [], 'checkout-empty-cart'],
+    ] as const)(
+      '«Повторить» проводит error → loading → итог по корзине: %s',
+      async (_name, itemsAfterRetry, expectedTestId) => {
+        const user = userEvent.setup();
+        mockAuthStoreState({ user: mockUser, isAuthenticated: true });
+        const cart = mockCartState({ items: [] });
+        let finishRetry!: () => void;
+        // Как настоящий fetchCart (cartStore.ts:110-121): исключений не выбрасывает,
+        // ошибку пишет в стор, а в начале следующей загрузки сбрасывает её в null.
+        cart.fetchCart
+          .mockImplementationOnce(async () => {
+            cart.error = 'Network Error';
+          })
+          .mockImplementationOnce(() => {
+            cart.error = null;
+            return new Promise<void>(resolve => {
+              finishRetry = () => {
+                cart.items = [...itemsAfterRetry];
+                resolve();
+              };
+            });
+          });
+
+        render(<CheckoutPageClient />);
+
+        await screen.findByTestId('checkout-cart-error');
+
+        await user.click(screen.getByRole('button', { name: 'Повторить' }));
+
+        expect(cart.fetchCart).toHaveBeenCalledTimes(2);
+        expect(screen.getByTestId('checkout-loading')).toBeInTheDocument();
+        expect(screen.queryByTestId('checkout-cart-error')).not.toBeInTheDocument();
+
+        await act(async () => finishRetry());
+
+        expect(await screen.findByTestId(expectedTestId)).toBeInTheDocument();
+        expect(screen.queryByTestId('checkout-cart-error')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('checkout-loading')).not.toBeInTheDocument();
+        expect(screen.queryByText('Не удалось загрузить корзину')).not.toBeInTheDocument();
+      }
+    );
   });
 
   describe('AC5 — авторизованный с товарами: регрессии нет', () => {
@@ -229,6 +303,36 @@ describe('CheckoutPageClient (Story 41.10)', () => {
       expect(screen.getByDisplayValue('+79001234567')).toBeInTheDocument();
       expect(screen.getByText('Test Product')).toBeInTheDocument();
       expect(screen.getByText('Ваш заказ')).toBeInTheDocument();
+    });
+
+    it('сохраняет обязательную информацию формы: кнопку, ссылку на политику и блок возврата в сводке', async () => {
+      mockAuthStoreState({ user: mockUser, isAuthenticated: true });
+      mockCartState({ items: mockCartItems });
+
+      const { container } = render(<CheckoutPageClient />);
+
+      const summary = await screen.findByTestId('order-summary');
+      expect(container.querySelector('form')).not.toBeNull();
+      expect(within(summary).getByTestId('checkout-submit-button')).toBeInTheDocument();
+      expect(
+        within(summary).getByRole('link', { name: '«Политикой обработки персональных данных»' })
+      ).toHaveAttribute('href', '/privacy-policy');
+      expect(within(summary).getByTestId('returns-support-notice')).toBeInTheDocument();
+      expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
+    });
+
+    it('авторизован без загруженного профиля (user=null): рабочая форма без автозаполнения', async () => {
+      // Бывает, когда AuthProvider исчерпал ретраи профиля по сетевой ошибке и сохранил токены:
+      // заказ создаётся по токену, контакты покупатель вводит сам (решение Alex 2026-09-11).
+      mockAuthStoreState({ user: null, isAuthenticated: true });
+      mockCartState({ items: mockCartItems });
+
+      render(<CheckoutPageClient />);
+
+      await screen.findByText('Контактные данные');
+      expect(screen.getByTestId('checkout-submit-button')).toBeInTheDocument();
+      expect(screen.queryByText(/Здравствуйте/)).not.toBeInTheDocument();
+      expect(screen.queryByDisplayValue('test@example.com')).not.toBeInTheDocument();
     });
   });
 
@@ -275,13 +379,17 @@ describe('CheckoutPageClient (Story 41.10)', () => {
   });
 
   describe('AC7 — ровно один returns-support-notice в любом состоянии', () => {
-    const scenarios: Array<[string, () => void]> = [
+    // Третий элемент — testid целевого состояния: блок считаем только после того, как
+    // страница до него дошла, иначе единственный блок из начального checkout-loading
+    // засчитался бы за любое состояние.
+    const scenarios: Array<[string, () => void, string]> = [
       [
         'anonymous',
         () => {
           mockAuthStoreState({ user: null, isAuthenticated: false });
           mockCartState();
         },
+        'checkout-login-required',
       ],
       [
         'loading',
@@ -290,6 +398,7 @@ describe('CheckoutPageClient (Story 41.10)', () => {
           mockAuthStoreState({ user: null, isAuthenticated: false });
           mockCartState();
         },
+        'checkout-loading',
       ],
       [
         'empty',
@@ -297,6 +406,7 @@ describe('CheckoutPageClient (Story 41.10)', () => {
           mockAuthStoreState({ user: mockUser, isAuthenticated: true });
           mockCartState({ items: [] });
         },
+        'checkout-empty-cart',
       ],
       [
         'error',
@@ -304,6 +414,21 @@ describe('CheckoutPageClient (Story 41.10)', () => {
           mockAuthStoreState({ user: mockUser, isAuthenticated: true });
           mockCartState({ error: 'Network Error' });
         },
+        'checkout-cart-error',
+      ],
+      [
+        'redirecting',
+        () => {
+          mockAuthStoreState({ user: mockUser, isAuthenticated: true });
+          // Корзина очищена локально, заказ записан уже после монтирования (clearOrder отработал).
+          mockCartState({
+            items: [],
+            fetchCart: vi.fn(async () => {
+              useOrderStore.setState({ currentOrder: { id: 42 } as Order });
+            }),
+          });
+        },
+        'checkout-redirecting',
       ],
       [
         'form',
@@ -311,18 +436,36 @@ describe('CheckoutPageClient (Story 41.10)', () => {
           mockAuthStoreState({ user: mockUser, isAuthenticated: true });
           mockCartState({ items: mockCartItems });
         },
+        'order-summary',
       ],
     ];
 
-    it.each(scenarios)('%s: ровно один returns-support-notice', async (_name, setup) => {
-      setup();
+    it.each(scenarios)(
+      '%s: ровно один returns-support-notice',
+      async (_name, setup, stateTestId) => {
+        setup();
 
-      render(<CheckoutPageClient />);
+        render(<CheckoutPageClient />);
 
-      await waitFor(() => {
+        const stateBlock = await screen.findByTestId(stateTestId);
         expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
-      });
-    });
+        expect(within(stateBlock).getByTestId('returns-support-notice')).toBeInTheDocument();
+      }
+    );
+
+    it.each(scenarios.filter(([name]) => name !== 'form'))(
+      '%s: h1 страницы → h2 блока состояния (AC8)',
+      async (_name, setup, stateTestId) => {
+        setup();
+
+        render(<CheckoutPageClient />);
+
+        const stateBlock = await screen.findByTestId(stateTestId);
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(within(stateBlock).getAllByRole('heading')).toHaveLength(1);
+        expect(within(stateBlock).getByRole('heading', { level: 2 })).toBeInTheDocument();
+      }
+    );
   });
 
   describe('Заголовок страницы', () => {

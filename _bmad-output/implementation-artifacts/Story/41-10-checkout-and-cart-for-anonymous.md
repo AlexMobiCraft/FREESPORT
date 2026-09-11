@@ -1,11 +1,14 @@
 ---
-baseline_commit: 501535a7
-# Координаты кода проверены на 501535a7 (2026-09-11). С коммита 64a0f7fe, на котором
-# писался эпик, frontend/ и backend/ не менялись — только навыки BMAD и документация.
-# Модель changeset — как в 41.4/41.9: область приёмки = baseline_commit..review_head
-# МИНУС excluded_commits; review_head ставится один раз по завершении содержательной
-# работы и не сдвигается документационными правками метаданных.
-review_head:
+baseline_commit: 62319ddc
+# Точка ветвления: ветка создана от локального develop на 62319ddc (reflog: «Created from
+# HEAD»); это коммит create-story, только документы. Координаты кода проверены на 501535a7
+# (2026-09-11), а frontend/ и backend/ в 501535a7..62319ddc не менялись. Первоначальный
+# baseline 501535a7 захватывал в диапазон документы эпика (24 файла), поэтому по первому
+# ревью он заменён на 62319ddc: `git diff --stat 62319ddc f47b5f83` = 18 файлов коммита
+# реализации. Модель changeset — как в 41.9: review_head = HEAD, на котором выполнено
+# последнее ревью; доработка по его замечаниям лежит поверх и в просмотренный diff
+# `baseline_commit..review_head` не входит по построению.
+review_head: f47b5f83
 excluded_commits: []
 ---
 
@@ -264,8 +267,8 @@ so that **сайт не собирал мои данные впустую и с�
 - [x] **Task 10. Перед коммитом**
   - [x] `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` — 13 файлов, 11 символов, risk medium. Изменённые символы: `CheckoutPageClient`, `EmptyCart`, `CartError`, `CartSkeleton` (плюс `breadcrumbItems`, тестовые константы). Новые файлы (`CheckoutStateView`, `resolveCheckoutView`, `checkoutView.ts`) индекс не видит — построен на `a73c3bb`, до их создания; это ожидаемо и не признак пропуска. `ReturnsAndSupportNotice`, `OrderSummary`, `CheckoutForm` среди изменённых **не появились** — AC11 не нарушен
   - [x] File List сверен с `git status --short` (working tree чист от посторонних изменений, `baseline_commit` не сдвигался — коммитов ещё не было)
-  - [ ] `review_head` **не** установлен: инструкция редактировать только YAML `baseline_commit` из front-matter стори не даёт трогать `review_head` до коммита. Установить его должен владелец после коммита/PR
-  - [ ] Коммит, push и PR — только по явной просьбе владельца. Выкат на прод — ручной, за владельцем (Dev Notes, «Выкат»)
+  - [x] `review_head` установлен на `f47b5f83` — коммит владельца, завершающий содержательную работу (проверено `git show --stat`: в коммит вошли ровно ожидаемые файлы из File List)
+  - [x] Коммит создан владельцем (`f47b5f83`, ветка `feature/story-41-10-checkout-for-anonymous`). Push и PR — по-прежнему только по явной просьбе владельца. Выкат на прод — ручной, за владельцем (Dev Notes, «Выкат»)
 
 ## Dev Notes
 
@@ -363,22 +366,96 @@ so that **сайт не собирал мои данные впустую и с�
 
 ## Dev Agent Record
 
+### Review Findings
+
+Проверка 2026-09-11: story-документ и реализация в диапазоне `501535a7..f47b5f83`; линзы Adversarial, Edge-Case Hunter, Editorial Structure и Editorial Prose. Ниже сохранены все находки review. Доработка по ним — 2026-09-11, поверх `f47b5f83`: у каждого пункта указано, чем он закрыт.
+
+#### Реализация и проверки
+
+- [x] [Review][Patch] Согласовать AC8 с разметкой `CheckoutStateView`: критерий требует иерархию h1 → h2 для каждого блока состояния, но ветки `loading` и `redirecting` содержат только `Spinner` и `<p>`. Добавить визуальные h2 либо явно исключить эти состояния из требования об иерархии; иначе AC8 формально не выполнен при зелёном `axe`. [`frontend/src/components/checkout/CheckoutStateView.tsx:54-70`; AC8]
+  — **Закрыто:** видимый текст индикаторов `loading` и `redirecting` стал `<h2>`, текст и вид прежние. Тесты: `CheckoutStateView.test.tsx` — «ровно один h2» во всех пяти состояниях; `page.test.tsx` — «h1 страницы → h2 блока состояния» по каждому состоянию без формы.
+- [x] [Review][Patch] Дополнить тест повторной загрузки по AC4: сейчас он сохраняет `error: 'Network Error'` и проверяет только второй вызов `fetchCart`. Управляемым Promise проверить полный переход `error → loading → form/empty`, включая очистку ошибки; иначе неработающий retry пройдёт тесты. [`frontend/src/app/(blue)/checkout/__tests__/page.test.tsx:199-215`]
+  — **Закрыто:** `it.each` на два исхода (`order-summary` и `checkout-empty-cart`). Управляемый Promise проходит `error → loading → итог`, мок `fetchCart` сбрасывает ошибку, как настоящий.
+- [x] [Review][Patch] Защитить промежуточное состояние AC6 в E2E: тест полного заказа проверяет только конечный URL success-страницы и не наблюдает `checkout-redirecting`. Задержать ответ или навигацию, проверить `checkout-redirecting` и отсутствие `checkout-empty-cart`; иначе мигание пустого состояния останется незамеченным. [`frontend/tests/e2e/checkout.spec.ts:286-320`]
+  — **Закрыто:** новый E2E «shows checkout-redirecting, never checkout-empty-cart, while navigating to success». `page.route` держит клиентскую навигацию на `/checkout/success/`, `MutationObserver` фиксирует каждое появление блоков состояния; в итоге `{ redirecting: true, emptyCart: false }`.
+- [x] [Review][Patch] Исправить ложноположительную параметризацию AC7 в `page.test.tsx`: для сценариев `empty`, `error` и `form` `waitFor` может сразу увидеть один `returns-support-notice` из первоначального `checkout-loading`, не дождавшись целевой ветки. Сначала ждать testid конкретного состояния или появления формы, затем считать блоки. [`frontend/src/app/(blue)/checkout/__tests__/page.test.tsx:277-325`]
+  — **Закрыто:** у сценария появился testid целевого состояния (`order-summary` для формы). Блоки считаются после `findByTestId`, блок обязан лежать внутри целевого. Добавлен сценарий `redirecting`.
+- [x] [Review][Patch] Закрепить все контракты AC5 в интеграционном тесте страницы: после перехода в `form` проверить `checkout-submit-button`, ссылку `/privacy-policy` и расположение единственного `returns-support-notice` внутри `order-summary`. Сейчас проверяются только секции, автозаполнение и товар, поэтому обязательная информация формы может исчезнуть при зелёных тестах. [`frontend/src/app/(blue)/checkout/__tests__/page.test.tsx:218-232`; AC5]
+  — **Закрыто:** отдельный кейс AC5 проверяет внутри `order-summary` кнопку, ссылку на `/privacy-policy` и блок возврата, а на странице — ровно один блок и наличие `<form>`.
+- [x] [Review][Patch] Добавить отдельную axe-проверку обновлённого `CartSkeleton`: AC8 перечисляет его явно, но accessibility-suite проверяет обновлённые `EmptyCart` и `CartError`, а `CartSkeleton` напрямую не рендерит. [`frontend/src/components/cart/__tests__/accessibility.test.tsx`; AC8]
+  — **Закрыто:** `describe('CartSkeleton')` — `axe` без нарушений, `main` «Загрузка корзины» с `aria-busy`, регион «Условия возврата и поддержка» доступен.
+- [x] [Review][Patch] Довести проверку серверного HTML до буквального AC2: Debug Log подтверждает только отсутствие `name="email"`, тогда как критерий перечисляет `email`, `phone`, `city` и `comment`. Проверить все четыре имени одним скриптом или четырьмя утверждениями; иначе частично отрендеренная форма ошибочно пройдёт приёмку. [Debug Log References; AC2]
+  — **Закрыто:** `curl` по `:3000` и `:80` считает все четыре имени и `<input>`, везде 0 (Debug Log). Юнит `renderToString` проверяет те же четыре имени.
+- [x] [Review][Patch] Расширить таблицу `resolveCheckoutView`: тест с формулировкой «при любых остальных значениях» использует только две выборки и не закрепляет все конкурирующие пары `pending/error/redirecting/hasItems`. Добавить матрицу приоритетов; иначе перестановка условий может пройти тесты. [`frontend/src/utils/checkout/__tests__/checkoutView.test.ts:15-63`]
+  — **Закрыто:** все 48 комбинаций входа разложены по шести слоям приоритета (24/12/4/4/2/2). Мутационная проверка: перестановка проверок `error` и `redirecting` роняет слой `error`.
+- [x] [Review][Patch] Добавить интеграционную проверку «ровно один `returns-support-notice`» для `/cart` с товарами. Новые тесты `CartPage` считают блок только в `empty`, `loading` и `error`, поэтому возможное дублирование в основной ветке не обнаружится. [`frontend/src/components/cart/__tests__/CartPage.test.tsx:296-327`; AC7]
+  — **Закрыто:** кейс «exactly one block, inside cart-summary, when cart has items». Сначала ждёт `cart-summary`, потом считает.
+
+#### Метаданные и воспроизводимость changeset
+
+- [x] [Review][Patch] Согласовать Task 1 с фактической историей ветки: story требует создать ветку от `develop` и сверить HEAD с `501535a7`, но непосредственный родитель `f47b5f83` — `62319ddc`. Указать реальный branch point либо отдельно определить `merge base` и `code baseline`; текущая последовательность невоспроизводима. [frontmatter; Task 1]
+  — **Закрыто:** реальная точка ветвления — `62319ddc`: локальный `develop`, reflog ветки — `Created from HEAD`. Она записана в frontmatter и Debug Log. «Code baseline» `501535a7` и branch point `62319ddc` по `frontend/`/`backend/` совпадают: `git diff 501535a7 62319ddc -- frontend backend` пуст. Текст Task 1 — спецификация, dev-story его не правит.
+- [x] [Review][Patch] Исправить каноническую область приёмки и File List: объявленный диапазон `501535a7..f47b5f83` при пустом `excluded_commits` содержит 24 файла, включая родительские изменения эпика, SCP, tech-debt и предыдущих stories; коммит `f47b5f83` содержит 18 файлов, а File List перечисляет только 17 и пропускает сам story-файл. Использовать `baseline_commit: 62319ddc` либо формально исключить `62319ddc`, затем добавить story-файл в File List. [frontmatter; File List]
+  — **Закрыто:** `baseline_commit: 62319ddc`, `git diff --stat 62319ddc f47b5f83` = 18 файлов. Story-файл добавлен в File List.
+- [x] [Review][Patch] Сделать `review_head` воспроизводимым из чистого checkout: значение `f47b5f83` и закрытие Task 10 существуют только в незакоммиченной правке story-файла и отсутствуют в самом коммите `f47b5f83`. Сохранить метаданные отдельным документационным коммитом, исключённым из содержательного changeset, либо использовать внешний review manifest. [frontmatter; Task 10; Completion Notes]
+  — **Закрыто моделью 41.9:** `review_head` — HEAD, на котором выполнено ревью. Метаданные и доработка по ревью войдут в следующий коммит поверх `f47b5f83`, то есть за пределы просмотренного diff `62319ddc..f47b5f83` по построению, и `excluded_commits` для этого не нужен. Из чистого checkout метаданные воспроизводятся, как только этот коммит создан. Коммит — за владельцем.
+
+#### Необработанные граничные пути
+
+- [x] [Review][Patch][Edge Case] Сделать `onRetry` обязательным для `view: 'error'`: текущий `CheckoutStateViewProps` допускает отсутствующий callback, но ветка ошибки всегда показывает активную кнопку «Повторить». Использовать discriminated union для error и остальных состояний; иначе кнопка может ничего не делать. [`frontend/src/components/checkout/CheckoutStateView.tsx:16-20,100-107`]
+  — **Закрыто:** `CheckoutStateViewProps` — discriminated union, у `error` `onRetry` обязателен. Страж — `@ts-expect-error` в `CheckoutStateView.test.tsx`. Мутация «`onRetry?` у error» роняет `tsc` с `TS2578: Unused '@ts-expect-error'`.
+- [x] [Review][Decision][Edge Case] Определить поведение при незавершающемся `fetchCart`: сейчас checkout остаётся в `loading` бессрочно. Добавить timeout/recovery либо явно принять бессрочное ожидание в AC и документации. [`frontend/src/app/(blue)/checkout/CheckoutPageClient.tsx:42-48`]
+  — **Решение Alex 2026-09-11: принять, код не менять.** Бессрочного ожидания нет: `fetchCart` → `cartService.get` → `apiClient` с `timeout: API_TIMEOUT` (`NEXT_PUBLIC_API_TIMEOUT`, по умолчанию 30 000 мс, `services/api-client.ts:29,34`). По таймауту ошибка попадает в `cartStore.error`, гейт показывает `checkout-cart-error` с «Повторить». Закреплено тестом «запрос корзины, упавший по таймауту apiClient, переводит loading → error».
+- [x] [Review][Decision][Edge Case] Определить состояние `isAuthenticated === true`, `user === null`: после загрузки корзины текущий гейт может открыть форму без автозаполнения. Либо включить наличие `user` в условие готовности формы, либо документировать это как допустимый режим неполностью восстановленной сессии. [`frontend/src/app/(blue)/checkout/CheckoutPageClient.tsx:27-31,58-81`]
+  — **Решение Alex 2026-09-11: допустимый режим, гейт не менять.** Состояние возникает, когда `AuthProvider` исчерпал ретраи `/users/profile/` по сетевой ошибке и сохранил токены (`AuthProvider.tsx:149-154`). Заказ создаётся по токену, контакты покупатель вводит сам. Требовать `user` означало бы новое состояние и повтор профиля, то есть правку `AuthProvider`, а её запрещает AC11. Закреплено тестом «авторизован без загруженного профиля (user=null): рабочая форма без автозаполнения».
+
+#### Редакторская структура
+
+По решению Alex 2026-09-11 применяются только пункты о разделах, которые dev-story вправе менять (Dev Agent Record, Change Log). Остальные закрыты без правки: спецификацию (врезки, Tasks, Dev Notes) dev-story не редактирует.
+
+- [x] [Review][Editorial][Structure] **CONDENSE** `Tasks / Subtasks` (1761 слово) в матрицу `Task → файлы → доказательство`: раздел повторяет значительную часть AC, Dev Notes и Debug Log. Ожидаемое сокращение — около 800–1000 слов без потери требований.
+  — **Отклонено:** вне области dev-story, текст задач — спецификация.
+- [x] [Review][Editorial][Structure] **CONDENSE** `Debug Log References` (417 слов) в таблицу `Проверка | Команда | Результат | Ограничение`. Ожидаемое сокращение — около 120–160 слов при более быстрой сверке доказательств.
+  — **Применено:** Debug Log сведён в таблицу с этими колонками.
+- [x] [Review][Editorial][Structure] **MERGE** `Completion Notes List` и `Change Log`: оставить один итог реализации и короткую хронологию статусов. Сейчас итог реализации повторяется; ожидаемое сокращение — около 80–110 слов.
+  — **Применено:** итог реализации — только в Completion Notes, Change Log — короткая хронология.
+- [x] [Review][Editorial][Structure] **MOVE** раздел `Выкат (для владельца, вне объёма dev-story)` в существующий production runbook, а в story оставить только специфические post-deploy checks. Сам раздел явно находится вне объёма story; ожидаемое сокращение — около 60–80 слов.
+  — **Отклонено:** вне области dev-story (Dev Notes).
+- [x] [Review][Editorial][Structure] **PRESERVE** критические врезки перед `Story`, но объединить их под заголовком «Риски реализации». Их объём оправдан: они предотвращают повторение SSR-, auth- и E2E-регрессий.
+  — **Отклонено:** вне области dev-story (врезки спецификации). Сами врезки сохранены.
+
+#### Редакторская проза
+
+Все четыре пункта относятся к тексту спецификации (Tasks, врезки) и закрыты без правки по тому же решению Alex 2026-09-11.
+
+- [x] [Review][Editorial][Prose] Заменить `fetchCart ошибок не бросает` на `fetchCart не выбрасывает исключения`: исправить грамматику и терминологию. [Task 4] — **Отклонено:** вне области dev-story.
+- [x] [Review][Editorial][Prose] Заменить `блок приезжает вместе с компонентами` на `блок рендерится внутри компонентов состояний`: убрать разговорную и неоднозначную формулировку. [Task 5] — **Отклонено:** вне области dev-story.
+- [x] [Review][Editorial][Prose] Заменить `GET к API корзины не отправлялся` на `GET-запрос к API корзины не отправлялся`: исправить управление. [Task 7] — **Отклонено:** вне области dev-story.
+- [x] [Review][Editorial][Prose] Заменить `Серверный HTML /checkout полей формы не содержит УЖЕ СЕЙЧАС — и это ничего не доказывает` на `Текущее отсутствие полей формы в серверном HTML /checkout само по себе не подтверждает выполнение AC2`: убрать прописные буквы и точнее выразить ограничение доказательства. [врезка перед Story] — **Отклонено:** вне области dev-story.
+
+При принятии всех структурных рекомендаций оценочное сокращение документа — 1100–1350 слов, или 19–24% от текущих 5648 слов, без удаления требований и проверочных свидетельств.
+
 ### Agent Model Used
 
-Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story.
+Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story. Доработка по ревью — Claude Opus 5 (claude-opus-5), через /bmad-dev-story.
 
 ### Debug Log References
 
-- Baseline до правок: `cd frontend; npm run test -- --run "src/app/(blue)/checkout" src/components/checkout src/components/cart src/utils/checkout` → **20 test files, 357 passed | 4 skipped (361)**.
-- После реализации, тот же прогон + новые файлы: `checkoutView.test.ts` (7), `CheckoutStateView.test.tsx` (15), переписанный `page.test.tsx` (16) — `src/components/checkout` → 9 файлов, 154 passed | 1 skipped; `src/components/cart` → 10 файлов, 208 passed | 3 skipped.
-- Полный `cd frontend; npm run test -- --run`: **171 test files, 2861 passed | 16 skipped**.
-- `npm run lint` — чисто (`--max-warnings=0`). `npm run format:check` — после `prettier --write` на двух новых файлах (`CheckoutStateView.tsx`, `checkoutView.ts`) — чисто. `npx tsc --noEmit` — без ошибок.
-- E2E: `cd frontend; $env:PLAYWRIGHT_BASE_URL='http://localhost:3000'; npx playwright test tests/e2e/checkout.spec.ts` — **18 passed**, стабильно и с `--workers=1` (как в CI), и с параллелизмом по умолчанию. Полный `npx playwright test` (оба спека, 40 тестов) — зелёный.
-  - По пути потребовались два точечных фикса тестов, ставших авторизованными (форма больше не доступна анониму, а `mockAuthUser` теперь всегда залогинен с непустыми контактами): «shows validation errors for empty required fields» явно очищает автозаполненные контакты перед проверкой валидации; «validates phone format» переведён на `focus()+fill('')+pressSequentially()` вместо голого `fill()` — raw `fill()` не перезаписывает уже валидное маскированное значение телефона.
-- Ручная приёмка (NFR-41-08, AC10) — браузерные MCP-инструменты в сессии недоступны, использован временный `tests/e2e/tmp-story-41-10-check.spec.ts` против **реального** бэкенда (после `docker compose restart frontend` + `restart nginx`), в чистом browser context без cookie, и временный пользователь `story-41-10-tmp@example.test`. 5 сценариев, все зелёные: `/checkout` анонимом (AC1+AC7), `/cart` анонимом пустой (AC7), добавление товара в гостевую корзину → всё равно приглашение (AC1), вход через `/login?next=%2Fcheckout` → гейт уходит от `checkout-login-required`, авторизованный с товарами → форма и `order-summary` (AC5). AC6 (`checkout-redirecting` → success) на реальном бэкенде не прогнан: локально не засеяны способы доставки (`GET /delivery/methods/` → `[]`, не связано со стори) — подтверждён автотестами (юнит гейта + E2E «complete checkout flow from cart to success» с мокнутым API заказа). Спек, скриншоты и временный пользователь удалены после прогона.
-- `curl -s http://localhost:3000/checkout` и `curl -s http://localhost/checkout` (через nginx) — оба `grep -c 'name="email"'` → `0` (AC2).
-- `npx gitnexus status` показал `stale` (индекс на `a73c3bb`, HEAD ушёл на `62319dd` только документационными коммитами) — вместо повторного `analyze` использован уже задокументированный в шапке стори impact-анализ (LOW по всем меняемым символам, HIGH только у нетронутого `ReturnsAndSupportNotice`), так как `git diff --stat a73c3bb..62319ddc -- frontend backend` пуст.
-- `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` (индекс тот же, стори не переиндексировалась) → 13 файлов, 11 символов, risk **medium**. Изменённые символы: `CheckoutPageClient`, `EmptyCart`, `CartError`, `CartSkeleton` — ожидаемо. `ReturnsAndSupportNotice`, `OrderSummary`, `CheckoutForm` среди изменённых не появились (AC11).
+Все команды — из `frontend/`, кроме `git`, `docker` и `gitnexus` (корень репозитория). «Р1» — первый раунд реализации (`f47b5f83`), «Р2» — доработка по ревью.
+
+| Проверка | Команда | Результат | Ограничение |
+|---|---|---|---|
+| Точка ветвления | `git reflog show feature/story-41-10-checkout-for-anonymous`; `git diff --stat 501535a7 62319ddc -- frontend backend` | Ветка создана от локального `develop` на `62319ddc`. Код в `501535a7..62319ddc` не менялся, `62319ddc..f47b5f83` — 18 файлов | `62319ddc` в `origin/develop` не было, он лежал на `origin/feature/epic-41-sprint-change-proposal` |
+| Затрагиваемые наборы Vitest | `npm run test -- --run "src/app/(blue)/checkout" src/components/checkout src/components/cart src/utils/checkout` | До правок: 20 файлов, 357 passed, 4 skipped. Р1: checkout — 9 файлов, 154 passed, 1 skipped; cart — 10 файлов, 208 passed, 3 skipped. Р2: 22 файла, 423 passed, 4 skipped | — |
+| Полный Vitest | `npm run test -- --run` | Р1: 171 файл, 2861 passed, 16 skipped. Р2: 171 файл, 2889 passed, 16 skipped (+28) | — |
+| Lint, формат, типы | `npm run lint`; `npm run format:check`; `npx tsc --noEmit` | Чисто в обоих раундах | В Р1 — после `prettier --write` на `CheckoutStateView.tsx` и `checkoutView.ts` |
+| Мутационные проверки (Р2) | Временно переставлены проверки `error`/`redirecting` в `checkoutView.ts`; временно `onRetry?` у варианта `error` | Матрица роняет слой `error`; `tsc` — `TS2578: Unused '@ts-expect-error'`. Оба файла восстановлены | — |
+| E2E checkout | `$env:PLAYWRIGHT_BASE_URL='http://localhost:3000'; npx playwright test tests/e2e/checkout.spec.ts`, с `--workers=1` (как в CI) и без | Р1: 18 passed. Р2: 19 passed в обоих режимах, новый AC6-тест 3 из 3 при `--repeat-each=3` | Стенд после `restart frontend` + `restart nginx`. В Р1 два теста формы доработаны под авторизованного: очистка автозаполненных контактов; телефон — `focus()` + `fill('')` + `pressSequentially()`, голый `fill()` не перезаписывает валидное маскированное значение |
+| Полный E2E | `npx playwright test --workers=1` | Р1: 40 passed. Р2: 41 passed | — |
+| Серверный HTML (AC2) | `curl -s` по `http://localhost:3000/checkout` и `http://localhost/checkout`; счёт `name="email"`, `name="phone"`, `name="city"`, `name="comment"` и `<input` | Р2: все пять счётчиков — 0 на обоих входах (ответ 72 835 байт). Р1 проверял только `email` | Прод — после выката, за владельцем |
+| Ручная приёмка NFR-41-08 (AC10), Р1 | Временный `tests/e2e/tmp-story-41-10-check.spec.ts`: чистый контекст, реальный бэкенд, временный пользователь `story-41-10-tmp@example.test` | 5 сценариев зелёные: аноним на `/checkout` (AC1, AC7), аноним на пустом `/cart` (AC7), гостевая корзина → всё равно приглашение (AC1), вход через `/login?next=%2Fcheckout`, авторизованный с товарами (AC5). Спек и пользователь удалены | Браузерных MCP-инструментов не было. AC6 на реальном бэкенде не прогнан: локально нет способов доставки (`GET /delivery/methods/` → `[]`), покрыт юнитом и E2E. В Р2 блоки анонима и корзины не менялись, приёмка не повторялась |
+| GitNexus impact | `npx gitnexus impact <symbol> --direction upstream --repo "C:\Users\1\DEV\FREESPORT"` | Р1: всё LOW по анализу из шапки стори (индекс `a73c3bb`, `git diff a73c3bb..62319ddc -- frontend backend` пуст). Р2 (свежий индекс `f47b5f8`): `CheckoutStateView` — LOW, 1 вызывающий (`CheckoutPageClient`), процесс `CheckoutPage`; `renderContent` — LOW | `ReturnsAndSupportNotice` — HIGH, не менялся |
+| GitNexus detect-changes | `npx gitnexus detect-changes --scope all --repo "C:\Users\1\DEV\FREESPORT"` | Р1: 13 файлов, 11 символов, medium (`CheckoutPageClient`, `EmptyCart`, `CartError`, `CartSkeleton`). Р2: 11 файлов, 4 символа, low — только `CheckoutStateView.tsx`. `ReturnsAndSupportNotice`, `OrderSummary`, `CheckoutForm` не задеты (AC11) | `AGENTS.md` и `CLAUDE.md` в дереве Р2 — регенерация счётчиков GitNexus владельцем, к стори не относятся |
 
 ### Completion Notes List
 
@@ -387,7 +464,11 @@ Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story.
 - В `EmptyCart`, `CartError`, `CartSkeleton` добавлен `ReturnsAndSupportNotice` (сам компонент не менялся — HIGH blast radius, только новые места вызова), `/cart` теперь показывает условия возврата в любом состоянии (AC7).
 - `page.test.tsx` переписан полностью под новые состояния (AC1–AC7, включая `renderToString`-проверку AC2); E2E `checkout.spec.ts` переведён на авторизованный `authenticate()`-хелпер для сценариев с формой и получил новый анонимный сценарий (AC1).
 - Ни `ReturnsAndSupportNotice`, ни `OrderSummary`, ни `CheckoutForm`, ни бэкенд не менялись (AC11) — подтверждено `gitnexus detect-changes` и точечным просмотром diff.
-- `review_head` не проставлен и коммит не создан: по инструкции скилла разрешено редактировать только `baseline_commit` во frontmatter, а коммит/PR — только по явной просьбе владельца (Task 10, Dev Notes «Выкат»). Требуется решение владельца о коммите, после которого `review_head` нужно проставить отдельно.
+- ✅ Ревью 2026-09-11 закрыто полностью, 24 из 24. Исправлено 13: 10 по коду и тестам, 3 по метаданным. 2 decision приняты владельцем. Из 9 редакторских 2 применены, 7 отклонены как вне области dev-story. Резолюции — у каждого пункта в Review Findings.
+- По коду ревью изменило одно: в `CheckoutStateView` видимый текст индикаторов `loading` и `redirecting` стал `<h2>` (AC8, иерархия h1 → h2 в каждом состоянии), а `CheckoutStateViewProps` стал discriminated union с обязательным `onRetry` у `error`. `CheckoutPageClient` и гейт не менялись.
+- Остальное по ревью — тесты. В `resolveCheckoutView` — матрица на все 48 комбинаций. В `page.test.tsx` — полный переход повтора `error → loading → итог`, таймаут `apiClient` → `error`, контракты формы из AC5, режим `user=null`; AC7 теперь ждёт целевое состояние. Добавлены axe для `CartSkeleton`, «ровно один блок» на `/cart` с товарами и E2E промежуточного кадра `checkout-redirecting`.
+- Решения по граничным путям (Alex, 2026-09-11). Бессрочной загрузки нет: `fetchCart` ограничен таймаутом `apiClient` (30 с), затем состояние `error` с повтором. «Авторизован без профиля» (`user=null` после сетевых сбоев `AuthProvider`) — допустимый режим: форма рабочая, без автозаполнения.
+- Changeset приёмки — `baseline_commit: 62319ddc` (реальная точка ветвления), `review_head: f47b5f83`. Доработка по ревью лежит поверх `review_head` и ещё не закоммичена: коммит — за владельцем.
 
 ### File List
 
@@ -411,12 +492,17 @@ Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story.
 - `frontend/tests/e2e/checkout.spec.ts`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/41-10-checkout-and-cart-for-anonymous.md`
+
+Доработка по ревью меняет только файлы из этого списка: `CheckoutStateView.tsx` и его тест, `checkoutView.test.ts`, `page.test.tsx`, `CartPage.test.tsx`, `accessibility.test.tsx`, `checkout.spec.ts`, `sprint-status.yaml` и story-файл.
 
 ## Change Log
 
 | Дата | Изменение |
 |---|---|
-| 2026-09-11 | Стори реализована (dev-story): гейт состояний `/checkout`, блок условий возврата в корзине во всех состояниях, тесты (юнит + E2E) переписаны, ручная приёмка на реальном бэкенде пройдена. Статус → review. Коммит не создан — по явной просьбе владельца. |
-| 2026-09-11 | Перенос гостевой корзины при входе оставлен в `deferred-work.md` (решение Alex): запись внесена сразу, Task 8 её больше не создаёт. |
-| 2026-09-11 | Решения Alex по вопросам create-story: адрес входа `/login?next=%2Fcheckout` подтверждён; open redirect в `LoginForm` передан в стори 41.12 (добавлен в эпик); блок условий возврата в корзине — всегда, включая пустую (уже AC7). |
-| 2026-09-11 | Стори создана (create-story): контекст собран, статус ready-for-dev. |
+| 2026-09-11 | Доработка по ревью: закрыто 24 из 24 находок, резолюции — в Review Findings. `baseline_commit` 501535a7 → 62319ddc. Статус in-progress → review. |
+| 2026-09-11 | Ревью: 24 находки записаны в Review Findings. |
+| 2026-09-11 | Владелец закоммитил реализацию `f47b5f83`; `review_head` = `f47b5f83`. |
+| 2026-09-11 | Реализация (dev-story), статус → review. |
+| 2026-09-11 | Решения Alex по create-story: адрес входа `/login?next=%2Fcheckout`; open redirect `LoginForm` передан в 41.12; блок условий возврата в корзине — всегда; перенос гостевой корзины — в `deferred-work.md`. |
+| 2026-09-11 | Стори создана (create-story), ready-for-dev. |
