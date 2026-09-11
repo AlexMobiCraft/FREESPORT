@@ -10,6 +10,7 @@
 
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui';
+import { ReturnsAndSupportNotice } from '@/components/common';
 
 const breadcrumbItems = [{ label: 'Главная', href: '/' }, { label: 'Корзина' }];
 
@@ -46,6 +47,9 @@ export const CartError = ({ error, onRetry }: CartErrorProps) => {
           <RefreshCw className="w-5 h-5" aria-hidden="true" />
           Повторить
         </button>
+
+        {/* Условия возврата и поддержка видны даже при ошибке загрузки (Story 41.10, FR-41-15) */}
+        <ReturnsAndSupportNotice className="mt-8 text-center text-body-s text-[var(--color-text-secondary)]" />
       </div>
     </main>
   );

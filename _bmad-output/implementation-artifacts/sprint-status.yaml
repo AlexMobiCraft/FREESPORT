@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-11
+# last_updated: 2026-09-11 (стори 41.10 переведена в review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1094,7 +1094,7 @@ development_status:
   #             (4) перенос гостевой корзины при входе (merge_guest_cart_on_login
   #             мёртв) — оставлен в deferred-work.md, запись внесена сразу,
   #             отдельной стори нет.
-  41-10-checkout-and-cart-for-anonymous: ready-for-dev
+  41-10-checkout-and-cart-for-anonymous: review
   41-11-separate-subscribe-consents: backlog
   41-12-registry-wording-login-notice-breadcrumb: backlog
   epic-41-retrospective: optional

@@ -203,10 +203,81 @@ async function fillCheckoutForm(page: Page, data: typeof testCheckoutData) {
   await page.locator('input[name="postalCode"]').fill(data.postalCode);
 }
 
+/**
+ * Мок данные авторизованного пользователя (Story 41.10: `/checkout` показывает форму
+ * только авторизованным — все сценарии, заполняющие форму, проходят через `authenticate`).
+ */
+const mockAuthUser = {
+  id: 1,
+  email: 'user@example.com',
+  first_name: 'Александр',
+  last_name: 'Сидоров',
+  phone: '+79009876543',
+  role: 'retail',
+};
+
+/**
+ * Моки API авторизованной сессии: профиль, refresh, сохранённые адреса.
+ * Без мока `/users/addresses/` авторизованная форма зовёт реальный бэкенд
+ * и получает тост «Не удалось загрузить сохранённые адреса» (Story 41.10).
+ */
+async function setupAuthMocks(page: Page) {
+  await setupApiMocks(page);
+
+  await page.route('**/api/v1/users/profile/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(mockAuthUser),
+    });
+  });
+
+  await page.route('**/api/v1/auth/**', async route => {
+    if (route.request().url().includes('verify') || route.request().url().includes('refresh')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ access: 'mock-token', refresh: 'mock-refresh' }),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  await page.route('**/api/v1/users/addresses/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
+    });
+  });
+}
+
+/**
+ * Полная имитация авторизованной сессии: моки API + localStorage/cookie `refreshToken`,
+ * которые `AuthProvider` считывает при инициализации (Story 41.10, AC5).
+ */
+async function authenticate(page: Page) {
+  await setupAuthMocks(page);
+
+  await page.addInitScript(() => {
+    localStorage.setItem('refreshToken', 'mock-refresh-token');
+  });
+
+  await page.context().addCookies([
+    {
+      name: 'refreshToken',
+      value: 'mock-refresh-token',
+      domain: 'localhost',
+      path: '/',
+    },
+  ]);
+}
+
 test.describe('Checkout Flow E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Настройка моков API перед каждым тестом
-    await setupApiMocks(page);
+    // Story 41.10: без входа /checkout показывает приглашение, а не форму
+    await authenticate(page);
   });
 
   /**
@@ -353,7 +424,7 @@ test.describe('Checkout Flow E2E Tests', () => {
  */
 test.describe('Checkout Form Validation E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page);
+    await authenticate(page);
   });
 
   /**
@@ -364,6 +435,14 @@ test.describe('Checkout Form Validation E2E Tests', () => {
 
     // Ждём загрузки страницы
     await expect(page.locator('h2:has-text("Контактные данные")')).toBeVisible();
+
+    // Story 41.10: контакты автозаполняются из профиля авторизованного пользователя —
+    // очищаем их явно, чтобы проверить валидацию обязательных полей.
+    await page.fill('input[name="email"]', '');
+    await page.getByLabel('Телефон').focus();
+    await page.getByLabel('Телефон').fill('');
+    await page.fill('input[name="firstName"]', '');
+    await page.fill('input[name="lastName"]', '');
 
     // Пытаемся отправить форму
     const submitButton = page.locator('[data-testid="checkout-submit-button"]');
@@ -412,8 +491,12 @@ test.describe('Checkout Form Validation E2E Tests', () => {
   test('validates phone format', async ({ page }) => {
     await page.goto('/checkout');
 
-    // Вводим некорректный телефон
-    await page.fill('input[name="phone"]', '123456');
+    // Story 41.10: телефон автозаполнен валидным значением из профиля — raw `.fill()`
+    // на маскированном поле его не перезаписывает надёжно, нужны focus + очистка + pressSequentially
+    // (тот же приём, что и в `fillCheckoutForm`).
+    await page.getByLabel('Телефон').focus();
+    await page.getByLabel('Телефон').fill('');
+    await page.getByLabel('Телефон').pressSequentially('123456');
     await page.fill('input[name="email"]', testCheckoutData.email); // blur
 
     // Проверяем ошибку формата
@@ -424,7 +507,9 @@ test.describe('Checkout Form Validation E2E Tests', () => {
     ).toBeVisible();
 
     // Исправляем телефон
-    await page.fill('input[name="phone"]', '+79001234567');
+    await page.getByLabel('Телефон').focus();
+    await page.getByLabel('Телефон').fill('');
+    await page.getByLabel('Телефон').pressSequentially('9001234567');
     await page.fill('input[name="email"]', testCheckoutData.email);
 
     // Ошибка должна исчезнуть (p.text-red-500)
@@ -497,80 +582,16 @@ test.describe('Checkout Form Validation E2E Tests', () => {
 });
 
 /**
- * Мок данные авторизованного пользователя
- */
-const mockAuthUser = {
-  id: 1,
-  email: 'user@example.com',
-  first_name: 'Александр',
-  last_name: 'Сидоров',
-  phone: '+79009876543',
-  role: 'retail',
-  addresses: [
-    {
-      city: 'Санкт-Петербург',
-      street: 'Невский проспект',
-      house: '100',
-      apartment: '15',
-      postal_code: '190000',
-    },
-  ],
-};
-
-/**
  * Тесты автозаполнения для авторизованных пользователей
  * AC2, AC3: Автозаполнение контактных данных и адреса
  */
 test.describe('Checkout Autofill E2E Tests', () => {
   /**
-   * Настройка моков для авторизованного пользователя
-   */
-  async function setupAuthMocks(page: Page) {
-    await setupApiMocks(page);
-
-    // Мок API текущего пользователя - AuthProvider вызывает /profile/
-    await page.route('**/api/v1/users/profile/**', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockAuthUser),
-      });
-    });
-
-    // Мок API проверки аутентификации
-    await page.route('**/api/v1/auth/**', async route => {
-      if (route.request().url().includes('verify') || route.request().url().includes('refresh')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ access: 'mock-token', refresh: 'mock-refresh' }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-  }
-
-  /**
    * Тест: авторизованный пользователь видит автозаполненные поля
    * Примечание: Этот тест требует SSR/client-side hydration с данными пользователя
    */
   test('autofills fields for authenticated users', async ({ page }) => {
-    await setupAuthMocks(page);
-
-    // Устанавливаем localStorage/cookies для имитации авторизации
-    await page.addInitScript(() => {
-      localStorage.setItem('refreshToken', 'mock-refresh-token');
-    });
-
-    await page.context().addCookies([
-      {
-        name: 'refreshToken',
-        value: 'mock-refresh-token',
-        domain: 'localhost',
-        path: '/',
-      },
-    ]);
+    await authenticate(page);
 
     await page.goto('/checkout');
 
@@ -592,17 +613,15 @@ test.describe('Checkout Autofill E2E Tests', () => {
 test.describe('Checkout Error Handling E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Большинство тестов здесь переопределяют моки сами,
-    // но базовые нужны для начальной загрузки страницы
-    await setupApiMocks(page);
+    // но базовые нужны для начальной загрузки страницы.
+    // Story 41.10: без входа /checkout показывает приглашение, а не форму.
+    await authenticate(page);
   });
 
   /**
    * Тест: ошибка API показывается пользователю
    */
   test('shows error message when order creation fails', async ({ page }) => {
-    // Настраиваем базовые моки
-    await setupApiMocks(page);
-
     // Переопределяем мок создания заказа для возврата ошибки
     await page.route('**/api/v1/orders/**', async route => {
       const method = route.request().method();
@@ -736,5 +755,38 @@ test.describe('Checkout Error Handling E2E Tests', () => {
 
     // Проверяем отображение ошибки загрузки
     await expect(page.locator('text=Не удалось загрузить способы доставки')).toBeVisible();
+  });
+});
+
+/**
+ * Анонимный сценарий (Story 41.10, AC1, FR-41-25): без входа `/checkout`
+ * показывает приглашение войти вместо формы, корзину не запрашивает.
+ */
+test.describe('Anonymous checkout (Story 41.10)', () => {
+  test('показывает приглашение войти вместо формы и не запрашивает корзину', async ({ page }) => {
+    const cartRequests: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/api/v1/cart/')) {
+        cartRequests.push(request.url());
+      }
+    });
+
+    await page.goto('/checkout');
+
+    await expect(page.getByTestId('checkout-login-required')).toBeVisible();
+
+    // Селектор именно по name: в шапке есть отдельное поле поиска
+    await expect(page.locator('input[name="email"]')).toHaveCount(0);
+    await expect(page.locator('input[name="phone"]')).toHaveCount(0);
+
+    await expect(page.getByTestId('returns-support-notice')).toBeVisible();
+
+    const loginRequired = page.getByTestId('checkout-login-required');
+    await expect(loginRequired.getByRole('link', { name: 'Войти' })).toHaveAttribute(
+      'href',
+      '/login?next=%2Fcheckout'
+    );
+
+    expect(cartRequests).toHaveLength(0);
   });
 });

@@ -79,6 +79,15 @@ describe('CartSkeleton', () => {
     });
   });
 
+  // Условия возврата и поддержка (Story 41.10, FR-41-15)
+  describe('ReturnsAndSupportNotice', () => {
+    it('renders exactly one returns-support-notice block', () => {
+      render(<CartSkeleton />);
+
+      expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
+    });
+  });
+
   // Styling
   describe('Styling', () => {
     it('has proper container max-width', () => {
