@@ -435,6 +435,23 @@ so that **сайт не собирал мои данные впустую и с�
 
 При принятии всех структурных рекомендаций оценочное сокращение документа — 1100–1350 слов, или 19–24% от текущих 5648 слов, без удаления требований и проверочных свидетельств.
 
+#### Повторное ревью R2 (диапазон `f47b5f83...dccc638a`, 2026-09-11)
+
+- [x] [Review][Defer] Автогенерированные счётчики GitNexus попали в changeset вне File List [`AGENTS.md:164`, `CLAUDE.md:168`] — deferred: runtime не затронут, но изменения создают шум и потенциальные конфликты при следующей реиндексации; исправление касается agent-context файлов и вынесено в deferred-work.
+- [x] [Review][Defer] Изолированный axe-тест `CartSkeleton` не воспроизводит вложенный `<main>` реальной страницы [`frontend/src/components/cart/__tests__/accessibility.test.tsx:338-356`] — deferred: проблема предсуществует R2 и всей стори (`LayoutWrapper` уже создаёт внешний `<main>`, cart-состояния — внутренний); требуется отдельное согласованное исправление landmark-разметки всех состояний корзины.
+
+**Rejected:**
+
+- `Debug Log` использует 7-символьный `f47b5f8`, а frontmatter — 8-символьный `f47b5f83`: оба однозначно указывают на один коммит; косметическая правка story не требуется.
+- Тест таймаута вручную завершает Promise и записывает `cart.error`: он проверяет реакцию гейта на контракт `fetchCart`, а не реализацию таймера axios; гарантия таймаута находится в `apiClient`, поэтому заявленный ложноположительный исход не возникает.
+- `container.querySelector('form')` намеренно проверяет отсутствие/наличие любого `<form>` по AC; добавление `data-testid` в `CheckoutForm` нарушило бы AC11 и сузило бы проверку.
+- Исключение ветки `form` из проверки «h1 → h2 блока состояния» корректно: AC8 перечисляет пять конкретных блоков состояния и не относит форму к ним; контракты формы проверяются отдельно по AC5.
+- `window.__checkoutSeen` используется только при контролируемой клиентской навигации App Router; прямые assertions до освобождения маршрута уже подтверждают `redirecting` и отсутствие `empty` в проверяемом сценарии. Гипотетическая hard reload потребовала бы изменения самого маршрута/теста.
+- Отсутствие `try/finally` вокруг `releaseNavigation()` не оставляет приложение зависшим: при падении Playwright закрывает page/context и отменяет перехваченный запрос; отдельный cleanup не устраняет продуктовый дефект.
+- Визуально спокойный стиль h2 у loading/redirecting соответствует требованию сохранить прежний вид текста; семантический уровень заголовка и доступное имя проверены.
+- Дублирование точных ожидаемых текстов в `HEADING_BY_VIEW` является контрактной проверкой дословных строк AC, а не источником runtime-рассинхронизации.
+- Матрица `PRIORITY_LAYERS` дополнена независимыми ручными тестами каждого перехода и конкурирующих состояний в нижнем `describe`; утверждение об отсутствии независимых edge-case тестов опровергнуто.
+
 ### Agent Model Used
 
 Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story. Доработка по ревью — Claude Opus 5 (claude-opus-5), через /bmad-dev-story.
@@ -448,6 +465,7 @@ Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story. Доработк�
 | Точка ветвления | `git reflog show feature/story-41-10-checkout-for-anonymous`; `git diff --stat 501535a7 62319ddc -- frontend backend` | Ветка создана от локального `develop` на `62319ddc`. Код в `501535a7..62319ddc` не менялся, `62319ddc..f47b5f83` — 18 файлов | `62319ddc` в `origin/develop` не было, он лежал на `origin/feature/epic-41-sprint-change-proposal` |
 | Затрагиваемые наборы Vitest | `npm run test -- --run "src/app/(blue)/checkout" src/components/checkout src/components/cart src/utils/checkout` | До правок: 20 файлов, 357 passed, 4 skipped. Р1: checkout — 9 файлов, 154 passed, 1 skipped; cart — 10 файлов, 208 passed, 3 skipped. Р2: 22 файла, 423 passed, 4 skipped | — |
 | Полный Vitest | `npm run test -- --run` | Р1: 171 файл, 2861 passed, 16 skipped. Р2: 171 файл, 2889 passed, 16 skipped (+28) | — |
+| Регресс перед review после R2 (2026-09-12) | `npm run test -- --run`; `npm run lint`; `npm run format:check`; `npx tsc --noEmit`; `$env:PLAYWRIGHT_BASE_URL='http://localhost:3000'; npx playwright test --workers=1`, затем `npx playwright test tests/e2e/checkout.spec.ts` без `--workers`; `curl -s` по `:3000/checkout` и `:80/checkout` | На `dccc638a`, frontend в рабочем дереве не менялся. Vitest: 171 файл, 2889 passed, 16 skipped — совпадает с Р2. Lint, формат, типы — чисто. Полный E2E: 41 passed (2,1 мин). Checkout E2E на 8 воркерах: 19 passed. Серверный HTML: на обоих входах 200, `name="email"`, `name="phone"`, `name="city"`, `name="comment"` и `<input` — все 0 | Свежий стенд после `up` сначала отдавал 502 на `:80` (`connect() failed (111)` к `172.18.0.4:3000`); `restart nginx` вылечил. Ветка не запушена, CI-прогона нет |
 | Lint, формат, типы | `npm run lint`; `npm run format:check`; `npx tsc --noEmit` | Чисто в обоих раундах | В Р1 — после `prettier --write` на `CheckoutStateView.tsx` и `checkoutView.ts` |
 | Мутационные проверки (Р2) | Временно переставлены проверки `error`/`redirecting` в `checkoutView.ts`; временно `onRetry?` у варианта `error` | Матрица роняет слой `error`; `tsc` — `TS2578: Unused '@ts-expect-error'`. Оба файла восстановлены | — |
 | E2E checkout | `$env:PLAYWRIGHT_BASE_URL='http://localhost:3000'; npx playwright test tests/e2e/checkout.spec.ts`, с `--workers=1` (как в CI) и без | Р1: 18 passed. Р2: 19 passed в обоих режимах, новый AC6-тест 3 из 3 при `--repeat-each=3` | Стенд после `restart frontend` + `restart nginx`. В Р1 два теста формы доработаны под авторизованного: очистка автозаполненных контактов; телефон — `focus()` + `fill('')` + `pressSequentially()`, голый `fill()` не перезаписывает валидное маскированное значение |
@@ -468,7 +486,8 @@ Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story. Доработк�
 - По коду ревью изменило одно: в `CheckoutStateView` видимый текст индикаторов `loading` и `redirecting` стал `<h2>` (AC8, иерархия h1 → h2 в каждом состоянии), а `CheckoutStateViewProps` стал discriminated union с обязательным `onRetry` у `error`. `CheckoutPageClient` и гейт не менялись.
 - Остальное по ревью — тесты. В `resolveCheckoutView` — матрица на все 48 комбинаций. В `page.test.tsx` — полный переход повтора `error → loading → итог`, таймаут `apiClient` → `error`, контракты формы из AC5, режим `user=null`; AC7 теперь ждёт целевое состояние. Добавлены axe для `CartSkeleton`, «ровно один блок» на `/cart` с товарами и E2E промежуточного кадра `checkout-redirecting`.
 - Решения по граничным путям (Alex, 2026-09-11). Бессрочной загрузки нет: `fetchCart` ограничен таймаутом `apiClient` (30 с), затем состояние `error` с повтором. «Авторизован без профиля» (`user=null` после сетевых сбоев `AuthProvider`) — допустимый режим: форма рабочая, без автозаполнения.
-- Changeset приёмки — `baseline_commit: 62319ddc` (реальная точка ветвления), `review_head: f47b5f83`. Доработка по ревью лежит поверх `review_head` и ещё не закоммичена: коммит — за владельцем.
+- Changeset приёмки — `baseline_commit: 62319ddc` (реальная точка ветвления), `review_head: f47b5f83`. Доработку по ревью владелец закоммитил в `dccc638a` поверх `review_head`.
+- Повторное ревью R2 (`f47b5f83...dccc638a`) правок кода не потребовало. 2 пункта отложены в `deferred-work.md`: счётчики GitNexus в `AGENTS.md`/`CLAUDE.md` и вложенный `<main>` в состояниях корзины, он был и до стори. 9 пунктов отклонены с обоснованием. Регресс перед review 2026-09-12 зелёный (Debug Log). Записи R2 в story, `deferred-work.md` и `sprint-status.yaml` пока не закоммичены. `AGENTS.md` и `CLAUDE.md` в рабочем дереве — снова регенерация счётчиков GitNexus: к стори не относятся, в File List не входят.
 
 ### File List
 
@@ -500,6 +519,8 @@ Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story. Доработк�
 
 | Дата | Изменение |
 |---|---|
+| 2026-09-12 | Регресс после R2 зелёный, статус in-progress → review. |
+| 2026-09-11 | Повторное ревью R2 (`f47b5f83...dccc638a`): 2 defer, 9 rejected, правок кода нет. Статус review → in-progress. |
 | 2026-09-11 | Доработка по ревью: закрыто 24 из 24 находок, резолюции — в Review Findings. `baseline_commit` 501535a7 → 62319ddc. Статус in-progress → review. |
 | 2026-09-11 | Ревью: 24 находки записаны в Review Findings. |
 | 2026-09-11 | Владелец закоммитил реализацию `f47b5f83`; `review_head` = `f47b5f83`. |
