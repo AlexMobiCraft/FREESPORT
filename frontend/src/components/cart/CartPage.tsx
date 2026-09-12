@@ -59,9 +59,9 @@ export const CartPage = () => {
     return <EmptyCart />;
   }
 
-  // Main content
+  // Main content. Единственный <main> страницы рендерит LayoutWrapper
   return (
-    <main className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6" data-testid="cart-page" role="main">
+    <div className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6" data-testid="cart-page">
       <Breadcrumb items={breadcrumbItems} className="mb-6" data-testid="cart-breadcrumb" />
 
       <h1 className="text-display-m font-bold text-text-primary mb-8">Ваша корзина</h1>
@@ -88,7 +88,7 @@ export const CartPage = () => {
           <CartSummary />
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 

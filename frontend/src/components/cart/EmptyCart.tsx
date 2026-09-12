@@ -17,8 +17,9 @@ import { ReturnsAndSupportNotice } from '@/components/common';
 const breadcrumbItems = [{ label: 'Главная', href: '/' }, { label: 'Корзина' }];
 
 export const EmptyCart = () => {
+  // Единственный <main> страницы рендерит LayoutWrapper, здесь — обычный контейнер
   return (
-    <main className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6" data-testid="empty-cart" role="main">
+    <div className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6" data-testid="empty-cart">
       <Breadcrumb items={breadcrumbItems} className="mb-6" />
 
       <h1 className="text-display-m font-bold text-text-primary mb-8">Ваша корзина</h1>
@@ -41,7 +42,7 @@ export const EmptyCart = () => {
         {/* Условия возврата и поддержка видны даже при пустой корзине (Story 41.10, FR-41-15) */}
         <ReturnsAndSupportNotice className="mt-8 text-center text-body-s text-[var(--color-text-secondary)]" />
       </div>
-    </main>
+    </div>
   );
 };
 

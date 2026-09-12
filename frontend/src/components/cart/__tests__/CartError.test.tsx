@@ -113,10 +113,10 @@ describe('CartError', () => {
 
   // Accessibility
   describe('Accessibility', () => {
-    it('has main landmark with role="main"', () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', () => {
       render(<CartError {...defaultProps} />);
 
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
     });
 
     it('error icon has aria-hidden', () => {

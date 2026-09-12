@@ -14,7 +14,7 @@ excluded_commits: []
 
 # Story 41.10: Оформление заказа и корзина глазами анонима
 
-Status: review
+Status: done
 
 > 🔴 **Серверный HTML `/checkout` полей формы не содержит УЖЕ СЕЙЧАС — и это ничего не доказывает.** Замер 2026-09-11: `curl https://optisport.ru/checkout` отдаёт 29 КБ, в которых только `Загрузка...` и `<title>`, ни одного `<input>`. Причина — `AuthProvider` (`frontend/src/providers/AuthProvider.tsx:164-173`) обёрнут вокруг **всего** `(blue)/layout.tsx` (через `Providers.tsx`) и, пока `isLoading`, вместо детей отдаёт полноэкранный спиннер. На сервере `isLoading` всегда `true`, поэтому серверный HTML любой blue-страницы — один спиннер (та же причина, что у холодных якорей: `deferred-work.md`, раздел стори 41.4). Сканер при этом процитировал «Корзина пуста… Контактные данные…» — **он исполняет JS**. Отсюда: (а) приёмка — по отрендеренному в браузере DOM, а не только по `curl`; (б) гейт `/checkout` обязан быть самостоятельным: если `AuthProvider` когда-нибудь начнёт рендерить детей во время инициализации (так предлагает `deferred-work.md` для починки SSR), серверный рендер `CheckoutPageClient` всё равно должен дать индикатор загрузки, а не поля.
 > 🔴 **`useAuth()` вне `AuthProvider` возвращает `isInitialized: false`** — дефолт контекста (`AuthProvider.tsx:38-41`), а проверка `if (!context)` в `useAuth` не срабатывает никогда. Любой тест, рендерящий `CheckoutPageClient` без провайдера и без мока `@/providers/AuthProvider`, навсегда застрянет в состоянии загрузки. Мок обязателен (Task 6).
@@ -519,6 +519,7 @@ Claude Sonnet 5 (claude-sonnet-5), через /bmad-dev-story. Доработк�
 
 | Дата | Изменение |
 |---|---|
+| 2026-09-12 | PR #158 смёржен в `develop` (`27ffdbd5`) после #157, статус review → done. Отложенная находка R2 про вложенный `<main>` исправлена в `fix/blue-nested-main-landmark`. |
 | 2026-09-12 | Регресс после R2 зелёный, статус in-progress → review. |
 | 2026-09-11 | Повторное ревью R2 (`f47b5f83...dccc638a`): 2 defer, 9 rejected, правок кода нет. Статус review → in-progress. |
 | 2026-09-11 | Доработка по ревью: закрыто 24 из 24 находок, резолюции — в Review Findings. `baseline_commit` 501535a7 → 62319ddc. Статус in-progress → review. |

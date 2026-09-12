@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-12 (стори 41.10 — R2 закрыто, регресс зелёный, снова review)
+# last_updated: 2026-09-12 (стори 41.10 — PR #158 смёржен, done)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1094,7 +1094,12 @@ development_status:
   #             (4) перенос гостевой корзины при входе (merge_guest_cart_on_login
   #             мёртв) — оставлен в deferred-work.md, запись внесена сразу,
   #             отдельной стори нет.
-  41-10-checkout-and-cart-for-anonymous: review
+  # 2026-09-12: 41.10 закрыта. PR #158 смёржен в develop (27ffdbd5) после
+  #             #157 (fe8e9cbe, sprint change proposal); CI зелёный, прод —
+  #             ручной выкат за Alex. Отложенная находка R2 (вложенный <main>
+  #             в теме blue) исправлена отдельно: fix/blue-nested-main-landmark,
+  #             спека spec-blue-nested-main-landmark.md. review -> done.
+  41-10-checkout-and-cart-for-anonymous: done
   41-11-separate-subscribe-consents: backlog
   41-12-registry-wording-login-notice-breadcrumb: backlog
   epic-41-retrospective: optional

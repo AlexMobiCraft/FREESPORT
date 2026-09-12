@@ -367,14 +367,13 @@ describe('CartPage', () => {
 
   // Accessibility
   describe('Accessibility', () => {
-    it('has main landmark with role="main"', async () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', async () => {
       vi.mocked(useCartStore).mockReturnValue(mockStoreWithItems);
 
       render(<CartPage />);
 
-      await waitFor(() => {
-        expect(screen.getByRole('main')).toBeInTheDocument();
-      });
+      await screen.findByTestId('cart-page');
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
     });
 
     it('has proper section aria-labels', async () => {
