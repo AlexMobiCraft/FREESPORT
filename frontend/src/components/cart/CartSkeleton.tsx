@@ -10,6 +10,7 @@
 'use client';
 
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ReturnsAndSupportNotice } from '@/components/common';
 
 /**
  * Skeleton для карточки товара в корзине
@@ -62,11 +63,11 @@ const CartSummarySkeleton = () => (
 );
 
 export const CartSkeleton = () => {
+  // Единственный <main> страницы рендерит LayoutWrapper; имя загрузки несёт регион
   return (
-    <main
+    <section
       className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6"
       data-testid="cart-skeleton"
-      role="main"
       aria-label="Загрузка корзины"
       aria-busy="true"
     >
@@ -92,9 +93,12 @@ export const CartSkeleton = () => {
         {/* Cart summary skeleton - 1 колонка */}
         <div className="lg:col-span-1">
           <CartSummarySkeleton />
+
+          {/* Условия возврата и поддержка видны и во время загрузки (Story 41.10, FR-41-15) */}
+          <ReturnsAndSupportNotice className="mt-8 text-center text-body-s text-[var(--color-text-secondary)]" />
         </div>
       </div>
-    </main>
+    </section>
   );
 };
 

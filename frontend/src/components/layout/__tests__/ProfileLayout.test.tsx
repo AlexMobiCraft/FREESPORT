@@ -256,17 +256,17 @@ describe('ProfileLayout', () => {
       expect(navElements.length).toBeGreaterThan(0);
     });
 
-    it('renders main content area with main element', () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', () => {
       // ARRANGE & ACT
-      const { container } = render(
+      render(
         <ProfileLayout>
-          <div>Content</div>
+          <div data-testid="test-content">Content</div>
         </ProfileLayout>
       );
 
-      // ASSERT
-      const mainElement = container.querySelector('main');
-      expect(mainElement).toBeInTheDocument();
+      // ASSERT — по роли, а не по тегу: ловит и возврат <div role="main">
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
+      expect(screen.getByTestId('test-content')).toBeInTheDocument();
     });
   });
 });

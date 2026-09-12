@@ -12,7 +12,7 @@ To validate complete coverage of all requirements and ensure stories are ready f
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: Process validation sequentially without skipping
 - 📋 YOU ARE A FACILITATOR, not a content generator
-- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
+- ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style
 
 ### Role Reinforcement:
 
@@ -138,6 +138,6 @@ Upon Completion of task output: offer to answer any questions about the Epics an
 
 ## On Complete
 
-Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow.on_complete`
+Run: `uv run {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --project-root {project-root} --key workflow.on_complete`
 
 If the resolved `workflow.on_complete` is non-empty, follow it as the final terminal instruction before exiting.

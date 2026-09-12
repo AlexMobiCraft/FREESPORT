@@ -58,24 +58,33 @@ describe('CartSkeleton', () => {
 
   // Accessibility
   describe('Accessibility', () => {
-    it('has main landmark with role="main"', () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', () => {
       render(<CartSkeleton />);
 
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
     });
 
-    it('has aria-label for loading state', () => {
+    it('has named region for loading state', () => {
       render(<CartSkeleton />);
 
-      const main = screen.getByRole('main');
-      expect(main).toHaveAttribute('aria-label', 'Загрузка корзины');
+      expect(screen.getByRole('region', { name: 'Загрузка корзины' })).toBe(
+        screen.getByTestId('cart-skeleton')
+      );
     });
 
     it('has aria-busy for loading indication', () => {
       render(<CartSkeleton />);
 
-      const main = screen.getByRole('main');
-      expect(main).toHaveAttribute('aria-busy', 'true');
+      expect(screen.getByTestId('cart-skeleton')).toHaveAttribute('aria-busy', 'true');
+    });
+  });
+
+  // Условия возврата и поддержка (Story 41.10, FR-41-15)
+  describe('ReturnsAndSupportNotice', () => {
+    it('renders exactly one returns-support-notice block', () => {
+      render(<CartSkeleton />);
+
+      expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
     });
   });
 
@@ -84,16 +93,15 @@ describe('CartSkeleton', () => {
     it('has proper container max-width', () => {
       render(<CartSkeleton />);
 
-      const main = screen.getByRole('main');
-      expect(main).toHaveClass('max-w-[1280px]');
+      expect(screen.getByTestId('cart-skeleton')).toHaveClass('max-w-[1280px]');
     });
 
     it('has proper padding', () => {
       render(<CartSkeleton />);
 
-      const main = screen.getByRole('main');
-      expect(main).toHaveClass('px-4');
-      expect(main).toHaveClass('lg:px-6');
+      const container = screen.getByTestId('cart-skeleton');
+      expect(container).toHaveClass('px-4');
+      expect(container).toHaveClass('lg:px-6');
     });
   });
 });

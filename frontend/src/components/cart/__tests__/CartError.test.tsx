@@ -113,10 +113,10 @@ describe('CartError', () => {
 
   // Accessibility
   describe('Accessibility', () => {
-    it('has main landmark with role="main"', () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', () => {
       render(<CartError {...defaultProps} />);
 
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
     });
 
     it('error icon has aria-hidden', () => {
@@ -125,6 +125,15 @@ describe('CartError', () => {
       const icons = container.querySelectorAll('svg');
       // First icon is AlertCircle
       expect(icons[0]).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  // Условия возврата и поддержка (Story 41.10, FR-41-15)
+  describe('ReturnsAndSupportNotice', () => {
+    it('renders exactly one returns-support-notice block', () => {
+      render(<CartError {...defaultProps} />);
+
+      expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
     });
   });
 

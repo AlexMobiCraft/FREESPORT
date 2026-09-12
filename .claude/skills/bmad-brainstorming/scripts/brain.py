@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # ///
 """Serve the brainstorming technique library without loading it all into context.
 
@@ -23,11 +23,15 @@ rather than stdout: dumping the full catalog into context is a footgun, so reach
 whole library at once must always be an explicit, deliberate choice.
 
 `--extra PATH` merges a JSON overlay of additional techniques (customize.toml's
-`additional_techniques`) into every command, so custom techniques and whole new
-categories are first-class everywhere — including the browse page and category draws.
+`additional_techniques`) into every command. An extra whose technique_name matches
+a shipped row (case-insensitive) REPLACES it — retune a shipped technique; others
+append, so custom techniques and whole new categories are first-class everywhere —
+including the browse page and category draws. (Same overlay semantics as
+bmad-advanced-elicitation's pick_methods.py.)
 
 Default output is lean text for an LLM to read; pass --json for structured output.
 """
+
 import argparse
 import csv
 import hashlib
@@ -48,10 +52,11 @@ OPTIONAL_FIELDS = ("detail", "provenance", "good_for", "audience")
 
 
 def load(file: Path) -> list[dict]:
-    with open(file, newline="", encoding="utf-8") as f:
+    # utf-8-sig: tolerate BOM-prefixed catalogs (Excel "CSV UTF-8", Notepad)
+    with open(file, newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     for r in rows:
-        for k in OPTIONAL_FIELDS:
+        for k in FIELDS:
             r.setdefault(k, "")
             r[k] = (r.get(k) or "").strip()
     return rows
@@ -63,19 +68,41 @@ def load_extra(file: Path) -> list[dict]:
     customize.toml's `additional_techniques` become first-class across *every*
     subcommand (categories/list/random/show/html), so the browse page and
     category draws include them too, not just the in-chat flows."""
-    data = json.loads(file.read_text(encoding="utf-8"))
+    data = json.loads(file.read_text(encoding="utf-8-sig"))
+    if not isinstance(data, list):
+        raise ValueError("--extra must be a JSON array of objects")
     rows = []
     for item in data:
-        rows.append({
-            "category": str(item.get("category", "")).strip(),
-            "technique_name": str(item.get("technique_name", "")).strip(),
-            "description": str(item.get("description", "")).strip(),
-            "detail": str(item.get("detail") or "").strip(),
-            "provenance": str(item.get("provenance") or "").strip(),
-            "good_for": str(item.get("good_for") or "").strip(),
-            "audience": str(item.get("audience") or "").strip(),
-        })
+        if not isinstance(item, dict):
+            raise ValueError(f"each --extra entry must be a JSON object, got: {item!r}")
+        rows.append(
+            {
+                "category": str(item.get("category", "")).strip(),
+                "technique_name": str(item.get("technique_name", "")).strip(),
+                "description": str(item.get("description", "")).strip(),
+                "detail": str(item.get("detail") or "").strip(),
+                "provenance": str(item.get("provenance") or "").strip(),
+                "good_for": str(item.get("good_for") or "").strip(),
+                "audience": str(item.get("audience") or "").strip(),
+            }
+        )
     return rows
+
+
+def merge_extra(rows: list[dict], extras: list[dict]) -> list[dict]:
+    """Extras replace a catalog row with the same technique_name (case-insensitive),
+    otherwise append — the same overlay semantics as pick_methods.py, so
+    customize.toml additional_* entries behave identically across sibling skills."""
+    merged = list(rows)
+    index = {r["technique_name"].lower(): i for i, r in enumerate(merged)}
+    for e in extras:
+        key = e["technique_name"].lower()
+        if key in index:
+            merged[index[key]] = e
+        else:
+            index[key] = len(merged)
+            merged.append(e)
+    return merged
 
 
 def categories(rows: list[dict]) -> list[tuple[str, int]]:
@@ -191,7 +218,7 @@ def _hsl_hex(deg: int, s: float, lt: float) -> str:
     import colorsys
 
     r, g, b = colorsys.hls_to_rgb((deg % 360) / 360, lt, s)
-    return "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
+    return f"#{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}"
 
 
 def category_style(cat: str) -> tuple[str, str]:
@@ -415,6 +442,8 @@ SELECTOR_TEMPLATE = r"""<!DOCTYPE html>
   function checkedInvent(){ return inventBoxes.filter(function(b){ return b.checked; }); }
 
   function update(){
+    // rand can't exceed what the pool can supply — keep the counter honest with the draw
+    if (state.rand > randomPool().length){ state.rand = randomPool().length; }
     $('pickN').textContent = checkedTech().length;
     $('randN').textContent = state.rand;
     $('invN').textContent = state.inv;
@@ -655,7 +684,9 @@ def html_doc(rows: list[dict]) -> str:
             f'<button type="button" class="goal" data-goal="{html.escape(g)}">{html.escape(GOAL_LABELS.get(g, g))}</button>'
             for g in ordered
         )
-        goalbar = f'<div class="bar"><span class="glabel">Great for</span><div class="goals" id="goals">{gchips}</div></div>'
+        goalbar = (
+            f'<div class="bar"><span class="glabel">Great for</span><div class="goals" id="goals">{gchips}</div></div>'
+        )
 
     total = html.escape(f"{len(rows)} techniques across {len(groups)} categories.")
     return (
@@ -666,10 +697,35 @@ def html_doc(rows: list[dict]) -> str:
     )
 
 
+def pin_utf8(stream):
+    """Pin a console stream to UTF-8, keeping its own error handler.
+
+    `--extra` technique text and the technique names echoed to stderr are
+    arbitrary user input, so either stream can carry a character the platform
+    default cannot encode (cp1252 on Windows) and print() then raises.
+
+    errors= is passed through deliberately: reconfigure(encoding=...) alone
+    resets the handler to "strict", which would silently downgrade stderr's
+    POSIX default of "backslashreplace" and turn a diagnostic about an
+    undecodable path into a traceback.
+    """
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(encoding="utf-8", errors=getattr(stream, "errors", None) or "strict")
+
+
 def main(argv: list[str] | None = None) -> int:
+    pin_utf8(sys.stdout)
+    pin_utf8(sys.stderr)
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--file", type=Path, default=DEFAULT_FILE, help="technique CSV (default: sibling assets/brain-methods.csv)")
-    p.add_argument("--extra", type=Path, help="JSON overlay of additional techniques (customize.toml additional_techniques), merged into every command")
+    p.add_argument(
+        "--file", type=Path, default=DEFAULT_FILE, help="technique CSV (default: sibling assets/brain-methods.csv)"
+    )
+    p.add_argument(
+        "--extra",
+        type=Path,
+        help="JSON overlay of additional techniques (customize.toml additional_techniques), merged into every command",
+    )
     p.add_argument("--json", action="store_true", help="emit structured JSON instead of lean text")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("categories", help="list category names + counts")
@@ -693,7 +749,11 @@ def main(argv: list[str] | None = None) -> int:
         if not args.extra.is_file():
             print(f"error: --extra file not found: {args.extra}", file=sys.stderr)
             return 2
-        rows += load_extra(args.extra)
+        try:
+            rows = merge_extra(rows, load_extra(args.extra))
+        except (OSError, ValueError) as e:
+            print(f"error: could not read --extra: {e}", file=sys.stderr)
+            return 2
     csv_dir = args.file.resolve().parent
 
     if args.cmd == "categories":

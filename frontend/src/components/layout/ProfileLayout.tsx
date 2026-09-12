@@ -160,10 +160,10 @@ const ProfileLayout: React.FC<ProfileLayoutProps> = ({ children }) => {
             </div>
           </aside>
 
-          {/* Main Content Area */}
-          <main className="min-w-0">
+          {/* Main Content Area. Единственный <main> страницы рендерит LayoutWrapper */}
+          <div className="min-w-0">
             <div className="bg-panel rounded-2xl p-6 shadow-default">{children}</div>
-          </main>
+          </div>
         </div>
       </div>
     </div>

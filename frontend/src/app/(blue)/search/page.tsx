@@ -51,9 +51,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const initialQuery = params.q || '';
   const initialPage = parseInt(params.page || '1', 10);
 
+  // Единственный <main> страницы рендерит LayoutWrapper; имя результатов несёт регион
   return (
-    <main className="min-h-screen bg-canvas" aria-label="Результаты поиска">
+    <section className="min-h-screen bg-canvas" aria-label="Результаты поиска">
       <SearchPageClient initialQuery={initialQuery} initialPage={initialPage} />
-    </main>
+    </section>
   );
 }

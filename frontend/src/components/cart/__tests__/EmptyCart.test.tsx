@@ -115,10 +115,10 @@ describe('EmptyCart', () => {
 
   // Accessibility
   describe('Accessibility', () => {
-    it('has main landmark with role="main"', () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', () => {
       render(<EmptyCart />);
 
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
     });
 
     it('icon has aria-hidden', () => {
@@ -126,6 +126,15 @@ describe('EmptyCart', () => {
 
       const icon = container.querySelector('svg');
       expect(icon).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  // Условия возврата и поддержка (Story 41.10, FR-41-15)
+  describe('ReturnsAndSupportNotice', () => {
+    it('renders exactly one returns-support-notice block', () => {
+      render(<EmptyCart />);
+
+      expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
     });
   });
 
@@ -141,8 +150,7 @@ describe('EmptyCart', () => {
     it('has proper container max-width', () => {
       render(<EmptyCart />);
 
-      const main = screen.getByRole('main');
-      expect(main).toHaveClass('max-w-[1280px]');
+      expect(screen.getByTestId('empty-cart')).toHaveClass('max-w-[1280px]');
     });
   });
 });
