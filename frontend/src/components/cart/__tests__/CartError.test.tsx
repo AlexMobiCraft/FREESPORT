@@ -128,6 +128,15 @@ describe('CartError', () => {
     });
   });
 
+  // Условия возврата и поддержка (Story 41.10, FR-41-15)
+  describe('ReturnsAndSupportNotice', () => {
+    it('renders exactly one returns-support-notice block', () => {
+      render(<CartError {...defaultProps} />);
+
+      expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
+    });
+  });
+
   // Different error messages
   describe('Error Messages', () => {
     it('displays custom error message', () => {

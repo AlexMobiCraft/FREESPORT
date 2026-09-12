@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { CartPage } from '../CartPage';
 import { useCartStore } from '@/stores/cartStore';
@@ -290,6 +290,50 @@ describe('CartPage', () => {
         fireEvent.click(retryButton);
         expect(mockFetchCart).toHaveBeenCalled();
       });
+    });
+  });
+
+  // Условия возврата и поддержка (Story 41.10, FR-41-15) — видны в любом состоянии
+  describe('ReturnsAndSupportNotice', () => {
+    it('renders exactly one block when cart is empty', async () => {
+      vi.mocked(useCartStore).mockReturnValue(mockEmptyStore);
+
+      render(<CartPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
+      });
+    });
+
+    it('renders exactly one block while loading', async () => {
+      vi.mocked(useCartStore).mockReturnValue(mockLoadingStore);
+
+      render(<CartPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
+      });
+    });
+
+    it('renders exactly one block on error', async () => {
+      vi.mocked(useCartStore).mockReturnValue(mockErrorStore);
+
+      render(<CartPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
+      });
+    });
+
+    it('renders exactly one block, inside cart-summary, when cart has items', async () => {
+      vi.mocked(useCartStore).mockReturnValue(mockStoreWithItems);
+
+      render(<CartPage />);
+
+      // Сначала ждём ветку с товарами, иначе блок из начального скелетона засчитался бы за неё
+      const summary = await screen.findByTestId('cart-summary');
+      expect(screen.getAllByTestId('returns-support-notice')).toHaveLength(1);
+      expect(within(summary).getByTestId('returns-support-notice')).toBeInTheDocument();
     });
   });
 

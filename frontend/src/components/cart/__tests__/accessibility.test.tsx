@@ -16,6 +16,8 @@ import { CartPage } from '../CartPage';
 import { CartItemCard } from '../CartItemCard';
 import { CartSummary } from '../CartSummary';
 import { EmptyCart } from '../EmptyCart';
+import { CartError } from '../CartError';
+import { CartSkeleton } from '../CartSkeleton';
 import { QuantitySelector } from '../QuantitySelector';
 import { ReturnsAndSupportNotice } from '@/components/common';
 import { useCartStore } from '@/stores/cartStore';
@@ -310,6 +312,47 @@ describe('Cart Components Accessibility', () => {
       const catalogButton = screen.getByTestId('go-to-catalog-button');
       expect(catalogButton).toBeVisible();
       expect(catalogButton.tagName).toBe('A');
+    });
+  });
+
+  // ==================== CartError Accessibility (Story 41.10) ====================
+
+  describe('CartError', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(<CartError error="Ошибка сервера" onRetry={vi.fn()} />);
+
+      const results = await axe(container);
+      expect(results.violations).toHaveLength(0);
+    });
+
+    it('retry button is keyboard accessible', () => {
+      render(<CartError error="Ошибка сервера" onRetry={vi.fn()} />);
+
+      const retryButton = screen.getByTestId('cart-retry-button');
+      expect(retryButton).not.toHaveAttribute('tabindex', '-1');
+    });
+  });
+
+  // ==================== CartSkeleton Accessibility (Story 41.10) ====================
+
+  describe('CartSkeleton', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(<CartSkeleton />);
+
+      const results = await axe(container);
+      expect(results.violations).toHaveLength(0);
+    });
+
+    it('announces loading and keeps the returns notice reachable', () => {
+      render(<CartSkeleton />);
+
+      expect(screen.getByRole('main', { name: 'Загрузка корзины' })).toHaveAttribute(
+        'aria-busy',
+        'true'
+      );
+      expect(
+        screen.getByRole('region', { name: 'Условия возврата и поддержка' })
+      ).toBeInTheDocument();
     });
   });
 
