@@ -557,8 +557,8 @@ const ElectricCatalogPage: React.FC = () => {
             )}
           </aside>
 
-          {/* Product Grid */}
-          <main className="flex-1 min-w-0">
+          {/* Product Grid. Единственный <main> страницы рендерит ElectricLayout */}
+          <div className="flex-1 min-w-0">
             {isProductsLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                 {Array.from({ length: 8 }).map((_, i) => (
@@ -628,7 +628,7 @@ const ElectricCatalogPage: React.FC = () => {
                 />
               </div>
             )}
-          </main>
+          </div>
         </div>
       </div>
 
