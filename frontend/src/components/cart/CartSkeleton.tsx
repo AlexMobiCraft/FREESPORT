@@ -63,11 +63,11 @@ const CartSummarySkeleton = () => (
 );
 
 export const CartSkeleton = () => {
+  // Единственный <main> страницы рендерит LayoutWrapper; имя загрузки несёт регион
   return (
-    <main
+    <section
       className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6"
       data-testid="cart-skeleton"
-      role="main"
       aria-label="Загрузка корзины"
       aria-busy="true"
     >
@@ -98,7 +98,7 @@ export const CartSkeleton = () => {
           <ReturnsAndSupportNotice className="mt-8 text-center text-body-s text-[var(--color-text-secondary)]" />
         </div>
       </div>
-    </main>
+    </section>
   );
 };
 

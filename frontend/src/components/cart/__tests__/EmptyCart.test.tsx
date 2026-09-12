@@ -115,10 +115,10 @@ describe('EmptyCart', () => {
 
   // Accessibility
   describe('Accessibility', () => {
-    it('has main landmark with role="main"', () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', () => {
       render(<EmptyCart />);
 
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
     });
 
     it('icon has aria-hidden', () => {
@@ -150,8 +150,7 @@ describe('EmptyCart', () => {
     it('has proper container max-width', () => {
       render(<EmptyCart />);
 
-      const main = screen.getByRole('main');
-      expect(main).toHaveClass('max-w-[1280px]');
+      expect(screen.getByTestId('empty-cart')).toHaveClass('max-w-[1280px]');
     });
   });
 });

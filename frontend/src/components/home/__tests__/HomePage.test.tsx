@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { HomePage } from '../HomePage';
 import type { Brand } from '@/types/api';
 
@@ -64,6 +64,13 @@ const mockBrands: Brand[] = [
 ];
 
 describe('HomePage', () => {
+  it('не рендерит собственный main: единственный main — в LayoutWrapper', () => {
+    render(<HomePage featuredBrands={mockBrands} />);
+
+    // По роли, а не по тегу: ловит и возврат <div role="main">
+    expect(screen.queryByRole('main')).not.toBeInTheDocument();
+  });
+
   it('AC1: MarketingBannersSection рендерится между QuickLinksSection и CategoriesSection', () => {
     const { container } = render(<HomePage featuredBrands={mockBrands} />);
 

@@ -9,9 +9,10 @@
 
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as axeMatchers from 'vitest-axe';
 import { axe } from 'vitest-axe';
+import LayoutWrapper from '@/components/layout/LayoutWrapper';
 import { CartPage } from '../CartPage';
 import { CartItemCard } from '../CartItemCard';
 import { CartSummary } from '../CartSummary';
@@ -61,6 +62,15 @@ vi.mock('@/components/ui', () => ({
 vi.mock('react-hot-toast', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+
+// LayoutWrapper выбирает ветку по pathname: для /cart — ветка blue со своим <main>
+vi.mock('next/navigation', async importOriginal => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  usePathname: () => '/cart',
+}));
+
+vi.mock('@/components/layout/ElectricHeader', () => ({ default: () => null }));
+vi.mock('@/components/layout/ElectricFooter', () => ({ default: () => null }));
 
 vi.mock('../PromoCodeInput', () => ({
   default: () => (
@@ -131,9 +141,16 @@ const setStoreWithItems = () => {
 // ==================== Accessibility Tests ====================
 
 describe('Cart Components Accessibility', () => {
+  // Тесты подменяют fetchCart, чтобы корзина с товарами не перезагружалась с сервера
+  const originalFetchCart = useCartStore.getState().fetchCart;
+
   beforeEach(() => {
     vi.clearAllMocks();
     resetStore();
+  });
+
+  afterEach(() => {
+    useCartStore.setState({ fetchCart: originalFetchCart });
   });
 
   // ==================== CartPage Accessibility ====================
@@ -177,13 +194,13 @@ describe('Cart Components Accessibility', () => {
       expect(h1).toHaveTextContent(/корзина/i);
     });
 
-    it('has main landmark role', async () => {
+    it('не рендерит собственный main: единственный main — в LayoutWrapper', async () => {
       setStoreWithItems();
+      useCartStore.setState({ fetchCart: vi.fn() });
       render(<CartPage />);
 
-      await waitFor(() => {
-        expect(screen.getByRole('main')).toBeInTheDocument();
-      });
+      await screen.findByTestId('cart-page');
+      expect(screen.queryByRole('main')).not.toBeInTheDocument();
     });
   });
 
@@ -346,13 +363,67 @@ describe('Cart Components Accessibility', () => {
     it('announces loading and keeps the returns notice reachable', () => {
       render(<CartSkeleton />);
 
-      expect(screen.getByRole('main', { name: 'Загрузка корзины' })).toHaveAttribute(
+      expect(screen.getByRole('region', { name: 'Загрузка корзины' })).toHaveAttribute(
         'aria-busy',
         'true'
       );
       expect(
         screen.getByRole('region', { name: 'Условия возврата и поддержка' })
       ).toBeInTheDocument();
+    });
+  });
+
+  // ============ Landmarks внутри LayoutWrapper (единственный main на странице) ============
+
+  describe('Landmarks inside LayoutWrapper', () => {
+    // Только landmark-правила: полный прогон корзины с товарами упирается
+    // в известный heading-order CartItemCard (см. it.skip выше)
+    const LANDMARK_RULES = {
+      runOnly: {
+        type: 'rule' as const,
+        values: [
+          'landmark-main-is-top-level',
+          'landmark-no-duplicate-main',
+          'landmark-banner-is-top-level',
+          'landmark-contentinfo-is-top-level',
+          'landmark-complementary-is-top-level',
+          'landmark-unique',
+          'aria-prohibited-attr',
+        ],
+      },
+    };
+
+    const renderInLayout = (ui: React.ReactElement) =>
+      render(
+        <LayoutWrapper header={<header>Шапка</header>} footer={<footer>Подвал</footer>}>
+          {ui}
+        </LayoutWrapper>
+      );
+
+    it.each([
+      ['CartSkeleton', () => <CartSkeleton />, 'cart-skeleton'],
+      ['EmptyCart', () => <EmptyCart />, 'empty-cart'],
+      ['CartError', () => <CartError error="Ошибка сервера" onRetry={vi.fn()} />, 'cart-error'],
+    ])('%s: один main на странице, axe без landmark-нарушений', async (_name, ui, testId) => {
+      const { container } = renderInLayout(ui());
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(screen.getAllByRole('main')).toHaveLength(1);
+
+      const results = await axe(container, LANDMARK_RULES);
+      expect(results.violations.map(v => v.id)).toEqual([]);
+    });
+
+    it('CartPage с товарами: один main на странице, axe без landmark-нарушений', async () => {
+      setStoreWithItems();
+      useCartStore.setState({ fetchCart: vi.fn() });
+      const { container } = renderInLayout(<CartPage />);
+
+      await screen.findByTestId('cart-page');
+      expect(screen.getAllByRole('main')).toHaveLength(1);
+
+      const results = await axe(container, LANDMARK_RULES);
+      expect(results.violations.map(v => v.id)).toEqual([]);
     });
   });
 

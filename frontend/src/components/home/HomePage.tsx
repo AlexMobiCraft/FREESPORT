@@ -44,8 +44,9 @@ interface HomePageProps {
 }
 
 export const HomePage: React.FC<HomePageProps> = ({ featuredBrands }) => {
+  // Единственный <main> страницы рендерит LayoutWrapper, здесь — обычный контейнер
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       {/* 1. Hero Section - Баннеры */}
       <HeroSection />
 
@@ -89,7 +90,7 @@ export const HomePage: React.FC<HomePageProps> = ({ featuredBrands }) => {
       <DeliveryTeaser />
 
       {/* Footer рендерится в layout */}
-    </main>
+    </div>
   );
 };
 
