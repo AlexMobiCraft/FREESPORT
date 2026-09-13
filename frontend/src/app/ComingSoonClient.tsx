@@ -112,6 +112,11 @@ export default function ComingSoon() {
           >
             <p>© 2025-2026 OPTISPORT — Все права защищены</p>
             <p className="mt-2">По вопросам сотрудничества: info@optisport.ru</p>
+            {/* Строка номера оператора — обычный текст, не ссылка (FR-41-17c, AC2) */}
+            <p className="mt-2">
+              Регистрационный номер в реестре операторов, осуществляющих обработку персональных
+              данных: 26-22-003980
+            </p>
             <CookieSettingsButton className="mt-2 text-white/80 hover:text-white underline-offset-2 hover:underline transition-colors" />
           </motion.div>
         </motion.div>

@@ -50,7 +50,7 @@ export function ElectricBreadcrumbs({
 
   return (
     <nav
-      aria-label="Breadcrumb"
+      aria-label="Навигационная цепочка"
       className={cn('flex items-center gap-2', 'font-inter text-sm', className)}
     >
       <ol className="flex items-center gap-2">

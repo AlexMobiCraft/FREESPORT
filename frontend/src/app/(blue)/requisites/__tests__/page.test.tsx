@@ -38,7 +38,8 @@ function labels(block: HTMLElement): string[] {
   return Array.from(block.querySelectorAll('dt')).map((el) => el.textContent ?? '');
 }
 
-const REGISTRY_LABEL = 'Номер в реестре операторов ПДн';
+const REGISTRY_LABEL =
+  'Регистрационный номер в реестре операторов, осуществляющих обработку персональных данных';
 const OWNER_REGISTRY_NUMBER = '26-22-004188';
 const USER_REGISTRY_NUMBER = '26-22-003980';
 

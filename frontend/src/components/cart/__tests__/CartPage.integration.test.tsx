@@ -158,7 +158,7 @@ vi.mock('@/utils/pricing', () => ({
 // Mock Breadcrumb
 vi.mock('@/components/ui', () => ({
   Breadcrumb: ({ items }: { items: { label: string }[] }) => (
-    <nav aria-label="Breadcrumb">
+    <nav aria-label="Навигационная цепочка">
       {items.map((item, i) => (
         <span key={i}>{item.label}</span>
       ))}

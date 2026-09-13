@@ -27,7 +27,7 @@ describe('Breadcrumb', () => {
   it('has proper navigation role', () => {
     render(<Breadcrumb items={simpleItems} />);
 
-    const nav = screen.getByRole('navigation', { name: /breadcrumb/i });
+    const nav = screen.getByRole('navigation', { name: /навигационная цепочка/i });
     expect(nav).toBeInTheDocument();
   });
 
@@ -193,7 +193,7 @@ describe('Breadcrumb', () => {
       render(<Breadcrumb items={simpleItems} />);
 
       const nav = screen.getByRole('navigation');
-      expect(nav).toHaveAttribute('aria-label', 'Breadcrumb');
+      expect(nav).toHaveAttribute('aria-label', 'Навигационная цепочка');
     });
 
     it('uses ordered list for items', () => {

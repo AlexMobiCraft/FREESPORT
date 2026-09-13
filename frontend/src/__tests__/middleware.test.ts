@@ -1028,3 +1028,146 @@ describe('Middleware: источник адреса API', () => {
     expect(String(fetchMock.mock.calls[0][0])).not.toContain('//pages/');
   });
 });
+
+describe('Middleware: усиленный isSafeRedirectUrl (Story 41.12 — AC5/AC6)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  /** Запрос на /login уже авторизованным пользователем с произвольной query. */
+  const authRequest = (query: string) => {
+    const url = new URL('http://localhost:3000/login');
+    for (const [key, value] of new URLSearchParams(query)) {
+      url.searchParams.append(key, value);
+    }
+    const req = {
+      nextUrl: url,
+      cookies: {
+        get: (name: string) => (name === 'refreshToken' ? { value: 'token' } : undefined),
+      },
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const redirectTarget = (NextResponse: any) => NextResponse.redirect.mock.calls[0][0] as URL;
+
+  describe.each(['next', 'redirect'] as const)('один параметр (%s)', param => {
+    const safeRows = [
+      { encoded: `${param}=%2F`, pathname: '/', search: '', hash: '' },
+      { encoded: `${param}=%2Fcheckout`, pathname: '/checkout', search: '', hash: '' },
+      { encoded: `${param}=%2Fprofile`, pathname: '/profile', search: '', hash: '' },
+      {
+        encoded: `${param}=%2Fcatalog%3Fcategory%3Dx%23top`,
+        pathname: '/catalog',
+        search: '?category=x',
+        hash: '#top',
+      },
+      {
+        encoded: `${param}=%2Fdelivery%23pickup`,
+        pathname: '/delivery',
+        search: '',
+        hash: '#pickup',
+      },
+    ];
+
+    it.each(safeRows)(
+      'безопасная цель "$encoded" открывается',
+      async ({ encoded, pathname, search, hash }) => {
+        const { middleware, NextResponse } = await loadMiddleware();
+        await middleware(authRequest(encoded));
+
+        const target = redirectTarget(NextResponse);
+        expect(target.pathname).toBe(pathname);
+        expect(target.search).toBe(search);
+        expect(target.hash).toBe(hash);
+      }
+    );
+
+    const unsafeRows = [
+      '',
+      `${param}=`,
+      `${param}=https%3A%2F%2Fevil.com`,
+      `${param}=%2F%2Fevil.com`,
+      `${param}=javascript%3Aalert%281%29`,
+      `${param}=%5Cevil.com`,
+      `${param}=%2F%5Cevil.com`,
+      `${param}=%2Fcatalog%5Citem`,
+    ];
+
+    it.each(unsafeRows)('опасная цель "$encoded" → "/"', async encoded => {
+      const { middleware, NextResponse } = await loadMiddleware();
+      await middleware(authRequest(encoded));
+
+      expect(redirectTarget(NextResponse).pathname).toBe('/');
+    });
+
+    it('runtime-значения с обратным слэшем декодируются в один "\\"', () => {
+      const cases: Array<[string, string]> = [
+        [`${param}=%5Cevil.com`, '\\evil.com'],
+        [`${param}=%2F%5Cevil.com`, '/\\evil.com'],
+        [`${param}=%2Fcatalog%5Citem`, '/catalog\\item'],
+      ];
+
+      for (const [encoded, runtime] of cases) {
+        expect(new URLSearchParams(encoded).get(param)).toBe(runtime);
+      }
+    });
+
+    const authRoutes = [
+      '/login',
+      '/login/',
+      '/login/anything',
+      '/login?next=%2Fprofile',
+      '/register',
+      '/register/',
+      '/register/anything',
+      '/b2b-register',
+      '/b2b-register/',
+      '/b2b-register/anything',
+      '/password-reset',
+      '/password-reset/',
+      '/password-reset/confirm/u/t',
+      '/foo/../login',
+    ];
+
+    it.each(authRoutes)('auth-route %s → "/" (не на запрещённую цель)', async route => {
+      const { middleware, NextResponse } = await loadMiddleware();
+      await middleware(authRequest(`${param}=${encodeURIComponent(route)}`));
+
+      expect(redirectTarget(NextResponse).pathname).toBe('/');
+    });
+  });
+
+  describe('оба параметра и приоритет', () => {
+    const rows = [
+      { encoded: 'next=%2Fcheckout&redirect=%2Fprofile', pathname: '/checkout' },
+      { encoded: 'next=%2Fprofile&redirect=https%3A%2F%2Fevil.com', pathname: '/profile' },
+      { encoded: 'next=https%3A%2F%2Fevil.com&redirect=%2Fprofile', pathname: '/' },
+      { encoded: 'next=%2Flogin%2F&redirect=%2Fprofile', pathname: '/' },
+      { encoded: 'next=%2F%5Cevil.com&redirect=%2Fprofile', pathname: '/' },
+      { encoded: 'next=&redirect=%2Fprofile', pathname: '/profile' },
+      { encoded: 'redirect=%2Fprofile', pathname: '/profile' },
+      { encoded: 'next=&redirect=', pathname: '/' },
+    ];
+
+    it.each(rows)('$encoded → $pathname', async ({ encoded, pathname }) => {
+      const { middleware, NextResponse } = await loadMiddleware();
+      await middleware(authRequest(encoded));
+
+      expect(redirectTarget(NextResponse).pathname).toBe(pathname);
+    });
+  });
+});

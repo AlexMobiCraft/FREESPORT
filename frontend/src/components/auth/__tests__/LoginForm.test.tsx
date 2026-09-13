@@ -198,6 +198,72 @@ describe('LoginForm', () => {
     });
   });
 
+  describe('Story 41.12 — AC4/AC5/AC6: информирование и защита редиректа', () => {
+    type LoginResult = Awaited<ReturnType<typeof authService.login>>;
+    const mockLoginResponse: LoginResult = {
+      access: 'mock-token',
+      refresh: 'mock-refresh',
+      user: {
+        id: 1,
+        email: 'test@example.com',
+        first_name: 'Test',
+        last_name: 'User',
+        phone: '',
+        role: 'retail',
+        is_verified: true,
+      },
+    };
+
+    test('строка о политике отображается дословно, ссылка ведёт на /privacy-policy (AC4)', () => {
+      render(<LoginForm />);
+
+      const link = screen.getByRole('link', {
+        name: '„Политикой обработки персональных данных“',
+      });
+
+      expect(link).toHaveAttribute('href', '/privacy-policy');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+
+      const paragraph = link.closest('p') as HTMLElement;
+      expect(paragraph.textContent).toBe(
+        'Входя, вы подтверждаете, что ознакомлены с „Политикой обработки персональных данных“'
+      );
+
+      // Это информирование, а не согласие: чекбокса нет (AC4)
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    test.each([
+      'https://evil.com',
+      '//evil.com',
+      'javascript:alert(1)',
+      '\\evil.com',
+      '/\\evil.com',
+      '/catalog\\item',
+      '/login',
+      '/login/',
+      '/login/anything',
+      '/register',
+      '/b2b-register/anything',
+      '/password-reset/confirm/u/t',
+      '/foo/../login',
+    ])('небезопасный redirectUrl %s → редирект на "/" (AC5/AC6)', async unsafeUrl => {
+      const user = userEvent.setup();
+      vi.mocked(authService.login).mockResolvedValue(mockLoginResponse);
+
+      render(<LoginForm redirectUrl={unsafeUrl} />);
+
+      await user.type(screen.getByLabelText(/электронная почта/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.click(screen.getByRole('button', { name: /войти/i }));
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/');
+      });
+    });
+  });
+
   describe('Error Handling', () => {
     test('should display API error on 401 Unauthorized', async () => {
       const user = userEvent.setup();

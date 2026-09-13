@@ -15,7 +15,7 @@ import { CartError } from '../CartError';
 // Mock Breadcrumb
 vi.mock('@/components/ui', () => ({
   Breadcrumb: ({ items }: { items: { label: string }[] }) => (
-    <nav aria-label="Breadcrumb">
+    <nav aria-label="Навигационная цепочка">
       {items.map((item, i) => (
         <span key={i}>{item.label}</span>
       ))}
@@ -98,7 +98,7 @@ describe('CartError', () => {
     it('renders breadcrumb navigation', () => {
       render(<CartError {...defaultProps} />);
 
-      expect(screen.getByRole('navigation', { name: /breadcrumb/i })).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: /навигационная цепочка/i })).toBeInTheDocument();
     });
   });
 

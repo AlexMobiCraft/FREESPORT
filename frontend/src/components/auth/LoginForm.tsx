@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/Input/Input';
 import { Button } from '@/components/ui/Button/Button';
 import authService from '@/services/authService';
 import { loginSchema, type LoginFormData } from '@/schemas/authSchemas';
+import { isSafeRedirectUrl } from '@/utils/urlUtils';
 
 export interface LoginFormProps {
   /** URL для редиректа после успешного входа (optional) */
@@ -56,8 +57,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
         onSuccess();
       }
 
-      // Редирект на указанный URL или на главную
-      const targetUrl = redirectUrl || '/';
+      // Редирект на безопасный внутренний URL или на главную (AC5, AC6).
+      // Явное сужение сохраняет тип string при strict: true.
+      const targetUrl = redirectUrl && isSafeRedirectUrl(redirectUrl) ? redirectUrl : '/';
       router.push(targetUrl);
     } catch (error: unknown) {
       // AC 4: Обработка ошибок API
@@ -132,6 +134,23 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
       <Button type="submit" loading={isSubmitting} disabled={isSubmitting} className="w-full">
         Войти
       </Button>
+
+      {/*
+        FR-41-27: информирование, а не согласие. Чекбокса нет, в реестр версий
+        текстов согласий и журнал UserConsent строка не пишется. Тип кавычек
+        „…“ — часть символьного контракта, проверяется тестом посимвольно.
+      */}
+      <p className="text-body-s text-center text-[var(--color-text-muted)]">
+        Входя, вы подтверждаете, что ознакомлены с{' '}
+        <Link
+          href="/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-primary"
+        >
+          „Политикой обработки персональных данных“
+        </Link>
+      </p>
     </form>
   );
 };

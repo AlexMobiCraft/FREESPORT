@@ -130,9 +130,17 @@ const ElectricFooter: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-[var(--border-default)] pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)]">
-            © 2026 OPTISPORT. Все права защищены.
-          </p>
+          <div className="flex flex-col items-center md:items-start gap-1">
+            <p className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)]">
+              © 2026 OPTISPORT. Все права защищены.
+            </p>
+            {/* Строка номера оператора — обычный текст, не ссылка (FR-41-17c, AC2).
+                text-secondary, а не text-muted: на --bg-card muted даёт 3.03:1. */}
+            <p className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-secondary)] text-center md:text-left">
+              Регистрационный номер в реестре операторов, осуществляющих обработку персональных
+              данных: 26-22-003980
+            </p>
+          </div>
           {/*
             Перенос: с тремя элементами ряд на 320 px ужимал каждую ссылку до
             ширины столбца и рвал подписи посреди слова (замер: высота ссылки

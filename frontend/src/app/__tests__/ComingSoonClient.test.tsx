@@ -12,6 +12,10 @@ import { render, screen } from '@testing-library/react';
 import ComingSoon from '../ComingSoonClient';
 import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
 
+/** Каноническая формулировка номера оператора (FR-41-17c, AC2). */
+const REGISTRY_LINE =
+  'Регистрационный номер в реестре операторов, осуществляющих обработку персональных данных: 26-22-003980';
+
 // Мок motion/react: анимации в тестах не нужны, важна только разметка
 vi.mock('motion/react', () => ({
   motion: {
@@ -99,5 +103,16 @@ describe('ComingSoonClient — AC5: формы подписки нет', () => {
 
     expect(button).toBeInTheDocument();
     expect(button).toHaveAttribute('type', 'button');
+  });
+
+  // Story 41.12 — AC2 (FR-41-17c): /coming-soon — живой подвал прода.
+  it('содержит каноническую строку номера оператора обычным текстом (AC2)', () => {
+    render(<ComingSoon />);
+
+    const line = screen.getByText(REGISTRY_LINE);
+
+    expect(line).toBeInTheDocument();
+    expect(line.closest('a')).toBeNull();
+    expect(screen.queryByText(/26-22-004188/)).not.toBeInTheDocument();
   });
 });

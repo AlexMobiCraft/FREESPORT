@@ -240,7 +240,7 @@ describe('AboutPage (/about)', () => {
 
     it('должна иметь корректные aria-labels для навигации', () => {
       const { container } = render(<AboutPage />);
-      const nav = container.querySelector('nav[aria-label="Breadcrumb"]');
+      const nav = container.querySelector('nav[aria-label="Навигационная цепочка"]');
       expect(nav).toBeInTheDocument();
     });
   });
