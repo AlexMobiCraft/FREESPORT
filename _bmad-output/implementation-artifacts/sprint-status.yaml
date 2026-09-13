@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-13 (стори 41.11 — review)
+# last_updated: 2026-09-13 (стори 41.12 — create-story)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1139,7 +1139,21 @@ development_status:
   #             Единственная подтверждённая документальная находка исправлена;
   #             остальные 29 кандидатов отклонены после проверки. review -> done.
   41-11-separate-subscribe-consents: done
-  41-12-registry-wording-login-notice-breadcrumb: backlog
+  # 2026-09-13: Создана стори 41.12 (create-story) — Story/41-12-registry-
+  #             wording-login-notice-breadcrumb.md, backlog -> ready-for-dev.
+  #             Координаты проверены на c3f9447, индекс GitNexus переиндексирован
+  #             на нём же. Зависимость выполнена: 41.10 влита (PR #158), 41.11
+  #             влита (PR #166). Blast radius: isSafeRedirectUrl и Breadcrumb —
+  #             CRITICAL по ширине графа (5 и 16 прямых вызывающих), фактически
+  #             низкий: меняются внутренность предиката и строковый атрибут.
+  #             Разбор дал три вещи сверх текста эпика: (а) isSafeRedirectUrl
+  #             общая для login/register/middleware — укрепление закрывает дыру
+  #             /\evil.com во всех пяти точках сразу, но регресс auth-flow
+  #             обязателен; (б) подпись «Breadcrumb» ищут 9 тестовых файлов,
+  #             включая 4 мока в cart/__tests__; (в) новая строка номера в
+  #             ElectricFooter обязана идти на text-secondary — text-muted
+  #             (#666/#1a1a1a = 3.03:1) добавил бы новый дефект доступности.
+  41-12-registry-wording-login-notice-breadcrumb: ready-for-dev
   epic-41-retrospective: optional
 
 # ========================================
