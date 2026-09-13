@@ -99,6 +99,7 @@ describe('Design System v2.1 - globals.css Tokens', () => {
       expect(globalsCSS).toContain('.text-body-l');
       expect(globalsCSS).toContain('.text-body-m');
       expect(globalsCSS).toContain('.text-body-s');
+      expect(globalsCSS).toContain('.text-body-xs');
       expect(globalsCSS).toContain('.text-caption');
     });
 

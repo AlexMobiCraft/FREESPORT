@@ -106,6 +106,7 @@
   --font-size-body-l: 18px;
   --font-size-body-m: 16px;
   --font-size-body-s: 14px;
+  --font-size-body-xs: 12px;
   --font-size-caption: 12px;
 
   /* Line Heights */
@@ -119,6 +120,7 @@
   --line-height-body-l: 28px;
   --line-height-body-m: 24px;
   --line-height-body-s: 20px;
+  --line-height-body-xs: 16px;
   --line-height-caption: 16px;
 
   /* === SPACING (Updated for Strict Compliance) === */
@@ -268,6 +270,13 @@
     font-family: var(--font-body);
     font-size: var(--font-size-body-s);
     line-height: var(--line-height-body-s);
+    font-weight: 400;
+  }
+
+  .text-body-xs {
+    font-family: var(--font-body);
+    font-size: var(--font-size-body-xs);
+    line-height: var(--line-height-body-xs);
     font-weight: 400;
   }
 
