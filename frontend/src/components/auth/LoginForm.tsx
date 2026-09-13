@@ -140,7 +140,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
         текстов согласий и журнал UserConsent строка не пишется. Тип кавычек
         „…“ — часть символьного контракта, проверяется тестом посимвольно.
       */}
-      <p className="text-body-s text-center text-[var(--color-text-muted)]">
+      <p className="text-body-xs text-center text-[var(--color-text-muted)]">
         Входя, вы подтверждаете, что ознакомлены с{' '}
         <Link
           href="/privacy-policy"
