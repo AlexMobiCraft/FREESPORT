@@ -100,7 +100,9 @@ paths:
                 value:
                   email: user@example.com
                   pdp_consent: true
-                  consent_text_version: 2026-08-30-77dbceafc3c487ffc24975cf2ce76778
+                  marketing_consent: true
+                  pdp_consent_text_version: 2026-09-12-de992f50b0456a90e96a66984010dd74
+                  marketing_consent_text_version: 2026-09-12-1a97b44f2bc0b52e69d15d705be59c0c
                 summary: successful_subscription_request
         required: true
       security:
@@ -125,20 +127,26 @@ paths:
                     pdp_consent:
                     - Необходимо согласие на обработку персональных данных.
                   summary: pdp_consent_required
+                MarketingConsentRequired:
+                  value:
+                    marketing_consent:
+                    - Необходимо согласие на получение рассылок по электронной почте.
+                  summary: marketing_consent_required
                 ConsentTextOutdated:
                   value:
                     error: consent_text_outdated
                     details:
-                      consent_text_version:
+                      pdp_consent_text_version:
                       - Текст согласия обновился. Обновите страницу и подтвердите
                         согласие заново.
                   summary: consent_text_outdated
-          description: 'Ошибка валидации `email`, `pdp_consent` или `consent_text_version`.
-            Обычные ошибки возвращаются плоским объектом «поле → список сообщений».
-            Исключение — устаревшая или непереданная версия формулировки согласия:
-            у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля
-            переносятся в `details`. Этот отказ лечится обновлением страницы, а не
-            правкой ввода, поэтому клиент обязан отличать его от прочей валидации.'
+          description: 'Ошибка валидации `email`, `pdp_consent`, `marketing_consent`,
+            `pdp_consent_text_version` или `marketing_consent_text_version`. Обычные
+            ошибки возвращаются плоским объектом «поле → список сообщений». Исключение
+            — устаревшая или непереданная версия формулировки согласия: у неё есть
+            машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся
+            в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода,
+            поэтому клиент обязан отличать его от прочей валидации.'
         '503':
           content:
             application/json:
@@ -743,6 +751,30 @@ paths:
         '200':
           description: Список ролей пользователей
   /users/addresses/:
+    post:
+      operationId: users_addresses_create
+      description: ViewSet для управления адресами пользователя
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
     get:
       operationId: users_addresses_list
       description: ViewSet для управления адресами пользователя
@@ -774,77 +806,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAddressList'
           description: ''
-    post:
-      operationId: users_addresses_create
-      description: ViewSet для управления адресами пользователя
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
   /users/addresses/{id}/:
-    delete:
-      operationId: users_addresses_destroy
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
-    put:
-      operationId: users_addresses_update
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
     get:
       operationId: users_addresses_retrieve
       description: ViewSet для управления адресами пользователя
@@ -894,7 +856,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
+    put:
+      operationId: users_addresses_update
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+          description: ''
+    delete:
+      operationId: users_addresses_destroy
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
   /users/favorites/:
+    post:
+      operationId: users_favorites_create
+      description: ViewSet для управления избранными товарами
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteCreate'
+          description: ''
     get:
       operationId: users_favorites_list
       description: ViewSet для управления избранными товарами
@@ -926,77 +958,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedFavoriteList'
           description: ''
-    post:
-      operationId: users_favorites_create
-      description: ViewSet для управления избранными товарами
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FavoriteCreate'
-          description: ''
   /users/favorites/{id}/:
-    delete:
-      operationId: users_favorites_destroy
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
-    put:
-      operationId: users_favorites_update
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FavoriteRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FavoriteRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FavoriteRequest'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Favorite'
-          description: ''
     get:
       operationId: users_favorites_retrieve
       description: ViewSet для управления избранными товарами
@@ -1046,6 +1008,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
+    put:
+      operationId: users_favorites_update
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FavoriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FavoriteRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+          description: ''
+    delete:
+      operationId: users_favorites_destroy
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
   /products/:
     get:
       operationId: products_list
@@ -1559,6 +1567,35 @@ paths:
                 $ref: '#/components/schemas/AttributeFilter'
           description: ''
   /orders/:
+    post:
+      operationId: orders_create
+      description: Создание нового заказа из корзины пользователя
+      summary: Создание заказа
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '400':
+          description: Ошибки валидации или пустая корзина
+        '401':
+          description: Пользователь не авторизован
     get:
       operationId: orders_list
       description: Возвращает только мастер-заказы пользователя (`is_master=True`).
@@ -1604,96 +1641,7 @@ paths:
           description: ''
         '401':
           description: Пользователь не авторизован
-    post:
-      operationId: orders_create
-      description: Создание нового заказа из корзины пользователя
-      summary: Создание заказа
-      tags:
-      - Orders
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-        '400':
-          description: Ошибки валидации или пустая корзина
-        '401':
-          description: Пользователь не авторизован
   /orders/{id}/:
-    delete:
-      operationId: orders_destroy
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - orders
-      responses:
-        '204':
-          description: No response body
-    put:
-      operationId: orders_update
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - orders
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OrderDetailRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/OrderDetailRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/OrderDetailRequest'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
     get:
       operationId: orders_retrieve
       description: Получение детальной информации о мастер-заказе. Поле `items` агрегирует
@@ -1758,6 +1706,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
+    put:
+      operationId: orders_update
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderDetailRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+    delete:
+      operationId: orders_destroy
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      responses:
+        '204':
+          description: No response body
   /orders/{id}/cancel/:
     post:
       operationId: orders_cancel_create
@@ -1910,23 +1918,6 @@ paths:
                 $ref: '#/components/schemas/PaginatedCartItemList'
           description: ''
   /cart/items/{id}/:
-    delete:
-      operationId: cart_items_destroy
-      description: Удаление товара из корзины
-      summary: Удалить товар из корзины
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - Cart Items
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
     get:
       operationId: cart_items_retrieve
       description: Получение детальной информации о товаре в корзине
@@ -1986,6 +1977,23 @@ paths:
           description: Ошибки валидации
         '404':
           description: Товар в корзине не найден
+    delete:
+      operationId: cart_items_destroy
+      description: Удаление товара из корзины
+      summary: Удалить товар из корзины
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Cart Items
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
   /pages/:
     get:
       operationId: pages_list
@@ -2936,9 +2944,9 @@ components:
             items:
               type: string
           description: 'Все ошибки запроса, «поле → список сообщений». Поля версии
-            (`consent_text_version`, `pdp_consent_text_version`, `marketing_consent_text_version`)
-            показываются человеку первыми: попутная ошибка email не должна заслонить
-            требование обновить страницу.'
+            (`pdp_consent_text_version`, `marketing_consent_text_version`) показываются
+            человеку первыми: попутная ошибка email не должна заслонить требование
+            обновить страницу.'
       required:
       - details
       - error
@@ -4706,15 +4714,25 @@ components:
         pdp_consent:
           type: boolean
           writeOnly: true
-        consent_text_version:
+        marketing_consent:
+          type: boolean
+          writeOnly: true
+        pdp_consent_text_version:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 64
+        marketing_consent_text_version:
           type: string
           writeOnly: true
           minLength: 1
           maxLength: 64
       required:
-      - consent_text_version
       - email
+      - marketing_consent
+      - marketing_consent_text_version
       - pdp_consent
+      - pdp_consent_text_version
     TokenRefresh:
       type: object
       properties:

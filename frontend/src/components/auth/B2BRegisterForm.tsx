@@ -544,7 +544,8 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
             htmlFor="b2b-register-marketing-consent"
             className="text-body-s text-text-primary cursor-pointer select-none"
           >
-            Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT
+            Я согласен(на) получать рекламные и информационные рассылки от OPTISPORT по электронной
+            почте
           </label>
         </div>
       </div>

@@ -99,9 +99,9 @@ class ConsentTextOutdatedResponseSerializer(serializers.Serializer):
         child=serializers.ListField(child=serializers.CharField()),
         help_text=(
             "Все ошибки запроса, «поле → список сообщений». Поля версии "
-            "(`consent_text_version`, `pdp_consent_text_version`, "
-            "`marketing_consent_text_version`) показываются человеку первыми: попутная "
-            "ошибка email не должна заслонить требование обновить страницу."
+            "(`pdp_consent_text_version`, `marketing_consent_text_version`) "
+            "показываются человеку первыми: попутная ошибка email не должна "
+            "заслонить требование обновить страницу."
         ),
     )
 

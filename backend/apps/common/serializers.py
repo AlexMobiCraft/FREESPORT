@@ -16,6 +16,9 @@ from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_a
 
 
 PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
+# Согласие на рассылку при подписке обязательно и берётся отдельным чекбоксом
+# (стори 41.11): подписки без согласия на письма не бывает.
+MARKETING_CONSENT_REQUIRED = "Необходимо согласие на получение рассылок по электронной почте."
 # С шестого круга ревью стори 41.9 `SubscribeSerializer` этот код не выдаёт:
 # активный подписчик получает свою подписку и запись согласия, как новый.
 # Константу читает нейтральная ветка ответа в `subscribe` (защита от enumeration).
@@ -36,13 +39,28 @@ CONSENT_TEXT_OUTDATED_CODE = "consent_text_outdated"
 # подтвердил. Клиент обязан развести этот случай с прочей валидацией (человеку
 # нужно обновить страницу, а не править ввод), поэтому машинный код выносится
 # на верхний уровень ответа.
+# Со стори 41.11 подписка шлёт те же поля, что и регистрация; прежнее
+# `consent_text_version` запроса подписки из контракта удалено.
 CONSENT_TEXT_VERSION_FIELDS = frozenset(
     {
-        "consent_text_version",
         "pdp_consent_text_version",
         "marketing_consent_text_version",
     }
 )
+
+# `error_messages` безусловно обязательного поля версии. Все ключи — одно
+# требование обновить страницу: массив, объект или boolean (`invalid`), пустая
+# строка, `null`, слишком длинное значение и отсутствие поля означают одно —
+# действующую формулировку запрос не подтвердил.
+# `dict[str, Any]`, а не `dict[str, str]`: `dict` инвариантен, а стаб DRF ждёт
+# значения типа «строка или lazy-строка».
+CONSENT_TEXT_VERSION_ERROR_MESSAGES: dict[str, Any] = {
+    "required": CONSENT_TEXT_OUTDATED,
+    "blank": CONSENT_TEXT_OUTDATED,
+    "null": CONSENT_TEXT_OUTDATED,
+    "invalid": CONSENT_TEXT_OUTDATED,
+    "max_length": CONSENT_TEXT_OUTDATED,
+}
 
 
 def consent_text_outdated_error() -> serializers.ValidationError:
@@ -132,23 +150,35 @@ class SubscribeSerializer(serializers.Serializer):
             "null": PDP_CONSENT_REQUIRED,
         },
     )
-    # Версия формулировки, которую показывает официальная форма (стори 41.9).
-    # Значение приходит из константы фронта, собранной в тот же бандл, что и сам
-    # текст: вкладка, открытая до правки формулировки, пришлёт прежнюю версию и
-    # будет отклонена. Факт показа текста человеку сервер отсюда не выводит —
-    # ту же строку пришлёт и клиент, ничего не отрисовавший.
-    consent_text_version = serializers.CharField(
+    # Согласие на рассылку — отдельный обязательный чекбокс (стори 41.11): ст. 9
+    # ч. 1 152-ФЗ требует оформлять согласие на ПДн отдельно от согласия на рекламу.
+    marketing_consent = serializers.BooleanField(
+        write_only=True,
+        required=True,
+        error_messages={
+            "required": MARKETING_CONSENT_REQUIRED,
+            "invalid": MARKETING_CONSENT_REQUIRED,
+            "null": MARKETING_CONSENT_REQUIRED,
+        },
+    )
+    # Версии формулировок, которые показывает официальная форма (стори 41.9) —
+    # по одной на чекбокс (стори 41.11). Значения приходят из константы фронта,
+    # собранной в тот же бандл, что и сами тексты: вкладка, открытая до правки
+    # формулировки, пришлёт прежнюю версию и будет отклонена. Факт показа текста
+    # человеку сервер отсюда не выводит — ту же строку пришлёт и клиент, ничего не
+    # отрисовавший. Обе версии обязательны безусловно, в отличие от регистрации:
+    # согласие на рассылку при подписке обязательно.
+    pdp_consent_text_version = serializers.CharField(
         write_only=True,
         required=True,
         max_length=MAX_VERSION_LENGTH,
-        error_messages={
-            "required": CONSENT_TEXT_OUTDATED,
-            "blank": CONSENT_TEXT_OUTDATED,
-            "null": CONSENT_TEXT_OUTDATED,
-            # Массив, объект или boolean — тот же отказ, что и прочие ошибки поля версии.
-            "invalid": CONSENT_TEXT_OUTDATED,
-            "max_length": CONSENT_TEXT_OUTDATED,
-        },
+        error_messages=CONSENT_TEXT_VERSION_ERROR_MESSAGES,
+    )
+    marketing_consent_text_version = serializers.CharField(
+        write_only=True,
+        required=True,
+        max_length=MAX_VERSION_LENGTH,
+        error_messages=CONSENT_TEXT_VERSION_ERROR_MESSAGES,
     )
 
     def validate_email(self, value: str) -> str:
@@ -161,31 +191,54 @@ class SubscribeSerializer(serializers.Serializer):
 
         return value
 
-    def validate_consent_text_version(self, value: str) -> str:
-        """Сверить заявленную версию с действующей формулировкой подписки.
+    def validate_pdp_consent_text_version(self, value: str) -> str:
+        """Сверить версию чекбокса ПДн с действующей формулировкой подписки.
 
         Проверка на уровне поля, а не в `validate()`: рядом с ошибкой email или
         галочки `validate()` не вызывается, и ответ ушёл бы без машинного кода
-        `consent_text_outdated` (см. `consent_text_outdated_error`).
-
-        Чекбокс формы подписки один и покрывает оба согласия (редакция 2 стори
-        41.3), но версия сверяется для каждого типа отдельно: при будущем
-        расщеплении чекбоксов одна проверка молча пропустила бы устаревшую
-        половину формы.
+        `consent_text_outdated` (см. `consent_text_outdated_error`). Каждое поле
+        версии сверяется со своей привязкой реестра: версия рассылки, присланная
+        в поле ПДн, отклоняется.
         """
-        for consent_type, _label in UserConsent.CONSENT_TYPE_CHOICES:
-            if not is_current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, consent_type, value):
-                raise consent_text_outdated_error()
+        if not is_current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract", value):
+            raise consent_text_outdated_error()
+        return value
+
+    def validate_marketing_consent_text_version(self, value: str) -> str:
+        """Сверить версию чекбокса рассылки с действующей формулировкой подписки.
+
+        Field-level по той же причине, что и `validate_pdp_consent_text_version`.
+        """
+        if not is_current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email", value):
+            raise consent_text_outdated_error()
+        return value
+
+    def validate_pdp_consent(self, value: bool) -> bool:
+        """Согласие на обработку ПДн — только исходный JSON `true`.
+
+        `BooleanField` превращает `"true"`, `"on"`, `1` в `True`, а 152-ФЗ требует
+        явного согласия. Проверка на уровне поля, а не в `validate()`: DRF
+        собирает field-level ошибки всех полей, а `validate()` при любой из них не
+        вызывает. Там ошибка email или соседнего флага скрыла бы эту, и клиент
+        узнавал бы об отказах по одному на попытку (ревью стори 41.11).
+        """
+        if self.initial_data.get("pdp_consent") is not True:
+            raise serializers.ValidationError(PDP_CONSENT_REQUIRED)
+        return value
+
+    def validate_marketing_consent(self, value: bool) -> bool:
+        """Согласие на рассылку (38-ФЗ) — только исходный JSON `true`.
+
+        Field-level по той же причине, что и `validate_pdp_consent`.
+        """
+        if self.initial_data.get("marketing_consent") is not True:
+            raise serializers.ValidationError(MARKETING_CONSENT_REQUIRED)
         return value
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        """Проверить обязательное согласие на обработку ПДн."""
+        """Отклонить тело запроса, которое не является JSON-объектом."""
         if not isinstance(self.initial_data, dict):
             raise serializers.ValidationError({"non_field_errors": "Ожидался JSON-объект."})
-
-        # BooleanField коэрсит truthy-строки в True; для 152-ФЗ нужен исходный JSON boolean true.
-        if self.initial_data.get("pdp_consent") is not True:
-            raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED})
 
         return attrs
 
@@ -196,9 +249,12 @@ class SubscribeSerializer(serializers.Serializer):
         Активную подписку возвращаем как есть: запись согласия делает view.
         """
         validated_data.pop("pdp_consent", False)
-        # Версия уже сверена `validate_consent_text_version()`; в `Newsletter` она не хранится —
+        validated_data.pop("marketing_consent", False)
+        # Версии уже сверены `validate_pdp_consent_text_version()` и
+        # `validate_marketing_consent_text_version()`; в `Newsletter` они не хранятся —
         # доказательство согласия живёт в `UserConsent` (пишет view).
-        validated_data.pop("consent_text_version", None)
+        validated_data.pop("pdp_consent_text_version", None)
+        validated_data.pop("marketing_consent_text_version", None)
         email = validated_data["email"]
 
         # Получаем IP и User-Agent из контекста (request)

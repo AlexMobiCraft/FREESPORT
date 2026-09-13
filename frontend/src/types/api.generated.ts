@@ -1580,7 +1580,7 @@ export interface components {
        * @constant
        */
       error: 'consent_text_outdated';
-      /** @description Все ошибки запроса, «поле → список сообщений». Поля версии (`consent_text_version`, `pdp_consent_text_version`, `marketing_consent_text_version`) показываются человеку первыми: попутная ошибка email не должна заслонить требование обновить страницу. */
+      /** @description Все ошибки запроса, «поле → список сообщений». Поля версии (`pdp_consent_text_version`, `marketing_consent_text_version`) показываются человеку первыми: попутная ошибка email не должна заслонить требование обновить страницу. */
       details: {
         [key: string]: string[];
       };
@@ -2702,7 +2702,9 @@ export interface components {
        */
       email: string;
       pdp_consent: boolean;
-      consent_text_version: string;
+      marketing_consent: boolean;
+      pdp_consent_text_version: string;
+      marketing_consent_text_version: string;
     };
     TokenRefresh: {
       readonly access: string;
@@ -3038,7 +3040,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Ошибка валидации `email`, `pdp_consent` или `consent_text_version`. Обычные ошибки возвращаются плоским объектом «поле → список сообщений». Исключение — устаревшая или непереданная версия формулировки согласия: у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому клиент обязан отличать его от прочей валидации. */
+      /** @description Ошибка валидации `email`, `pdp_consent`, `marketing_consent`, `pdp_consent_text_version` или `marketing_consent_text_version`. Обычные ошибки возвращаются плоским объектом «поле → список сообщений». Исключение — устаревшая или непереданная версия формулировки согласия: у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля переносятся в `details`. Этот отказ лечится обновлением страницы, а не правкой ввода, поэтому клиент обязан отличать его от прочей валидации. */
       400: {
         headers: {
           [name: string]: unknown;

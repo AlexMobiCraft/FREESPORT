@@ -98,11 +98,74 @@ def test_current_version_resolves_back_to_its_text():
         assert compute_consent_text_version(version.rsplit("-", 1)[0], text) == version
 
 
-def test_newsletter_pair_shares_one_surface():
-    """Чекбокс подписки один и покрывает оба согласия (редакция 2 стори 41.3)."""
-    assert current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract") == current_consent_text_version(
-        UserConsent.SOURCE_NEWSLETTER, "marketing_email"
+def test_newsletter_pdp_and_marketing_have_different_versions():
+    """У ПДн и рассылки подписки — разные чекбоксы и разные версии (стори 41.11).
+
+    До 41.11 оба согласия подписки брал один чекбокс. ст. 9 ч. 1 152-ФЗ требует
+    оформлять согласие на ПДн отдельно от согласия на рекламу, поэтому пары
+    привязаны к разным поверхностям.
+    """
+    pdp = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract")
+    marketing = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email")
+
+    assert pdp != marketing
+
+
+def test_newsletter_pdp_version_differs_from_registration_pdp_version():
+    """У ПДн подписки и ПДн регистрации разные версии — даже при одинаковом тексте.
+
+    Поверхности отдельные: формы живут независимо, и равенства текстов тест не
+    требует — правка текста одной формы не должна ронять его. Со стори 41.11
+    тексты совпадают дословно; различаться версии их заставляет только метка
+    ревизии, иначе загрузчик отклонил бы дубль.
+    """
+    assert current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract") != (
+        current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "pdp_contract")
     )
+
+
+@pytest.mark.parametrize(
+    ("version", "text"),
+    [
+        (
+            "2026-08-30-77dbceafc3c487ffc24975cf2ce76778",
+            "Я даю согласие на обработку моих персональных данных в соответствии с «Политикой обработки "
+            "персональных данных» и согласен(на) получать информационные и рекламные рассылки от OPTISPORT "
+            "по электронной почте",
+        ),
+        (
+            "2026-09-09-e26471e47eba2ba742a4f4488dfdda05",
+            "Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT",
+        ),
+    ],
+    ids=["newsletter-combined-41-3", "registration-marketing-41-9"],
+)
+def test_historical_versions_still_resolve_to_their_text(version, text):
+    """Прежние версии, на которые ссылается журнал прода, разрешаются в свой текст.
+
+    Литералы здесь уместны: это неизменяемая история. Объединённый чекбокс
+    подписки заменён двумя в стори 41.11, маркетинг регистрации получил канал.
+    """
+    from apps.common.consent_texts import REGISTRY_PATH
+
+    data = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+
+    assert version in data["known_versions"]
+    assert resolve_consent_text(version) == text
+
+
+def test_only_unbound_surface_is_historical_newsletter_checkbox():
+    """Поверхность без привязок — одна: исторический объединённый чекбокс подписки.
+
+    Её нельзя удалить (на её версию ссылается журнал) и нельзя привязать снова
+    (формы её не показывают). Любая другая поверхность без привязки — забытая
+    перепривязка.
+    """
+    from apps.common.consent_texts import REGISTRY_PATH
+
+    data = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+
+    assert set(data["surfaces"]) - set(data["bindings"].values()) == {"newsletter_checkbox"}
 
 
 def test_1c_link_reuses_registration_surfaces():

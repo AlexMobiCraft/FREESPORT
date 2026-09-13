@@ -14,4 +14,6 @@ from apps.common.models import UserConsent
 
 REGISTRATION_PDP_TEXT_VERSION = current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "pdp_contract")
 REGISTRATION_MARKETING_TEXT_VERSION = current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "marketing_email")
-NEWSLETTER_TEXT_VERSION = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract")
+# Со стори 41.11 у формы подписки два чекбокса, и у каждого своя версия.
+NEWSLETTER_PDP_TEXT_VERSION = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract")
+NEWSLETTER_MARKETING_TEXT_VERSION = current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email")

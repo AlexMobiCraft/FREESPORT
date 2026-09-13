@@ -28,9 +28,21 @@ describe('getConsentTextOutdatedMessage', () => {
     expect(
       getConsentTextOutdatedMessage({
         error: CONSENT_TEXT_OUTDATED_CODE,
-        details: { email: [EMAIL_ERROR], consent_text_version: [SERVER_MESSAGE] },
+        details: { email: [EMAIL_ERROR], pdp_consent_text_version: [SERVER_MESSAGE] },
       })
     ).toBe(SERVER_MESSAGE);
+  });
+
+  it('ответ старого сервера по полю consent_text_version даёт запасной текст (выкат стори 41.11)', () => {
+    // Со стори 41.11 это поле не шлёт ни одна форма и фронт его не читает. Если на
+    // время выката новый бандл встретит старый сервер, человек увидит запасное
+    // сообщение — то же требование обновить страницу, а не попутную ошибку.
+    expect(
+      getConsentTextOutdatedMessage({
+        error: CONSENT_TEXT_OUTDATED_CODE,
+        details: { email: [EMAIL_ERROR], consent_text_version: [SERVER_MESSAGE] },
+      })
+    ).toBe(CONSENT_TEXT_OUTDATED_MESSAGE);
   });
 
   it('без поля версии в details показывает запасной текст, а не попутную ошибку', () => {

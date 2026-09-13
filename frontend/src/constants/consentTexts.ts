@@ -19,12 +19,17 @@ import type { components } from '@/types/api.generated';
  * конкретному человеку версия не является.
  */
 export const CONSENT_TEXT_VERSIONS = {
-  /** Единственный чекбокс форм подписки (SubscribeForm, ElectricSubscribeForm). */
-  newsletter: '2026-08-30-77dbceafc3c487ffc24975cf2ce76778',
+  /**
+   * Обязательный чекбокс ПДн форм подписки (SubscribeForm, ElectricSubscribeForm).
+   * Со стори 41.11 согласие на ПДн оформлено отдельно от согласия на рассылку.
+   */
+  newsletterPdp: '2026-09-12-de992f50b0456a90e96a66984010dd74',
+  /** Обязательный чекбокс рассылки по электронной почте форм подписки (стори 41.11). */
+  newsletterMarketing: '2026-09-12-1a97b44f2bc0b52e69d15d705be59c0c',
   /** Обязательный чекбокс ПДн форм регистрации (RegisterForm, B2BRegisterForm). */
   registrationPdp: '2026-09-09-de992f50b0456a90e96a66984010dd74',
-  /** Необязательный маркетинговый чекбокс форм регистрации. */
-  registrationMarketing: '2026-09-09-e26471e47eba2ba742a4f4488dfdda05',
+  /** Необязательный маркетинговый чекбокс форм регистрации; со стори 41.11 называет канал. */
+  registrationMarketing: '2026-09-12-a49604a66adaadfdc221bdc141d8d97d',
 } as const;
 
 /**
@@ -54,12 +59,14 @@ export const CONSENT_TEXT_OUTDATED_CODE: ConsentTextOutdatedResponse['error'] =
 export const CONSENT_TEXT_OUTDATED_MESSAGE =
   'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.';
 
-/** Поля, которыми формы доказывают показанную формулировку. */
-const CONSENT_TEXT_VERSION_FIELDS = [
-  'consent_text_version',
-  'pdp_consent_text_version',
-  'marketing_consent_text_version',
-];
+/**
+ * Поля, которыми формы доказывают показанную формулировку. Со стори 41.11 подписка
+ * шлёт те же поля, что и регистрация; прежнее `consent_text_version` не шлёт ни одна
+ * форма. Если на время выката новый бандл встретит старый сервер, тот ответит по полю
+ * `consent_text_version`, — человек увидит запасное `CONSENT_TEXT_OUTDATED_MESSAGE`,
+ * то есть тот же текст.
+ */
+const CONSENT_TEXT_VERSION_FIELDS = ['pdp_consent_text_version', 'marketing_consent_text_version'];
 
 /** Ответ сервера — отказ по устаревшей версии формулировки? */
 export const isConsentTextOutdated = (data: unknown): data is ConsentTextOutdatedResponse =>

@@ -5,12 +5,22 @@ import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
 vi.mock('../api-client');
 
+// Согласия формы подписки: со стори 41.11 два чекбокса, у каждого своя версия.
+const CONSENTS = {
+  pdp_consent: true,
+  marketing_consent: true,
+  pdp_consent_text_version: CONSENT_TEXT_VERSIONS.newsletterPdp,
+  marketing_consent_text_version: CONSENT_TEXT_VERSIONS.newsletterMarketing,
+} as const;
+
 describe('subscribeService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('posts the full subscribe payload', async () => {
+  // URL — с конечным слэшем: маршрут Django `subscribe/`, на POST без слэша
+  // `APPEND_SLASH` отвечает редиректом, и подписка не проходит (стори 41.11).
+  it('posts the full subscribe payload to /subscribe/ with a trailing slash', async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({
       data: {
         message: 'Вы успешно подписались на рассылку',
@@ -18,22 +28,21 @@ describe('subscribeService', () => {
       },
     });
 
-    await subscribeService.subscribe({
-      email: 'new@example.com',
-      pdp_consent: true,
-      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
-    });
+    await subscribeService.subscribe({ email: 'new@example.com', ...CONSENTS });
 
-    expect(apiClient.post).toHaveBeenCalledWith('/subscribe', {
+    expect(apiClient.post).toHaveBeenCalledWith('/subscribe/', {
       email: 'new@example.com',
       pdp_consent: true,
-      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
+      marketing_consent: true,
+      pdp_consent_text_version: CONSENT_TEXT_VERSIONS.newsletterPdp,
+      marketing_consent_text_version: CONSENT_TEXT_VERSIONS.newsletterMarketing,
     });
   });
 
   it('preserves backend field errors for 400 validation responses', async () => {
     const details = {
       pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+      marketing_consent: ['Необходимо согласие на получение рассылок по электронной почте.'],
     };
     vi.mocked(apiClient.post).mockRejectedValueOnce({
       response: {
@@ -43,11 +52,7 @@ describe('subscribeService', () => {
     });
 
     await expect(
-      subscribeService.subscribe({
-        email: 'new@example.com',
-        pdp_consent: true,
-      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
-      })
+      subscribeService.subscribe({ email: 'new@example.com', ...CONSENTS })
     ).rejects.toMatchObject({
       message: 'validation_error',
       details,
@@ -58,7 +63,7 @@ describe('subscribeService', () => {
     // Сервер разводит устаревшую версию формулировки и обычную валидацию кодом,
     // а не текстом сообщения: сообщение правят, статус у всей валидации общий.
     const details = {
-      consent_text_version: [
+      pdp_consent_text_version: [
         'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.',
       ],
     };
@@ -72,8 +77,8 @@ describe('subscribeService', () => {
     await expect(
       subscribeService.subscribe({
         email: 'stale-tab@example.com',
-        pdp_consent: true,
-        consent_text_version: 'старая-версия',
+        ...CONSENTS,
+        pdp_consent_text_version: 'старая-версия',
       })
     ).rejects.toMatchObject({
       message: 'validation_error',
@@ -94,11 +99,7 @@ describe('subscribeService', () => {
     });
 
     await expect(
-      subscribeService.subscribe({
-        email: 'new@example.com',
-        pdp_consent: true,
-      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
-      })
+      subscribeService.subscribe({ email: 'new@example.com', ...CONSENTS })
     ).rejects.toMatchObject({
       message: 'throttled',
       details,
@@ -116,11 +117,7 @@ describe('subscribeService', () => {
     });
 
     try {
-      await subscribeService.subscribe({
-        email: 'existing@example.com',
-        pdp_consent: true,
-      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
-      });
+      await subscribeService.subscribe({ email: 'existing@example.com', ...CONSENTS });
       throw new Error('Expected subscribeService to reject');
     } catch (error) {
       expect(error).toBeInstanceOf(SubscribeServiceError);
@@ -144,11 +141,7 @@ describe('subscribeService', () => {
     });
 
     await expect(
-      subscribeService.subscribe({
-        email: 'new@example.com',
-        pdp_consent: true,
-      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
-      })
+      subscribeService.subscribe({ email: 'new@example.com', ...CONSENTS })
     ).rejects.toMatchObject({
       message: 'server_error',
       details,
@@ -164,11 +157,7 @@ describe('subscribeService', () => {
     });
 
     await expect(
-      subscribeService.subscribe({
-        email: 'new@example.com',
-        pdp_consent: true,
-      consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
-      })
+      subscribeService.subscribe({ email: 'new@example.com', ...CONSENTS })
     ).rejects.toMatchObject({
       message: 'server_error',
       details: undefined,
