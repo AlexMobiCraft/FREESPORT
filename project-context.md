@@ -106,7 +106,7 @@ optimized_for_llm: true
 - **Поиск/исследование** — `npx gitnexus query "<concept>"` вместо grep по большой кодовой базе.
 - **Контекст символа** (callers + callees + processes) — `npx gitnexus context <symbol>`; `--file <path>` снимает неоднозначность одинаковых имён.
 - **Rename** — команды `rename` в CLI нет. Собрать все места через `impact` и `context`, затем править точечно; текстовая замена по-прежнему запрещена.
-- **Свежесть индекса**: `npx gitnexus status`. При `stale` — попросить пользователя выполнить `! npx gitnexus analyze`. Ответ `{"error": "Symbol ... not found"}` на существующий код означает устаревший индекс.
+- **Свежесть индекса**: `npx gitnexus status`. При `stale` — попросить пользователя выполнить `! npx gitnexus analyze --skip-agents-md`. Ответ `{"error": "Symbol ... not found"}` на существующий код означает устаревший индекс.
 - `impact`, `context`, `query`, `cypher` печатают JSON; `status` и `detect-changes` — текст.
 
 ## 6. Язык
