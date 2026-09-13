@@ -74,7 +74,9 @@ export const subscribeService = {
    */
   async subscribe(payload: SubscribeRequest): Promise<SubscribeResponse> {
     try {
-      const { data } = await apiClient.post<SubscribeResponse>('/subscribe', payload);
+      // Слэш обязателен: маршрут Django — `subscribe/`, а на POST без слэша
+      // `APPEND_SLASH` отвечает редиректом (при DEBUG — 500), и подписка не проходит.
+      const { data } = await apiClient.post<SubscribeResponse>('/subscribe/', payload);
       return data;
     } catch (error: unknown) {
       // Проброс ошибки для обработки в компоненте

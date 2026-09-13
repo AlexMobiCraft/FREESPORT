@@ -11,6 +11,10 @@ import { axe } from 'vitest-axe';
 import ElectricFooter from '../ElectricFooter';
 import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
 
+/** Каноническая формулировка номера оператора (FR-41-17c, AC2). */
+const REGISTRY_LINE =
+  'Регистрационный номер в реестре операторов, осуществляющих обработку персональных данных: 26-22-003980';
+
 describe('ElectricFooter', () => {
   beforeEach(() => {
     __resetCookieConsentStoreForTests();
@@ -80,5 +84,17 @@ describe('ElectricFooter', () => {
 
     const results = await axe(bottomBar);
     expect(results.violations).toHaveLength(0);
+  });
+
+  it('содержит каноническую строку номера оператора обычным текстом (AC2)', () => {
+    render(<ElectricFooter />);
+
+    const line = screen.getByText(REGISTRY_LINE);
+
+    expect(line).toBeInTheDocument();
+    expect(line.closest('a')).toBeNull();
+    // Контраст: text-secondary, а не text-muted (иначе новый дефект доступности)
+    expect(line.className).toContain('text-[var(--color-text-secondary)]');
+    expect(screen.queryByText(/26-22-004188/)).not.toBeInTheDocument();
   });
 });

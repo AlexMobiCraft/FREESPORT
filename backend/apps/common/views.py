@@ -318,13 +318,17 @@ def realtime_metrics(_request: Request) -> Response:
     examples=[
         OpenApiExample(
             name="successful_subscription_request",
-            # `consent_text_version` обязателен: им форма заявляет версию показанной
-            # формулировки, а сервер сверяет её с реестром. Пример без него
-            # возвращал бы 400 — именно так и было до правки по ревью стори 41.9.
+            # Оба согласия и обе версии обязательны (стори 41.11): версиями форма
+            # заявляет показанные формулировки, а сервер сверяет каждую со своей
+            # привязкой реестра. Пример без них возвращал бы 400 — так было до правки
+            # по ревью стори 41.9. Литералы обязаны совпадать с действующими
+            # ревизиями — это закреплено `test_api_schema.py`.
             value={
                 "email": "user@example.com",
                 "pdp_consent": True,
-                "consent_text_version": "2026-08-30-77dbceafc3c487ffc24975cf2ce76778",
+                "marketing_consent": True,
+                "pdp_consent_text_version": "2026-09-12-de992f50b0456a90e96a66984010dd74",
+                "marketing_consent_text_version": "2026-09-12-1a97b44f2bc0b52e69d15d705be59c0c",
             },
             request_only=True,
         ),
@@ -352,7 +356,8 @@ def realtime_metrics(_request: Request) -> Response:
             # ни одна из форм — ровно этим и был вызван невалидный пример подписки,
             # найденный ревью стори 41.9.
             description=(
-                "Ошибка валидации `email`, `pdp_consent` или `consent_text_version`. "
+                "Ошибка валидации `email`, `pdp_consent`, `marketing_consent`, "
+                "`pdp_consent_text_version` или `marketing_consent_text_version`. "
                 "Обычные ошибки возвращаются плоским объектом «поле → список сообщений». "
                 "Исключение — устаревшая или непереданная версия формулировки согласия: "
                 "у неё есть машинный код `consent_text_outdated` на верхнем уровне, а поля "
@@ -374,7 +379,14 @@ def realtime_metrics(_request: Request) -> Response:
                     },
                     response_only=True,
                 ),
-                consent_text_outdated_example("consent_text_version"),
+                OpenApiExample(
+                    name="marketing_consent_required",
+                    value={
+                        "marketing_consent": ["Необходимо согласие на получение рассылок по электронной почте."],
+                    },
+                    response_only=True,
+                ),
+                consent_text_outdated_example("pdp_consent_text_version"),
             ],
         ),
         503: OpenApiResponse(
@@ -446,10 +458,10 @@ def subscribe(request: Request) -> Response:
                 }
                 # Версия текста запрашивается у реестра ОТДЕЛЬНО для каждого типа,
                 # а не хардкодится и не кладётся одним значением в общий
-                # `consent_kwargs`. Сегодня чекбокс формы подписки один и покрывает
-                # оба согласия (редакция 2 стори 41.3), поэтому версии совпадут;
-                # при будущем расщеплении чекбоксов общее значение молча записало бы
-                # человеку формулировку, которой он не видел.
+                # `consent_kwargs`: со стори 41.11 у согласия на ПДн и согласия на
+                # рассылку свои чекбоксы и свои формулировки, и общее значение
+                # записало бы человеку текст, которого он не видел. Присланные формой
+                # версии сериализатор уже сверил с этими же значениями реестра.
                 UserConsent.objects.create(
                     consent_type="pdp_contract",
                     consent_text_version=current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "pdp_contract"),

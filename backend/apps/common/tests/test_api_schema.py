@@ -19,6 +19,8 @@ from apps.common.api_schema import (
     CONSENT_VALIDATION_ERROR_COMPONENT,
     FIELD_VALIDATION_ERROR_COMPONENT,
 )
+from apps.common.consent_texts import current_consent_text_version
+from apps.common.models import UserConsent
 from apps.common.serializers import CONSENT_TEXT_OUTDATED_CODE
 
 
@@ -120,3 +122,40 @@ class TestConditionalMarketingVersion:
 
         assert "marketing_consent_text_version" not in component["required"]
         assert "pdp_consent_text_version" in component["required"]
+
+
+class TestSubscribeRequest:
+    """Контракт подписки со стори 41.11: два согласия и две версии, все обязательны."""
+
+    def test_subscribe_request_requires_both_consents_and_both_versions(self, schema):
+        """Пять обязательных полей; прежнего `consent_text_version` в контракте нет."""
+        component = schema["components"]["schemas"]["SubscribeRequest"]
+
+        assert set(component["required"]) == {
+            "email",
+            "pdp_consent",
+            "marketing_consent",
+            "pdp_consent_text_version",
+            "marketing_consent_text_version",
+        }
+        assert "consent_text_version" not in component["properties"]
+        # Обязательность безусловная — условного правила, как у регистрации, нет.
+        assert "if" not in component
+
+    def test_subscribe_request_example_carries_current_versions(self, schema):
+        """Пример запроса в контракте содержит действующие версии — иначе он получал бы 400.
+
+        Литералы примера живут в `@extend_schema` view и не пересчитываются сами:
+        правка формулировки без правки примера роняет этот тест.
+        """
+        examples = schema["paths"]["/subscribe/"]["post"]["requestBody"]["content"]["application/json"]["examples"]
+        [example] = [item for item in examples.values() if item["summary"] == "successful_subscription_request"]
+
+        assert example["value"]["pdp_consent_text_version"] == current_consent_text_version(
+            UserConsent.SOURCE_NEWSLETTER, "pdp_contract"
+        )
+        assert example["value"]["marketing_consent_text_version"] == current_consent_text_version(
+            UserConsent.SOURCE_NEWSLETTER, "marketing_email"
+        )
+        assert example["value"]["pdp_consent"] is True
+        assert example["value"]["marketing_consent"] is True

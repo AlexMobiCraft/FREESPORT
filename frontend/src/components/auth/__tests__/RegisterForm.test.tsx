@@ -113,6 +113,15 @@ describe('RegisterForm', () => {
       expect(getMarketingConsent()).not.toBeChecked();
     });
 
+    test('should name the email channel in the marketing consent (Story 41.11)', () => {
+      render(<RegisterForm />);
+
+      // FR-41-26: текст рассылки называет канал, «согласен(на)» — без пробела.
+      const marketingConsent = getMarketingConsent();
+      expect(marketingConsent).toHaveAccessibleName(/по электронной почте$/);
+      expect(marketingConsent).toHaveAccessibleName(/^Я согласен\(на\) получать/);
+    });
+
     test('should keep optional marketing checkbox without inline error state', async () => {
       const user = userEvent.setup();
       render(<RegisterForm />);

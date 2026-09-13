@@ -70,8 +70,9 @@ export const metadata: Metadata = {
 };
 
 export default function ElectricHomePage() {
+  // Единственный <main> страницы рендерит ElectricLayout, здесь — обычный контейнер
   return (
-    <main className="bg-[var(--bg-body)] min-h-screen">
+    <div className="bg-[var(--bg-body)] min-h-screen">
       {/* 1. Hero Section — Electric-specific component */}
       <ElectricHeroSection />
 
@@ -123,6 +124,6 @@ export default function ElectricHomePage() {
 
       {/* 9. Подписка */}
       <ElectricSubscribeSection />
-    </main>
+    </div>
   );
 }

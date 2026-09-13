@@ -102,8 +102,10 @@ export function ElectricSidebar({
     return filters[groupId]?.includes(optionId) || false;
   };
 
+  // Обычный контейнер: landmark задаёт место использования. В каталоге панель
+  // стоит в колонке-aside, в drawer — внутри dialog; свой aside был бы вложенным
   return (
-    <aside
+    <div
       className={cn(
         'bg-[var(--bg-card)] p-6 border border-[var(--border-default)]',
         'w-full h-fit',
@@ -209,7 +211,7 @@ export function ElectricSidebar({
           <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>Применить</span>
         </button>
       )}
-    </aside>
+    </div>
   );
 }
 

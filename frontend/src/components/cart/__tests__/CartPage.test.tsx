@@ -38,7 +38,7 @@ vi.mock('@/components/ui', () => ({
     items: { label: string; href?: string }[];
     className?: string;
   }) => (
-    <nav aria-label="Breadcrumb" className={className} data-testid="cart-breadcrumb">
+    <nav aria-label="Навигационная цепочка" className={className} data-testid="cart-breadcrumb">
       {items.map((item, i) => (
         <span key={i}>{item.label}</span>
       ))}

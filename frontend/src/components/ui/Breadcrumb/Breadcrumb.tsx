@@ -28,7 +28,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className }) => {
   const displayItems = shouldCollapse ? [items[0], { label: '...' }, ...items.slice(-2)] : items;
 
   return (
-    <nav aria-label="Breadcrumb" className={cn('flex items-center gap-2', className)}>
+    <nav aria-label="Навигационная цепочка" className={cn('flex items-center gap-2', className)}>
       <ol className="flex items-center gap-2">
         {displayItems.map((item, index) => {
           const isLast = index === displayItems.length - 1;
