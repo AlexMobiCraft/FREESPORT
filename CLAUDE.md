@@ -142,6 +142,7 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 | Произвольный запрос к графу | `npx gitnexus cypher "<query>"` |
 
 Вызывай без тега версии: `npx -y gitnexus@latest ...` падает на резолве `@latest`.
+**Индексов с именем FREESPORT два** (второй — `C:\Users\1\DEV\FREESPORT-pr117`): `impact`, `context`, `query`, `cypher`, `detect-changes` без `-r "C:\Users\1\DEV\FREESPORT"` падают на «Multiple repositories indexed». `-r FREESPORT` молча берёт один из двух индексов (сейчас основной, но это зависит от реестра) — всегда передавай путь.
 `impact`, `context`, `query`, `cypher` печатают JSON; `status` и `detect-changes` — текст.
 
 ### Ограничения CLI
@@ -151,14 +152,15 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 - `npx gitnexus wiki` требует LLM-провайдер и API-ключ — это не локальная бесплатная команда.
 - Символы, добавленные после последней индексации, не находятся: `context` вернёт
   `{"error": "Symbol ... not found"}`. Это признак устаревшего индекса, а не отсутствия кода.
+- `analyze` при каждом запуске (и с `--skip-agents-md` тоже) перезаписывает `.claude/skills/gitnexus/` своими MCP-шаблонами — флага, чтобы это отключить, нет. Каталог в `.gitignore`, не используй его; рабочие CLI-версии skills — `.claude/skills/gitnexus-*/`.
 
 ### Skill-файлы
 
 | Задача | Файл |
 |---|---|
-| Понять архитектуру / «Как работает X?» | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / «Что сломается, если поменять X?» | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Отладка / «Почему X падает?» | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Переименование и рефакторинг | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Справочник по командам и схеме графа | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Индекс, статус, очистка, wiki | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Понять архитектуру / «Как работает X?» | `.claude/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius / «Что сломается, если поменять X?» | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Отладка / «Почему X падает?» | `.claude/skills/gitnexus-debugging/SKILL.md` |
+| Переименование и рефакторинг | `.claude/skills/gitnexus-refactoring/SKILL.md` |
+| Справочник по командам и схеме графа | `.claude/skills/gitnexus-guide/SKILL.md` |
+| Индекс, статус, очистка, wiki | `.claude/skills/gitnexus-cli/SKILL.md` |

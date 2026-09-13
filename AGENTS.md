@@ -138,6 +138,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 | Произвольный запрос к графу | `npx gitnexus cypher "<query>"` |
 
 Вызывай без тега версии: `npx -y gitnexus@latest ...` падает на резолве `@latest`.
+**Индексов с именем FREESPORT два** (второй — `C:\Users\1\DEV\FREESPORT-pr117`): `impact`, `context`, `query`, `cypher`, `detect-changes` без `-r "C:\Users\1\DEV\FREESPORT"` падают на «Multiple repositories indexed». `-r FREESPORT` молча берёт один из двух индексов (сейчас основной, но это зависит от реестра) — всегда передавай путь.
 `impact`, `context`, `query`, `cypher` печатают JSON; `status` и `detect-changes` — текст.
 
 ### Ограничения CLI
@@ -147,6 +148,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 - `npx gitnexus wiki` требует LLM-провайдер и API-ключ — это не локальная бесплатная команда.
 - Символы, добавленные после последней индексации, не находятся: `context` вернёт
   `{"error": "Symbol ... not found"}`. Это признак устаревшего индекса, а не отсутствия кода.
+- `analyze` при каждом запуске (и с `--skip-agents-md` тоже) перезаписывает `.claude/skills/gitnexus/` своими MCP-шаблонами — флага, чтобы это отключить, нет. Каталог в `.gitignore`, не используй его; рабочие CLI-версии skills — `.claude/skills/gitnexus-*/` и `.windsurf/skills/gitnexus-*/`.
 
 ### Skill-файлы
 

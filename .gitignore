@@ -212,3 +212,7 @@ backend/data/import_1c/
 # Supabase backup artifacts
 supabase-backup/backups/
 supabase-backup/.env
+
+# gitnexus analyze перезаписывает этот каталог MCP-шаблонами при каждом запуске;
+# рабочие CLI-версии skills лежат в .claude/skills/gitnexus-*/
+.claude/skills/gitnexus/
