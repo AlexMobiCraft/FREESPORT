@@ -60,6 +60,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
       { label: 'Новости', href: '/news' },
       { label: 'Условия сотрудничества', href: '/partners' },
       { label: 'Условия доставки', href: '/delivery' },
+      { label: 'Условия возврата и рекламаций', href: '/partners#returns' },
     ],
   },
   {
@@ -67,7 +68,6 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     links: [
       { label: 'О нас', href: '/about' },
       { label: 'Доставка', href: '/delivery' },
-      { label: 'Возврат', href: '/partners#returns' },
     ],
   },
   {
@@ -186,9 +186,16 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
 
           {/* Copyright и настройки cookie */}
-          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
-            <p className="text-xs text-neutral-500">{copyright}</p>
-            <CookieSettingsButton className="text-xs text-neutral-500 hover:text-white transition-colors underline-offset-2 hover:underline" />
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
+              <p className="text-xs text-neutral-500">{copyright}</p>
+              <CookieSettingsButton className="text-xs text-neutral-500 hover:text-white transition-colors underline-offset-2 hover:underline" />
+            </div>
+            {/* Строка номера оператора — обычный текст, не ссылка (FR-41-17c, AC2) */}
+            <p className="text-xs text-neutral-500 text-center">
+              Регистрационный номер в реестре операторов, осуществляющих обработку персональных
+              данных: 26-22-003980
+            </p>
           </div>
         </div>
       </div>

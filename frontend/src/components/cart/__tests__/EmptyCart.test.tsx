@@ -24,7 +24,7 @@ vi.mock('next/link', () => ({
 // Mock Breadcrumb
 vi.mock('@/components/ui', () => ({
   Breadcrumb: ({ items }: { items: { label: string }[] }) => (
-    <nav aria-label="Breadcrumb">
+    <nav aria-label="Навигационная цепочка">
       {items.map((item, i) => (
         <span key={i}>{item.label}</span>
       ))}
@@ -93,7 +93,7 @@ describe('EmptyCart', () => {
     it('renders breadcrumb navigation', () => {
       render(<EmptyCart />);
 
-      expect(screen.getByRole('navigation', { name: /breadcrumb/i })).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: /навигационная цепочка/i })).toBeInTheDocument();
     });
 
     it('shows correct breadcrumb items', () => {

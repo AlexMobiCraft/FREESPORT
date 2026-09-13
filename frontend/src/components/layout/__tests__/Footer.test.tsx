@@ -14,6 +14,10 @@ import { axe } from 'vitest-axe';
 import { Footer, type FooterColumn, type SocialLink } from '../Footer';
 import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
 
+/** Каноническая формулировка номера оператора (FR-41-17c, AC2). */
+const REGISTRY_LINE =
+  'Регистрационный номер в реестре операторов, осуществляющих обработку персональных данных: 26-22-003980';
+
 describe('Footer', () => {
   // Подвал содержит CookieSettingsButton, а его стор — модульный синглтон.
   beforeEach(() => {
@@ -69,10 +73,27 @@ describe('Footer', () => {
 
       expect(screen.getByRole('link', { name: 'О нас' })).toHaveAttribute('href', '/about');
       expect(screen.getByRole('link', { name: 'Доставка' })).toHaveAttribute('href', '/delivery');
-      expect(screen.getByRole('link', { name: 'Возврат' })).toHaveAttribute(
-        'href',
-        '/partners#returns'
-      );
+    });
+
+    it('renders «Условия возврата и рекламаций» in Клиентам and not in Информация (AC3)', () => {
+      render(<Footer />);
+
+      const clientsColumn = screen.getByRole('heading', { level: 3, name: 'Клиентам' })
+        .parentElement as HTMLElement;
+      const returnsLink = within(clientsColumn).getByRole('link', {
+        name: 'Условия возврата и рекламаций',
+      });
+      expect(returnsLink).toHaveAttribute('href', '/partners#returns');
+
+      const infoColumn = screen.getByRole('heading', { level: 3, name: 'Информация' })
+        .parentElement as HTMLElement;
+      expect(within(infoColumn).queryByRole('link', { name: 'Возврат' })).not.toBeInTheDocument();
+
+      // Ссылка на /partners#returns в общем подвале остаётся ровно одна
+      const returnsLinks = screen
+        .getAllByRole('link')
+        .filter(link => link.getAttribute('href') === '/partners#returns');
+      expect(returnsLinks).toHaveLength(1);
     });
 
     it('renders Каталог column links', () => {
@@ -477,6 +498,29 @@ describe('Footer', () => {
 
       const results = await axe(container);
       expect(results.violations).toHaveLength(0);
+    });
+  });
+
+  describe('Реестр операторов (Story 41.12 — AC2)', () => {
+    it('renders canonical operator registry number as plain text', () => {
+      render(<Footer />);
+
+      const line = screen.getByText(REGISTRY_LINE);
+
+      expect(line).toBeInTheDocument();
+      expect(line.closest('a')).toBeNull();
+      expect(screen.queryByText(/26-22-004188/)).not.toBeInTheDocument();
+    });
+
+    it('keeps the registry number visible with custom columns', () => {
+      const customColumns: FooterColumn[] = [
+        { title: 'Custom Column', links: [{ label: 'Custom Link', href: '/custom' }] },
+      ];
+
+      render(<Footer columns={customColumns} />);
+
+      // Строка не зависит от DEFAULT_COLUMNS/isDefaultLayout
+      expect(screen.getByText(REGISTRY_LINE)).toBeInTheDocument();
     });
   });
 });

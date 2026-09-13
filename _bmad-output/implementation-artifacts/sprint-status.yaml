@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-13 (стори 41.11 — review)
+# last_updated: 2026-09-13 (стори 41.12 — dev-story, review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1139,7 +1139,49 @@ development_status:
   #             Единственная подтверждённая документальная находка исправлена;
   #             остальные 29 кандидатов отклонены после проверки. review -> done.
   41-11-separate-subscribe-consents: done
-  41-12-registry-wording-login-notice-breadcrumb: backlog
+  # 2026-09-13: Создана стори 41.12 (create-story) — Story/41-12-registry-
+  #             wording-login-notice-breadcrumb.md, backlog -> ready-for-dev.
+  #             Координаты проверены на c3f9447, индекс GitNexus переиндексирован
+  #             на нём же. Зависимость выполнена: 41.10 влита (PR #158), 41.11
+  #             влита (PR #166). Blast radius: isSafeRedirectUrl и Breadcrumb —
+  #             CRITICAL по ширине графа (5 и 16 прямых вызывающих), фактически
+  #             низкий: меняются внутренность предиката и строковый атрибут.
+  #             Разбор дал три вещи сверх текста эпика: (а) isSafeRedirectUrl
+  #             общая для login/register/middleware — укрепление закрывает дыру
+  #             /\evil.com во всех пяти точках сразу, но регресс auth-flow
+  #             обязателен; (б) подпись «Breadcrumb» ищут 9 тестовых файлов,
+  #             включая 4 мока в cart/__tests__; (в) новая строка номера в
+  #             ElectricFooter обязана идти на text-secondary — text-muted
+  #             (#666/#1a1a1a = 3.03:1) добавил бы новый дефект доступности.
+  # 2026-09-13: Validate Story выявил блокеры в redirect-матрице, runtime-
+  #             backslash, auth-route cycles и трассировке AC → verification.
+  #             Story уточнена; до независимого повторного VS статус возвращён
+  #             ready-for-dev -> backlog. Production-код не менялся.
+  # 2026-09-13: Независимый повторный VS завершён. Исправлены: strict-типизация
+  #             targetUrl, блокирующий approval-gate редакции 3, точная проверка
+  #             составного текста LoginForm и тест номера при custom columns.
+  #             backlog -> ready-for-dev. Production-код не менялся.
+  # 2026-09-13: Стори 41.12 взята в разработку (bmad-dev-story), ready-for-dev
+  #             -> in-progress. Task 0: GitNexus up-to-date на a6af40a, impact
+  #             подтвердил исторический снимок (isSafeRedirectUrl и Breadcrumb —
+  #             CRITICAL, остальные LOW). Ветка feature/story-41-12-...
+  # 2026-09-13: Story 41.12 реализована, in-progress -> review. Задачи 0-8
+  #             (AC1-AC8, AC10) закрыты кодом и тестами: каноническая
+  #             формулировка на /requisites, номер оператора в трёх подвалах,
+  #             перенос ссылки возврата, строка о политике на /login,
+  #             усиленный isSafeRedirectUrl (backslash, origin, auth-route),
+  #             русская подпись цепочек, редакция 3 обоснования.
+  #             Полный прогон: 2917 -> 3151 passed, 0 failed (16 skipped);
+  #             tsc/lint/format:check чисты; detect-changes — только ожидаемые
+  #             символы. Редакция 3 обоснования утверждена владельцем (Alex)
+  #             13.09.2026 — Task 7.6/AC8 закрыт. Task 9.1 выполнен на проде
+  #             13.09.2026: каноническая формулировка в п. 1.2 политики (внёс
+  #             владелец), залипший ISR снят ручной ревалидацией, подтверждено
+  #             и в API, и на /privacy-policy. ОТКРЫТО (внешние шаги, не
+  #             коммитом): Task 9.2 (повторный сканер после prod-выката),
+  #             Task 9.3 (коммит/мерж/выкат — решение владельца), Task 10
+  #             (ручная приёмка NFR-41-08 в acceptance build).
+  41-12-registry-wording-login-notice-breadcrumb: review
   epic-41-retrospective: optional
 
 # ========================================

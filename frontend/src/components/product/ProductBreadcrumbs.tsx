@@ -51,7 +51,7 @@ export default function ProductBreadcrumbs({
   let position = 3;
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-6">
+    <nav aria-label="Навигационная цепочка" className="mb-6">
       <ol
         className="flex items-center gap-2 text-sm text-neutral-700 flex-wrap"
         itemScope

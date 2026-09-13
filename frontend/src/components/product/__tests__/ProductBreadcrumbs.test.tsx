@@ -107,7 +107,7 @@ describe('ProductBreadcrumbs', () => {
     );
 
     const nav = container.querySelector('nav');
-    expect(nav).toHaveAttribute('aria-label', 'Breadcrumb');
+    expect(nav).toHaveAttribute('aria-label', 'Навигационная цепочка');
   });
 
   it('текущий товар имеет жирный шрифт', () => {

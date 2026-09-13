@@ -122,7 +122,7 @@ describe('BlogPage (/blog)', () => {
     it('должна отображать breadcrumb', async () => {
       vi.mocked(blogService.getBlogPosts).mockResolvedValue(mockBlogData);
       const { container } = render(await BlogPage({ searchParams: Promise.resolve({}) }));
-      const nav = container.querySelector('nav[aria-label="Breadcrumb"]');
+      const nav = container.querySelector('nav[aria-label="Навигационная цепочка"]');
       expect(nav).toBeInTheDocument();
       expect(screen.getByText('Главная')).toBeInTheDocument();
     });

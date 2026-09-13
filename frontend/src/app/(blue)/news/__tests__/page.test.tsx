@@ -119,7 +119,7 @@ describe('NewsPage (/news)', () => {
     it('должна отображать breadcrumb', async () => {
       vi.mocked(newsService.getNewsList).mockResolvedValue(mockNewsData);
       const { container } = render(await NewsPage({ searchParams: Promise.resolve({}) }));
-      const nav = container.querySelector('nav[aria-label="Breadcrumb"]');
+      const nav = container.querySelector('nav[aria-label="Навигационная цепочка"]');
       expect(nav).toBeInTheDocument();
       expect(screen.getByText('Главная')).toBeInTheDocument();
     });
