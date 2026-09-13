@@ -921,6 +921,7 @@
 ## Deferred from: code review of 41-3-separate-pdn-and-marketing-consents (2026-08-30)
 
 - **Обязательность чекбокса согласия не объявлена assistive technologies через `required`/`aria-required`.** В обеих формах кнопка отправки блокируется до установки согласия, но checkbox передаёт только `aria-invalid`, `aria-labelledby` и условный `aria-describedby`; скринридер не получает семантику обязательного поля. Проблема существовала до baseline `13917d4a` и текущей сменой текста не внесена. Исправлять отдельно и синхронно в обеих формах с тестом доступного состояния. [`frontend/src/components/home/SubscribeForm.tsx:151-161`, `frontend/src/components/home/ElectricSubscribeForm.tsx:195-207`]
+  **ЗАКРЫТО стори 41.11 (2026-09-12) в части чекбоксов:** в обеих формах подписки чекбоксов стало два (ПДн и рассылка), и оба получили `aria-required="true"` — не `required`, иначе нативная валидация браузера перехватила бы отправку до `react-hook-form`. Закреплено тестами обеих форм. ARIA email-поля `ElectricSubscribeForm` — отдельный пункт, этой стори не затронут.
 
 ## Deferred from: code review of 41-1-cookie-decline-and-change-choice (2026-09-03)
 
@@ -1114,6 +1115,24 @@
 ## Deferred from: create-story 41.10 — checkout глазами анонима (2026-09-11)
 
 - **Гостевая корзина не переносится в аккаунт при входе и регистрации.** Аноним может собрать корзину: `CartViewSet` и `CartItemViewSet` открыты (`AllowAny`), корзина хранится по `session_key` сессии, фронт добавляет товары без проверки входа. После входа сайт показывает корзину аккаунта, а товары, собранные до входа, туда не попадают — для покупателя они исчезают. Гостевая строка `Cart` остаётся брошенной до `cleanup_guest_carts`. Функция переноса есть, но не срабатывает никогда: `merge_guest_cart_on_login` висит на `post_save` модели `User` и выходит при `created=False`, то есть при любом входе, а при регистрации требует `instance._request`, который в `backend/apps/` не присваивается нигде. Другого пути переноса в бэкенде нет (проверено `grep` по `guest_cart`, `merge_guest`, `session_key`). Дефект предсуществует; после стори 41.10 он заметнее: аноним на `/checkout` получает приглашение войти и по нему теряет корзину. Сейчас вреда нет — сайт на заглушке, живых покупателей нет; после запуска это потеря заказов. Направление: переносить гостевую корзину в момент выдачи JWT при входе и регистрации (сессия гостя приходит с запросом, `withCredentials` уже включён в `api-client`), удалить мёртвый сигнал, закрыть тестом «гость собрал корзину → вошёл → товары в корзине аккаунта». Решение Alex 2026-09-11: оставить в отложенной работе, отдельной стори не заводить. [`backend/apps/cart/signals.py:47-90`, `backend/apps/cart/views.py:28-54`, `frontend/src/services/api-client.ts:38-39`]
+
+## Deferred from: quick-dev spec-41-11-separate-subscribe-consents (2026-09-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-41-11-separate-subscribe-consents.md`
+  summary: MSW-хендлер `__mocks__/api/handlers.ts:631` ловит `POST ${API_BASE_URL}/subscribe` без слэша и разбирает только `email`, а сервис со стори 41.11 шлёт на `/subscribe/` пять полей.
+  evidence: AC10 стори 41.11 и «Ask First» спеки запрещают трогать хендлер. В unit-тестах он не участвует: формы мокают `subscribeService`, тест сервиса мокает `apiClient`, а глобальный MSW настроен с `onUnhandledRequest: 'warn'`. Хендлер мёртв, но расхождение сработает, как только сервис пойдёт в тест через MSW. Правка — путь `/subscribe/` и ответ `400` по контракту `{error, details}`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-41-11-separate-subscribe-consents.md`
+  summary: После успешной подписки тост «Вы успешно подписались на рассылку» в DOM не найден.
+  evidence: Приёмка стори 41.11 временным Playwright-спеком нашла 0 элементов тоста. Успех засчитан по сбросу формы и ответу `200`. Возможно, `Toaster` не смонтирован в layout тем `(blue)`/`(electric)`, или тост исчезает раньше проверки. Причина не выяснялась.
+- source_spec: `_bmad-output/implementation-artifacts/spec-41-11-separate-subscribe-consents.md`
+  summary: У чекбокса ПДн в формах подписки остаётся `required` — то же правило, что ломало чекбокс рассылки: в `react-hook-form` 7.62 оно читает DOM и считает отключённый чекбокс пустым.
+  evidence: Сейчас ПДн проверяется раньше, чем React перерисует форму с `disabled={isSubmitting}`, и отправка проходит. Ревью стори 41.11 зафиксировало это в коде: `register('pdp_consent')` вызывается первым, и комментарий у регистрации это требует.
+- source_spec: `_bmad-output/implementation-artifacts/spec-41-11-separate-subscribe-consents.md`
+  summary: Тексты ошибок обязательных согласий (`PDP_CONSENT_REQUIRED`, `MARKETING_CONSENT_REQUIRED`) повторены строками в `backend/apps/common/serializers.py` и в обеих формах подписки, а ни один тест не проверяет, что копии совпадают.
+  evidence: Находка обоих ревьюеров 41.11. Для ПДн дублирование было и до стори, 41.11 добавила вторую такую пару. Тесты каждой стороны проверяют только свою копию. Если поправить текст на бэкенде, у одного чекбокса будут два разных сообщения: одно от проверки в форме, другое от сервера.
+- source_spec: `_bmad-output/implementation-artifacts/spec-41-11-separate-subscribe-consents.md`
+  summary: `blogService.ts:19` и `newsService.ts:19,32` вызывают `/blog` и `/news` без конечного слэша, а маршруты Django — `blog/` и `news/`, поэтому каждый запрос проходит через редирект 301.
+  evidence: Того же рода, что слэш `/subscribe`, исправленный в 41.11 (`backend/apps/common/urls.py:21,24`). Для GET это лишний круг запроса, а не поломка, но SSR-запрос через `INTERNAL_API_URL` получит `Location` с внутренним хостом. Дефект существовал до стори, в ней не исправлялся. Это держится только на порядке полей и времени перерисовки. Dev Notes стори 41.11 велят оставить `required` у ПДн, поэтому правка отложена. Правка — `validate: v => v === true || …`, как у рассылки.
 
 ## Deferred from: разбор tasks/context-check-django-env-on-prod.md (2026-09-12)
 

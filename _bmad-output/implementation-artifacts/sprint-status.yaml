@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-12 (стори 41.10 — PR #158 смёржен, done)
+# last_updated: 2026-09-13 (стори 41.11 — review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1100,7 +1100,42 @@ development_status:
   #             в теме blue) исправлена отдельно: fix/blue-nested-main-landmark,
   #             спека spec-blue-nested-main-landmark.md. review -> done.
   41-10-checkout-and-cart-for-anonymous: done
-  41-11-separate-subscribe-consents: backlog
+  # 2026-09-12: Создана стори 41.11 (create-story) — Story/41-11-separate-
+  #             subscribe-consents.md, backlog -> ready-for-dev. Координаты
+  #             проверены на c0c89798. Разбор дал шесть вещей сверх текста
+  #             эпика: (а) контракт /subscribe/ повторяет имена полей
+  #             регистрации (marketing_consent, pdp_/marketing_consent_text_
+  #             version) — бандл 41.9 на проде уже знает эти имена и при
+  #             выкате корректно просит обновить страницу; (б) newsletter_
+  #             checkbox остаётся исторической поверхностью без привязок —
+  #             на её версию ссылается журнал прода; (в) текст ПДн подписки
+  #             дословно равен тексту регистрации, поэтому метка ревизии не
+  #             может быть 2026-09-09 — загрузчик отклонит дубль версии;
+  #             (г) рассылку регистрации дословно с подпиской не выравниваем
+  #             по той же причине; (д) без галочки рассылки отправку блокирует
+  #             валидация формы с ошибкой у этого чекбокса; (е) aria-
+  #             required закрывает чекбоксную часть deferred-work.md:923.
+  #             Blast radius LOW (SubscribeSerializer — рёбра импорта уровня
+  #             файла), миграций нет.
+  # 2026-09-12: Решения Alex по вопросам стори 41.11: (1) кнопка подписки
+  #             активна только при галочке ПДн, галочка рассылки на кнопку не
+  #             влияет — правило disabled={isSubmitting || !pdpConsent}
+  #             прежнее; (2) тексты чекбоксов и сообщения об ошибке
+  #             утверждены; (3) разный порядок слов в рассылке регистрации
+  #             и подписки принят.
+  # 2026-09-12: Реализация через bmad-quick-dev — спека spec-41-11-separate-
+  #             subscribe-consents.md, ветка feature/story-41-11-separate-
+  #             subscribe-consents от c0c89798. ready-for-dev -> in-progress.
+  # 2026-09-13: Ревью (quick-dev, шаг 4) — поправка к (а) выше: бандл 41.9
+  #             до сервера не доходит. Он шлёт POST на /subscribe без слэша,
+  #             получает 301, затем GET и 405, форма пишет «Не удалось
+  #             подписаться». Подписка на проде не работала со стори 11.3.
+  #             Слэш исправлен в 41.11 по решению Alex. Находки ревью
+  #             записаны в стори (Review Findings).
+  # 2026-09-13: quick-dev завершён — ревью закрыто (6 patch, 2 defer), полные
+  #             прогоны backend 3393 passed / frontend 2917 passed.
+  #             in-progress -> review, ждёт PR и приёмки владельцем.
+  41-11-separate-subscribe-consents: review
   41-12-registry-wording-login-notice-breadcrumb: backlog
   epic-41-retrospective: optional
 

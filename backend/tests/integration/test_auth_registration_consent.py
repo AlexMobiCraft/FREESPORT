@@ -383,6 +383,30 @@ def test_registration_rejects_outdated_marketing_text_version_only_when_consent_
     assert UserConsent.objects.filter(consent_type="marketing_email").count() == 0
 
 
+def test_registration_rejects_previous_marketing_text_version_without_channel():
+    """Маркетинговая версия без названного канала (стори 41.9) после 41.11 устарела (AC5).
+
+    Литерал уместен: это неизменяемая историческая версия. Вкладка, открытая до
+    выката 41.11, показывала текст без «по электронной почте» — согласие на него
+    записываться не должно.
+    """
+    client = APIClient()
+    payload = trainer_payload(
+        marketing_consent=True,
+        marketing_consent_text_version="2026-09-09-e26471e47eba2ba742a4f4488dfdda05",
+    )
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
+    assert User.objects.filter(email=payload["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
 def test_registration_rejects_pdp_consent_false():
     client = APIClient()
 

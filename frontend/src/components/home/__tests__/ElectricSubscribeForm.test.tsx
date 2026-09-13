@@ -25,17 +25,39 @@ vi.mock('@/services/subscribeService', () => ({
 import { subscribeService } from '@/services/subscribeService';
 import { CONSENT_TEXT_VERSIONS } from '@/constants/consentTexts';
 
-// Дословная формулировка согласия из AC1 стори 41.3 — общая для обеих форм подписки
+// Дословные тексты AC1 стори 41.11 — общие для обеих форм подписки: согласие на ПДн
+// и согласие на рассылку оформлены отдельными чекбоксами.
 const PDP_CONSENT_NAME =
   'Я даю согласие на обработку моих персональных данных в соответствии с ' +
-  '«Политикой обработки персональных данных» и согласен(на) получать ' +
-  'информационные и рекламные рассылки от OPTISPORT по электронной почте';
+  '«Политикой обработки персональных данных»';
+const MARKETING_CONSENT_NAME =
+  'Я согласен(на) получать информационные и рекламные рассылки от OPTISPORT по электронной почте';
 const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
+const PDP_CONSENT_REQUIRED = 'Необходимо согласие на обработку персональных данных.';
+const MARKETING_CONSENT_REQUIRED = 'Необходимо согласие на получение рассылок по электронной почте.';
+
+const electricToastStyle = expect.objectContaining({
+  style: expect.objectContaining({ borderRadius: '0' }),
+});
 
 const getPdpCheckbox = () => screen.getByRole('checkbox', { name: PDP_CONSENT_NAME });
+const getMarketingCheckbox = () => screen.getByRole('checkbox', { name: MARKETING_CONSENT_NAME });
 
 const clickPdpCheckbox = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(getPdpCheckbox());
+};
+
+const clickMarketingCheckbox = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(getMarketingCheckbox());
+};
+
+const fillEmailAndAcceptConsent = async (
+  user: ReturnType<typeof userEvent.setup>,
+  email = 'electric@example.com'
+) => {
+  await user.type(screen.getByLabelText(/email/i), email);
+  await clickPdpCheckbox(user);
+  await clickMarketingCheckbox(user);
 };
 
 describe('ElectricSubscribeForm', () => {
@@ -54,26 +76,59 @@ describe('ElectricSubscribeForm', () => {
     expect(link.closest('label')).toBeNull();
   });
 
-  it('uses the approved consent wording verbatim', () => {
+  it('uses the approved consent wording verbatim in two unchecked checkboxes', () => {
     render(<ElectricSubscribeForm />);
 
-    // Дословный текст AC1: одна формулировка на обе формы подписки
-    expect(screen.getByRole('checkbox', { name: PDP_CONSENT_NAME })).toBeInTheDocument();
+    // Дословные тексты AC1: одни и те же формулировки в обеих формах подписки
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2);
+    expect(getPdpCheckbox()).not.toBeChecked();
+    expect(getMarketingCheckbox()).not.toBeChecked();
   });
 
-  it('mentions email newsletter in the consent checkbox accessible name', () => {
+  it('keeps PDN and newsletter wording in separate checkboxes (AC1)', () => {
     render(<ElectricSubscribeForm />);
 
-    // Согласие получено одним чекбоксом на оба смысла: обработка ПДн и рассылка
-    expect(
-      screen.getByRole('checkbox', {
-        name: /рассылки от OPTISPORT по электронной почте/i,
-      })
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox', { name: /рассыл/i })).toEqual([getMarketingCheckbox()]);
+    expect(screen.getAllByRole('checkbox', { name: /персональн/i })).toEqual([getPdpCheckbox()]);
+    expect(screen.getAllByRole('checkbox', { name: /обработк/i })).toEqual([getPdpCheckbox()]);
+  });
+
+  it('keeps the checkmark glyph out of the accessible name of a checked checkbox', async () => {
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    // Квадрат — тоже <label htmlFor>; после отметки в нём появляется «✓».
+    await clickPdpCheckbox(user);
+    await clickMarketingCheckbox(user);
+
+    expect(getPdpCheckbox()).toBeChecked();
+    expect(getMarketingCheckbox()).toBeChecked();
+  });
+
+  it('declares both consents required for assistive technologies via aria-required', () => {
+    render(<ElectricSubscribeForm />);
+
+    for (const checkbox of [getPdpCheckbox(), getMarketingCheckbox()]) {
+      expect(checkbox).toHaveAttribute('aria-required', 'true');
+      // Нативный `required` перехватил бы отправку до react-hook-form.
+      expect(checkbox).not.toHaveAttribute('required');
+    }
   });
 
   it('has no accessibility violations', async () => {
     const { container } = render(<ElectricSubscribeForm />);
+
+    const results = await axe(container);
+    expect(results.violations).toHaveLength(0);
+  });
+
+  it('has no accessibility violations after a failed submit', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ElectricSubscribeForm />);
+
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+    await screen.findByText(MARKETING_CONSENT_REQUIRED);
 
     const results = await axe(container);
     expect(results.violations).toHaveLength(0);
@@ -92,9 +147,73 @@ describe('ElectricSubscribeForm', () => {
     await user.click(button);
     expect(mockSubscribe).not.toHaveBeenCalled();
 
+    // Галочка рассылки кнопку не активирует (решение Alex, 2026-09-12)
+    await clickMarketingCheckbox(user);
+    expect(getMarketingCheckbox()).toBeChecked();
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(mockSubscribe).not.toHaveBeenCalled();
+
     // После установки согласия кнопка становится активной
     await clickPdpCheckbox(user);
     expect(button).toBeEnabled();
+
+    // Снятая галочка ПДн снова блокирует кнопку при отмеченной рассылке
+    await clickPdpCheckbox(user);
+    expect(button).toBeDisabled();
+  });
+
+  it('blocks submit without newsletter consent and puts the error on its checkbox', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockResolvedValueOnce({
+      message: 'Successfully subscribed',
+      email: 'electric@example.com',
+    });
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await user.type(screen.getByLabelText(/email/i), 'electric@example.com');
+    await clickPdpCheckbox(user);
+    const button = screen.getByRole('button', { name: /подписаться/i });
+    expect(button).toBeEnabled();
+
+    await user.click(button);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(MARKETING_CONSENT_REQUIRED);
+    expect(mockSubscribe).not.toHaveBeenCalled();
+    const marketingCheckbox = getMarketingCheckbox();
+    expect(marketingCheckbox).toHaveAttribute('aria-invalid', 'true');
+    expect(marketingCheckbox).toHaveAttribute('aria-describedby', alert.id);
+    expect(marketingCheckbox).toHaveFocus();
+    expect(getPdpCheckbox()).not.toHaveAttribute('aria-invalid');
+
+    await clickMarketingCheckbox(user);
+    await waitFor(() => {
+      expect(screen.queryByText(MARKETING_CONSENT_REQUIRED)).not.toBeInTheDocument();
+    });
+    expect(getMarketingCheckbox()).not.toHaveAttribute('aria-invalid');
+
+    await user.click(button);
+    await waitFor(() => {
+      expect(mockSubscribe).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('focuses the email field, not the newsletter checkbox, when both are invalid', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    // Email пуст, ПДн отмечен (кнопка активна), рассылка не отмечена — две ошибки.
+    // Фокус — на первом ошибочном поле сверху по разметке, то есть на email.
+    await clickPdpCheckbox(user);
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    await screen.findByText(MARKETING_CONSENT_REQUIRED);
+    expect(screen.getByText('Email обязателен')).toBeInTheDocument();
+    expect(screen.getByLabelText(/email/i)).toHaveFocus();
+    expect(mockSubscribe).not.toHaveBeenCalled();
   });
 
   it('marks PDN checkbox invalid and links error text through aria-describedby', async () => {
@@ -102,7 +221,7 @@ describe('ElectricSubscribeForm', () => {
     mockSubscribe.mockRejectedValueOnce(
       Object.assign(new Error('validation_error'), {
         details: {
-          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+          pdp_consent: [PDP_CONSENT_REQUIRED],
         },
       })
     );
@@ -110,20 +229,40 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    // Согласие отмечено (кнопка активна), но backend возвращает ошибку pdp_consent
-    await user.type(screen.getByLabelText(/email/i), 'electric@example.com');
-    await clickPdpCheckbox(user);
+    // Согласия отмечены (кнопка активна), но backend возвращает ошибку pdp_consent
+    await fillEmailAndAcceptConsent(user);
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
-    const checkbox = await screen.findByRole('checkbox', {
-      name: /обработку моих персональных данных/i,
-    });
     const alert = await screen.findByRole('alert');
-    expect(checkbox).toHaveAttribute('aria-invalid', 'true');
-    expect(checkbox).toHaveAttribute('aria-describedby', alert.id);
+    expect(getPdpCheckbox()).toHaveAttribute('aria-invalid', 'true');
+    expect(getPdpCheckbox()).toHaveAttribute('aria-describedby', alert.id);
   });
 
-  it('generates unique PDN ids for multiple form instances', () => {
+  it('puts backend marketing_consent error on the newsletter checkbox', async () => {
+    const mockSubscribe = vi.mocked(subscribeService.subscribe);
+    mockSubscribe.mockRejectedValueOnce(
+      Object.assign(new Error('validation_error'), {
+        details: {
+          marketing_consent: [MARKETING_CONSENT_REQUIRED],
+        },
+      })
+    );
+
+    const user = userEvent.setup();
+    render(<ElectricSubscribeForm />);
+
+    await fillEmailAndAcceptConsent(user, 'electric-server-marketing@example.com');
+    await user.click(screen.getByRole('button', { name: /подписаться/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(MARKETING_CONSENT_REQUIRED);
+    expect(getMarketingCheckbox()).toHaveAttribute('aria-invalid', 'true');
+    expect(getMarketingCheckbox()).toHaveAttribute('aria-describedby', alert.id);
+    expect(getPdpCheckbox()).not.toHaveAttribute('aria-invalid');
+    expect(toast.error).toHaveBeenCalledWith(MARKETING_CONSENT_REQUIRED, electricToastStyle);
+  });
+
+  it('generates unique consent ids for multiple form instances', () => {
     render(
       <>
         <ElectricSubscribeForm />
@@ -131,14 +270,17 @@ describe('ElectricSubscribeForm', () => {
       </>
     );
 
-    const checkboxes = screen.getAllByRole('checkbox', {
-      name: /обработку моих персональных данных/i,
-    });
-    const checkboxIds = checkboxes.map(checkbox => checkbox.getAttribute('id'));
-    expect(new Set(checkboxIds).size).toBe(2);
+    for (const name of [PDP_CONSENT_NAME, MARKETING_CONSENT_NAME]) {
+      const checkboxes = screen.getAllByRole('checkbox', { name });
+      expect(checkboxes).toHaveLength(2);
+      const checkboxIds = checkboxes.map(checkbox => checkbox.getAttribute('id'));
+      expect(new Set(checkboxIds).size).toBe(2);
+    }
+    const allIds = screen.getAllByRole('checkbox').map(checkbox => checkbox.getAttribute('id'));
+    expect(new Set(allIds).size).toBe(4);
   });
 
-  it('calls subscribe service with email and PDN consent payload', async () => {
+  it('calls subscribe service with email, both consents and both text versions', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockResolvedValueOnce({
       message: 'Successfully subscribed',
@@ -148,21 +290,22 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user);
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(mockSubscribe).toHaveBeenCalledWith({
         email: 'electric@example.com',
         pdp_consent: true,
-        // Версия показанной формулировки — по ней сервер отклоняет устаревшую вкладку.
-        consent_text_version: CONSENT_TEXT_VERSIONS.newsletter,
+        marketing_consent: true,
+        // Версии показанных формулировок — по ним сервер отклоняет устаревшую вкладку.
+        pdp_consent_text_version: CONSENT_TEXT_VERSIONS.newsletterPdp,
+        marketing_consent_text_version: CONSENT_TEXT_VERSIONS.newsletterMarketing,
       });
     });
   });
 
-  it('resets email and PDN checkbox after successful subscription', async () => {
+  it('resets email and both consent checkboxes after successful subscription', async () => {
     const mockSubscribe = vi.mocked(subscribeService.subscribe);
     mockSubscribe.mockResolvedValueOnce({
       message: 'Successfully subscribed',
@@ -173,8 +316,7 @@ describe('ElectricSubscribeForm', () => {
     render(<ElectricSubscribeForm />);
 
     const emailInput = screen.getByLabelText(/email/i);
-    await user.type(emailInput, 'electric@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user);
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
@@ -182,6 +324,7 @@ describe('ElectricSubscribeForm', () => {
     });
     expect(emailInput).toHaveValue('');
     expect(getPdpCheckbox()).not.toBeChecked();
+    expect(getMarketingCheckbox()).not.toBeChecked();
   });
 
   it('shows backend PDN field error instead of generic subscription error', async () => {
@@ -189,7 +332,7 @@ describe('ElectricSubscribeForm', () => {
     mockSubscribe.mockRejectedValueOnce(
       Object.assign(new Error('validation_error'), {
         details: {
-          pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+          pdp_consent: [PDP_CONSENT_REQUIRED],
         },
       })
     );
@@ -197,18 +340,12 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-pdp@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-pdp@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Необходимо согласие на обработку персональных данных.')).toBeInTheDocument();
-      expect(toast.error).toHaveBeenCalledWith(
-        'Необходимо согласие на обработку персональных данных.',
-        expect.objectContaining({
-          style: expect.objectContaining({ borderRadius: '0' }),
-        })
-      );
+      expect(screen.getByText(PDP_CONSENT_REQUIRED)).toBeInTheDocument();
+      expect(toast.error).toHaveBeenCalledWith(PDP_CONSENT_REQUIRED, electricToastStyle);
     });
   });
 
@@ -225,16 +362,13 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-detail@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-detail@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         'Не удалось сохранить согласие. Попробуйте позже.',
-        expect.objectContaining({
-          style: expect.objectContaining({ borderRadius: '0' }),
-        })
+        electricToastStyle
       );
     });
   });
@@ -247,7 +381,7 @@ describe('ElectricSubscribeForm', () => {
       Object.assign(new Error('validation_error'), {
         code: 'consent_text_outdated',
         details: {
-          consent_text_version: [
+          pdp_consent_text_version: [
             'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.',
           ],
         },
@@ -257,16 +391,13 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-outdated@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-outdated@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         'ТЕКСТ СОГЛАСИЯ ОБНОВИЛСЯ. ОБНОВИТЕ СТРАНИЦУ И ПОДТВЕРДИТЕ СОГЛАСИЕ ЗАНОВО.',
-        expect.objectContaining({
-          style: expect.objectContaining({ borderRadius: '0' }),
-        })
+        electricToastStyle
       );
     });
   });
@@ -283,7 +414,7 @@ describe('ElectricSubscribeForm', () => {
         code: 'consent_text_outdated',
         details: {
           email: [emailMessage],
-          consent_text_version: [
+          marketing_consent_text_version: [
             'Текст согласия обновился. Обновите страницу и подтвердите согласие заново.',
           ],
         },
@@ -293,22 +424,16 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-mixed-details@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-mixed-details@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         'ТЕКСТ СОГЛАСИЯ ОБНОВИЛСЯ. ОБНОВИТЕ СТРАНИЦУ И ПОДТВЕРДИТЕ СОГЛАСИЕ ЗАНОВО.',
-        expect.objectContaining({
-          style: expect.objectContaining({ borderRadius: '0' }),
-        })
+        electricToastStyle
       );
     });
-    expect(toast.error).not.toHaveBeenCalledWith(
-      emailMessage.toUpperCase(),
-      expect.anything()
-    );
+    expect(toast.error).not.toHaveBeenCalledWith(emailMessage.toUpperCase(), expect.anything());
   });
 
   it('shows backend message on server error from subscribe service', async () => {
@@ -324,16 +449,13 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-server-error@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-server-error@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         'НЕ УДАЛОСЬ СОХРАНИТЬ СОГЛАСИЕ. ПОПРОБУЙТЕ ПОЗЖЕ.',
-        expect.objectContaining({
-          style: expect.objectContaining({ borderRadius: '0' }),
-        })
+        electricToastStyle
       );
     });
   });
@@ -345,16 +467,13 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-server-unavailable@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-server-unavailable@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         'СЕРВЕР ВРЕМЕННО НЕДОСТУПЕН. ПОПРОБУЙТЕ ПОЗЖЕ',
-        expect.objectContaining({
-          style: expect.objectContaining({ borderRadius: '0' }),
-        })
+        electricToastStyle
       );
     });
   });
@@ -366,16 +485,13 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-throttled@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-throttled@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
         'СЛИШКОМ МНОГО ПОПЫТОК. ПОПРОБУЙТЕ ЧЕРЕЗ МИНУТУ.',
-        expect.objectContaining({
-          style: expect.objectContaining({ borderRadius: '0' }),
-        })
+        electricToastStyle
       );
     });
   });
@@ -387,7 +503,7 @@ describe('ElectricSubscribeForm', () => {
       .mockRejectedValueOnce(
         Object.assign(new Error('validation_error'), {
           details: {
-            pdp_consent: ['Необходимо согласие на обработку персональных данных.'],
+            pdp_consent: [PDP_CONSENT_REQUIRED],
           },
         })
       )
@@ -401,18 +517,15 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric-retry@example.com');
-    await clickPdpCheckbox(user);
+    await fillEmailAndAcceptConsent(user, 'electric-retry@example.com');
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
-    await screen.findByText('Необходимо согласие на обработку персональных данных.');
+    await screen.findByText(PDP_CONSENT_REQUIRED);
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await waitFor(() => {
       expect(mockSubscribe).toHaveBeenCalledTimes(2);
-      expect(
-        screen.queryByText('Необходимо согласие на обработку персональных данных.')
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(PDP_CONSENT_REQUIRED)).not.toBeInTheDocument();
     });
 
     await act(async () => {

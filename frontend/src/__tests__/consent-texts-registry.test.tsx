@@ -126,7 +126,9 @@ function currentVersion(surface: string): string {
   return `${revision.label}-${digest}`;
 }
 
-const NEWSLETTER_TEXT = currentText('newsletter_checkbox');
+// Со стори 41.11 у форм подписки два чекбокса, у каждого своя поверхность.
+const NEWSLETTER_PDP_TEXT = currentText('newsletter_pdp_checkbox');
+const NEWSLETTER_MARKETING_TEXT = currentText('newsletter_marketing_checkbox');
 const REGISTRATION_PDP_TEXT = currentText('registration_pdp_checkbox');
 const REGISTRATION_MARKETING_TEXT = currentText('registration_marketing_checkbox');
 
@@ -165,13 +167,16 @@ describe('Реестр текстов согласий сверен с форм�
     cleanup();
   });
 
-  it('реестр читается и содержит три поверхности с непустыми ревизиями', () => {
+  it('реестр читается и содержит пять поверхностей с непустыми ревизиями', () => {
     expect(Object.keys(registry.surfaces).sort()).toEqual([
       'newsletter_checkbox',
+      'newsletter_marketing_checkbox',
+      'newsletter_pdp_checkbox',
       'registration_marketing_checkbox',
       'registration_pdp_checkbox',
     ]);
-    expect(NEWSLETTER_TEXT.length).toBeGreaterThan(0);
+    expect(NEWSLETTER_PDP_TEXT.length).toBeGreaterThan(0);
+    expect(NEWSLETTER_MARKETING_TEXT.length).toBeGreaterThan(0);
     expect(REGISTRATION_PDP_TEXT.length).toBeGreaterThan(0);
     expect(REGISTRATION_MARKETING_TEXT.length).toBeGreaterThan(0);
   });
@@ -192,11 +197,24 @@ describe('Реестр текстов согласий сверен с форм�
     }
   });
 
+  it('согласия подписки привязаны к двум разным поверхностям, объединённый чекбокс — ни к чему', () => {
+    // Стори 41.11: ПДн и рассылка подписки — отдельные чекбоксы. `newsletter_checkbox`
+    // (объединённый текст редакции 2 стори 41.3) остаётся в реестре только затем,
+    // чтобы записи журнала с его версией разрешались в свой текст.
+    expect(registry.bindings['newsletter.pdp_contract']).toBe('newsletter_pdp_checkbox');
+    expect(registry.bindings['newsletter.marketing_email']).toBe('newsletter_marketing_checkbox');
+    expect(Object.values(registry.bindings)).not.toContain('newsletter_checkbox');
+  });
+
   it('константы версий фронта совпадают с действующими ревизиями реестра', () => {
     // Версия уезжает в запрос вместе с согласием и решает, примет ли её сервер.
     // Разъехавшаяся константа означала бы отказ всех форм на проде — или, что
     // хуже, запись согласия на формулировку, которой человек не видел.
-    expect(CONSENT_TEXT_VERSIONS.newsletter).toBe(currentVersion('newsletter_checkbox'));
+    expect(CONSENT_TEXT_VERSIONS.newsletterPdp).toBe(currentVersion('newsletter_pdp_checkbox'));
+    expect(CONSENT_TEXT_VERSIONS.newsletterMarketing).toBe(
+      currentVersion('newsletter_marketing_checkbox')
+    );
+    expect(CONSENT_TEXT_VERSIONS.newsletterPdp).not.toBe(CONSENT_TEXT_VERSIONS.newsletterMarketing);
     expect(CONSENT_TEXT_VERSIONS.registrationPdp).toBe(currentVersion('registration_pdp_checkbox'));
     expect(CONSENT_TEXT_VERSIONS.registrationMarketing).toBe(
       currentVersion('registration_marketing_checkbox')
@@ -210,14 +228,28 @@ describe('Реестр текстов согласий сверен с форм�
     expect(registry.known_versions).toEqual(expect.arrayContaining(Object.values(CONSENT_TEXT_VERSIONS)));
   });
 
-  it('SubscribeForm показывает текст поверхности newsletter_checkbox', () => {
-    render(<SubscribeForm />);
-    expect(screen.getByRole('checkbox', { name: NEWSLETTER_TEXT })).toBeInTheDocument();
+  it('исторические версии остаются в known_versions', () => {
+    // Литералы здесь уместны: это неизменяемая история, на неё ссылаются записи
+    // журнала на проде. Объединённый чекбокс подписки (редакция 2 стори 41.3) и
+    // маркетинг регистрации без названного канала (стори 41.9).
+    expect(registry.known_versions).toEqual(
+      expect.arrayContaining([
+        '2026-08-30-77dbceafc3c487ffc24975cf2ce76778',
+        '2026-09-09-e26471e47eba2ba742a4f4488dfdda05',
+      ])
+    );
   });
 
-  it('ElectricSubscribeForm показывает тот же текст newsletter_checkbox', () => {
+  it('SubscribeForm показывает тексты newsletter_pdp_checkbox и newsletter_marketing_checkbox', () => {
+    render(<SubscribeForm />);
+    expect(screen.getByRole('checkbox', { name: NEWSLETTER_PDP_TEXT })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: NEWSLETTER_MARKETING_TEXT })).toBeInTheDocument();
+  });
+
+  it('ElectricSubscribeForm показывает те же тексты, что и SubscribeForm', () => {
     render(<ElectricSubscribeForm />);
-    expect(screen.getByRole('checkbox', { name: NEWSLETTER_TEXT })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: NEWSLETTER_PDP_TEXT })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: NEWSLETTER_MARKETING_TEXT })).toBeInTheDocument();
   });
 
   it('RegisterForm показывает тексты registration_pdp_checkbox и registration_marketing_checkbox', () => {

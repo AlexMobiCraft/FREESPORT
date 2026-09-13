@@ -234,9 +234,13 @@ export interface ApiError {
 // Newsletter Subscription Types
 export interface SubscribeRequest {
   email: string;
+  // Два отдельных обязательных согласия формы подписки (стори 41.11):
+  // на обработку ПДн и на рассылку по электронной почте.
   pdp_consent: boolean;
-  // Версия формулировки единственного чекбокса подписки (стори 41.9).
-  consent_text_version: string;
+  marketing_consent: boolean;
+  // Версии формулировок, у каждого чекбокса своя (стори 41.9, 41.11).
+  pdp_consent_text_version: string;
+  marketing_consent_text_version: string;
 }
 
 export interface SubscribeResponse {
