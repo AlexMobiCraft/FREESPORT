@@ -10,11 +10,18 @@
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCookieConsent, __resetCookieConsentStoreForTests } from '../useCookieConsent';
+import {
+  useCookieConsent,
+  __resetCookieConsentStoreForTests,
+  CONSENT_VERSION,
+} from '../useCookieConsent';
 
 const STORAGE_KEY = 'cookie_consent';
 const LEGACY_STORAGE_KEY = 'cookie_consent_accepted';
 const LEGACY_ACCEPTED_VALUE = '1';
+// Сериализованные значения выбора под действующей версией текста баннера.
+const ACCEPTED = `accepted:v${CONSENT_VERSION}`;
+const DECLINED = `declined:v${CONSENT_VERSION}`;
 const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
 
 /** Подменяет window.localStorage переданной заглушкой. */
@@ -58,7 +65,7 @@ describe('useCookieConsent', () => {
     });
 
     it('сохранённое accepted скрывает баннер', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
 
       const { result } = renderHook(() => useCookieConsent());
 
@@ -69,7 +76,7 @@ describe('useCookieConsent', () => {
     });
 
     it('сохранённое declined скрывает баннер и отличимо от accepted', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
 
       const { result } = renderHook(() => useCookieConsent());
 
@@ -100,7 +107,7 @@ describe('useCookieConsent', () => {
         result.current.accept();
       });
 
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('accepted');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(ACCEPTED);
       expect(result.current.status).toBe('accepted');
       expect(result.current.isBannerVisible).toBe(false);
     });
@@ -113,13 +120,13 @@ describe('useCookieConsent', () => {
         result.current.decline();
       });
 
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(DECLINED);
       expect(result.current.status).toBe('declined');
       expect(result.current.isBannerVisible).toBe(false);
     });
 
     it('reopen показывает баннер, не стирая сохранённый выбор', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -130,12 +137,12 @@ describe('useCookieConsent', () => {
       expect(result.current.isBannerVisible).toBe(true);
       expect(result.current.isForced).toBe(true);
       // Выбор перезаписывается только кнопками баннера — reopen хранилище не трогает.
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(DECLINED);
       expect(result.current.status).toBe('declined');
     });
 
     it('accept после reopen сбрасывает признак принудительного показа', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -148,11 +155,11 @@ describe('useCookieConsent', () => {
 
       expect(result.current.isForced).toBe(false);
       expect(result.current.isBannerVisible).toBe(false);
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('accepted');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(ACCEPTED);
     });
 
     it('decline после reopen сбрасывает признак принудительного показа', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -165,25 +172,58 @@ describe('useCookieConsent', () => {
 
       expect(result.current.isForced).toBe(false);
       expect(result.current.isBannerVisible).toBe(false);
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(DECLINED);
     });
   });
 
-  describe('миграция legacy-ключа (AC2)', () => {
-    it('legacy cookie_consent_accepted=1 читается как accepted, переписывается и удаляется', async () => {
+  describe('версия согласия и legacy-ключ (стори 41.14)', () => {
+    it('неверсионное accepted под текстом без Метрики — не согласие: unset и баннер', async () => {
+      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
+    });
+
+    it('неверсионное declined под текстом без Метрики — тоже переспрос: unset и баннер', async () => {
+      window.localStorage.setItem(STORAGE_KEY, 'declined');
+
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
+    });
+
+    it('legacy cookie_consent_accepted=1 согласием не считается и миграцией не поднимается', async () => {
       window.localStorage.setItem(LEGACY_STORAGE_KEY, LEGACY_ACCEPTED_VALUE);
 
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-      expect(result.current.status).toBe('accepted');
-      expect(result.current.isBannerVisible).toBe(false);
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('accepted');
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it('новый выбор под текущей версией удаляет legacy-ключ', async () => {
+      window.localStorage.setItem(LEGACY_STORAGE_KEY, LEGACY_ACCEPTED_VALUE);
+
+      const { result } = renderHook(() => useCookieConsent());
+      await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+      act(() => {
+        result.current.accept();
+      });
+
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(ACCEPTED);
       expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
     });
 
     it('валидное значение нового ключа имеет приоритет над legacy', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
       window.localStorage.setItem(LEGACY_STORAGE_KEY, LEGACY_ACCEPTED_VALUE);
 
       const { result } = renderHook(() => useCookieConsent());
@@ -192,7 +232,7 @@ describe('useCookieConsent', () => {
       expect(result.current.status).toBe('declined');
     });
 
-    it('legacy-значение, отличное от 1, не мигрируется', async () => {
+    it('legacy-значение, отличное от 1, статус не меняет', async () => {
       window.localStorage.setItem(LEGACY_STORAGE_KEY, '0');
 
       const { result } = renderHook(() => useCookieConsent());
@@ -200,29 +240,6 @@ describe('useCookieConsent', () => {
 
       expect(result.current.status).toBe('unset');
       expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
-    });
-
-    it('сбой записи при миграции не сбрасывает согласие и логируется как ошибка записи', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const removeItem = vi.fn();
-      mockLocalStorage({
-        getItem: vi.fn((key: string) => (key === LEGACY_STORAGE_KEY ? LEGACY_ACCEPTED_VALUE : null)),
-        setItem: vi.fn(() => {
-          throw new Error('storage is unavailable');
-        }),
-        removeItem,
-      });
-
-      const { result } = renderHook(() => useCookieConsent());
-      await waitFor(() => expect(result.current.isLoaded).toBe(true));
-
-      expect(result.current.status).toBe('accepted');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'useCookieConsent: запись localStorage не удалась',
-        expect.any(Error)
-      );
-      // Старый ключ удаляется только после успешной записи нового.
-      expect(removeItem).not.toHaveBeenCalled();
     });
   });
 
@@ -321,7 +338,7 @@ describe('useCookieConsent', () => {
     // хранилище, а не event.newValue. Поэтому тесты имитируют другую вкладку
     // явно: сначала меняют localStorage, затем шлют событие.
     it('внешнее accepted закрывает принудительно открытый баннер', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -330,12 +347,12 @@ describe('useCookieConsent', () => {
       });
       expect(result.current.isBannerVisible).toBe(true);
 
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
             key: STORAGE_KEY,
-            newValue: 'accepted',
+            newValue: ACCEPTED,
             storageArea: window.localStorage,
           })
         );
@@ -351,12 +368,12 @@ describe('useCookieConsent', () => {
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
       expect(result.current.isBannerVisible).toBe(true);
 
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
             key: STORAGE_KEY,
-            newValue: 'declined',
+            newValue: DECLINED,
             storageArea: window.localStorage,
           })
         );
@@ -367,7 +384,7 @@ describe('useCookieConsent', () => {
     });
 
     it('удаление ключа в другой вкладке возвращает статус unset', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -387,7 +404,7 @@ describe('useCookieConsent', () => {
     });
 
     it('событие по чужому ключу игнорируется', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -395,7 +412,7 @@ describe('useCookieConsent', () => {
         window.dispatchEvent(
           new StorageEvent('storage', {
             key: 'other_key',
-            newValue: 'declined',
+            newValue: DECLINED,
             storageArea: window.localStorage,
           })
         );
@@ -405,7 +422,7 @@ describe('useCookieConsent', () => {
     });
 
     it('событие без фактического изменения не вызывает ре-рендер', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       let renderCount = 0;
       const { result } = renderHook(() => {
         renderCount += 1;
@@ -418,7 +435,7 @@ describe('useCookieConsent', () => {
         window.dispatchEvent(
           new StorageEvent('storage', {
             key: STORAGE_KEY,
-            newValue: 'accepted',
+            newValue: ACCEPTED,
             storageArea: window.localStorage,
           })
         );
@@ -438,7 +455,7 @@ describe('useCookieConsent', () => {
         window.dispatchEvent(
           new StorageEvent('storage', {
             key: STORAGE_KEY,
-            newValue: 'accepted',
+            newValue: ACCEPTED,
             storageArea: window.sessionStorage,
           })
         );
@@ -453,7 +470,7 @@ describe('useCookieConsent', () => {
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
       act(() => {
-        window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: 'accepted' }));
+        window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: ACCEPTED }));
       });
 
       expect(result.current.status).toBe('unset');
@@ -462,7 +479,7 @@ describe('useCookieConsent', () => {
     it('localStorage.clear() в другой вкладке возвращает статус unset', async () => {
       // Полная очистка приходит событием с key === null: без её обработки
       // здесь остался бы устаревший статус и баннер больше не показался бы.
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
       expect(result.current.status).toBe('accepted');
@@ -483,7 +500,7 @@ describe('useCookieConsent', () => {
     });
 
     it('очистка sessionStorage в другой вкладке статус не трогает', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -509,14 +526,14 @@ describe('useCookieConsent', () => {
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
       // Запись другой вкладки — не запись обработчика: после неё счётчик обнуляется.
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
       setItem.mockClear();
 
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
             key: STORAGE_KEY,
-            newValue: 'declined',
+            newValue: DECLINED,
             storageArea: window.localStorage,
           })
         );
@@ -537,13 +554,13 @@ describe('useCookieConsent', () => {
       act(() => {
         result.current.decline();
       });
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(DECLINED);
 
       act(() => {
         window.dispatchEvent(
           new StorageEvent('storage', {
             key: STORAGE_KEY,
-            newValue: 'accepted',
+            newValue: ACCEPTED,
             storageArea: window.localStorage,
           })
         );
@@ -551,7 +568,7 @@ describe('useCookieConsent', () => {
 
       expect(result.current.status).toBe('declined');
       expect(result.current.isBannerVisible).toBe(false);
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(DECLINED);
     });
 
     it('при сбое чтения во время события используется event.newValue и логируется ошибка чтения', async () => {
@@ -570,7 +587,7 @@ describe('useCookieConsent', () => {
           window.dispatchEvent(
             new StorageEvent('storage', {
               key: STORAGE_KEY,
-              newValue: 'accepted',
+              newValue: ACCEPTED,
               storageArea: window.localStorage,
             })
           );
@@ -586,10 +603,10 @@ describe('useCookieConsent', () => {
       );
     });
 
-    it('legacy-ключ, записанный старой вкладкой во время выката, читается как accepted', async () => {
+    it('legacy-ключ, записанный старой вкладкой во время выката, согласием не считается', async () => {
       // Во время выката вкладка со старым бандлом пишет cookie_consent_accepted='1'.
-      // Открытая вкладка с новым бандлом обязана принять это согласие, а не
-      // держать баннер до перезагрузки.
+      // Это согласие под текстом без Яндекс Метрики — действующим оно не
+      // становится, но событие валидно будит перечитывание хранилища.
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
       expect(result.current.isBannerVisible).toBe(true);
@@ -605,15 +622,13 @@ describe('useCookieConsent', () => {
         );
       });
 
-      expect(result.current.status).toBe('accepted');
-      expect(result.current.isBannerVisible).toBe(false);
-      // Та же безопасная миграция, что и при чтении хранилища.
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('accepted');
-      expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
     it('legacy-событие не перебивает валидное значение нового ключа', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'declined');
+      window.localStorage.setItem(STORAGE_KEY, DECLINED);
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
@@ -629,7 +644,7 @@ describe('useCookieConsent', () => {
       });
 
       expect(result.current.status).toBe('declined');
-      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('declined');
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe(DECLINED);
     });
 
     it('legacy-событие со значением, отличным от 1, статус не меняет', async () => {
@@ -652,7 +667,7 @@ describe('useCookieConsent', () => {
       expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
-    it('при сбое чтения legacy-событие принимается по event.newValue', async () => {
+    it('при сбое чтения legacy-событие согласия не создаёт и логирует ошибку чтения', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const { result } = renderHook(() => useCookieConsent());
       await waitFor(() => expect(result.current.isLoaded).toBe(true));
@@ -675,7 +690,8 @@ describe('useCookieConsent', () => {
         getItem.mockRestore();
       }
 
-      expect(result.current.status).toBe('accepted');
+      expect(result.current.status).toBe('unset');
+      expect(result.current.isBannerVisible).toBe(true);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'useCookieConsent: чтение localStorage не удалось',
         expect.any(Error)
@@ -685,7 +701,7 @@ describe('useCookieConsent', () => {
 
   describe('стабильность снимка (AC4)', () => {
     it('повторный reopen не пересоздаёт снимок и не вызывает ре-рендер', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       let renderCount = 0;
       const { result } = renderHook(() => {
         renderCount += 1;
@@ -709,7 +725,7 @@ describe('useCookieConsent', () => {
     });
 
     it('повторный accept с тем же статусом не вызывает ре-рендер', async () => {
-      window.localStorage.setItem(STORAGE_KEY, 'accepted');
+      window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
       let renderCount = 0;
       const { result } = renderHook(() => {
         renderCount += 1;
