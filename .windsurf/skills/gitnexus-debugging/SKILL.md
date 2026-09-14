@@ -3,87 +3,70 @@ name: gitnexus-debugging
 description: "Use when the user is debugging a bug, tracing an error, or asking why something fails. Examples: \"Why is X failing?\", \"Where does this error come from?\", \"Trace this bug\""
 ---
 
-# Debugging with GitNexus
+# Отладка через GitNexus CLI
 
-## When to Use
+Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (индексов
+FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
+Справочник — `gitnexus-guide`.
 
-- "Why is this function failing?"
-- "Trace where this error comes from"
-- "Who calls this method?"
-- "This endpoint returns 500"
-- Investigating bugs, errors, or unexpected behavior
+## Когда использовать
+
+- «Почему эта функция падает?», «Откуда эта ошибка?»
+- Эндпоинт отдаёт 500, неожиданное поведение
+- Регрессия после изменений
 
 ## Workflow
 
 ```
-1. gitnexus_query({query: "<error or symptom>"})            → Find related execution flows
-2. gitnexus_context({name: "<suspect>"})                    → See callers/callees/processes
-3. READ gitnexus://repo/{name}/process/{name}                → Trace execution flow
-4. gitnexus_cypher({query: "MATCH path..."})                 → Custom traces if needed
+1. npx gitnexus status                                  → индекс свежий?
+2. npx gitnexus query -r <repo> "<симптом или текст ошибки>" → связанные процессы и символы
+3. npx gitnexus context -r <repo> <подозреваемый>        → вызывающие / вызываемые
+4. npx gitnexus cypher -r <repo> "<цепочка или шаги>"     → трассировка, если нужна
+5. Read исходников                                      → подтвердить корневую причину
 ```
 
-> If "Index is stale" → run `npx gitnexus analyze` in terminal.
+> `stale` → попроси пользователя выполнить `! npx gitnexus analyze --skip-agents-md`.
+> Граф показывает статические связи. Корневую причину подтверждай чтением кода, логами и тестами,
+> а не только графом.
 
-## Checklist
-
-```
-- [ ] Understand the symptom (error message, unexpected behavior)
-- [ ] gitnexus_query for error text or related code
-- [ ] Identify the suspect function from returned processes
-- [ ] gitnexus_context to see callers and callees
-- [ ] Trace execution flow via process resource if applicable
-- [ ] gitnexus_cypher for custom call chain traces if needed
-- [ ] Read source files to confirm root cause
-```
-
-## Debugging Patterns
-
-| Symptom              | GitNexus Approach                                          |
-| -------------------- | ---------------------------------------------------------- |
-| Error message        | `gitnexus_query` for error text → `context` on throw sites |
-| Wrong return value   | `context` on the function → trace callees for data flow    |
-| Intermittent failure | `context` → look for external calls, async deps            |
-| Performance issue    | `context` → find symbols with many callers (hot paths)     |
-| Recent regression    | `detect_changes` to see what your changes affect           |
-
-## Tools
-
-**gitnexus_query** — find code related to error:
+## Чеклист
 
 ```
-gitnexus_query({query: "payment validation error"})
-→ Processes: CheckoutFlow, ErrorHandling
-→ Symbols: validatePayment, handlePaymentError, PaymentException
+- [ ] Понять симптом (текст ошибки, неверный результат)
+- [ ] query по тексту ошибки или теме
+- [ ] Выбрать подозреваемую функцию из processes / definitions
+- [ ] context: кто её вызывает и что она вызывает
+- [ ] Цепочка вызовов или шаги процесса через cypher
+- [ ] Прочитать исходники, воспроизвести тестом
 ```
 
-**gitnexus_context** — full context for a suspect:
+## Паттерны
+
+| Симптом | Подход |
+| --- | --- |
+| Текст ошибки | `query` по тексту → `context` на месте, где бросается исключение |
+| Неверное значение | `context` функции → пройти `outgoing` по потоку данных |
+| Плавающий сбой | `context` → искать внешние вызовы (1С, YuKassa, CDEK), Celery, async |
+| Медленно | `context` → символы с большим числом вызывающих (горячие пути) |
+| Регрессия после правок | `detect-changes -s all` или `-s compare -b develop` |
+
+## Цепочка вызовов
+
+Синтаксис `[:CodeRelation {type: 'CALLS'}*1..2]` здесь не парсится — фильтр через `rels()`:
+
+```bash
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH p = (a)-[r:CodeRelation*1..2]->(b:Function {name: '_get_order_display_items'}) WHERE all(x IN rels(p) WHERE x.type = 'CALLS') RETURN properties(nodes(p), 'name') AS chain"
+```
+
+## Пример: «В письме о заказе нет позиций»
 
 ```
-gitnexus_context({name: "validatePayment"})
-→ Incoming calls: processCheckout, webhookHandler
-→ Outgoing calls: verifyCard, fetchRates (external API!)
-→ Processes: CheckoutFlow (step 3/7)
-```
-
-**gitnexus_cypher** — custom call chain traces:
-
-```cypher
-MATCH path = (a)-[:CodeRelation {type: 'CALLS'}*1..2]->(b:Function {name: "validatePayment"})
-RETURN [n IN nodes(path) | n.name] AS chain
-```
-
-## Example: "Payment endpoint returns 500 intermittently"
-
-```
-1. gitnexus_query({query: "payment error handling"})
-   → Processes: CheckoutFlow, ErrorHandling
-   → Symbols: validatePayment, handlePaymentError
-
-2. gitnexus_context({name: "validatePayment"})
-   → Outgoing calls: verifyCard, fetchRates (external API!)
-
-3. READ gitnexus://repo/my-app/process/CheckoutFlow
-   → Step 3: validatePayment → calls fetchRates (external)
-
-4. Root cause: fetchRates calls external API without proper timeout
+1. npx gitnexus query -r "C:\Users\1\DEV\FREESPORT" "email уведомления о заказе"
+   → definitions: tasks.py (send_order_confirmation_to_customer, _build_order_email_text),
+     signals.py (send_order_confirmation_email)
+2. npx gitnexus context -r "C:\Users\1\DEV\FREESPORT" _get_order_display_items
+   → incoming: _build_order_email_text, send_order_notification_email
+3. Read backend/apps/orders/tasks.py и signals.py
+   → письма уходят только для is_master=True, позиции собираются из sub_orders
+4. Проверить, что у мастер-заказа есть sub_orders, — тестом
 ```

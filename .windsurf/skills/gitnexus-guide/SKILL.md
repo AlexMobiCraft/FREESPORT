@@ -1,64 +1,92 @@
 ---
 name: gitnexus-guide
-description: "Use when the user asks about GitNexus itself — available tools, how to query the knowledge graph, MCP resources, graph schema, or workflow reference. Examples: \"What GitNexus tools are available?\", \"How do I use GitNexus?\""
+description: "Use when the user asks about GitNexus itself — available CLI commands, how to query the knowledge graph, graph schema, or workflow reference. Examples: \"What GitNexus commands are available?\", \"How do I use GitNexus?\""
 ---
 
-# GitNexus Guide
+# GitNexus: справочник по CLI и схеме графа
 
-Quick reference for all GitNexus MCP tools, resources, and the knowledge graph schema.
+MCP-сервер `gitnexus` отключён: инструментов `gitnexus_*` и ресурсов `gitnexus://` нет.
+Всё — через `npx gitnexus <команда>` в Bash.
 
-## Always Start Here
+## С чего начинать
 
-For any task involving code understanding, debugging, impact analysis, or refactoring:
+1. `npx gitnexus status` — если `stale`, попроси пользователя выполнить
+   `! npx gitnexus analyze --skip-agents-md` (сам не запускай).
+2. Выбери skill-файл под задачу и следуй его workflow.
+3. Во все команды анализа передавай `-r "C:\Users\1\DEV\FREESPORT"`: индексов с именем
+   FREESPORT два (второй — `FREESPORT-pr117`), без пути команды падают.
 
-1. **Read `gitnexus://repo/{name}/context`** — codebase overview + check index freshness
-2. **Match your task to a skill below** and **read that skill file**
-3. **Follow the skill's workflow and checklist**
+| Задача | Skill |
+| --- | --- |
+| «Как работает X?», архитектура | `gitnexus-exploring` |
+| «Что сломается, если поменять X?» | `gitnexus-impact-analysis` |
+| «Почему X падает?» | `gitnexus-debugging` |
+| Переименование, вынос, разделение | `gitnexus-refactoring` |
+| Индекс, status, clean, wiki | `gitnexus-cli` |
 
-> If step 1 warns the index is stale, run `npx gitnexus analyze` in the terminal first.
+## Команды
 
-## Skills
+| Команда | Что даёт | Вывод |
+| --- | --- | --- |
+| `query "<концепция>" [-l N] [-g <цель>] [-c <контекст>] [--content]` | Процессы и символы по теме | JSON: `processes`, `process_symbols`, `definitions` |
+| `context <name> [-f <file>] [-u <uid>] [--content]` | Символ: вызывающие, вызываемые, процессы | JSON: `symbol`, `incoming`, `outgoing`, `processes` |
+| `impact <target> [-d upstream\|downstream] [--depth N] [--include-tests]` | Blast radius по глубинам + риск | JSON: `risk`, `summary`, `byDepth`, `affected_processes` |
+| `detect-changes [-s unstaged\|staged\|all\|compare] [-b <ref>]` | Какие символы и процессы задевает git diff | текст |
+| `cypher "<query>"` | Произвольный запрос к графу | JSON: `markdown` (таблица), `row_count` |
+| `status`, `list` | Свежесть индекса, список репозиториев | текст |
 
-| Task                                         | Skill to read       |
-| -------------------------------------------- | ------------------- |
-| Understand architecture / "How does X work?" | `gitnexus-exploring`         |
-| Blast radius / "What breaks if I change X?"  | `gitnexus-impact-analysis`   |
-| Trace bugs / "Why is X failing?"             | `gitnexus-debugging`         |
-| Rename / extract / split / refactor          | `gitnexus-refactoring`       |
-| Tools, resources, schema reference           | `gitnexus-guide` (this file) |
-| Index, status, clean, wiki CLI commands      | `gitnexus-cli`               |
+Команды `rename` нет. Переименование — вручную по списку из `impact` и `context`
+(см. `gitnexus-refactoring`).
 
-## Tools Reference
+## Неоднозначные имена
 
-| Tool             | What it gives you                                                        |
-| ---------------- | ------------------------------------------------------------------------ |
-| `query`          | Process-grouped code intelligence — execution flows related to a concept |
-| `context`        | 360-degree symbol view — categorized refs, processes it participates in  |
-| `impact`         | Symbol blast radius — what breaks at depth 1/2/3 with confidence         |
-| `detect_changes` | Git-diff impact — what do your current changes affect                    |
-| `rename`         | Multi-file coordinated rename with confidence-tagged edits               |
-| `cypher`         | Raw graph queries (read `gitnexus://repo/{name}/schema` first)           |
-| `list_repos`     | Discover indexed repos                                                   |
+`context get` вернёт `"status": "ambiguous"` и список `candidates` с `uid`. Уточни через
+`-f <путь к файлу>` или `-u <uid>`. `ambiguous` у `impact` — не «0 затронутых»: у `impact` нет
+`--file`, поэтому для частых имён ищи вызывающих через `cypher` по `filePath`.
 
-## Resources Reference
+## Схема графа
 
-Lightweight reads (~100-500 tokens) for navigation:
+**Узлы:** `Function`, `Method`, `Class`, `Interface`, `Property`, `Variable`, `Const`, `File`,
+`Folder`, `Section`, `Route`, `Community` (функциональная область), `Process` (поток выполнения).
 
-| Resource                                       | Content                                   |
-| ---------------------------------------------- | ----------------------------------------- |
-| `gitnexus://repo/{name}/context`               | Stats, staleness check                    |
-| `gitnexus://repo/{name}/clusters`              | All functional areas with cohesion scores |
-| `gitnexus://repo/{name}/cluster/{clusterName}` | Area members                              |
-| `gitnexus://repo/{name}/processes`             | All execution flows                       |
-| `gitnexus://repo/{name}/process/{processName}` | Step-by-step trace                        |
-| `gitnexus://repo/{name}/schema`                | Graph schema for Cypher                   |
+**Связи** — одна таблица `CodeRelation`, тип в свойстве `type`: `DEFINES`, `CALLS`, `MEMBER_OF`,
+`STEP_IN_PROCESS`, `IMPORTS`, `CONTAINS`, `HAS_METHOD`, `HAS_PROPERTY`, `ACCESSES`, `EXTENDS`,
+`HANDLES_ROUTE`. У `STEP_IN_PROCESS` есть `step` (номер шага), у всех — `confidence`.
 
-## Graph Schema
+**Свойства:** у символов `name`, `filePath`, `startLine`, `endLine`; у `Process` — `id`, `label`,
+`stepCount`, `processType`; у `Community` — `label`, `symbolCount`, `cohesion`.
 
-**Nodes:** File, Function, Class, Interface, Method, Community, Process
-**Edges (via CodeRelation.type):** CALLS, IMPORTS, EXTENDS, IMPLEMENTS, DEFINES, MEMBER_OF, STEP_IN_PROCESS
+## Проверенные запросы
 
-```cypher
-MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(f:Function {name: "myFunc"})
-RETURN caller.name, caller.filePath
+Кто вызывает функцию:
+
+```bash
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(f:Function {name: 'send_order_notification_email'}) RETURN caller.name, caller.filePath"
+```
+
+Цепочки вызовов глубиной до 2. Синтаксис `[:CodeRelation {type: 'CALLS'}*1..2]` здесь
+**не парсится** — фильтруй связи через `rels()`:
+
+```bash
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH p = (a)-[r:CodeRelation*1..2]->(b:Function {name: '_get_order_display_items'}) WHERE all(x IN rels(p) WHERE x.type = 'CALLS') RETURN properties(nodes(p), 'name') AS chain"
+```
+
+Список процессов и трассировка одного по шагам:
+
+```bash
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (p:Process) RETURN p.id, p.label, p.stepCount ORDER BY p.stepCount DESC LIMIT 20"
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (s)-[r:CodeRelation {type: 'STEP_IN_PROCESS'}]->(p:Process {id: 'proc_0_handle_init'}) RETURN r.step AS step, s.name AS name, s.filePath AS file ORDER BY step"
+```
+
+В каких процессах участвует символ:
+
+```bash
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (s {name: 'handle_init'})-[r:CodeRelation {type: 'STEP_IN_PROCESS'}]->(p:Process) RETURN p.id, p.label, r.step, p.stepCount"
+```
+
+Функциональные области и их состав:
+
+```bash
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (c:Community) RETURN c.label AS area, c.symbolCount AS n ORDER BY n DESC LIMIT 20"
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (s)-[:CodeRelation {type: 'MEMBER_OF'}]->(c:Community {label: 'Orders'}) RETURN s.name, s.filePath"
 ```

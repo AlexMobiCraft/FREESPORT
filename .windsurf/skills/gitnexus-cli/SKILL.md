@@ -3,81 +3,77 @@ name: gitnexus-cli
 description: "Use when the user needs to run GitNexus CLI commands like analyze/index a repo, check status, clean the index, generate a wiki, or list indexed repos. Examples: \"Index this repo\", \"Reanalyze the codebase\", \"Generate a wiki\""
 ---
 
-# GitNexus CLI Commands
+# GitNexus CLI: индекс и обслуживание
 
-All commands work via `npx` — no global install required.
+Всё через `npx gitnexus ...` в Bash, глобальная установка не нужна. Без тега версии:
+`npx -y gitnexus@latest ...` падает на резолве `@latest`. MCP-сервер `gitnexus` отключён —
+инструментов `gitnexus_*` и ресурсов `gitnexus://` в сессии нет.
 
-## Commands
+## Два индекса с именем FREESPORT
 
-### analyze — Build or refresh the index
+`npx gitnexus list` показывает два репозитория `FREESPORT`: основной клон и
+`C:\Users\1\DEV\FREESPORT-pr117`. Поэтому `context`, `impact`, `query`, `cypher`, `detect-changes`
+без `-r` падают на «Multiple repositories indexed», а `-r FREESPORT` молча берёт один из двух индексов (сейчас основной, но это зависит от реестра).
+Всегда передавай путь:
 
 ```bash
-npx gitnexus analyze
+npx gitnexus impact <symbol> -r "C:\Users\1\DEV\FREESPORT"
 ```
 
-Run from the project root. This parses all source files, builds the knowledge graph, writes it to `.gitnexus/`, and generates CLAUDE.md / AGENTS.md context files.
-
-| Flag           | Effect                                                           |
-| -------------- | ---------------------------------------------------------------- |
-| `--force`      | Force full re-index even if up to date                           |
-| `--embeddings` | Enable embedding generation for semantic search (off by default) |
-| `--drop-embeddings` | Drop existing embeddings on rebuild. By default, an `analyze` without `--embeddings` preserves them. |
-
-**When to run:** First time in a project, after major code changes, or when `gitnexus://repo/{name}/context` reports the index is stale. In Claude Code, a PostToolUse hook detects staleness after `git commit` and `git merge` and notifies the agent to run `analyze` — the hook does not run analyze itself, to avoid blocking the agent for up to 120s and risking KuzuDB corruption on timeout.
-
-### status — Check index freshness
+## status — свежесть индекса
 
 ```bash
 npx gitnexus status
 ```
 
-Shows whether the current repo has a GitNexus index, when it was last updated, and symbol/relationship counts. Use this to check if re-indexing is needed.
+Сравнивает `Indexed commit` с `Current commit`. `⚠️ stale` — индекс не видит свежий код:
+символы, добавленные после индексации, не находятся (`context` вернёт `Symbol ... not found`).
 
-### clean — Delete the index
-
-```bash
-npx gitnexus clean
-```
-
-Deletes the `.gitnexus/` directory and unregisters the repo from the global registry. Use before re-indexing if the index is corrupt or after removing GitNexus from a project.
-
-| Flag      | Effect                                            |
-| --------- | ------------------------------------------------- |
-| `--force` | Skip confirmation prompt                          |
-| `--all`   | Clean all indexed repos, not just the current one |
-
-### wiki — Generate documentation from the graph
+## analyze — построить или обновить индекс
 
 ```bash
-npx gitnexus wiki
+npx gitnexus analyze --skip-agents-md
 ```
 
-Generates repository documentation from the knowledge graph using an LLM. Requires an API key (saved to `~/.gitnexus/config.json` on first use).
+**Сам не запускай** — долго (до пары минут) и блокирует сессию. Попроси пользователя
+выполнить `! npx gitnexus analyze --skip-agents-md`.
 
-| Flag                | Effect                                    |
-| ------------------- | ----------------------------------------- |
-| `--force`           | Force full regeneration                   |
-| `--model <model>`   | LLM model (default: minimax/minimax-m2.5) |
-| `--base-url <url>`  | LLM API base URL                          |
-| `--api-key <key>`   | LLM API key                               |
-| `--concurrency <n>` | Parallel LLM calls (default: 3)           |
-| `--gist`            | Publish wiki as a public GitHub Gist      |
+`--skip-agents-md` в этом репозитории обязателен: без него `analyze` допишет в `CLAUDE.md` и
+`AGENTS.md` блок `<!-- gitnexus:start -->` с MCP-инструкциями, противоречащими разделу GitNexus.
+Если блок появился — удали его вместе с маркерами.
 
-### list — Show all indexed repos
+`analyze` также **каждый раз** перезаписывает `.claude/skills/gitnexus/` своими MCP-шаблонами
+(флага, чтобы это отключить, нет). Каталог в `.gitignore` — не читай и не правь его; рабочие
+CLI-версии skills лежат в `.claude/skills/gitnexus-*/`.
+
+| Флаг | Эффект |
+| --- | --- |
+| `--skip-agents-md` | Не трогать CLAUDE.md / AGENTS.md (обязателен здесь) |
+| `--force` | Полная переиндексация, даже если индекс свежий |
+| `--embeddings` | Эмбеддинги для семантического поиска (по умолчанию выключены) |
+| `--drop-embeddings` | Удалить имеющиеся эмбеддинги при пересборке |
+
+## list — все проиндексированные репозитории
 
 ```bash
 npx gitnexus list
 ```
 
-Lists all repositories registered in `~/.gitnexus/registry.json`. The MCP `list_repos` tool provides the same information.
+## clean — удалить индекс
 
-## After Indexing
+```bash
+npx gitnexus clean
+```
 
-1. **Read `gitnexus://repo/{name}/context`** to verify the index loaded
-2. Use the other GitNexus skills (`exploring`, `debugging`, `impact-analysis`, `refactoring`) for your task
+Удаляет `.gitnexus/` и снимает репозиторий с регистрации. Только с согласия пользователя —
+после этого нужен полный `analyze`. `--force` пропускает подтверждение, `--all` чистит все репозитории.
 
-## Troubleshooting
+## wiki
 
-- **"Not inside a git repository"**: Run from a directory inside a git repo
-- **Index is stale after re-analyzing**: Restart Claude Code to reload the MCP server
-- **Embeddings slow**: Omit `--embeddings` (it's off by default) or set `OPENAI_API_KEY` for faster API-based embedding
+`npx gitnexus wiki` генерирует документацию через LLM и требует API-ключ — это не локальная
+бесплатная команда. Не запускай без явной просьбы.
+
+## Команды анализа кода
+
+`query`, `context`, `impact`, `cypher`, `detect-changes` — в skill-файлах `gitnexus-exploring`,
+`gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`; справочник — `gitnexus-guide`.
