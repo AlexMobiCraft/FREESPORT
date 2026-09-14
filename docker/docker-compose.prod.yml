@@ -131,6 +131,9 @@ services:
         # серверные компоненты CMS-страниц (/oferta, /privacy-policy), которые не
         # шлют X-Forwarded-Proto и при SECURE_SSL_REDIRECT=True остались бы без данных
         NEXT_PUBLIC_MIDDLEWARE_API_URL: http://backend:8000/api/v1
+        # ID счётчика Яндекс Метрики инлайнится в клиентский бандл на этапе
+        # сборки (стори 41.14). Пусто — аналитика отключена.
+        NEXT_PUBLIC_YM_ID: ${NEXT_PUBLIC_YM_ID:-}
         NODE_ENV: production
     image: ${FRONTEND_IMAGE:-freesport-frontend:local}
     container_name: freesport-frontend
@@ -139,6 +142,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_APP_URL=${SITE_URL}
       - NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL}
+      - NEXT_PUBLIC_YM_ID=${NEXT_PUBLIC_YM_ID:-}
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
       - INTERNAL_API_URL=http://backend:8000
       - ACTIVE_THEME=${ACTIVE_THEME:-blue}

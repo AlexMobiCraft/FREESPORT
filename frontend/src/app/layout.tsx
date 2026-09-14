@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Roboto_Condensed } from 'next/font/google';
 import CookieConsentBanner from '@/components/layout/CookieConsentBanner';
+import YandexMetrika from '@/components/common/YandexMetrika';
 import { SiteJsonLd } from '@/components/common/SiteJsonLd';
 import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_META, OG_LOCALE, SITE_NAME } from '@/utils/seo';
 
@@ -73,6 +74,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${robotoCondensed.variable} font-sans antialiased`}>
         {children}
         <CookieConsentBanner />
+        <YandexMetrika />
         <SiteJsonLd />
       </body>
     </html>

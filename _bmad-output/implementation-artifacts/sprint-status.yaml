@@ -1190,7 +1190,12 @@ development_status:
   #             (16 прямых вызывающих, 3 процесса, 2 модуля). backlog -> ready-for-dev.
   #             41.14–41.16 остаются backlog до собственных create-story/decision gate.
   41-13-catalog-category-seo-metadata: done
-  41-14-metrika-consent-and-transparency: backlog
+  # 2026-09-15: Реализована по варианту A — Яндекс Метрика подключена за
+  #             consent-гейтом (CONSENT_VERSION=2, legacy-согласия → повторный
+  #             баннер), NEXT_PUBLIC_YM_ID проброшен через build args. Политику
+  #             владелец внёс в админку. Остаток post-deploy: заполнить ID
+  #             счётчика и снять live-сетевые доказательства AC3/AC4.
+  41-14-metrika-consent-and-transparency: done
   41-15-marketing-email-unsubscribe: backlog
   41-16-editorial-audit-decision-register: backlog
   epic-41-retrospective: optional

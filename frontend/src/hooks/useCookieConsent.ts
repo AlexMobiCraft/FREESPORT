@@ -8,10 +8,15 @@
  * cookie» из подвала — компоненты разных поддеревьев — разделяют одно
  * состояние: нажатие в подвале открывает баннер без перезагрузки страницы.
  *
- * ВАЖНО для будущей аналитики: счётчики (Яндекс.Метрика и прочее)
- * подключаются ТОЛЬКО при `status === 'accepted'`, а не при
+ * ВАЖНО для аналитики (стори 41.14): счётчик Яндекс Метрики
+ * подключается ТОЛЬКО при `status === 'accepted'`, а не при
  * `status !== 'declined'` — иначе посетитель, не сделавший выбор, будет
  * отслеживаться без согласия.
+ *
+ * Выбор привязан к версии текста баннера: хранится значение вида
+ * `${status}:v${CONSENT_VERSION}`. Согласие и отказ, данные под текстом
+ * без Яндекс Метрики (v1), действующими не считаются — баннер
+ * показывается повторно, и счётчик не стартует до нового выбора.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -27,7 +32,14 @@ export type CookieConsentStatus = 'unknown' | 'unset' | 'accepted' | 'declined';
 
 const STORAGE_KEY = 'cookie_consent';
 const LEGACY_STORAGE_KEY = 'cookie_consent_accepted';
-const LEGACY_ACCEPTED_VALUE = '1';
+
+/**
+ * Версия текста баннера, под которым сделан выбор (стори 41.14).
+ * v1 — формулировка «остальные — только с вашего согласия» без аналитики;
+ * v2 — текст называет Яндекс Метрику. Повышать при каждой правке текста,
+ * меняющей состав того, на что соглашается посетитель.
+ */
+export const CONSENT_VERSION = 2;
 
 interface CookieConsentSnapshot {
   status: CookieConsentStatus;
@@ -70,9 +82,24 @@ function setSnapshot(next: Partial<CookieConsentSnapshot>): void {
   listeners.forEach(listener => listener());
 }
 
-/** Распознаёт значение хранилища; всё неизвестное трактуется как «выбор не сделан». */
+/** Сериализованное значение выбора под текущей версией текста. */
+function versionedValue(status: 'accepted' | 'declined'): string {
+  return `${status}:v${CONSENT_VERSION}`;
+}
+
+/**
+ * Распознаёт значение хранилища. Действующим считается только выбор под
+ * текущей версией текста; устаревшие `accepted`/`declined` без версии и
+ * всё прочее трактуются как «выбор не сделан» — баннер покажется повторно.
+ */
 function parseStatus(raw: string | null): CookieConsentStatus {
-  return raw === 'accepted' || raw === 'declined' ? raw : 'unset';
+  if (raw === versionedValue('accepted')) {
+    return 'accepted';
+  }
+  if (raw === versionedValue('declined')) {
+    return 'declined';
+  }
+  return 'unset';
 }
 
 /**
@@ -85,7 +112,7 @@ function persist(status: 'accepted' | 'declined'): void {
   }
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, status);
+    window.localStorage.setItem(STORAGE_KEY, versionedValue(status));
     // Старый ключ после успешной записи нового больше не нужен.
     window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch (error) {
@@ -93,49 +120,23 @@ function persist(status: 'accepted' | 'declined'): void {
   }
 }
 
-interface StorageReadResult {
-  status: CookieConsentStatus;
-  /** Согласие распознано по legacy-ключу и требует переноса в новый формат. */
-  needsMigration: boolean;
-}
-
 /**
  * Читает актуальное состояние хранилища.
  *
- * Приоритет: валидное значение нового ключа → legacy-ключ `'1'` → «выбор не
- * сделан». При сбое чтения возвращает `null` и пишет в лог — решение о
- * запасном источнике принимает вызывающая сторона.
+ * Действующим считается только значение текущей версии. Legacy-ключ
+ * `'1'` и неверсионные `accepted`/`declined` со стори 41.14 миграцией не
+ * поднимаются: они записаны под текстом без Яндекс Метрики, поэтому
+ * трактуются как «выбор не сделан» и приводят к повторному показу баннера.
+ *
+ * При сбое чтения возвращает `null` и пишет в лог — решение о запасном
+ * источнике принимает вызывающая сторона.
  */
-function readStorage(): StorageReadResult | null {
+function readStorage(): CookieConsentStatus | null {
   try {
-    const status = parseStatus(window.localStorage.getItem(STORAGE_KEY));
-    if (status !== 'unset') {
-      return { status, needsMigration: false };
-    }
-
-    const legacyValue = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-    return legacyValue === LEGACY_ACCEPTED_VALUE
-      ? { status: 'accepted', needsMigration: true }
-      : { status: 'unset', needsMigration: false };
+    return parseStatus(window.localStorage.getItem(STORAGE_KEY));
   } catch (error) {
     console.error('useCookieConsent: чтение localStorage не удалось', error);
     return null;
-  }
-}
-
-/**
- * Применяет прочитанное состояние к снимку и, если согласие распознано по
- * legacy-ключу, переносит его в новый формат.
- *
- * Старый ключ удаляется только после успешной записи нового, а сбой этой
- * записи не сбрасывает уже распознанное согласие и логируется как ошибка
- * ЗАПИСИ, а не чтения (см. `persist`).
- */
-function applyReadResult(result: StorageReadResult): void {
-  setSnapshot({ status: result.status, isForced: false });
-  if (result.needsMigration) {
-    // Посетитель, принявший cookie до этой стори, баннер повторно не увидит.
-    persist('accepted');
   }
 }
 
@@ -146,8 +147,7 @@ function readFromStorage(): void {
     return;
   }
 
-  const result = readStorage();
-  applyReadResult(result ?? { status: 'unset', needsMigration: false });
+  setSnapshot({ status: readStorage() ?? 'unset', isForced: false });
 }
 
 /**
@@ -163,9 +163,10 @@ function readFromStorage(): void {
  * выбор в этой вкладке. Поэтому источник истины — текущее содержимое
  * хранилища, а `event.newValue` — лишь запасной вариант на случай сбоя чтения.
  *
- * Legacy-ключ обрабатывается наравне с новым: во время выката вкладка со
- * старым бандлом пишет `cookie_consent_accepted='1'`, и без этого открытая
- * вкладка с новым бандлом держала бы баннер до перезагрузки.
+ * Legacy-ключ по-прежнему слушается: во время выката вкладка со старым
+ * бандлом пишет `cookie_consent_accepted='1'`. Согласием оно больше не
+ * считается (записано под текстом без Яндекс Метрики), но событие валидно
+ * будит перечитывание хранилища.
  */
 function handleStorageEvent(event: StorageEvent): void {
   if (typeof window === 'undefined' || event.storageArea !== window.localStorage) {
@@ -179,26 +180,20 @@ function handleStorageEvent(event: StorageEvent): void {
 
   // Событие без фактического изменения новый снимок не создаёт — это
   // гарантирует equality-guard в setSnapshot.
-  applyReadResult(readStorage() ?? fallbackFromEvent(event));
+  setSnapshot({ status: readStorage() ?? fallbackFromEvent(event), isForced: false });
 }
 
 /**
  * Запасной источник статуса, когда чтение хранилища во время события упало.
- * Миграцию в этом случае не запускаем: писать в неработающее хранилище нечего.
+ * Legacy-значение согласием не является — оно под текстом без Метрики.
  */
-function fallbackFromEvent(event: StorageEvent): StorageReadResult {
+function fallbackFromEvent(event: StorageEvent): CookieConsentStatus {
   if (event.key === LEGACY_STORAGE_KEY) {
-    return {
-      status: event.newValue === LEGACY_ACCEPTED_VALUE ? 'accepted' : 'unset',
-      needsMigration: false,
-    };
+    return 'unset';
   }
 
   // key === null — это localStorage.clear() в другой вкладке.
-  return {
-    status: event.key === null ? 'unset' : parseStatus(event.newValue),
-    needsMigration: false,
-  };
+  return event.key === null ? 'unset' : parseStatus(event.newValue);
 }
 
 /**
