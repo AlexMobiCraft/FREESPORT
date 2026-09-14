@@ -1,6 +1,10 @@
+---
+status: blocked
+---
+
 # Story 41.13: SEO метаданные индексируемых категорий каталога
 
-Status: backlog
+Status: blocked
 
 ## Решение о подготовке
 
@@ -85,3 +89,8 @@ Status: backlog
 ## Журнал
 
 - 13.09.2026: подготовлена постановка по одобренному расширению; реализация не начиналась.
+
+## Auto Run Result
+
+Status: blocked
+Blocking condition: dirty working tree (`_bmad/custom/bmad-build-auto.toml`, `_bmad/render/`).
