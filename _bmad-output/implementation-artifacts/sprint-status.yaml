@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-13 (стори 41.12 — dev-story, review)
+# last_updated: 2026-09-14 (стори 41.13 — build-auto, done)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-13
+last_updated: 2026-09-14
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1181,7 +1181,18 @@ development_status:
   #             коммитом): Task 9.2 (повторный сканер после prod-выката),
   #             Task 9.3 (коммит/мерж/выкат — решение владельца), Task 10
   #             (ручная приёмка NFR-41-08 в acceptance build).
-  41-12-registry-wording-login-notice-breadcrumb: review
+  41-12-registry-wording-login-notice-breadcrumb: done
+  # 2026-09-14: Условие approved correct-course выполнено — 41.12 завершена.
+  #             Четыре одобренные Story 41.13–41.16 добавлены в tracker.
+  #             Story 41.13 прошла create-story: решения владельца по публичным
+  #             категориям, шаблонам metadata и нескольким category зафиксированы;
+  #             GitNexus актуален на a43b24d, impact buildMetadata HIGH
+  #             (16 прямых вызывающих, 3 процесса, 2 модуля). backlog -> ready-for-dev.
+  #             41.14–41.16 остаются backlog до собственных create-story/decision gate.
+  41-13-catalog-category-seo-metadata: done
+  41-14-metrika-consent-and-transparency: backlog
+  41-15-marketing-email-unsubscribe: backlog
+  41-16-editorial-audit-decision-register: backlog
   epic-41-retrospective: optional
 
 # ========================================

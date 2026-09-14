@@ -3,76 +3,70 @@ name: gitnexus-exploring
 description: "Use when the user asks how code works, wants to understand architecture, trace execution flows, or explore unfamiliar parts of the codebase. Examples: \"How does X work?\", \"What calls this function?\", \"Show me the auth flow\""
 ---
 
-# Exploring Codebases with GitNexus
+# Исследование кода через GitNexus CLI
 
-## When to Use
+Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (индексов
+FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
+Справочник по командам и схеме — `gitnexus-guide`.
 
-- "How does authentication work?"
-- "What's the project structure?"
-- "Show me the main components"
-- "Where is the database logic?"
-- Understanding code you haven't seen before
+## Когда использовать
+
+- «Как работает X?», «Где логика Y?»
+- Знакомство с незнакомым модулем
+- Нужны потоки выполнения, а не просто совпадения grep
 
 ## Workflow
 
 ```
-1. READ gitnexus://repos                          → Discover indexed repos
-2. READ gitnexus://repo/{name}/context             → Codebase overview, check staleness
-3. gitnexus_query({query: "<what you want to understand>"})  → Find related execution flows
-4. gitnexus_context({name: "<symbol>"})            → Deep dive on specific symbol
-5. READ gitnexus://repo/{name}/process/{name}      → Trace full execution flow
+1. npx gitnexus status                                   → свежесть индекса
+2. npx gitnexus query -r <repo> "<что понять>" -l 5       → процессы и символы по теме
+3. npx gitnexus context -r <repo> <symbol>               → вызывающие / вызываемые / процессы
+4. npx gitnexus cypher -r <repo> "<трассировка процесса>" → шаги потока по порядку
+5. Read исходников                                       → детали реализации
 ```
 
-> If step 2 says "Index is stale" → run `npx gitnexus analyze` in terminal.
+> `stale` в шаге 1 → попроси пользователя выполнить `! npx gitnexus analyze --skip-agents-md`.
+> Символ, добавленный после индексации, `context` не найдёт — это устаревший индекс, а не отсутствие кода.
 
-## Checklist
-
-```
-- [ ] READ gitnexus://repo/{name}/context
-- [ ] gitnexus_query for the concept you want to understand
-- [ ] Review returned processes (execution flows)
-- [ ] gitnexus_context on key symbols for callers/callees
-- [ ] READ process resource for full execution traces
-- [ ] Read source files for implementation details
-```
-
-## Resources
-
-| Resource                                | What you get                                            |
-| --------------------------------------- | ------------------------------------------------------- |
-| `gitnexus://repo/{name}/context`        | Stats, staleness warning (~150 tokens)                  |
-| `gitnexus://repo/{name}/clusters`       | All functional areas with cohesion scores (~300 tokens) |
-| `gitnexus://repo/{name}/cluster/{name}` | Area members with file paths (~500 tokens)              |
-| `gitnexus://repo/{name}/process/{name}` | Step-by-step execution trace (~200 tokens)              |
-
-## Tools
-
-**gitnexus_query** — find execution flows related to a concept:
+## Чеклист
 
 ```
-gitnexus_query({query: "payment processing"})
-→ Processes: CheckoutFlow, RefundFlow, WebhookHandler
-→ Symbols grouped by flow with file locations
+- [ ] status: индекс свежий
+- [ ] query по концепции (-g <цель> улучшает ранжирование)
+- [ ] Разобрать processes и definitions из ответа
+- [ ] context на ключевых символах
+- [ ] Трассировка процесса через cypher, если нужен порядок шагов
+- [ ] Прочитать исходники
 ```
 
-**gitnexus_context** — 360-degree view of a symbol:
+## Вывод команд
+
+`query` — JSON с `processes` (потоки), `process_symbols` (символы по потокам) и `definitions`
+(файлы, функции, классы с `filePath` и строками). Пустой `processes` — нормально: тема может не
+попадать в выделенные потоки, тогда опирайся на `definitions`.
+
+`context` — JSON: `symbol` (uid, kind, filePath, строки), `incoming.calls`, `outgoing`, `processes`.
+На частом имени (`get`, `save`) вернёт `"status": "ambiguous"` с `candidates` — повтори с
+`-f <файл>` или `-u <uid>`. `--content` добавит исходник символа.
+
+## Трассировка процесса
+
+```bash
+# в каких процессах участвует символ
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (s {name: 'handle_init'})-[r:CodeRelation {type: 'STEP_IN_PROCESS'}]->(p:Process) RETURN p.id, p.label, r.step, p.stepCount"
+# шаги процесса по порядку
+npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (s)-[r:CodeRelation {type: 'STEP_IN_PROCESS'}]->(p:Process {id: 'proc_0_handle_init'}) RETURN r.step AS step, s.name AS name, s.filePath AS file ORDER BY step"
+```
+
+## Пример: «Как 1С передаёт файлы обмена?»
 
 ```
-gitnexus_context({name: "validateUser"})
-→ Incoming calls: loginHandler, apiMiddleware
-→ Outgoing calls: checkToken, getUserById
-→ Processes: LoginFlow (step 2/5), TokenRefresh (step 1/3)
-```
-
-## Example: "How does payment processing work?"
-
-```
-1. READ gitnexus://repo/my-app/context       → 918 symbols, 45 processes
-2. gitnexus_query({query: "payment processing"})
-   → CheckoutFlow: processPayment → validateCard → chargeStripe
-   → RefundFlow: initiateRefund → calculateRefund → processRefund
-3. gitnexus_context({name: "processPayment"})
-   → Incoming: checkoutHandler, webhookHandler
-   → Outgoing: validateCard, chargeStripe, saveTransaction
-4. Read src/payments/processor.ts for implementation details
+1. npx gitnexus query -r "C:\Users\1\DEV\FREESPORT" "обмен с 1С загрузка файлов"
+   → процессы proc_0_handle_init «Handle_init → _route_root» и соседние
+2. cypher: шаги proc_0_handle_init
+   → handle_init → _get_exchange_identity → get → handle_import → execute
+     → _transfer_files → move_to_import → _ensure_import_dir → _route_root
+3. npx gitnexus context -r "C:\Users\1\DEV\FREESPORT" _transfer_files
+   → кто вызывает, что вызывает
+4. Read backend/apps/integrations/onec_exchange/import_orchestrator.py
 ```
