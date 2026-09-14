@@ -101,6 +101,49 @@ describe('next.config.ts: заголовки безопасности HTML', () 
   });
 });
 
+describe('next.config.ts: blocking metadata для HTML-limited ботов', () => {
+  it.each([
+    'AdsBot-Google',
+    'Google-InspectionTool',
+    'Chrome-Lighthouse',
+    'Slurp',
+    'DuckDuckBot',
+    'baiduspider',
+    'yandex',
+    'sogou',
+    'bitlybot',
+    'tumblr',
+    'vkShare',
+    'quora link preview',
+    'redditbot',
+    'ia_archiver',
+    'Bingbot',
+    'BingPreview',
+    'applebot',
+    'facebookexternalhit',
+    'facebookcatalog',
+    'Twitterbot',
+    'LinkedInBot',
+    'Slackbot',
+    'Discordbot',
+    'WhatsApp',
+    'SkypeUriPreview',
+    'Yeti',
+    'googleweblight',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 AuditikBot/1.0 (+https://auditikk.ru/bot)',
+  ])('распознаёт HTML-limited User-Agent: %s', userAgent => {
+    expect(nextConfig.htmlLimitedBots).toBeInstanceOf(RegExp);
+    expect((nextConfig.htmlLimitedBots as RegExp).test(userAgent)).toBe(true);
+  });
+
+  it('не отключает streaming metadata для обычного Chrome', () => {
+    const chrome =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+    expect((nextConfig.htmlLimitedBots as RegExp).test(chrome)).toBe(false);
+  });
+});
+
 describe('Сверка с nginx: одна политика — два источника', () => {
   it('сниппет nginx доступен из этого окружения', () => {
     // Намеренно НЕ skipIf. Эта сверка — единственная защита от расхождения двух
