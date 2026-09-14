@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterAll, type Mock } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import CatalogPage from '../page';
+import CatalogPage from '../CatalogPageClient';
 
 // Mock данные для тестов
 const mockProducts = [

@@ -14,6 +14,7 @@ import { absoluteUrl } from '@/utils/seo';
 export const revalidate = 3600;
 
 const PAGE_SIZE = 1000;
+const CATEGORY_TREE_FETCH_TIMEOUT_MS = 3000;
 /** Предохранитель от бесконечного обхода пагинации */
 const MAX_PAGES = 60;
 
@@ -31,6 +32,11 @@ interface ListItem {
   updated_at?: unknown;
   published_at?: unknown;
   created_at?: unknown;
+}
+
+interface CategoryTreeNode {
+  slug?: unknown;
+  children?: unknown;
 }
 
 function pickLastModified(item: ListItem): Date | undefined {
@@ -68,6 +74,41 @@ async function fetchAll(endpoint: string): Promise<ListItem[]> {
   return items;
 }
 
+async function fetchCategorySlugs(): Promise<string[]> {
+  try {
+    const response = await fetch(`${getApiUrl()}/categories-tree/`, {
+      next: { revalidate },
+      signal: AbortSignal.timeout(CATEGORY_TREE_FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) return [];
+
+    const tree = (await response.json()) as unknown;
+    if (!Array.isArray(tree)) return [];
+
+    const slugs = new Set<string>();
+    const visit = (nodes: unknown[]) => {
+      for (const item of nodes) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+        const node = item as CategoryTreeNode;
+        if (typeof node.slug === 'string' && node.slug.trim()) slugs.add(node.slug.trim());
+        if (Array.isArray(node.children)) visit(node.children);
+      }
+    };
+    visit(tree);
+    return Array.from(slugs);
+  } catch {
+    return [];
+  }
+}
+
+function toCategoryEntries(slugs: string[]): MetadataRoute.Sitemap {
+  return slugs.map(slug => ({
+    url: absoluteUrl(`/catalog?${new URLSearchParams({ category: slug }).toString()}`),
+    changeFrequency: 'weekly',
+    priority: 0.7,
+  }));
+}
+
 function toEntries(
   items: ListItem[],
   prefix: string,
@@ -97,15 +138,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ] satisfies MetadataRoute.Sitemap
   ).map(route => ({ ...route, lastModified: now }));
 
-  const [products, blogPosts, news, pages] = await Promise.all([
+  const [products, blogPosts, news, pages, categorySlugs] = await Promise.all([
     fetchAll('products'),
     fetchAll('blog'),
     fetchAll('news'),
     fetchAll('pages'),
+    fetchCategorySlugs(),
   ]);
 
   return [
     ...staticRoutes,
+    ...toCategoryEntries(categorySlugs),
     ...toEntries(products, '/product', { changeFrequency: 'weekly', priority: 0.8 }),
     ...toEntries(blogPosts, '/blog', { changeFrequency: 'monthly', priority: 0.5 }),
     ...toEntries(news, '/news', { changeFrequency: 'monthly', priority: 0.5 }),
