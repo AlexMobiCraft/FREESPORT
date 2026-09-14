@@ -1,0 +1,5 @@
+[workflow]
+persistent_facts = [
+  "file:CLAUDE.md",
+  "file:AGENTS.md",
+]
