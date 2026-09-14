@@ -10,10 +10,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import CookieSettingsButton from '../CookieSettingsButton';
 import CookieConsentBanner from '../CookieConsentBanner';
-import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
+import {
+  __resetCookieConsentStoreForTests,
+  CONSENT_VERSION,
+} from '@/hooks/useCookieConsent';
 
 const CONSENT_KEY = 'cookie_consent';
 const LEGACY_KEY = 'cookie_consent_accepted';
+const ACCEPTED = `accepted:v${CONSENT_VERSION}`;
+const DECLINED = `declined:v${CONSENT_VERSION}`;
 
 describe('CookieSettingsButton', () => {
   beforeEach(() => {
@@ -43,7 +48,7 @@ describe('CookieSettingsButton', () => {
     expect(button).toHaveClass('hover:text-white');
   });
 
-  it.each(['accepted', 'declined', null])(
+  it.each([ACCEPTED, DECLINED, null])(
     'рендерится при сохранённом выборе %s',
     async storedValue => {
       // Стор сбрасывается только между отрисовками, когда предыдущий
@@ -67,7 +72,7 @@ describe('CookieSettingsButton', () => {
   );
 
   it('серверная разметка совпадает с клиентской (SSR-разметка стабильна)', () => {
-    window.localStorage.setItem(CONSENT_KEY, 'accepted');
+    window.localStorage.setItem(CONSENT_KEY, ACCEPTED);
 
     // На сервере хранилища нет: кнопка обязана присутствовать в SSR-выводе,
     // иначе гидрация даст расхождение разметки.
@@ -95,7 +100,7 @@ describe('CookieSettingsButton', () => {
   describe('связка с баннером через общий стор (AC4)', () => {
     it('открывает баннер без перезагрузки, не стирая сохранённый выбор', async () => {
       const user = userEvent.setup();
-      window.localStorage.setItem(CONSENT_KEY, 'declined');
+      window.localStorage.setItem(CONSENT_KEY, DECLINED);
 
       render(
         <>
@@ -119,12 +124,12 @@ describe('CookieSettingsButton', () => {
         await screen.findByRole('region', { name: 'Уведомление об использовании cookie' })
       ).toBeInTheDocument();
       // Сохранённый выбор кнопка не трогает.
-      expect(window.localStorage.getItem(CONSENT_KEY)).toBe('declined');
+      expect(window.localStorage.getItem(CONSENT_KEY)).toBe(DECLINED);
     });
 
     it('переводит фокус на баннер после открытия из подвала (AC6)', async () => {
       const user = userEvent.setup();
-      window.localStorage.setItem(CONSENT_KEY, 'accepted');
+      window.localStorage.setItem(CONSENT_KEY, ACCEPTED);
 
       render(
         <>
@@ -150,7 +155,7 @@ describe('CookieSettingsButton', () => {
       // Иначе после «Принять»/«Отклонить» фокус остаётся на body и
       // клавиатурный пользователь теряет позицию в подвале.
       const user = userEvent.setup();
-      window.localStorage.setItem(CONSENT_KEY, 'accepted');
+      window.localStorage.setItem(CONSENT_KEY, ACCEPTED);
 
       render(
         <>
@@ -195,7 +200,7 @@ describe('CookieSettingsButton', () => {
 
     it('повторный выбор в открытом баннере перезаписывает сохранённый', async () => {
       const user = userEvent.setup();
-      window.localStorage.setItem(CONSENT_KEY, 'declined');
+      window.localStorage.setItem(CONSENT_KEY, DECLINED);
 
       render(
         <>
@@ -214,7 +219,7 @@ describe('CookieSettingsButton', () => {
           screen.queryByRole('region', { name: 'Уведомление об использовании cookie' })
         ).not.toBeInTheDocument();
       });
-      expect(window.localStorage.getItem(CONSENT_KEY)).toBe('accepted');
+      expect(window.localStorage.getItem(CONSENT_KEY)).toBe(ACCEPTED);
     });
   });
 });

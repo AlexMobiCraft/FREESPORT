@@ -39,11 +39,14 @@ ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 # их запрос уехал бы на https://backend:8000, где TLS нет, и CMS-страницы остались бы
 # без данных. Заголовок протокола ставит только запрос из middleware.
 ARG NEXT_PUBLIC_MIDDLEWARE_API_URL=http://backend:8000/api/v1
+# ID счётчика Яндекс Метрики (стори 41.14). Пусто — аналитика отключена.
+ARG NEXT_PUBLIC_YM_ID=
 ARG NODE_ENV=production
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_MIDDLEWARE_API_URL=$NEXT_PUBLIC_MIDDLEWARE_API_URL
+ENV NEXT_PUBLIC_YM_ID=$NEXT_PUBLIC_YM_ID
 ENV NODE_ENV=$NODE_ENV
 ENV NEXT_TELEMETRY_DISABLED=1
 

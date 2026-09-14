@@ -43,8 +43,8 @@ export default function CookieConsentBanner() {
     >
       <div className="container mx-auto flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-4">
         <p className="text-sm text-text-secondary">
-          Мы используем файлы cookie. Технически необходимые нужны для работы сайта, остальные —
-          только с вашего согласия. Подробнее — в{' '}
+          Мы используем файлы cookie. Технически необходимые нужны для работы сайта, аналитические
+          cookie Яндекс Метрики — только с вашего согласия. Подробнее — в{' '}
           <>
             «
             <Link

@@ -8,16 +8,22 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 import CookieConsentBanner from '../CookieConsentBanner';
-import { __resetCookieConsentStoreForTests } from '@/hooks/useCookieConsent';
+import {
+  __resetCookieConsentStoreForTests,
+  CONSENT_VERSION,
+} from '@/hooks/useCookieConsent';
 
 const STORAGE_KEY = 'cookie_consent_accepted';
 const STORAGE_VALUE = '1';
 const CONSENT_KEY = 'cookie_consent';
+const ACCEPTED = `accepted:v${CONSENT_VERSION}`;
+const DECLINED = `declined:v${CONSENT_VERSION}`;
 
-/** Дословный текст баннера из AC1. */
+/** Дословный текст баннера (версия v2, стори 41.14 — называет Яндекс Метрику). */
 const BANNER_TEXT =
   'Мы используем файлы cookie. Технически необходимые нужны для работы сайта, ' +
-  'остальные — только с вашего согласия. Подробнее — в «Политике обработки персональных данных».';
+  'аналитические cookie Яндекс Метрики — только с вашего согласия. ' +
+  'Подробнее — в «Политике обработки персональных данных».';
 
 describe('CookieConsentBanner', () => {
   beforeEach(() => {
@@ -51,8 +57,8 @@ describe('CookieConsentBanner', () => {
     expect(screen.queryByText(/Продолжая пользоваться сайтом/)).not.toBeInTheDocument();
   });
 
-  it('не показывает баннер, если согласие уже принято', async () => {
-    window.localStorage.setItem(STORAGE_KEY, STORAGE_VALUE);
+  it('не показывает баннер, если согласие текущей версии уже принято', async () => {
+    window.localStorage.setItem(CONSENT_KEY, ACCEPTED);
 
     render(<CookieConsentBanner />);
 
@@ -61,6 +67,18 @@ describe('CookieConsentBanner', () => {
         screen.queryByRole('region', { name: 'Уведомление об использовании cookie' })
       ).not.toBeInTheDocument();
     });
+  });
+
+  it('показывает баннер повторно для согласия, данного под текстом без Метрики', async () => {
+    // Согласие до стори 41.14 (legacy-ключ или неверсионное accepted) относится
+    // к формулировке, не называвшей аналитику, — действующим оно не считается.
+    window.localStorage.setItem(STORAGE_KEY, STORAGE_VALUE);
+
+    render(<CookieConsentBanner />);
+
+    expect(
+      await screen.findByRole('region', { name: 'Уведомление об использовании cookie' })
+    ).toBeInTheDocument();
   });
 
   it('показывает две равнозначные кнопки одинакового размера', async () => {
@@ -90,7 +108,7 @@ describe('CookieConsentBanner', () => {
         screen.queryByRole('region', { name: 'Уведомление об использовании cookie' })
       ).not.toBeInTheDocument();
     });
-    expect(window.localStorage.getItem(CONSENT_KEY)).toBe('accepted');
+    expect(window.localStorage.getItem(CONSENT_KEY)).toBe(ACCEPTED);
   });
 
   it('скрывает баннер после нажатия Отклонить и сохраняет отказ', async () => {
@@ -104,7 +122,7 @@ describe('CookieConsentBanner', () => {
         screen.queryByRole('region', { name: 'Уведомление об использовании cookie' })
       ).not.toBeInTheDocument();
     });
-    expect(window.localStorage.getItem(CONSENT_KEY)).toBe('declined');
+    expect(window.localStorage.getItem(CONSENT_KEY)).toBe(DECLINED);
   });
 
   it('ведёт на страницу политики в новой вкладке', async () => {
