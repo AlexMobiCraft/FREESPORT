@@ -1181,7 +1181,7 @@ development_status:
   #             коммитом): Task 9.2 (повторный сканер после prod-выката),
   #             Task 9.3 (коммит/мерж/выкат — решение владельца), Task 10
   #             (ручная приёмка NFR-41-08 в acceptance build).
-  41-12-registry-wording-login-notice-breadcrumb: review
+  41-12-registry-wording-login-notice-breadcrumb: done
   epic-41-retrospective: optional
 
 # ========================================
