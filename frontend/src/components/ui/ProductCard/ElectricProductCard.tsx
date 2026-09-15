@@ -103,7 +103,7 @@ export function ElectricProductCard({
             <div className="absolute top-2 left-2 z-10">
               <ElectricBadge variant={badge}>
                 {badge === 'hit'
-                  ? 'Хит'
+                  ? 'Лидер продаж'
                   : badge === 'sale'
                     ? `-${Math.round(((oldPrice! - price) / oldPrice!) * 100)}%`
                     : 'New'}

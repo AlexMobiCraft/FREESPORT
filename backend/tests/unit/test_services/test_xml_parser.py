@@ -605,7 +605,11 @@ class TestXMLDataParserBrandParsing:
         assert "brand_id" not in goods_data
 
     def test_parse_goods_xml_with_empty_brand_uuid(self, tmp_path):
-        """Парсинг товара с пустым UUID бренда (00000000-0000-0000-0000-000000000000)"""
+        """Нулевой UUID бренда сохраняется: это штатный признак «без бренда» из 1С.
+
+        Импорт должен увидеть это значение и свести его к fallback-бренду
+        («Без ТМ»), а не терять признак в парсере (Story 41.16).
+        """
         from tests.conftest import get_unique_suffix
 
         # ARRANGE
@@ -634,10 +638,10 @@ class TestXMLDataParserBrandParsing:
         parser = XMLDataParser()
         goods_list = parser.parse_goods_xml(str(test_file))
 
-        # ASSERT - пустой UUID должен игнорироваться
+        # ASSERT - нулевой UUID сохраняется как есть
         assert len(goods_list) == 1
         goods_data = goods_list[0]
-        assert "brand_id" not in goods_data
+        assert goods_data["brand_id"] == "00000000-0000-0000-0000-000000000000"
 
     def test_parse_goods_xml_with_multiple_properties(self, tmp_path):
         """Парсинг товара с несколькими свойствами, включая бренд"""

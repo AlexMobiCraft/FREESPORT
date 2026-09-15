@@ -171,7 +171,7 @@ const ProfileForm: React.FC = () => {
         {/* Email (readonly) */}
         <div>
           <label htmlFor="email" className="block text-body-s text-neutral-700 mb-1">
-            Email
+            Электронная почта
           </label>
           <input
             id="email"
@@ -185,7 +185,7 @@ const ProfileForm: React.FC = () => {
               text-body-m
             "
           />
-          <p className="mt-1 text-caption text-neutral-500">Email нельзя изменить</p>
+          <p className="mt-1 text-caption text-neutral-500">Электронную почту нельзя изменить</p>
         </div>
 
         {/* Имя */}

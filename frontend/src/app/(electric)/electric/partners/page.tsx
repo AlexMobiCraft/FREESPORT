@@ -13,7 +13,7 @@ import type { ProcessStep, AccordionItemData } from '@/components/ui';
 export const metadata: Metadata = {
   title: 'Партнёрам — условия сотрудничества | OPTISPORT (Electric)',
   description:
-    'Станьте партнёром OPTISPORT. Оптовые поставки спортивных товаров, персональный менеджер, гибкие условия сотрудничества.',
+    'Станьте партнёром OPTISPORT. Оптовые поставки спортивных товаров, персональный специалист, гибкие условия сотрудничества.',
 };
 
 // Типы клиентов (Same as Blue for now)
@@ -64,7 +64,7 @@ const processSteps: ProcessStep[] = [
   },
   {
     number: 3,
-    title: 'Работайте с менеджером',
+    title: 'Работайте со специалистом',
     description: 'На всех этапах сотрудничества',
   },
 ];
@@ -167,10 +167,10 @@ export default function ElectricPartnersPage() {
             </div>
             <div>
               <h3 className="text-2xl font-bold text-[var(--foreground)] mb-3 uppercase">
-                Персональный менеджер
+                Персональный специалист
               </h3>
               <p className="text-[var(--color-text-secondary)] leading-relaxed">
-                На всех этапах сотрудничества с вами работает персональный менеджер. Он поможет
+                На всех этапах сотрудничества с вами работает персональный специалист. Он поможет
                 подобрать товар, оформить заказ, проконсультирует по всем вопросам и обеспечит
                 своевременную доставку.
               </p>

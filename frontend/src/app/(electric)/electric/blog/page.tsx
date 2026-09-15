@@ -12,7 +12,7 @@ import { BlogPostCard } from '@/components/home/BlogPostCard';
 import { blogService } from '@/services/blogService';
 
 export const metadata: Metadata = {
-  title: 'Блог | OPTISPORT (Electric)',
+  title: 'Статьи | OPTISPORT (Electric)',
   description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов OPTISPORT.',
 };
 
@@ -23,7 +23,7 @@ interface BlogPageProps {
 export default async function ElectricBlogPage({ searchParams }: BlogPageProps) {
   const params = await searchParams;
   const currentPage = Number(params.page) || 1;
-  const breadcrumbItems = [{ label: 'Главная', href: '/electric' }, { label: 'Блог' }];
+  const breadcrumbItems = [{ label: 'Главная', href: '/electric' }, { label: 'Статьи' }];
 
   // Fetch blog data
   let blogData;
@@ -48,7 +48,7 @@ export default async function ElectricBlogPage({ searchParams }: BlogPageProps) 
       <section className="bg-[var(--bg-card)] py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-[var(--foreground)] mb-4 uppercase transform -skew-x-12">
-            <span className="inline-block transform skew-x-12">Блог</span>
+            <span className="inline-block transform skew-x-12">Статьи</span>
           </h1>
           <p className="text-lg text-[var(--color-text-secondary)] max-w-2xl mx-auto">
             Полезные статьи о спорте, тренировках и экипировке от экспертов OPTISPORT

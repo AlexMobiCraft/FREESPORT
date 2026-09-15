@@ -147,7 +147,7 @@ describe('SubscribeForm', () => {
     await user.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('Введите корректный email')).toBeInTheDocument();
+      expect(screen.getByText('Введите корректный адрес электронной почты')).toBeInTheDocument();
     });
   });
 
@@ -161,7 +161,7 @@ describe('SubscribeForm', () => {
     await user.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('Email обязателен')).toBeInTheDocument();
+      expect(screen.getByText('Укажите электронную почту')).toBeInTheDocument();
     });
   });
 
@@ -245,7 +245,7 @@ describe('SubscribeForm', () => {
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await screen.findByText(MARKETING_CONSENT_REQUIRED);
-    expect(screen.getByText('Email обязателен')).toBeInTheDocument();
+    expect(screen.getByText('Укажите электронную почту')).toBeInTheDocument();
     expect(screen.getByLabelText(/электронная почта/i)).toHaveFocus();
     expect(mockSubscribe).not.toHaveBeenCalled();
   });

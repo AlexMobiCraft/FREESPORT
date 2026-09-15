@@ -35,7 +35,7 @@ const baseProps: ElectricProductCardProps = {
   title: 'Test Product',
   brand: 'Nike',
   price: 1200,
-  badge: 'hit', // → текст бейджа «Хит»
+  badge: 'hit', // → текст бейджа «Лидер продаж»
 };
 
 const separators = (container: HTMLElement) => Array.from(container.querySelectorAll('span.sr-only'));
@@ -45,9 +45,9 @@ describe('ElectricProductCard: разделение текста бейджа, �
     const { container } = render(<ElectricProductCard {...baseProps} />);
     const text = container.textContent ?? '';
 
-    // Стык «бейдж → следующий узел»: без разделителя было бы «Хит♡»
-    expect(text).not.toMatch(/Хит♡/);
-    expect(text).toMatch(/Хит\s+♡/);
+    // Стык «бейдж → следующий узел»: без разделителя было бы «Лидер продаж♡»
+    expect(text).not.toMatch(/Лидер продаж♡/);
+    expect(text).toMatch(/Лидер продаж\s+♡/);
     // Стык «бренд → название»: без разделителя было бы «NikeTest Product»
     expect(text).not.toMatch(/NikeTest Product/);
     expect(text).toMatch(/Nike\s+Test Product/);
@@ -59,7 +59,7 @@ describe('ElectricProductCard: разделение текста бейджа, �
     const found = separators(container);
     expect(found).toHaveLength(2);
     // Первый — сразу за контейнером бейджа
-    expect(found[0].previousElementSibling?.textContent).toBe('Хит');
+    expect(found[0].previousElementSibling?.textContent).toBe('Лидер продаж');
     // Второй — сразу за абзацем бренда
     expect(found[1].previousElementSibling?.tagName).toBe('P');
     expect(found[1].previousElementSibling?.textContent).toBe('Nike');
@@ -68,7 +68,7 @@ describe('ElectricProductCard: разделение текста бейджа, �
   // Разделитель стоит вне тернарника, выбирающего текст бейджа, — проверяем,
   // что он не привязан к одному варианту
   it.each([
-    ['hit', 'Хит', {}],
+    ['hit', 'Лидер продаж', {}],
     ['new', 'New', {}],
     ['sale', '-25%', { oldPrice: 1600 }],
   ] as const)('badge=%s: разделитель после бейджа есть, текст «%s» не склеен', (badge, label, extra) => {
@@ -87,7 +87,7 @@ describe('ElectricProductCard: отсутствие лишних раздели�
     const { container } = render(<ElectricProductCard {...baseProps} badge={undefined} />);
     const text = container.textContent ?? '';
 
-    expect(text).not.toContain('Хит');
+    expect(text).not.toContain('Лидер продаж');
     // Число, а не только отсутствие текста: иначе вынос разделителя
     // из блока `{badge && ...}` остался бы незамеченным
     const remaining = separators(container);
@@ -103,7 +103,7 @@ describe('ElectricProductCard: отсутствие лишних раздели�
     expect(text).not.toContain('Nike');
     const remaining = separators(container);
     expect(remaining).toHaveLength(1);
-    expect(remaining[0].previousElementSibling?.textContent).toBe('Хит');
+    expect(remaining[0].previousElementSibling?.textContent).toBe('Лидер продаж');
   });
 
   it('без бейджа и без бренда разделителей не остаётся вовсе', () => {

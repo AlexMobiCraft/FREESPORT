@@ -28,7 +28,7 @@ const advantages: Advantage[] = [
   },
   {
     icon: Handshake,
-    title: 'Персональный менеджер',
+    title: 'Персональный специалист',
     description: 'Сопровождение на всех этапах',
   },
   {

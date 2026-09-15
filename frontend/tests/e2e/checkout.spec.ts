@@ -508,7 +508,7 @@ test.describe('Checkout Form Validation E2E Tests', () => {
 
     // Проверяем появление ошибок валидации
     // Email обязателен
-    await expect(page.locator('text=Email обязателен').first()).toBeVisible();
+    await expect(page.locator('text=Укажите электронную почту').first()).toBeVisible();
 
     // Телефон - формат
     await expect(

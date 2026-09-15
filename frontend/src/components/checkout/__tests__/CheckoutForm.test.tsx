@@ -180,7 +180,7 @@ describe('CheckoutForm', () => {
 
       await waitFor(() => {
         // Input компонент рендерит ошибку в двух местах (visible + sr-only)
-        const errors = screen.getAllByText('Email обязателен');
+        const errors = screen.getAllByText('Укажите электронную почту');
         expect(errors.length).toBeGreaterThan(0);
       });
     });

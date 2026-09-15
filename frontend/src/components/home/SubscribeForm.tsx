@@ -128,10 +128,10 @@ export const SubscribeForm: React.FC = () => {
   });
   const hasPdpConsentError = !!errors.pdp_consent;
   const emailRegistration = register('email', {
-    required: 'Email обязателен',
+    required: 'Укажите электронную почту',
     pattern: {
       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-      message: 'Введите корректный email',
+      message: 'Введите корректный адрес электронной почты',
     },
   });
 
@@ -192,7 +192,7 @@ export const SubscribeForm: React.FC = () => {
               marketingConsentError ??
               emailError ??
               backendError ??
-              'Введите корректный email'
+              'Введите корректный адрес электронной почты'
           );
         } else if (error.message === 'throttled') {
           toast.error(getFirstBackendError(error) ?? THROTTLED_ERROR);
@@ -216,7 +216,7 @@ export const SubscribeForm: React.FC = () => {
       <Input
         label="Электронная почта"
         type="email"
-        placeholder="your@email.com"
+        placeholder="name@example.ru"
         error={errors.email?.message}
         aria-required="true"
         aria-invalid={!!errors.email}

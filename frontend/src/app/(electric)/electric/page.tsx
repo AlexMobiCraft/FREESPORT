@@ -79,7 +79,7 @@ export default function ElectricHomePage() {
       {/* 2. Хиты продаж — Refactored with variant */}
       <HitsSection
         variant="electric"
-        title="Хиты продаж"
+        title="Лидеры продаж"
         viewAllLink="/electric/catalog?is_hit=true"
       />
 

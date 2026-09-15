@@ -26,7 +26,7 @@ describe('HitsSection', () => {
 
     // Loading state - проверяем skeleton loaders
     expect(screen.getAllByRole('status')).toHaveLength(1);
-    expect(screen.getByLabelText(/Загрузка хитов продаж/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Загрузка лидеров продаж/i)).toBeInTheDocument();
 
     // Success state - проверяем загрузку товаров
     await waitFor(
@@ -41,13 +41,13 @@ describe('HitsSection', () => {
     // Товар 1: is_sale=true (приоритет 1) - должен показать "20% скидка"
     expect(screen.getByText('20% скидка')).toBeInTheDocument();
 
-    // Товар 2: только is_hit=true (приоритет 4) - должен показать "Хит"
-    // Используем getAllByText т.к. несколько товаров могут иметь бейдж "Хит"
-    const hitBadges = screen.getAllByText('Хит');
+    // Товар 2: только is_hit=true (приоритет 4) - должен показать "Лидер продаж"
+    // Используем getAllByText т.к. несколько товаров могут иметь бейдж "Лидер продаж"
+    const hitBadges = screen.getAllByText('Лидер продаж');
     expect(hitBadges.length).toBeGreaterThan(0);
 
     // Проверяем что заголовок отображается
-    expect(screen.getByText('Хиты продаж')).toBeInTheDocument();
+    expect(screen.getByText('Лидеры продаж')).toBeInTheDocument();
   });
 
   it('shows skeleton loaders during loading', () => {
@@ -60,7 +60,7 @@ describe('HitsSection', () => {
     // Проверяем наличие skeleton loader
     const skeletons = screen.getAllByRole('status');
     expect(skeletons.length).toBeGreaterThan(0);
-    expect(screen.getByLabelText(/Загрузка хитов продаж/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Загрузка лидеров продаж/i)).toBeInTheDocument();
   });
 
   it('shows error state on API failure and allows retry', { timeout: 20000 }, async () => {
@@ -84,7 +84,7 @@ describe('HitsSection', () => {
     // Проверяем error state (дожидаемся, что загрузка завершится ошибкой)
     await waitFor(
       () => {
-        expect(screen.getByText(/Не удалось загрузить хиты продаж/i)).toBeInTheDocument();
+        expect(screen.getByText(/Не удалось загрузить лидеров продаж/i)).toBeInTheDocument();
       },
       { timeout: 15000 }
     );
@@ -160,7 +160,7 @@ describe('HitsSection', () => {
 
     // Ждём завершения загрузки
     await waitFor(() => {
-      expect(screen.queryByLabelText(/Загрузка хитов продаж/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Загрузка лидеров продаж/i)).not.toBeInTheDocument();
     });
 
     // Проверяем что компонент не отрисовал секцию (RecommendationsRow возвращает null)
@@ -181,12 +181,12 @@ describe('HitsSection', () => {
     });
 
     // Проверяем различные варианты бейджей
-    // Товары с более высоким приоритетом показывают свой бейдж вместо "Хит"
+    // Товары с более высоким приоритетом показывают свой бейдж вместо "Лидер продаж"
     expect(screen.getByText('20% скидка')).toBeInTheDocument(); // sale (приоритет 1) - товар #1
     expect(screen.getByText('Акция')).toBeInTheDocument(); // promo (приоритет 2) - товар #3
 
-    // Товары только с is_hit показывают "Хит"
-    const hitBadges = screen.getAllByText('Хит');
+    // Товары только с is_hit показывают "Лидер продаж"
+    const hitBadges = screen.getAllByText('Лидер продаж');
     expect(hitBadges.length).toBeGreaterThan(0); // Несколько товаров с только is_hit=true
   });
 });
