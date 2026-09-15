@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 import uuid
 from typing import TYPE_CHECKING, Any, cast
 
@@ -513,6 +514,11 @@ class Category(models.Model):
             )
 
 
+def generate_unsubscribe_token() -> str:
+    """Создаёт непрозрачный URL-safe токен отписки из 32 случайных байт."""
+    return secrets.token_urlsafe(32)
+
+
 class Newsletter(models.Model):
     """Модель для подписки на email-рассылку."""
 
@@ -521,6 +527,13 @@ class Newsletter(models.Model):
         unique=True,
         db_index=True,
         help_text="Email адрес для подписки",
+    )
+    unsubscribe_token = models.CharField(
+        _("Токен отписки"),
+        max_length=43,
+        unique=True,
+        default=generate_unsubscribe_token,
+        editable=False,
     )
     is_active = models.BooleanField(
         _("Активна"),
@@ -571,8 +584,14 @@ class Newsletter(models.Model):
     def __str__(self) -> str:
         return self.email
 
-    def unsubscribe(self):
-        """Деактивирует подписку."""
+    def rotate_unsubscribe_token(self) -> None:
+        """Делает все прежние ссылки отписки недействительными."""
+        self.unsubscribe_token = generate_unsubscribe_token()
+
+    def unsubscribe(self) -> None:
+        """Идемпотентно деактивирует подписку, сохраняя дату первой отписки."""
+        if not self.is_active:
+            return
         self.is_active = False
         self.unsubscribed_at = timezone.now()
         self.save(update_fields=["is_active", "unsubscribed_at"])

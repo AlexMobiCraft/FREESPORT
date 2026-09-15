@@ -290,13 +290,15 @@ class SubscribeSerializer(serializers.Serializer):
                         raise
                     subscription = raced
 
+            subscription.rotate_unsubscribe_token()
             if subscription.is_active:
                 # Активный подписчик снова поставил галочку и отправил форму — это
                 # новый явный факт согласия (ФЗ-152 ст. 9): после правки формулировки
                 # только он доказывает согласие на новую редакцию. Подписка
                 # возвращается как есть, view пишет обе записи `UserConsent`, а ответ
                 # неотличим от новой подписки (enumeration). `Newsletter` не журнал
-                # согласий, поэтому строку не трогаем (стори 41.9, шестой круг ревью).
+                # согласий, поэтому изменяется только bearer-токен новой ссылки.
+                subscription.save(update_fields=["unsubscribe_token"])
                 return subscription
 
             # Реактивируем подписку
@@ -306,6 +308,7 @@ class SubscribeSerializer(serializers.Serializer):
             subscription.user_agent = user_agent
             subscription.save(
                 update_fields=[
+                    "unsubscribe_token",
                     "is_active",
                     "unsubscribed_at",
                     "ip_address",
@@ -364,6 +367,12 @@ class UnsubscribeResponseSerializer(serializers.Serializer):
 
     message = serializers.CharField()
     email = serializers.EmailField()
+
+
+class TokenUnsubscribeSerializer(serializers.Serializer):
+    """Принимает только непрозрачный bearer-токен отписки."""
+
+    token = serializers.RegexField(r"^[A-Za-z0-9_-]{43}$", max_length=43)
 
 
 class NewsSerializer(serializers.ModelSerializer):

@@ -84,6 +84,13 @@ function expireCookie(name: string): void {
   }
 }
 
+/** Приостанавливает счётчик на чувствительном маршруте, не меняя cookie-согласие. */
+function suspendCounter(id: number): void {
+  document.querySelector(`script[src="${SCRIPT_URL}"]`)?.remove();
+  delete window.ym;
+  delete (window as unknown as Record<string, unknown>)[`yaCounter${id}`];
+}
+
 /** Best-effort очистка при отзыве согласия: cookie, localStorage, тег, глобалы. */
 function clearMetrikaState(id: number): void {
   for (const pair of document.cookie.split(';')) {
@@ -107,9 +114,7 @@ function clearMetrikaState(id: number): void {
     // Хранилище может быть недоступно — отзыв согласия всё равно фиксируется.
   }
 
-  document.querySelector(`script[src="${SCRIPT_URL}"]`)?.remove();
-  delete window.ym;
-  delete (window as unknown as Record<string, unknown>)[`yaCounter${id}`];
+  suspendCounter(id);
 }
 
 export default function YandexMetrika() {
@@ -121,6 +126,13 @@ export default function YandexMetrika() {
   useEffect(() => {
     const id = counterId();
     if (!id || typeof document === 'undefined') {
+      return;
+    }
+
+    if (pathname === '/unsubscribe') {
+      suspendCounter(id);
+      loadedRef.current = false;
+      lastHitPathRef.current = null;
       return;
     }
 

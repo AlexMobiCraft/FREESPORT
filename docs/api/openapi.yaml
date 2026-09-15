@@ -166,7 +166,7 @@ paths:
       operationId: unsubscribe_create
       description: Обрабатывает запрос на отписку от email-рассылки. Для неизвестного
         или уже отписанного email возвращает такой же нейтральный 200 OK.
-      summary: Отписка от email-рассылки
+      summary: Отписка от email-рассылки по email (устаревший API)
       tags:
       - Newsletter
       requestBody:
@@ -183,6 +183,7 @@ paths:
         required: true
       security:
       - {}
+      deprecated: true
       responses:
         '200':
           description: Запрос на отписку обработан
@@ -202,6 +203,95 @@ paths:
                       - Не удалось обработать запрос. Попробуйте позже.
                   summary: unsubscribe_processing_failed
           description: Запрос на отписку не удалось обработать из-за ошибки БД
+  /newsletter/unsubscribe/:
+    post:
+      operationId: newsletter_unsubscribe_create
+      description: Обрабатывает интерактивную отписку без аутентификации.
+      summary: Отписка от маркетинговой рассылки по токену
+      tags:
+      - Newsletter
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenUnsubscribeRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenUnsubscribeProcessedResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidUnsubscribeTokenResponse'
+          description: ''
+        '503':
+          description: Ошибка обработки отписки
+  /newsletter/unsubscribe/one-click/{token}/:
+    post:
+      operationId: newsletter_unsubscribe_one_click_create
+      description: Оставляет GET безопасным и принимает только точное RFC 8058 form-тело.
+      summary: RFC 8058 one-click отписка
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - Newsletter
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OneClickUnsubscribeRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneClickUnsubscribeResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneClickInvalidUnsubscribeTokenResponse'
+          description: ''
+        '503':
+          description: Ошибка обработки отписки
+    get:
+      operationId: newsletter_unsubscribe_one_click_retrieve
+      description: Оставляет GET безопасным и принимает только точное RFC 8058 form-тело.
+      summary: RFC 8058 one-click отписка
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - Newsletter
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneClickUnsubscribeResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneClickInvalidUnsubscribeTokenResponse'
+          description: ''
+        '503':
+          description: Ошибка обработки отписки
   /news/:
     get:
       operationId: news_list
@@ -751,30 +841,6 @@ paths:
         '200':
           description: Список ролей пользователей
   /users/addresses/:
-    post:
-      operationId: users_addresses_create
-      description: ViewSet для управления адресами пользователя
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/AddressRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Address'
-          description: ''
     get:
       operationId: users_addresses_list
       description: ViewSet для управления адресами пользователя
@@ -805,6 +871,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedAddressList'
+          description: ''
+    post:
+      operationId: users_addresses_create
+      description: ViewSet для управления адресами пользователя
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
           description: ''
   /users/addresses/{id}/:
     get:
@@ -903,30 +993,6 @@ paths:
         '204':
           description: No response body
   /users/favorites/:
-    post:
-      operationId: users_favorites_create
-      description: ViewSet для управления избранными товарами
-      tags:
-      - Users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FavoriteCreateRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FavoriteCreate'
-          description: ''
     get:
       operationId: users_favorites_list
       description: ViewSet для управления избранными товарами
@@ -957,6 +1023,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedFavoriteList'
+          description: ''
+    post:
+      operationId: users_favorites_create
+      description: ViewSet для управления избранными товарами
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FavoriteCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteCreate'
           description: ''
   /users/favorites/{id}/:
     get:
@@ -1567,35 +1657,6 @@ paths:
                 $ref: '#/components/schemas/AttributeFilter'
           description: ''
   /orders/:
-    post:
-      operationId: orders_create
-      description: Создание нового заказа из корзины пользователя
-      summary: Создание заказа
-      tags:
-      - Orders
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderDetail'
-          description: ''
-        '400':
-          description: Ошибки валидации или пустая корзина
-        '401':
-          description: Пользователь не авторизован
     get:
       operationId: orders_list
       description: Возвращает только мастер-заказы пользователя (`is_master=True`).
@@ -1639,6 +1700,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedOrderListList'
           description: ''
+        '401':
+          description: Пользователь не авторизован
+    post:
+      operationId: orders_create
+      description: Создание нового заказа из корзины пользователя
+      summary: Создание заказа
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '400':
+          description: Ошибки валидации или пустая корзина
         '401':
           description: Пользователь не авторизован
   /orders/{id}/:
@@ -1855,34 +1945,6 @@ paths:
         '204':
           description: No response body
   /cart/items/:
-    post:
-      operationId: cart_items_create
-      description: Добавление варианта товара (variant_id) в корзину с автоматическим
-        объединением одинаковых вариантов. Цена фиксируется в момент добавления.
-      summary: Добавить вариант товара в корзину
-      tags:
-      - Cart Items
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/CartItemCreateRequest'
-        required: true
-      security:
-      - {}
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CartItemCreate'
-          description: ''
     get:
       operationId: cart_items_list
       description: Получение списка всех товаров в корзине пользователя
@@ -1916,6 +1978,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedCartItemList'
+          description: ''
+    post:
+      operationId: cart_items_create
+      description: Добавление варианта товара (variant_id) в корзину с автоматическим
+        объединением одинаковых вариантов. Цена фиксируется в момент добавления.
+      summary: Добавить вариант товара в корзину
+      tags:
+      - Cart Items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CartItemCreateRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemCreate'
           description: ''
   /cart/items/{id}/:
     get:
@@ -3104,6 +3194,18 @@ components:
         type: array
         items:
           type: string
+    InvalidUnsubscribeTokenResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    List-UnsubscribeEnum:
+      enum:
+      - One-Click
+      type: string
+      description: '* `One-Click` - One-Click'
     LogoutRequest:
       type: object
       description: |-
@@ -3117,6 +3219,27 @@ components:
           description: Refresh token для инвалидации
       required:
       - refresh
+    OneClickInvalidUnsubscribeTokenResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    OneClickUnsubscribeRequest:
+      type: object
+      properties:
+        List-Unsubscribe:
+          $ref: '#/components/schemas/List-UnsubscribeEnum'
+      required:
+      - List-Unsubscribe
+    OneClickUnsubscribeResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
     OrderCreateRequest:
       type: object
       description: Сериализатор создания заказа из корзины
@@ -4752,6 +4875,24 @@ components:
           minLength: 1
       required:
       - refresh
+    TokenUnsubscribeProcessedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    TokenUnsubscribeRequest:
+      type: object
+      description: Принимает только непрозрачный bearer-токен отписки.
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 43
+          pattern: ^[A-Za-z0-9_-]{43}$
+      required:
+      - token
     TransactionTypeEnum:
       enum:
       - accrual

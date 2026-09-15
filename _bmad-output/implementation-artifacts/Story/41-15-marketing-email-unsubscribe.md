@@ -1,10 +1,14 @@
+---
+baseline_commit: 1c0f8f6ae49f4154fe96e8b8e018d3ae1c77e6fb
+---
+
 # Story 41.15: Доступная отписка от маркетинговой рассылки
 
-Status: backlog
+Status: in-progress (этап 1 реализован и проверен локально; этап 2 и окончательная приёмка AC1–AC5 остаются открытыми)
 
 **Требование:** FR-41-31.
 
-**Готовность реализации:** этап 1 не требует подключения Postbox. G1а–G4 согласованы 15.09.2026 и зафиксированы в ADR-008; G5 ещё не закрыт. Этап 2 требует настроенного Postbox и контролируемой тестовой отправки. Общий статус остаётся `backlog` до полной проверки готовности этапа 1.
+**Готовность реализации:** этап 1 не требует подключения Postbox. G1а–G4 согласованы 15.09.2026 и зафиксированы в ADR-008; G5 закрыт 15.09.2026 на HEAD `1c0f8f6a` (свежий GitNexus, полное чтение UPDATE-файлов, сверка версий, impact символов, утверждённая матрица регрессии). Этап 2 требует настроенного Postbox и контролируемой тестовой отправки. Владелец 15.09.2026 подтвердил перевод в `ready-for-dev` с объёмом «только этап 1».
 
 **Решение владельца:** Alex, 14.09.2026, в текущем диалоге: «рассылка ещё не запущена». Это подтверждение владельца, не результат проверки production.
 
@@ -20,7 +24,7 @@ Status: backlog
 
 Объём одобрен в `bmad-correct-course` 13.09.2026. Решением пользователя от 15.09.2026 прежнее условие блокировки всей реализации при отсутствии рассылки уточнено: отсутствие подключённого отправщика блокирует этап 2 и окончательную приёмку, но не разработку этапа 1 после закрытия его условий. Это уточнение действует для данной истории; исходные Epic и sprint change proposal сохраняют историческую формулировку. AC1–AC5 и требование доказать реальную цепочку сохраняются.
 
-В tracker есть `41-15-marketing-email-unsubscribe: backlog`. При разделении на этапы статус не меняется. Переход в `ready-for-dev` возможен после закрытия условий этапа 1 с явным указанием его объёма. После завершения этапа 1 история остаётся `in-progress` с отмеченным ожиданием этапа 2; перевод всей истории в `review`/`done` до выполнения этапа 2 и AC1–AC5 не допускается.
+В tracker `41-15-marketing-email-unsubscribe: ready-for-dev` — переход выполнен 15.09.2026 после закрытия условий этапа 1 с явным объёмом «только этап 1». После завершения этапа 1 история остаётся `in-progress` с отмеченным ожиданием этапа 2; перевод всей истории в `review`/`done` до выполнения этапа 2 и AC1–AC5 не допускается.
 
 Объём: «реальное маркетинговое письмо → публичный экран → POST → Newsletter → исключение из последующих отправок». Предполагаемый сервис доставки — Yandex Cloud Postbox. Создание платформы массовых рассылок, приобретение платных ресурсов и запуск массовой кампании не входят в объём. Не добавлять декоративную ссылку в форму подписки и не считать существующий API доказательством завершённого сценария.
 
@@ -43,7 +47,7 @@ Status: backlog
 | G2. Токен | 32 случайных байта, URL-safe Base64 без padding; уникально хранится в Newsletter, не содержит ПДн, не истекает по времени, ротируется при каждом новом явном согласии и не ротируется при отписке | **Согласовано 15.09.2026**, ADR-008; старая ссылка после нового согласия недействительна |
 | G3. Исключение из отправки и почтовая отписка | Финальная проверка активности перед каждой попыткой; `suppressed` без вызова транспорта; retry снова проверяет активность; собственный RFC 8058 one-click endpoint. Уже переданное провайдеру письмо может дойти | **Согласовано 15.09.2026**, ADR-008; email-based endpoint временно deprecated, локальные и облачные доказательства ещё не получены |
 | G4. Публичный сценарий — до этапа 1 | `/unsubscribe#<token>`, явное подтверждение, нейтральный результат, ошибки и retry; без входа во всех режимах, без аналитики и раскрытия email; token JSON API и отдельный one-click API | **Согласовано 15.09.2026**, ADR-008; frontend-проверки ещё не выполнены |
-| G5. Проверка контекста — перед разработкой каждого этапа | Свежий GitNexus, полное чтение окончательных файлов UPDATE, версии зависимостей, impact существующих символов и план регрессионных тестов | План определён; снимок 15.09.2026 актуален, но финальная проверка перед разработкой не завершена |
+| G5. Проверка контекста — перед разработкой каждого этапа | Свежий GitNexus, полное чтение окончательных файлов UPDATE, версии зависимостей, impact существующих символов и план регрессионных тестов | **Закрыто для этапа 1, 15.09.2026** на HEAD `1c0f8f6a`: GitNexus переиндексирован и `up-to-date`; UPDATE-файлы прочитаны; версии сверены (совпадают со снимком); impact выполнен (Newsletter — HIGH по импортам модуля, остальное LOW); матрица регрессии утверждена владельцем. Перед этапом 2 повторить на тогдашнем HEAD |
 
 До приёмки необходимо получить реальное тестовое письмо в контролируемом контуре. Массовую production-рассылку запускать ради этого не требуется: отписку проверяют до её запуска.
 
@@ -114,27 +118,27 @@ AC1–AC5 соответствуют нумерации эпика. Уточне
 
 ### Этап 1 — без подключения Postbox
 
-- [ ] 1. Закрыть условия проектирования до изменения кода (G1а, G2–G5).
+- [x] 1. Закрыть условия проектирования до изменения кода (G1а, G2–G5).
   - [x] Описать локальный источник получателей, контракт шаблона и интерфейс тестового отправщика без облачных реквизитов — ADR-008, решение 15.09.2026.
   - [x] Записать архитектурное решение по всем полям G2/G3, включая старые ссылки, очереди, RFC 8058 и границу уже переданной доставки — ADR-008.
   - [x] Подготовить и согласовать UX-checkpoint состояний экрана и публичного URL — ADR-008.
-  - [ ] Закрыть G5: повторить GitNexus на финальном HEAD, полностью прочитать окончательные UPDATE-файлы, сверить версии, выполнить impact существующих символов и утвердить точную матрицу регрессии; только после отдельной проверки готовности перевести в `ready-for-dev` с объёмом этапа 1.
-- [ ] 2. Реализовать backend-контракт (AC2, AC3, AC5).
-  - [ ] До изменения символов выполнить `impact`, сообщить вызывающих, процессы и риск.
-  - [ ] Добавить согласованные генерацию/проверку токена, сохранив существующую модель подписки.
-  - [ ] Обеспечить нейтральность, идемпотентность, согласованность конкурирующих запросов и достоверные ошибки.
-  - [ ] Временно сохранить существующий email-based API как deprecated; не удалять без отдельного решения владельца после аудита внешних клиентов. Новый публичный сценарий использует только token API; обновить OpenAPI и типы.
-- [ ] 3. Реализовать публичный экран и API-сервис (AC2–AC4).
-  - [ ] Проверить middleware, темы и coming-soon; GET не выполняет отписку.
-  - [ ] Использовать UI-компоненты и общий HTTP-клиент проекта; проверить отсутствие зависимости от JWT, включая просроченную сессию.
-  - [ ] Обработать ожидание, результат, неверную ссылку, 429, сетевые и серверные ошибки, повтор запроса.
-- [ ] 4. Подготовить локальное исключение из отправки и завершить этап 1 (частичные доказательства AC1–AC4, регрессия AC5).
-  - [ ] Сформировать тестовый шаблон с безопасной ссылкой; проверить локальную выборку только активных подписчиков.
-  - [ ] Через тестовый отправщик проверить повторную проверку активности перед отправкой, включая адреса в подготовленной очереди, согласно G3.
-  - [ ] Выполнить локальные строки матрицы ниже; синхронизировать OpenAPI и типы.
-  - [ ] Перезапустить frontend-контейнер после изменений `frontend/src/`; выполнить тесты, lint, TypeScript, форматирование и сборку.
-  - [ ] Сохранить доказательства локальной цепочки и итоговые результаты проверок; отметить завершение этапа 1 и ожидание этапа 2 при общем `in-progress`.
-  - [ ] Заполнить журнал реализации и список файлов; перед коммитом выполнить `detect-changes --scope all`.
+  - [x] Закрыть G5: повторить GitNexus на финальном HEAD, полностью прочитать окончательные UPDATE-файлы, сверить версии, выполнить impact существующих символов и утвердить точную матрицу регрессии; только после отдельной проверки готовности перевести в `ready-for-dev` с объёмом этапа 1.
+- [x] 2. Реализовать backend-контракт (AC2, AC3, AC5).
+  - [x] До изменения символов выполнить `impact`, сообщить вызывающих, процессы и риск.
+  - [x] Добавить согласованные генерацию/проверку токена, сохранив существующую модель подписки.
+  - [x] Обеспечить нейтральность, идемпотентность, согласованность конкурирующих запросов и достоверные ошибки.
+  - [x] Временно сохранить существующий email-based API как deprecated; не удалять без отдельного решения владельца после аудита внешних клиентов. Новый публичный сценарий использует только token API; обновить OpenAPI и типы.
+- [x] 3. Реализовать публичный экран и API-сервис (AC2–AC4).
+  - [x] Проверить middleware, темы и coming-soon; GET не выполняет отписку.
+  - [x] Использовать UI-компоненты и общий HTTP-клиент проекта; проверить отсутствие зависимости от JWT, включая просроченную сессию.
+  - [x] Обработать ожидание, результат, неверную ссылку, 429, сетевые и серверные ошибки, повтор запроса.
+- [x] 4. Подготовить локальное исключение из отправки и завершить этап 1 (частичные доказательства AC1–AC4, регрессия AC5).
+  - [x] Сформировать тестовый шаблон с безопасной ссылкой; проверить локальную выборку только активных подписчиков.
+  - [x] Через тестовый отправщик проверить повторную проверку активности перед отправкой, включая адреса в подготовленной очереди, согласно G3.
+  - [x] Выполнить локальные строки матрицы ниже; синхронизировать OpenAPI и типы.
+  - [x] Перезапустить frontend-контейнер после изменений `frontend/src/`; выполнить тесты, lint, TypeScript, форматирование и сборку.
+  - [x] Сохранить доказательства локальной цепочки и итоговые результаты проверок; отметить завершение этапа 1 и ожидание этапа 2 при общем `in-progress`.
+  - [x] Заполнить журнал реализации и список файлов; перед коммитом выполнить `detect-changes --scope all`.
 
 ### Этап 2 — интеграция и окончательная приёмка
 
@@ -238,7 +242,7 @@ Backend запускать последовательно с PostgreSQL/Redis ч
 
 ### Использованная модель
 
-Codex. Подготовка документа `bmad-create-story`; реализация не начата.
+GPT-5.6. Реализация этапа 1 через `bmad-dev-story`; этап 2 не выполнялся.
 
 ### Журнал диагностики
 
@@ -246,14 +250,52 @@ Codex. Подготовка документа `bmad-create-story`; реализ
 - Исторический снимок 14.09.2026 устарел. 15.09.2026 после выполненного пользователем `npx gitnexus analyze --skip-agents-md` статус проверен: индекс `up-to-date` на HEAD `9dc2e5b8b75328763a3b4ba27f8ff4a068b49d27`.
 - Выполнены GitNexus query/context для Newsletter, subscribe/unsubscribe и чтение актуальных backend/frontend поверхностей. Код не менялся; impact не выполнялся, потому что существующие символы не редактировались.
 - G5 этим не закрыт: перед разработкой требуется повтор на финальном HEAD, полное чтение окончательного списка UPDATE, impact каждого изменяемого существующего символа и фиксация точных регрессионных команд.
+- 15.09.2026, закрытие G5 (Devin): HEAD сместился на `1c0f8f6a` (docs-коммит ADR-008, код не менялся). Выполнен `npx gitnexus analyze --skip-agents-md` — индекс `up-to-date` на `1c0f8f6`. Полностью прочитаны UPDATE-кандидаты: `apps/common/{models,serializers,views,urls,throttling,admin,api_schema}.py`, `utils/consent_audit.py`, `services/__init__.py`, миграции до `0020`, `freesport/settings/base.py` (`DEFAULT_AUTHENTICATION_CLASSES`, throttle-рейты), `tests/conftest.py`; `frontend/src/{middleware.ts,services/api-client.ts,services/subscribeService.ts,app/layout.tsx,app/page.tsx,app/robots.ts,components/common/YandexMetrika.tsx,__tests__/app-routes-allowlist.test.ts,types/api.ts}`, `package.json`, `docs/api/openapi.yaml`. Версии совпадают со снимком (Django 5.2.7, DRF 3.14.0, drf-spectacular 0.28.0, simplejwt 5.3.1; Next.js 15.5.18, React 19.1.0, TS 5.8.2; vitest 4.0.15, playwright 1.57, axe-core 4.11, msw 2.12).
+- Impact (upstream): `Newsletter` — HIGH (31 файл, все рёбра `IMPORTS` уровня модуля `models.py`; реальные потребители — `common/{serializers,views,admin}.py` и тесты; регистрация `Newsletter` не создаёт — проверено grep). `Newsletter.unsubscribe()` — единственный вызывающий `UnsubscribeSerializer.save` (serializers.py:358; граф показал 0 upstream — кросс-проверено grep). `unsubscribe` (view) — только `urls.py`. `SubscribeSerializer`, `UnsubscribeRateThrottle`, `KNOWN_TOP_LEVEL_ROUTES`, `YandexMetrika` — LOW.
+- Находки G5, обязательные для этапа 1: (1) `Newsletter.unsubscribe()` переписывает `unsubscribed_at` при каждом вызове — требуется идемпотентность по AC3; (2) `YandexMetrika` в корневом `app/layout.tsx` шлёт `window.location.href` в `ym(id,'hit')` — на `/unsubscribe#<token>` токен утечёл бы в Яндекс, исключение страницы из Метрики обязательно; (3) `apiClient` добавляет JWT и делает refresh на 401 — token-сервис отписки не должен слать Authorization, а endpoint обязан иметь `authentication_classes = []`; (4) токен — bearer-секрет, в `NewsletterAdmin` не отображать; (5) pre-existing deferred-риски (`deferred-work.md`): гонка в `UnsubscribeSerializer.save` без `select_for_update`, non-`DatabaseError`→500 — новый token-endpoint проектируется с `select_for_update`+`transaction.atomic`.
+- Матрица регрессии этапа 1, утверждённая владельцем 15.09.2026: backend в Docker (`docker/docker-compose.test.yml`, последовательно): `pytest tests/integration/test_common_subscribe_api.py`, `tests/unit/test_common_throttling.py`, `apps/common/tests/{test_api_schema,test_common_config,test_user_consent}.py`, `tests/integration/test_auth_registration_consent.py` + новые тесты токена/token API/one-click RFC 8058/recipient source+test transport. Frontend: `vitest run` затронутых и новых тестов, `npm run lint`, `npx tsc --noEmit`, `npm run format:check`, `npm run build`, `npm run generate:types` после синхронизации `openapi.yaml`, перезапуск frontend-контейнера.
+- Владелец 15.09.2026 подтвердил: матрицу регрессии, перевод в `ready-for-dev` с объёмом «только этап 1», ветку `feature/story-41-15-marketing-unsubscribe` (создана от HEAD docs-ветки `1c0f8f6a` = develop + коммит с финальной постановкой).
+- 15.09.2026, старт реализации: baseline `1c0f8f6ae49f4154fe96e8b8e018d3ae1c77e6fb`; GitNexus `up-to-date`. Повторный impact: `Newsletter` — HIGH, 31 файл по рёбрам импорта `models.py`, 0 процессов; `SubscribeSerializer`, `UnsubscribeSerializer`, оба существующих `unsubscribe`, `apiClient`, `middleware`, `KNOWN_TOP_LEVEL_ROUTES`, `YandexMetrika` — LOW, 0 процессов. Высокий риск модели закрыт аддитивным полем, миграцией и регрессией.
+- RED backend: `test_newsletter_token_unsubscribe.py` упал на `AttributeError: Newsletter.unsubscribe_token`; `test_marketing_email.py` — на отсутствующем `apps.common.services.marketing_email`. GREEN: token/API 20 passed; локальный transport 6 passed; итоговый сценарий и миграция — 28 passed вместе с transport-тестами.
+- RED frontend: отсутствовали `unsubscribeService`/`UnsubscribeClient`, `/unsubscribe` перехватывался как 404, не было privacy headers, Метрика загружалась на чувствительном маршруте. GREEN: затронутый набор — 5 файлов / 162 passed; axe — 0 автоматических нарушений.
+- Backend/PostgreSQL: утверждённая матрица — 227 passed, 0 failed; полный прогон — 3422 passed, 75 skipped, 0 failed; после финального уточнения RFC 8058 schema — 34 targeted passed. `makemigrations --check --dry-run`, Black, Flake8 — exit 0.
+- Frontend: полный Vitest — 182 файла, 3224 passed, 16 skipped, 0 failed; `npm run lint`, `npx tsc --noEmit`, `npm run format:check`, `npm run build`, `npm run generate:types` — exit 0. Контейнер `frontend` перезапущен.
+- OpenAPI: схема перегенерирована с `--validate`, generated types обновлены; `check_openapi_sync` подтвердил синхронность. SSR `HEAD /unsubscribe` — 200, `Cache-Control: no-store, must-revalidate`, `Referrer-Policy: no-referrer`; серверный HTML содержит H1, `noindex,nofollow` и не содержит токен.
+- GitNexus `detect-changes --scope all`: 15 файлов, 30 символов, 2 ожидаемых frontend-потока (`YandexMetrika → ExpireCookie`, `Middleware → DecodeSegment`), итоговый риск medium. `.env.prod.example` изменился параллельно после стартовой проверки рабочего дерева; агент его не редактировал, не откатывал и не относит к этапу 1.
 
-### Итог подготовки
+### План и итог этапа 1
 
-История разделена на два этапа решением от 15.09.2026. Предполагаемый сервис доставки — Yandex Cloud Postbox; этап 1 реализуется без его подключения. G1а–G4 согласованы и зафиксированы в ADR-008: локальные порты отправки, непрозрачный ротируемый токен, token API, временно deprecated email API, собственный RFC 8058 endpoint и публичный экран. G5 остаётся открытым, поэтому сохранён `backlog` и история не объявлена `ready-for-dev`. Этап 2 по-прежнему требует G1б, реальной интеграции и доказательств AC1–AC5. Код, tracker, отправка писем и приёмочные тесты не изменялись/не выполнялись.
+Реализация выполнена по red-green-refactor в порядке задач: backend-токен и атомарные endpoint → локальные порты отправки → публичный экран и приватный HTTP-вызов → OpenAPI/types → регрессия. `Newsletter` получил уникальный непрозрачный ротируемый токен с миграцией существующих строк; token API и собственный RFC 8058 endpoint не используют DRF authentication, а legacy email API сохранён как deprecated. Локальная очередь хранит `Newsletter.id` и повторно проверяет активность перед каждой попыткой. Публичный `/unsubscribe#<token>` очищает fragment, не передаёт JWT/cookie, не запускает Метрику и имеет состояния подтверждения, выполнения, результата и retry.
+
+Этап 1 завершён и доказан локальными тестами. История намеренно остаётся `in-progress`: G1б, подключение Postbox, реальная доставка, проверка провайдерских заголовков и окончательная приёмка AC1–AC5 относятся к этапу 2 и не выполнялись. Ручная проверка озвучивания вспомогательными технологиями и сквозное реальное письмо также остаются этапу 2; axe этапа 1 прошёл.
 
 ### Список файлов
 
-- `_bmad-output/implementation-artifacts/Story/41-15-marketing-email-unsubscribe.md` — обновлён документ истории.
+- `_bmad-output/implementation-artifacts/Story/41-15-marketing-email-unsubscribe.md` — baseline, задачи и доказательства этапа 1.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `ready-for-dev → in-progress`, этап 2 остаётся открытым.
+- `backend/apps/common/models.py` — токен, ротация и идемпотентная отписка Newsletter.
+- `backend/apps/common/serializers.py` — ротация при каждом новом согласии и token serializer.
+- `backend/apps/common/views.py` — token API, RFC 8058 endpoint и deprecated legacy API.
+- `backend/apps/common/urls.py` — маршруты token и one-click API.
+- `backend/apps/common/migrations/0021_newsletter_unsubscribe_token.py` — заполнение токенов существующих строк.
+- `backend/apps/common/services/newsletter_unsubscribe.py` — атомарная отписка с row lock.
+- `backend/apps/common/services/marketing_email.py` — recipient source, message builder, transport port и тестовый transport.
+- `backend/apps/common/tests/test_api_schema.py` — контракт новых endpoint и deprecated legacy API.
+- `backend/apps/common/tests/test_marketing_email.py` — локальный sender-контракт и suppression.
+- `backend/tests/integration/test_newsletter_token_unsubscribe.py` — токены, API, конкурентность, миграция, RFC 8058 и локальная цепочка.
+- `docs/api/openapi.yaml` — синхронизированный OpenAPI 3.1.
+- `frontend/src/services/api-client.ts` — режим запроса без JWT refresh/Authorization.
+- `frontend/src/services/unsubscribeService.ts` — token API-сервис и типизированные ошибки.
+- `frontend/src/services/__tests__/unsubscribeService.test.ts` — контракт публичного HTTP-вызова.
+- `frontend/src/app/unsubscribe/page.tsx` — публичный SSR-экран и metadata.
+- `frontend/src/app/unsubscribe/UnsubscribeClient.tsx` — fragment, подтверждение, состояния и retry.
+- `frontend/src/app/__tests__/UnsubscribeClient.test.tsx` — UX, focus/live-region и axe.
+- `frontend/src/middleware.ts` — allowlist и privacy/cache headers.
+- `frontend/src/__tests__/middleware.test.ts` — маршрут и headers.
+- `frontend/src/components/common/YandexMetrika.tsx` — исключение `/unsubscribe` из Метрики.
+- `frontend/src/components/common/__tests__/YandexMetrika.test.tsx` — отсутствие счётчика на чувствительном маршруте.
+- `frontend/src/types/api.generated.ts` — regenerated TypeScript contract.
+- `.env.prod.example` — параллельное внешнее изменение рабочего дерева; агент не редактировал и не относит к scope этапа 1.
 
 ## История изменений
 
@@ -261,3 +303,5 @@ Codex. Подготовка документа `bmad-create-story`; реализ
 - 14.09.2026: подготовлена подробная история; по ответу Alex зафиксирована незапущенная рассылка; сохранены блокер реализации и `backlog`.
 - 15.09.2026: по одобрению пользователя выделены этап 1 без Postbox и этап 2 с реальной интеграцией; разделены условия готовности, задачи и доказательства AC. Сохранены деактивация Newsletter, история согласий и обязательная сквозная приёмка; статус `backlog` не изменён.
 - 15.09.2026: G1а–G4 согласованы и зафиксированы в ADR-008 и Story: локальные порты отправки, непрозрачный ротируемый токен, временное сохранение deprecated email API, собственный RFC 8058 one-click, публичный `/unsubscribe#<token>` и граница уже переданной доставки. G5 и все внешние условия этапа 2 оставлены открытыми; `ready-for-dev` не объявлен.
+- 15.09.2026: G5 закрыт для этапа 1 на HEAD `1c0f8f6a` (свежий GitNexus, полное чтение UPDATE-файлов, сверка версий, impact, утверждённая матрица регрессии — детали в «Журнале диагностики»). Владелец подтвердил перевод в `ready-for-dev` с объёмом «только этап 1»; создана ветка `feature/story-41-15-marketing-unsubscribe`. Этап 2 (G1б, Postbox, AC1–AC5) остаётся открытым.
+- 15.09.2026: этап 1 реализован: непрозрачные ротируемые токены, token/RFC 8058 API, публичный доступный экран, локальные sender-порты и suppression подготовленной очереди; OpenAPI/types синхронизированы. Полная регрессия зелёная. Общий статус сохранён `in-progress` до Postbox и окончательной приёмки этапа 2.
