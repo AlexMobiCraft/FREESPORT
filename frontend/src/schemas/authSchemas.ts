@@ -190,7 +190,10 @@ export const b2bRegisterSchema = z
  * AC 1, 4: Email validation для запроса сброса пароля
  */
 export const passwordResetRequestSchema = z.object({
-  email: z.string().min(1, 'Укажите электронную почту').email('Введите корректный адрес электронной почты'),
+  email: z
+    .string()
+    .min(1, 'Укажите электронную почту')
+    .email('Введите корректный адрес электронной почты'),
 });
 
 /**
