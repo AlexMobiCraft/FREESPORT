@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-14
+last_updated: 2026-09-15
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1196,7 +1196,12 @@ development_status:
   #             владелец внёс в админку. Остаток post-deploy: заполнить ID
   #             счётчика и снять live-сетевые доказательства AC3/AC4.
   41-14-metrika-consent-and-transparency: done
-  41-15-marketing-email-unsubscribe: backlog
+  # 2026-09-15: G5 закрыт на HEAD 1c0f8f6 (GitNexus up-to-date, UPDATE-файлы
+  #             прочитаны, версии сверены, impact выполнен, матрица регрессии
+  #             утверждена владельцем). backlog -> ready-for-dev, объём —
+  #             только этап 1 (без Postbox); этап 2 и AC1-AC5 остаются открытыми.
+  # 2026-09-15: Этап 1 взят в разработку; ready-for-dev -> in-progress.
+  41-15-marketing-email-unsubscribe: in-progress
   41-16-editorial-audit-decision-register: backlog
   epic-41-retrospective: optional
 

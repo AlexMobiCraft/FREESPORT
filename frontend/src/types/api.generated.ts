@@ -134,10 +134,55 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Отписка от email-рассылки
+     * Отписка от email-рассылки по email (устаревший API)
+     * @deprecated
      * @description Обрабатывает запрос на отписку от email-рассылки. Для неизвестного или уже отписанного email возвращает такой же нейтральный 200 OK.
      */
     post: operations['unsubscribe_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/newsletter/unsubscribe/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Отписка от маркетинговой рассылки по токену
+     * @description Обрабатывает интерактивную отписку без аутентификации.
+     */
+    post: operations['newsletter_unsubscribe_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/newsletter/unsubscribe/one-click/{token}/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * RFC 8058 one-click отписка
+     * @description Оставляет GET безопасным и принимает только точное RFC 8058 form-тело.
+     */
+    get: operations['newsletter_unsubscribe_one_click_retrieve'];
+    put?: never;
+    /**
+     * RFC 8058 one-click отписка
+     * @description Оставляет GET безопасным и принимает только точное RFC 8058 form-тело.
+     */
+    post: operations['newsletter_unsubscribe_one_click_create'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1674,6 +1719,14 @@ export interface components {
     FieldValidationErrorResponse: {
       [key: string]: string[];
     };
+    InvalidUnsubscribeTokenResponse: {
+      error: string;
+    };
+    /**
+     * @description * `One-Click` - One-Click
+     * @enum {string}
+     */
+    'List-UnsubscribeEnum': 'One-Click';
     /**
      * @description Serializer для logout endpoint.
      *
@@ -1682,6 +1735,15 @@ export interface components {
     LogoutRequest: {
       /** @description Refresh token для инвалидации */
       refresh: string;
+    };
+    OneClickInvalidUnsubscribeTokenResponse: {
+      error: string;
+    };
+    OneClickUnsubscribeRequest: {
+      'List-Unsubscribe': components['schemas']['List-UnsubscribeEnum'];
+    };
+    OneClickUnsubscribeResponse: {
+      status: string;
     };
     /** @description Сериализатор создания заказа из корзины */
     OrderCreateRequest: {
@@ -2713,6 +2775,13 @@ export interface components {
     TokenRefreshRequest: {
       refresh: string;
     };
+    TokenUnsubscribeProcessedResponse: {
+      status: string;
+    };
+    /** @description Принимает только непрозрачный bearer-токен отписки. */
+    TokenUnsubscribeRequest: {
+      token: string;
+    };
     /**
      * @description * `accrual` - Начисление
      *     * `payout` - Выплата
@@ -3097,6 +3166,120 @@ export interface operations {
         content: {
           'application/json': components['schemas']['UnsubscribeProcessingErrorResponse'];
         };
+      };
+    };
+  };
+  newsletter_unsubscribe_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TokenUnsubscribeRequest'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokenUnsubscribeProcessedResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InvalidUnsubscribeTokenResponse'];
+        };
+      };
+      /** @description Ошибка обработки отписки */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  newsletter_unsubscribe_one_click_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OneClickUnsubscribeResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OneClickInvalidUnsubscribeTokenResponse'];
+        };
+      };
+      /** @description Ошибка обработки отписки */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  newsletter_unsubscribe_one_click_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/x-www-form-urlencoded': components['schemas']['OneClickUnsubscribeRequest'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OneClickUnsubscribeResponse'];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OneClickInvalidUnsubscribeTokenResponse'];
+        };
+      };
+      /** @description Ошибка обработки отписки */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

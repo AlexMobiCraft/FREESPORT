@@ -227,7 +227,7 @@ describe('Middleware: настоящий 404 для несуществующих
     expect(NextResponse.rewrite).not.toHaveBeenCalled();
   });
 
-  it.each(['/about', '/catalog', '/coming-soon', '/electric-orange'])(
+  it.each(['/about', '/catalog', '/coming-soon', '/electric-orange', '/unsubscribe'])(
     'пропускает известный маршрут %s без обращения к API',
     async pathname => {
       const { middleware, NextResponse } = await loadMiddleware();
@@ -238,6 +238,20 @@ describe('Middleware: настоящий 404 для несуществующих
       expect(fetchMock).not.toHaveBeenCalled();
     }
   );
+
+  it('защищает страницу отписки от кэша и передачи referrer', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+
+    await middleware(anonymousRequest('/unsubscribe'));
+
+    expect(NextResponse.next).toHaveBeenCalledWith({
+      headers: {
+        'Cache-Control': 'no-store',
+        'Referrer-Policy': 'no-referrer',
+      },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   it.each(['/', '/foo/bar', '/profile/orders/1'])(
     'не вмешивается в путь %s (не зона catch-all)',

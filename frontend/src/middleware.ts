@@ -52,6 +52,7 @@ export const KNOWN_TOP_LEVEL_ROUTES: ReadonlySet<string> = new Set([
   'requisites',
   'search',
   'test',
+  'unsubscribe',
 ]);
 
 /**
@@ -422,6 +423,15 @@ export async function middleware(request: NextRequest) {
 
     url.pathname = '/';
     return NextResponse.redirect(url);
+  }
+
+  if (pathname === '/unsubscribe') {
+    return NextResponse.next({
+      headers: {
+        'Cache-Control': 'no-store',
+        'Referrer-Policy': 'no-referrer',
+      },
+    });
   }
 
   // Настоящий 404 вместо soft-404 из catch-all `(blue)/[slug]`.

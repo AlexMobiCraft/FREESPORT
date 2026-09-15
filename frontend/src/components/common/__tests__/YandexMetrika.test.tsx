@@ -218,4 +218,17 @@ describe('YandexMetrika', () => {
     expect(metrikaScript()).not.toBeNull();
     expect(window.ym?.a?.[0]?.[1]).toBe('init');
   });
+
+  it('не запускает Метрику и не отправляет fragment на странице отписки', async () => {
+    window.localStorage.setItem(STORAGE_KEY, ACCEPTED);
+    mockedUsePathname.mockReturnValue('/unsubscribe');
+    window.history.replaceState(null, '', '/unsubscribe#opaque-token');
+
+    render(<YandexMetrika />);
+    const driver = renderHook(() => useCookieConsent());
+    await waitFor(() => expect(driver.result.current.isLoaded).toBe(true));
+
+    expect(metrikaScript()).toBeNull();
+    expect(window.ym).toBeUndefined();
+  });
 });
