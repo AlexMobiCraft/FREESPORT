@@ -16,6 +16,16 @@ import axios, {
 } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipAuth?: boolean;
+  }
+
+  interface InternalAxiosRequestConfig {
+    skipAuth?: boolean;
+  }
+}
+
 // Конфигурация из environment variables
 // Для SSR используем внутренний URL (внутри Docker сети), для браузера - публичный
 // INTERNAL_API_URL - серверная переменная (без NEXT_PUBLIC_ префикса), доступна в runtime
@@ -94,6 +104,11 @@ const retryRequest = async (config: AxiosRequestConfig, retryCount = 0): Promise
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (config.skipAuth) {
+      if (config.headers) delete config.headers.Authorization;
+      return config;
+    }
+
     const token = useAuthStore.getState().accessToken;
     // Fix: проверяем на строку "undefined", которая могла попасть из localStorage
     if (token && token !== 'undefined' && config.headers) {
@@ -113,7 +128,12 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
     // Handle 401 errors (unauthorized)
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest.skipAuth &&
+      !originalRequest._retry
+    ) {
       // Если refresh уже в процессе - добавить в очередь
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

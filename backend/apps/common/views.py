@@ -10,9 +10,15 @@ from django.db import DatabaseError, transaction
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
-from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    parser_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import FormParser, JSONParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -27,12 +33,14 @@ from apps.common.serializers import (
     SubscribeResponseSerializer,
     SubscribeSerializer,
     ALREADY_SUBSCRIBED_CODE,
+    TokenUnsubscribeSerializer,
     UnsubscribeResponseSerializer,
     UnsubscribeSerializer,
     consent_text_outdated_payload,
     has_error_code,
 )
 from apps.common.services import CustomerSyncMonitor
+from apps.common.services.newsletter_unsubscribe import InvalidUnsubscribeToken, unsubscribe_by_token
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
 from apps.common.utils.consent_audit import (
     get_consent_ip_address,
@@ -534,7 +542,8 @@ def subscribe(request: Request) -> Response:
 
 
 @extend_schema(
-    summary="Отписка от email-рассылки",
+    summary="Отписка от email-рассылки по email (устаревший API)",
+    deprecated=True,
     description=(
         "Обрабатывает запрос на отписку от email-рассылки. "
         "Для неизвестного или уже отписанного email возвращает такой же нейтральный 200 OK."
@@ -634,6 +643,108 @@ def unsubscribe(request: Request) -> Response:
         serializer.errors,
         status=status.HTTP_400_BAD_REQUEST,
     )
+
+
+def _invalid_unsubscribe_token_response() -> Response:
+    return Response(
+        {"error": "invalid_or_expired_unsubscribe_token"},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+def _unsubscribe_processing_failed_response() -> Response:
+    return Response(
+        {
+            "error": "unsubscribe_processing_failed",
+            "details": {
+                "non_field_errors": ["Не удалось обработать запрос. Попробуйте позже."],
+            },
+        },
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+@extend_schema(
+    summary="Отписка от маркетинговой рассылки по токену",
+    auth=[],
+    request=TokenUnsubscribeSerializer,
+    responses={
+        200: inline_serializer(
+            name="TokenUnsubscribeProcessedResponse",
+            fields={"status": serializers.CharField()},
+        ),
+        400: inline_serializer(
+            name="InvalidUnsubscribeTokenResponse",
+            fields={"error": serializers.CharField()},
+        ),
+        503: OpenApiResponse(description="Ошибка обработки отписки"),
+    },
+    tags=["Newsletter"],
+)
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@parser_classes([JSONParser])
+@throttle_classes([UnsubscribeRateThrottle])
+def newsletter_unsubscribe(request: Request) -> Response:
+    """Обрабатывает интерактивную отписку без аутентификации."""
+    serializer = TokenUnsubscribeSerializer(data=request.data)
+    if not serializer.is_valid():
+        return _invalid_unsubscribe_token_response()
+
+    try:
+        unsubscribe_by_token(serializer.validated_data["token"])
+    except InvalidUnsubscribeToken:
+        return _invalid_unsubscribe_token_response()
+    except DatabaseError:
+        logger.exception("Failed to process token unsubscribe request")
+        return _unsubscribe_processing_failed_response()
+
+    return Response({"status": "processed"}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    summary="RFC 8058 one-click отписка",
+    auth=[],
+    request=inline_serializer(
+        name="OneClickUnsubscribe",
+        fields={"List-Unsubscribe": serializers.ChoiceField(choices=["One-Click"])},
+    ),
+    responses={
+        200: inline_serializer(
+            name="OneClickUnsubscribeResponse",
+            fields={"status": serializers.CharField()},
+        ),
+        400: inline_serializer(
+            name="OneClickInvalidUnsubscribeTokenResponse",
+            fields={"error": serializers.CharField()},
+        ),
+        503: OpenApiResponse(description="Ошибка обработки отписки"),
+    },
+    tags=["Newsletter"],
+)
+@api_view(["GET", "POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@parser_classes([FormParser])
+@throttle_classes([UnsubscribeRateThrottle])
+def newsletter_unsubscribe_one_click(request: Request, token: str) -> Response:
+    """Оставляет GET безопасным и принимает только точное RFC 8058 form-тело."""
+    if request.method == "GET":
+        return Response({"status": "confirmation_required"}, status=status.HTTP_200_OK)
+
+    if request.content_type != "application/x-www-form-urlencoded" or request.body != b"List-Unsubscribe=One-Click":
+        return _invalid_unsubscribe_token_response()
+
+    try:
+        unsubscribe_by_token(token)
+    except InvalidUnsubscribeToken:
+        return _invalid_unsubscribe_token_response()
+    except DatabaseError:
+        logger.exception("Failed to process one-click unsubscribe request")
+        return _unsubscribe_processing_failed_response()
+
+    return Response({"status": "processed"}, status=status.HTTP_200_OK)
 
 
 @extend_schema(

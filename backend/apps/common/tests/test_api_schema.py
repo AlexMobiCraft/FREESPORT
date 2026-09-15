@@ -124,6 +124,34 @@ class TestConditionalMarketingVersion:
         assert "pdp_consent_text_version" in component["required"]
 
 
+class TestNewsletterUnsubscribeContract:
+    def test_token_endpoint_is_public_and_accepts_only_token(self, schema):
+        operation = schema["paths"]["/newsletter/unsubscribe/"]["post"]
+        request_schema = operation["requestBody"]["content"]["application/json"]["schema"]
+
+        assert operation.get("security", []) == []
+        assert request_schema == {"$ref": ref("TokenUnsubscribeRequest")}
+        component = schema["components"]["schemas"]["TokenUnsubscribeRequest"]
+        assert component["required"] == ["token"]
+        assert set(component["properties"]) == {"token"}
+
+    def test_one_click_contract_has_safe_get_and_post(self, schema):
+        path = schema["paths"]["/newsletter/unsubscribe/one-click/{token}/"]
+
+        assert set(path) >= {"get", "post"}
+        assert path["get"].get("security", []) == []
+        assert path["post"].get("security", []) == []
+        assert path["get"]["parameters"][0]["name"] == "token"
+        assert path["post"]["parameters"][0]["name"] == "token"
+        request_schema = path["post"]["requestBody"]["content"]["application/x-www-form-urlencoded"]["schema"]
+        assert request_schema == {"$ref": ref("OneClickUnsubscribeRequest")}
+
+    def test_email_endpoint_is_deprecated_but_preserved(self, schema):
+        operation = schema["paths"]["/unsubscribe/"]["post"]
+
+        assert operation["deprecated"] is True
+
+
 class TestSubscribeRequest:
     """Контракт подписки со стори 41.11: два согласия и две версии, все обязательны."""
 

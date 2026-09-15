@@ -18,6 +18,16 @@ urlpatterns = [
     # Newsletter & News endpoints
     path("subscribe/", views.subscribe, name="subscribe"),
     path("unsubscribe/", views.unsubscribe, name="unsubscribe"),
+    path(
+        "newsletter/unsubscribe/",
+        views.newsletter_unsubscribe,
+        name="newsletter-unsubscribe",
+    ),
+    path(
+        "newsletter/unsubscribe/one-click/<str:token>/",
+        views.newsletter_unsubscribe_one_click,
+        name="newsletter-unsubscribe-one-click",
+    ),
     path("news/", views.NewsListView.as_view(), name="news-list"),
     path("news/<slug:slug>/", views.NewsDetailView.as_view(), name="news-detail"),
     # Blog endpoints
