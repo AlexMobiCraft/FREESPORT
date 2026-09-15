@@ -15,7 +15,13 @@ from django.db import IntegrityError
 from django.test import override_settings
 
 from apps.products.models import Brand, Brand1CMapping, Category, ImportSession, PriceType
-from apps.products.services.variant_import import BrandData, CategoryData, PriceTypeData, VariantImportProcessor
+from apps.products.services.variant_import import (
+    NO_BRAND_ONEC_ID,
+    BrandData,
+    CategoryData,
+    PriceTypeData,
+    VariantImportProcessor,
+)
 
 # Маркировка для всего модуля
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
@@ -993,3 +999,121 @@ class TestProcessBrands:
         # Assert
         assert result["brands_created"] == 0
         assert result["mappings_created"] == 0
+
+
+# ============================================================================
+# TestFallbackBrand (Story 41.16)
+# ============================================================================
+
+
+class TestFallbackBrand:
+    """Fallback-бренд для товаров без бренда в 1С.
+
+    В goods.xml «без бренда» — это нулевой UUID в свойстве «Бренд». Он должен
+    сводиться к «Без ТМ», латинское «No Brand» не должно появляться на витрине,
+    а переименование/объединение бренда в админке — создавать дубликат.
+    """
+
+    def test_zero_uuid_brand_id_uses_fallback(self, processor):
+        """Нулевой UUID → «Без ТМ», а не «No Brand»"""
+        brand = processor._determine_brand(NO_BRAND_ONEC_ID, "product-zero")
+
+        assert brand.name == "Без ТМ"
+        assert brand.slug == "bez-tm"
+        assert brand.is_active is True
+
+    def test_zero_uuid_is_remembered_as_mapping(self, processor):
+        """Нулевой UUID закрепляется за fallback-брендом маппингом"""
+        brand = processor._determine_brand(NO_BRAND_ONEC_ID, "product-mapped-zero")
+
+        mapping = Brand1CMapping.objects.get(onec_id=NO_BRAND_ONEC_ID)
+        assert mapping.brand.pk == brand.pk
+        assert mapping.onec_name == "Без бренда"
+
+    def test_missing_brand_id_uses_fallback(self, processor):
+        """Отсутствующее значение бренда → тот же fallback-бренд"""
+        brand = processor._determine_brand(None, "product-none")
+
+        assert brand.name == "Без ТМ"
+        assert Brand.objects.count() == 1
+
+    def test_no_brand_is_never_created(self, processor):
+        """Импорт не создаёт активный «No Brand»"""
+        processor._determine_brand(NO_BRAND_ONEC_ID, "product-nobrand")
+
+        assert not Brand.objects.filter(normalized_name="nobrand").exists()
+
+    def test_fallback_resolution_is_idempotent(self, processor):
+        """Повторный импорт переиспользует тот же fallback-бренд"""
+        first = processor._determine_brand(NO_BRAND_ONEC_ID, "product-first")
+        second = processor._determine_brand(NO_BRAND_ONEC_ID, "product-second")
+        third = processor._determine_brand(None, "product-third")
+
+        assert first.pk == second.pk == third.pk
+        assert Brand.objects.count() == 1
+        assert Brand1CMapping.objects.filter(onec_id=NO_BRAND_ONEC_ID).count() == 1
+
+    def test_fallback_reused_after_admin_rename(self, processor):
+        """Переименование «Без ТМ» в админке не создаёт дубликат"""
+        brand = Brand.objects.create(name="Без ТМ", slug="bez-tm", is_active=True)
+        brand.name = "Без торговой марки"
+        brand.save()
+
+        resolved = processor._determine_brand(NO_BRAND_ONEC_ID, "product-renamed")
+
+        assert resolved.pk == brand.pk
+        assert Brand.objects.count() == 1
+
+    def test_admin_mapping_for_zero_uuid_wins(self, processor):
+        """Явный маппинг нулевого UUID из админки приоритетнее fallback-бренда"""
+        suffix = get_unique_suffix()
+        mapped = Brand.objects.create(name=f"Nike {suffix}", slug=f"nike-{suffix}", is_active=True)
+        Brand1CMapping.objects.create(brand=mapped, onec_id=NO_BRAND_ONEC_ID, onec_name="Без бренда")
+
+        resolved = processor._determine_brand(NO_BRAND_ONEC_ID, "product-admin-mapped")
+
+        assert resolved.pk == mapped.pk
+        assert not Brand.objects.filter(slug="bez-tm").exists()
+
+    def test_mapping_to_legacy_no_brand_is_ignored(self, processor):
+        """Маппинг нулевого UUID на legacy «No Brand» не отдаётся как есть"""
+        legacy = Brand.objects.create(name="No Brand", slug="no-brand", is_active=True)
+        Brand1CMapping.objects.create(brand=legacy, onec_id=NO_BRAND_ONEC_ID, onec_name="No Brand")
+
+        resolved = processor._determine_brand(NO_BRAND_ONEC_ID, "product-legacy-mapped")
+
+        # Legacy-бренд переиспользован, но переименован: латиница не на витрине.
+        assert resolved.pk == legacy.pk
+        assert resolved.name == "Без ТМ"
+        assert Brand.objects.count() == 1
+
+    def test_legacy_no_brand_is_reused_and_renamed(self, processor):
+        """Существующий legacy-бренд «No Brand» переиспользуется, а не дублируется"""
+        legacy = Brand.objects.create(name="No Brand", slug="no-brand", is_active=False)
+
+        resolved = processor._determine_brand(None, "product-legacy")
+
+        assert resolved.pk == legacy.pk
+        assert Brand.objects.count() == 1
+        resolved.refresh_from_db()
+        assert resolved.name == "Без ТМ"
+        assert resolved.is_active is True
+
+    def test_mapped_brand_wins_over_fallback(self, processor):
+        """Маппинг 1С приоритетнее fallback-бренда"""
+        suffix = get_unique_suffix()
+        mapped = Brand.objects.create(name=f"Nike {suffix}", slug=f"nike-{suffix}", is_active=True)
+        Brand1CMapping.objects.create(brand=mapped, onec_id=f"brand_{suffix}", onec_name="Nike")
+
+        resolved = processor._determine_brand(f"brand_{suffix}", "product-mapped")
+
+        assert resolved.pk == mapped.pk
+        assert not Brand.objects.filter(slug="bez-tm").exists()
+
+    @override_settings(IMPORT_FALLBACK_BRAND_NAME="Без марки", IMPORT_FALLBACK_BRAND_SLUG="bez-marki")
+    def test_fallback_is_configurable_via_settings(self, processor):
+        """Имя и slug fallback-бренда задаются настройками"""
+        brand = processor._determine_brand(NO_BRAND_ONEC_ID, "product-configured")
+
+        assert brand.name == "Без марки"
+        assert brand.slug == "bez-marki"

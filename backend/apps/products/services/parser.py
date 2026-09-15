@@ -291,10 +291,13 @@ class XMLDataParser:
                     property_id = self._find_text(property_value, "Ид")
                     value_id = self._find_text(property_value, "Значение")
 
-                    # Свойство "Бренд" имеет Ид="Бренд"
-                    if property_id == "Бренд":
-                        if value_id and value_id != "00000000-0000-0000-0000-000000000000":
-                            goods_data["brand_id"] = value_id
+                    # Свойство "Бренд" имеет Ид="Бренд".
+                    # Нулевой UUID не отбрасываем: в выгрузке 1С это штатный
+                    # признак «без бренда» (~60 % товаров), и импорт обязан
+                    # увидеть его, чтобы свести к fallback-бренду, а не гадать
+                    # по пустому значению (Story 41.16).
+                    if property_id == "Бренд" and value_id:
+                        goods_data["brand_id"] = value_id
 
                     # Собираем все свойства (включая бренд) для связывания атрибутов
                     # Фильтруем пустые GUID значения (AC: Task 1.4)
