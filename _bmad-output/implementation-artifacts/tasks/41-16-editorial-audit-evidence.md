@@ -40,7 +40,7 @@
 - E04: «блог/Блог» — только комментарии/JSDoc (`blogService.ts`, `sitemap.ts`, `SubscribeNewsSection.tsx`, комментарий секции в `electric/page.tsx`); slug `/blog`, API `/api/v1/blog/`, имена компонентов сохранены по решению.
 - E05: «менеджер» — только комментарии/JSX-комментарии (`authSchemas.ts`, `RegisterForm.tsx`, `AdDisclosure.tsx`, partners pages); видимые строки заменены.
 - E08: «Хиты продаж» осталось в backend-описании API-параметра `is_hit` (`apps/products/filters.py:174` help_text, `apps/products/views.py:142` OpenApiParameter) и в JSDoc/моках frontend. В утверждённый список UI-замен не входило (решение: «Query `is_hit`, поле API и логика не меняются») — оставлено осознанно, это техническое описание параметра в Swagger, а не текст публичной страницы.
-- E10: label «Email» в `ProfileForm.tsx:174` (профиль, авторизованная зона) — вне утверждённого контекста E10 (формы подписки `/home`). Отдельный контекст — кандидат на подзапись E10.1, требует решения Alex. Тестовые фикстуры `label="Email"` в `Input.test.tsx`/`PasswordInput.test.tsx` — не публичные строки.
+- E10: label «Email» в `ProfileForm.tsx` (профиль, авторизованная зона) — подзапись E10.1, решение Alex 15.09.2026 «заменить»: label → «Электронная почта», подсказка → «Электронную почту нельзя изменить». Проверено: `npx vitest run src/components/business/ProfileForm` — 11 passed, 2 skipped, exit 0. Тестовые фикстуры `label="Email"` в `Input.test.tsx`/`PasswordInput.test.tsx` — не публичные строки.
 - E01/E02: исторические, свежая перепроверка — доступные имена навигации подтверждены чтением кода и Vitest; API политики проверялся 15.09.2026.
 
 ## CMS-часть (Alex, вне объёма кода)
