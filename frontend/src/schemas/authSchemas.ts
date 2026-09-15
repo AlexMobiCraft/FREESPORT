@@ -22,7 +22,7 @@ const pdpConsentSchema = z
  * AC 3: Email format validation, password min 8 chars, 1 digit, 1 uppercase
  */
 export const loginSchema = z.object({
-  email: z.string().min(1, 'Email обязателен').email('Неверный формат email'),
+  email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
   password: z
     .string()
     .min(8, 'Пароль должен содержать минимум 8 символов')
@@ -43,7 +43,7 @@ export const registerSchema = z
       .string()
       .min(1, 'Имя обязательно')
       .max(150, 'Имя не должно превышать 150 символов'),
-    email: z.string().min(1, 'Email обязателен').email('Неверный формат email'),
+    email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
     password: z
       .string()
       .min(8, 'Пароль должен содержать минимум 8 символов')
@@ -132,7 +132,7 @@ export const b2bRegisterSchema = z
       .string()
       .min(1, 'Фамилия обязательна')
       .max(150, 'Фамилия не должна превышать 150 символов'),
-    email: z.string().min(1, 'Email обязателен').email('Неверный формат email'),
+    email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
     phone: z
       .string()
       .min(1, 'Телефон обязателен')
@@ -190,7 +190,7 @@ export const b2bRegisterSchema = z
  * AC 1, 4: Email validation для запроса сброса пароля
  */
 export const passwordResetRequestSchema = z.object({
-  email: z.string().min(1, 'Email обязателен').email('Введите корректный email'),
+  email: z.string().min(1, 'Укажите электронную почту').email('Введите корректный адрес электронной почты'),
 });
 
 /**

@@ -151,7 +151,7 @@ describe('Header', () => {
       expect(screen.getByRole('link', { name: 'Главная' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Каталог' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Новости' })).toBeInTheDocument();
-      const blogLink = screen.getByRole('link', { name: 'Блог' });
+      const blogLink = screen.getByRole('link', { name: 'Статьи' });
       expect(blogLink).toBeInTheDocument();
       expect(blogLink).toHaveAttribute('href', '/blog');
       expect(screen.getByRole('link', { name: 'Партнерам' })).toBeInTheDocument();

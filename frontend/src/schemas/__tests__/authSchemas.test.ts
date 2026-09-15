@@ -60,7 +60,7 @@ describe('loginSchema', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Email обязателен');
+        expect(result.error.issues[0].message).toContain('Укажите электронную почту');
       }
     });
 
@@ -518,7 +518,7 @@ describe('passwordResetRequestSchema', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Email обязателен');
+        expect(result.error.issues[0].message).toContain('Укажите электронную почту');
       }
     });
 
@@ -530,7 +530,9 @@ describe('passwordResetRequestSchema', () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
-          expect(result.error.issues[0].message).toContain('Введите корректный email');
+          expect(result.error.issues[0].message).toContain(
+            'Введите корректный адрес электронной почты'
+          );
         }
       });
     });

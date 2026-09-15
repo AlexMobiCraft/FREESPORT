@@ -84,7 +84,7 @@ const VARIANT_STYLES = {
  */
 export const HitsSection: React.FC<HitsSectionProps> = ({
   variant = 'default',
-  title = 'Хиты продаж',
+  title = 'Лидеры продаж',
   viewAllLink = '/catalog?is_hit=true',
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +122,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
       setProducts(data);
     } catch (err) {
       console.error(err);
-      setError('Не удалось загрузить хиты продаж');
+      setError('Не удалось загрузить лидеров продаж');
     } finally {
       setIsLoading(false);
     }
@@ -217,7 +217,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
         {isElectric && (
           <Link href={viewAllLink}>
             <ElectricButton variant="outline" size="sm">
-              Все хиты
+              Все лидеры продаж
             </ElectricButton>
           </Link>
         )}
@@ -256,7 +256,7 @@ export const HitsSection: React.FC<HitsSectionProps> = ({
       {isLoading && (
         <div
           role="status"
-          aria-label="Загрузка хитов продаж"
+          aria-label="Загрузка лидеров продаж"
           className="flex gap-4 overflow-hidden py-2 px-2"
         >
           {Array.from({ length: isElectric ? 5 : 4 }).map((_, index) => (

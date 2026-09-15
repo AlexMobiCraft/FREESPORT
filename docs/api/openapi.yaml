@@ -232,6 +232,33 @@ paths:
         '503':
           description: Ошибка обработки отписки
   /newsletter/unsubscribe/one-click/{token}/:
+    get:
+      operationId: newsletter_unsubscribe_one_click_retrieve
+      description: Оставляет GET безопасным и принимает только точное RFC 8058 form-тело.
+      summary: RFC 8058 one-click отписка
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - Newsletter
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneClickUnsubscribeResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneClickInvalidUnsubscribeTokenResponse'
+          description: ''
+        '503':
+          description: Ошибка обработки отписки
     post:
       operationId: newsletter_unsubscribe_one_click_create
       description: Оставляет GET безопасным и принимает только точное RFC 8058 form-тело.
@@ -250,33 +277,6 @@ paths:
             schema:
               $ref: '#/components/schemas/OneClickUnsubscribeRequest'
         required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OneClickUnsubscribeResponse'
-          description: ''
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OneClickInvalidUnsubscribeTokenResponse'
-          description: ''
-        '503':
-          description: Ошибка обработки отписки
-    get:
-      operationId: newsletter_unsubscribe_one_click_retrieve
-      description: Оставляет GET безопасным и принимает только точное RFC 8058 form-тело.
-      summary: RFC 8058 one-click отписка
-      parameters:
-      - in: path
-        name: token
-        schema:
-          type: string
-        required: true
-      tags:
-      - Newsletter
       responses:
         '200':
           content:
@@ -946,6 +946,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
+    delete:
+      operationId: users_addresses_destroy
+      description: ViewSet для управления адресами пользователя
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Адрес.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
     put:
       operationId: users_addresses_update
       description: ViewSet для управления адресами пользователя
@@ -977,21 +992,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Address'
           description: ''
-    delete:
-      operationId: users_addresses_destroy
-      description: ViewSet для управления адресами пользователя
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Адрес.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
   /users/favorites/:
     get:
       operationId: users_favorites_list
@@ -1098,6 +1098,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
+    delete:
+      operationId: users_favorites_destroy
+      description: ViewSet для управления избранными товарами
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Избранное.
+        required: true
+      tags:
+      - Users
+      responses:
+        '204':
+          description: No response body
     put:
       operationId: users_favorites_update
       description: ViewSet для управления избранными товарами
@@ -1129,21 +1144,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Favorite'
           description: ''
-    delete:
-      operationId: users_favorites_destroy
-      description: ViewSet для управления избранными товарами
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Избранное.
-        required: true
-      tags:
-      - Users
-      responses:
-        '204':
-          description: No response body
   /products/:
     get:
       operationId: products_list
@@ -1796,6 +1796,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
+    delete:
+      operationId: orders_destroy
+      description: |-
+        ViewSet для управления заказами.
+
+        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
+        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
+        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
+        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
+        попытке обратиться к id субзаказа).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Заказ.
+        required: true
+      tags:
+      - orders
+      responses:
+        '204':
+          description: No response body
     put:
       operationId: orders_update
       description: |-
@@ -1834,28 +1856,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderDetail'
           description: ''
-    delete:
-      operationId: orders_destroy
-      description: |-
-        ViewSet для управления заказами.
-
-        Клиенту доступны только мастер-заказы (`is_master=True`). Субзаказы
-        (`is_master=False`, `parent_order=<master>`) — внутренняя структура для
-        экспорта в 1С (разбивка по ставкам НДС согласно Story 34-2/34-3) и
-        скрыты во всех клиентских endpoint (list/retrieve/cancel → 404 при
-        попытке обратиться к id субзаказа).
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Заказ.
-        required: true
-      tags:
-      - orders
-      responses:
-        '204':
-          description: No response body
   /orders/{id}/cancel/:
     post:
       operationId: orders_cancel_create
@@ -5169,7 +5169,7 @@ components:
           - $ref: '#/components/schemas/CountryEnum'
           title: Страна
           description: |-
-            Страна регистрации B2B-клиента (для маршрутизации на менеджера)
+            Страна регистрации B2B-клиента (для маршрутизации на специалиста)
 
             * `Россия` - Россия
             * `Беларусь` - Беларусь

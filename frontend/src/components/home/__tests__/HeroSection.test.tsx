@@ -308,7 +308,7 @@ describe('HeroSection Component', () => {
       await waitFor(() => {
         expect(screen.getByText(/Оптовые поставки спортивных товаров/i)).toBeInTheDocument();
         expect(
-          screen.getByText(/Специальные цены для бизнеса. Персональный менеджер и гибкие условия./i)
+          screen.getByText(/Специальные цены для бизнеса. Персональный специалист и гибкие условия./i)
         ).toBeInTheDocument();
         expect(screen.getByText(/Узнать оптовые условия/i)).toBeInTheDocument();
       });

@@ -242,7 +242,7 @@ class User(AbstractUser):
         max_length=20,
         choices=COUNTRY_CHOICES,
         default=COUNTRY_RUSSIA,
-        help_text="Страна регистрации B2B-клиента (для маршрутизации на менеджера)",
+        help_text="Страна регистрации B2B-клиента (для маршрутизации на специалиста)",
     )
 
     # Статус верификации для B2B

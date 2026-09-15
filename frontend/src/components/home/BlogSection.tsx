@@ -51,7 +51,7 @@ const mapBlogItem = (item: BlogItem, index: number): BlogCardData => ({
   excerpt: item.excerpt,
   image: item.image || getFallbackImage(index),
   date: item.published_at,
-  category: 'Блог',
+  category: 'Статьи',
 });
 
 const mapStaticItem = (item: (typeof MOCK_BLOG_POSTS)[number]): BlogCardData => ({
@@ -61,7 +61,7 @@ const mapStaticItem = (item: (typeof MOCK_BLOG_POSTS)[number]): BlogCardData => 
   excerpt: item.excerpt,
   image: item.image,
   date: item.date,
-  category: 'Блог',
+  category: 'Статьи',
 });
 
 const formatDate = (dateString: string): string => {
@@ -101,7 +101,7 @@ const ElectricBlogSkeleton = () => (
 
 export const BlogSection: React.FC<BlogSectionProps> = ({
   variant = 'default',
-  title = 'Наш блог',
+  title = 'Наши статьи',
   viewAllLink = '/blog',
 }) => {
   const [blogItems, setBlogItems] = useState<BlogCardData[]>([]);
@@ -187,7 +187,7 @@ export const BlogSection: React.FC<BlogSectionProps> = ({
                 key={item.id}
                 id={item.id}
                 image={item.image}
-                category={item.category || 'Блог'}
+                category={item.category || 'Статьи'}
                 date={formatDate(item.date)}
                 title={item.title}
                 excerpt={item.excerpt}

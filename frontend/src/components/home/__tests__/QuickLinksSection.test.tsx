@@ -71,7 +71,7 @@ describe('QuickLinksSection', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Новинки')).toBeInTheDocument();
-      expect(screen.getByText('Хиты продаж')).toBeInTheDocument();
+      expect(screen.getByText('Лидеры продаж')).toBeInTheDocument();
       expect(screen.getByText('Скидки')).toBeInTheDocument();
     });
   });
@@ -86,7 +86,7 @@ describe('QuickLinksSection', () => {
     });
 
     const novinki = screen.getByText('Новинки').closest('a');
-    const hits = screen.getByText('Хиты продаж').closest('a');
+    const hits = screen.getByText('Лидеры продаж').closest('a');
     const sale = screen.getByText('Скидки').closest('a');
 
     expect(novinki).toHaveAttribute('href', '/catalog?is_new=true');
@@ -159,7 +159,7 @@ describe('QuickLinksSection', () => {
     await waitFor(() => {
       // Static links still visible
       expect(screen.getByText('Новинки')).toBeInTheDocument();
-      expect(screen.getByText('Хиты продаж')).toBeInTheDocument();
+      expect(screen.getByText('Лидеры продаж')).toBeInTheDocument();
       expect(screen.getByText('Скидки')).toBeInTheDocument();
     });
 

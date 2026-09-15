@@ -22,7 +22,7 @@ from apps.bonuses.serializers import BonusSummarySerializer, BonusTransactionSer
 from apps.bonuses.services.accrual import TRAINER_ROLE, get_balance
 
 FORBIDDEN_RESPONSE = {"detail": "Бонусная программа доступна только тренерам."}
-UNVERIFIED_RESPONSE = {"detail": "Учётная запись тренера ещё не подтверждена менеджером."}
+UNVERIFIED_RESPONSE = {"detail": "Учётная запись тренера ещё не подтверждена специалистом."}
 
 
 class BonusTransactionPagination(PageNumberPagination):
