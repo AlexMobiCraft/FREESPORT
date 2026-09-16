@@ -101,13 +101,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ redirectUrl, onSuccess }) 
       {/* AC 6: Использование Input компонента */}
       {/* AC 10: Label с htmlFor, aria-describedby */}
       <Input
-        label="Электронная почта"
+        label="Введите свое учетное имя"
         type="email"
         {...register('email')}
         error={errors.email?.message}
         disabled={isSubmitting}
         autoComplete="email"
-        placeholder="user@example.com"
       />
 
       <Input
