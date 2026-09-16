@@ -128,7 +128,7 @@ export default function B2BRegisterPage() {
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <h3 className="text-body-m font-semibold">Персональный менеджер</h3>
+              <h3 className="text-body-m font-semibold">Персональный специалист</h3>
             </div>
             <p className="text-body-xs text-gray-600">Индивидуальное обслуживание и консультации</p>
           </div>

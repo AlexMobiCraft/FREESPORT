@@ -50,7 +50,7 @@ vi.mock('@/components/common/ProductBadge', () => ({
       return <span data-testid="badge-new">Новинка</span>;
     }
     if (product.is_hit) {
-      return <span data-testid="badge-hit">Хит</span>;
+      return <span data-testid="badge-hit">Лидер продаж</span>;
     }
     return null;
   },

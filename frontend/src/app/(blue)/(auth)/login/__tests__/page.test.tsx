@@ -59,7 +59,7 @@ function setQuery(encoded: string) {
 }
 
 function submitForm() {
-  fireEvent.change(screen.getByLabelText(/электронная почта/i), {
+  fireEvent.change(screen.getByLabelText(/учетное имя/i), {
     target: { value: 'test@example.com' },
   });
   fireEvent.change(screen.getByLabelText(/^пароль$/i), {

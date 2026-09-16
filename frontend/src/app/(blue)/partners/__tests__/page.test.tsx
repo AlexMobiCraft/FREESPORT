@@ -51,15 +51,15 @@ describe('PartnersPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Подайте заявку')).toBeInTheDocument();
     expect(screen.getByText('Получите доступ')).toBeInTheDocument();
-    expect(screen.getByText('Работайте с менеджером')).toBeInTheDocument();
+    expect(screen.getByText('Работайте со специалистом')).toBeInTheDocument();
   });
 
   it('renders info panel about personal manager', () => {
     render(<PartnersPage />);
 
-    expect(screen.getByText('Персональный менеджер')).toBeInTheDocument();
+    expect(screen.getByText('Персональный специалист')).toBeInTheDocument();
     expect(
-      screen.getByText(/на всех этапах сотрудничества с вами работает персональный менеджер/i)
+      screen.getByText(/на всех этапах сотрудничества с вами работает персональный специалист/i)
     ).toBeInTheDocument();
   });
 

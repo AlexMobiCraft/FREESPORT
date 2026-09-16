@@ -106,7 +106,7 @@ describe('BlogPage (/blog)', () => {
       vi.mocked(blogService.getBlogPosts).mockResolvedValue(mockBlogData);
       render(await BlogPage({ searchParams: Promise.resolve({}) }));
       const heading = screen.getByRole('heading', { level: 1 });
-      expect(heading).toHaveTextContent('Блог');
+      expect(heading).toHaveTextContent('Статьи');
     });
 
     it('должна отображать описание секции', async () => {
@@ -248,7 +248,7 @@ describe('BlogPage (/blog)', () => {
 
   describe('SEO Metadata', () => {
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe('Блог | OPTISPORT');
+      expect(metadata.title).toBe('Статьи | OPTISPORT');
     });
 
     it('должна содержать правильный description', () => {
@@ -259,7 +259,7 @@ describe('BlogPage (/blog)', () => {
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('Блог | OPTISPORT');
+      expect(metadata.openGraph?.title).toBe('Статьи | OPTISPORT');
       expect(metadata.openGraph?.description).toContain('Полезные статьи о спорте');
     });
   });

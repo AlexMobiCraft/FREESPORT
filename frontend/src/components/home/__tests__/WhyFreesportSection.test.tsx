@@ -22,7 +22,7 @@ describe('WhyFreesportSection', () => {
     // Проверяем наличие всех 4 карточек преимуществ
     expect(screen.getByText('Собственное производство')).toBeInTheDocument();
     expect(screen.getByText('Бесплатная доставка')).toBeInTheDocument();
-    expect(screen.getByText('Персональный менеджер')).toBeInTheDocument();
+    expect(screen.getByText('Персональный специалист')).toBeInTheDocument();
     expect(screen.getByText('Минимальный заказ')).toBeInTheDocument();
   });
 

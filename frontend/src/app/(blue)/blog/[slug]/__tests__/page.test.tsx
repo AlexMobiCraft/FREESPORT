@@ -101,16 +101,16 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(mockBlogPost);
       render(await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) }));
       expect(screen.getByText('Главная')).toBeInTheDocument();
-      expect(screen.getByText('Блог')).toBeInTheDocument();
+      expect(screen.getByText('Статьи')).toBeInTheDocument();
       expect(screen.getAllByText('Тестовая статья блога').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('должна иметь ссылки на главную и блог', async () => {
+    it('должна иметь ссылки на главную и статьи', async () => {
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(mockBlogPost);
       render(await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) }));
       const homeLink = screen.getByText('Главная').closest('a');
       expect(homeLink).toHaveAttribute('href', '/');
-      const blogLinks = screen.getAllByText('Блог');
+      const blogLinks = screen.getAllByText('Статьи');
       const blogLink = blogLinks.find(el => el.closest('a'))?.closest('a');
       expect(blogLink).toHaveAttribute('href', '/blog');
     });
@@ -191,24 +191,24 @@ describe('BlogDetailPage (/blog/[slug])', () => {
     });
   });
 
-  describe('Кнопка "Назад к блогу"', () => {
-    it('должна отображать кнопку "Назад к блогу"', async () => {
+  describe('Кнопка "Назад к статьям"', () => {
+    it('должна отображать кнопку "Назад к статьям"', async () => {
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(mockBlogPost);
       render(await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) }));
-      expect(screen.getByText('Назад к блогу')).toBeInTheDocument();
+      expect(screen.getByText('Назад к статьям')).toBeInTheDocument();
     });
 
     it('должна иметь ссылку на /blog', async () => {
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(mockBlogPost);
       render(await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) }));
-      const backLink = screen.getByText('Назад к блогу').closest('a');
+      const backLink = screen.getByText('Назад к статьям').closest('a');
       expect(backLink).toHaveAttribute('href', '/blog');
     });
 
     it('должна иметь иконку стрелки', async () => {
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(mockBlogPost);
       render(await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) }));
-      const backLink = screen.getByText('Назад к блогу').closest('a');
+      const backLink = screen.getByText('Назад к статьям').closest('a');
       expect(backLink?.querySelector('svg')).toBeInTheDocument();
     });
   });
@@ -235,7 +235,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.title).toBe('SEO заголовок статьи | Блог OPTISPORT');
+      expect(metadata.title).toBe('SEO заголовок статьи | Статьи OPTISPORT');
     });
 
     it('должна использовать title если meta_title отсутствует', async () => {
@@ -244,7 +244,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const metadata = await generateMetadata({
         params: Promise.resolve({ slug: 'test-blog-post' }),
       });
-      expect(metadata.title).toBe('Тестовая статья блога | Блог OPTISPORT');
+      expect(metadata.title).toBe('Тестовая статья блога | Статьи OPTISPORT');
     });
 
     it('должна использовать meta_description если он есть', async () => {

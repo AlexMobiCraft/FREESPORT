@@ -69,7 +69,7 @@ describe('ProductBadge', () => {
 
     render(<ProductBadge product={product} />);
 
-    expect(screen.getByText('Хит')).toBeInTheDocument();
+    expect(screen.getByText('Лидер продаж')).toBeInTheDocument();
   });
 
   it('shows premium badge (priority 5)', () => {
@@ -122,7 +122,7 @@ describe('ProductBadge', () => {
     render(<ProductBadge product={product} />);
 
     expect(screen.getByText('Новинка')).toBeInTheDocument();
-    expect(screen.queryByText('Хит')).not.toBeInTheDocument();
+    expect(screen.queryByText('Лидер продаж')).not.toBeInTheDocument();
   });
 
   it('respects priority: hit > premium', () => {
@@ -134,7 +134,7 @@ describe('ProductBadge', () => {
 
     render(<ProductBadge product={product} />);
 
-    expect(screen.getByText('Хит')).toBeInTheDocument();
+    expect(screen.getByText('Лидер продаж')).toBeInTheDocument();
     expect(screen.queryByText('Премиум')).not.toBeInTheDocument();
   });
 

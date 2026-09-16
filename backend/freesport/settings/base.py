@@ -316,6 +316,13 @@ ONEC_PRIVATE_DIR = Path(os.environ.get("ONEC_PRIVATE_DIR", str(BASE_DIR / "var" 
 # Подкатегории этой категории импортируются как корневые на сайте
 ROOT_CATEGORY_NAME = os.environ.get("ROOT_CATEGORY_NAME", "СПОРТ")
 
+# Fallback-бренд для товаров без бренда в 1С (пустое <Значение/> у свойства «Бренд»).
+# Имя задаётся настройкой, а не хардкодом: прежний «No Brand» выводил латинскую
+# надпись на публичную витрину (Story 41.16, E09). Поиск бренда идёт по slug и
+# normalized_name, поэтому переименование в админке не создаёт дубликат.
+IMPORT_FALLBACK_BRAND_NAME = os.environ.get("IMPORT_FALLBACK_BRAND_NAME", "Без ТМ")
+IMPORT_FALLBACK_BRAND_SLUG = os.environ.get("IMPORT_FALLBACK_BRAND_SLUG", "bez-tm")
+
 # Сериализация импорта 1С: каталог обмена общий для всех сессий, а воркер
 # Celery работает в prefork на nproc процессов. Без лока соседние задачи
 # обрабатывают один каталог одновременно и сносят файлы друг друга

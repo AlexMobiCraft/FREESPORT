@@ -11,7 +11,7 @@ describe('ProcessSteps', () => {
   const mockSteps = [
     { number: 1, title: 'Подайте заявку', description: 'На сайте или по телефону' },
     { number: 2, title: 'Получите доступ', description: 'К оптовым ценам' },
-    { number: 3, title: 'Работайте', description: 'С персональным менеджером' },
+    { number: 3, title: 'Работайте', description: 'С персональным специалистом' },
   ];
 
   it('renders all steps in order', () => {
@@ -35,7 +35,7 @@ describe('ProcessSteps', () => {
 
     expect(screen.getByText('На сайте или по телефону')).toBeInTheDocument();
     expect(screen.getByText('К оптовым ценам')).toBeInTheDocument();
-    expect(screen.getByText('С персональным менеджером')).toBeInTheDocument();
+    expect(screen.getByText('С персональным специалистом')).toBeInTheDocument();
   });
 
   it('applies numbered variant by default', () => {

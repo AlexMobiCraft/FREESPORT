@@ -33,7 +33,7 @@ export const STATIC_QUICK_LINKS: QuickLink[] = [
     color: 'bg-blue-500',
   },
   {
-    label: 'Хиты продаж',
+    label: 'Лидеры продаж',
     icon: <Flame className="w-5 h-5" />,
     link: '/catalog?is_hit=true',
     variant: 'hit',

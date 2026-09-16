@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Sequence, TypedDict
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -40,6 +40,18 @@ MAX_CATEGORY_DEACTIVATION_RATIO = 0.3
 # Порог не применяется к родителям с малым числом активных детей: штатное удаление
 # 1 категории из 3 даёт 33 % и блокировалось бы навсегда, засоряя лог ошибками.
 MIN_CHILDREN_FOR_DEACTIVATION_RATIO = 4
+
+# Признак «без бренда» в goods.xml: 1С кладёт в свойство «Бренд» нулевой UUID.
+# Это не пропущенный маппинг, а штатное значение, поэтому импорт сводит его к
+# fallback-бренду («Без ТМ») через маппинг для этого же UUID.
+NO_BRAND_ONEC_ID = "00000000-0000-0000-0000-000000000000"
+NO_BRAND_ONEC_NAME = "Без бренда"
+
+# Legacy fallback-бренд: до Story 41.16 импорт создавал «No Brand» с этим slug.
+# Нужен только для обратной совместимости — существующая запись переиспользуется
+# и переименовывается, чтобы рядом не появился второй fallback-бренд.
+LEGACY_FALLBACK_BRAND_SLUG = "no-brand"
+LEGACY_FALLBACK_BRAND_NORMALIZED = "nobrand"
 
 
 # ============================================================================
@@ -356,6 +368,10 @@ class VariantImportProcessor:
         self._unmapped_price_types_logged: set[str] = set()
         # Маппинг parent_onec_id → vat_rate из goods.xml
         self._product_vat_rates: dict[str, Decimal] = {}
+
+        # Fallback-бренд неизменен в рамках прогона: у ~60 % товаров бренда нет,
+        # и повторный поиск на каждый товар — это десятки тысяч лишних запросов.
+        self._fallback_brand: Any | None = None
 
         # Фильтрация категорий (заполняется в process_categories)
         self._category_filtering_active: bool = False
@@ -1701,25 +1717,112 @@ class VariantImportProcessor:
 
     def _determine_brand(self, brand_id: str | None, parent_id: str) -> Any:
         """Определяет бренд через Brand1CMapping или возвращает fallback"""
-        from apps.products.models import Brand, Brand1CMapping
+        from apps.products.models import Brand1CMapping
 
-        if brand_id:
+        # Нулевой UUID — это и есть «без бренда», а не потерянный маппинг:
+        # разрешение целиком уходит в fallback-резолвер (он же учитывает
+        # маппинг, заведённый владельцем в админке), а warning не пишется —
+        # иначе он залил бы лог на ~60 % каталога.
+        if brand_id and brand_id != NO_BRAND_ONEC_ID:
             mapping = Brand1CMapping.objects.select_related("brand").filter(onec_id=brand_id).first()
             if mapping and mapping.brand:
                 return mapping.brand
 
             logger.warning(
-                f"Brand1CMapping not found for onec_id={brand_id}, " f"product={parent_id}, using 'No Brand' fallback"
+                "Brand1CMapping not found for onec_id=%s, product=%s, using fallback brand '%s'",
+                brand_id,
+                parent_id,
+                self._fallback_brand_name(),
             )
 
-        return self._get_no_brand()
+        return self._get_fallback_brand()
 
-    def _get_no_brand(self) -> Any:
-        """Возвращает fallback бренд 'No Brand'"""
-        from apps.products.models import Brand
+    def _fallback_brand_name(self) -> str:
+        """Имя fallback-бренда из настроек (по умолчанию «Без ТМ»)."""
+        return str(getattr(settings, "IMPORT_FALLBACK_BRAND_NAME", "Без ТМ"))
 
-        brand, _ = Brand.objects.get_or_create(name="No Brand", defaults={"slug": "no-brand", "is_active": True})
+    def _get_fallback_brand(self) -> Any:
+        """Возвращает бренд для товаров без бренда из 1С.
+
+        Истина о том, какой бренд считать fallback-брендом, хранится в
+        Brand1CMapping для NO_BRAND_ONEC_ID: так владелец управляет им из админки,
+        а переименование и объединение брендов не приводят к созданию дубликата
+        (прежний поиск строго по name="No Brand" промахивался после переименования
+        и создавал новый бренд — Story 41.16). Имя и slug нужны только для
+        первого создания и задаются настройками IMPORT_FALLBACK_BRAND_NAME/SLUG.
+        """
+        from django.db.models import Q
+
+        from apps.products.models import Brand, Brand1CMapping
+        from apps.products.utils.brands import normalize_brand_name
+
+        if self._fallback_brand is not None:
+            return self._fallback_brand
+
+        name = self._fallback_brand_name()
+        slug = str(getattr(settings, "IMPORT_FALLBACK_BRAND_SLUG", "bez-tm"))
+        normalized = normalize_brand_name(name)
+
+        brand = self._get_mapped_no_brand_brand()
+
+        if brand is None:
+            # Bootstrap: ищем по slug и normalized_name — устойчивым ключам, а не
+            # по name, чтобы переименование бренда в админке не плодило дубликат.
+            brand = Brand.objects.filter(Q(slug=slug) | Q(normalized_name=normalized)).order_by("pk").first()
+
+        if brand is None:
+            # Обратная совместимость: legacy-бренд «No Brand» переиспользуем и
+            # переименовываем, иначе рядом с ним появился бы второй fallback.
+            brand = (
+                Brand.objects.filter(
+                    Q(slug=LEGACY_FALLBACK_BRAND_SLUG) | Q(normalized_name=LEGACY_FALLBACK_BRAND_NORMALIZED)
+                )
+                .order_by("pk")
+                .first()
+            )
+            if brand is not None:
+                logger.info("Fallback brand renamed: '%s' -> '%s' (slug=%s)", brand.name, name, slug)
+                brand.name = name
+                brand.is_active = True
+                brand.save(update_fields=["name", "normalized_name", "is_active", "updated_at"])
+
+        if brand is None:
+            try:
+                brand, _ = Brand.objects.get_or_create(slug=slug, defaults={"name": name, "is_active": True})
+            except IntegrityError:
+                # Гонка импортов или бренд с тем же normalized_name под другим slug.
+                brand = Brand.objects.filter(Q(slug=slug) | Q(normalized_name=normalized)).order_by("pk").first()
+                if brand is None:
+                    raise
+
+        # Закрепляем нулевой UUID за fallback-брендом: со следующего прогона
+        # (и после объединения брендов) связь читается прямо из маппинга.
+        Brand1CMapping.objects.get_or_create(
+            onec_id=NO_BRAND_ONEC_ID,
+            defaults={"brand": brand, "onec_name": NO_BRAND_ONEC_NAME},
+        )
+        self._fallback_brand = brand
         return brand
+
+    def _get_mapped_no_brand_brand(self) -> Any | None:
+        """Бренд, закреплённый в админке за нулевым UUID (или None).
+
+        Маппинг на legacy-бренд «No Brand» игнорируем: он ведёт на сущность,
+        которую как раз и убирают с витрины (Story 41.16).
+        """
+        from apps.products.models import Brand1CMapping
+
+        mapping = Brand1CMapping.objects.select_related("brand").filter(onec_id=NO_BRAND_ONEC_ID).first()
+        if mapping is None or mapping.brand is None:
+            return None
+        if mapping.brand.normalized_name == LEGACY_FALLBACK_BRAND_NORMALIZED:
+            logger.warning(
+                "Маппинг нулевого UUID ведёт на legacy-бренд '%s' (id=%s); " "используется fallback-бренд из настроек",
+                mapping.brand.name,
+                mapping.brand.pk,
+            )
+            return None
+        return mapping.brand
 
     def _get_or_create_category(self, goods_data: dict[str, Any]) -> Any:
         """Получает или создаёт категорию.

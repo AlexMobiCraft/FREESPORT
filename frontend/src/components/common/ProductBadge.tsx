@@ -60,7 +60,7 @@ function determineBadge(product: Product): { variant: BadgeVariant; label: strin
   if (product.is_hit) {
     return {
       variant: 'hit',
-      label: 'Хит',
+      label: 'Лидер продаж',
     };
   }
 

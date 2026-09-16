@@ -211,10 +211,10 @@ export const ElectricSubscribeForm: React.FC = () => {
     required: PDP_CONSENT_REQUIRED,
   });
   const emailRegistration = register('email', {
-    required: 'Email обязателен',
+    required: 'Укажите электронную почту',
     pattern: {
       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-      message: 'Введите корректный email',
+      message: 'Введите корректный адрес электронной почты',
     },
   });
 
@@ -319,13 +319,13 @@ export const ElectricSubscribeForm: React.FC = () => {
           htmlFor={emailId}
           className="block text-sm font-bold text-[var(--foreground)] uppercase transform -skew-x-12"
         >
-          <span className="inline-block transform skew-x-12">Email</span>
+          <span className="inline-block transform skew-x-12">Электронная почта</span>
         </label>
         <div className="relative transform -skew-x-12">
           <input
             id={emailId}
             type="email"
-            placeholder="your@email.com"
+            placeholder="name@example.ru"
             className={`
                    w-full bg-[var(--bg-card)] border-2 px-4 py-3 outline-none transition-all duration-300 transform skew-x-12
                    placeholder:text-[var(--color-text-muted)]

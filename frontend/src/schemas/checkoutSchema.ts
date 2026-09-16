@@ -11,7 +11,7 @@ import { z } from 'zod';
  */
 export const checkoutSchema = z.object({
   // ========== Контактные данные ==========
-  email: z.string().min(1, 'Email обязателен').email('Некорректный формат email'),
+  email: z.string().min(1, 'Укажите электронную почту').email('Некорректный формат email'),
 
   phone: z.string().regex(/^\+7\d{10}$/, 'Формат: +7 и 10 цифр номера (например, +79001234567)'),
 

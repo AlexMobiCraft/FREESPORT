@@ -15,7 +15,7 @@ import { blogService } from '@/services/blogService';
 import { buildMetadata } from '@/utils/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Блог | OPTISPORT',
+  title: 'Статьи | OPTISPORT',
   description: 'Полезные статьи о спорте, тренировках и экипировке от экспертов OPTISPORT.',
   path: '/blog',
 });
@@ -27,7 +27,7 @@ interface BlogPageProps {
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const params = await searchParams;
   const currentPage = Number(params.page) || 1;
-  const breadcrumbItems = [{ label: 'Главная', href: '/' }, { label: 'Блог' }];
+  const breadcrumbItems = [{ label: 'Главная', href: '/' }, { label: 'Статьи' }];
 
   // Fetch blog data
   let blogData;
@@ -51,7 +51,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
       {/* Hero Section */}
       <section className="bg-white py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-text-primary mb-4">Блог</h1>
+          <h1 className="text-4xl sm:text-5xl font-bold text-text-primary mb-4">Статьи</h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
             Полезные статьи о спорте, тренировках и экипировке от наших экспертов
           </p>

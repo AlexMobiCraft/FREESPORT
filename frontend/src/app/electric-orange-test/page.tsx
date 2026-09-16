@@ -141,7 +141,7 @@ export default function ElectricOrangeTestPage() {
                   }}
                 >
                   <span style={{ transform: 'skewX(12deg)', display: 'inline-block' }}>
-                    Хиты продаж
+                    Лидеры продаж
                   </span>
                 </h3>
               </div>
@@ -326,7 +326,7 @@ export default function ElectricOrangeTestPage() {
               <div className="flex flex-wrap gap-4">
                 <SkewedBadge variant="primary">Новинка</SkewedBadge>
                 <SkewedBadge variant="sale">-20%</SkewedBadge>
-                <SkewedBadge variant="hit">Хит</SkewedBadge>
+                <SkewedBadge variant="hit">Лидер продаж</SkewedBadge>
                 <SkewedBadge variant="new">New</SkewedBadge>
               </div>
             </div>

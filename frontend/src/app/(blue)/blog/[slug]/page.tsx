@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: BlogDetailPageProps): Promise
   try {
     const post = await blogService.getBlogPostBySlug(slug);
     return buildMetadata({
-      title: `${post.meta_title || post.title} | Блог OPTISPORT`,
+      title: `${post.meta_title || post.title} | Статьи OPTISPORT`,
       description: post.meta_description || post.excerpt,
       ogTitle: post.meta_title || post.title,
       path: `/blog/${slug}`,
@@ -71,7 +71,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
 
   const breadcrumbItems = [
     { label: 'Главная', href: '/' },
-    { label: 'Блог', href: '/blog' },
+    { label: 'Статьи', href: '/blog' },
     { label: post.title },
   ];
 
@@ -137,7 +137,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
               className="inline-flex items-center gap-2 text-primary hover:text-primary-dark transition-colors font-medium"
             >
               <ArrowLeft className="w-5 h-5" />
-              Назад к блогу
+              Назад к статьям
             </Link>
           </div>
         </div>

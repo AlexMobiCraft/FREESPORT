@@ -104,7 +104,7 @@ describe('ContactSection', () => {
 
       await waitFor(() => {
         // Input компонент рендерит ошибку в двух местах (visible + sr-only для accessibility)
-        const errors = screen.getAllByText('Email обязателен');
+        const errors = screen.getAllByText('Укажите электронную почту');
         expect(errors.length).toBeGreaterThan(0);
       });
     });

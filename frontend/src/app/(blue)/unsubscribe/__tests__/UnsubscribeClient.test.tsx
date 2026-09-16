@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import UnsubscribeClient from '../unsubscribe/UnsubscribeClient';
+import UnsubscribeClient from '../UnsubscribeClient';
 import { UnsubscribeServiceError, unsubscribeService } from '@/services/unsubscribeService';
 
 vi.mock('@/services/unsubscribeService', async importOriginal => {
@@ -49,6 +49,18 @@ describe('UnsubscribeClient', () => {
 
     expect(await screen.findByText('Ссылка недействительна')).toBeTruthy();
     expect(unsubscribeService.unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('в состоянии invalid_token показывает CTA «На главную» вместо «Повторить»', async () => {
+    window.history.replaceState(null, '', '/unsubscribe');
+
+    render(<UnsubscribeClient />);
+
+    const block = await screen.findByTestId('unsubscribe-invalid-token');
+    const cta = screen.getByTestId('go-home-button');
+    expect(block).toContainElement(cta);
+    expect(cta).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull();
   });
 
   it.each([

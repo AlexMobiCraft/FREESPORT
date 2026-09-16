@@ -55,7 +55,7 @@ const fillEmailAndAcceptConsent = async (
   user: ReturnType<typeof userEvent.setup>,
   email = 'electric@example.com'
 ) => {
-  await user.type(screen.getByLabelText(/email/i), email);
+  await user.type(screen.getByLabelText(/электронная почта/i), email);
   await clickPdpCheckbox(user);
   await clickMarketingCheckbox(user);
 };
@@ -139,7 +139,7 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric@example.com');
+    await user.type(screen.getByLabelText(/электронная почта/i), 'electric@example.com');
     const button = screen.getByRole('button', { name: /подписаться/i });
 
     // Без согласия на обработку ПДн кнопка неактивна, submit невозможен
@@ -172,7 +172,7 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    await user.type(screen.getByLabelText(/email/i), 'electric@example.com');
+    await user.type(screen.getByLabelText(/электронная почта/i), 'electric@example.com');
     await clickPdpCheckbox(user);
     const button = screen.getByRole('button', { name: /подписаться/i });
     expect(button).toBeEnabled();
@@ -211,8 +211,8 @@ describe('ElectricSubscribeForm', () => {
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 
     await screen.findByText(MARKETING_CONSENT_REQUIRED);
-    expect(screen.getByText('Email обязателен')).toBeInTheDocument();
-    expect(screen.getByLabelText(/email/i)).toHaveFocus();
+    expect(screen.getByText('Укажите электронную почту')).toBeInTheDocument();
+    expect(screen.getByLabelText(/электронная почта/i)).toHaveFocus();
     expect(mockSubscribe).not.toHaveBeenCalled();
   });
 
@@ -315,7 +315,7 @@ describe('ElectricSubscribeForm', () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    const emailInput = screen.getByLabelText(/email/i);
+    const emailInput = screen.getByLabelText(/электронная почта/i);
     await fillEmailAndAcceptConsent(user);
     await user.click(screen.getByRole('button', { name: /подписаться/i }));
 

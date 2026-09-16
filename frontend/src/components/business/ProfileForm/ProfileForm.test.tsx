@@ -199,7 +199,7 @@ describe('ProfileForm', () => {
       });
 
       // ASSERT
-      const emailInput = screen.getByLabelText(/email/i);
+      const emailInput = screen.getByLabelText(/электронная почта/i);
       expect(emailInput).toHaveAttribute('readonly');
       expect(emailInput).toBeDisabled();
     });
