@@ -1667,7 +1667,7 @@ const CatalogContent: React.FC = () => {
                       isBrandsOpen && 'rotate-180'
                     )}
                   />
-                  <span>Бренд</span>
+                  <span>Торговая марка</span>
                 </button>
                 <div
                   id="filter-brands"
@@ -1690,7 +1690,7 @@ const CatalogContent: React.FC = () => {
                         );
 
                         if (visibleBrands.length === 0) {
-                          return <p className="text-xs text-gray-400">Бренды не найдены</p>;
+                          return <p className="text-xs text-gray-400">Торговые марки не найдены</p>;
                         }
 
                         return visibleBrands.map(brand => (
