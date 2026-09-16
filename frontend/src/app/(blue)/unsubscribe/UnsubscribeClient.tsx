@@ -156,9 +156,7 @@ export default function UnsubscribeClient() {
       tabIndex={-1}
       className="space-y-4 outline-none"
     >
-      <h2 className="text-title-l font-semibold text-text-primary">
-        {ERROR_MESSAGES[view.error]}
-      </h2>
+      <h2 className="text-title-l font-semibold text-text-primary">{ERROR_MESSAGES[view.error]}</h2>
       <p className="text-body-m text-text-secondary">
         Попробуйте ещё раз. Если ошибка повторится, вернитесь позже.
       </p>

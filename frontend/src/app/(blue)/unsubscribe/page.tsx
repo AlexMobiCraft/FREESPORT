@@ -19,10 +19,7 @@ export default function UnsubscribePage() {
     <div className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6">
       <Breadcrumb items={breadcrumbItems} className="mb-6" />
 
-      <h1
-        id="unsubscribe-title"
-        className="text-display-m font-bold text-text-primary mb-8"
-      >
+      <h1 id="unsubscribe-title" className="text-display-m font-bold text-text-primary mb-8">
         Отписка от маркетинговой рассылки
       </h1>
 
