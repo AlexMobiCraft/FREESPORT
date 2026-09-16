@@ -488,7 +488,7 @@ describe('CatalogPage - Search Integration (Story 18.4)', () => {
       const categoryButton = screen.getByRole('button', { name: /Категории/i });
       expect(categoryButton).toHaveAttribute('aria-expanded', 'false');
 
-      const brandButton = screen.getByRole('button', { name: /Бренд/i });
+      const brandButton = screen.getByRole('button', { name: /Торговая марка/i });
       expect(brandButton).toHaveAttribute('aria-expanded', 'false');
     });
   });
@@ -712,13 +712,13 @@ describe('CatalogPage — видимость брендов по наличию 
     });
   });
 
-  it('показывает "Бренды не найдены", когда visible-brands пустой и нет выбора', async () => {
+  it('показывает "Торговые марки не найдены", когда visible-brands пустой и нет выбора', async () => {
     (brandsService.getVisibleBrands as Mock).mockResolvedValue([]);
 
     render(<CatalogPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Бренды не найдены')).toBeInTheDocument();
+      expect(screen.getByText('Торговые марки не найдены')).toBeInTheDocument();
       expect(screen.queryByLabelText('Nike')).not.toBeInTheDocument();
       expect(screen.queryByLabelText('Adidas')).not.toBeInTheDocument();
     });
@@ -731,7 +731,7 @@ describe('CatalogPage — видимость брендов по наличию 
     render(<CatalogPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Бренды не найдены')).toBeInTheDocument();
+      expect(screen.getByText('Торговые марки не найдены')).toBeInTheDocument();
     });
 
     await user.click(screen.getByLabelText('В наличии'));
