@@ -1209,7 +1209,7 @@ development_status:
   #             impact выполнен. backlog -> ready-for-dev.
   # 2026-09-15: Стори 41.16 взята в разработку (bmad-dev-story), baseline
   #             80eba24. ready-for-dev -> in-progress.
-  41-16-editorial-audit-decision-register: review
+  41-16-editorial-audit-decision-register: done
   epic-41-retrospective: optional
 
 # ========================================
