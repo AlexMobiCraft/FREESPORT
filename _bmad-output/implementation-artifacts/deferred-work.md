@@ -1,3 +1,21 @@
+## Deferred from: code review of spec-unsubscribe-page-layout (2026-09-16)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-unsubscribe-page-layout.md`
+  summary: **`role="status"` + `aria-live="assertive"` — противоречивая ARIA-разметка на error-состояниях `UnsubscribeClient`.** `role="status"` подразумевает `aria-live="polite"`; для assertive-анонсов идиоматичен `role="alert"`. Паттерн унаследован от исходной реализации страницы и намеренно сохранён спекой («сохранить a11y-поведение»).
+  evidence: `frontend/src/app/(blue)/unsubscribe/UnsubscribeClient.tsx` — блоки invalid_token и generic error. Работает в скринридерах, но семантически смешанная конструкция.
+- source_spec: `_bmad-output/implementation-artifacts/spec-unsubscribe-page-layout.md`
+  summary: **`AuthProvider`: throw при доступе к `localStorage` вне try-блока → необработанный rejection и `isLoading` навсегда в true (страница виснет на «Загрузка...»).** Баг провайдера, затрагивает все `(blue)`-страницы; вскрыт при анализе гейтинга `/unsubscribe`.
+  evidence: `frontend/src/providers/AuthProvider.tsx:66-80` — `localStorage.getItem/setItem` вызываются до try/catch; при заблокированном хранилище `initializeAuth` реджектится.
+- source_spec: `_bmad-output/implementation-artifacts/spec-unsubscribe-page-layout.md`
+  summary: **Состояние `submitting` на `/unsubscribe` может показывать статичный «Обрабатываем запрос…» до ~2 минут** — apiClient молча ретраит network/5xx до 4 раз с backoff. Страница выглядит зависшей, пользователь может повторно кликнуть ссылку из письма.
+  evidence: `frontend/src/app/(blue)/unsubscribe/UnsubscribeClient.tsx` — submitting-стейт без таймаута/индикации прогресса; политика ретраев в `frontend/src/services/api-client.ts`. Pre-existing поведение.
+- source_spec: `_bmad-output/implementation-artifacts/spec-unsubscribe-page-layout.md`
+  summary: **`force-dynamic` на `/unsubscribe` сохранён без пользы** — на странице нет серверных данных (токен живёт в `location.hash` и читается на клиенте); статический пререндер отдавал бы лендинг из письма мгновенно. Спека предписала сохранить экспорт — пересмотреть при следующей правке страницы.
+  evidence: `frontend/src/app/(blue)/unsubscribe/page.tsx:4`. Каждый хит платит SSR-рендер без выигрыша.
+- source_spec: `_bmad-output/implementation-artifacts/spec-unsubscribe-page-layout.md`
+  summary: **Фокус проваливается в body при submit на `/unsubscribe`** — кнопка «Отписаться» размонтируется в состоянии `submitting`. `Button` поддерживает `loading`-проп: можно держать кнопку на месте со спиннером вместо замены view.
+  evidence: `frontend/src/app/(blue)/unsubscribe/UnsubscribeClient.tsx` — confirm→submitting переход; `frontend/src/components/ui/Button/Button.tsx:17,91-113` — loading-проп существует. Pre-existing UX-паттерн, сохранён спекой.
+
 ## Deferred from: code review of 41-9-consent-journal-text-version-and-source (2026-09-10)
 
 - **Регистрозависимая уникальность `Newsletter.email` допускает дубли одного почтового адреса.** `SubscribeSerializer` приводит новый ввод к lowercase, но существующая строка могла попасть в БД через ORM/SQL со смешанным регистром: `objects.create()` не вызывает `Newsletter.clean()`, а PostgreSQL-ограничение `unique=True` и поиск `email=` регистрозависимы. Тогда повторная подписка создаёт вторую строку, отписка может деактивировать только одну из них, а аудит размазывается. Дефект существовал до Story 41.9; исправление требует DB-level `UniqueConstraint(Lower("email"))`/CITEXT с миграцией данных и регистронезависимого поиска под блокировкой. [`backend/apps/common/models.py:519-524,580-584`, `backend/apps/common/serializers.py:143-151,202-224`]

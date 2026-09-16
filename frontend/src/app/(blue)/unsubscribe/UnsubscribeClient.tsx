@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { MailX } from 'lucide-react';
+import { Button } from '@/components/ui';
 import {
   UnsubscribeServiceError,
   type UnsubscribeErrorKind,
@@ -62,7 +65,7 @@ export default function UnsubscribeClient() {
 
   if (view.kind === 'checking') {
     return (
-      <p role="status" aria-live="polite" className="text-slate-600">
+      <p role="status" aria-live="polite" className="text-body-m text-text-secondary">
         Проверяем ссылку…
       </p>
     );
@@ -71,23 +74,24 @@ export default function UnsubscribeClient() {
   if (view.kind === 'confirm') {
     return (
       <div className="space-y-5">
-        <p className="text-slate-700">
+        <p className="text-body-m text-text-secondary">
           После подтверждения адрес перестанет получать маркетинговые письма OPTISPORT.
         </p>
-        <button
-          type="button"
-          onClick={submit}
-          className="rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white outline-none transition hover:bg-slate-700 focus-visible:ring-4 focus-visible:ring-orange-400"
-        >
+        <Button type="button" variant="primary" size="large" onClick={submit}>
           Отписаться от рассылки
-        </button>
+        </Button>
       </div>
     );
   }
 
   if (view.kind === 'submitting') {
     return (
-      <p role="status" aria-live="polite" aria-busy="true" className="text-slate-700">
+      <p
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        className="text-body-m text-text-secondary"
+      >
         Обрабатываем запрос…
       </p>
     );
@@ -102,13 +106,48 @@ export default function UnsubscribeClient() {
         tabIndex={-1}
         className="space-y-2 outline-none"
       >
-        <h2 className="text-2xl font-bold text-slate-900">Запрос на отписку обработан</h2>
-        <p className="text-slate-700">Изменение применено. Эту страницу можно закрыть.</p>
+        <h2 className="text-title-l font-semibold text-text-primary">
+          Запрос на отписку обработан
+        </h2>
+        <p className="text-body-m text-text-secondary">
+          Изменение применено. Эту страницу можно закрыть.
+        </p>
       </div>
     );
   }
 
-  const retryable = view.error !== 'invalid_token';
+  if (view.kind === 'error' && view.error === 'invalid_token') {
+    // Тупиковое состояние — по образцу EmptyCart: иконка, заголовок, пояснение, CTA
+    return (
+      <div
+        ref={resultRef}
+        role="status"
+        aria-live="assertive"
+        tabIndex={-1}
+        className="flex flex-col items-center justify-center py-8 text-center outline-none"
+        data-testid="unsubscribe-invalid-token"
+      >
+        <MailX className="w-16 h-16 text-neutral-500 mb-6" aria-hidden="true" />
+
+        <h2 className="text-title-l font-semibold text-text-primary mb-2">
+          {ERROR_MESSAGES.invalid_token}
+        </h2>
+
+        <p className="text-body-m text-text-secondary mb-8">
+          Откройте актуальную ссылку из последнего письма.
+        </p>
+
+        <Link
+          href="/"
+          className="h-12 px-8 inline-flex items-center justify-center bg-primary hover:bg-primary-hover text-text-inverse font-medium rounded-[var(--radius-sm)] transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          data-testid="go-home-button"
+        >
+          На главную
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={resultRef}
@@ -117,21 +156,15 @@ export default function UnsubscribeClient() {
       tabIndex={-1}
       className="space-y-4 outline-none"
     >
-      <h2 className="text-2xl font-bold text-slate-900">{ERROR_MESSAGES[view.error]}</h2>
-      <p className="text-slate-700">
-        {retryable
-          ? 'Попробуйте ещё раз. Если ошибка повторится, вернитесь позже.'
-          : 'Откройте актуальную ссылку из последнего письма.'}
+      <h2 className="text-title-l font-semibold text-text-primary">
+        {ERROR_MESSAGES[view.error]}
+      </h2>
+      <p className="text-body-m text-text-secondary">
+        Попробуйте ещё раз. Если ошибка повторится, вернитесь позже.
       </p>
-      {retryable && (
-        <button
-          type="button"
-          onClick={submit}
-          className="rounded-lg border-2 border-slate-900 px-5 py-3 font-semibold text-slate-900 outline-none transition hover:bg-slate-100 focus-visible:ring-4 focus-visible:ring-orange-400"
-        >
-          Повторить
-        </button>
-      )}
+      <Button type="button" variant="secondary" size="large" onClick={submit}>
+        Повторить
+      </Button>
     </div>
   );
 }
