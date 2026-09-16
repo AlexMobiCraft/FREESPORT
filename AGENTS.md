@@ -59,6 +59,15 @@ _Например:_ `git add .; git commit -m "..."; git push`
 
 ## Правила разработки Frontend
 
+- **ВАЖНО**: После правок `frontend/src/` перед коммитом обязательно прогонять локально:
+  ```bash
+  cd frontend
+  npm run format:check   # prettier --check .  — гейт в frontend-ci.yml
+  npm run lint           # eslint . --max-warnings=0
+  npx tsc --noEmit
+  ```
+  Pre-commit хук `.husky/pre-commit` (lint-staged → prettier+eslint) на этой машине НЕ активен — `core.hooksPath` не установлен, корневого `package.json` нет. Полагаться на автоформатирование при коммите нельзя.
+
 - **ВАЖНО**: После внесения изменений во фронтенд-код (`frontend/src/`), необходимо ПЕРЕЗАПУСТИТЬ Docker-контейнер, чтобы изменения отразились в браузере:
 
   ```bash
