@@ -7,9 +7,27 @@ import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_META } from '@/utils/seo';
 
 const BASE_TITLE = 'Каталог спортивных товаров | OPTISPORT';
 const BASE_DESCRIPTION =
-  'Каталог спортивных товаров: фитнес и атлетика, единоборства, спортивные игры, плавание, туризм. Оптовые и розничные цены, доставка по России.';
+  'Каталог спортивных товаров: фитнес и атлетика, единоборства, спортивные игры, плавание, туризм. Оптовые и рекомендованные розничные цены, доставка по России.';
 const BASE_KEYWORDS =
   'каталог спортивных товаров, спортинвентарь оптом, спортивная экипировка';
+
+const COLLECTIONS = {
+  is_new: {
+    title: 'Новинки — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Новинки в каталоге OPTISPORT: подборка спортивных товаров с ценами и условиями заказа для оптовых покупателей.',
+  },
+  is_hit: {
+    title: 'Лидеры продаж — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Лидеры продаж в каталоге OPTISPORT: подборка спортивных товаров с ценами и условиями заказа для оптовых покупателей.',
+  },
+  is_sale: {
+    title: 'Скидки — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Скидки в каталоге OPTISPORT: подборка спортивных товаров со сниженными ценами и условиями заказа для оптовых покупателей.',
+  },
+};
 
 const response = (body: unknown, ok = true) =>
   ({ ok, json: vi.fn().mockResolvedValue(body) }) as unknown as Response;
@@ -48,6 +66,98 @@ describe('generateMetadata каталога', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('базовый description укладывается в 157 символов и называет розничные цены рекомендованными', async () => {
+    const metadata = await metadataFor({});
+
+    expect(metadata.description).toBe(BASE_DESCRIPTION);
+    expect(BASE_DESCRIPTION).toHaveLength(157);
+  });
+
+  it.each([
+    ['is_new', COLLECTIONS.is_new],
+    ['is_hit', COLLECTIONS.is_hit],
+    ['is_sale', COLLECTIONS.is_sale],
+  ])('подборка %s=true получает собственные metadata с canonical /catalog', async (key, texts) => {
+    const metadata = await metadataFor({ [key]: 'true' });
+
+    expect(metadata).toMatchObject({
+      title: texts.title,
+      description: texts.description,
+      keywords: null,
+      alternates: { canonical: '/catalog' },
+      openGraph: {
+        title: texts.title,
+        description: texts.description,
+        url: '/catalog',
+        type: 'website',
+        images: [DEFAULT_OG_IMAGE_META],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: texts.title,
+        description: texts.description,
+        images: [DEFAULT_OG_IMAGE],
+      },
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['два флага', { is_new: 'true', is_hit: 'true' }],
+    ['значение false', { is_new: 'false' }],
+    ['пустое значение', { is_new: '' }],
+    ['значение TRUE', { is_hit: 'TRUE' }],
+    ['значение 1', { is_sale: '1' }],
+    ['повтор флага', { is_new: ['true', 'true'] }],
+    ['флаг и page', { is_new: 'true', page: '2' }],
+    ['флаг и ordering', { is_hit: 'true', ordering: '-name' }],
+    ['флаг и focusSearch', { is_sale: 'true', focusSearch: 'true' }],
+    ['только focusSearch', { focusSearch: 'true' }],
+  ])('%s не считается подборкой и даёт базовые metadata без API-запроса', async (_name, params) => {
+    const metadata = await metadataFor(params);
+
+    expectBaseMetadata(metadata);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('игнорирует ключи со значением undefined при распознавании подборки', async () => {
+    const metadata = await metadataFor({ is_new: 'true', page: undefined });
+
+    expect(metadata.title).toBe(COLLECTIONS.is_new.title);
+  });
+
+  it('флаг подборки вместе с валидной category даёт metadata категории', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      response([{ name: 'Игры', slug: 'games', children: [] }])
+    );
+
+    const metadata = await metadataFor({ is_new: 'true', category: 'games' });
+
+    expect(metadata).toMatchObject({
+      title: 'Игры — спортивные товары',
+      description:
+        'Товары категории «Игры» в каталоге OPTISPORT: цены и условия заказа для оптовых покупателей.',
+      keywords: null,
+      alternates: { canonical: '/catalog?category=games' },
+    });
+  });
+
+  it.each([
+    ['самое длинное реальное имя', 'Форма для кикбоксинга и тайского бокса', 126],
+    ['граничное имя из 72 символов', 'Я'.repeat(72), 160],
+  ])('description категории: %s укладывается в 160 символов', async (_name, name, length) => {
+    vi.mocked(fetch).mockResolvedValue(response([{ name, slug: 'long', children: [] }]));
+
+    const metadata = await metadataFor({ category: 'long' });
+
+    expect(metadata.description).toBe(
+      `Товары категории «${name}» в каталоге OPTISPORT: цены и условия заказа для оптовых покупателей.`
+    );
+    expect(metadata.description).toHaveLength(length);
+    expect((metadata.description as string).length).toBeLessThanOrEqual(160);
+    expect(metadata.description).not.toMatch(/розничн/i);
+  });
+
   it('строит metadata валидной вложенной категории только из публичного дерева', async () => {
     const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
     vi.mocked(fetch).mockResolvedValue(
@@ -67,7 +177,7 @@ describe('generateMetadata каталога', () => {
     });
     const title = 'Настольный теннис — спортивные товары';
     const description =
-      'Спортивные товары категории «Настольный теннис» в каталоге OPTISPORT: информация о товарах, ценах и условиях заказа для розничных и оптовых покупателей.';
+      'Товары категории «Настольный теннис» в каталоге OPTISPORT: цены и условия заказа для оптовых покупателей.';
 
     expect(metadata).toMatchObject({
       title,

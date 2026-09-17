@@ -4,7 +4,7 @@
  * Covers: authenticated/unauthenticated states, B2B/B2C UI, mobile menu, cart badge
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
@@ -12,6 +12,7 @@ import Header from '../Header';
 import { useCartStore } from '@/stores/cartStore';
 import { authSelectors } from '@/stores/authStore';
 import type { CartItem } from '@/types/cart';
+import { CATALOG_SEARCH_FOCUS_EVENT } from '@/utils/catalogSearchFocus';
 
 // Mock Next.js router
 const mockPush = vi.fn();
@@ -445,6 +446,69 @@ describe('Header', () => {
       expect(screen.getByRole('button', { name: 'Закрыть меню' })).toHaveAttribute(
         'aria-expanded',
         'true'
+      );
+    });
+  });
+
+  describe('Поиск из шапки без query-параметра', () => {
+    const authUser = {
+      id: 1,
+      email: 'user@example.com',
+      first_name: 'Иван',
+      last_name: 'Иванов',
+      phone: '+79001234567',
+      role: 'retail' as const,
+    };
+    let focusListener: ReturnType<typeof vi.fn<() => void>>;
+
+    const expectSearchLink = (link: HTMLElement) => {
+      expect(link).toHaveAttribute('href', '/catalog#search');
+      expect(link.getAttribute('href')).not.toContain('?');
+    };
+
+    beforeEach(() => {
+      vi.mocked(authSelectors.useIsB2BUser).mockReturnValue(false);
+      focusListener = vi.fn<() => void>();
+      window.addEventListener(CATALOG_SEARCH_FOCUS_EVENT, focusListener);
+    });
+
+    afterEach(() => {
+      window.removeEventListener(CATALOG_SEARCH_FOCUS_EVENT, focusListener);
+    });
+
+    it('desktop-ссылка ведёт на /catalog#search и запрашивает фокус', async () => {
+      vi.mocked(authSelectors.useIsAuthenticated).mockReturnValue(false);
+      vi.mocked(authSelectors.useUser).mockReturnValue(null);
+      const user = userEvent.setup();
+      render(<Header />);
+
+      const link = screen.getByRole('link', { name: 'Поиск' });
+      expectSearchLink(link);
+      await user.click(link);
+
+      expect(focusListener).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['гостя', false, null],
+      ['авторизованного', true, authUser],
+    ])('ссылка в мобильном меню %s ведёт на /catalog#search, запрашивает фокус и закрывает меню', async (_name, isAuthenticated, currentUser) => {
+      vi.mocked(authSelectors.useIsAuthenticated).mockReturnValue(isAuthenticated);
+      vi.mocked(authSelectors.useUser).mockReturnValue(currentUser);
+      const user = userEvent.setup();
+      render(<Header />);
+
+      await user.click(screen.getByRole('button', { name: 'Открыть меню' }));
+      const links = screen.getAllByRole('link', { name: 'Поиск' });
+      expect(links).toHaveLength(2);
+      links.forEach(expectSearchLink);
+
+      await user.click(links[1]);
+
+      expect(focusListener).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Открыть меню' })).toHaveAttribute(
+        'aria-expanded',
+        'false'
       );
     });
   });

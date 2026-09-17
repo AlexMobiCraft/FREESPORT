@@ -2,10 +2,11 @@
  * Unit-тесты для интеграции поиска в CatalogPage (Story 18.4)
  */
 
-import { describe, it, expect, vi, beforeEach, afterAll, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll, type Mock } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CatalogPage from '../CatalogPageClient';
+import { requestCatalogSearchFocus } from '@/utils/catalogSearchFocus';
 
 // Mock данные для тестов
 const mockProducts = [
@@ -2050,5 +2051,71 @@ describe('CatalogPage — фильтры сайдбара в URL', () => {
     // Ошибка загрузки — не повод стирать валидный параметр: знать, что он
     // мусорный, страница не может
     expect(navigationLog).toEqual([]);
+  });
+});
+
+describe('CatalogPage — фокус поиска из шапки', () => {
+  const initialUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const searchInput = () => screen.getByPlaceholderText('Поиск в каталоге...');
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+    mockMatchMedia();
+    resetSearchParams();
+  });
+
+  afterEach(() => {
+    // Хэш адреса jsdom переживает тест — возвращаем исходный URL явно
+    window.history.replaceState(null, '', initialUrl);
+  });
+
+  it('фокусирует поле при монтировании с хэшем #search', async () => {
+    window.history.replaceState(null, '', '/catalog#search');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => expect(searchInput()).toHaveFocus());
+  });
+
+  it('фокусирует поле по старому адресу ?focusSearch=true из закладок', async () => {
+    resetSearchParams('focusSearch=true');
+
+    render(<CatalogPage />);
+
+    await waitFor(() => expect(searchInput()).toHaveFocus());
+  });
+
+  it('фокусирует поле уже смонтированного каталога по событию из шапки', async () => {
+    render(<CatalogPage />);
+    await waitFor(() => expect(searchInput()).toBeInTheDocument());
+    await new Promise(resolve => setTimeout(resolve, 150));
+    expect(searchInput()).not.toHaveFocus();
+
+    act(() => {
+      requestCatalogSearchFocus();
+    });
+
+    await waitFor(() => expect(searchInput()).toHaveFocus());
+  });
+
+  it('не фокусирует поле без хэша, параметра и события', async () => {
+    render(<CatalogPage />);
+    await waitFor(() => expect(searchInput()).toBeInTheDocument());
+
+    await new Promise(resolve => setTimeout(resolve, 250));
+
+    expect(searchInput()).not.toHaveFocus();
+  });
+
+  it('снимает подписку на событие после размонтирования', async () => {
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+    const { unmount } = render(<CatalogPage />);
+    await waitFor(() => expect(searchInput()).toBeInTheDocument());
+
+    unmount();
+
+    expect(removeSpy).toHaveBeenCalledWith('optisport:catalog-search-focus', expect.any(Function));
+    removeSpy.mockRestore();
   });
 });
