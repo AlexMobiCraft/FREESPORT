@@ -19,14 +19,13 @@ const robotoCondensed = Roboto_Condensed({
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-const title = 'OPTISPORT Platform | B2B/B2C спортивные товары';
+const title = 'OPTISPORT — спортивные товары оптом';
 const description =
-  'Ведущая платформа продаж спортивных товаров. B2B/B2C решения для тренеров, федераций и дистрибьюторов.';
+  'Оптовые продажи спортивных товаров: каталог, условия для оптовых покупателей, доставка по России.';
 
 export const metadata: Metadata = {
   title,
   description,
-  keywords: 'спорт, товары, оптом, B2B, B2C, тренажеры, спортивный инвентарь',
   metadataBase: new URL(appUrl),
   // Базовые og/twitter-теги для страниц, которые не задают свои.
   // Страница со своим openGraph перекрывает этот блок целиком.
@@ -61,6 +60,9 @@ export const metadata: Metadata = {
  * значение по дереву сегментов, поэтому страницы со своим `revalidate`
  * ((blue)/home, (electric)/electric) и с `dynamic = 'force-dynamic'` (app/page)
  * сохраняют прежнее поведение.
+ *
+ * Срок `stale-while-revalidate` (expireTime − revalidate) задаёт `expireTime`
+ * в next.config.ts (стори 41.19).
  */
 export const revalidate = 3600;
 

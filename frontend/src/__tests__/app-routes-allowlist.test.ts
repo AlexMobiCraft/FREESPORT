@@ -1,13 +1,14 @@
 /**
  * Тест-страж: список известных маршрутов верхнего уровня в middleware обязан
- * покрывать фактическую структуру `src/app`.
+ * совпадать с фактической структурой `src/app`.
  *
  * Без этой сверки новая страница верхнего уровня, добавленная в `app/`, но не
  * внесённая в `KNOWN_TOP_LEVEL_ROUTES`, начнёт молча отдавать 404: middleware
  * посчитает её несуществующим адресом.
  *
- * Обратное включение не проверяется — в списке есть `electric-orange`, который
- * живёт не в `app/`, а в `public/` и обслуживается rewrite из `next.config.ts`.
+ * Обратное включение тоже проверяется: каждый элемент списка обязан быть
+ * реальной страницей. Иначе «висячая» запись после удаления страницы молча
+ * отключает для её адреса настоящий 404 (так было с демо-маршрутами до 41.19).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -82,11 +83,21 @@ describe('Список известных маршрутов верхнего у
     expect(missing).toEqual([]);
   });
 
-  it('содержит electric-orange — rewrite на статику, а не страницу app/', () => {
-    // Rewrites из next.config.ts выполняются ПОСЛЕ middleware, поэтому без
-    // записи в списке рабочий адрес превратился бы в 404.
-    expect(KNOWN_TOP_LEVEL_ROUTES.has('electric-orange')).toBe(true);
+  it('содержит только реальные страницы из src/app', () => {
+    const actual = collectTopLevelRoutes(APP_DIR);
+    const dangling = [...KNOWN_TOP_LEVEL_ROUTES].filter(route => !actual.has(route)).sort();
+
+    expect(dangling).toEqual([]);
   });
+
+  it.each(['design-comparison', 'electric-orange', 'electric-orange-test', 'examples', 'test'])(
+    'не содержит удалённого демо-маршрута %s',
+    route => {
+      // Демо-страницы и статический макет удалены в 41.19 (D6): их адреса
+      // обязаны отдавать настоящий 404.
+      expect(KNOWN_TOP_LEVEL_ROUTES.has(route)).toBe(false);
+    }
+  );
 
   it('не содержит несуществующих маршрутов /product, /orders и /b2b-dashboard', () => {
     // У этих путей нет собственной страницы: /product существует только как
