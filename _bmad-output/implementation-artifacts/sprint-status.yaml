@@ -1238,7 +1238,10 @@ development_status:
   #             фрагменту в Next 15.5.18 не меняет searchParams). Открытые
   #             вопросы (не блокируют): имя категории > 72 симв.; «sticky» в AC3.
   #             backlog -> ready-for-dev.
-  41-17-catalog-collections-meta-descriptions-focus-search: review
+  # 2026-09-17: Реализация, локальная и production-приёмка AC1–AC5 завершены.
+  #             Финальное BMad review не выявило дефектов кода; документальное
+  #             замечание о базовом description исправлено. review -> done.
+  41-17-catalog-collections-meta-descriptions-focus-search: done
   41-18-guest-login-return-cookie-and-single-noindex-mechanism: backlog
   41-19-public-surface-hygiene-demo-routes-register-meta: backlog
   41-20-newsletter-consent-wording-and-placeholders: backlog
