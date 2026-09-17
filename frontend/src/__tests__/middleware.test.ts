@@ -219,6 +219,21 @@ describe('Middleware: настоящий 404 для несуществующих
     }
   );
 
+  it.each(['/examples', '/test', '/design-comparison', '/electric-orange-test', '/electric-orange'])(
+    'отдаёт 404 на удалённый демо-маршрут %s',
+    async pathname => {
+      const { middleware, NextResponse } = await loadMiddleware();
+      await middleware(anonymousRequest(pathname));
+
+      expect(NextResponse.rewrite).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const [destination, init] = (NextResponse.rewrite as any).mock.calls[0];
+      expect(destination.pathname).toBe('/_not-found');
+      expect(init).toEqual({ status: 404 });
+      expect(NextResponse.next).not.toHaveBeenCalled();
+    }
+  );
+
   it('пропускает опубликованную CMS-страницу', async () => {
     const { middleware, NextResponse } = await loadMiddleware();
     await middleware(anonymousRequest('/oferta'));
@@ -227,7 +242,7 @@ describe('Middleware: настоящий 404 для несуществующих
     expect(NextResponse.rewrite).not.toHaveBeenCalled();
   });
 
-  it.each(['/about', '/catalog', '/coming-soon', '/electric-orange', '/unsubscribe'])(
+  it.each(['/about', '/catalog', '/coming-soon', '/electric', '/unsubscribe'])(
     'пропускает известный маршрут %s без обращения к API',
     async pathname => {
       const { middleware, NextResponse } = await loadMiddleware();

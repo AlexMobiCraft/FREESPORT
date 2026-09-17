@@ -5,6 +5,16 @@ const nextConfig: NextConfig = {
   htmlLimitedBots:
     /[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight|AuditikBot/i,
 
+  // Срок жизни HTML в общих кэшах (стори 41.19, решение D8, tech-debt п. 29).
+  // Next выводит `Cache-Control: s-maxage=<revalidate>,
+  // stale-while-revalidate=<expireTime − revalidate>`; при revalidate = 3600 это
+  // SWR = 82800. Умолчание Next 15.5.18 — год (server/config-shared.js), из-за
+  // него прод отдавал stale-while-revalidate=31532400. Значение влияет только на
+  // заголовок для общих кэшей (server/lib/cache-control.js), на ISR-кэш самого
+  // Next — нет. Каждый `revalidate` в src/app обязан быть меньше, иначе SWR не
+  // выводится: страж src/__tests__/next-config-cache.test.ts.
+  expireTime: 86400,
+
   // Настройки для Docker deployment
   // output: 'standalone', // Отключено: вызывает проблемы с next start
 
@@ -83,10 +93,6 @@ const nextConfig: NextConfig = {
           ? `${process.env.NEXT_PUBLIC_MEDIA_URL_INTERNAL}/media/:path*`
           : 'http://localhost:8001/media/:path*',
       },
-      {
-        source: '/electric-orange',
-        destination: '/electric-orange/index.html',
-      },
     ];
   },
 
@@ -116,7 +122,7 @@ const nextConfig: NextConfig = {
   //
   // Cache-Control здесь НЕ задаётся: в production Next перезаписывает значение
   // из конфига. Срок жизни HTML управляется сегментной опцией `revalidate`
-  // (см. src/app/layout.tsx).
+  // (см. src/app/layout.tsx), срок stale-while-revalidate — `expireTime` выше.
   async headers() {
     return [
       {

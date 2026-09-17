@@ -304,9 +304,11 @@ Step Id: 59
     - **Порядок закрытия:** (1) серверная обёртка страницы каталога с `generateMetadata({ searchParams })`; название категории берётся из API; (2) собственные title, description и canonical для `?category=<slug>`; прочие фильтры ставят canonical на свою категорию; (3) проверить, попадают ли адреса категорий в `frontend/src/app/sitemap.ts`; (4) `buildMetadata` имеет CRITICAL blast radius (14 вызывающих, см. стори 41.6) — сигнатуру не менять.
     - **Срок:** до запуска сайта.
 
-29. **HTML отдаётся с `stale-while-revalidate` почти на год — умолчание Next:**
+29. **HTML отдаётся с `stale-while-revalidate` почти на год — умолчание Next — ЗАКРЫТО 2026-09-17:**
     - **Дата внесения:** 2026-09-10, повторный аудит `optisport.ru` (`sprint-change-proposal-2026-09-10.md`).
     - **Где:** `frontend/next.config.ts` — `expireTime` не задан.
     - **Суть:** `Cache-Control: s-maxage=3600, stale-while-revalidate=31532400`. Прежний `s-maxage=31536000` снят стори 41.5; остаток — умолчание Next (`expireTime` = 1 год, SWR = `expireTime − revalidate`). Общего кэша перед сайтом нет, так что сейчас не срабатывает. Станет риском, если появится CDN.
     - **Порядок закрытия:** задать `expireTime` явно. Правка `next.config.ts` требует полного пересбора контейнера frontend. Приоритет низкий — делать вместе с ближайшей правкой `next.config.ts`.
     - **Передано в Epic 41 решением Alex 17.09.2026 (D8, `sprint-change-proposal-2026-09-16.md`):** создана постановка [Story 41.19](../planning-artifacts/epic-41-site-audit.md#story-4119-гигиена-публичной-поверхности--демо-страницы-метаданные-регистрации-корневые-умолчания), статус `backlog`. Значение `expireTime = 86400`. Долг закроется при реализации AC этой стори, не раньше.
+    - **Дата закрытия:** 2026-09-17, стори 41.19 (`Story/41-19-public-surface-hygiene-demo-routes-register-meta.md`). В `frontend/next.config.ts` задан `expireTime: 86400`; страж — `frontend/src/__tests__/next-config-cache.test.ts` (значение `expireTime`, каждый числовой `revalidate` в `src/app` меньше него, заголовок `getCacheControlHeader`).
+    - **Замер (локальная production-сборка, `next build` + `next start -p 3100`, 2026-09-17):** `/about`, `/coming-soon`, `/home`, `/electric` — `Cache-Control: s-maxage=3600, stale-while-revalidate=82800`. Прод-замер после ручного выката записывается в стори 41.19 (AC6).
