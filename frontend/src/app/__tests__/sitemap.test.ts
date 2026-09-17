@@ -63,6 +63,14 @@ describe('sitemap: публичные категории каталога', () =
     });
   });
 
+  it('не содержит подборок каталога и адреса фокуса поиска', async () => {
+    const paths = (await sitemap()).map(entry => pathOf(entry.url));
+
+    for (const param of ['is_new=', 'is_hit=', 'is_sale=', 'focusSearch=']) {
+      expect(paths.filter(path => path.includes(param))).toEqual([]);
+    }
+  });
+
   it('ошибка дерева не удаляет статические и остальные динамические адреса', async () => {
     vi.mocked(fetch).mockImplementation((input: string | URL | Request) => {
       const url = String(input);

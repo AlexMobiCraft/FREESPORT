@@ -7,8 +7,30 @@ const CATEGORY_TREE_FETCH_TIMEOUT_MS = 3000;
 
 const CATALOG_TITLE = 'Каталог спортивных товаров | OPTISPORT';
 const CATALOG_DESCRIPTION =
-  'Каталог спортивных товаров: фитнес и атлетика, единоборства, спортивные игры, плавание, туризм. Оптовые и розничные цены, доставка по России.';
+  'Каталог спортивных товаров: фитнес и атлетика, единоборства, спортивные игры, плавание, туризм. Оптовые и рекомендованные розничные цены, доставка по России.';
 const CATALOG_KEYWORDS = 'каталог спортивных товаров, спортинвентарь оптом, спортивная экипировка';
+
+// Подборки — фильтры-переключатели, а не посадочные страницы: canonical остаётся /catalog,
+// в sitemap их нет. Собственные title и description снимают дубли с базовым каталогом.
+const CATALOG_COLLECTIONS = {
+  is_new: {
+    title: 'Новинки — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Новинки в каталоге OPTISPORT: подборка спортивных товаров с ценами и условиями заказа для оптовых покупателей.',
+  },
+  is_hit: {
+    title: 'Лидеры продаж — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Лидеры продаж в каталоге OPTISPORT: подборка спортивных товаров с ценами и условиями заказа для оптовых покупателей.',
+  },
+  is_sale: {
+    title: 'Скидки — каталог спортивных товаров | OPTISPORT',
+    description:
+      'Скидки в каталоге OPTISPORT: подборка спортивных товаров со сниженными ценами и условиями заказа для оптовых покупателей.',
+  },
+} as const;
+
+type CatalogCollectionKey = keyof typeof CATALOG_COLLECTIONS;
 
 type CatalogSearchParams = Record<string, string | string[] | undefined>;
 
@@ -39,6 +61,17 @@ function buildCatalogMetadata(): Metadata {
     path: '/catalog',
     image: '/image.jpg',
   });
+}
+
+// Подборка — только адрес с единственным параметром is_new, is_hit или is_sale, равным строке 'true'
+// (как сравнивает клиент). Любой другой набор параметров оставляет прежнюю логику метаданных.
+function findCatalogCollection(params: CatalogSearchParams): CatalogCollectionKey | null {
+  const keys = Object.keys(params).filter(key => params[key] !== undefined);
+  if (keys.length !== 1) return null;
+
+  const [key] = keys;
+  if (!Object.hasOwn(CATALOG_COLLECTIONS, key) || params[key] !== 'true') return null;
+  return key as CatalogCollectionKey;
 }
 
 function collectCategories(nodes: unknown): Map<string, string> | null {
@@ -74,6 +107,14 @@ async function fetchCategoryNames(): Promise<Map<string, string> | null> {
 export async function generateMetadata({ searchParams }: CatalogPageProps): Promise<Metadata> {
   try {
     const params = await searchParams;
+    const collection = findCatalogCollection(params);
+    if (collection) {
+      return {
+        ...buildMetadata({ ...CATALOG_COLLECTIONS[collection], path: '/catalog' }),
+        keywords: null,
+      };
+    }
+
     const category = params.category;
     if (typeof category !== 'string' || !category.trim()) return buildCatalogMetadata();
 
@@ -85,7 +126,7 @@ export async function generateMetadata({ searchParams }: CatalogPageProps): Prom
     const query = new URLSearchParams({ category: slug });
     const path = `/catalog?${query.toString()}`;
     const title = `${name} — спортивные товары`;
-    const description = `Спортивные товары категории «${name}» в каталоге OPTISPORT: информация о товарах, ценах и условиях заказа для розничных и оптовых покупателей.`;
+    const description = `Товары категории «${name}» в каталоге OPTISPORT: цены и условия заказа для оптовых покупателей.`;
 
     return {
       ...buildMetadata({ title, description, path }),

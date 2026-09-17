@@ -13,6 +13,7 @@ import { Heart, ShoppingCart, Menu, X, Search, User, LogOut } from 'lucide-react
 import { authSelectors, useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/Button';
+import { CATALOG_SEARCH_HREF, requestCatalogSearchFocus } from '@/utils/catalogSearchFocus';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -119,7 +120,8 @@ const Header: React.FC = () => {
             <div className="hidden md:flex items-center gap-4">
               {/* Поиск */}
               <Link
-                href="/catalog?focusSearch=true"
+                href={CATALOG_SEARCH_HREF}
+                onClick={requestCatalogSearchFocus}
                 aria-label="Поиск"
                 className="p-2 text-text-primary hover:text-text-secondary transition-colors duration-short focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm"
               >
@@ -238,8 +240,11 @@ const Header: React.FC = () => {
                     {/* Все иконки в одном ряду */}
                     <div className="flex items-center gap-4">
                       <Link
-                        href="/catalog?focusSearch=true"
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        href={CATALOG_SEARCH_HREF}
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          requestCatalogSearchFocus();
+                        }}
                         aria-label="Поиск"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
@@ -297,8 +302,11 @@ const Header: React.FC = () => {
                     {/* Иконки для неавторизованных */}
                     <div className="flex items-center gap-4 mb-4">
                       <Link
-                        href="/catalog?focusSearch=true"
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        href={CATALOG_SEARCH_HREF}
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          requestCatalogSearchFocus();
+                        }}
                         aria-label="Поиск"
                         className="p-2 text-text-primary hover:text-text-secondary transition-colors"
                       >
