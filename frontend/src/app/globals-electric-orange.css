@@ -136,7 +136,7 @@
   --spacing-16: 64px;
   --spacing-20: 80px;
 
-  /* === LAYOUT (Strict from design_v2.3.0.json) === */
+  /* === LAYOUT (по дизайн-системе Electric Orange; макет удалён в 41.19, см. git history) === */
   --container-max-width: 1200px;
   --grid-gap: 20px;
   --section-padding: 20px;
@@ -562,7 +562,7 @@
     box-shadow: var(--shadow-hover);
   }
 
-  /* Product Card - Strictly matching public/electric-orange/index.html */
+  /* Product Card — по макету дизайн-системы Electric Orange (удалён в 41.19, см. git history) */
   .product-card {
     /* Merged .card properties */
     background: var(--bg-card);
@@ -1093,7 +1093,7 @@
     overflow: hidden;
   }
 
-  /* Orange Wave Effect - matches reference /electric-orange */
+  /* Orange Wave Effect — по макету дизайн-системы Electric Orange (удалён в 41.19, см. git history) */
   .category-card::after {
     content: '';
     position: absolute;

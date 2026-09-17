@@ -27,12 +27,8 @@ export default function robots(): MetadataRoute.Robots {
           '/password-reset',
           '/portal-link',
           '/coming-soon',
-          // Витрины альтернативной темы и демо-страницы — не для индекса
+          // Витрина альтернативной темы — не для индекса
           '/electric',
-          '/electric-orange-test',
-          '/design-comparison',
-          '/examples',
-          '/test',
         ],
       },
     ],

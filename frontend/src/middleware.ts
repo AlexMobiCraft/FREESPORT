@@ -19,11 +19,6 @@ import { isSafeRedirectUrl } from '@/utils/urlUtils';
  * `src/__tests__/app-routes-allowlist.test.ts`: добавил страницу верхнего уровня —
  * добавь её сюда, иначе она начнёт отдавать 404.
  *
- * `electric-orange` страницей НЕ является: это rewrite на статику
- * `public/electric-orange/index.html` (`next.config.ts`). Rewrites из
- * `next.config.ts` (afterFiles) выполняются ПОСЛЕ middleware, поэтому без записи
- * здесь рабочий адрес превратится в 404. Не удалять как «лишний».
- *
  * `/product`, `/orders` и `/b2b-dashboard` сюда намеренно не входят — страниц под
  * такими путями нет.
  */
@@ -36,11 +31,7 @@ export const KNOWN_TOP_LEVEL_ROUTES: ReadonlySet<string> = new Set([
   'checkout',
   'coming-soon',
   'delivery',
-  'design-comparison',
   'electric',
-  'electric-orange',
-  'electric-orange-test',
-  'examples',
   'home',
   'login',
   'news',
@@ -51,7 +42,6 @@ export const KNOWN_TOP_LEVEL_ROUTES: ReadonlySet<string> = new Set([
   'register',
   'requisites',
   'search',
-  'test',
   'unsubscribe',
 ]);
 
