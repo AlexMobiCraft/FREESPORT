@@ -15,6 +15,7 @@ import { SearchAutocomplete } from '@/components/business/SearchAutocomplete';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Grid2x2, List, ChevronDown } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { CATALOG_SEARCH_FOCUS_EVENT, CATALOG_SEARCH_HASH } from '@/utils/catalogSearchFocus';
 import { ProductCard as BusinessProductCard } from '@/components/business/ProductCard/ProductCard';
 import productsService, { type ProductFilters } from '@/services/productsService';
 import categoriesService from '@/services/categoriesService';
@@ -1262,15 +1263,34 @@ const CatalogContent: React.FC = () => {
   // Ref для поля поиска
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Фокус в поле поиска по ссылке «Поиск» из шапки. Три триггера:
+  // хэш #search при монтировании (переход с другой страницы), событие из шапки
+  // (каталог уже смонтирован — смена хэша не перемонтирует его) и старый
+  // параметр focusSearch=true из закладок.
+  const searchFocusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const focusSearchInput = useCallback(() => {
+    if (searchFocusTimerRef.current) clearTimeout(searchFocusTimerRef.current);
+    // Небольшая задержка чтобы убедиться что компонент смонтирован и анимации прошли
+    searchFocusTimerRef.current = setTimeout(() => {
+      searchFocusTimerRef.current = null;
+      searchInputRef.current?.focus();
+    }, 100);
+  }, []);
+
   useEffect(() => {
-    // Если перешли с параметром focusSearch=true, фокусируемся на поле поиска
-    if (focusSearchParam === 'true') {
-      // Небольшая задержка чтобы убедиться что компонент смонтирован и анимации прошли
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
-    }
-  }, [focusSearchParam]);
+    if (window.location.hash === `#${CATALOG_SEARCH_HASH}`) focusSearchInput();
+
+    window.addEventListener(CATALOG_SEARCH_FOCUS_EVENT, focusSearchInput);
+    return () => {
+      window.removeEventListener(CATALOG_SEARCH_FOCUS_EVENT, focusSearchInput);
+      if (searchFocusTimerRef.current) clearTimeout(searchFocusTimerRef.current);
+    };
+  }, [focusSearchInput]);
+
+  useEffect(() => {
+    if (focusSearchParam === 'true') focusSearchInput();
+  }, [focusSearchParam, focusSearchInput]);
 
   const handleToggle = (key: string) => {
     setExpandedKeys(prev => {
@@ -1545,10 +1565,13 @@ const CatalogContent: React.FC = () => {
             )}
           </h1>
 
-          {/* 2. Поиск - второй в DOM, визуально на первой строке в правой колонке. */}
+          {/* 2. Поиск - второй в DOM, визуально на первой строке в правой колонке.
+              scroll-mt-24: Next прокручивает к #search через scrollIntoView, без отступа
+              поле уходит под sticky-шапку и фокус в нём не виден. */}
           <search
+            id={CATALOG_SEARCH_HASH}
             role="search"
-            className="lg:row-start-1 lg:col-start-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-20 w-full"
+            className="scroll-mt-24 lg:row-start-1 lg:col-start-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-20 w-full"
           >
             {/* SearchAutocomplete должен растягиваться на w-full если нужно */}
             <SearchAutocomplete

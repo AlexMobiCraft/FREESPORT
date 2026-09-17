@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-15 (стори 41.16 — G1-G4 сняты, ready-for-dev)
+# last_updated: 2026-09-17 (стори 41.17 — create-story, ready-for-dev)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-15
+last_updated: 2026-09-17
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1210,6 +1210,38 @@ development_status:
   # 2026-09-15: Стори 41.16 взята в разработку (bmad-dev-story), baseline
   #             80eba24. ready-for-dev -> in-progress.
   41-16-editorial-audit-decision-register: done
+  # 2026-09-17: correct-course по третьему аудиту optisport.ru (21/100, 0
+  #             критичных, SEO 35/100) — sprint-change-proposal-2026-09-16.md,
+  #             одобрено Alex 17.09.2026. Заведены 4 Story: 41.17-41.20, +4 FR
+  #             (FR-41-33..36), acceptanceCriteria 93 -> 115 (+5,+6,+6,+5, сверено
+  #             grep -c '^\*\*Given\*\*'). Полные тексты Story внесены прямо в
+  #             epic-41-site-audit.md (отдельных файлов Story/ пока нет, их
+  #             создаёт bmad-create-story).
+  #             Редакция ревью 17.09.2026 (решения Alex): D1 — промежуточный
+  #             вариант: подборки is_new/is_hit/is_sale остаются фильтрами
+  #             (canonical /catalog, вне sitemap), но получают свои title и
+  #             description; замечание "canonical на другой URL" — принятое
+  #             исключение. D2 — description категорий без розничных покупателей.
+  #             D3 — cookie точки возврата в middleware вместо sessionStorage,
+  #             ссылки шапки и подвала не меняются. D6 дополнен макетом
+  #             /electric-orange (img/ сохраняется для темы /electric).
+  #             Ключи 41.17 и 41.18 переименованы под новый объём.
+  #             tech-debt.md п. 29 получил ссылку на Story 41.19 (D8:
+  #             expireTime=86400). Порядок: {41.17, 41.19, 41.20} -> 41.18
+  #             (middleware.ts после 41.19, тест D4 читает robots.ts из 41.19).
+  # 2026-09-17: Создана стори 41.17 (create-story) — Story/41-17-catalog-
+  #             collections-meta-descriptions-focus-search.md. GitNexus
+  #             переиндексирован пользователем (f264d06, up-to-date); impact:
+  #             generateMetadata каталога / CatalogContent / Header — LOW,
+  #             buildMetadata — HIGH (17 прямых), сигнатуру не трогать.
+  #             Поиск из шапки — /catalog#search + событие фокуса (переход по
+  #             фрагменту в Next 15.5.18 не меняет searchParams). Открытые
+  #             вопросы (не блокируют): имя категории > 72 симв.; «sticky» в AC3.
+  #             backlog -> ready-for-dev.
+  41-17-catalog-collections-meta-descriptions-focus-search: review
+  41-18-guest-login-return-cookie-and-single-noindex-mechanism: backlog
+  41-19-public-surface-hygiene-demo-routes-register-meta: backlog
+  41-20-newsletter-consent-wording-and-placeholders: backlog
   epic-41-retrospective: optional
 
 # ========================================
