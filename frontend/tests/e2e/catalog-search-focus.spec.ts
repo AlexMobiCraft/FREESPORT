@@ -30,11 +30,16 @@ async function expectSearchFocusedAndVisible(page: Page) {
  */
 async function mockEmptyApi(page: Page) {
   await page.route('**/api/v1/**', async route => {
-    const isTree = route.request().url().includes('/categories-tree/');
+    const url = route.request().url();
+    // /banners/ и /categories-tree/ отдают голый массив, а не пагинированный объект:
+    // HeroSection берёт banners[index] — пагинация там уронила бы страницу.
+    const isArrayEndpoint = url.includes('/banners/') || url.includes('/categories-tree/');
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(isTree ? [] : { count: 0, next: null, previous: null, results: [] }),
+      body: JSON.stringify(
+        isArrayEndpoint ? [] : { count: 0, next: null, previous: null, results: [] }
+      ),
     });
   });
 }
