@@ -4,7 +4,7 @@ baseline_commit: e7a19053
 
 # Story 41.19: Гигиена публичной поверхности — демо-страницы, метаданные регистрации, корневые умолчания
 
-Status: review
+Status: done
 Baseline Revision: e7a19053
 
 ## Story
@@ -155,14 +155,14 @@ so that внутренние макеты не утекали, а сканер �
     - `getCacheControlHeader({ revalidate: 3600, expire: 86400 })` из `next/dist/server/lib/cache-control` равен `'s-maxage=3600, stale-while-revalidate=82800'`. Если импорт внутреннего модуля не резолвится в Vitest, заменить проверку на арифметику `86400 - 3600 === 82800` и указать это в Completion Notes.
   - [x] 6.8 Существующие тесты `login/__tests__/layout.test.tsx:36-40` и `coming-soon/__tests__/page.test.tsx:37-38` (сравнение с `rootMetadata`) проходят без изменений.
 
-- [ ] **Task 7 — проверки и приёмка**
+- [x] **Task 7 — проверки и приёмка**
   - [x] 7.1 Frontend (в `frontend/`): `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run format:check`. Backend и OpenAPI не меняются, NFR-41-02 не затронут.
   - [x] 7.2 Локально в dev-контейнере (`docker compose --env-file .env -f docker/docker-compose.yml up -d --build frontend`: изменён `next.config.ts`, restart не хватит; затем `restart nginx`, иначе 502) выполнить `curl -s -o /dev/null -w '%{http_code}'` по всем адресам AC1 на `http://localhost:3000` → 404; `/electric` и `/electric-orange/img/bags.jpg` → 200; `curl -s http://localhost:3000/register` и `/b2b-register` → `<title>`, `meta description`, `link rel=canonical`, **нет** `meta name="robots"` и `meta name="keywords"`. Для метаданных в `<head>` использовать `-A "AuditikBot/1.0"` (`htmlLimitedBots`, 41.13).
   - [x] 7.3 `Cache-Control` в dev не проверяется: dev-режим отдаёт `no-store`. Проверять на production-сборке по прецеденту 41.5 (`next build` + `next start -p 3100` при живом backend) либо в прод-подобном контейнере: `curl -sI http://localhost:3100/about` → `s-maxage=3600, stale-while-revalidate=82800`; для `/coming-soon` — то же. Результат записать в Debug Log.
   - [x] 7.4 NFR-41-08: приватное окно браузера, без cookie — `/electric` с картинками секции категорий, `/register`, `/b2b-register` отображаются; `/examples`, `/electric-orange` → страница «Страница не найдена».
   - [x] 7.5 `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только ожидаемые символы: `KNOWN_TOP_LEVEL_ROUTES`, `LayoutWrapper`, `robots`, корневой `metadata`, новые layouts, удалённые демо-страницы. `middleware` может появиться из-за сдвига строк — его код не меняется.
   - [x] 7.6 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
-  - [ ] 7.7 **Внешний шаг (после мёрджа и ручного выката по SSH):** полный rebuild frontend (`up -d --build frontend`, затем `restart nginx`); AC6 — `curl` без cookie по всем адресам AC1, `/electric`, `/electric-orange/img/bags.jpg`, `/register`, `/b2b-register`, `curl -I /about`; снимок положить в стори (формат — раздел «Снимок прода до правки»). Повторный прогон сканера — шаг владельца после 41.17–41.20.
+  - [x] 7.7 **Внешний шаг (после мёрджа и ручного выката по SSH):** полный rebuild frontend (`up -d --build frontend`, затем `restart nginx`); AC6 — `curl` без cookie по всем адресам AC1, `/electric`, `/electric-orange/img/bags.jpg`, `/register`, `/b2b-register`, `curl -I /about`; снимок положить в стори (формат — раздел «Снимок прода до правки»). Повторный прогон сканера — шаг владельца после 41.17–41.20.
 
 ## Dev Notes
 
@@ -309,7 +309,16 @@ Claude Opus 5 (claude-opus-5), bmad-dev-story, 17.09.2026
   - **AC4:** корневые title и description по D7, `keywords` удалён; og и twitter берут те же константы.
   - **AC5:** `expireTime: 86400` в `next.config.ts` с комментарием; комментарии над `headers()` и `revalidate` дополнены ссылкой на `expireTime`. `tech-debt.md` п. 29 закрыт с локальным замером.
   - **Тесты:** allowlist — обратная сверка (список совпадает с деревом `src/app`, 20 маршрутов) и `it.each` на 5 удалённых записей; middleware — `/electric` вместо `/electric-orange` в известных маршрутах, `it.each` на 404 для 5 демо-адресов. Новые: `public-demo-assets` (4), `next-config-cache` (3; импорт `next/dist/server/lib/cache-control` в Vitest резолвится, запасная арифметика не понадобилась), `robots` (8), `layout-metadata` (4), layouts `/register` и `/b2b-register` (по 7). Тесты `login/layout` и `coming-soon/page` со сверкой с `rootMetadata` проходят без изменений.
-  - **Открыт только 7.7** — внешний шаг после мёрджа и ручного выката: AC6 на `https://optisport.ru`, снимок в стори.
+  - **7.7 (AC6, прод, `https://optisport.ru`, 17.09.2026) — выполнено.** PR #197 → `develop` (`bb940a61`), sync `develop` → `main` через PR #198 (`6ecbfa10`) — CI на `main` требует прохождения всех 5 обязательных контекстов, поэтому синхронизация тоже шла через PR, а не прямой push. На сервере: `git fetch origin main && git reset --hard origin/main` → `6ecbfa10`; миграций к применению не было (стори только frontend); `up -d --build frontend` (обязателен полный rebuild — правился `next.config.ts`) + `restart nginx`.
+
+    | Адрес | Код |
+    |---|---|
+    | `/examples`, `/examples/1.html`, `/examples/17-.txt` | 404 |
+    | `/test`, `/design-comparison`, `/electric-orange-test` | 404 |
+    | `/electric-orange`, `/electric-orange/index.html`, `/electric-orange/index1.html`, `/electric-orange/design.json`, `/electric-orange/design_v2.3.0.json` | 404 |
+    | `/electric-orange/img/bags.jpg`, `/electric`, `/register`, `/b2b-register` | 200 |
+
+    `/register` (`-A "AuditikBot/1.0"`): `<title>Регистрация | OPTISPORT</title>`, description по таблице, `canonical=https://optisport.ru/register`, `meta robots`/`keywords` — 0 совпадений. `/b2b-register`: `<title>Регистрация компании | OPTISPORT</title>`, description по таблице, `canonical=https://optisport.ru/b2b-register`, `meta robots`/`keywords` — 0. Корень `/`: `<title>OPTISPORT — спортивные товары оптом</title>`, description по D7. `/about`: `Cache-Control: s-maxage=3600, stale-while-revalidate=82800`. Все контейнеры (`frontend`, `nginx`, `backend`) здоровы после выката. AC1–AC6 закрыты полностью, стори завершена.
 
 ### File List
 
