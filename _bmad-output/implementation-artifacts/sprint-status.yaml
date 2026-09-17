@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-17 (стори 41.19 — dev-story, review)
+# last_updated: 2026-09-17 (стори 41.20 — review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1260,8 +1260,47 @@ development_status:
   #             -> 404, SWR=82800 на prod-сборке; npm test — 190 файлов, 3303
   #             passed. Открыт внешний шаг 7.7 — AC6 на проде после ручного
   #             выката. in-progress -> review.
-  41-19-public-surface-hygiene-demo-routes-register-meta: review
-  41-20-newsletter-consent-wording-and-placeholders: backlog
+  # 2026-09-17: AC6 подтверждён на проде после ручного выката (sync main через
+  #             PR #198, 6ecbfa10; up -d --build frontend + restart nginx).
+  #             Все 11 демо-адресов -> 404, /register и /b2b-register -> 200 с
+  #             утверждёнными метаданными, /about SWR=82800. review -> done.
+  41-19-public-surface-hygiene-demo-routes-register-meta: done
+# 2026-09-17: Создана стори 41.20 (create-story) — Story/41-20-newsletter-consent-
+#             wording-and-placeholders.md. Порядок эпика соблюдён: {41.17, 41.19,
+#             41.20} -> 41.18, 41.18 остаётся последней. GitNexus up-to-date на
+#             43ea1539; impact: пять компонентов форм — LOW (по 1 прямому
+#             вызывающему), load_registry и current_consent_text_version — HIGH
+#             (9 и 7 затронутых, процессы subscribe и регистрации), но сами
+#             функции не меняются — меняются данные реестра.
+#             Разбор выявил шесть вещей сверх текста эпика: (а) D5 затрагивает
+#             ЧЕТЫРЕ формы — B2BRegisterForm делит поверхность
+#             registration_marketing_checkbox с RegisterForm; (б) дословно равные
+#             тексты двух поверхностей дали бы одинаковые версии, а загрузчик
+#             отклоняет дубль — метки получают суффиксы -newsletter/-registration;
+#             (в) RegisterForm.test.tsx:122 и test_api_schema.py упадут без явных
+#             правок; (г) литералы заменяемых версий лежат в views.py:339,
+#             openapi.yaml:105 и docs/architecture/18-*.md:142; (д) deferred-work.md
+#             несёт незакрытую запись про example@email.com — стори её закрывает,
+#             но решением «удалить», а не заменой на pochta@mail.ru; (е) серверный
+#             HTML формы не содержит (клиентские) — приёмка браузером и по
+#             клиентским чанкам. Решения Alex 17.09.2026: E20 «оставить»
+#             (24 товара BoyBo First/Black Edition, данные 1С), E21 «удалить
+#             плейсхолдер», охват D5 — все четыре формы. backlog -> ready-for-dev.
+  # 2026-09-17: dev-story на ветке feature/41-20-newsletter-consent-wording от
+  #             origin/develop (43ea1539). Реализованы AC1-AC4 и локальная часть
+  #             AC5: две ревизии реестра согласий (метки -newsletter/-registration
+  #             различают дословно одинаковый текст D5), новые версии на фронте,
+  #             текст D5 в четырёх формах, пять плейсхолдеров example удалены,
+  #             новый страж public-forms-no-example-placeholders.test.tsx,
+  #             реестр решений 41.16 дополнен (E03 исправлен, E20/E21 добавлены,
+  #             21 ID), запись deferred-work.md закрыта. Прогоны: фронт 3318
+  #             passed / 16 skipped, backend 218 passed в Docker, lint/tsc/
+  #             prettier/black/flake8 чисто, check_openapi_sync OK, типы не
+  #             изменились, makemigrations --check без изменений. Открыт внешний
+  #             шаг 8.10 — выкат на прод (up -d --build frontend, restart backend
+  #             celery celery-beat, обязательный restart nginx) и прод-приёмка
+  #             AC5. in-progress -> review.
+  41-20-newsletter-consent-wording-and-placeholders: review
   epic-41-retrospective: optional
 
 # ========================================

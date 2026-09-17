@@ -304,7 +304,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         error={errors.email?.message}
         disabled={isSubmitting}
         autoComplete="email"
-        placeholder="user@example.com"
       />
 
       {/* Story 29.1 AC 1, 2, 5: Role Selector с accessibility */}
@@ -495,8 +494,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           htmlFor="register-marketing-consent"
           className="text-body-s text-text-primary cursor-pointer select-none"
         >
-          Я согласен(на) получать рекламные и информационные рассылки от OPTISPORT по электронной
-          почте
+          Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
+          электронной почте
         </label>
       </div>
 

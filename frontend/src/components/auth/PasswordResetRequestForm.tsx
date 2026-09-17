@@ -74,7 +74,6 @@ export const PasswordResetRequestForm = () => {
           error={errors.email?.message}
           aria-describedby={errors.email ? 'email-error' : undefined}
           aria-required="true"
-          placeholder="example@email.com"
           autoComplete="email"
           disabled={isSubmitting}
         />

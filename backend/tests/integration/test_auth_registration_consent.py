@@ -23,6 +23,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 
 _INN_COUNTER = itertools.count(1)
 
+# Прежняя формулировка рассылки регистрации (до решения D5, стори 41.20). Литерал
+# намеренный: версия неизменяема и остаётся в `known_versions` ради записей
+# журнала прода, но действующей быть перестала.
+PREVIOUS_REGISTRATION_MARKETING_TEXT_VERSION = "2026-09-12-a49604a66adaadfdc221bdc141d8d97d"
+
 
 def unique_email(prefix: str) -> str:
     return f"{prefix}_{time.time_ns()}@example.com"
@@ -394,6 +399,31 @@ def test_registration_rejects_previous_marketing_text_version_without_channel():
     payload = trainer_payload(
         marketing_consent=True,
         marketing_consent_text_version="2026-09-09-e26471e47eba2ba742a4f4488dfdda05",
+    )
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
+    assert User.objects.filter(email=payload["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
+def test_registration_rejects_previous_marketing_text_version_before_d5():
+    """Непосредственно предыдущая формулировка рассылки регистрации (до D5, стори 41.20) отклоняется (AC2).
+
+    Литерал уместен: версия неизменяема и остаётся в `known_versions` ради
+    записей журнала прода. Вкладка, открытая до выката 41.20, показывала
+    «Я согласен(на) получать рекламные и информационные рассылки…» — согласие на
+    прежний текст записываться не должно.
+    """
+    client = APIClient()
+    payload = trainer_payload(
+        marketing_consent=True,
+        marketing_consent_text_version=PREVIOUS_REGISTRATION_MARKETING_TEXT_VERSION,
     )
 
     response = post_register(client, payload)
