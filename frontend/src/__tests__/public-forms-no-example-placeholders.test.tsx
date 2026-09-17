@@ -80,9 +80,19 @@ describe('Публичные формы не содержат техническ
     render(renderForm());
 
     // Подпись — единственный носитель смысла поля после удаления плейсхолдера,
-    // поэтому проверяется именно доступное имя, а не наличие текста на странице.
+    // поэтому проверяется и доступное имя, и видимость самой подписи: скрытый
+    // `sr-only`-label дал бы зелёное доступное имя, но AC3 требует подпись,
+    // которую видно глазами, — иначе поле визуально останется без пояснения.
     const emailInput = screen.getByLabelText(/электронная почта/i);
     expect(emailInput).toHaveAccessibleName(/электронная почта/i);
+
+    const labelId = emailInput.getAttribute('aria-labelledby');
+    const label = labelId
+      ? document.getElementById(labelId)
+      : document.querySelector(`label[for="${emailInput.id}"]`);
+    expect(label).not.toBeNull();
+    expect(label).toBeVisible();
+    expect(label).toHaveTextContent(/электронная почта/i);
   });
 
   it.each(PUBLIC_FORMS)('%s: разметка не содержит подстроки example', (_name, renderForm) => {

@@ -48,6 +48,10 @@ VALID_CONSENTS = {
     "marketing_consent_text_version": NEWSLETTER_MARKETING_TEXT_VERSION,
 }
 VERSION_FIELDS = ["pdp_consent_text_version", "marketing_consent_text_version"]
+# Прежняя формулировка рассылки подписки (до решения D5, стори 41.20). Литерал
+# намеренный: версия неизменяема и остаётся в `known_versions` ради записей
+# журнала прода, но действующей быть перестала.
+PREVIOUS_NEWSLETTER_MARKETING_TEXT_VERSION = "2026-09-12-1a97b44f2bc0b52e69d15d705be59c0c"
 # Версия, записываемая в журнал для каждого типа согласия подписки.
 EXPECTED_VERSIONS = {
     "pdp_contract": NEWSLETTER_PDP_TEXT_VERSION,
@@ -505,6 +509,30 @@ class TestSubscribeEndpoint:
         assert response.json() == {
             "error": CONSENT_TEXT_OUTDATED_CODE,
             "details": {field: [CONSENT_TEXT_OUTDATED]},
+        }
+        assert not Newsletter.objects.filter(email=data["email"]).exists()
+        assert UserConsent.objects.count() == 0
+
+    def test_subscribe_rejects_previous_marketing_text_version(self, api_client):
+        """Непосредственно предыдущая формулировка рассылки (до D5, стори 41.20) отклоняется (AC2).
+
+        Литерал уместен: это неизменяемая историческая версия, она осталась в
+        `known_versions` ради записей журнала прода. Вкладка, открытая до выката
+        41.20, показывала «Я согласен(на) получать…» — согласие на прежний текст
+        записываться не должно, ответ обязан быть тем же `consent_text_outdated`.
+        """
+        url = reverse("common:subscribe")
+        data = subscribe_payload(
+            "previous-marketing-version@example.com",
+            marketing_consent_text_version=PREVIOUS_NEWSLETTER_MARKETING_TEXT_VERSION,
+        )
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
         }
         assert not Newsletter.objects.filter(email=data["email"]).exists()
         assert UserConsent.objects.count() == 0

@@ -190,6 +190,29 @@ so that форма соответствовала 152-ФЗ и 38-ФЗ по бу�
   - [x] 8.9 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
   - [ ] 8.10 **Внешний шаг (после мёрджа и ручного выката по SSH):** `up -d --build frontend` (текст зашит в бандл — restart недостаточен), `restart backend celery celery-beat`, затем обязательный `restart nginx`. Приёмка AC5: шаги 8.6 и 8.7 против `https://optisport.ru`; снимок положить в стори. Повторный прогон сканера — шаг владельца после 41.17–41.20.
 
+### Review Findings
+
+- [x] [Review][Patch] Запись E21 не ссылается на неизменяемый commit и преждевременно выдаёт локальную chunk-проверку за прод-доказательство AC5 [_bmad-output/implementation-artifacts/Story/41-16-editorial-audit-decision-register.md:174]
+- [x] [Review][Patch] Страж AC3 проверяет доступное имя, но не видимость подписи «Электронная почта» [frontend/src/__tests__/public-forms-no-example-placeholders.test.tsx:79]
+- [x] [Review][Patch] Нет интеграционных API-тестов, что непосредственно предыдущие версии `2026-09-12-*` отклоняются подпиской и регистрацией [backend/tests/integration/test_common_subscribe_api.py:465; backend/tests/integration/test_auth_registration_consent.py:386]
+
+#### Rejected
+
+- [Rejected][low] Команда 4.8 с `grep 'placeholder'` не может вернуть пусто из-за разрешённого Tailwind-класса; это дефект формулировки Story, не кода.
+- [Rejected][low] AC5 буквально требует текст чекбокса на пяти страницах, хотя `/password-reset` его не имеет; Completion Notes уже дают однозначное толкование, а fix требует правки Story.
+- [Rejected][medium] Родительская Task 8 отмечена выполненной при открытом 8.10 и частичном AC5; finding реален, но исправление редактирует саму Story under review.
+- [Rejected][low] Шаг 8.7 показан с прод-URL, но отмечен по локальному эквиваленту; расхождение только в тексте Story.
+- [Rejected][maybe-false] Критерий нуля `example` в chunk-файлах может захватить vendor-код; фактический прод-набор chunk-файлов пока не проверен, а fix меняет AC5.
+- [Rejected][false] Выбор `input[type="email"]` не проверяет неверное поле в текущем diff: в каждой из пяти форм только одно email-поле.
+- [Rejected][low] Фраза о соответствии 152-ФЗ/38-ФЗ шире факта внедрения D5, но её исправление меняет Story, а не implementation.
+- [Rejected][medium] Порядок выката допускает окно `consent_text_outdated` между новым frontend и неперезапущенным backend; finding реален, но fix изменяет deployment-инструкцию Story under review.
+- [Rejected][low] Completion Notes указывают девять GitNexus-символов, но перечисляют только четыре формы и константу; это дефект отчёта Story, а не кода.
+- [Rejected][false] Фраза `deferred-work.md` о четырёх других формах верно описывает последствие точечной замены только в `PasswordResetRequestForm`.
+- [Rejected][low] File List называет файл Story 41.20 `UPDATE`, хотя diff создаёт его; это мелкая ошибка самой Story.
+- [Rejected][low] Для E20 нет отдельного снимка prod-ответа, но AC4 требует контекст и решение владельца, которые зафиксированы; добавление артефакта не оправдано.
+- [Rejected][medium] Acceptance Auditor дублировал незакрытую Task 8/AC5; вердикт тот же: факт реален, но fix редактирует Story under review.
+- [Rejected][false] Полный `npm run format:check` во время review завершился успешно: все файлы соответствуют Prettier.
+
 ## Dev Notes
 
 ### Текущее состояние (код `43ea1539`, прод 17.09.2026)
@@ -361,6 +384,10 @@ Claude Opus 5 (claude-opus-5), bmad-dev-story, 17.09.2026
 - **Не менялись, как предписано:** `consent_texts.py` (загрузчик, формула версии, пределы), состав `surfaces` и `bindings`, поверхность `newsletter_checkbox`, тексты ПДн-чекбоксов, константы `newsletterPdp`/`registrationPdp`, Tailwind-класс `placeholder:text-…` в `ElectricSubscribeForm`, русскоязычные и нейтральные плейсхолдеры остальных полей, story-файлы 35.2/41.3/41.9/41.11 и `tasks/intent-site-audit-*.md`, `epic-41-site-audit.md`.
 - **Прогоны.** Фронт: `npm test` — 191 файл, 3318 passed, 16 skipped (ориентир после 41.19 — 190/3303/16; прирост даёт новый страж на 15 тестов); `npm run lint`, `npx tsc --noEmit`, `prettier --check` по затронутым файлам — чисто. Backend в Docker/PostgreSQL: 218 passed за 4 м 58 с (`test_consent_texts.py`, `test_api_schema.py`, `test_user_consent.py`, `tests/integration/test_auth_registration_consent.py`, `test_common_subscribe_api.py`); `black --check` и `flake8` по затронутым файлам — чисто.
 - **GitNexus.** Индекс `up-to-date` (`43ea153`). `impact --direction upstream` по полным UID: пять форм — LOW, по одному прямому вызывающему; `CONSENT_TEXT_VERSIONS` — LOW; `load_registry` — **HIGH** (2 прямых, 9 затронутых, процессы `subscribe` и регистрация), но сама функция не менялась — менялись только читаемые ею данные, поэтому риск закрыт прогонами 8.2 и 8.5. `detect-changes --scope all` — 9 символов: четыре формы и `CONSENT_TEXT_VERSIONS`; символов загрузчика реестра нет, как и требовала проверка 8.8.
+- **17.09.2026, code-review (3 findings `[Review][Patch]`) — закрыты:**
+  - ✅ Resolved review finding [Patch]: запись E21 в реестре 41.16 переведена со ссылки на ветку на неизменяемый коммит `128bc989`; формулировка доказательства разделена — AC3 и локальная приёмка закрыты по коду, прод-приёмка AC5 явно оставлена за шагом 8.10 (раньше локальная chunk-проверка подавалась как прод-доказательство).
+  - ✅ Resolved review finding [Patch]: страж AC3 `public-forms-no-example-placeholders.test.tsx` теперь проверяет не только доступное имя, но и **видимость** подписи: находит сам элемент `<label>` (по `aria-labelledby` или `for`) и требует `toBeVisible()` и текст «Электронная почта». Red-фаза подтверждена — временный `style={{display:'none'}}` у `<label>` в `ui/Input` уронил 4 из 15 тестов, после отката 15 passed; `Input.tsx` в дифф не входит.
+  - ✅ Resolved review finding [Patch]: добавлены два интеграционных API-теста на отклонение **непосредственно предыдущих** версий: `test_subscribe_rejects_previous_marketing_text_version` (`2026-09-12-1a97b44f…`, подписка) и `test_registration_rejects_previous_marketing_text_version_before_d5` (`2026-09-12-a49604a6…`, регистрация). Оба ждут 400 `consent_text_outdated`, отсутствие `Newsletter`/`User` и пустой журнал. Литералы намеренные — версии неизменяемы и остаются в `known_versions`; приём взят у существующего `test_registration_rejects_previous_marketing_text_version_without_channel`.
 - **Открыто:** шаг 8.10 — выкат на прод (`up -d --build frontend`, `restart backend celery celery-beat`, обязательный `restart nginx`) и прод-приёмка AC5 по шагам 8.6/8.7 против `https://optisport.ru`. Выполняется владельцем после мёрджа; снимок результата дописывается в стори.
 - 17.09.2026: create-story — анализ эпика, предложения 16.09 (D5), триажа 16.09, реестра 41.16, стори 41.19/41.16/41.11/41.9/41.3; код на `43ea1539`, GitNexus `up-to-date`. Установлено сверх текста эпика: (а) D5 затрагивает **четыре** формы — `B2BRegisterForm` делит поверхность `registration_marketing_checkbox` с `RegisterForm`; (б) дословно одинаковый текст двух поверхностей потребовал бы одинаковых версий, а загрузчик отклоняет дубль — отсюда метки с суффиксами `-newsletter`/`-registration`; (в) `RegisterForm.test.tsx:122` и `test_api_schema.py::test_subscribe_example_uses_current_versions` упадут без явных правок; (г) `views.py:339`, `docs/api/openapi.yaml:105` и `docs/architecture/18-b2b-verification-workflow.md:142` содержат литералы заменяемых версий; (д) `deferred-work.md` несёт незакрытую запись про `example@email.com`, которую стори закрывает — но решением «удалить», а не предполагавшейся заменой; (е) серверный HTML форм не содержит, приёмка идёт браузером и по клиентским чанкам. Контекст E20 установлен по прод-API (24 товара BoyBo). Решения владельца по E20, E21 и охвату D5 получены и внесены. Ultimate context engine analysis completed - comprehensive developer guide created. Код не менялся.
 
@@ -386,6 +413,9 @@ Claude Opus 5 (claude-opus-5), bmad-dev-story, 17.09.2026
 - `frontend/src/components/auth/__tests__/B2BRegisterForm.test.tsx` — UPDATE: `MARKETING_CONSENT_NAME`.
 - `frontend/src/components/auth/__tests__/PasswordResetRequestForm.test.tsx` — UPDATE: тест плейсхолдера переписан в «поле электронной почты не имеет плейсхолдера».
 
+- `backend/tests/integration/test_common_subscribe_api.py` — UPDATE: тест отклонения предыдущей версии рассылки подписки (review-фикс).
+- `backend/tests/integration/test_auth_registration_consent.py` — UPDATE: тест отклонения предыдущей версии рассылки регистрации (review-фикс).
+
 **Документация и артефакты**
 - `docs/api/openapi.yaml` — UPDATE: значение примера `marketing_consent_text_version`.
 - `docs/architecture/18-b2b-verification-workflow.md` — UPDATE: то же в примере запроса регистрации.
@@ -399,3 +429,4 @@ Claude Opus 5 (claude-opus-5), bmad-dev-story, 17.09.2026
 - 17.09.2026 — create-story: стори создана, статус ready-for-dev.
 - 17.09.2026 — решения Alex: E20 «оставить», E21 «удалить плейсхолдер», охват D5 — четыре формы.
 - 17.09.2026 — dev-story: реализованы AC1–AC4 и локальная часть AC5; две ревизии реестра, новые версии на фронте, текст D5 в четырёх формах, пять плейсхолдеров `example` удалены, реестр решений 41.16 дополнен (21 ID), запись `deferred-work.md` закрыта. Прогоны: фронт 3318 passed / 16 skipped, backend 218 passed в Docker, lint/tsc/prettier/black/flake8 чисто, `check_openapi_sync` OK. Открыт внешний шаг 8.10 — выкат на прод и прод-приёмка AC5. Статус: ready-for-dev → review.
+- 17.09.2026 — dev-story после code-review: закрыты 3 finding `[Review][Patch]` — ссылка на неизменяемый коммит и разделение доказательств в записи E21, проверка видимости подписи в страже AC3, два интеграционных теста на отклонение версий `2026-09-12-*`. Статус: in-progress → review.
