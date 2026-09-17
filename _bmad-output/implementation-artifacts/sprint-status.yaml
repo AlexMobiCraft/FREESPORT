@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-17 (стори 41.19 — dev-story, review)
+# last_updated: 2026-09-17 (стори 41.19 — done, прод подтверждён)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1260,7 +1260,11 @@ development_status:
   #             -> 404, SWR=82800 на prod-сборке; npm test — 190 файлов, 3303
   #             passed. Открыт внешний шаг 7.7 — AC6 на проде после ручного
   #             выката. in-progress -> review.
-  41-19-public-surface-hygiene-demo-routes-register-meta: review
+  # 2026-09-17: AC6 подтверждён на проде после ручного выката (sync main через
+  #             PR #198, 6ecbfa10; up -d --build frontend + restart nginx).
+  #             Все 11 демо-адресов -> 404, /register и /b2b-register -> 200 с
+  #             утверждёнными метаданными, /about SWR=82800. review -> done.
+  41-19-public-surface-hygiene-demo-routes-register-meta: done
   41-20-newsletter-consent-wording-and-placeholders: backlog
   epic-41-retrospective: optional
 
