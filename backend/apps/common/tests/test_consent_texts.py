@@ -124,6 +124,20 @@ def test_newsletter_pdp_version_differs_from_registration_pdp_version():
     )
 
 
+def test_newsletter_marketing_version_differs_from_registration_marketing_version():
+    """У рассылки подписки и рассылки регистрации разные версии при одинаковом тексте.
+
+    Со стори 41.20 (решение D5) обе формулировки совпадают дословно, значит
+    совпадают и их хеши. Различает версии только метка ревизии
+    (`2026-09-17-newsletter` против `2026-09-17-registration`): совпади версии
+    целиком, загрузчик отверг бы реестр как дубль ревизии, и отказали бы оба
+    эндпоинта согласия — и подписка, и регистрация.
+    """
+    assert current_consent_text_version(UserConsent.SOURCE_NEWSLETTER, "marketing_email") != (
+        current_consent_text_version(UserConsent.SOURCE_REGISTRATION, "marketing_email")
+    )
+
+
 @pytest.mark.parametrize(
     ("version", "text"),
     [
