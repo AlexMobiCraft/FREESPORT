@@ -325,7 +325,6 @@ export const ElectricSubscribeForm: React.FC = () => {
           <input
             id={emailId}
             type="email"
-            placeholder="name@example.ru"
             className={`
                    w-full bg-[var(--bg-card)] border-2 px-4 py-3 outline-none transition-all duration-300 transform skew-x-12
                    placeholder:text-[var(--color-text-muted)]
@@ -382,8 +381,8 @@ export const ElectricSubscribeForm: React.FC = () => {
             htmlFor={marketingConsentId}
             className="cursor-pointer"
           >
-            Я согласен(на) получать информационные и рекламные рассылки от OPTISPORT по электронной
-            почте
+            Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
+            электронной почте
           </label>
         </ElectricConsentCheckbox>
       </div>

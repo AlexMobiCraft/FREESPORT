@@ -216,7 +216,6 @@ export const SubscribeForm: React.FC = () => {
       <Input
         label="Электронная почта"
         type="email"
-        placeholder="name@example.ru"
         error={errors.email?.message}
         aria-required="true"
         aria-invalid={!!errors.email}
@@ -292,7 +291,7 @@ export const SubscribeForm: React.FC = () => {
               htmlFor={marketingConsentId}
               className="text-body-s text-text-primary cursor-pointer select-none"
             >
-              Я согласен(на) получать информационные и рекламные рассылки от OPTISPORT по
+              Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
               электронной почте
             </label>
           </div>

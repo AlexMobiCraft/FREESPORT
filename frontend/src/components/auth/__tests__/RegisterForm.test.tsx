@@ -18,6 +18,10 @@ const PDP_CONSENT_NAME =
   'Я даю согласие на обработку моих персональных данных в соответствии с ' +
   '«Политикой обработки персональных данных»';
 const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
+// Стори 41.20 (решение D5): формулировка рассылки читается как согласие, а не как
+// констатация факта. Поиск идёт по точному имени, чтобы страж ловил расхождение в пробел.
+const MARKETING_CONSENT_NAME =
+  'Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по электронной почте';
 
 // Mock next/navigation
 const mockPush = vi.fn();
@@ -45,9 +49,7 @@ describe('RegisterForm', () => {
   };
 
   const getMarketingConsent = () =>
-    screen.getByRole('checkbox', {
-      name: /получать рекламные и информационные рассылки от optisport/i,
-    });
+    screen.getByRole('checkbox', { name: MARKETING_CONSENT_NAME });
 
   /**
    * После отключения розничной регистрации роль обязательна, а вместе с ней
@@ -116,10 +118,11 @@ describe('RegisterForm', () => {
     test('should name the email channel in the marketing consent (Story 41.11)', () => {
       render(<RegisterForm />);
 
-      // FR-41-26: текст рассылки называет канал, «согласен(на)» — без пробела.
+      // FR-41-26: текст рассылки называет канал — электронную почту.
+      // Стори 41.20 (решение D5): начало формулировки читается как согласие.
       const marketingConsent = getMarketingConsent();
       expect(marketingConsent).toHaveAccessibleName(/по электронной почте$/);
-      expect(marketingConsent).toHaveAccessibleName(/^Я согласен\(на\) получать/);
+      expect(marketingConsent).toHaveAccessibleName(/^Я даю согласие на получение/);
     });
 
     test('should keep optional marketing checkbox without inline error state', async () => {

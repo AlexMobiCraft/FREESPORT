@@ -42,11 +42,14 @@ describe('PasswordResetRequestForm', () => {
       expect(emailInput).toHaveAttribute('autocomplete', 'email');
     });
 
-    test('should have email placeholder', () => {
+    // Стори 41.20 (решение E21): плейсхолдер-образец удалён, а не заменён — видимая
+    // подпись и type="email" делают латинский образец адреса лишним.
+    test('поле электронной почты не имеет плейсхолдера', () => {
       render(<PasswordResetRequestForm />);
 
       const emailInput = screen.getByLabelText(/электронная почта/i);
-      expect(emailInput).toHaveAttribute('placeholder', 'example@email.com');
+      expect(emailInput).not.toHaveAttribute('placeholder');
+      expect(emailInput).toHaveAccessibleName(/электронная почта/i);
     });
   });
 
