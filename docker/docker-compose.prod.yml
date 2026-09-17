@@ -146,6 +146,8 @@ services:
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
       - INTERNAL_API_URL=http://backend:8000
       - ACTIVE_THEME=${ACTIVE_THEME:-blue}
+      # Секрет для POST /api/revalidate — on-demand сброс ISR-кэша после деплоя
+      - REVALIDATE_SECRET=${REVALIDATE_SECRET:-}
     healthcheck:
       test:
         [
