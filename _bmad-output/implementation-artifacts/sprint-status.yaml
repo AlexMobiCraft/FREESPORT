@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.20 — done)
+# last_updated: 2026-09-18 (стори 41.18 — review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-17
+last_updated: 2026-09-18
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1242,7 +1242,25 @@ development_status:
   #             Финальное BMad review не выявило дефектов кода; документальное
   #             замечание о базовом description исправлено. review -> done.
   41-17-catalog-collections-meta-descriptions-focus-search: done
-  41-18-guest-login-return-cookie-and-single-noindex-mechanism: backlog
+  # 2026-09-18: Создана стори 41.18 (create-story) — Story/41-18-guest-login-
+  #             return-cookie-and-single-noindex-mechanism.md. Последняя в эпике,
+  #             41.17/41.19/41.20 уже done — ребейз не нужен. GitNexus: индекс
+  #             59dce537 формально stale, дифф до c43a6499 без продакшен-кода;
+  #             impact: middleware, LoginPageContent, LoginForm, CheckoutStateView —
+  #             LOW; isSafeRedirectUrl — CRITICAL (6 прямых), не меняется;
+  #             buildMetadata — HIGH, только снимается аргумент noIndex. Прод 18.09:
+  #             /profile -> 307 /login?next=%2Fprofile; noindex на /checkout, /cart,
+  #             /login, /search. Находки сверх эпика: cookie удалять с path=/login
+  #             (delete строкой не удалит), happy-dom не удаляет по Max-Age=0,
+  #             мок NextResponse.redirect возвращает undefined, prefetch не должен
+  #             ставить cookie, Secure по NODE_ENV (за nginx протокол http).
+  #             backlog -> ready-for-dev.
+  # 2026-09-18: Решения Alex: имя cookie loginReturnTo утверждено и внесено в
+  #             политику ПДн. Устаревшая цель (S8) признана некорректной и
+  #             исправляется в объёме стори: /login забирает cookie при открытии
+  #             (память страницы + удаление), LoginForm.tsx выведен из диффа. В
+  #             эпике AC2 стори 41.18 дополнен пунктом And; число AC (115) прежнее.
+  41-18-guest-login-return-cookie-and-single-noindex-mechanism: review
   # 2026-09-17: Создана стори 41.19 (create-story) — Story/41-19-public-surface-
   #             hygiene-demo-routes-register-meta.md. Взята раньше 41.18: порядок
   #             {41.17, 41.19, 41.20} -> 41.18. GitNexus: индекс 3beb751 формально

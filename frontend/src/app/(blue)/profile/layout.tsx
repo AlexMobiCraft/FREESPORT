@@ -5,7 +5,7 @@
  *
  * ВАЖНО: Middleware (`frontend/src/middleware.ts`) УЖЕ защищает `/profile/*` маршруты.
  * Layout не требует дополнительной auth проверки - middleware автоматически
- * редиректит неавторизованных пользователей на `/login?next=/profile`.
+ * редиректит неавторизованных пользователей на `/login` с cookie точки возврата (стори 41.18).
  */
 
 import React from 'react';

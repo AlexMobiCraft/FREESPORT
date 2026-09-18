@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { Spinner } from '@/components/ui';
 import { ReturnsAndSupportNotice } from '@/components/common';
 import type { CheckoutView } from '@/utils/checkout/checkoutView';
+import { writeLoginReturnCookie } from '@/utils/loginReturn';
 
-// Тот же вид, что у middleware (`next=%2F...`): сканер считает разные написания
-// одного адреса разными страницами (повторный аудит 10.09.2026).
-const LOGIN_HREF = `/login?${new URLSearchParams({ next: '/checkout' })}`;
+// Адрес входа один, без query: цель передаёт cookie точки возврата, которую
+// пишет клик (стори 41.18, решение D3). Открытие в новой вкладке без клика
+// cookie не пишет — после входа будет главная.
+const LOGIN_HREF = '/login';
 
 const CTA_CLASS =
   'h-12 px-8 inline-flex items-center justify-center bg-primary hover:bg-primary-hover text-text-inverse font-medium rounded-[var(--radius-sm)] transition-colors';
@@ -94,7 +96,11 @@ function renderContent(props: CheckoutStateViewProps) {
           <p className="mb-6 text-sm text-gray-600">
             Оформление заказа доступно после входа в личный кабинет.
           </p>
-          <Link href={LOGIN_HREF} className={CTA_CLASS}>
+          <Link
+            href={LOGIN_HREF}
+            onClick={() => writeLoginReturnCookie('/checkout')}
+            className={CTA_CLASS}
+          >
             Войти
           </Link>
         </div>

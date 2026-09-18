@@ -45,8 +45,8 @@ describe('Метаданные /login', () => {
     expect(metadata.openGraph?.url).toBe('/login');
   });
 
-  it('закрывает страницу от индексации — как /cart и /checkout', () => {
-    expect(metadata.robots).toEqual({ index: false, follow: false });
+  it('не задаёт robots: адрес закрыт Disallow (D4)', () => {
+    expect(metadata.robots).toBeUndefined();
   });
 });
 

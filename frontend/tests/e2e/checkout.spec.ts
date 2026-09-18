@@ -841,7 +841,7 @@ test.describe('Anonymous checkout (Story 41.10)', () => {
     const loginRequired = page.getByTestId('checkout-login-required');
     await expect(loginRequired.getByRole('link', { name: 'Войти' })).toHaveAttribute(
       'href',
-      '/login?next=%2Fcheckout'
+      '/login'
     );
 
     expect(cartRequests).toHaveLength(0);

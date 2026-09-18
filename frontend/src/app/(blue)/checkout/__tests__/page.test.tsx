@@ -120,10 +120,7 @@ describe('CheckoutPageClient (Story 41.10)', () => {
       expect(
         screen.getByText('Оформление заказа доступно после входа в личный кабинет.')
       ).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute(
-        'href',
-        '/login?next=%2Fcheckout'
-      );
+      expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login');
       expect(cart.fetchCart).not.toHaveBeenCalled();
       expect(container.querySelector('form')).toBeNull();
       expect(container.querySelector('input')).toBeNull();
