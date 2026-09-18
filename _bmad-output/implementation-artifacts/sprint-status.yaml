@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.20 — in-progress; стори 41.21 — review)
+# last_updated: 2026-09-18 (стори 41.20 — done; стори 41.21 — review, AC8 принят)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1342,7 +1342,10 @@ development_status:
   #             в production bundle. Открыт [Review][Patch] на устранение строки
   #             из общего чанка и повторную fail-closed проверку пяти страниц.
   #             done -> in-progress.
-  41-20-newsletter-consent-wording-and-placeholders: in-progress
+  # 2026-09-18: [Review][Patch] третьего ревью закрыт стори 41.21 — прод
+  #             ce727776: 0 example в чанках 16 публичных страниц,
+  #             zustand devtools вырезан. in-progress -> done.
+  41-20-newsletter-consent-wording-and-placeholders: done
   # 2026-09-18: Создана стори 41.21 (create-story) — Story/41-21-bundle-example-
   #             retail-wording-single-404-robots.md. Источник — проверка закрытия
   #             отчёта 16.09 (tmp/audit-2026-09-16-verification-2026-09-18.md) и
@@ -1373,6 +1376,10 @@ development_status:
   #             frontend/scripts/check-production-build.mjs в frontend-ci
   #             (чанки публичных страниц + robots 404/soft-404 на next start),
   #             точные подписи карточек. Открыты 8.4-8.5. in-progress -> review.
+  # 2026-09-18: прод-приёмка AC8 на ce727776 (снимок в стори), шаг 8.5
+  #             выполнен; карточку /coming-soon владелец подтвердил в браузере
+  #             без cookie (8.4). Все задачи закрыты, статус review — до
+  #             повторного code review.
   41-21-bundle-example-retail-wording-single-404-robots: review
   epic-41-retrospective: optional
 
