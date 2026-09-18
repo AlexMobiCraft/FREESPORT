@@ -181,7 +181,7 @@ Title `/home` и заголовки трёх карточек утвержден
   - [x] 8.2 `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"`. Ожидаемо затронуты четыре стора, `devtoolsInDev`, `NotFound` (только metadata), `ComingSoonClient`, `generateMetadata` поиска, метаданные трёх страниц. `buildMetadata` меняться не должен.
   - [x] 8.3 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
   - [ ] 8.4 **Внешний шаг (после мёрджа, ручной выкат по SSH):** sync `develop` → `main` через PR (5 обязательных контекстов). На сервере: `git fetch origin main && git reset --hard origin/main`, `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build frontend`, затем **`restart nginx`**. AC8: рецепт 1.6 с `BASE=https://optisport.ru`, curl метаданных (`/coming-soon`, `/home`, `/electric`, `/search?q=мяч`), рецепт 7.3 против прода. Владелец смотрит `/coming-soon` в браузере без cookie. Снимок положить в стори.
-  - [ ] 8.5 После AC8: в стори 41.20 отметить `[Review][Patch]` третьего ревью `[x]` со ссылкой на 41.21, статус → `done` (стори и `sprint-status.yaml`). В реестре 41.16, запись E21: одной строкой добавить прод-доказательство — 0 `example` в чанках публичных страниц, дата, коммит.
+  - [x] 8.5 После AC8: в стори 41.20 отметить `[Review][Patch]` третьего ревью `[x]` со ссылкой на 41.21, статус → `done` (стори и `sprint-status.yaml`). В реестре 41.16, запись E21: одной строкой добавить прод-доказательство — 0 `example` в чанках публичных страниц, дата, коммит.
 
 ### Review Findings
 
@@ -336,6 +336,20 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
   - Доказательства (локально, сборка с `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1`, плюс `.env.local` как в CI с `NODE_ENV=test`): гейт зелёный, проверено 75 чанков. Мутации: `Example` в чанке сторов → код 1 с указанием чанка; `robots` возвращён в `not-found.tsx` и пересобрано → код 1, `["noindex","noindex, nofollow"]` на трёх 404; расхождение адреса заглушки со сборкой → код 1 («middleware не запрашивал список CMS-слагов»).
   - Чистые функции гейта покрыты `src/__tests__/check-production-build.test.ts` (8 тестов). `npm test` — 197 файлов, 3440 passed, 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — зелёные. `detect-changes` — «No changes detected»: продуктовый код не менялся, правки только в тестах, скрипте и CI.
   - Внешние шаги 8.4–8.5 по-прежнему открыты.
+- **18.09.2026, прод-приёмка AC8 (шаги 8.4–8.5).** Владелец выполнил ручной выкат по SSH: PR #209 `develop` → `main`, на сервере `ce727776`, пересобран frontend, перезапущен nginx. Приёмку снял dev-агент (`curl -A "AuditikBot/1.0"` без cookie против `https://optisport.ru`), результат — «Снимок прода» ниже. Все пункты AC3–AC5, AC7 и AC1 совпали. Гейт `check:build` отработал зелёным и в GitHub Actions на PR #208 (run `35348221933`, «Фронтенд: тесты»: проверено 75 чанков, robots на 404/soft-404 как ожидалось). Шаг 8.5 выполнен: в стори 41.20 `[Review][Patch]` третьего ревью → `[x]`, статус `done` (стори и `sprint-status.yaml`); запись E21 реестра 41.16 дополнена прод-доказательством. **Открыто:** визуальное подтверждение карточки `/coming-soon` владельцем в браузере без cookie (AC8), до него 8.4 не отмечена. Серверный HTML карточки проверен `curl` — все семь новых строк на месте, прежних нет.
+
+#### Снимок прода 18.09.2026 (AC8, `https://optisport.ru`, коммит `ce727776`)
+
+| Проверка | Результат |
+|---|---|
+| Рецепт 1.6 — 16 страниц | все 200; 341 загрузка чанков; `example` (без учёта регистра) — 0; `zustand devtools middleware` — 0 |
+| `/coming-soon` | title «OPTISPORT скоро откроется — оптовые продажи спорттоваров»; description, `og:description`, `twitter:description` — «OPTISPORT — оптовые продажи спортивных товаров. Сайт скоро откроется, по вопросам сотрудничества пишите на info@optisport.ru.»; canonical `/coming-soon`; robots нет |
+| Карточка `/coming-soon` (HTML) | «Оптовые продажи», «Оптовые заказы» / «Каталог и условия для оптовых покупателей», «Для организаций» / «Магазины, спортивные клубы и федерации», «Скидки от объема закупок» / «Размер скидки зависит от объёма заказа» — по 1; `B2C`, `B2B`, «Лучшие цены», «Розничные», «Платформа для» — 0 |
+| `/home` | title, `og:title`, `twitter:title` — «Спортивные товары оптом — каталог и условия \| OPTISPORT»; description и og/twitter — текст таблицы (140); canonical `/home`; keywords и robots нет |
+| `/electric` | title и og/twitter — «OPTISPORT — спортивные товары оптом»; description — «Оптовые продажи спортивных товаров: каталог, условия для оптовых покупателей, доставка по России.»; canonical и `og:url` — `/electric`; keywords и robots нет |
+| `/search?q=мяч` | description — «Результаты поиска по запросу "мяч" в магазине OPTISPORT.» |
+| `/nonexistent-xyz`, `/catalog/zzz`, `/zzz/yyy` | 404, один `<meta name="robots" content="noindex"/>` |
+| `/product/zzz-none`, `/blog/zzz-none`, `/news/zzz-none` | 200, один `<meta name="robots" content="noindex, follow"/>` |
 
 - 18.09.2026 dev-story, итог. Ветка `feature/41-21-bundle-example-retail-wording` от `origin/develop` (`0b034416`, содержит `d64d4909`). GitNexus: индекс свежий (`0b03441`); impact — сторы и `NotFound` LOW (0 по графу), `ComingSoonClient` в графе нет, `generateMetadata` поиска — ambiguous, это точка входа Next без вызывающих в коде; HIGH/CRITICAL среди изменяемых нет, `buildMetadata` не тронут.
 - **A (AC1, AC2).** `stores/devtoolsInDev.ts` — дословно по 1.1; четыре стора переведены на обёртку, имена `…Store` и `persist` корзины не тронуты. `.devtools` в `src` не используется (1.3 — пусто). Tree-shaking сработал: запасной alias в `next.config.ts` не понадобился. Рецепт 1.6 на `next start` (16 публичных страниц, `grep -qi`) — пусто. Иных источников `example` нет (1.7). Тесты сторов — без изменения ожиданий.
@@ -344,7 +358,7 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 - Локальная приёмка метаданных (`curl -A "AuditikBot/1.0"`, `next start`): `/coming-soon`, `/home`, `/electric`, `/search?q=мяч` совпадают с таблицами, у `/electric` canonical и `og:url` — `/electric`; в HTML `/coming-soon` есть все четыре новых текста карточки и нет `B2C`, `B2B`, «Лучшие цены», «Розничные».
 - Проверки 8.1: `npm test` — 196 файлов, 3428 passed, 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — зелёные. `detect-changes`: 16 файлов, 11 символов — четыре стора, `NotFound` + `metadata`, `ComingSoon`, `generateMetadata` поиска, `metadata` трёх страниц; `buildMetadata` не изменён; риск medium — за счёт потоков `generateMetadata → normalizePath/withDefaultImageMeta`.
 - `deferred-work.md`: записан пробел `/privacy-policy` (soft-404 без `noindex`), как требует «Не делать».
-- **Не выполнено:** 8.4 и 8.5 — внешние шаги после мёрджа (PR `develop` → `main`, ручной выкат по SSH, `restart nginx`, приёмка AC8 на `optisport.ru` со снимком в стори, затем закрытие 41.20 и запись E21 реестра 41.16). AC8 до выката не проверяется.
+- **Не выполнено (на момент dev-story, закрыто 18.09.2026 — см. прод-приёмку выше):** 8.4 и 8.5 — внешние шаги после мёрджа (PR `develop` → `main`, ручной выкат по SSH, `restart nginx`, приёмка AC8 на `optisport.ru` со снимком в стори, затем закрытие 41.20 и запись E21 реестра 41.16). AC8 до выката не проверяется.
 
 - 18.09.2026: create-story — анализ проверки закрытия отчёта 16.09 и intent-хвостов; код на `372b3efb`; прод снят `curl` (метаданные, 404/soft-404, чанки); локальная production-сборка просканирована на `example`: найдено три чанка, источники установлены (zustand devtools, jsPDF/rgbcolor); механизм `noindex` Next на 404 сверен по `node_modules`; GitNexus impact и cypher по импортёрам сторов. Ultimate context engine analysis completed - comprehensive developer guide created. Код не менялся.
 
@@ -374,6 +388,8 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 - `frontend/src/__tests__/check-production-build.test.ts` (новый, code review)
 - `frontend/package.json` (скрипт `check:build`, code review)
 - `.github/workflows/frontend-ci.yml` (шаг проверки production-сборки, code review)
+- `_bmad-output/implementation-artifacts/Story/41-20-newsletter-consent-wording-and-placeholders.md` (шаг 8.5)
+- `_bmad-output/implementation-artifacts/Story/41-16-editorial-audit-decision-register.md` (E21, шаг 8.5)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `_bmad-output/implementation-artifacts/Story/41-21-bundle-example-retail-wording-single-404-robots.md`
 
@@ -383,3 +399,4 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 - 18.09.2026 — ответы владельца на Q1 и Q2 внесены: охват нуля `example` — чанки публичных страниц; третья карточка `/coming-soon` — «Скидки от объема закупок».
 - 18.09.2026 — dev-story: `devtools` только вне production (в чанках публичных страниц 0 `example`), тексты `/home`, `/coming-soon`, `/electric`, `/search` без розницы и превосходных степеней, страж AC6, один тег robots на 404; запись в `deferred-work.md`. Статус → review. Открыты только внешние шаги 8.4–8.5 (AC8 на проде, закрытие 41.20).
 - 18.09.2026 — Addressed code review findings - 3 items resolved: CI-гейт production-сборки (`check-production-build.mjs`: чанки публичных страниц и robots на 404/soft-404), точные подписи карточек `/coming-soon`. Статус → review.
+- 18.09.2026 — прод-приёмка AC8 на `ce727776` (снимок в Completion Notes), шаг 8.5: стори 41.20 закрыта, E21 реестра 41.16 дополнена прод-доказательством. Открыто визуальное подтверждение карточки `/coming-soon` владельцем (8.4).
