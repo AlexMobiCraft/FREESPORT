@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtoolsInDev } from './devtoolsInDev';
 import favoriteService from '@/services/favoriteService';
 import type { Favorite } from '@/types/favorite';
 import { useAuthStore } from './authStore';
@@ -19,7 +19,7 @@ interface FavoritesState {
 }
 
 export const useFavoritesStore = create<FavoritesState>()(
-  devtools(
+  devtoolsInDev(
     (set, get) => ({
       favorites: [],
       isLoading: false,

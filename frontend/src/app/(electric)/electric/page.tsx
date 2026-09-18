@@ -1,7 +1,7 @@
 /**
  * Electric Orange Home Page
  *
- * Главная страница FREESPORT Platform в стиле Electric Orange Design System.
+ * Главная страница OPTISPORT в стиле Electric Orange Design System.
  * Parallel Route для миграции дизайн-системы.
  *
  * Структура (9 секций из спецификации 03-page-specs.md):
@@ -20,7 +20,7 @@
 
 import type { Metadata } from 'next';
 
-import { DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_META } from '@/utils/seo';
+import { buildMetadata } from '@/utils/seo';
 
 // Electric-specific components
 import { ElectricHeroSection } from '@/components/home/ElectricHeroSection';
@@ -39,35 +39,14 @@ import { ElectricSubscribeSection } from '@/components/home/ElectricSubscribeSec
 // ISR: ревалидация каждый час
 export const revalidate = 3600;
 
-// SEO Metadata
-export const metadata: Metadata = {
-  title: 'OPTISPORT - Спортивные товары оптом и в розницу',
+// SEO Metadata: тексты корневого умолчания D7 (стори 41.21, R2). Адрес закрыт
+// `Disallow: /electric`, поэтому `noIndex` не ставится (D4 стори 41.18).
+export const metadata: Metadata = buildMetadata({
+  title: 'OPTISPORT — спортивные товары оптом',
   description:
-    'Крупнейший интернет-магазин спортивной одежды и экипировки в России. Более 10 000 товаров от ведущих брендов. Выгодные цены для B2B клиентов.',
-  keywords: [
-    'спортивные товары',
-    'спортивная одежда',
-    'оптом',
-    'OPTISPORT',
-    'B2B спорттовары',
-    'экипировка',
-  ],
-  openGraph: {
-    title: 'OPTISPORT - Спортивные товары оптом и в розницу',
-    description: 'Крупнейший интернет-магазин спортивной одежды и экипировки в России.',
-    url: 'https://optisport.ru',
-    siteName: 'OPTISPORT',
-    images: [DEFAULT_OG_IMAGE_META],
-    locale: 'ru_RU',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'OPTISPORT - Спортивные товары',
-    description: 'Более 10 000 товаров от ведущих брендов',
-    images: [DEFAULT_OG_IMAGE],
-  },
-};
+    'Оптовые продажи спортивных товаров: каталог, условия для оптовых покупателей, доставка по России.',
+  path: '/electric',
+});
 
 export default function ElectricHomePage() {
   // Единственный <main> страницы рендерит ElectricLayout, здесь — обычный контейнер

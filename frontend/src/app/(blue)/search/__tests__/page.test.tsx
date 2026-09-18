@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import SearchPage from '../page';
+import SearchPage, { generateMetadata } from '../page';
 
 vi.mock('@/components/business/SearchPageClient', () => ({
   SearchPageClient: ({ initialQuery }: { initialQuery: string }) => (
@@ -23,5 +23,13 @@ describe('SearchPage', () => {
     expect(screen.getByRole('region', { name: 'Результаты поиска' })).toContainElement(
       screen.getByTestId('search-page-client')
     );
+  });
+
+  // Стори 41.21, AC6: без «по лучшим ценам» (38-ФЗ, ст. 5 ч. 3 п. 1).
+  it('description при непустом q — без превосходной степени', async () => {
+    const metadata = await generateMetadata({ searchParams: Promise.resolve({ q: 'мяч' }) });
+
+    expect(metadata.description).toBe('Результаты поиска по запросу "мяч" в магазине OPTISPORT.');
+    expect(metadata.description).not.toMatch(/лучш/i);
   });
 });

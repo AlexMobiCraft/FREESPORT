@@ -9,7 +9,8 @@
  */
 
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import { devtoolsInDev } from './devtoolsInDev';
 import cartService from '@/services/cartService';
 import type { CartItem, CartState as CartStateType } from '@/types/cart';
 
@@ -52,7 +53,7 @@ const calculateTotals = (items: CartItem[]) => {
 };
 
 export const useCartStore = create<CartStore>()(
-  devtools(
+  devtoolsInDev(
     persist(
       (set, get) => ({
         items: [],

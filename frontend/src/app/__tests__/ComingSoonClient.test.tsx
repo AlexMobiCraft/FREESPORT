@@ -115,4 +115,40 @@ describe('ComingSoonClient — AC5: формы подписки нет', () => {
     expect(line.closest('a')).toBeNull();
     expect(screen.queryByText(/26-22-004188/)).not.toBeInTheDocument();
   });
+
+  // Story 41.21 — AC4/AC6: карточка описывает только действующее предложение
+  // (розница отключена), без превосходных степеней.
+  it('описывает оптовое предложение без розницы и превосходных степеней (41.21)', () => {
+    render(<ComingSoon />);
+
+    expect(screen.getByText(/Оптовые продажи/)).toBeInTheDocument();
+    expect(screen.getByText('Оптовые заказы')).toBeInTheDocument();
+    expect(screen.getByText('Для организаций')).toBeInTheDocument();
+    expect(screen.getByText('Скидки от объема закупок')).toBeInTheDocument();
+
+    for (const text of [/B2C/, /B2B/, /Розничные/, /Лучшие цены/, /Платформа/]) {
+      expect(screen.queryByText(text)).not.toBeInTheDocument();
+    }
+  });
+
+  // Story 41.21 — AC4: подпись каждой карточки закреплена дословно и именно под
+  // своим заголовком — перестановка или правка подписи должна ронять тест.
+  it.each([
+    ['Оптовые заказы', 'Каталог и условия для оптовых покупателей'],
+    ['Для организаций', 'Магазины, спортивные клубы и федерации'],
+    ['Скидки от объема закупок', 'Размер скидки зависит от объёма заказа'],
+  ])('карточка «%s» подписана «%s» (41.21)', (title, caption) => {
+    render(<ComingSoon />);
+
+    const heading = screen.getByRole('heading', { level: 3, name: title });
+
+    expect(heading.nextElementSibling?.tagName).toBe('P');
+    expect(heading.nextElementSibling?.textContent?.trim()).toBe(caption);
+  });
+
+  it('содержит ровно три карточки преимуществ (41.21)', () => {
+    render(<ComingSoon />);
+
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
+  });
 });

@@ -150,24 +150,31 @@ describe('Главная страница (/)', () => {
   });
 
   describe('SEO Metadata', () => {
+    // Тексты без розницы и превосходных степеней (стори 41.21, AC3)
+    const TITLE = 'Спортивные товары оптом — каталог и условия | OPTISPORT';
+    const DESCRIPTION =
+      'Оптовые поставки спортивных товаров для магазинов, спортивных клубов и федераций: каталог, цены для оптовых покупателей, доставка по России.';
+
     it('должна содержать правильный title', () => {
-      expect(metadata.title).toBe('Спортивные товары оптом и в розницу');
+      expect(metadata.title).toBe(TITLE);
     });
 
     it('должна содержать правильный description', () => {
-      expect(metadata.description).toContain('Платформа для оптовых и розничных продаж');
-      expect(metadata.description).toContain('спортивных товаров');
+      expect(metadata.description).toBe(DESCRIPTION);
     });
 
-    it('должна содержать keywords', () => {
-      expect(metadata.keywords).toBeDefined();
-      expect(metadata.keywords).toContain('спортивные товары оптом');
+    it('канонический адрес — /home', () => {
+      expect(metadata.alternates?.canonical).toBe('/home');
+    });
+
+    it('не должна содержать keywords', () => {
+      expect(metadata.keywords).toBeUndefined();
     });
 
     it('должна содержать OpenGraph метатеги', () => {
       expect(metadata.openGraph).toBeDefined();
-      expect(metadata.openGraph?.title).toBe('Спортивные товары оптом и в розницу');
-      expect(metadata.openGraph?.description).toContain('Платформа для оптовых и розничных продаж');
+      expect(metadata.openGraph?.title).toBe(TITLE);
+      expect(metadata.openGraph?.description).toBe(DESCRIPTION);
     });
 
     it('должна содержать OpenGraph изображение с размерами файла', () => {
@@ -182,7 +189,8 @@ describe('Главная страница (/)', () => {
       expect(metadata.twitter).toBeDefined();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((metadata.twitter as any)?.card).toBe('summary_large_image');
-      expect(metadata.twitter?.title).toBe('Спортивные товары оптом и в розницу');
+      expect(metadata.twitter?.title).toBe(TITLE);
+      expect(metadata.twitter?.description).toBe(DESCRIPTION);
     });
   });
 
