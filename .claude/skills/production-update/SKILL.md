@@ -60,6 +60,9 @@ cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesp
 
 # 3. Сборка статики
 cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec backend python manage.py collectstatic --no-input
+
+# 4. Очистка старых образов (dangling <none> после пересборки)
+docker image prune -f
 ```
 
 > [!IMPORTANT]
@@ -82,12 +85,14 @@ cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesp
 ```bash
 cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml up -d --build backend
 cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
+docker image prune -f
 ```
 
 ### 4. Обновление только фронтенда (Frontend Only)
 
 ```bash
 cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml up -d --build frontend
+docker image prune -f
 ```
 
 > [!DANGER]
@@ -117,6 +122,9 @@ cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesp
 
 > [!IMPORTANT]
 > После обновления фронтенда всегда проверяй доступность сайта. Из-за особенностей Docker иногда требуется `restart nginx`, если upstream перестал отвечать.
+
+> [!IMPORTANT]
+> После **каждой** пересборки (`up -d --build`) выполняй `docker image prune -f` — иначе старые `<none>`-образы копятся и забивают диск (~2GB на каждый frontend-образ). Инцидент 2026-09-18: диск заполнен на 94%, накопилось ~90 старых образов и 41GB build cache. При нехватке места дополнительно: `docker builder prune -f` (кэш сборки) и `journalctl --vacuum-size=500M` (логи journald).
 
 ## Экранирование и сложные команды через SSH
 

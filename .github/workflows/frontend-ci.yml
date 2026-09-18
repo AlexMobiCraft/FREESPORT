@@ -89,6 +89,16 @@ jobs:
           cd frontend
           npm run build
 
+      # Стори 41.21: fail-closed проверка собранного приложения — в чанках
+      # публичных страниц нет `example` и zustand devtools, настоящий 404 несёт
+      # один robots=noindex, soft-404 — 200 и noindex, follow. Скрипт поднимает
+      # next start и заглушку backend по NEXT_PUBLIC_API_URL из env workflow —
+      # того же, с которым шла сборка (адрес вшит в middleware).
+      - name: Проверка production-сборки (чанки и robots)
+        run: |
+          cd frontend
+          npm run check:build
+
       - name: Анализ размера сборки
         run: |
           cd frontend

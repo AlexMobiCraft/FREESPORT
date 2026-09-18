@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtoolsInDev } from './devtoolsInDev';
 import type { User } from '@/types/api';
 
 /**
@@ -40,7 +40,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>()(
-  devtools(
+  devtoolsInDev(
     set => ({
       accessToken: null,
       user: null,

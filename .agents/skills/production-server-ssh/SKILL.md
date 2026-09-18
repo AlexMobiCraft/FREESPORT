@@ -76,6 +76,9 @@ docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backe
 
 # 4. Пересобрать нужные контейнеры
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build backend frontend
+
+# 5. Удалить старые <none>-образы, оставшиеся после пересборки
+docker image prune -f
 ```
 
 ## Экранирование кавычек и сложные команды (PowerShell → SSH → bash)
