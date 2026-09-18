@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.20 — in-progress после третьего code review)
+# last_updated: 2026-09-18 (стори 41.20 — in-progress; стори 41.21 — ready-for-dev)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1343,6 +1343,23 @@ development_status:
   #             из общего чанка и повторную fail-closed проверку пяти страниц.
   #             done -> in-progress.
   41-20-newsletter-consent-wording-and-placeholders: in-progress
+  # 2026-09-18: Создана стори 41.21 (create-story) — Story/41-21-bundle-example-
+  #             retail-wording-single-404-robots.md. Источник — проверка закрытия
+  #             отчёта 16.09 (tmp/audit-2026-09-16-verification-2026-09-18.md) и
+  #             tasks/intent-audit-2026-09-16-followups.md, разделы A, C, D.
+  #             Решения Alex 18.09.2026: делать A, C, D; R1 — убрать розницу из
+  #             публичных текстов; R2 — /electric только метаданные. Установлено:
+  #             example в общем чанке — текст ошибки devtools zustand 4.5.7 (не
+  #             destroy-warning, как записано в 41.20); ещё два чанка с example —
+  #             jsPDF/rgbcolor, грузит только /profile/orders/[id]; на soft-404
+  #             метаданные not-found.tsx не применяются, поэтому удаление его robots
+  #             безопасно, но меняет тест инварианта D4 стори 41.18. Переоткрытие
+  #             41.20 (docs/story-41-20-reopen) влито в develop владельцем.
+  #             Ответы Alex 18.09.2026: Q1 — ноль example только в чанках
+  #             публичных страниц (jsPDF — исключение); Q2 — title /home утверждён,
+  #             карточки /coming-soon: «Оптовые заказы», «Для организаций»,
+  #             «Скидки от объема закупок». backlog -> ready-for-dev.
+  41-21-bundle-example-retail-wording-single-404-robots: ready-for-dev
   epic-41-retrospective: optional
 
 # ========================================
