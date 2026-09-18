@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.20 — done; стори 41.21 — review, AC8 принят)
+# last_updated: 2026-09-18 (стори 41.20 — done; стори 41.21 — review, патч повторного code review закрыт)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1380,6 +1380,8 @@ development_status:
   #             выполнен; карточку /coming-soon владелец подтвердил в браузере
   #             без cookie (8.4). Все задачи закрыты, статус review — до
   #             повторного code review.
+  # 2026-09-18: повторное code review — патч гейта (проверка адреса назначения
+  #             редиректа) закрыт, 4 defer записаны в deferred-work.md.
   41-21-bundle-example-retail-wording-single-404-robots: review
   epic-41-retrospective: optional
 
