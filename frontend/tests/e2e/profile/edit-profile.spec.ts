@@ -33,12 +33,26 @@ test.describe('Profile Page - Edit Profile Flow', () => {
   test.describe('Authentication & Access', () => {
     test('redirects unauthenticated users to login page', async ({ page }) => {
       // ACT
-      await page.goto('/profile');
+      const response = await page.goto('/profile');
 
-      // ASSERT
+      // ASSERT — один адрес входа без query (стори 41.18, D3)
       const url = new URL(page.url());
       expect(url.pathname).toBe('/login');
-      expect(url.searchParams.get('next')).toBe('/profile');
+      expect(url.search).toBe('');
+
+      // Точка возврата приходит cookie на 307-ответе middleware
+      const redirect = await response?.request().redirectedFrom()?.response();
+      expect(redirect?.status()).toBe(307);
+      const setCookie = (await redirect?.headerValue('set-cookie')) ?? '';
+      expect(setCookie).toContain('loginReturnTo=%2Fprofile');
+      expect(setCookie).toContain('Path=/login');
+
+      // Страница входа забирает cookie при открытии (S8): в браузере её уже нет
+      await expect
+        .poll(async () =>
+          (await page.context().cookies()).some(cookie => cookie.name === 'loginReturnTo')
+        )
+        .toBe(false);
     });
 
     test('allows authenticated users to access profile page', async ({ page }) => {

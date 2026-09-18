@@ -31,15 +31,15 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
   const params = await searchParams;
   const query = params.q || '';
 
-  // Страницы результатов поиска закрыты от индексации (и в robots.txt тоже):
-  // они дублируют каталог и плодят мусорные URL с query-параметрами
+  // Результаты поиска дублируют каталог и плодят URL с query-параметрами, поэтому
+  // адрес закрыт Disallow в robots.txt. noindex не ставится: адреса под Disallow
+  // meta noindex не несут (решение D4) — робот страницу не читает и тег не увидит.
   return buildMetadata({
     title: query ? `Поиск: ${query}` : 'Поиск товаров',
     description: query
       ? `Результаты поиска по запросу "${query}" в магазине OPTISPORT. Найдите спортивные товары по лучшим ценам.`
       : 'Поиск спортивных товаров в магазине OPTISPORT',
     path: '/search',
-    noIndex: true,
   });
 }
 
