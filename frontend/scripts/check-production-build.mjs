@@ -66,8 +66,10 @@ export const FORBIDDEN_ANYWHERE = 'zustand devtools middleware';
 
 const USER_AGENT = 'AuditikBot/1.0';
 const NEXT_PORT = Number(process.env.CHECK_BUILD_PORT || 3100);
+const MAX_REDIRECTS = 5;
 const READY_TIMEOUT_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 30_000;
+const SERVER_ORIGIN = `http://localhost:${NEXT_PORT}`;
 
 /** Страницы манифеста, чанки которых загружают публичные адреса. */
 export function selectPublicPages(pageKeys) {
@@ -126,6 +128,36 @@ export function robotsMetaContents(html) {
     contents.push(content ? content[1] : '');
   }
   return contents;
+}
+
+/**
+ * Идёт по редиректам до конечной страницы — той, чьи чанки фактически
+ * загрузит браузер. Редирект наружу, 3xx без `Location`, цикл и цепочка
+ * длиннее `MAX_REDIRECTS` — ошибка: такую страницу гейт проверить не может.
+ * `fetcher(path)` возвращает `{ status, location, html }` без следования
+ * редиректам.
+ */
+export async function followRedirects(urlPath, fetcher, origin) {
+  const chain = [urlPath];
+  let current = urlPath;
+
+  for (;;) {
+    const { status, location, html } = await fetcher(current);
+    if (status < 300 || status >= 400) return { path: current, status, html, chain };
+
+    if (!location) throw new Error(`${chain.join(' → ')}: ответ ${status} без Location`);
+    const target = new URL(location, origin + current);
+    if (target.origin !== origin) {
+      throw new Error(`${chain.join(' → ')}: редирект наружу на ${target.href}`);
+    }
+    const next = target.pathname + target.search;
+    if (chain.includes(next)) throw new Error(`${chain.join(' → ')} → ${next}: цикл редиректов`);
+    chain.push(next);
+    if (chain.length > MAX_REDIRECTS + 1) {
+      throw new Error(`${chain.join(' → ')}: больше ${MAX_REDIRECTS} редиректов`);
+    }
+    current = next;
+  }
 }
 
 /** Цепочка `getApiBaseUrl` из `src/middleware.ts` без последнего умолчания. */
@@ -226,7 +258,7 @@ function startStubBackend(apiBase) {
 }
 
 async function fetchPage(urlPath) {
-  const res = await fetch(`http://localhost:${NEXT_PORT}${urlPath}`, {
+  const res = await fetch(`${SERVER_ORIGIN}${urlPath}`, {
     headers: { 'User-Agent': USER_AGENT },
     redirect: 'manual',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -277,14 +309,21 @@ async function checkServedPages(apiBase, owners, errors) {
     await waitForServer(child);
 
     for (const urlPath of PUBLIC_URLS) {
-      const { status, location, html } = await fetchPage(urlPath);
-      console.log(`page: ${urlPath} → ${status}${location ? ` ${location}` : ''}`);
+      // Редирект допустим, но проверяется страница, на которую он ведёт:
+      // её чанки и загрузит браузер сканера.
+      let final;
+      try {
+        final = await followRedirects(urlPath, fetchPage, SERVER_ORIGIN);
+      } catch (error) {
+        errors.push(error.message);
+        continue;
+      }
+      const { path: finalPath, status, html, chain } = final;
+      console.log(`page: ${chain.join(' → ')} → ${status}`);
       if (status === 200) {
-        addHtmlChunks(urlPath, html, owners, errors);
-      } else if (status < 300 || status >= 400 || !location) {
-        // Редирект допустим (адрес назначения тоже в перечне), остальное —
-        // признак сломанной страницы, чанки которой проверить не удалось.
-        errors.push(`${urlPath}: ожидался HTTP 200 или редирект, получен ${status}`);
+        addHtmlChunks(chain.join(' → '), html, owners, errors);
+      } else {
+        errors.push(`${chain.join(' → ')}: ожидался HTTP 200 на ${finalPath}, получен ${status}`);
       }
     }
 
