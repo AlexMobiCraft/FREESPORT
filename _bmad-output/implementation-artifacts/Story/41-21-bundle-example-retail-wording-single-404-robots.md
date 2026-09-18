@@ -183,6 +183,29 @@ Title `/home` и заголовки трёх карточек утвержден
   - [ ] 8.4 **Внешний шаг (после мёрджа, ручной выкат по SSH):** sync `develop` → `main` через PR (5 обязательных контекстов). На сервере: `git fetch origin main && git reset --hard origin/main`, `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build frontend`, затем **`restart nginx`**. AC8: рецепт 1.6 с `BASE=https://optisport.ru`, curl метаданных (`/coming-soon`, `/home`, `/electric`, `/search?q=мяч`), рецепт 7.3 против прода. Владелец смотрит `/coming-soon` в браузере без cookie. Снимок положить в стори.
   - [ ] 8.5 После AC8: в стори 41.20 отметить `[Review][Patch]` третьего ревью `[x]` со ссылкой на 41.21, статус → `done` (стори и `sprint-status.yaml`). В реестре 41.16, запись E21: одной строкой добавить прод-доказательство — 0 `example` в чанках публичных страниц, дата, коммит.
 
+### Review Findings
+
+- [x] [Review][Patch] Добавить fail-closed CI-проверку production-чанков публичных страниц на `example` без учёта регистра и `zustand devtools middleware` после `npm run build` [`.github/workflows/frontend-ci.yml:86`]
+- [x] [Review][Patch] Закрепить точными ожиданиями все три подписи карточек `/coming-soon`, а не только их заголовки и отсутствие запрещённых слов [`frontend/src/app/__tests__/ComingSoonClient.test.tsx:118`]
+- [x] [Review][Patch] Добавить автоматическую проверку собранного приложения: настоящий HTTP 404, ровно один `robots=noindex` и сохранение `noindex, follow` у soft-404 [`frontend/src/app/__tests__/robots-noindex-invariant.test.ts:236`]
+
+#### Rejected
+
+- [Rejected][false] Решение владельца 18.09.2026: AC6 проверяет редакционный шаблон; пользовательский `q` не является рекламным обещанием, поэтому `generateMetadata` сохраняет запрос дословно и отдельная фильтрация запрещённых фраз не требуется.
+- [Rejected][false] Статус `review` при открытых 8.4–8.5 не выдаёт AC8 за завершённый: Task 8.3 прямо требует перевести Story в review перед post-merge production-приёмкой, а Completion Notes явно фиксируют незавершённые внешние шаги.
+- [Rejected][low] В старой записи третьего ревью Story 41.20 рядом остались исторические фразы `in-progress` и «Статус done сохранить», но действующее решение однозначно задано открытым Patch, текущим статусом Story 41.20 и Task 8.5; исправление было бы только переписыванием review-истории.
+- [Rejected][low] Заголовок таблицы называет тексты утверждёнными, а примечание различает явно утверждённые заголовки и неоспоренные подписи; реализация дословно соответствует самой таблице, а устранение редакционной неоднозначности требует менять спецификацию.
+- [Rejected][false] Перечень публичных страниц для AC1 нормативно задан самой Task 1.6; отсутствующие в списке маршруты нельзя объявить нарушением реализации без изменения утверждённого scope.
+- [Rejected][medium] `curl -s` действительно допускает ложный зелёный результат при сетевой ошибке или пустом HTML, но предложенное исправление меняет acceptance-рецепт спецификации; отдельный исполняемый CI-гейт сохранён как Patch выше.
+- [Rejected][medium] Рецепт Task 1.6 печатает совпадения, но сам не является fail-closed командой; исправление текста Story отклонено, а тот же риск покрыт отдельным Patch на CI-гейт.
+- [Rejected][false] Ленивые чанки после произвольных действий не входят в явно заданный маршрутный рецепт Task 1.6; доказательств, что запрещённый общий zustand-чанк скрыт только за таким действием, нет.
+- [Rejected][false] Helper-тест `devtoolsInDev` проверяет ровно контракт Task 1.4, существующие store-тесты покрывают состояние и действия, а имена DevTools и `cart-storage-v3` сохранены буквально; реальный пробел production bundle вынесен в отдельный Patch.
+- [Rejected][false] Регулярка `\s` в JavaScript охватывает обычный, неразрывный и узкий неразрывный пробел, а реализация дословно повторяет утверждённую `/10\s?000/i`; вариант с несколькими пробелами не доказывает нарушение текущего AC.
+- [Rejected][false] Известный soft-404 `/privacy-policy` предсуществует, явно исключён из 41.21 и уже записан в `deferred-work.md`; общая цель Epic про непротиворечивые заголовки безопасности не превращает этот meta-robots пробел в регрессию Story.
+- [Rejected][false] R1 не требует автоматического переключения текстов frontend по backend-флагу `REGISTRATION_ALLOW_RETAIL`; фраза «вернутся вместе с флагом» описывает будущий согласованный выпуск, а не runtime-контракт этой Story.
+- [Rejected][false] Охват стража AC6 прямо ограничен Task 6.1–6.2 пятью наборами metadata и карточкой, а `og:image:alt` явно исключён; тексты login и остальные публичные поверхности не являются пропущенной реализацией этого AC.
+- [Rejected][false] Acceptance Auditor продублировал тезис о незавершённом AC8: Story находится на предусмотренном промежуточном этапе `review`, а не в `done`, и открытые production-шаги отражены явно.
+
 ## Dev Notes
 
 ### Текущее состояние (код `372b3efb`, прод 18.09.2026)
@@ -306,6 +329,14 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 
 ### Completion Notes List
 
+- 18.09.2026 dev-story, ответ на code review. Все три `[Review][Patch]` закрыты:
+  - ✅ Resolved review finding [Patch]: fail-closed CI-гейт production-чанков. `frontend/scripts/check-production-build.mjs` (`npm run check:build`) — шаг «Проверка production-сборки (чанки и robots)» в `frontend-ci.yml` сразу после `npm run build`, в required-контексте «Фронтенд: тесты». Скрипт поднимает `next start` (порт 3100) и заглушку backend по цепочке `getApiBaseUrl` middleware. Заглушка отдаёт пустой полный список CMS-слагов, на остальное 404. Проверяются чанки из двух источников: фактические ссылки из HTML 16 адресов рецепта 1.6 и шести адресов 404/soft-404 плюс манифест сборки (все страницы App Router, кроме `/profile/**` — Q1). Нарушение — `example` без учёта регистра в этих чанках или `zustand devtools middleware` в любом файле `.next/static/chunks/**`. Fail-closed: нет манифеста, чанка на диске или ссылок на чанки в HTML; страница не 200 и не редирект; middleware не обратился к заглушке — всё это ошибка с кодом 1. Манифест-набор по отдельности оказался неполным: HTML ссылается на layout соседней группы маршрутов и общие чанки сторов вне набора предков. Поэтому основной источник — HTML.
+  - ✅ Resolved review finding [Patch]: подписи карточек `/coming-soon` закреплены дословно. В `ComingSoonClient.test.tsx` — `it.each` «заголовок h3 → соседний `<p>` с точной подписью» и проверка, что карточек ровно три. Мутация «объёма» → «объема» роняет тест.
+  - ✅ Resolved review finding [Patch]: HTTP-проверка собранного приложения. Тот же скрипт: `/nonexistent-xyz`, `/catalog/zzz`, `/zzz/yyy` → 404 и ровно `["noindex"]`; `/product|blog|news/zzz-none` → 200 и ровно `["noindex, follow"]`. В тесте инварианта D4 комментарий ссылается на этот шаг.
+  - Доказательства (локально, сборка с `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1`, плюс `.env.local` как в CI с `NODE_ENV=test`): гейт зелёный, проверено 75 чанков. Мутации: `Example` в чанке сторов → код 1 с указанием чанка; `robots` возвращён в `not-found.tsx` и пересобрано → код 1, `["noindex","noindex, nofollow"]` на трёх 404; расхождение адреса заглушки со сборкой → код 1 («middleware не запрашивал список CMS-слагов»).
+  - Чистые функции гейта покрыты `src/__tests__/check-production-build.test.ts` (8 тестов). `npm test` — 197 файлов, 3440 passed, 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — зелёные. `detect-changes` — «No changes detected»: продуктовый код не менялся, правки только в тестах, скрипте и CI.
+  - Внешние шаги 8.4–8.5 по-прежнему открыты.
+
 - 18.09.2026 dev-story, итог. Ветка `feature/41-21-bundle-example-retail-wording` от `origin/develop` (`0b034416`, содержит `d64d4909`). GitNexus: индекс свежий (`0b03441`); impact — сторы и `NotFound` LOW (0 по графу), `ComingSoonClient` в графе нет, `generateMetadata` поиска — ambiguous, это точка входа Next без вызывающих в коде; HIGH/CRITICAL среди изменяемых нет, `buildMetadata` не тронут.
 - **A (AC1, AC2).** `stores/devtoolsInDev.ts` — дословно по 1.1; четыре стора переведены на обёртку, имена `…Store` и `persist` корзины не тронуты. `.devtools` в `src` не используется (1.3 — пусто). Tree-shaking сработал: запасной alias в `next.config.ts` не понадобился. Рецепт 1.6 на `next start` (16 публичных страниц, `grep -qi`) — пусто. Иных источников `example` нет (1.7). Тесты сторов — без изменения ожиданий.
 - **C (AC3–AC6).** Тексты внесены дословно по таблицам (длины 55 / 140 сверены `len()`); `keywords` у `/home` и `/electric` удалены; `/electric` — `buildMetadata` с текстами D7, `DEFAULT_OG_IMAGE*` из импорта убраны, JSDoc → «OPTISPORT». Prettier перенёс три подписи карточки на отдельные строки внутри `<p>` — рендер тот же. В `home/__tests__/page.test.tsx` добавлен `it` на canonical `/home` (AC3 требует, а проверки не было). В тесте поиска ожиданий description не было — добавлен `it` на точное значение и отсутствие «лучш». Страж AC6 проверен на откате пяти исходников к базе: падают все пять регрессов, `/` проходит (исправлен в 41.19).
@@ -339,6 +370,10 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 - `frontend/src/app/not-found.tsx`
 - `frontend/src/app/__tests__/robots-noindex-invariant.test.ts`
 - `_bmad-output/implementation-artifacts/deferred-work.md`
+- `frontend/scripts/check-production-build.mjs` (новый, code review)
+- `frontend/src/__tests__/check-production-build.test.ts` (новый, code review)
+- `frontend/package.json` (скрипт `check:build`, code review)
+- `.github/workflows/frontend-ci.yml` (шаг проверки production-сборки, code review)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `_bmad-output/implementation-artifacts/Story/41-21-bundle-example-retail-wording-single-404-robots.md`
 
@@ -347,3 +382,4 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 - 18.09.2026 — create-story: стори заведена по решениям Alex 18.09.2026 (A, C, D; R1 — убрать розницу; R2 — `/electric` только метаданные). Статус: ready-for-dev.
 - 18.09.2026 — ответы владельца на Q1 и Q2 внесены: охват нуля `example` — чанки публичных страниц; третья карточка `/coming-soon` — «Скидки от объема закупок».
 - 18.09.2026 — dev-story: `devtools` только вне production (в чанках публичных страниц 0 `example`), тексты `/home`, `/coming-soon`, `/electric`, `/search` без розницы и превосходных степеней, страж AC6, один тег robots на 404; запись в `deferred-work.md`. Статус → review. Открыты только внешние шаги 8.4–8.5 (AC8 на проде, закрытие 41.20).
+- 18.09.2026 — Addressed code review findings - 3 items resolved: CI-гейт production-сборки (`check-production-build.mjs`: чанки публичных страниц и robots на 404/soft-404), точные подписи карточек `/coming-soon`. Статус → review.
