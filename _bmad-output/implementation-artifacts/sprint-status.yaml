@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-17 (стори 41.20 — review)
+# last_updated: 2026-09-18 (стори 41.20 — done)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1300,7 +1300,26 @@ development_status:
   #             шаг 8.10 — выкат на прод (up -d --build frontend, restart backend
   #             celery celery-beat, обязательный restart nginx) и прод-приёмка
   #             AC5. in-progress -> review.
-  41-20-newsletter-consent-wording-and-placeholders: review
+  # 2026-09-18: dev-story после повторного ревью — закрыты 2 finding
+  #             [Review][Patch]: тест на дословный исторический текст
+  #             непосредственно предыдущих версий рассылки (2026-09-12-1a97b44f...,
+  #             2026-09-12-a49604a6...) в test_historical_versions_still_resolve_
+  #             to_their_text; уточнена формулировка доказательства E21 в реестре
+  #             41-16 (grep исключает тесты/моки/сгенерированные типы/@example,
+  #             а не пуст по всему frontend/src). Прогоны: test_consent_texts.py
+  #             41 passed, пять файлов Task 8.2 — 222 passed, black/flake8 чисто,
+  #             detect-changes --scope all — без изменений символов кода. Внешний
+  #             шаг 8.10 остаётся открытым. in-progress -> review.
+  # 2026-09-18: шаг 8.10 закрыт владельцем (Alex) — ручной выкат на прод по SSH
+  #             (up -d --build frontend, restart backend celery celery-beat,
+  #             restart nginx). Прод-приёмка AC5: шаг 8.6 подтверждён владельцем
+  #             визуально в браузере без cookie; шаг 8.7 подтверждён dev-агентом
+  #             curl-проверкой клиентских чанков https://optisport.ru — 0
+  #             вхождений старой формулировки на всех пяти страницах, одно
+  #             вхождение "example" в общем vendor-чанке (сторонний код
+  #             state-менеджмент-библиотеки, не связано со стори). AC5 закрыт
+  #             полностью, все Tasks/Subtasks выполнены.
+  41-20-newsletter-consent-wording-and-placeholders: done
   epic-41-retrospective: optional
 
 # ========================================
