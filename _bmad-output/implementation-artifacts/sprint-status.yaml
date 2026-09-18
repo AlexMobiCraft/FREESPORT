@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.20 — done; стори 41.21 — review, прод-приёмка снята)
+# last_updated: 2026-09-18 (стори 41.20 — done; стори 41.21 — review, AC8 принят)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1377,8 +1377,9 @@ development_status:
   #             (чанки публичных страниц + robots 404/soft-404 на next start),
   #             точные подписи карточек. Открыты 8.4-8.5. in-progress -> review.
   # 2026-09-18: прод-приёмка AC8 на ce727776 (снимок в стори), шаг 8.5
-  #             выполнен. Открыто визуальное подтверждение карточки
-  #             /coming-soon владельцем (8.4). Статус review сохранён.
+  #             выполнен; карточку /coming-soon владелец подтвердил в браузере
+  #             без cookie (8.4). Все задачи закрыты, статус review — до
+  #             повторного code review.
   41-21-bundle-example-retail-wording-single-404-robots: review
   epic-41-retrospective: optional
 
