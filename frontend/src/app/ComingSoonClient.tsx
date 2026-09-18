@@ -52,9 +52,9 @@ export default function ComingSoon() {
           >
             <h2 className="text-3xl md:text-4xl text-gray-900 mb-4 font-bold">МЫ СКОРО ВЕРНЕМСЯ</h2>
             <p className="text-gray-600 text-lg mb-8">
-              Платформа для оптовых и розничных
+              Оптовые продажи
               <br />
-              продаж спортивных товаров
+              спортивных товаров
             </p>
 
             {/* Features */}
@@ -63,22 +63,28 @@ export default function ComingSoon() {
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
                   <ShoppingCart className="w-6 h-6 text-[var(--color-primary)]" />
                 </div>
-                <h3 className="text-gray-900 mb-1 font-semibold">B2C Магазин</h3>
-                <p className="text-sm text-gray-500 text-center">Розничные продажи для всех</p>
+                <h3 className="text-gray-900 mb-1 font-semibold">Оптовые заказы</h3>
+                <p className="text-sm text-gray-500 text-center">
+                  Каталог и условия для оптовых покупателей
+                </p>
               </div>
               <div className="flex flex-col items-center p-4">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
                   <Users className="w-6 h-6 text-[var(--color-primary)]" />
                 </div>
-                <h3 className="text-gray-900 mb-1 font-semibold">B2B Решения</h3>
-                <p className="text-sm text-gray-500 text-center">Оптовые поставки для бизнеса</p>
+                <h3 className="text-gray-900 mb-1 font-semibold">Для организаций</h3>
+                <p className="text-sm text-gray-500 text-center">
+                  Магазины, спортивные клубы и федерации
+                </p>
               </div>
               <div className="flex flex-col items-center p-4">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-3">
                   <TrendingUp className="w-6 h-6 text-[var(--color-primary)]" />
                 </div>
-                <h3 className="text-gray-900 mb-1 font-semibold">Лучшие цены</h3>
-                <p className="text-sm text-gray-500 text-center">Конкурентные предложения</p>
+                <h3 className="text-gray-900 mb-1 font-semibold">Скидки от объема закупок</h3>
+                <p className="text-sm text-gray-500 text-center">
+                  Размер скидки зависит от объёма заказа
+                </p>
               </div>
             </div>
 

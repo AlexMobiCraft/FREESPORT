@@ -4,7 +4,7 @@ baseline_commit: 372b3efb
 
 # Story 41.21: Бандл без `example`, тексты без розницы и превосходных степеней, один тег robots на 404
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: 372b3efb
 
 ## Story
@@ -110,13 +110,13 @@ Title `/home` и заголовки трёх карточек утвержден
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — подготовка** (AC: все)
+- [x] **Task 0 — подготовка** (AC: все)
   - [x] 0.1 Коммит `d64d4909` (стори 41.20 → `in-progress`, открытый `[Review][Patch]`) влит владельцем в локальный `develop` 18.09.2026 (`fbb57041`) и уходит в `origin/develop` вместе с PR create-story этой стори (ветка `docs/story-41-21-create-story`). Перед 0.2 убедиться, что этот PR смёрджен: `git log origin/develop --oneline | grep d64d4909`.
-  - [ ] 0.2 Ветка `feature/41-21-bundle-example-retail-wording` от свежего `origin/develop`.
-  - [ ] 0.3 `npx gitnexus status`. При `stale` попросить владельца выполнить `! npx gitnexus analyze --skip-agents-md`. Затем `impact` по символам из раздела «GitNexus» с `-r "C:\Users\1\DEV\FREESPORT"`.
+  - [x] 0.2 Ветка `feature/41-21-bundle-example-retail-wording` от свежего `origin/develop`.
+  - [x] 0.3 `npx gitnexus status`. При `stale` попросить владельца выполнить `! npx gitnexus analyze --skip-agents-md`. Затем `impact` по символам из раздела «GitNexus» с `-r "C:\Users\1\DEV\FREESPORT"`.
 
-- [ ] **Task 1 — A: `devtools` только вне production** (AC: 1, 2)
-  - [ ] 1.1 Создать `frontend/src/stores/devtoolsInDev.ts`:
+- [x] **Task 1 — A: `devtools` только вне production** (AC: 1, 2)
+  - [x] 1.1 Создать `frontend/src/stores/devtoolsInDev.ts`:
     ```ts
     import { devtools } from 'zustand/middleware';
 
@@ -131,11 +131,11 @@ Title `/home` и заголовки трёх карточек утвержден
         ? ((initializer => initializer) as typeof devtools)
         : devtools;
     ```
-  - [ ] 1.2 В `authStore.ts:11,43`, `favoritesStore.ts:2,22`, `orderStore.ts:12,34` заменить импорт `devtools` на `import { devtoolsInDev } from './devtoolsInDev'` и вызов `devtools(` на `devtoolsInDev(`. В `cartStore.ts:12` оставить `import { persist } from 'zustand/middleware'` и заменить только `devtools` (`:55`). Второй аргумент `{ name: '…Store' }` не трогать.
-  - [ ] 1.3 Проверить, что обращений к API devtools у сторов нет: `grep -rn "\.devtools\b" frontend/src`. Ожидается пусто. Если что-то найдётся, в production оно получит `undefined`: HALT и доложить.
-  - [ ] 1.4 Юнит-тест `src/stores/__tests__/devtoolsInDev.test.ts`: при `NODE_ENV=production` (`vi.stubEnv` + `vi.resetModules` + динамический импорт) обёртка возвращает переданный инициализатор без изменений; вне production это сам `devtools` из `zustand/middleware`.
-  - [ ] 1.5 `npm run build` локально. Проверить все чанки, а не только чанки пяти страниц: `grep -rlic example .next/static/chunks`. На `372b3efb` результат такой: `3688-*.js` (zustand devtools), `164f4fb6-*.js` и `4199.*.js` (jsPDF и его зависимость rgbcolor, ключ `example:` в таблице цветов и путь `examples/PDF.js/...`). После правки `3688-*` должен выпасть. **Если строка zustand осталась** (tree-shaking не сработал), запасной вариант: в `next.config.ts` → `webpack(config, { dev })` при `!dev` задать alias `zustand/middleware$` на локальный модуль, который реэкспортирует только `persist` из `zustand/esm/middleware.mjs`. Правка `next.config.ts` требует полного пересбора. Применять только после неудачной проверки.
-  - [ ] 1.6 Проверка публичных страниц (рецепт 8.7 стори 41.20, исправленный: без учёта регистра, шире охват). Сначала на `next start` локально, затем на проде:
+  - [x] 1.2 В `authStore.ts:11,43`, `favoritesStore.ts:2,22`, `orderStore.ts:12,34` заменить импорт `devtools` на `import { devtoolsInDev } from './devtoolsInDev'` и вызов `devtools(` на `devtoolsInDev(`. В `cartStore.ts:12` оставить `import { persist } from 'zustand/middleware'` и заменить только `devtools` (`:55`). Второй аргумент `{ name: '…Store' }` не трогать.
+  - [x] 1.3 Проверить, что обращений к API devtools у сторов нет: `grep -rn "\.devtools\b" frontend/src`. Ожидается пусто. Если что-то найдётся, в production оно получит `undefined`: HALT и доложить.
+  - [x] 1.4 Юнит-тест `src/stores/__tests__/devtoolsInDev.test.ts`: при `NODE_ENV=production` (`vi.stubEnv` + `vi.resetModules` + динамический импорт) обёртка возвращает переданный инициализатор без изменений; вне production это сам `devtools` из `zustand/middleware`.
+  - [x] 1.5 `npm run build` локально. Проверить все чанки, а не только чанки пяти страниц: `grep -rlic example .next/static/chunks`. На `372b3efb` результат такой: `3688-*.js` (zustand devtools), `164f4fb6-*.js` и `4199.*.js` (jsPDF и его зависимость rgbcolor, ключ `example:` в таблице цветов и путь `examples/PDF.js/...`). После правки `3688-*` должен выпасть. **Если строка zustand осталась** (tree-shaking не сработал), запасной вариант: в `next.config.ts` → `webpack(config, { dev })` при `!dev` задать alias `zustand/middleware$` на локальный модуль, который реэкспортирует только `persist` из `zustand/esm/middleware.mjs`. Правка `next.config.ts` требует полного пересбора. Применять только после неудачной проверки.
+  - [x] 1.6 Проверка публичных страниц (рецепт 8.7 стори 41.20, исправленный: без учёта регистра, шире охват). Сначала на `next start` локально, затем на проде:
     ```bash
     BASE=${BASE:-http://localhost:3000}
     for page in coming-soon home catalog "catalog?is_hit=true" register b2b-register password-reset login cart checkout partners privacy-policy about delivery requisites electric; do
@@ -146,40 +146,40 @@ Title `/home` и заголовки трёх карточек утвержден
     done
     ```
     Ожидание — пусто. Чанки jsPDF (`164f4fb6-*`, `4199.*`) загружает только `/profile/orders/[id]` (`OrderDetailClient.tsx:14` → `utils/orderPdfExport.ts:6`, серверный `page_client-reference-manifest.js`). Страница доступна только авторизованному и закрыта `Disallow: /profile`. Эти чанки в охват AC1 не входят — решение Alex 18.09.2026 (Q1).
-  - [ ] 1.7 Если в 1.6 найдётся иной источник `example` в чанках публичных страниц: наш код — исправить в этой стори; сторонняя библиотека без переключателя — HALT, доложить владельцу с контекстом строки.
+  - [x] 1.7 Если в 1.6 найдётся иной источник `example` в чанках публичных страниц: наш код — исправить в этой стори; сторонняя библиотека без переключателя — HALT, доложить владельцу с контекстом строки.
 
-- [ ] **Task 2 — C: `/home`** (AC: 3, 6)
-  - [ ] 2.1 `app/(blue)/home/page.tsx:7-14`: title и description по таблице, строку `keywords` удалить, `path: '/home'` и комментарий про канонический адрес оставить.
-  - [ ] 2.2 `app/(blue)/home/__tests__/page.test.tsx:152-186`: точные ожидания title, description, `openGraph.title/description`, `twitter.title/description`; тест «должна содержать keywords» заменить на `expect(metadata.keywords).toBeUndefined()`.
+- [x] **Task 2 — C: `/home`** (AC: 3, 6)
+  - [x] 2.1 `app/(blue)/home/page.tsx:7-14`: title и description по таблице, строку `keywords` удалить, `path: '/home'` и комментарий про канонический адрес оставить.
+  - [x] 2.2 `app/(blue)/home/__tests__/page.test.tsx:152-186`: точные ожидания title, description, `openGraph.title/description`, `twitter.title/description`; тест «должна содержать keywords» заменить на `expect(metadata.keywords).toBeUndefined()`.
 
-- [ ] **Task 3 — C: `/coming-soon`** (AC: 4, 6)
-  - [ ] 3.1 `app/(coming-soon)/coming-soon/page.tsx:12-13` — description по таблице. Title и комментарий про `noIndex` не менять.
-  - [ ] 3.2 `app/ComingSoonClient.tsx:54-81` (абзац `:54-58`, карточки `:66-67`, `:73-74`, `:80-81`) — абзац и три карточки по таблице. Иконки, классы и `motion`-обёртки не менять.
-  - [ ] 3.3 `app/(coming-soon)/coming-soon/__tests__/page.test.tsx:29-33` — новое точное значение description.
-  - [ ] 3.4 `app/__tests__/ComingSoonClient.test.tsx` — новый `it`: видны «Оптовые продажи», «Оптовые заказы», «Для организаций», «Скидки от объема закупок»; нет текстов «B2C», «B2B», «Розничные», «Лучшие цены», «Платформа». Существующие `it` (строки 48-116) не менять.
+- [x] **Task 3 — C: `/coming-soon`** (AC: 4, 6)
+  - [x] 3.1 `app/(coming-soon)/coming-soon/page.tsx:12-13` — description по таблице. Title и комментарий про `noIndex` не менять.
+  - [x] 3.2 `app/ComingSoonClient.tsx:54-81` (абзац `:54-58`, карточки `:66-67`, `:73-74`, `:80-81`) — абзац и три карточки по таблице. Иконки, классы и `motion`-обёртки не менять.
+  - [x] 3.3 `app/(coming-soon)/coming-soon/__tests__/page.test.tsx:29-33` — новое точное значение description.
+  - [x] 3.4 `app/__tests__/ComingSoonClient.test.tsx` — новый `it`: видны «Оптовые продажи», «Оптовые заказы», «Для организаций», «Скидки от объема закупок»; нет текстов «B2C», «B2B», «Розничные», «Лучшие цены», «Платформа». Существующие `it` (строки 48-116) не менять.
 
-- [ ] **Task 4 — C: `/electric`** (AC: 5, 6)
-  - [ ] 4.1 `app/(electric)/electric/page.tsx:40-68` — объект `metadata` заменить вызовом `buildMetadata` по таблице. `DEFAULT_OG_IMAGE`, `DEFAULT_OG_IMAGE_META` из импорта убрать, если они больше не используются. Добавить `buildMetadata`. JSDoc файла (строка 4, «FREESPORT Platform») привести к «OPTISPORT»: это комментарий, не метаданные, но правка в той же строке файла.
-  - [ ] 4.2 Новый тест `app/(electric)/electric/__tests__/metadata.test.ts` по образцу `app/__tests__/layout-metadata.test.ts`: title, description, `alternates.canonical === '/electric'`, `openGraph.url === '/electric'`, `openGraph.images` = `[DEFAULT_OG_IMAGE_META]`, `keywords` и `robots` — `undefined`. Импорт страницы тянет серверные секции: если импорт в Vitest тяжёл, замокать их, как в `app/(electric)/__tests__/landmarks.test.tsx`.
-  - [ ] 4.3 `landmarks.test.tsx` проходит без изменений.
+- [x] **Task 4 — C: `/electric`** (AC: 5, 6)
+  - [x] 4.1 `app/(electric)/electric/page.tsx:40-68` — объект `metadata` заменить вызовом `buildMetadata` по таблице. `DEFAULT_OG_IMAGE`, `DEFAULT_OG_IMAGE_META` из импорта убрать, если они больше не используются. Добавить `buildMetadata`. JSDoc файла (строка 4, «FREESPORT Platform») привести к «OPTISPORT»: это комментарий, не метаданные, но правка в той же строке файла.
+  - [x] 4.2 Новый тест `app/(electric)/electric/__tests__/metadata.test.ts` по образцу `app/__tests__/layout-metadata.test.ts`: title, description, `alternates.canonical === '/electric'`, `openGraph.url === '/electric'`, `openGraph.images` = `[DEFAULT_OG_IMAGE_META]`, `keywords` и `robots` — `undefined`. Импорт страницы тянет серверные секции: если импорт в Vitest тяжёл, замокать их, как в `app/(electric)/__tests__/landmarks.test.tsx`.
+  - [x] 4.3 `landmarks.test.tsx` проходит без изменений.
 
-- [ ] **Task 5 — C: `/search`** (AC: 6)
-  - [ ] 5.1 `app/(blue)/search/page.tsx:40` — убрать предложение «Найдите спортивные товары по лучшим ценам.». Ветка без `q` не меняется. Комментарий D4 (`:34-36`) сохранить.
-  - [ ] 5.2 В `app/(blue)/search/__tests__/page.test.tsx` проверить ожидания description и поправить, если есть; добавить `it` на отсутствие «лучш».
+- [x] **Task 5 — C: `/search`** (AC: 6)
+  - [x] 5.1 `app/(blue)/search/page.tsx:40` — убрать предложение «Найдите спортивные товары по лучшим ценам.». Ветка без `q` не меняется. Комментарий D4 (`:34-36`) сохранить.
+  - [x] 5.2 В `app/(blue)/search/__tests__/page.test.tsx` проверить ожидания description и поправить, если есть; добавить `it` на отсутствие «лучш».
 
-- [ ] **Task 6 — C: страж** (AC: 6)
-  - [ ] 6.1 Новый `src/app/__tests__/public-copy-no-retail-superlatives.test.ts`. Для `@/app/layout`, `(blue)/home/page`, `(coming-soon)/coming-soon/page`, `(electric)/electric/page` и `generateMetadata` страницы поиска с `q='мяч'` собрать строки title, description, `openGraph.title/description`, `twitter.title/description` и проверить их регуляркой из AC6. Шрифты `next/font/google` замокать, как в `coming-soon/__tests__/page.test.tsx:20-23`.
-  - [ ] 6.2 В тот же файл добавить рендер `ComingSoonClient` и проверку `container.textContent` той же регуляркой. `og:image:alt` («OPTISPORT — платформа продаж спортивных товаров», `utils/seo.ts:47`) в страж не входит, см. «Не делать».
+- [x] **Task 6 — C: страж** (AC: 6)
+  - [x] 6.1 Новый `src/app/__tests__/public-copy-no-retail-superlatives.test.ts`. Для `@/app/layout`, `(blue)/home/page`, `(coming-soon)/coming-soon/page`, `(electric)/electric/page` и `generateMetadata` страницы поиска с `q='мяч'` собрать строки title, description, `openGraph.title/description`, `twitter.title/description` и проверить их регуляркой из AC6. Шрифты `next/font/google` замокать, как в `coming-soon/__tests__/page.test.tsx:20-23`.
+  - [x] 6.2 В тот же файл добавить рендер `ComingSoonClient` и проверку `container.textContent` той же регуляркой. `og:image:alt` («OPTISPORT — платформа продаж спортивных товаров», `utils/seo.ts:47`) в страж не входит, см. «Не делать».
 
-- [ ] **Task 7 — D: один тег robots на 404** (AC: 7)
-  - [ ] 7.1 `app/not-found.tsx:6-9` — удалить `robots` из `metadata`, `title` оставить. Комментарий над `metadata`: «`noindex` на ответ 404 Next ставит сам (`app-render.js`, условие `is404Page`); собственный `robots` давал второй, противоречивый тег `noindex, nofollow`. На soft-404 со статусом 200 метаданные этого файла не применяются — там `noindex` задаёт `generateMetadata` страницы».
-  - [ ] 7.2 `app/__tests__/robots-noindex-invariant.test.ts:233-237`: тест «404 — noindex, nofollow» заменить на «404 — `robots` не задан, `noindex` ставит Next» (`expect(metadata.robots).toBeUndefined()`). Комментарий со ссылкой на эту стори и на AC7. Остальные блоки инварианта (`/unsubscribe`, `it.each` динамических страниц) не менять.
-  - [ ] 7.3 Проверка на локальной production-сборке (`next start`): `/nonexistent-xyz`, `/catalog/zzz`, `/zzz/yyy` → 404 и ровно один `<meta name="robots" content="noindex"/>`; `/product/zzz-none`, `/blog/zzz-none`, `/news/zzz-none` → 200 и один `noindex, follow`. Команда: `curl -s -o /tmp/r.html -w '%{http_code}' URL; grep -o '<meta name="robots"[^>]*>' /tmp/r.html`.
+- [x] **Task 7 — D: один тег robots на 404** (AC: 7)
+  - [x] 7.1 `app/not-found.tsx:6-9` — удалить `robots` из `metadata`, `title` оставить. Комментарий над `metadata`: «`noindex` на ответ 404 Next ставит сам (`app-render.js`, условие `is404Page`); собственный `robots` давал второй, противоречивый тег `noindex, nofollow`. На soft-404 со статусом 200 метаданные этого файла не применяются — там `noindex` задаёт `generateMetadata` страницы».
+  - [x] 7.2 `app/__tests__/robots-noindex-invariant.test.ts:233-237`: тест «404 — noindex, nofollow» заменить на «404 — `robots` не задан, `noindex` ставит Next» (`expect(metadata.robots).toBeUndefined()`). Комментарий со ссылкой на эту стори и на AC7. Остальные блоки инварианта (`/unsubscribe`, `it.each` динамических страниц) не менять.
+  - [x] 7.3 Проверка на локальной production-сборке (`next start`): `/nonexistent-xyz`, `/catalog/zzz`, `/zzz/yyy` → 404 и ровно один `<meta name="robots" content="noindex"/>`; `/product/zzz-none`, `/blog/zzz-none`, `/news/zzz-none` → 200 и один `noindex, follow`. Команда: `curl -s -o /tmp/r.html -w '%{http_code}' URL; grep -o '<meta name="robots"[^>]*>' /tmp/r.html`.
 
 - [ ] **Task 8 — проверки, приёмка, трекер** (AC: все)
-  - [ ] 8.1 `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — всё зелёное. Backend не затрагивается.
-  - [ ] 8.2 `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"`. Ожидаемо затронуты четыре стора, `devtoolsInDev`, `NotFound` (только metadata), `ComingSoonClient`, `generateMetadata` поиска, метаданные трёх страниц. `buildMetadata` меняться не должен.
-  - [ ] 8.3 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
+  - [x] 8.1 `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — всё зелёное. Backend не затрагивается.
+  - [x] 8.2 `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"`. Ожидаемо затронуты четыре стора, `devtoolsInDev`, `NotFound` (только metadata), `ComingSoonClient`, `generateMetadata` поиска, метаданные трёх страниц. `buildMetadata` меняться не должен.
+  - [x] 8.3 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
   - [ ] 8.4 **Внешний шаг (после мёрджа, ручной выкат по SSH):** sync `develop` → `main` через PR (5 обязательных контекстов). На сервере: `git fetch origin main && git reset --hard origin/main`, `docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build frontend`, затем **`restart nginx`**. AC8: рецепт 1.6 с `BASE=https://optisport.ru`, curl метаданных (`/coming-soon`, `/home`, `/electric`, `/search?q=мяч`), рецепт 7.3 против прода. Владелец смотрит `/coming-soon` в браузере без cookie. Снимок положить в стори.
   - [ ] 8.5 После AC8: в стори 41.20 отметить `[Review][Patch]` третьего ревью `[x]` со ссылкой на 41.21, статус → `done` (стори и `sprint-status.yaml`). В реестре 41.16, запись E21: одной строкой добавить прод-доказательство — 0 `example` в чанках публичных страниц, дата, коммит.
 
@@ -296,15 +296,54 @@ Next 15.5.18 (App Router, сборка webpack), React 19, zustand 4.5.7 (ESM, `
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
+
 ### Debug Log References
 
+- Сборки: `npm run build` (webpack) трижды — после Task 1, после Task 7 и с `NEXT_PUBLIC_MIDDLEWARE_API_URL=http://localhost:8001/api/v1` для проверки 7.3. Логи — в scratchpad сессии, в репозиторий не входят.
+- `grep -rlic example .next/static/chunks` после правки: только `164f4fb6-cafca3d180b7eab5.js` и `4199.52b11f53afb6f733.js` (jsPDF/rgbcolor, исключение Q1); `3688-*` выпал; `grep -rl "zustand devtools middleware" .next/static/chunks` — пусто.
+- Первая проверка 7.3 дала на `/nonexistent-xyz` 200 и `noindex, follow`: локальная сборка без `.env` инлайнит в middleware умолчание `http://backend:8000/api/v1`, с хоста недоступное, и механизм 41.0 уходит в fail-open (soft-404 через `[slug]`). С адресом backend хоста — 404. Код не менялся, это свойство локального окружения.
+
 ### Completion Notes List
+
+- 18.09.2026 dev-story, итог. Ветка `feature/41-21-bundle-example-retail-wording` от `origin/develop` (`0b034416`, содержит `d64d4909`). GitNexus: индекс свежий (`0b03441`); impact — сторы и `NotFound` LOW (0 по графу), `ComingSoonClient` в графе нет, `generateMetadata` поиска — ambiguous, это точка входа Next без вызывающих в коде; HIGH/CRITICAL среди изменяемых нет, `buildMetadata` не тронут.
+- **A (AC1, AC2).** `stores/devtoolsInDev.ts` — дословно по 1.1; четыре стора переведены на обёртку, имена `…Store` и `persist` корзины не тронуты. `.devtools` в `src` не используется (1.3 — пусто). Tree-shaking сработал: запасной alias в `next.config.ts` не понадобился. Рецепт 1.6 на `next start` (16 публичных страниц, `grep -qi`) — пусто. Иных источников `example` нет (1.7). Тесты сторов — без изменения ожиданий.
+- **C (AC3–AC6).** Тексты внесены дословно по таблицам (длины 55 / 140 сверены `len()`); `keywords` у `/home` и `/electric` удалены; `/electric` — `buildMetadata` с текстами D7, `DEFAULT_OG_IMAGE*` из импорта убраны, JSDoc → «OPTISPORT». Prettier перенёс три подписи карточки на отдельные строки внутри `<p>` — рендер тот же. В `home/__tests__/page.test.tsx` добавлен `it` на canonical `/home` (AC3 требует, а проверки не было). В тесте поиска ожиданий description не было — добавлен `it` на точное значение и отсутствие «лучш». Страж AC6 проверен на откате пяти исходников к базе: падают все пять регрессов, `/` проходит (исправлен в 41.19).
+- **D (AC7).** `robots` из `not-found.tsx` удалён, комментарий по 7.1; тест инварианта D4 — по 7.2, остальные блоки не тронуты. Production-сборка: `/nonexistent-xyz`, `/catalog/zzz`, `/zzz/yyy` → 404 и ровно один `<meta name="robots" content="noindex"/>`; `/product|blog|news/zzz-none` → 200 и один `noindex, follow`.
+- Локальная приёмка метаданных (`curl -A "AuditikBot/1.0"`, `next start`): `/coming-soon`, `/home`, `/electric`, `/search?q=мяч` совпадают с таблицами, у `/electric` canonical и `og:url` — `/electric`; в HTML `/coming-soon` есть все четыре новых текста карточки и нет `B2C`, `B2B`, «Лучшие цены», «Розничные».
+- Проверки 8.1: `npm test` — 196 файлов, 3428 passed, 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — зелёные. `detect-changes`: 16 файлов, 11 символов — четыре стора, `NotFound` + `metadata`, `ComingSoon`, `generateMetadata` поиска, `metadata` трёх страниц; `buildMetadata` не изменён; риск medium — за счёт потоков `generateMetadata → normalizePath/withDefaultImageMeta`.
+- `deferred-work.md`: записан пробел `/privacy-policy` (soft-404 без `noindex`), как требует «Не делать».
+- **Не выполнено:** 8.4 и 8.5 — внешние шаги после мёрджа (PR `develop` → `main`, ручной выкат по SSH, `restart nginx`, приёмка AC8 на `optisport.ru` со снимком в стори, затем закрытие 41.20 и запись E21 реестра 41.16). AC8 до выката не проверяется.
 
 - 18.09.2026: create-story — анализ проверки закрытия отчёта 16.09 и intent-хвостов; код на `372b3efb`; прод снят `curl` (метаданные, 404/soft-404, чанки); локальная production-сборка просканирована на `example`: найдено три чанка, источники установлены (zustand devtools, jsPDF/rgbcolor); механизм `noindex` Next на 404 сверен по `node_modules`; GitNexus impact и cypher по импортёрам сторов. Ultimate context engine analysis completed - comprehensive developer guide created. Код не менялся.
 
 ### File List
 
+- `frontend/src/stores/devtoolsInDev.ts` (новый)
+- `frontend/src/stores/__tests__/devtoolsInDev.test.ts` (новый)
+- `frontend/src/stores/authStore.ts`
+- `frontend/src/stores/cartStore.ts`
+- `frontend/src/stores/favoritesStore.ts`
+- `frontend/src/stores/orderStore.ts`
+- `frontend/src/app/(blue)/home/page.tsx`
+- `frontend/src/app/(blue)/home/__tests__/page.test.tsx`
+- `frontend/src/app/(coming-soon)/coming-soon/page.tsx`
+- `frontend/src/app/(coming-soon)/coming-soon/__tests__/page.test.tsx`
+- `frontend/src/app/ComingSoonClient.tsx`
+- `frontend/src/app/__tests__/ComingSoonClient.test.tsx`
+- `frontend/src/app/(electric)/electric/page.tsx`
+- `frontend/src/app/(electric)/electric/__tests__/metadata.test.ts` (новый)
+- `frontend/src/app/(blue)/search/page.tsx`
+- `frontend/src/app/(blue)/search/__tests__/page.test.tsx`
+- `frontend/src/app/__tests__/public-copy-no-retail-superlatives.test.ts` (новый)
+- `frontend/src/app/not-found.tsx`
+- `frontend/src/app/__tests__/robots-noindex-invariant.test.ts`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/41-21-bundle-example-retail-wording-single-404-robots.md`
+
 ### Change Log
 
 - 18.09.2026 — create-story: стори заведена по решениям Alex 18.09.2026 (A, C, D; R1 — убрать розницу; R2 — `/electric` только метаданные). Статус: ready-for-dev.
 - 18.09.2026 — ответы владельца на Q1 и Q2 внесены: охват нуля `example` — чанки публичных страниц; третья карточка `/coming-soon` — «Скидки от объема закупок».
+- 18.09.2026 — dev-story: `devtools` только вне production (в чанках публичных страниц 0 `example`), тексты `/home`, `/coming-soon`, `/electric`, `/search` без розницы и превосходных степеней, страж AC6, один тег robots на 404; запись в `deferred-work.md`. Статус → review. Открыты только внешние шаги 8.4–8.5 (AC8 на проде, закрытие 41.20).

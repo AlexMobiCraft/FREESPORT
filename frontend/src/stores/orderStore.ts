@@ -9,7 +9,7 @@
  */
 
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtoolsInDev } from './devtoolsInDev';
 import ordersService from '@/services/ordersService';
 import { useCartStore } from '@/stores/cartStore';
 import type { CheckoutFormData } from '@/schemas/checkoutSchema';
@@ -31,7 +31,7 @@ interface OrderState {
 }
 
 export const useOrderStore = create<OrderState>()(
-  devtools(
+  devtoolsInDev(
     set => ({
       // Initial state
       currentOrder: null,

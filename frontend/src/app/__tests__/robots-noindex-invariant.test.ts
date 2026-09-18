@@ -231,9 +231,11 @@ describe('Инвариант D4: ни один адрес sitemap не закр�
 });
 
 describe('Инвариант D4: noindex вне Disallow сохранён', () => {
-  it('404 — noindex, nofollow', async () => {
+  // Стори 41.21, AC7: `noindex` на ответ 404 ставит сам Next (`app-render.js`,
+  // условие `is404Page`). Собственный `robots` давал второй тег `noindex, nofollow`.
+  it('404 — robots не задан, noindex ставит Next', async () => {
     const { metadata } = await import('../not-found');
-    expect(metadata.robots).toEqual({ index: false, follow: false });
+    expect(metadata.robots).toBeUndefined();
   });
 
   it('/unsubscribe — noindex, nofollow', async () => {

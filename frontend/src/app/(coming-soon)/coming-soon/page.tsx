@@ -10,7 +10,7 @@ import { buildMetadata } from '@/utils/seo';
 export const metadata: Metadata = buildMetadata({
   title: 'OPTISPORT скоро откроется — оптовые продажи спорттоваров',
   description:
-    'OPTISPORT — оптовые и розничные продажи спортивных товаров. Сайт скоро откроется, по вопросам сотрудничества пишите на info@optisport.ru.',
+    'OPTISPORT — оптовые продажи спортивных товаров. Сайт скоро откроется, по вопросам сотрудничества пишите на info@optisport.ru.',
   path: '/coming-soon',
 });
 

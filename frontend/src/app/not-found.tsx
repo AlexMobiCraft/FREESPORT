@@ -3,9 +3,13 @@ import Link from 'next/link';
 
 // Страница рендерится внутри корневого layout, поэтому своих <html>/<body> здесь быть
 // не должно — вложенный документ ломает разметку 404-ответа.
+//
+// `noindex` на ответ 404 Next ставит сам (`app-render.js`, условие `is404Page`);
+// собственный `robots` давал второй, противоречивый тег `noindex, nofollow`.
+// На soft-404 со статусом 200 метаданные этого файла не применяются — там
+// `noindex` задаёт `generateMetadata` страницы.
 export const metadata: Metadata = {
   title: 'Страница не найдена | OPTISPORT',
-  robots: { index: false, follow: false },
 };
 
 export default function NotFound() {

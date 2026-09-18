@@ -115,4 +115,19 @@ describe('ComingSoonClient — AC5: формы подписки нет', () => {
     expect(line.closest('a')).toBeNull();
     expect(screen.queryByText(/26-22-004188/)).not.toBeInTheDocument();
   });
+
+  // Story 41.21 — AC4/AC6: карточка описывает только действующее предложение
+  // (розница отключена), без превосходных степеней.
+  it('описывает оптовое предложение без розницы и превосходных степеней (41.21)', () => {
+    render(<ComingSoon />);
+
+    expect(screen.getByText(/Оптовые продажи/)).toBeInTheDocument();
+    expect(screen.getByText('Оптовые заказы')).toBeInTheDocument();
+    expect(screen.getByText('Для организаций')).toBeInTheDocument();
+    expect(screen.getByText('Скидки от объема закупок')).toBeInTheDocument();
+
+    for (const text of [/B2C/, /B2B/, /Розничные/, /Лучшие цены/, /Платформа/]) {
+      expect(screen.queryByText(text)).not.toBeInTheDocument();
+    }
+  });
 });

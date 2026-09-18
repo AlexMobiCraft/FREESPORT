@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.20 — in-progress; стори 41.21 — ready-for-dev)
+# last_updated: 2026-09-18 (стори 41.20 — in-progress; стори 41.21 — review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1359,7 +1359,12 @@ development_status:
   #             публичных страниц (jsPDF — исключение); Q2 — title /home утверждён,
   #             карточки /coming-soon: «Оптовые заказы», «Для организаций»,
   #             «Скидки от объема закупок». backlog -> ready-for-dev.
-  41-21-bundle-example-retail-wording-single-404-robots: ready-for-dev
+  # 2026-09-18: dev-story на ветке feature/41-21-bundle-example-retail-wording.
+  #             ready-for-dev -> in-progress. devtools только вне production
+  #             (0 example в чанках публичных страниц), тексты без розницы,
+  #             один тег robots на 404. Открыты внешние шаги 8.4-8.5 (AC8 на
+  #             проде, закрытие 41.20). in-progress -> review.
+  41-21-bundle-example-retail-wording-single-404-robots: review
   epic-41-retrospective: optional
 
 # ========================================
