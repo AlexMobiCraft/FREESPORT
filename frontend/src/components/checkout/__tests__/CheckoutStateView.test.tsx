@@ -1,11 +1,16 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import * as axeMatchers from 'vitest-axe';
 import { axe } from 'vitest-axe';
 import { CheckoutStateView } from '../CheckoutStateView';
 import type { CheckoutView } from '@/utils/checkout/checkoutView';
+import {
+  LOGIN_RETURN_COOKIE,
+  clearLoginReturnCookie,
+  readLoginReturnCookie,
+} from '@/utils/loginReturn';
 
 // @ts-expect-error vitest-axe types mismatch with vitest
 expect.extend(axeMatchers);
@@ -66,7 +71,7 @@ describe('CheckoutStateView', () => {
     expect(element).toBeTruthy();
   });
 
-  it('anonymous: показывает приглашение войти со ссылкой next=%2Fcheckout', () => {
+  it('anonymous: показывает приглашение войти со ссылкой на /login (41.18, D3)', () => {
     render(<CheckoutStateView view="anonymous" />);
     expect(screen.getByTestId('checkout-login-required')).toBeInTheDocument();
     expect(
@@ -76,8 +81,55 @@ describe('CheckoutStateView', () => {
       screen.getByText('Оформление заказа доступно после входа в личный кабинет.')
     ).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'Войти' });
-    expect(link).toHaveAttribute('href', '/login?next=%2Fcheckout');
+    expect(link).toHaveAttribute('href', '/login');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  describe('anonymous: клик по «Войти» пишет /checkout в cookie точки возврата (AC3)', () => {
+    // Переход по ссылке в happy-dom не нужен: проверяется только запись cookie
+    const preventNavigation = (event: Event) => event.preventDefault();
+
+    beforeEach(() => {
+      document.addEventListener('click', preventNavigation);
+    });
+
+    afterEach(() => {
+      document.removeEventListener('click', preventNavigation);
+      window.history.pushState({}, '', '/login');
+      clearLoginReturnCookie();
+      window.history.pushState({}, '', '/');
+    });
+
+    it('до клика cookie нет, после клика — /checkout с Path=/login', async () => {
+      const user = userEvent.setup();
+      window.history.pushState({}, '', '/checkout');
+      render(<CheckoutStateView view="anonymous" />);
+
+      window.history.pushState({}, '', '/login');
+      expect(readLoginReturnCookie()).toBeNull();
+      window.history.pushState({}, '', '/checkout');
+
+      await user.click(screen.getByRole('link', { name: 'Войти' }));
+
+      // Cookie с Path=/login не видна документу на /checkout
+      expect(document.cookie).not.toContain(LOGIN_RETURN_COOKIE);
+      window.history.pushState({}, '', '/login');
+      expect(document.cookie).toContain(`${LOGIN_RETURN_COOKIE}=%2Fcheckout`);
+      expect(readLoginReturnCookie()).toBe('/checkout');
+    });
+
+    it('средний клик (auxclick) cookie не пишет — после входа будет "/" (S4)', async () => {
+      window.history.pushState({}, '', '/checkout');
+      render(<CheckoutStateView view="anonymous" />);
+
+      fireEvent(
+        screen.getByRole('link', { name: 'Войти' }),
+        new MouseEvent('auxclick', { bubbles: true, button: 1 })
+      );
+
+      window.history.pushState({}, '', '/login');
+      expect(readLoginReturnCookie()).toBeNull();
+    });
   });
 
   it('empty: показывает пустое состояние со ссылкой в каталог', () => {

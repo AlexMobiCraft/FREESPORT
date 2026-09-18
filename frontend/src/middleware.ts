@@ -3,6 +3,8 @@
  *
  * Edge Runtime - совместимый код (только Web APIs)
  * Проверяет authenticated routes и редиректит неавторизованных пользователей на /login.
+ * Точка возврата после входа передаётся не query-параметром, а короткоживущей
+ * cookie `loginReturnTo` с `Path=/login` (стори 41.18, решение D3).
  * Дополнительно возвращает настоящий 404 на несуществующие адреса верхнего уровня:
  * App Router фиксирует статус до вызова notFound(), а middleware выполняется
  * до стриминга и статус вернуть может.
@@ -11,6 +13,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { isSafeRedirectUrl } from '@/utils/urlUtils';
+import {
+  LOGIN_RETURN_COOKIE,
+  LOGIN_RETURN_COOKIE_PATH,
+  loginReturnCookieOptions,
+  resolvePostLoginTarget,
+} from '@/utils/loginReturn';
 
 /**
  * Односегментные маршруты, которые обслуживает сам Next.js.
@@ -377,6 +385,16 @@ function isAuthRoute(pathname: string): boolean {
 }
 
 /**
+ * Prefetch-запрос не должен ставить cookie точки возврата: иначе ссылка на
+ * `/profile*` без `prefetch={false}` записала бы гостю цель без клика.
+ */
+function isPrefetchRequest(request: NextRequest): boolean {
+  if (request.headers.get('next-router-prefetch') !== null) return true;
+  const purpose = `${request.headers.get('purpose') ?? ''} ${request.headers.get('sec-purpose') ?? ''}`;
+  return purpose.toLowerCase().includes('prefetch');
+}
+
+/**
  * Middleware function
  */
 export async function middleware(request: NextRequest) {
@@ -391,28 +409,32 @@ export async function middleware(request: NextRequest) {
   if (isProtectedRoute(pathname) && !isAuthenticated) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    // Один адрес входа: query исходного запроса тоже снимается
+    url.search = '';
 
-    // Сохраняем исходный путь для редиректа после входа
-    // НЕ добавляем next параметр, если уже на /login (предотвращение бесконечного редиректа)
-    if (pathname !== '/login') {
-      url.searchParams.set('next', pathname);
+    const response = NextResponse.redirect(url);
+    // Исходный путь уходит в cookie точки возврата (D3)
+    if (isSafeRedirectUrl(pathname) && !isPrefetchRequest(request)) {
+      response.cookies.set(LOGIN_RETURN_COOKIE, pathname, loginReturnCookieOptions());
     }
-
-    return NextResponse.redirect(url);
+    return response;
   }
 
-  // Если пользователь авторизован и пытается открыть auth route - редирект на главную
+  // Если пользователь авторизован и пытается открыть auth route — редирект на цель:
+  // next/redirect из URL, затем cookie точки возврата, затем главная
   if (isAuthRoute(pathname) && isAuthenticated) {
-    const url = request.nextUrl.clone();
-    const nextParam = url.searchParams.get('next') || url.searchParams.get('redirect');
+    const { searchParams } = request.nextUrl;
+    const urlCandidate = searchParams.get('next') || searchParams.get('redirect');
+    const returnCookie = request.cookies.get(LOGIN_RETURN_COOKIE)?.value;
+    const target = resolvePostLoginTarget(urlCandidate, returnCookie ?? null);
 
-    // Если есть next/redirect параметр и он валидный
-    if (isSafeRedirectUrl(nextParam)) {
-      return NextResponse.redirect(new URL(nextParam!, request.url));
+    // Главная — без исходной query, иначе `/?next=…` стал бы ещё одним вариантом адреса
+    const response = NextResponse.redirect(new URL(target, request.url));
+    if (returnCookie !== undefined) {
+      // Удаление только с явным Path: без него cookie с Path=/login не удалится
+      response.cookies.delete({ name: LOGIN_RETURN_COOKIE, path: LOGIN_RETURN_COOKIE_PATH });
     }
-
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+    return response;
   }
 
   if (pathname === '/unsubscribe') {

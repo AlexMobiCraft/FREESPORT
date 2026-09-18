@@ -10,13 +10,11 @@
 import type { Metadata } from 'next';
 import { CartPage } from '@/components/cart';
 
+// noindex не ставится: адрес закрыт Disallow в robots.txt, а такие адреса
+// meta noindex не несут (решение D4) — робот страницу не читает и тег не увидит.
 export const metadata: Metadata = {
   title: 'Корзина | OPTISPORT',
   description: 'Ваша корзина покупок. Просмотрите добавленные товары и оформите заказ.',
-  robots: {
-    index: false,
-    follow: true,
-  },
 };
 
 export default function CartPageRoute() {

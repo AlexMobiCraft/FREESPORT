@@ -5,11 +5,12 @@ import { CheckoutPageClient } from './CheckoutPageClient';
  * Метаданные для страницы оформления заказа
  * Оптимизированы для SEO
  */
+// noindex не ставится: адрес закрыт Disallow в robots.txt, а такие адреса
+// meta noindex не несут (решение D4) — робот страницу не читает и тег не увидит.
 export const metadata: Metadata = {
   title: 'Оформление заказа | OPTISPORT',
   description:
     'Оформите заказ на спортивные товары с удобной формой доставки. Быстрое оформление с автозаполнением данных.',
-  robots: 'noindex, nofollow', // Checkout страницы не индексируются
 };
 
 /**

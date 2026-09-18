@@ -3,12 +3,15 @@ import type { NextRequest } from 'next/server';
 
 // Mock NextResponse
 vi.mock('next/server', async () => {
-  const actual = await vi.importActual('next/server');
+  const actual = await vi.importActual<typeof import('next/server')>('next/server');
   return {
     ...actual,
     NextResponse: {
       next: vi.fn(),
-      redirect: vi.fn(),
+      // Настоящий ответ: middleware ставит и удаляет на нём cookie точки возврата (41.18)
+      redirect: vi.fn((...args: Parameters<typeof actual.NextResponse.redirect>) =>
+        actual.NextResponse.redirect(...args)
+      ),
       rewrite: vi.fn(),
     },
   };
@@ -67,6 +70,7 @@ describe('Middleware', () => {
         get: (name: string) =>
           name === 'refreshToken' && hasToken ? { value: 'token' } : undefined,
       },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
 
@@ -80,13 +84,21 @@ describe('Middleware', () => {
   it('redirects unauthenticated user to login when accessing protected route', async () => {
     const { middleware, NextResponse } = await loadMiddleware();
     const req = createRequest('/profile');
-    await middleware(req);
+    const response = await middleware(req);
 
     expect(NextResponse.redirect).toHaveBeenCalled();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const redirectUrl = (NextResponse.redirect as any).mock.calls[0][0];
+    // Один адрес входа без query, цель — в cookie точки возврата (41.18, D3)
     expect(redirectUrl.pathname).toBe('/login');
-    expect(redirectUrl.searchParams.get('next')).toBe('/profile');
+    expect(redirectUrl.search).toBe('');
+    expect(response?.status).toBe(307);
+    const setCookie = response?.headers.get('set-cookie') ?? '';
+    expect(setCookie).toContain('loginReturnTo=%2Fprofile');
+    expect(setCookie).toContain('Path=/login');
+    expect(setCookie).toContain('Max-Age=600');
+    expect(setCookie).toContain('SameSite=lax');
+    expect(setCookie).not.toContain('Secure');
     // Редирект не должен ходить в сеть за списком слагов
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -168,6 +180,163 @@ describe('Middleware', () => {
   });
 });
 
+describe('Middleware: точка возврата после входа (Story 41.18 — AC1/AC2)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn(async () => slugsResponse(['oferta']));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  const request = (
+    pathAndQuery: string,
+    options: { token?: boolean; returnCookie?: string; headers?: Record<string, string> } = {}
+  ) => {
+    const url = new URL(`http://localhost:3000${pathAndQuery}`);
+    const req = {
+      nextUrl: url,
+      cookies: {
+        get: (name: string) => {
+          if (name === 'refreshToken' && options.token) return { value: 'token' };
+          if (name === 'loginReturnTo' && options.returnCookie !== undefined) {
+            return { value: options.returnCookie };
+          }
+          return undefined;
+        },
+      },
+      headers: new Headers(options.headers),
+      url: url.toString(),
+    } as unknown as NextRequest;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    req.nextUrl.clone = () => new URL(url.toString()) as any;
+    return req;
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const redirectTarget = (NextResponse: any) => NextResponse.redirect.mock.calls[0][0] as URL;
+
+  it.each(['/profile', '/profile/favorites', '/profile/orders/5'])(
+    'гость на %s → 307 /login без query, cookie равна пути',
+    async pathname => {
+      const { middleware, NextResponse } = await loadMiddleware();
+      const response = await middleware(request(pathname));
+
+      const target = redirectTarget(NextResponse);
+      expect(target.pathname).toBe('/login');
+      expect(target.search).toBe('');
+      expect(response?.status).toBe(307);
+      expect(response?.cookies.get('loginReturnTo')?.value).toBe(pathname);
+    }
+  );
+
+  it('query исходного запроса снимается: /profile?tab=1 → /login, cookie /profile', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    const response = await middleware(request('/profile?tab=1'));
+
+    const target = redirectTarget(NextResponse);
+    expect(target.pathname).toBe('/login');
+    expect(target.search).toBe('');
+    expect(response?.headers.get('location')).not.toContain('tab=1');
+    expect(response?.cookies.get('loginReturnTo')?.value).toBe('/profile');
+  });
+
+  it('в production cookie получает Secure', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const { middleware } = await loadMiddleware();
+    const response = await middleware(request('/profile/favorites'));
+
+    const setCookie = response?.headers.get('set-cookie') ?? '';
+    expect(setCookie).toContain('loginReturnTo=%2Fprofile%2Ffavorites');
+    expect(setCookie).toContain('Secure');
+  });
+
+  it.each([
+    { 'next-router-prefetch': '1' },
+    { purpose: 'prefetch' },
+    { 'sec-purpose': 'prefetch;prerender' },
+  ] as Record<string, string>[])('prefetch-запрос %o → 307 без Set-Cookie', async headers => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    const response = await middleware(request('/profile', { headers }));
+
+    expect(redirectTarget(NextResponse).pathname).toBe('/login');
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get('set-cookie')).toBeNull();
+  });
+
+  /** Set-Cookie удаления: пустое значение, тот же Path=/login, срок в прошлом. */
+  function expectCookieDeleted(response: Response | undefined) {
+    const setCookie = response?.headers.get('set-cookie') ?? '';
+    expect(setCookie).toMatch(/loginReturnTo=;/);
+    expect(setCookie).toContain('Path=/login');
+    expect(setCookie).toMatch(/Expires=Thu, 01 Jan 1970|Max-Age=0/);
+  }
+
+  it('авторизованный на /login с cookie и без query → цель из cookie, cookie удалена', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    const response = await middleware(
+      request('/login', { token: true, returnCookie: '/profile/favorites' })
+    );
+
+    expect(redirectTarget(NextResponse).pathname).toBe('/profile/favorites');
+    expectCookieDeleted(response);
+  });
+
+  it('?next=/cart и cookie → /cart, cookie всё равно удалена', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    const response = await middleware(
+      request('/login?next=%2Fcart', { token: true, returnCookie: '/profile' })
+    );
+
+    expect(redirectTarget(NextResponse).pathname).toBe('/cart');
+    expectCookieDeleted(response);
+  });
+
+  it('опасный next и cookie → цель из cookie', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    const response = await middleware(
+      request('/login?next=https%3A%2F%2Fevil.com', { token: true, returnCookie: '/checkout' })
+    );
+
+    expect(redirectTarget(NextResponse).pathname).toBe('/checkout');
+    expectCookieDeleted(response);
+  });
+
+  it.each(['//evil.com', '/login', 'https://evil.com'])(
+    'подменённая cookie %s → "/", cookie удалена',
+    async returnCookie => {
+      const { middleware, NextResponse } = await loadMiddleware();
+      const response = await middleware(request('/login', { token: true, returnCookie }));
+
+      const target = redirectTarget(NextResponse);
+      expect(target.origin).toBe('http://localhost:3000');
+      expect(target.pathname).toBe('/');
+      expectCookieDeleted(response);
+    }
+  );
+
+  it('редирект на главную не переносит исходную query', async () => {
+    const { middleware, NextResponse } = await loadMiddleware();
+    await middleware(request('/login?next=%2F%2Fevil.com', { token: true }));
+
+    const target = redirectTarget(NextResponse);
+    expect(target.pathname).toBe('/');
+    expect(target.search).toBe('');
+  });
+
+  it('без cookie в запросе ответ авторизованному не несёт Set-Cookie', async () => {
+    const { middleware } = await loadMiddleware();
+    const response = await middleware(request('/login?next=%2Fcart', { token: true }));
+
+    expect(response?.headers.get('set-cookie')).toBeNull();
+  });
+});
+
 describe('Middleware: настоящий 404 для несуществующих адресов', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   let warnSpy: ReturnType<typeof vi.spyOn>;
@@ -190,6 +359,7 @@ describe('Middleware: настоящий 404 для несуществующих
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -400,6 +570,7 @@ describe('Middleware: протухший кэш не даёт оснований
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -476,6 +647,7 @@ describe('Middleware: неполный или невалидный ответ AP
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -583,6 +755,7 @@ describe('Middleware: пауза после неудачного запроса 
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -669,6 +842,7 @@ describe('Middleware: запрос к API из edge-рантайма', () => {
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -735,6 +909,7 @@ describe('Middleware: percent-encoded адреса', () => {
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -807,6 +982,7 @@ describe('Middleware: строгость признаков ответа и ба
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -895,6 +1071,7 @@ describe('Middleware: поддерживаемый лимит числа CMS-с�
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -967,6 +1144,7 @@ describe('Middleware: закодированный слэш в адресе', ()
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1022,6 +1200,7 @@ describe('Middleware: источник адреса API', () => {
     const req = {
       nextUrl: url,
       cookies: { get: () => undefined },
+      headers: new Headers(),
       url: url.toString(),
     } as unknown as NextRequest;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

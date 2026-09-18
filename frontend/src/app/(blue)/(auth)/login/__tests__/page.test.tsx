@@ -10,12 +10,25 @@
  * (а) успешный submit реальной формы → точный `router.push(expected)`;
  * (б) `isAuthenticated=true` → `router.replace(expected)` (заодно доказывает
  *     выход из spinner-ветки редиректом).
+ *
+ * Story 41.18: цель приходит и из cookie точки возврата (`Path=/login`). Страница —
+ * серверный компонент: cookie читает `cookies()` из запроса, здесь мок отдаёт
+ * то, что видит документ happy-dom на `/login`. Поэтому документ переводится на
+ * `/login`, а cookie очищается до и после каждого теста. Матрицы A и B идут без
+ * cookie и ожиданий не меняют.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import LoginPage from '../page';
+import LoginPageClient from '../LoginPageClient';
 import authService from '@/services/authService';
+import {
+  LOGIN_RETURN_COOKIE,
+  clearLoginReturnCookie,
+  writeLoginReturnCookie,
+} from '@/utils/loginReturn';
 
 const { mockPush, mockReplace, searchParamsRef, authState } = vi.hoisted(() => ({
   mockPush: vi.fn(),
@@ -27,6 +40,24 @@ const { mockPush, mockReplace, searchParamsRef, authState } = vi.hoisted(() => (
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
   useSearchParams: () => searchParamsRef.current,
+}));
+
+// Cookie запроса на /login = то, что видит документ на /login в момент рендера
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: (name: string) => {
+      const raw = document.cookie
+        .split('; ')
+        .find(part => part.startsWith(`${name}=`))
+        ?.slice(name.length + 1);
+      if (!raw) return undefined;
+      try {
+        return { name, value: decodeURIComponent(raw) };
+      } catch {
+        return undefined;
+      }
+    },
+  }),
 }));
 
 vi.mock('@/stores/authStore', () => ({
@@ -71,7 +102,7 @@ function submitForm() {
 /** Режим (а): успешный вход через реальную форму → router.push. */
 async function expectPushAfterSubmit(expected: string) {
   authState.isAuthenticated = false;
-  render(<LoginPage />);
+  render(await LoginPage());
   submitForm();
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith(expected));
 }
@@ -79,7 +110,7 @@ async function expectPushAfterSubmit(expected: string) {
 /** Режим (б): уже авторизованный пользователь → router.replace. */
 async function expectReplaceWhenAuthenticated(expected: string) {
   authState.isAuthenticated = true;
-  render(<LoginPage />);
+  render(await LoginPage());
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(expected));
 }
 
@@ -88,6 +119,14 @@ beforeEach(() => {
   authState.isAuthenticated = false;
   searchParamsRef.current = new URLSearchParams();
   vi.mocked(authService.login).mockResolvedValue(mockLoginResponse);
+  window.history.pushState({}, '', '/login');
+  clearLoginReturnCookie();
+});
+
+afterEach(() => {
+  window.history.pushState({}, '', '/login');
+  clearLoginReturnCookie();
+  window.history.pushState({}, '', '/');
 });
 
 describe.each(['next', 'redirect'] as const)('Матрица A — один параметр (%s)', param => {
@@ -176,5 +215,118 @@ describe('Матрица B — оба параметра и приоритет',
   it.each(rows)('уже авторизован: "$encoded" → $expected', async ({ encoded, expected }) => {
     setQuery(encoded);
     await expectReplaceWhenAuthenticated(expected);
+  });
+});
+
+describe('Cookie точки возврата (Story 41.18 — AC2, S1/S6/S8/S10/S11)', () => {
+  const rows = [
+    { encoded: '', cookie: '/profile/favorites', expected: '/profile/favorites' },
+    { encoded: 'next=%2Fcart', cookie: '/profile', expected: '/cart' },
+    { encoded: 'next=https%3A%2F%2Fevil.com', cookie: '/checkout', expected: '/checkout' },
+    { encoded: '', cookie: '//evil.com', expected: '/' },
+  ];
+
+  it.each(rows)(
+    'после входа: "$encoded" + cookie $cookie → $expected',
+    async ({ encoded, cookie, expected }) => {
+      setQuery(encoded);
+      document.cookie = `${LOGIN_RETURN_COOKIE}=${encodeURIComponent(cookie)}; Path=/login`;
+      await expectPushAfterSubmit(expected);
+    }
+  );
+
+  it.each(rows)(
+    'уже авторизован: "$encoded" + cookie $cookie → $expected',
+    async ({ encoded, cookie, expected }) => {
+      setQuery(encoded);
+      document.cookie = `${LOGIN_RETURN_COOKIE}=${encodeURIComponent(cookie)}; Path=/login`;
+      await expectReplaceWhenAuthenticated(expected);
+      // Мок useRouter отдаёт новый объект на каждый рендер, эффект может сработать
+      // повторно — но ни один вызов не должен уводить не туда
+      expect(mockReplace.mock.calls.every(([arg]) => arg === expected)).toBe(true);
+      expect(document.cookie).not.toContain(`${LOGIN_RETURN_COOKIE}=`);
+    }
+  );
+
+  it('страница забирает cookie сразу при открытии, до входа', async () => {
+    writeLoginReturnCookie('/profile/favorites');
+    expect(document.cookie).toContain(LOGIN_RETURN_COOKIE);
+
+    render(await LoginPage());
+
+    await waitFor(() => expect(document.cookie).not.toContain(`${LOGIN_RETURN_COOKIE}=`));
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('S8: ушёл со страницы, не войдя, потом сам открыл /login → вход ведёт на "/"', async () => {
+    writeLoginReturnCookie('/profile');
+    const first = render(await LoginPage());
+    await waitFor(() => expect(document.cookie).not.toContain(`${LOGIN_RETURN_COOKIE}=`));
+    first.unmount();
+
+    await expectPushAfterSubmit('/');
+  });
+
+  it('S11: неудачный вход (401), затем успешный — цель из памяти страницы сохранена', async () => {
+    writeLoginReturnCookie('/profile/favorites');
+    vi.mocked(authService.login).mockRejectedValueOnce({
+      response: { status: 401, data: { detail: 'Invalid credentials' } },
+    });
+
+    render(await LoginPage());
+    submitForm();
+    expect(await screen.findByText('Неверные учетные данные')).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
+
+    submitForm();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/profile/favorites'));
+  });
+
+  it('StrictMode: повторный запуск эффекта цель не теряет (после входа)', async () => {
+    writeLoginReturnCookie('/checkout');
+    render(
+      <StrictMode>
+        {await LoginPage()}
+      </StrictMode>
+    );
+    submitForm();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/checkout'));
+  });
+
+  it('StrictMode: восстановленная сессия уходит на цель из cookie, а не на "/"', async () => {
+    writeLoginReturnCookie('/profile/favorites');
+    authState.isAuthenticated = true;
+    render(
+      <StrictMode>
+        {await LoginPage()}
+      </StrictMode>
+    );
+    await waitFor(() => expect(mockReplace).toHaveBeenCalled());
+    expect(mockReplace.mock.calls.every(([arg]) => arg === '/profile/favorites')).toBe(true);
+  });
+});
+
+describe('Серверное чтение cookie (Story 41.18 — клиентская навигация в Chromium)', () => {
+  it('документ cookie не видит, но значение из запроса ведёт на цель и cookie удаляется', async () => {
+    // Chromium после клиентской навигации не показывает cookie с Path=/login в
+    // document.cookie: имитируем — cookie есть, но документ на другом адресе
+    writeLoginReturnCookie('/profile/favorites');
+    window.history.pushState({}, '', '/home');
+    expect(document.cookie).not.toContain(LOGIN_RETURN_COOKIE);
+
+    render(<LoginPageClient returnCookie="/profile/favorites" />);
+    submitForm();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/profile/favorites'));
+
+    // Удаление с явным Path=/login сработало и с чужого адреса документа
+    window.history.pushState({}, '', '/login');
+    expect(document.cookie).not.toContain(`${LOGIN_RETURN_COOKIE}=`);
+  });
+
+  it('смена пропа после открытия цель не затирает (память страницы)', async () => {
+    const view = render(<LoginPageClient returnCookie="/checkout" />);
+    view.rerender(<LoginPageClient returnCookie={null} />);
+    submitForm();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/checkout'));
   });
 });
