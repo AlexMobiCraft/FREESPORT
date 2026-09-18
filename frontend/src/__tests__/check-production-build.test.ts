@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   chunkRefsFromHtml,
   chunksForPage,
+  followRedirects,
   matchContext,
   middlewareApiBase,
   robotsMetaContents,
@@ -109,5 +110,50 @@ describe('middlewareApiBase', () => {
       'http://localhost:2/api/v1'
     );
     expect(middlewareApiBase({})).toBe('');
+  });
+});
+
+describe('followRedirects', () => {
+  const ORIGIN = 'http://localhost:3100';
+  const page = (status: number, location: string | null = null, html = '') => ({
+    status,
+    location,
+    html,
+  });
+  const fetcherFrom = (responses: Record<string, ReturnType<typeof page>>) => async (p: string) =>
+    responses[p] ?? page(404);
+
+  it('без редиректа возвращает саму страницу', async () => {
+    const result = await followRedirects('/home', fetcherFrom({ '/home': page(200, null, 'h') }), ORIGIN);
+    expect(result).toEqual({ path: '/home', status: 200, html: 'h', chain: ['/home'] });
+  });
+
+  it('проходит редирект того же origin (абсолютный и относительный) до конечной страницы', async () => {
+    const fetcher = fetcherFrom({
+      '/cart': page(307, `${ORIGIN}/login?next=%2Fcart`),
+      '/login?next=%2Fcart': page(308, '/login'),
+      '/login': page(200, null, 'login'),
+    });
+    const result = await followRedirects('/cart', fetcher, ORIGIN);
+    expect(result).toMatchObject({ path: '/login', status: 200, html: 'login' });
+    expect(result.chain).toEqual(['/cart', '/login?next=%2Fcart', '/login']);
+  });
+
+  it('редирект наружу — ошибка, а не зелёный', async () => {
+    const fetcher = fetcherFrom({ '/partners': page(302, 'https://evil.example.org/x') });
+    await expect(followRedirects('/partners', fetcher, ORIGIN)).rejects.toThrow(/наружу/);
+  });
+
+  it('3xx без Location, цикл и слишком длинная цепочка — ошибка', async () => {
+    await expect(
+      followRedirects('/a', fetcherFrom({ '/a': page(302) }), ORIGIN)
+    ).rejects.toThrow(/без Location/);
+    await expect(
+      followRedirects('/a', fetcherFrom({ '/a': page(302, '/b'), '/b': page(302, '/a') }), ORIGIN)
+    ).rejects.toThrow(/цикл/);
+    const long = Object.fromEntries(
+      Array.from({ length: 10 }, (_, i) => [`/r${i}`, page(302, `/r${i + 1}`)])
+    );
+    await expect(followRedirects('/r0', fetcherFrom(long), ORIGIN)).rejects.toThrow(/редиректов/);
   });
 });
