@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.18 — review)
+# last_updated: 2026-09-18 (стори 41.20 — in-progress после третьего code review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1337,7 +1337,12 @@ development_status:
   #             вхождение "example" в общем vendor-чанке (сторонний код
   #             state-менеджмент-библиотеки, не связано со стори). AC5 закрыт
   #             полностью, все Tasks/Subtasks выполнены.
-  41-20-newsletter-consent-wording-and-placeholders: done
+  # 2026-09-18: решение Alex после третьего code review — vendor-исключение
+  #             отменено; AC5 требует буквальный 0 `example` без учёта регистра
+  #             в production bundle. Открыт [Review][Patch] на устранение строки
+  #             из общего чанка и повторную fail-closed проверку пяти страниц.
+  #             done -> in-progress.
+  41-20-newsletter-consent-wording-and-placeholders: in-progress
   epic-41-retrospective: optional
 
 # ========================================
