@@ -151,14 +151,31 @@ def test_newsletter_marketing_version_differs_from_registration_marketing_versio
             "2026-09-09-e26471e47eba2ba742a4f4488dfdda05",
             "Я согласен (на) получать рекламные и информационные рассылки от OPTISPORT",
         ),
+        (
+            "2026-09-12-1a97b44f2bc0b52e69d15d705be59c0c",
+            "Я согласен(на) получать информационные и рекламные рассылки от OPTISPORT по электронной почте",
+        ),
+        (
+            "2026-09-12-a49604a66adaadfdc221bdc141d8d97d",
+            "Я согласен(на) получать рекламные и информационные рассылки от OPTISPORT по электронной почте",
+        ),
     ],
-    ids=["newsletter-combined-41-3", "registration-marketing-41-9"],
+    ids=[
+        "newsletter-combined-41-3",
+        "registration-marketing-41-9",
+        "newsletter-marketing-41-20-previous",
+        "registration-marketing-41-20-previous",
+    ],
 )
 def test_historical_versions_still_resolve_to_their_text(version, text):
     """Прежние версии, на которые ссылается журнал прода, разрешаются в свой текст.
 
     Литералы здесь уместны: это неизменяемая история. Объединённый чекбокс
     подписки заменён двумя в стори 41.11, маркетинг регистрации получил канал.
+    Непосредственно предыдущие версии рассылки (`2026-09-12-*`, до D5 стори
+    41.20) добавлены отдельно от общих проверок реестра: тест 41.9 проверял
+    только различие версий, а не дословный текст, на который ссылается журнал
+    прода до выката 41.20.
     """
     from apps.common.consent_texts import REGISTRY_PATH
 
