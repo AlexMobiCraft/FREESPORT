@@ -77,18 +77,18 @@ describe('generateMetadata каталога', () => {
     ['is_new', COLLECTIONS.is_new],
     ['is_hit', COLLECTIONS.is_hit],
     ['is_sale', COLLECTIONS.is_sale],
-  ])('подборка %s=true получает собственные metadata с canonical /catalog', async (key, texts) => {
+  ])('подборка %s=true получает собственные metadata с собственным canonical', async (key, texts) => {
     const metadata = await metadataFor({ [key]: 'true' });
 
     expect(metadata).toMatchObject({
       title: texts.title,
       description: texts.description,
       keywords: null,
-      alternates: { canonical: '/catalog' },
+      alternates: { canonical: `/catalog?${key}=true` },
       openGraph: {
         title: texts.title,
         description: texts.description,
-        url: '/catalog',
+        url: `/catalog?${key}=true`,
         type: 'website',
         images: [DEFAULT_OG_IMAGE_META],
       },

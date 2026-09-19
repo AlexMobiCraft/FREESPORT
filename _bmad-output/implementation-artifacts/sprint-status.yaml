@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-19 (создана стори 41.22 — ready-for-dev)
+# last_updated: 2026-09-19 (стори 41.22 — review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1403,7 +1403,11 @@ development_status:
   #             п. 12). Запрос Alex 19.09.2026: пересмотр D1 — собственный canonical
   #             у ?is_new/is_hit/is_sale=true, непустые подборки (in_stock=true,
   #             count > 0) в sitemap; тексты D1 не меняются. backlog -> ready-for-dev.
-  41-22-catalog-collections-self-canonical-sitemap: ready-for-dev
+  # 2026-09-19: dev-story 41.22 — canonical подборок = /catalog?<ключ>=true,
+  #             непустые подборки в sitemap; тесты, lint, tsc, format, build +
+  #             check:build зелёные; локальная приёмка пройдена. Открыт 4.6
+  #             (выкат и приёмка AC6 на проде). ready-for-dev -> in-progress -> review.
+  41-22-catalog-collections-self-canonical-sitemap: review
   epic-41-retrospective: optional
 
 # ========================================
