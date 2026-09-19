@@ -4,7 +4,7 @@ baseline_commit: 372b3efb
 
 # Story 41.21: Бандл без `example`, тексты без розницы и превосходных степеней, один тег robots на 404
 
-Status: review
+Status: done
 Baseline Revision: 372b3efb
 
 ## Story
@@ -276,6 +276,55 @@ Title `/home` и заголовки трёх карточек утвержден
 - [Rejected][medium] Повторный edge-case про rollback-образы совпадает с существующим operational `[Review][Defer]`; новый дубликат не создаётся.
 - [Rejected][medium] Повторный edge-case про сохранение journald совпадает с существующим operational `[Review][Defer]`; новый дубликат не создаётся.
 
+### Review Findings — пятое ревью 19.09.2026
+
+- [x] [Review][Defer][Existing] Риски безусловных `docker image prune -f`, `docker builder prune -f` и `journalctl --vacuum-size=500M` подтверждены, но уже зарегистрированы третьим ревью и в `deferred-work.md`; повторный action item не создаётся [`.agents/skills/production-update/SKILL.md:64,127`]
+
+#### Rejected — пятое ревью 19.09.2026
+
+- [Rejected][false][blind-hunter] Шесть копий production skills сейчас синхронны; возможное будущее расхождение без текущего несовпадения не является дефектом diff.
+- [Rejected][false][blind-hunter] Таймаут TCP-проверки loopback намеренно даёт fail-closed ошибку: при отсутствии `ECONNREFUSED` свободный порт не доказан.
+- [Rejected][low][blind-hunter] TOCTOU между проверкой порта и `next start` теоретически остаётся, но требует процесса, занявшего `::1` в миллисекундном окне; identity-протокол несоразмерен недоказанному CI-сценарию.
+- [Rejected][low][blind-hunter] `robotsMetaContents` может принять `data-name` за `name`, но такого meta нет в проверяемом Next HTML; достижимого ложного результата не показано.
+- [Rejected][false][blind-hunter] Ленивые чанки после произвольных действий исключены утверждённым scope Task 1.6/Q1; расширение глобального сканирования меняло бы спецификацию.
+- [Rejected][false][blind-hunter] CI намеренно собирает и проверяет артефакт с локальным API; точный production-артефакт отдельно проверен AC8 на проде.
+- [Rejected][false][blind-hunter] `middlewareApiBase` повторяет действующие три звена middleware, а отсутствие fallback намеренно переводит гейт в fail-closed при незаданном env.
+- [Rejected][low][blind-hunter] Зависание cleanup не воспроизведено на закреплённом Node 22; исправление потребовало бы нового протокола graceful/forced shutdown.
+- [Rejected][false][blind-hunter] `spawn` запускает существующий `process.execPath`; отсутствие next-скрипта завершает дочерний Node с кодом, который уже отслеживается, а не даёт ENOENT `spawn`.
+- [Rejected][low][blind-hunter] Некорректный `Location` уже приводит к красному гейту через внешний catch; не хватает только контекста цепочки в диагностике редкого невалидного ответа.
+- [Rejected][false][blind-hunter] Повреждённая percent-последовательность не показана в генерируемых Next ссылках на чанки; guard защищал бы недостижимое состояние.
+- [Rejected][false][blind-hunter] Все текущие приватные profile-маршруты находятся под `/(blue)/profile/**`; маршрут в иной группе — гипотетическое будущее изменение.
+- [Rejected][false][blind-hunter] Workflow явно задаёт локальный `NEXT_PUBLIC_API_URL` для `npm run build` и следующего `npm run check:build`.
+- [Rejected][false][blind-hunter] `ComingSoonClient` использует только `motion.div`, который предоставляет тестовый мок.
+- [Rejected][false][blind-hunter] Страж дословно реализует утверждённую регулярку `/10\s?000/i`; расширение форматов меняло бы AC6.
+- [Rejected][false][blind-hunter] Переход к одному `robots=noindex` — буквальное требование AC7, а не незаявленная регрессия `nofollow`.
+- [Rejected][false][edge-case-hunter] Таймаут loopback корректно блокирует гейт, когда свободное состояние порта доказать нельзя.
+- [Rejected][low][edge-case-hunter] Остаточная IPv6 TOCTOU-гонка крайне маловероятна и не оправдывает отдельный identity-протокол.
+- [Rejected][low][edge-case-hunter] Невалидный `Location` не даёт ложного зелёного: исключение перехватывается и делает гейт красным; недостаток только диагностический.
+- [Rejected][low][edge-case-hunter] Парсер robots теоретически путает `data-name`, но текущий HTML такого тега не содержит.
+- [Rejected][false][edge-case-hunter] Next генерирует валидно закодированные ссылки на чанки; достижимого malformed `%` не показано.
+- [Rejected][false][edge-case-hunter] Произвольные ленивые чанки не входят в нормативный маршрутный рецепт Task 1.6.
+- [Rejected][false][edge-case-hunter] В CI и документированном локальном запуске API URL содержит непривилегированный порт 8001/18001; ветка default port 80 недостижима.
+- [Rejected][low][edge-case-hunter] Висящий keep-alive cleanup не воспроизведён на Node 22 и потребовал бы несоразмерного shutdown-протокола.
+- [Rejected][false][edge-case-hunter] ENOENT исполняемого файла недостижим при `process.execPath`; ошибка next-скрипта наблюдается как exit дочернего процесса.
+- [Rejected][false][edge-case-hunter] Текущий закрытый раздел целиком расположен под захардкоженным `/(blue)/profile/`.
+- [Rejected][false][edge-case-hunter] `buildMetadata` восстанавливает `openGraph.siteName/locale/type`, `twitter.card/images` и default image metadata.
+- [Rejected][false][edge-case-hunter] Один `noindex` на настоящем 404 прямо утверждён AC7 владельцем.
+- [Rejected][false][edge-case-hunter] Env workflow присутствует и одинаков для сборки и build gate.
+- [Rejected][false][verification-gap] Наблюдение про несканируемые arbitrary lazy chunks верно технически, но не является пробелом утверждённого scope Task 1.6/Q1.
+- [Rejected][low][verification-gap] Несовпадение старого deploy-рецепта с новым prune-runbook относится к отдельному коммиту `545b40b0`, а исправление меняло бы спецификацию под ревью.
+- [Rejected][false][verification-gap-other] Локальный API env явно задан на уровне workflow.
+- [Rejected][low][verification-gap-other] `data-name`-сценарий robots-парсера не достигается текущим Next HTML.
+- [Rejected][low][verification-gap-other] Cleanup-hang не воспроизведён и уже оценён как несоразмерный редкому риску.
+- [Rejected][low][verification-gap-other] IPv6 TOCTOU требует узкого конкурентного окна и не показана в реальном прогоне.
+- [Rejected][false][verification-gap-other] `/privacy-policy` soft-404 предсуществует, явно вынесен из Story 41.21 и уже записан в `deferred-work.md`.
+- [Rejected][false][acceptance-auditor] File List намеренно описывает реализацию Story; несвязанный skills-коммит и planning-входы уже отдельно задокументированы.
+- [Rejected][false][acceptance-auditor] Имена `AuthStore`, `CartStore`, `FavoritesStore`, `OrderStore` и ключ `cart-storage-v3` сохранены буквально в текущих сторах.
+- [Rejected][false][acceptance-auditor] `revalidate = 3600` сохранён в `/home` и доступен в полном файле, хотя строка не попала в hunk.
+- [Rejected][false][acceptance-auditor] AC1 ссылается на нормативный перечень Task 1.6; произвольные ленивые действия не входят в согласованный охват.
+- [Rejected][false][acceptance-auditor] Семантика одного `robots=noindex` на 404 задана точным текстом AC7.
+- [Rejected][false][acceptance-auditor] Production-runbook изменён отдельным коммитом и уже маршрутизирован в operational defer; это не нарушение продуктовых AC 41.21.
+
 ## Dev Notes
 
 ### Текущее состояние (код `372b3efb`, прод 18.09.2026)
@@ -489,3 +538,4 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 - 18.09.2026 — Addressed code review findings - 2 items resolved: гейт production-сборки проверяет, что порт свободен и что ответил именно дочерний `next start`; страж AC6 проверяет объектный `Metadata.title`. Статус → review.
 - 19.09.2026 — четвёртое code review: 1 `[Review][Patch]` оставлен action item — final-alive guard должен учитывать `ChildProcess.signalCode`; статус → in-progress.
 - 19.09.2026 — Addressed code review findings - 1 item resolved: гейт production-сборки учитывает завершение `next start` сигналом (`describeChildExit`). Статус → review.
+- 19.09.2026 — пятое code review: новых Decision/Patch нет; существующий operational defer подтверждён без дублирования, 42 сигнала отклонены. Статус → done; sprint-status.yaml синхронизирован.

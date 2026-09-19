@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-19 (стори 41.21 — review, patch четвёртого code review закрыт)
+# last_updated: 2026-09-19 (стори 41.21 — done, пятое code review без новых action items)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1394,7 +1394,9 @@ development_status:
   #             review -> in-progress.
   # 2026-09-19: dev-story по четвёртому code review — Patch закрыт: гейт учитывает
   #             завершение next start сигналом (describeChildExit). in-progress -> review.
-  41-21-bundle-example-retail-wording-single-404-robots: review
+  # 2026-09-19: пятое code review — новых Decision/Patch не выявлено; existing
+  #             operational defer подтверждён без дублирования, 42 сигнала отклонены. review -> done.
+  41-21-bundle-example-retail-wording-single-404-robots: done
   epic-41-retrospective: optional
 
 # ========================================
