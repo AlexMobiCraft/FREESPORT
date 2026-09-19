@@ -4,7 +4,7 @@ baseline_commit: f426f572
 
 # Story 41.22: Собственный canonical у подборок каталога и подборки в sitemap
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: f426f572
 
 ## Story
@@ -67,38 +67,38 @@ so that поисковик мог показывать их в выдаче, а 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — preflight** (все AC)
-  - [ ] 0.1 Ветка `feature/41-22-collections-self-canonical` от актуального `develop` (прямые коммиты в `develop` запрещены).
-  - [ ] 0.2 `npx gitnexus status`. Если `stale` и между индексированным и текущим коммитом есть изменения в `frontend/src` — попросить пользователя `! npx gitnexus analyze --skip-agents-md`.
-  - [ ] 0.3 `npx gitnexus impact <UID> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по UID (имя `generateMetadata` неоднозначно): `Function:frontend/src/app/(blue)/catalog/page.tsx:generateMetadata`, `Function:frontend/src/app/sitemap.ts:sitemap`, `Function:frontend/src/app/sitemap.ts:toCategoryEntries`. Сообщить blast radius пользователю. Снимок на create-story — Dev Notes «GitNexus».
-  - [ ] 0.4 Исходный прогон до правок: `npx vitest run "src/app/(blue)/catalog" src/app/__tests__/sitemap.test.ts src/app/__tests__/robots-noindex-invariant.test.ts` — зелёный.
+- [x] **Task 0 — preflight** (все AC)
+  - [x] 0.1 Ветка `feature/41-22-collections-self-canonical` от актуального `develop` (прямые коммиты в `develop` запрещены).
+  - [x] 0.2 `npx gitnexus status`. Если `stale` и между индексированным и текущим коммитом есть изменения в `frontend/src` — попросить пользователя `! npx gitnexus analyze --skip-agents-md`.
+  - [x] 0.3 `npx gitnexus impact <UID> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по UID (имя `generateMetadata` неоднозначно): `Function:frontend/src/app/(blue)/catalog/page.tsx:generateMetadata`, `Function:frontend/src/app/sitemap.ts:sitemap`, `Function:frontend/src/app/sitemap.ts:toCategoryEntries`. Сообщить blast radius пользователю. Снимок на create-story — Dev Notes «GitNexus».
+  - [x] 0.4 Исходный прогон до правок: `npx vitest run "src/app/(blue)/catalog" src/app/__tests__/sitemap.test.ts src/app/__tests__/robots-noindex-invariant.test.ts` — зелёный.
 
-- [ ] **Task 1 — canonical подборки** (AC1, AC2)
-  - [ ] 1.1 `frontend/src/app/(blue)/catalog/page.tsx`, ветка `if (collection)` в `generateMetadata`: `path: '/catalog'` → путь подборки. Строить его так же, как путь категории, — через `URLSearchParams`: `` `/catalog?${new URLSearchParams({ [collection]: 'true' }).toString()}` ``.
-  - [ ] 1.2 Обновить комментарий над `CATALOG_COLLECTIONS` (`page.tsx:13-14`): подборки — самостоятельные страницы со своим canonical, в sitemap попадают непустые (41.22, пересмотр D1). Комментарии на русском (NFR-41-03).
-  - [ ] 1.3 `findCatalogCollection`, `CATALOG_COLLECTIONS`, `buildCatalogMetadata`, ветку `category` и `utils/seo.ts` **не менять** (`buildMetadata` — HIGH, 17 вызывающих).
+- [x] **Task 1 — canonical подборки** (AC1, AC2)
+  - [x] 1.1 `frontend/src/app/(blue)/catalog/page.tsx`, ветка `if (collection)` в `generateMetadata`: `path: '/catalog'` → путь подборки. Строить его так же, как путь категории, — через `URLSearchParams`: `` `/catalog?${new URLSearchParams({ [collection]: 'true' }).toString()}` ``.
+  - [x] 1.2 Обновить комментарий над `CATALOG_COLLECTIONS` (`page.tsx:13-14`): подборки — самостоятельные страницы со своим canonical, в sitemap попадают непустые (41.22, пересмотр D1). Комментарии на русском (NFR-41-03).
+  - [x] 1.3 `findCatalogCollection`, `CATALOG_COLLECTIONS`, `buildCatalogMetadata`, ветку `category` и `utils/seo.ts` **не менять** (`buildMetadata` — HIGH, 17 вызывающих).
 
-- [ ] **Task 2 — подборки в sitemap** (AC3)
-  - [ ] 2.1 `frontend/src/app/sitemap.ts`: константа ключей подборок `['is_new', 'is_hit', 'is_sale'] as const` (порядок = порядок в sitemap). Не импортировать из `(blue)/catalog/page.tsx` — файл страницы не экспортирует служебные константы, sitemap живёт отдельно (как дублируется `getApiUrl`).
-  - [ ] 2.2 Функция `fetchNonEmptyCollections(): Promise<CollectionKey[]>` по образцу `fetchCategorySlugs`: для каждого ключа `fetch(`${getApiUrl()}/products/?${key}=true&in_stock=true&page_size=1`, { next: { revalidate }, signal: AbortSignal.timeout(CATEGORY_TREE_FETCH_TIMEOUT_MS) })`; запросы параллельно (`Promise.all`), ошибка одной подборки не влияет на другие; подборка включается только при `res.ok` и `typeof count === 'number' && count > 0`. Исключения не выпускать наружу.
-  - [ ] 2.3 `toCollectionEntries(keys)`: `url: absoluteUrl(`/catalog?${new URLSearchParams({ [key]: 'true' })}`)`, `changeFrequency: 'daily'`, `priority: 0.7`. Добавить в `Promise.all` функции `sitemap()` и в итоговый массив сразу после `toCategoryEntries(...)`.
-  - [ ] 2.4 Обновить JSDoc файла: sitemap включает непустые подборки каталога.
+- [x] **Task 2 — подборки в sitemap** (AC3)
+  - [x] 2.1 `frontend/src/app/sitemap.ts`: константа ключей подборок `['is_new', 'is_hit', 'is_sale'] as const` (порядок = порядок в sitemap). Не импортировать из `(blue)/catalog/page.tsx` — файл страницы не экспортирует служебные константы, sitemap живёт отдельно (как дублируется `getApiUrl`).
+  - [x] 2.2 Функция `fetchNonEmptyCollections(): Promise<CollectionKey[]>` по образцу `fetchCategorySlugs`: для каждого ключа `fetch(`${getApiUrl()}/products/?${key}=true&in_stock=true&page_size=1`, { next: { revalidate }, signal: AbortSignal.timeout(CATEGORY_TREE_FETCH_TIMEOUT_MS) })`; запросы параллельно (`Promise.all`), ошибка одной подборки не влияет на другие; подборка включается только при `res.ok` и `typeof count === 'number' && count > 0`. Исключения не выпускать наружу.
+  - [x] 2.3 `toCollectionEntries(keys)`: `url: absoluteUrl(`/catalog?${new URLSearchParams({ [key]: 'true' })}`)`, `changeFrequency: 'daily'`, `priority: 0.7`. Добавить в `Promise.all` функции `sitemap()` и в итоговый массив сразу после `toCategoryEntries(...)`.
+  - [x] 2.4 Обновить JSDoc файла: sitemap включает непустые подборки каталога.
 
-- [ ] **Task 3 — тесты** (AC1–AC4)
-  - [ ] 3.1 `src/app/(blue)/catalog/__tests__/metadata.test.ts`, `it.each` по трём подборкам (`:76-102`): название теста → «…с собственным canonical»; `alternates.canonical` и `openGraph.url` → `` `/catalog?${key}=true` ``. Остальные ожидания файла не менять.
-  - [ ] 3.2 `src/app/__tests__/sitemap.test.ts`:
+- [x] **Task 3 — тесты** (AC1–AC4)
+  - [x] 3.1 `src/app/(blue)/catalog/__tests__/metadata.test.ts`, `it.each` по трём подборкам (`:76-102`): название теста → «…с собственным canonical»; `alternates.canonical` и `openGraph.url` → `` `/catalog?${key}=true` ``. Остальные ожидания файла не менять.
+  - [x] 3.2 `src/app/__tests__/sitemap.test.ts`:
     - Мок `fetch` в `beforeEach` сейчас отвечает на любой `url.includes('/products/')` телом без `count` — после правки это значит «подборки нет». Добавить **перед** веткой `/products/` ветку для запросов подборок (`url.includes('in_stock=true')` или разбор `searchParams`) с числовым `count`.
     - Тест `'не содержит подборок каталога и адреса фокуса поиска'` (`:66-72`) заменить: `focusSearch=` отсутствует; каждая подборка присутствует ровно один раз в виде `/catalog?<ключ>=true`; комбинаций подборки с `page=`/`category=` нет.
     - Новые сценарии: `count: 0` у одной подборки → её нет, две другие есть; не-2xx; `fetch` бросает; тело без `count` / `count: '5'` → подборки нет, при этом `/catalog`, `/catalog?category=games` и `/product/ball` на месте.
     - Проверить аргументы запроса: `http://backend:8000/api/v1/products/?is_new=true&in_stock=true&page_size=1` c `next: { revalidate: 3600 }` и `signal: expect.any(AbortSignal)`.
-  - [ ] 3.3 `robots-noindex-invariant.test.ts`, `robots.test.ts` — прогнать без изменений (AC4).
+  - [x] 3.3 `robots-noindex-invariant.test.ts`, `robots.test.ts` — прогнать без изменений (AC4).
 
 - [ ] **Task 4 — проверки и документация** (AC5)
-  - [ ] 4.1 В `frontend/`: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run format:check`.
-  - [ ] 4.2 Гейт 41.21: `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run build`, затем `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run check:build` (локально порт 8001 занят backend из Docker — см. шапку `scripts/check-production-build.mjs`).
-  - [ ] 4.3 Локальная приёмка (аноним, без cookie): `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`, затем `curl -s -A "AuditikBot/1.0"` по адресам AC6 на `http://localhost`; проверить `<link rel="canonical">`, `og:url`, `<title>`, `meta description`, отсутствие `meta keywords` и `meta robots`; `curl -s http://localhost/sitemap.xml | grep -o '<loc>[^<]*catalog?is_[^<]*'`.
-  - [ ] 4.4 `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только `generateMetadata` каталога и символы `sitemap.ts`.
-  - [ ] 4.5 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
+  - [x] 4.1 В `frontend/`: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run format:check`.
+  - [x] 4.2 Гейт 41.21: `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run build`, затем `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run check:build` (локально порт 8001 занят backend из Docker — см. шапку `scripts/check-production-build.mjs`).
+  - [x] 4.3 Локальная приёмка (аноним, без cookie): `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`, затем `curl -s -A "AuditikBot/1.0"` по адресам AC6 на `http://localhost`; проверить `<link rel="canonical">`, `og:url`, `<title>`, `meta description`, отсутствие `meta keywords` и `meta robots`; `curl -s http://localhost/sitemap.xml | grep -o '<loc>[^<]*catalog?is_[^<]*'`.
+  - [x] 4.4 `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только `generateMetadata` каталога и символы `sitemap.ts`.
+  - [x] 4.5 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
   - [ ] 4.6 **Внешний шаг (после мёрджа, ручной выкат по SSH):** sync `develop` → `main` через PR; на сервере rebuild frontend и **`restart nginx`** (память: после пересборки nginx держит старый IP upstream). Приёмка AC6, снимок в стори. Повторный прогон сканера — шаг владельца.
 
 ## Dev Notes
@@ -174,12 +174,36 @@ Next.js 15.5.18, React 19.1.0, TypeScript 5.8, Vitest 4.x (`npm test`). `searchP
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5`), Claude Code, dev-story.
+
 ### Debug Log References
+
+- Preflight: ветка `feature/41-22-collections-self-canonical` от `origin/develop` (`f503221b`). GitNexus `stale` (индекс `5d9bb9f`), но `git diff 5d9bb9f f503221` пуст (только merge) — граф актуален.
+- Impact (upstream, по UID): `generateMetadata` каталога — LOW, 0 вызывающих; `sitemap` — LOW, 0; `toCategoryEntries` — LOW, 1 (`sitemap`).
+- Исходный прогон 0.4: 4 файла, 140 тестов — зелёный.
+- RED: после правки тестов упали 3 сценария подборок в `metadata.test.ts` и 10 новых сценариев `sitemap.test.ts`; GREEN после реализации — 5 файлов (с `robots.test.ts`), 157 тестов.
+- `npm test`: 197 файлов, 3468 passed / 16 skipped. `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — чисто.
+- Гейт 41.21: `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run build` + `npm run check:build` — «Проверка production-сборки пройдена».
+- `detect-changes --scope all`: 5 файлов, символы только в `(blue)/catalog/page.tsx` и `sitemap.ts`. `getApiUrl`, `toEntries`, `toCategoryEntries`, `staticRoutes`, `now` помечены из-за сдвига строк — по `git diff` их тела не менялись. Risk `high` посчитан по числу процессов (7), все потоки начинаются в `sitemap` и `generateMetadata`.
 
 ### Completion Notes List
 
+- **Task 1 (AC1, AC2).** В ветке подборки `generateMetadata` путь строится через `URLSearchParams`, так же как для категории: `/catalog?<ключ>=true`. `buildMetadata` ставит его в `alternates.canonical` и `openGraph.url`. `findCatalogCollection`, тексты D1, ветка категории и `utils/seo.ts` не менялись. Комментарий над `CATALOG_COLLECTIONS` обновлён.
+- **Task 2 (AC3).** В `sitemap.ts` появились `COLLECTION_KEYS`, `isCollectionNonEmpty` (один запрос `products/?<ключ>=true&in_stock=true&page_size=1` с `revalidate` и `AbortSignal.timeout(3000)`), `fetchNonEmptyCollections` (параллельно, по одной подборке) и `toCollectionEntries` (`daily`, `0.7`). Результат стоит сразу после категорий. Подборка включается только при `res.ok` и числовом `count > 0`; ошибки сети, таймаут, не-2xx и невалидный JSON исключают только её. Проверку одной подборки я вынес в `isCollectionNonEmpty`, чтобы `try/catch` на каждый ключ давал изоляцию ошибок.
+- **Task 3.** В `metadata.test.ts` изменено только `it.each` подборок: название и canonical/og:url. В `sitemap.test.ts` мок подборок стоит перед веткой `/products/` (разбор `searchParams`). Тест «не содержит подборок» заменён на «каждая подборка ровно один раз, без `focusSearch=`». Добавлены: проверка аргументов запроса, 7 сценариев отказа одной подборки (`count: 0`, не-2xx, сетевая ошибка, таймаут, нет `count`, `count: '5'`, невалидный JSON) — остальной sitemap на месте; проверка, что подборки не сочетаются с другими параметрами. Ожидаемый URL задан через `absoluteUrl`, потому что `SITE_URL` в тестах зависит от env. `robots-noindex-invariant.test.ts` и `robots.test.ts` прошли без изменений (AC4).
+- **Task 4.3, локальная приёмка (`http://localhost`, `AuditikBot/1.0`, аноним).** `/catalog?is_new=true`, `?is_hit=true`, `?is_sale=true`: canonical и `og:url` — собственный адрес, title и description по D1, нет `meta keywords` и `meta robots`. `/catalog?is_new=true&page=2` и `/catalog`: canonical `http://localhost/catalog`, базовые метаданные. `sitemap.xml` содержит `catalog?is_new=true`, `?is_hit=true`, `?is_sale=true`; локальный API с `in_stock=true` отдаёт 5 / 7 / 6.
+- **Открыто: 4.6 (AC6)** — внешний шаг после мёрджа: sync `develop` → `main`, ручной rebuild frontend по SSH, `restart nginx`, приёмка на `https://optisport.ru` и снимок в стори.
+
 ### File List
+
+- `frontend/src/app/(blue)/catalog/page.tsx` — изменён
+- `frontend/src/app/sitemap.ts` — изменён
+- `frontend/src/app/(blue)/catalog/__tests__/metadata.test.ts` — изменён
+- `frontend/src/app/__tests__/sitemap.test.ts` — изменён
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — изменён
+- `_bmad-output/implementation-artifacts/Story/41-22-catalog-collections-self-canonical-sitemap.md` — изменён
 
 ### Change Log
 
 - 2026-09-19 — create-story: стори создана, статус `ready-for-dev`.
+- 2026-09-19 — реализация 41.22: собственный canonical подборок `/catalog?<ключ>=true`, непустые подборки (в наличии) в sitemap, тесты; статус → review. Открыт 4.6 (выкат и приёмка AC6 на проде).
