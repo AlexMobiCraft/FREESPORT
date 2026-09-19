@@ -1170,3 +1170,7 @@
 - Подтвердить действующими коммерческими условиями, прайс-матрицей или данными 1С публичный текст «Скидки от объема закупок» / «Размер скидки зависит от объёма заказа». Формулировка утверждена владельцем, но в diff и кодовой базе источник фактического обещания не найден.
 - Коммит `545b40b0` меняет шесть копий production skill/runbook вне AC и File List Story 41.21. Изменение уже влито отдельным коммитом; учитывать его как отдельную operational работу и проводить отдельный review, не приписывая Story 41.21.
 - Для добавленных в production runbook команд `docker builder prune -f` и `journalctl --vacuum-size=500M` определить безопасный порядок: предварительный `docker system df`/проверка journald, необходимые права, явные границы удаляемых данных и контроль освобождённого места. Правка относится к agent-context production skills и требует отдельного operational review.
+
+## Deferred from: code review of 41-21-bundle-example-retail-wording-single-404-robots, third review (2026-09-18)
+
+- Пересмотреть cleanup-политику production runbook из коммита `545b40b0`: перед сборкой проверять свободное место; не применять безусловный `docker image prune -f` ко всему хосту без политики сохранения rollback-образов и учёта других проектов; ограничить и предварительно диагностировать `docker builder prune -f` и `journalctl --vacuum-size=500M`; после очистки проверять освобождённое место. Это отдельная operational работа в agent-context, не патч Story 41.21. [`.agents/skills/production-update/SKILL.md:65,127`]
