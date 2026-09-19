@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-19 (стори 41.21 — done, пятое code review без новых action items)
+# last_updated: 2026-09-19 (создана стори 41.22 — ready-for-dev)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1397,6 +1397,13 @@ development_status:
   # 2026-09-19: пятое code review — новых Decision/Patch не выявлено; existing
   #             operational defer подтверждён без дублирования, 42 сигнала отклонены. review -> done.
   41-21-bundle-example-retail-wording-single-404-robots: done
+  # 2026-09-19: Создана стори 41.22 (create-story) — Story/41-22-catalog-
+  #             collections-self-canonical-sitemap.md. Источник — проверка
+  #             закрытия отчёта 10.09 (tmp/audit-2026-09-10-verification-2026-09-19.md,
+  #             п. 12). Запрос Alex 19.09.2026: пересмотр D1 — собственный canonical
+  #             у ?is_new/is_hit/is_sale=true, непустые подборки (in_stock=true,
+  #             count > 0) в sitemap; тексты D1 не меняются. backlog -> ready-for-dev.
+  41-22-catalog-collections-self-canonical-sitemap: ready-for-dev
   epic-41-retrospective: optional
 
 # ========================================
