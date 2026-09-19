@@ -4,15 +4,19 @@
  * `npm run build`; здесь закреплено, из чего он собирает состав чанков и как
  * читает теги robots, — ошибка в этих функциях дала бы ложный зелёный.
  */
+import net from 'node:net';
 import { describe, expect, it } from 'vitest';
 import {
+  assertPortFree,
   chunkRefsFromHtml,
   chunksForPage,
+  describeChildExit,
   followRedirects,
   matchContext,
   middlewareApiBase,
   robotsMetaContents,
   selectPublicPages,
+  waitForServer,
   FORBIDDEN_IN_PUBLIC_CHUNKS,
 } from '../../scripts/check-production-build.mjs';
 
@@ -155,5 +159,95 @@ describe('followRedirects', () => {
       Array.from({ length: 10 }, (_, i) => [`/r${i}`, page(302, `/r${i + 1}`)])
     );
     await expect(followRedirects('/r0', fetcherFrom(long), ORIGIN)).rejects.toThrow(/редиректов/);
+  });
+});
+
+describe('waitForServer', () => {
+  const fast = { timeoutMs: 200, intervalMs: 10 };
+  const READY_LOG = ' ▲ Next.js 15.5.18\n ✓ Starting...\n ✓ Ready in 312ms\n';
+
+  it('чужой сервер на порту отвечает, но дочерний next не сообщил о готовности — ошибка', async () => {
+    const child = { exitCode: null };
+    const probe = async () => true;
+    await expect(
+      waitForServer(child, { ...fast, readLog: () => ' ▲ Next.js 15.5.18\n', probe })
+    ).rejects.toThrow(/не ответил/);
+  });
+
+  it('дочерний next завершился (порт занят), пока отвечает чужой сервер — ошибка', async () => {
+    const child = { exitCode: 1 };
+    const log = ' ⨯ Failed to start server\nError: listen EADDRINUSE: address already in use :::3100\n';
+    await expect(
+      waitForServer(child, { ...fast, readLog: () => log, probe: async () => true })
+    ).rejects.toThrow(/завершился с кодом 1/);
+  });
+
+  it('готов, когда сам дочерний next сообщил Ready и порт отвечает', async () => {
+    let probes = 0;
+    const probe = async () => ++probes >= 3;
+    await expect(
+      waitForServer({ exitCode: null }, { ...fast, readLog: () => READY_LOG, probe })
+    ).resolves.toBeUndefined();
+    expect(probes).toBe(3);
+  });
+
+  it('дочерний next убит сигналом (exitCode null, signalCode задан) — ошибка', async () => {
+    const child = { exitCode: null, signalCode: 'SIGKILL' };
+    await expect(
+      waitForServer(child, { ...fast, readLog: () => READY_LOG, probe: async () => true })
+    ).rejects.toThrow(/SIGKILL/);
+  });
+});
+
+describe('describeChildExit', () => {
+  it('живой процесс — null', () => {
+    expect(describeChildExit({ exitCode: null, signalCode: null })).toBeNull();
+  });
+
+  it('завершение с кодом, в том числе 0', () => {
+    expect(describeChildExit({ exitCode: 1, signalCode: null })).toBe('кодом 1');
+    expect(describeChildExit({ exitCode: 0, signalCode: null })).toBe('кодом 0');
+  });
+
+  it('завершение сигналом', () => {
+    expect(describeChildExit({ exitCode: null, signalCode: 'SIGTERM' })).toBe('сигналом SIGTERM');
+  });
+});
+
+describe('assertPortFree', () => {
+  it('занятый порт — ошибка с подсказкой CHECK_BUILD_PORT', async () => {
+    const busy = net.createServer();
+    await new Promise<void>(resolve => busy.listen(0, '127.0.0.1', resolve));
+    const { port } = busy.address() as net.AddressInfo;
+    try {
+      await expect(assertPortFree(port)).rejects.toThrow(/занят.*CHECK_BUILD_PORT/);
+    } finally {
+      busy.close();
+    }
+  });
+
+  it('чужой сервер только на ::1 тоже виден', async context => {
+    const busy = net.createServer();
+    const listening = await new Promise<boolean>(resolve => {
+      busy.once('error', () => resolve(false));
+      busy.listen(0, '::1', () => resolve(true));
+    });
+    if (!listening) context.skip(); // на машине нет IPv6 loopback
+    const { port } = busy.address() as net.AddressInfo;
+    try {
+      await expect(assertPortFree(port)).rejects.toThrow(/\(::1\) уже занят/);
+    } finally {
+      busy.close();
+    }
+  });
+
+  it('свободный порт проходит и остаётся свободным', async () => {
+    const probe = net.createServer();
+    await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve));
+    const { port } = probe.address() as net.AddressInfo;
+    await new Promise(resolve => probe.close(resolve));
+
+    await expect(assertPortFree(port)).resolves.toBeUndefined();
+    await expect(assertPortFree(port)).resolves.toBeUndefined();
   });
 });

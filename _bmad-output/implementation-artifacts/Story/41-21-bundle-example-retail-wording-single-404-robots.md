@@ -230,6 +230,52 @@ Title `/home` и заголовки трёх карточек утвержден
 - [Rejected][false] `docker image prune -f` не заявлен как очистка 41 GB build cache: runbook отдельно называет `docker builder prune -f` для build cache, поэтому описанного смешения механизмов нет.
 - [Rejected][false] Повторный сигнал про статичный текст при включении retail-флага отклонён тем же прямым решением владельца: автоматической связи в scope нет.
 
+### Review Findings — третье ревью 18.09.2026
+
+- [x] [Review][Patch] Fail-closed build gate может проверить чужой Next-сервер при занятом порте 3100: `waitForServer` принимает любой успешный `/robots.txt`, но не доказывает, что ответил только что запущенный дочерний процесс [`frontend/scripts/check-production-build.mjs:269`]
+- [x] [Review][Patch] Страж AC6 пропускает запрещённый текст в объектном `Metadata.title`: `String({ absolute/default/template: ... })` даёт `[object Object]`, поэтому допустимая форма Next metadata не проверяется [`frontend/src/app/__tests__/public-copy-no-retail-superlatives.test.ts:49`]
+- [x] [Review][Defer] Сделать очистку production-хоста ограниченной и пригодной для disk-full pre-flight: безусловный post-build `docker image prune -f` удаляет dangling-образы всех проектов и rollback-кандидаты, а дополнительные `docker builder prune -f` и `journalctl --vacuum-size=500M` действуют на общий хост уже после возможного падения сборки — deferred: это несвязанный коммит `545b40b0` в agent-context/runbook; нужен отдельный operational review с диагностикой свободного места, границами удаления и политикой rollback [`.agents/skills/production-update/SKILL.md:65`]
+
+#### Rejected — третье ревью 18.09.2026
+
+- [Rejected][medium] Противоречие старого audit-task A.3 и исключения Q1 реально, но уже записано как `[Review][Defer]` повторного ревью и в `deferred-work.md`; повторный action item не создаётся.
+- [Rejected][false] Игнорируемый `tmp/audit-2026-09-16-verification-2026-09-18.md` не является единственным носителем решения: действующий scope, исходные факты и решения владельца воспроизведены в отслеживаемых Story, intent-task и Epic.
+- [Rejected][false] AC8 не требует отдельного raw-log файла: Story содержит датированный prod-снимок с точными результатами, production commit `ce727776`, GitHub Actions run `35348221933` и визуальное подтверждение владельца.
+- [Rejected][medium] Ручной рецепт Task 1.6 с `curl -s` действительно не fail-closed, но его исправление меняло бы спецификацию под review; риск уже компенсирован исполняемым fail-closed `check:build` и был явно отклонён предыдущим review.
+- [Rejected][false] Отсутствие следования редиректам в старом ручном рецепте не исказило зафиксированную AC8-приёмку: все 16 адресов дали 200, а автоматический gate теперь проверяет конечную страницу цепочки редиректов.
+- [Rejected][medium] Коммерческий источник текста «Скидки от объема закупок» уже зафиксирован отдельным `[Review][Defer]` и записью в `deferred-work.md`; новый дубликат не создаётся.
+- [Rejected][false] AC2 не требует нового теста строк опций четырёх сторов: имена `AuthStore`/`CartStore`/`FavoritesStore`/`OrderStore` и `cart-storage-v3` сохранены буквально, helper-тест проверяет переключение middleware, существующие store-тесты — API.
+- [Rejected][false] Проверка двух сигнатур соответствует текущему буквальному AC1 и фактической версии Zustand; гипотетическое изменение текста middleware будущей версией без доказанного попадания модуля в bundle не является дефектом текущего diff.
+- [Rejected][false] Перечень поверхностей стража AC6 нормативно ограничен `/`, `/home`, `/coming-soon`, `/electric`, `/search` и карточкой; синхронизация со всеми будущими маршрутами меняла бы утверждённый scope.
+- [Rejected][false] File List описывает реализацию Story: отдельный production-skills commit уже вынесен в defer, а intent-task и Epic являются planning-входами create-story, не скрытыми файлами продуктовой реализации.
+- [Rejected][false] `currentRun.verifiedAtCommit` не заявляет проверку нового содержимого Epic: соседний комментарий прямо ограничивает поле историями 41.0–41.9.
+- [Rejected][false] Три дерева `.agents`/`.claude`/`.windsurf` сейчас синхронны; возможное будущее расхождение без существующего несовпадения не доказывает дефект этого diff.
+
+### Review Findings — четвёртое ревью 19.09.2026
+
+- [x] [Review][Patch] Final-alive guard не замечает завершение `next start` сигналом: у `ChildProcess` в этом случае `exitCode === null`, а причина находится в `signalCode`; гейт не доказывает, что дочерний сервер оставался жив до конца проверки [`frontend/scripts/check-production-build.mjs:406`]
+
+#### Rejected — четвёртое ревью 19.09.2026
+
+- [Rejected][false] Browser/network-проход по ленивым чанкам расширял бы утверждённый охват AC1: нормативный рецепт Task 1.6 проверяет чанки, загружаемые HTML перечисленных публичных страниц, а gate дополнительно объединяет их с App Router manifest и записями предков.
+- [Rejected][false] `selectPublicPages` намеренно переохватывает все manifest-page кроме утверждённого приватного `/profile/**`; включение дополнительных закрытых страниц может дать только более строгую проверку, а не пропустить запрещённый чанк публичной страницы.
+- [Rejected][false] Автосинхронизация `PUBLIC_URLS` со всеми будущими маршрутами не входит в Story: точный перечень 16 адресов закреплён Task 1.6, а чанки остальных App Router страниц покрывает manifest-scan.
+- [Rejected][false] Поиск буквальной строки `zustand devtools middleware` повторяет буквальный AC1 и дополняет архитектурное отключение `devtoolsInDev`; гипотетическая будущая смена сигнатуры зависимости не является дефектом текущей сборки.
+- [Rejected][false] AC2 покрыт существующими тестами публичного API сторов и отдельным production-тестом no-op initializer; обёртка возвращает тот же initializer, поэтому дополнительное дублирование всех store-сценариев в production-режиме не доказывает пробел текущей реализации.
+- [Rejected][low] Зависимость readiness от текущей строки Next `Ready in` может потребовать сопровождения после обновления Next, но на закреплённой версии она проверена; возможный эффект — явное красное CI, не ложный зелёный, а замена на новый identity-протокол добавила бы несоразмерную сложность.
+- [Rejected][false] TOCTOU после `assertPortFree` не даёт описанного ложного зелёного: готовность требует `Ready in` именно от дочернего Next после успешного `listen`; если другой процесс успеет занять порт, дочерний процесс не сообщит readiness.
+- [Rejected][low] Для `child.kill()`/`server.close()` не показан фактический висящий процесс в текущих прогонах; исправление потребовало бы отдельного протокола graceful/forced shutdown и не оправдано недоказанным редким риском.
+- [Rejected][low] `robotsMetaContents` действительно может принять `data-name` за `name`, но Next в проверяемом HTML не генерирует такой `<meta>`; достижимого ложного результата в Story не показано, а переход на HTML-парсер несоразмерен.
+- [Rejected][false] Точное сравнение `noindex, follow` соответствует буквальному AC7 и фактическому выводу Next; принятие иных порядка, регистра и пробелов ослабляло бы закреплённый инвариант.
+- [Rejected][medium] Общий `docker image prune -f` и риск удаления rollback-кандидатов уже записаны единым `[Review][Defer]` третьего ревью и в `deferred-work.md`; повторный action item не создаётся.
+- [Rejected][medium] Отсутствие disk-full pre-flight уже входит в тот же operational `[Review][Defer]`; повторный action item не создаётся.
+- [Rejected][medium] Границы `docker builder prune -f` и `journalctl --vacuum-size=500M` уже входят в тот же operational `[Review][Defer]`; повторный action item не создаётся.
+- [Rejected][false] Копии production skills в `.agents`, `.claude` и `.windsurf` в diff синхронны; гипотетическое будущее расхождение без текущего несовпадения не является дефектом Story.
+- [Rejected][medium] Коммерческий источник текста «Скидки от объема закупок» уже записан отдельным `[Review][Defer]` и в `deferred-work.md`; повторный action item не создаётся.
+- [Rejected][false] Галочка у `[Review][Defer]` означает завершённое решение review о маршрутизации, а не выполнение отложенной operational работы; Story отдельно сохраняет ссылки и причины defer.
+- [Rejected][medium] Повторный edge-case про rollback-образы совпадает с существующим operational `[Review][Defer]`; новый дубликат не создаётся.
+- [Rejected][medium] Повторный edge-case про сохранение journald совпадает с существующим operational `[Review][Defer]`; новый дубликат не создаётся.
+
 ## Dev Notes
 
 ### Текущее состояние (код `372b3efb`, прод 18.09.2026)
@@ -365,6 +411,15 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
   - Тесты: в `src/__tests__/check-production-build.test.ts` добавлены 4 теста `followRedirects` (без редиректа; абсолютный и относительный редирект того же origin; редирект наружу; 3xx без `Location`, цикл, длинная цепочка). До реализации падали все 4.
   - Доказательства: локальная сборка с `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1`, `npm run check:build` зелёный, 75 чанков, все 16 адресов отвечают 200 (как в CI run `35348221933`). Временная копия гейта с `/` в перечне прошла цепочку `/ → /coming-soon → 200`. `npm test` — 197 файлов, 3444 passed, 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — зелёные. `detect-changes` — «No changes detected»: `.mjs` в граф GitNexus не входит, продуктовый код не менялся.
 - **18.09.2026, прод-приёмка AC8 (шаги 8.4–8.5).** Владелец выполнил ручной выкат по SSH: PR #209 `develop` → `main`, на сервере `ce727776`, пересобран frontend, перезапущен nginx. Приёмку снял dev-агент (`curl -A "AuditikBot/1.0"` без cookie против `https://optisport.ru`), результат — «Снимок прода» ниже. Все пункты AC3–AC5, AC7 и AC1 совпали. Гейт `check:build` отработал зелёным и в GitHub Actions на PR #208 (run `35348221933`, «Фронтенд: тесты»: проверено 75 чанков, robots на 404/soft-404 как ожидалось). Шаг 8.5 выполнен: в стори 41.20 `[Review][Patch]` третьего ревью → `[x]`, статус `done` (стори и `sprint-status.yaml`); запись E21 реестра 41.16 дополнена прод-доказательством. Серверный HTML карточки проверен `curl`: все семь новых строк на месте, прежних нет. **Карточку `/coming-soon` владелец подтвердил визуально 18.09.2026** (скриншот, контекст без cookie — показан баннер согласия): абзац «Оптовые продажи / спортивных товаров», три карточки с подписями по таблице, «МЫ СКОРО ВЕРНЕМСЯ», «РАЗРАБОТКА ИДЕТ ПО ПЛАНУ!» и подвал с e-mail на месте. AC8 закрыт полностью, все Tasks/Subtasks выполнены.
+- 18.09.2026 dev-story, ответ на третье code review. Оба `[Review][Patch]` закрыты:
+  - ✅ Resolved review finding [Patch]: гейт больше не может проверить чужой сервер. `assertPortFree(port)` до запуска `next start` пробует подключиться к `127.0.0.1` и `::1` (туда резолвится `localhost`); ответил кто-то — код 1 с подсказкой `CHECK_BUILD_PORT`. Пробный `listen` для этого не годится: под Windows `[::]:3100` занимается рядом с чужим `::1:3100`, и такой сервер проверка не видит (замерено). `waitForServer(child, { readLog, probe })` считает сервер готовым, только если дочерний процесс жив, в его собственном выводе есть `Ready in` (Next печатает его из колбэка успешного `server.listen`, при занятом порте процесс завершается) и `/robots.txt` отвечает. После прохода по адресам гейт ещё раз проверяет, что `next start` жив.
+  - ✅ Resolved review finding [Patch]: страж AC6 читает объектный title. `textsOf` раскладывает `{ absolute }` и `{ default, template }` на строки. Незнакомая форма — ошибка, а не пропуск. Пять новых `it` (объектные `title.absolute/default/template`, `openGraph.title`, `twitter.title` с «Лучшие цены») падали до правки: `String(объект)` давал `[object Object]`.
+  - Тесты: в `check-production-build.test.ts` добавлено 6 тестов (`waitForServer` — 3, `assertPortFree` — 3, в том числе чужой сервер только на `::1`). До реализации падали все.
+  - Доказательства на локальной сборке (`NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1`): `npm run check:build` зелёный, 75 чанков. С чужим HTTP-сервером на `127.0.0.1:3100` и на `::1:3100` — код 1 («порт 3100 (…) уже занят другим процессом»). `npm test` — 197 файлов, 3455 passed, 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — зелёные. `detect-changes` — «No changes detected»: `.mjs` и тесты в граф не входят, продуктовый код не менялся.
+
+- 19.09.2026 dev-story, ответ на четвёртое code review. `[Review][Patch]` закрыт:
+  - ✅ Resolved review finding [Patch]: гейт замечает завершение `next start` сигналом. Новая чистая функция `describeChildExit(child)` в `check-production-build.mjs` возвращает `кодом N` / `сигналом SIG…` или `null` для живого процесса; ею пользуются `waitForServer` и финальная проверка «жив ли `next start`» (раньше — только `exitCode !== null`, а у убитого сигналом процесса `exitCode === null`).
+  - Тесты: в `check-production-build.test.ts` +4 (сигнал в `waitForServer`, три случая `describeChildExit`); до реализации падали все 4. `npm test` — 197 файлов, 3459 passed, 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — зелёные. Продуктовый код не менялся (`.mjs` и тесты).
 
 #### Снимок прода 18.09.2026 (AC8, `https://optisport.ru`, коммит `ce727776`)
 
@@ -430,3 +485,7 @@ Claude Opus 5 (`claude-opus-5`), dev-story 18.09.2026.
 - 18.09.2026 — прод-приёмка AC8 на `ce727776` (снимок в Completion Notes), шаг 8.5: стори 41.20 закрыта, E21 реестра 41.16 дополнена прод-доказательством. Открыто визуальное подтверждение карточки `/coming-soon` владельцем (8.4).
 - 18.09.2026 — владелец подтвердил карточку `/coming-soon` в браузере без cookie; 8.4 закрыт, AC8 выполнен полностью, все Tasks/Subtasks отмечены.
 - 18.09.2026 — Addressed code review findings - 1 item resolved: гейт production-сборки проходит редиректы до конечной страницы и падает на редиректе наружу, 3xx без `Location`, цикле и длинной цепочке. Статус → review.
+- 18.09.2026 — третье code review: 2 `[Review][Patch]` оставлены action items, operational cleanup production-хоста сохранён как `[Review][Defer]`; статус → in-progress.
+- 18.09.2026 — Addressed code review findings - 2 items resolved: гейт production-сборки проверяет, что порт свободен и что ответил именно дочерний `next start`; страж AC6 проверяет объектный `Metadata.title`. Статус → review.
+- 19.09.2026 — четвёртое code review: 1 `[Review][Patch]` оставлен action item — final-alive guard должен учитывать `ChildProcess.signalCode`; статус → in-progress.
+- 19.09.2026 — Addressed code review findings - 1 item resolved: гейт production-сборки учитывает завершение `next start` сигналом (`describeChildExit`). Статус → review.

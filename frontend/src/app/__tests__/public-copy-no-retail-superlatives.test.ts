@@ -45,6 +45,24 @@ vi.mock('motion/react', async () => {
 
 const FORBIDDEN = /рознич|розниц|B2C|B2B|платформ|ведущ|крупнейш|лучш|10\s?000/i;
 
+/**
+ * Строки поля метаданных. Title в Next бывает и объектом
+ * (`{ absolute }`, `{ default, template }`): проверяются все его строки,
+ * иначе `String(объект)` дал бы `[object Object]` и страж молча бы прошёл.
+ * Непредусмотренная форма — ошибка, а не пропуск.
+ */
+function textsOf(value: unknown): string[] {
+  if (value == null) return [];
+  if (typeof value === 'string') return [value];
+  if (typeof value === 'object') {
+    const texts = ['absolute', 'default', 'template']
+      .map(key => (value as Record<string, unknown>)[key])
+      .filter((text): text is string => typeof text === 'string');
+    if (texts.length > 0) return texts;
+  }
+  throw new Error(`неизвестная форма текста метаданных: ${JSON.stringify(value)}`);
+}
+
 /** Строки title, description, og и twitter, которые видит сканер и соцсети. */
 function copyFields(metadata: Metadata): string[] {
   return [
@@ -54,9 +72,7 @@ function copyFields(metadata: Metadata): string[] {
     metadata.openGraph?.description,
     metadata.twitter?.title,
     metadata.twitter?.description,
-  ]
-    .filter(value => value != null)
-    .map(value => String(value));
+  ].flatMap(textsOf);
 }
 
 describe('Публичные тексты без розницы и превосходных степеней', () => {
@@ -73,6 +89,16 @@ describe('Публичные тексты без розницы и превос�
     for (const field of fields) {
       expect(field).not.toMatch(FORBIDDEN);
     }
+  });
+
+  it.each<[string, Metadata]>([
+    ['title.absolute', { title: { absolute: 'Лучшие цены' } }],
+    ['title.default', { title: { default: 'Лучшие цены', template: '%s | OPTISPORT' } }],
+    ['title.template', { title: { default: 'OPTISPORT', template: '%s — лучшие цены' } }],
+    ['openGraph.title', { openGraph: { title: { absolute: 'Лучшие цены' } } }],
+    ['twitter.title', { twitter: { title: { default: 'Лучшие цены', template: '%s' } } }],
+  ])('страж видит текст объектного %s', (_field, metadata) => {
+    expect(copyFields(metadata).join(' ')).toMatch(FORBIDDEN);
   });
 
   it('видимый текст карточки /coming-soon', () => {
