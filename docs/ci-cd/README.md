@@ -18,7 +18,7 @@
 | [`main.yml`](../../.github/workflows/main.yml) | Django CI: полный прогон + покрытие (required) | PR в `develop` |
 | [`api-contract.yml`](../../.github/workflows/api-contract.yml) | Синхронность OpenAPI и типов (required) | PR в `develop` |
 | [`pre-merge-checks.yml`](../../.github/workflows/pre-merge-checks.yml) | Проверки качества кода (required) | PR в `develop` |
-| [`e2e-tests.yml`](../../.github/workflows/e2e-tests.yml) | Playwright E2E (не required) | PR в `develop`, по `paths` |
+| [`e2e-tests.yml`](../../.github/workflows/e2e-tests.yml) | Playwright E2E (required) | PR в `develop`; тесты — только при правках во `frontend/**` |
 | [`claude-code-review.yml`](../../.github/workflows/claude-code-review.yml) | Автоматическое ревью | PR в `develop` |
 | [`deploy.yml`](../../.github/workflows/deploy.yml) | **Единственная прод-цепочка**: сборка образов → approval → SSH-деплой → откат | push в `main`, ручной запуск |
 | [`sync-to-public.yml`](../../.github/workflows/sync-to-public.yml) | Синк чистой версии в публичный репозиторий | push в `main` |
@@ -54,7 +54,7 @@ gh workflow run deploy.yml --ref main
 | Правило | `develop` | `main` |
 | --- | --- | --- |
 | Обязателен PR | да (0 аппрувов — один мейнтейнер) | нет |
-| Required-чеки | 5 | нет |
+| Required-чеки | 6 | нет |
 | Force-push, удаление ветки | запрещены | запрещены |
 | `enforce_admins` | да | да |
 
