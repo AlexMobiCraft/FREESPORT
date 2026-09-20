@@ -13,6 +13,7 @@ export const MOCK_PRODUCT_DETAIL_API = {
   slug: 'asics-gel-blast-ff',
   name: 'ASICS Gel-Blast FF',
   sku: 'AS-GB-FF-2025',
+  article: 'AS-GB-FF',
   brand: { name: 'ASICS' },
   description: 'Профессиональные кроссовки для интенсивных тренировок',
   full_description:
@@ -84,6 +85,8 @@ export const MOCK_PRODUCT_DETAIL: ProductDetail = {
   slug: 'asics-gel-blast-ff',
   name: 'ASICS Gel-Blast FF',
   sku: 'AS-GB-FF-2025',
+  // Артикул номенклатуры из 1С — отдельно от технического sku варианта
+  article: 'AS-GB-FF',
   brand: 'ASICS',
   description: 'Профессиональные кроссовки для интенсивных тренировок',
   full_description:
