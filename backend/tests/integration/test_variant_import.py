@@ -339,6 +339,53 @@ class TestVariantImportProcessor(TransactionTestCase):
         assert product.is_active is False  # Неактивен до создания variants
         assert self.processor.stats["products_created"] == 1
 
+    def test_process_product_from_goods_stores_article(self):
+        """Артикул номенклатуры из goods.xml попадает в Product.article и обновляется"""
+        goods_data = {
+            "id": "test-product-001",
+            "name": "Тестовый товар",
+            "article": "ES2123PK",
+            "category_id": "test-category-001",
+        }
+        product = self.processor.process_product_from_goods(goods_data)
+        assert product.article == "ES2123PK"
+
+        goods_data["article"] = "ES2123PK-NEW"
+        updated = self.processor.process_product_from_goods(goods_data)
+        updated.refresh_from_db()
+        assert updated.article == "ES2123PK-NEW"
+
+    def test_process_product_from_goods_article_absent(self):
+        """Товар без артикула в 1С импортируется с пустым article, а не падает"""
+        product = self.processor.process_product_from_goods(
+            {
+                "id": "test-product-002",
+                "name": "Товар без артикула",
+                "category_id": "test-category-001",
+            }
+        )
+        assert product is not None
+        assert product.article == ""
+
+    def test_process_product_from_goods_updates_renamed_product(self):
+        """Повторный импорт подхватывает новое рабочее наименование из 1С, slug не трогает"""
+        goods_data = {
+            "id": "test-product-001",
+            "name": "Коврик для йоги ESPADO NBR 183*61*1.0 см, Розовый ES2123PK, 1/12",
+            "category_id": "test-category-001",
+        }
+        product = self.processor.process_product_from_goods(goods_data)
+        original_slug = product.slug
+
+        goods_data["name"] = "Коврик для йоги ESPADO NBR(БНК) 183*61*1.0 см, Розовый ES2123PK, 1/8 в/к"
+        updated = self.processor.process_product_from_goods(goods_data)
+
+        updated.refresh_from_db()
+        assert updated.pk == product.pk
+        assert updated.name == goods_data["name"]
+        assert updated.slug == original_slug
+        assert self.processor.stats["products_updated"] == 1
+
     def test_process_product_from_goods_no_prices(self):
         """AC1: Product создаётся без цен (цены в ProductVariant)"""
         goods_data = {

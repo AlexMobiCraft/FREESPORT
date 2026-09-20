@@ -2344,6 +2344,11 @@ export interface components {
       /** Название */
       name: string;
       slug: string;
+      /**
+       * Артикул
+       * @description Артикул номенклатуры из goods.xml
+       */
+      article?: string;
       readonly brand: components['schemas']['Brand'];
       readonly category: string;
       /** Описание */
@@ -2495,6 +2500,11 @@ export interface components {
       /** Название */
       name: string;
       slug: string;
+      /**
+       * Артикул
+       * @description Артикул номенклатуры из goods.xml
+       */
+      article?: string;
       readonly brand: components['schemas']['Brand'];
       readonly category: string;
       /** Описание */

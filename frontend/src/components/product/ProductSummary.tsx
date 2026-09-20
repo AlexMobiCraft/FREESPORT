@@ -361,7 +361,8 @@ export default function ProductSummary({
         <div className="p-3 bg-neutral-50 rounded-lg" data-testid="selected-variant-info">
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="text-neutral-600">Артикул:</span>
-            <span className="font-medium text-neutral-900">{selectedVariant.sku}</span>
+            {/* Артикул — реквизит номенклатуры в 1С, один на товар; sku варианта технический */}
+            <span className="font-medium text-neutral-900">{product.article || '—'}</span>
           </div>
           <div className="flex items-center justify-between text-sm mt-1">
             <span className="text-neutral-600">В наличии:</span>

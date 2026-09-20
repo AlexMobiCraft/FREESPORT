@@ -734,6 +734,20 @@ class VariantImportProcessor:
         brand = self._determine_brand(brand_id, str(parent_id))
         fields_to_update: list[str] = []
 
+        # Наименование: в <Наименование> 1С выгружает рабочее наименование номенклатуры
+        # (наименование для печати лежит отдельно, в реквизите «Полное наименование»).
+        # slug намеренно не пересчитываем — он зафиксирован в выдаче и внешних ссылках.
+        name = goods_data.get("name")
+        if name and product.name != name:
+            product.name = name
+            fields_to_update.append("name")
+
+        # Артикул хранится у товара: в offers.xml 1С его не выгружает вовсе
+        article = goods_data.get("article") or ""
+        if product.article != article:
+            product.article = article
+            fields_to_update.append("article")
+
         if product.brand_id != brand.pk:
             product.brand = brand
             fields_to_update.append("brand")
@@ -806,6 +820,7 @@ class VariantImportProcessor:
             onec_brand_id=brand_id,
             name=name,
             slug=slug,
+            article=goods_data.get("article") or "",
             description=goods_data.get("description", ""),
             brand=brand,
             category=category,

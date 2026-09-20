@@ -39,6 +39,8 @@ export interface Product {
   id: number;
   name: string;
   slug: string;
+  /** Артикул номенклатуры из 1С; пустой, если в 1С не заполнен */
+  article?: string;
   description?: string;
   short_description?: string;
   retail_price: number;
@@ -361,6 +363,8 @@ export interface ProductDetail {
   slug: string;
   name: string;
   sku: string;
+  /** Артикул номенклатуры из 1С; пустой, если в 1С не заполнен */
+  article?: string;
   brand: string;
   description: string;
   full_description?: string;
