@@ -43,6 +43,9 @@ jobs:
   # Определение окружения
   setup:
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. Пара echo в GITHUB_OUTPUT.
+    timeout-minutes: 5
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
       should_deploy: ${{ steps.set-env.outputs.should_deploy }}
@@ -91,6 +94,10 @@ jobs:
       && github.event.inputs.skip_tests != 'true'
       && needs.setup.outputs.needs_build == 'true'
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. Полный pytest, как в Django CI (там лимит
+    # 30), плюс установка зависимостей.
+    timeout-minutes: 40
 
     services:
       postgres:
@@ -192,6 +199,11 @@ jobs:
     needs: [setup, test]
     if: always() && needs.setup.outputs.should_deploy == 'true' && needs.setup.outputs.needs_build == 'true' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. Две сборки образов с пушем в ghcr;
+    # наблюдалось 5,5 мин, но промах
+    # кэша слоёв удлиняет её в разы.
+    timeout-minutes: 45
     environment: ${{ needs.setup.outputs.environment }}
     permissions:
       contents: read
@@ -280,6 +292,17 @@ jobs:
     # деплой скипнулся бы вместе с ним — ровно так деплой молча не выполнялся до 2026-09-20.
     if: always() && needs.setup.outputs.environment == 'production' && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. SSH-деплой: дамп БД, pull
+    # образов, рестарты, миграции, collectstatic и health check (до 2,5 мин на каждую
+    # из двух проверок).
+    #
+    # Ожидание approval лимит НЕ расходует: пока job ждёт одобрения environment,
+    # он не запущен, и таймер начинается с момента старта на раннере.
+    #
+    # Это самый важный лимит в файле: зависший SSH-шаг оставляет прод между
+    # `compose up` и миграциями — с новым образом и старой схемой БД.
+    timeout-minutes: 30
     environment: production
 
     steps:
@@ -480,6 +503,9 @@ jobs:
     if: always() && needs.deploy-production.result == 'failure'
     needs: [setup, deploy-production]
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. Печать инструкций в summary.
+    timeout-minutes: 10
 
     steps:
       - name: Как откатить прод

@@ -17,6 +17,10 @@ jobs:
     name: Проверки качества кода
     runs-on: ubuntu-latest
 
+    # Без лимита зависший прогон висит дефолтные 6 часов. Факт: медиана 0,5 мин, максимум 1,1 (14
+    # прогонов).
+    timeout-minutes: 15
+
     steps:
       - name: Checkout кода
         uses: actions/checkout@v7

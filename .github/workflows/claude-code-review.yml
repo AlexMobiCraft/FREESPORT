@@ -29,6 +29,10 @@ jobs:
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. Агент с сетевыми вызовами: зависнуть может
+    # надолго, а гейтом не является.
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
