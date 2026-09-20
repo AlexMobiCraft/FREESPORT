@@ -63,7 +63,10 @@ runs:
         if grep -vqE "$ALLOWLIST" <<<"$FILES" || grep -qE "$DENYLIST" <<<"$FILES"; then
           echo "run=true" >> "$GITHUB_OUTPUT"
           echo "✅ В PR есть исполняемые файлы — гоняем полный набор:"
-          { grep -vE "$ALLOWLIST" <<<"$FILES"; grep -E "$DENYLIST" <<<"$FILES"; } \
+          # `|| true` обязательны: composite-шаг идёт с `-e -o pipefail`, а grep,
+          # ничего не нашедший, возвращает 1 — без них печать списка роняла шаг
+          # целиком (прогон 35508285945: четыре гейта красные за 30 секунд).
+          { grep -vE "$ALLOWLIST" <<<"$FILES" || true; grep -E "$DENYLIST" <<<"$FILES" || true; } \
             | sort -u | sed 's/^/   /'
         else
           echo "run=false" >> "$GITHUB_OUTPUT"
