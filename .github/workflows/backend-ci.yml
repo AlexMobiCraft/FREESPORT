@@ -36,6 +36,10 @@ jobs:
     name: "Бэкенд: качество кода"
     runs-on: ubuntu-latest
 
+    # Без лимита зависший прогон висит дефолтные 6 часов. Факт: медиана 2,3 мин, максимум 4,0 (14
+    # прогонов).
+    timeout-minutes: 20
+
     permissions:
       contents: read
       pull-requests: read

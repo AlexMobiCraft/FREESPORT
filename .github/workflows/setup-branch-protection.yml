@@ -33,6 +33,9 @@ jobs:
   setup-branch-protection:
     name: Настройка правил защиты веток
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. Несколько вызовов GitHub API.
+    timeout-minutes: 10
     permissions:
       contents: read
 

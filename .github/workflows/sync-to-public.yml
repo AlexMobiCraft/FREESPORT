@@ -8,6 +8,10 @@ on:
 jobs:
   build-and-sync:
     runs-on: ubuntu-latest
+
+    # Без лимита зависший прогон висит дефолтные 6 часов. Факт: около минуты. Дальше — зависший слот
+    # и неопубликованный релиз.
+    timeout-minutes: 15
     steps:
       - name: Checkout Private Repository
         uses: actions/checkout@v7
