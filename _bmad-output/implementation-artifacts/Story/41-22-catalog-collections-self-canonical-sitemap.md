@@ -93,13 +93,13 @@ so that поисковик мог показывать их в выдаче, а 
     - Проверить аргументы запроса: `http://backend:8000/api/v1/products/?is_new=true&in_stock=true&page_size=1` c `next: { revalidate: 3600 }` и `signal: expect.any(AbortSignal)`.
   - [x] 3.3 `robots-noindex-invariant.test.ts`, `robots.test.ts` — прогнать без изменений (AC4).
 
-- [ ] **Task 4 — проверки и документация** (AC5)
+- [x] **Task 4 — проверки и документация** (AC5)
   - [x] 4.1 В `frontend/`: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run format:check`.
   - [x] 4.2 Гейт 41.21: `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run build`, затем `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run check:build` (локально порт 8001 занят backend из Docker — см. шапку `scripts/check-production-build.mjs`).
   - [x] 4.3 Локальная приёмка (аноним, без cookie): `docker compose --env-file .env -f docker/docker-compose.yml restart frontend`, затем `curl -s -A "AuditikBot/1.0"` по адресам AC6 на `http://localhost`; проверить `<link rel="canonical">`, `og:url`, `<title>`, `meta description`, отсутствие `meta keywords` и `meta robots`; `curl -s http://localhost/sitemap.xml | grep -o '<loc>[^<]*catalog?is_[^<]*'`.
   - [x] 4.4 `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только `generateMetadata` каталога и символы `sitemap.ts`.
   - [x] 4.5 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
-  - [ ] 4.6 **Внешний шаг (после мёрджа, ручной выкат по SSH):** sync `develop` → `main` через PR; на сервере rebuild frontend и **`restart nginx`** (память: после пересборки nginx держит старый IP upstream). Приёмка AC6, снимок в стори. Повторный прогон сканера — шаг владельца.
+  - [x] 4.6 **Внешний шаг (после мёрджа, ручной выкат по SSH):** sync `develop` → `main` через PR; на сервере rebuild frontend и **`restart nginx`** (память: после пересборки nginx держит старый IP upstream). Приёмка AC6, снимок в стори. Повторный прогон сканера — шаг владельца.
 
 ### Review Findings
 
@@ -218,7 +218,37 @@ Claude Opus 5 (`claude-opus-5`), Claude Code, dev-story.
   - Параллельный старт: новый тест «запускает проверки всех подборок параллельно» отвечает на collection-запросы только после старта всех трёх (барьер `allStarted`) и выигрывает гонку у таймера 50 мс. При последовательном обходе первый ответ не приходит никогда — тест падает.
   - Порядок блоков: новый тест «размещает подборки сразу после категорий и до товаров» сверяет индексы — подборки идут подряд, начиная со следующего за последней категорией, в порядке `COLLECTION_KEYS`, и раньше `/product/ball`.
   - Таймаут: `expect(timeoutSpy).toHaveBeenCalledTimes(4)` заменён на `expect(timeoutSpy.mock.calls).toEqual([[3000], [3000], [3000], [3000]])` — счётчик пропускал один запрос с другим значением.
-- **Открыто: 4.6 (AC6)** — внешний шаг после мёрджа: sync `develop` → `main`, ручной rebuild frontend по SSH, `restart nginx`, приёмка на `https://optisport.ru` и снимок в стори.
+- **Task 4.6 / AC6 — приёмка на проде выполнена 20.09.2026.** Выкат сделал Alex (sync `develop` → `main`, rebuild frontend, `restart nginx`). Снимок снят `curl -s -A "AuditikBot/1.0"` с `https://optisport.ru`, аноним, без cookie — см. «Снимок приёмки AC6» ниже. Все три подборки отдают собственный canonical и `og:url`, тексты по таблице D1, без `meta keywords` и `meta robots`; `?is_new=true&page=2` и `/catalog` — canonical `https://optisport.ru/catalog` с базовыми метаданными; sitemap содержит три подборки ровно по одному разу, адресов с `focusSearch=` нет. Прод-счётчики `in_stock=true` — 5 / 4 / 5, совпадают со значениями AC6 от 19.09.2026.
+
+### Снимок приёмки AC6 (прод, 20.09.2026, `curl -s -A "AuditikBot/1.0" https://optisport.ru/...`)
+
+| Адрес | HTTP | `<title>` | canonical / `og:url` |
+|---|---|---|---|
+| `/catalog?is_new=true` | 200 | Новинки — каталог спортивных товаров \| OPTISPORT | `https://optisport.ru/catalog?is_new=true` |
+| `/catalog?is_hit=true` | 200 | Лидеры продаж — каталог спортивных товаров \| OPTISPORT | `https://optisport.ru/catalog?is_hit=true` |
+| `/catalog?is_sale=true` | 200 | Скидки — каталог спортивных товаров \| OPTISPORT | `https://optisport.ru/catalog?is_sale=true` |
+| `/catalog?is_new=true&page=2` | 200 | Каталог спортивных товаров \| OPTISPORT | `https://optisport.ru/catalog` |
+| `/catalog` | 200 | Каталог спортивных товаров \| OPTISPORT | `https://optisport.ru/catalog` |
+
+Описания подборок (D1) в ответе прода:
+
+- `is_new` — «Новинки в каталоге OPTISPORT: подборка спортивных товаров с ценами и условиями заказа для оптовых покупателей.»
+- `is_hit` — «Лидеры продаж в каталоге OPTISPORT: подборка спортивных товаров с ценами и условиями заказа для оптовых покупателей.»
+- `is_sale` — «Скидки в каталоге OPTISPORT: подборка спортивных товаров со сниженными ценами и условиями заказа для оптовых покупателей.»
+
+У трёх подборок нет `<meta name="keywords">` и `<meta name="robots">`; у `/catalog` и `/catalog?is_new=true&page=2` базовые `keywords` присутствуют, как и до стори.
+
+`sitemap.xml` (HTTP 200, 3362 `<url>`):
+
+```
+<loc>https://optisport.ru/catalog?is_new=true</loc>
+<loc>https://optisport.ru/catalog?is_hit=true</loc>
+<loc>https://optisport.ru/catalog?is_sale=true</loc>
+```
+
+`grep -o 'catalog?is_[a-z]*=true' | sort | uniq -c` → по 1 на каждую подборку; адресов с `focusSearch=` — 0.
+
+Прод-API, наполненность подборок (`GET /api/v1/products/?<ключ>=true&in_stock=true&page_size=1`): `is_new` — `count: 5`, `is_hit` — `count: 4`, `is_sale` — `count: 5`.
 
 ### File List
 
@@ -234,3 +264,4 @@ Claude Opus 5 (`claude-opus-5`), Claude Code, dev-story.
 - 2026-09-19 — create-story: стори создана, статус `ready-for-dev`.
 - 2026-09-19 — реализация 41.22: собственный canonical подборок `/catalog?<ключ>=true`, непустые подборки (в наличии) в sitemap, тесты; статус → review. Открыт 4.6 (выкат и приёмка AC6 на проде).
 - 2026-09-20 — закрыты findings ревью: 4 items resolved (тесты sitemap — сохранность блога/новостей/CMS при отказе подборки, параллельный старт, порядок блоков, таймаут каждого запроса). Прод-код не менялся; статус → review.
+- 2026-09-20 — выкат на прод (Alex) и приёмка AC6: canonical подборок, тексты D1 и три подборки в sitemap подтверждены на `https://optisport.ru`; снимок приложен. Task 4.6 закрыт, открытых задач нет.
