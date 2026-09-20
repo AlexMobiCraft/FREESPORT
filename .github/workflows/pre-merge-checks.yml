@@ -194,47 +194,22 @@ jobs:
             echo "✅ Потенциальные секреты не обнаружены"
           fi
 
+      # Аудит уязвимостей здесь НЕ выполняется (упрощено 2026-09-20): `safety` в этом
+      # job не устанавливается и ветка с ним всегда печатала «Safety не установлен»,
+      # а `npm audit` дублировал блокирующий шаг из frontend-ci и ничего не проверял
+      # по-настоящему — вывод уходил в артефакт с `|| true`. Аудит живёт там, где он
+      # блокирует мерж: `safety check` в backend-ci, `npm audit --audit-level high`
+      # в frontend-ci. Здесь остаётся только напоминание для ревью.
       - name: Проверка зависимостей
         run: |
-          echo "📦 Проверка зависимостей..."
+          echo "📦 Проверка изменений в зависимостях..."
 
-          # Проверяем изменения в файлах зависимостей
-          if git diff --name-only origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | grep -E "(requirements\.txt|package\.json|package-lock\.json|yarn\.lock)"; then
-            echo "Обнаружены изменения в файлах зависимостей"
-            
-            # Проверяем бэкенд зависимости
-            if [[ -f "backend/requirements.txt" ]]; then
-              echo "🔍 Проверка бэкенд зависимостей..."
-              cd backend
-              
-              # Проверяем наличие уязвимостей
-              if command -v safety &> /dev/null; then
-                safety check --json --output safety-report.json || true
-                echo "Отчет о безопасности зависимостей сохранен в safety-report.json"
-              else
-                echo "⚠️ Safety не установлен, пропускаем проверку"
-              fi
-              
-              cd ..
-            fi
-            
-            # Проверяем фронтенд зависимости
-            if [[ -f "frontend/package.json" ]]; then
-              echo "🔍 Проверка фронтенд зависимостей..."
-              cd frontend
-              
-              # Проверяем наличие уязвимостей
-              if command -v npm &> /dev/null; then
-                npm audit --json > npm-audit-report.json || true
-                echo "Отчет о безопасности зависимостей сохранен в npm-audit-report.json"
-              else
-                echo "⚠️ npm не доступен, пропускаем проверку"
-              fi
-              
-              cd ..
-            fi
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+            | grep -E "(requirements\.txt|package\.json|package-lock\.json|yarn\.lock)"; then
+            echo "⚠️ Зависимости изменены — проверь вывод safety (backend-ci) и npm audit (frontend-ci)."
+            echo "   Для бэкенда не забудь pip freeze > requirements.txt."
           else
-            echo "✅ Изменения в зависимостях не обнаружены"
+            echo "✅ Файлы зависимостей не менялись"
           fi
 
       - name: Создание отчета о проверках
@@ -288,8 +263,6 @@ jobs:
           retention-days: 1
           path: |
             pre-merge-checks-report.md
-            backend/safety-report.json
-            frontend/npm-audit-report.json
 
       - name: Комментарий в PR с результатами
         uses: actions/github-script@v9
