@@ -1418,6 +1418,12 @@ development_status:
   #             старта через барьер; новый тест порядка category -> collection ->
   #             product; таймаут проверяется по каждому вызову. Каждая проверка
   #             подтверждена мутацией sitemap.ts (RED). in-progress -> review.
+  # 2026-09-20: выкат на прод выполнен владельцем; приёмка AC6 снята curl с
+  #             AuditikBot/1.0: три подборки отдают собственный canonical и og:url,
+  #             тексты D1, без keywords/robots; /catalog и ?is_new=true&page=2 —
+  #             canonical /catalog; sitemap (3362 url) содержит три подборки по
+  #             одному разу, focusSearch отсутствует; count 5 / 4 / 5. Снимок в
+  #             стори, Task 4.6 закрыт — открытых задач нет.
   41-22-catalog-collections-self-canonical-sitemap: review
   epic-41-retrospective: optional
 
