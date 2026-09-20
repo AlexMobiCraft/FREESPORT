@@ -334,8 +334,13 @@ jobs:
             cd "$DEPLOY_PATH"
             
             echo "💾 Создание резервной копии базы данных..."
+            # --env-file обязателен: без него compose не видит .env.prod и падает на
+            # подстановке ONEC_DATA_DIR (`invalid spec: :/app/data/import_1c`), а `up -d`
+            # пересоздал бы контейнеры с пустыми SECRET_KEY и DB_PASSWORD.
+            COMPOSE="docker compose --env-file .env.prod -f docker/docker-compose.prod.yml"
+
             BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
-            docker compose -f docker/docker-compose.prod.yml exec -T db pg_dump -U postgres freesport > "backups/$BACKUP_FILE"
+            $COMPOSE exec -T db pg_dump -U postgres freesport > "backups/$BACKUP_FILE"
             
             # Сохраняем только последние 5 бэкапов
             ls -t backups/*.sql | tail -n +6 | xargs -r rm
@@ -389,36 +394,40 @@ jobs:
 
             # compose читает их из окружения (см. docker-compose.prod.yml).
             export BACKEND_IMAGE FRONTEND_IMAGE
+
+            # .env.prod — источник остальных переменных compose; переменные окружения
+            # (BACKEND_IMAGE/FRONTEND_IMAGE) приоритетнее env-file и не затираются им.
+            COMPOSE="docker compose --env-file .env.prod -f docker/docker-compose.prod.yml"
             
             echo "🚀 Перезапуск сервисов (zero-downtime)..."
             # Сначала обновляем backend и celery
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps --force-recreate backend
+            $COMPOSE up -d --no-deps --force-recreate backend
             sleep 15
             
             # Проверяем здоровье backend
-            if ! docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py check --deploy; then
+            if ! $COMPOSE exec -T backend python manage.py check --deploy; then
               echo "❌ Backend health check failed, rolling back..."
-              docker compose -f docker/docker-compose.prod.yml up -d --no-deps backend
+              $COMPOSE up -d --no-deps backend
               exit 1
             fi
             
             # Обновляем остальные сервисы
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps --force-recreate frontend celery celery-beat
+            $COMPOSE up -d --no-deps --force-recreate frontend celery celery-beat
             
             echo "⏳ Ожидание запуска сервисов..."
             sleep 30
             
             echo "🔄 Выполнение миграций..."
-            docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate --noinput
+            $COMPOSE exec -T backend python manage.py migrate --noinput
             
             echo "📁 Сбор статических файлов..."
-            docker compose -f docker/docker-compose.prod.yml exec -T backend python manage.py collectstatic --noinput
+            $COMPOSE exec -T backend python manage.py collectstatic --noinput
             
             echo "🔧 Проверка конфигурации Nginx (production с SSL)..."
-            docker compose -f docker/docker-compose.prod.yml exec -T nginx nginx -t
+            $COMPOSE exec -T nginx nginx -t
             
             echo "🔄 Перезагрузка Nginx..."
-            docker compose -f docker/docker-compose.prod.yml exec -T nginx nginx -s reload
+            $COMPOSE exec -T nginx nginx -s reload
             
             echo "🧹 Очистка старых образов..."
             docker image prune -f
@@ -533,7 +542,7 @@ jobs:
             echo "cat .last-release-digests   # digest'ы образов до этого деплоя"
             echo "export BACKEND_IMAGE=<digest бэкенда>"
             echo "export FRONTEND_IMAGE=<digest фронтенда>"
-            echo "docker compose -f docker/docker-compose.prod.yml up -d --force-recreate \\"
+            echo "docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --force-recreate \\"
             echo "  backend frontend celery celery-beat"
             echo '```'
             echo ""
