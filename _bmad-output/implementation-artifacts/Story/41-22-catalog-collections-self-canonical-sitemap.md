@@ -101,6 +101,26 @@ so that поисковик мог показывать их в выдаче, а 
   - [x] 4.5 Dev Agent Record, File List; `sprint-status.yaml` → `review`.
   - [ ] 4.6 **Внешний шаг (после мёрджа, ручной выкат по SSH):** sync `develop` → `main` через PR; на сервере rebuild frontend и **`restart nginx`** (память: после пересборки nginx держит старый IP upstream). Приёмка AC6, снимок в стори. Повторный прогон сканера — шаг владельца.
 
+### Review Findings
+
+- [x] [Review][Patch] Сценарий отказа проверки подборки не доказывает сохранность статей, новостей и CMS-страниц [frontend/src/app/__tests__/sitemap.test.ts:112]
+- [x] [Review][Patch] Тесты не закрепляют параллельный старт трёх запросов подборок через `Promise.all` [frontend/src/app/__tests__/sitemap.test.ts:99]
+- [x] [Review][Patch] Тесты не закрепляют размещение подборок сразу после категорий и перед товарами [frontend/src/app/__tests__/sitemap.test.ts:84]
+- [x] [Review][Patch] Проверка таймаута допускает один collection-запрос с неверным значением, если остальные вызовы используют 3000 мс [frontend/src/app/__tests__/sitemap.test.ts:99]
+
+#### Rejected
+
+- `false` — статус `review` не заявляет выполнение AC6: внешний шаг 4.6 явно оставлен открытым до мёрджа и выката.
+- `false` — «Непокрытых требований нет» в Epic означает наличие Story для каждого FR, а не production-приёмку всех Story.
+- `false` — историческое решение D1 датировано 17.09, а отдельная запись 19.09 явно фиксирует его пересмотр; одновременно действующих правил нет.
+- `false` — `baseline_commit: f426f572` корректно охватывает создание Story, а `f503221b` — более поздняя точка ответвления implementation-ветки от `develop`; противоречия нет.
+- `low`, отклонено — File List не перечисляет изменённый Epic и называет новую Story изменённой; исправление затрагивает только проверяемую спецификацию и не меняет продукт или проверяемость кода.
+- `false` — значения 5 / 4 / 5 в AC6 помечены датой 19.09.2026 и являются снимком, а условие включения задано актуальным `count > 0`.
+- `false` — Task 4.3 требует выполнить локальную проверку, но не требует отдельного приложенного снимка; обязательный снимок относится к ещё открытому production AC6.
+- `false` — имя `CATEGORY_TREE_FETCH_TIMEOUT_MS` не создаёт текущего дефекта: обе проверки по утверждённому контракту используют одинаковые 3000 мс, отдельная настройка не требуется.
+- `false` — Acceptance Auditor повторно отметил открытый AC6, но Story прямо фиксирует его как невыполненный внешний шаг и не заявляет production-приёмку завершённой.
+- `medium`, дедуплировано — повторное замечание Verification Gap Reviewer о параллельном запуске объединено с одноимённым patch finding выше.
+
 ## Dev Notes
 
 ### Текущее состояние (код `f426f572`)
@@ -184,6 +204,7 @@ Claude Opus 5 (`claude-opus-5`), Claude Code, dev-story.
 - RED: после правки тестов упали 3 сценария подборок в `metadata.test.ts` и 10 новых сценариев `sitemap.test.ts`; GREEN после реализации — 5 файлов (с `robots.test.ts`), 157 тестов.
 - `npm test`: 197 файлов, 3468 passed / 16 skipped. `npm run lint`, `npx tsc --noEmit`, `npm run format:check` — чисто.
 - Гейт 41.21: `NEXT_PUBLIC_API_URL=http://localhost:18001/api/v1 npm run build` + `npm run check:build` — «Проверка production-сборки пройдена».
+- Review findings (20.09.2026): правки только в `sitemap.test.ts`, прод-код не тронут. RED-проверка каждой новой проверки мутацией `sitemap.ts` (последовательный обход вместо `Promise.all`; подборки в конец массива; `AbortSignal.timeout(2999)` в `isCollectionNonEmpty`; убран блок блога) — каждая мутация роняет свой тест, после `git checkout` прогон зелёный. `npm test`: 197 файлов, 3470 passed / 16 skipped; `npm run lint`, `npx tsc --noEmit`, `npm run format:check` чисто; повторный гейт 41.21 (`build` + `check:build`) — «Проверка production-сборки пройдена». `detect-changes --scope all` — `No changes detected` (тестовые файлы вне графа), прод-символы не затронуты.
 - `detect-changes --scope all`: 5 файлов, символы только в `(blue)/catalog/page.tsx` и `sitemap.ts`. `getApiUrl`, `toEntries`, `toCategoryEntries`, `staticRoutes`, `now` помечены из-за сдвига строк — по `git diff` их тела не менялись. Risk `high` посчитан по числу процессов (7), все потоки начинаются в `sitemap` и `generateMetadata`.
 
 ### Completion Notes List
@@ -192,6 +213,11 @@ Claude Opus 5 (`claude-opus-5`), Claude Code, dev-story.
 - **Task 2 (AC3).** В `sitemap.ts` появились `COLLECTION_KEYS`, `isCollectionNonEmpty` (один запрос `products/?<ключ>=true&in_stock=true&page_size=1` с `revalidate` и `AbortSignal.timeout(3000)`), `fetchNonEmptyCollections` (параллельно, по одной подборке) и `toCollectionEntries` (`daily`, `0.7`). Результат стоит сразу после категорий. Подборка включается только при `res.ok` и числовом `count > 0`; ошибки сети, таймаут, не-2xx и невалидный JSON исключают только её. Проверку одной подборки я вынес в `isCollectionNonEmpty`, чтобы `try/catch` на каждый ключ давал изоляцию ошибок.
 - **Task 3.** В `metadata.test.ts` изменено только `it.each` подборок: название и canonical/og:url. В `sitemap.test.ts` мок подборок стоит перед веткой `/products/` (разбор `searchParams`). Тест «не содержит подборок» заменён на «каждая подборка ровно один раз, без `focusSearch=`». Добавлены: проверка аргументов запроса, 7 сценариев отказа одной подборки (`count: 0`, не-2xx, сетевая ошибка, таймаут, нет `count`, `count: '5'`, невалидный JSON) — остальной sitemap на месте; проверка, что подборки не сочетаются с другими параметрами. Ожидаемый URL задан через `absoluteUrl`, потому что `SITE_URL` в тестах зависит от env. `robots-noindex-invariant.test.ts` и `robots.test.ts` прошли без изменений (AC4).
 - **Task 4.3, локальная приёмка (`http://localhost`, `AuditikBot/1.0`, аноним).** `/catalog?is_new=true`, `?is_hit=true`, `?is_sale=true`: canonical и `og:url` — собственный адрес, title и description по D1, нет `meta keywords` и `meta robots`. `/catalog?is_new=true&page=2` и `/catalog`: canonical `http://localhost/catalog`, базовые метаданные. `sitemap.xml` содержит `catalog?is_new=true`, `?is_hit=true`, `?is_sale=true`; локальный API с `in_stock=true` отдаёт 5 / 7 / 6.
+- **Review findings (4 шт., все [Patch], 20.09.2026)** — закрыты правками только в `sitemap.test.ts`:
+  - Сохранность остального sitemap при отказе подборки: мок `beforeEach` теперь отдаёт содержимое для `/blog/`, `/news/` и `/pages/`, а сценарий отказа дополнительно требует `/blog/post`, `/news/item` и `/contacts`.
+  - Параллельный старт: новый тест «запускает проверки всех подборок параллельно» отвечает на collection-запросы только после старта всех трёх (барьер `allStarted`) и выигрывает гонку у таймера 50 мс. При последовательном обходе первый ответ не приходит никогда — тест падает.
+  - Порядок блоков: новый тест «размещает подборки сразу после категорий и до товаров» сверяет индексы — подборки идут подряд, начиная со следующего за последней категорией, в порядке `COLLECTION_KEYS`, и раньше `/product/ball`.
+  - Таймаут: `expect(timeoutSpy).toHaveBeenCalledTimes(4)` заменён на `expect(timeoutSpy.mock.calls).toEqual([[3000], [3000], [3000], [3000]])` — счётчик пропускал один запрос с другим значением.
 - **Открыто: 4.6 (AC6)** — внешний шаг после мёрджа: sync `develop` → `main`, ручной rebuild frontend по SSH, `restart nginx`, приёмка на `https://optisport.ru` и снимок в стори.
 
 ### File List
@@ -207,3 +233,4 @@ Claude Opus 5 (`claude-opus-5`), Claude Code, dev-story.
 
 - 2026-09-19 — create-story: стори создана, статус `ready-for-dev`.
 - 2026-09-19 — реализация 41.22: собственный canonical подборок `/catalog?<ключ>=true`, непустые подборки (в наличии) в sitemap, тесты; статус → review. Открыт 4.6 (выкат и приёмка AC6 на проде).
+- 2026-09-20 — закрыты findings ревью: 4 items resolved (тесты sitemap — сохранность блога/новостей/CMS при отказе подборки, параллельный старт, порядок блоков, таймаут каждого запроса). Прод-код не менялся; статус → review.
