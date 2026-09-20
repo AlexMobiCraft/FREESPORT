@@ -80,7 +80,7 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 - `feature/*` — новые функции
 - `hotfix/*` — критические исправления
 - Синк `develop` → `main`: `git push origin origin/develop:refs/heads/main` (fast-forward, только по команде владельца). **Этот push и есть релиз:** он запускает `deploy.yml` (сборка образов → approval на environment `production` → SSH-деплой). Тестов на push нет ни в `develop`, ни в `main` — тот же SHA уже зелёный на PR.
-- Мёрдж PR **только merge commit** (`gh pr merge N --merge`): squash/rebase разводят историю и ломают fast-forward синк (отключены и в настройках репозитория).
+- Мёрдж PR **только merge commit**, предпочтительно на автомёрдже: `gh pr merge N --auto --merge` — сольётся сам по зелёным чекам, head-ветка удалится автоматически. Squash/rebase разводят историю и ломают fast-forward синк (отключены в настройках репозитория).
 - Откат релиза: `gh workflow run deploy.yml -f image_tag=<sha прошлого релиза>` — без пересборки и тестов. Подробности и откат самой схемы — `.windsurf/rules/git-sync-workflow.md`
 
 ## Документация проекта

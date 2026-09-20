@@ -25,7 +25,7 @@ feature/* -> PR -> develop --(fast-forward push по команде)--> main
 
 ## Стратегия слияния
 
-Только **merge commit** (`gh pr merge N --merge`). Squash и rebase запрещены: они
+Только **merge commit** (`gh pr merge N --auto --merge`). Squash и rebase запрещены: они
 переписывают коммиты, из-за чего `main` и `develop` расходятся и fast-forward синк
 перестаёт работать. Обе опции отключены и на уровне репозитория
 (`allow_squash_merge = false`, `allow_rebase_merge = false`).
@@ -41,7 +41,7 @@ git checkout develop && git fetch origin && git reset --hard origin/develop
 git checkout -b feature/<name>
 git push -u origin feature/<name>
 gh pr create --base develop ...
-gh pr merge <N> --merge
+gh pr merge <N> --auto --merge   # сольётся сам, когда позеленеет последний чек
 
 # 2. Релиз (только по команде владельца)
 git fetch origin
