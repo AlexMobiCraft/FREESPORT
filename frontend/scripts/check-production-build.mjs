@@ -30,6 +30,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import http from 'node:http';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -66,8 +67,10 @@ export const FORBIDDEN_ANYWHERE = 'zustand devtools middleware';
 
 const USER_AGENT = 'AuditikBot/1.0';
 const NEXT_PORT = Number(process.env.CHECK_BUILD_PORT || 3100);
+const MAX_REDIRECTS = 5;
 const READY_TIMEOUT_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 30_000;
+const SERVER_ORIGIN = `http://localhost:${NEXT_PORT}`;
 
 /** Страницы манифеста, чанки которых загружают публичные адреса. */
 export function selectPublicPages(pageKeys) {
@@ -126,6 +129,36 @@ export function robotsMetaContents(html) {
     contents.push(content ? content[1] : '');
   }
   return contents;
+}
+
+/**
+ * Идёт по редиректам до конечной страницы — той, чьи чанки фактически
+ * загрузит браузер. Редирект наружу, 3xx без `Location`, цикл и цепочка
+ * длиннее `MAX_REDIRECTS` — ошибка: такую страницу гейт проверить не может.
+ * `fetcher(path)` возвращает `{ status, location, html }` без следования
+ * редиректам.
+ */
+export async function followRedirects(urlPath, fetcher, origin) {
+  const chain = [urlPath];
+  let current = urlPath;
+
+  for (;;) {
+    const { status, location, html } = await fetcher(current);
+    if (status < 300 || status >= 400) return { path: current, status, html, chain };
+
+    if (!location) throw new Error(`${chain.join(' → ')}: ответ ${status} без Location`);
+    const target = new URL(location, origin + current);
+    if (target.origin !== origin) {
+      throw new Error(`${chain.join(' → ')}: редирект наружу на ${target.href}`);
+    }
+    const next = target.pathname + target.search;
+    if (chain.includes(next)) throw new Error(`${chain.join(' → ')} → ${next}: цикл редиректов`);
+    chain.push(next);
+    if (chain.length > MAX_REDIRECTS + 1) {
+      throw new Error(`${chain.join(' → ')}: больше ${MAX_REDIRECTS} редиректов`);
+    }
+    current = next;
+  }
 }
 
 /** Цепочка `getApiBaseUrl` из `src/middleware.ts` без последнего умолчания. */
@@ -226,7 +259,7 @@ function startStubBackend(apiBase) {
 }
 
 async function fetchPage(urlPath) {
-  const res = await fetch(`http://localhost:${NEXT_PORT}${urlPath}`, {
+  const res = await fetch(`${SERVER_ORIGIN}${urlPath}`, {
     headers: { 'User-Agent': USER_AGENT },
     redirect: 'manual',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -234,21 +267,78 @@ async function fetchPage(urlPath) {
   return { status: res.status, location: res.headers.get('location'), html: await res.text() };
 }
 
-async function waitForServer(child) {
-  const deadline = Date.now() + READY_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`next start завершился с кодом ${child.exitCode}`);
-    try {
-      const res = await fetch(`http://localhost:${NEXT_PORT}/robots.txt`, {
-        signal: AbortSignal.timeout(2_000),
+/**
+ * Порт гейта должен быть свободен до запуска `next start`: иначе на запросы
+ * к `localhost` ответит чужой сервер, а гейт проверит не ту сборку.
+ * Проверяется подключением к обоим адресам, в которые резолвится `localhost`:
+ * пробный `listen` этого не ловит — Windows даёт занять `[::]` рядом с чужим
+ * `::1` или `127.0.0.1`. Стек, которого на машине нет, пропускается.
+ */
+export async function assertPortFree(port, hosts = ['127.0.0.1', '::1']) {
+  for (const host of hosts) {
+    const busy = await new Promise((resolve, reject) => {
+      const socket = net.connect({ port, host });
+      socket.setTimeout(2_000);
+      socket.once('connect', () => {
+        socket.destroy();
+        resolve(true);
       });
-      if (res.ok) return;
-    } catch {
-      // сервер ещё не слушает порт
+      socket.once('timeout', () => {
+        socket.destroy();
+        reject(new Error(`порт ${port} (${host}) не ответил ни подключением, ни отказом`));
+      });
+      socket.once('error', error => {
+        if (['ECONNREFUSED', 'EADDRNOTAVAIL', 'EAFNOSUPPORT', 'ENETUNREACH'].includes(error.code)) {
+          resolve(false);
+        } else reject(error);
+      });
+    });
+    if (busy) {
+      throw new Error(
+        `порт ${port} (${host}) уже занят другим процессом — освободите его или задайте CHECK_BUILD_PORT`
+      );
     }
-    await new Promise(resolve => setTimeout(resolve, 500));
   }
-  throw new Error(`next start не ответил за ${READY_TIMEOUT_MS / 1000} с`);
+}
+
+/**
+ * Причина завершения дочернего процесса или `null`, если он жив. Убитый
+ * сигналом процесс имеет `exitCode === null`, причина лежит в `signalCode`.
+ */
+export function describeChildExit(child) {
+  if (child.exitCode !== null && child.exitCode !== undefined) return `кодом ${child.exitCode}`;
+  if (child.signalCode) return `сигналом ${child.signalCode}`;
+  return null;
+}
+
+/**
+ * Ждёт готовности именно дочернего `next start`. Ответа порта мало: его может
+ * дать чужой сервер. `Ready in` Next печатает только из колбэка успешного
+ * `server.listen` (`next/dist/server/lib/start-server.js`), а при занятом порте
+ * процесс завершается. Поэтому готовность — это живой дочерний процесс,
+ * `Ready in` в его собственном выводе и ответ порта.
+ */
+export async function waitForServer(
+  child,
+  { readLog, probe, timeoutMs = READY_TIMEOUT_MS, intervalMs = 500 }
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const exit = describeChildExit(child);
+    if (exit) throw new Error(`next start завершился с ${exit}`);
+    if (/\bReady in\b/.test(readLog()) && (await probe())) return;
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`next start не ответил за ${timeoutMs / 1000} с`);
+}
+
+async function probeRobots() {
+  try {
+    const res = await fetch(`${SERVER_ORIGIN}/robots.txt`, { signal: AbortSignal.timeout(2_000) });
+    return res.ok;
+  } catch {
+    return false; // сервер ещё не слушает порт
+  }
 }
 
 function addHtmlChunks(urlPath, html, owners, errors) {
@@ -258,6 +348,7 @@ function addHtmlChunks(urlPath, html, owners, errors) {
 }
 
 async function checkServedPages(apiBase, owners, errors) {
+  await assertPortFree(NEXT_PORT);
   const { server, stats } = await startStubBackend(apiBase);
   const child = spawn(
     process.execPath,
@@ -274,17 +365,24 @@ async function checkServedPages(apiBase, owners, errors) {
   child.stderr.on('data', chunk => (serverLog += chunk));
 
   try {
-    await waitForServer(child);
+    await waitForServer(child, { readLog: () => serverLog, probe: probeRobots });
 
     for (const urlPath of PUBLIC_URLS) {
-      const { status, location, html } = await fetchPage(urlPath);
-      console.log(`page: ${urlPath} → ${status}${location ? ` ${location}` : ''}`);
+      // Редирект допустим, но проверяется страница, на которую он ведёт:
+      // её чанки и загрузит браузер сканера.
+      let final;
+      try {
+        final = await followRedirects(urlPath, fetchPage, SERVER_ORIGIN);
+      } catch (error) {
+        errors.push(error.message);
+        continue;
+      }
+      const { path: finalPath, status, html, chain } = final;
+      console.log(`page: ${chain.join(' → ')} → ${status}`);
       if (status === 200) {
-        addHtmlChunks(urlPath, html, owners, errors);
-      } else if (status < 300 || status >= 400 || !location) {
-        // Редирект допустим (адрес назначения тоже в перечне), остальное —
-        // признак сломанной страницы, чанки которой проверить не удалось.
-        errors.push(`${urlPath}: ожидался HTTP 200 или редирект, получен ${status}`);
+        addHtmlChunks(chain.join(' → '), html, owners, errors);
+      } else {
+        errors.push(`${chain.join(' → ')}: ожидался HTTP 200 на ${finalPath}, получен ${status}`);
       }
     }
 
@@ -314,6 +412,12 @@ async function checkServedPages(apiBase, owners, errors) {
       addHtmlChunks(urlPath, html, owners, errors);
     }
 
+    // Процесс, который ушёл по ходу проверки, уже не держит порт: ответы после
+    // этого могли прийти от другого сервера.
+    const exitedWith = describeChildExit(child);
+    if (exitedWith) {
+      errors.push(`next start завершился по ходу проверки с ${exitedWith}`);
+    }
     if (stats.pagesRequests === 0) {
       errors.push(
         `middleware не запрашивал список CMS-слагов у заглушки ${apiBase} — сборка смотрит в другой адрес`

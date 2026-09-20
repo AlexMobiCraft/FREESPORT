@@ -3,8 +3,8 @@ import type { MetadataRoute } from 'next';
 import { absoluteUrl } from '@/utils/seo';
 
 /**
- * sitemap.xml: статические разделы + карточки товаров, статьи блога, новости
- * и CMS-страницы.
+ * sitemap.xml: статические разделы, категории и непустые подборки каталога,
+ * карточки товаров, статьи блога, новости и CMS-страницы.
  *
  * Данные тянутся напрямую из API внутри Docker-сети, минуя nginx. Любая ошибка
  * запроса не должна ронять весь sitemap — динамический блок просто выпадает,
@@ -17,6 +17,10 @@ const PAGE_SIZE = 1000;
 const CATEGORY_TREE_FETCH_TIMEOUT_MS = 3000;
 /** Предохранитель от бесконечного обхода пагинации */
 const MAX_PAGES = 60;
+/** Подборки каталога; порядок массива — порядок адресов в sitemap */
+const COLLECTION_KEYS = ['is_new', 'is_hit', 'is_sale'] as const;
+
+type CollectionKey = (typeof COLLECTION_KEYS)[number];
 
 function getApiUrl(): string {
   if (process.env.INTERNAL_API_URL) return `${process.env.INTERNAL_API_URL}/api/v1`;
@@ -101,6 +105,38 @@ async function fetchCategorySlugs(): Promise<string[]> {
   }
 }
 
+/**
+ * Подборка попадает в sitemap, только если в ней есть товары в наличии — ровно то,
+ * что посетитель видит по умолчанию. Любая ошибка проверки исключает только эту подборку.
+ */
+async function isCollectionNonEmpty(key: CollectionKey): Promise<boolean> {
+  try {
+    const response = await fetch(`${getApiUrl()}/products/?${key}=true&in_stock=true&page_size=1`, {
+      next: { revalidate },
+      signal: AbortSignal.timeout(CATEGORY_TREE_FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+
+    const data = (await response.json()) as { count?: unknown } | null;
+    return typeof data?.count === 'number' && data.count > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchNonEmptyCollections(): Promise<CollectionKey[]> {
+  const flags = await Promise.all(COLLECTION_KEYS.map(isCollectionNonEmpty));
+  return COLLECTION_KEYS.filter((_, index) => flags[index]);
+}
+
+function toCollectionEntries(keys: CollectionKey[]): MetadataRoute.Sitemap {
+  return keys.map(key => ({
+    url: absoluteUrl(`/catalog?${new URLSearchParams({ [key]: 'true' }).toString()}`),
+    changeFrequency: 'daily',
+    priority: 0.7,
+  }));
+}
+
 function toCategoryEntries(slugs: string[]): MetadataRoute.Sitemap {
   return slugs.map(slug => ({
     url: absoluteUrl(`/catalog?${new URLSearchParams({ category: slug }).toString()}`),
@@ -138,17 +174,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ] satisfies MetadataRoute.Sitemap
   ).map(route => ({ ...route, lastModified: now }));
 
-  const [products, blogPosts, news, pages, categorySlugs] = await Promise.all([
+  const [products, blogPosts, news, pages, categorySlugs, collections] = await Promise.all([
     fetchAll('products'),
     fetchAll('blog'),
     fetchAll('news'),
     fetchAll('pages'),
     fetchCategorySlugs(),
+    fetchNonEmptyCollections(),
   ]);
 
   return [
     ...staticRoutes,
     ...toCategoryEntries(categorySlugs),
+    ...toCollectionEntries(collections),
     ...toEntries(products, '/product', { changeFrequency: 'weekly', priority: 0.8 }),
     ...toEntries(blogPosts, '/blog', { changeFrequency: 'monthly', priority: 0.5 }),
     ...toEntries(news, '/news', { changeFrequency: 'monthly', priority: 0.5 }),

@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-18 (стори 41.20 — in-progress; стори 41.21 — review)
+# last_updated: 2026-09-20 (стори 41.22 — четыре review findings закрыты, review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-18
+last_updated: 2026-09-20
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1342,7 +1342,10 @@ development_status:
   #             в production bundle. Открыт [Review][Patch] на устранение строки
   #             из общего чанка и повторную fail-closed проверку пяти страниц.
   #             done -> in-progress.
-  41-20-newsletter-consent-wording-and-placeholders: in-progress
+  # 2026-09-18: [Review][Patch] третьего ревью закрыт стори 41.21 — прод
+  #             ce727776: 0 example в чанках 16 публичных страниц,
+  #             zustand devtools вырезан. in-progress -> done.
+  41-20-newsletter-consent-wording-and-placeholders: done
   # 2026-09-18: Создана стори 41.21 (create-story) — Story/41-21-bundle-example-
   #             retail-wording-single-404-robots.md. Источник — проверка закрытия
   #             отчёта 16.09 (tmp/audit-2026-09-16-verification-2026-09-18.md) и
@@ -1373,7 +1376,49 @@ development_status:
   #             frontend/scripts/check-production-build.mjs в frontend-ci
   #             (чанки публичных страниц + robots 404/soft-404 на next start),
   #             точные подписи карточек. Открыты 8.4-8.5. in-progress -> review.
-  41-21-bundle-example-retail-wording-single-404-robots: review
+  # 2026-09-18: прод-приёмка AC8 на ce727776 (снимок в стори), шаг 8.5
+  #             выполнен; карточку /coming-soon владелец подтвердил в браузере
+  #             без cookie (8.4). Все задачи закрыты, статус review — до
+  #             повторного code review.
+  # 2026-09-18: повторное code review — патч гейта (проверка адреса назначения
+  #             редиректа) закрыт, 4 defer записаны в deferred-work.md.
+  # 2026-09-18: третье code review — 2 Patch оставлены action items: build gate
+  #             может проверить чужой Next-сервер на занятом порту 3100; страж
+  #             AC6 пропускает запрещённый текст в объектном Metadata.title.
+  #             Operational cleanup runbook оставлен defer. review -> in-progress.
+  # 2026-09-18: dev-story по третьему code review — оба Patch закрыты: гейт
+  #             проверяет свободный порт и готовность именно дочернего next
+  #             start; страж AC6 читает объектный title. in-progress -> review.
+  # 2026-09-19: четвёртое code review — 1 Patch оставлен action item: final-alive
+  #             guard должен учитывать завершение next start по signalCode.
+  #             review -> in-progress.
+  # 2026-09-19: dev-story по четвёртому code review — Patch закрыт: гейт учитывает
+  #             завершение next start сигналом (describeChildExit). in-progress -> review.
+  # 2026-09-19: пятое code review — новых Decision/Patch не выявлено; existing
+  #             operational defer подтверждён без дублирования, 42 сигнала отклонены. review -> done.
+  41-21-bundle-example-retail-wording-single-404-robots: done
+  # 2026-09-19: Создана стори 41.22 (create-story) — Story/41-22-catalog-
+  #             collections-self-canonical-sitemap.md. Источник — проверка
+  #             закрытия отчёта 10.09 (tmp/audit-2026-09-10-verification-2026-09-19.md,
+  #             п. 12). Запрос Alex 19.09.2026: пересмотр D1 — собственный canonical
+  #             у ?is_new/is_hit/is_sale=true, непустые подборки (in_stock=true,
+  #             count > 0) в sitemap; тексты D1 не меняются. backlog -> ready-for-dev.
+  # 2026-09-19: dev-story 41.22 — canonical подборок = /catalog?<ключ>=true,
+  #             непустые подборки в sitemap; тесты, lint, tsc, format, build +
+  #             check:build зелёные; локальная приёмка пройдена. Открыт 4.6
+  #             (выкат и приёмка AC6 на проде). ready-for-dev -> in-progress -> review.
+  # 2026-09-20: code review — четыре Patch оставлены action items: тесты должны
+  #             закрепить сохранность blog/news/CMS при ошибке подборки,
+  #             параллельный старт трёх collection-запросов, порядок записей
+  #             category -> collection -> product и таймаут 3000 мс каждого
+  #             запроса. review -> in-progress.
+  # 2026-09-20: dev-story 41.22 — четыре Patch закрыты правками только в
+  #             sitemap.test.ts (прод-код не тронут): мок отдаёт blog/news/pages
+  #             и сценарий отказа требует их сохранности; новый тест параллельного
+  #             старта через барьер; новый тест порядка category -> collection ->
+  #             product; таймаут проверяется по каждому вызову. Каждая проверка
+  #             подтверждена мутацией sitemap.ts (RED). in-progress -> review.
+  41-22-catalog-collections-self-canonical-sitemap: review
   epic-41-retrospective: optional
 
 # ========================================

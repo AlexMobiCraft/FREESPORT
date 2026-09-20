@@ -10,8 +10,9 @@ const CATALOG_DESCRIPTION =
   'Каталог спортивных товаров: фитнес и атлетика, единоборства, спортивные игры, плавание, туризм. Оптовые и рекомендованные розничные цены, доставка по России.';
 const CATALOG_KEYWORDS = 'каталог спортивных товаров, спортинвентарь оптом, спортивная экипировка';
 
-// Подборки — фильтры-переключатели, а не посадочные страницы: canonical остаётся /catalog,
-// в sitemap их нет. Собственные title и description снимают дубли с базовым каталогом.
+// Подборки — самостоятельные страницы каталога со своим canonical /catalog?<ключ>=true;
+// непустые попадают в sitemap (41.22, пересмотр D1). Собственные title и description
+// снимают дубли с базовым каталогом.
 const CATALOG_COLLECTIONS = {
   is_new: {
     title: 'Новинки — каталог спортивных товаров | OPTISPORT',
@@ -109,8 +110,9 @@ export async function generateMetadata({ searchParams }: CatalogPageProps): Prom
     const params = await searchParams;
     const collection = findCatalogCollection(params);
     if (collection) {
+      const path = `/catalog?${new URLSearchParams({ [collection]: 'true' }).toString()}`;
       return {
-        ...buildMetadata({ ...CATALOG_COLLECTIONS[collection], path: '/catalog' }),
+        ...buildMetadata({ ...CATALOG_COLLECTIONS[collection], path }),
         keywords: null,
       };
     }
