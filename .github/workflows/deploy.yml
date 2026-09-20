@@ -340,10 +340,15 @@ jobs:
             # --env-file обязателен: без него compose не видит .env.prod и падает на
             # подстановке ONEC_DATA_DIR (`invalid spec: :/app/data/import_1c`), а `up -d`
             # пересоздал бы контейнеры с пустыми SECRET_KEY и DB_PASSWORD.
+            # `< /dev/null` обязателен каждой `exec -T`: скрипт приезжает сюда через
+            # stdin (`bash -se << ENDSSH`), а `exec -T` читает stdin сам и проглатывает
+            # весь остаток скрипта. Так 20.09.2026 молча не выполнились пересоздание
+            # frontend, миграции, collectstatic и reload nginx — job при этом отчитался
+            # успехом, потому что выполнять стало нечего.
             COMPOSE="docker compose --env-file .env.prod -f docker/docker-compose.prod.yml"
 
             BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
-            $COMPOSE exec -T db pg_dump -U postgres freesport > "backups/$BACKUP_FILE"
+            $COMPOSE exec -T db pg_dump -U postgres freesport < /dev/null > "backups/$BACKUP_FILE"
             
             # Сохраняем только последние 5 бэкапов
             ls -t backups/*.sql | tail -n +6 | xargs -r rm
@@ -415,7 +420,7 @@ jobs:
             sleep 15
             
             # Проверяем здоровье backend
-            if ! $COMPOSE exec -T backend python manage.py check --deploy; then
+            if ! $COMPOSE exec -T backend python manage.py check --deploy < /dev/null; then
               echo "❌ Backend health check failed, rolling back..."
               $COMPOSE up -d --no-deps backend
               exit 1
@@ -428,16 +433,16 @@ jobs:
             sleep 30
             
             echo "🔄 Выполнение миграций..."
-            $COMPOSE exec -T backend python manage.py migrate --noinput
+            $COMPOSE exec -T backend python manage.py migrate --noinput < /dev/null
             
             echo "📁 Сбор статических файлов..."
-            $COMPOSE exec -T backend python manage.py collectstatic --noinput
+            $COMPOSE exec -T backend python manage.py collectstatic --noinput < /dev/null
             
             echo "🔧 Проверка конфигурации Nginx (production с SSL)..."
-            $COMPOSE exec -T nginx nginx -t
+            $COMPOSE exec -T nginx nginx -t < /dev/null
             
             echo "🔄 Перезагрузка Nginx..."
-            $COMPOSE exec -T nginx nginx -s reload
+            $COMPOSE exec -T nginx nginx -s reload < /dev/null
             
             echo "🧹 Очистка старых образов..."
             docker image prune -f
