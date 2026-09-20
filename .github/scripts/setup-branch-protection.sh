@@ -33,14 +33,21 @@
 #    required_approving_review_count = 0, а require_last_push_approval = false:
 #    свой PR апрувить нельзя, и любое ненулевое требование ревью вместе с
 #    enforce_admins = true намертво блокирует мерж, снять который можно только
-#    сняв защиту. PR при этом всё равно обязателен — прямой push в main/develop
-#    запрещён, и обязательные проверки статуса действуют. Как только появится
-#    второй мейнтейнер, оба значения имеет смысл вернуть к 1 и true.
+#    сняв защиту. На develop PR обязателен — прямой push запрещён, и обязательные
+#    проверки статуса действуют. Как только появится второй мейнтейнер, оба
+#    значения имеет смысл вернуть к 1 и true.
 # 3a. strict = false и required_conversation_resolution = false — сознательный выбор
 #    для репозитория с одним мейнтейнером (2026-09-07). strict потребовал бы
 #    подтягивать develop в каждую ветку перед мержем, а resolution блокировал бы мерж
 #    из-за незакрытого треда бота claude-review. Запрет прямого push и пять
-#    обязательных проверок — то, ради чего защита включается, — сохранены.
+#    обязательных проверок на develop — то, ради чего защита включается, — сохранены.
+# 3b. main — зеркало проверенного develop (2026-09-20): required_status_checks и
+#    required_pull_request_reviews сняты, прямой push разрешён. Sync develop -> main
+#    выполняется fast-forward пушем (`git push origin develop:main`) без PR и без
+#    повторных проверок — они уже пройдены на PR в develop. Merge-коммитов на main
+#    нет, обратный sync main -> develop не нужен. Защита от force-push и удаления
+#    сохранена (allow_force_pushes = false, allow_deletions = false,
+#    enforce_admins = true): случайно переписать историю main нельзя.
 # 4. Ни у одного workflow из REQUIRED_CONTEXTS больше нет paths-фильтра на
 #    pull_request — это условие обязательно и его нельзя вернуть, не сломав мерж.
 #    Добавляя контекст в список, проверь, что его workflow срабатывает на КАЖДОМ PR
@@ -109,6 +116,25 @@ echo ""
 # ошибка: --field передаёт значение строкой, объектом оно не становится, и API отвечает
 # 422. Правильный способ — отдать готовый JSON через --input -.
 protection_payload() {
+    local branch=$1
+    if [[ "$branch" == "main" ]]; then
+        # main: прямой fast-forward push, без required-чеков и обязательного PR.
+        # См. пункт 3b в шапке.
+        jq -n '{
+            required_status_checks: null,
+            enforce_admins: true,
+            required_pull_request_reviews: null,
+            restrictions: null,
+            allow_force_pushes: false,
+            allow_deletions: false,
+            block_creations: false,
+            required_conversation_resolution: false,
+            lock_branch: false,
+            allow_fork_syncing: false,
+            required_linear_history: false
+        }'
+        return
+    fi
     printf '%s\n' "${REQUIRED_CONTEXTS[@]}" | jq -R . | jq -s '{
         required_status_checks: {
             strict: false,
@@ -216,11 +242,14 @@ apply_branch_protection() {
         return 1
     fi
 
-    if ! preflight_contexts "$branch"; then
-        return 1
+    # Preflight нужен только там, где есть required-контексты (develop).
+    if [[ "$branch" != "main" ]]; then
+        if ! preflight_contexts "$branch"; then
+            return 1
+        fi
     fi
 
-    if ! out=$(protection_payload | gh api --method PUT \
+    if ! out=$(protection_payload "$branch" | gh api --method PUT \
         "repos/$REPO_OWNER/$REPO_NAME/branches/$branch/protection" --input - 2>&1); then
         echo "  ❌ API отклонил запрос для ветки $branch:"
         echo "$out" | sed 's/^/    /'

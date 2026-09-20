@@ -1424,7 +1424,7 @@ development_status:
   #             canonical /catalog; sitemap (3362 url) содержит три подборки по
   #             одному разу, focusSearch отсутствует; count 5 / 4 / 5. Снимок в
   #             стори, Task 4.6 закрыт — открытых задач нет.
-  41-22-catalog-collections-self-canonical-sitemap: review
+  41-22-catalog-collections-self-canonical-sitemap: done
   epic-41-retrospective: optional
 
 # ========================================

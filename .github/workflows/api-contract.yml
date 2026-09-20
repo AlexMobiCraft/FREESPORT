@@ -20,7 +20,7 @@ name: API Contract
 # openapi-typescript и prettier, конфиг и список исключений форматтера.
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [develop]
   push:
     branches: [main, develop]
     paths:
