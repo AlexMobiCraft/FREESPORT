@@ -204,7 +204,10 @@ jobs:
     # наблюдалось 5,5 мин, но промах
     # кэша слоёв удлиняет её в разы.
     timeout-minutes: 45
-    environment: ${{ needs.setup.outputs.environment }}
+    # environment здесь намеренно НЕ указан: он вешал на сборку второй approval, хотя
+    # из окружения бралось одно значение — NEXT_PUBLIC_API_URL, публичный URL, который
+    # и так вкомпилирован в бандл. Оно переехало в vars. Прод защищает approval у
+    # deploy-production; сборка же только кладёт образы в ghcr и на прод не влияет.
     permissions:
       contents: read
       packages: write
@@ -282,7 +285,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
             NODE_ENV=production
 
   # Деплой на production
