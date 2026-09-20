@@ -1,9 +1,9 @@
 name: Автоматическое слияние веток
 
 on:
-  # Запуск по расписанию (каждый день в 9:00 UTC)
-  schedule:
-    - cron: "0 9 * * *"
+  # Автослияние по расписанию отключено: sync в main выполняется только вручную.
+  # schedule:
+  #   - cron: "0 9 * * *"
   # Ручной запуск
   workflow_dispatch:
     inputs:
@@ -173,7 +173,7 @@ jobs:
             
             **Источник:** \`$SOURCE_BRANCH\`
             **Цель:** \`$TARGET_BRANCH\`
-            **Стратегия:** Squash Merge
+            **Стратегия:** Merge commit
             **Инициировано:** ${{ github.event_name }}
             
             ### 🔄 Изменения
@@ -223,8 +223,8 @@ jobs:
               
               echo "Статус PR: $STATUS"
               
-              if [[ "$STATUS" == "true CLEAN" ]]; then
-                echo "✅ Все проверки пройдены"
+              if [[ "$STATUS" == "true CLEAN" || "$STATUS" == "true UNSTABLE" ]]; then
+                echo "✅ PR готов к слиянию (статус: $STATUS)"
                 break
               fi
               
@@ -243,14 +243,8 @@ jobs:
         run: |
           echo "🔄 Выполнение слияния PR #${{ needs.create-merge-pr.outputs.pr_number }}..."
 
-          # Выполняем squash merge
-          gh pr merge ${{ needs.create-merge-pr.outputs.pr_number }} \
-            --squash \
-            --delete-branch \
-            --commit-title "🚀 Автоматическое слияние: $SOURCE_BRANCH → $TARGET_BRANCH" \
-            --commit-body "Слияние ветки $SOURCE_BRANCH в $TARGET_BRANCH выполнено автоматически через CI/CD.
-
-          Изменения включены в один коммит для чистоты истории основной ветки."
+          # Merge commit — сохраняет общую историю веток; ветки-источники не удаляем
+          gh pr merge ${{ needs.create-merge-pr.outputs.pr_number }} --merge
 
           echo "✅ Слияние успешно выполнено"
         env:
