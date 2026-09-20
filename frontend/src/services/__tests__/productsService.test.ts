@@ -120,6 +120,53 @@ describe('productsService', () => {
   });
 
   describe('getProductBySlug', () => {
+    test('протаскивает артикул номенклатуры из ответа API', async () => {
+      server.use(
+        http.get('http://localhost:8001/api/v1/products/:slug/', () => {
+          return HttpResponse.json({
+            id: 1,
+            name: 'Test Product',
+            slug: 'test-product',
+            article: 'ES2123PK',
+            retail_price: 2500,
+            stock_quantity: 10,
+            is_in_stock: true,
+            can_be_ordered: true,
+            category: { id: 1, name: 'Category', slug: 'category', breadcrumbs: [] },
+            images: [],
+            variants: [],
+          });
+        })
+      );
+
+      const result = await productsService.getProductBySlug('test-product');
+
+      expect(result.article).toBe('ES2123PK');
+    });
+
+    test('подставляет пустой артикул, когда в 1С он не заполнен', async () => {
+      server.use(
+        http.get('http://localhost:8001/api/v1/products/:slug/', () => {
+          return HttpResponse.json({
+            id: 1,
+            name: 'Test Product',
+            slug: 'test-product',
+            retail_price: 2500,
+            stock_quantity: 10,
+            is_in_stock: true,
+            can_be_ordered: true,
+            category: { id: 1, name: 'Category', slug: 'category', breadcrumbs: [] },
+            images: [],
+            variants: [],
+          });
+        })
+      );
+
+      const result = await productsService.getProductBySlug('test-product');
+
+      expect(result.article).toBe('');
+    });
+
     test('fetches product detail by slug with custom headers', async () => {
       let capturedHeaders: Headers | undefined;
 

@@ -23,6 +23,7 @@ interface ApiProductDetailResponse {
   brand: { id: number; name: string; slug: string } | null;
   category: { id: number; name: string; slug: string } | null;
   sku?: string;
+  article?: string;
   description: string;
   full_description?: string;
   short_description?: string;
@@ -115,6 +116,9 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
     slug: apiProduct.slug,
     name: apiProduct.name,
     sku: apiProduct.sku || apiProduct.variants?.[0]?.sku || `SKU-${apiProduct.id}`,
+    // Артикул номенклатуры из 1С. Адаптер пересобирает объект вручную, поэтому
+    // поле нужно протащить явно — иначе до карточки оно не доедет.
+    article: apiProduct.article || '',
     brand: apiProduct.brand?.name || '',
     description: apiProduct.description || '',
     full_description: apiProduct.full_description || apiProduct.description || '',
