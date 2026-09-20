@@ -737,14 +737,38 @@ class TestCIFilters:
         ".windsurf/rules/git-sync-workflow.md",
     )
 
+    # Гейты, которые обязаны решать «нужен ли прогон» одним и тем же способом.
+    # Разъехавшиеся списки путей опаснее отсутствующих: один гейт пропустит то,
+    # что, как считает второй, уже проверено.
+    DOCS_FILTER_ACTION = "./.github/actions/docs-only-check"
+    GATES_USING_FILTER = (
+        "main.yml",
+        "backend-ci.yml",
+        "frontend-ci.yml",
+        "api-contract.yml",
+    )
+
     def _docs_only_filter(self):
-        """ALLOWLIST и DENYLIST из шага «Нужен ли прогон» в main.yml."""
-        text = self._repo_file(".github", "workflows", "main.yml").read_text(encoding="utf-8")
+        """ALLOWLIST и DENYLIST из composite action .github/actions/docs-only-check."""
+        text = self._repo_file(
+            ".github", "actions", "docs-only-check", "action.yml"
+        ).read_text(encoding="utf-8")
         allow = re.search(r"ALLOWLIST:\s*'([^']+)'", text)
         deny = re.search(r"DENYLIST:\s*'([^']+)'", text)
-        assert allow, "в main.yml не найден ALLOWLIST шага «Нужен ли прогон»"
-        assert deny, "в main.yml не найден DENYLIST шага «Нужен ли прогон»"
+        assert allow, "в docs-only-check не найден ALLOWLIST"
+        assert deny, "в docs-only-check не найден DENYLIST"
         return allow.group(1), deny.group(1)
+
+    @pytest.mark.parametrize("workflow", GATES_USING_FILTER)
+    def test_gates_share_one_docs_filter(self, workflow):
+        """Каждый гейт обязан звать общий action, а не свою копию списка путей."""
+        text = self._repo_file(".github", "workflows", workflow).read_text(encoding="utf-8")
+        assert self.DOCS_FILTER_ACTION in text, (
+            f"{workflow}: не использует {self.DOCS_FILTER_ACTION}"
+        )
+        assert "ALLOWLIST:" not in text, (
+            f"{workflow}: список путей задан на месте — он обязан жить только в action'е"
+        )
 
     def _runs_full_suite(self, path):
         """Повторяет решение шага: гоняем, если файл вне allowlist или попал в denylist."""

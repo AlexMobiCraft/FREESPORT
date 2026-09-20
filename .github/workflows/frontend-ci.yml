@@ -28,11 +28,25 @@ jobs:
     name: "Фронтенд: тесты"
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      pull-requests: read
+
     steps:
       - name: Получение исходного кода
         uses: actions/checkout@v7
 
+      # Тяжёлые шаги ниже пропускаются, если PR состоит только из документации.
+      # Логика и списки путей — в .github/actions/docs-only-check (там же объяснено,
+      # почему не по имени ветки и почему скипаются шаги, а не job).
+      - name: Нужен ли прогон
+        id: changes
+        uses: ./.github/actions/docs-only-check
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Настройка Node.js ${{ env.NODE_VERSION }}
+        if: steps.changes.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -40,17 +54,20 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Установка зависимостей
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm ci --prefer-offline --no-audit
 
       - name: Установка lightningcss бинарников для Ubuntu
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm install lightningcss-linux-x64-gnu@1.30.1 --no-save --force
           npm install @tailwindcss/oxide-linux-x64-gnu@4.1.11 --no-save --force
 
       - name: Создание .env.local для тестирования
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           cat > .env.local << EOF
@@ -59,27 +76,32 @@ jobs:
           EOF
 
       - name: Проверка кода с ESLint
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm run lint
 
       - name: Проверка форматирования с Prettier
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm run format:check
 
       - name: Проверка типов TypeScript
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npx tsc --noEmit
 
       - name: Проверка безопасности зависимостей
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm audit --audit-level high
         continue-on-error: true # Не блокируем сборку из-за предупреждений audit
 
       - name: Запуск тестов с покрытием
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm run test:coverage
@@ -87,6 +109,7 @@ jobs:
           CI: true
 
       - name: Сборка Next.js приложения
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm run build
@@ -97,11 +120,13 @@ jobs:
       # next start и заглушку backend по NEXT_PUBLIC_API_URL из env workflow —
       # того же, с которым шла сборка (адрес вшит в middleware).
       - name: Проверка production-сборки (чанки и robots)
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm run check:build
 
       - name: Анализ размера сборки
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npx @next/bundle-analyzer --help || echo "Анализатор сборки не настроен"
@@ -117,6 +142,7 @@ jobs:
             frontend/coverage/
 
       - name: Загрузка отчетов покрытия в Codecov
+        if: steps.changes.outputs.run == 'true'
         uses: codecov/codecov-action@v7
         with:
           files: frontend/coverage/lcov.info

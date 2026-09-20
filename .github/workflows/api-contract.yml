@@ -42,6 +42,10 @@ jobs:
   contract:
     name: Контракт синхронен с кодом
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: read
     timeout-minutes: 20
     env:
       DJANGO_SETTINGS_MODULE: freesport.settings.test
@@ -86,12 +90,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Тяжёлые шаги ниже пропускаются, если PR состоит только из документации.
+      # Логика и списки путей — в .github/actions/docs-only-check (там же объяснено,
+      # почему не по имени ветки и почему скипаются шаги, а не job).
+      - name: Нужен ли прогон
+        id: changes
+        uses: ./.github/actions/docs-only-check
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Python ${{ env.PYTHON_VERSION }}
+        if: steps.changes.outputs.run == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache pip packages
+        if: steps.changes.outputs.run == 'true'
         uses: actions/cache@v6
         with:
           path: ~/.cache/pip
@@ -100,6 +115,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install backend dependencies
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           python -m venv venv
@@ -110,6 +126,7 @@ jobs:
       # Сравниваются разобранные структуры, а не текст: drf-spectacular недетерминирован
       # в порядке ключей, поэтому побайтовое сравнение давало бы ложные падения.
       - name: Сверка openapi.yaml с кодом
+        if: steps.changes.outputs.run == 'true'
         id: schema_sync
         run: |
           cd backend
@@ -117,6 +134,7 @@ jobs:
           python manage.py check_openapi_sync
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
+        if: steps.changes.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -124,6 +142,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd frontend
           npm ci --prefer-offline --no-audit
@@ -137,6 +156,7 @@ jobs:
       # заново как untracked, и diff окажется пустым — гейт был бы зелёным при
       # отсутствующем в репозитории контракте. git status видит и это.
       - name: Сверка сгенерированных типов
+        if: steps.changes.outputs.run == 'true'
         id: types_sync
         run: |
           cd frontend

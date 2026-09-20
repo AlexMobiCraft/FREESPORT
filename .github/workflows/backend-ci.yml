@@ -35,6 +35,10 @@ jobs:
     # имя у джобы во frontend-ci.yml — как required-контексты они неразличимы.
     name: "Бэкенд: качество кода"
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: read
     env:
       DB_NAME: freesport_test
       DB_USER: postgres
@@ -72,12 +76,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Тяжёлые шаги ниже пропускаются, если PR состоит только из документации.
+      # Логика и списки путей — в .github/actions/docs-only-check (там же объяснено,
+      # почему не по имени ветки и почему скипаются шаги, а не job).
+      - name: Нужен ли прогон
+        id: changes
+        uses: ./.github/actions/docs-only-check
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Python ${{ env.PYTHON_VERSION }}
+        if: steps.changes.outputs.run == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache pip packages
+        if: steps.changes.outputs.run == 'true'
         uses: actions/cache@v6
         with:
           path: ~/.cache/pip
@@ -86,6 +101,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Create virtual environment and install dependencies
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           python -m venv venv
@@ -95,6 +111,7 @@ jobs:
           pip install pytest-django pytest-cov black flake8 mypy bandit safety
 
       - name: Create .env file for testing
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           cat > .env << EOF
@@ -109,18 +126,21 @@ jobs:
           EOF
 
       - name: Run linting with Black
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
           black .
 
       - name: Run linting with Flake8
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
           flake8 . --max-line-length=120 --extend-ignore=E203,W503
 
       - name: Run type checking with mypy
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
@@ -128,6 +148,7 @@ jobs:
         continue-on-error: true # Не блокируем сборку из-за mypy warnings
 
       - name: Run security checks with bandit
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
@@ -137,6 +158,7 @@ jobs:
         continue-on-error: true # Не блокируем сборку из-за Medium severity проблем
 
       - name: Check dependencies for security vulnerabilities
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
@@ -147,12 +169,14 @@ jobs:
         continue-on-error: true # Не блокируем сборку из-за уязвимостей в зависимостях
 
       - name: Run Django system checks
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
           python manage.py check --deploy
 
       - name: Validate API documentation completeness
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
@@ -167,6 +191,7 @@ jobs:
       # workflow там пока не указан. Удалять его до того, как гейт станет обязательным,
       # значит менять блокирующую проверку на необязательную. Стоит ~10 секунд.
       - name: Validate OpenAPI schema generation
+        if: steps.changes.outputs.run == 'true'
         run: |
           cd backend
           source venv/bin/activate
@@ -175,6 +200,7 @@ jobs:
           echo "✅ OpenAPI схема сгенерирована успешно"
 
       - name: Run database migrations
+        if: steps.changes.outputs.run == 'true'
         env:
           DJANGO_SETTINGS_MODULE: freesport.settings.test
         run: |
