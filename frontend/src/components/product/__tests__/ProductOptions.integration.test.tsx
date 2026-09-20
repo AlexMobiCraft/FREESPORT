@@ -92,6 +92,7 @@ const mockProduct: ProductDetailWithVariants = {
   slug: 'nike-air-max',
   name: 'Nike Air Max',
   sku: 'NIKE-AM',
+  article: 'AM-90-RED',
   brand: 'Nike',
   description: 'Классические кроссовки Nike Air Max',
   price: {
@@ -182,6 +183,20 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
       expect(screen.getByTestId('add-to-cart-button')).toHaveTextContent('Добавить в корзину');
       expect(screen.getByTestId('add-to-cart-button')).not.toBeDisabled();
       expect(screen.getByTestId('selected-variant-info')).toBeInTheDocument();
+    });
+
+    it('показывает артикул товара, а не технический sku варианта', () => {
+      render(<ProductSummary product={mockProduct} userRole="retail" />);
+
+      const info = screen.getByTestId('selected-variant-info');
+      expect(info).toHaveTextContent('AM-90-RED');
+      expect(info).not.toHaveTextContent('NIKE-AM-RED-42');
+    });
+
+    it('показывает прочерк, когда артикул в 1С не заполнен', () => {
+      render(<ProductSummary product={{ ...mockProduct, article: '' }} userRole="retail" />);
+
+      expect(screen.getByTestId('selected-variant-info')).toHaveTextContent('Артикул:—');
     });
 
     it('обновляет цену при выборе варианта', async () => {
@@ -451,8 +466,8 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
       expect(button).not.toBeDisabled();
       expect(button).toHaveTextContent('Добавить в корзину');
 
-      // Должен отображаться артикул выбранного варианта
-      expect(screen.getAllByText('SIMPLE-VARIANT').length).toBeGreaterThan(0);
+      // Вариант выбран — блок с артикулом и наличием отрисован
+      expect(screen.getByTestId('selected-variant-info')).toBeInTheDocument();
     });
   });
 });

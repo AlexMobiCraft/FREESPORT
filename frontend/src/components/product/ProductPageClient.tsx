@@ -86,7 +86,7 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
                 name: product.name,
                 image: product.images.map(img => img.image),
                 description: product.description,
-                sku: product.sku,
+                sku: product.article || product.sku,
                 brand: {
                   '@type': 'Brand',
                   name: product.brand,

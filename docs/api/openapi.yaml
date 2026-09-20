@@ -4199,6 +4199,11 @@ components:
           type: string
           maxLength: 255
           pattern: ^[-a-zA-Z0-9_]+$
+        article:
+          type: string
+          title: Артикул
+          description: Артикул номенклатуры из goods.xml
+          maxLength: 100
         brand:
           allOf:
           - $ref: '#/components/schemas/Brand'
@@ -4455,6 +4460,11 @@ components:
           type: string
           maxLength: 255
           pattern: ^[-a-zA-Z0-9_]+$
+        article:
+          type: string
+          title: Артикул
+          description: Артикул номенклатуры из goods.xml
+          maxLength: 100
         brand:
           allOf:
           - $ref: '#/components/schemas/Brand'

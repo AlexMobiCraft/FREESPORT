@@ -269,6 +269,19 @@ class Product(models.Model):
 
     name = cast(str, models.CharField("Название", max_length=300))
     slug = cast(str, models.SlugField("Slug", max_length=255, unique=True))
+    # Артикул в 1С — реквизит номенклатуры, один на товар: в offers.xml его нет,
+    # поэтому у вариантов собственного артикула не бывает и sku там технический.
+    article = cast(
+        str,
+        models.CharField(
+            "Артикул",
+            max_length=100,
+            blank=True,
+            default="",
+            db_index=True,
+            help_text="Артикул номенклатуры из goods.xml",
+        ),
+    )
     brand = cast(
         Brand,
         models.ForeignKey(
