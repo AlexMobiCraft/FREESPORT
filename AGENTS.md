@@ -95,6 +95,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 Постоянные инварианты и продакшен-инструкции вынесены в отдельные rule-файлы:
 
 - [`.windsurf/rules/security-and-git.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/security-and-git.md) — запрет прямого пуша в public remote, обновление продакшена.
+- [`.windsurf/rules/git-sync-workflow.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/git-sync-workflow.md) — порядок сохранения изменений: PR в develop, синк в main fast-forward пушем без PR.
 - [`.windsurf/rules/production-operations.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/production-operations.md) — типовые инциденты: 502, Server Action mismatch, restart nginx.
 - [`.windsurf/rules/order-numbering.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/order-numbering.md) — форматы мастер/субзаказов и поиск в админке.
 - [`.windsurf/rules/1c-import-diagnostics.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/1c-import-diagnostics.md) — диагностика ошибок полной выгрузки 1С.

@@ -75,10 +75,11 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 
 ## Git Workflow
 
-- `main` — production (защищена)
-- `develop` — основная ветка разработки (защищена, base для PR)
+- `main` — production (прямой push, без PR и required-чеков; force-push запрещён)
+- `develop` — основная ветка разработки (защищена, base для PR, 5 required-чеков)
 - `feature/*` — новые функции
 - `hotfix/*` — критические исправления
+- Синк `develop` → `main`: `git push origin origin/develop:refs/heads/main` (fast-forward, только по команде владельца). Подробности — `.windsurf/rules/git-sync-workflow.md`
 
 ## Документация проекта
 

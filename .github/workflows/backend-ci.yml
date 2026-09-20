@@ -12,7 +12,7 @@ on:
   # и мерж блокируется бессрочно. У push фильтр сохранён: защита оценивается по PR, а
   # на push от него зависят сборка и деплой.
   pull_request:
-    branches: [main, develop]
+    branches: [develop]
 
 env:
   PYTHON_VERSION: "3.12"

@@ -3,7 +3,7 @@ name: Проверки перед слиянием
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main, develop]
+    branches: [develop]
 
 jobs:
   # Комплексная проверка качества кода
