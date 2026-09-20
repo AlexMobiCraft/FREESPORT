@@ -4,7 +4,7 @@ baseline_commit: f426f572
 
 # Story 41.22: Собственный canonical у подборок каталога и подборки в sitemap
 
-Status: review
+Status: done
 Baseline Revision: f426f572
 
 ## Story
