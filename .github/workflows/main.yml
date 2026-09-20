@@ -76,52 +76,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # Прогон занимает ~13 минут и держит ожидание всего гейта, поэтому PR, который
-      # не трогает ничего исполняемого, его пропускает (добавлено 2026-09-20).
-      #
-      # Список путей — ALLOWLIST, а не blocklist: прогон пропускается только если ВСЕ
-      # файлы PR ему соответствуют, а любой незнакомый путь ведёт к полному прогону.
-      # Обратная логика («пропустить, если нет правок в backend/») при появлении кода
-      # в новом каталоге молча пропустила бы тесты. `.github/**` в allowlist намеренно
-      # НЕ входит: правка CI обязана проверяться полностью.
-      #
-      # Скипаются шаги, а не весь job: у job'а матрица, и required-контекст называется
-      # `build (3.12)`. Job, скипнутый через job-level `if`, может не сообщить этот
-      # контекст вовсе — тогда мерж повиснет на «Expected — waiting for status»
-      # бессрочно. Со скипом шагов job всегда завершается success и контекст приходит.
-      # Цена такого прогона — ~40 секунд (подъём сервисов и checkout).
+      # Тяжёлые шаги ниже пропускаются, если PR состоит только из документации.
+      # Логика и списки путей — в .github/actions/docs-only-check (там же объяснено,
+      # почему не по имени ветки и почему скипаются шаги, а не job).
       - name: Нужен ли прогон
         id: changes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ALLOWLIST: '^(docs/|_bmad-output/|\.windsurf/|\.claude/|LICENSE$)|\.md$'
-          # Исключения из allowlist: лежат в docs/, но документацией не являются.
-          # docs/api/openapi.yaml — контракт API, на него смотрят тесты схемы; правка
-          # там обязана проходить полный прогон. `.md` внутри docs/api/ — настоящая
-          # документация и под denylist не попадает.
-          DENYLIST: '^docs/api/.*\.(ya?ml|json)$'
-        run: |
-          # Неудача gh и пустой ответ трактуются как «гонять»: молча зелёный гейт без
-          # тестов хуже тринадцати лишних минут. Код возврата проверяется отдельно от
-          # grep — через конвейер без pipefail вернулся бы только статус grep.
-          if ! FILES=$(gh pr diff ${{ github.event.pull_request.number }} --name-only) || [ -z "$FILES" ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Не удалось определить состав PR — гоняем полный набор"
-            exit 0
-          fi
-
-          # Гоняем, если есть файл вне allowlist ИЛИ файл из denylist.
-          if grep -vqE "$ALLOWLIST" <<<"$FILES" || grep -qE "$DENYLIST" <<<"$FILES"; then
-            echo "run=true" >> $GITHUB_OUTPUT
-            echo "✅ В PR есть исполняемые файлы — гоняем полный набор:"
-            { grep -vE "$ALLOWLIST" <<<"$FILES"; grep -E "$DENYLIST" <<<"$FILES"; } \
-              | sort -u | sed 's/^/   /'
-          else
-            echo "run=false" >> $GITHUB_OUTPUT
-            echo "⏭️ PR состоит только из документации — тесты пропускаются:"
-            sed 's/^/   /' <<<"$FILES"
-            echo "   Чек всё равно сообщает статус: он входит в required-контексты защиты develop."
-          fi
+        uses: ./.github/actions/docs-only-check
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout 1C test data
         if: steps.changes.outputs.run == 'true' && env.ONEC_DATA_AVAILABLE == 'true'

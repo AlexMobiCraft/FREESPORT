@@ -13,10 +13,10 @@
 
 | Файл | Назначение | Триггер |
 | --- | --- | --- |
-| [`backend-ci.yml`](../../.github/workflows/backend-ci.yml) | Линтеры, типы, security, OpenAPI бэкенда (required) | PR в `develop` |
-| [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | Тесты и сборка фронтенда (required) | PR в `develop` |
+| [`backend-ci.yml`](../../.github/workflows/backend-ci.yml) | Линтеры, типы, security, OpenAPI бэкенда (required) | PR в `develop`; шаги — кроме PR только из документации |
+| [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | Тесты и сборка фронтенда (required) | PR в `develop`; шаги — кроме PR только из документации |
 | [`main.yml`](../../.github/workflows/main.yml) | Django CI: полный прогон + покрытие (required) | PR в `develop`; тесты — кроме PR только из документации |
-| [`api-contract.yml`](../../.github/workflows/api-contract.yml) | Синхронность OpenAPI и типов (required) | PR в `develop` |
+| [`api-contract.yml`](../../.github/workflows/api-contract.yml) | Синхронность OpenAPI и типов (required) | PR в `develop`; шаги — кроме PR только из документации |
 | [`pre-merge-checks.yml`](../../.github/workflows/pre-merge-checks.yml) | Проверки качества кода (required) | PR в `develop` |
 | [`e2e-tests.yml`](../../.github/workflows/e2e-tests.yml) | Playwright E2E (required) | PR в `develop`; тесты — только при правках во `frontend/**` |
 | [`claude-code-review.yml`](../../.github/workflows/claude-code-review.yml) | Автоматическое ревью | PR в `develop` |
@@ -33,24 +33,35 @@
 
 ## PR только из документации
 
-`build (3.12)` (`main.yml`) держит ожидание всего гейта — ~13 минут. PR, который не
-трогает ничего исполняемого, его пропускает: шаг «Нужен ли прогон» смотрит состав PR
-через `gh pr diff` и скипает тяжёлые шаги. Такой PR проходит гейт примерно за минуту.
+Ожидание гейта держит `build (3.12)` (~13 минут), а PR вида «правка стори +
+sprint-status» прогонял весь набор впустую. Четыре тяжёлых чека — `build (3.12)`,
+«Бэкенд: качество кода», «Фронтенд: тесты», «Контракт синхронен с кодом» — пропускают
+свои шаги, если PR не содержит ничего исполняемого. Такой PR проходит гейт примерно
+за минуту вместо тринадцати, раннера уходит ~2 минуты вместо ~24.
 
-Решение принимается по **allowlist**, а не по имени ветки: `docs/*` — это обещание, а
-не факт, и в такой ветке легко окажется правка кода. Прогон пропускается только если
-**все** файлы PR попадают в список `docs/`, `_bmad-output/`, `.windsurf/`, `.claude/`,
-любые `*.md`, `LICENSE`; любой незнакомый путь ведёт к полному прогону. Исключение
-(`DENYLIST`) — `docs/api/*.yaml|json`: это контракт API, на него смотрят тесты схемы.
+Решение принимает общий composite action `.github/actions/docs-only-check` — один
+источник правды для всех гейтов: разъехавшиеся списки путей опаснее отсутствующих,
+потому что каждый гейт будет считать, что спорный файл проверил кто-то другой.
+
+Логика — **allowlist**, а не имя ветки: `docs/*` это обещание, а не факт, и в такой
+ветке легко окажется правка кода. Прогон пропускается только если **все** файлы PR
+попадают в `docs/`, `_bmad-output/`, `.windsurf/`, `.claude/`, любые `*.md`, `LICENSE`;
+любой незнакомый путь ведёт к полному прогону. Исключение (`DENYLIST`) —
+`docs/api/*.yaml|json`: это контракт API, а не документация.
 
 `.github/**` в allowlist не входит намеренно — правка CI обязана проверяться полностью.
-Остальные пять чеков идут всегда: вместе они дают ~7 минут раннера и на ожидание почти
-не влияют, так как исполняются параллельно.
+E2E живёт по своему, более строгому правилу: тесты идут только при правках во
+`frontend/**`.
 
-Границы фильтра закреплены тестами `TestCIFilters::test_docs_only_filter_*`
-(`backend/tests/unit/test_pytest_marker_autotagging.py`) — перебор конкретных путей в
-обе стороны. Расширять allowlist без прогона этих тестов нельзя: `docs/` уже однажды
-накрыл `docs/api/openapi.yaml`.
+Результат применяется к **шагам**, а не к job'у: job, скипнутый через job-level `if`,
+может не сообщить свой check-run, а все эти контексты required — мерж повис бы на
+«Expected — waiting for status» бессрочно.
+
+Границы фильтра закреплены тестами `TestCIFilters::test_docs_only_filter_*` и
+`test_gates_share_one_docs_filter` (`backend/tests/unit/test_pytest_marker_autotagging.py`):
+перебор конкретных путей в обе стороны плюс проверка, что все четыре гейта зовут общий
+action и не заводят собственных списков. Расширять allowlist без прогона этих тестов
+нельзя: `docs/` уже однажды накрыл `docs/api/openapi.yaml`.
 
 ## Запуск релиза и откатa
 
