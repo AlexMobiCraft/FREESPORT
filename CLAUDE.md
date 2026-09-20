@@ -76,7 +76,7 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 ## Git Workflow
 
 - `main` — production (прямой push, без PR и required-чеков; force-push запрещён)
-- `develop` — основная ветка разработки (защищена, base для PR, 5 required-чеков)
+- `develop` — основная ветка разработки (защищена, base для PR, 6 required-чеков)
 - `feature/*` — новые функции
 - `hotfix/*` — критические исправления
 - Синк `develop` → `main`: `git push origin origin/develop:refs/heads/main` (fast-forward, только по команде владельца). **Этот push и есть релиз:** он запускает `deploy.yml` (сборка образов → approval на environment `production` → SSH-деплой). Тестов на push нет ни в `develop`, ни в `main` — тот же SHA уже зелёный на PR.

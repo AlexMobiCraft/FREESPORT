@@ -10,14 +10,15 @@
 ```
 feature/* -> PR -> develop --(fast-forward push по команде)--> main
                      ^                                          |
-              5 required-чеков                                  v
+              6 required-чеков                                  v
               (единственный гейт)                      deploy.yml: approval -> прод
 ```
 
-- `develop` — единственное место, где исполняются проверки. Обязателен PR, 5 required-чеков:
+- `develop` — единственное место, где исполняются проверки. Обязателен PR, 6 required-чеков:
   «Бэкенд: качество кода», «Фронтенд: тесты», «build (3.12)», «Контракт синхронен с кодом»,
-  «Проверки качества кода». pytest исполняется один раз — в «build (3.12)» (`main.yml`),
-  там же считается покрытие.
+  «Проверки качества кода», «E2E Tests». pytest исполняется один раз — в «build (3.12)»
+  (`main.yml`), там же считается покрытие. E2E прогоняет тесты только при правках во
+  `frontend/**`, но статус контекста сообщает на каждом PR — иначе мерж вис бы бессрочно.
 - `main` — зеркало проверенного `develop`. Прямой push, PR и required-чеки сняты,
   force-push и удаление запрещены (`enforce_admins = true`).
 - Проверки на PR в `main` и обратный merge `main -> develop` больше не существуют как
@@ -57,7 +58,7 @@ Push в `main` запускает `deploy.yml` (сборка образов → 
 
 | Событие | Что запускается |
 |---|---|
-| PR в `develop` | 5 required-чеков + E2E (по `paths`) + Claude-ревью |
+| PR в `develop` | 6 required-чеков + Claude-ревью |
 | push в `develop` | ничего |
 | push в `main` | `deploy.yml` (с approval) + `sync-to-public.yml` |
 | ночью по cron | `performance-tests.yml` |

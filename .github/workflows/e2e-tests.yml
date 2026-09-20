@@ -1,7 +1,7 @@
 # E2E Tests Workflow
 # Story 15.5: E2E тестирование checkout флоу
 #
-# Запускает E2E тесты Playwright на PR в develop
+# Запускает E2E тесты Playwright на PR в develop (required-контекст защиты develop)
 
 name: E2E Tests
 
@@ -12,9 +12,12 @@ name: E2E Tests
 on:
   pull_request:
     branches: [develop]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/e2e-tests.yml"
+    # paths-фильтра нет намеренно (2026-09-20, вместе с возвратом чека в required):
+    # required-контекст у workflow с фильтром путей не сообщает статус на PR, который
+    # эти пути не трогает, — GitHub показывает «Expected — waiting for status» и мерж
+    # блокируется бессрочно. Фильтрация переехала внутрь job'а: он запускается всегда,
+    # но тяжёлые шаги выполняются только когда фронтенд действительно менялся, поэтому
+    # PR без правок во frontend/** платит за этот чек ~20 секунд.
 
 # Новый push в ту же PR-ветку отменяет прогон на устаревшем коммите: его результат
 # всё равно никого не интересует, а раннер он занимает (добавлено 2026-09-20).
@@ -28,6 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    permissions:
+      contents: read
+      pull-requests: read
+
     defaults:
       run:
         working-directory: frontend
@@ -36,7 +43,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # Состав diff'а берём из API, а не из git: полная история (fetch-depth: 0) ради
+      # одного списка файлов обходится дороже, чем вызов gh.
+      - name: Нужен ли прогон
+        id: changes
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Неудача gh трактуется как «гонять»: молча зелёный чек без прогона хуже
+          # лишних трёх минут. Поэтому код возврата проверяется отдельно от grep,
+          # а не через конвейер (без pipefail он вернул бы только статус grep).
+          if ! FILES=$(gh pr diff ${{ github.event.pull_request.number }} --name-only); then
+            echo "run=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Не удалось получить список файлов PR — гоняем E2E на всякий случай"
+            exit 0
+          fi
+
+          if grep -qE '^(frontend/|\.github/workflows/e2e-tests\.yml$)' <<<"$FILES"; then
+            echo "run=true" >> $GITHUB_OUTPUT
+            echo "✅ Фронтенд затронут — гоняем E2E"
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+            echo "⏭️ Правок во frontend/** нет — тяжёлые шаги пропускаются."
+            echo "   Чек всё равно сообщает статус: он входит в required-контексты"
+            echo "   защиты develop, а контекст обязан приходить на каждый PR."
+          fi
+
       - name: Setup Node.js
+        if: steps.changes.outputs.run == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -44,17 +79,21 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: steps.changes.outputs.run == 'true'
         run: npm ci
 
       - name: Install Playwright browsers
+        if: steps.changes.outputs.run == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Build application
+        if: steps.changes.outputs.run == 'true'
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8001/api/v1
 
       - name: Run E2E tests
+        if: steps.changes.outputs.run == 'true'
         run: npm run test:e2e
         env:
           CI: true
@@ -62,7 +101,7 @@ jobs:
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && steps.changes.outputs.run == 'true'
         continue-on-error: true
         with:
           name: playwright-report
@@ -71,7 +110,7 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
-        if: failure()
+        if: failure() && steps.changes.outputs.run == 'true'
         continue-on-error: true
         with:
           name: test-results
