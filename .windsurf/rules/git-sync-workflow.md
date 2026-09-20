@@ -1,17 +1,26 @@
 ---
-description: Порядок сохранения изменений в GitHub и синка develop -> main (solo-dev)
+description: Порядок сохранения изменений в GitHub, синка develop -> main и откатa (solo-dev)
 ---
 
 # Git workflow: develop как единственный гейт, main как зеркало
 
-Проект ведёт один разработчик. Проверки CI проходят один раз — на PR в `develop`.
-В `main` изменения попадают прямым fast-forward пушем, без PR и без повторных проверок.
+Проект ведёт один разработчик. Проверки CI проходят **один раз** — на PR в `develop`.
+В `main` изменения попадают прямым fast-forward пушем; этот push и есть релиз.
+
+```
+feature/* -> PR -> develop --(fast-forward push по команде)--> main
+                     ^                                          |
+              5 required-чеков                                  v
+              (единственный гейт)                     deploy.yml: approval -> прод
+```
 
 ## Защита веток (setup-branch-protection.sh)
 
-- `develop`: обязателен PR (0 аппрувов) + 5 required-чеков — «Бэкенд: тесты»,
+- `develop`: обязателен PR (0 аппрувов) + 5 required-чеков — «Бэкенд: качество кода»,
   «Фронтенд: тесты», «build (3.12)», «Контракт синхронен с кодом»,
-  «Проверки качества кода».
+  «Проверки качества кода». Список контекстов задан в
+  `.github/scripts/setup-branch-protection.sh`; переименование job'а = переименование
+  контекста, поэтому менять их нужно вместе, пока нет открытых PR.
 - `main`: прямой push разрешён, PR и required-чеки сняты. Запрещены force-push
   и удаление ветки (enforce_admins = true — правила действуют и на владельца).
 
@@ -26,20 +35,79 @@ gh pr create --base develop ...
 gh pr merge <N> --merge              # только merge commit, НЕ squash/rebase
 ```
 
-Squash/rebase-merge запрещены: они переписывают коммиты и разводят историю веток.
+Squash/rebase-merge запрещены: они переписывают коммиты и разводят историю веток,
+из-за чего fast-forward синк перестаёт работать. Обе опции отключены и в настройках
+репозитория, так что кнопок в UI нет.
 
-## Синк develop -> main (только по команде владельца)
+## Синк develop -> main = релиз (только по команде владельца)
 
 ```bash
 git fetch origin
-git log --oneline origin/main..origin/develop   # что уедет в main
+git log --oneline origin/main..origin/develop   # что уедет в прод
 git push origin origin/develop:refs/heads/main  # fast-forward
 ```
 
+Пушится `origin/develop`, а не локальный `develop`: в прод должно уехать ровно то,
+что прошло гейт на origin.
+
 - Push всегда fast-forward: `main` не содержит коммитов вне `develop`, поэтому
-  обратный sync `main -> develop` не нужен никогда. Если push отклонён как
-  non-FF — в `main` попал чужой коммит, разобраться до продолжения.
-- Этот же push запускает релизный пайплайн: сборку prod-образов в ghcr.io,
-  `deploy.yml` (approval на environment `production`) и `sync-to-public.yml`.
+  обратный sync `main -> develop` не нужен никогда.
+- Этот же push запускает `deploy.yml` (сборка prod-образов в ghcr → approval на
+  environment `production` → SSH-деплой → health check) и `sync-to-public.yml`.
+  Тестов на push нет: тот же SHA уже зелёный на PR в `develop`.
 - НЕ создавать PR `develop -> main`: merge-коммит на `main` сломает FF-схему
   и вернёт необходимость back-merge.
+
+## Что запускается и когда
+
+| Событие | Прогоны |
+|---|---|
+| PR в `develop` | 5 required-чеков + E2E (по `paths`) + Claude-ревью |
+| push в `develop` (после мёрджа) | ничего |
+| push в `main` (синк) | `deploy.yml` + `sync-to-public.yml` |
+| ночью | `performance-tests.yml` (cron 02:00 UTC) |
+
+## Откат
+
+### Откатить релиз на проде
+
+Образы каждого релиза лежат в ghcr с тегами `:production` и `:<sha>`, поэтому откат
+не требует пересборки и тестов:
+
+```bash
+gh workflow run deploy.yml -f image_tag=<sha прошлого удачного релиза>
+```
+
+Прогон пропустит сборку и поднимет указанные образы. Если деплой упал, его job
+`rollback` печатает в summary готовые команды и SHA предыдущего коммита `main`.
+На сервере точка возврата — файл `.last-release-digests` в каталоге деплоя
+(digest'ы образов, работавших до обновления) и дампы БД в `backups/`.
+
+### Откатить код в main
+
+```bash
+git fetch origin
+git log --oneline origin/develop        # найти коммит, который был в main до релиза
+gh pr create --base develop ...         # реверт делается через PR в develop
+```
+
+Правильный путь — отменить изменение в `develop` (revert-коммит через PR, гейт
+отработает) и синкнуть `main` снова. Прямой откат `main` невозможен без force-push,
+который запрещён намеренно.
+
+### Откатить саму эту схему
+
+Схема введена двумя PR: #223 (гейт на develop) и PR «единый прогон» (удаление дублей
+сборок и деплоев). Возврат к прежнему поведению:
+
+```bash
+gh pr revert <N>   # или git revert <merge-sha> -m 1 в ветке под PR в develop
+
+# вернуть required-чеки и обязательный PR на main:
+#   в .github/scripts/setup-branch-protection.sh убрать ветку main из if в
+#   protection_payload(), затем Actions -> Setup Branch Protection -> mode=apply
+
+# вернуть squash/rebase-merge:
+gh api -X PATCH repos/AlexMobiCraft/FREESPORT \
+  -F allow_squash_merge=true -F allow_rebase_merge=true
+```

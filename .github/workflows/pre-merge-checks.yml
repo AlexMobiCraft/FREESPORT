@@ -5,6 +5,12 @@ on:
     types: [opened, synchronize, reopened]
     branches: [develop]
 
+# Новый push в ту же PR-ветку отменяет прогон на устаревшем коммите: его результат
+# всё равно никого не интересует, а раннер он занимает (добавлено 2026-09-20).
+concurrency:
+  group: pre-merge-checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Комплексная проверка качества кода
   quality-checks:

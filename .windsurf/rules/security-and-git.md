@@ -21,7 +21,10 @@ description: Критические правила работы с git и пуб
 
 ## Обновление продакшн-сервера
 
-- Локально: `git push origin main` (только в приватный репозиторий) → workflow сработает автоматически.
-- На сервере: `git fetch origin main; git reset --hard origin/main` + пересборка Docker.
+- Локально: `git push origin origin/develop:refs/heads/main` (только в приватный
+  репозиторий) → `deploy.yml` и `sync-to-public.yml` сработают автоматически.
+  Полная процедура — `.windsurf/rules/git-sync-workflow.md`.
+- На сервере (если деплой делается руками): `git fetch origin main;
+  git reset --hard origin/main` + пересборка Docker.
 
 НИКОГДА не используй `git pull` на продакшене.

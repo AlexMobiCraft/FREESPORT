@@ -217,3 +217,7 @@ supabase-backup/.env
 # gitnexus analyze перезаписывает этот каталог MCP-шаблонами при каждом запуске;
 # рабочие CLI-версии skills лежат в .claude/skills/gitnexus-*/
 .claude/skills/gitnexus/
+
+# Точка возврата релиза: deploy.yml пишет digest'ы работающих образов в каталог
+# деплоя на сервере (там лежит клон этого репозитория) перед каждым обновлением.
+.last-release-digests

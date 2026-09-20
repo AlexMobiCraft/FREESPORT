@@ -2,6 +2,10 @@ name: Claude Code Review
 
 on:
   pull_request:
+    # branches: [develop] — ревью нужно там, где стоит гейт. PR в main в новой схеме
+    # не существует как операция (синк идёт прямым fast-forward пушем), а без фильтра
+    # workflow сработал бы на PR в любую ветку.
+    branches: [develop]
     types: [opened, synchronize, ready_for_review, reopened]
     # Optional: Only run on specific file changes
     # paths:
@@ -9,6 +13,12 @@ on:
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
+
+# Новый push в ту же PR-ветку отменяет прогон на устаревшем коммите: его результат
+# всё равно никого не интересует, а раннер он занимает (добавлено 2026-09-20).
+concurrency:
+  group: claude-code-review-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   claude-review:

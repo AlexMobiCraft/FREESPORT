@@ -1,27 +1,39 @@
 name: Backend CI/CD
 
+# Единственный триггер — PR в develop: там стоит гейт качества (5 required-чеков).
+# push-триггера нет намеренно (2026-09-20): синк develop -> main идёт fast-forward
+# пушем того же коммита, который уже зелёный на PR, и push-прогоны перепроверяли
+# ровно тот же код во второй и третий раз. Подробности — .windsurf/rules/git-sync-workflow.md.
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-ci.yml"
-  # paths-фильтр у pull_request снят намеренно: этот чек входит в required-контексты
-  # защиты веток, а required-контекст у workflow с фильтром путей не сообщает статус на
-  # PR, который эти пути не трогает, — GitHub показывает «Expected — waiting for status»
-  # и мерж блокируется бессрочно. У push фильтр сохранён: защита оценивается по PR, а
-  # на push от него зависят сборка и деплой.
   pull_request:
     branches: [develop]
+    # paths-фильтра у pull_request нет намеренно: этот чек входит в required-контексты
+    # защиты develop, а required-контекст у workflow с фильтром путей не сообщает статус
+    # на PR, который эти пути не трогает, — GitHub показывает «Expected — waiting for
+    # status» и мерж блокируется бессрочно.
+
+# Новый push в ту же PR-ветку отменяет прогон на устаревшем коммите: его результат
+# всё равно никого не интересует, а раннер он занимает (добавлено 2026-09-20).
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   PYTHON_VERSION: "3.12"
 jobs:
+  # Линтеры, типы, security и валидация OpenAPI. pytest здесь НЕ запускается (снято
+  # 2026-09-20): прежний «fast unit gate» гонял ~1900 тестов с фильтром
+  # "not integration and not data_dependent and not performance and not slow", то есть
+  # строгое подмножество полного прогона из main.yml (~3000 тестов, там же считается
+  # покрытие). Одни и те же тесты исполнялись на каждом PR дважды. Время ожидания PR от
+  # этого не росло — оба прогона шли параллельно и итог определял 13-минутный main.yml, —
+  # но ~3,5 минуты раннера на каждый PR уходило впустую.
+  # Вернуть быстрый сигнал о падении теста = вернуть сюда шаг pytest с тем же фильтром.
   # Этап 1: Качество кода и тестирование
   test:
     # Имя задано явно: без него check-run называется по id джобы («test»), а такое же
     # имя у джобы во frontend-ci.yml — как required-контексты они неразличимы.
-    name: "Бэкенд: тесты"
+    name: "Бэкенд: качество кода"
     runs-on: ubuntu-latest
     env:
       DB_NAME: freesport_test
@@ -185,37 +197,6 @@ jobs:
           python -c "import django; django.setup(); from django.db import connections; connections.close_all()" || true
           python manage.py migrate --noinput
 
-      - name: Run fast unit gate
-        env:
-          SECRET_KEY: test-secret-key-for-ci-cd-only
-          DEBUG: False
-          DJANGO_SETTINGS_MODULE: freesport.settings.test
-          DB_NAME: freesport_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_HOST: localhost
-          DB_PORT: 5432
-          REDIS_URL: redis://localhost:6379/0
-        run: |
-          cd backend
-          source venv/bin/activate
-          echo "🧪 Запуск тестов с покрытием..."
-          # Используем --reuse-db для переиспользования БД между тестами
-          # Добавляем -v для более подробного вывода
-          # not slow: таймингозависимые тесты флакуют под нагрузкой раннера и уронят PR
-          # без дефекта в нём; их дом — performance-tests.yml (nightly)
-          #
-          # Покрытие здесь НЕ считается (снято 2026-08-06). Этот прогон запускает ~1900 тестов
-          # из ~3000 и не видит интеграционных, поэтому его метрика систематически занижена:
-          # 62 % против 76 % на полном наборе. Порог падал не от регрессии, а от того, что
-          # очередная стори покрывала новый код интеграционными тестами. Покрытие меряет
-          # main.yml — прогон, который эти тесты исполняет.
-          #
-          # --ignore для test_import_customers и test_customer_parser снят 2026-08-15:
-          # оба файла теперь имеют @pytest.mark.data_dependent и исключаются фильтром
-          # "not data_dependent". data-репо в этот гейт не подключается (быстрый прогон).
-          pytest -m "not integration and not data_dependent and not performance and not slow" --reuse-db -v
-
       # Codecov-выгрузка переехала в main.yml вместе с подсчётом покрытия (2026-08-06):
       # отчёт должен строить прогон, который исполняет покрывающие тесты.
 
@@ -230,131 +211,11 @@ jobs:
             backend/bandit-report.json
             backend/safety-report.json
 
-  # Этап 2: Сборка Docker образа
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    continue-on-error: true # Не блокируем workflow из-за проблем с Docker Registry
-
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        continue-on-error: true
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}/backend
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix=commit-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        continue-on-error: true
-        env:
-          # v6 включил build summary и выгрузку build record по умолчанию;
-          # оставляем поведение как на v5, чтобы не копить .dockerbuild-артефакты
-          DOCKER_BUILD_SUMMARY: false
-          DOCKER_BUILD_RECORD_UPLOAD: false
-        with:
-          context: backend
-          file: backend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            DJANGO_SETTINGS_MODULE=freesport.settings.production
-
-  # Этап 3: Deploy на staging (только develop branch)
-  deploy-staging:
-    name: Deploy to Staging
-    needs: [test, build]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-
-    permissions:
-      actions: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Trigger deploy workflow
-        uses: actions/github-script@v9
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'deploy.yml',
-              ref: 'develop',
-              inputs: {
-                skip_tests: 'true'
-              }
-            });
-            console.log('✅ Deploy workflow triggered for staging');
-
-      - name: Notify staging deployment
-        run: |
-          echo "✅ Backend staging deployment triggered"
-          echo "Отслеживайте статус в Actions → Deploy to Server"
-
-  # Этап 4: Deploy на production (только main branch, с manual approval)
-  deploy-production:
-    name: Deploy to Production
-    needs: [test, build]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    permissions:
-      actions: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Trigger deploy workflow
-        uses: actions/github-script@v9
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'deploy.yml',
-              ref: 'main',
-              inputs: {
-                environment: 'production',
-                skip_tests: 'true'
-              }
-            });
-            console.log('✅ Deploy workflow triggered for production');
-
-      - name: Notify production deployment
-        if: always()
-        run: |
-          echo "✅ Backend production deployment triggered"
-          echo "Отслеживайте статус в Actions → Deploy to Server"
-          echo "⚠️ Production deployment requires manual approval"
+# Сборки Docker-образов и деплоя здесь нет намеренно (2026-09-20). Прод тянет тег
+# `:production`, а его собирает только deploy.yml — образы `latest`/`commit-<sha>`,
+# которые собирал прежний job `build`, не использовал никто, и на каждый push в main
+# уходило ~10 минут раннера на multiarch-сборку в никуда. Вся прод-цепочка (сборка →
+# approval → SSH-деплой → откат) живёт в deploy.yml и запускается push-ем в main.
+# Прежний job `deploy-staging` был мёртв (needs: build, а build шёл только на main) и
+# при «починке» задеплоил бы develop на прод: deploy.yml без входа `environment`
+# подставляет `production`.

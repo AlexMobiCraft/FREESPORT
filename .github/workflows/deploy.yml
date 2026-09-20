@@ -1,6 +1,15 @@
 name: Deploy to Server
 
+# Единственная прод-цепочка проекта: сборка образов -> approval -> SSH-деплой -> откат.
+# До 2026-09-20 те же образы параллельно собирали backend-ci и frontend-ci, и каждый из
+# них ещё и дёргал этот workflow через createWorkflowDispatch — один push в main давал
+# два деплоя подряд и четыре сборки. Джобы `build`/`deploy-*` из тех workflow удалены:
+# прод тянет только тег `:production`, а его собирает исключительно этот файл.
 on:
+  # Синк develop -> main (fast-forward push проверенного коммита) = релиз.
+  # Тесты здесь не гоняются: этот же коммит уже зелёный на PR в develop.
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -13,6 +22,17 @@ on:
         required: false
         default: false
         type: boolean
+      image_tag:
+        description: "ОТКАТ: тег образа из ghcr для деплоя без пересборки (например 0fefabf4...). Пусто — собрать из текущего main"
+        required: false
+        default: ""
+        type: string
+
+# Два деплоя на один сервер одновременно ломают друг другу compose и миграции.
+# cancel-in-progress: false — начатый деплой нельзя прерывать на середине, новый ждёт.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
@@ -26,18 +46,50 @@ jobs:
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
       should_deploy: ${{ steps.set-env.outputs.should_deploy }}
+      image_tag: ${{ steps.set-env.outputs.image_tag }}
+      needs_build: ${{ steps.set-env.outputs.needs_build }}
     steps:
       - name: Определение окружения
         id: set-env
+        env:
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          INPUT_TAG: ${{ github.event.inputs.image_tag }}
         run: |
-          ENV_NAME="${{ github.event.inputs.environment || 'production' }}"
+          ENV_NAME="${INPUT_ENV:-production}"
           echo "environment=$ENV_NAME" >> $GITHUB_OUTPUT
           echo "should_deploy=true" >> $GITHUB_OUTPUT
 
+          # Откат: задан готовый тег -> деплоим его как есть, ничего не собираем.
+          if [ -n "$INPUT_TAG" ]; then
+            echo "image_tag=$INPUT_TAG" >> $GITHUB_OUTPUT
+            echo "needs_build=false" >> $GITHUB_OUTPUT
+            echo "::notice::Режим откатa: деплой готового тега $INPUT_TAG без пересборки"
+          else
+            echo "image_tag=production" >> $GITHUB_OUTPUT
+            echo "needs_build=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Прод собирается только из main
+        if: steps.set-env.outputs.environment == 'production' && github.ref != 'refs/heads/main'
+        run: |
+          echo "❌ Запуск с ветки ${{ github.ref_name }}, а окружение — production."
+          echo "   Тег :production обязан соответствовать коду main, иначе следующий деплой"
+          echo "   поднимет на проде чужую ветку. Ручной прогон с develop 2026-09-20"
+          echo "   (run 35499330509) уже перезаписал этот тег сборкой из develop."
+          echo "   Синкни develop -> main и запусти оттуда."
+          exit 1
+
   # Тестирование перед деплоем
+  # Тесты только на ручном прогоне и только если их явно не пропустили. На push в main
+  # их нет намеренно: main — fast-forward того коммита, который уже прошёл гейт на PR
+  # в develop, и повторный прогон проверял бы тот же SHA во второй раз.
   test:
     needs: setup
-    if: needs.setup.outputs.should_deploy == 'true' && github.event.inputs.skip_tests != 'true'
+    if: |
+      needs.setup.outputs.should_deploy == 'true'
+      && github.event_name == 'workflow_dispatch'
+      && github.event.inputs.skip_tests != 'true'
+      && needs.setup.outputs.needs_build == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -138,7 +190,7 @@ jobs:
   # Сборка Docker образов
   build:
     needs: [setup, test]
-    if: always() && needs.setup.outputs.should_deploy == 'true' && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    if: always() && needs.setup.outputs.should_deploy == 'true' && needs.setup.outputs.needs_build == 'true' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
     environment: ${{ needs.setup.outputs.environment }}
     permissions:
@@ -224,7 +276,9 @@ jobs:
   # Деплой на production
   deploy-production:
     needs: [setup, build]
-    if: needs.setup.outputs.environment == 'production'
+    # always() обязателен: при откате (image_tag задан) build скипается, и без always()
+    # деплой скипнулся бы вместе с ним — ровно так деплой молча не выполнялся до 2026-09-20.
+    if: always() && needs.setup.outputs.environment == 'production' && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
     environment: production
 
@@ -242,15 +296,19 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.PRODUCTION_SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      # ssh ... VAR=... bash -se <<'ENDSSH' — единственный способ довезти значения до
+      # сервера. Раньше здесь был `ssh host << 'ENDSSH'`: кавычки запрещают подстановку
+      # на раннере, а на сервере переменных job'а нет, поэтому `cd $DEPLOY_PATH` уводил
+      # в домашний каталог, а `docker pull $BACKEND_IMAGE` вызывался без аргумента.
       - name: Create backup before deploy
         env:
           SERVER_HOST: ${{ secrets.PRODUCTION_SERVER_HOST }}
           SERVER_USER: ${{ secrets.PRODUCTION_SERVER_USER }}
           DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
         run: |
-          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          ssh "$SERVER_USER@$SERVER_HOST" DEPLOY_PATH="$DEPLOY_PATH" bash -se << 'ENDSSH'
             set -e
-            cd $DEPLOY_PATH
+            cd "$DEPLOY_PATH"
             
             echo "💾 Создание резервной копии базы данных..."
             BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
@@ -267,28 +325,47 @@ jobs:
           SERVER_HOST: ${{ secrets.PRODUCTION_SERVER_HOST }}
           SERVER_USER: ${{ secrets.PRODUCTION_SERVER_USER }}
           DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
-          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}:production
-          FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}:production
+          # Тег из setup: `production` для обычного релиза, конкретный SHA при откате.
+          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}:${{ needs.setup.outputs.image_tag }}
+          FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}:${{ needs.setup.outputs.image_tag }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          ssh "$SERVER_USER@$SERVER_HOST" \
+            DEPLOY_PATH="$DEPLOY_PATH" \
+            BACKEND_IMAGE="$BACKEND_IMAGE" \
+            FRONTEND_IMAGE="$FRONTEND_IMAGE" \
+            GHCR_USER="$GHCR_USER" \
+            GHCR_TOKEN="$GHCR_TOKEN" \
+            bash -se << 'ENDSSH'
             set -e
-            cd $DEPLOY_PATH
+            cd "$DEPLOY_PATH"
+
+            # Digest образов ДО обновления — точка возврата для откатa.
+            echo "🔖 Фиксация текущего релиза для откатa..."
+            {
+              echo "# $(date -Iseconds)"
+              docker image inspect --format '{{index .RepoDigests 0}}' "$BACKEND_IMAGE" 2>/dev/null || true
+              docker image inspect --format '{{index .RepoDigests 0}}' "$FRONTEND_IMAGE" 2>/dev/null || true
+            } > .last-release-digests || true
+            cat .last-release-digests || true
             
+            # fetch + reset, а НЕ git pull: на проде pull падает от любых локальных
+            # изменений в рабочей копии и запрещён правилом .windsurf/rules/security-and-git.md.
             echo "📥 Обновление кода из Git..."
             git fetch origin main
             git checkout main
-            git pull origin main
+            git reset --hard origin/main
             
             echo "🔐 Авторизация в GitHub Container Registry..."
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             
             echo "📦 Загрузка новых образов..."
-            docker pull $BACKEND_IMAGE
-            docker pull $FRONTEND_IMAGE
-            
-            echo "🔄 Обновление переменных окружения..."
-            export BACKEND_IMAGE=$BACKEND_IMAGE
-            export FRONTEND_IMAGE=$FRONTEND_IMAGE
+            docker pull "$BACKEND_IMAGE"
+            docker pull "$FRONTEND_IMAGE"
+
+            # compose читает их из окружения (см. docker-compose.prod.yml).
+            export BACKEND_IMAGE FRONTEND_IMAGE
             
             echo "🚀 Перезапуск сервисов (zero-downtime)..."
             # Сначала обновляем backend и celery
@@ -390,15 +467,51 @@ jobs:
 
             console.log(`${emoji} ${message}`);
 
-  # Rollback (ручной запуск)
+  # Инструкция откатa при неудачном деплое.
+  #
+  # Раньше здесь стояло `if: github.event_name == 'workflow_dispatch' && failure()` —
+  # на автоматическом релизе (push в main) job не запускался вовсе, а его текст не
+  # называл ни образа, ни тега, то есть откатывать было не по чему. Теперь job
+  # срабатывает на любом провале деплоя и печатает готовые команды.
+  #
+  # Сам откат — отдельный прогон этого workflow с входом `image_tag`: образ уже лежит
+  # в ghcr (каждый релиз пушится с тегом-SHA), пересборка не нужна, тесты пропускаются.
   rollback:
-    if: github.event_name == 'workflow_dispatch' && failure()
-    needs: [deploy-production]
+    if: always() && needs.deploy-production.result == 'failure'
+    needs: [setup, deploy-production]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Rollback notification
+      - name: Как откатить прод
+        env:
+          PREV_SHA: ${{ github.event.before }}
+          TAG: ${{ needs.setup.outputs.image_tag }}
         run: |
-          echo "⚠️ Деплой завершился с ошибкой"
-          echo "Для отката используйте предыдущий стабильный образ"
-          echo "Команда: docker compose -f docker/docker-compose.prod.yml up -d --force-recreate"
+          {
+            echo "## ❌ Деплой провалился — прод мог остаться в промежуточном состоянии"
+            echo ""
+            echo "Деплоился тег \`$TAG\` (commit \`${GITHUB_SHA:0:8}\`)."
+            echo ""
+            echo "### Откат через Actions (предпочтительно)"
+            echo ""
+            echo "Actions → Deploy to Server → Run workflow → \`image_tag\` = тег прошлого"
+            echo "удачного релиза. Образы там уже собраны, пересборки и тестов не будет."
+            if [ -n "$PREV_SHA" ] && [ "$PREV_SHA" != "0000000000000000000000000000000000000000" ]; then
+              echo ""
+              echo "Предыдущий коммит main: \`$PREV_SHA\` → \`image_tag\` = \`${PREV_SHA:0:40}\`"
+            fi
+            echo ""
+            echo "### Откат руками на сервере"
+            echo ""
+            echo '```bash'
+            echo "cat .last-release-digests   # digest'ы образов до этого деплоя"
+            echo "export BACKEND_IMAGE=<digest бэкенда>"
+            echo "export FRONTEND_IMAGE=<digest фронтенда>"
+            echo "docker compose -f docker/docker-compose.prod.yml up -d --force-recreate \\"
+            echo "  backend frontend celery celery-beat"
+            echo '```'
+            echo ""
+            echo "Файл \`.last-release-digests\` пишется в каталог деплоя перед каждым"
+            echo "обновлением образов. Дамп БД — в \`backups/\` (хранятся последние 5)."
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
