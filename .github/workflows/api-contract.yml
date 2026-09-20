@@ -8,7 +8,7 @@ name: API Contract
 # paths-фильтр у pull_request снят намеренно: этот чек входит в required-контексты
 # защиты веток, а required-контекст у workflow с фильтром путей не сообщает статус на
 # PR, который эти пути не трогает, — GitHub показывает «Expected — waiting for status»
-# и мерж блокируется бессрочно. У push фильтр сохранён — там он ничему не мешает.
+# и мерж блокируется бессрочно.
 #
 # Прежний список путей для pull_request сохранён здесь как справка о том, что именно
 # влияет на результат гейта:
@@ -18,23 +18,15 @@ name: API Contract
 #   .github/workflows/api-contract.yml
 # Три последних из frontend/* меняют вывод генерации, не меняя её вход: версии
 # openapi-typescript и prettier, конфиг и список исключений форматтера.
+# Единственный триггер — PR в develop: там стоит гейт качества (5 required-чеков).
+# push-триггера нет намеренно (2026-09-20): синк develop -> main идёт fast-forward
+# пушем того же коммита, который уже зелёный на PR, и push-прогоны перепроверяли
+# ровно тот же код во второй и третий раз. Подробности — .windsurf/rules/git-sync-workflow.md.
 on:
   pull_request:
     branches: [develop]
-  push:
-    branches: [main, develop]
-    paths:
-      - "backend/**"
-      - "docs/api/openapi.yaml"
-      - "frontend/src/types/api.generated.ts"
-      - "frontend/package.json"
-      - "frontend/package-lock.json"
-      - "frontend/.prettierrc"
-      - "frontend/.prettierignore"
-      - ".github/workflows/backend-ci.yml"
-      - ".github/workflows/api-contract.yml"
 
-# push в develop и pull_request на тот же коммит дают два прогона; устаревшие отменяем.
+# Несколько push-ей в одну PR-ветку подряд: устаревшие прогоны отменяем.
 concurrency:
   group: api-contract-${{ github.ref }}
   cancel-in-progress: true

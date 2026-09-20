@@ -632,8 +632,14 @@ class TestCIFilters:
     только для урезанного окружения без этих каталогов — вместо ложного падения.
     """
 
-    PR_GATES = ("backend-ci.yml", "deploy.yml", "main.yml")
-    ALL_WORKFLOWS = PR_GATES + ("performance-tests.yml",)
+    # Гейты, которые обязаны гонять pytest с фильтром. backend-ci.yml выведен отсюда
+    # 2026-09-20: его «fast unit gate» гонял ~1900 тестов — строгое подмножество
+    # прогона main.yml, то есть одни и те же тесты исполнялись на PR дважды. Шаг снят,
+    # workflow остался проверкой качества кода. Если pytest туда вернут, сторож
+    # test_optional_gates_filter_when_they_test_at_all потребует тех же фильтров.
+    PR_GATES = ("deploy.yml", "main.yml")
+    OPTIONAL_GATES = ("backend-ci.yml",)
+    ALL_WORKFLOWS = PR_GATES + OPTIONAL_GATES + ("performance-tests.yml",)
 
     def _repo_file(self, *parts):
         # Второй кандидат — раскладка тест-контейнера: backend смонтирован в /app, а то, что
@@ -657,6 +663,29 @@ class TestCIFilters:
         """Ни один PR-гейт не должен гонять тесты, меряющие время."""
         filters = self._pytest_filters(workflow)
         assert filters, f"{workflow}: не найдено ни одного фильтра -m — гейт гоняет весь набор"
+        for expression in filters:
+            assert "not performance" in expression, f"{workflow}: перф-тесты не исключены ({expression})"
+            assert "not slow" in expression, f"{workflow}: медленные тесты не исключены ({expression})"
+
+    @pytest.mark.parametrize("workflow", OPTIONAL_GATES)
+    def test_optional_gates_filter_when_they_test_at_all(self, workflow):
+        """Workflow без pytest ничего не должен фильтровать, но с pytest — обязан.
+
+        Держит открытой дорогу назад: вернуть в backend-ci.yml быстрый прогон тестов
+        можно, но только с фильтром, иначе в PR-гейт вернутся перф- и медленные тесты,
+        которые падают от загрузки раннера, а не от дефекта в PR.
+        """
+        text = self._repo_file(".github", "workflows", workflow).read_text(encoding="utf-8")
+        # `pip install pytest-django` и упоминания в комментариях под это не подпадают:
+        # ищем вызов в начале команды.
+        runs_pytest = re.search(r"^\s*pytest\s", text, re.MULTILINE) is not None
+        filters = self._pytest_filters(workflow)
+
+        if not runs_pytest:
+            assert not filters, f"{workflow}: есть фильтр -m, но pytest не запускается"
+            return
+
+        assert filters, f"{workflow}: pytest запускается без фильтра -m — гейт гоняет весь набор"
         for expression in filters:
             assert "not performance" in expression, f"{workflow}: перф-тесты не исключены ({expression})"
             assert "not slow" in expression, f"{workflow}: медленные тесты не исключены ({expression})"

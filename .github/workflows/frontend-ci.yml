@@ -1,18 +1,20 @@
 name: Фронтенд CI/CD
 
+# Единственный триггер — PR в develop: там стоит гейт качества (5 required-чеков).
+# push-триггера нет намеренно (2026-09-20): синк develop -> main идёт fast-forward
+# пушем того же коммита, который уже зелёный на PR, и push-прогоны перепроверяли
+# ровно тот же код во второй и третий раз. Подробности — .windsurf/rules/git-sync-workflow.md.
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
-  # paths-фильтр у pull_request снят намеренно: этот чек входит в required-контексты
-  # защиты веток, а required-контекст у workflow с фильтром путей не сообщает статус на
-  # PR, который эти пути не трогает, — GitHub показывает «Expected — waiting for status»
-  # и мерж блокируется бессрочно. У push фильтр сохранён: защита оценивается по PR, а
-  # на push от него зависят сборка и деплой.
   pull_request:
     branches: [develop]
+    # paths-фильтра у pull_request нет намеренно — см. тот же комментарий в backend-ci.yml:
+    # required-контекст с фильтром путей вешает мерж на «Expected — waiting for status».
+
+# Новый push в ту же PR-ветку отменяет прогон на устаревшем коммите: его результат
+# всё равно никого не интересует, а раннер он занимает (добавлено 2026-09-20).
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   NODE_VERSION: "22.x"
@@ -123,130 +125,7 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  # Этап 2: Сборка Docker образа
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Получение исходного кода
-        uses: actions/checkout@v7
-
-      - name: Настройка Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Авторизация в GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Извлечение метаданных для Docker
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}/frontend
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix=commit-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Сборка и публикация Docker образа
-        uses: docker/build-push-action@v7
-        env:
-          # v6 включил build summary и выгрузку build record по умолчанию;
-          # оставляем поведение как на v5, чтобы не копить .dockerbuild-артефакты
-          DOCKER_BUILD_SUMMARY: false
-          DOCKER_BUILD_RECORD_UPLOAD: false
-        with:
-          context: frontend
-          file: frontend/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
-            NODE_ENV=production
-
-  # Этап 3: Развертывание на staging (только develop ветка)
-  deploy-staging:
-    needs: [test, build]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    environment: "staging"
-
-    permissions:
-      actions: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Запуск deploy workflow
-        uses: actions/github-script@v9
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'deploy.yml',
-              ref: 'develop',
-              inputs: {
-                environment: 'staging',
-                skip_tests: 'true'
-              }
-            });
-            console.log('✅ Deploy workflow triggered for staging');
-
-      - name: Уведомление о статусе развертывания
-        if: always()
-        run: |
-          echo "✅ Frontend staging deployment triggered"
-          echo "Отслеживайте статус в Actions → Deploy to Server"
-
-  # Этап 4: Развертывание на production (только main ветка, с ручным подтверждением)
-  deploy-production:
-    needs: [test, build]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    permissions:
-      actions: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Запуск deploy workflow
-        uses: actions/github-script@v9
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'deploy.yml',
-              ref: 'main',
-              inputs: {
-                environment: 'production',
-                skip_tests: 'true'
-              }
-            });
-            console.log('✅ Deploy workflow triggered for production');
-
-      - name: Уведомление о production развертывании
-        if: always()
-        run: |
-          echo "✅ Frontend production deployment triggered"
-          echo "Отслеживайте статус в Actions → Deploy to Server"
-          echo "⚠️ Production deployment requires manual approval"
+# Сборки Docker-образов и деплоя здесь нет намеренно (2026-09-20) — см. тот же
+# комментарий в backend-ci.yml. Прод использует только тег `:production` из deploy.yml.
+# Дополнительно: прежний `build` стоял под `if: github.event_name == 'push'` без фильтра
+# ветки и собирал multiarch-образы ещё и на каждый push в develop.

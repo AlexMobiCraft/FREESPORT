@@ -16,9 +16,9 @@
 #    BRANCH_PROTECTION_TOKEN). GITHUB_TOKEN не подходит: и чтение, и запись branch
 #    protection требуют admin, а области `administration` в блоке `permissions`
 #    workflow не существует.
-# 1. Ни main, ни develop сейчас НЕ защищены — оба отдают «Branch not protected».
-#    Этот скрипт ни разу не применился успешно; всё, что ниже, — намерение, а не
-#    текущее состояние.
+# 1. Правила ПРИМЕНЕНЫ и подтверждены чтением через gh api (2026-09-20): у develop
+#    пять required-контекстов и обязательный PR, у main — прямой push без чеков.
+#    Прежнее предупреждение «ни main, ни develop не защищены» устарело.
 # 2. GitHub именует check-run по имени джобы (плюс значения матрицы), а не
 #    «workflow (job)»: чек Django CI называется `build (3.12)`. Прежний список
 #    контекстов был выдуман и не совпадал ни с одним реальным чеком; исправлено
@@ -43,16 +43,24 @@
 #    обязательных проверок на develop — то, ради чего защита включается, — сохранены.
 # 3b. main — зеркало проверенного develop (2026-09-20): required_status_checks и
 #    required_pull_request_reviews сняты, прямой push разрешён. Sync develop -> main
-#    выполняется fast-forward пушем (`git push origin develop:main`) без PR и без
-#    повторных проверок — они уже пройдены на PR в develop. Merge-коммитов на main
-#    нет, обратный sync main -> develop не нужен. Защита от force-push и удаления
-#    сохранена (allow_force_pushes = false, allow_deletions = false,
-#    enforce_admins = true): случайно переписать историю main нельзя.
+#    выполняется fast-forward пушем без PR и без повторных проверок — они уже пройдены
+#    на PR в develop:
+#        git push origin origin/develop:refs/heads/main
+#    Именно origin/develop, а не локальный develop: пушить нужно то, что реально прошло
+#    гейт на origin, иначе в main уедет незапушенное состояние рабочей копии.
+#    Merge-коммитов на main нет, обратный sync main -> develop не нужен. Защита от
+#    force-push и удаления сохранена (allow_force_pushes = false, allow_deletions =
+#    false, enforce_admins = true): случайно переписать историю main нельзя.
+#    Push в main запускает deploy.yml (сборка -> approval -> SSH-деплой) и
+#    sync-to-public.yml; тестов там нет — тот же SHA уже зелёный на PR.
 # 4. Ни у одного workflow из REQUIRED_CONTEXTS больше нет paths-фильтра на
 #    pull_request — это условие обязательно и его нельзя вернуть, не сломав мерж.
 #    Добавляя контекст в список, проверь, что его workflow срабатывает на КАЖДОМ PR
-#    в main/develop. Preflight этого не гарантирует: он смотрит один коммит, где
+#    в develop. Preflight этого не гарантирует: он смотрит один коммит, где
 #    нужные пути могли быть затронуты.
+# 5. У всех пяти workflow единственный триггер — pull_request в develop (push-триггеры
+#    сняты 2026-09-20). Preflight по HEAD ветки поэтому чеков не найдёт: искать их
+#    нужно на head последнего PR, что функция preflight_contexts и делает.
 
 set -euo pipefail
 
@@ -96,7 +104,7 @@ BRANCHES=("main" "develop")
 # Контексты, которые станут обязательными. Менять только вместе с preflight-проверкой —
 # см. предупреждение в шапке.
 REQUIRED_CONTEXTS=(
-    "Бэкенд: тесты"
+    "Бэкенд: качество кода"
     "Фронтенд: тесты"
     "build (3.12)"
     "Контракт синхронен с кодом"

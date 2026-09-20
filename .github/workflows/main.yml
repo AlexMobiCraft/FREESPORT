@@ -1,10 +1,18 @@
 name: Django CI
 
+# Единственный триггер — PR в develop: там стоит гейт качества (5 required-чеков).
+# push-триггера нет намеренно (2026-09-20): синк develop -> main идёт fast-forward
+# пушем того же коммита, который уже зелёный на PR, и push-прогоны перепроверяли
+# ровно тот же код во второй и третий раз. Подробности — .windsurf/rules/git-sync-workflow.md.
 on:
-  push:
-    branches: ["main", "develop"]
   pull_request:
     branches: ["develop"]
+
+# Новый push в ту же PR-ветку отменяет прогон на устаревшем коммите: его результат
+# всё равно никого не интересует, а раннер он занимает (добавлено 2026-09-20).
+concurrency:
+  group: django-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
