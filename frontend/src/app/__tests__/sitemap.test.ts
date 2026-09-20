@@ -56,6 +56,15 @@ describe('sitemap: публичные категории каталога', () =
             response({ results: [{ slug: 'ball', updated_at: '2026-09-14T00:00:00Z' }], next: null })
           );
         }
+        if (url.includes('/blog/')) {
+          return Promise.resolve(response({ results: [{ slug: 'post' }], next: null }));
+        }
+        if (url.includes('/news/')) {
+          return Promise.resolve(response({ results: [{ slug: 'item' }], next: null }));
+        }
+        if (url.includes('/pages/')) {
+          return Promise.resolve(response({ results: [{ slug: 'contacts' }], next: null }));
+        }
         return Promise.resolve(response({ results: [], next: null }));
       })
     );
@@ -106,7 +115,56 @@ describe('sitemap: публичные категории каталога', () =
         { next: { revalidate: 3600 }, signal: expect.any(AbortSignal) }
       );
     }
-    expect(timeoutSpy).toHaveBeenCalledTimes(4);
+    // Каждый вызов — ровно 3000 мс: суммарного счётчика мало, он пропустил бы
+    // один collection-запрос с другим таймаутом
+    expect(timeoutSpy.mock.calls).toEqual([[3000], [3000], [3000], [3000]]);
+  });
+
+  it('запускает проверки всех подборок параллельно', async () => {
+    const started: CollectionKey[] = [];
+    let releaseAll!: () => void;
+    const allStarted = new Promise<void>(resolve => {
+      releaseAll = resolve;
+    });
+    // Ответ приходит только после старта всех трёх запросов: при последовательном
+    // обходе первый запрос никогда не разрешится и гонку выиграет таймер
+    for (const key of COLLECTION_KEYS) {
+      collectionResponses[key] = () => {
+        started.push(key);
+        if (started.length === COLLECTION_KEYS.length) releaseAll();
+        return allStarted.then(() => response({ count: 5, results: [] }));
+      };
+    }
+
+    const entries = sitemap();
+    const outcome = await Promise.race([
+      allStarted.then(() => 'параллельно' as const),
+      new Promise<'последовательно'>(resolve => setTimeout(() => resolve('последовательно'), 50)),
+    ]);
+
+    expect(outcome).toBe('параллельно');
+    expect(started).toEqual([...COLLECTION_KEYS]);
+
+    const paths = (await entries).map(entry => pathOf(entry.url));
+    for (const key of COLLECTION_KEYS) {
+      expect(paths).toContain(`/catalog?${key}=true`);
+    }
+  });
+
+  it('размещает подборки сразу после категорий и до товаров', async () => {
+    const paths = (await sitemap()).map(entry => pathOf(entry.url));
+    const categoryIndexes = paths
+      .map((path, index) => (path.startsWith('/catalog?category=') ? index : -1))
+      .filter(index => index >= 0);
+    const collectionIndexes = COLLECTION_KEYS.map(key => paths.indexOf(`/catalog?${key}=true`));
+
+    expect(categoryIndexes.length).toBeGreaterThan(0);
+    expect(collectionIndexes).not.toContain(-1);
+    // Подборки идут подряд, сразу за последней категорией, в порядке COLLECTION_KEYS
+    expect(collectionIndexes).toEqual(
+      COLLECTION_KEYS.map((_, offset) => Math.max(...categoryIndexes) + 1 + offset)
+    );
+    expect(Math.max(...collectionIndexes)).toBeLessThan(paths.indexOf('/product/ball'));
   });
 
   it.each([
@@ -129,6 +187,9 @@ describe('sitemap: публичные категории каталога', () =
     expect(paths).toContain('/home');
     expect(paths).toContain('/catalog?category=games');
     expect(paths).toContain('/product/ball');
+    expect(paths).toContain('/blog/post');
+    expect(paths).toContain('/news/item');
+    expect(paths).toContain('/contacts');
   });
 
   it('не сочетает подборки с другими параметрами', async () => {
