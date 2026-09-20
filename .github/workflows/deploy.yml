@@ -359,6 +359,13 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # ghcr требует имя репозитория в нижнем регистре, а github.repository отдаёт
+          # его как есть — AlexMobiCraft/FREESPORT. В build теги приводит к lowercase
+          # docker/metadata-action, поэтому push проходит, а прямой `docker pull` здесь
+          # падал с `invalid reference format: repository name must be lowercase`.
+          BACKEND_IMAGE="${BACKEND_IMAGE,,}"
+          FRONTEND_IMAGE="${FRONTEND_IMAGE,,}"
+
           ssh "$SERVER_USER@$SERVER_HOST" \
             DEPLOY_PATH="$DEPLOY_PATH" \
             BACKEND_IMAGE="$BACKEND_IMAGE" \
