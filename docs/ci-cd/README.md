@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | [`backend-ci.yml`](../../.github/workflows/backend-ci.yml) | Линтеры, типы, security, OpenAPI бэкенда (required) | PR в `develop` |
 | [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | Тесты и сборка фронтенда (required) | PR в `develop` |
-| [`main.yml`](../../.github/workflows/main.yml) | Django CI: полный прогон + покрытие (required) | PR в `develop` |
+| [`main.yml`](../../.github/workflows/main.yml) | Django CI: полный прогон + покрытие (required) | PR в `develop`; тесты — кроме PR только из документации |
 | [`api-contract.yml`](../../.github/workflows/api-contract.yml) | Синхронность OpenAPI и типов (required) | PR в `develop` |
 | [`pre-merge-checks.yml`](../../.github/workflows/pre-merge-checks.yml) | Проверки качества кода (required) | PR в `develop` |
 | [`e2e-tests.yml`](../../.github/workflows/e2e-tests.yml) | Playwright E2E (required) | PR в `develop`; тесты — только при правках во `frontend/**` |
@@ -30,6 +30,27 @@
 `deploy.yml` и `sync-to-public.yml`. Это сделано намеренно (2026-09-20): синк в `main`
 переносит тот самый коммит, который уже зелёный на PR, и push-прогоны перепроверяли
 идентичный SHA во второй и третий раз.
+
+## PR только из документации
+
+`build (3.12)` (`main.yml`) держит ожидание всего гейта — ~13 минут. PR, который не
+трогает ничего исполняемого, его пропускает: шаг «Нужен ли прогон» смотрит состав PR
+через `gh pr diff` и скипает тяжёлые шаги. Такой PR проходит гейт примерно за минуту.
+
+Решение принимается по **allowlist**, а не по имени ветки: `docs/*` — это обещание, а
+не факт, и в такой ветке легко окажется правка кода. Прогон пропускается только если
+**все** файлы PR попадают в список `docs/`, `_bmad-output/`, `.windsurf/`, `.claude/`,
+любые `*.md`, `LICENSE`; любой незнакомый путь ведёт к полному прогону. Исключение
+(`DENYLIST`) — `docs/api/*.yaml|json`: это контракт API, на него смотрят тесты схемы.
+
+`.github/**` в allowlist не входит намеренно — правка CI обязана проверяться полностью.
+Остальные пять чеков идут всегда: вместе они дают ~7 минут раннера и на ожидание почти
+не влияют, так как исполняются параллельно.
+
+Границы фильтра закреплены тестами `TestCIFilters::test_docs_only_filter_*`
+(`backend/tests/unit/test_pytest_marker_autotagging.py`) — перебор конкретных путей в
+обе стороны. Расширять allowlist без прогона этих тестов нельзя: `docs/` уже однажды
+накрыл `docs/api/openapi.yaml`.
 
 ## Запуск релиза и откатa
 

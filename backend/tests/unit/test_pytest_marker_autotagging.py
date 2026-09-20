@@ -708,6 +708,69 @@ class TestCIFilters:
             unknown = names - known
             assert not unknown, f"{workflow}: неизвестные маркеры в `-m {expression}`: {sorted(unknown)}"
 
+    # Пути, которые обязаны вести к полному прогону Django CI. Любой из них, попавший
+    # под allowlist «только документация», означал бы, что правка кода проезжает гейт
+    # без тестов, — а узнаём мы об этом уже в develop.
+    MUST_RUN_PATHS = (
+        "backend/apps/orders/models.py",
+        "backend/tests/unit/test_x.py",
+        "backend/requirements.txt",
+        "backend/pyproject.toml",
+        "frontend/src/app/page.tsx",
+        "frontend/package.json",
+        ".github/workflows/main.yml",
+        ".github/scripts/setup-branch-protection.sh",
+        "docker/docker-compose.yml",
+        "docs/api/openapi.yaml",
+        "data/import_1c/goods/goods.xml",
+        "Makefile",
+        ".gitignore",
+    )
+
+    # А эти, наоборот, прогон запускать не должны — иначе фильтр не даёт ничего.
+    MUST_SKIP_PATHS = (
+        "docs/ci-cd/README.md",
+        "docs/api/views-documentation.md",
+        "_bmad-output/implementation-artifacts/sprint-status.yaml",
+        "CLAUDE.md",
+        "backend/docs/testing-standards.md",
+        ".windsurf/rules/git-sync-workflow.md",
+    )
+
+    def _docs_only_filter(self):
+        """ALLOWLIST и DENYLIST из шага «Нужен ли прогон» в main.yml."""
+        text = self._repo_file(".github", "workflows", "main.yml").read_text(encoding="utf-8")
+        allow = re.search(r"ALLOWLIST:\s*'([^']+)'", text)
+        deny = re.search(r"DENYLIST:\s*'([^']+)'", text)
+        assert allow, "в main.yml не найден ALLOWLIST шага «Нужен ли прогон»"
+        assert deny, "в main.yml не найден DENYLIST шага «Нужен ли прогон»"
+        return allow.group(1), deny.group(1)
+
+    def _runs_full_suite(self, path):
+        """Повторяет решение шага: гоняем, если файл вне allowlist или попал в denylist."""
+        allow, deny = self._docs_only_filter()
+        return re.search(allow, path) is None or re.search(deny, path) is not None
+
+    @pytest.mark.parametrize("path", MUST_RUN_PATHS)
+    def test_docs_only_filter_never_skips_executable_paths(self, path):
+        """Фильтр «только документация» обязан пропускать мимо себя всё исполняемое.
+
+        Сторож против расширения allowlist вслепую: `docs/` уже один раз накрыл
+        `docs/api/openapi.yaml` (контракт API, на него смотрят тесты схемы), и поймал
+        это только точечный перебор путей. Ошибаться фильтр должен в сторону лишних
+        тринадцати минут, а не пропущенных тестов.
+        """
+        assert self._runs_full_suite(path), (
+            f"{path} не запускает полный прогон Django CI — allowlist слишком широк"
+        )
+
+    @pytest.mark.parametrize("path", MUST_SKIP_PATHS)
+    def test_docs_only_filter_skips_documentation(self, path):
+        """Обратная сторона: если фильтр не срабатывает ни на чём, он бесполезен."""
+        assert not self._runs_full_suite(path), (
+            f"{path} — документация, но прогон не пропускается; фильтр ничего не даёт"
+        )
+
     def test_coverage_is_measured_only_on_the_full_run(self):
         """Покрытие меряет тот прогон, который исполняет покрывающие тесты, — и только он.
 
