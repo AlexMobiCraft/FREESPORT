@@ -41,7 +41,7 @@ ONEC_RUNTIME_OFFERS = Path(__file__).resolve().parents[3] / "data" / "import_1c"
 
 # Оффер, чей fallback из скобок даёт 57 символов — прямой аналог прод-случая.
 OVERFLOW_OFFER_ID = "45d113f2-bbcb-11f0-8110-fa163ea88911#3538958e-bbde-11f0-8110-fa163ea88911"
-OVERFLOW_OFFER_FILE = "offers_1_14_e934b984-5c19-4e5a-af44-22174913fe9f.xml"
+OVERFLOW_OFFER_FILE = "offers_1_11_07adc537-7238-49c2-9a00-f23a5edcefb5.xml"
 
 SIZE_MAX_LENGTH: int = cast(int, ProductVariant._meta.get_field("size_value").max_length)
 
