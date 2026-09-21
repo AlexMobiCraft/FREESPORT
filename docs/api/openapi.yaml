@@ -203,6 +203,43 @@ paths:
                       - Не удалось обработать запрос. Попробуйте позже.
                   summary: unsubscribe_processing_failed
           description: Запрос на отписку не удалось обработать из-за ошибки БД
+  /newsletter/me/:
+    get:
+      operationId: newsletter_me_retrieve
+      description: Подписка ищется по email учётной записи или по привязке к пользователю.
+      summary: Статус подписки текущего пользователя на рассылку
+      tags:
+      - Newsletter
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsletterStatusResponse'
+          description: ''
+        '401':
+          description: Требуется аутентификация
+        '503':
+          description: Ошибка чтения статуса подписки
+  /newsletter/me/unsubscribe/:
+    post:
+      operationId: newsletter_me_unsubscribe_create
+      description: 'Отзывает согласие на рассылку из личного кабинета. Идемпотентна:
+        при уже отписанном адресе или отсутствии подписки тоже возвращает 200.'
+      summary: Отписка текущего пользователя от рассылки
+      tags:
+      - Newsletter
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsletterStatusResponse'
+          description: ''
+        '401':
+          description: Требуется аутентификация
+        '503':
+          description: Ошибка обработки отписки
   /newsletter/unsubscribe/:
     post:
       operationId: newsletter_unsubscribe_create
@@ -3219,6 +3256,13 @@ components:
           description: Refresh token для инвалидации
       required:
       - refresh
+    NewsletterStatusResponse:
+      type: object
+      properties:
+        subscribed:
+          type: boolean
+      required:
+      - subscribed
     OneClickInvalidUnsubscribeTokenResponse:
       type: object
       properties:

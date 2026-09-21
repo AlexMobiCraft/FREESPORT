@@ -26,6 +26,8 @@ from apps.common.api_schema import consent_text_outdated_example, consent_valida
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
 from apps.common.serializers import consent_text_outdated_payload
+from apps.common.services.newsletter_subscription import activate_newsletter_subscription
+from apps.common.services.newsletter_unsubscribe import normalize_subscription_email
 from apps.common.utils.consent_audit import (
     get_client_ip,
     get_consent_ip_address,
@@ -188,6 +190,17 @@ class UserRegistrationView(APIView):
                         source=consent_source,
                         consent_text_version=current_consent_text_version(consent_source, "marketing_email"),
                     )
+                    # Рассылка уходит только активным `Newsletter`: без этой записи
+                    # согласие лежало бы в журнале, а писем человек не получал бы.
+                    # Ветка `_pending_link_confirmation` пропускается: там email записи
+                    # 1С отличается от адреса формы, и подписать пришлось бы чужой адрес.
+                    if not getattr(user, "_pending_link_confirmation", False):
+                        activate_newsletter_subscription(
+                            normalize_subscription_email(user.email),
+                            ip_address,
+                            user_agent,
+                            user=user,
+                        )
 
             if pending_1c_link:
                 return Response(

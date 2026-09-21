@@ -8,6 +8,7 @@
 
 import React from 'react';
 import ProfileForm from '@/components/business/ProfileForm/ProfileForm';
+import NewsletterSettings from '@/components/business/NewsletterSettings/NewsletterSettings';
 
 /**
  * Страница /profile
@@ -18,6 +19,7 @@ export default function ProfilePage() {
     <div>
       <h1 className="text-title-l text-neutral-900 mb-6">Профиль</h1>
       <ProfileForm />
+      <NewsletterSettings />
     </div>
   );
 }

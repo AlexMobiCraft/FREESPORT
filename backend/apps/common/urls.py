@@ -18,6 +18,12 @@ urlpatterns = [
     # Newsletter & News endpoints
     path("subscribe/", views.subscribe, name="subscribe"),
     path("unsubscribe/", views.unsubscribe, name="unsubscribe"),
+    path("newsletter/me/", views.newsletter_me, name="newsletter-me"),
+    path(
+        "newsletter/me/unsubscribe/",
+        views.newsletter_me_unsubscribe,
+        name="newsletter-me-unsubscribe",
+    ),
     path(
         "newsletter/unsubscribe/",
         views.newsletter_unsubscribe,

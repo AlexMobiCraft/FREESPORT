@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from .consent_texts import MAX_VERSION_LENGTH, is_current_consent_text_version
 from .models import BlogPost, Category, News, Newsletter, UserConsent
+from .services.newsletter_subscription import activate_newsletter_subscription
 from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_agent
 
 
@@ -266,56 +266,9 @@ class SubscribeSerializer(serializers.Serializer):
             ip_address = get_consent_ip_address(request)
             user_agent = sanitize_consent_user_agent(request.META.get("HTTP_USER_AGENT", ""))
 
-        with transaction.atomic():
-            try:
-                subscription = Newsletter.objects.select_for_update().get(email=email)
-            except Newsletter.DoesNotExist:
-                try:
-                    # Savepoint: без него IntegrityError оставил бы транзакцию
-                    # прерванной, и перечитать строку ниже было бы нельзя.
-                    with transaction.atomic():
-                        return Newsletter.objects.create(
-                            email=email,
-                            ip_address=ip_address,
-                            user_agent=user_agent,
-                        )
-                except IntegrityError:
-                    # Параллельный запрос успел создать подписку между чтением и
-                    # вставкой — для этого запроса это тот же «уже подписан».
-                    # Строка перечитывается под блокировкой, согласие ниже пишется.
-                    raced = Newsletter.objects.select_for_update().filter(email=email).first()
-                    if raced is None:
-                        # Строки нет — нарушено не уникальное ограничение email.
-                        # Нейтральный успех был бы неправдой; view ответит 503.
-                        raise
-                    subscription = raced
-
-            subscription.rotate_unsubscribe_token()
-            if subscription.is_active:
-                # Активный подписчик снова поставил галочку и отправил форму — это
-                # новый явный факт согласия (ФЗ-152 ст. 9): после правки формулировки
-                # только он доказывает согласие на новую редакцию. Подписка
-                # возвращается как есть, view пишет обе записи `UserConsent`, а ответ
-                # неотличим от новой подписки (enumeration). `Newsletter` не журнал
-                # согласий, поэтому изменяется только bearer-токен новой ссылки.
-                subscription.save(update_fields=["unsubscribe_token"])
-                return subscription
-
-            # Реактивируем подписку
-            subscription.is_active = True
-            subscription.unsubscribed_at = None
-            subscription.ip_address = ip_address
-            subscription.user_agent = user_agent
-            subscription.save(
-                update_fields=[
-                    "unsubscribe_token",
-                    "is_active",
-                    "unsubscribed_at",
-                    "ip_address",
-                    "user_agent",
-                ]
-            )
-            return subscription
+        # Upsert вынесен в сервис (общий с регистрацией): активную подписку
+        # сервис возвращает как есть, запись согласия делает view.
+        return activate_newsletter_subscription(email, ip_address, user_agent)
 
 
 class SubscribeResponseSerializer(serializers.Serializer):

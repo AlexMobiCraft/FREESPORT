@@ -1178,3 +1178,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-marketing-consent-page-link.md`
   summary: Текст страницы `/marketing-consent` (CMS `Page`) не версионируется — журнал `UserConsent` фиксирует версию текста чекбокса, но не редакцию полного согласия по ссылке.
   evidence: Правка страницы в админке не создаёт ревизию реестра; та же схема у политики ПДн (`privacy-policy`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-profile-newsletter-unsubscribe.md`
+  summary: Нет double opt-in — подписку (форма и регистрация с галочкой) можно включить на чужой адрес, в том числе ранее отписавшийся.
+  evidence: `activate_newsletter_subscription` реактивирует неактивную запись без подтверждения из письма; так же работал `SubscribeSerializer.create` до выноса в сервис.
+- source_spec: `_bmad-output/implementation-artifacts/spec-profile-newsletter-unsubscribe.md`
+  summary: Повторная подписка на чужой адрес ротирует `unsubscribe_token` и ломает ссылки отписки в уже отправленных письмах (включая List-Unsubscribe).
+  evidence: `rotate_unsubscribe_token()` вызывается при каждом вызове сервиса, в том числе для активной подписки; поведение унаследовано от формы подписки.
