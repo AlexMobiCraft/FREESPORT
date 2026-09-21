@@ -59,7 +59,7 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 
 - ❌ **НЕ создавай** синтетические XML для тестов импорта 1С.
 - ✅ **Всегда используй** файлы из `data/import_1c/`:
-  - `contragents/` — контрагенты (7 файлов, ООО/ИП/физлица, edge cases)
+  - `contragents/` — контрагенты (ООО/ИП/физлица, edge cases)
   - `goods/` — товары + `import_files/` изображения
   - `offers/`, `prices/`, `rests/`, `units/`, `storages/`, `priceLists/`
 
