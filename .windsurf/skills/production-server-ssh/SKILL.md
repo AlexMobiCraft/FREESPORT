@@ -71,11 +71,11 @@ cd /home/freesport/freesport/
 git fetch origin main
 git reset --hard origin/main
 
-# 3. Применить миграции (если были изменения в моделях)
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec backend python manage.py migrate
-
-# 4. Пересобрать нужные контейнеры
+# 3. Пересобрать нужные контейнеры
 docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build backend frontend
+
+# 4. Применить миграции — после пересборки, иначе migrate идёт в старом образе
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate
 
 # 5. Удалить старые <none>-образы, оставшиеся после пересборки
 docker image prune -f
@@ -125,7 +125,6 @@ ssh root@5.35.124.149 'rm /tmp/check_api.py'
 
 - **Рабочая директория:** `docker compose exec` ищет `.env.prod` относительно **текущей директории**. Всегда делайте `cd /home/freesport/freesport &&` перед командой.
 - **Абсолютный путь:** используйте `--env-file /home/freesport/freesport/.env.prod` для надёжности, даже если `cd` выполнен.
-- **Разделитель команд в PowerShell:** используйте `;` вместо `&&` для разделения команд PowerShell, а `&&` — уже внутри строки, передаваемой SSH.
 
 ### Логи без обрезки
 
@@ -144,6 +143,3 @@ docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-c
 # Создание суперпользователя
 docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec backend python manage.py createsuperuser
 ```
-
-> [!WARNING]
-> Будь крайне осторожен при выполнении команд на продакшен-сервере. Всегда проверяй флаги и пути перед выполнением команд удаления или сброса данных.

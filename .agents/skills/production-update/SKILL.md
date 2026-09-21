@@ -16,17 +16,18 @@ description: Используй этот навык для автоматиза�
 - **Compose File:** `docker/docker-compose.prod.yml`
 - **Env File:** `.env.prod`
 
-## Общий алгоритм (Локальная подготовка)
+## Основной путь: релиз через deploy.yml
 
-Перед обновлением сервера необходимо убедиться, что код запушен в правильный репозиторий:
+Релиз — это fast-forward `develop` → `main`, и выполняется он только по команде владельца:
+`git push origin origin/develop:refs/heads/main`. Push запускает `deploy.yml` (сборка образов →
+approval на environment `production` → SSH-деплой) и `sync-to-public.yml`, который обновляет
+публичный `FREESPORT-B2B` без конфиденциальных файлов. Не делай merge в локальный `main`: это ломает fast-forward.
+Откат: `gh workflow run deploy.yml -f image_tag=<sha прошлого релиза>`.
 
-1.  Проверь текущую ветку и наличие изменений (`git status`).
-2.  Запуш изменения в `develop`: `git push origin develop`.
-3.  Перелей в `main` (локально или через PR): `git checkout main; git merge develop --no-edit; git push origin main`.
-4.  Публичный репозиторий `FREESPORT-B2B` обновится **автоматически** через GitHub Actions workflow `sync-to-public.yml` при пуше в `origin/main`. Этот workflow удаляет конфиденциальные файлы и пересоздаёт чистую историю.
+Ручные сценарии ниже нужны, когда `deploy.yml` недоступен, и для точечных операций на сервере.
 
 > [!DANGER]
-> **НИКОГДА не выполняй `git push production main` вручную!** Это сливает полную git-историю и конфиденциальные файлы (.env, .mcp.json, AGENTS.md, CLAUDE.md, \_bmad/, .agents/, .windsurf/, scripts/ и др.) в публичный репозиторий. Публичный репозиторий обновляется ТОЛЬКО через workflow `sync-to-public.yml`.
+> Не пушь в remote `production` (FREESPORT-B2B) вручную: `git push production main` выкладывает полную историю и конфиденциальные файлы (.env, .mcp.json, CLAUDE.md, \_bmad/, scripts/ и др.) в публичный репозиторий. Публичный репозиторий обновляет только `sync-to-public.yml`. Так уже случилось 2026-04-12, понадобился emergency sync.
 
 ## Общий алгоритм (Обновление на сервере)
 
@@ -92,25 +93,19 @@ docker image prune -f
 
 ```bash
 cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml up -d --build frontend
+cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend python manage.py migrate
 docker image prune -f
 ```
 
-> [!DANGER]
-> **Даже при «фронтенд-only» деплое ВСЕГДА проверяй и применяй миграции** (см. правило в разделе «Важные замечания»). Feature-ветки часто содержат backend-миграции, и пропуск `migrate` ломает API для нового frontend-кода.
+`migrate` здесь нужен: feature-ветки часто несут backend-миграции (см. «Важные замечания»).
 
 ## Важные замечания
 
-> [!DANGER]
-> **НИКОГДА не пушь напрямую в `production` remote (FREESPORT-B2B)!** Публичный репозиторий обновляется только через workflow `sync-to-public.yml` (срабатывает автоматически при пуше в `origin/main`). Прямой пуш сливает конфиденциальные данные и полную историю коммитов в публичный доступ. Инцидент 2026-04-12: ручной `git push production main --force` утек данные, потребовался emergency sync.
-
-> [!DANGER]
-> **PowerShell vs Bash:** На Windows используй `;` для разделения команд PowerShell вместо `&&`. Пример: `git add .; git commit -m "..."; git push`. Внутри SSH-строки (одинарные кавычки) используйте `&&` для bash.
-
 > [!WARNING]
-> На сервере часто появляются коммиты от `Freesport Sync Bot`. Поэтому **ВСЕГДА** используй `git reset --hard origin/main` вместо `git pull`, чтобы избежать ошибок слияния ("divergent branches").
+> На сервере появляются коммиты от `Freesport Sync Bot`, поэтому код обновляй через `git reset --hard origin/main`, а не `git pull`: иначе получишь "divergent branches".
 
 > [!DANGER]
-> **При ЛЮБОМ деплое ВСЕГДА проверяй `showmigrations` и запускай `migrate`, даже если кажется, что backend не менялся.** Feature-ветки часто содержат миграции в backend-коде, которые легко пропустить при «фронтенд-only» деплое. Неприменённая миграция приводит к 500-м ошибкам API (`column ... does not exist`) и недоступности данных для frontend. Инцидент 2026-08-23: деплой feature-ветки с миграцией `banners.0007_banner_ad_disclosure` без `migrate` сломал `/api/v1/banners/`.
+> **При любом деплое проверяй `showmigrations` и запускай `migrate`, даже если кажется, что backend не менялся.** Feature-ветки часто содержат миграции в backend-коде, которые легко пропустить при «фронтенд-only» деплое. Неприменённая миграция приводит к 500-м ошибкам API (`column ... does not exist`) и недоступности данных для frontend. Инцидент 2026-08-23: деплой feature-ветки с миграцией `banners.0007_banner_ad_disclosure` без `migrate` сломал `/api/v1/banners/`.
 >
 > **Обязательный шаг после `git reset --hard origin/main` и перед/после пересборки контейнеров:**
 > ```bash
@@ -128,51 +123,7 @@ docker image prune -f
 
 ## Экранирование и сложные команды через SSH
 
-При выполнении команд из PowerShell через SSH строка проходит 3 уровня интерпретации. Основное правило:
-
-- **Одинарные кавычки `'...'`** на уровне PowerShell — bash получает строку как есть.
-- **Двойные кавычки `"..."`** на уровне PowerShell — PowerShell интерпретирует переменные.
-
-### Правильный шаблон
-
-```powershell
-ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml ps'
-```
-
-### Команды с переменными bash
-
-Экранируйте `$` через `\$` внутри двойных кавычек:
-
-```powershell
-ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend sh -c "echo \$HOME"'
-```
-
-### Сложные скрипты: here-document (рекомендуется)
-
-Для Python-скриптов, curl с переменными или многострочных команд:
-
-```powershell
-ssh root@5.35.124.149 'cat > /tmp/deploy_check.py << "EOF"
-import urllib.request
-r = urllib.request.urlopen("http://localhost:8000/api/v1/health/")
-print(r.status, len(r.read()))
-EOF
-cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend python /tmp/deploy_check.py'
-```
-
-Удалите временный файл после выполнения:
-
-```powershell
-ssh root@5.35.124.149 'rm /tmp/deploy_check.py'
-```
-
-### Логи без обрезки
-
-Docker обрезает длинные строки. Для полных логов:
-
-```powershell
-ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml logs --tail=50 --no-trunc backend 2>&1 | cat'
-```
+Кавычки на трёх уровнях (PowerShell → SSH → bash), here-document для скриптов и логи без обрезки описаны в навыке `production-server-ssh`, раздел «Экранирование кавычек и сложные команды».
 
 ## Команды для проверки (Post-deployment)
 
