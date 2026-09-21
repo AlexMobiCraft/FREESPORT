@@ -437,6 +437,31 @@ def test_registration_rejects_previous_marketing_text_version_before_d5():
     assert UserConsent.objects.count() == 0
 
 
+def test_registration_rejects_marketing_text_version_without_consent_link():
+    """Формулировка рассылки без ссылки на полный текст согласия отклоняется.
+
+    Литерал уместен: версия `2026-09-17-registration` неизменяема и остаётся в
+    `known_versions` ради записей журнала прода. Вкладка, открытая до появления
+    ссылки на «Согласие на получение рекламы», показывала текст без неё —
+    согласие на такой текст записываться не должно.
+    """
+    client = APIClient()
+    payload = trainer_payload(
+        marketing_consent=True,
+        marketing_consent_text_version="2026-09-17-registration-4e2471b54124acaf12cfed1b8196b684",
+    )
+
+    response = post_register(client, payload)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": CONSENT_TEXT_OUTDATED_CODE,
+        "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+    }
+    assert User.objects.filter(email=payload["email"]).count() == 0
+    assert UserConsent.objects.count() == 0
+
+
 def test_registration_rejects_pdp_consent_false():
     client = APIClient()
 

@@ -532,20 +532,39 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           )}
         </div>
 
-        <div className="flex items-start gap-3">
-          {/* Маркетинговое согласие опционально: inline error-state намеренно не назначается. */}
-          <Checkbox
-            id="b2b-register-marketing-consent"
-            {...register('marketing_consent')}
-            disabled={isSubmitting}
-          />
-          <label
-            htmlFor="b2b-register-marketing-consent"
-            className="text-body-s text-text-primary cursor-pointer select-none"
-          >
-            Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
-            электронной почте
-          </label>
+        <div className="space-y-1">
+          <div className="flex items-start gap-3">
+            {/* Маркетинговое согласие опционально: inline error-state намеренно не назначается. */}
+            <Checkbox
+              id="b2b-register-marketing-consent"
+              {...register('marketing_consent')}
+              disabled={isSubmitting}
+              aria-labelledby="b2b-register-marketing-consent-label-prefix b2b-register-marketing-consent-link"
+            />
+            <span className="text-body-s text-text-primary select-none">
+              <label
+                id="b2b-register-marketing-consent-label-prefix"
+                htmlFor="b2b-register-marketing-consent"
+                className="cursor-pointer"
+              >
+                Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
+                электронной почте на условиях
+              </label>{' '}
+              <Link
+                id="b2b-register-marketing-consent-link"
+                href="/marketing-consent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:text-primary-hover"
+              >
+                «Согласия на получение рекламы»
+              </Link>
+            </span>
+          </div>
+          {/* Подсказка об отписке — не часть текста согласия и в реестр не входит. */}
+          <p className="pl-8 text-body-xs text-text-secondary">
+            Отписаться можно в любой момент по ссылке в письме.
+          </p>
         </div>
       </div>
 

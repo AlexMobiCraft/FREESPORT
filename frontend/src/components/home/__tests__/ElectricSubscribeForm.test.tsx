@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'vitest-axe';
 import { ElectricSubscribeForm } from '../ElectricSubscribeForm';
@@ -32,7 +32,8 @@ const PDP_CONSENT_NAME =
   '«Политикой обработки персональных данных»';
 // Стори 41.20 (решение D5): формулировка читается как согласие, а не как констатация факта.
 const MARKETING_CONSENT_NAME =
-  'Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по электронной почте';
+  'Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по электронной почте ' +
+  'на условиях «Согласия на получение рекламы»';
 const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки персональных данных»';
 const PDP_CONSENT_REQUIRED = 'Необходимо согласие на обработку персональных данных.';
 const MARKETING_CONSENT_REQUIRED = 'Необходимо согласие на получение рассылок по электронной почте.';
@@ -75,6 +76,23 @@ describe('ElectricSubscribeForm', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link.closest('label')).toBeNull();
+  });
+
+  it('renders marketing consent link to the full consent text', () => {
+    render(<ElectricSubscribeForm />);
+
+    const marketingCheckbox = getMarketingCheckbox();
+    const link = screen.getByRole('link', { name: '«Согласия на получение рекламы»' });
+    expect(link).toHaveAttribute('href', '/marketing-consent');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link.closest('label')).toBeNull();
+
+    // Ссылка вынесена из <label>: переход к тексту согласия не ставит галочку.
+    link.addEventListener('click', event => event.preventDefault(), { once: true });
+    fireEvent.click(link);
+    expect(marketingCheckbox).not.toBeChecked();
+    expect(screen.getByText('Отписаться можно в любой момент по ссылке в письме.')).toBeInTheDocument();
   });
 
   it('uses the approved consent wording verbatim in two unchecked checkboxes', () => {
