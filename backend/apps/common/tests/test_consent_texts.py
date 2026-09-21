@@ -129,7 +129,7 @@ def test_newsletter_marketing_version_differs_from_registration_marketing_versio
 
     Со стори 41.20 (решение D5) обе формулировки совпадают дословно, значит
     совпадают и их хеши. Различает версии только метка ревизии
-    (`2026-09-17-newsletter` против `2026-09-17-registration`): совпади версии
+    (`2026-09-21-newsletter` против `2026-09-21-registration`): совпади версии
     целиком, загрузчик отверг бы реестр как дубль ревизии, и отказали бы оба
     эндпоинта согласия — и подписка, и регистрация.
     """
@@ -159,12 +159,22 @@ def test_newsletter_marketing_version_differs_from_registration_marketing_versio
             "2026-09-12-a49604a66adaadfdc221bdc141d8d97d",
             "Я согласен(на) получать рекламные и информационные рассылки от OPTISPORT по электронной почте",
         ),
+        (
+            "2026-09-17-newsletter-4e2471b54124acaf12cfed1b8196b684",
+            "Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по электронной почте",
+        ),
+        (
+            "2026-09-17-registration-4e2471b54124acaf12cfed1b8196b684",
+            "Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по электронной почте",
+        ),
     ],
     ids=[
         "newsletter-combined-41-3",
         "registration-marketing-41-9",
         "newsletter-marketing-41-20-previous",
         "registration-marketing-41-20-previous",
+        "newsletter-marketing-without-consent-link",
+        "registration-marketing-without-consent-link",
     ],
 )
 def test_historical_versions_still_resolve_to_their_text(version, text):

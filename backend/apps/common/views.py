@@ -336,7 +336,7 @@ def realtime_metrics(_request: Request) -> Response:
                 "pdp_consent": True,
                 "marketing_consent": True,
                 "pdp_consent_text_version": "2026-09-12-de992f50b0456a90e96a66984010dd74",
-                "marketing_consent_text_version": "2026-09-17-newsletter-4e2471b54124acaf12cfed1b8196b684",
+                "marketing_consent_text_version": "2026-09-21-newsletter-b96d601aed0fd4809c3b0fa3171c1b45",
             },
             request_only=True,
         ),

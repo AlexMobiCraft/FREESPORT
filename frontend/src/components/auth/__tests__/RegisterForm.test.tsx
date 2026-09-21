@@ -21,7 +21,8 @@ const PDP_CONSENT_POLICY_LINK_NAME = '«Политикой обработки п
 // Стори 41.20 (решение D5): формулировка рассылки читается как согласие, а не как
 // констатация факта. Поиск идёт по точному имени, чтобы страж ловил расхождение в пробел.
 const MARKETING_CONSENT_NAME =
-  'Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по электронной почте';
+  'Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по электронной почте ' +
+  'на условиях «Согласия на получение рекламы»';
 
 // Mock next/navigation
 const mockPush = vi.fn();
@@ -109,6 +110,23 @@ describe('RegisterForm', () => {
       openSpy.mockRestore();
     });
 
+    test('renders marketing consent link to the full consent text', () => {
+      render(<RegisterForm />);
+
+      const marketingCheckbox = getMarketingConsent();
+      const link = screen.getByRole('link', { name: '«Согласия на получение рекламы»' });
+      expect(link).toHaveAttribute('href', '/marketing-consent');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(link.closest('label')).toBeNull();
+
+      // Ссылка вынесена из <label>: переход к тексту согласия не ставит галочку.
+      link.addEventListener('click', event => event.preventDefault(), { once: true });
+      fireEvent.click(link);
+      expect(marketingCheckbox).not.toBeChecked();
+      expect(screen.getByText('Отписаться можно в любой момент по ссылке в письме.')).toBeInTheDocument();
+    });
+
     test('should render marketing consent unchecked by default', () => {
       render(<RegisterForm />);
 
@@ -121,7 +139,7 @@ describe('RegisterForm', () => {
       // FR-41-26: текст рассылки называет канал — электронную почту.
       // Стори 41.20 (решение D5): начало формулировки читается как согласие.
       const marketingConsent = getMarketingConsent();
-      expect(marketingConsent).toHaveAccessibleName(/по электронной почте$/);
+      expect(marketingConsent).toHaveAccessibleName(/по электронной почте на условиях/);
       expect(marketingConsent).toHaveAccessibleName(/^Я даю согласие на получение/);
     });
 

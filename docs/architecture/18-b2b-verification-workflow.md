@@ -139,7 +139,7 @@ if user.is_b2b_user:
      "pdp_consent": true,
      "pdp_consent_text_version": "2026-09-09-de992f50b0456a90e96a66984010dd74",
      "marketing_consent": true,
-     "marketing_consent_text_version": "2026-09-17-registration-4e2471b54124acaf12cfed1b8196b684"
+     "marketing_consent_text_version": "2026-09-21-registration-b96d601aed0fd4809c3b0fa3171c1b45"
    }
    ```
 

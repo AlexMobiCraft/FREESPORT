@@ -1174,3 +1174,7 @@
 ## Deferred from: code review of 41-21-bundle-example-retail-wording-single-404-robots, third review (2026-09-18)
 
 - Пересмотреть cleanup-политику production runbook из коммита `545b40b0`: перед сборкой проверять свободное место; не применять безусловный `docker image prune -f` ко всему хосту без политики сохранения rollback-образов и учёта других проектов; ограничить и предварительно диагностировать `docker builder prune -f` и `journalctl --vacuum-size=500M`; после очистки проверять освобождённое место. Это отдельная operational работа в agent-context, не патч Story 41.21. [`.agents/skills/production-update/SKILL.md:65,127`]
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-marketing-consent-page-link.md`
+  summary: Текст страницы `/marketing-consent` (CMS `Page`) не версионируется — журнал `UserConsent` фиксирует версию текста чекбокса, но не редакцию полного согласия по ссылке.
+  evidence: Правка страницы в админке не создаёт ревизию реестра; та же схема у политики ПДн (`privacy-policy`).

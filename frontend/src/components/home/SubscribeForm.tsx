@@ -103,6 +103,7 @@ export const SubscribeForm: React.FC = () => {
   const pdpConsentErrorId = `${consentBaseId}-subscribe-pdp-consent-error`;
   const marketingConsentId = `${consentBaseId}-subscribe-marketing-consent`;
   const marketingConsentLabelId = `${consentBaseId}-subscribe-marketing-consent-label`;
+  const marketingConsentLinkId = `${consentBaseId}-subscribe-marketing-consent-link`;
   const marketingConsentErrorId = `${consentBaseId}-subscribe-marketing-consent-error`;
 
   const {
@@ -282,18 +283,29 @@ export const SubscribeForm: React.FC = () => {
               // Имя — через `aria-labelledby`, а не «все <label for>»: первый такой
               // label — пустой квадрат `Checkbox`, и при `aria-describedby` axe
               // (label-title-only) счёл бы чекбокс подписанным только описанием.
-              aria-labelledby={marketingConsentLabelId}
+              aria-labelledby={`${marketingConsentLabelId} ${marketingConsentLinkId}`}
               aria-describedby={hasMarketingConsentError ? marketingConsentErrorId : undefined}
               className={hasMarketingConsentError ? consentErrorClassName : undefined}
             />
-            <label
-              id={marketingConsentLabelId}
-              htmlFor={marketingConsentId}
-              className="text-body-s text-text-primary cursor-pointer select-none"
-            >
-              Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
-              электронной почте
-            </label>
+            <span className="text-body-s text-text-primary select-none">
+              <label
+                id={marketingConsentLabelId}
+                htmlFor={marketingConsentId}
+                className="cursor-pointer"
+              >
+                Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
+                электронной почте на условиях
+              </label>{' '}
+              <Link
+                id={marketingConsentLinkId}
+                href="/marketing-consent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:text-primary-hover"
+              >
+                «Согласия на получение рекламы»
+              </Link>
+            </span>
           </div>
           {errors.marketing_consent?.message && (
             <p
@@ -304,6 +316,10 @@ export const SubscribeForm: React.FC = () => {
               {errors.marketing_consent.message}
             </p>
           )}
+          {/* Подсказка об отписке — не часть текста согласия и в реестр не входит. */}
+          <p className="pl-8 text-body-xs text-text-secondary">
+            Отписаться можно в любой момент по ссылке в письме.
+          </p>
         </div>
       </div>
       <Button

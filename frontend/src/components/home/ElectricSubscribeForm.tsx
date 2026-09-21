@@ -187,6 +187,7 @@ export const ElectricSubscribeForm: React.FC = () => {
   const pdpConsentErrorId = `${formBaseId}-electric-subscribe-pdp-consent-error`;
   const marketingConsentId = `${formBaseId}-electric-subscribe-marketing-consent`;
   const marketingConsentLabelId = `${formBaseId}-electric-subscribe-marketing-consent-label`;
+  const marketingConsentLinkId = `${formBaseId}-electric-subscribe-marketing-consent-link`;
   const marketingConsentErrorId = `${formBaseId}-electric-subscribe-marketing-consent-error`;
 
   const {
@@ -369,7 +370,7 @@ export const ElectricSubscribeForm: React.FC = () => {
         </ElectricConsentCheckbox>
         <ElectricConsentCheckbox
           id={marketingConsentId}
-          labelledBy={marketingConsentLabelId}
+          labelledBy={`${marketingConsentLabelId} ${marketingConsentLinkId}`}
           errorId={marketingConsentErrorId}
           error={errors.marketing_consent?.message}
           checked={marketingConsent}
@@ -382,8 +383,21 @@ export const ElectricSubscribeForm: React.FC = () => {
             className="cursor-pointer"
           >
             Я даю согласие на получение информационных и рекламных рассылок от OPTISPORT по
-            электронной почте
-          </label>
+            электронной почте на условиях
+          </label>{' '}
+          <Link
+            id={marketingConsentLinkId}
+            href="/marketing-consent"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--color-primary)] underline hover:text-[var(--foreground)]"
+          >
+            «Согласия на получение рекламы»
+          </Link>
+          {/* Подсказка об отписке — не часть текста согласия и в реестр не входит. */}
+          <span className="mt-1 block normal-case">
+            Отписаться можно в любой момент по ссылке в письме.
+          </span>
         </ElectricConsentCheckbox>
       </div>
 

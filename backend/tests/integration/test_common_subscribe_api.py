@@ -537,6 +537,28 @@ class TestSubscribeEndpoint:
         assert not Newsletter.objects.filter(email=data["email"]).exists()
         assert UserConsent.objects.count() == 0
 
+    def test_subscribe_rejects_marketing_text_version_without_consent_link(self, api_client):
+        """Формулировка рассылки без ссылки на полный текст согласия отклоняется.
+
+        Литерал уместен: версия `2026-09-17-newsletter` неизменяема и остаётся в
+        `known_versions` ради записей журнала прода, но действующей быть перестала.
+        """
+        url = reverse("common:subscribe")
+        data = subscribe_payload(
+            "no-consent-link-version@example.com",
+            marketing_consent_text_version="2026-09-17-newsletter-4e2471b54124acaf12cfed1b8196b684",
+        )
+
+        response = api_client.post(url, data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": CONSENT_TEXT_OUTDATED_CODE,
+            "details": {"marketing_consent_text_version": [CONSENT_TEXT_OUTDATED]},
+        }
+        assert not Newsletter.objects.filter(email=data["email"]).exists()
+        assert UserConsent.objects.count() == 0
+
     def test_subscribe_outdated_version_response_keeps_other_field_errors(self, api_client):
         """Попутные ошибки запроса не пропадают из-за переезда полей в `details`."""
         url = reverse("common:subscribe")
