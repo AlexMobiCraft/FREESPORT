@@ -40,7 +40,12 @@ from apps.common.serializers import (
     has_error_code,
 )
 from apps.common.services import CustomerSyncMonitor
-from apps.common.services.newsletter_unsubscribe import InvalidUnsubscribeToken, unsubscribe_by_token
+from apps.common.services.newsletter_unsubscribe import (
+    InvalidUnsubscribeToken,
+    is_user_subscribed,
+    unsubscribe_by_token,
+    unsubscribe_user,
+)
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
 from apps.common.utils.consent_audit import (
     get_consent_ip_address,
@@ -745,6 +750,62 @@ def newsletter_unsubscribe_one_click(request: Request, token: str) -> Response:
         return _unsubscribe_processing_failed_response()
 
     return Response({"status": "processed"}, status=status.HTTP_200_OK)
+
+
+NewsletterStatusResponse = inline_serializer(
+    name="NewsletterStatusResponse",
+    fields={"subscribed": serializers.BooleanField()},
+)
+
+
+@extend_schema(
+    summary="Статус подписки текущего пользователя на рассылку",
+    description="Подписка ищется по email учётной записи или по привязке к пользователю.",
+    responses={
+        200: NewsletterStatusResponse,
+        401: OpenApiResponse(description="Требуется аутентификация"),
+        503: OpenApiResponse(description="Ошибка чтения статуса подписки"),
+    },
+    tags=["Newsletter"],
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def newsletter_me(request: Request) -> Response:
+    """Отдаёт личному кабинету, есть ли у пользователя активная подписка."""
+    try:
+        subscribed = is_user_subscribed(request.user)
+    except DatabaseError:
+        logger.exception("Failed to read profile newsletter status")
+        return _unsubscribe_processing_failed_response()
+    return Response({"subscribed": subscribed}, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    summary="Отписка текущего пользователя от рассылки",
+    description=(
+        "Отзывает согласие на рассылку из личного кабинета. Идемпотентна: "
+        "при уже отписанном адресе или отсутствии подписки тоже возвращает 200."
+    ),
+    request=None,
+    responses={
+        200: NewsletterStatusResponse,
+        401: OpenApiResponse(description="Требуется аутентификация"),
+        503: OpenApiResponse(description="Ошибка обработки отписки"),
+    },
+    tags=["Newsletter"],
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([UnsubscribeRateThrottle])
+def newsletter_me_unsubscribe(request: Request) -> Response:
+    """Отписывает подписки пользователя; email из тела запроса не принимается."""
+    try:
+        unsubscribe_user(request.user)
+    except DatabaseError:
+        logger.exception("Failed to process profile unsubscribe request")
+        return _unsubscribe_processing_failed_response()
+
+    return Response({"subscribed": False}, status=status.HTTP_200_OK)
 
 
 @extend_schema(

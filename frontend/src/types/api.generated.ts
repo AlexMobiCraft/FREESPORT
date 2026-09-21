@@ -145,6 +145,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/newsletter/me/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Статус подписки текущего пользователя на рассылку
+     * @description Подписка ищется по email учётной записи или по привязке к пользователю.
+     */
+    get: operations['newsletter_me_retrieve'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/newsletter/me/unsubscribe/': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Отписка текущего пользователя от рассылки
+     * @description Отзывает согласие на рассылку из личного кабинета. Идемпотентна: при уже отписанном адресе или отсутствии подписки тоже возвращает 200.
+     */
+    post: operations['newsletter_me_unsubscribe_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/newsletter/unsubscribe/': {
     parameters: {
       query?: never;
@@ -1736,6 +1776,9 @@ export interface components {
       /** @description Refresh token для инвалидации */
       refresh: string;
     };
+    NewsletterStatusResponse: {
+      subscribed: boolean;
+    };
     OneClickInvalidUnsubscribeTokenResponse: {
       error: string;
     };
@@ -3176,6 +3219,72 @@ export interface operations {
         content: {
           'application/json': components['schemas']['UnsubscribeProcessingErrorResponse'];
         };
+      };
+    };
+  };
+  newsletter_me_retrieve: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NewsletterStatusResponse'];
+        };
+      };
+      /** @description Требуется аутентификация */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Ошибка чтения статуса подписки */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  newsletter_me_unsubscribe_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NewsletterStatusResponse'];
+        };
+      };
+      /** @description Требуется аутентификация */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Ошибка обработки отписки */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
