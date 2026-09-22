@@ -50,6 +50,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
       { label: 'Личный кабинет', href: '/profile' },
       { label: 'Реквизиты', href: '/requisites' },
       { label: 'Политика конфиденциальности', href: '/privacy-policy' },
+      { label: 'Согласие на получение рекламы', href: '/marketing-consent' },
       { label: 'Пользовательское соглашение', href: '/oferta' },
     ],
   },

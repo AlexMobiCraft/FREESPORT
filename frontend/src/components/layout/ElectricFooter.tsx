@@ -142,7 +142,7 @@ const ElectricFooter: React.FC = () => {
             </p>
           </div>
           {/*
-            Перенос: с тремя элементами ряд на 320 px ужимал каждую ссылку до
+            Перенос: уже с тремя элементами ряд на 320 px ужимал каждую ссылку до
             ширины столбца и рвал подписи посреди слова (замер: высота ссылки
             30 px против 15 px, то есть две строки внутри одной подписи).
             flex-wrap раскладывает элементы по строкам целиком. Горизонтального
@@ -155,6 +155,12 @@ const ElectricFooter: React.FC = () => {
               className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Политика конфиденциальности
+            </Link>
+            <Link
+              href="/marketing-consent"
+              className="font-inter text-[10px] md:text-[12px] text-[var(--color-text-muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              Согласие на получение рекламы
             </Link>
             <Link
               href="/oferta"

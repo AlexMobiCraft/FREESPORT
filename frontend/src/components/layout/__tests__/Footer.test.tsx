@@ -130,6 +130,25 @@ describe('Footer', () => {
       expect(agreementLink).toHaveAttribute('href', '/oferta');
     });
 
+    it('renders marketing consent link after privacy policy in company column', () => {
+      render(<Footer />);
+
+      const companyColumn = screen.getByRole('heading', { level: 3, name: 'Компания' })
+        .parentElement as HTMLElement;
+      const labels = within(companyColumn)
+        .getAllByRole('link')
+        .map(link => link.textContent);
+      const consentLink = within(companyColumn).getByRole('link', {
+        name: 'Согласие на получение рекламы',
+      });
+
+      expect(consentLink).toHaveAttribute('href', '/marketing-consent');
+      const policyIndex = labels.indexOf('Политика конфиденциальности');
+
+      expect(policyIndex).toBeGreaterThanOrEqual(0);
+      expect(labels[policyIndex + 1]).toBe('Согласие на получение рекламы');
+    });
+
     it('does not render retail link in clients column', () => {
       render(<Footer />);
 
