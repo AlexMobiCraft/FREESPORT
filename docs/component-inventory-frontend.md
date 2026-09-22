@@ -7,8 +7,8 @@ Reusable, atomic components.
 - **Inputs**: `Input`, `Checkbox`, `Radio`, `Select`, `SearchField`.
 - **Navigation**: `Breadcrumb`, `Pagination`, `Tabs`, `Sidebar`.
 - **Feedback**: `Toast`, `Spinner`, `Modal`, `Skeleton`, `Badge`.
-- **Layout**: `Card`, `Accordion`, `Drawer`, `Table`.
-- **Theme Variants**: Many components have `Electric*` counterparts (e.g., `ElectricButton`, `ElectricModal`) for the alternate theme.
+- **Layout**: `Card`, `Accordion`, `Drawer`.
+- **Theme Variants**: Many components have `Electric*` counterparts (e.g., `ElectricButton`, `ElectricPagination`) for the alternate theme.
 
 ## Business Components (`src/components/business`)
 
