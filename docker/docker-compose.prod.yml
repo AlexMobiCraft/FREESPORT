@@ -77,6 +77,12 @@ services:
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - SITE_URL=${SITE_URL}
       - EMAIL_USE_SSL=${EMAIL_USE_SSL:-False}
+      # Сброс ISR-кэша Next.js после правки CMS-страницы в админке
+      # (apps/pages/signals.py). Без этих двух переменных сигнал пропускает
+      # сброс, и сайт показывает старый текст до часа. Секрет обязан совпадать
+      # с REVALIDATE_SECRET сервиса frontend — это одна переменная из .env.prod.
+      - FRONTEND_INTERNAL_URL=http://frontend:3000
+      - REVALIDATE_SECRET=${REVALIDATE_SECRET:-}
     volumes:
       - ../backend/logs:/app/logs
       - ../data/prod/static:/app/staticfiles
@@ -146,7 +152,8 @@ services:
       - NEXT_PUBLIC_MEDIA_URL_INTERNAL=http://nginx
       - INTERNAL_API_URL=http://backend:8000
       - ACTIVE_THEME=${ACTIVE_THEME:-blue}
-      # Секрет для POST /api/revalidate — on-demand сброс ISR-кэша после деплоя
+      # Секрет для POST /api/revalidate — сброс ISR-кэша по сигналу backend
+      # после правки CMS-страницы. Пустое значение закрывает маршрут (401).
       - REVALIDATE_SECRET=${REVALIDATE_SECRET:-}
     healthcheck:
       test:
