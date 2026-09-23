@@ -2,9 +2,12 @@ import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
+  const expected = process.env.REVALIDATE_SECRET;
   const secret = request.headers.get('x-revalidate-secret');
 
-  if (secret !== process.env.REVALIDATE_SECRET) {
+  // Незаданный секрет закрывает маршрут: иначе пустой заголовок совпал бы
+  // с пустой переменной окружения и сброс кэша стал бы доступен без секрета.
+  if (!expected || secret !== expected) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

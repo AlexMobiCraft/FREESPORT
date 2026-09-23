@@ -3,11 +3,15 @@ Unit тесты для Pages app (Story 2.10)
 Включает security тесты для HTML sanitization и XSS protection
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
+import requests
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from .models import Page
+from .signals import _revalidate_nextjs
 
 
 @pytest.mark.unit
@@ -188,3 +192,62 @@ class PageModelTest(TestCase):
         """Тест строкового представления модели"""
         page = Page(title="Тестовая страница")
         self.assertEqual(str(page), "Тестовая страница")
+
+
+@pytest.mark.unit
+class RevalidateNextjsTest(SimpleTestCase):
+    """Сброс ISR-кэша Next.js: каждый исход виден в логе.
+
+    На проде обе настройки отсутствовали, и сброс не срабатывал ни разу,
+    не оставив ни строки в логах. Эти тесты закрепляют, что тишины больше нет.
+    """
+
+    LOGGER = "apps.pages.signals"
+
+    @override_settings(FRONTEND_INTERNAL_URL="", REVALIDATE_SECRET="s3cret")
+    def test_missing_frontend_url_is_logged(self):
+        with patch("apps.pages.signals.requests.post") as post, self.assertLogs(self.LOGGER, "WARNING") as logs:
+            _revalidate_nextjs("/oferta")
+
+        post.assert_not_called()
+        self.assertIn("skipped for /oferta", logs.output[0])
+
+    @override_settings(FRONTEND_INTERNAL_URL="http://frontend:3000", REVALIDATE_SECRET="")
+    def test_missing_secret_is_logged(self):
+        with patch("apps.pages.signals.requests.post") as post, self.assertLogs(self.LOGGER, "WARNING") as logs:
+            _revalidate_nextjs("/oferta")
+
+        post.assert_not_called()
+        self.assertIn("skipped for /oferta", logs.output[0])
+
+    @override_settings(FRONTEND_INTERNAL_URL="http://frontend:3000", REVALIDATE_SECRET="s3cret")
+    def test_success_posts_path_with_secret(self):
+        with patch("apps.pages.signals.requests.post", return_value=Mock(ok=True, status_code=200)) as post:
+            with self.assertLogs(self.LOGGER, "INFO") as logs:
+                _revalidate_nextjs("/oferta")
+
+        post.assert_called_once_with(
+            "http://frontend:3000/api/revalidate",
+            json={"path": "/oferta"},
+            headers={"x-revalidate-secret": "s3cret"},
+            timeout=10,
+        )
+        self.assertIn("triggered for /oferta", logs.output[0])
+
+    @override_settings(FRONTEND_INTERNAL_URL="http://frontend:3000", REVALIDATE_SECRET="s3cret")
+    def test_rejected_response_is_logged_as_warning(self):
+        with patch("apps.pages.signals.requests.post", return_value=Mock(ok=False, status_code=401)):
+            with self.assertLogs(self.LOGGER, "WARNING") as logs:
+                _revalidate_nextjs("/oferta")
+
+        self.assertIn("rejected for /oferta: HTTP 401", logs.output[0])
+        self.assertNotIn("triggered", "".join(logs.output))
+
+    @override_settings(FRONTEND_INTERNAL_URL="http://frontend:3000", REVALIDATE_SECRET="s3cret")
+    def test_network_error_is_logged_as_warning(self):
+        error = requests.ConnectionError("refused")
+        with patch("apps.pages.signals.requests.post", side_effect=error):
+            with self.assertLogs(self.LOGGER, "WARNING") as logs:
+                _revalidate_nextjs("/oferta")
+
+        self.assertIn("failed for /oferta: refused", logs.output[0])
