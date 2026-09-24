@@ -5,12 +5,14 @@ Serializers для API управления пользователями
 import logging
 import re
 from decimal import Decimal
+from functools import partial
 from typing import Any, cast
 
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core import signing
+from django.db import IntegrityError, transaction
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from rest_framework import serializers
 
@@ -33,6 +35,7 @@ logger = logging.getLogger(__name__)
 PORTAL_LINK_CONFIRM_SALT = "portal-link-confirm"
 
 PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
+EMAIL_ALREADY_REGISTERED_MESSAGE = "Пользователь с таким email уже существует."
 
 INVALID_SELF_SERVICE_ROLE_MESSAGE = "Недопустимая роль для регистрации."
 
@@ -191,6 +194,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         return re.sub(r"[^0-9]", "", value)
 
+    def validate_pdp_consent(self, value: bool) -> bool:
+        """Согласие на обработку ПДн — только исходный JSON `true`.
+
+        `BooleanField` превращает `"true"`, `"on"`, `1` в `True`, а 152-ФЗ требует
+        явного согласия. Проверка на уровне поля, как у подписки
+        (`SubscribeSerializer.validate_pdp_consent`): в `validate()` её скрыла бы
+        любая field-level ошибка соседнего поля.
+        """
+        if self.initial_data.get("pdp_consent") is not True:
+            raise serializers.ValidationError(PDP_CONSENT_REQUIRED_MESSAGE)
+        return value
+
     def validate_pdp_consent_text_version(self, value: str) -> str:
         """Сверить заявленную версию текста ПДн с действующей формулировкой.
 
@@ -241,9 +256,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
 
-        if not attrs.get("pdp_consent"):
-            raise serializers.ValidationError({"pdp_consent": PDP_CONSENT_REQUIRED_MESSAGE})
-
+        # Согласие на ПДн проверено в `validate_pdp_consent`.
         # Версии формулировок согласия здесь не сверяются — см.
         # `validate_pdp_consent_text_version` и `validate_marketing_consent_text_version`.
 
@@ -282,7 +295,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Email — единственный признак, по которому регистрация отклоняется
         # как дубль аккаунта: он уникален и принадлежит конкретному человеку.
         if User.objects.filter(email=attrs["email"]).exists():
-            raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
+            raise serializers.ValidationError({"email": EMAIL_ALREADY_REGISTERED_MESSAGE})
 
         # ИНН публичен (ЕГРЮЛ, счета, сайт компании), поэтому сам по себе
         # правом на контрагента 1С не является: заявка не привязывается к
@@ -339,8 +352,22 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Извлекаем пароль
         password = validated_data.pop("password")
 
-        # Создаем пользователя
-        user = User.objects.create_user(password=password, **validated_data)
+        # Проверка дубля в validate() — read-then-write: два параллельных запроса
+        # с одним email оба её проходят, и второй упирается в unique БД. Вставка
+        # идёт в savepoint, чтобы отказ не ломал внешнюю транзакцию вьюхи, а
+        # клиент получал тот же 400, что и при последовательной регистрации.
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(password=password, **validated_data)
+        except IntegrityError:
+            # К моменту ошибки конкурент уже закоммитил строку (PostgreSQL ждёт его
+            # исхода на unique), поэтому под READ COMMITTED она видна. Иной
+            # конфликт уникальности — не дубль email, его не маскируем.
+            if not User.objects.filter(email=validated_data["email"]).exists():
+                raise
+            # Список явно: из save() DRF не нормализует ошибку, как из validate(),
+            # и строка ушла бы клиенту вместо привычного `{"email": ["..."]}`.
+            raise serializers.ValidationError({"email": [EMAIL_ALREADY_REGISTERED_MESSAGE]}) from None
 
         # Устанавливаем статусы на основе роли
         if user.role == "retail":
@@ -356,12 +383,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         user.save()
 
-        # Асинхронная отправка email уведомлений для B2B (Story 29.4)
+        # Асинхронная отправка email уведомлений для B2B (Story 29.4).
+        # Только после commit: вьюха пишет согласия в той же транзакции, и при
+        # их сбое пользователь откатывается — задача, поставленная раньше,
+        # ушла бы воркеру с id несуществующей записи.
         if user.role != "retail":
-            send_admin_verification_email.delay(user.id)
-            send_user_pending_email.delay(user.id)
+            transaction.on_commit(partial(send_admin_verification_email.delay, user.id))
+            transaction.on_commit(partial(send_user_pending_email.delay, user.id))
             # Дополнительно — уведомление регионального менеджера по стране/ИНН.
-            send_manager_region_email.delay(user.id)
+            transaction.on_commit(partial(send_manager_region_email.delay, user.id))
 
         # Флаг читает view (authentication.py, ветка `_marketing_consent`) —
         # без него отмеченное пользователем согласие на рассылку теряется молча,
@@ -405,9 +435,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             customer.set_password(password)
             customer.verification_status = "pending"
             customer.save(update_fields=["password", "verification_status"])
-            send_admin_verification_email.delay(customer.id)
+            transaction.on_commit(partial(send_admin_verification_email.delay, customer.id))
             # Дополнительно — уведомление регионального менеджера по стране/ИНН.
-            send_manager_region_email.delay(customer.id)
+            transaction.on_commit(partial(send_manager_region_email.delay, customer.id))
             customer._pending_admin_review = True  # type: ignore[attr-defined]
         else:
             # Email отличается — пароль пока не сохраняем, ссылка уходит на
@@ -417,7 +447,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 salt=PORTAL_LINK_CONFIRM_SALT,
             )
             confirm_url = f"{settings.SITE_URL}/portal-link/confirm/{token}/"
-            send_portal_link_confirmation_email.delay(customer.id, form_email, confirm_url)
+            transaction.on_commit(
+                partial(send_portal_link_confirmation_email.delay, customer.id, form_email, confirm_url)
+            )
             customer._pending_link_confirmation = True  # type: ignore[attr-defined]
 
         return customer

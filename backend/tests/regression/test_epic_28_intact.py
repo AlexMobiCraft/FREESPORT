@@ -54,6 +54,7 @@ class TestEpic28Regression:
                 "pdp_consent": True,
                 "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
+            format="json",
         )
 
         assert response.status_code == status.HTTP_201_CREATED
@@ -75,6 +76,7 @@ class TestEpic28Regression:
                 "pdp_consent": True,
                 "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
+            format="json",
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -140,6 +142,7 @@ class TestEpic28Regression:
                 "pdp_consent": True,
                 "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
+            format="json",
         )
 
         assert response.status_code == status.HTTP_201_CREATED

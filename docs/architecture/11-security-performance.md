@@ -958,8 +958,8 @@ class BackupLog(models.Model):
 
 - B2C (`RegisterForm`) и B2B (`B2BRegisterForm`) формы содержат обязательный чек-бокс ПДн (`pdp_consent`) и опциональный маркетинговый чек-бокс (`marketing_consent`, unchecked by default).
 - Backend `UserRegistrationView.post` создаёт одну или две записи `UserConsent` (pdp_contract + опционально marketing_email) с IP/User-Agent через `consent_audit.py`.
-- Валидация: `pdp_consent` обязателен в payload и должен быть истинным.
-  **Известная асимметрия (не исправлена):** строгую проверку на JSON boolean `true` делает только подписка — у обоих её флагов, `pdp_consent` и `marketing_consent` (`SubscribeSerializer.validate` сверяет `initial_data` через `is not True`; второй флаг — со стори 41.11). Регистрация использует DRF `BooleanField` и потому принимает truthy-значения `"true"`, `"on"`, `"1"`, `1` (`backend/apps/users/serializers.py`). Замечание зафиксировано ревью стори 41.9 как pre-existing и вынесено в `deferred-work.md`; до его закрытия утверждать строгую проверку для регистрации нельзя.
+- Валидация: `pdp_consent` обязателен и принимается только как JSON boolean `true` — `UserRegistrationSerializer.validate_pdp_consent` сверяет `initial_data` через `is not True`, как подписка. Truthy-значения `"true"`, `"on"`, `"yes"`, `1` отклоняются с сообщением о необходимости согласия (с 2026-09-24; до этого регистрация принимала их через коэрсию DRF `BooleanField`). Следствие: регистрация работает только с JSON-телом — в form-encoded запросе значение приходит строкой и не считается согласием.
+  **Остаток асимметрии:** необязательный `marketing_consent` при регистрации по-прежнему разбирается DRF `BooleanField`, то есть `"true"` или `1` засчитываются как согласие на рассылку; у подписки оба флага строгие.
 - Вспомогательные функции вынесены в `backend/apps/common/utils/consent_audit.py`: `get_consent_ip_address`, `sanitize_consent_user_agent`, `normalize_consent_ip`.
 
 **Сбор согласий при подписке на рассылку — Story 35.3:**
