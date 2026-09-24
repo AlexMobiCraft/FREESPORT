@@ -14,6 +14,7 @@ import base64
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 import pytest
 from django.conf import settings
@@ -251,6 +252,26 @@ class Test1CFileUpload:
         # Original target should NOT exist
         assert not (temp_1c_dir.parent.parent.parent / "etc" / "passwd").exists()
 
+    @pytest.mark.parametrize("bad_sessid", ["../outside", "..", "a/../../outside", "..\\outside"])
+    def test_upload_sessid_traversal_rejected(self, authenticated_client, temp_1c_dir, bad_sessid):
+        """
+        Security: `sessid` с выходом из каталога отклоняется до записи на диск.
+        Раньше `TEMP_DIR / "../outside"` клал загрузку рядом с временным корнем.
+        """
+        before = sorted(p.relative_to(temp_1c_dir.parent) for p in temp_1c_dir.parent.rglob("*"))
+
+        query = urlencode({"mode": "file", "filename": "evil.zip", "sessid": bad_sessid})
+        response = authenticated_client.post(
+            f"/api/integration/1c/exchange/?{query}",
+            data=b"Malicious content",
+            content_type="application/octet-stream",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.content == b"failure\nInvalid session"
+        after = sorted(p.relative_to(temp_1c_dir.parent) for p in temp_1c_dir.parent.rglob("*"))
+        assert after == before
+
     def test_content_type_text_plain(self, authenticated_client, temp_1c_dir):
         """
         Response Content-Type is text/plain per 1C protocol.
@@ -350,6 +371,14 @@ class TestFileStreamService:
     """
     Unit tests for FileStreamService.
     """
+
+    @pytest.mark.parametrize("bad_sessid", ["../outside", "..", ".", "a/b", "a\\b"])
+    def test_rejects_unsafe_session_id(self, temp_1c_dir, bad_sessid):
+        """Каталог сессии обязан быть одним сегментом внутри TEMP_DIR."""
+        from apps.integrations.onec_exchange.file_service import FileStreamService
+
+        with pytest.raises(ValueError, match="single safe path segment"):
+            FileStreamService(bad_sessid)
 
     def test_append_chunk_creates_file(self, temp_1c_dir):
         """Service creates file on first append."""

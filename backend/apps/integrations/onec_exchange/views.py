@@ -28,7 +28,7 @@ from .file_service import FileLockError, FileStreamService
 from .import_orchestrator import ImportOrchestratorService
 from .permissions import Is1CExchangeUser
 from .renderers import PlainTextRenderer
-from .routing_service import FileRoutingService
+from .routing_service import FileRoutingService, validate_session_segment
 from .throttling import OneCAuthThrottle, OneCExchangeThrottle
 
 logger = logging.getLogger(__name__)
@@ -999,6 +999,15 @@ class ICExchangeView(APIView):
                 "failure\nMissing session or filename",
                 content_type="text/plain; charset=utf-8",
             )
+
+        # `sessid` становится каталогом во временном корне обмена. Проверка
+        # продублирована в `FileStreamService`, здесь она даёт внятный отказ
+        # вместо «Internal error» с трейсбеком в логе.
+        try:
+            validate_session_segment(sessid)
+        except ValueError:
+            logger.error(f"Upload rejected: unsafe sessid {sessid!r}.")
+            return HttpResponse("failure\nInvalid session", content_type="text/plain; charset=utf-8")
 
         # ADR-002: Route orders.xml to inline processing
         if filename.lower() == ORDERS_XML_FILENAME:
