@@ -30,11 +30,17 @@ declare module 'axios' {
 // Для SSR используем внутренний URL (внутри Docker сети), для браузера - публичный
 // INTERNAL_API_URL - серверная переменная (без NEXT_PUBLIC_ префикса), доступна в runtime
 // NEXT_PUBLIC_API_URL - клиентская переменная, встраивается при сборке
+//
+// Последнее звено серверной цепочки — публичный адрес, а не localhost:8001. На этапе
+// `next build` INTERNAL_API_URL нет (он задан только в рантайме компоуза, а образ
+// собирается в CI, где backend недоступен). С заглушкой localhost:8001 запрос падал, и
+// ISR-страницы вмораживали в пререндер пустые данные — блок брендов на /home пропадал
+// после каждого релиза до первой ревалидации. Та же цепочка — в sitemap.ts и catalog/page.tsx.
 const isServer = typeof window === 'undefined';
 export const API_URL_PUBLIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
 const API_URL_INTERNAL = process.env.INTERNAL_API_URL
   ? `${process.env.INTERNAL_API_URL}/api/v1`
-  : process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://localhost:8001/api/v1';
+  : process.env.NEXT_PUBLIC_API_URL_INTERNAL || API_URL_PUBLIC;
 const API_URL = isServer ? API_URL_INTERNAL : API_URL_PUBLIC;
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
 
