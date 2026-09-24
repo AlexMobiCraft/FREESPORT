@@ -16,8 +16,11 @@
  *   Одного манифеста мало: HTML ссылается и на чанки вне этого набора (layout
  *   соседней группы маршрутов, общие чанки сторов). Исключение `/profile/**` —
  *   решение владельца Q1 (jsPDF на `/profile/orders/[id]`).
- * - AC7: настоящие 404 отвечают 404 и несут ровно один `robots=noindex`,
- *   soft-404 динамических страниц — 200 и ровно один `noindex, follow`.
+ * - AC7: настоящие 404 отвечают 404 и несут директиву `noindex`,
+ *   soft-404 динамических страниц — 200 и директивы `noindex, follow`.
+ *   Сравниваются слитые директивы всех тегов robots, а не число тегов:
+ *   not-found boundary под Suspense дописывает свой `noindex` в потоковый
+ *   HTML уже после заголовка страницы.
  *
  * Адрес заглушки backend берётся из той же цепочки переменных, что и в
  * `src/middleware.ts` (`getApiBaseUrl`): middleware получает адрес при сборке,
@@ -50,14 +53,36 @@ export const PUBLIC_URLS = [
   '/cart',
   '/checkout',
   '/partners',
-  '/privacy-policy',
   '/about',
   '/delivery',
   '/requisites',
   '/electric',
 ];
-export const NOT_FOUND_URLS = ['/nonexistent-xyz', '/catalog/zzz', '/zzz/yyy'];
-export const SOFT_404_URLS = ['/product/zzz-none', '/blog/zzz-none', '/news/zzz-none'];
+
+/**
+ * Адреса, обязанные отвечать настоящим 404.
+ *
+ * `/privacy-policy` — CMS-страница: при пустом каталоге заглушки `notFound()`
+ * доходит до ответа, поэтому здесь, а не в PUBLIC_URLS. Раньше статус 200
+ * держал спиннер AuthProvider, который на сервере рендерился вместо детей.
+ * `/news/zzz-none` — у `news/[slug]` нет loading.tsx, поэтому `notFound()`
+ * не ловится Suspense-границей и тоже даёт настоящий 404.
+ */
+export const NOT_FOUND_URLS = [
+  '/nonexistent-xyz',
+  '/catalog/zzz',
+  '/zzz/yyy',
+  '/privacy-policy',
+  '/news/zzz-none',
+];
+
+/**
+ * Soft-404 (HTTP 200): у этих страниц есть loading.tsx, поэтому `notFound()`
+ * всплывает в Suspense-границе уже после отправки статуса 200. Сам boundary
+ * при этом дописывает в поток свой `robots=noindex` — вторым тегом после
+ * `noindex, follow` из generateMetadata.
+ */
+export const SOFT_404_URLS = ['/product/zzz-none', '/blog/zzz-none'];
 
 /** Закрытый раздел (`Disallow: /profile`), исключение Q1. */
 const PRIVATE_PREFIX = '/(blue)/profile/';
@@ -129,6 +154,22 @@ export function robotsMetaContents(html) {
     contents.push(content ? content[1] : '');
   }
   return contents;
+}
+
+/**
+ * Слитые директивы всех тегов robots, отсортированные. Поисковик читает
+ * документ так же — объединяя содержимое всех тегов; конфликт вроде
+ * `index` + `noindex` остаётся виден и не пройдёт сравнение с ожиданием.
+ */
+export function robotsDirectives(html) {
+  const directives = new Set();
+  for (const content of robotsMetaContents(html)) {
+    for (const directive of content.split(',')) {
+      const normalized = directive.trim().toLowerCase();
+      if (normalized) directives.add(normalized);
+    }
+  }
+  return [...directives].sort();
 }
 
 /**
@@ -391,8 +432,10 @@ async function checkServedPages(apiBase, owners, errors) {
       const robots = robotsMetaContents(html);
       console.log(`robots: ${urlPath} → ${status} ${JSON.stringify(robots)}`);
       if (status !== 404) errors.push(`${urlPath}: ожидался HTTP 404, получен ${status}`);
-      if (robots.length !== 1 || robots[0] !== 'noindex') {
-        errors.push(`${urlPath}: ожидался один robots=noindex, получено ${JSON.stringify(robots)}`);
+      if (robotsDirectives(html).join(',') !== 'noindex') {
+        errors.push(
+          `${urlPath}: ожидались директивы robots «noindex», получено ${JSON.stringify(robots)}`
+        );
       }
       addHtmlChunks(urlPath, html, owners, errors);
     }
@@ -404,9 +447,9 @@ async function checkServedPages(apiBase, owners, errors) {
       if (status !== 200) {
         errors.push(`${urlPath}: ожидался HTTP 200 (soft-404), получен ${status}`);
       }
-      if (robots.length !== 1 || robots[0] !== 'noindex, follow') {
+      if (robotsDirectives(html).join(',') !== 'follow,noindex') {
         errors.push(
-          `${urlPath}: ожидался один robots «noindex, follow», получено ${JSON.stringify(robots)}`
+          `${urlPath}: ожидались директивы robots «noindex, follow», получено ${JSON.stringify(robots)}`
         );
       }
       addHtmlChunks(urlPath, html, owners, errors);
