@@ -6,17 +6,24 @@
  * - Проверяет refresh token при загрузке приложения
  * - Вызывает /auth/me/ для получения данных пользователя
  * - Гидрирует authStore из localStorage
- * - Показывает loading state до завершения инициализации
+ * - Публикует isInitialized/isLoading через контекст
  *
  * AC 2: Session initialization при монтировании
+ *
+ * Дети рендерятся сразу, без ожидания инициализации: иначе сервер, где эффекты
+ * не выполняются, отдавал бы вместо содержимого любой страницы спиннер. Запросы
+ * детей, начатые до восстановления сессии, придерживает apiClient
+ * (см. services/authReadyGate). Кому нужен готовый store для отрисовки, ждут
+ * isInitialized сами: шапка, AuthGate на /profile/*, checkout.
  */
 
 'use client';
 
-import React, { useEffect, useState, createContext, useContext } from 'react';
+import React, { useLayoutEffect, useMemo, useState, createContext, useContext } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 import apiClient, { API_URL_PUBLIC } from '@/services/api-client';
+import { holdUntilAuthReady } from '@/services/authReadyGate';
 import type { User } from '@/types/api';
 
 /**
@@ -52,33 +59,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { setUser, setTokens, logout, getRefreshToken } = useAuthStore();
 
-  useEffect(() => {
+  // useLayoutEffect, а не useEffect: все layout-эффекты коммита выполняются раньше
+  // passive-эффектов, а дети грузят данные в useEffect. Так ожидание в apiClient
+  // включается до их первых запросов, хотя эффекты детей идут раньше родительских.
+  useLayoutEffect(() => {
+    let release: (() => void) | null = null;
+
     /**
-     * Инициализация сессии с retry logic
+     * Refresh token из localStorage, а при его отсутствии — из cookie.
+     *
+     * Источник истины — localStorage; но при первой инициализации после
+     * обновления кэша браузера он может быть пуст, тогда как middleware
+     * и backend всё ещё видят cookie. В этом случае читаем cookie и
+     * зеркалируем его в localStorage, иначе AuthProvider выйдет рано
+     * и store останется пустым → Header показывает кнопки входа,
+     * а middleware блокирует переход на /login (бесконечный цикл).
+     *
+     * Заблокированное хранилище бросает на любом обращении — тогда работаем
+     * по cookie, а если его нет, как гость.
      */
-    async function initializeAuth(retries = 3) {
-      // Источник истины — localStorage; но при первой инициализации после
-      // обновления кэша браузера он может быть пуст, тогда как middleware
-      // и backend всё ещё видят cookie. В этом случае читаем cookie и
-      // зеркалируем его в localStorage, иначе AuthProvider выйдет рано
-      // и store останется пустым → Header показывает кнопки входа,
-      // а middleware блокирует переход на /login (бесконечный цикл).
-      let refreshToken = getRefreshToken();
-      if (!refreshToken) {
-        const cookieRefreshToken = readCookie('refreshToken');
-        if (cookieRefreshToken) {
+    function readRefreshToken(): string | null {
+      try {
+        const stored = getRefreshToken();
+        if (stored) return stored;
+      } catch (storageError) {
+        console.warn('localStorage недоступен при инициализации сессии:', storageError);
+      }
+
+      const cookieRefreshToken = readCookie('refreshToken');
+      if (cookieRefreshToken) {
+        try {
           localStorage.setItem('refreshToken', cookieRefreshToken);
-          refreshToken = cookieRefreshToken;
+        } catch {
+          // Уже предупредили выше: хранилище недоступно, живём на cookie.
         }
       }
+      return cookieRefreshToken;
+    }
 
-      // Нет refresh token - пользователь не залогинен
-      if (!refreshToken) {
-        setIsLoading(false);
-        setIsInitialized(true);
-        return;
-      }
-
+    /**
+     * Восстановление сессии с retry logic
+     */
+    async function restoreSession(refreshToken: string, retries = 3) {
       // Гидрируем accessToken из cookie ДО запроса профиля, чтобы axios
       // мог отправить Authorization-заголовок и не зависеть от Django session.
       // Если cookie нет, явный refresh ниже синхронизирует store.
@@ -90,8 +112,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Попытка восстановить сессию
       for (let attempt = 0; attempt < retries; attempt++) {
         try {
-          // AC 2.2: Вызов /auth/me/ для получения user данных
-          const response = await apiClient.get<User>('/users/profile/');
+          // AC 2.2: Вызов /auth/me/ для получения user данных.
+          // skipAuthWait: запросы детей ждут именно этой инициализации.
+          const response = await apiClient.get<User>('/users/profile/', { skipAuthWait: true });
 
           // AC 2.3: Обновляем authStore при успехе
           setUser(response.data);
@@ -116,15 +139,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
               // зависшего состояния "залогинен по cookie, но store пустой".
               console.warn('Failed to refresh tokens during init:', refreshErr);
               logout(true);
-              setIsInitialized(true);
-              setIsLoading(false);
               return;
             }
           }
 
           // Сессия успешно восстановлена
-          setIsInitialized(true);
-          setIsLoading(false);
           return;
         } catch (error: unknown) {
           const err = error as { response?: { status?: number } };
@@ -133,8 +152,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (err.response?.status === 401 || err.response?.status === 403) {
             console.warn('Session expired:', error);
             logout();
-            setIsInitialized(true);
-            setIsLoading(false);
             return;
           }
 
@@ -150,31 +167,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // НЕ вызываем logout() - сохраняем токены для повторных попыток,
             // чтобы временная недоступность бэкенда не приводила к потере сессии
             console.warn('Auth initialization failed after retries (network error):', error);
-            setIsInitialized(true);
-            setIsLoading(false);
           }
         }
       }
     }
 
-    initializeAuth();
+    async function initializeAuth() {
+      try {
+        const refreshToken = readRefreshToken();
+
+        // Нет refresh token - пользователь не залогинен, запросам ждать нечего
+        if (!refreshToken) return;
+
+        // Синхронно, до первых запросов детей (см. комментарий к useLayoutEffect)
+        release = holdUntilAuthReady();
+        await restoreSession(refreshToken);
+      } catch (error) {
+        // Любое исключение (например, заблокированное хранилище в setTokens)
+        // не должно оставить приложение в вечной инициализации — работаем как гость.
+        console.warn('Auth initialization failed:', error);
+      } finally {
+        release?.();
+        setIsInitialized(true);
+        setIsLoading(false);
+      }
+    }
+
+    void initializeAuth();
   }, [setUser, setTokens, logout, getRefreshToken]);
 
-  // AC 6.1: Loading state до завершения инициализации
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[var(--color-neutral-100)]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          <p className="text-body-m text-[var(--color-text-muted)]">Загрузка...</p>
-        </div>
-      </div>
-    );
-  }
+  const value = useMemo(() => ({ isInitialized, isLoading }), [isInitialized, isLoading]);
 
-  return (
-    <AuthContext.Provider value={{ isInitialized, isLoading }}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 /**
