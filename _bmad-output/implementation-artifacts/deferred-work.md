@@ -2,6 +2,16 @@
 
 - **Цели Makefile вне `test-*` по-прежнему нерабочие.** Выделено из закрытого раздела «code review of spec-tech-debt-19-pytest-marker-autotagging» (запись в архиве), сверено с кодом 2026-09-24: `clean`, `createsuperuser`, `collectstatic` зовут `docker compose --env-file .env -f docker-compose.yml` и падают на `couldn't find env file`; `format` обращается к `-f docker-compose.yml` из корня, где файла нет; `lint` зовёт устаревший `docker-compose`; у `migrate` нет тела; `.PHONY` не перечисляет `test-fast`, `logs`, `shell`, `db-shell` и другие цели. Test-таргеты починены 2026-08-06. [`Makefile:145-200`]
 
+## Deferred: серверный HTML всех страниц — спиннер `AuthProvider` вместо содержимого (2026-09-24)
+
+- source_spec: none
+  summary: **Сервер отдаёт вместо содержимого любой страницы спиннер «Загрузка...»: публичные страницы не рендерятся на сервере.** `AuthProvider` начинает с `isLoading = true` и, пока флаг не снят, возвращает спиннер вместо `children` (`frontend/src/providers/AuthProvider.tsx:164-173`). Снимает флаг только `useEffect`, а на сервере эффекты не выполняются, поэтому SSR каждой страницы заканчивается спиннером. Провайдер оборачивает всё приложение через `Providers.tsx`, который подключён в `(blue)/layout.tsx` и `(electric)/layout.tsx`. Содержимое страниц доходит до браузера только RSC-пейлоадом и появляется после гидрации и инициализации авторизации. Поведение существует с `3ec347b2` (10.12.2025, стори 28.4).
+  evidence: Вскрыто 2026-09-24 при проверке JSON-LD товара после релиза `b266216f`: в серверном HTML страницы товара нет ни `Product`, ни `Offer`, ни хлебных крошек, ни названия в теле страницы. Замер `curl` по `/home`, `/catalog`, `/electric`, `/delivery` и `/product/<slug>`: в `<body>` без скриптов только спиннер (432–2436 байт), содержимого нет. Метаданные не страдают: `<title>`, `description`, `canonical`, Open Graph и JSON-LD организации отдаются в HTML, их Next выводит вне дерева провайдера.
+
+  **Последствия.** Поисковик, который не исполняет JS, видит пустые страницы: без текста, товаров, цен, ссылок каталога и разметки `Product`/`BreadcrumbList`. Google рендерит JS и увидит страницу после отрисовки в браузере, Яндекс рендерит JS не всегда. Пользователь до гидрации видит спиннер на весь экран вместо уже полученного содержимого (хуже LCP). Соседняя запись о зависании на этом же спиннере при заблокированном `localStorage` — в разделе «code review of spec-unsubscribe-page-layout (2026-09-16)».
+
+  **Направление.** Не блокировать рендер `children` на время инициализации: провайдер отдаёт детей сразу и публикует `isInitialized`/`isLoading` через контекст. Ждать авторизацию должны только потребители, которым она нужна (защищённые маршруты `/profile/*`, `/checkout`, шапка с состоянием входа); у них уже есть `useAuth()`. Перед правкой — blast radius по потребителям `useAuth` и `useAuthStore`: часть компонентов может неявно рассчитывать, что к их монтированию store уже гидрирован. **Проверка после исправления:** `curl -s https://optisport.ru/product/<slug>` содержит название товара в `<body>` и `"@type":"Offer"` в HTML, а не только в RSC-пейлоаде.
+
 ## Deferred from: code review of spec-unsubscribe-page-layout (2026-09-16)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-unsubscribe-page-layout.md`
