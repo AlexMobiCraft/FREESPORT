@@ -15,14 +15,18 @@ import axios, {
   AxiosResponse,
 } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
+import { waitForAuthReady } from '@/services/authReadyGate';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
     skipAuth?: boolean;
+    /** Не ждать восстановления сессии — для запросов самой инициализации (AuthProvider) */
+    skipAuthWait?: boolean;
   }
 
   interface InternalAxiosRequestConfig {
     skipAuth?: boolean;
+    skipAuthWait?: boolean;
   }
 }
 
@@ -109,10 +113,16 @@ const retryRequest = async (config: AxiosRequestConfig, retryCount = 0): Promise
  * Request interceptor - добавляет JWT token в Authorization header
  */
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     if (config.skipAuth) {
       if (config.headers) delete config.headers.Authorization;
       return config;
+    }
+
+    // Пока AuthProvider восстанавливает сессию, запрос ждёт токен: иначе он уйдёт
+    // анонимно и оптовик получит розничные цены (см. authReadyGate).
+    if (!isServer && !config.skipAuthWait) {
+      await waitForAuthReady();
     }
 
     const token = useAuthStore.getState().accessToken;

@@ -42,6 +42,12 @@ vi.mock('@/stores/authStore', () => ({
   ),
 }));
 
+// Mock AuthProvider: по умолчанию сессия уже восстановлена
+const mockUseAuth = vi.fn(() => ({ isInitialized: true, isLoading: false }));
+vi.mock('@/providers/AuthProvider', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 // Mock cartStore
 vi.mock('@/stores/cartStore', () => ({
   useCartStore: vi.fn(selector =>
@@ -187,6 +193,52 @@ describe('Header', () => {
 
       expect(screen.queryByRole('link', { name: 'Оптовые цены' })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'Заказы' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('До восстановления сессии', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({ isInitialized: false, isLoading: true });
+      vi.mocked(authSelectors.useIsAuthenticated).mockReturnValue(false);
+      vi.mocked(authSelectors.useUser).mockReturnValue(null);
+      vi.mocked(authSelectors.useIsB2BUser).mockReturnValue(false);
+    });
+
+    afterEach(() => {
+      mockUseAuth.mockReturnValue({ isInitialized: true, isLoading: false });
+    });
+
+    it('кнопки входа в шапке держат место, но недоступны', () => {
+      render(<Header />);
+
+      const guestActions = screen.getByTestId('auth-guest-actions');
+      expect(guestActions).toHaveClass('invisible');
+      // jsdom не применяет Tailwind и не исключает inert из дерева ролей —
+      // проверяем сами атрибуты: в браузере они скрывают кнопки и снимают фокус.
+      expect(guestActions).toHaveAttribute('inert');
+    });
+
+    it('в мобильном меню кнопок входа нет', async () => {
+      const user = userEvent.setup();
+      render(<Header />);
+
+      await user.click(screen.getByRole('button', { name: 'Открыть меню' }));
+
+      // Единственная «Регистрация» — невидимая десктопная в шапке
+      const registerLinks = screen.getAllByRole('link', { name: 'Регистрация' });
+      expect(registerLinks).toHaveLength(1);
+      expect(screen.getByTestId('auth-guest-actions')).toContainElement(registerLinks[0]);
+      expect(screen.getAllByRole('link', { name: /Корзина/i }).length).toBeGreaterThan(1);
+    });
+
+    it('после инициализации кнопки входа видимы', () => {
+      mockUseAuth.mockReturnValue({ isInitialized: true, isLoading: false });
+      render(<Header />);
+
+      const guestActions = screen.getByTestId('auth-guest-actions');
+      expect(guestActions).not.toHaveClass('invisible');
+      expect(guestActions).not.toHaveAttribute('inert');
+      expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login');
     });
   });
 

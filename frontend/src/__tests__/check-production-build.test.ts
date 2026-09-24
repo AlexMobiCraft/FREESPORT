@@ -14,6 +14,7 @@ import {
   followRedirects,
   matchContext,
   middlewareApiBase,
+  robotsDirectives,
   robotsMetaContents,
   selectPublicPages,
   waitForServer,
@@ -99,6 +100,29 @@ describe('robotsMetaContents', () => {
     const html = '<meta content="noindex, follow" name="robots"><meta name="googlebot" content="x">';
 
     expect(robotsMetaContents(html)).toEqual(['noindex, follow']);
+  });
+});
+
+describe('robotsDirectives', () => {
+  it('сливает директивы нескольких тегов: soft-404 с boundary noindex даёт {follow, noindex}', () => {
+    const html =
+      '<meta name="robots" content="noindex"/><meta name="robots" content="noindex, follow"/>';
+
+    expect(robotsDirectives(html)).toEqual(['follow', 'noindex']);
+  });
+
+  it('конфликтующие директивы (index + noindex) остаются видны обе', () => {
+    const html = '<meta name="robots" content="index"/><meta name="robots" content="noindex"/>';
+
+    expect(robotsDirectives(html)).toEqual(['index', 'noindex']);
+  });
+
+  it('нормализует регистр и пробелы, документ без robots — пустой список', () => {
+    expect(robotsDirectives('<meta name="robots" content=" NoIndex , Follow ">')).toEqual([
+      'follow',
+      'noindex',
+    ]);
+    expect(robotsDirectives('<html><head></head></html>')).toEqual([]);
   });
 });
 

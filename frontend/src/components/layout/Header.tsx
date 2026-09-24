@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Heart, ShoppingCart, Menu, X, Search, User, LogOut } from 'lucide-react';
 import { authSelectors, useAuthStore } from '@/stores/authStore';
+import { useAuth } from '@/providers/AuthProvider';
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/Button';
 import { CATALOG_SEARCH_HREF, requestCatalogSearchFocus } from '@/utils/catalogSearchFocus';
@@ -22,6 +23,9 @@ const Header: React.FC = () => {
   const user = authSelectors.useUser();
   const isB2BUser = authSelectors.useIsB2BUser();
   const logout = useAuthStore(state => state.logout);
+  // До восстановления сессии store пуст даже у вошедшего пользователя:
+  // кнопки входа мигнули бы до прихода профиля. Сервер рендерит это же состояние.
+  const { isInitialized: isAuthInitialized } = useAuth();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -181,7 +185,12 @@ const Header: React.FC = () => {
                   </button>
                 </>
               ) : (
-                <>
+                // Невидимые, но держат место — без сдвига шапки после инициализации
+                <div
+                  data-testid="auth-guest-actions"
+                  inert={!isAuthInitialized}
+                  className={`flex items-center gap-2${isAuthInitialized ? '' : ' invisible'}`}
+                >
                   <Link href="/register">
                     <Button variant="secondary" size="small">
                       Регистрация
@@ -192,7 +201,7 @@ const Header: React.FC = () => {
                       Войти
                     </Button>
                   </Link>
-                </>
+                </div>
               )}
             </div>
 
@@ -338,17 +347,21 @@ const Header: React.FC = () => {
                         )}
                       </Link>
                     </div>
-                    {/* Кнопки авторизации */}
-                    <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Button variant="secondary" size="small" className="w-full">
-                        Регистрация
-                      </Button>
-                    </Link>
-                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Button variant="primary" size="small" className="w-full">
-                        Войти
-                      </Button>
-                    </Link>
+                    {/* Кнопки авторизации — только после восстановления сессии */}
+                    {isAuthInitialized && (
+                      <>
+                        <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                          <Button variant="secondary" size="small" className="w-full">
+                            Регистрация
+                          </Button>
+                        </Link>
+                        <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                          <Button variant="primary" size="small" className="w-full">
+                            Войти
+                          </Button>
+                        </Link>
+                      </>
+                    )}
                   </>
                 )}
               </div>

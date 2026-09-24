@@ -20,6 +20,12 @@ interface PageData {
 const DEFAULT_TITLE = 'Политика обработки персональных данных | OPTISPORT';
 const PRIVACY_POLICY_ENDPOINT = '/pages/privacy-policy/';
 
+// Страница целиком зависит от CMS: рендер только по запросу. Статический
+// пререндер идёт на машине сборки без backend — fetch падает, notFound()
+// запекает в образ ответ 404, который отдавался бы до конца окна revalidate
+// даже при живом проде.
+export const dynamic = 'force-dynamic';
+
 function getApiUrl(): string {
   return (
     process.env.NEXT_PUBLIC_API_URL_INTERNAL ||
