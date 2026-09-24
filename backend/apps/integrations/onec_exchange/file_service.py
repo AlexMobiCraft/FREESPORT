@@ -15,6 +15,8 @@ from typing import IO, Any, Generator, Union
 
 from django.conf import settings
 
+from .routing_service import validate_session_segment
+
 logger = logging.getLogger(__name__)
 
 # File permissions: owner read/write, group/others read-only
@@ -142,11 +144,17 @@ class FileStreamService:
 
         Args:
             session_id: Django session key for isolation
+
+        Raises:
+            ValueError: `session_id` пуст или не является одним безопасным
+                сегментом пути (см. `validate_session_segment`)
         """
         if not session_id:
             raise ValueError("session_id is required for FileStreamService")
 
-        self.session_id = session_id
+        # `sessid` приходит из query-параметра 1С, и без проверки
+        # `TEMP_DIR / "../outside"` пишет загрузку за пределы временного корня.
+        self.session_id = validate_session_segment(session_id)
         self.base_dir = Path(str(settings.ONEC_EXCHANGE["TEMP_DIR"]))
         self.session_dir = self.base_dir / session_id
 

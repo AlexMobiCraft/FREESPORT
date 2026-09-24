@@ -13,6 +13,7 @@ import ProductImageGallery from './ProductImageGallery';
 import ProductSummary, { type ProductDetailWithVariants } from './ProductSummary';
 import ProductSpecs from './ProductSpecs';
 import type { ProductVariant } from '@/types/api';
+import { absoluteUrl } from '@/utils/seo';
 
 interface ProductPageClientProps {
   /** Данные товара с вариантами */
@@ -76,7 +77,10 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
             />
           </div>
 
-          {/* Schema.org Product Structured Data */}
+          {/* Schema.org Product Structured Data.
+              Название и описание приходят из 1С: литеральный `</script>` в них
+              закрыл бы тег и вынес остаток JSON в документ как HTML. Поэтому каждый
+              `<` заменяется на `\\u003c` — для JSON это та же строка (как в SiteJsonLd). */}
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
@@ -93,7 +97,7 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
                 },
                 offers: {
                   '@type': 'Offer',
-                  url: `https://optisport.ru/product/${product.slug}`,
+                  url: absoluteUrl(`/product/${product.slug}`),
                   priceCurrency: product.price?.currency || 'RUB',
                   price: selectedVariant
                     ? parseFloat(selectedVariant.current_price)
@@ -115,7 +119,7 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
                       reviewCount: product.reviews_count || 0,
                     }
                   : undefined,
-              }),
+              }).replaceAll('<', '\\u003c'),
             }}
           />
         </div>

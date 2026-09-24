@@ -249,6 +249,19 @@ jobs:
             type=sha,prefix=
             type=raw,value=production
 
+      # NEXT_PUBLIC_APP_URL вкомпилируется в бандл на этапе сборки: из него строятся
+      # canonical, og:url, JSON-LD, sitemap.xml и robots.txt. Без build-arg образ берёт
+      # дефолт Dockerfile http://localhost:3000, и переменная окружения контейнера на проде
+      # это уже не исправит. Так прод и работал после релиза 20.09.2026.
+      - name: Check frontend build variables
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          if [ -z "$NEXT_PUBLIC_APP_URL" ]; then
+            echo "::error::Переменная репозитория NEXT_PUBLIC_APP_URL не задана — образ получил бы http://localhost:3000"
+            exit 1
+          fi
+
       - name: Build and push Backend image
         uses: docker/build-push-action@v7
         env:
@@ -286,6 +299,8 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_YM_ID=${{ vars.NEXT_PUBLIC_YM_ID }}
             NODE_ENV=production
 
   # Деплой на production
