@@ -481,15 +481,23 @@ def test_registration_rejects_invalid_pdp_consent_with_contract_message(invalid_
     assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
 
 
-@pytest.mark.parametrize("truthy_value", [1, "yes", "on", "t"])
-def test_registration_accepts_drf_truthy_pdp_consent_values_by_decision(truthy_value):
+@pytest.mark.parametrize("truthy_value", [1, "true", "yes", "on", "t"])
+def test_registration_rejects_non_boolean_truthy_pdp_consent(truthy_value):
+    """152-ФЗ требует явного согласия: принимается только JSON `true`, как у подписки.
+
+    До 2026-09-24 тест закреплял обратное — коэрсию DRF `BooleanField` в `True`
+    (решение стори 35.2, «вариант 3»). Ревью стори 41.9 признало асимметрию с
+    подпиской дефектом: юридически значимая запись не должна появляться из `"on"`.
+    """
     client = APIClient()
+    payload = trainer_payload(pdp_consent=truthy_value)
 
-    response = post_register(client, trainer_payload(pdp_consent=truthy_value))
+    response = post_register(client, payload)
 
-    assert response.status_code == status.HTTP_201_CREATED
-    user = User.objects.get(email=response.data["user"]["email"])
-    assert UserConsent.objects.filter(user=user, consent_type="pdp_contract").exists()
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data["pdp_consent"] == ["Необходимо согласие на обработку персональных данных."]
+    assert not User.objects.filter(email=payload["email"]).exists()
+    assert UserConsent.objects.count() == 0
 
 
 def test_trainer_registration_creates_pdp_consent_record():
@@ -1081,9 +1089,8 @@ def test_consent_failure_rolls_back_pending_1c_link_registration():
     """
     AC5: сбой записи согласия откатывает регистрацию целиком.
 
-    Постановка писем в очередь не проверяется намеренно: `.delay` вызывается
-    внутри `create()`, Celery живёт вне транзакции, и при откате задачи уже
-    поставлены. Это известное свойство кода, а не дефект стори.
+    Что письма при откате не уходят, проверяет
+    `test_registration_transaction_safety.py`: задачи ставятся через `on_commit`.
     """
     client = APIClient()
     payload = trainer_payload()

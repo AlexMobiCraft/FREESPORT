@@ -140,6 +140,7 @@ class TestLoginVerificationBlocking:
                 "pdp_consent": True,
                 "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
             },
+            format="json",
         )
         assert register_response.status_code == status.HTTP_201_CREATED
 
