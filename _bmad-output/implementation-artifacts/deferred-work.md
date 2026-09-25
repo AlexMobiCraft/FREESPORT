@@ -1,3 +1,9 @@
+## Deferred from: implementation of spec-catalog-ssr-first-page (2026-09-25)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-ssr-first-page.md`
+  summary: **Подборки каталога (`is_new`/`is_hit`/`is_sale`) запрашивают выдачу дважды: при монтировании и повторно после загрузки дерева категорий.** Эффект запуска `fetchProducts` при бейдж-фильтре срабатывает сразу, а смена `isCategoryLoadAttempted` в его зависимостях перезапускает его с теми же фильтрами. После SSR первой страницы первый запуск берёт серверную выдачу, второй идёт в сеть и на мгновение ставит скелетон поверх готовых карточек. До правки было так же: два запроса и скелетон. Решение Alex 2026-09-25 — не исправлять в рамках SSR-спеки.
+  evidence: `frontend/src/app/(blue)/catalog/CatalogPageClient.tsx` — эффект с зависимостями `[fetchProducts, isCategoryLoadAttempted, hasBadgeFilter, …]` и условием `isCategoryLoadAttempted || hasBadgeFilter`. Замер 2026-09-25 на `next start` через прокси к API прода: `/catalog?is_new=true` — один `GET products/` после гидрации, а `/catalog` и `/catalog?category=<slug>` — ни одного. Варианты исправления: не перезапускать запрос при неизменных `productFilters` (правка гейтов) или переиспользовать серверную выдачу для подряд идущих запусков с тем же ключом.
+
 ## Deferred: товары каталога не попадают в серверный HTML (2026-09-25)
 
 - source_spec: none

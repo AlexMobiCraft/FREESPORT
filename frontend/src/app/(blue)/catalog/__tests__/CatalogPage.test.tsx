@@ -7,6 +7,7 @@ import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import CatalogPage from '../CatalogPageClient';
 import { requestCatalogSearchFocus } from '@/utils/catalogSearchFocus';
+import { buildInitialProductFilters, productFiltersKey } from '../catalogQuery';
 
 // Mock данные для тестов
 const mockProducts = [
@@ -2117,5 +2118,156 @@ describe('CatalogPage — фокус поиска из шапки', () => {
 
     expect(removeSpy).toHaveBeenCalledWith('optisport:catalog-search-focus', expect.any(Function));
     removeSpy.mockRestore();
+  });
+});
+
+describe('CatalogPage — первая страница выдачи с сервера', () => {
+  const serverProduct = { ...mockProducts[0], id: 101, name: 'Серверный мяч', slug: 'server-ball' };
+  let tokenSeq = 0;
+
+  const initialFor = (query: string, categoryId: number | null = null) => {
+    const params = new URLSearchParams(query);
+    tokenSeq += 1;
+    return {
+      key: productFiltersKey(buildInitialProductFilters(name => params.get(name), categoryId)),
+      token: `token-${tokenSeq}`,
+      count: 25,
+      results: [serverProduct],
+    };
+  };
+
+  const expectServerProductsReused = async () => {
+    const productsService = await import('@/services/productsService');
+    // Сайдбар по-прежнему сужается по текущим фильтрам — значит, первый запуск прошёл
+    // (видимые бренды запрашиваются только в режиме «В наличии»)
+    await waitFor(() => expect(categoriesService.getVisibleCategories).toHaveBeenCalled());
+    expect(productsService.default.getAll).not.toHaveBeenCalled();
+    expect(screen.getByText('Серверный мяч')).toBeInTheDocument();
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+    resetSearchParams();
+    localStorage.clear();
+    document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    // Соседние блоки подменяют реализации моков, а clearAllMocks их не снимает
+    (categoriesService.getTree as Mock).mockResolvedValue(mockCategories);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1]);
+    (brandsService.getAll as Mock).mockResolvedValue(mockBrands);
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1, 2]);
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation(query => ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+  });
+
+  it('рендерит серверную выдачу сразу и не запрашивает товары повторно', async () => {
+    render(<CatalogPage initialProducts={initialFor('')} />);
+
+    expect(screen.getByText('Серверный мяч')).toBeInTheDocument();
+    expect(screen.getByText('Показано 1 из 25 товаров')).toBeInTheDocument();
+    expect(document.querySelector('.h-64.animate-pulse')).toBeNull();
+
+    await expectServerProductsReused();
+    await waitFor(() => expect(brandsService.getVisibleBrands).toHaveBeenCalled());
+    expect(document.querySelector('.h-64.animate-pulse')).toBeNull();
+  });
+
+  // Сторож согласованности: серверные фильтры строит buildInitialProductFilters,
+  // клиентские — productFilters. Новый фильтр в одном месте без другого молча
+  // отключил бы повторное использование — здесь это станет красным тестом.
+  it.each([
+    'page=2',
+    'ordering=-name&min_price=1000&max_price=9000',
+    'in_stock=false',
+    'search=мяч',
+  ])('ключ сервера совпадает с первым запросом клиента на ?%s', async query => {
+    resetSearchParams(query);
+
+    render(<CatalogPage initialProducts={initialFor(query)} />);
+
+    await expectServerProductsReused();
+  });
+
+  it('ключ совпадает для категории после разрешения slug по дереву', async () => {
+    resetSearchParams('category=sport');
+
+    render(<CatalogPage initialProducts={initialFor('category=sport', 1)} />);
+
+    await expectServerProductsReused();
+  });
+
+  it('запрашивает выдачу, если ключ фильтров не совпал с клиентским', async () => {
+    const productsService = await import('@/services/productsService');
+
+    render(<CatalogPage initialProducts={initialFor('ordering=-name')} />);
+
+    expect(screen.getByText('Серверный мяч')).toBeInTheDocument();
+    await waitFor(() => expect(productsService.default.getAll).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Nike Air Max 90')).toBeInTheDocument();
+    expect(screen.queryByText('Серверный мяч')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['в localStorage', () => localStorage.setItem('refreshToken', 'stored-token')],
+    ['только в cookie', () => (document.cookie = 'refreshToken=cookie-token; path=/')],
+  ])(
+    'запрашивает выдачу при сохранённой сессии %s: серверная получена анонимно',
+    async (_, arrange) => {
+      const productsService = await import('@/services/productsService');
+      arrange();
+
+      render(<CatalogPage initialProducts={initialFor('')} />);
+
+      await waitFor(() => expect(productsService.default.getAll).toHaveBeenCalledTimes(1));
+      expect(await screen.findByText('Nike Air Max 90')).toBeInTheDocument();
+    }
+  );
+
+  it('после перемонтирования с той же выдачей («назад» из кэша роутера) запрашивает свежую', async () => {
+    const productsService = await import('@/services/productsService');
+    const initial = initialFor('');
+
+    const { unmount } = render(<CatalogPage initialProducts={initial} />);
+    await expectServerProductsReused();
+    unmount();
+
+    render(<CatalogPage initialProducts={initial} />);
+
+    await waitFor(() => expect(productsService.default.getAll).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Nike Air Max 90')).toBeInTheDocument();
+  });
+
+  it('после смены фильтра грузит выдачу клиентом, как раньше', async () => {
+    const productsService = await import('@/services/productsService');
+
+    render(<CatalogPage initialProducts={initialFor('')} />);
+    await expectServerProductsReused();
+
+    fireEvent.change(screen.getByDisplayValue('По названию (А→Я)'), {
+      target: { value: '-created_at' },
+    });
+
+    await waitFor(() =>
+      expect(productsService.default.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ ordering: '-created_at', page: 1 })
+      )
+    );
+    expect(await screen.findByText('Nike Air Max 90')).toBeInTheDocument();
   });
 });
