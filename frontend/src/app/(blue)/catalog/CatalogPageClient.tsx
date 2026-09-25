@@ -26,11 +26,21 @@ import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useFavoritesStore } from '@/stores/favoritesStore';
 import { useToast } from '@/components/ui/Toast';
-
-type PriceRange = {
-  min: number;
-  max: number;
-};
+import {
+  DEFAULT_ORDERING,
+  DEFAULT_PRICE_RANGE,
+  PAGE_SIZE,
+  PRICE_MAX,
+  PRICE_MIN,
+  parseInStock,
+  parseOrdering,
+  parsePageNumber,
+  parsePriceRange,
+  parseSearchFilter,
+  productFiltersKey,
+  type CatalogInitialProducts,
+  type PriceRange,
+} from './catalogQuery';
 
 type PriceRangeSliderProps = {
   min: number;
@@ -49,17 +59,12 @@ type CategoryNode = {
   children?: CategoryNode[];
 };
 
-const PRICE_MIN = 1;
-const PRICE_MAX = 50000;
-const DEFAULT_PRICE_RANGE: PriceRange = { min: PRICE_MIN, max: PRICE_MAX };
 const PRICE_STEP = 500;
 // Пауза перед применением диапазона цены. Ползунок шлёт onChange на КАЖДЫЙ шаг
 // перетаскивания: без паузы каждый шаг создавал бы запись в истории браузера и
 // отдельный запрос товаров. UI ползунка при этом двигается сразу (см. priceDraft).
 const PRICE_COMMIT_DELAY_MS = 300;
-const PAGE_SIZE = 12;
 const MAX_VISIBLE_PAGES = 5;
-const DEFAULT_ORDERING = 'name';
 
 // Константы анимации фильтров (F2, F5, F6)
 const FILTER_ANIMATION_DURATION = 'duration-[180ms]';
@@ -72,70 +77,33 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-/**
- * Разбирает query-параметр `page`. Всё, что не является строкой из одних цифр
- * (`abc`, `3abc`, `1e3`, `2.9`, `-1`, пустая строка), и всё вне безопасного
- * диапазона трактуется как первая страница — каталог не должен падать на кривой ссылке.
- */
-const parsePageNumber = (value: string | null): number => {
-  if (!value || !/^\d+$/.test(value)) {
-    return 1;
-  }
-  const page = Number(value);
-  return Number.isSafeInteger(page) && page >= 1 ? page : 1;
-};
-
-/** Белый список значений <select> сортировки: всё остальное — сортировка по умолчанию */
-const ORDERING_OPTIONS: readonly string[] = [
-  '-created_at',
-  'min_retail_price',
-  '-min_retail_price',
-  'name',
-  '-name',
-];
-
-/** Мусор в `?ordering=` не должен уезжать в запрос — страница молча берёт умолчание */
-const parseOrdering = (value: string | null): string =>
-  value && ORDERING_OPTIONS.includes(value) ? value : DEFAULT_ORDERING;
-
-/**
- * Один конец диапазона цены. Всё, что не является целым числом в
- * [PRICE_MIN, PRICE_MAX], заменяется умолчанием СВОЕГО конца. Clamp запрещён:
- * бэкенд отрицательное значение и так игнорирует, а зажатие `max_price=-5`
- * к PRICE_MIN дало бы пользователю пустую выдачу вместо всего каталога.
- */
-const parsePriceBound = (value: string | null, fallback: number): number => {
-  if (!value || !/^\d+$/.test(value)) {
-    return fallback;
-  }
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed >= PRICE_MIN && parsed <= PRICE_MAX
-    ? parsed
-    : fallback;
-};
-
-/**
- * Разбор пары концов диапазона одним правилом, а не двумя независимыми:
- * инвертированный диапазон (`?min_price=9000&max_price=1000`) сбрасывает ОБА
- * конца к умолчаниям — ни swap, ни подтягивание одного конца к другому, иначе
- * пользователь не поймёт, почему выдача не соответствует ссылке.
- * Правило идемпотентно, поэтому канонизация URL не зациклится.
- */
-const parsePriceRange = (minParam: string | null, maxParam: string | null): PriceRange => {
-  const min = parsePriceBound(minParam, PRICE_MIN);
-  const max = parsePriceBound(maxParam, PRICE_MAX);
-  return min > max ? DEFAULT_PRICE_RANGE : { min, max };
-};
-
-/** `in_stock` живёт в URL только выключенным: умолчание фильтра — «в наличии» */
-const parseInStock = (value: string | null): boolean => value !== 'false';
-
 /** `?brand=nike,adidas` → ['nike', 'adidas']; пустые значения отбрасываются */
 const parseBrandSlugs = (value: string | null): string[] =>
   (value ?? '')
     .split(',')
     .map(slug => slug.trim())
     .filter(Boolean);
+
+/**
+ * Есть ли у браузера сохранённая сессия. Серверная выдача каталога получена
+ * анонимно: пользователю с сессией нужны цены его роли, поэтому её не берём.
+ * Признак тот же, по которому AuthProvider начинает восстановление сессии.
+ */
+const hasStoredSession = (): boolean => {
+  try {
+    if (useAuthStore.getState().getRefreshToken()) return true;
+  } catch {
+    // Заблокированное хранилище — остаётся cookie
+  }
+  return /(?:^|;\s*)refreshToken=[^;]/.test(document.cookie);
+};
+
+/**
+ * Токены серверных выдач, уже побывавших в первом запросе. Живут весь документ:
+ * «назад» перемонтирует каталог с выдачей из кэша роутера, и без этой памяти
+ * она показалась бы без запроса — с ценами и остатками давнего визита.
+ */
+const spentInitialProductTokens = new Set<string>();
 
 const getNodeKey = (path: number[]) => path.join(' > ');
 
@@ -395,7 +363,12 @@ const CategoryTree: React.FC<{
   );
 };
 
-const CatalogContent: React.FC = () => {
+interface CatalogPageClientProps {
+  /** Первая страница выдачи, загруженная сервером; null — сервер её не грузил */
+  initialProducts?: CatalogInitialProducts | null;
+}
+
+const CatalogContent: React.FC<CatalogPageClientProps> = ({ initialProducts = null }) => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -460,8 +433,9 @@ const CatalogContent: React.FC = () => {
   // Синхронная инициализация из URL: иначе на /catalog?search=x&page=3 первый
   // запрос ушёл бы без search, поймал 404 и сбросил страницу у корректной закладки
   const [searchQuery, setSearchQuery] = useState(() => searchParam ?? '');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [totalProducts, setTotalProducts] = useState(0);
+  // Серверная выдача рендерится сразу: без неё в HTML страницы нет ни одного товара
+  const [products, setProducts] = useState<Product[]>(() => initialProducts?.results ?? []);
+  const [totalProducts, setTotalProducts] = useState(() => initialProducts?.count ?? 0);
   // Номер страницы зеркалится в URL (?page=N), чтобы переживать F5, «назад» и
   // открытие ссылки в новой вкладке. Источник истины для запроса — состояние:
   // router.push обновляет searchParams асинхронно, и производное от URL значение
@@ -1119,7 +1093,7 @@ const CatalogContent: React.FC = () => {
   // Производные значения фильтров — примитивы, чтобы productFilters ниже менял
   // идентичность только вместе с содержимым запроса, а не на каждый ререндер
   const brandFilter = selectedBrandIds.size > 0 ? Array.from(selectedBrandIds).join(',') : '';
-  const searchFilter = searchQuery.trim().length >= 2 ? searchQuery.trim() : '';
+  const searchFilter = parseSearchFilter(searchQuery);
 
   // Параметры запроса товаров собраны в одном месте: они же служат ключом
   // инвалидации ниже, поэтому ключ не может разъехаться с фактическим запросом
@@ -1174,11 +1148,25 @@ const CatalogContent: React.FC = () => {
     requestSeq.current += 1;
   }, [productFilters]);
 
+  // Серверная выдача годится только первому запросу: дальше она устаревает
+  // вместе с фильтрами. Забирается при первом запуске fetchProducts, даже если
+  // не подошла, — иначе «назад» к исходному URL показал бы старые данные.
+  const initialProductsRef = React.useRef(initialProducts);
+
   const fetchProducts = useCallback(async () => {
     const seq = ++requestSeq.current;
     const filters = productFilters;
+    const initial = initialProductsRef.current;
+    initialProductsRef.current = null;
+    const isFresh = initial !== null && !spentInitialProductTokens.has(initial.token);
+    if (initial) spentInitialProductTokens.add(initial.token);
+    // Ключ сравнивается уже после разрешения категории по дереву: любое
+    // расхождение с сервером (упавшее дерево, кривой URL) ведёт в обычный запрос.
+    const reusable =
+      isFresh && initial.key === productFiltersKey(filters) && !hasStoredSession() ? initial : null;
     try {
-      setIsProductsLoading(true);
+      // Выдача уже на экране — скелетон поверх неё был бы миганием
+      if (!reusable) setIsProductsLoading(true);
       setProductsError(null);
 
       // Ответы сайдбара проверяют версию запроса каждый сам: они приходят
@@ -1187,7 +1175,7 @@ const CatalogContent: React.FC = () => {
       const isCurrent = () => seq === requestSeq.current;
 
       const [response] = await Promise.all([
-        productsService.getAll(filters),
+        reusable ?? productsService.getAll(filters),
         // Параллельно обновляем видимость категорий по текущим фильтрам
         categoriesService
           .getVisibleCategories(filters)
@@ -1848,10 +1836,10 @@ const CatalogContent: React.FC = () => {
   );
 };
 
-const CatalogPage: React.FC = () => {
+const CatalogPage: React.FC<CatalogPageClientProps> = ({ initialProducts = null }) => {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#F5F7FB]" />}>
-      <CatalogContent />
+      <CatalogContent initialProducts={initialProducts} />
     </Suspense>
   );
 };

@@ -1,9 +1,16 @@
 import type { Metadata } from 'next';
+import { cookies, headers } from 'next/headers';
 
 import CatalogPageClient from './CatalogPageClient';
+import {
+  buildInitialProductFilters,
+  productFiltersKey,
+  type CatalogInitialProducts,
+} from './catalogQuery';
 import { buildMetadata } from '@/utils/seo';
 
 const CATEGORY_TREE_FETCH_TIMEOUT_MS = 3000;
+const PRODUCTS_FETCH_TIMEOUT_MS = 3000;
 
 const CATALOG_TITLE = 'Каталог спортивных товаров | OPTISPORT';
 const CATALOG_DESCRIPTION =
@@ -40,9 +47,16 @@ interface CatalogPageProps {
 }
 
 interface CategoryTreeNode {
+  id?: unknown;
   name?: unknown;
   slug?: unknown;
   children?: unknown;
+}
+
+interface CategoryInfo {
+  name: string;
+  /** Нет в ответе — категорию нельзя передать фильтром category_id */
+  id: number | null;
 }
 
 function getApiUrl(): string {
@@ -75,10 +89,10 @@ function findCatalogCollection(params: CatalogSearchParams): CatalogCollectionKe
   return key as CatalogCollectionKey;
 }
 
-function collectCategories(nodes: unknown): Map<string, string> | null {
+function collectCategories(nodes: unknown): Map<string, CategoryInfo> | null {
   if (!Array.isArray(nodes)) return null;
 
-  const categories = new Map<string, string>();
+  const categories = new Map<string, CategoryInfo>();
   const visit = (items: unknown[]) => {
     for (const item of items) {
       if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
@@ -86,7 +100,8 @@ function collectCategories(nodes: unknown): Map<string, string> | null {
       if (typeof node.slug === 'string' && typeof node.name === 'string') {
         const slug = node.slug.trim();
         const name = node.name.trim();
-        if (slug && name && !categories.has(slug)) categories.set(slug, name);
+        const id = Number.isSafeInteger(node.id) ? (node.id as number) : null;
+        if (slug && name && !categories.has(slug)) categories.set(slug, { name, id });
       }
       if (Array.isArray(node.children)) visit(node.children);
     }
@@ -96,7 +111,7 @@ function collectCategories(nodes: unknown): Map<string, string> | null {
   return categories;
 }
 
-async function fetchCategoryNames(): Promise<Map<string, string> | null> {
+async function fetchCategories(): Promise<Map<string, CategoryInfo> | null> {
   const response = await fetch(`${getApiUrl()}/categories-tree/`, {
     next: { revalidate: 3600 },
     signal: AbortSignal.timeout(CATEGORY_TREE_FETCH_TIMEOUT_MS),
@@ -121,8 +136,8 @@ export async function generateMetadata({ searchParams }: CatalogPageProps): Prom
     if (typeof category !== 'string' || !category.trim()) return buildCatalogMetadata();
 
     const slug = category.trim();
-    const categoryNames = await fetchCategoryNames();
-    const name = categoryNames?.get(slug);
+    const categories = await fetchCategories();
+    const name = categories?.get(slug)?.name;
     if (!name) return buildCatalogMetadata();
 
     const query = new URLSearchParams({ category: slug });
@@ -139,6 +154,75 @@ export async function generateMetadata({ searchParams }: CatalogPageProps): Prom
   }
 }
 
-export default function CatalogPage() {
-  return <CatalogPageClient />;
+/**
+ * Первая страница выдачи для серверного HTML: без неё поисковик видит каталог
+ * без единого товара. Запрос анонимный, поэтому при сохранённой сессии не
+ * выполняется — вошедшему оптовику нужны цены его роли, их загрузит клиент.
+ * Ссылки с брендом не рендерятся: их slug'и разрешает справочник брендов.
+ * Любой сбой возвращает null — клиент загрузит выдачу сам, как раньше.
+ */
+async function fetchInitialProducts(
+  params: CatalogSearchParams
+): Promise<CatalogInitialProducts | null> {
+  try {
+    // Клиентская навигация (router.push фильтров, переход по ссылке, префетч)
+    // тоже выполняет динамическую страницу заново. Клиент такую выдачу не
+    // берёт — он уже смонтирован или грузит её сам, — а запрос удвоил бы
+    // нагрузку на бэкенд и задержал бы смену фильтра. Заголовок RSC Next
+    // из headers() вырезает, поэтому признак — Sec-Fetch-Dest: его ставит
+    // браузер, у документа он `document`, у fetch роутера — `empty`. У ботов
+    // заголовка нет — им выдача и нужна.
+    const headerStore = await headers();
+    const fetchDest = headerStore.get('sec-fetch-dest');
+    if (fetchDest && fetchDest !== 'document') return null;
+
+    const cookieStore = await cookies();
+    if (cookieStore.get('refreshToken')?.value) return null;
+
+    // Повторяющийся параметр клиент читает через searchParams.get() — первое значение
+    const get = (name: string): string | null => {
+      const value = params[name];
+      return (Array.isArray(value) ? value[0] : value) ?? null;
+    };
+
+    if ((get('brand') ?? '').split(',').some(slug => slug.trim())) return null;
+
+    // Клиент сопоставляет slug с деревом без trim — сервер тоже
+    const categorySlug = get('category');
+    let categoryId: number | null = null;
+    if (categorySlug) {
+      const categories = await fetchCategories();
+      // Дерево не загрузилось — клиент выдачу по категории всё равно запросит сам
+      if (!categories) return null;
+      const category = categories.get(categorySlug);
+      if (category && category.id === null) return null;
+      categoryId = category?.id ?? null;
+    }
+
+    const filters = buildInitialProductFilters(get, categoryId);
+    const query = new URLSearchParams(
+      Object.entries(filters)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => [key, String(value)])
+    );
+    const response = await fetch(`${getApiUrl()}/products/?${query.toString()}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(PRODUCTS_FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+
+    const data: unknown = await response.json();
+    if (!data || typeof data !== 'object') return null;
+    const { count, results } = data as { count?: unknown; results?: unknown };
+    if (typeof count !== 'number' || !Array.isArray(results)) return null;
+
+    return { key: productFiltersKey(filters), token: crypto.randomUUID(), count, results };
+  } catch {
+    return null;
+  }
+}
+
+export default async function CatalogPage({ searchParams }: CatalogPageProps) {
+  const initialProducts = await fetchInitialProducts(await searchParams);
+  return <CatalogPageClient initialProducts={initialProducts} />;
 }
