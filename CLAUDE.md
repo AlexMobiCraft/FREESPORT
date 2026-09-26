@@ -46,7 +46,7 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 
 **`--env-file` тестовому compose не передаётся:** файла `docker/.env` нет, и с ним команда падает на `couldn't find env file`. Он и не нужен — в `docker-compose.test.yml` нет подстановок переменных. **`run --rm`, а не `exec`:** у сервиса `backend` команда по умолчанию `pytest`, контейнер отрабатывает и выходит, поэтому после test-таргетов подключаться `exec` не к чему.
 
-**Покрытие:** общее ≥ 70%, критические модули ≥ 90%. Порог в CI и то, какой прогон его считает, — в `backend/docs/testing-standards.md`.
+**Покрытие:** CI (`main.yml`) падает ниже 75% общего покрытия; критические модули — цель ≥ 90%. Какой прогон считает порог и почему — в `backend/docs/testing-standards.md`.
 
 ### Python: виртуальное окружение
 
@@ -55,10 +55,9 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 
 ## Интеграция с 1С (CommerceML 3.1)
 
-### Реальные данные для тестов — КРИТИЧНО
+### Реальные данные для тестов
 
-- ❌ **НЕ создавай** синтетические XML для тестов импорта 1С.
-- ✅ **Всегда используй** файлы из `data/import_1c/`:
+Тесты импорта 1С работают на реальных выгрузках, синтетические XML для них не создавай. Файлы — в `data/import_1c/`:
   - `contragents/` — контрагенты (ООО/ИП/физлица, edge cases)
   - `goods/` — товары + `import_files/` изображения
   - `offers/`, `prices/`, `rests/`, `units/`, `storages/`, `priceLists/`
@@ -93,10 +92,11 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 - `docs/integrations/1c/import-process.md` — архитектура импорта 1С
 - `docs/api/openapi.yaml` — OpenAPI спецификация
 - `docs/api/views-documentation.md` — документация API endpoints
-- `docs/stories/epic-*/` — user stories по эпикам (epic-1 … epic-26)
+- `_bmad-output/implementation-artifacts/` — текущие стори, контексты эпиков, deferred-work
+- `docs/archive/v4/stories/epic-*/` — архив user stories (epic-1 … epic-31)
 - `docs/decisions/` — архитектурные решения
 - `docs/guides/` — руководства
-- `docs/qa/` — тестирование и QA
+- `docs/testing-docker.md` — тестирование в Docker
 - `docs/integrations/` — интеграции (1С,CDEK, YuKassa и др.)
 - `backend/docs/testing-standards.md` — стандарты тестирования
 - API Swagger UI: `/api/schema/swagger/` (на dev сервере)
@@ -122,15 +122,7 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 - **Предупреди пользователя**, если impact вернул `"risk": "HIGH"` или `"CRITICAL"`, — до внесения правок.
 - **Для исследования незнакомого кода** — `npx gitnexus query "<концепция>"` вместо grep по всей базе.
 - **Полный контекст символа** (вызывающие, вызываемые, процессы) — `npx gitnexus context <symbol>`.
-
-### Запрещено
-
-- НЕ редактировать функцию/класс/метод, не выполнив `impact`.
-- НЕ игнорировать риск HIGH или CRITICAL.
-- НЕ переименовывать символы через find-and-replace. Команды `rename` в CLI нет:
-  собери все места через `impact` и `context`, затем правь точечно и осознанно.
-- НЕ коммитить без `detect-changes`.
-- НЕ вызывать инструменты `gitnexus_*` — MCP-сервер отключён, вызов гарантированно провалится.
+- **Переименование** — не через find-and-replace: собери все места через `impact` и `context`, затем правь точечно.
 
 ### Команды
 
