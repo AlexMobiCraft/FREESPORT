@@ -14,14 +14,7 @@
 
 ## Конфигурация ESLint и Prettier для frontend
 
-Конфигурация **ESLint** и **Prettier** для frontend является встроенной в **Next.js** и не требует отдельных конфигурационных файлов. Это означает:
-
-- ESLint и Prettier уже преднастроены в проекте Next.js
-- Правила форматирования и линтинга применяются автоматически при сборке
-- Для форматирования кода используются команды из Makefile:
-  - `make format` - форматирование через Docker
-  - `make format-fast` - быстрое форматирование
-  - `make format-local` - локальное форматирование (требует venv)
+Конфиги — `frontend/.prettierrc` и `frontend/eslint.config.mjs`. При сборке форматирование не применяется: `prettier --check` — отдельный гейт в `frontend-ci.yml` (см. «Правила разработки Frontend»). Форматирование фронтенда — `npm run format` в `frontend/`. Цели `make format*` форматируют только backend (black + isort).
 
 ## Дополнительные важные замечания
 
@@ -40,7 +33,7 @@
 ### Работа с окружением:
 
 - Все команды Makefile работают через Docker для обеспечения консистентности окружения
-- Локальное выполнение возможно при наличии настроенного виртуального окружения (venv)
+- Backend-тесты — только в Docker с PostgreSQL (см. «Разработка и тестирование Backend»)
 
 ## Работа в среде Windows и Terminal
 
@@ -80,14 +73,11 @@ _Например:_ `git add .; git commit -m "..."; git push`
 
 ## Разработка и тестирование Backend
 
-- **Локальное тестирование**: Для запуска `pytest` локально необходимо предварительно инициировать (активировать) виртуальное окружение.
-  _Пример (в PowerShell из корня проекта):_
-  ```powershell
-  .\backend\venv\Scripts\Activate.ps1
-  pytest <путь_к_тесту>
+- **Тесты — только в Docker с PostgreSQL.** Изолированный прогон (как в CI) — через `docker/docker-compose.test.yml`, без `--env-file`:
+  ```bash
+  cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest <путь_к_тесту>
   ```
-- **Тестирование через Docker**: При необходимости запустить тесты внутри Docker-контейнера:
-  _Пример команды:_
+- **В уже поднятой dev-среде** можно через `exec`:
   `docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
 
 ## Критические правила и runbook'и
@@ -102,7 +92,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 
 ## Справочная информация
 
-Справочная информация о проекте (архитектура, стек, команды запуска и тесты) находится в файле [PROJECT_INFO.md](file:///c:/Users/tkachenko/DEV/FREESPORT/docs/PROJECT_INFO.md).
+Справочная информация о проекте (архитектура, стек, команды запуска и тесты) находится в файле [`docs/PROJECT_INFO.md`](docs/PROJECT_INFO.md).
 
 ## GitNexus — Code Intelligence (CLI)
 

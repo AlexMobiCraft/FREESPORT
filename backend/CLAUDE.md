@@ -2,11 +2,11 @@
 
 ## Изоляция тестов (специфика проекта)
 
-Решены проблемы с constraint violations через:
+Конфликты уникальности между тестами предотвращают:
 
-- **Автоочистка БД:** `@pytest.fixture(autouse=True)` с `TRUNCATE CASCADE` перед каждым тестом.
+- **Автоочистка БД:** autouse-фикстура `clear_db_before_test` в `backend/tests/conftest.py` удаляет данные через `DELETE` перед каждым тестом. `TRUNCATE ... CASCADE` — только в явной фикстуре `truncate_db`.
 - **Уникальные данные:** `get_unique_suffix()` (timestamp + счетчик + UUID).
 - **Factory Boy:** `LazyFunction` вместо статических значений и `Sequence`.
-- **Pytest:** `--create-db --nomigrations` для быстрой изоляции.
+- **Тестовая БД строится с миграциями:** флагов `--nomigrations` / `--create-db` нет ни в `pytest.ini`, ни в `docker-compose.test.yml`, поэтому данные data-миграций в тестовой БД присутствуют.
 
-Детальные правила: `backend/docs/testing-standards.md` (раздел 8.5).
+Маркеры и покрытие: `backend/docs/testing-standards.md`.
