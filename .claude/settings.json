@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "deny": [
+      "Edit(**/.env)",
+      "Edit(**/.env.local)",
+      "Edit(**/.env.*.local)",
+      "Edit(**/.env.prod)",
+      "Edit(**/.env.production)"
+    ]
+  },
   "enabledPlugins": {
     "andrej-karpathy-skills@karpathy-skills": true,
     "claude-md-management@claude-plugins-official": true
