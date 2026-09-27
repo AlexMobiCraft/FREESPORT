@@ -1,4 +1,5 @@
 ---
+trigger: model_decision
 description: Бизнес-правила нумерации заказов FREESPORT
 ---
 

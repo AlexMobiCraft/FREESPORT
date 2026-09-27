@@ -1,4 +1,5 @@
 ---
+trigger: model_decision
 description: Продакшен runbook FREESPORT — частые инциденты и восстановление
 ---
 

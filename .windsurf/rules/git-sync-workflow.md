@@ -1,4 +1,5 @@
 ---
+trigger: model_decision
 description: Порядок сохранения изменений в GitHub, синка develop -> main и откатa (solo-dev)
 ---
 

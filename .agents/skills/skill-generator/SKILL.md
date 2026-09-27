@@ -100,10 +100,10 @@ Reference supporting files for detailed content.
 
 **For the body:**
 
-- Use clear, actionable instructions
-- Include step-by-step workflows
-- Add examples with inputs and outputs
-- Document edge cases
+- State the outcome, the constraints, and how to verify the result
+- Use numbered steps only where the order is fixed (deploys, migrations, destructive commands); for judgment tasks describe the goal and let the agent plan
+- Add examples only where the output format is fragile, and label them illustrative
+- Document edge cases the agent cannot infer from the project itself
 - Keep main file under 500 lines
 
 **For supporting files:**
@@ -224,7 +224,7 @@ Available variables in skill content:
 3. **Specific Tools**: List exact tools in allowed-tools
 4. **Sensible Defaults**: Use disable-model-invocation for dangerous actions
 5. **Validation**: Always validate before publishing
-6. **Examples**: Include input/output examples
+6. **Examples**: Only for format-sensitive output; several varied ones beat a single gold sample
 7. **Error Handling**: Document what can go wrong
 
 ## Publishing

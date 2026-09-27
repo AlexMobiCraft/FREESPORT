@@ -1,58 +1,89 @@
 # Руководство для AI-агентов проекта FREESPORT
 
+Единый источник правил для всех агентов (Claude Code, Codex, Devin Desktop). `CLAUDE.md` только импортирует этот файл через `@AGENTS.md` — новые правила добавляй сюда.
+
+- **Навыки** — `.claude/skills/` (Claude Code) и `.agents/skills/` (Codex, Devin Desktop). Собственные навыки правь в `.claude/skills/`, затем запусти `python scripts/dev/sync_agent_skills.py`: он повторит их в `.agents/skills/`, а `pre-merge-checks.yml` падает, если копии разошлись. Навыки BMAD (`bmad*`) и Vercel (`vercel-*`) раскладывает `npx skills` — вручную их не правь.
+- **Правила по темам** — `.windsurf/rules/`: Devin подключает их сам по `description`, остальные агенты читают по ссылкам из раздела «Критические правила и runbook'и».
+- **Правила каталога `backend/`** — `backend/AGENTS.md`.
+
 - Отвечай и веди документацию исключительно на русском языке
 - communication_language: Russian
 - document_output_language: Russian
 
-## Кастомные маркеры pytest для выборочного запуска тестов
+## Обзор проекта
 
-В проекте используются кастомные маркеры pytest для классификации и выборочного запуска тестов:
+**FREESPORT** — API-First E-commerce платформа для B2B/B2C продаж спортивных товаров. Monorepo: Django REST API backend + Next.js frontend.
 
-- **`unit`**: Юнит-тесты бэкенда (модульные тесты)
-- **`integration`**: Интеграционные тесты
-- **`data_dependent`**: Тесты, зависящие от внешних данных
+### КРИТИЧНЫЕ правила проекта
 
-## Конфигурация ESLint и Prettier для frontend
+1. **Только PostgreSQL.** Другие СУБД НЕ поддерживаются — проект использует JSONB (спецификации товаров), партиционирование, полнотекстовый поиск.
+2. **Только Docker.** Вся разработка, тестирование и деплой — через Docker Compose. Локальная установка БД не поддерживается.
+3. **Django backend работает на порту 8001** (не 8000 — для избежания конфликтов).
+4. **Файлы docker-compose\*.yml находятся в `docker/`**, не в корне репозитория.
 
-Конфиги — `frontend/.prettierrc` и `frontend/eslint.config.mjs`. При сборке форматирование не применяется: `prettier --check` — отдельный гейт в `frontend-ci.yml` (см. «Правила разработки Frontend»). Форматирование фронтенда — `npm run format` в `frontend/`. Цели `make format*` форматируют только backend (black + isort).
+## Неочевидное в коде
 
-## Дополнительные важные замечания
+- `orders/` — Email-уведомления (customer + admin) ставятся в очередь **только для `is_master=True`** (`signals.py` guard); items для отображения агрегируются из `sub_orders` через helper `_get_order_display_items`.
+- `data/import_1c/` — РЕАЛЬНЫЕ XML-выгрузки из 1С, используются в тестах импорта (см. раздел «Интеграция с 1С»).
 
-### Тестирование:
+## Команды разработки
 
-- Для запуска unit-тестов используется команда `make test-unit`
-- Для запуска интеграционных тестов используется команда `make test-integration`
-- Все тесты запускаются через `make test` с использованием Docker-контейнеров
+### Docker (основной способ)
 
-### Структура тестов:
+```bash
+# Запуск всех сервисов (db, redis, backend, frontend, nginx, celery, celery-beat)
+docker compose --env-file .env -f docker/docker-compose.yml up -d --build
+
+# Остановка
+docker compose --env-file .env -f docker/docker-compose.yml down
+
+# Production
+docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
+```
+
+### Тестирование backend (ТОЛЬКО через Docker с PostgreSQL)
+
+Конкретный backend-тест:
+
+```bash
+cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend \
+  pytest -xvs apps/products/tests/test_product_variant_models.py::TestProductVariant::test_create_variant_with_valid_data
+```
+
+**`--env-file` тестовому compose не передаётся:** файла `docker/.env` нет, и с ним команда падает на `couldn't find env file`. Он и не нужен — в `docker-compose.test.yml` нет подстановок переменных. **`run --rm`, а не `exec`:** у сервиса `backend` команда по умолчанию `pytest`, контейнер отрабатывает и выходит, поэтому после прогона подключаться `exec` не к чему.
+
+**В уже поднятой dev-среде** можно через `exec`:
+`docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
+
+**Покрытие:** CI (`main.yml`) падает ниже 75% общего покрытия; критические модули — цель ≥ 90%. Какой прогон считает порог и почему — в `backend/docs/testing-standards.md`.
+
+**Маркеры pytest** (`unit`, `integration`, `data_dependent`, `slow`, `performance`) объявлены в `backend/pytest.ini`; что из них исключают PR-гейты — в `backend/docs/testing-standards.md`.
+
+**Структура тестов:**
 
 - Юнит-тесты располагаются внутри каждого Django-приложения
 - Интеграционные тесты находятся в директории `/backend/tests`
 - Тесты для компонентов frontend находятся рядом с ними в директориях `__tests__`
 
-### Работа с окружением:
+### Python-зависимости backend
 
-- Все команды Makefile работают через Docker для обеспечения консистентности окружения
-- Backend-тесты — только в Docker с PostgreSQL (см. «Разработка и тестирование Backend»)
+`backend/requirements.txt` — полный закреплённый список (вместе с транзитивными пакетами), из которого собираются все образы на `python:3.12-slim`. Локальный `backend/venv` работает на другой версии Python, поэтому пакеты через него не ставь и `pip freeze` из него не делай: pip подберёт версии под чужой интерпретатор. Venv нужен только для линтеров (навык `backend-lint`).
 
-## Работа в среде Windows и Terminal
+Новая зависимость:
 
-### PowerShell Chaining
+1. Допиши `пакет==версия` в `backend/requirements.txt`.
+2. Пересобери образ и перегенерируй файл из контейнера, чтобы попали транзитивные зависимости:
+   ```bash
+   docker compose --env-file .env -f docker/docker-compose.yml build backend
+   docker compose --env-file .env -f docker/docker-compose.yml run --rm --no-deps -T backend pip freeze > backend/requirements.txt
+   ```
+3. Проверь `git diff backend/requirements.txt`: меняться должны только новый пакет и его зависимости.
 
-В среде Windows PowerShell для объединения команд используй `;` вместо `&&`.
-_Например:_ `git add .; git commit -m "..."; git push`
+### Frontend
 
-### Правила работы с терминалом и SSH (защита от зависаний)
+Конфиги — `frontend/.prettierrc` и `frontend/eslint.config.mjs`. При сборке форматирование не применяется: `prettier --check` — отдельный гейт в `frontend-ci.yml`. Форматирование фронтенда — `npm run format` в `frontend/`; backend — навык `backend-lint`.
 
-- **Запуск из подпапок**: Чтобы избежать зависаний терминала из-за индексации Git/Oh-My-Posh в корне проекта, ВСЕГДА запускай команды из подпапки (например, `scripts/` или `backend/`). Git автоматически найдет корень проекта.
-- **SSH Authentication**: Используй только SSH-ключи через `ssh-agent`. Избегай интерактивных запросов пароля, так как они приводят к зависанию агента.
-- **Production Git Updates**: При обновлении кода на продакшен-сервере НИКОГДА не используй `git pull`. ВСЕГДА используй: `git fetch origin main; git reset --hard origin/main`, чтобы избежать конфликтов и ошибки `divergent branches`.
-- **Session Hygiene**: Если команды начинают выполняться медленно, используй опцию "Close Completely" при перезагрузке Antigravity, чтобы очистить зомби-процессы.
-- **Command Shell**: Для простых системных задач (echo, dir, move) используй `cmd /c` вместо PowerShell, так как он запускается быстрее.
-
-## Правила разработки Frontend
-
-- **ВАЖНО**: После правок `frontend/src/` перед коммитом обязательно прогонять локально:
+- После правок `frontend/src/` перед коммитом прогони локально:
   ```bash
   cd frontend
   npm run format:check   # prettier --check .  — гейт в frontend-ci.yml
@@ -61,7 +92,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
   ```
   Pre-commit хук `.husky/pre-commit` (lint-staged → prettier+eslint) на этой машине НЕ активен — `core.hooksPath` не установлен, корневого `package.json` нет. Полагаться на автоформатирование при коммите нельзя.
 
-- **ВАЖНО**: После внесения изменений во фронтенд-код (`frontend/src/`), необходимо ПЕРЕЗАПУСТИТЬ Docker-контейнер, чтобы изменения отразились в браузере:
+- Контейнер `frontend` работает на `npm run dev` с примонтированным `frontend/`. Если правка не появилась в браузере (hot-reload через bind-mount на Windows срабатывает не всегда), перезапусти его:
 
   ```bash
   # Обычный перезапуск (для проблем с hot-reload)
@@ -71,28 +102,76 @@ _Например:_ `git add .; git commit -m "..."; git push`
   docker compose --env-file .env -f docker/docker-compose.yml up -d --build frontend
   ```
 
-## Разработка и тестирование Backend
+## Работа в среде Windows и Terminal
 
-- **Тесты — только в Docker с PostgreSQL.** Изолированный прогон (как в CI) — через `docker/docker-compose.test.yml`, без `--env-file`:
-  ```bash
-  cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest <путь_к_тесту>
-  ```
-- **В уже поднятой dev-среде** можно через `exec`:
-  `docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
+### PowerShell Chaining
+
+В среде Windows PowerShell для объединения команд используй `;` вместо `&&`.
+_Например:_ `git add .; git commit -m "..."; git push`
+
+### Терминал и SSH
+
+- **SSH Authentication**: Используй только SSH-ключи через `ssh-agent` — интерактивный запрос пароля подвешивает агента.
+- **Production Git Updates**: На продакшене — `git fetch origin main; git reset --hard origin/main`, не `git pull`: на сервере есть коммиты Sync Bot, и pull падает с `divergent branches`.
+
+## Интеграция с 1С (CommerceML 3.1)
+
+### Реальные данные для тестов
+
+Тесты импорта 1С работают на реальных выгрузках, синтетические XML для них не создавай. Файлы — в `data/import_1c/`:
+  - `contragents/` — контрагенты (ООО/ИП/физлица, edge cases)
+  - `goods/` — товары + `import_files/` изображения
+  - `offers/`, `prices/`, `rests/`, `units/`, `storages/`, `priceLists/`
+
+### Команды импорта
+
+Команды импорта товаров и контрагентов — в навыке `import-1c` (`.claude/skills/import-1c/SKILL.md`).
+
+## Внешние интеграции
+
+- **1С (ERP):** двусторонний обмен (товары, заказы, остатки) через Celery, CommerceML 3.1 (см. `docs/integrations/`)
+- **Платежи:** YuKassa
+- **Доставка:** CDEK, Boxberry (см. `docs/integrations/`)
+
+## Git Workflow
+
+- `main` — production (прямой push, без PR и required-чеков; force-push запрещён)
+- `develop` — основная ветка разработки (защищена, base для PR, 6 required-чеков)
+- `feature/*` — новые функции
+- `hotfix/*` — критические исправления
+- Синк `develop` → `main`: `git push origin origin/develop:refs/heads/main` (fast-forward, только по команде владельца). **Этот push и есть релиз:** он запускает `deploy.yml` (сборка образов → approval на environment `production` → SSH-деплой). Тестов на push нет ни в `develop`, ни в `main` — тот же SHA уже зелёный на PR.
+- Мёрдж PR **только merge commit**, предпочтительно на автомёрдже: `gh pr merge N --auto --merge` — сольётся сам по зелёным чекам, head-ветка удалится автоматически. Squash/rebase разводят историю и ломают fast-forward синк (отключены в настройках репозитория).
+- Откат релиза: `gh workflow run deploy.yml -f image_tag=<sha прошлого релиза>` — без пересборки и тестов. Подробности и откат самой схемы — `.windsurf/rules/git-sync-workflow.md`
 
 ## Критические правила и runbook'и
 
 Постоянные инварианты и продакшен-инструкции вынесены в отдельные rule-файлы:
 
-- [`.windsurf/rules/security-and-git.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/security-and-git.md) — запрет прямого пуша в public remote, обновление продакшена.
-- [`.windsurf/rules/git-sync-workflow.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/git-sync-workflow.md) — порядок сохранения изменений: PR в develop (единственный гейт, 6 чеков), синк в main fast-forward пушем без PR (этот push = релиз), откат релиза и откат самой схемы.
-- [`.windsurf/rules/production-operations.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/production-operations.md) — типовые инциденты: 502, Server Action mismatch, restart nginx.
-- [`.windsurf/rules/order-numbering.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/order-numbering.md) — форматы мастер/субзаказов и поиск в админке.
-- [`.windsurf/rules/1c-import-diagnostics.md`](file:///c:/Users/1/DEV/FREESPORT/.windsurf/rules/1c-import-diagnostics.md) — диагностика ошибок полной выгрузки 1С.
+- [`.windsurf/rules/security-and-git.md`](.windsurf/rules/security-and-git.md) — запрет прямого пуша в public remote, обновление продакшена.
+- [`.windsurf/rules/git-sync-workflow.md`](.windsurf/rules/git-sync-workflow.md) — порядок сохранения изменений: PR в develop (единственный гейт, 6 чеков), синк в main fast-forward пушем без PR (этот push = релиз), откат релиза и откат самой схемы.
+- [`.windsurf/rules/production-operations.md`](.windsurf/rules/production-operations.md) — типовые инциденты: 502, Server Action mismatch, restart nginx.
+- [`.windsurf/rules/order-numbering.md`](.windsurf/rules/order-numbering.md) — форматы мастер/субзаказов и поиск в админке.
+- [`.windsurf/rules/1c-import-diagnostics.md`](.windsurf/rules/1c-import-diagnostics.md) — диагностика ошибок полной выгрузки 1С.
 
-## Справочная информация
+## Документация проекта
 
-Справочная информация о проекте (архитектура, стек, команды запуска и тесты) находится в файле [`docs/PROJECT_INFO.md`](docs/PROJECT_INFO.md).
+Подробности ищи в `docs/`:
+
+- `docs/index.md` — главная документации
+- `docs/PROJECT_INFO.md` — справочная информация о проекте (архитектура, стек, команды запуска и тесты)
+- `_bmad-output/planning-artifacts/refined-prd.md` — Product Requirements (PRD)
+- `docs/architecture/index.md` — архитектура системы
+- `docs/integrations/1c/import-process.md` — архитектура импорта 1С
+- `docs/api/openapi.yaml` — OpenAPI спецификация
+- `docs/api/views-documentation.md` — документация API endpoints
+- `_bmad-output/implementation-artifacts/` — текущие стори, контексты эпиков, deferred-work
+- `docs/archive/v4/stories/epic-*/` — архив user stories (epic-1 … epic-31)
+- `docs/decisions/` — архитектурные решения
+- `docs/guides/` — руководства
+- `docs/testing-docker.md` — тестирование в Docker
+- `docs/integrations/` — интеграции (1С,CDEK, YuKassa и др.)
+- `backend/docs/testing-standards.md` — стандарты тестирования
+- API Swagger UI: `/api/schema/swagger/` (на dev сервере)
 
 ## GitNexus — Code Intelligence (CLI)
 
@@ -115,15 +194,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 - **Предупреди пользователя**, если impact вернул `"risk": "HIGH"` или `"CRITICAL"`, — до внесения правок.
 - **Для исследования незнакомого кода** — `npx gitnexus query "<концепция>"` вместо grep по всей базе.
 - **Полный контекст символа** (вызывающие, вызываемые, процессы) — `npx gitnexus context <symbol>`.
-
-### Запрещено
-
-- НЕ редактировать функцию/класс/метод, не выполнив `impact`.
-- НЕ игнорировать риск HIGH или CRITICAL.
-- НЕ переименовывать символы через find-and-replace. Команды `rename` в CLI нет:
-  собери все места через `impact` и `context`, затем правь точечно и осознанно.
-- НЕ коммитить без `detect-changes`.
-- НЕ вызывать инструменты `gitnexus_*` — MCP-сервер отключён, вызов гарантированно провалится.
+- **Переименование** — не через find-and-replace: собери все места через `impact` и `context`, затем правь точечно.
 
 ### Команды
 
@@ -148,15 +219,17 @@ _Например:_ `git add .; git commit -m "..."; git push`
 - `npx gitnexus wiki` требует LLM-провайдер и API-ключ — это не локальная бесплатная команда.
 - Символы, добавленные после последней индексации, не находятся: `context` вернёт
   `{"error": "Symbol ... not found"}`. Это признак устаревшего индекса, а не отсутствия кода.
-- `analyze` при каждом запуске (и с `--skip-agents-md` тоже) перезаписывает `.claude/skills/gitnexus/` своими MCP-шаблонами — флага, чтобы это отключить, нет. Каталог в `.gitignore`, не используй его; рабочие CLI-версии skills — `.claude/skills/gitnexus-*/` и `.windsurf/skills/gitnexus-*/`.
+- `analyze` при каждом запуске (и с `--skip-agents-md` тоже) перезаписывает `.claude/skills/gitnexus/` своими MCP-шаблонами — флага, чтобы это отключить, нет. Каталог в `.gitignore`, не используй его; рабочие CLI-версии skills — `gitnexus-*/` в `.claude/skills/` и `.agents/skills/`.
 
 ### Skill-файлы
 
-| Задача | Файл |
+Каждый навык лежит в двух копиях — `.claude/skills/` (Claude Code) и `.agents/skills/` (Codex, Devin Desktop); бери каталог своего агента.
+
+| Задача | Навык |
 |---|---|
-| Понять архитектуру / «Как работает X?» | `.windsurf/skills/gitnexus-exploring/SKILL.md` |
-| Blast radius / «Что сломается, если поменять X?» | `.windsurf/skills/gitnexus-impact-analysis/SKILL.md` |
-| Отладка / «Почему X падает?» | `.windsurf/skills/gitnexus-debugging/SKILL.md` |
-| Переименование и рефакторинг | `.windsurf/skills/gitnexus-refactoring/SKILL.md` |
-| Справочник по командам и схеме графа | `.windsurf/skills/gitnexus-guide/SKILL.md` |
-| Индекс, статус, очистка, wiki | `.windsurf/skills/gitnexus-cli/SKILL.md` |
+| Понять архитектуру / «Как работает X?» | `gitnexus-exploring/SKILL.md` |
+| Blast radius / «Что сломается, если поменять X?» | `gitnexus-impact-analysis/SKILL.md` |
+| Отладка / «Почему X падает?» | `gitnexus-debugging/SKILL.md` |
+| Переименование и рефакторинг | `gitnexus-refactoring/SKILL.md` |
+| Справочник по командам и схеме графа | `gitnexus-guide/SKILL.md` |
+| Индекс, статус, очистка, wiki | `gitnexus-cli/SKILL.md` |

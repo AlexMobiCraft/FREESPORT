@@ -27,6 +27,12 @@ jobs:
         with:
           fetch-depth: 0 # Получаем всю историю для анализа
 
+      # Claude Code читает .claude/skills/, Codex и Devin — .agents/skills/. Правят первую,
+      # вторую повторяет scripts/dev/sync_agent_skills.py; разошедшиеся копии дают агентам
+      # разные команды (так было с import-1c: --file= вместо обязательного --data-dir).
+      - name: Синхронность навыков агентов
+        run: python3 scripts/dev/sync_agent_skills.py --check
+
       - name: Анализ изменений
         run: |
           echo "🔍 Анализ изменений в Pull Request..."
@@ -177,7 +183,7 @@ jobs:
               fi
               # Пропускаем документацию и AI-скиллы
               case "$file" in
-                .agents/skills/vercel-react-native-skills/*|.claude/skills/vercel-react-native-skills/*|.windsurf/skills/vercel-react-native-skills/*|_bmad-output/implementation-artifacts/tech-spec/*|docs/architecture/ai-implementation/patterns/*|docs/archive/legacy/*|docs/archive/v4/epics/epic-9/*|docs/archive/v4/stories/epic-2/*|docs/archive/v4/stories/epic-25/*|docs/archive/v4/stories/epic-30/*|docs/archive/v4/stories/epic-9/*)
+                .agents/skills/vercel-react-native-skills/*|.claude/skills/vercel-react-native-skills/*|_bmad-output/implementation-artifacts/tech-spec/*|docs/architecture/ai-implementation/patterns/*|docs/archive/legacy/*|docs/archive/v4/epics/epic-9/*|docs/archive/v4/stories/epic-2/*|docs/archive/v4/stories/epic-25/*|docs/archive/v4/stories/epic-30/*|docs/archive/v4/stories/epic-9/*)
                   continue
                   ;;
               esac

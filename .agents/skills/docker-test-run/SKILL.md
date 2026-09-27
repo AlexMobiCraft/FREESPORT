@@ -30,7 +30,7 @@ docker compose -p freesport-test -f docker-compose.test.yml down
 ```powershell
 cd docker
 docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
-docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m unit --cov=apps --cov-report=term-missing
+docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m "unit and not slow" --cov=apps --cov-report=term-missing
 docker compose -p freesport-test -f docker-compose.test.yml down
 ```
 
@@ -38,7 +38,7 @@ docker compose -p freesport-test -f docker-compose.test.yml down
 ```powershell
 cd docker
 docker compose -p freesport-test -f docker-compose.test.yml down --remove-orphans
-docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m integration --cov=apps --cov-report=term-missing
+docker compose -p freesport-test -f docker-compose.test.yml run --rm backend pytest -v -m "integration and not slow" --cov=apps --cov-report=term-missing
 docker compose -p freesport-test -f docker-compose.test.yml down
 ```
 
