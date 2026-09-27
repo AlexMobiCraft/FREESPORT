@@ -7,7 +7,7 @@ description: "Use when the user wants to know what will break if they change som
 
 Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (индексов
 FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
-По правилам CLAUDE.md `impact` обязателен перед правкой любого символа, `detect-changes` — перед коммитом.
+По правилам AGENTS.md `impact` обязателен перед правкой любого символа, `detect-changes` — перед коммитом.
 
 ## Workflow
 

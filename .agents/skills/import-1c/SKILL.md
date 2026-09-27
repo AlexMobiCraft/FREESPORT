@@ -18,12 +18,13 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend \
 
 ## Контрагенты
 
-Сначала прогон с `--dry-run`, затем тот же вызов без флага:
+Сначала прогон с `--dry-run`, затем тот же вызов без флага. `--data-dir` обязателен и указывает
+на каталог, внутри которого лежит `contragents/`; команда берёт все `contragents*.xml` оттуда:
 
 ```bash
 docker compose --env-file .env -f docker/docker-compose.yml exec backend \
   python manage.py import_customers_from_1c --dry-run \
-  --file=/app/data/import_1c/contragents/<файл из data/import_1c/contragents/>
+  --data-dir=/app/data/import_1c
 ```
 
 ## Данные для тестов

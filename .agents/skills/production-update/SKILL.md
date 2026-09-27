@@ -27,7 +27,7 @@ approval на environment `production` → SSH-деплой) и `sync-to-public.
 Ручные сценарии ниже нужны, когда `deploy.yml` недоступен, и для точечных операций на сервере.
 
 > [!DANGER]
-> Не пушь в remote `production` (FREESPORT-B2B) вручную: `git push production main` выкладывает полную историю и конфиденциальные файлы (.env, .mcp.json, CLAUDE.md, \_bmad/, scripts/ и др.) в публичный репозиторий. Публичный репозиторий обновляет только `sync-to-public.yml`. Так уже случилось 2026-04-12, понадобился emergency sync.
+> Не пушь в remote `production` (FREESPORT-B2B) вручную: `git push production main` выкладывает полную историю и конфиденциальные файлы (.env, .mcp.json, CLAUDE.md, \_bmad/, scripts/ и др.) в публичный репозиторий. Публичный репозиторий обновляет только `sync-to-public.yml`.
 
 ## Общий алгоритм (Обновление на сервере)
 
@@ -105,7 +105,7 @@ docker image prune -f
 > На сервере появляются коммиты от `Freesport Sync Bot`, поэтому код обновляй через `git reset --hard origin/main`, а не `git pull`: иначе получишь "divergent branches".
 
 > [!DANGER]
-> **При любом деплое проверяй `showmigrations` и запускай `migrate`, даже если кажется, что backend не менялся.** Feature-ветки часто содержат миграции в backend-коде, которые легко пропустить при «фронтенд-only» деплое. Неприменённая миграция приводит к 500-м ошибкам API (`column ... does not exist`) и недоступности данных для frontend. Инцидент 2026-08-23: деплой feature-ветки с миграцией `banners.0007_banner_ad_disclosure` без `migrate` сломал `/api/v1/banners/`.
+> **При любом деплое проверяй `showmigrations` и запускай `migrate`, даже если кажется, что backend не менялся.** Feature-ветки часто содержат миграции в backend-коде, которые легко пропустить при «фронтенд-only» деплое. Неприменённая миграция приводит к 500-м ошибкам API (`column ... does not exist`) и недоступности данных для frontend.
 >
 > **Обязательный шаг после `git reset --hard origin/main` и перед/после пересборки контейнеров:**
 > ```bash
@@ -119,7 +119,7 @@ docker image prune -f
 > После обновления фронтенда всегда проверяй доступность сайта. Из-за особенностей Docker иногда требуется `restart nginx`, если upstream перестал отвечать.
 
 > [!IMPORTANT]
-> После **каждой** пересборки (`up -d --build`) выполняй `docker image prune -f` — иначе старые `<none>`-образы копятся и забивают диск (~2GB на каждый frontend-образ). Инцидент 2026-09-18: диск заполнен на 94%, накопилось ~90 старых образов и 41GB build cache. При нехватке места дополнительно: `docker builder prune -f` (кэш сборки) и `journalctl --vacuum-size=500M` (логи journald).
+> После **каждой** пересборки (`up -d --build`) выполняй `docker image prune -f` — иначе старые `<none>`-образы копятся и забивают диск (~2GB на каждый frontend-образ), а build cache растёт до десятков GB. При нехватке места дополнительно: `docker builder prune -f` (кэш сборки) и `journalctl --vacuum-size=500M` (логи journald).
 
 ## Экранирование и сложные команды через SSH
 

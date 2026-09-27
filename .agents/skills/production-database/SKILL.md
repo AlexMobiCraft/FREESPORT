@@ -183,19 +183,19 @@ ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file
 ### Подсчёт товаров
 
 ```powershell
-ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT COUNT(*) FROM products_product;"'
+ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT COUNT(*) FROM products;"'
 ```
 
 ### Подсчёт вариантов товаров
 
 ```powershell
-ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT COUNT(*) FROM products_productvariant;"'
+ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT COUNT(*) FROM product_variants;"'
 ```
 
 ### Последние 5 заказов
 
 ```powershell
-ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT id, status, total, created_at FROM orders_order ORDER BY created_at DESC LIMIT 5;"'
+ssh root@5.35.124.149 'cd /home/freesport/freesport && docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T db psql -U postgres -d freesport -t -c "SELECT id, status, total_amount, created_at FROM orders ORDER BY created_at DESC LIMIT 5;"'
 ```
 
 ### Список всех таблиц

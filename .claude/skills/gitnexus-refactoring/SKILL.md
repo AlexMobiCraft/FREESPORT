@@ -9,7 +9,7 @@ description: "Use when the user wants to rename, extract, split, move, or restru
 FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
 
 **Команды `rename` в CLI нет.** Переименование — вручную: собери все места через `impact`,
-`context` и grep, затем правь точечно. Find-and-replace по всему репозиторию запрещён (CLAUDE.md).
+`context` и grep, затем правь точечно. Find-and-replace по всему репозиторию запрещён (AGENTS.md).
 
 ## Workflow
 

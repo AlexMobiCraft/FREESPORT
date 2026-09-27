@@ -1,4 +1,5 @@
 ---
+trigger: model_decision
 description: Диагностика ошибок полной выгрузки 1С (CommerceML) в FREESPORT
 ---
 

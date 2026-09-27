@@ -1,4 +1,5 @@
 ---
+trigger: model_decision
 description: Критические правила работы с git и публичным репозиторием FREESPORT-B2B
 ---
 

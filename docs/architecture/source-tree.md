@@ -126,8 +126,11 @@ freesport/
 │   ├── checklists/             # Чек-листы
 │   └── data/                   # Данные методологии
 │
-├── .windsurf/                  # Windsurf workflows
-│   └── workflows/              # Рабочие процессы
+├── .windsurf/                  # Devin Desktop (бывший Windsurf)
+│   └── rules/                  # Правила по темам, подключаются по description
+│
+├── .agents/                    # Навыки для Codex и Devin Desktop
+│   └── skills/                 # Копия .claude/skills/ (scripts/dev/sync_agent_skills.py)
 │
 ├── web-bundles/                 # Web-бандлы
 │   └── agents/                 # Определения агентов
@@ -296,9 +299,11 @@ freesport/
 
 ### `.windsurf/`
 
-Workflows для Windsurf IDE:
+Конфигурация Devin Desktop (бывший Windsurf):
 
-- **`workflows/`**: Рабочие процессы (analyst, architect, bmad-master, dev, docs-workflow, pm, po, qa, sm, ux-expert и др.) — 11 файлов.
+- **`rules/`**: Правила по темам (git, продакшен, нумерация заказов, импорт 1С). `trigger: model_decision` — Devin подключает правило, когда тема совпадает с `description`; остальные агенты читают их по ссылкам из `AGENTS.md`.
+
+Навыки Devin Desktop берёт из `.agents/skills/` — там же, где Codex.
 
 ## Дополнительные файлы
 
