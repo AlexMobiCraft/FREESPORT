@@ -109,6 +109,18 @@ describe('Footer', () => {
       );
     });
 
+    // Slug-и сверены с Category.slug на проде (транслитерация j/ja, а не y/ya):
+    // при другом написании каталог открывается без фильтра по категории
+    it.each([
+      ['Детский транспорт', '/catalog?category=detskij-transport'],
+      ['Бассейны, пляж, аксессуары', '/catalog?category=bassejny-pljazh-aksessuary'],
+      ['Сувенирная продукция', '/catalog?category=suvenirnaja-produktsija'],
+    ])('links %s to its category slug', (name, href) => {
+      render(<Footer />);
+
+      expect(screen.getByRole('link', { name })).toHaveAttribute('href', href);
+    });
+
     it('renders cooperation terms link to partners page', () => {
       render(<Footer />);
 

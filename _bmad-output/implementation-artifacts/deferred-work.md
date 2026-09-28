@@ -831,3 +831,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-profile-newsletter-unsubscribe.md`
   summary: Повторная подписка на чужой адрес ротирует `unsubscribe_token` и ломает ссылки отписки в уже отправленных письмах (включая List-Unsubscribe).
   evidence: `rotate_unsubscribe_token()` вызывается при каждом вызове сервиса, в том числе для активной подписки; поведение унаследовано от формы подписки.
+
+## Deferred from: one-shot spec-footer-category-slugs (2026-09-28)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-category-slugs.md`
+  summary: Slug категорий в колонке «Каталог» подвала захардкожены на фронте, и ничто не сверяет их с `Category.slug`. При переименовании категории в 1С или смене схемы транслитерации ссылки снова молча перестанут фильтровать каталог.
+  evidence: `frontend/src/components/layout/Footer.tsx` — `DEFAULT_COLUMNS`; три slug в написании y/ya (`detskiy-transport` и др.) расходились с продом (`detskij-transport`), тест `Footer.test.tsx` сверяет строку со строкой. Варианты: строить колонку из `categories-tree` или добавить smoke-проверку ссылок подвала против API категорий.
+- source_spec: `_bmad-output/implementation-artifacts/spec-footer-category-slugs.md`
+  summary: Каталог молча игнорирует неизвестный `?category=<slug>`: отдаёт 200 с нефильтрованной выдачей и общими метаданными `/catalog`, поэтому битые ссылки на категории никак не проявляются.
+  evidence: `frontend/src/app/(blue)/catalog/page.tsx` — `generateMetadata` возвращает `buildCatalogMetadata()` при `!name`, `fetchInitialProducts` ставит `categoryId = null` для неизвестного slug. Из-за этого ошибка в подвале прошла незамеченной.
