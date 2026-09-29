@@ -12,6 +12,9 @@ import { buildMetadata } from '@/utils/seo';
 const CATEGORY_TREE_FETCH_TIMEOUT_MS = 3000;
 const PRODUCTS_FETCH_TIMEOUT_MS = 3000;
 
+// Тот же текст, что клиент показывает в H1 без категории (CatalogPageClient)
+const CATALOG_HEADING = 'Каталог';
+
 const CATALOG_TITLE = 'Каталог спортивных товаров | OPTISPORT';
 const CATALOG_DESCRIPTION =
   'Каталог спортивных товаров: фитнес и атлетика, единоборства, спортивные игры, плавание, туризм. Оптовые и рекомендованные розничные цены, доставка по России.';
@@ -57,6 +60,15 @@ interface CategoryInfo {
   name: string;
   /** Нет в ответе — категорию нельзя передать фильтром category_id */
   id: number | null;
+}
+
+/** Дерево категорий по slug; null — не загрузилось. Одна загрузка на рендер страницы */
+type CategoriesLoader = () => Promise<Map<string, CategoryInfo> | null>;
+
+// Повторяющийся параметр клиент читает через searchParams.get() — первое значение
+function readParam(params: CatalogSearchParams, name: string): string | null {
+  const value = params[name];
+  return (Array.isArray(value) ? value[0] : value) ?? null;
 }
 
 function getApiUrl(): string {
@@ -162,7 +174,8 @@ export async function generateMetadata({ searchParams }: CatalogPageProps): Prom
  * Любой сбой возвращает null — клиент загрузит выдачу сам, как раньше.
  */
 async function fetchInitialProducts(
-  params: CatalogSearchParams
+  params: CatalogSearchParams,
+  loadCategories: CategoriesLoader
 ): Promise<CatalogInitialProducts | null> {
   try {
     // Клиентская навигация (router.push фильтров, переход по ссылке, префетч)
@@ -179,11 +192,7 @@ async function fetchInitialProducts(
     const cookieStore = await cookies();
     if (cookieStore.get('refreshToken')?.value) return null;
 
-    // Повторяющийся параметр клиент читает через searchParams.get() — первое значение
-    const get = (name: string): string | null => {
-      const value = params[name];
-      return (Array.isArray(value) ? value[0] : value) ?? null;
-    };
+    const get = (name: string) => readParam(params, name);
 
     if ((get('brand') ?? '').split(',').some(slug => slug.trim())) return null;
 
@@ -191,7 +200,7 @@ async function fetchInitialProducts(
     const categorySlug = get('category');
     let categoryId: number | null = null;
     if (categorySlug) {
-      const categories = await fetchCategories();
+      const categories = await loadCategories();
       // Дерево не загрузилось — клиент выдачу по категории всё равно запросит сам
       if (!categories) return null;
       const category = categories.get(categorySlug);
@@ -222,7 +231,42 @@ async function fetchInitialProducts(
   }
 }
 
+/**
+ * Начальный текст H1 для серверного HTML: без него сканер и поисковик видят пустой
+ * заголовок, пока клиент грузит дерево категорий. Выбор тот же, что делает клиент после
+ * загрузки: название категории из адреса или «Каталог». null — определить не удалось,
+ * клиент покажет скелетон, как раньше.
+ * В отличие от выдачи, не зависит от cookie и типа навигации: дерево берётся из кеша
+ * данных Next, а не из некешируемого запроса.
+ */
+async function resolveInitialHeading(
+  params: CatalogSearchParams,
+  loadCategories: CategoriesLoader
+): Promise<string | null> {
+  // Клиент сопоставляет slug с деревом без trim — сервер тоже; пустой параметр — как его отсутствие
+  const slug = readParam(params, 'category');
+  if (!slug) return CATALOG_HEADING;
+
+  try {
+    const categories = await loadCategories();
+    if (!categories) return null;
+    return categories.get(slug)?.name ?? CATALOG_HEADING;
+  } catch {
+    return null;
+  }
+}
+
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
-  const initialProducts = await fetchInitialProducts(await searchParams);
-  return <CatalogPageClient initialProducts={initialProducts} />;
+  const params = await searchParams;
+
+  // Дерево нужно и выдаче (category_id), и заголовку: одна загрузка на рендер, чтобы при
+  // холодном кеше и недоступном бэкенде таймауты не складывались, а запросы не удваивались
+  let categoriesRequest: ReturnType<typeof fetchCategories> | undefined;
+  const loadCategories: CategoriesLoader = () => (categoriesRequest ??= fetchCategories());
+
+  const [initialProducts, initialHeading] = await Promise.all([
+    fetchInitialProducts(params, loadCategories),
+    resolveInitialHeading(params, loadCategories),
+  ]);
+  return <CatalogPageClient initialProducts={initialProducts} initialHeading={initialHeading} />;
 }

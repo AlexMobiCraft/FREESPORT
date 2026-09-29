@@ -164,3 +164,107 @@ describe('серверная первая страница выдачи ката
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
+
+type CatalogPageProps = {
+  initialProducts: CatalogInitialProducts | null;
+  initialHeading: string | null;
+};
+
+async function pagePropsFor(
+  params: Record<string, string | string[] | undefined>
+): Promise<CatalogPageProps> {
+  const element = (await CatalogPage({ searchParams: Promise.resolve(params) })) as ReactElement<CatalogPageProps>;
+  return element.props;
+}
+
+const treeRequests = () =>
+  vi.mocked(fetch).mock.calls.filter(([input]) => String(input).includes('categories-tree'));
+
+describe('серверный заголовок H1 каталога', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    cookieValues.clear();
+    headerValues.clear();
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubEnv('INTERNAL_API_URL', 'http://backend:8000');
+    vi.mocked(fetch).mockImplementation(async input =>
+      String(input).includes('categories-tree') ? response(TREE) : response(PRODUCTS)
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ['без параметров', {}],
+    ['на подборке', { is_new: 'true' }],
+    ['при пустом category', { category: '' }],
+  ])('без категории в адресе — «Каталог» и без запроса дерева (%s)', async (_, params) => {
+    expect((await pagePropsFor(params)).initialHeading).toBe('Каталог');
+    expect(treeRequests()).toHaveLength(0);
+  });
+
+  it.each([
+    ['категория верхнего уровня', 'obuv', 'Обувь'],
+    ['вложенная категория', 'kedy', 'Кеды'],
+  ])('название категории из дерева: %s', async (_, category, name) => {
+    expect((await pagePropsFor({ category })).initialHeading).toBe(name);
+  });
+
+  it('несуществующий slug — «Каталог», как у клиента после загрузки дерева', async () => {
+    expect((await pagePropsFor({ category: 'no-such-slug' })).initialHeading).toBe('Каталог');
+  });
+
+  it('slug сверяется без trim, как у клиента', async () => {
+    expect((await pagePropsFor({ category: ' obuv' })).initialHeading).toBe('Каталог');
+  });
+
+  it('при повторяющемся параметре берёт первое значение', async () => {
+    expect((await pagePropsFor({ category: ['kedy', 'obuv'] })).initialHeading).toBe('Кеды');
+  });
+
+  it.each([
+    ['ответ не 2xx', () => vi.mocked(fetch).mockResolvedValue(response({ detail: 'x' }, false))],
+    ['сетевую ошибку или таймаут', () => vi.mocked(fetch).mockRejectedValue(new Error('timeout'))],
+    ['ответ не в виде списка', () => vi.mocked(fetch).mockResolvedValue(response({}))],
+  ])('возвращает null на %s: клиент покажет скелетон', async (_, arrange) => {
+    arrange();
+
+    expect((await pagePropsFor({ category: 'obuv' })).initialHeading).toBeNull();
+  });
+
+  it.each([
+    [
+      'клиентской навигации',
+      { category: 'obuv' },
+      () => {
+        headerValues.set('sec-fetch-dest', 'empty');
+      },
+    ],
+    [
+      'сохранённой сессии',
+      { category: 'obuv' },
+      () => {
+        cookieValues.set('refreshToken', 'token');
+      },
+    ],
+    ['ссылке с брендом', { category: 'obuv', brand: 'nike' }, () => {}],
+  ])('вычисляется и когда выдача пропущена: %s', async (_, params, arrange) => {
+    arrange();
+
+    const props = await pagePropsFor(params);
+
+    expect(props.initialProducts).toBeNull();
+    expect(props.initialHeading).toBe('Обувь');
+  });
+
+  it('дерево загружается один раз на рендер и для выдачи, и для заголовка', async () => {
+    const props = await pagePropsFor({ category: 'kedy' });
+
+    expect(props.initialHeading).toBe('Кеды');
+    expect(props.initialProducts?.key).toBe(keyFor('category=kedy', 8));
+    expect(treeRequests()).toHaveLength(1);
+  });
+});

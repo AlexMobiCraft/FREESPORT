@@ -155,7 +155,7 @@ const HeroSection = () => {
       >
         <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
           <div className="text-center md:text-left md:flex-1 md:pr-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">{bannerContent.title}</h1>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">{bannerContent.title}</h2>
             <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-gray-600 max-w-3xl">
               {bannerContent.subtitle}
             </p>
@@ -202,7 +202,7 @@ const HeroSection = () => {
       <div className="relative mx-auto px-3 md:px-4 lg:px-6 max-w-[1280px] h-full flex flex-col-reverse gap-6 py-8 md:py-12 md:flex-row md:items-center">
         <div className="text-center md:text-left md:flex-1 md:pr-8 md:self-stretch md:flex md:flex-col md:justify-center">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">{currentBanner.title}</h1>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">{currentBanner.title}</h2>
             <p className="text-base font-medium mb-6 mx-auto md:mx-0 text-gray-600 max-w-3xl">
               {currentBanner.subtitle}
             </p>

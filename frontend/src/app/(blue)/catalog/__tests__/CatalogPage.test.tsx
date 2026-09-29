@@ -2,6 +2,8 @@
  * Unit-тесты для интеграции поиска в CatalogPage (Story 18.4)
  */
 
+import { Profiler } from 'react';
+import { renderToString } from 'react-dom/server';
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll, type Mock } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -2270,4 +2272,183 @@ describe('CatalogPage — первая страница выдачи с серв
     );
     expect(await screen.findByText('Nike Air Max 90')).toBeInTheDocument();
   });
+});
+
+// ---------------------------------------------------------------------------
+// H1 каталога: текст, определённый сервером (аудит 28.09.2026 — «Нет H1»)
+// ---------------------------------------------------------------------------
+
+describe('CatalogPage — H1 с текстом от сервера', () => {
+  /** Досылает дерево категорий: до этого клиентская загрузка висит, как при рендере на сервере */
+  let resolveTree: (tree: unknown) => void;
+
+  const h1 = () => screen.getByRole('heading', { level: 1 });
+
+  /** Тексты H1 на каждом коммите React (подряд идущие повторы схлопнуты) */
+  const recordHeadings = () => {
+    const texts: string[] = [];
+    const onRender = () => {
+      const text = document.querySelector('h1')?.textContent ?? '';
+      if (texts.at(-1) !== text) texts.push(text);
+    };
+    return { texts, onRender };
+  };
+
+  const loadTree = async (tree: unknown = filterTree) => {
+    await act(async () => {
+      resolveTree(tree);
+    });
+    await waitFor(() => expect(categoriesService.getVisibleCategories).toHaveBeenCalled());
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+    mockMatchMedia();
+    enableRouterNavigation();
+    resetSearchParams();
+    (productsService.getAll as Mock).mockResolvedValue(buildProductsResponse(40));
+    (categoriesService.getTree as Mock).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveTree = resolve;
+        })
+    );
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1, 2, 3, 4]);
+    (brandsService.getAll as Mock).mockResolvedValue(mockBrands);
+    (brandsService.getVisibleBrands as Mock).mockResolvedValue([1, 2]);
+  });
+
+  afterAll(() => {
+    restoreRouterMocks();
+    resetSearchParams();
+  });
+
+  it.each(['Туризм', 'Каталог'])(
+    'до загрузки дерева H1 сразу содержит «%s» без скелетона',
+    heading => {
+      render(<CatalogPage initialHeading={heading} />);
+
+      expect(h1().textContent).toBe(heading);
+      expect(h1().querySelector('.animate-pulse')).toBeNull();
+    }
+  );
+
+  it('серверный HTML содержит ровно один H1 с текстом, а не скелетон', () => {
+    const html = renderToString(<CatalogPage initialHeading="Туризм" />);
+
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html).toMatch(/<h1[^>]*>Туризм<\/h1>/);
+  });
+
+  it('без текста от сервера в H1 остаётся скелетон, как раньше', () => {
+    render(<CatalogPage initialHeading={null} />);
+
+    expect(h1().querySelector('.animate-pulse')).toBeInTheDocument();
+    expect(h1().textContent).toBe('');
+  });
+
+  it('не показывает промежуточный текст, пока подпись категории догоняет адрес', async () => {
+    resetSearchParams('category=sport');
+    const { texts, onRender } = recordHeadings();
+
+    render(
+      <Profiler id="catalog" onRender={onRender}>
+        <CatalogPage initialHeading="Спорт" />
+      </Profiler>
+    );
+    await loadTree();
+
+    // Дерево → activeCategoryId → подпись приходят разными коммитами; H1 на каждом — «Спорт»,
+    // без «Каталог» и пустой строки
+    expect(texts).toEqual(['Спорт']);
+  });
+
+  it.each([
+    ['без категории в адресе', '', 'Каталог'],
+    ['с несуществующей категорией', 'category=нет-такой', 'Каталог'],
+  ])('H1 остаётся «Каталог» после загрузки дерева %s', async (_, query, heading) => {
+    resetSearchParams(query);
+    const { texts, onRender } = recordHeadings();
+
+    render(
+      <Profiler id="catalog" onRender={onRender}>
+        <CatalogPage initialHeading={heading} />
+      </Profiler>
+    );
+    await loadTree();
+
+    expect(texts).toEqual([heading]);
+  });
+
+  it('после ошибки загрузки дерева H1 переходит на «Каталог», как раньше', async () => {
+    resetSearchParams('category=sport');
+    (categoriesService.getTree as Mock).mockRejectedValueOnce(new Error('network'));
+
+    render(<CatalogPage initialHeading="Спорт" />);
+
+    await waitFor(() => expect(h1().textContent).toBe('Каталог'));
+  });
+
+  it('после сброса H1 следует за выбором категории в сайдбаре, а не за текстом сервера', async () => {
+    const user = userEvent.setup();
+    resetSearchParams('category=sport');
+
+    render(<CatalogPage initialHeading="Спорт" />);
+    await loadTree();
+
+    await user.click(screen.getByText('Обувь'));
+
+    await waitFor(() => expect(h1().textContent).toBe('Обувь'));
+  });
+  it('не показывает текст сервера для другой категории, если адрес сменился до загрузки дерева', async () => {
+    resetSearchParams('category=sport');
+    const { texts, onRender } = recordHeadings();
+    // Каждый вызов — новый элемент: с тем же объектом React пропустил бы повторный рендер
+    const page = () => (
+      <Profiler id="catalog" onRender={onRender}>
+        <CatalogPage initialHeading="Спорт" />
+      </Profiler>
+    );
+    const { rerender } = render(page());
+    expect(h1().textContent).toBe('Спорт');
+
+    // Ссылка из шапки или «назад»: страница остаётся смонтированной, дерево ещё грузится.
+    // Считаем каждый коммит после смены адреса: чужой текст не должен мелькнуть даже на кадр
+    texts.length = 0;
+    resetSearchParams('category=obuv');
+    rerender(page());
+
+    expect(texts).not.toContain('Спорт');
+    expect(h1().querySelector('.animate-pulse')).toBeInTheDocument();
+
+    await loadTree();
+
+    await waitFor(() => expect(h1().textContent).toBe('Обувь'));
+    expect(texts).not.toContain('Спорт');
+  });
+
+  it('если у клиента категории из заголовка сервера нет в дереве, H1 переходит на «Каталог»', async () => {
+    resetSearchParams('category=obuv');
+
+    render(<CatalogPage initialHeading="Обувь" />);
+    expect(h1().textContent).toBe('Обувь');
+
+    // Серверное дерево из кеша Next старше клиентского: категорию успели убрать
+    await loadTree([{ id: 1, name: 'Спорт', slug: 'sport', children: [] }]);
+
+    await waitFor(() => expect(h1().textContent).toBe('Каталог'));
+  });
+
+  it('после «Каталога» с сервера H1 следует за выбором категории в сайдбаре', async () => {
+    const user = userEvent.setup();
+
+    render(<CatalogPage initialHeading="Каталог" />);
+    await loadTree();
+
+    await user.click(screen.getByText('Обувь'));
+
+    await waitFor(() => expect(h1().textContent).toBe('Обувь'));
+  });
+
 });

@@ -47,6 +47,11 @@ export const HomePage: React.FC<HomePageProps> = ({ featuredBrands }) => {
   // Единственный <main> страницы рендерит LayoutWrapper, здесь — обычный контейнер
   return (
     <div className="min-h-screen bg-white">
+      {/* H1 страницы: заголовок баннера меняется вместе с баннером и не описывает страницу,
+          а до загрузки баннеров HeroSection рендерит заглушку. Текст — как у корневого title
+          сайта (app/layout.tsx), а не у title этой страницы. */}
+      <h1 className="sr-only">OPTISPORT — спортивные товары оптом</h1>
+
       {/* 1. Hero Section - Баннеры */}
       <HeroSection />
 

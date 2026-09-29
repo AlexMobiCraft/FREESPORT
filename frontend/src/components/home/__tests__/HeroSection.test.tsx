@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import HeroSection from '../HeroSection';
 import { useAuthStore } from '@/stores/authStore';
 import bannersService from '@/services/bannersService';
@@ -408,6 +409,73 @@ describe('HeroSection Component', () => {
         const link = screen.getByRole('link');
         expect(link).toHaveAttribute('href', '/custom-link');
       });
+    });
+  });
+
+  // H1 страницы рендерит HomePage: заголовок баннера меняется вместе с баннером
+  describe('Уровень заголовка баннера', () => {
+    const mockGuest = () =>
+      vi.mocked(useAuthStore).mockReturnValue({
+        user: null,
+        isAuthenticated: false,
+        accessToken: null,
+        setTokens: vi.fn(),
+        setUser: vi.fn(),
+        logout: vi.fn(),
+        getRefreshToken: vi.fn(),
+      });
+
+    it('статический fallback — H2, H1 в секции нет', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue([]);
+      mockGuest();
+
+      render(<HeroSection />);
+
+      expect(
+        await screen.findByRole('heading', {
+          level: 2,
+          name: 'Спортивные товары для профессионалов и любителей',
+        })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    });
+
+    it('баннер из API — H2, H1 в секции нет', async () => {
+      vi.mocked(bannersService.getActive).mockResolvedValue([
+        {
+          id: 1,
+          type: 'hero',
+          title: 'API Banner Title',
+          subtitle: 'API Banner Subtitle',
+          image_url: '/media/banners/test.jpg',
+          mobile_image_url: '',
+          image_alt: 'Test banner',
+          cta_text: 'Shop now',
+          cta_link: '/catalog',
+          is_advertisement: false,
+          advertiser_name: '',
+          advertiser_inn: '',
+          erid: '',
+        },
+      ]);
+      mockGuest();
+
+      render(<HeroSection />);
+
+      expect(
+        await screen.findByRole('heading', { level: 2, name: 'API Banner Title' })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    });
+
+    it('серверный HTML (заглушка загрузки) не содержит H1', () => {
+      vi.mocked(bannersService.getActive).mockReturnValue(new Promise(() => {}));
+      mockGuest();
+
+      const html = renderToString(<HeroSection />);
+
+      expect(html).toContain('hero-skeleton');
+      expect(html).not.toContain('<h1');
     });
   });
 

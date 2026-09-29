@@ -78,8 +78,9 @@ export const CartSkeleton = () => {
         <Skeleton className="h-4 w-20" />
       </div>
 
-      {/* Title skeleton */}
-      <Skeleton className="h-10 w-64 mb-8" />
+      {/* Заголовок — настоящий H1, а не скелетон: сканеры читают серверный HTML, где корзина
+          всегда в этой заглушке. Текст и классы те же, что в CartPage, EmptyCart, CartError. */}
+      <h1 className="text-display-m font-bold text-text-primary mb-8">Ваша корзина</h1>
 
       {/* Content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
