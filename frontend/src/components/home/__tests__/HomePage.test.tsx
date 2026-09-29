@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { HomePage } from '../HomePage';
 import type { Brand } from '@/types/api';
 
@@ -69,6 +70,23 @@ describe('HomePage', () => {
 
     // По роли, а не по тегу: ловит и возврат <div role="main">
     expect(screen.queryByRole('main')).not.toBeInTheDocument();
+  });
+
+  // Секции в этом файле — пустышки, в том числе герой без заголовка: это то состояние,
+  // в котором HeroSection отдаёт серверный HTML (заглушка до загрузки баннеров)
+  it('рендерит ровно один H1 страницы, не зависящий от баннера героя', () => {
+    render(<HomePage featuredBrands={mockBrands} />);
+
+    const headings = screen.getAllByRole('heading', { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]).toHaveTextContent('OPTISPORT — спортивные товары оптом');
+  });
+
+  it('H1 попадает в серверный HTML', () => {
+    const html = renderToString(<HomePage featuredBrands={mockBrands} />);
+
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html).toContain('OPTISPORT — спортивные товары оптом</h1>');
   });
 
   it('AC1: MarketingBannersSection рендерится между QuickLinksSection и CategoriesSection', () => {

@@ -9,6 +9,7 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { describe, it, expect, vi } from 'vitest';
 import { CartSkeleton } from '../CartSkeleton';
 
@@ -76,6 +77,23 @@ describe('CartSkeleton', () => {
       render(<CartSkeleton />);
 
       expect(screen.getByTestId('cart-skeleton')).toHaveAttribute('aria-busy', 'true');
+    });
+  });
+
+  // Аудит 28.09.2026: сканер читает серверный HTML, а корзина на сервере всегда в заглушке
+  describe('Заголовок страницы', () => {
+    it('содержит H1 «Ваша корзина», как остальные состояния корзины', () => {
+      render(<CartSkeleton />);
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Ваша корзина' })).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    });
+
+    it('H1 попадает в серверный HTML', () => {
+      const html = renderToString(<CartSkeleton />);
+
+      expect(html.match(/<h1/g)).toHaveLength(1);
+      expect(html).toContain('Ваша корзина</h1>');
     });
   });
 

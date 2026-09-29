@@ -366,9 +366,17 @@ const CategoryTree: React.FC<{
 interface CatalogPageClientProps {
   /** Первая страница выдачи, загруженная сервером; null — сервер её не грузил */
   initialProducts?: CatalogInitialProducts | null;
+  /**
+   * Текст H1, определённый сервером, пока клиент не загрузил дерево категорий;
+   * null — сервер его не определил, и вместо текста показывается скелетон.
+   */
+  initialHeading?: string | null;
 }
 
-const CatalogContent: React.FC<CatalogPageClientProps> = ({ initialProducts = null }) => {
+const CatalogContent: React.FC<CatalogPageClientProps> = ({
+  initialProducts = null,
+  initialHeading = null,
+}) => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -394,6 +402,11 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({ initialProducts = nu
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [activeCategoryLabel, setActiveCategoryLabel] = useState('');
+  // Первый клиентский рендер обязан совпасть с серверным HTML, поэтому стартуем с его текста
+  const [serverHeading, setServerHeading] = useState<string | null>(initialHeading);
+  // Текст сервера относится к категории из адреса при монтировании: смена адреса до загрузки
+  // дерева (ссылка из шапки, «назад») делает его чужим, а пропс после монтирования не читается
+  const [serverHeadingSlug] = useState(categorySlugParam);
   // Флаг означает "попытка загрузки категорий завершена" (включая ошибку) — F3
   const [isCategoryLoadAttempted, setIsCategoryLoadAttempted] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
@@ -756,6 +769,32 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({ initialProducts = nu
     });
     setActiveCategoryLabel(pathNodes[pathNodes.length - 1]?.label ?? '');
   }, [activeCategoryId, categoryTree]);
+
+  // Заголовок с сервера держится, пока подпись категории не догнала адрес: дерево приходит
+  // одним коммитом с isCategoriesLoading=false, а activeCategoryId и подпись ставят два
+  // эффекта выше по очереди, и без удержания H1 на пару рендеров стал бы «Каталог», затем
+  // пустой строкой. Сброс необратим: позже подпись меняет сам пользователь (выбор в
+  // сайдбаре опережает URL), и текст сервера уже устарел бы.
+  const heldHeading = categorySlugParam === serverHeadingSlug ? serverHeading : null;
+  useEffect(() => {
+    if (serverHeading === null) return;
+    if (categorySlugParam !== serverHeadingSlug) {
+      setServerHeading(null);
+      return;
+    }
+    if (isCategoriesLoading) return;
+    if (activeCategoryId !== urlActiveCategoryId) return;
+    if (activeCategoryId !== null && !activeCategoryLabel) return;
+    setServerHeading(null);
+  }, [
+    serverHeading,
+    categorySlugParam,
+    serverHeadingSlug,
+    isCategoriesLoading,
+    activeCategoryId,
+    urlActiveCategoryId,
+    activeCategoryLabel,
+  ]);
 
   // Очередь наших собственных, ещё не закоммиченных записей в адресную строку.
   // router.push в App Router — transition: до его commit useSearchParams отдаёт
@@ -1544,13 +1583,14 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({ initialProducts = nu
           {/* 1. H1 - первый в DOM, визуально на второй строке.
                  min-h адаптивен (2rem mobile, 2.5rem desktop), совпадая с размером шрифта. */}
           <h1 className="lg:row-start-2 lg:col-span-2 self-start text-2xl md:text-4xl font-semibold text-neutral-900 break-words md:break-normal min-h-[2rem] md:min-h-[2.5rem]">
-            {isCategoriesLoading ? (
-              <Skeleton className="h-[2rem] md:h-[2.5rem] w-[60%] max-w-sm" />
-            ) : activeCategoryId !== null ? (
-              activeCategoryLabel
-            ) : (
-              'Каталог'
-            )}
+            {heldHeading ??
+              (isCategoriesLoading ? (
+                <Skeleton className="h-[2rem] md:h-[2.5rem] w-[60%] max-w-sm" />
+              ) : activeCategoryId !== null ? (
+                activeCategoryLabel
+              ) : (
+                'Каталог'
+              ))}
           </h1>
 
           {/* 2. Поиск - второй в DOM, визуально на первой строке в правой колонке.
@@ -1836,10 +1876,13 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({ initialProducts = nu
   );
 };
 
-const CatalogPage: React.FC<CatalogPageClientProps> = ({ initialProducts = null }) => {
+const CatalogPage: React.FC<CatalogPageClientProps> = ({
+  initialProducts = null,
+  initialHeading = null,
+}) => {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#F5F7FB]" />}>
-      <CatalogContent initialProducts={initialProducts} />
+      <CatalogContent initialProducts={initialProducts} initialHeading={initialHeading} />
     </Suspense>
   );
 };
