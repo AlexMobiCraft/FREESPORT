@@ -53,6 +53,7 @@ from tests.onec_corpus import (
     edit_copy,
     make_exchange_dir,
     mark_deleted,
+    require_snapshot,
     snapshot_files,
     stage_snapshot,
 )
@@ -127,6 +128,7 @@ def _snapshot_oracle() -> SimpleNamespace:
     Правило допуска здесь пересчитано заново и намеренно наивно — по тексту ТЗ,
     без кода импорта: пакеты в порядке номеров, побеждает поздний.
     """
+    require_snapshot()
     parser = XMLDataParser()
     groups = parser.parse_groups_xml(str(snapshot_files("groups")[0]))
     parent = {group["id"]: group.get("parent_id", "") for group in groups}
