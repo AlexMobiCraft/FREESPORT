@@ -466,6 +466,21 @@ class Product(models.Model):
         models.DateTimeField("Последняя синхронизация", null=True, blank=True),
     )
     error_message = cast(str, models.TextField("Сообщение об ошибке", blank=True))
+    # Отличает «скрыто импортом» от «выключено вручную в админке»: при возврате
+    # товара в дерево якоря импорт включает только то, что скрыл сам.
+    onec_deleted = cast(
+        bool,
+        models.BooleanField(
+            "Скрыт импортом 1С",
+            default=False,
+            db_index=True,
+            help_text=(
+                "Товар в 1С вне дерева якорной категории или помечен на удаление. "
+                "Ставится и снимается импортом; физически удаляет только команда "
+                "purge_products_outside_root."
+            ),
+        ),
+    )
 
     # Many-to-Many relationship with AttributeValue
     attributes: models.ManyToManyField = models.ManyToManyField(
@@ -1072,6 +1087,20 @@ class ProductVariant(models.Model):
             help_text="Доступен для заказа",
         ),
     )
+    # У варианта флаг означает одно: предложение в 1С помечено на удаление.
+    # Скрытие товара целиком варианты не трогает — см. Product.onec_deleted.
+    onec_deleted = cast(
+        bool,
+        models.BooleanField(
+            "Скрыт импортом 1С",
+            default=False,
+            db_index=True,
+            help_text=(
+                "Предложение в 1С помечено на удаление. Ставится и снимается импортом; "
+                "физически удаляет только команда purge_products_outside_root."
+            ),
+        ),
+    )
     last_sync_at = cast(
         datetime | None,
         models.DateTimeField(
@@ -1521,3 +1550,46 @@ class AttributeValue1CMapping(models.Model):
             f"{self.onec_value} ({self.onec_id}) → "
             f"{self.attribute_value.attribute.name}: {self.attribute_value.value}"
         )
+
+
+class OnecExcludedItem(models.Model):
+    """Реестр Ид 1С, исключённых правилом допуска импорта.
+
+    Дельта-обмен присылает `offers`/`prices`/`rests` отдельными сессиями, в
+    которых нет ни дерева групп, ни пометок товаров. Реестр — память между
+    сессиями: по нему импорт молча пропускает строки исключённых позиций
+    (вместо тысяч «parent Product not found») и не пускает в поддерево якоря
+    группу, помеченную или вынесенную из дерева в прошлой сессии.
+
+    Запись появляется при недопуске или удалении, исчезает при допуске.
+    """
+
+    class Kind(models.TextChoices):
+        GROUP = "group", "Группа"
+        PRODUCT = "product", "Товар"
+        OFFER = "offer", "Предложение"
+
+    onec_id = cast(
+        str,
+        models.CharField(
+            "Ид в 1С",
+            max_length=255,
+            unique=True,
+            help_text="Ид группы или товара либо составной Ид предложения (товар#характеристика)",
+        ),
+    )
+    kind = cast(
+        str,
+        models.CharField("Вид объекта", max_length=10, choices=Kind.choices, db_index=True),
+    )
+    reason = cast(str, models.CharField("Причина исключения", max_length=100, blank=True))
+    updated_at = cast(datetime, models.DateTimeField("Дата обновления", auto_now=True))
+
+    class Meta:
+        verbose_name = "Исключённый Ид 1С"
+        verbose_name_plural = "Реестр исключённых Ид 1С"
+        db_table = "products_onec_excluded_items"
+        ordering = ["kind", "onec_id"]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} {self.onec_id}: {self.reason}"

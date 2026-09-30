@@ -61,6 +61,9 @@ SAMPLE_GOODS_XML = """<?xml version="1.0" encoding="UTF-8"?>
                 <Наименование>Товар без вариантов</Наименование>
                 <Описание>Товар для теста default variant</Описание>
                 <Артикул>TEST-002</Артикул>
+                <Группы>
+                    <Ид>test-category-001</Ид>
+                </Группы>
             </Товар>
         </Товары>
     </Каталог>
@@ -276,11 +279,21 @@ class TestVariantImportProcessor(TransactionTestCase):
             is_active=True,
         )
 
+        # Якорь дерева: импорт допускает только товары из поддерева
+        # ROOT_CATEGORY_NAME («СПОРТ»), поэтому категория теста лежит под ним.
+        self.anchor = Category.objects.create(
+            name="СПОРТ",
+            slug="test-sport-anchor",
+            onec_id="test-sport-anchor-001",
+            is_active=True,
+        )
+
         # Создаём тестовую категорию
         self.category = Category.objects.create(
             name="Test Category",
             slug="test-category",
             onec_id="test-category-001",
+            parent=self.anchor,
             is_active=True,
         )
 
@@ -391,10 +404,12 @@ class TestVariantImportProcessor(TransactionTestCase):
         goods_data = {
             "id": "test-product-001",
             "name": "Тестовый товар",
+            "category_id": "test-category-001",
         }
 
         product = self.processor.process_product_from_goods(goods_data)
 
+        assert product is not None
         # Product не должен иметь полей цен (они удалены в Story 13.1)
         assert not hasattr(product, "retail_price") or product.retail_price is None
 
@@ -1083,7 +1098,11 @@ class TestVariantImportVatRate(TransactionTestCase):
             status=ImportSession.ImportStatus.STARTED,
         )
         self.brand = Brand.objects.create(name="Brand VAT", slug="brand-vat", is_active=True)
-        self.category = Category.objects.create(name="Cat VAT", slug="cat-vat", onec_id="cat-vat-001", is_active=True)
+        # Импорт допускает только товары из поддерева якоря ROOT_CATEGORY_NAME
+        self.anchor = Category.objects.create(name="СПОРТ", slug="sport-vat", onec_id="sport-vat-001", is_active=True)
+        self.category = Category.objects.create(
+            name="Cat VAT", slug="cat-vat", onec_id="cat-vat-001", parent=self.anchor, is_active=True
+        )
         self.processor = VariantImportProcessor(session_id=self.session.pk, batch_size=500)
 
     def _make_product(self, onec_id: str) -> "Product":
@@ -1103,6 +1122,7 @@ class TestVariantImportVatRate(TransactionTestCase):
         goods_data = {
             "id": "vat-product-001",
             "name": "Импортный товар",
+            "category_id": "cat-vat-001",
             "vat_rate": Decimal("22"),
         }
         product = self.processor.process_product_from_goods(goods_data)
@@ -1116,8 +1136,10 @@ class TestVariantImportVatRate(TransactionTestCase):
         goods_data = {
             "id": "no-vat-product-001",
             "name": "Товар без НДС",
+            "category_id": "cat-vat-001",
         }
-        self.processor.process_product_from_goods(goods_data)
+        product = self.processor.process_product_from_goods(goods_data)
+        assert product is not None
         assert "no-vat-product-001" not in self.processor._product_vat_rates
 
     def test_goods_import_updates_existing_variant_vat_rate(self):
@@ -1136,6 +1158,7 @@ class TestVariantImportVatRate(TransactionTestCase):
             {
                 "id": "vat-prod-existing",
                 "name": "Товар с НДС",
+                "category_id": "cat-vat-001",
                 "vat_rate": Decimal("10"),
             }
         )
@@ -1149,6 +1172,7 @@ class TestVariantImportVatRate(TransactionTestCase):
             {
                 "id": "vat-prod-separated",
                 "name": "Товар с раздельным импортом",
+                "category_id": "cat-vat-001",
                 "vat_rate": Decimal("10"),
             }
         )

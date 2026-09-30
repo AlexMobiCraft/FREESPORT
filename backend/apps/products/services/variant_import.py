@@ -27,6 +27,22 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+from apps.products.services.onec_admission import (
+    KIND_GROUP,
+    KIND_OFFER,
+    KIND_PRODUCT,
+    REASON_GROUP_MARKED,
+    REASON_NO_GROUP,
+    REASON_OFFER_MARKED,
+    REASON_OUTSIDE_TREE,
+    REASON_PRODUCT_MARKED,
+    REASON_UNKNOWN_GROUP,
+    ExclusionRegistry,
+    category_key,
+    compute_subtree,
+    first_blocked_reason,
+    load_db_category_tree,
+)
 
 if TYPE_CHECKING:
     from apps.products.models import Product, ProductVariant
@@ -94,6 +110,7 @@ class CategoryData(TypedDict, total=False):
     name: str
     description: str
     parent_id: str
+    is_deleted: bool
 
 
 class BrandData(TypedDict):
@@ -340,11 +357,19 @@ class VariantImportProcessor:
             "attributes_missing": 0,
             # Story 27.1: Keys for migrated methods
             "brand_fallbacks": 0,
-            "category_fallbacks": 0,
             "attributes_missing_mapping": 0,
             # Сколько категорий предохранитель отказался гасить (0 = сработок не было).
             # Инициализируем здесь, чтобы отличать «не сработал» от «код не задеплоен».
             "categories_deactivation_skipped": 0,
+            # Правило допуска (дерево якоря + пометки удаления). Счётчики считают
+            # изменения этой сессии: уже скрытый товар повторно не учитывается.
+            "skipped_products": 0,
+            "hidden_products": 0,
+            "restored_products": 0,
+            "recategorized_products": 0,
+            "skipped_variants": 0,
+            "hidden_variants": 0,
+            "restored_variants": 0,
         }
 
         # Story 13.2+ Debugging: Track specific updated items
@@ -389,6 +414,34 @@ class VariantImportProcessor:
         # Копится между файлами: корень может прийти в одном groups*.xml, а его дети —
         # в другом, и guard «чужой корень не раскрыт» должен работать в обоих случаях.
         self._root_category_onec_ids: set[str] = set()
+
+        # --- Правило допуска товаров (дерево якоря + пометки удаления) ---
+        # Контекст строится один раз на сессию: либо в process_categories (в
+        # сессии есть groups*.xml), либо лениво из БД перед первым товаром.
+        self._admission_ready: bool = False
+        # ROOT_CATEGORY_NAME задан, но якоря нет ни в XML, ни в БД: классификация
+        # невозможна, сессия ничего не скрывает и не создаёт.
+        self._anchor_missing: bool = False
+        self._anchor_id: str | None = None
+        # Группы из groups*.xml сессии: Ид → (Ид родителя, пометка удаления).
+        # Для них дерево задаёт XML; БД — только для групп, которых в XML нет.
+        self._xml_groups: dict[str, tuple[str, bool]] = {}
+        # Сводное дерево групп (XML поверх БД): Ид → Ид родителя.
+        self._group_parent_of: dict[str, str] = {}
+        # Группы, исключающие себя и потомков из поддерева: Ид → причина.
+        self._blocked_groups: dict[str, str] = {}
+        # Из них — исключённые пометкой удаления (условие 3 правила допуска;
+        # действует и при пустом ROOT_CATEGORY_NAME).
+        self._marked_groups: dict[str, str] = {}
+        # Реестр исключённых Ид 1С — память между сессиями обмена.
+        self._registry = ExclusionRegistry()
+        # Товары, не созданные в ЭТОЙ сессии (в т.ч. при ненайденном якоре, когда
+        # реестр не ведётся): их предложения пропускаются без WARNING.
+        self._session_skipped_product_ids: set[str] = set()
+        self._category_cache: dict[str, Any] = {}
+        self._root_filter_warning_logged: bool = False
+        self._anchor_missing_reported: bool = False
+        self._last_admission_line: str = ""
 
     # ========================================================================
     # Helper methods
@@ -509,6 +562,49 @@ class VariantImportProcessor:
         ("images_resolved_from_copy", "узнано по копии"),
         ("images_errors", "ошибок"),
     )
+
+    # Счётчики правила допуска в порядке итоговой строки отчёта.
+    ADMISSION_COUNTERS = (
+        "skipped_products",
+        "skipped_variants",
+        "hidden_products",
+        "hidden_variants",
+        "restored_products",
+        "restored_variants",
+        "recategorized_products",
+    )
+
+    def admission_report_line(self) -> str:
+        """Итоговая строка правила допуска для текстового отчёта сессии.
+
+        Пустая строка, если сессия никого не исключила и не вернула: сегменты
+        цен и остатков без исключённых позиций не должны получать шум в отчёте.
+        """
+        if not any(self.stats.get(key) for key in self.ADMISSION_COUNTERS):
+            return ""
+
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None) or "дерева"
+        stats = self.stats
+        return (
+            f"Вне {root_category_name} / к удалению: "
+            f"не создано {stats['skipped_products']} товаров / {stats['skipped_variants']} вариантов, "
+            f"скрыто {stats['hidden_products']} / {stats['hidden_variants']}, "
+            f"возвращено {stats['restored_products']} / {stats['restored_variants']}, "
+            f"перенесено в категорию группы {stats['recategorized_products']}"
+        )
+
+    def log_admission_summary(self) -> None:
+        """Записать итог правила допуска в отчёт сессии после шага импорта.
+
+        `report_details` сохраняется только при успешном завершении, поэтому
+        строка пишется после каждого шага: по упавшей сессии тоже видно, сколько
+        позиций она успела исключить. Повтор той же строки не пишется.
+        """
+        line = self.admission_report_line()
+        if not line or line == self._last_admission_line:
+            return
+        self._last_admission_line = line
+        self.log_progress(line)
 
     def _count_image_skip(self, outcome: str) -> None:
         """Учесть исход-«пропуск» и детально, и в общей сумме.
@@ -699,12 +795,38 @@ class VariantImportProcessor:
                 goods_data["vat_rate"] = vat_rate
                 self._product_vat_rates[parent_id] = vat_rate
 
-            # Проверка существующего товара
-            existing = Product.objects.filter(models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)).first()
+            # `parent_onec_id` не уникален: одному Ид 1С могут соответствовать
+            # несколько Product, и правило допуска применяется ко всем.
+            matches = list(
+                Product.objects.filter(models.Q(onec_id=parent_id) | models.Q(parent_onec_id=parent_id)).select_related(
+                    "category"
+                )
+            )
 
-            if existing:
+            self._ensure_admission_context()
+
+            if self._anchor_missing:
+                # Классифицировать нечем: существующее обновляется как раньше,
+                # новое не создаётся, ничего не скрывается.
+                if matches:
+                    return self._update_existing_product(matches[0], goods_data, base_dir, skip_images)
+                self._skip_new_product(parent_id, "якорь не найден")
+                return None
+
+            rejection_reason = self._product_rejection_reason(goods_data)
+            if rejection_reason:
+                self._reject_product(parent_id, goods_data, matches, rejection_reason)
+                return None
+
+            # Товар допущен: снимаем исключение и возвращаем скрытое импортом.
+            self._registry.discard(parent_id, KIND_PRODUCT)
+            self._session_skipped_product_ids.discard(parent_id)
+
+            if matches:
+                for product in matches:
+                    self._readmit_product(product, goods_data)
                 # Обновление существующего Product
-                return self._update_existing_product(existing, goods_data, base_dir, skip_images)
+                return self._update_existing_product(matches[0], goods_data, base_dir, skip_images)
 
             # Создание нового Product
             return self._create_new_product(goods_data, base_dir, skip_images)
@@ -712,6 +834,302 @@ class VariantImportProcessor:
         except Exception as e:
             self._log_error(f"Error processing product from goods: {e}", goods_data)
             return None
+
+    # ------------------------------------------------------------------------
+    # Правило допуска товара
+    # ------------------------------------------------------------------------
+
+    @staticmethod
+    def _goods_group_ids(goods_data: dict[str, Any]) -> list[str]:
+        """Все группы товара; `category_id` — запасной вариант для старого формата."""
+        group_ids = [str(group_id) for group_id in goods_data.get("category_ids") or [] if group_id]
+        if not group_ids and goods_data.get("category_id"):
+            group_ids = [str(goods_data["category_id"])]
+        return group_ids
+
+    def _product_rejection_reason(self, goods_data: dict[str, Any]) -> str | None:
+        """Причина недопуска товара или None, если товар допущен.
+
+        Условия допуска: все группы товара лежат в поддереве якоря, товар не
+        помечен на удаление, ни одна группа на пути до якоря не помечена.
+        При пустом ROOT_CATEGORY_NAME первое условие выключено.
+        """
+        if goods_data.get("is_deleted"):
+            return REASON_PRODUCT_MARKED
+
+        group_ids = self._goods_group_ids(goods_data)
+
+        if self._category_filtering_active:
+            if not group_ids:
+                return REASON_NO_GROUP
+            for group_id in group_ids:
+                if group_id not in self._allowed_category_ids:
+                    return self._group_rejection_reason(group_id)
+            return None
+
+        for group_id in group_ids:
+            reason = first_blocked_reason(group_id, self._group_parent_of, self._marked_groups)
+            if reason:
+                return reason
+        return None
+
+    def _group_rejection_reason(self, group_id: str) -> str:
+        """Почему группа не входит в поддерево якоря."""
+        if group_id not in self._group_parent_of:
+            return REASON_UNKNOWN_GROUP
+        blocked_reason = first_blocked_reason(
+            group_id,
+            self._group_parent_of,
+            self._blocked_groups,
+            stop_at=self._allowed_category_ids,
+        )
+        return blocked_reason or REASON_OUTSIDE_TREE
+
+    def _skip_new_product(self, parent_id: str, reason: str) -> None:
+        """Учесть товар, который эта сессия не создала."""
+        self.stats["skipped_products"] += 1
+        self._session_skipped_product_ids.add(parent_id)
+        self._product_cache.pop(parent_id, None)
+        logger.debug(f"Product {parent_id} not created: {reason}")
+
+    def _reject_product(
+        self,
+        parent_id: str,
+        goods_data: dict[str, Any],
+        matches: list[Any],
+        reason: str,
+    ) -> None:
+        """Недопущенный товар: нового не создаём, существующий скрываем.
+
+        Импорт ничего не удаляет физически — это делает только команда
+        `purge_products_outside_root`. Варианты скрытого товара не трогаются:
+        `is_active=False` у товара уже убирает его с витрины, а возврат не должен
+        включать варианты, скрытые их собственной пометкой.
+        """
+        self._registry.add(parent_id, KIND_PRODUCT, reason)
+
+        if not matches:
+            self._skip_new_product(parent_id, reason)
+            return
+
+        self._product_cache.pop(parent_id, None)
+        for product in matches:
+            if product.onec_deleted and not product.is_active:
+                continue
+            product.is_active = False
+            product.onec_deleted = True
+            product.save(update_fields=["is_active", "onec_deleted", "updated_at"])
+            self.stats["hidden_products"] += 1
+            logger.info(
+                "Товар скрыт импортом 1С: onec_id=%s article=%s name=%s reason=%s",
+                product.onec_id or parent_id,
+                product.article or goods_data.get("article") or "",
+                product.name,
+                reason,
+            )
+
+    def _readmit_product(self, product: Any, goods_data: dict[str, Any]) -> None:
+        """Допущенный товар: вернуть скрытое импортом, подтянуть отставшую категорию.
+
+        Товар, выключенный вручную (`is_active=False`, `onec_deleted=False`),
+        не включается. Категория переносится только если текущая лежит вне
+        поддерева якоря — полная синхронизация категорий вне объёма.
+        """
+        fields_to_update: list[str] = []
+
+        if product.onec_deleted:
+            product.onec_deleted = False
+            fields_to_update.append("onec_deleted")
+            if not product.is_active and product.variants.filter(is_active=True).exists():
+                product.is_active = True
+                fields_to_update.append("is_active")
+            self.stats["restored_products"] += 1
+            logger.info(
+                "Товар возвращён импортом 1С: onec_id=%s article=%s name=%s",
+                product.onec_id,
+                product.article,
+                product.name,
+            )
+
+        if self._category_filtering_active:
+            current = product.category
+            current_key = category_key(current.pk, current.onec_id)
+            if current_key not in self._allowed_category_ids:
+                target = self._resolve_product_category(goods_data)
+                if target is not None and target.pk != current.pk:
+                    product.category = target
+                    fields_to_update.append("category")
+                    self.stats["recategorized_products"] += 1
+                    logger.info(
+                        "Товар перенесён в категорию своей группы 1С: onec_id=%s article=%s name=%s "
+                        "category='%s' -> '%s'",
+                        product.onec_id,
+                        product.article,
+                        product.name,
+                        current.name,
+                        target.name,
+                    )
+
+        if fields_to_update:
+            product.save(update_fields=[*fields_to_update, "updated_at"])
+
+    # ------------------------------------------------------------------------
+    # Поддерево якоря: строится один раз на сессию
+    # ------------------------------------------------------------------------
+
+    def _ensure_admission_context(self) -> None:
+        """Построить дерево допуска, если сессия пришла без groups*.xml.
+
+        На проде каждый файл обмена — отдельная сессия: `goods_N.xml` приходит
+        без дерева групп, и поддерево якоря собирается из БД. Именно так
+        BT45-RU попал в каталог — фильтр был активен только при наличии
+        `groups.xml` в той же сессии.
+        """
+        if self._admission_ready:
+            return
+        self._admission_ready = True
+
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
+        if not root_category_name:
+            self._warn_root_filter_disabled()
+            self._rebuild_admission_tree()
+            return
+
+        anchor_id = self._resolve_anchor_id(root_category_name, [], set())
+        if not anchor_id:
+            self._report_anchor_missing(root_category_name)
+            return
+
+        self._anchor_id = anchor_id
+        self._category_filtering_active = True
+        self._rebuild_admission_tree()
+
+    def _warn_root_filter_disabled(self) -> None:
+        if self._root_filter_warning_logged:
+            return
+        self._root_filter_warning_logged = True
+        logger.warning(
+            "ROOT_CATEGORY_NAME пуст: проверка «все группы товара в поддереве якоря» отключена, "
+            "действуют только пометки удаления товара и групп."
+        )
+
+    def _report_anchor_missing(self, root_category_name: str) -> None:
+        """Якорь не найден: сессия ничего не скрывает и не создаёт."""
+        self._anchor_missing = True
+        self._category_filtering_active = False
+        if self._anchor_missing_reported:
+            return
+        self._anchor_missing_reported = True
+        message = (
+            f"ОШИБКА: ROOT_CATEGORY_NAME='{root_category_name}' не найден ни в XML, ни в БД. "
+            f"Категории и новые товары не создаются, существующие товары не скрываются."
+        )
+        logger.error(message)
+        self.log_progress(message)
+
+    def _resolve_anchor_id(
+        self,
+        root_category_name: str,
+        categories_data: Sequence[Any],
+        root_ids: set[str],
+    ) -> str | None:
+        """Ид якорной категории: сначала среди корней XML, затем в БД."""
+        from apps.products.models import Category
+
+        # 1. Ищем якорную среди корневых групп XML
+        for cat in categories_data:
+            cat_id = cat.get("id")
+            if cat_id in root_ids and cat.get("name") == root_category_name:
+                return str(cat_id)
+
+        # Якорь, найденный в предыдущем groups*.xml этой же сессии
+        if self._anchor_id:
+            return self._anchor_id
+
+        # 2. Ищем якорную в базе (случай инкрементального обновления)
+        anchor_cat = Category.objects.filter(name=root_category_name, parent__isnull=True, is_active=True).first()
+        if not anchor_cat:
+            # Неактивный якорь реактивируется, чтобы дерево не стало пустым
+            inactive_anchor = Category.objects.filter(
+                name=root_category_name, parent__isnull=True, is_active=False
+            ).first()
+            if inactive_anchor:
+                inactive_anchor.is_active = True
+                inactive_anchor.save(update_fields=["is_active"])
+                anchor_cat = inactive_anchor
+                logger.info(
+                    "Якорная категория '%s' была неактивной — реактивирована при инкрементальном импорте.",
+                    root_category_name,
+                )
+        if anchor_cat:
+            return category_key(anchor_cat.pk, anchor_cat.onec_id)
+        return None
+
+    def _rebuild_admission_tree(self) -> None:
+        """Пересобрать сводное дерево групп и поддерево якоря.
+
+        Для групп из groups*.xml сессии родителя задаёт XML; БД используется
+        только для групп, которых в XML нет. Раньше БД перевешивала: группа,
+        перенесённая в 1С из СПОРТ в «Номенклатуру к удалению», оставалась в
+        поддереве, пока в БД жила её старая связь с родителем.
+        """
+        _, parent_of, name_of = load_db_category_tree()
+        root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
+
+        # Группа из реестра исключена вместе с потомками — пока XML этой сессии
+        # не скажет о ней иное.
+        blocked = {
+            group_id: reason for group_id, reason in self._registry.groups().items() if group_id not in self._xml_groups
+        }
+        for group_id, (parent_id, is_deleted) in self._xml_groups.items():
+            parent_of[group_id] = parent_id
+            if is_deleted:
+                blocked[group_id] = REASON_GROUP_MARKED
+
+        self._group_parent_of = parent_of
+        self._blocked_groups = blocked
+        self._marked_groups = {key: reason for key, reason in blocked.items() if reason == REASON_GROUP_MARKED}
+
+        if not self._category_filtering_active or not self._anchor_id:
+            return
+
+        anchor_keys = {self._anchor_id}
+        # Repair-якорь (без Ид 1С или с sentinel) — тот же якорь: ШАГ 1
+        # process_categories сольёт его с якорем из XML.
+        for key, parent_key in parent_of.items():
+            if parent_key or name_of.get(key) != root_category_name:
+                continue
+            if key == REPAIR_ANCHOR_ONEC_ID or key.startswith("__pk_"):
+                anchor_keys.add(key)
+
+        if self._anchor_id in blocked:
+            logger.warning(
+                "Якорная категория '%s' помечена на удаление в 1С — пометка якоря игнорируется.",
+                root_category_name,
+            )
+
+        self._allowed_category_ids = compute_subtree(parent_of, anchor_keys, blocked)
+
+    def _sync_group_registry(self) -> None:
+        """Занести в реестр группы XML вне поддерева, убрать вернувшиеся.
+
+        Запись о группе нужна следующим сессиям без groups*.xml: в БД у такой
+        категории остаётся старая связь с родителем внутри якоря, и без реестра
+        она продолжала бы давать допуск своим товарам.
+        """
+        for group_id in self._xml_groups:
+            if self._category_filtering_active:
+                if group_id in self._allowed_category_ids:
+                    self._registry.discard(group_id, KIND_GROUP)
+                else:
+                    self._registry.add(group_id, KIND_GROUP, self._group_rejection_reason(group_id))
+                continue
+
+            reason = first_blocked_reason(group_id, self._group_parent_of, self._marked_groups)
+            if reason:
+                self._registry.add(group_id, KIND_GROUP, reason)
+            else:
+                self._registry.discard(group_id, KIND_GROUP)
 
     def _update_existing_product(
         self,
@@ -797,13 +1215,13 @@ class VariantImportProcessor:
         parent_id = goods_data.get("id")
         brand_id = goods_data.get("brand_id")
 
-        # Получаем категорию
-        category = self._get_or_create_category(goods_data)
+        # Категория товара — категория его группы 1С. Запасных категорий нет:
+        # товар без разрешённой категории не создаётся.
+        category = self._resolve_product_category(goods_data)
 
         if category is None:
-            # Категория отфильтрована — пропускаем товар
             self.stats["skipped"] += 1
-            logger.debug(f"Product {parent_id} skipped: category filtered out")
+            self._skip_new_product(str(parent_id), "категория группы не найдена")
             return None
 
         # Получаем бренд
@@ -998,10 +1416,17 @@ class VariantImportProcessor:
                 self.stats["warnings"] += 1
                 return None
 
+            # Родительский товар исключён правилом допуска (в этой сессии или в
+            # прошлых — по реестру): пропуск молча, иначе каждая сессия offers
+            # давала бы тысячи «parent Product not found».
+            if self._is_product_excluded(parent_id):
+                self.stats["skipped_variants"] += 1
+                return None
+
             # Поиск родительского Product (AC3)
             product = self._get_product_by_parent_id(parent_id)
             if not product:
-                # AC3: логировать warning и пропустить
+                # AC3: логировать warning и пропустить — это настоящая пропажа
                 if parent_id not in self._missing_products_logged:
                     logger.warning(
                         f"Skipping <Предложение> {onec_id}: " f"parent Product not found (parent_id={parent_id})"
@@ -1010,15 +1435,43 @@ class VariantImportProcessor:
                 self.stats["skipped"] += 1
                 return None
 
+            if product.onec_deleted:
+                self.stats["skipped_variants"] += 1
+                return None
+
+            existing_variant = ProductVariant.objects.filter(onec_id=onec_id).first()
+
+            if offer_data.get("is_deleted"):
+                self._reject_offer(onec_id, offer_data, product, existing_variant)
+                return None
+
+            # Предложение допущено: снимаем исключение
+            self._registry.discard(onec_id, KIND_OFFER)
+
             # Ставка НДС из маппинга goods.xml → variants
             vat_rate = self._product_vat_rates.get(parent_id)
             if vat_rate is None and product.vat_rate is not None:
                 vat_rate = Decimal(str(product.vat_rate))
 
             # Проверка существующего варианта
-            existing_variant = ProductVariant.objects.filter(onec_id=onec_id).first()
             if existing_variant:
-                return self._update_existing_variant(existing_variant, offer_data, base_dir, skip_images, vat_rate)
+                restored = bool(existing_variant.onec_deleted)
+                if restored:
+                    # Возврат: вариант скрыт пометкой предложения, пометку сняли.
+                    # Сам флаг is_active вернёт _update_existing_variant.
+                    existing_variant.onec_deleted = False
+                    existing_variant.save(update_fields=["onec_deleted", "updated_at"])
+                    self.stats["restored_variants"] += 1
+                    logger.info(
+                        "Вариант возвращён импортом 1С: onec_id=%s sku=%s name=%s",
+                        existing_variant.onec_id,
+                        existing_variant.sku,
+                        offer_data.get("name") or product.name,
+                    )
+                variant = self._update_existing_variant(existing_variant, offer_data, base_dir, skip_images, vat_rate)
+                if restored:
+                    self._activate_parent_product(product)
+                return variant
 
             # Создание нового варианта
             return self._create_new_variant(product, onec_id, offer_data, base_dir, skip_images, vat_rate)
@@ -1066,8 +1519,9 @@ class VariantImportProcessor:
             variant.size_value = parsed_chars["size_value"]
             fields_to_update.append("size_value")
 
-        # Активируем вариант
-        if not variant.is_active:
+        # Активируем вариант. Скрытый пометкой предложения не трогаем: вернуть
+        # его может только снятие пометки (см. process_variant_from_offer).
+        if not variant.is_active and not variant.onec_deleted:
             variant.is_active = True
             fields_to_update.append("is_active")
 
@@ -1162,10 +1616,7 @@ class VariantImportProcessor:
             self.stats["variants_created"] += 1
 
             # Активируем родительский Product
-            if not product.is_active:
-                product.is_active = True
-                product.sync_status = product.SyncStatus.IN_PROGRESS
-                product.save(update_fields=["is_active", "sync_status"])
+            self._activate_parent_product(product)
 
             # Импорт изображений варианта (AC6).
             # offers.xml — источник истины по составу, поэтому зеркалируем.
@@ -1188,6 +1639,72 @@ class VariantImportProcessor:
         except Exception as e:
             self._log_error(f"Error saving variant: {e}", offer_data)
             return None
+
+    def _activate_parent_product(self, product: Any) -> None:
+        """Активировать товар, у которого появился активный вариант.
+
+        Товар, скрытый импортом (`onec_deleted`), не включается: вернуть его
+        может только допуск самого товара в goods.xml.
+        """
+        if product.is_active or product.onec_deleted:
+            return
+        product.is_active = True
+        product.sync_status = product.SyncStatus.IN_PROGRESS
+        product.save(update_fields=["is_active", "sync_status"])
+
+    def _is_product_excluded(self, parent_id: str) -> bool:
+        """Товар исключён правилом допуска: по реестру или в этой сессии."""
+        return parent_id in self._session_skipped_product_ids or self._registry.is_product_excluded(parent_id)
+
+    def _is_offer_excluded(self, onec_id: str) -> bool:
+        """Предложение исключено: само, через родителя либо родитель скрыт импортом."""
+        parent_id = onec_id.split("#", 1)[0]
+        if self._registry.is_offer_excluded(onec_id) or self._is_product_excluded(parent_id):
+            return True
+        product = self._get_product_by_parent_id(parent_id)
+        return bool(product is not None and product.onec_deleted)
+
+    def _reject_offer(
+        self,
+        onec_id: str,
+        offer_data: dict[str, Any],
+        product: Any,
+        existing_variant: Any | None,
+    ) -> None:
+        """Предложение помечено на удаление: новый вариант не создаём, существующий скрываем."""
+        from apps.products.models import ProductVariant
+
+        self._registry.add(onec_id, KIND_OFFER, REASON_OFFER_MARKED)
+        self._variant_cache.pop(onec_id, None)
+
+        if existing_variant is None:
+            self.stats["skipped_variants"] += 1
+            return
+
+        if not existing_variant.onec_deleted or existing_variant.is_active:
+            existing_variant.is_active = False
+            existing_variant.onec_deleted = True
+            existing_variant.save(update_fields=["is_active", "onec_deleted", "updated_at"])
+            self.stats["hidden_variants"] += 1
+            logger.info(
+                "Вариант скрыт импортом 1С: onec_id=%s sku=%s name=%s reason=%s",
+                existing_variant.onec_id,
+                existing_variant.sku,
+                offer_data.get("name") or product.name,
+                REASON_OFFER_MARKED,
+            )
+
+        # Все предложения товара помечены — товар уходит с витрины, но флаг
+        # `onec_deleted` не получает: сам товар в 1С допущен.
+        if product.is_active and not ProductVariant.objects.filter(product=product, is_active=True).exists():
+            product.is_active = False
+            product.save(update_fields=["is_active", "updated_at"])
+            logger.info(
+                "Товар деактивирован, все предложения помечены на удаление: onec_id=%s article=%s name=%s",
+                product.onec_id,
+                product.article,
+                product.name,
+            )
 
     def _import_variant_images(
         self,
@@ -1311,10 +1828,18 @@ class VariantImportProcessor:
         """
         from apps.products.models import Product, ProductVariant
 
-        # Найти все Products без ProductVariant (включая неактивные)
+        # Найти все Products без ProductVariant (включая неактивные).
+        # Скрытые импортом не трогаем: дефолтный вариант вернул бы их на витрину.
         products_without_variants = Product.objects.filter(
             variants__isnull=True,
+            onec_deleted=False,
         )
+
+        # «В 1С у товара нет характеристик» и «все предложения помечены на
+        # удаление» в БД выглядят одинаково — вариантов нет. Различает их реестр:
+        # у второго там лежат предложения этого товара. Ему дефолтный вариант не
+        # положен, товар остаётся неактивным.
+        marked_offer_parents = self._registry.offer_parent_ids()
 
         count = products_without_variants.count()
         logger.info(f"Found {count} products without variants")
@@ -1328,6 +1853,9 @@ class VariantImportProcessor:
         batch_count = 0
 
         for product in products_without_variants.iterator():
+            if product.onec_id in marked_offer_parents or product.parent_onec_id in marked_offer_parents:
+                continue
+
             # Генерируем уникальный SKU
             sku = self._ensure_unique_sku(product.onec_id or f"DEFAULT-{product.pk}")
 
@@ -1359,7 +1887,9 @@ class VariantImportProcessor:
             if len(default_variants) >= self.batch_size:
                 with transaction.atomic():
                     ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
-                    Product.objects.filter(pk__in=product_ids_to_activate, is_active=False).update(is_active=True)
+                    Product.objects.filter(pk__in=product_ids_to_activate, is_active=False, onec_deleted=False).update(
+                        is_active=True
+                    )
                 batch_count += len(default_variants)
                 logger.info(f"Processed {batch_count} default variants")
                 default_variants = []
@@ -1369,7 +1899,9 @@ class VariantImportProcessor:
         if default_variants:
             with transaction.atomic():
                 ProductVariant.objects.bulk_create(default_variants, ignore_conflicts=True)
-                Product.objects.filter(pk__in=product_ids_to_activate, is_active=False).update(is_active=True)
+                Product.objects.filter(pk__in=product_ids_to_activate, is_active=False, onec_deleted=False).update(
+                    is_active=True
+                )
             batch_count += len(default_variants)
 
         self.stats["default_variants_created"] = batch_count
@@ -1401,6 +1933,10 @@ class VariantImportProcessor:
             # Находим ProductVariant по onec_id
             variant = self._get_variant_by_onec_id(onec_id)
             if not variant:
+                # Исключённая позиция — не пропажа: пропуск молча, по счётчику
+                if self._is_offer_excluded(onec_id):
+                    self.stats["skipped_variants"] += 1
+                    return False
                 if onec_id not in self._missing_variants_logged:
                     logger.warning(f"ProductVariant not found for price update: {onec_id}")
                     self._missing_variants_logged.add(onec_id)
@@ -1489,6 +2025,10 @@ class VariantImportProcessor:
             # Находим ProductVariant по onec_id
             variant = self._get_variant_by_onec_id(onec_id)
             if not variant:
+                # Исключённая позиция — не пропажа: пропуск молча, по счётчику
+                if self._is_offer_excluded(onec_id):
+                    self.stats["skipped_variants"] += 1
+                    return False
                 if onec_id not in self._missing_variants_logged:
                     logger.warning(f"ProductVariant not found for stock update: {onec_id}")
                     self._missing_variants_logged.add(onec_id)
@@ -1668,8 +2208,10 @@ class VariantImportProcessor:
 
         variant = ProductVariant.objects.filter(onec_id=onec_id).first()
 
-        # Если не найден по полному ID, пробуем по parent_id
-        if not variant and "#" in onec_id:
+        # Если не найден по полному ID, пробуем по parent_id. Исключённое
+        # предложение отсекается ДО этого fallback: иначе цена и остаток
+        # помеченной характеристики легли бы на дефолтный вариант товара.
+        if not variant and "#" in onec_id and not self._is_offer_excluded(onec_id):
             parent_id = onec_id.split("#")[0]
             variant = ProductVariant.objects.filter(onec_id=parent_id).first()
 
@@ -1839,66 +2381,35 @@ class VariantImportProcessor:
             return None
         return mapping.brand
 
-    def _get_or_create_category(self, goods_data: dict[str, Any]) -> Any:
-        """Получает или создаёт категорию.
+    def _resolve_product_category(self, goods_data: dict[str, Any]) -> Any | None:
+        """Категория товара — категория первой его группы 1С, либо None.
 
-        Не создаёт публичные placeholder-категории по неизвестным ссылкам из
-        goods.xml. Неразрешённые ссылки изолируются в скрытой техкатегории.
+        Запасных категорий («Без категории», техкатегория неразрешённых ссылок)
+        импорт больше не создаёт: товар без группы, с неизвестной группой или с
+        группой вне поддерева якоря в БД не попадает вовсе. Ни один путь импорта
+        не создаёт `Category` вне поддерева якоря.
         """
         from apps.products.models import Category
 
-        category_id = goods_data.get("category_id")
+        group_ids = self._goods_group_ids(goods_data)
+        if not group_ids:
+            return None
 
-        if category_id:
+        category_id = group_ids[0]
+        if self._category_filtering_active and category_id not in self._allowed_category_ids:
+            return None
+
+        category = self._category_cache.get(category_id)
+        if category is None:
             category = Category.objects.filter(onec_id=category_id).first()
-            if category:
-                if self._category_filtering_active and category_id not in self._allowed_category_ids:
-                    logger.warning(
-                        "Категория вне разрешённого поддерева; товар перемещается в техкатегорию: "
-                        "category_id=%s product_id=%s",
-                        category_id,
-                        goods_data.get("id"),
-                    )
-                    self.stats["category_fallbacks"] += 1
-                    return self._get_unresolved_category()
-                return category
-
-            logger.warning(
-                "Ссылка на категорию не разрешена; используется техническая fallback-категория: "
-                "category_id=%s product_id=%s",
-                category_id,
-                goods_data.get("id"),
-            )
-            self.stats["category_fallbacks"] += 1
-            return self._get_unresolved_category()
-
-        # Fallback категория
-        if self._category_filtering_active:
-            logger.warning("Product without category_id moved to hidden fallback: product_id=%s", goods_data.get("id"))
-            self.stats["category_fallbacks"] += 1
-            return self._get_unresolved_category()
-
-        category, _ = Category.objects.get_or_create(
-            slug="uncategorized",
-            defaults={"name": "Без категории", "is_active": True},
-        )
-        return category
-
-    def _get_unresolved_category(self) -> Any:
-        """Скрытая техкатегория для товаров с неразрешённой ссылкой 1С."""
-        from apps.products.models import Category
-
-        category, _ = Category.objects.get_or_create(
-            slug="onec-unresolved-category",
-            defaults={
-                "name": "Техническая категория: неразрешенные ссылки 1С",
-                "onec_id": "__onec_unresolved_category__",
-                "is_active": False,
-            },
-        )
-        if category.is_active:
-            category.is_active = False
-            category.save(update_fields=["is_active"])
+            if category is None:
+                logger.warning(
+                    "Категория группы 1С не найдена в БД — товар не создаётся: category_id=%s product_id=%s",
+                    category_id,
+                    goods_data.get("id"),
+                )
+                return None
+            self._category_cache[category_id] = category
         return category
 
     def _generate_unique_slug(self, name: str, parent_id: str) -> str:
@@ -2085,8 +2596,16 @@ class VariantImportProcessor:
         root_category_name = getattr(settings, "ROOT_CATEGORY_NAME", None)
         filtering_active = False
         root_ids: set[str] = set()
-        allowed_ids: set[str] = set()
         anchor_id: str | None = None
+
+        # Группы этой сессии: для них дерево и пометки удаления задаёт XML.
+        # Копится между файлами groups*.xml одной сессии.
+        for cat in categories_data:
+            cat_id = cat.get("id")
+            if cat_id:
+                self._xml_groups[cat_id] = (cat.get("parent_id") or "", bool(cat.get("is_deleted")))
+
+        self._admission_ready = True
 
         if root_category_name:
             # Определяем root_ids — ID категорий без parent_id (корневые)
@@ -2099,83 +2618,17 @@ class VariantImportProcessor:
             # «раскрытых» родителей ниже.
             self._root_category_onec_ids.update(root_ids)
 
-            # 1. Ищем якорную среди корневых
-            for cat in categories_data:
-                cat_id = cat.get("id")
-                if cat_id in root_ids and cat.get("name") == root_category_name:
-                    anchor_id = cat_id
-                    break
-
-            # 2. Ищем якорную в базе, если не нашли в XML (случай инкрементального обновления)
-            if not anchor_id:
-                anchor_cat = Category.objects.filter(
-                    name=root_category_name, parent__isnull=True, is_active=True
-                ).first()
-                if not anchor_cat:
-                    # Неактивный якорь реактивируется, чтобы дерево не стало пустым
-                    inactive_anchor = Category.objects.filter(
-                        name=root_category_name, parent__isnull=True, is_active=False
-                    ).first()
-                    if inactive_anchor:
-                        inactive_anchor.is_active = True
-                        inactive_anchor.save(update_fields=["is_active"])
-                        anchor_cat = inactive_anchor
-                        logger.info(
-                            "Якорная категория '%s' была неактивной — реактивирована при инкрементальном импорте.",
-                            root_category_name,
-                        )
-                if anchor_cat:
-                    anchor_id = anchor_cat.onec_id
+            # Якорь: сначала среди корней XML, затем в БД (инкрементальный обмен)
+            anchor_id = self._resolve_anchor_id(root_category_name, categories_data, root_ids)
 
             if anchor_id:
                 filtering_active = True
+                self._anchor_id = anchor_id
+                self._anchor_missing = False
                 self._category_filtering_active = True
-                self._allowed_category_ids.add(anchor_id)
-
-                # Загружаем существующие категории из БД для построения дерева разрешенных
-                db_categories = list(
-                    Category.objects.exclude(onec_id__isnull=True)
-                    .exclude(onec_id="")
-                    .values("onec_id", "parent__onec_id")
-                )
-                db_parent_map = {c["onec_id"]: c["parent__onec_id"] for c in db_categories if c["onec_id"]}
-
-                # Инициализация Seed: прямые потомки якорной из БД
-                for db_cat in db_categories:
-                    if db_cat["parent__onec_id"] == anchor_id and db_cat["onec_id"]:
-                        self._allowed_category_ids.add(db_cat["onec_id"])
-
-                # Инициализация Seed: прямые потомки якорной из XML
-                for cat in categories_data:
-                    if cat.get("parent_id") == anchor_id:
-                        cat_id = cat.get("id")
-                        if cat_id:
-                            self._allowed_category_ids.add(cat_id)
-
-                # Expand из БД (если часть дерева уже импортирована)
-                changed = True
-                while changed:
-                    changed = False
-                    for cat_id, pid in db_parent_map.items():
-                        if pid in self._allowed_category_ids and cat_id not in self._allowed_category_ids:
-                            self._allowed_category_ids.add(cat_id)
-                            changed = True
-
-                # Expand из текущего XML
-                changed = True
-                while changed:
-                    changed = False
-                    for cat in categories_data:
-                        pid = cat.get("parent_id")
-                        cat_id = cat.get("id")
-                        if (
-                            pid
-                            and pid in self._allowed_category_ids
-                            and cat_id
-                            and cat_id not in self._allowed_category_ids
-                        ):
-                            self._allowed_category_ids.add(cat_id)
-                            changed = True
+                # Поддерево якоря: XML этой сессии поверх дерева из БД, минус
+                # группы, помеченные на удаление или вынесенные из дерева.
+                self._rebuild_admission_tree()
 
                 logger.info(
                     f"Category filtering active: anchor='{root_category_name}' "
@@ -2183,13 +2636,16 @@ class VariantImportProcessor:
                     f"root_ids={len(root_ids)}"
                 )
             else:
-                # ROOT_CATEGORY_NAME задан но не найден ни в XML, ни в БД
-                logger.error(
-                    f"ROOT_CATEGORY_NAME='{root_category_name}' не найден ни в XML, "
-                    f"ни в БД. Импорт категорий из этого файла отменен."
-                )
+                # ROOT_CATEGORY_NAME задан но не найден ни в XML, ни в БД:
+                # импорт категорий из этого файла отменяется.
+                self._report_anchor_missing(root_category_name)
                 result["root_not_found"] = True
                 return result
+        else:
+            self._warn_root_filter_disabled()
+            self._rebuild_admission_tree()
+
+        self._sync_group_registry()
 
         # ШАГ 1: Создаём/обновляем категории без parent
         for i, category_data in enumerate(categories_data):
@@ -2206,6 +2662,10 @@ class VariantImportProcessor:
                 if filtering_active:
                     if onec_id not in self._allowed_category_ids:
                         continue  # Пропускаем не-allowed (потомки других корневых)
+                elif first_blocked_reason(onec_id, self._group_parent_of, self._marked_groups):
+                    # Без якоря дерево не фильтруется, но группа, помеченная на
+                    # удаление, и её потомки в каталог не попадают.
+                    continue
 
                 if (i + 1) % 50 == 0:
                     self.log_progress(f"Обработка категорий: {i + 1}...")
@@ -2307,6 +2767,12 @@ class VariantImportProcessor:
                         continue
 
                 parent: Category | None = category_map.get(parent_id)
+
+                if not parent and (not filtering_active or parent_id in self._allowed_category_ids):
+                    # Родитель пришёл в другом groups*.xml этой сессии или уже лежит
+                    # в БД (частичная выгрузка). Без этого поиска ребёнок остался бы
+                    # корнем — то есть категорией вне поддерева якоря.
+                    parent = Category.objects.filter(onec_id=parent_id).first()
 
                 if not parent:
                     continue
@@ -2704,6 +3170,11 @@ class VariantImportProcessor:
             images_line = self.image_report_line()
             if images_line:
                 completion_message += f"[{timestamp}] {images_line}\n"
+            # Итог правила допуска — если шаги команды его ещё не записали.
+            admission_line = self.admission_report_line()
+            if admission_line and admission_line != self._last_admission_line:
+                completion_message += f"[{timestamp}] {admission_line}\n"
+                self._last_admission_line = admission_line
             if error_message:
                 completion_message += f"[{timestamp}] Ошибка: {error_message}\n"
                 session.error_message = error_message

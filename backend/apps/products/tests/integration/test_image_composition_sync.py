@@ -35,7 +35,15 @@ def brand(db):
 
 @pytest.fixture
 def category(db):
-    return Category.objects.create(name="Composition Category", slug="composition-category", is_active=True)
+    # Импорт допускает только товары из поддерева якоря ROOT_CATEGORY_NAME.
+    anchor = Category.objects.create(name="СПОРТ", slug="composition-sport", onec_id="composition-sport-id")
+    return Category.objects.create(
+        name="Composition Category",
+        slug="composition-category",
+        onec_id="composition-category-id",
+        parent=anchor,
+        is_active=True,
+    )
 
 
 @pytest.fixture
@@ -224,10 +232,12 @@ class TestBaseImagesMirroring:
         product.save(update_fields=["base_images"])
 
         with override_settings(MEDIA_ROOT=str(media_root)):
-            processor.process_product_from_goods(
-                {"id": product.onec_id, "name": product.name},
+            result = processor.process_product_from_goods(
+                {"id": product.onec_id, "name": product.name, "category_id": "composition-category-id"},
                 base_dir=str(import_dir),
             )
+
+        assert result is not None, "Допущенный товар обязан обновиться, а не скрыться"
 
         product.refresh_from_db()
         assert product.base_images == existing

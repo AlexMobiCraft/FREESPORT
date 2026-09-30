@@ -705,6 +705,8 @@ def clear_db_before_test(transactional_db):
             "products.ColorMapping",
             "products.Product",
             "products.Category",
+            # Реестр исключённых Ид 1С: от него зависит, создаст ли импорт товар
+            "products.OnecExcludedItem",
             "products.Brand",
             "users.Address",
             "users.Company",
