@@ -2,7 +2,7 @@
 title: 'Импорт 1С: в БД только товары дерева СПОРТ без пометки удаления'
 type: 'bugfix'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'c811d506346fa5e74b88250e29961d7058f547f1'
@@ -81,14 +81,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `apps/products/services/parser.py` -- `is_deleted` в `GoodsData`/`OfferData`/`CategoryData` (+копия в `variant_import.py:90`), `category_ids: list[str]`, `category_id` = первый.
-- [ ] `apps/products/models.py` + миграция `0056` -- `onec_deleted` у `Product`/`ProductVariant` (`BooleanField("Скрыт импортом 1С", default=False, db_index=True)`); модель реестра `OnecExcludedItem` (`onec_id` unique, `kind` group/product/offer, `reason`, `updated_at`).
-- [ ] `apps/products/admin.py` -- колонка, фильтр, readonly `onec_deleted`; реестр — только чтение.
-- [ ] `apps/products/services/variant_import.py` -- поддерево с приоритетом XML и реестром групп; правило допуска; скрытие/возврат/перенос категории; реестр; пропуск исключённых в offers/prices/rests до fallback по родителю; закрытие путей реактивации; `create_default_variants` пропускает `onec_deleted` и товары с помеченными предложениями в реестре; удаление fallback-категорий; счётчики и построчный лог.
-- [ ] `apps/products/management/commands/import_products_from_1c.py` -- натуральная сортировка пакетов; итоговая строка «Вне СПОРТ / к удалению: …» в `log_progress` после каждого шага (не только при COMPLETED) и в `_print_stats`.
-- [ ] `apps/products/management/commands/purge_products_outside_root.py` -- новая команда: dry-run по умолчанию, `--apply`, `--root-name`; порядок — товары, варианты, категории.
+- [x] `apps/products/services/parser.py` -- `is_deleted` в `GoodsData`/`OfferData`/`CategoryData` (+копия в `variant_import.py:90`), `category_ids: list[str]`, `category_id` = первый.
+- [x] `apps/products/models.py` + миграция `0056` -- `onec_deleted` у `Product`/`ProductVariant` (`BooleanField("Скрыт импортом 1С", default=False, db_index=True)`); модель реестра `OnecExcludedItem` (`onec_id` unique, `kind` group/product/offer, `reason`, `updated_at`).
+- [x] `apps/products/admin.py` -- колонка, фильтр, readonly `onec_deleted`; реестр — только чтение.
+- [x] `apps/products/services/variant_import.py` -- поддерево с приоритетом XML и реестром групп; правило допуска; скрытие/возврат/перенос категории; реестр; пропуск исключённых в offers/prices/rests до fallback по родителю; закрытие путей реактивации; `create_default_variants` пропускает `onec_deleted` и товары с помеченными предложениями в реестре; удаление fallback-категорий; счётчики и построчный лог.
+- [x] `apps/products/management/commands/import_products_from_1c.py` -- натуральная сортировка пакетов; итоговая строка «Вне СПОРТ / к удалению: …» в `log_progress` после каждого шага (не только при COMPLETED) и в `_print_stats`.
+- [x] `apps/products/management/commands/purge_products_outside_root.py` -- новая команда: dry-run по умолчанию, `--apply`, `--root-name`; порядок — товары, варианты, категории.
 - [ ] Тесты -- юнит в `apps/products/tests/`, интеграционные в `tests/integration/`; I/O-матрица и AC; переписать тесты из Code Map.
-- [ ] `docs/integrations/1c/import-process.md` -- правило допуска, реестр, ранбук разовой очистки (ТЗ §6 в новой редакции: бэкап → эталон → полный импорт → `purge` dry-run → `--apply` → проверки); `deferred-work.md` -- фильтр API по активности категории (ТЗ §5).
+- [x] `docs/integrations/1c/import-process.md` -- правило допуска, реестр, ранбук разовой очистки (ТЗ §6 в новой редакции: бэкап → эталон → полный импорт → `purge` dry-run → `--apply` → проверки); `deferred-work.md` -- фильтр API по активности категории (ТЗ §5).
 
 **Acceptance Criteria:**
 - Given подмножество снимка (groups, `goods_1_1`, `1_9`, `1_10`, `1_11` и их offers, `--skip-images`), when импорт в пустую БД, then нет товаров и категорий вне поддерева СПОРТ, BT45-RU нет.
