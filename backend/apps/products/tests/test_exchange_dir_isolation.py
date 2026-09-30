@@ -69,6 +69,9 @@ GOODS_PRODUCT_WITH_IMAGES = "018d777d-9094-11ec-a2ff-04421a23d8e8"
 # запрещает, а разрешение исходника проверить надо.
 OFFERS_XML = ONEC_FIXTURES / "offers" / "offers.xml"
 
+# Реальное дерево групп той же выгрузки (единственный корень — «СПОРТ»).
+GROUPS_XML = ONEC_FIXTURES / "groups" / "groups.xml"
+
 
 def _segment_path(index: int) -> Path:
     """Реальный сегмент остатков по порядковому номеру (1-based)."""
@@ -122,6 +125,21 @@ def _upload(sessid: str, source: Path, filename: str | None = None) -> Path:
 
 def _session(sessid: str, status: str) -> ImportSession:
     return ImportSession.objects.create(session_key=sessid, status=status)
+
+
+@pytest.fixture
+def sport_tree(db):
+    """Дерево категорий из реального groups.xml, загруженное отдельной сессией.
+
+    Так и идёт обмен на проде: группы приходят своей сессией раньше товаров, а
+    сессия `goods.xml` собирает поддерево якоря из БД. Без дерева правило
+    допуска не создаёт ни одного товара («якорь не найден»).
+    """
+    session = _session("sess-groups", ImportSession.ImportStatus.COMPLETED)
+    result = VariantImportProcessor(session_id=session.pk).process_categories(
+        XMLDataParser().parse_groups_xml(str(GROUPS_XML))
+    )
+    assert result["created"] > 0, "Реальный groups.xml обязан создать дерево якоря"
 
 
 def _import_dir(sessid: str) -> Path:
@@ -279,7 +297,7 @@ class TestSharedImages:
         assert target == exchange.imports / "import_files" / image.name
         assert not (exchange.imports / "sess-images" / "import_files").exists()
 
-    def test_xml_from_session_dir_resolves_shared_images(self, exchange, tmp_path, settings):
+    def test_xml_from_session_dir_resolves_shared_images(self, exchange, tmp_path, settings, sport_tree):
         """goods.xml изолированной сессии находит картинки чужого обмена."""
         settings.MEDIA_ROOT = str(tmp_path / "media")
 
@@ -351,7 +369,7 @@ class TestSharedImages:
         assert (Path(settings.MEDIA_ROOT) / str(variant.main_image)).exists()
         assert image.exists(), "Общий каталог картинок остаётся нетронутым"
 
-    def test_legacy_image_layout_still_resolves(self, exchange, tmp_path, settings):
+    def test_legacy_image_layout_still_resolves(self, exchange, tmp_path, settings, sport_tree):
         """Переходное окно выката: картинки лежат в старой раскладке `goods/import_files`.
 
         Частичное разрешение картинок обрезало бы состав фото товара
@@ -391,7 +409,7 @@ class TestConsumedImagesAreReclaimed:
     Критерий уборки строго ссылочный: копия подтверждена в хранилище.
     """
 
-    def test_command_deletes_sources_it_stored(self, exchange, tmp_path, settings):
+    def test_command_deletes_sources_it_stored(self, exchange, tmp_path, settings, sport_tree):
         """Потреблённый исходник убирается сразу прогоном, который его перенёс."""
         settings.MEDIA_ROOT = str(tmp_path / "media")
 
@@ -422,7 +440,7 @@ class TestConsumedImagesAreReclaimed:
         for stored in product.base_images:
             assert (media / str(stored)).exists(), "Копия в хранилище обязана пережить уборку"
 
-    def test_reimport_after_cleanup_keeps_composition(self, exchange, tmp_path, settings):
+    def test_reimport_after_cleanup_keeps_composition(self, exchange, tmp_path, settings, sport_tree):
         """Повторный goods.xml без исходников не обрезает состав фото.
 
         Ровно тот сценарий, ради которого ревью запретило уборку по возрасту.
@@ -452,7 +470,7 @@ class TestConsumedImagesAreReclaimed:
         second_composition = list(Product.objects.get(onec_id=GOODS_PRODUCT_WITH_IMAGES).base_images)
         assert second_composition == first_composition, "Состав фото обязан пережить исчезновение исходников"
 
-    def test_manual_corpus_is_never_touched(self, exchange, tmp_path, settings):
+    def test_manual_corpus_is_never_touched(self, exchange, tmp_path, settings, sport_tree):
         """Ручной корпус `ONEC_DATA_DIR` уборке не подлежит — это входные данные.
 
         Прогон по каталогу вне обмена (`data/import_1c/`) читает те же картинки,

@@ -34,6 +34,7 @@ from .models import (
     Category,
     ColorMapping,
     HomepageCategory,
+    OnecExcludedItem,
     PriceType,
     Product,
     ProductImage,
@@ -389,9 +390,11 @@ class ProductAdmin(admin.ModelAdmin):
         "discount_percent",
         "vat_rate",
         "onec_id",
+        "onec_deleted",
     )
     list_filter = (
         "is_active",
+        "onec_deleted",
         "brand",
         "category",
         "sync_status",
@@ -413,6 +416,8 @@ class ProductAdmin(admin.ModelAdmin):
         "sync_status",
         "error_message",
         "onec_brand_id",
+        # Флаг ставит и снимает только импорт 1С — руками он не правится.
+        "onec_deleted",
     )
     raw_id_fields = ("brand", "category")
     inlines = [ProductImageInline, ProductVariantInline]  # Добавляем инлайны
@@ -453,6 +458,7 @@ class ProductAdmin(admin.ModelAdmin):
                     "sync_status",
                     "last_sync_at",
                     "error_message",
+                    "onec_deleted",
                 ),
             },
         ),
@@ -610,9 +616,11 @@ class ProductVariantAdmin(admin.ModelAdmin):
         "vat_rate",
         "stock_quantity",
         "is_active",
+        "onec_deleted",
     )
     list_filter = (
         "is_active",
+        "onec_deleted",
         "product__brand",
         "product__category",
         "product__sync_status",
@@ -626,7 +634,8 @@ class ProductVariantAdmin(admin.ModelAdmin):
     )
     search_fields = ("sku", "onec_id", "product__name")
     raw_id_fields = ("product",)
-    readonly_fields = ("created_at", "updated_at", "last_sync_at")
+    # onec_deleted ставит и снимает только импорт 1С — руками он не правится.
+    readonly_fields = ("created_at", "updated_at", "last_sync_at", "onec_deleted")
     fieldsets = (
         (
             "Идентификация",
@@ -688,7 +697,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
         (
             "Статус и даты",
             {
-                "fields": ("is_active", "last_sync_at", "created_at", "updated_at"),
+                "fields": ("is_active", "onec_deleted", "last_sync_at", "created_at", "updated_at"),
             },
         ),
     )
@@ -696,6 +705,30 @@ class ProductVariantAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet[ProductVariant]:
         """Оптимизация запросов"""
         return super().get_queryset(request).select_related("product")
+
+
+@admin.register(OnecExcludedItem)
+class OnecExcludedItemAdmin(admin.ModelAdmin):
+    """Реестр исключённых Ид 1С — только чтение.
+
+    Реестр ведёт импорт: запись появляется при недопуске или удалении, исчезает
+    при допуске. Ручная правка разошлась бы с состоянием товаров в БД.
+    """
+
+    list_display = ("onec_id", "kind", "reason", "updated_at")
+    list_filter = ("kind", "reason")
+    search_fields = ("onec_id",)
+    ordering = ("kind", "onec_id")
+    readonly_fields = ("onec_id", "kind", "reason", "updated_at")
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
 
 
 class AttributeValueInline(admin.TabularInline):

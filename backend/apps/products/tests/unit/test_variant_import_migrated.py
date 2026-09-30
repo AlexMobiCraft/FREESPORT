@@ -473,8 +473,8 @@ class TestProcessCategoriesFiltering:
         assert not Category.objects.filter(onec_id=f"fridges_{suffix}").exists()
         assert result["created"] == 2
 
-    def test_get_or_create_category_returns_none_for_filtered(self, processor):
-        """_get_or_create_category изолирует категории вне allowed_ids в скрытый fallback."""
+    def test_resolve_product_category_returns_none_for_filtered(self, processor):
+        """_resolve_product_category не подбирает категорию группе вне allowed_ids."""
         suffix = get_unique_suffix()
         categories_data: list[CategoryData] = [
             {"id": f"sport_{suffix}", "name": "СПОРТ"},
@@ -492,19 +492,18 @@ class TestProcessCategoriesFiltering:
         assert f"junk_{suffix}" not in processor._allowed_category_ids
 
         # Товар с категорией из allowed — возвращает категорию
-        result_allowed = processor._get_or_create_category({"category_id": f"clothes_{suffix}"})
+        result_allowed = processor._resolve_product_category({"category_id": f"clothes_{suffix}"})
         assert result_allowed is not None
+        assert result_allowed.onec_id == f"clothes_{suffix}"
 
-        # Товар с категорией вне allowed — уходит в скрытую техническую категорию
-        result_filtered = processor._get_or_create_category({"category_id": f"junk_{suffix}"})
-        assert result_filtered is not None
-        assert result_filtered.slug == "onec-unresolved-category"
-        assert result_filtered.is_active is False
+        # Товар с категорией вне allowed — категории нет, запасная не создаётся
+        assert processor._resolve_product_category({"category_id": f"junk_{suffix}"}) is None
+        assert not Category.objects.filter(slug="onec-unresolved-category").exists()
         # Публичная placeholder-категория НЕ создана в БД
         assert not Category.objects.filter(onec_id=f"junk_{suffix}").exists()
 
-    def test_get_or_create_category_routes_existing_outside_subtree_to_fallback(self, processor):
-        """CR-4 Fix 1: категория существует в DB, но вне allowed subtree — товар уходит в техкатегорию."""
+    def test_resolve_product_category_rejects_existing_outside_subtree(self, processor):
+        """Категория существует в DB, но вне allowed subtree — товару она не достаётся."""
         suffix = get_unique_suffix()
         categories_data: list[CategoryData] = [
             {"id": f"sport_{suffix}", "name": "СПОРТ"},
@@ -514,7 +513,7 @@ class TestProcessCategoriesFiltering:
         with override_settings(ROOT_CATEGORY_NAME="СПОРТ"):
             processor.process_categories(categories_data)
 
-        # Создаём категорию в DB с onec_id вне разрешённого поддерева (она уже есть в _allowed_category_ids? нет)
+        # Категория в DB с onec_id вне разрешённого поддерева
         outside_cat = Category.objects.create(
             name=f"Вне поддерева {suffix}",
             slug=f"outside-subtree-{suffix}",
@@ -525,15 +524,10 @@ class TestProcessCategoriesFiltering:
         assert processor._category_filtering_active is True
         assert outside_cat.onec_id not in processor._allowed_category_ids
 
-        # Вызов _get_or_create_category: категория найдена в DB, но вне subtree
-        result = processor._get_or_create_category({"category_id": f"outside_{suffix}", "id": f"prod_{suffix}"})
+        result = processor._resolve_product_category({"category_id": f"outside_{suffix}", "id": f"prod_{suffix}"})
 
-        assert result is not None
-        assert (
-            result.slug == "onec-unresolved-category"
-        ), "Категория вне allowed subtree должна направляться в техническую fallback-категорию"
-        assert result.is_active is False
-        assert processor.stats["category_fallbacks"] >= 1
+        assert result is None, "Категория вне allowed subtree товару не достаётся"
+        assert not Category.objects.filter(slug__in=["onec-unresolved-category", "uncategorized"]).exists()
 
     def test_incremental_import_reactivates_inactive_anchor(self, processor):
         """CR-4 Fix 3: инкрементальный импорт (без СПОРТ в XML) реактивирует неактивный якорь."""
@@ -560,22 +554,25 @@ class TestProcessCategoriesFiltering:
         assert inactive_sport.is_active is True, "Инкрементальный импорт должен реактивировать неактивный якорь СПОРТ"
         assert processor._category_filtering_active is True
 
-    def test_get_or_create_category_does_not_create_public_placeholder_for_unknown_id(self, processor):
-        """Не создаёт публичную `Категория <uuid>` при неизвестном category_id из goods.xml."""
+    def test_resolve_product_category_creates_nothing_for_unknown_id(self, processor):
+        """Неизвестный category_id из goods.xml не порождает ни placeholder, ни техкатегорию."""
         suffix = get_unique_suffix()
         unknown_id = f"unknown_{suffix}"
+        categories_before = Category.objects.count()
 
-        category = processor._get_or_create_category(
-            {
-                "category_id": unknown_id,
-                "category_name": f"Категория {unknown_id}",
-            }
-        )
+        with override_settings(ROOT_CATEGORY_NAME=None):
+            category = processor._resolve_product_category(
+                {
+                    "category_id": unknown_id,
+                    "category_name": f"Категория {unknown_id}",
+                }
+            )
+            no_group = processor._resolve_product_category({"id": f"prod_{suffix}"})
 
-        assert category is not None
-        assert category.slug == "onec-unresolved-category"
-        assert category.is_active is False
-        assert processor.stats["category_fallbacks"] == 1
+        assert category is None
+        assert no_group is None
+        assert Category.objects.count() == categories_before
+        assert not Category.objects.filter(slug__in=["onec-unresolved-category", "uncategorized"]).exists()
         assert not Category.objects.filter(onec_id=unknown_id).exists()
         assert not Category.objects.filter(name=f"Категория {unknown_id}").exists()
 

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
@@ -40,6 +41,22 @@ from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 
 logger = logging.getLogger("import_tasks")
+
+_DIGITS_RE = re.compile(r"(\d+)")
+
+
+def natural_sort_key(path: Path) -> list[int | str]:
+    """Ключ натуральной сортировки сегментов выгрузки по имени файла.
+
+    1С нумерует пакеты (`goods_1_1_…`, `goods_1_2_…`, …, `goods_1_11_…`), и один
+    товар может повторяться в нескольких пакетах с разной группой — побеждать
+    обязан более поздний. Лексикографический порядок ставит `goods_1_10` раньше
+    `goods_1_2`, и «последним» оказывался бы не тот пакет.
+
+    Чётные позиции ключа — текст, нечётные — числа, поэтому сравнение никогда
+    не сталкивает строку с числом.
+    """
+    return [int(token) if token.isdigit() else token for token in _DIGITS_RE.split(path.name.lower())]
 
 
 class Command(BaseCommand):
@@ -506,11 +523,13 @@ class Command(BaseCommand):
             if file_type in ["all", "goods"]:
                 variant_processor.log_progress("Начало импорта товаров (goods.xml)...")
                 self._import_products_from_goods(data_dir, parser, variant_processor, skip_images)
+                variant_processor.log_admission_summary()
 
             # ШАГ 3: Парсинг offers.xml → ProductVariant
             if file_type in ["all", "offers"]:
                 variant_processor.log_progress("Начало импорта вариантов (offers.xml)...")
                 self._import_variants_from_offers(data_dir, parser, variant_processor, skip_images)
+                variant_processor.log_admission_summary()
 
             # ШАГ 3.5: Создание default variants для товаров без вариантов
             if file_type in ["all", "offers"] and not skip_default_variants:
@@ -521,11 +540,13 @@ class Command(BaseCommand):
             if file_type in ["all", "prices", "offers"]:
                 variant_processor.log_progress("Обновление цен из prices.xml...")
                 self._import_variant_prices(data_dir, parser, variant_processor)
+                variant_processor.log_admission_summary()
 
             # ШАГ 5: Парсинг rests.xml → ProductVariant (остатки)
             if file_type in ["all", "rests", "offers"]:
                 variant_processor.log_progress("Обновление остатков из rests.xml...")
                 self._import_variant_stocks(data_dir, parser, variant_processor)
+                variant_processor.log_admission_summary()
 
             # Статус по факту, а не по факту дохода до конца метода.
             # Раньше сессия, чей файл увёл сосед, отчитывалась COMPLETED
@@ -553,7 +574,7 @@ class Command(BaseCommand):
                 self._cleanup_files(self._processed_files, variant_processor)
 
             # Вывод статистики
-            self._print_stats(variant_processor.get_stats())
+            self._print_stats(variant_processor.get_stats(), variant_processor.admission_report_line())
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"\n❌ ОШИБКА ИМПОРТА: {e}"))
@@ -994,7 +1015,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("❌ Очистка отменена"))
             raise CommandError("Очистка данных отменена пользователем")
 
-    def _print_stats(self, stats: dict) -> None:
+    def _print_stats(self, stats: dict, admission_line: str = "") -> None:
         """Вывод статистики импорта"""
         self.stdout.write("\n" + "=" * 60)
         self.stdout.write(self.style.SUCCESS("✅ ИМПОРТ ЗАВЕРШЕН УСПЕШНО"))
@@ -1010,6 +1031,19 @@ class Command(BaseCommand):
         self.stdout.write(f"   Пропущено:               {stats.get('skipped', 0)}")
         self.stdout.write(f"   Предупреждений:          {stats.get('warnings', 0)}")
         self.stdout.write(f"   Ошибок:                  {stats.get('errors', 0)}")
+
+        # Правило допуска: только дерево якоря, без пометки удаления.
+        # Импорт ничего не удаляет — скрытое убирает purge_products_outside_root.
+        self.stdout.write("\n🚫 ВНЕ ДЕРЕВА ЯКОРЯ / К УДАЛЕНИЮ:")
+        self.stdout.write(f"   Товаров не создано:      {stats.get('skipped_products', 0)}")
+        self.stdout.write(f"   Товаров скрыто:          {stats.get('hidden_products', 0)}")
+        self.stdout.write(f"   Товаров возвращено:      {stats.get('restored_products', 0)}")
+        self.stdout.write(f"   Перенесено в категорию:  {stats.get('recategorized_products', 0)}")
+        self.stdout.write(f"   Вариантов не создано:    {stats.get('skipped_variants', 0)}")
+        self.stdout.write(f"   Вариантов скрыто:        {stats.get('hidden_variants', 0)}")
+        self.stdout.write(f"   Вариантов возвращено:    {stats.get('restored_variants', 0)}")
+        if admission_line:
+            self.stdout.write(f"   {admission_line}")
 
         self.stdout.write("\n📸 ИЗОБРАЖЕНИЯ:")
         self.stdout.write(f"   Скопировано:             {stats.get('images_copied', 0)}")
@@ -1057,15 +1091,21 @@ class Command(BaseCommand):
                         collected.append(direct_file)
 
                 # 2. Сегментированные файлы (prefix_*.xml) - ищем регистронезависимо
-                # На Linux glob('*.xml') чувствителен к регистру
+                # На Linux glob('*.xml') чувствителен к регистру.
+                # Порядок — по номеру пакета (натуральная сортировка), см.
+                # natural_sort_key: поздний пакет обязан обрабатываться последним.
+                segmented: list[Path] = []
                 for pattern in [
                     f"{prefix}_*.xml",
                     f"{prefix.capitalize()}_*.xml",
                     f"{prefix.lower()}_*.xml",
                 ]:
-                    for segmented_file in sorted(p.glob(pattern)):
-                        if segmented_file not in collected:
-                            collected.append(segmented_file)
+                    for segmented_file in p.glob(pattern):
+                        if segmented_file not in segmented:
+                            segmented.append(segmented_file)
+                for segmented_file in sorted(segmented, key=natural_sort_key):
+                    if segmented_file not in collected:
+                        collected.append(segmented_file)
 
                 # 3. Legacy путь (подпапка import_files - иногда 1С кладет туда)
                 legacy_file = p / "import_files" / fname

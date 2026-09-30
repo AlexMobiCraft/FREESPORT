@@ -26,11 +26,15 @@ class GoodsData(TypedDict, total=False):
     name: str
     description: str
     article: str
+    # Ид первой группы — оставлен для обратной совместимости; правило допуска
+    # смотрит на все группы товара (`category_ids`).
     category_id: str
+    category_ids: list[str]
     category_name: str
     brand_id: str
     images: list[str]
     property_values: list[PropertyValueData]  # Значения свойств товара
+    is_deleted: bool  # <ПометкаУдаления>true</ПометкаУдаления>
     vat_rate: Decimal  # Ставка НДС из <СтавкаНДС> или <СтавкиНалогов>, например Decimal("22")
 
 
@@ -45,6 +49,7 @@ class OfferData(TypedDict, total=False):
     article: str
     characteristics: list[OfferCharacteristic]
     images: list[str]
+    is_deleted: bool  # <ПометкаУдаления>true</ПометкаУдаления>
 
 
 class PriceItem(TypedDict):
@@ -77,6 +82,7 @@ class CategoryData(TypedDict, total=False):
     name: str
     parent_id: str
     description: str
+    is_deleted: bool  # <ПометкаУдаления>true</ПометкаУдаления>
 
 
 class BrandData(TypedDict):
@@ -168,6 +174,16 @@ class XMLDataParser:
         if child is not None and child.text:
             return child.text.strip()
         return default
+
+    def _is_deletion_marked(self, element: Element) -> bool:
+        """Пометка удаления объекта 1С.
+
+        Отсутствие тега равно `false`; значение сравнивается без учёта регистра
+        и пробелов — 1С пишет `true`/`false`, но обмен проходит через правки
+        расширений, и полагаться на точное написание нельзя.
+        """
+
+        return self._find_text(element, "ПометкаУдаления").lower() == "true"
 
     def _parse_vat_rate_value(self, raw_value: str) -> Decimal | None:
         """Нормализует строковое значение ставки НДС из CommerceML."""
@@ -273,11 +289,21 @@ class XMLDataParser:
                 "name": self._find_text(product_element, "Наименование"),
                 "description": self._find_text(product_element, "Описание"),
                 "article": self._find_text(product_element, "Артикул"),
+                "is_deleted": self._is_deletion_marked(product_element),
+                "category_ids": [],
             }
 
             groups_element = self._find_child(product_element, "Группы")
             if groups_element is not None:
-                goods_data["category_id"] = self._find_text(groups_element, "Ид")
+                # Все группы товара: правило допуска требует, чтобы каждая из
+                # них лежала в поддереве якоря. Порядок — как в выгрузке, дубли сняты.
+                category_ids: list[str] = []
+                for group_id_element in self._find_children(groups_element, "Ид"):
+                    group_id = (group_id_element.text or "").strip()
+                    if group_id and group_id not in category_ids:
+                        category_ids.append(group_id)
+                goods_data["category_ids"] = category_ids
+                goods_data["category_id"] = category_ids[0] if category_ids else ""
                 category_name = self._find_text(groups_element, "Наименование")
                 if category_name:
                     goods_data["category_name"] = category_name
@@ -350,6 +376,7 @@ class XMLDataParser:
                 "id": self._find_text(offer_element, "Ид"),
                 "name": self._find_text(offer_element, "Наименование"),
                 "article": self._find_text(offer_element, "Артикул"),
+                "is_deleted": self._is_deletion_marked(offer_element),
             }
 
             characteristics_element = self._find_child(offer_element, "ХарактеристикиТовара")
@@ -516,6 +543,7 @@ class XMLDataParser:
                 "id": category_id,
                 "name": category_name,
                 "description": self._find_text(group_element, "Описание"),
+                "is_deleted": self._is_deletion_marked(group_element),
             }
 
             if parent_id:
