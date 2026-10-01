@@ -122,6 +122,19 @@ describe('SubscribeForm', () => {
     expect(screen.getAllByRole('checkbox', { name: /обработк/i })).toEqual([getPdpCheckbox()]);
   });
 
+  it('gives each consent checkbox exactly one <label> with the consent text', () => {
+    render(<SubscribeForm />);
+
+    // Простой анализатор HTML берёт подпись из input.labels, а не из aria-labelledby:
+    // декоративный квадрат не должен быть ещё одной, пустой подписью.
+    const pdpLabels = Array.from((getPdpCheckbox() as HTMLInputElement).labels ?? []);
+    const marketingLabels = Array.from((getMarketingCheckbox() as HTMLInputElement).labels ?? []);
+    expect(pdpLabels).toHaveLength(1);
+    expect(pdpLabels[0]).toHaveTextContent(/персональных данных/);
+    expect(marketingLabels).toHaveLength(1);
+    expect(marketingLabels[0]).toHaveTextContent(/рассылок/);
+  });
+
   it('declares both consents required for assistive technologies via aria-required', () => {
     render(<SubscribeForm />);
 

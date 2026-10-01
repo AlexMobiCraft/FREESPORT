@@ -107,12 +107,14 @@ interface ElectricConsentCheckboxProps {
 }
 
 /**
- * Обязательный чекбокс согласия в стилистике electric: скошенный квадрат поверх
- * `sr-only peer` input. Разметка общая для чекбоксов ПДн и рассылки (стори 41.11),
- * наружу не экспортируется: у темы blue свой `Checkbox`, стили разные.
+ * Обязательный чекбокс согласия в стилистике electric: скошенный декоративный
+ * квадрат под прозрачным `peer` input. Разметка общая для чекбоксов ПДн и
+ * рассылки (стори 41.11), наружу не экспортируется: у темы blue свой `Checkbox`,
+ * стили разные.
  *
- * Имя задаётся `aria-labelledby`, а не всеми `<label>` input: квадрат — тоже
- * `<label htmlFor>`, и его галочка «✓» попала бы в доступное имя.
+ * Квадрат — не `<label>`: у input ровно одна подпись, текст согласия. Имя
+ * задаётся `aria-labelledby`, чтобы в него вошла и ссылка на документ,
+ * вынесенная из `<label>`.
  */
 const ElectricConsentCheckbox = ({
   id,
@@ -129,11 +131,13 @@ const ElectricConsentCheckbox = ({
   return (
     <div className="space-y-2">
       <div className="flex items-start gap-3">
-        <div className="relative flex items-center pt-0.5">
+        <div className="relative isolate flex items-center pt-0.5">
+          {/* Прозрачный input поверх квадрата: top-0.5 повторяет pt-0.5 контейнера,
+              -left-0.5 и w-6 накрывают углы, вынесенные -skew-x-12. */}
           <input
             id={id}
             type="checkbox"
-            className="sr-only peer"
+            className="peer absolute -left-0.5 top-0.5 z-10 m-0 h-5 w-6 cursor-pointer opacity-0 disabled:cursor-not-allowed"
             disabled={disabled}
             name={registration.name}
             ref={registration.ref}
@@ -145,16 +149,16 @@ const ElectricConsentCheckbox = ({
             aria-labelledby={labelledBy}
             aria-describedby={hasError ? errorId : undefined}
           />
-          <label
-            htmlFor={id}
+          <span
+            aria-hidden="true"
             className={cn(
-              'flex h-5 w-5 cursor-pointer items-center justify-center border-2 transition-all duration-150',
+              'flex h-5 w-5 items-center justify-center border-2 transition-all duration-150',
               'transform -skew-x-12',
               'peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary)]',
               'peer-focus:ring-2 peer-focus:ring-[var(--color-primary)]/30 peer-focus:ring-offset-2',
               hasError
                 ? 'border-red-500 peer-focus:ring-red-500/30'
-                : 'border-[var(--color-primary)] hover:bg-[var(--color-primary)]/15',
+                : 'border-[var(--color-primary)] peer-hover:bg-[var(--color-primary)]/15',
               disabled && 'cursor-not-allowed opacity-50'
             )}
           >
@@ -163,7 +167,7 @@ const ElectricConsentCheckbox = ({
                 ✓
               </span>
             )}
-          </label>
+          </span>
         </div>
         <span className="font-inter text-xs md:text-sm uppercase leading-relaxed text-[var(--color-text-secondary)]">
           {children}

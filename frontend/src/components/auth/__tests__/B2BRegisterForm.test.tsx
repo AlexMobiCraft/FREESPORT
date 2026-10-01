@@ -108,6 +108,19 @@ describe('B2BRegisterForm consent checkboxes', () => {
     expect(screen.getByText('Отписаться можно в любой момент по ссылке в письме.')).toBeInTheDocument();
   });
 
+  test('gives each consent checkbox exactly one <label> with the consent text', () => {
+    render(<B2BRegisterForm />);
+
+    // Простой анализатор HTML берёт подпись из input.labels, а не из aria-labelledby:
+    // декоративный квадрат не должен быть ещё одной, пустой подписью.
+    const pdpLabels = Array.from((screen.getByRole('checkbox', { name: PDP_CONSENT_NAME }) as HTMLInputElement).labels ?? []);
+    const marketingLabels = Array.from((getMarketingConsent() as HTMLInputElement).labels ?? []);
+    expect(pdpLabels).toHaveLength(1);
+    expect(pdpLabels[0]).toHaveTextContent(/персональных данных/);
+    expect(marketingLabels).toHaveLength(1);
+    expect(marketingLabels[0]).toHaveTextContent(/рассылок/);
+  });
+
   test('should keep submit disabled until pdp consent is checked', async () => {
     const user = userEvent.setup();
     const mockRegisterB2B = vi.mocked(authService.registerB2B);
