@@ -280,9 +280,8 @@ export const SubscribeForm: React.FC = () => {
               disabled={isSubmitting}
               aria-required="true"
               aria-invalid={hasMarketingConsentError || undefined}
-              // Имя — через `aria-labelledby`, а не «все <label for>»: первый такой
-              // label — пустой квадрат `Checkbox`, и при `aria-describedby` axe
-              // (label-title-only) счёл бы чекбокс подписанным только описанием.
+              // Имя — через `aria-labelledby`, а не через <label for>: в имя должна
+              // войти и ссылка на документ, вынесенная из <label>.
               aria-labelledby={`${marketingConsentLabelId} ${marketingConsentLinkId}`}
               aria-describedby={hasMarketingConsentError ? marketingConsentErrorId : undefined}
               className={hasMarketingConsentError ? consentErrorClassName : undefined}

@@ -30,28 +30,30 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
 
     return (
       <div className="inline-flex items-start gap-3">
-        <div className="relative flex items-center">
-          {/* Native Checkbox (hidden) */}
+        <div className="relative isolate flex items-center">
+          {/* Нативный чекбокс — прозрачный слой поверх квадрата: клик по квадрату
+              попадает прямо в input. Квадрат не <label>, иначе у input две подписи
+              и первая — пустая. input первый в контейнере — на нём держатся peer-*;
+              размер повторяет квадрат, isolate не выпускает z-10 за обёртку. */}
           <input
             ref={ref}
             id={checkboxId}
             type="checkbox"
             checked={checked}
             disabled={disabled}
-            className="sr-only peer"
+            className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
             {...props}
           />
 
-          {/* Custom Checkbox Box */}
-          <label
-            htmlFor={checkboxId}
+          {/* Декоративный квадрат */}
+          <span
+            aria-hidden="true"
             className={cn(
               // Базовые стили
               'relative flex items-center justify-center',
               'w-5 h-5 rounded-sm', // 6px radius
               'border-[1.5px] border-[#B9C3D6]', // Design System v2.0 border
               'bg-white',
-              'cursor-pointer',
               'transition-all duration-[180ms]', // Design System v2.0 timing
 
               // States
@@ -77,10 +79,11 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             )}
           />
 
-          {/* Иконки — siblings peer-инпута (после input и label в DOM),
+          {/* Иконки — siblings peer-инпута (после input и квадрата в DOM),
               абсолютно поверх квадрата. Так CSS peer-checked корректно
               выбирает <Check> и галочка работает в uncontrolled-режиме
-              (react-hook-form register). pointer-events-none — клик уходит на <label>. */}
+              (react-hook-form register). pointer-events-none — иконки не
+              перехватывают клик (input и так выше них по z-10). */}
           {!indeterminate && (
             <Check
               className={cn(

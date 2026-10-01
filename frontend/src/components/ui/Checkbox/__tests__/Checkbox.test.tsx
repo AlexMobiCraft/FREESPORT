@@ -1,10 +1,11 @@
 /**
  * Checkbox Component Tests
- * Проверка indeterminate, disabled, prefers-reduced-motion
+ * Проверка indeterminate, disabled, prefers-reduced-motion, единственной подписи
  */
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Checkbox } from '../Checkbox';
 
 describe('Checkbox', () => {
@@ -72,6 +73,48 @@ describe('Checkbox', () => {
       const label = checkbox.nextElementSibling as HTMLElement;
       expect(label).toHaveClass('peer-focus:ring-2');
       expect(label).toHaveClass('peer-focus:ring-primary/12');
+    });
+  });
+
+  // Одна подпись: декоративный квадрат — не <label>, иначе у input две подписи и
+  // первая пустая (её и видит простой анализатор HTML через input.labels[0]).
+  describe('Single label', () => {
+    it('links exactly one label — the text — when label prop is set', () => {
+      render(<Checkbox label="Test" />);
+      const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
+      expect(checkbox.labels).toHaveLength(1);
+      expect(checkbox.labels?.[0]).toHaveTextContent('Test');
+    });
+
+    it('links no labels without label prop', () => {
+      render(<Checkbox />);
+      const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
+      expect(checkbox.labels).toHaveLength(0);
+    });
+
+    it('renders the box as aria-hidden span, not label', () => {
+      render(<Checkbox label="Test" />);
+      const box = screen.getByRole('checkbox').nextElementSibling as HTMLElement;
+      expect(box.tagName).toBe('SPAN');
+      expect(box).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('lays the native input transparently over the box instead of sr-only', () => {
+      render(<Checkbox label="Test" />);
+      const checkbox = screen.getByRole('checkbox');
+      expect(checkbox).not.toHaveClass('sr-only');
+      expect(checkbox).toHaveClass('opacity-0', 'absolute', 'inset-0');
+    });
+
+    it('toggles when the label text is clicked', async () => {
+      const user = userEvent.setup();
+      render(<Checkbox label="Test" />);
+      const checkbox = screen.getByRole('checkbox');
+
+      await user.click(screen.getByText('Test'));
+      expect(checkbox).toBeChecked();
+      await user.click(screen.getByText('Test'));
+      expect(checkbox).not.toBeChecked();
     });
   });
 });

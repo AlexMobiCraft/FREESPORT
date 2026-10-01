@@ -112,11 +112,37 @@ describe('ElectricSubscribeForm', () => {
     expect(screen.getAllByRole('checkbox', { name: /обработк/i })).toEqual([getPdpCheckbox()]);
   });
 
+  it('gives each consent checkbox exactly one <label> with the consent text', () => {
+    render(<ElectricSubscribeForm />);
+
+    // Простой анализатор HTML берёт подпись из input.labels, а не из aria-labelledby:
+    // декоративный квадрат не должен быть ещё одной, пустой подписью.
+    const pdpLabels = Array.from((getPdpCheckbox() as HTMLInputElement).labels ?? []);
+    const marketingLabels = Array.from((getMarketingCheckbox() as HTMLInputElement).labels ?? []);
+    expect(pdpLabels).toHaveLength(1);
+    expect(pdpLabels[0]).toHaveTextContent(/персональных данных/);
+    expect(marketingLabels).toHaveLength(1);
+    expect(marketingLabels[0]).toHaveTextContent(/рассылок/);
+  });
+
+  it('renders the box as aria-hidden span under a transparent native input', () => {
+    render(<ElectricSubscribeForm />);
+
+    for (const checkbox of [getPdpCheckbox(), getMarketingCheckbox()]) {
+      const box = checkbox.nextElementSibling as HTMLElement;
+      expect(box.tagName).toBe('SPAN');
+      expect(box).toHaveAttribute('aria-hidden', 'true');
+      expect(checkbox).not.toHaveClass('sr-only');
+      expect(checkbox).toHaveClass('opacity-0', 'absolute', 'z-10');
+    }
+  });
+
   it('keeps the checkmark glyph out of the accessible name of a checked checkbox', async () => {
     const user = userEvent.setup();
     render(<ElectricSubscribeForm />);
 
-    // Квадрат — тоже <label htmlFor>; после отметки в нём появляется «✓».
+    // После отметки в квадрате появляется «✓»; квадрат — aria-hidden <span>,
+    // поэтому галочка не попадает ни в подпись, ни в доступное имя.
     await clickPdpCheckbox(user);
     await clickMarketingCheckbox(user);
 
