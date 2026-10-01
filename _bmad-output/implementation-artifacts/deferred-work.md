@@ -856,12 +856,6 @@
   summary: Каталог молча игнорирует неизвестный `?category=<slug>`: отдаёт 200 с нефильтрованной выдачей и общими метаданными `/catalog`, поэтому битые ссылки на категории никак не проявляются.
   evidence: `frontend/src/app/(blue)/catalog/page.tsx` — `generateMetadata` возвращает `buildCatalogMetadata()` при `!name`, `fetchInitialProducts` ставит `categoryId = null` для неизвестного slug. Из-за этого ошибка в подвале прошла незамеченной.
 
-## Deferred from: spec-audit-consent-checkbox-single-label (2026-10-01)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-audit-consent-checkbox-single-label.md`
-  summary: У `Toggle` трек — пустой `<label htmlFor>` перед текстовой подписью, поэтому `input.labels[0]` пустой, как было у `Checkbox` до правки; лечится тем же приёмом (трек — `<span aria-hidden>`, прозрачный input поверх).
-  evidence: `frontend/src/components/ui/Toggle/Toggle.tsx:39-47`, используется в `SidebarFilters.tsx:241`; `Toggle` намеренно вынесен из задачи в intent-файле, оба ревьюера отметили дефект независимо.
-
 ## Deferred from: spec-toggle-track-single-label (2026-10-01)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-toggle-track-single-label.md`
