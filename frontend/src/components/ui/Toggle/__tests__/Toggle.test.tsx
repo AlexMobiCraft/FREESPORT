@@ -5,9 +5,14 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Toggle } from '../Toggle';
 
 describe('Toggle', () => {
+  // Трек идёт сразу после input, бегунок — его единственный потомок
+  const getTrack = () => screen.getByRole('switch').nextElementSibling as HTMLElement;
+  const getThumb = () => getTrack().firstElementChild as HTMLElement;
+
   // Базовый рендеринг
   it('renders toggle switch', () => {
     render(<Toggle />);
@@ -62,10 +67,10 @@ describe('Toggle', () => {
     });
 
     it('applies disabled styles', () => {
-      const { container } = render(<Toggle label="Test" disabled />);
+      render(<Toggle label="Test" disabled />);
 
-      const label = container.querySelector('label[for]');
-      expect(label).toHaveClass('opacity-50', 'cursor-not-allowed');
+      const track = getTrack();
+      expect(track).toHaveClass('opacity-50', 'cursor-not-allowed');
     });
 
     it('does not toggle when disabled', () => {
@@ -88,10 +93,10 @@ describe('Toggle', () => {
 
   // Edge Case: prefers-reduced-motion
   it('has motion-reduce classes for accessibility', () => {
-    const { container } = render(<Toggle />);
+    render(<Toggle />);
 
-    const track = container.querySelector('label[for]');
-    const thumb = container.querySelector('span');
+    const track = getTrack();
+    const thumb = getThumb();
 
     expect(track).toHaveClass('motion-reduce:transition-none');
     expect(thumb).toHaveClass('motion-reduce:transition-none');
@@ -99,10 +104,10 @@ describe('Toggle', () => {
 
   // Transition animations
   it('has transition duration of 180ms (Design System v2.0)', () => {
-    const { container } = render(<Toggle />);
+    render(<Toggle />);
 
-    const track = container.querySelector('label[for]');
-    const thumb = container.querySelector('span');
+    const track = getTrack();
+    const thumb = getThumb();
 
     expect(track).toHaveClass('duration-[180ms]');
     expect(thumb).toHaveClass('duration-[180ms]');
@@ -110,9 +115,9 @@ describe('Toggle', () => {
 
   // Thumb movement
   it('moves thumb when checked', () => {
-    const { container } = render(<Toggle checked />);
+    render(<Toggle checked />);
 
-    const thumb = container.querySelector('span');
+    const thumb = getThumb();
     expect(thumb).toHaveClass('translate-x-5');
   });
 
@@ -144,10 +149,10 @@ describe('Toggle', () => {
     });
 
     it('has focus ring on focus', () => {
-      const { container } = render(<Toggle />);
+      render(<Toggle />);
 
-      const label = container.querySelector('label[for]');
-      expect(label).toHaveClass('peer-focus:ring-2', 'peer-focus:ring-primary');
+      const track = getTrack();
+      expect(track).toHaveClass('peer-focus:ring-2', 'peer-focus:ring-primary');
     });
 
     it('forwards ref correctly', () => {
@@ -169,32 +174,32 @@ describe('Toggle', () => {
   // Visual states
   describe('Visual States', () => {
     it('has unchecked background color', () => {
-      const { container } = render(<Toggle checked={false} />);
+      render(<Toggle checked={false} />);
 
-      const track = container.querySelector('label[for]');
+      const track = getTrack();
       expect(track).toHaveClass('bg-neutral-300');
     });
 
     it('has checked background color', () => {
-      const { container } = render(<Toggle checked />);
+      render(<Toggle checked />);
 
-      const track = container.querySelector('label[for]');
+      const track = getTrack();
       expect(track).toHaveClass('peer-checked:bg-primary');
     });
 
     it('thumb has shadow', () => {
-      const { container } = render(<Toggle />);
+      render(<Toggle />);
 
-      const thumb = container.querySelector('span');
+      const thumb = getThumb();
       expect(thumb).toHaveClass('shadow-[0_2px_8px_rgba(0,0,0,0.16)]');
     });
   });
 
   // Custom className
   it('accepts custom className', () => {
-    const { container } = render(<Toggle className="custom-class" />);
+    render(<Toggle className="custom-class" />);
 
-    const track = container.querySelector('label[for]');
+    const track = getTrack();
     expect(track).toHaveClass('custom-class');
   });
 
@@ -211,5 +216,48 @@ describe('Toggle', () => {
 
     const toggle = screen.getByRole('switch');
     expect(toggle.id).toBe('custom-toggle');
+  });
+
+  // Одна подпись: трек — не <label>, иначе у input две подписи и первая пустая
+  // (её и видит простой анализатор HTML через input.labels[0]).
+  describe('Single label', () => {
+    it('links exactly one label — the text — when label prop is set', () => {
+      render(<Toggle label="Test" />);
+      const toggle = screen.getByRole('switch') as HTMLInputElement;
+      expect(toggle.labels).toHaveLength(1);
+      expect(toggle.labels?.[0]).toHaveTextContent('Test');
+    });
+
+    it('links no labels without label prop', () => {
+      render(<Toggle />);
+      const toggle = screen.getByRole('switch') as HTMLInputElement;
+      expect(toggle.labels).toHaveLength(0);
+    });
+
+    it('renders the track as aria-hidden span, not label', () => {
+      render(<Toggle label="Test" />);
+      const track = getTrack();
+      expect(track.tagName).toBe('SPAN');
+      expect(track).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('lays the native input transparently over the track instead of sr-only', () => {
+      render(<Toggle label="Test" />);
+      const toggle = screen.getByRole('switch');
+      expect(toggle).not.toHaveClass('sr-only');
+      expect(toggle).toHaveClass('opacity-0', 'absolute', 'inset-0', 'z-10');
+      // Без isolate z-10 вышел бы в общий порядок наложения страницы
+      expect(toggle.parentElement).toHaveClass('isolate');
+    });
+
+    it('calls onChange once when the label text is clicked', async () => {
+      const user = userEvent.setup();
+      const handleChange = vi.fn();
+      render(<Toggle label="Test" onChange={handleChange} />);
+
+      await user.click(screen.getByText('Test'));
+      expect(handleChange).toHaveBeenCalledTimes(1);
+      expect(handleChange.mock.calls[0][0].target.checked).toBe(true);
+    });
   });
 });

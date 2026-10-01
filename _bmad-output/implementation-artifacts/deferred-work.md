@@ -861,3 +861,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-audit-consent-checkbox-single-label.md`
   summary: У `Toggle` трек — пустой `<label htmlFor>` перед текстовой подписью, поэтому `input.labels[0]` пустой, как было у `Checkbox` до правки; лечится тем же приёмом (трек — `<span aria-hidden>`, прозрачный input поверх).
   evidence: `frontend/src/components/ui/Toggle/Toggle.tsx:39-47`, используется в `SidebarFilters.tsx:241`; `Toggle` намеренно вынесен из задачи в intent-файле, оба ревьюера отметили дефект независимо.
+
+## Deferred from: spec-toggle-track-single-label (2026-10-01)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-toggle-track-single-label.md`
+  summary: У `Toggle` бегунок (`checked && 'translate-x-5'`) и `aria-checked` берутся из пропа `checked`, а цвет трека — из `peer-checked`, поэтому без `checked` (например, `defaultChecked`) клик перекрашивает трек, а бегунок остаётся слева и `aria-checked` остаётся `"false"`.
+  evidence: `frontend/src/components/ui/Toggle/Toggle.tsx:40,88`; дефект был и до правки, оба ревьюера отметили его независимо; единственный потребитель `SidebarFilters` передаёт `checked`, поэтому сейчас не проявляется. Лечение: бегунок через `peer-checked:[&>span]:translate-x-5` на треке, `aria-checked` убрать (у `role="switch"` на нативном checkbox состояние берётся из `checked`).

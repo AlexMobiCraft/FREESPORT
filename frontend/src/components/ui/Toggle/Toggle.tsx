@@ -25,8 +25,11 @@ export const Toggle = React.forwardRef<HTMLInputElement, ToggleProps>(
 
     return (
       <div className="inline-flex items-center gap-3">
-        <div className="relative">
-          {/* Native Checkbox (hidden) */}
+        <div className="relative isolate">
+          {/* Нативный чекбокс — прозрачный слой поверх трека: клик по треку
+              попадает прямо в input. Трек не <label>, иначе у input две подписи
+              и первая — пустая. input первый в контейнере — на нём держатся peer-*;
+              размер повторяет трек, isolate не выпускает z-10 за обёртку. */}
           <input
             ref={ref}
             id={toggleId}
@@ -36,19 +39,18 @@ export const Toggle = React.forwardRef<HTMLInputElement, ToggleProps>(
             disabled={disabled}
             aria-checked={checked ? 'true' : 'false'}
             aria-label={label}
-            className="sr-only peer"
+            className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none opacity-0 disabled:cursor-not-allowed"
             onChange={handleChange}
             {...props}
           />
 
-          {/* Toggle Track */}
-          <label
-            htmlFor={toggleId}
+          {/* Декоративный трек */}
+          <span
+            aria-hidden="true"
             className={cn(
               // Track (контейнер)
               'relative block',
               'w-11 h-6 rounded-full', // 44x24px, radius 999
-              'cursor-pointer',
               'transition-colors duration-[180ms]', // Design System v2.0 timing
               '[transition-timing-function:cubic-bezier(0.4,0,0.2,1)]', // Design System v2.0 easing
 
@@ -88,7 +90,7 @@ export const Toggle = React.forwardRef<HTMLInputElement, ToggleProps>(
                 'motion-reduce:transition-none'
               )}
             />
-          </label>
+          </span>
         </div>
 
         {/* Label */}
