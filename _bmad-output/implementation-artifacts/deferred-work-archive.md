@@ -2,6 +2,13 @@
 
 Закрытые и неактуальные пункты, перенесённые из `deferred-work.md`. Каждый пункт сверен с кодом `develop` на дату переноса; причина указана строкой «Перенесено». Разделы сохраняют исходные заголовки и порядок.
 
+## Deferred from: spec-audit-consent-checkbox-single-label (2026-10-01)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-audit-consent-checkbox-single-label.md`
+  summary: У `Toggle` трек — пустой `<label htmlFor>` перед текстовой подписью, поэтому `input.labels[0]` пустой, как было у `Checkbox` до правки; лечится тем же приёмом (трек — `<span aria-hidden>`, прозрачный input поверх).
+  evidence: `frontend/src/components/ui/Toggle/Toggle.tsx:39-47`, используется в `SidebarFilters.tsx:241`; `Toggle` намеренно вынесен из задачи в intent-файле, оба ревьюера отметили дефект независимо.
+  **Перенесено 2026-10-01:** Исправлено спекой `spec-toggle-track-single-label.md` (коммит `ee83f2fc`, ветка `fix/toggle-track-single-label`): трек `Toggle` стал `<span aria-hidden="true">`, нативный `input` — прозрачный слой поверх него с `appearance-none`; у `input` одна подпись (`labels.length` 1 с `label`, 0 без), тесты в `Toggle.test.tsx`. Остаток — бегунок в неуправляемом режиме — отдельной записью в `deferred-work.md`.
+
 ## Deferred: товары каталога не попадают в серверный HTML (2026-09-25)
 
 - source_spec: none
