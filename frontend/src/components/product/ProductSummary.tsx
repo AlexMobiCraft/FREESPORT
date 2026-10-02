@@ -23,6 +23,7 @@ import { QuantitySelector } from '@/components/cart/QuantitySelector';
 import type { ProductVariant } from '@/types/api';
 import { Heart } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { htmlToPlainText } from '@/utils/htmlContent';
 
 /**
  * Расширенный интерфейс товара с вариантами
@@ -140,6 +141,11 @@ export default function ProductSummary({
 
   // Варианты товара (если есть) - мемоизируем для стабильности ссылки
   const variants = useMemo(() => product.variants || [], [product.variants]);
+
+  const descriptionText = useMemo(
+    () => htmlToPlainText(product.description),
+    [product.description]
+  );
 
   // Ref для callback чтобы избежать лишних перерендеров
   const onVariantChangeRef = useRef(onVariantChange);
@@ -469,10 +475,14 @@ export default function ProductSummary({
       </div>
 
       {/* Описание товара (перемещено вниз) */}
-      {product.description && (
+      {/* Описание из 1С бывает с <br>: выводим простым текстом с переводами строк,
+          не как HTML — санитайзера на пути из 1С нет */}
+      {descriptionText && (
         <div className="pt-4 border-t border-neutral-200">
           <h3 className="text-lg font-semibold text-neutral-900 mb-2">Описание</h3>
-          <p className="text-base text-neutral-700 leading-relaxed">{product.description}</p>
+          <p className="text-base text-neutral-700 leading-relaxed whitespace-pre-line">
+            {descriptionText}
+          </p>
         </div>
       )}
     </div>

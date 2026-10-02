@@ -867,3 +867,24 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-toggle-track-single-label.md`
   summary: У `Toggle` бегунок (`checked && 'translate-x-5'`) и `aria-checked` берутся из пропа `checked`, а цвет трека — из `peer-checked`, поэтому без `checked` (например, `defaultChecked`) клик перекрашивает трек, а бегунок остаётся слева и `aria-checked` остаётся `"false"`.
   evidence: `frontend/src/components/ui/Toggle/Toggle.tsx:40,88`; дефект был и до правки, оба ревьюера отметили его независимо; единственный потребитель `SidebarFilters` передаёт `checked`, поэтому сейчас не проявляется. Лечение: бегунок через `peer-checked:[&>span]:translate-x-5` на треке, `aria-checked` убрать (у `role="switch"` на нативном checkbox состояние берётся из `checked`).
+
+## Deferred from: bmad-quick-dev split of intent-audit-2026-10-02-product-cards-and-minor (2026-10-02)
+
+- source_spec: none
+  summary: Раздел Б интента — подпись `Spinner` по умолчанию «Загрузка» вместо «Loading» (Б1) и удаление повторов по `url` в `app/sitemap.ts`, чтобы `/requisites` попадал в sitemap один раз (Б3); пункт Б2 (подпись поля входа) снят владельцем — подпись «Введите свое учетное имя» оставлена по просьбе заказчика (`spec-login-form-username-label.md`).
+  evidence: Интент `tasks/intent-audit-2026-10-02-product-cards-and-minor.md` содержит три независимо сдаваемые цели (А, Б, В); владелец выбрал разбиение и начал с А.
+- source_spec: none
+  summary: Раздел В интента — вёрстка контента блога и новостей: общая константа стилей rich-контента вместо неработающего `prose` (В1), очистка `content` при сохранении `BlogPost`/`News` через bleach с `<h1>`→`<h2>` и новым `help_text` (В2), простой текст в SEO-полях статьи и предупреждения о длине в админке (В3).
+  evidence: Отдельная цель из того же интента; замену контента статей владелец делает только после релиза В1.
+
+## Deferred from: code review of spec-audit-product-cards-brand-description (2026-10-02)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-audit-product-cards-brand-description.md`
+  summary: Признак бренда-заглушки вычисляется на фронтенде по захардкоженным slug/именам (`frontend/src/utils/brand.ts`), хотя источник правды — настройки бэкенда `IMPORT_FALLBACK_BRAND_SLUG`/`IMPORT_FALLBACK_BRAND_NAME`; надёжнее отдавать из API флаг заглушки (или `brand: null`).
+  evidence: Переопределение env на проде вернёт «Без ТМ» в title и schema.org, и ни один тест этого не поймает; распознавание по имени («без тм») покрывает только смену slug, но не смену имени.
+- source_spec: `_bmad-output/implementation-artifacts/spec-audit-product-cards-brand-description.md`
+  summary: Бренд-заглушка «Без ТМ» по-прежнему видна покупателю в подписи бренда карточки (`ProductInfo.tsx:134`) и в карточках листинга (`ProductCard.tsx`), хотя title и JSON-LD её больше не выводят.
+  evidence: Видимую подпись спека сознательно оставила вне задачи; правило «заглушка — не торговая марка» теперь соблюдается непоследовательно, решение за владельцем.
+- source_spec: `_bmad-output/implementation-artifacts/spec-audit-product-cards-brand-description.md`
+  summary: У товаров без описания (18 карточек) и с описанием из одних тегов `meta`/`og:description` пустые — нет запасного шаблона, а заполненные в админке `seo_title`/`seo_description` товара адаптер фронтенда отбрасывает.
+  evidence: Интент 02.10 вынес это в «Вне задачи», п. 1; `generateMetadata` в `app/(blue)/product/[slug]/page.tsx` отдаёт `''`, `serializers.py:722-723` поля отдаёт.

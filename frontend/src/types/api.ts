@@ -366,6 +366,8 @@ export interface ProductDetail {
   /** Артикул номенклатуры из 1С; пустой, если в 1С не заполнен */
   article?: string;
   brand: string;
+  /** Slug бренда — по нему распознаются заглушки импорта («Без ТМ» и др.) */
+  brand_slug?: string;
   description: string;
   full_description?: string;
   price: ProductPrice;
