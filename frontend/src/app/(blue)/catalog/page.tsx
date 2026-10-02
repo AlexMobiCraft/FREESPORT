@@ -10,6 +10,7 @@ import {
 import { buildMetadata } from '@/utils/seo';
 
 const CATEGORY_TREE_FETCH_TIMEOUT_MS = 3000;
+const FEATURED_BRANDS_FETCH_TIMEOUT_MS = 3000;
 const PRODUCTS_FETCH_TIMEOUT_MS = 3000;
 
 // Тот же текст, что клиент показывает в H1 без категории (CatalogPageClient)
@@ -54,6 +55,11 @@ interface CategoryTreeNode {
   name?: unknown;
   slug?: unknown;
   children?: unknown;
+}
+
+interface FeaturedBrandItem {
+  name?: unknown;
+  slug?: unknown;
 }
 
 interface CategoryInfo {
@@ -101,6 +107,20 @@ function findCatalogCollection(params: CatalogSearchParams): CatalogCollectionKe
   return key as CatalogCollectionKey;
 }
 
+// Страница бренда — адрес с единственным параметром brand: строка, непустая после trim,
+// без запятой (запятая — мультибренд, его канон /catalog). Любой другой набор параметров
+// оставляет прежнюю логику метаданных. Совпадает ли slug с избранным брендом, решает список.
+function findCatalogBrandSlug(params: CatalogSearchParams): string | null {
+  const keys = Object.keys(params).filter(key => params[key] !== undefined);
+  if (keys.length !== 1 || keys[0] !== 'brand') return null;
+
+  const brand = params.brand;
+  if (typeof brand !== 'string') return null;
+
+  const slug = brand.trim();
+  return slug && !slug.includes(',') ? slug : null;
+}
+
 function collectCategories(nodes: unknown): Map<string, CategoryInfo> | null {
   if (!Array.isArray(nodes)) return null;
 
@@ -132,6 +152,34 @@ async function fetchCategories(): Promise<Map<string, CategoryInfo> | null> {
   return collectCategories(await response.json());
 }
 
+// slug → name избранных брендов: тот же список строит BrandsBlock, ссылки на страницы
+// брендов ведут только оттуда. slug берётся как есть — регистр и пробелы не нормализуются.
+function collectFeaturedBrands(items: unknown): Map<string, string> | null {
+  if (!Array.isArray(items)) return null;
+
+  const brands = new Map<string, string>();
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const { slug, name } = item as FeaturedBrandItem;
+    if (typeof slug !== 'string' || typeof name !== 'string') continue;
+
+    const brandName = name.trim();
+    if (slug && brandName && !brands.has(slug)) brands.set(slug, brandName);
+  }
+  return brands;
+}
+
+// Плоский список без slug в адресе запроса: один ключ кэша Next на все страницы брендов
+// (кэшируются только ответы 200), а slug вроде `..` не может изменить путь запроса.
+async function fetchFeaturedBrands(): Promise<Map<string, string> | null> {
+  const response = await fetch(`${getApiUrl()}/brands/featured/`, {
+    next: { revalidate: 3600 },
+    signal: AbortSignal.timeout(FEATURED_BRANDS_FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) return null;
+  return collectFeaturedBrands(await response.json());
+}
+
 export async function generateMetadata({ searchParams }: CatalogPageProps): Promise<Metadata> {
   try {
     const params = await searchParams;
@@ -142,6 +190,20 @@ export async function generateMetadata({ searchParams }: CatalogPageProps): Prom
         ...buildMetadata({ ...CATALOG_COLLECTIONS[collection], path }),
         keywords: null,
       };
+    }
+
+    const brandSlug = findCatalogBrandSlug(params);
+    if (brandSlug) {
+      const brandName = (await fetchFeaturedBrands())?.get(brandSlug);
+      if (brandName) {
+        const path = `/catalog?${new URLSearchParams({ brand: brandSlug }).toString()}`;
+        const title = `Спортивные товары ${brandName} оптом | OPTISPORT`;
+        const description = `Товары бренда ${brandName} в каталоге OPTISPORT: цены и условия заказа для оптовых покупателей, доставка по России.`;
+        return {
+          ...buildMetadata({ title, description, path }),
+          keywords: null,
+        };
+      }
     }
 
     const category = params.category;
