@@ -22,6 +22,8 @@ interface ProductPageProps {
 
 import { getUserRole } from '@/utils/server-auth';
 import { DEFAULT_OG_IMAGE, buildMetadata } from '@/utils/seo';
+import { isPlaceholderBrand } from '@/utils/brand';
+import { htmlToPlainText, toMetaDescription } from '@/utils/htmlContent';
 
 /**
  * Генерирует метаданные для SEO
@@ -32,12 +34,18 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     const product = await productsService.getProductBySlug(slug);
 
     const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
+    // Описание из 1С бывает с <br> и переводами строк — в meta только простой текст
+    const description = toMetaDescription(htmlToPlainText(product.description));
+    // Заглушку импорта («Без ТМ») в title не выводим: это не торговая марка
+    const brandSuffix = isPlaceholderBrand(product.brand, product.brand_slug)
+      ? ''
+      : ` - ${product.brand.trim()}`;
 
     return buildMetadata({
-      title: `${product.name} - ${product.brand} | OPTISPORT`,
-      description: product.description.substring(0, 160),
+      title: `${product.name}${brandSuffix} | OPTISPORT`,
+      description,
       ogTitle: product.name,
-      ogDescription: product.description,
+      ogDescription: description,
       path: `/product/${product.slug}`,
       image: primaryImage
         ? { url: primaryImage.image, alt: primaryImage.alt_text || product.name }

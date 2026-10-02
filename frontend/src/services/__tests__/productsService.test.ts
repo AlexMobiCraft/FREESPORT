@@ -144,6 +144,37 @@ describe('productsService', () => {
       expect(result.article).toBe('ES2123PK');
     });
 
+    test('протаскивает slug бренда и даёт пустые brand/brand_slug при brand: null', async () => {
+      const apiProduct = {
+        id: 1,
+        name: 'Test Product',
+        slug: 'test-product',
+        retail_price: 2500,
+        stock_quantity: 10,
+        is_in_stock: true,
+        can_be_ordered: true,
+        category: { id: 1, name: 'Category', slug: 'category', breadcrumbs: [] },
+        images: [],
+        variants: [],
+      };
+      server.use(
+        http.get('http://localhost:8001/api/v1/products/with-brand/', () =>
+          HttpResponse.json({ ...apiProduct, brand: { id: 5, name: 'Без ТМ', slug: 'bez-tm' } })
+        ),
+        http.get('http://localhost:8001/api/v1/products/no-brand/', () =>
+          HttpResponse.json({ ...apiProduct, brand: null })
+        )
+      );
+
+      const withBrand = await productsService.getProductBySlug('with-brand');
+      expect(withBrand.brand).toBe('Без ТМ');
+      expect(withBrand.brand_slug).toBe('bez-tm');
+
+      const noBrand = await productsService.getProductBySlug('no-brand');
+      expect(noBrand.brand).toBe('');
+      expect(noBrand.brand_slug).toBe('');
+    });
+
     test('подставляет пустой артикул, когда в 1С он не заполнен', async () => {
       server.use(
         http.get('http://localhost:8001/api/v1/products/:slug/', () => {

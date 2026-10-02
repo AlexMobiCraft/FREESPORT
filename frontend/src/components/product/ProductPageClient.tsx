@@ -14,6 +14,8 @@ import ProductSummary, { type ProductDetailWithVariants } from './ProductSummary
 import ProductSpecs from './ProductSpecs';
 import type { ProductVariant } from '@/types/api';
 import { absoluteUrl } from '@/utils/seo';
+import { isPlaceholderBrand } from '@/utils/brand';
+import { collapseWhitespace, htmlToPlainText } from '@/utils/htmlContent';
 
 interface ProductPageClientProps {
   /** Данные товара с вариантами */
@@ -89,12 +91,16 @@ export default function ProductPageClient({ product, userRole }: ProductPageClie
                 '@type': 'Product',
                 name: product.name,
                 image: product.images.map(img => img.image),
-                description: product.description,
+                // Пустая строка → undefined: JSON.stringify выбросит ключ
+                description: collapseWhitespace(htmlToPlainText(product.description)) || undefined,
                 sku: product.article || product.sku,
-                brand: {
-                  '@type': 'Brand',
-                  name: product.brand,
-                },
+                // Заглушка импорта («Без ТМ») — не торговая марка, brand не выводим
+                brand: isPlaceholderBrand(product.brand, product.brand_slug)
+                  ? undefined
+                  : {
+                      '@type': 'Brand',
+                      name: product.brand.trim(),
+                    },
                 offers: {
                   '@type': 'Offer',
                   url: absoluteUrl(`/product/${product.slug}`),
