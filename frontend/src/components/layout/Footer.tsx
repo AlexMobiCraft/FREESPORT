@@ -41,7 +41,6 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
       },
       { label: 'Бассейны, пляж, аксессуары', href: '/catalog?category=bassejny-pljazh-aksessuary' },
       { label: 'Туризм', href: '/catalog?category=turizm' },
-      { label: 'Сувенирная продукция', href: '/catalog?category=suvenirnaja-produktsija' },
     ],
   },
   {
@@ -76,7 +75,7 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     links: [
       { label: '+7 968 273-21-68', href: 'tel:+79682732168' },
       { label: 'info@optisport.ru', href: 'mailto:info@optisport.ru' },
-      { label: 'г. Ставрополь, ул. Коломийцева, 40/1', href: '/delivery#pickup' },
+      { label: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж', href: '/delivery#pickup' },
     ],
   },
 ];

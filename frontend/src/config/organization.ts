@@ -46,7 +46,7 @@ export const ORGANIZATION_JSON_LD = {
     '@type': 'PostalAddress',
     addressCountry: 'RU',
     addressLocality: 'Ставрополь',
-    streetAddress: 'ул. Коломийцева, 40/1',
+    streetAddress: 'ул. Дзержинского, 131А, 3 этаж',
   },
   sameAs: ORGANIZATION_SAME_AS,
 };

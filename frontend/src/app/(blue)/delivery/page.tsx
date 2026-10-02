@@ -34,7 +34,7 @@ const deliveryOptions = {
     icon: MapPin,
     title: 'Самовывоз со склада',
     minOrder: 'от 1 500 ₽',
-    address: 'г. Ставрополь, ул. Коломийцева, 40/1',
+    address: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж',
     warning: 'Перед приездом уточните готовность заказа',
   },
 };
@@ -57,7 +57,7 @@ const MapEmbed: React.FC = () => {
   return (
     <div className="w-full h-[300px] rounded-lg overflow-hidden shadow-default">
       <iframe
-        src="https://yandex.ru/map-widget/v1/?ll=41.930429%2C45.096235&z=17&pt=41.930429,45.096235,pm2rdm"
+        src="https://yandex.ru/map-widget/v1/?ll=41.970404%2C45.045084&z=17&pt=41.970404,45.045084,pm2rdm"
         width="100%"
         height="300"
         loading="lazy"
