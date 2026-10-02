@@ -133,7 +133,7 @@ describe('DeliveryPage (/delivery)', () => {
     it('должна отображать адрес самовывоза', () => {
       render(<DeliveryPage />);
       expect(screen.getByText(/Адрес:/i)).toBeInTheDocument();
-      expect(screen.getByText('г. Ставрополь, ул. Дзержинского, 131А, 3 этаж')).toBeInTheDocument();
+      expect(screen.getByText('г. Ставрополь, ул. Коломийцева, 40/1')).toBeInTheDocument();
     });
 
     it('должна отображать предупреждение о готовности заказа', () => {
@@ -152,12 +152,12 @@ describe('DeliveryPage (/delivery)', () => {
       expect(iframe?.getAttribute('src')).toContain('yandex.ru/map-widget');
     });
 
-    // Метка — ТЦ «Нестеров», ул. Дзержинского, 131А (OpenStreetMap, way 93150767)
+    // Метка — склад на ул. Коломийцева, 40/1
     it('должна ставить метку на адрес пункта самовывоза', () => {
       const { container } = render(<DeliveryPage />);
       const iframe = container.querySelector('iframe');
 
-      expect(iframe?.getAttribute('src')).toContain('pt=41.970404,45.045084');
+      expect(iframe?.getAttribute('src')).toContain('pt=41.930429,45.096235');
     });
 
     it('должна иметь lazy loading для карты', () => {

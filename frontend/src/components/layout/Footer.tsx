@@ -8,7 +8,8 @@ import CookieSettingsButton from './CookieSettingsButton';
 
 export interface FooterColumn {
   title: string;
-  links: { label: string; href: string }[];
+  // Без href пункт выводится обычным текстом
+  links: { label: string; href?: string }[];
 }
 
 export interface SocialLink {
@@ -75,7 +76,8 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     links: [
       { label: '+7 968 273-21-68', href: 'tel:+79682732168' },
       { label: 'info@optisport.ru', href: 'mailto:info@optisport.ru' },
-      { label: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж', href: '/delivery#pickup' },
+      // Не ссылка: пункт самовывоза на /delivery остался по старому адресу
+      { label: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж' },
     ],
   },
 ];
@@ -135,13 +137,17 @@ export const Footer: React.FC<FooterProps> = ({
               <ul className="space-y-2">
                 {column.links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <Link
-                      href={link.href}
-                      prefetch={link.href.startsWith('/profile') ? false : undefined}
-                      className="text-sm text-[#9ca3af] hover:text-white transition-colors"
-                    >
-                      {link.label}
-                    </Link>
+                    {link.href ? (
+                      <Link
+                        href={link.href}
+                        prefetch={link.href.startsWith('/profile') ? false : undefined}
+                        className="text-sm text-[#9ca3af] hover:text-white transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <span className="text-sm text-[#9ca3af]">{link.label}</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -152,12 +158,16 @@ export const Footer: React.FC<FooterProps> = ({
                   <ul className="space-y-2">
                     {contactsColumn.links.map((link, linkIndex) => (
                       <li key={linkIndex}>
-                        <Link
-                          href={link.href}
-                          className="text-sm text-[#9ca3af] hover:text-white transition-colors"
-                        >
-                          {link.label}
-                        </Link>
+                        {link.href ? (
+                          <Link
+                            href={link.href}
+                            className="text-sm text-[#9ca3af] hover:text-white transition-colors"
+                          >
+                            {link.label}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-[#9ca3af]">{link.label}</span>
+                        )}
                       </li>
                     ))}
                   </ul>

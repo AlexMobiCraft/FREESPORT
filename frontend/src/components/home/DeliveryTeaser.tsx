@@ -28,7 +28,7 @@ const deliveryOptions: DeliveryOption[] = [
     icon: MapPin,
     title: 'Самовывоз со склада',
     description: 'г. Ставрополь',
-    details: 'ул. Дзержинского, 131А, 3 этаж',
+    details: 'ул. Коломийцева, 40/1',
   },
 ];
 
