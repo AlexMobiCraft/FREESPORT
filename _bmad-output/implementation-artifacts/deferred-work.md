@@ -1,3 +1,9 @@
+## Deferred from: party-mode review of spec-catalog-brand-seo-metadata (2026-10-02)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-brand-seo-metadata.md`
+  summary: **Трекинговые параметры (`utm_*`, `yclid`, `fbclid`) превращают страницу бренда или подборки в базовый каталог.** Адрес `?brand=boybo&utm_source=yandex` не считается страницей бренда: metadata базовые, canonical `/catalog`. Подборки (`?is_new=true&utm_…`) ведут себя так же. Пока рекламы нет, это не проблема. Когда запустят Директ или рассылку со ссылками на бренды и подборки, каждый размеченный переход придёт на адрес с чужими title и canonical. Решение Alex 02.10.2026 — не делать в рамках спеки бренда: правило о трекинговых параметрах нужно сразу для всего каталога.
+  evidence: `frontend/src/app/(blue)/catalog/page.tsx` — `findCatalogCollection` (и по спеке `findCatalogBrandSlug`) требует ровно один ключ в `searchParams`; спека, Design Notes «Трекинговые параметры». Вариант исправления: до проверки «единственного параметра» отбрасывать известные трекинговые ключи — в одном месте для подборок, брендов и категорий.
+
 ## Deferred from: implementation of spec-1c-deletion-marked-goods (2026-09-30)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1c-deletion-marked-goods.md`
