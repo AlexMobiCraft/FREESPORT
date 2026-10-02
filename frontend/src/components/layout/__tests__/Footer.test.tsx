@@ -199,11 +199,14 @@ describe('Footer', () => {
       expect(emailLink).toHaveAttribute('href', 'mailto:info@optisport.ru');
     });
 
-    it('renders warehouse address as a link to pickup section on delivery page', () => {
+    // Пункт самовывоза на /delivery остался по старому адресу — ссылка туда сбивала бы с толку
+    it('renders office address as plain text, not a link', () => {
       render(<Footer />);
 
-      expect(screen.getByRole('link', { name: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж' }))
-        .toHaveAttribute('href', '/delivery#pickup');
+      expect(screen.getByText('г. Ставрополь, ул. Дзержинского, 131А, 3 этаж')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж' })
+      ).not.toBeInTheDocument();
     });
 
     it('renders Контакты under Компания in the default desktop layout', () => {
