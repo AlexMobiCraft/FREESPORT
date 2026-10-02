@@ -114,11 +114,18 @@ describe('Footer', () => {
     it.each([
       ['Детский транспорт', '/catalog?category=detskij-transport'],
       ['Бассейны, пляж, аксессуары', '/catalog?category=bassejny-pljazh-aksessuary'],
-      ['Сувенирная продукция', '/catalog?category=suvenirnaja-produktsija'],
     ])('links %s to its category slug', (name, href) => {
       render(<Footer />);
 
       expect(screen.getByRole('link', { name })).toHaveAttribute('href', href);
+    });
+
+    // Категорию выключила выгрузка 1С 01.10.2026: её страница отдаёт canonical /catalog
+    it('does not link to Сувенирная продукция', () => {
+      render(<Footer />);
+
+      const hrefs = screen.getAllByRole('link').map(link => link.getAttribute('href'));
+      expect(hrefs).not.toContain('/catalog?category=suvenirnaja-produktsija');
     });
 
     it('renders cooperation terms link to partners page', () => {
@@ -195,7 +202,7 @@ describe('Footer', () => {
     it('renders warehouse address as a link to pickup section on delivery page', () => {
       render(<Footer />);
 
-      expect(screen.getByRole('link', { name: 'г. Ставрополь, ул. Коломийцева, 40/1' }))
+      expect(screen.getByRole('link', { name: 'г. Ставрополь, ул. Дзержинского, 131А, 3 этаж' }))
         .toHaveAttribute('href', '/delivery#pickup');
     });
 

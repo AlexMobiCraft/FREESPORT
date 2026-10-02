@@ -48,7 +48,7 @@ describe('DeliveryTeaser', () => {
     render(<DeliveryTeaser />);
 
     expect(screen.getByText('г. Ставрополь')).toBeInTheDocument();
-    expect(screen.getByText('ул. Коломийцева, 40/1')).toBeInTheDocument();
+    expect(screen.getByText('ул. Дзержинского, 131А, 3 этаж')).toBeInTheDocument();
   });
 
   it('renders CTA button with link to /delivery', () => {

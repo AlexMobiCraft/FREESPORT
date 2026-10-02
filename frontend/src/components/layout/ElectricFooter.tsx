@@ -104,7 +104,7 @@ const ElectricFooter: React.FC = () => {
             <ul className="space-y-3 md:space-y-4 font-inter text-[12px] md:text-[14px] text-[var(--color-text-secondary)]">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-[var(--color-primary)] mt-0.5 flex-shrink-0" />
-                <span>г. Ставрополь, ул. Коломийцева, 40/1</span>
+                <span>г. Ставрополь, ул. Дзержинского, 131А, 3 этаж</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-[var(--color-primary)] flex-shrink-0" />
