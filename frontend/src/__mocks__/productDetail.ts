@@ -14,7 +14,7 @@ export const MOCK_PRODUCT_DETAIL_API = {
   name: 'ASICS Gel-Blast FF',
   sku: 'AS-GB-FF-2025',
   article: 'AS-GB-FF',
-  brand: { name: 'ASICS' },
+  brand: { id: 7, name: 'ASICS', slug: 'asics' },
   description: 'Профессиональные кроссовки для интенсивных тренировок',
   full_description:
     'ASICS Gel-Blast FF - это кроссовки нового поколения для игры в зале. Технология FlyteFoam обеспечивает превосходную амортизацию при минимальном весе. Гелевая прокладка в пятке гарантирует комфорт при приземлении.',
@@ -88,6 +88,7 @@ export const MOCK_PRODUCT_DETAIL: ProductDetail = {
   // Артикул номенклатуры из 1С — отдельно от технического sku варианта
   article: 'AS-GB-FF',
   brand: 'ASICS',
+  brand_slug: 'asics',
   description: 'Профессиональные кроссовки для интенсивных тренировок',
   full_description:
     'ASICS Gel-Blast FF - это кроссовки нового поколения для игры в зале. Технология FlyteFoam обеспечивает превосходную амортизацию при минимальном весе. Гелевая прокладка в пятке гарантирует комфорт при приземлении.',

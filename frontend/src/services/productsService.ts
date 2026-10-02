@@ -120,6 +120,7 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
     // поле нужно протащить явно — иначе до карточки оно не доедет.
     article: apiProduct.article || '',
     brand: apiProduct.brand?.name || '',
+    brand_slug: apiProduct.brand?.slug || '',
     description: apiProduct.description || '',
     full_description: apiProduct.full_description || apiProduct.description || '',
     price: {
