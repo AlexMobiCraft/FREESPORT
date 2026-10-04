@@ -18,7 +18,7 @@ docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-c
 docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml restart nginx
 ```
 
-После этого `/` должен отдавать 307 → `/coming-soon`, favicon — 200.
+После этого `/` должен отдавать 307 → `/home`, favicon — 200.
 
 ## Next.js Server Action ID mismatch
 
