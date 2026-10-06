@@ -3,18 +3,20 @@ Django Admin конфигурация для управления пользов
 Включает UserAdmin с поддержкой B2B верификации и интеграции с 1С
 """
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Iterable, cast
 from urllib.parse import quote
 
+from django import forms
 from django.contrib import admin
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.core.exceptions import PermissionDenied
 from django.db.models import BooleanField, Exists, ExpressionWrapper, OuterRef, Q, QuerySet
-from django.db.models.functions import Trim
+from django.db.models.functions import Lower, Trim
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
-from django.urls import reverse
+from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html, format_html_join
 
 from apps.common.models import AuditLog
@@ -28,6 +30,17 @@ from apps.users.services.link_1c_customer import (
     link_target_q,
 )
 from apps.users.services.link_1c_customer import link_1c_customer as link_1c_customer_service
+from apps.users.services.price_type_role import load_price_type_role_map
+from apps.users.services.verify_b2b_application import (
+    MODE_DECISION,
+    VerificationError,
+    eligible_link_candidates,
+    is_awaiting_decision,
+    reject_b2b_application,
+    resolve_b2b_role,
+    verification_mode,
+    verify_b2b_application,
+)
 
 from .models import Address, Company, Favorite, User, matches_q
 
@@ -92,6 +105,35 @@ def _company_legal_address(user: User) -> str:
     return (company.legal_address if company else "") or "—"
 
 
+def _has_company(user: User) -> bool:
+    """Есть ли Company — без запроса, если её подтянул select_related."""
+    return getattr(user, "company", None) is not None
+
+
+def _price_type_names(guids: Iterable[str | None]) -> dict[str, str]:
+    """
+    Наименования видов цен по набору GUID одним запросом.
+
+    Ключ — GUID в нижнем регистре без пробелов: регистр onec_id в
+    справочнике не нормализован (стори 40.2), сравнение регистронезависимое.
+    """
+    from apps.products.models import PriceType
+
+    keys = {(guid or "").strip().lower() for guid in guids} - {""}
+    if not keys:
+        return {}
+    rows = (
+        PriceType.objects.annotate(_guid=Lower(Trim("onec_id")))
+        .filter(_guid__in=keys)
+        .order_by("-is_active", "pk")
+        .values_list("_guid", "onec_name")
+    )
+    names: dict[str, str] = {}
+    for guid, name in rows:
+        names.setdefault(guid, name)
+    return names
+
+
 def has_1c_candidate_expression() -> ExpressionWrapper:
     """
     Индикатор «у заявки есть непривязанный контрагент 1С» одной аннотацией.
@@ -143,6 +185,53 @@ class Has1CCandidateFilter(admin.SimpleListFilter):
         return queryset.filter(_has_1c_candidate=self.value() == "yes")
 
 
+def _b2b_role_choices() -> list[tuple[str, str]]:
+    labels = dict(User.ROLE_CHOICES)
+    return [(role, labels.get(role, role)) for role in User.B2B_ROLES]
+
+
+class VerifyB2BApplicationForm(forms.Form):
+    """
+    Форма страницы подтверждения заявки.
+
+    Выбор кандидата явный и при одном кандидате: значение радиокнопки несёт
+    пару «pk : показанный onec_id», и обе части сверяются под блокировкой
+    в сервисе — двойная отправка и устаревшая вкладка отклоняются.
+    """
+
+    confirm = forms.BooleanField(required=False, label="Подтвердить")
+    candidate = forms.CharField(required=False)
+    confirm_without_1c = forms.BooleanField(required=False, label="Подтвердить без привязки к 1С")
+    role = forms.ChoiceField(required=False, choices=_b2b_role_choices, label="Роль")
+
+    def __init__(self, *args: Any, candidates: list[User], requires_without_1c: bool, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.candidates = candidates
+        self.requires_without_1c = requires_without_1c
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        if not cleaned.get("confirm"):
+            self.add_error("confirm", "Отметьте «Подтвердить», чтобы подтвердить заявку.")
+
+        cleaned["source_id"] = None
+        cleaned["expected_onec_id"] = ""
+        if self.candidates:
+            raw_source_pk, _, expected_onec_id = (cleaned.get("candidate") or "").partition(":")
+            source = next((c for c in self.candidates if str(c.pk) == raw_source_pk), None)
+            if source is None:
+                self.add_error("candidate", "Выберите контрагента 1С из списка.")
+            else:
+                cleaned["source_id"] = source.pk
+                cleaned["expected_onec_id"] = expected_onec_id
+        elif self.requires_without_1c and not cleaned.get("confirm_without_1c"):
+            self.add_error(
+                "confirm_without_1c",
+                "Контрагент в 1С не найден: отметьте «Подтвердить без привязки к 1С».",
+            )
+        return cleaned
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     """
@@ -167,6 +256,7 @@ class UserAdmin(BaseUserAdmin):
         "role_display",
         "verification_status_display",
         "has_1c_candidate",
+        "verify_b2b_link",
         "phone",
         "created_at",
     ]
@@ -383,12 +473,266 @@ class UserAdmin(BaseUserAdmin):
         )
         return response
 
+    # Страница подтверждения B2B-заявки
+
+    def get_urls(self) -> list[URLPattern]:
+        # Свой путь — перед super(): иначе общий `<path:object_id>/` поглотит
+        # `<id>/verify/` и отдаст редирект на карточку.
+        custom = [
+            path(
+                "<path:object_id>/verify/",
+                self.admin_site.admin_view(self.verify_b2b_view),
+                name=f"{self.opts.app_label}_{self.opts.model_name}_verify",
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def change_view(
+        self,
+        request: HttpRequest,
+        object_id: str,
+        form_url: str = "",
+        extra_context: dict[str, Any] | None = None,
+    ) -> HttpResponse:
+        extra_context = dict(extra_context or {})
+        obj = cast("User | None", self.get_object(request, unquote(object_id)))
+        extra_context["show_verify_b2b_button"] = (
+            obj is not None
+            and self.has_change_permission(request, obj)  # type: ignore[arg-type]
+            and self._verification_mode(obj) is not None
+        )
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    @staticmethod
+    def _verification_mode(obj: User) -> str | None:
+        """
+        Условие доступа к странице подтверждения для одного аккаунта.
+
+        Кандидатов ищем, только когда без них ответа нет: ждущей решения
+        заявке страница доступна и так.
+        """
+        if obj.role not in User.B2B_ROLES or obj.is_superuser:
+            return None
+        if is_awaiting_decision(obj):
+            return verification_mode(obj, [])
+        return verification_mode(obj, eligible_link_candidates(obj))
+
+    def verify_b2b_view(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        """
+        «Подтверждение заявки»: только данные заявки и контрагенты 1С с её ИНН.
+
+        Подтверждение одной транзакцией связывает аккаунт с 1С, назначает роль,
+        пишет AuditLog и верифицирует аккаунт (сервис verify_b2b_application).
+        """
+        obj = cast("User | None", self.get_object(request, unquote(object_id)))
+        if obj is None:
+            return self._get_obj_does_not_exist_redirect(  # type: ignore[attr-defined,no-any-return]
+                request, self.opts, object_id
+            )
+        # admin_view проверяет только is_staff — право на изменение явно.
+        if not self.has_change_permission(request, obj):  # type: ignore[arg-type]
+            raise PermissionDenied
+
+        change_url = reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk])
+        candidates = eligible_link_candidates(obj)
+        mode = verification_mode(obj, candidates)
+        if mode is None:
+            self.message_user(
+                request,
+                f"Аккаунт {obj.email or obj.pk} не ждёт подтверждения: заявка уже обработана, "
+                f"аккаунт не B2B или привязывать к 1С нечего.",
+                level="warning",
+            )
+            return HttpResponseRedirect(change_url)
+
+        requires_without_1c = matches_q(link_target_q(), obj) and not candidates
+
+        if request.method == "POST" and request.POST.get("_reject"):
+            if mode != MODE_DECISION:
+                self.message_user(request, "Отклонить можно только заявку, ждущую решения.", level="error")
+                return HttpResponseRedirect(request.get_full_path())
+            return self._apply_reject_b2b(request, obj, change_url)
+
+        if request.method == "POST":
+            form = VerifyB2BApplicationForm(
+                request.POST, candidates=candidates, requires_without_1c=requires_without_1c
+            )
+            if form.is_valid():
+                return self._apply_verify_b2b(request, obj, form.cleaned_data, change_url)
+        else:
+            initial: dict[str, Any] = {"role": obj.role}
+            if len(candidates) == 1:
+                # Предвыбор только при единственном кандидате: из нескольких
+                # контрагентов автоматически не выбирается никто.
+                initial["candidate"] = f"{candidates[0].pk}:{candidates[0].onec_id or ''}"
+            form = VerifyB2BApplicationForm(
+                initial=initial, candidates=candidates, requires_without_1c=requires_without_1c
+            )
+
+        return render(
+            request,
+            "admin/users/verify_b2b_application.html",
+            self._verify_page_context(request, obj, mode, candidates, form),
+        )
+
+    def _verify_page_context(
+        self,
+        request: HttpRequest,
+        obj: User,
+        mode: str,
+        candidates: list[User],
+        form: VerifyB2BApplicationForm,
+    ) -> dict[str, Any]:
+        """
+        Контекст страницы подтверждения.
+
+        Виды цен читаются фиксированным числом запросов независимо от числа
+        кандидатов: маппинг ролей одним запросом и наименования одним
+        запросом по набору GUID.
+        """
+        role_labels = dict(User.ROLE_CHOICES)
+        role_map = load_price_type_role_map()
+        is_linked = bool(obj.onec_id or obj.onec_guid)
+
+        guid_sources = [c.onec_price_type_id for c in candidates]
+        if is_linked:
+            guid_sources.append(obj.onec_price_type_id)
+        price_type_names = _price_type_names(guid_sources)
+
+        def describe(price_type_id: str | None) -> tuple[str, str | None]:
+            name = price_type_names.get((price_type_id or "").strip().lower(), "")
+            return name or (price_type_id or "").strip(), resolve_b2b_role(price_type_id, role_map)
+
+        selected = form["candidate"].value() or ""
+        rows = []
+        for candidate in candidates:
+            price_type_name, resolved_role = describe(candidate.onec_price_type_id)
+            value = f"{candidate.pk}:{candidate.onec_id or ''}"
+            rows.append(
+                {
+                    "candidate": candidate,
+                    "value": value,
+                    "checked": value == selected,
+                    "legal_address": _company_legal_address(candidate),
+                    "kpp": candidate.company.kpp if _has_company(candidate) else "",
+                    "price_type_name": price_type_name,
+                    "role_label": role_labels.get(resolved_role, "") if resolved_role else "",
+                }
+            )
+
+        # Роль из 1С показывается только для чтения, когда она известна
+        # заранее. При нескольких кандидатах она зависит от выбора, поэтому
+        # выбор менеджера применяется лишь к контрагенту без роли по виду цен.
+        linked_price_type_name, linked_role = describe(obj.onec_price_type_id) if is_linked else ("", None)
+        if candidates:
+            single_resolved = len(rows) == 1 and bool(rows[0]["role_label"])
+            fixed_role_label = rows[0]["role_label"] if single_resolved else ""
+            fixed_price_type = rows[0]["price_type_name"] if single_resolved else ""
+            role_choice_needed = any(not row["role_label"] for row in rows)
+        else:
+            fixed_role_label = role_labels.get(linked_role, "") if linked_role else ""
+            fixed_price_type = linked_price_type_name if linked_role else ""
+            role_choice_needed = not linked_role
+
+        return {
+            **self.admin_site.each_context(request),
+            "title": "Подтверждение заявки",
+            "opts": self.opts,
+            "target": obj,
+            "mode": mode,
+            "is_decision": mode == MODE_DECISION,
+            "form": form,
+            "candidate_rows": rows,
+            "is_linked": is_linked,
+            "linked_price_type_name": linked_price_type_name,
+            "requires_without_1c": form.requires_without_1c,
+            "fixed_role_label": fixed_role_label,
+            "fixed_price_type": fixed_price_type,
+            "role_choice_needed": role_choice_needed,
+            "change_url": reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk]),
+        }
+
+    def _apply_verify_b2b(
+        self, request: HttpRequest, obj: User, cleaned: dict[str, Any], change_url: str
+    ) -> HttpResponseRedirect:
+        try:
+            result = verify_b2b_application(
+                target_id=obj.pk,
+                source_id=cleaned["source_id"],
+                expected_onec_id=cleaned["expected_onec_id"],
+                role=cleaned.get("role") or None,
+                confirm_without_1c=bool(cleaned.get("confirm_without_1c")),
+                actor=request.user if isinstance(request.user, User) else None,
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except (VerificationError, LinkCandidateError) as exc:
+            self.message_user(request, str(exc), level="error")
+            return HttpResponseRedirect(request.get_full_path())
+
+        user = result.user
+        role_label = dict(User.ROLE_CHOICES).get(result.role_after, result.role_after)
+        if result.mode == MODE_DECISION:
+            text = f"Заявка {user.email or user.pk} подтверждена: роль «{role_label}»"
+        else:
+            text = f"Аккаунт {user.email or user.pk} связан с 1С: роль «{role_label}»"
+        if result.linked:
+            text += f", связан с контрагентом 1С (ID в 1С: {user.onec_id})."
+        elif user.onec_id or user.onec_guid:
+            text += f", привязка к 1С прежняя (ID в 1С: {user.onec_id or user.onec_guid})."
+        else:
+            text += ", без привязки к 1С."
+        self.message_user(request, text, level="success")
+
+        if result.linked:
+            self._warn_customer_code_mismatch(request, result.source_customer_code, user.customer_code)
+        elif not user.onec_id and not user.onec_guid:
+            self.message_user(
+                request,
+                "Аккаунт не связан с 1С: контрагент будет создан в 1С при первом заказе.",
+                level="warning",
+            )
+        return HttpResponseRedirect(change_url)
+
+    def _apply_reject_b2b(self, request: HttpRequest, obj: User, change_url: str) -> HttpResponseRedirect:
+        try:
+            user = reject_b2b_application(
+                target_id=obj.pk,
+                actor=request.user if isinstance(request.user, User) else None,
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except VerificationError as exc:
+            self.message_user(request, str(exc), level="error")
+            return HttpResponseRedirect(request.get_full_path())
+
+        self.message_user(request, f"Заявка {user.email or user.pk} отклонена.", level="warning")
+        return HttpResponseRedirect(change_url)
+
     # Custom display methods
 
     @admin.display(description="Кандидат 1С", boolean=True)
     def has_1c_candidate(self, obj: User) -> bool:
         """Индикатор из аннотации changelist'а — не запрос на строку."""
         return bool(getattr(obj, "_has_1c_candidate", False))
+
+    @admin.display(description="Подтвердить")
+    def verify_b2b_link(self, obj: User) -> str:
+        """
+        Ссылка на страницу подтверждения — только у подходящих строк.
+
+        Строится по полям строки и аннотации `_has_1c_candidate`, без
+        запросов: та же аннотация несёт условие (б) — «верифицирован, не
+        связан, есть кандидаты».
+        """
+        if obj.role not in User.B2B_ROLES or obj.is_superuser:
+            return ""
+        if not is_awaiting_decision(obj) and not getattr(obj, "_has_1c_candidate", False):
+            return ""
+        return format_html(
+            '<a href="{}">Подтвердить</a>',
+            reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_verify", args=[obj.pk]),
+        )
 
     @admin.display(description="Непривязанные контрагенты 1С с этим ИНН")
     def onec_link_candidates(self, obj: User) -> str:
@@ -705,18 +1049,23 @@ class UserAdmin(BaseUserAdmin):
             f"(ID в 1С: {linked.onec_id}). Исходная запись деактивирована.",
             level="success",
         )
-        if source_code and linked.customer_code and source_code != linked.customer_code:
+        self._warn_customer_code_mismatch(request, source_code, linked.customer_code)
+        return HttpResponseRedirect(request.get_full_path())
+
+    def _warn_customer_code_mismatch(
+        self, request: HttpRequest, source_code: str | None, linked_code: str | None
+    ) -> None:
+        if source_code and linked_code and source_code != linked_code:
             # Код заявителя уже вшит в номера его заказов и сменён быть не может.
             # Расхождение с 1С не ошибка привязки, но менеджер обязан его увидеть:
             # номера заказов портала и код контрагента в 1С разойдутся навсегда.
             self.message_user(
                 request,
-                f"Код клиента расходится с 1С: у заявителя {linked.customer_code}, "
+                f"Код клиента расходится с 1С: у заявителя {linked_code}, "
                 f"у контрагента {source_code}. Код заявителя не меняется — он уже "
                 f"использован в номерах его заказов. Сверьте код в 1С вручную.",
                 level="warning",
             )
-        return HttpResponseRedirect(request.get_full_path())
 
     @admin.action(description="✗ Отклонить верификацию выбранных B2B пользователей")
     def reject_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:

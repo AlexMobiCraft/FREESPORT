@@ -128,6 +128,10 @@ class TestSendManagerRegionEmail:
         assert call_kwargs["recipient_list"] == [GUSEV]
         assert "ООО Тест" in call_kwargs["subject"]
         assert call_kwargs["html_message"] is not None
+        # Ссылка письма ведёт на страницу подтверждения заявки, а не на полную карточку.
+        verify_path = f"/admin/users/user/{user.id}/verify/"
+        assert verify_path in call_kwargs["html_message"]
+        assert verify_path in call_kwargs["message"]
 
     @patch("apps.users.tasks.send_mail")
     def test_no_recipients_skips(self, mock_send_mail, settings):
