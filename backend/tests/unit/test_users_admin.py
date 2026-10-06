@@ -529,6 +529,10 @@ class TestUserAdmin(TestCase):
         self.assertIn("Интеграция с 1С", section_names)
         self.assertIn("Временные метки", section_names)
 
+        # Поле password выводит кнопку на форму смены пароля
+        main_fields = dict(fieldsets)["Основная информация"]["fields"]
+        self.assertIn("password", main_fields)
+
     def test_add_fieldsets_structure(self):
         """Тест структуры add_fieldsets для создания пользователя"""
         add_fieldsets = self.admin.add_fieldsets

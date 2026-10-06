@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from django.contrib import admin
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.db.models import BooleanField, Exists, ExpressionWrapper, OuterRef, Q, QuerySet
 from django.db.models.functions import Trim
@@ -216,6 +217,10 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "email",
+                    # Хеш пароля с кнопкой «Задать/Сбросить пароль»: без этого поля
+                    # стандартная форма смены пароля BaseUserAdmin есть, но в
+                    # карточке на неё нет ссылки.
+                    "password",
                     "first_name",
                     "last_name",
                     "customer_code",
@@ -353,6 +358,30 @@ class UserAdmin(BaseUserAdmin):
             )
             for name, options in fieldsets
         )
+
+    def user_change_password(self, request: HttpRequest, id: str, form_url: str = "") -> HttpResponse:
+        response = super().user_change_password(request, id, form_url)
+        # Успех — единственный исход, который редиректит на карточку: ошибки
+        # формы отдают 200, «конфликт данных» редиректит на саму форму пароля.
+        if request.method != "POST" or not isinstance(response, HttpResponseRedirect):
+            return response
+        user = self.get_object(request, unquote(id))
+        if user is None or response.url != reverse(f"{self.admin_site.name}:users_user_change", args=[user.pk]):
+            return response
+
+        AuditLog.log_action(
+            user=request.user,
+            action="change_password",
+            resource_type="User",
+            resource_id=user.pk,
+            changes={
+                "email": str(user.email or ""),
+                "usable_password": user.has_usable_password(),
+            },
+            ip_address=self._get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        return response
 
     # Custom display methods
 
