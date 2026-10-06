@@ -83,6 +83,7 @@ class TestUserAdmin(TestCase):
             "role_display",
             "verification_status_display",
             "has_1c_candidate",
+            "verify_b2b_link",
             "phone",
             "created_at",
         ]

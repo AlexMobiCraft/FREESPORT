@@ -891,3 +891,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-admin-user-password-management.md`
   summary: Смена пароля (в админке, через `PasswordResetConfirmView` и привязку 1С) не отзывает выданные JWT: refresh-токены (`OutstandingToken`, 7 дней) и access-токены остаются рабочими, поэтому сброс пароля не выкидывает злоумышленника из скомпрометированного аккаунта.
   evidence: `user_change_password` вызывает только `update_session_auth_hash` (Django-сессии); в `apps/users/views/authentication.py:595` `set_password` без blacklist токенов — дефект был и до этой правки.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-admin-b2b-verification-card.md`
+  summary: Сигнал `check_verification_status_change` ставит `send_user_verified_email.delay` внутри транзакции без `on_commit` — воркер может прочитать незакоммиченное состояние или отправить письмо по откатившемуся на commit подтверждению.
+  evidence: medium, не проверено. Флаги сохраняются последней записью, откаты до неё письмо не ставят (тесты сервиса); остаётся окно между `.delay` и COMMIT. Подтвердит тест с реальным брокером/eager-режимом и сбоем на commit; фикс — `transaction.on_commit` в `signals.py`, который спека запрещала менять.
+- source_spec: `_bmad-output/implementation-artifacts/spec-admin-b2b-verification-card.md`
+  summary: Аннотация `has_1c_candidate_expression` для заявки с ИНН из одних пробелов сравнивает `Trim(tax_id)=''` с записями 1С без ИНН — в списке появляются индикатор кандидата и ссылка «Подтвердить», а страница редиректит «не ждёт подтверждения».
+  evidence: `~Q(tax_id="")` не отсекает пробельный ИНН, тогда как `find_link_candidates` через `normalize_tax_id` возвращает []. Дефект аннотации существовал до этой задачи (колонка «Кандидат 1С»).

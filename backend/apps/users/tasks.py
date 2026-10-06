@@ -72,7 +72,7 @@ def send_admin_verification_email(self: Any, user_id: int) -> bool:
             "company_name": user.company_name,
             "tax_id": user.tax_id,
             "registration_date": user.created_at,
-            "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/change/",
+            "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/verify/",
         }
 
         html_message = render_to_string("emails/admin_new_verification_request.html", context)
@@ -438,7 +438,7 @@ def send_manager_region_email(self: Any, user_id: int) -> bool:
             "tax_id": user.tax_id,
             "country": user.country,
             "registration_date": user.created_at,
-            "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/change/",
+            "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/verify/",
         }
 
         html_message = render_to_string("emails/manager_region_notification.html", context)

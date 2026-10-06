@@ -64,6 +64,10 @@ class TestSendAdminVerificationEmail:
         assert "Test Company" in call_kwargs.kwargs["subject"]
         assert "admin@example.com" in call_kwargs.kwargs["recipient_list"]
         assert call_kwargs.kwargs["html_message"] is not None
+        # Ссылка письма ведёт на страницу подтверждения заявки, а не на полную карточку.
+        verify_path = f"/admin/users/user/{user.id}/verify/"
+        assert verify_path in call_kwargs.kwargs["html_message"]
+        assert verify_path in call_kwargs.kwargs["message"]
 
     @patch("apps.users.tasks.send_mail")
     def test_send_admin_email_no_admins_configured(self, mock_send_mail, settings):
