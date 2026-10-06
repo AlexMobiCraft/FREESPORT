@@ -888,3 +888,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-audit-product-cards-brand-description.md`
   summary: У товаров без описания (18 карточек) и с описанием из одних тегов `meta`/`og:description` пустые — нет запасного шаблона, а заполненные в админке `seo_title`/`seo_description` товара адаптер фронтенда отбрасывает.
   evidence: Интент 02.10 вынес это в «Вне задачи», п. 1; `generateMetadata` в `app/(blue)/product/[slug]/page.tsx` отдаёт `''`, `serializers.py:722-723` поля отдаёт.
+- source_spec: `_bmad-output/implementation-artifacts/spec-admin-user-password-management.md`
+  summary: Смена пароля (в админке, через `PasswordResetConfirmView` и привязку 1С) не отзывает выданные JWT: refresh-токены (`OutstandingToken`, 7 дней) и access-токены остаются рабочими, поэтому сброс пароля не выкидывает злоумышленника из скомпрометированного аккаунта.
+  evidence: `user_change_password` вызывает только `update_session_auth_hash` (Django-сессии); в `apps/users/views/authentication.py:595` `set_password` без blacklist токенов — дефект был и до этой правки.
