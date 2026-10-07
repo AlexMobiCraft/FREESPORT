@@ -3,7 +3,7 @@
 /**
  * Product Image Gallery Component (Story 12.1, 13.5b)
  * Галерея изображений товара с поддержкой zoom/lightbox
- * Интегрируется с ProductOptions для обновления изображения при смене цвета
+ * Интегрируется с ProductOptions: вариант выбирает совпадающий кадр из фото товара
  *
  * @see docs/stories/epic-13/13.5b.productoptions-api-integration.md
  */
@@ -13,7 +13,6 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { ProductImage } from '@/types/api';
 import type { ProductVariant } from '@/types/api';
-import { normalizeImageUrl } from '@/utils/media';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProductImageGalleryProps {
@@ -36,6 +35,11 @@ function getDefaultImage(imgArray: ProductImage[]): ProductImage {
   return imgArray.find(img => img.is_primary) || imgArray[0] || PLACEHOLDER_IMAGE;
 }
 
+/** Имя файла из URL (без query и hash) */
+function getFileName(url: string): string {
+  return url.split(/[?#]/)[0].split('/').pop() || '';
+}
+
 export default function ProductImageGallery({
   images,
   productName,
@@ -54,64 +58,28 @@ export default function ProductImageGallery({
 
   /**
    * Обновляет изображения при изменении selectedVariant
-   * Если у варианта есть main_image, используем его
-   * Иначе показываем базовые изображения товара
+   *
+   * Источник правды — изображения товара: 1С присылает фото только в goods.xml,
+   * на уровне товара, а фото вариантов остались от старого сканирования каталога
+   * и обменом не обновляются. Поэтому галерея всегда строится из фото товара,
+   * а main_image варианта лишь выбирает совпадающий с ним кадр.
    */
   useEffect(() => {
     // Базовые изображения товара (с fallback на placeholder)
     const baseImages = images && images.length > 0 ? images : [PLACEHOLDER_IMAGE];
 
-    if (selectedVariant) {
-      if (selectedVariant.main_image) {
-        // Создаем ProductImage из main_image варианта
-        // Нормализуем URL для корректной работы в Docker
-        const variantMainImage: ProductImage = {
-          image: normalizeImageUrl(selectedVariant.main_image),
-          alt_text:
-            `${productName} - ${selectedVariant.color_name || ''} ${selectedVariant.size_value || ''}`.trim(),
-          is_primary: true,
-        };
+    // Файлы в products/base/ и products/variants/ различаются каталогом,
+    // но совпадают именем — сравниваем по нему
+    const variantFile = selectedVariant?.main_image
+      ? getFileName(selectedVariant.main_image)
+      : null;
+    const matchingImage = variantFile
+      ? baseImages.find(img => getFileName(img.image) === variantFile)
+      : undefined;
 
-        // Если есть gallery_images у варианта, обновляем галерею
-        if (selectedVariant.gallery_images && selectedVariant.gallery_images.length > 0) {
-          // Фильтруем дубликаты:
-          // 1. Исключаем main_image из gallery_images
-          // 2. Убираем повторяющиеся URL внутри gallery_images
-          const mainImageNormalized = normalizeImageUrl(selectedVariant.main_image);
-          const seenUrls = new Set<string>([mainImageNormalized]);
-
-          const variantGallery: ProductImage[] = [];
-          selectedVariant.gallery_images.forEach(img => {
-            const normalizedImg = normalizeImageUrl(img);
-            if (!seenUrls.has(normalizedImg)) {
-              seenUrls.add(normalizedImg);
-              variantGallery.push({
-                image: normalizedImg,
-                alt_text: `${productName} - вид ${variantGallery.length + 2}`,
-                is_primary: false,
-              });
-            }
-          });
-
-          const newGallery = [variantMainImage, ...variantGallery];
-          setGalleryImages(newGallery);
-          setSelectedImage(variantMainImage);
-        } else {
-          // Если у варианта нет галереи, показываем только main_image
-          setGalleryImages([variantMainImage]);
-          setSelectedImage(variantMainImage);
-        }
-      } else {
-        // Вариант выбран, но у него нет изображения — показываем базовые изображения товара
-        setGalleryImages(baseImages);
-        setSelectedImage(getDefaultImage(baseImages));
-      }
-    } else {
-      // Вариант не выбран — показываем базовые изображения товара
-      setGalleryImages(baseImages);
-      setSelectedImage(getDefaultImage(baseImages));
-    }
-  }, [selectedVariant, images, productName]);
+    setGalleryImages(baseImages);
+    setSelectedImage(matchingImage || getDefaultImage(baseImages));
+  }, [selectedVariant, images]);
 
   /**
    * Управление прокруткой body при открытии лайтбокса

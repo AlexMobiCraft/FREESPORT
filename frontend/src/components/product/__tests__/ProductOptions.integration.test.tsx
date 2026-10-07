@@ -42,7 +42,7 @@ const mockVariants: ProductVariant[] = [
     is_in_stock: true,
     available_quantity: 15,
     stock_range: '15 шт.',
-    main_image: '/media/nike-red.jpg',
+    main_image: '/media/products/variants/nike-red.jpg',
     gallery_images: ['/media/nike-red-side.jpg', '/media/nike-red-back.jpg'],
   },
   {
@@ -56,7 +56,7 @@ const mockVariants: ProductVariant[] = [
     is_in_stock: true,
     available_quantity: 10,
     stock_range: '10 шт.',
-    main_image: '/media/nike-blue.jpg',
+    main_image: '/media/products/variants/nike-blue.jpg',
     gallery_images: ['/media/nike-blue-side.jpg'],
   },
   {
@@ -70,7 +70,7 @@ const mockVariants: ProductVariant[] = [
     is_in_stock: false,
     available_quantity: 0,
     stock_range: 'Нет в наличии',
-    main_image: '/media/nike-red.jpg',
+    main_image: '/media/products/variants/nike-red.jpg',
   },
   {
     id: 4,
@@ -83,7 +83,7 @@ const mockVariants: ProductVariant[] = [
     is_in_stock: true,
     available_quantity: 5,
     stock_range: '5 шт.',
-    main_image: '/media/nike-blue.jpg',
+    main_image: '/media/products/variants/nike-blue.jpg',
   },
 ];
 
@@ -107,6 +107,8 @@ const mockProduct: ProductDetailWithVariants = {
       alt_text: 'Nike Air Max вид сбоку',
       is_primary: false,
     },
+    { image: '/media/products/base/nike-red.jpg', alt_text: 'Nike Air Max Красный', is_primary: false },
+    { image: '/media/products/base/nike-blue.jpg', alt_text: 'Nike Air Max Синий', is_primary: false },
   ],
   category: {
     id: 1,
@@ -286,7 +288,7 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
   });
 
   describe('ProductImageGallery Integration (AC: 3, IV2)', () => {
-    it('обновляет изображение при изменении selectedVariant', () => {
+    it('выбирает кадр товара, совпадающий с фото варианта', () => {
       const { rerender } = render(
         <ProductImageGallery
           images={mockProduct.images}
@@ -309,13 +311,15 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
         />
       );
 
-      // Изображение должно обновиться на изображение варианта
-      const updatedImages = screen.getAllByRole('img');
-      const updatedMainImage = updatedImages[0];
-      expect(updatedMainImage).toHaveAttribute('src', expect.stringContaining('nike-red'));
+      // Основным становится кадр товара с тем же именем файла
+      const updatedMainImage = screen.getAllByRole('img')[0];
+      expect(updatedMainImage).toHaveAttribute(
+        'src',
+        expect.stringContaining('/media/products/base/nike-red.jpg')
+      );
     });
 
-    it('обновляет галерею при изменении selectedVariant', () => {
+    it('не подменяет галерею товара фото варианта', () => {
       const { rerender } = render(
         <ProductImageGallery
           images={mockProduct.images}
@@ -324,10 +328,8 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
         />
       );
 
-      // Изначально 2 изображения в галерее
-      expect(screen.getByTestId('image-thumbnails').children.length).toBe(2);
+      expect(screen.getByTestId('image-thumbnails').children.length).toBe(4);
 
-      // Обновляем с вариантом у которого есть gallery_images
       rerender(
         <ProductImageGallery
           images={mockProduct.images}
@@ -336,8 +338,30 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
         />
       );
 
-      // Галерея должна обновиться: main_image + 2 gallery_images = 3
-      expect(screen.getByTestId('image-thumbnails').children.length).toBe(3);
+      // gallery_images варианта в галерею не попадают
+      expect(screen.getByTestId('image-thumbnails').children.length).toBe(4);
+    });
+
+    it('показывает фото товара, если фото варианта среди них нет', () => {
+      // Устаревшее фото варианта: 1С обновила фото товара, а вариант остался со старым
+      const staleVariant: ProductVariant = {
+        ...mockVariants[0],
+        main_image: '/media/products/variants/nike-old.jpg',
+        gallery_images: ['/media/products/variants/nike-old-side.jpg'],
+      };
+
+      render(
+        <ProductImageGallery
+          images={mockProduct.images}
+          productName={mockProduct.name}
+          selectedVariant={staleVariant}
+        />
+      );
+
+      const srcs = screen.getAllByRole('img').map(img => img.getAttribute('src'));
+      expect(srcs[0]).toEqual(expect.stringContaining('nike-default'));
+      expect(srcs.some(src => src?.includes('nike-old'))).toBe(false);
+      expect(screen.getByTestId('image-thumbnails').children.length).toBe(4);
     });
 
     it('сбрасывает изображения при сбросе selectedVariant', () => {
@@ -437,9 +461,12 @@ describe('ProductOptions Integration (Story 13.5b)', () => {
         />
       );
 
-      // Должен показать только main_image
-      // Thumbnails не должны отображаться если только 1 изображение
-      expect(screen.queryByTestId('image-thumbnails')).not.toBeInTheDocument();
+      // Галерея товара целиком, основным выбран кадр варианта
+      expect(screen.getByTestId('image-thumbnails').children.length).toBe(4);
+      expect(screen.getAllByRole('img')[0]).toHaveAttribute(
+        'src',
+        expect.stringContaining('/media/products/base/nike-red.jpg')
+      );
     });
 
     it('автоматически выбирает вариант если у вариантов нет опций (размер/цвет)', () => {
