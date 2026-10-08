@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-09-20 (стори 41.22 — четыре review findings закрыты, review)
+# last_updated: 2026-10-08 (эпик 42 — разделы админки для сотрудников, 9 стори в backlog)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-09-20
+last_updated: 2026-10-08
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1427,6 +1427,36 @@ development_status:
   41-22-catalog-collections-self-canonical-sitemap: done
   epic-41-retrospective: optional
 
+  # ========================================
+  # Epic 42: Разделы админки для менеджеров, маркетинга и руководителя
+  # Goal: Владелец выдаёт сотрудникам учётные записи без риска для системы.
+  #       Менеджер ведёт клиентов и заказы своего региона, маркетинг —
+  #       витрину сайта, руководитель распределяет регионы и контролирует
+  #       оба отдела. Без доступа к служебным данным, обмену 1С и /admin/.
+  # Source: planning-artifacts/epic-42-staff-admin-sections.md (вынесен из
+  #         epics.md); спецификация specs/spec-staff-admin-sections/.
+  # Состав: 31 FR, 6 NFR, 9 стори, 55 критериев приёмки (одобрено 2026-10-08).
+  # Свежесть координат: коммит 20ca0c31.
+  # Порядок стори: 42.1 -> 42.2 -> 42.3 -> {42.4 -> 42.5, 42.6} -> 42.7
+  #   -> {42.8, 42.9}. 42.1 — жёсткое предусловие: пока is_staff открывает
+  #   обмен 1С, учётные записи сотрудникам выдавать нельзя. 42.6 зависит
+  #   только от 42.1.
+  # Прод: после 42.3 завести учётные записи менеджеров, распределить регионы
+  #   и запустить пересчёт ответственных — до выката 42.4 (см. action_items).
+  # Standalone: да, зависимостей от других эпиков нет.
+  # ========================================
+  epic-42: backlog
+  42-1-staff-roles-and-service-access-lockdown: backlog
+  42-2-responsible-manager-by-region-rule: backlog
+  42-3-region-directory-and-responsible-recalculation: backlog
+  42-4-manager-section-own-clients: backlog
+  42-5-manager-section-orders-and-home: backlog
+  42-6-marketing-section: backlog
+  42-7-supervisor-section-staff-regions-reassignment: backlog
+  42-8-supervisor-summary: backlog
+  42-9-staff-action-journal: backlog
+  epic-42-retrospective: optional
+
 # ========================================
 # Action items ретроспектив.
 # Источник эпика 39: retro/epic-39-retro-2026-08-04.md.
@@ -1520,5 +1550,14 @@ action_items:
     status: open
   - epic: "onec-image-composition-sync"
     action: "Расследовать на стороне 1С: одна и та же порция 129 товаров каждые ~5 минут (created=0, updated=129, ~1900 сессий в сутки) и 253 картинки, ссылки на которые приходят без файлов. Сторона сайта исключена — mode=import отвечает success"
+    owner: "Alex"
+    status: open
+  # --- Ручные шаги эпика 42 (вне кода) ---
+  - epic: "42"
+    action: "До выката 42.1: проверить на проде, через что учётная запись обмена 1С проходит Is1CExchangeUser; если через is_staff — выдать ей integrations.can_exchange_1c. Гейт выката"
+    owner: "Alex"
+    status: open
+  - epic: "42"
+    action: "После выката 42.3 и до 42.4: завести учётные записи менеджеров и руководителя, распределить все коды регионов и страны, задать резервное правило на руководителя, запустить пересчёт ответственных (сначала --dry-run)"
     owner: "Alex"
     status: open
