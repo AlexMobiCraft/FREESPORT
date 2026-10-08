@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-08 (эпик 42 — разделы админки для сотрудников, 9 стори в backlog)
+# last_updated: 2026-10-08 (стори 42.1 создана — ready-for-dev; эпик 42 in-progress)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1445,8 +1445,8 @@ development_status:
   #   и запустить пересчёт ответственных — до выката 42.4 (см. action_items).
   # Standalone: да, зависимостей от других эпиков нет.
   # ========================================
-  epic-42: backlog
-  42-1-staff-roles-and-service-access-lockdown: backlog
+  epic-42: in-progress
+  42-1-staff-roles-and-service-access-lockdown: ready-for-dev
   42-2-responsible-manager-by-region-rule: backlog
   42-3-region-directory-and-responsible-recalculation: backlog
   42-4-manager-section-own-clients: backlog
@@ -1560,6 +1560,12 @@ action_items:
     # 2026-10-08: проверено на проде. Обмен ходит под 1c_exchange_robot@freesport.ru
     #   (id 17): is_staff=false, can_exchange_1c выдано напрямую, last_login
     #   2026-10-08 16:31 UTC. Ветка is_staff в Is1CExchangeUser ему не нужна.
+  - epic: "42"
+    action: "До выката 42.1: сделать alexmw2006@yandex.ru суперпользователем (is_staff, is_superuser) и вывести из группы «Менеджер» — иначе после 42.1 он теряет /admin/. SQL — стори 42.1, раздел «Выкат», шаг 2. Гейт выката"
+    owner: "Alex"
+    status: done
+    # 2026-10-08: выполнено на проде. id 11: is_staff=t, is_superuser=t, is_active=t;
+    #   из группы «Менеджер» (id 1) выведен — группа теперь без участников.
   - epic: "42"
     action: "После выката 42.3 и до 42.4: завести учётные записи менеджеров и руководителя, распределить все коды регионов и страны, задать резервное правило на руководителя, запустить пересчёт ответственных (сначала --dry-run)"
     owner: "Alex"
