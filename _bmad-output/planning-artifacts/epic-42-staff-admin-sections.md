@@ -236,7 +236,14 @@ So that сотрудник не получил вместе с ними дост
 - метрики синхронизации: `IsAdminUser`, `common/views.py:146,218,277,310`;
 - неактивные товары: `include_inactive`, `products/views.py:515`.
 
-`UserAdmin` (`users/admin.py:236`) отдаёт `is_superuser`, `is_staff`, `groups` и `user_permissions` в форму любому с `change_user`. Тесты админки лежат в `tests/unit/test_users_admin.py` и `tests/integration/test_admin_*.py`. Перед правкой — `impact` по `Is1CExchangeUser` и `UserAdmin`.
+`UserAdmin` (`users/admin.py:236`) отдаёт `is_superuser`, `is_staff`, `groups` и `user_permissions` в форму любому с `change_user`.
+
+**Состояние прода (проверено 08.10.2026):**
+- обмен с 1С ходит под `1c_exchange_robot@freesport.ru` (id 17): `is_staff=false`, `can_exchange_1c` выдано напрямую. Ветку `is_staff` из `Is1CExchangeUser` можно убирать без подготовки;
+- **уже есть группа «Менеджер» (id 1)** с 68 правами. Среди них `add/change/delete_user`, `change/delete_page`, `delete_order`, `change/delete_deliverymethod`, `change/delete_newsletter`. В группе одна учётная запись — `alexmw2006@yandex.ru`. Миграция не создаёт рядом вторую группу «Менеджеры»: она переиспользует группу «Менеджер», переименовывает её и заменяет набор прав. Повторный прогон миграции обязан давать тот же результат;
+- у `managermsk3@freesportopt.ru` (id 15) `is_staff=true`, `role=admin` и прямые права `change_user`, `view_user`, `change_company`, `change_address`, `add/change/delete_banner`. Миграция прямые права сотрудников не трогает, но после стори эта учётная запись теряет `/admin/`. Владелец решает отдельно: перевести её в одну из трёх групп или заблокировать.
+
+Тесты админки лежат в `tests/unit/test_users_admin.py` и `tests/integration/test_admin_*.py`. Перед правкой — `impact` по `Is1CExchangeUser` и `UserAdmin`.
 
 **Acceptance Criteria:**
 
@@ -260,10 +267,10 @@ So that сотрудник не получил вместе с ними дост
 **Then** эти поля не меняются
 **And** выдать группу или право может только суперпользователь
 
-**Given** выкат стори на прод
-**When** готовится релиз
-**Then** до выката проверено, через что проходит проверку учётная запись обмена 1С
-**And** если через `is_staff`, ей заранее выдано `can_exchange_1c`, а результат проверки записан в Dev Notes стори
+**Given** в базе уже есть группа «Менеджер» с произвольным набором прав и участником
+**When** применяется миграция
+**Then** группа переименована в «Менеджеры», её права заменены набором роли, участник сохранён
+**And** второй группы с похожим именем не появилось
 
 ### Story 42.2: Ответственный менеджер клиента по правилу региона
 

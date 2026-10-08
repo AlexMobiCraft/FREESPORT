@@ -1556,7 +1556,10 @@ action_items:
   - epic: "42"
     action: "До выката 42.1: проверить на проде, через что учётная запись обмена 1С проходит Is1CExchangeUser; если через is_staff — выдать ей integrations.can_exchange_1c. Гейт выката"
     owner: "Alex"
-    status: open
+    status: done
+    # 2026-10-08: проверено на проде. Обмен ходит под 1c_exchange_robot@freesport.ru
+    #   (id 17): is_staff=false, can_exchange_1c выдано напрямую, last_login
+    #   2026-10-08 16:31 UTC. Ветка is_staff в Is1CExchangeUser ему не нужна.
   - epic: "42"
     action: "После выката 42.3 и до 42.4: завести учётные записи менеджеров и руководителя, распределить все коды регионов и страны, задать резервное правило на руководителя, запустить пересчёт ответственных (сначала --dry-run)"
     owner: "Alex"
