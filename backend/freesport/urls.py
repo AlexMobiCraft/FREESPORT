@@ -37,9 +37,11 @@ urlpatterns = [
     # раньше, чем их подхватит static() в DEBUG-режиме ниже.
     re_path(_LEGACY_ONEC_MEDIA_PATTERN, legacy_onec_media_gone),
     # Админ панель Django
+    # Дашборд мониторинга — через admin_view: доступ, как у всей /admin/, только
+    # суперпользователю (эпик 42). Раньше он отдавался без проверки, даже анониму.
     path(
         "admin/monitoring/",
-        monitoring_dashboard_view,
+        admin.site.admin_view(monitoring_dashboard_view),
         name="admin_monitoring_dashboard",
     ),
     path("admin/", admin.site.urls),

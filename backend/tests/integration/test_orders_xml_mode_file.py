@@ -12,6 +12,7 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth.models import Permission
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
@@ -34,7 +35,11 @@ class TestOrdersXmlModeFile:
 
     def setup_method(self):
         self.client = APIClient()
-        self.user = UserFactory.create(is_staff=True, password=ONEC_PASSWORD)
+        # Технический пользователь обмена 1С: право без is_staff, как робот на проде.
+        self.user = UserFactory.create(password=ONEC_PASSWORD)
+        self.user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
+        )
         perform_1c_checkauth(self.client, self.user.email, ONEC_PASSWORD)
 
     def _post_orders_xml(self, xml_data: bytes, **kwargs) -> HttpResponse:

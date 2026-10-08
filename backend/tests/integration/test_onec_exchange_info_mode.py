@@ -13,6 +13,7 @@ import base64
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -34,7 +35,10 @@ class Test1CInfoMode:
             password="pass123",
             first_name="1C",
             last_name="Info",
-            is_staff=True,
+        )
+        # Технический пользователь обмена 1С: право без is_staff, как робот на проде.
+        self.test_user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
         )
 
     def _auth_header(self) -> str:

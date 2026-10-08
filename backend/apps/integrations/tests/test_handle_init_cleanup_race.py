@@ -20,6 +20,7 @@ import re
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.contrib.auth.models import Permission
 from django.db import OperationalError
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -42,8 +43,10 @@ class TestHandleInitCleanupRace:
     def setup_method(self):
         self.client = APIClient()
         self.user = User.objects.create_user(email="1c_init_race@example.com", password="password")
-        self.user.is_staff = True
-        self.user.save()
+        # Технический пользователь обмена 1С: право без is_staff, как робот на проде.
+        self.user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
+        )
         self.client.force_authenticate(user=self.user)
         self.url = reverse("integrations:onec_exchange:exchange")
 

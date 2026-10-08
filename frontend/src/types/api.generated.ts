@@ -908,7 +908,7 @@ export interface paths {
      *     - GET /api/v1/catalog/filters/{id}/ - детали атрибута
      *
      *     Query Parameters:
-     *     - include_inactive: true/false - включить неактивные атрибуты (только для staff)
+     *     - include_inactive: true/false - включить неактивные атрибуты (только для суперпользователя)
      */
     get: operations['catalog_filters_retrieve'];
     put?: never;
@@ -4616,7 +4616,7 @@ export interface operations {
   catalog_filters_list: {
     parameters: {
       query?: {
-        /** @description Включить неактивные атрибуты (только для staff users). Для обычных пользователей параметр игнорируется. */
+        /** @description Включить неактивные атрибуты (только для суперпользователя). Для остальных пользователей параметр игнорируется. */
         include_inactive?: boolean;
         /** @description Which field to use when ordering the results. */
         ordering?: string;

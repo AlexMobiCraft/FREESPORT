@@ -4,7 +4,7 @@ baseline_commit: c8907d17
 
 # Story 42.1: Роли сотрудников и закрытие служебного доступа
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: c8907d17
 
 ## Story
@@ -311,10 +311,50 @@ so that сотрудник не получил вместе с ними дост
 
 ### Agent Model Used
 
+Claude Opus 5.5 (claude-opus-5-5), 08.10.2026.
+
 ### Debug Log References
+
+- GitNexus pre-flight: `impact --direction upstream` по всем девяти символам Task 0 — LOW (индекс на `20ca0c3`, после него только docs-коммиты).
+- Красный тест анонима: после правки ссылки в шаблоне и до обёртки дашборда в `admin_view` — `assert 200 == 302`.
+- Полный прогон в Docker (`freesport-test`, без параллельных): 3838 passed, 76 skipped, 0 failed.
+- flake8 по `backend/` — 0; `black --check` по изменённым файлам — чисто (во всём `backend/` black хочет переформатировать только чужой `tests/unit/test_pytest_marker_autotagging.py`); mypy — 16 ошибок, все в нетронутых `apps/products/tests/unit/test_variant_import_{admission,error_paths}.py` (были до стори); `check_openapi_sync` — «Контракт синхронен с кодом».
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created
+- **Кто теряет `/admin/` на проде:** по снимку 08.10.2026 — только `managermsk3@freesportopt.ru` (id 15, `is_staff=t`, `is_superuser=f`). Перед выкатом сверить запросом из шага 3.
+- **`/admin/monitoring/` был открыт без проверки и на проде.** Анонимный `GET https://optisport.ru/admin/monitoring/` 08.10.2026 вернул **500**: шаблон вызывал несуществующий `{% url 'admin:monitoring_dashboard' %}`. Страница падала у всех, в том числе у суперпользователя, но перед этим считала по БД все четыре набора метрик — и для анонима тоже. Метрики аноним не получал, однако любой мог бесплатно нагружать базу. Ссылка исправлена на `admin_monitoring_dashboard`, дашборд обёрнут в `admin.site.admin_view`. Теперь аноним и сотрудник получают 302 на вход, суперпользователь — 200.
+- **Шаги выката** (подробно — Dev Notes, «Выкат»):
+  3. До выката: `SELECT id, email, role, is_active FROM users WHERE is_staff AND NOT is_superuser ORDER BY id;` — ожидается только id 15, новая запись — вопрос Alex.
+  4. После выката: id 15 добавить в «Руководители» и снять прямые права одной транзакцией. Если `INSERT` вставил 0 строк, значит `0023` не применилась — остановиться.
+  5. После выката: `checkauth` обмена 1С проходит (хватит следующего планового обмена), `/admin/` у суперпользователя открывается, `/admin/monitoring/` у суперпользователя отдаёт 200.
+  6. После рестарта backend — `docker compose restart nginx`.
+- Отклонения от стори описаны в разделе «Implementation Notes» спеки `spec-42-1-staff-roles-and-service-access-lockdown.md`: правка шаблона дашборда, снятые `type: ignore`, переименованные тесты Task 7, ненулевой базис mypy.
 
 ### File List
+
+Новые:
+- `backend/freesport/admin_site.py`
+- `backend/freesport/apps.py`
+- `backend/apps/common/permissions.py`
+- `backend/apps/users/staff_roles.py`
+- `backend/apps/users/migrations/0023_staff_role_groups.py`
+- `backend/tests/unit/test_staff_role_groups_migration.py`
+- `backend/tests/unit/test_onec_exchange_permissions.py`
+- `backend/tests/integration/test_staff_access_lockdown.py`
+
+Изменённые:
+- `backend/freesport/settings/base.py`
+- `backend/freesport/urls.py`
+- `backend/apps/common/templates/admin/monitoring_dashboard.html`
+- `backend/apps/common/admin.py` (контекст сайта админки в дашборде)
+- `docs/decisions/ADR-009-csrf-exemption-1c-protocol.md`
+- `frontend/src/types/api.generated.ts` (перегенерирован `npm run generate:types`)
+- `backend/apps/common/views.py`
+- `backend/apps/integrations/onec_exchange/permissions.py`
+- `backend/apps/integrations/views.py`
+- `backend/apps/products/views.py`
+- `backend/apps/users/admin.py`
+- `docs/api/openapi.yaml`
+- `backend/tests/unit/test_users_admin.py`
+- Task 7: `backend/tests/integration/{test_onec_exchange_api,test_1c_file_routing,test_1c_file_upload,test_onec_exchange_info_mode,test_onec_export,test_onec_export_e2e,test_onec_import,test_orders_xml_mode_file,test_order_exchange_import_e2e,test_admin_user_password,test_admin_link_1c_customer,test_admin_verify_b2b_application}.py`, `backend/apps/integrations/tests/{test_handle_init_cleanup_race,test_import_orchestration_view}.py`, `backend/apps/products/tests/integration/test_import_orchestration.py`, `backend/apps/products/tests/test_api_attributes.py`

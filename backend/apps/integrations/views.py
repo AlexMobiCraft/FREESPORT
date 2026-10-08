@@ -10,10 +10,11 @@ from __future__ import annotations
 import logging
 import uuid
 from pathlib import Path
+from typing import Any
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -26,7 +27,21 @@ from .tasks import run_selective_import_task
 logger = logging.getLogger(__name__)
 
 
-@staff_member_required
+def _is_active_superuser(user: Any) -> bool:
+    """
+    Запуск импорта — только суперпользователю (эпик 42): `is_staff` теперь
+    означает «сотрудник». Отказ, как раньше у `staff_member_required`, —
+    редирект на вход в админку с `next`. Декоратор нужен адресу
+    `/api/integration/import_1c/`: в отличие от `/admin/integrations/import_1c/`,
+    он не обёрнут в `admin_view`.
+    """
+    return bool(user.is_active and user.is_superuser)
+
+
+superuser_required = user_passes_test(_is_active_superuser, login_url="admin:login")
+
+
+@superuser_required
 def import_from_1c_view(request: HttpRequest) -> HttpResponse:
     """
     Страница импорта данных из 1С.

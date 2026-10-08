@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from rest_framework.test import APIClient
 
 User = get_user_model()
@@ -96,7 +97,10 @@ def onec_user(db):
         password="secure_pass_123",
         first_name="1C",
         last_name="Import",
-        is_staff=True,
+    )
+    # Технический пользователь обмена 1С: право без is_staff, как робот на проде.
+    user.user_permissions.add(
+        Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
     )
     return user
 

@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -38,14 +39,17 @@ def temp_1c_dirs(tmp_path, monkeypatch):
 
 @pytest.fixture
 def staff_user(db):
-    """Create a staff user for 1C exchange."""
-    return User.objects.create_user(
+    """Технический пользователь обмена 1С: право can_exchange_1c без is_staff, как робот на проде."""
+    user = User.objects.create_user(
         email="1c_routing@example.com",
         password="secure_password_routing",
         first_name="1C",
         last_name="RoutingUser",
-        is_staff=True,
     )
+    user.user_permissions.add(
+        Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
+    )
+    return user
 
 
 @pytest.fixture
