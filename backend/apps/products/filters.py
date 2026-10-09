@@ -483,6 +483,24 @@ class ProductFilter(django_filters.FilterSet):
             return queryset.filter(discount_percent__isnull=True)
 
 
+def homepage_categories_q() -> Q:
+    """
+    Категории главной: корни витрины с sort_order > 0.
+
+    Корни витрины — прямые дети активного корневого якоря ROOT_CATEGORY_NAME,
+    тот же круг, что в CategoryTreeViewSet (служебные категории дерево отсекает
+    дополнительно, здесь их отсекает нулевой sort_order). У подкатегорий
+    sort_order задаёт только порядок в каталоге и на главную их не выводит.
+    """
+    root_name = getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
+    return Q(
+        sort_order__gt=0,
+        parent__name=root_name,
+        parent__parent__isnull=True,
+        parent__is_active=True,
+    )
+
+
 class CategoryFilter(django_filters.FilterSet):
     """
     Фильтр для категорий
@@ -492,7 +510,7 @@ class CategoryFilter(django_filters.FilterSet):
     parent__slug = django_filters.CharFilter(field_name="parent__slug")
     is_active = django_filters.BooleanFilter(field_name="is_active")
 
-    # Фильтр для главной страницы: возвращает категории с sort_order > 0
+    # Фильтр для главной страницы: корни витрины с sort_order > 0
     is_homepage = django_filters.BooleanFilter(method="filter_is_homepage")
 
     class Meta:
@@ -502,8 +520,8 @@ class CategoryFilter(django_filters.FilterSet):
     def filter_is_homepage(self, queryset, name, value):
         """
         Фильтр для категорий на главной странице.
-        Если is_homepage=true, возвращаем категории с sort_order > 0.
+        Если is_homepage=true, возвращаем категории из homepage_categories_q().
         """
         if value:
-            return queryset.filter(sort_order__gt=0)
+            return queryset.filter(homepage_categories_q())
         return queryset

@@ -56,6 +56,7 @@ type CategoryNode = {
   slug?: string;
   icon?: string;
   inStockCount: number;
+  sortOrder: number;
   children?: CategoryNode[];
 };
 
@@ -115,16 +116,24 @@ const mapCategoryTreeNode = (node: CategoryTreeResponse): CategoryNode => ({
   slug: node.slug,
   icon: node.icon || undefined,
   inStockCount: node.in_stock_count ?? 0,
+  sortOrder: node.sort_order ?? 0,
   children: node.children?.map(mapCategoryTreeNode),
 });
 
+/** Ранг в сайдбаре: заданный порядок, затем категории без порядка, «Без категории» последней */
+const categoryRank = (node: CategoryNode) => {
+  if (node.slug === 'uncategorized') return 2;
+  return node.sortOrder > 0 ? 0 : 1;
+};
+
+/**
+ * Порядок категорий задаёт `sort_order` из админки, API уже отдаёт их по нему.
+ * Здесь только ранг: sort стабилен, внутри ранга остаётся порядок API, а
+ * категории с нулевым sort_order (новые из 1С) встают не выше заданных.
+ */
 const sortCategoryTree = (nodes: CategoryNode[]): CategoryNode[] =>
   [...nodes]
-    .sort((a, b) => {
-      if (a.slug === 'uncategorized') return 1;
-      if (b.slug === 'uncategorized') return -1;
-      return a.label.localeCompare(b.label, 'ru');
-    })
+    .sort((a, b) => categoryRank(a) - categoryRank(b))
     .map(n => ({ ...n, children: n.children ? sortCategoryTree(n.children) : undefined }));
 
 const hasVisibleDescendant = (node: CategoryNode, visibleIds: Set<number>): boolean =>

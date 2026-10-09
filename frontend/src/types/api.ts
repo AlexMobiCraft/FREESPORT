@@ -117,6 +117,7 @@ export interface Category {
   image?: string | null;
   products_count: number;
   description?: string;
+  sort_order?: number;
 }
 
 export interface CategoryTree extends Category {

@@ -917,3 +917,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-42-1-black-mypy-debt.md`
   summary: CI не держит Black и mypy как гейт: `backend-ci.yml` запускает `black .` без `--check`, а шаг mypy помечен `continue-on-error: true`, поэтому закрытый долг накопится снова.
   evidence: `.github/workflows/backend-ci.yml:137` (`black .` переформатирует и выходит с 0) и `:152`; `test_pytest_marker_autotagging.py` уже прогоняли через black в `13c4681e`, потом неотформатированный код вернули следующие коммиты. Перевод в гейт (`black --check .`, снять `continue-on-error`) меняет поведение обязательного чека «Бэкенд: качество кода» — решение владельца.
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-category-order.md`
+  summary: Поле `Category.sort_order` совмещает порядок в каталоге и флаг «на главной» (`> 0`): корень витрины нельзя оставить в каталоге в заданной позиции и одновременно убрать с главной.
+  evidence: После отказа сайдбара от алфавита `sort_order` стал видимым порядком каталога; убрать корень с главной можно только `sort_order = 0`, что отправляет его в конец каталога (ревью стори, обе линзы).
