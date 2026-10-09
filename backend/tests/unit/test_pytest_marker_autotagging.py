@@ -750,9 +750,7 @@ class TestCIFilters:
 
     def _docs_only_filter(self):
         """ALLOWLIST и DENYLIST из composite action .github/actions/docs-only-check."""
-        text = self._repo_file(
-            ".github", "actions", "docs-only-check", "action.yml"
-        ).read_text(encoding="utf-8")
+        text = self._repo_file(".github", "actions", "docs-only-check", "action.yml").read_text(encoding="utf-8")
         allow = re.search(r"ALLOWLIST:\s*'([^']+)'", text)
         deny = re.search(r"DENYLIST:\s*'([^']+)'", text)
         assert allow, "в docs-only-check не найден ALLOWLIST"
@@ -763,12 +761,8 @@ class TestCIFilters:
     def test_gates_share_one_docs_filter(self, workflow):
         """Каждый гейт обязан звать общий action, а не свою копию списка путей."""
         text = self._repo_file(".github", "workflows", workflow).read_text(encoding="utf-8")
-        assert self.DOCS_FILTER_ACTION in text, (
-            f"{workflow}: не использует {self.DOCS_FILTER_ACTION}"
-        )
-        assert "ALLOWLIST:" not in text, (
-            f"{workflow}: список путей задан на месте — он обязан жить только в action'е"
-        )
+        assert self.DOCS_FILTER_ACTION in text, f"{workflow}: не использует {self.DOCS_FILTER_ACTION}"
+        assert "ALLOWLIST:" not in text, f"{workflow}: список путей задан на месте — он обязан жить только в action'е"
 
     def _runs_full_suite(self, path):
         """Повторяет решение шага: гоняем, если файл вне allowlist или попал в denylist."""
@@ -784,16 +778,13 @@ class TestCIFilters:
         это только точечный перебор путей. Ошибаться фильтр должен в сторону лишних
         тринадцати минут, а не пропущенных тестов.
         """
-        assert self._runs_full_suite(path), (
-            f"{path} не запускает полный прогон Django CI — allowlist слишком широк"
-        )
+        assert self._runs_full_suite(path), f"{path} не запускает полный прогон Django CI — allowlist слишком широк"
 
     @pytest.mark.parametrize("path", MUST_SKIP_PATHS)
     def test_docs_only_filter_skips_documentation(self, path):
         """Обратная сторона: если фильтр не срабатывает ни на чём, он бесполезен."""
-        assert not self._runs_full_suite(path), (
-            f"{path} — документация, но прогон не пропускается; фильтр ничего не даёт"
-        )
+        msg = f"{path} — документация, но прогон не пропускается; фильтр ничего не даёт"
+        assert not self._runs_full_suite(path), msg
 
     def test_coverage_is_measured_only_on_the_full_run(self):
         """Покрытие меряет тот прогон, который исполняет покрывающие тесты, — и только он.
