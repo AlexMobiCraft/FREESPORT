@@ -904,3 +904,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-42-1-staff-roles-and-service-access-lockdown.md`
   summary: Записать в `AGENTS.md` («Неочевидное в коде») или страховочным тестом, что с эпика 42 `is_staff` значит «сотрудник»: `IsAdminUser`, `staff_member_required` и проверки `user.is_staff` в служебных местах запрещены — только `is_superuser` или конкретное право.
   evidence: После 42.1 таких мест в `backend/apps` и `backend/freesport` нет, но ничто не мешает следующему эндпоинту с `IsAdminUser` снова открыть служебный доступ всем трём ролям.
+
+## Отложено по результатам code review 42-1-staff-roles-and-service-access-lockdown (2026-10-09)
+
+- **Ранее существовавший долг Black/mypy мешает буквальному закрытию AC6.** Повторный прогон в Docker: `black --check .` отклоняет `backend/tests/unit/test_pytest_marker_autotagging.py`; `mypy --config-file=mypy.ini .` выдаёт 16 ошибок в `apps/products/tests/unit/test_variant_import_admission.py` и `test_variant_import_error_paths.py`. Эти файлы не менялись в диапазоне `c8907d17..2620716`. Устранить отдельной задачей, не ослабляя конфигурацию проверок. Источник: `Story/42-1-staff-roles-and-service-access-lockdown.md`, замечания BH9/AA1.
+- **Подтверждён существующий долг VG1: вернуть проверки `change_user` тестами раздела менеджера в 42.4.** Новую задачу не дублировать: исходная запись выше (`source_spec: spec-42-1-staff-roles-and-service-access-lockdown.md`) и Task 7 story уже фиксируют маршрут. HTTP-тесты основной админки проверяют отказ сайта, а не внутренние отказы UserAdmin; перед повторным использованием в 42.4 закрыть пробел.
+- **Подтверждён существующий долг BH10: закрепить инвариант `is_staff` в контексте агента.** Новую задачу не дублировать: исходная запись выше уже предлагает AGENTS.md или страховочный тест. Текущие служебные маршруты закрыты; правило нужно, чтобы следующий эндпоинт не вернул IsAdminUser/staff_member_required как проверку служебного доступа.
