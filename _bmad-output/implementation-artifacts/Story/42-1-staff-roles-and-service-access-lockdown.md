@@ -4,7 +4,7 @@ baseline_commit: c8907d17
 
 # Story 42.1: Роли сотрудников и закрытие служебного доступа
 
-Status: in-progress
+Status: done
 Baseline Revision: c8907d17
 
 ## Story
@@ -92,19 +92,19 @@ so that сотрудник не получил вместе с ними дост
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — GitNexus pre-flight** (обязательно, AGENTS.md)
-  - [ ] `npx gitnexus status`; при `stale` попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md` (на `c8907d17` индекс отставал только на docs-коммиты).
-  - [ ] `impact --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по: `Is1CExchangeUser`, `UserAdmin`, `import_from_1c_view`, `monitoring_dashboard_view`, `operation_metrics`, `business_metrics`, `system_health`, `realtime_metrics`, `AttributeFilterViewSet` (`products/views.py:481`). На `c8907d17`: `Is1CExchangeUser` — LOW (1 файл, `onec_exchange/views.py:197`), `UserAdmin` — LOW (0 вызывающих). HIGH/CRITICAL — сообщить Alex до правок.
+- [x] **Task 0 — GitNexus pre-flight** (обязательно, AGENTS.md)
+  - [x] `npx gitnexus status`; при `stale` попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md` (на `c8907d17` индекс отставал только на docs-коммиты).
+  - [x] `impact --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по: `Is1CExchangeUser`, `UserAdmin`, `import_from_1c_view`, `monitoring_dashboard_view`, `operation_metrics`, `business_metrics`, `system_health`, `realtime_metrics`, `AttributeFilterViewSet` (`products/views.py:481`). На `c8907d17`: `Is1CExchangeUser` — LOW (1 файл, `onec_exchange/views.py:197`), `UserAdmin` — LOW (0 вызывающих). HIGH/CRITICAL — сообщить Alex до правок.
 
-- [ ] **Task 1 — константы ролей** (AC1, AC5)
-  - [ ] Новый модуль `backend/apps/users/staff_roles.py`: `MANAGERS_GROUP = "Менеджеры"`, `MARKETING_GROUP = "Маркетинг"`, `SUPERVISORS_GROUP = "Руководители"`, `STAFF_ROLE_GROUPS = (MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP)`. Docstring — на русском, что это имена групп ролей эпика 42 и что наборы прав зафиксированы в миграции `0023`. Модуль понадобится 42.2+ (исключение сотрудников из автоназначения), поэтому имена — здесь, а не только в миграции.
-  - [ ] **Наборы прав в модуль не выносить:** миграция хранит свою замороженную копию (миграции не импортируют изменяемый код приложения). Имена групп в миграции тоже литералами.
+- [x] **Task 1 — константы ролей** (AC1, AC5)
+  - [x] Новый модуль `backend/apps/users/staff_roles.py`: `MANAGERS_GROUP = "Менеджеры"`, `MARKETING_GROUP = "Маркетинг"`, `SUPERVISORS_GROUP = "Руководители"`, `STAFF_ROLE_GROUPS = (MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP)`. Docstring — на русском, что это имена групп ролей эпика 42 и что наборы прав зафиксированы в миграции `0023`. Модуль понадобится 42.2+ (исключение сотрудников из автоназначения), поэтому имена — здесь, а не только в миграции.
+  - [x] **Наборы прав в модуль не выносить:** миграция хранит свою замороженную копию (миграции не импортируют изменяемый код приложения). Имена групп в миграции тоже литералами.
 
-- [ ] **Task 2 — data-миграция `apps/users/migrations/0023_staff_role_groups.py`** (AC1, AC5)
-  - [ ] `dependencies`: `("users", "0022_alter_user_country")`, `("auth", "0012_alter_user_first_name_max_length")`, `("contenttypes", "0002_remove_content_type_name")`, `("orders", "0016_customercodesequence")`, `("banners", "0007_banner_ad_disclosure")`, `("common", "0021_newsletter_unsubscribe_token")`, `("products", "0056_onec_deleted_and_excluded_items")`, `("bonuses", "0003_bonus_journal_survives_deletion")`. Проверить актуальность последних миграций этих приложений на момент работы (`ls apps/<app>/migrations`).
-  - [ ] Константа `ROLE_PERMISSIONS: dict[str, tuple[str, ...]]` — ровно таблица «Наборы прав» (строки `"app_label.codename"`); набор «Руководители» собрать как объединение двух других плюс свои — без копипасты.
-  - [ ] `LEGACY_NAMES = {"Менеджеры": ("Менеджер",)}`.
-  - [ ] **Права в чистой БД ещё не существуют** во время миграций: `post_migrate` (`create_permissions`) срабатывает после всех миграций. Перед поиском прав вызвать для каждого затронутого приложения
+- [x] **Task 2 — data-миграция `apps/users/migrations/0023_staff_role_groups.py`** (AC1, AC5)
+  - [x] `dependencies`: `("users", "0022_alter_user_country")`, `("auth", "0012_alter_user_first_name_max_length")`, `("contenttypes", "0002_remove_content_type_name")`, `("orders", "0016_customercodesequence")`, `("banners", "0007_banner_ad_disclosure")`, `("common", "0021_newsletter_unsubscribe_token")`, `("products", "0056_onec_deleted_and_excluded_items")`, `("bonuses", "0003_bonus_journal_survives_deletion")`. Проверить актуальность последних миграций этих приложений на момент работы (`ls apps/<app>/migrations`).
+  - [x] Константа `ROLE_PERMISSIONS: dict[str, tuple[str, ...]]` — ровно таблица «Наборы прав» (строки `"app_label.codename"`); набор «Руководители» собрать как объединение двух других плюс свои — без копипасты.
+  - [x] `LEGACY_NAMES = {"Менеджеры": ("Менеджер",)}`.
+  - [x] **Права в чистой БД ещё не существуют** во время миграций: `post_migrate` (`create_permissions`) срабатывает после всех миграций. Перед поиском прав вызвать для каждого затронутого приложения
     ```python
     from django.apps import apps as global_apps
     from django.contrib.auth.management import create_permissions
@@ -113,81 +113,81 @@ so that сотрудник не получил вместе с ними дост
         create_permissions(global_apps.get_app_config(label), verbosity=0, apps=apps, using=alias)
     ```
     (передаётся **глобальный** `app_config` — у него заполнен `models_module`, иначе функция молча выходит; `apps=apps` — историческое состояние). `create_permissions` сам создаёт недостающие content types.
-  - [ ] Поиск права: `Permission.objects.get(content_type__app_label=…, codename=…)`. Ненайденное право — **исключение**, не тихий пропуск: опечатка в наборе должна ронять миграцию и тест.
-  - [ ] Алгоритм по каждой роли:
+  - [x] Поиск права: `Permission.objects.get(content_type__app_label=…, codename=…)`. Ненайденное право — **исключение**, не тихий пропуск: опечатка в наборе должна ронять миграцию и тест.
+  - [x] Алгоритм по каждой роли:
     1. `target = Group.objects.filter(name=role).first()`, `legacy = Group.objects.filter(name__in=LEGACY_NAMES.get(role, ())).first()`.
     2. Нет `target`, есть `legacy` → `legacy.name = role; save()`; `legacy.permissions.set(perms)` (замена — решение 4).
     3. Есть и `target`, и `legacy` → `target.user_set.add(*legacy.user_set.all())`; `legacy.delete()`; `target.permissions.add(*perms)`.
     4. Нет ни того ни другого → `Group.objects.create(name=role)`; `permissions.set(perms)`.
     5. Есть только `target` → `target.permissions.add(*perms)` (ручные права не трогаем — решение 5).
-  - [ ] `alias = schema_editor.connection.alias`; все запросы через `.using(alias)` не обязательны (одна БД), но `create_permissions(using=alias)` — да.
-  - [ ] Обратная миграция — `migrations.RunPython.noop`: откат не удаляет группы и членство (оно могло быть выдано вручную).
-  - [ ] Функцию вперёд назвать `create_staff_role_groups(apps, schema_editor)` — тест вызывает её напрямую.
+  - [x] `alias = schema_editor.connection.alias`; все запросы через `.using(alias)` не обязательны (одна БД), но `create_permissions(using=alias)` — да.
+  - [x] Обратная миграция — `migrations.RunPython.noop`: откат не удаляет группы и членство (оно могло быть выдано вручную).
+  - [x] Функцию вперёд назвать `create_staff_role_groups(apps, schema_editor)` — тест вызывает её напрямую.
 
-- [ ] **Task 3 — `/admin/` только суперпользователю** (AC2)
-  - [ ] Новый модуль `backend/freesport/admin_site.py`: `class SuperuserAdminSite(admin.AdminSite)` с `has_permission(self, request) -> bool: return request.user.is_active and request.user.is_superuser`. Docstring: почему (эпик 42, `is_staff` теперь означает «сотрудник», а не «администратор»).
-  - [ ] Новый модуль `backend/freesport/apps.py`: `class FreesportAdminConfig(AdminConfig): default_site = "freesport.admin_site.SuperuserAdminSite"`. В `freesport/settings/base.py` в `DJANGO_APPS` заменить `"django.contrib.admin"` на `"freesport.apps.FreesportAdminConfig"` (рецепт из документации Django «Overriding the default admin site»). **Не класть `AdminConfig`-подкласс в `apps/common/apps.py`:** при двух подклассах `AppConfig` в модуле Django перестанет автоматически выбирать `CommonConfig` для `"apps.common"`.
-  - [ ] Проверить, что всё продолжает регистрироваться: `admin.site` — `DefaultAdminSite` (lazy), он возьмёт новый класс; `@admin.register(...)`, заголовки в `integrations/admin.py:9-11` и monkey-patch `get_urls` в `integrations/admin_urls.py` работают с экземпляром любого подкласса.
-  - [ ] **Монки-патч `admin.site.has_permission` не использовать** — только подкласс сайта.
-  - [ ] `backend/freesport/urls.py:41-45`: обернуть дашборд — `admin.site.admin_view(monitoring_dashboard_view)`. Это закрывает и анонимный доступ (AC2, «Найденная дыра»).
+- [x] **Task 3 — `/admin/` только суперпользователю** (AC2)
+  - [x] Новый модуль `backend/freesport/admin_site.py`: `class SuperuserAdminSite(admin.AdminSite)` с `has_permission(self, request) -> bool: return request.user.is_active and request.user.is_superuser`. Docstring: почему (эпик 42, `is_staff` теперь означает «сотрудник», а не «администратор»).
+  - [x] Новый модуль `backend/freesport/apps.py`: `class FreesportAdminConfig(AdminConfig): default_site = "freesport.admin_site.SuperuserAdminSite"`. В `freesport/settings/base.py` в `DJANGO_APPS` заменить `"django.contrib.admin"` на `"freesport.apps.FreesportAdminConfig"` (рецепт из документации Django «Overriding the default admin site»). **Не класть `AdminConfig`-подкласс в `apps/common/apps.py`:** при двух подклассах `AppConfig` в модуле Django перестанет автоматически выбирать `CommonConfig` для `"apps.common"`.
+  - [x] Проверить, что всё продолжает регистрироваться: `admin.site` — `DefaultAdminSite` (lazy), он возьмёт новый класс; `@admin.register(...)`, заголовки в `integrations/admin.py:9-11` и monkey-patch `get_urls` в `integrations/admin_urls.py` работают с экземпляром любого подкласса.
+  - [x] **Монки-патч `admin.site.has_permission` не использовать** — только подкласс сайта.
+  - [x] `backend/freesport/urls.py:41-45`: обернуть дашборд — `admin.site.admin_view(monitoring_dashboard_view)`. Это закрывает и анонимный доступ (AC2, «Найденная дыра»).
 
-- [ ] **Task 4 — обмен, импорт, метрики, `include_inactive`** (AC3)
-  - [ ] `integrations/onec_exchange/permissions.py`: `return request.user.is_authenticated and request.user.has_perm("integrations.can_exchange_1c")`. Docstring класса — на русском: доступ по праву, суперпользователь проходит через `has_perm`, `is_staff` доступа не даёт (эпик 42).
-  - [ ] `integrations/views.py:16,29`: заменить `@staff_member_required` на проверку суперпользователя с тем же поведением отказа (редирект на `admin:login` с `next`):
+- [x] **Task 4 — обмен, импорт, метрики, `include_inactive`** (AC3)
+  - [x] `integrations/onec_exchange/permissions.py`: `return request.user.is_authenticated and request.user.has_perm("integrations.can_exchange_1c")`. Docstring класса — на русском: доступ по праву, суперпользователь проходит через `has_perm`, `is_staff` доступа не даёт (эпик 42).
+  - [x] `integrations/views.py:16,29`: заменить `@staff_member_required` на проверку суперпользователя с тем же поведением отказа (редирект на `admin:login` с `next`):
     ```python
     from django.contrib.auth.decorators import user_passes_test
     superuser_required = user_passes_test(lambda u: u.is_active and u.is_superuser, login_url="admin:login")
     ```
     Вью доступна по двум адресам: `/admin/integrations/import_1c/` (через `admin.site.admin_view` в `admin_urls.py` — уже станет superuser-only после Task 3) и `/api/integration/import_1c/` (`integrations/urls.py:12` — защищена **только** декоратором). Декоратор обязателен именно для второго адреса.
-  - [ ] `common/views.py:22,146,218,277,310`: `IsAdminUser` → новый класс `IsSuperUser` (DRF `BasePermission`: `bool(request.user and request.user.is_authenticated and request.user.is_superuser)`). Положить в новый `apps/common/permissions.py` (модуля ещё нет). Импорт `IsAdminUser` убрать, если больше не используется.
-  - [ ] `products/views.py:515`: `self.request.user.is_staff` → `self.request.user.is_superuser`; комментарий `# Staff users…` и docstring (`:503-507`) — «суперпользователь». Описание параметра в `extend_schema` (`products/views.py:~532`): «Включить неактивные атрибуты (только для суперпользователя). Для остальных пользователей параметр игнорируется.»
-  - [ ] Синхронизировать `docs/api/openapi.yaml:1632` и `:1677` с новым описанием (NFR-42-06) и прогнать `check_openapi_sync` (рецепт — Dev Notes). Пути `/monitoring/*` в контракте есть (`openapi.yaml:22-77`), но смена класса прав схему не меняет — проверить это тем же `check_openapi_sync`.
+  - [x] `common/views.py:22,146,218,277,310`: `IsAdminUser` → новый класс `IsSuperUser` (DRF `BasePermission`: `bool(request.user and request.user.is_authenticated and request.user.is_superuser)`). Положить в новый `apps/common/permissions.py` (модуля ещё нет). Импорт `IsAdminUser` убрать, если больше не используется.
+  - [x] `products/views.py:515`: `self.request.user.is_staff` → `self.request.user.is_superuser`; комментарий `# Staff users…` и docstring (`:503-507`) — «суперпользователь». Описание параметра в `extend_schema` (`products/views.py:~532`): «Включить неактивные атрибуты (только для суперпользователя). Для остальных пользователей параметр игнорируется.»
+  - [x] Синхронизировать `docs/api/openapi.yaml:1632` и `:1677` с новым описанием (NFR-42-06) и прогнать `check_openapi_sync` (рецепт — Dev Notes). Пути `/monitoring/*` в контракте есть (`openapi.yaml:22-77`), но смена класса прав схему не меняет — проверить это тем же `check_openapi_sync`.
 
-- [ ] **Task 5 — закрыть эскалацию в `UserAdmin`** (AC4)
-  - [ ] Константа класса `PRIVILEGE_FIELDS = ("is_staff", "is_superuser", "groups", "user_permissions")`.
-  - [ ] `get_fieldsets` (`users/admin.py:~388`): для `not request.user.is_superuser` вычищать `PRIVILEGE_FIELDS` из всех fieldsets и выбрасывать опустевшие fieldsets («Права доступа» исчезает целиком; в «Роль и статус» остаются `role`, `is_active`). Сохранить существующую логику скрытия `onec_link_candidates`. Поскольку `ModelAdmin.get_form` берёт поля из `get_fieldsets`, поля пропадут и из формы — подделанный POST их не тронет (m2m `groups`/`user_permissions` вне формы `save_m2m` не трогает).
-  - [ ] `list_filter` (`"is_staff"`) не трогать — это не форма.
-  - [ ] `has_change_permission(request, obj=None)` и `has_delete_permission(request, obj=None)`: если `obj is not None and obj.is_superuser and not request.user.is_superuser` → `False`, иначе `super()`. Это закрывает смену пароля суперпользователю (`BaseUserAdmin.user_change_password` проверяет `has_change_permission`), страницу подтверждения B2B и правку карточки.
-  - [ ] Ничего больше в `UserAdmin` не менять: действия, `verify_b2b_view`, `user_change_password` с `AuditLog`, инлайны остаются как есть (их урезанные версии — 42.4).
+- [x] **Task 5 — закрыть эскалацию в `UserAdmin`** (AC4)
+  - [x] Константа класса `PRIVILEGE_FIELDS = ("is_staff", "is_superuser", "groups", "user_permissions")`.
+  - [x] `get_fieldsets` (`users/admin.py:~388`): для `not request.user.is_superuser` вычищать `PRIVILEGE_FIELDS` из всех fieldsets и выбрасывать опустевшие fieldsets («Права доступа» исчезает целиком; в «Роль и статус» остаются `role`, `is_active`). Сохранить существующую логику скрытия `onec_link_candidates`. Поскольку `ModelAdmin.get_form` берёт поля из `get_fieldsets`, поля пропадут и из формы — подделанный POST их не тронет (m2m `groups`/`user_permissions` вне формы `save_m2m` не трогает).
+  - [x] `list_filter` (`"is_staff"`) не трогать — это не форма.
+  - [x] `has_change_permission(request, obj=None)` и `has_delete_permission(request, obj=None)`: если `obj is not None and obj.is_superuser and not request.user.is_superuser` → `False`, иначе `super()`. Это закрывает смену пароля суперпользователю (`BaseUserAdmin.user_change_password` проверяет `has_change_permission`), страницу подтверждения B2B и правку карточки.
+  - [x] Ничего больше в `UserAdmin` не менять: действия, `verify_b2b_view`, `user_change_password` с `AuditLog`, инлайны остаются как есть (их урезанные версии — 42.4).
 
-- [ ] **Task 6 — новые тесты** (AC1–AC5, NFR-42-02 — у каждой проверки доступа негативный тест)
-  - [ ] `backend/tests/unit/test_staff_role_groups_migration.py` (unit, `django_db`): модуль миграции грузить через `importlib.import_module("apps.users.migrations.0023_staff_role_groups")`, вызывать `create_staff_role_groups(django.apps.apps, SimpleNamespace(connection=connection))`. Autouse-фикстура удаляет группы `STAFF_ROLE_GROUPS` и «Менеджер» перед тестом (данные data-миграции в тестовой БД могут быть, а могут быть стёрты `flush` транзакционных тестов — тест не должен зависеть ни от того, ни от другого). Сценарии:
+- [x] **Task 6 — новые тесты** (AC1–AC5, NFR-42-02 — у каждой проверки доступа негативный тест)
+  - [x] `backend/tests/unit/test_staff_role_groups_migration.py` (unit, `django_db`): модуль миграции грузить через `importlib.import_module("apps.users.migrations.0023_staff_role_groups")`, вызывать `create_staff_role_groups(django.apps.apps, SimpleNamespace(connection=connection))`. Autouse-фикстура удаляет группы `STAFF_ROLE_GROUPS` и «Менеджер» перед тестом (данные data-миграции в тестовой БД могут быть, а могут быть стёрты `flush` транзакционных тестов — тест не должен зависеть ни от того, ни от другого). Сценарии:
     - чистая база → три группы, `set(codenames) == ROLE_PERMISSIONS[...]` для каждой;
     - повторный вызов → по одной группе каждого имени; право, добавленное вручную между вызовами, на месте;
     - «Менеджер» c чужим правом (например `pages.change_page`) и участником → тот же `pk`, имя «Менеджеры», права ровно набор роли, участник в группе, «Менеджер» нет;
     - «Менеджер» и «Менеджеры» одновременно → участник перенесён, «Менеджер» удалена;
     - ни одна группа не содержит `integrations.can_exchange_1c` и права `auth.*`.
-  - [ ] `backend/tests/integration/test_staff_access_lockdown.py` (integration): фикстура `staff_member(group_name)` — `is_staff=True`, член группы роли (группы создавать через функцию миграции или `Group.objects.get_or_create` + функцию — по тому же правилу независимости от состояния БД). Параметризация по трём ролям:
+  - [x] `backend/tests/integration/test_staff_access_lockdown.py` (integration): фикстура `staff_member(group_name)` — `is_staff=True`, член группы роли (группы создавать через функцию миграции или `Group.objects.get_or_create` + функцию — по тому же правилу независимости от состояния БД). Параметризация по трём ролям:
     - AC2: все URL из AC2 → 302, `"/admin/login/" in response.url`; суперпользователь → 200 (для `/verify/` и `/password/` — целевой B2B-пользователь с ожидающей заявкой, как в `test_admin_verify_b2b_application.py`, либо проверить «не 302 на вход»); аноним `/admin/monitoring/` → 302.
     - AC3: `checkauth` обмена с Basic-авторизацией сотрудника → 403; `/api/integration/import_1c/` → 302 на `/admin/login/`; четыре метрики → 403, суперпользователь → 200 (у `health` при нездоровой системе возможен 503 — мокать `CustomerSyncMonitor` или проверять `!= 403`); `include_inactive=true` от сотрудника — неактивного атрибута нет, от суперпользователя — есть.
-  - [ ] `backend/tests/unit/test_users_admin.py` (дописать) — AC4: `RequestFactory` + `UserAdmin(User, admin.site)`; запросчик — `is_staff=True` с правами `view_user`, `change_user`, не суперпользователь:
+  - [x] `backend/tests/unit/test_users_admin.py` (дописать) — AC4: `RequestFactory` + `UserAdmin(User, admin.site)`; запросчик — `is_staff=True` с правами `view_user`, `change_user`, не суперпользователь:
     - `flatten_fieldsets(get_fieldsets(request, obj))` не содержит ни одного из `PRIVILEGE_FIELDS`; у суперпользователя — содержит все четыре;
     - `get_form(request, obj)` с подделанными данными (`is_superuser="on"`, `is_staff="on"`, `groups=[group.pk]`, `user_permissions=[perm.pk]`) → после `form.save(); form.save_m2m()` у цели флаги и m2m не изменились (данные формы собрать из `model_to_dict`/initial, чтобы форма была валидной);
     - `has_change_permission`/`has_delete_permission` для цели-суперпользователя → `False`, для обычного клиента → `True`; у запросчика-суперпользователя → `True`.
-  - [ ] `Is1CExchangeUser` — юнит-тест класса (в `tests/unit/`): аноним → `False`; `is_staff=True` без права → `False`; право без `is_staff` → `True`; суперпользователь → `True`.
+  - [x] `Is1CExchangeUser` — юнит-тест класса (в `tests/unit/`): аноним → `False`; `is_staff=True` без права → `False`; право без `is_staff` → `True`; суперпользователь → `True`.
 
-- [ ] **Task 7 — починить существующие тесты, завязанные на `is_staff`** (AC6)
+- [x] **Task 7 — починить существующие тесты, завязанные на `is_staff`** (AC6)
   Источник списка — `grep -rln "is_staff=True\|is_staff = True" backend/tests backend/apps` на `c8907d17`. Менять **только** перечисленное:
-  - [ ] **Фикстуры «технического пользователя 1С» с `is_staff=True` без права** — выдать `integrations.can_exchange_1c` (как на проде; `is_staff=True` убрать — ровно так выглядит робот обмена): `tests/integration/test_onec_exchange_api.py` (фикстуры `:38`, `:132`, `:300`), `test_1c_file_routing.py:47`, `test_1c_file_upload.py`, `test_onec_exchange_info_mode.py`, `test_onec_export.py`, `test_onec_export_e2e.py`, `test_onec_import.py:99`, `test_orders_xml_mode_file.py`, `test_order_exchange_import_e2e.py`, `apps/integrations/tests/test_handle_init_cleanup_race.py`, `apps/integrations/tests/test_import_orchestration_view.py:20` (комментарий «Required for Is1CExchangeUser permission» исправить), `apps/products/tests/integration/test_import_orchestration.py`. Если в файле несколько фикстур — общий хелпер в пределах файла, не новый глобальный модуль. Добавить в `test_onec_exchange_api.py` негатив: `is_staff=True` без права → 403.
-  - [ ] `apps/products/tests/test_api_attributes.py:37` — фикстура `staff_user` для позитива `include_inactive` → суперпользователь; сам `is_staff`-пользователь становится негативным случаем (неактивных нет).
-  - [ ] `tests/integration/test_admin_user_password.py:215` `test_password_form_requires_change_permission` — ожидание `403` → `302` на `/admin/login/` (сотрудник отсекается сайтом раньше проверки права); проверка «пароль не изменился» остаётся.
-  - [ ] `tests/integration/test_admin_link_1c_customer.py:226` `test_action_requires_change_user_permission` — негативная часть: данные не изменились, `AuditLog` нет (статус после `follow=True` — страница входа). **Позитивный контроль** (`:260-276`, тот же сотрудник с `change_user`) больше невозможен в `/admin/`: заменить на тот же payload от суперпользователя (`manager_client`), сохранив смысл «действие рабочее, а не опечатка в `actions`».
-  - [ ] `tests/integration/test_admin_verify_b2b_application.py` `make_staff` (`:131`) и тесты `:442-455`, `:479-485`: `view_user`-сотрудник → 302 на вход (было 403/200); `view_user+change_user`-сотрудник → 302 на вход (было 200). Логика «страница подтверждения требует `change_user`» вернётся тестами раздела менеджера в 42.4 — оставить у теста комментарий со ссылкой на 42.4.
-  - [ ] Тесты, где пользователь уже `create_superuser`/`is_superuser=True` (`test_import_page_integration.py`, `test_integrations_views.py`, `test_admin/test_products_admin.py`, `tests/conftest.py:561`, `test_monitoring_api.py`), трогать не нужно — прогнать и убедиться.
-  - [ ] После правок: `grep -rn "is_staff=True" backend/tests backend/apps` — каждое оставшееся вхождение либо суперпользователь, либо осознанный негативный случай.
+  - [x] **Фикстуры «технического пользователя 1С» с `is_staff=True` без права** — выдать `integrations.can_exchange_1c` (как на проде; `is_staff=True` убрать — ровно так выглядит робот обмена): `tests/integration/test_onec_exchange_api.py` (фикстуры `:38`, `:132`, `:300`), `test_1c_file_routing.py:47`, `test_1c_file_upload.py`, `test_onec_exchange_info_mode.py`, `test_onec_export.py`, `test_onec_export_e2e.py`, `test_onec_import.py:99`, `test_orders_xml_mode_file.py`, `test_order_exchange_import_e2e.py`, `apps/integrations/tests/test_handle_init_cleanup_race.py`, `apps/integrations/tests/test_import_orchestration_view.py:20` (комментарий «Required for Is1CExchangeUser permission» исправить), `apps/products/tests/integration/test_import_orchestration.py`. Если в файле несколько фикстур — общий хелпер в пределах файла, не новый глобальный модуль. Добавить в `test_onec_exchange_api.py` негатив: `is_staff=True` без права → 403.
+  - [x] `apps/products/tests/test_api_attributes.py:37` — фикстура `staff_user` для позитива `include_inactive` → суперпользователь; сам `is_staff`-пользователь становится негативным случаем (неактивных нет).
+  - [x] `tests/integration/test_admin_user_password.py:215` `test_password_form_requires_change_permission` — ожидание `403` → `302` на `/admin/login/` (сотрудник отсекается сайтом раньше проверки права); проверка «пароль не изменился» остаётся.
+  - [x] `tests/integration/test_admin_link_1c_customer.py:226` `test_action_requires_change_user_permission` — негативная часть: данные не изменились, `AuditLog` нет (статус после `follow=True` — страница входа). **Позитивный контроль** (`:260-276`, тот же сотрудник с `change_user`) больше невозможен в `/admin/`: заменить на тот же payload от суперпользователя (`manager_client`), сохранив смысл «действие рабочее, а не опечатка в `actions`».
+  - [x] `tests/integration/test_admin_verify_b2b_application.py` `make_staff` (`:131`) и тесты `:442-455`, `:479-485`: `view_user`-сотрудник → 302 на вход (было 403/200); `view_user+change_user`-сотрудник → 302 на вход (было 200). Логика «страница подтверждения требует `change_user`» вернётся тестами раздела менеджера в 42.4 — оставить у теста комментарий со ссылкой на 42.4.
+  - [x] Тесты, где пользователь уже `create_superuser`/`is_superuser=True` (`test_import_page_integration.py`, `test_integrations_views.py`, `test_admin/test_products_admin.py`, `tests/conftest.py:561`, `test_monitoring_api.py`), трогать не нужно — прогнать и убедиться.
+  - [x] После правок: `grep -rn "is_staff=True" backend/tests backend/apps` — каждое оставшееся вхождение либо суперпользователь, либо осознанный негативный случай.
 
-- [ ] **Task 8 — проверки и закрытие**
-  - [ ] Полный backend-прогон в Docker (один compose-проект, без параллельных прогонов): `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`.
-  - [ ] Линтеры — навык `backend-lint` или в `freesport-lint` (не параллельно с зачётным pytest).
-  - [ ] `check_openapi_sync` (рецепт — Dev Notes).
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
-  - [ ] В Completion Notes — список учётных записей, которые потеряют `/admin/` на проде (SQL в «Выкат»), чтобы Alex решил их судьбу до выката.
+- [x] **Task 8 — проверки и закрытие**
+  - [x] Полный backend-прогон в Docker (один compose-проект, без параллельных прогонов): `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`.
+  - [x] Линтеры — навык `backend-lint` или в `freesport-lint` (не параллельно с зачётным pytest). Flake8 — 0; общие Black и mypy красные из-за старого долга в нетронутых файлах (BH9/AA1, `deferred-work.md`).
+  - [x] `check_openapi_sync` (рецепт — Dev Notes).
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
+  - [x] В Completion Notes — список учётных записей, которые потеряют `/admin/` на проде (SQL в «Выкат»), чтобы Alex решил их судьбу до выката.
 
 ### Замечания ревью — 09.10.2026
 
 Диапазон: `c8907d17..2620716`, режим `full`. Независимые проверки: слепое ревью (BH), граничные случаи (ECH), пробелы в проверках (VG), аудит приёмки (AA). Все четыре завершены. После проверки: 0 решений владельца, 1 исправление, 3 отложенных пункта, 23 отклонённых замечания. Обхода служебного доступа в текущих маршрутах не подтверждено.
 
-- [ ] [Review][Patch] **AA4, low — изменённая фраза ADR написана на английском.** `docs/decisions/ADR-009-csrf-exemption-1c-protocol.md:26`: описание нового правила `can_exchange_1c` нарушает требование вести документацию на русском. Перевести изменённый пункт без изменения смысла и без переписывания остального ADR.
+- [x] [Review][Patch] **AA4, low — изменённая фраза ADR написана на английском.** `docs/decisions/ADR-009-csrf-exemption-1c-protocol.md:26`: описание нового правила `can_exchange_1c` нарушает требование вести документацию на русском. Перевести изменённый пункт без изменения смысла и без переписывания остального ADR. **Выполнено 09.10.2026** (спека `_bmad-output/implementation-artifacts/spec-42-1-aa4-adr-009-russian.md`, ветка `feature/42-1-review-aa4-adr-russian`).
 - [x] [Review][Defer] **BH9 + AA1, medium — общий Black/mypy не проходят, буквальный AC6 не закрыт.** Проверено в Docker: `black --check .` требует форматирования `backend/tests/unit/test_pytest_marker_autotagging.py`; `mypy --config-file=mypy.ini .` выдаёт 16 ошибок в `apps/products/tests/unit/test_variant_import_admission.py` и `test_variant_import_error_paths.py`. Все три файла не изменены относительно baseline. Отложено как ранее существовавший долг, не регрессия 42.1; не считать эти проверки зелёными.
 - [x] [Review][Defer] **VG1, medium — проверки `change_user` внутри UserAdmin потеряли достижимые HTTP-тесты.** Отказы B2B-подтверждения, действия привязки, смены пароля и видимость кнопки теперь скрыты за отказом сайта. Уже учтено в `deferred-work.md:901-903` и Task 7: вернуть тесты в 42.4 до переиспользования UserAdmin в разделе менеджера. Защита суперпользователя-цели при прямом вызове методов покрыта unit-тестом.
 - [x] [Review][Defer] **BH10, low — инвариант служебного доступа не записан в контексте агента.** Уже учтено в `deferred-work.md:904-906`: закрепить в AGENTS.md, что `is_staff` означает сотрудника, а служебный доступ проверяется по `is_superuser` или конкретному праву. Изменение контекста агента отложено; текущей открытой служебной вью не обнаружено.
@@ -195,6 +195,8 @@ so that сотрудник не получил вместе с ними дост
 **Повторная проверка:** целевые четыре файла pytest — 91 passed; Flake8 — код 0; `check_openapi_sync` — контракт синхронен; общий Black и mypy — код 1 по ранее существовавшим проблемам выше. Полный backend-набор в этом ревью повторно не запускался; 3838 passed в Dev Agent Record — результат реализации, не нового ревью. Точечный GitNexus impact по девяти символам Task 0 — LOW; анализ диапазона — 36 символов, 14 потоков, совокупный риск high.
 
 **Решение владельца 09.10.2026:** вариант 2 — оставить единственное исправление AA4 задачей, не применять перевод ADR в этом запуске. Замечание остаётся открытым. Статус story и sprint tracking: `in-progress`.
+
+**Дополнение 09.10.2026:** AA4 закрыто отдельным запуском (см. пункт AA4 выше), открытых замечаний ревью больше нет. Решение владельца 09.10.2026: стори переведена в `done`, sprint tracking — `done`.
 
 #### Отклонённые замечания
 

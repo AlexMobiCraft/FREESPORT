@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-09 (стори 42.2 — ready-for-dev; 42.1 — in-progress, исправление ревью оставлено задачей)
+# last_updated: 2026-10-09 (стори 42.2 — ready-for-dev; 42.1 — done, замечание ревью AA4 закрыто)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1446,7 +1446,7 @@ development_status:
   # Standalone: да, зависимостей от других эпиков нет.
   # ========================================
   epic-42: in-progress
-  42-1-staff-roles-and-service-access-lockdown: in-progress
+  42-1-staff-roles-and-service-access-lockdown: done
   42-2-responsible-manager-by-region-rule: ready-for-dev
   42-3-region-directory-and-responsible-recalculation: backlog
   42-4-manager-section-own-clients: backlog
