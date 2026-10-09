@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-09 (стори 42.2 — ready-for-dev; 42.1 — done, замечание ревью AA4 закрыто)
+# last_updated: 2026-10-09 (стори 42.3 — ready-for-dev; 42.2 — ready-for-dev; 42.1 — done)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1448,7 +1448,7 @@ development_status:
   epic-42: in-progress
   42-1-staff-roles-and-service-access-lockdown: done
   42-2-responsible-manager-by-region-rule: ready-for-dev
-  42-3-region-directory-and-responsible-recalculation: backlog
+  42-3-region-directory-and-responsible-recalculation: ready-for-dev
   42-4-manager-section-own-clients: backlog
   42-5-manager-section-orders-and-home: backlog
   42-6-marketing-section: backlog
@@ -1569,7 +1569,8 @@ action_items:
   - epic: "42"
     action: "Сразу после выката 42.1: managermsk3@freesportopt.ru (id 15, руководитель) добавить в группу «Руководители» и снять его 10 прямых прав. SQL — стори 42.1, раздел «Выкат», шаг 4"
     owner: "Alex"
-    status: open
+    status: done
+    # 2026-10-09: выполнено на проде (стори 42.1, Completion Notes, шаг 4).
   - epic: "42"
     action: "После выката 42.3 и до 42.4: завести учётные записи менеджеров и руководителя, распределить все коды регионов и страны, задать резервное правило на руководителя, запустить пересчёт ответственных (сначала --dry-run)"
     owner: "Alex"
