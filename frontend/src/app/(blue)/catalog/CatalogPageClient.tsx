@@ -68,6 +68,8 @@ const MAX_VISIBLE_PAGES = 5;
 
 // Константы анимации фильтров (F2, F5, F6)
 const FILTER_ANIMATION_DURATION = 'duration-[180ms]';
+// Менять вместе с lg:-литералами (lg:max-h-[1000px] / lg:max-h-[500px]) в разметке сайдбара:
+// они задают ту же высоту до гидратации, иначе высота до и после неё разойдётся
 const CATEGORY_MAX_HEIGHT = 'max-h-[1000px]'; // ~40 категорий × 24px + padding
 const BRANDS_MAX_HEIGHT = 'max-h-[500px]'; // ~20 брендов × 24px + padding
 const DESKTOP_BREAKPOINT = '(min-width: 1024px)'; // Синхронизировано с Tailwind lg:
@@ -409,8 +411,13 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
   const [serverHeadingSlug] = useState(categorySlugParam);
   // Флаг означает "попытка загрузки категорий завершена" (включая ошибку) — F3
   const [isCategoryLoadAttempted, setIsCategoryLoadAttempted] = useState(false);
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
-  const [isBrandsOpen, setIsBrandsOpen] = useState(false);
+  // Стартуем раскрытыми (десктоп); на мобилке их сворачивает layout-эффект при маунте
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
+  const [isBrandsOpen, setIsBrandsOpen] = useState(true);
+  // Пока false (серверный HTML и первый клиентский рендер), раскрытость секций задаёт
+  // CSS-брейкпоинт lg:, а не состояние: иначе на мобилке раскрытый в SSR сайдбар
+  // схлопнулся бы после гидратации и сдвинул выдачу
+  const [isBreakpointResolved, setIsBreakpointResolved] = useState(false);
 
   // Badge-фильтры из URL (is_new, is_hit, is_sale)
   const activeBadge = useMemo(
@@ -489,14 +496,15 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
     }
   }, [user, fetchFavorites]);
 
-  // Responsive: на мобилке сворачиваем фильтры при маунте.
-  // useLayoutEffect выполняется ДО paint → исключает «мигание» на мобилках (F1)
+  // Responsive: при маунте секции «Категории» и «Торговая марка» раскрыты на десктопе
+  // и свёрнуты на мобилке. До этого их вид задавали lg:-классы, поэтому видимое состояние
+  // не меняется. useLayoutEffect выполняется ДО paint → исключает «мигание» (F1).
+  // Listener на change не ставим: ресайз не сбрасывает выбор пользователя (AC 11)
   useIsomorphicLayoutEffect(() => {
     const isDesktop = window.matchMedia(DESKTOP_BREAKPOINT).matches;
-    if (!isDesktop) {
-      setIsCategoriesOpen(false);
-      setIsBrandsOpen(false);
-    }
+    setIsCategoriesOpen(isDesktop);
+    setIsBrandsOpen(isDesktop);
+    setIsBreakpointResolved(true);
   }, []);
 
   const handleToggleFavorite = useCallback(
@@ -1641,13 +1649,13 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                     'flex items-center gap-2 cursor-pointer text-base font-semibold text-gray-900',
                     'min-h-[44px]' // Минимальный touch target для a11y (F8)
                   )}
-                  aria-expanded={isCategoriesOpen}
+                  aria-expanded={isBreakpointResolved ? isCategoriesOpen : undefined}
                   aria-controls="filter-categories"
                 >
                   <ChevronDown
                     className={cn(
                       `w-4 h-4 text-gray-500 transition-transform ${FILTER_ANIMATION_DURATION}`,
-                      isCategoriesOpen && 'rotate-180'
+                      isBreakpointResolved ? isCategoriesOpen && 'rotate-180' : 'lg:rotate-180'
                     )}
                   />
                   <span>Категории</span>
@@ -1664,9 +1672,11 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                 id="filter-categories"
                 className={cn(
                   `overflow-hidden transition-all ${FILTER_ANIMATION_DURATION}`,
-                  isCategoriesOpen
-                    ? `${CATEGORY_MAX_HEIGHT} opacity-100 mt-4`
-                    : 'max-h-0 opacity-0 mt-0'
+                  !isBreakpointResolved
+                    ? 'max-h-0 opacity-0 mt-0 lg:max-h-[1000px] lg:opacity-100 lg:mt-4'
+                    : isCategoriesOpen
+                      ? `${CATEGORY_MAX_HEIGHT} opacity-100 mt-4`
+                      : 'max-h-0 opacity-0 mt-0'
                 )}
               >
                 {isCategoriesLoading ? (
@@ -1709,13 +1719,13 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                     'cursor-pointer font-medium text-gray-900 flex items-center gap-2 w-full',
                     'min-h-[44px]' // Минимальный touch target для a11y (F8)
                   )}
-                  aria-expanded={isBrandsOpen}
+                  aria-expanded={isBreakpointResolved ? isBrandsOpen : undefined}
                   aria-controls="filter-brands"
                 >
                   <ChevronDown
                     className={cn(
                       `w-4 h-4 text-gray-500 transition-transform ${FILTER_ANIMATION_DURATION}`,
-                      isBrandsOpen && 'rotate-180'
+                      isBreakpointResolved ? isBrandsOpen && 'rotate-180' : 'lg:rotate-180'
                     )}
                   />
                   <span>Торговая марка</span>
@@ -1724,7 +1734,11 @@ const CatalogContent: React.FC<CatalogPageClientProps> = ({
                   id="filter-brands"
                   className={cn(
                     `overflow-hidden transition-all ${FILTER_ANIMATION_DURATION}`,
-                    isBrandsOpen ? `${BRANDS_MAX_HEIGHT} opacity-100` : 'max-h-0 opacity-0'
+                    !isBreakpointResolved
+                      ? 'max-h-0 opacity-0 lg:max-h-[500px] lg:opacity-100'
+                      : isBrandsOpen
+                        ? `${BRANDS_MAX_HEIGHT} opacity-100`
+                        : 'max-h-0 opacity-0'
                   )}
                 >
                   <div className="mt-2 flex flex-col gap-1">

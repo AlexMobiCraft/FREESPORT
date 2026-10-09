@@ -546,12 +546,6 @@ describe('CatalogPage — сортировка и скрытие пустых к
 
     render(<CatalogPage />);
 
-    // Открываем панель категорий
-    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => {
-      categoryBtn.click();
-    });
-
     await waitFor(() => {
       expect(screen.queryByText('Без категории')).not.toBeInTheDocument();
       expect(screen.getByText('Обувь')).toBeInTheDocument();
@@ -566,11 +560,6 @@ describe('CatalogPage — сортировка и скрытие пустых к
     (categoriesService.getVisibleCategories as Mock).mockResolvedValue([]);
 
     render(<CatalogPage />);
-
-    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => {
-      categoryBtn.click();
-    });
 
     await waitFor(() => {
       expect(screen.getByText('Нет категорий')).toBeInTheDocument();
@@ -592,11 +581,6 @@ describe('CatalogPage — сортировка и скрытие пустых к
     (categoriesService.getVisibleCategories as Mock).mockRejectedValue(new Error('500'));
 
     render(<CatalogPage />);
-
-    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => {
-      categoryBtn.click();
-    });
 
     await waitFor(() => {
       // При ошибке fallback = показывать всё дерево
@@ -629,15 +613,135 @@ describe('CatalogPage — сортировка и скрытие пустых к
 
     render(<CatalogPage />);
 
-    const categoryBtn = await screen.findByRole('button', { name: /Категории/i });
-    await act(async () => {
-      categoryBtn.click();
-    });
-
     await waitFor(() => {
       // Родитель виден потому что дочерняя видима
       expect(screen.getByText('Спорт')).toBeInTheDocument();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Секции «Категории» и «Торговая марка»: раскрыты на десктопе, свёрнуты на мобилке
+// (мобилка — тест F4 выше)
+// ---------------------------------------------------------------------------
+
+describe('CatalogPage — раскрытость секций сайдбара по умолчанию', () => {
+  const chevron = (root: ParentNode, controls: string) =>
+    root.querySelector(`[aria-controls="${controls}"] svg`);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMatchMedia();
+    resetSearchParams();
+  });
+
+  it('на десктопе «Категории» и «Торговая марка» раскрыты без клика', async () => {
+    render(<CatalogPage />);
+
+    const categoryButton = await screen.findByRole('button', { name: /Категории/i });
+    const brandButton = screen.getByRole('button', { name: /Торговая марка/i });
+
+    expect(categoryButton).toHaveAttribute('aria-expanded', 'true');
+    expect(brandButton).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById('filter-categories')).toHaveClass('max-h-[1000px]');
+    expect(document.getElementById('filter-brands')).toHaveClass('max-h-[500px]');
+    expect(chevron(document, 'filter-categories')).toHaveClass('rotate-180');
+    expect(chevron(document, 'filter-brands')).toHaveClass('rotate-180');
+  });
+
+  it('на мобилке после гидратации обе секции свёрнуты без lg:-классов', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+    render(<CatalogPage />);
+
+    await screen.findByRole('button', { name: /Категории/i });
+    const categories = document.getElementById('filter-categories');
+    const brands = document.getElementById('filter-brands');
+
+    expect(categories).toHaveClass('max-h-0');
+    expect(categories).not.toHaveClass('lg:max-h-[1000px]');
+    expect(brands).toHaveClass('max-h-0');
+    expect(brands).not.toHaveClass('lg:max-h-[500px]');
+    for (const controls of ['filter-categories', 'filter-brands']) {
+      expect(chevron(document, controls)).not.toHaveClass('rotate-180');
+      expect(chevron(document, controls)).not.toHaveClass('lg:rotate-180');
+    }
+  });
+
+  it('на десктопе клик по «Категории» сворачивает секцию', async () => {
+    const user = userEvent.setup();
+    render(<CatalogPage />);
+
+    const categoryButton = await screen.findByRole('button', { name: /Категории/i });
+    await user.click(categoryButton);
+
+    expect(categoryButton).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('filter-categories')).toHaveClass('max-h-0');
+    expect(chevron(document, 'filter-categories')).not.toHaveClass('rotate-180');
+  });
+
+  it('на десктопе клик по «Торговая марка» сворачивает секцию', async () => {
+    const user = userEvent.setup();
+    render(<CatalogPage />);
+
+    const brandButton = await screen.findByRole('button', { name: /Торговая марка/i });
+    await user.click(brandButton);
+
+    const brands = document.getElementById('filter-brands');
+    expect(brandButton).toHaveAttribute('aria-expanded', 'false');
+    expect(brands).toHaveClass('max-h-0');
+    expect(brands).not.toHaveClass('max-h-[500px]');
+    expect(chevron(document, 'filter-brands')).not.toHaveClass('rotate-180');
+  });
+
+  it('клик «Все» при стоящей галочке разворачивает свёрнутую вручную секцию', async () => {
+    const user = userEvent.setup();
+    render(<CatalogPage />);
+
+    const categoryButton = await screen.findByRole('button', { name: /Категории/i });
+    await user.click(categoryButton);
+    expect(categoryButton).toHaveAttribute('aria-expanded', 'false');
+
+    const allCheckbox = screen.getByRole('checkbox', { name: 'Все' });
+    expect(allCheckbox).toBeChecked();
+    await user.click(allCheckbox);
+
+    expect(categoryButton).toHaveAttribute('aria-expanded', 'true');
+    expect(allCheckbox).toBeChecked();
+  });
+
+  it('в серверном HTML раскрытость секций задаёт брейкпоинт lg:', () => {
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(<CatalogPage />);
+
+    const categories = container.querySelector('#filter-categories');
+    const brands = container.querySelector('#filter-brands');
+
+    expect(categories).toHaveClass('max-h-0', 'opacity-0', 'lg:max-h-[1000px]', 'lg:opacity-100');
+    expect(categories).not.toHaveClass('max-h-[1000px]');
+    expect(categories).not.toHaveClass('opacity-100');
+    expect(brands).toHaveClass('max-h-0', 'opacity-0', 'lg:max-h-[500px]', 'lg:opacity-100');
+    expect(brands).not.toHaveClass('max-h-[500px]');
+    expect(brands).not.toHaveClass('opacity-100');
+    for (const controls of ['filter-categories', 'filter-brands']) {
+      expect(chevron(container, controls)).toHaveClass('lg:rotate-180');
+      expect(chevron(container, controls)).not.toHaveClass('rotate-180');
+      // До гидратации раскрытость неизвестна: aria-expanded не выводим
+      expect(container.querySelector(`[aria-controls="${controls}"]`)).not.toHaveAttribute(
+        'aria-expanded'
+      );
+    }
   });
 });
 
