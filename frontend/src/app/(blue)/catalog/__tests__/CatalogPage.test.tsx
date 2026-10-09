@@ -5,7 +5,7 @@
 import { Profiler } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll, type Mock } from 'vitest';
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CatalogPage from '../CatalogPageClient';
 import { requestCatalogSearchFocus } from '@/utils/catalogSearchFocus';
@@ -617,6 +617,81 @@ describe('CatalogPage — сортировка и скрытие пустых к
       // Родитель виден потому что дочерняя видима
       expect(screen.getByText('Спорт')).toBeInTheDocument();
     });
+  });
+
+  const expectInOrder = (labels: string[]) => {
+    // Только сайдбар: активная категория дублируется в заголовке страницы
+    const sidebar = within(document.getElementById('filter-categories') as HTMLElement);
+    const nodes = labels.map(label => sidebar.getByText(label));
+    for (let i = 1; i < nodes.length; i += 1) {
+      expect(
+        nodes[i - 1].compareDocumentPosition(nodes[i]) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    }
+  };
+
+  it('сохраняет порядок категорий из API (sort_order), а не алфавитный; без порядка и «Без категории» — в конце', async () => {
+    // API сортирует по sort_order по возрастанию: нулевые приходят первыми
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      {
+        id: 3,
+        name: 'Без категории',
+        slug: 'uncategorized',
+        in_stock_count: 1,
+        products_count: 1,
+        sort_order: 0,
+        children: [],
+      },
+      { id: 4, name: 'Акробатика', slug: 'akrobatika', in_stock_count: 1, products_count: 1, sort_order: 0 },
+      { id: 1, name: 'Единоборства', slug: 'edinoborstva', in_stock_count: 2, products_count: 2, sort_order: 1 },
+      { id: 2, name: 'Бассейны', slug: 'bassejny', in_stock_count: 2, products_count: 2, sort_order: 2 },
+    ]);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1, 2, 3, 4]);
+
+    render(<CatalogPage />);
+
+    await screen.findByText('Единоборства');
+    expectInOrder(['Единоборства', 'Бассейны', 'Акробатика', 'Без категории']);
+  });
+
+  it('сохраняет порядок подкатегорий из API, подкатегории без порядка — в конце', async () => {
+    resetSearchParams('category=tjazhelaja-atletika');
+    (categoriesService.getTree as Mock).mockResolvedValue([
+      {
+        id: 1,
+        name: 'Фитнес и атлетика',
+        slug: 'fitnes-i-atletika',
+        in_stock_count: 3,
+        products_count: 3,
+        sort_order: 2,
+        children: [
+          { id: 14, name: 'Гантели', slug: 'ganteli', in_stock_count: 1, products_count: 1, sort_order: 0 },
+          { id: 11, name: 'Фитнес', slug: 'fitnes', in_stock_count: 1, products_count: 1, sort_order: 1 },
+          {
+            id: 12,
+            name: 'Акссесуары для фитнеса и атлетики',
+            slug: 'akssesuary',
+            in_stock_count: 1,
+            products_count: 1,
+            sort_order: 2,
+          },
+          {
+            id: 13,
+            name: 'Тяжелая атлетика',
+            slug: 'tjazhelaja-atletika',
+            in_stock_count: 1,
+            products_count: 1,
+            sort_order: 3,
+          },
+        ],
+      },
+    ]);
+    (categoriesService.getVisibleCategories as Mock).mockResolvedValue([1, 11, 12, 13, 14]);
+
+    render(<CatalogPage />);
+
+    await screen.findByText('Акссесуары для фитнеса и атлетики');
+    expectInOrder(['Фитнес', 'Акссесуары для фитнеса и атлетики', 'Тяжелая атлетика', 'Гантели']);
   });
 });
 

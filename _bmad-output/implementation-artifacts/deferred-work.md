@@ -913,3 +913,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-42-1-aa4-adr-009-russian.md`
   summary: В файле стори 42.1 все чекбоксы Task 0–Task 8 остались `[ ]`, хотя Dev Agent Record фиксирует завершённую реализацию; перед переводом стори в `done` сверить и отметить задачи.
   evidence: `Story/42-1-staff-roles-and-service-access-lockdown.md:95-184` — все пункты `[ ]`; там же Debug Log: полный прогон 3838 passed и File List со всеми файлами задач. **ЗАКРЫТО 2026-10-09:** все задачи сверены с кодом (новые модули, миграция `0023`, `FreesportAdminConfig`, `admin_view` для дашборда, `superuser_required`, `IsSuperUser`, `PRIVILEGE_FIELDS` и пообъектные права в `UserAdmin`, оставшиеся `is_staff=True` в тестах). Отмечены все 53 пункта Task 0–Task 8. У пункта про линтеры указано, что общие Black и mypy красные из-за старого долга (BH9/AA1).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-catalog-category-order.md`
+  summary: Поле `Category.sort_order` совмещает порядок в каталоге и флаг «на главной» (`> 0`): корень витрины нельзя оставить в каталоге в заданной позиции и одновременно убрать с главной.
+  evidence: После отказа сайдбара от алфавита `sort_order` стал видимым порядком каталога; убрать корень с главной можно только `sort_order = 0`, что отправляет его в конец каталога (ревью стори, обе линзы).

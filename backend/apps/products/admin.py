@@ -18,6 +18,7 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.html import format_html
 
+from .filters import homepage_categories_q
 from .forms import (
     MergeAttributesActionForm,
     MergeBrandsActionForm,
@@ -303,10 +304,11 @@ class IsOnHomepageFilter(SimpleListFilter):
         return (("yes", "Да"), ("no", "Нет"))
 
     def queryset(self, request: HttpRequest, queryset: QuerySet) -> QuerySet | None:
+        # То же условие, что у API главной (?is_homepage=true)
         if self.value() == "yes":
-            return queryset.filter(sort_order__gt=0)
+            return queryset.filter(homepage_categories_q())
         if self.value() == "no":
-            return queryset.filter(sort_order=0)
+            return queryset.exclude(homepage_categories_q())
         return None
 
 
