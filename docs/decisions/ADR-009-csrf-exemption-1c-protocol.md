@@ -23,7 +23,7 @@ This class is used strictly on the 1C Exchange API view:
 
 1. **Scope:** The exemption is only applied to the 1C exchange endpoint.
 2. **Additional Protections:**
-   - **Permission Check:** All requests must still pass `Is1CExchangeUser` permission check, which grants access only by the `can_exchange_1c` permission (a superuser passes via `has_perm`); `is_staff` grants nothing (epic 42).
+   - **Проверка прав:** каждый запрос по-прежнему должен проходить проверку `Is1CExchangeUser`, которая пускает только по праву `integrations.can_exchange_1c` (активный суперпользователь проходит через `has_perm`); `is_staff` доступа не даёт (эпик 42).
    - **Authentication:** Requests must be authenticated via either the active session (cookie) established during `checkauth` or valid Basic Auth.
    - **CORS/Origin:** This endpoint is intended for machine-to-machine communication with 1C, not for browser-based access.
 
