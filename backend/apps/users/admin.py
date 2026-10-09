@@ -242,6 +242,12 @@ class UserAdmin(BaseUserAdmin):
     - AuditLog для критичных действий
     """
 
+    # Поля привилегий: их видит и меняет только суперпользователь (эпик 42).
+    # Иначе любой с правом `users.change_user` мог бы выдать себе
+    # `is_superuser`, группу или право. Атрибут класса — его переиспользуют
+    # урезанные ModelAdmin разделов сотрудников (42.4+).
+    PRIVILEGE_FIELDS = ("is_staff", "is_superuser", "groups", "user_permissions")
+
     # Оптимизация N+1 queries
     list_select_related = ["company"]
 
@@ -437,17 +443,52 @@ class UserAdmin(BaseUserAdmin):
         # Тот же критерий цели, что у колонки в списке и у проверки под
         # блокировкой: иначе карточка звала бы связать аккаунт, которому
         # действие всегда откажет (уже привязан либо не B2B).
-        if obj is not None and matches_q(link_target_q(), obj) and find_link_candidates(obj):
+        if not (obj is not None and matches_q(link_target_q(), obj) and find_link_candidates(obj)):
+            # Кандидатов нет — блок в карточке не выводится.
+            fieldsets = tuple(
+                (
+                    name,
+                    {**options, "fields": tuple(f for f in options.get("fields", ()) if f != "onec_link_candidates")},
+                )
+                for name, options in fieldsets
+            )
+
+        if request.user.is_superuser:
             return fieldsets
 
-        # Кандидатов нет — блок в карточке не выводится.
-        return tuple(
-            (
-                name,
-                {**options, "fields": tuple(f for f in options.get("fields", ()) if f != "onec_link_candidates")},
-            )
-            for name, options in fieldsets
-        )
+        # Не суперпользователь: поля привилегий убираются из fieldsets, а значит
+        # и из формы (`get_form` берёт поля отсюда) — подделанный POST их не
+        # тронет. Опустевший блок («Права доступа») выбрасывается целиком.
+        return self._without_privilege_fields(fieldsets)
+
+    @classmethod
+    def _without_privilege_fields(cls, fieldsets: Any) -> tuple[Any, ...]:
+        """Вычищает `PRIVILEGE_FIELDS` из fieldsets и выбрасывает опустевшие блоки."""
+        result = []
+        for name, options in fieldsets:
+            fields = []
+            for field in options.get("fields", ()):
+                if isinstance(field, (list, tuple)):
+                    row = tuple(f for f in field if f not in cls.PRIVILEGE_FIELDS)
+                    if row:
+                        fields.append(row)
+                elif field not in cls.PRIVILEGE_FIELDS:
+                    fields.append(field)
+            if fields:
+                result.append((name, {**options, "fields": tuple(fields)}))
+        return tuple(result)
+
+    def has_change_permission(self, request: HttpRequest, obj: User | None = None) -> bool:  # type: ignore[override]
+        # Суперпользователя меняет (в т. ч. его пароль и заявку B2B) только
+        # суперпользователь — иначе через смену пароля можно войти под ним.
+        if obj is not None and obj.is_superuser and not request.user.is_superuser:
+            return False
+        return super().has_change_permission(request, obj)  # type: ignore[arg-type]
+
+    def has_delete_permission(self, request: HttpRequest, obj: User | None = None) -> bool:  # type: ignore[override]
+        if obj is not None and obj.is_superuser and not request.user.is_superuser:
+            return False
+        return super().has_delete_permission(request, obj)  # type: ignore[arg-type]
 
     def user_change_password(self, request: HttpRequest, id: str, form_url: str = "") -> HttpResponse:
         response = super().user_change_password(request, id, form_url)
@@ -497,9 +538,7 @@ class UserAdmin(BaseUserAdmin):
         extra_context = dict(extra_context or {})
         obj = cast("User | None", self.get_object(request, unquote(object_id)))
         extra_context["show_verify_b2b_button"] = (
-            obj is not None
-            and self.has_change_permission(request, obj)  # type: ignore[arg-type]
-            and self._verification_mode(obj) is not None
+            obj is not None and self.has_change_permission(request, obj) and self._verification_mode(obj) is not None
         )
         return super().change_view(request, object_id, form_url, extra_context)
 
@@ -529,8 +568,8 @@ class UserAdmin(BaseUserAdmin):
             return self._get_obj_does_not_exist_redirect(  # type: ignore[attr-defined,no-any-return]
                 request, self.opts, object_id
             )
-        # admin_view проверяет только is_staff — право на изменение явно.
-        if not self.has_change_permission(request, obj):  # type: ignore[arg-type]
+        # admin_view проверяет только доступ к сайту — право на изменение явно.
+        if not self.has_change_permission(request, obj):
             raise PermissionDenied
 
         change_url = reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk])

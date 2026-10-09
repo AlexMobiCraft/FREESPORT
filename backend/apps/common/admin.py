@@ -253,6 +253,8 @@ def monitoring_dashboard_view(request: HttpRequest) -> HttpResponse:
 
     # Собираем все метрики
     context = {
+        # Контекст сайта админки: шапка, user-tools и выход, как на остальных страницах /admin/.
+        **admin.site.each_context(request),
         "title": "Дашборд мониторинга синхронизации",
         "health": monitor.get_system_health(),
         "realtime": monitor.get_real_time_metrics(),

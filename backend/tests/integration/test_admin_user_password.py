@@ -229,6 +229,9 @@ class TestChangePasswordFromCard:
             {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
         )
 
-        assert response.status_code == 403
+        # Эпик 42: `/admin/` только суперпользователю — сотрудника сайт отсекает
+        # редиректом на вход раньше, чем дойдёт до проверки права change_user.
+        assert response.status_code == 302
+        assert "/admin/login/" in response.url
         user.refresh_from_db()
         assert user.check_password("OldStrongPass-2025")

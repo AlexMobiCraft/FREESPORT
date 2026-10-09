@@ -19,13 +19,14 @@ from rest_framework.decorators import (
 )
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.parsers import FormParser, JSONParser
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.common.api_schema import consent_text_outdated_example, consent_validation_error_response
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import BlogPost, News, UserConsent
+from apps.common.permissions import IsSuperUser
 from apps.common.serializers import (
     BlogPostDetailSerializer,
     BlogPostListSerializer,
@@ -143,7 +144,7 @@ def health_check(_request):
     tags=["Monitoring"],
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAuthenticated, IsSuperUser])
 def operation_metrics(request: Request) -> Response:
     """Получить метрики операций синхронизации."""
     start_date_str = request.query_params.get("start_date")
@@ -215,7 +216,7 @@ def operation_metrics(request: Request) -> Response:
     tags=["Monitoring"],
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAuthenticated, IsSuperUser])
 def business_metrics(request: Request) -> Response:
     """Получить бизнес-метрики синхронизации."""
     start_date_str = request.query_params.get("start_date")
@@ -274,7 +275,7 @@ def business_metrics(request: Request) -> Response:
     tags=["Monitoring"],
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAuthenticated, IsSuperUser])
 def system_health(_request: Request) -> Response:
     """Получить статус здоровья системы интеграции."""
     monitor = CustomerSyncMonitor()
@@ -307,7 +308,7 @@ def system_health(_request: Request) -> Response:
     tags=["Monitoring"],
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAuthenticated, IsSuperUser])
 def realtime_metrics(_request: Request) -> Response:
     """Получить метрики в реальном времени (последние 5 минут)."""
     monitor = CustomerSyncMonitor()

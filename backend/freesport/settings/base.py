@@ -39,7 +39,8 @@ SECRET_KEY = config("SECRET_KEY", default="django-insecure-development-key-chang
 
 # Основные Django приложения
 DJANGO_APPS = [
-    "django.contrib.admin",
+    # django.contrib.admin с сайтом SuperuserAdminSite: /admin/ только суперпользователю (эпик 42)
+    "freesport.apps.FreesportAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

@@ -1629,8 +1629,8 @@ paths:
         name: include_inactive
         schema:
           type: boolean
-        description: Включить неактивные атрибуты (только для staff users). Для обычных
-          пользователей параметр игнорируется.
+        description: Включить неактивные атрибуты (только для суперпользователя). Для
+          остальных пользователей параметр игнорируется.
       - name: ordering
         required: false
         in: query
@@ -1674,7 +1674,7 @@ paths:
         - GET /api/v1/catalog/filters/{id}/ - детали атрибута
 
         Query Parameters:
-        - include_inactive: true/false - включить неактивные атрибуты (только для staff)
+        - include_inactive: true/false - включить неактивные атрибуты (только для суперпользователя)
       parameters:
       - in: path
         name: id

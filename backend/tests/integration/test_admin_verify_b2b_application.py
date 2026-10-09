@@ -435,24 +435,32 @@ class TestAccess:
         assert response.redirect_chain == [(change_url(target), 302)]
         assert any("не ждёт подтверждения" in text for text in message_texts(response))
 
-    def test_staff_without_change_permission_gets_403(self, client, django_user_model):
+    def test_staff_is_redirected_to_login(self, client, django_user_model):
+        # Эпик 42: `/admin/` только суперпользователю — сотрудник отсекается
+        # сайтом (302 на вход) при любых правах. Проверка «страница подтверждения
+        # требует change_user» вернётся тестами раздела менеджера (стори 42.4).
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id)
         target = make_applicant(tax_id)
         viewer = make_staff(django_user_model, "view_user")
         client.force_login(viewer)
 
-        assert client.get(verify_url(target)).status_code == 403
+        response = client.get(verify_url(target))
+        assert response.status_code == 302
+        assert "/admin/login/" in response.url
         response = client.post(verify_url(target), {"confirm": "on", "candidate": f"{source.pk}:{source.onec_id}"})
-        assert response.status_code == 403
+        assert response.status_code == 302
+        assert "/admin/login/" in response.url
         target.refresh_from_db()
         assert target.verification_status == "pending"
         assert not target.onec_id
 
-        # Позитивный контроль: с правом change_user страница открывается.
+        # Право change_user сотруднику `/admin/` тоже не открывает.
         editor = make_staff(django_user_model, "view_user", "change_user")
         client.force_login(editor)
-        assert client.get(verify_url(target)).status_code == 200
+        response = client.get(verify_url(target))
+        assert response.status_code == 302
+        assert "/admin/login/" in response.url
 
     def test_missing_user_redirects(self, manager_client):
         response = manager_client.get(reverse("admin:users_user_verify", args=[987654321]))
@@ -474,15 +482,18 @@ class TestEntryPoints:
 
         assert verify_url(link_only) in manager_client.get(change_url(link_only)).content.decode()
 
-    def test_change_form_button_hidden_without_change_permission(self, client, django_user_model):
+    def test_change_form_closed_for_staff(self, client, django_user_model):
+        # Эпик 42: сотрудник с view_user карточку в `/admin/` не открывает вовсе —
+        # 302 на вход. Скрытие кнопки без change_user вернётся тестами раздела
+        # менеджера (стори 42.4).
         pending = make_applicant()
         viewer = make_staff(django_user_model, "view_user")
         client.force_login(viewer)
 
         response = client.get(change_url(pending))
 
-        assert response.status_code == 200
-        assert verify_url(pending) not in response.content.decode()
+        assert response.status_code == 302
+        assert "/admin/login/" in response.url
 
     def test_changelist_column_links_only_eligible_rows(self, manager_client):
         tax_id = unique_tax_id()

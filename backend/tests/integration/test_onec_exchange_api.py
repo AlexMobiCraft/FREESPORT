@@ -19,6 +19,18 @@ from rest_framework.test import APIClient
 User = get_user_model()
 
 
+def _create_exchange_user(**kwargs):
+    """
+    Технический пользователь обмена 1С — как робот на проде: право
+    `integrations.can_exchange_1c` без `is_staff` (эпик 42).
+    """
+    user = User.objects.create_user(**kwargs)
+    user.user_permissions.add(
+        Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
+    )
+    return user
+
+
 @pytest.mark.django_db
 @pytest.mark.integration
 class Test1CCheckAuth:
@@ -30,12 +42,11 @@ class Test1CCheckAuth:
     def setup_method(self):
         self.client = APIClient()
         self.url = "/api/integration/1c/exchange/"
-        self.test_user = User.objects.create_user(
+        self.test_user = _create_exchange_user(
             email="1c@example.com",
             password="pass123",
             first_name="1C",
             last_name="Technical",
-            is_staff=True,
         )
 
     def test_checkauth_success(self):
@@ -89,6 +100,21 @@ class Test1CCheckAuth:
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
+    def test_checkauth_staff_without_permission_forbidden(self):
+        """
+        Эпик 42: `is_staff` без права `can_exchange_1c` обмена не открывает — 403.
+        """
+        User.objects.create_user(
+            email="staff_no_perm@example.com",
+            password="pass123",
+            is_staff=True,
+        )
+        auth_header = "Basic " + base64.b64encode(b"staff_no_perm@example.com:pass123").decode("ascii")
+
+        response = self.client.get(self.url, data={"mode": "checkauth"}, HTTP_AUTHORIZATION=auth_header)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
     def test_checkauth_with_permission_only(self):
         """
         Verify that a non-staff user with 'can_exchange_1c' permission can access the endpoint.
@@ -124,12 +150,11 @@ class Test1CInitMode:
     def setup_method(self):
         self.client = APIClient()
         self.url = "/api/integration/1c/exchange/"
-        self.test_user = User.objects.create_user(
+        self.test_user = _create_exchange_user(
             email="1c_init@example.com",
             password="pass123",
             first_name="1C",
             last_name="Technical",
-            is_staff=True,
         )
 
     def _get_auth_header(self, email="1c_init@example.com", password="pass123"):
@@ -292,12 +317,11 @@ class TestImportConcurrency:
     def setup_method(self):
         self.client = APIClient()
         self.url = "/api/integration/1c/exchange/"
-        self.user = User.objects.create_user(
+        self.user = _create_exchange_user(
             email="1c_import@example.com",
             password="pass123",
             first_name="1C",
             last_name="Robot",
-            is_staff=True,
         )
         self.auth_header = "Basic " + base64.b64encode(b"1c_import@example.com:pass123").decode("ascii")
 

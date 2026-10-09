@@ -8,7 +8,9 @@ from importlib import import_module
 import pytest
 from django.conf import settings
 from django.contrib.admin.sites import AdminSite
+from django.contrib.admin.utils import flatten_fieldsets
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
 from django.test import RequestFactory, TestCase
 from django.utils.html import strip_tags
 
@@ -784,3 +786,123 @@ class TestUserAdminPriceType(TestCase):
         self.assertFalse(PriceType.objects.filter(onec_id__iexact=self.RRP_PRICE_TYPE_GUID).exists())
 
         self.assertEqual(self.admin.onec_price_type_name(user), "—")
+
+
+@pytest.mark.django_db
+class TestUserAdminPrivilegeEscalation(TestCase):
+    """
+    Стори 42.1, AC4: пользователь с `users.change_user`, не суперпользователь,
+    не может выдать себе или другому `is_staff`, `is_superuser`, группу или право
+    и не может изменить, удалить или сменить пароль суперпользователю.
+    """
+
+    def setUp(self):
+        self.admin = UserAdmin(User, AdminSite())
+        self.factory = RequestFactory()
+        self.editor = self._make_staff("view_user", "change_user")
+        self.superuser = User.objects.create_superuser(email="escalation-su@test.com", password="testpass123")
+        self.target = User.objects.create_user(
+            email="escalation-target@test.com",
+            password="testpass123",
+            first_name="Цель",
+            last_name="Клиент",
+            role="retail",
+        )
+
+    def _make_staff(self, *codenames: str) -> User:
+        staff = User.objects.create_user(
+            email=f"escalation-staff-{'-'.join(codenames)}@test.com",
+            password="testpass123",
+            is_staff=True,
+        )
+        for codename in codenames:
+            staff.user_permissions.add(Permission.objects.get(content_type__app_label="users", codename=codename))
+        # Свежий объект: кэш прав не должен помнить состояние до выдачи.
+        return User.objects.get(pk=staff.pk)
+
+    def _request(self, user: User):
+        request = self.factory.get("/admin/users/user/")
+        request.user = user
+        return request
+
+    def _fields(self, user: User, obj: User | None) -> set[str]:
+        return set(flatten_fieldsets(self.admin.get_fieldsets(self._request(user), obj)))
+
+    def test_privilege_fields_hidden_from_non_superuser(self):
+        fields = self._fields(self.editor, self.target)
+
+        assert fields.isdisjoint(UserAdmin.PRIVILEGE_FIELDS)
+        # Остальное в «Роль и статус» осталось, блок «Права доступа» исчез целиком.
+        assert {"role", "is_active", "email"} <= fields
+        names = [name for name, _ in self.admin.get_fieldsets(self._request(self.editor), self.target)]
+        assert "Права доступа" not in names
+        assert "Роль и статус" in names
+
+    def test_privilege_fields_visible_to_superuser(self):
+        fields = self._fields(self.superuser, self.target)
+
+        assert set(UserAdmin.PRIVILEGE_FIELDS) <= fields
+
+    def test_add_form_has_no_privilege_fields_for_non_superuser(self):
+        assert self._fields(self.editor, None).isdisjoint(UserAdmin.PRIVILEGE_FIELDS)
+
+    def test_onec_link_candidates_still_hidden_without_candidates(self):
+        assert "onec_link_candidates" not in self._fields(self.editor, self.target)
+        assert "onec_link_candidates" not in self._fields(self.superuser, self.target)
+
+    def test_forged_post_does_not_change_privileges(self):
+        group = Group.objects.create(name="Чужая группа эскалации")
+        permission = Permission.objects.get(content_type__app_label="users", codename="delete_user")
+        request = self._request(self.editor)
+        form_class = self.admin.get_form(request, self.target, change=True)
+
+        assert set(form_class.base_fields).isdisjoint(UserAdmin.PRIVILEGE_FIELDS)
+
+        initial_form = form_class(instance=self.target)
+        data = {}
+        for name in initial_form.fields:
+            value = initial_form[name].value()
+            if value is not None:
+                data[name] = value
+        data.update(
+            {
+                "is_superuser": "on",
+                "is_staff": "on",
+                "groups": [str(group.pk)],
+                "user_permissions": [str(permission.pk)],
+            }
+        )
+        form = form_class(data=data, instance=self.target)
+        assert form.is_valid(), form.errors
+        saved = form.save(commit=False)
+        saved.save()
+        form.save_m2m()
+
+        self.target.refresh_from_db()
+        assert self.target.is_superuser is False
+        assert self.target.is_staff is False
+        assert not self.target.groups.exists()
+        assert not self.target.user_permissions.exists()
+
+    def test_superuser_form_keeps_privilege_fields(self):
+        form_class = self.admin.get_form(self._request(self.superuser), self.target, change=True)
+
+        assert set(UserAdmin.PRIVILEGE_FIELDS) <= set(form_class.base_fields)
+
+    def test_non_superuser_cannot_change_or_delete_superuser(self):
+        editor = self._make_staff("view_user", "change_user", "delete_user")
+        request = self._request(editor)
+
+        assert self.admin.has_change_permission(request, self.superuser) is False
+        assert self.admin.has_delete_permission(request, self.superuser) is False
+        assert self.admin.has_change_permission(request, self.target) is True
+        assert self.admin.has_delete_permission(request, self.target) is True
+        # Без объекта (список, массовые действия) — обычная проверка права.
+        assert self.admin.has_change_permission(request) is True
+
+    def test_superuser_can_change_and_delete_superuser(self):
+        other_superuser = User.objects.create_superuser(email="escalation-su2@test.com", password="testpass123")
+        request = self._request(self.superuser)
+
+        assert self.admin.has_change_permission(request, other_superuser) is True
+        assert self.admin.has_delete_permission(request, other_superuser) is True

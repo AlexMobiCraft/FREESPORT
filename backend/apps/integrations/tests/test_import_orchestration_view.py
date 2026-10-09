@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.conf import settings
+from django.contrib.auth.models import Permission
 from django.contrib.sessions.backends.db import SessionStore
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -17,8 +18,11 @@ class TestICExchangeViewImport:
         self.client = APIClient()
         self.user = User.objects.create_user(email="1c_user@example.com", password="password")
         self.user.role = "admin"  # Or specific role if needed
-        self.user.is_staff = True  # Required for Is1CExchangeUser permission
         self.user.save()
+        # Is1CExchangeUser пускает только по праву can_exchange_1c (is_staff доступа не даёт)
+        self.user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
+        )
 
         # Setup session
         session = SessionStore()

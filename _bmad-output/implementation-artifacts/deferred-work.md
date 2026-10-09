@@ -898,3 +898,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-admin-b2b-verification-card.md`
   summary: Аннотация `has_1c_candidate_expression` для заявки с ИНН из одних пробелов сравнивает `Trim(tax_id)=''` с записями 1С без ИНН — в списке появляются индикатор кандидата и ссылка «Подтвердить», а страница редиректит «не ждёт подтверждения».
   evidence: `~Q(tax_id="")` не отсекает пробельный ИНН, тогда как `find_link_candidates` через `normalize_tax_id` возвращает []. Дефект аннотации существовал до этой задачи (колонка «Кандидат 1С»).
+- source_spec: `_bmad-output/implementation-artifacts/spec-42-1-staff-roles-and-service-access-lockdown.md`
+  summary: Проверки `change_user` в `UserAdmin` (отказ `PermissionDenied` на странице подтверждения B2B, `permissions=["change"]` у действия `link_1c_customer`, скрытие кнопки подтверждения, отказ смены пароля без права) после 42.1 не закреплены ни одним тестом — вернуть их тестами раздела менеджера в 42.4.
+  evidence: С 42.1 в `/admin/` пускает только суперпользователь, тесты Task 7 переписаны на «302 на вход»; удаление `raise PermissionDenied` (`users/admin.py` в `verify_b2b_view`) или `permissions=["change"]` не роняет ни один тест. При переиспользовании `UserAdmin` в 42.4 эти проверки снова станут единственной защитой.
+- source_spec: `_bmad-output/implementation-artifacts/spec-42-1-staff-roles-and-service-access-lockdown.md`
+  summary: Записать в `AGENTS.md` («Неочевидное в коде») или страховочным тестом, что с эпика 42 `is_staff` значит «сотрудник»: `IsAdminUser`, `staff_member_required` и проверки `user.is_staff` в служебных местах запрещены — только `is_superuser` или конкретное право.
+  evidence: После 42.1 таких мест в `backend/apps` и `backend/freesport` нет, но ничто не мешает следующему эндпоинту с `IsAdminUser` снова открыть служебный доступ всем трём ролям.

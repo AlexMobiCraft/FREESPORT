@@ -490,7 +490,7 @@ class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):
     - GET /api/v1/catalog/filters/{id}/ - детали атрибута
 
     Query Parameters:
-    - include_inactive: true/false - включить неактивные атрибуты (только для staff)
+    - include_inactive: true/false - включить неактивные атрибуты (только для суперпользователя)
     """
 
     serializer_class = AttributeFilterSerializer
@@ -501,8 +501,8 @@ class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):
         Получить queryset атрибутов для фильтрации.
 
         По умолчанию возвращает только активные атрибуты (is_active=True).
-        Staff users могут использовать параметр include_inactive=true
-        для получения всех атрибутов.
+        Суперпользователь может использовать параметр include_inactive=true
+        для получения всех атрибутов; `is_staff` этого не даёт (эпик 42).
 
         Returns:
             QuerySet[Attribute]: Отфильтрованный queryset атрибутов
@@ -512,8 +512,8 @@ class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):
         # Проверяем параметр include_inactive
         include_inactive = self.request.query_params.get("include_inactive", "false")
 
-        if include_inactive.lower() == "true" and self.request.user.is_staff:
-            # Staff users могут видеть все атрибуты
+        if include_inactive.lower() == "true" and self.request.user.is_superuser:
+            # Суперпользователь видит все атрибуты, включая неактивные
             return queryset.order_by("name")
 
         # По умолчанию только активные атрибуты
@@ -530,8 +530,8 @@ class AttributeFilterViewSet(viewsets.ReadOnlyModelViewSet):
                 "include_inactive",
                 OpenApiTypes.BOOL,
                 description=(
-                    "Включить неактивные атрибуты (только для staff users). "
-                    "Для обычных пользователей параметр игнорируется."
+                    "Включить неактивные атрибуты (только для суперпользователя). "
+                    "Для остальных пользователей параметр игнорируется."
                 ),
             ),
         ],

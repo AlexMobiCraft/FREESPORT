@@ -223,7 +223,7 @@ class TestLinkActionRefusals:
 
         assert any("не найдено" in text for text in message_texts(response))
 
-    def test_action_requires_change_user_permission(self, client, django_user_model):
+    def test_action_closed_for_staff(self, client, django_user_model, manager):
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id)
         target = make_applicant(tax_id=tax_id)
@@ -255,13 +255,16 @@ class TestLinkActionRefusals:
         assert source.onec_id is not None
         assert source.is_active is True
         assert not AuditLog.objects.filter(action="link_1c_customer").exists()
+        # Эпик 42: `/admin/` только суперпользователю — сотрудник попадает на вход.
         assert response.status_code == 200
+        assert "/admin/login/" in response.redirect_chain[-1][0]
 
-        # Позитивный контроль: тот же payload с правом change_user срабатывает.
+        # Позитивный контроль: тот же payload от суперпользователя срабатывает.
         # Без него тест был бы зелёным и при полностью нерабочем действии
-        # (например, при опечатке в имени в `actions`).
-        viewer.user_permissions.add(Permission.objects.get(codename="change_user"))
-        client.force_login(viewer)
+        # (например, при опечатке в имени в `actions`). Сотрудник с change_user
+        # в `/admin/` больше не попадает; его разрешающий случай вернётся
+        # тестами раздела менеджера (стори 42.4).
+        client.force_login(manager)
         client.post(
             CHANGELIST_URL,
             {

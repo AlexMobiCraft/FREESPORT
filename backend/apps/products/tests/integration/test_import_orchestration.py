@@ -54,10 +54,12 @@ class TestImportOrchestration:
             first_name="Exchange",
             last_name="User",
         )
-        # Assuming Is1CExchangeUser permission check allows this user
-        # Let's make him staff just in case
-        user.is_staff = True
-        user.save()
+        from django.contrib.auth.models import Permission
+
+        # Is1CExchangeUser пускает только по праву can_exchange_1c (is_staff доступа не даёт)
+        user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
+        )
         return user
 
     def test_mode_import_triggers_task(self, api_client, exchange_user, onec_private_dirs):

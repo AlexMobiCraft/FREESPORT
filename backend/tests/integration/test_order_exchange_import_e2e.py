@@ -15,6 +15,7 @@ from datetime import date
 from typing import cast
 
 import pytest
+from django.contrib.auth.models import Permission
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.test import APIClient
@@ -40,8 +41,12 @@ def log_dir(tmp_path, settings):
 
 @pytest.fixture
 def onec_user(db):
-    """Staff user for 1C exchange."""
-    return UserFactory.create(is_staff=True, password=ONEC_PASSWORD)
+    """Технический пользователь обмена 1С: право can_exchange_1c без is_staff, как робот на проде."""
+    user = UserFactory.create(password=ONEC_PASSWORD)
+    user.user_permissions.add(
+        Permission.objects.get(content_type__app_label="integrations", codename="can_exchange_1c")
+    )
+    return user
 
 
 @pytest.fixture

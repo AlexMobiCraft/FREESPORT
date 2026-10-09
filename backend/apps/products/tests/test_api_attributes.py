@@ -2,7 +2,8 @@
 API тесты для AttributeFilterViewSet (Story 14.3.6)
 
 Тестирует endpoint /api/v1/catalog/filters/ с фильтрацией
-активных атрибутов и параметром include_inactive для staff users.
+активных атрибутов и параметром include_inactive для суперпользователя
+(эпик 42: `is_staff` неактивных атрибутов не открывает).
 """
 
 from __future__ import annotations
@@ -29,8 +30,16 @@ class TestAttributeFilterViewSet:
         return APIClient()
 
     @pytest.fixture
+    def superuser(self, db: Any) -> User:
+        """Fixture для суперпользователя"""
+        return User.objects.create_superuser(
+            email="superuser@test.com",
+            password="testpass123",
+        )
+
+    @pytest.fixture
     def staff_user(self, db: Any) -> User:
-        """Fixture для staff пользователя"""
+        """Fixture для сотрудника (`is_staff` без `is_superuser`)"""
         return User.objects.create_user(
             email="staff@test.com",
             password="testpass123",
@@ -94,20 +103,20 @@ class TestAttributeFilterViewSet:
         assert "Цвет" in attribute_names
         assert "Материал" not in attribute_names
 
-    def test_catalog_filters_include_inactive_for_staff(
+    def test_catalog_filters_include_inactive_for_superuser(
         self,
         api_client: APIClient,
-        staff_user: User,
+        superuser: User,
         active_attribute: Attribute,
         inactive_attribute: Attribute,
     ) -> None:
         """
-        AC 14.3.6.3: include_inactive=true работает для staff users
+        AC 14.3.6.3: include_inactive=true работает для суперпользователя
 
-        Staff users с параметром include_inactive=true должны видеть
+        Суперпользователь с параметром include_inactive=true должен видеть
         все атрибуты, включая неактивные.
         """
-        api_client.force_authenticate(user=staff_user)
+        api_client.force_authenticate(user=superuser)
 
         url = reverse("products:catalog-filter-list")
         response = api_client.get(url, {"include_inactive": "true"})
@@ -123,6 +132,33 @@ class TestAttributeFilterViewSet:
         attribute_names = [attr["name"] for attr in results]
         assert "Цвет" in attribute_names
         assert "Материал" in attribute_names
+
+    def test_catalog_filters_include_inactive_ignored_for_staff(
+        self,
+        api_client: APIClient,
+        staff_user: User,
+        active_attribute: Attribute,
+        inactive_attribute: Attribute,
+    ) -> None:
+        """
+        Эпик 42 (AC3 стори 42.1): `is_staff` без `is_superuser` неактивных
+        атрибутов не видит — параметр include_inactive игнорируется.
+        """
+        api_client.force_authenticate(user=staff_user)
+
+        url = reverse("products:catalog-filter-list")
+        response = api_client.get(url, {"include_inactive": "true"})
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        results = data.get("results", data)
+        if isinstance(results, dict):
+            results = [results]
+
+        attribute_names = [attr["name"] for attr in results]
+        assert "Цвет" in attribute_names
+        assert "Материал" not in attribute_names
 
     def test_catalog_filters_include_inactive_ignored_for_regular_user(
         self,
