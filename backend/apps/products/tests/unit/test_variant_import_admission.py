@@ -27,7 +27,7 @@ from apps.products.services.onec_admission import (
     REASON_PRODUCT_MARKED,
     REASON_UNKNOWN_GROUP,
 )
-from apps.products.services.variant_import import VariantImportProcessor
+from apps.products.services.variant_import import CategoryData, VariantImportProcessor
 
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
 
@@ -89,9 +89,9 @@ def _offer(onec_id: str, **extra: Any) -> dict[str, Any]:
     return data
 
 
-def _xml_groups(**overrides: dict[str, Any]) -> list[dict[str, Any]]:
+def _xml_groups(**overrides: CategoryData) -> list[CategoryData]:
     """Дерево групп в том виде, в каком его отдаёт XMLDataParser.parse_groups_xml."""
-    groups: dict[str, dict[str, Any]] = {
+    groups: dict[str, CategoryData] = {
         "grp-sport": {"id": "grp-sport", "name": "СПОРТ", "is_deleted": False},
         "grp-combat": {"id": "grp-combat", "name": "Единоборства", "parent_id": "grp-sport", "is_deleted": False},
         "grp-gloves": {"id": "grp-gloves", "name": "Перчатки", "parent_id": "grp-combat", "is_deleted": False},
@@ -463,8 +463,9 @@ class TestMarkedOffer:
         product = _make_product(tree, "off-8")
         variant = _make_variant(product, "off-8#v1")
         _new_processor().process_variant_from_offer(_offer("off-8#v1", is_deleted=True), skip_images=True)
-        product.refresh_from_db()
-        assert product.is_active is False
+        # Свежая выборка, а не refresh_from_db(): иначе mypy сузит product.is_active до False
+        # и сочтёт недостижимым всё после `assert product.is_active is True` ниже.
+        assert Product.objects.get(pk=product.pk).is_active is False
 
         second = _new_processor()
         result = second.process_variant_from_offer(_offer("off-8#v1"), skip_images=True)
@@ -732,7 +733,7 @@ class TestRootFilterDisabled:
     """ROOT_CATEGORY_NAME пуст: условие «в поддереве якоря» выключено, пометки работают."""
 
     @pytest.fixture
-    def plain_category(self, settings) -> Category:
+    def plain_category(self, settings: Any) -> Category:
         settings.ROOT_CATEGORY_NAME = ""
         return Category.objects.create(name="Любая", slug="adm-any", onec_id="grp-any")
 
@@ -898,19 +899,19 @@ class TestSubtreeFromXmlAndRegistry:
 class TestSessionReport:
     def test_counters_in_report_details_and_summary_line_in_report(self, tree):
         processor = _new_processor()
-        hidden = _make_product(tree, "rep-hidden")
+        _make_product(tree, "rep-hidden")
         restored = _make_product(tree, "rep-restored", is_active=False, onec_deleted=True)
         _make_variant(restored, "rep-restored#v1")
-        moved = _make_product(tree, "rep-moved", category=tree.trash)
+        _make_product(tree, "rep-moved", category=tree.trash)
         with_variants = _make_product(tree, "rep-variants")
         _make_variant(with_variants, "rep-variants#v1")
         _make_variant(with_variants, "rep-variants#v2")
         back = _make_variant(with_variants, "rep-variants#v3", is_active=False, onec_deleted=True)
 
         processor.process_product_from_goods(_goods("rep-new", ["grp-trash"]), skip_images=True)
-        processor.process_product_from_goods(_goods(hidden.onec_id, ["grp-trash"]), skip_images=True)
-        processor.process_product_from_goods(_goods(restored.onec_id, ["grp-gloves"]), skip_images=True)
-        processor.process_product_from_goods(_goods(moved.onec_id, ["grp-football"]), skip_images=True)
+        processor.process_product_from_goods(_goods("rep-hidden", ["grp-trash"]), skip_images=True)
+        processor.process_product_from_goods(_goods("rep-restored", ["grp-gloves"]), skip_images=True)
+        processor.process_product_from_goods(_goods("rep-moved", ["grp-football"]), skip_images=True)
         processor.process_variant_from_offer(_offer("rep-new#v1"), skip_images=True)
         processor.process_variant_from_offer(_offer("rep-variants#v1", is_deleted=True), skip_images=True)
         processor.process_variant_from_offer(_offer(back.onec_id), skip_images=True)

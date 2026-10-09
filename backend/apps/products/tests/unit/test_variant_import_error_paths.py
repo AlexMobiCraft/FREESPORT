@@ -21,20 +21,20 @@ pytestmark = [pytest.mark.django_db, pytest.mark.unit]
 
 
 @pytest.fixture
-def processor(settings) -> VariantImportProcessor:
+def processor(settings: Any) -> VariantImportProcessor:
     settings.ROOT_CATEGORY_NAME = "СПОРТ"
     session = ImportSession.objects.create(import_type=ImportSession.ImportType.CATALOG, status="in_progress")
     return VariantImportProcessor(session_id=session.pk)
 
 
 @pytest.fixture
-def sport(db) -> Category:
+def sport(db: None) -> Category:
     anchor = Category.objects.create(name="СПОРТ", slug="ep-sport", onec_id="ep-sport")
     return Category.objects.create(name="Бокс", slug="ep-boxing", onec_id="ep-boxing", parent=anchor)
 
 
 @pytest.fixture
-def product(sport) -> Product:
+def product(sport: Category) -> Product:
     brand = Brand.objects.create(name="EP Brand", slug="ep-brand")
     return Product.objects.create(
         name="Товар",
@@ -206,7 +206,8 @@ class TestPricesAndStocksErrors:
         assert processor.update_variant_prices({"id": "ep-1#v2", "prices": [{"price_type_id": "unknown"}]}) is False
 
     def test_price_type_error_is_counted(self, processor):
-        assert processor.process_price_types([{"onec_name": "без Ид"}]) == 0  # type: ignore[list-item]
+        # Запись намеренно неполная (нет onec_id и product_field) — это и есть сбой.
+        assert processor.process_price_types([{"onec_name": "без Ид"}]) == 0
         assert processor.stats["errors"] == 1
 
 
