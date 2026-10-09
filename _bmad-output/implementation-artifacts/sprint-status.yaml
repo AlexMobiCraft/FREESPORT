@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-08 (стори 42.1 — review, реализация в feature/42-1-staff-roles-lockdown)
+# last_updated: 2026-10-09 (стори 42.2 — ready-for-dev; 42.1 — in-progress, исправление ревью оставлено задачей)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-10-08
+last_updated: 2026-10-09
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1446,8 +1446,8 @@ development_status:
   # Standalone: да, зависимостей от других эпиков нет.
   # ========================================
   epic-42: in-progress
-  42-1-staff-roles-and-service-access-lockdown: review
-  42-2-responsible-manager-by-region-rule: backlog
+  42-1-staff-roles-and-service-access-lockdown: in-progress
+  42-2-responsible-manager-by-region-rule: ready-for-dev
   42-3-region-directory-and-responsible-recalculation: backlog
   42-4-manager-section-own-clients: backlog
   42-5-manager-section-orders-and-home: backlog
