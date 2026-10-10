@@ -6,9 +6,13 @@ from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+from apps.users.staff_roles import RESPONSIBLE_MANAGER_CHOICES
 
 if TYPE_CHECKING:
     pass  # Используется для type hints
@@ -1039,12 +1043,16 @@ class NotificationRecipient(TimeStampedModel):
 
 class ManagerRoutingRule(TimeStampedModel):
     """
-    Правило маршрутизации email о регистрации B2B-клиента на менеджера.
+    Правило региона: получатель письма о регистрации B2B-клиента и
+    ответственный менеджер клиента (эпик 42).
 
-    Определяет получателя(ей) уведомления по стране регистрации или коду
-    субъекта РФ (первые 2 цифры ИНН). Несколько активных строк с одинаковыми
-    ``(match_type, match_value)`` дают несколько получателей — так реализуются
-    резервные адреса (``fallback``). Редактируется через Django Admin без деплоя.
+    Ключ правила — страна регистрации или код субъекта РФ (первые 2 цифры
+    ИНН). На код региона и на страну допускается одно активное правило.
+    Резервных (``fallback``) активных правил может быть несколько: каждое
+    добавляет получателя письма, а ответственного даёт только одно — то, у
+    которого задан ``manager``. Правило без ``manager`` работает только для
+    писем (на ``manager_email``), клиенты его региона уходят на резерв.
+    Редактируется через Django Admin без деплоя.
     """
 
     MATCH_INN_REGION = "inn_region"
@@ -1075,9 +1083,20 @@ class ManagerRoutingRule(TimeStampedModel):
         blank=True,
         help_text="Имя менеджера для персонализации письма",
     )
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="routing_rules",
+        limit_choices_to=RESPONSIBLE_MANAGER_CHOICES,
+        verbose_name="Менеджер",
+        help_text="Учётная запись ответственного менеджера; письма уходят на её email",
+    )
     manager_email = models.EmailField(
         _("Email менеджера"),
-        help_text="Адрес, на который уходит уведомление о регистрации",
+        blank=True,
+        help_text="Адрес, на который уходит уведомление о регистрации. Используется, пока менеджер не выбран",
     )
     federal_district = models.CharField(
         _("Федеральный округ"),
@@ -1102,14 +1121,42 @@ class ManagerRoutingRule(TimeStampedModel):
                 name="common_mrr_type_val_act_idx",
             ),
         ]
+        # Литералы вместо MATCH_*: атрибуты класса внутри Meta недоступны.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["match_type", "match_value"],
+                condition=Q(is_active=True, match_type__in=["inn_region", "country"]),
+                name="common_mrr_one_active_per_key",
+                violation_error_message=(
+                    "Для этого кода региона или страны уже есть активное правило. Выключите его или измените."
+                ),
+            ),
+            models.UniqueConstraint(
+                fields=["match_type"],
+                condition=Q(is_active=True, match_type="fallback", manager__isnull=False),
+                name="common_mrr_one_fallback_manager",
+                violation_error_message=(
+                    "Ответственного по резервному правилу может давать только одно активное правило с менеджером."
+                ),
+            ),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.get_match_type_display()}:{self.match_value or '—'} → {self.manager_email}"
+        recipient = self.manager.email if self.manager_id and self.manager else self.manager_email
+        return f"{self.get_match_type_display()}:{self.match_value or '—'} → {recipient}"
 
     def clean(self):
-        """Нормализация значений перед сохранением."""
+        """Нормализация значений и проверка ключа правила."""
         super().clean()
         if self.manager_email:
             self.manager_email = self.manager_email.lower().strip()
         if self.match_value:
             self.match_value = self.match_value.strip()
+        if not self.manager_id and not self.manager_email:
+            raise ValidationError("Укажите менеджера или email для писем")
+        if self.match_type == self.MATCH_INN_REGION and not (len(self.match_value) == 2 and self.match_value.isdigit()):
+            raise ValidationError({"match_value": "Код региона — две цифры, например 23"})
+        # "Россия" — значение User.COUNTRY_RUSSIA; модель User сюда не
+        # импортируется, чтобы common не зависел от users на уровне моделей.
+        if self.match_type == self.MATCH_COUNTRY and self.match_value == "Россия":
+            raise ValidationError({"match_value": "Для России правило задаётся кодом региона"})

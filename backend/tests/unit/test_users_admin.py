@@ -521,14 +521,15 @@ class TestUserAdmin(TestCase):
         """Тест структуры fieldsets"""
         fieldsets = self.admin.fieldsets
 
-        # Проверяем количество секций (Story 9.1: 6 секций)
-        self.assertEqual(len(fieldsets), 6)
+        # Проверяем количество секций (Story 9.1: 6 секций; стори 42.2: + «Ответственный менеджер»)
+        self.assertEqual(len(fieldsets), 7)
 
         # Проверяем названия секций
         section_names = [fs[0] for fs in fieldsets]
         self.assertIn("Основная информация", section_names)
         self.assertIn("B2B данные", section_names)
         self.assertIn("Роль и статус", section_names)
+        self.assertIn("Ответственный менеджер", section_names)
         self.assertIn("Интеграция с 1С", section_names)
         self.assertIn("Временные метки", section_names)
 

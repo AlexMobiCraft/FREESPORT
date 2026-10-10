@@ -21,6 +21,7 @@ from apps.common.models import AuditLog
 from apps.users.models import User, matches_q
 from apps.users.services.link_1c_customer import find_link_candidates, link_1c_customer, link_target_q
 from apps.users.services.price_type_role import load_price_type_role_map, resolve_role_from_price_types
+from apps.users.services.responsible_manager import assign_responsible_manager
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +249,12 @@ def verify_b2b_application(
             target.is_verified = True
             target.verification_status = "verified"
             target.is_active = True
-            target.save(update_fields=["is_verified", "verification_status", "is_active", "updated_at"])
+            update_fields = ["is_verified", "verification_status", "is_active", "updated_at"]
+            # ИНН при подтверждении обычно не меняется, и хук User.save() не
+            # сработает — назначаем ответственного явно (FR-42-08).
+            if assign_responsible_manager(target):
+                update_fields.append("responsible_manager")
+            target.save(update_fields=update_fields)
 
     logger.info(
         "B2B-заявка %s подтверждена (режим=%s, привязка=%s, роль %s → %s, источник роли=%s)",

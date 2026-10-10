@@ -4,12 +4,16 @@
 Ответственный менеджер определяется по стране регистрации (для зарубежных
 клиентов) либо по коду субъекта РФ — первым двум цифрам ИНН. Сопоставление
 хранится в редактируемой через Django Admin модели ``ManagerRoutingRule``.
+Та же таблица правил задаёт и ответственного менеджера клиента
+(``apps.users.services.responsible_manager``), ключ региона общий.
 """
 
 import logging
 
+from django.db.models import QuerySet
+
 from apps.common.models import ManagerRoutingRule
-from apps.users.models import User
+from apps.users.services.responsible_manager import region_key
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +36,12 @@ def resolve_manager_recipients(country: str | None, tax_id: str | None) -> list[
         Список уникальных email активных получателей (может быть пустым, если
         не настроено ни одного подходящего или резервного правила).
     """
-    rules = ManagerRoutingRule.objects.filter(is_active=True)
+    rules = ManagerRoutingRule.objects.filter(is_active=True).select_related("manager")
 
-    if country and country != User.COUNTRY_RUSSIA:
-        matched = rules.filter(match_type=ManagerRoutingRule.MATCH_COUNTRY, match_value=country)
-    else:
-        region_code = (tax_id or "")[:2]
-        if len(region_code) == 2 and region_code.isdigit():
-            matched = rules.filter(match_type=ManagerRoutingRule.MATCH_INN_REGION, match_value=region_code)
-        else:
-            matched = rules.none()
+    key = region_key(country, tax_id)
+    matched = rules.filter(match_type=key[0], match_value=key[1]) if key is not None else rules.none()
 
-    emails = list(matched.values_list("manager_email", flat=True))
+    emails = _rule_emails(matched)
 
     if not emails:
         logger.warning(
@@ -54,9 +52,18 @@ def resolve_manager_recipients(country: str | None, tax_id: str | None) -> list[
                 "action": "manager_region_routing_fallback",
             },
         )
-        emails = list(
-            rules.filter(match_type=ManagerRoutingRule.MATCH_FALLBACK).values_list("manager_email", flat=True)
-        )
+        emails = _rule_emails(rules.filter(match_type=ManagerRoutingRule.MATCH_FALLBACK))
 
     # Удаляем дубликаты, сохраняя порядок.
     return list(dict.fromkeys(emails))
+
+
+def _rule_emails(rules: QuerySet[ManagerRoutingRule]) -> list[str]:
+    """Адрес правила: email учётной записи менеджера, иначе ``manager_email``."""
+    emails: list[str] = []
+    for rule in rules:
+        manager = rule.manager
+        email = manager.email if manager is not None and manager.email else rule.manager_email
+        if email:
+            emails.append(str(email))
+    return emails

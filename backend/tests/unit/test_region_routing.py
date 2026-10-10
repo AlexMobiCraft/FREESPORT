@@ -9,9 +9,11 @@ Unit тесты маршрутизации заявок о регистраци�
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth.models import Group
 
 from apps.common.models import ManagerRoutingRule
 from apps.users.services.region_routing import resolve_manager_recipients
+from apps.users.staff_roles import MANAGERS_GROUP
 from apps.users.tasks import send_manager_region_email
 from tests.factories import UserFactory
 
@@ -29,6 +31,12 @@ def _rule(match_type, match_value, email, active=True):
         manager_email=email,
         is_active=active,
     )
+
+
+def _staff_manager(email):
+    manager = UserFactory(email=email, is_staff=True)
+    manager.groups.add(Group.objects.get_or_create(name=MANAGERS_GROUP)[0])
+    return manager
 
 
 @pytest.fixture(autouse=True)
@@ -100,6 +108,22 @@ class TestResolveManagerRecipients:
     def test_no_rules_returns_empty(self, db):
         """Ни одного правила (даже резерва) → пустой список."""
         assert resolve_manager_recipients("Россия", "7701234567") == []
+
+    def test_rule_with_manager_uses_account_email(self, fallback_rules):
+        """Правило с учётной записью → письмо на её email, даже если manager_email другой."""
+        manager = _staff_manager("gusev.account@freesportopt.ru")
+        ManagerRoutingRule.objects.create(
+            match_type=ManagerRoutingRule.MATCH_INN_REGION, match_value="77", manager=manager, manager_email=GUSEV
+        )
+        assert resolve_manager_recipients("Россия", "7701234567") == ["gusev.account@freesportopt.ru"]
+
+    def test_rule_with_manager_without_email_uses_manager_email(self, fallback_rules):
+        """У учётной записи менеджера пустой email → письмо на manager_email правила."""
+        manager = _staff_manager(None)
+        ManagerRoutingRule.objects.create(
+            match_type=ManagerRoutingRule.MATCH_INN_REGION, match_value="77", manager=manager, manager_email=GUSEV
+        )
+        assert resolve_manager_recipients("Россия", "7701234567") == [GUSEV]
 
 
 @pytest.mark.unit
