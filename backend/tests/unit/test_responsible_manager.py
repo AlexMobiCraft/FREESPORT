@@ -284,6 +284,32 @@ class TestReassignClientsForKey:
         assert self.responsible(scene["others"]) == [None] * 3
         assert self.responsible(scene["region_23"][2:]) == [scene["a"]] * 8
 
+    def test_change_country_rule_manager(self, scene):
+        # ИНН с кодом 23: страна важнее ИНН, правило региона 23 этих клиентов не касается.
+        belarus_rule = rule(COUNTRY, "Беларусь", scene["a"])
+        belarus = [make_client(f"239900000{i}", country="Беларусь") for i in range(2)]
+        kazakhstan = scene["others"][2]
+        assert self.responsible(belarus) == [scene["a"]] * 2
+        belarus_rule.manager = scene["b"]
+        belarus_rule.save()
+        assert self.responsible(belarus) == [scene["b"]] * 2
+        assert self.responsible([kazakhstan]) == [scene["chief"]]
+        assert self.responsible(scene["region_23"][2:]) == [scene["a"]] * 8
+        assert_mass_equals_single(belarus + scene["region_23"][2:] + scene["region_24"] + scene["others"])
+
+    @pytest.mark.parametrize("group", [MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP])
+    def test_role_group_member_untouched_by_mass_update(self, scene, group):
+        # Сотрудник только по группе: исключение держится на подзапросе groups__name__in.
+        member = make_client("2398765432")
+        member.groups.add(Group.objects.get_or_create(name=group)[0])
+        assert (member.is_staff, member.is_superuser, member.role) == (False, False, "wholesale_level1")
+        User.objects.filter(pk=member.pk).update(responsible_manager=scene["chief"])
+        rule_23 = scene["rule_23"]
+        rule_23.manager = scene["b"]
+        rule_23.save()
+        assert self.responsible([member]) == [scene["chief"]]
+        assert self.responsible(scene["region_23"][2:]) == [scene["b"]] * 8
+
     def test_staff_in_region_untouched_by_direct_call(self, scene):
         staff = scene["staff_23"]
         User.objects.filter(pk=staff.pk).update(responsible_manager=scene["b"])

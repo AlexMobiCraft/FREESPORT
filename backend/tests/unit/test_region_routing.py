@@ -125,6 +125,13 @@ class TestResolveManagerRecipients:
         )
         assert resolve_manager_recipients("Россия", "7701234567") == [GUSEV]
 
+    def test_rule_without_any_address_falls_back(self, fallback_rules):
+        """У менеджера правила нет email и manager_email пуст → резервные адреса, пустой строки нет."""
+        ManagerRoutingRule.objects.create(
+            match_type=ManagerRoutingRule.MATCH_INN_REGION, match_value="77", manager=_staff_manager(None)
+        )
+        assert sorted(resolve_manager_recipients("Россия", "7701234567")) == sorted([CHERNOV, ADMIN])
+
 
 @pytest.mark.unit
 @pytest.mark.django_db

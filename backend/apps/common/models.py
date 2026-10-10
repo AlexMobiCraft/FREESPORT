@@ -1083,9 +1083,11 @@ class ManagerRoutingRule(TimeStampedModel):
         blank=True,
         help_text="Имя менеджера для персонализации письма",
     )
+    # PROTECT: удаление учётной записи (SQL-обновление при SET_NULL) обошло
+    # бы post_save правила и пересчёт клиентов. Сначала менеджера заменяют.
     manager = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="routing_rules",
@@ -1158,5 +1160,9 @@ class ManagerRoutingRule(TimeStampedModel):
             raise ValidationError({"match_value": "Код региона — две цифры, например 23"})
         # "Россия" — значение User.COUNTRY_RUSSIA; модель User сюда не
         # импортируется, чтобы common не зависел от users на уровне моделей.
+        # Пустую страну массовый пересчёт сопоставил бы клиентам без страны,
+        # а поштучное разрешение считает их Россией и ищет правило по ИНН.
+        if self.match_type == self.MATCH_COUNTRY and not self.match_value:
+            raise ValidationError({"match_value": "Укажите страну"})
         if self.match_type == self.MATCH_COUNTRY and self.match_value == "Россия":
             raise ValidationError({"match_value": "Для России правило задаётся кодом региона"})

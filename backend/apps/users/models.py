@@ -338,9 +338,11 @@ class User(AbstractUser):
         default="unverified",
         help_text="Статус верификации клиента из 1С",
     )
+    # PROTECT: клиентов удаляемого менеджера сначала передают другому, иначе
+    # они остались бы без ответственного вместо менеджера резерва.
     responsible_manager = models.ForeignKey(
         "self",
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="managed_clients",

@@ -7,6 +7,8 @@ Integration-тесты событий автоназначения ответс�
   карточка админки, API профиля, save(update_fields=...); ручное назначение не меняется;
 - AC5 — верификация заявки без привязки к 1С;
 - AC6 — смена менеджера правила через форму ManagerRoutingRuleAdmin;
+- формы правила и карточки клиента отклоняют неподходящего менеджера;
+- учётную запись менеджера с клиентами или правилами удалить нельзя (PROTECT);
 - AC8 — сотрудник с ИНН региона не получает ответственного.
 """
 
@@ -17,6 +19,7 @@ from unittest.mock import patch
 import pytest
 from django import forms
 from django.contrib.auth.models import Group
+from django.db.models import ProtectedError
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -26,7 +29,7 @@ from apps.users.models import User
 from apps.users.services.link_1c_customer import link_1c_customer
 from apps.users.services.processor import CustomerDataProcessor
 from apps.users.services.verify_b2b_application import verify_b2b_application
-from apps.users.staff_roles import MANAGERS_GROUP, SUPERVISORS_GROUP
+from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
 from tests.conftest import get_unique_suffix
 from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
 
@@ -373,6 +376,122 @@ class TestRuleChangeFromAdmin:
             "Для этого кода региона или страны уже есть активное правило. Выключите его или измените."
             in response.context["adminform"].form.non_field_errors()
         )
+
+
+UNSUITABLE_MANAGERS = ["client", "superuser", "staff_without_group", "marketing_only"]
+
+
+def make_unsuitable_manager(kind: str) -> User:
+    """Учётная запись вне RESPONSIBLE_MANAGER_CHOICES."""
+    if kind == "client":
+        return make_client("5012345678")
+    if kind == "superuser":
+        # В группе «Руководители»: отсекает только is_superuser.
+        root = User.objects.create_superuser(
+            email=f"root_{get_unique_suffix()}@freesportopt.ru", password="StrongPassword123!"
+        )
+        root.groups.add(Group.objects.get_or_create(name=SUPERVISORS_GROUP)[0])
+        return root
+    if kind == "staff_without_group":
+        return User.objects.create_user(
+            email=f"staff_{get_unique_suffix()}@freesportopt.ru", password="StrongPassword123!", is_staff=True
+        )
+    return make_staff(MARKETING_GROUP)
+
+
+class TestUnsuitableManagerRejected:
+    """Формы правила и карточки клиента не принимают менеджера вне групп «Менеджеры»/«Руководители»."""
+
+    @pytest.mark.parametrize("kind", UNSUITABLE_MANAGERS)
+    def test_rule_form(self, team, superuser_client, kind):
+        candidate = make_unsuitable_manager(kind)
+        region_client = make_client("2301234567")
+        rule = ManagerRoutingRule.objects.get(match_type=INN_REGION, match_value="23")
+        response = superuser_client.post(
+            reverse("admin:common_managerroutingrule_change", args=[rule.pk]),
+            {
+                "match_type": INN_REGION,
+                "match_value": "23",
+                "is_active": "on",
+                "manager": str(candidate.pk),
+                "manager_name": "",
+                "manager_email": "",
+                "federal_district": "",
+            },
+        )
+        assert response.status_code == 200
+        assert "manager" in response.context["adminform"].form.errors
+        rule.refresh_from_db()
+        assert rule.manager == team["a"]
+        assert responsible_of(region_client) == team["a"]
+
+    @pytest.mark.parametrize("kind", UNSUITABLE_MANAGERS)
+    def test_client_card(self, team, superuser_client, kind):
+        candidate = make_unsuitable_manager(kind)
+        client = make_client("2301234567")
+        payload = change_form_payload(
+            superuser_client,
+            client,
+            responsible_manager=str(candidate.pk),
+            responsible_manager_manual=True,
+        )
+        response = superuser_client.post(reverse("admin:users_user_change", args=[client.pk]), payload)
+        assert response.status_code == 200
+        assert "responsible_manager" in response.context["adminform"].form.errors
+        client.refresh_from_db()
+        assert (client.responsible_manager, client.responsible_manager_manual) == (team["a"], False)
+
+
+DELETE_PROTECTED_MESSAGE = (
+    "Учётная запись — ответственный менеджер клиентов или менеджер правила региона. "
+    "Сначала назначьте клиентам нового менеджера и замените менеджера в правилах регионов."
+)
+
+
+class TestManagerDeletionProtected:
+    """Удаление менеджера не обходит пересчёт: PROTECT вместо SET_NULL."""
+
+    def test_model_delete_with_clients(self, team):
+        make_client("2301234567")
+        with pytest.raises(ProtectedError):
+            team["a"].delete()
+
+    def test_model_delete_with_rule_only(self, team):
+        # У C нет клиентов, но есть правило страны.
+        with pytest.raises(ProtectedError):
+            team["c"].delete()
+        assert ManagerRoutingRule.objects.get(match_type=COUNTRY, match_value="Беларусь").manager == team["c"]
+
+    @pytest.mark.parametrize("manager_key", ["a", "c"])
+    def test_admin_delete_view(self, team, superuser_client, manager_key):
+        client = make_client("2301234567")
+        manager = team[manager_key]
+        url = reverse("admin:users_user_delete", args=[manager.pk])
+        response = superuser_client.get(url)
+        assert response.status_code == 200
+        assert DELETE_PROTECTED_MESSAGE in response.content.decode()
+        response = superuser_client.post(url, {"post": "yes"})
+        assert response.status_code == 200
+        assert User.objects.filter(pk=manager.pk).exists()
+        assert responsible_of(client) == team["a"]
+
+    def test_admin_bulk_delete(self, team, superuser_client):
+        make_client("2301234567")
+        response = superuser_client.post(
+            reverse("admin:users_user_changelist"),
+            {"action": "delete_selected", "_selected_action": [str(team["a"].pk)], "post": "yes"},
+        )
+        assert response.status_code == 200
+        assert DELETE_PROTECTED_MESSAGE in response.content.decode()
+        assert User.objects.filter(pk=team["a"].pk).exists()
+
+    def test_admin_delete_unused_manager(self, superuser_client):
+        manager = make_staff()
+        url = reverse("admin:users_user_delete", args=[manager.pk])
+        assert DELETE_PROTECTED_MESSAGE not in superuser_client.get(url).content.decode()
+        response = superuser_client.post(url, {"post": "yes"})
+        assert response.status_code == 302
+        assert not User.objects.filter(pk=manager.pk).exists()
 
 
 class TestStaffNeverAssigned:

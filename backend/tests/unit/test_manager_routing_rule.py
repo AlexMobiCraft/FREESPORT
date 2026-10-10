@@ -121,6 +121,13 @@ class TestClean:
             build(COUNTRY, "Россия").full_clean()
         assert exc.value.message_dict["match_value"] == ["Для России правило задаётся кодом региона"]
 
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_country_requires_value(self, value):
+        """Пустая страна: пересчёт отдал бы правило клиентам без страны, а разрешение считает их Россией."""
+        with pytest.raises(ValidationError) as exc:
+            build(COUNTRY, value).full_clean()
+        assert exc.value.message_dict["match_value"] == ["Укажите страну"]
+
     def test_normalizes_email_and_value(self):
         rule = build(match_value=" 23 ", email="Manager@FreeSportOpt.RU")
         rule.full_clean()
