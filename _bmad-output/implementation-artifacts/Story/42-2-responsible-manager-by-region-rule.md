@@ -459,6 +459,30 @@ so that заявка нового клиента сразу попадала к 
 - `low` — сигналы правил не пропускают `raw=True`: повтор.
 - `false` — `TypeError` в `clean()` при `match_value=None`: поле не `null`, по умолчанию `""`, форма админки передаёт строку. До `None` дойти нельзя.
 
+#### Четвёртое ревью 10.10.2026
+
+Диапазон `626f7d79^..b045f50e` без `_bmad-output/`: реализация и три коммита правок (`e903851e`, `0c1fbfe1`, `b045f50e`). Слои те же — Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor (Codex). Все отработали.
+
+- [x] [Review][Patch] Нет теста: массовый пересчёт не трогает учётную запись с `role="admin"` — условие `Q(role="admin")` в `staff_accounts_q()` добавлено ради робота обмена 1С (решение 7). Проверено только поштучное назначение: `TestIsStaffAccount.test_flags` и тест создания/смены ИНН в `test_responsible_manager_events.py`. Массовые тесты используют группы (`test_role_group_member_untouched_by_mass_update`) и `is_staff` (`test_staff_in_region_untouched_by_direct_call`). Если убрать `Q(role="admin")`, тесты останутся зелёными, а робот без ИНН получит менеджера при первой смене резервного правила. Нужен тест в `TestReassignClientsForKey`: аккаунт с `role="admin"`, `is_staff=False`, без групп; после смены менеджера правила его ответственный в БД не меняется. [backend/apps/users/staff_roles.py:25]
+
+**Rejected (33):**
+
+- `false` (Blind Hunter, Edge Case Hunter, Verification Gap) — дубли активных правил уронят `AddConstraint` в `common/0022`: повтор, прод-SELECT 09.10.2026 дублей не нашёл.
+- `false` (Blind Hunter) — миграции не назначают ответственного существующим клиентам: так задумано, это команда 42.3 («Чего в этой стори нет»).
+- `false` (Blind Hunter, Edge Case Hunter) — `common/0023` связывает любого `is_staff`, а не только членов групп «Менеджеры»/«Руководители»: этого критерия прямо требует AC1. Расхождение с формами разобрано в первом ревью и закрыто шагом 4 выката 42.1.
+- `false` (Blind Hunter) — менеджер, потерявший роль, продолжает получать клиентов: повтор, так задумано решением 9, передача клиентов — 42.7.
+- `false` (Edge Case Hunter) — `TypeError` в `clean()` при `match_value=None`: повтор.
+- `low` (все четыре слоя, 8 замечаний) — `save(update_fields=["tax_id"])` при несохраняемой смене `country` или снятии флага «вручную» в памяти: повтор.
+- `low` (Edge Case Hunter, Verification Gap, Acceptance Auditor, 3 замечания) — менеджер присвоен или изменён в памяти, но не попадает в `update_fields`: повтор.
+- `low` (все четыре слоя, 4 замечания) — частичное `rule.save(update_fields=…)` с несохраняемым ключом, менеджером или активностью в памяти: повтор.
+- `low` (Blind Hunter, Edge Case Hunter) — `rule.save()` и пересчёт не в одной транзакции: повтор, changeform админки работает в `transaction.atomic`.
+- `low` (Blind Hunter, Edge Case Hunter) — гонка между разрешением менеджера и INSERT клиента: повтор.
+- `low` (Blind Hunter) — клиент, ставший сотрудником, сохраняет ответственного: повтор отклонённого во втором ревью, для исправления нужен `m2m_changed`.
+- `low` (Blind Hunter) — тест `common/0023` через текущий реестр, а не `MigrationExecutor`: повтор.
+- `low` (Edge Case Hunter) — `update_fields` итератором или четвёртым позиционным аргументом: повтор.
+- `low` (Edge Case Hunter) — сигналы правил не пропускают `raw=True`: повтор.
+- отклонено (правка спеки, Acceptance Auditor) — ожидание `test_fieldsets_structure` 6 → 7 противоречит AC9: повтор.
+
 ## Dev Notes
 
 ### Текущее состояние кода (сверено на `26207161`)
@@ -612,6 +636,7 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code, 10.10.2026.
 - mypy нашёл 2 новые ошибки в `responsible_manager.py` (`pk is None` — unreachable) и `region_routing.py` (типизация `_rule_emails`) — исправлены, итог `Success: no issues found in 608 source files`.
 - Повторное ревью (10.10.2026): RED — 3 ожидаемых падения (снятие флага: форма и `update_fields`; привязка с тем же ИНН), тесты патчей 3 и 4 зелёные на верном коде; мутационная проверка (убрать `""` из `RUSSIA_COUNTRY_VALUES`, убрать `~Q(country__in=covered_countries)`) роняет оба. GREEN — 156/156 в наборах стори, привязки и верификации. GitNexus: `link_1c_customer` — LOW (2 прямых, 2 процесса); `User.save()` — HIGH по природе; `detect-changes`: 7 файлов, изменены `User.save` и `link_1c_customer` (`full_name`, `is_b2b_user`, `logger` — сдвиг строк), риск high из-за `save()`, затронутые потоки — только ветки назначения ответственного.
 - Третье ревью (10.10.2026): GitNexus на `0c1fbfe` (индекс свежий): `ManagerRoutingRule.__str__` — вызывающих в графе нет, LOW; `User.save()` — HIGH по природе. RED — 3 ожидаемых падения: `__str__` с пустым email учётной записи, снятие флага с выбором другого менеджера и сменой ИНН (форма и `save()`). Тесты патчей 2 и 4 зелёные на верном коде, они сторожат регрессию: при чтении `manager_email` в резервной ветке или возврате `SET_NULL` у клиентского FK они падают по построению. Первая версия теста формы параметризовала и смену страны, но `country` в карточке админки нет, параметр игнорировался. Страна перенесена в тест `save()`. GREEN — 178/178 в наборах стори, привязки и верификации. После прогона black переформатировал `User.save()`, а `__str__` переписан короче под лимит flake8 (120). Повторно прогнаны тесты правила и `TestManualFlagReleased` — 27/27. `detect-changes`: 6 файлов. `clean` попал в список из-за сдвига строк. Риск high из-за `save()`, затронутые потоки — только ветки назначения ответственного.
+- Четвёртое ревью (10.10.2026): изменён только тест. Мутация «убрать `Q(role="admin")` из `staff_accounts_q()`» роняет оба случая нового теста (резерв и регион 23), на верном коде — 50/50 в `test_responsible_manager.py`. black и flake8 по файлу — чисто. GitNexus не нужен: символы приложения не менялись.
 
 ### Completion Notes List
 
@@ -642,6 +667,8 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code, 10.10.2026.
   - ✅ Resolved review finding [Patch]: тест приоритета email учётной записи для резервного правила — `test_fallback_rule_with_manager_uses_account_email`: резерв с учётной записью и другим `manager_email` плюс резерв без учётной записи → адрес учётной записи и `admin@`.
   - ✅ Resolved review finding [Patch]: `__str__` правила с пустым email учётной записи показывает `manager_email` — тот же выбор адреса, что в `_rule_emails`. Тест `test_manager_without_email_shows_manager_email`.
   - ✅ Resolved review finding [Patch]: `test_model_delete_with_clients` изолирует `PROTECT` у `User.responsible_manager`: у удаляемого менеджера нет правил, клиент назначен ему вручную; проверяются `protected_objects` и что ответственный не изменился.
+- **Четвёртое ревью 10.10.2026 (1 патч), ветка `fix/42-2-review-findings`:**
+  - ✅ Resolved review finding [Patch]: тест массового пересчёта для `role="admin"` — `TestReassignClientsForKey.test_admin_role_untouched_by_mass_update`: учётная запись с `role="admin"`, `is_staff=False`, без групп. Два случая: без ИНН при смене менеджера резерва (как робот обмена 1С) и с ИНН `23…` при смене менеджера правила 23. Ответственный остаётся пустым, а клиенты того же ключа переходят к новому менеджеру, то есть `UPDATE` выполнился.
 - **Выкат (Dev Notes, «Прод»):**
   1. **Обязательное условие:** шаг 4 выката 42.1 выполнен — id 15 (`managermsk3@`) в группе «Руководители» (по sprint-status — 09.10.2026). Перепроверить SELECT из Dev Notes «Прод». Без этого сохранение формы правила 91 или карточки клиента молча обнулит менеджера.
   2. Выкат применяет `common/0022`, `common/0023`, `common/0024`, `users/0024`, `users/0025`. Миграции ревью `common/0024` и `users/0025` (`on_delete=PROTECT`) схему БД не меняют: `on_delete` Django исполняет в Python. Ожидается: правило 91 (резерв) связывается с id 15, остальные 91 правило остаются без `manager`, письма идут как раньше.
@@ -684,3 +711,4 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code, 10.10.2026.
 - 10.10.2026 — закрыты 7 пунктов код-ревью (ветка `fix/42-2-review-findings`): `on_delete=PROTECT` у менеджера правила и ответственного клиента с пояснением в админке, правило страны без значения отклоняется, 21 новый тест, Dev Notes «Прод» — шаг 4 выката 42.1 обязателен. Полный прогон: 3959 passed, 76 skipped, 0 failed; black, flake8, mypy, `makemigrations --check`, `check_openapi_sync` — чисто.
 - 10.10.2026 — повторное ревью: 4 патча закрыты, 1 пункт отложен до 42.7. Снятие «Назначен вручную» возвращает назначение по правилу; `link_1c_customer` назначает ответственного при любой привязке; 2 теста-сторожа массового пересчёта; 9 новых тестов. Полный прогон: 3967 passed, 76 skipped, 0 failed; black, flake8, mypy, `makemigrations --check`, `check_openapi_sync` — чисто.
 - 10.10.2026 — Addressed code review findings - 4 items resolved (третье ревью). Выбор другого менеджера при снятии флага сохраняется и при смене ИНН или страны. `__str__` правила выбирает адрес так же, как письмо. Добавлен тест-сторож email учётной записи у резерва, тест `PROTECT` клиентского FK изолирован. 5 новых тестов. Полный прогон: 3972 passed, 76 skipped, 0 failed; black, flake8, mypy, `makemigrations --check`, `check_openapi_sync` — чисто.
+- 10.10.2026 — Addressed code review findings - 1 item resolved (четвёртое ревью). Тест-сторож: массовый пересчёт не трогает учётную запись с `role="admin"` (резерв и регион). Полный прогон: 3974 passed, 76 skipped, 0 failed; black и flake8 по изменённому файлу — чисто.
