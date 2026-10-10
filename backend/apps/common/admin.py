@@ -629,11 +629,13 @@ class ManagerRoutingRuleAdmin(admin.ModelAdmin):
     list_display = [
         "match_type",
         "match_value",
+        "manager",
         "manager_name",
         "manager_email",
         "federal_district",
         "is_active",
     ]
+    list_select_related = ("manager",)
     list_filter = [
         "match_type",
         "is_active",
@@ -669,10 +671,13 @@ class ManagerRoutingRuleAdmin(admin.ModelAdmin):
             "Менеджер",
             {
                 "fields": (
+                    "manager",
                     "manager_name",
                     "manager_email",
                     "federal_district",
-                )
+                ),
+                "description": "Письма уходят на email выбранного менеджера; "
+                "email ниже — только пока менеджер не выбран",
             },
         ),
         (

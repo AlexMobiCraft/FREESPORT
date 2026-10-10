@@ -10,6 +10,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
+from apps.users.staff_roles import RESPONSIBLE_MANAGER_CHOICES
+
 if TYPE_CHECKING:
     pass  # Используется для type hints
 
@@ -336,6 +338,20 @@ class User(AbstractUser):
         default="unverified",
         help_text="Статус верификации клиента из 1С",
     )
+    responsible_manager = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managed_clients",
+        limit_choices_to=RESPONSIBLE_MANAGER_CHOICES,
+        verbose_name="Ответственный менеджер",
+    )
+    responsible_manager_manual = models.BooleanField(
+        "Назначен вручную",
+        default=False,
+        help_text="Ручное назначение не перезаписывают правила регионов, смена ИНН и импорт 1С",
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
@@ -359,8 +375,9 @@ class User(AbstractUser):
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.customer_code = self.customer_code or None
+        previous = None
         if self.pk is not None:
-            previous = type(self).objects.filter(pk=self.pk).only("customer_code").first()
+            previous = type(self).objects.filter(pk=self.pk).only("customer_code", "tax_id", "country").first()
             if (
                 previous
                 and previous.customer_code
@@ -368,6 +385,20 @@ class User(AbstractUser):
                 and self.orders.exists()
             ):
                 raise ValidationError({"customer_code": "Нельзя менять customer_code после создания заказа."})
+
+        # Автоназначение ответственного менеджера по правилу региона — здесь, а
+        # не в pre_save: сигнал не может дописать update_fields, а привязка к 1С
+        # (link_1c_customer) сохраняет новый ИНН именно через update_fields.
+        # previous is None — новая запись (или pk задан, а строки ещё нет).
+        update_fields = kwargs.get("update_fields")
+        region_fields_saved = update_fields is None or bool({"tax_id", "country"} & set(update_fields))
+        if region_fields_saved and (
+            previous is None or previous.tax_id != self.tax_id or previous.country != self.country
+        ):
+            from apps.users.services.responsible_manager import assign_responsible_manager
+
+            if assign_responsible_manager(self) and update_fields is not None:
+                kwargs["update_fields"] = {*update_fields, "responsible_manager"}
         super().save(*args, **kwargs)
 
     @property

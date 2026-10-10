@@ -4,7 +4,7 @@ baseline_commit: 26207161
 
 # Story 42.2: Ответственный менеджер клиента по правилу региона
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: 26207161
 
 ## Story
@@ -122,9 +122,9 @@ so that заявка нового клиента сразу попадала к 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — GitNexus pre-flight** (AGENTS.md)
-  - [ ] `npx gitnexus status` (на `26207161` индекс свежий); при `stale` попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`.
-  - [ ] `impact --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по символам: `resolve_manager_recipients`, `send_manager_region_email`, `ManagerRoutingRule`, `ManagerRoutingRuleAdmin`, `verify_b2b_application`, `link_1c_customer`, `_update_customer`, `UserAdmin`.
+- [x] **Task 0 — GitNexus pre-flight** (AGENTS.md)
+  - [x] `npx gitnexus status` (на `26207161` индекс свежий); при `stale` попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`.
+  - [x] `impact --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по символам: `resolve_manager_recipients`, `send_manager_region_email`, `ManagerRoutingRule`, `ManagerRoutingRuleAdmin`, `verify_b2b_application`, `link_1c_customer`, `_update_customer`, `UserAdmin`.
 
     Снято на `26207161`:
     - `resolve_manager_recipients` — LOW (1 вызывающий — `send_manager_region_email`);
@@ -132,10 +132,10 @@ so that заявка нового клиента сразу попадала к 
     - `verify_b2b_application` — LOW;
     - `ManagerRoutingRuleAdmin` — LOW;
     - `ManagerRoutingRule` — **HIGH, но ложно.** 23 «прямых» — это файлы, которые импортируют модуль `apps.common.models` ради других моделей. По grep класс используют только `common/admin.py`, `region_routing.py` и миграции. Сообщить это Alex вместе с blast radius.
-  - [ ] **`User.save()` — HIGH по природе:** через него проходит каждое сохранение пользователя. У GitNexus `save` неоднозначен, поэтому вызывающих искать через `cypher` или `context --file backend/apps/users/models.py`. Предупредить Alex до правки. Защита — Task 3: проверка дешёвая и срабатывает только при создании или смене `tax_id`/`country`.
+  - [x] **`User.save()` — HIGH по природе:** через него проходит каждое сохранение пользователя. У GitNexus `save` неоднозначен, поэтому вызывающих искать через `cypher` или `context --file backend/apps/users/models.py`. Предупредить Alex до правки. Защита — Task 3: проверка дешёвая и срабатывает только при создании или смене `tax_id`/`country`.
 
-- [ ] **Task 1 — критерий «сотрудник» и выбор менеджера** (AC8)
-  - [ ] Дописать в `backend/apps/users/staff_roles.py`, не меняя существующие константы:
+- [x] **Task 1 — критерий «сотрудник» и выбор менеджера** (AC8)
+  - [x] Дописать в `backend/apps/users/staff_roles.py`, не меняя существующие константы:
     ```python
     from django.db.models import Q
 
@@ -153,12 +153,12 @@ so that заявка нового клиента сразу попадала к 
     RESPONSIBLE_MANAGER_CHOICES = Q(is_staff=True, is_superuser=False, groups__name__in=(MANAGERS_GROUP, SUPERVISORS_GROUP))
     ```
     Docstring модуля дополнить одной фразой: модуль теперь хранит и критерий «сотрудник», и не только имена групп. Почему условие `role="admin"` — решение 7.
-  - [ ] Предикат на экземпляре `is_staff_account(user) -> bool` положить в сервис Task 3, не в `staff_roles`. Порядок проверок:
+  - [x] Предикат на экземпляре `is_staff_account(user) -> bool` положить в сервис Task 3, не в `staff_roles`. Порядок проверок:
     1. `is_staff`, `is_superuser`, `role == "admin"` — по атрибутам, без запроса;
     2. группы — запросом `user.groups.filter(name__in=STAFF_ROLE_GROUPS).exists()`, и только когда у записи есть `pk`. У несохранённой записи групп нет.
 
-- [ ] **Task 2 — модель и миграции правила** (AC1, AC2)
-  - [ ] `backend/apps/common/models.py` `ManagerRoutingRule` (`:1040`):
+- [x] **Task 2 — модель и миграции правила** (AC1, AC2)
+  - [x] `backend/apps/common/models.py` `ManagerRoutingRule` (`:1040`):
     - новое поле:
       ```python
       manager = models.ForeignKey(
@@ -197,7 +197,7 @@ so that заявка нового клиента сразу попадала к 
         Страну сравнивать с литералом `"Россия"` из `User.COUNTRY_RUSSIA`. Импортировать `User` в `common/models.py` нельзя, поэтому либо локальный импорт в `clean()`, либо литерал с комментарием.
     - Docstring класса переписать: «несколько активных строк дают несколько получателей» теперь верно **только для резерва**. Добавить, что правило задаёт и ответственного менеджера клиента (эпик 42).
     - `__str__`: показывать `manager.email`, если менеджер задан. Иначе `manager_email`.
-  - [ ] `apps/common/migrations/0022_managerroutingrule_manager.py` — **только схема**:
+  - [x] `apps/common/migrations/0022_managerroutingrule_manager.py` — **только схема**:
     - `AddField(manager)`;
     - `AlterField(manager_email)`;
     - `AddConstraint` ×2.
@@ -208,21 +208,21 @@ so that заявка нового клиента сразу попадала к 
     - `("users", "0023_staff_role_groups")` — для `limit_choices_to` по группам.
 
     Циклов нет: `users/0023` зависит от `common/0021`, а не от `0022`. Миграцию сгенерировать `makemigrations common` в контейнере, затем переименовать.
-  - [ ] `apps/common/migrations/0023_link_routing_rules_to_staff.py` — **только данные**. Отдельная миграция, потому что на PostgreSQL смешение `UPDATE` и `ALTER TABLE` с отложенными FK-триггерами в одной транзакции падает на «pending trigger events». Функция `link_rules_to_staff(apps, schema_editor)`:
+  - [x] `apps/common/migrations/0023_link_routing_rules_to_staff.py` — **только данные**. Отдельная миграция, потому что на PostgreSQL смешение `UPDATE` и `ALTER TABLE` с отложенными FK-триггерами в одной транзакции падает на «pending trigger events». Функция `link_rules_to_staff(apps, schema_editor)`:
     - для каждого правила без `manager` с непустым `manager_email` искать `User` по условиям `email__iexact=manager_email`, `is_staff=True`, `is_superuser=False`; из нескольких брать первого по `pk`;
     - резервные правила обходить по возрастанию `pk` и связывать, только пока ни одно активное резервное ещё не связано;
     - обратная функция — `RunPython.noop`.
 
     Ожидаемый результат на проде описан в Dev Notes, «Прод».
-  - [ ] `apps/common/admin.py` `ManagerRoutingRuleAdmin` (`:626`):
+  - [x] `apps/common/admin.py` `ManagerRoutingRuleAdmin` (`:626`):
     - `list_display` — добавить `"manager"` после `match_value`;
     - `list_select_related = ("manager",)`;
     - fieldset «Менеджер»: `("manager", "manager_name", "manager_email", "federal_district")`, описание «Письма уходят на email выбранного менеджера; email ниже — только пока менеджер не выбран».
 
     **Не добавлять `manager` в `list_editable`:** выпадающий список в каждой из ~92 строк — запрос на строку.
 
-- [ ] **Task 3 — поле клиента и сервис назначения** (AC3, AC4, AC5, AC8)
-  - [ ] `backend/apps/users/models.py` `User`, после блока `verification_status`:
+- [x] **Task 3 — поле клиента и сервис назначения** (AC3, AC4, AC5, AC8)
+  - [x] `backend/apps/users/models.py` `User`, после блока `verification_status`:
     ```python
     responsible_manager = models.ForeignKey(
         "self",
@@ -240,7 +240,7 @@ so that заявка нового клиента сразу попадала к 
     )
     ```
     Миграция `apps/users/migrations/0024_user_responsible_manager.py` — только схема, зависимость `("users", "0023_staff_role_groups")`. Данных не трогает: существующим клиентам ответственного проставит команда 42.3.
-  - [ ] **Новый модуль `backend/apps/users/services/responsible_manager.py`** — единственный источник логики назначения. Его переиспользует 42.3, поэтому разрешение возвращает источник:
+  - [x] **Новый модуль `backend/apps/users/services/responsible_manager.py`** — единственный источник логики назначения. Его переиспользует 42.3, поэтому разрешение возвращает источник:
     ```python
     SOURCE_REGION = "inn_region"; SOURCE_COUNTRY = "country"; SOURCE_FALLBACK = "fallback"; SOURCE_NONE = "none"
 
@@ -277,7 +277,7 @@ so that заявка нового клиента сразу попадала к 
 
       Затем `.exclude(responsible_manager=target).update(responsible_manager=target)`, вернуть число строк. Если `target is None`, `exclude(responsible_manager=None)` превращается в `responsible_manager__isnull=False` — проверить тестом.
     - Инвариант для тестов: после `reassign_clients_for_key` у каждого затронутого клиента `responsible_manager == resolve_responsible(client.country, client.tax_id).manager`.
-  - [ ] **`User.save()`** (`users/models.py:360`) — хук автоназначения. Существующий запрос `previous` расширить до `.only("customer_code", "tax_id", "country")`: так обходится без лишнего запроса. Ветка `customer_code` остаётся как есть. Затем:
+  - [x] **`User.save()`** (`users/models.py:360`) — хук автоназначения. Существующий запрос `previous` расширить до `.only("customer_code", "tax_id", "country")`: так обходится без лишнего запроса. Ветка `customer_code` остаётся как есть. Затем:
     ```python
     update_fields = kwargs.get("update_fields")
     region_fields_saved = update_fields is None or {"tax_id", "country"} & set(update_fields)
@@ -292,8 +292,8 @@ so that заявка нового клиента сразу попадала к 
     super().save(*args, **kwargs)
     ```
     Для новой записи (`self.pk is None`) `previous` сейчас не запрашивается — ветку оформить так, чтобы `previous is None` означало «новая». Импорт сервиса — локальный: сервис импортирует `ManagerRoutingRule` из `common.models`. Комментарий над блоком — на русском: почему хук в `save()`, а не в `pre_save` (сигнал не может дописать `update_fields`, а `link_1c_customer` сохраняет `tax_id` через `update_fields`).
-  - [ ] **Верификация** (`users/services/verify_b2b_application.py`, ветка `MODE_DECISION`, `:247-251`): перед сохранением вызвать `assign_responsible_manager(target)`; если вернул `True`, добавить `"responsible_manager"` в `update_fields` этого `save`. Сервис привязки не трогать: `link_1c_customer` сохраняет `tax_id` через `update_fields`, хук в `save()` срабатывает сам.
-  - [ ] **Регистрация, импорт 1С, API профиля, карточка админки** — кода не добавлять, их покрывает хук `save()`. Это проверяется тестами AC3/AC4. Пути и строки, по которым проходит назначение:
+  - [x] **Верификация** (`users/services/verify_b2b_application.py`, ветка `MODE_DECISION`, `:247-251`): перед сохранением вызвать `assign_responsible_manager(target)`; если вернул `True`, добавить `"responsible_manager"` в `update_fields` этого `save`. Сервис привязки не трогать: `link_1c_customer` сохраняет `tax_id` через `update_fields`, хук в `save()` срабатывает сам.
+  - [x] **Регистрация, импорт 1С, API профиля, карточка админки** — кода не добавлять, их покрывает хук `save()`. Это проверяется тестами AC3/AC4. Пути и строки, по которым проходит назначение:
 
     | путь | где сохраняется |
     |---|---|
@@ -303,8 +303,8 @@ so that заявка нового клиента сразу попадала к 
     | API профиля | `UserProfileSerializer` |
     | карточка админки | `UserAdmin` |
 
-- [ ] **Task 4 — пересчёт при смене правила** (AC6)
-  - [ ] Ресиверы в `backend/apps/users/signals.py`, `sender=ManagerRoutingRule`:
+- [x] **Task 4 — пересчёт при смене правила** (AC6)
+  - [x] Ресиверы в `backend/apps/users/signals.py`, `sender=ManagerRoutingRule`:
     - `pre_save` запоминает старые `(match_type, match_value, is_active, manager_id)` одним `.values(...).first()` по `pk`;
     - `post_save` и `post_delete` вычисляют затронутые ключи и вызывают `reassign_clients_for_key` для каждого.
 
@@ -313,41 +313,41 @@ so that заявка нового клиента сразу попадала к 
     - Иначе затронуты старый и новый ключи, если правило меняло ключ, `is_active` или `manager_id`.
     - Изменение региона или страны **с менеджером** меняет покрытие резерва. Поэтому, если `manager_id` или активность изменились у правила `inn_region`/`country`, добавить и `None`: клиенты, уходившие на резерв, могли получить регионального менеджера, и наоборот.
     - Правка только `manager_name`, `manager_email` или `federal_district` клиентов не пересчитывает: ноль `UPDATE`, проверить `django_assert_num_queries`.
-  - [ ] Пересчёт синхронный, внутри транзакции сохранения правила: админка оборачивает `save_model` в `atomic`. Логировать `logger.info` с ключом и числом переведённых клиентов, `extra={"action": "responsible_manager_reassign", ...}` — по образцу `region_routing.py:48`. `AuditLog` за смену правила пишет 42.7.
+  - [x] Пересчёт синхронный, внутри транзакции сохранения правила: админка оборачивает `save_model` в `atomic`. Логировать `logger.info` с ключом и числом переведённых клиентов, `extra={"action": "responsible_manager_reassign", ...}` — по образцу `region_routing.py:48`. `AuditLog` за смену правила пишет 42.7.
 
-- [ ] **Task 5 — письмо по той же таблице** (AC7)
-  - [ ] `region_routing.resolve_manager_recipients` (`:17`) переписать через `region_key` из Task 3, поведение и docstring сохранить. Адреса брать так: `rule.manager.email if rule.manager_id and rule.manager.email else rule.manager_email`, `select_related("manager")`, пустые значения отбросить, дедупликация как сейчас. Docstring модуля дополнить: таблица правил задаёт и ответственного (`services/responsible_manager.py`).
-  - [ ] `send_manager_region_email` (`tasks.py:400`) не менять. Если `resolve_manager_recipients` станет функцией над `region_key`, задача пойдёт той же дорогой.
+- [x] **Task 5 — письмо по той же таблице** (AC7)
+  - [x] `region_routing.resolve_manager_recipients` (`:17`) переписать через `region_key` из Task 3, поведение и docstring сохранить. Адреса брать так: `rule.manager.email if rule.manager_id and rule.manager.email else rule.manager_email`, `select_related("manager")`, пустые значения отбросить, дедупликация как сейчас. Docstring модуля дополнить: таблица правил задаёт и ответственного (`services/responsible_manager.py`).
+  - [x] `send_manager_region_email` (`tasks.py:400`) не менять. Если `resolve_manager_recipients` станет функцией над `region_key`, задача пойдёт той же дорогой.
 
-- [ ] **Task 6 — `/admin/` суперпользователя** (FR-42-07: поле у клиента есть и видно)
-  - [ ] `UserAdmin.fieldsets` (`users/admin.py:310`): новый блок «Ответственный менеджер» с полями `("responsible_manager", "responsible_manager_manual")` после «Роль и статус». Редактируемы: `/admin/` теперь только у суперпользователя. Описание блока: «Ответственного назначает правило региона. Отметьте „Назначен вручную“, чтобы правила, смена ИНН и импорт его не меняли».
-  - [ ] `list_display`/`list_filter` UserAdmin не трогать. Список клиентов с ответственным — раздел 42.4, а лишняя колонка FK без `list_select_related` сломала бы тест `test_admin_link_1c_customer.py:316` (`TestChangelistIndicatorCost`).
-  - [ ] API-сериализаторы пользователя не трогать: поле в API не отдаётся, OpenAPI не меняется. `check_openapi_sync` это подтверждает.
+- [x] **Task 6 — `/admin/` суперпользователя** (FR-42-07: поле у клиента есть и видно)
+  - [x] `UserAdmin.fieldsets` (`users/admin.py:310`): новый блок «Ответственный менеджер» с полями `("responsible_manager", "responsible_manager_manual")` после «Роль и статус». Редактируемы: `/admin/` теперь только у суперпользователя. Описание блока: «Ответственного назначает правило региона. Отметьте „Назначен вручную“, чтобы правила, смена ИНН и импорт его не меняли».
+  - [x] `list_display`/`list_filter` UserAdmin не трогать. Список клиентов с ответственным — раздел 42.4, а лишняя колонка FK без `list_select_related` сломала бы тест `test_admin_link_1c_customer.py:316` (`TestChangelistIndicatorCost`).
+  - [x] API-сериализаторы пользователя не трогать: поле в API не отдаётся, OpenAPI не меняется. `check_openapi_sync` это подтверждает.
 
-- [ ] **Task 7 — тесты** (NFR-42-01, NFR-42-02). Общие правила для всех файлов:
+- [x] **Task 7 — тесты** (NFR-42-01, NFR-42-02). Общие правила для всех файлов:
   - в каждом тесте с правилами autouse-фикстура делает `ManagerRoutingRule.objects.all().delete()`, как в `test_region_routing.py:33`: в тестовой БД лежат правила из `common/0018`;
   - группы ролей — через `Group.objects.get_or_create(name=...)` из `staff_roles`.
-  - [ ] `backend/tests/unit/test_responsible_manager.py`:
+  - [x] `backend/tests/unit/test_responsible_manager.py`:
     - `region_key`: Россия + `23…` → `("inn_region","23")`; пустая страна → как Россия; Беларусь + `77…` → `("country","Беларусь")`; `""`, `"7"`, `"AB…"`, `" 23…"` → `None`.
     - `resolve_responsible`: регион с `manager`; регион без `manager` → резерв; страна; без ключа → резерв; нет резерва с менеджером → `(None, "none")`; неактивное правило игнорируется. Источник (`source`) — в каждом случае.
     - `is_staff_account`: `is_staff`, суперпользователь, `role="admin"`, каждая из трёх групп → `True`; клиент B2B и запись `unregistered` → `False`.
     - `reassign_clients_for_key`: сценарий AC6 целиком (десять клиентов A в регионе 23, двое ручных, клиенты A в 24; замена A→B). Плюс выключение и удаление правила, смена кода 23→24, смена менеджера резерва. В каждом случае — инвариант «массовое = поштучное».
     - Сотрудник в регионе 23 при пересчёте не тронут (AC8).
-  - [ ] `backend/tests/unit/test_manager_routing_rule.py`:
+  - [x] `backend/tests/unit/test_manager_routing_rule.py`:
     - AC2: второе активное по коду и по стране → `full_clean` с русским сообщением и `IntegrityError` на `save()`; неактивное — можно; два резервных без `manager` — можно; два активных резервных с `manager` — нельзя;
     - `clean()`: без `manager` и email; код «7» и «2a»; страна «Россия»;
     - `__str__` с менеджером и без;
     - сигнал: правка только `manager_email` → ни одного `UPDATE users` (`CaptureQueriesContext`, фильтр по `UPDATE "users"`).
-  - [ ] `backend/tests/unit/test_routing_rules_link_migration.py` — AC1. Функцию звать напрямую: `importlib.import_module("apps.common.migrations.0023_link_routing_rules_to_staff").link_rules_to_staff(django.apps.apps, SimpleNamespace(connection=connection))` — образец `tests/unit/test_staff_role_groups_migration.py`. Сценарии:
+  - [x] `backend/tests/unit/test_routing_rules_link_migration.py` — AC1. Функцию звать напрямую: `importlib.import_module("apps.common.migrations.0023_link_routing_rules_to_staff").link_rules_to_staff(django.apps.apps, SimpleNamespace(connection=connection))` — образец `tests/unit/test_staff_role_groups_migration.py`. Сценарии:
     - email в другом регистре связывается;
     - клиент (не `is_staff`) с тем же email не связывается;
     - суперпользователь не связывается;
     - два резервных — связывается только первое;
     - повторный вызов ничего не меняет.
-  - [ ] `backend/tests/unit/test_region_routing.py` — **ожидания не менять**. Дописать новые тесты:
+  - [x] `backend/tests/unit/test_region_routing.py` — **ожидания не менять**. Дописать новые тесты:
     - правило с `manager` → адрес учётной записи, даже если `manager_email` другой;
     - правило с `manager`, у которого пустой email → `manager_email`.
-  - [ ] `backend/tests/integration/test_responsible_manager_events.py` — сквозные события. Письма и Celery мокать, как в `test_registration_emails.py:118` (`patch("apps.users.serializers.send_manager_region_email.delay")` и соседние). Сценарии:
+  - [x] `backend/tests/integration/test_responsible_manager_events.py` — сквозные события. Письма и Celery мокать, как в `test_registration_emails.py:118` (`patch("apps.users.serializers.send_manager_region_email.delay")` и соседние). Сценарии:
     - AC3 — регистрация через API `/api/v1/auth/register/` (URL сверить по `test_registration_emails.py`) с ИНН `23…` и `00…`;
     - AC4 — смена ИНН:
       - `UserCustomerProcessor._update_customer` (данные клиента — словарем, как в `tests/unit/test_services/test_customer_processor.py`, без синтетического XML);
@@ -359,18 +359,18 @@ so that заявка нового клиента сразу попадала к 
     - AC5 — `verify_b2b_application` без привязки (образец — `tests/integration/test_admin_verify_b2b_application.py`);
     - AC6 — смена менеджера правила через POST формы `ManagerRoutingRuleAdmin` суперпользователем (сигнал срабатывает из админки);
     - AC8 — сотрудник с ИНН `23…`, созданный и изменённый, не получает ответственного.
-  - [ ] Негативные тесты (NFR-42-02 — здесь это проверка «не назначать»):
+  - [x] Негативные тесты (NFR-42-02 — здесь это проверка «не назначать»):
     - ручное назначение;
     - сотрудник;
     - неактивное правило;
     - второе активное правило.
 
-- [ ] **Task 8 — проверки и закрытие**
-  - [ ] Полный backend-прогон в Docker, один compose-проект, без параллельных прогонов: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`. Ожидания существующих тестов не меняются (AC9). Если что-то падает из-за лишних запросов при создании пользователя, разобраться и не ослаблять тест молча.
-  - [ ] `makemigrations --check --dry-run` в контейнере — новых несгенерированных изменений нет.
-  - [ ] Линтеры — навык `backend-lint` или compose-проект `freesport-lint`, не параллельно с зачётным pytest. `check_openapi_sync` — рецепт в Dev Notes; ожидается «синхронен», API не менялся.
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
-  - [ ] Completion Notes: шаги выката (Dev Notes, «Прод») и фактический результат миграции связывания на тестовом прогоне.
+- [x] **Task 8 — проверки и закрытие**
+  - [x] Полный backend-прогон в Docker, один compose-проект, без параллельных прогонов: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`. Ожидания существующих тестов не меняются (AC9). Если что-то падает из-за лишних запросов при создании пользователя, разобраться и не ослаблять тест молча.
+  - [x] `makemigrations --check --dry-run` в контейнере — новых несгенерированных изменений нет.
+  - [x] Линтеры — навык `backend-lint` или compose-проект `freesport-lint`, не параллельно с зачётным pytest. `check_openapi_sync` — рецепт в Dev Notes; ожидается «синхронен», API не менялся.
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
+  - [x] Completion Notes: шаги выката (Dev Notes, «Прод») и фактический результат миграции связывания на тестовом прогоне.
 
 ## Dev Notes
 
@@ -507,10 +507,56 @@ so that заявка нового клиента сразу попадала к 
 
 ### Agent Model Used
 
+Claude Opus 5.5 (claude-opus-5-5), Claude Code, 10.10.2026.
+
 ### Debug Log References
+
+- GitNexus на `0b1eae0` (индекс свежий): `resolve_manager_recipients`, `send_manager_region_email`, `verify_b2b_application`, `ManagerRoutingRuleAdmin`, `_update_customer`, `UserAdmin` — LOW; `ManagerRoutingRule` — HIGH, ложное (23 импорта модуля `apps.common.models`); `User.save()` — HIGH по природе, Alex предупреждён до правки. `detect-changes --scope all`: 12 файлов, процессов 0, риск low.
+- Первый полный прогон: `1 failed, 3937 passed, 76 skipped` — упал `tests/unit/test_users_admin.py::TestUserAdmin::test_fieldsets_structure` (ожидал 6 блоков карточки), см. отклонение 2.
+- mypy нашёл 2 новые ошибки в `responsible_manager.py` (`pk is None` — unreachable) и `region_routing.py` (типизация `_rule_emails`) — исправлены, итог `Success: no issues found in 608 source files`.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- Реализовано: FK `ManagerRoutingRule.manager` и два частичных `UniqueConstraint` (`common/0022`), data-миграция связывания правил с сотрудниками (`common/0023`), поля `User.responsible_manager` / `responsible_manager_manual` (`users/0024`), сервис `apps/users/services/responsible_manager.py` (единый источник логики, `ResponsibleResolution.source` для 42.3), хук в `User.save()`, явное назначение при верификации, сигналы `pre_save`/`post_save`/`post_delete` правила с пересчётом одним `UPDATE`, письмо через общий `region_key` с адресом учётной записи, блок «Ответственный менеджер» в `/admin/`.
+- Проверки: полный backend-прогон в Docker (итог — в Change Log), `makemigrations --check` — «No changes detected», `black --check` (457 unchanged), `flake8` чист, `mypy --config-file=mypy.ini` — без ошибок, `check_openapi_sync` — «Контракт синхронен с кодом». Покрытие `responsible_manager.py` и `region_routing.py` — 100 %.
+- Ограничения `full_clean()` ловит штатно (Django 5.2 проверяет `condition` с `manager__isnull`), дублировать проверку в `clean()` не понадобилось.
+- **Отклонение 1 — `affected_keys` точнее, чем в Task 4.** Стори предлагала добавлять резерв (`None`) при любой смене `manager_id`/активности регионального правила. Пересчёт ключа и так охватывает всех клиентов ключа, включая ушедших на резерв: целевой менеджер для ключа без правила — менеджер резерва. Поэтому резерв пересчитывается только при изменении резервного правила с менеджером, а правило без `manager` (ни до, ни после) не пересчитывает никого. Инвариант «массовое = поштучное» проверен тестами на всех сценариях AC6.
+- **Отклонение 2 — ожидание существующего теста изменено.** `test_users_admin.py::test_fieldsets_structure` проверял ровно 6 блоков карточки пользователя; Task 6 требует седьмой блок «Ответственный менеджер». Требования стори противоречат друг другу (Task 6 и AC9), поэтому счётчик поднят до 7 и добавлена проверка нового блока по имени. Других ожиданий не менял.
+- **Отклонение 3 — сценарий привязки к 1С в тестах AC4.** `link_1c_customer` отклоняет источник с другим ИНН (сверка по `strip()`), поэтому ИНН при привязке меняется только пробелами. Тест: заявка с ` 7701234567` (региона нет, ответственный — резерв) → привязка к записи 1С с `7701234567` → ответственный — менеджер региона 77; хук дописал `responsible_manager` в `update_fields`.
+- Результат миграции связывания на тестовом прогоне: в тестовой БД на момент миграции учётных записей нет — связано 0 правил, сид `0018` остался без `manager`, `AddConstraint` прошли на сиде. Логика проверена прямыми вызовами функции (8 сценариев AC1).
+- **Выкат (Dev Notes, «Прод»):**
+  1. Перед выкатом убедиться, что шаг 4 выката 42.1 выполнен: id 15 (`managermsk3@`) в группе «Руководители» (по sprint-status — выполнено 09.10.2026). Без этого форма правила 91 не сохранится.
+  2. Выкат применяет `common/0022`, `common/0023`, `users/0024`. Ожидается: правило 91 (резерв) связывается с id 15, остальные 91 правило остаются без `manager`, письма идут как раньше.
+  3. Проверка после выката: `SELECT id, match_type, match_value, manager_id FROM common_managerroutingrule WHERE manager_id IS NOT NULL;` — одна строка (91 → 15).
+  4. До 42.3 ответственного получают только новые и изменившиеся клиенты (все — Чернов, id 15); существующим назначит команда 42.3.
 
 ### File List
+
+Новые:
+- `backend/apps/users/services/responsible_manager.py`
+- `backend/apps/common/migrations/0022_managerroutingrule_manager.py`
+- `backend/apps/common/migrations/0023_link_routing_rules_to_staff.py`
+- `backend/apps/users/migrations/0024_user_responsible_manager.py`
+- `backend/tests/unit/test_responsible_manager.py`
+- `backend/tests/unit/test_manager_routing_rule.py`
+- `backend/tests/unit/test_routing_rules_link_migration.py`
+- `backend/tests/integration/test_responsible_manager_events.py`
+
+Изменённые:
+- `backend/apps/users/staff_roles.py`
+- `backend/apps/common/models.py`
+- `backend/apps/common/admin.py`
+- `backend/apps/users/models.py`
+- `backend/apps/users/signals.py`
+- `backend/apps/users/services/region_routing.py`
+- `backend/apps/users/services/verify_b2b_application.py`
+- `backend/apps/users/admin.py`
+- `backend/tests/unit/test_region_routing.py` (только новые тесты)
+- `backend/tests/unit/test_users_admin.py` (счётчик блоков карточки, отклонение 2)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/42-2-responsible-manager-by-region-rule.md`
+
+## Change Log
+
+- 10.10.2026 — реализация стори 42.2: ответственный менеджер клиента по правилу региона, связь правил с учётными записями, пересчёт при смене правила, письмо по той же таблице. Финальный полный прогон: 3938 passed, 76 skipped, 0 failed.

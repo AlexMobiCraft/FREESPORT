@@ -349,6 +349,17 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
         (
+            "Ответственный менеджер",
+            {
+                "fields": (
+                    "responsible_manager",
+                    "responsible_manager_manual",
+                ),
+                "description": "Ответственного назначает правило региона. Отметьте «Назначен вручную», "
+                "чтобы правила, смена ИНН и импорт его не меняли.",
+            },
+        ),
+        (
             "Права доступа",
             {
                 "fields": (
