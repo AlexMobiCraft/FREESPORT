@@ -19,6 +19,7 @@ from django.db import models, transaction
 from apps.common.models import AuditLog
 from apps.users.models import Company, User, matches_q
 from apps.users.services.price_type_role import resolve_role_from_price_types
+from apps.users.services.responsible_manager import assign_responsible_manager
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +260,11 @@ def link_1c_customer(
                 target.role = resolution.role
                 target_fields.append("role")
                 transferred.append("role")
+        # Ответственный назначается при любой привязке (FR-42-08), а не только
+        # при смене ИНН: иначе клиент, заведённый до выката 42.2, остался бы
+        # без ответственного. После роли — она входит в критерий «сотрудник».
+        if assign_responsible_manager(target):
+            target_fields.append("responsible_manager")
         target.save(update_fields=target_fields)
 
         company_fields, company_previous = _transfer_company(source, target)

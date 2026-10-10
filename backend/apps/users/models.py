@@ -338,9 +338,11 @@ class User(AbstractUser):
         default="unverified",
         help_text="Статус верификации клиента из 1С",
     )
+    # PROTECT: клиентов удаляемого менеджера сначала передают другому, иначе
+    # они остались бы без ответственного вместо менеджера резерва.
     responsible_manager = models.ForeignKey(
         "self",
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="managed_clients",
@@ -377,7 +379,12 @@ class User(AbstractUser):
         self.customer_code = self.customer_code or None
         previous = None
         if self.pk is not None:
-            previous = type(self).objects.filter(pk=self.pk).only("customer_code", "tax_id", "country").first()
+            previous = (
+                type(self)
+                .objects.filter(pk=self.pk)
+                .only("customer_code", "tax_id", "country", "responsible_manager", "responsible_manager_manual")
+                .first()
+            )
             if (
                 previous
                 and previous.customer_code
@@ -391,10 +398,20 @@ class User(AbstractUser):
         # (link_1c_customer) сохраняет новый ИНН именно через update_fields.
         # previous is None — новая запись (или pk задан, а строки ещё нет).
         update_fields = kwargs.get("update_fields")
-        region_fields_saved = update_fields is None or bool({"tax_id", "country"} & set(update_fields))
-        if region_fields_saved and (
+        saved_fields = None if update_fields is None else set(update_fields)
+        region_changed = (saved_fields is None or bool({"tax_id", "country"} & saved_fields)) and (
             previous is None or previous.tax_id != self.tax_id or previous.country != self.country
-        ):
+        )
+        # Снятый флаг «Назначен вручную» возвращает назначение по правилу, если
+        # в той же правке не выбран другой менеджер.
+        manual_released = (
+            previous is not None
+            and (saved_fields is None or "responsible_manager_manual" in saved_fields)
+            and previous.responsible_manager_manual
+            and not self.responsible_manager_manual
+            and previous.responsible_manager_id == self.responsible_manager_id
+        )
+        if region_changed or manual_released:
             from apps.users.services.responsible_manager import assign_responsible_manager
 
             if assign_responsible_manager(self) and update_fields is not None:

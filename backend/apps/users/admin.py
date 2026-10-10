@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Iterable, cast
 from urllib.parse import quote
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -19,7 +19,7 @@ from django.shortcuts import render
 from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html, format_html_join
 
-from apps.common.models import AuditLog
+from apps.common.models import AuditLog, ManagerRoutingRule
 from apps.common.utils.consent_audit import get_client_ip
 
 if TYPE_CHECKING:
@@ -500,6 +500,23 @@ class UserAdmin(BaseUserAdmin):
         if obj is not None and obj.is_superuser and not request.user.is_superuser:
             return False
         return super().has_delete_permission(request, obj)  # type: ignore[arg-type]
+
+    def get_deleted_objects(self, objs: Iterable[User], request: HttpRequest) -> Any:  # type: ignore[override]
+        # Удаление менеджера блокирует PROTECT; стандартный список защищённых
+        # объектов читается как «удалите клиентов», поэтому поясняем, что делать.
+        # Один хук на карточку и массовое действие delete_selected.
+        result = super().get_deleted_objects(objs, request)  # type: ignore[arg-type]
+        pks = [obj.pk for obj in objs]
+        if (
+            User.objects.filter(responsible_manager__in=pks).exists()
+            or ManagerRoutingRule.objects.filter(manager__in=pks).exists()
+        ):
+            messages.error(
+                request,
+                "Учётная запись — ответственный менеджер клиентов или менеджер правила региона. "
+                "Сначала назначьте клиентам нового менеджера и замените менеджера в правилах регионов.",
+            )
+        return result
 
     def user_change_password(self, request: HttpRequest, id: str, form_url: str = "") -> HttpResponse:
         response = super().user_change_password(request, id, form_url)
