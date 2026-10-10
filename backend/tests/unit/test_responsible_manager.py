@@ -323,6 +323,21 @@ class TestReassignClientsForKey:
         assert self.responsible([member]) == [scene["chief"]]
         assert self.responsible(scene["region_23"][2:]) == [scene["b"]] * 8
 
+    @pytest.mark.parametrize("tax_id, rule_key", [("", "fallback_rule"), ("2398765432", "rule_23")])
+    def test_admin_role_untouched_by_mass_update(self, scene, tax_id, rule_key):
+        # Робот обмена 1С: role="admin" без is_staff и групп, исключение держится на Q(role="admin").
+        robot = make_client(tax_id, role="admin")
+        assert (robot.is_staff, robot.is_superuser, robot.groups.exists()) == (False, False, False)
+        assert self.responsible([robot]) == [None]
+        new_manager = make_staff(SUPERVISORS_GROUP)
+        changed_rule = scene[rule_key]
+        changed_rule.manager = new_manager
+        changed_rule.save()
+        assert self.responsible([robot]) == [None]
+        # UPDATE прошёл: клиенты того же ключа перешли к новому менеджеру.
+        clients = scene["others"] if rule_key == "fallback_rule" else scene["region_23"][2:]
+        assert set(self.responsible(clients)) == {new_manager}
+
     def test_staff_in_region_untouched_by_direct_call(self, scene):
         staff = scene["staff_23"]
         User.objects.filter(pk=staff.pk).update(responsible_manager=scene["b"])
