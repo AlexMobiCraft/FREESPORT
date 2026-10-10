@@ -1144,7 +1144,9 @@ class ManagerRoutingRule(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        recipient = self.manager.email if self.manager_id and self.manager else self.manager_email
+        # Тот же выбор адреса, что и у письма (region_routing._rule_emails).
+        manager = self.manager if self.manager_id else None
+        recipient = manager.email if manager is not None and manager.email else self.manager_email
         return f"{self.get_match_type_display()}:{self.match_value or '—'} → {recipient}"
 
     def clean(self):

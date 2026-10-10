@@ -402,16 +402,19 @@ class User(AbstractUser):
         region_changed = (saved_fields is None or bool({"tax_id", "country"} & saved_fields)) and (
             previous is None or previous.tax_id != self.tax_id or previous.country != self.country
         )
-        # Снятый флаг «Назначен вручную» возвращает назначение по правилу, если
-        # в той же правке не выбран другой менеджер.
+        # Снятый флаг «Назначен вручную» возвращает назначение по правилу. Если
+        # в той же правке выбран другой менеджер, выбор сохраняется — даже при
+        # смене ИНН или страны.
         manual_released = (
             previous is not None
             and (saved_fields is None or "responsible_manager_manual" in saved_fields)
             and previous.responsible_manager_manual
             and not self.responsible_manager_manual
-            and previous.responsible_manager_id == self.responsible_manager_id
         )
-        if region_changed or manual_released:
+        manager_chosen = (
+            manual_released and previous is not None and previous.responsible_manager_id != self.responsible_manager_id
+        )
+        if (region_changed or manual_released) and not manager_chosen:
             from apps.users.services.responsible_manager import assign_responsible_manager
 
             if assign_responsible_manager(self) and update_fields is not None:
