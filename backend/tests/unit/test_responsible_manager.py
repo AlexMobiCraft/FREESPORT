@@ -266,15 +266,28 @@ class TestReassignClientsForKey:
         assert_mass_equals_single(scene["region_23"][2:] + scene["region_24"] + scene["others"])
 
     def test_change_fallback_manager(self, scene):
+        rule(COUNTRY, "Беларусь", scene["b"])
+        belarus = make_client("2399000001", country="Беларусь")
         new_chief = make_staff(SUPERVISORS_GROUP)
         fallback_rule = scene["fallback_rule"]
         fallback_rule.manager = new_chief
         fallback_rule.save()
         assert self.responsible(scene["others"]) == [new_chief] * 3
-        # Клиентов с региональным менеджером резерв не трогает.
+        # Клиентов с региональным менеджером или правилом страны резерв не трогает.
         assert self.responsible(scene["region_23"][2:]) == [scene["a"]] * 8
+        assert self.responsible([belarus]) == [scene["b"]]
         assert self.responsible([scene["staff_23"]]) == [None]
-        assert_mass_equals_single(scene["region_23"][2:] + scene["region_24"] + scene["others"])
+        assert_mass_equals_single(scene["region_23"][2:] + scene["region_24"] + scene["others"] + [belarus])
+
+    def test_empty_country_client_in_region_update(self, scene):
+        # Пустая страна — Россия: клиент попадает в региональный UPDATE по коду ИНН.
+        no_country = make_client("2398765432", country="")
+        assert self.responsible([no_country]) == [scene["a"]]
+        rule_23 = scene["rule_23"]
+        rule_23.manager = scene["b"]
+        rule_23.save()
+        assert self.responsible([no_country]) == [scene["b"]]
+        assert_mass_equals_single([no_country])
 
     def test_no_fallback_manager_clears_responsible(self, scene):
         fallback_rule = scene["fallback_rule"]

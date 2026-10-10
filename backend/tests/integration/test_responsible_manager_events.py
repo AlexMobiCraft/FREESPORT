@@ -222,6 +222,21 @@ class TestTaxIdOrCountryChange:
         link_1c_customer(target_id=applicant.pk, source_id=source.pk, expected_onec_id=source.onec_id)
         assert responsible_of(applicant) == team["b"]
 
+    def test_link_1c_customer_same_tax_id_assigns(self, team):
+        # Клиент создан до выката: ответственного нет, ИНН при привязке не меняется.
+        applicant = make_client("2301234567")
+        User.objects.filter(pk=applicant.pk).update(responsible_manager=None)
+        source = make_1c_record("2301234567")
+        link_1c_customer(target_id=applicant.pk, source_id=source.pk, expected_onec_id=source.onec_id)
+        assert responsible_of(applicant) == team["a"]
+
+    def test_link_1c_customer_same_tax_id_keeps_manual(self, team):
+        applicant = make_client("2301234567")
+        User.objects.filter(pk=applicant.pk).update(responsible_manager=None, responsible_manager_manual=True)
+        source = make_1c_record("2301234567")
+        link_1c_customer(target_id=applicant.pk, source_id=source.pk, expected_onec_id=source.onec_id)
+        assert responsible_of(applicant) is None
+
     def test_link_1c_customer_keeps_manual(self, team):
         applicant = make_client(" 7701234567")
         User.objects.filter(pk=applicant.pk).update(responsible_manager=team["c"], responsible_manager_manual=True)
@@ -331,6 +346,55 @@ class TestVerificationWithoutLink:
             actor=make_staff(SUPERVISORS_GROUP),
         )
         assert responsible_of(applicant) is None
+
+
+class TestManualFlagReleased:
+    """Снятие «Назначен вручную» возвращает назначение по правилу, если другой менеджер не выбран."""
+
+    @pytest.fixture
+    def manual_client(self, team):
+        client = make_client("2301234567")
+        User.objects.filter(pk=client.pk).update(responsible_manager=team["c"], responsible_manager_manual=True)
+        return User.objects.get(pk=client.pk)
+
+    def test_admin_form_release_assigns_by_rule(self, team, superuser_client, manual_client):
+        payload = change_form_payload(superuser_client, manual_client, responsible_manager_manual=False)
+        response = superuser_client.post(reverse("admin:users_user_change", args=[manual_client.pk]), payload)
+        assert response.status_code == 302, response.context["adminform"].form.errors
+        manual_client.refresh_from_db()
+        assert (manual_client.responsible_manager, manual_client.responsible_manager_manual) == (team["a"], False)
+
+    def test_admin_form_release_with_other_manager_keeps_choice(self, team, superuser_client, manual_client):
+        payload = change_form_payload(
+            superuser_client,
+            manual_client,
+            responsible_manager=str(team["b"].pk),
+            responsible_manager_manual=False,
+        )
+        response = superuser_client.post(reverse("admin:users_user_change", args=[manual_client.pk]), payload)
+        assert response.status_code == 302, response.context["adminform"].form.errors
+        manual_client.refresh_from_db()
+        assert (manual_client.responsible_manager, manual_client.responsible_manager_manual) == (team["b"], False)
+
+    def test_save_with_update_fields_writes_responsible(self, team, manual_client):
+        manual_client.responsible_manager_manual = False
+        manual_client.save(update_fields=["responsible_manager_manual"])
+        assert responsible_of(manual_client) == team["a"]
+
+    def test_update_fields_without_flag_does_not_reassign(self, team, manual_client):
+        # Флаг снят только в памяти и не сохраняется — в БД ручное назначение остаётся.
+        manual_client.responsible_manager_manual = False
+        manual_client.first_name = "Другое"
+        manual_client.save(update_fields=["first_name"])
+        manual_client.refresh_from_db()
+        assert (manual_client.responsible_manager, manual_client.responsible_manager_manual) == (team["c"], True)
+
+    def test_setting_flag_does_not_reassign(self, team):
+        client = make_client("2301234567")
+        client = User.objects.get(pk=client.pk)
+        client.responsible_manager_manual = True
+        client.save()
+        assert responsible_of(client) == team["a"]
 
 
 class TestRuleChangeFromAdmin:
