@@ -125,6 +125,17 @@ class TestResolveManagerRecipients:
         )
         assert resolve_manager_recipients("Россия", "7701234567") == [GUSEV]
 
+    def test_fallback_rule_with_manager_uses_account_email(self, db):
+        """Резервное правило с учётной записью → письмо на её email, второй резерв — на свой адрес."""
+        manager = _staff_manager("chernov.account@freesportopt.ru")
+        ManagerRoutingRule.objects.create(
+            match_type=ManagerRoutingRule.MATCH_FALLBACK, match_value="default", manager=manager, manager_email=CHERNOV
+        )
+        _rule(ManagerRoutingRule.MATCH_FALLBACK, "default", ADMIN)
+        assert sorted(resolve_manager_recipients("Россия", "0012345678")) == sorted(
+            ["chernov.account@freesportopt.ru", ADMIN]
+        )
+
     def test_rule_without_any_address_falls_back(self, fallback_rules):
         """У менеджера правила нет email и manager_email пуст → резервные адреса, пустой строки нет."""
         ManagerRoutingRule.objects.create(

@@ -144,6 +144,14 @@ class TestStr:
     def test_without_manager(self):
         assert str(build()) == "Код субъекта РФ (по ИНН):23 → m@freesportopt.ru"
 
+    def test_manager_without_email_shows_manager_email(self):
+        # Письмо в этом случае уходит на manager_email (region_routing._rule_emails).
+        manager = make_staff()
+        manager.email = ""
+        assert str(build(manager=manager, email="old@freesportopt.ru")) == (
+            "Код субъекта РФ (по ИНН):23 → old@freesportopt.ru"
+        )
+
 
 class TestSignalCost:
     def test_email_only_change_does_not_touch_users(self):

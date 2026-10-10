@@ -376,6 +376,36 @@ class TestManualFlagReleased:
         manual_client.refresh_from_db()
         assert (manual_client.responsible_manager, manual_client.responsible_manager_manual) == (team["b"], False)
 
+    def test_admin_form_release_with_other_manager_and_new_tax_id_keeps_choice(
+        self, team, superuser_client, manual_client
+    ):
+        # Страны в карточке нет, её смену с тем же условием проверяет тест save() ниже.
+        payload = change_form_payload(
+            superuser_client,
+            manual_client,
+            responsible_manager=str(team["chief"].pk),
+            responsible_manager_manual=False,
+            tax_id="7701234567",
+        )
+        response = superuser_client.post(reverse("admin:users_user_change", args=[manual_client.pk]), payload)
+        assert response.status_code == 302, response.context["adminform"].form.errors
+        manual_client.refresh_from_db()
+        assert (manual_client.responsible_manager, manual_client.responsible_manager_manual) == (
+            team["chief"],
+            False,
+        )
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [("tax_id", "7701234567"), ("country", "Беларусь")],
+    )
+    def test_save_release_with_other_manager_and_region_change_keeps_choice(self, team, manual_client, field, value):
+        manual_client.responsible_manager_manual = False
+        manual_client.responsible_manager = team["chief"]
+        setattr(manual_client, field, value)
+        manual_client.save(update_fields=["responsible_manager_manual", "responsible_manager", field])
+        assert responsible_of(manual_client) == team["chief"]
+
     def test_save_with_update_fields_writes_responsible(self, team, manual_client):
         manual_client.responsible_manager_manual = False
         manual_client.save(update_fields=["responsible_manager_manual"])
@@ -516,9 +546,14 @@ class TestManagerDeletionProtected:
     """Удаление менеджера не обходит пересчёт: PROTECT вместо SET_NULL."""
 
     def test_model_delete_with_clients(self, team):
-        make_client("2301234567")
-        with pytest.raises(ProtectedError):
-            team["a"].delete()
+        # Менеджер без правил: ProtectedError даёт только User.responsible_manager.
+        manager = make_staff()
+        client = make_client("2301234567")
+        User.objects.filter(pk=client.pk).update(responsible_manager=manager, responsible_manager_manual=True)
+        with pytest.raises(ProtectedError) as exc:
+            manager.delete()
+        assert set(exc.value.protected_objects) == {User.objects.get(pk=client.pk)}
+        assert responsible_of(client) == manager
 
     def test_model_delete_with_rule_only(self, team):
         # У C нет клиентов, но есть правило страны.
