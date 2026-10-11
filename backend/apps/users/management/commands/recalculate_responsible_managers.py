@@ -15,9 +15,30 @@
 ``resolve_responsible_for_key`` (42.2), с кэшем по ключу региона, поэтому
 число запросов зависит от числа ключей, а не клиентов.
 
+Весь прогон — одна транзакция, и первой её командой таблица правил
+блокируется от изменений (``SHARE ROW EXCLUSIVE``): правку, создание и
+удаление правила, а также второй запуск команды PostgreSQL заставит ждать до
+конца прогона. Иначе сигнал 42.2 переназначил бы клиентов по новому правилу,
+а команда записала бы поверх ответственного по старому из своего кэша.
+
 Запись — через ``QuerySet.update()``: хук автоназначения ``User.save()`` здесь
 не нужен, а ``updated_at`` не трогается, чтобы тысячи записей не выглядели
-изменёнными. Ручные назначения и учётные записи сотрудников не меняются.
+изменёнными. ``UPDATE`` повторяет всё, на чём основан расчёт: клиент не
+назначен вручную, не стал сотрудником, ключ региона и прежний ответственный
+те же, что при чтении. Клиент, изменившийся во время прогона, не
+перезаписывается, а отчёт строится по числу реально обновлённых строк.
+Прежнего ответственного ``UPDATE`` сверяет у каждого клиента своего, но
+одним запросом на пачку: число запросов не зависит от того, сколько разных
+менеджеров стояло у клиентов до прогона.
+
+Перед ``UPDATE`` строки пачки блокируются отдельным запросом
+(``SELECT … FOR UPDATE``). ``UPDATE``, дождавшийся чужой блокировки строки,
+перепроверяет только поля самой строки, а подзапрос по группам сотрудников
+видит снимок начала ``UPDATE`` и не заметил бы только что добавленное
+членство. После блокировки новый запрос видит всё закоммиченное, а добавить
+клиента в группу до конца прогона нельзя: проверка внешнего ключа
+``users_groups`` ждёт эту блокировку.
+
 Без активного резервного правила с менеджером команда не запускается:
 клиенты регионов без правила остались бы без ответственного.
 """
@@ -29,12 +50,14 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import transaction
+from django.db import connection, transaction
+from django.db.models import Q
 
 from apps.common.models import ManagerRoutingRule
 from apps.common.regions import REGION_NAMES, region_name
 from apps.users.models import User
 from apps.users.services.responsible_manager import (
+    RUSSIA_COUNTRY_VALUES,
     SOURCE_COUNTRY,
     SOURCE_FALLBACK,
     SOURCE_NONE,
@@ -53,6 +76,9 @@ NO_FALLBACK_MESSAGE = (
     "и запустите снова; для оценки — --dry-run."
 )
 
+# Конфликтует с ROW EXCLUSIVE (INSERT, UPDATE, DELETE) и с самим собой, чтение не блокирует.
+LOCK_RULES_SQL = f'LOCK TABLE "{ManagerRoutingRule._meta.db_table}" IN SHARE ROW EXCLUSIVE MODE'
+
 READ_CHUNK_SIZE = 2000
 UPDATE_CHUNK_SIZE = 1000
 
@@ -61,6 +87,32 @@ COUNTER_BY_SOURCE = {
     SOURCE_COUNTRY: "by_country",
     SOURCE_FALLBACK: "by_fallback",
 }
+
+# Группа записи: (новый ответственный, источник, ключ региона).
+PendingGroup = tuple[int, str, RegionKey | None]
+# Клиент группы: (id, прежний ответственный).
+PendingClient = tuple[int, int | None]
+
+
+def previous_manager_q(chunk: list[PendingClient]) -> Q:
+    """Условие ``UPDATE``: у каждого клиента пачки тот же ответственный, что при чтении."""
+    by_previous: defaultdict[int | None, list[int]] = defaultdict(list)
+    for pk, previous_id in chunk:
+        by_previous[previous_id].append(pk)
+    condition = Q()
+    for previous_id, ids in by_previous.items():
+        condition |= Q(pk__in=ids, responsible_manager_id=previous_id)
+    return condition
+
+
+def region_key_q(key: RegionKey | None) -> Q:
+    """Условие ``UPDATE``: ключ региона клиента тот же, что при чтении (как в ``region_key``)."""
+    russian = Q(country__in=RUSSIA_COUNTRY_VALUES)
+    if key is None:
+        return russian & ~Q(tax_id__regex=r"^[0-9]{2}")
+    if key[0] == ManagerRoutingRule.MATCH_INN_REGION:
+        return russian & Q(tax_id__startswith=key[1])
+    return Q(country=key[1])
 
 
 class Command(BaseCommand):
@@ -76,16 +128,38 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         dry_run: bool = options["dry_run"]
 
-        # Проверка резерва — до чтения клиентов, чтобы ничего не обнулить.
-        fallback = resolve_responsible_for_key(None)
-        if fallback.source == SOURCE_NONE and not dry_run:
-            raise CommandError(NO_FALLBACK_MESSAGE)
+        with transaction.atomic():
+            # Блокировка — до первого чтения правил и до конца записи (см. docstring модуля).
+            with connection.cursor() as cursor:
+                cursor.execute(LOCK_RULES_SQL)
 
+            # Проверка резерва — до чтения клиентов, чтобы ничего не обнулить.
+            fallback = resolve_responsible_for_key(None)
+            if fallback.source == SOURCE_NONE and not dry_run:
+                raise CommandError(NO_FALLBACK_MESSAGE)
+
+            counters, fallback_codes, pending = self._collect(fallback)
+            if not dry_run:
+                self._apply(pending, counters, fallback_codes)
+
+        self._write_report(counters, fallback_codes, dry_run)
+        if fallback.source == SOURCE_NONE:
+            self.stderr.write(self.style.WARNING(NO_FALLBACK_MESSAGE))
+
+        logger.info(
+            "Responsible managers recalculated",
+            extra={"action": "responsible_manager_recalculate", "dry_run": dry_run, **counters},
+        )
+
+    def _collect(
+        self, fallback: ResponsibleResolution
+    ) -> tuple[dict[str, int], Counter[str], defaultdict[PendingGroup, list[PendingClient]]]:
+        """Прочитать клиентов и рассчитать, кому какого ответственного назначить."""
         counters = dict.fromkeys(
-            ("checked", "by_region", "by_country", "by_fallback", "manual", "unchanged", "no_manager"), 0
+            ("checked", "by_region", "by_country", "by_fallback", "manual", "unchanged", "no_manager", "changed"), 0
         )
         fallback_codes: Counter[str] = Counter()
-        pending: defaultdict[int, list[int]] = defaultdict(list)
+        pending: defaultdict[PendingGroup, list[PendingClient]] = defaultdict(list)
         cache: dict[RegionKey | None, ResponsibleResolution] = {None: fallback}
 
         clients = (
@@ -122,26 +196,46 @@ class Command(BaseCommand):
                 counters["unchanged"] += 1
                 continue
             counters[COUNTER_BY_SOURCE[resolution.source]] += 1
-            pending[target_id].append(client.pk)
+            pending[(target_id, resolution.source, key)].append((client.pk, client.responsible_manager_id))
+        return counters, fallback_codes, pending
 
-        if not dry_run:
-            with transaction.atomic():
-                for target_id, ids in pending.items():
-                    for start in range(0, len(ids), UPDATE_CHUNK_SIZE):
-                        # Повтор условия: ручное назначение, сделанное во время прогона, не затирается.
-                        User.objects.filter(
-                            pk__in=ids[start : start + UPDATE_CHUNK_SIZE],
-                            responsible_manager_manual=False,
-                        ).update(responsible_manager_id=target_id)
+    def _apply(
+        self,
+        pending: defaultdict[PendingGroup, list[PendingClient]],
+        counters: dict[str, int],
+        fallback_codes: Counter[str],
+    ) -> None:
+        """
+        Записать назначения и поправить счётчики по реально обновлённым строкам.
 
-        self._write_report(counters, fallback_codes, dry_run)
-        if fallback.source == SOURCE_NONE:
-            self.stderr.write(self.style.WARNING(NO_FALLBACK_MESSAGE))
-
-        logger.info(
-            "Responsible managers recalculated",
-            extra={"action": "responsible_manager_recalculate", "dry_run": dry_run, **counters},
-        )
+        Строка не обновляется, если с момента чтения клиент назначен вручную,
+        стал сотрудником (в том числе через группу) или у него сменились ключ
+        региона или ответственный — например, после смены ИНН хук 42.2 уже
+        назначил нового. Такие клиенты переносятся из «Назначено …» в
+        «Пропущено»: сумма счётчиков по-прежнему равна числу проверенных.
+        """
+        for (target_id, source, key), clients in pending.items():
+            for start in range(0, len(clients), UPDATE_CHUNK_SIZE):
+                chunk = clients[start : start + UPDATE_CHUNK_SIZE]
+                ids = [pk for pk, _previous_id in chunk]
+                # Отдельный запрос: UPDATE ниже получит снимок после блокировки (см. docstring модуля).
+                list(User.objects.filter(pk__in=ids).order_by("pk").select_for_update().values_list("pk", flat=True))
+                updated = (
+                    User.objects.filter(region_key_q(key), previous_manager_q(chunk), responsible_manager_manual=False)
+                    .exclude(staff_accounts_q())
+                    .update(responsible_manager_id=target_id)
+                )
+                skipped = len(chunk) - updated
+                if not skipped:
+                    continue
+                manual = User.objects.filter(pk__in=ids, responsible_manager_manual=True).count()
+                counters[COUNTER_BY_SOURCE[source]] -= skipped
+                counters["manual"] += manual
+                counters["changed"] += skipped - manual
+                if source == SOURCE_FALLBACK and key is not None and key[0] == ManagerRoutingRule.MATCH_INN_REGION:
+                    fallback_codes[key[1]] -= skipped
+                    if fallback_codes[key[1]] <= 0:
+                        del fallback_codes[key[1]]
 
     def _write_report(self, counters: dict[str, int], fallback_codes: Counter[str], dry_run: bool) -> None:
         title = "Пересчёт ответственных менеджеров"
@@ -156,6 +250,8 @@ class Command(BaseCommand):
             f"Пропущено (назначен вручную): {counters['manual']}",
             f"Без изменений: {counters['unchanged']}",
         ]
+        if counters["changed"]:
+            lines.append(f"Пропущено (изменились во время пересчёта): {counters['changed']}")
         if counters["no_manager"]:
             lines.append(f"Без ответственного (нет резервного правила с менеджером): {counters['no_manager']}")
         if fallback_codes:

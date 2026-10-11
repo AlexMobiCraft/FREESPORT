@@ -4,7 +4,7 @@
     {% if unassigned_regions %}
       <strong>Не распределены ({{ unassigned_regions|length }}):</strong>
       {% for region in unassigned_regions %}{{ region.code }} — {{ region.name }}{% if not forloop.last %}; {% endif %}{% endfor %}
-      <p class="help">Клиенты этих регионов уходят на резервное правило. Назначьте менеджера в правиле региона или создайте правило.</p>
+      <p class="help">Клиенты этих регионов уходят на резервное правило, если в нём назначен менеджер, иначе остаются без ответственного. Назначьте менеджера в правиле региона или создайте правило.</p>
     {% else %}
       <strong>Все регионы распределены.</strong>
     {% endif %}
