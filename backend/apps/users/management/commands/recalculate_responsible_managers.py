@@ -31,11 +31,14 @@
 одним запросом на пачку: число запросов не зависит от того, сколько разных
 менеджеров стояло у клиентов до прогона.
 
-Перед ``UPDATE`` строки пачки блокируются отдельным запросом
-(``SELECT … FOR UPDATE``). ``UPDATE``, дождавшийся чужой блокировки строки,
-перепроверяет только поля самой строки, а подзапрос по группам сотрудников
-видит снимок начала ``UPDATE`` и не заметил бы только что добавленное
-членство. После блокировки новый запрос видит всё закоммиченное, а добавить
+Перед первым ``UPDATE`` строки всех назначаемых клиентов блокируются
+отдельными запросами (``SELECT … FOR UPDATE``), по возрастанию id сразу по
+всем группам записи — так команда не замкнёт цикл ожидания с транзакцией,
+которая тоже меняет клиентов по возрастанию id. ``UPDATE``, дождавшийся
+чужой блокировки строки, перепроверяет только поля самой строки, а подзапрос
+по группам сотрудников видит снимок начала ``UPDATE`` и не заметил бы только
+что добавленное членство. После блокировки новый запрос видит всё
+закоммиченное, а добавить
 клиента в группу до конца прогона нельзя: проверка внешнего ключа
 ``users_groups`` ждёт эту блокировку.
 
@@ -214,12 +217,11 @@ class Command(BaseCommand):
         назначил нового. Такие клиенты переносятся из «Назначено …» в
         «Пропущено»: сумма счётчиков по-прежнему равна числу проверенных.
         """
+        self._lock_clients(pending)
         for (target_id, source, key), clients in pending.items():
             for start in range(0, len(clients), UPDATE_CHUNK_SIZE):
                 chunk = clients[start : start + UPDATE_CHUNK_SIZE]
                 ids = [pk for pk, _previous_id in chunk]
-                # Отдельный запрос: UPDATE ниже получит снимок после блокировки (см. docstring модуля).
-                list(User.objects.filter(pk__in=ids).order_by("pk").select_for_update().values_list("pk", flat=True))
                 updated = (
                     User.objects.filter(region_key_q(key), previous_manager_q(chunk), responsible_manager_manual=False)
                     .exclude(staff_accounts_q())
@@ -236,6 +238,23 @@ class Command(BaseCommand):
                     fallback_codes[key[1]] -= skipped
                     if fallback_codes[key[1]] <= 0:
                         del fallback_codes[key[1]]
+
+    @staticmethod
+    def _lock_clients(pending: defaultdict[PendingGroup, list[PendingClient]]) -> None:
+        """
+        Заблокировать строки всех клиентов к записи — до первого ``UPDATE``, по возрастанию id.
+
+        Отдельный запрос: ``UPDATE`` после него получит снимок с уже
+        закоммиченным членством в группах (см. docstring модуля). Порядок —
+        общий для всех групп записи: при захвате по группам команда держала
+        бы строку с большим id, ожидая строку с меньшим, и транзакция,
+        которая меняет клиентов по возрастанию id (импорт контрагентов 1С),
+        замкнула бы с ней цикл ожидания.
+        """
+        ids = sorted(pk for clients in pending.values() for pk, _previous_id in clients)
+        for start in range(0, len(ids), UPDATE_CHUNK_SIZE):
+            chunk = ids[start : start + UPDATE_CHUNK_SIZE]
+            list(User.objects.filter(pk__in=chunk).order_by("pk").select_for_update().values_list("pk", flat=True))
 
     def _write_report(self, counters: dict[str, int], fallback_codes: Counter[str], dry_run: bool) -> None:
         title = "Пересчёт ответственных менеджеров"

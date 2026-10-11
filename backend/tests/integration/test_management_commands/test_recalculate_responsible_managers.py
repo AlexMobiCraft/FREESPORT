@@ -543,6 +543,47 @@ class TestChangesDuringRun:
         assert "Пропущено (изменились во время пересчёта): 1" in report
         assert_sum_matches(report)
 
+    def test_no_key_to_region_with_current_manager_kept(self, managers):
+        """Ревью R15: ИНН был пуст (расчёт — резерв), стал «23…», ответственный прежний — решает проверка ключа."""
+        rule(INN_REGION, "23", managers["region"])
+        rule(FALLBACK, "default", managers["fallback"])
+        client = make_client("")
+        User.objects.filter(pk=client.pk).update(responsible_manager=managers["region"])
+        client.refresh_from_db()
+
+        def set_region_tax_id():
+            client.tax_id = "2311111111"
+            client.save()  # хук 42.2: менеджер кода 23 у клиента уже стоит
+
+        report, _err = run_with_change_before_write(set_region_tax_id)
+
+        client.refresh_from_db()
+        assert client.responsible_manager == managers["region"]
+        assert "Ушло на резервное правило: 0" in report
+        assert "Пропущено (изменились во время пересчёта): 1" in report
+        assert_sum_matches(report)
+
+    def test_foreign_client_moved_to_russia_kept(self, managers):
+        """Ревью R16: расчёт — по правилу Беларуси, клиент перешёл в Россию, ответственный прежний."""
+        rule(INN_REGION, "23", managers["region"])
+        rule(COUNTRY, "Беларусь", managers["country"])
+        rule(FALLBACK, "default", managers["fallback"])
+        client = make_client("2311111111", country="Беларусь")
+        User.objects.filter(pk=client.pk).update(responsible_manager=managers["region"])
+        client.refresh_from_db()
+
+        def move_to_russia():
+            client.country = User.COUNTRY_RUSSIA
+            client.save()  # хук 42.2: менеджер кода 23 у клиента уже стоит
+
+        report, _err = run_with_change_before_write(move_to_russia)
+
+        client.refresh_from_db()
+        assert client.responsible_manager == managers["region"]
+        assert "Назначено по стране: 0" in report
+        assert "Пропущено (изменились во время пересчёта): 1" in report
+        assert_sum_matches(report)
+
     @pytest.mark.parametrize(
         "transition",
         [{"is_staff": True}, {"is_superuser": True}, {"role": "admin"}, *STAFF_ROLE_GROUPS],
@@ -657,31 +698,44 @@ class TestRulesLock:
         rule(FALLBACK, "default", managers["fallback"])
         reset_responsible([make_client("2311111111")])
 
-    def test_rules_locked_from_first_read_to_write(self, region_client_rules):
+    @pytest.mark.parametrize("dry_run", [False, True], ids=["real_run", "dry_run"])
+    def test_rules_locked_from_first_read_to_write(self, region_client_rules, dry_run):
+        """С --dry-run расчёт тоже идёт на одном состоянии правил (ревью R17): записи нет, но блокировка та же."""
         # Контроль: до запуска изменения правил из второго соединения проходят.
         assert {name: lock_probe(sql) for name, sql in RULE_WRITE_PROBES.items()} == dict.fromkeys(RULE_WRITE_PROBES)
         all_probes = {**RULE_WRITE_PROBES, "parallel_run": command_module.LOCK_RULES_SQL}
         probes: dict[str, dict[str, str | None]] = {}
         original_resolve = command_module.resolve_responsible_for_key
+        original_collect = command_module.Command._collect
         original_apply = command_module.Command._apply
+
+        def probe(stage: str) -> None:
+            probes[stage] = {name: lock_probe(sql) for name, sql in all_probes.items()}
 
         def resolve_with_probe(key):
             if "first_read" not in probes:
-                probes["first_read"] = {name: lock_probe(sql) for name, sql in all_probes.items()}
+                probe("first_read")
             return original_resolve(key)
 
+        def collect_with_probe(self, *args, **kwargs):
+            result = original_collect(self, *args, **kwargs)
+            probe("calculated")
+            return result
+
         def apply_with_probe(self, *args, **kwargs):
-            probes["write"] = {name: lock_probe(sql) for name, sql in all_probes.items()}
+            probe("write")
             return original_apply(self, *args, **kwargs)
 
         with (
             patch.object(command_module, "resolve_responsible_for_key", resolve_with_probe),
+            patch.object(command_module.Command, "_collect", collect_with_probe),
             patch.object(command_module.Command, "_apply", apply_with_probe),
         ):
-            run()
+            run(*(["--dry-run"] if dry_run else []))
 
         expected = dict.fromkeys(all_probes, LOCK_NOT_AVAILABLE)
-        assert probes == {"first_read": expected, "write": expected}
+        stages = ["first_read", "calculated"] if dry_run else ["first_read", "calculated", "write"]
+        assert probes == dict.fromkeys(stages, expected)
 
 
 USERS_TABLE = f'"{User._meta.db_table}"'
@@ -754,6 +808,55 @@ class TestGroupMembershipRace:
         assert "Назначено по коду региона: 0" in report
         assert "Пропущено (изменились во время пересчёта): 1" in report
         assert_sum_matches(report)
+
+
+class TestLockOrder:
+    """Строки клиентов блокируются в порядке id по всем группам записи сразу (ревью R14)."""
+
+    def test_writer_locking_rows_in_id_order_does_not_deadlock(self, managers):
+        rule(INN_REGION, "23", managers["region"])
+        rule(INN_REGION, "50", managers["country"])
+        rule(FALLBACK, "default", managers["fallback"])
+        # id по возрастанию: группы записи — код 23 (первый и третий клиент) и код 50 (второй).
+        first, second, third = make_client("2311111111"), make_client("5011111111"), make_client("2333333333")
+        reset_responsible([first, second, third])
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            command_pid = cursor.fetchone()[0]
+        holding = threading.Event()
+        outcome: dict[str, object] = {}
+
+        def update_in_id_order_in_other_connection() -> None:
+            # Как импорт контрагентов 1С: несколько клиентов в одной транзакции, по возрастанию id.
+            other = connections.create_connection(DEFAULT_DB_ALIAS)
+            try:
+                with other.cursor() as cursor:
+                    cursor.execute("BEGIN")
+                    cursor.execute(f"UPDATE {USERS_TABLE} SET first_name = first_name WHERE id = %s", [second.pk])
+                    holding.set()
+                    outcome["command_waited"] = wait_until_blocking(cursor, command_pid)
+                    cursor.execute(f"UPDATE {USERS_TABLE} SET first_name = first_name WHERE id = %s", [third.pk])
+                    cursor.execute("COMMIT")
+            except Exception as exc:  # ошибку потока проверяет тест после join
+                outcome["error"] = exc
+            finally:
+                holding.set()
+                other.close()
+
+        thread = threading.Thread(target=update_in_id_order_in_other_connection)
+        thread.start()
+        try:
+            assert holding.wait(BLOCK_WAIT_SECONDS)
+            report, _err = run()
+        finally:
+            thread.join(2 * BLOCK_WAIT_SECONDS)
+
+        assert "error" not in outcome
+        assert outcome["command_waited"] is True
+        assert "Назначено по коду региона: 3" in report
+        assert_sum_matches(report)
+        assert User.objects.filter(pk__in=[first.pk, third.pk], responsible_manager=managers["region"]).count() == 2
+        assert User.objects.filter(pk=second.pk, responsible_manager=managers["country"]).exists()
 
 
 class TestBatches:
