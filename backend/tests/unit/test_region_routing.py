@@ -175,6 +175,20 @@ class TestSendManagerRegionEmail:
         assert verify_path in call_kwargs["html_message"]
         assert verify_path in call_kwargs["message"]
 
+    def test_send_to_rule_manager_account_email(self, mailoutbox, settings, fallback_rules):
+        """Задача шлёт письмо на email учётной записи менеджера правила, а не на manager_email (AC7)."""
+        settings.SITE_URL = "http://localhost"
+        manager = _staff_manager("gusev.account@freesportopt.ru")
+        ManagerRoutingRule.objects.create(
+            match_type=ManagerRoutingRule.MATCH_INN_REGION, match_value="77", manager=manager, manager_email=GUSEV
+        )
+        user = UserFactory(role="wholesale_level1", company_name="ООО Тест", tax_id="7701234567")
+
+        assert send_manager_region_email(user.id) is True
+
+        assert len(mailoutbox) == 1
+        assert mailoutbox[0].to == ["gusev.account@freesportopt.ru"]
+
     @patch("apps.users.tasks.send_mail")
     def test_no_recipients_skips(self, mock_send_mail, settings):
         """Нет ни одного правила → письмо не отправляется."""

@@ -472,13 +472,28 @@ class TestRuleChangeFromAdmin:
         )
 
 
-UNSUITABLE_MANAGERS = ["client", "superuser", "staff_without_group", "marketing_only"]
+UNSUITABLE_MANAGERS = [
+    "client",
+    "superuser",
+    "staff_without_group",
+    "marketing_only",
+    "managers_group_not_staff",
+    "supervisors_group_not_staff",
+]
 
 
 def make_unsuitable_manager(kind: str) -> User:
     """Учётная запись вне RESPONSIBLE_MANAGER_CHOICES."""
     if kind == "client":
         return make_client("5012345678")
+    if kind in ("managers_group_not_staff", "supervisors_group_not_staff"):
+        # В разрешённой группе: отсекает только is_staff=False.
+        member = User.objects.create_user(
+            email=f"member_{get_unique_suffix()}@freesportopt.ru", password="StrongPassword123!"
+        )
+        group = MANAGERS_GROUP if kind == "managers_group_not_staff" else SUPERVISORS_GROUP
+        member.groups.add(Group.objects.get_or_create(name=group)[0])
+        return member
     if kind == "superuser":
         # В группе «Руководители»: отсекает только is_superuser.
         root = User.objects.create_superuser(
