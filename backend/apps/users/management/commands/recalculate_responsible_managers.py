@@ -15,11 +15,14 @@
 ``resolve_responsible_for_key`` (42.2), с кэшем по ключу региона, поэтому
 число запросов зависит от числа ключей, а не клиентов.
 
-Весь прогон — одна транзакция, и первой её командой таблица правил
-блокируется от изменений (``SHARE ROW EXCLUSIVE``): правку, создание и
-удаление правила, а также второй запуск команды PostgreSQL заставит ждать до
-конца прогона. Иначе сигнал 42.2 переназначил бы клиентов по новому правилу,
-а команда записала бы поверх ответственного по старому из своего кэша.
+Весь прогон — одна транзакция. Первой её командой команда встаёт в общую
+очередь с импортом контрагентов 1С (``acquire_bulk_clients_lock``): импорт
+меняет клиентов в порядке файла, и без очереди их транзакции могли бы
+захватить строки навстречу друг другу. Затем таблица правил блокируется от
+изменений (``SHARE ROW EXCLUSIVE``): правку, создание и удаление правила, а
+также второй запуск команды PostgreSQL заставит ждать до конца прогона.
+Иначе сигнал 42.2 переназначил бы клиентов по новому правилу, а команда
+записала бы поверх ответственного по старому из своего кэша.
 
 Запись — через ``QuerySet.update()``: хук автоназначения ``User.save()`` здесь
 не нужен, а ``updated_at`` не трогается, чтобы тысячи записей не выглядели
@@ -59,6 +62,7 @@ from django.db.models import Q
 from apps.common.models import ManagerRoutingRule
 from apps.common.regions import REGION_NAMES, region_name
 from apps.users.models import User
+from apps.users.services.bulk_clients_lock import acquire_bulk_clients_lock
 from apps.users.services.responsible_manager import (
     RUSSIA_COUNTRY_VALUES,
     SOURCE_COUNTRY,
@@ -132,7 +136,9 @@ class Command(BaseCommand):
         dry_run: bool = options["dry_run"]
 
         with transaction.atomic():
-            # Блокировка — до первого чтения правил и до конца записи (см. docstring модуля).
+            # Сначала очередь с импортом контрагентов, затем правила (см. docstring модуля).
+            acquire_bulk_clients_lock()
+            # Блокировка правил — до первого их чтения и до конца записи.
             with connection.cursor() as cursor:
                 cursor.execute(LOCK_RULES_SQL)
 
@@ -248,8 +254,9 @@ class Command(BaseCommand):
         закоммиченным членством в группах (см. docstring модуля). Порядок —
         общий для всех групп записи: при захвате по группам команда держала
         бы строку с большим id, ожидая строку с меньшим, и транзакция,
-        которая меняет клиентов по возрастанию id (импорт контрагентов 1С),
-        замкнула бы с ней цикл ожидания.
+        которая меняет клиентов по возрастанию id, замкнула бы с ней цикл
+        ожидания. Импорт контрагентов 1С идёт в порядке файла, поэтому с ним
+        команда не пересекается вовсе: их разводит ``acquire_bulk_clients_lock``.
         """
         ids = sorted(pk for clients in pending.values() for pk, _previous_id in clients)
         for start in range(0, len(ids), UPDATE_CHUNK_SIZE):

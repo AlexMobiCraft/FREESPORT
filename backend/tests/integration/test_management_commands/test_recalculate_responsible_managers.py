@@ -24,8 +24,10 @@ from django.db.models import QuerySet
 from django.test.utils import CaptureQueriesContext
 
 from apps.common.models import ManagerRoutingRule
+from apps.users.management.commands import import_customers_from_1c as import_module
 from apps.users.management.commands import recalculate_responsible_managers as command_module
 from apps.users.models import User
+from apps.users.services.bulk_clients_lock import BULK_CLIENTS_LOCK_ID, acquire_bulk_clients_lock
 from apps.users.services.responsible_manager import resolve_responsible
 from apps.users.staff_roles import MANAGERS_GROUP, STAFF_ROLE_GROUPS, SUPERVISORS_GROUP
 from tests.conftest import get_unique_suffix
@@ -349,6 +351,34 @@ class TestNoRegionKey:
         assert "Ушло на резервное правило: 1" in report
         assert "изменились во время пересчёта" not in report
         assert CODES_HEADER not in report
+        assert_sum_matches(report)
+
+
+class TestEmptyCountry:
+    """Пустая страна — это Россия и в расчёте, и в условии записи (ревью R19)."""
+
+    @pytest.mark.parametrize(
+        ("tax_id", "manager", "line"),
+        [
+            ("2311111111", "region", "Назначено по коду региона: 1"),
+            ("", "fallback", "Ушло на резервное правило: 1"),
+        ],
+        ids=["region_inn", "no_key"],
+    )
+    def test_assigned_as_russia(self, managers, tax_id, manager, line):
+        rule(INN_REGION, "23", managers["region"])
+        rule(COUNTRY, "Беларусь", managers["country"])
+        rule(FALLBACK, "default", managers["fallback"])
+        client = make_client(tax_id, country="")
+        reset_responsible([client])
+
+        report, _err = run()
+
+        client.refresh_from_db()
+        assert client.country == ""
+        assert client.responsible_manager == managers[manager]
+        assert line in report
+        assert "изменились во время пересчёта" not in report
         assert_sum_matches(report)
 
 
@@ -681,6 +711,20 @@ def lock_probe(sql: str) -> str | None:
     return None
 
 
+def bulk_lock_free() -> bool:
+    """Свободна ли общая блокировка импорта и пересчёта: проба из второго соединения, без ожидания."""
+    other = connections.create_connection(DEFAULT_DB_ALIAS)
+    try:
+        with other.cursor() as cursor:
+            cursor.execute("BEGIN")
+            cursor.execute("SELECT pg_try_advisory_xact_lock(%s)", [BULK_CLIENTS_LOCK_ID])
+            free = cursor.fetchone()[0]
+            cursor.execute("ROLLBACK")
+    finally:
+        other.close()
+    return free
+
+
 RULES_TABLE = f'"{ManagerRoutingRule._meta.db_table}"'
 RULE_WRITE_PROBES = {
     "create": f"INSERT INTO {RULES_TABLE} SELECT * FROM {RULES_TABLE} WHERE false",
@@ -705,12 +749,15 @@ class TestRulesLock:
         assert {name: lock_probe(sql) for name, sql in RULE_WRITE_PROBES.items()} == dict.fromkeys(RULE_WRITE_PROBES)
         all_probes = {**RULE_WRITE_PROBES, "parallel_run": command_module.LOCK_RULES_SQL}
         probes: dict[str, dict[str, str | None]] = {}
+        import_lock_held: dict[str, bool] = {}
         original_resolve = command_module.resolve_responsible_for_key
         original_collect = command_module.Command._collect
         original_apply = command_module.Command._apply
 
         def probe(stage: str) -> None:
             probes[stage] = {name: lock_probe(sql) for name, sql in all_probes.items()}
+            # Общая блокировка с импортом контрагентов держится так же (ревью R18).
+            import_lock_held[stage] = not bulk_lock_free()
 
         def resolve_with_probe(key):
             if "first_read" not in probes:
@@ -736,6 +783,8 @@ class TestRulesLock:
         expected = dict.fromkeys(all_probes, LOCK_NOT_AVAILABLE)
         stages = ["first_read", "calculated"] if dry_run else ["first_read", "calculated", "write"]
         assert probes == dict.fromkeys(stages, expected)
+        assert import_lock_held == dict.fromkeys(stages, True)
+        assert bulk_lock_free()
 
 
 USERS_TABLE = f'"{User._meta.db_table}"'
@@ -857,6 +906,115 @@ class TestLockOrder:
         assert_sum_matches(report)
         assert User.objects.filter(pk__in=[first.pk, third.pk], responsible_manager=managers["region"]).count() == 2
         assert User.objects.filter(pk=second.pk, responsible_manager=managers["country"]).exists()
+
+
+class TestImportSerialization:
+    """Импорт контрагентов 1С и пересчёт сериализованы общей advisory-блокировкой (ревью R18)."""
+
+    def test_import_in_reverse_id_order_does_not_deadlock(self, managers):
+        rule(INN_REGION, "23", managers["region"])
+        rule(FALLBACK, "default", managers["fallback"])
+        first, second = make_client("2311111111"), make_client("2322222222")
+        reset_responsible([first, second])
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            command_pid = cursor.fetchone()[0]
+        holding = threading.Event()
+        outcome: dict[str, object] = {}
+
+        def import_in_reverse_id_order_in_other_connection() -> None:
+            # Как импорт контрагентов 1С: блокировка, затем клиенты в порядке файла — здесь по убыванию id.
+            other = connections.create_connection(DEFAULT_DB_ALIAS)
+            try:
+                with other.cursor() as cursor:
+                    cursor.execute("BEGIN")
+                    cursor.execute("SELECT pg_advisory_xact_lock(%s)", [BULK_CLIENTS_LOCK_ID])
+                    cursor.execute(f"UPDATE {USERS_TABLE} SET first_name = first_name WHERE id = %s", [second.pk])
+                    holding.set()
+                    outcome["command_waited"] = wait_until_blocking(cursor, command_pid)
+                    # Команда ждёт до блокировки правил и строк: правила свободны для записи.
+                    outcome["rules_probe"] = lock_probe(RULE_WRITE_PROBES["update"])
+                    cursor.execute(f"UPDATE {USERS_TABLE} SET first_name = first_name WHERE id = %s", [first.pk])
+                    cursor.execute("COMMIT")
+            except Exception as exc:  # ошибку потока проверяет тест после join
+                outcome["error"] = exc
+            finally:
+                holding.set()
+                other.close()
+
+        thread = threading.Thread(target=import_in_reverse_id_order_in_other_connection)
+        thread.start()
+        try:
+            assert holding.wait(BLOCK_WAIT_SECONDS)
+            report, _err = run()
+        finally:
+            thread.join(2 * BLOCK_WAIT_SECONDS)
+
+        assert "error" not in outcome
+        assert outcome["command_waited"] is True
+        assert outcome["rules_probe"] is None
+        assert "Назначено по коду региона: 2" in report
+        assert_sum_matches(report)
+        assert User.objects.filter(pk__in=[first.pk, second.pk], responsible_manager=managers["region"]).count() == 2
+
+    @pytest.mark.parametrize("failure", ["no_fallback", "write_error"])
+    def test_recalculation_releases_lock_on_error(self, managers, failure):
+        rule(INN_REGION, "23", managers["region"])
+        rule(FALLBACK, "default", None if failure == "no_fallback" else managers["fallback"])
+        reset_responsible([make_client("2311111111")])
+        held: list[bool] = []
+        original_resolve = command_module.resolve_responsible_for_key
+
+        def resolve_with_probe(key):
+            if not held:
+                held.append(not bulk_lock_free())
+            return original_resolve(key)
+
+        def failing_lock_clients(_pending):
+            raise RuntimeError("сбой записи")
+
+        with (
+            patch.object(command_module, "resolve_responsible_for_key", resolve_with_probe),
+            patch.object(command_module.Command, "_lock_clients", staticmethod(failing_lock_clients)),
+        ):
+            with pytest.raises(CommandError if failure == "no_fallback" else RuntimeError):
+                run()
+
+        assert held == [True]
+        assert bulk_lock_free()
+
+    @pytest.fixture
+    def import_dir(self, tmp_path):
+        # Содержимое файла не читается: парсер подменён, проверяется только блокировка.
+        (tmp_path / "contragents").mkdir()
+        (tmp_path / "contragents" / "contragents_1.xml").write_text("", encoding="utf-8")
+        return str(tmp_path)
+
+    @pytest.mark.parametrize("fails", [False, True], ids=["success", "file_error"])
+    def test_import_holds_lock_while_processing(self, import_dir, fails):
+        held: list[bool] = []
+
+        def process_customers(_self, _customers_data, chunk_size=100):
+            held.append(not bulk_lock_free())
+            if fails:
+                raise RuntimeError("сбой обработки файла")
+            return {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+
+        out = StringIO()
+        with (
+            patch.object(import_module.CustomerDataParser, "parse", return_value=[]),
+            patch.object(import_module.CustomerDataProcessor, "process_customers", process_customers),
+        ):
+            call_command("import_customers_from_1c", data_dir=import_dir, stdout=out)
+
+        assert held == [True]
+        assert ("Ошибка обработки файла" in out.getvalue()) is fails
+        assert bulk_lock_free()
+
+    def test_lock_outside_transaction_refused(self):
+        # Вне транзакции PostgreSQL снял бы блокировку сразу: тихо бесполезный вызов.
+        with pytest.raises(RuntimeError, match="transaction.atomic"):
+            acquire_bulk_clients_lock()
 
 
 class TestBatches:
