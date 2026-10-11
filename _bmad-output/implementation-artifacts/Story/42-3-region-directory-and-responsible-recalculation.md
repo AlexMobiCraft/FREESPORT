@@ -4,7 +4,7 @@ baseline_commit: 02298949
 
 # Story 42.3: Справочник регионов и разовый пересчёт ответственных
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: 02298949
 
 ## Story
@@ -126,13 +126,13 @@ so that после запуска у каждого клиента был мен
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — pre-flight** (AGENTS.md)
-  - [ ] Убедиться, что 42.2 слита и её символы на месте (см. «Предусловие»). Прочитать Completion Notes 42.2.
-  - [ ] `npx gitnexus status`. На момент написания стори индекс `stale` на один коммит каталога (`b19cfc9`, к эпику 42 не относится), а после мёрджа 42.2 устареет точно. Попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`.
-  - [ ] `npx gitnexus impact <symbol> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` для `ManagerRoutingRuleAdmin` (42.2 сняла LOW), `resolve_responsible_for_key`, `region_key`. Новые символы (`regions.py`, команда) impact не требуют. Blast radius сообщить Alex.
+- [x] **Task 0 — pre-flight** (AGENTS.md)
+  - [x] Убедиться, что 42.2 слита и её символы на месте (см. «Предусловие»). Прочитать Completion Notes 42.2.
+  - [x] `npx gitnexus status`. На момент написания стори индекс `stale` на один коммит каталога (`b19cfc9`, к эпику 42 не относится), а после мёрджа 42.2 устареет точно. Попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`.
+  - [x] `npx gitnexus impact <symbol> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` для `ManagerRoutingRuleAdmin` (42.2 сняла LOW), `resolve_responsible_for_key`, `region_key`. Новые символы (`regions.py`, команда) impact не требуют. Blast radius сообщить Alex.
 
-- [ ] **Task 1 — справочник** (AC1, AC2)
-  - [ ] Новый модуль `backend/apps/common/regions.py`:
+- [x] **Task 1 — справочник** (AC1, AC2)
+  - [x] Новый модуль `backend/apps/common/regions.py`:
     ```python
     """
     Справочник регионов по первым двум цифрам ИНН (эпик 42).
@@ -156,13 +156,13 @@ so that после запуска у каждого клиента был мен
     - `REGION_NAMES` — **дословно** из Dev Notes, в порядке кодов. Названия не сочинять и не «уточнять».
     - `region_name`: `REGION_NAMES.get(code, code)`; для `None` и `""` — `""`.
     - `unassigned_regions`: одним запросом взять `match_value` активных правил `inn_region` с `manager__isnull=False` (`values_list(..., flat=True)` в `set`), вернуть `Region` для кодов справочника вне множества, по возрастанию кода. Константы `ManagerRoutingRule.MATCH_INN_REGION`, а не литерал. Импорт модели — на уровне модуля: `apps.common.models` не импортирует `regions`, цикла нет.
-  - [ ] Комментарий над записями 80–88 и 97 — почему они в справочнике (решение 2), чтобы их не «вычистили» как несуществующие субъекты.
+  - [x] Комментарий над записями 80–88 и 97 — почему они в справочнике (решение 2), чтобы их не «вычистили» как несуществующие субъекты.
 
-- [ ] **Task 2 — `/admin/` суперпользователя** (AC3)
-  - [ ] `backend/apps/common/admin.py`, `ManagerRoutingRuleAdmin` (после 42.2 там уже колонка `manager` и `list_select_related`):
+- [x] **Task 2 — `/admin/` суперпользователя** (AC3)
+  - [x] `backend/apps/common/admin.py`, `ManagerRoutingRuleAdmin` (после 42.2 там уже колонка `manager` и `list_select_related`):
     - метод-колонка `region_display` с `@admin.display(description="Регион")`: `inn_region` → `region_name(match_value)`, `country` → `match_value`, `fallback` → `"—"`. Поставить в `list_display` сразу после `match_value`. Сортировку по колонке не задавать;
     - `changelist_view(self, request, extra_context=None)`: в `extra_context` положить `unassigned_regions` (список `Region`) и вызвать `super()`.
-  - [ ] Шаблон `backend/templates/admin/common/managerroutingrule/change_list.html` по образцу `templates/admin/users/user/change_form.html`:
+  - [x] Шаблон `backend/templates/admin/common/managerroutingrule/change_list.html` по образцу `templates/admin/users/user/change_form.html`:
     ```django
     {% extends "admin/change_list.html" %}
     {% block content %}
@@ -180,11 +180,11 @@ so that после запуска у каждого клиента был мен
     ```
     Каталог `templates/admin/common/` новый. Подхват проверить тестом: `DIRS` настроен, соседние `templates/admin/users/...` уже работают.
 
-- [ ] **Task 3 — команда пересчёта** (AC4–AC8)
-  - [ ] Новый файл `backend/apps/users/management/commands/recalculate_responsible_managers.py`, класс `Command(BaseCommand)`:
+- [x] **Task 3 — команда пересчёта** (AC4–AC8)
+  - [x] Новый файл `backend/apps/users/management/commands/recalculate_responsible_managers.py`, класс `Command(BaseCommand)`:
     - `help = "Разовый пересчёт ответственного менеджера для всех клиентов по правилам регионов"`;
     - аргумент `--dry-run` (`store_true`, help «Посчитать и вывести отчёт, ничего не меняя»).
-  - [ ] Алгоритм `handle`:
+  - [x] Алгоритм `handle`:
     1. Резерв: `resolve_responsible_for_key(None)`. Если `source == SOURCE_NONE` и не `--dry-run` → `CommandError("Нет активного резервного правила с менеджером. Назначьте руководителя в резервном правиле и запустите снова; для оценки — --dry-run.")`. Проверка — до чтения клиентов.
     2. Клиенты: `User.objects.exclude(staff_accounts_q()).only("id", "country", "tax_id", "responsible_manager_id", "responsible_manager_manual").order_by("pk").iterator(chunk_size=2000)`. `unregistered`, неактивные и заблокированные — тоже клиенты, не отсекать.
     3. Для каждого клиента, в этом порядке:
@@ -196,7 +196,7 @@ so that после запуска у каждого клиента был мен
        - отдельно: если `source == SOURCE_FALLBACK` и `key` вида `("inn_region", code)`, увеличить `fallback_codes[code]`, независимо от того, изменился ли клиент. Это строка отчёта «коды без менеджера».
     4. Не `--dry-run` → в `transaction.atomic()` для каждого `target_id` пачками по 1000 id: `User.objects.filter(pk__in=chunk, responsible_manager_manual=False).update(responsible_manager_id=target_id)`.
     5. Отчёт (`self.stdout.write`), затем `logger.info("Responsible managers recalculated", extra={"action": "responsible_manager_recalculate", "dry_run": ..., **counters})` — по образцу `region_routing.py:50`.
-  - [ ] **Формат отчёта** — тесты проверяют строки дословно (`N` — число; две строки кодов — пример формата):
+  - [x] **Формат отчёта** — тесты проверяют строки дословно (`N` — число; две строки кодов — пример формата):
     ```
     Пересчёт ответственных менеджеров (пробный запуск, изменения не сохранены)   ← скобка только с --dry-run
     Проверено клиентов: N
@@ -211,20 +211,20 @@ so that после запуска у каждого клиента был мен
       80 — Агинский Бурятский АО (Забайкальский край): N
     ```
     Коды — по убыванию числа клиентов, при равенстве — по коду. Три строки «Назначено…», «Пропущено», «Без изменений» и «Без ответственного» в сумме дают «Проверено клиентов» — проверить в тесте, а не `assert` в команде. Предупреждение AC7 при `--dry-run` — `self.stderr.write(self.style.WARNING(...))` с тем же текстом, что у `CommandError`.
-  - [ ] Ни `User.save()`, ни `bulk_update`, ни сигналы: только `QuerySet.update()` (решение 6). Docstring модуля: зачем команда, когда её запускать (после распределения регионов, сначала `--dry-run`), почему `update()`.
+  - [x] Ни `User.save()`, ни `bulk_update`, ни сигналы: только `QuerySet.update()` (решение 6). Docstring модуля: зачем команда, когда её запускать (после распределения регионов, сначала `--dry-run`), почему `update()`.
 
-- [ ] **Task 4 — тесты** (NFR-42-01, NFR-42-02). Общие правила:
+- [x] **Task 4 — тесты** (NFR-42-01, NFR-42-02). Общие правила:
   - autouse-фикстура `ManagerRoutingRule.objects.all().delete()`, как в `tests/unit/test_region_routing.py:37`: в тестовой БД лежит сид `0018`;
   - группы ролей — `Group.objects.get_or_create(name=...)` с именами из `staff_roles`;
   - **ловушка 42.2:** клиент, созданный через `save()`/фабрику, сразу получает ответственного хуком, а создание или правка правила переводит клиентов сигналом. Чтобы получить «существующих клиентов без ответственного», после подготовки правил и клиентов сбросить состояние `User.objects.filter(pk__in=...).update(responsible_manager=None)`, и только затем звать команду;
   - фабрика `tests.factories.UserFactory`, уникальные данные — `get_unique_suffix()`.
-  - [ ] `backend/tests/unit/test_regions.py` (AC1, AC2):
+  - [x] `backend/tests/unit/test_regions.py` (AC1, AC2):
     - в справочнике 97 ключей, все — строки из двух цифр; есть 90–95, 97; `region_name("99") == "Крупнейшие налогоплательщики"`;
     - `region_name` для «96», «00», «7», «ab» возвращает аргумент, для `None` и `""` — `""`;
     - все коды сида: `importlib.import_module("apps.common.migrations.0018_seed_manager_routing_rules").REGION_GROUPS` — каждый код есть в `REGION_NAMES`;
     - `unassigned_regions`: без правил — все 97; правило 23 с `manager` → 23 нет; правило 24 только с `manager_email` → 24 есть; неактивное правило 25 с `manager` → 25 есть; правило по стране и резервное с `manager` список не меняют; правила с `manager` на все 97 кодов → `[]`; порядок по коду; `django_assert_num_queries(1)`.
-  - [ ] `backend/tests/integration/test_admin_manager_routing_rule_regions.py` (AC3): суперпользователь `GET /admin/common/managerroutingrule/` → 200, в HTML «Не распределены», название субъекта у правила 23, «—» у резервного; при всех покрытых кодах — «Все регионы распределены»; число запросов на 3 и на 30 правилах одинаково (`CaptureQueriesContext`).
-  - [ ] `backend/tests/integration/test_management_commands/test_recalculate_responsible_managers.py` (AC4–AC8). Сценарии:
+  - [x] `backend/tests/integration/test_admin_manager_routing_rule_regions.py` (AC3): суперпользователь `GET /admin/common/managerroutingrule/` → 200, в HTML «Не распределены», название субъекта у правила 23, «—» у резервного; при всех покрытых кодах — «Все регионы распределены»; число запросов на 3 и на 30 правилах одинаково (`CaptureQueriesContext`).
+  - [x] `backend/tests/integration/test_management_commands/test_recalculate_responsible_managers.py` (AC4–AC8). Сценарии:
     - полный набор клиентов из AC4: проверка инварианта `responsible_manager == resolve_responsible(...).manager` по каждому не ручному клиенту; ручные и сотрудники не изменились; `updated_at` у всех тот же (`refresh_from_db`);
     - отчёт: каждое число дословной строкой; сумма = «Проверено клиентов»; строка кода без менеджера (правило 97 отсутствует → «97 — г. Москва (ИНН с 2014 г.): N»);
     - клиент с «чужим» ответственным (не ручной) → переназначен и учтён в «Назначено по коду региона»;
@@ -232,15 +232,15 @@ so that после запуска у каждого клиента был мен
     - `--dry-run`: отчёт совпадает с отчётом последующего обычного запуска (кроме заголовка), а в `CaptureQueriesContext` нет `UPDATE "users"`;
     - нет резерва с `manager`: обычный запуск → `CommandError`, клиенты не изменены; `--dry-run` → строка «Без ответственного …» и предупреждение в `stderr`;
     - AC8: 5 и 50 клиентов в трёх регионах → одинаковое число запросов (`CaptureQueriesContext`, сравнить `len`).
-  - [ ] Негативные тесты (NFR-42-02 — здесь «не трогать»): ручное назначение; сотрудник каждого вида; клиент региона без правила с `manager` не получает менеджера правила только с `manager_email`.
+  - [x] Негативные тесты (NFR-42-02 — здесь «не трогать»): ручное назначение; сотрудник каждого вида; клиент региона без правила с `manager` не получает менеджера правила только с `manager_email`.
 
-- [ ] **Task 5 — проверки и закрытие**
-  - [ ] Полный backend-прогон в Docker, один compose-проект, без параллельных прогонов: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`.
-  - [ ] `makemigrations --check --dry-run` в контейнере — миграций нет (справочник в коде).
-  - [ ] Линтеры — навык `backend-lint` или compose-проект `freesport-lint`, не параллельно с зачётным pytest. `check_openapi_sync` — рецепт в Dev Notes; ожидается «синхронен».
-  - [ ] Пробный прогон команды на тестовой базе с сидом `0018`, когда менеджер назначен только резервному правилу: `--dry-run` показывает «Ушло на резервное правило» = все клиенты и все коды в строках «без менеджера». Вывод — в Completion Notes.
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
-  - [ ] Completion Notes: шаги выката (Dev Notes, «Выкат»), отклонения от стори с причинами.
+- [x] **Task 5 — проверки и закрытие**
+  - [x] Полный backend-прогон в Docker, один compose-проект, без параллельных прогонов: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`.
+  - [x] `makemigrations --check --dry-run` в контейнере — миграций нет (справочник в коде).
+  - [x] Линтеры — навык `backend-lint` или compose-проект `freesport-lint`, не параллельно с зачётным pytest. `check_openapi_sync` — рецепт в Dev Notes; ожидается «синхронен».
+  - [x] Пробный прогон команды на тестовой базе с сидом `0018`, когда менеджер назначен только резервному правилу: `--dry-run` показывает «Ушло на резервное правило» = все клиенты и все коды в строках «без менеджера». Вывод — в Completion Notes.
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
+  - [x] Completion Notes: шаги выката (Dev Notes, «Выкат»), отклонения от стори с причинами.
 
 ## Dev Notes
 
@@ -470,10 +470,47 @@ REGION_NAMES: dict[str, str] = {
 
 ### Agent Model Used
 
+Claude Opus 5.5 (claude-opus-5-5)
+
 ### Debug Log References
+
+- Мутация «убрать кэш по ключу региона» роняет AC8: 13 запросов на 5 клиентах против 79 на 50.
+- Отдельный compose-проект `freesport-lint` не поднимается: у `freesport-test-redis` и сети фиксированные имена, они заняты проектом `freesport-test`. Линтеры, `makemigrations` и `check_openapi_sync` запущены в `freesport-test` после зачётного pytest, не параллельно с ним.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- Pre-flight: 42.2 слита в `develop` (`863c7a01`), имена и сигнатуры совпадают со стори. Индекс GitNexus формально `stale` (`dd461a0` против `863c7a0`), но деревья коммитов не отличаются, переиндексация не понадобилась. Impact upstream: `ManagerRoutingRuleAdmin` — LOW (1 прямой, `urls.py`), `resolve_responsible_for_key` — LOW (2 прямых), `region_key` — LOW (2 прямых); функции 42.2 не менялись, только переиспользованы.
+- Реализовано: справочник `apps/common/regions.py` (97 кодов дословно из Dev Notes, `region_name`, `unassigned_regions` одним запросом); колонка «Регион» и блок «Не распределены» в `/admin/` (`ManagerRoutingRuleAdmin.region_display`, `changelist_view`, шаблон `admin/common/managerroutingrule/change_list.html`); команда `recalculate_responsible_managers` с `--dry-run`, кэшем по ключу региона, записью через `QuerySet.update()` пачками по 1000 и защитой от пустого резерва.
+- Тесты: `test_regions.py` (31), `test_admin_manager_routing_rule_regions.py` (3), `test_recalculate_responsible_managers.py` (15). Покрытие `regions.py` и команды — 100 %.
+- Проверки: полный backend-прогон в Docker — 4028 passed, 76 skipped, 0 failed (42:36); `makemigrations --check` — «No changes detected»; `black --check` — 462 unchanged; `flake8` чист; `mypy` — «no issues found in 615 source files» (базис 42.2 — без ошибок, дельта 0); `check_openapi_sync` — «Контракт синхронен с кодом»; `detect-changes` — 1 символ (`ManagerRoutingRuleAdmin`), процессов 0, риск low. Ожидания существующих тестов не менялись.
+- Пробный прогон (Task 5) — на dev-базе: копия с сидом `0018`, 92 правила без менеджеров, 4731 клиент. В транзакции с откатом заведён временный руководитель, резервному правилу назначен менеджер через `update()` (без сигнала 42.2), затем `--dry-run`. Итог: «Проверено клиентов: 4731», «Ушло на резервное правило: 4731», остальные строки 0; в «Коды без менеджера» — 87 кодов, первые `26 — Ставропольский край: 659`, `77 — г. Москва: 449`, `50 — Московская область: 181`; есть `97 — г. Москва (ИНН с 2014 г.): 83`, `80: 2`, `85: 2`, `95: 2`, `81: 1`, что сходится с прод-выборкой Dev Notes. После отката правил с менеджером 0, временной учётной записи нет.
+- **Отклонение 1 — тестовые данные через `create_user`, а не `UserFactory`.** Хелперы `make_staff`/`make_client`/`rule` повторяют `tests/unit/test_responsible_manager.py` (42.2): там так же задаются роль, ИНН и страна, а уникальность даёт `get_unique_suffix()`.
+- **Отклонение 2 — код вне справочника в строке «Коды без менеджера».** Алгоритм Task 3 считает любой код `inn_region` (например, «96»). Чтобы не печатать «96 — 96», такой код выводится без названия: `  96: N`. На проде клиентов с кодами вне справочника нет.
+- **Отклонение 3 — проверка «нет менеджера» через `resolution.manager is None`.** Условие равносильно `source == SOURCE_NONE` (у `ResponsibleResolution` менеджер пуст только в этом случае), но даёт mypy сужение типа перед `resolution.manager.pk`. Комментарий в коде.
+- **Отклонение 4 — пробный прогон на dev-базе, а не на тестовой.** На dev-базе реальный объём и распределение кодов, поэтому проверка содержательнее. Ничего не сохранено: транзакция откатана, откат проверен.
+- **Выкат** (порядок из Dev Notes «Выкат»):
+  1. Выкатить 42.2 и 42.3. Миграций у 42.3 нет.
+  2. Завести учётные записи менеджеров (`is_staff=True`, группа «Менеджеры»): Гусев, Лопатина, Исакова, Милованов.
+  3. В `/admin/` → «Правила маршрутизации менеджеров» назначить `manager` каждому правилу региона и страны. Что осталось — показывает блок «Не распределены».
+  4. Создать правила для кодов без правила (утверждено 09.10.2026): 97 и 81 → Гусев; 80, 82, 84, 85, 88 → Исакова; 95 → Лопатина; 99 → Гусев.
+  5. Проверить, что у резервного правила 91 `manager` = id 15.
+  6. `docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml exec -T backend python manage.py recalculate_responsible_managers --dry-run` → сверить числа, затем без `--dry-run`.
+  7. Малые числа «Назначено» на шаге 6 — норма: сохранение правил на шагах 3–4 уже перевело клиентов сигналом 42.2.
+  После шага 6 блок «Не распределены» должен показывать «Все регионы распределены». Затем — выкат 42.4.
 
 ### File List
+
+- `backend/apps/common/regions.py` (новый)
+- `backend/apps/common/admin.py` (изменён)
+- `backend/templates/admin/common/managerroutingrule/change_list.html` (новый)
+- `backend/apps/users/management/commands/recalculate_responsible_managers.py` (новый)
+- `backend/tests/unit/test_regions.py` (новый)
+- `backend/tests/integration/test_admin_manager_routing_rule_regions.py` (новый)
+- `backend/tests/integration/test_management_commands/test_recalculate_responsible_managers.py` (новый)
+- `_bmad-output/implementation-artifacts/Story/42-3-region-directory-and-responsible-recalculation.md` (изменён)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (изменён)
+
+### Change Log
+
+- 2026-10-11: справочник регионов, колонка «Регион» и блок «Не распределены» в `/admin/`, команда `recalculate_responsible_managers`; 49 новых тестов; полный прогон 4028 passed, 0 failed. Статус ready-for-dev → review.
