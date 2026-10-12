@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-11 (стори 42.3: закрыт R20 — регресс блокировки пробного импорта; 4064 passed; in-progress -> review)
+# last_updated: 2026-10-12 (стори 42.3: закрыт R21 (docstring команды), полный прогон 4064 passed; in-progress -> review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
