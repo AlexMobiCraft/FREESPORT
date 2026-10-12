@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import csv
 from datetime import timedelta
+from typing import Any
 
 from django.contrib import admin
 from django.db.models import QuerySet
@@ -25,6 +26,7 @@ from .models import (
     SyncLog,
     UserConsent,
 )
+from .regions import region_name, unassigned_regions
 from .services import CustomerSyncMonitor
 
 
@@ -629,6 +631,7 @@ class ManagerRoutingRuleAdmin(admin.ModelAdmin):
     list_display = [
         "match_type",
         "match_value",
+        "region_display",
         "manager",
         "manager_name",
         "manager_email",
@@ -691,3 +694,16 @@ class ManagerRoutingRuleAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    @admin.display(description="Регион")
+    def region_display(self, obj: ManagerRoutingRule) -> str:
+        if obj.match_type == ManagerRoutingRule.MATCH_INN_REGION:
+            return region_name(obj.match_value)
+        if obj.match_type == ManagerRoutingRule.MATCH_COUNTRY:
+            return obj.match_value
+        return "—"
+
+    def changelist_view(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> HttpResponse:
+        """Над списком — коды регионов, которым ещё не назначен менеджер."""
+        extra_context = {**(extra_context or {}), "unassigned_regions": unassigned_regions()}
+        return super().changelist_view(request, extra_context=extra_context)

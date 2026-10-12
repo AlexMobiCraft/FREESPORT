@@ -15,6 +15,7 @@ from django.utils import timezone
 from apps.common.models import CustomerSyncLog
 from apps.products.models import ImportSession
 from apps.users.models import User
+from apps.users.services.bulk_clients_lock import acquire_bulk_clients_lock
 from apps.users.services.parser import CustomerDataParser
 from apps.users.services.processor import ROLE_STATS_KEYS, CustomerDataProcessor
 
@@ -140,6 +141,10 @@ class Command(BaseCommand):
                         customer_data = parser.parse(str(file_path))
 
                         self.stdout.write(self.style.SUCCESS(f"  Распознано {len(customer_data)} клиентов"))
+
+                        # Очередь с пересчётом ответственных — до первой записи
+                        # клиентов, до конца транзакции файла (см. bulk_clients_lock).
+                        acquire_bulk_clients_lock()
 
                         # Обработка данных
                         self.stdout.write("  Обработка клиентов...")

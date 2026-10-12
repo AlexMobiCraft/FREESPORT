@@ -1,3 +1,16 @@
+## Отложено из ревью 42-3-region-directory-and-responsible-recalculation.md на c84f4de7 (2026-10-12)
+
+- **Владелец задачи негативной выгрузки детектора реквизитов пока не назначен.** Повтор уже зарегистрированного ниже организационного долга; критерий закрытия в записи есть. При взятии задачи данных в работу назначить владельца, не заводя вторую задачу того же снимка. Источник: blind-hunter №9; `_bmad-output/implementation-artifacts/deferred-work.md`.
+- **Машинная дата sprint tracker отстаёт от комментария на день.** На `c84f4de7` комментарий сообщает обновление `2026-10-12`, а поле `last_updated` содержит `2026-10-11`. Это правка контекста агентов, не дефект пересчёта. **Закрыто 2026-10-12:** при завершении ревью поле синхронизировано на `2026-10-12`, статус 42.3 переведён в `in-progress` по решению Alex оставить R22 открытой задачей. Источник: blind-hunter №10; `_bmad-output/implementation-artifacts/sprint-status.yaml:4,56`.
+
+## Deferred from: code review of 42-3-region-directory-and-responsible-recalculation.md (2026-10-12)
+
+- **У отложенной записи о негативных тестах детектора блока реквизитов нет владельца и критерия закрытия.** Запись ниже описывает задачу данных, но не закрепляет ответственного и условие приёмки. При взятии в работу назначить владельца и закрепить критерий: обе негативные проверки (`test_block_missing_everywhere_triggers_anomaly`, `test_anomaly_warning_printed_in_dry_run`) выполняются на закреплённой реальной выгрузке без блока `<ЗначенияРеквизитов>` и проходят в обязательном прогоне. [`_bmad-output/implementation-artifacts/deferred-work.md:3`, `backend/tests/integration/test_customers_price_type_detector.py:115-149`]
+
+## Отложено из ревью 42-3-region-directory-and-responsible-recalculation.md (2026-10-11)
+
+- **Негативным тестам детектора блока реквизитов нужен закреплённый реальный снимок без блока.** `backend/tests/integration/test_customers_price_type_detector.py:115-149` ожидает отсутствие `<ЗначенияРеквизитов>` в снимке `contragents/` и предупреждение об аномалии, включая `--dry-run`. В штатном тестовом compose каталог отсутствует и проверки пропускаются; корневой `data/import_1c/contragents/` содержит 4735 блоков, поэтому подмонтирование текущего снимка не заменяет старую негативную фикстуру. Completion Notes story 42.3 фиксируют два падения в предыдущем реальном прогоне; в ревью HEAD `87f32792` повторно эти XML-тесты не запускались. Проблема существовала до diff `863c7a01..87f32792`: детектор, тестовые ожидания и compose им не изменены. Отдельно подобрать и закрепить реальную выгрузку без блока для негативных сценариев, сохранив актуальную выгрузку с блоком для положительных; не создавать синтетический XML и не ослаблять assertions. Источник: story 42.3, повторное ревью HEAD `87f32792`, blind-hunter №5 (medium).
+
 ## Deferred from: party-mode review of spec-catalog-brand-seo-metadata (2026-10-02)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-catalog-brand-seo-metadata.md`
