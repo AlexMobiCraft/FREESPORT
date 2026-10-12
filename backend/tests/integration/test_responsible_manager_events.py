@@ -452,6 +452,58 @@ class TestRuleChangeFromAdmin:
         assert [responsible_of(c) for c in clients] == [new_manager] * 3
         assert responsible_of(manual) == team["a"]
 
+    def test_first_manager_moves_clients_from_fallback(self, team, superuser_client):
+        # Так пройдёт выкат: правило региона без `manager` отдаёт клиентов резерву,
+        # менеджера ему назначают позже в форме админки.
+        clients = [make_client(f"24{i:08d}") for i in range(3)]
+        manual = make_client("2499999999")
+        User.objects.filter(pk=manual.pk).update(responsible_manager_manual=True)
+        assert [responsible_of(c) for c in clients] == [team["chief"]] * 3
+        rule = ManagerRoutingRule.objects.get(match_type=INN_REGION, match_value="24")
+        new_manager = make_staff()
+        response = superuser_client.post(
+            reverse("admin:common_managerroutingrule_change", args=[rule.pk]),
+            {
+                "match_type": INN_REGION,
+                "match_value": "24",
+                "is_active": "on",
+                "manager": str(new_manager.pk),
+                "manager_name": "",
+                "manager_email": "old24@freesportopt.ru",
+                "federal_district": "",
+            },
+        )
+        assert response.status_code == 302, response.context["adminform"].form.errors
+        assert [responsible_of(c) for c in clients] == [new_manager] * 3
+        assert responsible_of(manual) == team["chief"]
+
+    def test_reactivate_rule_moves_clients_from_fallback(self, team, superuser_client):
+        # Выключенное правило с менеджером не работает: клиенты региона сидят на резерве.
+        # Повторное включение должно перевести их к менеджеру правила.
+        manager = make_staff()
+        rule = ManagerRoutingRule.objects.create(
+            match_type=INN_REGION, match_value="25", manager=manager, is_active=False
+        )
+        clients = [make_client(f"25{i:08d}") for i in range(3)]
+        manual = make_client("2599999999")
+        User.objects.filter(pk=manual.pk).update(responsible_manager_manual=True)
+        assert [responsible_of(c) for c in clients] == [team["chief"]] * 3
+        response = superuser_client.post(
+            reverse("admin:common_managerroutingrule_change", args=[rule.pk]),
+            {
+                "match_type": INN_REGION,
+                "match_value": "25",
+                "is_active": "on",
+                "manager": str(manager.pk),
+                "manager_name": "",
+                "manager_email": "",
+                "federal_district": "",
+            },
+        )
+        assert response.status_code == 302, response.context["adminform"].form.errors
+        assert [responsible_of(c) for c in clients] == [manager] * 3
+        assert responsible_of(manual) == team["chief"]
+
     def test_duplicate_active_rule_rejected_by_form(self, team, superuser_client):
         response = superuser_client.post(
             reverse("admin:common_managerroutingrule_add"),

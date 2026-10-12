@@ -297,6 +297,22 @@ class TestReassignClientsForKey:
         assert self.responsible(scene["others"]) == [None] * 3
         assert self.responsible(scene["region_23"][2:]) == [scene["a"]] * 8
 
+    def test_deactivate_fallback_clears_responsible(self, scene):
+        # Выключенный резерв не даёт ответственного: клиенты без своего правила остаются без менеджера.
+        manual_fallback = make_client("0098765432")
+        User.objects.filter(pk=manual_fallback.pk).update(responsible_manager_manual=True)
+        fallback_rule = scene["fallback_rule"]
+        fallback_rule.is_active = False
+        fallback_rule.save()
+        assert self.responsible(scene["others"]) == [None] * 3
+        # Региональные и ручные назначения не тронуты.
+        assert self.responsible(scene["region_23"][2:]) == [scene["a"]] * 8
+        assert self.responsible(scene["region_23"][:2]) == [scene["a"]] * 2
+        assert self.responsible(scene["region_24"]) == [scene["a"]] * 3
+        assert self.responsible([manual_fallback]) == [scene["chief"]]
+        assert self.responsible([scene["staff_23"]]) == [None]
+        assert_mass_equals_single(scene["region_23"][2:] + scene["region_24"] + scene["others"])
+
     def test_change_country_rule_manager(self, scene):
         # ИНН с кодом 23: страна важнее ИНН, правило региона 23 этих клиентов не касается.
         belarus_rule = rule(COUNTRY, "Беларусь", scene["a"])
