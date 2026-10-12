@@ -990,8 +990,11 @@ class TestImportSerialization:
         (tmp_path / "contragents" / "contragents_1.xml").write_text("", encoding="utf-8")
         return str(tmp_path)
 
+    # Пробный импорт тоже пишет клиентов и лишь потом откатывает транзакцию файла,
+    # поэтому обязан стоять в той же очереди, что и обычный.
+    @pytest.mark.parametrize("dry_run", [False, True], ids=["real_run", "dry_run"])
     @pytest.mark.parametrize("fails", [False, True], ids=["success", "file_error"])
-    def test_import_holds_lock_while_processing(self, import_dir, fails):
+    def test_import_holds_lock_while_processing(self, import_dir, fails, dry_run):
         held: list[bool] = []
 
         def process_customers(_self, _customers_data, chunk_size=100):
@@ -1005,7 +1008,7 @@ class TestImportSerialization:
             patch.object(import_module.CustomerDataParser, "parse", return_value=[]),
             patch.object(import_module.CustomerDataProcessor, "process_customers", process_customers),
         ):
-            call_command("import_customers_from_1c", data_dir=import_dir, stdout=out)
+            call_command("import_customers_from_1c", data_dir=import_dir, dry_run=dry_run, stdout=out)
 
         assert held == [True]
         assert ("Ошибка обработки файла" in out.getvalue()) is fails
