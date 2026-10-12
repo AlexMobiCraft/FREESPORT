@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-12 (ревью стори 42.3 на 09fad266: четыре слоя завершены, 17 замечаний отклонены, 86 тестов passed; review -> done)
+# last_updated: 2026-10-12 (стори 42.4 освежена на b4fab053 по коду 42.2/42.3: координаты, решения 12–13, таблица мутаций; статус ready-for-dev без изменений)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
