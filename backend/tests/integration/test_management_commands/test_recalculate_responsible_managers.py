@@ -809,11 +809,9 @@ def wait_until_blocking(cursor, blocked_pid: int) -> bool:
 class TestGroupMembershipRace:
     """Клиента добавили в группу сотрудников из другого соединения, пока команда пишет (ревью R11)."""
 
-    def test_membership_committed_during_write_wait_not_assigned(self, managers):
-        rule(INN_REGION, "23", managers["region"])
-        rule(FALLBACK, "default", managers["fallback"])
-        client = make_client("2311111111")
-        reset_responsible([client])
+    @staticmethod
+    def _run_while_added_to_group(client: User) -> tuple[str, dict[str, object]]:
+        """Запуск команды, пока второе соединение держит строку клиента и добавляет его в «Менеджеры»."""
         group = Group.objects.get_or_create(name=MANAGERS_GROUP)[0]
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_backend_pid()")
@@ -847,6 +845,15 @@ class TestGroupMembershipRace:
             report, _err = run()
         finally:
             thread.join(2 * BLOCK_WAIT_SECONDS)
+        return report, outcome
+
+    def test_membership_committed_during_write_wait_not_assigned(self, managers):
+        rule(INN_REGION, "23", managers["region"])
+        rule(FALLBACK, "default", managers["fallback"])
+        client = make_client("2311111111")
+        reset_responsible([client])
+
+        report, outcome = self._run_while_added_to_group(client)
 
         assert "error" not in outcome
         # Команда прочитала клиента до коммита группы и ждала его транзакцию на записи.
@@ -855,6 +862,38 @@ class TestGroupMembershipRace:
         assert client.groups.filter(name=MANAGERS_GROUP).exists()
         assert client.responsible_manager is None
         assert "Назначено по коду региона: 0" in report
+        assert "Пропущено (изменились во время пересчёта): 1" in report
+        assert_sum_matches(report)
+
+    def test_client_past_first_lock_chunk_not_assigned(self, managers):
+        """
+        Клиент за первой пачкой блокировки строк (ревью R22).
+
+        Если _lock_clients оборвётся после первой пачки, команда дождётся
+        строки последнего клиента уже в UPDATE, а его подзапрос по группам
+        не увидит закоммиченное членство — сотруднику назначат менеджера.
+        """
+        rule(INN_REGION, "23", managers["region"])
+        rule(FALLBACK, "default", managers["fallback"])
+        count = command_module.UPDATE_CHUNK_SIZE + 1
+        suffix = get_unique_suffix()
+        # bulk_create минует хук 42.2: клиенты остаются без ответственного.
+        users = User.objects.bulk_create(
+            User(email=f"race_{suffix}_{index}@example.com", role="wholesale_level1", tax_id=f"23{index:08d}")
+            for index in range(count)
+        )
+        ids = sorted(user.pk for user in users)
+        last = User.objects.get(pk=ids[-1])
+
+        report, outcome = self._run_while_added_to_group(last)
+
+        assert "error" not in outcome
+        assert outcome["command_waited"] is True
+        last.refresh_from_db()
+        assert last.groups.filter(name=MANAGERS_GROUP).exists()
+        assert last.responsible_manager is None
+        assert User.objects.filter(pk__in=ids[:-1], responsible_manager=managers["region"]).count() == count - 1
+        assert f"Назначено по коду региона: {count - 1}" in report
         assert "Пропущено (изменились во время пересчёта): 1" in report
         assert_sum_matches(report)
 
