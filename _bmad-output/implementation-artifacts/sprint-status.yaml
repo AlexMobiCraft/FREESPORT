@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-12 (ревью стори 42.3 на c84f4de7: R22 оставлен открытой задачей по решению Alex, 85 тестов passed; review -> in-progress)
+# last_updated: 2026-10-12 (ревью стори 42.3 на 09fad266: четыре слоя завершены, 17 замечаний отклонены, 86 тестов passed; review -> done)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1448,7 +1448,7 @@ development_status:
   epic-42: in-progress
   42-1-staff-roles-and-service-access-lockdown: done
   42-2-responsible-manager-by-region-rule: review
-  42-3-region-directory-and-responsible-recalculation: in-progress
+  42-3-region-directory-and-responsible-recalculation: done
   42-4-manager-section-own-clients: ready-for-dev
   42-5-manager-section-orders-and-home: backlog
   42-6-marketing-section: backlog
