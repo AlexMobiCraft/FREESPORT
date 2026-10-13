@@ -53,6 +53,8 @@ cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --r
 
 **`--env-file` тестовому compose не передаётся:** файла `docker/.env` нет, и с ним команда падает на `couldn't find env file`. Он и не нужен — в `docker-compose.test.yml` нет подстановок переменных. **`run --rm`, а не `exec`:** у сервиса `backend` команда по умолчанию `pytest`, контейнер отрабатывает и выходит, поэтому после прогона подключаться `exec` не к чему.
 
+**Полный набор локально — параллельно:** `pytest -n 4 -q -p no:sugar -m "not performance and not slow"` в той же команде `run --rm` (~16 мин вместо ~52). Изоляция воркеров и ограничения — навык `docker-test-run`.
+
 **В уже поднятой dev-среде** можно через `exec`:
 `docker compose --env-file .env -f docker/docker-compose.yml exec -T backend pytest <путь_к_тесту>`
 
