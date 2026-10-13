@@ -300,6 +300,7 @@ class TestLocationsReDeclareHeaders:
             ("default.conf", "/health"),
             ("default.conf", "/api/"),
             ("default.conf", "/admin/"),
+            ("default.conf", "/manager/"),
             ("default.conf", "/swagger/"),
             ("default.conf", "/redoc/"),
             ("local.conf", "/static/"),

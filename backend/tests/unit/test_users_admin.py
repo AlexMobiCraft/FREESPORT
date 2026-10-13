@@ -514,6 +514,8 @@ class TestUserAdmin(TestCase):
             "reject_b2b_users",
             "link_1c_customer",
             "block_users",
+            # Стори 42.4: разблокировка, доступна и в /admin/, и в /manager/.
+            "unblock_users",
         ]
         self.assertEqual(self.admin.actions, expected_actions)
 

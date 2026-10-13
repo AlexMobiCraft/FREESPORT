@@ -10,6 +10,7 @@ class UsersConfig(AppConfig):
         # Переименование блока "Пользователи и группы" в админке
         from django.contrib.auth.apps import AuthConfig
 
+        import apps.users.manager_admin  # noqa: F401 — регистрация на сайте /manager/
         import apps.users.signals  # noqa
 
         AuthConfig.verbose_name = "Группы пользователей"

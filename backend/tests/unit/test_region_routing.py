@@ -170,8 +170,9 @@ class TestSendManagerRegionEmail:
         assert call_kwargs["recipient_list"] == [GUSEV]
         assert "ООО Тест" in call_kwargs["subject"]
         assert call_kwargs["html_message"] is not None
-        # Ссылка письма ведёт на страницу подтверждения заявки, а не на полную карточку.
-        verify_path = f"/admin/users/user/{user.id}/verify/"
+        # Ссылка письма ведёт на страницу подтверждения заявки, а не на полную карточку,
+        # и в разделе менеджера: получателя /admin/ не пускает (решение 10 стори 42.4).
+        verify_path = f"/manager/users/user/{user.id}/verify/"
         assert verify_path in call_kwargs["html_message"]
         assert verify_path in call_kwargs["message"]
 

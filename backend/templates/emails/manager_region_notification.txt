@@ -12,7 +12,7 @@ Email: {{ user.email }}
 {% endif %}Страна: {{ country }}
 Дата регистрации: {{ registration_date|date:"d.m.Y H:i" }}
 
-Открыть в админ-панели: {{ admin_url }}
+Открыть в разделе менеджера: {{ admin_url }}
 
 --
 Автоматическое уведомление от платформы FREESPORT.
