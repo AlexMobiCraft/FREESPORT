@@ -275,6 +275,24 @@ def manager_client(client, manager):
     return client
 
 
+@pytest.fixture(params=[MANAGERS_GROUP, SUPERVISORS_GROUP], ids=["manager", "supervisor"])
+def section_member(request) -> User:
+    """
+    Сотрудник каждой группы, которую пускает раздел.
+
+    Руководитель в 42.4 видит только своих клиентов (решение 3). Негативные
+    проверки видимости идут от обеих групп: если `scope_clients` откроет
+    руководителю весь queryset раньше 42.7, упадёт вариант `supervisor`.
+    """
+    return make_staff_member(request.param)
+
+
+@pytest.fixture
+def section_client(client, section_member):
+    client.force_login(section_member)
+    return client
+
+
 class TestEntry:
     """AC1 — кто входит в раздел."""
 
@@ -323,8 +341,8 @@ class TestEntry:
 class TestChangelist:
     """AC2 — список и поиск только по своим клиентам."""
 
-    def test_search_finds_only_own_clients(self, manager_client, manager, other_manager):
-        own = make_client(manager, customer_code=unique_digits(5))
+    def test_search_finds_only_own_clients(self, section_client, section_member, other_manager):
+        own = make_client(section_member, customer_code=unique_digits(5))
         foreign = make_client(
             other_manager,
             customer_code=unique_digits(5),
@@ -332,7 +350,7 @@ class TestChangelist:
             company_name="ООО Чужая Компания",
         )
 
-        listed = manager_client.get(CHANGELIST_URL).context["cl"].result_list
+        listed = section_client.get(CHANGELIST_URL).context["cl"].result_list
         assert own in listed
         assert foreign not in listed
 
@@ -344,12 +362,12 @@ class TestChangelist:
             foreign.company_name,
             foreign.customer_code,
         ):
-            result = manager_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
+            result = section_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
             assert foreign not in result, query
 
         # Поиск сам по себе работает: те же поля своего клиента находятся.
         for query in (own.email, own.tax_id, own.phone, own.last_name, own.company_name, own.customer_code):
-            result = manager_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
+            result = section_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
             assert own in result, query
 
     def test_staff_accounts_are_hidden(self, manager_client, manager):
@@ -419,21 +437,26 @@ class TestChangelist:
 class TestForeignClient:
     """AC3 — 404 на чужого клиента."""
 
-    def test_direct_urls_answer_404(self, manager_client, other_manager):
+    def test_direct_urls_answer_404(self, section_client, section_member, other_manager):
+        own = make_client(section_member, verification_status="pending", is_verified=False, is_active=False)
         foreign = make_client(other_manager, verification_status="pending", is_verified=False, is_active=False)
         source = make_1c_record(foreign.tax_id)
 
-        assert manager_client.get(change_url(foreign)).status_code == 404
-        assert manager_client.post(change_url(foreign), {"email": "hacked@example.com"}).status_code == 404
-        assert manager_client.get(history_url(foreign)).status_code == 404
-        assert manager_client.get(verify_url(foreign)).status_code == 404
-        response = manager_client.post(
+        # Контроль: те же адреса своего клиента открываются — 404 ниже не от отказа во входе.
+        for url in (change_url(own), history_url(own), verify_url(own), password_url(own)):
+            assert section_client.get(url).status_code == 200, url
+
+        assert section_client.get(change_url(foreign)).status_code == 404
+        assert section_client.post(change_url(foreign), {"email": "hacked@example.com"}).status_code == 404
+        assert section_client.get(history_url(foreign)).status_code == 404
+        assert section_client.get(verify_url(foreign)).status_code == 404
+        response = section_client.post(
             verify_url(foreign), {"confirm": "on", "candidate": f"{source.pk}:{source.onec_id}"}
         )
         assert response.status_code == 404
-        assert manager_client.post(verify_url(foreign), {"_reject": "1"}).status_code == 404
-        assert manager_client.get(password_url(foreign)).status_code == 404
-        response = manager_client.post(
+        assert section_client.post(verify_url(foreign), {"_reject": "1"}).status_code == 404
+        assert section_client.get(password_url(foreign)).status_code == 404
+        response = section_client.post(
             password_url(foreign),
             {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
         )
