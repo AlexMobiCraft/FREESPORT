@@ -1,3 +1,7 @@
+## Отложено из повторного ревью 42-4-manager-section-own-clients.md (2026-10-13)
+
+- **Повторно подтверждён долг успешного входа заблокированного клиента.** Исходная задача — раздел «Deferred from: code review of 42-4-manager-section-own-clients (2026-10-13)» ниже; второй самостоятельной задачи не создавать. `UserLoginSerializer` принимает верный пароль при `is_active=False`, а `UserLoginView.post` запрещает только `pending`, затем выдаёт JWT (`backend/apps/users/serializers.py:538-558`, `backend/apps/users/views/authentication.py:310-331`). Дефект существовал до `b4fab053..c2743ed3`; AC6 стори проверяет именно `ModelBackend.authenticate`, не HTTP-вход. Для закрытия исправить проверку активности в реальном эндпоинте и закрепить отказ до разблокировки и успешный вход после неё HTTP-тестом. Источники повторного ревью: blind-hunter №8 и дополнительное замечание verification-gap; R42.4-D1, уровень medium.
+
 ## Отложено из ревью 42-3-region-directory-and-responsible-recalculation.md на c84f4de7 (2026-10-12)
 
 - **Владелец задачи негативной выгрузки детектора реквизитов пока не назначен.** Повтор уже зарегистрированного ниже организационного долга; критерий закрытия в записи есть. При взятии задачи данных в работу назначить владельца, не заводя вторую задачу того же снимка. Источник: blind-hunter №9; `_bmad-output/implementation-artifacts/deferred-work.md`.
