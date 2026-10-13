@@ -41,6 +41,7 @@ from apps.users.services.verify_b2b_application import (
     verification_mode,
     verify_b2b_application,
 )
+from apps.users.staff_roles import staff_accounts_q
 
 from .models import Address, Company, Favorite, User, matches_q
 
@@ -431,6 +432,7 @@ class UserAdmin(BaseUserAdmin):
         "reject_b2b_users",
         "link_1c_customer",
         "block_users",
+        "unblock_users",
     ]
 
     # Queryset и fieldsets
@@ -600,7 +602,9 @@ class UserAdmin(BaseUserAdmin):
         if not self.has_change_permission(request, obj):
             raise PermissionDenied
 
-        change_url = reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk])
+        change_url = reverse(
+            f"{self.admin_site.name}:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk]
+        )
         candidates = eligible_link_candidates(obj)
         mode = verification_mode(obj, candidates)
         if mode is None:
@@ -716,7 +720,9 @@ class UserAdmin(BaseUserAdmin):
             "fixed_role_label": fixed_role_label,
             "fixed_price_type": fixed_price_type,
             "role_choice_needed": role_choice_needed,
-            "change_url": reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk]),
+            "change_url": reverse(
+                f"{self.admin_site.name}:{self.opts.app_label}_{self.opts.model_name}_change", args=[obj.pk]
+            ),
         }
 
     def _apply_verify_b2b(
@@ -798,7 +804,7 @@ class UserAdmin(BaseUserAdmin):
             return ""
         return format_html(
             '<a href="{}">Подтвердить</a>',
-            reverse(f"admin:{self.opts.app_label}_{self.opts.model_name}_verify", args=[obj.pk]),
+            reverse(f"{self.admin_site.name}:{self.opts.app_label}_{self.opts.model_name}_verify", args=[obj.pk]),
         )
 
     @admin.display(description="Непривязанные контрагенты 1С с этим ИНН")
@@ -827,7 +833,7 @@ class UserAdmin(BaseUserAdmin):
         )
         # Ссылка на список, отфильтрованный по этому же ИНН: без неё менеджеру
         # пришлось бы искать ту же строку среди 4606 пользователей вручную.
-        changelist_url = f"{reverse('admin:users_user_changelist')}?q={quote(obj.tax_id or '')}"
+        changelist_url = f"{reverse(f'{self.admin_site.name}:users_user_changelist')}?q={quote(obj.tax_id or '')}"
         return format_html(
             '<ul style="margin: 0; padding-left: 18px;">{}</ul>'
             '<p style="margin-top: 6px;">Свяжите заявку действием '
@@ -914,7 +920,9 @@ class UserAdmin(BaseUserAdmin):
 
     # Admin actions с permissions и AuditLog
 
-    @admin.action(description="✓ Верифицировать выбранных B2B пользователей")
+    # Все изменяющие действия требуют права change (стори 42.4): в разделе
+    # менеджера сотрудник с одним view_user иначе менял бы клиентов действиями.
+    @admin.action(description="✓ Верифицировать выбранных B2B пользователей", permissions=["change"])
     def approve_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовая верификация B2B пользователей"""
         # Input validation: проверка наличия B2B пользователей
@@ -998,7 +1006,7 @@ class UserAdmin(BaseUserAdmin):
             '<a href="{}">{}</a>',
             (
                 (
-                    reverse("admin:users_user_change", args=[user.pk]),
+                    reverse(f"{self.admin_site.name}:users_user_change", args=[user.pk]),
                     user.email or f"ID {user.pk}",
                 )
                 for user in flagged
@@ -1134,7 +1142,7 @@ class UserAdmin(BaseUserAdmin):
                 level="warning",
             )
 
-    @admin.action(description="✗ Отклонить верификацию выбранных B2B пользователей")
+    @admin.action(description="✗ Отклонить верификацию выбранных B2B пользователей", permissions=["change"])
     def reject_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовый отказ в верификации B2B пользователей"""
         # Input validation: проверка наличия B2B пользователей
@@ -1181,7 +1189,7 @@ class UserAdmin(BaseUserAdmin):
 
         self.message_user(request, f"Отклонена верификация {count} B2B пользователей", level="warning")
 
-    @admin.action(description="🚫 Заблокировать выбранных пользователей")
+    @admin.action(description="🚫 Заблокировать выбранных пользователей", permissions=["change"])
     def block_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовая блокировка пользователей"""
         # Input validation: проверка наличия пользователей для блокировки
@@ -1229,6 +1237,68 @@ class UserAdmin(BaseUserAdmin):
             count += 1
 
         self.message_user(request, f"Заблокировано {count} пользователей", level="success")
+
+    @admin.action(description="🔓 Разблокировать выбранных пользователей", permissions=["change"])
+    def unblock_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
+        """
+        Массовая разблокировка клиентов (стори 42.4).
+
+        Не трогает суперпользователей и учётные записи сотрудников. B2B-заявки
+        в статусе `pending` тоже пропускает: вход им закрыт до решения по
+        заявке, и «разблокировка» обманула бы менеджера — для них сообщение
+        со ссылками на страницу подтверждения.
+        """
+        candidates = queryset.filter(is_active=False).exclude(is_superuser=True).exclude(staff_accounts_q())
+        if not candidates.exists():
+            self.message_user(
+                request,
+                "Не выбрано ни одного заблокированного пользователя",
+                level="warning",
+            )
+            return
+
+        pending_q = Q(role__in=User.B2B_ROLES, verification_status="pending")
+        pending = list(candidates.filter(pending_q).order_by("pk"))
+        if pending:
+            links = format_html_join(
+                ", ",
+                '<a href="{}">{}</a>',
+                (
+                    (
+                        reverse(f"{self.admin_site.name}:users_user_verify", args=[user.pk]),
+                        user.email or f"ID {user.pk}",
+                    )
+                    for user in pending
+                ),
+            )
+            self.message_user(
+                request,
+                format_html("Заявка ждёт решения — откройте страницу подтверждения: {}", links),
+                level="warning",
+            )
+
+        count = 0
+        for user in candidates.exclude(pending_q):
+            user.is_active = True
+            user.save(update_fields=["is_active", "updated_at"])
+
+            AuditLog.log_action(
+                user=request.user,
+                action="unblock_user",
+                resource_type="User",
+                resource_id=user.id,
+                changes={
+                    "email": str(user.email or ""),
+                    "role": user.role,
+                    "blocked": False,
+                },
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+            count += 1
+
+        if count:
+            self.message_user(request, f"Разблокировано {count} пользователей", level="success")
 
     # Helper methods
 

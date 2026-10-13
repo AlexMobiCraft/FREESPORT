@@ -16,6 +16,7 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.users.models import User
@@ -438,7 +439,9 @@ def send_manager_region_email(self: Any, user_id: int) -> bool:
             "tax_id": user.tax_id,
             "country": user.country,
             "registration_date": user.created_at,
-            "admin_url": f"{settings.SITE_URL}/admin/users/user/{user.id}/verify/",
+            # Получатель — менеджер или руководитель: /admin/ их не пускает,
+            # ссылка ведёт в раздел менеджера (стори 42.4).
+            "admin_url": f"{settings.SITE_URL}{reverse('manager:users_user_verify', args=[user.id])}",
         }
 
         html_message = render_to_string("emails/manager_region_notification.html", context)

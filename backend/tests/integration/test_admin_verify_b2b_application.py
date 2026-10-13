@@ -438,7 +438,7 @@ class TestAccess:
     def test_staff_is_redirected_to_login(self, client, django_user_model):
         # Эпик 42: `/admin/` только суперпользователю — сотрудник отсекается
         # сайтом (302 на вход) при любых правах. Проверка «страница подтверждения
-        # требует change_user» вернётся тестами раздела менеджера (стори 42.4).
+        # требует change_user» — в tests/integration/test_manager_clients_section.py (AC9).
         tax_id = unique_tax_id()
         source = make_1c_record(tax_id)
         target = make_applicant(tax_id)
@@ -484,8 +484,8 @@ class TestEntryPoints:
 
     def test_change_form_closed_for_staff(self, client, django_user_model):
         # Эпик 42: сотрудник с view_user карточку в `/admin/` не открывает вовсе —
-        # 302 на вход. Скрытие кнопки без change_user вернётся тестами раздела
-        # менеджера (стори 42.4).
+        # 302 на вход. Скрытие кнопки без change_user — в
+        # tests/integration/test_manager_clients_section.py (AC9).
         pending = make_applicant()
         viewer = make_staff(django_user_model, "view_user")
         client.force_login(viewer)

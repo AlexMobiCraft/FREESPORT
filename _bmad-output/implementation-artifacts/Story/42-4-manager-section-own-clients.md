@@ -4,7 +4,7 @@ baseline_commit: b4fab053
 
 # Story 42.4: Раздел менеджера — клиенты своего региона
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: b4fab053 (освежено 2026-10-12 по коду 42.2 и 42.3; первая редакция — `9af7c7ed`)
 
 ## Story
@@ -143,13 +143,13 @@ so that я верифицирую, блокирую и помогаю клиен
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — GitNexus pre-flight и предусловие** (AGENTS.md)
-  - [ ] Предусловия 42.2 и 42.3 (см. выше). Нет поля или PR 42.3 не в `develop` — стоп, сообщить Alex.
-  - [ ] `npx gitnexus status`; при `stale` сравнить `git diff --stat <indexed> HEAD -- backend docker`. Если разница только в тестах или документах, переиндексация не нужна (так было в 42.3 и при освежении этой стори: индекс на `09fad26`, после него изменились только два тестовых файла). Иначе попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`.
-  - [ ] `npx gitnexus impact <symbol> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по символам: `UserAdmin`, `verify_b2b_view`, `_verify_page_context`, `verify_b2b_link`, `onec_link_candidates`, `_warn_about_1c_candidates`, `link_1c_customer` (метод admin, не сервис — при неоднозначности искать через `cypher` по файлу `backend/apps/users/admin.py`; у `impact` нет `--file`), `block_users`, `send_manager_region_email`. При освежении 12.10 все LOW: 0 прямых вызывающих, у `_verify_page_context` и `_warn_about_1c_candidates` — по 1 (`verify_b2b_view` и `approve_b2b_users`). У `send_manager_region_email` GitNexus не видит вызовов через `.delay`: реальные места — `users/serializers.py:394`, `:440` (через `transaction.on_commit`), `users/views/authentication.py:686`. Сообщить Alex blast radius до правок.
+- [x] **Task 0 — GitNexus pre-flight и предусловие** (AGENTS.md)
+  - [x] Предусловия 42.2 и 42.3 (см. выше). Нет поля или PR 42.3 не в `develop` — стоп, сообщить Alex.
+  - [x] `npx gitnexus status`; при `stale` сравнить `git diff --stat <indexed> HEAD -- backend docker`. Если разница только в тестах или документах, переиндексация не нужна (так было в 42.3 и при освежении этой стори: индекс на `09fad26`, после него изменились только два тестовых файла). Иначе попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`.
+  - [x] `npx gitnexus impact <symbol> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по символам: `UserAdmin`, `verify_b2b_view`, `_verify_page_context`, `verify_b2b_link`, `onec_link_candidates`, `_warn_about_1c_candidates`, `link_1c_customer` (метод admin, не сервис — при неоднозначности искать через `cypher` по файлу `backend/apps/users/admin.py`; у `impact` нет `--file`), `block_users`, `send_manager_region_email`. При освежении 12.10 все LOW: 0 прямых вызывающих, у `_verify_page_context` и `_warn_about_1c_candidates` — по 1 (`verify_b2b_view` и `approve_b2b_users`). У `send_manager_region_email` GitNexus не видит вызовов через `.delay`: реальные места — `users/serializers.py:394`, `:440` (через `transaction.on_commit`), `users/views/authentication.py:686`. Сообщить Alex blast radius до правок.
 
-- [ ] **Task 1 — сайт `/manager/`** (AC1, AC12)
-  - [ ] `backend/freesport/admin_site.py`, рядом с `SuperuserAdminSite`:
+- [x] **Task 1 — сайт `/manager/`** (AC1, AC12)
+  - [x] `backend/freesport/admin_site.py`, рядом с `SuperuserAdminSite`:
     ```python
     class ManagerAdminSite(admin.AdminSite):
         site_header = "FREESPORT — Менеджер"
@@ -172,18 +172,18 @@ so that я верифицирую, блокирую и помогаю клиен
     manager_site = ManagerAdminSite(name="manager")
     ```
     Импорт имён групп — из `apps.users.staff_roles` (модуль без моделей, безопасен на уровне модуля). Docstring класса: кого пускает, что это критерий `RESPONSIBLE_MANAGER_CHOICES` плюс `is_active`, и почему суперпользователя нет (решение 2). **Суперпользователя отсекать явно** (`or user.is_superuser`): ничто не мешает добавить его в группу «Менеджеры», и тогда одно членство пустило бы его в раздел. Тест AC1 это закрепляет. Тип `request.user` — `User | AnonymousUser`; у анонима `is_active=False`, проверка падает на первом условии.
-  - [ ] Шаблон `backend/templates/admin/manager/index.html` (решение 13): `{% extends "admin/index.html" %}` и пустой `{% block sidebar %}{% endblock %}`. Проектный `templates/admin/index.html` переопределяет только `{% block content %}` и наследует Django-шаблон, поэтому порядок блоков и `_app_block.html` сохраняются. 42.5 заменит или расширит этот шаблон своими счётчиками.
-  - [ ] `ManagerAdminSite.get_app_list`: у модели `users.User` подменить подпись `name` на «Клиенты». Блок приложения в списке моделей и в боковой навигации должен называться так же. Заголовок списка («Выберите пользователя для изменения») задаётся в `ManagerClientAdmin.changelist_view` через `extra_context["title"] = "Клиенты"`.
-  - [ ] `backend/freesport/urls.py`: `path("manager/", manager_site.urls)` после `path("admin/", admin.site.urls)` (`:47`).
-  - [ ] Nginx (решение 11) — локация, копия блока `location /admin/`, в двух конфигах:
+  - [x] Шаблон `backend/templates/admin/manager/index.html` (решение 13): `{% extends "admin/index.html" %}` и пустой `{% block sidebar %}{% endblock %}`. Проектный `templates/admin/index.html` переопределяет только `{% block content %}` и наследует Django-шаблон, поэтому порядок блоков и `_app_block.html` сохраняются. 42.5 заменит или расширит этот шаблон своими счётчиками.
+  - [x] `ManagerAdminSite.get_app_list`: у модели `users.User` подменить подпись `name` на «Клиенты». Блок приложения в списке моделей и в боковой навигации должен называться так же. Заголовок списка («Выберите пользователя для изменения») задаётся в `ManagerClientAdmin.changelist_view` через `extra_context["title"] = "Клиенты"`.
+  - [x] `backend/freesport/urls.py`: `path("manager/", manager_site.urls)` после `path("admin/", admin.site.urls)` (`:47`).
+  - [x] Nginx (решение 11) — локация, копия блока `location /admin/`, в двух конфигах:
     - `docker/nginx/conf.d/default.conf` (прод, HTTPS-сервер, рядом с `location /admin/` на `:204`). Таймауты 120 с и `include /etc/nginx/snippets/app-headers.conf;` — как у `/admin/`;
     - `docker/nginx/conf.d/local.conf` (рядом с `:73`).
 
     Префикс — `location /manager/`. Запрос `/manager` без слэша уйдёт в Next и получит 404: это допустимо, входная ссылка всегда со слэшем. В комментарии сниппета `docker/nginx/snippets/app-headers.conf:2` дописать `/manager/` в перечень локаций.
-  - [ ] `robots.ts` не трогать: страница входа Django отдаёт `<meta name="robots" content="NONE,NOARCHIVE">`, фронтенд в эпике не меняется (SPEC, Non-goals).
+  - [x] `robots.ts` не трогать: страница входа Django отдаёт `<meta name="robots" content="NONE,NOARCHIVE">`, фронтенд в эпике не меняется (SPEC, Non-goals).
 
-- [ ] **Task 2 — `UserAdmin` готов ко второму сайту** (AC7, AC8, AC9; решения 7, 9)
-  - [ ] Все Python-`reverse` с литералом `admin:` заменить на `f"{self.admin_site.name}:…"`. В `/admin/` поведение не меняется: имя сайта там `admin`. Места на `b4fab053` (после 42.2 строки сдвинулись на +28):
+- [x] **Task 2 — `UserAdmin` готов ко второму сайту** (AC7, AC8, AC9; решения 7, 9)
+  - [x] Все Python-`reverse` с литералом `admin:` заменить на `f"{self.admin_site.name}:…"`. В `/admin/` поведение не меняется: имя сайта там `admin`. Места на `b4fab053` (после 42.2 строки сдвинулись на +28):
     - `verify_b2b_view`, `change_url` (`users/admin.py:603`);
     - `_verify_page_context`, `change_url` (`:719`);
     - `verify_b2b_link` (`:801`);
@@ -191,9 +191,9 @@ so that я верифицирую, блокирую и помогаю клиен
     - `_warn_about_1c_candidates` (`:1001`).
 
     `user_change_password` (`:528`) уже использует `self.admin_site.name`. Контроль после правки: `grep -nE "reverse\(f?[\"']admin:" backend/apps/users/admin.py` ничего не находит.
-  - [ ] Перед `render(...)` в `verify_b2b_view` (`:639`) и в действии `link_1c_customer` (`:1066`) поставить `request.current_app = self.admin_site.name`. Шаблоны `templates/admin/users/verify_b2b_application.html` и `link_1c_customer.html` строят хлебные крошки через `{% url 'admin:index' %}` и фильтр `admin_urlname`. Без `current_app` они резолвятся в сайт по умолчанию, то есть в `/admin/`. Штатные вью `ModelAdmin` выставляют `current_app` сами (`django/contrib/admin/options.py:1395`, `:1751`, `:2181`, `:2321`), эти две — нет.
-  - [ ] `@admin.action(..., permissions=["change"])` у `approve_b2b_users`, `reject_b2b_users`, `block_users` (решение 9).
-  - [ ] Новое действие сразу после `block_users`:
+  - [x] Перед `render(...)` в `verify_b2b_view` (`:639`) и в действии `link_1c_customer` (`:1066`) поставить `request.current_app = self.admin_site.name`. Шаблоны `templates/admin/users/verify_b2b_application.html` и `link_1c_customer.html` строят хлебные крошки через `{% url 'admin:index' %}` и фильтр `admin_urlname`. Без `current_app` они резолвятся в сайт по умолчанию, то есть в `/admin/`. Штатные вью `ModelAdmin` выставляют `current_app` сами (`django/contrib/admin/options.py:1395`, `:1751`, `:2181`, `:2321`), эти две — нет.
+  - [x] `@admin.action(..., permissions=["change"])` у `approve_b2b_users`, `reject_b2b_users`, `block_users` (решение 9).
+  - [x] Новое действие сразу после `block_users`:
     ```python
     @admin.action(description="🔓 Разблокировать выбранных пользователей", permissions=["change"])
     def unblock_users(self, request, queryset): ...
@@ -205,17 +205,17 @@ so that я верифицирую, блокирую и помогаю клиен
     4. Пустая выборка — предупреждение «Не выбрано ни одного заблокированного пользователя».
 
     `exclude(staff_accounts_q())` с m2m по группам Django превращает в подзапрос — проверить, что на каждую строку лишнего запроса нет. Добавить `"unblock_users"` в `UserAdmin.actions`.
-  - [ ] Больше в `UserAdmin` ничего не менять: fieldsets (включая блок «Ответственный менеджер» из 42.2), `get_fieldsets` с `PRIVILEGE_FIELDS`, `has_change_permission`/`has_delete_permission` для цели-суперпользователя, `get_deleted_objects` (42.2), AuditLog действий — как есть. Тест `tests/unit/test_users_admin.py` сверяет число блоков fieldsets (`7`) — он должен остаться зелёным без правок.
+  - [x] Больше в `UserAdmin` ничего не менять: fieldsets (включая блок «Ответственный менеджер» из 42.2), `get_fieldsets` с `PRIVILEGE_FIELDS`, `has_change_permission`/`has_delete_permission` для цели-суперпользователя, `get_deleted_objects` (42.2), AuditLog действий — как есть. Тест `tests/unit/test_users_admin.py` сверяет число блоков fieldsets (`7`) — он должен остаться зелёным без правок.
 
-- [ ] **Task 3 — `ManagerClientAdmin`** (AC2–AC7, AC9–AC11; решения 3–6, 8)
-  - [ ] Новый модуль `backend/apps/users/manager_admin.py`. Регистрация — в нём же: `manager_site.register(User, ManagerClientAdmin)`. Модуль импортировать в `UsersConfig.ready()` (`apps/users/apps.py`) рядом с `import apps.users.signals`: `import apps.users.manager_admin  # noqa: F401 — регистрация на сайте /manager/`. Порядок безопасен: `FreesportAdminConfig` стоит в `DJANGO_APPS` раньше `apps.users`, поэтому `admin.autodiscover()` уже импортировал `apps/users/admin.py`, когда срабатывает `UsersConfig.ready()`. **Не импортировать `manager_admin` из конца `users/admin.py`:** это циклический импорт частично загруженного модуля.
-  - [ ] Функция видимости (решение 3), в том же модуле, с docstring о 42.7:
+- [x] **Task 3 — `ManagerClientAdmin`** (AC2–AC7, AC9–AC11; решения 3–6, 8)
+  - [x] Новый модуль `backend/apps/users/manager_admin.py`. Регистрация — в нём же: `manager_site.register(User, ManagerClientAdmin)`. Модуль импортировать в `UsersConfig.ready()` (`apps/users/apps.py`) рядом с `import apps.users.signals`: `import apps.users.manager_admin  # noqa: F401 — регистрация на сайте /manager/`. Порядок безопасен: `FreesportAdminConfig` стоит в `DJANGO_APPS` раньше `apps.users`, поэтому `admin.autodiscover()` уже импортировал `apps/users/admin.py`, когда срабатывает `UsersConfig.ready()`. **Не импортировать `manager_admin` из конца `users/admin.py`:** это циклический импорт частично загруженного модуля.
+  - [x] Функция видимости (решение 3), в том же модуле, с docstring о 42.7:
     ```python
     def scope_clients(request: HttpRequest, queryset: QuerySet[User]) -> QuerySet[User]:
         return queryset.filter(responsible_manager=request.user).exclude(staff_accounts_q())
     ```
     Если `exclude` по m2m даст дубли или лишний JOIN в счётчике changelist, заменить на `~Exists(...)` по группам. Проверяется тестом AC11.
-  - [ ] `class ManagerClientAdmin(UserAdmin)`:
+  - [x] `class ManagerClientAdmin(UserAdmin)`:
     - `get_queryset`: `scope_clients(request, super().get_queryset(request))`. Аннотация `_has_1c_candidate` из `UserAdmin.get_queryset` сохраняется: `_is_changelist_request` сверяет `url_name`, а он одинаков на обоих сайтах (`users_user_changelist`);
     - `_get_obj_does_not_exist_redirect(self, request, opts, object_id)` → `raise Http404("Клиент не найден")` (решение 4). Это приватный метод Django 5.2.7 (`options.py:1824`), его зовут `_changeform_view`, `history_view`, `delete_view` и `UserAdmin.verify_b2b_view`. Комментарий: почему 404, а не штатный редирект. Тест AC3 страхует от смены API при обновлении Django;
     - `has_add_permission` → `False`, `has_delete_permission` → `False`;
@@ -241,36 +241,36 @@ so that я верифицирую, блокирую и помогаю клиен
     - display `linked_to_1c` (`boolean=True`, «Связан с 1С»): `bool(obj.onec_id or obj.onec_guid)`, без запросов;
     - display `responsible_manager_display` («Ответственный менеджер», решение 12): `obj.responsible_manager` → `"<ФИО> (<email>)"` или `"—"`, простой строкой без `format_html` со ссылкой. `User.__str__` (`"<email> (<роль>)"`) не брать: роль сотрудника «Розничный покупатель» в подписи сбивает. Один запрос FK на открытие карточки — допустимо. Поле `responsible_manager` в форму не попадает вовсе, поэтому подделанный POST его не тронет (AC5);
     - `changelist_view`: `extra_context["title"] = "Клиенты"`.
-  - [ ] `save_model` (решение 8): если `"is_active" in form.changed_data`, после `super().save_model(...)` записать `AuditLog`. Вид действия — `block_user` или `unblock_user`, `changes={"email", "role", "blocked", "source": "card"}`, `ip_address` и `user_agent` — через `self._get_client_ip(request)`, как в действиях.
-  - [ ] `response_change` (AC10): после сохранения проверить `self.get_queryset(request).filter(pk=obj.pk).exists()`. Если клиент ушёл из видимости (хук 42.2 сменил ответственного по новому ИНН или стране):
+  - [x] `save_model` (решение 8): если `"is_active" in form.changed_data`, после `super().save_model(...)` записать `AuditLog`. Вид действия — `block_user` или `unblock_user`, `changes={"email", "role", "blocked", "source": "card"}`, `ip_address` и `user_agent` — через `self._get_client_ip(request)`, как в действиях.
+  - [x] `response_change` (AC10): после сохранения проверить `self.get_queryset(request).filter(pk=obj.pk).exists()`. Если клиент ушёл из видимости (хук 42.2 сменил ответственного по новому ИНН или стране):
     - сообщение уровня warning «Клиент {email} передан менеджеру {obj.responsible_manager.email или «без ответственного»} по правилу региона»;
     - `HttpResponseRedirect(reverse(f"{self.admin_site.name}:users_user_changelist"))`.
 
     Иначе `super().response_change(...)`.
-  - [ ] `PortalAccountFilter(admin.SimpleListFilter)`, «Учётная запись на портале», `parameter_name="portal_account"`:
+  - [x] `PortalAccountFilter(admin.SimpleListFilter)`, «Учётная запись на портале», `parameter_name="portal_account"`:
     - без значения (по умолчанию) → `exclude(role=User.ROLE_UNREGISTERED)`;
     - `"no"` → только `unregistered`;
     - `"all"` → всё.
 
     `choices()` переопределить так, чтобы пункт по умолчанию назывался «Есть» и был выбран без параметра, а штатного «Все» с тем же значением не было. Если в запросе `role__exact=unregistered`, исключение по умолчанию не применять, иначе фильтр роли «Не зарегистрирован» всегда давал бы пустой список. Docstring: почему скрыты (4600+ контрагентов 1С без аккаунта, SPEC, Assumptions).
 
-- [ ] **Task 4 — ссылка письма менеджеру** (AC8; решение 10)
-  - [ ] `apps/users/tasks.py:441` (`send_manager_region_email`): `"admin_url": f"{settings.SITE_URL}{reverse('manager:users_user_verify', args=[user.id])}"`. Ключ контекста `admin_url` не переименовывать: его читают шаблоны.
-  - [ ] `templates/emails/manager_region_notification.txt:15`: «Открыть в админ-панели» → «Открыть в разделе менеджера». В `.html` (`:79`) поправить подпись кнопки, если она говорит об админке.
-  - [ ] `send_admin_verification_email` (`tasks.py:75`) не трогать.
+- [x] **Task 4 — ссылка письма менеджеру** (AC8; решение 10)
+  - [x] `apps/users/tasks.py:441` (`send_manager_region_email`): `"admin_url": f"{settings.SITE_URL}{reverse('manager:users_user_verify', args=[user.id])}"`. Ключ контекста `admin_url` не переименовывать: его читают шаблоны.
+  - [x] `templates/emails/manager_region_notification.txt:15`: «Открыть в админ-панели» → «Открыть в разделе менеджера». В `.html` (`:79`) поправить подпись кнопки, если она говорит об админке.
+  - [x] `send_admin_verification_email` (`tasks.py:75`) не трогать.
 
-- [ ] **Task 5 — новые тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
-  - [ ] Общие фикстуры:
+- [x] **Task 5 — новые тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
+  - [x] Общие фикстуры:
     - autouse `role_groups` — через функцию миграции, как `tests/integration/test_staff_access_lockdown.py:46-53`;
     - autouse `ManagerRoutingRule.objects.all().delete()`: сид `0018` в тестовой БД то есть, то стёрт `flush` транзакционного теста, а хук 42.2 назначает ответственного при создании. Образец — фикстура `team` в `tests/integration/test_responsible_manager_events.py:85`;
     - `make_staff_member(group_name)` — по образцу `test_staff_access_lockdown.py:55-67` или `make_staff` из `test_responsible_manager_events.py:43`.
-  - [ ] **Тесты транзакционные.** Autouse `clear_db_before_test(transactional_db)` в `tests/conftest.py:671` включает `transactional_db` для всех тестов: обёртки-транзакции нет, после теста БД очищает `flush`. Ревью 42.3 это подтвердило (повторное ревью, вердикт ID 1). Отсюда: правки групп и прав внутри теста не «откатываются», их стирает `flush`, а autouse `role_groups` следующего теста создаёт группу заново с полным набором. Сид `0018` после первого транзакционного теста тоже стёрт.
-  - [ ] **Ловушка хука 42.2.** `create_user(..., responsible_manager=A)` не сработает: хук в `save()` у новой записи без ручного назначения перезапишет поле результатом правил (без правил — `None`). Два рабочих пути:
+  - [x] **Тесты транзакционные.** Autouse `clear_db_before_test(transactional_db)` в `tests/conftest.py:671` включает `transactional_db` для всех тестов: обёртки-транзакции нет, после теста БД очищает `flush`. Ревью 42.3 это подтвердило (повторное ревью, вердикт ID 1). Отсюда: правки групп и прав внутри теста не «откатываются», их стирает `flush`, а autouse `role_groups` следующего теста создаёт группу заново с полным набором. Сид `0018` после первого транзакционного теста тоже стёрт.
+  - [x] **Ловушка хука 42.2.** `create_user(..., responsible_manager=A)` не сработает: хук в `save()` у новой записи без ручного назначения перезапишет поле результатом правил (без правил — `None`). Два рабочих пути:
     1. без правил — создать клиента, потом закрепить: `User.objects.filter(pk=c.pk).update(responsible_manager=A)`. Хелпер `make_client(manager, **overrides)` по образцу `make_applicant` (`tests/integration/test_admin_link_1c_customer.py:57`) или `make_client` из `test_responsible_manager_events.py:54`;
     2. с правилами — `ManagerRoutingRule.objects.create(match_type="inn_region", match_value="23", manager=A)`: сигнал 42.2 (`users/signals.py`, `post_save` правила) сразу переводит на A всех клиентов ключа `23`, а клиент, созданный после правила, получает A хуком. Так строятся AC2 и AC10.
 
     Сотрудника и суперпользователя с `responsible_manager=A` — только через `update()`: хук и сигнал сотрудникам ответственного не назначают.
-  - [ ] `backend/tests/integration/test_manager_clients_section.py` (integration):
+  - [x] `backend/tests/integration/test_manager_clients_section.py` (integration):
     - AC1 — матрица входа: менеджер, руководитель → 200 и заголовок; маркетолог, сотрудник без группы, суперпользователь, суперпользователь в группе «Менеджеры», аноним, заблокированный менеджер → 302, `"/manager/login/" in response.url`.
     - AC2 — список и поиск по шести полям, клиент B не находится. С `responsible_manager=A` через `update()` не видны: `is_staff`, суперпользователь, `role="admin"` без `is_staff` и член группы «Маркетинг» без `is_staff` — по одной записи на каждое условие `staff_accounts_q()`, чтобы удаление любого из них ронял тест. `unregistered` с `responsible_manager=A` виден только с `portal_account=no` или `all`, а с `role__exact=unregistered` виден без `portal_account`.
     - AC3 — GET и POST карточки, `history`, `verify`, `password` клиента B → 404. Массовые действия с `_selected_action=[свой, чужой]` меняют только своего, у чужого состояние и `AuditLog` прежние. Образец POST действия — `post_action` в `test_admin_link_1c_customer.py`.
@@ -282,12 +282,12 @@ so that я верифицирую, блокирую и помогаю клиен
     - AC9 — у группы «Менеджеры» в тесте оставить только `view_user` (`group.permissions.set([...])`; после теста группу стирает `flush`, следующий тест получит её заново из `role_groups`). Карточка открывается, в контексте `show_verify_b2b_button is False`. `verify` GET и POST → 403. `password` → 403. Действий в `response.context["action_form"]` нет, подделанный POST `action=block_users` клиента не меняет.
     - AC10 — правила «23 → A», «77 → B» (`ManagerRoutingRule` с `manager`). POST карточки со сменой ИНН и `_continue` → 302 на `/manager/users/user/`, в сообщениях email B, `responsible_manager == B`.
     - AC11 — по образцу `TestChangelistIndicatorCost` (`test_admin_link_1c_customer.py:315`): 5 клиентов → baseline, ещё 45 → `django_assert_num_queries(baseline)`.
-  - [ ] `backend/tests/unit/test_manager_admin_site.py` (unit, `RequestFactory`):
+  - [x] `backend/tests/unit/test_manager_admin_site.py` (unit, `RequestFactory`):
     - `ManagerAdminSite.has_permission` для каждого случая AC1, у членства — один запрос на запрос (повторный вызов из кэша `request`, `django_assert_num_queries(1)`);
     - `scope_clients` — свой, чужой, сотрудник, суперпользователь;
     - `PortalAccountFilter` — три значения и связка с `role__exact`;
     - `unblock_users` в `UserAdmin` суперпользователя: те же исключения, что в AC6.
-  - [ ] **Проверка мутациями** (урок ревью 42.3: слой `verification-gap` находил защиты, удаление которых не роняет ни одного теста). По каждой защите временно убрать её, убедиться, что падает названный тест, вернуть. Итог — в Debug Log:
+  - [x] **Проверка мутациями** (урок ревью 42.3: слой `verification-gap` находил защиты, удаление которых не роняет ни одного теста). По каждой защите временно убрать её, убедиться, что падает названный тест, вернуть. Итог — в Debug Log:
 
     | Убрать | Должен упасть |
     |---|---|
@@ -301,20 +301,46 @@ so that я верифицирую, блокирую и помогаю клиен
     | `save_model` с `AuditLog` флага «активен» | AC7, `source: card` |
     | `response_change` с проверкой видимости | AC10 (иначе 404 после `_continue`) |
 
-- [ ] **Task 6 — существующие тесты: менять только перечисленное**
-  - [ ] `tests/unit/test_region_routing.py:174`: `verify_path` → `f"/manager/users/user/{user.id}/verify/"`. Комментарий: решение 10 стори 42.4. Это единственное осознанное изменение ожиданий. `tests/unit/test_email_tasks.py:68` (письмо получателям уведомлений) не меняется.
-  - [ ] `tests/integration/test_admin_verify_b2b_application.py`: в комментариях `test_staff_is_redirected_to_login` (`:439-441`) и `TestEntryPoints.test_change_form_closed_for_staff` (`:486-488`) ссылку «вернётся тестами раздела менеджера (стори 42.4)» заменить ссылкой на `tests/integration/test_manager_clients_section.py` (AC9). Ожидания не менять.
-  - [ ] Прогнать без правок и убедиться: `test_admin_link_1c_customer.py` (в т. ч. `TestChangelistIndicatorCost:315` — в `/admin/` добавилось действие, но не колонка), `test_admin_verify_b2b_application.py`, `test_admin_user_password.py`, `tests/unit/test_users_admin.py`, `test_staff_access_lockdown.py`, тесты 42.2 (`tests/unit/test_responsible_manager.py`, `tests/integration/test_responsible_manager_events.py`, `tests/unit/test_region_routing.py`, `tests/unit/test_manager_routing_rule.py`) и 42.3 (`test_recalculate_responsible_managers.py`, `test_admin_manager_routing_rule_regions.py`).
+- [x] **Task 6 — существующие тесты: менять только перечисленное**
+  - [x] `tests/unit/test_region_routing.py:174`: `verify_path` → `f"/manager/users/user/{user.id}/verify/"`. Комментарий: решение 10 стори 42.4. Это единственное осознанное изменение ожиданий. `tests/unit/test_email_tasks.py:68` (письмо получателям уведомлений) не меняется.
+  - [x] `tests/integration/test_admin_verify_b2b_application.py`: в комментариях `test_staff_is_redirected_to_login` (`:439-441`) и `TestEntryPoints.test_change_form_closed_for_staff` (`:486-488`) ссылку «вернётся тестами раздела менеджера (стори 42.4)» заменить ссылкой на `tests/integration/test_manager_clients_section.py` (AC9). Ожидания не менять.
+  - [x] Прогнать без правок и убедиться: `test_admin_link_1c_customer.py` (в т. ч. `TestChangelistIndicatorCost:315` — в `/admin/` добавилось действие, но не колонка), `test_admin_verify_b2b_application.py`, `test_admin_user_password.py`, `tests/unit/test_users_admin.py`, `test_staff_access_lockdown.py`, тесты 42.2 (`tests/unit/test_responsible_manager.py`, `tests/integration/test_responsible_manager_events.py`, `tests/unit/test_region_routing.py`, `tests/unit/test_manager_routing_rule.py`) и 42.3 (`test_recalculate_responsible_managers.py`, `test_admin_manager_routing_rule_regions.py`).
 
-- [ ] **Task 7 — проверки и закрытие**
-  - [ ] Полный backend-прогон в Docker, один compose-проект, без параллельных: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`. Ориентир по 42.3: ≈ 4043 passed, 76 skipped, ~46 минут — запускать в фоне.
-  - [ ] `makemigrations --check --dry-run` в контейнере. Моделей стори не меняет — миграций нет (последние: `users/0025`, `common/0024`).
-  - [ ] Линтеры — навык `backend-lint` или контейнер, строго после зачётного pytest. **Проект `freesport-lint` не поднимается, пока живы контейнеры `freesport-test`:** у `freesport-test-redis` и сети фиксированные имена (Debug Log 42.3). Поэтому `black`, `flake8`, `mypy`, `makemigrations` и `check_openapi_sync` гонять в том же `-p freesport-test` после pytest. Базис после 42.3: `black --check .` — 462 unchanged, `flake8` чист, mypy — «no issues found in 615 source files». Любая ошибка — новая.
-  - [ ] `check_openapi_sync` — рецепт в Dev Notes; ожидается «синхронен» (API не менялся).
-  - [ ] Nginx: `docker compose --env-file .env -f docker/docker-compose.yml exec nginx nginx -t` и `nginx -s reload` (локальный `local.conf`). Прод-конфиг `default.conf` локально не исполняется — проверить его `nginx -t` по рецепту второго процесса nginx (Dev Notes, «Nginx»). Затем `curl -sI http://localhost/manager/` → 302 с `Location: /manager/login/?next=/manager/`.
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
-  - [ ] `deferred-work.md`: пункт VG1 (`:915-916`, `source_spec: spec-42-1-…`, «Проверки `change_user` в `UserAdmin`… вернуть их тестами раздела менеджера в 42.4») и его подтверждение в разделе ревью 42.1 (`:924`) пометить **ЗАКРЫТО** со ссылкой на тесты AC9.
-  - [ ] Completion Notes: шаги выката (Dev Notes, «Выкат»), ограничение `add_company`, отклонения от стори с причиной.
+- [x] **Task 7 — проверки и закрытие**
+  - [x] Полный backend-прогон в Docker, один compose-проект, без параллельных: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest`. Ориентир по 42.3: ≈ 4043 passed, 76 skipped, ~46 минут — запускать в фоне.
+  - [x] `makemigrations --check --dry-run` в контейнере. Моделей стори не меняет — миграций нет (последние: `users/0025`, `common/0024`).
+  - [x] Линтеры — навык `backend-lint` или контейнер, строго после зачётного pytest. **Проект `freesport-lint` не поднимается, пока живы контейнеры `freesport-test`:** у `freesport-test-redis` и сети фиксированные имена (Debug Log 42.3). Поэтому `black`, `flake8`, `mypy`, `makemigrations` и `check_openapi_sync` гонять в том же `-p freesport-test` после pytest. Базис после 42.3: `black --check .` — 462 unchanged, `flake8` чист, mypy — «no issues found in 615 source files». Любая ошибка — новая.
+  - [x] `check_openapi_sync` — рецепт в Dev Notes; ожидается «синхронен» (API не менялся).
+  - [x] Nginx: `docker compose --env-file .env -f docker/docker-compose.yml exec nginx nginx -t` и `nginx -s reload` (локальный `local.conf`). Прод-конфиг `default.conf` локально не исполняется — проверить его `nginx -t` по рецепту второго процесса nginx (Dev Notes, «Nginx»). Затем `curl -sI http://localhost/manager/` → 302 с `Location: /manager/login/?next=/manager/`.
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
+  - [x] `deferred-work.md`: пункт VG1 (`:915-916`, `source_spec: spec-42-1-…`, «Проверки `change_user` в `UserAdmin`… вернуть их тестами раздела менеджера в 42.4») и его подтверждение в разделе ревью 42.1 (`:924`) пометить **ЗАКРЫТО** со ссылкой на тесты AC9.
+  - [x] Completion Notes: шаги выката (Dev Notes, «Выкат»), ограничение `add_company`, отклонения от стори с причиной.
+
+### Review Findings
+
+Ревью 2026-10-13. Объём — незакоммиченная реализация на `feature/42-4-manager-section-clients` против `baseline_commit: b4fab053`, каталоги `backend/` и `docker/` (17 файлов, +1192/−18). Все четыре слоя завершились: `blind-hunter`, `edge-case-hunter`, `verification-gap`, `acceptance-auditor`. Из 23 исходных замечаний после проверки по коду и группировки по причине: 1 решение, 2 исправления, 1 отложено, 14 отклонено. Индекс GitNexus был `stale` (`b4fab05`), новых символов в нём нет.
+
+- [x] [Review][Decision] Ссылка письма о заявке региона недоступна получателям не из раздела — `send_manager_region_email` теперь шлёт всем получателям `/manager/users/user/<id>/verify/` (`backend/apps/users/tasks.py:444`). Но `resolve_manager_recipients` берёт и `manager_email` правил без `manager` (`services/region_routing.py:60-66`), а в резерве из сида два адреса — CHERNOV и ADMIN (`common/migrations/0018_seed_manager_routing_rules.py:40`). Письмо уходит всем резервным адресам. Суперпользователя `/manager/` не пускает (решение 2), поэтому у него прежняя рабочая ссылка `/admin/…` превратилась в отказ. Если адрес правила без `manager` принадлежит менеджеру, ответственным у клиента он не будет: `resolve_responsible_for_key` берёт только правила с `manager`, клиент уходит на резерв, и ссылка отвечает 404. Решение 10 исходит из того, что получатель — всегда менеджер или руководитель, а это верно только после полной перенастройки правил на выкате. Варианты: (а) оставить как есть и вычистить на выкате правила без `manager` и адрес ADMIN из резерва; (б) в письме обе ссылки, `/manager/` и `/admin/`; (в) для получателей без доступа к разделу отдельное письмо со ссылкой `/admin/`. **Решение Alex 2026-10-13: вариант (а)** — код не меняется, в шаг 1 выката (Completion Notes) добавлена чистка правил.
+- [x] [Review][Patch] Маршрут `/manager/` в `default.conf` не охраняется тестом известных локаций: добавить `("default.conf", "/manager/")` в параметры `test_known_location_is_covered` [backend/tests/unit/test_nginx_security_headers.py:296]
+- [x] [Review][Patch] `test_member_of_several_groups_is_not_duplicated` ничего не проверяет: менеджер состоит в одной группе, у клиента групп нет. Нужно добавить менеджера и в «Руководители» (или клиента в группу вне ролей) [backend/tests/unit/test_manager_admin_site.py:113]
+- [x] [Review][Defer] Заблокированный клиент получает 200 и JWT на `/api/v1/auth/login/` [backend/apps/users/views/authentication.py:314] — deferred, pre-existing: `UserLoginSerializer` намеренно достаёт и неактивных (`serializers.py:538`), а `UserLoginView.post` проверяет только `verification_status == "pending"`, затем выдаёт токены и вызывает `login()`. Последующие запросы, вероятно, отклоняются (SimpleJWT и `ModelBackend.get_user` не пускают `is_active=False`), но вход отвечает «успешно». Тест AC6 проверяет `authenticate()`, а не реальный эндпоинт. Важно для блокировки из раздела менеджера; severity medium.
+
+**Отклонено (14):**
+
+- `false` — «Маркетолог и суперпользователь входят через форму `/manager/login/` без объяснения отказа» (blind): штатный `admin/login.html` для аутентифицированного пользователя без `has_permission` показывает errornote «вы вошли как …, но у вас нет доступа к этой странице». Отказ 302 на логин закреплён решением 2.
+- `false` — «AC11 не ловит N+1 на строках заявок с кандидатами 1С» (blind): `has_1c_candidate` и `verify_b2b_link` строятся по полям строки и аннотации `_has_1c_candidate` (`admin.py:788-806`), запросов на строку нет.
+- `false` — «Чужой `candidate` при привязке» (blind): `_apply_link_1c_customer` сверяет `candidate` с `eligible_link_candidates(target)` (`admin.py:1096-1103`), а это записи `unregistered` с тем же ИНН, то есть того же региона. Что кандидаты — не клиенты менеджера, сказано в Dev Notes, «Подводные камни».
+- `low` — Флаг «активен» в карточке включает и заявку `pending`, а `unblock_users` её пропускает (blind+edge): вход заявке всё равно закрыт проверкой `pending` в `UserLoginView`, флаг в карточке правится по решению 8, исправление — новая проверка в форме.
+- `low` — `unblock_users` сохраняет пользователя и пишет `AuditLog` без общей транзакции (blind+edge): тот же шаблон, что у существующего `block_users`; отказ простого INSERT маловероятен.
+- `low` — Гонка двух параллельных разблокировок даёт две записи журнала (blind): маловероятно, исправление — блокировка строк.
+- `low` — Ответственный меняется между чтением queryset и сохранением карточки или действия (blind+edge): окно в миллисекунды, исправление — `select_for_update` по всем путям.
+- `low` — Пароль сменён, а запись `change_password` пропущена, если ответственный сменился посреди запроса (edge): та же гонка.
+- `low` — «Есть» в фильтре портала подсвечено при `role__exact=unregistered` (blind): косметика; связка с фильтром роли прописана в Task 3.
+- `low` — После подтверждения с привязкой клиент может уйти к другому менеджеру, и редирект на карточку даст 404 (blind+edge): так бывает только при ИНН 1С с пробелом в начале, когда `region_key` уводит клиента в резерв. Исправление — новая ветка во `verify_b2b_view`.
+- `low` — Коллизия `unique_digits(5)` в тестах (edge): вероятность около 1e-5 на пару значений.
+- Отклонено (правка спецификации) — `role__exact=unregistered` показывает `unregistered` без «нет»/«все», а AC2 буквально это запрещает (auditor): поведение прямо задано Task 3, противоречие внутри стори.
+- Отклонено (правка спецификации) — ожидание `test_admin_actions_list` изменено вне перечня Task 6 (auditor): правку вынуждает Task 2 (`unblock_users`), она описана как отклонение 2.
+- `low` — Полный прогон после последних правок не повторён (auditor): после зелёного полного прогона менялись только ожидание одного теста и аннотации типов; изменённые файлы прогнаны, полный набор пройдёт PR-гейт CI.
 
 ## Dev Notes
 
@@ -470,11 +496,72 @@ so that я верифицирую, блокирую и помогаю клиен
 
 ### Agent Model Used
 
+Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
+
 ### Debug Log References
+
+- **Task 0.** `git branch -r --contains 8c6687af` → `origin/develop` (PR 42.3 слит). Индекс GitNexus `stale` (`b4fab05` против `ec3308d`), но `git diff --stat b4fab05 HEAD -- backend docker` пуст — переиндексация не нужна. `impact --direction upstream`: `UserAdmin`, `verify_b2b_view`, `verify_b2b_link`, `onec_link_candidates`, `block_users`, `send_manager_region_email` — LOW, 0 прямых; `_verify_page_context`, `_warn_about_1c_candidates` — LOW, по 1 прямому; admin-метод `link_1c_customer` (`cypher` по `users/admin.py`) — вызывающих нет.
+- **Мутации (Task 5).** Скрипт по очереди убирал защиту, гонял названный тест в `freesport-test` и возвращал файл:
+
+  | Убрано | Результат |
+  |---|---|
+  | `or user.is_superuser` в `has_permission` | упал `TestEntry::test_others_are_redirected_to_login[superuser-in-managers-group]` |
+  | `.exclude(staff_accounts_q())` в `scope_clients` | упал `TestChangelist::test_staff_accounts_are_hidden` |
+  | `_get_obj_does_not_exist_redirect` → `Http404` | упал `TestForeignClient::test_direct_urls_answer_404` |
+  | `permissions=["change"]` у `block_users` | упали 5 параметров `TestViewOnlyPermissions::test_actions_are_unavailable` (`action_form` перестаёт быть пустым) |
+  | `raise PermissionDenied` в `verify_b2b_view` | упал `TestViewOnlyPermissions::test_verify_and_password_are_forbidden` |
+  | `request.current_app` в `verify_b2b_view` | **выжила** — см. отклонение 1 |
+  | `index_template` у `ManagerAdminSite` | упал `TestLinksStayInSection::test_pages_have_no_admin_links` |
+  | `save_model` с `AuditLog` флага | упали оба параметра `TestAuditLog::test_card_active_flag` |
+  | `response_change` с проверкой видимости | упал `TestClientMovedAway::test_redirect_to_changelist_with_message` |
+
+- **Полный прогон** (`freesport-test`, без параллельных): `1 failed, 4137 passed, 76 skipped` за 43:57. Упал `tests/unit/test_users_admin.py::TestUserAdmin::test_admin_actions_list` — сверяет точный список `UserAdmin.actions`, куда Task 2 добавляет `unblock_users` (отклонение 2). После правки ожидания файл — 51 passed; новые тесты раздела вместе с `test_users_admin.py` после правок типов — 121 passed.
+- **Проверки в `freesport-test` после pytest:** `black --check .` — 466 unchanged; `flake8 .` — чисто; `mypy --config-file=mypy.ini .` — сначала 9 ошибок в `manager_admin.py` (переопределения атрибутов и методов `UserAdmin`, типизированного под `auth.User`), исправлены аннотациями `Any` и `type: ignore[override|arg-type]` по образцу `users/admin.py`, итог «no issues found in 619 source files»; `makemigrations --check --dry-run` — No changes detected; `check_openapi_sync` — «Контракт синхронен с кодом».
+- **Nginx.** `nginx -t` и `nginx -s reload` в dev-контейнере (`local.conf`) — ok. Прод-`default.conf` — вторым процессом nginx по рецепту Dev Notes (`/tmp/ngx`, порты 443/80 → 8080–8083, без `ssl_*`): `nginx -t -c /tmp/ngx/nginx.conf` — successful, `location /manager/` на месте. `curl -sI http://localhost/manager/` → `302`, `Location: /manager/login/?next=/manager/`; `/manager/login/` → 200 от Django.
+- **Стенд.** На момент проверки `freesport-db` и `freesport-redis` dev-стека стояли в `Exited (255)` (упали при перезапуске Docker 13.10, к стори не относится) — подняты `docker start`, затем `restart backend` и `nginx -s reload`.
+- **Исправления ревью (2026-10-13).** `test_known_location_is_covered` получил параметр `("default.conf", "/manager/")`. В `test_member_of_several_groups_is_not_duplicated` менеджер теперь в «Менеджерах» и «Руководителях», клиент — в двух группах вне ролей. Мутация: в `scope_clients` добавлен `.filter(Q(groups__isnull=True) | Q(groups__isnull=False))` (JOIN по m2m групп) — тест упал с `assert 2 == 1`, файл восстановлен. `black --check` и `flake8` по двум файлам чисты; файлы тестов стори (`test_manager_clients_section.py`, `test_users_admin.py`, `test_manager_admin_site.py`, `test_nginx_security_headers.py`, `test_region_routing.py`) — 169 passed. Полный прогон после исправлений (`freesport-test`, без параллельных): `4139 passed, 76 skipped` за 44:41.
+- **`detect-changes --scope all`:** символы `UserAdmin` (namespace, `permissions`, `unblock_users`), `UsersConfig.ready`, `send_manager_region_email`, `admin_site.py`. `CompanyAdmin`, `AddressAdmin`, `FavoriteAdmin`, `_apply_verify_b2b` в списке из-за сдвига строк на устаревшем индексе — не менялись; «Risk: high» — артефакт того же индекса, impact каждого символа до правок — LOW.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - 2026-10-12 — стори освежена на `b4fab053` (первая редакция `9af7c7ed` писалась до кода 42.2 и 42.3). Эпик и спецификация с тех пор не менялись, AC сохранены. Изменено: предусловия (42.2 в `develop`, PR 42.3 ещё не слит), координаты `users/admin.py` (+28 строк после 42.2), тестов и `deferred-work.md`; решение 2 — явный отказ суперпользователю в группе; новые решения 12 (ответственный без ссылки) и 13 (главная без «Последних действий») с правками AC1, AC2, AC4, AC8; транзакционный режим тестов и сигналы правил 42.2 в Task 5; таблица мутаций; рецепт линтеров в `freesport-test`; подводные камни 42.2/42.3. GitNexus impact по всем символам Task 0 — LOW.
+- 2026-10-13 — реализация. Сайт `/manager/` (`ManagerAdminSite`, `manager_site`) с кэшем членства на `request`, своей главной без «Последних действий» и подписью «Клиенты» у блока и модели. `ManagerClientAdmin` в `apps/users/manager_admin.py`: видимость `scope_clients`, 404 на чужого клиента, белый список полей карточки, ответственный текстом, журнал флага «активен» (`source: card`), редирект на список с сообщением, когда клиент ушёл к другому менеджеру, фильтр «Учётная запись на портале». В `UserAdmin`: пять `reverse("admin:…")` → `self.admin_site.name`, `permissions=["change"]` у одобрения, отказа и блокировки, новое действие `unblock_users`. Письмо менеджеру региона ведёт на `/manager/users/user/<id>/verify/`. Nginx проксирует `/manager/` в обоих конфигах. Долг VG1 закрыт в `deferred-work.md`.
+- Тесты: `tests/integration/test_manager_clients_section.py` (AC1–AC11) и `tests/unit/test_manager_admin_site.py` (доступ к сайту, один запрос членства, `scope_clients`, `PortalAccountFilter`, `unblock_users` в `/admin/`) — 70 тестов.
+- **Отклонение 1 — `request.current_app` в `verify_b2b_view` и `link_1c_customer` не добавлен.** Мутация показала, что строка ничего не защищает: `{% url %}` без `request.current_app` берёт `request.resolver_match.namespace` (`django/template/defaulttags.py:470-475`), а обе страницы маршрутизируются в пространстве `manager`. Хлебные крошки и так ведут в `/manager/` — это закреплено тестом AC8 (`href="/admin/` нет на страницах подтверждения и привязки). Строку с неверным обоснованием в комментарии добавлять не стал.
+- **Отклонение 2 — изменено ожидание вне перечня Task 6:** `tests/unit/test_users_admin.py::test_admin_actions_list` сверяет точный список действий `UserAdmin`; `unblock_users` в нём — прямое требование Task 2. Добавлена одна строка списка с комментарием.
+- **Отклонение 3 — тестовый `make_client` по умолчанию ставит `responsible_manager_manual=True`.** Иначе подтверждение заявки и привязка к 1С (явный вызов 42.2 в сервисе) пересчитывали бы ответственного по пустым в тесте правилам, и клиент уходил бы из раздела до проверки. AC10 строится без флага, через правила «23 → A», «77 → B».
+- **Ограничение (вне скоупа):** права `add_company` у роли нет, поэтому у клиента без `Company` блок реквизитов в карточке пуст и добавить его менеджер не может. Company создают привязка к 1С, импорт и личный кабинет.
+- **Выкат (для Alex):**
+  1. До выката — action_item эпика «После выката 42.3 и до 42.4»: учётные записи менеджеров (`is_staff`, группа «Менеджеры»), правила регионов с `manager`, резервное правило на руководителя, пересчёт ответственных (сначала `--dry-run`). Проверка — SQL из Dev Notes, «Выкат», шаг 1: у каждого менеджера клиентов больше нуля. Там же: у активных правил без `manager` проставить `manager` или выключить их, адрес ADMIN из резерва убрать — письмо о заявке региона ведёт в `/manager/`, и получатель без доступа к разделу (суперпользователь, адрес правила без `manager`) по ссылке не попадёт. Проверка: `SELECT id, match_type, match_value, manager_email FROM common_managerroutingrule WHERE is_active AND manager_id IS NULL;` — пусто (решение ревью 2026-10-13).
+  2. После выката: `curl -sI https://optisport.ru/manager/` → 302 на `/manager/login/?next=/manager/`. 404 от Next означает, что nginx не перечитал конфиг: `docker compose exec nginx nginx -s reload`.
+  3. Вход тестовым менеджером: список своих клиентов, чужая карточка по URL — 404.
+  4. Письмо о новой B2B-заявке ведёт на `/manager/users/user/<id>/verify/`.
+  5. После рестарта backend — `restart nginx` (деплой делает сам).
 
 ### File List
+
+- `backend/freesport/admin_site.py` — `ManagerAdminSite`, `manager_site`
+- `backend/freesport/urls.py` — маршрут `manager/`
+- `backend/apps/users/apps.py` — импорт `manager_admin` в `ready()`
+- `backend/apps/users/manager_admin.py` — новый: `scope_clients`, `PortalAccountFilter`, `ManagerClientAdmin`
+- `backend/apps/users/admin.py` — namespace сайта в `reverse`, `permissions=["change"]`, `unblock_users`
+- `backend/apps/users/tasks.py` — ссылка письма менеджеру региона
+- `backend/templates/admin/manager/index.html` — новый: главная без «Последних действий»
+- `backend/templates/emails/manager_region_notification.txt`, `backend/templates/emails/manager_region_notification.html` — подпись ссылки
+- `docker/nginx/conf.d/default.conf`, `docker/nginx/conf.d/local.conf` — `location /manager/`
+- `docker/nginx/snippets/app-headers.conf` — комментарий
+- `backend/tests/integration/test_manager_clients_section.py` — новый
+- `backend/tests/unit/test_manager_admin_site.py` — новый
+- `backend/tests/unit/test_region_routing.py` — ожидание ссылки письма
+- `backend/tests/unit/test_users_admin.py` — список действий (отклонение 2)
+- `backend/tests/unit/test_nginx_security_headers.py` — локация `/manager/` в перечне известных (ревью)
+- `backend/tests/integration/test_admin_verify_b2b_application.py` — комментарии
+- `_bmad-output/implementation-artifacts/deferred-work.md` — VG1 закрыт
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус стори
+- `_bmad-output/implementation-artifacts/Story/42-4-manager-section-own-clients.md` — этот файл
+
+### Change Log
+
+- 2026-10-13 — реализация стори 42.4: раздел менеджера `/manager/` с клиентами своего региона, действие «Разблокировать», ссылка письма менеджеру в раздел, nginx-локация; 70 новых тестов, мутационная проверка защит; статус → review.
+- 2026-10-13 — исправления ревью: 2 замечания [Review][Patch] закрыты (страж локации `/manager/` в `test_nginx_security_headers.py`, содержательная проверка дублей в `test_member_of_several_groups_is_not_duplicated`); полный прогон 4139 passed; статус → review.
