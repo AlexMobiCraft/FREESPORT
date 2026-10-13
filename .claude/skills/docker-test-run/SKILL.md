@@ -18,6 +18,23 @@ description: >-
 
 ## Быстрый старт
 
+### Полный набор параллельно (основной способ локально)
+```powershell
+cd docker
+docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"
+```
+Фильтр тот же, что у `main.yml`. Замер 13.10.2026 (WSL2 на 8 ядер): **~16 мин против ~52 мин** в один
+процесс на 2 ядрах. Покрытие локально не считай: его меряет `main.yml`, а `--cov` добавляет время.
+
+- `pytest-xdist` ставит `Dockerfile.test`. Каждый воркер получает свою тестовую БД (`_gwN`, делает
+  pytest-django), свою БД Redis и свой каталог для `MEDIA_ROOT`/`ONEC_PRIVATE_DIR` — это задаёт
+  `freesport/settings/test.py`. Без разведения Redis `cache.clear()` одного воркера сносит кэш и локи другому.
+- `-n` не больше числа ядер Docker (`docker info --format "{{.NCPU}}"`, лимит — `processors` в
+  `%USERPROFILE%\.wslconfig`) и не больше 15: у Redis 16 БД.
+- `performance` и `slow` параллельно не гоняй: они меряют время, и соседние воркеры их валят.
+- Полный набор нужен редко — его и так гоняет `main.yml` на каждом PR. Во время работы запускай
+  тесты затронутой области (путь к файлу или каталогу, `-k`), после падения — `--lf`.
+
 ### Все тесты (с пересборкой)
 ```powershell
 cd docker
