@@ -7,7 +7,8 @@ Integration-тесты раздела менеджера `/manager/` — кли�
 - AC2 — список и поиск только по своим клиентам, учётные записи сотрудников скрыты,
   `unregistered` — только с фильтром «Учётная запись на портале»;
 - AC3 — 404 на чужого клиента по прямым URL, массовые действия его не трогают;
-- AC4/AC5 — белый список полей карточки, подделанный POST;
+- AC4/AC5 — белый список полей карточки, подделанный POST, инлайны реквизитов
+  и адресов только своего клиента;
 - AC6 — разблокировка; AC7 — записи AuditLog; AC8 — ссылки и редиректы в разделе;
 - AC9 — права внутри раздела при одном `view_user` (долг VG1 стори 42.1);
 - AC10 — клиент ушёл к другому менеджеру после правки ИНН;
@@ -39,7 +40,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from apps.common.models import AuditLog, ManagerRoutingRule
-from apps.users.models import User
+from apps.users.models import Address, Company, User
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
 from tests.conftest import get_unique_suffix
 
@@ -168,6 +169,42 @@ def make_1c_record(tax_id: str, **overrides: Any) -> User:
     return record
 
 
+def make_company(user: User, **overrides: Any) -> Company:
+    defaults = {
+        "legal_name": f"ООО Реквизиты {next(_counter)}",
+        "tax_id": user.tax_id,
+        "kpp": "770101001",
+        "legal_address": "г. Москва, ул. Тверская, д. 1",
+    }
+    defaults.update(overrides)
+    return Company.objects.create(user=user, **defaults)
+
+
+def make_address(user: User, **overrides: Any) -> Address:
+    defaults = {
+        "full_name": "Получатель Тестов",
+        "phone": "+79001234567",
+        "city": "Москва",
+        "street": "Тверская",
+        "building": "1",
+        "postal_code": "125009",
+    }
+    defaults.update(overrides)
+    return Address.objects.create(user=user, **defaults)
+
+
+def related_snapshot(user: User) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Company и адреса клиента как значения полей — для сравнения «до» и «после»."""
+    company = Company.objects.filter(user=user).values().first() or {}
+    addresses = list(Address.objects.filter(user=user).order_by("pk").values())
+    return company, addresses
+
+
+def inline_prefixes(response) -> dict[type, str]:
+    """Префиксы формсетов инлайнов карточки по модели."""
+    return {inline.formset.model: inline.formset.prefix for inline in response.context["inline_admin_formsets"]}
+
+
 def change_url(user: User) -> str:
     return reverse("manager:users_user_change", args=[user.pk])
 
@@ -238,6 +275,24 @@ def manager_client(client, manager):
     return client
 
 
+@pytest.fixture(params=[MANAGERS_GROUP, SUPERVISORS_GROUP], ids=["manager", "supervisor"])
+def section_member(request) -> User:
+    """
+    Сотрудник каждой группы, которую пускает раздел.
+
+    Руководитель в 42.4 видит только своих клиентов (решение 3). Негативные
+    проверки видимости идут от обеих групп: если `scope_clients` откроет
+    руководителю весь queryset раньше 42.7, упадёт вариант `supervisor`.
+    """
+    return make_staff_member(request.param)
+
+
+@pytest.fixture
+def section_client(client, section_member):
+    client.force_login(section_member)
+    return client
+
+
 class TestEntry:
     """AC1 — кто входит в раздел."""
 
@@ -286,8 +341,8 @@ class TestEntry:
 class TestChangelist:
     """AC2 — список и поиск только по своим клиентам."""
 
-    def test_search_finds_only_own_clients(self, manager_client, manager, other_manager):
-        own = make_client(manager, customer_code=unique_digits(5))
+    def test_search_finds_only_own_clients(self, section_client, section_member, other_manager):
+        own = make_client(section_member, customer_code=unique_digits(5))
         foreign = make_client(
             other_manager,
             customer_code=unique_digits(5),
@@ -295,7 +350,7 @@ class TestChangelist:
             company_name="ООО Чужая Компания",
         )
 
-        listed = manager_client.get(CHANGELIST_URL).context["cl"].result_list
+        listed = section_client.get(CHANGELIST_URL).context["cl"].result_list
         assert own in listed
         assert foreign not in listed
 
@@ -307,12 +362,12 @@ class TestChangelist:
             foreign.company_name,
             foreign.customer_code,
         ):
-            result = manager_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
+            result = section_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
             assert foreign not in result, query
 
         # Поиск сам по себе работает: те же поля своего клиента находятся.
         for query in (own.email, own.tax_id, own.phone, own.last_name, own.company_name, own.customer_code):
-            result = manager_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
+            result = section_client.get(CHANGELIST_URL, {"q": query}).context["cl"].result_list
             assert own in result, query
 
     def test_staff_accounts_are_hidden(self, manager_client, manager):
@@ -382,21 +437,26 @@ class TestChangelist:
 class TestForeignClient:
     """AC3 — 404 на чужого клиента."""
 
-    def test_direct_urls_answer_404(self, manager_client, other_manager):
+    def test_direct_urls_answer_404(self, section_client, section_member, other_manager):
+        own = make_client(section_member, verification_status="pending", is_verified=False, is_active=False)
         foreign = make_client(other_manager, verification_status="pending", is_verified=False, is_active=False)
         source = make_1c_record(foreign.tax_id)
 
-        assert manager_client.get(change_url(foreign)).status_code == 404
-        assert manager_client.post(change_url(foreign), {"email": "hacked@example.com"}).status_code == 404
-        assert manager_client.get(history_url(foreign)).status_code == 404
-        assert manager_client.get(verify_url(foreign)).status_code == 404
-        response = manager_client.post(
+        # Контроль: те же адреса своего клиента открываются — 404 ниже не от отказа во входе.
+        for url in (change_url(own), history_url(own), verify_url(own), password_url(own)):
+            assert section_client.get(url).status_code == 200, url
+
+        assert section_client.get(change_url(foreign)).status_code == 404
+        assert section_client.post(change_url(foreign), {"email": "hacked@example.com"}).status_code == 404
+        assert section_client.get(history_url(foreign)).status_code == 404
+        assert section_client.get(verify_url(foreign)).status_code == 404
+        response = section_client.post(
             verify_url(foreign), {"confirm": "on", "candidate": f"{source.pk}:{source.onec_id}"}
         )
         assert response.status_code == 404
-        assert manager_client.post(verify_url(foreign), {"_reject": "1"}).status_code == 404
-        assert manager_client.get(password_url(foreign)).status_code == 404
-        response = manager_client.post(
+        assert section_client.post(verify_url(foreign), {"_reject": "1"}).status_code == 404
+        assert section_client.get(password_url(foreign)).status_code == 404
+        response = section_client.post(
             password_url(foreign),
             {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
         )
@@ -543,6 +603,92 @@ class TestClientCard:
         assert own.customer_code == before.customer_code
         assert own.responsible_manager == manager
         assert own.responsible_manager_manual
+
+
+def form_index(data: dict[str, Any], prefix: str, obj: Any) -> int:
+    """Номер формы формсета, которая редактирует `obj`."""
+    total = int(data[f"{prefix}-TOTAL_FORMS"])
+    return next(index for index in range(total) if str(data.get(f"{prefix}-{index}-id")) == str(obj.pk))
+
+
+class TestClientInlines:
+    """AC4, AC3 — реквизиты и адреса правятся только у своего клиента."""
+
+    def test_own_company_and_addresses_are_saved(self, manager_client, manager):
+        own = make_client(manager)
+        company = make_company(own)
+        kept = make_address(own, city="Москва")
+        removed = make_address(own, city="Тула")
+        response = manager_client.get(change_url(own))
+        prefixes = inline_prefixes(response)
+        company_prefix, address_prefix = prefixes[Company], prefixes[Address]
+        data = form_payload(response)
+
+        data[f"{company_prefix}-0-legal_name"] = "ООО Новые реквизиты"
+        data[f"{company_prefix}-0-kpp"] = "771001001"
+        data[f"{address_prefix}-{form_index(data, address_prefix, kept)}-city"] = "Казань"
+        data[f"{address_prefix}-{form_index(data, address_prefix, removed)}-DELETE"] = "on"
+        added = int(data[f"{address_prefix}-TOTAL_FORMS"])
+        data[f"{address_prefix}-TOTAL_FORMS"] = str(added + 1)
+        data.update(
+            {
+                f"{address_prefix}-{added}-address_type": "shipping",
+                f"{address_prefix}-{added}-full_name": "Новый Получатель",
+                f"{address_prefix}-{added}-phone": "+79007654321",
+                f"{address_prefix}-{added}-city": "Сочи",
+                f"{address_prefix}-{added}-street": "Морская",
+                f"{address_prefix}-{added}-building": "5",
+                "_save": "Сохранить",
+            }
+        )
+
+        response = manager_client.post(change_url(own), data)
+
+        assert response.status_code == 302, response.context["errors"] if response.context else ""
+        company.refresh_from_db()
+        assert company.legal_name == "ООО Новые реквизиты"
+        assert company.kpp == "771001001"
+        kept.refresh_from_db()
+        assert kept.city == "Казань"
+        assert not Address.objects.filter(pk=removed.pk).exists()
+        assert sorted(Address.objects.filter(user=own).values_list("city", flat=True)) == ["Казань", "Сочи"]
+
+    @pytest.mark.parametrize("mode", ["change", "delete"])
+    def test_forged_foreign_inline_ids_change_nothing(self, manager_client, manager, other_manager, mode):
+        own = make_client(manager)
+        own_company = make_company(own)
+        own_address = make_address(own)
+        foreign = make_client(other_manager)
+        foreign_company = make_company(foreign)
+        foreign_address = make_address(foreign)
+        foreign_before = related_snapshot(foreign)
+        response = manager_client.get(change_url(own))
+        prefixes = inline_prefixes(response)
+        company_prefix, address_prefix = prefixes[Company], prefixes[Address]
+        data = form_payload(response)
+        index = form_index(data, address_prefix, own_address)
+
+        # ID записей чужого клиента вместо своих — в формах, где они уже стоят.
+        data[f"{address_prefix}-{index}-id"] = str(foreign_address.pk)
+        if mode == "change":
+            data[f"{company_prefix}-0-id"] = str(foreign_company.pk)
+            data[f"{company_prefix}-0-legal_name"] = "ООО Подмена"
+            data[f"{address_prefix}-{index}-city"] = "Подмена"
+        else:
+            data[f"{address_prefix}-{index}-DELETE"] = "on"
+        data["_save"] = "Сохранить"
+
+        response = manager_client.post(change_url(own), data)
+
+        if mode == "change":
+            # Чужой ID не входит в queryset формсета — форма с ошибкой, ничего не сохранено.
+            assert response.status_code == 200
+            assert response.context["errors"]
+        assert related_snapshot(foreign) == foreign_before
+        own_company.refresh_from_db()
+        assert own_company.legal_name != "ООО Подмена"
+        assert list(Address.objects.filter(user=own).values_list("pk", "city")) == [(own_address.pk, own_address.city)]
+        assert not audit_records(foreign).exists()
 
 
 class TestUnblock:
@@ -763,7 +909,42 @@ class TestViewOnlyPermissions:
     @pytest.fixture(autouse=True)
     def view_only_group(self):
         group = Group.objects.get(name=MANAGERS_GROUP)
-        group.permissions.set([Permission.objects.get(content_type__app_label="users", codename="view_user")])
+        view_only = [Permission.objects.get(content_type__app_label="users", codename="view_user")]
+        full = list(group.permissions.all())
+        group.permissions.set(view_only)
+        return SimpleNamespace(group=group, full=full, view_only=view_only)
+
+    def test_card_post_is_forbidden(self, manager_client, manager, view_only_group):
+        own = make_client(manager)
+        make_company(own)
+        address = make_address(own)
+        # Форма, какую отправил бы менеджер с полными правами, — снята до урезания прав.
+        view_only_group.group.permissions.set(view_only_group.full)
+        response = manager_client.get(change_url(own))
+        prefixes = inline_prefixes(response)
+        data = form_payload(response)
+        view_only_group.group.permissions.set(view_only_group.view_only)
+        before = User.objects.filter(pk=own.pk).values().get()
+        related_before = related_snapshot(own)
+        data.update(
+            {
+                "first_name": "Подмена",
+                "phone": "+79001112233",
+                f"{prefixes[Company]}-0-legal_name": "ООО Подмена",
+                f"{prefixes[Address]}-{form_index(data, prefixes[Address], address)}-city": "Подмена",
+                "_save": "Сохранить",
+            }
+        )
+
+        data.pop("is_active", None)  # снятый флаг — попытка заблокировать
+
+        response = manager_client.post(change_url(own), data)
+
+        assert response.status_code == 403
+        assert User.objects.filter(pk=own.pk).values().get() == before
+        assert related_snapshot(own) == related_before
+        assert not audit_records(own).exists()
+        assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
 
     def test_card_is_read_only_without_verify_button(self, manager_client, manager):
         applicant = make_client(manager, verification_status="pending", is_verified=False, is_active=False)
@@ -850,20 +1031,25 @@ class TestChangelistQueryCount:
     """AC11 — число SQL-запросов списка не зависит от числа клиентов (NFR-42-04)."""
 
     def test_query_count_does_not_grow_with_rows(self, manager_client, manager, django_assert_num_queries):
-        for _ in range(5):
-            tax_id = unique_tax_id()
-            make_1c_record(tax_id)
-            make_client(manager, tax_id=tax_id, verification_status="pending", is_verified=False)
+        def add_applicants_with_candidates(count: int) -> None:
+            # Каждая строка — заявка с кандидатом 1С: так замер ловит и запросы,
+            # которые display-методы `has_1c_candidate`/`verify_b2b_link` делали бы
+            # только для таких строк.
+            for _ in range(count):
+                tax_id = unique_tax_id()
+                make_1c_record(tax_id)
+                make_client(manager, tax_id=tax_id, verification_status="pending", is_verified=False)
 
+        add_applicants_with_candidates(5)
         with CaptureQueriesContext(connection) as captured:
             first = manager_client.get(CHANGELIST_URL)
         assert first.status_code == 200
         assert len(first.context["cl"].result_list) == 5
         baseline = len(captured)
 
-        for _ in range(45):
-            make_client(manager)
-
+        add_applicants_with_candidates(45)
         with django_assert_num_queries(baseline):
             second = manager_client.get(CHANGELIST_URL)
-        assert len(second.context["cl"].result_list) == 50
+        rows = second.context["cl"].result_list
+        assert len(rows) == 50
+        assert all(row._has_1c_candidate for row in rows)
