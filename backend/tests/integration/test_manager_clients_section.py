@@ -41,7 +41,8 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from apps.common.models import AuditLog, ManagerRoutingRule
-from apps.users.manager_admin import ManagerClientAdmin
+from apps.users import admin as users_admin
+from apps.users.manager_admin import ManagerClientAdmin, PortalAccountFilter
 from apps.users.models import Address, Company, User
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
 from tests.conftest import get_unique_suffix
@@ -399,6 +400,23 @@ class TestChangelist:
         assert listed({"portal_account": "no"}) == [record]
         assert set(listed({"portal_account": "all"})) == {own, record}
         assert listed({"role__exact": User.ROLE_UNREGISTERED}) == [record]
+
+    def test_have_account_link_keeps_its_choice(self, manager_client, manager):
+        # R42.4-7: переход по «Есть» при фильтре роли «Не зарегистрирован» выделяет «Есть».
+        record = make_client(manager, role=User.ROLE_UNREGISTERED, verification_status="unverified", is_verified=False)
+        make_client(manager)
+
+        def portal_choices(response) -> list[dict[str, Any]]:
+            changelist = response.context["cl"]
+            spec = next(spec for spec in changelist.filter_specs if isinstance(spec, PortalAccountFilter))
+            return list(spec.choices(changelist))
+
+        response = manager_client.get(CHANGELIST_URL, {"role__exact": User.ROLE_UNREGISTERED})
+        have = next(choice for choice in portal_choices(response) if choice["display"] == "Есть")
+        followed = manager_client.get(CHANGELIST_URL + have["query_string"])
+
+        assert [choice["display"] for choice in portal_choices(followed) if choice["selected"]] == ["Есть"]
+        assert record not in list(followed.context["cl"].result_list)
 
     def test_columns_filters_and_title(self, manager_client, manager):
         make_client(manager)
@@ -1090,12 +1108,72 @@ def locked_at_save(monkeypatch) -> dict[int, bool]:
     return seen
 
 
+class BackgroundWrite:
+    """
+    Запись из второго соединения, запущенная посреди запроса раздела.
+
+    `start()` возвращается, когда запись либо завершилась, либо встала в
+    очередь на блокировку строки (`pg_stat_activity.wait_event_type = 'Lock'`) —
+    без угадывания задержек. `blocked` — запись ждала: вклиниться между
+    чтением клиента и записью раздела она не могла и применится после.
+    """
+
+    def __init__(self, func: Any) -> None:
+        self.func = func
+        self.pid: int | None = None
+        self.blocked = False
+        self.outcome: dict[str, Any] = {}
+        self.ready = threading.Event()
+        self.thread = threading.Thread(target=self._run)
+
+    def _run(self) -> None:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                self.pid = cursor.fetchone()[0]
+            self.ready.set()
+            self.outcome["result"] = self.func()
+        except BaseException as exc:  # noqa: BLE001 — исключение возвращается в тест
+            self.outcome["error"] = exc
+        finally:
+            self.ready.set()
+            connections.close_all()
+
+    def start(self) -> None:
+        self.thread.start()
+        assert self.ready.wait(timeout=10), "второе соединение не открылось"
+        deadline = time.monotonic() + 10
+        while self.thread.is_alive() and time.monotonic() < deadline:
+            with connection.cursor() as cursor:
+                # Статистика активности кэшируется на транзакцию — сбросить снимок.
+                cursor.execute("SELECT pg_stat_clear_snapshot()")
+                cursor.execute("SELECT wait_event_type FROM pg_stat_activity WHERE pid = %s", [self.pid])
+                row = cursor.fetchone()
+            if row and row[0] == "Lock":
+                self.blocked = True
+                return
+            time.sleep(0.01)
+        assert not self.thread.is_alive(), "вторая запись не завершилась и не ждёт блокировку"
+
+    def join(self) -> None:
+        self.thread.join(timeout=30)
+        assert not self.thread.is_alive(), "вторая запись зависла"
+        if "error" in self.outcome:
+            raise self.outcome["error"]
+
+
+def transfer_to(user: User, manager: User) -> BackgroundWrite:
+    return BackgroundWrite(lambda: User.objects.filter(pk=user.pk).update(responsible_manager=manager))
+
+
 class TestTransferDuringWrite:
     """
-    R42.4-1 — передача клиента другому менеджеру между чтением и записью.
+    R42.4-1, R42.4-4…6 — передача клиента или импорт между чтением и записью.
 
-    Устаревший объект карточки не должен вернуть прежнего ответственного, а
-    действие — изменить клиента, который уже вышел из выборки менеджера.
+    Строка клиента блокируется до чтения объекта: передача, начатая посреди
+    записи раздела, ждёт её конца и применяется после, а не теряется; клиент,
+    переданный до блокировки, — 404. Устаревший объект не затирает ни
+    ответственного, ни скрытые поля.
     """
 
     def test_card_save_after_transfer_answers_404(self, manager_client, manager, other_manager, prod_like_requests):
@@ -1103,22 +1181,134 @@ class TestTransferDuringWrite:
         phone_before = own.phone
         data = form_payload(manager_client.get(change_url(own)))
         data.update({"phone": "+79005556677", "_save": "Сохранить"})
-        original_save_form = ManagerClientAdmin.save_form
+        # Форма открыта, пересчёт передаёт клиента B до отправки.
+        in_other_connection(lambda: User.objects.filter(pk=own.pk).update(responsible_manager=other_manager))
 
-        def transfer_then_save_form(self: ManagerClientAdmin, request: Any, form: Any, change: bool) -> Any:
-            # Карточка уже прочитана (get_object), запись (save_model) впереди:
-            # пересчёт передаёт клиента B и фиксирует транзакцию.
-            in_other_connection(lambda: User.objects.filter(pk=own.pk).update(responsible_manager=other_manager))
-            return original_save_form(self, request, form, change)
-
-        with patch.object(ManagerClientAdmin, "save_form", transfer_then_save_form):
-            response = manager_client.post(change_url(own), data)
+        response = manager_client.post(change_url(own), data)
 
         assert response.status_code == 404
         own.refresh_from_db()
         assert own.responsible_manager == other_manager
         assert own.phone == phone_before
         assert not audit_records(own).exists()
+
+    def test_card_keeps_concurrent_import(self, manager_client, manager, prod_like_requests):
+        # R42.4-5: импорт 1С посреди сохранения карточки не затирается её объектом.
+        own = make_client(manager)
+        data = form_payload(manager_client.get(change_url(own)))
+        data.update({"phone": "+79005556679", "_save": "Сохранить"})
+        imported_id = f"IMPORTED-{get_unique_suffix()}"
+        import_1c = BackgroundWrite(lambda: User.objects.filter(pk=own.pk).update(onec_id=imported_id))
+        original_save_form = ManagerClientAdmin.save_form
+
+        def import_then_save_form(self: ManagerClientAdmin, request: Any, form: Any, change: bool) -> Any:
+            import_1c.start()
+            return original_save_form(self, request, form, change)
+
+        with patch.object(ManagerClientAdmin, "save_form", import_then_save_form):
+            response = manager_client.post(change_url(own), data)
+        import_1c.join()
+
+        assert response.status_code == 302
+        assert import_1c.blocked
+        own.refresh_from_db()
+        assert own.onec_id == imported_id
+        assert own.phone == "+79005556679"
+
+    def test_password_change_does_not_undo_transfer(self, manager_client, manager, other_manager, prod_like_requests):
+        # R42.4-6: полное save() формы пароля не возвращает прежнего ответственного.
+        own = make_client(manager)
+        transfer = transfer_to(own, other_manager)
+        form_class = ManagerClientAdmin.change_password_form
+        original_save = form_class.save
+
+        def transfer_then_save(form: Any, *args: Any, **kwargs: Any) -> Any:
+            transfer.start()
+            return original_save(form, *args, **kwargs)
+
+        with patch.object(form_class, "save", transfer_then_save):
+            response = manager_client.post(
+                password_url(own),
+                {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
+            )
+        transfer.join()
+
+        assert response.status_code == 302
+        assert transfer.blocked
+        own.refresh_from_db()
+        assert own.responsible_manager == other_manager
+        assert own.check_password(NEW_PASSWORD)
+
+    @pytest.mark.parametrize(
+        "service, payload",
+        [
+            ("verify_b2b_application", {"confirm": "on", "confirm_without_1c": "on", "role": "wholesale_level1"}),
+            ("reject_b2b_application", {"_reject": "1"}),
+        ],
+    )
+    def test_verify_page_waits_for_transfer(
+        self, manager_client, manager, other_manager, prod_like_requests, service, payload
+    ):
+        # R42.4-6: решение по заявке принимается, пока клиент ещё у менеджера.
+        applicant = make_client(manager, verification_status="pending", is_verified=False, is_active=False)
+        transfer = transfer_to(applicant, other_manager)
+        original = getattr(users_admin, service)
+
+        def transfer_then_call(**kwargs: Any) -> Any:
+            transfer.start()
+            return original(**kwargs)
+
+        with patch.object(users_admin, service, transfer_then_call):
+            response = manager_client.post(verify_url(applicant), payload)
+        transfer.join()
+
+        assert response.status_code == 302
+        assert transfer.blocked
+        applicant.refresh_from_db()
+        assert applicant.responsible_manager == other_manager
+
+    def test_link_after_transfer_answers_404(self, manager_client, manager, other_manager, prod_like_requests):
+        # R42.4-6: привязка перепроверяет принадлежность под блокировкой.
+        applicant = make_client(manager, verification_status="pending", is_verified=False)
+        source = make_1c_record(applicant.tax_id)
+        original_find = users_admin.find_link_candidates
+
+        def transfer_then_find(target: User) -> list[User]:
+            # Цель уже прочитана действием, привязка впереди.
+            in_other_connection(lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager))
+            return original_find(target)
+
+        with patch.object(users_admin, "find_link_candidates", transfer_then_find):
+            response = post_action(
+                manager_client,
+                "link_1c_customer",
+                applicant,
+                follow=False,
+                apply="1",
+                candidate=f"{source.pk}:{source.onec_id}",
+            )
+
+        assert response.status_code == 404
+        applicant.refresh_from_db()
+        assert applicant.onec_id is None
+        assert applicant.responsible_manager == other_manager
+        assert not audit_records(applicant).exists()
+
+    def test_second_action_field_does_not_skip_lock(self, manager_client, manager, prod_like_requests, locked_at_save):
+        # R42.4-4: Django выполняет значение action по index, исключение привязки — тоже.
+        own = make_client(manager)
+
+        response = manager_client.post(
+            CHANGELIST_URL,
+            {"action": ["block_users", "link_1c_customer"], "index": "0", "_selected_action": [str(own.pk)]},
+            follow=True,
+        )
+
+        assert response.status_code == 200
+        assert locked_at_save[own.pk] is True
+        own.refresh_from_db()
+        assert own.is_active is False
+        assert audit_records(own, "block_user").count() == 1
 
     def test_card_save_holds_row_lock(self, manager_client, manager, prod_like_requests, locked_at_save):
         own = make_client(manager)

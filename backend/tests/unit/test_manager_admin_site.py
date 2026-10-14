@@ -149,6 +149,12 @@ class TestPortalAccountFilter:
     def test_all_shows_everyone(self, users):
         assert self.apply({"portal_account": "all"}) == set(users)
 
+    def test_explicit_yes_hides_unregistered_even_with_role_filter(self, users):
+        # «Есть» явным значением: связка с фильтром роли его не отменяет (R42.4-7).
+        registered, unregistered = users
+        assert self.apply({"portal_account": "yes"}) == {registered}
+        assert self.apply({"portal_account": "yes", "role__exact": User.ROLE_UNREGISTERED}) == {registered}
+
     def test_role_filter_unregistered_disables_default(self, users):
         registered, unregistered = users
         # Фильтр роли применяется своим field-фильтром; здесь проверяется, что

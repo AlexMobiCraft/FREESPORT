@@ -15,7 +15,9 @@ from __future__ import annotations
 from typing import Any, Iterator
 
 from django.contrib import admin
+from django.contrib.admin.utils import unquote
 from django.contrib.admin.views.main import ChangeList
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
 from django.forms import ModelForm
@@ -60,10 +62,10 @@ class PortalAccountFilter(admin.SimpleListFilter):
         # давал бы пустой список: при нём записи без аккаунта видны, как во «Все».
         self.role_is_unregistered = request.GET.get("role__exact") == User.ROLE_UNREGISTERED
 
-    def effective_value(self) -> str | None:
+    def effective_value(self) -> str:
         value = self.value()
-        if value is None and self.role_is_unregistered:
-            return "all"
+        if value is None:
+            return "all" if self.role_is_unregistered else "yes"
         return value
 
     def lookups(self, request: HttpRequest, model_admin: admin.ModelAdmin) -> list[tuple[str, str]]:
@@ -72,10 +74,16 @@ class PortalAccountFilter(admin.SimpleListFilter):
     def choices(self, changelist: ChangeList) -> Iterator[dict[str, Any]]:
         # Пункт по умолчанию — «Есть» без параметра; штатного «Все» с тем же
         # значением нет, иначе в фильтре было бы два пункта на одно состояние.
+        # При фильтре роли «Не зарегистрирован» отсутствие параметра значит
+        # «Все», поэтому «Есть» передаётся явным значением yes.
         value = self.effective_value()
+        if self.role_is_unregistered:
+            have_query = changelist.get_query_string({self.parameter_name: "yes"})
+        else:
+            have_query = changelist.get_query_string(remove=[self.parameter_name])
         yield {
             "selected": value not in ("no", "all"),
-            "query_string": changelist.get_query_string(remove=[self.parameter_name]),
+            "query_string": have_query,
             "display": "Есть",
         }
         for lookup, title in self.lookup_choices:
@@ -183,14 +191,99 @@ class ManagerClientAdmin(UserAdmin):
         extra_context = {**(extra_context or {}), "title": "Клиенты"}
         return super().changelist_view(request, extra_context)
 
+    # Запись над клиентом: строка блокируется до чтения объекта.
+    #
+    # Иначе клиента могли передать другому менеджеру (или импорт 1С обновить
+    # скрытые поля) между чтением и записью: полное save() устаревшего объекта
+    # вернуло бы прежнего ответственного и затёрло импорт, а сервис записал бы
+    # действие над уже чужим клиентом. Под блокировкой Django читает свежий
+    # объект через get_queryset: переданный клиент — 404, а передача, начатая
+    # посреди записи, ждёт конца транзакции и применяется после.
+
+    def _lock_rows(self, *object_ids: Any) -> None:
+        """Блокирует строки пользователей по возрастанию pk — порядок пересчёта ответственных и привязки к 1С."""
+        pks = set()
+        for object_id in object_ids:
+            try:
+                pk = self.opts.pk.to_python(unquote(str(object_id)))  # type: ignore[union-attr]
+            except (ValidationError, ValueError):
+                continue  # невалидный id: get_object вернёт None, вью ответит 404
+            if pk is not None:
+                pks.add(pk)
+        if pks:
+            list(User.objects.select_for_update().filter(pk__in=pks).order_by("pk").values_list("pk", flat=True))
+
+    @staticmethod
+    def _executed_action(request: HttpRequest) -> str | None:
+        """
+        Действие, которое выполнит ModelAdmin.response_action.
+
+        Полей action в форме списка два (над и под таблицей), Django берёт
+        значение по index, а при выходе за границы — последнее (так читает
+        QueryDict). Решение о блокировке принимается по тому же значению.
+        """
+        actions = request.POST.getlist("action")
+        try:
+            index = int(request.POST.get("index", 0))
+        except ValueError:
+            index = 0
+        try:
+            return actions[index]
+        except IndexError:
+            return actions[-1] if actions else None
+
+    def change_view(
+        self,
+        request: HttpRequest,
+        object_id: str,
+        form_url: str = "",
+        extra_context: dict[str, Any] | None = None,
+    ) -> HttpResponse:
+        if request.method != "POST":
+            return super().change_view(request, object_id, form_url, extra_context)
+        # Блокировка держится до конца запроса, включая инлайны.
+        with transaction.atomic():
+            self._lock_rows(object_id)
+            return super().change_view(request, object_id, form_url, extra_context)
+
+    def user_change_password(self, request: HttpRequest, id: str, form_url: str = "") -> HttpResponse:
+        if request.method != "POST":
+            return super().user_change_password(request, id, form_url)
+        with transaction.atomic():
+            self._lock_rows(id)
+            return super().user_change_password(request, id, form_url)
+
+    def verify_b2b_view(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        if request.method != "POST":
+            return super().verify_b2b_view(request, object_id)
+        # Порядок прежний: сервис подтверждения тоже сначала блокирует заявку.
+        with transaction.atomic():
+            self._lock_rows(object_id)
+            return super().verify_b2b_view(request, object_id)
+
+    def _apply_link_1c_customer(
+        self, request: HttpRequest, target: User, candidates: list[User]
+    ) -> HttpResponseRedirect:
+        # Цель прочитана действием без блокировки (см. response_action) и
+        # блокируется вместе с источником по возрастанию pk, как в сервисе.
+        # Источник — только из показанных кандидатов: чужую строку по
+        # подделанному pk не блокируем, сервис такой выбор всё равно отклонит.
+        source_pk = (request.POST.get("candidate") or "").partition(":")[0]
+        source_pks = [candidate.pk for candidate in candidates if str(candidate.pk) == source_pk]
+        with transaction.atomic():
+            self._lock_rows(target.pk, *source_pks)
+            if not self.get_queryset(request).filter(pk=target.pk).exists():
+                raise Http404("Клиент не найден")
+            return super()._apply_link_1c_customer(request, target, candidates)
+
     def response_action(self, request: HttpRequest, queryset: QuerySet[User]) -> HttpResponse | None:
         # Выбранные строки читаются под блокировкой в одной транзакции с записью:
         # клиент, переданный другому менеджеру до чтения, в выборку не попадёт,
         # а передать его, пока действие пишет, нельзя. Порядок блокировки — по pk,
-        # как у пересчёта ответственных. Привязка к 1С пишет через сервис под его
-        # блокировкой (source и target по возрастанию pk) — внешняя блокировка
-        # target перевернула бы этот порядок.
-        if "link_1c_customer" in request.POST.getlist("action"):
+        # как у пересчёта ответственных. Привязка к 1С блокирует цель вместе с
+        # источником в _apply_link_1c_customer — блокировка одной цели здесь
+        # перевернула бы порядок по pk.
+        if self._executed_action(request) == "link_1c_customer":
             return super().response_action(request, queryset)
         with transaction.atomic():
             return super().response_action(request, queryset.select_for_update(of=("self",)).order_by("pk"))
@@ -198,13 +291,6 @@ class ManagerClientAdmin(UserAdmin):
     def save_model(  # type: ignore[override]
         self, request: HttpRequest, obj: User, form: ModelForm, change: bool
     ) -> None:
-        # Карточка прочитана без блокировки. Если клиента за это время передали
-        # другому менеджеру, полное save() вернуло бы прежнего ответственного из
-        # устаревшего объекта. Принадлежность проверяется под блокировкой строки в
-        # той же транзакции, что и запись: changeform_view Django выполняет в
-        # transaction.atomic, блокировка держится до конца запроса, включая инлайны.
-        if change and not self.get_queryset(request).select_for_update(of=("self",)).filter(pk=obj.pk).exists():
-            raise Http404("Клиент не найден")
         super().save_model(request, obj, form, change)  # type: ignore[arg-type]
         # Блокировка и разблокировка флагом в карточке — тоже действие для журнала.
         if change and "is_active" in form.changed_data:
