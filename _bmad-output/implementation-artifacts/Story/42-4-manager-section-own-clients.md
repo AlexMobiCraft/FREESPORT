@@ -773,6 +773,86 @@ GitNexus: индекс на `c2743ed`, HEAD после фиксации тест
 - ID 28 — low, правка спецификации: новое действие требует нового точного ожидания, причина записана в отклонении 2.
 - ID 29 — low: runner-схема CI явно описана и используется существующим job; конкретный дефект среды не показан, новое Compose-окружение ради буквального ограничения отклонено.
 
+#### Ревью 2026-10-14 — `b4fab053..d9f21c20`
+
+Подтверждён весь диапазон: 33 файла, +3637/−113, 4419 строк diff, включая реализацию, накопленные исправления, ускорение тестов, CI и документы. Режим `full`; контекст — эта история, `project-context.md`, `AGENTS.md` и `backend/AGENTS.md`. Все четыре настроенных слоя завершились: `blind-hunter` — 10 замечаний, `edge-case-hunter` — 12, `verification-gap` — 5 (три пробела и два дополнительных замечания), `acceptance-auditor` — 3. Каждое из 30 замечаний получило индивидуальный вердикт до группировки. Итог: 0 решений, 2 группы исправлений проверок, 5 отложенных групп (четыре повтора существующих задач и один ранее существовавший дефект писем), 17 отклонённых замечаний. Код и постоянные тесты не менялись. Решение Alex 2026-10-14: вариант 2 — оставить R42.4-17 и R42.4-18 открытыми задачами, без исправлений кода и тестов. Статус истории и записи `42-4-manager-section-own-clients` в трекере спринта: `review` → `in-progress` до закрытия этих задач.
+
+**Исправления — пробелы регрессионных проверок, не обнаруженные дефекты текущих конфигов:**
+
+- [x] [Review][Patch] **R42.4-17: вход менеджера не проверяется через production-конфиг nginx** — `medium`, ID 7 и 24. `check-manager-session.sh` исполняется только с `local.conf`; проверка production выполняет только анонимный `check-manager-route.sh`. Мутация `proxy_hide_header Set-Cookie;` только в `/manager/` файла `default.conf` оставляет эти проверки и статический страж upstream зелёными, хотя вход менеджера перестанет работать. Расширить CI smoke-проверку запуском production-конфига на изолированном стенде с тестовыми аккаунтами и проверкой сессии, собственного и чужого клиентов; production-учётные записи не создавать. Доказательства слоя verification-gap приняты по workflow; новая мутация конфигов в этом запуске не выполнялась. Текущий `default.conf` Cookie/Set-Cookie не удаляет. [docker/nginx/conf.d/default.conf:227-239; .github/workflows/main.yml:242-254; .github/workflows/deploy.yml:508; scripts/deploy/check-manager-session.sh:35-73]
+- [x] [Review][Patch] **R42.4-18: изоляция Redis между воркерами не защищена обязательной проверкой** — `medium`, ID 25. Настройки разводят Redis DB по `PYTEST_XDIST_WORKER`, но обязательный CI-прогон последовательный; поиск слоя verification-gap не обнаружил теста межпроцессной изоляции. Замена `_WORKER_INDEX` на постоянный 0 не изменит этот прогон, а `cache.clear()` одного воркера параллельного запуска сможет удалить кэш и локи другого. Добавить Docker-проверку двух процессов с настройками `gw0` и `gw1`: разные DB, контрольные значения обоих, очистка первого и сохранность значения второго. Это пробел регрессии корректных текущих настроек, не наблюдённое взаимное удаление данных. Доказательства слоя verification-gap приняты по workflow; мутация настроек в этом запуске не выполнялась. [backend/freesport/settings/test.py:91-98; backend/tests/conftest.py:682; .github/workflows/main.yml:197-200]
+
+**Отложено:**
+
+- [x] [Review][Defer] **Разный порядок source/target у подтверждения и привязки** — `medium`, ID 2 и 14; повтор существующей задачи общих сервисов. Подтверждение держит target перед вызовом привязки, отдельная привязка при меньшем pk источника начинает с source. Такой порядок существовал до baseline; фактический deadlock в этом запуске не воспроизводился. Нужны двухсоединительная проверка цикла и единый порядок захвата. [backend/apps/users/services/verify_b2b_application.py:156-198; backend/apps/users/services/link_1c_customer.py:149-153; backend/apps/users/manager_admin.py:277-313]
+- [x] [Review][Defer] **Первая блокировка массового действия через exists не гарантирует порядок pk** — `maybe-false`, возможный `medium`, ID 3 и 15; повтор существующего неподтверждённого вопроса. Runtime-исходник Django снова показал `clear_ordering(force=True)` и LIMIT 1; конкретный цикл двух действий не показан. Для закрытия наблюдать первые захваченные строки и реальный deadlock либо исключить расписание. [backend/apps/users/manager_admin.py:315-325; backend/apps/users/admin.py:931-940,1196-1207,1251-1261]
+- [x] [Review][Defer] **Полный URL и доступ адресата регионального письма не проверены** — `medium`, ID 5, 18 и 23; повтор существующей задачи. Подстрока пути не защищает полный URL; после передачи либо при несвязанном/резервном адресате доступ к заявке может отсутствовать. Решение Alex о ручной очистке правил перед выкатом сохранено; не менять политику писем в этой истории. Исходная задача уже требует открытия извлечённой ссылки региональным и резервным адресатом. В этом запуске переход из письма не выполнялся. [backend/apps/users/tasks.py:421-444; backend/tests/unit/test_region_routing.py:153-191]
+- [x] [Review][Defer] **R42.4-D1: успешный HTTP-вход заблокированного клиента** — `medium`, ID 6 и 27; повтор существующего дефекта API. Сериализатор проверяет пароль неактивного пользователя напрямую, view запрещает pending, но не проверяет is_active перед JWT. AC6 корректно требует ModelBackend.authenticate. HTTP-вход в этом запуске отдельно не воспроизводился, исходная задача остаётся единственной. [backend/apps/users/serializers.py:537-558; backend/apps/users/views/authentication.py:310-331]
+- [x] [Review][Defer] **Письмо об одобрении публикуется до коммита и переживает откат заявки** — `medium`, ID 16; ранее существовавший дефект общего сигнала, впервые зарегистрирован в этом запуске. `check_verification_status_change` вызывает `.delay()` сразу после save, а task отправляет письмо без проверки текущего статуса. Временная HTTP-проверка массового одобрения с `ATOMIC_REQUESTS=False` и ошибкой AuditLog показала: задача опубликована внутри транзакции, после отката статус pending и is_verified=False; выполнение настоящего task после отката вызвало замоканный send_mail один раз. Общий сигнал и транзакционное подтверждение B2B присутствовали до baseline, поэтому это отдельный долг, а не patch manager-wrapper. Публиковать через transaction.on_commit и закрепить отсутствие постановки/отправки при откате, а также однократную отправку после успешного коммита. [backend/apps/users/signals.py:31-47; backend/apps/users/tasks.py:498-526; backend/apps/users/admin.py:958-961; backend/apps/users/manager_admin.py:324-325]
+
+**Проверки:**
+
+- Docker + PostgreSQL, один последовательный профильный прогон: `test_manager_clients_section.py`, `test_manager_admin_site.py`, `test_check_manager_route_script.py`, `test_nginx_security_headers.py`, `--override-ini=addopts= -q -p no:sugar` — **145 passed**, 6 предупреждений об устаревающих API, 238,95 с.
+- Проверка отката письма внедрена pytest-плагином только в память существующего модуля: **1 failed**, 28,58 с, ожидаемое падение требования «при откате нет опубликованной задачи». Вывод: `rolled_back_status=pending`, `queued=[(2, True)]`, `sent_after_rollback=1`. Broker-вызов перехвачен, внешняя отправка замокана; настоящее тело task исполнилось после отката. Файлов тестов/реализации не создавалось. `git show b4fab053:backend/apps/users/signals.py` и `git blame b4fab053` сервиса подтверждения установили ранее существовавшую причину.
+- Runtime-исходник `Query.exists` в тестовом контейнере подтвердил снятие ORDER BY и LIMIT 1; взаимная блокировка массовых действий не воспроизводилась.
+- `bash -n` обоих HTTP-скриптов — успешно. Живой dev-nginx: `/manager/` — 302 на `/manager/login/?next=/manager/`, страница входа — 200. Production, HTTPS-вход, новые nginx/Redis-мутации, полный backend-набор и линтеры в этом запуске не проверялись. Сервисы не перезапускались.
+- GitNexus актуален, индекс и HEAD `d9f21c20`. До записи результатов `detect-changes --scope all` — нет изменений символов. Анализ диапазона: 34 файла, 90 символов, 15 потоков, риск high (в отличие от зафиксированного diff, инструмент учитывает и состояние рабочего дерева). `impact scope_clients` — HIGH, прямой get_queryset, три изменяющих потока; `_lock_client` — HIGH, прямые change_view, user_change_password, verify_b2b_view. Предупреждение передано Alex, символы не правились. Пользовательские изменения `_bmad/custom/bmad-code-review.toml` и `_bmad/custom/bmad-review.toml` не трогались.
+
+**Индивидуальные вердикты до группировки:**
+
+| ID | Источник | Вердикт | Доказательство / исход |
+|---|---|---|---|
+| 1 | blind-hunter №1 | low | В /admin/ save и аудит не атомарны; ранее принятый редкий сбой INSERT, новая обвязка отклонена. |
+| 2 | blind-hunter №2 | medium | Target-first подтверждения и source-first привязки допускают цикл; существующий долг общих сервисов. |
+| 3 | blind-hunter №3 | maybe-false | exists снимает порядок, подтверждено runtime; конкретный цикл не показан, повтор отложенного вопроса. |
+| 4 | blind-hunter №4 | low | Обычное назначение проверяют тесты 42.2; 404 после пробельного ИНН — ранее принятый редкий исход. |
+| 5 | blind-hunter №5 | medium | Тест подстроки не проверяет доступ получателя по полному URL; существующий конфигурационный долг. |
+| 6 | blind-hunter №6 | medium | HTTP-view не проверяет активность до JWT; существующий R42.4-D1, а не неверный тест AC6. |
+| 7 | blind-hunter №7 | medium | Сессионный smoke работает только с local.conf; production-мутация потери cookie не обнаруживается, R42.4-17. |
+| 8 | blind-hunter №8 | low | Ожидание Django не означает готовность nginx; редкий тайминг, ранее принятая новая retry-обвязка отклонена. |
+| 9 | blind-hunter №9 | low | Любой DatabaseError трактуется как NOWAIT-конфликт; ранее принятый диагностический риск, обычный ложноположительный прогон не показан. |
+| 10 | blind-hunter №10 | low | Буквальный AC2 конфликтует с Task 3; исправление самой спецификации исключено. |
+| 11 | edge-case-hunter №1 | low | Неатомарность save/аудита в /admin/ реальна; тот же принятый редкий сбой INSERT. |
+| 12 | edge-case-hunter №2 | low | Eligibility в /admin/ может смениться после чтения; ранее рассмотренная редкая гонка, новая блокировка отклонена. |
+| 13 | edge-case-hunter №3 | low | Две конкурентные разблокировки /admin/ могут создать два события; ранее принятая редкая коллизия. |
+| 14 | edge-case-hunter №4 | medium | Тот же существующий source/target-долг; фактический deadlock в этом запуске не проверялся. |
+| 15 | edge-case-hunter №5 | maybe-false | Первый exists снимает порядок; цикл ожидания не воспроизведён, повтор существующего вопроса. |
+| 16 | edge-case-hunter №6 | medium | HTTP-одобрение откатилось, опубликованный task вызвал send_mail после отката; причина общего сигнала существовала до baseline. |
+| 17 | edge-case-hunter №7 | low | Пробельный ИНН может увести клиента и дать 404 после успешного подтверждения; ранее принятый редкий редирект. |
+| 18 | edge-case-hunter №8 | medium | Региональный адресат после ручной передачи может потерять доступ; существующая задача писем. |
+| 19 | edge-case-hunter №9 | low | Остаток unique_digits теоретически повторяется; редкая коллизия уже принята, дополнительный распределитель отклонён. |
+| 20 | edge-case-hunter №10 | low | Широкий DatabaseError подтверждён кодом; тот же ранее принятый диагностический риск. |
+| 21 | edge-case-hunter №11 | low | Исключение POST пропускает join; ранее рассмотренный аварийный путь тестовой обвязки, новая cleanup-ветка отклонена. |
+| 22 | edge-case-hunter №12 | low | Однократный smoke может опередить nginx; тот же принятый редкий стартовый тайминг. |
+| 23 | verification-gap №1 | medium | Полный извлечённый URL и доступ адресата не проверяются; повтор существующей задачи. |
+| 24 | verification-gap №2 | medium | Set-Cookie-мутация только default.conf не ловится прочитанными проверками; принятый пробел R42.4-17. |
+| 25 | verification-gap №3 | medium | Константный индекс воркера не обнаружит последовательный CI; принятый пробел R42.4-18. |
+| 26 | verification-gap, дополнительное №1 | low | В /admin/ save предшествует INSERT аудита без общей транзакции; ранее принятый редкий риск. |
+| 27 | verification-gap, дополнительное №2 | medium | API выдаёт JWT неактивному клиенту; ранее существовавший R42.4-D1, AC6 корректен. |
+| 28 | acceptance-auditor №1 | low | AC2 противоречит утверждённому Task 3; исправление спецификации исключено из patch. |
+| 29 | acceptance-auditor №2 | low | Task 2 требует unblock_users и нового expected_actions; отклонение 2 описано, согласование AC12/Task 6 — правка спецификации. |
+| 30 | acceptance-auditor №3 | low | CI запускает Django на раннере: схема явно описана и используется существующим job; нового сбоя не показано, перенос в Compose — новая инфраструктура. |
+
+##### Отклонено — ревью на `d9f21c20` (17)
+
+- ID 1 — low: ранее принятый редкий сбой аудита в /admin/; новая атомарная обвязка отклонена.
+- ID 4 — low: автоматическое назначение покрыто смежными тестами; редкий недоступный редирект уже принят и требует новой ветки.
+- ID 8 — low: редкий стартовый тайминг nginx ранее принят; новая retry-обвязка без наблюдённого штатного сбоя отклонена.
+- ID 9 — low: широкий DatabaseError реален, но обычный ошибочно зелёный прогон не показан; ранее принятая дополнительная обработка отклонена.
+- ID 10 — low, правка спецификации: код выполняет явно утверждённое исключение Task 3.
+- ID 11 — low: тот же принятый редкий save/аудит /admin/, индивидуально проверен.
+- ID 12 — low: ранее рассмотренная редкая гонка признаков /admin/; новая блокировка отклонена.
+- ID 13 — low: два запроса могут записать два события; редкая коллизия уже принята, новая дедупликационная блокировка отклонена.
+- ID 17 — low: 404 после переноса пробельного ИНН уже принят; отдельная новая ветка редиректа отклонена.
+- ID 19 — low: редкая коллизия тестового генератора ранее принята; новый распределитель отклонён.
+- ID 20 — low: тот же ранее принятый диагностический риск, что ID 9; дополнительная обработка отклонена.
+- ID 21 — low: аварийный POST может обойти join; ранее рассмотренная новая cleanup-ветка отклонена.
+- ID 22 — low: тот же редкий стартовый тайминг, что ID 8; новая retry-обвязка отклонена.
+- ID 26 — low: тот же принятый редкий сбой INSERT аудита /admin/, что ID 1 и 11.
+- ID 28 — low, правка спецификации: Task 3 прямо разрешает поведение фильтра роли.
+- ID 29 — low, правка спецификации: добавление требуемого действия вынуждает новое ожидание; отклонение 2 объясняет причину.
+- ID 30 — low: runner-схема CI описана и соответствует существующему job; перенести весь smoke в Compose ради буквального ограничения — новая инфраструктура без показанного сбоя.
+
 ## Dev Notes
 
 ### Текущее состояние кода (сверено на `b4fab053`, после 42.2 и 42.3)
@@ -1007,6 +1087,22 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
   | `proxy_hide_header Set-Cookie;` там же | то же: анонимная проверка ✅, вход — 403 |
 
   R42.4-16 воспроизведён по шагу `main.yml`: база `smoke_manager` в `freesport-test-db`, `migrate` (26 с), засев — тот же Python-фрагмент, извлечённый из YAML шага, Django с `freesport.settings.development` на порту 8000, `nginx:alpine` с настоящим `local.conf` и `--add-host backend:host-gateway`. Скрипты запускались из образа `freesport-test-backend` в сетевом пространстве nginx (`--network container:nginx-smoke`, `http://localhost`). Из Git Bash под Windows так нельзя: MSYS переписывает аргумент `next=/manager/` в путь `C:/Program Files/Git/manager/` (Django отбрасывает его как небезопасный и уводит на `/accounts/profile/`), а с `MSYS_NO_PATHCONV=1` `curl.exe` не может писать в POSIX-путь от `mktemp`. На Linux-раннере нет ни того, ни другого. Итог: обе проверки ✅; негативы скрипта — переставленные свой и чужой клиент, неверный пароль — exit 1. Стенд и база `smoke_manager` удалены. Полный прогон (`freesport-test`, `-n 4 -m "not performance and not slow"`): `4150 passed, 76 skipped` за 17:15. Первые линтеры после него подхватили `scripts/docs/*.py` через новое монтирование `../scripts:/app/scripts` (black — 5 файлов, flake8 и mypy — ошибки только в `scripts/docs/`), поэтому монтирование сужено до `../scripts/deploy`. После этого в `freesport-test`: `black --check .` — 467 unchanged, `flake8` чист, `mypy` — «no issues found in 620 source files», `makemigrations --check` — No changes detected; сторожа compose и workflow (`test_check_manager_route_script.py`, `test_nginx_security_headers.py`, `test_pytest_marker_autotagging.py`, `test_pages_performance.py`) — 158 passed; `bash -n` обоих скриптов и разбор YAML `main.yml` — ok. `detect-changes --scope all`: 3 символа в `manager_admin.py` (`ManagerClientAdmin`, `_apply_link_1c_customer`, `response_action` — сдвиг строк), риск low, затронутых процессов 0.
+- **Исправления ревью `b4fab053..d9f21c20` (2026-10-14, R42.4-17…18).** Ветка `fix/42-4-review-r10-r13` (HEAD `d9f21c20`, не опубликован). GitNexus актуален на `d9f21c2`; продакшен-код не менялся, `detect-changes --scope all` — изменённых символов нет. R42.4-17: шаг `main.yml` «Маршрут /manager/ через nginx (local.conf и default.conf)» поднимает второй nginx с production `default.conf` без правок (порт 8443:443); по пути Let's Encrypt лежит самоподписанный сертификат на localhost (`openssl req -x509`, SAN `DNS:localhost`), curl доверяет ему через `CURL_CA_BUNDLE`. Обе проверки (`check-manager-route.sh` и `check-manager-session.sh`) идут по `http://localhost:8080` и `https://localhost:8443`, при провале — логи runserver и обоих nginx. Воспроизведено локально тем же способом, что R42.4-16: база `smoke_manager` в `freesport-test-db`, засев — Python-фрагмент, извлечённый из YAML шага, Django с `freesport.settings.development` на порту 8000, `nginx:alpine` с настоящим `default.conf` и сертификатом, скрипты — из образа `freesport-test-backend` в сетевом пространстве nginx с `CURL_CA_BUNDLE`. Итог на `default.conf`: обе проверки ✅, переставленные свой и чужой клиент — exit 1; без `CURL_CA_BUNDLE` — `curl: (60) self-signed certificate`, то есть запрос шёл по TLS. `local.conf` с новым монтированием — обе ✅. Мутации копии `default.conf` (только `location /manager/`):
+
+  | Убрано / добавлено | Результат |
+  |---|---|
+  | `proxy_hide_header Set-Cookie;` | `check-manager-route.sh` — ✅, `check-manager-session.sh` — «Вход в /manager/: ожидался 302 на /manager/, получено 403» |
+  | `proxy_set_header Cookie "";` | то же: анонимная проверка ✅, вход — 403 |
+
+  YAML `main.yml` разобран, `bash -n` блока шага и обоих скриптов — ok. Стенд и база удалены. R42.4-18: `tests/unit/test_xdist_redis_isolation.py` запускает три дочерних процесса с `freesport.settings.test` и `PYTEST_XDIST_WORKER=gw0`/`gw1`, `REDIS_URL` с базой 12 (не база текущего прогона: очистка `gw0` с настоящей базой стёрла бы данные живого воркера параллельного прогона). Проверяет БД 12 и 13, контрольные значения обоих, очистку `gw0` и сохранность значения `gw1`; в `finally` чистит базу 13. Мутации `settings/test.py` (восстановлен копией, сверка `cmp`):
+
+  | Убрано | Результат |
+  |---|---|
+  | `_WORKER_INDEX = 0` | упал `test_workers_do_not_clear_each_other` — `assert 12 == (12 + 1)` |
+  | переопределение `CACHES["default"]["LOCATION"]` | то же |
+  | `_WORKER_INDEX = 0` и в тесте убраны проверки номеров БД | упал на «cache.clear() воркера gw0 удалил значение воркера gw1» — проверка очистки ловит общую БД сама |
+
+  Полный прогон (`freesport-test`, `-n 4 -m "not performance and not slow"`): `4151 passed, 76 skipped` за 15:55. После него в `freesport-test`: `black --check .` — 468 unchanged, `flake8` чист, `mypy` — «no issues found in 621 source files».
 - **`detect-changes --scope all`:** символы `UserAdmin` (namespace, `permissions`, `unblock_users`), `UsersConfig.ready`, `send_manager_region_email`, `admin_site.py`. `CompanyAdmin`, `AddressAdmin`, `FavoriteAdmin`, `_apply_verify_b2b` в списке из-за сдвига строк на устаревшем индексе — не менялись; «Risk: high» — артефакт того же индекса, impact каждого символа до правок — LOW.
 
 ### Completion Notes List
@@ -1036,6 +1132,8 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
 - ✅ Resolved review finding [medium]: R42.4-14 — `ManagerClientAdmin._lock_link_rows` захватывает строки привязки по возрастанию pk: цель — выборкой раздела прямо в `SELECT … FOR UPDATE` (как `_lock_client`), источник 1С — через `User.objects`. Уже переданную цель запрос не трогает и её строку, занятую чужой транзакцией, не ждёт — 404; пустой захват цели — тоже 404. Предварительная проверка `exists()` и перепроверка после блокировки стали лишними и удалены: передачу, завершённую до захвата, отсекает тот же запрос, а начатая после ждёт конца транзакции. Тест `test_link_target_transferred_right_before_lock_answers_404_without_lock`; `test_link_rechecks_scope_under_lock` переведён на шов `_lock_link_rows`.
 - ✅ Resolved review finding [medium]: R42.4-15 — `scripts/deploy/check-manager-route.sh` проверяет код завершения `curl` у обоих запросов отдельно от разбора ответа, требует от страницы входа HTTP 200 и ищет форму в полностью полученном теле (временный файл). Тест `tests/unit/test_check_manager_route_script.py` запускает скрипт против локального HTTP-сервера: один успешный сценарий и шесть провальных (оборванная страница входа, 302 с формой, страница без формы, оборванный редирект, редирект не туда, 404). В тестовый контейнер смонтирован `scripts/deploy/`.
 - ✅ Resolved review finding [medium]: R42.4-16 — `scripts/deploy/check-manager-session.sh`: вход менеджера формой через nginx (302 на `/manager/`), затем `/manager/users/user/` — 200, свой клиент в списке, чужого нет. Шаг `main.yml` «Маршрут /manager/ через локальный nginx» мигрирует пустую `test_db`, создаёт двух менеджеров группы «Менеджеры» и по клиенту каждому, затем запускает обе проверки. На production новая проверка не запускается: тестовой учётной записи там нет.
+- ✅ Resolved review finding [medium]: R42.4-17 — шаг `main.yml` проверяет вход менеджера, свой и чужой клиент и через production `default.conf`: второй nginx на изолированном стенде раннера с самоподписанным сертификатом по пути Let's Encrypt, конфиг монтируется без правок. Production-учётные записи не создаются. Мутации `proxy_hide_header Set-Cookie;` и `proxy_set_header Cookie "";` в `/manager/` файла `default.conf` роняют проверку входа.
+- ✅ Resolved review finding [medium]: R42.4-18 — `tests/unit/test_xdist_redis_isolation.py`: настройки воркеров `gw0` и `gw1` в отдельных процессах получают разные БД Redis, `cache.clear()` первого не удаляет значение второго. Тест входит в обязательный последовательный CI-прогон; `_WORKER_INDEX = 0` его роняет.
 - **Отклонение 1 — `request.current_app` в `verify_b2b_view` и `link_1c_customer` не добавлен.** Мутация показала, что строка ничего не защищает: `{% url %}` без `request.current_app` берёт `request.resolver_match.namespace` (`django/template/defaulttags.py:470-475`), а обе страницы маршрутизируются в пространстве `manager`. Хлебные крошки и так ведут в `/manager/` — это закреплено тестом AC8 (`href="/admin/` нет на страницах подтверждения и привязки). Строку с неверным обоснованием в комментарии добавлять не стал.
 - **Отклонение 2 — изменено ожидание вне перечня Task 6:** `tests/unit/test_users_admin.py::test_admin_actions_list` сверяет точный список действий `UserAdmin`; `unblock_users` в нём — прямое требование Task 2. Добавлена одна строка списка с комментарием.
 - **Отклонение 3 — тестовый `make_client` по умолчанию ставит `responsible_manager_manual=True`.** Иначе подтверждение заявки и привязка к 1С (явный вызов 42.2 в сервисе) пересчитывали бы ответственного по пустым в тесте правилам, и клиент уходил бы из раздела до проверки. AC10 строится без флага, через правила «23 → A», «77 → B».
@@ -1062,16 +1160,17 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
 - `backend/tests/integration/test_manager_clients_section.py` — новый; передача цели привязки прямо перед захватом при занятой строке, шов `_lock_link_rows` (R42.4-14); параметризация по группам раздела (третье ревью); `TestTransferDuringWrite` (R42.4-1, конкурентные записи `BackgroundWrite` — R42.4-4…6), переход по «Есть» (R42.4-7); `TestNoLockWithoutAccess` с хелпером `row_held_elsewhere` (R42.4-9); пустая блокировка, привязка к переданному клиенту, перепроверка под блокировкой, порядок source/target, хелпер `waits_for_lock` (R42.4-10…12)
 - `backend/tests/unit/test_manager_admin_site.py` — новый; выделение пункта фильтра при роли «Не зарегистрирован» (R42.4-3), значение `yes` (R42.4-7)
 - `.github/workflows/deploy.yml` — HTTP-проверка `/manager/` после деплоя (R42.4-2), таймауты `curl` (R42.4-8); проверка вынесена в скрипт (R42.4-13)
-- `.github/workflows/main.yml` — шаг «Маршрут /manager/ через локальный nginx» (R42.4-13; миграции, засев и вход менеджера — R42.4-16)
-- `scripts/deploy/check-manager-route.sh` — новый: HTTP-проверка маршрута `/manager/` (R42.4-13); код завершения curl, HTTP 200 и полное тело страницы входа (R42.4-15)
-- `scripts/deploy/check-manager-session.sh` — новый: вход менеджера и список клиентов через nginx (R42.4-16)
+- `.github/workflows/main.yml` — шаг «Маршрут /manager/ через nginx (local.conf и default.conf)» (R42.4-13; миграции, засев и вход менеджера — R42.4-16; production `default.conf` с самоподписанным сертификатом — R42.4-17)
+- `scripts/deploy/check-manager-route.sh` — новый: HTTP-проверка маршрута `/manager/` (R42.4-13); код завершения curl, HTTP 200 и полное тело страницы входа (R42.4-15); комментарий о двух конфигах (R42.4-17)
+- `scripts/deploy/check-manager-session.sh` — новый: вход менеджера и список клиентов через nginx (R42.4-16); комментарий о двух конфигах (R42.4-17)
 - `backend/tests/unit/test_check_manager_route_script.py` — новый: скрипт проверки маршрута против локального HTTP-сервера (R42.4-15)
 - `docker/docker-compose.test.yml` — монтирование `scripts/deploy/` (R42.4-15)
+- `backend/tests/unit/test_xdist_redis_isolation.py` — новый: изоляция Redis между воркерами xdist (R42.4-18)
 - `backend/tests/unit/test_region_routing.py` — ожидание ссылки письма
 - `backend/tests/unit/test_users_admin.py` — список действий (отклонение 2)
-- `backend/tests/unit/test_nginx_security_headers.py` — локация `/manager/` в перечне известных (ревью), `TestManagerSectionRoute` (третье ревью); ссылка на скрипт живой проверки (R42.4-13); ссылка на проверку входа (R42.4-16)
+- `backend/tests/unit/test_nginx_security_headers.py` — локация `/manager/` в перечне известных (ревью), `TestManagerSectionRoute` (третье ревью); ссылка на скрипт живой проверки (R42.4-13); ссылка на проверку входа (R42.4-16); обе проверки на двух конфигах (R42.4-17)
 - `backend/tests/integration/test_admin_verify_b2b_application.py` — комментарии
-- `_bmad-output/implementation-artifacts/deferred-work.md` — VG1 закрыт
+- `_bmad-output/implementation-artifacts/deferred-work.md` — VG1 закрыт; отложенное из ревью на `d9f21c20`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — статус стори
 - `_bmad-output/implementation-artifacts/Story/42-4-manager-section-own-clients.md` — этот файл
 
@@ -1087,3 +1186,4 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
 - 2026-10-14 — исправление ревью `b4fab053..63cd2959`: закрыт R42.4-9 (запрос без права change или к чужому клиенту не блокирует его строку — `_lock_client` по выборке раздела); 1 замечание, 8 новых проверок, мутационная проверка; полный прогон 4135 passed; статус → review.
 - 2026-10-14 — исправления ревью `b4fab053..ac631c09`: закрыты R42.4-10 (пустая блокировка клиента → 404), R42.4-11 (привязка отсекает переданную цель до блокировки), R42.4-12 (конкурентный страж порядка source/target), R42.4-13 (HTTP-проверка `/manager/` через локальный nginx в `main.yml`, общий скрипт с `deploy.yml`); 4 замечания, 9 новых проверок, мутационная проверка кода и конфига; полный прогон 4142 passed; статус → review.
 - 2026-10-14 — исправления ревью `b4fab053..741ce342`: закрыты R42.4-14 (цель привязки захватывается выборкой раздела в самом запросе блокировки — переданную цель запрос не ждёт), R42.4-15 (скрипт проверки маршрута проверяет код curl, HTTP 200 и полное тело; тест скрипта на локальном HTTP-сервере), R42.4-16 (вход менеджера и список клиентов через настоящий nginx в `main.yml`); 3 замечания, 8 новых проверок, мутационная проверка кода и конфига nginx; полный прогон 4150 passed; статус → review.
+- 2026-10-14 — исправления ревью `b4fab053..d9f21c20`: закрыты R42.4-17 (вход менеджера и список клиентов через production `default.conf` на изолированном стенде `main.yml`), R42.4-18 (тест изоляции Redis между воркерами xdist в двух процессах); 2 замечания, 1 новый тест, мутационная проверка конфига nginx и настроек; полный прогон 4151 passed; статус → review.

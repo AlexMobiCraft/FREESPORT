@@ -4,7 +4,7 @@
 #
 # Использование: bash scripts/deploy/check-manager-route.sh <базовый URL>
 #   deploy.yml — production после деплоя (docker/nginx/conf.d/default.conf);
-#   main.yml   — локальный nginx в Docker с docker/nginx/conf.d/local.conf.
+#   main.yml   — nginx в Docker с docker/nginx/conf.d/local.conf и с default.conf.
 #
 # Ожидается: /manager/ → 302 ровно на /manager/login/?next=/manager/,
 # затем /manager/login/ → 200 со страницей входа Django (id="login-form").

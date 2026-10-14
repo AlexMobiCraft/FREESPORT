@@ -7,7 +7,8 @@
 # Использование:
 #   bash scripts/deploy/check-manager-session.sh <базовый URL> <email менеджера> \
 #     <пароль> <email своего клиента> <email чужого клиента>
-#   main.yml — локальный nginx с local.conf, учётные записи создаёт сам шаг.
+#   main.yml — nginx в Docker дважды: с local.conf и с production default.conf
+#   (самоподписанный сертификат, CURL_CA_BUNDLE); учётные записи создаёт сам шаг.
 #   На production не запускается: тестовой учётной записи менеджера там нет.
 #
 # Ожидается: вход формой → 302 на /manager/, затем /manager/users/user/ → 200,

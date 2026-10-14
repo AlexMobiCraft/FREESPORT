@@ -200,17 +200,21 @@ jobs:
             pytest --tb=short -v -m "not performance and not slow and not data_dependent" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=73
           fi
 
-      # Раздел менеджера /manager/ (стори 42.4) через настоящий local.conf. Django-тесты
-      # ходят мимо nginx, а статический тест конфига (test_nginx_security_headers.py) не
-      # заметит, например, лишний rewrite или потерю cookie. Анонимная проверка — та же,
-      # что в deploy.yml на проде; вход менеджера и его список — только здесь: на проде
-      # тестовой учётной записи нет.
+      # Раздел менеджера /manager/ (стори 42.4) через настоящие конфиги nginx: local.conf и
+      # production default.conf. Django-тесты ходят мимо nginx, а статический тест конфига
+      # (test_nginx_security_headers.py) не заметит, например, лишний rewrite или потерю
+      # cookie. Анонимная проверка — та же, что в deploy.yml на проде; вход менеджера и его
+      # список — только здесь: на проде тестовой учётной записи нет, поэтому default.conf
+      # с входом проверяется на этом изолированном стенде.
       # Django — на раннере, на порту 8000 из upstream backend в nginx.conf; nginx — в
       # Docker, имена backend и frontend указывают на раннер. Next не нужен: /manager/ в
       # него не уходит. База — test_db сервиса postgres: pytest работает в своей
       # test_test_db, поэтому test_db здесь пустая и мигрируется с нуля.
       # Настройки development: в test пустой ALLOWED_HOSTS, и Django ответил бы 400.
-      - name: Маршрут /manager/ через локальный nginx
+      # default.conf монтируется без правок, как на проде: вместо сертификата Let's Encrypt
+      # по тому же пути лежит самоподписанный на localhost, curl доверяет ему через
+      # CURL_CA_BUNDLE. Запрос идёт в HTTPS-сервер default_server, server_name не важен.
+      - name: Маршрут /manager/ через nginx (local.conf и default.conf)
         if: steps.changes.outputs.run == 'true'
         env:
           DJANGO_SETTINGS_MODULE: freesport.settings.development
@@ -239,21 +243,41 @@ jobs:
               User.objects.filter(pk=client.pk).update(responsible_manager=owner)
           EOF
           (cd backend && python manage.py runserver 0.0.0.0:8000 --noreload > "$RUNNER_TEMP/runserver.log" 2>&1 &)
-          docker run -d --name nginx-local -p 8080:80 \
-            --add-host backend:host-gateway --add-host frontend:host-gateway \
-            -v "$GITHUB_WORKSPACE/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
-            -v "$GITHUB_WORKSPACE/docker/nginx/conf.d/local.conf:/etc/nginx/conf.d/default.conf:ro" \
-            -v "$GITHUB_WORKSPACE/docker/nginx/snippets:/etc/nginx/snippets:ro" \
-            nginx:alpine
+          CERT_DIR="$RUNNER_TEMP/letsencrypt/live/optisport.ru"
+          mkdir -p "$CERT_DIR"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost" \
+            -keyout "$CERT_DIR/privkey.pem" -out "$CERT_DIR/fullchain.pem" 2>/dev/null
+          # <имя контейнера> <файл conf.d> <порт хоста:порт контейнера>
+          run_nginx() {
+            docker run -d --name "$1" -p "$3" \
+              --add-host backend:host-gateway --add-host frontend:host-gateway \
+              -v "$GITHUB_WORKSPACE/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+              -v "$GITHUB_WORKSPACE/docker/nginx/conf.d/$2:/etc/nginx/conf.d/default.conf:ro" \
+              -v "$GITHUB_WORKSPACE/docker/nginx/snippets:/etc/nginx/snippets:ro" \
+              -v "$RUNNER_TEMP/letsencrypt:/etc/letsencrypt:ro" \
+              nginx:alpine
+          }
+          run_nginx nginx-local local.conf 8080:80
+          run_nginx nginx-prod default.conf 8443:443
           for i in $(seq 1 30); do
             curl -s -o /dev/null http://localhost:8000/manager/login/ && break
             sleep 1
           done
-          if ! bash scripts/deploy/check-manager-route.sh http://localhost:8080 \
-            || ! bash scripts/deploy/check-manager-session.sh http://localhost:8080 \
-              "$MANAGER_EMAIL" "$MANAGER_PASSWORD" "$OWN_CLIENT_EMAIL" "$FOREIGN_CLIENT_EMAIL"; then
+          export CURL_CA_BUNDLE="$CERT_DIR/fullchain.pem"
+          failed=0
+          for base_url in http://localhost:8080 https://localhost:8443; do
+            echo "--- $base_url"
+            if ! bash scripts/deploy/check-manager-route.sh "$base_url" \
+              || ! bash scripts/deploy/check-manager-session.sh "$base_url" \
+                "$MANAGER_EMAIL" "$MANAGER_PASSWORD" "$OWN_CLIENT_EMAIL" "$FOREIGN_CLIENT_EMAIL"; then
+              failed=1
+            fi
+          done
+          if [ "$failed" = 1 ]; then
             echo "--- runserver"; cat "$RUNNER_TEMP/runserver.log"
-            echo "--- nginx"; docker logs nginx-local
+            echo "--- nginx-local (local.conf)"; docker logs nginx-local
+            echo "--- nginx-prod (default.conf)"; docker logs nginx-prod
             exit 1
           fi
 
