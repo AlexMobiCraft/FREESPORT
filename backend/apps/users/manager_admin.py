@@ -304,7 +304,13 @@ class ManagerClientAdmin(UserAdmin):
         занятую чужой транзакцией, не ждёт — сразу 404, как в _lock_client.
         Передача, начатая после захвата, ждёт конца транзакции. Источник
         выборкой не ограничен: запись 1С законно лежит вне её.
+
+        Принадлежность цели проверяется ещё и до захвата строк, без блокировки:
+        источник с меньшим pk захватывается раньше цели, и без этой проверки
+        запрос к уже переданному клиенту ждал бы занятый источник.
         """
+        if not self.get_queryset(request).filter(pk=target.pk).exists():
+            raise Http404("Клиент не найден")
         scope = self.get_queryset(request).select_for_update(of=("self",))
         for pk in sorted({target.pk, *source_pks}):
             if pk != target.pk:

@@ -40,6 +40,7 @@ from django.contrib.auth.models import Group, Permission
 from django.db import DEFAULT_DB_ALIAS, DatabaseError, OperationalError, connection, connections, transaction
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from psycopg2.errorcodes import LOCK_NOT_AVAILABLE
 
 from apps.common.models import AuditLog, ManagerRoutingRule
 from apps.users import admin as users_admin
@@ -1070,14 +1071,22 @@ def in_other_connection(func: Any) -> Any:
 
 
 def row_is_locked(pk: int) -> bool:
-    """Строку пользователя держит чужая транзакция: `FOR UPDATE NOWAIT` из второго соединения."""
+    """
+    Строку пользователя держит чужая транзакция: `FOR UPDATE NOWAIT` из второго соединения.
+
+    Блокировкой считается только отказ NOWAIT — SQLSTATE `55P03`
+    (lock_not_available). Любая другая ошибка пробрасывается: иначе сбой
+    пробного соединения подтвердил бы блокировку, которой нет.
+    """
 
     def probe() -> bool:
         try:
             with transaction.atomic():
                 User.objects.select_for_update(nowait=True).filter(pk=pk).exists()
-        except DatabaseError:
-            return True
+        except DatabaseError as exc:
+            if getattr(exc.__cause__, "pgcode", None) == LOCK_NOT_AVAILABLE:
+                return True
+            raise
         return False
 
     return bool(in_other_connection(probe))
@@ -1618,6 +1627,69 @@ class TestNoLockWithoutAccess:
         assert applicant.onec_id is None
         assert applicant.responsible_manager == other_manager
         assert not audit_records(applicant).exists()
+
+    def test_link_to_transferred_client_skips_held_source_with_lower_pk(
+        self, manager_client, manager, other_manager, prod_like_requests
+    ):
+        # R42.4-21: источник 1С с меньшим pk захватывается раньше цели. Цель
+        # передали прямо перед захватом строк, а источник держит чужая
+        # транзакция: запрос отвечает 404, не вставая в очередь за источником.
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id)
+        applicant = make_client(manager, tax_id=tax_id, verification_status="pending", is_verified=False)
+        assert source.pk < applicant.pk
+        source_before = User.objects.filter(pk=source.pk).values().get()
+        original_lock = ManagerClientAdmin._lock_link_rows
+
+        with ExitStack() as held:
+
+            def transfer_hold_then_lock(self: ManagerClientAdmin, request: Any, target: User, source_pks: Any) -> None:
+                in_other_connection(
+                    lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager)
+                )
+                held.enter_context(row_held_elsewhere(source.pk))
+                original_lock(self, request, target, source_pks)
+
+            with patch.object(ManagerClientAdmin, "_lock_link_rows", transfer_hold_then_lock):
+                response = post_without_locking(
+                    manager_client,
+                    CHANGELIST_URL,
+                    {
+                        "action": "link_1c_customer",
+                        "_selected_action": [str(applicant.pk)],
+                        "apply": "1",
+                        "candidate": f"{source.pk}:{source.onec_id}",
+                    },
+                )
+
+        assert response.status_code == 404
+        applicant.refresh_from_db()
+        assert applicant.onec_id is None
+        assert applicant.responsible_manager == other_manager
+        assert User.objects.filter(pk=source.pk).values().get() == source_before
+        assert not audit_records(applicant).exists()
+
+
+class TestRowLockProbe:
+    """R42.4-22 — `row_is_locked` признаёт блокировкой только отказ NOWAIT (SQLSTATE 55P03)."""
+
+    def test_free_row_is_not_locked(self, manager):
+        own = make_client(manager)
+
+        assert row_is_locked(own.pk) is False
+
+    def test_row_held_elsewhere_is_locked(self, manager):
+        own = make_client(manager)
+
+        with row_held_elsewhere(own.pk):
+            assert row_is_locked(own.pk) is True
+
+    def test_other_database_error_is_raised(self, manager):
+        own = make_client(manager)
+
+        with patch("django.db.models.query.QuerySet.exists", side_effect=DatabaseError("посторонняя ошибка SQL")):
+            with pytest.raises(DatabaseError, match="посторонняя ошибка SQL"):
+                row_is_locked(own.pk)
 
 
 class TestChangelistQueryCount:
