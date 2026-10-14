@@ -200,18 +200,35 @@ class ManagerClientAdmin(UserAdmin):
     # объект через get_queryset: переданный клиент — 404, а передача, начатая
     # посреди записи, ждёт конца транзакции и применяется после.
 
+    @staticmethod
+    def _to_pk(object_id: Any) -> Any:
+        """pk из id адреса; None — невалидный id (get_object вернёт None, вью ответит 404)."""
+        try:
+            return User._meta.pk.to_python(unquote(str(object_id)))  # type: ignore[union-attr]
+        except (ValidationError, ValueError):
+            return None
+
     def _lock_rows(self, *object_ids: Any) -> None:
         """Блокирует строки пользователей по возрастанию pk — порядок пересчёта ответственных и привязки к 1С."""
-        pks = set()
-        for object_id in object_ids:
-            try:
-                pk = self.opts.pk.to_python(unquote(str(object_id)))  # type: ignore[union-attr]
-            except (ValidationError, ValueError):
-                continue  # невалидный id: get_object вернёт None, вью ответит 404
-            if pk is not None:
-                pks.add(pk)
+        pks = {pk for pk in map(self._to_pk, object_ids) if pk is not None}
         if pks:
             list(User.objects.select_for_update().filter(pk__in=pks).order_by("pk").values_list("pk", flat=True))
+
+    def _lock_client(self, request: HttpRequest, object_id: str) -> None:
+        """
+        Блокирует строку клиента, если запрос вправе его менять.
+
+        Без права change блокировки нет: вью ответит 403. Цель берётся только
+        из выборки раздела: строку чужого клиента запрос не трогает и не ждёт,
+        пока её отпустит чужая транзакция, — вью ответит 404. Клиент, которого
+        передали до блокировки, в выборку не попадёт; передача, начатая позже,
+        ждёт конца транзакции.
+        """
+        if not self.has_change_permission(request):
+            return
+        pk = self._to_pk(object_id)
+        if pk is not None:
+            list(self.get_queryset(request).select_for_update(of=("self",)).filter(pk=pk).values_list("pk", flat=True))
 
     @staticmethod
     def _executed_action(request: HttpRequest) -> str | None:
@@ -243,14 +260,14 @@ class ManagerClientAdmin(UserAdmin):
             return super().change_view(request, object_id, form_url, extra_context)
         # Блокировка держится до конца запроса, включая инлайны.
         with transaction.atomic():
-            self._lock_rows(object_id)
+            self._lock_client(request, object_id)
             return super().change_view(request, object_id, form_url, extra_context)
 
     def user_change_password(self, request: HttpRequest, id: str, form_url: str = "") -> HttpResponse:
         if request.method != "POST":
             return super().user_change_password(request, id, form_url)
         with transaction.atomic():
-            self._lock_rows(id)
+            self._lock_client(request, id)
             return super().user_change_password(request, id, form_url)
 
     def verify_b2b_view(self, request: HttpRequest, object_id: str) -> HttpResponse:
@@ -258,7 +275,7 @@ class ManagerClientAdmin(UserAdmin):
             return super().verify_b2b_view(request, object_id)
         # Порядок прежний: сервис подтверждения тоже сначала блокирует заявку.
         with transaction.atomic():
-            self._lock_rows(object_id)
+            self._lock_client(request, object_id)
             return super().verify_b2b_view(request, object_id)
 
     def _apply_link_1c_customer(
