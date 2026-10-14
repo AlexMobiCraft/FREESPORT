@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import importlib
 import itertools
+import threading
 import time
 from types import SimpleNamespace
 from typing import Any
@@ -35,11 +36,12 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.admin.utils import label_for_field
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group, Permission
-from django.db import connection
+from django.db import DEFAULT_DB_ALIAS, DatabaseError, connection, connections, transaction
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from apps.common.models import AuditLog, ManagerRoutingRule
+from apps.users.manager_admin import ManagerClientAdmin
 from apps.users.models import Address, Company, User
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
 from tests.conftest import get_unique_suffix
@@ -1025,6 +1027,131 @@ class TestClientMovedAway:
         assert client_user.responsible_manager == other_manager
         texts = message_texts(manager_client.get(response.url))
         assert any(f"передан менеджеру {other_manager.email} по правилу региона" in text for text in texts)
+
+
+def in_other_connection(func: Any) -> Any:
+    """Выполнить `func` в отдельном потоке — своё соединение и своя транзакция."""
+    outcome: dict[str, Any] = {}
+
+    def run() -> None:
+        try:
+            outcome["result"] = func()
+        except BaseException as exc:  # noqa: BLE001 — исключение возвращается в тест
+            outcome["error"] = exc
+        finally:
+            connections.close_all()
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join(timeout=30)
+    assert not thread.is_alive(), "второе соединение зависло"
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome["result"]
+
+
+def row_is_locked(pk: int) -> bool:
+    """Строку пользователя держит чужая транзакция: `FOR UPDATE NOWAIT` из второго соединения."""
+
+    def probe() -> bool:
+        try:
+            with transaction.atomic():
+                User.objects.select_for_update(nowait=True).filter(pk=pk).exists()
+        except DatabaseError:
+            return True
+        return False
+
+    return bool(in_other_connection(probe))
+
+
+@pytest.fixture
+def prod_like_requests(monkeypatch):
+    """
+    Запросы без `ATOMIC_REQUESTS`, как на production.
+
+    Тестовые настройки оборачивают каждый запрос в транзакцию: там блокировка
+    строки работала бы и без собственной транзакции раздела.
+    """
+    monkeypatch.setitem(connections.settings[DEFAULT_DB_ALIAS], "ATOMIC_REQUESTS", False)
+
+
+@pytest.fixture
+def locked_at_save(monkeypatch) -> dict[int, bool]:
+    """`{pk: строка заблокирована}` в момент первого `User.save()` этой записи."""
+    seen: dict[int, bool] = {}
+    original_save = User.save
+
+    def save(self: User, *args: Any, **kwargs: Any) -> None:
+        if self.pk is not None and self.pk not in seen:
+            seen[self.pk] = row_is_locked(self.pk)
+        original_save(self, *args, **kwargs)
+
+    monkeypatch.setattr(User, "save", save)
+    return seen
+
+
+class TestTransferDuringWrite:
+    """
+    R42.4-1 — передача клиента другому менеджеру между чтением и записью.
+
+    Устаревший объект карточки не должен вернуть прежнего ответственного, а
+    действие — изменить клиента, который уже вышел из выборки менеджера.
+    """
+
+    def test_card_save_after_transfer_answers_404(self, manager_client, manager, other_manager, prod_like_requests):
+        own = make_client(manager, manual=False)
+        phone_before = own.phone
+        data = form_payload(manager_client.get(change_url(own)))
+        data.update({"phone": "+79005556677", "_save": "Сохранить"})
+        original_save_form = ManagerClientAdmin.save_form
+
+        def transfer_then_save_form(self: ManagerClientAdmin, request: Any, form: Any, change: bool) -> Any:
+            # Карточка уже прочитана (get_object), запись (save_model) впереди:
+            # пересчёт передаёт клиента B и фиксирует транзакцию.
+            in_other_connection(lambda: User.objects.filter(pk=own.pk).update(responsible_manager=other_manager))
+            return original_save_form(self, request, form, change)
+
+        with patch.object(ManagerClientAdmin, "save_form", transfer_then_save_form):
+            response = manager_client.post(change_url(own), data)
+
+        assert response.status_code == 404
+        own.refresh_from_db()
+        assert own.responsible_manager == other_manager
+        assert own.phone == phone_before
+        assert not audit_records(own).exists()
+
+    def test_card_save_holds_row_lock(self, manager_client, manager, prod_like_requests, locked_at_save):
+        own = make_client(manager)
+        data = form_payload(manager_client.get(change_url(own)))
+        data.update({"phone": "+79005556678", "_save": "Сохранить"})
+
+        response = manager_client.post(change_url(own), data)
+
+        assert response.status_code == 302
+        assert locked_at_save[own.pk] is True
+        own.refresh_from_db()
+        assert own.phone == "+79005556678"
+
+    @pytest.mark.parametrize(
+        "action, overrides",
+        [
+            ("approve_b2b_users", {"verification_status": "pending", "is_verified": False, "is_active": False}),
+            ("reject_b2b_users", {"verification_status": "pending", "is_verified": False}),
+            ("block_users", {}),
+            ("unblock_users", {"is_active": False}),
+        ],
+    )
+    def test_actions_hold_row_lock(
+        self, manager_client, manager, prod_like_requests, locked_at_save, action, overrides
+    ):
+        own = make_client(manager, **overrides)
+        before = audit_records(own).count()
+
+        response = post_action(manager_client, action, own)
+
+        assert response.status_code == 200
+        assert locked_at_save[own.pk] is True
+        assert audit_records(own).count() == before + 1
 
 
 class TestChangelistQueryCount:

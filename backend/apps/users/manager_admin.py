@@ -16,6 +16,7 @@ from typing import Any, Iterator
 
 from django.contrib import admin
 from django.contrib.admin.views.main import ChangeList
+from django.db import transaction
 from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
@@ -53,33 +54,43 @@ class PortalAccountFilter(admin.SimpleListFilter):
     title = "Учётная запись на портале"
     parameter_name = "portal_account"
 
+    def __init__(self, request: HttpRequest, params: dict[str, Any], model: Any, model_admin: Any) -> None:
+        super().__init__(request, params, model, model_admin)
+        # Фильтр роли «Не зарегистрирован» без исключения по умолчанию всегда
+        # давал бы пустой список: при нём записи без аккаунта видны, как во «Все».
+        self.role_is_unregistered = request.GET.get("role__exact") == User.ROLE_UNREGISTERED
+
+    def effective_value(self) -> str | None:
+        value = self.value()
+        if value is None and self.role_is_unregistered:
+            return "all"
+        return value
+
     def lookups(self, request: HttpRequest, model_admin: admin.ModelAdmin) -> list[tuple[str, str]]:
         return [("no", "Нет"), ("all", "Все")]
 
     def choices(self, changelist: ChangeList) -> Iterator[dict[str, Any]]:
         # Пункт по умолчанию — «Есть» без параметра; штатного «Все» с тем же
         # значением нет, иначе в фильтре было бы два пункта на одно состояние.
+        value = self.effective_value()
         yield {
-            "selected": self.value() not in ("no", "all"),
+            "selected": value not in ("no", "all"),
             "query_string": changelist.get_query_string(remove=[self.parameter_name]),
             "display": "Есть",
         }
         for lookup, title in self.lookup_choices:
             yield {
-                "selected": self.value() == lookup,
+                "selected": value == lookup,
                 "query_string": changelist.get_query_string({self.parameter_name: lookup}),
                 "display": title,
             }
 
     def queryset(self, request: HttpRequest, queryset: QuerySet[User]) -> QuerySet[User]:
-        value = self.value()
+        value = self.effective_value()
         if value == "all":
             return queryset
         if value == "no":
             return queryset.filter(role=User.ROLE_UNREGISTERED)
-        # Фильтр роли «Не зарегистрирован» без этого всегда давал бы пустой список.
-        if request.GET.get("role__exact") == User.ROLE_UNREGISTERED:
-            return queryset
         return queryset.exclude(role=User.ROLE_UNREGISTERED)
 
 
@@ -172,9 +183,28 @@ class ManagerClientAdmin(UserAdmin):
         extra_context = {**(extra_context or {}), "title": "Клиенты"}
         return super().changelist_view(request, extra_context)
 
+    def response_action(self, request: HttpRequest, queryset: QuerySet[User]) -> HttpResponse | None:
+        # Выбранные строки читаются под блокировкой в одной транзакции с записью:
+        # клиент, переданный другому менеджеру до чтения, в выборку не попадёт,
+        # а передать его, пока действие пишет, нельзя. Порядок блокировки — по pk,
+        # как у пересчёта ответственных. Привязка к 1С пишет через сервис под его
+        # блокировкой (source и target по возрастанию pk) — внешняя блокировка
+        # target перевернула бы этот порядок.
+        if "link_1c_customer" in request.POST.getlist("action"):
+            return super().response_action(request, queryset)
+        with transaction.atomic():
+            return super().response_action(request, queryset.select_for_update(of=("self",)).order_by("pk"))
+
     def save_model(  # type: ignore[override]
         self, request: HttpRequest, obj: User, form: ModelForm, change: bool
     ) -> None:
+        # Карточка прочитана без блокировки. Если клиента за это время передали
+        # другому менеджеру, полное save() вернуло бы прежнего ответственного из
+        # устаревшего объекта. Принадлежность проверяется под блокировкой строки в
+        # той же транзакции, что и запись: changeform_view Django выполняет в
+        # transaction.atomic, блокировка держится до конца запроса, включая инлайны.
+        if change and not self.get_queryset(request).select_for_update(of=("self",)).filter(pk=obj.pk).exists():
+            raise Http404("Клиент не найден")
         super().save_model(request, obj, form, change)  # type: ignore[arg-type]
         # Блокировка и разблокировка флагом в карточке — тоже действие для журнала.
         if change and "is_active" in form.changed_data:
