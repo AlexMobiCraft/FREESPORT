@@ -78,6 +78,10 @@ services:
       - ../docker:/app/docker:ro
       # .github/ — workflow-файлы для сторожей CI-фильтров (TestCIFilters).
       - ../.github:/app/.github:ro
+      # scripts/deploy/ — скрипт HTTP-проверки маршрута /manager/ (стори 42.4), его тест
+      # запускает скрипт против локального HTTP-сервера. Только этот каталог: Python-скрипты
+      # остального scripts/ попали бы под black, flake8 и mypy контейнера.
+      - ../scripts/deploy:/app/scripts/deploy:ro
       # Корневой pytest.ini лежит на уровень выше backend/ — сторожа сверяют объявленные
       # маркеры двух конфигов. Путь в контейнере повторяет раскладку репозитория: /app/../.
       - ../pytest.ini:/pytest.ini:ro

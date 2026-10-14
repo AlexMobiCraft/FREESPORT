@@ -289,20 +289,28 @@ class ManagerClientAdmin(UserAdmin):
         # блокируется вместе с источником по возрастанию pk, как в сервисе.
         # Источник — только из показанных кандидатов: чужую строку по
         # подделанному pk не блокируем, сервис такой выбор всё равно отклонит.
-        # Выборкой раздела ограничена только цель: запись 1С законно лежит вне её.
         source_pk = (request.POST.get("candidate") or "").partition(":")[0]
         source_pks = [candidate.pk for candidate in candidates if str(candidate.pk) == source_pk]
-        scope = self.get_queryset(request)
         with transaction.atomic():
-            # Уже переданная цель — 404 до блокировки: её строку может держать
-            # чужая транзакция, ждать её запросу незачем.
-            if not scope.filter(pk=target.pk).exists():
-                raise Http404("Клиент не найден")
-            self._lock_rows(target.pk, *source_pks)
-            # Клиента могли передать между проверкой и блокировкой.
-            if not scope.filter(pk=target.pk).exists():
-                raise Http404("Клиент не найден")
+            self._lock_link_rows(request, target, source_pks)
             return super()._apply_link_1c_customer(request, target, candidates)
+
+    def _lock_link_rows(self, request: HttpRequest, target: User, source_pks: list[Any]) -> None:
+        """
+        Блокирует цель привязки и источник 1С по возрастанию pk.
+
+        Цель захватывается только из выборки раздела, тем же запросом, что и
+        блокирует: уже переданного клиента запрос не трогает и его строку, даже
+        занятую чужой транзакцией, не ждёт — сразу 404, как в _lock_client.
+        Передача, начатая после захвата, ждёт конца транзакции. Источник
+        выборкой не ограничен: запись 1С законно лежит вне её.
+        """
+        scope = self.get_queryset(request).select_for_update(of=("self",))
+        for pk in sorted({target.pk, *source_pks}):
+            if pk != target.pk:
+                self._lock_rows(pk)
+            elif not list(scope.filter(pk=pk).values_list("pk", flat=True)):
+                raise Http404("Клиент не найден")
 
     def response_action(self, request: HttpRequest, queryset: QuerySet[User]) -> HttpResponse | None:
         # Выбранные строки читаются под блокировкой в одной транзакции с записью:

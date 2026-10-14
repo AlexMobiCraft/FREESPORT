@@ -202,17 +202,42 @@ jobs:
 
       # Раздел менеджера /manager/ (стори 42.4) через настоящий local.conf. Django-тесты
       # ходят мимо nginx, а статический тест конфига (test_nginx_security_headers.py) не
-      # заметит, например, лишний rewrite. Проверка — та же, что в deploy.yml на проде.
+      # заметит, например, лишний rewrite или потерю cookie. Анонимная проверка — та же,
+      # что в deploy.yml на проде; вход менеджера и его список — только здесь: на проде
+      # тестовой учётной записи нет.
       # Django — на раннере, на порту 8000 из upstream backend в nginx.conf; nginx — в
       # Docker, имена backend и frontend указывают на раннер. Next не нужен: /manager/ в
-      # него не уходит. База тоже: редирект и страница входа анонима к ней не обращаются.
+      # него не уходит. База — test_db сервиса postgres: pytest работает в своей
+      # test_test_db, поэтому test_db здесь пустая и мигрируется с нуля.
       # Настройки development: в test пустой ALLOWED_HOSTS, и Django ответил бы 400.
       - name: Маршрут /manager/ через локальный nginx
         if: steps.changes.outputs.run == 'true'
         env:
           DJANGO_SETTINGS_MODULE: freesport.settings.development
           ALLOWED_HOSTS: localhost
+          MANAGER_EMAIL: ci-manager@example.com
+          MANAGER_PASSWORD: ci-manager-password
+          OWN_CLIENT_EMAIL: ci-own-client@example.com
+          FOREIGN_CLIENT_EMAIL: ci-foreign-client@example.com
         run: |
+          (cd backend && python manage.py migrate --noinput)
+          # Ответственного у клиента назначает хук 42.2 по правилам региона —
+          # закрепляем явно, как в тестах раздела.
+          (cd backend && python manage.py shell) <<'EOF'
+          import os
+          from django.contrib.auth.models import Group
+          from apps.users.models import User
+          from apps.users.staff_roles import MANAGERS_GROUP
+
+          group = Group.objects.get(name=MANAGERS_GROUP)
+          manager = User.objects.create_user(os.environ["MANAGER_EMAIL"], os.environ["MANAGER_PASSWORD"], is_staff=True)
+          other_manager = User.objects.create_user("ci-other-manager@example.com", is_staff=True)
+          for staff in (manager, other_manager):
+              staff.groups.add(group)
+          for email, owner in ((os.environ["OWN_CLIENT_EMAIL"], manager), (os.environ["FOREIGN_CLIENT_EMAIL"], other_manager)):
+              client = User.objects.create_user(email, role="retail")
+              User.objects.filter(pk=client.pk).update(responsible_manager=owner)
+          EOF
           (cd backend && python manage.py runserver 0.0.0.0:8000 --noreload > "$RUNNER_TEMP/runserver.log" 2>&1 &)
           docker run -d --name nginx-local -p 8080:80 \
             --add-host backend:host-gateway --add-host frontend:host-gateway \
@@ -224,7 +249,9 @@ jobs:
             curl -s -o /dev/null http://localhost:8000/manager/login/ && break
             sleep 1
           done
-          if ! bash scripts/deploy/check-manager-route.sh http://localhost:8080; then
+          if ! bash scripts/deploy/check-manager-route.sh http://localhost:8080 \
+            || ! bash scripts/deploy/check-manager-session.sh http://localhost:8080 \
+              "$MANAGER_EMAIL" "$MANAGER_PASSWORD" "$OWN_CLIENT_EMAIL" "$FOREIGN_CLIENT_EMAIL"; then
             echo "--- runserver"; cat "$RUNNER_TEMP/runserver.log"
             echo "--- nginx"; docker logs nginx-local
             exit 1

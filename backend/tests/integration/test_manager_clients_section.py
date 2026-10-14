@@ -1304,13 +1304,13 @@ class TestTransferDuringWrite:
         # Клиента передали между проверкой принадлежности и блокировкой строк.
         applicant = make_client(manager, verification_status="pending", is_verified=False)
         source = make_1c_record(applicant.tax_id)
-        original_lock_rows = ManagerClientAdmin._lock_rows
+        original_lock = ManagerClientAdmin._lock_link_rows
 
-        def transfer_then_lock(self: ManagerClientAdmin, *object_ids: Any) -> None:
+        def transfer_then_lock(self: ManagerClientAdmin, request: Any, target: User, source_pks: Any) -> None:
             in_other_connection(lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager))
-            original_lock_rows(self, *object_ids)
+            original_lock(self, request, target, source_pks)
 
-        with patch.object(ManagerClientAdmin, "_lock_rows", transfer_then_lock):
+        with patch.object(ManagerClientAdmin, "_lock_link_rows", transfer_then_lock):
             response = post_action(
                 manager_client,
                 "link_1c_customer",
@@ -1565,6 +1565,43 @@ class TestNoLockWithoutAccess:
                 return original_find(target)
 
             with patch.object(users_admin, "find_link_candidates", transfer_hold_then_find):
+                response = post_without_locking(
+                    manager_client,
+                    CHANGELIST_URL,
+                    {
+                        "action": "link_1c_customer",
+                        "_selected_action": [str(applicant.pk)],
+                        "apply": "1",
+                        "candidate": f"{source.pk}:{source.onec_id}",
+                    },
+                )
+
+        assert response.status_code == 404
+        applicant.refresh_from_db()
+        assert applicant.onec_id is None
+        assert applicant.responsible_manager == other_manager
+        assert not audit_records(applicant).exists()
+
+    def test_link_target_transferred_right_before_lock_answers_404_without_lock(
+        self, manager_client, manager, other_manager, prod_like_requests
+    ):
+        # R42.4-14: передача завершилась прямо перед захватом строк привязки, а
+        # строку цели держит чужая транзакция. Цель захватывается только из
+        # выборки раздела — запрос не ждёт её строку, а отвечает 404.
+        applicant = make_client(manager, verification_status="pending", is_verified=False)
+        source = make_1c_record(applicant.tax_id)
+        original_lock = ManagerClientAdmin._lock_link_rows
+
+        with ExitStack() as held:
+
+            def transfer_hold_then_lock(self: ManagerClientAdmin, request: Any, target: User, source_pks: Any) -> None:
+                in_other_connection(
+                    lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager)
+                )
+                held.enter_context(row_held_elsewhere(applicant.pk))
+                original_lock(self, request, target, source_pks)
+
+            with patch.object(ManagerClientAdmin, "_lock_link_rows", transfer_hold_then_lock):
                 response = post_without_locking(
                     manager_client,
                     CHANGELIST_URL,
