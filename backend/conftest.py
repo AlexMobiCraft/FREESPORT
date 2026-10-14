@@ -1,7 +1,7 @@
 """
 Корневой conftest бэкенда FREESPORT.
 
-Единственная задача файла — автоматически проставлять маркер `unit` / `integration` /
+Основная задача файла — автоматически проставлять маркер `unit` / `integration` /
 `performance` по каталогу, в котором лежит тест. Маркер руками ставить не нужно:
 правило определяется путём файла. Явный маркер в тесте всегда побеждает автоматический.
 
@@ -25,6 +25,9 @@ conftest нельзя в принципе — он требует плагина
 
 Подробности и таблица соответствия — `backend/docs/testing-standards.md`, раздел
 «Маркеры pytest».
+
+Второй хук, `pytest_configure`, запрещает pytest-xdist заменять упавший воркер (R42.4-26).
+Он здесь, потому что этот conftest загружается при любом запуске из `backend/`.
 """
 
 import warnings
@@ -348,3 +351,22 @@ def pytest_collection_modifyitems(config, items):
 
     warnings.warn(_warning_text(unmarkable, dropped), UnmarkedTestWarning, stacklevel=1)
     return result
+
+
+def pytest_configure(config):
+    """
+    Запрещает pytest-xdist заменять упавший воркер (R42.4-26).
+
+    Замена получает следующий номер — `gwN` при `-n N`, — а `freesport/settings/test.py`
+    выводит из номера БД Redis воркера. Её БД оказывается за диапазоном, который занимают
+    `-n` исходных воркеров: проба `tests/unit/test_xdist_redis_isolation.py` считает такую
+    БД свободной и может очистить её посреди теста, а при базовой БД 1 замена `gw15`
+    обращается к несуществующей DB16. Упавший воркер теперь останавливает прогон: xdist
+    печатает «worker gwN crashed and worker restarting disabled».
+
+    Значение задаётся здесь, а не `addopts` в pytest.ini: xdist есть только в образе
+    `Dockerfile.test`, а без плагина pytest не знает опции и отвергает её. Явный
+    `--max-worker-restart` перекрывается. Хук обычный, а сессию xdist создаёт свой
+    `pytest_configure` с `trylast` и читает значение уже отсюда.
+    """
+    config.option.maxworkerrestart = "0"

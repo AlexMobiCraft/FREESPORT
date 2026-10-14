@@ -1189,6 +1189,11 @@ class BackgroundWrite:
         if "error" in self.outcome:
             raise self.outcome["error"]
 
+    def join_if_started(self) -> None:
+        """Для `finally`: запрос мог упасть раньше, чем запустил запись (R42.4-29)."""
+        if self.thread.ident is not None:
+            self.join()
+
 
 def transfer_to(user: User, manager: User) -> BackgroundWrite:
     return BackgroundWrite(lambda: User.objects.filter(pk=user.pk).update(responsible_manager=manager))
@@ -1233,9 +1238,11 @@ class TestTransferDuringWrite:
             import_1c.start()
             return original_save_form(self, request, form, change)
 
-        with patch.object(ManagerClientAdmin, "save_form", import_then_save_form):
-            response = manager_client.post(change_url(own), data)
-        import_1c.join()
+        try:
+            with patch.object(ManagerClientAdmin, "save_form", import_then_save_form):
+                response = manager_client.post(change_url(own), data)
+        finally:
+            import_1c.join_if_started()
 
         assert response.status_code == 302
         assert import_1c.blocked
@@ -1254,12 +1261,14 @@ class TestTransferDuringWrite:
             transfer.start()
             return original_save(form, *args, **kwargs)
 
-        with patch.object(form_class, "save", transfer_then_save):
-            response = manager_client.post(
-                password_url(own),
-                {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
-            )
-        transfer.join()
+        try:
+            with patch.object(form_class, "save", transfer_then_save):
+                response = manager_client.post(
+                    password_url(own),
+                    {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
+                )
+        finally:
+            transfer.join_if_started()
 
         assert response.status_code == 302
         assert transfer.blocked
@@ -1286,9 +1295,11 @@ class TestTransferDuringWrite:
             transfer.start()
             return original(**kwargs)
 
-        with patch.object(users_admin, service, transfer_then_call):
-            response = manager_client.post(verify_url(applicant), payload)
-        transfer.join()
+        try:
+            with patch.object(users_admin, service, transfer_then_call):
+                response = manager_client.post(verify_url(applicant), payload)
+        finally:
+            transfer.join_if_started()
 
         assert response.status_code == 302
         assert transfer.blocked

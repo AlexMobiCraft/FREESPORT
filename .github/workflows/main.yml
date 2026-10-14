@@ -260,11 +260,17 @@ jobs:
           }
           run_nginx nginx-local local.conf 8080:80
           run_nginx nginx-prod default.conf 8443:443
-          for i in $(seq 1 30); do
-            curl -s -o /dev/null http://localhost:8000/manager/login/ && break
-            sleep 1
-          done
           export CURL_CA_BUNDLE="$CERT_DIR/fullchain.pem"
+          # Готовность Django и обоих nginx: `docker run -d` не ждёт, пока nginx начнёт
+          # слушать порт. Годится любой HTTP-ответ — код проверяют скрипты ниже; кто не
+          # поднялся за 30 попыток, на том проверка упадёт сама и покажет логи.
+          for url in http://localhost:8000/manager/login/ http://localhost:8080/manager/login/ \
+            https://localhost:8443/manager/login/; do
+            for i in $(seq 1 30); do
+              curl -s -o /dev/null --connect-timeout 2 --max-time 5 "$url" && break
+              sleep 1
+            done
+          done
           failed=0
           for base_url in http://localhost:8080 https://localhost:8443; do
             echo "--- $base_url"

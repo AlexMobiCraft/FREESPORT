@@ -11,7 +11,9 @@ Autouse-фикстура `clear_db_before_test` перед каждым тест
 Пробе нужны две БД, которых не занимает ни один воркер текущего прогона
 (R42.4-19): очистка с занятой базой стёрла бы данные живого воркера.
 Занятые базы — с базовой из `REDIS_URL` по `PYTEST_XDIST_WORKER_COUNT` штук.
-При базовой 1 и `-n 15` свободна одна БД 0 — проба пропускается.
+При базовой 1 и `-n 15` свободна одна БД 0 — проба пропускается. Счёт верен,
+пока упавший воркер не заменяется: замена получила бы номер за этим диапазоном
+(R42.4-26), поэтому `backend/conftest.py` замену выключает.
 """
 
 from __future__ import annotations
@@ -21,11 +23,14 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 from django.conf import settings
+
+import conftest as root_conftest
 
 # Redis по умолчанию держит 16 БД, тестовый compose и CI этого не меняют.
 REDIS_DATABASES = 16
@@ -127,6 +132,28 @@ def test_probe_never_touches_active_workers(base: int) -> None:
             continue
         assert probe[0] != probe[1], f"база {base}, -n {count}: одна БД на двоих {probe}"
         assert set(probe) <= set(free), f"база {base}, -n {count}: проба {probe} задевает воркеров {active}"
+
+
+@pytest.mark.parametrize("requested", [None, "5"])
+def test_worker_restart_is_forced_off(requested: str | None) -> None:
+    """Хук выключает замену и при явном `--max-worker-restart` (R42.4-26)."""
+    config = SimpleNamespace(option=SimpleNamespace(maxworkerrestart=requested))
+
+    root_conftest.pytest_configure(config)
+
+    assert config.option.maxworkerrestart == "0"
+
+
+def test_crashed_worker_is_not_replaced(request: pytest.FixtureRequest) -> None:
+    """
+    Упавший воркер не заменяется (R42.4-26): замена получила бы следующий номер
+    gwN, а с ним БД Redis вне `active_dbs()` — её могла бы очистить проба, а при
+    базовой 1 замена gw15 обращается к несуществующей DB16.
+    """
+    assert request.config.option.maxworkerrestart == "0"
+    # Без xdist (CI ставит только pytest-django и pytest-cov) значение не читает никто.
+    dsession = pytest.importorskip("xdist.dsession")
+    assert dsession.get_default_max_worker_restart(request.config) == 0
 
 
 def test_workers_do_not_clear_each_other() -> None:

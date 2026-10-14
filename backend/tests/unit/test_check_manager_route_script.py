@@ -8,8 +8,9 @@ HTTP-сервера с заданными ответами:
 
 - маршрут: успех — только 302 ровно на страницу входа и полностью полученная
   страница входа с кодом 200 (R42.4-15);
-- вход менеджера: в CI приложение исправно и чужого клиента в списке нет,
-  поэтому отказ скрипта на чужом клиенте проверяется здесь (R42.4-20).
+- вход менеджера: в CI приложение исправно, свой клиент в списке есть, а
+  чужого нет, поэтому отказ скрипта на чужом клиенте (R42.4-20) и на списке
+  без своего (R42.4-30) проверяется здесь.
 """
 
 from __future__ import annotations
@@ -205,4 +206,13 @@ def test_session_with_foreign_client_fails():
 
     assert result.returncode != 0, result.stdout
     assert f"клиент другого менеджера {FOREIGN_EMAIL}" in result.stdout
+    assert "✅" not in result.stdout
+
+
+def test_session_without_own_client_fails():
+    """Пустой список: чужого клиента нет, но и своего — скрипт обязан упасть (R42.4-30)."""
+    result = run_session_script(session_routes([]))
+
+    assert result.returncode != 0, result.stdout
+    assert f"нет клиента менеджера {OWN_EMAIL}" in result.stdout
     assert "✅" not in result.stdout
