@@ -25,8 +25,9 @@ import importlib
 import itertools
 import threading
 import time
+from contextlib import contextmanager
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Iterator
 from unittest.mock import patch
 
 import pytest
@@ -36,7 +37,7 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.admin.utils import label_for_field
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group, Permission
-from django.db import DEFAULT_DB_ALIAS, DatabaseError, connection, connections, transaction
+from django.db import DEFAULT_DB_ALIAS, DatabaseError, OperationalError, connection, connections, transaction
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
@@ -1342,6 +1343,104 @@ class TestTransferDuringWrite:
         assert response.status_code == 200
         assert locked_at_save[own.pk] is True
         assert audit_records(own).count() == before + 1
+
+
+@contextmanager
+def row_held_elsewhere(pk: int) -> Iterator[None]:
+    """
+    Строку пользователя держит транзакция второго соединения.
+
+    Соединению теста на это время задан `lock_timeout`: запрос, который
+    попытается заблокировать эту строку, не повиснет, а упадёт с
+    `OperationalError` — признак лишней блокировки.
+    """
+    acquired = threading.Event()
+    release = threading.Event()
+    outcome: dict[str, Any] = {}
+
+    def hold() -> None:
+        try:
+            with transaction.atomic():
+                list(User.objects.select_for_update().filter(pk=pk).values_list("pk", flat=True))
+                acquired.set()
+                release.wait(timeout=30)
+        except BaseException as exc:  # noqa: BLE001 — исключение возвращается в тест
+            outcome["error"] = exc
+        finally:
+            acquired.set()
+            connections.close_all()
+
+    thread = threading.Thread(target=hold)
+    thread.start()
+    assert acquired.wait(timeout=10), "второе соединение не открылось"
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SET lock_timeout = '2s'")
+        yield
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("RESET lock_timeout")
+        release.set()
+        thread.join(timeout=30)
+    assert not thread.is_alive(), "второе соединение зависло"
+    if "error" in outcome:
+        raise outcome["error"]
+
+
+def post_without_locking(client, url: str, data: dict[str, Any]):
+    try:
+        return client.post(url, data)
+    except OperationalError as exc:
+        pytest.fail(f"{url}: запрос пытался заблокировать недоступную ему строку ({exc})")
+
+
+# Изменяющие POST по клиенту, которые блокируют его строку.
+CLIENT_WRITE_POSTS = [
+    pytest.param(change_url, {"phone": "+79005550000", "_save": "Сохранить"}, id="card"),
+    pytest.param(
+        password_url, {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD}, id="password"
+    ),
+    pytest.param(verify_url, {"confirm": "on", "confirm_without_1c": "on", "role": "wholesale_level1"}, id="verify"),
+    pytest.param(verify_url, {"_reject": "1"}, id="reject"),
+]
+
+
+class TestNoLockWithoutAccess:
+    """
+    R42.4-9 — запрос без доступа к клиенту не блокирует его строку.
+
+    Строку клиента держит другая транзакция. Запрос к чужому клиенту и запрос
+    без права change сразу получают отказ, а не ждут её освобождения.
+    """
+
+    @pytest.mark.parametrize("url_for, data", CLIENT_WRITE_POSTS)
+    def test_foreign_client_answers_404_without_lock(
+        self, manager_client, other_manager, prod_like_requests, url_for, data
+    ):
+        foreign = make_client(other_manager, verification_status="pending", is_verified=False, is_active=False)
+        before = User.objects.filter(pk=foreign.pk).values().get()
+
+        with row_held_elsewhere(foreign.pk):
+            response = post_without_locking(manager_client, url_for(foreign), data)
+
+        assert response.status_code == 404
+        assert User.objects.filter(pk=foreign.pk).values().get() == before
+        assert not audit_records(foreign).exists()
+
+    @pytest.mark.parametrize("url_for, data", CLIENT_WRITE_POSTS)
+    def test_view_only_answers_403_without_lock(self, manager_client, manager, prod_like_requests, url_for, data):
+        Group.objects.get(name=MANAGERS_GROUP).permissions.set(
+            [Permission.objects.get(content_type__app_label="users", codename="view_user")]
+        )
+        own = make_client(manager, verification_status="pending", is_verified=False, is_active=False)
+        before = User.objects.filter(pk=own.pk).values().get()
+
+        with row_held_elsewhere(own.pk):
+            response = post_without_locking(manager_client, url_for(own), data)
+
+        assert response.status_code == 403
+        assert User.objects.filter(pk=own.pk).values().get() == before
+        assert not audit_records(own).exists()
 
 
 class TestChangelistQueryCount:
