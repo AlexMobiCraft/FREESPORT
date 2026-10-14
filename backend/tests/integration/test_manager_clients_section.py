@@ -38,6 +38,7 @@ from django.contrib.admin.utils import label_for_field
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group, Permission
 from django.db import DEFAULT_DB_ALIAS, DatabaseError, OperationalError, connection, connections, transaction
+from django.db.models import QuerySet
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from psycopg2.errorcodes import LOCK_NOT_AVAILABLE
@@ -1310,16 +1311,33 @@ class TestTransferDuringWrite:
         assert not audit_records(applicant).exists()
 
     def test_link_rechecks_scope_under_lock(self, manager_client, manager, other_manager, prod_like_requests):
-        # Клиента передали между проверкой принадлежности и блокировкой строк.
+        # R42.4-23: клиента передали после успешной предварительной проверки
+        # принадлежности (exists() в _lock_link_rows), но до захвата строк.
+        # Отсечь его может только повторная проверка выборкой раздела в самом
+        # запросе блокировки цели.
         applicant = make_client(manager, verification_status="pending", is_verified=False)
         source = make_1c_record(applicant.tax_id)
+        source_before = User.objects.filter(pk=source.pk).values().get()
         original_lock = ManagerClientAdmin._lock_link_rows
+        original_exists = QuerySet.exists
+        prechecked: list[bool] = []
 
-        def transfer_then_lock(self: ManagerClientAdmin, request: Any, target: User, source_pks: Any) -> None:
-            in_other_connection(lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager))
-            original_lock(self, request, target, source_pks)
+        def exists_then_transfer(queryset: QuerySet) -> bool:
+            result = original_exists(queryset)
+            if not prechecked:
+                prechecked.append(result)
+                in_other_connection(
+                    lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager)
+                )
+            return result
 
-        with patch.object(ManagerClientAdmin, "_lock_link_rows", transfer_then_lock):
+        def lock_with_transfer_after_precheck(
+            self: ManagerClientAdmin, request: Any, target: User, source_pks: Any
+        ) -> None:
+            with patch.object(QuerySet, "exists", exists_then_transfer):
+                original_lock(self, request, target, source_pks)
+
+        with patch.object(ManagerClientAdmin, "_lock_link_rows", lock_with_transfer_after_precheck):
             response = post_action(
                 manager_client,
                 "link_1c_customer",
@@ -1329,10 +1347,13 @@ class TestTransferDuringWrite:
                 candidate=f"{source.pk}:{source.onec_id}",
             )
 
+        # Передача пришлась именно на интервал: предварительная проверка своего клиента пропустила.
+        assert prechecked == [True]
         assert response.status_code == 404
         applicant.refresh_from_db()
         assert applicant.onec_id is None
         assert applicant.responsible_manager == other_manager
+        assert User.objects.filter(pk=source.pk).values().get() == source_before
         assert not audit_records(applicant).exists()
 
     def test_link_locks_source_and_target_in_pk_order(self, manager_client, manager, prod_like_requests):
