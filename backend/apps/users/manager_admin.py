@@ -220,15 +220,19 @@ class ManagerClientAdmin(UserAdmin):
 
         Без права change блокировки нет: вью ответит 403. Цель берётся только
         из выборки раздела: строку чужого клиента запрос не трогает и не ждёт,
-        пока её отпустит чужая транзакция, — вью ответит 404. Клиент, которого
-        передали до блокировки, в выборку не попадёт; передача, начатая позже,
+        пока её отпустит чужая транзакция. Передача, начатая после блокировки,
         ждёт конца транзакции.
+
+        Пустая блокировка — сразу 404, а не продолжение вью: клиента могли
+        передать менеджеру уже после неё, и get_object прочитал бы его строку,
+        а save() записал бы её, так и не заблокировав.
         """
         if not self.has_change_permission(request):
             return
         pk = self._to_pk(object_id)
-        if pk is not None:
-            list(self.get_queryset(request).select_for_update(of=("self",)).filter(pk=pk).values_list("pk", flat=True))
+        scope = self.get_queryset(request).select_for_update(of=("self",))
+        if pk is None or not list(scope.filter(pk=pk).values_list("pk", flat=True)):
+            raise Http404("Клиент не найден")
 
     @staticmethod
     def _executed_action(request: HttpRequest) -> str | None:
@@ -285,11 +289,18 @@ class ManagerClientAdmin(UserAdmin):
         # блокируется вместе с источником по возрастанию pk, как в сервисе.
         # Источник — только из показанных кандидатов: чужую строку по
         # подделанному pk не блокируем, сервис такой выбор всё равно отклонит.
+        # Выборкой раздела ограничена только цель: запись 1С законно лежит вне её.
         source_pk = (request.POST.get("candidate") or "").partition(":")[0]
         source_pks = [candidate.pk for candidate in candidates if str(candidate.pk) == source_pk]
+        scope = self.get_queryset(request)
         with transaction.atomic():
+            # Уже переданная цель — 404 до блокировки: её строку может держать
+            # чужая транзакция, ждать её запросу незачем.
+            if not scope.filter(pk=target.pk).exists():
+                raise Http404("Клиент не найден")
             self._lock_rows(target.pk, *source_pks)
-            if not self.get_queryset(request).filter(pk=target.pk).exists():
+            # Клиента могли передать между проверкой и блокировкой.
+            if not scope.filter(pk=target.pk).exists():
                 raise Http404("Клиент не найден")
             return super()._apply_link_1c_customer(request, target, candidates)
 
