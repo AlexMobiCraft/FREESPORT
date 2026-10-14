@@ -503,6 +503,21 @@ jobs:
             exit 1
           fi
 
+          # Раздел менеджера /manager/ (стори 42.4) nginx проксирует в Django.
+          # Без этой location запрос уходит в Next и получает 404.
+          MANAGER_HEADERS=$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -D - "$PRODUCTION_URL/manager/" | tr -d '\r')
+          MANAGER_STATUS=$(printf '%s\n' "$MANAGER_HEADERS" | awk 'NR == 1 {print $2}')
+          MANAGER_LOCATION=$(printf '%s\n' "$MANAGER_HEADERS" | awk 'tolower($1) == "location:" {print $2}')
+          if [ "$MANAGER_STATUS" != "302" ] || [ "$MANAGER_LOCATION" != "/manager/login/?next=/manager/" ]; then
+            echo "❌ /manager/: ожидался 302 на /manager/login/?next=/manager/, получено ${MANAGER_STATUS:-нет ответа} ${MANAGER_LOCATION:-без Location}"
+            exit 1
+          fi
+          if ! curl -sf --connect-timeout 10 --max-time 30 "$PRODUCTION_URL/manager/login/" | grep -q 'id="login-form"'; then
+            echo "❌ /manager/login/ не отдаёт страницу входа Django"
+            exit 1
+          fi
+          echo "✅ Раздел менеджера проксируется в Django"
+
           echo "✅ Все проверки пройдены успешно!"
 
       - name: Notify production deployment
