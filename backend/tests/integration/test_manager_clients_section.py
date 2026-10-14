@@ -42,6 +42,7 @@ from django.db.models import QuerySet
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from psycopg2.errorcodes import LOCK_NOT_AVAILABLE
+from rest_framework.test import APIClient
 
 from apps.common.models import AuditLog, ManagerRoutingRule
 from apps.users import admin as users_admin
@@ -725,9 +726,20 @@ class TestUnblock:
 
         blocked.refresh_from_db()
         assert blocked.is_active
+        assert blocked.verification_status == "verified"
         assert authenticate(email=blocked.email, password=PASSWORD) == blocked
         assert audit_records(blocked, "unblock_user").count() == 1
         assert audit_records(blocked).count() == 1
+
+        # Портал входит не через authenticate(), а через UserLoginSerializer
+        # и отдельно отказывает статусу `pending` (R42.4-25).
+        response = APIClient().post(
+            reverse("users:login"), {"email": blocked.email, "password": PASSWORD}, format="json"
+        )
+        assert response.status_code == 200, response.data
+        assert response.data["access"]
+        assert response.data["refresh"]
+        assert response.data["user"]["id"] == blocked.pk
 
     def test_pending_application_and_superuser_are_skipped(self, manager_client, manager):
         pending = make_client(manager, is_active=False, verification_status="pending", is_verified=False)

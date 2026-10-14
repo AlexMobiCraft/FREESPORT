@@ -1084,6 +1084,73 @@ GitNexus: индекс на `c2743ed`, HEAD после фиксации тест
 - ID 22 — low, правка спецификации: новое действие требует корректного expected_actions; причина уже документирована.
 - ID 23 — low: новая Compose-инфраструктура ради буквального ограничения не является коррекцией показанного runtime-сбоя существующей runner-схемы.
 
+#### Ревью 2026-10-14 — `b4fab053..baa78940`, код раздела и deployment-проверки
+
+Решение Alex 2026-10-14: вариант 2 — оставить R42.4-25 открытой задачей в истории, без исправлений кода и тестов. Статус истории и запись `42-4-manager-section-own-clients` в трекере спринта: `review` → `in-progress` до закрытия этой задачи.
+
+Согласованный первый проход: 22 файла, +2890/−18, режим `full`. Включены код раздела менеджера, его тесты, Nginx и `scripts/deploy/`, подключение анонимной проверки в `deploy.yml`. Ускорение тестов/CI и документы/настройки исключены из самостоятельного ревью; `main.yml` прочитан как фактический caller HTTP-скриптов. Эти оставшиеся группы требуют отдельных проходов, данное ревью их не закрывает.
+
+Все четыре настроенных слоя завершились: blind-hunter — 10 замечаний, edge-case-hunter — 7, verification-gap — один пробел и два дополнительных замечания, acceptance-auditor — 2. Каждое из 22 замечаний получило индивидуальный вердикт до группировки. Итог: 0 решений, 1 исправление тестового пробела, 4 отложенные группы (повторы существующего долга), 12 отклонённых замечаний. Новый подтверждённый дефект реализации не выявлен; найден незакреплённый потребитель нового действия.
+
+**Исправление:**
+
+- [x] [Review][Patch] **R42.4-25: разблокировка не проверена вместе с API-входом портала** — `medium`, ID 9 и 18 (blind-hunter №9 + verification-gap №1). `TestUnblock.test_unblock_restores_login` проверяет Django `authenticate()`, но `/api/v1/auth/login/` использует `UserLoginSerializer` и отдельную проверку `verification_status="pending"`, а не этот backend. Filed evidence verification-gap принят: если новое действие начнёт сохранять pending вместе с активностью, существующие проверки активности, пароля и аудита пройдут, а вход того же клиента на портал ответит 403. Дополнить текущий тест HTTP-входом после действия с проверкой успешного ответа, access/refresh и сохранённого статуса верификации. Это пробел регрессии связки нового действия с потребителем, не нарушение явно выбранного AC6 и не новая задача запрета входа неактивному клиенту (существующий R42.4-D1). Мутация и API-вход в этом запуске не выполнялись. [backend/tests/integration/test_manager_clients_section.py:720-730; backend/apps/users/admin.py:1281-1283; backend/apps/users/views/authentication.py:305-331]
+
+**Отложено — повторы существующих задач, без новых самостоятельных пунктов:**
+
+- [x] [Review][Defer] **Порядок блокировок смешанной массовой разблокировки** — `maybe-false`, возможный `medium`, ID 3 и 11. До итерации непредварительных заявок действие выполняет exists и отдельную выборку pending; один ORDER BY переданного queryset не устанавливает общий порядок всех захватов. Возможное расписание: первый запрос держит pending с большим pk, второй держит непредварительного клиента меньшего pk и ждёт pending, первый ждёт меньший pk. Фактический цикл двух запросов в этом запуске не воспроизводился; это уточнение существующей задачи первых блокировок массового действия. Для подтверждения наблюдать первые захваты и цикл ожидания PostgreSQL, для исправления оценить материализацию всего разрешённого выбранного набора в одном порядке. [backend/apps/users/manager_admin.py:321-331; backend/apps/users/admin.py:1251-1281]
+- [x] [Review][Defer] **Разный порядок source/target у подтверждения и привязки** — `medium`, ID 4 и 12. Общий сервис подтверждения удерживает target, затем вызывает привязку по pk; отдельная привязка при меньшем source начинает с source. Причина существовала до baseline, конкурентный deadlock здесь не запускался. Исходная задача единого порядка общих сервисов сохранена. [backend/apps/users/manager_admin.py:277-283,285-319; backend/apps/users/services/verify_b2b_application.py:156-198]
+- [x] [Review][Defer] **Письмо об одобрении переживает откат заявки** — `medium`, ID 15. Общий сигнал вызывает send_user_verified_email.delay до коммита внешней транзакции, поэтому ошибка аудита после save может отменить подтверждение, но не публикацию письма. Причина существовала до baseline; это повтор уже воспроизведённого ранее долга transaction.on_commit. В данном запуске публикация и внешняя отправка не выполнялись. [backend/apps/users/signals.py:31-47; backend/apps/users/manager_admin.py:330-331]
+- [x] [Review][Defer] **Региональный адресат может не открыть ссылку письма** — `medium`, ID 10, 16 и 19. Правила поддерживают manager_email без связанной учётной записи; получатель может быть суперпользователем либо не отвечать за заявку. Письмо ведёт в раздел, где нужны членство и scoped-доступ. Повтор существующего конфигурационного долга; решение Alex о ручной очистке правил перед выкатом и исходная задача сквозного перехода фактического адресата сохранены. Переход здесь не выполнялся. [backend/apps/users/services/region_routing.py:61-69; backend/apps/users/tasks.py:440-444; backend/apps/users/manager_admin.py:34-44]
+
+**Проверки и границы:**
+
+- Docker + PostgreSQL, последовательный прогон шести файлов: test_manager_clients_section.py, test_manager_admin_site.py, test_check_manager_route_script.py, test_nginx_security_headers.py, test_region_routing.py, test_users_admin.py; `--override-ini=addopts= -q -p no:sugar` — **221 passed**, 6 предупреждений об устаревающих API, 246,17 с. Полный backend-прогон, линтеры и реальный nginx в этом ревью не запускались.
+- GitNexus актуален на baa78940. `detect-changes --scope all` — нет незакоммиченных изменений; `--scope compare --base-ref b4fab053` — 37 файлов, 90 символов, 15 процессов, риск high для полного диапазона (не только согласованной группы). `impact response_action` и impact manager-реализации verify_b2b_view — LOW, прямых вызывающих граф не показывает; динамические admin-вызовы этим не исключаются.
+- Код приложения и постоянные тесты не менялись. Записаны только результаты ревью в story и deferred-work. Статус до решения Alex не изменён.
+
+**Индивидуальные вердикты до группировки:**
+
+| ID | Источник | Вердикт | Доказательство / исход |
+|---|---|---|---|
+| 1 | blind-hunter №1 | false | Редактируемый is_active для pending прямо разрешён решениями 7/8; ограничение действия не относится к карточке, API отдельно запрещает pending. |
+| 2 | blind-hunter №2 | low | Неатомарный save/аудит в /admin/ реален, но редкий отказ INSERT ранее принят; новая транзакционная обвязка отклонена. |
+| 3 | blind-hunter №3 | maybe-false | Pending читаются перед остальными клиентами, глобальный порядок не гарантирован; фактический цикл не показан, defer существующего вопроса. |
+| 4 | blind-hunter №4 | medium | Общие сервисы удерживают source/target в несовместимом порядке; повтор существующего долга, нового deadlock-прогона нет. |
+| 5 | blind-hunter №5 | low | Перенос нормализованного ИНН может сделать редирект недоступным; ранее принятый редкий исход, новая условная ветка отклонена. |
+| 6 | blind-hunter №6 | false | Caller — main.yml с development без SECURE_PROXY_SSL_HEADER; Django за nginx не считает запрос secure, заявленный текущий CSRF-отказ не возникает. |
+| 7 | blind-hunter №7 | false | main.yml:269-275 реально вызывает оба скрипта для http и https; отсутствие caller в суженном diff не доказывает отсутствия подключения. |
+| 8 | blind-hunter №8 | false | При отсутствующих скриптах/bash/curl обязательный CI напрямую вызывает оба shell-скрипта и падает; skip модульного теста не делает весь CI ошибочно зелёным. |
+| 9 | blind-hunter №9 | medium | Authenticate не исполняет реальный API-потребитель нового действия; R42.4-25. |
+| 10 | blind-hunter №10 | medium | Правило может адресовать письмо сотруднику вне scope либо адресу без доступа; повтор долга конфигурации/сквозного теста. |
+| 11 | edge-case-hunter №1 | maybe-false | Mixed pending/non-pending допускают несовместимые предварительные захваты, фактический deadlock не воспроизведён; тот же долг ID 3. |
+| 12 | edge-case-hunter №2 | medium | Target-first подтверждения и source-first отдельной привязки — тот же существующий долг ID 4. |
+| 13 | edge-case-hunter №3 | low | Eligibility в /admin/ может измениться между чтением и save; ранее принятая редкая гонка, новая блокировка отклонена. |
+| 14 | edge-case-hunter №4 | low | Save может сохраниться без аудита в /admin/ при отказе INSERT; тот же ранее принятый редкий исход ID 2. |
+| 15 | edge-case-hunter №5 | medium | Сигнал публикует task до возможного rollback внешней транзакции; повтор существующего долга. |
+| 16 | edge-case-hunter №6 | medium | manager_email/региональный адресат не гарантирует вход и scope; тот же существующий долг ID 10. |
+| 17 | edge-case-hunter №7 | low | Пробельный ИНН при подтверждении может переназначить цель и дать 404 после редиректа; тот же ранее принятый редкий исход ID 5. |
+| 18 | verification-gap №1 | medium | Filed evidence принят: изменение verification_status действием сломает API-вход, но не текущий authenticate-тест; R42.4-25. |
+| 19 | verification-gap, дополнительное №1 | medium | Суперпользователь по адресу резервного правила не войдёт в manager_site; повтор исходного конфигурационного долга ID 10/16. |
+| 20 | verification-gap, дополнительное №2 | low | /admin/ не объединяет save и аудит транзакцией; тот же принятый редкий риск ID 2/14. |
+| 21 | acceptance-auditor №1 | low | Буквальный AC2 расходится с утверждённым исключением Task 3; реализация следует Task 3, правка спецификации исключена. |
+| 22 | acceptance-auditor №2 | low | Task 2 требует unblock_users и нового expected_actions; отклонение документировано, исправление AC12/Task 6 меняет спецификацию. |
+
+**Отклонено (12):**
+
+- ID 1 — false: карточка намеренно разрешает правку активности независимо от ограничения массового действия.
+- ID 2 — low: редкий сбой аудита /admin/ уже принят; новая атомарная граница отклонена.
+- ID 5 — low: ранее принятый редкий редирект после переноса ИНН; новая ветка отклонена.
+- ID 6 — false: фактический CI caller использует development и не распознаёт secure proxy-запрос.
+- ID 7 — false: оба скрипта подключены в main.yml для обоих конфигов nginx.
+- ID 8 — false: отсутствие зависимости не скрывается всем CI — обязательный прямой запуск скриптов завершается ошибкой.
+- ID 13 — low: ранее принятая редкая гонка eligibility /admin/, дополнительная блокировка отклонена.
+- ID 14 — low: ранее принятый редкий INSERT-аудит, как ID 2.
+- ID 17 — low: ранее принятый узкий редирект на уже недоступного клиента, как ID 5.
+- ID 20 — low: ранее принятый редкий неатомарный save/аудит, как ID 2/14.
+- ID 21 — low, правка спецификации: код соответствует утверждённому Task 3.
+- ID 22 — low, правка спецификации: корректное ожидание нового действия обязательно по Task 2.
+
 ## Dev Notes
 
 ### Текущее состояние кода (сверено на `b4fab053`, после 42.2 и 42.3)
@@ -1344,6 +1411,14 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
   | `probe_dbs` → фиксированные `(12, 13)` | упали 14 параметров `test_probe_never_touches_active_workers` |
 
   Оба файла — 29 passed. Полный прогон (`freesport-test`, `-n 4 -m "not performance and not slow"`): `4172 passed, 76 skipped` за 15:16. После него в `freesport-test`: `black --check .` — 468 unchanged, `flake8` чист, `mypy` — «no issues found in 621 source files», `makemigrations --check` — No changes detected.
+- **Исправление ревью `b4fab053..baa78940` (2026-10-14, R42.4-25).** Ветка `fix/42-4-review-r10-r13`. Менялся только `test_manager_clients_section.py`; `detect-changes --scope all` — «No changes detected», `impact` не требовался. Мутация `unblock_users`: вместе с `is_active=True` сохранялось `verification_status="pending"` (`admin.py` возвращён `git checkout`, `git diff` пуст):
+
+  | Состав теста | Результат на мутации |
+  |---|---|
+  | полный тест | упал на `assert blocked.verification_status == "verified"` (`pending`) |
+  | без проверки статуса — остаётся только HTTP-вход | упал на `assert response.status_code == 200`: 403 `account_pending_verification` |
+
+  `TestUnblock` на исходном коде — 3 passed. Полный прогон (`freesport-test`, `-n 4 -m "not performance and not slow"`): `4178 passed, 76 skipped` за 16:09. После него в `freesport-test` по изменённому файлу: `black --check`, `isort --check-only`, `flake8`, `mypy` — чисто.
 - **`detect-changes --scope all`:** символы `UserAdmin` (namespace, `permissions`, `unblock_users`), `UsersConfig.ready`, `send_manager_region_email`, `admin_site.py`. `CompanyAdmin`, `AddressAdmin`, `FavoriteAdmin`, `_apply_verify_b2b` в списке из-за сдвига строк на устаревшем индексе — не менялись; «Risk: high» — артефакт того же индекса, impact каждого символа до правок — LOW.
 
 ### Completion Notes List
@@ -1383,6 +1458,7 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
 - ✅ Resolved review finding [medium]: R42.4-23 — `TestTransferDuringWrite::test_link_rechecks_scope_under_lock` переписан под заявленный интервал: на время вызова `_lock_link_rows` `QuerySet.exists` обёрнут так, что сразу после первой (предварительной) проверки принадлежности второе соединение передаёт клиента другому менеджеру. Тест требует, чтобы предварительная проверка своего клиента пропустила (`prechecked == [True]`), иначе он не проверял бы интервал. Ожидание: 404, ответственный — новый менеджер, `onec_id` цели пуст, источник не изменён, `AuditLog` пуст. Прежняя версия теста передавала клиента до входа в `_lock_link_rows` и дублировала `test_link_target_transferred_right_before_lock_answers_404_without_lock` — переписана, а не добавлена рядом: имя и комментарий теста и так описывали этот интервал. Мутация: захват цели в `_lock_link_rows` через `User.objects.select_for_update(...)` вместо выборки раздела — тест падает (302 вместо 404), три теста из замечания остаются зелёными.
 - ✅ Resolved review finding [medium]: R42.4-24 — `tests/unit/test_xdist_file_isolation.py`: настройки `freesport.settings.test` воркеров `gw0` и `gw1` поднимаются в отдельных процессах, `TMPDIR` дочерних процессов — `tmp_path` теста (каталоги воркеров текущего прогона не задеваются). `test_workers_have_separate_file_roots`: `MEDIA_ROOT`, `ONEC_PRIVATE_DIR`, `TEMP_DIR`, `IMPORT_DIR`, `EXCHANGE_LOG_DIR` у воркеров попарно различны и лежат во временном каталоге. `test_same_relative_file_is_not_shared`: оба воркера пишут через `FileStreamService.append_chunk` один `import.zip` одной сессии, каждый читает своё, первый после записи второго — по-прежнему `first`. Тест в `tests/unit/` — входит в обязательный прогон `main.yml`. Мутация: сегмент `(_XDIST_WORKER or "main")` → `"main"` — оба теста падают, `test_xdist_redis_isolation.py` остаётся зелёным.
 - Проверки R42.4-23/24 (2026-10-14): мутации выше — новые тесты красные, код возвращён из копий; полный backend-прогон `-n 4 -m "not performance and not slow"` — 4178 passed, 76 skipped, 22:07; `black`, `isort`, `flake8`, `mypy` по изменённым файлам — чисто. Менялись только тесты: `makemigrations --check` и `check_openapi_sync` не повторялись. GitNexus: индекс `stale` (`956bb9c` при HEAD `35f8cc2`), `detect-changes --scope all` — «No changes detected»; символы кода приложения не менялись, `impact` не требовался.
+- ✅ Resolved review finding [medium]: R42.4-25 — `TestUnblock::test_unblock_restores_login` после действия входит в портал через `POST /api/v1/auth/login/` (`reverse("users:login")`, отдельный `APIClient`) и ждёт 200 с непустыми `access` и `refresh` и `user.id` клиента; статус верификации после действия — `verified`. Мутация «действие сохраняет `pending`» ловится обеими проверками: статусом и самим HTTP-входом (403 `account_pending_verification`). Код раздела не менялся.
 - **Отклонение 1 — `request.current_app` в `verify_b2b_view` и `link_1c_customer` не добавлен.** Мутация показала, что строка ничего не защищает: `{% url %}` без `request.current_app` берёт `request.resolver_match.namespace` (`django/template/defaulttags.py:470-475`), а обе страницы маршрутизируются в пространстве `manager`. Хлебные крошки и так ведут в `/manager/` — это закреплено тестом AC8 (`href="/admin/` нет на страницах подтверждения и привязки). Строку с неверным обоснованием в комментарии добавлять не стал.
 - **Отклонение 2 — изменено ожидание вне перечня Task 6:** `tests/unit/test_users_admin.py::test_admin_actions_list` сверяет точный список действий `UserAdmin`; `unblock_users` в нём — прямое требование Task 2. Добавлена одна строка списка с комментарием.
 - **Отклонение 3 — тестовый `make_client` по умолчанию ставит `responsible_manager_manual=True`.** Иначе подтверждение заявки и привязка к 1С (явный вызов 42.2 в сервисе) пересчитывали бы ответственного по пустым в тесте правилам, и клиент уходил бы из раздела до проверки. AC10 строится без флага, через правила «23 → A», «77 → B».
@@ -1406,7 +1482,7 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
 - `backend/templates/emails/manager_region_notification.txt`, `backend/templates/emails/manager_region_notification.html` — подпись ссылки
 - `docker/nginx/conf.d/default.conf`, `docker/nginx/conf.d/local.conf` — `location /manager/`
 - `docker/nginx/snippets/app-headers.conf` — комментарий
-- `backend/tests/integration/test_manager_clients_section.py` — новый; передача цели между предварительной проверкой и захватом в `test_link_rechecks_scope_under_lock` (R42.4-23), занятый источник меньшего pk при переданной цели (R42.4-21), `row_is_locked` только по SQLSTATE 55P03 и `TestRowLockProbe` (R42.4-22); передача цели привязки прямо перед захватом при занятой строке, шов `_lock_link_rows` (R42.4-14); параметризация по группам раздела (третье ревью); `TestTransferDuringWrite` (R42.4-1, конкурентные записи `BackgroundWrite` — R42.4-4…6), переход по «Есть» (R42.4-7); `TestNoLockWithoutAccess` с хелпером `row_held_elsewhere` (R42.4-9); пустая блокировка, привязка к переданному клиенту, перепроверка под блокировкой, порядок source/target, хелпер `waits_for_lock` (R42.4-10…12)
+- `backend/tests/integration/test_manager_clients_section.py` — новый; вход в портал через API после разблокировки (R42.4-25); передача цели между предварительной проверкой и захватом в `test_link_rechecks_scope_under_lock` (R42.4-23), занятый источник меньшего pk при переданной цели (R42.4-21), `row_is_locked` только по SQLSTATE 55P03 и `TestRowLockProbe` (R42.4-22); передача цели привязки прямо перед захватом при занятой строке, шов `_lock_link_rows` (R42.4-14); параметризация по группам раздела (третье ревью); `TestTransferDuringWrite` (R42.4-1, конкурентные записи `BackgroundWrite` — R42.4-4…6), переход по «Есть» (R42.4-7); `TestNoLockWithoutAccess` с хелпером `row_held_elsewhere` (R42.4-9); пустая блокировка, привязка к переданному клиенту, перепроверка под блокировкой, порядок source/target, хелпер `waits_for_lock` (R42.4-10…12)
 - `backend/tests/unit/test_manager_admin_site.py` — новый; выделение пункта фильтра при роли «Не зарегистрирован» (R42.4-3), значение `yes` (R42.4-7)
 - `.github/workflows/deploy.yml` — HTTP-проверка `/manager/` после деплоя (R42.4-2), таймауты `curl` (R42.4-8); проверка вынесена в скрипт (R42.4-13)
 - `.github/workflows/main.yml` — шаг «Маршрут /manager/ через nginx (local.conf и default.conf)» (R42.4-13; миграции, засев и вход менеджера — R42.4-16; production `default.conf` с самоподписанным сертификатом — R42.4-17)
@@ -1441,3 +1517,5 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
 - 2026-10-14 — исправления ревью `b4fab053..956bb9c5`: закрыты R42.4-21 (привязка к переданной цели не ждёт занятый источник меньшего pk — проверка цели до захвата строк) и R42.4-22 (проверка блокировки в тестах принимает только SQLSTATE 55P03); 2 замечания, 4 новых теста; полный прогон 4176 passed; статус → review.
 - 2026-10-14 — ревью `b4fab053..35f8cc29`: по решению Alex два пробела регрессионных проверок R42.4-23 и R42.4-24 оставлены открытыми задачами; код и тесты не менялись, 241 профильный тест прошёл в Docker; статус story и спринта `review` → `in-progress`.
 - 2026-10-14 — исправления ревью `b4fab053..35f8cc29`: закрыты R42.4-23 (интервал между предварительной проверкой цели и её захватом покрыт HTTP-тестом с двумя соединениями) и R42.4-24 (межпроцессная проверка файловых корней воркеров xdist); 2 замечания, 1 тест переписан, 2 новых, мутационная проверка; только тесты; полный прогон 4178 passed; статус → review.
+- 2026-10-14 — ревью `b4fab053..baa78940`: по решению Alex пробел регрессионной проверки R42.4-25 оставлен открытой задачей; 4 группы отложены как повторы существующего долга; статус story и спринта `review` → `in-progress`.
+- 2026-10-14 — исправление ревью `b4fab053..baa78940`: закрыт R42.4-25 (разблокировка проверяется вместе с API-входом портала: 200, `access`/`refresh`, сохранённый статус `verified`); 1 замечание, дополнен 1 тест, мутационная проверка; только тесты; полный прогон 4178 passed; статус → review.
