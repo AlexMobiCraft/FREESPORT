@@ -1,10 +1,15 @@
 """
-Скрипт HTTP-проверки маршрута `/manager/` (`scripts/deploy/check-manager-route.sh`).
+Скрипты HTTP-проверки раздела `/manager/` (`scripts/deploy/`).
 
-По коду завершения скрипта решается, прошли ли шаг `main.yml` и проверка
-production после деплоя (`deploy.yml`). Тест запускает скрипт против
-локального HTTP-сервера с заданными ответами: успех — только 302 ровно на
-страницу входа и полностью полученная страница входа с кодом 200 (R42.4-15).
+По коду завершения `check-manager-route.sh` решается, прошли ли шаг `main.yml`
+и проверка production после деплоя (`deploy.yml`); `check-manager-session.sh`
+гоняет только `main.yml`. Тест запускает скрипты против локального
+HTTP-сервера с заданными ответами:
+
+- маршрут: успех — только 302 ровно на страницу входа и полностью полученная
+  страница входа с кодом 200 (R42.4-15);
+- вход менеджера: в CI приложение исправно и чужого клиента в списке нет,
+  поэтому отказ скрипта на чужом клиенте проверяется здесь (R42.4-20).
 """
 
 from __future__ import annotations
@@ -15,22 +20,22 @@ import threading
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Iterator, NamedTuple
+from typing import Callable, Iterator, NamedTuple, Union
+from urllib.parse import parse_qs
 
 import pytest
 
 # В тестовом контейнере scripts/ смонтирован в /app/scripts, в CI и venv
 # pytest стартует из backend/ полного checkout — скрипт на уровень выше.
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_SCRIPT_CANDIDATES = (
-    _BACKEND_ROOT / "scripts" / "deploy" / "check-manager-route.sh",
-    _BACKEND_ROOT.parent / "scripts" / "deploy" / "check-manager-route.sh",
-)
-SCRIPT = next((path for path in _SCRIPT_CANDIDATES if path.is_file()), None)
+_SCRIPT_DIRS = (_BACKEND_ROOT / "scripts" / "deploy", _BACKEND_ROOT.parent / "scripts" / "deploy")
+_SCRIPT_DIR = next((path for path in _SCRIPT_DIRS if (path / "check-manager-route.sh").is_file()), None)
+SCRIPT = _SCRIPT_DIR / "check-manager-route.sh" if _SCRIPT_DIR else None
+SESSION_SCRIPT = _SCRIPT_DIR / "check-manager-session.sh" if _SCRIPT_DIR else None
 
 pytestmark = pytest.mark.skipif(
-    SCRIPT is None or shutil.which("bash") is None or shutil.which("curl") is None,
-    reason=f"нужны bash, curl и скрипт (искали в {[str(p) for p in _SCRIPT_CANDIDATES]})",
+    _SCRIPT_DIR is None or shutil.which("bash") is None or shutil.which("curl") is None,
+    reason=f"нужны bash, curl и скрипты (искали в {[str(p) for p in _SCRIPT_DIRS]})",
 )
 
 
@@ -43,19 +48,36 @@ class Reply(NamedTuple):
     content_length: int | None = None
 
 
+class Request(NamedTuple):
+    cookie: str
+    form: dict[str, list[str]]
+
+
+# Ответ на путь: готовый или вычисляемый по Cookie и полям формы запроса.
+Route = Union[Reply, Callable[[Request], Reply]]
+
+
 LOGIN_PAGE = b'<html><body><form id="login-form" method="post" action="/manager/login/"></form></body></html>'
 TO_LOGIN = Reply(302, {"Location": "/manager/login/?next=/manager/"})
 LOGIN_OK = Reply(200, {"Content-Type": "text/html"}, LOGIN_PAGE)
 
 
 @contextmanager
-def serve(routes: dict[str, Reply]) -> Iterator[str]:
-    """HTTP-сервер на свободном порту; неизвестный путь — 404."""
+def serve(routes: dict[str, Route]) -> Iterator[str]:
+    """HTTP-сервер на свободном порту; ключ GET — путь, POST — `POST <путь>`; неизвестный — 404."""
 
     class Handler(BaseHTTPRequestHandler):
         # HTTP/1.0: соединение закрывается после ответа, оборванное тело curl замечает.
         def do_GET(self) -> None:
-            reply = routes.get(self.path, Reply(404, {}))
+            self.reply(self.path, {})
+
+        def do_POST(self) -> None:
+            body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode()
+            self.reply(f"POST {self.path}", parse_qs(body))
+
+        def reply(self, key: str, form: dict[str, list[str]]) -> None:
+            route = routes.get(key, Reply(404, {}))
+            reply = route if isinstance(route, Reply) else route(Request(self.headers.get("Cookie", ""), form))
             self.send_response(reply.status)
             for name, value in reply.headers.items():
                 self.send_header(name, value)
@@ -125,4 +147,62 @@ def test_broken_route_fails(routes):
 
     assert result.returncode != 0, result.stdout
     assert "❌" in result.stdout
+    assert "✅" not in result.stdout
+
+
+MANAGER = ("manager@example.com", "manager-pass")
+OWN_EMAIL = "own-client@example.com"
+FOREIGN_EMAIL = "foreign-client@example.com"
+CSRF = "csrf-token-value"
+SESSION = "sessionid=manager-session"
+
+
+def session_routes(changelist_emails: list[str]) -> dict[str, Route]:
+    """Вход Django: форма с CSRF, POST ставит сессию, список без сессии — на вход."""
+
+    def login(request: Request) -> Reply:
+        sent = (request.form.get("csrfmiddlewaretoken"), request.form.get("username"), request.form.get("password"))
+        if sent != ([CSRF], [MANAGER[0]], [MANAGER[1]]):
+            return Reply(200, {"Content-Type": "text/html"}, b"<html>error</html>")
+        return Reply(302, {"Location": "/manager/", "Set-Cookie": f"{SESSION}; Path=/"})
+
+    def changelist(request: Request) -> Reply:
+        if SESSION not in request.cookie:
+            return Reply(302, {"Location": "/manager/login/?next=/manager/users/user/"})
+        rows = "".join(f"<tr><td>{email}</td></tr>" for email in changelist_emails)
+        return Reply(200, {"Content-Type": "text/html"}, f"<table>{rows}</table>".encode())
+
+    form = f'<form id="login-form"><input type="hidden" name="csrfmiddlewaretoken" value="{CSRF}"></form>'
+    return {
+        "/manager/login/": Reply(200, {"Content-Type": "text/html"}, form.encode()),
+        "POST /manager/login/": login,
+        "/manager/users/user/": changelist,
+    }
+
+
+def run_session_script(routes: dict[str, Route]) -> subprocess.CompletedProcess[str]:
+    with serve(routes) as base_url:
+        return subprocess.run(
+            ["bash", str(SESSION_SCRIPT), base_url, *MANAGER, OWN_EMAIL, FOREIGN_EMAIL],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=120,
+        )
+
+
+def test_session_with_own_client_only_passes():
+    """Положительный контроль: вход проходит, в списке только свой клиент."""
+    result = run_session_script(session_routes([OWN_EMAIL]))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "✅" in result.stdout
+
+
+def test_session_with_foreign_client_fails():
+    """Вход и список в порядке, но в списке и чужой клиент — скрипт обязан упасть (R42.4-20)."""
+    result = run_session_script(session_routes([OWN_EMAIL, FOREIGN_EMAIL]))
+
+    assert result.returncode != 0, result.stdout
+    assert f"клиент другого менеджера {FOREIGN_EMAIL}" in result.stdout
     assert "✅" not in result.stdout
