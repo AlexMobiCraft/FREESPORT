@@ -4,7 +4,7 @@ baseline_commit: b4fab053
 
 # Story 42.4: Раздел менеджера — клиенты своего региона
 
-Status: in-progress
+Status: review
 Baseline Revision: b4fab053 (освежено 2026-10-12 по коду 42.2 и 42.3; первая редакция — `9af7c7ed`)
 
 ## Story
@@ -1181,6 +1181,16 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
   | `_WORKER_INDEX = 0` и в тесте убраны проверки номеров БД | упал на «cache.clear() воркера gw0 удалил значение воркера gw1» — проверка очистки ловит общую БД сама |
 
   Полный прогон (`freesport-test`, `-n 4 -m "not performance and not slow"`): `4151 passed, 76 skipped` за 15:55. После него в `freesport-test`: `black --check .` — 468 unchanged, `flake8` чист, `mypy` — «no issues found in 621 source files».
+- **Исправления ревью `b4fab053..46ff9a6e` (2026-10-14, R42.4-19…20).** Ветка `fix/42-4-review-r10-r13` (HEAD `46ff9a6e`). GitNexus актуален на `46ff9a6`; менялись только два тестовых файла, `detect-changes --scope all` — изменённых символов нет. R42.4-19, RED: текущий выбор DB 12/13 вынесен в `probe_dbs` без смены поведения, новый `test_probe_never_touches_active_workers` упал на 14 базовых номерах из 16, включая штатную базу 1 (при `-n` 12…15 проба задевает живых воркеров). GREEN: `active_dbs()` + `probe_dbs()` — две старшие свободные БД. Под xdist: `-n 14` — 17 passed (проба на DB 0 и 15, второй воркер пробы `gw15`), `-n 15` — тест пропущен с причиной «воркеры занимают range(1, 16)», FLUSHDB не выполнялся. R42.4-20: страж корректной проверки скрипта, на исходном скрипте оба новых теста зелёные. Мутации (файл восстанавливался копией, сверка `cmp`):
+
+  | Убрано | Результат |
+  |---|---|
+  | проверка `FOREIGN_EMAIL` в `check-manager-session.sh` | упал `test_session_with_foreign_client_fails` |
+  | `_WORKER_INDEX = 0` в `settings/test.py` | упал `test_workers_do_not_clear_each_other` |
+  | число воркеров в `active_dbs` (всегда одна БД) | упали `test_active_dbs_cover_all_workers[gw0-of-4|gw3-of-12]` |
+  | `probe_dbs` → фиксированные `(12, 13)` | упали 14 параметров `test_probe_never_touches_active_workers` |
+
+  Оба файла — 29 passed. Полный прогон (`freesport-test`, `-n 4 -m "not performance and not slow"`): `4172 passed, 76 skipped` за 15:16. После него в `freesport-test`: `black --check .` — 468 unchanged, `flake8` чист, `mypy` — «no issues found in 621 source files», `makemigrations --check` — No changes detected.
 - **`detect-changes --scope all`:** символы `UserAdmin` (namespace, `permissions`, `unblock_users`), `UsersConfig.ready`, `send_manager_region_email`, `admin_site.py`. `CompanyAdmin`, `AddressAdmin`, `FavoriteAdmin`, `_apply_verify_b2b` в списке из-за сдвига строк на устаревшем индексе — не менялись; «Risk: high» — артефакт того же индекса, impact каждого символа до правок — LOW.
 
 ### Completion Notes List
@@ -1267,3 +1277,4 @@ Claude Opus 5.5 (claude-opus-5-5), Claude Code — 2026-10-13.
 - 2026-10-14 — исправления ревью `b4fab053..ac631c09`: закрыты R42.4-10 (пустая блокировка клиента → 404), R42.4-11 (привязка отсекает переданную цель до блокировки), R42.4-12 (конкурентный страж порядка source/target), R42.4-13 (HTTP-проверка `/manager/` через локальный nginx в `main.yml`, общий скрипт с `deploy.yml`); 4 замечания, 9 новых проверок, мутационная проверка кода и конфига; полный прогон 4142 passed; статус → review.
 - 2026-10-14 — исправления ревью `b4fab053..741ce342`: закрыты R42.4-14 (цель привязки захватывается выборкой раздела в самом запросе блокировки — переданную цель запрос не ждёт), R42.4-15 (скрипт проверки маршрута проверяет код curl, HTTP 200 и полное тело; тест скрипта на локальном HTTP-сервере), R42.4-16 (вход менеджера и список клиентов через настоящий nginx в `main.yml`); 3 замечания, 8 новых проверок, мутационная проверка кода и конфига nginx; полный прогон 4150 passed; статус → review.
 - 2026-10-14 — исправления ревью `b4fab053..d9f21c20`: закрыты R42.4-17 (вход менеджера и список клиентов через production `default.conf` на изолированном стенде `main.yml`), R42.4-18 (тест изоляции Redis между воркерами xdist в двух процессах); 2 замечания, 1 новый тест, мутационная проверка конфига nginx и настроек; полный прогон 4151 passed; статус → review.
+- 2026-10-14 — исправления ревью `b4fab053..46ff9a6e`: закрыты R42.4-19 (проба изоляции Redis берёт только БД вне занятых воркерами текущего прогона, при одной свободной пропускается) и R42.4-20 (негативный тест `check-manager-session.sh` на чужом клиенте с положительным контролем); 2 замечания, 21 новая проверка, мутационная проверка; только тесты; полный прогон 4172 passed; статус → review.
