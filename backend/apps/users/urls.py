@@ -6,6 +6,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .views import PortalLinkConfirmView  # noqa: F401  — маршрут снят, импорт держит ссылку на view
 from .views import (
     AddressViewSet,
     CompanyView,
@@ -14,7 +15,6 @@ from .views import (
     OrderHistoryView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
-    PortalLinkConfirmView,  # noqa: F401  — маршрут снят, импорт держит ссылку на view
     UserDashboardView,
     UserLoginView,
     UserProfileView,

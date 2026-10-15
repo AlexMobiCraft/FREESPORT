@@ -19,12 +19,7 @@ from django.shortcuts import render
 from django.utils.html import format_html
 
 from .filters import homepage_categories_q
-from .forms import (
-    MergeAttributesActionForm,
-    MergeBrandsActionForm,
-    PriceTypeAdminForm,
-    TransferMappingsActionForm,
-)
+from .forms import MergeAttributesActionForm, MergeBrandsActionForm, PriceTypeAdminForm, TransferMappingsActionForm
 from .models import (
     Attribute,
     Attribute1CMapping,

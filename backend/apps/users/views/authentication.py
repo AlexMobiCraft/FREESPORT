@@ -28,11 +28,7 @@ from apps.common.models import UserConsent
 from apps.common.serializers import consent_text_outdated_payload
 from apps.common.services.newsletter_subscription import activate_newsletter_subscription
 from apps.common.services.newsletter_unsubscribe import normalize_subscription_email
-from apps.common.utils.consent_audit import (
-    get_client_ip,
-    get_consent_ip_address,
-    sanitize_consent_user_agent,
-)
+from apps.common.utils.consent_audit import get_client_ip, get_consent_ip_address, sanitize_consent_user_agent
 
 logger = logging.getLogger("apps.users.auth")
 
@@ -48,11 +44,7 @@ from ..serializers import (
     UserRegistrationSerializer,
     ValidateTokenSerializer,
 )
-from ..tasks import (
-    send_admin_verification_email,
-    send_manager_region_email,
-    send_password_reset_email,
-)
+from ..tasks import send_admin_verification_email, send_manager_region_email, send_password_reset_email
 from ..tokens import password_reset_token
 
 User = get_user_model()

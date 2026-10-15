@@ -17,12 +17,7 @@ from django.db import IntegrityError, connection, transaction
 from django.test.utils import CaptureQueriesContext
 
 from apps.bonuses.models import BonusProgramSettings, BonusTransaction
-from apps.bonuses.services.accrual import (
-    accrue_for_order,
-    create_manual_transaction,
-    get_balance,
-    lock_trainer_account,
-)
+from apps.bonuses.services.accrual import accrue_for_order, create_manual_transaction, get_balance, lock_trainer_account
 from apps.bonuses.tests.utils import close_master, create_master_with_subs, create_user
 
 

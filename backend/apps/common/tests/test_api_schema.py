@@ -23,7 +23,6 @@ from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
 from apps.common.serializers import CONSENT_TEXT_OUTDATED_CODE
 
-
 # Оба эндпоинта, принимающие согласие, обязаны отвечать одной и той же парой форм.
 CONSENT_ENDPOINTS = ["/subscribe/", "/auth/register/"]
 

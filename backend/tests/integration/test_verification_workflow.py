@@ -14,8 +14,8 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from tests.factories import UserFactory
 from tests.consent_versions import REGISTRATION_PDP_TEXT_VERSION
+from tests.factories import UserFactory
 
 
 @pytest.mark.integration
