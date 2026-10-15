@@ -9,8 +9,8 @@ from django.db import transaction
 from apps.orders.models import CustomerCodeSequence, CustomerOrderSequence, Order, OrderItem
 from apps.orders.services.order_numbering import (
     CustomerCodeSequenceExhausted,
-    OrderNumberSequenceExhausted,
     OrderNumberingService,
+    OrderNumberSequenceExhausted,
     format_order_number,
     normalize_order_number_query,
 )

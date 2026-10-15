@@ -14,7 +14,6 @@ from .models import BlogPost, Category, News, Newsletter, UserConsent
 from .services.newsletter_subscription import activate_newsletter_subscription
 from .utils.consent_audit import get_consent_ip_address, sanitize_consent_user_agent
 
-
 PDP_CONSENT_REQUIRED = "Необходимо согласие на обработку персональных данных."
 # Согласие на рассылку при подписке обязательно и берётся отдельным чекбоксом
 # (стори 41.11): подписки без согласия на письма не бывает.

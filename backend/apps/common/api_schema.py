@@ -36,7 +36,6 @@ from rest_framework import serializers
 
 from .serializers import CONSENT_TEXT_OUTDATED, CONSENT_TEXT_OUTDATED_CODE
 
-
 # Имена компонентов вынесены в константы: на них ссылаются тесты и они не должны
 # расходиться с `component_name` объявлений ниже.
 FIELD_VALIDATION_ERROR_COMPONENT = "FieldValidationErrorResponse"

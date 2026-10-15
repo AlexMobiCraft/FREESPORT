@@ -12,11 +12,10 @@ from rest_framework.test import APIClient
 
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
-from apps.users.models import User
 from apps.common.serializers import CONSENT_TEXT_OUTDATED, CONSENT_TEXT_OUTDATED_CODE
+from apps.users.models import User
 from apps.users.serializers import UserRegistrationSerializer
 from tests.consent_versions import REGISTRATION_MARKETING_TEXT_VERSION, REGISTRATION_PDP_TEXT_VERSION
-
 
 pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 

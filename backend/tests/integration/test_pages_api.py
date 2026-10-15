@@ -13,11 +13,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.pages.cache_keys import (
-    PAGES_LIST_CACHE_TTL,
-    get_pages_list_version,
-    pages_list_cache_key,
-)
+from apps.pages.cache_keys import PAGES_LIST_CACHE_TTL, get_pages_list_version, pages_list_cache_key
 from apps.pages.models import Page
 
 

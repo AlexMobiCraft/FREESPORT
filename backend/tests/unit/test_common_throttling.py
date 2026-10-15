@@ -5,12 +5,7 @@ from types import SimpleNamespace
 import pytest
 from django.conf import settings
 
-from apps.common.throttling import (
-    ProxyAwareAnonRateThrottle,
-    ProxyAwareUserRateThrottle,
-    SubscribeRateThrottle,
-)
-
+from apps.common.throttling import ProxyAwareAnonRateThrottle, ProxyAwareUserRateThrottle, SubscribeRateThrottle
 
 pytestmark = pytest.mark.unit
 

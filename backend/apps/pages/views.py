@@ -9,14 +9,9 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .cache_keys import (
-    PAGES_LIST_CACHE_TTL,
-    get_pages_list_version,
-    pages_list_cache_key,
-)
+from .cache_keys import PAGES_LIST_CACHE_TTL, get_pages_list_version, pages_list_cache_key
 from .models import Page
 from .serializers import PageSerializer
-
 
 # Параметры запроса, которые не меняют ни состав, ни порядок списка: пагинация
 # нарезает уже готовый общий список, а `format` влияет только на рендерер.

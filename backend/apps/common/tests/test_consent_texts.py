@@ -24,7 +24,6 @@ from apps.common.consent_texts import (
 )
 from apps.common.models import UserConsent
 
-
 # Маркер `unit` проставляет pytest_collection_modifyitems по каталогу — руками не ставим.
 
 

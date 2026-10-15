@@ -16,7 +16,6 @@ from apps.common.admin import UserConsentAdmin
 from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import UserConsent
 
-
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
 
 
