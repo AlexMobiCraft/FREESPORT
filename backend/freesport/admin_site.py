@@ -13,6 +13,7 @@ from typing import Any
 
 from django.contrib import admin
 from django.http import HttpRequest
+from django.template.response import TemplateResponse
 
 from apps.users.staff_roles import MANAGERS_GROUP, SUPERVISORS_GROUP
 
@@ -35,7 +36,8 @@ class SuperuserAdminSite(admin.AdminSite):
 
 class ManagerAdminSite(admin.AdminSite):
     """
-    Раздел менеджера `/manager/` (стори 42.4): клиенты, за которых отвечает сотрудник.
+    Раздел менеджера `/manager/`: клиенты, за которых отвечает сотрудник (стори 42.4),
+    их заказы и очередь главной (стори 42.5).
 
     Пускает активного сотрудника (`is_staff`) из группы «Менеджеры» или
     «Руководители» — ровно критерий `RESPONSIBLE_MANAGER_CHOICES` плюс
@@ -64,6 +66,14 @@ class ManagerAdminSite(admin.AdminSite):
             cached = user.groups.filter(name__in=(MANAGERS_GROUP, SUPERVISORS_GROUP)).exists()
             request._manager_site_access = cached  # type: ignore[attr-defined]
         return bool(cached)
+
+    def index(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
+        # Очередь главной (стори 42.5). Импорт внутри метода: модуль заказов
+        # раздела сам импортирует manager_site, импорт на уровне модуля дал бы цикл.
+        from apps.orders.manager_admin import manager_queue
+
+        extra_context = {**(extra_context or {}), "manager_queue": manager_queue(request, self.name)}
+        return super().index(request, extra_context)
 
     def get_app_list(self, request: HttpRequest, app_label: str | None = None) -> list[dict[str, Any]]:
         # Пользователи раздела — клиенты: так называются и блок, и модель.

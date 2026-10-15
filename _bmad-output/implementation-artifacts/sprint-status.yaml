@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-15 (стори 42.4 -> done; стори 42.5 создана -> ready-for-dev)
+# last_updated: 2026-10-15 (стори 42.5 -> review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1458,11 +1458,15 @@ development_status:
   # 2026-10-15: открытых замечаний ревью нет, все задачи стори закрыты;
   #             по решению Alex review -> done. Предусловие выката —
   #             action_item «После выката 42.3 и до 42.4» — выполнено 2026-10-15.
-  42-5-manager-section-orders-and-home: ready-for-dev
+  42-5-manager-section-orders-and-home: review
   # 2026-10-15: стори создана на d53f42a6. Заказы — ManagerOrderAdmin на
   #             manager_site, видимость через scope_clients, запись только
   #             update_fields трёх полей; главная со счётчиками. 3 вопроса
   #             Alex в конце стори (не блокируют).
+  # 2026-10-15: реализация на feature/42-5-manager-section-orders. 59 новых тестов,
+  #             12 мутаций убиты; полный прогон 4243 passed, 76 skipped, 17 failed —
+  #             только тесты scripts/deploy/*.sh из-за CRLF рабочей копии Windows
+  #             (с LF 20 passed). in-progress -> review.
   42-6-marketing-section: backlog
   42-7-supervisor-section-staff-regions-reassignment: backlog
   42-8-supervisor-summary: backlog

@@ -1,8 +1,23 @@
 {% extends "admin/index.html" %}
 {% comment %}
-  Главная раздела менеджера (стори 42.4, решение 13). Список моделей — как на
-  главной /admin/; боковой блок «Последние действия» убран: его ссылки строит
+  Главная раздела менеджера. Список моделей — как на главной /admin/; боковой
+  блок «Последние действия» убран (стори 42.4, решение 13): его ссылки строит
   LogEntry.get_admin_url() через reverse("admin:…") и уводит в закрытую /admin/.
-  Счётчики главной добавит стори 42.5.
+  Над списком моделей — очередь менеджера (стори 42.5): заявки на верификацию
+  и новые заказы своих клиентов, ссылки ведут в списки раздела.
 {% endcomment %}
+{% block content %}
+<div class="module" id="manager-queue">
+  <table>
+    <caption>Очередь</caption>
+    {% for item in manager_queue %}
+    <tr>
+      <th scope="row"><a href="{{ item.url }}">{{ item.text }}</a></th>
+      <td></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{{ block.super }}
+{% endblock %}
 {% block sidebar %}{% endblock %}
