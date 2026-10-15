@@ -738,11 +738,7 @@ def _prune_imported_exchange_images() -> int:
     """
     from django.core.files.storage import default_storage
 
-    from apps.integrations.onec_exchange.routing_service import (
-        IMAGES_SUBDIR,
-        LEGACY_IMAGES_SUBDIR,
-        get_import_base,
-    )
+    from apps.integrations.onec_exchange.routing_service import IMAGES_SUBDIR, LEGACY_IMAGES_SUBDIR, get_import_base
 
     base = get_import_base()
     pruned = 0
@@ -826,11 +822,7 @@ def cleanup_stale_exchange_dirs(max_age_hours: int = STALE_EXCHANGE_DIR_HOURS) -
     Вместо возраста применяется ссылочный критерий — см.
     `_prune_imported_exchange_images`.
     """
-    from apps.integrations.onec_exchange.routing_service import (
-        SHARED_ROOT_NAMES,
-        get_import_base,
-        get_temp_base,
-    )
+    from apps.integrations.onec_exchange.routing_service import SHARED_ROOT_NAMES, get_import_base, get_temp_base
 
     threshold = time.time() - max_age_hours * 3600
     active_keys = {

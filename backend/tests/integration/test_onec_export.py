@@ -1161,6 +1161,7 @@ class TestSubOrderSuccess:
         с `created_at` после query_time, чтобы он не попал в queryset).
         """
         from decimal import Decimal
+
         from django.utils import timezone
 
         # Master A: пройдёт полный цикл query+success, должен агрегироваться.
@@ -1314,6 +1315,7 @@ class TestSubOrderSuccess:
     def test_fallback_emits_orders_bulk_updated_signal(self, authenticated_client, master_with_two_subs, log_dir):
         """AC11: fallback-ветка эмитит orders_bulk_updated с master_order_ids."""
         from django.core.cache import cache as django_cache
+
         from apps.orders.signals import orders_bulk_updated
 
         master, sub5, sub22 = master_with_two_subs
@@ -1404,6 +1406,7 @@ class TestSubOrderSuccess:
         фактически затронутыми записями.
         """
         from django.core.cache import cache as django_cache
+
         from apps.orders.signals import orders_bulk_updated
 
         master, sub5, sub22 = master_with_two_subs
@@ -1453,9 +1456,9 @@ class TestSubOrderSuccess:
         (через cache) подмешан PK мастера. Мастер НЕ должен быть обновлён
         напрямую через основной update(), а только через агрегацию.
         """
-        from django.core.cache import cache as django_cache
-
         from decimal import Decimal
+
+        from django.core.cache import cache as django_cache
 
         master = Order.objects.create(
             user=customer_user,
@@ -1553,8 +1556,9 @@ class TestSubOrderSuccess:
         но _aggregate_master_sent_to_1c должен пометить мастера,
         и сигнал ДОЛЖЕН быть эмитирован с master_order_ids.
         """
-        from apps.orders.signals import orders_bulk_updated
         from decimal import Decimal
+
+        from apps.orders.signals import orders_bulk_updated
 
         master = Order.objects.create(
             user=customer_user,

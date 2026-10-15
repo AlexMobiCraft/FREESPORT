@@ -28,12 +28,12 @@ from apps.common.consent_texts import current_consent_text_version
 from apps.common.models import BlogPost, News, UserConsent
 from apps.common.permissions import IsSuperUser
 from apps.common.serializers import (
+    ALREADY_SUBSCRIBED_CODE,
     BlogPostDetailSerializer,
     BlogPostListSerializer,
     NewsSerializer,
     SubscribeResponseSerializer,
     SubscribeSerializer,
-    ALREADY_SUBSCRIBED_CODE,
     TokenUnsubscribeSerializer,
     UnsubscribeResponseSerializer,
     UnsubscribeSerializer,
@@ -48,10 +48,7 @@ from apps.common.services.newsletter_unsubscribe import (
     unsubscribe_user,
 )
 from apps.common.throttling import SubscribeRateThrottle, UnsubscribeRateThrottle
-from apps.common.utils.consent_audit import (
-    get_consent_ip_address,
-    sanitize_consent_user_agent,
-)
+from apps.common.utils.consent_audit import get_consent_ip_address, sanitize_consent_user_agent
 
 logger = logging.getLogger(__name__)
 

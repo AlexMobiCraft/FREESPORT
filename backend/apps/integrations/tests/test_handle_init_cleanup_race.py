@@ -28,7 +28,6 @@ from rest_framework.test import APIClient
 from apps.products.models import ImportSession
 from apps.users.models import User
 
-
 SKIP_LOG_REGEX = re.compile(r"Skipping import dir cleanup — \d+ sessions in progress")
 INIT_BODY_REGEX = re.compile(r"^zip=(yes|no)\nfile_limit=\d+\nsessid=[^\n]+\nversion=[^\n]+\n$")
 

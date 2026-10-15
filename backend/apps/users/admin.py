@@ -24,12 +24,10 @@ from apps.common.utils.consent_audit import get_client_ip
 
 if TYPE_CHECKING:
     from rest_framework.request import Request
-from apps.users.services.link_1c_customer import (
-    LinkCandidateError,
-    find_link_candidates,
-    link_target_q,
-)
+
+from apps.users.services.link_1c_customer import LinkCandidateError, find_link_candidates
 from apps.users.services.link_1c_customer import link_1c_customer as link_1c_customer_service
+from apps.users.services.link_1c_customer import link_target_q
 from apps.users.services.price_type_role import load_price_type_role_map
 from apps.users.services.verify_b2b_application import (
     MODE_DECISION,

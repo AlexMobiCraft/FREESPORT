@@ -26,13 +26,7 @@ from typing import Any, cast
 
 import pytest
 
-from apps.products.models import (
-    Brand,
-    Category,
-    ImportSession,
-    Product,
-    ProductVariant,
-)
+from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 
