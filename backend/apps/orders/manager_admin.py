@@ -197,7 +197,11 @@ class ManagerOrderForm(forms.ModelForm):
         # Блокировка строки заказа до конца транзакции changeform_view: вторая
         # карточка дождётся сохранения первой и увидит её правку. Порядок
         # блокировок тот же, что у импорта статусов: orders, затем бонусы.
-        current = Order.objects.select_for_update().filter(pk=self.instance.pk).values(*editable).get()
+        current = Order.objects.select_for_update().filter(pk=self.instance.pk).values(*editable).first()
+        if current is None:
+            # Заказ удалили (например, из /admin/) после чтения карточки, которое
+            # строку не блокирует, — тот же ответ, что на несуществующий заказ (R42.5-12).
+            raise Http404("Заказ не найден")
         for name in editable:
             bound = self[name]
             seen = bound.field.hidden_widget().value_from_datadict(self.data, self.files, bound.html_initial_name)

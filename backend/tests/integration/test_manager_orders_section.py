@@ -607,11 +607,15 @@ class TestStaleCard:
                 first_saved.set()
                 release.wait(timeout=15)
 
+        errors: dict[str, Exception] = {}
+
         def post(name: str, data: dict[str, Any]) -> None:
             tab = Client()
             tab.force_login(manager)
             try:
                 responses[name] = tab.post(order_change_url(own), data)
+            except Exception as error:  # передаётся в основной поток
+                errors[name] = error
             finally:
                 connections.close_all()
 
@@ -623,21 +627,30 @@ class TestStaleCard:
                 )
                 return cursor.fetchone()[0] > 0
 
+        started: list[threading.Thread] = []
         with patch.object(ManagerOrderAdmin, "save_model", save_model_and_hold):
-            first = threading.Thread(target=post, args=("first", first_tab), name="first")
-            second = threading.Thread(target=post, args=("second", second_tab), name="second")
-            first.start()
-            assert first_saved.wait(timeout=15)
-            second.start()
-            deadline = clock.monotonic() + 10
-            waited = blocked_on_lock()
-            while not waited and clock.monotonic() < deadline:
-                clock.sleep(0.05)
+            try:
+                first = threading.Thread(target=post, args=("first", first_tab), name="first")
+                first.start()
+                started.append(first)
+                assert first_saved.wait(timeout=15), "первый POST не дошёл до сохранения"
+                second = threading.Thread(target=post, args=("second", second_tab), name="second")
+                second.start()
+                started.append(second)
+                deadline = clock.monotonic() + 10
                 waited = blocked_on_lock()
-            release.set()
-            first.join(timeout=30)
-            second.join(timeout=30)
+                while not waited and clock.monotonic() < deadline:
+                    clock.sleep(0.05)
+                    waited = blocked_on_lock()
+            finally:
+                # При любом выходе: отпустить первый запрос и дождаться обоих, чтобы
+                # их соединения не пережили тест и не мешали очистке БД (R42.5-13).
+                release.set()
+                for thread in started:
+                    thread.join(timeout=30)
 
+        assert not [thread.name for thread in started if thread.is_alive()], "потоки запросов не завершились"
+        assert not errors, errors
         assert waited, "второй POST не ждал блокировку строки заказа"
         assert responses["first"].status_code == 302
         assert responses["second"].status_code == 200
@@ -647,6 +660,39 @@ class TestStaleCard:
         assert after["delivery_date"] is None
         assert order_audit(own).count() == 1
         assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
+
+    def test_order_deleted_after_open_answers_404(self, manager_client, manager):
+        """R42.5-12: заказ удалён из /admin/ между чтением карточки и проверкой под блокировкой — 404, не 500."""
+        own = make_master(make_client(manager))
+        data = card_payload(manager_client, own, tracking_number="TRK-GONE")
+        original_get_object = ManagerOrderAdmin.get_object
+        errors: list[Exception] = []
+
+        def delete_elsewhere() -> None:
+            try:
+                Order.objects.filter(pk=own.pk).delete()
+            except Exception as error:  # передаётся в основной поток
+                errors.append(error)
+            finally:
+                connections.close_all()
+
+        def get_object_then_delete(admin_obj, request, object_id, from_field=None):
+            obj = original_get_object(admin_obj, request, object_id, from_field)
+            if request.method == "POST":
+                # Удаление в другом соединении фиксируется до ManagerOrderForm.clean().
+                deleting = threading.Thread(target=delete_elsewhere)
+                deleting.start()
+                deleting.join(timeout=30)
+            return obj
+
+        with patch.object(ManagerOrderAdmin, "get_object", get_object_then_delete):
+            response = manager_client.post(order_change_url(own), data)
+
+        assert not errors, errors
+        assert response.status_code == 404
+        assert not Order.objects.filter(pk=own.pk).exists()
+        assert not order_audit(own).exists()
+        assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
 
     def test_card_carries_values_seen_on_open(self, manager_client, manager):
         own = make_master(make_client(manager), tracking_number="SEEN-TRK")
@@ -736,6 +782,20 @@ class TestForgedPost:
             )
             assert response.status_code == 302
             assert BonusTransaction.objects.filter(order=own).count() == 1
+
+    def test_unchanged_card_neither_saves_nor_accrues(self, manager_client, manager, trainer, bonus_program):
+        """R42.5-14: сохранение без изменений не зовёт save() — отложенный бонус не начисляется."""
+        own = make_master(trainer, status="processing", tracking_number="SAME-TRK")
+        Order.objects.filter(pk=own.pk).update(status="delivered")
+        data = card_payload(manager_client, own)
+
+        original_save = Order.save
+        with patch.object(Order, "save", autospec=True, side_effect=original_save) as save:
+            response = manager_client.post(order_change_url(own), data)
+
+        assert response.status_code == 302
+        assert [call for call in save.call_args_list if call.args[0].pk == own.pk] == []
+        assert not BonusTransaction.objects.filter(order=own).exists()
 
 
 class TestExport:

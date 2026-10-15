@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-15 (стори 42.5 -> review после исправлений повторного ревью)
+# last_updated: 2026-10-15 (стори 42.5 -> review после исправления R42.5-12…14)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1459,6 +1459,13 @@ development_status:
   #             по решению Alex review -> done. Предусловие выката —
   #             action_item «После выката 42.3 и до 42.4» — выполнено 2026-10-15.
   42-5-manager-section-orders-and-home: review
+  # 2026-10-15: R42.5-12…14 исправлены (404 при удалении заказа между чтениями,
+  #             завершение потоков конкурентного теста, страж no-op без бонуса).
+  #             Полный прогон 4289 passed, 76 skipped, 17 failed — CRLF-тесты
+  #             scripts/deploy (с LF 20 passed). in-progress -> review.
+  # 2026-10-15: третий прогон ревью Codex на 46125f94; по решению Alex
+  #             R42.5-12…14 оставлены открытыми задачами, код не менялся.
+  #             Целевой Docker-прогон: 103 passed. review -> in-progress.
   # 2026-10-15: R42.5-8…11 исправлены, статус review.
   # 2026-10-15: повторное ревью на 8c356c14; Alex оставил R42.5-8…11
   # открытыми задачами, без исправления кода.
