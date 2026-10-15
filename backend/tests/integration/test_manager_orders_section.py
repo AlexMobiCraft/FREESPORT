@@ -199,6 +199,54 @@ def listed_ids(response) -> set[int]:
     return {order.pk for order in response.context["cl"].result_list}
 
 
+# Предел SQL работника в другом соединении и запас на его завершение.
+OTHER_CONNECTION_SQL_TIMEOUT_MS = 10_000
+OTHER_CONNECTION_JOIN_TIMEOUT = 30
+
+
+@pytest.fixture
+def other_connection():
+    """
+    Выполняет действие в отдельном соединении PostgreSQL и дожидается его фиксации.
+
+    Работник — отдельный поток со своим соединением в autocommit. `statement_timeout`
+    ограничивает его SQL, поэтому `join` с запасом успевает; живой после `join` поток
+    и исключение работника поднимаются в вызывающем потоке. Ссылки на работников
+    держит фикстура: при любом выходе из теста она дожидается их до очистки БД
+    (R42.5-17).
+    """
+    workers: list[threading.Thread] = []
+
+    def run(action) -> None:
+        errors: list[BaseException] = []
+
+        def work() -> None:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(f"SET statement_timeout = {OTHER_CONNECTION_SQL_TIMEOUT_MS}")
+                action()
+            except BaseException as error:  # передаётся в вызывающий поток
+                errors.append(error)
+            finally:
+                connections.close_all()
+
+        worker = threading.Thread(target=work, name=f"other-connection-{len(workers) + 1}")
+        workers.append(worker)
+        worker.start()
+        worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
+        if worker.is_alive():
+            raise AssertionError(f"{worker.name} не завершился за {OTHER_CONNECTION_JOIN_TIMEOUT} с")
+        if errors:
+            raise errors[0]
+
+    yield run
+
+    for worker in workers:
+        worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
+    alive = [worker.name for worker in workers if worker.is_alive()]
+    assert not alive, f"работники пережили тест: {alive}"
+
+
 def card_payload(client, order: Order, **changes: Any) -> dict[str, Any]:
     """POST карточки, как его отправит браузер: со скрытыми значениями на момент открытия."""
     response = client.get(order_change_url(order))
@@ -280,7 +328,14 @@ class TestChangelist:
         assert Order.objects.filter(parent_order=own).count() == 2
 
     def test_search_finds_only_own_orders(self, section_client, section_member, other_manager):
-        own = make_master(make_client(section_member), tracking_number=f"TRK{unique_digits(8)}")
+        # Свои заказы у разных клиентов: у каждого все шесть значений поиска свои.
+        own = [
+            make_master(
+                make_client(section_member, company_name=f"ООО Своя Компания {name}"),
+                tracking_number=f"TRK{unique_digits(8)}",
+            )
+            for name in ("Альфа", "Бета", "Гамма")
+        ]
         foreign_client = make_client(other_manager, company_name="ООО Чужая Компания")
         foreign = make_master(foreign_client, tracking_number=f"TRK{unique_digits(8)}")
 
@@ -295,13 +350,18 @@ class TestChangelist:
                 order.user.company_name,
             ]
 
-        assert foreign.order_number_display != foreign.order_number
-        for query in values(foreign):
-            assert foreign.pk not in listed_ids(section_client.get(ORDERS_URL, {"q": query})), query
+        def found(query: str) -> set[int]:
+            return listed_ids(section_client.get(ORDERS_URL, {"q": query}))
 
-        # Поиск сам по себе работает: те же поля своего заказа находятся.
-        for query in values(own):
-            assert own.pk in listed_ids(section_client.get(ORDERS_URL, {"q": query})), query
+        assert foreign.order_number_display != foreign.order_number
+        # Без поиска видны все свои: точные множества ниже — заслуга поиска, а не выборки.
+        assert listed_ids(section_client.get(ORDERS_URL)) == {order.pk for order in own}
+        for query in values(foreign):
+            assert found(query) == set(), query
+        for order in own:
+            for query in values(order):
+                assert found(query) == {order.pk}, query
+        assert found("НЕТ-ТАКОГО-ЗНАЧЕНИЯ-42-5") == set()
 
     def test_columns_filters_and_title(self, manager_client, manager):
         make_master(make_client(manager))
@@ -463,16 +523,32 @@ class TestOrderCard:
 
     def test_sub_orders_block_is_read_only(self, manager_client, manager):
         own = make_master(make_client(manager))
-        subs = list(Order.objects.filter(parent_order=own).order_by("suborder_sequence"))
+        first, second = Order.objects.filter(parent_order=own).order_by("suborder_sequence")
+        # Статус и сумма у субзаказов разные: подмена или пропуск колонки виден (R42.5-18).
+        Order.objects.filter(pk=first.pk).update(status="processing", total_amount=Decimal("300.00"))
+        Order.objects.filter(pk=second.pk).update(status="shipped", total_amount=Decimal("700.00"))
 
         response = manager_client.get(order_change_url(own))
 
         content = response.content.decode()
         assert "Субзаказы" in content
-        for sub in subs:
+        (inline,) = response.context["inline_admin_formsets"]
+        rows = {}
+        for inline_form in inline:
+            cells = {
+                field.field["name"]: str(field.contents())
+                for fieldset in inline_form
+                for line in fieldset
+                for field in line
+            }
+            rows[cells["sub_number"]] = (cells["status"], cells["total_amount"])
+        assert rows == {
+            first.order_number_display: ("В обработке", "300,00"),
+            second.order_number_display: ("Отправлен", "700,00"),
+        }
+        for sub in (first, second):
             assert sub.order_number_display in content
             assert f'href="{order_change_url(sub)}"' not in content
-        (inline,) = response.context["inline_admin_formsets"]
         assert not inline.has_add_permission
         assert not inline.has_change_permission
         assert not inline.has_delete_permission
@@ -661,38 +737,69 @@ class TestStaleCard:
         assert order_audit(own).count() == 1
         assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
 
-    def test_order_deleted_after_open_answers_404(self, manager_client, manager):
+    def test_order_deleted_after_open_answers_404(self, manager_client, manager, other_connection):
         """R42.5-12: заказ удалён из /admin/ между чтением карточки и проверкой под блокировкой — 404, не 500."""
         own = make_master(make_client(manager))
         data = card_payload(manager_client, own, tracking_number="TRK-GONE")
         original_get_object = ManagerOrderAdmin.get_object
-        errors: list[Exception] = []
-
-        def delete_elsewhere() -> None:
-            try:
-                Order.objects.filter(pk=own.pk).delete()
-            except Exception as error:  # передаётся в основной поток
-                errors.append(error)
-            finally:
-                connections.close_all()
 
         def get_object_then_delete(admin_obj, request, object_id, from_field=None):
             obj = original_get_object(admin_obj, request, object_id, from_field)
             if request.method == "POST":
                 # Удаление в другом соединении фиксируется до ManagerOrderForm.clean().
-                deleting = threading.Thread(target=delete_elsewhere)
-                deleting.start()
-                deleting.join(timeout=30)
+                other_connection(lambda: Order.objects.filter(pk=own.pk).delete())
             return obj
 
         with patch.object(ManagerOrderAdmin, "get_object", get_object_then_delete):
             response = manager_client.post(order_change_url(own), data)
 
-        assert not errors, errors
         assert response.status_code == 404
         assert not Order.objects.filter(pk=own.pk).exists()
         assert not order_audit(own).exists()
         assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
+
+    @pytest.mark.parametrize(
+        ("moved_to", "expected_status"),
+        [
+            pytest.param("foreign_client", 404, id="foreign-client"),
+            pytest.param("sub_order", 404, id="not-master"),
+            # Контроль: клиент сменён на другого своего — заказ в выборке, правка проходит.
+            pytest.param("own_client", 302, id="other-own-client"),
+        ],
+    )
+    def test_order_moved_after_open_follows_section_scope(
+        self, manager_client, manager, other_manager, other_connection, moved_to, expected_status
+    ):
+        """R42.5-15: до блокировки суперпользователь в /admin/ сменил клиента или `is_master` заказа."""
+        own = make_master(make_client(manager), tracking_number="OLD-TRK")
+        changes = {
+            "foreign_client": {"user_id": make_client(other_manager).pk},
+            "sub_order": {"is_master": False},
+            "own_client": {"user_id": make_client(manager).pk},
+        }[moved_to]
+        data = card_payload(manager_client, own, tracking_number="TRK-MOVED")
+        original_get_object = ManagerOrderAdmin.get_object
+
+        def get_object_then_move(admin_obj, request, object_id, from_field=None):
+            obj = original_get_object(admin_obj, request, object_id, from_field)
+            if request.method == "POST":
+                # Правка в другом соединении фиксируется до ManagerOrderForm.clean().
+                other_connection(lambda: Order.objects.filter(pk=own.pk).update(**changes))
+            return obj
+
+        with patch.object(ManagerOrderAdmin, "get_object", get_object_then_move):
+            response = manager_client.post(order_change_url(own), data)
+
+        assert response.status_code == expected_status
+        after = order_snapshot(own)
+        assert {name: after[name] for name in changes} == changes
+        if expected_status == 404:
+            assert after["tracking_number"] == "OLD-TRK"
+            assert not order_audit(own).exists()
+            assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
+        else:
+            assert after["tracking_number"] == "TRK-MOVED"
+            assert order_audit(own).count() == 1
 
     def test_card_carries_values_seen_on_open(self, manager_client, manager):
         own = make_master(make_client(manager), tracking_number="SEEN-TRK")

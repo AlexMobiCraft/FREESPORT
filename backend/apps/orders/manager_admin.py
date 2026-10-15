@@ -180,6 +180,10 @@ class ManagerOrderForm(forms.ModelForm):
     делают устаревшей.
     """
 
+    # Запрос раздела: проверка под блокировкой повторяет правило видимости
+    # заказов. Ставит ManagerOrderAdmin.get_form на класс формы этого запроса.
+    request: HttpRequest
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         for name in EDITABLE_FIELDS:
@@ -197,10 +201,13 @@ class ManagerOrderForm(forms.ModelForm):
         # Блокировка строки заказа до конца транзакции changeform_view: вторая
         # карточка дождётся сохранения первой и увидит её правку. Порядок
         # блокировок тот же, что у импорта статусов: orders, затем бонусы.
-        current = Order.objects.select_for_update().filter(pk=self.instance.pk).values(*editable).first()
+        # Строка читается через scope_orders: get_object её не блокирует, и до
+        # блокировки заказ могли удалить или вывести из выборки раздела, сменив
+        # в /admin/ клиента или is_master (R42.5-12, R42.5-15).
+        locked = scope_orders(self.request, Order.objects.select_for_update())
+        current = locked.filter(pk=self.instance.pk).values(*editable).first()
         if current is None:
-            # Заказ удалили (например, из /admin/) после чтения карточки, которое
-            # строку не блокирует, — тот же ответ, что на несуществующий заказ (R42.5-12).
+            # Тот же ответ, что на несуществующий или чужой заказ (решение 3).
             raise Http404("Заказ не найден")
         for name in editable:
             bound = self[name]
@@ -309,6 +316,13 @@ class ManagerOrderAdmin(OrderAdmin):
 
     def has_delete_permission(self, request: HttpRequest, obj: Order | None = None) -> bool:
         return False
+
+    def get_form(self, request: HttpRequest, obj: Order | None = None, change: bool = False, **kwargs: Any) -> Any:
+        form = super().get_form(request, obj, change, **kwargs)
+        # modelform_factory строит новый класс на каждый вызов: запрос не
+        # переходит в чужие запросы.
+        cast(type[ManagerOrderForm], form).request = request
+        return form
 
     def get_fieldsets(self, request: HttpRequest, obj: Order | None = None) -> Any:
         return self.fieldsets
