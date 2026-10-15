@@ -324,8 +324,12 @@ jobs:
     environment: production
 
     steps:
+      # Полная история: при откате health check смотрит код коммита разворачиваемого
+      # релиза (scripts/deploy/release-has-manager-route.sh), а не только HEAD.
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.10.0
@@ -468,6 +472,8 @@ jobs:
       - name: Health check production
         env:
           PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+          IMAGE_TAG: ${{ needs.setup.outputs.image_tag }}
+          NEEDS_BUILD: ${{ needs.setup.outputs.needs_build }}
         run: |
           echo "🔍 Проверка работоспособности production..."
 
@@ -505,7 +511,20 @@ jobs:
 
           # Раздел менеджера /manager/ (стори 42.4) nginx проксирует в Django.
           # Та же проверка гоняется в main.yml на локальном nginx (local.conf).
-          bash scripts/deploy/check-manager-route.sh "$PRODUCTION_URL" || exit 1
+          # Только у релиза, в коде которого раздел есть: откат (image_tag) на релиз до
+          # 42.4 разворачивает исправный образ без него, а API и Frontend выше проверены
+          # при любом релизе (R42.4-35). Обычный деплой собран из текущего коммита, откат —
+          # образ с тегом-SHA своего коммита. Неизвестный коммит — проверка обязательна.
+          if [ "$NEEDS_BUILD" = "true" ]; then RELEASE="$GITHUB_SHA"; else RELEASE="$IMAGE_TAG"; fi
+          HAS_SECTION=0
+          bash scripts/deploy/release-has-manager-route.sh "$RELEASE" || HAS_SECTION=$?
+          case "$HAS_SECTION" in
+            1) echo "ℹ️ Релиз $RELEASE раньше раздела /manager/ — проверка маршрута пропущена" ;;
+            *)
+              [ "$HAS_SECTION" = 0 ] || echo "::warning::Коммит релиза $RELEASE не найден — /manager/ проверяется как обязательный"
+              bash scripts/deploy/check-manager-route.sh "$PRODUCTION_URL" || exit 1
+              ;;
+          esac
 
           echo "✅ Все проверки пройдены успешно!"
 

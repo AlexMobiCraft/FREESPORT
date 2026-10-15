@@ -9,8 +9,9 @@ HTTP-сервера с заданными ответами:
 - маршрут: успех — только 302 ровно на страницу входа и полностью полученная
   страница входа с кодом 200 (R42.4-15);
 - вход менеджера: в CI приложение исправно, свой клиент в списке есть, а
-  чужого нет, поэтому отказ скрипта на чужом клиенте (R42.4-20) и на списке
-  без своего (R42.4-30) проверяется здесь.
+  чужого нет, поэтому отказ скрипта на чужом клиенте (R42.4-20), на списке
+  без своего (R42.4-30) и на оборванном списке (R42.4-37) проверяется здесь;
+  форма входа уходит с Origin и Referer, как из браузера (R42.4-36).
 """
 
 from __future__ import annotations
@@ -52,6 +53,10 @@ class Reply(NamedTuple):
 class Request(NamedTuple):
     cookie: str
     form: dict[str, list[str]]
+    origin: str = ""
+    referer: str = ""
+    # Адрес сервера, как его видит клиент: http://<Host>.
+    base_url: str = ""
 
 
 # Ответ на путь: готовый или вычисляемый по Cookie и полям формы запроса.
@@ -82,7 +87,14 @@ def serve(routes: dict[str, Route]) -> Iterator[str]:
 
         def reply(self, key: str, form: dict[str, list[str]]) -> None:
             route = routes.get(key, Reply(404, {}))
-            reply = route if isinstance(route, Reply) else route(Request(self.headers.get("Cookie", ""), form))
+            request = Request(
+                self.headers.get("Cookie", ""),
+                form,
+                self.headers.get("Origin", ""),
+                self.headers.get("Referer", ""),
+                f"http://{self.headers.get('Host', '')}",
+            )
+            reply = route if isinstance(route, Reply) else route(request)
             self.send_response(reply.status)
             for name, value in reply.headers.items():
                 self.send_header(name, value)
@@ -165,9 +177,16 @@ SESSION = "sessionid=manager-session"
 
 
 def session_routes(changelist_emails: list[str]) -> dict[str, Route]:
-    """Вход Django: форма с CSRF, POST ставит сессию, список без сессии — на вход."""
+    """Вход Django: форма с CSRF, POST ставит сессию, список без сессии — на вход.
+
+    POST входа без Origin и Referer своего сайта — 403, как у production-настроек
+    за HTTPS-прокси (`SECURE_PROXY_SSL_HEADER`): Django сверяет их с адресом
+    сайта, и вход формой без них не проходит (R42.4-36).
+    """
 
     def login(request: Request) -> Reply:
+        if request.origin != request.base_url or request.referer != f"{request.base_url}/manager/login/":
+            return Reply(403, {"Content-Type": "text/html"}, b"<html>CSRF verification failed</html>")
         sent = (request.form.get("csrfmiddlewaretoken"), request.form.get("username"), request.form.get("password"))
         if sent != ([CSRF], [MANAGER[0]], [MANAGER[1]]):
             return Reply(200, {"Content-Type": "text/html"}, b"<html>error</html>")
@@ -222,4 +241,22 @@ def test_session_without_own_client_fails():
 
     assert result.returncode != 0, result.stdout
     assert f"нет клиента менеджера {OWN_EMAIL}" in result.stdout
+    assert "✅" not in result.stdout
+
+
+def test_session_with_truncated_changelist_fails():
+    """Список оборван после своего клиента: чужой мог остаться в недополученной части (R42.4-37).
+
+    HTTP 200 и свой email в полученной части есть, чужого в ней нет — без проверки
+    кода curl скрипт сообщил бы об успехе.
+    """
+    routes = session_routes([OWN_EMAIL])
+    full_changelist = routes["/manager/users/user/"]
+    assert callable(full_changelist)
+    routes["/manager/users/user/"] = lambda request: full_changelist(request)._replace(content_length=9999)
+
+    result = run_session_script(routes)
+
+    assert result.returncode != 0, result.stdout
+    assert "/manager/users/user/: запрос не выполнен целиком" in result.stdout
     assert "✅" not in result.stdout

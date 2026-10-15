@@ -210,7 +210,13 @@ jobs:
       # Docker, имена backend и frontend указывают на раннер. Next не нужен: /manager/ в
       # него не уходит. База — test_db сервиса postgres: pytest работает в своей
       # test_test_db, поэтому test_db здесь пустая и мигрируется с нуля.
-      # Настройки development: в test пустой ALLOWED_HOSTS, и Django ответил бы 400.
+      # Django запускается по очереди с настройками каждого конфига: за local.conf —
+      # development (в test пустой ALLOWED_HOSTS, Django ответил бы 400), за default.conf —
+      # production. Только у production есть SECURE_PROXY_SSL_HEADER и Secure-cookie: HTTPS
+      # от nginx Django считает защищённым и сверяет Origin/Referer входа с адресом сайта.
+      # С development HTTPS-ветка эту проверку не воспроизводила (R42.4-36).
+      # Порты хоста — стандартные 80 и 443, как на проде: nginx передаёт в Django
+      # `Host $host` без порта, и Origin формы с нестандартным портом не совпал бы с ним.
       # default.conf монтируется без правок, как на проде: вместо сертификата Let's Encrypt
       # по тому же пути лежит самоподписанный на localhost, curl доверяет ему через
       # CURL_CA_BUNDLE. Запрос идёт в HTTPS-сервер default_server, server_name не важен.
@@ -219,6 +225,9 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: freesport.settings.development
           ALLOWED_HOSTS: localhost
+          # Для production: без него в списке пустой источник, и системная проверка
+          # corsheaders (E013) не даёт runserver стартовать. development его не читает.
+          CORS_ALLOWED_ORIGINS: https://localhost
           MANAGER_EMAIL: ci-manager@example.com
           MANAGER_PASSWORD: ci-manager-password
           OWN_CLIENT_EMAIL: ci-own-client@example.com
@@ -242,7 +251,6 @@ jobs:
               client = User.objects.create_user(email, role="retail")
               User.objects.filter(pk=client.pk).update(responsible_manager=owner)
           EOF
-          (cd backend && python manage.py runserver 0.0.0.0:8000 --noreload > "$RUNNER_TEMP/runserver.log" 2>&1 &)
           CERT_DIR="$RUNNER_TEMP/letsencrypt/live/optisport.ru"
           mkdir -p "$CERT_DIR"
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=localhost" \
@@ -258,30 +266,67 @@ jobs:
               -v "$RUNNER_TEMP/letsencrypt:/etc/letsencrypt:ro" \
               nginx:alpine
           }
-          run_nginx nginx-local local.conf 8080:80
-          run_nginx nginx-prod default.conf 8443:443
+          run_nginx nginx-local local.conf 80:80
+          run_nginx nginx-prod default.conf 443:443
           export CURL_CA_BUNDLE="$CERT_DIR/fullchain.pem"
-          # Готовность Django и обоих nginx: `docker run -d` не ждёт, пока nginx начнёт
-          # слушать порт. Годится любой HTTP-ответ — код проверяют скрипты ниже; кто не
-          # поднялся за 30 попыток, на том проверка упадёт сама и покажет логи.
-          for url in http://localhost:8000/manager/login/ http://localhost:8080/manager/login/ \
-            https://localhost:8443/manager/login/; do
-            for i in $(seq 1 30); do
-              curl -s -o /dev/null --connect-timeout 2 --max-time 5 "$url" && break
-              sleep 1
+          # <модуль настроек> — Django в фоне на порту 8000, лог по последней части имени.
+          start_django() {
+            (cd backend && DJANGO_SETTINGS_MODULE="$1" exec python manage.py runserver 0.0.0.0:8000 --noreload) \
+              > "$RUNNER_TEMP/runserver-${1##*.}.log" 2>&1 &
+            DJANGO_PID=$!
+          }
+          # Готовность: `docker run -d` не ждёт, пока nginx начнёт слушать порт. Годится
+          # любой HTTP-ответ — код проверяют скрипты; кто не поднялся за 30 попыток, на том
+          # проверка упадёт сама и покажет логи.
+          wait_ready() {
+            for url in "$@"; do
+              for i in $(seq 1 30); do
+                curl -s -o /dev/null --connect-timeout 2 --max-time 5 "$url" && break
+                sleep 1
+              done
             done
-          done
+          }
+          check_section() {
+            echo "--- $1"
+            bash scripts/deploy/check-manager-route.sh "$1" \
+              && bash scripts/deploy/check-manager-session.sh "$1" \
+                "$MANAGER_EMAIL" "$MANAGER_PASSWORD" "$OWN_CLIENT_EMAIL" "$FOREIGN_CLIENT_EMAIL"
+          }
           failed=0
-          for base_url in http://localhost:8080 https://localhost:8443; do
-            echo "--- $base_url"
-            if ! bash scripts/deploy/check-manager-route.sh "$base_url" \
-              || ! bash scripts/deploy/check-manager-session.sh "$base_url" \
-                "$MANAGER_EMAIL" "$MANAGER_PASSWORD" "$OWN_CLIENT_EMAIL" "$FOREIGN_CLIENT_EMAIL"; then
-              failed=1
-            fi
-          done
+
+          start_django freesport.settings.development
+          wait_ready http://localhost:8000/manager/login/ http://localhost/manager/login/
+          check_section http://localhost || failed=1
+          kill "$DJANGO_PID"
+          wait "$DJANGO_PID" || true
+
+          start_django freesport.settings.production
+          wait_ready http://localhost:8000/manager/login/ https://localhost/manager/login/
+          check_section https://localhost || failed=1
+          # Отрицательный контроль стенда: тот же вход с верными cookie и токеном, но без
+          # Origin и Referer production-настройки отклоняют (403). Иначе HTTPS-ветка снова
+          # проверяет не production-семантику CSRF, и зелёный вход ничего не доказывает.
+          JAR="$RUNNER_TEMP/csrf-control-cookies"
+          TOKEN=$(curl -sS -c "$JAR" https://localhost/manager/login/ \
+            | sed -n 's/.*name="csrfmiddlewaretoken" value="\([^"]*\)".*/\1/p' | head -n 1)
+          CODE=$(curl -sS -b "$JAR" -o /dev/null -w '%{http_code}' \
+            --data-urlencode "csrfmiddlewaretoken=$TOKEN" \
+            --data-urlencode "username=$MANAGER_EMAIL" \
+            --data-urlencode "password=$MANAGER_PASSWORD" \
+            https://localhost/manager/login/) || CODE=""
+          if [ -z "$TOKEN" ]; then
+            echo "❌ /manager/login/: нет CSRF-токена формы для отрицательного контроля"
+            failed=1
+          elif [ "$CODE" != "403" ]; then
+            echo "❌ Вход без Origin и Referer: ожидался 403 production-проверки CSRF, получено ${CODE:-нет ответа}"
+            failed=1
+          else
+            echo "✅ Без Origin и Referer production-настройки отклоняют вход (403)"
+          fi
+
           if [ "$failed" = 1 ]; then
-            echo "--- runserver"; cat "$RUNNER_TEMP/runserver.log"
+            echo "--- runserver (development)"; cat "$RUNNER_TEMP/runserver-development.log"
+            echo "--- runserver (production)"; cat "$RUNNER_TEMP/runserver-production.log"
             echo "--- nginx-local (local.conf)"; docker logs nginx-local
             echo "--- nginx-prod (default.conf)"; docker logs nginx-prod
             exit 1

@@ -45,7 +45,13 @@ if [ "${RESULT%% *}" != "200" ] || [ -z "$TOKEN" ]; then
   exit 1
 fi
 
+# Origin и Referer — как у браузера при отправке формы. За HTTPS-прокси production
+# (SECURE_PROXY_SSL_HEADER) CsrfViewMiddleware сверяет их с адресом сайта, и POST
+# без них получает 403 даже с верными cookie и токеном (R42.4-36).
+ORIGIN=$(printf '%s\n' "$BASE_URL" | sed -E 's#^([^:/]+://[^/]+).*#\1#')
 if ! RESULT=$(fetch \
+  -H "Origin: $ORIGIN" \
+  -H "Referer: $BASE_URL/manager/login/" \
   --data-urlencode "csrfmiddlewaretoken=$TOKEN" \
   --data-urlencode "username=$EMAIL" \
   --data-urlencode "password=$PASSWORD" \
