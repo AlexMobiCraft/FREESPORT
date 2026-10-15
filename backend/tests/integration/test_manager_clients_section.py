@@ -25,7 +25,7 @@ import importlib
 import itertools
 import threading
 import time
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from types import SimpleNamespace
 from typing import Any, Iterator
 from unittest.mock import patch
@@ -38,8 +38,11 @@ from django.contrib.admin.utils import label_for_field
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group, Permission
 from django.db import DEFAULT_DB_ALIAS, DatabaseError, OperationalError, connection, connections, transaction
+from django.db.models import QuerySet
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from psycopg2.errorcodes import LOCK_NOT_AVAILABLE
+from rest_framework.test import APIClient
 
 from apps.common.models import AuditLog, ManagerRoutingRule
 from apps.users import admin as users_admin
@@ -625,6 +628,33 @@ class TestClientCard:
         assert own.responsible_manager == manager
         assert own.responsible_manager_manual
 
+    @pytest.mark.parametrize(
+        "state",
+        [
+            pytest.param({"verification_status": "pending", "is_verified": False}, id="pending"),
+            pytest.param({"verification_status": "unverified", "is_verified": False}, id="rejected"),
+            pytest.param({"role": User.ROLE_UNREGISTERED, "verification_status": "unverified"}, id="1c-record"),
+        ],
+    )
+    @pytest.mark.parametrize("initially_active", [True, False], ids=["active", "blocked"])
+    def test_active_flag_is_read_only_without_portal_access(self, manager_client, manager, state, initially_active):
+        """R42.4-32: флаг «активен» заявки и записи 1С карточкой не меняется — ни включить, ни выключить."""
+        own = make_client(manager, is_active=initially_active, **state)
+
+        response = manager_client.get(change_url(own))
+        adminform = response.context["adminform"]
+        assert "is_active" not in adminform.form.fields
+        assert "is_active" in adminform.readonly_fields
+
+        data = form_payload(response)
+        data.update({"phone": "+79001112244", "is_active": "" if initially_active else "on", "_save": "Сохранить"})
+        assert manager_client.post(change_url(own), data).status_code == 302
+
+        own.refresh_from_db()
+        assert own.phone == "+79001112244"
+        assert own.is_active is initially_active
+        assert not audit_records(own).exists()
+
 
 def form_index(data: dict[str, Any], prefix: str, obj: Any) -> int:
     """Номер формы формсета, которая редактирует `obj`."""
@@ -723,9 +753,20 @@ class TestUnblock:
 
         blocked.refresh_from_db()
         assert blocked.is_active
+        assert blocked.verification_status == "verified"
         assert authenticate(email=blocked.email, password=PASSWORD) == blocked
         assert audit_records(blocked, "unblock_user").count() == 1
         assert audit_records(blocked).count() == 1
+
+        # Портал входит не через authenticate(), а через UserLoginSerializer
+        # и отдельно отказывает статусу `pending` (R42.4-25).
+        response = APIClient().post(
+            reverse("users:login"), {"email": blocked.email, "password": PASSWORD}, format="json"
+        )
+        assert response.status_code == 200, response.data
+        assert response.data["access"]
+        assert response.data["refresh"]
+        assert response.data["user"]["id"] == blocked.pk
 
     def test_pending_application_and_superuser_are_skipped(self, manager_client, manager):
         pending = make_client(manager, is_active=False, verification_status="pending", is_verified=False)
@@ -744,6 +785,44 @@ class TestUnblock:
         assert not audit_records(superuser).exists()
         texts = message_texts(response)
         assert any(f"/manager/users/user/{pending.pk}/verify/" in text for text in texts)
+
+    def test_retail_client_is_unblocked(self, manager_client, manager):
+        # Розничному клиенту подтверждение не нужно — статус верификации не важен.
+        retail = make_client(
+            manager, role="retail", verification_status="unverified", is_verified=False, is_active=False
+        )
+
+        post_action(manager_client, "unblock_users", retail)
+
+        retail.refresh_from_db()
+        assert retail.is_active
+        assert audit_records(retail, "unblock_user").count() == 1
+
+    def test_rejected_application_and_1c_record_are_skipped(self, manager_client, manager):
+        """R42.4-31: отклонённая заявка и запись 1С без аккаунта не разблокируются."""
+        rejected = make_client(manager, verification_status="unverified", is_verified=False, is_active=False)
+        # Отработанный источник привязки: роль unregistered, идентификаторы 1С сняты.
+        shadow = make_client(
+            manager, role=User.ROLE_UNREGISTERED, verification_status="unverified", is_verified=False, is_active=False
+        )
+        blocked = make_client(manager, is_active=False)
+
+        # Запись 1С менеджер видит в списке только с фильтром «Учётная запись на портале: все».
+        response = manager_client.post(
+            f"{CHANGELIST_URL}?portal_account=all",
+            {"action": "unblock_users", "_selected_action": [str(user.pk) for user in (rejected, shadow, blocked)]},
+            follow=True,
+        )
+
+        for skipped in (rejected, shadow):
+            skipped.refresh_from_db()
+            assert not skipped.is_active
+            assert not audit_records(skipped).exists()
+        blocked.refresh_from_db()
+        assert blocked.is_active
+        texts = message_texts(response)
+        assert any("Пропущено 2" in text for text in texts), texts
+        assert any("Разблокировано 1" in text for text in texts), texts
 
     def test_empty_selection_warns(self, manager_client, manager):
         active = make_client(manager)
@@ -1070,14 +1149,22 @@ def in_other_connection(func: Any) -> Any:
 
 
 def row_is_locked(pk: int) -> bool:
-    """Строку пользователя держит чужая транзакция: `FOR UPDATE NOWAIT` из второго соединения."""
+    """
+    Строку пользователя держит чужая транзакция: `FOR UPDATE NOWAIT` из второго соединения.
+
+    Блокировкой считается только отказ NOWAIT — SQLSTATE `55P03`
+    (lock_not_available). Любая другая ошибка пробрасывается: иначе сбой
+    пробного соединения подтвердил бы блокировку, которой нет.
+    """
 
     def probe() -> bool:
         try:
             with transaction.atomic():
                 User.objects.select_for_update(nowait=True).filter(pk=pk).exists()
-        except DatabaseError:
-            return True
+        except DatabaseError as exc:
+            if getattr(exc.__cause__, "pgcode", None) == LOCK_NOT_AVAILABLE:
+                return True
+            raise
         return False
 
     return bool(in_other_connection(probe))
@@ -1107,6 +1194,16 @@ def locked_at_save(monkeypatch) -> dict[int, bool]:
 
     monkeypatch.setattr(User, "save", save)
     return seen
+
+
+def waits_for_lock(pid: int | None) -> bool:
+    """Соединение `pid` стоит в очереди на блокировку (`pg_stat_activity.wait_event_type = 'Lock'`)."""
+    with connection.cursor() as cursor:
+        # Статистика активности кэшируется на транзакцию — сбросить снимок.
+        cursor.execute("SELECT pg_stat_clear_snapshot()")
+        cursor.execute("SELECT wait_event_type FROM pg_stat_activity WHERE pid = %s", [pid])
+        row = cursor.fetchone()
+    return bool(row) and row[0] == "Lock"
 
 
 class BackgroundWrite:
@@ -1145,12 +1242,7 @@ class BackgroundWrite:
         assert self.ready.wait(timeout=10), "второе соединение не открылось"
         deadline = time.monotonic() + 10
         while self.thread.is_alive() and time.monotonic() < deadline:
-            with connection.cursor() as cursor:
-                # Статистика активности кэшируется на транзакцию — сбросить снимок.
-                cursor.execute("SELECT pg_stat_clear_snapshot()")
-                cursor.execute("SELECT wait_event_type FROM pg_stat_activity WHERE pid = %s", [self.pid])
-                row = cursor.fetchone()
-            if row and row[0] == "Lock":
+            if waits_for_lock(self.pid):
                 self.blocked = True
                 return
             time.sleep(0.01)
@@ -1161,6 +1253,11 @@ class BackgroundWrite:
         assert not self.thread.is_alive(), "вторая запись зависла"
         if "error" in self.outcome:
             raise self.outcome["error"]
+
+    def join_if_started(self) -> None:
+        """Для `finally`: запрос мог упасть раньше, чем запустил запись (R42.4-29)."""
+        if self.thread.ident is not None:
+            self.join()
 
 
 def transfer_to(user: User, manager: User) -> BackgroundWrite:
@@ -1206,9 +1303,11 @@ class TestTransferDuringWrite:
             import_1c.start()
             return original_save_form(self, request, form, change)
 
-        with patch.object(ManagerClientAdmin, "save_form", import_then_save_form):
-            response = manager_client.post(change_url(own), data)
-        import_1c.join()
+        try:
+            with patch.object(ManagerClientAdmin, "save_form", import_then_save_form):
+                response = manager_client.post(change_url(own), data)
+        finally:
+            import_1c.join_if_started()
 
         assert response.status_code == 302
         assert import_1c.blocked
@@ -1227,12 +1326,14 @@ class TestTransferDuringWrite:
             transfer.start()
             return original_save(form, *args, **kwargs)
 
-        with patch.object(form_class, "save", transfer_then_save):
-            response = manager_client.post(
-                password_url(own),
-                {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
-            )
-        transfer.join()
+        try:
+            with patch.object(form_class, "save", transfer_then_save):
+                response = manager_client.post(
+                    password_url(own),
+                    {"usable_password": "true", "password1": NEW_PASSWORD, "password2": NEW_PASSWORD},
+                )
+        finally:
+            transfer.join_if_started()
 
         assert response.status_code == 302
         assert transfer.blocked
@@ -1259,9 +1360,11 @@ class TestTransferDuringWrite:
             transfer.start()
             return original(**kwargs)
 
-        with patch.object(users_admin, service, transfer_then_call):
-            response = manager_client.post(verify_url(applicant), payload)
-        transfer.join()
+        try:
+            with patch.object(users_admin, service, transfer_then_call):
+                response = manager_client.post(verify_url(applicant), payload)
+        finally:
+            transfer.join_if_started()
 
         assert response.status_code == 302
         assert transfer.blocked
@@ -1295,13 +1398,117 @@ class TestTransferDuringWrite:
         assert applicant.responsible_manager == other_manager
         assert not audit_records(applicant).exists()
 
-    def test_second_action_field_does_not_skip_lock(self, manager_client, manager, prod_like_requests, locked_at_save):
+    def test_link_rechecks_scope_under_lock(self, manager_client, manager, other_manager, prod_like_requests):
+        # R42.4-23: клиента передали после успешной предварительной проверки
+        # принадлежности (exists() в _lock_link_rows), но до захвата строк.
+        # Отсечь его может только повторная проверка выборкой раздела в самом
+        # запросе блокировки цели.
+        applicant = make_client(manager, verification_status="pending", is_verified=False)
+        source = make_1c_record(applicant.tax_id)
+        source_before = User.objects.filter(pk=source.pk).values().get()
+        original_lock = ManagerClientAdmin._lock_link_rows
+        original_exists = QuerySet.exists
+        prechecked: list[bool] = []
+
+        def exists_then_transfer(queryset: QuerySet) -> bool:
+            result = original_exists(queryset)
+            if not prechecked:
+                prechecked.append(result)
+                in_other_connection(
+                    lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager)
+                )
+            return result
+
+        def lock_with_transfer_after_precheck(
+            self: ManagerClientAdmin, request: Any, target: User, source_pks: Any
+        ) -> None:
+            with patch.object(QuerySet, "exists", exists_then_transfer):
+                original_lock(self, request, target, source_pks)
+
+        with patch.object(ManagerClientAdmin, "_lock_link_rows", lock_with_transfer_after_precheck):
+            response = post_action(
+                manager_client,
+                "link_1c_customer",
+                applicant,
+                follow=False,
+                apply="1",
+                candidate=f"{source.pk}:{source.onec_id}",
+            )
+
+        # Передача пришлась именно на интервал: предварительная проверка своего клиента пропустила.
+        assert prechecked == [True]
+        assert response.status_code == 404
+        applicant.refresh_from_db()
+        assert applicant.onec_id is None
+        assert applicant.responsible_manager == other_manager
+        assert User.objects.filter(pk=source.pk).values().get() == source_before
+        assert not audit_records(applicant).exists()
+
+    def test_link_locks_source_and_target_in_pk_order(self, manager_client, manager, prod_like_requests):
+        # R42.4-12: привязка захватывает источник и цель по возрастанию pk, как
+        # сервис и пересчёт ответственных. Вторая транзакция держит источник
+        # (меньший pk) и, когда привязка встала за ним в очередь, берёт цель.
+        # Предварительная блокировка одной цели дала бы взаимную блокировку.
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id)
+        applicant = make_client(manager, tax_id=tax_id, verification_status="pending", is_verified=False)
+        assert source.pk < applicant.pk
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            request_pid = cursor.fetchone()[0]
+        source_held = threading.Event()
+
+        def write_in_pk_order() -> None:
+            with transaction.atomic():
+                User.objects.filter(pk=source.pk).update(phone="+79005550101")
+                source_held.set()
+                deadline = time.monotonic() + 10
+                while not waits_for_lock(request_pid):
+                    assert time.monotonic() < deadline, "привязка не встала в очередь за строкой источника"
+                    time.sleep(0.01)
+                User.objects.filter(pk=applicant.pk).update(phone="+79005550102")
+
+        writer = BackgroundWrite(write_in_pk_order)
+        writer.thread.start()
+        assert source_held.wait(timeout=10), "вторая транзакция не захватила источник"
+        try:
+            response = post_action(
+                manager_client,
+                "link_1c_customer",
+                applicant,
+                follow=False,
+                apply="1",
+                candidate=f"{source.pk}:{source.onec_id}",
+            )
+        finally:
+            writer.join()
+
+        assert response.status_code == 302
+        applicant.refresh_from_db()
+        source.refresh_from_db()
+        assert applicant.onec_id is not None
+        assert applicant.phone == "+79005550102"
+        assert source.onec_id is None
+        assert source.phone == "+79005550101"
+        assert audit_records(applicant, "link_1c_customer").count() == 1
+
+    @pytest.mark.parametrize(
+        "actions, index",
+        [
+            (["block_users", "link_1c_customer"], "0"),
+            # R42.4-34: блокировка из нижней формы списка, привязка — в верхней.
+            (["link_1c_customer", "block_users"], "1"),
+        ],
+    )
+    def test_second_action_field_does_not_skip_lock(
+        self, manager_client, manager, prod_like_requests, locked_at_save, actions, index
+    ):
         # R42.4-4: Django выполняет значение action по index, исключение привязки — тоже.
         own = make_client(manager)
 
         response = manager_client.post(
             CHANGELIST_URL,
-            {"action": ["block_users", "link_1c_customer"], "index": "0", "_selected_action": [str(own.pk)]},
+            {"action": actions, "index": index, "_selected_action": [str(own.pk)]},
             follow=True,
         )
 
@@ -1441,6 +1648,167 @@ class TestNoLockWithoutAccess:
         assert response.status_code == 403
         assert User.objects.filter(pk=own.pk).values().get() == before
         assert not audit_records(own).exists()
+
+    @pytest.mark.parametrize("url_for, data", CLIENT_WRITE_POSTS)
+    def test_client_assigned_after_empty_lock_answers_404(
+        self, manager_client, manager, other_manager, prod_like_requests, url_for, data
+    ):
+        # R42.4-10: пустая блокировка — отказ. Клиента передают менеджеру сразу
+        # после неё: читать и записывать его строку без блокировки запрос не должен.
+        target = make_client(other_manager, verification_status="pending", is_verified=False, is_active=False)
+        expected = User.objects.filter(pk=target.pk).values().get()
+        expected["responsible_manager_id"] = manager.pk
+        original_lock_client = ManagerClientAdmin._lock_client
+
+        def lock_then_assign(self: ManagerClientAdmin, request: Any, object_id: str) -> None:
+            try:
+                original_lock_client(self, request, object_id)
+            finally:
+                in_other_connection(lambda: User.objects.filter(pk=target.pk).update(responsible_manager=manager))
+
+        with patch.object(ManagerClientAdmin, "_lock_client", lock_then_assign):
+            response = manager_client.post(url_for(target), data)
+
+        assert response.status_code == 404
+        assert User.objects.filter(pk=target.pk).values().get() == expected
+        assert not audit_records(target).exists()
+
+    def test_link_to_transferred_client_answers_404_without_lock(
+        self, manager_client, manager, other_manager, prod_like_requests
+    ):
+        # R42.4-11: цель, уже переданную другому менеджеру, привязка отсекает
+        # до общей блокировки и не ждёт её строку, которую держит чужая транзакция.
+        applicant = make_client(manager, verification_status="pending", is_verified=False)
+        source = make_1c_record(applicant.tax_id)
+        original_find = users_admin.find_link_candidates
+
+        with ExitStack() as held:
+
+            def transfer_hold_then_find(target: User) -> list[User]:
+                # Цель уже прочитана действием, привязка впереди.
+                in_other_connection(
+                    lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager)
+                )
+                held.enter_context(row_held_elsewhere(applicant.pk))
+                return original_find(target)
+
+            with patch.object(users_admin, "find_link_candidates", transfer_hold_then_find):
+                response = post_without_locking(
+                    manager_client,
+                    CHANGELIST_URL,
+                    {
+                        "action": "link_1c_customer",
+                        "_selected_action": [str(applicant.pk)],
+                        "apply": "1",
+                        "candidate": f"{source.pk}:{source.onec_id}",
+                    },
+                )
+
+        assert response.status_code == 404
+        applicant.refresh_from_db()
+        assert applicant.onec_id is None
+        assert applicant.responsible_manager == other_manager
+        assert not audit_records(applicant).exists()
+
+    def test_link_target_transferred_right_before_lock_answers_404_without_lock(
+        self, manager_client, manager, other_manager, prod_like_requests
+    ):
+        # R42.4-14: передача завершилась прямо перед захватом строк привязки, а
+        # строку цели держит чужая транзакция. Цель захватывается только из
+        # выборки раздела — запрос не ждёт её строку, а отвечает 404.
+        applicant = make_client(manager, verification_status="pending", is_verified=False)
+        source = make_1c_record(applicant.tax_id)
+        original_lock = ManagerClientAdmin._lock_link_rows
+
+        with ExitStack() as held:
+
+            def transfer_hold_then_lock(self: ManagerClientAdmin, request: Any, target: User, source_pks: Any) -> None:
+                in_other_connection(
+                    lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager)
+                )
+                held.enter_context(row_held_elsewhere(applicant.pk))
+                original_lock(self, request, target, source_pks)
+
+            with patch.object(ManagerClientAdmin, "_lock_link_rows", transfer_hold_then_lock):
+                response = post_without_locking(
+                    manager_client,
+                    CHANGELIST_URL,
+                    {
+                        "action": "link_1c_customer",
+                        "_selected_action": [str(applicant.pk)],
+                        "apply": "1",
+                        "candidate": f"{source.pk}:{source.onec_id}",
+                    },
+                )
+
+        assert response.status_code == 404
+        applicant.refresh_from_db()
+        assert applicant.onec_id is None
+        assert applicant.responsible_manager == other_manager
+        assert not audit_records(applicant).exists()
+
+    def test_link_to_transferred_client_skips_held_source_with_lower_pk(
+        self, manager_client, manager, other_manager, prod_like_requests
+    ):
+        # R42.4-21: источник 1С с меньшим pk захватывается раньше цели. Цель
+        # передали прямо перед захватом строк, а источник держит чужая
+        # транзакция: запрос отвечает 404, не вставая в очередь за источником.
+        tax_id = unique_tax_id()
+        source = make_1c_record(tax_id)
+        applicant = make_client(manager, tax_id=tax_id, verification_status="pending", is_verified=False)
+        assert source.pk < applicant.pk
+        source_before = User.objects.filter(pk=source.pk).values().get()
+        original_lock = ManagerClientAdmin._lock_link_rows
+
+        with ExitStack() as held:
+
+            def transfer_hold_then_lock(self: ManagerClientAdmin, request: Any, target: User, source_pks: Any) -> None:
+                in_other_connection(
+                    lambda: User.objects.filter(pk=applicant.pk).update(responsible_manager=other_manager)
+                )
+                held.enter_context(row_held_elsewhere(source.pk))
+                original_lock(self, request, target, source_pks)
+
+            with patch.object(ManagerClientAdmin, "_lock_link_rows", transfer_hold_then_lock):
+                response = post_without_locking(
+                    manager_client,
+                    CHANGELIST_URL,
+                    {
+                        "action": "link_1c_customer",
+                        "_selected_action": [str(applicant.pk)],
+                        "apply": "1",
+                        "candidate": f"{source.pk}:{source.onec_id}",
+                    },
+                )
+
+        assert response.status_code == 404
+        applicant.refresh_from_db()
+        assert applicant.onec_id is None
+        assert applicant.responsible_manager == other_manager
+        assert User.objects.filter(pk=source.pk).values().get() == source_before
+        assert not audit_records(applicant).exists()
+
+
+class TestRowLockProbe:
+    """R42.4-22 — `row_is_locked` признаёт блокировкой только отказ NOWAIT (SQLSTATE 55P03)."""
+
+    def test_free_row_is_not_locked(self, manager):
+        own = make_client(manager)
+
+        assert row_is_locked(own.pk) is False
+
+    def test_row_held_elsewhere_is_locked(self, manager):
+        own = make_client(manager)
+
+        with row_held_elsewhere(own.pk):
+            assert row_is_locked(own.pk) is True
+
+    def test_other_database_error_is_raised(self, manager):
+        own = make_client(manager)
+
+        with patch("django.db.models.query.QuerySet.exists", side_effect=DatabaseError("посторонняя ошибка SQL")):
+            with pytest.raises(DatabaseError, match="посторонняя ошибка SQL"):
+                row_is_locked(own.pk)
 
 
 class TestChangelistQueryCount:

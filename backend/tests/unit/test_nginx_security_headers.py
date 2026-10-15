@@ -345,7 +345,11 @@ class TestManagerSectionRoute:
     Django-тесты раздела ходят мимо nginx, а `nginx -t` примет и
     `proxy_pass http://frontend` — тогда раздел уйдёт в маршрут Next
     `(blue)/[slug]` и ответит 404. Живая проверка через nginx (302 на
-    `/manager/login/?next=/manager/`) — в шагах выката стори.
+    `/manager/login/?next=/manager/`, затем страница входа Django) —
+    `scripts/deploy/check-manager-route.sh`: в `main.yml` на `local.conf`
+    и `default.conf`, в `deploy.yml` на проде. Вход менеджера и его список
+    через nginx (передача cookie) — `scripts/deploy/check-manager-session.sh`
+    в `main.yml` на обоих конфигах.
     """
 
     @pytest.mark.parametrize("conf_name", ["default.conf", "local.conf"])

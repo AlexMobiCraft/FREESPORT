@@ -324,8 +324,12 @@ jobs:
     environment: production
 
     steps:
+      # Полная история: при откате health check смотрит код коммита разворачиваемого
+      # релиза (scripts/deploy/release-has-manager-route.sh), а не только HEAD.
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.10.0
@@ -468,6 +472,8 @@ jobs:
       - name: Health check production
         env:
           PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+          IMAGE_TAG: ${{ needs.setup.outputs.image_tag }}
+          NEEDS_BUILD: ${{ needs.setup.outputs.needs_build }}
         run: |
           echo "🔍 Проверка работоспособности production..."
 
@@ -504,19 +510,21 @@ jobs:
           fi
 
           # Раздел менеджера /manager/ (стори 42.4) nginx проксирует в Django.
-          # Без этой location запрос уходит в Next и получает 404.
-          MANAGER_HEADERS=$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -D - "$PRODUCTION_URL/manager/" | tr -d '\r')
-          MANAGER_STATUS=$(printf '%s\n' "$MANAGER_HEADERS" | awk 'NR == 1 {print $2}')
-          MANAGER_LOCATION=$(printf '%s\n' "$MANAGER_HEADERS" | awk 'tolower($1) == "location:" {print $2}')
-          if [ "$MANAGER_STATUS" != "302" ] || [ "$MANAGER_LOCATION" != "/manager/login/?next=/manager/" ]; then
-            echo "❌ /manager/: ожидался 302 на /manager/login/?next=/manager/, получено ${MANAGER_STATUS:-нет ответа} ${MANAGER_LOCATION:-без Location}"
-            exit 1
-          fi
-          if ! curl -sf --connect-timeout 10 --max-time 30 "$PRODUCTION_URL/manager/login/" | grep -q 'id="login-form"'; then
-            echo "❌ /manager/login/ не отдаёт страницу входа Django"
-            exit 1
-          fi
-          echo "✅ Раздел менеджера проксируется в Django"
+          # Та же проверка гоняется в main.yml на локальном nginx (local.conf).
+          # Только у релиза, в коде которого раздел есть: откат (image_tag) на релиз до
+          # 42.4 разворачивает исправный образ без него, а API и Frontend выше проверены
+          # при любом релизе (R42.4-35). Обычный деплой собран из текущего коммита, откат —
+          # образ с тегом-SHA своего коммита. Неизвестный коммит — проверка обязательна.
+          if [ "$NEEDS_BUILD" = "true" ]; then RELEASE="$GITHUB_SHA"; else RELEASE="$IMAGE_TAG"; fi
+          HAS_SECTION=0
+          bash scripts/deploy/release-has-manager-route.sh "$RELEASE" || HAS_SECTION=$?
+          case "$HAS_SECTION" in
+            1) echo "ℹ️ Релиз $RELEASE раньше раздела /manager/ — проверка маршрута пропущена" ;;
+            *)
+              [ "$HAS_SECTION" = 0 ] || echo "::warning::Коммит релиза $RELEASE не найден — /manager/ проверяется как обязательный"
+              bash scripts/deploy/check-manager-route.sh "$PRODUCTION_URL" || exit 1
+              ;;
+          esac
 
           echo "✅ Все проверки пройдены успешно!"
 

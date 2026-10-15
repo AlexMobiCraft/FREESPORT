@@ -186,6 +186,26 @@ class Has1CCandidateFilter(admin.SimpleListFilter):
         return queryset.filter(_has_1c_candidate=self.value() == "yes")
 
 
+def activation_locked_q() -> Q:
+    """
+    Записи, которым флаг «активен» не возвращает вход (R42.4-31, R42.4-32).
+
+    Это запись 1С без аккаунта на портале (в том числе отработанный источник
+    привязки) и B2B-заявка до подтверждения — ожидающая или отклонённая.
+    Им вход дают регистрация и подтверждение заявки, а «разблокировка»
+    отменила бы отказ или воскресила бы тень 1С. Разблокируются только
+    розничные и подтверждённые B2B-клиенты.
+    """
+    return Q(role=User.ROLE_UNREGISTERED) | (Q(role__in=User.B2B_ROLES) & ~Q(verification_status="verified"))
+
+
+def activation_locked(user: User) -> bool:
+    """`activation_locked_q()` для одной записи: условия держать одинаковыми."""
+    return user.role == User.ROLE_UNREGISTERED or (
+        user.role in User.B2B_ROLES and user.verification_status != "verified"
+    )
+
+
 def _b2b_role_choices() -> list[tuple[str, str]]:
     labels = dict(User.ROLE_CHOICES)
     return [(role, labels.get(role, role)) for role in User.B2B_ROLES]
@@ -1243,10 +1263,11 @@ class UserAdmin(BaseUserAdmin):
         """
         Массовая разблокировка клиентов (стори 42.4).
 
-        Не трогает суперпользователей и учётные записи сотрудников. B2B-заявки
-        в статусе `pending` тоже пропускает: вход им закрыт до решения по
-        заявке, и «разблокировка» обманула бы менеджера — для них сообщение
-        со ссылками на страницу подтверждения.
+        Не трогает суперпользователей и учётные записи сотрудников. Записи
+        `activation_locked_q()` тоже пропускает: ожидающим заявкам вход закрыт
+        до решения, и «разблокировка» обманула бы менеджера — для них сообщение
+        со ссылками на страницу подтверждения; отклонённые заявки и записи 1С
+        без аккаунта пропускаются с отдельным сообщением.
         """
         candidates = queryset.filter(is_active=False).exclude(is_superuser=True).exclude(staff_accounts_q())
         if not candidates.exists():
@@ -1277,8 +1298,18 @@ class UserAdmin(BaseUserAdmin):
                 level="warning",
             )
 
+        locked_q = activation_locked_q()
+        skipped = candidates.filter(locked_q).exclude(pending_q).count()
+        if skipped:
+            self.message_user(
+                request,
+                f"Пропущено {skipped}: отклонённые B2B-заявки и записи 1С без аккаунта на портале "
+                "не разблокируются — вход им даёт регистрация и подтверждение заявки",
+                level="warning",
+            )
+
         count = 0
-        for user in candidates.exclude(pending_q):
+        for user in candidates.exclude(locked_q):
             user.is_active = True
             user.save(update_fields=["is_active", "updated_at"])
 

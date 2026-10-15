@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-14 (стори 42.4 -> review: закрыт R42.4-9)
+# last_updated: 2026-10-15 (стори 42.4 -> review: закрыты R42.4-35…37)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-10-14
+last_updated: 2026-10-15
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1450,6 +1450,11 @@ development_status:
   42-2-responsible-manager-by-region-rule: done
   42-3-region-directory-and-responsible-recalculation: done
   42-4-manager-section-own-clients: review
+  # 2026-10-15: Завершено ревью оставшихся блоков через плагин Codex.
+  #             R42.4-35…37 оставлены открытыми по решению Alex, код и тесты
+  #             не менялись. Профильный Docker-прогон: 37 passed.
+  #             Охват ревью всей истории завершён, исправления ещё не выполнены.
+  # 2026-10-15: R42.4-35…37 закрыты; полный прогон 4201 passed, 76 skipped.
   42-5-manager-section-orders-and-home: backlog
   42-6-marketing-section: backlog
   42-7-supervisor-section-staff-regions-reassignment: backlog
