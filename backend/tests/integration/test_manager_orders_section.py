@@ -21,8 +21,11 @@ Integration-тесты раздела менеджера `/manager/` — зак�
 from __future__ import annotations
 
 import csv
+import io
 import itertools
-from datetime import datetime, time, timedelta
+import threading
+import time as clock
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from unittest.mock import patch
@@ -32,19 +35,20 @@ import pytest
 from django.contrib.admin.models import LogEntry
 from django.contrib.admin.utils import label_for_field
 from django.contrib.auth.models import Group, Permission
-from django.db import connection
-from django.test import RequestFactory
+from django.db import connection, connections
+from django.test import Client, RequestFactory
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.bonuses.models import BonusProgramSettings, BonusTransaction
 from apps.common.models import AuditLog
-from apps.orders.manager_admin import MANAGER_CSV_HEADER, manager_queue
+from apps.orders.manager_admin import ManagerOrderAdmin, manager_queue
 from apps.orders.models import Order, OrderItem
 from apps.products.models import Product
 from apps.users.models import User
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
+from freesport.admin_site import manager_site
 from tests.factories import ProductFactory
 from tests.integration.test_manager_clients_section import (  # noqa: F401 — фикстуры подключаются импортом
     INDEX_URL,
@@ -69,6 +73,19 @@ pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 
 ORDERS_URL = "/manager/orders/order/"
 _sequence = itertools.count(1)
+
+# Решение 8 стори: заголовки экспорта раздела — литералом, независимо от реализации.
+EXPECTED_CSV_HEADER = [
+    "Номер заказа",
+    "Номер (UI)",
+    "Клиент",
+    "Статус",
+    "Оплата",
+    "Сумма",
+    "Способ доставки",
+    "Дата создания",
+]
+STALE_CARD_TEXT = "Обновите страницу"
 
 # Поля блока «Не показывать» section-contents: в HTML нет ни поля, ни подписи.
 HIDDEN_FIELDS = {
@@ -174,15 +191,71 @@ def order_snapshot(order: Order) -> dict[str, Any]:
 
 
 def csv_rows(response) -> list[list[str]]:
-    return list(csv.reader(response.content.decode("utf-8-sig").splitlines()))
+    # Через поток, а не splitlines(): перевод строки внутри кавыченной ячейки сохраняется.
+    return list(csv.reader(io.StringIO(response.content.decode("utf-8-sig"), newline="")))
 
 
 def listed_ids(response) -> set[int]:
     return {order.pk for order in response.context["cl"].result_list}
 
 
+# Предел SQL работника в другом соединении и запас на его завершение.
+OTHER_CONNECTION_SQL_TIMEOUT_MS = 10_000
+OTHER_CONNECTION_JOIN_TIMEOUT = 30
+
+
+@pytest.fixture
+def other_connection():
+    """
+    Выполняет действие в отдельном соединении PostgreSQL и дожидается его фиксации.
+
+    Работник — отдельный поток со своим соединением в autocommit. `statement_timeout`
+    ограничивает его SQL, поэтому `join` с запасом успевает; живой после `join` поток
+    и исключение работника поднимаются в вызывающем потоке. Ссылки на работников
+    держит фикстура: при любом выходе из теста она дожидается их до очистки БД
+    (R42.5-17).
+    """
+    workers: list[threading.Thread] = []
+
+    def run(action) -> None:
+        errors: list[BaseException] = []
+
+        def work() -> None:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(f"SET statement_timeout = {OTHER_CONNECTION_SQL_TIMEOUT_MS}")
+                action()
+            except BaseException as error:  # передаётся в вызывающий поток
+                errors.append(error)
+            finally:
+                connections.close_all()
+
+        worker = threading.Thread(target=work, name=f"other-connection-{len(workers) + 1}")
+        workers.append(worker)
+        worker.start()
+        worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
+        if worker.is_alive():
+            raise AssertionError(f"{worker.name} не завершился за {OTHER_CONNECTION_JOIN_TIMEOUT} с")
+        if errors:
+            raise errors[0]
+
+    yield run
+
+    for worker in workers:
+        worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
+    alive = [worker.name for worker in workers if worker.is_alive()]
+    assert not alive, f"работники пережили тест: {alive}"
+
+
 def card_payload(client, order: Order, **changes: Any) -> dict[str, Any]:
-    data = form_payload(client.get(order_change_url(order)))
+    """POST карточки, как его отправит браузер: со скрытыми значениями на момент открытия."""
+    response = client.get(order_change_url(order))
+    data = form_payload(response)
+    form = response.context["adminform"].form
+    for name in form.fields:
+        bound = form[name]
+        if bound.field.show_hidden_initial:
+            data[bound.html_initial_name] = "" if bound.initial is None else bound.initial
     data.update(changes)
     data.setdefault("_save", "Сохранить")
     return data
@@ -255,7 +328,14 @@ class TestChangelist:
         assert Order.objects.filter(parent_order=own).count() == 2
 
     def test_search_finds_only_own_orders(self, section_client, section_member, other_manager):
-        own = make_master(make_client(section_member), tracking_number=f"TRK{unique_digits(8)}")
+        # Свои заказы у разных клиентов: у каждого все шесть значений поиска свои.
+        own = [
+            make_master(
+                make_client(section_member, company_name=f"ООО Своя Компания {name}"),
+                tracking_number=f"TRK{unique_digits(8)}",
+            )
+            for name in ("Альфа", "Бета", "Гамма")
+        ]
         foreign_client = make_client(other_manager, company_name="ООО Чужая Компания")
         foreign = make_master(foreign_client, tracking_number=f"TRK{unique_digits(8)}")
 
@@ -270,13 +350,18 @@ class TestChangelist:
                 order.user.company_name,
             ]
 
-        assert foreign.order_number_display != foreign.order_number
-        for query in values(foreign):
-            assert foreign.pk not in listed_ids(section_client.get(ORDERS_URL, {"q": query})), query
+        def found(query: str) -> set[int]:
+            return listed_ids(section_client.get(ORDERS_URL, {"q": query}))
 
-        # Поиск сам по себе работает: те же поля своего заказа находятся.
-        for query in values(own):
-            assert own.pk in listed_ids(section_client.get(ORDERS_URL, {"q": query})), query
+        assert foreign.order_number_display != foreign.order_number
+        # Без поиска видны все свои: точные множества ниже — заслуга поиска, а не выборки.
+        assert listed_ids(section_client.get(ORDERS_URL)) == {order.pk for order in own}
+        for query in values(foreign):
+            assert found(query) == set(), query
+        for order in own:
+            for query in values(order):
+                assert found(query) == {order.pk}, query
+        assert found("НЕТ-ТАКОГО-ЗНАЧЕНИЯ-42-5") == set()
 
     def test_columns_filters_and_title(self, manager_client, manager):
         make_master(make_client(manager))
@@ -387,6 +472,31 @@ class TestOrderCard:
             response.context["adminform"].model_admin.readonly_fields
         )
 
+    def test_items_table_rows_have_quantity_price_and_sum(self, manager_client, manager):
+        own = make_master(make_client(manager))
+        first, second = Order.objects.filter(parent_order=own).order_by("suborder_sequence")
+        # Количество, цена и сумма различаются в каждой строке: подмена одной
+        # колонки другой видна в проверке.
+        OrderItem.objects.filter(order=first).update(
+            product_name="Мяч первый", quantity=3, unit_price=Decimal("120.50"), total_price=Decimal("361.50")
+        )
+        OrderItem.objects.filter(order=second).update(
+            product_name="Мяч второй", quantity=4, unit_price=Decimal("75.25"), total_price=Decimal("301.00")
+        )
+        first_sku = OrderItem.objects.get(order=first).product_sku
+        second_sku = OrderItem.objects.get(order=second).product_sku
+
+        content = manager_client.get(order_change_url(own)).content.decode()
+
+        assert (
+            f"<tr><td>{first.order_number_display}</td><td>Мяч первый</td><td>{first_sku}</td>"
+            "<td>3</td><td>120.50</td><td>361.50</td></tr>"
+        ) in content
+        assert (
+            f"<tr><td>{second.order_number_display}</td><td>Мяч второй</td><td>{second_sku}</td>"
+            "<td>4</td><td>75.25</td><td>301.00</td></tr>"
+        ) in content
+
     def test_legacy_master_without_sub_orders_shows_own_items(self, manager_client, manager):
         own = make_master(make_client(manager), subs=0)
         sku = OrderItem.objects.get(order=own).product_sku
@@ -413,21 +523,304 @@ class TestOrderCard:
 
     def test_sub_orders_block_is_read_only(self, manager_client, manager):
         own = make_master(make_client(manager))
-        subs = list(Order.objects.filter(parent_order=own).order_by("suborder_sequence"))
+        first, second = Order.objects.filter(parent_order=own).order_by("suborder_sequence")
+        # Статус и сумма у субзаказов разные: подмена или пропуск колонки виден (R42.5-18).
+        Order.objects.filter(pk=first.pk).update(status="processing", total_amount=Decimal("300.00"))
+        Order.objects.filter(pk=second.pk).update(status="shipped", total_amount=Decimal("700.00"))
 
         response = manager_client.get(order_change_url(own))
 
         content = response.content.decode()
         assert "Субзаказы" in content
-        for sub in subs:
+        (inline,) = response.context["inline_admin_formsets"]
+        rows = {}
+        for inline_form in inline:
+            cells = {
+                field.field["name"]: str(field.contents())
+                for fieldset in inline_form
+                for line in fieldset
+                for field in line
+            }
+            rows[cells["sub_number"]] = (cells["status"], cells["total_amount"])
+        assert rows == {
+            first.order_number_display: ("В обработке", "300,00"),
+            second.order_number_display: ("Отправлен", "700,00"),
+        }
+        for sub in (first, second):
             assert sub.order_number_display in content
             assert f'href="{order_change_url(sub)}"' not in content
-        (inline,) = response.context["inline_admin_formsets"]
         assert not inline.has_add_permission
         assert not inline.has_change_permission
         assert not inline.has_delete_permission
         assert 'class="addlink"' not in content
         assert 'class="deletelink"' not in content
+
+
+class TestStaleCard:
+    """R42.5-1 — карточка, открытая до чужой правки трек-номера или даты, отклоняется."""
+
+    @pytest.mark.parametrize(
+        ("first_change", "second_change", "expected"),
+        [
+            pytest.param(
+                {"tracking_number": "NEW-TRK"},
+                {"delivery_date": "2026-11-05"},
+                ("NEW-TRK", date(2026, 10, 20)),
+                id="track-then-date",
+            ),
+            pytest.param(
+                {"delivery_date": "2026-11-01"},
+                {"tracking_number": "SECOND-TRK"},
+                ("OLD-TRK", date(2026, 11, 1)),
+                id="date-then-track",
+            ),
+            pytest.param(
+                {"delivery_date": ""},
+                {"tracking_number": "SECOND-TRK"},
+                ("OLD-TRK", None),
+                id="cleared-date-then-track",
+            ),
+            pytest.param(
+                {"delivery_date": "2026-11-01"},
+                {"delivery_date": "2026-12-01"},
+                ("OLD-TRK", date(2026, 11, 1)),
+                id="date-then-date",
+            ),
+        ],
+    )
+    def test_second_open_card_is_rejected(self, manager_client, manager, first_change, second_change, expected):
+        own = make_master(make_client(manager), tracking_number="OLD-TRK", delivery_date=date(2026, 10, 20))
+        first_tab = card_payload(manager_client, own, **first_change)
+        second_tab = card_payload(manager_client, own, **second_change)
+        assert manager_client.post(order_change_url(own), first_tab).status_code == 302
+        saved = order_snapshot(own)
+        assert (saved["tracking_number"], saved["delivery_date"]) == expected
+
+        response = manager_client.post(order_change_url(own), second_tab)
+
+        assert response.status_code == 200
+        assert STALE_CARD_TEXT in response.content.decode()
+        assert order_snapshot(own) == saved
+        assert order_audit(own).count() == 1
+        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
+
+        # Повторная отправка той же устаревшей формы — снова отказ, пока страницу не обновят.
+        again = manager_client.post(order_change_url(own), second_tab)
+        assert again.status_code == 200
+        assert STALE_CARD_TEXT in again.content.decode()
+        assert order_snapshot(own) == saved
+        assert order_audit(own).count() == 1
+        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
+
+    @pytest.mark.parametrize("stored", ["TRK ", " TRK", " TRK "])
+    def test_spaces_in_stored_tracking_do_not_make_fresh_card_stale(self, manager_client, manager, stored):
+        # Order.save() пробелы не срезает: трек с пробелами мог прийти не из формы.
+        own = make_master(make_client(manager), tracking_number=stored)
+
+        response = manager_client.post(
+            order_change_url(own), card_payload(manager_client, own, delivery_date="2026-11-05")
+        )
+
+        assert response.status_code == 302
+        own.refresh_from_db()
+        assert own.delivery_date == date(2026, 11, 5)
+        assert own.tracking_number == stored
+        (record,) = order_audit(own)
+        assert record.details["changes"]["fields"] == {"delivery_date": {"old": None, "new": "2026-11-05"}}
+
+    def test_spaces_in_stored_tracking_keep_conflict_check(self, manager_client, manager):
+        own = make_master(make_client(manager), tracking_number="TRK ")
+        first_tab = card_payload(manager_client, own, tracking_number="NEW-TRK")
+        second_tab = card_payload(manager_client, own, delivery_date="2026-11-05")
+        assert manager_client.post(order_change_url(own), first_tab).status_code == 302
+        saved = order_snapshot(own)
+
+        response = manager_client.post(order_change_url(own), second_tab)
+
+        assert response.status_code == 200
+        assert STALE_CARD_TEXT in response.content.decode()
+        assert order_snapshot(own) == saved
+        assert order_audit(own).count() == 1
+
+    def test_refreshed_card_saves(self, manager_client, manager):
+        own = make_master(make_client(manager), tracking_number="OLD-TRK")
+        stale = card_payload(manager_client, own, delivery_date="2026-11-05")
+        manager_client.post(order_change_url(own), card_payload(manager_client, own, tracking_number="NEW-TRK"))
+        assert manager_client.post(order_change_url(own), stale).status_code == 200
+
+        response = manager_client.post(
+            order_change_url(own), card_payload(manager_client, own, delivery_date="2026-11-05")
+        )
+
+        assert response.status_code == 302
+        own.refresh_from_db()
+        assert own.tracking_number == "NEW-TRK"
+        assert own.delivery_date == date(2026, 11, 5)
+
+    def test_check_locks_order_row(self, manager_client, manager):
+        own = make_master(make_client(manager))
+        data = card_payload(manager_client, own, tracking_number="TRK-LOCK")
+
+        with CaptureQueriesContext(connection) as captured:
+            assert manager_client.post(order_change_url(own), data).status_code == 302
+
+        locks = [query["sql"] for query in captured if "FOR UPDATE" in query["sql"]]
+        assert any('FROM "orders"' in sql for sql in locks), locks
+
+    def test_concurrent_card_waits_for_lock_and_is_rejected(self, manager_client, manager):
+        """Два POST в разных соединениях PostgreSQL: второй ждёт блокировку первого и видит его правку."""
+        own = make_master(make_client(manager), tracking_number="OLD-TRK")
+        first_tab = card_payload(manager_client, own, tracking_number="NEW-TRK")
+        second_tab = card_payload(manager_client, own, delivery_date="2026-11-05")
+        first_saved, release = threading.Event(), threading.Event()
+        responses: dict[str, Any] = {}
+        original_save_model = ManagerOrderAdmin.save_model
+
+        def save_model_and_hold(admin_obj, request, obj, form, change):
+            original_save_model(admin_obj, request, obj, form, change)
+            if threading.current_thread().name == "first":
+                # Транзакция первого запроса открыта, строка заказа заблокирована.
+                first_saved.set()
+                release.wait(timeout=15)
+
+        errors: dict[str, Exception] = {}
+
+        def post(name: str, data: dict[str, Any]) -> None:
+            tab = Client()
+            tab.force_login(manager)
+            try:
+                responses[name] = tab.post(order_change_url(own), data)
+            except Exception as error:  # передаётся в основной поток
+                errors[name] = error
+            finally:
+                connections.close_all()
+
+        def blocked_on_lock() -> bool:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT count(*) FROM pg_stat_activity "
+                    "WHERE datname = current_database() AND wait_event_type = 'Lock' AND pid <> pg_backend_pid()"
+                )
+                return cursor.fetchone()[0] > 0
+
+        started: list[threading.Thread] = []
+        with patch.object(ManagerOrderAdmin, "save_model", save_model_and_hold):
+            try:
+                first = threading.Thread(target=post, args=("first", first_tab), name="first")
+                first.start()
+                started.append(first)
+                assert first_saved.wait(timeout=15), "первый POST не дошёл до сохранения"
+                second = threading.Thread(target=post, args=("second", second_tab), name="second")
+                second.start()
+                started.append(second)
+                deadline = clock.monotonic() + 10
+                waited = blocked_on_lock()
+                while not waited and clock.monotonic() < deadline:
+                    clock.sleep(0.05)
+                    waited = blocked_on_lock()
+            finally:
+                # При любом выходе: отпустить первый запрос и дождаться обоих, чтобы
+                # их соединения не пережили тест и не мешали очистке БД (R42.5-13).
+                release.set()
+                for thread in started:
+                    thread.join(timeout=30)
+
+        assert not [thread.name for thread in started if thread.is_alive()], "потоки запросов не завершились"
+        assert not errors, errors
+        assert waited, "второй POST не ждал блокировку строки заказа"
+        assert responses["first"].status_code == 302
+        assert responses["second"].status_code == 200
+        assert STALE_CARD_TEXT in responses["second"].content.decode()
+        after = order_snapshot(own)
+        assert after["tracking_number"] == "NEW-TRK"
+        assert after["delivery_date"] is None
+        assert order_audit(own).count() == 1
+        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
+
+    def test_order_deleted_after_open_answers_404(self, manager_client, manager, other_connection):
+        """R42.5-12: заказ удалён из /admin/ между чтением карточки и проверкой под блокировкой — 404, не 500."""
+        own = make_master(make_client(manager))
+        data = card_payload(manager_client, own, tracking_number="TRK-GONE")
+        original_get_object = ManagerOrderAdmin.get_object
+
+        def get_object_then_delete(admin_obj, request, object_id, from_field=None):
+            obj = original_get_object(admin_obj, request, object_id, from_field)
+            if request.method == "POST":
+                # Удаление в другом соединении фиксируется до ManagerOrderForm.clean().
+                other_connection(lambda: Order.objects.filter(pk=own.pk).delete())
+            return obj
+
+        with patch.object(ManagerOrderAdmin, "get_object", get_object_then_delete):
+            response = manager_client.post(order_change_url(own), data)
+
+        assert response.status_code == 404
+        assert not Order.objects.filter(pk=own.pk).exists()
+        assert not order_audit(own).exists()
+        assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
+
+    @pytest.mark.parametrize(
+        ("moved_to", "expected_status"),
+        [
+            pytest.param("foreign_client", 404, id="foreign-client"),
+            pytest.param("sub_order", 404, id="not-master"),
+            # Контроль: клиент сменён на другого своего — заказ в выборке, правка проходит.
+            pytest.param("own_client", 302, id="other-own-client"),
+        ],
+    )
+    def test_order_moved_after_open_follows_section_scope(
+        self, manager_client, manager, other_manager, other_connection, moved_to, expected_status
+    ):
+        """R42.5-15: до блокировки суперпользователь в /admin/ сменил клиента или `is_master` заказа."""
+        own = make_master(make_client(manager), tracking_number="OLD-TRK")
+        changes = {
+            "foreign_client": {"user_id": make_client(other_manager).pk},
+            "sub_order": {"is_master": False},
+            "own_client": {"user_id": make_client(manager).pk},
+        }[moved_to]
+        data = card_payload(manager_client, own, tracking_number="TRK-MOVED")
+        original_get_object = ManagerOrderAdmin.get_object
+
+        def get_object_then_move(admin_obj, request, object_id, from_field=None):
+            obj = original_get_object(admin_obj, request, object_id, from_field)
+            if request.method == "POST":
+                # Правка в другом соединении фиксируется до ManagerOrderForm.clean().
+                other_connection(lambda: Order.objects.filter(pk=own.pk).update(**changes))
+            return obj
+
+        with patch.object(ManagerOrderAdmin, "get_object", get_object_then_move):
+            response = manager_client.post(order_change_url(own), data)
+
+        assert response.status_code == expected_status
+        after = order_snapshot(own)
+        assert {name: after[name] for name in changes} == changes
+        if expected_status == 404:
+            assert after["tracking_number"] == "OLD-TRK"
+            assert not order_audit(own).exists()
+            assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
+        else:
+            assert after["tracking_number"] == "TRK-MOVED"
+            assert order_audit(own).count() == 1
+
+    def test_card_carries_values_seen_on_open(self, manager_client, manager):
+        own = make_master(make_client(manager), tracking_number="SEEN-TRK")
+
+        content = manager_client.get(order_change_url(own)).content.decode()
+
+        assert 'name="initial-tracking_number" value="SEEN-TRK"' in content
+        assert 'name="initial-delivery_date"' in content
+
+    def test_import_of_other_fields_does_not_make_card_stale(self, manager_client, manager):
+        own = make_master(make_client(manager), status="pending")
+        data = card_payload(manager_client, own, tracking_number="TRK-AFTER-IMPORT")
+        # Импорт статусов 1С пишет свои поля и updated_at, правимые поля не трогает.
+        Order.objects.filter(pk=own.pk).update(status="processing", updated_at=timezone.now() + timedelta(minutes=1))
+
+        response = manager_client.post(order_change_url(own), data)
+
+        assert response.status_code == 302
+        after = order_snapshot(own)
+        assert after["tracking_number"] == "TRK-AFTER-IMPORT"
+        assert after["status"] == "processing"
 
 
 @pytest.fixture
@@ -497,6 +890,20 @@ class TestForgedPost:
             assert response.status_code == 302
             assert BonusTransaction.objects.filter(order=own).count() == 1
 
+    def test_unchanged_card_neither_saves_nor_accrues(self, manager_client, manager, trainer, bonus_program):
+        """R42.5-14: сохранение без изменений не зовёт save() — отложенный бонус не начисляется."""
+        own = make_master(trainer, status="processing", tracking_number="SAME-TRK")
+        Order.objects.filter(pk=own.pk).update(status="delivered")
+        data = card_payload(manager_client, own)
+
+        original_save = Order.save
+        with patch.object(Order, "save", autospec=True, side_effect=original_save) as save:
+            response = manager_client.post(order_change_url(own), data)
+
+        assert response.status_code == 302
+        assert [call for call in save.call_args_list if call.args[0].pk == own.pk] == []
+        assert not BonusTransaction.objects.filter(order=own).exists()
+
 
 class TestExport:
     """AC6 — экспорт CSV только своих заказов."""
@@ -513,7 +920,7 @@ class TestExport:
         assert response["Content-Disposition"] == 'attachment; filename="orders_export.csv"'
         assert response.content[:3] == b"\xef\xbb\xbf"
         rows = csv_rows(response)
-        assert rows[0] == MANAGER_CSV_HEADER
+        assert rows[0] == EXPECTED_CSV_HEADER
         assert {row[0] for row in rows[1:]} == {first.order_number, second.order_number}
 
     def test_select_across_exports_only_own_masters(self, manager_client, manager, other_manager):
@@ -530,6 +937,8 @@ class TestExport:
 
     def test_row_values_follow_admin_export_order(self, manager_client, manager):
         own = make_master(make_client(manager))
+        # 22:30 UTC 14.10 — это 01:30 15.10 по Москве: дата файла совпадает с карточкой.
+        Order.objects.filter(pk=own.pk).update(created_at=datetime(2026, 10, 14, 22, 30, tzinfo=UTC))
 
         rows = csv_rows(post_order_action(manager_client, "export_orders_csv", own))
 
@@ -541,8 +950,27 @@ class TestExport:
             own.get_payment_status_display(),
             str(own.total_amount),
             own.get_delivery_method_display(),
-            own.created_at.strftime("%Y-%m-%d %H:%M"),
+            "2026-10-15 01:30",
         ]
+
+    @pytest.mark.parametrize("name", ["=1+1", "+7(900)", "-2+3", "@SUM(A1)", '=HYPERLINK("http://evil")'])
+    def test_formula_in_client_name_is_neutralized(self, manager_client, manager, name):
+        own = make_master(make_client(manager, first_name=name, last_name=""))
+
+        rows = csv_rows(post_order_action(manager_client, "export_orders_csv", own))
+
+        assert rows[1][2] == f"'{name}"
+        assert rows[1][0] == own.order_number
+
+    def test_multiline_client_name_is_kept_in_one_cell(self, manager_client, manager):
+        own = make_master(make_client(manager, first_name="Первая\nВторая", last_name=""))
+
+        response = post_order_action(manager_client, "export_orders_csv", own)
+
+        rows = csv_rows(response)
+        assert len(rows) == 2
+        assert rows[1][2] == "Первая\nВторая"
+        assert rows[1][0] == own.order_number
 
     def test_action_choices_are_russian_without_delete(self, manager_client, manager):
         make_master(make_client(manager))
@@ -597,6 +1025,9 @@ class TestAuditLog:
             "tracking_number": {"old": "OLD-TRK", "new": "NEW-TRK"},
             "delivery_date": {"old": "2026-10-20", "new": "2026-11-01"},
         }
+        own.refresh_from_db()
+        assert own.tracking_number == "NEW-TRK"
+        assert own.delivery_date == date(2026, 11, 1)
 
     def test_clearing_date_writes_none(self, manager_client, manager):
         own = make_master(make_client(manager), delivery_date=datetime(2026, 10, 20).date())
@@ -605,6 +1036,8 @@ class TestAuditLog:
 
         (record,) = order_audit(own)
         assert record.details["changes"]["fields"] == {"delivery_date": {"old": "2026-10-20", "new": None}}
+        own.refresh_from_db()
+        assert own.delivery_date is None
 
     def test_save_without_changes_writes_nothing(self, manager_client, manager):
         own = make_master(make_client(manager), tracking_number="SAME-TRK")
@@ -685,9 +1118,63 @@ class TestQueue:
         request.user = manager
 
         with patch("django.utils.timezone.now", return_value=datetime(2026, 10, 15, 0, 10, tzinfo=moscow)):
-            queue = manager_queue(request, "manager")
+            queue = manager_queue(request, manager_site)
 
         assert queue[0]["text"] == "Заявки на верификацию: 1, старейшая — 1 день"
+
+
+def set_group_permissions(*codenames: str) -> None:
+    """Права группы «Менеджеры» — только перечисленные `app_label.codename`."""
+    permissions = [
+        Permission.objects.get(content_type__app_label=app_label, codename=codename)
+        for app_label, codename in (name.split(".") for name in codenames)
+    ]
+    Group.objects.get(name=MANAGERS_GROUP).permissions.set(permissions)
+
+
+class TestQueuePermissions:
+    """R42.5-3 — счётчик показан, только если открывается список по его ссылке."""
+
+    @pytest.fixture(autouse=True)
+    def queue_data(self, manager):
+        make_applicant(manager)
+        make_master(make_client(manager))
+
+    def test_without_order_permissions_no_orders_counter(self, manager_client):
+        set_group_permissions("users.view_user", "users.change_user")
+
+        content = manager_client.get(INDEX_URL).content.decode()
+
+        assert "Заявки на верификацию: 1" in content
+        assert "Новые заказы" not in content
+        assert "/manager/orders/order/?status__exact=pending" not in content
+        assert manager_client.get("/manager/orders/order/?status__exact=pending").status_code == 403
+
+    def test_without_user_permissions_no_applications_counter(self, manager_client):
+        set_group_permissions("orders.view_order", "orders.change_order")
+
+        content = manager_client.get(INDEX_URL).content.decode()
+
+        assert "Новые заказы: 1" in content
+        assert "Заявки на верификацию" not in content
+        assert "/manager/users/user/?verification_status__exact=pending" not in content
+        assert manager_client.get("/manager/users/user/?verification_status__exact=pending").status_code == 403
+
+    def test_view_permission_alone_keeps_counters(self, manager_client):
+        set_group_permissions("orders.view_order", "users.view_user")
+
+        content = manager_client.get(INDEX_URL).content.decode()
+
+        assert "Заявки на верификацию: 1" in content
+        assert "Новые заказы: 1" in content
+
+    def test_without_both_no_queue_block(self, manager_client):
+        set_group_permissions()
+
+        response = manager_client.get(INDEX_URL)
+
+        assert response.status_code == 200
+        assert 'id="manager-queue"' not in response.content.decode()
 
 
 class TestViewOnlyPermissions:

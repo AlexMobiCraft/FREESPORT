@@ -1,8 +1,9 @@
 """
 Unit-тесты раздела заказов менеджера `/manager/` (стори 42.5).
 
-`scope_orders`, склонение дней, очередь главной на пустых данных, страж белого
-списка полей карточки и регистрация на двух сайтах.
+`scope_orders`, склонение дней, очередь главной на пустых данных и при урезанных
+правах, нейтрализация формул в CSV, страж белого списка полей карточки и
+регистрация на двух сайтах.
 """
 
 from __future__ import annotations
@@ -12,11 +13,11 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib import admin
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.test import RequestFactory
 
 from apps.orders.admin import OrderAdmin
-from apps.orders.manager_admin import ManagerOrderAdmin, days_ru, manager_queue, scope_orders
+from apps.orders.manager_admin import ManagerOrderAdmin, csv_cell, days_ru, manager_queue, scope_orders
 from apps.orders.models import Order
 from apps.users.models import User
 from apps.users.staff_roles import MANAGERS_GROUP
@@ -47,9 +48,16 @@ def make_user(**extra) -> User:
     )
 
 
-def make_manager() -> User:
+def make_manager(*codenames: str) -> User:
+    """Член «Менеджеров»; права группы — перечисленные `app_label.codename`."""
     manager = make_user(is_staff=True)
     group, _ = Group.objects.get_or_create(name=MANAGERS_GROUP)
+    group.permissions.set(
+        [
+            Permission.objects.get(content_type__app_label=app_label, codename=codename)
+            for app_label, codename in (name.split(".") for name in codenames)
+        ]
+    )
     manager.groups.add(group)
     return manager
 
@@ -132,7 +140,7 @@ def test_days_ru(n, expected):
 
 class TestManagerQueue:
     def test_empty_queue(self):
-        queue = manager_queue(request_for(make_manager()), "manager")
+        queue = manager_queue(request_for(make_manager("users.view_user", "orders.view_order")), manager_site)
 
         assert [item["text"] for item in queue] == ["Заявки на верификацию: 0", "Новые заказы: 0"]
         assert [item["count"] for item in queue] == [0, 0]
@@ -140,6 +148,45 @@ class TestManagerQueue:
             "/manager/users/user/?verification_status__exact=pending",
             "/manager/orders/order/?status__exact=pending",
         ]
+
+    @pytest.mark.parametrize(
+        ("codenames", "texts"),
+        [
+            pytest.param(("users.change_user",), ["Заявки на верификацию: 0"], id="only-users"),
+            pytest.param(("orders.change_order",), ["Новые заказы: 0"], id="only-orders"),
+            pytest.param((), [], id="nothing"),
+        ],
+    )
+    def test_counter_needs_model_permission(self, codenames, texts):
+        queue = manager_queue(request_for(make_manager(*codenames)), manager_site)
+
+        assert [item["text"] for item in queue] == texts
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("=1+1", "'=1+1"),
+        ("+79001234567", "'+79001234567"),
+        ("-5", "'-5"),
+        ("@SUM(A1)", "'@SUM(A1)"),
+        (" =1+1", "' =1+1"),
+        ("\t=1+1", "'\t=1+1"),
+        ("\r\n=1+1", "'\r\n=1+1"),
+        ("\x00=1+1", "'\x00=1+1"),
+        ("​=1+1", "'​=1+1"),
+        ("＝1+1", "'＝1+1"),
+        ("\t", "'\t"),
+        ("Иван Петров", "Иван Петров"),
+        ("ivan@example.com", "ivan@example.com"),
+        ("0000026001", "0000026001"),
+        ("1000.00", "1000.00"),
+        ("2026-10-15 01:30", "2026-10-15 01:30"),
+        ("", ""),
+    ],
+)
+def test_csv_cell(value, expected):
+    assert csv_cell(value) == expected
 
 
 class TestWhitelist:
