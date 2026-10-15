@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-15 (стори 42.4 -> review: закрыты R42.4-35…37)
+# last_updated: 2026-10-15 (стори 42.4 -> done; стори 42.5 создана -> ready-for-dev)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1449,13 +1449,20 @@ development_status:
   42-1-staff-roles-and-service-access-lockdown: done
   42-2-responsible-manager-by-region-rule: done
   42-3-region-directory-and-responsible-recalculation: done
-  42-4-manager-section-own-clients: review
+  42-4-manager-section-own-clients: done
   # 2026-10-15: Завершено ревью оставшихся блоков через плагин Codex.
   #             R42.4-35…37 оставлены открытыми по решению Alex, код и тесты
   #             не менялись. Профильный Docker-прогон: 37 passed.
   #             Охват ревью всей истории завершён, исправления ещё не выполнены.
   # 2026-10-15: R42.4-35…37 закрыты; полный прогон 4201 passed, 76 skipped.
-  42-5-manager-section-orders-and-home: backlog
+  # 2026-10-15: открытых замечаний ревью нет, все задачи стори закрыты;
+  #             по решению Alex review -> done. Предусловие выката —
+  #             action_item «После выката 42.3 и до 42.4» — выполнено 2026-10-15.
+  42-5-manager-section-orders-and-home: ready-for-dev
+  # 2026-10-15: стори создана на d53f42a6. Заказы — ManagerOrderAdmin на
+  #             manager_site, видимость через scope_clients, запись только
+  #             update_fields трёх полей; главная со счётчиками. 3 вопроса
+  #             Alex в конце стори (не блокируют).
   42-6-marketing-section: backlog
   42-7-supervisor-section-staff-regions-reassignment: backlog
   42-8-supervisor-summary: backlog
@@ -1579,4 +1586,7 @@ action_items:
   - epic: "42"
     action: "После выката 42.3 и до 42.4: завести учётные записи менеджеров и руководителя, распределить все коды регионов и страны, задать резервное правило на руководителя, запустить пересчёт ответственных (сначала --dry-run)"
     owner: "Alex"
-    status: open
+    status: done
+    # 2026-10-15: выполнено на проде (сообщил Alex): учётные записи менеджеров
+    #   с паролями заведены в БД, регионы распределены, пересчёт ответственных
+    #   выполнен. Выкат 42.4 разблокирован.

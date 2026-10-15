@@ -457,10 +457,41 @@ jobs:
             echo "📁 Сбор статических файлов..."
             $COMPOSE exec -T backend python manage.py collectstatic --noinput < /dev/null
             
-            echo "🔧 Проверка конфигурации Nginx (production с SSL)..."
-            $COMPOSE exec -T nginx nginx -t < /dev/null
-            
+            # `exec nginx -t` проверял бы то, что видит живой контейнер, а пофайловый
+            # bind-mount после `git reset --hard` держит старый inode: 15.10.2026 так
+            # прошли «syntax is ok» и reload на конфиге от 30.08, а /manager/ на прод не
+            # попал. `run` поднимает одноразовый контейнер с монтированием по текущим
+            # путям — проверяются файлы с диска, а живой nginx ещё не тронут.
+            echo "🔧 Проверка конфигурации Nginx с диска (production с SSL)..."
+            $COMPOSE run --rm --no-deps -T --name freesport-nginx-check nginx nginx -t < /dev/null
+
+            # Без --force-recreate: compose пересоздаёт nginx, только если изменилось
+            # описание сервиса (монтирования, образ), иначе это пустая операция.
+            $COMPOSE up -d --no-deps nginx
+
+            # Файлы, которые живой nginx видит не такими, как на диске. md5sum с
+            # stdin печатает «хэш  -», поэтому сравнивается только первое поле.
+            nginx_stale_files() {
+              for f in nginx.conf conf.d/default.conf; do
+                disk=$(md5sum < "docker/nginx/$f" | cut -d' ' -f1)
+                live=$($COMPOSE exec -T nginx md5sum "/etc/nginx/$f" < /dev/null | cut -d' ' -f1)
+                if [ "$disk" != "$live" ]; then echo "$f"; fi
+              done
+            }
+            STALE=$(nginx_stale_files)
+            if [ -n "$STALE" ]; then
+              # nginx.conf смонтирован файлом — правку в нём reload не увидит.
+              echo "♻️ Nginx видит устаревшие файлы ($STALE) — пересоздание контейнера..."
+              $COMPOSE up -d --no-deps --force-recreate nginx
+              STALE=$(nginx_stale_files)
+              if [ -n "$STALE" ]; then
+                echo "❌ Nginx после пересоздания видит устаревшие файлы: $STALE"
+                exit 1
+              fi
+            fi
+
             echo "🔄 Перезагрузка Nginx..."
+            $COMPOSE exec -T nginx nginx -t < /dev/null
             $COMPOSE exec -T nginx nginx -s reload < /dev/null
             
             echo "🧹 Очистка старых образов..."

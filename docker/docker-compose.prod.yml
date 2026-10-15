@@ -183,12 +183,17 @@ services:
     image: nginx:alpine
     container_name: freesport-nginx
     volumes:
+      # Пофайловый bind-mount держит inode, а `git reset --hard` заменяет файл
+      # новым — контейнер продолжает видеть старый, и `nginx -s reload` перечитывает
+      # его же. Так /manager/ (стори 42.4) не доехал до прода: в контейнере лежал
+      # default.conf от 30.08. conf.d поэтому монтируется каталогом. nginx.conf
+      # каталогом не смонтировать (перекроет mime.types) — его свежесть сверяет
+      # deploy.yml и при расхождении пересоздаёт контейнер.
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
-      # Стори 41.5: сниппеты заголовков безопасности. nginx монтируется
-      # пофайлово, поэтому новый каталог без этого пункта в контейнер не
-      # попадёт и nginx упадёт на старте. Добавление bind-mount требует
-      # ПЕРЕСОЗДАНИЯ контейнера (`up -d nginx`), reload его не увидит.
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Стори 41.5: сниппеты заголовков безопасности. Без этого пункта каталог
+      # в контейнер не попадёт и nginx упадёт на старте. Новый bind-mount
+      # требует ПЕРЕСОЗДАНИЯ контейнера — deploy.yml делает его `up -d nginx`.
       - ./nginx/snippets:/etc/nginx/snippets:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - ../data/prod/static:/var/www/static
