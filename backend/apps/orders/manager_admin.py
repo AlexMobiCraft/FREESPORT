@@ -12,10 +12,14 @@
 from __future__ import annotations
 
 import csv
+import unicodedata
 from datetime import date
 from typing import Any, cast
 
+from django import forms
 from django.contrib import admin
+from django.contrib.admin import AdminSite
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Min, QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
@@ -47,6 +51,32 @@ MANAGER_CSV_HEADER = [
     "Дата создания",
 ]
 
+# Символы, с которых Excel начинает формулу (OWASP «CSV Injection»), и их
+# полноширинные варианты.
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "＝", "＋", "－", "＠")
+
+STALE_CARD_MESSAGE = (
+    "Трек-номер или дату доставки этого заказа изменили, пока карточка была открыта. "
+    "Изменения не сохранены. Обновите страницу и внесите правку заново."
+)
+
+
+def csv_cell(value: Any) -> str:
+    """
+    Ячейка CSV, которую Excel не выполнит как формулу.
+
+    Значение, у которого после ведущих пробелов и управляющих символов идёт
+    `=`, `+`, `-` или `@`, а также начинающееся с табуляции или перевода
+    строки, получает в начало апостроф: Excel покажет его как текст.
+    """
+    text = str(value)
+    meaningful = text.lstrip()
+    while meaningful and unicodedata.category(meaningful[0]).startswith("C"):
+        meaningful = meaningful[1:].lstrip()
+    if text.startswith(("\t", "\r")) or meaningful.startswith(_FORMULA_PREFIXES):
+        return "'" + text
+    return text
+
 
 def scope_orders(request: HttpRequest, queryset: QuerySet[Order]) -> QuerySet[Order]:
     """
@@ -73,42 +103,54 @@ def days_ru(n: int) -> str:
     return f"{n} {word}"
 
 
-def manager_queue(request: HttpRequest, site_name: str) -> list[dict[str, Any]]:
+def manager_queue(request: HttpRequest, site: AdminSite) -> list[dict[str, Any]]:
     """
     Очередь главной раздела: заявки на верификацию и новые заказы своих клиентов.
 
     Каждый счётчик — один агрегирующий запрос (NFR-42-04). Выборки совпадают
     со списками по ссылкам: список клиентов по умолчанию скрывает записи
-    `unregistered`, поэтому счётчик их тоже не считает.
+    `unregistered`, поэтому счётчик их тоже не считает. Счётчик показан, только
+    если список по его ссылке открывается: без права просмотра модели нет ни
+    числа, ни ссылки, ни запроса.
     """
-    applications = (
-        scope_clients(request, User.objects.all())
-        .exclude(role=User.ROLE_UNREGISTERED)
-        .filter(verification_status="pending")
-        .aggregate(count=Count("pk"), oldest=Min("created_at"))
-    )
-    applications_text = f"Заявки на верификацию: {applications['count']}"
-    oldest = applications["oldest"]
-    if applications["count"] and oldest is not None:
-        # Календарные дни в часовом поясе проекта: поданная вчера в 23:50
-        # в 00:10 — «1 день», а не 0 полных суток.
-        age = (timezone.localdate() - timezone.localtime(oldest).date()).days
-        applications_text += ", старейшая — " + ("сегодня" if age <= 0 else days_ru(age))
+    queue: list[dict[str, Any]] = []
+    # get_model_admin есть с Django 5.0, в закреплённых django-stubs его ещё нет.
+    users_admin = site.get_model_admin(User)  # type: ignore[attr-defined]
+    orders_admin = site.get_model_admin(Order)  # type: ignore[attr-defined]
 
-    new_orders = scope_orders(request, Order.objects.all()).filter(status="pending").count()
+    if users_admin.has_view_or_change_permission(request):
+        applications = (
+            scope_clients(request, User.objects.all())
+            .exclude(role=User.ROLE_UNREGISTERED)
+            .filter(verification_status="pending")
+            .aggregate(count=Count("pk"), oldest=Min("created_at"))
+        )
+        applications_text = f"Заявки на верификацию: {applications['count']}"
+        oldest = applications["oldest"]
+        if applications["count"] and oldest is not None:
+            # Календарные дни в часовом поясе проекта: поданная вчера в 23:50
+            # в 00:10 — «1 день», а не 0 полных суток.
+            age = (timezone.localdate() - timezone.localtime(oldest).date()).days
+            applications_text += ", старейшая — " + ("сегодня" if age <= 0 else days_ru(age))
+        queue.append(
+            {
+                "text": applications_text,
+                "count": applications["count"],
+                "url": reverse(f"{site.name}:users_user_changelist") + "?verification_status__exact=pending",
+            }
+        )
 
-    return [
-        {
-            "text": applications_text,
-            "count": applications["count"],
-            "url": reverse(f"{site_name}:users_user_changelist") + "?verification_status__exact=pending",
-        },
-        {
-            "text": f"Новые заказы: {new_orders}",
-            "count": new_orders,
-            "url": reverse(f"{site_name}:orders_order_changelist") + "?status__exact=pending",
-        },
-    ]
+    if orders_admin.has_view_or_change_permission(request):
+        new_orders = scope_orders(request, Order.objects.all()).filter(status="pending").count()
+        queue.append(
+            {
+                "text": f"Новые заказы: {new_orders}",
+                "count": new_orders,
+                "url": reverse(f"{site.name}:orders_order_changelist") + "?status__exact=pending",
+            }
+        )
+
+    return queue
 
 
 def _audit_value(value: Any) -> Any:
@@ -124,6 +166,45 @@ def _client_ip(request: HttpRequest) -> str:
     # Как UserAdmin._get_client_ip: наследовать UserAdmin ради него не стоит.
     ip_address = get_client_ip(cast(Any, request))
     return "0.0.0.0" if ip_address == "unknown" else ip_address
+
+
+class ManagerOrderForm(forms.ModelForm):
+    """
+    Карточка заказа раздела: отклоняет форму, открытую до чужой правки.
+
+    Значения правимых полей на момент открытия уходят в форму скрытыми полями
+    (`show_hidden_initial`). По ним `changed_data` сравнивает POST с тем, что
+    видел менеджер, а `clean()` — с текущей строкой: если трек-номер или дату
+    успели изменить из другой карточки, форма не сохраняется и просит обновить
+    страницу (решение Alex по R42.5-1). Правки 1С в другие поля карточку не
+    делают устаревшей.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        for name in EDITABLE_FIELDS:
+            if name in self.fields:
+                self.fields[name].show_hidden_initial = True
+        # Значения строки под блокировкой — «старые» значения для журнала.
+        self.locked_values: dict[str, Any] = {}
+
+    def clean(self) -> dict[str, Any]:
+        super().clean()
+        cleaned_data = self.cleaned_data
+        editable = [name for name in EDITABLE_FIELDS if name in self.fields]
+        if not editable or self.instance.pk is None:
+            return cleaned_data
+        # Блокировка строки заказа до конца транзакции changeform_view: вторая
+        # карточка дождётся сохранения первой и увидит её правку. Порядок
+        # блокировок тот же, что у импорта статусов: orders, затем бонусы.
+        current = Order.objects.select_for_update().filter(pk=self.instance.pk).values(*editable).get()
+        for name in editable:
+            bound = self[name]
+            seen = bound.field.hidden_widget().value_from_datadict(self.data, self.files, bound.html_initial_name)
+            if bound.field.has_changed(current[name], seen):
+                raise ValidationError(STALE_CARD_MESSAGE, code="stale")
+        self.locked_values = current
+        return cleaned_data
 
 
 class SubOrderInline(admin.TabularInline):
@@ -156,6 +237,7 @@ class SubOrderInline(admin.TabularInline):
 class ManagerOrderAdmin(OrderAdmin):
     """Заказы менеджера: только свои мастер-заказы, правка трек-номера и даты доставки."""
 
+    form = ManagerOrderForm
     list_display = [
         "order_number_ui",
         "customer",
@@ -291,7 +373,7 @@ class ManagerOrderAdmin(OrderAdmin):
 
     @admin.action(description="Выгрузить выбранные заказы в CSV")
     def export_orders_csv(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
-        """Экспорт выбранных заказов раздела: русские заголовки, BOM для Excel."""
+        """Экспорт выбранных заказов раздела: русские заголовки, BOM и защита от формул для Excel."""
         response = HttpResponse(content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = 'attachment; filename="orders_export.csv"'
         # Без BOM Excel на Windows читает UTF-8 как cp1251.
@@ -300,28 +382,31 @@ class ManagerOrderAdmin(OrderAdmin):
         writer = csv.writer(response)
         writer.writerow(MANAGER_CSV_HEADER)
         for order in queryset.select_related("user"):
-            writer.writerow(
-                [
-                    order.order_number,
-                    order.order_number_display,
-                    order.customer_display_name,
-                    order.get_status_display(),
-                    order.get_payment_status_display(),
-                    str(order.total_amount),
-                    order.get_delivery_method_display(),
-                    order.created_at.strftime("%Y-%m-%d %H:%M"),
-                ]
-            )
+            row = [
+                order.order_number,
+                order.order_number_display,
+                order.customer_display_name,
+                order.get_status_display(),
+                order.get_payment_status_display(),
+                str(order.total_amount),
+                order.get_delivery_method_display(),
+                # Время проекта, как в карточке: в БД — UTC.
+                timezone.localtime(order.created_at).strftime("%Y-%m-%d %H:%M"),
+            ]
+            # Имя клиента вводит он сам — ячейки не должны стать формулами Excel.
+            writer.writerow([csv_cell(value) for value in row])
         return response
 
     def save_model(self, request: HttpRequest, obj: Order, form: ModelForm, change: bool) -> None:
         # Пишутся только изменённые правимые поля: подделанный POST не меняет
         # другие колонки, а правка не затирает статус, оплату и флаги 1С, которые
         # импорт статусов пишет параллельно. Без изменений save() не зовётся —
-        # нет ни post_save, ни записи журнала.
+        # нет ни post_save, ни записи журнала. Устаревшую карточку отклонил
+        # ManagerOrderForm.clean(), строка заказа заблокирована до конца транзакции.
         changed = [name for name in EDITABLE_FIELDS if name in form.changed_data]
         if not changed:
             return
+        old_values = cast(ManagerOrderForm, form).locked_values
         obj.save(update_fields=[*changed, "updated_at"])
         AuditLog.log_action(
             user=request.user,
@@ -331,7 +416,7 @@ class ManagerOrderAdmin(OrderAdmin):
             changes={
                 "order_number": obj.order_number,
                 "fields": {
-                    name: {"old": _audit_value(form.initial.get(name)), "new": _audit_value(getattr(obj, name))}
+                    name: {"old": _audit_value(old_values.get(name)), "new": _audit_value(getattr(obj, name))}
                     for name in changed
                 },
             },

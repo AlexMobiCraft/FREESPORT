@@ -72,7 +72,7 @@ class ManagerAdminSite(admin.AdminSite):
         # раздела сам импортирует manager_site, импорт на уровне модуля дал бы цикл.
         from apps.orders.manager_admin import manager_queue
 
-        extra_context = {**(extra_context or {}), "manager_queue": manager_queue(request, self.name)}
+        extra_context = {**(extra_context or {}), "manager_queue": manager_queue(request, self)}
         return super().index(request, extra_context)
 
     def get_app_list(self, request: HttpRequest, app_label: str | None = None) -> list[dict[str, Any]]:

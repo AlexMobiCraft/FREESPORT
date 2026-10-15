@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-15 (стори 42.5 -> review)
+# last_updated: 2026-10-15 (стори 42.5 -> review после исправлений ревью)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1467,6 +1467,15 @@ development_status:
   #             12 мутаций убиты; полный прогон 4243 passed, 76 skipped, 17 failed —
   #             только тесты scripts/deploy/*.sh из-за CRLF рабочей копии Windows
   #             (с LF 20 passed). in-progress -> review.
+  # 2026-10-15: ревью Codex завершено; Alex оставил 7 исправлений открытыми
+  #             задачами, 3 пункта отложены. Устаревшую карточку решено отклонять.
+  #             Код не менялся; целевой прогон 93 passed (5 воспроизведений).
+  #             review -> in-progress до устранения замечаний.
+  # 2026-10-15: исправлены R42.5-1…7 (устаревшая карточка отклоняется под
+  #             блокировкой строки заказа, формулы в CSV, права в очереди, дата
+  #             CSV по Москве, тесты). 35 новых тестов, 11 мутаций убиты; полный
+  #             прогон 4278 passed, 76 skipped, 17 failed — те же CRLF-тесты
+  #             scripts/deploy (с LF 20 passed). in-progress -> review.
   42-6-marketing-section: backlog
   42-7-supervisor-section-staff-regions-reassignment: backlog
   42-8-supervisor-summary: backlog

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import csv
 import itertools
-from datetime import datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from unittest.mock import patch
@@ -40,11 +40,12 @@ from django.utils import timezone
 
 from apps.bonuses.models import BonusProgramSettings, BonusTransaction
 from apps.common.models import AuditLog
-from apps.orders.manager_admin import MANAGER_CSV_HEADER, manager_queue
+from apps.orders.manager_admin import manager_queue
 from apps.orders.models import Order, OrderItem
 from apps.products.models import Product
 from apps.users.models import User
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
+from freesport.admin_site import manager_site
 from tests.factories import ProductFactory
 from tests.integration.test_manager_clients_section import (  # noqa: F401 — фикстуры подключаются импортом
     INDEX_URL,
@@ -69,6 +70,19 @@ pytestmark = [pytest.mark.integration, pytest.mark.django_db]
 
 ORDERS_URL = "/manager/orders/order/"
 _sequence = itertools.count(1)
+
+# Решение 8 стори: заголовки экспорта раздела — литералом, независимо от реализации.
+EXPECTED_CSV_HEADER = [
+    "Номер заказа",
+    "Номер (UI)",
+    "Клиент",
+    "Статус",
+    "Оплата",
+    "Сумма",
+    "Способ доставки",
+    "Дата создания",
+]
+STALE_CARD_TEXT = "Обновите страницу"
 
 # Поля блока «Не показывать» section-contents: в HTML нет ни поля, ни подписи.
 HIDDEN_FIELDS = {
@@ -182,7 +196,14 @@ def listed_ids(response) -> set[int]:
 
 
 def card_payload(client, order: Order, **changes: Any) -> dict[str, Any]:
-    data = form_payload(client.get(order_change_url(order)))
+    """POST карточки, как его отправит браузер: со скрытыми значениями на момент открытия."""
+    response = client.get(order_change_url(order))
+    data = form_payload(response)
+    form = response.context["adminform"].form
+    for name in form.fields:
+        bound = form[name]
+        if bound.field.show_hidden_initial:
+            data[bound.html_initial_name] = "" if bound.initial is None else bound.initial
     data.update(changes)
     data.setdefault("_save", "Сохранить")
     return data
@@ -387,6 +408,31 @@ class TestOrderCard:
             response.context["adminform"].model_admin.readonly_fields
         )
 
+    def test_items_table_rows_have_quantity_price_and_sum(self, manager_client, manager):
+        own = make_master(make_client(manager))
+        first, second = Order.objects.filter(parent_order=own).order_by("suborder_sequence")
+        # Количество, цена и сумма различаются в каждой строке: подмена одной
+        # колонки другой видна в проверке.
+        OrderItem.objects.filter(order=first).update(
+            product_name="Мяч первый", quantity=3, unit_price=Decimal("120.50"), total_price=Decimal("361.50")
+        )
+        OrderItem.objects.filter(order=second).update(
+            product_name="Мяч второй", quantity=4, unit_price=Decimal("75.25"), total_price=Decimal("301.00")
+        )
+        first_sku = OrderItem.objects.get(order=first).product_sku
+        second_sku = OrderItem.objects.get(order=second).product_sku
+
+        content = manager_client.get(order_change_url(own)).content.decode()
+
+        assert (
+            f"<tr><td>{first.order_number_display}</td><td>Мяч первый</td><td>{first_sku}</td>"
+            "<td>3</td><td>120.50</td><td>361.50</td></tr>"
+        ) in content
+        assert (
+            f"<tr><td>{second.order_number_display}</td><td>Мяч второй</td><td>{second_sku}</td>"
+            "<td>4</td><td>75.25</td><td>301.00</td></tr>"
+        ) in content
+
     def test_legacy_master_without_sub_orders_shows_own_items(self, manager_client, manager):
         own = make_master(make_client(manager), subs=0)
         sku = OrderItem.objects.get(order=own).product_sku
@@ -428,6 +474,79 @@ class TestOrderCard:
         assert not inline.has_delete_permission
         assert 'class="addlink"' not in content
         assert 'class="deletelink"' not in content
+
+
+class TestStaleCard:
+    """R42.5-1 — карточка, открытая до чужой правки трек-номера или даты, отклоняется."""
+
+    def test_second_open_card_is_rejected(self, manager_client, manager):
+        own = make_master(make_client(manager), tracking_number="OLD-TRK", delivery_date=date(2026, 10, 20))
+        first_tab = card_payload(manager_client, own, tracking_number="NEW-TRK")
+        second_tab = card_payload(manager_client, own, delivery_date="2026-11-05")
+        assert manager_client.post(order_change_url(own), first_tab).status_code == 302
+        saved = order_snapshot(own)
+
+        response = manager_client.post(order_change_url(own), second_tab)
+
+        assert response.status_code == 200
+        assert STALE_CARD_TEXT in response.content.decode()
+        assert order_snapshot(own) == saved
+        assert saved["tracking_number"] == "NEW-TRK"
+        assert saved["delivery_date"] == date(2026, 10, 20)
+        assert order_audit(own).count() == 1
+        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
+
+        # Повторная отправка той же устаревшей формы — снова отказ, пока страницу не обновят.
+        again = manager_client.post(order_change_url(own), second_tab)
+        assert again.status_code == 200
+        assert STALE_CARD_TEXT in again.content.decode()
+        assert order_snapshot(own) == saved
+
+    def test_refreshed_card_saves(self, manager_client, manager):
+        own = make_master(make_client(manager), tracking_number="OLD-TRK")
+        stale = card_payload(manager_client, own, delivery_date="2026-11-05")
+        manager_client.post(order_change_url(own), card_payload(manager_client, own, tracking_number="NEW-TRK"))
+        assert manager_client.post(order_change_url(own), stale).status_code == 200
+
+        response = manager_client.post(
+            order_change_url(own), card_payload(manager_client, own, delivery_date="2026-11-05")
+        )
+
+        assert response.status_code == 302
+        own.refresh_from_db()
+        assert own.tracking_number == "NEW-TRK"
+        assert own.delivery_date == date(2026, 11, 5)
+
+    def test_check_locks_order_row(self, manager_client, manager):
+        own = make_master(make_client(manager))
+        data = card_payload(manager_client, own, tracking_number="TRK-LOCK")
+
+        with CaptureQueriesContext(connection) as captured:
+            assert manager_client.post(order_change_url(own), data).status_code == 302
+
+        locks = [query["sql"] for query in captured if "FOR UPDATE" in query["sql"]]
+        assert any('FROM "orders"' in sql for sql in locks), locks
+
+    def test_card_carries_values_seen_on_open(self, manager_client, manager):
+        own = make_master(make_client(manager), tracking_number="SEEN-TRK")
+
+        content = manager_client.get(order_change_url(own)).content.decode()
+
+        assert 'name="initial-tracking_number" value="SEEN-TRK"' in content
+        assert 'name="initial-delivery_date"' in content
+
+    def test_import_of_other_fields_does_not_make_card_stale(self, manager_client, manager):
+        own = make_master(make_client(manager), status="pending")
+        data = card_payload(manager_client, own, tracking_number="TRK-AFTER-IMPORT")
+        # Импорт статусов 1С пишет свои поля и updated_at, правимые поля не трогает.
+        Order.objects.filter(pk=own.pk).update(status="processing", updated_at=timezone.now() + timedelta(minutes=1))
+
+        response = manager_client.post(order_change_url(own), data)
+
+        assert response.status_code == 302
+        after = order_snapshot(own)
+        assert after["tracking_number"] == "TRK-AFTER-IMPORT"
+        assert after["status"] == "processing"
 
 
 @pytest.fixture
@@ -513,7 +632,7 @@ class TestExport:
         assert response["Content-Disposition"] == 'attachment; filename="orders_export.csv"'
         assert response.content[:3] == b"\xef\xbb\xbf"
         rows = csv_rows(response)
-        assert rows[0] == MANAGER_CSV_HEADER
+        assert rows[0] == EXPECTED_CSV_HEADER
         assert {row[0] for row in rows[1:]} == {first.order_number, second.order_number}
 
     def test_select_across_exports_only_own_masters(self, manager_client, manager, other_manager):
@@ -530,6 +649,8 @@ class TestExport:
 
     def test_row_values_follow_admin_export_order(self, manager_client, manager):
         own = make_master(make_client(manager))
+        # 22:30 UTC 14.10 — это 01:30 15.10 по Москве: дата файла совпадает с карточкой.
+        Order.objects.filter(pk=own.pk).update(created_at=datetime(2026, 10, 14, 22, 30, tzinfo=UTC))
 
         rows = csv_rows(post_order_action(manager_client, "export_orders_csv", own))
 
@@ -541,8 +662,17 @@ class TestExport:
             own.get_payment_status_display(),
             str(own.total_amount),
             own.get_delivery_method_display(),
-            own.created_at.strftime("%Y-%m-%d %H:%M"),
+            "2026-10-15 01:30",
         ]
+
+    @pytest.mark.parametrize("name", ["=1+1", "+7(900)", "-2+3", "@SUM(A1)", '=HYPERLINK("http://evil")'])
+    def test_formula_in_client_name_is_neutralized(self, manager_client, manager, name):
+        own = make_master(make_client(manager, first_name=name, last_name=""))
+
+        rows = csv_rows(post_order_action(manager_client, "export_orders_csv", own))
+
+        assert rows[1][2] == f"'{name}"
+        assert rows[1][0] == own.order_number
 
     def test_action_choices_are_russian_without_delete(self, manager_client, manager):
         make_master(make_client(manager))
@@ -597,6 +727,9 @@ class TestAuditLog:
             "tracking_number": {"old": "OLD-TRK", "new": "NEW-TRK"},
             "delivery_date": {"old": "2026-10-20", "new": "2026-11-01"},
         }
+        own.refresh_from_db()
+        assert own.tracking_number == "NEW-TRK"
+        assert own.delivery_date == date(2026, 11, 1)
 
     def test_clearing_date_writes_none(self, manager_client, manager):
         own = make_master(make_client(manager), delivery_date=datetime(2026, 10, 20).date())
@@ -605,6 +738,8 @@ class TestAuditLog:
 
         (record,) = order_audit(own)
         assert record.details["changes"]["fields"] == {"delivery_date": {"old": "2026-10-20", "new": None}}
+        own.refresh_from_db()
+        assert own.delivery_date is None
 
     def test_save_without_changes_writes_nothing(self, manager_client, manager):
         own = make_master(make_client(manager), tracking_number="SAME-TRK")
@@ -685,9 +820,63 @@ class TestQueue:
         request.user = manager
 
         with patch("django.utils.timezone.now", return_value=datetime(2026, 10, 15, 0, 10, tzinfo=moscow)):
-            queue = manager_queue(request, "manager")
+            queue = manager_queue(request, manager_site)
 
         assert queue[0]["text"] == "Заявки на верификацию: 1, старейшая — 1 день"
+
+
+def set_group_permissions(*codenames: str) -> None:
+    """Права группы «Менеджеры» — только перечисленные `app_label.codename`."""
+    permissions = [
+        Permission.objects.get(content_type__app_label=app_label, codename=codename)
+        for app_label, codename in (name.split(".") for name in codenames)
+    ]
+    Group.objects.get(name=MANAGERS_GROUP).permissions.set(permissions)
+
+
+class TestQueuePermissions:
+    """R42.5-3 — счётчик показан, только если открывается список по его ссылке."""
+
+    @pytest.fixture(autouse=True)
+    def queue_data(self, manager):
+        make_applicant(manager)
+        make_master(make_client(manager))
+
+    def test_without_order_permissions_no_orders_counter(self, manager_client):
+        set_group_permissions("users.view_user", "users.change_user")
+
+        content = manager_client.get(INDEX_URL).content.decode()
+
+        assert "Заявки на верификацию: 1" in content
+        assert "Новые заказы" not in content
+        assert "/manager/orders/order/?status__exact=pending" not in content
+        assert manager_client.get("/manager/orders/order/?status__exact=pending").status_code == 403
+
+    def test_without_user_permissions_no_applications_counter(self, manager_client):
+        set_group_permissions("orders.view_order", "orders.change_order")
+
+        content = manager_client.get(INDEX_URL).content.decode()
+
+        assert "Новые заказы: 1" in content
+        assert "Заявки на верификацию" not in content
+        assert "/manager/users/user/?verification_status__exact=pending" not in content
+        assert manager_client.get("/manager/users/user/?verification_status__exact=pending").status_code == 403
+
+    def test_view_permission_alone_keeps_counters(self, manager_client):
+        set_group_permissions("orders.view_order", "users.view_user")
+
+        content = manager_client.get(INDEX_URL).content.decode()
+
+        assert "Заявки на верификацию: 1" in content
+        assert "Новые заказы: 1" in content
+
+    def test_without_both_no_queue_block(self, manager_client):
+        set_group_permissions()
+
+        response = manager_client.get(INDEX_URL)
+
+        assert response.status_code == 200
+        assert 'id="manager-queue"' not in response.content.decode()
 
 
 class TestViewOnlyPermissions:
