@@ -10,4 +10,5 @@ class OrdersConfig(AppConfig):
 
     def ready(self):
         """Подключение сигналов при инициализации приложения"""
+        import apps.orders.manager_admin  # noqa: F401 — регистрация на сайте /manager/
         import apps.orders.signals  # noqa: F401

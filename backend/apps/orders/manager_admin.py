@@ -1,0 +1,343 @@
+"""
+Раздел менеджера `/manager/` — заказы своих клиентов и очередь главной (стори 42.5).
+
+Урезанный `OrderAdmin` на сайте `manager_site`: только мастер-заказы клиентов
+из `scope_clients`, карточка из белого списка полей, правятся только трек-номер
+и дата доставки. Статус, состав и оплата приходят из 1С и в разделе не меняются.
+
+Модуль импортируется из `OrdersConfig.ready()`: к этому моменту
+`admin.autodiscover()` уже загрузил `apps/orders/admin.py`.
+"""
+
+from __future__ import annotations
+
+import csv
+from datetime import date
+from typing import Any, cast
+
+from django.contrib import admin
+from django.db.models import Count, Min, QuerySet
+from django.forms import ModelForm
+from django.http import Http404, HttpRequest, HttpResponse
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.html import format_html, format_html_join
+from django.utils.safestring import SafeString
+
+from apps.common.models import AuditLog
+from apps.common.utils.consent_audit import get_client_ip
+from apps.orders.admin import OrderAdmin
+from apps.orders.models import Order
+from apps.users.manager_admin import scope_clients
+from apps.users.models import User
+from freesport.admin_site import manager_site
+
+# Единственные поля заказа, которые меняет менеджер; остальное — из 1С и оформления.
+EDITABLE_FIELDS = ("tracking_number", "delivery_date")
+
+# Колонки и порядок — как у OrderAdmin.export_to_csv в /admin/, подписи по-русски.
+MANAGER_CSV_HEADER = [
+    "Номер заказа",
+    "Номер (UI)",
+    "Клиент",
+    "Статус",
+    "Оплата",
+    "Сумма",
+    "Способ доставки",
+    "Дата создания",
+]
+
+
+def scope_orders(request: HttpRequest, queryset: QuerySet[Order]) -> QuerySet[Order]:
+    """
+    Единственное правило видимости заказов в разделе менеджера.
+
+    Видны мастер-заказы, клиент которых виден в разделе (`scope_clients`):
+    своего правила у заказов нет. Подзапрос `user__in` отсекает и заказы без
+    клиента, и заказы учётных записей сотрудников. Субзаказы видны только
+    внутри карточки мастера. Снятие фильтра для руководителя и заказы без
+    клиента (стори 42.7) правятся здесь вслед за `scope_clients`.
+    """
+    return queryset.filter(is_master=True, user__in=scope_clients(request, User.objects.all()))
+
+
+def days_ru(n: int) -> str:
+    """Число дней с согласованным словом: 1 день, 2 дня, 5 дней, 11 дней, 21 день."""
+    tail = abs(n) % 100
+    if tail % 10 == 1 and tail != 11:
+        word = "день"
+    elif 2 <= tail % 10 <= 4 and not 12 <= tail <= 14:
+        word = "дня"
+    else:
+        word = "дней"
+    return f"{n} {word}"
+
+
+def manager_queue(request: HttpRequest, site_name: str) -> list[dict[str, Any]]:
+    """
+    Очередь главной раздела: заявки на верификацию и новые заказы своих клиентов.
+
+    Каждый счётчик — один агрегирующий запрос (NFR-42-04). Выборки совпадают
+    со списками по ссылкам: список клиентов по умолчанию скрывает записи
+    `unregistered`, поэтому счётчик их тоже не считает.
+    """
+    applications = (
+        scope_clients(request, User.objects.all())
+        .exclude(role=User.ROLE_UNREGISTERED)
+        .filter(verification_status="pending")
+        .aggregate(count=Count("pk"), oldest=Min("created_at"))
+    )
+    applications_text = f"Заявки на верификацию: {applications['count']}"
+    oldest = applications["oldest"]
+    if applications["count"] and oldest is not None:
+        # Календарные дни в часовом поясе проекта: поданная вчера в 23:50
+        # в 00:10 — «1 день», а не 0 полных суток.
+        age = (timezone.localdate() - timezone.localtime(oldest).date()).days
+        applications_text += ", старейшая — " + ("сегодня" if age <= 0 else days_ru(age))
+
+    new_orders = scope_orders(request, Order.objects.all()).filter(status="pending").count()
+
+    return [
+        {
+            "text": applications_text,
+            "count": applications["count"],
+            "url": reverse(f"{site_name}:users_user_changelist") + "?verification_status__exact=pending",
+        },
+        {
+            "text": f"Новые заказы: {new_orders}",
+            "count": new_orders,
+            "url": reverse(f"{site_name}:orders_order_changelist") + "?status__exact=pending",
+        },
+    ]
+
+
+def _audit_value(value: Any) -> Any:
+    """Значение поля для журнала: дата — ISO-строкой, пустое — None."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
+
+
+def _client_ip(request: HttpRequest) -> str:
+    # Как UserAdmin._get_client_ip: наследовать UserAdmin ради него не стоит.
+    ip_address = get_client_ip(cast(Any, request))
+    return "0.0.0.0" if ip_address == "unknown" else ip_address
+
+
+class SubOrderInline(admin.TabularInline):
+    """Субзаказы мастера — только чтение: номер, статус, сумма."""
+
+    model = Order
+    fk_name = "parent_order"
+    fields = ("sub_number", "status", "total_amount")
+    readonly_fields = ("sub_number", "status", "total_amount")
+    verbose_name = "Субзаказ"
+    verbose_name_plural = "Субзаказы"
+    extra = 0
+    can_delete = False
+    show_change_link = False
+
+    @admin.display(description="Субзаказ")
+    def sub_number(self, obj: Order) -> str:
+        return obj.order_number_display
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+
+class ManagerOrderAdmin(OrderAdmin):
+    """Заказы менеджера: только свои мастер-заказы, правка трек-номера и даты доставки."""
+
+    list_display = [
+        "order_number_ui",
+        "customer",
+        "status",
+        "payment_status_ru",
+        "total_amount",
+        "positions",
+        "created_at",
+    ]
+    list_display_links = ["order_number_ui"]
+    list_filter = ["status", "payment_status", "delivery_method"]
+    search_fields = ["order_number", "user__email", "customer_email", "tracking_number", "user__company_name"]
+    actions = ["export_orders_csv"]
+    inlines = [SubOrderInline]
+
+    # Белый список полей: новое поле Order само в раздел не попадёт.
+    fieldsets: Any = (
+        ("Заказ", {"fields": ("order_number_ui", "order_number", "client_link", "status", "created_at", "updated_at")}),
+        ("Контакты из заказа", {"fields": ("customer_name", "customer_email", "customer_phone")}),
+        ("Состав и суммы", {"fields": ("items_table", "total_amount", "discount_amount", "delivery_cost")}),
+        ("Доставка", {"fields": ("delivery_method", "delivery_address", "delivery_date", "tracking_number")}),
+        ("Оплата", {"fields": ("payment_method", "payment_status", "paid_at", "shipped_at", "sent_to_1c_ru")}),
+        # Комментарий клиента из оформления виден ему в ЛК — только чтение.
+        ("Комментарий клиента", {"fields": ("notes",)}),
+    )
+    readonly_fields: Any = (
+        "order_number_ui",
+        "order_number",
+        "client_link",
+        "status",
+        "created_at",
+        "updated_at",
+        "customer_name",
+        "customer_email",
+        "customer_phone",
+        "items_table",
+        "total_amount",
+        "discount_amount",
+        "delivery_cost",
+        "delivery_method",
+        "delivery_address",
+        "payment_method",
+        "payment_status",
+        "paid_at",
+        "shipped_at",
+        "sent_to_1c_ru",
+        "notes",
+    )
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Order]:
+        return scope_orders(request, super().get_queryset(request))
+
+    def _get_obj_does_not_exist_redirect(self, request: HttpRequest, opts: Any, object_id: str) -> HttpResponse:
+        # Штатный ответ на объект вне queryset — 302 на главную с «не существует».
+        # В разделе чужой заказ и субзаказ неотличимы от несуществующего: 404 на
+        # карточке и истории. Метод приватный (Django 5.2), его контракт
+        # страхуют тесты AC3 стори 42.5.
+        raise Http404("Заказ не найден")
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_delete_permission(self, request: HttpRequest, obj: Order | None = None) -> bool:
+        return False
+
+    def get_fieldsets(self, request: HttpRequest, obj: Order | None = None) -> Any:
+        return self.fieldsets
+
+    def get_readonly_fields(self, request: HttpRequest, obj: Order | None = None) -> list[str]:
+        return list(self.readonly_fields)
+
+    def changelist_view(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> HttpResponse:
+        extra_context = {**(extra_context or {}), "title": "Заказы"}
+        return super().changelist_view(request, extra_context)
+
+    # Подписи раздела по-русски: display-методы OrderAdmin подписаны по-английски.
+
+    @admin.display(description="Номер", ordering="order_number")
+    def order_number_ui(self, obj: Order) -> str:
+        return obj.order_number_display
+
+    @admin.display(description="Клиент", ordering="user__email")
+    def customer(self, obj: Order) -> str:
+        return self.customer_display(obj)
+
+    @admin.display(description="Оплата")
+    def payment_status_ru(self, obj: Order) -> str:
+        return self.payment_status_display(obj)
+
+    @admin.display(description="Позиций")
+    def positions(self, obj: Order) -> int:
+        return self.items_count(obj)
+
+    @admin.display(description="Передан в 1С", boolean=True)
+    def sent_to_1c_ru(self, obj: Order) -> bool:
+        return obj.sent_to_1c
+
+    @admin.display(description="Клиент")
+    def client_link(self, obj: Order) -> str:
+        # Ссылка в раздел, а не readonly-FK: заказ виден только при видимом
+        # клиенте, поэтому карточка клиента не ответит 404.
+        user = obj.user
+        if user is None:
+            return "—"
+        label = f"{user.email} ({user.company_name})" if user.company_name else str(user.email)
+        url = reverse(f"{self.admin_site.name}:users_user_change", args=[obj.user_id])
+        return format_html('<a href="{}">{}</a>', url, label)
+
+    @admin.display(description="Состав")
+    def items_table(self, obj: Order) -> str:
+        # Позиции живут в субзаказах; у legacy-мастера без субзаказов — свои.
+        # Выборки — из prefetch get_queryset родителя, без новых запросов.
+        sub_orders = list(obj.sub_orders.all())
+        if sub_orders:
+            rows = [(sub.order_number_display, item) for sub in sub_orders for item in sub.items.all()]
+        else:
+            rows = [("—", item) for item in obj.items.all()]
+        if not rows:
+            return "—"
+        body = format_html_join(
+            "",
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+            (
+                (number, item.product_name, item.product_sku, item.quantity, item.unit_price, item.total_price)
+                for number, item in rows
+            ),
+        )
+        return format_html(
+            "<table><thead><tr><th>Субзаказ</th><th>Товар</th><th>Артикул</th><th>Количество</th>"
+            "<th>Цена</th><th>Сумма</th></tr></thead><tbody>{}</tbody></table>",
+            body,
+        )
+
+    @admin.action(description="Выгрузить выбранные заказы в CSV")
+    def export_orders_csv(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
+        """Экспорт выбранных заказов раздела: русские заголовки, BOM для Excel."""
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="orders_export.csv"'
+        # Без BOM Excel на Windows читает UTF-8 как cp1251.
+        response.write("\ufeff")
+
+        writer = csv.writer(response)
+        writer.writerow(MANAGER_CSV_HEADER)
+        for order in queryset.select_related("user"):
+            writer.writerow(
+                [
+                    order.order_number,
+                    order.order_number_display,
+                    order.customer_display_name,
+                    order.get_status_display(),
+                    order.get_payment_status_display(),
+                    str(order.total_amount),
+                    order.get_delivery_method_display(),
+                    order.created_at.strftime("%Y-%m-%d %H:%M"),
+                ]
+            )
+        return response
+
+    def save_model(self, request: HttpRequest, obj: Order, form: ModelForm, change: bool) -> None:
+        # Пишутся только изменённые правимые поля: подделанный POST не меняет
+        # другие колонки, а правка не затирает статус, оплату и флаги 1С, которые
+        # импорт статусов пишет параллельно. Без изменений save() не зовётся —
+        # нет ни post_save, ни записи журнала.
+        changed = [name for name in EDITABLE_FIELDS if name in form.changed_data]
+        if not changed:
+            return
+        obj.save(update_fields=[*changed, "updated_at"])
+        AuditLog.log_action(
+            user=request.user,
+            action="update_order",
+            resource_type="Order",
+            resource_id=obj.pk,
+            changes={
+                "order_number": obj.order_number,
+                "fields": {
+                    name: {"old": _audit_value(form.initial.get(name)), "new": _audit_value(getattr(obj, name))}
+                    for name in changed
+                },
+            },
+            ip_address=_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+
+
+manager_site.register(Order, ManagerOrderAdmin)
