@@ -21,7 +21,10 @@ Integration-тесты раздела менеджера `/manager/` — зак�
 from __future__ import annotations
 
 import csv
+import io
 import itertools
+import threading
+import time as clock
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
@@ -32,15 +35,15 @@ import pytest
 from django.contrib.admin.models import LogEntry
 from django.contrib.admin.utils import label_for_field
 from django.contrib.auth.models import Group, Permission
-from django.db import connection
-from django.test import RequestFactory
+from django.db import connection, connections
+from django.test import Client, RequestFactory
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.bonuses.models import BonusProgramSettings, BonusTransaction
 from apps.common.models import AuditLog
-from apps.orders.manager_admin import manager_queue
+from apps.orders.manager_admin import ManagerOrderAdmin, manager_queue
 from apps.orders.models import Order, OrderItem
 from apps.products.models import Product
 from apps.users.models import User
@@ -188,7 +191,8 @@ def order_snapshot(order: Order) -> dict[str, Any]:
 
 
 def csv_rows(response) -> list[list[str]]:
-    return list(csv.reader(response.content.decode("utf-8-sig").splitlines()))
+    # Через поток, а не splitlines(): перевод строки внутри кавыченной ячейки сохраняется.
+    return list(csv.reader(io.StringIO(response.content.decode("utf-8-sig"), newline="")))
 
 
 def listed_ids(response) -> set[int]:
@@ -479,8 +483,77 @@ class TestOrderCard:
 class TestStaleCard:
     """R42.5-1 — карточка, открытая до чужой правки трек-номера или даты, отклоняется."""
 
-    def test_second_open_card_is_rejected(self, manager_client, manager):
+    @pytest.mark.parametrize(
+        ("first_change", "second_change", "expected"),
+        [
+            pytest.param(
+                {"tracking_number": "NEW-TRK"},
+                {"delivery_date": "2026-11-05"},
+                ("NEW-TRK", date(2026, 10, 20)),
+                id="track-then-date",
+            ),
+            pytest.param(
+                {"delivery_date": "2026-11-01"},
+                {"tracking_number": "SECOND-TRK"},
+                ("OLD-TRK", date(2026, 11, 1)),
+                id="date-then-track",
+            ),
+            pytest.param(
+                {"delivery_date": ""},
+                {"tracking_number": "SECOND-TRK"},
+                ("OLD-TRK", None),
+                id="cleared-date-then-track",
+            ),
+            pytest.param(
+                {"delivery_date": "2026-11-01"},
+                {"delivery_date": "2026-12-01"},
+                ("OLD-TRK", date(2026, 11, 1)),
+                id="date-then-date",
+            ),
+        ],
+    )
+    def test_second_open_card_is_rejected(self, manager_client, manager, first_change, second_change, expected):
         own = make_master(make_client(manager), tracking_number="OLD-TRK", delivery_date=date(2026, 10, 20))
+        first_tab = card_payload(manager_client, own, **first_change)
+        second_tab = card_payload(manager_client, own, **second_change)
+        assert manager_client.post(order_change_url(own), first_tab).status_code == 302
+        saved = order_snapshot(own)
+        assert (saved["tracking_number"], saved["delivery_date"]) == expected
+
+        response = manager_client.post(order_change_url(own), second_tab)
+
+        assert response.status_code == 200
+        assert STALE_CARD_TEXT in response.content.decode()
+        assert order_snapshot(own) == saved
+        assert order_audit(own).count() == 1
+        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
+
+        # Повторная отправка той же устаревшей формы — снова отказ, пока страницу не обновят.
+        again = manager_client.post(order_change_url(own), second_tab)
+        assert again.status_code == 200
+        assert STALE_CARD_TEXT in again.content.decode()
+        assert order_snapshot(own) == saved
+        assert order_audit(own).count() == 1
+        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
+
+    @pytest.mark.parametrize("stored", ["TRK ", " TRK", " TRK "])
+    def test_spaces_in_stored_tracking_do_not_make_fresh_card_stale(self, manager_client, manager, stored):
+        # Order.save() пробелы не срезает: трек с пробелами мог прийти не из формы.
+        own = make_master(make_client(manager), tracking_number=stored)
+
+        response = manager_client.post(
+            order_change_url(own), card_payload(manager_client, own, delivery_date="2026-11-05")
+        )
+
+        assert response.status_code == 302
+        own.refresh_from_db()
+        assert own.delivery_date == date(2026, 11, 5)
+        assert own.tracking_number == stored
+        (record,) = order_audit(own)
+        assert record.details["changes"]["fields"] == {"delivery_date": {"old": None, "new": "2026-11-05"}}
+
+    def test_spaces_in_stored_tracking_keep_conflict_check(self, manager_client, manager):
+        own = make_master(make_client(manager), tracking_number="TRK ")
         first_tab = card_payload(manager_client, own, tracking_number="NEW-TRK")
         second_tab = card_payload(manager_client, own, delivery_date="2026-11-05")
         assert manager_client.post(order_change_url(own), first_tab).status_code == 302
@@ -491,16 +564,7 @@ class TestStaleCard:
         assert response.status_code == 200
         assert STALE_CARD_TEXT in response.content.decode()
         assert order_snapshot(own) == saved
-        assert saved["tracking_number"] == "NEW-TRK"
-        assert saved["delivery_date"] == date(2026, 10, 20)
         assert order_audit(own).count() == 1
-        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
-
-        # Повторная отправка той же устаревшей формы — снова отказ, пока страницу не обновят.
-        again = manager_client.post(order_change_url(own), second_tab)
-        assert again.status_code == 200
-        assert STALE_CARD_TEXT in again.content.decode()
-        assert order_snapshot(own) == saved
 
     def test_refreshed_card_saves(self, manager_client, manager):
         own = make_master(make_client(manager), tracking_number="OLD-TRK")
@@ -526,6 +590,63 @@ class TestStaleCard:
 
         locks = [query["sql"] for query in captured if "FOR UPDATE" in query["sql"]]
         assert any('FROM "orders"' in sql for sql in locks), locks
+
+    def test_concurrent_card_waits_for_lock_and_is_rejected(self, manager_client, manager):
+        """Два POST в разных соединениях PostgreSQL: второй ждёт блокировку первого и видит его правку."""
+        own = make_master(make_client(manager), tracking_number="OLD-TRK")
+        first_tab = card_payload(manager_client, own, tracking_number="NEW-TRK")
+        second_tab = card_payload(manager_client, own, delivery_date="2026-11-05")
+        first_saved, release = threading.Event(), threading.Event()
+        responses: dict[str, Any] = {}
+        original_save_model = ManagerOrderAdmin.save_model
+
+        def save_model_and_hold(admin_obj, request, obj, form, change):
+            original_save_model(admin_obj, request, obj, form, change)
+            if threading.current_thread().name == "first":
+                # Транзакция первого запроса открыта, строка заказа заблокирована.
+                first_saved.set()
+                release.wait(timeout=15)
+
+        def post(name: str, data: dict[str, Any]) -> None:
+            tab = Client()
+            tab.force_login(manager)
+            try:
+                responses[name] = tab.post(order_change_url(own), data)
+            finally:
+                connections.close_all()
+
+        def blocked_on_lock() -> bool:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT count(*) FROM pg_stat_activity "
+                    "WHERE datname = current_database() AND wait_event_type = 'Lock' AND pid <> pg_backend_pid()"
+                )
+                return cursor.fetchone()[0] > 0
+
+        with patch.object(ManagerOrderAdmin, "save_model", save_model_and_hold):
+            first = threading.Thread(target=post, args=("first", first_tab), name="first")
+            second = threading.Thread(target=post, args=("second", second_tab), name="second")
+            first.start()
+            assert first_saved.wait(timeout=15)
+            second.start()
+            deadline = clock.monotonic() + 10
+            waited = blocked_on_lock()
+            while not waited and clock.monotonic() < deadline:
+                clock.sleep(0.05)
+                waited = blocked_on_lock()
+            release.set()
+            first.join(timeout=30)
+            second.join(timeout=30)
+
+        assert waited, "второй POST не ждал блокировку строки заказа"
+        assert responses["first"].status_code == 302
+        assert responses["second"].status_code == 200
+        assert STALE_CARD_TEXT in responses["second"].content.decode()
+        after = order_snapshot(own)
+        assert after["tracking_number"] == "NEW-TRK"
+        assert after["delivery_date"] is None
+        assert order_audit(own).count() == 1
+        assert LogEntry.objects.filter(object_id=str(own.pk)).count() == 1
 
     def test_card_carries_values_seen_on_open(self, manager_client, manager):
         own = make_master(make_client(manager), tracking_number="SEEN-TRK")
@@ -672,6 +793,16 @@ class TestExport:
         rows = csv_rows(post_order_action(manager_client, "export_orders_csv", own))
 
         assert rows[1][2] == f"'{name}"
+        assert rows[1][0] == own.order_number
+
+    def test_multiline_client_name_is_kept_in_one_cell(self, manager_client, manager):
+        own = make_master(make_client(manager, first_name="Первая\nВторая", last_name=""))
+
+        response = post_order_action(manager_client, "export_orders_csv", own)
+
+        rows = csv_rows(response)
+        assert len(rows) == 2
+        assert rows[1][2] == "Первая\nВторая"
         assert rows[1][0] == own.order_number
 
     def test_action_choices_are_russian_without_delete(self, manager_client, manager):

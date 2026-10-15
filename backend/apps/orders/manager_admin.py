@@ -201,7 +201,10 @@ class ManagerOrderForm(forms.ModelForm):
         for name in editable:
             bound = self[name]
             seen = bound.field.hidden_widget().value_from_datadict(self.data, self.files, bound.html_initial_name)
-            if bound.field.has_changed(current[name], seen):
+            # has_changed нормализует только присланное значение (CharField срезает
+            # пробелы), поэтому значение строки приводится так же — как в changed_data
+            # Django: иначе трек «TRK » из БД делал бы свежую карточку устаревшей.
+            if bound.field.has_changed(bound.field.to_python(current[name]), seen):
                 raise ValidationError(STALE_CARD_MESSAGE, code="stale")
         self.locked_values = current
         return cleaned_data
