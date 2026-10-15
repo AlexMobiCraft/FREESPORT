@@ -27,6 +27,7 @@ import threading
 import time as clock
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
+from html.parser import HTMLParser
 from typing import Any
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -86,6 +87,31 @@ EXPECTED_CSV_HEADER = [
     "Дата создания",
 ]
 STALE_CARD_TEXT = "Обновите страницу"
+
+# AC4: поля карточки только для чтения — литералом, независимо от реализации.
+CARD_READONLY_FIELDS = {
+    "order_number_ui",
+    "order_number",
+    "client_link",
+    "status",
+    "customer_name",
+    "customer_email",
+    "customer_phone",
+    "notes",
+    "items_table",
+    "total_amount",
+    "discount_amount",
+    "delivery_cost",
+    "delivery_address",
+    "delivery_method",
+    "payment_method",
+    "payment_status",
+    "paid_at",
+    "shipped_at",
+    "sent_to_1c_ru",
+    "created_at",
+    "updated_at",
+}
 
 # Поля блока «Не показывать» section-contents: в HTML нет ни поля, ни подписи.
 HIDDEN_FIELDS = {
@@ -204,47 +230,97 @@ OTHER_CONNECTION_SQL_TIMEOUT_MS = 10_000
 OTHER_CONNECTION_JOIN_TIMEOUT = 30
 
 
-@pytest.fixture
-def other_connection():
+class ConnectionWorkers:
     """
-    Выполняет действие в отдельном соединении PostgreSQL и дожидается его фиксации.
+    Потоки со своими соединениями PostgreSQL для проверок конкурентного доступа.
 
-    Работник — отдельный поток со своим соединением в autocommit. `statement_timeout`
-    ограничивает его SQL, поэтому `join` с запасом успевает; живой после `join` поток
-    и исключение работника поднимаются в вызывающем потоке. Ссылки на работников
-    держит фикстура: при любом выходе из теста она дожидается их до очистки БД
-    (R42.5-17).
+    SQL каждого работника ограничен `statement_timeout`, поэтому `join` с запасом
+    успевает. Если поток всё же жив после `join`, его запрос снимается
+    `pg_cancel_backend`, и поток ждут ещё раз. Исключения работников собираются
+    в `errors` и поднимаются в вызывающем потоке (R42.5-17, R42.5-19).
     """
-    workers: list[threading.Thread] = []
 
-    def run(action) -> None:
-        errors: list[BaseException] = []
+    def __init__(self) -> None:
+        self.errors: dict[str, BaseException] = {}
+        self._workers: list[tuple[threading.Thread, list[int]]] = []
+
+    def start(self, name: str, action: Any) -> None:
+        pids: list[int] = []
 
         def work() -> None:
             try:
                 with connection.cursor() as cursor:
                     cursor.execute(f"SET statement_timeout = {OTHER_CONNECTION_SQL_TIMEOUT_MS}")
+                    cursor.execute("SELECT pg_backend_pid()")
+                    pids.append(cursor.fetchone()[0])
                 action()
             except BaseException as error:  # передаётся в вызывающий поток
-                errors.append(error)
+                self.errors[name] = error
             finally:
                 connections.close_all()
 
-        worker = threading.Thread(target=work, name=f"other-connection-{len(workers) + 1}")
-        workers.append(worker)
+        worker = threading.Thread(target=work, name=name)
+        self._workers.append((worker, pids))
         worker.start()
-        worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
-        if worker.is_alive():
-            raise AssertionError(f"{worker.name} не завершился за {OTHER_CONNECTION_JOIN_TIMEOUT} с")
-        if errors:
-            raise errors[0]
 
-    yield run
+    def join(self, *, raise_errors: bool = True) -> None:
+        for worker, pids in self._workers:
+            worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
+            if worker.is_alive() and pids:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_cancel_backend(%s)", [pids[0]])
+                worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
+        alive = [worker.name for worker, _ in self._workers if worker.is_alive()]
+        if alive:
+            raise AssertionError(f"работники не завершились: {alive}")
+        if raise_errors and self.errors:
+            raise next(iter(self.errors.values()))
 
-    for worker in workers:
-        worker.join(timeout=OTHER_CONNECTION_JOIN_TIMEOUT)
-    alive = [worker.name for worker in workers if worker.is_alive()]
-    assert not alive, f"работники пережили тест: {alive}"
+
+@pytest.fixture
+def connection_workers():
+    """
+    Работники в других соединениях; при любом выходе из теста фикстура дожидается их.
+
+    Teardown идёт раньше очистки БД: `clear_db_before_test` — autouse и завершается
+    последним. Исключения работников здесь не поднимаются повторно — их уже поднял
+    `join()` теста, а на ошибочном пути тест упал по своей причине.
+    """
+    workers = ConnectionWorkers()
+    yield workers
+    workers.join(raise_errors=False)
+
+
+@pytest.fixture
+def other_connection(connection_workers):
+    """Выполняет действие в отдельном соединении PostgreSQL и дожидается его фиксации."""
+    names = itertools.count(1)
+
+    def run(action) -> None:
+        connection_workers.start(f"other-connection-{next(names)}", action)
+        connection_workers.join()
+
+    return run
+
+
+class _FormInputs(HTMLParser):
+    """Значения `<input>` страницы — то, что отправит браузер (без кнопок отправки)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.values: dict[str, str] = {}
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        name = attributes.get("name")
+        if tag == "input" and name and attributes.get("type") not in ("submit", "button"):
+            self.values[name] = attributes.get("value") or ""
+
+
+def html_inputs(content: str) -> dict[str, str]:
+    parser = _FormInputs()
+    parser.feed(content)
+    return parser.values
 
 
 def card_payload(client, order: Order, **changes: Any) -> dict[str, Any]:
@@ -445,6 +521,9 @@ class TestOrderCard:
             customer_name="Пётр Покупателев",
             customer_phone="+79005554433",
             sent_to_1c=True,
+            total_amount=Decimal("987.65"),
+            discount_amount=Decimal("43.21"),
+            delivery_cost=Decimal("210.98"),
         )
         skus = list(OrderItem.objects.filter(order__parent_order=own).values_list("product_sku", flat=True))
         assert len(skus) == 2
@@ -468,8 +547,19 @@ class TestOrderCard:
             assert sku in content, sku
         for label in ("Передан в 1С", "Дата оплаты", "Дата отгрузки", "Способ оплаты", "Статус оплаты"):
             assert label in content, label
-        assert set(response.context["adminform"].readonly_fields) == set(
-            response.context["adminform"].model_admin.readonly_fields
+        # Состав — по AC4, независимо от readonly_fields реализации (R42.5-22).
+        cells = {
+            field.field["name"]: str(field.contents())
+            for fieldset in response.context["adminform"]
+            for line in fieldset
+            for field in line
+            if field.is_readonly
+        }
+        assert set(cells) == CARD_READONLY_FIELDS
+        assert (cells["total_amount"], cells["discount_amount"], cells["delivery_cost"]) == (
+            "987,65",
+            "43,21",
+            "210,98",
         )
 
     def test_items_table_rows_have_quantity_price_and_sum(self, manager_client, manager):
@@ -667,7 +757,7 @@ class TestStaleCard:
         locks = [query["sql"] for query in captured if "FOR UPDATE" in query["sql"]]
         assert any('FROM "orders"' in sql for sql in locks), locks
 
-    def test_concurrent_card_waits_for_lock_and_is_rejected(self, manager_client, manager):
+    def test_concurrent_card_waits_for_lock_and_is_rejected(self, manager_client, manager, connection_workers):
         """Два POST в разных соединениях PostgreSQL: второй ждёт блокировку первого и видит его правку."""
         own = make_master(make_client(manager), tracking_number="OLD-TRK")
         first_tab = card_payload(manager_client, own, tracking_number="NEW-TRK")
@@ -683,17 +773,10 @@ class TestStaleCard:
                 first_saved.set()
                 release.wait(timeout=15)
 
-        errors: dict[str, Exception] = {}
-
         def post(name: str, data: dict[str, Any]) -> None:
             tab = Client()
             tab.force_login(manager)
-            try:
-                responses[name] = tab.post(order_change_url(own), data)
-            except Exception as error:  # передаётся в основной поток
-                errors[name] = error
-            finally:
-                connections.close_all()
+            responses[name] = tab.post(order_change_url(own), data)
 
         def blocked_on_lock() -> bool:
             with connection.cursor() as cursor:
@@ -703,30 +786,23 @@ class TestStaleCard:
                 )
                 return cursor.fetchone()[0] > 0
 
-        started: list[threading.Thread] = []
         with patch.object(ManagerOrderAdmin, "save_model", save_model_and_hold):
             try:
-                first = threading.Thread(target=post, args=("first", first_tab), name="first")
-                first.start()
-                started.append(first)
+                connection_workers.start("first", lambda: post("first", first_tab))
                 assert first_saved.wait(timeout=15), "первый POST не дошёл до сохранения"
-                second = threading.Thread(target=post, args=("second", second_tab), name="second")
-                second.start()
-                started.append(second)
-                deadline = clock.monotonic() + 10
+                connection_workers.start("second", lambda: post("second", second_tab))
+                deadline = clock.monotonic() + 5
                 waited = blocked_on_lock()
                 while not waited and clock.monotonic() < deadline:
                     clock.sleep(0.05)
                     waited = blocked_on_lock()
             finally:
-                # При любом выходе: отпустить первый запрос и дождаться обоих, чтобы
-                # их соединения не пережили тест и не мешали очистке БД (R42.5-13).
+                # При любом выходе отпустить первый запрос (R42.5-13). SQL обоих
+                # ограничен statement_timeout, дождётся их connection_workers: здесь
+                # на успешном пути или в своём teardown — до очистки БД (R42.5-19).
                 release.set()
-                for thread in started:
-                    thread.join(timeout=30)
+            connection_workers.join()
 
-        assert not [thread.name for thread in started if thread.is_alive()], "потоки запросов не завершились"
-        assert not errors, errors
         assert waited, "второй POST не ждал блокировку строки заказа"
         assert responses["first"].status_code == 302
         assert responses["second"].status_code == 200
@@ -808,6 +884,26 @@ class TestStaleCard:
 
         assert 'name="initial-tracking_number" value="SEEN-TRK"' in content
         assert 'name="initial-delivery_date"' in content
+
+    def test_browser_card_with_delivery_date_saves(self, manager_client, manager):
+        """R42.5-20: POST собран из HTML, как его отправит браузер; скрытая исходная дата не пуста."""
+        own = make_master(make_client(manager), tracking_number="OLD-TRK", delivery_date=date(2026, 11, 5))
+        inputs = html_inputs(manager_client.get(order_change_url(own)).content.decode())
+        assert inputs["initial-tracking_number"] == inputs["tracking_number"] == "OLD-TRK"
+        # Скрытое поле рендерит дату в ISO, видимое — в формате локали: строки разные.
+        assert inputs["delivery_date"] == "05.11.2026"
+        assert inputs["initial-delivery_date"] == "2026-11-05"
+
+        response = manager_client.post(
+            order_change_url(own), {**inputs, "tracking_number": "NEW-TRK", "_save": "Сохранить"}
+        )
+
+        assert response.status_code == 302
+        after = order_snapshot(own)
+        assert after["tracking_number"] == "NEW-TRK"
+        assert after["delivery_date"] == date(2026, 11, 5)
+        (record,) = order_audit(own)
+        assert record.changes["fields"] == {"tracking_number": {"old": "OLD-TRK", "new": "NEW-TRK"}}
 
     def test_import_of_other_fields_does_not_make_card_stale(self, manager_client, manager):
         own = make_master(make_client(manager), status="pending")
@@ -911,6 +1007,8 @@ class TestExport:
     def test_selected_forged_foreign_id_is_ignored(self, manager_client, manager, other_manager):
         client_user = make_client(manager)
         first, second = make_master(client_user), make_master(client_user)
+        # Свой, но не выбранный: экспорт выгружает выбор, а не весь раздел (R42.5-21).
+        make_master(client_user)
         foreign = make_master(make_client(other_manager))
 
         response = post_order_action(manager_client, "export_orders_csv", first, second, foreign)

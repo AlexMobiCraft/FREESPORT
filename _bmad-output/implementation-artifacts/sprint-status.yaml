@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-15 (стори 42.5 -> in-progress по итогам пятого ревью)
+# last_updated: 2026-10-15 (стори 42.5 -> review после исправлений R42.5-19…22)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1458,7 +1458,7 @@ development_status:
   # 2026-10-15: открытых замечаний ревью нет, все задачи стори закрыты;
   #             по решению Alex review -> done. Предусловие выката —
   #             action_item «После выката 42.3 и до 42.4» — выполнено 2026-10-15.
-  42-5-manager-section-orders-and-home: in-progress
+  42-5-manager-section-orders-and-home: review
   # 2026-10-15: пятое ревью Codex на 4b6e898; по решению Alex R42.5-19…22
   #             оставлены открытыми задачами, код не менялся. Три повтора
   #             отложенного долга, девять исходных замечаний отклонено.
@@ -1500,6 +1500,11 @@ development_status:
   #             CSV по Москве, тесты). 35 новых тестов, 11 мутаций убиты; полный
   #             прогон 4278 passed, 76 skipped, 17 failed — те же CRLF-тесты
   #             scripts/deploy (с LF 20 passed). in-progress -> review.
+  # 2026-10-15: исправлены R42.5-19…22 (только тесты: работники других соединений
+  #             с statement_timeout и ожиданием в teardown, POST карточки из HTML,
+  #             невыбранный заказ в экспорте, состав карточки литералом). Полный
+  #             прогон 4310 passed, 76 skipped, 0 failed; линтеры чистые.
+  #             in-progress -> review.
   42-6-marketing-section: backlog
   42-7-supervisor-section-staff-regions-reassignment: backlog
   42-8-supervisor-summary: backlog
