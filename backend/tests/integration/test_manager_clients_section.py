@@ -1492,13 +1492,23 @@ class TestTransferDuringWrite:
         assert source.phone == "+79005550101"
         assert audit_records(applicant, "link_1c_customer").count() == 1
 
-    def test_second_action_field_does_not_skip_lock(self, manager_client, manager, prod_like_requests, locked_at_save):
+    @pytest.mark.parametrize(
+        "actions, index",
+        [
+            (["block_users", "link_1c_customer"], "0"),
+            # R42.4-34: блокировка из нижней формы списка, привязка — в верхней.
+            (["link_1c_customer", "block_users"], "1"),
+        ],
+    )
+    def test_second_action_field_does_not_skip_lock(
+        self, manager_client, manager, prod_like_requests, locked_at_save, actions, index
+    ):
         # R42.4-4: Django выполняет значение action по index, исключение привязки — тоже.
         own = make_client(manager)
 
         response = manager_client.post(
             CHANGELIST_URL,
-            {"action": ["block_users", "link_1c_customer"], "index": "0", "_selected_action": [str(own.pk)]},
+            {"action": actions, "index": index, "_selected_action": [str(own.pk)]},
             follow=True,
         )
 
