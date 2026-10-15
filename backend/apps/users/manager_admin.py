@@ -25,7 +25,7 @@ from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 
 from apps.common.models import AuditLog
-from apps.users.admin import AddressInline, CompanyInline, Has1CCandidateFilter, UserAdmin
+from apps.users.admin import AddressInline, CompanyInline, Has1CCandidateFilter, UserAdmin, activation_locked
 from apps.users.models import User
 from apps.users.staff_roles import staff_accounts_q
 from freesport.admin_site import manager_site
@@ -170,7 +170,14 @@ class ManagerClientAdmin(UserAdmin):
         return self.fieldsets
 
     def get_readonly_fields(self, request: HttpRequest, obj: User | None = None) -> list[str]:  # type: ignore[override]
-        return list(self.readonly_fields)
+        fields = list(self.readonly_fields)
+        # Флаг «активен» у заявки до подтверждения и у записи 1С — в обход
+        # guard'а unblock_users: включённый у ожидающей заявки, он пережил бы
+        # последующий отказ (R42.4-32). Им флаг меняют решение по заявке и
+        # действие «Заблокировать».
+        if obj is not None and activation_locked(obj):
+            fields.append("is_active")
+        return fields
 
     @admin.display(description="Связан с 1С", boolean=True)
     def linked_to_1c(self, obj: User) -> bool:

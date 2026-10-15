@@ -70,11 +70,15 @@ def serve(routes: dict[str, Route]) -> Iterator[str]:
     class Handler(BaseHTTPRequestHandler):
         # HTTP/1.0: соединение закрывается после ответа, оборванное тело curl замечает.
         def do_GET(self) -> None:
-            self.reply(self.path, {})
+            self.reply(self.raw_path(), {})
 
         def do_POST(self) -> None:
             body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode()
-            self.reply(f"POST {self.path}", parse_qs(body))
+            self.reply(f"POST {self.raw_path()}", parse_qs(body))
+
+        def raw_path(self) -> str:
+            # self.path Python 3.12 схлопывает «//» в начале — путь берётся как прислан.
+            return self.requestline.split()[1]
 
         def reply(self, key: str, form: dict[str, list[str]]) -> None:
             route = routes.get(key, Reply(404, {}))
@@ -101,15 +105,17 @@ def serve(routes: dict[str, Route]) -> Iterator[str]:
         thread.join(timeout=10)
 
 
-def run_script(routes: dict[str, Reply]) -> subprocess.CompletedProcess[str]:
+def run_script(routes: dict[str, Reply], suffix: str = "") -> subprocess.CompletedProcess[str]:
     with serve(routes) as base_url:
         return subprocess.run(
-            ["bash", str(SCRIPT), base_url], capture_output=True, text=True, encoding="utf-8", timeout=120
+            ["bash", str(SCRIPT), base_url + suffix], capture_output=True, text=True, encoding="utf-8", timeout=120
         )
 
 
-def test_section_routed_to_django_passes():
-    result = run_script({"/manager/": TO_LOGIN, "/manager/login/": LOGIN_OK})
+# Базовый URL со слэшем на конце — тот же адрес (R42.4-33).
+@pytest.mark.parametrize("suffix", ["", "/"], ids=["plain", "trailing-slash"])
+def test_section_routed_to_django_passes(suffix):
+    result = run_script({"/manager/": TO_LOGIN, "/manager/login/": LOGIN_OK}, suffix)
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "✅" in result.stdout
@@ -181,10 +187,10 @@ def session_routes(changelist_emails: list[str]) -> dict[str, Route]:
     }
 
 
-def run_session_script(routes: dict[str, Route]) -> subprocess.CompletedProcess[str]:
+def run_session_script(routes: dict[str, Route], suffix: str = "") -> subprocess.CompletedProcess[str]:
     with serve(routes) as base_url:
         return subprocess.run(
-            ["bash", str(SESSION_SCRIPT), base_url, *MANAGER, OWN_EMAIL, FOREIGN_EMAIL],
+            ["bash", str(SESSION_SCRIPT), base_url + suffix, *MANAGER, OWN_EMAIL, FOREIGN_EMAIL],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -192,9 +198,10 @@ def run_session_script(routes: dict[str, Route]) -> subprocess.CompletedProcess[
         )
 
 
-def test_session_with_own_client_only_passes():
-    """Положительный контроль: вход проходит, в списке только свой клиент."""
-    result = run_session_script(session_routes([OWN_EMAIL]))
+@pytest.mark.parametrize("suffix", ["", "/"], ids=["plain", "trailing-slash"])
+def test_session_with_own_client_only_passes(suffix):
+    """Положительный контроль: вход проходит, в списке только свой клиент; слэш в конце URL не мешает (R42.4-33)."""
+    result = run_session_script(session_routes([OWN_EMAIL]), suffix)
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "✅" in result.stdout

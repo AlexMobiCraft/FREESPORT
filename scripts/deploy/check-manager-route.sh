@@ -15,6 +15,8 @@
 set -u
 
 BASE_URL="${1:?Укажите базовый URL, например https://optisport.ru}"
+# Слэш в конце убирается: иначе запросы уйдут на «//manager/» (R42.4-33).
+BASE_URL="${BASE_URL%/}"
 CURL_OPTS=(-sS --connect-timeout 10 --max-time 30)
 BODY_FILE=$(mktemp)
 trap 'rm -f "$BODY_FILE"' EXIT

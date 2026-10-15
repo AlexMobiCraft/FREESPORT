@@ -195,19 +195,20 @@ class TestUnblockUsersInAdmin:
 
     def test_exclusions(self):
         actor = User.objects.create_superuser(email=f"su_{get_unique_suffix()}@example.com", password=PASSWORD)
-        blocked = make_client(None, is_active=False)
+        blocked = make_client(None, is_active=False, verification_status="verified")
         pending = make_client(None, is_active=False, verification_status="pending")
+        rejected = make_client(None, is_active=False, verification_status="unverified")
+        shadow = make_client(None, is_active=False, role=User.ROLE_UNREGISTERED)
         superuser = make_user(is_superuser=True, is_staff=True, is_active=False)
         staff = make_user(MANAGERS_GROUP, is_staff=True, is_active=False)
         robot = make_user(role="admin", is_active=False)
         marketer = make_user(MARKETING_GROUP, is_active=False)
+        selected = (blocked, pending, rejected, shadow, superuser, staff, robot, marketer)
 
-        texts = self.run_action(
-            actor, User.objects.filter(pk__in=[u.pk for u in (blocked, pending, superuser, staff, robot, marketer)])
-        )
+        texts = self.run_action(actor, User.objects.filter(pk__in=[u.pk for u in selected]))
 
         assert User.objects.get(pk=blocked.pk).is_active
-        for skipped in (pending, superuser, staff, robot, marketer):
+        for skipped in (pending, rejected, shadow, superuser, staff, robot, marketer):
             assert not User.objects.get(pk=skipped.pk).is_active, skipped
         assert list(AuditLog.objects.filter(action="unblock_user").values_list("resource_id", flat=True)) == [
             str(blocked.pk)

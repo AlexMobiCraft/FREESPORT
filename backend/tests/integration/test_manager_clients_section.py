@@ -628,6 +628,33 @@ class TestClientCard:
         assert own.responsible_manager == manager
         assert own.responsible_manager_manual
 
+    @pytest.mark.parametrize(
+        "state",
+        [
+            pytest.param({"verification_status": "pending", "is_verified": False}, id="pending"),
+            pytest.param({"verification_status": "unverified", "is_verified": False}, id="rejected"),
+            pytest.param({"role": User.ROLE_UNREGISTERED, "verification_status": "unverified"}, id="1c-record"),
+        ],
+    )
+    @pytest.mark.parametrize("initially_active", [True, False], ids=["active", "blocked"])
+    def test_active_flag_is_read_only_without_portal_access(self, manager_client, manager, state, initially_active):
+        """R42.4-32: флаг «активен» заявки и записи 1С карточкой не меняется — ни включить, ни выключить."""
+        own = make_client(manager, is_active=initially_active, **state)
+
+        response = manager_client.get(change_url(own))
+        adminform = response.context["adminform"]
+        assert "is_active" not in adminform.form.fields
+        assert "is_active" in adminform.readonly_fields
+
+        data = form_payload(response)
+        data.update({"phone": "+79001112244", "is_active": "" if initially_active else "on", "_save": "Сохранить"})
+        assert manager_client.post(change_url(own), data).status_code == 302
+
+        own.refresh_from_db()
+        assert own.phone == "+79001112244"
+        assert own.is_active is initially_active
+        assert not audit_records(own).exists()
+
 
 def form_index(data: dict[str, Any], prefix: str, obj: Any) -> int:
     """Номер формы формсета, которая редактирует `obj`."""
@@ -758,6 +785,44 @@ class TestUnblock:
         assert not audit_records(superuser).exists()
         texts = message_texts(response)
         assert any(f"/manager/users/user/{pending.pk}/verify/" in text for text in texts)
+
+    def test_retail_client_is_unblocked(self, manager_client, manager):
+        # Розничному клиенту подтверждение не нужно — статус верификации не важен.
+        retail = make_client(
+            manager, role="retail", verification_status="unverified", is_verified=False, is_active=False
+        )
+
+        post_action(manager_client, "unblock_users", retail)
+
+        retail.refresh_from_db()
+        assert retail.is_active
+        assert audit_records(retail, "unblock_user").count() == 1
+
+    def test_rejected_application_and_1c_record_are_skipped(self, manager_client, manager):
+        """R42.4-31: отклонённая заявка и запись 1С без аккаунта не разблокируются."""
+        rejected = make_client(manager, verification_status="unverified", is_verified=False, is_active=False)
+        # Отработанный источник привязки: роль unregistered, идентификаторы 1С сняты.
+        shadow = make_client(
+            manager, role=User.ROLE_UNREGISTERED, verification_status="unverified", is_verified=False, is_active=False
+        )
+        blocked = make_client(manager, is_active=False)
+
+        # Запись 1С менеджер видит в списке только с фильтром «Учётная запись на портале: все».
+        response = manager_client.post(
+            f"{CHANGELIST_URL}?portal_account=all",
+            {"action": "unblock_users", "_selected_action": [str(user.pk) for user in (rejected, shadow, blocked)]},
+            follow=True,
+        )
+
+        for skipped in (rejected, shadow):
+            skipped.refresh_from_db()
+            assert not skipped.is_active
+            assert not audit_records(skipped).exists()
+        blocked.refresh_from_db()
+        assert blocked.is_active
+        texts = message_texts(response)
+        assert any("Пропущено 2" in text for text in texts), texts
+        assert any("Разблокировано 1" in text for text in texts), texts
 
     def test_empty_selection_warns(self, manager_client, manager):
         active = make_client(manager)
