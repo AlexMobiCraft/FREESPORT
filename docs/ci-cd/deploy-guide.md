@@ -105,9 +105,13 @@ gh workflow run deploy.yml -f skip_tests=true
 - **`docker-compose.prod.yml`** (prod):
   ```yaml
   volumes:
-    - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+    - ./nginx/conf.d:/etc/nginx/conf.d:ro
     - /etc/letsencrypt:/etc/letsencrypt:ro
   ```
+
+  `conf.d` монтируется каталогом: пофайловый bind-mount после `git reset --hard`
+  держит старый inode, и reload не видит правок. `nginx.conf` подключает только
+  `conf.d/default.conf`, поэтому `local.conf` из того же каталога на проде не грузится.
 
 > ⚠️ **Важно**: Workflow всегда использует `docker-compose.prod.yml`, поэтому убедитесь, что все production-конфигурации актуальны.
 

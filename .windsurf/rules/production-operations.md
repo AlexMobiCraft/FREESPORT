@@ -35,3 +35,27 @@ docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-c
 ```bash
 docker compose --env-file /home/freesport/freesport/.env.prod -f docker/docker-compose.prod.yml restart nginx
 ```
+
+## Правка nginx не доехала до прода, хотя `nginx -t` и reload прошли
+
+**Симптомы:** после деплоя новой `location` нет (15.10.2026: `/manager/` отвечал 308 от Next вместо 302 от Django), а `nginx -t` и `nginx -s reload` отработали без ошибок.
+
+**Причина:** пофайловый bind-mount (`./nginx/nginx.conf:/etc/nginx/nginx.conf`) держит inode. `git reset --hard` заменяет файл новым inode, а контейнер продолжает видеть старый — reload перечитывает старый конфиг. Каталоги (`conf.d`, `snippets`) этой ловушки не имеют. `deploy.yml` сверяет md5 файлов на диске и в контейнере и при расхождении пересоздаёт nginx сам.
+
+**Проверка:**
+
+```bash
+cd /home/freesport/freesport
+C="docker compose --env-file .env.prod -f docker/docker-compose.prod.yml"
+for f in nginx.conf conf.d/default.conf; do
+  echo "$f $(md5sum < docker/nginx/$f | cut -d' ' -f1) $($C exec -T nginx md5sum /etc/nginx/$f < /dev/null | cut -d' ' -f1)"
+done
+```
+
+**Восстановление** — проверить конфиг с диска, затем пересоздать только nginx (`--no-deps`: иначе compose может пересоздать backend/frontend на образе `:production` из дефолта, если последний деплой был откатом на SHA):
+
+```bash
+$C run --rm --no-deps -T --name freesport-nginx-check nginx nginx -t
+$C up -d --no-deps --force-recreate nginx
+bash scripts/deploy/check-manager-route.sh https://optisport.ru
+```
