@@ -23,6 +23,7 @@ from __future__ import annotations
 import csv
 import io
 import itertools
+import re
 import threading
 import time as clock
 from datetime import UTC, date, datetime, time, timedelta
@@ -462,6 +463,27 @@ class TestChangelist:
         content = response.content.decode()
         assert 'class="addlink"' not in content
         assert "/manager/orders/order/add/" not in content
+
+    def test_positions_column_shows_number_of_items(self, manager_client, manager):
+        client_user = make_client(manager)
+        # Число позиций и сумма количеств различаются у каждого заказа.
+        split = make_master(client_user)
+        for sub in split.sub_orders.all():
+            sub.items.update(quantity=3)
+        sub = split.sub_orders.first()
+        assert sub is not None
+        make_item(sub, quantity=5)
+        legacy = make_master(client_user, subs=0)
+
+        response = manager_client.get(ORDERS_URL)
+
+        rows = re.findall(
+            r'name="_selected_action" value="(\d+)".*?<td class="field-positions">(\d+)</td>',
+            response.content.decode(),
+            flags=re.S,
+        )
+        # Позиций: 3 и 1; сумма количеств была бы 3 + 3 + 5 = 11 и 2.
+        assert dict(rows) == {str(split.pk): "3", str(legacy.pk): "1"}
 
 
 class TestForeignOrder:

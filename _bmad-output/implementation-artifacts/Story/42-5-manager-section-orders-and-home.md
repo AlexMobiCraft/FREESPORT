@@ -4,7 +4,7 @@ baseline_commit: d53f42a6
 
 # Story 42.5: Раздел менеджера — заказы и главная страница
 
-Status: review
+Status: done
 Baseline Revision: d53f42a6 (`develop` = `353e33a7` + коммит nginx-фикса в ветке `fix/nginx-prod-stale-bind-mount`; код приложения на обоих одинаковый)
 
 ## Story
@@ -597,6 +597,55 @@ Alex выбрал вариант 1: отклонять устаревшую ка
 - ID 9 (`blind-hunter`), false: read-only inline Django не сохраняет подделанные формы субзаказов.
 - ID 11 (`edge-case-hunter`), false: nginx перезаписывает `X-Real-IP`, невалидный IP недостижим.
 
+### Review Findings — седьмой прогон (2026-10-16, Codex, HEAD `c500b03`)
+
+Область: diff `d53f42a6..c500b03` по файлам стори — 10 файлов (код, шаблон, два тестовых модуля, спецификации, `deferred-work.md`, `sprint-status.yaml`), +2254/-16, 2424 строки. Изменения PR #313 (isort, LF), файл стори и `.memlog.md` в область не входят. Четыре слоя Codex завершились без отказов; Acceptance Auditor нарушений AC не нашёл. Из 14 исходных замечаний: 1 `patch` (`low`), 2 повтора существующих `defer`, 9 отклонено. Дефектов рабочего кода нет.
+
+#### Исправления
+
+- [x] [Review][Patch] **R42.5-27, low: значение колонки «Позиций» в списке не проверено** [`backend/tests/integration/test_manager_orders_section.py:455`]. `positions` возвращает `self.items_count(obj)` (`manager_admin.py:351-353`). `test_columns_filters_and_title` проверяет только имя колонки. `TestQueryCount.test_changelist` (`:1433`) зовёт напрямую `items_count(row)`, а не `positions`. Подмена на `self.total_items_quantity(obj)` покажет 4 вместо 2 для фикстуры из двух позиций по две штуки, и все тесты останутся зелёными. Добавить HTTP-тест: заказ, у которого число позиций отличается от суммы количеств; в ячейке `field-positions` его строки ожидается число позиций. Источник: ID 12 (`verification-gap`), доказательства слоя приняты; `impact positions` — LOW, 0 вызывающих.
+
+#### Повторы отложенного долга
+
+- [x] [Review][Defer] **Повтор R42.5-D1, maybe-false, потенциальный medium: ведущие нули и разделитель колонок CSV в Excel** [`backend/apps/orders/manager_admin.py:396-420`]. ID 6 (`blind-hunter`). deferred: прежняя задача; Excel в этом прогоне не запускался.
+- [x] [Review][Defer] **Повтор R42.5-D2, medium: бонусный сигнал получает устаревший экземпляр заказа** [`backend/apps/orders/manager_admin.py:207-208`, `:432`; `backend/apps/bonuses/services/accrual.py:161`]. ID 2 (`blind-hunter`), ID 13 (`edge-case-hunter`), «Other findings» VG. deferred: общий бонусный сервис существовал до baseline; конкурентное начисление не воспроизводилось.
+
+#### Индивидуальная оценка исходных замечаний
+
+| ID | Слой | Вердикт | Проверка и маршрут |
+|---|---|---|---|
+| 1 | blind-hunter | low | Окно передачи клиента другому менеджеру между `scope_orders` и сохранением. Решение 6 признаёт его осознанно. Отклонено: исправление меняет утверждённое решение. |
+| 2 | blind-hunter | medium | Устаревшие статус и клиент экземпляра уходят в `post_save`. Повтор D2. |
+| 3 | blind-hunter | false | Сохранение без правок пишет штатный `LogEntry`, но решение 7 отделяет его от `AuditLog`. AC7 касается `AuditLog`, а тот пуст. Повтор отклонения ID 7 шестого прогона. |
+| 4 | blind-hunter | low | Ссылка на клиента даёт 403 при отозванных правах на User. Повтор прошлых отклонений. |
+| 5 | blind-hunter | low | Экспорт держит выборку и ответ в памяти. После R42.5-25 позиции не загружаются, объём выборки менеджера вреда не показывает, а потоковая выгрузка заметно усложняет код. Отклонено, как blind-hunter №4 первого прогона. |
+| 6 | blind-hunter | maybe-false | Ведущие нули и разделитель в Excel. Повтор D1. |
+| 7 | blind-hunter | false | `blocked_on_lock` фильтрует по `current_database()`, и под xdist у каждого воркера своя БД. В тестовой БД ждать блокировку может только второй работник: первый её держит. Если второй не ждал, он прочитает старое значение, сохранит дату, и падает итоговая проверка `delivery_date is None`. |
+| 8 | blind-hunter | false | `accrue_bonus_on_order_status` синхронно вызывается из `post_save` в той же транзакции `changeform_view` (`bonuses/signals.py:18-40`). При сбое журнала бонусные записи откатываются вместе с заказом, отдельного соединения нет. |
+| 9 | blind-hunter | false | Невалидная дата делает форму невалидной, и Django не зовёт `save_model`. Своей ветки, которую стоило бы закрепить, нет. |
+| 10 | blind-hunter | false | Команда и результат полного прогона записаны в Debug Log References (`-n 4 -m "not performance and not slow"`, `freesport-test`, 4313 passed, 0 failed) и входят в коммит `c500b03` вместе с исправлениями. |
+| 11 | edge-case-hunter | low | То же окно передачи клиента, что ID 1. Отклонено по решению 6. |
+| 12 | verification-gap | low | Доказательства слоя приняты. R42.5-27. |
+| 13 | edge-case-hunter | medium | То же, что ID 2. Повтор D2. |
+| 14 | edge-case-hunter | false | `get_client_ip` берёт сначала `X-Real-IP`, а nginx на `/manager/` перезаписывает его значением `$remote_addr`. Повтор ID 11 шестого прогона. |
+
+#### Проверки седьмого прогона
+
+- GitNexus актуален на `c500b03`. `detect-changes --scope all`: изменений нет. `impact positions` — LOW, 0 вызывающих.
+- Docker-тесты, мутации и Excel в этом прогоне не запускались.
+
+#### Отклонённые замечания седьмого прогона
+
+- ID 1, 11 (`blind-hunter`, `edge-case-hunter`), low: блокировка строки клиента противоречит решению 6.
+- ID 3 (`blind-hunter`), false: штатный `LogEntry` при сохранении без правок; `AuditLog` пуст, как требует AC7.
+- ID 4 (`blind-hunter`), low: 403 по ссылке на клиента при нестандартном отзыве прав User.
+- ID 5 (`blind-hunter`), low: потоковый экспорт без показанного вреда.
+- ID 7 (`blind-hunter`), false: в изолированной тестовой БД других ожидающих блокировку нет, а итоговые проверки ловят отсутствие ожидания.
+- ID 8 (`blind-hunter`), false: начисление идёт в той же транзакции и откатывается вместе с заказом.
+- ID 9 (`blind-hunter`), false: невалидная форма не доходит до `save_model`.
+- ID 10 (`blind-hunter`), false: команда и результат полного прогона записаны в Debug Log стори.
+- ID 14 (`edge-case-hunter`), false: nginx перезаписывает `X-Real-IP`.
+
 ## Dev Notes
 
 ### Текущее состояние кода (сверено на `d53f42a6`)
@@ -810,6 +859,16 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
   - Линтеры в `freesport-test` после pytest: `black --check .` — 473 unchanged; `isort --check-only .` — чисто; `flake8` — чисто; `mypy .` — `Success: no issues found in 626 source files`; `makemigrations --check --dry-run` — `No changes detected`.
   - `detect-changes --scope all`: 4 символа в `manager_admin.py` (`ManagerOrderAdmin`, `export_orders_csv`, `csv_cell` и локальная `row` — сдвиг строк), 0 процессов, риск low.
 
+- **Исправление седьмого ревью R42.5-27 (16.10.2026).** GitNexus: индекс свежий на `c500b03`; `impact positions` — LOW, 0 вызывающих (из ревью). Новый тест `TestChangelist::test_positions_column_shows_number_of_items` закрывает пробел проверки и проходил на текущем коде; его RED — мутация. GREEN — `TestChangelist`: **6 passed**.
+  - Мутация (временная правка `manager_admin.py`, прогон `TestChangelist` и `TestQueryCount::test_changelist`, возврат исходных байтов) убита только новым тестом:
+
+    | Мутация | Упали |
+    |---|---|
+    | `positions` возвращает `self.total_items_quantity(obj)` | `TestChangelist::test_positions_column_shows_number_of_items` (`11` и `2` вместо `3` и `1`) |
+  - Полный прогон (`-n 4 -m "not performance and not slow"`, `freesport-test`): **4314 passed, 76 skipped, 0 failed** за 16:04.
+  - Линтеры в `freesport-test` после pytest: `black --check .` — 473 unchanged; `isort --check-only .` — чисто; `flake8` — чисто; `mypy .` — `Success: no issues found in 626 source files`; `makemigrations --check --dry-run` — `No changes detected`.
+  - `detect-changes --scope all`: `No changes detected` — изменён только тестовый модуль.
+
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
@@ -864,6 +923,8 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
   - ✅ Resolved review finding [low]: R42.5-24 — `TestExport::test_select_across_keeps_changelist_filter`: два своих `pending`, свой `processing` и чужой заказ; действие с `select_across=1` на `?status__exact=pending` выгружает ровно два `pending`.
   - ✅ Resolved review finding [low]: R42.5-25 — `export_orders_csv` снимает унаследованный prefetch позиций: `queryset.select_related("user").prefetch_related(None)`. Страж — `TestExport::test_export_does_not_load_order_items`: при экспорте нет запросов к таблице позиций.
   - ✅ Resolved review finding [low]: R42.5-26 — docstring `csv_cell`: «табуляции или возврата каретки (`\r`)» вместо «перевода строки», как в коде и решении R42.5-2. Поведение не менялось.
+- **Исправление седьмого ревью (16.10.2026, `bmad-dev-story`):**
+  - ✅ Resolved review finding [low]: R42.5-27 — `TestChangelist::test_positions_column_shows_number_of_items`: мастер с двумя субзаказами (позиции по 3 шт. и добавленная позиция на 5 шт.) и legacy-мастер с одной позицией на 2 шт. В ячейках `field-positions` строк списка по HTTP — ровно `3` и `1`; сумма количеств дала бы `11` и `2`. Код не менялся.
 
 ### File List
 
@@ -901,3 +962,6 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-15 — Addressed code review findings — 4 items resolved (R42.5-19…22): общий класс работников других соединений с `statement_timeout`, `pg_cancel_backend` и ожиданием в teardown, POST карточки с датой доставки из HTML, невыбранный свой заказ в экспорте, состав и суммы карточки по независимому перечню. Новый тест — 1, переписаны 4. 6 мутаций и инъекций отработали. Полный прогон: 4310 passed, 76 skipped, 0 failed; линтеры чистые. Статус `review`.
 - 2026-10-15 — шестой прогон ревью Codex на `676256d`: R42.5-23…26 (все low) оставлены открытыми задачами; два повтора отложенного долга, семь исходных замечаний отклонено. Статус `in-progress`.
 - 2026-10-16 — Addressed code review findings — 4 items resolved (R42.5-23…26): тест отката заказа при сбое журнала, экспорт `select_across` с фильтром списка, экспорт CSV без prefetch позиций, docstring `csv_cell`. Новых тестов 3, 3 мутации убиты. Полный прогон: 4313 passed, 76 skipped, 0 failed; линтеры чистые. Статус `review`.
+- 2026-10-16 — Седьмое ревью Codex на `c500b03`: 1 `patch` (R42.5-27, low — тест значения колонки «Позиций»), 2 повтора отложенного долга (D1, D2), 9 отклонено. По решению Alex R42.5-27 оставлен открытой задачей. Статус `in-progress`.
+- 2026-10-16 — Addressed code review findings — 1 item resolved (R42.5-27): HTTP-тест значения колонки «Позиций» в списке. Новый тест — 1, мутация убита. Полный прогон: 4314 passed, 76 skipped, 0 failed; линтеры чистые. Статус `review`.
+- 2026-10-16 — открытых замечаний ревью нет, все задачи стори закрыты; по решению Alex статус `done`.

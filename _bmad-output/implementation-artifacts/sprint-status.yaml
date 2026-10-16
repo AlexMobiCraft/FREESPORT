@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-16 (стори 42.5 -> review после исправления R42.5-23…26)
+# last_updated: 2026-10-16 (стори 42.5 -> done по решению Alex)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1458,7 +1458,15 @@ development_status:
   # 2026-10-15: открытых замечаний ревью нет, все задачи стори закрыты;
   #             по решению Alex review -> done. Предусловие выката —
   #             action_item «После выката 42.3 и до 42.4» — выполнено 2026-10-15.
-  42-5-manager-section-orders-and-home: review
+  42-5-manager-section-orders-and-home: done
+  # 2026-10-16: открытых замечаний ревью нет, все задачи стори закрыты;
+  #             по решению Alex review -> done.
+  # 2026-10-16: R42.5-27 закрыт — HTTP-тест значения колонки «Позиций»;
+  #             полный прогон 4314 passed, 0 failed. in-progress -> review.
+  # 2026-10-16: седьмое ревью Codex на c500b03; по решению Alex R42.5-27
+  #             (low: тест значения колонки «Позиций») оставлен открытой
+  #             задачей, код не менялся. Два повтора отложенного долга (D1, D2),
+  #             девять замечаний отклонено. review -> in-progress.
   # 2026-10-16: шестое ревью Codex на 676256d; по решению Alex R42.5-23…26
   #             (все low: тесты отката журнала и экспорта с фильтром, prefetch
   #             в CSV, docstring csv_cell) оставлены открытыми задачами, код не
