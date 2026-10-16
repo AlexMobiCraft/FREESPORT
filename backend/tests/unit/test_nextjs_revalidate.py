@@ -5,7 +5,9 @@
   `apps/pages/tests.py` вместе с функцией (стори 42.6, решение 13), проверки
   прежние;
 - `TestFeaturedBrandHomeRevalidation` — сигнал брендов сбрасывает главную `/home`
-  после commit сохранения бренда, который был или стал избранным (стори 42.6, AC7).
+  после commit сохранения бренда, который был или стал избранным (стори 42.6, AC7);
+- `TestPageRevalidation` — сигнал страниц сбрасывает `/<slug>` после commit
+  сохранения и удаления `Page`.
 
 Тесты транзакционные (autouse `clear_db_before_test` в `tests/conftest.py`):
 `transaction.on_commit` вне явной транзакции выполняется сразу.
@@ -26,6 +28,7 @@ from apps.common.services.nextjs_revalidate import (
     revalidate_nextjs_path,
     revalidate_nextjs_path_in_background,
 )
+from apps.pages.models import Page
 from apps.products.constants import FEATURED_BRANDS_CACHE_KEY
 from apps.products.factories import BrandFactory
 from apps.products.models import Brand
@@ -228,3 +231,27 @@ class TestFeaturedBrandHomeRevalidation:
             home_reset.assert_not_called()
 
         home_reset.assert_called_once_with("/home")
+
+
+class TestPageRevalidation:
+    """Сохранение и удаление `Page` сбрасывают ISR `/<slug>` после commit (R42.6-8)."""
+
+    @pytest.fixture
+    def page_reset(self):
+        with patch("apps.pages.signals.revalidate_nextjs_path_in_background") as reset:
+            yield reset
+
+    def test_save_resets_page_path_after_commit(self, page_reset):
+        with transaction.atomic():
+            Page.objects.create(title="Оферта", slug="oferta", content="<p>текст</p>")
+            page_reset.assert_not_called()
+
+        page_reset.assert_called_once_with("/oferta")
+
+    def test_delete_resets_page_path(self, page_reset):
+        page = Page.objects.create(title="Оферта", slug="oferta", content="<p>текст</p>")
+        page_reset.reset_mock()
+
+        page.delete()
+
+        page_reset.assert_called_once_with("/oferta")

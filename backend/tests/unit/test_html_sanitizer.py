@@ -69,6 +69,21 @@ def test_block_with_loose_end_tag_removed_with_content(block):
     assert sanitize_rich_html(f"<p>a</p>{block}x") == "<p>a</p>x"
 
 
+def test_end_tag_with_hyphen_does_not_close_block():
+    """`</style-x>` — другой тег: блок закрывает только `</style>` (R42.6-6)."""
+    assert sanitize_rich_html("<p>a</p><style>x{}</style-x>CSS{}</style>x") == "<p>a</p>x"
+
+
+def test_tag_with_hyphen_is_not_a_block():
+    """`<script-widget>` — не `<script>`: тег вырезается, текст остаётся (R42.6-6).
+
+    Настоящий `<script>` дальше — иначе блок не от чего было бы удалить до него.
+    """
+    html = "<p>a</p><script-widget>Важный текст</script-widget><p>b</p><script>x()</script>"
+
+    assert sanitize_rich_html(html) == "<p>a</p>Важный текст<p>b</p>"
+
+
 def test_allowed_markup_is_unchanged():
     assert sanitize_rich_html(ALLOWED) == ALLOWED
 

@@ -16,9 +16,10 @@ import bleach
 
 # Удаляет блоки <style>...</style>, <script>...</script>, <head>...</head> ВМЕСТЕ
 # с содержимым. Bleach с strip=True вырезает только теги, но оставляет текст —
-# поэтому CSS/JS код проступал на страницу. Закрывающий тег — как его понимает
-# HTML-парсер: `</style >`, `</script foo>` тоже закрывают блок.
-_STRIP_BLOCKS_RE = re.compile(r"<(style|script|head)\b[^>]*>[\s\S]*?</\1\b[^>]*>", re.IGNORECASE)
+# поэтому CSS/JS код проступал на страницу. Имя тега кончается там же, где у
+# HTML-парсера, — на пробеле, `/` или `>`: `</style >`, `</script foo>` закрывают
+# блок, а `</style-x>` и `<script-widget>` — другие теги.
+_STRIP_BLOCKS_RE = re.compile(r"<(style|script|head)(?=[\s/>])[^>]*>[\s\S]*?</\1(?=[\s/>])[^>]*>", re.IGNORECASE)
 
 # Белый список rich-контента (перенесён из Page.save).
 RICH_HTML_TAGS: tuple[str, ...] = (

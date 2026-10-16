@@ -34,6 +34,7 @@ from django.conf import settings
 from django.contrib.admin.models import LogEntry
 from django.contrib.admin.utils import label_for_field
 from django.contrib.auth.models import Group, Permission
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -1033,6 +1034,21 @@ class TestHomepageCategories:
         target.refresh_from_db()
         assert target.icon.name.startswith("categories/icons/")
         assert target.icon.name.endswith(".svg")
+
+    def test_edit_card_preserves_existing_svg_icon(self, marketer_client, showcase):
+        """Прежнюю SVG-иконку владельца проверка не трогает: маркетолог правит порядок (R42.6-7)."""
+        target = showcase["first"]
+        target.icon.save("icon.svg", ContentFile(SVG_ICON))
+        icon_name = target.icon.name
+
+        card = marketer_client.get(change_url(HOMEPAGE_URL, target))
+        data = card_payload(card)
+        data["sort_order"] = "7"
+
+        assert marketer_client.post(change_url(HOMEPAGE_URL, target), data).status_code == 302
+        target.refresh_from_db()
+        assert target.sort_order == 7
+        assert target.icon.name == icon_name
 
     @pytest.mark.parametrize("key", ["sub", "outside"])
     def test_out_of_scope_card_is_404(self, marketer_client, showcase, key):

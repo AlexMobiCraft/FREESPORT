@@ -4,7 +4,7 @@ baseline_commit: 6b0d536f
 
 # Story 42.6: Раздел маркетинга
 
-Status: review
+Status: done
 Baseline Revision: 6b0d536f (`develop` после мёрджа PR #315 — стори 42.5 `done`)
 
 ## Story
@@ -376,6 +376,56 @@ so that я веду маркетинг сайта сам, не видя данн
 - verification-gap, `low`: вход маркетолога через nginx с настоящей сессией не проверяется. Повтор круга 1.
 - acceptance-auditor, `false`: белый список `Page` без `meta`/`link` противоречит AC16. Вывод страниц байт в байт прежний (`tests/integration/test_pages_api.py` без правок): `meta` и `link` не было в списке тегов и до стори, расхождение есть только в тексте AC16 и записано в Completion Notes. Исправление — правка спецификации.
 
+#### Круг 3 — ревью 16.10.2026
+
+Дифф `origin/develop...a564552c` (PR #316, после влития `develop` с #317) целиком, вместе с `_bmad-output/` (4598 строк, 39 файлов), режим `full`, пять слоёв через плагин Codex: четыре стандартных и `graph-impact`. Слой `graph-impact` через Codex **не выполнен**: внутри песочницы Codex `gitnexus status` не видит текущий коммит (`Branch: (detached HEAD)`, пустой `Current commit`) и считает индекс устаревшим, хотя вне песочницы индекс актуален на `a564552`; `impact` и `check` в песочнице работают. Вместо него взята находка нативного прогона того же слоя на том же коммите (R42.6-8). Получено 19 исходных замечаний, после объединения повторов — 16; каждое проверено по коду до объединения. Итог: 0 решений, 3 исправления, 1 отложенное, 12 отклонённых; девять отклонённых повторяют круги 1–2. Код приложения при ревью не менялся.
+
+##### Исправления
+
+- [x] [Review][Patch] **R42.6-6, low: регулярка санитайзера считает дефис концом имени тега** [`backend/apps/common/utils/html_sanitizer.py:21`]. Источник — blind-hunter. Граница `\b`, добавленная в R42.6-4 в закрывающий тег, срабатывает и на `-`: `</style-x>` раньше времени закрывает блок `<style>` (проверено: `'<style>x{}</style-x>CSS{}</style>'` → `'CSS{}</style>'`, CSS остаётся текстом), а `<script-widget>Важный текст</script-widget>` удаляется целиком вместе с текстом. До R42.6-4 закрывающий тег был точным `</\1>` и обоих эффектов не было. Правка: имя тега заканчивается там же, где у HTML-парсера, — `(?=[\s/>])` вместо `\b` в открывающем и закрывающем теге; unit-случаи `</style-x>` и `<script-widget>`, прежние случаи R42.6-4 (`</style >`, `</script foo>`, `</STYLE\n>`) должны остаться зелёными.
+- [x] [Review][Patch] **R42.6-7, low: не проверено, что маркетолог сохраняет категорию с уже загруженной SVG-иконкой** [`backend/apps/products/marketing_admin.py:243`]. Источник — verification-gap. `clean_icon` проверяет только новую загрузку (`UploadedFile`), прежний `FieldFile` пропускает. Тесты загружают файл в пустое поле (`test_marketing_section.py:940`, `:1009`), SVG через `/admin/` грузится отдельно (`:1024`), но сохранения такой категории маркетологом нет: замена условия на `if icon` прогонит прежний SVG через `ImageField.clean`, и все тесты останутся зелёными. Добавить `test_edit_card_preserves_existing_svg_icon`: SVG-иконка от суперпользователя, POST карточки маркетологом с новым `sort_order` — 302, порядок изменён, имя иконки в БД прежнее.
+- [x] [Review][Patch] **R42.6-8, low: сброс ISR страницы после сохранения `Page` не проверяется тестом** [`backend/apps/pages/signals.py:56`]. Источник — `graph-impact` (нативный прогон). PR заменил `threading.Thread(target=_revalidate_nextjs, …)` на `revalidate_nextjs_path_in_background(f"/{slug}")`. Тесты `test_nextjs_revalidate.py` проверяют только тело `revalidate_nextjs_path`; поиск `pages.signals` по `backend/tests` пуст, а для брендов такая проверка есть (`patch("apps.products.signals.revalidate_nextjs_path_in_background")`, `test_marketing_section.py:266`, `:893`). Ошибка в аргументе или имени импорта тесты не уронит. Добавить тест: сохранение `Page` в `captureOnCommitCallbacks(execute=True)` вызывает `revalidate_nextjs_path_in_background` с `/<slug>`.
+
+##### Отложено
+
+- [x] [Review][Defer] **R42.6-D1, low: незакрытый `<style>`/`<script>` оставляет содержимое видимым текстом** [`backend/apps/common/utils/html_sanitizer.py:21`] — deferred: поведение было до стори — на `develop` в `Page.save` то же выражение `<(style|script|head)\b[^>]*>[\s\S]*?</\1>`, 42.6 только перенесла его в `html_sanitizer.py`. Источник — blind-hunter + edge-case-hunter. Регулярка требует закрывающий тег, bleach с `strip=True` вырезает теги и оставляет текст. Правка — `(?:</\1…>|$)` вместе с R42.6-6 или отдельно.
+
+##### Отклонённые замечания
+
+- blind-hunter + edge-case-hunter, `low`: устаревшая карточка бренда сохраняет избранный бренд без логотипа. Повтор кругов 1–2.
+- blind-hunter + edge-case-hunter, `low`: гонка между проверкой `get_deleted_objects` и удалением рубрики. Повтор кругов 1–2.
+- edge-case-hunter, `low`: категорию переносят из витрины между `get_object()` и `save_model()` одного POST. Повтор круга 2.
+- edge-case-hunter, `low`: `RuntimeError` из `Thread.start()` в `on_commit`. Повтор кругов 1–2.
+- blind-hunter, `low`: prefetch загружает все варианты с фото, а не первый. Повтор круга 2.
+- blind-hunter, `low`: квадратичная работа регулярки на `"<style>" * n` без закрывающих тегов. HTML пишут только сотрудники раздела и владелец, а исправление — ограничение размера или иной разбор, то есть новая сложность.
+- blind-hunter, `low`: граница выборки категорий проверяется только GET. POST карточки идёт через тот же `get_object` → `get_queryset`, что и GET (404 вне витрины), а формсет списка строится по `get_queryset`; подделанный POST списка уже проверяется (AC8). Новый тест закрепил бы тот же путь.
+- verification-gap, `low` (`defer` слоя): HTML `/home` после изменения бренда проверен только через подмены. Повтор кругов 1–2, спецификация принимает задержку.
+- verification-gap, `low` (`defer` слоя): вход маркетолога через nginx с настоящей сессией не проверяется. Повтор кругов 1–2, решение 18.
+- blind-hunter, отклонено (правка спецификации): в `local.conf` у `/marketing/` нет `include app-headers.conf` (AC14). Повтор кругов 1–2.
+- blind-hunter, отклонено (правка спецификации): AC16 обещает `<meta>`/`<link>` у `Page`. Повтор круга 2.
+- blind-hunter, отклонено (правка спецификации): Task 0 разрешает пропустить переиндексацию GitNexus по ограниченному `git diff`. Это правило агента, а не код стори; правила GitNexus с #317 требуют `analyze --force` при `stale`.
+
+#### Круг 4 — ревью 16.10.2026
+
+Дифф `06b332fc` (точка слияния с `develop`) → рабочее дерево с незакоммиченными правками круга 3, без `_bmad-output/` (3921 строка, 34 файла), режим `full`. Четыре стандартных слоя запущены через плагин Codex, слой `graph-impact` — нативным субагентом на индексе GitNexus, актуальном на `a564552`. Все пять слоёв завершились. Получено 20 исходных замечаний, после объединения повторов — 14; каждое проверено по коду до объединения. Итог: 0 решений, 0 исправлений, 0 отложенных, 14 отклонённых; 11 отклонённых повторяют круги 1–3 без новых доводов. `graph-impact`: несогласованных вызывающих нет, символов без тестов нет, риск не выше MEDIUM, затронутых процессов 0, новых циклов импорта нет. Код приложения при ревью не менялся.
+
+##### Отклонённые замечания
+
+- blind-hunter, `false`: `save(update_fields=["is_published"])` у `News`/`BlogPost` очищает `content`/`excerpt` только в памяти. Вызывающих с `update_fields` у этих моделей нет: в `apps/common` `update_fields` пишут только `Newsletter` и миграции, а админка сохраняет запись целиком.
+- blind-hunter, `low`: `<script>` внутри кавычек атрибута (`<p data-note="<script>">текст</p><script>…</script>`) регулярка принимает за начало блока и удаляет текст до настоящего `</script>`. XSS при этом нет, теряется только текст. Чтобы такое случилось, в значении атрибута должен буквально стоять `<script>`, а исправление — разбор HTML вместо регулярки, то есть новая сложность.
+- graph-impact, `low`: сигналы `products` и `pages` импортируют `apps.common.services.nextjs_revalidate`, и `apps/common/services/__init__.py` подтягивает стек мониторинга. Цикла нет, сигналы загружаются в `ready()`, конкретного вреда слой не показал.
+- blind-hunter, `false`: старый HTML новостей и блога в БД не очищен. Повтор круга 1, решение 19.
+- blind-hunter + edge-case-hunter + verification-gap, `low`: устаревшая карточка бренда сохраняет избранный бренд без логотипа. Повтор кругов 1–3.
+- blind-hunter, `false`: удаление родителя вместе с выбранными дочерними рубриками. Повтор круга 1.
+- blind-hunter + edge-case-hunter + verification-gap, `low`: гонка между проверкой `get_deleted_objects` и удалением рубрики. Повтор кругов 1–3.
+- blind-hunter, `low`: нет повторной доставки сброса ISR. Повтор круга 1, решение 13.
+- edge-case-hunter, `low`: `RuntimeError` из `Thread.start()` в `on_commit`. Повтор кругов 1–3.
+- blind-hunter + verification-gap, `low`: вход маркетолога через nginx с настоящей сессией не проверяется. Повтор кругов 1–3, решение 18.
+- blind-hunter + verification-gap, `low`: сброс ISR `/home` проверен только через подмены. Повтор кругов 1–3.
+- blind-hunter, `false`: матрица «только `view_*`» не покрывает баннеры, новости, блог и рубрики. Повтор круга 1, AC11 ограничен тремя моделями.
+- acceptance-auditor, отклонено (правка спецификации): в `local.conf` у `/marketing/` нет `include app-headers.conf` (AC14). Повтор кругов 1–3.
+- acceptance-auditor, отклонено (правка спецификации): AC16 обещает `<meta>`/`<link>` у `Page`. Повтор кругов 2–3.
+
 ## Dev Notes
 
 ### Текущее состояние кода (сверено на `6b0d536f`)
@@ -556,6 +606,19 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
   | 5 | закрывающий тег `</\1\s*>` вместо `</\1\b[^>]*>` | `test_block_with_loose_end_tag_removed_with_content[script-attribute]` |
   | 6 | закрывающий тег `</\1>` (как до правки) | `test_block_with_loose_end_tag_removed_with_content` — все 5 |
 
+- Ревью, круг 3 — мутации исправлений R42.6-6/7/8 (скрипт в контейнере, исходник восстанавливается побайтно в `finally`). **6 из 6 убиты:**
+
+  | # | Мутация | Упал |
+  |---|---|---|
+  | 1 | регулярка как до R42.6-6 (`\b` в обоих тегах) | `test_end_tag_with_hyphen_does_not_close_block` |
+  | 2 | `\b` только в закрывающем теге | `test_end_tag_with_hyphen_does_not_close_block` |
+  | 3 | `\b` только в открывающем теге | `test_tag_with_hyphen_is_not_a_block` |
+  | 4 | `clean_icon`: `isinstance(icon, UploadedFile)` → `if icon` | `test_edit_card_preserves_existing_svg_icon` |
+  | 5 | `pages/signals.py`: путь сброса без `/` | `TestPageRevalidation::test_save_resets_page_path_after_commit` |
+  | 6 | `pages/signals.py`: вызов сброса убран | `TestPageRevalidation::test_save_resets_page_path_after_commit` |
+
+  Мутация 3 при первом прогоне выжила: в тесте `<script-widget>` дальше не было настоящего `<script>`, и ошибочной регулярке не до чего было «дотянуться». Тест дополнен `<p>b</p><script>x()</script>` — теперь мутация его роняет.
+
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
@@ -581,6 +644,10 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - ✅ Resolved review finding [low]: R42.6-4 — `_STRIP_BLOCKS_RE` закрывает блок так же, как HTML-парсер. **Отклонение (с причиной):** вместо `</\1\s*>` — `</\1\b[^>]*>`: парсер закрывает `<script>` и на `</script foo>`, `</script/>`, а `\s*` их пропустил бы (мутация 5 это подтверждает). `\b` не даёт совпасть `</stylesheet>`. Тест `test_block_with_loose_end_tag_removed_with_content`: `</style >`, `</script >`, `</head >`, `</STYLE\n>` (перевод строки), `</script foo>`. Вывод страниц прежний — `tests/integration/test_pages_api.py` зелёный без правок.
 - ✅ Resolved review finding [low]: R42.6-5 — `test_photo_of_first_variant_with_photo`: у товара вариант без фото и два варианта с разными `main_image`, ожидается `src` варианта с меньшим `pk`. Код не менялся, тест зелёный сразу; мутация `.order_by("-pk")` его роняет.
 - Ревью, круг 2: полный прогон 4477 passed, 76 skipped, 0 failed; black (482 unchanged), isort, flake8, mypy (635 файлов) чистые. Модели не менялись, миграций нет. `detect-changes` — риск low, процессов не затронуто.
+- ✅ Resolved review finding [low]: R42.6-6 — имя тега в `_STRIP_BLOCKS_RE` кончается там же, где у HTML-парсера: `(?=[\s/>])` вместо `\b` в открывающем и закрывающем теге. `</style-x>` больше не закрывает блок `<style>`, а `<script-widget>` не считается блоком: тег вырезает bleach, текст остаётся. Тесты `test_end_tag_with_hyphen_does_not_close_block` и `test_tag_with_hyphen_is_not_a_block`; случаи R42.6-4 (`</style >`, `</script >`, `</head >`, `</STYLE\n>`, `</script foo>`) и `tests/integration/test_pages_api.py` зелёные без правок. GitNexus `impact strip_html_blocks` — LOW, 2 прямых вызывающих (`sanitize_rich_html`, `Page.save`).
+- ✅ Resolved review finding [low]: R42.6-7 — `TestHomepageCategories::test_edit_card_preserves_existing_svg_icon`: в категории лежит SVG-иконка со скриптом (как её загрузил бы владелец), маркетолог сохраняет карточку с новым `sort_order` — 302, порядок изменён, имя иконки в БД прежнее. Код не менялся, тест зелёный сразу; мутация `if icon` его роняет.
+- ✅ Resolved review finding [low]: R42.6-8 — `TestPageRevalidation` в `tests/unit/test_nextjs_revalidate.py` (патч `apps.pages.signals.revalidate_nextjs_path_in_background`): создание `Page` внутри `transaction.atomic()` до commit сброс не вызывает, после — ровно один вызов с `/oferta`; удаление — тоже `/oferta`. **Отклонение от формулировки (с причиной):** вместо `captureOnCommitCallbacks` — блок `transaction.atomic()`, как у соседнего теста брендов `test_reset_waits_for_commit`: тесты транзакционные, и так проверяется ещё и ожидание commit. Код не менялся.
+- Ревью, круг 3: полный прогон 4482 passed, 76 skipped, 0 failed; black (482 unchanged), isort, flake8, mypy (635 файлов) чистые. Модели не менялись, миграций нет. `detect-changes` — риск low, процессов не затронуто; по существу изменены только `_STRIP_BLOCKS_RE` и тесты, остальные символы в списке — сдвиг строк относительно индекса.
 
 ### File List
 
@@ -633,3 +700,4 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-16 — реализация (`bmad-dev-story`) на `feature/42-6-marketing-section`: сайт `/marketing/` с семью моделями, белые списки товаров/брендов/категорий главной, рубрики с защитой удаления, плашка подписчиков, санитайзер HTML новостей и блога, сброс ISR `/home` сигналом брендов, nginx и smoke-проверки `/marketing/`. 126 тестов в четырёх новых файлах (из них 5 перенесены), 27/27 мутаций убиты; полный прогон 4458 passed, 76 skipped, 0 failed; black/isort/flake8/mypy чистые, миграций нет. Статус `review`.
 - 2026-10-16 — исправление по ревью (`bmad-dev-story`): закрыто R42.6-1 — тест `src` миниатюр списка товаров (7 случаев, 3/3 мутации убиты). Полный прогон 4465 passed, 76 skipped, 0 failed; black/isort/flake8 чистые. Статус `review`.
 - 2026-10-16 — исправления по ревью, круг 2 (`bmad-dev-story`): закрыты R42.6-2 (high, иконка категории в разделе — только растровые изображения, `clean_icon`), R42.6-4 (low, `</style >` и `</script foo>` в санитайзере), R42.6-5 (low, тест фото из нескольких вариантов); 3 замечания, 6/6 мутаций убиты. Полный прогон 4477 passed, 76 skipped, 0 failed; black/isort/flake8/mypy чистые. Статус `review`.
+- 2026-10-16 — исправления по ревью, круг 3 (`bmad-dev-story`): закрыты R42.6-6 (low, граница имени тега `(?=[\s/>])` в санитайзере), R42.6-7 (low, тест прежней SVG-иконки при правке маркетологом), R42.6-8 (low, тест сброса ISR `/<slug>` сигналом `Page`); 3 замечания, 6/6 мутаций убиты. Полный прогон 4482 passed, 76 skipped, 0 failed; black/isort/flake8/mypy чистые. Статус `review`.
