@@ -5,8 +5,8 @@ description: "Use when the user asks how code works, wants to understand archite
 
 # Исследование кода через GitNexus CLI
 
-Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (индексов
-FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
+Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (правила —
+`.windsurf/rules/gitnexus.md`). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
 Справочник по командам и схеме — `gitnexus-guide`.
 
 ## Когда использовать
@@ -25,7 +25,7 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 5. Read исходников                                       → детали реализации
 ```
 
-> `stale` в шаге 1 → попроси пользователя выполнить `! npx gitnexus analyze --skip-agents-md`.
+> `stale` в шаге 1 → попроси пользователя выполнить `! npx gitnexus analyze --force`.
 > Символ, добавленный после индексации, `context` не найдёт — это устаревший индекс, а не отсутствие кода.
 
 ## Чеклист

@@ -5,53 +5,65 @@ description: "Use when the user needs to run GitNexus CLI commands like analyze/
 
 # GitNexus CLI: индекс и обслуживание
 
-Всё через `npx gitnexus ...` в Bash, глобальная установка не нужна. Без тега версии:
+GitNexus 1.6.12 стоит глобально, `npx gitnexus ...` в Bash берёт эту установку. Без тега версии:
 `npx -y gitnexus@latest ...` падает на резолве `@latest`. MCP-сервер `gitnexus` отключён —
-инструментов `gitnexus_*` и ресурсов `gitnexus://` в сессии нет.
+инструментов `gitnexus_*` и ресурсов `gitnexus://` в сессии нет. Правила — `.windsurf/rules/gitnexus.md`.
 
-## Два индекса с именем FREESPORT
+## Путь к репозиторию
 
-`npx gitnexus list` показывает два репозитория `FREESPORT`: основной клон и
-`C:\Users\1\DEV\FREESPORT-pr117`. Поэтому `context`, `impact`, `query`, `cypher`, `detect-changes`
-без `-r` падают на «Multiple repositories indexed», а `-r FREESPORT` молча берёт один из двух индексов (сейчас основной, но это зависит от реестра).
-Всегда передавай путь:
+Во все команды анализа (`context`, `impact`, `query`, `cypher`, `trace`, `detect-changes`, `check`)
+передавай путь:
 
 ```bash
 npx gitnexus impact <symbol> -r "C:\Users\1\DEV\FREESPORT"
 ```
 
+Сейчас индекс один, но клон или worktree со своим индексом регистрируется под тем же именем
+`FREESPORT`, и тогда команды без пути падают на «Multiple repositories indexed», а `-r FREESPORT`
+молча берёт один из двух.
+
 ## status — свежесть индекса
 
 ```bash
-npx gitnexus status
+npx gitnexus status          # текст
+npx gitnexus status --json   # поле status: up-to-date | stale
 ```
 
-Сравнивает `Indexed commit` с `Current commit`. `⚠️ stale` — индекс не видит свежий код:
-символы, добавленные после индексации, не находятся (`context` вернёт `Symbol ... not found`).
+Сравнивает индекс с проиндексированными файлами рабочего дерева. `⚠️ stale` — индекс не видит
+свежий код: символы, добавленные после индексации, не находятся (`context` вернёт `Symbol ... not found`).
 
 ## analyze — построить или обновить индекс
 
 ```bash
-npx gitnexus analyze --skip-agents-md
+npx gitnexus analyze --force
 ```
 
-**Сам не запускай** — долго (до пары минут) и блокирует сессию. Попроси пользователя
-выполнить `! npx gitnexus analyze --skip-agents-md`.
+Только с `--force`: инкрементальная сборка в 1.6.12 теряет у методов `id` и `filePath`, после чего
+`impact <метод> --file ...` отвечает `not found`. Полная сборка переиспользует кэш разбора и идёт
+около минуты. **Сам не запускай**: попроси пользователя выполнить `! npx gitnexus analyze --force`.
 
-`--skip-agents-md` в этом репозитории обязателен: без него `analyze` допишет в `CLAUDE.md` и
-`AGENTS.md` блок `<!-- gitnexus:start -->` с MCP-инструкциями, противоречащими разделу GitNexus.
-Если блок появился — удали его вместе с маркерами.
-
-`analyze` также **каждый раз** перезаписывает `.claude/skills/gitnexus/` своими MCP-шаблонами
-(флага, чтобы это отключить, нет). Каталог в `.gitignore` — не читай и не правь его; рабочие
-CLI-версии skills лежат в `.claude/skills/gitnexus-*/`.
+Флаги лежат в `.gitnexusrc` (`skipAgentsMd`, `skipSkills`), поэтому `analyze` не пишет в `CLAUDE.md`,
+`AGENTS.md` и навыки. Если всё же появился блок `<!-- gitnexus:start -->` — удали его вместе с маркерами.
+Что попадает в индекс — `.gitnexusignore`.
 
 | Флаг | Эффект |
 | --- | --- |
-| `--skip-agents-md` | Не трогать CLAUDE.md / AGENTS.md (обязателен здесь) |
-| `--force` | Полная переиндексация, даже если индекс свежий |
+| `--force` | Полная переиндексация — обязательна (см. выше) |
+| `--repair-fts` | Пересобрать полнотекстовый поиск без полной переиндексации |
 | `--embeddings` | Эмбеддинги для семантического поиска (по умолчанию выключены) |
 | `--drop-embeddings` | Удалить имеющиеся эмбеддинги при пересборке |
+
+После обновления GitNexus первый прогон — `GITNEXUS_LBUG_EXTENSION_INSTALL=auto npx gitnexus analyze --force`:
+без переменной LadybugDB не скачивает расширение полнотекстового поиска.
+
+## doctor — возможности среды
+
+```bash
+npx gitnexus doctor
+```
+
+Версии Node, GitNexus, LadybugDB и доступность расширений. После `analyze` строка
+`Full-text search` должна быть `available`; `VECTOR extension: unavailable` на Windows — норма.
 
 ## list — все проиндексированные репозитории
 
@@ -75,5 +87,6 @@ npx gitnexus clean
 
 ## Команды анализа кода
 
-`query`, `context`, `impact`, `cypher`, `detect-changes` — в skill-файлах `gitnexus-exploring`,
-`gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`; справочник — `gitnexus-guide`.
+`query`, `context`, `impact`, `trace`, `cypher`, `detect-changes`, `check` — в skill-файлах
+`gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`;
+справочник — `gitnexus-guide`.

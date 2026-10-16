@@ -51,15 +51,12 @@ Thumbs.db
 *.bundle.js
 *.chunk.js
 
-# Исключить пустые __init__.py файлы
-**/__init__.py
-
-# Исключить миграции Django (большие и сгенерированные)
+# Исключить миграции Django (большие и сгенерированные).
+# __init__.py и тесты не исключаем: в __init__.py бывают реэкспорты и цепочка
+# настроек Django (manage.py → settings/__init__.py → ROOT_URLCONF), а тесты
+# нужны для impact --include-tests. Старая ошибка «Invalid argument» на тестах
+# не воспроизводится с GitNexus 1.6.12.
 **/migrations/*.py
-
-# Исключить все тестовые файлы (из-за Invalid argument)
-**/test_*.py
-**/tests/**/*.py
 
 # Но включить нужные папки (используйте ! для исключения исключений)
 #!docs/api/

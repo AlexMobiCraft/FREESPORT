@@ -156,6 +156,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 - [`.windsurf/rules/production-operations.md`](.windsurf/rules/production-operations.md) — типовые инциденты: 502, Server Action mismatch, restart nginx.
 - [`.windsurf/rules/order-numbering.md`](.windsurf/rules/order-numbering.md) — форматы мастер/субзаказов и поиск в админке.
 - [`.windsurf/rules/1c-import-diagnostics.md`](.windsurf/rules/1c-import-diagnostics.md) — диагностика ошибок полной выгрузки 1С.
+- [`.windsurf/rules/gitnexus.md`](.windsurf/rules/gitnexus.md) — GitNexus CLI: обязательный анализ кода, команды, границы графа, встраивание в BMAD.
 
 ## Документация проекта
 
@@ -179,61 +180,18 @@ _Например:_ `git add .; git commit -m "..."; git push`
 
 ## GitNexus — Code Intelligence (CLI)
 
-> **Авторитетный источник правил GitNexus — этот раздел.**
-> MCP-сервер `gitnexus` отключён намеренно: его команда `npx -y gitnexus@latest mcp` падает с
-> `npm error Invalid Version`, инструменты `gitnexus_*` в сессии не появляются. Всё — через Bash.
-> Переиндексация — **только** `npx gitnexus analyze --skip-agents-md`: без флага `analyze` допишет в конец файла
-> блок `<!-- gitnexus:start -->` с MCP-инструкциями, противоречащими этому разделу. Появился — удали его.
-
-Проект проиндексирован GitNexus как **FREESPORT**. Используй CLI, чтобы понимать код,
-оценивать последствия правок и безопасно навигировать.
-
-> Если `npx gitnexus status` показывает `stale` — попроси пользователя выполнить `! npx gitnexus analyze --skip-agents-md`.
+Проект проиндексирован GitNexus как **FREESPORT**. Правила, команды, границы графа и встраивание в BMAD —
+[`.windsurf/rules/gitnexus.md`](.windsurf/rules/gitnexus.md); прочитай его перед первой командой GitNexus.
+MCP-сервер отключён, инструментов `gitnexus_*` нет — всё через `npx gitnexus ...` в Bash.
 
 ### Обязательно
 
+- **Свежесть индекса** — `npx gitnexus status`; при `stale` попроси пользователя выполнить `! npx gitnexus analyze --force`.
 - **Перед изменением любого символа** (функции, класса, метода) — `npx gitnexus impact <symbol> --direction upstream`;
   сообщи пользователю blast radius: прямые вызывающие, затронутые процессы, уровень риска.
-- **Перед коммитом** — `npx gitnexus detect-changes --scope all`: убедись, что затронуты только ожидаемые символы и потоки.
 - **Предупреди пользователя**, если impact вернул `"risk": "HIGH"` или `"CRITICAL"`, — до внесения правок.
-- **Для исследования незнакомого кода** — `npx gitnexus query "<концепция>"` вместо grep по всей базе.
-- **Полный контекст символа** (вызывающие, вызываемые, процессы) — `npx gitnexus context <symbol>`.
+- **Перед коммитом** — `npx gitnexus detect-changes --scope all` и `npx gitnexus check --cycles`: затронуты только
+  ожидаемые символы и потоки, новых циклов импорта нет.
+- **Для исследования незнакомого кода** — `npx gitnexus query "<концепция>"` и `npx gitnexus context <symbol>` вместо grep по всей базе.
 - **Переименование** — не через find-and-replace: собери все места через `impact` и `context`, затем правь точечно.
-
-### Команды
-
-| Задача | Команда |
-|---|---|
-| Статус и свежесть индекса | `npx gitnexus status` |
-| Переиндексация | `npx gitnexus analyze --skip-agents-md` |
-| Blast radius | `npx gitnexus impact <symbol> [--direction upstream\|downstream] [--depth N] [--include-tests]` |
-| Контекст символа | `npx gitnexus context <symbol> [--file <path>] [--content]` |
-| Поиск потоков выполнения | `npx gitnexus query "<концепция>" [--limit N] [--goal <text>]` |
-| Символы, затронутые изменениями | `npx gitnexus detect-changes [--scope unstaged\|staged\|all\|compare] [--base-ref <ref>]` |
-| Произвольный запрос к графу | `npx gitnexus cypher "<query>"` |
-
-Вызывай без тега версии: `npx -y gitnexus@latest ...` падает на резолве `@latest`.
-**Индексов с именем FREESPORT два** (второй — `C:\Users\1\DEV\FREESPORT-pr117`): `impact`, `context`, `query`, `cypher`, `detect-changes` без `-r "C:\Users\1\DEV\FREESPORT"` падают на «Multiple repositories indexed». `-r FREESPORT` молча берёт один из двух индексов (сейчас основной, но это зависит от реестра) — всегда передавай путь.
-`impact`, `context`, `query`, `cypher` печатают JSON; `status` и `detect-changes` — текст.
-
-### Ограничения CLI
-
-- Команды `rename` нет — переименование только вручную по списку из `impact`/`context`.
-- MCP-ресурсов (`gitnexus://repo/...`) нет; их заменяют `query`, `context` и `cypher`.
-- `npx gitnexus wiki` требует LLM-провайдер и API-ключ — это не локальная бесплатная команда.
-- Символы, добавленные после последней индексации, не находятся: `context` вернёт
-  `{"error": "Symbol ... not found"}`. Это признак устаревшего индекса, а не отсутствия кода.
-- `analyze` при каждом запуске (и с `--skip-agents-md` тоже) перезаписывает `.claude/skills/gitnexus/` своими MCP-шаблонами — флага, чтобы это отключить, нет. Каталог в `.gitignore`, не используй его; рабочие CLI-версии skills — `gitnexus-*/` в `.claude/skills/` и `.agents/skills/`.
-
-### Skill-файлы
-
-Каждый навык лежит в двух копиях — `.claude/skills/` (Claude Code) и `.agents/skills/` (Codex, Devin Desktop); бери каталог своего агента.
-
-| Задача | Навык |
-|---|---|
-| Понять архитектуру / «Как работает X?» | `gitnexus-exploring/SKILL.md` |
-| Blast radius / «Что сломается, если поменять X?» | `gitnexus-impact-analysis/SKILL.md` |
-| Отладка / «Почему X падает?» | `gitnexus-debugging/SKILL.md` |
-| Переименование и рефакторинг | `gitnexus-refactoring/SKILL.md` |
-| Справочник по командам и схеме графа | `gitnexus-guide/SKILL.md` |
-| Индекс, статус, очистка, wiki | `gitnexus-cli/SKILL.md` |
+- Во все команды анализа передавай `-r "C:\Users\1\DEV\FREESPORT"`.
