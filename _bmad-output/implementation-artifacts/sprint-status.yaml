@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-16 (стори 42.5 -> done по решению Alex)
+# last_updated: 2026-10-16 (стори 42.6 создана -> ready-for-dev)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1523,7 +1523,15 @@ development_status:
   #             невыбранный заказ в экспорте, состав карточки литералом). Полный
   #             прогон 4310 passed, 76 skipped, 0 failed; линтеры чистые.
   #             in-progress -> review.
-  42-6-marketing-section: backlog
+  42-6-marketing-section: ready-for-dev
+  # 2026-10-16: стори создана на 6b0d536f. Отдельный сайт /marketing/ (группы
+  #             «Маркетинг» и «Руководители»), семь моделей, белый список полей
+  #             товаров и брендов, сохранение только изменённых полей по увиденным
+  #             значениям, запрет удаления рубрики с новостями, плашка подписчиков,
+  #             nginx /marketing/ и smoke-проверки.
+  # 2026-10-16: ответы Alex: активность категории на главной — только чтение
+  #             (эпик FR-42-22 и section-contents поправлены); одновременная правка
+  #             одного поля не критична; рубрики в /admin/ нужны.
   42-7-supervisor-section-staff-regions-reassignment: backlog
   42-8-supervisor-summary: backlog
   42-9-staff-action-journal: backlog
