@@ -1,4 +1,5 @@
-# Team override: обязательный GitNexus-анализ при ревью кода
+# Team override: обязательный GitNexus-анализ при ревью кода и слой ревью graph-impact.
+# Правила GitNexus и процедура слоя — в .windsurf/rules/gitnexus.md.
 # Коммитить в репозиторий — командная политика.
 
 [workflow]
@@ -8,12 +9,24 @@ activation_steps_prepend = [
 ]
 
 activation_steps_append = [
-  "GITNEXUS PRE-FLIGHT (обязательно): Выполни `npx gitnexus status` через Bash и покажи результат. Если индекс устарел ('stale') — сообщи пользователю запустить `! npx gitnexus analyze --skip-agents-md`. Если свежий — продолжай.",
+  "GITNEXUS PRE-FLIGHT (обязательно): выполни `npx gitnexus status` через Bash и покажи результат. Если индекс `stale` — попроси пользователя выполнить `! npx gitnexus analyze --force` и дождись ответа: слой graph-impact на устаревшем индексе не даёт выводов. Если индекс свежий — продолжай.",
 ]
 
 persistent_facts = [
-  'ПРАВИЛО АНАЛИЗА ПРИ РЕВЬЮ (обязательно): Для понимания контекста изменений выполнить npx gitnexus detect-changes --scope all через Bash — покажет затронутые символы и потоки (вывод текстовый). Для оценки blast radius изменённых функций — npx gitnexus impact <symbol> --direction upstream (вывод JSON). MCP-сервер в проекте не подключён, инструментов gitnexus_* нет. ЗАПРЕЩЕНО использовать Explore-субагента вместо этих команд.',
-  'ПРИЗНАК УСТАРЕВШЕГО ИНДЕКСА: ответ {"error": "Symbol ... not found"} на заведомо существующий символ означает, что индекс не содержит свежий код, а не что кода нет. В этом случае сообщить пользователю про ! npx gitnexus analyze --skip-agents-md.',
+  "file:{project-root}/.windsurf/rules/gitnexus.md",
   'ИСПОЛНЕНИЕ РЕВЬЮ: все активные слои запускай только выбранным способом. «Текущая модель» означает нативных субагентов, наследующих модель текущей сессии, без обращения к плагину Codex. В Devin используй subagent_general, а не subagent_explore; ревьюерам запрети изменения файлов. «Плагин Codex» означает запуск ревьюеров через доступный плагин Codex с сохранением инструкций и изоляции каждого слоя; для этого выбора допускается модель плагина вместо модели текущей сессии.',
   'НЕТ НЕЯВНОГО ПЕРЕКЛЮЧЕНИЯ: если выбранный способ недоступен или не позволяет обеспечить нужную модель, останови запуск и предложи пользователю выбрать другой способ. Не устанавливай плагин и не переключай исполнителя автоматически. При повторных запусках слоёв в рамках того же прогона сохраняй сделанный выбор.',
 ]
+
+[[workflow.review_layers]]
+id = "graph-impact"
+name = "Graph Impact (GitNexus)"
+instruction = """
+Launch a subagent with this prompt:
+
+Ты — ревьюер последствий изменения по графу кода GitNexus. Открой файл `.windsurf/rules/gitnexus.md` в корне репозитория, прочитай его целиком и выполни раздел «Слой ревью graph-impact».
+
+Review content: the unified diff at `{diff_file}`. Read that file — it is the content under review.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the rules file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+"""

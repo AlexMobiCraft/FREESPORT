@@ -1,9 +1,15 @@
-# Team override: путь хранения story-файлов в проекте FREESPORT.
+# Team override: путь хранения story-файлов и GitNexus-анализ в проекте FREESPORT.
+# Правила GitNexus — в .windsurf/rules/gitnexus.md, здесь только подключение.
 # Коммитить в репозиторий — командная политика.
 
 [workflow]
 
+activation_steps_append = [
+  "GITNEXUS PRE-FLIGHT (обязательно): выполни `npx gitnexus status` через Bash и покажи результат. Если индекс `stale` или отсутствует — попроси пользователя выполнить `! npx gitnexus analyze --force` и дождись ответа: на устаревшем индексе анализ кода не начинай. Если индекс свежий — продолжай.",
+]
+
 persistent_facts = [
+  "file:{project-root}/.windsurf/rules/gitnexus.md",
   'ПУТЬ ХРАНЕНИЯ STORY-ФАЙЛОВ (проект FREESPORT): story-файлы лежат в подкаталоге {implementation_artifacts}/Story/, а не в корне {implementation_artifacts}. Корень занят другими артефактами реализации: sprint-status.yaml, spec-*.md, deferred-work.md, tasks/, tech-spec/, retro/. Значение implementation_artifacts в _bmad/bmm/config.yaml менять НЕЛЬЗЯ — оно задаёт корень всех артефактов реализации, а не только стори.',
   'ПОИСК СТОРИ: везде, где скилл ищет story-файл в {implementation_artifacts} (в том числе по шаблону {story_key}.md), искать в {implementation_artifacts}/Story/. Путь sprint_status при этом НЕ меняется — sprint-status.yaml остаётся в корне {implementation_artifacts}.',
 ]

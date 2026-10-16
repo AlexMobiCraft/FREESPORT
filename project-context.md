@@ -99,15 +99,13 @@ optimized_for_llm: true
 
 ## 5. GitNexus-дисциплина (только CLI)
 
-**MCP-сервер GitNexus в проекте не подключён** — `.mcp.json` отсутствует, инструментов `gitnexus_*` нет. Всё выполняется через Bash.
+Полные правила — `.windsurf/rules/gitnexus.md` (BMAD-воркфлоу подключают его через `persistent_facts`). Коротко:
 
-- **Перед редактированием** функции/класса/метода: `npx gitnexus impact <symbol> --direction upstream`. Сообщить blast radius (callers, processes, risk) пользователю. При HIGH/CRITICAL — предупредить и подтвердить.
-- **Перед коммитом**: `npx gitnexus detect-changes --scope all` — убедиться, что затронуты только ожидаемые символы и flows.
-- **Поиск/исследование** — `npx gitnexus query "<concept>"` вместо grep по большой кодовой базе.
-- **Контекст символа** (callers + callees + processes) — `npx gitnexus context <symbol>`; `--file <path>` снимает неоднозначность одинаковых имён.
-- **Rename** — команды `rename` в CLI нет. Собрать все места через `impact` и `context`, затем править точечно; текстовая замена по-прежнему запрещена.
-- **Свежесть индекса**: `npx gitnexus status`. При `stale` — попросить пользователя выполнить `! npx gitnexus analyze --skip-agents-md`. Ответ `{"error": "Symbol ... not found"}` на существующий код означает устаревший индекс.
-- `impact`, `context`, `query`, `cypher` печатают JSON; `status` и `detect-changes` — текст.
+- MCP-сервер отключён, инструментов `gitnexus_*` нет — всё через `npx gitnexus ...` в Bash с `-r "C:\Users\1\DEV\FREESPORT"`.
+- **Свежесть**: `npx gitnexus status`; при `stale` — попросить пользователя выполнить `! npx gitnexus analyze --force` (флаги лежат в `.gitnexusrc`).
+- **Перед правкой** функции/класса/метода — `impact <symbol> --direction upstream` (`--file`/`--kind` при одноимённых символах); при HIGH/CRITICAL — предупредить до правок.
+- **Перед коммитом** — `detect-changes --scope all` и `check --cycles` (новых циклов импорта нет).
+- **Исследование** — `query` и `context` вместо grep; **rename** — вручную по `impact`/`context`.
 
 ## 6. Язык
 
