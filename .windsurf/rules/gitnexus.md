@@ -12,18 +12,42 @@ description: GitNexus CLI — анализ кода перед правками 
 
 - GitNexus **1.6.12** стоит глобально (`npm i -g gitnexus@1.6.12`), `npx gitnexus` берёт её.
   Не вызывай `npx -y gitnexus@latest` — падает на резолве `@latest`.
-- **MCP-сервер отключён** (пилот MCP отложен): инструментов `gitnexus_*` и ресурсов `gitnexus://`
-  нет, всё — через Bash. Поэтому недоступны `rename`, `route_map`, `api_impact`, `shape_check`.
+- **MCP-сервер отключён у всех агентов** (пилот MCP отложен): инструментов `gitnexus_*` и ресурсов
+  `gitnexus://` нет, всё — через Bash. Поэтому недоступны `rename`, `route_map`, `api_impact`,
+  `shape_check`. У Devin Desktop запись `gitnexus` оставлена с `"disabled": true` в
+  `%APPDATA%\Devin\mcp_config.json` и `~/.codeium/windsurf/mcp_config.json` — не включай её
+  без решения о пилоте: долгоживущий `gitnexus mcp` держит базу индекса (см. «Обновление и сбои»).
 - Флаги `analyze` лежат в `.gitnexusrc` (`skipAgentsMd`, `skipSkills`): `npx gitnexus analyze --force`
   не пишет в `AGENTS.md`/`CLAUDE.md` и в навыки. Переиндексируй **только с `--force`** — см. первый
   пункт «Границ графа»; полная сборка переиспользует кэш разбора и идёт около минуты.
   Появился блок `<!-- gitnexus:start -->` — удали его вместе с маркерами.
 - Состав индекса задаёт `.gitnexusignore`: код `backend/` и `frontend/` вместе с тестами и
   `__init__.py`; без миграций, `docs/`, `scripts/`, `_bmad*/`, `.claude/`, `.agents/`, `.windsurf/`.
-- После обновления GitNexus первый прогон —
-  `GITNEXUS_LBUG_EXTENSION_INSTALL=auto npx gitnexus analyze --force`: без переменной LadybugDB
-  не скачивает расширение полнотекстового поиска. Проверка — `npx gitnexus doctor`,
-  строка `Full-text search: available`.
+## Обновление и сбои
+
+Обновление GitNexus — только по решению владельца, на закреплённую стабильную версию (не `rc`):
+
+1. **Нет живых MCP-серверов.** Запущенный `gitnexus mcp` (его поднимает агент, у которого MCP
+   включён) держит загруженную LadybugDB: `npm i -g` падает на `EPERM`, а `analyze` не загружает
+   расширение поиска. Проверка в PowerShell:
+   `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'gitnexus' }`.
+   Нашлись — закрой агента-владельца или заверши процессы.
+2. `npm i -g gitnexus@<версия>`, затем `npx gitnexus doctor`.
+3. Первый прогон — `GITNEXUS_LBUG_EXTENSION_INSTALL=auto npx gitnexus analyze --force`: без переменной
+   LadybugDB не скачивает расширение полнотекстового поиска. Схема индекса меняется между версиями,
+   поэтому сборка будет полной.
+4. Проверка: `doctor` → `Full-text search: available`; `query` по известной теме возвращает
+   символы; `cypher "MATCH (m:Method) RETURN m.filePath = '' AS e, count(m)"` — только `false`.
+5. Пересмотри «Границы графа» и сверь новые ключи `.gitnexusrc`: неизвестный ключ роняет `analyze`.
+
+Сбои:
+
+- **`query` пустой**, в ответе `"warning": "FTS indexes missing"`, а в выводе `analyze` было
+  `LOAD fts failed ... IO exception` — расширение не загрузилось, обычно из-за живого
+  `gitnexus mcp` (пункт 1). Убери процессы и выполни `npx gitnexus analyze --repair-fts`:
+  пересобирает только поисковые индексы.
+- **`Target ... not found` для метода, который есть в коде** — индекс собран без `--force`
+  (первый пункт «Границ графа»).
 
 ## Обязательно
 
