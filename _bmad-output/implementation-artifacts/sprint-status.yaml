@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-16 (стори 42.6 -> review после исправления R42.6-1)
+# last_updated: 2026-10-16 (стори 42.6 -> review после исправлений ревью, круг 2)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1524,6 +1524,15 @@ development_status:
   #             прогон 4310 passed, 76 skipped, 0 failed; линтеры чистые.
   #             in-progress -> review.
   42-6-marketing-section: review
+  # 2026-10-16: круг 2 закрыт — R42.6-2 (clean_icon: иконка категории только растровая),
+  #             R42.6-4 (</style >, </script foo> в санитайзере), R42.6-5 (тест фото из
+  #             нескольких вариантов); 6/6 мутаций убиты. Полный прогон 4477 passed,
+  #             76 skipped, 0 failed; линтеры чистые. in-progress -> review.
+  # 2026-10-16: ревью 6b0d536f..76433bb2 (Codex, 4 слоя, круг 2): 3 исправления оставлены
+  #             задачами — R42.6-2 (high, иконка категории только растровая, решение Alex),
+  #             R42.6-4 (low, </style > в санитайзере), R42.6-5 (low, тест фото из нескольких
+  #             вариантов); R42.6-3 (& в анонсах) — оставить как есть; 11 отклонено.
+  #             review -> in-progress.
   # 2026-10-16: R42.6-1 закрыто — тест src миниатюр (7 случаев, 3/3 мутации убиты).
   #             Полный прогон 4465 passed, 76 skipped, 0 failed. in-progress -> review.
   # 2026-10-16: ревью 6b0d536f...9a7b706f (Codex, 4 слоя): 1 исправление (R42.6-1, low,

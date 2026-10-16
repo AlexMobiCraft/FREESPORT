@@ -17,6 +17,7 @@ from typing import Any
 from django import forms
 from django.conf import settings
 from django.contrib import admin
+from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Model, Prefetch, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse
@@ -229,6 +230,20 @@ class MarketingBrandAdmin(BrandAdmin):
 
 class MarketingHomepageCategoryForm(SeenValuesForm):
     seen_fields = ("sort_order",)
+
+    def clean_icon(self) -> Any:
+        """
+        Новая иконка — только растровое изображение (Pillow + расширение, без SVG).
+
+        `icon` — `FileField`, а `/media/` отдаётся на origin сайта: загруженный
+        HTML или SVG со скриптом открылся бы рядом с `/admin/`. В `/admin/`
+        проверки нет — SVG-иконки загружает суперпользователь.
+        """
+        icon = self.cleaned_data.get("icon")
+        if isinstance(icon, UploadedFile):
+            # False — очистка поля, FieldFile — прежний файл: их не проверяем.
+            forms.ImageField().clean(icon)
+        return icon
 
 
 class MarketingHomepageCategoryAdmin(HomepageCategoryAdmin):

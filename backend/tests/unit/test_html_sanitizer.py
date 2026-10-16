@@ -54,6 +54,21 @@ def test_style_and_script_removed_with_content():
     assert cleaned == "<p>текст</p>"
 
 
+@pytest.mark.parametrize(
+    "block",
+    [
+        pytest.param("<style>body{display:none}</style >", id="style-space"),
+        pytest.param("<script>alert(1)</script >", id="script-space"),
+        pytest.param("<head><title>заголовок</title></head >", id="head-space"),
+        pytest.param("<STYLE>body{display:none}</STYLE\n>", id="style-newline-upper"),
+        pytest.param("<script>alert(1)</script foo>", id="script-attribute"),
+    ],
+)
+def test_block_with_loose_end_tag_removed_with_content(block):
+    """HTML-парсер закрывает блок и на `</style >`: содержимое не должно остаться текстом (R42.6-4)."""
+    assert sanitize_rich_html(f"<p>a</p>{block}x") == "<p>a</p>x"
+
+
 def test_allowed_markup_is_unchanged():
     assert sanitize_rich_html(ALLOWED) == ALLOWED
 

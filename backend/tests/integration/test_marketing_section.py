@@ -24,6 +24,7 @@ from __future__ import annotations
 import io
 import re
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -120,6 +121,9 @@ def png_bytes() -> bytes:
     buffer = io.BytesIO()
     Image.new("RGB", (8, 8), color="red").save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+SVG_ICON = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.cookie)</script></svg>'
 
 
 def png_upload(name: str = "logo.png") -> SimpleUploadedFile:
@@ -641,6 +645,21 @@ class TestProductChangelist:
 
         assert re.findall(r'<img src="([^"]*)" style="max-height:50px', html) == [expected]
 
+    def test_photo_of_first_variant_with_photo(self, marketer_client):
+        """Из нескольких вариантов с фото — вариант с меньшим pk; вариант без фото пропускается."""
+        product = make_product(photo=False, base_images=["/products/b.png"])
+        first, second = (
+            ProductVariantFactory(product=product, main_image=f"products/variants/{get_unique_suffix()}.png")
+            for _ in range(2)
+        )
+        assert first.pk < second.pk
+
+        html = marketer_client.get(PRODUCTS_URL).content.decode()
+
+        assert re.findall(r'<img src="([^"]*)" style="max-height:50px', html) == [
+            f"{settings.MEDIA_URL}{first.main_image.name}"
+        ]
+
     def test_list_save_and_action(self, marketer_client):
         a, b, c, untouched = (make_product(is_new=True) for _ in range(4))
 
@@ -976,6 +995,44 @@ class TestHomepageCategories:
             data[f"{row_prefix(page, target)}-sort_order"] = value
             assert marketer_client.post(HOMEPAGE_URL, data).status_code == 302
             assert (target.pk in homepage_ids()) is visible
+
+    @pytest.mark.parametrize(
+        ("name", "content", "content_type"),
+        [
+            pytest.param("icon.html", b"<script>alert(document.cookie)</script>", "text/html", id="html"),
+            pytest.param("icon.svg", SVG_ICON, "image/svg+xml", id="svg"),
+            pytest.param("icon.png", b"<html><script>alert(1)</script></html>", "image/png", id="html-as-png"),
+            pytest.param("icon.svg", png_bytes(), "image/svg+xml", id="png-as-svg"),
+            pytest.param("icon.html", png_bytes(), "text/html", id="png-as-html"),
+        ],
+    )
+    def test_icon_must_be_raster_image(self, marketer_client, showcase, name, content, content_type):
+        """Иконка открывается по /media/ на origin сайта: в разделе — только растровые форматы (R42.6-2)."""
+        target = showcase["first"]
+        card = marketer_client.get(change_url(HOMEPAGE_URL, target))
+        data = card_payload(card)
+        data["icon"] = SimpleUploadedFile(name, content, content_type=content_type)
+
+        response = marketer_client.post(change_url(HOMEPAGE_URL, target), data)
+
+        assert response.status_code == 200
+        assert "icon" in response.context["adminform"].form.errors
+        target.refresh_from_db()
+        assert not target.icon
+        assert not Path(settings.MEDIA_ROOT, "categories", "icons").exists()
+
+    def test_superuser_uploads_svg_icon_in_admin(self, client, showcase):
+        """В /admin/ проверки нет: SVG-иконки загружает суперпользователь."""
+        client.force_login(make_staff_member(MARKETING_GROUP, is_superuser=True))
+        target = showcase["first"]
+        url = change_url("/admin/products/homepagecategory/", target)
+        data = card_payload(client.get(url))
+        data["icon"] = SimpleUploadedFile("icon.svg", SVG_ICON, content_type="image/svg+xml")
+
+        assert client.post(url, data).status_code == 302
+        target.refresh_from_db()
+        assert target.icon.name.startswith("categories/icons/")
+        assert target.icon.name.endswith(".svg")
 
     @pytest.mark.parametrize("key", ["sub", "outside"])
     def test_out_of_scope_card_is_404(self, marketer_client, showcase, key):
