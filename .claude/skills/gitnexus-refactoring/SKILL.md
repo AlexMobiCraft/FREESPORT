@@ -5,8 +5,8 @@ description: "Use when the user wants to rename, extract, split, move, or restru
 
 # Рефакторинг через GitNexus CLI
 
-Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (индексов
-FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
+Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (правила —
+`.windsurf/rules/gitnexus.md`). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
 
 **Команды `rename` в CLI нет.** Переименование — вручную: собери все места через `impact`,
 `context` и grep, затем правь точечно. Find-and-replace по всему репозиторию запрещён (AGENTS.md).
@@ -21,7 +21,7 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 5. npx gitnexus detect-changes -r <repo> --scope all → затронуто только ожидаемое
 ```
 
-> `stale` → попроси пользователя выполнить `! npx gitnexus analyze --skip-agents-md`.
+> `stale` → попроси пользователя выполнить `! npx gitnexus analyze --force`.
 > На устаревшем индексе список мест неполный.
 
 ## Переименование символа

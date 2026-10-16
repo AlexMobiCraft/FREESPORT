@@ -5,8 +5,8 @@ description: "Use when the user is debugging a bug, tracing an error, or asking 
 
 # Отладка через GitNexus CLI
 
-Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (индексов
-FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
+Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (правила —
+`.windsurf/rules/gitnexus.md`). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
 Справочник — `gitnexus-guide`.
 
 ## Когда использовать
@@ -21,11 +21,11 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 1. npx gitnexus status                                  → индекс свежий?
 2. npx gitnexus query -r <repo> "<симптом или текст ошибки>" → связанные процессы и символы
 3. npx gitnexus context -r <repo> <подозреваемый>        → вызывающие / вызываемые
-4. npx gitnexus cypher -r <repo> "<цепочка или шаги>"     → трассировка, если нужна
+4. npx gitnexus trace -r <repo> <откуда> <куда>           → путь вызовов между двумя символами
 5. Read исходников                                      → подтвердить корневую причину
 ```
 
-> `stale` → попроси пользователя выполнить `! npx gitnexus analyze --skip-agents-md`.
+> `stale` → попроси пользователя выполнить `! npx gitnexus analyze --force`.
 > Граф показывает статические связи. Корневую причину подтверждай чтением кода, логами и тестами,
 > а не только графом.
 
@@ -36,7 +36,7 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 - [ ] query по тексту ошибки или теме
 - [ ] Выбрать подозреваемую функцию из processes / definitions
 - [ ] context: кто её вызывает и что она вызывает
-- [ ] Цепочка вызовов или шаги процесса через cypher
+- [ ] Путь вызовов через trace, шаги процесса через cypher
 - [ ] Прочитать исходники, воспроизвести тестом
 ```
 
@@ -49,10 +49,18 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 | Плавающий сбой | `context` → искать внешние вызовы (1С, YuKassa, CDEK), Celery, async |
 | Медленно | `context` → символы с большим числом вызывающих (горячие пути) |
 | Регрессия после правок | `detect-changes -s all` или `-s compare -b develop` |
+| «Как вход доходит до этой функции?» | `trace <точка входа> <функция>` |
 
 ## Цепочка вызовов
 
-Синтаксис `[:CodeRelation {type: 'CALLS'}*1..2]` здесь не парсится — фильтр через `rels()`:
+Кратчайший путь между двумя символами — `trace`, от вызывающего к вызываемому (в обратную сторону
+вернёт `no_path`):
+
+```bash
+npx gitnexus trace -r "C:\Users\1\DEV\FREESPORT" send_order_confirmation_to_customer _get_order_display_items
+```
+
+Все цепочки заданной длины — через cypher. Синтаксис `[:CodeRelation {type: 'CALLS'}*1..2]` здесь не парсится — фильтр через `rels()`:
 
 ```bash
 npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH p = (a)-[r:CodeRelation*1..2]->(b:Function {name: '_get_order_display_items'}) WHERE all(x IN rels(p) WHERE x.type = 'CALLS') RETURN properties(nodes(p), 'name') AS chain"

@@ -1,0 +1,26 @@
+# Team override: обязательный GitNexus-анализ в bmad-build и слой ревью graph-impact.
+# Правила GitNexus и процедура слоя — в .windsurf/rules/gitnexus.md.
+# Коммитить в репозиторий — командная политика.
+
+[workflow]
+
+activation_steps_append = [
+  "GITNEXUS PRE-FLIGHT (обязательно): выполни `npx gitnexus status` через Bash и покажи результат. Если индекс `stale` или отсутствует — попроси пользователя выполнить `! npx gitnexus analyze --force` и дождись ответа: на устаревшем индексе анализ кода не начинай. Если индекс свежий — продолжай.",
+]
+
+persistent_facts = [
+  "file:{project-root}/.windsurf/rules/gitnexus.md",
+]
+
+[[workflow.review_layers]]
+id = "graph-impact"
+name = "Graph Impact (GitNexus)"
+instruction = """
+Launch a subagent with this prompt:
+
+Ты — ревьюер последствий изменения по графу кода GitNexus. Открой файл `.windsurf/rules/gitnexus.md` в корне репозитория, прочитай его целиком и выполни раздел «Слой ревью graph-impact».
+
+Review content: the unified diff at `{diff_file}`. Read that file — it is the content under review.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the rules file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+"""

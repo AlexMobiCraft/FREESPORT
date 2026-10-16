@@ -5,8 +5,8 @@ description: "Use when the user wants to know what will break if they change som
 
 # Анализ последствий через GitNexus CLI
 
-Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (индексов
-FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
+Команды — `npx gitnexus ...` в Bash, всегда с `-r "C:\Users\1\DEV\FREESPORT"` (правила —
+`.windsurf/rules/gitnexus.md`). Инструментов `gitnexus_*` и ресурсов `gitnexus://` нет — MCP отключён.
 По правилам AGENTS.md `impact` обязателен перед правкой любого символа, `detect-changes` — перед коммитом.
 
 ## Workflow
@@ -18,7 +18,7 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 4. Оценить риск и сообщить пользователю
 ```
 
-> `stale` → попроси пользователя выполнить `! npx gitnexus analyze --skip-agents-md`.
+> `stale` → попроси пользователя выполнить `! npx gitnexus analyze --force`.
 > На устаревшем индексе `impact` не видит новых вызывающих — занижает риск.
 
 ## Чеклист
@@ -30,7 +30,7 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 - [ ] affected_processes: какие потоки задеты
 - [ ] --include-tests, если нужно знать, какие тесты прогнать
 - [ ] Сообщить пользователю: прямые вызывающие, процессы, risk
-- [ ] Перед коммитом: detect-changes --scope all
+- [ ] Перед коммитом: detect-changes --scope all и check --cycles
 ```
 
 ## Вывод impact
@@ -58,19 +58,19 @@ FREESPORT два). Инструментов `gitnexus_*` и ресурсов `gi
 `risk` считает сам CLI. Если вернул `HIGH` или `CRITICAL` — **предупреди пользователя до правок**.
 Код в критических путях (заказы, оплата, обмен с 1С, цены) повышает риск независимо от числа вызывающих.
 
-`-d downstream` показывает обратное — от чего зависит сам символ.
+`-d downstream` показывает обратное — от чего зависит сам символ. `--summary-only` оставляет только
+`risk` и счётчики — удобно для таблицы в стори; `--include-tests` добавляет тесты, зависящие от символа.
 
 ## Неоднозначные имена
 
 Если символов с таким именем несколько, `impact` вернёт `ambiguous` — это **не** «ничего не
-затронуто». Флага `--file` у `impact` нет. Уточни через `context -f <файл>` и найди вызывающих
-через cypher с фильтром по `filePath`:
+затронуто». Уточни файл, тип или uid из списка `candidates`:
 
 ```bash
-npx gitnexus cypher -r "C:\Users\1\DEV\FREESPORT" "MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(m:Method {name: 'get'}) WHERE m.filePath = 'backend/apps/bonuses/views.py' RETURN caller.name, caller.filePath"
+npx gitnexus impact get -r "C:\Users\1\DEV\FREESPORT" --file backend/apps/bonuses/views.py --kind Method
 ```
 
-## detect-changes
+## Перед коммитом
 
 ```bash
 npx gitnexus detect-changes -r "C:\Users\1\DEV\FREESPORT" --scope all          # staged + unstaged
@@ -79,3 +79,9 @@ npx gitnexus detect-changes -r "C:\Users\1\DEV\FREESPORT" --scope compare -b dev
 
 Вывод текстовый: изменённые символы и задетые процессы. `No changes detected` при правках только
 в документации или конфигах — нормально: там нет проиндексированных символов.
+
+```bash
+npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"
+```
+
+Новых циклов импорта быть не должно. Базовая линия и код выхода — правило 3 в `.windsurf/rules/gitnexus.md`.
