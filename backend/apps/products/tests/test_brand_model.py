@@ -90,7 +90,7 @@ class TestBrandCleanValidation:
         with pytest.raises(ValidationError) as exc_info:
             brand.clean()
         assert "image" in exc_info.value.message_dict
-        assert "Image is required for featured brands" in str(exc_info.value.message_dict["image"])
+        assert "Для показа на главной нужен логотип" in str(exc_info.value.message_dict["image"])
 
     def test_clean_featured_with_image_passes(self):
         """AC-3: is_featured=True with image passes validation."""

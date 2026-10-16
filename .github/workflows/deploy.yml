@@ -557,6 +557,17 @@ jobs:
               ;;
           esac
 
+          # Раздел маркетинга /marketing/ (стори 42.6) — та же проверка своего раздела.
+          HAS_SECTION=0
+          bash scripts/deploy/release-has-manager-route.sh "$RELEASE" marketing || HAS_SECTION=$?
+          case "$HAS_SECTION" in
+            1) echo "ℹ️ Релиз $RELEASE раньше раздела /marketing/ — проверка маршрута пропущена" ;;
+            *)
+              [ "$HAS_SECTION" = 0 ] || echo "::warning::Коммит релиза $RELEASE не найден — /marketing/ проверяется как обязательный"
+              bash scripts/deploy/check-manager-route.sh "$PRODUCTION_URL" marketing || exit 1
+              ;;
+          esac
+
           echo "✅ Все проверки пройдены успешно!"
 
       - name: Notify production deployment

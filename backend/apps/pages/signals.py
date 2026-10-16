@@ -2,20 +2,15 @@
 Signals для автоматической инвалидации кэша страниц
 """
 
-import logging
-import threading
-
-import requests
-from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
+from apps.common.services.nextjs_revalidate import revalidate_nextjs_path_in_background
+
 from .cache_keys import bump_pages_list_version, get_pages_list_version, pages_list_cache_key
 from .models import Page
-
-logger = logging.getLogger(__name__)
 
 
 @receiver([post_save, post_delete], sender=Page)
@@ -58,43 +53,4 @@ def _invalidate_page_cache_now(slug: str) -> None:
     bump_pages_list_version()
     cache.delete(f"page_detail_{slug}")
 
-    thread = threading.Thread(
-        target=_revalidate_nextjs,
-        args=(f"/{slug}",),
-        daemon=True,
-    )
-    thread.start()
-
-
-def _revalidate_nextjs(path: str) -> None:
-    """Сбрасывает ISR-кеш Next.js для указанного пути (вызывается в фоновом потоке).
-
-    Каждый исход пишется в лог. Раньше отсутствие настроек и ответ 401 проходили
-    молча, и на проде сброс не работал ни разу, не оставив ни одной строки в логах.
-    """
-    frontend_url = getattr(settings, "FRONTEND_INTERNAL_URL", None)
-    secret = getattr(settings, "REVALIDATE_SECRET", None)
-
-    if not frontend_url or not secret:
-        logger.warning(
-            "Next.js revalidation skipped for %s: FRONTEND_INTERNAL_URL or REVALIDATE_SECRET is not set",
-            path,
-        )
-        return
-
-    try:
-        response = requests.post(
-            f"{frontend_url}/api/revalidate",
-            json={"path": path},
-            headers={"x-revalidate-secret": secret},
-            timeout=10,
-        )
-    except Exception as exc:
-        logger.warning("Next.js revalidation failed for %s: %s", path, exc)
-        return
-
-    if response.ok:
-        logger.info("Next.js revalidation triggered for %s", path)
-    else:
-        # 401 — секреты backend и frontend расходятся.
-        logger.warning("Next.js revalidation rejected for %s: HTTP %s", path, response.status_code)
+    revalidate_nextjs_path_in_background(f"/{slug}")

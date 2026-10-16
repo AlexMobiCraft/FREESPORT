@@ -1,5 +1,5 @@
 """
-Скрипты HTTP-проверки раздела `/manager/` (`scripts/deploy/`).
+Скрипты HTTP-проверки разделов `/manager/` и `/marketing/` (`scripts/deploy/`).
 
 По коду завершения `check-manager-route.sh` решается, прошли ли шаг `main.yml`
 и проверка production после деплоя (`deploy.yml`); `check-manager-session.sh`
@@ -117,20 +117,64 @@ def serve(routes: dict[str, Route]) -> Iterator[str]:
         thread.join(timeout=10)
 
 
-def run_script(routes: dict[str, Reply], suffix: str = "") -> subprocess.CompletedProcess[str]:
+def run_script(
+    routes: dict[str, Reply], suffix: str = "", section: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Без `section` скрипт зовётся прежним вызовом — раздел по умолчанию `/manager/`."""
+    args = [] if section is None else [section]
     with serve(routes) as base_url:
         return subprocess.run(
-            ["bash", str(SCRIPT), base_url + suffix], capture_output=True, text=True, encoding="utf-8", timeout=120
+            ["bash", str(SCRIPT), base_url + suffix, *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=120,
         )
 
 
+def for_section(routes: dict[str, Reply], section: str | None) -> dict[str, Reply]:
+    """Маршруты `/manager/` → маршруты раздела `section` (пути и заголовок Location)."""
+    if section is None:
+        return routes
+    prefix = f"/{section}/"
+    return {
+        path.replace("/manager/", prefix): reply._replace(
+            headers={name: value.replace("/manager/", prefix) for name, value in reply.headers.items()}
+        )
+        for path, reply in routes.items()
+    }
+
+
+# Раздел: None — прежний вызов без второго аргумента (/manager/), «marketing» — /marketing/.
+SECTIONS = pytest.mark.parametrize("section", [None, "marketing"], ids=["manager-default", "marketing"])
+
+
 # Базовый URL со слэшем на конце — тот же адрес (R42.4-33).
+@SECTIONS
 @pytest.mark.parametrize("suffix", ["", "/"], ids=["plain", "trailing-slash"])
-def test_section_routed_to_django_passes(suffix):
-    result = run_script({"/manager/": TO_LOGIN, "/manager/login/": LOGIN_OK}, suffix)
+def test_section_routed_to_django_passes(suffix, section):
+    routes = for_section({"/manager/": TO_LOGIN, "/manager/login/": LOGIN_OK}, section)
+    result = run_script(routes, suffix, section)
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "✅" in result.stdout
+
+
+def test_marketing_checks_its_own_section():
+    """Исправный /manager/ не делает проверку /marketing/ успешной: раздела нет — 404."""
+    result = run_script({"/manager/": TO_LOGIN, "/manager/login/": LOGIN_OK}, section="marketing")
+
+    assert result.returncode != 0, result.stdout
+    assert "❌ /marketing/:" in result.stdout
+
+
+@pytest.mark.parametrize("section", ["Marketing", "../admin", "market ing", "marketing/"])
+def test_invalid_section_name_fails(section):
+    result = run_script({"/manager/": TO_LOGIN, "/manager/login/": LOGIN_OK}, section=section)
+
+    assert result.returncode != 0, result.stdout
+    assert "Недопустимое имя раздела" in result.stdout
+    assert "✅" not in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -161,8 +205,9 @@ def test_section_routed_to_django_passes(suffix):
         pytest.param({"/manager/login/": LOGIN_OK}, id="section-404"),
     ],
 )
-def test_broken_route_fails(routes):
-    result = run_script(routes)
+@SECTIONS
+def test_broken_route_fails(routes, section):
+    result = run_script(for_section(routes, section), section=section)
 
     assert result.returncode != 0, result.stdout
     assert "❌" in result.stdout

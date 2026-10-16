@@ -200,9 +200,9 @@ jobs:
             pytest --tb=short -v -m "not performance and not slow and not data_dependent" --cov=apps --cov=freesport --cov-report=xml --cov-report=term-missing --cov-fail-under=73
           fi
 
-      # Раздел менеджера /manager/ (стори 42.4) через настоящие конфиги nginx: local.conf и
-      # production default.conf. Django-тесты ходят мимо nginx, а статический тест конфига
-      # (test_nginx_security_headers.py) не заметит, например, лишний rewrite или потерю
+      # Разделы /manager/ (стори 42.4) и /marketing/ (стори 42.6) через настоящие конфиги
+      # nginx: local.conf и production default.conf. Django-тесты ходят мимо nginx, а
+      # статический тест конфига (test_nginx_security_headers.py) не заметит, например, лишний rewrite или потерю
       # cookie. Анонимная проверка — та же, что в deploy.yml на проде; вход менеджера и его
       # список — только здесь: на проде тестовой учётной записи нет, поэтому default.conf
       # с входом проверяется на этом изолированном стенде.
@@ -220,7 +220,7 @@ jobs:
       # default.conf монтируется без правок, как на проде: вместо сертификата Let's Encrypt
       # по тому же пути лежит самоподписанный на localhost, curl доверяет ему через
       # CURL_CA_BUNDLE. Запрос идёт в HTTPS-сервер default_server, server_name не важен.
-      - name: Маршрут /manager/ через nginx (local.conf и default.conf)
+      - name: Маршруты /manager/ и /marketing/ через nginx (local.conf и default.conf)
         if: steps.changes.outputs.run == 'true'
         env:
           DJANGO_SETTINGS_MODULE: freesport.settings.development
@@ -290,7 +290,8 @@ jobs:
             echo "--- $1"
             bash scripts/deploy/check-manager-route.sh "$1" \
               && bash scripts/deploy/check-manager-session.sh "$1" \
-                "$MANAGER_EMAIL" "$MANAGER_PASSWORD" "$OWN_CLIENT_EMAIL" "$FOREIGN_CLIENT_EMAIL"
+                "$MANAGER_EMAIL" "$MANAGER_PASSWORD" "$OWN_CLIENT_EMAIL" "$FOREIGN_CLIENT_EMAIL" \
+              && bash scripts/deploy/check-manager-route.sh "$1" marketing
           }
           failed=0
 

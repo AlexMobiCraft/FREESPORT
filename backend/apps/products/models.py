@@ -72,7 +72,7 @@ class Brand(models.Model):
         errors: dict[str, str] = {}
 
         if self.is_featured and not self.image:
-            errors["image"] = "Image is required for featured brands"
+            errors["image"] = "Для показа на главной нужен логотип"
 
         # Проверка уникальности normalized_name до save(), чтобы вернуть
         # ValidationError вместо IntegrityError (500)

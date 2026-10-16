@@ -500,61 +500,61 @@ class ProductAdmin(admin.ModelAdmin):
         "unmark_as_premium",
     ]
 
-    @admin.action(description="✓ Отметить как хит продаж")
+    @admin.action(description="✓ Отметить как хит продаж", permissions=["change"])
     def mark_as_hit(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: пометить как хит продаж"""
         updated = queryset.update(is_hit=True)
         self.message_user(request, f"Отмечено хитами продаж: {updated} товаров")
 
-    @admin.action(description="✗ Снять отметку хит продаж")
+    @admin.action(description="✗ Снять отметку хит продаж", permissions=["change"])
     def unmark_as_hit(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: снять отметку хит продаж"""
         updated = queryset.update(is_hit=False)
         self.message_user(request, f"Снята отметка хитов продаж: {updated} товаров")
 
-    @admin.action(description="✓ Отметить как новинку")
+    @admin.action(description="✓ Отметить как новинку", permissions=["change"])
     def mark_as_new(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: пометить как новинку"""
         updated = queryset.update(is_new=True)
         self.message_user(request, f"Отмечено новинками: {updated} товаров")
 
-    @admin.action(description="✗ Снять отметку новинка")
+    @admin.action(description="✗ Снять отметку новинка", permissions=["change"])
     def unmark_as_new(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: снять отметку новинка"""
         updated = queryset.update(is_new=False)
         self.message_user(request, f"Снята отметка новинок: {updated} товаров")
 
-    @admin.action(description="✓ Отметить как распродажа")
+    @admin.action(description="✓ Отметить как распродажа", permissions=["change"])
     def mark_as_sale(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: пометить как распродажа"""
         updated = queryset.update(is_sale=True)
         self.message_user(request, f"Отмечено распродажей: {updated} товаров")
 
-    @admin.action(description="✗ Снять отметку распродажа")
+    @admin.action(description="✗ Снять отметку распродажа", permissions=["change"])
     def unmark_as_sale(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: снять отметку распродажа"""
         updated = queryset.update(is_sale=False)
         self.message_user(request, f"Снята отметка распродажи: {updated} товаров")
 
-    @admin.action(description="✓ Отметить как акция")
+    @admin.action(description="✓ Отметить как акция", permissions=["change"])
     def mark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: пометить как акция"""
         updated = queryset.update(is_promo=True)
         self.message_user(request, f"Отмечено акцией: {updated} товаров")
 
-    @admin.action(description="✗ Снять отметку акция")
+    @admin.action(description="✗ Снять отметку акция", permissions=["change"])
     def unmark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: снять отметку акция"""
         updated = queryset.update(is_promo=False)
         self.message_user(request, f"Снята отметка акции: {updated} товаров")
 
-    @admin.action(description="✓ Отметить как премиум")
+    @admin.action(description="✓ Отметить как премиум", permissions=["change"])
     def mark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: пометить как премиум"""
         updated = queryset.update(is_premium=True)
         self.message_user(request, f"Отмечено премиум: {updated} товаров")
 
-    @admin.action(description="✗ Снять отметку премиум")
+    @admin.action(description="✗ Снять отметку премиум", permissions=["change"])
     def unmark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
         """Массовое действие: снять отметка премиум"""
         updated = queryset.update(is_premium=False)

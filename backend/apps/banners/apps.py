@@ -7,4 +7,5 @@ class BannersConfig(AppConfig):
     verbose_name = "Баннеры"
 
     def ready(self) -> None:
+        import apps.banners.marketing_admin  # noqa: F401 — регистрация на сайте /marketing/
         import apps.banners.signals  # noqa: F401

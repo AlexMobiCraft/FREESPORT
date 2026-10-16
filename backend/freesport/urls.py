@@ -12,7 +12,7 @@ from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from apps.common.admin import monitoring_dashboard_view
-from freesport.admin_site import manager_site
+from freesport.admin_site import manager_site, marketing_site
 
 # Story 36.1: runtime-каталоги обмена 1С вынесены в приватный ONEC_PRIVATE_DIR,
 # но media-том переживает деплой — файлы незавершённых обменов, записанные до
@@ -48,6 +48,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # Раздел менеджера (стори 42.4): клиенты, за которых отвечает сотрудник.
     path("manager/", manager_site.urls),
+    # Раздел маркетинга (стори 42.6)
+    path("marketing/", marketing_site.urls),
     # API документация
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

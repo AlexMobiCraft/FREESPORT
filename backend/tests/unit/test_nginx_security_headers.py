@@ -301,6 +301,7 @@ class TestLocationsReDeclareHeaders:
             ("default.conf", "/api/"),
             ("default.conf", "/admin/"),
             ("default.conf", "/manager/"),
+            ("default.conf", "/marketing/"),
             ("default.conf", "/swagger/"),
             ("default.conf", "/redoc/"),
             ("local.conf", "/static/"),
@@ -341,6 +342,7 @@ class TestLocationsReDeclareHeaders:
 
 class TestManagerSectionRoute:
     """Стори 42.4, решение 11: `/manager/` проксируется в Django, а не в Next.js.
+    Стори 42.6: то же для раздела маркетинга `/marketing/`.
 
     Django-тесты раздела ходят мимо nginx, а `nginx -t` примет и
     `proxy_pass http://frontend` — тогда раздел уйдёт в маршрут Next
@@ -352,21 +354,22 @@ class TestManagerSectionRoute:
     в `main.yml` на обоих конфигах.
     """
 
+    @pytest.mark.parametrize("section", ["/manager/", "/marketing/"])
     @pytest.mark.parametrize("conf_name", ["default.conf", "local.conf"])
-    def test_manager_location_proxies_to_backend(self, conf_name: str) -> None:
+    def test_manager_location_proxies_to_backend(self, conf_name: str, section: str) -> None:
         content = _read("conf.d", conf_name)
         targets = [
             _directive_values(own_body, "proxy_pass")
             for server_name, body in _server_blocks(content)
             if server_name not in EXCLUDED_VHOSTS
             for location, own_body in _location_blocks(body)
-            if location == "/manager/"
+            if location == section
         ]
 
-        assert targets, f"{conf_name}: локация /manager/ исчезла из конфига"
+        assert targets, f"{conf_name}: локация {section} исчезла из конфига"
         # Каждый экземпляр, а не любой: см. `test_known_location_is_covered`.
         assert all(values == ["http://backend"] for values in targets), (
-            f"{conf_name}: /manager/ должен проксироваться в upstream backend (Django), " f"а не {targets}"
+            f"{conf_name}: {section} должен проксироваться в upstream backend (Django), " f"а не {targets}"
         )
 
 

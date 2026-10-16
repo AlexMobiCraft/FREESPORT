@@ -2,18 +2,23 @@
 Модели для статических страниц
 """
 
-import re
-
 import bleach
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.text import slugify
 from transliterate import translit
 
-# Удаляет блоки <style>...</style>, <script>...</script>, <head>...</head> ВМЕСТЕ
-# с содержимым. Bleach с strip=True вырезает только теги, но оставляет текст —
-# поэтому CSS/JS код проступал на страницу.
-_STRIP_BLOCKS_RE = re.compile(r"<(style|script|head)\b[^>]*>[\s\S]*?</\1>", re.IGNORECASE)
+from apps.common.utils.html_sanitizer import RICH_HTML_ATTRIBUTES, RICH_HTML_TAGS, sanitize_rich_html, strip_html_blocks
+
+# Белый список страниц — общий rich-контент плюс атрибуты meta и link
+# (страницы бывают полными HTML-документами). Самих тегов meta и link в
+# списке тегов никогда не было — bleach их удаляет.
+PAGE_HTML_TAGS = RICH_HTML_TAGS
+PAGE_HTML_ATTRIBUTES: dict[str, list[str]] = {
+    **RICH_HTML_ATTRIBUTES,
+    "meta": ["content", "http-equiv", "charset", "name"],
+    "link": ["href", "rel", "type"],
+}
 
 
 class Page(models.Model):
@@ -60,7 +65,7 @@ class Page(models.Model):
 
         # Удаляем блоки <style>/<script>/<head> с содержимым ДО bleach,
         # иначе CSS/JS код останется как текст после strip=True.
-        self.content = _STRIP_BLOCKS_RE.sub("", self.content)
+        self.content = strip_html_blocks(self.content)
 
         if not self.seo_description:
             # Извлекаем первые 160 символов из content без HTML
@@ -68,88 +73,6 @@ class Page(models.Model):
             self.seo_description = clean_content[:160]
 
         # HTML sanitization — расширенный whitelist для rich-контента страниц
-        allowed_tags = [
-            "p",
-            "div",
-            "span",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "ul",
-            "ol",
-            "li",
-            "a",
-            "strong",
-            "em",
-            "b",
-            "i",
-            "u",
-            "s",
-            "br",
-            "hr",
-            "table",
-            "thead",
-            "tbody",
-            "tfoot",
-            "tr",
-            "td",
-            "th",
-            "caption",
-            "colgroup",
-            "col",
-            "img",
-            "figure",
-            "figcaption",
-            "blockquote",
-            "pre",
-            "code",
-            "sub",
-            "sup",
-            "dl",
-            "dt",
-            "dd",
-            "details",
-            "summary",
-            "section",
-            "article",
-            "header",
-            "footer",
-            "nav",
-            "main",
-            "aside",
-            "address",
-            "time",
-            "mark",
-            "small",
-            "cite",
-            "q",
-            "abbr",
-            "dfn",
-            "kbd",
-            "samp",
-            "var",
-            "wbr",
-            "ins",
-            "del",
-        ]
-        allowed_attributes = {
-            "a": ["href", "title", "target", "rel"],
-            "img": ["src", "alt", "width", "height", "loading"],
-            "meta": ["content", "http-equiv", "charset", "name"],
-            "link": ["href", "rel", "type"],
-            "td": ["colspan", "rowspan"],
-            "th": ["colspan", "rowspan"],
-            "*": ["class", "id"],
-        }
-        self.content = bleach.clean(
-            self.content,
-            tags=allowed_tags,
-            attributes=allowed_attributes,
-            protocols=["http", "https", "mailto"],
-            strip=True,  # Полностью удаляем запрещенные теги вместо экранирования
-        )
+        self.content = sanitize_rich_html(self.content, tags=PAGE_HTML_TAGS, attributes=PAGE_HTML_ATTRIBUTES)
 
         super().save(*args, **kwargs)
