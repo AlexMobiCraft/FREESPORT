@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-16 (стори 42.6 -> review)
+# last_updated: 2026-10-16 (стори 42.6 -> review после исправления R42.6-1)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1524,6 +1524,10 @@ development_status:
   #             прогон 4310 passed, 76 skipped, 0 failed; линтеры чистые.
   #             in-progress -> review.
   42-6-marketing-section: review
+  # 2026-10-16: R42.6-1 закрыто — тест src миниатюр (7 случаев, 3/3 мутации убиты).
+  #             Полный прогон 4465 passed, 76 skipped, 0 failed. in-progress -> review.
+  # 2026-10-16: ревью 6b0d536f...9a7b706f (Codex, 4 слоя): 1 исправление (R42.6-1, low,
+  #             тест src миниатюр) оставлено задачей, 13 отклонено. review -> in-progress.
   # 2026-10-16: реализация на feature/42-6-marketing-section. 126 тестов в новых файлах,
   #             27 мутаций убиты; полный прогон 4458 passed, 76 skipped, 0 failed;
   #             линтеры и mypy чистые. Риск для Alex: bleach экранирует & в анонсах

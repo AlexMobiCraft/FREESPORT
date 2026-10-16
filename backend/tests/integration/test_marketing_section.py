@@ -619,6 +619,28 @@ class TestProductChangelist:
         for needle in ("РРЦ", "МРЦ", "98765", "4321", "onec_id", "НДС", "retail_price", "stock_quantity"):
             assert needle not in html, needle
 
+    @pytest.mark.parametrize(
+        ("photo", "base_image", "expected"),
+        [
+            (True, "/products/b.png", None),
+            (False, "/products/b.png", "/media/products/b.png"),
+            (False, "/media/products/b.png", "/media/products/b.png"),
+            (False, "http://cdn.example.com/b.png", "http://cdn.example.com/b.png"),
+            (False, "https://cdn.example.com/b.png", "https://cdn.example.com/b.png"),
+            (False, "uploads/b.png", "/media/uploads/b.png"),
+            (False, "/uploads/b.png", "/media/uploads/b.png"),
+        ],
+    )
+    def test_photo_src(self, marketer_client, photo, base_image, expected):
+        """Фото варианта важнее base_images; путь base_images приводится к /media/."""
+        product = make_product(photo=photo, base_images=[base_image])
+        if expected is None:
+            expected = f"{settings.MEDIA_URL}{product.variants.get().main_image.name}"
+
+        html = marketer_client.get(PRODUCTS_URL).content.decode()
+
+        assert re.findall(r'<img src="([^"]*)" style="max-height:50px', html) == [expected]
+
     def test_list_save_and_action(self, marketer_client):
         a, b, c, untouched = (make_product(is_new=True) for _ in range(4))
 
