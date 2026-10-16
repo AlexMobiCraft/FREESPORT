@@ -53,8 +53,9 @@ npx gitnexus analyze --force
 | `--embeddings` | Эмбеддинги для семантического поиска (по умолчанию выключены) |
 | `--drop-embeddings` | Удалить имеющиеся эмбеддинги при пересборке |
 
-После обновления GitNexus первый прогон — `GITNEXUS_LBUG_EXTENSION_INSTALL=auto npx gitnexus analyze --force`:
-без переменной LadybugDB не скачивает расширение полнотекстового поиска.
+Обновление GitNexus и разбор сбоев — раздел «Обновление и сбои» в `.windsurf/rules/gitnexus.md`.
+Самый частый сбой: `query` пустой с `"warning": "FTS indexes missing"` — живой `gitnexus mcp` не дал
+загрузить расширение поиска; после остановки процессов лечится `npx gitnexus analyze --repair-fts`.
 
 ## doctor — возможности среды
 
