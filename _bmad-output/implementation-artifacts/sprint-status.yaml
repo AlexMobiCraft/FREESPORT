@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-15 (стори 42.5 -> in-progress по итогам пятого ревью)
+# last_updated: 2026-10-16 (стори 42.5 -> done по решению Alex)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-10-15
+last_updated: 2026-10-16
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1458,7 +1458,25 @@ development_status:
   # 2026-10-15: открытых замечаний ревью нет, все задачи стори закрыты;
   #             по решению Alex review -> done. Предусловие выката —
   #             action_item «После выката 42.3 и до 42.4» — выполнено 2026-10-15.
-  42-5-manager-section-orders-and-home: in-progress
+  42-5-manager-section-orders-and-home: done
+  # 2026-10-16: открытых замечаний ревью нет, все задачи стори закрыты;
+  #             по решению Alex review -> done.
+  # 2026-10-16: R42.5-27 закрыт — HTTP-тест значения колонки «Позиций»;
+  #             полный прогон 4314 passed, 0 failed. in-progress -> review.
+  # 2026-10-16: седьмое ревью Codex на c500b03; по решению Alex R42.5-27
+  #             (low: тест значения колонки «Позиций») оставлен открытой
+  #             задачей, код не менялся. Два повтора отложенного долга (D1, D2),
+  #             девять замечаний отклонено. review -> in-progress.
+  # 2026-10-16: шестое ревью Codex на 676256d; по решению Alex R42.5-23…26
+  #             (все low: тесты отката журнала и экспорта с фильтром, prefetch
+  #             в CSV, docstring csv_cell) оставлены открытыми задачами, код не
+  #             менялся. Два повтора отложенного долга (D1, D2), семь замечаний
+  #             отклонено. review -> in-progress до устранения замечаний.
+  # 2026-10-16: исправлены R42.5-23…26 (тест отката заказа при сбое журнала,
+  #             экспорт select_across с фильтром списка, экспорт без prefetch
+  #             позиций, docstring csv_cell). 3 новых теста, 3 мутации убиты;
+  #             полный прогон 4313 passed, 76 skipped, 0 failed; линтеры чистые.
+  #             in-progress -> review.
   # 2026-10-15: пятое ревью Codex на 4b6e898; по решению Alex R42.5-19…22
   #             оставлены открытыми задачами, код не менялся. Три повтора
   #             отложенного долга, девять исходных замечаний отклонено.
@@ -1500,6 +1518,11 @@ development_status:
   #             CSV по Москве, тесты). 35 новых тестов, 11 мутаций убиты; полный
   #             прогон 4278 passed, 76 skipped, 17 failed — те же CRLF-тесты
   #             scripts/deploy (с LF 20 passed). in-progress -> review.
+  # 2026-10-15: исправлены R42.5-19…22 (только тесты: работники других соединений
+  #             с statement_timeout и ожиданием в teardown, POST карточки из HTML,
+  #             невыбранный заказ в экспорте, состав карточки литералом). Полный
+  #             прогон 4310 passed, 76 skipped, 0 failed; линтеры чистые.
+  #             in-progress -> review.
   42-6-marketing-section: backlog
   42-7-supervisor-section-staff-regions-reassignment: backlog
   42-8-supervisor-summary: backlog

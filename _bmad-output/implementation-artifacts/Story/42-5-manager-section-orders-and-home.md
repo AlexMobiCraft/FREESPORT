@@ -4,7 +4,7 @@ baseline_commit: d53f42a6
 
 # Story 42.5: Раздел менеджера — заказы и главная страница
 
-Status: in-progress
+Status: done
 Baseline Revision: d53f42a6 (`develop` = `353e33a7` + коммит nginx-фикса в ветке `fix/nginx-prod-stale-bind-mount`; код приложения на обоих одинаковый)
 
 ## Story
@@ -491,10 +491,10 @@ Alex выбрал вариант 1: отклонять устаревшую ка
 
 #### Исправления
 
-- [ ] [Review][Patch] **R42.5-19, medium: конкурентный тест может отпустить незавершённые POST в очистку БД** [`backend/tests/integration/test_manager_orders_section.py:688-728`]. В отличие от `other_connection`, оба работника `test_concurrent_card_waits_for_lock_and_is_rejected` не ограничивают SQL через `statement_timeout`. `finally` делает только `join(timeout=30)`: это ожидание, а не завершение потока. Если `first_saved.wait()` или запрос проверки блокировки выбросит исключение, проверка `is_alive()` после `finally` вообще не выполнится. При затянувшемся SQL работник может продолжить обращения к тестовой БД после выхода теста. Ограничить SQL работников и обеспечить их завершение на ошибочном пути до teardown; проверку живых потоков выполнять в очистке, а не только на успешном пути. Источники: ID 7 (`blind-hunter`), ID 14 (`edge-case-hunter`); оба вердикта `medium`. Зависший SQL в этом прогоне не воспроизводился; дефект управления завершением установлен по коду.
-- [ ] [Review][Patch] **R42.5-20, medium: скрытая исходная дата проверяется не тем путём, которым её отправляет браузер** [`backend/tests/integration/test_manager_orders_section.py:250-258`, `:804-810`]. `card_payload` берёт `initial-delivery_date` из `BoundField.initial`, минуя HTML. Проверка HTML закрепляет лишь имя скрытого поля и использует заказ без даты. Если скрытое значение непустой даты начнёт рендериться пустым, тестовые POST останутся корректными, а браузерная свежая карточка будет отклоняться как устаревшая. Добавить сценарий заказа с установленной датой: извлечь исходные и редактируемые значения из HTML, изменить трек и проверить успешное сохранение без ошибки устаревания. Источник: ID 17 (`verification-gap`), вердикт `medium`; доказательства слоя приняты, мутация в этом прогоне не запускалась.
-- [ ] [Review][Patch] **R42.5-21, low: выбранный CSV-экспорт не защищён от выгрузки неотмеченных своих заказов** [`backend/tests/integration/test_manager_orders_section.py:911-935`]. В сценарии выбранного экспорта отмечены оба доступных своих заказа; прочие сценарии также не оставляют доступного, но невыбранного заказа. Замена переданного queryset на `self.get_queryset(request)` внутри `export_orders_csv` проигнорирует выбор, но сохранит эти ожидания. Создать два своих заказа, выбрать только один и проверить точное множество номеров CSV. Источник: ID 16 (`verification-gap`), вердикт `low`; доказательства слоя приняты, мутация в этом прогоне не запускалась.
-- [ ] [Review][Patch] **R42.5-22, low: обязательные поля карточки сверяются с самой реализацией** [`backend/tests/integration/test_manager_orders_section.py:440-473`]. Проверка `adminform.readonly_fields == model_admin.readonly_fields` не задаёт независимого состава по AC4. Например, удаление `discount_amount` и `delivery_cost` одновременно из `fieldsets` и `readonly_fields` проходит такую проверку; отдельного утверждения о наличии этих полей и их значениях здесь нет. Закрепить обязательные поля независимым перечнем и проверить отображаемые суммы с различающимися значениями. Это проверка состава карточки мастера, не повтор исправленного R42.5-18 про строки субзаказов. Источник: ID 10 (`blind-hunter`), вердикт `low`; установлено чтением теста, мутация не запускалась.
+- [x] [Review][Patch] **R42.5-19, medium: конкурентный тест может отпустить незавершённые POST в очистку БД** [`backend/tests/integration/test_manager_orders_section.py:688-728`]. В отличие от `other_connection`, оба работника `test_concurrent_card_waits_for_lock_and_is_rejected` не ограничивают SQL через `statement_timeout`. `finally` делает только `join(timeout=30)`: это ожидание, а не завершение потока. Если `first_saved.wait()` или запрос проверки блокировки выбросит исключение, проверка `is_alive()` после `finally` вообще не выполнится. При затянувшемся SQL работник может продолжить обращения к тестовой БД после выхода теста. Ограничить SQL работников и обеспечить их завершение на ошибочном пути до teardown; проверку живых потоков выполнять в очистке, а не только на успешном пути. Источники: ID 7 (`blind-hunter`), ID 14 (`edge-case-hunter`); оба вердикта `medium`. Зависший SQL в этом прогоне не воспроизводился; дефект управления завершением установлен по коду.
+- [x] [Review][Patch] **R42.5-20, medium: скрытая исходная дата проверяется не тем путём, которым её отправляет браузер** [`backend/tests/integration/test_manager_orders_section.py:250-258`, `:804-810`]. `card_payload` берёт `initial-delivery_date` из `BoundField.initial`, минуя HTML. Проверка HTML закрепляет лишь имя скрытого поля и использует заказ без даты. Если скрытое значение непустой даты начнёт рендериться пустым, тестовые POST останутся корректными, а браузерная свежая карточка будет отклоняться как устаревшая. Добавить сценарий заказа с установленной датой: извлечь исходные и редактируемые значения из HTML, изменить трек и проверить успешное сохранение без ошибки устаревания. Источник: ID 17 (`verification-gap`), вердикт `medium`; доказательства слоя приняты, мутация в этом прогоне не запускалась.
+- [x] [Review][Patch] **R42.5-21, low: выбранный CSV-экспорт не защищён от выгрузки неотмеченных своих заказов** [`backend/tests/integration/test_manager_orders_section.py:911-935`]. В сценарии выбранного экспорта отмечены оба доступных своих заказа; прочие сценарии также не оставляют доступного, но невыбранного заказа. Замена переданного queryset на `self.get_queryset(request)` внутри `export_orders_csv` проигнорирует выбор, но сохранит эти ожидания. Создать два своих заказа, выбрать только один и проверить точное множество номеров CSV. Источник: ID 16 (`verification-gap`), вердикт `low`; доказательства слоя приняты, мутация в этом прогоне не запускалась.
+- [x] [Review][Patch] **R42.5-22, low: обязательные поля карточки сверяются с самой реализацией** [`backend/tests/integration/test_manager_orders_section.py:440-473`]. Проверка `adminform.readonly_fields == model_admin.readonly_fields` не задаёт независимого состава по AC4. Например, удаление `discount_amount` и `delivery_cost` одновременно из `fieldsets` и `readonly_fields` проходит такую проверку; отдельного утверждения о наличии этих полей и их значениях здесь нет. Закрепить обязательные поля независимым перечнем и проверить отображаемые суммы с различающимися значениями. Это проверка состава карточки мастера, не повтор исправленного R42.5-18 про строки субзаказов. Источник: ID 10 (`blind-hunter`), вердикт `low`; установлено чтением теста, мутация не запускалась.
 
 #### Повторы отложенного долга
 
@@ -545,6 +545,106 @@ Alex выбрал вариант 1: отклонять устаревшую ка
 - ID 13 (`edge-case-hunter`), low: редкий отказ самого force_login, как в предыдущем ревью; отдельная защита не оправдана.
 - ID 15 (`edge-case-hunter`), maybe-false: не показан штатный callback, переживающий SQL-таймаут и оба join; потенциальный low, дополнительное управление отменой потока не обосновано.
 - ID 18 (`acceptance-auditor`), medium: тот же конфликт проверяемой спецификации AC6/Task 3, что ID 5.
+
+### Review Findings — шестой прогон (2026-10-15, Codex, HEAD `676256d`)
+
+Область: diff `d53f42a6..676256d` по файлам стори — 8 файлов (код, шаблон, два тестовых модуля, две правки спецификаций), +2098/-11, 2221 строка. Изменения PR #313, пришедшие мёрджем `develop` (isort, LF), и трекинговые файлы в область не входят. Четыре слоя Codex завершились без отказов; Acceptance Auditor нарушений AC не нашёл. Из 17 исходных замечаний: 4 `patch` (все `low`), 2 повтора существующих `defer`, 7 отклонено. Дефектов рабочего кода, меняющих поведение для пользователя, нет.
+
+#### Исправления
+
+- [x] [Review][Patch] **R42.5-23, low: нет проверки отката заказа при сбое записи журнала** [`backend/tests/integration/test_manager_orders_section.py:1093`]. `save_model` сначала пишет заказ (`manager_admin.py:431`), затем `AuditLog.log_action` (`:432`). Сейчас откат обеспечивает `transaction.atomic` в `changeform_view`, но тестом это не закреплено: если вызов журнала обернут в `try/except`, правка сохранится без записи, и все тесты `TestAuditLog` пройдут. Добавить HTTP-тест: `log_action` бросает исключение после реального `save()`, затем проверить из БД, что трек, дата и `updated_at` прежние, а `AuditLog` и `LogEntry` не появились. Источники: ID 8 (`blind-hunter`), ID 16 (`verification-gap`); вердикт `low`, доказательства VG приняты.
+- [x] [Review][Patch] **R42.5-24, low: экспорт `select_across` не проверен при активном фильтре списка** [`backend/tests/integration/test_manager_orders_section.py:1024`]. Сейчас Django передаёт в действие отфильтрованный `cl.get_queryset`, и поведение верное. Но в тесте оба своих заказа подходят под список без фильтра, поэтому подмена queryset на `self.get_queryset(request)` выгрузит заказы вне фильтра, а тест останется зелёным. Нужен тест: свои заказы `pending` и `processing`, действие на URL `?status__exact=pending` с `select_across=1`, проверка точного набора номеров. Это продолжение R42.5-21. Источники: ID 10 (`blind-hunter`), ID 15 (`verification-gap`); вердикт `low`.
+- [x] [Review][Patch] **R42.5-25, low: экспорт CSV загружает позиции, которые не выгружает** [`backend/apps/orders/manager_admin.py:405`]. Queryset действия приходит из `OrderAdmin.get_queryset` с `prefetch_related("items", "sub_orders__items")` (`apps/orders/admin.py:135`). `export_orders_csv` эти позиции не использует, но при итерации они загружаются для всех выбранных заказов: лишние запросы и память. Исправление — `queryset.select_related("user").prefetch_related(None)`. Предложение потоковой выгрузки отклонено: объём выборки менеджера не показывает вреда, а усложнение заметное. Источник: ID 6 (`blind-hunter`), вердикт `low`.
+- [x] [Review][Patch] **R42.5-26, low: docstring `csv_cell` обещает защиту от «перевода строки», код проверяет `\t` и `\r`** [`backend/apps/orders/manager_admin.py:68-70`]. Решение R42.5-2 и OWASP — табуляция и возврат каретки (`\r`). Значение `"\nТекст"` возвращается без апострофа; это безопасно, но расходится с описанием. Исправить формулировку на «табуляции или возврата каретки (`\r`)». Источник: ID 4 (`blind-hunter`), вердикт `low`.
+
+#### Повторы отложенного долга
+
+- [x] [Review][Defer] **Повтор R42.5-D1, maybe-false, потенциальный medium: ведущие нули номера в Excel** [`backend/apps/orders/manager_admin.py:405-418`]. ID 5 (`blind-hunter`). deferred: прежняя задача; Excel в этом прогоне не запускался.
+- [x] [Review][Defer] **Повтор R42.5-D2, medium: бонусный сигнал получает устаревший экземпляр заказа** [`backend/apps/orders/manager_admin.py:207-208`, `:431`; `backend/apps/bonuses/services/accrual.py:161-204`]. ID 2 (`blind-hunter`), ID 13 (`edge-case-hunter`), «Other findings» VG (`verification-gap`). deferred: общий бонусный сервис существовал до baseline; конкурентное начисление не воспроизводилось.
+
+#### Индивидуальная оценка исходных замечаний
+
+| ID | Слой | Вердикт | Проверка и маршрут |
+|---|---|---|---|
+| 1 | blind-hunter | low | Окно передачи клиента между проверкой `scope_orders` и сохранением есть, но решение 6 признаёт его осознанно: пишутся только трек и дата, автор виден в журнале. Отклонено: исправление меняет утверждённое решение. |
+| 2 | blind-hunter | medium | Устаревшие статус и клиент экземпляра уходят в `post_save`. Повтор D2. |
+| 3 | blind-hunter | low | При отозванных правах на User ссылка даёт 403. Повтор отклонённого ID 2/12 пятого прогона. |
+| 4 | blind-hunter | low | Docstring не совпадает с кодом и решением R42.5-2; `"\nТекст"` безопасно. R42.5-26. |
+| 5 | blind-hunter | maybe-false | Ведущие нули в Excel. Повтор D1. |
+| 6 | blind-hunter | low | Унаследованный prefetch позиций загружается и не используется; вред от потоковой выгрузки не показан. R42.5-25. |
+| 7 | blind-hunter | low | Django пишет `LogEntry` «No fields changed» при сохранении без правок, как и в `/admin/`. AC7 и решение 7 говорят об `AuditLog`, а 42.9 строит ленту по нему. Отклонено: вред пренебрежимый, исправление требует переопределять `log_change`. |
+| 8 | blind-hunter | low | Нет теста отката при сбое журнала. R42.5-23. |
+| 9 | blind-hunter | false | Inline субзаказов без прав add/change: все поля в `readonly_fields`, а у формы Django `DeleteProtectedModelForm.has_changed()` возвращает `False`, если нет `can_change` или `can_add`. Чужой id даёт новую форму, которая не сохраняется. Подделывать нечего. |
+| 10 | blind-hunter | low | `select_across` с фильтром не проверен. R42.5-24. |
+| 11 | edge-case-hunter | false | `get_client_ip` берёт сначала `X-Real-IP`, а nginx на `location /manager/` (`docker/nginx/conf.d/default.conf:231`, `local.conf:87`) перезаписывает его значением `$remote_addr`. Невалидный IP из заголовка клиента до `inet` не доходит. Тот же шаблон у `UserAdmin._get_client_ip` из 42.4. |
+| 12 | edge-case-hunter | low | То же окно передачи клиента, что ID 1. Отклонено по решению 6. |
+| 13 | edge-case-hunter | medium | То же, что ID 2. Повтор D2. |
+| 14 | edge-case-hunter | low | Тот же 403 по ссылке, что ID 3. Отклонено. |
+| 15 | verification-gap | low | Доказательства слоя приняты. R42.5-24. |
+| 16 | verification-gap | low | Доказательства слоя приняты. R42.5-23. |
+| 17 | verification-gap (Other) | medium | Получатель бонуса из закэшированного клиента. Повтор D2. |
+
+#### Проверки шестого прогона
+
+- GitNexus актуален на `676256d`. `detect-changes --scope all`: изменений нет. `--scope compare --base-ref d53f42a6`: 36 файлов, 97 символов, 3 процесса, риск medium — это всё дерево вместе с мёрджем PR #313. `impact csv_cell` — LOW, 1 вызывающий. `impact export_orders_csv` — LOW, 0 (динамическое действие Django граф не отражает). `impact ManagerOrderForm` — LOW, 2 прямых и 5 всего.
+- Docker-тесты, мутации и Excel в этом прогоне не запускались. D3 закрыт исправлением R42.5-19…22: полный прогон 4310 passed, 0 failed.
+
+#### Отклонённые замечания шестого прогона
+
+- ID 1, 12 (`blind-hunter`, `edge-case-hunter`), low: блокировка строки клиента противоречит решению 6.
+- ID 3, 14 (`blind-hunter`, `edge-case-hunter`), low: 403 по ссылке на клиента при нестандартном отзыве прав User; повтор прошлого отклонения.
+- ID 7 (`blind-hunter`), low: штатный `LogEntry` «No fields changed» при сохранении без правок; `AuditLog` не пишется, как требует AC7.
+- ID 9 (`blind-hunter`), false: read-only inline Django не сохраняет подделанные формы субзаказов.
+- ID 11 (`edge-case-hunter`), false: nginx перезаписывает `X-Real-IP`, невалидный IP недостижим.
+
+### Review Findings — седьмой прогон (2026-10-16, Codex, HEAD `c500b03`)
+
+Область: diff `d53f42a6..c500b03` по файлам стори — 10 файлов (код, шаблон, два тестовых модуля, спецификации, `deferred-work.md`, `sprint-status.yaml`), +2254/-16, 2424 строки. Изменения PR #313 (isort, LF), файл стори и `.memlog.md` в область не входят. Четыре слоя Codex завершились без отказов; Acceptance Auditor нарушений AC не нашёл. Из 14 исходных замечаний: 1 `patch` (`low`), 2 повтора существующих `defer`, 9 отклонено. Дефектов рабочего кода нет.
+
+#### Исправления
+
+- [x] [Review][Patch] **R42.5-27, low: значение колонки «Позиций» в списке не проверено** [`backend/tests/integration/test_manager_orders_section.py:455`]. `positions` возвращает `self.items_count(obj)` (`manager_admin.py:351-353`). `test_columns_filters_and_title` проверяет только имя колонки. `TestQueryCount.test_changelist` (`:1433`) зовёт напрямую `items_count(row)`, а не `positions`. Подмена на `self.total_items_quantity(obj)` покажет 4 вместо 2 для фикстуры из двух позиций по две штуки, и все тесты останутся зелёными. Добавить HTTP-тест: заказ, у которого число позиций отличается от суммы количеств; в ячейке `field-positions` его строки ожидается число позиций. Источник: ID 12 (`verification-gap`), доказательства слоя приняты; `impact positions` — LOW, 0 вызывающих.
+
+#### Повторы отложенного долга
+
+- [x] [Review][Defer] **Повтор R42.5-D1, maybe-false, потенциальный medium: ведущие нули и разделитель колонок CSV в Excel** [`backend/apps/orders/manager_admin.py:396-420`]. ID 6 (`blind-hunter`). deferred: прежняя задача; Excel в этом прогоне не запускался.
+- [x] [Review][Defer] **Повтор R42.5-D2, medium: бонусный сигнал получает устаревший экземпляр заказа** [`backend/apps/orders/manager_admin.py:207-208`, `:432`; `backend/apps/bonuses/services/accrual.py:161`]. ID 2 (`blind-hunter`), ID 13 (`edge-case-hunter`), «Other findings» VG. deferred: общий бонусный сервис существовал до baseline; конкурентное начисление не воспроизводилось.
+
+#### Индивидуальная оценка исходных замечаний
+
+| ID | Слой | Вердикт | Проверка и маршрут |
+|---|---|---|---|
+| 1 | blind-hunter | low | Окно передачи клиента другому менеджеру между `scope_orders` и сохранением. Решение 6 признаёт его осознанно. Отклонено: исправление меняет утверждённое решение. |
+| 2 | blind-hunter | medium | Устаревшие статус и клиент экземпляра уходят в `post_save`. Повтор D2. |
+| 3 | blind-hunter | false | Сохранение без правок пишет штатный `LogEntry`, но решение 7 отделяет его от `AuditLog`. AC7 касается `AuditLog`, а тот пуст. Повтор отклонения ID 7 шестого прогона. |
+| 4 | blind-hunter | low | Ссылка на клиента даёт 403 при отозванных правах на User. Повтор прошлых отклонений. |
+| 5 | blind-hunter | low | Экспорт держит выборку и ответ в памяти. После R42.5-25 позиции не загружаются, объём выборки менеджера вреда не показывает, а потоковая выгрузка заметно усложняет код. Отклонено, как blind-hunter №4 первого прогона. |
+| 6 | blind-hunter | maybe-false | Ведущие нули и разделитель в Excel. Повтор D1. |
+| 7 | blind-hunter | false | `blocked_on_lock` фильтрует по `current_database()`, и под xdist у каждого воркера своя БД. В тестовой БД ждать блокировку может только второй работник: первый её держит. Если второй не ждал, он прочитает старое значение, сохранит дату, и падает итоговая проверка `delivery_date is None`. |
+| 8 | blind-hunter | false | `accrue_bonus_on_order_status` синхронно вызывается из `post_save` в той же транзакции `changeform_view` (`bonuses/signals.py:18-40`). При сбое журнала бонусные записи откатываются вместе с заказом, отдельного соединения нет. |
+| 9 | blind-hunter | false | Невалидная дата делает форму невалидной, и Django не зовёт `save_model`. Своей ветки, которую стоило бы закрепить, нет. |
+| 10 | blind-hunter | false | Команда и результат полного прогона записаны в Debug Log References (`-n 4 -m "not performance and not slow"`, `freesport-test`, 4313 passed, 0 failed) и входят в коммит `c500b03` вместе с исправлениями. |
+| 11 | edge-case-hunter | low | То же окно передачи клиента, что ID 1. Отклонено по решению 6. |
+| 12 | verification-gap | low | Доказательства слоя приняты. R42.5-27. |
+| 13 | edge-case-hunter | medium | То же, что ID 2. Повтор D2. |
+| 14 | edge-case-hunter | false | `get_client_ip` берёт сначала `X-Real-IP`, а nginx на `/manager/` перезаписывает его значением `$remote_addr`. Повтор ID 11 шестого прогона. |
+
+#### Проверки седьмого прогона
+
+- GitNexus актуален на `c500b03`. `detect-changes --scope all`: изменений нет. `impact positions` — LOW, 0 вызывающих.
+- Docker-тесты, мутации и Excel в этом прогоне не запускались.
+
+#### Отклонённые замечания седьмого прогона
+
+- ID 1, 11 (`blind-hunter`, `edge-case-hunter`), low: блокировка строки клиента противоречит решению 6.
+- ID 3 (`blind-hunter`), false: штатный `LogEntry` при сохранении без правок; `AuditLog` пуст, как требует AC7.
+- ID 4 (`blind-hunter`), low: 403 по ссылке на клиента при нестандартном отзыве прав User.
+- ID 5 (`blind-hunter`), low: потоковый экспорт без показанного вреда.
+- ID 7 (`blind-hunter`), false: в изолированной тестовой БД других ожидающих блокировку нет, а итоговые проверки ловят отсутствие ожидания.
+- ID 8 (`blind-hunter`), false: начисление идёт в той же транзакции и откатывается вместе с заказом.
+- ID 9 (`blind-hunter`), false: невалидная форма не доходит до `save_model`.
+- ID 10 (`blind-hunter`), false: команда и результат полного прогона записаны в Debug Log стори.
+- ID 14 (`edge-case-hunter`), false: nginx перезаписывает `X-Real-IP`.
 
 ## Dev Notes
 
@@ -732,6 +832,43 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
   - После форматирования повторены модули `test_manager_orders_section.py`, `test_manager_orders_admin.py`, `test_orders_admin.py`, `test_manager_admin_site.py` — **137 passed**.
   - `detect-changes --scope all`: 8 символов, 0 процессов, риск low. По факту изменены `ManagerOrderForm` (`request`, `clean`) и добавлен `ManagerOrderAdmin.get_form` — в устаревшем индексе его ещё нет. Остальные символы списка — сдвиг строк.
 
+- **Исправления пятого ревью R42.5-19…22 (15.10.2026).** Правки только в `tests/integration/test_manager_orders_section.py`, код приложения не менялся. GitNexus: индекс `4b6e898` при HEAD `dad70c8` — разница только в merge `develop` (PR #313: isort и `.sh`), фикстуры тестов в графе не индексированы (`impact other_connection` — `not found`), blast radius правок — только тестовый модуль. Первый прогон двух модулей стори: 108 passed, 1 failed — новый тест R42.5-20 ожидал одинаковую строку даты в скрытом и видимом поле; на деле скрытое рендерится в ISO (`2026-11-05`), видимое — в формате локали (`05.11.2026`), ожидание исправлено на два литерала.
+  - Мутации и инъекции (временная правка файла, прогон в контейнере, возврат исходных байтов):
+
+    | Проверка | Результат |
+    |---|---|
+    | `export_orders_csv` выгружает `self.get_queryset(request)` вместо выбора | упал `TestExport::test_selected_forged_foreign_id_is_ignored` |
+    | скрытое поле `initial-delivery_date` рендерится пустым | упал `TestStaleCard::test_browser_card_with_delivery_date_saves`; `test_second_open_card_is_rejected` и `test_refreshed_card_saves` на `card_payload` — зелёные: тот самый пробел R42.5-20 |
+    | `discount_amount` и `delivery_cost` убраны и из `fieldsets`, и из `readonly_fields` | упал `TestOrderCard::test_read_only_content` |
+    | `RuntimeError` в основном потоке после запуска второго POST | падает только сам тест, остальные 17 `TestStaleCard` зелёные, ошибок teardown нет |
+    | SQL второго работника — `SELECT pg_sleep(60)` | через 10 с `statement_timeout` снимает запрос, `QueryCanceled` поднят в тесте; ошибок teardown нет |
+    | `statement_timeout` 300 с, `join` 3 с, `pg_sleep(60)` и `RuntimeError` в основном потоке | teardown `connection_workers` снял запрос `pg_cancel_backend`, поток завершился; ошибок teardown нет, соседние 17 тестов зелёные |
+  - Полный прогон (`-n 4 -m "not performance and not slow"`, `freesport-test`): **4310 passed, 76 skipped, 0 failed** за 15:31. Падений CRLF больше нет: `.gitattributes` пришёл из PR #313 вместе с merge `develop`.
+  - Линтеры в `freesport-test` после pytest: `black --check .` — 473 unchanged; `isort --check-only .` — чисто; `flake8` — чисто; `mypy .` — `Success: no issues found in 626 source files`; `makemigrations --check --dry-run` — `No changes detected`.
+  - `detect-changes --scope all`: `No changes detected` — изменён только тестовый модуль, его фикстуры и тесты в индексе не отражены.
+
+- **Исправления шестого ревью R42.5-23…26 (16.10.2026).** GitNexus: индекс свежий на `676256d`; `impact export_orders_csv` — LOW, 0 вызывающих (динамическое действие Django); `impact csv_cell` — LOW, 1 вызывающий (`export_orders_csv`). RED: `test_export_does_not_load_order_items` падал на `676256d` — при экспорте трёх заказов шёл запрос к `order_items` из prefetch `OrderAdmin.get_queryset`. Первая версия теста искала таблицу `orders_orderitem` и ложно проходила: у модели `db_table = "order_items"`, теперь имя берётся из `OrderItem._meta.db_table`. Тесты R42.5-23 и R42.5-24 закрывают пробелы проверок и проходили на старом коде, их RED — мутации ниже. GREEN — `test_manager_orders_section.py`, `test_manager_orders_admin.py`, `test_orders_admin.py`: **120 passed**.
+  - Мутации (временная правка `manager_admin.py`, прогон `TestExport` и `TestAuditLog` в контейнере, возврат исходных байтов) — все 3 убиты, каждая только своим тестом:
+
+    | Мутация | Упали |
+    |---|---|
+    | `AuditLog.log_action` в `try/except RuntimeError: pass` | `TestAuditLog::test_failed_audit_rolls_back_order` |
+    | при `select_across=1` — `queryset = self.get_queryset(request)` | `TestExport::test_select_across_keeps_changelist_filter` |
+    | без `.prefetch_related(None)` | `TestExport::test_export_does_not_load_order_items` |
+  - Полный прогон (`-n 4 -m "not performance and not slow"`, `freesport-test`): **4313 passed, 76 skipped, 0 failed** за 15:43.
+  - Линтеры в `freesport-test` после pytest: `black --check .` — 473 unchanged; `isort --check-only .` — чисто; `flake8` — чисто; `mypy .` — `Success: no issues found in 626 source files`; `makemigrations --check --dry-run` — `No changes detected`.
+  - `detect-changes --scope all`: 4 символа в `manager_admin.py` (`ManagerOrderAdmin`, `export_orders_csv`, `csv_cell` и локальная `row` — сдвиг строк), 0 процессов, риск low.
+
+- **Исправление седьмого ревью R42.5-27 (16.10.2026).** GitNexus: индекс свежий на `c500b03`; `impact positions` — LOW, 0 вызывающих (из ревью). Новый тест `TestChangelist::test_positions_column_shows_number_of_items` закрывает пробел проверки и проходил на текущем коде; его RED — мутация. GREEN — `TestChangelist`: **6 passed**.
+  - Мутация (временная правка `manager_admin.py`, прогон `TestChangelist` и `TestQueryCount::test_changelist`, возврат исходных байтов) убита только новым тестом:
+
+    | Мутация | Упали |
+    |---|---|
+    | `positions` возвращает `self.total_items_quantity(obj)` | `TestChangelist::test_positions_column_shows_number_of_items` (`11` и `2` вместо `3` и `1`) |
+  - Полный прогон (`-n 4 -m "not performance and not slow"`, `freesport-test`): **4314 passed, 76 skipped, 0 failed** за 16:04.
+  - Линтеры в `freesport-test` после pytest: `black --check .` — 473 unchanged; `isort --check-only .` — чисто; `flake8` — чисто; `mypy .` — `Success: no issues found in 626 source files`; `makemigrations --check --dry-run` — `No changes detected`.
+  - `detect-changes --scope all`: `No changes detected` — изменён только тестовый модуль.
+
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
@@ -775,6 +912,20 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 
 - **R42.5-D3 — причины устранены (15.10.2026, решение Alex: вариант «b», отдельный PR).** PR #313 (`chore/isort-and-sh-eol`, merge `0f9f8ab9` в `develop`): `.gitattributes` с `*.sh text eol=lf` и isort во всех 22 файлах backend (только импорты, ветка 42.5 их не меняла; CI isort не запускает). На ветке PR полный прогон — 4260 passed, 76 skipped, 0 failed; black, isort, flake8, mypy — чисто. Прежняя запись «isort — 4–7 файлов вне ветки» была неполной: вывод смотрели через `tail`, на деле файлов было 22. В ветку 42.5 исправления придут при слиянии с `develop`; зачётный полный прогон итоговой ревизии стори — после R42.5-19…22.
 
+- **Исправления пятого ревью (15.10.2026, `bmad-dev-story`):**
+  - ✅ Resolved review finding [medium]: R42.5-19 — работники в других соединениях вынесены в класс `ConnectionWorkers` и фикстуру `connection_workers`; на них построены и `other_connection`, и `test_concurrent_card_waits_for_lock_and_is_rejected`. У SQL каждого работника `statement_timeout` 10 с (теперь и у обоих POST конкурентного теста, вместе с `force_login`). `join` ждёт 30 с; живой после него поток получает `pg_cancel_backend` по своему `pg_backend_pid()` и ждётся ещё раз. Teardown фикстуры делает это при любом выходе из теста, до очистки БД, и падает, если поток всё же жив. В `finally` теста остался только `release.set()`. Окно ожидания блокировки сокращено с 10 до 5 с — меньше `statement_timeout` второго POST.
+  - ✅ Resolved review finding [medium]: R42.5-20 — `test_browser_card_with_delivery_date_saves`: заказ с датой доставки, POST собран из всех `<input>` HTML-страницы (`html_inputs`, без кнопок), меняется только трек → 302, дата прежняя, в `AuditLog` только `tracking_number`. Скрытая и видимая дата сверяются литералами.
+  - ✅ Resolved review finding [low]: R42.5-21 — в `test_selected_forged_foreign_id_is_ignored` добавлен свой невыбранный заказ; в CSV — ровно два выбранных.
+  - ✅ Resolved review finding [low]: R42.5-22 — `test_read_only_content` сверяет отрисованные readonly-поля карточки с литералом `CARD_READONLY_FIELDS` (AC4), а суммы `total_amount`, `discount_amount`, `delivery_cost` — по различающимся значениям (`987,65`, `43,21`, `210,98`).
+- **R42.5-D3 закрыт по существу:** полный прогон итоговой ревизии — 4310 passed, 0 failed; black, isort, flake8, mypy — чисто (см. Debug Log). Сам пункт в `deferred-work.md` не менялся.
+- **Исправления шестого ревью (16.10.2026, `bmad-dev-story`):**
+  - ✅ Resolved review finding [low]: R42.5-23 — `TestAuditLog::test_failed_audit_rolls_back_order`: `AuditLog.log_action` подменён и бросает `RuntimeError` уже после настоящего `save()` (подмена сначала проверяет, что в транзакции запроса трек записан). После запроса в БД прежние трек, дата и `updated_at`, нет ни `AuditLog`, ни `LogEntry`. Откат даёт транзакция запроса; код не менялся.
+  - ✅ Resolved review finding [low]: R42.5-24 — `TestExport::test_select_across_keeps_changelist_filter`: два своих `pending`, свой `processing` и чужой заказ; действие с `select_across=1` на `?status__exact=pending` выгружает ровно два `pending`.
+  - ✅ Resolved review finding [low]: R42.5-25 — `export_orders_csv` снимает унаследованный prefetch позиций: `queryset.select_related("user").prefetch_related(None)`. Страж — `TestExport::test_export_does_not_load_order_items`: при экспорте нет запросов к таблице позиций.
+  - ✅ Resolved review finding [low]: R42.5-26 — docstring `csv_cell`: «табуляции или возврата каретки (`\r`)» вместо «перевода строки», как в коде и решении R42.5-2. Поведение не менялось.
+- **Исправление седьмого ревью (16.10.2026, `bmad-dev-story`):**
+  - ✅ Resolved review finding [low]: R42.5-27 — `TestChangelist::test_positions_column_shows_number_of_items`: мастер с двумя субзаказами (позиции по 3 шт. и добавленная позиция на 5 шт.) и legacy-мастер с одной позицией на 2 шт. В ячейках `field-positions` строк списка по HTTP — ровно `3` и `1`; сумма количеств дала бы `11` и `2`. Код не менялся.
+
 ### File List
 
 - `backend/apps/orders/manager_admin.py` — новый
@@ -808,3 +959,9 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-15 — четвёртый прогон ревью Codex на `141aff23`: по решению Alex R42.5-15…18 оставлены открытыми задачами без исправления кода; три повтора отложенного долга, восемь исходных замечаний отклонено. Целевой Docker-прогон с двумя временными воспроизведениями: 107 passed; две временные мутации выжили (3 passed). Статус `in-progress`, sprint-status синхронизирован.
 - 2026-10-15 — Addressed code review findings — 4 items resolved (R42.5-15…18). Блокирующее чтение карточки теперь ограничено `scope_orders`: заказ, выведенный из выборки до блокировки, отвечает 404. Тест поиска сверяет точные множества результатов. Работник другого соединения вынесен в фикстуру с `statement_timeout` и гарантированным `join`. Статус и сумма субзаказов проверяются в строках инлайна. Новый тест — 1 (3 параметра), переписаны 3. Полный прогон: 4292 passed, 76 skipped, 17 failed (CRLF `scripts/deploy`, с LF 20 passed). Статус `review`.
 - 2026-10-15 — пятый прогон ревью Codex на `4b6e898`: по решению Alex R42.5-19…22 оставлены открытыми задачами без исправления кода; три повтора отложенного долга, девять исходных замечаний отклонено. Новые тестовые прогоны и мутации не запускались из-за уже работающего контейнера с общей тестовой БД. Статус `in-progress`, sprint-status синхронизирован.
+- 2026-10-15 — Addressed code review findings — 4 items resolved (R42.5-19…22): общий класс работников других соединений с `statement_timeout`, `pg_cancel_backend` и ожиданием в teardown, POST карточки с датой доставки из HTML, невыбранный свой заказ в экспорте, состав и суммы карточки по независимому перечню. Новый тест — 1, переписаны 4. 6 мутаций и инъекций отработали. Полный прогон: 4310 passed, 76 skipped, 0 failed; линтеры чистые. Статус `review`.
+- 2026-10-15 — шестой прогон ревью Codex на `676256d`: R42.5-23…26 (все low) оставлены открытыми задачами; два повтора отложенного долга, семь исходных замечаний отклонено. Статус `in-progress`.
+- 2026-10-16 — Addressed code review findings — 4 items resolved (R42.5-23…26): тест отката заказа при сбое журнала, экспорт `select_across` с фильтром списка, экспорт CSV без prefetch позиций, docstring `csv_cell`. Новых тестов 3, 3 мутации убиты. Полный прогон: 4313 passed, 76 skipped, 0 failed; линтеры чистые. Статус `review`.
+- 2026-10-16 — Седьмое ревью Codex на `c500b03`: 1 `patch` (R42.5-27, low — тест значения колонки «Позиций»), 2 повтора отложенного долга (D1, D2), 9 отклонено. По решению Alex R42.5-27 оставлен открытой задачей. Статус `in-progress`.
+- 2026-10-16 — Addressed code review findings — 1 item resolved (R42.5-27): HTTP-тест значения колонки «Позиций» в списке. Новый тест — 1, мутация убита. Полный прогон: 4314 passed, 76 skipped, 0 failed; линтеры чистые. Статус `review`.
+- 2026-10-16 — открытых замечаний ревью нет, все задачи стори закрыты; по решению Alex статус `done`.
