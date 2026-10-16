@@ -66,8 +66,8 @@ def csv_cell(value: Any) -> str:
     Ячейка CSV, которую Excel не выполнит как формулу.
 
     Значение, у которого после ведущих пробелов и управляющих символов идёт
-    `=`, `+`, `-` или `@`, а также начинающееся с табуляции или перевода
-    строки, получает в начало апостроф: Excel покажет его как текст.
+    `=`, `+`, `-` или `@`, а также начинающееся с табуляции или возврата
+    каретки (`\\r`), получает в начало апостроф: Excel покажет его как текст.
     """
     text = str(value)
     meaningful = text.lstrip()
@@ -402,7 +402,8 @@ class ManagerOrderAdmin(OrderAdmin):
 
         writer = csv.writer(response)
         writer.writerow(MANAGER_CSV_HEADER)
-        for order in queryset.select_related("user"):
+        # Позиции в файл не идут: prefetch из OrderAdmin.get_queryset снят.
+        for order in queryset.select_related("user").prefetch_related(None):
             row = [
                 order.order_number,
                 order.order_number_display,

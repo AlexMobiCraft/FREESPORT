@@ -1033,6 +1033,36 @@ class TestExport:
         assert numbers == {first.order_number, second.order_number}
         assert foreign.order_number not in numbers
 
+    def test_select_across_keeps_changelist_filter(self, manager_client, manager, other_manager):
+        # Действие получает отфильтрованную выборку списка, а не весь раздел (R42.5-24).
+        client_user = make_client(manager)
+        first, second = make_master(client_user), make_master(client_user)
+        processing = make_master(client_user, status="processing")
+        make_master(make_client(other_manager))
+
+        response = manager_client.post(
+            f"{ORDERS_URL}?status__exact=pending",
+            {"action": "export_orders_csv", "_selected_action": [str(first.pk)], "select_across": "1"},
+        )
+
+        assert response.status_code == 200
+        numbers = {row[0] for row in csv_rows(response)[1:]}
+        assert numbers == {first.order_number, second.order_number}
+        assert processing.order_number not in numbers
+
+    def test_export_does_not_load_order_items(self, manager_client, manager):
+        # Позиции в CSV не выгружаются: prefetch родителя снят (R42.5-25).
+        client_user = make_client(manager)
+        orders = [make_master(client_user) for _ in range(3)]
+
+        with CaptureQueriesContext(connection) as queries:
+            response = post_order_action(manager_client, "export_orders_csv", *orders)
+
+        assert response.status_code == 200
+        assert len(csv_rows(response)) == 4
+        items_table = f'"{OrderItem._meta.db_table}"'
+        assert [query["sql"] for query in queries if items_table in query["sql"]] == []
+
     def test_row_values_follow_admin_export_order(self, manager_client, manager):
         own = make_master(make_client(manager))
         # 22:30 UTC 14.10 — это 01:30 15.10 по Москве: дата файла совпадает с карточкой.
@@ -1146,6 +1176,29 @@ class TestAuditLog:
         assert response.status_code == 302
         assert order_snapshot(own) == before
         assert not order_audit(own).exists()
+
+    def test_failed_audit_rolls_back_order(self, manager_client, manager):
+        # Заказ без записи журнала не сохраняется: сбой журнала откатывает правку (R42.5-23).
+        own = make_master(make_client(manager), tracking_number="OLD-TRK", delivery_date=date(2026, 10, 20))
+        payload = card_payload(manager_client, own, tracking_number="NEW-TRK", delivery_date="2026-11-01")
+        before = order_snapshot(own)
+
+        def fail_after_save(**kwargs: Any) -> None:
+            # Сбой — уже после настоящего save(): в транзакции запроса правка записана.
+            assert Order.objects.values_list("tracking_number", flat=True).get(pk=own.pk) == "NEW-TRK"
+            raise RuntimeError("журнал недоступен")
+
+        with patch.object(AuditLog, "log_action", side_effect=fail_after_save) as log_action:
+            with pytest.raises(RuntimeError, match="журнал недоступен"):
+                manager_client.post(order_change_url(own), payload)
+
+        assert log_action.call_count == 1
+        after = order_snapshot(own)
+        assert after["tracking_number"] == "OLD-TRK"
+        assert after["delivery_date"] == date(2026, 10, 20)
+        assert after["updated_at"] == before["updated_at"]
+        assert not order_audit(own).exists()
+        assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
 
 
 def make_applicant(manager: User, **overrides: Any) -> User:
