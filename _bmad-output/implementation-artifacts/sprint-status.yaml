@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-16 (стори 42.6 создана -> ready-for-dev)
+# last_updated: 2026-10-16 (стори 42.6 -> review)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1523,7 +1523,11 @@ development_status:
   #             невыбранный заказ в экспорте, состав карточки литералом). Полный
   #             прогон 4310 passed, 76 skipped, 0 failed; линтеры чистые.
   #             in-progress -> review.
-  42-6-marketing-section: ready-for-dev
+  42-6-marketing-section: review
+  # 2026-10-16: реализация на feature/42-6-marketing-section. 126 тестов в новых файлах,
+  #             27 мутаций убиты; полный прогон 4458 passed, 76 skipped, 0 failed;
+  #             линтеры и mypy чистые. Риск для Alex: bleach экранирует & в анонсах
+  #             (excerpt). in-progress -> review.
   # 2026-10-16: стори создана на 6b0d536f. Отдельный сайт /marketing/ (группы
   #             «Маркетинг» и «Руководители»), семь моделей, белый список полей
   #             товаров и брендов, сохранение только изменённых полей по увиденным

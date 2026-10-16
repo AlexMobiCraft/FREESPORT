@@ -49,3 +49,6 @@ class CommonConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.common"
     verbose_name = "Общие утилиты"
+
+    def ready(self) -> None:
+        import apps.common.marketing_admin  # noqa: F401 — регистрация на сайте /marketing/

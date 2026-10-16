@@ -4,7 +4,7 @@ baseline_commit: 6b0d536f
 
 # Story 42.6: Раздел маркетинга
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: 6b0d536f (`develop` после мёрджа PR #315 — стори 42.5 `done`)
 
 ## Story
@@ -206,28 +206,28 @@ so that я веду маркетинг сайта сам, не видя данн
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — GitNexus pre-flight** (AGENTS.md)
-  - [ ] `npx gitnexus status`. При `stale` — `git diff --stat <indexed> HEAD -- backend/apps backend/freesport`: пусто — переиндексация не нужна, иначе попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`. При подготовке стори индекс свежий на `6b0d536`.
-  - [ ] `npx gitnexus impact <symbol> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по `ManagerAdminSite`, `ProductAdmin`, `BrandAdmin`, `HomepageCategoryAdmin`, `BannerAdmin`, `NewsAdmin`, `BlogPostAdmin`, `CommonConfig`; `Brand.clean` — через `cypher` по `products/models.py` (имя `clean` неоднозначно). При подготовке: `ManagerAdminSite` — LOW, 3 прямых импорта (`freesport/urls.py`, `apps/users/manager_admin.py`, `apps/orders/manager_admin.py`); остальные — LOW, 0–1 прямых (`NewsAdmin`/`BlogPostAdmin` — связь импорта модуля из `urls.py`). Сообщить Alex blast radius до правок.
+- [x] **Task 0 — GitNexus pre-flight** (AGENTS.md)
+  - [x] `npx gitnexus status`. При `stale` — `git diff --stat <indexed> HEAD -- backend/apps backend/freesport`: пусто — переиндексация не нужна, иначе попросить Alex выполнить `! npx gitnexus analyze --skip-agents-md`. При подготовке стори индекс свежий на `6b0d536`.
+  - [x] `npx gitnexus impact <symbol> --direction upstream -r "C:\Users\1\DEV\FREESPORT"` по `ManagerAdminSite`, `ProductAdmin`, `BrandAdmin`, `HomepageCategoryAdmin`, `BannerAdmin`, `NewsAdmin`, `BlogPostAdmin`, `CommonConfig`; `Brand.clean` — через `cypher` по `products/models.py` (имя `clean` неоднозначно). При подготовке: `ManagerAdminSite` — LOW, 3 прямых импорта (`freesport/urls.py`, `apps/users/manager_admin.py`, `apps/orders/manager_admin.py`); остальные — LOW, 0–1 прямых (`NewsAdmin`/`BlogPostAdmin` — связь импорта модуля из `urls.py`). Сообщить Alex blast radius до правок.
 
-- [ ] **Task 1 — сайт `/marketing/`** (AC1, AC9, AC12; решения 1–3, 16, 17)
-  - [ ] `freesport/admin_site.py`: базовый класс `StaffSectionAdminSite(admin.AdminSite)` с `section_groups: tuple[str, ...] = ()` и `has_permission`: `user.is_active and user.is_staff`, не `is_superuser`, членство в `section_groups` — один запрос на запрос и сайт, кэш `request._staff_section_access: dict[str, bool]` по `self.name` (решение 3). `ManagerAdminSite(StaffSectionAdminSite)` с `section_groups = (MANAGERS_GROUP, SUPERVISORS_GROUP)` — свой `has_permission` удалить, остальное (`index`, `get_app_list`, заголовки, docstring) не менять. Docstring модуля: + раздел маркетинга.
-  - [ ] `MarketingAdminSite(StaffSectionAdminSite)`: `section_groups = (MARKETING_GROUP, SUPERVISORS_GROUP)`, `site_header = site_title = "FREESPORT — Маркетинг"`, `index_title = "Раздел маркетинга"`, `index_template = "admin/marketing/index.html"`; `index` — `from apps.common.marketing_admin import newsletter_stats` внутри метода, `extra_context = {**(extra_context or {}), "newsletter_stats": newsletter_stats()}`; `get_app_list` — переименования решения 16 (`app_label == "common"` → «Новости и блог»; модель `object_name == "Category"` в этом приложении → «Рубрики»). `marketing_site = MarketingAdminSite(name="marketing")`.
-  - [ ] `freesport/urls.py`: `from freesport.admin_site import manager_site, marketing_site`, `path("marketing/", marketing_site.urls)` после `manager/` с комментарием «Раздел маркетинга (стори 42.6)». Маркер для `release-has-manager-route.sh` — ровно `path("marketing/", marketing_site.urls)` (Task 5).
-  - [ ] `backend/templates/admin/marketing/index.html`: `{% extends "admin/index.html" %}`, комментарий шаблона (42.6, почему пустой sidebar), `{% block content %}` — `<div class="module" id="marketing-subscribers">` с текстом из `newsletter_stats` и затем `{{ block.super }}`; `{% block sidebar %}{% endblock %}`.
+- [x] **Task 1 — сайт `/marketing/`** (AC1, AC9, AC12; решения 1–3, 16, 17)
+  - [x] `freesport/admin_site.py`: базовый класс `StaffSectionAdminSite(admin.AdminSite)` с `section_groups: tuple[str, ...] = ()` и `has_permission`: `user.is_active and user.is_staff`, не `is_superuser`, членство в `section_groups` — один запрос на запрос и сайт, кэш `request._staff_section_access: dict[str, bool]` по `self.name` (решение 3). `ManagerAdminSite(StaffSectionAdminSite)` с `section_groups = (MANAGERS_GROUP, SUPERVISORS_GROUP)` — свой `has_permission` удалить, остальное (`index`, `get_app_list`, заголовки, docstring) не менять. Docstring модуля: + раздел маркетинга.
+  - [x] `MarketingAdminSite(StaffSectionAdminSite)`: `section_groups = (MARKETING_GROUP, SUPERVISORS_GROUP)`, `site_header = site_title = "FREESPORT — Маркетинг"`, `index_title = "Раздел маркетинга"`, `index_template = "admin/marketing/index.html"`; `index` — `from apps.common.marketing_admin import newsletter_stats` внутри метода, `extra_context = {**(extra_context or {}), "newsletter_stats": newsletter_stats()}`; `get_app_list` — переименования решения 16 (`app_label == "common"` → «Новости и блог»; модель `object_name == "Category"` в этом приложении → «Рубрики»). `marketing_site = MarketingAdminSite(name="marketing")`.
+  - [x] `freesport/urls.py`: `from freesport.admin_site import manager_site, marketing_site`, `path("marketing/", marketing_site.urls)` после `manager/` с комментарием «Раздел маркетинга (стори 42.6)». Маркер для `release-has-manager-route.sh` — ровно `path("marketing/", marketing_site.urls)` (Task 5).
+  - [x] `backend/templates/admin/marketing/index.html`: `{% extends "admin/index.html" %}`, комментарий шаблона (42.6, почему пустой sidebar), `{% block content %}` — `<div class="module" id="marketing-subscribers">` с текстом из `newsletter_stats` и затем `{{ block.super }}`; `{% block sidebar %}{% endblock %}`.
 
-- [ ] **Task 2 — новости, блог, рубрики, подписчики** (AC2, AC3, AC9, AC12; решения 5–7, 17)
-  - [ ] `apps/common/admin.py`: `ContentCategoryAdmin` (решение 7), `@admin.register(Category)` — импорт `Category` в список моделей модуля. `view_on_site = False`. `get_deleted_objects(self, objs, request)`: `deleted, model_count, perms_needed, protected = super()…`; `protected` дополнить строками «Новость: <заголовок>» по `News.objects.filter(category__in=objs)` и «Рубрика: <название>» по `Category.objects.filter(parent__in=objs).exclude(pk__in=[o.pk for o in objs])` (дочерняя рубрика, удаляемая вместе с родителем в том же выборе, всё равно сносит свои новости каскадом — её новости попадут в `protected` своей строкой, поэтому исключение безопасно; проверить тестом выбора «родитель + ребёнок с новостью»). Вернуть кортеж с дополненным `protected`.
-  - [ ] Новый модуль `apps/common/marketing_admin.py`: docstring; `MarketingNewsAdmin(NewsAdmin)`, `MarketingBlogPostAdmin(BlogPostAdmin)` — только `view_on_site = False`; регистрация `marketing_site.register(News, …)`, `(BlogPost, …)`, `(Category, ContentCategoryAdmin)`; функция `newsletter_stats() -> dict[str, Any]` — решение 17, возвращает `{"total": …, "recent": …, "text": f"Подписчиков: {total} (+{recent} за 30 дней)"}`; граница — `subscribed_at__gte=timezone.now() - timedelta(days=30)`.
-  - [ ] `apps/common/apps.py`: `CommonConfig.ready()` с импортом `apps.common.marketing_admin`. Проверить, что модуль `apps.common` не делает тяжёлых импортов на уровне модуля, ломающих порядок (`common/admin.py` импортирует `CustomerSyncMonitor` — к `ready()` это уже загружено autodiscover'ом).
+- [x] **Task 2 — новости, блог, рубрики, подписчики** (AC2, AC3, AC9, AC12; решения 5–7, 17)
+  - [x] `apps/common/admin.py`: `ContentCategoryAdmin` (решение 7), `@admin.register(Category)` — импорт `Category` в список моделей модуля. `view_on_site = False`. `get_deleted_objects(self, objs, request)`: `deleted, model_count, perms_needed, protected = super()…`; `protected` дополнить строками «Новость: <заголовок>» по `News.objects.filter(category__in=objs)` и «Рубрика: <название>» по `Category.objects.filter(parent__in=objs).exclude(pk__in=[o.pk for o in objs])` (дочерняя рубрика, удаляемая вместе с родителем в том же выборе, всё равно сносит свои новости каскадом — её новости попадут в `protected` своей строкой, поэтому исключение безопасно; проверить тестом выбора «родитель + ребёнок с новостью»). Вернуть кортеж с дополненным `protected`.
+  - [x] Новый модуль `apps/common/marketing_admin.py`: docstring; `MarketingNewsAdmin(NewsAdmin)`, `MarketingBlogPostAdmin(BlogPostAdmin)` — только `view_on_site = False`; регистрация `marketing_site.register(News, …)`, `(BlogPost, …)`, `(Category, ContentCategoryAdmin)`; функция `newsletter_stats() -> dict[str, Any]` — решение 17, возвращает `{"total": …, "recent": …, "text": f"Подписчиков: {total} (+{recent} за 30 дней)"}`; граница — `subscribed_at__gte=timezone.now() - timedelta(days=30)`.
+  - [x] `apps/common/apps.py`: `CommonConfig.ready()` с импортом `apps.common.marketing_admin`. Проверить, что модуль `apps.common` не делает тяжёлых импортов на уровне модуля, ломающих порядок (`common/admin.py` импортирует `CustomerSyncMonitor` — к `ready()` это уже загружено autodiscover'ом).
 
-- [ ] **Task 3 — баннеры** (AC2, AC12; решения 5, 6)
-  - [ ] Новый модуль `apps/banners/marketing_admin.py`: `MarketingBannerAdmin(BannerAdmin)` с `view_on_site = False`, `marketing_site.register(Banner, MarketingBannerAdmin)`. Импорт в `BannersConfig.ready()` рядом с `signals`.
+- [x] **Task 3 — баннеры** (AC2, AC12; решения 5, 6)
+  - [x] Новый модуль `apps/banners/marketing_admin.py`: `MarketingBannerAdmin(BannerAdmin)` с `view_on_site = False`, `marketing_site.register(Banner, MarketingBannerAdmin)`. Импорт в `BannersConfig.ready()` рядом с `signals`.
 
-- [ ] **Task 4 — товары, бренды, категории главной** (AC4–AC8, AC11–AC13; решения 8–14)
-  - [ ] `apps/products/admin.py`: `permissions=["change"]` во всех десяти `@admin.action(...)` `ProductAdmin` (решение 9). Больше `ProductAdmin` не трогать.
-  - [ ] `apps/products/models.py:75`: текст ошибки `Brand.clean` — «Для показа на главной нужен логотип»; `apps/products/tests/test_brand_model.py:93` — ожидание по новому тексту (решение 13).
-  - [ ] Новый модуль `apps/products/marketing_admin.py`:
+- [x] **Task 4 — товары, бренды, категории главной** (AC4–AC8, AC11–AC13; решения 8–14)
+  - [x] `apps/products/admin.py`: `permissions=["change"]` во всех десяти `@admin.action(...)` `ProductAdmin` (решение 9). Больше `ProductAdmin` не трогать.
+  - [x] `apps/products/models.py:75`: текст ошибки `Brand.clean` — «Для показа на главной нужен логотип»; `apps/products/tests/test_brand_model.py:93` — ожидание по новому тексту (решение 13).
+  - [x] Новый модуль `apps/products/marketing_admin.py`:
     - `class SeenValuesForm(forms.ModelForm)` (решение 11): атрибут класса `seen_fields: tuple[str, ...] = ()`; в `__init__` — `show_hidden_initial = True` для каждого имени из `seen_fields`, которое есть в `self.fields`. Docstring: зачем (сохранение списка не возвращает чужие правки) и почему без отклонения устаревшей формы (решение 11).
     - Хелпер сохранения (решение 10), например `save_changed_fields(obj, form, editable: tuple[str, ...]) -> None`: `changed = [n for n in editable if n in form.changed_data]`; пусто — `return`; иначе `obj.save(update_fields=[*changed, "updated_at"])`. Каждый из трёх admin-классов зовёт его из `save_model` (её же зовёт сохранение `list_editable`, `options.py` `changelist_view`). Файловые поля (`image`, `icon`) — в `editable`, но не в `seen_fields`: `FileField.has_changed` и так истинно только при загрузке или очистке, а `FileField.pre_save` в `update_fields` сохраняет файл в хранилище.
     - `MarketingProductAdmin(ProductAdmin)` (решения 8, 12): `LABEL_FIELDS = ("is_hit", "is_new", "is_sale", "is_promo", "is_premium")`; `form` — `SeenValuesForm`-подкласс с `seen_fields = LABEL_FIELDS`; `get_changelist_form(self, request, **kwargs)` → `super().get_changelist_form(request, form=<тот же класс>, **kwargs)`; `list_display = ("photo", "name", "brand", "category_name", "is_active", *LABEL_FIELDS, "discount_percent")` (не `"category"`, решение 12), `list_display_links = ("name",)`, `list_editable = LABEL_FIELDS`; `list_filter = (*LABEL_FIELDS, "brand", ("category", CategoryPathListFilter))`; `search_fields = ("name", "article")`; `fieldsets = (("Товар", {"fields": ("name", "brand_link", "category_name", "discount_percent")}), ("Метки", {"fields": LABEL_FIELDS}))`; `readonly_fields = ("name", "brand_link", "category_name", "discount_percent")`; `get_fieldsets`/`get_readonly_fields` возвращают атрибуты как есть (как 42.5); `inlines = []`, `raw_id_fields = ()`, `prepopulated_fields = {}`, `view_on_site = False`; `has_add_permission`/`has_delete_permission` → `False`; `get_queryset` — `Product.objects.select_related("brand", "category").prefetch_related(Prefetch("variants", queryset=ProductVariant.objects.exclude(main_image="").exclude(main_image__isnull=True).only("id", "product_id", "main_image").order_by("pk"), to_attr="marketing_photo_variants"))` (родительский `prefetch_related("variants")` не нужен — `rrp_display` в разделе нет; проверить, что `ModelAdmin.get_queryset` с `get_ordering` применён: начать с `super(ProductAdmin, self).get_queryset(request)`); `save_model` → хелпер с `LABEL_FIELDS`; `actions` — унаследованные десять.
@@ -237,36 +237,36 @@ so that я веду маркетинг сайта сам, не видя данн
     - `MarketingHomepageCategoryAdmin(HomepageCategoryAdmin)` (решение 14): `CATEGORY_FIELDS = ("icon", "image", "sort_order")`; форма и форма строки списка — `SeenValuesForm`-подкласс с `seen_fields = ("sort_order",)` (через `form` и `get_changelist_form`); `fields = ("name", "parent", "icon", "image", "sort_order", "is_active")` (как у родителя), `readonly_fields = ("name", "parent", "is_active")`; `list_editable = ("sort_order",)`; `list_filter = ("is_active",)`; `get_queryset` — выборка родителя с `select_related("parent")`, отфильтрованная `parent__name=settings.ROOT_CATEGORY_NAME, parent__parent__isnull=True` (комментарий: тот же круг, что `homepage_categories_q`, без `sort_order`); `_get_obj_does_not_exist_redirect` → `Http404("Категория не найдена")` (как 42.4/42.5 — карточка вне выборки неотличима от несуществующей); `get_form` родителя (ставит `help_text` картинки) наследуется как есть; `view_on_site = False`; `save_model` → хелпер с `CATEGORY_FIELDS`. Родительский `parent` в списке (`list_display`) — readonly-FK на `products.Category`, которой на сайте нет: Django выведет текст без ссылки; проверить в AC12, что ссылок `/admin/` нет.
     - Регистрация: `marketing_site.register(Product, …)`, `(Brand, …)`, `(HomepageCategory, …)`. Импорт модуля в `ProductsConfig.ready()` рядом с `signals`.
 
-- [ ] **Task 4a — очистка HTML новостей и блога** (AC16; решение 19)
-  - [ ] Новый модуль `apps/common/utils/html_sanitizer.py`: перенести из `apps/pages/models.py` `_STRIP_BLOCKS_RE` и белый список (теги, атрибуты, протоколы) константами модуля: `RICH_HTML_TAGS` — страничный список без `meta` и `link`; `RICH_HTML_ATTRIBUTES` — без ключей `meta` и `link`. Функция `sanitize_rich_html(html: str, *, tags=RICH_HTML_TAGS, attributes=RICH_HTML_ATTRIBUTES) -> str`: пустое значение вернуть как есть, затем удалить блоки, затем `bleach.clean(..., protocols=["http", "https", "mailto"], strip=True)`. Docstring — путь атаки решения 19 одной фразой.
-  - [ ] `apps/pages/models.py`: `Page.save` зовёт `sanitize_rich_html(self.content, tags=PAGE_HTML_TAGS, attributes=PAGE_HTML_ATTRIBUTES)`, где страничные списки — общие плюс `meta` и `link` с прежними атрибутами. Порядок в `save()` не меняется: удаление блоков, затем `seo_description`, затем очистка; повторное удаление блоков в хелпере идемпотентно. Итоговый HTML страниц — байт в байт прежний.
-  - [ ] `apps/common/models.py`: `save()` у `News` и `BlogPost` — `self.content = sanitize_rich_html(self.content)`, то же для `excerpt`, затем `super().save(*args, **kwargs)`. Если `save` вызван с `update_fields` без `content`/`excerpt`, поле не очищается и не пишется — это нормально.
-  - [ ] GitNexus `impact` по `Page.save` до правки — сообщить blast radius Alex.
+- [x] **Task 4a — очистка HTML новостей и блога** (AC16; решение 19)
+  - [x] Новый модуль `apps/common/utils/html_sanitizer.py`: перенести из `apps/pages/models.py` `_STRIP_BLOCKS_RE` и белый список (теги, атрибуты, протоколы) константами модуля: `RICH_HTML_TAGS` — страничный список без `meta` и `link`; `RICH_HTML_ATTRIBUTES` — без ключей `meta` и `link`. Функция `sanitize_rich_html(html: str, *, tags=RICH_HTML_TAGS, attributes=RICH_HTML_ATTRIBUTES) -> str`: пустое значение вернуть как есть, затем удалить блоки, затем `bleach.clean(..., protocols=["http", "https", "mailto"], strip=True)`. Docstring — путь атаки решения 19 одной фразой.
+  - [x] `apps/pages/models.py`: `Page.save` зовёт `sanitize_rich_html(self.content, tags=PAGE_HTML_TAGS, attributes=PAGE_HTML_ATTRIBUTES)`, где страничные списки — общие плюс `meta` и `link` с прежними атрибутами. Порядок в `save()` не меняется: удаление блоков, затем `seo_description`, затем очистка; повторное удаление блоков в хелпере идемпотентно. Итоговый HTML страниц — байт в байт прежний.
+  - [x] `apps/common/models.py`: `save()` у `News` и `BlogPost` — `self.content = sanitize_rich_html(self.content)`, то же для `excerpt`, затем `super().save(*args, **kwargs)`. Если `save` вызван с `update_fields` без `content`/`excerpt`, поле не очищается и не пишется — это нормально.
+  - [x] GitNexus `impact` по `Page.save` до правки — сообщить blast radius Alex.
 
-- [ ] **Task 4b — избранные бренды на главной сразу** (AC7; решение 13)
-  - [ ] GitNexus `impact` по `_revalidate_nextjs`, `invalidate_page_cache`, `invalidate_featured_brands_cache_on_save` до правки — blast radius Alex.
-  - [ ] Новый модуль `apps/common/services/nextjs_revalidate.py`: `revalidate_nextjs_path(path: str) -> None` — тело `_revalidate_nextjs` из `apps/pages/signals.py` без изменений (настройки, `requests.post(..., timeout=10)`, четыре исхода в лог); `revalidate_nextjs_path_in_background(path: str) -> None` — `threading.Thread(target=revalidate_nextjs_path, args=(path,), daemon=True).start()`. Константа `HOME_PAGE_PATH = "/home"` с комментарием: маршрут `(blue)/home`, `/` — динамический редирект и в ISR не участвует.
-  - [ ] `apps/pages/signals.py`: `_invalidate_page_cache_now` зовёт `revalidate_nextjs_path_in_background(f"/{slug}")`; `_revalidate_nextjs`, импорты `requests`/`threading` убрать. Поведение страниц прежнее.
-  - [ ] `apps/pages/tests.py`: `RevalidateNextjsTest` → `tests/unit/test_nextjs_revalidate.py` (патч `apps.common.services.nextjs_revalidate.requests.post`, логгер `apps.common.services.nextjs_revalidate`), проверки и ожидания прежние (решение 13).
-  - [ ] `apps/products/signals.py`: в `invalidate_featured_brands_cache_on_save` и `…_on_delete` общий хелпер `_on_featured_change(was_featured: bool, is_featured: bool)` — `on_commit` со сбросом `FEATURED_BRANDS_CACHE_KEY` (как сейчас) и, если `was_featured or is_featured`, с `revalidate_nextjs_path_in_background(HOME_PAGE_PATH)`. Условия сброса кэша API не меняются: те же три ветки и `_FEATURED_RELEVANT_FIELDS`. `track_brand_previous_state` дополнительно читает `is_featured` (он уже в `_FEATURED_RELEVANT_FIELDS`).
-  - [ ] Тесты в `tests/unit/test_nextjs_revalidate.py`: бренд стал избранным, перестал избранным, избранный изменён, неизбранный изменён (сброса нет), неизбранный изменён через `queryset.update` (сигналов нет), создание и удаление избранного и неизбранного; откат транзакции — сброса нет. `revalidate_nextjs_path_in_background` патчится в `apps.products.signals`. Плюс интеграционный AC7: POST бренда в `/marketing/` → вызов с `"/home"` после commit.
+- [x] **Task 4b — избранные бренды на главной сразу** (AC7; решение 13)
+  - [x] GitNexus `impact` по `_revalidate_nextjs`, `invalidate_page_cache`, `invalidate_featured_brands_cache_on_save` до правки — blast radius Alex.
+  - [x] Новый модуль `apps/common/services/nextjs_revalidate.py`: `revalidate_nextjs_path(path: str) -> None` — тело `_revalidate_nextjs` из `apps/pages/signals.py` без изменений (настройки, `requests.post(..., timeout=10)`, четыре исхода в лог); `revalidate_nextjs_path_in_background(path: str) -> None` — `threading.Thread(target=revalidate_nextjs_path, args=(path,), daemon=True).start()`. Константа `HOME_PAGE_PATH = "/home"` с комментарием: маршрут `(blue)/home`, `/` — динамический редирект и в ISR не участвует.
+  - [x] `apps/pages/signals.py`: `_invalidate_page_cache_now` зовёт `revalidate_nextjs_path_in_background(f"/{slug}")`; `_revalidate_nextjs`, импорты `requests`/`threading` убрать. Поведение страниц прежнее.
+  - [x] `apps/pages/tests.py`: `RevalidateNextjsTest` → `tests/unit/test_nextjs_revalidate.py` (патч `apps.common.services.nextjs_revalidate.requests.post`, логгер `apps.common.services.nextjs_revalidate`), проверки и ожидания прежние (решение 13).
+  - [x] `apps/products/signals.py`: в `invalidate_featured_brands_cache_on_save` и `…_on_delete` общий хелпер `_on_featured_change(was_featured: bool, is_featured: bool)` — `on_commit` со сбросом `FEATURED_BRANDS_CACHE_KEY` (как сейчас) и, если `was_featured or is_featured`, с `revalidate_nextjs_path_in_background(HOME_PAGE_PATH)`. Условия сброса кэша API не меняются: те же три ветки и `_FEATURED_RELEVANT_FIELDS`. `track_brand_previous_state` дополнительно читает `is_featured` (он уже в `_FEATURED_RELEVANT_FIELDS`).
+  - [x] Тесты в `tests/unit/test_nextjs_revalidate.py`: бренд стал избранным, перестал избранным, избранный изменён, неизбранный изменён (сброса нет), неизбранный изменён через `queryset.update` (сигналов нет), создание и удаление избранного и неизбранного; откат транзакции — сброса нет. `revalidate_nextjs_path_in_background` патчится в `apps.products.signals`. Плюс интеграционный AC7: POST бренда в `/marketing/` → вызов с `"/home"` после commit.
 
-- [ ] **Task 5 — nginx и smoke-проверки** (AC14; решение 18)
-  - [ ] `docker/nginx/conf.d/default.conf` и `local.conf`: `location /marketing/` — копия соседней `location /manager/` (в `default.conf` — с таймаутами и `include /etc/nginx/snippets/app-headers.conf`), комментарий «Раздел маркетинга (стори 42.6)». `docker/nginx/snippets/app-headers.conf:2` — дописать `/marketing/` в перечень.
-  - [ ] `tests/unit/test_nginx_security_headers.py`: `("default.conf", "/marketing/")` в параметры `test_known_location_is_covered`; `TestManagerSectionRoute.test_manager_location_proxies_to_backend` параметризовать локацией (`/manager/`, `/marketing/`) — существующие проверки `/manager/` сохраняются.
-  - [ ] `scripts/deploy/check-manager-route.sh`: необязательный второй аргумент `SECTION` (по умолчанию `manager`, допустимы только `[a-z]+` — иначе выход с ошибкой); все пути и сообщения — через `$SECTION`; шапка-комментарий — про оба раздела. `tests/unit/test_check_manager_route_script.py`: `run_script` получает необязательную секцию; `test_section_routed_to_django_passes` и `test_broken_route_fails` параметризовать секциями `manager` (без аргумента — прежний вызов) и `marketing`; отдельный тест — недопустимое имя раздела.
-  - [ ] `scripts/deploy/release-has-manager-route.sh`: необязательный второй аргумент — раздел (по умолчанию `manager`, проверка `[a-z]+`), маркер `path("$SECTION/", ${SECTION}_site.urls)`. `tests/unit/test_release_has_manager_route_script.py`: те же сценарии для `marketing` (релиз до раздела — urls.py только с `manager/`).
-  - [ ] `.github/workflows/main.yml` (шаг «Маршрут /manager/ через nginx»): в `check_section` добавить `bash scripts/deploy/check-manager-route.sh "$1" marketing`; имя шага и комментарий — про оба раздела. `wait_ready` не менять.
-  - [ ] `.github/workflows/deploy.yml:543-557`: тот же блок для `marketing` — `release-has-manager-route.sh "$RELEASE" marketing`, при коде 1 — «релиз раньше раздела /marketing/», иначе `check-manager-route.sh "$PRODUCTION_URL" marketing`.
-  - [ ] **`.sh` — только LF** (`.gitattributes` с PR #313). Тесты скриптов гонять в контейнере.
+- [x] **Task 5 — nginx и smoke-проверки** (AC14; решение 18)
+  - [x] `docker/nginx/conf.d/default.conf` и `local.conf`: `location /marketing/` — копия соседней `location /manager/` (в `default.conf` — с таймаутами и `include /etc/nginx/snippets/app-headers.conf`), комментарий «Раздел маркетинга (стори 42.6)». `docker/nginx/snippets/app-headers.conf:2` — дописать `/marketing/` в перечень.
+  - [x] `tests/unit/test_nginx_security_headers.py`: `("default.conf", "/marketing/")` в параметры `test_known_location_is_covered`; `TestManagerSectionRoute.test_manager_location_proxies_to_backend` параметризовать локацией (`/manager/`, `/marketing/`) — существующие проверки `/manager/` сохраняются.
+  - [x] `scripts/deploy/check-manager-route.sh`: необязательный второй аргумент `SECTION` (по умолчанию `manager`, допустимы только `[a-z]+` — иначе выход с ошибкой); все пути и сообщения — через `$SECTION`; шапка-комментарий — про оба раздела. `tests/unit/test_check_manager_route_script.py`: `run_script` получает необязательную секцию; `test_section_routed_to_django_passes` и `test_broken_route_fails` параметризовать секциями `manager` (без аргумента — прежний вызов) и `marketing`; отдельный тест — недопустимое имя раздела.
+  - [x] `scripts/deploy/release-has-manager-route.sh`: необязательный второй аргумент — раздел (по умолчанию `manager`, проверка `[a-z]+`), маркер `path("$SECTION/", ${SECTION}_site.urls)`. `tests/unit/test_release_has_manager_route_script.py`: те же сценарии для `marketing` (релиз до раздела — urls.py только с `manager/`).
+  - [x] `.github/workflows/main.yml` (шаг «Маршрут /manager/ через nginx»): в `check_section` добавить `bash scripts/deploy/check-manager-route.sh "$1" marketing`; имя шага и комментарий — про оба раздела. `wait_ready` не менять.
+  - [x] `.github/workflows/deploy.yml:543-557`: тот же блок для `marketing` — `release-has-manager-route.sh "$RELEASE" marketing`, при коде 1 — «релиз раньше раздела /marketing/», иначе `check-manager-route.sh "$PRODUCTION_URL" marketing`.
+  - [x] **`.sh` — только LF** (`.gitattributes` с PR #313). Тесты скриптов гонять в контейнере.
 
-- [ ] **Task 6 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
-  - [ ] `backend/tests/integration/test_marketing_section.py` (integration). Хелперы и autouse-фикстуры — явным импортом из `tests.integration.test_manager_clients_section`: `role_groups`, `make_staff_member`, `form_payload`, `message_texts`, `PASSWORD`, `get_unique_suffix`. **Не `import *`** и не `no_routing_rules`/`verified_email_task`, если не нужны: клиенты в стори не создаются. Нового общего модуля хелперов не заводить (правило 42.4). Свои фикстуры:
+- [x] **Task 6 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
+  - [x] `backend/tests/integration/test_marketing_section.py` (integration). Хелперы и autouse-фикстуры — явным импортом из `tests.integration.test_manager_clients_section`: `role_groups`, `make_staff_member`, `form_payload`, `message_texts`, `PASSWORD`, `get_unique_suffix`. **Не `import *`** и не `no_routing_rules`/`verified_email_task`, если не нужны: клиенты в стори не создаются. Нового общего модуля хелперов не заводить (правило 42.4). Свои фикстуры:
     - `marketer`, `marketer_client`; `section_member` параметризован группами «Маркетинг» и «Руководители» (как 42.4);
     - `media_root` (autouse, `settings.MEDIA_ROOT = tmp_path`) — загрузки логотипов и картинок не пишутся в рабочий `media/`; картинка — `SimpleUploadedFile` с настоящим PNG от Pillow;
     - `showcase` — якорь `ROOT_CATEGORY_NAME` (через `settings.ROOT_CATEGORY_NAME`, не литерал), два корня витрины, подкатегория, категория вне якоря (`CategoryFactory`);
     - `make_product(**overrides)` — `ProductFactory` + вариант `ProductVariantFactory` с `main_image` по необходимости (`apps/products/factories.py`).
-  - [ ] Сценарии:
+  - [x] Сценарии:
     - AC1 — матрица входа по `/marketing/` и `/marketing/products/product/` (как `TestEntry` 42.4), «FREESPORT — Маркетинг» в HTML.
     - AC2 — POST форм добавления рубрики, новости, статьи, баннера через `form_payload` GET-страницы `add/`; затем `APIClient().get(...)` публичных эндпоинтов (баннер — `type=marketing`; кэш баннеров сбрасывает сигнал); негативные: будущая дата публикации, неопубликованная статья, истёкший баннер. Нет `view_on_site` в контексте/HTML карточек.
     - AC3 — четыре рубрики, удаление из карточки (GET — protected в контексте, POST — объект на месте) и массовым действием; выбор «родитель + ребёнок с новостью».
@@ -281,10 +281,10 @@ so that я веду маркетинг сайта сам, не видя данн
     - AC12 — `'href="/admin/' not in html` для главной (после сохранения товара), списков и карточек семи моделей, истории товара; редиректы `_save`/`_continue`; «+» рубрики в карточке новости.
     - AC13 — `CaptureQueriesContext`: 5 → 50 товаров (с вариантами и фото, в категориях четвёртого уровня), 5 → 50 категорий глубиной 4 в фильтре, брендов, корней витрины, подписчиков (образец — `TestQueryCount` 42.5).
     - AC16 — POST добавления новости и статьи с вредным и разрешённым HTML в `content` и `excerpt` через `/marketing/` и `/admin/`; проверки по БД и по ответу детального API; ожидаемые подстроки литералами.
-  - [ ] `backend/tests/unit/test_html_sanitizer.py` (unit): каждый вредный фрагмент AC16 по отдельности; `<style>` и `<script>` удаляются вместе с содержимым; разрешённая разметка без изменений; пустая строка; `meta`/`link` удаляются общим списком и сохраняются страничным.
-  - [ ] `backend/tests/unit/test_marketing_admin_site.py` (unit, `RequestFactory`): `MarketingAdminSite.has_permission` по ролям; кэш — один запрос к группам на два вызова; один `request` на двух сайтах не путает доступ (менеджер: `/manager/` — да, `/marketing/` — нет, в любом порядке вызовов); состав `marketing_site._registry` — ровно семь моделей решения 5; `admin.site._registry` — по-прежнему родительские классы для `Product`, `Brand`, `HomepageCategory`, `Banner`, `News`, `BlogPost`, плюс `ContentCategoryAdmin` для `common.Category`; `newsletter_stats` на пустых данных; `get_readonly_fields`/`get_fieldsets` товара и бренда не содержат скрытых полей (страж белого списка); у всех десяти действий `ProductAdmin` `allowed_permissions == ("change",)`.
-  - [ ] **Тесты транзакционные** (как 42.4/42.5): autouse `clear_db_before_test(transactional_db)` в `tests/conftest.py`; правки прав группы стирает `flush`, `role_groups` следующего теста создаёт группы заново. `on_commit` сигналов кэша срабатывает.
-  - [ ] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть. Итог — в Debug Log:
+  - [x] `backend/tests/unit/test_html_sanitizer.py` (unit): каждый вредный фрагмент AC16 по отдельности; `<style>` и `<script>` удаляются вместе с содержимым; разрешённая разметка без изменений; пустая строка; `meta`/`link` удаляются общим списком и сохраняются страничным.
+  - [x] `backend/tests/unit/test_marketing_admin_site.py` (unit, `RequestFactory`): `MarketingAdminSite.has_permission` по ролям; кэш — один запрос к группам на два вызова; один `request` на двух сайтах не путает доступ (менеджер: `/manager/` — да, `/marketing/` — нет, в любом порядке вызовов); состав `marketing_site._registry` — ровно семь моделей решения 5; `admin.site._registry` — по-прежнему родительские классы для `Product`, `Brand`, `HomepageCategory`, `Banner`, `News`, `BlogPost`, плюс `ContentCategoryAdmin` для `common.Category`; `newsletter_stats` на пустых данных; `get_readonly_fields`/`get_fieldsets` товара и бренда не содержат скрытых полей (страж белого списка); у всех десяти действий `ProductAdmin` `allowed_permissions == ("change",)`.
+  - [x] **Тесты транзакционные** (как 42.4/42.5): autouse `clear_db_before_test(transactional_db)` в `tests/conftest.py`; правки прав группы стирает `flush`, `role_groups` следующего теста создаёт группы заново. `on_commit` сигналов кэша срабатывает.
+  - [x] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть. Итог — в Debug Log:
 
     | Убрать | Должен упасть |
     |---|---|
@@ -315,13 +315,13 @@ so that я веду маркетинг сайта сам, не видя данн
     | вызов сброса `/home` в сигнале брендов | unit «стал избранным», AC7 |
     | `on_commit` → прямой вызов сброса | unit «откат транзакции — сброса нет» |
 
-- [ ] **Task 7 — существующие тесты и проверки**
-  - [ ] Без правок зелёные: `tests/integration/test_manager_clients_section.py`, `tests/integration/test_manager_orders_section.py`, `tests/unit/test_manager_admin_site.py`, `tests/unit/test_manager_orders_admin.py` (рефакторинг `has_permission`), `tests/unit/test_admin/test_products_admin.py`, `apps/products/tests/test_admin_homepage_category.py`, `apps/products/tests/unit/test_admin_onec_deleted.py`, `apps/banners/tests/test_admin.py`, `apps/banners/tests/test_mobile_image.py`, `tests/unit/test_staff_role_groups_migration.py`, `tests/unit/test_nginx_security_headers.py` (только добавленные параметры), тесты скриптов (только добавленные сценарии), `tests/integration/test_pages_api.py` (перенос санитайзера страниц, решение 19), `apps/pages/tests.py` (кроме переноса `RevalidateNextjsTest`, решение 13), тесты новостей и блога в `tests/` и `apps/common/tests/`, тесты сигналов брендов (`FEATURED_BRANDS_CACHE_KEY`). Исключение — `test_brand_model.py:93` (решение 13).
-  - [ ] Полный backend-прогон в Docker, один compose-проект: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~16 мин, ориентир после 42.5 — 4314 passed, 76 skipped). В фоне.
-  - [ ] Линтеры строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .`, `flake8`, `mypy .`. Базис — ноль ошибок (после 42.5: black 473 unchanged, mypy 626 файлов).
-  - [ ] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
-  - [ ] Completion Notes: отклонения от стори с причиной; ответы Alex на вопросы ниже (если получены до разработки); шаги выката для Alex.
+- [x] **Task 7 — существующие тесты и проверки**
+  - [x] Без правок зелёные: `tests/integration/test_manager_clients_section.py`, `tests/integration/test_manager_orders_section.py`, `tests/unit/test_manager_admin_site.py`, `tests/unit/test_manager_orders_admin.py` (рефакторинг `has_permission`), `tests/unit/test_admin/test_products_admin.py`, `apps/products/tests/test_admin_homepage_category.py`, `apps/products/tests/unit/test_admin_onec_deleted.py`, `apps/banners/tests/test_admin.py`, `apps/banners/tests/test_mobile_image.py`, `tests/unit/test_staff_role_groups_migration.py`, `tests/unit/test_nginx_security_headers.py` (только добавленные параметры), тесты скриптов (только добавленные сценарии), `tests/integration/test_pages_api.py` (перенос санитайзера страниц, решение 19), `apps/pages/tests.py` (кроме переноса `RevalidateNextjsTest`, решение 13), тесты новостей и блога в `tests/` и `apps/common/tests/`, тесты сигналов брендов (`FEATURED_BRANDS_CACHE_KEY`). Исключение — `test_brand_model.py:93` (решение 13).
+  - [x] Полный backend-прогон в Docker, один compose-проект: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~16 мин, ориентир после 42.5 — 4314 passed, 76 skipped). В фоне.
+  - [x] Линтеры строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .`, `flake8`, `mypy .`. Базис — ноль ошибок (после 42.5: black 473 unchanged, mypy 626 файлов).
+  - [x] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
+  - [x] Completion Notes: отклонения от стори с причиной; ответы Alex на вопросы ниже (если получены до разработки); шаги выката для Alex.
 
 ## Dev Notes
 
@@ -455,13 +455,104 @@ so that я веду маркетинг сайта сам, не видя данн
 
 ### Agent Model Used
 
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
+
 ### Debug Log References
+
+- GitNexus pre-flight: индекс на `6b0d536`, `git diff 6b0d536 HEAD -- backend/apps backend/freesport` пуст — переиндексация не нужна. Blast radius: `ManagerAdminSite` LOW (3 прямых импорта), `ProductAdmin`/`BrandAdmin`/`HomepageCategoryAdmin`/`BannerAdmin`/`CommonConfig`/`invalidate_page_cache`/`invalidate_featured_brands_cache_on_save` LOW (0), `NewsAdmin`/`BlogPostAdmin` LOW (1 — `urls.py`), `_revalidate_nextjs` MEDIUM (5 прямых — только тесты `RevalidateNextjsTest`, переносятся), `Page.save` — вызывающих нет, `Brand.clean` — `products/serializers.py` (validate). HIGH/CRITICAL нет.
+- Проверка мутациями — скрипт в контейнере, каждая мутация на свои тесты (`pytest -x`), исходник возвращается в `finally`. **27 из 27 убиты, выживших нет:**
+
+  | # | Мутация | Упал |
+  |---|---|---|
+  | 1 | `is_superuser` в `StaffSectionAdminSite.has_permission` | AC1 `superuser-in-marketing-group` |
+  | 2 | кэш по `self.name` → общий ключ | unit `test_one_request_on_two_sites` |
+  | 3 | `SUPERVISORS_GROUP` из `section_groups` маркетинга | AC1 (руководитель) |
+  | 4 | `protected` в `ContentCategoryAdmin.get_deleted_objects` | AC3 |
+  | 5 | `permissions=["change"]` у `mark_as_hit` | AC11 / unit `allowed_permissions` |
+  | 6 | `"description"` в `fieldsets` товара | AC5 |
+  | 7 | `save_model` товара → `super().save_model` | AC6 (`update_fields`, импорт) |
+  | 8 | `show_hidden_initial` в `SeenValuesForm` | AC6 (стоп-кадр списка) |
+  | 9 | `get_changelist_form` товара → родительский | AC6 (стоп-кадр списка) |
+  | 10 | фильтр корней витрины в `get_queryset` | AC8 (список, 404) |
+  | 11 | `list_editable` категорий → `("sort_order", "is_active")` | AC8 |
+  | 12 | `is_active` убран из `readonly_fields` категорий | AC8 |
+  | 13 | `actions = []` у брендов | AC7 |
+  | 14 | prefetch фото → `obj.variants` в `photo` | AC13 |
+  | 15 | граница 30 дней `gte` → `gt` | AC9 (ровно 30 дней) |
+  | 16 | граница 30 дней + сутки | AC9 (30 дней и минута) |
+  | 17 | пустой `{% block sidebar %}` | AC12 |
+  | 18 | `view_on_site = False` у новостей | AC2 |
+  | 19 | `"category_name"` → `"category"` в `list_display` | AC13 (товары) |
+  | 20 | `CategoryPathListFilter` → штатный фильтр | AC13 (категории) |
+  | 21 | `sanitize_rich_html(content)` в `News.save` | AC16 |
+  | 22 | `excerpt` в `BlogPost.save` | AC16 |
+  | 23 | `meta`/`link` в `RICH_HTML_TAGS` | unit санитайзера |
+  | 24 | удаление блоков до bleach | unit (текст CSS) |
+  | 25 | `was_featured or is_featured` → всегда | unit «неизбранный изменён» |
+  | 26 | вызов сброса `/home` в сигнале | unit «стал избранным» |
+  | 27 | `on_commit` → прямой вызов | unit «откат транзакции» |
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- **Сайт `/marketing/`:** `StaffSectionAdminSite` в `freesport/admin_site.py` — общая проверка входа с кэшем `request._staff_section_access[self.name]`; `ManagerAdminSite` наследует её без изменения поведения (тесты 42.4/42.5 без правок зелёные), `MarketingAdminSite` — группы «Маркетинг» и «Руководители», плашка подписчиков, переименования «Новости и блог»/«Рубрики». Шаблон главной без «Последних действий».
+- **Семь моделей** на сайте маркетинга (страж — unit-тест `_registry`): баннеры, новости, статьи — родительские классы с `view_on_site = False`; рубрики — новый `ContentCategoryAdmin` (на `/admin/` и `/marketing/`) с запретом удаления рубрики с новостями или дочерними рубриками; товары, бренды, категории главной — белые списки в `apps/products/marketing_admin.py`, сохранение только изменённых полей (`save_changed_fields`) по увиденным значениям (`SeenValuesForm`, `show_hidden_initial`), `CategoryPathListFilter` из одного запроса.
+- **Действия меток** `ProductAdmin` — `permissions=["change"]`.
+- **Санитайзер:** `apps/common/utils/html_sanitizer.py`, `News.save`/`BlogPost.save` очищают `content` и `excerpt`, `Page.save` — через общий хелпер, вывод страниц прежний (`tests/integration/test_pages_api.py` зелёный без правок).
+- **Сброс ISR `/home`:** `apps/common/services/nextjs_revalidate.py` (перенос `_revalidate_nextjs` без изменения логики и логов), `pages/signals.py` зовёт фоновую функцию; сигнал брендов после commit сбрасывает `/home` на любом сохранении/удалении бренда, который был или стал избранным; условия сброса кэша featured API прежние.
+- **Nginx и smoke:** `location /marketing/` в `default.conf` и `local.conf`, скрипты `check-manager-route.sh`/`release-has-manager-route.sh` принимают раздел вторым аргументом (`[a-z]+`, по умолчанию `manager`), `main.yml` и `deploy.yml` проверяют `/marketing/`. `.sh` — LF.
+- **Тесты:** `tests/integration/test_marketing_section.py` (73 теста, AC1–AC13, AC16), `tests/unit/test_marketing_admin_site.py` (21), `tests/unit/test_html_sanitizer.py` (13), `tests/unit/test_nextjs_revalidate.py` (19), новые сценарии в тестах nginx и скриптов.
+- **Разрешённые отклонения от «существующие тесты без правок» (решение 13):** ожидание `apps/products/tests/test_brand_model.py:93` — русский текст; `RevalidateNextjsTest` перенесён из `apps/pages/tests.py` в `tests/unit/test_nextjs_revalidate.py` с новым путём патча и логгером, проверки прежние. **Базовый класс сменён с `SimpleTestCase` на `TestCase`:** под `tests/` autouse-фикстура `clear_db_before_test` обращается к БД, а `SimpleTestCase` запросы к БД запрещает.
+- **Отклонения от стори (с причиной):**
+  1. *Белый список страниц.* Стори считала, что `meta` и `link` есть в страничном списке тегов. На деле их там не было — только ключи атрибутов; bleach удалял эти теги и у страниц. Перенос сделан байт в байт: `PAGE_HTML_TAGS = RICH_HTML_TAGS`, `PAGE_HTML_ATTRIBUTES` = общие + ключи `meta`/`link`. Unit-тест закрепляет это, а не «сохраняются страничным списком».
+  2. *Корни витрины.* В выборку категорий главной добавлено `parent__is_active=True` — ровно круг `homepage_categories_q()` без `sort_order > 0`, как сказано в решении 14 (в Task 4 условие было перечислено без него).
+  3. *Сброс `/home` при правке описания избранного бренда.* Решение 13 и шаг выката 4 требуют сброса при любом сохранении избранного бренда, а Task 4b описывала хелпер внутри веток сброса кэша API (описание в них не входит). Сделано по AC7 и шагу выката: `/home` сбрасывается при любом сохранении бренда, который был или стал избранным, кэш API — по прежним трём веткам; в одном `on_commit` сначала кэш API, затем Next.
+  4. *Неверное имя раздела в `release-has-manager-route.sh`* — код 2 («решать вызывающему»), а не 1: иначе опечатка в `deploy.yml` выглядела бы как «релиз раньше раздела» и молча пропускала проверку.
+  5. *Права «только просмотр» у категорий главной.* Родительский `HomepageCategoryAdmin.get_form` теряет аргумент `change`, поэтому при одном `view_homepagecategory` форма карточки сохраняет поля; Django всё равно выводит их только для чтения, POST отвечает 403. Родитель по стори не меняется — AC11 проверяет HTML (нет полей ввода) и 403.
+- **Риск для Alex — `&` в анонсах.** bleach экранирует голые `&`, `<`, `>` в тексте. `excerpt` фронтенд выводит в карточках новостей и блога и в meta description как текст, поэтому анонс «Скидки & подарки» после сохранения покажется как «Скидки &amp; подарки». Стори требует очищать `excerpt` (решение 19), поэтому поведение оставлено; если такие анонсы встретятся — отдельная правка (например, `html.unescape` на выводе или очистка `excerpt` без экранирования).
+- **Шаги выката для Alex** (из стори, без изменений): (1) ручных шагов в БД нет, деплой сам делает `nginx -t`/reload; (2) `curl -sI https://optisport.ru/marketing/` → 302 на `/marketing/login/?next=/marketing/`, 404 от Next — `docker compose exec nginx nginx -s reload`; (3) до заведения маркетологов пересохранить в `/admin/` 3 новости и 3 статьи и проверить их глазами — у трёх записей-документов пропадёт встроенный `<style>`; (4) сохранить описание любого избранного бренда — в логе backend `Next.js revalidation triggered for /home`, при `skipped`/`rejected: HTTP 401` сверить `FRONTEND_INTERNAL_URL` и `REVALIDATE_SECRET`; (5) завести маркетологов в `/admin/` (`is_staff=True`, группа «Маркетинг»).
 
 ### File List
+
+Новые:
+- `backend/apps/banners/marketing_admin.py`
+- `backend/apps/common/marketing_admin.py`
+- `backend/apps/common/services/nextjs_revalidate.py`
+- `backend/apps/common/utils/html_sanitizer.py`
+- `backend/apps/products/marketing_admin.py`
+- `backend/templates/admin/marketing/index.html`
+- `backend/tests/integration/test_marketing_section.py`
+- `backend/tests/unit/test_html_sanitizer.py`
+- `backend/tests/unit/test_marketing_admin_site.py`
+- `backend/tests/unit/test_nextjs_revalidate.py`
+
+Изменённые:
+- `.github/workflows/deploy.yml`
+- `.github/workflows/main.yml`
+- `_bmad-output/implementation-artifacts/Story/42-6-marketing-section.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `backend/apps/banners/apps.py`
+- `backend/apps/common/admin.py`
+- `backend/apps/common/apps.py`
+- `backend/apps/common/models.py`
+- `backend/apps/pages/models.py`
+- `backend/apps/pages/signals.py`
+- `backend/apps/pages/tests.py`
+- `backend/apps/products/admin.py`
+- `backend/apps/products/apps.py`
+- `backend/apps/products/models.py`
+- `backend/apps/products/signals.py`
+- `backend/apps/products/tests/test_brand_model.py`
+- `backend/freesport/admin_site.py`
+- `backend/freesport/urls.py`
+- `backend/tests/unit/test_check_manager_route_script.py`
+- `backend/tests/unit/test_nginx_security_headers.py`
+- `backend/tests/unit/test_release_has_manager_route_script.py`
+- `docker/nginx/conf.d/default.conf`
+- `docker/nginx/conf.d/local.conf`
+- `docker/nginx/snippets/app-headers.conf`
+- `scripts/deploy/check-manager-route.sh`
+- `scripts/deploy/release-has-manager-route.sh`
 
 ### Change Log
 
@@ -469,3 +560,4 @@ so that я веду маркетинг сайта сам, не видя данн
 - 2026-10-16 — ответы Alex: активность категории на главной — только чтение (решение 14, AC8, Task 4, таблица мутаций, «Подводные камни»; эпик FR-42-22 и `section-contents.md` поправлены); одновременная правка одного поля не критична (решение 11); рубрики в `/admin/` нужны (решение 7).
 - 2026-10-16 — party mode, ответы Alex: + решение 19 и AC16 (очистка HTML новостей и блога на бэкенде, общий хелпер с `Page`, Task 4a, шаг выката 3); решение 12 — категория без `__str__`, `CategoryPathListFilter` (прод: 121 категория, глубина до 5); решение 13 — подсказка «в течение часа» у флага бренда (ISR главной 3600 с); решение 14 — исключение для readonly `parent` записано явно, `select_related("parent")`; AC4, AC7, AC13, таблица мутаций, Dev Notes обновлены.
 - 2026-10-16 — party mode, Alex выбрал вариант «а»: подсказка «в течение часа» заменена сбросом ISR `/home` сигналом брендов (решение 13, AC7, Task 4b). Сброс `_revalidate_nextjs` переезжает из `pages` в `apps/common/services/nextjs_revalidate.py`, тесты переносятся с прежними проверками. Шаг выката 4 — проверка по логу (механизм на проде за 30 дней ни разу не сработал). Баннеры, новости и блог проверены на проде: обновляются сразу, изменений не требуют.
+- 2026-10-16 — реализация (`bmad-dev-story`) на `feature/42-6-marketing-section`: сайт `/marketing/` с семью моделями, белые списки товаров/брендов/категорий главной, рубрики с защитой удаления, плашка подписчиков, санитайзер HTML новостей и блога, сброс ISR `/home` сигналом брендов, nginx и smoke-проверки `/marketing/`. 126 тестов в четырёх новых файлах (из них 5 перенесены), 27/27 мутаций убиты; полный прогон 4458 passed, 76 skipped, 0 failed; black/isort/flake8/mypy чистые, миграций нет. Статус `review`.

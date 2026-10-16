@@ -30,6 +30,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 URLS_BEFORE_SECTION = 'urlpatterns = [\n    path("admin/", admin.site.urls),\n]\n'
+# Релиз после 42.4 и до 42.6: раздел менеджера есть, раздела маркетинга нет.
+URLS_MANAGER_ONLY = (
+    'urlpatterns = [\n    path("admin/", admin.site.urls),\n    path("manager/", manager_site.urls),\n]\n'
+)
 
 
 def git(repo: Path, *args: str) -> str:
@@ -62,9 +66,23 @@ def history(tmp_path: Path) -> tuple[Path, str, str]:
     return tmp_path, before, current
 
 
-def run_script(repo: Path, release: str) -> subprocess.CompletedProcess[str]:
+@pytest.fixture
+def manager_only_release(history: tuple[Path, str, str]) -> tuple[Path, str]:
+    """Тот же репозиторий плюс коммит релиза с разделом менеджера без раздела маркетинга."""
+    repo, _, _ = history
+    git(repo, "checkout", "-q", "-b", "manager-only", "HEAD~1")
+    return repo, commit_urls(repo, URLS_MANAGER_ONLY)
+
+
+def run_script(repo: Path, release: str, *section: str) -> subprocess.CompletedProcess[str]:
+    """Без `section` — прежний вызов, раздел по умолчанию `/manager/`."""
     return subprocess.run(
-        ["bash", str(SCRIPT), release], cwd=repo, capture_output=True, text=True, encoding="utf-8", timeout=60
+        ["bash", str(SCRIPT), release, *section],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
     )
 
 
@@ -114,3 +132,40 @@ def test_unknown_release_is_reported(history, release):
     result = run_script(repo, release)
 
     assert result.returncode == 2, result.stdout + result.stderr
+
+
+def test_current_release_has_marketing_section(history):
+    """Стори 42.6: настоящий urls.py проекта содержит раздел маркетинга."""
+    repo, _, current = history
+
+    result = run_script(repo, current, "marketing")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_release_before_marketing_is_not_checked(manager_only_release):
+    """Релиз с /manager/, но до 42.6: /marketing/ не проверяется, /manager/ — проверяется."""
+    repo, release = manager_only_release
+
+    assert run_script(repo, release, "marketing").returncode == 1
+    assert run_script(repo, release).returncode == 0
+    assert run_script(repo, release, "manager").returncode == 0
+
+
+def test_release_before_any_section_has_no_marketing(history):
+    repo, before, _ = history
+
+    result = run_script(repo, before, "marketing")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("section", ["Marketing", "../admin", "market ing", "marketing/"])
+def test_invalid_section_name_is_reported(history, section):
+    """Недопустимое имя раздела не превращается в «релиз раньше раздела» (код 1)."""
+    repo, _, current = history
+
+    result = run_script(repo, current, section)
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "Недопустимое имя раздела" in result.stdout

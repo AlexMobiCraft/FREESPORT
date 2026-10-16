@@ -17,6 +17,7 @@ from django.utils import timezone
 from .models import (
     AuditLog,
     BlogPost,
+    Category,
     CustomerSyncLog,
     ManagerRoutingRule,
     News,
@@ -520,6 +521,42 @@ class BlogPostAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+@admin.register(Category)
+class ContentCategoryAdmin(admin.ModelAdmin):
+    """
+    Рубрики новостей и блога — в `/admin/` и в разделе маркетинга (стори 42.6).
+
+    Рубрику с новостями или дочерними рубриками удалить нельзя: `News.category`
+    и `Category.parent` — `CASCADE`, и штатное удаление молча снесло бы новости
+    вместе с рубрикой. Статьи блога (`SET_NULL`) удалению не мешают.
+    """
+
+    list_display = ["name", "parent", "is_active", "created_at"]
+    list_filter = ["is_active"]
+    search_fields = ["name"]
+    prepopulated_fields = {"slug": ("name",)}
+    # «Смотреть на сайте» вёл бы в get_absolute_url с несуществующим маршрутом.
+    view_on_site = False
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Category]:
+        # Колонка «Родительская категория» — без запроса на строку.
+        return super().get_queryset(request).select_related("parent")
+
+    def get_deleted_objects(self, objs: Any, request: HttpRequest) -> tuple[Any, Any, Any, list[Any]]:
+        deleted, model_count, perms_needed, protected = super().get_deleted_objects(objs, request)
+        protected = list(protected)
+        selected = [obj.pk for obj in objs]
+        # Новости удаляемых рубрик — в том числе дочерних, выбранных вместе с
+        # родителем: их каскад сносит новости так же.
+        for news in News.objects.filter(category__in=selected).order_by("title"):
+            protected.append(f"Новость: {news.title}")
+        # Дочерняя рубрика, выбранная вместе с родителем, сама по себе удалению
+        # не мешает: её новости уже попали в список выше.
+        for child in Category.objects.filter(parent__in=selected).exclude(pk__in=selected).order_by("name"):
+            protected.append(f"Рубрика: {child.name}")
+        return deleted, model_count, perms_needed, protected
 
 
 # ==================================================================

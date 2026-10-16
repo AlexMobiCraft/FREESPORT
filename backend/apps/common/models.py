@@ -12,6 +12,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.common.utils.html_sanitizer import sanitize_rich_html
 from apps.users.staff_roles import RESPONSIBLE_MANAGER_CHOICES
 
 if TYPE_CHECKING:
@@ -838,6 +839,13 @@ class News(models.Model):
     def __str__(self) -> str:
         return str(self.title)
 
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        # Сайт выводит HTML как есть — очистка закрывает любой путь записи
+        # (раздел маркетинга, /admin/). excerpt — запасной content на странице.
+        self.content = sanitize_rich_html(self.content)
+        self.excerpt = sanitize_rich_html(self.excerpt)
+        super().save(*args, **kwargs)
+
     def get_absolute_url(self) -> str:
         """Возвращает абсолютный URL новости."""
         from django.conf import settings
@@ -948,6 +956,13 @@ class BlogPost(models.Model):
 
     def __str__(self) -> str:
         return str(self.title)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        # Сайт выводит HTML как есть — очистка закрывает любой путь записи
+        # (раздел маркетинга, /admin/). excerpt — запасной content на странице.
+        self.content = sanitize_rich_html(self.content)
+        self.excerpt = sanitize_rich_html(self.excerpt)
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self) -> str:
         """Возвращает абсолютный URL статьи блога."""
