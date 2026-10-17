@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-17 (стори 42.7 -> review после замечаний ревью)
+# last_updated: 2026-10-17 (стори 42.7 -> review после замечаний третьего круга ревью)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1573,6 +1573,16 @@ development_status:
   #             1 defer (R42.7-D1, цикл GitNexus), 13 отклонено. Пункты — в стори.
   # 2026-10-17: R42.7-1..4 закрыты -> review. 10 новых тестов, 6 из 6 мутаций пойманы;
   #             полный прогон 4603 passed, 76 skipped, 0 failed; линтеры чисто.
+  # 2026-10-17: code review круг 2 на 7403a9f -> in-progress: 1 patch (R42.7-5, тесты
+  #             нормализации email сотрудника), 1 defer (R42.7-D2, AuditLog смены пароля
+  #             вне транзакции), 11 отклонено. Пункты — в стори.
+  # 2026-10-17: R42.7-5 закрыт -> review. 4 новых теста, 2 из 2 мутаций пойманы;
+  #             полный прогон 4607 passed, 76 skipped, 0 failed; линтеры чисто.
+  # 2026-10-17: code review круг 3 на 7403a9f + рабочее дерево -> in-progress: 2 patch
+  #             (R42.7-6 POST заказа без клиента руководителем, R42.7-7 пересчёт правила
+  #             страны при блокировке — оба тесты), 0 defer, 22 отклонено. Пункты — в стори.
+  # 2026-10-17: R42.7-6, R42.7-7 закрыты -> review. 2 новых теста, 2 из 2 мутаций пойманы;
+  #             полный прогон 4609 passed, 76 skipped, 0 failed; линтеры чисто.
   42-8-supervisor-summary: backlog
   42-9-staff-action-journal: backlog
   42-10-manager-substitution-and-client-transfer: backlog

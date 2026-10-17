@@ -1097,3 +1097,7 @@
 ## Deferred from: code review of 42-7-supervisor-section-staff-regions-reassignment.md (2026-10-17, на 0efcfca)
 
 - **R42.7-D1, low: новый цикл импорта в графе GitNexus.** graph-impact: `npx gitnexus check --cycles` показывает `backend/apps/users/models.py -> backend/apps/users/staff_roles.py -> backend/apps/users/models.py` вдобавок к базовому `HomePage.tsx → index.ts → HomePage.tsx`. Причина — `if TYPE_CHECKING: from apps.users.models import User` в `staff_roles.py`; в рантайме цикла нет. Правка — обновить базовую линию в `.windsurf/rules/gitnexus.md` (раздел «Обязательно», правило 3) или отказаться от импорта под `TYPE_CHECKING`. Иначе каждый следующий pre-commit/ревью примет цикл за новый. [`backend/apps/users/staff_roles.py:24`]
+
+## Deferred from: code review of 42-7-supervisor-section-staff-regions-reassignment.md (2026-10-17, круг 2 на 7403a9f)
+
+- **R42.7-D2, low: смена пароля в админке пишет `AuditLog` вне транзакции.** edge-case-hunter: `UserAdmin.user_change_password` сначала вызывает `super().user_change_password()` (Django сохраняет пароль), затем отдельно пишет `AuditLog.log_action`. Сбой журнала вернёт ошибку, но пароль уже сменён без записи. Код существует до 42.7 (коммит `1292b690`) и одинаково работает в `/admin/`, `/manager/` и теперь `/supervisor/`. Правка — `transaction.atomic()` вокруг вызова родителя и журнала, тест отката при падении `AuditLog.log_action` (как у R42.7-1). [`backend/apps/users/admin.py:554`]

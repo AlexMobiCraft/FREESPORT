@@ -20,6 +20,7 @@ Integration-тесты раздела руководителя `/supervisor/` и
 from __future__ import annotations
 
 import re
+from datetime import date
 from decimal import Decimal
 from typing import Any
 from unittest.mock import patch
@@ -63,9 +64,11 @@ from tests.integration.test_manager_clients_section import (  # noqa: F401 — �
 )
 from tests.integration.test_manager_orders_section import (  # noqa: F401 — фикстуры подключаются импортом
     ORDERS_URL,
+    card_payload,
     csv_rows,
     listed_ids,
     make_master,
+    order_audit,
     order_change_url,
     order_emails,
     post_order_action,
@@ -307,6 +310,26 @@ class TestWholeDepartment:
         response = post_order_action(supervisor_client, "export_orders_csv", master_a, select_across="1")
         assert response.status_code == 200
         assert len(csv_rows(response)) == 1 + 3
+
+    def test_supervisor_saves_orphan_order(self, supervisor_client, supervisor):
+        """Заказ без клиента сохраняется: `ManagerOrderForm.clean()` блокирует строку через ту же выборку (R42.7-6)."""
+        orphan = make_master(None)
+
+        response = supervisor_client.post(
+            order_change_url(orphan),
+            card_payload(supervisor_client, orphan, tracking_number="TRK-ORPHAN", delivery_date="2026-11-05"),
+        )
+
+        assert response.status_code == 302
+        orphan.refresh_from_db()
+        assert (orphan.tracking_number, orphan.delivery_date) == ("TRK-ORPHAN", date(2026, 11, 5))
+        (record,) = order_audit(orphan)
+        assert record.action == "update_order"
+        assert record.user == supervisor
+        assert record.details["changes"]["fields"] == {
+            "tracking_number": {"old": None, "new": "TRK-ORPHAN"},
+            "delivery_date": {"old": None, "new": "2026-11-05"},
+        }
 
     def test_index_counts_whole_department(self, supervisor_client, manager, other_manager):
         for owner in (manager, other_manager, None):
@@ -631,6 +654,47 @@ class TestStaffLifecycle:
         ) in message_texts(response)
 
 
+class TestStaffEmail:
+    """Email сотрудника хранится в нижнем регистре и уникален без учёта регистра."""
+
+    def submit(self, browser: Client, form: str, email: str) -> tuple[Any, User | None]:
+        if form == "create":
+            return browser.post(STAFF_ADD_URL, staff_create_payload(email=email)), None
+        member = make_staff_member(MANAGERS_GROUP)
+        data = form_payload(browser.get(staff_change_url(member)))
+        data["email"] = email
+        return browser.post(staff_change_url(member), data), member
+
+    @pytest.mark.parametrize("form", ["create", "change"])
+    def test_mixed_case_is_saved_lowercase(self, supervisor_client, form):
+        local = f"Ivan.Petrov_{get_unique_suffix()}"
+
+        response, member = self.submit(supervisor_client, form, f"{local}@FreeSportOpt.RU")
+
+        assert response.status_code == 302
+        expected = f"{local.lower()}@freesportopt.ru"
+        assert User.objects.filter(email=expected).count() == 1
+        if member is not None:
+            member.refresh_from_db()
+            assert member.email == expected
+
+    @pytest.mark.parametrize("form", ["create", "change"])
+    def test_existing_email_in_other_case_is_refused(self, supervisor_client, form):
+        # Локальную часть адреса `create_user` не приводит к нижнему регистру —
+        # клиент с таким адресом в базе бывает.
+        existing = User.objects.create_user(email=f"Ivan.Petrov_{get_unique_suffix()}@example.com", password=PASSWORD)
+
+        response, member = self.submit(supervisor_client, form, existing.email.upper())
+
+        assert response.status_code == 200
+        assert response.context["adminform"].form.errors["email"] == ["Пользователь с таким email уже существует."]
+        assert list(User.objects.filter(email__iexact=existing.email).values_list("pk", flat=True)) == [existing.pk]
+        if member is not None:
+            original = member.email
+            member.refresh_from_db()
+            assert member.email == original
+
+
 # --------------------------------------------------------------------------
 # AC7 — отказы руководителю
 # --------------------------------------------------------------------------
@@ -922,13 +986,38 @@ class TestRegions:
 # --------------------------------------------------------------------------
 
 
+# Значение правила менеджера A по типу: регион 23 или страна (R42.7-7).
+BLOCKED_RULE_VALUES = {
+    ManagerRoutingRule.MATCH_INN_REGION: "23",
+    ManagerRoutingRule.MATCH_COUNTRY: "Беларусь",
+}
+
+
+def keyed_client_fields(match_type: str) -> dict[str, Any]:
+    """Реквизиты клиента, которого назначает правило менеджера A: ИНН региона 23 или страна."""
+    if match_type == ManagerRoutingRule.MATCH_COUNTRY:
+        return {"country": BLOCKED_RULE_VALUES[match_type]}
+    return {"tax_id": region_tax_id("23")}
+
+
 @pytest.fixture
-def blocked_setup(manager):
-    """Менеджер A с правилом региона 23, резерв — руководитель R; пять клиентов по правилу и один ручной."""
+def blocked_rule_type() -> str:
+    """Тип правила менеджера A; тест правила страны переопределяет его параметризацией."""
+    return ManagerRoutingRule.MATCH_INN_REGION
+
+
+@pytest.fixture
+def blocked_setup(manager, blocked_rule_type):
+    """Менеджер A с правилом региона 23 или страны, резерв — руководитель R; пять клиентов по правилу и один ручной."""
     chief = make_staff_member(SUPERVISORS_GROUP)
-    by_rule = [make_client(None, manual=False, tax_id=region_tax_id("23")) for _ in range(5)]
-    manual = make_client(manager, manual=True, tax_id=region_tax_id("23"))
-    rule("23", manager, manager_email="region23@example.com")
+    by_rule = [make_client(None, manual=False, **keyed_client_fields(blocked_rule_type)) for _ in range(5)]
+    manual = make_client(manager, manual=True, **keyed_client_fields(blocked_rule_type))
+    rule(
+        BLOCKED_RULE_VALUES[blocked_rule_type],
+        manager,
+        match_type=blocked_rule_type,
+        manager_email="region23@example.com",
+    )
     rule("default", chief, match_type="fallback", manager_email="fallback@example.com")
     return chief, by_rule, manual
 
@@ -937,17 +1026,20 @@ def responsible_ids(clients: list[User]) -> set[int | None]:
     return set(User.objects.filter(pk__in=[c.pk for c in clients]).values_list("responsible_manager", flat=True))
 
 
-def new_region_client() -> User:
+def new_region_client(match_type: str = ManagerRoutingRule.MATCH_INN_REGION) -> User:
     return User.objects.create_user(
         email=f"new_{get_unique_suffix()}@example.com",
         password=PASSWORD,
         role="wholesale_level1",
-        tax_id=region_tax_id("23"),
+        **keyed_client_fields(match_type),
     )
 
 
 class TestBlockedManagerInRules:
-    def test_block_and_unblock_in_section(self, supervisor_client, manager, blocked_setup):
+    @pytest.mark.parametrize(
+        "blocked_rule_type", [ManagerRoutingRule.MATCH_INN_REGION, ManagerRoutingRule.MATCH_COUNTRY]
+    )
+    def test_block_and_unblock_in_section(self, supervisor_client, manager, blocked_setup, blocked_rule_type):
         chief, by_rule, manual = blocked_setup
         assert responsible_ids(by_rule) == {manager.pk}
 
@@ -956,18 +1048,20 @@ class TestBlockedManagerInRules:
         assert responsible_ids(by_rule) == {chief.pk}
         assert responsible_ids([manual]) == {manager.pk}
         assert (
-            f"У {manager.email} остались 1 клиентов с ручным назначением и правила регионов: 23 — "
+            f"У {manager.email} остались 1 клиентов с ручным назначением и правила регионов: "
+            f"{BLOCKED_RULE_VALUES[blocked_rule_type]} — "
             "назначьте клиентам другого менеджера в карточке и замените менеджера в таблице регионов"
         ) in message_texts(response)
-        newcomer = new_region_client()
+        newcomer = new_region_client(blocked_rule_type)
         assert newcomer.responsible_manager == chief
-        assert resolve_manager_recipients("Россия", newcomer.tax_id) == [chief.email]
+        assert resolve_manager_recipients(newcomer.country, newcomer.tax_id) == [chief.email]
 
         post_staff_action(supervisor_client, "unblock_staff", manager)
 
         assert responsible_ids([*by_rule, newcomer]) == {manager.pk}
-        assert new_region_client().responsible_manager == manager
-        assert resolve_manager_recipients("Россия", newcomer.tax_id) == [manager.email]
+        assert responsible_ids([manual]) == {manager.pk}
+        assert new_region_client(blocked_rule_type).responsible_manager == manager
+        assert resolve_manager_recipients(newcomer.country, newcomer.tax_id) == [manager.email]
 
     @pytest.mark.parametrize("block_with", ["action", "card"])
     def test_superuser_in_admin(self, manager, blocked_setup, block_with):
