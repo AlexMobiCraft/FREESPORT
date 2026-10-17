@@ -26,7 +26,8 @@ def resolve_manager_recipients(country: str | None, tax_id: str | None) -> list[
       1. ``country`` не Россия → правило по стране (ИНН игнорируется).
       2. Иначе первые 2 цифры ``tax_id`` → правило по коду субъекта РФ.
       3. Ничего не найдено (неизвестный код, пустой/короткий ИНН, зарубеж без
-         правила) → резервные адреса (``fallback``).
+         правила, правило заблокированного менеджера) → резервные адреса
+         (``fallback``).
 
     Args:
         country: Страна регистрации (например, "Россия", "Беларусь").
@@ -59,10 +60,17 @@ def resolve_manager_recipients(country: str | None, tax_id: str | None) -> list[
 
 
 def _rule_emails(rules: QuerySet[ManagerRoutingRule]) -> list[str]:
-    """Адрес правила: email учётной записи менеджера, иначе ``manager_email``."""
+    """
+    Адрес правила: email учётной записи менеджера, иначе ``manager_email``.
+
+    Правило заблокированного менеджера адреса не даёт (стори 42.7, решение 17):
+    ни его email, ни ``manager_email`` — письмо уходит по резерву.
+    """
     emails: list[str] = []
     for rule in rules:
         manager = rule.manager
+        if manager is not None and not manager.is_active:
+            continue
         email = manager.email if manager is not None and manager.email else rule.manager_email
         if email:
             emails.append(str(email))

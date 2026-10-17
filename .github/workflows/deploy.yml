@@ -568,6 +568,17 @@ jobs:
               ;;
           esac
 
+          # Раздел руководителя /supervisor/ (стори 42.7) — та же проверка своего раздела.
+          HAS_SECTION=0
+          bash scripts/deploy/release-has-manager-route.sh "$RELEASE" supervisor || HAS_SECTION=$?
+          case "$HAS_SECTION" in
+            1) echo "ℹ️ Релиз $RELEASE раньше раздела /supervisor/ — проверка маршрута пропущена" ;;
+            *)
+              [ "$HAS_SECTION" = 0 ] || echo "::warning::Коммит релиза $RELEASE не найден — /supervisor/ проверяется как обязательный"
+              bash scripts/deploy/check-manager-route.sh "$PRODUCTION_URL" supervisor || exit 1
+              ;;
+          esac
+
           echo "✅ Все проверки пройдены успешно!"
 
       - name: Notify production deployment

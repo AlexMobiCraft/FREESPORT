@@ -9,5 +9,6 @@ class BonusesConfig(AppConfig):
     verbose_name = "Бонусная программа"
 
     def ready(self) -> None:
-        """Подключение сигналов при инициализации приложения."""
+        """Подключение сигналов и регистрация на сайте /supervisor/."""
         import apps.bonuses.signals  # noqa: F401
+        import apps.bonuses.supervisor_admin  # noqa: F401

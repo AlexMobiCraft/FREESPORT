@@ -282,14 +282,14 @@ def manager_client(client, manager):
     return client
 
 
-@pytest.fixture(params=[MANAGERS_GROUP, SUPERVISORS_GROUP], ids=["manager", "supervisor"])
+@pytest.fixture(params=[MANAGERS_GROUP], ids=["manager"])
 def section_member(request) -> User:
     """
-    Сотрудник каждой группы, которую пускает раздел.
+    Менеджер раздела для негативных проверок видимости «только свои».
 
-    Руководитель в 42.4 видит только своих клиентов (решение 3). Негативные
-    проверки видимости идут от обеих групп: если `scope_clients` откроет
-    руководителю весь queryset раньше 42.7, упадёт вариант `supervisor`.
+    До 42.7 здесь был и вариант `supervisor`: руководитель видел только своих.
+    Стори 42.7 открыла руководителю всех клиентов и заказы, его видимость
+    проверяет `tests/integration/test_supervisor_section.py`.
     """
     return make_staff_member(request.param)
 

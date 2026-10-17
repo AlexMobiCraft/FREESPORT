@@ -34,6 +34,11 @@ URLS_BEFORE_SECTION = 'urlpatterns = [\n    path("admin/", admin.site.urls),\n]\
 URLS_MANAGER_ONLY = (
     'urlpatterns = [\n    path("admin/", admin.site.urls),\n    path("manager/", manager_site.urls),\n]\n'
 )
+# Релиз после 42.6 и до 42.7: разделы менеджера и маркетинга есть, раздела руководителя нет.
+URLS_BEFORE_SUPERVISOR = (
+    'urlpatterns = [\n    path("admin/", admin.site.urls),\n    path("manager/", manager_site.urls),\n'
+    '    path("marketing/", marketing_site.urls),\n]\n'
+)
 
 
 def git(repo: Path, *args: str) -> str:
@@ -64,6 +69,14 @@ def history(tmp_path: Path) -> tuple[Path, str, str]:
     before = commit_urls(tmp_path, URLS_BEFORE_SECTION)
     current = commit_urls(tmp_path, URLS.read_text(encoding="utf-8"))
     return tmp_path, before, current
+
+
+@pytest.fixture
+def before_supervisor_release(history: tuple[Path, str, str]) -> tuple[Path, str]:
+    """Тот же репозиторий плюс коммит релиза с разделами менеджера и маркетинга, до 42.7."""
+    repo, _, _ = history
+    git(repo, "checkout", "-q", "-b", "before-supervisor", "HEAD~1")
+    return repo, commit_urls(repo, URLS_BEFORE_SUPERVISOR)
 
 
 @pytest.fixture
@@ -150,6 +163,24 @@ def test_release_before_marketing_is_not_checked(manager_only_release):
     assert run_script(repo, release, "marketing").returncode == 1
     assert run_script(repo, release).returncode == 0
     assert run_script(repo, release, "manager").returncode == 0
+
+
+def test_current_release_has_supervisor_section(history):
+    """Стори 42.7: настоящий urls.py проекта содержит раздел руководителя."""
+    repo, _, current = history
+
+    result = run_script(repo, current, "supervisor")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_release_before_supervisor_is_not_checked(before_supervisor_release):
+    """Релиз с /manager/ и /marketing/, но до 42.7: /supervisor/ не проверяется, остальные — проверяются."""
+    repo, release = before_supervisor_release
+
+    assert run_script(repo, release, "supervisor").returncode == 1
+    assert run_script(repo, release).returncode == 0
+    assert run_script(repo, release, "marketing").returncode == 0
 
 
 def test_release_before_any_section_has_no_marketing(history):

@@ -52,3 +52,4 @@ class CommonConfig(AppConfig):
 
     def ready(self) -> None:
         import apps.common.marketing_admin  # noqa: F401 — регистрация на сайте /marketing/
+        import apps.common.supervisor_admin  # noqa: F401 — регистрация на сайте /supervisor/

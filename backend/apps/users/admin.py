@@ -39,7 +39,7 @@ from apps.users.services.verify_b2b_application import (
     verification_mode,
     verify_b2b_application,
 )
-from apps.users.staff_roles import staff_accounts_q
+from apps.users.staff_roles import limit_manager_field, staff_accounts_q
 
 from .models import Address, Company, Favorite, User, matches_q
 
@@ -508,6 +508,18 @@ class UserAdmin(BaseUserAdmin):
             if fields:
                 result.append((name, {**options, "fields": tuple(fields)}))
         return tuple(result)
+
+    def get_form(  # type: ignore[override]
+        self, request: HttpRequest, obj: User | None = None, change: bool = False, **kwargs: Any
+    ) -> Any:
+        form = super().get_form(request, obj, change=change, **kwargs)  # type: ignore[arg-type]
+        # Ответственным выбирается только активный менеджер или руководитель;
+        # текущий бывший менеджер виден выбранным, но сохранить его нельзя
+        # (стори 42.7). У карточки раздела менеджера поля нет.
+        field = form.base_fields.get("responsible_manager")
+        if field is not None:
+            limit_manager_field(field, obj.responsible_manager_id if obj is not None else None)
+        return form
 
     def has_change_permission(self, request: HttpRequest, obj: User | None = None) -> bool:  # type: ignore[override]
         # Суперпользователя меняет (в т. ч. его пароль и заявку B2B) только
