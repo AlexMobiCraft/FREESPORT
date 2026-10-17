@@ -48,6 +48,14 @@ description: GitNexus CLI — анализ кода перед правками 
   пересобирает только поисковые индексы.
 - **`Target ... not found` для метода, который есть в коде** — индекс собран без `--force`
   (первый пункт «Границ графа»).
+- **`LOAD fts failed ... IO exception: Failed to load library ... Не найден указанный модуль`
+  при живом файле `libfts.lbug_extension`** — расширению не хватает OpenSSL 3
+  (`libcrypto-3-x64.dll`, `libssl-3-x64.dll`): в `System32` их нет, а LadybugDB ищет зависимости
+  в каталоге самого расширения. Лечится копированием обоих DLL из `C:\Program Files\Git\mingw64\bin`
+  (или `PostgreSQL 1C\18\bin`) в `%USERPROFILE%\.lbdb\extension\<версия>\win_amd64\fts\`, затем
+  `npx gitnexus analyze --repair-fts`. Проверено 17.10.2026: после копирования `doctor` показывает
+  `Full-text search: available`. При обновлении LadybugDB расширение скачивается в новый каталог —
+  DLL придётся положить заново.
 
 ## Обязательно
 
