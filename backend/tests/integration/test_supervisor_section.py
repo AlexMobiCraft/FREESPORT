@@ -22,11 +22,15 @@ from __future__ import annotations
 import re
 from decimal import Decimal
 from typing import Any
+from unittest.mock import patch
 
 import pytest
+from django.contrib import admin
 from django.contrib.auth.models import Group, Permission
+from django.contrib.messages.storage.cookie import CookieStorage
 from django.db import connection
-from django.test import Client
+from django.http import HttpRequest
+from django.test import Client, RequestFactory
 from django.test.utils import CaptureQueriesContext
 
 from apps.bonuses.models import BonusProgramSettings, BonusTransaction
@@ -38,6 +42,7 @@ from apps.users.models import User
 from apps.users.services.region_routing import resolve_manager_recipients
 from apps.users.services.responsible_manager import reassign_clients_for_key
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
+from freesport.admin_site import supervisor_site
 from tests.integration.test_manager_clients_section import (  # noqa: F401 — фикстуры подключаются импортом
     NEW_PASSWORD,
     PASSWORD,
@@ -141,6 +146,23 @@ def choice_pks(form, name: str) -> list[int]:
 def post_staff_action(browser: Client, action: str, *targets: User, follow: bool = True):
     payload = {"action": action, "_selected_action": [str(target.pk) for target in targets]}
     return browser.post(STAFF_URL, payload, follow=follow)
+
+
+def action_request(author: User) -> HttpRequest:
+    """
+    Запрос действия списка для прямого вызова метода админки.
+
+    Через тестовый клиент сбой отката не показал бы: `ATOMIC_REQUESTS` включён
+    только в `settings/test.py`, на проде действия списка идут в autocommit.
+    """
+    request = RequestFactory().post("/")
+    request.user = author
+    request._messages = CookieStorage(request)  # type: ignore[attr-defined]
+    return request
+
+
+def failing_journal():
+    return patch.object(AuditLog, "log_action", side_effect=RuntimeError("журнал недоступен"))
 
 
 def rule(match_value: str, manager: User | None = None, **extra: Any) -> ManagerRoutingRule:
@@ -662,6 +684,19 @@ class TestRefusals:
         assert User.objects.filter(pk=target.pk).values().get() == before
         assert not AuditLog.objects.filter(resource_type="User", resource_id=str(target.pk)).exists()
 
+    # «self» нет: заблокированный руководитель в раздел не войдёт.
+    @pytest.mark.parametrize("kind", ["other-supervisor", "direct-permission", "foreign-group"])
+    def test_unblock_unmanageable_staff_is_refused(self, supervisor_client, supervisor, kind):
+        target = unmanageable(kind, supervisor)
+        target.is_active = False
+        target.save(update_fields=["is_active", "updated_at"])
+
+        response = post_staff_action(supervisor_client, "unblock_staff", target)
+
+        assert SKIPPED_MESSAGE in message_texts(response)
+        assert User.objects.get(pk=target.pk).is_active is False
+        assert not AuditLog.objects.filter(resource_type="User", resource_id=str(target.pk)).exists()
+
     def test_forged_privileges_are_ignored(self, supervisor_client, manager, other_manager):
         foreign_group = Group.objects.create(name=f"Склад {get_unique_suffix()}")
         response = supervisor_client.get(staff_change_url(other_manager))
@@ -845,6 +880,20 @@ class TestRegions:
         assert deleted[0].changes["fields"]["manager_id"] == {"old": manager.pk, "new": None}
         assert not ManagerRoutingRule.objects.filter(pk__in=[second.pk, third.pk]).exists()
 
+    def test_failed_journal_rolls_back_delete_selected(self, supervisor, manager):
+        """«Удалить выбранные» — удаление, пересчёт клиентов и журнал одной транзакцией (R42.7-1)."""
+        # Клиент — до правила: make_client ставит ответственного update() после создания.
+        customer = make_client(None, manual=False, tax_id=region_tax_id("23"))
+        target = rule("23", manager)
+        assert responsible_ids([customer]) == {manager.pk}
+        model_admin = supervisor_site._registry[ManagerRoutingRule]
+
+        with failing_journal(), pytest.raises(RuntimeError):
+            model_admin.delete_queryset(action_request(supervisor), ManagerRoutingRule.objects.filter(pk=target.pk))
+
+        assert ManagerRoutingRule.objects.filter(pk=target.pk).exists()
+        assert responsible_ids([customer]) == {manager.pk}
+
     def test_fallback_needs_supervisor(self, supervisor_client, supervisor, manager):
         payload = rule_payload(match_type="fallback", match_value="default", manager=manager.pk)
 
@@ -941,6 +990,40 @@ class TestBlockedManagerInRules:
         data["is_active"] = "on"
         assert browser.post(card_url, data).status_code == 302
         assert responsible_ids(by_rule) == {manager.pk}
+
+    @pytest.mark.parametrize(
+        "site, action",
+        [(supervisor_site, "block_staff"), (supervisor_site, "unblock_staff"), (admin.site, "block_users")],
+        ids=["block_staff", "unblock_staff", "block_users"],
+    )
+    def test_failed_journal_rolls_back_block(self, supervisor, manager, blocked_setup, site, action):
+        """Блокировка, пересчёт клиентов сигналом и журнал — одной транзакцией (R42.7-1)."""
+        chief, by_rule, _ = blocked_setup
+        was_active = not action.startswith("unblock")
+        if not was_active:
+            manager.is_active = False
+            manager.save(update_fields=["is_active", "updated_at"])
+        owner = {chief.pk} if not was_active else {manager.pk}
+        assert responsible_ids(by_rule) == owner
+        author = supervisor
+        if site is admin.site:
+            author = User.objects.create_superuser(email=f"su_{get_unique_suffix()}@example.com", password=PASSWORD)
+
+        with failing_journal(), pytest.raises(RuntimeError):
+            getattr(site._registry[User], action)(action_request(author), User.objects.filter(pk=manager.pk))
+
+        assert User.objects.get(pk=manager.pk).is_active is was_active
+        assert responsible_ids(by_rule) == owner
+
+    def test_failed_journal_rolls_back_unblock_users(self, manager):
+        """Разблокировка клиента в `/admin/` — тоже одной транзакцией с журналом (R42.7-1)."""
+        customer = make_client(manager, is_active=False)
+        author = User.objects.create_superuser(email=f"su_{get_unique_suffix()}@example.com", password=PASSWORD)
+
+        with failing_journal(), pytest.raises(RuntimeError):
+            admin.site._registry[User].unblock_users(action_request(author), User.objects.filter(pk=customer.pk))
+
+        assert User.objects.get(pk=customer.pk).is_active is False
 
     def test_fallback_change_reaches_clients_of_blocked_manager(self, manager, blocked_setup):
         """Регион заблокированного не считается покрытым: смена резерва уводит и его клиентов."""

@@ -427,6 +427,16 @@ class TestNoFallback:
         with pytest.raises(CommandError, match=NO_FALLBACK):
             run()
 
+    def test_blocked_fallback_supervisor_is_named(self, managers):
+        """Правило активно, но руководитель заблокирован — сообщение называет причину (стори 42.7)."""
+        chief = managers["fallback"]
+        rule(FALLBACK, "default", chief)
+        chief.is_active = False
+        chief.save(update_fields=["is_active", "updated_at"])
+
+        with pytest.raises(CommandError, match=f"{NO_FALLBACK} или руководитель резервного правила заблокирован"):
+            run()
+
     def test_dry_run_reports_and_warns(self, without_fallback, managers):
         report, err = run("--dry-run")
 

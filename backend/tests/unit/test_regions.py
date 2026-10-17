@@ -3,7 +3,8 @@ Unit-тесты справочника регионов (стори 42.3).
 
 Покрывает:
 - REGION_NAMES и region_name — названия кодов, коды вне справочника (AC1);
-- unassigned_regions — коды без активного правила inn_region с менеджером (AC2).
+- unassigned_regions — коды без активного правила inn_region с активным менеджером
+  (AC2; заблокированный менеджер — стори 42.7, решение 17).
 """
 
 from __future__ import annotations
@@ -108,6 +109,13 @@ class TestUnassignedRegions:
     def test_inactive_rule_not_covering(self, manager):
         rule(INN_REGION, "25", manager, active=False)
         assert "25" in [region.code for region in unassigned_regions()]
+
+    def test_rule_with_blocked_manager_not_covering(self, manager):
+        """Клиенты региона заблокированного менеджера уходят на резерв (стори 42.7, решение 17)."""
+        rule(INN_REGION, "26", manager)
+        manager.is_active = False
+        manager.save(update_fields=["is_active", "updated_at"])
+        assert "26" in [region.code for region in unassigned_regions()]
 
     def test_country_and_fallback_rules_ignored(self, manager):
         rule(COUNTRY, "Беларусь", manager)

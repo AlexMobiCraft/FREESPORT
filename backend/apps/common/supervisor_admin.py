@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
+from django.db import transaction
 from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest
@@ -83,10 +84,13 @@ class SupervisorRoutingRuleAdmin(ManagerRoutingRuleAdmin):
 
     def delete_queryset(self, request: HttpRequest, queryset: QuerySet[ManagerRoutingRule]) -> None:
         # «Удалить выбранные» — одна запись журнала на правило, как у карточки.
-        rules = [(rule.pk, str(rule), _rule_state(rule)) for rule in queryset.select_related("manager")]
-        super().delete_queryset(request, queryset)
-        for rule_id, rule, state in rules:
-            self._log(request, rule_id, "delete", rule, _changed_fields(state, None))
+        # Действие Django в транзакцию не оборачивает (карточку — оборачивает):
+        # удаление, пересчёт клиентов сигналом и журнал — одной транзакцией.
+        with transaction.atomic():
+            rules = [(rule.pk, str(rule), _rule_state(rule)) for rule in queryset.select_related("manager")]
+            super().delete_queryset(request, queryset)
+            for rule_id, rule, state in rules:
+                self._log(request, rule_id, "delete", rule, _changed_fields(state, None))
 
 
 class SupervisorNotificationRecipientAdmin(NotificationRecipientAdmin):

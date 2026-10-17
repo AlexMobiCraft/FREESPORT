@@ -25,6 +25,7 @@ from django.contrib import admin
 from django.contrib.admin.options import IncorrectLookupParameters
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django.contrib.auth.models import Group
+from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q, QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
@@ -360,9 +361,12 @@ class SupervisorStaffAdmin(UserAdmin):
         for user in self._split_manageable(request, queryset).filter(is_active=True):
             groups = ", ".join(role_group_names(user))
             # Сигнал User переводит клиентов его правил на резерв (решение 17).
-            user.is_active = False
-            user.save(update_fields=["is_active", "updated_at"])
-            self._log(request, "block_staff", user, {"group": groups})
+            # Действия списка Django в транзакцию не оборачивает: блокировка,
+            # пересчёт и журнал — одной транзакцией на сотрудника (R42.7-1).
+            with transaction.atomic():
+                user.is_active = False
+                user.save(update_fields=["is_active", "updated_at"])
+                self._log(request, "block_staff", user, {"group": groups})
             count += 1
             warning = self._remaining_warning(user)
             if warning:
@@ -375,10 +379,12 @@ class SupervisorStaffAdmin(UserAdmin):
         count = 0
         for user in self._split_manageable(request, queryset).filter(is_active=False):
             groups = ", ".join(role_group_names(user))
-            # Клиенты его правил возвращаются к нему (решение 17).
-            user.is_active = True
-            user.save(update_fields=["is_active", "updated_at"])
-            self._log(request, "unblock_staff", user, {"group": groups})
+            # Клиенты его правил возвращаются к нему (решение 17), одной
+            # транзакцией с журналом, как в block_staff.
+            with transaction.atomic():
+                user.is_active = True
+                user.save(update_fields=["is_active", "updated_at"])
+                self._log(request, "unblock_staff", user, {"group": groups})
             count += 1
         if count:
             self.message_user(request, f"Разблокировано сотрудников: {count}", level="success")

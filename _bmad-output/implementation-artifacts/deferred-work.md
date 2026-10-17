@@ -1093,3 +1093,7 @@
 ## Deferred from: code review of 42-6-marketing-section.md (2026-10-16, круг 3 на a564552)
 
 - **R42.6-D1, low: незакрытый `<style>`/`<script>` в rich-HTML оставляет содержимое видимым текстом.** blind-hunter + edge-case-hunter: `_STRIP_BLOCKS_RE` требует закрывающий тег, bleach с `strip=True` вырезает теги и оставляет текст (`<style>body{display:none}` → CSS виден на странице). Поведение было до 42.6 (то же выражение в `Page.save` на `develop`), стори его только перенесла. Правка — `(?:</\1…>|$)` в закрывающей части. [`backend/apps/common/utils/html_sanitizer.py:21`]
+
+## Deferred from: code review of 42-7-supervisor-section-staff-regions-reassignment.md (2026-10-17, на 0efcfca)
+
+- **R42.7-D1, low: новый цикл импорта в графе GitNexus.** graph-impact: `npx gitnexus check --cycles` показывает `backend/apps/users/models.py -> backend/apps/users/staff_roles.py -> backend/apps/users/models.py` вдобавок к базовому `HomePage.tsx → index.ts → HomePage.tsx`. Причина — `if TYPE_CHECKING: from apps.users.models import User` в `staff_roles.py`; в рантайме цикла нет. Правка — обновить базовую линию в `.windsurf/rules/gitnexus.md` (раздел «Обязательно», правило 3) или отказаться от импорта под `TYPE_CHECKING`. Иначе каждый следующий pre-commit/ревью примет цикл за новый. [`backend/apps/users/staff_roles.py:24`]
