@@ -5,7 +5,9 @@
 так же, как для письма о регистрации (``region_routing``): страна, если она
 не Россия, иначе первые две цифры ИНН. Ответственного даёт активное правило
 этого ключа с выбранным ``manager``, иначе — резервное правило с
-``manager``. Правило без учётной записи ответственного не даёт.
+``manager``. Правило без учётной записи ответственного не даёт, правило с
+заблокированным менеджером — тоже (стори 42.7, решение 17): его клиенты
+уходят на резерв и возвращаются после разблокировки.
 
 Ручное назначение (``responsible_manager_manual``) и учётные записи
 сотрудников автоматика не трогает.
@@ -60,9 +62,9 @@ def region_key(country: str | None, tax_id: str | None) -> RegionKey | None:
 
 def resolve_responsible_for_key(key: RegionKey | None) -> ResponsibleResolution:
     """Ответственный для ключа региона; ``None`` — ключа нет, сразу резерв."""
-    active_with_manager = ManagerRoutingRule.objects.filter(is_active=True, manager__isnull=False).select_related(
-        "manager"
-    )
+    active_with_manager = ManagerRoutingRule.objects.filter(
+        is_active=True, manager__isnull=False, manager__is_active=True
+    ).select_related("manager")
     if key is not None:
         rule = active_with_manager.filter(match_type=key[0], match_value=key[1]).first()
         if rule is not None:
@@ -109,7 +111,7 @@ def reassign_clients_for_key(key: RegionKey | None) -> int:
     Пересчитать ответственного у клиентов ключа одним ``UPDATE``.
 
     ``key=None`` — резерв: клиенты, чей ключ не покрыт активным правилом с
-    ``manager``. Возвращает число клиентов, у которых ответственный сменился.
+    активным ``manager``. Возвращает число клиентов, у которых ответственный сменился.
     """
     target = resolve_responsible_for_key(key).manager
     clients = User.objects.filter(responsible_manager_manual=False).exclude(staff_accounts_q())
@@ -121,6 +123,7 @@ def reassign_clients_for_key(key: RegionKey | None) -> int:
         covered = ManagerRoutingRule.objects.filter(
             is_active=True,
             manager__isnull=False,
+            manager__is_active=True,
             match_type__in=[ManagerRoutingRule.MATCH_INN_REGION, ManagerRoutingRule.MATCH_COUNTRY],
         ).values_list("match_type", "match_value")
         for match_type, match_value in covered:

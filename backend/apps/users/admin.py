@@ -12,6 +12,7 @@ from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import BooleanField, Exists, ExpressionWrapper, OuterRef, Q, QuerySet
 from django.db.models.functions import Lower, Trim
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
@@ -39,7 +40,7 @@ from apps.users.services.verify_b2b_application import (
     verification_mode,
     verify_b2b_application,
 )
-from apps.users.staff_roles import staff_accounts_q
+from apps.users.staff_roles import limit_manager_field, staff_accounts_q
 
 from .models import Address, Company, Favorite, User, matches_q
 
@@ -508,6 +509,18 @@ class UserAdmin(BaseUserAdmin):
             if fields:
                 result.append((name, {**options, "fields": tuple(fields)}))
         return tuple(result)
+
+    def get_form(  # type: ignore[override]
+        self, request: HttpRequest, obj: User | None = None, change: bool = False, **kwargs: Any
+    ) -> Any:
+        form = super().get_form(request, obj, change=change, **kwargs)  # type: ignore[arg-type]
+        # Ответственным выбирается только активный менеджер или руководитель;
+        # текущий бывший менеджер виден выбранным, но сохранить его нельзя
+        # (стори 42.7). У карточки раздела менеджера поля нет.
+        field = form.base_fields.get("responsible_manager")
+        if field is not None:
+            limit_manager_field(field, obj.responsible_manager_id if obj is not None else None)
+        return form
 
     def has_change_permission(self, request: HttpRequest, obj: User | None = None) -> bool:  # type: ignore[override]
         # Суперпользователя меняет (в т. ч. его пароль и заявку B2B) только
@@ -1235,23 +1248,27 @@ class UserAdmin(BaseUserAdmin):
             if user.is_superuser:
                 continue  # Дополнительная защита
 
-            user.is_active = False
-            user.save(update_fields=["is_active", "updated_at"])
+            # Блокировка сотрудника пересчитывает клиентов его правил сигналом
+            # (стори 42.7, решение 17); действие списка Django в транзакцию не
+            # оборачивает — сохранение, пересчёт и журнал одной транзакцией.
+            with transaction.atomic():
+                user.is_active = False
+                user.save(update_fields=["is_active", "updated_at"])
 
-            # AuditLog запись
-            AuditLog.log_action(
-                user=request.user,
-                action="block_user",
-                resource_type="User",
-                resource_id=user.id,
-                changes={
-                    "email": str(user.email or ""),
-                    "role": user.role,
-                    "blocked": True,
-                },
-                ip_address=self._get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            )
+                # AuditLog запись
+                AuditLog.log_action(
+                    user=request.user,
+                    action="block_user",
+                    resource_type="User",
+                    resource_id=user.id,
+                    changes={
+                        "email": str(user.email or ""),
+                        "role": user.role,
+                        "blocked": True,
+                    },
+                    ip_address=self._get_client_ip(request),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
             count += 1
 
         self.message_user(request, f"Заблокировано {count} пользователей", level="success")
@@ -1308,22 +1325,24 @@ class UserAdmin(BaseUserAdmin):
 
         count = 0
         for user in candidates.exclude(locked_q):
-            user.is_active = True
-            user.save(update_fields=["is_active", "updated_at"])
+            # Сохранение и журнал — одной транзакцией, как в block_users.
+            with transaction.atomic():
+                user.is_active = True
+                user.save(update_fields=["is_active", "updated_at"])
 
-            AuditLog.log_action(
-                user=request.user,
-                action="unblock_user",
-                resource_type="User",
-                resource_id=user.id,
-                changes={
-                    "email": str(user.email or ""),
-                    "role": user.role,
-                    "blocked": False,
-                },
-                ip_address=self._get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            )
+                AuditLog.log_action(
+                    user=request.user,
+                    action="unblock_user",
+                    resource_type="User",
+                    resource_id=user.id,
+                    changes={
+                        "email": str(user.email or ""),
+                        "role": user.role,
+                        "blocked": False,
+                    },
+                    ip_address=self._get_client_ip(request),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
             count += 1
 
         if count:

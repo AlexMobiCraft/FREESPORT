@@ -1,0 +1,23 @@
+{% extends "admin/index.html" %}
+{% comment %}
+  Главная раздела руководителя (стори 42.7). Список моделей — как на главной
+  /admin/; боковой блок «Последние действия» убран, как в разделах менеджера
+  и маркетинга: его ссылки строит LogEntry.get_admin_url() через
+  reverse("admin:…") и уводит в закрытую /admin/. Над списком моделей — ссылки
+  на разделы менеджера и маркетинга: руководитель входит в оба.
+{% endcomment %}
+{% block content %}
+<div class="module" id="supervisor-sections">
+  <table>
+    <caption>Разделы</caption>
+    {% for section in supervisor_sections %}
+    <tr>
+      <th scope="row"><a href="{{ section.url }}">{{ section.name }}</a></th>
+      <td></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{{ block.super }}
+{% endblock %}
+{% block sidebar %}{% endblock %}

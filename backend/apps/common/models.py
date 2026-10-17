@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
@@ -13,7 +14,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.common.utils.html_sanitizer import sanitize_rich_html
-from apps.users.staff_roles import RESPONSIBLE_MANAGER_CHOICES
+from apps.users.staff_roles import RESPONSIBLE_MANAGER_CHOICES, SUPERVISORS_GROUP
 
 if TYPE_CHECKING:
     pass  # Используется для type hints
@@ -1163,6 +1164,34 @@ class ManagerRoutingRule(TimeStampedModel):
         manager = self.manager if self.manager_id else None
         recipient = manager.email if manager is not None and manager.email else self.manager_email
         return f"{self.get_match_type_display()}:{self.match_value or '—'} → {recipient}"
+
+    def clean_fields(self, exclude=None):
+        """
+        Резервное правило назначает клиентов только руководителю (стори 42.7).
+
+        Проверка здесь, а не в ``clean()``: ``clean_fields`` знает исключённые
+        поля. Строка ``list_editable`` правит только ``manager_email`` и
+        ``is_active``, и ошибка поля ``manager`` из ``clean()`` уронила бы её
+        ``ValueError`` формы, у которой этого поля нет. Поле, не прошедшее
+        проверку формы, тоже исключено — его ошибка уже показана.
+        """
+        errors: dict[str, Any] = {}
+        try:
+            super().clean_fields(exclude=exclude)
+        except ValidationError as error:
+            errors = error.update_error_dict(errors)
+        if (
+            "manager" not in (exclude or ())
+            and "manager" not in errors
+            and self.match_type == self.MATCH_FALLBACK
+            and self.manager_id is not None
+            and not Group.objects.filter(name=SUPERVISORS_GROUP, user=self.manager_id).exists()
+        ):
+            errors["manager"] = [
+                "Резервное правило назначает клиентов руководителю — выберите сотрудника из группы «Руководители»."
+            ]
+        if errors:
+            raise ValidationError(errors)
 
     def clean(self):
         """Нормализация значений и проверка ключа правила."""

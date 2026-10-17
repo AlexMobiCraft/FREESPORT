@@ -12,5 +12,6 @@ class UsersConfig(AppConfig):
 
         import apps.users.manager_admin  # noqa: F401 — регистрация на сайте /manager/
         import apps.users.signals  # noqa
+        import apps.users.supervisor_admin  # noqa: F401 — регистрация на сайте /supervisor/
 
         AuthConfig.verbose_name = "Группы пользователей"

@@ -16,14 +16,17 @@ logger = logging.getLogger(__name__)
 @receiver(pre_save, sender=User)
 def store_previous_verification_status(sender, instance, **kwargs):
     """
-    Сохраняем предыдущий статус верификации перед сохранением модели.
-    Это необходимо для определения изменения статуса в post_save.
+    Сохраняем предыдущие статус верификации и активность перед сохранением модели.
+    Это необходимо для определения их изменения в post_save: письмо о
+    верификации и пересчёт клиентов при блокировке менеджера (стори 42.7).
+    Старая запись читается одним запросом на оба признака.
     """
     if instance.pk:
         try:
             old_instance = User.objects.get(pk=instance.pk)
             instance._old_verification_status = old_instance.verification_status
             instance._old_is_verified = old_instance.is_verified
+            instance._old_is_active = old_instance.is_active
         except User.DoesNotExist:
             pass
 
@@ -58,6 +61,34 @@ def _rule_state(rule: ManagerRoutingRule) -> dict:
 
 def _reassign_affected(old: dict | None, new: dict | None) -> None:
     for key in affected_keys(old, new):
+        reassign_clients_for_key(key)
+
+
+@receiver(post_save, sender=User)
+def reassign_clients_after_manager_activity_change(sender, instance, created, **kwargs):
+    """
+    Блокировка и разблокировка менеджера пересчитывают клиентов его правил (стори 42.7).
+
+    Правило заблокированного менеджера ответственного не даёт: клиенты его
+    ключей без ручного назначения уходят на резерв, после разблокировки —
+    возвращаются. Пересчёт в той же транзакции, что и сохранение.
+
+    Срабатывает только через ``save()`` — так блокируют все три пути: действие
+    раздела руководителя, ``UserAdmin.block_users`` и флажок «Активен» в
+    ``/admin/``. ``QuerySet.update(is_active=…)`` пересчёт обойдёт. Без смены
+    ``is_active`` запросов нет: импорт 1С сохраняет тысячи ``User``.
+    """
+    if created:
+        return
+    old_is_active = getattr(instance, "_old_is_active", None)
+    if old_is_active is None or old_is_active == instance.is_active:
+        return
+    rules = ManagerRoutingRule.objects.filter(manager=instance, is_active=True).values_list("match_type", "match_value")
+    keys = {
+        None if match_type == ManagerRoutingRule.MATCH_FALLBACK else (match_type, match_value)
+        for match_type, match_value in rules
+    }
+    for key in keys:
         reassign_clients_for_key(key)
 
 

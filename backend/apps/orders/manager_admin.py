@@ -20,7 +20,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Min, QuerySet
+from django.db.models import Count, Min, Q, QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import reverse
@@ -34,6 +34,7 @@ from apps.orders.admin import OrderAdmin
 from apps.orders.models import Order
 from apps.users.manager_admin import scope_clients
 from apps.users.models import User
+from apps.users.staff_roles import is_supervisor
 from freesport.admin_site import manager_site
 
 # Единственные поля заказа, которые меняет менеджер; остальное — из 1С и оформления.
@@ -85,10 +86,13 @@ def scope_orders(request: HttpRequest, queryset: QuerySet[Order]) -> QuerySet[Or
     Видны мастер-заказы, клиент которых виден в разделе (`scope_clients`):
     своего правила у заказов нет. Подзапрос `user__in` отсекает и заказы без
     клиента, и заказы учётных записей сотрудников. Субзаказы видны только
-    внутри карточки мастера. Снятие фильтра для руководителя и заказы без
-    клиента (стори 42.7) правятся здесь вслед за `scope_clients`.
+    внутри карточки мастера. Руководитель (стори 42.7) видит мастер-заказы
+    всех клиентов и заказы без клиента (наследие `order_export`).
     """
-    return queryset.filter(is_master=True, user__in=scope_clients(request, User.objects.all()))
+    clients = Q(user__in=scope_clients(request, User.objects.all()))
+    if is_supervisor(request):
+        clients |= Q(user__isnull=True)
+    return queryset.filter(clients, is_master=True)
 
 
 def days_ru(n: int) -> str:

@@ -145,8 +145,11 @@ def for_section(routes: dict[str, Reply], section: str | None) -> dict[str, Repl
     }
 
 
-# Раздел: None — прежний вызов без второго аргумента (/manager/), «marketing» — /marketing/.
-SECTIONS = pytest.mark.parametrize("section", [None, "marketing"], ids=["manager-default", "marketing"])
+# Раздел: None — прежний вызов без второго аргумента (/manager/), «marketing» — /marketing/,
+# «supervisor» — /supervisor/ (стори 42.7).
+SECTIONS = pytest.mark.parametrize(
+    "section", [None, "marketing", "supervisor"], ids=["manager-default", "marketing", "supervisor"]
+)
 
 
 # Базовый URL со слэшем на конце — тот же адрес (R42.4-33).
@@ -166,6 +169,16 @@ def test_marketing_checks_its_own_section():
 
     assert result.returncode != 0, result.stdout
     assert "❌ /marketing/:" in result.stdout
+
+
+def test_supervisor_checks_its_own_section():
+    """Исправные /manager/ и /marketing/ не делают проверку /supervisor/ успешной: раздела нет — 404."""
+    routes = {"/manager/": TO_LOGIN, "/manager/login/": LOGIN_OK}
+    routes.update(for_section(routes, "marketing"))
+    result = run_script(routes, section="supervisor")
+
+    assert result.returncode != 0, result.stdout
+    assert "❌ /supervisor/:" in result.stdout
 
 
 @pytest.mark.parametrize("section", ["Marketing", "../admin", "market ing", "marketing/"])

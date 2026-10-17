@@ -137,16 +137,18 @@ def region_name(code: str | None) -> str:
 
 def unassigned_regions() -> list[Region]:
     """
-    Коды справочника без активного правила ``inn_region`` с менеджером, по возрастанию.
+    Коды справочника без активного правила ``inn_region`` с активным менеджером, по возрастанию.
 
-    Правило только с ``manager_email`` ответственного не даёт: клиенты такого
-    региона уходят на резерв, поэтому регион считается нераспределённым.
+    Правило только с ``manager_email`` или с заблокированным менеджером
+    (стори 42.7, решение 17) ответственного не даёт: клиенты такого региона
+    уходят на резерв, поэтому регион считается нераспределённым.
     """
     assigned = set(
         ManagerRoutingRule.objects.filter(
             match_type=ManagerRoutingRule.MATCH_INN_REGION,
             is_active=True,
             manager__isnull=False,
+            manager__is_active=True,
         ).values_list("match_value", flat=True)
     )
     return [Region(code=code, name=name) for code, name in sorted(REGION_NAMES.items()) if code not in assigned]

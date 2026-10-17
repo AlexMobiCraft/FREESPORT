@@ -4,7 +4,7 @@ baseline_commit: e87bd533
 
 # Story 42.7: Раздел руководителя — сотрудники, регионы, переназначение
 
-Status: ready-for-dev
+Status: done
 Baseline Revision: e87bd533 (`develop` после мёрджа PR #316 — стори 42.6 `done`)
 
 ## Story
@@ -254,52 +254,52 @@ so that отдел работает без обращения к владель�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — GitNexus pre-flight** (AGENTS.md, `.windsurf/rules/gitnexus.md`)
-  - [ ] `npx gitnexus status` — при `stale` попросить Alex выполнить `! npx gitnexus analyze --force`. При подготовке стори индекс свежий на `e87bd53`, но **FTS-индексы не собраны** (`query` отвечает `"FTS indexes missing"`): попросить Alex `! npx gitnexus analyze --repair-fts`, иначе `query` бесполезен (`context`/`impact` работают и без FTS).
-  - [ ] Сверить таблицу «GitNexus: зона изменений» с текущим индексом (`impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"`). **Сообщить Alex до правок: `scope_clients` — `risk: HIGH`** (решение 3 меняет его намеренно; затронуты все пути раздела менеджера).
-  - [ ] Снять `impact` по символам решения 17 (в таблице помечены «снять в Task 0»): `resolve_responsible_for_key`, `reassign_clients_for_key`, `_rule_emails`, `store_previous_verification_status`. `resolve_responsible_for_key` зовут автоназначение в `User.save`, импорт 1С и команда пересчёта — при `HIGH`/`CRITICAL` сообщить Alex до правок.
+- [x] **Task 0 — GitNexus pre-flight** (AGENTS.md, `.windsurf/rules/gitnexus.md`)
+  - [x] `npx gitnexus status` — при `stale` попросить Alex выполнить `! npx gitnexus analyze --force`. При подготовке стори индекс свежий на `e87bd53`, но **FTS-индексы не собраны** (`query` отвечает `"FTS indexes missing"`): попросить Alex `! npx gitnexus analyze --repair-fts`, иначе `query` бесполезен (`context`/`impact` работают и без FTS).
+  - [x] Сверить таблицу «GitNexus: зона изменений» с текущим индексом (`impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"`). **Сообщить Alex до правок: `scope_clients` — `risk: HIGH`** (решение 3 меняет его намеренно; затронуты все пути раздела менеджера).
+  - [x] Снять `impact` по символам решения 17 (в таблице помечены «снять в Task 0»): `resolve_responsible_for_key`, `reassign_clients_for_key`, `_rule_emails`, `store_previous_verification_status`. `resolve_responsible_for_key` зовут автоназначение в `User.save`, импорт 1С и команда пересчёта — при `HIGH`/`CRITICAL` сообщить Alex до правок.
 
-- [ ] **Task 1 — сайт `/supervisor/` и признак руководителя** (AC1, AC12, AC13; решения 1, 2, 14)
-  - [ ] `apps/users/staff_roles.py`: `is_supervisor(request) -> bool` с кэшем `request._is_supervisor`; `responsible_manager_candidates()`, `limit_manager_field(field, current_id)` и проверка допустимости (решение 6). Импорты моделей — внутри функций, если модуль импортируется из `common/models.py` (проверить: `RESPONSIBLE_MANAGER_CHOICES` уже импортируется туда — новый импорт `User` на уровне модуля даст цикл `users.models → staff_roles → users.models`).
-  - [ ] `freesport/admin_site.py`: `SupervisorAdminSite`, `supervisor_site` (решение 1); `index` — `extra_context` со ссылками на разделы; `get_app_list` — «Сотрудники», «Регионы и уведомления» («Правила регионов», «Получатели уведомлений»), «Бонусная программа». Docstring модуля — + раздел руководителя.
-  - [ ] `freesport/urls.py`: импорт `supervisor_site`, `path("supervisor/", supervisor_site.urls)` после `marketing/` (точно этой строкой — маркер `release-has-manager-route.sh`).
-  - [ ] `backend/templates/admin/supervisor/index.html` (решение 14).
+- [x] **Task 1 — сайт `/supervisor/` и признак руководителя** (AC1, AC12, AC13; решения 1, 2, 14)
+  - [x] `apps/users/staff_roles.py`: `is_supervisor(request) -> bool` с кэшем `request._is_supervisor`; `responsible_manager_candidates()`, `limit_manager_field(field, current_id)` и проверка допустимости (решение 6). Импорты моделей — внутри функций, если модуль импортируется из `common/models.py` (проверить: `RESPONSIBLE_MANAGER_CHOICES` уже импортируется туда — новый импорт `User` на уровне модуля даст цикл `users.models → staff_roles → users.models`).
+  - [x] `freesport/admin_site.py`: `SupervisorAdminSite`, `supervisor_site` (решение 1); `index` — `extra_context` со ссылками на разделы; `get_app_list` — «Сотрудники», «Регионы и уведомления» («Правила регионов», «Получатели уведомлений»), «Бонусная программа». Docstring модуля — + раздел руководителя.
+  - [x] `freesport/urls.py`: импорт `supervisor_site`, `path("supervisor/", supervisor_site.urls)` после `marketing/` (точно этой строкой — маркер `release-has-manager-route.sh`).
+  - [x] `backend/templates/admin/supervisor/index.html` (решение 14).
 
-- [ ] **Task 2 — руководитель в разделе менеджера** (AC2–AC5; решения 3–6, 12)
-  - [ ] `apps/users/manager_admin.py`: `scope_clients` — ветка руководителя; docstring — «руководитель видит всех клиентов (42.7)».
-  - [ ] `apps/orders/manager_admin.py`: `scope_orders` — ветка руководителя с заказами без клиента; docstring.
-  - [ ] `ResponsibleManagerFilter` (решение 4) в `apps/users/manager_admin.py`; `ManagerClientAdmin.get_list_display`, `get_list_filter`, `get_list_select_related` — ветка руководителя.
-  - [ ] `ManagerClientAdmin.get_fieldsets`/`get_readonly_fields` — у руководителя `responsible_manager` и `responsible_manager_manual` правятся (решение 5); `save_model` — флаг «вручную» при смене менеджера и запись `assign_responsible_manager` (решение 12) рядом с существующей записью блокировки флагом.
-  - [ ] `apps/users/admin.py`: `UserAdmin.get_form` — `limit_manager_field` для `responsible_manager`, если поле есть в форме, и проверка допустимости (решение 6). Подкласс раздела менеджера поля не имеет — ветка не срабатывает.
+- [x] **Task 2 — руководитель в разделе менеджера** (AC2–AC5; решения 3–6, 12)
+  - [x] `apps/users/manager_admin.py`: `scope_clients` — ветка руководителя; docstring — «руководитель видит всех клиентов (42.7)».
+  - [x] `apps/orders/manager_admin.py`: `scope_orders` — ветка руководителя с заказами без клиента; docstring.
+  - [x] `ResponsibleManagerFilter` (решение 4) в `apps/users/manager_admin.py`; `ManagerClientAdmin.get_list_display`, `get_list_filter`, `get_list_select_related` — ветка руководителя.
+  - [x] `ManagerClientAdmin.get_fieldsets`/`get_readonly_fields` — у руководителя `responsible_manager` и `responsible_manager_manual` правятся (решение 5); `save_model` — флаг «вручную» при смене менеджера и запись `assign_responsible_manager` (решение 12) рядом с существующей записью блокировки флагом.
+  - [x] `apps/users/admin.py`: `UserAdmin.get_form` — `limit_manager_field` для `responsible_manager`, если поле есть в форме, и проверка допустимости (решение 6). Подкласс раздела менеджера поля не имеет — ветка не срабатывает.
 
-- [ ] **Task 3 — правила регионов** (AC5, AC9; решения 6, 7, 10, 12)
-  - [ ] `apps/common/models.py`: `ManagerRoutingRule.clean` — проверка резервного правила (решение 7).
-  - [ ] `apps/common/admin.py`: `ManagerRoutingRuleAdmin.get_form` — `limit_manager_field` для `manager` (решение 6).
-  - [ ] Новый `apps/common/supervisor_admin.py`: `SupervisorRoutingRuleAdmin` (журнал в `save_model`, `delete_model`, `delete_queryset`; состояние «до» — из БД до сохранения, как `store_previous_routing_rule_state`, или из `form.initial`), регистрация правил и `NotificationRecipientAdmin` на `supervisor_site`. Импорт в `CommonConfig.ready()` рядом с `marketing_admin`.
+- [x] **Task 3 — правила регионов** (AC5, AC9; решения 6, 7, 10, 12)
+  - [x] `apps/common/models.py`: `ManagerRoutingRule.clean` — проверка резервного правила (решение 7).
+  - [x] `apps/common/admin.py`: `ManagerRoutingRuleAdmin.get_form` — `limit_manager_field` для `manager` (решение 6).
+  - [x] Новый `apps/common/supervisor_admin.py`: `SupervisorRoutingRuleAdmin` (журнал в `save_model`, `delete_model`, `delete_queryset`; состояние «до» — из БД до сохранения, как `store_previous_routing_rule_state`, или из `form.initial`), регистрация правил и `NotificationRecipientAdmin` на `supervisor_site`. Импорт в `CommonConfig.ready()` рядом с `marketing_admin`.
 
-- [ ] **Task 3a — заблокированный менеджер в правилах** (AC10; решение 17)
-  - [ ] `apps/users/services/responsible_manager.py`: `manager__is_active=True` в `resolve_responsible_for_key` (`active_with_manager`) и в `covered` ветки резерва `reassign_clients_for_key`; docstring модуля — «правило с заблокированным менеджером ответственного не даёт».
-  - [ ] `apps/users/services/region_routing.py:_rule_emails` — правило с заблокированным `manager` адреса не даёт; docstring `resolve_manager_recipients`.
-  - [ ] `apps/users/signals.py`: `_old_is_active` в `pre_save` `User`; `post_save` — при смене `is_active` пересчёт ключей активных правил менеджера. Без смены — ни одного запроса.
+- [x] **Task 3a — заблокированный менеджер в правилах** (AC10; решение 17)
+  - [x] `apps/users/services/responsible_manager.py`: `manager__is_active=True` в `resolve_responsible_for_key` (`active_with_manager`) и в `covered` ветки резерва `reassign_clients_for_key`; docstring модуля — «правило с заблокированным менеджером ответственного не даёт».
+  - [x] `apps/users/services/region_routing.py:_rule_emails` — правило с заблокированным `manager` адреса не даёт; docstring `resolve_manager_recipients`.
+  - [x] `apps/users/signals.py`: `_old_is_active` в `pre_save` `User`; `post_save` — при смене `is_active` пересчёт ключей активных правил менеджера. Без смены — ни одного запроса.
 
-- [ ] **Task 4 — сотрудники** (AC6–AC8, AC14; решения 8, 9, 12)
-  - [ ] Новый `apps/users/supervisor_admin.py`: `manageable_staff_q()`, `StaffGroupFilter`, `StaffCreationForm`, `StaffChangeForm` (поле `role_group` — только «Менеджеры» и «Маркетинг», проверка вывода из «Менеджеров» с клиентами), `SupervisorStaffAdmin` (выборка, белый список, `has_change_permission(obj)`, `get_urls`, `_get_obj_does_not_exist_redirect`, `save_model`/`save_related` с журналом, действия `block_staff`, `unblock_staff`), регистрация `supervisor_site.register(User, SupervisorStaffAdmin)`. Импорт в `UsersConfig.ready()` рядом с `manager_admin`.
+- [x] **Task 4 — сотрудники** (AC6–AC8, AC14; решения 8, 9, 12)
+  - [x] Новый `apps/users/supervisor_admin.py`: `manageable_staff_q()`, `StaffGroupFilter`, `StaffCreationForm`, `StaffChangeForm` (поле `role_group` — только «Менеджеры» и «Маркетинг», проверка вывода из «Менеджеров» с клиентами), `SupervisorStaffAdmin` (выборка, белый список, `has_change_permission(obj)`, `get_urls`, `_get_obj_does_not_exist_redirect`, `save_model`/`save_related` с журналом, действия `block_staff`, `unblock_staff`), регистрация `supervisor_site.register(User, SupervisorStaffAdmin)`. Импорт в `UsersConfig.ready()` рядом с `manager_admin`.
 
-- [ ] **Task 5 — бонусы** (AC11; решение 13)
-  - [ ] Новый `apps/bonuses/supervisor_admin.py`: `SupervisorBonusSettingsAdmin`, `SupervisorBonusTransactionAdmin`, регистрация на `supervisor_site`. Импорт в `BonusesConfig.ready()` рядом с `signals`.
+- [x] **Task 5 — бонусы** (AC11; решение 13)
+  - [x] Новый `apps/bonuses/supervisor_admin.py`: `SupervisorBonusSettingsAdmin`, `SupervisorBonusTransactionAdmin`, регистрация на `supervisor_site`. Импорт в `BonusesConfig.ready()` рядом с `signals`.
 
-- [ ] **Task 6 — nginx и smoke** (AC15; решение 16)
-  - [ ] `docker/nginx/conf.d/default.conf`, `local.conf` — `location /supervisor/`; `docker/nginx/snippets/app-headers.conf:2`.
-  - [ ] `tests/unit/test_nginx_security_headers.py`: `("default.conf", "/supervisor/")` в `test_known_location_is_covered`, `/supervisor/` в параметры `test_manager_location_proxies_to_backend`.
-  - [ ] `tests/unit/test_check_manager_route_script.py`, `test_release_has_manager_route_script.py` — сценарии `supervisor` (релиз до раздела — `urls.py` с `manager/` и `marketing/`).
-  - [ ] `.github/workflows/main.yml` (`check_section`), `.github/workflows/deploy.yml` — блок `supervisor`. `.sh` не меняются.
+- [x] **Task 6 — nginx и smoke** (AC15; решение 16)
+  - [x] `docker/nginx/conf.d/default.conf`, `local.conf` — `location /supervisor/`; `docker/nginx/snippets/app-headers.conf:2`.
+  - [x] `tests/unit/test_nginx_security_headers.py`: `("default.conf", "/supervisor/")` в `test_known_location_is_covered`, `/supervisor/` в параметры `test_manager_location_proxies_to_backend`.
+  - [x] `tests/unit/test_check_manager_route_script.py`, `test_release_has_manager_route_script.py` — сценарии `supervisor` (релиз до раздела — `urls.py` с `manager/` и `marketing/`).
+  - [x] `.github/workflows/main.yml` (`check_section`), `.github/workflows/deploy.yml` — блок `supervisor`. `.sh` не меняются.
 
-- [ ] **Task 7 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
-  - [ ] **Существующие тесты, которые 42.7 обязана поменять (разрешённое отклонение — записать в Completion Notes):** фикстура `section_member` в `tests/integration/test_manager_clients_section.py:285-295` параметризована `[MANAGERS_GROUP, SUPERVISORS_GROUP]` и в docstring прямо обещает: «если `scope_clients` откроет руководителю весь queryset раньше 42.7, упадёт вариант `supervisor`». После 42.7 упадут пять `[supervisor]`-вариантов: `test_search_finds_only_own_clients`, `test_direct_urls_answer_404` (клиенты), `test_only_own_master_orders`, `test_search_finds_only_own_orders`, `test_direct_urls_answer_404` (заказы, `test_manager_orders_section.py`, фикстура импортируется оттуда). Правка — параметры фикстуры только `MANAGERS_GROUP`, docstring про 42.7; ожидания для менеджера не меняются, руководителя проверяют новые тесты AC2. Второе разрешённое отклонение — решение 17: тест 42.2/42.3, ожидающий, что правило с заблокированным менеджером назначает клиента ему или шлёт письмо на его адрес, меняет ожидание на резерв (если такой найдётся — назвать в Completion Notes). Других правок существующих тестов не должно быть; `TestScopeClients` в `tests/unit/test_manager_admin_site.py` и `test_member_of_several_groups_is_not_duplicated` (менеджер в двух группах — теперь руководитель, но ожидание `[own]` выполняется) — проверить, что зелёные без правок.
-  - [ ] `backend/tests/integration/test_supervisor_section.py` (integration). Хелперы — явным импортом из `tests.integration.test_manager_clients_section`: `role_groups`, `no_routing_rules`, `verified_email_task` (если нужны), `make_staff_member`, `make_client`, `region_tax_id`, `form_payload`, `message_texts`, `PASSWORD`, `NEW_PASSWORD`, `get_unique_suffix`; заказы — хелперы `test_manager_orders_section.py`. Не `import *`, нового общего модуля хелперов не заводить (правило 42.4). Сценарии AC1–AC14 (AC2–AC5 — запросы к `/manager/` под руководителем).
-  - [ ] `backend/tests/unit/test_supervisor_admin_site.py` (unit, `RequestFactory`): матрица `SupervisorAdminSite.has_permission`; `is_supervisor` — кэш (один запрос на два вызова), сотрудник в двух группах; состав `supervisor_site._registry` — ровно `User`, `ManagerRoutingRule`, `NotificationRecipient`, `BonusProgramSettings`, `BonusTransaction`; `admin.site._registry` — прежние классы; `responsible_manager_candidates` — без дублей, без заблокированных, маркетологов, суперпользователей; `manageable_staff_q`; `ManagerRoutingRule.clean` резервного правила; у двух действий `allowed_permissions == ("change",)`; `resolve_responsible_for_key` и `_rule_emails` с заблокированным менеджером правила (резерв); белый список карточки сотрудника не содержит `PRIVILEGE_FIELDS` и `role`.
-  - [ ] **Тесты транзакционные** (как 42.4–42.6): autouse `clear_db_before_test`, группы — `role_groups`; журнал и сигналы правил срабатывают в транзакции запроса.
-  - [ ] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть (скрипт в контейнере, исходник восстанавливается побайтно в `finally`). Итог — в Debug Log:
+- [x] **Task 7 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
+  - [x] **Существующие тесты, которые 42.7 обязана поменять (разрешённое отклонение — записать в Completion Notes):** фикстура `section_member` в `tests/integration/test_manager_clients_section.py:285-295` параметризована `[MANAGERS_GROUP, SUPERVISORS_GROUP]` и в docstring прямо обещает: «если `scope_clients` откроет руководителю весь queryset раньше 42.7, упадёт вариант `supervisor`». После 42.7 упадут пять `[supervisor]`-вариантов: `test_search_finds_only_own_clients`, `test_direct_urls_answer_404` (клиенты), `test_only_own_master_orders`, `test_search_finds_only_own_orders`, `test_direct_urls_answer_404` (заказы, `test_manager_orders_section.py`, фикстура импортируется оттуда). Правка — параметры фикстуры только `MANAGERS_GROUP`, docstring про 42.7; ожидания для менеджера не меняются, руководителя проверяют новые тесты AC2. Второе разрешённое отклонение — решение 17: тест 42.2/42.3, ожидающий, что правило с заблокированным менеджером назначает клиента ему или шлёт письмо на его адрес, меняет ожидание на резерв (если такой найдётся — назвать в Completion Notes). Других правок существующих тестов не должно быть; `TestScopeClients` в `tests/unit/test_manager_admin_site.py` и `test_member_of_several_groups_is_not_duplicated` (менеджер в двух группах — теперь руководитель, но ожидание `[own]` выполняется) — проверить, что зелёные без правок.
+  - [x] `backend/tests/integration/test_supervisor_section.py` (integration). Хелперы — явным импортом из `tests.integration.test_manager_clients_section`: `role_groups`, `no_routing_rules`, `verified_email_task` (если нужны), `make_staff_member`, `make_client`, `region_tax_id`, `form_payload`, `message_texts`, `PASSWORD`, `NEW_PASSWORD`, `get_unique_suffix`; заказы — хелперы `test_manager_orders_section.py`. Не `import *`, нового общего модуля хелперов не заводить (правило 42.4). Сценарии AC1–AC14 (AC2–AC5 — запросы к `/manager/` под руководителем).
+  - [x] `backend/tests/unit/test_supervisor_admin_site.py` (unit, `RequestFactory`): матрица `SupervisorAdminSite.has_permission`; `is_supervisor` — кэш (один запрос на два вызова), сотрудник в двух группах; состав `supervisor_site._registry` — ровно `User`, `ManagerRoutingRule`, `NotificationRecipient`, `BonusProgramSettings`, `BonusTransaction`; `admin.site._registry` — прежние классы; `responsible_manager_candidates` — без дублей, без заблокированных, маркетологов, суперпользователей; `manageable_staff_q`; `ManagerRoutingRule.clean` резервного правила; у двух действий `allowed_permissions == ("change",)`; `resolve_responsible_for_key` и `_rule_emails` с заблокированным менеджером правила (резерв); белый список карточки сотрудника не содержит `PRIVILEGE_FIELDS` и `role`.
+  - [x] **Тесты транзакционные** (как 42.4–42.6): autouse `clear_db_before_test`, группы — `role_groups`; журнал и сигналы правил срабатывают в транзакции запроса.
+  - [x] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть (скрипт в контейнере, исходник восстанавливается побайтно в `finally`). Итог — в Debug Log:
 
     | Убрать | Должен упасть |
     |---|---|
@@ -328,14 +328,102 @@ so that отдел работает без обращения к владель�
     | `section_groups = (SUPERVISORS_GROUP,)` → + `MANAGERS_GROUP` | AC1, AC13 |
     | `Prefetch` групп в списке сотрудников | AC14 |
 
-- [ ] **Task 8 — существующие тесты и проверки**
-  - [ ] Без правок зелёные (кроме Task 7): `tests/integration/test_manager_clients_section.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_staff_access_lockdown.py`, `test_admin_manager_routing_rule_regions.py`, `test_responsible_manager_events.py`, `test_admin_user_password.py`, `test_admin_verify_b2b_application.py`, `test_admin_link_1c_customer.py`; `tests/unit/test_manager_admin_site.py`, `test_manager_orders_admin.py`, `test_marketing_admin_site.py`, `test_manager_routing_rule.py`, `test_responsible_manager.py`, `test_region_routing.py`, `test_regions.py`, `test_users_admin.py`, `test_staff_role_groups_migration.py`, `test_nginx_security_headers.py` (только добавленные параметры), тесты скриптов (только добавленные сценарии); `tests/integration/test_management_commands/test_recalculate_responsible_managers.py`; бонусы — `apps/bonuses/tests/`.
-  - [ ] Полный backend-прогон в Docker, один compose-проект, в фоне: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~16 мин; ориентир после 42.6 — 4482 passed, 76 skipped, 0 failed).
-  - [ ] Линтеры строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .` (вывод не через `tail`), `flake8`, `mypy .` — базис ноль ошибок (после 42.6: black 482 unchanged, mypy 635 файлов).
-  - [ ] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори; `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — только базовый цикл `HomePage.tsx → index.ts → HomePage.tsx`.
-  - [ ] `deferred-work.md` — два пункта раздела «Deferred from: code review of 42-2…» пометить «**ЗАКРЫТО <дата>** (стори 42.7, решения 6 и 7)».
-  - [ ] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
+- [x] **Task 8 — существующие тесты и проверки**
+  - [x] Без правок зелёные (кроме Task 7): `tests/integration/test_manager_clients_section.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_staff_access_lockdown.py`, `test_admin_manager_routing_rule_regions.py`, `test_responsible_manager_events.py`, `test_admin_user_password.py`, `test_admin_verify_b2b_application.py`, `test_admin_link_1c_customer.py`; `tests/unit/test_manager_admin_site.py`, `test_manager_orders_admin.py`, `test_marketing_admin_site.py`, `test_manager_routing_rule.py`, `test_responsible_manager.py`, `test_region_routing.py`, `test_regions.py`, `test_users_admin.py`, `test_staff_role_groups_migration.py`, `test_nginx_security_headers.py` (только добавленные параметры), тесты скриптов (только добавленные сценарии); `tests/integration/test_management_commands/test_recalculate_responsible_managers.py`; бонусы — `apps/bonuses/tests/`.
+  - [x] Полный backend-прогон в Docker, один compose-проект, в фоне: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~16 мин; ориентир после 42.6 — 4482 passed, 76 skipped, 0 failed).
+  - [x] Линтеры строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .` (вывод не через `tail`), `flake8`, `mypy .` — базис ноль ошибок (после 42.6: black 482 unchanged, mypy 635 файлов).
+  - [x] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори; `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — только базовый цикл `HomePage.tsx → index.ts → HomePage.tsx`.
+  - [x] `deferred-work.md` — два пункта раздела «Deferred from: code review of 42-2…» пометить «**ЗАКРЫТО <дата>** (стори 42.7, решения 6 и 7)».
+  - [x] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
+
+### Review Findings
+
+Ревью 17.10.2026 на `0efcfca` (diff `develop...HEAD`), слои: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor (плагин Codex), graph-impact (GitNexus).
+
+- [x] [Review][Patch] R42.7-1 (medium) Действия списка не атомарны в production: блокировка/разблокировка и «Удалить выбранные» правил сохраняют запись, пересчитывают клиентов сигналом и пишут `AuditLog` в autocommit. `changelist_view` → `response_action` транзакцией не обёрнут, `ATOMIC_REQUESTS` включён только в `settings/test.py`, `post_save` шлётся после выхода из `save_base`. Сбой пересчёта или журнала оставит менеджера заблокированным с частью клиентов у него, а действие — без записи журнала; повторное `block_staff` его уже пропустит (`filter(is_active=True)`). Нарушает решение 17 («пересчёт в той же транзакции») и AC10, включая путь `UserAdmin.block_users`/`unblock_users`. Правка — `transaction.atomic()` на каждого сотрудника в `block_staff`/`unblock_staff` и `block_users`/`unblock_users`, вокруг тела `delete_queryset`; тест отката при падении `AuditLog.log_action` [backend/apps/users/supervisor_admin.py:358, backend/apps/common/supervisor_admin.py:84, backend/apps/users/admin.py:1223]
+- [x] [Review][Patch] R42.7-2 (medium) Нет негативного теста `unblock_staff` для неуправляемых сотрудников: `test_unmanageable_is_read_only` проверяет только `block_staff`. Замена `_split_manageable(request, queryset)` на `queryset` в `unblock_staff` тесты не уронит — руководитель разблокировал бы другого руководителя или учётную запись с прямыми правами (AC7). Добавить параметризованный `test_unblock_unmanageable_staff_is_refused` на заблокированных защищённых записях [backend/tests/integration/test_supervisor_section.py:640]
+- [x] [Review][Patch] R42.7-3 (low) Блок «Не распределены» считает регион заблокированного менеджера распределённым, хотя по решению 17 его клиенты уходят на резерв. Критерий собственного docstring `unassigned_regions` («правило не даёт ответственного → регион нераспределён») требует `manager__is_active=True`; тест в `test_regions.py` [backend/apps/common/regions.py:146]
+- [x] [Review][Patch] R42.7-4 (low) `recalculate_responsible_managers` при заблокированном руководителе резервного правила падает с `NO_FALLBACK_MESSAGE` «Нет активного резервного правила с менеджером» — оператор видит активное правило и не понимает причину. Дописать «…или руководитель резервного правила заблокирован» [backend/apps/users/management/commands/recalculate_responsible_managers.py:83]
+- [x] [Review][Defer] R42.7-D1 (low) Новый цикл импорта в графе GitNexus `users/models.py → staff_roles.py → users/models.py` из-за `if TYPE_CHECKING: from apps.users.models import User` [backend/apps/users/staff_roles.py:24] — deferred: в рантайме цикла нет; правка — обновить базовую линию `check --cycles` в `.windsurf/rules/gitnexus.md` (agent-context файл) или отказаться от импорта под `TYPE_CHECKING`; Completion Notes Task 8 утверждают «только базовый цикл HomePage» — расходится с выводом `check --cycles`
+
+**Rejected:**
+- `low` Гонки проверки управляемости (`_is_manageable`, страница пароля) с выдачей прав владельцем в `/admin/` — окно между проверкой и записью в рамках одного запроса, правка требует блокировок строк (blind-hunter, edge-case-hunter).
+- `low` `_split_manageable` не повторяет `is_staff=True, is_superuser=False` — `pks` берутся из `get_queryset` с этим фильтром, расхождение только при гонке (edge-case-hunter).
+- `low` Гонка назначения клиента/правила с переводом менеджера в «Маркетинг» — конкурентные правки одного сотрудника в админке, правка требует блокировок (blind-hunter, acceptance-auditor).
+- `low` Гонка блокировки менеджера с `validate_manager_candidate` при ручном назначении — то же (blind-hunter, edge-case-hunter).
+- `false` `LOGGED_RULE_FIELDS` без `manager_name`/`federal_district` — решение 12 задаёт поля журнала как `RULE_STATE_FIELDS` и `manager_email` (blind-hunter, edge-case-hunter).
+- `low` «Было» в журнале правила читается без `select_for_update` — `changeform_view` атомарен, параллельная правка одного правила маловероятна (edge-case-hunter).
+- `low` `clean_fields` не проверяет резервное правило в строке `list_editable` — осознанное отклонение 1 Completion Notes, касается только уже существующего правила, чей руководитель выведен из группы (blind-hunter).
+- `low` Сотрудник одновременно в «Менеджерах» и «Маркетинге» показан одной группой — такое состояние создаёт только владелец в `/admin/`, колонка списка показывает обе группы (blind-hunter).
+- `low` Ручного клиента заблокированного менеджера нельзя вернуть на автоматику одним сохранением — поведение по решению 5 и AC5; предупреждение `block_staff` ведёт к назначению другого менеджера (blind-hunter).
+- `low` Сигнал `is_active` не смотрит `update_fields` — нет пути, сохраняющего изменённый в памяти `is_active` мимо `update_fields`; лишний пересчёт идемпотентен (edge-case-hunter, acceptance-auditor).
+- `low` `loaddata` (`raw=True`) запускает пересчёт — фикстуры `User` с правилами не грузятся (edge-case-hunter).
+- `low` Нет сессионного smoke `/supervisor/` через nginx — решение 16 ограничивает проверку анонимной, cookie общих локаций покрывает сессионная проверка `/manager/`; правка требует учётки руководителя в CI (blind-hunter, verification-gap).
+- `false` В `/admin/` нельзя сохранить карточку с бывшим менеджером-ответственным — намеренно по решению 6 («карточка клиента такого менеджера потребует выбрать нового»), выкат шаг 3 проверяет прод (graph-impact).
+
+#### Круг 2 — 17.10.2026 на `7403a9f`
+
+Diff `823ff823..7403a9f` без `_bmad-output/` (33 файла, +2791/−77). Слои: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor, graph-impact — все через плагин Codex, сбоев нет. Acceptance Auditor нарушений AC не нашёл.
+
+- [x] [Review][Patch] R42.7-5 (low) Нормализация email сотрудника не закреплена тестами: `_clean_staff_email` приводит адрес к нижнему регистру и отказывает при дубле `email__iexact`, но тесты создания и редактирования используют уникальные адреса в нижнем регистре — удаление `.lower()` или замена `iexact` на точное совпадение тесты не уронит, и руководитель сможет завести второго сотрудника на `Ivan@…` при живом `ivan@…`. Добавить параметризованные POST-тесты `StaffCreationForm` и `StaffChangeForm`: адрес в смешанном регистре сохраняется нормализованным, адрес существующего пользователя в другом регистре — ошибка поля `email` (verification-gap) [backend/apps/users/supervisor_admin.py:108]
+- [x] [Review][Defer] R42.7-D2 (low) `UserAdmin.user_change_password` пишет `AuditLog` после сохранения пароля вне транзакции: сбой журнала оставит сменённый пароль без записи. Раздел руководителя наследует метод как есть [backend/apps/users/admin.py:554] — deferred: код существует до 42.7 (коммит `1292b690`) и так же работает в `/admin/` и `/manager/`; правка — `transaction.atomic()` вокруг `super().user_change_password(...)` и журнала, общим изменением для всех сайтов (edge-case-hunter)
+
+**Rejected (круг 2):**
+- `low` Гонки проверки управляемости с выдачей прав владельцем (`block_staff`/`unblock_staff`, страница пароля) — повтор отклонённого в круге 1 (blind-hunter, edge-case-hunter, verification-gap «Other findings»).
+- `low` Гонка назначения клиента/правила с переводом менеджера в «Маркетинг» — повтор круга 1 (blind-hunter, edge-case-hunter).
+- `low` Сотрудник одновременно в «Менеджерах» и «Маркетинге»: начальное значение «Маркетинг», сохранение без смены радио группы не трогает — повтор круга 1; состояние создаёт только владелец в `/admin/`, колонка списка показывает обе группы (blind-hunter, edge-case-hunter).
+- `low` `clean_fields` пропускает проверку резервного правила, когда `manager` исключён (строка `list_editable`) — повтор круга 1, осознанное отклонение 1 Completion Notes; касается только существующего неактивного резерва с рядовым менеджером (blind-hunter).
+- `low` Одновременная блокировка регионального менеджера и руководителя резерва оставляет клиентов у заблокированного; параллельная блокировка между `pre_save` и `post_save` пропускает пересчёт при разблокировке — конкурентные правки сотрудников в админке, правка требует согласованных блокировок строк (blind-hunter, edge-case-hunter).
+- `low` Сигнал `is_active` не смотрит `update_fields`; `raw=True` при `loaddata` — повтор круга 1 (blind-hunter).
+- `false` Нет теста отката пересчёта при самостоятельном `User.save()` в autocommit — путей, меняющих `is_active` сотрудника вне транзакции, нет: `change_view` атомарен, `block_staff`/`unblock_staff` и `block_users`/`unblock_users` обёрнуты (R42.7-1); `admin.py:985` активирует клиентские B2B-заявки, а не менеджеров (blind-hunter).
+- `false` `LOGGED_RULE_FIELDS` без `manager_name`/`federal_district` — повтор круга 1, решение 12 (blind-hunter).
+- `low` «Было» в журнале правила читается без `select_for_update` — повтор круга 1 (blind-hunter, edge-case-hunter).
+- `low` Нет сессионного входа руководителя через nginx в CI — повтор круга 1, решение 16 ограничивает проверку `/supervisor/` анонимной; пример отказа (`proxy_set_header Cookie ""` только в этой локации) требует целенаправленной порчи конфига (blind-hunter, verification-gap).
+- `low` Цикл `users/models.py → staff_roles.py → users/models.py` в `check --cycles` — уже записан как R42.7-D1 (graph-impact).
+
+#### Круг 3 — 17.10.2026 на `7403a9f` + рабочее дерево (R42.7-5)
+
+Diff `e87bd533..рабочее дерево` по `backend/`, `docker/`, `.github/` (33 файла, +2832/−77). Слои: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor, graph-impact — все через плагин Codex, сбоев нет. Acceptance Auditor нарушений AC не нашёл. Индекс GitNexus `up-to-date` на `7403a9f`.
+
+- [x] [Review][Patch] R42.7-6 (low) Сохранение карточки заказа без клиента руководителем не закреплено тестом: `scope_orders` открывает руководителю мастер-заказы с `user=NULL`, а `ManagerOrderForm.clean()` повторно читает строку через `scope_orders` под `select_for_update`. Тест AC2 проверяет только список, GET карточки и CSV. Если в блокирующую выборку добавить `.filter(user__isnull=False)`, POST начнёт отвечать 404, а тесты останутся зелёными. Добавить `test_supervisor_saves_orphan_order`: POST трек-номера и даты доставки, перечитать заказ, проверить автора `AuditLog` (verification-gap) [backend/apps/orders/manager_admin.py:211]
+- [x] [Review][Patch] R42.7-7 (low) Пересчёт клиентов правила страны при блокировке и разблокировке менеджера не закреплён тестом: фикстура `blocked_setup` создаёт только правило `inn_region` и резерв. Тесты страны в `test_responsible_manager.py` и `test_responsible_manager_events.py` проверяют другие события: смену менеджера правила и смену страны клиента. Фильтр по `match_type` в выборке правил сигнала тесты не уронит. Параметризовать `test_block_and_unblock_in_section` правилами `inn_region` и `country`: иностранный клиент уходит на резерв, после разблокировки возвращается, ручное назначение не трогается (verification-gap) [backend/apps/users/signals.py:86]
+
+**Rejected (круг 3):**
+- `low` Гонки проверки управляемости с выдачей прав владельцем (`block_staff`/`unblock_staff`, страница пароля) — повтор кругов 1–2 (blind-hunter, edge-case-hunter ×2, verification-gap «Other findings»).
+- `low` Гонка назначения клиента/правила с переводом менеджера в «Маркетинг» — повтор кругов 1–2 (blind-hunter, edge-case-hunter).
+- `false` `LOGGED_RULE_FIELDS` без `manager_name`/`federal_district` — повтор кругов 1–2, решение 12 (blind-hunter, edge-case-hunter).
+- `low` «Было» в журнале правила читается без `select_for_update` — повтор кругов 1–2 (blind-hunter, edge-case-hunter).
+- `low` Сотрудник одновременно в «Менеджерах» и «Маркетинге» показан одной группой — повтор кругов 1–2 (blind-hunter).
+- `low` Ручного клиента заблокированного менеджера нельзя вернуть на автоматику одним сохранением — повтор круга 1, решение 5 и AC5 (blind-hunter).
+- `low` Старое резервное правило с рядовым менеджером продолжает работать: резолвер не проверяет группу — на проде правил нет вовсе (ответ Alex 16.10.2026, «Выкат» п. 3), новые резервные правила отсекает `ManagerRoutingRule.clean`; родственно отклонённому в круге 1 `clean_fields` строки `list_editable` (blind-hunter).
+- `false` Сигнал `is_active` не атомарен при `User.save()` в autocommit — повтор круга 2: путей блокировки вне транзакции нет (blind-hunter).
+- `low` `raw=True` при `loaddata` запускает пересчёт — повтор кругов 1–2 (blind-hunter).
+- `low` Параллельная блокировка менеджера против устаревшего решения: резолвер в `save` правила (blind-hunter), регистрация клиента (edge-case-hunter), `_collect`/`_apply` команды `recalculate_responsible_managers` (graph-impact) — тот же класс, что «одновременная блокировка» круга 2: конкурентные правки сотрудников, команда запускается оператором вручную, правка требует согласованных блокировок строк менеджеров.
+- `false` Тест настроек бонусов вызывает `BonusProgramSettings.load()`, а руководитель запись создать не может — запись появляется при сохранении любого мастер-заказа: сигнал `accrue_bonus_on_order_status` → `accrue_for_order` → `load()` (`get_or_create`) до проверки условий; импорт 1С сохраняет мастер-заказы прода постоянно. Запрет `add/` — решение по AC11 (blind-hunter).
+- `low` Нет сессионного входа руководителя через nginx в CI — повтор кругов 1–2, решение 16 (blind-hunter, verification-gap).
+- `low` `user_change_password` пишет `AuditLog` вне транзакции — уже записан как R42.7-D2 (edge-case-hunter).
+
+#### Круг 4 — 17.10.2026 на `979b209`
+
+Diff `e87bd533...979b209` без `_bmad-output/` (33 файла, +2885/−77). Слои: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor, graph-impact — все через плагин Codex. Четыре слоя с первой попытки упали на лимите Codex и прошли повторно после сброса лимита. Индекс GitNexus `up-to-date` на `979b209`. Новых patch, decision и defer нет: 22 находки, все отклонены.
+
+**Rejected (круг 4):**
+- `low` Гонки проверки управляемости с выдачей прав владельцем: `block_staff`/`unblock_staff`, а также устаревший `save()` карточки, который сбросил бы выданный за миллисекунды `is_superuser`. Повтор кругов 1–3 (blind-hunter, edge-case-hunter, verification-gap «Other findings»).
+- `low` Гонка назначения клиента/правила с переводом менеджера в «Маркетинг» — повтор кругов 1–3 (blind-hunter, edge-case-hunter).
+- `low` Гонка блокировки менеджера с `validate_manager_candidate` между валидацией и сохранением — повтор круга 1 (blind-hunter).
+- `low` `clean_fields` пропускает проверку резервного правила в строке `list_editable` — повтор кругов 1–3, осознанное отклонение 1 Completion Notes; на проде правил нет (blind-hunter).
+- `false` `LOGGED_RULE_FIELDS` без `manager_name`/`federal_district` — повтор кругов 1–3, решение 12 (blind-hunter, edge-case-hunter).
+- `low` Журнал правила: «было» читается без `select_for_update`, а снимок `delete_queryset` снят отдельно от удаления. Правило, созданное между ними при «выбрать все», удалится без записи. Окно — миллисекунды внутри одной транзакции. Повтор кругов 1–3 (blind-hunter, edge-case-hunter ×2).
+- `low` `raw=True` при `loaddata` запускает пересчёт — повтор кругов 1–3 (blind-hunter).
+- `false` Нет теста отката пересчёта при самостоятельном `User.save()` в autocommit — повтор кругов 2–3: путей блокировки вне транзакции нет (blind-hunter).
+- `false` Нет миграции данных для клиентов уже заблокированных менеджеров. На проде нет ни одного правила регионов и ни одной ручной отметки («Выкат» п. 3, ответ Alex 16.10.2026): клиентов, назначенных по правилу заблокированному менеджеру, нет. Резолвер и письмо учитывают блокировку сразу после выката (blind-hunter).
+- `low` Нет сессионного входа руководителя через nginx в CI — повтор кругов 1–3, решение 16 (blind-hunter, verification-gap).
+- `low` Снять ручное назначение у клиента заблокированного менеджера одним сохранением нельзя: прежний менеджер не проходит валидатор — повтор кругов 1 и 3, решение 5 и AC5 (edge-case-hunter).
+- `low` `user_change_password` пишет `AuditLog` вне транзакции — уже записан как R42.7-D2 (edge-case-hunter).
+- `low` Одновременная блокировка регионального менеджера и руководителя резерва — повтор кругов 2–3 (edge-case-hunter).
+- `low` Сигнал `is_active` на устаревшем экземпляре при `save(update_fields=["phone"])` запускает лишний пересчёт. Пересчёт читает состояние БД и идемпотентен, путь требует параллельной блокировки. Повтор круга 1 «сигнал не смотрит `update_fields`» (acceptance-auditor).
+- `low` Цикл `users/models.py → staff_roles.py → users/models.py` в `check --cycles` — уже записан как R42.7-D1 (graph-impact).
 
 ## Dev Notes
 
@@ -491,16 +579,106 @@ so that отдел работает без обращения к владель�
 
 ### Agent Model Used
 
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
+
 ### Debug Log References
+
+- **GitNexus pre-flight (Task 0).** Индекс на `e87bd53`; HEAD `823ff82` впереди на два коммита PR #320, оба только в `_bmad-output/` (вне индекса) — граф кода актуален. `scope_clients` — HIGH (13 затронутых; прямые: `ManagerClientAdmin.get_queryset`, `scope_orders`, `manager_queue`). `resolve_responsible_for_key` — **CRITICAL** (11 затронутых; прямые: `reassign_clients_for_key`, `resolve_responsible`, команда `recalculate_responsible_managers`; через `assign_responsible_manager` — `link_1c_customer`, `verify_b2b`, `resolve_conflict`). `reassign_clients_for_key`, `_rule_emails` — LOW; `store_previous_verification_status` — хук сигнала, вызывающих в графе нет. Alex предупреждён до правок; правка резолвера — одно условие `manager__is_active=True` по решению 17.
+- **Затронутые существующие тесты (до новых):** 23 файла из Task 8 — `918 passed`. Ни один тест 42.2/42.3 не ожидал назначения на заблокированного менеджера — второе разрешённое отклонение Task 7 не понадобилось.
+- **Проверка мутациями** (скрипт в контейнере, исходник восстанавливается побайтно в `finally`): **26 из 26 поймано** — 24 строки таблицы стори плюс две свои защиты (ссылки выбора менеджера в карточке `/manager/`, `has_change_permission(obj)` у неуправляемых). Для строк «`manager__is_active` в `covered`» и «`has_add_permission` у настроек» добавлены тесты, без которых мутации не ловились: `test_fallback_change_reaches_clients_of_blocked_manager` (при блокировке пересчитываются ключи самого менеджера, `covered` важен только при пересчёте резерва) и проверка `add/` при пустой таблице настроек (родитель запрещает добавление, когда запись уже есть).
+- **Полный backend-прогон** (`-n 4 -m "not performance and not slow"`): `4593 passed, 76 skipped, 0 failed` (19:50). После него — правки типизации под mypy; затронутые наборы перепрогнаны (`465 passed` + `102 passed`), зачётный прогон на итоговом коде: `4593 passed, 76 skipped, 0 failed` (18:13).
+- **Линтеры** (`-p freesport-test`, после pytest): black — 487 файлов без изменений, isort — чисто, flake8 — чисто, mypy — `Success: no issues found in 640 source files`; `makemigrations --check --dry-run` — `No changes detected`.
+- **GitNexus перед коммитом:** `check --cycles` — только базовый `HomePage.tsx → index.ts → HomePage.tsx`. `detect-changes --scope all` — символы стори плюс соседи по строкам (`days_ru`, `region_display`, `has_delete_permission` и т. п.): diff накладывается на номера строк индекса `e87bd53`, эти символы не менялись.
+- **Замечания ревью 17.10.2026 (R42.7-1…4), `bmad-dev-story`.** Индекс GitNexus на `0efcfca` — up-to-date. `impact --direction upstream`: `block_staff`, `unblock_staff`, `block_users`, `unblock_users`, `SupervisorRoutingRuleAdmin.delete_queryset` — хуки админки, вызывающих-кода нет (только тесты), `risk: UNKNOWN`; `unassigned_regions` — LOW (1 прямой: `ManagerRoutingRuleAdmin.changelist_view`). Сверено с исходником Django 5.2.7: `changeform_view`, `delete_view` и сохранение `list_editable` атомарны сами, `response_action` (и `delete_selected` → `delete_queryset`) — нет. Тесты отката вызывают методы админки напрямую (`RequestFactory`): через тестовый клиент `ATOMIC_REQUESTS` тестовых настроек откатил бы запрос и без правки. RED — 7 новых тестов падают по ожидаемой причине (3 теста R42.7-2 зелёные сразу — это недостающее покрытие верного кода, их проверяет мутация) (у теста `delete_selected` первое «красное» было ложным — `make_client` после правила обнулял ответственного; порядок исправлен и тест перепроверен мутацией). GREEN: 8 новых тестов зелёные, `test_regions.py` + `test_recalculate_responsible_managers.py` — `85 passed`. **Мутации — 6 из 6 пойманы:** убрать `transaction.atomic()` в `delete_queryset`, `block_staff`, `unblock_staff`, `block_users`, `unblock_users` (по одному) и заменить `_split_manageable(request, queryset)` на `queryset` в `unblock_staff`; исходник восстанавливался побайтно (`cmp`).
+- **Поправка к записи «GitNexus перед коммитом» выше (R42.7-D1):** `check --cycles` на `0efcfca` показывает, кроме базового `HomePage.tsx → index.ts → HomePage.tsx`, цикл `users/models.py → staff_roles.py → users/models.py` (импорт под `TYPE_CHECKING`, в рантайме цикла нет) — отложено в `deferred-work.md`.
+- **Регрессия после замечаний ревью:** полный прогон (`-n 4 -m "not performance and not slow"`) — `4603 passed, 76 skipped, 0 failed` (18 мин). Линтеры после него, `-p freesport-test`: black — 487 файлов без изменений, isort — чисто, flake8 — чисто, mypy — `Success: no issues found in 640 source files`; `makemigrations --check --dry-run` — `No changes detected`. GitNexus: `detect-changes --scope all` — только символы правок (5 методов действий и удаления, `unassigned_regions`, `NO_FALLBACK_MESSAGE`) и тесты; `check --cycles` — базовый `HomePage` и отложенный R42.7-D1, новых нет.
+- **Замечание ревью круга 2 (R42.7-5), `bmad-dev-story`.** Индекс GitNexus на `7403a9f` — up-to-date. Продакшен-код не менялся, только тесты — `impact` не снимался. Новый класс `TestStaffEmail` (4 теста с параметризацией `create`/`change`) зелёный сразу: это недостающее покрытие верного кода, проверено мутациями. **Мутации — 2 из 2 пойманы:** убрать `.lower()` в `_clean_staff_email` → падают оба варианта `test_mixed_case_is_saved_lowercase`; `email__iexact` → `email` → падают оба варианта `test_existing_email_in_other_case_is_refused`; исходник восстанавливался побайтно. Полный прогон (`-n 4 -m "not performance and not slow"`) — `4607 passed, 76 skipped, 0 failed` (24 мин). Линтеры после него, `-p freesport-test`: black — 487 файлов без изменений, isort — чисто, flake8 — чисто, mypy — `Success: no issues found in 640 source files`. `makemigrations --check` не запускался: моделей правка не касается. GitNexus: `detect-changes --scope all` — только `test_supervisor_section.py` (символы ниже вставки — сдвиг строк относительно индекса), risk low; `check --cycles` — базовый `HomePage` и отложенный R42.7-D1, новых нет.
+- **Замечания ревью круга 3 (R42.7-6, R42.7-7), `bmad-dev-story`.** Индекс GitNexus на `7403a9f` — up-to-date. Продакшен-код не менялся, только тесты; `impact` по фикстуре `blocked_setup` и хелперу `new_region_client` — вызывающих в графе нет (фикстуры pytest), текстовый поиск: оба используются только в `test_supervisor_section.py`. Новые тесты зелёные сразу — недостающее покрытие верного кода, проверено мутациями. **Мутации — 2 из 2 пойманы:** `.filter(user__isnull=False)` в блокирующей выборке `ManagerOrderForm.clean` → падает `test_supervisor_saves_orphan_order`; `match_type=MATCH_INN_REGION` в выборке правил сигнала `reassign_clients_after_manager_activity_change` → падает `test_block_and_unblock_in_section[country]`, вариант `inn_region` зелёный; исходник восстанавливался побайтно. Полный прогон (`-n 4 -m "not performance and not slow"`) — `4609 passed, 76 skipped, 0 failed` (18 мин). Линтеры после него, `-p freesport-test`: black — 487 файлов без изменений, isort — чисто, flake8 — чисто, mypy — `Success: no issues found in 640 source files`. `makemigrations --check` не запускался: моделей правка не касается. GitNexus: `detect-changes --scope all` — только `test_supervisor_section.py`, risk low; `check --cycles` — базовый `HomePage` и отложенный R42.7-D1, новых нет.
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+**Что сделано.** Сайт `/supervisor/` (`SupervisorAdminSite`, группа «Руководители»): сотрудники (`apps/users/supervisor_admin.py`), правила регионов с журналом и получатели уведомлений (`apps/common/supervisor_admin.py`), настройки и журнал бонусов (`apps/bonuses/supervisor_admin.py`), главная со ссылками на `/manager/` и `/marketing/`. В `/manager/` руководитель видит всех клиентов и все мастер-заказы, включая заказы без клиента, колонку и фильтр «Ответственный менеджер», назначает ответственного вручную. Выбор менеджера в формах `/admin/` и разделов — только допустимые, текущий бывший менеджер виден, но сохранить его нельзя. Резервное правило — только на руководителя. Заблокированный менеджер не получает клиентов и писем по правилам регионов (решение 17). nginx, `main.yml`, `deploy.yml` — `/supervisor/`. Миграций, изменений API и фронтенда нет.
+
+**Тесты.** `tests/integration/test_supervisor_section.py` — 47 тестовых функций (AC1–AC14), `tests/unit/test_supervisor_admin_site.py` — 26; с параметризацией — 102 теста; тесты nginx и smoke-скриптов — сценарии `supervisor`.
+
+**Отклонения от стори (с причиной):**
+1. **Проверка резервного правила — в `ManagerRoutingRule.clean_fields(exclude)`, а не в `clean()`** (решение 7). Ошибка с ключом `manager` из `clean()` в строке `list_editable` (там только `manager_email` и `is_active`) роняет форму `ValueError` → 500: сохранение строки резервного правила, чей руководитель позже выведен из группы, ломало бы список. `clean_fields` знает исключённые поля; в карточке поле есть — поведение AC9 то же. Unit-тест `test_excluded_manager_is_not_checked`.
+2. **`section_member` — только `MANAGERS_GROUP`** (`test_manager_clients_section.py`), разрешённое отклонение Task 7: пять `[supervisor]`-вариантов 42.4/42.5 ожидали «только свои». Второе разрешённое отклонение (тест 42.2/42.3 на заблокированного менеджера) не понадобилось.
+3. **Группа роли — только «Менеджеры» и «Маркетинг»** — отклонение от буквы FR-42-25 по решению Alex 16.10.2026 (вопрос 1): «Руководителей» назначает владелец в `/admin/`.
+4. **Решение 17 — отклонение от решения 9 стори 42.2** («блокировка не переводит клиентов»), ответ Alex 16.10.2026, вариант «б».
+5. **«Активен» в карточке сотрудника — только чтение** (буквальное прочтение решения 8): блокируют действия — они пишут журнал и предупреждают об оставшихся клиентах и правилах.
+6. **Выбор менеджера в карточке клиента `/manager/` — без ссылок «изменить/посмотреть/добавить»**: они вели бы на карточку сотрудника в разделе менеджера, а там она 404 (урок 42.4, решение 12). В `/admin/` и в правиле `/supervisor/` ссылки штатные — ведут в рабочие карточки.
+7. **Email сотрудника** обязателен, хранится без пробелов в нижнем регистре и проверяется на уникальность без учёта регистра (у модели `email` — `blank=True, null=True`).
+
+**На заметку ревью (не делалось — вне задач стори):** `common/regions.py:unassigned_regions` по-прежнему считает регион заблокированного менеджера распределённым, хотя по решению 17 его клиенты уходят на резерв. Если блок «Не распределены» должен это показывать — добавить `manager__is_active=True` (одна строка, тест в `test_regions.py`). → Сделано по R42.7-3.
+
+**Замечания ревью 17.10.2026:**
+- ✅ Resolved review finding [Medium]: R42.7-1 — действия списка атомарны. `transaction.atomic()` на каждого сотрудника в `block_staff`/`unblock_staff` (`/supervisor/`) и `block_users`/`unblock_users` (`/admin/`; в `/manager/` вложенный `atomic` становится точкой сохранения внутри уже атомарного `response_action`), вокруг всего тела `SupervisorRoutingRuleAdmin.delete_queryset`. Сбой журнала откатывает блокировку и пересчёт клиентов сигналом (решение 17). Тесты `test_failed_journal_rolls_back_block[block_staff|unblock_staff|block_users]`, `test_failed_journal_rolls_back_unblock_users`, `test_failed_journal_rolls_back_delete_selected`.
+- ✅ Resolved review finding [Medium]: R42.7-2 — `test_unblock_unmanageable_staff_is_refused[other-supervisor|direct-permission|foreign-group]`: разблокировка неуправляемых пропускается с сообщением, `is_active` прежний, журнала нет. Вариант `self` не нужен: заблокированный руководитель в раздел не войдёт.
+- ✅ Resolved review finding [Low]: R42.7-3 — `unassigned_regions` требует `manager__is_active=True`: регион заблокированного менеджера — в блоке «Не распределены». Запрос по-прежнему один (`test_single_query`). Тест `test_rule_with_blocked_manager_not_covering`.
+- ✅ Resolved review finding [Low]: R42.7-4 — `NO_FALLBACK_MESSAGE`: «Нет активного резервного правила с менеджером или руководитель резервного правила заблокирован. Назначьте активного руководителя…»; docstring команды дополнен. Тест `test_blocked_fallback_supervisor_is_named`; прежние тесты сообщения (префикс) без правок.
+
+**Замечания ревью круга 2 (17.10.2026):**
+- ✅ Resolved review finding [Low]: R42.7-5 — `TestStaffEmail` в `test_supervisor_section.py`: адрес в смешанном регистре при создании и при правке карточки сохраняется в нижнем регистре; адрес существующего пользователя (локальная часть в смешанном регистре — `create_user` её не нормализует), введённый в другом регистре, — ошибка поля `email`, вторая запись не создаётся, адрес сотрудника не меняется. Продакшен-код не менялся.
+- R42.7-D2 (AuditLog смены пароля вне транзакции) — отложен в `deferred-work.md`, в этой стори не правится.
+
+**Замечания ревью круга 3 (17.10.2026):**
+- ✅ Resolved review finding [Low]: R42.7-6 — `TestWholeDepartment.test_supervisor_saves_orphan_order`: руководитель сохраняет в `/manager/` трек-номер и дату доставки мастер-заказа без клиента — 302, значения в БД, одна запись `update_order` с автором-руководителем и полями `old`/`new`. Продакшен-код не менялся.
+- ✅ Resolved review finding [Low]: R42.7-7 — `test_block_and_unblock_in_section` параметризован типом правила менеджера (`inn_region` — регион 23, `country` — «Беларусь») через переопределяемую фикстуру `blocked_rule_type`: клиенты по правилу уходят на резерв при блокировке и возвращаются после разблокировки, ручной клиент остаётся у менеджера в обоих состояниях, новый клиент и адресаты письма — по тому же правилу. Остальные тесты `blocked_setup` работают с прежним правилом региона 23. Продакшен-код не менялся.
+
+**Выкат.** Миграций и ручных шагов в БД нет. После деплоя: `curl -sI https://optisport.ru/supervisor/` → 302 на `/supervisor/login/?next=/supervisor/` (404 от Next — `nginx -s reload`). До объявления раздела руководителю — проверки шага 3 «Выката» (Dev Notes): нет менеджеров, выведенных из групп или заблокированных, у правил и клиентов; у id 15 нет прямых прав. Первое действие руководителя — резервное правило на себя и правила регионов.
 
 ### File List
+
+Новые:
+- `backend/apps/users/supervisor_admin.py`
+- `backend/apps/common/supervisor_admin.py`
+- `backend/apps/bonuses/supervisor_admin.py`
+- `backend/templates/admin/supervisor/index.html`
+- `backend/tests/integration/test_supervisor_section.py`
+- `backend/tests/unit/test_supervisor_admin_site.py`
+
+Изменённые:
+- `backend/freesport/admin_site.py`
+- `backend/freesport/urls.py`
+- `backend/apps/users/staff_roles.py`
+- `backend/apps/users/manager_admin.py`
+- `backend/apps/users/admin.py`
+- `backend/apps/users/apps.py`
+- `backend/apps/users/signals.py`
+- `backend/apps/users/services/responsible_manager.py`
+- `backend/apps/users/services/region_routing.py`
+- `backend/apps/orders/manager_admin.py`
+- `backend/apps/common/models.py`
+- `backend/apps/common/admin.py`
+- `backend/apps/common/regions.py` (ревью, R42.7-3)
+- `backend/apps/users/management/commands/recalculate_responsible_managers.py` (ревью, R42.7-4)
+- `backend/tests/unit/test_regions.py` (ревью, R42.7-3)
+- `backend/tests/integration/test_management_commands/test_recalculate_responsible_managers.py` (ревью, R42.7-4)
+- `backend/apps/common/apps.py`
+- `backend/apps/bonuses/apps.py`
+- `backend/tests/integration/test_manager_clients_section.py`
+- `backend/tests/unit/test_nginx_security_headers.py`
+- `backend/tests/unit/test_check_manager_route_script.py`
+- `backend/tests/unit/test_release_has_manager_route_script.py`
+- `docker/nginx/conf.d/default.conf`
+- `docker/nginx/conf.d/local.conf`
+- `docker/nginx/snippets/app-headers.conf`
+- `.github/workflows/main.yml`
+- `.github/workflows/deploy.yml`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/42-7-supervisor-section-staff-regions-reassignment.md`
 
 ### Change Log
 
 - 2026-10-16 — стори создана (`bmad-create-story`), статус `ready-for-dev`.
 - 2026-10-16 — ответы Alex: руководитель не назначает «Руководителей» (решение 9, AC6–AC8); передача с выбором «все / только назначенные вручную» для возврата после отпуска (решение 11, AC10, + AC10a); запрет перевода в «Маркетинг» с клиентами и поведение бывшего менеджера в формах — по умолчанию (решения 6, 9). Таблица мутаций дополнена.
 - 2026-10-16 — party mode, ответы Alex: массовая передача и замещение на время отпуска вынесены в стори 42.10 (решение 11 свёрнуто, AC10/AC10a удалены, действие `transfer_clients`, шаблон и код журнала `transfer_client` убраны); новое решение 17 и новый AC10 — заблокированный менеджер пропускается резолвером и письмом о регистрации, клиенты по правилу уходят на резерв сигналом `User` (отклонение от решения 9 стори 42.2); на проде нет правил и ручных отметок — шаг выката 3. Тексты ошибки смены группы и предупреждения блокировки — без «передайте». Task 3a, строки мутаций и GitNexus по решению 17.
+- 2026-10-17 — реализация (`bmad-dev-story`): сайт `/supervisor/`, руководитель в `/manager/`, выбор менеджера в формах, резерв только на руководителя, решение 17, nginx и smoke; 102 новых теста, 26 из 26 мутаций пойманы; статус `review`.
+- 2026-10-17 — code review на `0efcfca` → `in-progress`: 4 patch, 1 defer, 13 отклонено.
+- 2026-10-17 — Addressed code review findings - 4 items resolved (Date: 2026-10-17): R42.7-1 (атомарность действий списка и «Удалить выбранные»), R42.7-2 (тест разблокировки неуправляемых), R42.7-3 («Не распределены» с заблокированным менеджером), R42.7-4 (сообщение команды пересчёта); 10 новых тестов с параметризацией, 6 из 6 мутаций пойманы; полный прогон 4603 passed; статус `review`.
+- 2026-10-17 — code review круг 2 на `7403a9f` → `in-progress`: 1 patch, 1 defer, 11 отклонено.
+- 2026-10-17 — Addressed code review findings - 1 items resolved (Date: 2026-10-17): R42.7-5 (тесты нормализации email сотрудника в формах создания и карточки), 4 теста с параметризацией, 2 из 2 мутаций пойманы; полный прогон 4607 passed; статус `review`.
+- 2026-10-17 — code review круг 3 на `7403a9f` + рабочее дерево → `in-progress`: 2 patch, 0 defer, 22 находки отклонено (13 пунктов).
+- 2026-10-17 — Addressed code review findings - 2 items resolved (Date: 2026-10-17): R42.7-6 (сохранение заказа без клиента руководителем), R42.7-7 (пересчёт клиентов правила страны при блокировке и разблокировке); 2 новых теста с параметризацией, 2 из 2 мутаций пойманы; полный прогон 4609 passed; статус `review`.

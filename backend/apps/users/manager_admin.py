@@ -6,6 +6,9 @@
 интеграции и привилегий, на чужого клиента — 404. Действия и страницы
 подтверждения B2B, привязки к 1С и смены пароля — общие с `/admin/`.
 
+Руководитель (стори 42.7) видит всех клиентов, колонку и фильтр
+«Ответственный менеджер» и назначает ответственного вручную в карточке.
+
 Модуль импортируется из `UsersConfig.ready()`: к этому моменту
 `admin.autodiscover()` уже загрузил `apps/users/admin.py`.
 """
@@ -15,6 +18,7 @@ from __future__ import annotations
 from typing import Any, Iterator
 
 from django.contrib import admin
+from django.contrib.admin.options import IncorrectLookupParameters
 from django.contrib.admin.utils import unquote
 from django.contrib.admin.views.main import ChangeList
 from django.core.exceptions import ValidationError
@@ -27,7 +31,7 @@ from django.urls import reverse
 from apps.common.models import AuditLog
 from apps.users.admin import AddressInline, CompanyInline, Has1CCandidateFilter, UserAdmin, activation_locked
 from apps.users.models import User
-from apps.users.staff_roles import staff_accounts_q
+from apps.users.staff_roles import is_supervisor, manager_label, staff_accounts_q
 from freesport.admin_site import manager_site
 
 
@@ -38,9 +42,10 @@ def scope_clients(request: HttpRequest, queryset: QuerySet[User]) -> QuerySet[Us
     Видны клиенты, у которых сотрудник — ответственный менеджер, минус
     учётные записи сотрудников (`staff_accounts_q()`): их ответственный
     мог остаться от времени, когда запись ещё была клиентской. Руководитель
-    в 42.4 тоже видит только своих; снятие фильтра для него (стори 42.7)
-    правится только здесь.
+    видит всех клиентов (стори 42.7) — тоже без учётных записей сотрудников.
     """
+    if is_supervisor(request):
+        return queryset.exclude(staff_accounts_q())
     return queryset.filter(responsible_manager=request.user).exclude(staff_accounts_q())
 
 
@@ -100,6 +105,46 @@ class PortalAccountFilter(admin.SimpleListFilter):
         if value == "no":
             return queryset.filter(role=User.ROLE_UNREGISTERED)
         return queryset.exclude(role=User.ROLE_UNREGISTERED)
+
+
+class ResponsibleManagerFilter(admin.SimpleListFilter):
+    """
+    «Ответственный менеджер» в списке клиентов руководителя (стори 42.7).
+
+    Варианты — менеджеры, у которых в выборке раздела есть клиенты, в том
+    числе заблокированные и выведенные из групп: так руководитель находит
+    клиентов уволенного. Подпись «ФИО (email)», а не `str(user)` —
+    `RelatedOnlyFieldListFilter` подписал бы «email (Розничный покупатель)».
+    """
+
+    title = "Ответственный менеджер"
+    parameter_name = "responsible"
+    WITHOUT = "none"
+
+    def lookups(self, request: HttpRequest, model_admin: admin.ModelAdmin) -> list[tuple[str, str]]:
+        managers = User.objects.filter(
+            pk__in=scope_clients(request, User.objects.all()).values("responsible_manager")
+        ).order_by("last_name", "first_name", "email")
+        choices = []
+        for manager in managers:
+            label = manager_label(manager)
+            if not manager.is_active:
+                label += " — заблокирован"
+            choices.append((str(manager.pk), label))
+        choices.append((self.WITHOUT, "Без ответственного"))
+        return choices
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet[User]) -> QuerySet[User]:
+        value = self.value()
+        if value is None:
+            return queryset
+        if value == self.WITHOUT:
+            return queryset.filter(responsible_manager__isnull=True)
+        try:
+            manager_id = int(value)
+        except (TypeError, ValueError):
+            raise IncorrectLookupParameters(f"Некорректный идентификатор менеджера: {value!r}")
+        return queryset.filter(responsible_manager_id=manager_id)
 
 
 class ManagerClientAdmin(UserAdmin):
@@ -164,10 +209,61 @@ class ManagerClientAdmin(UserAdmin):
     def has_delete_permission(self, request: HttpRequest, obj: User | None = None) -> bool:  # type: ignore[override]
         return False
 
+    def get_list_display(self, request: HttpRequest) -> list[Any]:
+        fields = list(super().get_list_display(request))
+        # Руководитель видит клиентов всех менеджеров — без колонки не понять, чей клиент.
+        if is_supervisor(request):
+            fields.insert(fields.index("customer_code") + 1, "responsible_manager_display")
+        return fields
+
+    def get_list_filter(self, request: HttpRequest) -> list[Any]:
+        filters = list(super().get_list_filter(request))
+        if is_supervisor(request):
+            filters.append(ResponsibleManagerFilter)
+        return filters
+
+    def get_list_select_related(self, request: HttpRequest) -> Any:
+        # Колонка ответственного иначе читала бы менеджера запросом на строку.
+        if is_supervisor(request):
+            return ["company", "responsible_manager"]
+        return super().get_list_select_related(request)
+
     def get_fieldsets(self, request: HttpRequest, obj: User | None = None) -> Any:  # type: ignore[override]
         # Без логики UserAdmin: привилегий и кандидатов 1С в белом списке нет,
         # а find_link_candidates на каждом открытии карточки — лишний запрос.
-        return self.fieldsets
+        if not is_supervisor(request):
+            return self.fieldsets
+        # Руководитель назначает ответственного вручную (стори 42.7): вместо
+        # текста — выбор менеджера и флажок «Назначен вручную».
+        editable = ("responsible_manager", "responsible_manager_manual")
+        return tuple(
+            (
+                title,
+                {
+                    **options,
+                    "fields": tuple(
+                        name
+                        for field in options["fields"]
+                        for name in (editable if field == "responsible_manager_display" else (field,))
+                    ),
+                },
+            )
+            for title, options in self.fieldsets
+        )
+
+    def get_form(  # type: ignore[override]
+        self, request: HttpRequest, obj: User | None = None, change: bool = False, **kwargs: Any
+    ) -> Any:
+        form = super().get_form(request, obj, change=change, **kwargs)
+        field = form.base_fields.get("responsible_manager")
+        if field is not None:
+            # Ссылки «изменить/посмотреть» у выбора вели бы на карточку
+            # менеджера в этом разделе, а сотрудник вне scope_clients — 404.
+            widget = field.widget
+            for flag in ("can_add_related", "can_change_related", "can_delete_related", "can_view_related"):
+                if hasattr(widget, flag):
+                    setattr(widget, flag, False)
+        return form
 
     def get_readonly_fields(self, request: HttpRequest, obj: User | None = None) -> list[str]:  # type: ignore[override]
         fields = list(self.readonly_fields)
@@ -340,7 +436,14 @@ class ManagerClientAdmin(UserAdmin):
     def save_model(  # type: ignore[override]
         self, request: HttpRequest, obj: User, form: ModelForm, change: bool
     ) -> None:
+        # Выбранный руководителем менеджер — всегда ручное назначение: смена
+        # ИНН и правил региона его больше не уводят (стори 42.7).
+        manager_changed = "responsible_manager" in form.changed_data
+        if manager_changed:
+            obj.responsible_manager_manual = True
         super().save_model(request, obj, form, change)  # type: ignore[arg-type]
+        if change and (manager_changed or "responsible_manager_manual" in form.changed_data):
+            self._log_responsible_assignment(request, obj, form.initial.get("responsible_manager"))
         # Блокировка и разблокировка флагом в карточке — тоже действие для журнала.
         if change and "is_active" in form.changed_data:
             AuditLog.log_action(
@@ -357,6 +460,34 @@ class ManagerClientAdmin(UserAdmin):
                 ip_address=self._get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
+
+    def _log_responsible_assignment(self, request: HttpRequest, obj: User, old_manager_id: Any) -> None:
+        """
+        Журнал ручного назначения в карточке (стори 42.7).
+
+        «Было» — значение формы, прочитанное под блокировкой строки в
+        `change_view`; «стало» — после `save()`: снятый флажок возвращает
+        назначение по правилу региона прямо в `User.save`.
+        """
+        old_email = None
+        if old_manager_id is not None:
+            old_email = User.objects.filter(pk=old_manager_id).values_list("email", flat=True).first()
+        new_manager = obj.responsible_manager
+        AuditLog.log_action(
+            user=request.user,
+            action="assign_responsible_manager",
+            resource_type="User",
+            resource_id=obj.pk,
+            changes={
+                "email": str(obj.email or ""),
+                "old": str(old_email) if old_email else None,
+                "new": str(new_manager.email) if new_manager is not None else None,
+                "manual": obj.responsible_manager_manual,
+                "source": "card",
+            },
+            ip_address=self._get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
 
     def response_change(self, request: HttpRequest, obj: User) -> HttpResponse:  # type: ignore[override]
         # Смена ИНН или страны переназначает ответственного (хук 42.2), и клиент

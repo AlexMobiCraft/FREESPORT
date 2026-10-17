@@ -1,6 +1,6 @@
 """
-Сайты Django-админки FREESPORT: основная `/admin/`, раздел менеджера `/manager/`
-и раздел маркетинга `/marketing/`.
+Сайты Django-админки FREESPORT: основная `/admin/`, раздел менеджера `/manager/`,
+раздел маркетинга `/marketing/` и раздел руководителя `/supervisor/`.
 
 Эпик 42: флаг `is_staff` теперь означает «сотрудник» (менеджер, маркетинг,
 руководитель), а не «администратор». Сотрудникам `is_staff` нужен для входа
@@ -15,6 +15,7 @@ from typing import Any
 from django.contrib import admin
 from django.http import HttpRequest
 from django.template.response import TemplateResponse
+from django.urls import reverse
 
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
 
@@ -151,3 +152,50 @@ class MarketingAdminSite(StaffSectionAdminSite):
 
 
 marketing_site = MarketingAdminSite(name="marketing")
+
+
+class SupervisorAdminSite(StaffSectionAdminSite):
+    """
+    Раздел руководителя `/supervisor/` (стори 42.7): сотрудники, правила
+    регионов, получатели уведомлений и бонусная программа.
+
+    Пускает активного сотрудника из группы «Руководители»; суперпользователя —
+    нет (см. `StaffSectionAdminSite`). Клиентов и заказы руководитель смотрит
+    в `/manager/` — там для него снят фильтр по ответственному, — а витрину
+    в `/marketing/`: оба раздела пускают «Руководителей».
+    """
+
+    site_header = "FREESPORT — Руководитель"
+    site_title = "FREESPORT — Руководитель"
+    index_title = "Раздел руководителя"
+    # Без блока «Последние действия» — по той же причине, что у раздела менеджера.
+    index_template = "admin/supervisor/index.html"
+    section_groups = (SUPERVISORS_GROUP,)
+
+    def index(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
+        sections = [
+            {"url": reverse("manager:index"), "name": "Клиенты и заказы — без фильтра по менеджеру"},
+            {"url": reverse("marketing:index"), "name": "Маркетинг"},
+        ]
+        extra_context = {**(extra_context or {}), "supervisor_sections": sections}
+        return super().index(request, extra_context)
+
+    def get_app_list(self, request: HttpRequest, app_label: str | None = None) -> list[dict[str, Any]]:
+        # Пользователи раздела — сотрудники; «Общие утилиты» — регионы и
+        # получатели уведомлений.
+        app_list = super().get_app_list(request, app_label)
+        for app in app_list:
+            if app["app_label"] == "users":
+                app["name"] = "Сотрудники"
+                for model in app["models"]:
+                    if model["object_name"] == "User":
+                        model["name"] = "Сотрудники"
+            elif app["app_label"] == "common":
+                app["name"] = "Регионы и уведомления"
+                for model in app["models"]:
+                    if model["object_name"] == "ManagerRoutingRule":
+                        model["name"] = "Правила регионов"
+        return app_list
+
+
+supervisor_site = SupervisorAdminSite(name="supervisor")

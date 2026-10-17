@@ -14,6 +14,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from apps.users.staff_roles import limit_manager_field
+
 from .models import (
     AuditLog,
     BlogPost,
@@ -731,6 +733,17 @@ class ManagerRoutingRuleAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    def get_form(
+        self, request: HttpRequest, obj: ManagerRoutingRule | None = None, change: bool = False, **kwargs: Any
+    ) -> Any:
+        form = super().get_form(request, obj, change=change, **kwargs)
+        # Менеджер правила — только активный менеджер или руководитель; текущий
+        # бывший менеджер виден выбранным, но сохранить его нельзя (стори 42.7).
+        field = form.base_fields.get("manager")
+        if field is not None:
+            limit_manager_field(field, obj.manager_id if obj is not None else None)
+        return form
 
     @admin.display(description="Регион")
     def region_display(self, obj: ManagerRoutingRule) -> str:
