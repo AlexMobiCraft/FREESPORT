@@ -15,7 +15,7 @@ from typing import Any
 from django.contrib import admin
 from django.http import HttpRequest
 from django.template.response import TemplateResponse
-from django.urls import reverse
+from django.urls import URLPattern, URLResolver, path, reverse
 
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
 
@@ -157,7 +157,8 @@ marketing_site = MarketingAdminSite(name="marketing")
 class SupervisorAdminSite(StaffSectionAdminSite):
     """
     Раздел руководителя `/supervisor/` (стори 42.7): сотрудники, правила
-    регионов, получатели уведомлений и бонусная программа.
+    регионов, получатели уведомлений и бонусная программа. Сводка
+    `/supervisor/summary/` (стори 42.8) — заявки, заказы и выручка отдела.
 
     Пускает активного сотрудника из группы «Руководители»; суперпользователя —
     нет (см. `StaffSectionAdminSite`). Клиентов и заказы руководитель смотрит
@@ -172,8 +173,24 @@ class SupervisorAdminSite(StaffSectionAdminSite):
     index_template = "admin/supervisor/index.html"
     section_groups = (SUPERVISORS_GROUP,)
 
+    def get_urls(self) -> list[URLResolver | URLPattern]:
+        # Свой путь — до родительских: AdminSite.get_urls() заканчивается
+        # catch-all, и путь после него отвечал бы 404.
+        return [path("summary/", self.admin_view(self.summary_view), name="summary"), *super().get_urls()]
+
+    def summary_view(self, request: HttpRequest) -> TemplateResponse:
+        # Как AdminSite.index: reverse() в Python без current_app вёл бы в /admin/.
+        request.current_app = self.name
+        # Импорт внутри метода: модуль сводки через apps.orders.manager_admin
+        # импортирует этот модуль, импорт на уровне модуля дал бы цикл.
+        from apps.orders.supervisor_summary import build_summary
+
+        context = {**self.each_context(request), "title": "Сводка", **build_summary(request)}
+        return TemplateResponse(request, "admin/supervisor/summary.html", context)
+
     def index(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
         sections = [
+            {"url": reverse("supervisor:summary"), "name": "Сводка — заявки, заказы и выручка"},
             {"url": reverse("manager:index"), "name": "Клиенты и заказы — без фильтра по менеджеру"},
             {"url": reverse("marketing:index"), "name": "Маркетинг"},
         ]

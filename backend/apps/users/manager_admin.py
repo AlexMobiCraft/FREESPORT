@@ -8,6 +8,8 @@
 
 Руководитель (стори 42.7) видит всех клиентов, колонку и фильтр
 «Ответственный менеджер» и назначает ответственного вручную в карточке.
+Фильтр «Заказы» (стори 42.8) — тоже только у руководителя: на него ведёт
+число «Верифицированы, но без заказов» сводки `/supervisor/summary/`.
 
 Модуль импортируется из `UsersConfig.ready()`: к этому моменту
 `admin.autodiscover()` уже загрузил `apps/users/admin.py`.
@@ -23,12 +25,13 @@ from django.contrib.admin.utils import unquote
 from django.contrib.admin.views.main import ChangeList
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Exists, OuterRef, QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 
 from apps.common.models import AuditLog
+from apps.orders.models import Order
 from apps.users.admin import AddressInline, CompanyInline, Has1CCandidateFilter, UserAdmin, activation_locked
 from apps.users.models import User
 from apps.users.staff_roles import is_supervisor, manager_label, staff_accounts_q
@@ -147,6 +150,34 @@ class ResponsibleManagerFilter(admin.SimpleListFilter):
         return queryset.filter(responsible_manager_id=manager_id)
 
 
+def client_has_orders() -> Exists:
+    """
+    У клиента есть хотя бы один заказ — любой: мастер и его субзаказы принадлежат
+    одному клиенту. Одно выражение на фильтр «Заказы» и сводку руководителя.
+    """
+    return Exists(Order.objects.filter(user=OuterRef("pk")))
+
+
+class ClientOrdersFilter(admin.SimpleListFilter):
+    """«Заказы» в списке клиентов руководителя (стори 42.8): есть ли у клиента заказы."""
+
+    title = "Заказы"
+    parameter_name = "has_orders"
+
+    def lookups(self, request: HttpRequest, model_admin: admin.ModelAdmin) -> list[tuple[str, str]]:
+        return [("yes", "Есть"), ("no", "Нет")]
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet[User]) -> QuerySet[User]:
+        value = self.value()
+        if value is None:
+            return queryset
+        if value == "yes":
+            return queryset.filter(client_has_orders())
+        if value == "no":
+            return queryset.filter(~client_has_orders())
+        raise IncorrectLookupParameters(f"Некорректное значение фильтра «Заказы»: {value!r}")
+
+
 class ManagerClientAdmin(UserAdmin):
     """Клиенты менеджера: только свои, без служебных полей, без добавления и удаления."""
 
@@ -219,7 +250,7 @@ class ManagerClientAdmin(UserAdmin):
     def get_list_filter(self, request: HttpRequest) -> list[Any]:
         filters = list(super().get_list_filter(request))
         if is_supervisor(request):
-            filters.append(ResponsibleManagerFilter)
+            filters += [ResponsibleManagerFilter, ClientOrdersFilter]
         return filters
 
     def get_list_select_related(self, request: HttpRequest) -> Any:

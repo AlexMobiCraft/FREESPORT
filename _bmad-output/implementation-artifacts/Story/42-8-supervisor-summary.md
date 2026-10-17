@@ -4,7 +4,7 @@ baseline_commit: 1ea0fb2c
 
 # Story 42.8: Сводка руководителя
 
-Status: ready-for-dev
+Status: review
 Baseline Revision: 1ea0fb2c (`develop` после мёрджа PR #321 — стори 42.7 `done`)
 
 ## Story
@@ -172,26 +172,26 @@ so that я вижу загрузку отдела и задержки без в�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — GitNexus pre-flight** (AGENTS.md, `.windsurf/rules/gitnexus.md`)
-  - [ ] `npx gitnexus status` — при `stale` попросить Alex выполнить `! npx gitnexus analyze --force`. При подготовке стори индекс `up-to-date` на `88ffba3` (дерево совпадает с `develop` @ `1ea0fb2c`), FTS-индексы есть (`query` отвечает).
-  - [ ] Сверить таблицу «GitNexus: зона изменений» с текущим индексом (`impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"`). Сообщить Alex: меняются только `SupervisorAdminSite` (MEDIUM — оценка по импортам модуля `admin_site.py`), `manager_queue` (LOW), `ManagerClientAdmin.get_list_filter` (хук Django); `scope_clients` (HIGH) и `region_key` (CRITICAL) **только читаются**.
+- [x] **Task 0 — GitNexus pre-flight** (AGENTS.md, `.windsurf/rules/gitnexus.md`)
+  - [x] `npx gitnexus status` — при `stale` попросить Alex выполнить `! npx gitnexus analyze --force`. При подготовке стори индекс `up-to-date` на `88ffba3` (дерево совпадает с `develop` @ `1ea0fb2c`), FTS-индексы есть (`query` отвечает).
+  - [x] Сверить таблицу «GitNexus: зона изменений» с текущим индексом (`impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"`). Сообщить Alex: меняются только `SupervisorAdminSite` (MEDIUM — оценка по импортам модуля `admin_site.py`), `manager_queue` (LOW), `ManagerClientAdmin.get_list_filter` (хук Django); `scope_clients` (HIGH) и `region_key` (CRITICAL) **только читаются**.
 
-- [ ] **Task 1 — страница на сайте руководителя** (AC1, AC7; решения 1, 11, 13)
-  - [ ] `backend/freesport/admin_site.py`: `SupervisorAdminSite.get_urls()` (свой путь до `super().get_urls()`), `summary_view`, ссылка «Сводка» первой в `supervisor_sections`; docstring класса — + сводка (стори 42.8).
-  - [ ] `backend/templates/admin/supervisor/summary.html` (решение 13); комментарий шаблона — что показано и почему без `sidebar`.
+- [x] **Task 1 — страница на сайте руководителя** (AC1, AC7; решения 1, 11, 13)
+  - [x] `backend/freesport/admin_site.py`: `SupervisorAdminSite.get_urls()` (свой путь до `super().get_urls()`), `summary_view`, ссылка «Сводка» первой в `supervisor_sections`; docstring класса — + сводка (стори 42.8).
+  - [x] `backend/templates/admin/supervisor/summary.html` (решение 13); комментарий шаблона — что показано и почему без `sidebar`.
 
-- [ ] **Task 2 — расчёт сводки** (AC2–AC6; решения 2–8, 10, 14)
-  - [ ] Новый `backend/apps/orders/supervisor_summary.py`: `SummaryPeriodForm`, `Period` (`date_from`, `date_to`, `start`, `end`, подпись), `period_presets(today)`, `resolve_period(request) -> tuple[SummaryPeriodForm, Period]`, `pending_applications`, `orders_by_manager`, `orders_by_region`, `region_bucket`, `client_counts`, `format_money`, `build_summary(request) -> dict` (ключи контекста шаблона: `period_form`, `period`, `presets`, `pending`, `orders_by_manager`, `orders_by_region`, `clients`).
-  - [ ] Подписи менеджеров и список действующих менеджеров для строк с нулями — одним запросом на страницу (решения 4, 6), без запроса на строку.
+- [x] **Task 2 — расчёт сводки** (AC2–AC6; решения 2–8, 10, 14)
+  - [x] Новый `backend/apps/orders/supervisor_summary.py`: `SummaryPeriodForm`, `Period` (`date_from`, `date_to`, `start`, `end`, подпись), `period_presets(today)`, `resolve_period(request) -> tuple[SummaryPeriodForm, Period]`, `pending_applications`, `orders_by_manager`, `orders_by_region`, `region_bucket`, `client_counts`, `format_money`, `build_summary(request) -> dict` (ключи контекста шаблона: `period_form`, `period`, `presets`, `pending`, `orders_by_manager`, `orders_by_region`, `clients`).
+  - [x] Подписи менеджеров и список действующих менеджеров для строк с нулями — одним запросом на страницу (решения 4, 6), без запроса на строку.
 
-- [ ] **Task 3 — правки соседних модулей** (AC2, AC6; решения 9, 12)
-  - [ ] `backend/apps/orders/manager_admin.py`: `waiting_age(oldest)`; `manager_queue` использует её, текст счётчика прежний.
-  - [ ] `backend/apps/users/manager_admin.py`: `client_has_orders()`, `ClientOrdersFilter`, ветка руководителя в `ManagerClientAdmin.get_list_filter`; docstring модуля — + фильтр «Заказы» руководителя (42.8).
+- [x] **Task 3 — правки соседних модулей** (AC2, AC6; решения 9, 12)
+  - [x] `backend/apps/orders/manager_admin.py`: `waiting_age(oldest)`; `manager_queue` использует её, текст счётчика прежний.
+  - [x] `backend/apps/users/manager_admin.py`: `client_has_orders()`, `ClientOrdersFilter`, ветка руководителя в `ManagerClientAdmin.get_list_filter`; docstring модуля — + фильтр «Заказы» руководителя (42.8).
 
-- [ ] **Task 4 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
-  - [ ] `backend/tests/integration/test_supervisor_summary.py` (integration, транзакционные: autouse `clear_db_before_test`, группы — `role_groups`, правила — `no_routing_rules`). Хелперы — явным импортом: из `tests.integration.test_manager_clients_section` — `role_groups`, `no_routing_rules`, `verified_email_task`, `make_staff_member`, `make_client`, `make_1c_record`, `region_tax_id`, `get_unique_suffix`, `PASSWORD`, `manager`, `other_manager`; из `tests.integration.test_manager_orders_section` — `make_master`, `make_applicant`, `set_created_at`, `local_noon`; из `tests.integration.test_supervisor_section` — `supervisor`, `supervisor_client`, `logged_in`, `listed_pks`, `count_queries`. Не `import *`, нового модуля хелперов не заводить (правило 42.4). Дату заказа — `Order.objects.filter(pk=…).update(created_at=…)` (`auto_now_add`), клиенту — `set_created_at`. Сценарии AC1–AC8; ожидаемые подписи, суммы, тексты ошибок и ссылки — литералами (урок R42.5-7).
-  - [ ] `backend/tests/unit/test_supervisor_summary.py` (unit): паритет `region_bucket()` и `region_key()` — клиенты с `country` `"Россия"`, `""`, `"Беларусь"`, `"Казахстан"` и ИНН `"2300000000"`, `"7700000000"`, `"9600000000"`, `" 2300000000"`, `"2a00000000"`, `"2"`, `""`; `period_presets` на 17.10.2026, 01.10.2026 и 15.01.2026; `SummaryPeriodForm` — пустая, полная, перевёрнутая, с одной датой; `format_money` — `Decimal("1234567.8")`, `Decimal("0")`, `None`, `Decimal("999.999")` (округление — до `"1\xa0000,00\xa0₽"`); `waiting_age` — сегодня, 1 день через полночь, 5 дней; `reverse("supervisor:summary") == "/supervisor/summary/"` и `resolve("/supervisor/summary/").url_name == "summary"`.
-  - [ ] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть (скрипт в контейнере, исходник восстанавливается побайтно в `finally`). Итог — в Debug Log:
+- [x] **Task 4 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
+  - [x] `backend/tests/integration/test_supervisor_summary.py` (integration, транзакционные: autouse `clear_db_before_test`, группы — `role_groups`, правила — `no_routing_rules`). Хелперы — явным импортом: из `tests.integration.test_manager_clients_section` — `role_groups`, `no_routing_rules`, `verified_email_task`, `make_staff_member`, `make_client`, `make_1c_record`, `region_tax_id`, `get_unique_suffix`, `PASSWORD`, `manager`, `other_manager`; из `tests.integration.test_manager_orders_section` — `make_master`, `make_applicant`, `set_created_at`, `local_noon`; из `tests.integration.test_supervisor_section` — `supervisor`, `supervisor_client`, `logged_in`, `listed_pks`, `count_queries`. Не `import *`, нового модуля хелперов не заводить (правило 42.4). Дату заказа — `Order.objects.filter(pk=…).update(created_at=…)` (`auto_now_add`), клиенту — `set_created_at`. Сценарии AC1–AC8; ожидаемые подписи, суммы, тексты ошибок и ссылки — литералами (урок R42.5-7).
+  - [x] `backend/tests/unit/test_supervisor_summary.py` (unit): паритет `region_bucket()` и `region_key()` — клиенты с `country` `"Россия"`, `""`, `"Беларусь"`, `"Казахстан"` и ИНН `"2300000000"`, `"7700000000"`, `"9600000000"`, `" 2300000000"`, `"2a00000000"`, `"2"`, `""`; `period_presets` на 17.10.2026, 01.10.2026 и 15.01.2026; `SummaryPeriodForm` — пустая, полная, перевёрнутая, с одной датой; `format_money` — `Decimal("1234567.8")`, `Decimal("0")`, `None`, `Decimal("999.999")` (округление — до `"1\xa0000,00\xa0₽"`); `waiting_age` — сегодня, 1 день через полночь, 5 дней; `reverse("supervisor:summary") == "/supervisor/summary/"` и `resolve("/supervisor/summary/").url_name == "summary"`.
+  - [x] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть (скрипт в контейнере, исходник восстанавливается побайтно в `finally`). Итог — в Debug Log:
 
     | Убрать | Должен упасть |
     |---|---|
@@ -213,13 +213,13 @@ so that я вижу загрузку отдела и задержки без в�
     | строки только кандидатов (без менеджеров с заказами вне кандидатов) | AC4 (строки заблокированного F нет, «Итого» не сходится) |
     | общий запрос подписей → запрос на строку | AC8 |
 
-- [ ] **Task 5 — существующие тесты и проверки**
-  - [ ] Без правок зелёные: `tests/integration/test_supervisor_section.py`, `test_manager_clients_section.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_staff_access_lockdown.py`; `tests/unit/test_supervisor_admin_site.py`, `test_manager_admin_site.py`, `test_manager_orders_admin.py`, `test_regions.py`, `test_responsible_manager.py`.
-  - [ ] Полный backend-прогон в Docker, один compose-проект, в фоне: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~18 мин; ориентир после 42.7 — 4609 passed, 76 skipped, 0 failed).
-  - [ ] Линтеры строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .` (вывод не через `tail`), `flake8`, `mypy .` — базис ноль ошибок (после 42.7: black 487 файлов без изменений, mypy 640 файлов).
-  - [ ] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори; `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — базовый цикл `HomePage.tsx → index.ts → HomePage.tsx` и отложенный R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет (`users/manager_admin.py → orders/models.py` цикла не даёт).
-  - [ ] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
+- [x] **Task 5 — существующие тесты и проверки**
+  - [x] Без правок зелёные: `tests/integration/test_supervisor_section.py`, `test_manager_clients_section.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_staff_access_lockdown.py`; `tests/unit/test_supervisor_admin_site.py`, `test_manager_admin_site.py`, `test_manager_orders_admin.py`, `test_regions.py`, `test_responsible_manager.py`.
+  - [x] Полный backend-прогон в Docker, один compose-проект, в фоне: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~18 мин; ориентир после 42.7 — 4609 passed, 76 skipped, 0 failed).
+  - [x] Линтеры строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .` (вывод не через `tail`), `flake8`, `mypy .` — базис ноль ошибок (после 42.7: black 487 файлов без изменений, mypy 640 файлов).
+  - [x] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори; `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — базовый цикл `HomePage.tsx → index.ts → HomePage.tsx` и отложенный R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет (`users/manager_admin.py → orders/models.py` цикла не даёт).
+  - [x] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
 
 ## Dev Notes
 
@@ -352,15 +352,65 @@ so that я вижу загрузку отдела и задержки без в�
 
 ### Agent Model Used
 
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
+
 ### Debug Log References
+
+- GitNexus pre-flight: индекс `stale` (индексирован `88ffba3`, HEAD `b7f7031` — разница только в файле стори и `sprint-status.yaml`, вне индекса); по решению Alex («продолжай») без переиндексации. `impact --direction upstream --summary-only`: `SupervisorAdminSite` MEDIUM (15), `manager_queue` LOW (1), `days_ru` LOW (2), `ManagerClientAdmin` **LOW (11)** — в таблице стори MEDIUM (10), `scope_clients` HIGH (14), `scope_orders` LOW (4), `region_key` CRITICAL (9). `scope_clients`, `scope_orders`, `region_key` не менялись.
+- Проверка мутациями (скрипт в контейнере через stdin, исходник восстанавливается побайтно в `finally`, после прогона `git status` — только файлы стори): **17 из 17 убиты**.
+
+  | Мутация | Упал |
+  |---|---|
+  | свой путь после `super().get_urls()` | `TestEntry::test_supervisor_opens_summary` |
+  | без `.exclude(role=unregistered)` в заявках | `TestPending::test_rows_order_and_links` |
+  | «Без ответственного» только при ненулевом числе | `TestPending::test_unassigned_row_is_always_shown` |
+  | сортировка заявок по подписи | `TestPending::test_rows_order_and_links` |
+  | конец периода без `+ timedelta(days=1)` | `TestPeriod::test_day_boundaries` |
+  | границы периода в UTC | `TestPeriod::test_day_boundaries` |
+  | выручка без `filter=~Q(status__in=…)` | `TestOrdersByManager::test_rows_totals_and_period` |
+  | `scope_orders` → `Order.objects.filter(user__in=scope_clients(...))` | `TestOrdersByManager::test_rows_totals_and_period` |
+  | без ветки страны в `region_bucket` | `TestOrdersByRegion` (запуск с `-x`, до unit-паритета не дошёл) |
+  | регулярка `^[0-9]{2}` → `^.{2}` | unit `test_region_bucket_matches_region_key` |
+  | без `is_active=True` у верифицированных без заказов | `TestClients::test_verified_without_orders` |
+  | `client_has_orders` только по мастер-заказам не «Отменен» | `TestClients::test_verified_without_orders` |
+  | `ClientOrdersFilter` без условия `is_supervisor` | `TestClients::test_manager_has_no_orders_filter` |
+  | без ссылки «Сводка» на главной | `TestLinks::test_index_links_summary_first` |
+  | запрос подписей без `responsible_manager_candidate_q()` | `TestOrdersByManager::test_all_current_managers_are_listed` |
+  | строки только кандидатов | `TestOrdersByManager::test_all_current_managers_are_listed` |
+  | подпись менеджера запросом на строку | `TestQueryCount::test_summary` |
+
+- Полный прогон в Docker (`-n 4 -m "not performance and not slow"`): **4658 passed, 76 skipped, 0 failed** (после 42.7 — 4609; +49 новых тестов: 30 integration, 19 unit).
+- Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений; isort — чисто; flake8 — чисто; `makemigrations --check --dry-run` — «No changes detected». mypy нашёл одну ошибку (`User` без атрибута `is_candidate` — аннотация запроса) → `# type: ignore[attr-defined]` с комментарием; повторно: mypy — 643 файла без ошибок, black/flake8 — чисто, тесты сводки и соседних разделов из Task 5 — 589 passed.
+- `npx gitnexus detect-changes --scope all`: 6 файлов, risk low, 0 процессов; символы — `manager_queue`, `ManagerClientAdmin` (переменные класса — сдвиг строк), `SupervisorAdminSite`/`index`. `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1 `users/models.py → staff_roles.py → users/models.py`, новых нет.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created (`bmad-create-story`, 2026-10-17).
+- Реализовано: страница `/supervisor/summary/` (`SupervisorAdminSite.get_urls` до catch-all, `summary_view`, ссылка «Сводка» первой на главной); модуль `apps/orders/supervisor_summary.py` — период (форма, быстрые ссылки, полуинтервал в часовом поясе проекта), заявки по менеджерам, заказы и выручка по менеджерам и регионам, клиенты; `waiting_age` вынесена из `manager_queue` без изменения текста; `client_has_orders` и фильтр «Заказы» только руководителю. Страница делает фиксированное число запросов (AC8): заявки, заказы по менеджерам, по регионам, клиенты и один общий запрос подписей менеджеров.
+- Отклонения от стори (с причиной):
+  - публичных имён больше, чем перечислено в решении 2: `pending_table`, `manager_sales_table`, `load_managers`, `region_label`, `split_bucket`, `sales_total`, `this_month`, `PendingRow`, `SalesRow` — подписи строятся после общего запроса менеджеров (решение 4), поэтому `pending_applications` и `orders_by_manager` возвращают сгруппированные значения, а строки собирают отдельные функции. `orders_by_region` возвращает таблицу сразу — подписи регионов запросов не требуют;
+  - ключ `region_bucket()` — строка «вид:значение», виды страны и региона ИНН совпадают с `ManagerRoutingRule.MATCH_*` (решение 7 оставляло выбор исполнителю);
+  - подписи полей периода — «Начало периода» / «Конец периода» (в стори не заданы); ошибки обоих полей и формы выводятся над полями;
+  - в integration-тесты дополнительно импортирована autouse-фикстура `order_emails` из `test_manager_orders_section` (письма о заказе без брокера Celery), как в `test_supervisor_section.py`;
+  - в AC4 передача клиента B сделана `update()` поля `responsible_manager`, а не формой карточки: проверяется правило «по текущему ответственному», ручное назначение в карточке уже покрыто `TestManualAssignment` стори 42.7.
+- Факт для AC6: подделанный `?has_orders=no` у менеджера — 302 на `?e=1` (как у `responsible`), чужих клиентов в списке нет. Неизвестное значение `has_orders` у руководителя — тоже 302 на `?e=1`.
+- Ответы Alex на вопросы стори (17.10.2026) учтены: выручка без «Отменен»/«Возвращен»; заказы и регион — по текущему ответственному и текущему региону; «верифицированы, но без заказов» — только активные, за всё время; период по умолчанию — текущий месяц; в таблице заказов все действующие менеджеры с нулями.
+- Выкат: миграций, ручных шагов в БД и правок nginx нет. После выката: `curl -sI https://optisport.ru/supervisor/summary/` → 302 на `/supervisor/login/?next=/supervisor/summary/`; при 404 от Next — `docker compose exec nginx nginx -s reload`. Пока на проде нет правил регионов, почти все заявки и заказы будут в строках «Без ответственного» — это ожидаемо.
 
 ### File List
+
+- `backend/apps/orders/supervisor_summary.py` (новый)
+- `backend/templates/admin/supervisor/summary.html` (новый)
+- `backend/tests/integration/test_supervisor_summary.py` (новый)
+- `backend/tests/unit/test_supervisor_summary.py` (новый)
+- `backend/freesport/admin_site.py`
+- `backend/apps/orders/manager_admin.py`
+- `backend/apps/users/manager_admin.py`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/42-8-supervisor-summary.md`
 
 ### Change Log
 
 - 2026-10-17 — стори создана (`bmad-create-story`) на `1ea0fb2c`, статус `ready-for-dev`.
 - 2026-10-17 — ответы Alex: вопросы 1–4 — по умолчаниям стори; вопрос 5 — в таблице заказов по менеджерам все действующие менеджеры, в том числе с нулями (решения 4, 6, AC4, AC8, две строки мутаций).
+- 2026-10-17 — реализация (`bmad-dev-story`) на `feature/42-8-supervisor-summary`: сводка `/supervisor/summary/`, `waiting_age`, фильтр «Заказы» руководителя; 49 новых тестов, 17 из 17 мутаций убиты; полный прогон 4658 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.

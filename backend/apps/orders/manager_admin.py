@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import csv
 import unicodedata
-from datetime import date
+from datetime import date, datetime
 from typing import Any, cast
 
 from django import forms
@@ -107,6 +107,18 @@ def days_ru(n: int) -> str:
     return f"{n} {word}"
 
 
+def waiting_age(oldest: datetime) -> str:
+    """
+    Срок ожидания заявки: «сегодня» или «N дней».
+
+    Календарные дни в часовом поясе проекта: поданная вчера в 23:50
+    в 00:10 — «1 день», а не 0 полных суток. Общая для очереди менеджера
+    и сводки руководителя (стори 42.8).
+    """
+    age = (timezone.localdate() - timezone.localtime(oldest).date()).days
+    return "сегодня" if age <= 0 else days_ru(age)
+
+
 def manager_queue(request: HttpRequest, site: AdminSite) -> list[dict[str, Any]]:
     """
     Очередь главной раздела: заявки на верификацию и новые заказы своих клиентов.
@@ -132,10 +144,7 @@ def manager_queue(request: HttpRequest, site: AdminSite) -> list[dict[str, Any]]
         applications_text = f"Заявки на верификацию: {applications['count']}"
         oldest = applications["oldest"]
         if applications["count"] and oldest is not None:
-            # Календарные дни в часовом поясе проекта: поданная вчера в 23:50
-            # в 00:10 — «1 день», а не 0 полных суток.
-            age = (timezone.localdate() - timezone.localtime(oldest).date()).days
-            applications_text += ", старейшая — " + ("сегодня" if age <= 0 else days_ru(age))
+            applications_text += ", старейшая — " + waiting_age(oldest)
         queue.append(
             {
                 "text": applications_text,
