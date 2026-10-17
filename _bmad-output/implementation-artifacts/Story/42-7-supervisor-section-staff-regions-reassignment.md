@@ -4,7 +4,7 @@ baseline_commit: e87bd533
 
 # Story 42.7: Раздел руководителя — сотрудники, регионы, переназначение
 
-Status: review
+Status: done
 Baseline Revision: e87bd533 (`develop` после мёрджа PR #316 — стори 42.6 `done`)
 
 ## Story
@@ -403,6 +403,27 @@ Diff `e87bd533..рабочее дерево` по `backend/`, `docker/`, `.githu
 - `false` Тест настроек бонусов вызывает `BonusProgramSettings.load()`, а руководитель запись создать не может — запись появляется при сохранении любого мастер-заказа: сигнал `accrue_bonus_on_order_status` → `accrue_for_order` → `load()` (`get_or_create`) до проверки условий; импорт 1С сохраняет мастер-заказы прода постоянно. Запрет `add/` — решение по AC11 (blind-hunter).
 - `low` Нет сессионного входа руководителя через nginx в CI — повтор кругов 1–2, решение 16 (blind-hunter, verification-gap).
 - `low` `user_change_password` пишет `AuditLog` вне транзакции — уже записан как R42.7-D2 (edge-case-hunter).
+
+#### Круг 4 — 17.10.2026 на `979b209`
+
+Diff `e87bd533...979b209` без `_bmad-output/` (33 файла, +2885/−77). Слои: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor, graph-impact — все через плагин Codex. Четыре слоя с первой попытки упали на лимите Codex и прошли повторно после сброса лимита. Индекс GitNexus `up-to-date` на `979b209`. Новых patch, decision и defer нет: 22 находки, все отклонены.
+
+**Rejected (круг 4):**
+- `low` Гонки проверки управляемости с выдачей прав владельцем: `block_staff`/`unblock_staff`, а также устаревший `save()` карточки, который сбросил бы выданный за миллисекунды `is_superuser`. Повтор кругов 1–3 (blind-hunter, edge-case-hunter, verification-gap «Other findings»).
+- `low` Гонка назначения клиента/правила с переводом менеджера в «Маркетинг» — повтор кругов 1–3 (blind-hunter, edge-case-hunter).
+- `low` Гонка блокировки менеджера с `validate_manager_candidate` между валидацией и сохранением — повтор круга 1 (blind-hunter).
+- `low` `clean_fields` пропускает проверку резервного правила в строке `list_editable` — повтор кругов 1–3, осознанное отклонение 1 Completion Notes; на проде правил нет (blind-hunter).
+- `false` `LOGGED_RULE_FIELDS` без `manager_name`/`federal_district` — повтор кругов 1–3, решение 12 (blind-hunter, edge-case-hunter).
+- `low` Журнал правила: «было» читается без `select_for_update`, а снимок `delete_queryset` снят отдельно от удаления. Правило, созданное между ними при «выбрать все», удалится без записи. Окно — миллисекунды внутри одной транзакции. Повтор кругов 1–3 (blind-hunter, edge-case-hunter ×2).
+- `low` `raw=True` при `loaddata` запускает пересчёт — повтор кругов 1–3 (blind-hunter).
+- `false` Нет теста отката пересчёта при самостоятельном `User.save()` в autocommit — повтор кругов 2–3: путей блокировки вне транзакции нет (blind-hunter).
+- `false` Нет миграции данных для клиентов уже заблокированных менеджеров. На проде нет ни одного правила регионов и ни одной ручной отметки («Выкат» п. 3, ответ Alex 16.10.2026): клиентов, назначенных по правилу заблокированному менеджеру, нет. Резолвер и письмо учитывают блокировку сразу после выката (blind-hunter).
+- `low` Нет сессионного входа руководителя через nginx в CI — повтор кругов 1–3, решение 16 (blind-hunter, verification-gap).
+- `low` Снять ручное назначение у клиента заблокированного менеджера одним сохранением нельзя: прежний менеджер не проходит валидатор — повтор кругов 1 и 3, решение 5 и AC5 (edge-case-hunter).
+- `low` `user_change_password` пишет `AuditLog` вне транзакции — уже записан как R42.7-D2 (edge-case-hunter).
+- `low` Одновременная блокировка регионального менеджера и руководителя резерва — повтор кругов 2–3 (edge-case-hunter).
+- `low` Сигнал `is_active` на устаревшем экземпляре при `save(update_fields=["phone"])` запускает лишний пересчёт. Пересчёт читает состояние БД и идемпотентен, путь требует параллельной блокировки. Повтор круга 1 «сигнал не смотрит `update_fields`» (acceptance-auditor).
+- `low` Цикл `users/models.py → staff_roles.py → users/models.py` в `check --cycles` — уже записан как R42.7-D1 (graph-impact).
 
 ## Dev Notes
 
