@@ -1,0 +1,366 @@
+---
+baseline_commit: 1ea0fb2c
+---
+
+# Story 42.8: Сводка руководителя
+
+Status: ready-for-dev
+Baseline Revision: 1ea0fb2c (`develop` после мёрджа PR #321 — стори 42.7 `done`)
+
+## Story
+
+As a руководитель,
+I want видеть на одной странице очередь заявок, заказы и выручку по менеджерам и регионам,
+so that я вижу загрузку отдела и задержки без выгрузок и ручного подсчёта.
+
+**Закрывает:** FR-42-28. **Источник:** `_bmad-output/planning-artifacts/epic-42-staff-admin-sections.md` (Story 42.8), спецификация `_bmad-output/specs/spec-staff-admin-sections/` (CAP-5 «видит сводку», `section-contents.md` → «Руководитель» → «Сводка»), `_bmad-output/implementation-artifacts/epic-42-context.md` (сводке нужна своя агрегация в БД; выручка по мастер-заказам; число запросов не зависит от числа строк).
+
+**Предусловия:**
+- Код 42.1–42.7 в `develop` (`1ea0fb2c`): сайт `/supervisor/` (`SupervisorAdminSite`), руководитель в `/manager/` видит всех клиентов и все мастер-заказы (`scope_clients`/`scope_orders`, ветка `is_supervisor`), фильтр «Ответственный менеджер» (`ResponsibleManagerFilter`, параметр `responsible`), справочник регионов `apps/common/regions.py`, nginx-локация `/supervisor/`.
+- Ветка `feature/42-8-supervisor-summary` от `develop`.
+- **Права, модели, миграции не меняются.** У «Руководителей» уже есть `users.view_user` и `orders.view_order` (`users/migrations/0023_staff_role_groups.py`, `_MANAGERS_PERMISSIONS`).
+
+**Чего в этой стори нет:**
+- ленты журнала (42.9), замещения и массовой передачи (42.10);
+- записей `AuditLog`: сводка только читает;
+- кэша: числа сводки обязаны совпадать со списками по её ссылкам (решение 10);
+- выгрузки сводки в CSV, графиков, сравнения периодов;
+- истории назначений: заказы и выручка относятся к **текущему** ответственному менеджеру и **текущему** региону клиента (решение 6);
+- изменений во фронтенде Next.js, API, OpenAPI, моделях, правах, nginx, CI.
+
+## Решения (основа реализации)
+
+1. **Страница `/supervisor/summary/`, имя `supervisor:summary`.** `SupervisorAdminSite.get_urls()` возвращает `[path("summary/", self.admin_view(self.summary_view), name="summary"), *super().get_urls()]` — свой путь **до** родительских: `AdminSite.get_urls()` заканчивается catch-all `re_path(r"(?P<url>.*)$", …)` (`final_catch_all_view=True`), и путь, добавленный после него, отвечал бы 404 (пример из docstring `admin_view` — `urls += [...]` — здесь не работает). Доступ — `admin_view` → `has_permission` базового `StaffSectionAdminSite` без изменений: менеджер, маркетолог, сотрудник без группы, заблокированный руководитель, суперпользователь (в том числе в группе) и аноним — 302 на `/supervisor/login/?next=/supervisor/summary/`.
+   - `summary_view(self, request)`: `request.current_app = self.name` (как `AdminSite.index` — `reverse()` в Python-коде без `current_app` ведёт в `/admin/`); импорт `from apps.orders.supervisor_summary import build_summary` **внутри метода** (модуль раздела импортирует `freesport.admin_site` через `apps.orders.manager_admin` — импорт на уровне модуля дал бы цикл, как в `ManagerAdminSite.index`); `TemplateResponse(request, "admin/supervisor/summary.html", {**self.each_context(request), "title": "Сводка", **build_summary(request)})`.
+   - На других сайтах страницы нет: `/manager/summary/` и `/marketing/summary/` — 404 (catch-all).
+2. **Логика — новый модуль `backend/apps/orders/supervisor_summary.py`.** Сводка считает и клиентов, и заказы — как `manager_queue`, который уже лежит в `apps/orders` рядом со `scope_orders`. Модуль ничего не регистрирует и в `OrdersConfig.ready()` не импортируется — только из `summary_view`. Публичные имена (на них опираются тесты): `SummaryPeriodForm`, `Period`, `period_presets(today)`, `resolve_period(request)`, `pending_applications(request)`, `orders_by_manager(request, period)`, `orders_by_region(request, period)`, `client_counts(request, period)`, `region_bucket()`, `format_money(value)`, `build_summary(request)`. Docstring модуля — что считается и почему.
+3. **Выборки — только `scope_clients(request, User.objects.all())` и `scope_orders(request, Order.objects.all())`**, своих фильтров по сотрудникам, мастер-заказам и заказам без клиента нет. Для руководителя это «весь отдел без учётных записей сотрудников» и «все мастер-заказы, включая заказы без клиента» (42.7). Поэтому каждое число сводки совпадает со списком `/manager/`, на который ведёт ссылка (так же устроен `manager_queue`). `scope_clients`, `scope_orders`, `region_key` **не меняются** (`HIGH`, `LOW`, `CRITICAL` — таблица GitNexus).
+4. **Блок «Заявки на верификацию» — текущая очередь, от периода не зависит.**
+   - Выборка — как у счётчика `manager_queue`: `scope_clients(...)`, `.exclude(role=User.ROLE_UNREGISTERED)` (список клиентов по умолчанию их скрывает), `verification_status="pending"`. Один запрос: `.values("responsible_manager").annotate(count=Count("pk"), oldest=Min("created_at")).order_by()`.
+   - Строки менеджеров — по старейшей заявке (дольше всех ждёт — выше), при равенстве — по подписи. Подпись — `manager_label(user)` из `apps/users/staff_roles.py` («ФИО (email)»), у заблокированного — `+ " — заблокирован"` (тот же текст, что в `ResponsibleManagerFilter`). Учётные записи менеджеров — одним запросом на страницу, общим для блоков 4 и 6: `User.objects.filter(Q(pk__in=<id из таблиц страницы>) | responsible_manager_candidate_q())` (решение 6 — все действующие менеджеры). В этой таблице менеджеры без заявок не показываются: это очередь; все менеджеры с нулями — в таблице заказов (ответ Alex на вопрос 5).
+   - **«Без ответственного» — отдельная строка в конце таблицы, всегда** (при нуле: число `0`, срок «—»), выделена `<strong>` и классом `summary-unassigned`.
+   - Срок ожидания старейшей — `waiting_age(oldest)` (решение 12): «сегодня» или «N дней» в календарных днях часового пояса проекта.
+   - Число в строке — ссылка на список `/manager/users/user/?verification_status__exact=pending&responsible=<pk>` (у «Без ответственного» — `responsible=none`). Фильтр `responsible` есть только у руководителя (42.7) — страница только для него. Последняя строка — «Итого» (сумма строк, без запроса).
+5. **Период — GET-форма `SummaryPeriodForm`: `date_from`, `date_to` (`forms.DateField`, `DateInput(attrs={"type": "date"}, format="%Y-%m-%d")`), обе даты включительно, часовой пояс проекта (`Europe/Moscow`).**
+   - Форма связана, только если в запросе есть хотя бы один из параметров; без параметров — период по умолчанию **«Этот месяц»** (с 1-го числа по сегодня, `timezone.localdate()`).
+   - Ошибки: дата не указана при указанной второй — штатное «Обязательное поле.»; `date_from > date_to` — ошибка формы «Начало периода позже его конца.» Неверная форма — ошибки над формой, данные считаются за период по умолчанию, и подпись периода это показывает.
+   - Границы в БД — полуинтервал `[make_aware(datetime.combine(date_from, time.min)), make_aware(datetime.combine(date_to + 1 день, time.min)))` по `timezone.get_current_timezone()`: заказ в 23:59 последнего дня входит, в 00:00 следующего — нет; заказ в 21:30 UTC накануне `date_from` (00:30 по Москве) входит.
+   - Быстрые ссылки `period_presets(today)`: «Сегодня», «7 дней» (сегодня и 6 дней до), «30 дней» (сегодня и 29 до), «Этот месяц», «Прошлый месяц» (с 1-го по последнее число прошлого месяца; в январе — декабрь прошлого года). Ссылка — `?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD`, выбранная выделена.
+   - Подпись над блоками периода: «Период: 01.10.2026 — 17.10.2026».
+6. **Блок «Заказы и выручка за период» — две таблицы, «По менеджерам» и «По регионам»** (FR-42-28, AC эпика).
+   - База обеих — `scope_orders(request, Order.objects.all()).filter(created_at__gte=start, created_at__lt=end)`: только мастер-заказы (`is_master=True` внутри `scope_orders`), поэтому **сумма субзаказов второй раз не добавляется**. Выручка — `Sum("total_amount")` мастер-заказа: товары + доставка − скидка (`orders/services/order_create.py`; сумма субзаказов — только товары).
+   - Колонки: «Заказов» — мастер-заказы периода **кроме** статусов `cancelled` и `refunded`; «Выручка» — сумма `total_amount` этих же заказов; «Отменено» — заказы периода в `cancelled`/`refunded`. Агрегаты условные: `Count("pk", filter=~Q(status__in=CANCELLED_STATUSES))`, `Sum("total_amount", filter=~Q(...))`, `Count("pk", filter=Q(status__in=...))`; `Sum` пустой группы — `None` → `Decimal("0")`. `CANCELLED_STATUSES = ("cancelled", "refunded")` — константа модуля.
+   - **По менеджерам** — один запрос: группировка по `no_client=ExpressionWrapper(Q(user__isnull=True), output_field=BooleanField())` и `user__responsible_manager`, `.order_by()`. Строки:
+     - **все действующие менеджеры, в том числе без заказов за период** (ответ Alex 17.10.2026 на вопрос 5): `responsible_manager_candidate_q()` из `apps/users/staff_roles.py` — активный сотрудник в «Менеджерах» или «Руководителях», не суперпользователь. Без заказов — «0», «0,00\xa0₽», «0». Список кандидатов приходит тем же запросом подписей (решение 4) — число запросов не растёт;
+     - плюс менеджеры с заказами за период, которые уже не кандидаты (заблокированный — с « — заблокирован», выведенный из групп — просто подписью): их клиентов ещё не передали. Заблокированный или выведенный без заказов за период строки не получает; маркетологи — тоже;
+     - порядок — по выручке по убыванию, затем по подписи: менеджеры с нулями внизу, по алфавиту;
+     - затем «Без ответственного» (клиент без менеджера) и «Без клиента» (`Order.user` пусто, наследие `order_export`) — эти две только если в них есть заказы.
+
+     Подпись под таблицей: «По текущему ответственному менеджеру клиента». «Итого» — сумма строк. Пустая таблица заказов (решение 13) бывает, только когда нет ни одного действующего менеджера и ни одного заказа.
+   - **По регионам** — один запрос: группировка по `region_bucket()` (решение 7). Строки — по выручке по убыванию, затем по подписи; «Итого» совпадает с «Итого» таблицы менеджеров.
+   - Ссылок на списки заказов нет: у списка заказов раздела нет фильтров по менеджеру и периоду, а число без совпадающего списка вводило бы в заблуждение.
+7. **Регион заказа — регион его клиента сейчас, тем же правилом, что `region_key` (`users/services/responsible_manager.py`), но выражением SQL.** `region_bucket()` возвращает `Case`:
+   - `user` пусто → «Без клиента»;
+   - `~Q(user__country__in=RUSSIA_COUNTRY_VALUES)` (константа из `responsible_manager.py`: пустая страна = Россия) → страна;
+   - `Q(user__tax_id__regex=r"^[0-9]{2}")` → первые две цифры (`Substr("user__tax_id", 1, 2)`);
+   - иначе → «Регион не определён» (Россия без ИНН, ИНН с пробелом или буквой в начале — `region_key` даёт `None`).
+
+   Ключ и подпись разделены: значение `Case` — служебный ключ (например `("country", "Беларусь")` двумя аннотациями `region_type`/`region_value` или строкой с префиксом — на выбор исполнителя), подпись строится в Python: код из `REGION_NAMES` — «23 — Краснодарский край», код вне справочника — сам код («96», как `region_name`), страна — её название. **`region_key` не менять (CRITICAL):** паритет выражения и функции закрепляет unit-тест на наборе ИНН и стран (Task 4). Не-ASCII цифры (`"٢٣"` — `isdigit()` да, регулярка нет) в ИНН не встречаются; в тест не включать.
+8. **Блок «Клиенты».**
+   - **«Новые регистрации за период: N»** — `scope_clients(...)`, `.exclude(role=User.ROLE_UNREGISTERED)`, `created_at` в периоде. Входят все регистрации портала: заявки в ожидании, верифицированные, отклонённые, розничные. Записи 1С без аккаунта (`unregistered`, на проде их 4600+) — не регистрации. Ссылки нет: у списка клиентов нет фильтра по произвольному периоду.
+   - **«Верифицированы, но без заказов: M»** — от периода не зависит («без единого заказа» — за всё время): `scope_clients(...)`, `.exclude(role=User.ROLE_UNREGISTERED)`, `verification_status="verified"`, `is_active=True` (заблокированный заказать не может, руководителю он не нужен в этом списке), `~client_has_orders()`. Число — ссылка на `/manager/users/user/?verification_status__exact=verified&is_active__exact=1&has_orders=no`; список по ней показывает ровно M клиентов.
+   - Оба числа — один запрос `aggregate(...)` с условными `Count`.
+9. **Фильтр «Заказы» в списке клиентов `/manager/` — только руководителю** (нужен ссылке решения 8). В `apps/users/manager_admin.py`:
+   - `client_has_orders() -> Exists` — `Exists(Order.objects.filter(user=OuterRef("pk")))`, любой заказ (мастер и его субзаказы принадлежат одному клиенту). Импорт `from apps.orders.models import Order` на уровне модуля безопасен: `orders/models.py` берёт пользователя через `get_user_model()` и `apps.users.manager_admin` не импортирует. Одно выражение на фильтр и на сводку — числа не разойдутся.
+   - `ClientOrdersFilter(admin.SimpleListFilter)`: `title = "Заказы"`, `parameter_name = "has_orders"`, варианты `("yes", "Есть")`, `("no", "Нет")`; `queryset` — `filter(client_has_orders())` / `filter(~client_has_orders())`; неизвестное значение — `IncorrectLookupParameters` (как `ResponsibleManagerFilter`).
+   - `ManagerClientAdmin.get_list_filter` у руководителя дописывает `ClientOrdersFilter` после `ResponsibleManagerFilter`. У менеджера фильтра нет, состав фильтров менеджера прежний (`test_manager_clients_section.py` проверяет его литералом); подделанный `?has_orders=no` в его списке не показывает чужих клиентов — штатный отказ Django на неизвестный параметр, точный ответ зафиксировать в тесте по факту (у `responsible` это 302 на `?e=1`).
+10. **Без кэша.** `CustomerSyncMonitor.get_business_metrics` (`common/services/customer_sync_monitor.py:154`) кэширует метрики синхронизации — сводке это не подходит: числа должны совпадать со списками по ссылкам сразу после действия менеджера, а пять агрегирующих запросов по индексированным таблицам дешевле инвалидации. Образцом агрегации он тоже не служит — считает в цикле Python.
+11. **Ссылка на сводку — первой в блоке «Разделы» главной `/supervisor/`:** `{"url": reverse("supervisor:summary"), "name": "Сводка — заявки, заказы и выручка"}` в `SupervisorAdminSite.index`. Остальные ссылки и блоки главной не меняются.
+12. **Срок ожидания — одна функция на очередь менеджера и сводку.** В `apps/orders/manager_admin.py` рядом с `days_ru`: `waiting_age(oldest: datetime) -> str` — `(timezone.localdate() - timezone.localtime(oldest).date()).days`, «сегодня» при `<= 0`, иначе `days_ru(n)`. `manager_queue` переходит на неё без изменения текста (тесты `TestQueue`, `TestManagerQueue`, `test_index_counts_whole_department` — без правок).
+13. **Шаблон `backend/templates/admin/supervisor/summary.html`** — `{% extends "admin/base_site.html" %}`, `bodyclass` + ` supervisor-summary`, хлебные крошки «Начало › Сводка» (`{% url 'admin:index' %}` — резолвится в `/supervisor/` по `current_app`), без `sidebar`. Блоки сверху вниз: форма периода с быстрыми ссылками и подписью периода; «Заявки на верификацию»; «Заказы и выручка за период» (две таблицы); «Клиенты». Таблицы — `<div class="module"><table><caption>…</caption>`, как `admin/manager/index.html`. Все значения — через автоэкранирование, без `|safe`. Таблица заказов по менеджерам без строк (решение 6) — строка «Заказов за период нет».
+14. **Деньги — `format_money(value) -> str`:** `Decimal` с двумя знаками, группы по три через неразрывный пробел, запятая, затем неразрывный пробел и «₽»: `Decimal("1234567.8")` → `"1\xa0234\xa0567,80\xa0₽"`, `None`/`0` → `"0,00\xa0₽"`. Реализация без локали (`f"{value:,.2f}"` с заменой разделителей): результат не зависит от активного языка теста.
+
+## Acceptance Criteria
+
+### AC1 — вход и отказ
+
+**Given** руководитель, менеджер, маркетолог, сотрудник без группы, заблокированный руководитель, суперпользователь, суперпользователь в группе «Руководители» и аноним
+**When** каждый открывает `/supervisor/summary/`
+**Then** руководитель получает 200, в HTML — «FREESPORT — Руководитель» и заголовок «Сводка»
+**And** остальные получают 302 ровно на `/supervisor/login/?next=/supervisor/summary/`
+**And** руководитель на `/manager/summary/` и `/marketing/summary/` получает 404
+**And** просмотр сводки не пишет ни одной записи `AuditLog`
+
+### AC2 — заявки на верификацию по менеджерам
+
+**Given** заявки в ожидании (`verification_status="pending"`): у менеджера A — три (старейшей 5 дней), у менеджера B — одна (сегодня), у заблокированного менеджера C — одна (2 дня), без ответственного — две; плюс запись 1С `unregistered` в `pending` у A, верифицированный клиент A и сотрудник в `pending` с ответственным A
+**When** руководитель открывает сводку
+**Then** строки по порядку: A «3», «5 дней»; C «1», «2 дня», подпись с « — заблокирован»; B «1», «сегодня»; затем выделенная строка «Без ответственного» «2»; «Итого» — 7
+**And** запись `unregistered`, верифицированный клиент и сотрудник не посчитаны
+**And** ссылка в строке A ведёт на `/manager/users/user/?verification_status__exact=pending&responsible=<pk A>`, «Без ответственного» — на `…&responsible=none`; список по каждой ссылке у руководителя содержит ровно столько клиентов, сколько в строке
+**And** без заявок без ответственного строка «Без ответственного» есть, число «0», срок «—»
+
+### AC3 — период
+
+**Given** сегодня 17.10.2026 (в тесте — `patch` `django.utils.timezone.now`)
+**When** руководитель открывает сводку без параметров
+**Then** период — 01.10.2026 — 17.10.2026, подпись «Период: 01.10.2026 — 17.10.2026», поля формы заполнены этими датами
+**And** быстрые ссылки: «Сегодня» (17.10–17.10), «7 дней» (11.10–17.10), «30 дней» (18.09–17.10), «Этот месяц» (01.10–17.10), «Прошлый месяц» (01.09–30.09); в январе «Прошлый месяц» — декабрь прошлого года
+**When** период 10.10.2026 — 12.10.2026
+**Then** заказ, созданный 12.10 в 23:59 по Москве, входит; 13.10 в 00:00 по Москве — нет; 09.10 в 21:30 UTC (10.10 00:30 по Москве) — входит
+**When** `date_from` позже `date_to` или указана только одна дата
+**Then** над формой ошибка («Начало периода позже его конца.» / «Обязательное поле.»), страница 200, данные — за период по умолчанию, и подпись показывает его
+
+### AC4 — заказы и выручка по менеджерам
+
+**Given** в периоде: у клиентов A — мастер-заказ 1000 ₽ с двумя субзаказами по 500 ₽, legacy-мастер без субзаказов 300 ₽ и отменённый мастер 700 ₽; у клиентов B — мастер 2000 ₽ в статусе «Возвращен» и мастер 400 ₽; у клиента без ответственного — 150 ₽; заказ без клиента — 50 ₽; вне периода — заказ A 9999 ₽
+**When** руководитель открывает сводку за период
+**Then** A: «Заказов» 2, «Выручка» «1\xa0300,00\xa0₽», «Отменено» 1; B: 1, «400,00\xa0₽», 1; «Без ответственного»: 1, «150,00\xa0₽»; «Без клиента»: 1, «50,00\xa0₽»; «Итого»: 5, «1\xa0900,00\xa0₽», 2
+**And** субзаказы не добавлены второй раз (выручка A не 2300), заказ вне периода не учтён
+**When** руководитель меняет период так, что в него попадает заказ A 9999 ₽
+**Then** число заказов и выручка A пересчитаны
+**And** клиент A, переданный B в карточке, переносит свои заказы в строку B (по текущему ответственному)
+
+**Given** отдельный набор данных (не вместе с предыдущим сценарием): у менеджера A один заказ 500 ₽ в периоде, активный менеджер D и руководитель R без заказов за период, маркетолог M, заблокированный менеджер E без заказов и заблокированный менеджер F, у клиента которого заказ 200 ₽ в периоде
+**When** руководитель открывает сводку
+**Then** строки по порядку: A «1», «500,00\xa0₽»; F «1», «200,00\xa0₽», подпись с « — заблокирован»; затем D и R с «0», «0,00\xa0₽», «0» — по подписи
+**And** «Итого»: 2, «700,00\xa0₽», 0
+**And** строк M и E нет
+
+### AC5 — заказы и выручка по регионам
+
+**Given** заказы периода клиентов с ИНН региона 23, региона 77, с ИНН кода вне справочника «96», клиента из Беларуси (ИНН любой), клиента России без ИНН, клиента с ИНН « 23…» (пробел в начале) и заказ без клиента
+**When** руководитель открывает сводку
+**Then** строки: «23 — Краснодарский край», «77 — г. Москва» (название — из `REGION_NAMES`), «96», «Беларусь», «Регион не определён» (без ИНН и с пробелом — одна строка), «Без клиента»
+**And** «Итого» по регионам равно «Итого» по менеджерам (число заказов, выручка, отменённые)
+**And** регион каждой строки совпадает с `region_key(country, tax_id)` клиента (unit-тест паритета)
+
+### AC6 — регистрации и верифицированные без заказов
+
+**Given** в периоде зарегистрированы: заявка B2B в ожидании, верифицированный оптовик, отклонённая заявка, розничный покупатель; вне периода — ещё один клиент; в периоде импортирована запись 1С `unregistered` и создан сотрудник
+**When** руководитель открывает сводку
+**Then** «Новые регистрации за период: 4»
+**Given** верифицированные активные клиенты: без заказов — двое, с мастер-заказом — один, только с отменённым заказом — один; плюс верифицированный заблокированный без заказов, заявка в ожидании без заказов, запись `unregistered`, сотрудник
+**When** руководитель открывает сводку
+**Then** «Верифицированы, но без заказов: 2», число — ссылка `/manager/users/user/?verification_status__exact=verified&is_active__exact=1&has_orders=no`
+**And** список по ссылке у руководителя содержит ровно этих двух клиентов
+**And** в списке клиентов руководителя есть фильтр «Заказы» («Есть» / «Нет»), `has_orders=yes` показывает только клиентов с заказами
+**And** у менеджера фильтра «Заказы» нет, состав его фильтров прежний; подделанный `?has_orders=no` в его списке не показывает чужих клиентов (ответ зафиксировать по факту)
+
+### AC7 — ссылки и главная
+
+**Given** руководитель
+**When** он открывает главную `/supervisor/`
+**Then** первая ссылка блока «Разделы» — `href="/supervisor/summary/"` «Сводка — заявки, заказы и выручка»; ссылки на `/manager/` и `/marketing/` и блоки главной прежние
+**When** он открывает сводку с данными во всех блоках и с периодом в адресе
+**Then** в HTML нет `href="/admin/`; хлебные крошки ведут на `/supervisor/`; ссылки «Изменить пароль» и «Выйти» — в `/supervisor/…`; ссылки строк ведут в `/manager/users/user/`
+**And** подписи менеджеров и регионов выведены с экранированием (менеджер с именем `<b>X</b>` не даёт тега в HTML)
+
+### AC8 — число запросов (NFR-42-04)
+
+**Given** 2 менеджера, 5 клиентов (часть — заявки), 6 мастер-заказов в двух регионах
+**When** руководитель открывает сводку, затем добавляются ещё 28 менеджеров, 60 клиентов и 90 мастер-заказов с субзаказами в 15 регионах и странах, и сводка открывается снова
+**Then** число SQL-запросов одинаковое (`django_assert_num_queries(baseline)`, как `TestQueryCount` стори 42.7); среди добавленных менеджеров есть и без заказов — строки с нулями запросов не добавляют
+**And** то же для списка клиентов руководителя с `has_orders=no` (5 и 50 клиентов)
+
+### AC9 — регрессия и проверки
+
+**Given** итоговая ветка
+**When** в Docker выполняются полный backend-прогон, `black --check`, `isort --check-only`, `flake8`, `mypy`, `makemigrations --check`
+**Then** всё зелёное, миграций нет
+**And** ожидания существующих тестов не меняются
+
+## Tasks / Subtasks
+
+- [ ] **Task 0 — GitNexus pre-flight** (AGENTS.md, `.windsurf/rules/gitnexus.md`)
+  - [ ] `npx gitnexus status` — при `stale` попросить Alex выполнить `! npx gitnexus analyze --force`. При подготовке стори индекс `up-to-date` на `88ffba3` (дерево совпадает с `develop` @ `1ea0fb2c`), FTS-индексы есть (`query` отвечает).
+  - [ ] Сверить таблицу «GitNexus: зона изменений» с текущим индексом (`impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"`). Сообщить Alex: меняются только `SupervisorAdminSite` (MEDIUM — оценка по импортам модуля `admin_site.py`), `manager_queue` (LOW), `ManagerClientAdmin.get_list_filter` (хук Django); `scope_clients` (HIGH) и `region_key` (CRITICAL) **только читаются**.
+
+- [ ] **Task 1 — страница на сайте руководителя** (AC1, AC7; решения 1, 11, 13)
+  - [ ] `backend/freesport/admin_site.py`: `SupervisorAdminSite.get_urls()` (свой путь до `super().get_urls()`), `summary_view`, ссылка «Сводка» первой в `supervisor_sections`; docstring класса — + сводка (стори 42.8).
+  - [ ] `backend/templates/admin/supervisor/summary.html` (решение 13); комментарий шаблона — что показано и почему без `sidebar`.
+
+- [ ] **Task 2 — расчёт сводки** (AC2–AC6; решения 2–8, 10, 14)
+  - [ ] Новый `backend/apps/orders/supervisor_summary.py`: `SummaryPeriodForm`, `Period` (`date_from`, `date_to`, `start`, `end`, подпись), `period_presets(today)`, `resolve_period(request) -> tuple[SummaryPeriodForm, Period]`, `pending_applications`, `orders_by_manager`, `orders_by_region`, `region_bucket`, `client_counts`, `format_money`, `build_summary(request) -> dict` (ключи контекста шаблона: `period_form`, `period`, `presets`, `pending`, `orders_by_manager`, `orders_by_region`, `clients`).
+  - [ ] Подписи менеджеров и список действующих менеджеров для строк с нулями — одним запросом на страницу (решения 4, 6), без запроса на строку.
+
+- [ ] **Task 3 — правки соседних модулей** (AC2, AC6; решения 9, 12)
+  - [ ] `backend/apps/orders/manager_admin.py`: `waiting_age(oldest)`; `manager_queue` использует её, текст счётчика прежний.
+  - [ ] `backend/apps/users/manager_admin.py`: `client_has_orders()`, `ClientOrdersFilter`, ветка руководителя в `ManagerClientAdmin.get_list_filter`; docstring модуля — + фильтр «Заказы» руководителя (42.8).
+
+- [ ] **Task 4 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
+  - [ ] `backend/tests/integration/test_supervisor_summary.py` (integration, транзакционные: autouse `clear_db_before_test`, группы — `role_groups`, правила — `no_routing_rules`). Хелперы — явным импортом: из `tests.integration.test_manager_clients_section` — `role_groups`, `no_routing_rules`, `verified_email_task`, `make_staff_member`, `make_client`, `make_1c_record`, `region_tax_id`, `get_unique_suffix`, `PASSWORD`, `manager`, `other_manager`; из `tests.integration.test_manager_orders_section` — `make_master`, `make_applicant`, `set_created_at`, `local_noon`; из `tests.integration.test_supervisor_section` — `supervisor`, `supervisor_client`, `logged_in`, `listed_pks`, `count_queries`. Не `import *`, нового модуля хелперов не заводить (правило 42.4). Дату заказа — `Order.objects.filter(pk=…).update(created_at=…)` (`auto_now_add`), клиенту — `set_created_at`. Сценарии AC1–AC8; ожидаемые подписи, суммы, тексты ошибок и ссылки — литералами (урок R42.5-7).
+  - [ ] `backend/tests/unit/test_supervisor_summary.py` (unit): паритет `region_bucket()` и `region_key()` — клиенты с `country` `"Россия"`, `""`, `"Беларусь"`, `"Казахстан"` и ИНН `"2300000000"`, `"7700000000"`, `"9600000000"`, `" 2300000000"`, `"2a00000000"`, `"2"`, `""`; `period_presets` на 17.10.2026, 01.10.2026 и 15.01.2026; `SummaryPeriodForm` — пустая, полная, перевёрнутая, с одной датой; `format_money` — `Decimal("1234567.8")`, `Decimal("0")`, `None`, `Decimal("999.999")` (округление — до `"1\xa0000,00\xa0₽"`); `waiting_age` — сегодня, 1 день через полночь, 5 дней; `reverse("supervisor:summary") == "/supervisor/summary/"` и `resolve("/supervisor/summary/").url_name == "summary"`.
+  - [ ] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть (скрипт в контейнере, исходник восстанавливается побайтно в `finally`). Итог — в Debug Log:
+
+    | Убрать | Должен упасть |
+    |---|---|
+    | свой путь после `super().get_urls()` вместо до | AC1 (руководитель — 404) |
+    | `.exclude(role=User.ROLE_UNREGISTERED)` в заявках | AC2 (запись 1С посчитана у A) |
+    | строка «Без ответственного» только при ненулевом числе | AC2 (строки нет при нуле) |
+    | сортировка заявок по старейшей → по подписи | AC2 (порядок строк) |
+    | `+ timedelta(days=1)` у конца периода | AC3 (заказ 12.10 23:59 не вошёл) |
+    | `make_aware` по часовому поясу проекта → UTC | AC3 (заказ 21:30 UTC накануне) |
+    | `filter=~Q(status__in=CANCELLED_STATUSES)` у выручки | AC4 (отменённый в выручке) |
+    | `scope_orders(...)` → `Order.objects.filter(user__in=scope_clients(...))` | AC4 (выручка A 2300, «Без клиента» пропал) |
+    | ветка страны в `region_bucket` | AC5, unit паритет (Беларусь — «Регион не определён») |
+    | регулярка `^[0-9]{2}` → `Substr` без проверки | unit паритет (`"2a…"`, `" 23…"`) |
+    | `is_active=True` у верифицированных без заказов | AC6 (заблокированный посчитан) |
+    | `~client_has_orders()` → `~Exists` только мастер-заказов со статусом не «Отменен» | AC6 (клиент с отменённым заказом посчитан) |
+    | условие `is_supervisor` у `ClientOrdersFilter` | AC6 (у менеджера фильтр, состав фильтров менеджера) |
+    | ссылка «Сводка» на главной | AC7 |
+    | `\| responsible_manager_candidate_q()` в запросе подписей | AC4 (строк D и R с нулями нет) |
+    | строки только кандидатов (без менеджеров с заказами вне кандидатов) | AC4 (строки заблокированного F нет, «Итого» не сходится) |
+    | общий запрос подписей → запрос на строку | AC8 |
+
+- [ ] **Task 5 — существующие тесты и проверки**
+  - [ ] Без правок зелёные: `tests/integration/test_supervisor_section.py`, `test_manager_clients_section.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_staff_access_lockdown.py`; `tests/unit/test_supervisor_admin_site.py`, `test_manager_admin_site.py`, `test_manager_orders_admin.py`, `test_regions.py`, `test_responsible_manager.py`.
+  - [ ] Полный backend-прогон в Docker, один compose-проект, в фоне: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~18 мин; ориентир после 42.7 — 4609 passed, 76 skipped, 0 failed).
+  - [ ] Линтеры строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .` (вывод не через `tail`), `flake8`, `mypy .` — базис ноль ошибок (после 42.7: black 487 файлов без изменений, mypy 640 файлов).
+  - [ ] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
+  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори; `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — базовый цикл `HomePage.tsx → index.ts → HomePage.tsx` и отложенный R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет (`users/manager_admin.py → orders/models.py` цикла не даёт).
+  - [ ] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
+
+## Dev Notes
+
+### Текущее состояние кода (сверено на `1ea0fb2c`)
+
+| Место | Сейчас | Что меняется |
+|---|---|---|
+| `backend/freesport/admin_site.py:157-201` `SupervisorAdminSite` | вход — группа «Руководители»; `index` кладёт в контекст `supervisor_sections` (ссылки на `/manager/`, `/marketing/`); `get_app_list` переименовывает блоки | + `get_urls`, `summary_view`; первая ссылка «Сводка» |
+| `backend/freesport/admin_site.py:39-66` `StaffSectionAdminSite.has_permission` | активный сотрудник из `section_groups`, не суперпользователь; кэш `request._staff_section_access` | не меняется — им же закрыта сводка |
+| `backend/freesport/urls.py:54` | `path("supervisor/", supervisor_site.urls)` | не меняется: новый путь приходит из `get_urls` сайта |
+| `backend/templates/admin/supervisor/index.html` | блок «Разделы» по `supervisor_sections`, пустой `sidebar` | не меняется (ссылка приходит из контекста) |
+| `backend/apps/users/manager_admin.py:38-48` `scope_clients` | руководителю — все, кроме сотрудников (`staff_accounts_q()`); менеджеру — свои | не меняется, сводка читает |
+| `backend/apps/users/manager_admin.py:110-147` `ResponsibleManagerFilter` | `responsible=<pk>` / `none`, варианты — менеджеры с клиентами в выборке | не меняется, на него ведут ссылки блока заявок |
+| `backend/apps/users/manager_admin.py:150-229` `ManagerClientAdmin` | `list_filter` менеджера: `role`, `verification_status`, `Has1CCandidateFilter`, `is_active`, `PortalAccountFilter`; руководителю `get_list_filter` добавляет `ResponsibleManagerFilter` | + `ClientOrdersFilter` у руководителя |
+| `backend/apps/orders/manager_admin.py:82-95` `scope_orders` | мастер-заказы клиентов `scope_clients`; руководителю — и заказы без клиента | не меняется, сводка читает |
+| `backend/apps/orders/manager_admin.py:98-157` `days_ru`, `manager_queue` | срок старейшей заявки считается внутри `manager_queue` | `waiting_age` выносится, `manager_queue` её вызывает |
+| `backend/apps/users/services/responsible_manager.py:37`, `:48-60` `RUSSIA_COUNTRY_VALUES`, `region_key` | ключ региона: страна не Россия → страна; иначе две цифры ИНН; иначе `None` | не меняется; сводка повторяет правило выражением SQL |
+| `backend/apps/common/regions.py` | `REGION_NAMES`, `region_name` (код вне справочника — как есть) | не меняется, подписи регионов |
+| `backend/apps/users/staff_roles.py:91-94` `manager_label` | «ФИО (email)» | не меняется, подписи менеджеров |
+| `backend/apps/users/staff_roles.py:73-82` `responsible_manager_candidate_q` | активный сотрудник в «Менеджерах»/«Руководителях», не суперпользователь; членство через `Exists` | не меняется; состав строк с нулями в таблице заказов |
+| `backend/apps/users/models.py:132-421` `User` | `created_at`, `verification_status` (`unverified`/`pending`/`verified`), `is_active`, `role`, `responsible_manager` (`related_name="managed_clients"`), `country`, `tax_id`; `Meta` без `ordering` | не меняется |
+| `backend/apps/orders/models.py:30-368` `Order` | `user` (`null=True`, `related_name="orders"`), `is_master`, `parent_order`, `status` (`orders/constants.py:49`), `total_amount`, `created_at` (`auto_now_add`); `Meta.ordering = ["-created_at"]`; индексы `(user, status)`, `(status, created_at)` | не меняется |
+| `backend/apps/orders/services/order_create.py:85-125` | мастер: `total_amount` = товары + доставка − скидка; субзаказ: сумма своих товаров | не меняется; основа «выручки по мастер-заказам» |
+
+### GitNexus: зона изменений
+
+Индекс `up-to-date` на `88ffba3` (дерево = `develop` @ `1ea0fb2c`), FTS есть. Команды — `npx gitnexus impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"` и `--include-tests --depth 2`.
+
+| Символ | Изменение | risk | Прямые вызывающие (`byDepth.1`) | Затронутые процессы | Тесты (`--include-tests`) |
+|---|---|---|---|---|---|
+| `SupervisorAdminSite` (`freesport/admin_site.py`, `--kind Class`) | + `get_urls`, `summary_view`, ссылка в `index` | MEDIUM (15, lower-bound: 9 прямых — модули, импортирующие `admin_site.py`) | `bonuses/common/users supervisor_admin.py`, `*/marketing_admin.py`, `orders|users manager_admin.py`, `freesport/urls.py` | 0 | `test_supervisor_section.py`, `test_supervisor_admin_site.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_manager_admin_site.py`, `test_manager_orders_admin.py`, `test_marketing_admin_site.py` |
+| `SupervisorAdminSite.index` | + ссылка «Сводка» | UNKNOWN (хук Django — вызывающих в графе нет, ожидаемо) | — | — | `test_supervisor_section.py::TestLinksAndIndex::test_index` |
+| `manager_queue` (`orders/manager_admin.py`) | срок — через `waiting_age` | LOW (1) | `ManagerAdminSite.index` | 0 | `test_manager_orders_section.py::TestQueue`, `test_manager_orders_admin.py::TestManagerQueue`, `test_supervisor_section.py::test_index_counts_whole_department` |
+| `days_ru` (`orders/manager_admin.py`) | не меняется, зовёт `waiting_age` | LOW (2) | `manager_queue` | 0 | `test_manager_orders_admin.py::test_days_ru` |
+| `ManagerClientAdmin.get_list_filter` (`users/manager_admin.py`) | + `ClientOrdersFilter` руководителю | UNKNOWN (хук Django) | — | — | `test_supervisor_section.py::TestResponsibleColumnAndFilter`, `test_manager_clients_section.py` (состав фильтров менеджера литералом) |
+| `ManagerClientAdmin` (`--kind Class`) | см. выше | MEDIUM (10, по импортам) | `users/apps.py`, `orders/manager_admin.py` | 0 | `test_manager_clients_section.py`, `test_supervisor_section.py`, `test_manager_admin_site.py` |
+| `scope_clients` (`users/manager_admin.py`) | **не меняется**, только чтение | HIGH (14) | `ManagerClientAdmin.get_queryset`, `ResponsibleManagerFilter.lookups`, `scope_orders`, `manager_queue` | `user_change_password`, `change_view`, `verify_b2b_view` раздела (по 9 процессов) | — |
+| `scope_orders` (`orders/manager_admin.py`) | **не меняется**, только чтение | LOW (4) | `ManagerOrderAdmin.get_queryset`, `ManagerOrderForm.clean`, `manager_queue` | `get_queryset` (2) | — |
+| `region_key` (`users/services/responsible_manager.py`) | **не меняется**; паритет с `region_bucket` — unit-тест | CRITICAL (9) | `resolve_responsible`, `resolve_manager_recipients`, `recalculate_responsible_managers` | `handle` команды пересчёта (7), `verify_b2b_view` и др. | `test_responsible_manager.py`, `test_region_routing.py` |
+| `region_name` (`common/regions.py`) | не меняется, подписи | MEDIUM (8) | `region_display`, `_write_report` команды пересчёта | `handle` | `test_regions.py` |
+| `manager_label` (`users/staff_roles.py`) | не меняется, подписи | LOW (1) | `ResponsibleManagerFilter.lookups` | 0 | `test_supervisor_section.py::TestResponsibleColumnAndFilter` |
+| `responsible_manager_candidate_q` (`users/staff_roles.py`) | не меняется, состав строк с нулями | LOW (7) | `responsible_manager_candidates`, `limit_manager_field` | 0 | `test_supervisor_admin_site.py::TestResponsibleManagerCandidates` |
+
+Новые символы (`supervisor_summary.py`, `waiting_age`, `client_has_orders`, `ClientOrdersFilter`, `SupervisorAdminSite.get_urls`/`summary_view`) в индексе появятся после `analyze`.
+
+### Подводные камни
+
+- **Catch-all `AdminSite`.** `get_urls()` родителя заканчивается `re_path(r"(?P<url>.*)$", wrap(self.catch_all_view))` (`django/contrib/admin/sites.py:317-318`, Django 5.2.7). Путь сводки — только перед `super().get_urls()`.
+- **`current_app`.** Шаблонный `{% url 'admin:…' %}` берёт `request.current_app`, иначе `resolver_match.namespace` — на `/supervisor/summary/` это `supervisor`, поэтому крошки сработают и без присваивания. Но `reverse("admin:…")` в Python без `current_app` уводит в `/admin/` (экземпляр по умолчанию). Присваивание `request.current_app = self.name` — как в `AdminSite.index`; мутацией не проверяется (шаблон резолвится и так), это не повод его убирать.
+- **Группировка и `Meta.ordering`.** У `Order` `ordering = ["-created_at"]`. С Django 3.1 `Meta.ordering` в `GROUP BY` не попадает, но `.order_by()` перед `values().annotate()` писать явно — запрос читается однозначно.
+- **`staff_accounts_q()` содержит `groups__name__in`.** В `exclude()` Django делает из него подзапрос, строки не множатся; в `filter()` — JOIN и дубли. Выборки брать только через `scope_clients`.
+- **Порядок веток `region_bucket` значим.** Ветка «`user` пусто» — первой: у заказа без клиента LEFT JOIN даёт `country = NULL`, и отрицание `~Q(user__country__in=…)` Django разворачивает с проверкой `IS NOT NULL` — такой заказ попал бы в ветку страны с пустым названием.
+- **`Q(pk__in=…) | responsible_manager_candidate_q()`.** В кандидате членство — `Exists`, а не JOIN по `groups`: объединение через `|` даёт одну строку на сотрудника. Не заменять на `RESPONSIBLE_MANAGER_CHOICES` (JOIN — дубли строк менеджера в двух группах).
+- **`Sum` пустой группы — `None`.** Приводить к `Decimal("0")` до сложения «Итого» и форматирования.
+- **`ExpressionWrapper(Q(user__isnull=True), output_field=BooleanField())` в `values()`** — штатный способ сгруппировать по условию. Отдельный запрос для «Без клиента» не нужен.
+- **`auto_now_add`.** `created_at` заказа и клиента в тестах — только `update()` после создания (`set_created_at` для клиента).
+- **Хук 42.2 назначает ответственного при создании клиента.** `make_client` ставит ответственного `update()` и флаг «вручную»; клиент без ответственного — `make_client(None)`; правила — autouse `no_routing_rules`.
+- **`verification_status` и `is_verified`.** Верифицированный — `verification_status="verified"`; розничная регистрация ставит его сразу (`users/serializers.py:374-377`), но розница отключена (`REGISTRATION_ALLOW_RETAIL`). Записи 1С `unregistered` — `unverified` (`UserManager`, `users/models.py:93`).
+- **Связанная с 1С заявка сохраняет свой `created_at`.** `link_1c_customer` переносит идентичность 1С на аккаунт заявителя (`users/services/link_1c_customer.py:225`), запись 1С остаётся `unregistered` — регистрации считаются верно.
+- **Фильтр `has_orders` у менеджера отсутствует** — `lookup_allowed` отклонит параметр. Не делать фильтр общим «для удобства»: состав фильтров менеджера задан `section-contents.md` и закреплён тестом литералом.
+- **Ссылка на список фильтра `responsible`** открывается и для pk менеджера, которого нет среди вариантов фильтра (`SimpleListFilter` значения не сверяет) — ссылки сводки всегда на менеджеров с клиентами, расхождений нет.
+- **Неразрывные пробелы в суммах.** В тестах — `"\xa0"` литералом, не обычный пробел.
+
+### Выкат (для Completion Notes и Alex)
+
+1. Миграций, ручных шагов в БД и правок nginx нет: локация `/supervisor/` (42.7) уже проксирует `/supervisor/summary/`.
+2. После выката: `curl -sI https://optisport.ru/supervisor/summary/` → 302 на `/supervisor/login/?next=/supervisor/summary/`. 404 от Next — `docker compose exec nginx nginx -s reload` (memory: nginx держит старый IP upstream).
+3. На проде правил регионов пока нет (ответ Alex 16.10.2026): пока руководитель не завёл резервное правило и правила регионов, почти все заявки и заказы будут в строках «Без ответственного» — это ожидаемо, а не ошибка сводки.
+
+### Архитектурные требования
+
+- Django 5.2.7, DRF 3.14.0, pytest-django 4.7.0 (`backend/requirements.txt`). Новых зависимостей нет. `AdminSite.get_urls`/`admin_view`/`each_context`, условные агрегаты (`filter=`), `ExpressionWrapper(Q(...))`, `Exists`/`OuterRef`, `Case`/`When`, `Substr`, `__regex` — сверять по исходникам 5.2.7 в `backend/venv/Lib/site-packages/django/`. Веб-исследование версий не требуется: стек не меняется.
+- Агрегация — в БД (`epic-42-context.md`): ни одной выборки строк заказов или клиентов в Python, только сгруппированные значения.
+- Миграции, API, OpenAPI, фронтенд, nginx, CI не меняются.
+- Язык: интерфейс, сообщения, комментарии, docstrings — русский (NFR-42-03).
+
+### Тестирование
+
+- Только Docker + PostgreSQL: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -xvs <путь>`; `--env-file` не передаётся; параллельные прогоны в одном compose-проекте запрещены (deadlock на TRUNCATE).
+- Маркеры по каталогу: `tests/unit/` → `unit`, `tests/integration/` → `integration`.
+- Проверки доступа — критический модуль, покрытие ≥ 90 % (NFR-42-01): `freesport/admin_site.py`, `apps/orders/supervisor_summary.py`, изменённые ветки `users/manager_admin.py`.
+- Время в тестах периода — `patch("django.utils.timezone.now", return_value=datetime(2026, 10, 17, 12, 0, tzinfo=ZoneInfo("Europe/Moscow")))`, как `test_calendar_day_boundary` (42.5). `timezone.localdate()` берёт `now()` — патч действует на него.
+- Ожидаемые подписи, суммы, тексты ошибок и URL — литералами, не из констант реализации (урок R42.5-7).
+- Список по ссылке сводки — проверять тем же браузером руководителя: `supervisor_client.get(<href из HTML>).context["cl"].result_count`.
+
+### Уроки 42.4–42.7
+
+- Ревью 42.7 — четыре круга: атомарность действий списка, непокрытые негативные проверки, «защита есть, теста, который упадёт без неё, нет». Здесь записи нет вовсе, поэтому главный риск — числа, не совпадающие со списками, и тесты, которые не падают при удалении защиты: отсюда решение 3 (только `scope_*`), сверка «число = список по ссылке» в AC2/AC6 и таблица мутаций.
+- Ссылки раздела в закрытую `/admin/` или в 404 другого раздела — класс ошибок 42.4–42.7: AC7.
+- Отклонения от стори — в Completion Notes с причиной, не молча.
+- Вывод `isort` не смотреть через `tail` (R42.5-D3); линтеры — после зачётного pytest, в `-p freesport-test` (memory).
+
+### Связь с последующими стори
+
+- **42.9** — лента журнала на `supervisor_site`: отдельная страница по тому же образцу (`get_urls` до `super()`, `admin_view`, `each_context`, `current_app`). Ссылку добавить в блок «Разделы» после «Сводки».
+- **42.10** — замещение: при замещении клиенты по правилу у заместителя (`responsible_manager`), значит и в сводке их заявки и заказы — в строке заместителя. Отдельной правки сводки не нужно; если Alex захочет видеть отметку «Замещение» в строке менеджера — это решение 42.10.
+
+### Project Structure Notes
+
+- Новые файлы:
+  - `backend/apps/orders/supervisor_summary.py`;
+  - `backend/templates/admin/supervisor/summary.html`;
+  - `backend/tests/integration/test_supervisor_summary.py`;
+  - `backend/tests/unit/test_supervisor_summary.py`.
+- Изменяемые:
+  - `backend/freesport/admin_site.py`;
+  - `backend/apps/orders/manager_admin.py` (`waiting_age`);
+  - `backend/apps/users/manager_admin.py` (`client_has_orders`, `ClientOrdersFilter`, `get_list_filter`);
+  - `_bmad-output/implementation-artifacts/sprint-status.yaml`, этот файл.
+- Модуль сводки — в `apps/orders`, как `manager_queue`: зависимость `orders → users` уже есть (`orders/manager_admin.py` импортирует `users/manager_admin.py`), обратной (`users/manager_admin.py → orders/manager_admin.py`) быть не должно — только `users/manager_admin.py → orders/models.py`. Переносить `manager_queue` к сайту (совет 42.5) не нужно: на главную `/manager/` сводка счётчиков не добавляет.
+
+### References
+
+- Эпик: `_bmad-output/planning-artifacts/epic-42-staff-admin-sections.md` — Story 42.8, FR-42-28, NFR-42-01…04, UX Design Requirements (отдельные страницы по образцу `verify_b2b_view`, заголовок раздела).
+- Контекст эпика: `_bmad-output/implementation-artifacts/epic-42-context.md` (агрегация продаж в БД, выручка по мастер-заказам, число запросов в сводке).
+- Спецификация: `_bmad-output/specs/spec-staff-admin-sections/SPEC.md` (CAP-5, Constraints «Гостевых заказов нет», «Учётные записи сотрудников»), `section-contents.md` («Руководитель» → «Сводка»), `affected-code.md` (строка «Сводка»).
+- Предыдущие стори: `Story/42-3-…md` («Связь»: сводка подписывает коды через `region_name`), `Story/42-5-…md` (`manager_queue`, `days_ru`, календарные дни, совет о переносе очереди), `Story/42-7-…md` (`SupervisorAdminSite`, `scope_*` руководителя, `ResponsibleManagerFilter`, `TestQueryCount`, «Связь с последующими стори» → 42.8).
+- Код: `backend/freesport/admin_site.py`, `backend/apps/orders/{manager_admin,models,constants}.py`, `backend/apps/orders/services/order_create.py`, `backend/apps/users/{manager_admin,staff_roles,models}.py`, `backend/apps/users/services/responsible_manager.py`, `backend/apps/common/regions.py`, `backend/apps/common/services/customer_sync_monitor.py:154`, `backend/templates/admin/{supervisor,manager}/index.html`, `backend/templates/admin/users/verify_b2b_application.html`.
+- Правила: `backend/docs/testing-standards.md`, `backend/AGENTS.md`, `AGENTS.md` (GitNexus, Docker), `.windsurf/rules/gitnexus.md`, `.windsurf/rules/production-operations.md` (restart nginx).
+
+## Вопросы к Alex — закрыты 17.10.2026
+
+1. **Выручка без отменённых** — да: «Заказов» и «Выручка» не учитывают «Отменен» и «Возвращен», они — в колонке «Отменено» (решение 6).
+2. **По текущему менеджеру и региону** — да: истории назначений нет, заказы переданного клиента уходят в строку нового менеджера вместе с прошлыми (решения 6, 7).
+3. **«Верифицированы, но без заказов»** — да: только активные, за всё время, розничные с автоверификацией тоже (решение 8).
+4. **Период по умолчанию — текущий месяц** — да (решение 5).
+5. **Менеджеры без заказов за период** — **показывать всех, с нулями** (решение 6, AC4): все действующие менеджеры и руководители плюс менеджеры с заказами вне кандидатов (заблокированные, выведенные из групп). Таблица заявок по-прежнему показывает только менеджеров с заявками — это очередь (решение 4).
+
+## Dev Agent Record
+
+### Agent Model Used
+
+### Debug Log References
+
+### Completion Notes List
+
+- Ultimate context engine analysis completed - comprehensive developer guide created (`bmad-create-story`, 2026-10-17).
+
+### File List
+
+### Change Log
+
+- 2026-10-17 — стори создана (`bmad-create-story`) на `1ea0fb2c`, статус `ready-for-dev`.
+- 2026-10-17 — ответы Alex: вопросы 1–4 — по умолчаниям стори; вопрос 5 — в таблице заказов по менеджерам все действующие менеджеры, в том числе с нулями (решения 4, 6, AC4, AC8, две строки мутаций).
