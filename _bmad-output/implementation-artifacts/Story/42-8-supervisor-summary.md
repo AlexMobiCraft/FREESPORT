@@ -4,7 +4,7 @@ baseline_commit: 1ea0fb2c
 
 # Story 42.8: Сводка руководителя
 
-Status: in-progress
+Status: review
 Baseline Revision: 1ea0fb2c (`develop` после мёрджа PR #321 — стори 42.7 `done`)
 
 ## Story
@@ -286,8 +286,8 @@ so that я вижу загрузку отдела и задержки без в�
 
 Код-ревью 18.10.2026, круг 4 (`1ea0fb2c..51b5faad`, только `backend/`; слои через плагин Codex). Acceptance Auditor и Graph Impact находок не дали: нарушений AC нет; индекс GitNexus на `51b5faa` = HEAD, несогласованных вызывающих и новых циклов импорта нет.
 
-- [ ] [Review][Patch] R42.8-14 (low) Включение в продажи заказов в статусах кроме `pending` не закреплено — все учитываемые заказы сценариев сводки в `pending` (`make_master` по умолчанию), остальные — `cancelled`/`refunded`. Замена `filter=~cancelled` на `filter=Q(status="pending")` в `_sales()` не уронит тесты, а обработанные и доставленные заказы исчезнут из «Заказов» и «Выручки». Параметризованный сценарий по `confirmed`, `processing`, `shipped`, `delivered`: заказ входит в «Заказов» и «Выручку» обеих таблиц и в их «Итого», «Отменено» — 0 (Verification Gap) [backend/tests/integration/test_supervisor_summary.py:372]
-- [ ] [Review][Patch] R42.8-15 (low) Условие `verification_status="verified"` в «Верифицированы, но без заказов» не проверено отдельно от `is_active` — единственный неверифицированный клиент `test_verified_without_orders` создан `make_applicant`, а он ставит `is_active=False`. Удаление `verification_status="verified"` из агрегата `client_counts()` оставит число «2». Добавить активных клиентов без заказов в `pending` и `unverified`: число остаётся «2», состав списка по ссылке прежний (Verification Gap) [backend/tests/integration/test_supervisor_summary.py:522]
+- [x] [Review][Patch] R42.8-14 (low) Включение в продажи заказов в статусах кроме `pending` не закреплено — все учитываемые заказы сценариев сводки в `pending` (`make_master` по умолчанию), остальные — `cancelled`/`refunded`. Замена `filter=~cancelled` на `filter=Q(status="pending")` в `_sales()` не уронит тесты, а обработанные и доставленные заказы исчезнут из «Заказов» и «Выручки». Параметризованный сценарий по `confirmed`, `processing`, `shipped`, `delivered`: заказ входит в «Заказов» и «Выручку» обеих таблиц и в их «Итого», «Отменено» — 0 (Verification Gap) [backend/tests/integration/test_supervisor_summary.py:372]
+- [x] [Review][Patch] R42.8-15 (low) Условие `verification_status="verified"` в «Верифицированы, но без заказов» не проверено отдельно от `is_active` — единственный неверифицированный клиент `test_verified_without_orders` создан `make_applicant`, а он ставит `is_active=False`. Удаление `verification_status="verified"` из агрегата `client_counts()` оставит число «2». Добавить активных клиентов без заказов в `pending` и `unverified`: число остаётся «2», состав списка по ссылке прежний (Verification Gap) [backend/tests/integration/test_supervisor_summary.py:522]
 
 **Rejected круга 4 (12):**
 
@@ -504,6 +504,17 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - Полный прогон после круга 3 (`-n 4 -m "not performance and not slow"`): **4662 passed, 76 skipped, 0 failed** (новых тестов нет — усилены существующие). Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений, isort и flake8 — чисто, mypy — 643 файла без ошибок, `makemigrations --check --dry-run` — «No changes detected».
 - `npx gitnexus detect-changes --scope all`: 5 файлов, 7 символов, risk low, 0 процессов; символы — только тесты (`make_applicant`, `test_day_boundaries`, `test_rows_totals_and_period`, `test_verified_without_orders` и их классы). `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1, новых нет.
 
+- Code review круг 4, исправления (18.10.2026). GitNexus: индекс `stale` (индексирован `51b5faa`, HEAD `cebae90`), но между ними изменились только `.windsurf/rules/gitnexus.md`, файл стори и `sprint-status.yaml` — код индекса актуален; продолжено без переиндексации. Код не менялся — только `tests/integration/test_supervisor_summary.py` (R42.8-14, R42.8-15). Новые проверки на правильном коде зелёные (57 passed в файлах сводки).
+- Мутации круга 4 (скрипт через stdin в контейнере, исходник восстанавливается побайтно в `finally`, после прогона `git status` — только файл тестов): **2 из 2 убиты**.
+
+  | Мутация | Упал |
+  |---|---|
+  | `_sales`: `filter=~cancelled` → `filter=Q(status="pending")` у «Заказов» и «Выручки» | `TestOrdersByManager::test_processed_orders_are_counted[confirmed]` (A: «1», «100,00 ₽» вместо «2», «500,00 ₽») |
+  | `client_counts`: без `verification_status="verified"` | `TestClients::test_verified_without_orders` («4» вместо «2») |
+
+- Полный прогон после круга 4 (`-n 4 -m "not performance and not slow"`): **4666 passed, 76 skipped, 0 failed** (+4 — параметры `test_processed_orders_are_counted`). Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений, isort и flake8 — чисто, mypy — 643 файла без ошибок, `makemigrations --check --dry-run` — «No changes detected».
+- `npx gitnexus detect-changes --scope all`: 1 файл, 4 символа, risk low, 0 процессов; символы — только тесты. `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет.
+
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created (`bmad-create-story`, 2026-10-17).
@@ -529,6 +540,8 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - ✅ Resolved review finding [low]: R42.8-11 — заказ `utc-evening` в `test_day_boundaries` перенесён на 09.10 21:00 UTC (ровно 10.10 00:00 МСК); ожидание «2», «350,00 ₽» прежнее.
 - ✅ Resolved review finding [low]: R42.8-12 — в `test_verified_without_orders` регистрация одного из `idle` перенесена на 15.01.2025; число остаётся «2».
 - ✅ Resolved review finding [low]: R42.8-13 — аннотация `make_applicant(manager: User | None, ...)`, как у `make_client`.
+- ✅ Resolved review finding [low]: R42.8-14 — параметризованный `TestOrdersByManager::test_processed_orders_are_counted` (`confirmed`, `processing`, `shipped`, `delivered`): заказ входит в «Заказов» и «Выручку» обеих таблиц и в «Итого», «Отменено» — 0.
+- ✅ Resolved review finding [low]: R42.8-15 — в `test_verified_without_orders` два активных клиента без заказов в `pending` и `unverified`: число остаётся «2», состав списка по ссылке прежний.
 - Выкат: миграций, ручных шагов в БД и правок nginx нет. После выката: `curl -sI https://optisport.ru/supervisor/summary/` → 302 на `/supervisor/login/?next=/supervisor/summary/`; при 404 от Next — `docker compose exec nginx nginx -s reload`. Пока на проде нет правил регионов, почти все заявки и заказы будут в строках «Без ответственного» — это ожидаемо.
 
 ### File List
@@ -556,3 +569,4 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-18 — code review круг 3 (через плагин Codex): 4 patch (R42.8-10…13 low — региональное «Итого» против субзаказов и сотрудников, граница 00:00, «без заказов» против даты регистрации, аннотация `make_applicant`), 0 defer, 12 отклонено → `in-progress`.
 - 2026-10-18 — Addressed code review findings - 4 items resolved: R42.8-10…13 — региональное «Итого» против субзаказов и заказа сотрудника, нижняя граница периода ровно 00:00, «без заказов» против даты регистрации, аннотация `make_applicant` (только тесты, 3 усиленных сценария); 3 из 3 мутаций убиты; полный прогон 4662 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.
 - 2026-10-18 — code review круг 4 (через плагин Codex): 2 patch (R42.8-14, R42.8-15 low — продажи в статусах кроме `pending`, условие `verified` отдельно от `is_active`; только тесты), 0 defer, 12 отклонено → `in-progress`.
+- 2026-10-18 — Addressed code review findings - 2 items resolved: R42.8-14, R42.8-15 — продажи в статусах `confirmed`/`processing`/`shipped`/`delivered`, условие `verified` отдельно от `is_active` (1 новый параметризованный тест, 1 усиленный сценарий; только тесты); 2 из 2 мутаций убиты; полный прогон 4666 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.

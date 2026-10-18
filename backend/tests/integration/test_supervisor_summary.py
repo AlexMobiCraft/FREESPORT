@@ -436,6 +436,25 @@ class TestOrdersByManager:
         labels = {row[0] for row in page.rows["summary-orders-by-manager"]}
         assert not any(marketer.email in text or blocked_idle.email in text for text in labels)
 
+    @pytest.mark.parametrize("status", ["confirmed", "processing", "shipped", "delivered"])
+    def test_processed_orders_are_counted(self, supervisor_client, supervisor, status):
+        # Учитываются все статусы, кроме «Отменен» и «Возвращен», а не только «Ожидает обработки».
+        a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")
+        master_in_period(make_client(a, tax_id=region_tax_id("23")), "400.00", status=status)
+        master_in_period(make_client(a, tax_id=region_tax_id("23")), "100.00")
+
+        page = tables(supervisor_client.get(SUMMARY_URL, PERIOD))
+
+        assert page.rows["summary-orders-by-manager"] == [
+            (label(a), "2", "500,00\xa0₽", "0"),
+            (label(supervisor), "0", "0,00\xa0₽", "0"),
+            ("Итого", "2", "500,00\xa0₽", "0"),
+        ]
+        assert page.rows["summary-orders-by-region"] == [
+            ("23 — Краснодарский край", "2", "500,00\xa0₽", "0"),
+            ("Итого", "2", "500,00\xa0₽", "0"),
+        ]
+
     def test_groups_with_only_cancelled_orders(self, supervisor_client, supervisor):
         # У группы только отменённые заказы: сумма выручки пуста — строка с нулём, а не 500.
         a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")
@@ -531,6 +550,9 @@ class TestClients:
         only_cancelled = make_client(manager)
         make_master(only_cancelled, status="cancelled")
         make_client(manager, is_active=False)
+        # Активные, без заказов, но не верифицированные: число их не включает.
+        make_client(manager, verification_status="pending", is_verified=False)
+        make_client(manager, verification_status="unverified", is_verified=False)
         make_applicant(manager)
         make_1c_record(region_tax_id("23"), verification_status="verified")
         make_staff_member(MANAGERS_GROUP, verification_status="verified")
