@@ -601,10 +601,11 @@ class TestClients:
         spec = next(s for s in response.context["cl"].filter_specs if isinstance(s, ClientOrdersFilter))
         assert spec.title == "Заказы"
         assert spec.lookup_choices == [("yes", "Есть"), ("no", "Нет")]
-        assert listed_pks(supervisor_client.get(CLIENTS_URL, {"has_orders": "yes"})) == {
-            with_order.pk,
-            only_cancelled.pk,
-        }
+        with_orders = supervisor_client.get(CLIENTS_URL, {"has_orders": "yes"})
+        # Список, а не множество: JOIN по заказам (мастер + два субзаказа) дал бы дубли строк клиента.
+        listed = [user.pk for user in with_orders.context["cl"].result_list]
+        assert with_orders.context["cl"].result_count == 2
+        assert sorted(listed) == sorted([with_order.pk, only_cancelled.pk])
 
     def test_supervisor_orders_filter_rejects_unknown_value(self, supervisor_client):
         response = supervisor_client.get(CLIENTS_URL, {"has_orders": "maybe"})
