@@ -1223,7 +1223,7 @@ class TestAuditLog:
         assert not LogEntry.objects.filter(object_id=str(own.pk)).exists()
 
 
-def make_applicant(manager: User, **overrides: Any) -> User:
+def make_applicant(manager: User | None, **overrides: Any) -> User:
     defaults = {"verification_status": "pending", "is_verified": False, "is_active": False}
     defaults.update(overrides)
     return make_client(manager, **defaults)

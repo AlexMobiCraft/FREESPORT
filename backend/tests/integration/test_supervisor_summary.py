@@ -319,7 +319,8 @@ class TestPeriod:
         orders = {
             "last-minute": ("300.00", datetime(2026, 10, 12, 23, 59, tzinfo=MOSCOW)),
             "next-day": ("9999.00", datetime(2026, 10, 13, 0, 0, tzinfo=MOSCOW)),
-            "utc-evening": ("50.00", datetime(2026, 10, 9, 21, 30, tzinfo=UTC)),
+            # 09.10 21:00 UTC — ровно 10.10 00:00 по Москве, нижняя граница входит.
+            "utc-evening": ("50.00", datetime(2026, 10, 9, 21, 0, tzinfo=UTC)),
             "day-before": ("7.00", datetime(2026, 10, 9, 23, 59, tzinfo=MOSCOW)),
         }
         for amount, created in orders.values():
@@ -399,6 +400,8 @@ class TestOrdersByManager:
             ("Без клиента", "1", "50,00\xa0₽", "0"),
             ("Итого", "5", "1\xa0900,00\xa0₽", "2"),
         ]
+        # Региональный итог тоже без субзаказов и заказа сотрудника.
+        assert page.rows["summary-orders-by-region"][-1] == ("Итого", "5", "1\xa0900,00\xa0₽", "2")
 
         wider = tables(supervisor_client.get(SUMMARY_URL, {"date_from": "2026-09-01", "date_to": "2026-10-12"}))
         assert wider.rows["summary-orders-by-manager"][0] == (label(a), "3", "11\xa0299,00\xa0₽", "1")
@@ -518,6 +521,8 @@ class TestClients:
 
     def test_verified_without_orders(self, supervisor_client, manager):
         idle = [make_client(manager), make_client(None)]
+        # Регистрация давно, вне периода по умолчанию: дата регистрации числу не важна.
+        set_created_at(idle[0], datetime(2025, 1, 15, 12, 0, tzinfo=MOSCOW))
         with_order = make_client(manager)
         # Заказ давно, вне периода по умолчанию: «без заказов» — за всё время.
         # Переносится и мастер, и его субзаказы.
