@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-17 (стори 42.8 -> ready-for-dev)
+# last_updated: 2026-10-18 (стори 42.8 -> review после исправлений круга 4)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # - Retrospective appends its action items to action_items; sprint-status surfaces open ones
 
 generated: "2026-05-18"
-last_updated: 2026-10-17
+last_updated: 2026-10-18
 # 2026-05-18: Story 36.1 создана (create-story), epic-36 → in-progress.
 # 2026-08-02: добавлены эпики 39-40 (Опт 4 + роль из 1С) по epics.md.
 # 2026-08-02: story_location уточнён до подкаталога Story/ — фактическое место
@@ -1585,7 +1585,7 @@ development_status:
   #             полный прогон 4609 passed, 76 skipped, 0 failed; линтеры чисто.
   # 2026-10-17: code review круг 4 на 979b209 -> done: 0 patch, 0 defer, 22 отклонено
   #             (повторы кругов 1–3 и false). Пункты — в стори.
-  42-8-supervisor-summary: ready-for-dev
+  42-8-supervisor-summary: review
   # 2026-10-17: стори создана на 1ea0fb2c. Страница /supervisor/summary/ (get_urls сайта до
   #             catch-all): заявки по менеджерам со сроком и строкой «Без ответственного»,
   #             заказы и выручка за период по менеджерам и регионам (мастер-заказы через
@@ -1593,6 +1593,38 @@ development_status:
   #             без заказов + фильтр «Заказы» руководителю в /manager/. Без кэша и миграций.
   # 2026-10-17: ответы Alex: 1–4 — по умолчаниям стори; 5 — в таблице заказов по менеджерам
   #             все действующие менеджеры, в том числе с нулями.
+  # 2026-10-17: реализация на feature/42-8-supervisor-summary. 49 новых тестов, 17 из 17
+  #             мутаций убиты; полный прогон 4658 passed, 76 skipped, 0 failed; линтеры
+  #             и mypy чисто, миграций нет. in-progress -> review.
+  # 2026-10-17: code review круг 1 на 2d27b38 (через плагин Codex) -> in-progress: 6 patch
+  #             (R42.8-1 medium — группа только с отменёнными; R42.8-2…6 low), 0 defer,
+  #             8 отклонено. Patch оставлены задачами в стори.
+  # 2026-10-17: исправления круга 1: R42.8-1…6 закрыты (ошибка формы на date.max, подписи
+  #             «от периода не зависит», 3 новых теста, 4 усиленных сценария), 7 из 7 мутаций
+  #             убиты; полный прогон 4661 passed, 76 skipped, 0 failed; линтеры чисто.
+  #             in-progress -> review.
+  # 2026-10-17: code review круг 2 (через плагин Codex) -> in-progress: 3 patch (R42.8-7
+  #             medium — субзаказы вне периода, `is_master` тестом не закреплён; R42.8-8, -9
+  #             low — граница регистраций, очередь заявок при выбранном периоде), 0 defer,
+  #             12 отклонено. Patch оставлены задачами в стори.
+  # 2026-10-17: исправления круга 2: R42.8-7…9 закрыты (мастер с субзаказами в периоде,
+  #             верхняя граница регистраций, очередь заявок при любом периоде — 1 новый тест),
+  #             4 из 4 мутаций убиты; полный прогон 4662 passed, 76 skipped, 0 failed;
+  #             линтеры чисто. in-progress -> review.
+  # 2026-10-18: code review круг 3 на 5d2287f (через плагин Codex) -> in-progress: 4 patch
+  #             (R42.8-10…13 low — только тесты: региональное «Итого», граница 00:00,
+  #             «без заказов» против даты регистрации, аннотация make_applicant), 0 defer,
+  #             12 отклонено. Patch оставлены задачами в стори.
+  # 2026-10-18: исправления круга 3 — только тесты (R42.8-10…13), 3 из 3 мутаций убиты;
+  #             полный прогон 4662 passed, 76 skipped, 0 failed; линтеры чисто.
+  #             in-progress -> review.
+  # 2026-10-18: code review круг 4 на 51b5faa (через плагин Codex) -> in-progress: 2 patch
+  #             (R42.8-14, -15 low — только тесты: статусы продаж кроме pending, условие
+  #             verified отдельно от is_active), 0 defer, 12 отклонено (повторы кругов 1–3).
+  #             Patch оставлены задачами в стори.
+  # 2026-10-18: исправления круга 4 — только тесты (R42.8-14, -15), 2 из 2 мутаций убиты;
+  #             полный прогон 4666 passed, 76 skipped, 0 failed; линтеры чисто.
+  #             in-progress -> review.
   42-9-staff-action-journal: backlog
   42-10-manager-substitution-and-client-transfer: backlog
   # 2026-10-16: вынесена из 42.7 (party mode). Замещение по регионам на время отпуска
