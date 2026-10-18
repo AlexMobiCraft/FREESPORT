@@ -455,6 +455,28 @@ class TestOrdersByManager:
             ("Итого", "2", "500,00\xa0₽", "0"),
         ]
 
+    def test_revenue_keeps_kopecks(self, supervisor_client, supervisor):
+        # Копейки проходят агрегацию без округления: сумма и «Итого» обеих таблиц — до копейки.
+        a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")
+        b = make_staff_member(MANAGERS_GROUP, first_name="Борис", last_name="Второй")
+        master_in_period(make_client(a, tax_id=region_tax_id("23")), "100.25")
+        master_in_period(make_client(a, tax_id=region_tax_id("23")), "200.50")
+        master_in_period(make_client(b, tax_id=region_tax_id("77")), "1.05")
+
+        page = tables(supervisor_client.get(SUMMARY_URL, PERIOD))
+
+        assert page.rows["summary-orders-by-manager"] == [
+            (label(a), "2", "300,75\xa0₽", "0"),
+            (label(b), "1", "1,05\xa0₽", "0"),
+            (label(supervisor), "0", "0,00\xa0₽", "0"),
+            ("Итого", "3", "301,80\xa0₽", "0"),
+        ]
+        assert page.rows["summary-orders-by-region"] == [
+            ("23 — Краснодарский край", "2", "300,75\xa0₽", "0"),
+            ("77 — г. Москва", "1", "1,05\xa0₽", "0"),
+            ("Итого", "3", "301,80\xa0₽", "0"),
+        ]
+
     def test_groups_with_only_cancelled_orders(self, supervisor_client, supervisor):
         # У группы только отменённые заказы: сумма выручки пуста — строка с нулём, а не 500.
         a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")
@@ -531,12 +553,15 @@ class TestClients:
         for user in registered + others[1:]:
             set_created_at(user, IN_PERIOD)
         set_created_at(others[0], datetime(2026, 9, 1, 12, 0, tzinfo=MOSCOW))
+        # Границы периода включительно: первая минута первого дня и последняя минута последнего.
+        set_created_at(make_client(manager), datetime(2026, 10, 10, 0, 0, tzinfo=MOSCOW))
+        set_created_at(make_client(manager), datetime(2026, 10, 12, 23, 59, tzinfo=MOSCOW))
         # Начало дня после периода — уже не в нём.
         set_created_at(make_client(manager), datetime(2026, 10, 13, 0, 0, tzinfo=MOSCOW))
 
         html = supervisor_client.get(SUMMARY_URL, PERIOD).content.decode()
 
-        assert "Новые регистрации за период: 4" in html
+        assert "Новые регистрации за период: 6" in html
 
     def test_verified_without_orders(self, supervisor_client, manager):
         idle = [make_client(manager), make_client(None)]
@@ -576,10 +601,11 @@ class TestClients:
         spec = next(s for s in response.context["cl"].filter_specs if isinstance(s, ClientOrdersFilter))
         assert spec.title == "Заказы"
         assert spec.lookup_choices == [("yes", "Есть"), ("no", "Нет")]
-        assert listed_pks(supervisor_client.get(CLIENTS_URL, {"has_orders": "yes"})) == {
-            with_order.pk,
-            only_cancelled.pk,
-        }
+        with_orders = supervisor_client.get(CLIENTS_URL, {"has_orders": "yes"})
+        # Список, а не множество: JOIN по заказам (мастер + два субзаказа) дал бы дубли строк клиента.
+        listed = [user.pk for user in with_orders.context["cl"].result_list]
+        assert with_orders.context["cl"].result_count == 2
+        assert sorted(listed) == sorted([with_order.pk, only_cancelled.pk])
 
     def test_supervisor_orders_filter_rejects_unknown_value(self, supervisor_client):
         response = supervisor_client.get(CLIENTS_URL, {"has_orders": "maybe"})
