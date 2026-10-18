@@ -531,12 +531,15 @@ class TestClients:
         for user in registered + others[1:]:
             set_created_at(user, IN_PERIOD)
         set_created_at(others[0], datetime(2026, 9, 1, 12, 0, tzinfo=MOSCOW))
+        # Границы периода включительно: первая минута первого дня и последняя минута последнего.
+        set_created_at(make_client(manager), datetime(2026, 10, 10, 0, 0, tzinfo=MOSCOW))
+        set_created_at(make_client(manager), datetime(2026, 10, 12, 23, 59, tzinfo=MOSCOW))
         # Начало дня после периода — уже не в нём.
         set_created_at(make_client(manager), datetime(2026, 10, 13, 0, 0, tzinfo=MOSCOW))
 
         html = supervisor_client.get(SUMMARY_URL, PERIOD).content.decode()
 
-        assert "Новые регистрации за период: 4" in html
+        assert "Новые регистрации за период: 6" in html
 
     def test_verified_without_orders(self, supervisor_client, manager):
         idle = [make_client(manager), make_client(None)]
