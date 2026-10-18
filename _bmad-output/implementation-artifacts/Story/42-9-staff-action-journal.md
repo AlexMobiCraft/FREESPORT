@@ -4,7 +4,7 @@ baseline_commit: abf84102
 
 # Story 42.9: Журнал действий сотрудников
 
-Status: in-progress
+Status: review
 Baseline Revision: abf84102 (`develop` после мёрджа `feature/42-8-supervisor-summary` — стори 42.8 `done`)
 
 ## Story
@@ -366,10 +366,10 @@ so that я разбираю спорные случаи («кто заблоки
 
 Код-ревью 18.10.2026, круг 1 (`759efa2c` → рабочее дерево, только `backend/`; слои через плагин Codex: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor, Graph Impact). Graph Impact находок не дал: несогласованных вызывающих нет, `check --cycles` — только существующие циклы.
 
-- [ ] [Review][Patch] R42.9-1 (low) `_int_id` проверяет `isdigit()`, а `int()` принимает не всё, что эта проверка пропускает: для `resource_id="²"` `isdigit()` → `True`, `int()` → `ValueError`, и вся страница отвечает 500 вместо подписи без ссылки (решение 5: «нецифровой id в запросы не идёт»). Заменить на `isdecimal()` и добавить `"²"` в unit-тест неожиданных форм [backend/apps/common/staff_journal.py:367]
-- [ ] [Review][Patch] R42.9-2 (low) При ошибке фильтра быстрые ссылки периода теряют сотрудника: `build_journal` берёт `staff` из `cleaned` только при `valid`, поэтому после `?staff=<A>&date_from=2026-10-12&date_to=2026-10-10` ссылка «30 дней» откроет ленту всех сотрудников. Брать `staff` из `form.cleaned_data` и при неверной форме (ошибки дат его не убирают; неверный `staff` в `cleaned_data` не попадёт), плюс проверка ссылки в AC4-сценарии неверной формы [backend/apps/common/staff_journal.py:515]
-- [ ] [Review][Patch] R42.9-3 (low) `TestQueryCount` не ловит запрос на каждый уникальный объект: все 200 записей ссылаются на один и тот же набор клиента, сотрудника, заказа и правила, поэтому запрос на каждый уникальный заказ (или клиента) дал бы одинаковое число запросов в обоих замерах. Во втором наборе раздать записи по разным клиентам, заказам и правилам [backend/tests/integration/test_staff_journal.py:1038]
-- [ ] [Review][Patch] R42.9-4 (low) Нет сценария заказа, которого руководитель не видит в `/manager/`: все заказы тестов доступны, и удаление условия `if pk in visible_orders` не уронит ни один тест, а историческая запись получит ссылку на 404. Добавить запись `update_order` о заказе клиента, переведённого в сотрудники: подпись «Заказ …» есть, ссылки нет [backend/apps/common/staff_journal.py:465]
+- [x] [Review][Patch] R42.9-1 (low) `_int_id` проверяет `isdigit()`, а `int()` принимает не всё, что эта проверка пропускает: для `resource_id="²"` `isdigit()` → `True`, `int()` → `ValueError`, и вся страница отвечает 500 вместо подписи без ссылки (решение 5: «нецифровой id в запросы не идёт»). Заменить на `isdecimal()` и добавить `"²"` в unit-тест неожиданных форм [backend/apps/common/staff_journal.py:367]
+- [x] [Review][Patch] R42.9-2 (low) При ошибке фильтра быстрые ссылки периода теряют сотрудника: `build_journal` берёт `staff` из `cleaned` только при `valid`, поэтому после `?staff=<A>&date_from=2026-10-12&date_to=2026-10-10` ссылка «30 дней» откроет ленту всех сотрудников. Брать `staff` из `form.cleaned_data` и при неверной форме (ошибки дат его не убирают; неверный `staff` в `cleaned_data` не попадёт), плюс проверка ссылки в AC4-сценарии неверной формы [backend/apps/common/staff_journal.py:515]
+- [x] [Review][Patch] R42.9-3 (low) `TestQueryCount` не ловит запрос на каждый уникальный объект: все 200 записей ссылаются на один и тот же набор клиента, сотрудника, заказа и правила, поэтому запрос на каждый уникальный заказ (или клиента) дал бы одинаковое число запросов в обоих замерах. Во втором наборе раздать записи по разным клиентам, заказам и правилам [backend/tests/integration/test_staff_journal.py:1038]
+- [x] [Review][Patch] R42.9-4 (low) Нет сценария заказа, которого руководитель не видит в `/manager/`: все заказы тестов доступны, и удаление условия `if pk in visible_orders` не уронит ни один тест, а историческая запись получит ссылку на 404. Добавить запись `update_order` о заказе клиента, переведённого в сотрудники: подпись «Заказ …» есть, ссылки нет [backend/apps/common/staff_journal.py:465]
 
 **Rejected (8):**
 
@@ -544,6 +544,8 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 
 - GitNexus pre-flight: индекс `stale` на `abf8410`; после `analyze --force` у Alex — `up-to-date` на `759efa2`. Таблица «GitNexus: зона изменений» сверена: `SupervisorAdminSite` MEDIUM (16, 9 прямых), `UserAdmin.user_change_password` LOW (2), `get_deleted_objects` UNKNOWN (хук Django), `scope_clients` CRITICAL (21), `scope_orders` HIGH (8), `period_presets` LOW (2), `manager_label` LOW (5) — совпадает со стори, последние четыре только читаются.
 - Первый прогон новых тестов: 134 passed (61 unit + 73 integration).
+- Круг 1 ревью (исправления): RED — упали `test_unusual_resource_ids_do_not_break_page[²]` и оба `test_period_links_keep_staff`; тесты R42.9-3/4 закрывают пробелы покрытия и были зелёными на старом коде, поэтому проверены мутациями: «ссылка на заказ без проверки видимости» — убита `test_order_not_visible_in_manager_has_no_link`; «запрос на каждый уникальный заказ» — убита `TestQueryCount::test_constant[all]` и `[staff-and-period]`. Исходник восстановлен побайтно.
+- Круг 1 ревью, итоговые проверки: журнальные тесты 143 passed (134 + 9 новых); полный backend-прогон (`-n 4`, `not performance and not slow`) **4810 passed, 76 skipped, 0 failed**; `black`, `isort`, `flake8`, `mypy` (647 файлов) без замечаний; `makemigrations --check --dry-run` — «No changes detected». `detect-changes`: `_int_id`, `build_journal` и тесты; `check --cycles` — только базовые `users/models.py ↔ staff_roles.py` и `HomePage.tsx ↔ index.ts`. `impact`: `_int_id` LOW (1 прямой), `build_journal` LOW (1 прямой, `journal_view`).
 - Проверка мутациями (скрипт в контейнере `freesport-test`, исходник восстанавливается побайтно в `finally`, после прогона `git status` без посторонних изменений): **24 из 24 убиты**. Две мутации (запрос на строку, ссылки страниц из `request.GET`) повторены после правки `mypy` на итоговом коде — убиты.
 
   | № | Убрано | Упал |
@@ -579,6 +581,12 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - `npx gitnexus check --cycles`: только базовые `users/models.py → staff_roles.py → users/models.py` (R42.7-D1) и `HomePage.tsx → index.ts → HomePage.tsx`. Новых циклов нет, `users/admin.py` импортирует только листовой `staff_actions.py`.
 
 ### Completion Notes List
+
+- ✅ Resolved review finding [low] R42.9-1: `_int_id` принимает только ASCII-десятичные цифры (`isascii() and isdecimal()`). Строже, чем предлагало ревью (`isdecimal()`): `int()` принял бы арабские цифры «١٢» и подпись сослалась бы на pk 12.
+- ✅ Resolved review finding [low] R42.9-2: `build_journal` берёт `staff` и даты из `form.cleaned_data` и при неверной форме; ссылки периода сохраняют верно выбранного сотрудника, неверный `staff` в ссылки не попадает. «Выбрана» и подпись периода по-прежнему только при верной форме.
+- ✅ Resolved review finding [low] R42.9-3: `TestQueryCount` держит по 4 различных клиента, сотрудника, заказа, правила и удалённого клиента; в замере 5 записей — по одному объекту, в замере 200 — по четыре. Мутация «запрос на каждый уникальный заказ» роняет оба варианта.
+- ✅ Resolved review finding [low] R42.9-4: `TestRows::test_order_not_visible_in_manager_has_no_link` — заказ клиента, переведённого в сотрудники, без ссылки; заказ без клиента — со ссылкой. Мутация «ссылка на заказ всегда» роняет тест.
+- Тест неожиданных форм `resource_id` вынесен в интеграционный `test_unusual_resource_ids_do_not_break_page` (`²`, `abc`, `-1`, `١٢`, 30 девяток) по всем трём видам объектов: unit-теста на `resource_id` в стори не было, а страница-целиком — то, что ломалось.
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Реализовано: лента `/supervisor/journal/` (`supervisor:journal`) — путь до catch-all, `journal_view`, ссылка «Журнал действий сотрудников» второй в «Разделах»; листовой перечень `apps/common/staff_actions.py` (14 кодов); модуль `apps/common/staff_journal.py` (`JournalFilterForm`, `journal_filter`, `journal_records`, `describe`, `build_rows`, `build_journal`, `PER_PAGE = 100`, `DEFAULT_DAYS = 30`); шаблон `admin/supervisor/journal.html`; R42.7-D2 — `transaction.atomic()` в `UserAdmin.user_change_password`; охрана удаления автора записей ленты в `UserAdmin.get_deleted_objects`.
@@ -619,3 +627,4 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-18: ответы Alex на вопросы 1–5; период по умолчанию — последние 30 дней (решение 6, AC4, AC6, мутации).
 - 2026-10-18: разбор стори в party mode, ответы Alex на вопросы 6–9. Добавлены решение 13 (запрет удалять автора записей ленты), AC11 и Task 3a. `STAFF_ACTIONS` вынесен в листовой `staff_actions.py`, чтобы не было цикла импорта. Критерий автора — «не суперпользователь» (решение 3, выбор сотрудника в решении 6, AC4, AC5). Назначение ответственного выводится как «ФИО (email)» (решения 4 и 5, AC3). Решение 11 переписано честно про индекс. В шапке уточнено «переназначил в карточке». Обновлены мутации, GitNexus, Dev Notes, выкат, «Связь» с 42.10.
 - 2026-10-18: реализация (`bmad-dev-story`, ветка `feature/42-9-staff-action-journal`): лента `/supervisor/journal/`, перечень `staff_actions.py`, модуль `staff_journal.py`, шаблон, R42.7-D2, охрана удаления автора. 134 новых теста, мутации 24 из 24 убиты; полный прогон 4801 passed, 76 skipped, 0 failed; линтеры и `makemigrations --check` чисто. Статус `review`.
+- 2026-10-18: исправления кода-ревью круга 1 (`bmad-dev-story`): R42.9-1 (`_int_id`), R42.9-2 (ссылки периода при неверной форме), R42.9-3 (разные объекты в `TestQueryCount`), R42.9-4 (заказ без ссылки). 9 новых тестов, 2 мутации убиты; полный прогон 4810 passed, 76 skipped, 0 failed; линтеры чисто. Статус `review`.

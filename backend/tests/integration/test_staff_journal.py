@@ -721,6 +721,44 @@ class TestRows:
 
         assert page.links == [[], []]
 
+    def test_order_not_visible_in_manager_has_no_link(self, supervisor_client, manager):
+        # Клиента перевели в сотрудники: его заказов нет в /manager/, ссылка вела бы на 404.
+        converted = make_client(manager)
+        hidden = make_master(converted, subs=0)
+        User.objects.filter(pk=converted.pk).update(is_staff=True)
+        # Заказ без клиента руководитель в /manager/ видит (наследие order_export).
+        orphan = make_master(None, subs=0)
+        for index, order in enumerate((hidden, orphan)):
+            log(manager, "update_order", order, {"order_number": order.order_number}, at=moscow(12, 10, 2 - index))
+
+        response = supervisor_client.get(JOURNAL_URL, ALL_TIME)
+        page = journal_page(response)
+
+        assert [row[3] for row in page.rows] == [f"Заказ {ui_number(hidden)}", f"Заказ {ui_number(orphan)}"]
+        assert page.links == [[], [f"/manager/orders/order/{orphan.pk}/change/"]]
+
+    @pytest.mark.parametrize("resource_id", ["²", "abc", "-1", "١٢", "9" * 30])
+    def test_unusual_resource_ids_do_not_break_page(self, supervisor_client, manager, resource_id):
+        for index, resource_type in enumerate(("User", "Order", "ManagerRoutingRule")):
+            entry = AuditLog.log_action(
+                user=manager,
+                action="block_user",
+                resource_type=resource_type,
+                resource_id=resource_id,
+                changes={"email": "gone@example.com"},
+            )
+            AuditLog.objects.filter(pk=entry.pk).update(created_at=moscow(12, 10, 3 - index))
+
+        response = supervisor_client.get(JOURNAL_URL, ALL_TIME)
+        page = journal_page(response)
+
+        assert [row[3] for row in page.rows] == [
+            "gone@example.com",
+            f"Заказ ID {resource_id}",
+            f"ID {resource_id}",
+        ]
+        assert page.links == [[], [], []]
+
     def test_responsible_assignment_labels(self, supervisor_client, supervisor, manager, other_manager):
         customer = make_client(other_manager)
         log(
@@ -925,6 +963,37 @@ class TestInvalidFilter:
         assert response.context["rows"] == []
         assert 'class="journal-row"' not in html
 
+    @pytest.mark.parametrize(
+        "dates",
+        [
+            pytest.param({"date_from": "2026-10-12", "date_to": "2026-10-10"}, id="reversed"),
+            pytest.param({"date_from": "2026-10-13", "date_to": "9999-12-31"}, id="date-max"),
+        ],
+    )
+    def test_period_links_keep_staff(self, today, as_supervisor, manager, dates):
+        a = manager.pk
+
+        response = as_supervisor.get(JOURNAL_URL, {"staff": a, **dates})
+
+        assert INVALID_FILTER in response.content.decode()
+        assert [(link["name"], link["url"], link["selected"]) for link in response.context["period_links"]] == [
+            ("Всё время", f"?staff={a}&date_from=&date_to=", False),
+            ("Сегодня", f"?staff={a}&date_from=2026-10-17&date_to=2026-10-17", False),
+            ("7 дней", f"?staff={a}&date_from=2026-10-11&date_to=2026-10-17", False),
+            ("30 дней", f"?staff={a}&date_from=2026-09-18&date_to=2026-10-17", False),
+            ("Этот месяц", f"?staff={a}&date_from=2026-10-01&date_to=2026-10-17", False),
+            ("Прошлый месяц", f"?staff={a}&date_from=2026-09-01&date_to=2026-09-30", False),
+        ]
+
+    def test_period_links_drop_invalid_staff(self, today, as_supervisor):
+        response = as_supervisor.get(JOURNAL_URL, {"staff": "abc"})
+
+        assert INVALID_FILTER in response.content.decode()
+        assert [link["url"] for link in response.context["period_links"]][:2] == [
+            "?date_from=&date_to=",
+            "?date_from=2026-10-17&date_to=2026-10-17",
+        ]
+
 
 # --------------------------------------------------------------------------
 # AC5 — только действия сотрудников трёх ролей
@@ -1020,61 +1089,73 @@ class TestPages:
 
 
 class TestQueryCount:
+    SPREAD = 4
+
     @pytest.fixture
     def objects(self, manager, other_manager) -> SimpleNamespace:
-        ghost = make_client(manager)
-        ghost_pk = ghost.pk
-        ghost.delete()
+        ghosts = []
+        for number in range(self.SPREAD):
+            ghost = make_client(manager)
+            ghosts.append(SimpleNamespace(pk=ghost.pk, email=f"ghost{number}@example.com"))
+            ghost.delete()
         return SimpleNamespace(
-            customer=make_client(manager),
-            member=make_staff_member(MARKETING_GROUP),
-            order=make_master(make_client(manager), subs=0),
-            rule=rule("23", manager),
-            ghost=SimpleNamespace(pk=ghost_pk, email="ghost@example.com"),
+            customers=[make_client(manager) for _ in range(self.SPREAD)],
+            members=[make_staff_member(MARKETING_GROUP) for _ in range(self.SPREAD)],
+            orders=[make_master(make_client(manager), subs=0) for _ in range(self.SPREAD)],
+            rules=[rule(str(23 + number), manager) for number in range(self.SPREAD)],
+            ghosts=ghosts,
             manager=manager,
             other_manager=other_manager,
         )
 
     @staticmethod
-    def add(objects: SimpleNamespace, authors: list[User], count: int) -> None:
+    def add(objects: SimpleNamespace, authors: list[User], count: int, spread: int) -> None:
+        """
+        Записи пяти видов по кругу. Объектов каждого вида — `spread`: число запросов
+        не должно расти и с числом строк, и с числом различных клиентов, заказов и правил.
+        """
         for index in range(count):
             author = authors[index % len(authors)]
             kind = index % 5
+            variant = (index // 5) % spread
             if kind == 0:
-                log(author, "block_user", objects.customer)
+                log(author, "block_user", objects.customers[variant])
             elif kind == 1:
-                log(author, "block_staff", objects.member, {"group": "Маркетинг"})
+                log(author, "block_staff", objects.members[variant], {"group": "Маркетинг"})
             elif kind == 2:
-                log(author, "update_order", objects.order, {"order_number": objects.order.order_number})
+                order = objects.orders[variant]
+                log(author, "update_order", order, {"order_number": order.order_number})
             elif kind == 3:
+                region_rule = objects.rules[variant]
                 log(
                     author,
                     "change_routing_rule",
-                    objects.rule,
+                    region_rule,
                     {
                         "operation": "update",
-                        "rule": str(objects.rule),
+                        "rule": str(region_rule),
                         "fields": {"manager_id": {"old": objects.manager.pk, "new": objects.other_manager.pk}},
                     },
                 )
             else:
-                log(author, "unblock_user", objects.ghost, resource_type="User")
+                log(author, "unblock_user", objects.ghosts[variant], resource_type="User")
 
     @pytest.mark.parametrize("filtered", [False, True], ids=["all", "staff-and-period"])
     def test_constant(self, today, as_supervisor, objects, filtered, django_assert_num_queries):
         first = make_staff_member(MANAGERS_GROUP)
-        self.add(objects, [first], 5)
+        self.add(objects, [first], 5, spread=1)
         query = f"?staff={first.pk}&date_from=2026-10-01&date_to=2026-10-17" if filtered else "?date_from=&date_to="
         baseline, response = count_queries(as_supervisor, JOURNAL_URL + query)
         assert len(response.context["rows"]) == 5
 
         team = [first, *(make_staff_member(MANAGERS_GROUP) for _ in range(19))]
         # С фильтром по сотруднику его записей должно хватить на две страницы.
-        self.add(objects, [first] if filtered else team, 195)
+        self.add(objects, [first] if filtered else team, 195, spread=self.SPREAD)
 
         with django_assert_num_queries(baseline):
             response = as_supervisor.get(JOURNAL_URL + query)
         assert len(response.context["rows"]) == 100
+        assert len({row["object_label"] for row in response.context["rows"]}) > 5
         with django_assert_num_queries(baseline):
             response = as_supervisor.get(JOURNAL_URL + query + "&page=2")
         assert len(response.context["rows"]) == 100

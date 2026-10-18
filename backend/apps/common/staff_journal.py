@@ -364,7 +364,9 @@ def describe(record: AuditLog, users: KnownUsers) -> tuple[str, str]:
 
 
 def _int_id(value: str) -> int | None:
-    return int(value) if value.isdigit() else None
+    # `isdigit()` пропускает «²», на котором `int()` падает; не-ASCII цифры
+    # («١٢») `int()` примет, но id от них не бывает — это не ссылка на pk 12.
+    return int(value) if value.isascii() and value.isdecimal() else None
 
 
 def _rule_manager_ids(changes: dict[str, Any]) -> set[int]:
@@ -512,8 +514,9 @@ def build_journal(request: HttpRequest) -> dict[str, Any]:
     """Контекст страницы ленты."""
     form = journal_filter(request)
     valid = form.is_valid()
-    cleaned = form.cleaned_data if valid else {}
-    staff, date_from, date_to = cleaned.get("staff"), cleaned.get("date_from"), cleaned.get("date_to")
+    # Неверная форма оставляет в `cleaned_data` верные поля: ссылки периода
+    # сохраняют сотрудника, пока он выбран верно (неверный в `cleaned_data` не попадает).
+    staff, date_from, date_to = (form.cleaned_data.get(name) for name in ("staff", "date_from", "date_to"))
 
     paginator = Paginator(journal_records(form), PER_PAGE)
     page_obj = paginator.get_page(request.GET.get("page"))
