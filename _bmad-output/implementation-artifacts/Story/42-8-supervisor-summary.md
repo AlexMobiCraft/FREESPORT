@@ -221,6 +221,49 @@ so that я вижу загрузку отдела и задержки без в�
   - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори; `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — базовый цикл `HomePage.tsx → index.ts → HomePage.tsx` и отложенный R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет (`users/manager_admin.py → orders/models.py` цикла не даёт).
   - [x] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
 
+### Review Findings
+
+Код-ревью 17.10.2026, круг 1 (`1ea0fb2c..2d27b38e`, слои через плагин Codex: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor, Graph Impact). Acceptance Auditor и Graph Impact находок не дали: нарушений AC нет, несогласованных вызывающих и новых циклов импорта нет.
+
+- [x] [Review][Patch] R42.8-1 (medium) Нет сценария группы только с отменёнными заказами — удаление `or Decimal("0")` в `_sales_row()` не уронит ни один тест, а на живых данных (регион или менеджер, у которого за «Сегодня» только отменённый заказ) `Sum` вернёт `None` и сортировка `-row.revenue` упадёт в 500. Добавить менеджера и регион, у которых в периоде только `cancelled`/`refunded`: строка «0», «0,00 ₽», отмены > 0, «Итого» сходится [backend/apps/orders/supervisor_summary.py:297]
+- [x] [Review][Patch] R42.8-2 (low) `date_to=9999-12-31` даёт 500 — форма принимает дату, `Period.end` прибавляет день к `date.max` → `OverflowError`. Ошибка формы в `SummaryPeriodForm.clean()` вместо 500, плюс параметр в `test_invalid_period_falls_back_to_default` [backend/apps/orders/supervisor_summary.py:99]
+- [x] [Review][Patch] R42.8-3 (low) Период таблицы регионов не проверен — в `TestOrdersByRegion` все заказы внутри периода, смену периода проверяет только таблица менеджеров; `orders_by_region()` без фильтра периода прошёл бы тесты. Добавить заказ вне периода в региональный сценарий [backend/tests/integration/test_supervisor_summary.py:403]
+- [x] [Review][Patch] R42.8-4 (low) В сценариях заказов нет заказа сотрудника — замена `scope_orders(...)` на все мастер-заказы (`Order.objects.filter(is_master=True)`) прошла бы тесты и добавила служебные аккаунты в выручку. Добавить мастер-заказ учётной записи сотрудника в `test_rows_totals_and_period` и проверить, что строки и «Итого» не изменились [backend/tests/integration/test_supervisor_summary.py:335]
+- [x] [Review][Patch] R42.8-5 (low) «Без заказов за всё время» не закреплено историческим заказом — все заказы тестов `has_orders` созданы сейчас, ограничение `client_has_orders()` периодом осталось бы незамеченным. Перенести заказ клиента `with_order` за пределы периода по умолчанию [backend/tests/integration/test_supervisor_summary.py:449]
+- [x] [Review][Patch] R42.8-6 (low) Страница не говорит, что заявки и «Верифицированы, но без заказов» от периода не зависят — оба блока стоят под формой периода, руководитель ждёт пересчёта. Подписи из решений 4 и 8: «Текущая очередь, от периода не зависит» под таблицей заявок и «за всё время» у числа клиентов без заказов [backend/templates/admin/supervisor/summary.html:44]
+
+**Rejected (8):**
+
+- `managers[manager_id]` → `KeyError`, если менеджера удалили между агрегацией и `load_managers` (Edge Case Hunter, Blind Hunter) — low: окно в миллисекунды, сотрудников не удаляют (блокируют); фикс — дополнительная защита.
+- Таблицы одной страницы могут разойтись при параллельном изменении заказа, нужен `REPEATABLE READ` (Edge Case Hunter, Blind Hunter) — low: расхождение на один запрос, следующее открытие верное; изоляция транзакции — лишняя сложность, решение 10 требует совпадения со списками, а не снимка.
+- Колонки «Заказов»/«Выручка»/«Отменено» не объясняют правила расчёта (Blind Hunter) — low: подписи страницы зафиксированы решением 6, расшифровка — продуктовая формулировка, вреда нет.
+- Нет клиента только с субзаказом в тестах `client_has_orders` (Blind Hunter) — false: субзаказ принадлежит тому же клиенту, что и мастер (решение 9), клиента с субзаказом без мастера не бывает.
+- Нет менеджера, выведенного из групп, с заказами и без (Blind Hunter) — low: та же ветка `not is_candidate`, что у заблокированного F, её закрывает `test_all_current_managers_are_listed`.
+- Нет проверки переноса заказа между регионами после смены страны/ИНН (Blind Hunter) — low: регион считается из полей клиента в каждом запросе, хранимого региона нет — регрессия возможна только сменой схемы.
+- Нет свидетельства покрытия ≥ 90 % в Debug Log (Blind Hunter) — правка стори, а не кода.
+- Runbook выката проверяет только анонимный 302 (Blind Hunter) — правка стори, а не кода.
+
+Код-ревью 17.10.2026, круг 2 (`1ea0fb2c` → рабочее дерево с исправлениями круга 1, только `backend/`; слои через плагин Codex). Acceptance Auditor и Graph Impact находок не дали: нарушений AC нет, несогласованных вызывающих нет, `check --cycles` — только существующие циклы.
+
+- [x] [Review][Patch] R42.8-7 (medium) Защита «субзаказы второй раз не складываются» не закреплена тестом — `master_in_period()` переносит в период только мастер, субзаказы `make_master(..., subs=2)` остаются с датой создания (вне `PERIOD`) и отсекаются фильтром даты, а не `is_master`. Снятие `is_master=True` из выборки сводки (или замена `scope_orders` на выборку без него) не уронит `test_rows_totals_and_period`, а на живых данных выручка удвоится. Переносить в период мастер вместе с его субзаказами (`Q(pk=…) | Q(parent_order=…)`) [backend/tests/integration/test_supervisor_summary.py:139]
+- [x] [Review][Patch] R42.8-8 (low) Верхняя граница периода регистраций не проверена — в `test_registrations_in_period` единственный клиент вне периода создан до его начала; удаление `created_at__lt=period.end` в `client_counts()` прошло бы тест. Добавить клиента, созданного в начале дня после периода (13.10.2026 00:00 МСК), число остаётся «4» [backend/tests/integration/test_supervisor_summary.py:475]
+- [x] [Review][Patch] R42.8-9 (low) Независимость очереди заявок от периода проверена только подписью — все сценарии `TestPending` открывают сводку без параметров периода; фильтр заявок по `created_at` при заданном `date_from`/`date_to` прошёл бы тесты. Сравнить строки и ссылки таблицы заявок для двух непересекающихся периодов при заявках разных дат [backend/tests/integration/test_supervisor_summary.py:200]
+
+**Rejected круга 2 (12):**
+
+- Таблицы по менеджерам и регионам — разные запросы без общего снимка (Blind Hunter) — low: повтор отклонённой в круге 1 находки; расхождение возможно только при заказе между двумя запросами одной страницы, изоляция транзакции — лишняя сложность.
+- То же со стороны граничных случаев: заказ создан или отменён между `orders_by_manager()` и `orders_by_region()`, предложен `REPEATABLE READ` (Edge Case Hunter) — low: по той же причине.
+- `managers[manager_id]` → `KeyError` при удалении менеджера между запросами (Edge Case Hunter) — low: повтор круга 1, окно в миллисекунды, сотрудников блокируют, а не удаляют.
+- `Period.start/end` зависят от активного часового пояса, а не от пояса проекта (Blind Hunter) — false: `timezone.activate` в проекте нигде не вызывается, активный пояс всегда `TIME_ZONE = "Europe/Moscow"`; границы закреплены `TestPeriod::test_day_boundaries`.
+- Срок ожидания считается от `User.created_at`, а не от подачи заявки (Blind Hunter) — правило задано стори (блок 4: `oldest=Min("created_at")`, как у `manager_queue`), поля даты заявки в модели нет; изменение — правка спеки и модели.
+- Форма принимает `10.10.2026`, поле `type="date"` покажет пустое значение (Blind Hunter) — low: браузер отправляет `type="date"` только в ISO, такой URL — только ручной; фикс — дополнительный параметр формы.
+- Подписи «Выручка»/«Отменено» не объясняют расчёт (Blind Hunter) — повтор круга 1, подписи заданы решением 6.
+- Подпись «Верифицированы, но без заказов» не упоминает `is_active` (Blind Hunter) — текст задан AC6 литералом; изменение — правка спеки.
+- «Заказов за период нет» не показывается при нулевых строках менеджеров (Blind Hunter) — false: так задано решением 6 и блоком 13 — действующие менеджеры с нулями показываются всегда, сообщение — только для таблицы без строк.
+- Нет ссылок от числа заказов и выручки на список заказов (Blind Hunter) — вне объёма стори: ссылки заданы только для заявок и клиентов без заказов (AC2, AC6, AC7).
+- ИНН с Unicode-цифрами: `region_key()` (`isdigit`) и SQL `^[0-9]{2}` расходятся (Edge Case Hunter) — low: ИНН из 1С и регистрации — ASCII-цифры, паритет на реальных значениях закреплён `test_region_bucket_matches_region_key`; фикс — лишняя ветка.
+- Сводка не проверяет `view_user`/`view_order`, только членство в «Руководителях» (Edge Case Hunter) — low: права группы задаёт миграция `users/0023`, стори права не меняет; расхождение требует ручной правки прав группы, фикс — новая защита.
+
 ## Dev Notes
 
 ### Текущее состояние кода (сверено на `1ea0fb2c`)
@@ -383,6 +426,35 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений; isort — чисто; flake8 — чисто; `makemigrations --check --dry-run` — «No changes detected». mypy нашёл одну ошибку (`User` без атрибута `is_candidate` — аннотация запроса) → `# type: ignore[attr-defined]` с комментарием; повторно: mypy — 643 файла без ошибок, black/flake8 — чисто, тесты сводки и соседних разделов из Task 5 — 589 passed.
 - `npx gitnexus detect-changes --scope all`: 6 файлов, risk low, 0 процессов; символы — `manager_queue`, `ManagerClientAdmin` (переменные класса — сдвиг строк), `SupervisorAdminSite`/`index`. `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1 `users/models.py → staff_roles.py → users/models.py`, новых нет.
 
+- Code review круг 1, исправления (17.10.2026). GitNexus: индекс `up-to-date` на `2d27b38` (= HEAD, в дереве только файлы стори); `impact SummaryPeriodForm --direction upstream --summary-only` — LOW, 1 прямой вызывающий (`resolve_period`), 0 процессов. RED: до правок кода и шаблона упали ровно три проверки — `test_invalid_period_falls_back_to_default[date-max]` (`OverflowError` в `Period.end`), `test_empty_queue` и `test_verified_without_orders` (подписи R42.8-6); регрессионные замки R42.8-1/3/4/5 на правильном коде зелёные. Временный тест подтвердил, что `date_from=0001-01-01` даёт 200: переполнение есть только у `date.max`.
+- Мутации круга 1 (скрипт через stdin в контейнере, исходник восстанавливается побайтно в `finally`): **7 из 7 убиты**. В первом прогоне R42.8-5 выжила: `make_master` создаёт два субзаказа, а в прошлое ушёл только мастер, и `Exists` с фильтром по периоду находил субзаказы. Тест переносит все заказы клиента — со второго прогона мутация убита.
+
+  | Мутация | Упал |
+  |---|---|
+  | `_sales_row` без `or Decimal("0")` | `TestOrdersByManager::test_groups_with_only_cancelled_orders` (`TypeError: bad operand type for unary -: 'NoneType'`) |
+  | `SummaryPeriodForm.clean` без проверки `date.max` | `TestPeriod::test_invalid_period_falls_back_to_default[date-max]` (`OverflowError`) |
+  | `orders_by_region` без фильтра периода | `TestOrdersByRegion::test_rows_and_totals` |
+  | `_period_orders`: `scope_orders(...)` → `Order.objects.filter(is_master=True)` | `TestOrdersByManager::test_rows_totals_and_period` (заказ сотрудника в строке A) |
+  | «без заказов» — `~Exists` заказов только за период | `TestClients::test_verified_without_orders` |
+  | без подписи «Текущая очередь, от периода не зависит» | `TestPending::test_empty_queue` |
+  | без «(за всё время)» | `TestClients::test_verified_without_orders` |
+
+- Полный прогон после круга 1 (`-n 4 -m "not performance and not slow"`): **4661 passed, 76 skipped, 0 failed** (+3: `test_groups_with_only_cancelled_orders`, параметр `date-max`, unit `test_last_possible_date`). Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений, isort и flake8 — чисто, mypy — 643 файла без ошибок, `makemigrations --check --dry-run` — «No changes detected».
+- `npx gitnexus detect-changes --scope all`: 6 файлов, risk low, 0 процессов; из кода — только `SummaryPeriodForm`/`clean`, остальное — тесты (`test_manager_has_no_orders_filter` — сдвиг строк). `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1, новых нет.
+
+- Code review круг 2, исправления (17.10.2026). GitNexus: индекс `up-to-date` на `2d27b38` (= HEAD). Код не менялся — только `tests/integration/test_supervisor_summary.py`. Новые и усиленные проверки на правильном коде зелёные (53 passed в файлах сводки), их силу показывают мутации.
+- Мутации круга 2 (скрипт через stdin в контейнере, исходник восстанавливается побайтно в `finally`, после прогона `git status` — только файлы стори): **4 из 4 убиты**.
+
+  | Мутация | Упал |
+  |---|---|
+  | `scope_orders` без `is_master=True` | `TestOrdersByManager::test_rows_totals_and_period` (A: «4», «2 300,00 ₽») |
+  | `_period_orders`: `scope_orders(...)` → клиенты `scope_clients` и заказы без клиента без `is_master` | `TestOrdersByManager::test_rows_totals_and_period` (A: «4», «2 300,00 ₽») |
+  | регистрации без `created_at__lt=period.end` | `TestClients::test_registrations_in_period` |
+  | заявки фильтруются по периоду | `TestPending::test_queue_does_not_depend_on_period` (A: «1», «6 дней» при 10.10–12.10) |
+
+- Полный прогон после круга 2 (`-n 4 -m "not performance and not slow"`): **4662 passed, 76 skipped, 0 failed** (+1: `test_queue_does_not_depend_on_period`). Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений, isort и flake8 — чисто, mypy — 643 файла без ошибок, `makemigrations --check --dry-run` — «No changes detected».
+- `npx gitnexus detect-changes --scope all`: 6 файлов, risk low, 0 процессов; из кода — только `SummaryPeriodForm`/`clean` круга 1, остальное — тесты. `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1, новых нет.
+
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created (`bmad-create-story`, 2026-10-17).
@@ -395,6 +467,15 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
   - в AC4 передача клиента B сделана `update()` поля `responsible_manager`, а не формой карточки: проверяется правило «по текущему ответственному», ручное назначение в карточке уже покрыто `TestManualAssignment` стори 42.7.
 - Факт для AC6: подделанный `?has_orders=no` у менеджера — 302 на `?e=1` (как у `responsible`), чужих клиентов в списке нет. Неизвестное значение `has_orders` у руководителя — тоже 302 на `?e=1`.
 - Ответы Alex на вопросы стори (17.10.2026) учтены: выручка без «Отменен»/«Возвращен»; заказы и регион — по текущему ответственному и текущему региону; «верифицированы, но без заказов» — только активные, за всё время; период по умолчанию — текущий месяц; в таблице заказов все действующие менеджеры с нулями.
+- ✅ Resolved review finding [medium]: R42.8-1 — `test_groups_with_only_cancelled_orders`: у менеджера C и региона 77 в периоде только `cancelled`/`refunded` — строки «0», «0,00 ₽», «2», «Итого» обеих таблиц «1», «500,00 ₽», «2». Код не менялся: `or Decimal("0")` уже был, теперь его удаление роняет тест.
+- ✅ Resolved review finding [low]: R42.8-2 — `SummaryPeriodForm.clean()` даёт ошибку поля `date_to` «Конец периода вне допустимого диапазона.» при `date_to == date.max` (вместо 500 из `Period.end`); параметр `date-max` в `test_invalid_period_falls_back_to_default`, unit `TestPeriodForm::test_last_possible_date` (31.12.9998 и раньше — форма верна). Текст ошибки в стори не задан — выбран исполнителем.
+- ✅ Resolved review finding [low]: R42.8-3 — в `TestOrdersByRegion` два заказа 15.09 (регион 77 и 50, по 9999 ₽): строка 77 не меняется, строки 50 нет.
+- ✅ Resolved review finding [low]: R42.8-4 — в `test_rows_totals_and_period` мастер-заказ 5000 ₽ учётной записи маркетолога с ответственным A: строки и «Итого» прежние.
+- ✅ Resolved review finding [low]: R42.8-5 — в `test_verified_without_orders` все заказы клиента `with_order` (мастер и субзаказы) перенесены на 15.01.2025, вне периода по умолчанию.
+- ✅ Resolved review finding [low]: R42.8-6 — в шаблоне под таблицей заявок `<p class="help">Текущая очередь, от периода не зависит</p>`, у числа клиентов без заказов — « (за всё время)». AC6 «Верифицированы, но без заказов: 2» остаётся началом строки; ожидание `test_verified_without_orders` дополнено, `test_empty_queue` проверяет подпись внутри блока заявок.
+- ✅ Resolved review finding [medium]: R42.8-7 — `set_order_created` переносит мастер вместе с субзаказами (`Q(pk=…) | Q(parent_order=…)`): в `test_rows_totals_and_period` два субзаказа по 500 ₽ теперь внутри периода, и выручку A «1 300,00 ₽» держит только `is_master`. Хелпер общий для всех сценариев сводки — остальные ожидания не изменились.
+- ✅ Resolved review finding [low]: R42.8-8 — в `test_registrations_in_period` клиент, созданный 13.10.2026 00:00 МСК (начало дня после периода): число остаётся «4».
+- ✅ Resolved review finding [low]: R42.8-9 — новый `TestPending::test_queue_does_not_depend_on_period`: заявки A от 11.10 и 15.09, заявка без ответственного от 17.10; при периодах 10.10–12.10, 01.09–30.09 и без параметров строки (A «2», «32 дня»; «Без ответственного» «1», «сегодня»; «Итого» «3») и ссылки одинаковы.
 - Выкат: миграций, ручных шагов в БД и правок nginx нет. После выката: `curl -sI https://optisport.ru/supervisor/summary/` → 302 на `/supervisor/login/?next=/supervisor/summary/`; при 404 от Next — `docker compose exec nginx nginx -s reload`. Пока на проде нет правил регионов, почти все заявки и заказы будут в строках «Без ответственного» — это ожидаемо.
 
 ### File List
@@ -414,3 +495,7 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-17 — стори создана (`bmad-create-story`) на `1ea0fb2c`, статус `ready-for-dev`.
 - 2026-10-17 — ответы Alex: вопросы 1–4 — по умолчаниям стори; вопрос 5 — в таблице заказов по менеджерам все действующие менеджеры, в том числе с нулями (решения 4, 6, AC4, AC8, две строки мутаций).
 - 2026-10-17 — реализация (`bmad-dev-story`) на `feature/42-8-supervisor-summary`: сводка `/supervisor/summary/`, `waiting_age`, фильтр «Заказы» руководителя; 49 новых тестов, 17 из 17 мутаций убиты; полный прогон 4658 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.
+- 2026-10-17 — code review круг 1 (через плагин Codex): 6 patch, 0 defer, 8 отклонено → `in-progress`.
+- 2026-10-17 — Addressed code review findings - 6 items resolved: R42.8-1…6 — ошибка формы вместо 500 на `date_to=9999-12-31`, подписи «от периода не зависит» / «за всё время», 3 новых теста и 4 усиленных сценария; 7 из 7 мутаций убиты; полный прогон 4661 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.
+- 2026-10-17 — code review круг 2 (через плагин Codex): 3 patch (R42.8-7 medium — субзаказы вне периода, правило `is_master` не закреплено; R42.8-8, R42.8-9 low), 0 defer, 12 отклонено → `in-progress`.
+- 2026-10-17 — Addressed code review findings - 3 items resolved: R42.8-7…9 — мастер переносится в период вместе с субзаказами, верхняя граница регистраций, независимость очереди заявок от периода (1 новый тест, 2 усиленных сценария); 4 из 4 мутаций убиты; полный прогон 4662 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.

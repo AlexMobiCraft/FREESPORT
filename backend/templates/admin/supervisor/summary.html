@@ -66,6 +66,7 @@
       </tr>
     </tbody>
   </table>
+  <p class="help">Текущая очередь, от периода не зависит</p>
 </div>
 
 <h2>Заказы и выручка за период</h2>
@@ -145,7 +146,7 @@
       <th scope="row">Новые регистрации за период: {{ clients.registered }}</th>
     </tr>
     <tr>
-      <th scope="row">Верифицированы, но без заказов: <a href="{{ clients.verified_without_orders_url }}">{{ clients.verified_without_orders }}</a></th>
+      <th scope="row">Верифицированы, но без заказов: <a href="{{ clients.verified_without_orders_url }}">{{ clients.verified_without_orders }}</a> (за всё время)</th>
     </tr>
   </table>
 </div>

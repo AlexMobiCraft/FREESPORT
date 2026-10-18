@@ -27,6 +27,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.db.models import Q
 
 from apps.common.models import AuditLog
 from apps.orders.models import Order
@@ -132,7 +133,9 @@ def label(user: User, blocked: bool = False) -> str:
 
 
 def set_order_created(order: Order, value: datetime) -> Order:
-    Order.objects.filter(pk=order.pk).update(created_at=value)
+    # Мастер переносится вместе с субзаказами: в период они попадают все,
+    # и второй раз субзаказы не складываются только из-за `is_master`.
+    Order.objects.filter(Q(pk=order.pk) | Q(parent_order=order)).update(created_at=value)
     return order
 
 
@@ -246,9 +249,37 @@ class TestPending:
         assert "<strong>Без ответственного</strong>" in response.content.decode()
 
     def test_empty_queue(self, supervisor_client):
-        page = tables(supervisor_client.get(SUMMARY_URL))
+        response = supervisor_client.get(SUMMARY_URL)
+        page = tables(response)
 
         assert page.rows["summary-pending"] == [("Без ответственного", "0", "—"), ("Итого", "0", "")]
+        # Блок стоит под формой периода, но от периода не зависит — страница это говорит.
+        html = response.content.decode()
+        block = html[html.index('id="summary-pending"') : html.index('id="summary-orders-by-manager"')]
+        assert '<p class="help">Текущая очередь, от периода не зависит</p>' in block
+
+    def test_queue_does_not_depend_on_period(self, supervisor_client):
+        # Заявки поданы в разные периоды; очередь при любом периоде одна и та же.
+        a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")
+        set_created_at(make_applicant(a), datetime(2026, 10, 11, 12, 0, tzinfo=MOSCOW))
+        set_created_at(make_applicant(a), datetime(2026, 9, 15, 12, 0, tzinfo=MOSCOW))
+        set_created_at(make_applicant(None), TODAY_NOON)
+        expected_rows = [
+            (label(a), "2", "32 дня"),
+            ("Без ответственного", "1", "сегодня"),
+            ("Итого", "3", ""),
+        ]
+        expected_links = [
+            [f"/manager/users/user/?verification_status__exact=pending&responsible={a.pk}"],
+            ["/manager/users/user/?verification_status__exact=pending&responsible=none"],
+            [],
+        ]
+
+        for params in (PERIOD, {"date_from": "2026-09-01", "date_to": "2026-09-30"}, {}):
+            with patch("django.utils.timezone.now", return_value=TODAY_NOON):
+                page = tables(supervisor_client.get(SUMMARY_URL, params))
+            assert page.rows["summary-pending"] == expected_rows, params
+            assert page.links["summary-pending"] == expected_links, params
 
 
 # --------------------------------------------------------------------------
@@ -306,6 +337,11 @@ class TestPeriod:
             ),
             pytest.param({"date_from": "2026-10-10"}, "Обязательное поле.", id="only-from"),
             pytest.param({"date_to": "2026-10-12"}, "Обязательное поле.", id="only-to"),
+            pytest.param(
+                {"date_from": "2026-10-10", "date_to": "9999-12-31"},
+                "Конец периода вне допустимого диапазона.",
+                id="date-max",
+            ),
         ],
     )
     def test_invalid_period_falls_back_to_default(self, supervisor_client, manager, params, error):
@@ -348,6 +384,10 @@ class TestOrdersByManager:
             make_master(client_a, total_amount=Decimal("9999.00"), subs=0),
             datetime(2026, 9, 15, 12, 0, tzinfo=MOSCOW),
         )
+        # Заказ учётной записи сотрудника (ответственный — A) в сводку не входит.
+        staff = make_staff_member(MARKETING_GROUP)
+        User.objects.filter(pk=staff.pk).update(responsible_manager=a)
+        master_in_period(staff, "5000.00")
 
         page = tables(supervisor_client.get(SUMMARY_URL, PERIOD))
 
@@ -393,6 +433,28 @@ class TestOrdersByManager:
         labels = {row[0] for row in page.rows["summary-orders-by-manager"]}
         assert not any(marketer.email in text or blocked_idle.email in text for text in labels)
 
+    def test_groups_with_only_cancelled_orders(self, supervisor_client, supervisor):
+        # У группы только отменённые заказы: сумма выручки пуста — строка с нулём, а не 500.
+        a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")
+        c = make_staff_member(MANAGERS_GROUP, first_name="Вера", last_name="Отменова")
+        master_in_period(make_client(a, tax_id=region_tax_id("23")), "500.00")
+        master_in_period(make_client(c, tax_id=region_tax_id("77")), "700.00", status="cancelled")
+        master_in_period(make_client(c, tax_id=region_tax_id("77")), "300.00", status="refunded")
+
+        page = tables(supervisor_client.get(SUMMARY_URL, PERIOD))
+
+        assert page.rows["summary-orders-by-manager"] == [
+            (label(a), "1", "500,00\xa0₽", "0"),
+            (label(c), "0", "0,00\xa0₽", "2"),
+            (label(supervisor), "0", "0,00\xa0₽", "0"),
+            ("Итого", "1", "500,00\xa0₽", "2"),
+        ]
+        assert page.rows["summary-orders-by-region"] == [
+            ("23 — Краснодарский край", "1", "500,00\xa0₽", "0"),
+            ("77 — г. Москва", "0", "0,00\xa0₽", "2"),
+            ("Итого", "1", "500,00\xa0₽", "2"),
+        ]
+
 
 # --------------------------------------------------------------------------
 # AC5 — заказы и выручка по регионам
@@ -409,6 +471,12 @@ class TestOrdersByRegion:
         master_in_period(make_client(manager, tax_id=" " + region_tax_id("23")[:11]), "100.00")
         master_in_period(make_client(manager, tax_id=region_tax_id("23")), "900.00", status="cancelled")
         master_in_period(None, "50.00")
+        # Вне периода: не меняют строку 77 и не дают строки 50.
+        for tax_id in (region_tax_id("77"), region_tax_id("50")):
+            set_order_created(
+                make_master(make_client(manager, tax_id=tax_id), total_amount=Decimal("9999.00"), subs=0),
+                datetime(2026, 9, 15, 12, 0, tzinfo=MOSCOW),
+            )
 
         page = tables(supervisor_client.get(SUMMARY_URL, PERIOD))
 
@@ -441,6 +509,8 @@ class TestClients:
         for user in registered + others[1:]:
             set_created_at(user, IN_PERIOD)
         set_created_at(others[0], datetime(2026, 9, 1, 12, 0, tzinfo=MOSCOW))
+        # Начало дня после периода — уже не в нём.
+        set_created_at(make_client(manager), datetime(2026, 10, 13, 0, 0, tzinfo=MOSCOW))
 
         html = supervisor_client.get(SUMMARY_URL, PERIOD).content.decode()
 
@@ -449,7 +519,10 @@ class TestClients:
     def test_verified_without_orders(self, supervisor_client, manager):
         idle = [make_client(manager), make_client(None)]
         with_order = make_client(manager)
+        # Заказ давно, вне периода по умолчанию: «без заказов» — за всё время.
+        # Переносится и мастер, и его субзаказы.
         make_master(with_order)
+        Order.objects.filter(user=with_order).update(created_at=datetime(2025, 1, 15, 12, 0, tzinfo=MOSCOW))
         only_cancelled = make_client(manager)
         make_master(only_cancelled, status="cancelled")
         make_client(manager, is_active=False)
@@ -460,7 +533,7 @@ class TestClients:
 
         page = tables(supervisor_client.get(SUMMARY_URL))
 
-        assert page.rows["summary-clients"][1] == ("Верифицированы, но без заказов: 2",)
+        assert page.rows["summary-clients"][1] == ("Верифицированы, но без заказов: 2 (за всё время)",)
         assert page.links["summary-clients"][1] == [url]
         assert listed_pks(supervisor_client.get(url)) == {user.pk for user in idle}
 

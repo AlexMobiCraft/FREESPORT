@@ -159,6 +159,14 @@ class TestPeriodForm:
         assert not form.is_valid()
         assert form.errors == {"date_to": ["Обязательное поле."]}
 
+    def test_last_possible_date(self):
+        # Конец периода считается началом следующего дня, после 31.12.9999 его нет.
+        form = SummaryPeriodForm({"date_from": "9999-12-31", "date_to": "9999-12-31"})
+
+        assert not form.is_valid()
+        assert form.errors == {"date_to": ["Конец периода вне допустимого диапазона."]}
+        assert SummaryPeriodForm({"date_from": "2026-10-10", "date_to": "9999-12-30"}).is_valid()
+
 
 @pytest.mark.parametrize(
     ("value", "expected"),

@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-17 (стори 42.8 -> review)
+# last_updated: 2026-10-17 (стори 42.8 -> review после исправлений круга 2)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1596,6 +1596,21 @@ development_status:
   # 2026-10-17: реализация на feature/42-8-supervisor-summary. 49 новых тестов, 17 из 17
   #             мутаций убиты; полный прогон 4658 passed, 76 skipped, 0 failed; линтеры
   #             и mypy чисто, миграций нет. in-progress -> review.
+  # 2026-10-17: code review круг 1 на 2d27b38 (через плагин Codex) -> in-progress: 6 patch
+  #             (R42.8-1 medium — группа только с отменёнными; R42.8-2…6 low), 0 defer,
+  #             8 отклонено. Patch оставлены задачами в стори.
+  # 2026-10-17: исправления круга 1: R42.8-1…6 закрыты (ошибка формы на date.max, подписи
+  #             «от периода не зависит», 3 новых теста, 4 усиленных сценария), 7 из 7 мутаций
+  #             убиты; полный прогон 4661 passed, 76 skipped, 0 failed; линтеры чисто.
+  #             in-progress -> review.
+  # 2026-10-17: code review круг 2 (через плагин Codex) -> in-progress: 3 patch (R42.8-7
+  #             medium — субзаказы вне периода, `is_master` тестом не закреплён; R42.8-8, -9
+  #             low — граница регистраций, очередь заявок при выбранном периоде), 0 defer,
+  #             12 отклонено. Patch оставлены задачами в стори.
+  # 2026-10-17: исправления круга 2: R42.8-7…9 закрыты (мастер с субзаказами в периоде,
+  #             верхняя граница регистраций, очередь заявок при любом периоде — 1 новый тест),
+  #             4 из 4 мутаций убиты; полный прогон 4662 passed, 76 skipped, 0 failed;
+  #             линтеры чисто. in-progress -> review.
   42-9-staff-action-journal: backlog
   42-10-manager-substitution-and-client-transfer: backlog
   # 2026-10-16: вынесена из 42.7 (party mode). Замещение по регионам на время отпуска

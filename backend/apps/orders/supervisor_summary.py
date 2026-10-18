@@ -78,7 +78,10 @@ class SummaryPeriodForm(forms.Form):
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean() or {}
         date_from, date_to = cleaned.get("date_from"), cleaned.get("date_to")
-        if date_from and date_to and date_from > date_to:
+        if date_to == date.max:
+            # Конец периода — начало следующего дня (`Period.end`), после date.max его нет.
+            self.add_error("date_to", "Конец периода вне допустимого диапазона.")
+        elif date_from and date_to and date_from > date_to:
             raise ValidationError("Начало периода позже его конца.")
         return cleaned
 
