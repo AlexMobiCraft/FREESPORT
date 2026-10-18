@@ -51,17 +51,18 @@ description: GitNexus CLI — анализ кода перед правками 
 - **`LOAD fts failed ... IO exception: Failed to load library ... Не найден указанный модуль`
   при живом файле `libfts.lbug_extension`** — расширению не хватает OpenSSL 3
   (`libcrypto-3-x64.dll`, `libssl-3-x64.dll`). Зависимости расширения Windows ищет по стандартному
-  порядку — каталог node.exe, `System32`, **PATH**; каталог самого расширения НЕ просматривается
-  (проверено 18.10.2026: DLL, лежащие рядом с `libfts.lbug_extension`, не помогают). Поэтому
+  порядку — каталог node.exe, `System32`, **PATH процесса**; каталог самого расширения НЕ
+  просматривается (проверено 18.10.2026: DLL рядом с `libfts.lbug_extension` не помогают). Поэтому
   диагностика обязательна в «чистом» окружении: в Git Bash `mingw64/bin` с OpenSSL 3 уже на PATH и
   `doctor` показывает `available`, а в PowerShell пользователя — `unavailable`.
-  **Лечение (сделано на этой машине):** DLL лежат в `%USERPROFILE%\.lbdb\deps\` (скопированы из
-  `C:\Program Files\Git\mingw64\bin`), каталог добавлен в конец User PATH через
-  `[Environment]::SetEnvironmentVariable("Path", ... , "User")` — действует для новых процессов
-  после перезапуска терминала. Затем `npx gitnexus analyze --repair-fts`. Альтернативы хуже:
-  `System32`/`C:\Program Files\nodejs` требуют админки, а `Git\mingw64\bin` в PATH затеняет `curl`,
-  `ssh`, `find` юниксовыми утилитами. Статические копии OpenSSL не обновляются — при смене
-  toolchain положи свежие.
+  **Лечение (сделано на этой машине):** DLL скопированы из `C:\Program Files\Git\mingw64\bin` в два
+  каталога, которые УЖЕ были в User PATH: `%USERPROFILE%\.local\bin` и `%APPDATA%\npm`
+  (второй — гарантия, т.к. именно по нему резолвится `gitnexus.cmd`). Только каталоги, которые были
+  в PATH на момент старта терминала, работают в уже запущенных процессах — добавление нового каталога
+  в реестр требует перезапуска ВСЕГО родителя (IDE/Windows Terminal), а не вкладки терминала.
+  Альтернативы хуже: `System32`/`C:\Program Files\nodejs` требуют админки, `Git\mingw64\bin` в PATH
+  затеняет `curl`, `ssh`, `find`. Статические копии OpenSSL не обновляются — при смене toolchain
+  положи свежие. После фикса — `npx gitnexus analyze --repair-fts`.
 
 ## Обязательно
 
