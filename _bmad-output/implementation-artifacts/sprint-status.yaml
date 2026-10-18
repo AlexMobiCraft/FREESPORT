@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-18 (стори 42.8 -> done)
+# last_updated: 2026-10-18 (стори 42.9 -> ready-for-dev)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1645,7 +1645,15 @@ development_status:
   #             полный прогон 4667 passed, 76 skipped, 0 failed; линтеры чисто.
   #             in-progress -> review.
   # 2026-10-18: по решению Alex стори принята без ревью круга 8: review -> done.
-  42-9-staff-action-journal: backlog
+  42-9-staff-action-journal: ready-for-dev
+  # 2026-10-18: стори создана на abf84102. Лента /supervisor/journal/ (get_urls сайта до
+  #             catch-all) по AuditLog: 14 кодов перечня, авторы is_staff без суперпользователя,
+  #             фильтры по сотруднику и периоду, 100 строк на страницу, ссылки на клиента,
+  #             заказ, правило, сотрудника. Сверка перечня: пробелов нет, все действия уже
+  #             пишут запись — один параметризованный тест. Плюс R42.7-D2 (atomic у сброса
+  #             пароля в /admin/ и /supervisor/). Без миграций и прав. 5 вопросов к Alex в стори.
+  # 2026-10-18: ответы Alex: 1, 3–5 — по умолчаниям стори; 2 — период ленты по умолчанию
+  #             последние 30 дней, «Всё время» — отдельной ссылкой.
   42-10-manager-substitution-and-client-transfer: backlog
   # 2026-10-16: вынесена из 42.7 (party mode). Замещение по регионам на время отпуска
   #             с возвратом одной кнопкой (FR-42-32), массовая передача клиентов A → B.
