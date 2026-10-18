@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-18 (стори 42.8 -> review после исправлений круга 5)
+# last_updated: 2026-10-18 (стори 42.8 -> review после исправлений круга 6)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1630,6 +1630,12 @@ development_status:
   #             12 отклонено (повторы кругов 1–4). Patch оставлен задачей в стори.
   # 2026-10-18: исправления круга 5 — только тесты (R42.8-16), 3 из 3 мутаций убиты;
   #             полный прогон 4666 passed, 76 skipped, 0 failed; линтеры чисто.
+  #             in-progress -> review.
+  # 2026-10-18: code review круг 6 на 4d1b1dd (через плагин Codex) -> in-progress: 1 patch
+  #             (R42.8-17 low — только тест: копейки выручки сквозь агрегацию), 0 defer,
+  #             11 отклонено (повторы кругов 1–5). Patch оставлен задачей в стори.
+  # 2026-10-18: исправления круга 6 — только тест (R42.8-17), 1 из 1 мутаций убита;
+  #             полный прогон 4667 passed, 76 skipped, 0 failed; линтеры чисто.
   #             in-progress -> review.
   42-9-staff-action-journal: backlog
   42-10-manager-substitution-and-client-transfer: backlog

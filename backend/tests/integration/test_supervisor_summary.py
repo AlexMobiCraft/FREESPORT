@@ -455,6 +455,28 @@ class TestOrdersByManager:
             ("Итого", "2", "500,00\xa0₽", "0"),
         ]
 
+    def test_revenue_keeps_kopecks(self, supervisor_client, supervisor):
+        # Копейки проходят агрегацию без округления: сумма и «Итого» обеих таблиц — до копейки.
+        a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")
+        b = make_staff_member(MANAGERS_GROUP, first_name="Борис", last_name="Второй")
+        master_in_period(make_client(a, tax_id=region_tax_id("23")), "100.25")
+        master_in_period(make_client(a, tax_id=region_tax_id("23")), "200.50")
+        master_in_period(make_client(b, tax_id=region_tax_id("77")), "1.05")
+
+        page = tables(supervisor_client.get(SUMMARY_URL, PERIOD))
+
+        assert page.rows["summary-orders-by-manager"] == [
+            (label(a), "2", "300,75\xa0₽", "0"),
+            (label(b), "1", "1,05\xa0₽", "0"),
+            (label(supervisor), "0", "0,00\xa0₽", "0"),
+            ("Итого", "3", "301,80\xa0₽", "0"),
+        ]
+        assert page.rows["summary-orders-by-region"] == [
+            ("23 — Краснодарский край", "2", "300,75\xa0₽", "0"),
+            ("77 — г. Москва", "1", "1,05\xa0₽", "0"),
+            ("Итого", "3", "301,80\xa0₽", "0"),
+        ]
+
     def test_groups_with_only_cancelled_orders(self, supervisor_client, supervisor):
         # У группы только отменённые заказы: сумма выручки пуста — строка с нулём, а не 500.
         a = make_staff_member(MANAGERS_GROUP, first_name="Анна", last_name="Первая")

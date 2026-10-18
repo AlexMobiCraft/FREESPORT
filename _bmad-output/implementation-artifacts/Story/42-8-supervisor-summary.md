@@ -319,6 +319,24 @@ so that я вижу загрузку отдела и задержки без в�
 - `TestQueryCount.test_summary` не фиксирует время — при переходе месяца между подготовкой данных и запросом заказы выпадут из периода по умолчанию (Blind Hunter) — low: окно в доли секунды раз в месяц, сбой выглядит как падение теста, а не как ложный успех; фикс — патч времени ради вероятности порядка 1e-7.
 - Равенство числа запросов не ловит дорогой агрегирующий запрос (Blind Hunter) — low: стори требует независимость числа запросов от числа строк (AC9), а не бюджет времени; план запроса на фикстурных данных ничего не покажет.
 
+Код-ревью 18.10.2026, круг 6 (`develop...4d1b1dd6`, только `backend/`; слои через плагин Codex). Acceptance Auditor и Graph Impact находок не дали: нарушений AC нет; индекс GitNexus на `4d1b1dd` = HEAD, несогласованных вызывающих и новых циклов импорта нет.
+
+- [x] [Review][Patch] R42.8-17 (low) Копейки выручки не проверены сквозь агрегацию — интеграционные суммы (`100.00`, `9999.00`, `350,00 ₽`) целые, дробные значения есть только в юнит-тесте `format_money()` без запроса. Замена `Sum("total_amount", …)` в `_sales()` на `Round(Sum(…), 0)` оставит тесты зелёными: заказы `100.25` и `200.50` покажут `301,00 ₽` вместо `300,75 ₽`. Добавить сценарий с дробными суммами и проверить строки и «Итого» обеих таблиц (по менеджерам и по регионам) литералами (Verification Gap) [backend/tests/integration/test_supervisor_summary.py:372]
+
+**Rejected круга 6 (11):**
+
+- Таблицы менеджеров и регионов считаются отдельными запросами без общего снимка (Blind Hunter) — low: повтор кругов 1–5.
+- `managers[manager_id]` → `KeyError` при удалении менеджера между запросами (Edge Case Hunter) — low: повтор кругов 1–5.
+- ИНН с Unicode-цифрами: `region_key()` (`isdigit`) и SQL `^[0-9]{2}` расходятся (Edge Case Hunter) — low: повтор кругов 2–5; решение 7 исключает такие ИНН.
+- Тест паритета `region_bucket`/`region_key` не покрывает Unicode-цифры (Blind Hunter) — low: та же находка со стороны тестов, повтор кругов 2–5; решение 7 исключает такие ИНН из теста паритета.
+- «Старейшая ждёт» считается от `User.created_at`, а не от подачи заявки (Blind Hunter) — повтор круга 2: правило задано стори (`oldest=Min("created_at")`, как у `manager_queue`), поля даты заявки в модели нет.
+- «Выручка» не объясняет, что это сумма заказов, а не платежей (Blind Hunter) — повтор кругов 1, 2, 4, 5: подписи заданы решением 6.
+- «Отменено» включает `refunded`, а «Заказов» исключает обе категории — правила видны только в Python (Blind Hunter) — повтор кругов 1, 2, 4, 5: подписи заданы решением 6, правила описаны в docstring модуля.
+- Таблица регионов не сообщает, что берёт текущий регион клиента (Blind Hunter) — low: повтор круга 2; подпись под таблицей решение 6 задаёт только для менеджеров.
+- Подпись «Верифицированы, но без заказов» скрывает `is_active=True` (Blind Hunter) — повтор кругов 2, 4, 5: текст задан AC6 литералом, изменение — правка спеки.
+- `TestQueryCount` не ловит дорогой запрос при неизменном числе запросов (Blind Hunter) — low: повтор круга 5; AC9 требует независимость числа запросов от числа строк, а не бюджет времени.
+- Нет отказа руководителю с `is_staff=False` и после отзыва группы у вошедшего (Blind Hunter) — low: повтор кругов 4–5; `is_staff` проверяет общий `StaffSectionAdminSite.has_permission` (`admin_site.py:54`), закреплено `test_supervisor_section.py:258`; группа читается из БД при каждом запросе (кэш `_staff_section_access` живёт в рамках одного запроса), отзыв действует сразу.
+
 ## Dev Notes
 
 ### Текущее состояние кода (сверено на `1ea0fb2c`)
@@ -545,6 +563,16 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - Полный прогон после круга 5 (`-n 4 -m "not performance and not slow"`): **4666 passed, 76 skipped, 0 failed** (новых тестов нет — усилен существующий). Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений, isort и flake8 — чисто, mypy — 643 файла без ошибок, `makemigrations --check --dry-run` — «No changes detected».
 - `npx gitnexus detect-changes --scope all`: 3 файла, 3 символа, risk low, 0 процессов; символы — только тесты (`TestClients`, `test_registrations_in_period`, `test_verified_without_orders` — сдвиг строк). `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет.
 
+- Code review круг 6, исправления (18.10.2026). GitNexus: индекс `up-to-date` на `4d1b1dd` (= HEAD). Код не менялся — только `tests/integration/test_supervisor_summary.py` (R42.8-17). Новый тест на правильном коде зелёный (58 passed в файлах сводки).
+- Мутация круга 6 (исходник восстановлен копией, после прогона `git status` — только тесты и файлы стори): **1 из 1 убита**.
+
+  | Мутация | Упал |
+  |---|---|
+  | `_sales`: `Sum("total_amount", …)` → `Round(Sum(…), 0)` у «Выручки» | `TestOrdersByManager::test_revenue_keeps_kopecks` |
+
+- Полный прогон после круга 6 (`-n 4 -m "not performance and not slow"`): **4667 passed, 76 skipped, 0 failed** (+1: `test_revenue_keeps_kopecks`). Линтеры после зачётного pytest в `-p freesport-test`: black — 490 файлов без изменений, isort и flake8 — чисто, mypy — 643 файла без ошибок, `makemigrations --check --dry-run` — «No changes detected».
+- `npx gitnexus detect-changes --scope all`: 3 файла, 2 символа, risk low, 0 процессов; символы — только тесты. `check --cycles`: только базовые `HomePage.tsx → index.ts → HomePage.tsx` и R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет.
+
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created (`bmad-create-story`, 2026-10-17).
@@ -573,6 +601,7 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - ✅ Resolved review finding [low]: R42.8-14 — параметризованный `TestOrdersByManager::test_processed_orders_are_counted` (`confirmed`, `processing`, `shipped`, `delivered`): заказ входит в «Заказов» и «Выручку» обеих таблиц и в «Итого», «Отменено» — 0.
 - ✅ Resolved review finding [low]: R42.8-15 — в `test_verified_without_orders` два активных клиента без заказов в `pending` и `unverified`: число остаётся «2», состав списка по ссылке прежний.
 - ✅ Resolved review finding [low]: R42.8-16 — в `test_registrations_in_period` добавлены регистрации 10.10.2026 00:00 и 12.10.2026 23:59 (МСК): число «6» вместо «4», клиент 13.10 00:00 по-прежнему снаружи.
+- ✅ Resolved review finding [low]: R42.8-17 — `TestOrdersByManager::test_revenue_keeps_kopecks`: заказы `100.25`, `200.50` (менеджер A, регион 23) и `1.05` (менеджер B, регион 77); строки и «Итого» обеих таблиц — `300,75 ₽`, `1,05 ₽`, `301,80 ₽` литералами.
 - Выкат: миграций, ручных шагов в БД и правок nginx нет. После выката: `curl -sI https://optisport.ru/supervisor/summary/` → 302 на `/supervisor/login/?next=/supervisor/summary/`; при 404 от Next — `docker compose exec nginx nginx -s reload`. Пока на проде нет правил регионов, почти все заявки и заказы будут в строках «Без ответственного» — это ожидаемо.
 
 ### File List
@@ -603,3 +632,5 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-18 — Addressed code review findings - 2 items resolved: R42.8-14, R42.8-15 — продажи в статусах `confirmed`/`processing`/`shipped`/`delivered`, условие `verified` отдельно от `is_active` (1 новый параметризованный тест, 1 усиленный сценарий; только тесты); 2 из 2 мутаций убиты; полный прогон 4666 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.
 - 2026-10-18 — code review круг 5 (через плагин Codex): 1 patch (R42.8-16 low — границы периода регистраций, только тесты), 0 defer, 12 отклонено → `in-progress`.
 - 2026-10-18 — Addressed code review findings - 1 items resolved: R42.8-16 — границы периода регистраций (10.10 00:00 и 12.10 23:59 входят, 13.10 00:00 нет); только тесты, 3 из 3 мутаций убиты; полный прогон 4666 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.
+- 2026-10-18 — code review круг 6 (через плагин Codex): 1 patch (R42.8-17 low — копейки выручки сквозь агрегацию, только тест), 0 defer, 11 отклонено → `in-progress`.
+- 2026-10-18 — Addressed code review findings - 1 items resolved: R42.8-17 — копейки выручки в обеих таблицах и «Итого» (1 новый тест, только тесты); 1 из 1 мутаций убита; полный прогон 4667 passed, 76 skipped, 0 failed; линтеры и mypy чисто. Статус `review`.
