@@ -4,7 +4,7 @@ baseline_commit: abf84102
 
 # Story 42.9: Журнал действий сотрудников
 
-Status: ready-for-dev
+Status: in-progress
 Baseline Revision: abf84102 (`develop` после мёрджа `feature/42-8-supervisor-summary` — стори 42.8 `done`)
 
 ## Story
@@ -279,35 +279,35 @@ so that я разбираю спорные случаи («кто заблоки
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0 — GitNexus pre-flight** (AGENTS.md, `.windsurf/rules/gitnexus.md`)
-  - [ ] `npx gitnexus status` — при `stale` попросить Alex выполнить `! npx gitnexus analyze --force`. При подготовке стори индекс `up-to-date` на `abf8410`.
-  - [ ] Сверить таблицу «GitNexus: зона изменений» с текущим индексом (`impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"`). Сообщить Alex blast radius:
+- [x] **Task 0 — GitNexus pre-flight** (AGENTS.md, `.windsurf/rules/gitnexus.md`)
+  - [x] `npx gitnexus status` — при `stale` попросить Alex выполнить `! npx gitnexus analyze --force`. При подготовке стори индекс `up-to-date` на `abf8410`.
+  - [x] Сверить таблицу «GitNexus: зона изменений» с текущим индексом (`impact <symbol> --direction upstream --summary-only -r "C:\Users\1\DEV\FREESPORT"`). Сообщить Alex blast radius:
     - меняются `SupervisorAdminSite` (MEDIUM — оценка по импортам модуля), `UserAdmin.user_change_password` (LOW) и `UserAdmin.get_deleted_objects` (UNKNOWN — хук Django, 2 вызова отброшены индексом);
     - `scope_clients` (**CRITICAL**), `scope_orders` (HIGH), `AuditLog`/`log_action` (CRITICAL), `period_presets` (LOW) **только читаются**.
 
-- [ ] **Task 1 — страница на сайте руководителя** (AC1, AC8; решения 1, 8, 9)
-  - [ ] `backend/freesport/admin_site.py`:
+- [x] **Task 1 — страница на сайте руководителя** (AC1, AC8; решения 1, 8, 9)
+  - [x] `backend/freesport/admin_site.py`:
     - путь `journal/` в `SupervisorAdminSite.get_urls()` до `super().get_urls()`;
     - `journal_view`;
     - ссылка «Журнал действий сотрудников» второй в `supervisor_sections`;
     - docstring класса.
-  - [ ] `backend/templates/admin/supervisor/journal.html` (решение 8).
+  - [x] `backend/templates/admin/supervisor/journal.html` (решение 8).
 
-- [ ] **Task 2 — модуль ленты** (AC2–AC7; решения 2–7, 11)
-  - [ ] Новый листовой `backend/apps/common/staff_actions.py`: только `STAFF_ACTIONS`, без импортов (решение 2).
-  - [ ] Новый `backend/apps/common/staff_journal.py`: `PER_PAGE`, `DEFAULT_DAYS`, `JournalFilterForm`, `journal_filter`, `journal_records`, `describe`, `build_rows`, `build_journal(request) -> dict`. Ключи контекста шаблона: `filter_form`, `period_links`, `period_label`, `page_obj`, `paginator`, `rows`, `newer_url`, `older_url`, `filter_invalid`.
-  - [ ] Подписи объектов и авторов — по одному запросу на вид объекта на страницу (решение 5), без запроса на строку.
+- [x] **Task 2 — модуль ленты** (AC2–AC7; решения 2–7, 11)
+  - [x] Новый листовой `backend/apps/common/staff_actions.py`: только `STAFF_ACTIONS`, без импортов (решение 2).
+  - [x] Новый `backend/apps/common/staff_journal.py`: `PER_PAGE`, `DEFAULT_DAYS`, `JournalFilterForm`, `journal_filter`, `journal_records`, `describe`, `build_rows`, `build_journal(request) -> dict`. Ключи контекста шаблона: `filter_form`, `period_links`, `period_label`, `page_obj`, `paginator`, `rows`, `newer_url`, `older_url`, `filter_invalid`.
+  - [x] Подписи объектов и авторов — по одному запросу на вид объекта на страницу (решение 5), без запроса на строку.
 
-- [ ] **Task 3 — R42.7-D2** (AC9; решение 12)
-  - [ ] `backend/apps/users/admin.py`: `UserAdmin.user_change_password` — вызов родителя и `AuditLog.log_action` в одном `transaction.atomic()`; комментарий — почему.
-  - [ ] `_bmad-output/implementation-artifacts/deferred-work.md`: R42.7-D2 — «закрыто стори 42.9».
+- [x] **Task 3 — R42.7-D2** (AC9; решение 12)
+  - [x] `backend/apps/users/admin.py`: `UserAdmin.user_change_password` — вызов родителя и `AuditLog.log_action` в одном `transaction.atomic()`; комментарий — почему.
+  - [x] `_bmad-output/implementation-artifacts/deferred-work.md`: R42.7-D2 — «закрыто стори 42.9».
 
-- [ ] **Task 3a — запрет удалять автора записей ленты** (AC11; решение 13)
-  - [ ] `backend/apps/users/admin.py`: импорт `STAFF_ACTIONS` из `apps.common.staff_actions` на уровне модуля; в `UserAdmin.get_deleted_objects` — один запрос авторов, строки в `protected`, `messages.error`; комментарий — почему (`SET_NULL` стёр бы автора).
-  - [ ] Предупреждение про ответственного и правила регионов не трогать.
+- [x] **Task 3a — запрет удалять автора записей ленты** (AC11; решение 13)
+  - [x] `backend/apps/users/admin.py`: импорт `STAFF_ACTIONS` из `apps.common.staff_actions` на уровне модуля; в `UserAdmin.get_deleted_objects` — один запрос авторов, строки в `protected`, `messages.error`; комментарий — почему (`SET_NULL` стёр бы автора).
+  - [x] Предупреждение про ответственного и правила регионов не трогать.
 
-- [ ] **Task 4 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
-  - [ ] `backend/tests/integration/test_staff_journal.py` (integration, транзакционные: autouse `clear_db_before_test`, группы — `role_groups`, правила — `no_routing_rules`).
+- [x] **Task 4 — тесты** (NFR-42-01, NFR-42-02: у каждой проверки доступа негативный тест)
+  - [x] `backend/tests/integration/test_staff_journal.py` (integration, транзакционные: autouse `clear_db_before_test`, группы — `role_groups`, правила — `no_routing_rules`).
     - Хелперы — явным импортом, не `import *`, нового модуля хелперов не заводить (правило 42.4):
       - из `tests.integration.test_manager_clients_section`: `role_groups`, `no_routing_rules`, `verified_email_task`, `make_staff_member`, `make_client`, `make_1c_record`, `region_tax_id`, `get_unique_suffix`, `change_url`, `verify_url`, `password_url`, `post_action`, `form_payload`, `PASSWORD`, `NEW_PASSWORD`, `manager`, `manager_client`, `other_manager`;
       - из `tests.integration.test_manager_orders_section`: `make_master`, `order_change_url`, `card_payload`;
@@ -315,16 +315,16 @@ so that я разбираю спорные случаи («кто заблоки
     - Записи для AC3–AC7 создавать `AuditLog.log_action(...)` напрямую (быстро). Время — `AuditLog.objects.filter(pk=…).update(created_at=…)` (`auto_now_add`).
     - AC2 — только настоящими запросами.
     - Строки ленты — из `response.context["rows"]`, а ссылки и отсутствие технических полей — по HTML.
-  - [ ] AC9 — прямой вызов метода админки с `RequestFactory`-запросом (`request.user`, `request._messages`, `request._dont_enforce_csrf_checks = True` — у `user_change_password` есть `csrf_protect_m`) и `patch.object(AuditLog, "log_action", side_effect=RuntimeError(...))`. Ожидание — `pytest.raises(RuntimeError)`, затем `check_password(PASSWORD)` у цели и отсутствие записи. Варианты: `ManagerClientAdmin(User, manager_site)` и `SupervisorStaffAdmin(User, supervisor_site)`; объекты брать из реестра сайта (`manager_site._registry[User]`).
-  - [ ] AC11 — класс `TestDeleteGuard` в `test_staff_journal.py`: настоящие запросы `superuser_client` к `admin:users_user_delete` и `delete_selected` (образец — `test_responsible_manager_events.py::test_admin_delete_view`, `test_admin_bulk_delete`). Записи — `AuditLog.log_action(...)` напрямую.
-  - [ ] `backend/tests/unit/test_staff_journal.py` (unit, `django_db` там, где нужен `User`):
+  - [x] AC9 — прямой вызов метода админки с `RequestFactory`-запросом (`request.user`, `request._messages`, `request._dont_enforce_csrf_checks = True` — у `user_change_password` есть `csrf_protect_m`) и `patch.object(AuditLog, "log_action", side_effect=RuntimeError(...))`. Ожидание — `pytest.raises(RuntimeError)`, затем `check_password(PASSWORD)` у цели и отсутствие записи. Варианты: `ManagerClientAdmin(User, manager_site)` и `SupervisorStaffAdmin(User, supervisor_site)`; объекты брать из реестра сайта (`manager_site._registry[User]`).
+  - [x] AC11 — класс `TestDeleteGuard` в `test_staff_journal.py`: настоящие запросы `superuser_client` к `admin:users_user_delete` и `delete_selected` (образец — `test_responsible_manager_events.py::test_admin_delete_view`, `test_admin_bulk_delete`). Записи — `AuditLog.log_action(...)` напрямую.
+  - [x] `backend/tests/unit/test_staff_journal.py` (unit, `django_db` там, где нужен `User`):
     - `set(STAFF_ACTIONS) ==` литеральный набор из 14 кодов решения 4 (`STAFF_ACTIONS` — из `apps.common.staff_actions`);
     - `describe` на каждом коде, на обоих `mode` у `verify_b2b`, на `details` без ожидаемых ключей (вывод «—», без исключения) и на неизвестной роли;
     - `JournalFilterForm` — пустая, только `date_from`, только `date_to`, перевёрнутая, `date.max`, нецифровой `staff`;
     - `journal_filter` на 17.10.2026: без ключей дат — `2026-09-18`…`2026-10-17`; только `staff` — то же; `date_from=&date_to=` — без периода; одна дата — без подстановки второй;
     - `reverse("supervisor:journal") == "/supervisor/journal/"`, `resolve("/supervisor/journal/").url_name == "journal"`.
-  - [ ] Правка ожидания `test_supervisor_summary.py::TestLinks::test_index_links_summary_first` (решение 9).
-  - [ ] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть. Скрипт в контейнере, исходник восстанавливается побайтно в `finally`. Итог — в Debug Log:
+  - [x] Правка ожидания `test_supervisor_summary.py::TestLinks::test_index_links_summary_first` (решение 9).
+  - [x] **Проверка мутациями** — по каждой защите временно убрать её, убедиться, что падает названный тест, вернуть. Скрипт в контейнере, исходник восстанавливается побайтно в `finally`. Итог — в Debug Log:
 
     | Убрать | Должен упасть |
     |---|---|
@@ -353,14 +353,34 @@ so that я разбираю спорные случаи («кто заблоки
     | ссылка «Журнал» на главной | AC8 |
     | `log_action` в `block_staff` (временно) | AC2 — провал с id «Блокировка сотрудника» |
 
-- [ ] **Task 5 — существующие тесты и проверки**
-  - [ ] Без правок зелёные: `tests/integration/test_responsible_manager_events.py` (удаление менеджера в `/admin/`, в том числе `test_admin_delete_unused_manager`: у менеджера из фабрики нет записей ленты — проверить при реализации, а не на слово), `tests/integration/test_supervisor_section.py`, `test_supervisor_summary.py` (кроме решения 9), `test_manager_clients_section.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_staff_access_lockdown.py`; `tests/unit/test_supervisor_admin_site.py`, `test_supervisor_summary.py`, `test_users_admin.py`, `tests/unit/test_services/test_verify_b2b_application.py`, `test_link_1c_customer.py`.
-  - [ ] Полный backend-прогон в Docker, один compose-проект, в фоне: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~18 мин; ориентир после 42.8 — 4667 passed, 76 skipped, 0 failed).
-  - [ ] Линтеры — строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .` (вывод не через `tail`), `flake8`, `mypy .`. Базис — ноль ошибок.
-  - [ ] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
-  - [ ] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
-  - [ ] `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — базовый цикл `HomePage.tsx → index.ts → HomePage.tsx` и отложенный R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет. В частности, нет `users/admin.py → common/staff_journal.py`: `users/admin.py` импортирует только листовой `staff_actions.py`.
-  - [ ] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
+- [x] **Task 5 — существующие тесты и проверки**
+  - [x] Без правок зелёные: `tests/integration/test_responsible_manager_events.py` (удаление менеджера в `/admin/`, в том числе `test_admin_delete_unused_manager`: у менеджера из фабрики нет записей ленты — проверить при реализации, а не на слово), `tests/integration/test_supervisor_section.py`, `test_supervisor_summary.py` (кроме решения 9), `test_manager_clients_section.py`, `test_manager_orders_section.py`, `test_marketing_section.py`, `test_staff_access_lockdown.py`; `tests/unit/test_supervisor_admin_site.py`, `test_supervisor_summary.py`, `test_users_admin.py`, `tests/unit/test_services/test_verify_b2b_application.py`, `test_link_1c_customer.py`.
+  - [x] Полный backend-прогон в Docker, один compose-проект, в фоне: `cd docker && docker compose -p freesport-test -f docker-compose.test.yml run --rm -T backend pytest -n 4 -q -p no:sugar -m "not performance and not slow"` (~18 мин; ориентир после 42.8 — 4667 passed, 76 skipped, 0 failed).
+  - [x] Линтеры — строго после зачётного pytest, в том же `-p freesport-test`: `black --check .`, `isort --check-only .` (вывод не через `tail`), `flake8`, `mypy .`. Базис — ноль ошибок.
+  - [x] `makemigrations --check --dry-run` — миграций нет. `check_openapi_sync` не нужен: API не меняется.
+  - [x] `npx gitnexus detect-changes --scope all -r "C:\Users\1\DEV\FREESPORT"` — затронуты только символы этой стори.
+  - [x] `npx gitnexus check --cycles -r "C:\Users\1\DEV\FREESPORT"` — базовый цикл `HomePage.tsx → index.ts → HomePage.tsx` и отложенный R42.7-D1 (`users/models.py → staff_roles.py → users/models.py`), новых нет. В частности, нет `users/admin.py → common/staff_journal.py`: `users/admin.py` импортирует только листовой `staff_actions.py`.
+  - [x] Completion Notes: отклонения от стори с причиной, ответы Alex на вопросы ниже, шаги выката.
+
+### Review Findings
+
+Код-ревью 18.10.2026, круг 1 (`759efa2c` → рабочее дерево, только `backend/`; слои через плагин Codex: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor, Graph Impact). Graph Impact находок не дал: несогласованных вызывающих нет, `check --cycles` — только существующие циклы.
+
+- [ ] [Review][Patch] R42.9-1 (low) `_int_id` проверяет `isdigit()`, а `int()` принимает не всё, что эта проверка пропускает: для `resource_id="²"` `isdigit()` → `True`, `int()` → `ValueError`, и вся страница отвечает 500 вместо подписи без ссылки (решение 5: «нецифровой id в запросы не идёт»). Заменить на `isdecimal()` и добавить `"²"` в unit-тест неожиданных форм [backend/apps/common/staff_journal.py:367]
+- [ ] [Review][Patch] R42.9-2 (low) При ошибке фильтра быстрые ссылки периода теряют сотрудника: `build_journal` берёт `staff` из `cleaned` только при `valid`, поэтому после `?staff=<A>&date_from=2026-10-12&date_to=2026-10-10` ссылка «30 дней» откроет ленту всех сотрудников. Брать `staff` из `form.cleaned_data` и при неверной форме (ошибки дат его не убирают; неверный `staff` в `cleaned_data` не попадёт), плюс проверка ссылки в AC4-сценарии неверной формы [backend/apps/common/staff_journal.py:515]
+- [ ] [Review][Patch] R42.9-3 (low) `TestQueryCount` не ловит запрос на каждый уникальный объект: все 200 записей ссылаются на один и тот же набор клиента, сотрудника, заказа и правила, поэтому запрос на каждый уникальный заказ (или клиента) дал бы одинаковое число запросов в обоих замерах. Во втором наборе раздать записи по разным клиентам, заказам и правилам [backend/tests/integration/test_staff_journal.py:1038]
+- [ ] [Review][Patch] R42.9-4 (low) Нет сценария заказа, которого руководитель не видит в `/manager/`: все заказы тестов доступны, и удаление условия `if pk in visible_orders` не уронит ни один тест, а историческая запись получит ссылку на 404. Добавить запись `update_order` о заказе клиента, переведённого в сотрудники: подпись «Заказ …» есть, ссылки нет [backend/apps/common/staff_journal.py:465]
+
+**Rejected (8):**
+
+- Повышение сотрудника до суперпользователя скрывает его прошлые записи и снимает охрану удаления (Blind Hunter) — критерий «текущий `is_superuser`» выбран решениями 3 и 13 и AC11 («суперпользователя с записью удалить можно»); фикс — правка стори.
+- Гонка между проверкой авторов в `get_deleted_objects` и удалением (Blind Hunter, Edge Case Hunter) — low: нужно, чтобы удаляемый сотрудник сделал первое действие из перечня в миллисекунды между открытием подтверждения и POST; фикс — блокировки строк, лишняя сложность.
+- Вложенные `dict`/`list` в значениях `fields` выводятся через `str()` (Blind Hunter, Acceptance Auditor) — low: все 14 мест записи кладут в `old`/`new` скаляры, вложенную структуру программа не создаёт; вывод экранирован; фикс — проверки типов в каждом форматтере.
+- Назначение подписывается по текущему владельцу почты: после переиспользования email подпись чужая (Blind Hunter) — так задано решением 4 (в журнале лежат почты, подпись — учётная запись с этой почтой); фикс — изменить запись журнала, а это вне стори.
+- Пагинация смещением дублирует строку, если между переходами появилась новая запись (Blind Hunter) — Paginator с `get_page` задан решением 7; поведение штатное для админки Django, вреда для разбора нет.
+- Нет авторских действий маркетолога в сценариях (Blind Hunter) — false: в перечне нет действий маркетинга («Чего в этой стори нет», решение 15 стори 42.6).
+- Вход через `/supervisor/login/` не проверен, тесты используют `force_login` (Blind Hunter) — low: страница входа — штатный `AdminSite.login` сайта 42.7, AC1 проверяет точный редирект; стори вход не меняет.
+- Нет замеров времени и планов запросов на большом журнале (Blind Hunter) — решение 11: без новых индексов, реальных записей нет, индекс по `created_at` — когда объём потребует.
 
 ## Dev Notes
 
@@ -518,16 +538,84 @@ so that я разбираю спорные случаи («кто заблоки
 
 ### Agent Model Used
 
+Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
+
 ### Debug Log References
+
+- GitNexus pre-flight: индекс `stale` на `abf8410`; после `analyze --force` у Alex — `up-to-date` на `759efa2`. Таблица «GitNexus: зона изменений» сверена: `SupervisorAdminSite` MEDIUM (16, 9 прямых), `UserAdmin.user_change_password` LOW (2), `get_deleted_objects` UNKNOWN (хук Django), `scope_clients` CRITICAL (21), `scope_orders` HIGH (8), `period_presets` LOW (2), `manager_label` LOW (5) — совпадает со стори, последние четыре только читаются.
+- Первый прогон новых тестов: 134 passed (61 unit + 73 integration).
+- Проверка мутациями (скрипт в контейнере `freesport-test`, исходник восстанавливается побайтно в `finally`, после прогона `git status` без посторонних изменений): **24 из 24 убиты**. Две мутации (запрос на строку, ссылки страниц из `request.GET`) повторены после правки `mypy` на итоговом коде — убиты.
+
+  | № | Убрано | Упал |
+  |---|---|---|
+  | 1 | свой путь после `super().get_urls()` | `TestEntry::test_supervisor_opens_journal` |
+  | 2 | `action__in=STAFF_ACTIONS` | `TestOnlyStaffActions` |
+  | 3 | `user__is_superuser=False` | `TestOnlyStaffActions` |
+  | 4 | критерий автора → `user__is_staff=True` | `TestOnlyStaffActions` |
+  | 5 | подзапрос авторов в выборе сотрудника | `TestFilters::test_staff_choices` |
+  | 6 | `Q(email__in=…)` в общем запросе | `TestRows::test_responsible_assignment_labels` |
+  | 7 | строка в `protected` | `TestDeleteGuard::test_author_card_delete_is_refused[*]`, `test_author_bulk_delete_is_refused[*]` |
+  | 8 | `user__is_superuser=False` в охране удаления | `TestDeleteGuard::test_superuser_author_is_deleted` |
+  | 9 | `+ timedelta(days=1)` у конца периода | `TestFilters::test_period_bounds` |
+  | 10 | границы суток по UTC | `TestFilters::test_period_bounds` |
+  | 11 | `-pk` в сортировке | `TestPages::test_order_and_pages` |
+  | 12 | проверка `scope_clients` у ссылки клиента | `TestRows::test_staff_has_no_manager_link` |
+  | 13 | ветка сотрудника у ссылки | `TestRows::test_staff_has_no_manager_link` |
+  | 14 | общий запрос пользователей → запрос на строку | `TestQueryCount::test_constant[all]`, `[staff-and-period]` |
+  | 15 | ветка `mode=link_only` | unit `test_describe[verify_b2b-link_only]` |
+  | 16 | `transaction.atomic()` в `UserAdmin.user_change_password` | `TestPasswordAtomic::test_failed_journal_keeps_password[supervisor]`; вариант `[manager]` зелёный (своя обёртка) |
+  | 17 | неверная форма → все записи | `TestInvalidFilter::test_error_and_no_rows[date-max, missing-staff, non-numeric-staff]` |
+  | 18 | период по умолчанию не подставляется | `TestDefaultPeriod::test_without_params` |
+  | 19 | `DEFAULT_DAYS - 1` → `DEFAULT_DAYS` | `TestDefaultPeriod::test_without_params`, unit `TestJournalFilterDefaults` (3) |
+  | 20 | умолчание по «нет непустых дат» | `TestDefaultPeriod::test_all_time` |
+  | 21 | ссылки страниц из `request.GET` | `TestPages::test_order_and_pages` |
+  | 22 | `staff` в ссылках периода | `TestFilters::test_period_links_keep_staff_and_mark_selected` |
+  | 23 | ссылка «Журнал» на главной | `TestLinks::test_index_sections` |
+  | 24 | `log_action` в `block_staff` | `TestEveryActionIsJournaled` — «Блокировка сотрудника»: записей 0, ожидалась одна |
+
+- Полный backend-прогон в Docker (`-n 4 -m "not performance and not slow"`): **4801 passed, 76 skipped, 0 failed** (19 мин 56 с; до стори — 4667 passed, +134 новых).
+- Линтеры после зачётного прогона, `-p freesport-test`: `black --check .`, `isort --check-only .`, `flake8 .`, `mypy .` (647 файлов) — без замечаний. `makemigrations --check --dry-run` — «No changes detected».
+- `npx gitnexus detect-changes --scope all`: 6 файлов, 9 символов — `UserAdmin`, `get_deleted_objects`, `user_change_password`, `SupervisorAdminSite`, `get_urls`, `journal_view`, `index`, `TestLinks`, `test_index_links_summary_first`; процессы `user_change_password` (2); risk medium. Новые файлы (`staff_actions.py`, `staff_journal.py`) git ещё не отслеживает, в отчёт они не входят.
+- `npx gitnexus check --cycles`: только базовые `users/models.py → staff_roles.py → users/models.py` (R42.7-D1) и `HomePage.tsx → index.ts → HomePage.tsx`. Новых циклов нет, `users/admin.py` импортирует только листовой `staff_actions.py`.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- Реализовано: лента `/supervisor/journal/` (`supervisor:journal`) — путь до catch-all, `journal_view`, ссылка «Журнал действий сотрудников» второй в «Разделах»; листовой перечень `apps/common/staff_actions.py` (14 кодов); модуль `apps/common/staff_journal.py` (`JournalFilterForm`, `journal_filter`, `journal_records`, `describe`, `build_rows`, `build_journal`, `PER_PAGE = 100`, `DEFAULT_DAYS = 30`); шаблон `admin/supervisor/journal.html`; R42.7-D2 — `transaction.atomic()` в `UserAdmin.user_change_password`; охрана удаления автора записей ленты в `UserAdmin.get_deleted_objects`.
+- Тесты: `tests/unit/test_staff_journal.py` (61) и `tests/integration/test_staff_journal.py` (73) — AC1–AC9, AC11; AC10 — прогоны выше. Сверка перечня (AC2) — 22 действия настоящими запросами плюс отдельный тест страницы подтверждения с кандидатом 1С (две записи двух видов).
+- **Единственное изменение ожиданий существующих тестов** — `test_supervisor_summary.py::TestLinks::test_index_links_summary_first`: добавлена пара `("/supervisor/journal/", "Журнал действий сотрудников")` (решение 9). `test_responsible_manager_events.py::test_admin_delete_unused_manager` прошёл без правок: `make_staff` этого файла записей ленты не создаёт.
+- **Отклонения и уточнения:**
+  1. `describe` у `change_routing_rule` пропускает поле, у которого «было» и «стало» выглядят одинаково. Журнал правил различает `""` и `None` у `manager_email` при создании и удалении, и без пропуска в подробностях стояло бы «email менеджера: — → —». Решение 4 этот случай не описывало.
+  2. Второй аргумент `describe(record, users)` — `KnownUsers` (учётные записи страницы по pk и по email из одного запроса). Добавлены служебные `staff_choices`, `staff_choice_label`, `default_period`.
+  3. «Записей нет» показывается и при неверном фильтре; «Страница N из M» — всегда, в том числе на одной странице.
+  4. AC9: `action_request` стори 42.7 не подошёл — Django после смены пароля вызывает `update_session_auth_hash`, которому нужна `request.session`. В тесте свой `password_request` с `SessionStore` (signed cookies), `_messages` и `_dont_enforce_csrf_checks`.
+  5. AC2 и AC8 входят в разделы двумя клиентами `logged_in(...)`, а не фикстурами `manager_client`/`supervisor_client`: обе построены на одном `client`. Импорт хелперов дополнен `order_emails` (autouse, письма заказов) и `failing_journal`.
+  6. `id` вариантов AC2 русские, но pytest в выводе экранирует не-ASCII (`Б…`). Название действия читается в сообщении `assert`: «Блокировка сотрудника»: записей 0, ожидалась одна.
+  7. Мутацию «неверная форма → все записи» вариант с перевёрнутым периодом не ловит: в `cleaned_data` остаются обе даты, и пустой полуинтервал сам даёт ноль строк. Мутацию убивают три других варианта.
+- **Ответы Alex** (18.10.2026): все 9 вопросов закрыты при подготовке стори (раздел «Вопросы к Alex»); новых вопросов при реализации не возникло.
+- **Выкат:**
+  1. Миграций, ручных шагов в БД и правок nginx нет: локация `/supervisor/` уже проксирует `/supervisor/journal/`.
+  2. После выката: `curl -sI https://optisport.ru/supervisor/journal/` → 302 на `/supervisor/login/?next=/supervisor/journal/`. Если 404 от Next — `docker compose exec nginx nginx -s reload`.
+  3. В ленте сразу появятся старые записи сотрудников из `/admin/` до эпика 42 (`managermsk3@…` и др.) — это ожидаемо.
+  4. Владельцу: с выката сотрудника с записями ленты в `/admin/` удалить нельзя, только заблокировать.
 
 ### File List
+
+- `backend/apps/common/staff_actions.py` (новый)
+- `backend/apps/common/staff_journal.py` (новый)
+- `backend/templates/admin/supervisor/journal.html` (новый)
+- `backend/freesport/admin_site.py`
+- `backend/apps/users/admin.py`
+- `backend/tests/integration/test_staff_journal.py` (новый)
+- `backend/tests/unit/test_staff_journal.py` (новый)
+- `backend/tests/integration/test_supervisor_summary.py`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/Story/42-9-staff-action-journal.md`
 
 ### Change Log
 
 - 2026-10-18: стори создана (`bmad-create-story`) на `abf84102`, статус `ready-for-dev`.
 - 2026-10-18: ответы Alex на вопросы 1–5; период по умолчанию — последние 30 дней (решение 6, AC4, AC6, мутации).
 - 2026-10-18: разбор стори в party mode, ответы Alex на вопросы 6–9. Добавлены решение 13 (запрет удалять автора записей ленты), AC11 и Task 3a. `STAFF_ACTIONS` вынесен в листовой `staff_actions.py`, чтобы не было цикла импорта. Критерий автора — «не суперпользователь» (решение 3, выбор сотрудника в решении 6, AC4, AC5). Назначение ответственного выводится как «ФИО (email)» (решения 4 и 5, AC3). Решение 11 переписано честно про индекс. В шапке уточнено «переназначил в карточке». Обновлены мутации, GitNexus, Dev Notes, выкат, «Связь» с 42.10.
+- 2026-10-18: реализация (`bmad-dev-story`, ветка `feature/42-9-staff-action-journal`): лента `/supervisor/journal/`, перечень `staff_actions.py`, модуль `staff_journal.py`, шаблон, R42.7-D2, охрана удаления автора. 134 новых теста, мутации 24 из 24 убиты; полный прогон 4801 passed, 76 skipped, 0 failed; линтеры и `makemigrations --check` чисто. Статус `review`.
