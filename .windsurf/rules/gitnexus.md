@@ -50,12 +50,18 @@ description: GitNexus CLI — анализ кода перед правками 
   (первый пункт «Границ графа»).
 - **`LOAD fts failed ... IO exception: Failed to load library ... Не найден указанный модуль`
   при живом файле `libfts.lbug_extension`** — расширению не хватает OpenSSL 3
-  (`libcrypto-3-x64.dll`, `libssl-3-x64.dll`): в `System32` их нет, а LadybugDB ищет зависимости
-  в каталоге самого расширения. Лечится копированием обоих DLL из `C:\Program Files\Git\mingw64\bin`
-  (или `PostgreSQL 1C\18\bin`) в `%USERPROFILE%\.lbdb\extension\<версия>\win_amd64\fts\`, затем
-  `npx gitnexus analyze --repair-fts`. Проверено 17.10.2026: после копирования `doctor` показывает
-  `Full-text search: available`. При обновлении LadybugDB расширение скачивается в новый каталог —
-  DLL придётся положить заново.
+  (`libcrypto-3-x64.dll`, `libssl-3-x64.dll`). Зависимости расширения Windows ищет по стандартному
+  порядку — каталог node.exe, `System32`, **PATH**; каталог самого расширения НЕ просматривается
+  (проверено 18.10.2026: DLL, лежащие рядом с `libfts.lbug_extension`, не помогают). Поэтому
+  диагностика обязательна в «чистом» окружении: в Git Bash `mingw64/bin` с OpenSSL 3 уже на PATH и
+  `doctor` показывает `available`, а в PowerShell пользователя — `unavailable`.
+  **Лечение (сделано на этой машине):** DLL лежат в `%USERPROFILE%\.lbdb\deps\` (скопированы из
+  `C:\Program Files\Git\mingw64\bin`), каталог добавлен в конец User PATH через
+  `[Environment]::SetEnvironmentVariable("Path", ... , "User")` — действует для новых процессов
+  после перезапуска терминала. Затем `npx gitnexus analyze --repair-fts`. Альтернативы хуже:
+  `System32`/`C:\Program Files\nodejs` требуют админки, а `Git\mingw64\bin` в PATH затеняет `curl`,
+  `ssh`, `find` юниксовыми утилитами. Статические копии OpenSSL не обновляются — при смене
+  toolchain положи свежие.
 
 ## Обязательно
 
