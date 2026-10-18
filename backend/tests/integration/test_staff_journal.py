@@ -703,6 +703,22 @@ class TestRows:
             assert forbidden not in html, forbidden
         assert 'href="/admin/' not in html
 
+    def test_deleted_client_is_labelled_by_target_email(self, supervisor_client, manager):
+        # Запись привязки к 1С хранит почту клиента в `target_email`, а не в `email`.
+        ghost = make_client(manager)
+        ghost_pk, ghost_email = ghost.pk, ghost.email
+        log(manager, "link_1c_customer", ghost, {"target_id": ghost_pk, "target_email": ghost_email}, at=moscow(12, 10, 0))
+        ghost.delete()
+
+        response = supervisor_client.get(JOURNAL_URL, ALL_TIME)
+        page = journal_page(response)
+
+        assert page.rows == [
+            ("12.10.2026 10:00", label(manager), "Привязка к контрагенту 1С", ghost_email, "—"),
+        ]
+        assert page.links == [[]]
+        assert f"ID {ghost_pk}" not in response.content.decode()
+
     def test_staff_has_no_manager_link(self, supervisor_client, supervisor):
         member = make_staff_member(MANAGERS_GROUP)
         log(supervisor, "change_password", member)
@@ -1090,6 +1106,7 @@ class TestPages:
 
 class TestQueryCount:
     SPREAD = 4
+    KINDS = 6
 
     @pytest.fixture
     def objects(self, manager, other_manager) -> SimpleNamespace:
@@ -1100,6 +1117,7 @@ class TestQueryCount:
             ghost.delete()
         return SimpleNamespace(
             customers=[make_client(manager) for _ in range(self.SPREAD)],
+            managers=[make_staff_member(MANAGERS_GROUP) for _ in range(self.SPREAD)],
             members=[make_staff_member(MARKETING_GROUP) for _ in range(self.SPREAD)],
             orders=[make_master(make_client(manager), subs=0) for _ in range(self.SPREAD)],
             rules=[rule(str(23 + number), manager) for number in range(self.SPREAD)],
@@ -1111,13 +1129,13 @@ class TestQueryCount:
     @staticmethod
     def add(objects: SimpleNamespace, authors: list[User], count: int, spread: int) -> None:
         """
-        Записи пяти видов по кругу. Объектов каждого вида — `spread`: число запросов
+        Записи шести видов по кругу. Объектов каждого вида — `spread`: число запросов
         не должно расти и с числом строк, и с числом различных клиентов, заказов и правил.
         """
         for index in range(count):
             author = authors[index % len(authors)]
-            kind = index % 5
-            variant = (index // 5) % spread
+            kind = index % TestQueryCount.KINDS
+            variant = (index // TestQueryCount.KINDS) % spread
             if kind == 0:
                 log(author, "block_user", objects.customers[variant])
             elif kind == 1:
@@ -1137,16 +1155,27 @@ class TestQueryCount:
                         "fields": {"manager_id": {"old": objects.manager.pk, "new": objects.other_manager.pk}},
                     },
                 )
-            else:
+            elif kind == 4:
                 log(author, "unblock_user", objects.ghosts[variant], resource_type="User")
+            else:
+                # Прежний и новый менеджер — разные учётные записи на каждой строке;
+                # у нечётных вариантов прежней почты в базе нет.
+                old = objects.managers[variant].email if variant % 2 == 0 else f"former{variant}@example.com"
+                new = objects.managers[(variant + 1) % len(objects.managers)].email
+                log(
+                    author,
+                    "assign_responsible_manager",
+                    objects.customers[variant],
+                    {"old": old, "new": new, "manual": True},
+                )
 
     @pytest.mark.parametrize("filtered", [False, True], ids=["all", "staff-and-period"])
     def test_constant(self, today, as_supervisor, objects, filtered, django_assert_num_queries):
         first = make_staff_member(MANAGERS_GROUP)
-        self.add(objects, [first], 5, spread=1)
+        self.add(objects, [first], self.KINDS, spread=1)
         query = f"?staff={first.pk}&date_from=2026-10-01&date_to=2026-10-17" if filtered else "?date_from=&date_to="
         baseline, response = count_queries(as_supervisor, JOURNAL_URL + query)
-        assert len(response.context["rows"]) == 5
+        assert len(response.context["rows"]) == self.KINDS
 
         team = [first, *(make_staff_member(MANAGERS_GROUP) for _ in range(19))]
         # С фильтром по сотруднику его записей должно хватить на две страницы.
@@ -1155,7 +1184,8 @@ class TestQueryCount:
         with django_assert_num_queries(baseline):
             response = as_supervisor.get(JOURNAL_URL + query)
         assert len(response.context["rows"]) == 100
-        assert len({row["object_label"] for row in response.context["rows"]}) > 5
+        assert len({row["object_label"] for row in response.context["rows"]}) > self.KINDS
+        assert len({row["details"] for row in response.context["rows"] if "→" in row["details"]}) > 2
         with django_assert_num_queries(baseline):
             response = as_supervisor.get(JOURNAL_URL + query + "&page=2")
         assert len(response.context["rows"]) == 100
@@ -1273,6 +1303,25 @@ def delete_selected(browser: Client, *users: User):
     )
 
 
+# Литерал, а не `STAFF_ACTIONS`: подмена перечня в охране должна ронять тест (урок R42.5-7).
+ALL_CODES = [
+    "verify_b2b",
+    "approve_b2b",
+    "reject_b2b",
+    "block_user",
+    "unblock_user",
+    "change_password",
+    "link_1c_customer",
+    "update_order",
+    "assign_responsible_manager",
+    "change_routing_rule",
+    "create_staff",
+    "block_staff",
+    "unblock_staff",
+    "change_staff_group",
+]
+
+
 class TestDeleteGuard:
     @pytest.fixture
     def authors(self) -> dict[str, User]:
@@ -1312,6 +1361,32 @@ class TestDeleteGuard:
         assert DELETE_GUARD_MESSAGE in response.content.decode()
         assert User.objects.filter(pk__in=[author.pk, clean.pk]).count() == 2
         assert AuditLog.objects.filter(user=author).count() == 1
+
+    @pytest.mark.parametrize("code", ALL_CODES)
+    def test_author_of_any_listed_action_card_delete_is_refused(self, code):
+        author = make_staff_member(MANAGERS_GROUP)
+        log(author, code, make_client(None))
+        browser = superuser_client()
+
+        response = browser.post(delete_url(author), {"post": "yes"})
+
+        assert response.status_code == 200
+        assert DELETE_GUARD_MESSAGE in response.content.decode()
+        assert User.objects.filter(pk=author.pk).exists()
+        assert AuditLog.objects.filter(user=author, action=code).count() == 1
+
+    @pytest.mark.parametrize("code", ALL_CODES)
+    def test_author_of_any_listed_action_bulk_delete_is_refused(self, code):
+        author = make_staff_member(MANAGERS_GROUP)
+        clean = make_staff_member(MARKETING_GROUP)
+        log(author, code, make_client(None))
+
+        response = delete_selected(superuser_client(), author, clean)
+
+        assert response.status_code == 200
+        assert DELETE_GUARD_MESSAGE in response.content.decode()
+        assert User.objects.filter(pk__in=[author.pk, clean.pk]).count() == 2
+        assert AuditLog.objects.filter(user=author, action=code).count() == 1
 
     def test_without_journal_records_is_deleted(self):
         clean = make_staff_member(MANAGERS_GROUP)
