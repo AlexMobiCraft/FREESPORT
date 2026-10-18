@@ -707,7 +707,13 @@ class TestRows:
         # Запись привязки к 1С хранит почту клиента в `target_email`, а не в `email`.
         ghost = make_client(manager)
         ghost_pk, ghost_email = ghost.pk, ghost.email
-        log(manager, "link_1c_customer", ghost, {"target_id": ghost_pk, "target_email": ghost_email}, at=moscow(12, 10, 0))
+        log(
+            manager,
+            "link_1c_customer",
+            ghost,
+            {"target_id": ghost_pk, "target_email": ghost_email},
+            at=moscow(12, 10, 0),
+        )
         ghost.delete()
 
         response = supervisor_client.get(JOURNAL_URL, ALL_TIME)

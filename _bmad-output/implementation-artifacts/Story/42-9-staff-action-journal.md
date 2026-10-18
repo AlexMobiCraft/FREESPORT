@@ -4,7 +4,7 @@ baseline_commit: abf84102
 
 # Story 42.9: Журнал действий сотрудников
 
-Status: in-progress
+Status: review
 Baseline Revision: abf84102 (`develop` после мёрджа `feature/42-8-supervisor-summary` — стори 42.8 `done`)
 
 ## Story
@@ -388,11 +388,11 @@ so that я разбираю спорные случаи («кто заблоки
 
 Итог: 0 решений владельца, 3 исправления тестов, 0 отложенных, 12 отклонённых кандидатов. Подтверждённых ошибок текущего поведения нет. Все три находки ниже — пробелы регрессионной защиты, источник `verification-gap`; доказательства слоя приняты по правилам разбора находок.
 
-Решение Alex: оставить R42.9-5..7 открытыми задачами, без исправления кода и тестов в этом прогоне. Статус истории и запись спринта: `review` -> `in-progress`.
+Решение Alex: оставить R42.9-5..7 открытыми задачами, без исправления кода и тестов в этом прогоне. Статус истории и запись спринта: `review` -> `in-progress`. Закрыты следующим прогоном `bmad-dev-story` (см. Completion Notes и Change Log).
 
-- [ ] [Review][Patch] R42.9-5 (low) Защита удаления авторов проверена только для `block_user`: фикстура `TestDeleteGuard.authors` создаёт всем авторам только этот код. Подмена `action__in=STAFF_ACTIONS` на `action="block_user"` не обнаруживается этими проверками, хотя позволит удалить автора, например, единственного `change_password`, и потерять авторство через `SET_NULL`. Параметризовать проверки удаления из карточки и через `delete_selected` по кодам перечня, сохраняя проверки учётной записи и автора записи (AC11) [backend/tests/integration/test_staff_journal.py:1275]
-- [ ] [Review][Patch] R42.9-6 (low) Нет проверки подписи удалённого клиента из `target_email`: текущий удалённый клиент в AC3 использует `email`, а сценарий привязки к 1С — существующего клиента. Удаление `or changes.get("target_email")` из `_object` не обнаруживается этими тестами; руководитель увидит технический ID вместо сохранённой почты. Добавить запись `link_1c_customer` только с `target_email`, удалить клиента и проверить почту в ячейке объекта и отсутствие ссылки (AC3, решение 5) [backend/apps/common/staff_journal.py:457]
-- [ ] [Review][Patch] R42.9-7 (low) Замер SQL не охватывает `assign_responsible_manager`: генератор `TestQueryCount` не создаёт назначений, а `test_responsible_assignment_labels` проверяет только тексты. Отдельный запрос разрешения email на каждую строку сохранит ожидаемые подписи и пройдёт существующий замер, нарушив NFR-42-04. Включить назначения с различными адресами прежних и новых менеджеров в оба варианта `TestQueryCount::test_constant`, сохранив сравнение страниц (AC7) [backend/tests/integration/test_staff_journal.py:1112]
+- [x] [Review][Patch] R42.9-5 (low) Защита удаления авторов проверена только для `block_user`: фикстура `TestDeleteGuard.authors` создаёт всем авторам только этот код. Подмена `action__in=STAFF_ACTIONS` на `action="block_user"` не обнаруживается этими проверками, хотя позволит удалить автора, например, единственного `change_password`, и потерять авторство через `SET_NULL`. Параметризовать проверки удаления из карточки и через `delete_selected` по кодам перечня, сохраняя проверки учётной записи и автора записи (AC11) [backend/tests/integration/test_staff_journal.py:1275]
+- [x] [Review][Patch] R42.9-6 (low) Нет проверки подписи удалённого клиента из `target_email`: текущий удалённый клиент в AC3 использует `email`, а сценарий привязки к 1С — существующего клиента. Удаление `or changes.get("target_email")` из `_object` не обнаруживается этими тестами; руководитель увидит технический ID вместо сохранённой почты. Добавить запись `link_1c_customer` только с `target_email`, удалить клиента и проверить почту в ячейке объекта и отсутствие ссылки (AC3, решение 5) [backend/apps/common/staff_journal.py:457]
+- [x] [Review][Patch] R42.9-7 (low) Замер SQL не охватывает `assign_responsible_manager`: генератор `TestQueryCount` не создаёт назначений, а `test_responsible_assignment_labels` проверяет только тексты. Отдельный запрос разрешения email на каждую строку сохранит ожидаемые подписи и пройдёт существующий замер, нарушив NFR-42-04. Включить назначения с различными адресами прежних и новых менеджеров в оба варианта `TestQueryCount::test_constant`, сохранив сравнение страниц (AC7) [backend/tests/integration/test_staff_journal.py:1112]
 
 **Отклонено (12):**
 
@@ -607,7 +607,25 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - `npx gitnexus detect-changes --scope all`: 6 файлов, 9 символов — `UserAdmin`, `get_deleted_objects`, `user_change_password`, `SupervisorAdminSite`, `get_urls`, `journal_view`, `index`, `TestLinks`, `test_index_links_summary_first`; процессы `user_change_password` (2); risk medium. Новые файлы (`staff_actions.py`, `staff_journal.py`) git ещё не отслеживает, в отчёт они не входят.
 - `npx gitnexus check --cycles`: только базовые `users/models.py → staff_roles.py → users/models.py` (R42.7-D1) и `HomePage.tsx → index.ts → HomePage.tsx`. Новых циклов нет, `users/admin.py` импортирует только листовой `staff_actions.py`.
 
+- Круг 2 ревью (R42.9-5..7, только тесты): новые тесты зелёные на неизменённом коде — это регрессионные защиты, поэтому проверены мутациями (скрипт запускает `pytest` в `freesport-test`, исходник восстанавливается побайтно в `finally`, `git status` без посторонних изменений). **3 из 3 убиты:**
+
+  | № | Убрано | Упал |
+  |---|---|---|
+  | 25 | `action__in=STAFF_ACTIONS` → `action="block_user"` в охране удаления | `TestDeleteGuard::test_author_of_any_listed_action_*[…]` — 26 из 28 вариантов (кроме `block_user`) |
+  | 26 | `or changes.get("target_email")` в `_object` | `TestRows::test_deleted_client_is_labelled_by_target_email` |
+  | 27 | запрос на каждую почту в `label_by_email` | `TestQueryCount::test_constant[all]`, `[staff-and-period]` |
+
+- Первый прогон после правок: `TestQueryCount` упал на `self` в `@staticmethod add` (`NameError`) — заменено на `TestQueryCount.KINDS`; затем 31 passed по затронутым тестам.
+- Полный backend-прогон (`-n 4`, `not performance and not slow`): **4839 passed, 76 skipped, 0 failed** (20 мин 38 с; было 4810, +29 новых тестов).
+- Линтеры после зачётного прогона, `-p freesport-test`: `black` переформатировал одну длинную строку нового теста (`flake8` E501), после чего `black --check .` (494 файла), `isort --check-only`, `flake8` — чисто; `mypy .` (647 файлов) — без замечаний; `makemigrations --check --dry-run` — «No changes detected».
+- `npx gitnexus detect-changes --scope all`: 1 файл, 2 символа (`TestRows`, `test_deleted_client_is_labelled_by_target_email`), процессов нет, risk low. `check --cycles` — только базовые `users/models.py ↔ staff_roles.py` и `HomePage.tsx ↔ index.ts`.
+
 ### Completion Notes List
+
+- ✅ Resolved review finding [low] R42.9-5: охрана удаления проверена по всем 14 кодам перечня (литерал `ALL_CODES`, не `STAFF_ACTIONS`), отдельно из карточки и через `delete_selected` (с чистой учётной записью в выборке): 28 новых тестов. Прежние варианты по ролям (`manager`/`blocked`/`former`) на `block_user` сохранены.
+- ✅ Resolved review finding [low] R42.9-6: `TestRows::test_deleted_client_is_labelled_by_target_email` — запись `link_1c_customer` только с `target_email` у удалённого клиента: в ячейке объекта почта, ссылки нет, `ID <n>` не выводится.
+- ✅ Resolved review finding [low] R42.9-7: `TestQueryCount` создаёт шестой вид записей — `assign_responsible_manager` с разными прежним и новым менеджерами (у нечётных вариантов прежней почты в базе нет). Замер 6 записей против 195 дополнительных, обе страницы; дополнительно проверено, что в строках несколько различных подробностей.
+- Код реализации в этом прогоне не менялся — только `backend/tests/integration/test_staff_journal.py`.
 
 - ✅ Resolved review finding [low] R42.9-1: `_int_id` принимает только ASCII-десятичные цифры (`isascii() and isdecimal()`). Строже, чем предлагало ревью (`isdecimal()`): `int()` принял бы арабские цифры «١٢» и подпись сослалась бы на pk 12.
 - ✅ Resolved review finding [low] R42.9-2: `build_journal` берёт `staff` и даты из `form.cleaned_data` и при неверной форме; ссылки периода сохраняют верно выбранного сотрудника, неверный `staff` в ссылки не попадает. «Выбрана» и подпись периода по-прежнему только при верной форме.
@@ -656,3 +674,4 @@ Claude Opus 5.5 (`claude-opus-5-5`), Claude Code, `bmad-dev-story`.
 - 2026-10-18: реализация (`bmad-dev-story`, ветка `feature/42-9-staff-action-journal`): лента `/supervisor/journal/`, перечень `staff_actions.py`, модуль `staff_journal.py`, шаблон, R42.7-D2, охрана удаления автора. 134 новых теста, мутации 24 из 24 убиты; полный прогон 4801 passed, 76 skipped, 0 failed; линтеры и `makemigrations --check` чисто. Статус `review`.
 - 2026-10-18: исправления кода-ревью круга 1 (`bmad-dev-story`): R42.9-1 (`_int_id`), R42.9-2 (ссылки периода при неверной форме), R42.9-3 (разные объекты в `TestQueryCount`), R42.9-4 (заказ без ссылки). 9 новых тестов, 2 мутации убиты; полный прогон 4810 passed, 76 skipped, 0 failed; линтеры чисто. Статус `review`.
 - 2026-10-18: код-ревью круга 2 через плагин Codex, пять слоёв: 3 находки low (R42.9-5..7, только регрессионные тесты), 0 отложенных, 12 отклонено. По решению Alex находки оставлены открытыми задачами; код и тесты не менялись, новые прогоны не выполнялись. Статус истории и запись спринта: `review` -> `in-progress`.
+- 2026-10-18: исправления кода-ревью круга 2 (`bmad-dev-story`): R42.9-5 (охрана удаления по всем кодам перечня), R42.9-6 (подпись удалённого клиента из `target_email`), R42.9-7 (назначения в замере запросов). 29 новых тестов, 3 мутации убиты; полный прогон 4839 passed, 76 skipped, 0 failed; линтеры чисто. Код реализации не менялся. Статус `review`.
