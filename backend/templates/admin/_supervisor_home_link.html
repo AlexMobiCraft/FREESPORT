@@ -1,0 +1,11 @@
+{% comment %}
+  Ссылка руководителя «К разделу руководителя». Ключ supervisor_home_url кладёт
+  в контекст StaffSectionAdminSite.each_context, когда руководитель сидит в
+  /manager/ или /marketing/; в остальных разделах ссылки нет. Подключается из
+  бокового меню и с главных страниц разделов: у admin/index.html блок
+  nav-sidebar пуст. С flush=True отступ слева убран:
+  на главных ссылка стоит вровень с блоками.
+{% endcomment %}
+{% if supervisor_home_url %}
+<p id="supervisor-home-link" style="margin: 0 0 10px; padding: 8px {% if flush %}0{% else %}12px{% endif %}; font-weight: bold;"><a href="{{ supervisor_home_url }}">&larr; Раздел руководителя</a></p>
+{% endif %}

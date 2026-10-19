@@ -248,6 +248,31 @@ class TestEntry:
         assert supervisor_client.get("/manager/").status_code == 200
         assert supervisor_client.get("/marketing/").status_code == 200
 
+    @pytest.mark.parametrize("url", ["/manager/", "/marketing/", "/manager/users/user/", "/marketing/banners/banner/"])
+    def test_supervisor_gets_link_back_from_sections(self, supervisor_client, url):
+        response = supervisor_client.get(url)
+        assert response.status_code == 200, url
+        html = response.content.decode()
+        assert 'id="supervisor-home-link"' in html
+        assert 'href="/supervisor/"' in html
+
+    def test_supervisor_section_has_no_link_to_itself(self, supervisor_client):
+        assert 'id="supervisor-home-link"' not in supervisor_client.get(INDEX_URL).content.decode()
+
+    @pytest.mark.parametrize(
+        "group, url",
+        [
+            pytest.param(MANAGERS_GROUP, "/manager/", id="manager"),
+            pytest.param(MARKETING_GROUP, "/marketing/", id="marketing"),
+        ],
+    )
+    def test_other_roles_get_no_link_to_supervisor(self, client, group, url):
+        client.force_login(make_staff_member(group))
+        response = client.get(url)
+        assert response.status_code == 200
+        assert 'id="supervisor-home-link"' not in response.content.decode()
+        assert "/supervisor/" not in response.content.decode()
+
     @pytest.mark.parametrize(
         "make_user",
         [
