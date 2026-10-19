@@ -249,6 +249,48 @@ class TestEntry:
         assert supervisor_client.get("/marketing/").status_code == 200
 
     @pytest.mark.parametrize(
+        "url",
+        [
+            "/manager/",
+            "/manager/users/",
+            "/manager/users/user/",
+            "/marketing/",
+            "/marketing/banners/",
+            "/marketing/banners/banner/",
+        ],
+    )
+    def test_supervisor_gets_link_back_from_sections(self, supervisor_client, url):
+        response = supervisor_client.get(url)
+        assert response.status_code == 200, url
+        # Ссылка в шапке: она есть и на главной, и на страницах приложений, где нет бокового меню.
+        assert re.search(r'<a id="supervisor-home-link" href="/supervisor/">', response.content.decode()), url
+
+    def test_supervisor_section_has_no_link_to_itself(self, supervisor_client):
+        assert 'id="supervisor-home-link"' not in supervisor_client.get(INDEX_URL).content.decode()
+
+    @pytest.mark.parametrize(
+        "group, urls",
+        [
+            pytest.param(MANAGERS_GROUP, ("/manager/", "/manager/users/", "/manager/users/user/"), id="manager"),
+            pytest.param(
+                MARKETING_GROUP, ("/marketing/", "/marketing/banners/", "/marketing/banners/banner/"), id="marketing"
+            ),
+        ],
+    )
+    def test_other_roles_get_no_link_to_supervisor(self, client, group, urls):
+        client.force_login(make_staff_member(group))
+        for url in urls:
+            response = client.get(url)
+            assert response.status_code == 200, url
+            assert 'id="supervisor-home-link"' not in response.content.decode(), url
+            assert "/supervisor/" not in response.content.decode(), url
+
+    def test_main_admin_has_no_link_to_supervisor(self):
+        response = superuser_client().get("/admin/")
+        assert response.status_code == 200
+        assert 'id="supervisor-home-link"' not in response.content.decode()
+
+    @pytest.mark.parametrize(
         "make_user",
         [
             pytest.param(lambda: make_staff_member(MANAGERS_GROUP), id="manager"),

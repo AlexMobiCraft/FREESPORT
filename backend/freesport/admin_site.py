@@ -17,7 +17,7 @@ from django.http import HttpRequest
 from django.template.response import TemplateResponse
 from django.urls import URLPattern, URLResolver, path, reverse
 
-from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP
+from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP, is_supervisor
 
 
 class SuperuserAdminSite(admin.AdminSite):
@@ -64,6 +64,15 @@ class StaffSectionAdminSite(admin.AdminSite):
         if self.name not in access:
             access[self.name] = user.groups.filter(name__in=self.section_groups).exists()
         return bool(access[self.name])
+
+    def each_context(self, request: HttpRequest) -> dict[str, Any]:
+        # Руководитель входит в разделы менеджера и маркетинга, а их боковое меню
+        # строится из моделей своего сайта: без ссылки он не вернулся бы в /supervisor/.
+        # Шаблон admin/nav_sidebar.html рисует её, когда ключ есть в контексте.
+        context = super().each_context(request)
+        if context["has_permission"] and self.name != "supervisor" and is_supervisor(request):
+            context["supervisor_home_url"] = reverse("supervisor:index")
+        return context
 
 
 class ManagerAdminSite(StaffSectionAdminSite):
