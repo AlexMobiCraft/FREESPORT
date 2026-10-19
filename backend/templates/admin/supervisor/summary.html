@@ -1,20 +1,25 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 {% comment %}
-  Сводка руководителя (стори 42.8): период, заявки на верификацию по
-  менеджерам, заказы и выручка за период по менеджерам и регионам, клиенты.
-  Числа считает apps/orders/supervisor_summary.py; ссылки строк ведут в
-  списки /manager/, где руководитель видит тот же отдел. Блок sidebar пуст,
-  как на главных разделов: «Последние действия» вели бы в закрытую /admin/.
+  Сводка руководителя (стори 42.8) — главная /supervisor/ и путь
+  /supervisor/summary/: период, заявки на верификацию по менеджерам, заказы и
+  выручка за период по менеджерам и регионам, клиенты. Числа считает
+  apps/orders/supervisor_summary.py; ссылки строк ведут в списки /manager/,
+  где руководитель видит тот же отдел. Боковое меню — штатное (разделы и
+  модели /supervisor/); блок sidebar пуст, как на главных разделов:
+  «Последние действия» вели бы в закрытую /admin/.
   Подписи менеджеров и регионов — данные пользователей: только через
   автоэкранирование, без |safe.
 {% endcomment %}
 {% block bodyclass %}{{ block.super }} supervisor-summary{% endblock %}
 {% block breadcrumbs %}
+{% url 'admin:summary' as summary_url %}
+{% if request.path == summary_url %}
 <div class="breadcrumbs">
   <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
   &rsaquo; Сводка
 </div>
+{% endif %}
 {% endblock %}
 
 {% block content %}

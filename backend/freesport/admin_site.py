@@ -67,12 +67,41 @@ class StaffSectionAdminSite(admin.AdminSite):
 
     def each_context(self, request: HttpRequest) -> dict[str, Any]:
         # Руководитель входит в разделы менеджера и маркетинга, а их боковое меню
-        # строится из моделей своего сайта: без ссылки он не вернулся бы в /supervisor/.
-        # Шаблон admin/nav_sidebar.html рисует её, когда ключ есть в контексте.
+        # строится из моделей своего сайта: без блока разделов он не вернулся бы
+        # в /supervisor/. Блок «Разделы» рисует admin/nav_sidebar.html по ключу
+        # supervisor_sections, ссылки в шапке — admin/base_site.html по
+        # supervisor_home_url (в /manager/, /marketing/) и supervisor_header_links
+        # (в /supervisor/): боковое меню на узких экранах скрыто.
         context = super().each_context(request)
-        if context["has_permission"] and self.name != "supervisor" and is_supervisor(request):
-            context["supervisor_home_url"] = reverse("supervisor:index")
+        # В /supervisor/ пускает только группа «Руководители»: is_supervisor не нужен.
+        if context["has_permission"] and (self.name == "supervisor" or is_supervisor(request)):
+            context["supervisor_sections"] = self._supervisor_sections(request)
+            if self.name == "supervisor":
+                # Шапка видна на узких экранах и при свёрнутом боковом меню, где блока
+                # «Разделы» нет: туда выносятся пункты, кроме текущего выделенного.
+                context["supervisor_header_links"] = [s for s in context["supervisor_sections"] if not s["current"]]
+            else:
+                context["supervisor_home_url"] = reverse("supervisor:index")
         return context
+
+    def _supervisor_sections(self, request: HttpRequest) -> list[dict[str, Any]]:
+        """
+        Разделы руководителя для бокового меню; `current` — раздел, в котором сидит запрос.
+
+        Флаг считается по сайту и точному пути, а не по вхождению пути в шаблоне:
+        `/supervisor/` — префикс каждого URL раздела, и «Сводка» горела бы везде.
+        На страницах моделей /supervisor/ не выделен ни один пункт.
+        """
+        in_supervisor = self.name == "supervisor"
+        index_url = reverse("supervisor:index")
+        journal_url = reverse("supervisor:journal")
+        summary_urls = (index_url, reverse("supervisor:summary"))
+        return [
+            {"url": index_url, "name": "Сводка", "current": in_supervisor and request.path in summary_urls},
+            {"url": journal_url, "name": "Журнал действий", "current": in_supervisor and request.path == journal_url},
+            {"url": reverse("manager:index"), "name": "Клиенты и заказы", "current": self.name == "manager"},
+            {"url": reverse("marketing:index"), "name": "Маркетинг", "current": self.name == "marketing"},
+        ]
 
 
 class ManagerAdminSite(StaffSectionAdminSite):
@@ -166,8 +195,9 @@ marketing_site = MarketingAdminSite(name="marketing")
 class SupervisorAdminSite(StaffSectionAdminSite):
     """
     Раздел руководителя `/supervisor/` (стори 42.7): сотрудники, правила
-    регионов, получатели уведомлений и бонусная программа. Сводка
-    `/supervisor/summary/` (стори 42.8) — заявки, заказы и выручка отдела.
+    регионов, получатели уведомлений и бонусная программа. Главная `/supervisor/`
+    — сводка (стори 42.8): заявки, заказы и выручка отдела; путь
+    `/supervisor/summary/` отдаёт её же.
     Журнал действий `/supervisor/journal/` (стори 42.9) — лента того, что
     сделали сотрудники.
 
@@ -180,8 +210,6 @@ class SupervisorAdminSite(StaffSectionAdminSite):
     site_header = "FREESPORT — Руководитель"
     site_title = "FREESPORT — Руководитель"
     index_title = "Раздел руководителя"
-    # Без блока «Последние действия» — по той же причине, что у раздела менеджера.
-    index_template = "admin/supervisor/index.html"
     section_groups = (SUPERVISORS_GROUP,)
 
     def get_urls(self) -> list[URLResolver | URLPattern]:
@@ -194,14 +222,7 @@ class SupervisorAdminSite(StaffSectionAdminSite):
         ]
 
     def summary_view(self, request: HttpRequest) -> TemplateResponse:
-        # Как AdminSite.index: reverse() в Python без current_app вёл бы в /admin/.
-        request.current_app = self.name
-        # Импорт внутри метода: модуль сводки через apps.orders.manager_admin
-        # импортирует этот модуль, импорт на уровне модуля дал бы цикл.
-        from apps.orders.supervisor_summary import build_summary
-
-        context = {**self.each_context(request), "title": "Сводка", **build_summary(request)}
-        return TemplateResponse(request, "admin/supervisor/summary.html", context)
+        return self._summary_response(request)
 
     def journal_view(self, request: HttpRequest) -> TemplateResponse:
         # Как summary_view: current_app — для reverse() и {% url 'admin:…' %}.
@@ -214,14 +235,28 @@ class SupervisorAdminSite(StaffSectionAdminSite):
         return TemplateResponse(request, "admin/supervisor/journal.html", context)
 
     def index(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
-        sections = [
-            {"url": reverse("supervisor:summary"), "name": "Сводка — заявки, заказы и выручка"},
-            {"url": reverse("supervisor:journal"), "name": "Журнал действий сотрудников"},
-            {"url": reverse("manager:index"), "name": "Клиенты и заказы — без фильтра по менеджеру"},
-            {"url": reverse("marketing:index"), "name": "Маркетинг"},
-        ]
-        extra_context = {**(extra_context or {}), "supervisor_sections": sections}
-        return super().index(request, extra_context)
+        # Главная — сразу сводка, а не витрина разделов: разделы руководителя
+        # лежат в боковом меню (supervisor_sections из each_context).
+        return self._summary_response(request, extra_context)
+
+    def _summary_response(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
+        # Как AdminSite.index: reverse() в Python без current_app вёл бы в /admin/.
+        request.current_app = self.name
+        # Импорт внутри метода: модуль сводки через apps.orders.manager_admin
+        # импортирует этот модуль, импорт на уровне модуля дал бы цикл.
+        from apps.orders.supervisor_summary import build_summary
+
+        base = self.each_context(request)
+        # Ключ главной AdminSite.index: список приложений уже собран в each_context,
+        # второй get_app_list не нужен. extra_context идёт последним, как у index().
+        context = {
+            **base,
+            "title": "Сводка",
+            "app_list": base["available_apps"],
+            **build_summary(request),
+            **(extra_context or {}),
+        }
+        return TemplateResponse(request, "admin/supervisor/summary.html", context)
 
     def get_app_list(self, request: HttpRequest, app_label: str | None = None) -> list[dict[str, Any]]:
         # Пользователи раздела — сотрудники; «Общие утилиты» — регионы и
