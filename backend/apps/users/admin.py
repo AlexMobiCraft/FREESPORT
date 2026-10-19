@@ -555,8 +555,11 @@ class UserAdmin(BaseUserAdmin):
         # ленты руководителя. Критерий — как у ленты: автор не суперпользователь,
         # текущие is_staff и is_active не важны. Непустой protected останавливает
         # и delete_view, и delete_selected штатно.
+        # order_by() сбрасывает Meta.ordering: иначе created_at попадает в SELECT DISTINCT
+        # и автор возвращается по разу на каждую запись.
         authors = set(
             AuditLog.objects.filter(user__in=pks, user__is_superuser=False, action__in=STAFF_ACTIONS)
+            .order_by()
             .values_list("user", flat=True)
             .distinct()
         )

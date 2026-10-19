@@ -31,7 +31,9 @@ from zoneinfo import ZoneInfo
 import pytest
 from django.contrib.messages.storage.cookie import CookieStorage
 from django.contrib.sessions.backends.signed_cookies import SessionStore
+from django.db import connection
 from django.test import Client, RequestFactory
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from apps.common.models import AuditLog, ManagerRoutingRule
@@ -818,15 +820,31 @@ class TestRows:
         tagged_rule = ManagerRoutingRule.objects.create(
             match_type=ManagerRoutingRule.MATCH_INN_REGION, match_value="23", manager_email="<b>Y</b>@example.com"
         )
+        order = make_master(make_client(tricky))
         log(tricky, "block_user", make_client(tricky))
         log(supervisor, "change_routing_rule", tagged_rule, {"operation": "update", "rule": str(tagged_rule)})
+        # Подробности — отдельная ячейка: `|safe` только на ней не должен пройти (R42.9-12).
+        log(
+            supervisor,
+            "update_order",
+            order,
+            {
+                "order_number": order.order_number,
+                "fields": {"tracking_number": {"old": None, "new": "<i>RR1</i>"}},
+            },
+        )
 
-        html = supervisor_client.get(JOURNAL_URL, ALL_TIME).content.decode()
+        response = supervisor_client.get(JOURNAL_URL, ALL_TIME)
+        html = response.content.decode()
 
         assert "<b>X</b>" not in html
         assert "<b>Y</b>" not in html
+        assert "<i>RR1</i>" not in html
         assert "&lt;b&gt;X&lt;/b&gt; Тегов" in html
         assert "&lt;b&gt;Y&lt;/b&gt;@example.com" in html
+        assert "трек-номер: — → &lt;i&gt;RR1&lt;/i&gt;" in html
+        # Парсер возвращает текст ячейки уже без экранирования: значение целое, тег не стал разметкой.
+        assert "трек-номер: — → <i>RR1</i>" in [row[4] for row in journal_page(response).rows]
 
 
 # --------------------------------------------------------------------------
@@ -854,6 +872,29 @@ class TestFilters:
         r = period_records
         response = as_supervisor.get(JOURNAL_URL, {"staff": r.a.pk, **ALL_TIME})
         assert listed(response) == [r.a_after.pk, r.a_late.pk]
+
+    @pytest.mark.parametrize(
+        "role",
+        [
+            pytest.param({}, id="active"),
+            pytest.param({"is_active": False}, id="blocked"),
+            pytest.param({"group": None, "is_staff": False}, id="former"),
+            pytest.param({"group": None, "is_staff": False, "is_active": False}, id="former-blocked"),
+        ],
+    )
+    def test_staff_choice_of_any_author(self, as_supervisor, period_records, role):
+        # Выбранный автор остаётся автором записей при любом сочетании признаков:
+        # отбор по текущему `is_staff` или группе скрыл бы бывшего сотрудника (R42.9-11).
+        group = role.get("group", MANAGERS_GROUP)
+        author = make_staff_member(group, **{key: value for key, value in role.items() if key != "group"})
+        mine = log(author, "block_user", make_client(None), at=moscow(14, 10, 0))
+        log(period_records.a, "block_user", make_client(None), at=moscow(14, 11, 0))
+
+        response = as_supervisor.get(JOURNAL_URL, {"staff": author.pk, **ALL_TIME})
+
+        assert response.context["filter_form"].is_valid()
+        assert listed(response) == [mine.pk]
+        assert [row[1] for row in journal_page(response).rows] == [label(author)]
 
     def test_period_bounds(self, as_supervisor, period_records):
         r = period_records
@@ -915,6 +956,20 @@ class TestFilters:
             f'<strong><a href="?staff={a}&amp;date_from=2026-10-11&amp;date_to=2026-10-17">7 дней</a></strong>' in html
         )
         assert html.count("<strong><a") == 1
+
+    def test_quick_periods_follow_project_timezone(self, as_supervisor, period_records):
+        # 00:30 17.10.2026 по Москве — ещё 16.10 по UTC. Ссылки и умолчание обязаны
+        # считать «сегодня» по поясу проекта, а не по UTC (R42.9-13).
+        night = datetime(2026, 10, 16, 21, 30, tzinfo=UTC)
+        with patch("django.utils.timezone.now", return_value=night):
+            response = as_supervisor.get(JOURNAL_URL)
+
+        links = {link["name"]: link for link in response.context["period_links"]}
+        assert links["Сегодня"]["url"] == "?date_from=2026-10-17&date_to=2026-10-17"
+        assert links["7 дней"]["url"] == "?date_from=2026-10-11&date_to=2026-10-17"
+        assert links["30 дней"]["url"] == "?date_from=2026-09-18&date_to=2026-10-17"
+        assert [name for name, link in links.items() if link["selected"]] == ["30 дней"]
+        assert response.context["period_label"] == "Период: 18.09.2026 — 17.10.2026"
 
     def test_links_without_staff(self, as_supervisor, period_records):
         response = as_supervisor.get(JOURNAL_URL, ALL_TIME)
@@ -1034,17 +1089,21 @@ class TestOnlyStaffActions:
         ungrouped = make_staff_member(MANAGERS_GROUP)
         ungrouped.groups.clear()
         former = make_staff_member(MANAGERS_GROUP, is_staff=False)
+        # Обычный бывший сотрудник: у него нет ни `is_staff`, ни группы. Отбор
+        # «текущий is_staff ИЛИ есть группа» скрыл бы его записи (R42.9-10).
+        former_plain = make_staff_member(None, is_staff=False)
         visible = {
             log(blocked, "block_user", customer).pk,
             log(ungrouped, "unblock_user", customer).pk,
             log(former, "change_password", customer).pk,
+            log(former_plain, "approve_b2b", customer).pk,
         }
 
         response = supervisor_client.get(JOURNAL_URL, ALL_TIME)
 
         assert set(listed(response)) == visible
         assert sorted(row[1] for row in journal_page(response).rows) == sorted(
-            [label(blocked), label(ungrouped), label(former)]
+            [label(blocked), label(ungrouped), label(former), label(former_plain)]
         )
 
 
@@ -1115,7 +1174,7 @@ class TestQueryCount:
     KINDS = 6
 
     @pytest.fixture
-    def objects(self, manager, other_manager) -> SimpleNamespace:
+    def objects(self, manager) -> SimpleNamespace:
         ghosts = []
         for number in range(self.SPREAD):
             ghost = make_client(manager)
@@ -1128,8 +1187,6 @@ class TestQueryCount:
             orders=[make_master(make_client(manager), subs=0) for _ in range(self.SPREAD)],
             rules=[rule(str(23 + number), manager) for number in range(self.SPREAD)],
             ghosts=ghosts,
-            manager=manager,
-            other_manager=other_manager,
         )
 
     @staticmethod
@@ -1151,6 +1208,8 @@ class TestQueryCount:
                 log(author, "update_order", order, {"order_number": order.order_number})
             elif kind == 3:
                 region_rule = objects.rules[variant]
+                # Пара менеджеров своя у каждого варианта: запрос на каждый уникальный
+                # `manager_id` (даже с кешем на страницу) растил бы число запросов.
                 log(
                     author,
                     "change_routing_rule",
@@ -1158,7 +1217,12 @@ class TestQueryCount:
                     {
                         "operation": "update",
                         "rule": str(region_rule),
-                        "fields": {"manager_id": {"old": objects.manager.pk, "new": objects.other_manager.pk}},
+                        "fields": {
+                            "manager_id": {
+                                "old": objects.managers[variant].pk,
+                                "new": objects.managers[(variant + 1) % len(objects.managers)].pk,
+                            }
+                        },
                     },
                 )
             elif kind == 4:
@@ -1393,6 +1457,30 @@ class TestDeleteGuard:
         assert DELETE_GUARD_MESSAGE in response.content.decode()
         assert User.objects.filter(pk__in=[author.pk, clean.pk]).count() == 2
         assert AuditLog.objects.filter(user=author, action=code).count() == 1
+
+    def test_authors_query_has_no_ordering_and_no_duplicates(self):
+        # `AuditLog.Meta.ordering = ["-created_at"]` попал бы в `SELECT DISTINCT`
+        # и вернул бы автора по разу на каждую запись (R42.9-9).
+        author = make_staff_member(MANAGERS_GROUP)
+        customer = make_client(None)
+        for number, code in enumerate(["block_user", "unblock_user", "change_password"]):
+            record = log(author, code, customer)
+            AuditLog.objects.filter(pk=record.pk).update(created_at=moscow(10 + number, 12, 0))
+
+        with CaptureQueriesContext(connection) as queries:
+            response = superuser_client().get(delete_url(author))
+
+        assert DELETE_GUARD_MESSAGE in response.content.decode()
+        authors_sql = [
+            query["sql"]
+            for query in queries.captured_queries
+            if "DISTINCT" in query["sql"] and 'FROM "common_auditlog"' in query["sql"]
+        ]
+        assert len(authors_sql) == 1
+        assert "ORDER BY" not in authors_sql[0]
+        with connection.cursor() as cursor:
+            cursor.execute(authors_sql[0])
+            assert [row[0] for row in cursor.fetchall()] == [author.pk]
 
     def test_without_journal_records_is_deleted(self):
         clean = make_staff_member(MANAGERS_GROUP)
