@@ -646,6 +646,7 @@ class TestLinks:
 
         assert SECTION_LINK.findall(block) == [
             ("/supervisor/summary/", "Сводка — заявки, заказы и выручка"),
+            ("/supervisor/journal/", "Журнал действий сотрудников"),
             ("/manager/", "Клиенты и заказы — без фильтра по менеджеру"),
             ("/marketing/", "Маркетинг"),
         ]

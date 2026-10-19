@@ -21,6 +21,7 @@ from django.urls import URLPattern, path, reverse
 from django.utils.html import format_html, format_html_join
 
 from apps.common.models import AuditLog, ManagerRoutingRule
+from apps.common.staff_actions import STAFF_ACTIONS
 from apps.common.utils.consent_audit import get_client_ip
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ from apps.users.services.verify_b2b_application import (
     verification_mode,
     verify_b2b_application,
 )
-from apps.users.staff_roles import limit_manager_field, staff_accounts_q
+from apps.users.staff_roles import limit_manager_field, manager_label, staff_accounts_q
 
 from .models import Address, Company, Favorite, User, matches_q
 
@@ -549,31 +550,59 @@ class UserAdmin(BaseUserAdmin):
                 "Учётная запись — ответственный менеджер клиентов или менеджер правила региона. "
                 "Сначала назначьте клиентам нового менеджера и замените менеджера в правилах регионов.",
             )
+        # Автор записей журнала действий сотрудников (стори 42.9): у AuditLog.user
+        # стоит SET_NULL, и удаление стёрло бы автора — записи пропали бы из
+        # ленты руководителя. Критерий — как у ленты: автор не суперпользователь,
+        # текущие is_staff и is_active не важны. Непустой protected останавливает
+        # и delete_view, и delete_selected штатно.
+        # order_by() сбрасывает Meta.ordering: иначе created_at попадает в SELECT DISTINCT
+        # и автор возвращается по разу на каждую запись.
+        authors = set(
+            AuditLog.objects.filter(user__in=pks, user__is_superuser=False, action__in=STAFF_ACTIONS)
+            .order_by()
+            .values_list("user", flat=True)
+            .distinct()
+        )
+        if authors:
+            protected = result[3]
+            for obj in sorted(objs, key=lambda obj: obj.pk):
+                if obj.pk in authors:
+                    protected.append(f"Журнал действий сотрудников — записи автора {manager_label(obj)}")
+            messages.error(
+                request,
+                "Учётная запись — автор записей журнала действий сотрудников. "
+                "Удаление стёрло бы автора: заблокируйте сотрудника вместо удаления.",
+            )
         return result
 
     def user_change_password(self, request: HttpRequest, id: str, form_url: str = "") -> HttpResponse:
-        response = super().user_change_password(request, id, form_url)
-        # Успех — единственный исход, который редиректит на карточку: ошибки
-        # формы отдают 200, «конфликт данных» редиректит на саму форму пароля.
-        if request.method != "POST" or not isinstance(response, HttpResponseRedirect):
-            return response
-        user = self.get_object(request, unquote(id))
-        if user is None or response.url != reverse(f"{self.admin_site.name}:users_user_change", args=[user.pk]):
-            return response
+        # Пароль и запись журнала — одной транзакцией (R42.7-D2): сбой журнала
+        # откатывает сменённый пароль, иначе сброс остался бы без записи.
+        # В /manager/ ManagerClientAdmin уже открывает свою транзакцию —
+        # там эта становится точкой сохранения.
+        with transaction.atomic():
+            response = super().user_change_password(request, id, form_url)
+            # Успех — единственный исход, который редиректит на карточку: ошибки
+            # формы отдают 200, «конфликт данных» редиректит на саму форму пароля.
+            if request.method != "POST" or not isinstance(response, HttpResponseRedirect):
+                return response
+            user = self.get_object(request, unquote(id))
+            if user is None or response.url != reverse(f"{self.admin_site.name}:users_user_change", args=[user.pk]):
+                return response
 
-        AuditLog.log_action(
-            user=request.user,
-            action="change_password",
-            resource_type="User",
-            resource_id=user.pk,
-            changes={
-                "email": str(user.email or ""),
-                "usable_password": user.has_usable_password(),
-            },
-            ip_address=self._get_client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
-        )
-        return response
+            AuditLog.log_action(
+                user=request.user,
+                action="change_password",
+                resource_type="User",
+                resource_id=user.pk,
+                changes={
+                    "email": str(user.email or ""),
+                    "usable_password": user.has_usable_password(),
+                },
+                ip_address=self._get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+            return response
 
     # Страница подтверждения B2B-заявки
 

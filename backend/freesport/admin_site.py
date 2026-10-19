@@ -159,6 +159,8 @@ class SupervisorAdminSite(StaffSectionAdminSite):
     Раздел руководителя `/supervisor/` (стори 42.7): сотрудники, правила
     регионов, получатели уведомлений и бонусная программа. Сводка
     `/supervisor/summary/` (стори 42.8) — заявки, заказы и выручка отдела.
+    Журнал действий `/supervisor/journal/` (стори 42.9) — лента того, что
+    сделали сотрудники.
 
     Пускает активного сотрудника из группы «Руководители»; суперпользователя —
     нет (см. `StaffSectionAdminSite`). Клиентов и заказы руководитель смотрит
@@ -174,9 +176,13 @@ class SupervisorAdminSite(StaffSectionAdminSite):
     section_groups = (SUPERVISORS_GROUP,)
 
     def get_urls(self) -> list[URLResolver | URLPattern]:
-        # Свой путь — до родительских: AdminSite.get_urls() заканчивается
+        # Свои пути — до родительских: AdminSite.get_urls() заканчивается
         # catch-all, и путь после него отвечал бы 404.
-        return [path("summary/", self.admin_view(self.summary_view), name="summary"), *super().get_urls()]
+        return [
+            path("summary/", self.admin_view(self.summary_view), name="summary"),
+            path("journal/", self.admin_view(self.journal_view), name="journal"),
+            *super().get_urls(),
+        ]
 
     def summary_view(self, request: HttpRequest) -> TemplateResponse:
         # Как AdminSite.index: reverse() в Python без current_app вёл бы в /admin/.
@@ -188,9 +194,20 @@ class SupervisorAdminSite(StaffSectionAdminSite):
         context = {**self.each_context(request), "title": "Сводка", **build_summary(request)}
         return TemplateResponse(request, "admin/supervisor/summary.html", context)
 
+    def journal_view(self, request: HttpRequest) -> TemplateResponse:
+        # Как summary_view: current_app — для reverse() и {% url 'admin:…' %}.
+        request.current_app = self.name
+        # Импорт внутри метода: модуль ленты через apps.orders.manager_admin
+        # импортирует этот модуль, импорт на уровне модуля дал бы цикл.
+        from apps.common.staff_journal import build_journal
+
+        context = {**self.each_context(request), "title": "Журнал действий", **build_journal(request)}
+        return TemplateResponse(request, "admin/supervisor/journal.html", context)
+
     def index(self, request: HttpRequest, extra_context: dict[str, Any] | None = None) -> TemplateResponse:
         sections = [
             {"url": reverse("supervisor:summary"), "name": "Сводка — заявки, заказы и выручка"},
+            {"url": reverse("supervisor:journal"), "name": "Журнал действий сотрудников"},
             {"url": reverse("manager:index"), "name": "Клиенты и заказы — без фильтра по менеджеру"},
             {"url": reverse("marketing:index"), "name": "Маркетинг"},
         ]
