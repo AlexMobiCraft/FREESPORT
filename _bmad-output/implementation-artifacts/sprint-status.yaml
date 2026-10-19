@@ -1,7 +1,7 @@
 # Sprint Status - FREESPORT
 # ==========================
 # generated: 2026-05-18
-# last_updated: 2026-10-19 (стори 42.9 -> done)
+# last_updated: 2026-10-19 (стори 42.10 создана -> ready-for-dev)
 # project: FREESPORT
 # project_key: SECURITY-BUGFIX
 # tracking_system: file-system
@@ -1708,9 +1708,19 @@ development_status:
   #             2 мутации убиты; полный прогон 4846 passed, 76 skipped, 0 failed;
   #             линтеры чисто. in-progress -> review.
   # 2026-10-19: по решению Alex стори принята без дополнительного ревью круга 7: review -> done.
-  42-10-manager-substitution-and-client-transfer: backlog
+  42-10-manager-substitution-and-client-transfer: ready-for-dev
   # 2026-10-16: вынесена из 42.7 (party mode). Замещение по регионам на время отпуска
   #             с возвратом одной кнопкой (FR-42-32), массовая передача клиентов A → B.
+  # 2026-10-19: стори создана на 43bddad3. Поле ManagerRoutingRule.substitute (миграция
+  #             common/0025, три CHECK); эффективный менеджер правила в резолвере, письме,
+  #             «Не распределены» и сигнале блокировки; страницы /supervisor/substitution/;
+  #             действие передачи A → B (клиенты с ручным, все правила A, конец замещений);
+  #             коды журнала start/end_substitution, transfer_clients. 6 вопросов к Alex в стори.
+  # 2026-10-19: ответы Alex на 6 вопросов — стори переработана: передача забирает всё и
+  #             передаёт получателю замещения A; ручные клиенты на время отпуска уходят
+  #             заместителям и возвращаются (поле User.substitution_owner, миграция users/0026);
+  #             замещение резервного правила (отпуск руководителя); заблокированный
+  #             заместитель — резерв. Статус прежний: ready-for-dev.
   epic-42-retrospective: optional
 
 # ========================================
