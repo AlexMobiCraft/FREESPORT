@@ -1101,3 +1101,7 @@
 ## Deferred from: code review of 42-7-supervisor-section-staff-regions-reassignment.md (2026-10-17, круг 2 на 7403a9f)
 
 - **R42.7-D2, low: смена пароля в админке пишет `AuditLog` вне транзакции.** **Закрыто стори 42.9 (2026-10-18):** `UserAdmin.user_change_password` выполняет родителя и запись журнала в одном `transaction.atomic()`. Тест `tests/integration/test_staff_journal.py::TestPasswordAtomic` вызывает метод админки напрямую, в `/supervisor/` и `/manager/`. edge-case-hunter: `UserAdmin.user_change_password` сначала вызывает `super().user_change_password()` (Django сохраняет пароль), затем отдельно пишет `AuditLog.log_action`. Сбой журнала вернёт ошибку, но пароль уже сменён без записи. Код существует до 42.7 (коммит `1292b690`) и одинаково работает в `/admin/`, `/manager/` и теперь `/supervisor/`. Правка — `transaction.atomic()` вокруг вызова родителя и журнала, тест отката при падении `AuditLog.log_action` (как у R42.7-1). [`backend/apps/users/admin.py:554`]
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-supervisor-ui-navigation.md`
+  summary: На экранах уже 768 px и при свёрнутом боковом меню руководитель в `/supervisor/*` не видит модели раздела (Сотрудники, Правила регионов, Получатели уведомлений, Бонусная программа): главная-витрина со списком моделей заменена сводкой, а в шапке только ссылки на разделы.
+  evidence: ревью круга 2 (Edge Case Hunter); до правки модели были в области контента `/supervisor/`, теперь только в `#nav-sidebar`, который скрыт `@media (max-width: 767px)`.

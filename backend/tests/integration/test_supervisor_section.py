@@ -283,12 +283,17 @@ class TestEntry:
             response = client.get(url)
             assert response.status_code == 200, url
             assert 'id="supervisor-home-link"' not in response.content.decode(), url
+            assert 'id="supervisor-sections"' not in response.content.decode(), url
             assert "/supervisor/" not in response.content.decode(), url
+        # Меню на главной включается только руководителю: у менеджера и маркетолога оно продублировало бы модели.
+        assert 'id="nav-sidebar"' not in client.get(urls[0]).content.decode()
+        assert 'id="nav-sidebar"' not in client.get(urls[1]).content.decode()
 
     def test_main_admin_has_no_link_to_supervisor(self):
         response = superuser_client().get("/admin/")
         assert response.status_code == 200
         assert 'id="supervisor-home-link"' not in response.content.decode()
+        assert 'id="supervisor-sections"' not in response.content.decode()
 
     @pytest.mark.parametrize(
         "make_user",
@@ -315,6 +320,153 @@ class TestEntry:
             response = client.get(url)
             assert response.status_code == 302, url
             assert response["Location"] == f"{LOGIN_URL}?next={url}"
+
+
+# Строка блока «Разделы» в боковом меню: (адрес, подпись, выделена ли как текущая).
+SECTION_ROW = re.compile(
+    r'<tr( class="current-model")?>\s*<th scope="row"><a href="([^"]+)"( aria-current="page")?>([^<]+)</a></th>'
+)
+SECTIONS = [
+    ("/supervisor/", "Сводка"),
+    ("/supervisor/journal/", "Журнал действий"),
+    ("/manager/", "Клиенты и заказы"),
+    ("/marketing/", "Маркетинг"),
+]
+
+
+def supervisor_sections(html: str) -> list[tuple[str, str, bool]]:
+    """Блок «Разделы» бокового меню: (адрес, подпись, выделена) по порядку; пусто, если блока нет."""
+    if 'id="supervisor-sections"' not in html:
+        return []
+    start = html.index('id="supervisor-sections"')
+    block = html[start : html.index("</table>", start)]
+    rows = SECTION_ROW.findall(block)
+    # Класс и aria-current ставятся вместе: рассинхрон — дефект разметки.
+    assert all(bool(row[0]) == bool(row[2]) for row in rows), block
+    return [(url, name, bool(row_class)) for row_class, url, _, name in rows]
+
+
+# --------------------------------------------------------------------------
+# Навигация руководителя: блок «Разделы» в боковом меню
+# --------------------------------------------------------------------------
+
+
+class TestSectionsMenu:
+    @pytest.mark.parametrize(
+        "url, current",
+        [
+            pytest.param("/supervisor/", "Сводка", id="supervisor-index"),
+            pytest.param("/supervisor/summary/", "Сводка", id="supervisor-summary"),
+            pytest.param("/supervisor/summary/?date_from=2026-01-01&date_to=2026-01-31", "Сводка", id="with-period"),
+            pytest.param("/supervisor/journal/", "Журнал действий", id="journal"),
+            pytest.param("/manager/", "Клиенты и заказы", id="manager-index"),
+            pytest.param("/manager/users/", "Клиенты и заказы", id="manager-app"),
+            pytest.param("/manager/users/user/", "Клиенты и заказы", id="manager-list"),
+            pytest.param("/marketing/", "Маркетинг", id="marketing-index"),
+            pytest.param("/marketing/banners/", "Маркетинг", id="marketing-app"),
+            pytest.param("/marketing/banners/banner/", "Маркетинг", id="marketing-list"),
+            pytest.param("/supervisor/users/", None, id="supervisor-app"),
+            pytest.param(STAFF_URL, None, id="supervisor-model"),
+            pytest.param(RULES_URL, None, id="supervisor-model-rules"),
+        ],
+    )
+    def test_all_sections_and_current_one(self, supervisor_client, url, current):
+        response = supervisor_client.get(url)
+        assert response.status_code == 200, url
+        html = response.content.decode()
+
+        assert 'id="nav-sidebar"' in html, url
+        # Блок над фильтром и списком моделей; все четыре пункта остаются в списке всегда.
+        assert html.index('id="supervisor-sections"') < html.index('id="nav-filter"'), url
+        assert supervisor_sections(html) == [(href, name, name == current) for href, name in SECTIONS], url
+
+    def test_index_opens_summary(self, supervisor_client):
+        response = supervisor_client.get(INDEX_URL)
+        html = response.content.decode()
+
+        assert response.status_code == 200
+        assert response.templates[0].name == "admin/supervisor/summary.html"
+        for block in ("summary-period", "summary-pending", "summary-orders-by-manager", "summary-clients"):
+            assert f'id="{block}"' in html
+        assert response.context["title"] == "Сводка"
+        # Витрины со списком моделей в области контента больше нет: модели живут в боковом меню.
+        assert 'id="content-main"' not in html
+        # Контекст главной AdminSite.index сохранён: app_list — готовые available_apps с моделями раздела.
+        assert response.context["app_list"] is response.context["available_apps"]
+        assert "Сотрудники" in [app["name"] for app in response.context["app_list"]]
+        # Главная не ссылается сама на себя: хлебные крошки есть только у /supervisor/summary/.
+        assert 'class="breadcrumbs"' not in html
+        assert 'class="breadcrumbs"' in supervisor_client.get("/supervisor/summary/").content.decode()
+
+    def test_index_and_summary_show_same_page(self, supervisor_client):
+        period = {"date_from": "2026-01-01", "date_to": "2026-01-31"}
+        index = supervisor_client.get(INDEX_URL, period)
+        summary = supervisor_client.get("/supervisor/summary/", period)
+
+        assert index.context["period"] == summary.context["period"]
+        assert index.context["pending"] == summary.context["pending"]
+        assert index.context["orders_by_manager"] == summary.context["orders_by_manager"]
+
+    def test_invalid_period_shows_error_and_default_period(self, supervisor_client):
+        response = supervisor_client.get(INDEX_URL, {"date_from": "2026-02-01", "date_to": "2026-01-01"})
+        html = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Период указан неверно" in html
+        assert supervisor_sections(html)[0] == ("/supervisor/", "Сводка", True)
+
+    def test_model_page_keeps_stock_current_model(self, supervisor_client):
+        # На странице модели штатное выделение модели не пропадает рядом с блоком «Разделы».
+        html = supervisor_client.get(STAFF_URL).content.decode()
+        assert re.search(r'<tr class="model-user current-model">', html)
+        assert not any(current for _, _, current in supervisor_sections(html))
+
+    @pytest.mark.parametrize(
+        "url, current",
+        [
+            pytest.param("/supervisor/", "Сводка", id="index"),
+            pytest.param("/supervisor/summary/", "Сводка", id="summary"),
+            pytest.param("/supervisor/journal/", "Журнал действий", id="journal"),
+            pytest.param("/supervisor/users/", None, id="app"),
+            pytest.param(STAFF_URL, None, id="model"),
+            pytest.param(RULES_URL, None, id="model-rules"),
+        ],
+    )
+    def test_supervisor_pages_have_header_links(self, supervisor_client, url, current):
+        # Шапка видна на узких экранах и при свёрнутом меню: там блока «Разделы» нет.
+        html = supervisor_client.get(url).content.decode()
+        start = html.index('id="supervisor-header-links"')
+        block = html[start : html.index("</span>", start)]
+
+        assert re.findall(r'<a href="([^"]+)"><strong>([^<]+)</strong></a>', block) == [
+            (href, name) for href, name in SECTIONS if name != current
+        ]
+        assert 'id="supervisor-home-link"' not in html
+
+    def test_manager_and_marketing_mains_have_sidebar_and_header_link(self, supervisor_client):
+        for url in ("/manager/", "/marketing/"):
+            html = supervisor_client.get(url).content.decode()
+            assert 'id="nav-sidebar"' in html, url
+            assert re.search(r'<a id="supervisor-home-link" href="/supervisor/">', html), url
+            assert 'id="supervisor-header-links"' not in html, url
+
+    def test_menu_does_not_open_main_admin_or_recent_actions(self, supervisor_client):
+        for url in (INDEX_URL, "/supervisor/journal/", "/manager/", "/marketing/", "/manager/users/", STAFF_URL):
+            html = supervisor_client.get(url).content.decode()
+            assert 'href="/admin/' not in html, url
+            assert "Последние действия" not in html, url
+
+    def test_other_roles_and_superuser_get_no_sections(self, client):
+        for group, url in ((MANAGERS_GROUP, "/manager/users/user/"), (MARKETING_GROUP, "/marketing/banners/banner/")):
+            client.force_login(make_staff_member(group))
+            html = client.get(url).content.decode()
+            assert supervisor_sections(html) == [], url
+            assert 'id="supervisor-header-links"' not in html, url
+            assert "/supervisor/" not in html, url
+        html = superuser_client().get("/admin/users/user/").content.decode()
+        assert supervisor_sections(html) == []
+        assert 'id="supervisor-header-links"' not in html
+        assert "/supervisor/" not in html
 
 
 # --------------------------------------------------------------------------

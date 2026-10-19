@@ -1334,16 +1334,17 @@ class TestQueryCount:
 
 
 class TestLinks:
-    def test_index_sections(self, supervisor_client):
-        html = supervisor_client.get("/supervisor/").content.decode()
+    def test_journal_is_current_section(self, supervisor_client):
+        html = supervisor_client.get(JOURNAL_URL).content.decode()
         block = html[html.index('id="supervisor-sections"') : html.index("</table>", html.index("supervisor-sections"))]
 
-        assert re.findall(r'<a href="([^"]+)">([^<]+)</a>', block) == [
-            ("/supervisor/summary/", "Сводка — заявки, заказы и выручка"),
-            ("/supervisor/journal/", "Журнал действий сотрудников"),
-            ("/manager/", "Клиенты и заказы — без фильтра по менеджеру"),
-            ("/marketing/", "Маркетинг"),
+        assert re.findall(r'<a href="([^"]+)"( aria-current="page")?>([^<]+)</a>', block) == [
+            ("/supervisor/", "", "Сводка"),
+            ("/supervisor/journal/", ' aria-current="page"', "Журнал действий"),
+            ("/manager/", "", "Клиенты и заказы"),
+            ("/marketing/", "", "Маркетинг"),
         ]
+        assert '<tr class="current-model">' in block
 
     def test_journal_links_stay_in_sections(self, supervisor_client, supervisor, manager):
         customer = make_client(manager)

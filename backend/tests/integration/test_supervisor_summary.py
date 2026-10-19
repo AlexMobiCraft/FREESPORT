@@ -636,18 +636,19 @@ class TestClients:
 # --------------------------------------------------------------------------
 
 
-SECTION_LINK = re.compile(r'<a href="([^"]+)">([^<]+)</a>')
+SECTION_LINK = re.compile(r'<a href="([^"]+)"(?: aria-current="page")?>([^<]+)</a>')
 
 
 class TestLinks:
-    def test_index_links_summary_first(self, supervisor_client):
+    def test_index_is_summary_with_sections_in_sidebar(self, supervisor_client):
         html = supervisor_client.get("/supervisor/").content.decode()
         block = html[html.index('id="supervisor-sections"') : html.index("</table>", html.index("supervisor-sections"))]
 
+        assert 'id="summary-period"' in html
         assert SECTION_LINK.findall(block) == [
-            ("/supervisor/summary/", "Сводка — заявки, заказы и выручка"),
-            ("/supervisor/journal/", "Журнал действий сотрудников"),
-            ("/manager/", "Клиенты и заказы — без фильтра по менеджеру"),
+            ("/supervisor/", "Сводка"),
+            ("/supervisor/journal/", "Журнал действий"),
+            ("/manager/", "Клиенты и заказы"),
             ("/marketing/", "Маркетинг"),
         ]
 
@@ -684,6 +685,15 @@ COUNTRIES = ["Беларусь", "Казахстан"]
 
 
 class TestQueryCount:
+    def test_index_costs_as_much_as_summary(self, supervisor_client):
+        # Главная и /supervisor/summary/ — одна сводка: меню и шапка не добавляют запросов.
+        supervisor_client.get(
+            SUMMARY_URL
+        )  # прогрев кэшей процесса (ContentType, права): не зависеть от порядка замеров
+        index, _ = count_queries(supervisor_client, "/supervisor/")
+        summary, _ = count_queries(supervisor_client, SUMMARY_URL)
+        assert index == summary
+
     def test_summary(self, supervisor_client, django_assert_num_queries):
         product = ProductFactory()
 
