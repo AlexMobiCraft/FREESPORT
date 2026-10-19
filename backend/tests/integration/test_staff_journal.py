@@ -146,6 +146,49 @@ def journal_page(response) -> _Rows:
     return parser
 
 
+class _FilterForm(HTMLParser):
+    """Форма фильтра (`div#journal-filter > form`): способ отправки, адрес, имена полей и варианты выбора."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.method: str | None = None
+        self.action: str | None = None
+        self.names: list[str] = []
+        self.options: dict[str, list[str]] = {}
+        self._in_block = False
+        self._select: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "div" and values.get("id") == "journal-filter":
+            self._in_block = True
+        elif not self._in_block:
+            return
+        elif tag == "form":
+            self.method, self.action = values.get("method"), values.get("action")
+        elif tag == "select":
+            self._select = values["name"] or ""
+            self.names.append(self._select)
+            self.options[self._select] = []
+        elif tag == "option" and self._select is not None:
+            self.options[self._select].append(values.get("value") or "")
+        elif tag == "input" and values.get("type") != "submit":
+            self.names.append(values["name"] or "")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "select":
+            self._select = None
+        elif tag == "form":
+            self._in_block = False
+
+
+def filter_form_of(response) -> _FilterForm:
+    assert response.status_code == 200
+    parser = _FilterForm()
+    parser.feed(response.content.decode())
+    return parser
+
+
 def listed(response) -> list[int]:
     """pk записей страницы ленты в порядке вывода."""
     return [record.pk for record in response.context["page_obj"].object_list]
@@ -898,9 +941,33 @@ class TestFilters:
 
     def test_period_bounds(self, as_supervisor, period_records):
         r = period_records
+        # Последняя микросекунда выбранного дня тоже входит: граница на 23:59:00
+        # скрыла бы её (R42.9-14). Полночь следующего дня (`b_midnight`) по-прежнему вне периода.
+        last_microsecond = log(
+            r.a,
+            "unblock_user",
+            make_client(r.a),
+            at=moscow(12, 23, 59).replace(second=59, microsecond=999999),
+        )
         response = as_supervisor.get(JOURNAL_URL, {"date_from": "2026-10-10", "date_to": "2026-10-12"})
-        assert listed(response) == [r.a_late.pk, r.chief_utc.pk]
+        assert listed(response) == [last_microsecond.pk, r.a_late.pk, r.chief_utc.pk]
         assert response.context["period_label"] == "Период: 10.10.2026 — 12.10.2026"
+
+    def test_filter_form_submits_by_get(self, as_supervisor, period_records):
+        # Кнопка «Показать» работает, пока форма отправляется GET: обработчик читает только
+        # `request.GET`, а `method="post"` молча сломал бы фильтр (R42.9-15).
+        r = period_records
+        form = filter_form_of(as_supervisor.get(JOURNAL_URL))
+
+        assert (form.method or "get").lower() == "get"
+        assert sorted(form.names) == ["date_from", "date_to", "staff"]
+        assert str(r.a.pk) in form.options["staff"]
+
+        chosen = {"staff": str(r.a.pk), "date_from": "2026-10-10", "date_to": "2026-10-12"}
+        response = as_supervisor.get(form.action or JOURNAL_URL, {name: chosen[name] for name in form.names})
+
+        assert listed(response) == [r.a_late.pk]
+        assert [row[1] for row in journal_page(response).rows] == [label(r.a)]
 
     def test_one_sided(self, as_supervisor, period_records):
         r = period_records
