@@ -5,10 +5,8 @@
   его ссылки строит LogEntry.get_admin_url() через reverse("admin:…") и уводит
   в закрытую /admin/. Над списком моделей — число подписчиков рассылки: самих
   подписчиков маркетинг не видит, модель на сайте не зарегистрирована.
-  Руководителю сверху показана ссылка на его раздел (admin/_supervisor_home_link.html).
 {% endcomment %}
 {% block content %}
-{% include "admin/_supervisor_home_link.html" with flush=True %}
 <div class="module" id="marketing-subscribers">
   <table>
     <caption>Рассылка</caption>
