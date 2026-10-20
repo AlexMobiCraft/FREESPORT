@@ -15,21 +15,21 @@ export interface PhoneFormat {
   /** Начала номера, которые пользователь мог набрать вместо префикса (8…, 7…) */
   localPrefixes: string[];
   /** Пример для плейсхолдера и сообщения об ошибке */
-  example: string;
+  sample: string;
 }
 
 const RUSSIA_KAZAKHSTAN: PhoneFormat = {
   prefix: '+7',
   digits: 10,
   localPrefixes: ['7', '8'],
-  example: '+79001234567',
+  sample: '+79001234567',
 };
 
 const BELARUS: PhoneFormat = {
   prefix: '+375',
   digits: 9,
   localPrefixes: ['375', '80'],
-  example: '+375291234567',
+  sample: '+375291234567',
 };
 
 export const DEFAULT_PHONE_COUNTRY: PhoneCountry = 'Россия';
@@ -54,7 +54,7 @@ export function isValidPhone(phone: string, country?: string | null): boolean {
 }
 
 export function getPhoneFormatMessage(country?: string | null): string {
-  return `Укажите номер телефона в формате ${getPhoneFormat(country).example}`;
+  return `Укажите номер телефона в формате ${getPhoneFormat(country).sample}`;
 }
 
 /**

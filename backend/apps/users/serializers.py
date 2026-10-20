@@ -210,8 +210,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if not is_known_phone_country(country):
             return value
         if not is_valid_phone_for_country(value, country):
-            example = get_phone_format(country).example
-            raise serializers.ValidationError(f"Номер телефона должен быть в формате: '{example}'")
+            sample = get_phone_format(country).sample
+            raise serializers.ValidationError(f"Номер телефона должен быть в формате: '{sample}'")
         return value
 
     def validate_tax_id(self, value: str) -> str:

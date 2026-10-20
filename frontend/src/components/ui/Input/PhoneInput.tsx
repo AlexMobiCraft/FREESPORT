@@ -65,7 +65,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         type="tel"
         onChange={handleChange}
         onFocus={handleFocus}
-        placeholder={format.example}
+        placeholder={format.sample}
       />
     );
   }

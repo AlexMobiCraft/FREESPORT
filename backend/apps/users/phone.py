@@ -14,12 +14,12 @@ class PhoneFormat(NamedTuple):
     """Формат номера: регулярное выражение и пример для сообщения об ошибке."""
 
     pattern: str
-    example: str
+    sample: str
 
 
 # Россия и Казахстан делят код +7, поэтому формат у них один.
-_RUSSIA_KAZAKHSTAN = PhoneFormat(pattern=r"^\+7\d{10}$", example="+79001234567")
-_BELARUS = PhoneFormat(pattern=r"^\+375\d{9}$", example="+375291234567")
+_RUSSIA_KAZAKHSTAN = PhoneFormat(pattern=r"^\+7\d{10}$", sample="+79001234567")
+_BELARUS = PhoneFormat(pattern=r"^\+375\d{9}$", sample="+375291234567")
 
 PHONE_FORMATS_BY_COUNTRY: dict[str, PhoneFormat] = {
     "Россия": _RUSSIA_KAZAKHSTAN,
@@ -33,8 +33,8 @@ DEFAULT_PHONE_COUNTRY = "Россия"
 # отдельно от номера (админка, импорт из 1С), и модель не должна на этом падать.
 ANY_PHONE_PATTERN = r"^(\+7\d{10}|\+375\d{9})$"
 ANY_PHONE_MESSAGE = (
-    f"Номер телефона должен быть в формате: '{_RUSSIA_KAZAKHSTAN.example}' (Россия, Казахстан) "
-    f"или '{_BELARUS.example}' (Беларусь)"
+    f"Номер телефона должен быть в формате: '{_RUSSIA_KAZAKHSTAN.sample}' (Россия, Казахстан) "
+    f"или '{_BELARUS.sample}' (Беларусь)"
 )
 
 
