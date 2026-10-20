@@ -21,7 +21,8 @@ context:
 
 **Always:**
 - Удалять можно только заявку, ждущую решения (`verification_mode == MODE_DECISION`), без заказов и без привязки к 1С (`onec_id`/`onec_guid`).
-- AuditLog `reject_b2b` пишется до удаления и сохраняет `email` (требование владельца), роль и признак `deleted: true`.
+- AuditLog `reject_b2b` пишется до удаления и сохраняет `email` (требование владельца), роль, признак `deleted: true` и число удалённых согласий `consents_removed`.
+- Согласия `UserConsent` заявителя удаляются до самого пользователя.
 - Письмо ставится в очередь через `transaction.on_commit`; данные для него (email, имя, роль) берутся до удаления и передаются в задачу значениями, а не `user_id`.
 - Тот же email и ИНН могут зарегистрироваться заново.
 
@@ -30,7 +31,8 @@ context:
 **Never:**
 - Не удалять верифицированных, связанных с 1С, с заказами, `is_staff`, суперпользователей.
 - Не менять `approve_b2b_users`, `block_users`, подтверждение заявки.
-- Не трогать `Newsletter` и `UserConsent`: у них `user` с `SET_NULL`, это отдельные согласия.
+- Не трогать `Newsletter`: у неё `user` с `SET_NULL`, это отдельное согласие.
+- (Пересмотрено владельцем 20.10.2026) `UserConsent` заявителя удаляется вместе с ним — см. Spec Change Log.
 
 ## I/O & Edge-Case Matrix
 
@@ -71,9 +73,13 @@ context:
 - Given клиент `verified`, when запускается `reject_b2b_users`, then он пропущен и остаётся верифицированным.
 - Given менеджер вне раздела клиента, when он отклоняет чужую заявку, then 404 и ничего не удалено.
 
+## Spec Change Log
+
+- 2026-10-20, прод: 500 на POST `/manager/users/user/4651/verify/`. `IntegrityError` по ограничению `userconsent_user_or_session_required`: `SET_NULL` при удалении заявителя оставлял согласие регистрации без `user` и без `session_key`. Тесты не ловили: у тестовых заявителей не было согласий. Владелец решил удалять согласия вместе с заявителем; граница «не трогать `UserConsent`» снята. KEEP: удаление одной транзакцией с журналом, письмо через `on_commit(robust=True)`.
+
 ## Design Notes
 
-Журнал и так переживает удаление: `UserConsent.user`, `Newsletter.user`, `SyncLog.customer` и `AuditLog.user` имеют `SET_NULL`, `Cart`/`Company`/`Address` удаляются каскадом. `Order.user` каскадный, поэтому проверка заказов обязательна до `delete()`.
+Журнал и так переживает удаление: `Newsletter.user`, `SyncLog.customer` и `AuditLog.user` имеют `SET_NULL`, `Cart`/`Company`/`Address` удаляются каскадом. `Order.user` каскадный, поэтому проверка заказов обязательна до `delete()`.
 
 ## Verification
 
