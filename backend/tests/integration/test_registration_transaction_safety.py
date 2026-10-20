@@ -36,6 +36,7 @@ def trainer_payload() -> dict:
         "email": f"race_{suffix}@example.com",
         "password": "StrongPassword123!",
         "password_confirm": "StrongPassword123!",
+        "phone": "+79991234567",
         "first_name": "Race",
         "last_name": "Trainer",
         "role": "trainer",

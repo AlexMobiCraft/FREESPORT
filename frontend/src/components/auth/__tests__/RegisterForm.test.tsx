@@ -62,11 +62,16 @@ describe('RegisterForm', () => {
       role = 'trainer',
       company = 'Клуб Тест',
       taxId = '1234567890',
-    }: { role?: string; company?: string; taxId?: string } = {}
+      phone = '9001234567',
+    }: { role?: string; company?: string; taxId?: string; phone?: string } = {}
   ) => {
     await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), role);
     await user.type(screen.getByLabelText(/название компании/i), company);
     await user.type(screen.getByLabelText(/^инн$/i), taxId);
+    // Поле телефона само подставляет «+7», вводятся только цифры номера
+    if (phone) {
+      await user.type(screen.getByLabelText(/телефон/i), phone);
+    }
   };
 
   describe('Rendering', () => {
@@ -357,7 +362,7 @@ describe('RegisterForm', () => {
           password_confirm: 'SecurePass123',
           first_name: 'Новый',
           last_name: '',
-          phone: '',
+          phone: '+79001234567',
           role: 'trainer',
           company_name: 'Клуб Тест',
           tax_id: '1234567890',
@@ -1082,6 +1087,8 @@ describe('RegisterForm', () => {
       await user.type(companyInput, 'ООО Опт');
       await user.type(screen.getByLabelText(/инн/i), '1234567890');
       await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+      // Под белорусской страной поле подставляет «+375» и ждёт 9 цифр
+      await user.type(screen.getByLabelText(/телефон/i), '291234567');
 
       await user.type(screen.getByLabelText(/имя/i), 'Опт');
       await user.type(screen.getByLabelText(/электронная почта/i), 'opt@example.com');
@@ -1095,6 +1102,7 @@ describe('RegisterForm', () => {
           expect.objectContaining({
             role: 'wholesale_level1',
             country: 'Беларусь',
+            phone: '+375291234567',
           })
         );
       });
@@ -1134,6 +1142,7 @@ describe('RegisterForm', () => {
       const companyInput = await screen.findByLabelText(/название компании/i);
       await user.type(companyInput, 'Спортклуб');
       await user.type(screen.getByLabelText(/инн/i), '123456789012');
+      await user.type(screen.getByLabelText(/телефон/i), '9001234567');
 
       await user.type(nameInput, 'Тренер');
       await user.type(emailInput, 'trainer@example.com');
@@ -1148,6 +1157,7 @@ describe('RegisterForm', () => {
             role: 'trainer',
             company_name: 'Спортклуб',
             tax_id: '123456789012',
+            phone: '+79001234567',
           })
         );
       });
@@ -1239,6 +1249,157 @@ describe('RegisterForm', () => {
       // Use arrow keys to change selection (browser default behavior)
       // This is natively supported by <select>, just verify it's focusable
       expect(roleSelect).toBeEnabled();
+    });
+  });
+
+  describe('Телефон: формат по стране', () => {
+    const fillCommonFields = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.type(screen.getByLabelText(/имя/i), 'Иван');
+      await user.type(screen.getByLabelText(/электронная почта/i), 'ivan@example.com');
+      await user.type(screen.getByLabelText(/^пароль$/i), 'SecurePass123');
+      await user.type(screen.getByLabelText(/подтверждение пароля/i), 'SecurePass123');
+    };
+
+    test('поле «Телефон» стоит ниже поля «Страна»', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'trainer');
+
+      const country = screen.getByLabelText(/страна/i);
+      const phone = screen.getByLabelText(/телефон/i);
+      expect(country.compareDocumentPosition(phone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    test('подсказка и префикс следуют за выбранной страной', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'trainer');
+      const phone = screen.getByLabelText(/телефон/i);
+      expect(phone).toHaveAttribute('placeholder', '+79001234567');
+
+      await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+      expect(phone).toHaveAttribute('placeholder', '+375291234567');
+
+      await user.click(phone);
+      expect(phone).toHaveValue('+375');
+    });
+
+    test('смена страны +7 → +375 сбрасывает введённое к новому префиксу', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'trainer');
+      const phone = screen.getByLabelText(/телефон/i);
+      await user.type(phone, '9001234567');
+      expect(phone).toHaveValue('+79001234567');
+
+      await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+
+      expect(phone).toHaveValue('+375');
+    });
+
+    test('смена Россия → Казахстан сохраняет введённые цифры', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'trainer');
+      const phone = screen.getByLabelText(/телефон/i);
+      await user.type(phone, '9001234567');
+
+      await user.selectOptions(screen.getByLabelText(/страна/i), 'Казахстан');
+
+      expect(phone).toHaveValue('+79001234567');
+    });
+
+    test('вставленный номер 8900… заменяется на +7900…, цифр не больше десяти', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      await user.selectOptions(screen.getByLabelText(/тип аккаунта/i), 'trainer');
+      const phone = screen.getByLabelText(/телефон/i);
+      fireEvent.change(phone, { target: { value: '89001234567999' } });
+
+      expect(phone).toHaveValue('+79001234567');
+    });
+
+    test('пустой телефон блокирует отправку и показывает ошибку под полем', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      render(<RegisterForm />);
+
+      await fillCommonFields(user);
+      await fillB2BFields(user, { phone: '' });
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(
+        await screen.findByText('Укажите номер телефона в формате +79001234567')
+      ).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
+    });
+
+    test('неполный белорусский номер блокирует отправку', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      render(<RegisterForm />);
+
+      await fillCommonFields(user);
+      await fillB2BFields(user, { phone: '' });
+      await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+      await user.type(screen.getByLabelText(/телефон/i), '29123');
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(
+        await screen.findByText('Укажите номер телефона в формате +375291234567')
+      ).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
+    });
+
+    test('после смены страны текст ошибки называет формат новой страны', async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm />);
+
+      await fillCommonFields(user);
+      await fillB2BFields(user, { phone: '' });
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+      expect(
+        await screen.findByText('Укажите номер телефона в формате +79001234567')
+      ).toBeInTheDocument();
+
+      await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+
+      expect(
+        await screen.findByText('Укажите номер телефона в формате +375291234567')
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText('Укажите номер телефона в формате +79001234567')
+      ).not.toBeInTheDocument();
+    });
+
+    test('ошибка бэкенда по полю phone показывается под телефоном', async () => {
+      const user = userEvent.setup();
+      const mockRegister = vi.mocked(authService.register);
+      mockRegister.mockRejectedValue({
+        response: {
+          status: 400,
+          data: { phone: ["Номер телефона должен быть в формате: '+79001234567'"] },
+        },
+      });
+      render(<RegisterForm />);
+
+      await fillCommonFields(user);
+      await fillB2BFields(user);
+      await acceptPdpConsent(user);
+      await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }));
+
+      expect(await screen.findAllByText(/номер телефона должен быть в формате/i)).not.toHaveLength(
+        0
+      );
+      expect(screen.getByLabelText(/телефон/i)).toHaveAttribute('aria-invalid', 'true');
     });
   });
 });

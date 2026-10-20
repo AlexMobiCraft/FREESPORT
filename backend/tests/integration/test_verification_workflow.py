@@ -133,6 +133,7 @@ class TestLoginVerificationBlocking:
                 "email": "workflow@example.com",
                 "password": "SecurePass123!",
                 "password_confirm": "SecurePass123!",
+                "phone": "+79991234567",
                 "first_name": "Workflow",
                 "role": "trainer",
                 "company_name": "Workflow Gym",

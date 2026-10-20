@@ -2,21 +2,32 @@
 
 import React, { forwardRef, useCallback } from 'react';
 import { Input, InputProps } from './Input';
+import { getPhoneFormat, normalizePhoneInput } from '@/utils/validators/phone';
+
+export interface PhoneInputProps extends InputProps {
+  /**
+   * Страна, по которой выбираются префикс и число цифр. Без пропа поле
+   * работает как российское (+7): так его используют профиль, чекаут и адреса.
+   */
+  country?: string;
+}
 
 /**
  * PhoneInput Component
- * Специализированное поле ввода телефона с автоматическим префиксом +7
+ * Специализированное поле ввода телефона с автоматическим префиксом страны
  */
-export const PhoneInput = forwardRef<HTMLInputElement, InputProps>(
-  ({ onChange, onFocus, ...props }, ref) => {
+export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
+  ({ onChange, onFocus, country, ...props }, ref) => {
+    const format = getPhoneFormat(country);
+
     const handleFocus = useCallback(
       (e: React.FocusEvent<HTMLInputElement>) => {
         const input = e.target;
         const value = input.value;
 
-        // Если поле пустое, подставляем +7
+        // Если поле пустое, подставляем префикс страны
         if (!value) {
-          input.value = '+7';
+          input.value = format.prefix;
           // Уведомляем react-hook-form об изменении
           const event = {
             target: input,
@@ -34,34 +45,17 @@ export const PhoneInput = forwardRef<HTMLInputElement, InputProps>(
           input.setSelectionRange(length, length);
         }, 0);
       },
-      [onChange, onFocus]
+      [onChange, onFocus, format.prefix]
     );
 
     const handleChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value;
-
-        // Если пользователь пытается удалить +7 полностью
-        if (!value.startsWith('+7')) {
-          // Если ввел 8 или 7 в начале, заменяем на +7
-          if (value.startsWith('8') || value.startsWith('7')) {
-            value = '+7' + value.slice(1);
-          } else if (value === '' || value === '+') {
-            value = '+7';
-          } else {
-            // Если ввел что-то другое, принудительно добавляем +7
-            value = '+7' + value.replace(/^\+?/, '');
-          }
-        }
-
-        // Ограничиваем только цифрами после +7
-        const prefix = '+7';
-        const rest = value.slice(prefix.length).replace(/\D/g, '').slice(0, 10);
-        e.target.value = prefix + rest;
+        // Префикс не стирается, лишние символы отбрасываются, цифр не больше формата
+        e.target.value = normalizePhoneInput(e.target.value, country);
 
         onChange?.(e);
       },
-      [onChange]
+      [onChange, country]
     );
 
     return (
@@ -71,7 +65,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, InputProps>(
         type="tel"
         onChange={handleChange}
         onFocus={handleFocus}
-        placeholder="+79001234567"
+        placeholder={format.example}
       />
     );
   }

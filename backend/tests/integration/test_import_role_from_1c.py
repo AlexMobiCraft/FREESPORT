@@ -342,6 +342,7 @@ class TestLinkPathsSurviveImport:
                 "email": f"portal_link_{time.time_ns()}@example.com",
                 "password": "StrongPassword123!",
                 "password_confirm": "StrongPassword123!",
+                "phone": "+79991234567",
                 "first_name": "Форма",
                 "last_name": "Регистрации",
                 "role": "wholesale_level1",

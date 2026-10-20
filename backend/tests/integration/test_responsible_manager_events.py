@@ -173,6 +173,7 @@ class TestRegistration:
                 "email": email,
                 "password": "SecurePass123!",
                 "password_confirm": "SecurePass123!",
+                "phone": "+79991234567",
                 "first_name": "Регион",
                 "last_name": "Покупатель",
                 "role": "wholesale_level1",

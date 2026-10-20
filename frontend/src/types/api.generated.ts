@@ -2983,8 +2983,11 @@ export interface components {
       first_name: string;
       /** Фамилия */
       last_name?: string;
-      /** Номер телефона */
-      phone?: string;
+      /**
+       * Номер телефона
+       * @description Россия и Казахстан: +7 и 10 цифр; Беларусь: +375 и 9 цифр. Формат выбирается по полю country.
+       */
+      phone: string;
       role: components['schemas']['UserRegistrationRoleEnum'];
       /**
        * Название компании

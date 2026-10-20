@@ -53,7 +53,8 @@ describe('B2BRegisterForm consent checkboxes', () => {
     await user.type(screen.getByLabelText(/имя/i), 'Иван');
     await user.type(screen.getByLabelText(/фамилия/i), 'Петров');
     await user.type(screen.getByLabelText(/электронная почта/i), 'b2b@example.com');
-    await user.type(screen.getByLabelText(/телефон/i), '+79991234567');
+    // Поле само подставляет «+7» при фокусе, вводятся только цифры номера
+    await user.type(screen.getByLabelText(/телефон/i), '9991234567');
     await user.type(screen.getByLabelText(/название компании/i), 'ООО Спорт');
     await user.type(screen.getByLabelText(/инн/i), '1234567890');
     await user.type(screen.getByLabelText(/огрн/i), '1234567890123');
@@ -560,14 +561,111 @@ describe('B2BRegisterForm consent checkboxes', () => {
 
     await fillValidB2BForm(user);
     await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+    // Смена страны с +7 на +375 сбрасывает номер к новому префиксу
+    expect(screen.getByLabelText(/телефон/i)).toHaveValue('+375');
+    await user.type(screen.getByLabelText(/телефон/i), '291234567');
     await acceptPdpConsent(user);
     await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
 
     await waitFor(() => {
       expect(mockRegisterB2B).toHaveBeenCalledWith(
-        expect.objectContaining({ country: 'Беларусь' })
+        expect.objectContaining({ country: 'Беларусь', phone: '+375291234567' })
       );
     });
+  });
+
+  test('поле «Телефон» стоит ниже поля «Страна»', () => {
+    render(<B2BRegisterForm />);
+
+    const country = screen.getByLabelText(/страна/i);
+    const phone = screen.getByLabelText(/телефон/i);
+
+    expect(country.compareDocumentPosition(phone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('пустой телефон блокирует отправку и показывает формат страны', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockClear();
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await user.clear(screen.getByLabelText(/телефон/i));
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(
+      await screen.findByText('Укажите номер телефона в формате +79001234567')
+    ).toBeInTheDocument();
+    expect(mockRegisterB2B).not.toHaveBeenCalled();
+  });
+
+  test('только префикс «+7» не проходит проверку', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockClear();
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await user.clear(screen.getByLabelText(/телефон/i));
+    await user.click(screen.getByLabelText(/телефон/i));
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(
+      await screen.findByText('Укажите номер телефона в формате +79001234567')
+    ).toBeInTheDocument();
+    expect(mockRegisterB2B).not.toHaveBeenCalled();
+  });
+
+  test('белорусская страна требует номер +375 и 9 цифр', async () => {
+    const user = userEvent.setup();
+    const mockRegisterB2B = vi.mocked(authService.registerB2B);
+    mockRegisterB2B.mockClear();
+
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+    await user.type(screen.getByLabelText(/телефон/i), '29123');
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+
+    expect(
+      await screen.findByText('Укажите номер телефона в формате +375291234567')
+    ).toBeInTheDocument();
+    expect(mockRegisterB2B).not.toHaveBeenCalled();
+  });
+
+  test('после смены страны текст ошибки называет формат новой страны', async () => {
+    const user = userEvent.setup();
+    render(<B2BRegisterForm />);
+
+    await fillValidB2BForm(user);
+    await user.clear(screen.getByLabelText(/телефон/i));
+    await acceptPdpConsent(user);
+    await user.click(screen.getByRole('button', { name: /отправить заявку/i }));
+    expect(
+      await screen.findByText('Укажите номер телефона в формате +79001234567')
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/страна/i), 'Беларусь');
+
+    expect(
+      await screen.findByText('Укажите номер телефона в формате +375291234567')
+    ).toBeInTheDocument();
+  });
+
+  test('смена Россия → Казахстан сохраняет введённые цифры', async () => {
+    const user = userEvent.setup();
+    render(<B2BRegisterForm />);
+
+    await user.type(screen.getByLabelText(/телефон/i), '9991234567');
+    await user.selectOptions(screen.getByLabelText(/страна/i), 'Казахстан');
+
+    expect(screen.getByLabelText(/телефон/i)).toHaveValue('+79991234567');
   });
 
   test('should not hang on cyclic backend validation payloads', async () => {

@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input/Input';
 import { PhoneInput } from '@/components/ui/Input/PhoneInput';
+import { phoneForCountryChange } from '@/utils/validators/phone';
 import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import authService from '@/services/authService';
@@ -80,6 +81,9 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
     handleSubmit,
     watch,
     setError,
+    setValue,
+    getValues,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<B2BRegisterFormInput, unknown, B2BRegisterFormData>({
     resolver: zodResolver(b2bRegisterSchema),
@@ -94,6 +98,20 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
   const hasPdpConsentError = Boolean(errors.pdp_consent?.message);
   // Кнопка отправки заявки активна только при согласии на обработку ПДн
   const pdpConsentChecked = watch('pdp_consent') === true;
+  const selectedCountry = watch('country') ?? 'Россия';
+
+  // Формат номера зависит от страны: при смене группы префикса (+7 ↔ +375) введённое
+  // сбрасывается к префиксу новой страны, внутри +7 (Россия ↔ Казахстан) сохраняется
+  const handleCountryChange = (event: { target: { value: string } }) => {
+    const current = getValues('phone') ?? '';
+    const next = phoneForCountryChange(current, event.target.value);
+    if (next !== current) {
+      setValue('phone', next, { shouldValidate: Boolean(errors.phone) });
+    } else if (errors.phone) {
+      // Значение не изменилось, но текст ошибки называет формат прежней страны
+      void trigger('phone');
+    }
+  };
 
   useEffect(() => {
     if ((!isPending && !neutralMessage) || !shouldNotifyPendingSuccess) {
@@ -373,13 +391,44 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           autoComplete="email"
         />
 
+        {/* Страна стоит выше телефона: формат номера зависит от выбранной страны */}
+        <div className="space-y-1">
+          <label
+            htmlFor="b2b-register-country"
+            className="block text-body-s font-medium text-text-primary"
+          >
+            Страна
+          </label>
+          <select
+            id="b2b-register-country"
+            {...register('country', { onChange: handleCountryChange })}
+            disabled={isSubmitting}
+            aria-invalid={Boolean(errors.country?.message) || undefined}
+            aria-describedby={errors.country?.message ? 'b2b-register-country-error' : undefined}
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-body-m text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
+          >
+            <option value="Россия">Россия</option>
+            <option value="Беларусь">Беларусь</option>
+            <option value="Казахстан">Казахстан</option>
+          </select>
+          {errors.country?.message && (
+            <p
+              id="b2b-register-country-error"
+              className="text-body-xs text-[var(--color-accent-danger)]"
+              role="alert"
+            >
+              {errors.country.message}
+            </p>
+          )}
+        </div>
+
         <PhoneInput
           label="Телефон"
           {...register('phone')}
+          country={selectedCountry}
           error={errors.phone?.message}
           disabled={isSubmitting}
           autoComplete="tel"
-          placeholder="+7 (999) 123-45-67"
         />
       </div>
 
@@ -425,36 +474,6 @@ export const B2BRegisterForm: React.FC<B2BRegisterFormProps> = ({ onSuccess, red
           disabled={isSubmitting}
           placeholder="г. Москва, ул. Примерная, д. 1"
         />
-
-        <div className="space-y-1">
-          <label
-            htmlFor="b2b-register-country"
-            className="block text-body-s font-medium text-text-primary"
-          >
-            Страна
-          </label>
-          <select
-            id="b2b-register-country"
-            {...register('country')}
-            disabled={isSubmitting}
-            aria-invalid={Boolean(errors.country?.message) || undefined}
-            aria-describedby={errors.country?.message ? 'b2b-register-country-error' : undefined}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-body-m text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
-          >
-            <option value="Россия">Россия</option>
-            <option value="Беларусь">Беларусь</option>
-            <option value="Казахстан">Казахстан</option>
-          </select>
-          {errors.country?.message && (
-            <p
-              id="b2b-register-country-error"
-              className="text-body-xs text-[var(--color-accent-danger)]"
-              role="alert"
-            >
-              {errors.country.message}
-            </p>
-          )}
-        </div>
       </div>
 
       {/* Пароль */}

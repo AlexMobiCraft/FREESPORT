@@ -52,6 +52,7 @@ def b2b_registration_payload(**overrides):
         "email": unique_email("portal_link"),
         "password": "StrongPassword123!",
         "password_confirm": "StrongPassword123!",
+        "phone": "+79991234567",
         "first_name": "Форма",
         "last_name": "Регистрации",
         "role": "wholesale_level1",
@@ -61,6 +62,9 @@ def b2b_registration_payload(**overrides):
         "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
     }
     payload.update(overrides)
+    # Формат номера зависит от страны: у белорусской заявки +7 не пройдёт.
+    if payload.get("country") == "Беларусь" and "phone" not in overrides:
+        payload["phone"] = "+375291234567"
     return payload
 
 

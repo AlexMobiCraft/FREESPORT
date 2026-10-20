@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 
+from apps.users.phone import ANY_PHONE_MESSAGE, ANY_PHONE_PATTERN
 from apps.users.staff_roles import RESPONSIBLE_MANAGER_CHOICES
 
 if TYPE_CHECKING:
@@ -199,8 +200,8 @@ class User(AbstractUser):
     )
 
     phone_regex = RegexValidator(
-        regex=r"^\+7\d{10}$",
-        message="Номер телефона должен быть в формате: '+79001234567'",
+        regex=ANY_PHONE_PATTERN,
+        message=ANY_PHONE_MESSAGE,
     )
     phone = models.CharField(
         "Номер телефона",

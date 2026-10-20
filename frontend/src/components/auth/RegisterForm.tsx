@@ -31,6 +31,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/utils/cn';
 import { Input } from '@/components/ui/Input/Input';
+import { PhoneInput } from '@/components/ui/Input/PhoneInput';
 import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import { RoleInfoPanel } from '@/components/auth/RoleInfoPanel';
@@ -42,6 +43,7 @@ import {
   type RegisterFormInput,
 } from '@/schemas/authSchemas';
 import type { RegisterRequest } from '@/types/api';
+import { phoneForCountryChange } from '@/utils/validators/phone';
 import { CONSENT_TEXT_VERSIONS, getConsentTextOutdatedMessage } from '@/constants/consentTexts';
 import {
   applyBackendFieldErrors,
@@ -65,6 +67,7 @@ const REGISTER_FIELD_ERROR_MAP = {
   password: 'password',
   password_confirm: 'confirmPassword',
   first_name: 'first_name',
+  phone: 'phone',
   role: 'role',
   company_name: 'company_name',
   tax_id: 'tax_id',
@@ -90,6 +93,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
     handleSubmit,
     watch,
     setError,
+    setValue,
+    getValues,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormInput, unknown, RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -120,10 +126,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
         password: data.password,
         password_confirm: data.confirmPassword,
         first_name: data.first_name,
-        // Фамилию и телефон эта форма не собирает — их запрашивает строгая
-        // B2B-форма /b2b-register (см. deferred-work.md)
+        // Фамилию эта форма не собирает — её запрашивает строгая B2B-форма
+        // /b2b-register (см. deferred-work.md)
         last_name: '',
-        phone: '',
+        phone: data.phone,
         role: data.role, // Story 29.1 AC 4: Используем выбранную роль
         // Story 29.1 AC 8: B2B-поля обязательны для всех доступных ролей
         company_name: data.company_name,
@@ -215,6 +221,19 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
   // Подсказка под полем зависит от страны: маска российского ИНН
   // неприменима к белорусскому УНП и казахстанскому БИН/ИИН
   const selectedCountry = watch('country') ?? 'Россия';
+
+  // Формат номера зависит от страны: при смене группы префикса (+7 ↔ +375) введённое
+  // сбрасывается к префиксу новой страны, внутри +7 (Россия ↔ Казахстан) сохраняется
+  const handleCountryChange = (event: { target: { value: string } }) => {
+    const current = getValues('phone') ?? '';
+    const next = phoneForCountryChange(current, event.target.value);
+    if (next !== current) {
+      setValue('phone', next, { shouldValidate: Boolean(errors.phone) });
+    } else if (errors.phone) {
+      // Значение не изменилось, но текст ошибки называет формат прежней страны
+      void trigger('phone');
+    }
+  };
   const taxIdHelper =
     selectedCountry === 'Россия'
       ? 'Тренер как физлицо или ИП указывает свой ИНН (12 цифр), клуб — ИНН организации (10 цифр). Один ИНН — один аккаунт.'
@@ -393,7 +412,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
           </label>
           <select
             id="register-country"
-            {...register('country')}
+            {...register('country', { onChange: handleCountryChange })}
             disabled={isSubmitting}
             aria-invalid={Boolean(errors.country?.message) || undefined}
             aria-describedby={errors.country?.message ? 'register-country-error' : undefined}
@@ -413,6 +432,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, redirectU
             </p>
           )}
         </div>
+      )}
+
+      {/* Телефон стоит под страной: формат номера зависит от выбранной страны */}
+      {isB2BRole && (
+        <PhoneInput
+          label="Телефон"
+          {...register('phone')}
+          country={selectedCountry}
+          error={errors.phone?.message}
+          disabled={isSubmitting}
+          autoComplete="tel"
+        />
       )}
 
       <Input
