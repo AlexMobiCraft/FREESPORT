@@ -150,6 +150,7 @@ def register_and_login_user(api_client, role="retail"):
         "password_confirm": TEST_USER_PASSWORD,
         "first_name": "Тест",
         "last_name": f"Пользователь {role}",
+        "phone": "+79991234567",
         "role": role,
         "company_name": f"Тестовая компания {role}",
         "tax_id": tax_id,
