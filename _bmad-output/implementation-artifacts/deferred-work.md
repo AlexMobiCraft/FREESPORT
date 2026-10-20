@@ -1105,3 +1105,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-supervisor-ui-navigation.md`
   summary: На экранах уже 768 px и при свёрнутом боковом меню руководитель в `/supervisor/*` не видит модели раздела (Сотрудники, Правила регионов, Получатели уведомлений, Бонусная программа): главная-витрина со списком моделей заменена сводкой, а в шапке только ссылки на разделы.
   evidence: ревью круга 2 (Edge Case Hunter); до правки модели были в области контента `/supervisor/`, теперь только в `#nav-sidebar`, который скрыт `@media (max-width: 767px)`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-required-phone.md`
+  summary: Профиль, чекаут и адреса доставки остаются на российском формате `+7`, хотя при регистрации теперь принимается белорусский номер `+375…`.
+  evidence: `PhoneInput` без параметра `country` жёстко ставит `+7` и 10 цифр (`ProfileForm.tsx`, `AddressModal.tsx`, `ContactSection.tsx`), `checkoutSchema.ts` и `addressSchema.ts` требуют `^\+7\d{10}$`, `Address.phone` — `max_length=12`. Белорусский номер из профиля при правке превратится в `+7…`, а чекаут с автозаполнением из профиля его не примет (доставка CDEK и Boxberry идёт по РФ). Решение владельца 2026-10-20: вне объёма этой спеки.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-register-required-phone.md`
+  summary: Казахстанский номер, вставленный в `PhoneInput` без префикса (`7011234567`), теряет первую «7»: она принимается за код страны.
+  evidence: `localPrefixes` для формата `+7` содержит `'7'` и `'8'` (`frontend/src/utils/validators/phone.ts`); у казахстанских номеров национальная часть начинается на 7 (`701…`), поэтому получается `+7011234567`. Набор по цифрам не затронут: после фокуса поле уже содержит `+7`. Поведение унаследовано от прежнего `PhoneInput` (ревью Blind Hunter, 2026-10-20).

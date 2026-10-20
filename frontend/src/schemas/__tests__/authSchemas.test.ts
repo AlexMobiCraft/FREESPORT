@@ -128,6 +128,7 @@ describe('registerSchema', () => {
   const validRegisterBase = {
     first_name: 'Иван',
     email: 'ivan@example.com',
+    phone: '+79001234567',
     password: 'SecurePass123',
     confirmPassword: 'SecurePass123',
     role: 'trainer',
@@ -296,6 +297,7 @@ describe('registerSchema', () => {
     const b2bBase = {
       first_name: 'Тренер',
       email: 'trainer@example.com',
+      phone: '+79001234567',
       password: 'SecurePass123',
       confirmPassword: 'SecurePass123',
       company_name: 'Спортклуб',
@@ -368,6 +370,7 @@ describe('registerSchema', () => {
         ...b2bBase,
         role: 'trainer',
         country: 'Беларусь',
+        phone: '+375291234567',
         tax_id: '191234567',
       });
 

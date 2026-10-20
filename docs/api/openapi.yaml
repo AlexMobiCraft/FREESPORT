@@ -4192,7 +4192,7 @@ components:
         phone:
           type: string
           title: Номер телефона
-          pattern: ^\+7\d{10}$
+          pattern: ^(\+7\d{10}|\+375\d{9})$
           maxLength: 255
         company_name:
           type: string
@@ -5073,7 +5073,7 @@ components:
         phone:
           type: string
           title: Номер телефона
-          pattern: ^\+7\d{10}$
+          pattern: ^(\+7\d{10}|\+375\d{9})$
           maxLength: 255
         role:
           allOf:
@@ -5140,7 +5140,7 @@ components:
         phone:
           type: string
           title: Номер телефона
-          pattern: ^\+7\d{10}$
+          pattern: ^(\+7\d{10}|\+375\d{9})$
           maxLength: 255
         company_name:
           type: string
@@ -5203,9 +5203,12 @@ components:
           maxLength: 150
         phone:
           type: string
+          minLength: 1
           title: Номер телефона
-          pattern: ^\+7\d{10}$
           maxLength: 255
+          pattern: ^(\+7\d{10}|\+375\d{9})$
+          description: 'Россия и Казахстан: +7 и 10 цифр; Беларусь: +375 и 9 цифр.
+            Формат выбирается по полю country.'
         role:
           $ref: '#/components/schemas/UserRegistrationRoleEnum'
         company_name:
@@ -5252,6 +5255,7 @@ components:
       - password_confirm
       - pdp_consent
       - pdp_consent_text_version
+      - phone
       - role
       if:
         properties:

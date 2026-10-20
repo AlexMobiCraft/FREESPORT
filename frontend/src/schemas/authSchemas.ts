@@ -8,8 +8,27 @@
 
 import { z } from 'zod';
 import { validateINN, validateOGRN } from '@/utils/validators/b2b-validators';
+import { getPhoneFormatMessage, isValidPhone } from '@/utils/validators/phone';
 
 const PDP_CONSENT_REQUIRED_MESSAGE = 'Необходимо согласие на обработку персональных данных.';
+
+/**
+ * Телефон: формат зависит от страны формы (см. `isPhoneValidForCountry`), поэтому само
+ * поле только строка. `default('')` — чтобы поле, не показанное в форме (пока не выбрана
+ * роль), давало ошибку формата, а не «ожидалась строка».
+ */
+const phoneField = z.string().default('');
+
+/** Номер соответствует формату страны из той же формы */
+const isPhoneValidForCountry = (data: { phone: string; country: string }) =>
+  isValidPhone(data.phone, data.country);
+
+/** Ошибка кладётся на поле `phone`; текст зависит от страны, поэтому берётся из входных данных */
+const phoneCountryIssue = {
+  path: ['phone'],
+  error: (issue: { input?: unknown }) =>
+    getPhoneFormatMessage((issue.input as { country?: string } | undefined)?.country),
+};
 
 const pdpConsentSchema = z
   .boolean({ error: PDP_CONSENT_REQUIRED_MESSAGE })
@@ -44,6 +63,7 @@ export const registerSchema = z
       .min(1, 'Имя обязательно')
       .max(150, 'Имя не должно превышать 150 символов'),
     email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
+    phone: phoneField,
     password: z
       .string()
       .min(8, 'Пароль должен содержать минимум 8 символов')
@@ -70,6 +90,7 @@ export const registerSchema = z
     message: 'Пароли не совпадают',
     path: ['confirmPassword'],
   })
+  .refine(isPhoneValidForCountry, phoneCountryIssue)
   .refine(
     data => {
       // Story 29.1: AC 8 - company_name обязательно для всех ролей формы
@@ -133,10 +154,7 @@ export const b2bRegisterSchema = z
       .min(1, 'Фамилия обязательна')
       .max(150, 'Фамилия не должна превышать 150 символов'),
     email: z.string().min(1, 'Укажите электронную почту').email('Неверный формат email'),
-    phone: z
-      .string()
-      .min(1, 'Телефон обязателен')
-      .regex(/^[\d\s\+\-\(\)]+$/, 'Неверный формат телефона'),
+    phone: phoneField,
 
     // Пароль
     password: z
@@ -181,7 +199,8 @@ export const b2bRegisterSchema = z
   .refine(data => data.password === data.confirmPassword, {
     message: 'Пароли не совпадают',
     path: ['confirmPassword'],
-  });
+  })
+  .refine(isPhoneValidForCountry, phoneCountryIssue);
 
 /**
  * Password Reset Request Schema

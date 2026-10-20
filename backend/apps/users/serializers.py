@@ -22,6 +22,7 @@ from apps.common.serializers import CONSENT_TEXT_OUTDATED, consent_text_outdated
 from apps.orders.models import Order
 
 from .models import Address, Company, Favorite, User
+from .phone import ANY_PHONE_PATTERN, get_phone_format, is_known_phone_country, is_valid_phone_for_country
 from .services.identity_resolution import CustomerIdentityResolver
 from .tasks import (
     send_admin_verification_email,
@@ -36,6 +37,7 @@ PORTAL_LINK_CONFIRM_SALT = "portal-link-confirm"
 
 PDP_CONSENT_REQUIRED_MESSAGE = "Необходимо согласие на обработку персональных данных."
 EMAIL_ALREADY_REGISTERED_MESSAGE = "Пользователь с таким email уже существует."
+PHONE_REQUIRED_MESSAGE = "Укажите номер телефона."
 
 INVALID_SELF_SERVICE_ROLE_MESSAGE = "Недопустимая роль для регистрации."
 
@@ -152,6 +154,19 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             # Автогенерируемый UniqueValidator сработал бы раньше validate().
             "email": {"required": True, "validators": []},
             "first_name": {"required": True},
+            # Модельный валидатор допускает номера всех стран разом, а при
+            # регистрации формат зависит от выбранной страны — его проверяет
+            # validate_phone(), поэтому автогенерируемые валидаторы снимаем.
+            "phone": {
+                "required": True,
+                "allow_blank": False,
+                "validators": [],
+                "error_messages": {
+                    "required": PHONE_REQUIRED_MESSAGE,
+                    "blank": PHONE_REQUIRED_MESSAGE,
+                    "null": PHONE_REQUIRED_MESSAGE,
+                },
+            },
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -178,6 +193,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """
         if value not in get_self_service_roles():
             raise serializers.ValidationError(INVALID_SELF_SERVICE_ROLE_MESSAGE)
+        return value
+
+    def validate_phone(self, value: str) -> str:
+        """
+        Номер должен соответствовать формату страны из этого же запроса.
+
+        Страна читается из исходных данных, а не из `validated_data`: на уровне
+        поля разобранных соседей не видно, а проверка в `validate()` пропадала бы
+        при любой field-level ошибке другого поля. Страна не передана — формат
+        России (как `default` модели). Страна передана, но некорректна (null,
+        пустая, список, незнакомое значение) — формат не проверяем: её отклонит
+        собственное поле, а вторая ошибка по телефону только запутала бы.
+        """
+        country = self.initial_data.get("country", User.COUNTRY_RUSSIA)
+        if not is_known_phone_country(country):
+            return value
+        if not is_valid_phone_for_country(value, country):
+            sample = get_phone_format(country).sample
+            raise serializers.ValidationError(f"Номер телефона должен быть в формате: '{sample}'")
         return value
 
     def validate_tax_id(self, value: str) -> str:
@@ -484,6 +518,12 @@ class UserRegistrationRequestSchemaExtension(OpenApiSerializerExtension):
         # Ответного компонента у сериализатора нет (все consent-поля write_only), но
         # условие всё равно ставится только на запрос: в ответе его смысла нет.
         if direction == "request":
+            # Формат номера зависит от страны из того же запроса, поэтому серверные
+            # валидаторы поля сняты (см. `extra_kwargs`), а схеме нужен общий шаблон.
+            schema["properties"]["phone"]["pattern"] = ANY_PHONE_PATTERN
+            schema["properties"]["phone"][
+                "description"
+            ] = "Россия и Казахстан: +7 и 10 цифр; Беларусь: +375 и 9 цифр. Формат выбирается по полю country."
             schema["if"] = {
                 "properties": {"marketing_consent": {"const": True}},
                 "required": ["marketing_consent"],

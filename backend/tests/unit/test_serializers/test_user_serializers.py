@@ -659,3 +659,133 @@ class TestLogoutSerializer:
         # CharField не отклонит пробелы, но custom validator должен
         assert not serializer.is_valid()
         assert "refresh" in serializer.errors
+
+
+PHONE_RU_MESSAGE = "Номер телефона должен быть в формате: '+79001234567'"
+PHONE_BY_MESSAGE = "Номер телефона должен быть в формате: '+375291234567'"
+
+
+def _registration_payload(**overrides):
+    """Минимальная корректная заявка B2B; телефон и страну переопределяет тест."""
+    payload = {
+        "email": "phone_case@test.com",
+        "password": "TestPass123!",
+        "password_confirm": "TestPass123!",
+        "first_name": "Телефон",
+        "role": "wholesale_level1",
+        "company_name": "Тест Компания",
+        "tax_id": "1234567890",
+        "phone": "+79001234567",
+        "pdp_consent": True,
+        "pdp_consent_text_version": REGISTRATION_PDP_TEXT_VERSION,
+    }
+    payload.update(overrides)
+    return payload
+
+
+@pytest.mark.django_db
+class TestUserRegistrationPhone:
+    """Телефон обязателен, а его формат определяется страной из того же запроса."""
+
+    @pytest.mark.parametrize(
+        ("country", "phone"),
+        [
+            ("Россия", "+79001234567"),
+            ("Казахстан", "+77011234567"),
+            ("Беларусь", "+375291234567"),
+        ],
+    )
+    def test_valid_phone_for_country(self, country, phone):
+        data = _registration_payload(country=country, phone=phone)
+        if country != "Россия":
+            data["tax_id"] = "191234567"  # УНП 9 цифр / БИН: маска российского ИНН не применяется
+
+        serializer = UserRegistrationSerializer(data=data)
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["phone"] == phone
+
+    def test_country_defaults_to_russia(self):
+        serializer = UserRegistrationSerializer(data=_registration_payload())
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize("missing", [None, ""])
+    def test_phone_is_required(self, missing):
+        data = _registration_payload()
+        if missing is None:
+            del data["phone"]
+        else:
+            data["phone"] = missing
+
+        serializer = UserRegistrationSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert serializer.errors["phone"] == ["Укажите номер телефона."]
+
+    def test_null_phone_is_rejected(self):
+        serializer = UserRegistrationSerializer(data=_registration_payload(phone=None))
+
+        assert not serializer.is_valid()
+        assert serializer.errors["phone"] == ["Укажите номер телефона."]
+
+    @pytest.mark.parametrize("phone", ["89001234567", "+7900", "+7 900 123 45 67", "+790012345678", "abc"])
+    def test_malformed_russian_phone_is_rejected(self, phone):
+        serializer = UserRegistrationSerializer(data=_registration_payload(phone=phone))
+
+        assert not serializer.is_valid()
+        assert serializer.errors["phone"] == [PHONE_RU_MESSAGE]
+
+    def test_belarusian_number_rejected_for_russia(self):
+        serializer = UserRegistrationSerializer(data=_registration_payload(phone="+375291234567"))
+
+        assert not serializer.is_valid()
+        assert serializer.errors["phone"] == [PHONE_RU_MESSAGE]
+
+    def test_russian_number_rejected_for_belarus(self):
+        data = _registration_payload(country="Беларусь", tax_id="191234567", phone="+79001234567")
+
+        serializer = UserRegistrationSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert serializer.errors["phone"] == [PHONE_BY_MESSAGE]
+
+    def test_phone_error_survives_other_field_errors(self):
+        """Ошибка телефона не прячется за ошибкой соседнего поля."""
+        data = _registration_payload(phone="+7900", password_confirm="Other123!")
+
+        serializer = UserRegistrationSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "phone" in serializer.errors
+
+    @pytest.mark.parametrize("country", ["Франция", "", None, ["Беларусь"]])
+    def test_invalid_country_gets_only_its_own_error(self, country):
+        """Некорректную страну отклоняет её поле; вторая ошибка по телефону только запутала бы."""
+        data = _registration_payload(country=country, phone="+375291234567")
+
+        serializer = UserRegistrationSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "country" in serializer.errors
+        assert "phone" not in serializer.errors
+
+    @pytest.mark.parametrize("phone", ["+7٩٠٠١٢٣٤٥٦٧", "+7９００１２３４５６７"])
+    def test_non_ascii_digits_are_rejected(self, phone):
+        """Цифры других алфавитов не проходят, хотя регулярка без re.ASCII их принимает."""
+        serializer = UserRegistrationSerializer(data=_registration_payload(phone=phone))
+
+        assert not serializer.is_valid()
+        assert serializer.errors["phone"] == [PHONE_RU_MESSAGE]
+
+    @pytest.mark.parametrize("phone", ["+79001234567", "+375291234567"])
+    def test_model_validator_accepts_numbers_of_all_countries(self, phone):
+        """Django-админка и профиль не отвергают сохранённый белорусский номер."""
+        User._meta.get_field("phone").run_validators(phone)
+
+    @pytest.mark.parametrize("phone", ["89001234567", "+37529123456", "+7900"])
+    def test_model_validator_rejects_malformed_numbers(self, phone):
+        from django.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
+            User._meta.get_field("phone").run_validators(phone)
