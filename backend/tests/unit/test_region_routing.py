@@ -176,6 +176,34 @@ class TestSendManagerRegionEmail:
         assert verify_path in call_kwargs["html_message"]
         assert verify_path in call_kwargs["message"]
 
+    @patch("apps.users.tasks.send_mail")
+    def test_send_includes_registration_phone(self, mock_send_mail, settings, fallback_rules):
+        """Телефон, введённый при регистрации, есть и в HTML-, и в текстовой версии письма."""
+        settings.SITE_URL = "http://localhost"
+        _rule(ManagerRoutingRule.MATCH_INN_REGION, "77", GUSEV)
+        user = UserFactory(role="wholesale_level1", company_name="ООО Тест", tax_id="7701234567", phone="+79001234567")
+
+        assert send_manager_region_email(user.id) is True
+
+        call_kwargs = mock_send_mail.call_args.kwargs
+        assert "Телефон: +79001234567" in call_kwargs["message"]
+        html = " ".join(call_kwargs["html_message"].split())
+        assert "<strong>Телефон:</strong> </td> <td" in html
+        assert "+79001234567 </td>" in html
+
+    @patch("apps.users.tasks.send_mail")
+    def test_send_without_phone_shows_placeholder(self, mock_send_mail, settings, fallback_rules):
+        """Пустой телефон (модель допускает blank, например запись из 1С) — строка остаётся, значение «не указан»."""
+        settings.SITE_URL = "http://localhost"
+        _rule(ManagerRoutingRule.MATCH_INN_REGION, "77", GUSEV)
+        user = UserFactory(role="wholesale_level1", company_name="ООО Тест", tax_id="7701234567", phone="")
+
+        assert send_manager_region_email(user.id) is True
+
+        call_kwargs = mock_send_mail.call_args.kwargs
+        assert "Телефон: не указан" in call_kwargs["message"]
+        assert "не указан </td>" in " ".join(call_kwargs["html_message"].split())
+
     def test_send_to_rule_manager_account_email(self, mailoutbox, settings, fallback_rules):
         """Задача шлёт письмо на email учётной записи менеджера правила, а не на manager_email (AC7)."""
         settings.SITE_URL = "http://localhost"

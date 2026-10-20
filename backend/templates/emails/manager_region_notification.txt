@@ -6,6 +6,7 @@
 
 ФИО: {{ user.full_name }}
 Email: {{ user.email }}
+Телефон: {{ phone|default:"не указан" }}
 Роль: {{ role_display }}
 Компания: {{ company_name }}
 {% if tax_id %}ИНН: {{ tax_id }}

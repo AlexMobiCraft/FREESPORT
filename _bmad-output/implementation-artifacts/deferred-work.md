@@ -1113,3 +1113,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-register-required-phone.md`
   summary: Казахстанский номер, вставленный в `PhoneInput` без префикса (`7011234567`), теряет первую «7»: она принимается за код страны.
   evidence: `localPrefixes` для формата `+7` содержит `'7'` и `'8'` (`frontend/src/utils/validators/phone.ts`); у казахстанских номеров национальная часть начинается на 7 (`701…`), поэтому получается `+7011234567`. Набор по цифрам не затронут: после фокуса поле уже содержит `+7`. Поведение унаследовано от прежнего `PhoneInput` (ревью Blind Hunter, 2026-10-20).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-manager-region-email-phone.md`
+  summary: Текстовые шаблоны писем (`*.txt`, в том числе `manager_region_notification.txt`) рендерятся с автоэкранированием HTML, поэтому символы вроде `&` в названии компании или телефоне попадают в plain-text версию как `&amp;`.
+  evidence: `render_to_string("emails/*.txt", context)` в `backend/apps/users/tasks.py` не использует `{% autoescape off %}`; затрагивает все поля письма, не только телефон.
