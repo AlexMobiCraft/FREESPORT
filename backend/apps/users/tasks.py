@@ -153,7 +153,7 @@ def send_user_pending_email(self: Any, user_id: int) -> bool:
         plain_message = render_to_string("emails/user_registration_pending.txt", context)
 
         send_mail(
-            subject="[FREESPORT] Ваша заявка принята",
+            subject="[OPTISPORT] Ваша заявка принята",
             message=plain_message,
             from_email=None,
             recipient_list=[user.email],
@@ -280,7 +280,7 @@ def send_password_reset_email(self: Any, user_id: int, reset_url: str) -> bool:
         plain_message = render_to_string("emails/password_reset.txt", context)
 
         send_mail(
-            subject="[FREESPORT] Сброс пароля",
+            subject="[OPTISPORT] Сброс пароля",
             message=plain_message,
             from_email=None,
             recipient_list=[user.email],
@@ -353,7 +353,7 @@ def send_portal_link_confirmation_email(self: Any, user_id: int, new_email: str,
         plain_message = render_to_string("emails/portal_link_confirmation.txt", context)
 
         send_mail(
-            subject="[FREESPORT] Подтвердите привязку аккаунта",
+            subject="[OPTISPORT] Подтвердите привязку аккаунта",
             message=plain_message,
             from_email=None,
             recipient_list=[new_email],
@@ -519,7 +519,7 @@ def send_user_verified_email(self: Any, user_id: int) -> bool:
         plain_message = render_to_string("emails/account_verified.txt", context)
 
         send_mail(
-            subject="[FREESPORT] Ваша заявка одобрена! Аккаунт верифицирован",
+            subject="[OPTISPORT] Ваша заявка одобрена! Аккаунт верифицирован",
             message=plain_message,
             from_email=None,
             recipient_list=[user.email],
@@ -591,7 +591,7 @@ def send_b2b_rejection_email(self: Any, email: str, first_name: str, role_displa
         plain_message = render_to_string("emails/b2b_application_rejected.txt", context)
 
         send_mail(
-            subject="[FREESPORT] Ваша заявка отклонена",
+            subject="[OPTISPORT] Ваша заявка отклонена",
             message=plain_message,
             from_email=None,
             recipient_list=[email],
