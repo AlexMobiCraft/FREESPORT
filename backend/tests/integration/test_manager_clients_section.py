@@ -872,7 +872,9 @@ class TestAuditLog:
         response = manager_client.post(verify_url(applicant), {"_reject": "1"})
 
         assert response.status_code == 302
-        assert response.url == change_url(applicant)
+        # Карточки заявителя больше нет: возврат в список клиентов раздела.
+        assert response.url == CHANGELIST_URL
+        assert not User.objects.filter(pk=applicant.pk).exists()
         self.assert_single(applicant, "reject_b2b", manager)
 
     @pytest.mark.parametrize(
@@ -1368,6 +1370,10 @@ class TestTransferDuringWrite:
 
         assert response.status_code == 302
         assert transfer.blocked
+        if service == "reject_b2b_application":
+            # Отказ удалил заявителя под блокировкой: передача ждала и ничего не нашла.
+            assert not User.objects.filter(pk=applicant.pk).exists()
+            return
         applicant.refresh_from_db()
         assert applicant.responsible_manager == other_manager
 
@@ -1534,7 +1540,6 @@ class TestTransferDuringWrite:
         "action, overrides",
         [
             ("approve_b2b_users", {"verification_status": "pending", "is_verified": False, "is_active": False}),
-            ("reject_b2b_users", {"verification_status": "pending", "is_verified": False}),
             ("block_users", {}),
             ("unblock_users", {"is_active": False}),
         ],
@@ -1550,6 +1555,33 @@ class TestTransferDuringWrite:
         assert response.status_code == 200
         assert locked_at_save[own.pk] is True
         assert audit_records(own).count() == before + 1
+
+    def test_reject_action_holds_row_lock_at_delete(
+        self, manager_client, manager, prod_like_requests, locked_at_delete
+    ):
+        own = make_client(manager, verification_status="pending", is_verified=False)
+
+        response = post_action(manager_client, "reject_b2b_users", own)
+
+        assert response.status_code == 200
+        assert locked_at_delete[own.pk] is True
+        assert not User.objects.filter(pk=own.pk).exists()
+        assert audit_records(own, "reject_b2b").count() == 1
+
+
+@pytest.fixture
+def locked_at_delete(monkeypatch) -> dict[int, bool]:
+    """`{pk: строка заблокирована}` в момент первого `User.delete()` этой записи."""
+    seen: dict[int, bool] = {}
+    original_delete = User.delete
+
+    def delete(self: User, *args: Any, **kwargs: Any) -> Any:
+        if self.pk is not None and self.pk not in seen:
+            seen[self.pk] = row_is_locked(self.pk)
+        return original_delete(self, *args, **kwargs)
+
+    monkeypatch.setattr(User, "delete", delete)
+    return seen
 
 
 @contextmanager

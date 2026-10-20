@@ -141,6 +141,14 @@
     </div>
   </fieldset>
 
+  {% if is_decision %}
+  <p class="help">
+    «Отклонить» безвозвратно удаляет заявителя из базы и отправляет ему на email
+    письмо об отказе с просьбой обратиться по контактам сайта. Заявку, по
+    которой есть заказы или привязка к 1С, отклонить нельзя.
+  </p>
+  {% endif %}
+
   <div class="submit-row">
     <input type="submit" class="default" name="_verify" value="Подтвердить" />
     {% if is_decision %}

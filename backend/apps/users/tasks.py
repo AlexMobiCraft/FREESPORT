@@ -556,3 +556,67 @@ def send_user_verified_email(self: Any, user_id: int) -> bool:
             },
         )
         raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    autoretry_for=(SMTPException, ConnectionError),
+    retry_backoff=True,
+    retry_backoff_max=600,
+)
+def send_b2b_rejection_email(self: Any, email: str, first_name: str, role_display: str) -> bool:
+    """
+    Отправить заявителю письмо об отклонении B2B-заявки.
+
+    Заявитель к моменту отправки уже удалён из БД, поэтому задача принимает
+    значения, а не ``user_id``.
+
+    Args:
+        email: адрес, указанный при регистрации
+        first_name: имя для обращения
+        role_display: подпись роли, на которую подавалась заявка
+
+    Returns:
+        True если email отправлен успешно
+    """
+    try:
+        context = {
+            "first_name": first_name,
+            "role_display": role_display,
+            "site_url": settings.SITE_URL,
+        }
+
+        html_message = render_to_string("emails/b2b_application_rejected.html", context)
+        plain_message = render_to_string("emails/b2b_application_rejected.txt", context)
+
+        send_mail(
+            subject="[FREESPORT] Ваша заявка отклонена",
+            message=plain_message,
+            from_email=None,
+            recipient_list=[email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        logger.info(
+            "B2B rejection email sent",
+            extra={
+                "user_email": email,
+                "template": "b2b_application_rejected",
+                "timestamp": timezone.now().isoformat(),
+            },
+        )
+        return True
+
+    except SMTPException as exc:
+        logger.error(
+            "Failed to send B2B rejection email",
+            extra={
+                "user_email": email,
+                "exception": str(exc),
+                "retry_count": self.request.retries,
+                "action": "b2b_rejection_email",
+            },
+        )
+        raise self.retry(exc=exc)
