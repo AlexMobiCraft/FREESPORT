@@ -21,6 +21,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from decimal import Decimal
+from html import unescape
 from html.parser import HTMLParser
 from typing import Any
 from unittest.mock import patch
@@ -238,6 +239,26 @@ class TestPending:
         assert supervisor_client.get(links[2]).context["cl"].result_count == 1
         assert listed_pks(supervisor_client.get(links[3])) == {applicant.pk for applicant in unassigned}
 
+    def test_manager_name_links_to_his_pending_list(self, supervisor_client):
+        tricky = make_staff_member(MANAGERS_GROUP, first_name="<b>X</b>", last_name="Тегов")
+        applicants = [make_applicant(tricky) for _ in range(2)]
+        make_client(tricky)
+        make_applicant(None)
+
+        response = supervisor_client.get(SUMMARY_URL)
+        html = response.content.decode()
+        url = f"/manager/users/user/?verification_status__exact=pending&responsible={tricky.pk}"
+
+        # В атрибуте `&` экранируется Django, браузер отдаёт его обратно как `&`.
+        assert f'<th scope="row"><a href="{url.replace("&", "&amp;")}">&lt;b&gt;X&lt;/b&gt; Тегов' in html
+        assert (
+            '<th scope="row"><strong><a href="/manager/users/user/?verification_status__exact=pending'
+            '&amp;responsible=none">Без ответственного</a></strong></th>'
+        ) in html
+        assert listed_pks(supervisor_client.get(url)) == {applicant.pk for applicant in applicants}
+        total = html[html.index('class="summary-total"') :]
+        assert "<a " not in total[: total.index("</tr>")]
+
     def test_unassigned_row_is_always_shown(self, supervisor_client, manager):
         make_applicant(manager)
 
@@ -246,7 +267,7 @@ class TestPending:
 
         assert page.rows["summary-pending"][-2:] == [("Без ответственного", "0", "—"), ("Итого", "1", "")]
         assert '<tr class="summary-unassigned">' in response.content.decode()
-        assert "<strong>Без ответственного</strong>" in response.content.decode()
+        assert re.search(r"<strong><a [^>]*>Без ответственного</a></strong>", response.content.decode())
 
     def test_empty_queue(self, supervisor_client):
         response = supervisor_client.get(SUMMARY_URL)
@@ -269,11 +290,10 @@ class TestPending:
             ("Без ответственного", "1", "сегодня"),
             ("Итого", "3", ""),
         ]
-        expected_links = [
-            [f"/manager/users/user/?verification_status__exact=pending&responsible={a.pk}"],
-            ["/manager/users/user/?verification_status__exact=pending&responsible=none"],
-            [],
-        ]
+        # Имя менеджера и число в строке ведут в один и тот же список.
+        a_url = f"/manager/users/user/?verification_status__exact=pending&responsible={a.pk}"
+        none_url = "/manager/users/user/?verification_status__exact=pending&responsible=none"
+        expected_links = [[a_url, a_url], [none_url, none_url], []]
 
         for params in (PERIOD, {"date_from": "2026-09-01", "date_to": "2026-09-30"}, {}):
             with patch("django.utils.timezone.now", return_value=TODAY_NOON):
@@ -673,6 +693,59 @@ class TestLinks:
         assert all(href.startswith("/manager/users/user/?") for href in row_links)
         assert "<b>X</b>" not in html
         assert "&lt;b&gt;X&lt;/b&gt; Тегов" in html
+
+
+HOME_LINK = re.compile(r'<a id="supervisor-home-link" href="([^"]*)">')
+PERIOD_QUERY = "?date_from=2026-10-10&date_to=2026-10-12"
+
+
+class TestReturnWithPeriod:
+    """Ссылка «← Раздел руководителя» в /manager/ возвращает в сводку за тот же период."""
+
+    def home_href(self, client) -> str:
+        match = HOME_LINK.search(client.get("/manager/users/user/").content.decode())
+        assert match
+        return unescape(match.group(1))
+
+    def test_period_is_remembered(self, supervisor_client):
+        assert self.home_href(supervisor_client) == "/supervisor/"
+
+        supervisor_client.get(SUMMARY_URL, PERIOD)
+
+        assert self.home_href(supervisor_client) == "/supervisor/" + PERIOD_QUERY
+        # Ссылка ведёт в сводку, и та показывает тот же период.
+        page = supervisor_client.get("/supervisor/" + PERIOD_QUERY)
+        assert page.context["period"].label == "10.10.2026 — 12.10.2026"
+
+    def test_default_period_resets_it(self, supervisor_client):
+        supervisor_client.get("/supervisor/", PERIOD)
+        supervisor_client.get("/supervisor/")
+
+        assert self.home_href(supervisor_client) == "/supervisor/"
+
+    def test_invalid_period_keeps_it(self, supervisor_client):
+        supervisor_client.get(SUMMARY_URL, PERIOD)
+        supervisor_client.get(SUMMARY_URL, {"date_from": "2026-10-12", "date_to": "2026-10-10"})
+        supervisor_client.get(SUMMARY_URL, {"date_from": "2026-10-12"})
+
+        assert self.home_href(supervisor_client) == "/supervisor/" + PERIOD_QUERY
+
+    def test_session_is_written_only_on_change(self, supervisor_client):
+        supervisor_client.get(SUMMARY_URL, PERIOD)
+
+        first, _ = count_queries(supervisor_client, SUMMARY_URL + PERIOD_QUERY)
+        again, _ = count_queries(supervisor_client, SUMMARY_URL + PERIOD_QUERY)
+        other, _ = count_queries(supervisor_client, SUMMARY_URL + "?date_from=2026-10-01&date_to=2026-10-02")
+
+        assert first == again
+        assert other > again
+
+    def test_marketing_uses_remembered_period_too(self, supervisor_client):
+        supervisor_client.get(SUMMARY_URL, PERIOD)
+
+        html = supervisor_client.get("/marketing/").content.decode()
+
+        assert f'<a id="supervisor-home-link" href="/supervisor/{PERIOD_QUERY.replace("&", "&amp;")}">' in html
 
 
 # --------------------------------------------------------------------------
