@@ -21,7 +21,7 @@ def test_email_tells_about_rejection_and_points_to_site_contacts():
     assert len(mail.outbox) == 1
     message = mail.outbox[0]
     assert message.to == ["applicant@example.com"]
-    assert message.subject == "[FREESPORT] Ваша заявка отклонена"
+    assert message.subject == "[OPTISPORT] Ваша заявка отклонена"
     assert "Иван" in message.body
     assert "отклонена" in message.body
     assert "контактам, указанным на сайте" in message.body

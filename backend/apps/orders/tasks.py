@@ -67,7 +67,7 @@ def send_order_confirmation_to_customer(self: Any, order_id: int) -> bool:
         logger.warning(f"Не удалось отправить email для заказа {order.order_number}: " "email клиента не указан")
         return False
 
-    subject = f"Заказ #{order.order_number_display} успешно оформлен - FREESPORT"
+    subject = f"Заказ #{order.order_number_display} успешно оформлен - OPTISPORT"
     message = _build_order_email_text(order)
 
     try:
@@ -126,7 +126,7 @@ def _build_order_email_text(order):
 Спасибо за заказ!
 
 С уважением,
-Команда FREESPORT
+Команда OPTISPORT
 """
     return message.strip()
 

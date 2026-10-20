@@ -131,7 +131,7 @@ class TestSendUserPendingEmail:
 
         call_kwargs = mock_send_mail.call_args
         assert user.email in call_kwargs.kwargs["recipient_list"]
-        assert "[FREESPORT]" in call_kwargs.kwargs["subject"]
+        assert "[OPTISPORT]" in call_kwargs.kwargs["subject"]
 
     def test_send_user_email_user_not_found(self):
         """Обработка несуществующего пользователя."""
