@@ -682,7 +682,7 @@ class UserAdmin(BaseUserAdmin):
             if mode != MODE_DECISION:
                 self.message_user(request, "Отклонить можно только заявку, ждущую решения.", level="error")
                 return HttpResponseRedirect(request.get_full_path())
-            return self._apply_reject_b2b(request, obj, change_url)
+            return self._apply_reject_b2b(request, obj)
 
         if request.method == "POST":
             form = VerifyB2BApplicationForm(
@@ -827,9 +827,9 @@ class UserAdmin(BaseUserAdmin):
             )
         return HttpResponseRedirect(change_url)
 
-    def _apply_reject_b2b(self, request: HttpRequest, obj: User, change_url: str) -> HttpResponseRedirect:
+    def _apply_reject_b2b(self, request: HttpRequest, obj: User) -> HttpResponseRedirect:
         try:
-            user = reject_b2b_application(
+            result = reject_b2b_application(
                 target_id=obj.pk,
                 actor=request.user if isinstance(request.user, User) else None,
                 ip_address=self._get_client_ip(request),
@@ -839,8 +839,18 @@ class UserAdmin(BaseUserAdmin):
             self.message_user(request, str(exc), level="error")
             return HttpResponseRedirect(request.get_full_path())
 
-        self.message_user(request, f"Заявка {user.email or user.pk} отклонена.", level="warning")
-        return HttpResponseRedirect(change_url)
+        # Карточки заявителя больше нет: возвращаем в список клиентов.
+        notice = (
+            "Письмо с отказом поставлено в отправку."
+            if result.email
+            else "Email у заявителя не указан — письмо не отправлено."
+        )
+        self.message_user(
+            request,
+            f"Заявка {result.email or result.pk} отклонена, данные заявителя удалены. {notice}",
+            level="warning",
+        )
+        return HttpResponseRedirect(reverse(f"{self.admin_site.name}:users_user_changelist"))
 
     # Custom display methods
 
@@ -1202,7 +1212,7 @@ class UserAdmin(BaseUserAdmin):
                 level="warning",
             )
 
-    @admin.action(description="✗ Отклонить верификацию выбранных B2B пользователей", permissions=["change"])
+    @admin.action(description="✗ Отклонить заявки (данные заявителей удаляются)", permissions=["change"])
     def reject_b2b_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
         """Массовый отказ в верификации B2B пользователей"""
         # Input validation: проверка наличия B2B пользователей
@@ -1225,29 +1235,29 @@ class UserAdmin(BaseUserAdmin):
             )
             return
 
-        count = 0
+        rejected = 0
+        skipped = 0
         for user in b2b_users:
-            user.is_verified = False
-            user.verification_status = "unverified"
-            user.save(update_fields=["is_verified", "verification_status", "updated_at"])
+            # Тот же путь, что у страницы подтверждения: удаляются только новые
+            # заявки, остальные пропускаются с причиной.
+            try:
+                reject_b2b_application(
+                    target_id=user.pk,
+                    actor=request.user if isinstance(request.user, User) else None,
+                    ip_address=self._get_client_ip(request),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
+            except VerificationError as exc:
+                skipped += 1
+                self.message_user(request, str(exc), level="warning")
+                continue
+            rejected += 1
 
-            # AuditLog запись
-            AuditLog.log_action(
-                user=request.user,
-                action="reject_b2b",
-                resource_type="User",
-                resource_id=user.id,
-                changes={
-                    "email": str(user.email or ""),
-                    "role": user.role,
-                    "verified": False,
-                },
-                ip_address=self._get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            )
-            count += 1
-
-        self.message_user(request, f"Отклонена верификация {count} B2B пользователей", level="warning")
+        self.message_user(
+            request,
+            f"Отклонено заявок: {rejected}, данные заявителей удалены. Пропущено: {skipped}.",
+            level="warning",
+        )
 
     @admin.action(description="🚫 Заблокировать выбранных пользователей", permissions=["change"])
     def block_users(self, request: HttpRequest, queryset: QuerySet[User]) -> None:

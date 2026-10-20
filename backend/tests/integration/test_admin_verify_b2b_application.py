@@ -402,17 +402,114 @@ class TestVerifyFlow:
         assert target.is_active is False
         assert not AuditLog.objects.filter(action="reject_b2b").exists()
 
-    def test_reject(self, manager_client, manager):
-        target = make_applicant(role="trainer")
+    def test_reject_deletes_applicant_and_queues_email(
+        self, manager_client, manager, django_capture_on_commit_callbacks
+    ):
+        target = make_applicant(role="trainer", first_name="Иван")
+        email = target.email
 
-        response = manager_client.post(verify_url(target), {"_reject": "Отклонить"})
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as task:
+            with django_capture_on_commit_callbacks(execute=True):
+                response = manager_client.post(verify_url(target), {"_reject": "Отклонить"})
 
         assert response.status_code == 302
-        target.refresh_from_db()
-        assert target.verification_status == "unverified"
-        assert target.is_verified is False
-        assert target.role == "trainer"
-        assert AuditLog.objects.get(action="reject_b2b").user == manager
+        assert response.url == CHANGELIST_URL
+        assert not User.objects.filter(pk=target.pk).exists()
+        record = AuditLog.objects.get(action="reject_b2b")
+        assert record.user == manager
+        assert record.resource_id == str(target.pk)
+        assert record.changes["email"] == email
+        assert record.changes["deleted"] is True
+        task.delay.assert_called_once_with(email, "Иван", target.get_role_display())
+
+    def test_reject_does_not_queue_email_on_rollback(self, manager_client, django_capture_on_commit_callbacks):
+        target = make_applicant()
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as task:
+            with patch.object(AuditLog, "log_action", side_effect=RuntimeError("журнал недоступен")):
+                with django_capture_on_commit_callbacks(execute=True):
+                    with pytest.raises(RuntimeError):
+                        manager_client.post(verify_url(target), {"_reject": "Отклонить"})
+
+        assert User.objects.filter(pk=target.pk).exists()
+        task.delay.assert_not_called()
+
+    def test_reject_rolls_back_journal_when_delete_fails(self, manager_client, django_capture_on_commit_callbacks):
+        target = make_applicant()
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as task:
+            with patch.object(User, "delete", side_effect=RuntimeError("база недоступна")):
+                with django_capture_on_commit_callbacks(execute=True):
+                    with pytest.raises(RuntimeError):
+                        manager_client.post(verify_url(target), {"_reject": "Отклонить"})
+
+        assert User.objects.filter(pk=target.pk).exists()
+        assert not AuditLog.objects.filter(action="reject_b2b").exists()
+        task.delay.assert_not_called()
+
+    def test_reject_survives_broker_failure(self, manager_client, django_capture_on_commit_callbacks):
+        target = make_applicant()
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as task:
+            task.delay.side_effect = ConnectionError("брокер недоступен")
+            with django_capture_on_commit_callbacks(execute=True):
+                response = manager_client.post(verify_url(target), {"_reject": "Отклонить"})
+
+        assert response.status_code == 302
+        assert response.url == CHANGELIST_URL
+        assert not User.objects.filter(pk=target.pk).exists()
+        assert AuditLog.objects.filter(action="reject_b2b").count() == 1
+
+    @pytest.mark.parametrize(
+        "overrides, reason",
+        [
+            pytest.param({"onec_id": "linked-1c"}, "связан с 1С", id="linked-1c"),
+            pytest.param({"is_staff": True}, "учётная запись сотрудника", id="staff"),
+        ],
+    )
+    def test_reject_refused_for_account_in_use(self, manager_client, overrides, reason):
+        target = make_applicant(**overrides)
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as task:
+            response = manager_client.post(verify_url(target), {"_reject": "Отклонить"}, follow=True)
+
+        assert any(reason in text for text in message_texts(response))
+        assert User.objects.filter(pk=target.pk).exists()
+        assert not AuditLog.objects.filter(action="reject_b2b").exists()
+        task.delay.assert_not_called()
+
+    def test_reject_refused_when_applicant_has_orders(self, manager_client, order_factory):
+        target = make_applicant()
+        order = order_factory(user=target)
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as task:
+            response = manager_client.post(verify_url(target), {"_reject": "Отклонить"}, follow=True)
+
+        assert any("есть заказы" in text for text in message_texts(response))
+        assert User.objects.filter(pk=target.pk).exists()
+        assert type(order).objects.filter(pk=order.pk).exists()
+        assert not AuditLog.objects.filter(action="reject_b2b").exists()
+        task.delay.assert_not_called()
+
+    def test_reject_of_already_deleted_applicant_is_not_found(self, manager_client):
+        target = make_applicant()
+        url = verify_url(target)
+        target.delete()
+
+        response = manager_client.post(url, {"_reject": "Отклонить"})
+
+        assert response.status_code == 302
+        assert not AuditLog.objects.filter(action="reject_b2b").exists()
+
+    def test_reject_allows_same_email_to_register_again(self, manager_client):
+        target = make_applicant()
+        email = target.email
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email"):
+            manager_client.post(verify_url(target), {"_reject": "Отклонить"})
+
+        again = make_applicant(email=email, tax_id=target.tax_id)
+
+        assert again.pk != target.pk
 
 
 class TestAccess:

@@ -4,6 +4,7 @@ Unit тесты для Django Admin конфигурации пользоват�
 """
 
 from importlib import import_module
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
@@ -315,14 +316,7 @@ class TestUserAdmin(TestCase):
         audit_count = AuditLog.objects.filter(action="approve_b2b", resource_id=str(b2b_super.id)).count()
         self.assertEqual(audit_count, 0)
 
-    def test_reject_b2b_users_action(self):
-        """Тест массового отказа в верификации B2B пользователей"""
-        # Сначала верифицируем
-        self.b2b_user.is_verified = True
-        self.b2b_user.verification_status = "verified"
-        self.b2b_user.save()
-
-        # Создаем request
+    def _reject_request(self):
         request = self.factory.post("/admin/users/user/")
         request.user = self.superuser
         request.META["REMOTE_ADDR"] = "127.0.0.1"
@@ -331,24 +325,37 @@ class TestUserAdmin(TestCase):
 
         setattr(request, "session", build_test_session())
         setattr(request, "_messages", CookieStorage(request))
+        return request
 
-        # Создаем queryset
-        queryset = User.objects.filter(id=self.b2b_user.id)
+    def test_reject_b2b_users_action(self):
+        """Массовый отказ удаляет новую заявку и пишет AuditLog с email"""
+        self.b2b_user.verification_status = "pending"
+        self.b2b_user.is_verified = False
+        self.b2b_user.save()
+        user_id, email = self.b2b_user.id, self.b2b_user.email
 
-        # Выполняем action
-        self.admin.reject_b2b_users(request, queryset)
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email"):
+            self.admin.reject_b2b_users(self._reject_request(), User.objects.filter(id=user_id))
 
-        # Проверяем результат
+        self.assertFalse(User.objects.filter(id=user_id).exists())
+        audit_log = AuditLog.objects.get(action="reject_b2b", resource_type="User", resource_id=str(user_id))
+        self.assertEqual(audit_log.changes["email"], str(email))
+        self.assertTrue(audit_log.changes["deleted"])
+
+    def test_reject_b2b_users_action_skips_verified(self):
+        """Верифицированного клиента массовый отказ не удаляет и не разжалует"""
+        self.b2b_user.is_verified = True
+        self.b2b_user.verification_status = "verified"
+        self.b2b_user.save()
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as task:
+            self.admin.reject_b2b_users(self._reject_request(), User.objects.filter(id=self.b2b_user.id))
+
         self.b2b_user.refresh_from_db()
-        self.assertFalse(self.b2b_user.is_verified)
-        self.assertEqual(self.b2b_user.verification_status, "unverified")
-
-        # Проверяем AuditLog
-        audit_log = AuditLog.objects.filter(
-            action="reject_b2b", resource_type="User", resource_id=str(self.b2b_user.id)
-        ).first()
-        self.assertIsNotNone(audit_log)
-        self.assertFalse(audit_log.changes["verified"])
+        self.assertTrue(self.b2b_user.is_verified)
+        self.assertEqual(self.b2b_user.verification_status, "verified")
+        self.assertFalse(AuditLog.objects.filter(action="reject_b2b").exists())
+        task.delay.assert_not_called()
 
     def test_block_users_action(self):
         """Тест массовой блокировки пользователей"""

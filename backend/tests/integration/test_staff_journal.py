@@ -317,6 +317,11 @@ def client_row(author: User, target: User, action: str, details: str = "—") ->
     )
 
 
+def deleted_client_row(author: User, target: User, action: str) -> Expected:
+    """Удалённый клиент: лента подписывает его email из записи и ссылки не даёт."""
+    return Expected(author, "", "User", target.pk, (label(author), action, str(target.email), "—"), "")
+
+
 def staff_row(author: User, member: User, action: str, details: str) -> Expected:
     return Expected(
         author,
@@ -366,13 +371,15 @@ def do_approve_action(ctx: SimpleNamespace) -> Expected:
 def do_reject_page(ctx: SimpleNamespace) -> Expected:
     applicant = make_client(ctx.manager, verification_status="pending", is_verified=False, is_active=False)
     assert ctx.as_manager.post(verify_url(applicant), {"_reject": "1"}).status_code == 302
-    return with_code(client_row(ctx.manager, applicant, "Отказ в верификации"), "reject_b2b")
+    assert not User.objects.filter(pk=applicant.pk).exists()
+    return with_code(deleted_client_row(ctx.manager, applicant, "Отказ в верификации"), "reject_b2b")
 
 
 def do_reject_action(ctx: SimpleNamespace) -> Expected:
     target = make_client(ctx.manager, verification_status="pending", is_verified=False)
     post_action(ctx.as_manager, "reject_b2b_users", target)
-    return with_code(client_row(ctx.manager, target, "Отказ в верификации"), "reject_b2b")
+    assert not User.objects.filter(pk=target.pk).exists()
+    return with_code(deleted_client_row(ctx.manager, target, "Отказ в верификации"), "reject_b2b")
 
 
 def do_block_action(ctx: SimpleNamespace) -> Expected:

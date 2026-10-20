@@ -16,12 +16,15 @@ import logging
 from typing import Mapping, NamedTuple
 
 from django.db import transaction
+from django.db.models import ProtectedError
 
 from apps.common.models import AuditLog
+from apps.orders.models import Order
 from apps.users.models import User, matches_q
 from apps.users.services.link_1c_customer import find_link_candidates, link_1c_customer, link_target_q
 from apps.users.services.price_type_role import load_price_type_role_map, resolve_role_from_price_types
 from apps.users.services.responsible_manager import assign_responsible_manager
+from apps.users.tasks import send_b2b_rejection_email
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +57,13 @@ class VerificationResult(NamedTuple):
     role_after: str
     role_source: str
     source_customer_code: str | None
+
+
+class RejectionResult(NamedTuple):
+    """Заявка отклонена, заявитель удалён: в БД остались только pk и email для сообщения менеджеру."""
+
+    pk: int
+    email: str
 
 
 def is_awaiting_decision(user: User) -> bool:
@@ -276,22 +286,41 @@ def verify_b2b_application(
     )
 
 
+def _undeletable_reason(target: User) -> str | None:
+    """
+    Почему заявителя нельзя удалить, либо None.
+
+    Заявка новая, пока у аккаунта нет ни заказов, ни привязки к 1С. `Order.user`
+    каскадный: удаление клиента с заказами стёрло бы и сами заказы.
+    """
+    if target.is_staff:
+        return "это учётная запись сотрудника"
+    if target.onec_id or target.onec_guid:
+        return "аккаунт связан с 1С"
+    if Order.objects.filter(user=target).exists():
+        return "у клиента есть заказы"
+    return None
+
+
 def reject_b2b_application(
     *,
     target_id: int,
     actor: User | None = None,
     ip_address: str | None = None,
     user_agent: str = "",
-) -> User:
+) -> RejectionResult:
     """
-    Отклоняет B2B-заявку — как действие списка reject_b2b_users.
+    Отклоняет новую B2B-заявку: записывает в AuditLog и удаляет заявителя.
 
-    is_verified=False, verification_status="unverified", AuditLog reject_b2b.
-    Роль, привязка и is_active не меняются. Отклонить можно только заявку,
-    ждущую решения: верифицированный аккаунт здесь не «отзывается».
+    Заявитель удаляется целиком (корзина, компания и адреса уходят каскадом),
+    а на его email после коммита уходит письмо об отказе. Email остаётся
+    в AuditLog `reject_b2b` — по нему журнал подписывает удалённого клиента.
+    Удалить можно только заявку, ждущую решения, без заказов и привязки к 1С:
+    верифицированный аккаунт здесь не «отзывается».
 
     Raises:
-        VerificationError: заявка не ждёт решения, не B2B или суперпользователь
+        VerificationError: заявка не ждёт решения, не B2B, суперпользователь,
+            сотрудник, связана с 1С, есть заказы или заявитель защищён связями
     """
     with transaction.atomic():
         target = _lock_target(target_id)
@@ -300,24 +329,44 @@ def reject_b2b_application(
                 f"Заявка {target.email or target.pk} уже обработана или не подлежит отклонению. "
                 f"Откройте карточку заново."
             )
+        reason = _undeletable_reason(target)
+        if reason is not None:
+            raise VerificationError(
+                f"Заявка {target.email or target.pk} не удалена: {reason}. Отклонять можно только новые заявки."
+            )
+
+        # После delete() объект пуст: данные письма и журнала берутся заранее.
+        pk = target.pk
+        email = str(target.email or "")
+        first_name = target.first_name
+        role_display = target.get_role_display()
 
         AuditLog.log_action(
             user=actor,
             action="reject_b2b",
             resource_type="User",
-            resource_id=target.pk,
+            resource_id=pk,
             changes={
-                "email": str(target.email or ""),
+                "email": email,
                 "role": target.role,
                 "verified": False,
+                "deleted": True,
             },
             ip_address=ip_address,
             user_agent=user_agent,
         )
 
-        target.is_verified = False
-        target.verification_status = "unverified"
-        target.save(update_fields=["is_verified", "verification_status", "updated_at"])
+        try:
+            target.delete()
+        except ProtectedError as exc:
+            raise VerificationError(f"Заявка {email or pk} не удалена: на неё ссылаются другие записи.") from exc
 
-    logger.info("B2B-заявка %s отклонена", target.pk)
-    return target
+        if email:
+            # Письмо уходит только после коммита: при откате заявитель остаётся
+            # в БД, и отказ ему отправлять нельзя. robust: недоступный брокер
+            # не должен ронять запрос, когда заявитель уже удалён, — сбой
+            # попадает в лог.
+            transaction.on_commit(lambda: send_b2b_rejection_email.delay(email, first_name, role_display), robust=True)
+
+    logger.info("B2B-заявка %s отклонена, заявитель удалён", pk)
+    return RejectionResult(pk=pk, email=email)

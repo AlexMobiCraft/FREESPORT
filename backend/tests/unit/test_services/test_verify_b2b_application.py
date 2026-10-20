@@ -18,7 +18,7 @@ import pytest
 
 from apps.common.models import AuditLog
 from apps.products.models import PriceType
-from apps.users.models import User
+from apps.users.models import Company, User
 from apps.users.services.link_1c_customer import LinkCandidateError
 from apps.users.services.verify_b2b_application import (
     MODE_DECISION,
@@ -446,29 +446,68 @@ class TestRollback:
 
 
 class TestReject:
-    def test_reject_pending_application(self, actor, verified_email_task):
-        target = make_applicant(role="trainer")
+    def test_reject_pending_application(self, actor, verified_email_task, django_capture_on_commit_callbacks):
+        target = make_applicant(role="trainer", first_name="Иван")
+        pk, email = target.pk, target.email
 
-        reject_b2b_application(target_id=target.pk, actor=actor, ip_address="127.0.0.1")
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as rejection_task:
+            with django_capture_on_commit_callbacks(execute=True):
+                result = reject_b2b_application(target_id=pk, actor=actor, ip_address="127.0.0.1")
 
-        target.refresh_from_db()
-        assert target.verification_status == "unverified"
-        assert target.is_verified is False
-        assert target.role == "trainer"
-        assert target.is_active is False
+        assert (result.pk, result.email) == (pk, email)
+        assert not User.objects.filter(pk=pk).exists()
         entry = AuditLog.objects.get(action="reject_b2b")
         assert entry.user == actor
+        assert entry.resource_id == str(pk)
+        assert entry.changes["email"] == email
+        assert entry.changes["role"] == "trainer"
         assert entry.changes["verified"] is False
+        assert entry.changes["deleted"] is True
+        rejection_task.delay.assert_called_once_with(email, "Иван", target.get_role_display())
         verified_email_task.delay.assert_not_called()
 
-    def test_reject_keeps_existing_link(self, actor):
-        onec_id = f"1C-own-{unique_suffix()}"
-        target = make_applicant(onec_id=onec_id)
+    def test_reject_removes_related_data(self, actor):
+        target = make_applicant()
+        Company.objects.create(user=target, legal_name="Форма Компани")
 
-        reject_b2b_application(target_id=target.pk, actor=actor)
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email"):
+            reject_b2b_application(target_id=target.pk, actor=actor)
 
-        target.refresh_from_db()
-        assert target.onec_id == onec_id
+        assert not Company.objects.filter(legal_name="Форма Компани").exists()
+
+    def test_reject_linked_to_1c_is_refused(self, actor):
+        target = make_applicant(onec_id=f"1C-own-{unique_suffix()}")
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email") as rejection_task:
+            with pytest.raises(VerificationError, match="связан с 1С"):
+                reject_b2b_application(target_id=target.pk, actor=actor)
+
+        assert User.objects.filter(pk=target.pk).exists()
+        assert not AuditLog.objects.filter(action="reject_b2b").exists()
+        rejection_task.delay.assert_not_called()
+
+    def test_reject_with_orders_is_refused_and_keeps_orders(self, actor, order_factory):
+        target = make_applicant()
+        order = order_factory(user=target)
+
+        with pytest.raises(VerificationError, match="есть заказы"):
+            reject_b2b_application(target_id=target.pk, actor=actor)
+
+        assert User.objects.filter(pk=target.pk).exists()
+        assert type(order).objects.filter(pk=order.pk).exists()
+        assert not AuditLog.objects.filter(action="reject_b2b").exists()
+
+    def test_reject_staff_account_is_refused(self, actor):
+        target = make_applicant(is_staff=True)
+
+        with pytest.raises(VerificationError, match="сотрудника"):
+            reject_b2b_application(target_id=target.pk, actor=actor)
+
+        assert User.objects.filter(pk=target.pk).exists()
+
+    def test_reject_unknown_target_is_refused(self, actor):
+        with pytest.raises(VerificationError, match="не найден"):
+            reject_b2b_application(target_id=0, actor=actor)
 
     def test_reject_verified_is_refused(self, actor):
         target = make_applicant(verification_status="verified", is_verified=True)
