@@ -12,12 +12,17 @@ from __future__ import annotations
 
 from typing import Any
 
+from django import forms
 from django.contrib import admin
 from django.http import HttpRequest
 from django.template.response import TemplateResponse
 from django.urls import URLPattern, URLResolver, path, reverse
 
 from apps.users.staff_roles import MANAGERS_GROUP, MARKETING_GROUP, SUPERVISORS_GROUP, is_supervisor
+
+# Период сводки руководителя в его сессии: строка `?date_from=…&date_to=…`, собранная
+# из двух проверенных дат. По ней ссылка «← Раздел руководителя» возвращает в сводку.
+SUMMARY_PERIOD_SESSION_KEY = "supervisor_summary_period"
 
 
 class SuperuserAdminSite(admin.AdminSite):
@@ -81,7 +86,9 @@ class StaffSectionAdminSite(admin.AdminSite):
                 # «Разделы» нет: туда выносятся пункты, кроме текущего выделенного.
                 context["supervisor_header_links"] = [s for s in context["supervisor_sections"] if not s["current"]]
             else:
-                context["supervisor_home_url"] = reverse("supervisor:index")
+                # Руководитель смотрел сводку за выбранный период и вернётся в неё же.
+                period_query = getattr(request, "session", {}).get(SUMMARY_PERIOD_SESSION_KEY, "")
+                context["supervisor_home_url"] = reverse("supervisor:index") + period_query
         return context
 
     def _supervisor_sections(self, request: HttpRequest) -> list[dict[str, Any]]:
@@ -247,16 +254,35 @@ class SupervisorAdminSite(StaffSectionAdminSite):
         from apps.orders.supervisor_summary import build_summary
 
         base = self.each_context(request)
+        summary = build_summary(request)
+        self._remember_period(request, summary["period_form"], summary["period"])
         # Ключ главной AdminSite.index: список приложений уже собран в each_context,
         # второй get_app_list не нужен. extra_context идёт последним, как у index().
         context = {
             **base,
             "title": "Сводка",
             "app_list": base["available_apps"],
-            **build_summary(request),
+            **summary,
             **(extra_context or {}),
         }
         return TemplateResponse(request, "admin/supervisor/summary.html", context)
+
+    @staticmethod
+    def _remember_period(request: HttpRequest, form: forms.Form, period: Any) -> None:
+        """
+        Запоминает период, за который руководитель смотрит сводку.
+
+        Вход без параметров сбрасывает запомненное (вернётся период по умолчанию),
+        неверный период сессию не трогает. Сессия пишется только при изменении
+        значения: повторный заход лишнего запроса не стоит.
+        """
+        if form.is_bound and not form.is_valid():
+            return
+        session = request.session
+        if not form.is_bound:
+            session.pop(SUMMARY_PERIOD_SESSION_KEY, None)
+        elif session.get(SUMMARY_PERIOD_SESSION_KEY) != period.query:
+            session[SUMMARY_PERIOD_SESSION_KEY] = period.query
 
     def get_app_list(self, request: HttpRequest, app_label: str | None = None) -> list[dict[str, Any]]:
         # Пользователи раздела — сотрудники; «Общие утилиты» — регионы и

@@ -59,7 +59,7 @@
     <tbody>
       {% for row in pending.rows %}
       <tr{% if row.unassigned %} class="summary-unassigned"{% endif %}>
-        <th scope="row">{% if row.unassigned %}<strong>{{ row.label }}</strong>{% else %}{{ row.label }}{% endif %}</th>
+        <th scope="row">{% if row.unassigned %}<strong><a href="{{ row.url }}">{{ row.label }}</a></strong>{% else %}<a href="{{ row.url }}">{{ row.label }}</a>{% endif %}</th>
         <td><a href="{{ row.url }}">{{ row.count }}</a></td>
         <td>{{ row.age }}</td>
       </tr>
