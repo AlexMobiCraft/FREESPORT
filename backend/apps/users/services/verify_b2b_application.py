@@ -18,7 +18,7 @@ from typing import Mapping, NamedTuple
 from django.db import transaction
 from django.db.models import ProtectedError
 
-from apps.common.models import AuditLog
+from apps.common.models import AuditLog, UserConsent
 from apps.orders.models import Order
 from apps.users.models import User, matches_q
 from apps.users.services.link_1c_customer import find_link_candidates, link_1c_customer, link_target_q
@@ -341,6 +341,12 @@ def reject_b2b_application(
         first_name = target.first_name
         role_display = target.get_role_display()
 
+        # Согласия ПДн нельзя оставить «осиротевшими»: ограничение
+        # `userconsent_user_or_session_required` требует пользователя или
+        # session_key, и `SET_NULL` при удалении заявителя ронял запрос
+        # IntegrityError. Заявитель удаляется целиком, вместе с согласиями.
+        consents_removed, _ = UserConsent.objects.filter(user=target).delete()
+
         AuditLog.log_action(
             user=actor,
             action="reject_b2b",
@@ -351,6 +357,7 @@ def reject_b2b_application(
                 "role": target.role,
                 "verified": False,
                 "deleted": True,
+                "consents_removed": consents_removed,
             },
             ip_address=ip_address,
             user_agent=user_agent,

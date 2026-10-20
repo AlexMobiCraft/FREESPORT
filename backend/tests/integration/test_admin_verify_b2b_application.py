@@ -19,7 +19,7 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from apps.common.models import AuditLog
+from apps.common.models import AuditLog, UserConsent
 from apps.products.models import PriceType
 from apps.users.models import Company, User
 
@@ -421,6 +421,24 @@ class TestVerifyFlow:
         assert record.changes["email"] == email
         assert record.changes["deleted"] is True
         task.delay.assert_called_once_with(email, "Иван", target.get_role_display())
+
+    def test_reject_deletes_applicant_with_registration_consents(self, manager_client):
+        """Регрессия: 500 на проде — согласия заявителя без session_key нарушали ограничение таблицы."""
+        target = make_applicant()
+        UserConsent.objects.create(
+            user=target,
+            consent_type="pdp_contract",
+            source=UserConsent.SOURCE_REGISTRATION,
+            consent_text_version="2026-10-01-" + "0" * 32,
+        )
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email"):
+            response = manager_client.post(verify_url(target), {"_reject": "Отклонить"})
+
+        assert response.status_code == 302
+        assert response.url == CHANGELIST_URL
+        assert not User.objects.filter(pk=target.pk).exists()
+        assert not UserConsent.objects.exists()
 
     def test_reject_does_not_queue_email_on_rollback(self, manager_client, django_capture_on_commit_callbacks):
         target = make_applicant()

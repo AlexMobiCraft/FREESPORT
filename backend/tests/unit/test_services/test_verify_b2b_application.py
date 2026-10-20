@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 import pytest
 
-from apps.common.models import AuditLog
+from apps.common.models import AuditLog, UserConsent
 from apps.products.models import PriceType
 from apps.users.models import Company, User
 from apps.users.services.link_1c_customer import LinkCandidateError
@@ -465,6 +465,30 @@ class TestReject:
         assert entry.changes["deleted"] is True
         rejection_task.delay.assert_called_once_with(email, "Иван", target.get_role_display())
         verified_email_task.delay.assert_not_called()
+
+    def test_reject_removes_registration_consents(self, actor):
+        """Согласие регистрации без session_key нельзя «осиротить»: ограничение таблицы роняло удаление."""
+        target = make_applicant()
+        for consent_type in ("pdp_contract", "marketing_email"):
+            UserConsent.objects.create(
+                user=target,
+                consent_type=consent_type,
+                source=UserConsent.SOURCE_REGISTRATION,
+                consent_text_version="2026-10-01-" + "0" * 32,
+            )
+        bystander = UserConsent.objects.create(
+            session_key="other-session",
+            consent_type="pdp_contract",
+            source=UserConsent.SOURCE_NEWSLETTER,
+            consent_text_version="2026-10-01-" + "0" * 32,
+        )
+
+        with patch("apps.users.services.verify_b2b_application.send_b2b_rejection_email"):
+            reject_b2b_application(target_id=target.pk, actor=actor)
+
+        assert not User.objects.filter(pk=target.pk).exists()
+        assert list(UserConsent.objects.all()) == [bystander]
+        assert AuditLog.objects.get(action="reject_b2b").changes["consents_removed"] == 2
 
     def test_reject_removes_related_data(self, actor):
         target = make_applicant()
