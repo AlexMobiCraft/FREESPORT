@@ -437,6 +437,7 @@ def send_manager_region_email(self: Any, user_id: int) -> bool:
             "role_display": user.get_role_display(),
             "company_name": user.company_name,
             "tax_id": user.tax_id,
+            "phone": user.phone,
             "country": user.country,
             "registration_date": user.created_at,
             # Получатель — менеджер или руководитель: /admin/ их не пускает,
