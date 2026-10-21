@@ -1117,3 +1117,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-manager-region-email-phone.md`
   summary: Текстовые шаблоны писем (`*.txt`, в том числе `manager_region_notification.txt`) рендерятся с автоэкранированием HTML, поэтому символы вроде `&` в названии компании или телефоне попадают в plain-text версию как `&amp;`.
   evidence: `render_to_string("emails/*.txt", context)` в `backend/apps/users/tasks.py` не использует `{% autoescape off %}`; затрагивает все поля письма, не только телефон.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-registration-pending-email.md`
+  summary: Телефон и email поддержки вписаны вручную в шаблоны писем и во фронтенд (`Footer.tsx`, `ElectricFooter.tsx`, `delivery/page.tsx`, `ComingSoonClient.tsx`), единого источника нет.
+  evidence: `backend/templates/emails/user_registration_pending.*` и `b2b_application_rejected.*` содержат одни и те же `+7 968 273-21-68` и `info@optisport.ru` литералами; при смене контактов легко забыть одно из мест (ревью Blind Hunter, 2026-10-21).

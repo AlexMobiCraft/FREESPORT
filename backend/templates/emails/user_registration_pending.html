@@ -10,10 +10,11 @@
 
       <p>Уважаемый(ая) {{ first_name }},</p>
 
+      {# Тег {{ company_name }} держи на одной строке: Django не разбирает многострочные теги #}
       <p>
         Ваша заявка на регистрацию в качестве
-        <strong>{{ role_display }}</strong> {% if company_name %}({{
-        company_name }}){% endif %} успешно принята.
+        <strong>{{ role_display }}</strong>
+        {% if company_name %}({{ company_name }}){% endif %} успешно принята.
       </p>
 
       <div
@@ -41,8 +42,10 @@
 
       <p>Если у вас возникли вопросы, свяжитесь с нами:</p>
       <ul>
-        <li>Email: support@optisport.ru</li>
-        <li>Телефон: +7 (XXX) XXX-XX-XX</li>
+        <li>Телефон: <a href="tel:+79682732168">+7 968 273-21-68</a></li>
+        <li>
+          Email: <a href="mailto:info@optisport.ru">info@optisport.ru</a>
+        </li>
       </ul>
 
       <p>С уважением,<br />Команда OPTISPORT</p>
