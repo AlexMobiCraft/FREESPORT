@@ -98,8 +98,8 @@ class TestHasPermission:
         assert supervisor_site.has_permission(request_for(AnonymousUser())) is False
 
     def test_titles(self):
-        assert supervisor_site.site_header == "FREESPORT — Руководитель"
-        assert supervisor_site.site_title == "FREESPORT — Руководитель"
+        assert supervisor_site.site_header == "OPTISPORT — Руководитель"
+        assert supervisor_site.site_title == "OPTISPORT — Руководитель"
         assert supervisor_site.index_title == "Раздел руководителя"
         assert supervisor_site.section_groups == ("Руководители",)
 

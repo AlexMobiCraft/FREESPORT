@@ -1,5 +1,5 @@
 """
-Сайты Django-админки FREESPORT: основная `/admin/`, раздел менеджера `/manager/`,
+Сайты Django-админки OPTISPORT: основная `/admin/`, раздел менеджера `/manager/`,
 раздел маркетинга `/marketing/` и раздел руководителя `/supervisor/`.
 
 Эпик 42: флаг `is_staff` теперь означает «сотрудник» (менеджер, маркетинг,
@@ -125,8 +125,8 @@ class ManagerAdminSite(StaffSectionAdminSite):
     302 на `/manager/login/`.
     """
 
-    site_header = "FREESPORT — Менеджер"
-    site_title = "FREESPORT — Менеджер"
+    site_header = "OPTISPORT — Менеджер"
+    site_title = "OPTISPORT — Менеджер"
     index_title = "Раздел менеджера"
     # Без блока «Последние действия»: его ссылки строит LogEntry.get_admin_url()
     # через reverse("admin:…") без current_app, то есть в закрытую /admin/.
@@ -167,8 +167,8 @@ class MarketingAdminSite(StaffSectionAdminSite):
     у маркетинга нет, руководитель видит раздел целиком.
     """
 
-    site_header = "FREESPORT — Маркетинг"
-    site_title = "FREESPORT — Маркетинг"
+    site_header = "OPTISPORT — Маркетинг"
+    site_title = "OPTISPORT — Маркетинг"
     index_title = "Раздел маркетинга"
     # Без блока «Последние действия» — по той же причине, что у раздела менеджера.
     index_template = "admin/marketing/index.html"
@@ -214,8 +214,8 @@ class SupervisorAdminSite(StaffSectionAdminSite):
     в `/marketing/`: оба раздела пускают «Руководителей».
     """
 
-    site_header = "FREESPORT — Руководитель"
-    site_title = "FREESPORT — Руководитель"
+    site_header = "OPTISPORT — Руководитель"
+    site_title = "OPTISPORT — Руководитель"
     index_title = "Раздел руководителя"
     section_groups = (SUPERVISORS_GROUP,)
 

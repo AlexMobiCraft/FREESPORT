@@ -310,7 +310,7 @@ class TestEntry:
         for url in (INDEX_URL, CHANGELIST_URL):
             response = client.get(url)
             assert response.status_code == 200, url
-            assert "FREESPORT — Менеджер" in response.content.decode()
+            assert "OPTISPORT — Менеджер" in response.content.decode()
 
     @pytest.mark.parametrize(
         "make_user",

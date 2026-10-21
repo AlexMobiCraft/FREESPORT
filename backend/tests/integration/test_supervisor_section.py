@@ -242,7 +242,7 @@ class TestEntry:
         for url in (INDEX_URL, STAFF_URL):
             response = supervisor_client.get(url)
             assert response.status_code == 200, url
-            assert "FREESPORT — Руководитель" in response.content.decode()
+            assert "OPTISPORT — Руководитель" in response.content.decode()
 
     def test_supervisor_keeps_manager_and_marketing(self, supervisor_client):
         assert supervisor_client.get("/manager/").status_code == 200
