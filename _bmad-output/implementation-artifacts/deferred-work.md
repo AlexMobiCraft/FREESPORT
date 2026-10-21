@@ -605,7 +605,7 @@
 ## Deferred from: review loop 1 of spec-fix-catalog-categories-deactivation (2026-08-09)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-fix-catalog-categories-deactivation.md`
-  summary: Корневые категории (`parent IS NULL`) больше никогда не деактивируются импортом — прямое следствие барьера «гасим только детей раскрытых родителей», незадокументированное изменение поведения относительно старого `filter(onec_id__isnull=False)`.
+  summary: Корневые категории (`parent IS NULL`) больше никогда не деактивируются импортом — прямое следствие барьера «гасим только детей раскрытых родителей», незадокументированное изменение поведения относительно старого `filter(onec_id__isnull=False)`. **Снято `spec-fix-category-deactivation-partial-groups` (2026-10-21): деактивация по отсутствию в XML удалена, предохранитель и его пороги больше не существуют.**
   evidence: Новая зона деактивации строится по `parent__onec_id__in=...`, поэтому записи без родителя в неё не попадают физически. На витрину не влияет: `CategoryTreeViewSet.get_queryset()` отдаёт только детей якоря. Устаревший корень, удалённый в 1С, может всплыть в плоском `/api/v1/categories/` (`views.py:~286` фильтрует только `is_active`). При активном `ROOT_CATEGORY_NAME` чужие корни и так не импортируются, поэтому практический масштаб мал.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-fix-catalog-categories-deactivation.md`
@@ -617,7 +617,7 @@
   evidence: Кандидаты выбираются единственным условием `is_active=False` среди потомков якоря. `updated_at` при массовом `update()` не пишется (как и в импорте), поэтому восстановить прежнее состояние после ошибочного прогона нечем. Возможные направления: флаг `--since <дата>` по `updated_at`, ограничение веткой, дамп прежнего состояния перед записью. Для текущего прод-инцидента не блокирует: осознанно скрытых категорий на проде, по имеющимся данным, нет.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-fix-catalog-categories-deactivation.md`
-  summary: Порог предохранителя зашит константами модуля (`MAX_CATEGORY_DEACTIVATION_RATIO`, `MIN_CHILDREN_FOR_DEACTIVATION_RATIO`) без возможности переопределения через settings/env/флаг команды.
+  summary: Порог предохранителя зашит константами модуля (`MAX_CATEGORY_DEACTIVATION_RATIO`, `MIN_CHILDREN_FOR_DEACTIVATION_RATIO`) без возможности переопределения через settings/env/флаг команды. **Снято `spec-fix-category-deactivation-partial-groups` (2026-10-21): деактивация по отсутствию в XML удалена, предохранитель и его пороги больше не существуют.**
   evidence: Легитимная массовая чистка категорий в 1С (>30 % под одним родителем) упрётся в предохранитель, и единственный выход — деплой кода. Операционного обходного пути (`--force`, разовый override) не предусмотрено. Осознанно оставлено вне стори: пока нет ни одного зафиксированного случая такой чистки, а конфигурируемость порога снижает его ценность как защиты.
 
 ## Разделение раздела «code review of spec-tech-debt-19-followups» (2026-08-13)
@@ -1121,3 +1121,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-fix-registration-pending-email.md`
   summary: Телефон и email поддержки вписаны вручную в шаблоны писем и во фронтенд (`Footer.tsx`, `ElectricFooter.tsx`, `delivery/page.tsx`, `ComingSoonClient.tsx`), единого источника нет.
   evidence: `backend/templates/emails/user_registration_pending.*` и `b2b_application_rejected.*` содержат одни и те же `+7 968 273-21-68` и `info@optisport.ru` литералами; при смене контактов легко забыть одно из мест (ревью Blind Hunter, 2026-10-21).
+
+## Deferred from: review of spec-fix-category-deactivation-partial-groups (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-category-deactivation-partial-groups.md`
+  summary: Потомки исключённой группы, которых нет в XML того же пакета, остаются `is_active=True` под погашенным родителем.
+  evidence: `deactivate_excluded_categories` гасит только `onec_id` групп, пришедших в XML сессии. В `/api/v1/categories-tree/` такие узлы недостижимы (обход идёт от активных корней), но в плоском `/api/v1/categories/` они видны. Тест `test_descendant_of_marked_group_is_deactivated` покрывает потомка, пришедшего в XML. До правки поведение было тем же. Вариант: каскад по `parent` в БД.
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-category-deactivation-partial-groups.md`
+  summary: Сигнал «группа исключена» живёт только в памяти процессора и применяется в `finalize_session` при `completed`; при упавшей сессии он теряется, хотя реестр блокировок `_sync_group_registry` уже пополнен.
+  evidence: `_excluded_category_onec_ids` не сохраняется. Если 1С не повторит помеченную группу в следующих пакетах, категория останется активной и пустой (товары закрыты реестром). Вариант: гасить финализацией по `self._registry.groups()`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-category-deactivation-partial-groups.md`
+  summary: Группа, физически удалённая в 1С без пометки удаления, больше не скрывается с витрины.
+  evidence: Осознанный размен (решение владельца 21.10.2026, вопрос 1): отсутствие в частичном `groups*.xml` не сигнал. Скрывать такие группы остаётся `purge_products_outside_root` или ручное выключение в админке.
