@@ -58,7 +58,7 @@ class Command(BaseCommand):
 
         try:
             result = send_mail(
-                subject="[FREESPORT] Тестовое письмо",
+                subject="[OPTISPORT] Тестовое письмо",
                 message=self._get_test_message(),
                 from_email=None,  # Использует DEFAULT_FROM_EMAIL
                 recipient_list=[to_email],
@@ -82,7 +82,7 @@ class Command(BaseCommand):
 
     def _get_test_message(self):
         """Возвращает текст тестового письма."""
-        return """Это тестовое письмо от платформы FREESPORT.
+        return """Это тестовое письмо от платформы OPTISPORT.
 
 Если вы получили это письмо, значит email конфигурация работает корректно.
 
@@ -92,7 +92,7 @@ class Command(BaseCommand):
 - DEFAULT_FROM_EMAIL: {from_email}
 
 --
-FREESPORT Platform
+OPTISPORT Platform
 https://optisport.ru
 """.format(
             host=settings.EMAIL_HOST,

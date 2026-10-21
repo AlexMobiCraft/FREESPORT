@@ -443,8 +443,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Настройки документации API с drf-spectacular
 SPECTACULAR_SETTINGS = {
-    "TITLE": "FREESPORT API",
-    "DESCRIPTION": "RESTful API для B2B/B2C платформы спортивных товаров FREESPORT",
+    "TITLE": "OPTISPORT API",
+    "DESCRIPTION": "RESTful API для B2B/B2C платформы спортивных товаров OPTISPORT",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": "/api/v1",
@@ -510,7 +510,7 @@ SPECTACULAR_SETTINGS = {
     "EXTENSIONS_INFO": {
         "x-logo": {
             "url": "https://optisport.ru/static/logo.png",
-            "altText": "FREESPORT API",
+            "altText": "OPTISPORT API",
         }
     },
 }

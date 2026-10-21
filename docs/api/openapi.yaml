@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
-  title: FREESPORT API
+  title: OPTISPORT API
   version: 1.0.0
   x-logo:
     url: https://optisport.ru/static/logo.png
-    altText: FREESPORT API
-  description: RESTful API для B2B/B2C платформы спортивных товаров FREESPORT
+    altText: OPTISPORT API
+  description: RESTful API для B2B/B2C платформы спортивных товаров OPTISPORT
 paths:
   /health/:
     get:
