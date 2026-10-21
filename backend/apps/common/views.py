@@ -849,7 +849,7 @@ def newsletter_me_unsubscribe(request: Request) -> Response:
                                 "published_at": "2025-11-18T10:00:00Z",
                                 "created_at": "2025-11-17T15:30:00Z",
                                 "updated_at": "2025-11-18T09:00:00Z",
-                                "author": "FREESPORT Team",
+                                "author": "OPTISPORT Team",
                                 "category": "новинки",
                             },
                             {
@@ -914,7 +914,7 @@ class NewsListView(generics.ListAPIView):
                     name="Успешный ответ",
                     value={
                         "id": 42,
-                        "title": "Новый релиз FREESPORT",
+                        "title": "Новый релиз OPTISPORT",
                         "slug": "release-2025",
                         "excerpt": "Краткое описание новости",
                         "content": "<p>Полное содержание...</p>",
@@ -922,7 +922,7 @@ class NewsListView(generics.ListAPIView):
                         "published_at": "2025-12-26T09:00:00Z",
                         "created_at": "2025-12-25T18:00:00Z",
                         "updated_at": "2025-12-25T18:30:00Z",
-                        "author": "Редакция FREESPORT",
+                        "author": "Редакция OPTISPORT",
                         "category": {
                             "id": 3,
                             "name": "Анонсы",
@@ -1086,7 +1086,7 @@ class BlogPostListView(generics.ListAPIView):
                             "slug": "guides",
                         },
                         "published_at": "2025-12-27T10:00:00Z",
-                        "meta_title": "Как выбрать спортивную экипировку | FREESPORT",
+                        "meta_title": "Как выбрать спортивную экипировку | OPTISPORT",
                         "meta_description": ("Узнайте как правильно выбрать спортивную экипировку"),
                         "created_at": "2025-12-26T15:00:00Z",
                         "updated_at": "2025-12-26T18:30:00Z",

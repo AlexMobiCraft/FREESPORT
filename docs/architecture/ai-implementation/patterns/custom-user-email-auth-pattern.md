@@ -2,7 +2,7 @@
 
 ## Описание
 
-Паттерн замены стандартной Django аутентификации с username на аутентификацию по email, специально настроенный для FREESPORT с поддержкой ролевой системы B2B/B2C.
+Паттерн замены стандартной Django аутентификации с username на аутентификацию по email, специально настроенный для OPTISPORT с поддержкой ролевой системы B2B/B2C.
 
 ## Архитектура
 
@@ -320,7 +320,7 @@ class AuthViewSet(viewsets.GenericViewSet):
             reset_link = f"{settings.FRONTEND_URL}/reset-password?user_id={user.id}&token={token}"
 
             send_mail(
-                subject="Восстановление пароля FREESPORT",
+                subject="Восстановление пароля OPTISPORT",
                 message=f"Ссылка для сброса пароля: {reset_link}",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
@@ -338,7 +338,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         verification_link = f"{settings.FRONTEND_URL}/verify-email?user_id={user.id}&token={token}"
 
         send_mail(
-            subject="Подтверждение регистрации FREESPORT",
+            subject="Подтверждение регистрации OPTISPORT",
             message=f"Ссылка для подтверждения: {verification_link}",
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],

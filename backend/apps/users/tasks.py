@@ -81,7 +81,7 @@ def send_admin_verification_email(self: Any, user_id: int) -> bool:
 
         # Отправляем email
         send_mail(
-            subject=(f"[FREESPORT] Новая заявка: {user.get_role_display()} - " f"{user.company_name}"),
+            subject=(f"[OPTISPORT] Новая заявка: {user.get_role_display()} - " f"{user.company_name}"),
             message=plain_message,
             from_email=None,  # Uses DEFAULT_FROM_EMAIL
             recipient_list=admin_emails,
@@ -230,7 +230,7 @@ def monitor_pending_verification_queue() -> dict:
 
         if admin_emails:
             send_mail(
-                subject=(f"⚠️ [FREESPORT] Alert: {pending_count} заявок ожидают верификации"),
+                subject=(f"⚠️ [OPTISPORT] Alert: {pending_count} заявок ожидают верификации"),
                 message=f"За последние 24 часа поступило {pending_count} заявок "
                 f"на верификацию B2B партнеров.\n\n"
                 f"Пороговое значение: {threshold}\n\n"
@@ -449,7 +449,7 @@ def send_manager_region_email(self: Any, user_id: int) -> bool:
         plain_message = render_to_string("emails/manager_region_notification.txt", context)
 
         send_mail(
-            subject=(f"[FREESPORT] Новая заявка вашего региона: {user.company_name}"),
+            subject=(f"[OPTISPORT] Новая заявка вашего региона: {user.company_name}"),
             message=plain_message,
             from_email=None,  # Uses DEFAULT_FROM_EMAIL
             recipient_list=recipients,

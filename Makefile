@@ -1,4 +1,4 @@
-# Makefile для FREESPORT Platform
+# Makefile для OPTISPORT Platform
 
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 DOCS_SCRIPTS_DIR := $(ROOT_DIR)scripts/docs
@@ -10,7 +10,7 @@ DOCS_SCRIPTS_DIR := $(ROOT_DIR)scripts/docs
 
 # По умолчанию показываем help
 help:
-	@echo "FREESPORT Platform - Доступные команды:"
+	@echo "OPTISPORT Platform - Доступные команды:"
 	@echo ""
 	@echo "Разработка:"
 	@echo "  build          - Собрать все Docker образы"

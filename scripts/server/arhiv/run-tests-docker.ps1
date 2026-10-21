@@ -1,5 +1,5 @@
 # Скрипт для запуска тестов через Docker Compose
-# FREESPORT Platform - Test Runner
+# OPTISPORT Platform - Test Runner
 
 param(
     [string]$DockerContext = "freesport-remote",
@@ -118,7 +118,7 @@ function Finalize-Cleanup {
     & docker --context $Context compose -f $ComposeFile --workdir $WorkDir down -v --remove-orphans | Out-Null
 }
 
-Write-Host "=== FREESPORT Test Runner ===" -ForegroundColor Cyan
+Write-Host "=== OPTISPORT Test Runner ===" -ForegroundColor Cyan
 Write-Host ""
 
 $scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Path -Parent

@@ -1,5 +1,5 @@
 """
-Тесты для моделей пользователей FREESPORT Platform
+Тесты для моделей пользователей OPTISPORT Platform
 """
 
 import time

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "name": "FREESPORT Design System",
+    "name": "OPTISPORT Design System",
     "purpose": "Единое описание визуального языка и UX-паттернов приложения.",
     "version": "2.2.0",
     "lastUpdated": "2026-02-10",
@@ -33,7 +33,7 @@
       "Концентрация на выгоде пользователя"
     ],
     "iconSet": "lucide-react",
-    "logoTreatment": "Текстовый логотип FREESPORT в верхнем регистре с primary цветом"
+    "logoTreatment": "Текстовый логотип OPTISPORT в верхнем регистре с primary цветом"
   },
   "designPrinciples": [
     "Абсолютный приоритет удобству и быстроте выбора товара",

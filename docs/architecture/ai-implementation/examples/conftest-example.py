@@ -1,5 +1,5 @@
 """
-conftest.py - Центральный файл фикстур для тестирования FREESPORT
+conftest.py - Центральный файл фикстур для тестирования OPTISPORT
 Соответствует требованиям docs/architecture/10-testing-strategy.md
 """
 import pytest
@@ -17,13 +17,13 @@ _unique_counter = 0
 
 
 def get_unique_suffix():
-    """Генерирует абсолютно уникальный суффикс по требованиям FREESPORT"""
+    """Генерирует абсолютно уникальный суффикс по требованиям OPTISPORT"""
     global _unique_counter
     _unique_counter += 1
     return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
 
 
-# ===== ОБЯЗАТЕЛЬНЫЕ ФИКСТУРЫ ИЗОЛЯЦИИ FREESPORT =====
+# ===== ОБЯЗАТЕЛЬНЫЕ ФИКСТУРЫ ИЗОЛЯЦИИ OPTISPORT =====
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +35,7 @@ def enable_db_access_for_all_tests(db):
 @pytest.fixture(autouse=True)
 def clear_db_before_test(transactional_db):
     """
-    🔥 КРИТИЧЕСКИ ВАЖНО: Полная изоляция тестов по стандартам FREESPORT
+    🔥 КРИТИЧЕСКИ ВАЖНО: Полная изоляция тестов по стандартам OPTISPORT
 
     СООТВЕТСТВУЕТ docs/architecture/10-testing-strategy.md секция 10.4.1
     """
@@ -308,7 +308,7 @@ def django_assert_num_queries():
 
 
 def pytest_configure(config):
-    """Конфигурация pytest для FREESPORT"""
+    """Конфигурация pytest для OPTISPORT"""
     import django
     from django.conf import settings
 

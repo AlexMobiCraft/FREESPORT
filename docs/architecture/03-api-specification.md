@@ -5,11 +5,11 @@
 ```yaml
 openapi:
 info:
-  title: FREESPORT API
+  title: OPTISPORT API
   description: Comprehensive e-commerce API supporting B2B/B2C operations
   version: "1.0.0"
   contact:
-    name: FREESPORT Development Team
+    name: OPTISPORT Development Team
     email: dev@freesport.com
 
 servers:

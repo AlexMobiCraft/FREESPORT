@@ -24,7 +24,7 @@
 
 ### 1.2 Current Project State
 
-**FREESPORT Platform** — API-First E-commerce платформа для B2B/B2C продаж спортивных товаров с интеграцией 1С.
+**OPTISPORT Platform** — API-First E-commerce платформа для B2B/B2C продаж спортивных товаров с интеграцией 1С.
 
 **Current Functionality:**
 

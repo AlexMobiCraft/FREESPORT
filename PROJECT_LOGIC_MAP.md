@@ -1,4 +1,4 @@
-# Карта бизнес-логики FREESPORT (backend)
+# Карта бизнес-логики OPTISPORT (backend)
 
 ## Архитектура: Fat Services, Thin Views
 
@@ -121,7 +121,7 @@
 3. **file** — потоковая загрузка файлов (chunked, FileStreamService)
 4. **import** — триггер импорта (async via Celery)
 5. **complete** — завершение цикла, финализация batch
-6. **query** — выгрузка заказов из FREESPORT в 1С
+6. **query** — выгрузка заказов из OPTISPORT в 1С
 7. **success** — подтверждение обработки
 8. **deactivate** — уведомление о завершении обмена
 

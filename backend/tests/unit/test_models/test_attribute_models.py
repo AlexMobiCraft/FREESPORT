@@ -1,4 +1,4 @@
-"""Тесты для моделей атрибутов FREESPORT Platform"""
+"""Тесты для моделей атрибутов OPTISPORT Platform"""
 
 import pytest
 from django.core.exceptions import ValidationError

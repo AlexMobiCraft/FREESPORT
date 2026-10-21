@@ -1,4 +1,4 @@
-"""Тесты для моделей товаров FREESPORT Platform"""
+"""Тесты для моделей товаров OPTISPORT Platform"""
 
 import time
 import uuid

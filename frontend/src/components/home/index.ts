@@ -22,7 +22,7 @@ export { BlogPostCard } from './BlogPostCard';
 export { SubscribeNewsSection } from './SubscribeNewsSection';
 
 // Teasers (Story 19.2)
-export { WhyFreesportSection } from './WhyFreesportSection';
+export { WhyOptisportSection } from './WhyOptisportSection';
 export { DeliveryTeaser } from './DeliveryTeaser';
 export { AboutTeaser } from './AboutTeaser';
 

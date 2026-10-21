@@ -1,4 +1,4 @@
-# Стандарты тестирования Backend (FREESPORT)
+# Стандарты тестирования Backend (OPTISPORT)
 
 ## Маркеры pytest
 

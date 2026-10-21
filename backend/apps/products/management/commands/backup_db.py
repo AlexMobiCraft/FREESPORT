@@ -152,7 +152,7 @@ class Command(BaseCommand):
             with open(backup_file, "rb") as f:
                 encrypted = gpg.encrypt_file(
                     f,
-                    recipients=[getattr(settings, "BACKUP_GPG_RECIPIENT", "backup@freesport.com")],
+                    recipients=[getattr(settings, "BACKUP_GPG_RECIPIENT", "alex.mobicraft@gmail.com")],
                     output=str(encrypted_file),
                     armor=False,
                 )

@@ -1,5 +1,5 @@
 """
-FREESPORT Django Settings
+OPTISPORT Django Settings
 Import appropriate settings based on environment
 """
 

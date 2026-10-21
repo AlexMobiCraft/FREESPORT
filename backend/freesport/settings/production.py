@@ -1,5 +1,5 @@
 """
-Настройки Django для продакшена FREESPORT
+Настройки Django для продакшена OPTISPORT
 """
 
 from .base import *

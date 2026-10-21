@@ -1,5 +1,5 @@
 """
-Конфигурация приложения `django.contrib.admin` для проекта FREESPORT.
+Конфигурация приложения `django.contrib.admin` для проекта OPTISPORT.
 
 Штатный механизм Django «Overriding the default admin site»: подкласс
 `AdminConfig` с `default_site` подключается в `INSTALLED_APPS` вместо

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Проверка кросс-ссылок в документации FREESPORT Platform.
+Проверка кросс-ссылок в документации OPTISPORT Platform.
 
 Проверяет:
 - Markdown ссылки на локальные файлы
@@ -362,7 +362,7 @@ class LinkChecker:
 def main():
     """Главная функция."""
     parser = argparse.ArgumentParser(
-        description="Проверка кросс-ссылок в документации FREESPORT"
+        description="Проверка кросс-ссылок в документации OPTISPORT"
     )
     parser.add_argument(
         "--external", action="store_true", help="Проверять внешние URL (медленно)"

@@ -1,4 +1,4 @@
-# CSS Variables Mapping для FREESPORT Design System v2.1.0
+# CSS Variables Mapping для OPTISPORT Design System v2.1.0
 
 ## Цель документа
 

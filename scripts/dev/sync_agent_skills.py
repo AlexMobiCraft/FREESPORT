@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Синхронизация собственных навыков агентов FREESPORT.
+Синхронизация собственных навыков агентов OPTISPORT.
 
 Claude Code читает навыки из .claude/skills/, Codex и Devin Desktop — из .agents/skills/.
 Источник — .claude/skills/: скрипт повторяет в .agents/skills/ каждый собственный навык

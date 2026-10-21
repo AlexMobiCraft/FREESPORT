@@ -1,4 +1,4 @@
-# Docker Compose для локальной разработки FREESPORT Platform
+# Docker Compose для локальной разработки OPTISPORT Platform
 # version: '3.8'
 
 services:

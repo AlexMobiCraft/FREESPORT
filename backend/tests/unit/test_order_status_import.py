@@ -136,7 +136,7 @@ def _make_mock_order(**overrides):
 
 @pytest.mark.unit
 class TestStatusMapping:
-    """Тесты маппинга статусов 1С → FREESPORT (AC3)."""
+    """Тесты маппинга статусов 1С → OPTISPORT (AC3)."""
 
     def test_status_mapping_all_statuses(self):
         """AC9 4.3: Проверка всех 6 статусов маппинга."""
@@ -156,7 +156,7 @@ class TestStatusMapping:
             ), f"Mapping mismatch: {status_1c} should map to {status_freesport}"
 
     def test_status_mapping_values_are_valid(self):
-        """Все значения маппинга — существующие статусы FREESPORT.
+        """Все значения маппинга — существующие статусы OPTISPORT.
 
         Раньше здесь проверялась точная длина словаря: тест падал при каждом
         добавлении статуса, ничего не доказывая о корректности.
@@ -250,7 +250,7 @@ class TestUT11StatusMapping:
         """Возврат заказа в УТ 11 на согласование не теряется молча.
 
         «К выполнению» → «На согласовании» — обратный переход, который защита
-        от регрессии блокирует. Статус FREESPORT остаётся прежним, но
+        от регрессии блокирует. Статус OPTISPORT остаётся прежним, но
         фактический статус 1С фиксируется: иначе расхождение с 1С было бы
         видно только в счётчике `skipped_status_regression`.
         """
@@ -2786,7 +2786,7 @@ class TestModernSubOrderImportUnit:
         assert result.skipped_status_regression == 1
         assert result.updated == 0
         assert mock_sub.status == "shipped"
-        # Статус FREESPORT не регрессирует, но фактический статус 1С фиксируется:
+        # Статус OPTISPORT не регрессирует, но фактический статус 1С фиксируется:
         # иначе расхождение с 1С было бы видно только в счётчике импорта
         assert mock_sub.status_1c == "Подтвержден"
         mock_sub.save.assert_called_once_with(update_fields=["status_1c", "sent_to_1c_at", "updated_at"])

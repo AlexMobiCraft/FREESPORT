@@ -291,7 +291,7 @@ Promo:      #FF2E93 (розовый)
 
 ```css
 /**
- * FREESPORT Design System - Tailwind CSS 4.0 Tokens
+ * OPTISPORT Design System - Tailwind CSS 4.0 Tokens
  * Based on design-system.json v2.1.0
  *
  * MIGRATION NOTE (2025-11-25):
@@ -1361,7 +1361,7 @@ Design System: v2.1.0
 **Начало миграции:**
 
 ```markdown
-📢 Начинается миграция цветовой схемы FREESPORT
+📢 Начинается миграция цветовой схемы OPTISPORT
 
 Сроки: 2025-11-25 до 2025-12-02 (7 дней)
 Влияние: Frontend UI компоненты, документация

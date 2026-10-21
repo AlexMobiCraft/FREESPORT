@@ -1,5 +1,5 @@
 /**
- * React Component - Реальный пример из проекта FREESPORT
+ * React Component - Реальный пример из проекта OPTISPORT
  * Демонстрирует паттерны TypeScript, Tailwind CSS, состояния loading
  */
 import React from "react";

@@ -1,1 +1,1 @@
-# Integration тесты межмодульных взаимодействий FREESPORT API
+# Integration тесты межмодульных взаимодействий OPTISPORT API

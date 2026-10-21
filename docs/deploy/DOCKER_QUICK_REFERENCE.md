@@ -1,13 +1,13 @@
-# Docker Quick Reference - FREESPORT Platform
+# Docker Quick Reference - OPTISPORT Platform
 
-Эта шпаргалка содержит основные команды для быстрой работы с Docker в проекте FREESPORT.
+Эта шпаргалка содержит основные команды для быстрой работы с Docker в проекте OPTISPORT.
 
 ## 🚀 Быстрый запуск
 
 ```bash
 # Клонирование и запуск
 git clone https://github.com/AlexMobiCraft/FREESPORT.git
-cd FREESPORT
+cd OPTISPORT
 
 # Создание SSL сертификатов (требуется для HTTPS)
 # Для Linux/macOS:

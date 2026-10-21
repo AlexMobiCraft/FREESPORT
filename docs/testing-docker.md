@@ -1,10 +1,10 @@
-# Тестирование в Docker для FREESPORT Platform
+# Тестирование в Docker для OPTISPORT Platform
 
 ## Обзор
 
 ⚠️ **КРИТИЧЕСКИ ВАЖНО**: Тестирование выполняется ТОЛЬКО с PostgreSQL через Docker Compose!
 
-Данное руководство описывает настройку и использование Docker-based тестирования для FREESPORT Platform, включая unit, integration и end-to-end тесты.
+Данное руководство описывает настройку и использование Docker-based тестирования для OPTISPORT Platform, включая unit, integration и end-to-end тесты.
 
 ## Важные изменения
 
@@ -277,7 +277,7 @@ pytest --cov=apps --cov-report=term-missing --cov-config=.coveragerc
 
 ```batch
 @echo off
-echo [INFO] Запуск тестов FREESPORT Platform в Docker...
+echo [INFO] Запуск тестов OPTISPORT Platform в Docker...
 
 :: Остановка предыдущих контейнеров
 docker compose -f docker-compose.test.yml down --remove-orphans --volumes
@@ -312,7 +312,7 @@ exit /b %TEST_EXIT_CODE%
 #!/bin/bash
 set -e
 
-echo "[INFO] Запуск тестов FREESPORT Platform в Docker..."
+echo "[INFO] Запуск тестов OPTISPORT Platform в Docker..."
 
 # Переход в корневую директорию
 cd "$(dirname "$0")/.."
@@ -560,7 +560,7 @@ def test_user_creation():
 
 ## Заключение
 
-Docker-based тестирование для FREESPORT Platform обеспечивает:
+Docker-based тестирование для OPTISPORT Platform обеспечивает:
 
 - ✅ **Изоляцию** - отдельная среда для тестов
 - ✅ **Консистентность** - одинаковая среда везде

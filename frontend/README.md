@@ -1,8 +1,8 @@
-# FREESPORT Frontend
+# OPTISPORT Frontend
 
 [![Frontend CI/CD](https://github.com/AlexMobiCraft/FREESPORT/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/AlexMobiCraft/FREESPORT/actions/workflows/frontend-ci.yml)
 
-Next.js 15.4.6 фронтенд для платформы FREESPORT, построенный с использованием React 19, TypeScript и Tailwind CSS.
+Next.js 15.4.6 фронтенд для платформы OPTISPORT, построенный с использованием React 19, TypeScript и Tailwind CSS.
 
 ## Технологический стек
 

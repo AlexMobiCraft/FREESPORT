@@ -1,5 +1,5 @@
 """
-Шаблон тестов для FREESPORT
+Шаблон тестов для OPTISPORT
 Скопируйте и адаптируйте под ваши тесты
 """
 import pytest
@@ -25,13 +25,13 @@ _unique_counter = 0
 
 
 def get_unique_suffix():
-    """Генерирует абсолютно уникальный суффикс по требованиям FREESPORT"""
+    """Генерирует абсолютно уникальный суффикс по требованиям OPTISPORT"""
     global _unique_counter
     _unique_counter += 1
     return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
 
 
-# ===== ОБЯЗАТЕЛЬНЫЕ ФИКСТУРЫ ИЗОЛЯЦИИ FREESPORT =====
+# ===== ОБЯЗАТЕЛЬНЫЕ ФИКСТУРЫ ИЗОЛЯЦИИ OPTISPORT =====
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +43,7 @@ def enable_db_access_for_all_tests(db):
 @pytest.fixture(autouse=True)
 def clear_db_before_test(transactional_db):
     """
-    🔥 КРИТИЧЕСКИ ВАЖНО: Полная изоляция тестов по стандартам FREESPORT
+    🔥 КРИТИЧЕСКИ ВАЖНО: Полная изоляция тестов по стандартам OPTISPORT
     Предотвращает constraint violations и обеспечивает изоляцию тестов
 
     СООТВЕТСТВУЕТ docs/architecture/10-testing-strategy.md секция 10.4
@@ -184,7 +184,7 @@ class TestYourModel:
         #     YourModelFactory(field1="test", field2="value")
 
     # TODO: Добавьте специфичные для вашей модели тесты
-    # Примеры тестов для FREESPORT паттернов:
+    # Примеры тестов для OPTISPORT паттернов:
 
     # @pytest.mark.unit
     # def test_role_based_pricing(self):

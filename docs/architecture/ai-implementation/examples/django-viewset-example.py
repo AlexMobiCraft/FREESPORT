@@ -1,5 +1,5 @@
 """
-Django ViewSet - Реальный пример из проекта FREESPORT
+Django ViewSet - Реальный пример из проекта OPTISPORT
 Демонстрирует паттерны ReadOnlyModelViewSet, фильтрации, пагинации, OpenAPI документации
 """
 from rest_framework import viewsets, permissions, filters
@@ -113,7 +113,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 # ✅ ШАБЛОН VIEWSET ДЛЯ НОВЫХ СУЩНОСТЕЙ
 class YourNewViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Шаблон нового ViewSet по стандартам FREESPORT
+    Шаблон нового ViewSet по стандартам OPTISPORT
     Скопируйте и адаптируйте под свои нужды
     """
 

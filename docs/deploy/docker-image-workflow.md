@@ -2,9 +2,9 @@
 description: Докуменция по CI/CD образов
 ---
 
-# Сборка и публикация Docker-образов FREESPORT
+# Сборка и публикация Docker-образов OPTISPORT
 
-Этот документ описывает процесс подготовки и доставки Docker-образов backend и frontend проекта FREESPORT в GitHub Container Registry, а также применение этих образов на продакшн-сервере.
+Этот документ описывает процесс подготовки и доставки Docker-образов backend и frontend проекта OPTISPORT в GitHub Container Registry, а также применение этих образов на продакшн-сервере.
 
 ## 1. Подготовка тегов релиза
 

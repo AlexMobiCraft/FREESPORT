@@ -1,5 +1,5 @@
 /**
- * API Types для FREESPORT Frontend
+ * API Types для OPTISPORT Frontend
  *
  * Кастомные TypeScript типы для работы с API
  * Дополняют auto-generated типы из api.generated.ts

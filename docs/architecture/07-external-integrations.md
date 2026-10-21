@@ -2,7 +2,7 @@
 
 ## Обзор интеграций
 
-FREESPORT платформа интегрируется с несколькими внешними системами для обеспечения полного цикла электронной коммерции:
+OPTISPORT платформа интегрируется с несколькими внешними системами для обеспечения полного цикла электронной коммерции:
 
 1. **1С:Управление торговлей** - ERP система для управления товарами, заказами и клиентами
 2. **ЮКасса** - платежная система для онлайн-оплаты
@@ -27,7 +27,7 @@ FREESPORT платформа интегрируется с нескольким�
 
 ```mermaid
 sequenceDiagram
-    participant Platform as FREESPORT Platform
+    participant Platform as OPTISPORT Platform
     participant Celery as Celery Worker
     participant CB as Circuit Breaker
     participant OneCHTTP as 1C HTTP API
@@ -352,7 +352,7 @@ class OneCMetricsCollector:
 ```mermaid
 sequenceDiagram
     participant User as Покупатель
-    participant Platform as FREESPORT
+    participant Platform as OPTISPORT
     participant YuKassa as ЮКасса
     participant Bank as Банк покупателя
 

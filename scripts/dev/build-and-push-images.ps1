@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Универсальная сборка и публикация Docker-образов FREESPORT.
+    Универсальная сборка и публикация Docker-образов OPTISPORT.
 .DESCRIPTION
     Скрипт вызывает generate-image-tags.ps1 для получения тега версии,
     затем собирает и пушит образы backend и frontend или конкретного сервиса.

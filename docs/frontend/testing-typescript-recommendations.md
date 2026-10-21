@@ -1,4 +1,4 @@
-# Рекомендации по настройке TypeScript для тестирования в FREESPORT Platform
+# Рекомендации по настройке TypeScript для тестирования в OPTISPORT Platform
 
 ## Проблема
 
@@ -126,7 +126,7 @@ export {};
 
 ```typescript
 /**
- * Тесты компонента [ComponentName] для FREESPORT Platform
+ * Тесты компонента [ComponentName] для OPTISPORT Platform
  */
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'

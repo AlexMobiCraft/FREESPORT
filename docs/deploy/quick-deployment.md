@@ -1,4 +1,4 @@
-# Быстрое развертывание FREESPORT Platform
+# Быстрое развертывание OPTISPORT Platform
 
 Эта инструкция предназначена для быстрого развертывания платформы на сервере с уже установленным Docker.
 
@@ -232,12 +232,12 @@ nano scripts/health-check.sh
 
 # Проверка доступности сайта
 if ! curl -f -s https://optisport.ru > /dev/null; then
-    echo "Сайт недоступен" | mail -s "FREESPORT Alert" admin@optisport.ru
+    echo "Сайт недоступен" | mail -s "OPTISPORT Alert" admin@optisport.ru
 fi
 
 # Проверка работы API
 if ! curl -f -s https://optisport.ru/api/v1/health/ > /dev/null; then
-    echo "API недоступен" | mail -s "FREESPORT Alert" admin@optisport.ru
+    echo "API недоступен" | mail -s "OPTISPORT Alert" admin@optisport.ru
 fi
 ```
 

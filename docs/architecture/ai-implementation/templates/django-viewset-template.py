@@ -1,5 +1,5 @@
 """
-Шаблон Django ViewSet для FREESPORT
+Шаблон Django ViewSet для OPTISPORT
 Скопируйте и адаптируйте под ваш API endpoint
 """
 from rest_framework import viewsets, permissions, filters, status

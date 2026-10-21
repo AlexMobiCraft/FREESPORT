@@ -1,5 +1,5 @@
 /**
- * Типы TypeScript для FREESPORT Platform
+ * Типы TypeScript для OPTISPORT Platform
  * Интеграция с Django backend API
  */
 

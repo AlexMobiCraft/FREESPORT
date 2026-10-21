@@ -4,7 +4,7 @@
 # Last Updated: 2026-01-02
 
 project:
-  name: "FREESPORT E-Commerce Platform"
+  name: "OPTISPORT E-Commerce Platform"
   description: |
     Редизайн существующего B2B/B2C интернет-портала спортивных товаров.
     Платформа объединяет 5 торговых марок с единым каталогом,
@@ -299,7 +299,7 @@ agent_behavior:
 notes: |
   ПРОЕКТ РЕДИЗАЙНА
   ================
-  Цель: Миграция существующего сайта FREESPORT на новую дизайн-систему Electric Orange.
+  Цель: Миграция существующего сайта OPTISPORT на новую дизайн-систему Electric Orange.
 
   Особенности:
   - Сохранение функционала и содержания
@@ -330,4 +330,4 @@ update_history:
   - date: "2026-01-02"
     agent: "saga-analyst"
     action: "created"
-    changes: "Initial project outline created for FREESPORT redesign"
+    changes: "Initial project outline created for OPTISPORT redesign"

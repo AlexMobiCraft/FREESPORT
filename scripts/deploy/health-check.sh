@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Скрипт комплексной проверки работоспособности FREESPORT Platform
+# Скрипт комплексной проверки работоспособности OPTISPORT Platform
 # Использование: ./scripts/deploy/health-check.sh
 
 set -e
@@ -230,7 +230,7 @@ check_ssl() {
 main() {
     echo "========================================"
     echo "  Комплексная проверка работоспособности"
-    echo "  FREESPORT Platform"
+    echo "  OPTISPORT Platform"
     echo "========================================"
     echo ""
     

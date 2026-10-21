@@ -58,7 +58,7 @@ const mockNewsItem: NewsItem = {
   published_at: '2025-12-26T10:00:00Z',
   created_at: '2025-12-25T10:00:00Z',
   updated_at: '2025-12-25T10:00:00Z',
-  author: 'Редакция FREESPORT',
+  author: 'Редакция OPTISPORT',
   category: 'Анонсы',
 };
 
@@ -132,7 +132,7 @@ describe('NewsDetailPage (/news/[slug])', () => {
     it('должна отображать автора', async () => {
       vi.mocked(newsService.getNewsBySlug).mockResolvedValue(mockNewsItem);
       render(await NewsDetailPage({ params: Promise.resolve({ slug: 'test-news' }) }));
-      expect(screen.getByText('Редакция FREESPORT')).toBeInTheDocument();
+      expect(screen.getByText('Редакция OPTISPORT')).toBeInTheDocument();
     });
 
     it('должна отображать HTML контент', async () => {
@@ -158,7 +158,7 @@ describe('NewsDetailPage (/news/[slug])', () => {
       const newsWithoutAuthor = { ...mockNewsItem, author: undefined };
       vi.mocked(newsService.getNewsBySlug).mockResolvedValue(newsWithoutAuthor);
       render(await NewsDetailPage({ params: Promise.resolve({ slug: 'test-news' }) }));
-      expect(screen.queryByText('Редакция FREESPORT')).not.toBeInTheDocument();
+      expect(screen.queryByText('Редакция OPTISPORT')).not.toBeInTheDocument();
     });
   });
 

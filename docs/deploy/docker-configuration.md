@@ -1,8 +1,8 @@
-# Docker Configuration для FREESPORT Platform
+# Docker Configuration для OPTISPORT Platform
 
 ## Обзор
 
-Данная документация описывает Docker конфигурацию FREESPORT Platform, включая настройки разработки, тестирования и развертывания.
+Данная документация описывает Docker конфигурацию OPTISPORT Platform, включая настройки разработки, тестирования и развертывания.
 
 ## Архитектура контейнеров
 
@@ -10,7 +10,7 @@
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                      FREESPORT Platform                        │
+│                      OPTISPORT Platform                        │
 ├─────────────────────────────────────────────────────────────────┤
 │  nginx:80,443 ──┬─► backend:8000 (Django API)                  │
 │                 └─► frontend:3000 (Next.js)                    │

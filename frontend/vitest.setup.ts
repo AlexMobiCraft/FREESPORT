@@ -1,5 +1,5 @@
 /**
- * Настройка тестового окружения Vitest для FREESPORT Frontend
+ * Настройка тестового окружения Vitest для OPTISPORT Frontend
  */
 
 // Установка env переменных для тестов

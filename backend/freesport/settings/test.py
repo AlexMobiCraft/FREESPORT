@@ -1,4 +1,4 @@
-"""Настройки окружения для тестов FREESPORT."""
+"""Настройки окружения для тестов OPTISPORT."""
 
 # pylint: disable=wildcard-import, unused-wildcard-import
 import os

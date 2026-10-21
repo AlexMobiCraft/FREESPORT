@@ -1,4 +1,4 @@
-# Интерактивный запуск тестовых сценариев FREESPORT Platform
+# Интерактивный запуск тестовых сценариев OPTISPORT Platform
 # Скрипт предоставляет меню для выбора набора тестов и параметров pytest.
 # Работает поверх run-tests-docker-local.ps1
 
@@ -53,7 +53,7 @@ function Show-Menu {
         [pscustomobject[]]$Items
     )
 
-    Write-Host "=== FREESPORT Test Runner ===" -ForegroundColor Cyan
+    Write-Host "=== OPTISPORT Test Runner ===" -ForegroundColor Cyan
     Write-Host "Выберите сценарий:" -ForegroundColor Yellow
 
     foreach ($item in $Items) {

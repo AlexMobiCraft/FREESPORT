@@ -1,5 +1,5 @@
 """
-Тесты для моделей корзины FREESPORT Platform
+Тесты для моделей корзины OPTISPORT Platform
 """
 
 from decimal import Decimal

@@ -30,8 +30,8 @@ vi.mock('../BlogSection', () => ({ BlogSection: () => <div data-testid="blog-sec
 vi.mock('../SubscribeNewsSection', () => ({
   SubscribeNewsSection: () => <div data-testid="subscribe-section" />,
 }));
-vi.mock('../WhyFreesportSection', () => ({
-  WhyFreesportSection: () => <div data-testid="why-section" />,
+vi.mock('../WhyOptisportSection', () => ({
+  WhyOptisportSection: () => <div data-testid="why-section" />,
 }));
 vi.mock('../DeliveryTeaser', () => ({
   DeliveryTeaser: () => <div data-testid="delivery-section" />,

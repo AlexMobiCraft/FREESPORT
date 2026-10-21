@@ -1,5 +1,5 @@
 /**
- * WhyFreesportSection - Тизер "Почему партнёры выбирают FREESPORT?"
+ * WhyOptisportSection - Тизер "Почему партнёры выбирают OPTISPORT?"
  * Story 19.2 - Homepage Teasers
  */
 
@@ -38,7 +38,7 @@ const advantages: Advantage[] = [
   },
 ];
 
-export const WhyFreesportSection: React.FC = () => {
+export const WhyOptisportSection: React.FC = () => {
   return (
     <section className="py-12 px-4 bg-neutral-50">
       <div className="container mx-auto max-w-7xl">
@@ -75,4 +75,4 @@ export const WhyFreesportSection: React.FC = () => {
   );
 };
 
-export default WhyFreesportSection;
+export default WhyOptisportSection;

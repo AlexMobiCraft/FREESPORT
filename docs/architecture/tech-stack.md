@@ -1,8 +1,8 @@
-# Технологический стек FREESPORT
+# Технологический стек OPTISPORT
 
 ## Обзор архитектуры
 
-FREESPORT - это API-First E-commerce платформа для B2B/B2C продаж спортивных товаров, построенная на основе Monorepo архитектуры с Django REST API backend и Next.js frontend.
+OPTISPORT - это API-First E-commerce платформа для B2B/B2C продаж спортивных товаров, построенная на основе Monorepo архитектуры с Django REST API backend и Next.js frontend.
 
 ### Архитектурный подход
 

@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Данное руководство описывает развертывание FREESPORT в production, дополняя существующую Docker структуру проекта.
+Данное руководство описывает развертывание OPTISPORT в production, дополняя существующую Docker структуру проекта.
 
 ## Существующая Инфраструктура
 
@@ -252,7 +252,7 @@ CMD ["nginx", "-g", "daemon off;"]
 Обновляем `docker/nginx/conf.d/default.conf`:
 
 ```nginx
-# Production configuration для FREESPORT
+# Production configuration для OPTISPORT
 
 upstream backend {
     server backend:8001;
@@ -487,7 +487,7 @@ DEPLOY_DIR="/home/freesport/freesport"
 BACKUP_DIR="./backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 
-echo "🚀 FREESPORT Production Deployment"
+echo "🚀 OPTISPORT Production Deployment"
 
 # Создание директории для backups
 mkdir -p $BACKUP_DIR

@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Полное руководство по настройке среды разработки FREESPORT Platform на основе существующей инфраструктуры проекта.
+Полное руководство по настройке среды разработки OPTISPORT Platform на основе существующей инфраструктуры проекта.
 
 ## Существующая Инфраструктура
 
@@ -178,7 +178,7 @@ NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 NEXT_PUBLIC_YANDEX_METRIKA_ID=XXXXXXXX
 
 # === BRAND SETTINGS ===
-NEXT_PUBLIC_COMPANY_NAME=FREESPORT Platform
+NEXT_PUBLIC_COMPANY_NAME=OPTISPORT Platform
 NEXT_PUBLIC_SUPPORT_EMAIL=support@freesport.local
 NEXT_PUBLIC_SUPPORT_PHONE=+7 (xxx) xxx-xx-xx
 ```
@@ -606,7 +606,7 @@ if sys.platform == "win32":
 
 ## Заключение
 
-Development environment FREESPORT полностью автоматизирован и оптимизирован:
+Development environment OPTISPORT полностью автоматизирован и оптимизирован:
 
 - ✅ **Docker first** подход с полной изоляцией
 - ✅ **Comprehensive testing** с 70%+ coverage требованием

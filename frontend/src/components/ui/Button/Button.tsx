@@ -1,6 +1,6 @@
 /**
  * Button Component
- * Базовый компонент кнопки согласно FREESPORT Design System
+ * Базовый компонент кнопки согласно OPTISPORT Design System
  *
  * @see frontend/docs/design-system.json#components.Button
  */

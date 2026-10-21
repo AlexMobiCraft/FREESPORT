@@ -1,5 +1,5 @@
 """
-Настройки Django для локальной разработки FREESPORT
+Настройки Django для локальной разработки OPTISPORT
 """
 
 import os

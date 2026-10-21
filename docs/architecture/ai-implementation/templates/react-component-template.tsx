@@ -1,5 +1,5 @@
 /**
- * Шаблон React компонента для FREESPORT
+ * Шаблон React компонента для OPTISPORT
  * Скопируйте и адаптируйте под ваш компонент
  */
 import React from "react";

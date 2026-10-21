@@ -13,7 +13,7 @@
 
 ## 📋 Executive Summary
 
-Данный документ описывает стратегию миграции существующего frontend FREESPORT с текущей сине-голубой цветовой схемы на новую дизайн-систему **Electric Orange** (Digital Brutalism & Kinetic Energy).
+Данный документ описывает стратегию миграции существующего frontend OPTISPORT с текущей сине-голубой цветовой схемы на новую дизайн-систему **Electric Orange** (Digital Brutalism & Kinetic Energy).
 
 ### Ключевые принципы редизайна
 

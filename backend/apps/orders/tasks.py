@@ -229,7 +229,7 @@ def send_order_notification_email(self: Any, order_id: int) -> bool:
     # Отправляем email
     try:
         send_mail(
-            subject=f"[FREESPORT] Новый заказ #{order.order_number}",
+            subject=f"[OPTISPORT] Новый заказ #{order.order_number}",
             message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=list(recipients),
@@ -312,7 +312,7 @@ def send_order_cancelled_notification_email(self: Any, order_id: int) -> bool:
 
     try:
         send_mail(
-            subject=f"[FREESPORT] Заказ #{order.order_number} отменён",
+            subject=f"[OPTISPORT] Заказ #{order.order_number} отменён",
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=list(recipients),

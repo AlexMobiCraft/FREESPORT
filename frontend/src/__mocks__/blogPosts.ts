@@ -21,7 +21,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     image: '/images/blog/cross.jpg',
     date: '2025-11-15',
     slug: 'kak-vybrat-pravilnye-krossovki',
-    author: 'Редакция FREESPORT',
+    author: 'Редакция OPTISPORT',
     category: 'Советы',
   },
   {
@@ -31,7 +31,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     image: '/images/blog/joga.jpg',
     date: '2025-11-12',
     slug: 'obzor-odezhdy-dlya-yogi',
-    author: 'Редакция FREESPORT',
+    author: 'Редакция OPTISPORT',
     category: 'Обзоры',
   },
   {
@@ -41,7 +41,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     image: '/images/blog/top-5.jpg',
     date: '2025-11-10',
     slug: 'top-5-uprazhneniy-dlya-sily',
-    author: 'Редакция FREESPORT',
+    author: 'Редакция OPTISPORT',
     category: 'Тренировки',
   },
 ];

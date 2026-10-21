@@ -12,7 +12,7 @@ route: 'one-shot'
 
 **Problem:** В Django-админке (`/admin/`, `/manager/`, `/marketing/`, `/supervisor/`) в заголовках страниц и во вкладке браузера остаётся прежний бренд FREESPORT, хотя сайт переехал на OPTISPORT.
 
-**Approach:** Заменены только видимые пользователю строки `site_header`/`site_title` и обновлены тесты, которые проверяют эти строки. Внутренние идентификаторы (пакет `freesport`, `FREESPORT_1C_SESSION`, `FREESPORT_DISABLE_CELERY`) не тронуты. Письма сотрудникам со словом FREESPORT в тему не входят.
+**Approach:** Заменены только видимые пользователю строки `site_header`/`site_title` и обновлены тесты, которые проверяют эти строки. Внутренние идентификаторы (пакет `freesport`, `FREESPORT_1C_SESSION`, `FREESPORT_DISABLE_CELERY`) не тронуты. Письма сотрудникам и Swagger вынесены в отдельный коммит.
 
 ## Suggested Review Order
 
