@@ -254,7 +254,7 @@ class TestEntry:
 
         assert response.status_code == 200
         html = response.content.decode()
-        assert "FREESPORT — Руководитель" in html
+        assert "OPTISPORT — Руководитель" in html
         assert "<h1>Журнал действий</h1>" in html
         assert AuditLog.objects.count() == audit_before
 

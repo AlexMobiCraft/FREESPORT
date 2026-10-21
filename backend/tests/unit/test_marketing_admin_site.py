@@ -172,8 +172,8 @@ class TestRegistry:
             assert model_admin.view_on_site is False, model
 
     def test_titles(self):
-        assert marketing_site.site_header == "FREESPORT — Маркетинг"
-        assert marketing_site.site_title == "FREESPORT — Маркетинг"
+        assert marketing_site.site_header == "OPTISPORT — Маркетинг"
+        assert marketing_site.site_title == "OPTISPORT — Маркетинг"
         assert marketing_site.index_title == "Раздел маркетинга"
 
 
