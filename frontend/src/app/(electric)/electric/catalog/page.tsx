@@ -1,5 +1,5 @@
 /**
- * Страница каталога товаров FREESPORT Platform (Electric Orange Edition)
+ * Страница каталога товаров OPTISPORT Platform (Electric Orange Edition)
  * Parallel Route for Design System Migration
  */
 

@@ -1,5 +1,5 @@
 """
-Django Model - Реальный пример из проекта FREESPORT
+Django Model - Реальный пример из проекта OPTISPORT
 Демонстрирует паттерны ролевого ценообразования, кастомные таблицы, SEO поля
 """
 from django.db import models
@@ -30,7 +30,7 @@ class Product(models.Model):
         "Технические характеристики", default=dict, blank=True
     )
 
-    # ✅ ПАТТЕРН: Ролевое ценообразование - ключевая особенность FREESPORT
+    # ✅ ПАТТЕРН: Ролевое ценообразование - ключевая особенность OPTISPORT
     retail_price = models.DecimalField(
         "Розничная цена",
         max_digits=10,
@@ -164,7 +164,7 @@ class Product(models.Model):
 # ✅ ШАБЛОН МОДЕЛИ ДЛЯ НОВЫХ СУЩНОСТЕЙ
 class YourNewModel(models.Model):
     """
-    Шаблон новой модели по стандартам FREESPORT
+    Шаблон новой модели по стандартам OPTISPORT
     Скопируйте и адаптируйте под свои нужды
     """
 

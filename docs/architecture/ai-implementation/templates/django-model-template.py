@@ -1,5 +1,5 @@
 """
-Шаблон Django модели для FREESPORT
+Шаблон Django модели для OPTISPORT
 Скопируйте и адаптируйте под свою сущность
 """
 from django.db import models

@@ -1,10 +1,10 @@
-# Dockerfile оптимизированный для тестирования FREESPORT Backend
+# Dockerfile оптимизированный для тестирования OPTISPORT Backend
 FROM python:3.12-slim
 
 # Метаданные образа
-LABEL maintainer="FREESPORT Dev Team"
+LABEL maintainer="OPTISPORT Dev Team"
 LABEL version="1.0-test"
-LABEL description="Django backend для тестирования FREESPORT Platform"
+LABEL description="Django backend для тестирования OPTISPORT Platform"
 
 # Аргумент для настроек Django
 ARG DJANGO_SETTINGS_MODULE=freesport.settings.test

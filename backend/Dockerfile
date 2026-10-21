@@ -24,9 +24,9 @@ RUN pip install --upgrade pip \
 FROM python:3.12-slim AS production
 
 # Метаданные образа
-LABEL maintainer="FREESPORT Dev Team"
+LABEL maintainer="OPTISPORT Dev Team"
 LABEL version="1.0"
-LABEL description="Django backend для FREESPORT Platform"
+LABEL description="Django backend для OPTISPORT Platform"
 
 # Аргумент для настроек Django
 ARG DJANGO_SETTINGS_MODULE=freesport.settings.production

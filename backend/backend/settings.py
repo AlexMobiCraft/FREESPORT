@@ -1,5 +1,5 @@
 """
-Django settings for FREESPORT backend project.
+Django settings for OPTISPORT backend project.
 """
 
 import os

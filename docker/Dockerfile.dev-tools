@@ -1,4 +1,4 @@
-# Lightweight Docker image для утилит разработки FREESPORT
+# Lightweight Docker image для утилит разработки OPTISPORT
 # Используется для быстрого запуска code formatting, linting, testing
 
 FROM python:3.11-slim

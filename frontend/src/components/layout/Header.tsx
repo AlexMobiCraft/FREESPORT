@@ -1,5 +1,5 @@
 /**
- * Компонент Header с навигацией для FREESPORT Platform
+ * Компонент Header с навигацией для OPTISPORT Platform
  * Поддержка B2B/B2C интерфейсов и аутентификации
  * Design System v2.1.0 - сине-голубая цветовая схема
  */

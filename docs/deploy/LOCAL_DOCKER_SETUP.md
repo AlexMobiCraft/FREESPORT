@@ -1,6 +1,6 @@
-# Локальная установка и запуск FREESPORT Platform с помощью Docker
+# Локальная установка и запуск OPTISPORT Platform с помощью Docker
 
-Эта инструкция предназначена для разработчиков, которые хотят запустить FREESPORT Platform локально с использованием Docker и Docker Compose.
+Эта инструкция предназначена для разработчиков, которые хотят запустить OPTISPORT Platform локально с использованием Docker и Docker Compose.
 
 ## 📋 Требования
 
@@ -16,7 +16,7 @@
 ```bash
 # 1. Клонирование репозитория
 git clone https://github.com/AlexMobiCraft/FREESPORT.git
-cd FREESPORT
+cd OPTISPORT
 
 # 2. Настройка переменных окружения
 # Скопируйте шаблон и отредактируйте при необходимости:
@@ -74,7 +74,7 @@ cp .env.example .env
 
 ```bash
 git clone https://github.com/AlexMobiCraft/FREESPORT.git
-cd FREESPORT
+cd OPTISPORT
 ```
 
 ### Шаг 2: Создание SSL сертификатов (для HTTPS)
@@ -617,4 +617,4 @@ docker compose --env-file .env -f docker/docker-compose.yml exec backend ls -la 
 
 ---
 
-**Готово!** После выполнения этих шагов у вас будет полностью работающая локальная среда разработки FREESPORT Platform.
+**Готово!** После выполнения этих шагов у вас будет полностью работающая локальная среда разработки OPTISPORT Platform.

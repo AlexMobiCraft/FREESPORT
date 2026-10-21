@@ -1,5 +1,5 @@
 """
-URL конфигурация для проекта FREESPORT
+URL конфигурация для проекта OPTISPORT
 """
 
 import re

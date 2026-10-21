@@ -1,5 +1,5 @@
 # =============================================================================
-# FREESPORT: Full Import from 1C (Local Docker on Windows)
+# OPTISPORT: Full Import from 1C (Local Docker on Windows)
 # =============================================================================
 
 param(
@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ($Help) {
-    Write-Host "=== FREESPORT: Local Import from 1C ==="
+    Write-Host "=== OPTISPORT: Local Import from 1C ==="
     Write-Host ""
     Write-Host "Usage: .\full_import_local.ps1 [options]"
     Write-Host ""
@@ -66,7 +66,7 @@ Push-Location $ProjectRoot
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  FREESPORT: Full Import from 1C (Local Docker)" -ForegroundColor Green
+Write-Host "  OPTISPORT: Full Import from 1C (Local Docker)" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 

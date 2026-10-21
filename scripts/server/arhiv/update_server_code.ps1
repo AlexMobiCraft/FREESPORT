@@ -1,4 +1,4 @@
-# Script to update FREESPORT project code on server 5.35.124.149
+# Script to update OPTISPORT project code on server 5.35.124.149
 # Usage (works with current branch by default):
 #   pwsh .\scripts\update_server_code.ps1
 #   pwsh .\scripts\update_server_code.ps1 -Branch feature/x -EnvFileLocal "backend/.env.test"

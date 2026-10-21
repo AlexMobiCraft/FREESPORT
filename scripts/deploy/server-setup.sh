@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Скрипт первоначальной настройки сервера для FREESPORT Platform
+# Скрипт первоначальной настройки сервера для OPTISPORT Platform
 # Настройка сервера 5.35.124.149 для домена optisport.ru
 
 set -e
@@ -328,7 +328,7 @@ show_next_steps() {
 main() {
     echo "========================================"
     echo "  Первоначальная настройка сервера для"
-    echo "  FREESPORT Platform"
+    echo "  OPTISPORT Platform"
     echo "========================================"
     echo "Домен: $DOMAIN"
     echo "IP: $SERVER_IP"

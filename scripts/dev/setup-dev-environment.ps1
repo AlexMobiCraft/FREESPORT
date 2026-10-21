@@ -1,7 +1,7 @@
-# Скрипт первоначальной настройки Docker-среды разработки FREESPORT Platform
+# Скрипт первоначальной настройки Docker-среды разработки OPTISPORT Platform
 # Создает и запускает все необходимые контейнеры для разработки
 
-Write-Host "=== FREESPORT Dev Environment Setup ===" -ForegroundColor Cyan
+Write-Host "=== OPTISPORT Dev Environment Setup ===" -ForegroundColor Cyan
 Write-Host
 
 # Проверка доступности Docker

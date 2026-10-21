@@ -59,7 +59,7 @@ const mockBlogPost: BlogItem = {
   published_at: '2025-12-26T10:00:00Z',
   created_at: '2025-12-25T10:00:00Z',
   updated_at: '2025-12-25T10:00:00Z',
-  author: 'Редакция FREESPORT',
+  author: 'Редакция OPTISPORT',
   category: 'Тренировки',
   meta_title: 'SEO заголовок статьи',
   meta_description: 'SEO описание статьи для поисковых систем',
@@ -135,7 +135,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
     it('должна отображать автора', async () => {
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(mockBlogPost);
       render(await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) }));
-      expect(screen.getByText('Редакция FREESPORT')).toBeInTheDocument();
+      expect(screen.getByText('Редакция OPTISPORT')).toBeInTheDocument();
     });
 
     it('должна отображать категорию', async () => {
@@ -173,7 +173,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const postWithoutAuthor = { ...mockBlogPost, author: undefined };
       vi.mocked(blogService.getBlogPostBySlug).mockResolvedValue(postWithoutAuthor);
       render(await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) }));
-      expect(screen.queryByText('Редакция FREESPORT')).not.toBeInTheDocument();
+      expect(screen.queryByText('Редакция OPTISPORT')).not.toBeInTheDocument();
     });
 
     it('должна рендериться без категории', async () => {

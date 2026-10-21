@@ -293,7 +293,7 @@ describe('Footer', () => {
       const customSocialLinks: SocialLink[] = [
         {
           name: 'Facebook',
-          href: 'https://facebook.com/freesport',
+          href: 'https://facebook.com/optisport',
           icon: <span>FB</span>,
         },
       ];
@@ -301,7 +301,7 @@ describe('Footer', () => {
       render(<Footer socialLinks={customSocialLinks} />);
 
       const facebookLink = screen.getByLabelText('Facebook');
-      expect(facebookLink).toHaveAttribute('href', 'https://facebook.com/freesport');
+      expect(facebookLink).toHaveAttribute('href', 'https://facebook.com/optisport');
       expect(facebookLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
 

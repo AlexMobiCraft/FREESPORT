@@ -1,5 +1,5 @@
 /**
- * Theme Configuration for FREESPORT
+ * Theme Configuration for OPTISPORT
  *
  * This module provides feature flags for theme switching between:
  * - 'classic' - Current blue light theme

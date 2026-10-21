@@ -1,5 +1,5 @@
 """
-Тесты для моделей заказов FREESPORT Platform
+Тесты для моделей заказов OPTISPORT Platform
 """
 
 import uuid

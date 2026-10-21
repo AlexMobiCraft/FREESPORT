@@ -1,5 +1,5 @@
 """
-Тестирование - Реальные примеры из проекта FREESPORT
+Тестирование - Реальные примеры из проекта OPTISPORT
 Демонстрирует паттерны изоляции тестов, Factory Boy, pytest маркеры
 """
 import pytest
@@ -24,7 +24,7 @@ _unique_counter = 0
 
 
 def get_unique_suffix():
-    """Генерирует абсолютно уникальный суффикс по требованиям FREESPORT"""
+    """Генерирует абсолютно уникальный суффикс по требованиям OPTISPORT"""
     global _unique_counter
     _unique_counter += 1
     return f"{int(time.time() * 1000)}-{_unique_counter}-{uuid.uuid4().hex[:6]}"
@@ -41,7 +41,7 @@ def enable_db_access_for_all_tests(db):
 
 @pytest.fixture(autouse=True)
 def clear_db_before_test(transactional_db):
-    """🔥 КРИТИЧЕСКИ ВАЖНО: Полная изоляция тестов по стандартам FREESPORT"""
+    """🔥 КРИТИЧЕСКИ ВАЖНО: Полная изоляция тестов по стандартам OPTISPORT"""
     from django.core.cache import cache
     from django.db import connection
     from django.apps import apps

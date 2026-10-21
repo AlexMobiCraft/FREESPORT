@@ -1,6 +1,6 @@
 # Integrations App
 
-This app handles external integrations for FREESPORT, including 1C:Enterprise, Payment Gateways, and Delivery Services.
+This app handles external integrations for OPTISPORT, including 1C:Enterprise, Payment Gateways, and Delivery Services.
 
 ## 1C Exchange Internal Module (`onec_exchange`)
 

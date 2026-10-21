@@ -4,7 +4,7 @@
 
 ```mermaid
 C4Deployment
-    title Deployment Diagram - FREESPORT Production Infrastructure (Optimized Layout)
+    title Deployment Diagram - OPTISPORT Production Infrastructure (Optimized Layout)
 
     %% Группируем всех пользователей
     Deployment_Node(client, "Client Devices", "User Environment") {

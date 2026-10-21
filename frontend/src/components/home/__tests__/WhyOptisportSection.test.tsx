@@ -1,15 +1,15 @@
 /**
- * WhyFreesportSection Component Tests
+ * WhyOptisportSection Component Tests
  * Story 19.2
  */
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { WhyFreesportSection } from '../WhyFreesportSection';
+import { WhyOptisportSection } from '../WhyOptisportSection';
 
-describe('WhyFreesportSection', () => {
+describe('WhyOptisportSection', () => {
   it('renders section title correctly', () => {
-    render(<WhyFreesportSection />);
+    render(<WhyOptisportSection />);
 
     const title = screen.getByText('Почему партнеры выбирают нас?');
     expect(title).toBeInTheDocument();
@@ -17,7 +17,7 @@ describe('WhyFreesportSection', () => {
   });
 
   it('renders 4 advantage cards', () => {
-    render(<WhyFreesportSection />);
+    render(<WhyOptisportSection />);
 
     // Проверяем наличие всех 4 карточек преимуществ
     expect(screen.getByText('Собственное производство')).toBeInTheDocument();
@@ -27,7 +27,7 @@ describe('WhyFreesportSection', () => {
   });
 
   it('renders advantage descriptions correctly', () => {
-    render(<WhyFreesportSection />);
+    render(<WhyOptisportSection />);
 
     expect(screen.getByText('Контроль качества')).toBeInTheDocument();
     expect(screen.getByText('До ТК от 35 000 ₽')).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe('WhyFreesportSection', () => {
   });
 
   it('renders CTA button with link to /partners', () => {
-    render(<WhyFreesportSection />);
+    render(<WhyOptisportSection />);
 
     const ctaButton = screen.getByRole('button', { name: 'Стать партнером' });
     expect(ctaButton).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe('WhyFreesportSection', () => {
   });
 
   it('applies responsive grid classes', () => {
-    const { container } = render(<WhyFreesportSection />);
+    const { container } = render(<WhyOptisportSection />);
 
     // Проверяем наличие grid контейнера с responsive классами
     const gridContainer = container.querySelector(
@@ -57,7 +57,7 @@ describe('WhyFreesportSection', () => {
   });
 
   it('has proper semantic HTML structure', () => {
-    const { container } = render(<WhyFreesportSection />);
+    const { container } = render(<WhyOptisportSection />);
 
     // Проверяем, что используется семантический тег section
     const section = container.querySelector('section');

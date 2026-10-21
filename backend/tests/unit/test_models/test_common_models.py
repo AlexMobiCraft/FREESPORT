@@ -1,5 +1,5 @@
 """
-Тесты для общих моделей FREESPORT Platform
+Тесты для общих моделей OPTISPORT Platform
 """
 
 import json

@@ -1,8 +1,8 @@
-# Архитектура интеграции FREESPORT с 1С данными через протокол Битрикс24
+# Архитектура интеграции OPTISPORT с 1С данными через протокол Битрикс24
 
 ## 1. Анализ текущей архитектуры
 
-### 1.1 Архитектура FREESPORT
+### 1.1 Архитектура OPTISPORT
 
 - **Backend**: Django 4.2 LTS + PostgreSQL 15+
 - **API**: Django REST Framework с drf-spectacular (OpenAPI 3.1.0)
@@ -10,7 +10,7 @@
 - **Асинхронные задачи**: Celery + Redis
 - **Кэширование**: Redis для сессий и кэша запросов
 
-### 1.2 Модели данных FREESPORT
+### 1.2 Модели данных OPTISPORT
 
 ```python
 # Основные модели для интеграции
@@ -209,7 +209,7 @@ interface Bitrix24OrderItem {
 ### 3.1 Архитектурная схема
 
 ```
-FREESPORT (Django)  <->  Adapter Layer  <->  1C (Битрикс24 API)
+OPTISPORT (Django)  <->  Adapter Layer  <->  1C (Битрикс24 API)
      ↓                       ↓                       ↓
 PostgreSQL Models    Data Transformation      1C:Управление торговлей
 ```
@@ -236,17 +236,17 @@ class Bitrix24Adapter:
         """Модерация B2B клиента администратором с присвоением типа ценообразования"""
 
     def transform_product_to_bitrix24(self, product: Product) -> Dict:
-        """Трансформация товара FREESPORT -> Битрикс24"""
+        """Трансформация товара OPTISPORT -> Битрикс24"""
 
     def transform_product_from_bitrix24(self, data: Dict) -> Product:
-        """Трансформация товара Битрикс24 -> FREESPORT"""
+        """Трансформация товара Битрикс24 -> OPTISPORT"""
 
     # Заказы - только новые заказы в статусе 'new'
     def send_new_order_to_1c(self, order: Order) -> Dict:
         """Отправка нового заказа в 1С (только статус 'new')"""
 
     def transform_order_to_bitrix24(self, order: Order) -> Dict:
-        """Трансформация нового заказа FREESPORT -> Битрикс24"""
+        """Трансформация нового заказа OPTISPORT -> Битрикс24"""
 
     # Цены для 6 типов покупателей
     def get_prices_for_customer_types(self) -> Dict:
@@ -260,7 +260,7 @@ class Bitrix24Adapter:
 
 # Маппинг полей
 class FieldMapper:
-    """Маппинг полей между FREESPORT и Битрикс24"""
+    """Маппинг полей между OPTISPORT и Битрикс24"""
 
     PRODUCT_MAPPING = {
         'name': 'name',
@@ -499,14 +499,14 @@ class SyncLog(models.Model):
     duration_seconds = models.IntegerField(null=True)
 
 class ProductMapping(models.Model):
-    """Связь товаров FREESPORT <-> 1С"""
+    """Связь товаров OPTISPORT <-> 1С"""
     freesport_product = models.OneToOneField(Product, on_delete=models.CASCADE)
     bitrix24_id = models.IntegerField()
     onec_product_id = models.CharField(max_length=255)
     last_sync = models.DateTimeField(auto_now=True)
 
 class OrderMapping(models.Model):
-    """Связь заказов FREESPORT <-> 1С"""
+    """Связь заказов OPTISPORT <-> 1С"""
     freesport_order = models.OneToOneField(Order, on_delete=models.CASCADE)
     bitrix24_id = models.IntegerField(null=True)
     onec_order_id = models.CharField(max_length=255)
@@ -547,7 +547,7 @@ class Order(BaseModel):
     sent_to_1c_at = models.DateTimeField(null=True, blank=True)
     status_1c = models.CharField(max_length=100, blank=True)  # Статус из 1С
 
-    # Маппинг статусов 1С на внутренние статусы FREESPORT
+    # Маппинг статусов 1С на внутренние статусы OPTISPORT
     STATUS_1C_MAPPING = {
         'Принят в обработку': 'processing',
         'Резервирование на складе': 'reserved',
@@ -595,7 +595,7 @@ class Order(BaseModel):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          FREESPORT Platform                          │
+│                          OPTISPORT Platform                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Frontend (Next.js)           │         Backend (Django)            │
 │                              │                                      │
@@ -734,7 +734,7 @@ class Bitrix24Adapter:
 
 ### Этап 3: Обмен заказами (1 неделя)
 
-1. Трансформация заказов FREESPORT -> Битрикс24
+1. Трансформация заказов OPTISPORT -> Битрикс24
 2. Отправка заказов в 1С
 3. Получение статусов заказов
 4. Тестирование заказной интеграции

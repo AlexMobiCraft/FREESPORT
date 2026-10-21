@@ -1,4 +1,4 @@
-# 🏆 FREESPORT Platform
+# 🏆 OPTISPORT Platform
 
 > **Enterprise-grade B2B/B2C E-commerce Ecosystem**
 
@@ -8,7 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ed?logo=docker&logoColor=white)](https://www.docker.com/)
 
-FREESPORT — это современная, высокопроизводительная платформа электронной коммерции, объединяющая несколько спортивных брендов в единую экосистему. Спроектированная для работы в условиях высоких нагрузок, платформа автоматизирует сложные бизнес-процессы B2B-продаж, обеспечивая бесшовную интеграцию с 1С и гибкое управление ролевым ценообразованием.
+OPTISPORT — это современная, высокопроизводительная платформа электронной коммерции, объединяющая несколько спортивных брендов в единую экосистему. Спроектированная для работы в условиях высоких нагрузок, платформа автоматизирует сложные бизнес-процессы B2B-продаж, обеспечивая бесшовную интеграцию с 1С и гибкое управление ролевым ценообразованием.
 
 ---
 
@@ -70,7 +70,7 @@ graph TD
 ```bash
 # 1. Клонирование репозитория
 git clone https://github.com/AlexMobiCraft/FREESPORT.git
-cd FREESPORT
+cd OPTISPORT
 
 # 2. Запуск всей экосистемы (Backend, Frontend, DB, Redis)
 make up
@@ -100,7 +100,7 @@ _После запуска:_
 ## 📞 Контактная Информация
 
 **Project Lead:** Александр Ткаченко  
-**Team:** FREESPORT Dev Team
+**Team:** OPTISPORT Dev Team
 
 ---
 

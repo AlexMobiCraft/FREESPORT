@@ -1,4 +1,4 @@
-# Scripts для FREESPORT Platform
+# Scripts для OPTISPORT Platform
 
 Утилиты для автоматизации разработки и валидации документации.
 

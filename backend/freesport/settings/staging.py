@@ -1,5 +1,5 @@
 """
-Настройки Django для staging окружения FREESPORT
+Настройки Django для staging окружения OPTISPORT
 """
 
 import os

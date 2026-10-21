@@ -13,7 +13,7 @@
  * 9. PromoSection (акция)
  * 10. SaleSection (распродажа)
  * 11. NewsSection (новости)
- * 12. WhyFreesportSection (почему выбирают)
+ * 12. WhyOptisportSection (почему выбирают)
  * 13. SubscribeNewsSection (подписка)
  * 14. DeliveryTeaser (доставка)
  */
@@ -31,7 +31,7 @@ import {
   SaleSection,
   NewsSection,
   SubscribeNewsSection,
-  WhyFreesportSection,
+  WhyOptisportSection,
   DeliveryTeaser,
   AboutTeaser,
   CategoriesSection,
@@ -85,8 +85,8 @@ export const HomePage: React.FC<HomePageProps> = ({ featuredBrands }) => {
       {/* 11. News Section - Новости */}
       <NewsSection />
 
-      {/* 12. Why FREESPORT Section (Перемещен под новости) */}
-      <WhyFreesportSection />
+      {/* 12. Why OPTISPORT Section (Перемещен под новости) */}
+      <WhyOptisportSection />
 
       {/* 13. Subscribe Section - Подписка на новости */}
       <SubscribeNewsSection />

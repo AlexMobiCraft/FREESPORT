@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Скрипт валидации документации FREESPORT Platform.
+Скрипт валидации документации OPTISPORT Platform.
 
 Проверяет:
 - Кросс-ссылки между документами
@@ -551,7 +551,7 @@ class DocsValidator:
 
     def run_full_validation(self) -> bool:
         """Запуск полной валидации."""
-        self.print_header("[ПОИСК] ПОЛНАЯ ВАЛИДАЦИЯ ДОКУМЕНТАЦИИ FREESPORT")
+        self.print_header("[ПОИСК] ПОЛНАЯ ВАЛИДАЦИЯ ДОКУМЕНТАЦИИ OPTISPORT")
 
         results = []
         results.append(self.validate_cross_references())
@@ -565,7 +565,7 @@ class DocsValidator:
 
 def main():
     """Главная функция."""
-    parser = argparse.ArgumentParser(description="Валидация документации FREESPORT")
+    parser = argparse.ArgumentParser(description="Валидация документации OPTISPORT")
     parser.add_argument(
         "command",
         nargs="?",

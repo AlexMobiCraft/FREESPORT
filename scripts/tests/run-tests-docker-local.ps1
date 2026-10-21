@@ -1,4 +1,4 @@
-# Скрипт запускает тесты в локальном Docker окружении FREESPORT Platform
+# Скрипт запускает тесты в локальном Docker окружении OPTISPORT Platform
 
 param(
     [string]$ComposeFile = "docker/docker-compose.test.yml",
@@ -148,7 +148,7 @@ function Save-BackendLogs {
     docker --context $Context compose -f $ComposePath logs backend | Out-File -FilePath $OutputFile -Encoding UTF8
 }
 
-Write-Host "=== FREESPORT Local Docker Test Runner ===" -ForegroundColor Cyan
+Write-Host "=== OPTISPORT Local Docker Test Runner ===" -ForegroundColor Cyan
 Write-Host
 
 $scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Path -Parent

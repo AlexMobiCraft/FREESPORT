@@ -1,4 +1,4 @@
-# Docker Compose для тестирования FREESPORT Platform
+# Docker Compose для тестирования OPTISPORT Platform
 name: freesport-test
 
 services:

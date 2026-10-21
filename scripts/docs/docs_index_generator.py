@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Генератор индекса документации FREESPORT Platform.
+Генератор индекса документации OPTISPORT Platform.
 
 Автоматически сканирует docs/ и обновляет:
 - docs/index.md - главный индекс
@@ -409,7 +409,7 @@ class DocsIndexGenerator:
 def main():
     """Главная функция."""
     parser = argparse.ArgumentParser(
-        description="Генератор индекса документации FREESPORT"
+        description="Генератор индекса документации OPTISPORT"
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Показать изменения без записи в файлы"

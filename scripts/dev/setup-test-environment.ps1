@@ -1,7 +1,7 @@
-# Скрипт первоначальной настройки Docker-среды для тестирования FREESPORT Platform
+# Скрипт первоначальной настройки Docker-среды для тестирования OPTISPORT Platform
 # Создает и подготавливает все необходимые контейнеры для запуска тестов
 
-Write-Host "=== FREESPORT Test Environment Setup ===" -ForegroundColor Cyan
+Write-Host "=== OPTISPORT Test Environment Setup ===" -ForegroundColor Cyan
 Write-Host
 
 # Проверка доступности Docker

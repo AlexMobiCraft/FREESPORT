@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-This directory contains Architecture Decision Records (ADRs) that document significant architectural decisions made during the development of FREESPORT.
+This directory contains Architecture Decision Records (ADRs) that document significant architectural decisions made during the development of OPTISPORT.
 
 ## What is an ADR?
 

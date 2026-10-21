@@ -5,7 +5,7 @@
 ### Existing Project Overview
 
 **Current State:**  
-Проект FREESPORT реализовал транспортный уровень интеграции с 1С (модуль `onec_exchange`):
+Проект OPTISPORT реализовал транспортный уровень интеграции с 1С (модуль `onec_exchange`):
 
 - ✅ Аутентификация (`mode=checkauth`)
 - ✅ Инициализация (`mode=init`)
@@ -283,7 +283,7 @@ DEFAULT_VAT_RATE
 
 ## 4. Status Mapping
 
-| FREESPORT    | 1С (XML)         | Направление |
+| OPTISPORT    | 1С (XML)         | Направление |
 | ------------ | ---------------- | ----------- |
 | `pending`    | Принят           | Сайт → 1С   |
 | `confirmed`  | Принят           | Сайт → 1С   |

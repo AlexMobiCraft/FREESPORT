@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Деплой FREESPORT Platform осуществляется через GitHub Actions workflow `deploy.yml` — это единственное место, где собираются прод-образы и выполняется деплой.
+Деплой OPTISPORT Platform осуществляется через GitHub Actions workflow `deploy.yml` — это единственное место, где собираются прод-образы и выполняется деплой.
 Используется **одно production-окружение**. Запускается двумя способами:
 
 - **push в `main`** — штатный релиз (синк `develop` → `main` fast-forward пушем);

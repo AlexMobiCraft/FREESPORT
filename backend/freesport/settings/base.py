@@ -1,5 +1,5 @@
 """
-Базовые настройки Django для платформы FREESPORT
+Базовые настройки Django для платформы OPTISPORT
 Общая конфигурация для всех окружений
 """
 
@@ -60,7 +60,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
 ]
 
-# Локальные приложения FREESPORT
+# Локальные приложения OPTISPORT
 LOCAL_APPS = [
     "apps.users",
     "apps.products",

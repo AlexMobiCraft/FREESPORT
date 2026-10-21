@@ -2,9 +2,9 @@
 FROM node:22-alpine
 
 # Метаданные образа
-LABEL maintainer="FREESPORT Dev Team"
+LABEL maintainer="OPTISPORT Dev Team"
 LABEL version="1.0"
-LABEL description="Next.js frontend для FREESPORT Platform"
+LABEL description="Next.js frontend для OPTISPORT Platform"
 
 # Проверка libc6-compat для совместимости
 RUN apk add --no-cache libc6-compat

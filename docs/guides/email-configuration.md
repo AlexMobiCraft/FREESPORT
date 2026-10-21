@@ -1,11 +1,11 @@
-# Настройка Email для FREESPORT
+# Настройка Email для OPTISPORT
 
 > Документация по настройке email сервера для отправки уведомлений.
 > Story 29.3: Email Server Configuration
 
 ## Обзор
 
-FREESPORT использует email для:
+OPTISPORT использует email для:
 
 - Уведомления администраторов о новых B2B заявках
 - Отправка верификационных писем пользователям
@@ -84,7 +84,7 @@ EMAIL_PORT=587
 EMAIL_USE_TLS=True
 EMAIL_HOST_USER=noreply@optisport.ru
 EMAIL_HOST_PASSWORD=ваш_16_значный_пароль_приложения
-DEFAULT_FROM_EMAIL=FREESPORT <noreply@optisport.ru>
+DEFAULT_FROM_EMAIL=OPTISPORT <noreply@optisport.ru>
 ADMIN_EMAILS=admin@optisport.ru
 ```
 
@@ -155,7 +155,7 @@ docker exec -it freesport-backend python manage.py shell
 >>> from django.core.mail import send_mail
 >>> send_mail(
 ...     'Test Email',
-...     'Тестовое сообщение от FREESPORT',
+...     'Тестовое сообщение от OPTISPORT',
 ...     None,  # Использует DEFAULT_FROM_EMAIL
 ...     ['admin@optisport.ru'],
 ...     fail_silently=False,

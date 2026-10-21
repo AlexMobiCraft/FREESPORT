@@ -1,4 +1,4 @@
-# Backend Tests - FREESPORT
+# Backend Tests - OPTISPORT
 
 ## Быстрый старт
 

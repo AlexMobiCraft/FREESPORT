@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Синхронизация документации FREESPORT Platform.
+Синхронизация документации OPTISPORT Platform.
 
 Функции:
 - sync_api_spec_with_views()  — сравнение API (ViewSet/APIView) в коде с документацией
@@ -355,7 +355,7 @@ def update_index(
 
 def main() -> None:
     """Точка входа CLI для синхронизации документации."""
-    parser = argparse.ArgumentParser(description="Синхронизация документации FREESPORT")
+    parser = argparse.ArgumentParser(description="Синхронизация документации OPTISPORT")
     parser.add_argument(
         "command",
         choices=["api-sync", "decisions-sync", "update-index", "all"],

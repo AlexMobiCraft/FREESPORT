@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-The Transport Layer acts as the bridge between 1C:Enterprise and the FREESPORT platform. It implements the standard "1C-Bitrix Site Exchange" protocol via HTTP(S).
+The Transport Layer acts as the bridge between 1C:Enterprise and the OPTISPORT platform. It implements the standard "1C-Bitrix Site Exchange" protocol via HTTP(S).
 
 **Key Responsibilities:**
 

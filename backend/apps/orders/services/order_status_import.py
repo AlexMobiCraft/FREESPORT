@@ -794,7 +794,7 @@ class OrderStatusImportService:
         Но без записи `status_1c` расхождение с 1С было бы полностью молчаливым:
         о нём говорил только счётчик `skipped_status_regression` в отчёте
         импорта. Реальный сценарий УТ 11 — возврат заказа из «К выполнению»
-        в «На согласовании»: FREESPORT показывал бы «В обработке», а 1С —
+        в «На согласовании»: OPTISPORT показывал бы «В обработке», а 1С —
         «На согласовании», и понять это по карточке заказа было невозможно.
         """
         raw_status = order_data.status_1c[:255]
@@ -811,7 +811,7 @@ class OrderStatusImportService:
 
         order.save(update_fields=update_fields)
         logger.info(
-            f"Order {order.order_number}: FREESPORT-статус остался '{order.status}', "
+            f"Order {order.order_number}: OPTISPORT-статус остался '{order.status}', "
             f"сохранён фактический статус 1С '{raw_status}'"
         )
 

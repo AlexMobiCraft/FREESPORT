@@ -1,4 +1,4 @@
-# Руководство для AI-агентов проекта FREESPORT
+# Руководство для AI-агентов проекта OPTISPORT
 
 Единый источник правил для всех агентов (Claude Code, Codex, Devin Desktop). `CLAUDE.md` только импортирует этот файл через `@AGENTS.md` — новые правила добавляй сюда.
 
@@ -13,7 +13,7 @@
 
 ## Обзор проекта
 
-**FREESPORT** — API-First E-commerce платформа для B2B/B2C продаж спортивных товаров. Monorepo: Django REST API backend + Next.js frontend.
+**OPTISPORT** — API-First E-commerce платформа для B2B/B2C продаж спортивных товаров. Monorepo: Django REST API backend + Next.js frontend.
 
 ### КРИТИЧНЫЕ правила проекта
 
@@ -180,7 +180,7 @@ _Например:_ `git add .; git commit -m "..."; git push`
 
 ## GitNexus — Code Intelligence (CLI)
 
-Проект проиндексирован GitNexus как **FREESPORT**. Правила, команды, границы графа и встраивание в BMAD —
+Проект проиндексирован GitNexus как **OPTISPORT**. Правила, команды, границы графа и встраивание в BMAD —
 [`.windsurf/rules/gitnexus.md`](.windsurf/rules/gitnexus.md); прочитай его перед первой командой GitNexus.
 MCP-сервер отключён, инструментов `gitnexus_*` нет — всё через `npx gitnexus ...` в Bash.
 

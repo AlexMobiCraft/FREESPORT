@@ -1,5 +1,5 @@
 """
-Классы прав DRF, общие для приложений FREESPORT.
+Классы прав DRF, общие для приложений OPTISPORT.
 """
 
 from __future__ import annotations

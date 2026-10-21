@@ -1,5 +1,5 @@
 ---
-project_name: FREESPORT
+project_name: OPTISPORT
 user_name: Alex
 date: 2026-05-09
 sections_completed:
@@ -15,7 +15,7 @@ status: complete
 optimized_for_llm: true
 ---
 
-# Project Context for AI Agents — FREESPORT
+# Project Context for AI Agents — OPTISPORT
 
 > Только то, что НЕ выводится из кодовой базы. Технологический стек смотри в `frontend/package.json` и `backend/requirements.txt`. Архитектура — в `_bmad-output/planning-artifacts/architecture.md`. Полный свод правил — в `AGENTS.md` / `CLAUDE.md` (этот файл — их выжимка для context window).
 

@@ -1,24 +1,24 @@
 # AI Implementation - Материалы для AI агентов
 
-Этот каталог содержит материалы для эффективной работы AI агентов с проектом FREESPORT.
+Этот каталог содержит материалы для эффективной работы AI агентов с проектом OPTISPORT.
 
 ## 📁 Структура
 
 ### `/examples/` - Реальные примеры кода
 
-Конкретные примеры из действующего кодабазы FREESPORT, демонстрирующие правильную реализацию:
+Конкретные примеры из действующего кодабазы OPTISPORT, демонстрирующие правильную реализацию:
 
 - **`django-model-example.py`** - Примеры моделей Django с ролевым ценообразованием, интеграцией 1С
 - **`django-viewset-example.py`** - ViewSet с фильтрацией, пагинацией, OpenAPI документацией
 - **`react-component-example.tsx`** - React компоненты с TypeScript, Tailwind CSS, состояниями loading
 - **`test-example.py`** - 🔥 **Исправленные** тесты с полной изоляцией БД, уникальными данными
 - **`conftest-example.py`** - 🆕 Центральные фикстуры pytest для ролевой системы и мокинга
-- **`pytest-ini-example.ini`** - 🆕 Полная конфигурация pytest по стандартам FREESPORT
+- **`pytest-ini-example.ini`** - 🆕 Полная конфигурация pytest по стандартам OPTISPORT
 - **`onec-integration-tests-example.py`** - 🆕 Все 6 обязательных тестов интеграции с 1С
 
 ### `/patterns/` - Архитектурные паттерны
 
-Ключевые паттерны проекта FREESPORT с детальным объяснением:
+Ключевые паттерны проекта OPTISPORT с детальным объяснением:
 
 - **`role-based-pricing-pattern.md`** - 🔥 **Основной паттерн** ролевого ценообразования B2B/B2C
 - **`cart-deduplication-pattern.md`** - Паттерн предотвращения дублирования в корзине
@@ -28,7 +28,7 @@
 
 Готовые шаблоны с TODO комментариями для быстрого создания:
 
-- **`django-model-template.py`** - Шаблон Django модели со всеми стандартными полями FREESPORT
+- **`django-model-template.py`** - Шаблон Django модели со всеми стандартными полями OPTISPORT
 - **`django-viewset-template.py`** - Шаблон ViewSet с полным API функционалом
 - **`react-component-template.tsx`** - Шаблон React компонента с TypeScript типами
 - **`test-template.py`** - Шаблон тестов с изоляцией БД и всеми типами тестов

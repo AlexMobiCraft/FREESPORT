@@ -1,4 +1,4 @@
-# Скрипт для настройки SSH окружения для работы с сервером FREESPORT
+# Скрипт для настройки SSH окружения для работы с сервером OPTISPORT
 # Запускается один раз для каждой новой сессии терминала.
 
 param(
@@ -16,7 +16,7 @@ function Write-ColorMessage {
     Write-Host $Message -ForegroundColor $Color
 }
 
-Write-ColorMessage "=== Настройка SSH окружения для FREESPORT ===" "Cyan"
+Write-ColorMessage "=== Настройка SSH окружения для OPTISPORT ===" "Cyan"
 Write-Host ""
 
 # 1. Проверка SSH ключа

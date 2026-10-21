@@ -1,5 +1,5 @@
 # =============================================================================
-# FREESPORT: Полный импорт данных из 1С (через SSH на production)
+# OPTISPORT: Полный импорт данных из 1С (через SSH на production)
 # =============================================================================
 # Использование:
 #   .\full_import_remote.ps1                    # Полный импорт
@@ -66,7 +66,7 @@ function Invoke-DjangoCommand {
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  FREESPORT: Полный импорт данных из 1С (Remote)" -ForegroundColor Green
+Write-Host "  OPTISPORT: Полный импорт данных из 1С (Remote)" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 

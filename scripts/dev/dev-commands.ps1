@@ -1,4 +1,4 @@
-# Скрипт с полезными командами для управления средой разработки FREESPORT Platform
+# Скрипт с полезными командами для управления средой разработки OPTISPORT Platform
 # Использование: .\scripts\dev\dev-commands.ps1 [command]
 
 param(

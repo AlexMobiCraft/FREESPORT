@@ -527,7 +527,7 @@ const bannersHandlersLocal = [
         title: 'Спортивные товары для профессионалов и любителей',
         subtitle: '5 брендов. 1000+ товаров. Доставка по всей России.',
         image_url: '/test-banner.jpg',
-        image_alt: 'FREESPORT баннер',
+        image_alt: 'OPTISPORT баннер',
         cta_text: 'Начать покупки',
         cta_link: '/catalog',
       },
