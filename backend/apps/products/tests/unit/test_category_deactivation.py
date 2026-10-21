@@ -1,28 +1,31 @@
-"""Тесты предохранителей деактивации категорий (VariantImportProcessor).
+"""Тесты деактивации категорий при импорте 1С (VariantImportProcessor).
 
-Инцидент: частичная выгрузка 1С гасила все категории, не встреченные в текущем XML,
-и витрина `/catalog` схлопывалась до одной ветки. Реализованы два независимых барьера:
+Инцидент (21.10.2026): 1С шлёт `groups*.xml` частичными пакетами, а импорт гасил каждую
+категорию, которой нет в текущем XML. Порог предохранителя пропускал малые ветки
+(3 ребёнка) и потери до 30 %, поэтому подкатегории на витрине мигали в зависимости
+от последнего пакета («Обувь для бокса», «Мешки, груши, манекены» и др.).
 
-1. Гасятся только дети «раскрытых» родителей — тех, под которыми в выгрузке пришёл
-   хотя бы один прошедший allowed-фильтр ребёнок.
-2. Для каждого раскрытого родителя отдельно: деактивация отменяется, если затронет
-   больше 30 % его активных детей (порог не применяется при < 4 активных детях).
-
-Покрывает строки I/O-матрицы спецификации spec-fix-catalog-categories-deactivation.md.
+Теперь отсутствие в XML ничего не значит. Гасятся только группы, которые 1С прислала
+и которые правило допуска отсекло: помеченные на удаление, вынесенные из поддерева
+якоря и потомки таких групп. Покрывает I/O-матрицу spec-fix-category-deactivation-partial-groups.md.
 """
 
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
 from apps.products.models import Category, ImportSession
+from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import CategoryData, VariantImportProcessor
 
 pytestmark = [pytest.mark.django_db, pytest.mark.unit]
+
+# Реальная выгрузка групп (в .gitignore, на раннере отсутствует)
+ONEC_RUNTIME_GROUPS = Path(__file__).resolve().parents[5] / "data" / "import_1c" / "groups"
 
 # Глобальный счётчик для абсолютной уникальности тестовых данных
 _unique_counter = 0
@@ -40,30 +43,28 @@ def get_unique_suffix() -> str:
 # ============================================================================
 
 
-@pytest.fixture
-def import_session():
-    """Сессия импорта для процессора."""
-    return ImportSession.objects.create(
+def new_processor() -> VariantImportProcessor:
+    """Процессор с собственной сессией: каждая сессия 1С — отдельный процессор."""
+    session = ImportSession.objects.create(
         import_type=ImportSession.ImportType.CATALOG,
         status=ImportSession.ImportStatus.IN_PROGRESS,
     )
-
-
-@pytest.fixture
-def processor(import_session):
-    """Процессор импорта, привязанный к сессии."""
-    return VariantImportProcessor(session_id=import_session.id)
+    return VariantImportProcessor(session_id=session.id)
 
 
 @pytest.fixture
 def unanchored(settings):
-    """Отключает фильтрацию по якорю (ROOT_CATEGORY_NAME=None).
-
-    Настраивается через фикстуру `settings`, а не @override_settings на классе:
-    Django запрещает декорировать классы, не наследующие SimpleTestCase.
-    """
+    """Отключает фильтрацию по якорю (ROOT_CATEGORY_NAME=None)."""
     settings.ROOT_CATEGORY_NAME = None
     return settings
+
+
+@pytest.fixture
+def anchor(settings: Any) -> Category:
+    """Якорь дерева витрины: настройка и категория с одним именем."""
+    root_name = f"СПОРТ-{get_unique_suffix()}"
+    settings.ROOT_CATEGORY_NAME = root_name
+    return make_category(name=root_name)
 
 
 def make_category(
@@ -89,28 +90,27 @@ def make_children(parent: Category, count: int) -> list[Category]:
     return [make_category(parent=parent) for _ in range(count)]
 
 
-def cat_data(category: Category, parent: Category | None = None) -> CategoryData:
-    """Формирует запись XML-выгрузки для существующей категории."""
-    data: CategoryData = {"id": category.onec_id, "name": category.name, "description": ""}
+def cat_data(category: Category, parent: Category | None = None, *, deleted: bool = False) -> CategoryData:
+    """Запись XML-выгрузки для существующей категории."""
+    data: CategoryData = {"id": category.onec_id, "name": category.name, "description": "", "is_deleted": deleted}
     if parent is not None:
         data["parent_id"] = parent.onec_id
     return data
 
 
-def deactivation_error_calls(mock_logger: Any) -> list:
-    """Отбирает вызовы logger.error, относящиеся к отмене деактивации.
+def run_session(
+    xml: list[CategoryData], *, status: str = ImportSession.ImportStatus.COMPLETED
+) -> VariantImportProcessor:
+    """Одна сессия обмена: groups*.xml → process_categories → finalize_session."""
+    processor = new_processor()
+    processor.process_categories(xml)
+    processor.finalize_session(status)
+    return processor
 
-    Проверка `call.args` обязательна: в модуле есть logger.error без позиционных
-    аргументов, и безусловный доступ к args[0] уронил бы хелпер по IndexError.
-    """
-    return [
-        call for call in mock_logger.error.call_args_list if call.args and "отменена для родителя" in str(call.args[0])
-    ]
 
-
-def small_branch_warning_calls(mock_logger: Any) -> list:
-    """Отбирает вызовы logger.warning про крупную потерю в малой ветке."""
-    return [call for call in mock_logger.warning.call_args_list if call.args and "Малая ветка" in str(call.args[0])]
+def is_active(category: Category) -> bool:
+    category.refresh_from_db()
+    return category.is_active
 
 
 # ============================================================================
@@ -118,353 +118,192 @@ def small_branch_warning_calls(mock_logger: Any) -> list:
 # ============================================================================
 
 
-def test_full_export_deactivates_only_category_removed_in_1c(processor, unanchored):
-    """I/O-матрица «Полная выгрузка»: удалённая в 1С категория гаснет, прочие активны."""
+def test_partial_packet_keeps_small_branch(anchor):
+    """Инцидент «Обувь для единоборств»: у родителя 3 ребёнка, в пакете пришёл один."""
+    parent = make_category(parent=anchor)
+    kids = make_children(parent, 3)
+
+    run_session([cat_data(anchor), cat_data(parent, anchor), cat_data(kids[0], parent)])
+
+    assert all(is_active(k) for k in kids), "Не пришедшие в пакете подкатегории должны остаться активными"
+    assert is_active(parent)
+
+
+def test_partial_packet_keeps_loss_below_old_threshold(anchor):
+    """Инцидент «Легкая атлетика»: 1 из 5 (20 %) раньше проходило под порог 30 %."""
+    parent = make_category(parent=anchor)
+    kids = make_children(parent, 5)
+
+    run_session([cat_data(anchor), cat_data(parent, anchor)] + [cat_data(k, parent) for k in kids[:4]])
+
+    assert is_active(kids[4]), "Пятая подкатегория не пришла в пакете, но удалена в 1С не была"
+
+
+def test_marked_group_is_deactivated(anchor):
+    """Группа помечена на удаление — гаснет; не пришедший сосед остаётся."""
+    parent = make_category(parent=anchor)
+    marked, kept, absent = make_children(parent, 3)
+
+    run_session(
+        [
+            cat_data(anchor),
+            cat_data(parent, anchor),
+            cat_data(marked, parent, deleted=True),
+            cat_data(kept, parent),
+        ]
+    )
+
+    assert is_active(marked) is False
+    assert is_active(kept)
+    assert is_active(absent), "Сосед, которого нет в XML, трогать нельзя"
+
+
+def test_descendant_of_marked_group_is_deactivated(anchor):
+    """Потомок помеченной группы без собственной пометки гаснет вместе с предком."""
+    marked = make_category(parent=anchor)
+    child = make_category(parent=marked)
+    outsider = make_category(parent=anchor)
+
+    run_session(
+        [
+            cat_data(anchor),
+            cat_data(marked, anchor, deleted=True),
+            cat_data(child, marked),
+        ]
+    )
+
+    assert is_active(marked) is False
+    assert is_active(child) is False
+    assert is_active(outsider), "Категории вне XML не тронуты"
+
+
+def test_group_moved_out_of_anchor_tree_is_deactivated(anchor):
+    """Якорный режим: 1С перенесла группу под чужой корень («Номенклатура к удалению»)."""
+    moved = make_category(parent=anchor)
+    foreign_root = make_category(name=f"К удалению {get_unique_suffix()}")
+    sibling = make_category(parent=anchor)
+
+    foreign_root_data = cat_data(foreign_root)
+    run_session([cat_data(anchor), foreign_root_data, cat_data(moved, foreign_root)])
+
+    assert is_active(moved) is False
+    assert is_active(sibling)
+    assert is_active(foreign_root) is False, "Корень вне дерева якоря, пришедший в XML, тоже отсекается"
+
+
+def test_unanchored_group_returned_by_later_file_stays_active(unanchored):
+    """Без якоря: помечена в первом groups*.xml, пометка снята во втором — сессия её не гасит."""
     root = make_category()
-    kept = make_children(root, 4)
-    removed = make_category(parent=root)
-
-    xml: list[CategoryData] = [cat_data(root)] + [cat_data(c, root) for c in kept]
-    processor.process_categories(xml)
-    processor.deactivate_obsolete_categories()
-
-    removed.refresh_from_db()
-    root.refresh_from_db()
-    assert removed.is_active is False, "Удалённая в 1С категория должна погаснуть"
-    assert root.is_active is True
-    for child in kept:
-        child.refresh_from_db()
-        assert child.is_active is True, "Пришедшие в выгрузке категории должны остаться активными"
-
-
-def test_partial_branch_leaves_unexpanded_parent_children_untouched(processor, unanchored):
-    """I/O-матрица «Частичная ветка»: дети нераскрытого СПОРТа не тронуты, внутри ветки чистка идёт."""
-    sport = make_category()
-    martial = make_category(parent=sport)  # Единоборства
-    sport_siblings = make_children(sport, 5)  # прочие дети СПОРТа, в выгрузку не попали
-
-    protection = make_category(parent=martial)  # Защита
-    martial_kept = make_children(martial, 5)
-    martial_removed = make_category(parent=martial)
-
-    helmets = make_category(parent=protection)  # Шлема
-    protection_kept = make_children(protection, 3)
-    protection_removed = make_category(parent=protection)
-
-    # СПОРТ в этом файле без вложенных <Группы>; пришла цепочка Единоборства → Защита → Шлема
-    xml: list[CategoryData] = [cat_data(martial)]
-    xml += [cat_data(c, martial) for c in [protection] + martial_kept]
-    xml += [cat_data(c, protection) for c in [helmets] + protection_kept]
-
-    processor.process_categories(xml)
-    processor.deactivate_obsolete_categories()
-
-    sport.refresh_from_db()
-    assert sport.is_active is True
-    for sibling in sport_siblings:
-        sibling.refresh_from_db()
-        assert sibling.is_active is True, "Дети нераскрытого родителя не должны гаснуть"
-
-    martial_removed.refresh_from_db()
-    protection_removed.refresh_from_db()
-    assert martial_removed.is_active is False, "Внутри раскрытой ветки не пришедшая категория гаснет"
-    assert protection_removed.is_active is False
-
-    for survivor in [martial, protection, helmets] + martial_kept + protection_kept:
-        survivor.refresh_from_db()
-        assert survivor.is_active is True
-
-
-def test_whole_branch_exported_blocks_anchor_children_only_anchored_mode(processor, settings):
-    """I/O-матрица «Ветка выгружена целиком» в anchored-режиме — сценарий прода.
-
-    Под якорем 12 активных детей, в выгрузке пришёл один (Единоборства) → 11/12 = 92 %,
-    предохранитель отменяет чистку детей якоря. Под Единоборствами пришли все 30 детей,
-    один устарел → 1/31 = 3 %, чистка проходит штатно.
-    """
-    root_name = f"СПОРТ-{get_unique_suffix()}"
-    settings.ROOT_CATEGORY_NAME = root_name
-
-    anchor = make_category(name=root_name)
-    martial = make_category(parent=anchor)
-    anchor_siblings = make_children(anchor, 11)  # 12-й ребёнок якоря — martial
-
-    martial_kept = make_children(martial, 30)
-    martial_removed = make_category(parent=martial)
-
-    xml: list[CategoryData] = [cat_data(anchor), cat_data(martial, anchor)]
-    xml += [cat_data(c, martial) for c in martial_kept]
-
-    processor.process_categories(xml)
-    assert processor._category_filtering_active is True, "Тест обязан идти в anchored-режиме"
-
-    with patch("apps.products.services.variant_import.logger") as mock_logger:
-        processor.deactivate_obsolete_categories()
-
-    for sibling in anchor_siblings:
-        sibling.refresh_from_db()
-        assert sibling.is_active is True, "Предохранитель обязан отменить гашение 11 из 12 детей якоря"
-
-    martial_removed.refresh_from_db()
-    assert martial_removed.is_active is False, "Под другим родителем чистка должна пройти штатно"
-    for survivor in martial_kept:
-        survivor.refresh_from_db()
-        assert survivor.is_active is True
-
-    errors = deactivation_error_calls(mock_logger)
-    assert len(errors) == 1, "Ошибка предохранителя должна быть ровно одна — по якорю"
-    args = errors[0].args
-    assert args[1] == anchor.name, "Первый аргумент после шаблона — имя родителя"
-    assert args[2] == anchor.onec_id, "Второй — onec_id родителя"
-    assert args[3] == 11, "Третий — число кандидатов на деактивацию"
-    assert args[4] == 12, "Четвёртый — число активных детей родителя"
-
-
-def test_small_parent_deactivates_without_threshold(processor, unanchored):
-    """I/O-матрица «Малый родитель»: 1 из 3 детей (33 %) гаснет, порог не применяется."""
-    parent = make_category()
-    kept = make_children(parent, 2)
-    removed = make_category(parent=parent)
-
-    xml: list[CategoryData] = [cat_data(parent)] + [cat_data(c, parent) for c in kept]
-
-    processor.process_categories(xml)
-    with patch("apps.products.services.variant_import.logger") as mock_logger:
-        processor.deactivate_obsolete_categories()
-
-    removed.refresh_from_db()
-    assert removed.is_active is False, "При < 4 активных детях порог не применяется"
-    assert deactivation_error_calls(mock_logger) == [], "Лог не должен засоряться ошибками на малых родителях"
-
-
-def test_no_valid_categories_returns_early(processor, unanchored):
-    """I/O-матрица «Категорий нет»: пустое `_valid_category_onec_ids` → ранний return."""
-    parent = make_category()
-    make_children(parent, 5)
-    active_before = Category.objects.filter(is_active=True).count()
-    total_before = Category.objects.count()
-
-    # Раскрытый родитель есть, а валидных категорий — нет
-    processor._expanded_parent_onec_ids.add(parent.onec_id)
-    assert processor._valid_category_onec_ids == set()
-
-    processor.deactivate_obsolete_categories()
-
-    assert Category.objects.filter(is_active=True).count() == active_before
-    assert Category.objects.count() == total_before
-
-
-def test_no_expanded_parents_returns_early(processor, unanchored):
-    """I/O-матрица «Нет раскрытых родителей»: плоский список групп → ранний return."""
-    parent = make_category()
-    make_children(parent, 5)
-    flat_roots = [make_category() for _ in range(3)]
-    active_before = Category.objects.filter(is_active=True).count()
-    total_before = Category.objects.count()
-
-    xml: list[CategoryData] = [cat_data(c) for c in flat_roots]
-    processor.process_categories(xml)
-
-    assert processor._valid_category_onec_ids, "Плоские группы всё равно попадают в валидные"
-    assert processor._expanded_parent_onec_ids == set(), "Без вложенности раскрытых родителей нет"
-
-    processor.deactivate_obsolete_categories()
-
-    assert Category.objects.filter(is_active=True).count() == active_before
-    assert Category.objects.count() == total_before
-
-
-# ============================================================================
-# Граница порога, изоляция родителей, накопление множеств, наблюдаемость
-# ============================================================================
-
-
-def test_ratio_exactly_at_threshold_passes(processor, unanchored):
-    """Ровно 30 % (3 из 10) — не «больше порога», деактивация проходит."""
-    parent = make_category()
-    kept = make_children(parent, 7)
-    removed = make_children(parent, 3)
-
-    xml: list[CategoryData] = [cat_data(parent)] + [cat_data(c, parent) for c in kept]
-
-    processor.process_categories(xml)
-    with patch("apps.products.services.variant_import.logger") as mock_logger:
-        processor.deactivate_obsolete_categories()
-
-    for cat in removed:
-        cat.refresh_from_db()
-        assert cat.is_active is False, "Ровно 30 % не превышает порог — чистка должна пройти"
-    assert deactivation_error_calls(mock_logger) == []
-
-
-def test_ratio_above_threshold_blocks(processor, unanchored):
-    """40 % (4 из 10) — порог превышен, деактивация отменяется."""
-    parent = make_category()
-    kept = make_children(parent, 6)
-    doomed = make_children(parent, 4)
-
-    xml: list[CategoryData] = [cat_data(parent)] + [cat_data(c, parent) for c in kept]
-
-    processor.process_categories(xml)
-    with patch("apps.products.services.variant_import.logger") as mock_logger:
-        processor.deactivate_obsolete_categories()
-
-    for cat in doomed:
-        cat.refresh_from_db()
-        assert cat.is_active is True, "Превышение порога должно отменить деактивацию"
-
-    errors = deactivation_error_calls(mock_logger)
-    assert len(errors) == 1
-    assert errors[0].args[1] == parent.name
-    assert errors[0].args[2] == parent.onec_id
-    assert errors[0].args[3] == 4
-    assert errors[0].args[4] == 10
-
-
-def test_threshold_isolated_per_parent(processor, unanchored):
-    """Блокировка под одним родителем не мешает чистке под другим."""
-    blocked_parent = make_category()
-    blocked_kept = make_children(blocked_parent, 6)
-    blocked_doomed = make_children(blocked_parent, 4)
-
-    clean_parent = make_category()
-    clean_kept = make_children(clean_parent, 9)
-    clean_doomed = make_children(clean_parent, 1)
-
-    xml: list[CategoryData] = [cat_data(blocked_parent), cat_data(clean_parent)]
-    xml += [cat_data(c, blocked_parent) for c in blocked_kept]
-    xml += [cat_data(c, clean_parent) for c in clean_kept]
-
-    processor.process_categories(xml)
-    processor.deactivate_obsolete_categories()
-
-    for cat in blocked_doomed:
-        cat.refresh_from_db()
-        assert cat.is_active is True, "Дети заблокированного родителя не должны меняться"
-    for cat in clean_doomed:
-        cat.refresh_from_db()
-        assert cat.is_active is False, "Под другим родителем чистка обязана пройти"
-
-
-def test_sets_accumulate_between_groups_files(processor, unanchored):
-    """Множества накапливаются между groups*.xml: один процессор — несколько файлов."""
-    parent_one = make_category()
-    kept_one = make_children(parent_one, 2)
-    removed_one = make_category(parent=parent_one)
-
-    parent_two = make_category()
-    kept_two = make_children(parent_two, 2)
-    removed_two = make_category(parent=parent_two)
-
-    # groups1.xml
-    processor.process_categories([cat_data(parent_one)] + [cat_data(c, parent_one) for c in kept_one])
-    # groups2.xml
-    processor.process_categories([cat_data(parent_two)] + [cat_data(c, parent_two) for c in kept_two])
-
-    assert {parent_one.onec_id, parent_two.onec_id} <= processor._expanded_parent_onec_ids
-
-    processor.deactivate_obsolete_categories()
-
-    for cat in [removed_one, removed_two]:
-        cat.refresh_from_db()
-        assert cat.is_active is False, "Раскрытые родители обоих файлов должны быть в зоне чистки"
-    for cat in kept_one + kept_two:
-        cat.refresh_from_db()
-        assert cat.is_active is True, "Валидные id из первого файла не должны теряться на втором"
-
-
-def test_foreign_root_does_not_become_expanded(processor, settings):
-    """Guard чужого корня: категория якоря, перевешенная в XML под чужой корень, не раскрывает его.
-
-    Без guard чужой корень попал бы в `_expanded_parent_onec_ids`, и его собственные
-    дети — ветка вне якоря — уехали бы в зону деактивации.
-    """
-    root_name = f"СПОРТ-{get_unique_suffix()}"
-    settings.ROOT_CATEGORY_NAME = root_name
-
-    anchor = make_category(name=root_name)
-    anchor_child = make_category(parent=anchor)  # попадает в allowed через seed из БД
-
-    foreign_root = make_category()
-    foreign_children = make_children(foreign_root, 5)
-
-    # В выгрузке ребёнок якоря ошибочно перевешен под чужой корень
-    xml: list[CategoryData] = [
-        cat_data(anchor),
-        cat_data(foreign_root),
-        cat_data(anchor_child, foreign_root),
-    ]
-
-    processor.process_categories(xml)
-    assert processor._category_filtering_active is True
-
-    assert foreign_root.onec_id not in processor._expanded_parent_onec_ids, "Чужой корень не должен считаться раскрытым"
-
-    processor.deactivate_obsolete_categories()
-
-    for child in foreign_children:
-        child.refresh_from_db()
-        assert child.is_active is True, "Дети чужого корня обязаны остаться нетронутыми"
-
-
-def test_threshold_applies_at_exactly_min_children(processor, unanchored):
-    """Граница MIN_CHILDREN_FOR_DEACTIVATION_RATIO: ровно 4 ребёнка — порог уже применяется.
-
-    Дискриминирующий тест: при замене `>=` на `>` в проверке минимума родитель
-    с 4 детьми потерял бы защиту и 2 категории погасли бы молча.
-    """
-    parent = make_category()
-    kept = make_children(parent, 2)
-    doomed = make_children(parent, 2)  # 2 из 4 = 50 % > 30 %
-
-    xml: list[CategoryData] = [cat_data(parent)] + [cat_data(c, parent) for c in kept]
-
-    processor.process_categories(xml)
-    with patch("apps.products.services.variant_import.logger") as mock_logger:
-        processor.deactivate_obsolete_categories()
-
-    for cat in doomed:
-        cat.refresh_from_db()
-        assert cat.is_active is True, "При ровно 4 активных детях порог обязан применяться"
-    assert len(deactivation_error_calls(mock_logger)) == 1
-
-
-def test_small_branch_majority_loss_is_logged(processor, unanchored):
-    """Малая ветка теряет большинство детей: порог не применяется, но потеря фиксируется в логе."""
-    parent = make_category()
-    kept = make_children(parent, 1)
-    doomed = make_children(parent, 2)  # 2 из 3 = 67 %, но детей < 4
-
-    xml: list[CategoryData] = [cat_data(parent)] + [cat_data(c, parent) for c in kept]
-
-    processor.process_categories(xml)
-    with patch("apps.products.services.variant_import.logger") as mock_logger:
-        processor.deactivate_obsolete_categories()
-
-    for cat in doomed:
-        cat.refresh_from_db()
-        assert cat.is_active is False, "Порог не применяется при < 4 детях — чистка проходит"
-
-    warnings = small_branch_warning_calls(mock_logger)
-    assert len(warnings) == 1, "Крупная потеря в малой ветке не должна проходить молча"
-    assert warnings[0].args[2] == parent.onec_id
-    assert warnings[0].args[3] == 2
-    assert warnings[0].args[4] == 3
-
-
-def test_skipped_deactivation_lands_in_session_report_and_details(processor, import_session, unanchored):
-    """Отмена предохранителем видна в ImportSession.report и в report_details, а не только в файловом логе."""
-    parent = make_category()
-    kept = make_children(parent, 6)
-    make_children(parent, 4)
-
-    xml: list[CategoryData] = [cat_data(parent)] + [cat_data(c, parent) for c in kept]
-    processor.process_categories(xml)
-
+    bounced = make_category(parent=root)
+
+    processor = new_processor()
+    processor.process_categories([cat_data(root), cat_data(bounced, root, deleted=True)])
+    processor.process_categories([cat_data(bounced, root)])
     processor.finalize_session(ImportSession.ImportStatus.COMPLETED)
 
-    assert processor.stats["categories_deactivation_skipped"] == 4
+    assert is_active(bounced)
 
-    import_session.refresh_from_db()
-    assert "предохранитель" in import_session.report, "Факт отмены обязан попасть в ImportSession.report"
-    assert import_session.report_details["categories_deactivation_skipped"] == 4
+
+def test_deactivation_lands_in_session_report_and_details(anchor):
+    """Гашение видно в ImportSession.report и report_details, а не только в файловом логе."""
+    parent = make_category(parent=anchor)
+    marked = make_category(parent=parent)
+
+    processor = run_session([cat_data(anchor), cat_data(parent, anchor), cat_data(marked, parent, deleted=True)])
+
+    session = ImportSession.objects.get(pk=processor.session_id)
+    assert "погашено по явному сигналу" in session.report
+    assert session.report_details["categories_deactivated"] == 1
+
+
+def test_unanchored_marked_group_is_deactivated(unanchored):
+    """Без якоря пометка удаления работает так же."""
+    root = make_category()
+    marked, kept = make_children(root, 2)
+
+    run_session([cat_data(root), cat_data(marked, root, deleted=True), cat_data(kept, root)])
+
+    assert is_active(marked) is False
+    assert is_active(kept)
+
+
+def test_returned_group_is_active_and_survives_next_partial_packet(anchor):
+    """Регресс прода: группа вернулась в дерево — и следующий частичный пакет её не гасит."""
+    parent = make_category(parent=anchor)
+    bounced, other = make_children(parent, 2)
+
+    run_session([cat_data(anchor), cat_data(parent, anchor), cat_data(bounced, parent, deleted=True)])
+    assert is_active(bounced) is False
+
+    run_session([cat_data(anchor), cat_data(parent, anchor), cat_data(bounced, parent)])
+    assert is_active(bounced), "Снятая в 1С пометка должна включить группу обратно"
+
+    run_session([cat_data(anchor), cat_data(parent, anchor), cat_data(other, parent)])
+    assert is_active(bounced), "Частичный пакет без группы не должен её гасить"
+
+
+def test_anchor_is_never_deactivated(anchor):
+    """Пометка якоря в XML игнорируется: дерево витрины не должно опустеть."""
+    child = make_category(parent=anchor)
+
+    run_session([cat_data(anchor, deleted=True), cat_data(child, anchor)])
+
+    assert is_active(anchor)
+    assert is_active(child)
+
+
+def test_failed_session_changes_nothing(anchor):
+    """Деактивация применяется только при completed: упавшая сессия витрину не трогает."""
+    parent = make_category(parent=anchor)
+    marked = make_category(parent=parent)
+
+    run_session(
+        [cat_data(anchor), cat_data(parent, anchor), cat_data(marked, parent, deleted=True)],
+        status=ImportSession.ImportStatus.FAILED,
+    )
+
+    assert is_active(marked)
+
+
+def test_exclusions_accumulate_between_groups_files(anchor):
+    """Помеченная группа пришла в первом groups*.xml, второй её не содержит — гасится по итогам сессии."""
+    parent = make_category(parent=anchor)
+    marked, kept = make_children(parent, 2)
+
+    processor = new_processor()
+    processor.process_categories([cat_data(anchor), cat_data(parent, anchor), cat_data(marked, parent, deleted=True)])
+    processor.process_categories([cat_data(kept, parent)])
+    processor.finalize_session(ImportSession.ImportStatus.COMPLETED)
+
+    assert is_active(marked) is False
+    assert is_active(kept)
+
+
+# ============================================================================
+# Реальная выгрузка 1С
+# ============================================================================
+
+
+@pytest.mark.data_dependent
+def test_real_groups_partial_packets_deactivate_nothing(settings: Any) -> None:
+    """Полная выгрузка групп, затем частичные пакеты из неё же: ни одна категория не гаснет."""
+    files = sorted(ONEC_RUNTIME_GROUPS.glob("groups_*.xml")) if ONEC_RUNTIME_GROUPS.exists() else []
+    if not files:
+        pytest.skip("Назначенный корпус data/import_1c/groups отсутствует (в .gitignore)")
+
+    groups = XMLDataParser().parse_groups_xml(str(files[0]))
+    anchor_row = next((g for g in groups if not g.get("parent_id") and g["name"] == "СПОРТ"), None)
+    if anchor_row is None:
+        pytest.skip("В реальной выгрузке групп нет якоря «СПОРТ»")
+    settings.ROOT_CATEGORY_NAME = anchor_row["name"]
+
+    run_session(groups)
+    imported = Category.objects.count()
+    assert imported > 50, "Поддерево СПОРТ из реальной выгрузки должно загрузиться целиком"
+
+    # Три частичных пакета разного состава: якорь + каждый 7-й / 3-й / 11-й узел
+    for step in (7, 3, 11):
+        run_session([anchor_row] + groups[::step])
+
+    assert Category.objects.count() == imported
+    assert Category.objects.filter(is_active=False).count() == 0, "Частичные пакеты не должны гасить категории"
