@@ -12,6 +12,7 @@ from smtplib import SMTPException
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.core import mail
 from django.utils import timezone
 
 from apps.users.models import User
@@ -152,6 +153,63 @@ class TestSendUserPendingEmail:
 
         assert result is True
         mock_send_mail.assert_called_once()
+
+    def test_email_shows_company_name_from_registration(self):
+        """Название компании подставляется в обе части письма, без сырых тегов шаблона."""
+        user = UserFactory(
+            first_name="Алексей",
+            email="user@example.com",
+            role="wholesale_level1",
+            company_name="ООО Спорт-Опт",
+        )
+
+        assert send_user_pending_email(user.id) is True
+
+        message = mail.outbox[0]
+        html_body, _ = message.alternatives[0]
+        assert "(ООО Спорт-Опт)" in message.body
+        assert "(ООО Спорт-Опт)" in html_body
+        assert "{{" not in message.body
+        assert "{{" not in html_body
+
+    def test_plain_text_company_name_is_not_html_escaped(self):
+        """В текстовой части спецсимволы названия остаются как есть, в HTML экранируются."""
+        user = UserFactory(role="wholesale_level1", company_name='ООО "Спорт" & Ко', email="user@example.com")
+
+        assert send_user_pending_email(user.id) is True
+
+        message = mail.outbox[0]
+        html_body, _ = message.alternatives[0]
+        assert '(ООО "Спорт" & Ко)' in message.body
+        assert "&amp;amp;" not in message.body
+        assert "&amp;" in html_body
+
+    def test_email_without_company_name_has_no_empty_brackets(self):
+        """Без названия компании скобки не выводятся."""
+        user = UserFactory(role="trainer", company_name="", email="user@example.com")
+
+        assert send_user_pending_email(user.id) is True
+
+        message = mail.outbox[0]
+        html_body, _ = message.alternatives[0]
+        assert "()" not in message.body
+        assert "()" not in html_body
+
+    def test_email_contains_real_site_contacts(self):
+        """Контакты в письме совпадают с подвалом сайта, заглушек нет."""
+        user = UserFactory(role="trainer", company_name="Sport Club", email="user@example.com")
+
+        assert send_user_pending_email(user.id) is True
+
+        message = mail.outbox[0]
+        html_body, _ = message.alternatives[0]
+        for body in (message.body, html_body):
+            assert "+7 968 273-21-68" in body
+            assert "info@optisport.ru" in body
+            assert "XXX" not in body
+            assert "support@optisport.ru" not in body
+        assert 'href="tel:+79682732168"' in html_body
+        assert 'href="mailto:info@optisport.ru"' in html_body
 
 
 @pytest.mark.unit
