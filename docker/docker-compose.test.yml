@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: freesport_test
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
-    volumes:
-      - test_postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432" # Другой порт чтобы не конфликтовать с основной БД
     networks:
@@ -23,6 +21,13 @@ services:
       retries: 5
     tmpfs:
       - /tmp
+      # Данные БД в памяти, а не на томе Docker. pytest-django после КАЖДОГО теста
+      # `tests/integration` делает flush (TRUNCATE всех таблиц), а на томе файловая система
+      # WSL2 создаёт и удаляет файлы relfilenode медленно: ~1,5 с на flush против ~0,24 с на
+      # tmpfs — это ~74% времени полного прогона. Тестовые БД (`test_*`, `_gwN`) pytest
+      # пересоздаёт при каждом запуске, поэтому после `down` или перезапуска контейнера
+      # терять нечего. Потолок 3g — размер, на котором проходил полный набор при `-n 8`.
+      - /var/lib/postgresql/data:size=3g
     shm_size: 256mb
 
   # Redis для тестового кеширования
@@ -98,8 +103,6 @@ services:
       ["pytest", "-v", "--cov=apps", "--cov-report=html", "--cov-report=term"]
 
 volumes:
-  test_postgres_data:
-    driver: local
   test_coverage:
     driver: local
 

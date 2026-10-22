@@ -31,10 +31,10 @@
 │  ┌──────────────┐    ┌─────────────────┐   ┌────────────────┐   │
 │  │ backend-test │───►│ test-db:5432    │   │ test-redis:6379│   │
 │  │ (pytest)    │    │ (PostgreSQL)    │   │ (Redis)        │   │
-│  │              │    │ tmpfs:/tmp      │   │ tmpfs:/data    │   │
+│  │              │    │ tmpfs: БД, /tmp │   │ tmpfs:/data    │   │
 │  └──────────────┘    └─────────────────┘   └────────────────┘   │
 │                                                                 │
-│  Volumes: test_postgres_data, test_coverage                     │
+│  Volumes: test_coverage (данные БД — в tmpfs, не в томе)        │
 │  Network: freesport-test-network (изолированная)               │
 └─────────────────────────────────────────────────────────────────┘
 ```
