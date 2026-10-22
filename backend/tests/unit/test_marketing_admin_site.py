@@ -66,8 +66,6 @@ LABEL_ACTIONS = (
     "unmark_as_new",
     "mark_as_sale",
     "unmark_as_sale",
-    "mark_as_promo",
-    "unmark_as_promo",
     "mark_as_premium",
     "unmark_as_premium",
 )
@@ -202,7 +200,8 @@ class TestWhitelists:
             "is_promo",
             "is_premium",
         }
-        assert readonly == {"name", "brand_link", "category_name", "discount_percent"}
+        # «Акция» показывается, но выводится из акционных цен 1С — только чтение
+        assert readonly == {"name", "brand_link", "category_name", "discount_percent", "is_promo"}
         assert not (fields | readonly) & PRODUCT_HIDDEN_FIELDS
         assert model_admin.get_inline_instances(request, product) == []
 

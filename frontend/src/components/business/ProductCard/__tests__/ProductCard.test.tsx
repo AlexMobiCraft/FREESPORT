@@ -34,7 +34,8 @@ vi.mock('next/image', () => ({
 }));
 
 // Mock lucide-react icons
-vi.mock('lucide-react', () => ({
+vi.mock('lucide-react', async importOriginal => ({
+  ...(await importOriginal<typeof import('lucide-react')>()),
   Heart: ({ className, fill }: MockHeartProps) => (
     <svg data-testid="heart-icon" className={className} data-fill={fill ?? undefined} />
   ),
@@ -331,6 +332,92 @@ describe('ProductCard', () => {
       const oldPriceElement = container.querySelector('.line-through');
       expect(oldPriceElement).toBeInTheDocument();
       expect(oldPriceElement).toHaveTextContent('1 200 ₽');
+    });
+  });
+
+  describe('Promo Pricing', () => {
+    const layouts = ['grid', 'list', 'compact'] as const;
+    const promoProduct: Product = {
+      ...mockProduct,
+      is_promo: true,
+      promo_price: '800.00',
+      current_price: '800.00',
+      regular_price: '1000.00',
+    };
+
+    it.each(layouts)('показывает стикер «Акция» поверх распродажи в раскладке %s', layout => {
+      render(
+        <ProductCard
+          product={{ ...promoProduct, is_sale: true, discount_percent: 20 }}
+          layout={layout}
+        />
+      );
+
+      expect(screen.getByText('Акция')).toBeInTheDocument();
+      expect(screen.queryByText('20% скидка')).not.toBeInTheDocument();
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
+    });
+
+    it.each(layouts)('сохраняет стикер акционного товара без цены в раскладке %s', layout => {
+      render(
+        <ProductCard
+          product={{ ...mockProduct, is_promo: true, is_sale: true, discount_percent: 20 }}
+          layout={layout}
+        />
+      );
+
+      expect(screen.getByText('Акция')).toBeInTheDocument();
+      expect(screen.queryByText('20% скидка')).not.toBeInTheDocument();
+    });
+
+    it.each(layouts)('shows bold promo price and struck regular price in %s layout', layout => {
+      render(<ProductCard product={promoProduct} layout={layout} userRole="wholesale_level2" />);
+
+      const promoPrice = screen.getByTestId('promo-price');
+      expect(promoPrice).toHaveTextContent('800 ₽');
+      expect(promoPrice).toHaveClass('font-bold');
+      const regularPrice = screen.getByTestId('regular-price');
+      expect(regularPrice).toHaveTextContent('1 000 ₽');
+      expect(regularPrice).toHaveClass('line-through');
+    });
+
+    it.each(layouts)('hides struck price when regular equals promo in %s layout', layout => {
+      const product = { ...promoProduct, regular_price: '800.00' };
+      const { container } = render(<ProductCard product={product} layout={layout} />);
+
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
+      expect(screen.queryByTestId('regular-price')).not.toBeInTheDocument();
+      expect(container.querySelector('.line-through')).not.toBeInTheDocument();
+    });
+
+    it.each(layouts)('hides struck price when promo is above regular in %s layout', layout => {
+      const product = { ...promoProduct, regular_price: '700.00' };
+      render(<ProductCard product={product} layout={layout} userRole="wholesale_level1" />);
+
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
+      expect(screen.queryByTestId('regular-price')).not.toBeInTheDocument();
+    });
+
+    it('promo price wins over role price', () => {
+      render(<ProductCard product={promoProduct} layout="grid" userRole="wholesale_level4" />);
+
+      expect(screen.getByTestId('promo-price')).toHaveTextContent('800 ₽');
+      expect(screen.queryByText('700 ₽')).not.toBeInTheDocument();
+    });
+
+    it('discount strike-through is not shown during promo', () => {
+      const product = { ...promoProduct, regular_price: '800.00', discount_percent: 20 };
+      const { container } = render(<ProductCard product={product} layout="grid" />);
+
+      expect(container.querySelector('.line-through')).not.toBeInTheDocument();
+    });
+
+    it('null promo_price keeps role pricing', () => {
+      const product = { ...mockProduct, promo_price: null, current_price: '1200.00' };
+      render(<ProductCard product={product} layout="grid" userRole="wholesale_level1" />);
+
+      expect(screen.queryByTestId('promo-price')).not.toBeInTheDocument();
+      expect(screen.getByText('1 000 ₽')).toBeInTheDocument();
     });
   });
 

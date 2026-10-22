@@ -45,6 +45,9 @@ interface ApiProductDetailResponse {
   opt4_price?: number;
   trainer_price?: number;
   federation_price?: number;
+  current_price?: string;
+  regular_price?: string;
+  promo_price?: string | null;
   stock_quantity: number;
   is_in_stock: boolean;
   main_image?: string | null;
@@ -63,6 +66,8 @@ interface ApiProductDetailResponse {
     color_name?: string | null;
     size_value?: string | null;
     current_price: string;
+    regular_price?: string;
+    promo_price?: string | null;
     color_hex?: string | null;
     stock_quantity: number;
     is_in_stock: boolean;
@@ -135,6 +140,10 @@ function adaptProductToDetail(apiProduct: ApiProductDetailResponse): ProductDeta
       federation: apiProduct.federation_price,
       currency: 'RUB',
     },
+    // Цены по первому варианту: нужны карточке, пока вариант не выбран
+    current_price: apiProduct.current_price,
+    regular_price: apiProduct.regular_price,
+    promo_price: apiProduct.promo_price,
     stock_quantity: apiProduct.stock_quantity || 0,
     images,
     rating: apiProduct.rating,

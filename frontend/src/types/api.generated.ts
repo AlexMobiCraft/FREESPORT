@@ -2492,6 +2492,10 @@ export interface components {
       readonly can_be_ordered: boolean;
       /** @description Получить актуальную цену на основе роли пользователя */
       readonly current_price: string;
+      /** @description Цена первого варианта по роли пользователя без учёта акции */
+      readonly regular_price: string;
+      /** Format: decimal */
+      readonly promo_price: string | null;
       /** @description Получить артикул первого варианта */
       readonly sku: string;
       /**
@@ -2533,6 +2537,8 @@ export interface components {
      *
      *     Вычисляемые поля для обратной совместимости (данные из вариантов):
      *     - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
+     *     - current_price, regular_price, promo_price: то же, что у ProductVariantSerializer,
+     *       по первому варианту (вариант с акционной ценой — первым)
      *     - stock_quantity: суммарное количество на складе по всем вариантам
      *     - is_in_stock: есть ли хотя бы один вариант в наличии
      *     - main_image: изображение из первого варианта или base_images
@@ -2648,6 +2654,10 @@ export interface components {
       readonly can_be_ordered: boolean;
       /** @description Получить актуальную цену на основе роли пользователя */
       readonly current_price: string;
+      /** @description Цена первого варианта по роли пользователя без учёта акции */
+      readonly regular_price: string;
+      /** Format: decimal */
+      readonly promo_price: string | null;
       /** @description Получить артикул первого варианта */
       readonly sku: string;
       /**
@@ -2665,7 +2675,9 @@ export interface components {
      * @description Serializer для ProductVariant с роле-ориентированной ценой
      *
      *     Поля:
-     *     - current_price: цена для текущего пользователя (роле-ориентированная)
+     *     - current_price: цена, которую платит пользователь: акционная, если есть, иначе по роли
+     *     - regular_price: цена по роли без акции (гостю — розница)
+     *     - promo_price: акционная цена текущей акции, видна всем ролям; null — акции нет
      *     - color_hex: hex-код цвета из ColorMapping
      *     - is_in_stock: computed property из модели
      *     - available_quantity: computed property из модели
@@ -2698,6 +2710,14 @@ export interface components {
        *         str: Цена как строка (сериализация Decimal)
        */
       readonly current_price: string;
+      /** @description Цена по роли пользователя без учёта акции */
+      readonly regular_price: string;
+      /**
+       * Акционная цена
+       * Format: decimal
+       * @description Цена текущей акции из 1С (вид цен «АКЦИЯ …»). Действует для всех ролей. Ставит и снимает только импорт 1С.
+       */
+      readonly promo_price: string | null;
       /**
        * @description Получить hex-код цвета из ColorMapping
        *

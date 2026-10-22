@@ -16,7 +16,7 @@ import re
 import uuid
 from decimal import Decimal
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, Sequence, TypedDict
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.products.category_utils import REPAIR_ANCHOR_ONEC_ID
+from apps.products.services import promo
 from apps.products.services.onec_admission import (
     KIND_GROUP,
     KIND_OFFER,
@@ -117,6 +118,7 @@ class PriceTypeData(TypedDict):
     onec_id: str
     onec_name: str
     product_field: str
+    is_deleted: NotRequired[bool]
 
 
 # ============================================================================
@@ -381,6 +383,7 @@ class VariantImportProcessor:
         self._size_value_max_length: int | None = ProductVariant._meta.get_field("size_value").max_length
         self._missing_variants_logged: set[str] = set()
         self._unmapped_price_types_logged: set[str] = set()
+        self._unknown_price_types_logged: set[str] = set()
         # Маппинг parent_onec_id → vat_rate из goods.xml
         self._product_vat_rates: dict[str, Decimal] = {}
 
@@ -1905,8 +1908,6 @@ class VariantImportProcessor:
         Returns:
             True если обновление успешно, False при ошибке
         """
-        from apps.products.models import PriceType, ProductVariant
-
         try:
             onec_id = price_data.get("id")
             if not onec_id:
@@ -1926,59 +1927,141 @@ class VariantImportProcessor:
                 self.stats["warnings"] += 1
                 return False
 
-            # Маппинг цен через PriceType
             prices = price_data.get("prices", [])
-            price_updates: dict[str, Decimal] = {}
 
-            for price_item in prices:
-                price_type_id = price_item.get("price_type_id")
-                price_value = price_item.get("value")
+            # Справочник видов цен и текущая акция читаются под общей блокировкой
+            # состояния акции: смена акции, смена маппинга вида цен и удаление идут под
+            # исключительной (`promo.save_price_type`), поэтому между чтением и записью
+            # цен ничего не меняется. Кэшировать справочник нельзя: устаревший объект
+            # записал бы акционную цену в `retail_price` или вернул бы цену отключённой акции.
+            with transaction.atomic():
+                promo.lock_promo_state(shared=True)
+                price_types = self._get_price_types()
+                price_updates, offer_values = self._map_offer_prices(prices, price_types)
 
-                if not price_type_id or price_value is None:
-                    continue
+                # Auto-populate retail_price from RRP if not provided
+                # РРЦ из 1С является базовой розничной ценой для сайта
+                if "rrp" in price_updates and "retail_price" not in price_updates:
+                    price_updates["retail_price"] = price_updates["rrp"]
 
-                # Находим маппинг типа цены
-                price_type = PriceType.objects.filter(onec_id=price_type_id, is_active=True).first()
+                promo_changed, promo_value = self._resolve_promo_price(variant, offer_values, price_types)
+                if promo_changed:
+                    price_updates[promo.PROMO_FIELD] = promo_value
 
-                if price_type:
-                    field_name = price_type.product_field
-                    # Вид цен без маппинга (product_field="") не применяем ни к одному
-                    # полю — иначе цена уехала бы в розницу через прежний fallback
-                    if not field_name:
-                        if price_type_id not in self._unmapped_price_types_logged:
-                            logger.warning(
-                                f"Вид цен '{price_type.onec_name}' ({price_type_id}) "
-                                f"не сопоставлен полю ProductVariant — цены этого вида пропускаются"
-                            )
-                            self._unmapped_price_types_logged.add(price_type_id)
-                        continue
-                    price_updates[field_name] = price_value
+                # Применяем обновления цен
+                fields_to_update: list[str] = []
+                for field_name, value in price_updates.items():
+                    if hasattr(variant, field_name):
+                        setattr(variant, field_name, value)
+                        fields_to_update.append(field_name)
 
-            # Auto-populate retail_price from RRP if not provided
-            # РРЦ из 1С является базовой розничной ценой для сайта
-            if "rrp" in price_updates and "retail_price" not in price_updates:
-                price_updates["retail_price"] = price_updates["rrp"]
-
-            # Применяем обновления цен
-            fields_to_update: list[str] = []
-            for field_name, value in price_updates.items():
-                if hasattr(variant, field_name):
-                    setattr(variant, field_name, value)
-                    fields_to_update.append(field_name)
-
-            if fields_to_update:
-                variant.last_sync_at = timezone.now()
-                fields_to_update.append("last_sync_at")
-                variant.save(update_fields=fields_to_update)
-                self.stats["prices_updated"] += 1
-                self.updated_variants.append(str(variant.onec_id))
-                return True
+                if fields_to_update:
+                    variant.last_sync_at = timezone.now()
+                    fields_to_update.append("last_sync_at")
+                    variant.save(update_fields=fields_to_update)
+                    self.stats["prices_updated"] += 1
+                    self.updated_variants.append(str(variant.onec_id))
+                    return True
 
             return False
 
         except Exception as e:
             self._log_error(f"Error updating variant prices: {e}", price_data)
             return False
+
+    def _map_offer_prices(
+        self, prices: list[dict[str, Any]], price_types: dict[str, Any]
+    ) -> tuple[dict[str, Decimal | None], dict[str, Decimal]]:
+        """
+        Цены предложения → поля варианта (кроме акционной).
+
+        Returns:
+            (обновления по полям, все цены предложения: id вида → значение)
+        """
+        price_updates: dict[str, Decimal | None] = {}
+        # Все цены предложения (id вида → значение): акционную цену выбирает
+        # живая текущая акция (`_resolve_promo_price`), а не тип цены из этого цикла
+        offer_values: dict[str, Decimal] = {}
+
+        for price_item in prices:
+            price_type_id = price_item.get("price_type_id")
+            price_value = price_item.get("value")
+
+            if not price_type_id or price_value is None:
+                continue
+            offer_values[price_type_id] = price_value
+
+            price_type = price_types.get(price_type_id)
+            if price_type is None:
+                if price_type_id not in self._unknown_price_types_logged:
+                    logger.warning(
+                        f"Вид цен {price_type_id} не найден в справочнике — цены этого вида "
+                        f"пропускаются. Справочник наполняет priceLists.xml: выполните полную "
+                        f"выгрузку из 1С."
+                    )
+                    self._unknown_price_types_logged.add(price_type_id)
+                continue
+            # Акционные цены (в том числе прошлых акций из полной выгрузки) — отдельно, молча
+            if price_type.product_field == promo.PROMO_FIELD:
+                continue
+            # Неактивный тип — молча
+            if not price_type.is_active:
+                continue
+
+            field_name = price_type.product_field
+            # Вид цен без маппинга (product_field="") не применяем ни к одному
+            # полю — иначе цена уехала бы в розницу через прежний fallback
+            if not field_name:
+                if price_type_id not in self._unmapped_price_types_logged:
+                    logger.warning(
+                        f"Вид цен '{price_type.onec_name}' ({price_type_id}) "
+                        f"не сопоставлен полю ProductVariant — цены этого вида пропускаются"
+                    )
+                    self._unmapped_price_types_logged.add(price_type_id)
+                continue
+            price_updates[field_name] = price_value
+
+        return price_updates, offer_values
+
+    def _resolve_promo_price(
+        self, variant: Any, offer_values: dict[str, Decimal], price_types: dict[str, Any]
+    ) -> tuple[bool, Decimal | None]:
+        """
+        Акционная цена варианта по живой текущей акции. Вызывать под блокировкой
+        `promo.lock_promo_state`.
+
+        Цена берётся у текущей акции из справочника, прочитанного под той же блокировкой:
+        акцию могли отключить или переключить, пока шёл прогон. Нет цены текущей акции в
+        пришедшем предложении — товар снят с акции. Цена `≤ 0` — это «акционной
+        цены нет»: нулевых цен БУС не выгружает.
+
+        Returns:
+            (изменилась ли цена, новое значение)
+        """
+        from apps.products.models import ProductVariant
+
+        current = next(
+            (pt for pt in price_types.values() if pt.product_field == promo.PROMO_FIELD and pt.is_active),
+            None,
+        )
+        new_value = offer_values.get(current.onec_id) if current is not None else None
+        if new_value is not None and new_value <= 0:
+            new_value = None
+
+        # Вариант в кэше процессора мог устареть: другой прогон или сброс акции
+        # изменили `promo_price` уже после его загрузки. Строка блокируется до конца
+        # транзакции: параллельный импорт того же варианта ждёт, и итоговая пара цен
+        # всегда целиком из одного пакета. Иначе первый, увидев «акционная цена не
+        # изменилась», записал бы только обычную, а чужая акционная осталась бы рядом с ней.
+        # `NO KEY UPDATE` не мешает проверкам внешних ключей (позиции заказов и корзин).
+        stored = (
+            ProductVariant.objects.select_for_update(no_key=True)
+            .filter(pk=variant.pk)
+            .values_list("promo_price", flat=True)
+            .first()
+        )
+        variant.promo_price = stored
+        return new_value != stored, new_value
 
     # ========================================================================
     # Task 6: Рефакторинг парсера rests.xml (AC: 8)
@@ -2503,11 +2586,21 @@ class VariantImportProcessor:
         """
         Создание/обновление справочника PriceType
 
-        Пустой `product_field` (вид цен не опознан маппером) в defaults не
-        попадает — прежний маппинг существующей записи сохраняется.
+        Пустой `product_field` (вид цен не опознан маппером) прежний маппинг
+        существующей записи не затирает.
+
+        Неакционные типы, как и прежде, всегда становятся активными. Активность
+        акционных (`promo_price`) решает правило текущей акции:
+
+        - новый акционный тип (запись создана или поле перешло в `promo_price`)
+          без пометки удаления становится текущим, если создан в 1С позже
+          текущего (`promo.is_newer`); из нескольких новых побеждает самый новый;
+        - уже известный акционный тип импорт активным не делает никогда;
+        - пометка удаления гасит тип, пришедший сразу с пометкой создаётся неактивным.
 
         Args:
-            price_types_data: Последовательность PriceTypeData
+            price_types_data: Последовательность PriceTypeData — файл целиком,
+                иначе «самый новый из файла» выбирается попарно.
 
         Returns:
             Количество обработанных типов цен
@@ -2515,32 +2608,84 @@ class VariantImportProcessor:
         from apps.products.models import PriceType
 
         count = 0
-        for price_type_data in price_types_data:
-            try:
-                defaults: dict[str, Any] = {
-                    "onec_name": price_type_data["onec_name"],
-                    "is_active": True,
-                }
-                # Пустой product_field = вид цен не опознан маппером
-                # (_map_price_type_to_field вернул ""). Не затираем им корректный
-                # маппинг существующей записи: переименование вида цен в 1С иначе
-                # сбило бы рабочее поле, и цены этого вида стали бы молча
-                # пропускаться guard'ом в update_variant_prices.
-                # Для новой записи поле останется пустым — цены не применятся,
-                # что и требуется для неопознанного вида цен.
-                if price_type_data["product_field"]:
-                    defaults["product_field"] = price_type_data["product_field"]
+        new_promo_types: list[Any] = []
+        # Весь файл (в нём около десятка строк) идёт под одной исключительной блокировкой
+        # состояния акции: записи читаются под ней и ею же сохраняются, а регистрация новых
+        # акций и выбор текущей не оставляют окна, в которое вклинился бы чужой прогон.
+        # Отдельная блокировка на каждый вид цен позволяла другому процессу зарегистрировать
+        # прочитанный нами «новый» тип, и вся группа новых акций откатывалась на конфликте GUID.
+        with transaction.atomic():
+            promo.lock_promo_state()
+            for price_type_data in price_types_data:
+                try:
+                    with transaction.atomic():
+                        price_type = PriceType.objects.filter(onec_id=price_type_data["onec_id"]).first()
+                        was_promo = price_type is not None and price_type.product_field == promo.PROMO_FIELD
+                        if price_type is None:
+                            price_type = PriceType(onec_id=price_type_data["onec_id"], is_active=False)
 
-                PriceType.objects.update_or_create(
-                    onec_id=price_type_data["onec_id"],
-                    defaults=defaults,
-                )
-                count += 1
-            except Exception as e:
-                logger.error(f"Error processing price type: {e}")
-                self.stats["errors"] += 1
+                        price_type.onec_name = price_type_data["onec_name"]
+                        # Пустой product_field = вид цен не опознан маппером
+                        # (_map_price_type_to_field вернул ""). Не затираем им корректный
+                        # маппинг существующей записи: переименование вида цен в 1С иначе
+                        # сбило бы рабочее поле, и цены этого вида стали бы молча
+                        # пропускаться guard'ом в update_variant_prices.
+                        # Для новой записи поле останется пустым — цены не применятся,
+                        # что и требуется для неопознанного вида цен.
+                        if price_type_data["product_field"]:
+                            price_type.product_field = price_type_data["product_field"]
+
+                        if price_type.product_field != promo.PROMO_FIELD:
+                            price_type.is_active = True
+                            promo.save_price_type(price_type)
+                        elif price_type_data.get("is_deleted", False):
+                            promo.deactivate_promo(price_type)
+                        elif not was_promo:
+                            # Новый акционный: не сохраняется до разбора ниже, чтобы регистрация и
+                            # выбор текущей акции шли одной транзакцией (иначе после сбоя повтор
+                            # застал бы его «известным» и никогда не активировал)
+                            price_type.is_active = False
+                            new_promo_types.append(price_type)
+                            continue
+                        else:
+                            # Известная акция: активность импорт не меняет, `is_active` остаётся
+                            # таким, каким он прочитан под блокировкой
+                            promo.save_price_type(price_type)
+                    count += 1
+                except Exception as e:
+                    logger.error(f"Error processing price type: {e}")
+                    self.stats["errors"] += 1
+
+            if new_promo_types:
+                try:
+                    with transaction.atomic():
+                        for candidate in new_promo_types:
+                            candidate.save()
+                        newest = new_promo_types[0]
+                        for candidate in new_promo_types[1:]:
+                            if promo.is_newer(candidate.onec_id, newest.onec_id):
+                                newest = candidate
+                        current = promo.current_promo_type()
+                        if current is None or promo.is_newer(newest.onec_id, current.onec_id):
+                            promo.activate(newest)
+                            logger.info(f"Текущая акция: '{newest.onec_name}' ({newest.onec_id})")
+                    count += len(new_promo_types)
+                except Exception as e:
+                    logger.error(f"Error registering promo price types: {e}")
+                    self.stats["errors"] += 1
 
         return count
+
+    def _get_price_types(self) -> dict[str, Any]:
+        """
+        Справочник видов цен (onec_id → PriceType), прочитанный из БД заново.
+
+        Не кэшируется: вызывать под `promo.lock_promo_state(shared=True)`, иначе
+        маппинг или активность вида цен могут измениться между чтением и записью цен.
+        """
+        from apps.products.models import PriceType
+
+        return {pt.onec_id: pt for pt in PriceType.objects.all()}
 
     def process_categories(self, categories_data: list[CategoryData]) -> dict[str, int]:
         """

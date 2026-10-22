@@ -45,6 +45,12 @@ export interface Product {
   short_description?: string;
   retail_price: number;
   old_price?: number;
+  /** Цена, которую платит пользователь: акционная, если есть, иначе по роли (Decimal as string) */
+  current_price?: string;
+  /** Цена по роли без акции; гостю — розница (Decimal as string) */
+  regular_price?: string;
+  /** Акционная цена текущей акции из 1С, видна всем ролям; null — акции нет */
+  promo_price?: string | null;
   opt1_price?: number;
   opt2_price?: number;
   opt3_price?: number;
@@ -348,6 +354,10 @@ export interface ProductVariant {
   color_name?: string | null;
   size_value?: string | null;
   current_price: string; // Decimal as string
+  /** Цена по роли без акции (Decimal as string) */
+  regular_price?: string;
+  /** Акционная цена текущей акции из 1С; null — акции нет */
+  promo_price?: string | null;
   color_hex?: string | null;
   stock_quantity: number;
   is_in_stock: boolean;
@@ -372,6 +382,12 @@ export interface ProductDetail {
   description: string;
   full_description?: string;
   price: ProductPrice;
+  /** Цена, которую платит пользователь: акционная, если есть, иначе по роли (Decimal as string) */
+  current_price?: string;
+  /** Цена по роли без акции; гостю — розница (Decimal as string) */
+  regular_price?: string;
+  /** Акционная цена текущей акции из 1С, видна всем ролям; null — акции нет */
+  promo_price?: string | null;
   stock_quantity: number;
   images: ProductImage[];
   rating?: number;

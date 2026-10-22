@@ -7,13 +7,14 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils.text import slugify
 from transliterate import translit
 
@@ -22,6 +23,56 @@ from apps.products.utils.brands import normalize_brand_name
 
 if TYPE_CHECKING:
     from apps.users.models import User
+
+
+def _skip_derived_field(instance: models.Model, args: tuple[Any, ...], kwargs: dict[str, Any], field: str) -> None:
+    """
+    Полное сохранение существующей записи не пишет поле, которое ведёт сервис акции.
+
+    `Product.is_promo` и `ProductVariant.promo_price` меняют импорт 1С и `services/promo.py`
+    (`update_fields` или `QuerySet.update`). Экземпляр, загруженный до смены акции (форма
+    админки, инлайн товара), иначе вернул бы в БД устаревшее значение при правке любого
+    другого поля. Создание, явный `update_fields` и отложенные (`defer`) поля не затрагиваются.
+    """
+    if (
+        not args
+        and kwargs.get("update_fields") is None
+        and not kwargs.get("force_insert")
+        and not instance._state.adding
+        and instance.pk
+    ):
+        deferred = instance.get_deferred_fields()
+        kwargs["update_fields"] = [
+            f.name
+            for f in instance._meta.concrete_fields
+            if not f.primary_key and f.name != field and f.attname not in deferred
+        ]
+
+
+class ProductVariantQuerySet(models.QuerySet["ProductVariant"]):
+    """Менеджер вариантов: пакетное удаление берёт блокировки товаров в едином порядке."""
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        """
+        Блокирует товары всех удаляемых вариантов по возрастанию `pk` до удаления.
+
+        Сигналы `post_delete` приходят в порядке `pk` вариантов, и пересчёт флага «Акция» блокировал
+        бы товары в этом порядке. Параллельный перенос варианта берёт те же товары по возрастанию
+        `pk` — две операции с противоположным порядком ждали бы друг друга по кругу. Блокировка
+        всего набора заранее исключает цикл.
+
+        Набор владельцев собирается заново после блокировок (`promo.lock_products_stable`): вариант
+        могли перенести в другой товар между сбором и блокировкой. Блокируются владельцы всех
+        вариантов набора, а не только акционных: акционную цену варианту может записать импорт цен
+        уже после сбора, и тогда его товар остался бы незаблокированным.
+        """
+        from apps.products.services import promo
+
+        if self.query.is_sliced or self.query.distinct_fields:
+            return super().delete()  # Django сам откажет: такой запрос удалить нельзя
+        with transaction.atomic():
+            promo.lock_products_stable(lambda: self.order_by().values_list("product_id", flat=True))
+            return super().delete()
 
 
 class BrandManager(models.Manager["Brand"]):
@@ -536,6 +587,8 @@ class Product(models.Model):
                     self.slug = f"{base_slug}-{uuid.uuid4().hex}"
                     break
 
+        # «Акция» выводится из акционных цен (`services/promo.sync_promo_flags`), руками не пишется
+        _skip_derived_field(self, args, kwargs, "is_promo")
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
@@ -761,6 +814,7 @@ class PriceType(models.Model):
                     "msrp",
                     "Максимальная рекомендованная цена",
                 ),
+                ("promo_price", "Акционная цена"),
             ],
             help_text="Поле Product, в которое мапится эта цена",
         ),
@@ -782,9 +836,28 @@ class PriceType(models.Model):
         verbose_name_plural = "Типы цен"
         db_table = "price_types"
         ordering = ["onec_name"]
+        constraints = [
+            # Одновременно действует одна акция. Переключение — только через
+            # apps.products.services.promo: он гасит прежнюю акцию раньше, чем
+            # включает новую, иначе этот индекс отклонит запись.
+            models.UniqueConstraint(
+                fields=["product_field"],
+                condition=models.Q(product_field="promo_price", is_active=True),
+                name="price_types_single_active_promo",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.onec_name} → {self.product_field}"
+
+    def get_constraints(self) -> list[tuple[type[models.Model], Sequence[models.BaseConstraint]]]:
+        # «Одна текущая акция» — не ошибка ввода: включение второй акции гасит прежнюю
+        # `promo.save_price_type`, а страхует инвариант индекс БД. Стандартная проверка
+        # ограничений отклонила бы форму админки раньше, чем сработал `save_model`.
+        return [
+            (model_class, [c for c in constraints if c.name != "price_types_single_active_promo"])
+            for model_class, constraints in super().get_constraints()
+        ]
 
 
 class ColorMapping(models.Model):
@@ -997,6 +1070,21 @@ class ProductVariant(models.Model):
             help_text="Минимальная рекомендованная розничная цена (информационно)",
         ),
     )
+    promo_price = cast(
+        Decimal | None,
+        models.DecimalField(
+            "Акционная цена",
+            max_digits=10,
+            decimal_places=2,
+            null=True,
+            blank=True,
+            validators=[MinValueValidator(Decimal("0"))],
+            help_text=(
+                "Цена текущей акции из 1С (вид цен «АКЦИЯ …»). Действует для всех ролей. "
+                "Ставит и снимает только импорт 1С."
+            ),
+        ),
+    )
 
     # НДС
     vat_rate = cast(
@@ -1128,6 +1216,8 @@ class ProductVariant(models.Model):
         help_text=("Атрибуты варианта товара " "(цвет, материал, размер и т.д.)"),
     )
 
+    objects = ProductVariantQuerySet.as_manager()
+
     class Meta:
         verbose_name = "Вариант товара"
         verbose_name_plural = "Варианты товаров"
@@ -1167,6 +1257,29 @@ class ProductVariant(models.Model):
     def __str__(self) -> str:
         """Строковое представление варианта товара"""
         return f"{self.product.name} - {self.sku}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Полное сохранение существующего варианта не пишет `promo_price`.
+
+        Акционную цену ставит и снимает только импорт 1С (`update_fields=["promo_price"]`)
+        и `services/promo.py`. Экземпляр, загруженный до сброса акции (форма админки,
+        инлайн товара), иначе вернул бы в БД устаревшую цену при правке любого другого поля.
+
+        Запись активности или товара существующего варианта идёт в транзакции вместе с
+        блокировками и пересчётом флага «Акция» (`signals.py`): упал пересчёт — откатится и
+        сама запись. В автокоммите `UPDATE` иначе фиксировался бы до сигнала `post_save`.
+        """
+        _skip_derived_field(self, args, kwargs, "promo_price")
+        update_fields = None if args else kwargs.get("update_fields")
+        writes_flag_source = update_fields is None or any(
+            name in update_fields for name in ("is_active", "product", "product_id")
+        )
+        if self._state.adding or not self.pk or not writes_flag_source:
+            super().save(*args, **kwargs)
+            return
+        with transaction.atomic():
+            super().save(*args, **kwargs)
 
     def clean(self) -> None:
         """
@@ -1228,7 +1341,18 @@ class ProductVariant(models.Model):
         return self.product.base_images if self.product.base_images else []
 
     def get_price_for_user(self, user: User | None) -> Decimal:
-        """Получить цену варианта для конкретного пользователя на основе его роли"""
+        """
+        Цена, которую платит пользователь: акционная, если она есть, иначе цена по роли.
+
+        Акционная цена действует для всех ролей и применяется, даже если она выше
+        или равна цене клиента (решение владельца 2026-10-21).
+        """
+        if self.promo_price is not None and self.promo_price > 0:
+            return self.promo_price
+        return self.get_regular_price_for_user(user)
+
+    def get_regular_price_for_user(self, user: User | None) -> Decimal:
+        """Цена варианта по роли пользователя без учёта акции"""
         from apps.products.pricing_policy import ROLE_PRICE_FIELDS, resolve_pricing_role
 
         # Неверифицированный B2B и гость понижаются до retail (project-context.md §3)

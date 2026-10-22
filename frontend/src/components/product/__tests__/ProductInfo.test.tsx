@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import ProductInfo from '../ProductInfo';
-import type { ProductDetail } from '@/types/api';
+import type { ProductDetail, ProductVariant } from '@/types/api';
 
 describe('ProductInfo', () => {
   const mockProduct: ProductDetail = {
@@ -155,5 +155,113 @@ describe('ProductInfo', () => {
     render(<ProductInfo product={unavailableProduct} />);
     const badge = screen.getByText('Нет в наличии');
     expect(badge).toHaveClass('bg-red-50', 'text-red-700');
+  });
+  describe('акционная цена', () => {
+    const variant = (regular: string): ProductVariant => ({
+      id: 1,
+      sku: 'AS-GB-FF-42',
+      current_price: '800.00',
+      regular_price: regular,
+      promo_price: '800.00',
+      stock_quantity: 5,
+      is_in_stock: true,
+      available_quantity: 5,
+    });
+
+    it('по выбранному варианту: акционная цена и зачёркнутая цена клиента выше неё', () => {
+      const { container } = render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="wholesale_level2"
+          selectedVariant={variant('1000.00')}
+        />
+      );
+
+      expect(container.querySelector('.text-4xl.font-bold')).toHaveTextContent('800 ₽');
+      const regular = screen.getByTestId('regular-price');
+      expect(regular).toHaveTextContent('1 000 ₽');
+      expect(regular).toHaveClass('line-through');
+    });
+
+    it('без зачёркнутой цены, когда цена клиента равна акционной', () => {
+      render(<ProductInfo product={mockProduct} selectedVariant={variant('800.00')} />);
+
+      expect(screen.queryByTestId('regular-price')).not.toBeInTheDocument();
+    });
+
+    it('без зачёркнутой цены, когда акция выше цены клиента', () => {
+      const { container } = render(
+        <ProductInfo
+          product={mockProduct}
+          userRole="wholesale_level1"
+          selectedVariant={variant('700.00')}
+        />
+      );
+
+      expect(container.querySelector('.text-4xl.font-bold')).toHaveTextContent('800 ₽');
+      expect(screen.queryByTestId('regular-price')).not.toBeInTheDocument();
+    });
+
+    it('без выбранного варианта — по полям товара', () => {
+      const promoProduct: ProductDetail = {
+        ...mockProduct,
+        current_price: '9000.00',
+        regular_price: '12990.00',
+        promo_price: '9000.00',
+      };
+      const { container } = render(<ProductInfo product={promoProduct} userRole="guest" />);
+
+      expect(container.querySelector('.text-4xl.font-bold')).toHaveTextContent('9 000 ₽');
+      expect(screen.getByTestId('regular-price')).toHaveTextContent('12 990 ₽');
+      expect(screen.getByText('Акция')).toBeInTheDocument();
+    });
+
+    it('показывает стикер по акционной цене выбранного варианта', () => {
+      render(<ProductInfo product={mockProduct} selectedVariant={variant('1000.00')} />);
+
+      expect(screen.getByText('Акция')).toBeInTheDocument();
+    });
+
+    it('не показывает стикер для обычного товара', () => {
+      render(<ProductInfo product={mockProduct} />);
+
+      expect(screen.queryByText('Акция')).not.toBeInTheDocument();
+    });
+
+    it('вариант без акции у акционного товара: акция другого варианта не показывается', () => {
+      // У товара акция по первому варианту (поля списка), у выбранного варианта её нет
+      const promoProduct: ProductDetail = {
+        ...mockProduct,
+        current_price: '9000.00',
+        regular_price: '12990.00',
+        promo_price: '9000.00',
+      };
+      const plainVariant: ProductVariant = {
+        id: 2,
+        sku: 'AS-GB-FF-43',
+        current_price: '12990.00',
+        regular_price: '12990.00',
+        promo_price: null,
+        stock_quantity: 5,
+        is_in_stock: true,
+        available_quantity: 5,
+      };
+
+      const { container, rerender } = render(
+        <ProductInfo product={promoProduct} userRole="guest" selectedVariant={variant('12990.00')} />
+      );
+      expect(container.querySelector('.text-4xl.font-bold')).toHaveTextContent('800 ₽');
+      expect(screen.getByTestId('regular-price')).toHaveTextContent('12 990 ₽');
+      expect(screen.getByText('Акция')).toBeInTheDocument();
+
+      // Покупатель переключил вариант на тот, где акции нет
+      rerender(<ProductInfo product={promoProduct} userRole="guest" selectedVariant={plainVariant} />);
+
+      const price = container.querySelector('.text-4xl.font-bold');
+      expect(price).toHaveTextContent('12 990 ₽');
+      expect(price).not.toHaveTextContent('9 000');
+      expect(screen.queryByTestId('regular-price')).not.toBeInTheDocument();
+      expect(screen.queryByText('Акция')).not.toBeInTheDocument();
+    });
   });
 });

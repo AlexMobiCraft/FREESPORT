@@ -33,6 +33,7 @@ import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { ProductBadge } from '@/components/common/ProductBadge';
 import { TextSeparator } from '@/components/common/TextSeparator';
+import { Badge } from '@/components/ui/Badge/Badge';
 import Button from '@/components/ui/Button';
 import type { Product } from '@/types/api';
 import { cn } from '@/utils/cn';
@@ -144,6 +145,24 @@ function getProductPrice(product: Product, userRole: UserRole): number {
 }
 
 /**
+ * Акционная цена из 1С (вид цен «АКЦИЯ …») действует для всех ролей.
+ * Зачёркнутая цена клиента показывается, только если она выше акционной:
+ * зачёркнутая цена ниже оплачиваемой выглядела бы повышением под видом скидки.
+ * Возвращает null, если акции у товара нет.
+ */
+function getPromoPricing(product: Product): { price: number; regularPrice: number | null } | null {
+  const promoPrice = product.promo_price ? parseFloat(product.promo_price) : NaN;
+  if (!(promoPrice > 0)) return null;
+
+  const currentPrice = product.current_price ? parseFloat(product.current_price) : NaN;
+  const regularPrice = product.regular_price ? parseFloat(product.regular_price) : NaN;
+  return {
+    price: currentPrice > 0 ? currentPrice : promoPrice,
+    regularPrice: regularPrice > promoPrice ? regularPrice : null,
+  };
+}
+
+/**
  * Компонент ProductCard
  */
 export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
@@ -162,8 +181,19 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
     },
     ref
   ) => {
-    const currentPrice = getProductPrice(product, userRole);
-    const hasDiscount = product.discount_percent && product.discount_percent > 0;
+    const promoPricing = getPromoPricing(product);
+    const productBadge = product.is_promo ? (
+      <>
+        <Badge variant="promo">Акция</Badge>
+        <TextSeparator />
+      </>
+    ) : (
+      <ProductBadge product={product} />
+    );
+    const currentPrice = promoPricing ? promoPricing.price : getProductPrice(product, userRole);
+    // Зачёркнутая розница по скидке — только когда акции нет
+    const hasDiscount = !promoPricing && product.discount_percent && product.discount_percent > 0;
+    const promoRegularPrice = promoPricing?.regularPrice ?? null;
     const stockQuantity = product.stock_quantity ?? 0;
     const canBeOrdered = product.can_be_ordered ?? false;
     const explicitStockFlag: boolean | null =
@@ -229,9 +259,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           {/* Изображение */}
           <div className="relative w-full aspect-square bg-neutral-100">
             {/* Badge */}
-            <div className="absolute top-2 left-2 z-10">
-              <ProductBadge product={product} />
-            </div>
+            <div className="absolute top-2 left-2 z-10">{productBadge}</div>
 
             {/* Кнопка избранного */}
             <button
@@ -303,7 +331,21 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
             {/* Цена */}
             <div className="mt-auto">
-              <p className="text-body-m font-semibold text-[var(--color-text-primary)]">
+              {promoRegularPrice !== null && (
+                <p
+                  className="text-caption text-[var(--color-text-muted)] line-through"
+                  data-testid="regular-price"
+                >
+                  {promoRegularPrice.toLocaleString('ru-RU')} ₽
+                </p>
+              )}
+              <p
+                className={cn(
+                  'text-body-m text-[var(--color-text-primary)]',
+                  promoPricing ? 'font-bold' : 'font-semibold'
+                )}
+                data-testid={promoPricing ? 'promo-price' : undefined}
+              >
                 {currentPrice.toLocaleString('ru-RU')} ₽
               </p>
 
@@ -405,7 +447,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                       <TextSeparator />
                     </>
                   )}
-                  <ProductBadge product={product} />
+                  {productBadge}
                 </div>
 
                 {/* Название */}
@@ -442,12 +484,26 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
               {/* Цена */}
               <div className="text-right">
+                {promoRegularPrice !== null && (
+                  <p
+                    className="text-body-s text-[var(--color-text-muted)] line-through mr-2"
+                    data-testid="regular-price"
+                  >
+                    {promoRegularPrice.toLocaleString('ru-RU')} ₽
+                  </p>
+                )}
                 {hasDiscount && (
                   <p className="text-body-s text-[var(--color-text-muted)] line-through mr-2">
                     {product.retail_price.toLocaleString('ru-RU')} ₽
                   </p>
                 )}
-                <p className="text-title-m font-semibold text-[var(--color-text-primary)]">
+                <p
+                  className={cn(
+                    'text-title-m text-[var(--color-text-primary)]',
+                    promoPricing ? 'font-bold' : 'font-semibold'
+                  )}
+                  data-testid={promoPricing ? 'promo-price' : undefined}
+                >
                   {currentPrice.toLocaleString('ru-RU')} ₽
                 </p>
 
@@ -496,9 +552,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           {/* Изображение */}
           <div className="relative w-full aspect-square bg-neutral-100">
             {/* Badge */}
-            <div className="absolute top-2 left-2 z-10">
-              <ProductBadge product={product} />
-            </div>
+            <div className="absolute top-2 left-2 z-10">{productBadge}</div>
 
             {/* Кнопка избранного */}
             <button
@@ -570,12 +624,26 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
 
             {/* Цена */}
             <div className="mb-3">
+              {promoRegularPrice !== null && (
+                <p
+                  className="text-body-s text-[var(--color-text-muted)] line-through mr-2"
+                  data-testid="regular-price"
+                >
+                  {promoRegularPrice.toLocaleString('ru-RU')} ₽
+                </p>
+              )}
               {hasDiscount && (
                 <p className="text-body-s text-[var(--color-text-muted)] line-through mr-2">
                   {product.retail_price.toLocaleString('ru-RU')} ₽
                 </p>
               )}
-              <p className="text-title-m font-semibold text-[var(--color-text-primary)]">
+              <p
+                className={cn(
+                  'text-title-m text-[var(--color-text-primary)]',
+                  promoPricing ? 'font-bold' : 'font-semibold'
+                )}
+                data-testid={promoPricing ? 'promo-price' : undefined}
+              >
                 {currentPrice.toLocaleString('ru-RU')} ₽
               </p>
 

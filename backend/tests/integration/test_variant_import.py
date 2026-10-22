@@ -626,6 +626,49 @@ class TestVariantImportProcessor(TransactionTestCase):
         variant.refresh_from_db()
         assert variant.retail_price == Decimal("1500.00")
 
+    def test_update_variant_prices_promo(self):
+        """Акционная цена текущей акции пишется в promo_price и уходит, если цены акции у предложения нет."""
+        PriceType.objects.create(
+            onec_id="price-type-promo",
+            onec_name="АКЦИЯ ОКТЯБРЬ-26",
+            product_field="promo_price",
+            is_active=True,
+        )
+        product = Product.objects.create(
+            name="Акционный товар",
+            slug="test-product-promo",
+            onec_id="test-product-promo",
+            parent_onec_id="test-product-promo",
+            brand=self.brand,
+            category=self.category,
+            description="",
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="TEST-PROMO-42",
+            onec_id="test-product-promo#variant-001",
+            retail_price=Decimal("0"),
+        )
+
+        self.processor.update_variant_prices(
+            {
+                "id": variant.onec_id,
+                "prices": [
+                    {"price_type_id": "price-type-retail", "value": Decimal("1500.00")},
+                    {"price_type_id": "price-type-promo", "value": Decimal("1100.00")},
+                ],
+            }
+        )
+        variant.refresh_from_db()
+        assert variant.promo_price == Decimal("1100.00")
+        assert variant.retail_price == Decimal("1500.00")
+
+        self.processor.update_variant_prices(
+            {"id": variant.onec_id, "prices": [{"price_type_id": "price-type-retail", "value": Decimal("1500.00")}]}
+        )
+        variant.refresh_from_db()
+        assert variant.promo_price is None
+
     def test_update_variant_stock(self):
         """AC8: rests.xml обновляет остатки ProductVariant"""
         # Создаём Product и Variant
