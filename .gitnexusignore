@@ -36,6 +36,7 @@ wiki/
 .obsidian/
 
 # Исключить кэш и временные файлы
+backend/backup_db/
 .mypy_cache/
 __pycache__/
 *.pyc
