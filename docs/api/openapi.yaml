@@ -4372,6 +4372,17 @@ components:
           type: string
           description: Получить актуальную цену на основе роли пользователя
           readOnly: true
+        regular_price:
+          type: string
+          description: Цена первого варианта по роли пользователя без учёта акции
+          readOnly: true
+        promo_price:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
         sku:
           type: string
           description: Получить артикул первого варианта
@@ -4442,6 +4453,8 @@ components:
       - opt2_price
       - opt3_price
       - opt4_price
+      - promo_price
+      - regular_price
       - related_products
       - retail_price
       - rrp
@@ -4488,6 +4501,8 @@ components:
 
         Вычисляемые поля для обратной совместимости (данные из вариантов):
         - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
+        - current_price, regular_price, promo_price: то же, что у ProductVariantSerializer,
+          по первому варианту (вариант с акционной ценой — первым)
         - stock_quantity: суммарное количество на складе по всем вариантам
         - is_in_stock: есть ли хотя бы один вариант в наличии
         - main_image: изображение из первого варианта или base_images
@@ -4633,6 +4648,17 @@ components:
           type: string
           description: Получить актуальную цену на основе роли пользователя
           readOnly: true
+        regular_price:
+          type: string
+          description: Цена первого варианта по роли пользователя без учёта акции
+          readOnly: true
+        promo_price:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
         sku:
           type: string
           description: Получить артикул первого варианта
@@ -4674,6 +4700,8 @@ components:
       - opt2_price
       - opt3_price
       - opt4_price
+      - promo_price
+      - regular_price
       - retail_price
       - rrp
       - sku
@@ -4686,7 +4714,9 @@ components:
         Serializer для ProductVariant с роле-ориентированной ценой
 
         Поля:
-        - current_price: цена для текущего пользователя (роле-ориентированная)
+        - current_price: цена, которую платит пользователь: акционная, если есть, иначе по роли
+        - regular_price: цена по роли без акции (гостю — розница)
+        - promo_price: акционная цена текущей акции, видна всем ролям; null — акции нет
         - color_hex: hex-код цвета из ColorMapping
         - is_in_stock: computed property из модели
         - available_quantity: computed property из модели
@@ -4721,6 +4751,20 @@ components:
             Returns:
                 str: Цена как строка (сериализация Decimal)
           readOnly: true
+        regular_price:
+          type: string
+          description: Цена по роли пользователя без учёта акции
+          readOnly: true
+        promo_price:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          title: Акционная цена
+          description: Цена текущей акции из 1С (вид цен «АКЦИЯ …»). Действует для
+            всех ролей. Ставит и снимает только импорт 1С.
         color_hex:
           type:
           - string
@@ -4839,6 +4883,8 @@ components:
       - is_in_stock
       - main_image
       - msrp
+      - promo_price
+      - regular_price
       - rrp
       - size_value
       - sku

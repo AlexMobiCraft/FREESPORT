@@ -46,6 +46,12 @@ class PriceTypeAdminForm(forms.ModelForm):
     user_role ограничен списком существующих ролей: свободный текст
     позволил бы опечатку («wholesale_level_2»), которую импорт (стори
     40.4) записал бы живому аккаунту без единой ошибки.
+
+    Каждое поле отправляет вместе с собой значение, которое менеджер увидел при
+    открытии страницы (`show_hidden_initial`): `changed_data` тогда сравнивает с
+    увиденным, а не с записью, перечитанной при сохранении. Форма, открытая до
+    того, как акцию переключили, иначе считала бы устаревшую галочку «Активный»
+    действием менеджера и вернула бы прежнюю акцию.
     """
 
     class Meta:
@@ -65,6 +71,16 @@ class PriceTypeAdminForm(forms.ModelForm):
                 "У «РРЦ» и «МРЦ» поле обязано остаться пустым."
             ),
         )
+        for name, field in self.fields.items():
+            # POST не из браузера (без скрытого значения) сравниваем с текущей записью, как раньше:
+            # иначе снятая галочка «Активный» читалась бы как «не менялось»
+            field.show_hidden_initial = not self.is_bound or self.add_initial_prefix(name) in self.data
+
+        if self.instance.pk:
+            # GUID — ключ вида цен в 1С. Если его заменить, цены прежнего вида останутся
+            # у записи, которая теперь указывает на другой вид
+            self.fields["onec_id"].disabled = True
+            self.fields["onec_id"].help_text = "GUID вида цен в 1С не меняется. Нужен другой — заведите новую запись."
 
     def clean_onec_id(self) -> str:
         """
@@ -74,7 +90,12 @@ class PriceTypeAdminForm(forms.ModelForm):
         в нижнем регистре, а уникальность ``onec_id`` в PostgreSQL
         регистрозависима: записи «GUID» и «guid» ужились бы в БД, но дали бы
         один ключ маппинга — и роль стала бы зависеть от порядка выборки.
+
+        У существующей записи GUID не правится и остаётся как сохранён.
         """
+        if self.instance.pk:
+            return str(self.instance.onec_id)
+
         onec_id = (self.cleaned_data["onec_id"] or "").strip().lower()
 
         duplicates = PriceType.objects.filter(onec_id__iexact=onec_id)

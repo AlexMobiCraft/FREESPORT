@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Q, Sum
+from django.db.models import Case, Count, IntegerField, Q, Sum, When
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
@@ -54,7 +54,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     Serializer для ProductVariant с роле-ориентированной ценой
 
     Поля:
-    - current_price: цена для текущего пользователя (роле-ориентированная)
+    - current_price: цена, которую платит пользователь: акционная, если есть, иначе по роли
+    - regular_price: цена по роли без акции (гостю — розница)
+    - promo_price: акционная цена текущей акции, видна всем ролям; null — акции нет
     - color_hex: hex-код цвета из ColorMapping
     - is_in_stock: computed property из модели
     - available_quantity: computed property из модели
@@ -62,6 +64,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     """
 
     current_price = serializers.SerializerMethodField()
+    regular_price = serializers.SerializerMethodField()
     color_hex = serializers.SerializerMethodField()
     is_in_stock = serializers.BooleanField(read_only=True)
     available_quantity = serializers.IntegerField(read_only=True)
@@ -78,6 +81,8 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "color_name",
             "size_value",
             "current_price",
+            "regular_price",
+            "promo_price",
             "color_hex",
             "stock_quantity",
             "is_in_stock",
@@ -207,6 +212,13 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
         price: Decimal = obj.get_price_for_user(user)
         return str(price)  # Сериализация Decimal → str
+
+    def get_regular_price(self, obj: ProductVariant) -> str:
+        """Цена по роли пользователя без учёта акции"""
+        request = self.context.get("request")
+        user: User | None = getattr(request, "user", None) if request else None
+
+        return str(obj.get_regular_price_for_user(user))
 
     def get_color_hex(self, obj: ProductVariant) -> str | None:
         """
@@ -436,6 +448,43 @@ class CategorySerializer(serializers.ModelSerializer):
         return breadcrumbs
 
 
+def priced_variant_q() -> Q:
+    """Вариант допускается в список, если у него есть хоть одна положительная цена (в том числе акционная)."""
+    return (
+        Q(retail_price__gt=0)
+        | Q(opt1_price__gt=0)
+        | Q(opt2_price__gt=0)
+        | Q(opt3_price__gt=0)
+        | Q(opt4_price__gt=0)
+        | Q(trainer_price__gt=0)
+        | Q(federation_price__gt=0)
+        | Q(promo_price__gt=0)
+    )
+
+
+def first_variant_ordering() -> tuple[Any, ...]:
+    """
+    Порядок выбора варианта, по которому список показывает цены: сначала активные
+    с акционной ценой, затем остальные активные, затем отключённые. Отключённый вариант
+    невыбираем, поэтому его акция не может вытеснить доступный. Внутри группы — вариант
+    с положительной розничной ценой, затем по возрастанию розничной цены.
+
+    Один порядок на оба пути выбора (prefetch списка и запрос `_get_first_variant`):
+    первый в этом порядке и есть «первый вариант» товара.
+    """
+    return (
+        Case(
+            When(is_active=True, promo_price__gt=0, then=0),
+            When(is_active=True, then=1),
+            default=2,
+            output_field=IntegerField(),
+        ),
+        Case(When(retail_price__gt=0, then=0), default=1, output_field=IntegerField()),
+        "retail_price",
+        "pk",
+    )
+
+
 class ProductListSerializer(serializers.ModelSerializer):
     """
     Serializer для списка товаров (базовая модель Product)
@@ -447,6 +496,8 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     Вычисляемые поля для обратной совместимости (данные из вариантов):
     - retail_price, opt1_price, opt2_price, opt3_price, opt4_price: цены из первого варианта
+    - current_price, regular_price, promo_price: то же, что у ProductVariantSerializer,
+      по первому варианту (вариант с акционной ценой — первым)
     - stock_quantity: суммарное количество на складе по всем вариантам
     - is_in_stock: есть ли хотя бы один вариант в наличии
     - main_image: изображение из первого варианта или base_images
@@ -469,6 +520,8 @@ class ProductListSerializer(serializers.ModelSerializer):
     main_image = serializers.SerializerMethodField()
     can_be_ordered = serializers.SerializerMethodField()
     current_price = serializers.SerializerMethodField()
+    regular_price = serializers.SerializerMethodField()
+    promo_price = serializers.SerializerMethodField()
     sku = serializers.SerializerMethodField()
     rrp = serializers.SerializerMethodField()
     msrp = serializers.SerializerMethodField()
@@ -507,6 +560,8 @@ class ProductListSerializer(serializers.ModelSerializer):
             "main_image",
             "can_be_ordered",
             "current_price",
+            "regular_price",
+            "promo_price",
             "sku",
             "rrp",
             "msrp",
@@ -521,29 +576,23 @@ class ProductListSerializer(serializers.ModelSerializer):
         ]
 
     def _get_first_variant(self, obj: Product) -> "ProductVariant | None":
-        """Получить первый вариант товара с ценой > 0 (кэшированный или из БД)"""
-        # Используем prefetched данные
+        """
+        Получить первый вариант товара с ценой > 0 (кэшированный или из БД).
+
+        Вариант с акционной ценой идёт первым: иначе у акционного товара список
+        показал бы цену без акции.
+        """
+        # Prefetch уже отсортирован по `first_variant_ordering`: берём первый как есть,
+        # иначе список и запасной запрос выбрали бы разные варианты одного товара
         if hasattr(obj, "first_variant_list") and obj.first_variant_list:
-            # Ищем сначала вариант с ненулевой розничной ценой
-            valid_variants = [v for v in obj.first_variant_list if v.retail_price > 0]
-            if valid_variants:
-                return cast("ProductVariant", valid_variants[0])
-            # Если нет с розничной, берем любой (с любой другой ценой)
             return cast("ProductVariant", obj.first_variant_list[0])
-        # Fallback на прямой запрос с фильтрацией
-        return (
-            obj.variants.filter(
-                Q(retail_price__gt=0)
-                | Q(opt1_price__gt=0)
-                | Q(opt2_price__gt=0)
-                | Q(opt3_price__gt=0)
-                | Q(opt4_price__gt=0)
-                | Q(trainer_price__gt=0)
-                | Q(federation_price__gt=0)
-            )
-            .order_by("retail_price")
-            .first()
-        )
+        # Fallback на прямой запрос с фильтрацией. Результат запоминается на объекте:
+        # без prefetch (похожие товары в карточке) каждый ценовой геттер иначе ходил бы в БД сам.
+        if "_first_variant_fallback" in obj.__dict__:
+            return cast("ProductVariant | None", obj.__dict__["_first_variant_fallback"])
+        variant = obj.variants.filter(priced_variant_q()).order_by(*first_variant_ordering()).first()
+        obj.__dict__["_first_variant_fallback"] = variant
+        return variant
 
     def get_retail_price(self, obj: Product) -> float:
         """Получить розничную цену из первого варианта"""
@@ -562,6 +611,25 @@ class ProductListSerializer(serializers.ModelSerializer):
 
         price = variant.get_price_for_user(user)
         return f"{price:.2f}"
+
+    def get_regular_price(self, obj: Product) -> str:
+        """Цена первого варианта по роли пользователя без учёта акции"""
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        variant = self._get_first_variant(obj)
+        if not variant:
+            return "0.00"
+
+        return f"{variant.get_regular_price_for_user(user):.2f}"
+
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
+    def get_promo_price(self, obj: Product) -> str | None:
+        """Акционная цена первого варианта; null — у товара нет акционной цены"""
+        variant = self._get_first_variant(obj)
+        if not variant or not variant.promo_price:
+            return None
+
+        return f"{variant.promo_price:.2f}"
 
     def to_representation(self, instance):
         """Скрытие оптовых и инфо-цен от ролей без права (см. pricing_policy)"""

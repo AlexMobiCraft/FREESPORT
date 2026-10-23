@@ -27,6 +27,10 @@ from apps.products.admin import BrandAdmin, HomepageCategoryAdmin, ProductAdmin
 from apps.products.models import Brand, Category, HomepageCategory, Product, ProductVariant
 from freesport.admin_site import marketing_site
 
+# Метки, которые сотрудник правит руками. «Акция» в их число не входит: её
+# выводит импорт 1С из акционных цен (services/promo.sync_promo_flags).
+EDITABLE_LABEL_FIELDS = ("is_hit", "is_new", "is_sale", "is_premium")
+# Метки, которые раздел показывает.
 LABEL_FIELDS = ("is_hit", "is_new", "is_sale", "is_promo", "is_premium")
 BRAND_FIELDS = ("image", "is_featured", "description")
 CATEGORY_FIELDS = ("icon", "image", "sort_order")
@@ -95,28 +99,28 @@ class CategoryPathListFilter(admin.RelatedFieldListFilter):
 
 
 class MarketingProductForm(SeenValuesForm):
-    seen_fields = LABEL_FIELDS
+    seen_fields = EDITABLE_LABEL_FIELDS
 
 
 class MarketingProductAdmin(ProductAdmin):
     """
-    Товары в разделе маркетинга: правятся только пять меток.
+    Товары в разделе маркетинга: правятся четыре метки, «Акция» только показывается.
 
-    Наследование — ради десяти действий меток; всё отображение переопределено
+    Наследование — ради восьми действий меток; всё отображение переопределено
     белым списком. Название, бренд, категория и скидка — только чтение.
     """
 
     form = MarketingProductForm
     list_display: Any = ("photo", "name", "brand", "category_name", "is_active", *LABEL_FIELDS, "discount_percent")
     list_display_links = ("name",)
-    list_editable: Any = LABEL_FIELDS
+    list_editable: Any = EDITABLE_LABEL_FIELDS
     list_filter: Any = (*LABEL_FIELDS, "brand", ("category", CategoryPathListFilter))
     search_fields: Any = ("name", "article")
     fieldsets: Any = (
         ("Товар", {"fields": ("name", "brand_link", "category_name", "discount_percent")}),
         ("Метки", {"fields": LABEL_FIELDS}),
     )
-    readonly_fields: Any = ("name", "brand_link", "category_name", "discount_percent")
+    readonly_fields: Any = ("name", "brand_link", "category_name", "discount_percent", "is_promo")
     inlines = []
     raw_id_fields: Any = ()
     # Без поля slug в форме AdminForm падал бы с KeyError.
@@ -155,7 +159,7 @@ class MarketingProductAdmin(ProductAdmin):
         return False
 
     def save_model(self, request: HttpRequest, obj: Product, form: Any, change: bool) -> None:
-        save_changed_fields(obj, form, LABEL_FIELDS)
+        save_changed_fields(obj, form, EDITABLE_LABEL_FIELDS)
 
     @admin.display(description="Фото")
     def photo(self, obj: Product) -> str:

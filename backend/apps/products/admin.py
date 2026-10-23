@@ -14,8 +14,9 @@ from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Count, QuerySet
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.html import format_html
 
 from .filters import homepage_categories_q
@@ -36,6 +37,7 @@ from .models import (
     ProductImage,
     ProductVariant,
 )
+from .services import promo
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +61,14 @@ class ProductVariantInline(admin.TabularInline):
         "color_name",
         "size_value",
         "retail_price",
+        "promo_price",
         "rrp",
         "msrp",
         "stock_quantity",
         "is_active",
     )
-    readonly_fields = ("created_at", "updated_at")
+    # promo_price ставит и снимает только импорт 1С (вид цен «АКЦИЯ …»)
+    readonly_fields = ("created_at", "updated_at", "promo_price")
     show_change_link = True
 
 
@@ -415,6 +419,8 @@ class ProductAdmin(admin.ModelAdmin):
         "onec_brand_id",
         # Флаг ставит и снимает только импорт 1С — руками он не правится.
         "onec_deleted",
+        # «Акция» выводится из акционных цен 1С (services/promo.sync_promo_flags).
+        "is_promo",
     )
     raw_id_fields = ("brand", "category")
     inlines = [ProductImageInline, ProductVariantInline]  # Добавляем инлайны
@@ -494,8 +500,6 @@ class ProductAdmin(admin.ModelAdmin):
         "unmark_as_new",
         "mark_as_sale",
         "unmark_as_sale",
-        "mark_as_promo",
-        "unmark_as_promo",
         "mark_as_premium",
         "unmark_as_premium",
     ]
@@ -535,18 +539,6 @@ class ProductAdmin(admin.ModelAdmin):
         """Массовое действие: снять отметку распродажа"""
         updated = queryset.update(is_sale=False)
         self.message_user(request, f"Снята отметка распродажи: {updated} товаров")
-
-    @admin.action(description="✓ Отметить как акция", permissions=["change"])
-    def mark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
-        """Массовое действие: пометить как акция"""
-        updated = queryset.update(is_promo=True)
-        self.message_user(request, f"Отмечено акцией: {updated} товаров")
-
-    @admin.action(description="✗ Снять отметку акция", permissions=["change"])
-    def unmark_as_promo(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
-        """Массовое действие: снять отметку акция"""
-        updated = queryset.update(is_promo=False)
-        self.message_user(request, f"Снята отметка акции: {updated} товаров")
 
     @admin.action(description="✓ Отметить как премиум", permissions=["change"])
     def mark_as_premium(self, request: HttpRequest, queryset: QuerySet[Product]) -> None:
@@ -597,6 +589,41 @@ class PriceTypeAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
     ordering = ("onec_name",)
 
+    # Сохранение и удаление идут через services/promo: только он держит одну
+    # текущую акцию и сбрасывает акционные цены при её смене.
+    PROMO_RESET_MESSAGE = "Акционные цены сброшены. Они вернутся после полной выгрузки из 1С"
+    CONFLICT_MESSAGE = "Вид цен удалили, пока вы его правили. Изменения не сохранены."
+
+    def changeform_view(
+        self,
+        request: HttpRequest,
+        object_id: str | None = None,
+        form_url: str = "",
+        extra_context: dict[str, Any] | None = None,
+    ) -> HttpResponse:
+        # Запись исчезла между проверкой формы и сохранением: транзакция запроса откатывается,
+        # менеджер возвращается к списку (страницы изменения этой записи больше нет)
+        try:
+            return super().changeform_view(request, object_id, form_url, extra_context)
+        except promo.PriceTypeConflict:
+            self.message_user(request, self.CONFLICT_MESSAGE, level=messages.ERROR)
+            return HttpResponseRedirect(reverse("admin:products_pricetype_changelist"))
+
+    def save_model(self, request: HttpRequest, obj: PriceType, form: Any, change: bool) -> None:
+        # Форма могла быть открыта до того, как акцию переключили: под блокировкой сервис
+        # кладёт на свежую запись только поля, которые менеджер изменил (`changed_data`)
+        changed_fields = list(form.changed_data) if change and form is not None else None
+        if promo.save_price_type(obj, changed_fields=changed_fields):
+            self.message_user(request, self.PROMO_RESET_MESSAGE, level=messages.WARNING)
+
+    def delete_model(self, request: HttpRequest, obj: PriceType) -> None:
+        if promo.delete_price_types([obj]):
+            self.message_user(request, self.PROMO_RESET_MESSAGE, level=messages.WARNING)
+
+    def delete_queryset(self, request: HttpRequest, queryset: QuerySet[PriceType]) -> None:
+        if promo.delete_price_types(list(queryset)):
+            self.message_user(request, self.PROMO_RESET_MESSAGE, level=messages.WARNING)
+
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
@@ -631,8 +658,8 @@ class ProductVariantAdmin(admin.ModelAdmin):
     )
     search_fields = ("sku", "onec_id", "product__name")
     raw_id_fields = ("product",)
-    # onec_deleted ставит и снимает только импорт 1С — руками он не правится.
-    readonly_fields = ("created_at", "updated_at", "last_sync_at", "onec_deleted")
+    # onec_deleted и promo_price ставит и снимает только импорт 1С — руками они не правятся.
+    readonly_fields = ("created_at", "updated_at", "last_sync_at", "onec_deleted", "promo_price")
     fieldsets = (
         (
             "Идентификация",
@@ -666,6 +693,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
                     "opt4_price",
                     "trainer_price",
                     "federation_price",
+                    "promo_price",
                     "vat_rate",
                 )
             },

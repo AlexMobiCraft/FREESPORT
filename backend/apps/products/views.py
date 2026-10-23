@@ -31,6 +31,8 @@ from .serializers import (
     CategoryTreeSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
+    first_variant_ordering,
+    priced_variant_q,
 )
 from .services.facets import AttributeFacetService
 
@@ -80,15 +82,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 # Prefetch первого варианта для получения цен (для списка)
                 Prefetch(
                     "variants",
-                    queryset=ProductVariant.objects.filter(
-                        Q(retail_price__gt=0)
-                        | Q(opt1_price__gt=0)
-                        | Q(opt2_price__gt=0)
-                        | Q(opt3_price__gt=0)
-                        | Q(opt4_price__gt=0)
-                        | Q(trainer_price__gt=0)
-                        | Q(federation_price__gt=0)
-                    ).order_by("retail_price"),
+                    queryset=ProductVariant.objects.filter(priced_variant_q())
+                    # Активный вариант с акцией первым: список показывает цену по первому
+                    .order_by(*first_variant_ordering()),
                     to_attr="first_variant_list",
                 ),
             )

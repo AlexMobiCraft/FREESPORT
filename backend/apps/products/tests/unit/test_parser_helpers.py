@@ -9,6 +9,7 @@ XMLDataParser: защита от плохих файлов, валидация �
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from xml.etree.ElementTree import Element, SubElement
 
@@ -161,6 +162,17 @@ class TestPriceTypeMapping:
 
         assert any("Неопознанный вид цен" in r.getMessage() for r in caplog.records)
 
+    @pytest.mark.parametrize(
+        "name",
+        ["АКЦИЯ ОКТЯБРЬ-26", "  акция ноябрь", "АКЦИЯ опт 1", "Акция розничная"],
+    )
+    def test_promo_is_checked_first(self, parser, name):
+        """Акция распознаётся по первому слову раньше остальных веток: «опт»/«рознич» в названии не мешают."""
+        assert parser._map_price_type_to_field(name) == "promo_price"
+
+    def test_promo_word_not_at_start_is_not_promo(self, parser):
+        assert parser._map_price_type_to_field("Опт 2 акция") == "opt2_price"
+
 
 class TestRealReferenceFiles:
     def test_price_lists(self, parser):
@@ -168,6 +180,24 @@ class TestRealReferenceFiles:
 
         assert types
         assert all(item["onec_id"] and item["onec_name"] for item in types)
+        assert all(item["is_deleted"] is False for item in types)
+
+    def test_price_list_deletion_mark_and_promo(self, parser, tmp_path):
+        """Конец акции в 1С — пометка удаления на виде цен; копия реального справочника."""
+        trainer_block = "<ПометкаУдаления>false</ПометкаУдаления>\n\t\t\t\t<Наименование>Тренерская"
+        path = edit_copy(
+            ONEC_FIXTURES / "priceLists" / "priceLists.xml",
+            tmp_path / "priceLists.xml",
+            lambda text: text.replace(
+                trainer_block, trainer_block.replace("false", "true").replace("Тренерская", "АКЦИЯ ОКТЯБРЬ-26")
+            ),
+        )
+
+        types = {item["onec_name"]: item for item in parser.parse_price_lists_xml(str(path))}
+
+        assert types["АКЦИЯ ОКТЯБРЬ-26"]["product_field"] == "promo_price"
+        assert types["АКЦИЯ ОКТЯБРЬ-26"]["is_deleted"] is True
+        assert sum(item["is_deleted"] for item in types.values()) == 1
 
     def test_prices_and_rests(self, parser):
         prices = parser.parse_prices_xml(str(ONEC_FIXTURES / "prices" / "prices.xml"))
@@ -175,6 +205,24 @@ class TestRealReferenceFiles:
 
         assert prices and all(item["prices"] for item in prices)
         assert rests and all(isinstance(item["quantity"], int) for item in rests)
+
+    def test_offer_without_prices_is_kept_with_empty_list(self, parser, tmp_path):
+        """Предложение без единой цены доходит до импорта: по нему снимается акционная цена."""
+        source = ONEC_FIXTURES / "prices" / "prices.xml"
+        original = parser.parse_prices_xml(str(source))
+        offer_id = original[-1]["id"]
+        path = edit_copy(
+            source,
+            tmp_path / "prices.xml",
+            lambda text: re.sub(
+                rf"(<Ид>{re.escape(offer_id)}</Ид>\s*)<Цены>.*?</Цены>", r"\1", text, count=1, flags=re.S
+            ),
+        )
+
+        prices = parser.parse_prices_xml(str(path))
+
+        assert len(prices) == len(original)
+        assert {item["id"]: item["prices"] for item in prices}[offer_id] == []
 
     def test_brands_are_deduplicated_and_without_no_brand(self, parser):
         brands = []

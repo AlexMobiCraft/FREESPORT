@@ -131,6 +131,68 @@ describe('productsService Integration Tests', () => {
       expect(product.can_be_ordered).toBe(false);
     });
 
+    describe('акционные цены', () => {
+      const rawPromoProduct = (promoPrice: string | null) => ({
+        id: 201,
+        slug: 'promo-product',
+        name: 'Товар с акцией',
+        brand: { id: 1, name: 'Бренд', slug: 'brand' },
+        category: { id: 1, name: 'Категория', slug: 'category' },
+        description: 'Описание',
+        retail_price: 1000,
+        // Три разных значения: подмена одного другим сразу видна в проверках
+        current_price: promoPrice ?? '1000.00',
+        regular_price: '1000.00',
+        promo_price: promoPrice,
+        stock_quantity: 5,
+        is_in_stock: true,
+        can_be_ordered: true,
+        variants: [
+          {
+            id: 1,
+            sku: 'PROMO-1',
+            current_price: promoPrice ?? '1000.00',
+            regular_price: '1000.00',
+            promo_price: promoPrice,
+            stock_quantity: 5,
+            is_in_stock: true,
+            available_quantity: 5,
+          },
+        ],
+      });
+
+      it('передаёт current_price, regular_price и promo_price товара и варианта', async () => {
+        server.use(
+          http.get(`${API_BASE_URL}/products/:slug/`, () =>
+            HttpResponse.json(rawPromoProduct('800.00'))
+          )
+        );
+
+        const product = await productsService.getProductBySlug('promo-product');
+
+        expect(product.current_price).toBe('800.00');
+        expect(product.regular_price).toBe('1000.00');
+        expect(product.promo_price).toBe('800.00');
+        expect(product.variants?.[0]).toMatchObject({
+          current_price: '800.00',
+          regular_price: '1000.00',
+          promo_price: '800.00',
+        });
+      });
+
+      it('без акции promo_price остаётся null, а не подменяется ценой', async () => {
+        server.use(
+          http.get(`${API_BASE_URL}/products/:slug/`, () => HttpResponse.json(rawPromoProduct(null)))
+        );
+
+        const product = await productsService.getProductBySlug('promo-product');
+
+        expect(product.promo_price).toBeNull();
+        expect(product.current_price).toBe('1000.00');
+        expect(product.variants?.[0]?.promo_price).toBeNull();
+      });
+    });
+
     it('выбрасывает ошибку для несуществующего товара', async () => {
       // Переопределяем хендлер для несуществующего slug
       server.use(

@@ -37,6 +37,7 @@ from django.core.management.base import BaseCommand, CommandError
 from tqdm import tqdm
 
 from apps.products.models import Brand, Category, ImportSession, Product, ProductVariant
+from apps.products.services import promo
 from apps.products.services.parser import XMLDataParser
 from apps.products.services.variant_import import VariantImportProcessor
 
@@ -645,8 +646,8 @@ class Command(BaseCommand):
                 price_types_data = self._parse_or_skip(file_path, parser.parse_price_lists_xml)
                 if price_types_data is None:
                     continue
-                for price_type in price_types_data:
-                    processor.process_price_types([price_type])
+                # Файл целиком: из нескольких новых акций текущей становится самая новая
+                processor.process_price_types(price_types_data)
                 total_price_types += len(price_types_data)
                 self.stdout.write(f"   • {Path(file_path).name}: типов цен {len(price_types_data)}")
 
@@ -810,8 +811,15 @@ class Command(BaseCommand):
 
             self.stdout.write(f"   • {Path(file_path).name}: записей цен {len(prices_data)}")
 
+        # Флаг «Акция» выводится из акционных цен — руками его не ставят
+        promo_flags_changed = promo.sync_promo_flags()
+
         stats = processor.get_stats()
-        self.stdout.write(self.style.SUCCESS(f"   ✅ Обновлено цен: {stats['prices_updated']}"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"   ✅ Обновлено цен: {stats['prices_updated']}, флаг «Акция» изменён у товаров: {promo_flags_changed}"
+            )
+        )
 
     def _import_variant_stocks(
         self,

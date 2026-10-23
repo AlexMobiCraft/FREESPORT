@@ -11,6 +11,8 @@ from xml.etree.ElementTree import Element, ElementTree
 import defusedxml.ElementTree as ET
 from django.conf import settings
 
+from apps.products.services.promo import PROMO_FIELD, is_promo_name
+
 logger = logging.getLogger("import_products")
 
 
@@ -73,6 +75,7 @@ class PriceTypeData(TypedDict):
     onec_name: str
     currency: str
     product_field: str
+    is_deleted: bool  # <ПометкаУдаления>true</ПометкаУдаления>: так в 1С кончается акция
 
 
 class CategoryData(TypedDict, total=False):
@@ -445,8 +448,9 @@ class XMLDataParser:
                     except (ValueError, TypeError):
                         continue
 
-            if prices_data["prices"]:  # Только если есть цены
-                prices_list.append(prices_data)
+            # Предложение без единой цены тоже отдаём: БУС не выгружает нулевые цены, и такое
+            # предложение вышло из акции — импорт снимает у него акционную цену
+            prices_list.append(prices_data)
 
         return prices_list
 
@@ -512,6 +516,7 @@ class XMLDataParser:
                 "onec_name": onec_name,
                 "currency": currency,
                 "product_field": product_field,
+                "is_deleted": self._is_deletion_marked(price_type_element),
             }
 
             if price_type_data["onec_id"] and price_type_data["onec_name"]:
@@ -581,6 +586,11 @@ class XMLDataParser:
         Пустая строка на выходе означает «цену этого вида не применять» —
         `VariantImportProcessor.update_variant_prices` такие цены пропускает.
         """
+        # Акция проверяется первой: в названии акции может встретиться «опт»
+        # или «розница», а цена акции не должна затереть цену роли.
+        if is_promo_name(onec_name):
+            return PROMO_FIELD
+
         name_lower = onec_name.lower()
 
         if "опт 1" in name_lower or "опт1" in name_lower:

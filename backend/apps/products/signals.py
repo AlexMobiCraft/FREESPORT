@@ -1,5 +1,7 @@
 """
-Signals для инвалидации кэша featured brands при изменении Brand.
+Signals products: кэш featured brands (Brand) и флаг «Акция» (ProductVariant).
+
+Инвалидация кэша featured brands при изменении Brand.
 
 Сохранение бренда, который был или стал избранным, после commit сбрасывает и
 ISR-кэш главной Next (`/home`): она рендерит избранные бренды на сервере и без
@@ -10,15 +12,18 @@ LIMITATION: QuerySet.update() и bulk_create/bulk_update обходят Django s
 необходимо вручную вызывать cache.delete(FEATURED_BRANDS_CACHE_KEY).
 """
 
+from typing import Any
+
 from django.core.cache import cache
-from django.db import transaction
-from django.db.models.signals import post_delete, post_save, pre_save
+from django.db import connection, transaction
+from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
 from apps.common.services.nextjs_revalidate import HOME_PAGE_PATH, revalidate_nextjs_path_in_background
 
 from .constants import FEATURED_BRANDS_CACHE_KEY
-from .models import Brand
+from .models import Brand, ProductVariant
+from .services import promo
 
 # Поля Brand, влияющие на featured endpoint payload.
 _FEATURED_RELEVANT_FIELDS = frozenset({"is_featured", "is_active", "name", "slug", "image", "website"})
@@ -112,3 +117,100 @@ def invalidate_featured_brands_cache_on_delete(sender, instance, **kwargs):
         was_featured=instance.is_featured,
         is_featured=instance.is_featured,
     )
+
+
+def _saves_field(update_fields: Any, *names: str) -> bool:
+    """Записывает ли этот `save()` поле (при `update_fields=None` пишутся все)."""
+    return update_fields is None or any(name in update_fields for name in names)
+
+
+def _has_promo_price(promo_price: Any) -> bool:
+    return promo_price is not None and promo_price > 0
+
+
+@receiver(pre_save, sender=ProductVariant)
+def remember_stored_variant_state(sender, instance, update_fields=None, raw=False, **kwargs):
+    """
+    Перед записью блокирует товар и строку варианта и читает, чем она была: активность, товар, цена.
+
+    Сверять изменение со снимком экземпляра нельзя: он мог быть загружен давно (форма админки,
+    долгая задача), и за это время другой запрос отключил вариант или перенёс его в другой
+    товар. Читать строку без блокировки тоже нельзя: между чтением и записью её успевает
+    изменить другой запрос — отключить, перенести или записать акционную цену, — и пересчёт
+    флагов пойдёт по состоянию, которого уже нет. Поэтому товары (прежний и новый) и строка
+    блокируются в общем порядке (`promo.lock_variant`) до записи и держатся до конца
+    транзакции: её открывает `ProductVariant.save()`, он же откатит запись, если пересчёт упадёт.
+
+    Блокировка нужна, только если `save()` пишет активность или товар: импорт цен
+    (`update_fields=["promo_price"]`) лишних запросов не получает. Вызов `save_base()` напрямую,
+    мимо `save()`, идёт без транзакции — удержать блокировки там нечем, флаг не пересчитывается.
+    """
+    instance._promo_stored_state = None
+    if raw or instance._state.adding or not instance.pk:
+        return
+    saves_product = _saves_field(update_fields, "product", "product_id")
+    if not (saves_product or _saves_field(update_fields, "is_active")):
+        return
+    if not connection.in_atomic_block:
+        return
+    instance._promo_stored_state = promo.lock_variant(
+        instance.pk, extra_product_ids=[instance.product_id] if saves_product else []
+    )
+
+
+@receiver(post_save, sender=ProductVariant)
+def sync_promo_flag_on_variant_change(sender, instance, created, update_fields=None, **kwargs):
+    """
+    Включение, отключение и перенос варианта с акционной ценой пересчитывают флаг «Акция» товара.
+
+    `sync_promo_flags` учитывает только активные варианты, а правка активности или товара
+    в админке или импортом сама пересчёта не запускает. Вариант без акционной цены флаг не
+    меняет — импорт переключает активность тысяч таких вариантов, пересчёта по ним нет.
+    Новые варианты и цены ведёт импорт цен (`sync_promo_flags` в конце шага).
+
+    Сравнение идёт с состоянием строки до записи (`remember_stored_variant_state`), а не с
+    экземпляром. Оба товара — прежний и новый — пересчитываются одним вызовом: они уже
+    заблокированы в порядке `pk`, и встречные переносы (A→B и B→A) не ждут друг друга по кругу.
+    """
+    stored = instance.__dict__.pop("_promo_stored_state", None)
+    if created or stored is None:
+        return
+    if not _has_promo_price(stored.promo_price):
+        return
+
+    is_active = instance.is_active if _saves_field(update_fields, "is_active") else stored.is_active
+    product_id = instance.product_id if _saves_field(update_fields, "product", "product_id") else stored.product_id
+    if is_active == stored.is_active and product_id == stored.product_id:
+        return
+    promo.sync_promo_flags(product_ids={product_id, stored.product_id})
+
+
+@receiver(pre_delete, sender=ProductVariant)
+def remember_deleted_variant_state(sender, instance, **kwargs):
+    """
+    Перед удалением блокирует товар и строку варианта и читает из БД его товар и акционную цену.
+
+    Экземпляр мог устареть (товар сменил другой запрос) или быть загружен без `product_id`
+    (`only`/`defer`). Флаг товара поводом для пересчёта тоже быть не может: параллельный
+    пересчёт мог ещё не выставить его для удаляемого варианта. Блокировки берутся в том же
+    порядке, что у сохранения варианта и сброса акции (`promo.lock_variant`): иначе удаление,
+    державшее строку и ждавшее товар, уходило со сбросом акции во взаимоблокировку. Они же не
+    дают импорту цен записать акционную цену между чтением и удалением.
+    """
+    instance._promo_deleted_state = promo.lock_variant(instance.pk) if connection.in_atomic_block else None
+
+
+@receiver(post_delete, sender=ProductVariant)
+def sync_promo_flag_on_variant_delete(sender, instance, **kwargs):
+    """
+    Удаление варианта с акционной ценой пересчитывает флаг «Акция» его товара.
+
+    Пересчёт идёт под блокировкой строки товара: проверять, стоит ли флаг сейчас, до
+    блокировки нельзя — параллельный пересчёт мог выставить его по варианту, которого после
+    коммита уже нет.
+    """
+    stored = instance.__dict__.pop("_promo_deleted_state", None)
+    if stored is None:
+        return
+    if _has_promo_price(stored.promo_price):
+        promo.sync_promo_flags(product_id=stored.product_id)

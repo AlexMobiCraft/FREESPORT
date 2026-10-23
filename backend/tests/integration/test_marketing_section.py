@@ -70,6 +70,8 @@ NEWS_URL = "/marketing/common/news/"
 BLOG_URL = "/marketing/common/blogpost/"
 BANNERS_URL = "/marketing/banners/banner/"
 LABELS = ("is_hit", "is_new", "is_sale", "is_promo", "is_premium")
+# «Акция» выводится из акционных цен 1С и руками не правится
+EDITABLE_LABELS = ("is_hit", "is_new", "is_sale", "is_premium")
 LABEL_ACTIONS = [
     "mark_as_hit",
     "unmark_as_hit",
@@ -77,8 +79,6 @@ LABEL_ACTIONS = [
     "unmark_as_new",
     "mark_as_sale",
     "unmark_as_sale",
-    "mark_as_promo",
-    "unmark_as_promo",
     "mark_as_premium",
     "unmark_as_premium",
 ]
@@ -609,8 +609,9 @@ class TestProductChangelist:
         ]
         html = response.content.decode()
         prefix = row_prefix(response, product)
-        for label in LABELS:
+        for label in EDITABLE_LABELS:
             assert f'name="{prefix}-{label}"' in html
+        assert f'name="{prefix}-is_promo"' not in html
         assert f'name="{prefix}-discount_percent"' not in html
 
         category_filter = cl.filter_specs[-1]
@@ -697,7 +698,7 @@ class TestProductCard:
         response = marketer_client.get(change_url(PRODUCTS_URL, product))
 
         assert response.status_code == 200
-        assert list(response.context["adminform"].form.fields) == list(LABELS)
+        assert list(response.context["adminform"].form.fields) == list(EDITABLE_LABELS)
         html = response.content.decode()
         for name in HIDDEN_PRODUCT_FIELDS:
             assert f'name="{name}"' not in html, name

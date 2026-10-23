@@ -3,6 +3,7 @@ Integration тесты интеграции корзины и заказов
 """
 
 import threading
+from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -313,6 +314,76 @@ class CartOrderIntegrationTest(TestCase):
             sub_items[0].vat_rate,
             "vat_rate должен быть None, если у variant нет vat_rate",
         )
+
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class PromoPriceCartOrderTest(TestCase):
+    """Акционная цена из 1С действует для всех ролей: корзина, заказ и экспорт в 1С (spec-1c-promo-price-type)."""
+
+    PROMO = Decimal("800.00")
+
+    def setUp(self):
+        category = Category.objects.create(name="Promo Category", slug="promo-category")
+        brand = Brand.objects.create(name="Promo Brand", slug="promo-brand")
+        product = Product.objects.create(
+            name="Promo Product", slug="promo-product", category=category, brand=brand, is_active=True
+        )
+        # Цены ролей и выше, и ниже, и равны акционной: акция применяется всегда
+        self.variant = ProductVariant.objects.create(
+            product=product,
+            sku="PROMO-VAR",
+            onec_id="1C-PROMO-VAR",
+            retail_price=Decimal("1200.00"),
+            opt3_price=Decimal("700.00"),
+            trainer_price=Decimal("800.00"),
+            federation_price=Decimal("900.00"),
+            promo_price=self.PROMO,
+            stock_quantity=50,
+            is_active=True,
+        )
+
+    def test_guest_cart_snapshot_is_promo_price(self):
+        client = APIClient()
+
+        response = client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(CartItem.objects.get(variant=self.variant).price_snapshot, self.PROMO)
+
+    def test_order_and_export_use_promo_price_for_every_role(self):
+        from apps.orders.services.order_export import OrderExportService
+
+        for index, role in enumerate(("retail", "wholesale_level3", "trainer", "federation_rep")):
+            with self.subTest(role=role):
+                user = User.objects.create_user(
+                    email=f"promo-{role}@example.com",
+                    password="testpass123",
+                    role=role,
+                    is_verified=True,
+                    customer_code=f"{20001 + index}",
+                )
+                client = APIClient()
+                client.force_authenticate(user=user)
+                client.post("/api/v1/cart/items/", {"variant_id": self.variant.id, "quantity": 1})
+
+                response = client.post(
+                    "/api/v1/orders/",
+                    {
+                        "delivery_address": "Test Address",
+                        "delivery_method": "pickup",
+                        "payment_method": "bank_transfer",
+                    },
+                )
+
+                self.assertEqual(response.status_code, 201, response.data)
+                sub_orders = Order.objects.filter(parent_order_id=response.data["id"]).prefetch_related(
+                    "items__variant", "items__product", "user"
+                )
+                item = OrderItem.objects.get(order__in=sub_orders)
+                self.assertEqual(item.unit_price, self.PROMO)
+                xml = OrderExportService().generate_xml(sub_orders)
+                self.assertIn("<ЦенаЗаЕдиницу>800.00</ЦенаЗаЕдиницу>", xml)
 
 
 @pytest.mark.integration

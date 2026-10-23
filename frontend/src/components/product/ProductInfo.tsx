@@ -4,6 +4,8 @@
  */
 
 import React from 'react';
+import { TextSeparator } from '@/components/common/TextSeparator';
+import { Badge } from '@/components/ui/Badge/Badge';
 import type { ProductDetail } from '@/types/api';
 import { formatPrice, getPriceForRole, type UserRole } from '@/utils/pricing';
 import type { ProductVariant } from '@/types/api';
@@ -23,11 +25,22 @@ export default function ProductInfo({
   const defaultPrice = { retail: 0, currency: 'RUB' };
   const price = product.price || defaultPrice;
 
+  // Акционная цена из 1С действует для всех ролей: по выбранному варианту,
+  // без него — по полям первого варианта из ответа о товаре
+  const pricingSource = selectedVariant ?? product;
+  const promoPrice = pricingSource.promo_price ? parseFloat(pricingSource.promo_price) : NaN;
+  const hasPromo = promoPrice > 0;
+  const regularPrice = pricingSource.regular_price ? parseFloat(pricingSource.regular_price) : NaN;
+  // Зачёркнутая цена ниже оплачиваемой выглядела бы повышением под видом скидки
+  const strikedRegularPrice = hasPromo && regularPrice > promoPrice ? regularPrice : null;
+
   // Используем цену варианта, если он выбран, иначе базовую цену для роли
   const displayedPrice =
     selectedVariant && selectedVariant.current_price
       ? parseFloat(selectedVariant.current_price)
-      : getPriceForRole(price, userRole);
+      : hasPromo
+        ? parseFloat(product.current_price || '') || promoPrice
+        : getPriceForRole(price, userRole);
 
   // Определяем статус наличия
   const getStockStatus = () => {
@@ -124,6 +137,12 @@ export default function ProductInfo({
 
   return (
     <div className="space-y-4">
+      {hasPromo && (
+        <div>
+          <Badge variant="promo">Акция</Badge>
+          <TextSeparator />
+        </div>
+      )}
       {/* Название товара */}
       <h1 className="text-3xl font-bold text-neutral-900 leading-tight">{product.name}</h1>
 
@@ -141,8 +160,15 @@ export default function ProductInfo({
 
       {/* Цена */}
       <div className="py-4">
-        <div className="text-4xl font-bold text-neutral-900">
-          {formatPrice(displayedPrice, price.currency)}
+        <div className="flex flex-wrap items-baseline gap-x-3">
+          <div className="text-4xl font-bold text-neutral-900">
+            {formatPrice(displayedPrice, price.currency)}
+          </div>
+          {strikedRegularPrice !== null && (
+            <div className="text-xl text-neutral-500 line-through" data-testid="regular-price">
+              {formatPrice(strikedRegularPrice, price.currency)}
+            </div>
+          )}
         </div>
         {canSeeRrp && selectedVariant && parseFloat(selectedVariant.rrp || '0') > 0 && (
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
