@@ -214,7 +214,7 @@ describe('что схема не держит', () => {
       roundTrip(
         mounted,
         '<h1 id="top">Заголовок</h1><h5>Пятый</h5><div class="block"><span style="color:red">текст</span></div>' +
-          '<img src="/a.png" title="t" width="10" class="foo align-right"><a href="#top">якорь</a>' +
+          '<img src="/a.png" title="t" width="10" height="99" class="foo align-right"><a href="#top">якорь</a>' +
           '<img src="data:image/png;base64,AAAA"><img src="blob:http://localhost/1">' +
           '<img src="file:///C:/Users/x/AppData/Local/Temp/msohtmlclip1/01/clip_image002.png">' +
           '<img src="cid:image001.png@01DA0000"><img src="//evil.example/x.png">' +
@@ -223,7 +223,7 @@ describe('что схема не держит', () => {
           '<tr><td class="x" style="text-align:center" colwidth="120" data-x="1">ячейка</td></tr></table>',
       ),
     ).toBe(
-      '<h2>Заголовок</h2><p>Пятый</p><p>текст</p><img src="/a.png" class="align-right"><p>якорь</p>' +
+      '<h2>Заголовок</h2><p>Пятый</p><p>текст</p><img src="/a.png" class="align-right" width="10"><p>якорь</p>' +
         '<img src="https://optisport.ru/media/a.png">' +
         '<table><tbody><tr><td><p>ячейка</p></td></tr></tbody></table>',
     );

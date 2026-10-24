@@ -12,12 +12,12 @@ import { TextSelection } from '@tiptap/pm/state';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 
-import { MESSAGES, isAllowedHref } from './constants';
+import { MESSAGES, clampImageWidth, isAllowedHref, parseColumnWidth } from './constants';
 import type { ImageAlignment } from './constants';
 import { demoteH1InHtml, parseContent } from './content';
 import { buildExtensions } from './extensions';
 import { serializeForTextarea } from './serialize';
-import { createToolbar } from './toolbar';
+import { createToolbar, presetWidth } from './toolbar';
 import type { ToolbarState } from './toolbar';
 import { UploadError, uploadImage, validateImageFile } from './upload';
 
@@ -82,6 +82,7 @@ export function mountRichEditor(
 ): RichEditorController {
   const upload = options.upload ?? uploadImage;
   const uploadUrl = textarea.dataset.uploadUrl ?? '';
+  const columnWidth = parseColumnWidth(textarea.dataset.columnWidth);
   const form = textarea.form;
 
   // Пустоту проверяет сервер: скрытое обязательное поле браузер не дал бы отправить.
@@ -90,6 +91,8 @@ export function mountRichEditor(
 
   const root = document.createElement('div');
   root.className = 'rich-editor';
+  // Текст в редакторе той же ширины, что на сайте: картинка выглядит там так же, как здесь.
+  root.style.setProperty('--rich-editor-column', `${columnWidth}px`);
   const content = document.createElement('div');
   content.className = 'rich-editor__content';
   const errorBox = document.createElement('div');
@@ -345,18 +348,33 @@ export function mountRichEditor(
     editor.chain().focus().updateAttributes('image', { align: next }).run();
   };
 
+  const resizeImage = (fraction: number | null) => {
+    if (!editor.isActive('image')) {
+      return;
+    }
+    markUserAction();
+    // Больше оригинала не растягиваем: на сайте такая картинка размыта.
+    const natural =
+      (editor.view.nodeDOM(editor.state.selection.from) as HTMLElement | null)?.querySelector('img')
+        ?.naturalWidth ?? 0;
+    const width =
+      fraction === null ? null : clampImageWidth(presetWidth(fraction, columnWidth), natural);
+    editor.chain().focus().updateAttributes('image', { width }).run();
+  };
+
   const toolbar = createToolbar(
     editor,
     {
       editLink,
       pickImage: () => fileInput.click(),
       alignImage,
+      resizeImage,
       toggleHtmlMode: () => setHtmlMode(!htmlMode),
     },
     markUserAction
   );
 
-  const toolbarState = (): ToolbarState => ({ htmlMode, uploading: pending > 0 });
+  const toolbarState = (): ToolbarState => ({ htmlMode, uploading: pending > 0, columnWidth });
   function refresh() {
     toolbar.refresh(toolbarState());
   }
@@ -382,6 +400,16 @@ export function mountRichEditor(
   for (const type of ['beforeinput', 'paste', 'drop', 'cut']) {
     root.addEventListener(type, onEdit, true);
   }
+  // Захват ручки размера — начало правки; простой клик по картинке текст не меняет.
+  root.addEventListener(
+    'pointerdown',
+    event => {
+      if ((event.target as Element | null)?.closest?.('[data-resize-handle]')) {
+        markUserAction();
+      }
+    },
+    true
+  );
 
   const onSubmit = (event: SubmitEvent) => {
     if (pending > 0) {

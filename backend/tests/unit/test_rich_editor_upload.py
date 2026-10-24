@@ -443,23 +443,26 @@ class TestWidgetInForms:
         self._assert_editor(marketer_client.get(add_url), upload_url)
 
     @pytest.mark.parametrize(
-        "add_url, upload_url",
+        "add_url, upload_url, column_width",
         [
-            ("/admin/common/news/add/", ADMIN_NEWS_UPLOAD),
-            ("/admin/common/blogpost/add/", "/admin/common/blogpost/upload-image/"),
-            ("/admin/pages/page/add/", ADMIN_PAGE_UPLOAD),
+            ("/admin/common/news/add/", ADMIN_NEWS_UPLOAD, 832),
+            ("/admin/common/blogpost/add/", "/admin/common/blogpost/upload-image/", 832),
+            # Текст страницы на сайте лежит в `container` внутри `Card`: колонка шире, чем у новостей.
+            ("/admin/pages/page/add/", ADMIN_PAGE_UPLOAD, 1168),
         ],
     )
-    def test_admin_site(self, superuser_client, add_url, upload_url):
-        self._assert_editor(superuser_client.get(add_url), upload_url)
+    def test_admin_site(self, superuser_client, add_url, upload_url, column_width):
+        self._assert_editor(superuser_client.get(add_url), upload_url, column_width)
 
     @staticmethod
-    def _assert_editor(response, upload_url: str) -> None:
+    def _assert_editor(response, upload_url: str, column_width: int = rich_editor.DEFAULT_COLUMN_WIDTH) -> None:
         assert response.status_code == 200
         html = response.content.decode()
         textarea = content_textarea(html)
         assert "data-rich-editor" in textarea
         assert f'data-upload-url="{upload_url}"' in textarea
+        # Редактор делает текст такой же ширины, как колонка на сайте: размер картинки совпадает.
+        assert f'data-column-width="{column_width}"' in textarea
         assert "required" in textarea  # снимает сам редактор, без JS поле остаётся обязательным
         js_version = rich_editor.asset_version(rich_editor.EDITOR_JS)
         css_version = rich_editor.asset_version(rich_editor.EDITOR_CSS)
@@ -518,6 +521,23 @@ class TestWidgetInForms:
         assert response.status_code == 200
         assert "content" in response.context["adminform"].form.errors
         assert News.objects.get(pk=news.pk).content == "<p>текст</p>"
+
+
+class TestColumnWidth:
+    def test_default_is_news_column(self):
+        widget = rich_editor.RichEditorWidget(upload_url="/u/")
+        assert widget.column_width == rich_editor.DEFAULT_COLUMN_WIDTH == 832
+        assert widget.attrs["data-column-width"] == "832"
+
+    def test_custom_width_reaches_the_attribute(self):
+        widget = rich_editor.RichEditorWidget(upload_url="/u/", column_width=1168)
+        assert widget.attrs["data-column-width"] == "1168"
+
+    def test_marketing_admins_inherit_news_column(self):
+        from apps.common.marketing_admin import MarketingBlogPostAdmin, MarketingNewsAdmin
+
+        assert MarketingNewsAdmin.rich_editor_column_width == 832
+        assert MarketingBlogPostAdmin.rich_editor_column_width == 832
 
 
 class TestAssetVersion:

@@ -39,6 +39,12 @@ from django.views.decorators.http import require_POST
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 RICH_CONTENT_FIELD = "content"
+
+# Ширина колонки текста на сайте, px. Редактор делает текст такой же ширины, чтобы картинка
+# в нём занимала столько же места, сколько на странице. Новости и статьи блога: `max-w-4xl`
+# (896 px) без боковых отступов `lg:px-8` (frontend/src/app/(blue)/{news,blog}/[slug]/page.tsx).
+# Страницы (`container` в `Card`) шире — см. `PageAdmin.rich_editor_column_width`.
+DEFAULT_COLUMN_WIDTH = 832
 RICH_CONTENT_HELP_TEXT = "Текст с оформлением и картинками. Кнопка «HTML» показывает исходный код."
 
 EDITOR_JS = "common/rich_editor/rich-editor.js"
@@ -91,11 +97,25 @@ def versioned_static(name: str) -> str:
 
 
 class RichEditorWidget(AdminTextareaWidget):
-    """`textarea` под визуальный редактор: `data-rich-editor` и адрес загрузки картинок."""
+    """`textarea` под визуальный редактор: `data-rich-editor`, адрес загрузки картинок
+    и ширина колонки текста на сайте (`data-column-width`, px)."""
 
-    def __init__(self, upload_url: str, attrs: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        upload_url: str,
+        attrs: dict[str, Any] | None = None,
+        column_width: int = DEFAULT_COLUMN_WIDTH,
+    ) -> None:
         self.upload_url = upload_url
-        super().__init__(attrs={"data-rich-editor": "", "data-upload-url": upload_url, **(attrs or {})})
+        self.column_width = column_width
+        super().__init__(
+            attrs={
+                "data-rich-editor": "",
+                "data-upload-url": upload_url,
+                "data-column-width": str(column_width),
+                **(attrs or {}),
+            }
+        )
 
     @property
     def media(self) -> forms.Media:
@@ -199,6 +219,9 @@ class RichContentAdminMixin(admin.ModelAdmin):
     перехватил бы catch-all `<path:object_id>/` у `ModelAdmin`.
     """
 
+    # Ширина колонки текста на сайте (px); у модели с другой версткой страницы — своя.
+    rich_editor_column_width: int = DEFAULT_COLUMN_WIDTH
+
     def _upload_url_name(self) -> str:
         opts = self.model._meta
         return f"{opts.app_label}_{opts.model_name}_upload_image"
@@ -225,7 +248,7 @@ class RichContentAdminMixin(admin.ModelAdmin):
     def formfield_for_dbfield(self, db_field: models.Field, request: HttpRequest, **kwargs: Any) -> Any:
         if db_field.name == RICH_CONTENT_FIELD:
             upload_url = reverse(f"{self.admin_site.name}:{self._upload_url_name()}")
-            kwargs["widget"] = RichEditorWidget(upload_url=upload_url)
+            kwargs["widget"] = RichEditorWidget(upload_url=upload_url, column_width=self.rich_editor_column_width)
             # help_text модели говорит «HTML или Markdown»; меняется в форме, без миграции.
             kwargs["help_text"] = RICH_CONTENT_HELP_TEXT
         return super().formfield_for_dbfield(db_field, request, **kwargs)
