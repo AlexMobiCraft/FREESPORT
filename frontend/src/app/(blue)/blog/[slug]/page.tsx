@@ -126,7 +126,7 @@ export default async function BlogDetailPage({ params }: BlogDetailPageProps) {
 
           {/* Content */}
           <div
-            className="prose prose-lg max-w-none text-text-primary"
+            className="rich-content"
             dangerouslySetInnerHTML={{ __html: post.content || post.excerpt }}
           />
 

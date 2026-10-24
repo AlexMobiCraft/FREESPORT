@@ -30,6 +30,7 @@ from .models import (
     UserConsent,
 )
 from .regions import region_name, unassigned_regions
+from .rich_editor import RichContentAdminMixin
 from .services import CustomerSyncMonitor
 
 
@@ -349,7 +350,7 @@ class UserConsentAdmin(admin.ModelAdmin):
 
 
 @admin.register(News)
-class NewsAdmin(admin.ModelAdmin):
+class NewsAdmin(RichContentAdminMixin, admin.ModelAdmin):
     """Admin интерфейс для новостей."""
 
     list_display = [
@@ -432,7 +433,7 @@ class NewsAdmin(admin.ModelAdmin):
 
 
 @admin.register(BlogPost)
-class BlogPostAdmin(admin.ModelAdmin):
+class BlogPostAdmin(RichContentAdminMixin, admin.ModelAdmin):
     """Admin интерфейс для статей блога."""
 
     list_display = [

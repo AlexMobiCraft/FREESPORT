@@ -90,6 +90,9 @@ services:
       # Корневой pytest.ini лежит на уровень выше backend/ — сторожа сверяют объявленные
       # маркеры двух конфигов. Путь в контейнере повторяет раскладку репозитория: /app/../.
       - ../pytest.ini:/pytest.ini:ro
+      # Эталонный HTML визуального редактора админки: test_rich_editor_upload.py проверяет,
+      # что bleach пропускает его без изменений. Путь тоже повторяет раскладку репозитория.
+      - ../frontend/admin-editor/__tests__/fixtures:/frontend/admin-editor/__tests__/fixtures:ro
       - test_coverage:/app/htmlcov
     depends_on:
       db:

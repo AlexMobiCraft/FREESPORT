@@ -117,7 +117,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
 
           {/* Content */}
           <div
-            className="prose prose-lg max-w-none text-text-primary"
+            className="rich-content"
             dangerouslySetInnerHTML={{ __html: news.content || news.excerpt }}
           />
 

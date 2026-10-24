@@ -140,7 +140,7 @@ describe('NewsDetailPage (/news/[slug])', () => {
       const { container } = render(
         await NewsDetailPage({ params: Promise.resolve({ slug: 'test-news' }) })
       );
-      const contentDiv = container.querySelector('[class*="prose"]');
+      const contentDiv = container.querySelector('.rich-content');
       expect(contentDiv).toBeInTheDocument();
       expect(contentDiv?.innerHTML).toContain('<strong>HTML</strong>');
     });
