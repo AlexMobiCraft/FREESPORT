@@ -151,7 +151,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // AC 2.4: Logout при 401/403 (токен истек)
           if (err.response?.status === 401 || err.response?.status === 403) {
             console.warn('Session expired:', error);
-            logout();
+            // 401 пришёл уже после попытки refresh в api-client: токены невалидны (или
+            // пользователя больше нет), серверный logout получил бы тот же 401.
+            logout(err.response?.status === 401);
             return;
           }
 

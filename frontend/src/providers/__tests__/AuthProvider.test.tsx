@@ -171,6 +171,35 @@ describe('AuthProvider - Session Initialization', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
+  test('does not call server logout when profile stays 401 after a successful refresh', async () => {
+    // Токены пользователя, которого уже нет (сброс БД): refresh проверяет только подпись
+    // и отдаёт новый access, а профиль с ним снова 401. Серверный logout получил бы тот же 401.
+    localStorageMock.setItem('refreshToken', 'orphaned-refresh-token');
+    const logoutSpy = vi.fn();
+
+    server.use(
+      http.get('*/users/profile/', () =>
+        HttpResponse.json({ detail: 'Пользователь не найден' }, { status: 401 })
+      ),
+      http.post('*/auth/refresh/', () =>
+        HttpResponse.json({ access: 'new-access', refresh: 'new-refresh' })
+      ),
+      http.post('*/auth/logout/', () => {
+        logoutSpy();
+        return HttpResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+      })
+    );
+
+    renderProvider();
+    await waitForInit();
+
+    await waitFor(() => {
+      expect(localStorageMock.getItem('refreshToken')).toBeNull();
+    });
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(logoutSpy).not.toHaveBeenCalled();
+  });
+
   test('logs out on forbidden token (403)', async () => {
     localStorageMock.setItem('refreshToken', 'forbidden-token');
 
