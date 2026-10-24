@@ -27,7 +27,12 @@ export default defineConfig({
     css: false,
 
     // Паттерны для поиска тестовых файлов
-    include: ['src/**/__tests__/**/*.{test,spec}.{ts,tsx}', 'src/**/*.{test,spec}.{ts,tsx}'],
+    // admin-editor/ — визуальный редактор Django-админки (бандл в static бэкенда).
+    include: [
+      'src/**/__tests__/**/*.{test,spec}.{ts,tsx}',
+      'src/**/*.{test,spec}.{ts,tsx}',
+      'admin-editor/__tests__/**/*.test.ts',
+    ],
 
     // Настройки покрытия кода
     coverage: {

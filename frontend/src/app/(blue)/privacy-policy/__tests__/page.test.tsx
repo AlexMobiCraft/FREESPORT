@@ -72,7 +72,7 @@ describe('PrivacyPolicyPage (/privacy-policy)', () => {
     mockFetch(Response.json(mockPage));
 
     const { container } = render(await PrivacyPolicyPage());
-    const content = container.querySelector('.prose');
+    const content = container.querySelector('.rich-content');
 
     expect(content?.innerHTML).toContain('<strong>HTML</strong>');
   });
@@ -85,7 +85,7 @@ describe('PrivacyPolicyPage (/privacy-policy)', () => {
     mockFetch(Response.json(fullHtmlPage));
 
     const { container } = render(await PrivacyPolicyPage());
-    const content = container.querySelector('.prose');
+    const content = container.querySelector('.rich-content');
 
     expect(content?.innerHTML).toContain('<p>Текст политики</p>');
     expect(content?.innerHTML).not.toContain('<html>');

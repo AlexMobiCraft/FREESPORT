@@ -4,11 +4,13 @@ Django Admin для статических страниц
 
 from django.contrib import admin
 
+from apps.common.rich_editor import RichContentAdminMixin
+
 from .models import Page
 
 
 @admin.register(Page)
-class PageAdmin(admin.ModelAdmin):
+class PageAdmin(RichContentAdminMixin, admin.ModelAdmin):
     """Админ интерфейс для статических страниц"""
 
     list_display = ["title", "slug", "is_published", "updated_at"]

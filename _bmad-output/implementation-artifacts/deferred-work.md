@@ -1158,3 +1158,18 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-fix-category-deactivation-partial-groups.md`
   summary: Группа, физически удалённая в 1С без пометки удаления, больше не скрывается с витрины.
   evidence: Осознанный размен (решение владельца 21.10.2026, вопрос 1): отсутствие в частичном `groups*.xml` не сигнал. Скрывать такие группы остаётся `purge_products_outside_root` или ручное выключение в админке.
+
+## Deferred from: bmad-build planning of spec-rich-content-editor (2026-10-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-rich-content-editor.md`
+  summary: Юридический раздел админки `/legal/` со статическими страницами (`Page`) и новая роль «Юристы»; доступ — суперпользователи, группа «Руководители» и группа «Юристы» (решение владельца 24.10.2026).
+  evidence: Владелец ответил на вопрос о том, кто правит страницы, предложением нового раздела; это отдельная поставка (группа и data-миграция прав по образцу `users/0023_staff_role_groups`, сайт по образцу `StaffSectionAdminSite`, но с допуском суперпользователя, меню разделов руководителя, негативные тесты NFR-42-02). Владелец выбрал «две задачи подряд»: сначала редактор, затем раздел. Редактор подключается к `PageAdmin`, поэтому в `/legal/` заработает без доработок.
+
+## Deferred from: bmad-build review of spec-rich-content-editor (2026-10-24)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-rich-content-editor.md`
+  summary: Класс `.rich-content` у страницы `/[slug]` (`CmsPage`) не закреплён render-тестом, у новостей, статей и политики ПДн — закреплён.
+  evidence: В `frontend/src/app/(blue)/[slug]/__tests__/page.test.tsx` только тесты `generateMetadata`; откат класса оставит реквизиты и оферту без типографики и обтекания картинок незамеченным (слои graph-impact и verification-gap). Добавить вместе с первым содержательным тестом `CmsPage`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-rich-content-editor.md`
+  summary: Базовая линия циклов импорта в `.windsurf/rules/gitnexus.md` (правило 3) устарела — в ней нет цикла `backend/apps/users/models.py → staff_roles.py → models.py`.
+  evidence: `npx gitnexus check --cycles` 24.10.2026 показывает два цикла; цикл `users` существовал до изменения (импорт `User` в `staff_roles.py` под `TYPE_CHECKING`/внутри функций, `models.py:14` импортирует `RESPONSIBLE_MANAGER_CHOICES`). Правка — файл правил агентов.

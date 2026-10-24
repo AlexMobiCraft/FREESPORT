@@ -155,7 +155,7 @@ describe('BlogDetailPage (/blog/[slug])', () => {
       const { container } = render(
         await BlogDetailPage({ params: Promise.resolve({ slug: 'test-blog-post' }) })
       );
-      const contentDiv = container.querySelector('[class*="prose"]');
+      const contentDiv = container.querySelector('.rich-content');
       expect(contentDiv).toBeInTheDocument();
       expect(contentDiv?.innerHTML).toContain('<strong>HTML</strong>');
     });
