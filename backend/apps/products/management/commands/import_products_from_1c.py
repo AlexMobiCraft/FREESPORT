@@ -797,22 +797,25 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("   ⚠️ Файлы prices.xml не найдены"))
             return
 
-        for file_path in prices_files:
-            prices_data = self._parse_or_skip(file_path, parser.parse_prices_xml)
-            if prices_data is None:
-                continue
+        try:
+            for file_path in prices_files:
+                prices_data = self._parse_or_skip(file_path, parser.parse_prices_xml)
+                if prices_data is None:
+                    continue
 
-            for i, price_item in enumerate(tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")):
-                processor.update_variant_prices(cast("dict[str, Any]", price_item))
-                if (i + 1) % 20 == 0:
-                    processor.log_progress(
-                        f"Обновление цен ({Path(file_path).name}): " f"{i + 1} из {len(prices_data)}"
-                    )
+                for i, price_item in enumerate(tqdm(prices_data, desc=f"   Обработка {Path(file_path).name}")):
+                    processor.update_variant_prices(cast("dict[str, Any]", price_item))
+                    if (i + 1) % 20 == 0:
+                        processor.log_progress(
+                            f"Обновление цен ({Path(file_path).name}): " f"{i + 1} из {len(prices_data)}"
+                        )
 
-            self.stdout.write(f"   • {Path(file_path).name}: записей цен {len(prices_data)}")
-
-        # Флаг «Акция» выводится из акционных цен — руками его не ставят
-        promo_flags_changed = promo.sync_promo_flags()
+                self.stdout.write(f"   • {Path(file_path).name}: записей цен {len(prices_data)}")
+        finally:
+            # Флаг «Акция» выводится из акционных цен — руками его не ставят. Пересчёт идёт и при
+            # сбое: цены предыдущих файлов уже записаны отдельными транзакциями и действуют для
+            # покупателя, а ошибка разбора следующего файла не должна оставить эти товары без флага
+            promo_flags_changed = promo.sync_promo_flags()
 
         stats = processor.get_stats()
         self.stdout.write(

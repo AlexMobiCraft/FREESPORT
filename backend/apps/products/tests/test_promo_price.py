@@ -27,11 +27,13 @@ from django.contrib.admin.sites import AdminSite
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.db import IntegrityError, transaction
+from django.db.migrations.executor import MigrationExecutor
 from django.test import RequestFactory
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.products.admin import PriceTypeAdmin, ProductAdmin, ProductVariantAdmin
+from apps.products.admin import PriceTypeAdmin, ProductAdmin, ProductVariantAdmin, ProductVariantInline
 from apps.products.forms import PriceTypeAdminForm
 from apps.products.models import Brand, Category, ImportSession, PriceType, Product, ProductVariant
 from apps.products.services import promo
@@ -115,14 +117,14 @@ def active_promo_ids() -> list[str]:
     return list(PriceType.objects.filter(product_field="promo_price", is_active=True).values_list("onec_id", flat=True))
 
 
-def make_user(role: str) -> User:
+def make_user(role: str, *, verified: bool = True) -> User:
     global _counter
     _counter += 1
     return User.objects.create_user(
         email=f"promo-{role}-{_counter}@example.com",
         password="testpass123",
         role=role,
-        is_verified=True,
+        is_verified=verified,
         customer_code=f"{70000 + _counter:05d}",
     )
 
@@ -814,13 +816,151 @@ class TestMigration0058:
         assert Product.objects.get(pk=backed.product_id).is_promo is True
 
 
+BEFORE_PROMO_MIGRATION = ("products", "0057_catalog_category_order")
+PROMO_MIGRATION = ("products", "0058_promo_price")
+
+
+def migrate_schema_to(*targets: tuple[str, str]) -> Any:
+    """Переводит схему тестовой БД к узлам миграций; отдаёт исторические модели этого состояния."""
+    from django.db import connection
+
+    MigrationExecutor(connection).migrate(list(targets))
+    return MigrationExecutor(connection).loader.project_state(list(targets)).apps
+
+
+@pytest.fixture
+def catalog_before_promo_migration(transactional_db: Any) -> Any:
+    """
+    Схема на миграции 0057 — до `promo_price`: каталог так, как он лежит на проде перед деплоем.
+
+    Выход возвращает схему к последним миграциям, даже если тест упал: иначе соседние тесты
+    воркера пойдут по БД без колонки `promo_price` и без частичного ограничения.
+    """
+    from django.db import connection
+
+    historical_apps = migrate_schema_to(BEFORE_PROMO_MIGRATION)
+    try:
+        yield historical_apps
+    finally:
+        MigrationExecutor(connection).migrate(list(MigrationExecutor(connection).loader.graph.leaf_nodes()))
+
+
+@pytest.mark.django_db(transaction=True)
+class TestMigration0058AppliedToExistingCatalog:
+    """
+    R68: переход 0057 → 0058 на уже заполненной БД, настоящим исполнителем миграций.
+
+    Тесты выше вызывают data-функции напрямую и не заметят, что `RunPython` пропал из
+    `Migration.operations`: на пустой CI-БД он ничего не меняет, а на проде остались бы
+    прежние маппинги и ручные отметки «Акция». Данные «до» создаются историческими моделями.
+    """
+
+    @staticmethod
+    def seed_price_types(historical_apps: Any, rows: list[tuple[str, str, str, bool]]) -> None:
+        historical_price_type = historical_apps.get_model("products", "PriceType")
+        for onec_id, name, field, active in rows:
+            historical_price_type.objects.create(onec_id=onec_id, onec_name=name, product_field=field, is_active=active)
+
+    def test_promo_types_are_mapped_and_only_newest_active_stays(self, catalog_before_promo_migration):
+        self.seed_price_types(
+            catalog_before_promo_migration,
+            [
+                (OCT_ID, "АКЦИЯ ОКТЯБРЬ-26", "", True),
+                (NOV_ID, " акция ноябрь-26", "", True),
+                (DEC_ID, "АКЦИЯ ДЕКАБРЬ-26", "", False),
+                ("price-type-not-promo", "Акционный прайс", "", True),  # «акционный» не начинается с «акция»
+                (OPT2_ID, "Опт 2", "opt2_price", True),
+            ],
+        )
+
+        migrate_schema_to(PROMO_MIGRATION)
+
+        fields = dict(PriceType.objects.values_list("onec_id", "product_field"))
+        assert [fields[pk] for pk in (OCT_ID, NOV_ID, DEC_ID)] == ["promo_price"] * 3
+        assert fields["price-type-not-promo"] == ""
+        assert fields[OPT2_ID] == "opt2_price"
+        assert active_promo_ids() == [NOV_ID]
+        # Неакционные типы миграция не гасит
+        assert PriceType.objects.get(onec_id=OPT2_ID).is_active is True
+        assert PriceType.objects.get(onec_id="price-type-not-promo").is_active is True
+
+    def test_without_active_promo_type_none_becomes_current(self, catalog_before_promo_migration):
+        self.seed_price_types(
+            catalog_before_promo_migration,
+            [(OCT_ID, "АКЦИЯ ОКТЯБРЬ-26", "", False), (NOV_ID, "АКЦИЯ НОЯБРЬ-26", "", False)],
+        )
+
+        migrate_schema_to(PROMO_MIGRATION)
+
+        assert set(PriceType.objects.filter(product_field="promo_price").values_list("onec_id", flat=True)) == {
+            OCT_ID,
+            NOV_ID,
+        }
+        assert active_promo_ids() == []
+
+    def test_manual_promo_flags_are_reset_and_catalog_survives(self, catalog_before_promo_migration):
+        historical = catalog_before_promo_migration
+        brand = historical.get_model("products", "Brand").objects.create(name="Бренд акции", slug="promo-brand")
+        category = historical.get_model("products", "Category").objects.create(
+            name="Категория акции", slug="promo-category"
+        )
+        products = {}
+        for key, is_promo in (("flagged", True), ("flagged-bare", True), ("plain", False)):
+            products[key] = historical.get_model("products", "Product").objects.create(
+                name=f"Товар {key}",
+                slug=f"promo-migration-{key}",
+                onec_id=f"promo-migration-{key}",
+                brand=brand,
+                category=category,
+                is_active=True,
+                is_promo=is_promo,
+            )
+        for key in ("flagged", "plain"):  # у «flagged-bare» вариантов нет вовсе
+            historical.get_model("products", "ProductVariant").objects.create(
+                product=products[key],
+                sku=f"PROMO-MIGRATION-{key}",
+                onec_id=f"promo-migration-{key}#v1",
+                retail_price=Decimal("1200.00"),
+                stock_quantity=10,
+            )
+
+        migrate_schema_to(PROMO_MIGRATION)
+
+        flags = dict(Product.objects.filter(pk__in=[p.pk for p in products.values()]).values_list("slug", "is_promo"))
+        assert flags == {
+            "promo-migration-flagged": False,
+            "promo-migration-flagged-bare": False,
+            "promo-migration-plain": False,
+        }
+        variants = ProductVariant.objects.filter(sku__startswith="PROMO-MIGRATION-")
+        assert variants.count() == 2
+        assert set(variants.values_list("retail_price", "promo_price")) == {(Decimal("1200.00"), None)}
+
+    def test_single_active_promo_constraint_is_in_place(self, catalog_before_promo_migration):
+        from django.db import connection
+
+        self.seed_price_types(catalog_before_promo_migration, [(OCT_ID, "АКЦИЯ ОКТЯБРЬ-26", "", True)])
+
+        migrate_schema_to(PROMO_MIGRATION)
+
+        with connection.cursor() as cursor:
+            constraints = connection.introspection.get_constraints(cursor, PriceType._meta.db_table)
+        assert constraints["price_types_single_active_promo"]["unique"] is True
+        with pytest.raises(IntegrityError), transaction.atomic():
+            promo_type(NOV_ID, "АКЦИЯ НОЯБРЬ-26", active=True)
+        # Ограничение частичное: неактивные акции и обычные типы им не заняты
+        promo_type(DEC_ID, "АКЦИЯ ДЕКАБРЬ-26", active=False)
+        PriceType.objects.create(onec_id=RETAIL_ID, onec_name="РРЦ", product_field="retail_price")
+        assert active_promo_ids() == [OCT_ID]
+
+
 # --------------------------------------------------------------------------
 # Админка
 # --------------------------------------------------------------------------
 
 
-def admin_request() -> Any:
-    request: Any = RequestFactory().post("/admin/products/pricetype/")
+def admin_request(data: dict[str, str] | None = None) -> Any:
+    request: Any = RequestFactory().post("/admin/products/pricetype/", data or {})
     request.user = User(is_staff=True, is_superuser=True)
     request.session = {}
     request._messages = FallbackStorage(request)
@@ -2887,3 +3027,1067 @@ class TestLockVariantLocksCurrentOwner:
 
         assert errors == []
         assert outcome["state"].product_id == target_id
+
+
+# --------------------------------------------------------------------------
+# Шестой прогон ревью: R53–R60 — запись цены под блокировкой товара, пакетные удаления, сбои команды
+# --------------------------------------------------------------------------
+
+
+class TestUpdateFieldsIterable:
+    """R57: `update_fields` может быть любым итерируемым — собственные проверки его не расходуют."""
+
+    def test_generator_update_fields_is_saved(self):
+        variant = make_variant()
+        variant.stock_quantity = 77
+
+        variant.save(update_fields=(name for name in ["stock_quantity"]))
+
+        assert ProductVariant.objects.get(pk=variant.pk).stock_quantity == 77
+
+    def test_generator_with_activity_still_recomputes_flag(self):
+        variant = make_variant(promo_price=Decimal("800.00"))
+        promo.sync_promo_flags()
+        assert Product.objects.get(pk=variant.product_id).is_promo is True
+        variant.is_active = False
+
+        variant.save(update_fields=(name for name in ["is_active"]))
+
+        assert ProductVariant.objects.get(pk=variant.pk).is_active is False
+        assert Product.objects.get(pk=variant.product_id).is_promo is False
+
+
+class TestPriceSavedTogetherWithActivity:
+    """R56: акционная цена, сохраняемая вместе с активностью, тоже повод пересчитать флаг «Акция»."""
+
+    def test_enabling_variant_together_with_promo_price(self):
+        variant = make_variant(is_active=False)
+        loaded = ProductVariant.objects.get(pk=variant.pk)
+        loaded.is_active = True
+        loaded.promo_price = Decimal("800.00")
+
+        loaded.save(update_fields=["is_active", "promo_price"])
+
+        assert Product.objects.get(pk=variant.product_id).is_promo is True
+
+    def test_price_appears_while_variant_stays_active(self):
+        variant = make_variant()
+        loaded = ProductVariant.objects.get(pk=variant.pk)
+        loaded.promo_price = Decimal("800.00")
+
+        loaded.save(update_fields=["is_active", "promo_price"])
+
+        assert Product.objects.get(pk=variant.product_id).is_promo is True
+
+    def test_price_removed_while_variant_stays_active(self):
+        variant = make_variant(promo_price=Decimal("800.00"))
+        promo.sync_promo_flags()
+        loaded = ProductVariant.objects.get(pk=variant.pk)
+        loaded.promo_price = None
+
+        loaded.save(update_fields=["is_active", "promo_price"])
+
+        assert Product.objects.get(pk=variant.product_id).is_promo is False
+
+    def test_value_change_without_presence_change_recomputes_nothing(self, monkeypatch):
+        variant = make_variant(promo_price=Decimal("800.00"))
+        promo.sync_promo_flags()
+        recomputed: list[Any] = []
+        original = promo.sync_promo_flags
+
+        def counting_sync(*args: Any, **kwargs: Any) -> int:
+            recomputed.append(kwargs)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(promo, "sync_promo_flags", counting_sync)
+        loaded = ProductVariant.objects.get(pk=variant.pk)
+        loaded.promo_price = Decimal("900.00")
+
+        loaded.save(update_fields=["is_active", "promo_price"])
+
+        assert recomputed == []
+
+
+class TestImportCommandPartialFailure:
+    """R58: цены первого файла уже применены — ошибка второго не оставляет товары без флага «Акция»."""
+
+    def test_flags_follow_prices_applied_before_a_later_file_fails(self, tmp_path):
+        import re
+
+        from django.core.management.base import CommandError
+
+        variants = real_offer_variants()
+        data_dir = prices_exchange_dir(tmp_path, "partial", price_lists=True)
+        first = Path(data_dir) / "prices" / "prices.xml"
+        broken = Path(data_dir) / "prices" / "prices_2.xml"
+        broken.write_text(
+            re.sub(
+                "<ЦенаЗаЕдиницу>[^<]*</ЦенаЗаЕдиницу>",
+                "<ЦенаЗаЕдиницу>не число</ЦенаЗаЕдиницу>",
+                first.read_text(encoding="utf-8"),
+                count=1,
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(CommandError):
+            run_prices_import(data_dir)
+
+        plain = variants[OFFER_PLAIN]
+        plain.refresh_from_db()
+        assert plain.promo_price == Decimal("5592.00")  # цена первого файла применена
+        assert Product.objects.get(pk=plain.product_id).is_promo is True
+
+
+class TestImportAgainstDisableOfLastPromoVariant:
+    """R53: запись акционной цены берёт блокировку товара — параллельное отключение варианта флаг не теряет."""
+
+    @pytest.mark.django_db(transaction=True)
+    def test_import_waits_for_the_product_and_flag_is_set_by_the_final_recompute(self, monkeypatch):
+        PriceType.objects.create(onec_id=RETAIL_ID, onec_name="РРЦ", product_field="retail_price")
+        promo_type(NOV_ID, "АКЦИЯ НОЯБРЬ-26", active=True)
+        last = make_variant(promo_price=Decimal("800.00"))  # единственный акционный вариант товара
+        other = ProductVariant.objects.create(
+            product=last.product,
+            sku="PROMO-R53",
+            onec_id=f"{last.product.onec_id}#r53",
+            retail_price=Decimal("1200.00"),
+            stock_quantity=5,
+        )
+        promo.sync_promo_flags()
+        processor = new_processor()
+        gate, sessions = Gate(), Sessions()
+        errors: list[BaseException] = []
+        imported: dict[str, Any] = {}
+        pause_in_thread(monkeypatch, "disabler", gate, "sync_promo_flags", after=True)
+
+        def disable() -> None:
+            sessions.record("disabler")
+            with transaction.atomic():
+                loaded = ProductVariant.objects.get(pk=last.pk)
+                loaded.is_active = False
+                loaded.save(update_fields=["is_active"])
+
+        def run_import() -> None:
+            sessions.record("importer")
+            imported["written"] = processor.update_variant_prices(
+                price_data(other, **{RETAIL_ID: "1200.00", NOV_ID: "700.00"})
+            )
+
+        disabler = start_worker("disabler", disable, errors)
+        assert gate.reached.wait(timeout=10)  # вариант отключён, флаг снят, но не зафиксирован
+        importer = start_worker("importer", run_import, errors)
+        assert sessions.blocked("importer", "disabler")  # запись цены ждёт строку товара
+        gate.release.set()
+        join_all(disabler, importer)
+
+        assert errors == []
+        assert imported == {"written": True}
+        promo.sync_promo_flags()  # завершающий пересчёт команды импорта
+        assert ProductVariant.objects.get(pk=other.pk).promo_price == Decimal("700.00")
+        assert Product.objects.get(pk=last.product_id).is_promo is True
+
+    def test_without_current_promo_import_takes_no_product_lock(self, monkeypatch, processor):
+        PriceType.objects.create(onec_id=RETAIL_ID, onec_name="РРЦ", product_field="retail_price")
+        variant = make_variant()
+        locked: list[int] = []
+        original = promo.lock_variant
+
+        def recording_lock(pk: int, **kwargs: Any) -> promo.VariantState | None:
+            locked.append(pk)
+            return original(pk, **kwargs)
+
+        monkeypatch.setattr(promo, "lock_variant", recording_lock)
+
+        assert processor.update_variant_prices(price_data(variant, **{RETAIL_ID: "1300.00"})) is True
+
+        assert locked == []
+        assert ProductVariant.objects.get(pk=variant.pk).retail_price == Decimal("1300.00")
+
+
+class TestBatchDeleteIsPinned:
+    """R55: пакетное удаление не расширяет набор после блокировки владельцев."""
+
+    def test_variant_appearing_after_locking_is_not_deleted(self, monkeypatch):
+        first, second = make_variant(color_name="Удалить"), make_variant(color_name="Удалить")
+        bystander = make_variant()
+        late: dict[str, ProductVariant] = {}
+        original = promo.lock_products_stable
+
+        def lock_then_insert(find_ids: Any) -> list[int]:
+            result = original(find_ids)
+            late["variant"] = ProductVariant.objects.create(
+                product=bystander.product,
+                sku="PROMO-LATE",
+                onec_id=f"{bystander.product.onec_id}#late",
+                color_name="Удалить",
+                retail_price=Decimal("100.00"),
+            )
+            return result
+
+        monkeypatch.setattr(promo, "lock_products_stable", lock_then_insert)
+
+        ProductVariant.objects.filter(color_name="Удалить").delete()
+
+        assert not ProductVariant.objects.filter(pk__in=[first.pk, second.pk]).exists()
+        assert ProductVariant.objects.filter(pk=late["variant"].pk).exists()
+
+
+class TestProductBatchDeleteLockOrder:
+    """R54: каскадное удаление нескольких товаров берёт блокировки товаров по возрастанию `pk`."""
+
+    @pytest.mark.django_db(transaction=True)
+    def test_cascade_delete_of_several_products_and_ordered_recompute_do_not_deadlock(self):
+        early = make_variant(promo_price=Decimal("800.00"))
+        product_a = early.product_id
+        late_b = make_variant(promo_price=Decimal("700.00"))
+        product_b = late_b.product_id
+        assert product_a < product_b
+        # Вариант товара B теперь младше всех: Collector шлёт `pre_delete` по `pk` вариантов,
+        # то есть сначала B, затем A — обратно порядку пересчёта (A, затем B)
+        ProductVariant.objects.filter(pk=early.pk).delete()
+        ProductVariant.objects.create(
+            product_id=product_a,
+            sku="PROMO-R54",
+            onec_id=f"{early.product.onec_id}#r54",
+            retail_price=Decimal("1200.00"),
+            promo_price=Decimal("900.00"),
+        )
+        sessions = Sessions()
+        errors: list[BaseException] = []
+        holding_a, go_b = threading.Event(), threading.Event()
+
+        def hold_a_then_b() -> None:
+            """Параллельный пересчёт: берёт товары по возрастанию и держит A, пока ждёт B."""
+            sessions.record("holder")
+            with transaction.atomic():
+                promo.lock_products([product_a])
+                holding_a.set()
+                assert go_b.wait(timeout=10)
+                promo.lock_products([product_b])
+
+        def delete_products() -> None:
+            sessions.record("deleter")
+            with transaction.atomic():
+                Product.objects.filter(pk__in=[product_a, product_b]).delete()
+
+        holder = start_worker("holder", hold_a_then_b, errors)
+        assert holding_a.wait(timeout=10)
+        deleter = start_worker("deleter", delete_products, errors)
+        assert sessions.blocked("deleter", "holder")  # удалению нужен товар A
+        go_b.set()
+        join_all(holder, deleter)
+
+        assert errors == []
+        assert not Product.objects.filter(pk__in=[product_a, product_b]).exists()
+
+
+class TestUnverifiedWholesaleRegularPrice:
+    """R59: неверифицированный B2B видит розницу, и `regular_price` — тоже розница, а не оптовая."""
+
+    @pytest.mark.parametrize("role", ["wholesale_level1", "wholesale_level2", "trainer", "federation_rep"])
+    @pytest.mark.parametrize("promo_price", [None, Decimal("800.00")])
+    def test_regular_price_is_retail_in_list_detail_and_variants(self, role, promo_price):
+        variant = make_variant(
+            retail_price=Decimal("1200.00"),
+            opt1_price=Decimal("700.00"),
+            opt2_price=Decimal("650.00"),
+            trainer_price=Decimal("600.00"),
+            federation_price=Decimal("550.00"),
+        )
+        if promo_price is not None:
+            ProductVariant.objects.filter(pk=variant.pk).update(promo_price=promo_price)
+        client = APIClient()
+        client.force_authenticate(user=make_user(role, verified=False))
+
+        listing = client.get(reverse("products:product-list")).json()
+        item = next(row for row in listing["results"] if row["id"] == variant.product_id)
+        detail = client.get(reverse("products:product-detail", kwargs={"slug": variant.product.slug})).json()
+
+        expected_current = "800.00" if promo_price is not None else "1200.00"
+        for data in (item, detail, detail["variants"][0]):
+            assert data["regular_price"] == "1200.00"
+            assert data["current_price"] == expected_current
+
+
+class TestDeletePriceTypesRollsBack:
+    """R60: сбой сброса акционных цен откатывает и удаление вида цен, и смену текущей акции."""
+
+    model_admin = PriceTypeAdmin(PriceType, AdminSite())
+
+    @staticmethod
+    def failing_reset() -> None:
+        raise RuntimeError("сбой сброса")
+
+    def test_delete_queryset_failure_keeps_price_type_prices_and_flags(self, monkeypatch):
+        current = promo_type(NOV_ID, "АКЦИЯ НОЯБРЬ-26", active=True)
+        variant = make_variant(promo_price=Decimal("800.00"))
+        promo.sync_promo_flags()
+        monkeypatch.setattr(promo, "_reset_promo_state", self.failing_reset)
+
+        with pytest.raises(RuntimeError, match="сбой сброса"):
+            self.model_admin.delete_queryset(admin_request(), PriceType.objects.filter(pk=current.pk))
+
+        assert PriceType.objects.filter(pk=current.pk).exists()
+        assert ProductVariant.objects.get(pk=variant.pk).promo_price == Decimal("800.00")
+        assert Product.objects.get(pk=variant.product_id).is_promo is True
+
+    def test_delete_model_failure_keeps_price_type(self, monkeypatch):
+        current = promo_type(NOV_ID, "АКЦИЯ НОЯБРЬ-26", active=True)
+        current_pk = current.pk  # `delete()` обнуляет pk у экземпляра
+        make_variant(promo_price=Decimal("800.00"))
+        monkeypatch.setattr(promo, "_reset_promo_state", self.failing_reset)
+
+        with pytest.raises(RuntimeError, match="сбой сброса"):
+            self.model_admin.delete_model(admin_request(), current)
+
+        assert PriceType.objects.filter(pk=current_pk).exists()
+
+    def test_switch_failure_keeps_previous_current_promo(self, monkeypatch):
+        promo_type(OCT_ID, "АКЦИЯ ОКТЯБРЬ-26", active=True)
+        november = promo_type(NOV_ID, "АКЦИЯ НОЯБРЬ-26", active=False)
+        variant = make_variant(promo_price=Decimal("800.00"))
+        monkeypatch.setattr(promo, "_reset_promo_state", self.failing_reset)
+        november.is_active = True
+
+        with pytest.raises(RuntimeError, match="сбой сброса"):
+            self.model_admin.save_model(admin_request(), november, form=None, change=True)
+
+        assert active_promo_ids() == [OCT_ID]
+        assert ProductVariant.objects.get(pk=variant.pk).promo_price == Decimal("800.00")
+
+
+# --------------------------------------------------------------------------
+# Восьмой прогон ревью: R65–R67 — пакетное удаление: блокировки запроса, кэш, каскад от родителей
+# --------------------------------------------------------------------------
+
+
+class TestBatchDeleteIgnoresInheritedRowLocks:
+    """R65: `select_for_update()` исходного запроса не должен блокировать строки раньше товаров."""
+
+    @pytest.mark.parametrize("model", [ProductVariant, Product, Brand, Category])
+    def test_collecting_pks_takes_no_row_locks(self, model):
+        from django.db import connection
+
+        make_variant()
+        with CaptureQueriesContext(connection) as queries:
+            model.objects.select_for_update().all().delete()
+
+        first_select = next(q["sql"] for q in queries if q["sql"].lstrip().upper().startswith("SELECT"))
+        assert " FOR " not in first_select.upper()
+
+    @pytest.mark.django_db(transaction=True)
+    def test_select_for_update_delete_does_not_lock_variant_before_product(self):
+        variant = make_variant(promo_price=Decimal("800.00"))
+        product_pk = variant.product_id
+        sessions = Sessions()
+        errors: list[BaseException] = []
+        holding_product, go_variant = threading.Event(), threading.Event()
+
+        def hold_product_then_variant() -> None:
+            """Другая транзакция идёт в общем порядке: сначала товар, затем строка его варианта."""
+            sessions.record("holder")
+            with transaction.atomic():
+                promo.lock_products([product_pk])
+                holding_product.set()
+                assert go_variant.wait(timeout=10)
+                list(ProductVariant.objects.select_for_update().filter(pk=variant.pk))
+
+        def delete_locked() -> None:
+            sessions.record("deleter")
+            with transaction.atomic():
+                ProductVariant.objects.select_for_update().filter(pk=variant.pk).delete()
+
+        holder = start_worker("holder", hold_product_then_variant, errors)
+        assert holding_product.wait(timeout=10)
+        deleter = start_worker("deleter", delete_locked, errors)
+        assert sessions.blocked("deleter", "holder")  # удалению нужен товар, который держит первая транзакция
+        go_variant.set()
+        join_all(holder, deleter)
+
+        assert errors == []
+        assert not ProductVariant.objects.filter(pk=variant.pk).exists()
+
+
+class TestBatchDeleteClearsResultCache:
+    """R66: вычисленный QuerySet после пакетного удаления не отдаёт удалённые объекты из кэша."""
+
+    @pytest.mark.parametrize("model", [ProductVariant, Product, Brand, Category])
+    def test_evaluated_queryset_is_refreshed_after_delete(self, model):
+        make_variant()
+        queryset = model.objects.all()
+        assert len(queryset) >= 1  # результат вычислен и закэширован
+
+        queryset.delete()
+
+        assert list(queryset) == []
+
+
+def two_products_with_reversed_variant_order() -> tuple[int, int]:
+    """
+    Два товара с акционными вариантами: порядок `pk` вариантов обратен порядку `pk` товаров.
+
+    Collector шлёт `pre_delete` вариантов по их `pk`, поэтому каскад без предварительной
+    блокировки берёт сначала товар B, затем A — обратно пересчёту и переносам (A, затем B).
+    """
+    early = make_variant(promo_price=Decimal("800.00"))
+    product_a = early.product_id
+    late = make_variant(promo_price=Decimal("700.00"))
+    product_b = late.product_id
+    assert product_a < product_b
+    ProductVariant.objects.filter(pk=early.pk).delete()
+    ProductVariant.objects.create(
+        product_id=product_a,
+        sku="PROMO-R67",
+        onec_id=f"{early.product.onec_id}#r67",
+        retail_price=Decimal("1200.00"),
+        promo_price=Decimal("900.00"),
+    )
+    return product_a, product_b
+
+
+def cascade_against_ordered_holder(delete: Any, product_a: int, product_b: int) -> list[BaseException]:
+    """
+    Запускает `delete` против транзакции, которая берёт товары по возрастанию (A, затем B).
+
+    Та держит A, пока каскад не встанет на ожидание, и только потом идёт за B. Без блокировки
+    товаров по возрастанию до каскада он держит B и ждёт A — взаимоблокировка (`40P01`).
+    """
+    sessions = Sessions()
+    errors: list[BaseException] = []
+    holding_a, go_b = threading.Event(), threading.Event()
+
+    def hold_a_then_b() -> None:
+        sessions.record("holder")
+        with transaction.atomic():
+            promo.lock_products([product_a])
+            holding_a.set()
+            assert go_b.wait(timeout=10)
+            promo.lock_products([product_b])
+
+    def cascade() -> None:
+        sessions.record("deleter")
+        with transaction.atomic():
+            delete()
+
+    holder = start_worker("holder", hold_a_then_b, errors)
+    assert holding_a.wait(timeout=10)
+    deleter = start_worker("deleter", cascade, errors)
+    assert sessions.blocked("deleter", "holder")  # каскаду нужен товар A
+    go_b.set()
+    join_all(holder, deleter)
+    return errors
+
+
+class TestCascadeFromParentsLockOrder:
+    """R67: удаление категории или бренда берёт блокировки товаров по возрастанию `pk` до каскада."""
+
+    @pytest.mark.django_db(transaction=True)
+    @pytest.mark.parametrize("how", ["category-instance", "category-queryset", "brand-instance", "brand-queryset"])
+    def test_cascade_from_parent_and_ordered_recompute_do_not_deadlock(self, how):
+        product_a, product_b = two_products_with_reversed_variant_order()
+        category = Category.objects.get(slug="promo-category")
+        brand = Brand.objects.get(slug="promo-brand")
+        deleters = {
+            "category-instance": lambda: Category.objects.get(pk=category.pk).delete(),
+            "category-queryset": lambda: Category.objects.filter(pk=category.pk).delete(),
+            "brand-instance": lambda: Brand.objects.get(pk=brand.pk).delete(),
+            "brand-queryset": lambda: Brand.objects.filter(pk=brand.pk).delete(),
+        }
+
+        errors = cascade_against_ordered_holder(deleters[how], product_a, product_b)
+
+        assert errors == []
+        assert not Product.objects.filter(pk__in=[product_a, product_b]).exists()
+
+    @pytest.mark.django_db(transaction=True)
+    def test_cascade_through_child_categories_locks_their_products(self):
+        product_a, product_b = two_products_with_reversed_variant_order()
+        root = Category.objects.get(slug="promo-category")
+        child = Category.objects.create(name="Дочерняя категория акции", slug="promo-child-category", parent=root)
+        Product.objects.filter(pk=product_b).update(category=child)
+
+        errors = cascade_against_ordered_holder(lambda: Category.objects.get(pk=root.pk).delete(), product_a, product_b)
+
+        assert errors == []
+        assert not Product.objects.filter(pk__in=[product_a, product_b]).exists()
+        assert not Category.objects.filter(pk__in=[root.pk, child.pk]).exists()
+
+
+# --------------------------------------------------------------------------
+# Десятый прогон ревью: R69 — порядок блокировок у составной операции
+# --------------------------------------------------------------------------
+
+
+def product_admin_request(*variant_pks: int) -> Any:
+    """POST формы товара: management-форма инлайна вариантов и скрытые `id` его строк."""
+    prefix = ProductAdmin.VARIANTS_FORMSET_PREFIX
+    data = {f"{prefix}-TOTAL_FORMS": str(len(variant_pks)), f"{prefix}-INITIAL_FORMS": str(len(variant_pks))}
+    for index, pk in enumerate(variant_pks):
+        data[f"{prefix}-{index}-id"] = str(pk)
+    return admin_request(data)
+
+
+def two_variants_of_ascending_products() -> tuple[ProductVariant, ProductVariant]:
+    """Два акционных варианта в разных товарах: `pk` первого товара (A) меньше `pk` второго (B)."""
+    first = make_variant(promo_price=Decimal("800.00"))
+    second = make_variant(promo_price=Decimal("700.00"))
+    assert first.product_id < second.product_id
+    promo.sync_promo_flags()
+    return first, second
+
+
+def disable_variant(pk: int) -> None:
+    variant = ProductVariant.objects.get(pk=pk)
+    variant.is_active = False
+    variant.save(update_fields=["is_active"])
+
+
+def composite_against_recompute(edit: Any, product_a: int, product_b: int) -> list[BaseException]:
+    """
+    Составная операция `edit` против пересчёта флагов, который берёт товары по возрастанию (A, затем B).
+
+    `edit(parent_locked, proceed)` открывает транзакцию, пишет сторону товара B, сообщает `parent_locked`,
+    ждёт `proceed` и возвращается к стороне товара A. Пересчёт стартует после `parent_locked` и встаёт на
+    блокировку операции. Если операция заняла A заранее, пересчёт ждёт её целиком; иначе он держит A и ждёт B,
+    а операция ждёт A, — взаимоблокировка (`40P01`).
+    """
+    from django.db import connection
+
+    sessions = Sessions()
+    errors: list[BaseException] = []
+    parent_locked, proceed = threading.Event(), threading.Event()
+
+    def bounded() -> None:
+        with connection.cursor() as cursor:
+            cursor.execute("SET lock_timeout = '12s'")
+
+    def run_edit() -> None:
+        sessions.record("editor")
+        bounded()
+        edit(parent_locked, proceed)
+
+    def recompute() -> None:
+        sessions.record("recompute")
+        bounded()
+        promo.sync_promo_flags(product_ids=[product_a, product_b])
+
+    editor = start_worker("editor", run_edit, errors)
+    assert parent_locked.wait(timeout=10)
+    recalculation = start_worker("recompute", recompute, errors)
+    try:
+        assert sessions.blocked("recompute", "editor")  # пересчёту нужен товар, который держит операция
+    finally:
+        proceed.set()
+        join_all(editor, recalculation)
+    return errors
+
+
+class TestCompositeOperationLockOrder:
+    """R69: порядок «по возрастанию pk» действует на составную операцию целиком, а не на каждое её сохранение."""
+
+    @pytest.mark.django_db(transaction=True)
+    def test_variant_saves_in_descending_order_after_prelock_do_not_deadlock(self):
+        first, second = two_variants_of_ascending_products()
+
+        def edit(parent_locked: threading.Event, proceed: threading.Event) -> None:
+            with transaction.atomic():
+                promo.lock_operation(variant_pks=[first.pk, second.pk])
+                disable_variant(second.pk)  # товар B
+                parent_locked.set()
+                assert proceed.wait(timeout=10)
+                disable_variant(first.pk)  # товар A
+
+        errors = composite_against_recompute(edit, first.product_id, second.product_id)
+
+        assert errors == []
+        assert not ProductVariant.objects.filter(pk__in=[first.pk, second.pk], is_active=True).exists()
+        assert not Product.objects.filter(pk__in=[first.product_id, second.product_id], is_promo=True).exists()
+
+    @pytest.mark.django_db(transaction=True)
+    def test_product_admin_save_locks_current_owners_of_posted_inline_variants(self):
+        """Инлайн после загрузки формы перенесли из B в A: сохранение товара B занимает A до первой записи."""
+        first, second = two_variants_of_ascending_products()
+        product_a, product_b = first.product_id, second.product_id
+        stale_inline = ProductVariant.objects.get(pk=second.pk)
+        moved = ProductVariant.objects.get(pk=second.pk)
+        moved.product_id = product_a
+        moved.save(update_fields=["product"])
+        request = product_admin_request(second.pk)
+
+        def edit(parent_locked: threading.Event, proceed: threading.Event) -> None:
+            with transaction.atomic():
+                parent = Product.objects.get(pk=product_b)
+                parent.name += " (правка)"
+                ProductAdmin(Product, AdminSite()).save_model(request, parent, form=None, change=True)
+                parent_locked.set()
+                assert proceed.wait(timeout=10)
+                # Инлайн сохраняется после товара устаревшим экземпляром: он возвращает вариант в товар B
+                stale_inline.is_active = False
+                stale_inline.save()
+
+        errors = composite_against_recompute(edit, product_a, product_b)
+
+        assert errors == []
+        saved = ProductVariant.objects.get(pk=second.pk)
+        assert (saved.product_id, saved.is_active) == (product_b, False)
+        assert Product.objects.get(pk=product_b).name.endswith("(правка)")
+        assert Product.objects.get(pk=product_a).is_promo is True  # первый вариант A активен
+        assert Product.objects.get(pk=product_b).is_promo is False  # единственный вариант B отключён
+
+    @pytest.mark.parametrize(
+        "management",
+        [
+            {"variants-TOTAL_FORMS": "abc"},
+            {"variants-TOTAL_FORMS": "2", "variants-0-id": "not-a-number", "variants-1-id": ""},
+            {"variants-TOTAL_FORMS": "999999"},
+            {},
+        ],
+    )
+    def test_product_admin_save_ignores_malformed_inline_data(self, management):
+        variant = make_variant(promo_price=Decimal("800.00"))
+        parent = Product.objects.get(pk=variant.product_id)
+        parent.name = "Правка"
+
+        ProductAdmin(Product, AdminSite()).save_model(admin_request(management), parent, form=None, change=True)
+
+        assert Product.objects.get(pk=parent.pk).name == "Правка"
+
+    def test_variants_formset_prefix_matches_the_real_inline(self):
+        """POST читается по этому префиксу: расхождение с настоящим formset молча отключило бы предблокировку."""
+        formset = ProductVariantInline(Product, AdminSite()).get_formset(admin_request())
+
+        assert formset.get_default_prefix() == ProductAdmin.VARIANTS_FORMSET_PREFIX
+
+    def test_lock_operation_returns_locked_owners_in_ascending_order(self):
+        first, second = two_variants_of_ascending_products()
+        extra = make_variant().product_id
+
+        locked = promo.lock_operation(product_ids=[extra], variant_pks=[second.pk, first.pk])
+
+        assert locked == sorted({first.product_id, second.product_id, extra})
+        assert promo.lock_operation() == []
+
+    @pytest.mark.django_db(transaction=True)
+    def test_lock_operation_outside_transaction_raises(self):
+        """Вне транзакции блокировка снялась бы сразу и ничего не удерживала."""
+        variant = make_variant()
+
+        with pytest.raises(RuntimeError):
+            promo.lock_operation(variant_pks=[variant.pk])
+
+
+# --------------------------------------------------------------------------
+# Десятый прогон ревью: R70 — настоящий POST добавления вида цен
+# --------------------------------------------------------------------------
+
+
+class TestPriceTypeAdminAddPost:
+    """R70: добавление вида цен (`change=False`) идёт через сервис так же, как правка, а не мимо него."""
+
+    @staticmethod
+    def add_data(**overrides: str) -> dict[str, str]:
+        return {
+            "onec_id": NOV_ID,
+            "onec_name": "АКЦИЯ НОЯБРЬ-26",
+            "product_field": "promo_price",
+            "user_role": "",
+            "is_active": "on",
+            **overrides,
+        }
+
+    def test_adding_active_promo_switches_current_and_resets_prices(self, client):
+        october = promo_type(OCT_ID, "АКЦИЯ ОКТЯБРЬ-26", active=True)
+        variant = make_variant(promo_price=Decimal("800.00"))
+        promo.sync_promo_flags()
+        assert Product.objects.get(pk=variant.product_id).is_promo is True
+        staff_login(client)
+
+        response = client.post(reverse("admin:products_pricetype_add"), self.add_data())
+
+        assert response.status_code == 302, getattr(response, "context_data", None)
+        assert active_promo_ids() == [NOV_ID]
+        assert PriceType.objects.get(pk=october.pk).is_active is False
+        variant.refresh_from_db()
+        assert variant.promo_price is None
+        assert Product.objects.get(pk=variant.product_id).is_promo is False
+        assert PriceTypeAdmin.PROMO_RESET_MESSAGE in [str(m) for m in get_messages(response.wsgi_request)]
+
+    def test_adding_inactive_promo_keeps_current_and_prices(self, client):
+        promo_type(OCT_ID, "АКЦИЯ ОКТЯБРЬ-26", active=True)
+        variant = make_variant(promo_price=Decimal("800.00"))
+        promo.sync_promo_flags()
+        staff_login(client)
+        data = self.add_data()
+        del data["is_active"]
+
+        response = client.post(reverse("admin:products_pricetype_add"), data)
+
+        assert response.status_code == 302, getattr(response, "context_data", None)
+        assert active_promo_ids() == [OCT_ID]
+        assert PriceType.objects.get(onec_id=NOV_ID).is_active is False
+        variant.refresh_from_db()
+        assert variant.promo_price == Decimal("800.00")
+        assert Product.objects.get(pk=variant.product_id).is_promo is True
+        assert PriceTypeAdmin.PROMO_RESET_MESSAGE not in [str(m) for m in get_messages(response.wsgi_request)]
+
+
+# --------------------------------------------------------------------------
+# Десятый прогон ревью: R71 — каскад от категории блокирует товары потомков
+# --------------------------------------------------------------------------
+
+
+class TestCategoryCascadeLocksDescendantProducts:
+    """
+    R71: в корне товаров нет, оба товара — в потомках, порядок `pk` вариантов обратен порядку `pk` товаров.
+
+    Товар в корне маскировал потерю предварительной блокировки потомков: корень блокировал A, и встречная
+    транзакция получала B без ожидания. Здесь без блокировки поддерева не заблокирован ни один товар.
+    """
+
+    @staticmethod
+    def tree_with_products_only_in_descendants() -> tuple[int, int, Category]:
+        product_a, product_b = two_products_with_reversed_variant_order()
+        root = Category.objects.get(slug="promo-category")
+        child_a = Category.objects.create(name="Потомок A", slug="promo-child-a", parent=root)
+        child_b = Category.objects.create(name="Потомок B", slug="promo-child-b", parent=root)
+        grandchild_b = Category.objects.create(name="Внук B", slug="promo-grandchild-b", parent=child_b)
+        Product.objects.filter(pk=product_a).update(category=child_a)
+        Product.objects.filter(pk=product_b).update(category=grandchild_b)
+        assert not Product.objects.filter(category=root).exists()
+        return product_a, product_b, root
+
+    @pytest.mark.django_db(transaction=True)
+    @pytest.mark.parametrize("how", ["instance", "queryset"])
+    def test_cascade_from_root_without_products_and_ordered_recompute_do_not_deadlock(self, how):
+        product_a, product_b, root = self.tree_with_products_only_in_descendants()
+        deleters = {
+            "instance": lambda: Category.objects.get(pk=root.pk).delete(),
+            "queryset": lambda: Category.objects.filter(pk=root.pk).delete(),
+        }
+
+        errors = cascade_against_ordered_holder(deleters[how], product_a, product_b)
+
+        assert errors == []
+        assert not Product.objects.filter(pk__in=[product_a, product_b]).exists()
+        assert not Category.objects.filter(slug__startswith="promo-").exists()
+
+
+# --------------------------------------------------------------------------
+# Двенадцатый прогон ревью: R74 — предел строк инлайна вариантов
+# --------------------------------------------------------------------------
+
+
+def variants_formset_class() -> Any:
+    """Настоящий formset инлайна вариантов: именно он решает, сколько строк POST сохранится."""
+    return ProductVariantInline(Product, AdminSite()).get_formset(admin_request())
+
+
+class TestPostedVariantRowsMatchTheRealFormset:
+    """
+    R74: инлайн без `max_num` создаёт до `absolute_max` форм (2000), а не до `DEFAULT_MAX_NUM` (1000).
+
+    Варианты из строк 1000–1999 сохранятся, поэтому их владельцы обязаны попасть в предблокировку.
+    """
+
+    @staticmethod
+    def posted(rows: dict[int, int], total: int) -> Any:
+        prefix = ProductAdmin.VARIANTS_FORMSET_PREFIX
+        data = {f"{prefix}-TOTAL_FORMS": str(total), f"{prefix}-INITIAL_FORMS": "0"}
+        data.update({f"{prefix}-{index}-id": str(pk) for index, pk in rows.items()})
+        return admin_request(data)
+
+    def test_limit_equals_absolute_max_of_the_real_formset(self):
+        assert ProductAdmin.VARIANTS_FORMSET_MAX_ROWS == variants_formset_class().absolute_max
+
+    def test_every_row_the_real_formset_instantiates_is_read(self):
+        formset_class = variants_formset_class()
+        total = formset_class.absolute_max + 500
+        accepted = formset_class(data=self.posted({}, total).POST, prefix=ProductAdmin.VARIANTS_FORMSET_PREFIX)
+        last = accepted.total_form_count() - 1
+        assert last >= 1000  # случай ревью: строки за прежней границей тоже сохраняются
+        request = self.posted({0: 101, 999: 102, 1000: 103, last: 104, last + 1: 105}, total)
+
+        pks = ProductAdmin(Product, AdminSite())._posted_variant_pks(request)
+
+        assert pks == [101, 102, 103, 104]  # строку last + 1 formset уже не создаст
+
+    def test_product_save_locks_the_owner_of_row_1000(self, monkeypatch):
+        variant = make_variant(promo_price=Decimal("800.00"))
+        parent = Product.objects.get(pk=make_variant().product_id)
+        calls: list[list[int]] = []
+        original = promo.lock_operation
+
+        def spy(**kwargs: Any) -> list[int]:
+            calls.append(list(kwargs["variant_pks"]))
+            return original(**kwargs)
+
+        monkeypatch.setattr(promo, "lock_operation", spy)
+
+        ProductAdmin(Product, AdminSite()).save_model(
+            self.posted({1000: variant.pk}, total=1001), parent, form=None, change=True
+        )
+
+        assert calls == [[variant.pk]]
+
+    def test_ids_are_read_the_way_the_real_formset_binds_rows(self):
+        """
+        R78: formset разбирает `id` через `to_python` (`int()`), а не по `isdigit()`.
+
+        `int()` принимает пробелы по краям, знак `+` и подчёркивания между цифрами, поэтому такие строки
+        привязываются к вариантам. Если предблокировка их пропустит, владелец варианта останется без неё.
+        """
+        parent = make_variant().product
+        bound_pks = [9_000_001, 9_000_002, 9_000_003, 9_000_030, 9_000_004]
+        for pk in bound_pks:
+            ProductVariant.objects.create(
+                pk=pk,
+                product=parent,
+                sku=f"PROMO-R78-{pk}",
+                onec_id=f"{parent.onec_id}#r78-{pk}",
+                retail_price=Decimal("1200.00"),
+            )
+        raw_ids = ["9000001", " 9000002", "+9000003", "9_000_03_0", "9000004 ", "abc", ""]
+        prefix = ProductAdmin.VARIANTS_FORMSET_PREFIX
+        data = {f"{prefix}-TOTAL_FORMS": str(len(raw_ids)), f"{prefix}-INITIAL_FORMS": str(len(raw_ids))}
+        data.update({f"{prefix}-{index}-id": raw for index, raw in enumerate(raw_ids)})
+        request = admin_request(data)
+        formset = variants_formset_class()(data=request.POST, instance=parent, prefix=prefix)
+        bound = [form.instance.pk for form in formset.forms if form.instance.pk]
+        assert bound == bound_pks  # строки с пробелами, знаком и подчёркиванием formset действительно привязывает
+
+        pks = ProductAdmin(Product, AdminSite())._posted_variant_pks(request)
+
+        assert pks == bound
+
+
+# --------------------------------------------------------------------------
+# Двенадцатый прогон ревью: R75 — владельцы перечитываются после ожидания блокировки
+# --------------------------------------------------------------------------
+
+
+class TestLockOperationRereadsOwnersAfterWaiting:
+    """
+    R75: вариант переносят другим соединением, пока `lock_operation` стоит на блокировке товара.
+
+    Если владельцев посчитать один раз, операция удержит только прежний товар (B), а новый (A) останется
+    без предблокировки: сохранение устаревшего инлайна встретится с пересчётом (A, затем B) во взаимоблокировке.
+    """
+
+    @pytest.mark.django_db(transaction=True)
+    def test_variant_moved_during_the_wait_is_locked_in_its_new_product(self):
+        from django.db import DatabaseError, connection
+
+        first, second = two_variants_of_ascending_products()
+        product_a, product_b = first.product_id, second.product_id
+        stale_inline = ProductVariant.objects.get(pk=second.pk)
+        request = product_admin_request(second.pk)
+        sessions = Sessions()
+        errors: list[BaseException] = []
+        mover_holding, release_mover = threading.Event(), threading.Event()
+        editor_locked, proceed = threading.Event(), threading.Event()
+
+        def bounded() -> None:
+            with connection.cursor() as cursor:
+                cursor.execute("SET lock_timeout = '12s'")
+
+        def move() -> None:
+            sessions.record("mover")
+            bounded()
+            with transaction.atomic():
+                promo.lock_variant(second.pk, extra_product_ids=[product_a])  # товары A и B
+                mover_holding.set()
+                assert release_mover.wait(timeout=10)
+                moved = ProductVariant.objects.get(pk=second.pk)
+                moved.product_id = product_a
+                moved.save(update_fields=["product"])
+
+        def edit() -> None:
+            sessions.record("editor")
+            bounded()
+            with transaction.atomic():
+                parent = Product.objects.get(pk=product_b)
+                parent.name += " (правка)"
+                # Здесь вариант ещё лежит в B, и `lock_operation` встаёт на блокировку B, которую держит перенос
+                ProductAdmin(Product, AdminSite()).save_model(request, parent, form=None, change=True)
+                editor_locked.set()
+                assert proceed.wait(timeout=10)
+                # Инлайн сохраняется устаревшим экземпляром: он возвращает вариант в товар B
+                stale_inline.is_active = False
+                stale_inline.save()
+
+        def recompute() -> None:
+            sessions.record("recompute")
+            bounded()
+            promo.sync_promo_flags(product_ids=[product_a, product_b])
+
+        mover = start_worker("mover", move, errors)
+        assert mover_holding.wait(timeout=10)
+        editor = start_worker("editor", edit, errors)
+        recalculation: threading.Thread | None = None
+        try:
+            assert sessions.blocked("editor", "mover")  # предблокировка ждёт товар B
+            release_mover.set()
+            assert editor_locked.wait(timeout=10)
+            # Вариант теперь в A: операция обязана держать и A, и B. NOWAIT не ждёт чужую блокировку
+            for held in (product_a, product_b):
+                with pytest.raises(DatabaseError), transaction.atomic():
+                    list(Product.objects.select_for_update(no_key=True, nowait=True).filter(pk=held))
+            recalculation = start_worker("recompute", recompute, errors)
+            assert sessions.blocked("recompute", "editor")  # пересчёт ждёт операцию целиком
+        finally:
+            release_mover.set()
+            proceed.set()
+            join_all(mover, editor, *([recalculation] if recalculation else []))
+
+        assert errors == []
+        saved = ProductVariant.objects.get(pk=second.pk)
+        assert (saved.product_id, saved.is_active) == (product_b, False)
+        assert Product.objects.get(pk=product_b).name.endswith("(правка)")
+        assert Product.objects.get(pk=product_a).is_promo is True  # первый вариант A активен
+        assert Product.objects.get(pk=product_b).is_promo is False  # единственный вариант B отключён
+
+
+# --------------------------------------------------------------------------
+# Двенадцатый прогон ревью: R76 — команда cleanup_root_categories удаляет несколько корней за раз
+# --------------------------------------------------------------------------
+
+
+class TestCleanupRootCategoriesLockOrder:
+    """
+    R76: команда удаляет якорную категорию и посторонние корни в одной транзакции.
+
+    Каждый `Category.delete()` берёт товары только своего поддерева, поэтому без общего набора товар B
+    (больший `pk`, в якорной) удерживается, а товар A (меньший `pk`, в следующем корне) берётся позже —
+    против пересчёта флагов (A, затем B) это взаимоблокировка.
+    """
+
+    @pytest.mark.django_db(transaction=True)
+    def test_anchor_then_other_root_and_ordered_recompute_do_not_deadlock(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        product_a, product_b = two_products_with_reversed_variant_order()
+        anchor = Category.objects.create(name="Якорь R76", slug="promo-anchor-r76")
+        other_root = Category.objects.create(name="Посторонний корень R76", slug="promo-other-root-r76")
+        Product.objects.filter(pk=product_b).update(category=anchor)  # больший pk: удаляется первым, с якорной
+        Product.objects.filter(pk=product_a).update(category=other_root)  # меньший pk: удаляется позже, с корнем
+
+        def run_command() -> None:
+            call_command("cleanup_root_categories", execute=True, root_name=anchor.name, stdout=StringIO())
+
+        errors = cascade_against_ordered_holder(run_command, product_a, product_b)
+
+        assert errors == []
+        assert not Product.objects.filter(pk__in=[product_a, product_b]).exists()
+        assert not Category.objects.filter(pk__in=[anchor.pk, other_root.pk]).exists()
+
+
+# --------------------------------------------------------------------------
+# Тринадцатый прогон ревью: R77 — каскад бренда и категории перечитывает товары после ожидания
+# --------------------------------------------------------------------------
+
+
+class TestCascadeRereadsProductsAfterWaiting:
+    """
+    R77: товар переносят в удаляемый бренд или поддерево, пока каскад стоит на блокировке другого товара.
+
+    Если набор товаров собрать один раз (`lock_products` вместо `lock_products_stable`), каскад удержит только
+    прежний товар (B), а перенесённый (A) возьмёт позже, в порядке Collector: против пересчёта (A, затем B)
+    это взаимоблокировка. Тест останавливает каскад сразу после предблокировки и требует, чтобы удержаны были
+    оба товара; затем пересчёт (A, затем B) встаёт на каскад и всё завершается без `40P01`.
+    """
+
+    @staticmethod
+    def parent_holding_only_product_b(kind: str, product_a: int) -> tuple[Any, Any]:
+        """
+        Удаляемый родитель, в котором лежит только товар B, и функция, которая переносит в него товар A.
+
+        Товар A стоит в стороннем бренде или категории. Для категории переезд идёт в дочернюю: в поддерево.
+        """
+        if kind == "brand":
+            brand = Brand.objects.get(slug="promo-brand")
+            other_brand = Brand.objects.create(name="Сторонний бренд R77", slug="promo-elsewhere-brand-r77")
+            Product.objects.filter(pk=product_a).update(brand=other_brand)
+            return brand, lambda: Product.objects.filter(pk=product_a).update(brand=brand)
+        category = Category.objects.get(slug="promo-category")
+        other_category = Category.objects.create(name="Сторонняя категория R77", slug="promo-elsewhere-category-r77")
+        child = Category.objects.create(name="Потомок R77", slug="promo-child-category-r77", parent=category)
+        Product.objects.filter(pk=product_a).update(category=other_category)
+        return category, lambda: Product.objects.filter(pk=product_a).update(category=child)
+
+    @pytest.mark.django_db(transaction=True)
+    @pytest.mark.parametrize("kind", ["brand", "category"])
+    @pytest.mark.parametrize("how", ["instance", "queryset"])
+    def test_product_moved_during_the_wait_is_locked_before_the_cascade(self, monkeypatch, kind, how):
+        from django.db import DatabaseError, connection
+
+        from apps.products import models as product_models
+
+        product_a, product_b = two_products_with_reversed_variant_order()
+        parent, relocate = self.parent_holding_only_product_b(kind, product_a)
+        model = type(parent)
+        sessions = Sessions()
+        errors: list[BaseException] = []
+        mover_holding, release_mover = threading.Event(), threading.Event()
+        prelocked, proceed = threading.Event(), threading.Event()
+
+        # Каскад останавливается сразу после предблокировки: до Collector, который сам берёт товары
+        lock_name = f"_lock_{kind}_products"
+        original = getattr(product_models, lock_name)
+
+        def pause_after_prelock(pks: list[int]) -> None:
+            original(pks)
+            prelocked.set()
+            assert proceed.wait(timeout=10)
+
+        monkeypatch.setattr(product_models, lock_name, pause_after_prelock)
+
+        def bounded() -> None:
+            with connection.cursor() as cursor:
+                cursor.execute("SET lock_timeout = '12s'")
+
+        def move() -> None:
+            sessions.record("mover")
+            bounded()
+            with transaction.atomic():
+                promo.lock_products([product_a, product_b])
+                mover_holding.set()
+                assert release_mover.wait(timeout=10)
+                relocate()
+
+        def cascade() -> None:
+            sessions.record("deleter")
+            bounded()
+            with transaction.atomic():
+                target = model.objects.get(pk=parent.pk) if how == "instance" else model.objects.filter(pk=parent.pk)
+                target.delete()
+
+        def recompute() -> None:
+            sessions.record("recompute")
+            bounded()
+            promo.sync_promo_flags(product_ids=[product_a, product_b])
+
+        mover = start_worker("mover", move, errors)
+        assert mover_holding.wait(timeout=10)
+        deleter = start_worker("deleter", cascade, errors)
+        recalculation: threading.Thread | None = None
+        try:
+            assert sessions.blocked("deleter", "mover")  # предблокировка ждёт товар B: в родителе он один
+            release_mover.set()
+            assert prelocked.wait(timeout=10)
+            # Товар A теперь в родителе: каскад обязан держать и A, и B. NOWAIT не ждёт чужую блокировку
+            for held in (product_a, product_b):
+                with pytest.raises(DatabaseError), transaction.atomic():
+                    list(Product.objects.select_for_update(no_key=True, nowait=True).filter(pk=held))
+            recalculation = start_worker("recompute", recompute, errors)
+            assert sessions.blocked("recompute", "deleter")  # пересчёт ждёт каскад целиком
+        finally:
+            release_mover.set()
+            proceed.set()
+            join_all(mover, deleter, *([recalculation] if recalculation else []))
+
+        assert errors == []
+        assert not Product.objects.filter(pk__in=[product_a, product_b]).exists()
+        assert not model.objects.filter(pk=parent.pk).exists()

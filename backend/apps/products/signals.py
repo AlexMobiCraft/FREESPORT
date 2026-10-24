@@ -171,16 +171,23 @@ def sync_promo_flag_on_variant_change(sender, instance, created, update_fields=N
     Сравнение идёт с состоянием строки до записи (`remember_stored_variant_state`), а не с
     экземпляром. Оба товара — прежний и новый — пересчитываются одним вызовом: они уже
     заблокированы в порядке `pk`, и встречные переносы (A→B и B→A) не ждут друг друга по кругу.
+
+    Акционная цена, которую этот же `save()` записывает вместе с активностью или товаром
+    (`update_fields=["is_active", "promo_price"]`), считается по новому значению: вариант без цены
+    в строке мог получить её этим сохранением, и тогда флаг тоже нужно пересчитать.
     """
     stored = instance.__dict__.pop("_promo_stored_state", None)
     if created or stored is None:
         return
-    if not _has_promo_price(stored.promo_price):
+
+    had_promo = _has_promo_price(stored.promo_price)
+    has_promo = _has_promo_price(instance.promo_price) if _saves_field(update_fields, "promo_price") else had_promo
+    if not (had_promo or has_promo):
         return
 
     is_active = instance.is_active if _saves_field(update_fields, "is_active") else stored.is_active
     product_id = instance.product_id if _saves_field(update_fields, "product", "product_id") else stored.product_id
-    if is_active == stored.is_active and product_id == stored.product_id:
+    if is_active == stored.is_active and product_id == stored.product_id and has_promo == had_promo:
         return
     promo.sync_promo_flags(product_ids={product_id, stored.product_id})
 

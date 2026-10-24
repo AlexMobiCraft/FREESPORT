@@ -79,3 +79,20 @@ export function formatPrice(price: number, currency: string = 'RUB'): string {
   });
   return formatter.format(price);
 }
+
+/**
+ * Форматирует цену, сохраняя копейки, если они есть
+ *
+ * Для пары «акционная и зачёркнутая цены»: после округления до рубля 800,49 и 800,40
+ * выглядели бы одинаково, хотя проверка «зачёркнутая выше акционной» их различает.
+ * Целые суммы остаются без копеек, как у `formatPrice`.
+ */
+export function formatExactPrice(price: number, currency: string = 'RUB'): string {
+  const formatter = new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: Number.isInteger(price) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+  return formatter.format(price);
+}

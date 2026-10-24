@@ -50,7 +50,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        from apps.products.models import Category, HomepageCategory, Product
+        from apps.products.models import Category, HomepageCategory, Product, _lock_category_products
 
         execute = options.get("execute", False)
         root_name = options.get("root_name") or getattr(settings, "ROOT_CATEGORY_NAME", "СПОРТ")
@@ -171,6 +171,12 @@ class Command(BaseCommand):
             # Шаг 3: Reparent дочерних якорной
             reparented = Category.objects.filter(parent=anchor).update(parent=None)
             self.stdout.write(self.style.SUCCESS(f"\n✅ Шаг 3: Reparented {reparented} категорий → parent=None"))
+
+            # Товары якорной и всех поддеревьев посторонних корней берём одним набором по возрастанию pk.
+            # Каждый Category.delete() ниже блокирует только свои товары: удерживая больший pk из якорной,
+            # он потом берёт меньший в следующем корне — против пересчёта флагов «Акция» (меньший, затем
+            # больший) это взаимоблокировка. У якорной потомков уже нет, поэтому берутся только её товары.
+            _lock_category_products([anchor.pk, *other_root_pks])
 
             # Шаг 4: Удалить якорную (уже без children)
             anchor_products_deleted = Product.objects.filter(category=anchor).count()

@@ -12,8 +12,10 @@ from django.contrib.admin import SimpleListFilter
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.admin.models import CHANGE, LogEntry
 from django.contrib.contenttypes.models import ContentType
-from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db import connection, transaction
 from django.db.models import Count, QuerySet
+from django.forms.formsets import DEFAULT_MAX_NUM
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
@@ -551,6 +553,40 @@ class ProductAdmin(admin.ModelAdmin):
         """Массовое действие: снять отметка премиум"""
         updated = queryset.update(is_premium=False)
         self.message_user(request, f"Снята отметка премиум: {updated} товаров")
+
+    # Префикс formset инлайна вариантов в POST: `related_name` внешнего ключа `ProductVariant.product`
+    VARIANTS_FORMSET_PREFIX = "variants"
+    # Столько форм создаёт formset инлайна: у него нет `max_num`, и Django берёт `absolute_max`
+    # = `DEFAULT_MAX_NUM` + `DEFAULT_MAX_NUM` (тест сверяет константу с настоящим formset)
+    VARIANTS_FORMSET_MAX_ROWS = 2 * DEFAULT_MAX_NUM
+
+    def save_model(self, request: HttpRequest, obj: Product, form: Any, change: bool) -> None:
+        # Товар сохраняется первым, варианты инлайна — следом (`save_formset`): составная операция.
+        # Её товары — этот и текущие владельцы строк инлайна — занимаются сразу по возрастанию `pk`.
+        # Иначе вариант, перенесённый в товар с меньшим `pk`, берёт его уже после того, как удержан
+        # больший, и встречается с пересчётом флагов «Акция» (A, затем B) во взаимоблокировке.
+        if change and connection.in_atomic_block:
+            promo.lock_operation(product_ids=[obj.pk], variant_pks=self._posted_variant_pks(request))
+        super().save_model(request, obj, form, change)
+
+    def _posted_variant_pks(self, request: HttpRequest) -> list[int]:
+        """`pk` вариантов, которые инлайн сохранит вместе с товаром: скрытые `id` строк formset в POST."""
+        prefix = self.VARIANTS_FORMSET_PREFIX
+        try:
+            rows = int(request.POST.get(f"{prefix}-TOTAL_FORMS", "0"))
+        except ValueError:
+            return []
+        # Строку к варианту привязывает `to_python` первичного ключа (`BaseModelFormSet._construct_form`):
+        # им же читаем `id`, иначе " 5", "+5" и "5_0" formset примет, а предблокировка пропустит
+        pk_field = ProductVariant._meta.pk
+        assert pk_field is not None
+        pks: list[int] = []
+        for index in range(min(max(rows, 0), self.VARIANTS_FORMSET_MAX_ROWS)):
+            try:
+                pks.append(pk_field.to_python(request.POST.get(f"{prefix}-{index}-id", "")))
+            except ValidationError:
+                continue
+        return pks
 
     @admin.display(description="РРЦ", ordering="variants__rrp")
     def rrp_display(self, obj: Product) -> str | None:

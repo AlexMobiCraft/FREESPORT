@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
 import { ProductCard } from '../ProductCard';
 import type { Product } from '@/types/api';
@@ -379,6 +379,42 @@ describe('ProductCard', () => {
       const regularPrice = screen.getByTestId('regular-price');
       expect(regularPrice).toHaveTextContent('1 000 ₽');
       expect(regularPrice).toHaveClass('line-through');
+    });
+
+    it.each(layouts)(
+      'подписывает назначение обеих цен для скринридера в раскладке %s',
+      layout => {
+        render(<ProductCard product={promoProduct} layout={layout} userRole="wholesale_level2" />);
+
+        // Зачёркивание и жирность — только CSS: при чтении по порядку сумм без подписей
+        // не понять, какую платит покупатель
+        const promoLabel = within(screen.getByTestId('promo-price')).getByText(/Акционная цена/);
+        expect(promoLabel).toHaveClass('sr-only');
+        const regularLabel = within(screen.getByTestId('regular-price')).getByText(
+          /Цена без акции/
+        );
+        expect(regularLabel).toHaveClass('sr-only');
+      }
+    );
+
+    it.each(layouts)(
+      'без зачёркнутой цены подписана только акционная в раскладке %s',
+      layout => {
+        const product = { ...promoProduct, regular_price: '800.00' };
+        render(<ProductCard product={product} layout={layout} />);
+
+        expect(
+          within(screen.getByTestId('promo-price')).getByText(/Акционная цена/)
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/Цена без акции/)).not.toBeInTheDocument();
+      }
+    );
+
+    it.each(layouts)('обычная цена без акции остаётся без подписей в раскладке %s', layout => {
+      render(<ProductCard product={mockProduct} layout={layout} />);
+
+      expect(screen.queryByText(/Акционная цена/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Цена без акции/)).not.toBeInTheDocument();
     });
 
     it.each(layouts)('hides struck price when regular equals promo in %s layout', layout => {
