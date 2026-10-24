@@ -143,17 +143,22 @@
   font-size: 1.05em;
 }
 
-.rich-editor__prose ul,
-.rich-editor__prose ol {
+/*
+ * Внутри fieldset.aligned админка сбрасывает маркеры (`form .aligned ul li`) и
+ * сдвигает список на 160px (`form .aligned ul`), поэтому у правил списков
+ * специфичность выше за счёт `.rich-editor`.
+ */
+.rich-editor .rich-editor__prose ul,
+.rich-editor .rich-editor__prose ol {
   margin: 0;
   padding-left: 1.6em;
 }
 
-.rich-editor__prose ul li {
+.rich-editor .rich-editor__prose ul li {
   list-style: disc;
 }
 
-.rich-editor__prose ol li {
+.rich-editor .rich-editor__prose ol li {
   list-style: decimal;
 }
 
