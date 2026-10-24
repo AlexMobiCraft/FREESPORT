@@ -19,7 +19,7 @@ export interface Mounted extends RichEditorController {
 }
 
 /** Форма админки: textarea с data-атрибутами виджета и CSRF-токен. */
-export function mount(value: string, upload?: UploadFn): Mounted {
+export function mount(value: string, upload?: UploadFn, columnWidth?: number): Mounted {
   const form = document.createElement('form');
   const csrf = document.createElement('input');
   csrf.type = 'hidden';
@@ -30,6 +30,9 @@ export function mount(value: string, upload?: UploadFn): Mounted {
   textarea.required = true;
   textarea.dataset.richEditor = '';
   textarea.dataset.uploadUrl = UPLOAD_URL;
+  if (columnWidth !== undefined) {
+    textarea.dataset.columnWidth = String(columnWidth);
+  }
   textarea.value = value;
   form.append(csrf, textarea);
   document.body.append(form);

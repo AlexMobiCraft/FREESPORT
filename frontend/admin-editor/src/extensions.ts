@@ -18,8 +18,10 @@ import {
   isAllowedHref,
   isAllowedImageSrc,
   isSitePath,
+  parseImageWidth,
 } from './constants';
 import type { ImageAlignment } from './constants';
+import { ImageView } from './image-view';
 
 const ALIGN_CLASS = /(?:^|\s)align-(left|center|right)(?:\s|$)/;
 
@@ -28,7 +30,10 @@ function parseAlignment(element: HTMLElement): ImageAlignment | null {
   return match ? (match[1] as ImageAlignment) : null;
 }
 
-/** Картинка: только `src`, `alt` и класс выравнивания; `title`, размеры и прочие классы отбрасываются. */
+/**
+ * Картинка: `src`, `alt`, класс выравнивания и ширина в пикселях (`width`);
+ * `title`, `height` и прочие классы отбрасываются — высота на сайте `auto`.
+ */
 export const ContentImage = Image.extend({
   addAttributes() {
     return {
@@ -42,7 +47,18 @@ export const ContentImage = Image.extend({
             ? { class: `align-${attributes.align}` }
             : {},
       },
+      width: {
+        default: null,
+        parseHTML: (element: HTMLElement) => parseImageWidth(element.getAttribute('width')),
+        renderHTML: (attributes: { width?: number | null }) =>
+          attributes.width ? { width: String(attributes.width) } : {},
+      },
     };
+  },
+
+  // Рамка с ручкой размера — только в редакторе; в HTML уходит `renderHTML` ниже.
+  addNodeView() {
+    return ({ node, getPos, editor }) => new ImageView(node, getPos, editor);
   },
 
   parseHTML() {

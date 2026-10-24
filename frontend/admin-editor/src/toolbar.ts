@@ -4,19 +4,28 @@
 
 import type { Editor } from '@tiptap/core';
 
-import { HTML_MODE_HINT, IMAGE_ALIGNMENTS } from './constants';
+import { HTML_MODE_HINT, IMAGE_ALIGNMENTS, IMAGE_SIZE_PRESETS } from './constants';
 import type { ImageAlignment } from './constants';
 
 export interface ToolbarActions {
   editLink(): void;
   pickImage(): void;
   alignImage(align: ImageAlignment): void;
+  /** Ширина выбранной картинки долей колонки текста; `null` — исходный размер. */
+  resizeImage(fraction: number | null): void;
   toggleHtmlMode(): void;
 }
 
 export interface ToolbarState {
   htmlMode: boolean;
   uploading: boolean;
+  /** Ширина колонки текста на сайте, px: от неё считаются доли ширины картинки. */
+  columnWidth: number;
+}
+
+/** Ширина картинки в пикселях для доли колонки; общая для кнопок и их состояния. */
+export function presetWidth(fraction: number, columnWidth: number): number {
+  return Math.round(columnWidth * fraction);
 }
 
 interface ButtonSpec {
@@ -203,6 +212,27 @@ const GROUPS: ButtonSpec[][] = [
         isEnabled: editor => editor.isActive('image'),
       })
     ),
+  ],
+  [
+    ...IMAGE_SIZE_PRESETS.map(
+      (fraction): ButtonSpec => ({
+        command: `size-${Math.round(fraction * 100)}`,
+        label: `${Math.round(fraction * 100)}%`,
+        title: `Ширина картинки — ${Math.round(fraction * 100)}% колонки текста. Размер можно менять и за уголок рамки`,
+        run: (_editor, actions) => actions.resizeImage(fraction),
+        isActive: (editor, state) =>
+          editor.isActive('image', { width: presetWidth(fraction, state.columnWidth) }),
+        isEnabled: editor => editor.isActive('image'),
+      })
+    ),
+    {
+      command: 'size-auto',
+      label: 'Авто',
+      title: 'Исходный размер картинки, но не шире колонки текста',
+      run: (_editor, actions) => actions.resizeImage(null),
+      isActive: editor => editor.isActive('image') && editor.getAttributes('image').width == null,
+      isEnabled: editor => editor.isActive('image'),
+    },
   ],
   [
     {
